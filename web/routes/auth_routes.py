@@ -44,10 +44,16 @@ def register_auth_routes(app):
 
             # 特殊处理：如果用户名是 "test"，允许空密码或任意密码登录（测试模式）
             if username.lower() == 'test':
+                # 从数据库获取 test 用户的 ID
+                from web.models.user_model import user_model
+                user = user_model.get_user_by_username(username)
+                user_id = user.get('id') if user else None
+                
                 session['logged_in'] = True
                 session['username'] = username
+                session['user_id'] = user_id
                 session.permanent = True
-                logger.info(f"✅ 测试用户登录成功: {username} (密码: {'空' if not password else '***'})")
+                logger.info(f"✅ 测试用户登录成功: {username} (ID: {user_id})")
 
                 if request.is_json:
                     return jsonify({'success': True, 'message': '测试用户登录成功', 'redirect': '/landing'})
@@ -236,8 +242,15 @@ def register_page_routes(app):
     @app.route('/phase-one-setup', methods=['GET'])
     @login_required
     def phase_one_setup():
-        """第一阶段设定生成页面"""
-        return render_template('phase-one-setup.html')
+        """第一阶段设定生成页面 - 默认 V2 UI"""
+        # 检查是否请求 V1 版本（V2 为默认）
+        ui_version = request.args.get('ui', '').lower()
+        if ui_version == 'v1':
+            logger.info("📄 Loading phase-one-setup.html (V1 UI)")
+            return render_template('phase-one-setup.html')
+        
+        logger.info("📄 Loading phase-one-setup-v2.html (V2 UI - 默认)")
+        return render_template('pages/v2/phase-one-setup-v2.html')
 
     @app.route('/phase-one-setup-new', methods=['GET'])
     @login_required
@@ -254,8 +267,15 @@ def register_page_routes(app):
     @app.route('/project-management', methods=['GET'])
     @login_required
     def project_management():
-        """项目管理页面"""
-        return render_template('project-management.html')
+        """项目管理页面 - 默认 V2 UI"""
+        # 检查是否请求 V1 版本（V2 为默认）
+        ui_version = request.args.get('ui', '').lower()
+        if ui_version == 'v1':
+            logger.info("📄 Loading project-management.html (V1 UI)")
+            return render_template('project-management.html')
+        
+        logger.info("📄 Loading project-management-v2.html (V2 UI - 默认)")
+        return render_template('pages/v2/project-management-v2.html')
     
     @app.route('/storyline', methods=['GET'])
     @login_required

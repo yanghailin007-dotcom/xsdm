@@ -1,0 +1,1107 @@
+{#
+    项目管理页面 (V2)
+    保留所有原有功能，仅更新为 V2 设计系统
+#}
+{% extends "layouts/base-v2.html" %}
+
+{% block title %}项目管理 - 两阶段小说生成{% endblock %}
+
+{% block extra_css %}
+    <link rel="stylesheet" href="/static/css/confirm-dialog.css?v=2">
+    <style>
+        /* V2 页面特定样式 */
+        .v2-project-container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 80px 24px 40px;
+        }
+        
+        /* 页面头部 */
+        .v2-page-header {
+            text-align: center;
+            padding: 40px 0 32px;
+        }
+        
+        .v2-page-header__badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 6px 14px;
+            background: var(--v2-bg-tertiary);
+            border: 1px solid var(--v2-border-default);
+            border-radius: 20px;
+            font-size: 13px;
+            color: var(--v2-text-secondary);
+            margin-bottom: 16px;
+        }
+        
+        .v2-page-header__title {
+            font-size: 32px;
+            font-weight: 700;
+            background: linear-gradient(135deg, #fafafa 0%, #a78bfa 50%, #6366f1 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            margin-bottom: 8px;
+        }
+        
+        .v2-page-header__subtitle {
+            font-size: 16px;
+            color: var(--v2-text-secondary);
+        }
+        
+        /* 统计概览 */
+        .v2-stats-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 16px;
+            margin-bottom: 32px;
+        }
+        
+        @media (max-width: 1024px) {
+            .v2-stats-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
+        }
+        
+        @media (max-width: 640px) {
+            .v2-stats-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+        
+        .v2-stat-card {
+            background: var(--v2-bg-secondary);
+            border: 1px solid var(--v2-border-subtle);
+            border-radius: 16px;
+            padding: 24px;
+            text-align: center;
+            transition: all 0.2s ease;
+        }
+        
+        .v2-stat-card:hover {
+            border-color: var(--v2-border-hover);
+            transform: translateY(-2px);
+        }
+        
+        .v2-stat-card__icon {
+            width: 48px;
+            height: 48px;
+            background: linear-gradient(135deg, rgba(99, 102, 241, 0.15), rgba(139, 92, 246, 0.05));
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 24px;
+            margin: 0 auto 12px;
+        }
+        
+        .v2-stat-card__value {
+            font-size: 32px;
+            font-weight: 700;
+            color: var(--v2-text-primary);
+            margin-bottom: 4px;
+        }
+        
+        .v2-stat-card__label {
+            font-size: 14px;
+            color: var(--v2-text-secondary);
+        }
+        
+        /* 筛选和操作栏 */
+        .v2-filter-bar {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 24px;
+            padding: 16px;
+            background: var(--v2-bg-secondary);
+            border: 1px solid var(--v2-border-subtle);
+            border-radius: 12px;
+            flex-wrap: wrap;
+        }
+        
+        .v2-filter-controls {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            flex: 1;
+            flex-wrap: wrap;
+        }
+        
+        .v2-filter-select {
+            padding: 10px 16px;
+            background: var(--v2-bg-tertiary);
+            border: 1px solid var(--v2-border-default);
+            border-radius: 8px;
+            color: var(--v2-text-primary);
+            font-size: 14px;
+            cursor: pointer;
+            transition: all 0.2s;
+            min-width: 140px;
+        }
+        
+        .v2-filter-select:focus {
+            outline: none;
+            border-color: var(--v2-primary-500);
+        }
+        
+        .v2-filter-input {
+            flex: 1;
+            min-width: 200px;
+            max-width: 300px;
+            padding: 10px 16px;
+            background: var(--v2-bg-tertiary);
+            border: 1px solid var(--v2-border-default);
+            border-radius: 8px;
+            color: var(--v2-text-primary);
+            font-size: 14px;
+        }
+        
+        .v2-filter-input::placeholder {
+            color: var(--v2-text-muted);
+        }
+        
+        .v2-filter-input:focus {
+            outline: none;
+            border-color: var(--v2-primary-500);
+        }
+        
+        .v2-action-buttons {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        /* 项目列表 */
+        .v2-projects-list {
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+        }
+        
+        .v2-project-card {
+            background: var(--v2-bg-secondary);
+            border: 1px solid var(--v2-border-subtle);
+            border-radius: 16px;
+            padding: 24px;
+            transition: all 0.2s ease;
+        }
+        
+        .v2-project-card:hover {
+            border-color: var(--v2-border-hover);
+            transform: translateY(-2px);
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
+        }
+        
+        .v2-project-card__header {
+            display: flex;
+            justify-content: space-between;
+            align-items: start;
+            margin-bottom: 16px;
+        }
+        
+        .v2-project-card__title {
+            font-size: 20px;
+            font-weight: 600;
+            color: var(--v2-text-primary);
+            margin-bottom: 4px;
+        }
+        
+        .v2-project-card__meta {
+            font-size: 13px;
+            color: var(--v2-text-secondary);
+        }
+        
+        .v2-project-card__status {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 6px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 500;
+        }
+        
+        .v2-status--completed {
+            background: rgba(34, 197, 94, 0.1);
+            color: #22c55e;
+        }
+        
+        .v2-status--progress {
+            background: rgba(59, 130, 246, 0.1);
+            color: #3b82f6;
+        }
+        
+        .v2-status--phase1 {
+            background: rgba(245, 158, 11, 0.1);
+            color: #f59e0b;
+        }
+        
+        .v2-status--failed {
+            background: rgba(239, 68, 68, 0.1);
+            color: #ef4444;
+        }
+        
+        .v2-project-card__progress {
+            margin-bottom: 16px;
+        }
+        
+        .v2-progress-bar {
+            height: 8px;
+            background: var(--v2-bg-tertiary);
+            border-radius: 4px;
+            overflow: hidden;
+            margin-bottom: 8px;
+        }
+        
+        .v2-progress-bar__fill {
+            height: 100%;
+            background: linear-gradient(90deg, var(--v2-primary-500), var(--v2-accent-purple));
+            border-radius: 4px;
+            transition: width 0.3s ease;
+        }
+        
+        .v2-progress-text {
+            font-size: 13px;
+            color: var(--v2-text-secondary);
+        }
+        
+        .v2-project-card__actions {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+        
+        /* 空状态 */
+        .v2-empty-state {
+            text-align: center;
+            padding: 80px 24px;
+        }
+        
+        .v2-empty-state__icon {
+            font-size: 64px;
+            margin-bottom: 16px;
+            opacity: 0.5;
+        }
+        
+        .v2-empty-state__title {
+            font-size: 20px;
+            font-weight: 600;
+            color: var(--v2-text-primary);
+            margin-bottom: 8px;
+        }
+        
+        .v2-empty-state__desc {
+            font-size: 14px;
+            color: var(--v2-text-secondary);
+            margin-bottom: 24px;
+        }
+        
+        /* 加载状态 */
+        .v2-loading {
+            text-align: center;
+            padding: 60px 24px;
+        }
+        
+        .v2-spinner {
+            width: 40px;
+            height: 40px;
+            border: 3px solid var(--v2-border-default);
+            border-top-color: var(--v2-primary-500);
+            border-radius: 50%;
+            animation: v2-spin 1s linear infinite;
+            margin: 0 auto 16px;
+        }
+        
+        @keyframes v2-spin {
+            to { transform: rotate(360deg); }
+        }
+        
+        /* 状态消息 */
+        .v2-status-message {
+            padding: 12px 16px;
+            border-radius: 8px;
+            margin-bottom: 16px;
+            font-size: 14px;
+        }
+        
+        .v2-status-message--success {
+            background: rgba(34, 197, 94, 0.1);
+            color: #22c55e;
+            border: 1px solid rgba(34, 197, 94, 0.2);
+        }
+        
+        .v2-status-message--error {
+            background: rgba(239, 68, 68, 0.1);
+            color: #ef4444;
+            border: 1px solid rgba(239, 68, 68, 0.2);
+        }
+        
+        .v2-status-message--info {
+            background: rgba(59, 130, 246, 0.1);
+            color: #3b82f6;
+            border: 1px solid rgba(59, 130, 246, 0.2);
+        }
+    </style>
+{% endblock %}
+
+{% block content %}
+<div class="v2-project-container">
+    <!-- 页面头部 -->
+    <div class="v2-page-header">
+        <div class="v2-page-header__badge">
+            <span>🗂️</span>
+            <span>项目管理中心</span>
+        </div>
+        <h1 class="v2-page-header__title">管理您的小说项目</h1>
+        <p class="v2-page-header__subtitle">统一管理两阶段生成的小说项目，查看进度和进行后续操作</p>
+    </div>
+
+    <!-- 统计概览 -->
+    <div class="v2-stats-grid" id="stats-overview">
+        <div class="v2-stat-card">
+            <div class="v2-stat-card__icon">📚</div>
+            <div class="v2-stat-card__value" id="total-projects">-</div>
+            <div class="v2-stat-card__label">总项目数</div>
+        </div>
+        <div class="v2-stat-card">
+            <div class="v2-stat-card__icon">✅</div>
+            <div class="v2-stat-card__value" id="completed-projects">-</div>
+            <div class="v2-stat-card__label">已完成</div>
+        </div>
+        <div class="v2-stat-card">
+            <div class="v2-stat-card__icon">🔄</div>
+            <div class="v2-stat-card__value" id="active-projects">-</div>
+            <div class="v2-stat-card__label">进行中</div>
+        </div>
+        <div class="v2-stat-card">
+            <div class="v2-stat-card__icon">📝</div>
+            <div class="v2-stat-card__value" id="total-chapters">-</div>
+            <div class="v2-stat-card__label">总章节数</div>
+        </div>
+    </div>
+
+    <!-- 筛选和操作栏 -->
+    <div class="v2-filter-bar">
+        <div class="v2-filter-controls">
+            <select class="v2-filter-select" id="status-filter" onchange="filterProjects()">
+                <option value="">所有状态</option>
+                <option value="phase-one-only">仅第一阶段完成</option>
+                <option value="phase-two-in-progress">第二阶段进行中</option>
+                <option value="completed">已完成</option>
+                <option value="failed">失败</option>
+            </select>
+            <select class="v2-filter-select" id="phase-filter" onchange="filterProjectsByPhase()">
+                <option value="all">所有阶段</option>
+                <option value="phase_one_completed">第一阶段完成</option>
+                <option value="phase_two_in_progress">第二阶段进行中</option>
+                <option value="designing">设计阶段</option>
+                <option value="completed">全部完成</option>
+            </select>
+            <select class="v2-filter-select" id="sort-filter" onchange="filterProjects()">
+                <option value="last_updated">最近更新</option>
+                <option value="created_date">创建时间</option>
+                <option value="title">标题排序</option>
+                <option value="progress">进度排序</option>
+            </select>
+            <input type="text" class="v2-filter-input" id="search-filter" placeholder="搜索项目..." oninput="filterProjects()">
+        </div>
+        <div class="v2-action-buttons">
+            <button class="v2-btn v2-btn--secondary" onclick="refreshProjects()">
+                <span>🔄</span>
+                <span>刷新</span>
+            </button>
+            <button class="v2-btn v2-btn--primary" onclick="location.href='/phase-one-setup'">
+                <span>➕</span>
+                <span>新建项目</span>
+            </button>
+        </div>
+    </div>
+
+    <!-- 状态消息 -->
+    <div id="status-message" style="display: none;"></div>
+
+    <!-- 项目列表 -->
+    <div id="projects-container">
+        <div class="v2-loading">
+            <div class="v2-spinner"></div>
+            <p style="color: var(--v2-text-secondary);">加载项目中...</p>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+    <script src="/static/js/confirm-dialog.js"></script>
+    <script>
+        // ==================== 项目数据 ====================
+        let projectsData = [];
+        let filteredProjects = [];
+
+        // 页面加载完成后执行
+        document.addEventListener('DOMContentLoaded', function() {
+            checkLoginStatus();
+            loadProjects();
+        });
+
+        // 检查登录状态
+        async function checkLoginStatus() {
+            try {
+                const response = await fetch('/api/health');
+                if (!response.ok) {
+                    showStatusMessage('⚠️ 请先登录后再使用项目管理功能', 'error');
+                }
+            } catch (error) {
+                showStatusMessage('⚠️ 请先登录后再使用项目管理功能', 'error');
+            }
+        }
+
+        // ==================== 项目加载功能 ====================
+        async function loadProjects() {
+            try {
+                showStatusMessage('🔄 正在加载项目列表...', 'info');
+                
+                const response = await fetch('/api/projects/with-phase-status');
+                
+                if (response.status === 401) {
+                    showStatusMessage('请先登录才能加载项目', 'error');
+                    return;
+                }
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                }
+
+                const result = await response.json();
+                console.log('📋 [DEBUG] API返回结果:', result);
+                
+                // 处理新的响应格式
+                if (result.projects && Array.isArray(result.projects)) {
+                    projectsData = result.projects;
+                } else if (Array.isArray(result)) {
+                    // 兼容旧格式
+                    projectsData = result;
+                } else {
+                    console.warn('⚠️ 未知的API响应格式:', result);
+                    projectsData = [];
+                }
+                
+                filteredProjects = [...projectsData];
+                console.log(`📋 [DEBUG] 处理后项目数据: ${projectsData.length} 个项目`);
+                
+                updateStatsOverview();
+                displayProjects(projectsData);
+                showStatusMessage(`✅ 成功加载 ${projectsData.length} 个项目`, 'success');
+            } catch (error) {
+                console.error('❌ 加载项目失败:', error);
+                showStatusMessage(`❌ 加载项目失败: ${error.message}`, 'error');
+            }
+        }
+
+        // ==================== 项目显示功能 ====================
+        function displayProjects(projects) {
+            const container = document.getElementById('projects-container');
+            
+            if (projects.length === 0) {
+                container.innerHTML = `
+                    <div class="v2-empty-state">
+                        <div class="v2-empty-state__icon">📂</div>
+                        <h2 class="v2-empty-state__title">暂无项目</h2>
+                        <p class="v2-empty-state__desc">您还没有创建任何项目，开始您的第一个两阶段小说项目吧！</p>
+                        <button class="v2-btn v2-btn--primary" onclick="location.href='/phase-one-setup'">
+                            🎨 创建第一个项目
+                        </button>
+                    </div>
+                `;
+                return;
+            }
+
+            const projectsList = document.createElement('div');
+            projectsList.className = 'v2-projects-list';
+
+            projects.forEach(project => {
+                const projectCard = createProjectCard(project);
+                projectsList.appendChild(projectCard);
+            });
+
+            container.innerHTML = '';
+            container.appendChild(projectsList);
+        }
+
+        function createProjectCard(project) {
+            const card = document.createElement('div');
+            card.className = 'v2-project-card';
+            
+            const statusInfo = getStatusInfo(project);
+            const progressPercent = calculateProgress(project);
+            
+            card.innerHTML = `
+                <div class="v2-project-card__header">
+                    <div>
+                        <h3 class="v2-project-card__title">${escapeJs(project.title)}</h3>
+                        <div class="v2-project-card__meta">
+                            📅 创建: ${formatDate(project.created_at)} · 🔄 更新: ${formatDate(project.last_updated)}
+                        </div>
+                    </div>
+                    <span class="v2-project-card__status v2-status--${statusInfo.class}">
+                        ${statusInfo.icon} ${statusInfo.text}
+                    </span>
+                </div>
+                
+                <div class="v2-project-card__progress">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                        <span style="font-size: 13px; color: var(--v2-text-secondary);">生成进度</span>
+                        <span style="font-size: 13px; font-weight: 600; color: var(--v2-text-primary);">${progressPercent}%</span>
+                    </div>
+                    <div class="v2-progress-bar">
+                        <div class="v2-progress-bar__fill" style="width: ${progressPercent}%"></div>
+                    </div>
+                    <div class="v2-progress-text">
+                        ${project.completed_chapters || 0} / ${project.total_chapters || 0} 章节
+                    </div>
+                </div>
+                
+                <div class="v2-project-card__actions">
+                    ${createActionButtons(project)}
+                </div>
+            `;
+            
+            return card;
+        }
+
+        function getStatusInfo(project) {
+            if (project.status === 'completed') {
+                return { class: 'completed', icon: '✅', text: '已完成' };
+            } else if (project.phase_two && project.phase_two.status === 'generating') {
+                return { class: 'progress', icon: '🔄', text: '第二阶段进行中' };
+            } else if (project.phase_one && project.phase_one.status === 'completed') {
+                return { class: 'phase1', icon: '✨', text: '第一阶段完成' };
+            } else if (project.status === 'failed') {
+                return { class: 'failed', icon: '❌', text: '失败' };
+            }
+            return { class: 'progress', icon: '⏳', text: '设计阶段' };
+        }
+
+        function calculateProgress(project) {
+            const total = project.total_chapters || 0;
+            const completed = project.completed_chapters || 0;
+            return total > 0 ? Math.round((completed / total) * 100) : 0;
+        }
+
+        function createActionButtons(project) {
+            let buttons = '';
+            
+            if (project.phase_one && project.phase_one.status === 'completed') {
+                if (project.phase_two && project.phase_two.status === 'completed') {
+                    buttons = `
+                        <button class="v2-btn v2-btn--primary" onclick="viewProject('${escapeJs(project.title)}')">📖 查看内容</button>
+                        <button class="v2-btn v2-btn--secondary" onclick="exportProject('${escapeJs(project.title)}')">📤 导出</button>
+                    `;
+                } else {
+                    buttons = `
+                        <button class="v2-btn v2-btn--primary" onclick="continueToPhaseTwo('${escapeJs(project.title)}')">📝 继续生成</button>
+                        <button class="v2-btn v2-btn--secondary" onclick="viewPhaseOneResult('${escapeJs(project.title)}')">👁️ 查看设定</button>
+                        <button class="v2-btn v2-btn--secondary" onclick="viewQualityAssessment('${escapeJs(project.title)}')">🎯 质量评估</button>
+                        <button class="v2-btn v2-btn--secondary" onclick="goToVideoGeneration('${escapeJs(project.title)}')">🎬 视频生成</button>
+                        <button class="v2-btn v2-btn--secondary" onclick="viewProjectViewer('${escapeJs(project.title)}')">📊 可视化</button>
+                    `;
+                }
+            } else {
+                buttons = `
+                    <button class="v2-btn v2-btn--primary" onclick="continuePhaseOne('${escapeJs(project.title)}')">⚙️ 继续设计</button>
+                `;
+            }
+            
+            buttons += `<button class="v2-btn v2-btn--danger" onclick="deleteProject('${escapeJs(project.title)}')">🗑️ 删除</button>`;
+            
+            return buttons;
+        }
+
+        // ==================== 统计功能 ====================
+        function updateStatsOverview() {
+            const totalProjects = projectsData.length;
+            const completedProjects = projectsData.filter(p => p.status === 'completed').length;
+            const activeProjects = projectsData.filter(p => 
+                (p.phase_two && p.phase_two.status === 'generating') ||
+                (p.phase_one && p.phase_one.status === 'generating')
+            ).length;
+            const totalChapters = projectsData.reduce((sum, p) => sum + (p.completed_chapters || 0), 0);
+
+            document.getElementById('total-projects').textContent = totalProjects;
+            document.getElementById('completed-projects').textContent = completedProjects;
+            document.getElementById('active-projects').textContent = activeProjects;
+            document.getElementById('total-chapters').textContent = totalChapters.toLocaleString();
+        }
+
+        // ==================== 筛选功能 ====================
+        function filterProjects() {
+            const statusFilter = document.getElementById('status-filter').value;
+            const sortFilter = document.getElementById('sort-filter').value;
+            const searchFilter = document.getElementById('search-filter').value.toLowerCase();
+            const phaseFilter = document.getElementById('phase-filter').value;
+
+            console.log(`🔍 [DEBUG] 开始筛选项目 - 状态: ${statusFilter}, 阶段: ${phaseFilter}, 搜索: ${searchFilter}`);
+
+            // 应用状态和阶段筛选
+            filteredProjects = projectsData.filter(project => {
+                let statusMatch = true;
+                let phaseMatch = true;
+                
+                // 状态筛选
+                if (statusFilter) {
+                    switch (statusFilter) {
+                        case 'phase-one-only':
+                            statusMatch = project.phase_one && project.phase_one.status === 'completed' &&
+                                         (!project.phase_two || project.phase_two.status === 'not_started');
+                            break;
+                        case 'phase-two-in-progress':
+                            statusMatch = project.phase_two && project.phase_two.status === 'generating';
+                            break;
+                        case 'completed':
+                            statusMatch = project.status === 'completed';
+                            break;
+                        case 'failed':
+                            statusMatch = project.status === 'failed';
+                            break;
+                        default:
+                            statusMatch = true;
+                    }
+                }
+                
+                // 阶段筛选
+                if (phaseFilter && phaseFilter !== 'all') {
+                    switch (phaseFilter) {
+                        case 'phase_one_completed':
+                            phaseMatch = project.phase_one && project.phase_one.status === 'completed' &&
+                                        (!project.phase_two || project.phase_two.status === 'not_started');
+                            break;
+                        case 'phase_two_in_progress':
+                            phaseMatch = project.phase_two && project.phase_two.status === 'generating';
+                            break;
+                        case 'designing':
+                            phaseMatch = project.status === 'designing' ||
+                                        (project.phase_one && project.phase_one.status === 'pending');
+                            break;
+                        case 'completed':
+                            phaseMatch = project.status === 'completed';
+                            break;
+                        default:
+                            phaseMatch = true;
+                    }
+                }
+                
+                return statusMatch && phaseMatch;
+            });
+
+            // 应用搜索筛选
+            if (searchFilter) {
+                filteredProjects = filteredProjects.filter(project =>
+                    project.title.toLowerCase().includes(searchFilter) ||
+                    (project.description || '').toLowerCase().includes(searchFilter) ||
+                    (project.story_synopsis || '').toLowerCase().includes(searchFilter)
+                );
+            }
+
+            // 应用排序
+            filteredProjects.sort((a, b) => {
+                switch (sortFilter) {
+                    case 'created_date':
+                        return new Date(b.created_at) - new Date(a.created_at);
+                    case 'title':
+                        return a.title.localeCompare(b.title);
+                    case 'progress':
+                        const aProgress = a.total_chapters > 0 ? (a.completed_chapters / a.total_chapters) : 0;
+                        const bProgress = b.total_chapters > 0 ? (b.completed_chapters / b.total_chapters) : 0;
+                        return bProgress - aProgress;
+                    case 'last_updated':
+                    default:
+                        return new Date(b.last_updated) - new Date(a.last_updated);
+                }
+            });
+
+            console.log(`📋 [DEBUG] 筛选后项目数量: ${filteredProjects.length}`);
+            displayProjects(filteredProjects);
+        }
+
+        // ==================== 项目操作功能 ====================
+        async function continueToPhaseTwo(projectTitle) {
+            try {
+                showStatusMessage('🔄 正在跳转到第二阶段...', 'info');
+                
+                const response = await fetch(`/api/phase-one/continue-to-phase-two/${encodeURIComponent(projectTitle)}`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        total_chapters: 50,
+                        chapters_per_batch: 3
+                    })
+                });
+
+                if (!response.ok) {
+                    const errorData = await response.json();
+                    throw new Error(errorData.error || '跳转失败');
+                }
+
+                showStatusMessage('✅ 正在跳转到第二阶段...', 'success');
+                setTimeout(() => {
+                    window.location.href = `/phase-two-generation?title=${encodeURIComponent(projectTitle)}`;
+                }, 1000);
+            } catch (error) {
+                showStatusMessage(`❌ 跳转失败: ${error.message}`, 'error');
+            }
+        }
+
+        function viewProject(projectTitle) {
+            window.location.href = `/novel?title=${encodeURIComponent(projectTitle)}`;
+        }
+
+        function viewPhaseOneResult(projectTitle) {
+            window.location.href = `/phase-one-setup?continue=${encodeURIComponent(projectTitle)}`;
+        }
+
+        async function exportProject(projectTitle) {
+            try {
+                const response = await fetch(`/api/project/${encodeURIComponent(projectTitle)}/export?format=json`);
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}: 导出失败`);
+                }
+
+                const data = await response.json();
+                const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+                const url = window.URL.createObjectURL(blob);
+                
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `${projectTitle}_项目数据.json`;
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                window.URL.revokeObjectURL(url);
+                
+                showStatusMessage('✅ 项目导出成功', 'success');
+            } catch (error) {
+                showStatusMessage(`❌ 导出失败: ${error.message}`, 'error');
+            }
+        }
+
+        function continuePhaseOne(projectTitle) {
+            window.location.href = `/phase-one-setup?continue=${encodeURIComponent(projectTitle)}`;
+        }
+
+        function viewProjectViewer(projectTitle) {
+            window.location.href = `/project-viewer/${encodeURIComponent(projectTitle)}`;
+        }
+        
+        function viewWorldviewViewer(projectTitle) {
+            window.location.href = `/worldview-viewer/${encodeURIComponent(projectTitle)}`;
+        }
+        
+        function viewWorldview(projectTitle) {
+            window.location.href = `/phase-one-setup?continue=${encodeURIComponent(projectTitle)}`;
+        }
+
+        async function deleteProject(projectTitle) {
+            if (!confirm(`确定要删除项目 "${projectTitle}" 吗？此操作不可撤销，所有相关数据将被永久删除。`)) {
+                return;
+            }
+
+            try {
+                const response = await fetch(`/api/novel-project/${encodeURIComponent(projectTitle)}`, {
+                    method: 'DELETE'
+                });
+
+                if (!response.ok) {
+                    const errorData = await response.json();
+                    throw new Error(errorData.error || '删除失败');
+                }
+
+                showStatusMessage(`✅ 项目 "${projectTitle}" 已删除`, 'success');
+                await loadProjects();
+            } catch (error) {
+                showStatusMessage(`❌ 删除失败: ${error.message}`, 'error');
+            }
+        }
+
+        function goToVideoGeneration(projectTitle) {
+            localStorage.setItem('selectedNovelForVideo', projectTitle);
+            window.location.href = '/video-generation';
+        }
+
+        function refreshProjects() {
+            showStatusMessage('🔄 正在刷新项目列表...', 'info');
+            loadProjects();
+        }
+
+        function filterProjectsByPhase() {
+            console.log('🔍 [DEBUG] 开始按阶段筛选项目');
+            filterProjects();
+        }
+
+        // ==================== 工具函数 ====================
+        function formatDate(dateString) {
+            if (!dateString) return '未知时间';
+            
+            try {
+                const date = new Date(dateString);
+                return date.toLocaleString('zh-CN', {
+                    year: 'numeric',
+                    month: '2-digit',
+                    day: '2-digit',
+                    hour: '2-digit',
+                    minute: '2-digit'
+                });
+            } catch (error) {
+                return '时间格式错误';
+            }
+        }
+
+        function escapeHtml(text) {
+            if (!text) return '';
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+        
+        function escapeJs(text) {
+            if (!text) return '';
+            return text
+                .replace(/\\/g, '\\\\')
+                .replace(/'/g, "\\'")
+                .replace(/"/g, '\\"')
+                .replace(/\n/g, '\\n')
+                .replace(/\r/g, '\\r');
+        }
+
+        function showStatusMessage(message, type) {
+            const msgElement = document.getElementById('status-message');
+            msgElement.className = `v2-status-message v2-status-message--${type}`;
+            msgElement.textContent = message;
+            msgElement.style.display = 'block';
+            
+            if (type === 'success' || type === 'info') {
+                setTimeout(() => {
+                    msgElement.style.display = 'none';
+                }, 5000);
+            }
+        }
+
+        function logout() {
+            if (confirm('确定要退出登录吗？')) {
+                window.location.href = '/logout';
+            }
+        }
+
+        // ==================== 质量评估功能 ====================
+        async function viewQualityAssessment(projectTitle) {
+            let modal = document.getElementById('quality-assessment-modal');
+            if (!modal) {
+                modal = createQualityAssessmentModal();
+                document.body.appendChild(modal);
+            }
+
+            modal.style.display = 'flex';
+            await loadQualityAssessmentReport(projectTitle);
+        }
+
+        function createQualityAssessmentModal() {
+            const modal = document.createElement('div');
+            modal.id = 'quality-assessment-modal';
+            modal.style.cssText = `
+                display: none;
+                position: fixed;
+                top: 0;
+                left: 0;
+                width: 100%;
+                height: 100%;
+                background: rgba(0,0,0,0.8);
+                backdrop-filter: blur(8px);
+                z-index: 9999;
+                justify-content: center;
+                align-items: center;
+            `;
+
+            modal.innerHTML = `
+                <div style="background: var(--v2-bg-secondary); border: 1px solid var(--v2-border-default); border-radius: 16px; width: 90%; max-width: 800px; max-height: 90vh; overflow: hidden; display: flex; flex-direction: column; color: var(--v2-text-primary);">
+                    <div style="padding: 20px 24px; border-bottom: 1px solid var(--v2-border-default); display: flex; justify-content: space-between; align-items: center;">
+                        <h2 style="margin: 0; font-size: 20px;">🎯 写作计划质量评估报告</h2>
+                        <button onclick="closeQualityAssessmentModal()" style="background: none; border: none; font-size: 24px; cursor: pointer; color: var(--v2-text-secondary);">&times;</button>
+                    </div>
+                    <div id="quality-assessment-content" style="padding: 24px; overflow-y: auto; flex: 1;">
+                        <p style="text-align: center; color: var(--v2-text-secondary);">正在加载评估报告...</p>
+                    </div>
+                </div>
+            `;
+
+            return modal;
+        }
+
+        function closeQualityAssessmentModal() {
+            const modal = document.getElementById('quality-assessment-modal');
+            if (modal) {
+                modal.style.display = 'none';
+            }
+        }
+
+        async function loadQualityAssessmentReport(projectTitle) {
+            const contentDiv = document.getElementById('quality-assessment-content');
+
+            try {
+                const encodedTitle = encodeURIComponent(projectTitle);
+                const response = await fetch(`/api/quality-assessment/${encodedTitle}`);
+
+                if (response.status === 404) {
+                    contentDiv.innerHTML = `
+                        <div style="text-align: center; padding: 40px;">
+                            <p style="color: #f59e0b; margin-bottom: 16px; font-size: 18px;">📊 质量评估报告未找到</p>
+                            <p style="color: var(--v2-text-secondary); margin-bottom: 20px;">这可能是因为生成是在此功能添加之前完成的</p>
+                            <button onclick="triggerQualityAssessment('${encodedTitle}', '${projectTitle}')" class="v2-btn v2-btn--primary">
+                                🔄 立即生成评估报告
+                            </button>
+                        </div>
+                    `;
+                    return;
+                }
+
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}`);
+                }
+
+                const data = await response.json();
+                if (data.success) {
+                    displayQualityReport(data.report);
+                } else {
+                    throw new Error(data.error || '加载失败');
+                }
+            } catch (error) {
+                console.error('加载质量评估失败:', error);
+                contentDiv.innerHTML = `
+                    <div style="text-align: center; padding: 40px;">
+                        <p style="color: #ef4444; margin-bottom: 16px;">❌ 加载评估报告失败: ${error.message}</p>
+                        <button onclick="closeQualityAssessmentModal()" class="v2-btn v2-btn--secondary">关闭</button>
+                    </div>
+                `;
+            }
+        }
+
+        async function triggerQualityAssessment(encodedTitle, projectTitle) {
+            const contentDiv = document.getElementById('quality-assessment-content');
+            contentDiv.innerHTML = '<p style="text-align: center; padding: 40px;">🔄 正在生成AI质量评估报告，请稍候...</p>';
+
+            try {
+                const response = await fetch(`/api/quality-assessment/trigger/${encodedTitle}`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ deep_analysis: true })
+                });
+
+                const data = await response.json();
+                if (data.success) {
+                    displayQualityReport(data.report);
+                } else {
+                    throw new Error(data.error || '评估失败');
+                }
+            } catch (error) {
+                console.error('触发质量评估失败:', error);
+                contentDiv.innerHTML = `
+                    <div style="text-align: center; padding: 40px;">
+                        <p style="color: #ef4444;">❌ 评估失败: ${error.message}</p>
+                    </div>
+                `;
+            }
+        }
+
+        function displayQualityReport(report) {
+            const contentDiv = document.getElementById('quality-assessment-content');
+
+            const readinessInfo = {
+                'ready': { text: '可以继续', color: '#10b981', icon: '✅' },
+                'needs_review': { text: '建议检查', color: '#f59e0b', icon: '⚠️' },
+                'needs_revision': { text: '需要修改', color: '#ef4444', icon: '❌' }
+            };
+
+            const readiness = readinessInfo[report.readiness] || readinessInfo['needs_review'];
+            const score = report.overall_score || 0;
+            const scoreColor = score >= 80 ? '#10b981' : score >= 60 ? '#f59e0b' : '#ef4444';
+
+            let html = `
+                <div style="background: linear-gradient(135deg, ${readiness.color}20 0%, ${readiness.color}10 100%); border: 2px solid ${readiness.color}; border-radius: 12px; padding: 24px; margin-bottom: 24px; text-align: center;">
+                    <div style="font-size: 14px; color: var(--v2-text-secondary); margin-bottom: 8px;">总体评分</div>
+                    <div style="font-size: 48px; font-weight: bold; color: ${scoreColor};">${score}<span style="font-size: 24px; color: var(--v2-text-tertiary);">/100</span></div>
+                    <div style="margin-top: 12px; padding: 8px 16px; background: ${readiness.color}; color: white; border-radius: 20px; display: inline-block;">
+                        ${readiness.icon} ${readiness.text}
+                    </div>
+                    ${report.token_saved > 0 ? `<div style="margin-top: 12px; font-size: 12px; color: var(--v2-text-secondary);">节省约 ${report.token_saved.toLocaleString()} tokens</div>` : ''}
+                </div>
+
+                <div style="margin-bottom: 24px;">
+                    <h4 style="color: #10b981; margin-bottom: 12px;">✅ 优点 (${report.strengths?.length || 0})</h4>
+                    <div style="display: grid; gap: 8px;">
+            `;
+
+            if (report.strengths && report.strengths.length > 0) {
+                report.strengths.forEach(strength => {
+                    html += `<div style="padding: 12px; background: rgba(34, 197, 94, 0.1); border-left: 4px solid #10b981; border-radius: 6px;">${strength}</div>`;
+                });
+            } else {
+                html += `<div style="padding: 12px; color: var(--v2-text-tertiary); text-align: center;">暂无优点记录</div>`;
+            }
+
+            html += `</div></div>`;
+
+            html += `
+                <div style="margin-bottom: 24px;">
+                    <h4 style="color: #ef4444; margin-bottom: 12px;">⚠️ 发现的问题 (${report.issues?.length || 0})</h4>
+            `;
+
+            if (report.issues && report.issues.length > 0) {
+                const severityOrder = ['critical', 'high', 'medium', 'low', 'info'];
+                const severityLabels = {
+                    'critical': '🔴 严重',
+                    'high': '🟠 高',
+                    'medium': '🟡 中等',
+                    'low': '🟢 低',
+                    'info': '🔵 信息'
+                };
+
+                for (const severity of severityOrder) {
+                    const issues = report.issues.filter(i => i.severity === severity);
+                    if (issues.length === 0) continue;
+
+                    html += `<div style="margin-bottom: 16px;"><div style="font-weight: bold; margin-bottom: 8px;">${severityLabels[severity]} (${issues.length})</div>`;
+
+                    issues.forEach(issue => {
+                        html += `
+                            <div style="padding: 12px; background: rgba(239, 68, 68, 0.1); border-left: 4px solid #ef4444; border-radius: 6px; margin-bottom: 8px;">
+                                <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 8px;">
+                                    <span style="font-weight: bold; color: var(--v2-text-primary);">[${issue.category}] ${issue.location}</span>
+                                    ${issue.auto_fixable ? '<span style="font-size: 11px; padding: 2px 8px; background: rgba(59, 130, 246, 0.2); color: #60a5fa; border-radius: 10px;">可自动修复</span>' : ''}
+                                </div>
+                                <div style="color: var(--v2-text-secondary); margin-bottom: 8px;">${issue.description}</div>
+                                <div style="color: var(--v2-text-tertiary); font-size: 14px; font-style: italic;">💡 建议: ${issue.suggestion}</div>
+                            </div>
+                        `;
+                    });
+
+                    html += '</div>';
+                }
+            } else {
+                html += `<div style="padding: 24px; background: rgba(34, 197, 94, 0.1); border-radius: 8px; text-align: center; color: #10b981;">🎉 未发现问题！</div>`;
+            }
+
+            html += `</div>`;
+
+            html += `
+                <div>
+                    <h4 style="color: var(--v2-text-secondary); margin-bottom: 12px;">📝 总结</h4>
+                    <div style="padding: 16px; background: var(--v2-bg-tertiary); border-radius: 8px; color: var(--v2-text-primary);">
+                        ${report.summary || '无总结信息'}
+                    </div>
+                </div>
+            `;
+
+            contentDiv.innerHTML = html;
+        }
+    </script>
+{% endblock %}

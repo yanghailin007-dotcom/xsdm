@@ -10,21 +10,22 @@ from web.web_config import logger
 points_api = Blueprint('points_api', __name__, url_prefix='/api/points')
 
 
-def login_required(f):
-    """登录验证装饰器"""
+def login_required_api(f):
+    """API登录验证装饰器 - 检查 logged_in 或 user_id"""
     @wraps(f)
     def decorated_function(*args, **kwargs):
-        if 'user_id' not in session:
+        # 检查登录状态 - 兼容两种方式
+        if not session.get('logged_in') and 'user_id' not in session:
             return jsonify({'success': False, 'error': '请先登录'}), 401
         return f(*args, **kwargs)
     return decorated_function
 
 
-def admin_required(f):
-    """管理员验证装饰器"""
+def admin_required_api(f):
+    """API管理员验证装饰器"""
     @wraps(f)
     def decorated_function(*args, **kwargs):
-        if 'user_id' not in session:
+        if not session.get('logged_in') and 'user_id' not in session:
             return jsonify({'success': False, 'error': '请先登录'}), 401
         if not session.get('is_admin'):
             return jsonify({'success': False, 'error': '需要管理员权限'}), 403
@@ -35,10 +36,13 @@ def admin_required(f):
 # ==================== 用户端API ====================
 
 @points_api.route('/balance', methods=['GET'])
-@login_required
+@login_required_api
 def get_balance():
     """获取当前点数余额"""
-    user_id = session['user_id']
+    user_id = session.get('user_id')
+    if not user_id:
+        return jsonify({'success': False, 'error': '用户信息不完整，请重新登录'}), 401
+    
     points = point_model.get_user_points(user_id)
     
     return jsonify({
@@ -52,10 +56,13 @@ def get_balance():
 
 
 @points_api.route('/transactions', methods=['GET'])
-@login_required
+@login_required_api
 def get_transactions():
     """获取交易记录"""
-    user_id = session['user_id']
+    user_id = session.get('user_id')
+    if not user_id:
+        return jsonify({'success': False, 'error': '用户信息不完整，请重新登录'}), 401
+    
     page = request.args.get('page', 1, type=int)
     limit = request.args.get('limit', 20, type=int)
     
@@ -68,10 +75,13 @@ def get_transactions():
 
 
 @points_api.route('/checkin', methods=['POST'])
-@login_required
+@login_required_api
 def daily_checkin():
     """每日签到"""
-    user_id = session['user_id']
+    user_id = session.get('user_id')
+    if not user_id:
+        return jsonify({'success': False, 'error': '用户信息不完整，请重新登录'}), 401
+    
     result = point_model.daily_checkin(user_id)
     
     if result['success']:
@@ -93,10 +103,13 @@ def daily_checkin():
 
 
 @points_api.route('/checkin/status', methods=['GET'])
-@login_required
+@login_required_api
 def get_checkin_status():
     """获取签到状态"""
-    user_id = session['user_id']
+    user_id = session.get('user_id')
+    if not user_id:
+        return jsonify({'success': False, 'error': '用户信息不完整，请重新登录'}), 401
+    
     status = point_model.get_checkin_status(user_id)
     
     return jsonify({
@@ -106,7 +119,7 @@ def get_checkin_status():
 
 
 @points_api.route('/estimate', methods=['POST'])
-@login_required
+@login_required_api
 def estimate_cost():
     """预估消耗"""
     user_id = session['user_id']
@@ -308,7 +321,7 @@ def get_public_config():
 # ==================== 管理员API ====================
 
 @points_api.route('/admin/config', methods=['GET'])
-@admin_required
+@admin_required_api
 def get_admin_config():
     """获取点数配置（管理员）"""
     configs = point_model.get_all_config()
@@ -320,7 +333,7 @@ def get_admin_config():
 
 
 @points_api.route('/admin/config', methods=['PUT'])
-@admin_required
+@admin_required_api
 def update_admin_config():
     """更新点数配置（管理员）"""
     data = request.get_json()
@@ -346,7 +359,7 @@ def update_admin_config():
 
 
 @points_api.route('/admin/user/<int:user_id>', methods=['GET'])
-@admin_required
+@admin_required_api
 def get_user_points_admin(user_id):
     """获取指定用户的点数信息（管理员）"""
     points = point_model.get_user_points(user_id)
@@ -362,7 +375,7 @@ def get_user_points_admin(user_id):
 
 
 @points_api.route('/admin/grant', methods=['POST'])
-@admin_required
+@admin_required_api
 def admin_grant_points():
     """管理员手动发放点数"""
     data = request.get_json()
@@ -395,7 +408,7 @@ def admin_grant_points():
 
 
 @points_api.route('/admin/deduct', methods=['POST'])
-@admin_required
+@admin_required_api
 def admin_deduct_points():
     """管理员手动扣除点数"""
     data = request.get_json()
