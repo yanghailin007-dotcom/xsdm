@@ -275,12 +275,12 @@ def run_foreground(open_browser_flag=True):
     """前台运行服务"""
     ensure_logs_dir()
     
-    # 检查是否已在运行
+    # 如果服务已在运行，先停止旧服务
     is_running, is_accessible = check_service_status()
-    if is_running and is_accessible:
-        print(f"{Colors.YELLOW}[WARN]{Colors.RESET} 服务已在运行!")
-        show_status()
-        return
+    if is_running:
+        print(f"{Colors.YELLOW}[WARN]{Colors.RESET} 检测到已有服务在运行，正在停止...")
+        stop_service()
+        time.sleep(2)  # 等待进程完全停止
     
     # 获取 Python
     python_exe = get_python_executable()
@@ -368,12 +368,12 @@ def run_daemon():
     """后台运行服务"""
     ensure_logs_dir()
     
-    # 检查是否已在运行
+    # 如果服务已在运行，先停止旧服务
     is_running, is_accessible = check_service_status()
-    if is_running and is_accessible:
-        print(f"{Colors.YELLOW}[WARN]{Colors.RESET} 服务已在运行!")
-        show_status()
-        return
+    if is_running:
+        print(f"{Colors.YELLOW}[WARN]{Colors.RESET} 检测到已有服务在运行，正在停止...")
+        stop_service()
+        time.sleep(2)  # 等待进程完全停止
     
     # 获取 Python
     python_exe = get_python_executable()
