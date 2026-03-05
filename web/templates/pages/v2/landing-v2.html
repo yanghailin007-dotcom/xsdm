@@ -226,13 +226,13 @@
         </div>
         
         <!-- 行动按钮 -->
-        <a href="/" class="v2-btn v2-btn--primary v2-btn--lg v2-welcome-cta">
+        <button type="button" class="v2-btn v2-btn--primary v2-btn--lg v2-welcome-cta" onclick="closeWelcomeModalAndRedirect()">
             <span>开始创作</span>
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                 <line x1="5" y1="12" x2="19" y2="12"></line>
                 <polyline points="12,5 19,12 12,19"></polyline>
             </svg>
-        </a>
+        </button>
     </div>
 </div>
 
@@ -693,6 +693,40 @@
     
     // 暴露到全局
     window.closeWelcomeModal = closeWelcomeModal;
+    
+    // 点击"开始创作"按钮：领取奖励并跳转
+    async function closeWelcomeModalAndRedirect() {
+        const modal = document.getElementById('welcomeModal');
+        
+        // 先领取奖励
+        try {
+            const response = await fetch('/api/claim-register-bonus', { 
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' }
+            });
+            const data = await response.json();
+            if (data.success) {
+                showToast('领取成功！+' + data.amount + ' 创作点数');
+            }
+        } catch (e) {
+            console.error('领取奖励失败:', e);
+        }
+        
+        // 关闭弹窗动画
+        if (modal) {
+            modal.style.animation = 'v2-modal-fade-in 0.2s ease reverse';
+            modal.querySelector('.v2-modal-container').style.animation = 'v2-modal-slide-up 0.2s ease reverse';
+            setTimeout(() => modal.remove(), 200);
+        }
+        
+        // 延迟跳转，让用户看到提示
+        setTimeout(() => {
+            window.location.href = '/';
+        }, 800);
+    }
+    
+    // 暴露到全局
+    window.closeWelcomeModalAndRedirect = closeWelcomeModalAndRedirect;
 })();
 </script>
 {% endif %}
