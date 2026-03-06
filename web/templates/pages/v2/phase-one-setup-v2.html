@@ -681,6 +681,9 @@
         // 轮询进度
         function startProgressPolling(taskId) {
             console.log('[V2] 开始轮询进度:', taskId);
+            
+            // 🔥 保存任务ID到全局变量，供停止生成使用
+            window.currentTaskId = taskId;
             const interval = setInterval(async () => {
                 try {
                     const response = await fetch(`/api/phase-one/task/${taskId}/status`);
@@ -919,7 +922,7 @@
             }
             
             try {
-                const response = await fetch(`/api/phase-one/stop/${taskId}`, {
+                const response = await fetch(`/api/phase-one/task/${taskId}/stop`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' }
                 });
