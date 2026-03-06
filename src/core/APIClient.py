@@ -249,10 +249,10 @@ class APIClient:
     def _calculate_timeout(self, purpose: str, attempt: int) -> int:
         """根据目的和尝试次数计算超时时间"""
         base_timeouts = {
-            "快速质量评估": 120,
-            "提示词优化": 60  # 提示词优化通常较快
+            "快速质量评估": 10,
+            "提示词优化": 10  # 提示词优化通常较快
         }
-        timeout = 120  # 默认超时
+        timeout = 10  # 默认超时（缩短为10秒快速失败）
         for key, value in base_timeouts.items():
             if key in purpose:
                 timeout = value
