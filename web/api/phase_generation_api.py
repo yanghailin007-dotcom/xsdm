@@ -2378,6 +2378,7 @@ def register_additional_routes(app):
     @login_required
     def stop_phase_one_generation(task_id):
         """停止第一阶段生成任务，返还剩余点数并保存检查点"""
+        from flask import session
         try:
             user_id = session.get('user_id')
             logger.info(f"🛑 [STOP] 用户 {user_id} 请求停止任务: {task_id}")
