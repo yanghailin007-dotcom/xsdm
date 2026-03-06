@@ -1,5 +1,5 @@
-<!-- 进度显示区域 - 改进版：显示所有步骤和创造点消耗 -->
-<div class="progress-section" id="progress-section">
+<!-- 生成进度展示组件 V2 - 详细步骤追踪 -->
+<div class="progress-section active" id="progress-section">
     <div class="progress-header">
         <h3>🔄 正在生成设定...</h3>
         <div class="progress-percentage" id="progress-percentage">0%</div>
@@ -10,101 +10,185 @@
         <div class="points-cost-label">
             <span class="points-icon">💎</span>
             <span>创造点消耗</span>
+            <span class="points-hint">(每次API调用扣除1点)</span>
         </div>
         <div class="points-cost-value">
             <span id="points-consumed">0</span>
             <span class="points-separator">/</span>
-            <span id="points-total">0</span>
+            <span id="points-estimated">0</span>
             <span class="points-unit">点</span>
         </div>
     </div>
     
     <div class="progress-bar-container">
-        <div class="progress-bar-fill" id="progress-bar-fill"></div>
+        <div class="progress-bar-fill" id="progress-bar-fill" style="width: 0%;"></div>
     </div>
     
-    <!-- 步骤状态列表 - 详细显示每个步骤 -->
+    <!-- 详细步骤状态列表 - 与实际代码流程一致 -->
     <div class="progress-steps-container">
         <div class="progress-steps-header">
             <span>生成步骤</span>
-            <span class="steps-status" id="steps-status">0/6 完成</span>
+            <span class="steps-status" id="steps-status">准备中</span>
         </div>
         
         <div class="progress-steps-list" id="progress-steps-list">
-            <div class="progress-step-item" data-step="planning" data-status="waiting">
+            <!-- 基础规划阶段 -->
+            <div class="progress-step-item" data-step="writing_style" data-status="waiting">
                 <div class="step-indicator">
                     <span class="step-number">1</span>
                     <span class="step-icon">⏳</span>
                 </div>
                 <div class="step-content">
-                    <h4>📋 基础规划</h4>
-                    <p>分析创意种子，制定写作风格和市场定位</p>
-                    <div class="step-points">预计消耗: <span class="points-value">50</span> 点</div>
+                    <h4>📝 写作风格制定</h4>
+                    <p>根据小说类型和创意种子，制定独特的写作风格指南</p>
                 </div>
                 <div class="step-status-badge">等待中</div>
             </div>
             
-            <div class="progress-step-item" data-step="worldview" data-status="waiting">
+            <div class="progress-step-item" data-step="market_analysis" data-status="waiting">
                 <div class="step-indicator">
                     <span class="step-number">2</span>
                     <span class="step-icon">⏳</span>
                 </div>
                 <div class="step-content">
-                    <h4>🌍 世界观设计</h4>
-                    <p>构建完整的世界观和背景设定</p>
-                    <div class="step-points">预计消耗: <span class="points-value">80</span> 点</div>
+                    <h4>📊 市场分析</h4>
+                    <p>分析目标读者群体，提炼小说卖点和核心吸引力</p>
                 </div>
                 <div class="step-status-badge">等待中</div>
             </div>
             
-            <div class="progress-step-item" data-step="characters" data-status="waiting">
+            <!-- 世界观与角色设计阶段 -->
+            <div class="progress-step-item" data-step="worldview" data-status="waiting">
                 <div class="step-indicator">
                     <span class="step-number">3</span>
                     <span class="step-icon">⏳</span>
                 </div>
                 <div class="step-content">
-                    <h4>👥 角色设计</h4>
-                    <p>设计主要角色和人物关系</p>
-                    <div class="step-points">预计消耗: <span class="points-value">60</span> 点</div>
+                    <h4>🌍 世界观构建</h4>
+                    <p>构建完整的世界观体系，包括背景设定、规则体系等</p>
                 </div>
                 <div class="step-status-badge">等待中</div>
             </div>
             
-            <div class="progress-step-item" data-step="planning-detailed" data-status="waiting">
+            <div class="progress-step-item" data-step="faction_system" data-status="waiting">
                 <div class="step-indicator">
                     <span class="step-number">4</span>
                     <span class="step-icon">⏳</span>
                 </div>
                 <div class="step-content">
-                    <h4>📝 详细规划</h4>
-                    <p>制定情绪蓝图和阶段计划</p>
-                    <div class="step-points">预计消耗: <span class="points-value">70</span> 点</div>
+                    <h4>⚔️ 势力系统设计</h4>
+                    <p>设计小说中的势力/阵营体系，构建冲突框架</p>
                 </div>
                 <div class="step-status-badge">等待中</div>
             </div>
             
-            <div class="progress-step-item" data-step="outlines" data-status="waiting">
+            <div class="progress-step-item" data-step="character_design" data-status="waiting">
                 <div class="step-indicator">
                     <span class="step-number">5</span>
                     <span class="step-icon">⏳</span>
                 </div>
                 <div class="step-content">
-                    <h4>📚 章节大纲</h4>
-                    <p>生成详细的章节情节大纲</p>
-                    <div class="step-points">预计消耗: <span class="points-value">90</span> 点</div>
+                    <h4>👥 核心角色设计</h4>
+                    <p>设计主角、核心盟友和宿敌，建立人物关系网</p>
                 </div>
                 <div class="step-status-badge">等待中</div>
             </div>
             
-            <div class="progress-step-item" data-step="validation" data-status="waiting">
+            <!-- 全书规划阶段 -->
+            <div class="progress-step-item" data-step="emotional_blueprint" data-status="waiting">
                 <div class="step-indicator">
                     <span class="step-number">6</span>
                     <span class="step-icon">⏳</span>
                 </div>
                 <div class="step-content">
-                    <h4>✅ 验证完善</h4>
-                    <p>验证设定完整性和一致性</p>
-                    <div class="step-points">预计消耗: <span class="points-value">50</span> 点</div>
+                    <h4>💫 情绪蓝图规划</h4>
+                    <p>设计全书的情绪起伏曲线，规划读者情感体验</p>
+                </div>
+                <div class="step-status-badge">等待中</div>
+            </div>
+            
+            <div class="progress-step-item" data-step="growth_plan" data-status="waiting">
+                <div class="step-indicator">
+                    <span class="step-number">7</span>
+                    <span class="step-icon">⏳</span>
+                </div>
+                <div class="step-content">
+                    <h4>📈 成长规划</h4>
+                    <p>制定主角成长路线，规划能力提升节点</p>
+                </div>
+                <div class="step-status-badge">等待中</div>
+            </div>
+            
+            <div class="progress-step-item" data-step="stage_plan" data-status="waiting">
+                <div class="step-indicator">
+                    <span class="step-number">8</span>
+                    <span class="step-icon">⏳</span>
+                </div>
+                <div class="step-content">
+                    <h4>📚 全书阶段计划</h4>
+                    <p>划分故事阶段，规划各阶段的核心任务和目标</p>
+                </div>
+                <div class="step-status-badge">等待中</div>
+            </div>
+            
+            <div class="progress-step-item" data-step="detailed_stage_plans" data-status="waiting">
+                <div class="step-indicator">
+                    <span class="step-number">9</span>
+                    <span class="step-icon">⏳</span>
+                </div>
+                <div class="step-content">
+                    <h4>📖 阶段详细计划</h4>
+                    <p>为每个阶段生成详细的写作计划，包括重大事件</p>
+                </div>
+                <div class="step-status-badge">等待中</div>
+            </div>
+            
+            <div class="progress-step-item" data-step="expectation_mapping" data-status="waiting">
+                <div class="step-indicator">
+                    <span class="step-number">10</span>
+                    <span class="step-icon">⏳</span>
+                </div>
+                <div class="step-content">
+                    <h4>🎯 期待感映射</h4>
+                    <p>为重大事件设计期待感类型，增强读者阅读体验</p>
+                </div>
+                <div class="step-status-badge">等待中</div>
+            </div>
+            
+            <div class="progress-step-item" data-step="system_init" data-status="waiting">
+                <div class="step-indicator">
+                    <span class="step-number">11</span>
+                    <span class="step-icon">⏳</span>
+                </div>
+                <div class="step-content">
+                    <h4>🔧 系统初始化</h4>
+                    <p>初始化期待感系统、伏笔管理系统等辅助功能</p>
+                </div>
+                <div class="step-status-badge">等待中</div>
+            </div>
+            
+            <!-- 保存阶段 -->
+            <div class="progress-step-item" data-step="saving" data-status="waiting">
+                <div class="step-indicator">
+                    <span class="step-number">12</span>
+                    <span class="step-icon">⏳</span>
+                </div>
+                <div class="step-content">
+                    <h4>💾 保存设定结果</h4>
+                    <p>将生成的世界观、角色、大纲等设定保存到项目</p>
+                </div>
+                <div class="step-status-badge">等待中</div>
+            </div>
+            
+            <!-- 质量评估阶段 -->
+            <div class="progress-step-item" data-step="quality_assessment" data-status="waiting">
+                <div class="step-indicator">
+                    <span class="step-number">13</span>
+                    <span class="step-icon">⏳</span>
+                </div>
+                <div class="step-content">
+                    <h4>✅ AI质量评估</h4>
+                    <p>评估写作计划的完整性和质量，生成优化建议</p>
                 </div>
                 <div class="step-status-badge">等待中</div>
             </div>
@@ -119,22 +203,60 @@
     </div>
     
     <div style="margin-top: 20px; text-align: center;">
-        <button type="button" class="btn btn-secondary" onclick="pauseGeneration()" id="pause-btn">
-            ⏸️ 暂停生成
+        <button type="button" class="btn btn-secondary" onclick="stopGeneration()" id="stop-btn" style="display: inline-block;">
+            🛑 停止生成
         </button>
+        <div id="stop-hint" style="margin-top: 8px; font-size: 0.8rem; color: #94a3b8;">
+            停止后将返还剩余创造点，并保存当前进度
+        </div>
     </div>
 </div>
 
 <style>
+/* 进度区域样式 */
+.progress-section {
+    background: linear-gradient(135deg, rgba(15, 23, 42, 0.9) 0%, rgba(30, 41, 59, 0.9) 100%);
+    border: 1px solid rgba(99, 102, 241, 0.3);
+    border-radius: 12px;
+    padding: 24px;
+    margin: 20px 0;
+    backdrop-filter: blur(10px);
+}
+
+.progress-section.active {
+    border-color: rgba(99, 102, 241, 0.6);
+    box-shadow: 0 0 20px rgba(99, 102, 241, 0.15);
+}
+
+.progress-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20px;
+}
+
+.progress-header h3 {
+    margin: 0;
+    color: #f8fafc;
+    font-size: 1.2rem;
+}
+
+.progress-percentage {
+    font-size: 1.5rem;
+    font-weight: bold;
+    color: #818cf8;
+    text-shadow: 0 0 10px rgba(129, 140, 248, 0.3);
+}
+
 /* 创造点消耗显示 */
 .points-cost-section {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    background: linear-gradient(135deg, rgba(99, 102, 241, 0.1), rgba(139, 92, 246, 0.1));
-    border: 1px solid rgba(99, 102, 241, 0.3);
-    border-radius: 12px;
-    padding: 12px 20px;
+    background: rgba(15, 23, 42, 0.6);
+    border: 1px solid rgba(245, 158, 11, 0.3);
+    border-radius: 8px;
+    padding: 12px 16px;
     margin-bottom: 16px;
 }
 
@@ -142,37 +264,56 @@
     display: flex;
     align-items: center;
     gap: 8px;
-    color: var(--text-secondary);
-    font-size: 14px;
+    color: #f8fafc;
+    font-weight: 500;
 }
 
 .points-icon {
-    font-size: 18px;
+    font-size: 1.2rem;
 }
 
-.points-cost-value {
-    font-size: 18px;
-    font-weight: 700;
-    color: #818cf8;
-}
-
-.points-separator {
-    margin: 0 4px;
-    color: var(--text-tertiary);
-}
-
-.points-unit {
-    font-size: 14px;
-    color: var(--text-secondary);
+.points-hint {
+    font-size: 0.75rem;
+    color: #94a3b8;
     margin-left: 4px;
 }
 
-/* 步骤列表容器 */
+.points-cost-value {
+    font-size: 1.1rem;
+    font-weight: bold;
+    color: #f59e0b;
+}
+
+.points-separator {
+    color: #64748b;
+    margin: 0 4px;
+}
+
+.points-unit {
+    color: #94a3b8;
+    font-size: 0.9rem;
+}
+
+/* 进度条 */
+.progress-bar-container {
+    height: 8px;
+    background: rgba(15, 23, 42, 0.8);
+    border-radius: 4px;
+    overflow: hidden;
+    margin-bottom: 24px;
+}
+
+.progress-bar-fill {
+    height: 100%;
+    background: linear-gradient(90deg, #6366f1 0%, #818cf8 100%);
+    border-radius: 4px;
+    transition: width 0.5s ease;
+    box-shadow: 0 0 10px rgba(99, 102, 241, 0.3);
+}
+
+/* 步骤列表 */
 .progress-steps-container {
-    background: var(--bg-tertiary);
-    border-radius: 12px;
-    padding: 16px;
-    margin-top: 16px;
+    margin-bottom: 20px;
 }
 
 .progress-steps-header {
@@ -180,144 +321,116 @@
     justify-content: space-between;
     align-items: center;
     margin-bottom: 12px;
-    padding-bottom: 12px;
-    border-bottom: 1px solid var(--border-color);
-    font-size: 14px;
-    color: var(--text-secondary);
+    padding-bottom: 8px;
+    border-bottom: 1px solid rgba(148, 163, 184, 0.2);
+    font-size: 0.9rem;
+    color: #94a3b8;
 }
 
 .steps-status {
-    font-weight: 600;
-    color: var(--text-primary);
+    color: #818cf8;
+    font-weight: 500;
 }
 
-/* 步骤列表 */
 .progress-steps-list {
-    display: flex;
-    flex-direction: column;
-    gap: 8px;
+    max-height: 320px;
+    overflow-y: auto;
+    padding-right: 4px;
+}
+
+.progress-steps-list::-webkit-scrollbar {
+    width: 4px;
+}
+
+.progress-steps-list::-webkit-scrollbar-track {
+    background: rgba(15, 23, 42, 0.5);
+    border-radius: 2px;
+}
+
+.progress-steps-list::-webkit-scrollbar-thumb {
+    background: rgba(99, 102, 241, 0.5);
+    border-radius: 2px;
 }
 
 .progress-step-item {
     display: flex;
-    align-items: center;
+    align-items: flex-start;
     gap: 12px;
     padding: 12px;
-    border-radius: 10px;
-    border: 1px solid var(--border-color);
-    background: var(--bg-secondary);
+    border-radius: 8px;
+    margin-bottom: 8px;
+    background: rgba(15, 23, 42, 0.4);
+    border: 1px solid transparent;
     transition: all 0.3s ease;
 }
 
 .progress-step-item:hover {
-    border-color: rgba(99, 102, 241, 0.3);
+    background: rgba(15, 23, 42, 0.6);
 }
 
-/* 步骤指示器 */
+.progress-step-item[data-status="active"] {
+    background: rgba(99, 102, 241, 0.15);
+    border-color: rgba(99, 102, 241, 0.4);
+    box-shadow: 0 0 12px rgba(99, 102, 241, 0.1);
+}
+
+.progress-step-item[data-status="completed"] {
+    background: rgba(16, 185, 129, 0.1);
+    border-color: rgba(16, 185, 129, 0.3);
+}
+
+.progress-step-item[data-status="failed"] {
+    background: rgba(239, 68, 68, 0.1);
+    border-color: rgba(239, 68, 68, 0.3);
+}
+
 .step-indicator {
+    position: relative;
+    width: 28px;
+    height: 28px;
     display: flex;
     align-items: center;
     justify-content: center;
-    width: 36px;
-    height: 36px;
-    border-radius: 50%;
-    background: var(--bg-tertiary);
-    border: 2px solid var(--border-color);
-    font-weight: 600;
-    font-size: 14px;
-    color: var(--text-secondary);
     flex-shrink: 0;
+}
+
+.step-number {
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    background: rgba(99, 102, 241, 0.2);
+    border: 1px solid rgba(99, 102, 241, 0.4);
+    color: #818cf8;
+    font-size: 0.75rem;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.progress-step-item[data-status="active"] .step-number {
+    background: rgba(99, 102, 241, 0.4);
+    border-color: #6366f1;
+    color: #fff;
+    animation: stepPulse 2s ease-in-out infinite;
+}
+
+.progress-step-item[data-status="completed"] .step-number {
+    background: rgba(16, 185, 129, 0.3);
+    border-color: #10b981;
+    color: #10b981;
+}
+
+.progress-step-item[data-status="failed"] .step-number {
+    background: rgba(239, 68, 68, 0.3);
+    border-color: #ef4444;
+    color: #ef4444;
 }
 
 .step-icon {
+    position: absolute;
+    font-size: 0.85rem;
     display: none;
-}
-
-/* 步骤内容 */
-.step-content {
-    flex: 1;
-    min-width: 0;
-}
-
-.step-content h4 {
-    margin: 0 0 4px 0;
-    font-size: 14px;
-    font-weight: 600;
-    color: var(--text-primary);
-}
-
-.step-content p {
-    margin: 0;
-    font-size: 12px;
-    color: var(--text-secondary);
-    line-height: 1.4;
-}
-
-.step-points {
-    margin-top: 4px;
-    font-size: 11px;
-    color: var(--text-tertiary);
-}
-
-.points-value {
-    color: #818cf8;
-    font-weight: 600;
-}
-
-/* 状态徽章 */
-.step-status-badge {
-    padding: 4px 10px;
-    border-radius: 20px;
-    font-size: 11px;
-    font-weight: 600;
-    text-transform: uppercase;
-    flex-shrink: 0;
-    background: var(--bg-tertiary);
-    color: var(--text-secondary);
-}
-
-/* 步骤状态样式 - 等待中 */
-.progress-step-item[data-status="waiting"] {
-    opacity: 0.6;
-}
-
-/* 步骤状态样式 - 进行中 */
-.progress-step-item[data-status="running"] {
-    border-color: rgba(99, 102, 241, 0.5);
-    background: rgba(99, 102, 241, 0.1);
-    box-shadow: 0 0 20px rgba(99, 102, 241, 0.1);
-}
-
-.progress-step-item[data-status="running"] .step-indicator {
-    background: rgba(99, 102, 241, 0.2);
-    border-color: #6366f1;
-    color: #818cf8;
-}
-
-.progress-step-item[data-status="running"] .step-number {
-    display: none;
-}
-
-.progress-step-item[data-status="running"] .step-icon {
-    display: block;
-    animation: pulse 1.5s infinite;
-}
-
-.progress-step-item[data-status="running"] .step-status-badge {
-    background: rgba(99, 102, 241, 0.2);
-    color: #818cf8;
-}
-
-/* 步骤状态样式 - 已完成 */
-.progress-step-item[data-status="completed"] {
-    border-color: rgba(16, 185, 129, 0.4);
-    background: rgba(16, 185, 129, 0.05);
-}
-
-.progress-step-item[data-status="completed"] .step-indicator {
-    background: rgba(16, 185, 129, 0.2);
-    border-color: #10b981;
-    color: #10b981;
 }
 
 .progress-step-item[data-status="completed"] .step-number {
@@ -326,27 +439,51 @@
 
 .progress-step-item[data-status="completed"] .step-icon {
     display: block;
+    color: #10b981;
 }
 
-.progress-step-item[data-status="completed"] .step-icon::before {
-    content: "✓";
+.progress-step-item[data-status="failed"] .step-icon {
+    display: block;
+    color: #ef4444;
+}
+
+.step-content {
+    flex: 1;
+    min-width: 0;
+}
+
+.step-content h4 {
+    margin: 0 0 4px 0;
+    font-size: 0.9rem;
+    color: #f8fafc;
+    font-weight: 600;
+}
+
+.step-content p {
+    margin: 0;
+    font-size: 0.8rem;
+    color: #94a3b8;
+    line-height: 1.4;
+}
+
+.step-status-badge {
+    font-size: 0.75rem;
+    padding: 4px 8px;
+    border-radius: 4px;
+    font-weight: 500;
+    white-space: nowrap;
+    background: rgba(148, 163, 184, 0.15);
+    color: #94a3b8;
+}
+
+.progress-step-item[data-status="active"] .step-status-badge {
+    background: rgba(99, 102, 241, 0.2);
+    color: #818cf8;
 }
 
 .progress-step-item[data-status="completed"] .step-status-badge {
     background: rgba(16, 185, 129, 0.2);
     color: #10b981;
-}
-
-/* 步骤状态样式 - 失败 */
-.progress-step-item[data-status="failed"] {
-    border-color: rgba(239, 68, 68, 0.4);
-    background: rgba(239, 68, 68, 0.05);
-}
-
-.progress-step-item[data-status="failed"] .step-indicator {
-    background: rgba(239, 68, 68, 0.2);
-    border-color: #ef4444;
-    color: #ef4444;
 }
 
 .progress-step-item[data-status="failed"] .step-status-badge {
@@ -356,36 +493,204 @@
 
 /* 当前步骤详情 */
 .current-step-detail {
-    margin-top: 16px;
+    background: rgba(15, 23, 42, 0.6);
+    border: 1px solid rgba(99, 102, 241, 0.3);
+    border-radius: 8px;
     padding: 16px;
-    background: linear-gradient(135deg, rgba(99, 102, 241, 0.1), rgba(139, 92, 246, 0.1));
-    border-radius: 12px;
-    border: 1px solid rgba(99, 102, 241, 0.2);
     text-align: center;
 }
 
 .current-step-label {
-    font-size: 12px;
-    color: var(--text-secondary);
+    font-size: 0.8rem;
+    color: #94a3b8;
+    margin-bottom: 4px;
     text-transform: uppercase;
     letter-spacing: 1px;
-    margin-bottom: 8px;
 }
 
 .current-step-name {
-    font-size: 18px;
-    font-weight: 700;
-    color: var(--text-primary);
+    font-size: 1.1rem;
+    font-weight: 600;
+    color: #f8fafc;
     margin-bottom: 4px;
 }
 
 .current-step-desc {
-    font-size: 14px;
-    color: var(--text-secondary);
+    font-size: 0.85rem;
+    color: #94a3b8;
 }
 
-@keyframes pulse {
-    0%, 100% { opacity: 1; }
-    50% { opacity: 0.5; }
+/* 动画 */
+@keyframes stepPulse {
+    0%, 100% {
+        box-shadow: 0 0 0 0 rgba(99, 102, 241, 0.4);
+    }
+    50% {
+        box-shadow: 0 0 0 8px rgba(99, 102, 241, 0);
+    }
 }
 </style>
+
+<script>
+// 步骤映射表 - 将后端步骤名称映射到前端步骤ID
+const STEP_MAPPING = {
+    // 基础规划
+    'writing_style': 'writing_style',
+    'writing_style_guide': 'writing_style',
+    'market_analysis': 'market_analysis',
+    
+    // 世界观与角色设计
+    'worldview': 'worldview',
+    'worldview_generation': 'worldview',
+    'core_worldview': 'worldview',
+    'faction_system': 'faction_system',
+    '势力系统设计': 'faction_system',
+    'character_design': 'character_design',
+    '核心角色设计': 'character_design',
+    
+    // 全书规划
+    'emotional_blueprint': 'emotional_blueprint',
+    '情绪蓝图规划': 'emotional_blueprint',
+    'growth_plan': 'growth_plan',
+    '成长规划': 'growth_plan',
+    'global_growth_planning': 'growth_plan',
+    'stage_plan': 'stage_plan',
+    '阶段计划': 'stage_plan',
+    'detailed_stage_plans': 'detailed_stage_plans',
+    '阶段详细计划': 'detailed_stage_plans',
+    'expectation_mapping': 'expectation_mapping',
+    '期待感映射': 'expectation_mapping',
+    'system_init': 'system_init',
+    '系统初始化': 'system_init',
+    
+    // 保存阶段（项目初始化改为保存结果）
+    'saving': 'saving',
+    'project_init': 'saving',
+    '项目初始化': 'saving',
+    'validation': 'saving',
+    
+    // 质量评估
+    'quality_assessment': 'quality_assessment',
+    'assessment': 'quality_assessment',
+    'completed': 'quality_assessment'
+};
+
+// 步骤顺序（用于计算进度）
+const STEP_ORDER = [
+    'writing_style',
+    'market_analysis', 
+    'worldview',
+    'faction_system',
+    'character_design',
+    'emotional_blueprint',
+    'growth_plan',
+    'stage_plan',
+    'detailed_stage_plans',
+    'expectation_mapping',
+    'system_init',
+    'saving',
+    'quality_assessment'
+];
+
+// 更新步骤状态
+function updateStepStatus(stepName, status, message = null) {
+    const stepId = STEP_MAPPING[stepName] || stepName;
+    const stepElement = document.querySelector(`[data-step="${stepId}"]`);
+    
+    if (stepElement) {
+        stepElement.setAttribute('data-status', status);
+        const badge = stepElement.querySelector('.step-status-badge');
+        const icon = stepElement.querySelector('.step-icon');
+        
+        const statusText = {
+            'waiting': '等待中',
+            'active': '进行中',
+            'completed': '已完成',
+            'failed': '失败'
+        };
+        
+        if (badge) {
+            badge.textContent = statusText[status] || status;
+        }
+        
+        if (icon) {
+            icon.textContent = status === 'completed' ? '✓' : 
+                              status === 'failed' ? '✗' : '⏳';
+        }
+        
+        // 如果是活动步骤，更新当前步骤详情
+        if (status === 'active' && message) {
+            updateCurrentStepDetail(stepElement.querySelector('h4').textContent, message);
+        }
+    }
+}
+
+// 更新当前步骤详情
+function updateCurrentStepDetail(stepName, description) {
+    const nameEl = document.getElementById('current-step-name');
+    const descEl = document.getElementById('current-step-desc');
+    
+    if (nameEl) nameEl.textContent = stepName;
+    if (descEl) descEl.textContent = description;
+}
+
+// 更新创造点消耗
+function updatePointsConsumed(consumed, estimated) {
+    const consumedEl = document.getElementById('points-consumed');
+    const estimatedEl = document.getElementById('points-estimated');
+    
+    if (consumedEl) consumedEl.textContent = consumed;
+    if (estimatedEl) estimatedEl.textContent = estimated;
+}
+
+// 更新进度百分比
+function updateProgress(percentage) {
+    const percentageEl = document.getElementById('progress-percentage');
+    const barEl = document.getElementById('progress-bar-fill');
+    
+    if (percentageEl) percentageEl.textContent = percentage + '%';
+    if (barEl) barEl.style.width = percentage + '%';
+}
+
+// 更新步骤计数
+function updateStepsStatus(completed, total) {
+    const statusEl = document.getElementById('steps-status');
+    if (statusEl) {
+        statusEl.textContent = `${completed}/${total} 完成`;
+    }
+}
+
+// 重置所有步骤状态
+function resetAllSteps() {
+    document.querySelectorAll('.progress-step-item').forEach(step => {
+        step.setAttribute('data-status', 'waiting');
+        const badge = step.querySelector('.step-status-badge');
+        const icon = step.querySelector('.step-icon');
+        if (badge) badge.textContent = '等待中';
+        if (icon) icon.textContent = '⏳';
+    });
+    updatePointsConsumed(0, 0);
+    updateProgress(0);
+    updateStepsStatus(0, STEP_ORDER.length);
+}
+
+// 计算并更新进度
+function calculateProgress(currentStep) {
+    const stepId = STEP_MAPPING[currentStep] || currentStep;
+    const index = STEP_ORDER.indexOf(stepId);
+    
+    if (index >= 0) {
+        const progress = Math.round((index / STEP_ORDER.length) * 100);
+        updateProgress(progress);
+        updateStepsStatus(index, STEP_ORDER.length);
+        
+        // 标记之前的步骤为完成
+        for (let i = 0; i < index; i++) {
+            const stepEl = document.querySelector(`[data-step="${STEP_ORDER[i]}"]`);
+            if (stepEl && stepEl.getAttribute('data-status') !== 'completed') {
+                updateStepStatus(STEP_ORDER[i], 'completed');
+            }
+        }
+    }
+}
+</script>

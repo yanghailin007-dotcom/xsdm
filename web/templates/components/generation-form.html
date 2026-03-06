@@ -1,5 +1,5 @@
 <!-- 生成表单 -->
-<form id="phase-one-form" onsubmit="checkPointsBeforeSubmit(event)">
+<form id="phase-one-form">
     <div class="form-group">
         <label for="novel-title">小说标题</label>
         <input type="text" id="novel-title" name="title" 
@@ -98,7 +98,7 @@
         <button type="button" class="btn btn-secondary" onclick="resetForm()">
             🔄 重置
         </button>
-        <button type="submit" class="btn btn-primary">
+        <button type="button" class="btn btn-primary" onclick="document.getElementById('phase-one-form').dispatchEvent(new Event('submit', {bubbles: true, cancelable: true}));">
             🚀 开始生成设定
         </button>
     </div>

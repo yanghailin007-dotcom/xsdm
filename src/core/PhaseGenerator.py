@@ -35,22 +35,38 @@ class PhaseGenerator:
         第一阶段准备工作：执行到"第一章生成前"的所有步骤
         不包含实际的章节内容生成
         """
-        def update_progress_callback(stage_name: str, progress: int, message: Optional[str] = None):
-            """更新第一阶段进度的回调函数"""
+        def update_progress_callback(stage_name: str, progress: int, message: Optional[str] = None, 
+                                      step_status: Dict = None, points_consumed: int = None):
+            """更新第一阶段进度的回调函数 - 支持详细步骤状态和点数消耗"""
             try:
+                # 获取API调用消耗的点数
+                if points_consumed is None and hasattr(self.generator, 'get_api_points_consumed'):
+                    points_consumed = self.generator.get_api_points_consumed()
+                
                 # 通过事件总线发布进度更新事件
                 if hasattr(self.generator, 'event_bus'):
-                    self.generator.event_bus.publish('phase_one.progress', {
+                    event_data = {
                         'stage': stage_name,
                         'progress': progress,
-                        'message': message or f"正在执行: {stage_name}"
-                    })
+                        'message': message or f"正在执行: {stage_name}",
+                        'points_consumed': points_consumed
+                    }
+                    if step_status:
+                        event_data['step_status'] = step_status
+                    self.generator.event_bus.publish('phase_one.progress', event_data)
                 
                 # 如果在管理器中运行，尝试更新任务状态
                 if hasattr(self.generator, '_update_task_status_callback'):
                     task_id = getattr(self.generator, '_current_task_id', None)
                     if task_id and callable(self.generator._update_task_status_callback):
-                        self.generator._update_task_status_callback(task_id, 'generating', progress, None)
+                        # 构建步骤状态字典
+                        current_step_status = step_status or {stage_name: 'active'}
+                        self.generator._update_task_status_callback(
+                            task_id, 'generating', progress, None,
+                            current_step=stage_name,
+                            step_status=current_step_status,
+                            points_consumed=points_consumed
+                        )
                 
                 # 更新内部状态
                 if hasattr(self.generator, 'novel_data') and 'current_progress' in self.generator.novel_data:
@@ -58,6 +74,32 @@ class PhaseGenerator:
                     
             except Exception as callback_error:
                 print(f"⚠️ 进度更新回调失败: {callback_error}")
+        
+        def update_step_status(step_name: str, status: str, progress: int = None):
+            """更新特定步骤的状态"""
+            try:
+                points_consumed = self.generator.get_api_points_consumed() if hasattr(self.generator, 'get_api_points_consumed') else 0
+                step_status = {step_name: status}
+                
+                if hasattr(self.generator, 'event_bus'):
+                    self.generator.event_bus.publish('phase_one.step_status', {
+                        'step': step_name,
+                        'status': status,
+                        'progress': progress,
+                        'points_consumed': points_consumed
+                    })
+                
+                if hasattr(self.generator, '_update_task_status_callback'):
+                    task_id = getattr(self.generator, '_current_task_id', None)
+                    if task_id and callable(self.generator._update_task_status_callback):
+                        self.generator._update_task_status_callback(
+                            task_id, 'generating', progress or 0, None,
+                            current_step=step_name,
+                            step_status=step_status,
+                            points_consumed=points_consumed
+                        )
+            except Exception as e:
+                print(f"⚠️ 步骤状态更新失败: {e}")
         
         def notify_failure(error_msg: str):
             """通知任务失败"""
@@ -72,44 +114,70 @@ class PhaseGenerator:
         try:
             print("开始第一阶段准备工作...")
             
-            # 第一阶段：基础规划 (20-40%)
-            update_progress_callback('planning', 20, "正在进行基础规划...")
+            # 第一阶段：基础规划 (10-30%)
+            update_step_status('writing_style', 'active', 10)
+            update_progress_callback('writing_style', 10, "正在制定写作风格指南...", 
+                                     step_status={'writing_style': 'active'})
             if not self._generate_foundation_planning():
                 error_msg = "基础规划生成失败"
                 print(f"❌ {error_msg}")
                 notify_failure(error_msg)
                 return False
-            update_progress_callback('planning', 40, "基础规划完成")
+            update_step_status('writing_style', 'completed', 15)
+            update_step_status('market_analysis', 'completed', 25)
+            update_progress_callback('planning', 30, "基础规划完成",
+                                     step_status={'writing_style': 'completed', 'market_analysis': 'completed'})
             
-            # 第二阶段：世界观与角色设计 (40-60%)
-            update_progress_callback('worldview_generation', 45, "正在构建世界观...")
+            # 第二阶段：世界观与角色设计 (30-55%)
+            update_step_status('worldview', 'active', 35)
+            update_progress_callback('worldview_generation', 35, "正在构建世界观...",
+                                     step_status={'worldview': 'active'})
             if not self._generate_worldview_and_characters():
                 error_msg = "世界观与角色设计失败"
                 print(f"❌ {error_msg}")
                 notify_failure(error_msg)
                 return False
-            update_progress_callback('character_design', 60, "角色设计完成")
+            update_step_status('worldview', 'completed', 40)
+            update_step_status('faction_system', 'completed', 45)
+            update_step_status('character_design', 'completed', 55)
+            update_progress_callback('character_design', 55, "角色设计完成",
+                                     step_status={'worldview': 'completed', 'faction_system': 'completed', 
+                                                 'character_design': 'completed'})
             
-            # 第三阶段：全书规划 (60-80%)
-            update_progress_callback('story_outline', 65, "正在制定全书大纲...")
+            # 第三阶段：全书规划 (55-80%)
+            update_step_status('emotional_blueprint', 'active', 60)
+            update_progress_callback('story_outline', 60, "正在制定全书大纲...",
+                                     step_status={'emotional_blueprint': 'active'})
             if not self._generate_overall_planning():
                 error_msg = "全书规划制定失败"
                 print(f"❌ {error_msg}")
                 notify_failure(error_msg)
                 return False
-            update_progress_callback('story_outline', 80, "全书大纲制定完成")
+            update_step_status('emotional_blueprint', 'completed', 65)
+            update_step_status('growth_plan', 'completed', 70)
+            update_step_status('stage_plan', 'completed', 75)
+            update_step_status('detailed_stage_plans', 'completed', 78)
+            update_step_status('expectation_mapping', 'completed', 80)
+            update_progress_callback('story_outline', 80, "全书大纲制定完成",
+                                     step_status={'emotional_blueprint': 'completed', 'growth_plan': 'completed',
+                                                 'stage_plan': 'completed', 'detailed_stage_plans': 'completed',
+                                                 'expectation_mapping': 'completed'})
             
-            # 第四阶段：内容生成准备 (80-95%)
-            update_progress_callback('validation', 85, "正在进行内容生成准备...")
+            # 第四阶段：保存结果 (80-90%)
+            update_step_status('saving', 'active', 85)
+            update_progress_callback('saving', 85, "正在保存设定结果...",
+                                     step_status={'saving': 'active'})
             if not self._prepare_content_generation():
-                error_msg = "内容生成准备失败"
+                error_msg = "保存设定结果失败"
                 print(f"❌ {error_msg}")
                 notify_failure(error_msg)
                 return False
-            update_progress_callback('validation', 95, "内容生成准备完成")
+            update_step_status('saving', 'completed', 90)
+            update_progress_callback('saving', 90, "设定结果保存完成",
+                                     step_status={'saving': 'completed'})
             
-            # 保存第一阶段结果 (95-100%)
-            update_progress_callback('validation', 98, "正在保存第一阶段结果...")
+            # 保存第一阶段结果 (90-95%)
+            update_progress_callback('validation', 92, "正在保存第一阶段结果...")
             try:
                 save_success = self._save_phase_one_result()
                 if not save_success:
@@ -117,14 +185,15 @@ class PhaseGenerator:
             except Exception as save_error:
                 print(f"⚠️ 保存第一阶段结果时出现警告: {str(save_error)}")
                 print("⚠️ 项目信息文件保存失败，但第一阶段核心内容已完成")
-            update_progress_callback('completed', 100, "第一阶段设定生成完成")
             
             print(f"\n🎉 第一阶段设定生成完成！")
             print("✅ 已完成：基础规划、世界观构建、角色设计、全书规划")
             print("📝 下一步：可以继续第二阶段的章节内容生成")
 
-            # 🔥 新增：自动进行质量评估
-            update_progress_callback('assessment', 99, "正在进行AI质量评估...")
+            # 🔥 新增：自动进行质量评估 (95-100%)
+            update_step_status('quality_assessment', 'active', 95)
+            update_progress_callback('assessment', 95, "正在进行AI质量评估...",
+                                     step_status={'quality_assessment': 'active'})
             print("\n" + "="*60)
             print("📊 正在进行写作计划AI质量评估...")
             print("="*60)
@@ -141,7 +210,28 @@ class PhaseGenerator:
             else:
                 print("⚠️ 评估失败，但不影响后续流程")
 
-            update_progress_callback('completed', 100, "第一阶段设定生成完成")
+            # 完成所有步骤
+            update_step_status('quality_assessment', 'completed', 100)
+            
+            # 构建最终步骤状态 - 所有步骤都完成
+            final_step_status = {
+                'writing_style': 'completed',
+                'market_analysis': 'completed',
+                'worldview': 'completed',
+                'faction_system': 'completed',
+                'character_design': 'completed',
+                'emotional_blueprint': 'completed',
+                'growth_plan': 'completed',
+                'stage_plan': 'completed',
+                'detailed_stage_plans': 'completed',
+                'expectation_mapping': 'completed',
+                'system_init': 'completed',
+                'saving': 'completed',
+                'quality_assessment': 'completed'
+            }
+            
+            update_progress_callback('completed', 100, "第一阶段设定生成完成",
+                                     step_status=final_step_status)
             return True
 
         except Exception as e:

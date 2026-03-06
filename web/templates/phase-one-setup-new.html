@@ -518,7 +518,7 @@
                         </div>
 
                         <div class="form-actions">
-                            <button type="submit" class="btn btn-primary" id="submit-btn" style="width: 100%; position: relative;">
+                            <button type="button" class="btn btn-primary" id="submit-btn" style="width: 100%; position: relative;" onclick="console.log('🔘 [BUTTON] 按钮被点击'); document.getElementById('phase-one-form').dispatchEvent(new Event('submit', {cancelable: true}));">
                                 <span>🚀 开始生成设定</span>
                                 <span style="
                                     position: absolute;
@@ -585,6 +585,15 @@
 {% endblock %}
 
 {% block extra_js %}
+    <script>
+        // 全局错误捕获
+        window.addEventListener('error', function(e) {
+            console.error('❌ [GLOBAL ERROR]', e.message, 'at', e.filename, ':', e.lineno);
+        });
+        window.addEventListener('unhandledrejection', function(e) {
+            console.error('❌ [UNHANDLED PROMISE]', e.reason);
+        });
+    </script>
     <script src="/static/js/utils.js"></script>
     <script src="/static/js/phase-one-setup-new.js"></script>
     <script src="/static/js/creative-editor.js"></script>
@@ -594,7 +603,18 @@
     <script>
         // 页面加载完成后执行
         document.addEventListener('DOMContentLoaded', function() {
-            PhaseOneSetup.init();
+            console.log('🚀 [PAGE] DOM加载完成，准备初始化PhaseOneSetup');
+            
+            // 检查PhaseOneSetup是否存在
+            if (typeof PhaseOneSetup === 'undefined') {
+                console.error('❌ [PAGE] PhaseOneSetup类未加载！');
+                alert('页面加载失败，请刷新重试');
+                return;
+            }
+            
+            console.log('✅ [PAGE] PhaseOneSetup类存在，开始初始化');
+            const instance = PhaseOneSetup.init();
+            console.log('✅ [PAGE] PhaseOneSetup初始化完成:', instance);
             
             // 初始化字符计数功能
             initCharCounter();
@@ -740,17 +760,7 @@
         }
         
         // ==================== 创造点余额检查 ====================
-        async function checkPointsBeforeSubmit() {
-            // 重新获取最新余额
-            await loadUserPointsBalance();
-            
-            if (userPointsBalance < currentPointsCost) {
-                const needed = currentPointsCost - userPointsBalance;
-                showInsufficientPointsModal(needed);
-                return false;
-            }
-            return true;
-        }
+        // 💡 注意：点数余额检查已移至 phase-one-setup-new.js 中的 PhaseOneSetup 类
         
         // 显示创造点不足弹窗
         function showInsufficientPointsModal(needed) {
@@ -931,8 +941,7 @@
         
         // 跳转到充值页面
         window.goToRecharge = function() {
-            // 可以跳转到账户页面或充值页面
-            window.location.href = '/account?tab=points';
+            window.location.href = '/recharge';
         };
 
         // 初始化字符计数器

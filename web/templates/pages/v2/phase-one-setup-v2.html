@@ -262,19 +262,22 @@
         }
         
         async function checkPointsBeforeSubmit(event) {
-            event.preventDefault();
+            console.log('💰 [V2] 开始检查创造点余额');
             
             // 重新加载余额
             await loadUserPointsBalance();
+            console.log('💰 [V2] 当前余额:', userPointsBalance, '需要:', currentPointsCost);
             
             // 检查余额
             if (userPointsBalance < currentPointsCost) {
                 const needed = currentPointsCost - userPointsBalance;
+                console.log('❌ [V2] 余额不足，需要:', needed);
                 showInsufficientPointsModal(needed);
                 return false;
             }
             
             // 余额充足，继续提交
+            console.log('✅ [V2] 余额充足，开始生成');
             startPhaseOneGenerationWithResume(event);
             return true;
         }
@@ -369,11 +372,13 @@
         }
         
         function goToRecharge() {
-            window.location.href = '/account?tab=points';
+            window.location.href = '/recharge';
         }
 
         // 页面加载完成后执行
         document.addEventListener('DOMContentLoaded', function() {
+            console.log('🚀 [V2] DOM加载完成，开始初始化');
+            
             // 初始化页面
             if (typeof utils !== 'undefined') {
                 utils.checkLoginStatus();
@@ -393,7 +398,21 @@
             // 加载用户创造点余额
             loadUserPointsBalance();
             
-            console.log('第一阶段设定页面 (V2) 已加载完成');
+            // 🔥 绑定表单提交事件
+            const form = document.getElementById('phase-one-form');
+            if (form) {
+                console.log('✅ [V2] 找到表单元素，绑定submit事件');
+                form.addEventListener('submit', function(event) {
+                    console.log('🚀 [V2] 表单submit事件触发');
+                    event.preventDefault();
+                    event.stopPropagation();
+                    checkPointsBeforeSubmit(event);
+                });
+            } else {
+                console.error('❌ [V2] 未找到表单元素 #phase-one-form');
+            }
+            
+            console.log('✅ [V2] 第一阶段设定页面初始化完成');
         });
     </script>
 {% endblock %}

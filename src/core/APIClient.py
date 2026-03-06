@@ -22,6 +22,9 @@ class APIClient:
         self.config = config
         self.Prompts = Prompts()
         self.request_times = []
+        # API调用扣费回调 - 用于实时点数扣除
+        self.on_api_call_callback = None
+        self.api_call_counter = 0  # API调用计数器
         # 频率限制相关属性 - 安全访问配置
         rate_limit_config = self.config.get("rate_limit", {})
         self.rate_limit_enabled = rate_limit_config.get("enabled", False)
@@ -65,6 +68,35 @@ class APIClient:
         os.makedirs(self.optimized_prompts_dir, exist_ok=True)
         # 加载已优化的提示词
         self.optimized_prompts = self._load_optimized_prompts()
+    
+    def set_api_call_callback(self, callback):
+        """设置API调用回调函数 - 用于实时点数扣除
+        
+        Args:
+            callback: 回调函数，接收参数 (purpose: str, attempt: int)
+        """
+        self.on_api_call_callback = callback
+        self.logger.info(f"✓ API调用扣费回调已设置")
+    
+    def _trigger_api_call_callback(self, purpose: str, attempt: int = 1):
+        """触发API调用回调 - 扣除点数"""
+        self.api_call_counter += 1
+        if self.on_api_call_callback:
+            try:
+                self.on_api_call_callback(purpose, attempt)
+                self.logger.info(f"💰 API调用 #{self.api_call_counter} [{purpose}] 点数已扣除")
+            except Exception as e:
+                self.logger.error(f"❌ API调用扣费回调失败: {e}")
+    
+    def get_api_call_count(self) -> int:
+        """获取API调用次数"""
+        return self.api_call_counter
+    
+    def reset_api_call_counter(self):
+        """重置API调用计数器"""
+        self.api_call_counter = 0
+        self.logger.info("🔄 API调用计数器已重置")
+    
     def _check_rate_limit(self) -> bool:
         """检查频率限制，如果需要等待则返回True"""
         if not self.rate_limit_enabled:
@@ -413,6 +445,9 @@ class APIClient:
                 
                 # 更新频率限制计数器（只在成功建立连接时计数）
                 self._update_rate_limit()
+                # 触发API调用扣费回调（只在第一次成功尝试时扣费）
+                if attempt == 0:
+                    self._trigger_api_call_callback(purpose, attempt + 1)
                 # 检查HTTP状态码
                 if response.status_code != 200:
                     self.logger.error(f"  ❌ HTTP错误: 状态码 {response.status_code}")

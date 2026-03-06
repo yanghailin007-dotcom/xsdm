@@ -853,6 +853,9 @@ class NovelGenerationManager:
             title = config.get("title", "未命名小说")
             is_resume_mode = config.get("is_resume_mode", False)
             
+            # 🔥 存储当前用户名供其他方法使用
+            self._current_username = config.get('username') or 'unknown'
+            
             # 🔥 新增：获取 start_new 参数，用户选择"从新开始"时应删除现有检查点
             start_new = config.get("start_new", False)
             if start_new:
@@ -861,7 +864,7 @@ class NovelGenerationManager:
             
             # 创建初始检查点（仅在非恢复模式下）
             if self.checkpoint_enabled and not is_resume_mode:
-                self._create_initial_checkpoint(title, config, task_id)
+                self._create_initial_checkpoint(title, config, task_id, self._current_username)
             
             self._update_task_status(task_id, "generating", 10)
             
@@ -949,6 +952,12 @@ class NovelGenerationManager:
                 setattr(novel_generator, '_update_task_status_callback', self._update_task_status)
                 setattr(novel_generator, '_current_task_id', task_id)
                 
+                # 🔥 设置用户ID用于API调用实时扣费
+                user_id = config.get('user_id')
+                if user_id:
+                    novel_generator.set_user_id(user_id)
+                    logger.info(f"任务 {task_id}: 已设置用户ID {user_id} 用于API调用扣费")
+                
                 # 🔥 传递 start_new 和 target_platform 参数给生成器
                 success = novel_generator.phase_one_generation(
                     creative_seed,
@@ -1010,7 +1019,7 @@ class NovelGenerationManager:
             traceback.print_exc()
             self._update_task_status(task_id, "failed", 0, f"未捕获的异常: {str(e)}")
     
-    def _create_initial_checkpoint(self, title: str, config: Dict[str, Any], task_id: str):
+    def _create_initial_checkpoint(self, title: str, config: Dict[str, Any], task_id: str, username: str = None):
         """创建初始检查点，保存创意标题到实际书名的映射"""
         try:
             from src.managers.stage_plan.generation_checkpoint import GenerationCheckpoint
@@ -1031,7 +1040,7 @@ class NovelGenerationManager:
                 # 获取创意ID（如果存在）
                 creative_seed_id = creative_seed.get("id") or creative_seed.get("seedId")
             
-            checkpoint_mgr = GenerationCheckpoint(title, Path.cwd())
+            checkpoint_mgr = GenerationCheckpoint(title, Path.cwd(), username=username)
              
             logger.info(f"📁 检查点目录: {checkpoint_mgr.checkpoint_dir}")
             logger.info(f"📄 检查点文件: {checkpoint_mgr.checkpoint_file}")
@@ -1069,8 +1078,9 @@ class NovelGenerationManager:
         try:
             from src.managers.stage_plan.generation_checkpoint import GenerationCheckpoint
             from pathlib import Path
-             
-            checkpoint_mgr = GenerationCheckpoint(title, Path.cwd())
+            
+            username = getattr(self, '_current_username', None)
+            checkpoint_mgr = GenerationCheckpoint(title, Path.cwd(), username=username)
             checkpoint_mgr.delete_checkpoint()
              
             logger.info(f"✅ 已删除现有检查点: {title}")
@@ -1093,7 +1103,8 @@ class NovelGenerationManager:
             from src.managers.stage_plan.generation_checkpoint import GenerationCheckpoint
             from pathlib import Path
             
-            checkpoint_mgr = GenerationCheckpoint(title, Path.cwd())
+            username = getattr(self, '_current_username', None)
+            checkpoint_mgr = GenerationCheckpoint(title, Path.cwd(), username=username)
             
             # 保留原有的生成参数
             existing_checkpoint = checkpoint_mgr.load_checkpoint()
@@ -1113,7 +1124,8 @@ class NovelGenerationManager:
             from src.managers.stage_plan.generation_checkpoint import GenerationCheckpoint
             from pathlib import Path
             
-            checkpoint_mgr = GenerationCheckpoint(title, Path.cwd())
+            username = getattr(self, '_current_username', None)
+            checkpoint_mgr = GenerationCheckpoint(title, Path.cwd(), username=username)
             success = checkpoint_mgr.delete_checkpoint()
             
             if success:

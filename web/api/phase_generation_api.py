@@ -1092,6 +1092,9 @@ def start_phase_one_generate():
                 "coreSellingPoints": core_selling_points if isinstance(core_selling_points, list) else [core_selling_points] if core_selling_points else []
             }
         
+        # 获取当前用户名
+        username = get_current_username()
+        
         # 构建生成参数
         generation_params = {
             'title': title,
@@ -1102,7 +1105,10 @@ def start_phase_one_generate():
             'generation_mode': generation_mode,
             'creative_seed': creative_seed,
             'target_platform': target_platform,  # 🔥 新增：传递目标平台参数
-            'start_new': start_new  # 🔥 新增：传递 start_new 参数
+            'start_new': start_new,  # 🔥 新增：传递 start_new 参数
+            'user_id': user_id,  # 🔥 新增：传递用户ID用于API调用扣费
+            'username': username,  # 🔥 新增：传递用户名用于目录结构
+            'estimated_points': total_cost  # 🔥 新增：预估消耗点数
         }
         
         logger.info(f"📱 [PLATFORM] 目标平台: {target_platform}")
@@ -1116,9 +1122,10 @@ def start_phase_one_generate():
         return jsonify({
             "success": True,
             "task_id": task_id,
-            "message": f"第一阶段生成任务已启动，已消耗{total_cost}创造点",
+            "message": f"第一阶段生成任务已启动，已预扣{total_cost}创造点",
             "status": "initializing",
             "points_spent": total_cost,
+            "points_estimated": total_cost,  # 预估点数（预扣费金额）
             "balance_after": spend_result['balance']
         })
         
@@ -1159,7 +1166,10 @@ def get_phase_one_task_status(task_id):
             response["step_status"] = task_status["step_status"]
         
         # 添加创造点消耗信息
+        # points_consumed: 实际API调用消耗的点数（实时）
+        # points_total: 预估总消耗（预扣费金额）
         response["points_consumed"] = task_status.get("points_consumed", 0)
+        response["points_estimated"] = task_status.get("config", {}).get("estimated_points", 400)
         response["points_total"] = task_status.get("points_total", 400)
         
         # 添加状态消息
@@ -2361,6 +2371,209 @@ def register_additional_routes(app):
             
         except Exception as e:
             logger.error(f"❌ [PHASE_TWO] 获取任务状态失败: {e}")
+            import traceback
+            logger.error(f"错误堆栈: {traceback.format_exc()}")
+            return jsonify({"success": False, "error": str(e)}), 500
+    
+    
+    # ==================== 停止生成和恢复生成API路由 ====================
+    
+    @app.route('/api/phase-one/task/<task_id>/stop', methods=['POST'])
+    @login_required
+    def stop_phase_one_generation(task_id):
+        """停止第一阶段生成任务，返还剩余点数并保存检查点"""
+        try:
+            user_id = session.get('user_id')
+            logger.info(f"🛑 [STOP] 用户 {user_id} 请求停止任务: {task_id}")
+            
+            if not manager:
+                return jsonify({"success": False, "error": "管理器未初始化"}), 500
+            
+            # 获取任务状态
+            task_status = manager.get_task_status(task_id)
+            if "error" in task_status:
+                return jsonify({"success": False, "error": "任务不存在"}), 404
+            
+            # 检查任务是否还在运行
+            if task_status.get("status") not in ["generating", "initializing"]:
+                return jsonify({
+                    "success": False, 
+                    "error": f"任务当前状态为 {task_status.get('status')}，无法停止"
+                }), 400
+            
+            # 获取任务配置
+            config = task_status.get("config", {})
+            title = config.get("title", "未命名")
+            estimated_points = config.get("estimated_points", 0)
+            
+            # 获取实际消耗点数
+            points_consumed = task_status.get("points_consumed", 0)
+            points_to_refund = max(0, estimated_points - points_consumed)
+            
+            logger.info(f"💰 [STOP] 预估点数: {estimated_points}, 已消耗: {points_consumed}, 应返还: {points_to_refund}")
+            
+            # 返还剩余点数
+            refund_result = None
+            if points_to_refund > 0:
+                from web.models.point_model import point_model
+                refund_result = point_model.add_points(
+                    user_id=user_id,
+                    amount=points_to_refund,
+                    source='generation_stop_refund',
+                    description=f'停止生成任务返还: {title}',
+                    related_id=task_id
+                )
+                if refund_result.get('success'):
+                    logger.info(f"✅ [STOP] 已返还 {points_to_refund} 创造点给用户 {user_id}")
+                else:
+                    logger.error(f"❌ [STOP] 返还点数失败: {refund_result.get('error')}")
+            
+            # 更新检查点，记录停止状态
+            checkpoint_info = None
+            if manager.checkpoint_enabled:
+                current_step = task_status.get("current_step", "unknown")
+                manager._update_checkpoint(
+                    title=title,
+                    phase="phase_one",
+                    step=current_step,
+                    data={
+                        "stopped_at": datetime.now().isoformat(),
+                        "stopped_by": user_id,
+                        "points_consumed": points_consumed,
+                        "points_refunded": points_to_refund,
+                        "progress": task_status.get("progress", 0)
+                    },
+                    step_status="stopped"
+                )
+                
+                # 加载检查点信息用于返回
+                from src.managers.stage_plan.generation_checkpoint import GenerationCheckpoint
+                from pathlib import Path
+                checkpoint_mgr = GenerationCheckpoint(title, Path.cwd())
+                checkpoint_info = checkpoint_mgr.get_resume_info()
+                logger.info(f"✅ [STOP] 检查点已更新，当前步骤: {current_step}")
+            
+            # 标记任务为已停止
+            manager._update_task_status(task_id, "stopped", task_status.get("progress", 0))
+            
+            return jsonify({
+                "success": True,
+                "message": "生成任务已停止",
+                "task_id": task_id,
+                "points_consumed": points_consumed,
+                "points_refunded": points_to_refund,
+                "refund_success": refund_result.get('success', True) if refund_result else True,
+                "checkpoint_info": checkpoint_info
+            })
+            
+        except Exception as e:
+            logger.error(f"❌ [STOP] 停止生成任务失败: {e}")
+            import traceback
+            logger.error(f"错误堆栈: {traceback.format_exc()}")
+            return jsonify({"success": False, "error": str(e)}), 500
+    
+    
+    @app.route('/api/phase-one/resume', methods=['POST'])
+    @login_required
+    def resume_phase_one_generation():
+        """从检查点恢复第一阶段生成"""
+        try:
+            data = request.json or {}
+            novel_title = data.get('novel_title')
+            user_id = session.get('user_id')
+            
+            if not novel_title:
+                return jsonify({"success": False, "error": "小说标题不能为空"}), 400
+            
+            logger.info(f"🔄 [RESUME] 用户 {user_id} 请求恢复生成: {novel_title}")
+            
+            # 加载检查点
+            from src.managers.stage_plan.generation_checkpoint import GenerationCheckpoint
+            from pathlib import Path
+            checkpoint_mgr = GenerationCheckpoint(novel_title, Path.cwd())
+            checkpoint = checkpoint_mgr.load_checkpoint()
+            
+            if not checkpoint:
+                return jsonify({
+                    "success": False, 
+                    "error": "没有找到可恢复的检查点",
+                    "hint": "请重新开始生成"
+                }), 404
+            
+            # 检查检查点数据
+            checkpoint_data = checkpoint.get('data', {})
+            generation_params = checkpoint_data.get('generation_params', {})
+            
+            if not generation_params:
+                return jsonify({
+                    "success": False, 
+                    "error": "检查点数据不完整",
+                    "hint": "请重新开始生成"
+                }), 400
+            
+            # 计算预估点数（重新生成剩余步骤）
+            from web.models.point_model import point_model
+            current_step = checkpoint.get('current_step', 'initialization')
+            phase_steps = GenerationCheckpoint.PHASES.get('phase_one', {}).get('steps', [])
+            
+            # 计算剩余步骤数
+            current_index = phase_steps.index(current_step) if current_step in phase_steps else 0
+            remaining_steps = len(phase_steps) - current_index
+            total_steps = len(phase_steps)
+            
+            # 预估剩余所需点数（简化计算）
+            original_estimate = generation_params.get('estimated_points', 0)
+            progress_percent = (current_index / total_steps) if total_steps > 0 else 0
+            remaining_estimate = int(original_estimate * (1 - progress_percent))
+            
+            # 检查余额
+            user_points = point_model.get_user_points(user_id)
+            if user_points['balance'] < remaining_estimate:
+                return jsonify({
+                    "success": False, 
+                    "error": f"创造点不足，恢复生成需要约{remaining_estimate}点，当前余额{user_points['balance']}点",
+                    "required": remaining_estimate,
+                    "balance": user_points['balance']
+                }), 402
+            
+            # 扣除预估点数
+            spend_result = point_model.spend_points(
+                user_id=user_id,
+                amount=remaining_estimate,
+                source='phase1_resume',
+                description=f'恢复生成第一阶段设定: {novel_title}',
+                related_id=novel_title
+            )
+            
+            if not spend_result['success']:
+                return jsonify({
+                    "success": False, 
+                    "error": f"扣除创造点失败: {spend_result.get('error')}"
+                }), 500
+            
+            # 添加恢复标记
+            generation_params['is_resume_mode'] = True
+            generation_params['user_id'] = user_id
+            generation_params['estimated_points'] = remaining_estimate
+            generation_params['checkpoint_step'] = current_step
+            
+            # 启动生成任务
+            task_id = manager.start_generation(generation_params)
+            
+            logger.info(f"✅ [RESUME] 任务已恢复启动: {task_id}, 从步骤: {current_step}")
+            
+            return jsonify({
+                "success": True,
+                "task_id": task_id,
+                "message": f"已从检查点恢复生成，当前步骤: {current_step}",
+                "resumed_from_step": current_step,
+                "progress": checkpoint_data.get('progress', 0),
+                "estimated_points": remaining_estimate,
+                "balance_after": spend_result['balance']
+            })
+            
+        except Exception as e:
+            logger.error(f"❌ [RESUME] 恢复生成失败: {e}")
             import traceback
             logger.error(f"错误堆栈: {traceback.format_exc()}")
             return jsonify({"success": False, "error": str(e)}), 500

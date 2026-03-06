@@ -119,6 +119,10 @@ class NovelGenerator:
         self._phase_two_from_chapter = None
         self._phase_two_total_chapters = None
         
+        # API调用扣费追踪
+        self._api_points_consumed = 0  # API调用实际消耗的点数
+        self._user_id = None  # 当前用户ID（用于扣费）
+        
         # 信号处理
         self._setup_signal_handlers()
         
@@ -135,6 +139,8 @@ class NovelGenerator:
         
         # API客户端
         self.api_client = APIClient(self.config)
+        # 设置API调用扣费回调
+        self.api_client.set_api_call_callback(self._on_api_call_deduct_points)
         
         # 质量评估器 - 延迟初始化（需要 novel_title）
         self.quality_assessor = None
@@ -229,6 +235,52 @@ class NovelGenerator:
         self.event_bus.subscribe('chapter.generated', self._on_chapter_generated)
         self.event_bus.subscribe('chapter.assessed', self._on_chapter_assessed)
         self.event_bus.subscribe('error.occurred', self._on_error_occurred)
+    
+    def _on_api_call_deduct_points(self, purpose: str, attempt: int):
+        """API调用扣费回调 - 每次成功API调用扣除1点"""
+        try:
+            # 增加内部计数
+            self._api_points_consumed += 1
+            
+            # 如果设置了用户ID，则实际扣除点数
+            if self._user_id:
+                from web.models.point_model import point_model
+                result = point_model.spend_points(
+                    user_id=self._user_id,
+                    amount=1,
+                    source='api_call',
+                    description=f'API调用: {purpose}',
+                    related_id=self._current_task_id
+                )
+                if result['success']:
+                    self.logger.info(f"💰 API调用扣费成功: {purpose} (-1点, 总计: {self._api_points_consumed})")
+                else:
+                    self.logger.error(f"❌ API调用扣费失败: {result.get('error')}")
+            
+            # 发布点数消耗事件（用于前端实时更新）
+            self.event_bus.publish('points.consumed', {
+                'consumed': self._api_points_consumed,
+                'purpose': purpose,
+                'task_id': self._current_task_id
+            })
+            
+        except Exception as e:
+            self.logger.error(f"❌ API调用扣费回调出错: {e}")
+    
+    def set_user_id(self, user_id: int):
+        """设置当前用户ID（用于扣费）"""
+        self._user_id = user_id
+        self.logger.info(f"👤 已设置用户ID: {user_id}")
+    
+    def get_api_points_consumed(self) -> int:
+        """获取API调用消耗的点数"""
+        return self._api_points_consumed
+    
+    def reset_api_points_counter(self):
+        """重置API调用点数计数器"""
+        self._api_points_consumed = 0
+        self.api_client.reset_api_call_counter()
+        self.logger.info("🔄 API调用点数计数器已重置")
 
     def _initialize_data_structures(self):
         """初始化数据结构"""

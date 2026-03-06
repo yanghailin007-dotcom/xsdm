@@ -5,20 +5,36 @@ class PhaseOneSetup {
         this.currentTaskId = null;
         this.progressInterval = null;
         this.isGenerating = false;
+        this.estimatedPoints = 0;  // 预估消耗点数
     }
 
     static init() {
+        console.log('🚀 [PhaseOneSetup] 开始初始化');
         const instance = new PhaseOneSetup();
+        console.log('✅ [PhaseOneSetup] 实例创建成功');
         instance.bindEvents();
+        console.log('✅ [PhaseOneSetup] 事件绑定完成');
         instance.initializeUI();
+        console.log('✅ [PhaseOneSetup] UI初始化完成');
         return instance;
     }
 
     bindEvents() {
-        // 表单提交事件
+        console.log('🔧 [PhaseOneSetup] 开始绑定事件');
+        
+        // 表单提交事件 - 使用捕获阶段确保最早处理
         const form = document.getElementById('phase-one-form');
         if (form) {
-            form.addEventListener('submit', (e) => this.handleFormSubmit(e));
+            console.log('✅ [PhaseOneSetup] 找到表单元素，绑定submit事件');
+            form.addEventListener('submit', (e) => {
+                console.log('🚀 [PhaseOneSetup] 表单submit事件触发，准备阻止默认行为');
+                e.preventDefault();
+                e.stopPropagation();
+                console.log('✅ [PhaseOneSetup] 默认行为已阻止，准备处理提交');
+                this.handleFormSubmit(e);
+            }, true); // 使用捕获阶段
+        } else {
+            console.error('❌ [PhaseOneSetup] 未找到表单元素 #phase-one-form');
         }
 
         // 重置按钮
@@ -111,14 +127,22 @@ class PhaseOneSetup {
     }
 
     async handleFormSubmit(event) {
-        event.preventDefault();
+        console.log('🚀 [DEBUG] =================== handleFormSubmit 被调用 ===================');
         
-        console.log('🚀 [DEBUG] handleFormSubmit 开始执行');
+        // 确保阻止默认表单提交
+        if (event) {
+            event.preventDefault();
+            event.stopPropagation();
+            console.log('✅ [DEBUG] event.preventDefault() 和 stopPropagation() 已执行');
+        } else {
+            console.warn('⚠️ [DEBUG] event 参数为空');
+        }
         
+        // 防止重复提交
         if (this.isGenerating) {
             console.log('⚠️ [DEBUG] 已有任务在生成中，忽略此次请求');
             this.showToast('正在生成中，请稍候...', 'warning');
-            return;
+            return false;
         }
 
         try {
@@ -133,6 +157,24 @@ class PhaseOneSetup {
                 return;
             }
             console.log('✅ [DEBUG] 表单数据验证通过');
+
+            // 💰 检查创造点余额
+            console.log('💰 [DEBUG] 开始检查创造点余额');
+            let hasEnoughPoints = false;
+            try {
+                hasEnoughPoints = await this.checkPointsBalance();
+                console.log('💰 [DEBUG] 余额检查结果:', hasEnoughPoints);
+            } catch (balanceError) {
+                console.error('❌ [DEBUG] 检查余额时发生异常:', balanceError);
+                this.showToast('检查余额失败，请刷新页面重试', 'error');
+                return;
+            }
+            
+            if (!hasEnoughPoints) {
+                console.log('❌ [DEBUG] 创造点余额不足，停止提交');
+                return;
+            }
+            console.log('✅ [DEBUG] 创造点余额充足，继续提交');
 
             this.isGenerating = true;
             this.showProgress();
@@ -172,6 +214,17 @@ class PhaseOneSetup {
                     const responseText = await response.text();
                     console.log('📋 [DEBUG] 原始响应文本:', responseText);
                 }
+                
+                // 🔥 处理 401 未授权错误
+                if (response.status === 401 || errorData.code === 'AUTH_REQUIRED') {
+                    console.error('🔐 [DEBUG] 用户未登录，需要重新登录');
+                    this.showToast('请先登录后再试', 'error');
+                    setTimeout(() => {
+                        window.location.href = '/login';
+                    }, 2000);
+                    return;
+                }
+                
                 throw new Error(errorData.error || `HTTP ${response.status}: ${response.statusText}`);
             }
 
@@ -183,6 +236,16 @@ class PhaseOneSetup {
                 console.log('✅ [DEBUG] 任务启动成功');
                 this.currentTaskId = result.task_id;
                 console.log('🎯 [DEBUG] 设置任务ID:', this.currentTaskId);
+                
+                // 保存后端返回的预估点数
+                if (result.points_estimated || result.points_spent) {
+                    this.estimatedPoints = result.points_estimated || result.points_spent;
+                    console.log('💰 [DEBUG] 后端返回预估点数:', this.estimatedPoints);
+                }
+                
+                // 立即更新点数显示
+                this.updatePointsCost(0, this.estimatedPoints);
+                
                 this.updateProgressMessage(`任务已启动: ${this.currentTaskId}，正在生成中...`);
                 this.startProgressMonitoring();
             } else {
@@ -265,6 +328,218 @@ class PhaseOneSetup {
         return true;
     }
 
+    // 💰 检查创造点余额 - 调用后端API获取准确预估
+    async checkPointsBalance() {
+        try {
+            console.log('💰 [DEBUG] 开始检查创造点余额');
+            
+            // 获取用户余额
+            const balanceResponse = await fetch('/api/points/balance');
+            console.log('📥 [DEBUG] 余额查询响应:', balanceResponse.status);
+            
+            if (!balanceResponse.ok) {
+                if (balanceResponse.status === 401) {
+                    console.error('🔐 [DEBUG] 用户未登录，需要重新登录');
+                    this.showToast('请先登录后再试', 'error');
+                    setTimeout(() => {
+                        window.location.href = '/login';
+                    }, 2000);
+                    return false;
+                }
+                throw new Error('无法获取余额信息');
+            }
+            
+            const balanceData = await balanceResponse.json();
+            const balance = balanceData.balance || 0;
+            console.log('💰 [DEBUG] 当前余额:', balance);
+            
+            // 从后端获取准确的预估消耗
+            const totalChapters = parseInt(document.getElementById('total-chapters')?.value) || 200;
+            const generationMode = document.getElementById('generation-mode')?.value || 'phase_one_only';
+            
+            // 调用后端API计算预估点数
+            const estimateResponse = await fetch('/api/points/estimate', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    action: 'phase1',
+                    params: {
+                        total_chapters: totalChapters,
+                        estimated_characters: 4
+                    }
+                })
+            });
+            
+            let estimatedPoints = 33; // 默认值
+            if (estimateResponse.ok) {
+                const estimateData = await estimateResponse.json();
+                if (estimateData.success && estimateData.data) {
+                    estimatedPoints = estimateData.data.estimated_cost || 33;
+                    console.log('💰 [DEBUG] 从后端获取预估消耗:', estimatedPoints);
+                    console.log('💰 [DEBUG] 费用明细:', estimateData.data.breakdown);
+                }
+            } else {
+                console.warn('⚠️ [DEBUG] 无法从后端获取预估，使用默认值33');
+                // 使用与后端一致的计算
+                // planning:1 + worldview:3 + characters:2*4=8 + outline:chapters/10 + validation:1
+                estimatedPoints = 1 + 3 + 8 + Math.floor(totalChapters / 10) + 1;
+            }
+            
+            console.log('💰 [DEBUG] 预估消耗:', estimatedPoints);
+            
+            // 保存预估点数供后续使用
+            this.estimatedPoints = estimatedPoints;
+            
+            if (balance < estimatedPoints) {
+                const needed = estimatedPoints - balance;
+                console.log('❌ [DEBUG] 余额不足，需要:', needed, '当前:', balance, '预估:', estimatedPoints);
+                console.log('❌ [DEBUG] 准备显示余额不足弹窗');
+                try {
+                    this.showInsufficientPointsModal(needed, balance, estimatedPoints);
+                    console.log('✅ [DEBUG] 余额不足弹窗显示成功');
+                } catch (modalError) {
+                    console.error('❌ [DEBUG] 显示弹窗失败:', modalError);
+                    this.showToast(`创造点不足，需要${needed}点，请充值`, 'error');
+                }
+                return false;
+            }
+            
+            console.log('✅ [DEBUG] 余额充足');
+            return true;
+            
+        } catch (error) {
+            console.error('❌ [DEBUG] 检查余额失败:', error);
+            this.showToast('检查余额失败，请重试', 'error');
+            return false;
+        }
+    }
+    
+    // 显示余额不足弹窗
+    showInsufficientPointsModal(needed, balance, estimated) {
+        console.log('🪟 [DEBUG] showInsufficientPointsModal 被调用', {needed, balance, estimated});
+        
+        // 参数检查
+        needed = parseInt(needed) || 0;
+        balance = parseInt(balance) || 0;
+        estimated = parseInt(estimated) || 0;
+        
+        if (needed <= 0) {
+            console.warn('⚠️ [DEBUG] 需要的点数为0或负数，不显示弹窗');
+            return;
+        }
+        
+        try {
+            // 移除已存在的弹窗
+            const existingModal = document.getElementById('insufficient-points-modal');
+            if (existingModal) existingModal.remove();
+            
+            const modal = document.createElement('div');
+            modal.id = 'insufficient-points-modal';
+            modal.innerHTML = `
+            <div style="
+                position: fixed;
+                top: 0;
+                left: 0;
+                right: 0;
+                bottom: 0;
+                background: rgba(0, 0, 0, 0.8);
+                backdrop-filter: blur(8px);
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                z-index: 99999;
+            ">
+                <div style="
+                    background: linear-gradient(145deg, #1e293b 0%, #0f172a 100%);
+                    border: 2px solid #fbbf24;
+                    border-radius: 1rem;
+                    padding: 2rem;
+                    max-width: 380px;
+                    width: 90%;
+                    text-align: center;
+                ">
+                    <div style="
+                        width: 70px;
+                        height: 70px;
+                        margin: 0 auto 1.25rem;
+                        background: linear-gradient(135deg, #fbbf24 0%, #f59e0b 100%);
+                        border-radius: 50%;
+                        display: flex;
+                        align-items: center;
+                        justify-content: center;
+                        box-shadow: 0 10px 25px rgba(251, 191, 36, 0.4);
+                    ">
+                        <span style="font-size: 2rem;">⚡</span>
+                    </div>
+                    
+                    <h3 style="color: #fbbf24; margin-bottom: 1rem; font-size: 1.35rem; font-weight: 700;">
+                        创造点余额不足
+                    </h3>
+                    
+                    <div style="
+                        background: rgba(0, 0, 0, 0.4);
+                        border-radius: 0.75rem;
+                        padding: 1rem;
+                        margin-bottom: 1.25rem;
+                        border: 1px solid rgba(255, 255, 255, 0.1);
+                    ">
+                        <div style="display: flex; justify-content: space-between; margin-bottom: 0.5rem; padding-bottom: 0.5rem; border-bottom: 1px solid rgba(255, 255, 255, 0.1);">
+                            <span style="color: #94a3b8; font-size: 0.875rem;">当前余额</span>
+                            <span style="color: #e2e8f0; font-size: 1rem; font-weight: 600;">${balance} 点</span>
+                        </div>
+                        <div style="display: flex; justify-content: space-between; margin-bottom: 0.5rem; padding-bottom: 0.5rem; border-bottom: 1px solid rgba(255, 255, 255, 0.1);">
+                            <span style="color: #94a3b8; font-size: 0.875rem;">本次需要</span>
+                            <span style="color: #fbbf24; font-size: 1rem; font-weight: 600;">${estimated} 点</span>
+                        </div>
+                        <div style="display: flex; justify-content: space-between; padding-top: 0.25rem;">
+                            <span style="color: #f87171; font-size: 0.875rem; font-weight: 500;">⚠️ 还差</span>
+                            <span style="color: #ef4444; font-size: 1.25rem; font-weight: 700;">${needed} 点</span>
+                        </div>
+                    </div>
+                    
+                    <div style="display: flex; gap: 0.75rem;">
+                        <button onclick="this.closest('#insufficient-points-modal').remove(); document.body.style.overflow = '';" style="
+                            flex: 1;
+                            padding: 0.875rem 1rem;
+                            background: rgba(255, 255, 255, 0.08);
+                            border: 1px solid rgba(255, 255, 255, 0.2);
+                            border-radius: 0.5rem;
+                            color: #94a3b8;
+                            cursor: pointer;
+                            font-size: 0.875rem;
+                            font-weight: 500;
+                        ">
+                            取消
+                        </button>
+                        <button onclick="window.location.href = '/recharge';" style="
+                            flex: 1.2;
+                            padding: 0.875rem 1rem;
+                            background: linear-gradient(135deg, #fbbf24 0%, #f59e0b 100%);
+                            border: none;
+                            border-radius: 0.5rem;
+                            color: #0f172a;
+                            cursor: pointer;
+                            font-size: 0.875rem;
+                            font-weight: 700;
+                            box-shadow: 0 4px 15px rgba(251, 191, 36, 0.4);
+                        ">
+                            💎 立即充值
+                        </button>
+                    </div>
+                </div>
+            </div>
+        `;
+            document.body.appendChild(modal);
+            document.body.style.overflow = 'hidden';
+            console.log('✅ [DEBUG] 弹窗DOM元素已创建并添加到页面');
+        } catch (error) {
+            console.error('❌ [DEBUG] 创建弹窗失败:', error);
+            // 降级方案：使用简单的alert
+            alert(`创造点余额不足！\n当前余额: ${balance} 点\n本次需要: ${estimated} 点\n还差: ${needed} 点\n\n请前往充值页面充值。`);
+            window.location.href = '/recharge';
+        }
+    }
+
     startProgressMonitoring() {
         if (!this.currentTaskId) {
             console.log('⚠️ [DEBUG] 没有任务ID，无法开始进度监控');
@@ -331,8 +606,9 @@ class PhaseOneSetup {
         // 更新创造点消耗
         if (taskStatus.points_consumed !== undefined || taskStatus.points_cost) {
             const consumed = taskStatus.points_consumed || taskStatus.points_cost || 0;
-            const total = taskStatus.points_total || 400;
-            this.updatePointsCost(consumed, total);
+            // 使用后端返回的预估点数，或本机保存的预估点数
+            const estimated = taskStatus.points_estimated || taskStatus.points_total || this.estimatedPoints || 0;
+            this.updatePointsCost(consumed, estimated);
         }
     }
 
@@ -487,16 +763,16 @@ class PhaseOneSetup {
         if (descEl) descEl.textContent = detail.desc;
     }
     
-    updatePointsCost(consumed, total) {
+    updatePointsCost(consumed, estimated) {
         const consumedEl = document.getElementById('points-consumed');
-        const totalEl = document.getElementById('points-total');
+        const estimatedEl = document.getElementById('points-estimated');
         
         if (consumedEl) {
             // 数字动画
             const current = parseInt(consumedEl.textContent) || 0;
             this.animateNumber(current, consumed, consumedEl);
         }
-        if (totalEl) totalEl.textContent = total || 400;
+        if (estimatedEl) estimatedEl.textContent = estimated || this.estimatedPoints || 0;
     }
     
     animateNumber(from, to, element) {
@@ -834,8 +1110,9 @@ class PhaseOneSetup {
             progressSection.classList.add('active');
         }
         
-        // 初始化创造点显示
-        this.updatePointsCost(0, 400);
+        // 初始化创造点显示（使用预估点数或默认值）
+        const estimated = this.estimatedPoints || 33;
+        this.updatePointsCost(0, estimated);
         
         // 初始化步骤状态
         this.updateProgressSteps('initialization');

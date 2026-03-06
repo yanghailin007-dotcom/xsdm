@@ -38,7 +38,7 @@ class GenerationCheckpoint:
         }
     }
     
-    def __init__(self, novel_title: str, workspace_dir: Path, logger_name: str = "GenerationCheckpoint"):
+    def __init__(self, novel_title: str, workspace_dir: Path, logger_name: str = "GenerationCheckpoint", username: str = None):
         """
         初始化检查点管理器
         
@@ -46,17 +46,23 @@ class GenerationCheckpoint:
             novel_title: 小说标题（原始标题，用于存储和显示）
             workspace_dir: 工作目录
             logger_name: 日志名称
+            username: 用户名（可选），如果提供则使用 小说项目/用户名/小说名/.generation 结构
         """
         self.novel_title = novel_title
         self.workspace_dir = workspace_dir
         self.logger = get_logger(logger_name)
+        self.username = username
         
         # 使用原始标题构建路径，只移除文件系统不支持的字符
         # 保留中文和其他合法字符，使目录名更可读
         self.safe_title = self._sanitize_filename(novel_title)
         
-        # 检查点文件路径 - 使用原始书名而不是安全标题
-        self.checkpoint_dir = workspace_dir / "小说项目" / self.safe_title / ".generation"
+        # 检查点文件路径 - 如果提供了用户名，使用 小说项目/用户名/小说名/.generation 结构
+        if username:
+            self.checkpoint_dir = workspace_dir / "小说项目" / username / self.safe_title / ".generation"
+        else:
+            # 向后兼容：使用旧的路径结构
+            self.checkpoint_dir = workspace_dir / "小说项目" / self.safe_title / ".generation"
         self.checkpoint_file = self.checkpoint_dir / "checkpoint.json"
         self.backup_file = self.checkpoint_dir / "checkpoint_backup.json"
     
