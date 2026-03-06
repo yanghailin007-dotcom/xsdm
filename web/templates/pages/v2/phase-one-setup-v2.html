@@ -679,12 +679,21 @@
         }
         
         // 轮询进度
+        let progressPollingInterval = null;
+        
         function startProgressPolling(taskId) {
             console.log('[V2] 开始轮询进度:', taskId);
             
             // 🔥 保存任务ID到全局变量，供停止生成使用
             window.currentTaskId = taskId;
-            const interval = setInterval(async () => {
+            
+            // 🔥 清除之前的轮询（如果有）
+            if (progressPollingInterval) {
+                clearInterval(progressPollingInterval);
+                progressPollingInterval = null;
+            }
+            
+            progressPollingInterval = setInterval(async () => {
                 try {
                     const response = await fetch(`/api/phase-one/task/${taskId}/status`);
                     const result = await response.json();
@@ -698,6 +707,15 @@
                         const currentStep = result.data.current_step;
                         const stepStatus = result.data.step_status || null;
                         
+                        // 🔥 如果任务已停止，停止轮询
+                        if (status === 'stopped') {
+                            console.log('[V2] 任务已停止，停止轮询');
+                            clearInterval(progressPollingInterval);
+                            progressPollingInterval = null;
+                            updateProgressUI(progress, '生成已停止', currentStep, stepStatus);
+                            return;
+                        }
+                        
                         // 🔥 更新点数消耗显示
                         const pointsConsumed = result.data.points_consumed || 0;
                         const pointsTotal = result.data.points_total || 400;
@@ -709,7 +727,8 @@
                         updateProgressUI(progress, message, currentStep, stepStatus);
                         
                         if (status === 'completed' || status === 'failed') {
-                            clearInterval(interval);
+                            clearInterval(progressPollingInterval);
+                            progressPollingInterval = null;
                             if (status === 'completed') {
                                 showResultsSection();
                             }
@@ -931,9 +950,39 @@
                 
                 if (result.success) {
                     console.log('[V2] 生成已停止');
+                    
+                    // 🔥 停止轮询进度
+                    if (progressPollingInterval) {
+                        clearInterval(progressPollingInterval);
+                        progressPollingInterval = null;
+                        console.log('[V2] 已清除进度轮询');
+                    }
+                    
+                    // 🔥 更新进度显示为已停止状态
+                    const progressBar = document.getElementById('progress-bar-fill');
+                    const progressText = document.getElementById('progress-percentage');
+                    const stepDesc = document.getElementById('current-step-desc');
+                    
+                    if (progressBar) {
+                        progressBar.style.width = '100%';
+                        progressBar.style.background = 'linear-gradient(90deg, #f59e0b, #f97316)';
+                    }
+                    if (progressText) {
+                        progressText.textContent = '已停止';
+                        progressText.style.color = '#f59e0b';
+                    }
+                    if (stepDesc) {
+                        stepDesc.textContent = '生成已被用户停止，进度已保存';
+                    }
+                    
+                    // 🔥 更新所有步骤状态为已停止
+                    document.querySelectorAll('.progress-step-item[data-status="active"]').forEach(step => {
+                        step.setAttribute('data-status', 'completed');
+                        const badge = step.querySelector('.step-status-badge');
+                        if (badge) badge.textContent = '已保存';
+                    });
+                    
                     showStopResult('生成已停止，进度已保存', 'success');
-                    // 隐藏进度区域，显示结果或表单
-                    hideProgressSection();
                 } else {
                     throw new Error(result.error || '停止失败');
                 }
