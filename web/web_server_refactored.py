@@ -98,8 +98,8 @@ def create_app():
     # 🔥 注册 phase_api 蓝图（包含质量评估API）
     try:
         from web.api import phase_generation_api
-        phase_generation_api.app.config = app.config  # 共享配置
         phase_generation_api.app = app  # 设置app引用
+        phase_generation_api.app.config = app.config  # 共享配置
         phase_generation_api.manager = NovelGenerationManager()  # 设置管理器
         # 注册蓝图中的所有路由
         for rule in phase_generation_api.phase_api.deferred_functions:

@@ -169,7 +169,12 @@ class NovelGenerationManager:
             # 导入路径配置
             from src.config.path_config import path_config
             
-            username = get_current_username()
+            # 🔥 修复：在没有请求上下文时使用默认用户
+            try:
+                username = get_current_username()
+            except RuntimeError:
+                # 没有请求上下文，使用系统默认用户
+                username = 'system'
             logger.info(f"👤 当前用户: {username} (管理员: {is_admin(username)})")
             
             # 获取所有可访问的项目

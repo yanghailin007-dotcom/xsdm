@@ -16,6 +16,9 @@ from typing import Dict, Any, Optional
 # 创建蓝图
 phase_api = Blueprint('phase_api', __name__)
 
+# 模块级app引用（由web_server_refactored.py设置）
+app = None
+
 # 导入全局变量和日志记录器
 import sys
 sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
