@@ -272,7 +272,7 @@
             
             // 这里应该调用实际的API，暂时模拟
             try {
-                const response = await fetch('/api/phase-one/start', {
+                const response = await fetch('/api/phase-one/generate', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify(data)

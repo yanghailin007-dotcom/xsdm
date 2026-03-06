@@ -21,6 +21,70 @@ from web.utils.path_utils import (
     NOVEL_PROJECTS_ROOT
 )
 
+# 🔥 全局单例：NovelGenerator 实例（延迟初始化）
+_novel_generator_instance = None
+_novel_generator_lock = threading.Lock()
+
+def get_novel_generator(config):
+    """获取 NovelGenerator 单例实例（线程安全）"""
+    global _novel_generator_instance
+    if _novel_generator_instance is None:
+        with _novel_generator_lock:
+            if _novel_generator_instance is None:
+                logger.info("🚀 首次初始化 NovelGenerator（这可能需要几秒钟）...")
+                import time
+                start = time.time()
+                
+                logger.info("  [1/3] 导入 NovelGenerator...")
+                from src.core.NovelGenerator import NovelGenerator
+                logger.info(f"  [1/3] 导入完成，耗时: {time.time()-start:.2f}s")
+                
+                logger.info("  [2/3] 创建 NovelGenerator 实例...")
+                start2 = time.time()
+                _novel_generator_instance = NovelGenerator(config)
+                logger.info(f"  [2/3] 创建完成，耗时: {time.time()-start2:.2f}s")
+                
+                logger.info(f"✅ NovelGenerator 初始化完成，总耗时: {time.time()-start:.2f}s")
+    return _novel_generator_instance
+
+def preinitialize_novel_generator():
+    """预初始化 NovelGenerator（在服务器启动时调用）"""
+    try:
+        import sys
+        from pathlib import Path
+        
+        # 确保项目根目录在路径中
+        current_file = Path(__file__).resolve()
+        project_root = current_file.parent.parent.parent
+        if str(project_root) not in sys.path:
+            sys.path.insert(0, str(project_root))
+        
+        # 使用importlib来动态导入config
+        try:
+            import importlib.util
+            config_path = project_root / "config" / "config.py"
+            spec = importlib.util.spec_from_file_location("config_module", config_path)
+            if spec is not None and spec.loader is not None:
+                config_module = importlib.util.module_from_spec(spec)
+                spec.loader.exec_module(config_module)
+                CONFIG = config_module.CONFIG
+            else:
+                raise ImportError("无法创建config模块规格")
+        except Exception as e:
+            logger.error(f"无法导入配置文件: {e}")
+            CONFIG = {
+                "defaults": {
+                    "total_chapters": 200,
+                    "chapters_per_batch": 3
+                }
+            }
+        
+        logger.info("🔄 预初始化 NovelGenerator 中...")
+        get_novel_generator(CONFIG)
+        logger.info("🎉 NovelGenerator 预初始化完成，后续请求将快速响应")
+    except Exception as e:
+        logger.error(f"❌ 预初始化 NovelGenerator 失败: {e}")
+
 
 class NovelGenerationManager:
     """小说生成管理器"""
@@ -875,11 +939,8 @@ class NovelGenerationManager:
                 self._update_task_status(task_id, "failed", 0, "创意种子为空")
                 return
             
-            # 初始化NovelGenerator
+            # 初始化NovelGenerator（使用单例模式，首次初始化后复用）
             try:
-                from src.core.NovelGenerator import NovelGenerator
-                
-                # 导入完整配置 - 使用绝对路径避免冲突
                 import sys
                 from pathlib import Path
                 
@@ -916,8 +977,10 @@ class NovelGenerationManager:
                 generator_config["defaults"]["total_chapters"] = config.get("total_chapters", 200)
                 generator_config["defaults"]["chapters_per_batch"] = 3
                 
-                # 创建生成器实例
-                novel_generator = NovelGenerator(generator_config)
+                # 🔥 使用单例模式获取生成器实例（首次初始化后复用）
+                logger.info(f"任务 {task_id}: 获取 NovelGenerator 实例...")
+                novel_generator = get_novel_generator(generator_config)
+                logger.info(f"任务 {task_id}: NovelGenerator 实例获取完成")
                 
             except Exception as e:
                 logger.error(f"任务 {task_id}: 创建 NovelGenerator 失败: {e}")

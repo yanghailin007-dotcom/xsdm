@@ -332,6 +332,43 @@ def create_app():
     from web.api.payment_api import payment_api
     app.register_blueprint(payment_api)
 
+    # 🔥 同步预初始化 NovelGenerator（确保服务器启动时完成）
+    logger.info("🔄 开始预初始化 NovelGenerator...")
+    try:
+        import time
+        import sys
+        from pathlib import Path
+        
+        # 导入配置
+        project_root = Path(__file__).parent.parent
+        sys.path.insert(0, str(project_root))
+        
+        try:
+            import importlib.util
+            config_path = project_root / "config" / "config.py"
+            spec = importlib.util.spec_from_file_location("config_module", config_path)
+            if spec is not None and spec.loader is not None:
+                config_module = importlib.util.module_from_spec(spec)
+                spec.loader.exec_module(config_module)
+                CONFIG = config_module.CONFIG
+            else:
+                raise ImportError("无法创建config模块规格")
+        except Exception as e:
+            logger.error(f"无法导入配置文件: {e}")
+            CONFIG = {"defaults": {"total_chapters": 200, "chapters_per_batch": 3}}
+        
+        # 同步初始化 NovelGenerator
+        start_time = time.time()
+        from web.managers.novel_manager import get_novel_generator
+        get_novel_generator(CONFIG)
+        elapsed = time.time() - start_time
+        logger.info(f"✅ NovelGenerator 预初始化完成，耗时: {elapsed:.2f}秒")
+        
+    except Exception as e:
+        logger.error(f"❌ 预初始化 NovelGenerator 失败: {e}")
+        import traceback
+        logger.error(f"❌ 错误堆栈: {traceback.format_exc()}")
+
     return app, manager
 
 
