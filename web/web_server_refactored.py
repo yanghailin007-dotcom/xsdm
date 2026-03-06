@@ -95,12 +95,15 @@ def create_app():
     # 同时禁用Flask的请求日志记录器
     logging.getLogger('werkzeug').setLevel(logging.WARNING)
 
+    # 创建全局管理器实例（先创建，避免重复创建）
+    manager = NovelGenerationManager()
+    
     # 🔥 注册 phase_api 蓝图（包含质量评估API）
     try:
         from web.api import phase_generation_api
         phase_generation_api.app = app  # 设置app引用
         phase_generation_api.app.config = app.config  # 共享配置
-        phase_generation_api.manager = NovelGenerationManager()  # 设置管理器
+        phase_generation_api.manager = manager  # 复用已创建的管理器
         # 注册蓝图中的所有路由
         for rule in phase_generation_api.phase_api.deferred_functions:
             rule(phase_generation_api.phase_api)
@@ -119,9 +122,6 @@ def create_app():
     except Exception as e:
         logger.error(f"❌ 签约API初始化失败: {e}")
         app.config['CONTRACT_API'] = None
-    
-    # 创建全局管理器实例
-    manager = NovelGenerationManager()
     
     # 注册生成的图片访问路由
     @app.route('/generated_images/<path:filename>')
