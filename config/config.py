@@ -79,9 +79,9 @@ CONFIG = {
     },
     # 在 config.py 或配置文件中添加
     "rate_limit": {
-        "enabled": True,  # 频率限制开关
-        "interval": 3,    # 限制间隔（秒），默认3秒
-        "max_requests": 1 # 间隔内最大请求次数
+        "enabled": False,  # 频率限制开关 - 禁用以提高响应速度
+        "interval": 1,     # 限制间隔（秒）
+        "max_requests": 10 # 间隔内最大请求次数
     },
     "website_style_adaptation": {
         "enabled": True,
