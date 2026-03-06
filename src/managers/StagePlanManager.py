@@ -1229,13 +1229,15 @@ class StagePlanManager:
                     # 清理文件名（添加冒号到不允许的字符列表中）
                     safe_title = re.sub(r'[\\/*?"<>|:]', "_", novel_title)
                     
-                    # 🔥 使用用户隔离路径
+                    # 🔥 使用用户隔离路径（从 generator 获取用户名）
                     try:
                         from web.utils.path_utils import get_user_novel_dir
-                        user_dir = get_user_novel_dir(create=True)
+                        username = getattr(self.generator, '_username', None)
+                        user_dir = get_user_novel_dir(username=username, create=True)
                         project_dir = user_dir / novel_title
-                    except Exception:
-                        # 如果没有 Flask 上下文，使用默认路径
+                    except Exception as e:
+                        # 如果失败，使用默认路径
+                        self.logger.warning(f"获取用户隔离路径失败: {e}，使用默认路径")
                         project_dir = Path("小说项目") / novel_title
                     
                     if not project_dir.exists():

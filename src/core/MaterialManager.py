@@ -11,23 +11,26 @@ from pathlib import Path
 class MaterialManager:
     """材料管理器 - 统一管理小说生成过程中的所有材料"""
     
-    def __init__(self, novel_title: str):
+    def __init__(self, novel_title: str, username: str = None):
         """
         初始化材料管理器
         
         Args:
             novel_title: 小说标题
+            username: 用户名（用于用户隔离路径）
         """
         self.novel_title = novel_title
         self.safe_title = self._sanitize_filename(novel_title)
+        self._username = username
         
         # 🔥 创建基础目录结构（使用用户隔离路径）
         try:
             from web.utils.path_utils import get_user_novel_dir
-            user_dir = get_user_novel_dir(create=True)
+            user_dir = get_user_novel_dir(username=username, create=True)
             self.base_dir = user_dir / self.safe_title
-        except Exception:
-            # 如果没有 Flask 上下文，使用默认路径
+        except Exception as e:
+            # 如果失败，使用默认路径
+            print(f"⚠️ MaterialManager: 获取用户隔离路径失败: {e}，使用默认路径")
             self.base_dir = Path("小说项目") / self.safe_title
         
         self.base_dir.mkdir(parents=True, exist_ok=True)

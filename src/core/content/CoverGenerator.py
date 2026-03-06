@@ -11,8 +11,9 @@ from typing import Dict, Optional
 class CoverGenerator:
     """封面生成器类"""
     
-    def __init__(self, cover_generator=None):
+    def __init__(self, cover_generator=None, username: str = None):
         self.cover_generator = cover_generator
+        self._username = username  # 🔥 存储用户名用于用户隔离路径
         
         # 完整的风格模板字典，覆盖所有主分类
         self.style_templates = {
@@ -91,9 +92,10 @@ class CoverGenerator:
             # 🔥 使用用户隔离路径
             try:
                 from web.utils.path_utils import get_user_novel_dir
-                project_dir = get_user_novel_dir(create=True)
-            except Exception:
-                # 如果没有 Flask 上下文，使用默认路径
+                project_dir = get_user_novel_dir(username=self._username, create=True)
+            except Exception as e:
+                # 如果失败，使用默认路径
+                print(f"  ⚠️ 获取用户隔离路径失败: {e}，使用默认路径")
                 project_dir = "小说项目"
             
             if not os.path.exists(project_dir):
