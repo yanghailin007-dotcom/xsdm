@@ -65,7 +65,7 @@
         
         <!-- CTA 按钮 -->
         <div class="v2-hero__actions">
-            <a href="/login" class="v2-btn v2-btn--primary v2-btn--lg">
+            <a href="javascript:void(0)" onclick="handleStartCreating()" class="v2-btn v2-btn--primary v2-btn--lg">
                 <span>🚀</span>
                 <span>开始创作</span>
             </a>
@@ -694,6 +694,29 @@
     // 暴露到全局
     window.closeWelcomeModal = closeWelcomeModal;
     
+    // 🔥 首页"开始创作"按钮：根据登录状态智能跳转
+    async function handleStartCreating() {
+        try {
+            const response = await fetch('/api/check-session');
+            const data = await response.json();
+            
+            if (data.success && data.logged_in) {
+                // 已登录：跳转到工作台
+                window.location.href = '/v2/project-management';
+            } else {
+                // 未登录：跳转到登录页
+                window.location.href = '/login';
+            }
+        } catch (error) {
+            console.error('检查登录状态失败:', error);
+            // 出错时默认跳转到登录页
+            window.location.href = '/login';
+        }
+    }
+    
+    // 暴露到全局
+    window.handleStartCreating = handleStartCreating;
+    
     // 点击"开始创作"按钮：领取奖励并跳转
     async function closeWelcomeModalAndRedirect() {
         const modal = document.getElementById('welcomeModal');
@@ -730,4 +753,34 @@
 })();
 </script>
 {% endif %}
+
+{# 🔥 独立的公共脚本：无论是否显示欢迎弹窗都执行 #}
+<script>
+(function() {
+    'use strict';
+    
+    // 🔥 首页"开始创作"按钮：根据登录状态智能跳转
+    async function handleStartCreating() {
+        try {
+            const response = await fetch('/api/check-session');
+            const data = await response.json();
+            
+            if (data.success && data.logged_in) {
+                // 已登录：跳转到工作台
+                window.location.href = '/v2/project-management';
+            } else {
+                // 未登录：跳转到登录页
+                window.location.href = '/login';
+            }
+        } catch (error) {
+            console.error('检查登录状态失败:', error);
+            // 出错时默认跳转到登录页
+            window.location.href = '/login';
+        }
+    }
+    
+    // 暴露到全局
+    window.handleStartCreating = handleStartCreating;
+})();
+</script>
 {% endblock %}

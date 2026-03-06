@@ -174,7 +174,13 @@ class NovelGenerationManager:
         if step_status:
             if "step_status" not in self.task_results[task_id]:
                 self.task_results[task_id]["step_status"] = {}
-            self.task_results[task_id]["step_status"].update(step_status)
+            # 🔥 修复：step_status 是包含 step/status/message 的字典
+            if isinstance(step_status, dict) and 'step' in step_status:
+                step_name = step_status['step']
+                self.task_results[task_id]["step_status"][step_name] = step_status
+            else:
+                # 兼容旧格式：直接更新
+                self.task_results[task_id]["step_status"].update(step_status)
         
         # 更新创造点消耗（如果提供了）
         if points_consumed is not None:
@@ -208,8 +214,20 @@ class NovelGenerationManager:
         return self.task_results[task_id]
 
     def get_task_progress(self, task_id: str) -> Dict[str, Any]:
-        """获取任务进度"""
-        return self.task_progress.get(task_id, {})
+        """获取任务进度 - 包含详细步骤状态和点数消耗"""
+        progress = self.task_progress.get(task_id, {})
+        
+        if task_id in self.task_results:
+            task_data = self.task_results[task_id]
+            # 🔥 添加详细步骤状态
+            step_status = task_data.get("step_status", {})
+            if step_status:
+                progress["step_status"] = step_status
+            # 🔥 添加点数消耗信息
+            progress["points_consumed"] = task_data.get("points_consumed", 0)
+            progress["points_total"] = task_data.get("points_total", 400)
+        
+        return progress
 
     def get_all_tasks(self) -> List[Dict[str, Any]]:
         """获取所有任务"""

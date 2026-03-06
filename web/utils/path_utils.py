@@ -15,7 +15,11 @@ PUBLIC_PROJECTS_DIR = NOVEL_PROJECTS_ROOT / "_public"
 
 def get_current_username() -> str:
     """获取当前登录用户名"""
-    return session.get('username', 'anonymous')
+    try:
+        return session.get('username', 'anonymous')
+    except RuntimeError:
+        # 在没有 Flask 请求上下文时（如服务器启动时）
+        return 'anonymous'
 
 
 def is_admin(username: str = None) -> bool:

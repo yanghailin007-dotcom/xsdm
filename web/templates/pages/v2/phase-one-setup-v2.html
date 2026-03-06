@@ -416,8 +416,8 @@
         }
         
         // 全局进度更新函数 - 供外部JS调用
-        function updateProgressUI(percentage, message) {
-            console.log('[V2-UI] 更新进度:', percentage, message);
+        function updateProgressUI(percentage, message, currentStep, stepStatus = null) {
+            console.log('[V2-UI] 更新进度:', percentage, message, currentStep, stepStatus);
             
             // 确保进度区域显示
             showProgressSection();
@@ -442,44 +442,156 @@
                 }
             }
             
-            // 🔥 根据进度更新步骤状态
-            updateStepsByProgress(percentage);
+            // 🔥 优先使用后端返回的详细步骤状态
+            if (stepStatus && Object.keys(stepStatus).length > 0) {
+                updateStepsWithDetailedStatus(stepStatus, currentStep);
+            } else if (currentStep) {
+                // 降级：根据当前步骤名称推断状态
+                updateStepStatusByName(currentStep);
+            }
         }
         
-        // 根据进度更新步骤状态
-        function updateStepsByProgress(percentage) {
-            const steps = [
-                { id: 'writing_style', threshold: 10 },
-                { id: 'market_analysis', threshold: 15 },
-                { id: 'worldview', threshold: 30 },
-                { id: 'faction_system', threshold: 40 },
-                { id: 'character_design', threshold: 50 },
-                { id: 'emotional_blueprint', threshold: 60 },
-                { id: 'growth_plan', threshold: 70 },
-                { id: 'stage_plan', threshold: 75 },
-                { id: 'detailed_stage_plans', threshold: 80 },
-                { id: 'expectation_mapping', threshold: 85 },
-                { id: 'system_init', threshold: 90 },
-                { id: 'saving', threshold: 95 },
-                { id: 'quality_assessment', threshold: 100 }
+        // 🔥 使用后端返回的详细步骤状态更新UI
+        function updateStepsWithDetailedStatus(stepStatus, currentStep) {
+            console.log('[V2-UI] 使用详细步骤状态更新:', stepStatus);
+            
+            // 所有步骤（按顺序）
+            const allSteps = [
+                'writing_style', 'market_analysis', 'worldview', 'faction_system',
+                'character_design', 'emotional_blueprint', 'growth_plan', 'stage_plan',
+                'detailed_stage_plans', 'expectation_mapping', 'system_init', 'saving', 'quality_assessment'
             ];
             
-            steps.forEach((step, index) => {
-                const stepEl = document.querySelector(`[data-step="${step.id}"]`);
+            // 步骤名称映射：后端名称 -> 前端ID
+            const backendToFrontend = {
+                'writing_style': 'writing_style',
+                'market_analysis': 'market_analysis',
+                'worldview': 'worldview',
+                'worldview_generation': 'worldview',
+                'faction_system': 'faction_system',
+                'character_design': 'character_design',
+                'emotional_blueprint': 'emotional_blueprint',
+                'growth_plan': 'growth_plan',
+                'stage_plan': 'stage_plan',
+                'detailed_stage_plans': 'detailed_stage_plans',
+                'expectation_mapping': 'expectation_mapping',
+                'system_init': 'system_init',
+                'saving': 'saving',
+                'quality_assessment': 'quality_assessment',
+                'planning': 'market_analysis',
+                'story_outline': 'stage_plan',
+                'global_growth_planning': 'growth_plan',
+                'stage_planning': 'detailed_stage_plans',
+                'validation': 'saving',
+                'completed': 'quality_assessment'
+            };
+            
+            // 首先重置所有步骤为等待状态
+            allSteps.forEach(step => {
+                const stepEl = document.querySelector(`[data-step="${step}"]`);
+                if (stepEl) {
+                    stepEl.setAttribute('data-status', 'waiting');
+                    const badge = stepEl.querySelector('.step-status-badge');
+                    if (badge) badge.textContent = '等待中';
+                }
+            });
+            
+            // 根据后端返回的 step_status 更新每个步骤
+            let completedCount = 0;
+            Object.entries(stepStatus).forEach(([stepName, statusInfo]) => {
+                const frontendId = backendToFrontend[stepName] || stepName;
+                const stepEl = document.querySelector(`[data-step="${frontendId}"]`);
                 if (!stepEl) return;
                 
-                if (percentage >= step.threshold) {
-                    // 已完成
+                // 获取状态
+                let status = 'waiting';
+                let badgeText = '等待中';
+                
+                if (typeof statusInfo === 'object' && statusInfo.status) {
+                    status = statusInfo.status;
+                    badgeText = statusInfo.message || statusInfo.status;
+                } else if (typeof statusInfo === 'string') {
+                    status = statusInfo;
+                    badgeText = statusInfo;
+                }
+                
+                // 状态映射到UI显示
+                const badge = stepEl.querySelector('.step-status-badge');
+                switch (status) {
+                    case 'completed':
+                        stepEl.setAttribute('data-status', 'completed');
+                        if (badge) badge.textContent = '已完成';
+                        completedCount++;
+                        break;
+                    case 'active':
+                        stepEl.setAttribute('data-status', 'active');
+                        if (badge) {
+                            const msg = typeof statusInfo === 'object' ? statusInfo.message : '进行中';
+                            badge.textContent = msg && msg.length > 10 ? msg.substring(0, 10) + '...' : (msg || '进行中');
+                        }
+                        break;
+                    case 'failed':
+                        stepEl.setAttribute('data-status', 'failed');
+                        if (badge) badge.textContent = '失败';
+                        break;
+                    default:
+                        stepEl.setAttribute('data-status', 'waiting');
+                        if (badge) badge.textContent = '等待中';
+                }
+            });
+            
+            // 更新步骤计数
+            const stepsStatus = document.getElementById('steps-status');
+            if (stepsStatus) {
+                stepsStatus.textContent = `${completedCount}/${allSteps.length} 完成`;
+            }
+        }
+        
+        // 步骤映射 - 后端步骤名称 -> 前端步骤ID
+        const STEP_NAME_MAPPING = {
+            'initialization': 'writing_style',
+            'planning': 'market_analysis',
+            'worldview_generation': 'worldview',
+            'character_design': 'character_design',
+            'story_outline': 'stage_plan',
+            'global_growth_planning': 'growth_plan',
+            'stage_planning': 'detailed_stage_plans',
+            'validation': 'saving',
+            'completed': 'quality_assessment'
+        };
+        
+        // 根据当前步骤名称更新步骤状态
+        function updateStepStatusByName(currentStep) {
+            console.log('[V2-UI] 更新步骤状态:', currentStep);
+            
+            const stepId = STEP_NAME_MAPPING[currentStep] || currentStep;
+            
+            // 所有步骤
+            const allSteps = [
+                'writing_style', 'market_analysis', 'worldview', 'faction_system',
+                'character_design', 'emotional_blueprint', 'growth_plan', 'stage_plan',
+                'detailed_stage_plans', 'expectation_mapping', 'system_init', 'saving', 'quality_assessment'
+            ];
+            
+            // 找到当前步骤的索引
+            const currentIndex = allSteps.indexOf(stepId);
+            
+            allSteps.forEach((step, index) => {
+                const stepEl = document.querySelector(`[data-step="${step}"]`);
+                if (!stepEl) return;
+                
+                if (index < currentIndex) {
+                    // 已完成 - 绿色
                     stepEl.setAttribute('data-status', 'completed');
                     const badge = stepEl.querySelector('.step-status-badge');
                     if (badge) badge.textContent = '已完成';
-                } else if (percentage >= step.threshold - 5 && percentage < step.threshold) {
-                    // 进行中（接近阈值）
+                } else if (index === currentIndex) {
+                    // 进行中 - 黄色
                     stepEl.setAttribute('data-status', 'active');
                     const badge = stepEl.querySelector('.step-status-badge');
                     if (badge) badge.textContent = '进行中';
                 } else {
-                    // 等待中
+                    // 等待中 - 灰色
                     stepEl.setAttribute('data-status', 'waiting');
                     const badge = stepEl.querySelector('.step-status-badge');
                     if (badge) badge.textContent = '等待中';
@@ -487,10 +599,9 @@
             });
             
             // 更新步骤计数
-            const completedSteps = steps.filter(s => percentage >= s.threshold).length;
             const stepsStatus = document.getElementById('steps-status');
             if (stepsStatus) {
-                stepsStatus.textContent = `${completedSteps}/${steps.length} 完成`;
+                stepsStatus.textContent = `${currentIndex}/${allSteps.length} 完成`;
             }
         }
         
@@ -581,9 +692,18 @@
                         const progress = result.data.progress || 0;
                         const message = result.data.message || result.data.current_step || '生成中...';
                         const status = result.data.status || 'generating';
+                        const currentStep = result.data.current_step;
+                        const stepStatus = result.data.step_status || null;
                         
-                        console.log('[V2] 进度:', progress, '状态:', status, '消息:', message);
-                        updateProgressUI(progress, message);
+                        // 🔥 更新点数消耗显示
+                        const pointsConsumed = result.data.points_consumed || 0;
+                        const pointsTotal = result.data.points_total || 400;
+                        if (typeof updatePointsConsumed === 'function') {
+                            updatePointsConsumed(pointsConsumed, pointsTotal);
+                        }
+                        
+                        console.log('[V2] 进度:', progress, '状态:', status, '当前步骤:', currentStep, '消息:', message, '步骤状态:', stepStatus, '点数:', pointsConsumed);
+                        updateProgressUI(progress, message, currentStep, stepStatus);
                         
                         if (status === 'completed' || status === 'failed') {
                             clearInterval(interval);

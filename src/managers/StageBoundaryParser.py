@@ -218,6 +218,9 @@ class StageBoundaryParser:
         chapters = [0]
         cumulative_ratio = 0
         
+        # 🔥 修复：确保 total_chapters 是整数
+        total_chapters = int(total_chapters)
+        
         for ratio in ratios[:-1]:
             cumulative_ratio += ratio
             chapter_boundary = int(total_chapters * cumulative_ratio)

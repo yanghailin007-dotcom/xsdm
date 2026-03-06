@@ -169,6 +169,9 @@ class StagePlanManager:
         """
         self.logger.info("=== 生成全书阶段计划 ===")
         
+        # 🔥 修复：确保 total_chapters 是整数
+        total_chapters = int(total_chapters)
+        
         stage_arcs = emotional_blueprint.get("stage_emotional_arcs", {})
         emotional_goals_prompt = []
         
@@ -467,6 +470,9 @@ class StagePlanManager:
         这样实现动态章节划分，适应每本书的创意设定。
         """
         from src.managers.StageBoundaryParser import parse_stage_boundaries
+        
+        # 🔥 修复：确保 total_chapters 是整数
+        total_chapters = int(total_chapters)
         
         # 获取创意设定
         creative_seed = self.generator.novel_data.get("creative_seed", {})

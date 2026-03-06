@@ -435,6 +435,265 @@
                 grid-template-columns: 1fr;
             }
         }
+
+        /* ==================== V2 快速开始区域样式 ==================== */
+        .v2-quick-start-section {
+            padding: 4rem 2rem;
+            background: linear-gradient(180deg, var(--dark-bg-primary) 0%, rgba(30, 41, 59, 0.5) 100%);
+            border-top: 1px solid var(--dark-border);
+        }
+
+        .v2-section-header {
+            text-align: center;
+            margin-bottom: 3rem;
+        }
+
+        .v2-section__badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 0.5rem 1rem;
+            background: rgba(59, 130, 246, 0.1);
+            border: 1px solid rgba(59, 130, 246, 0.2);
+            border-radius: 9999px;
+            font-size: 0.875rem;
+            font-weight: 500;
+            color: #60a5fa;
+            margin-bottom: 1rem;
+        }
+
+        .v2-section__badge-dot {
+            width: 6px;
+            height: 6px;
+            background: #60a5fa;
+            border-radius: 50%;
+            animation: pulse-dot 2s ease-in-out infinite;
+        }
+
+        @keyframes pulse-dot {
+            0%, 100% { opacity: 1; transform: scale(1); }
+            50% { opacity: 0.5; transform: scale(1.2); }
+        }
+
+        .v2-section__title {
+            font-size: 2.25rem;
+            font-weight: 700;
+            color: var(--dark-text-primary);
+            margin-bottom: 0.75rem;
+            background: linear-gradient(135deg, #f1f5f9 0%, #94a3b8 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .v2-section__subtitle {
+            font-size: 1.125rem;
+            color: var(--dark-text-secondary);
+            max-width: 500px;
+            margin: 0 auto;
+        }
+
+        .v2-quick-start-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 1.5rem;
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        /* 主要功能卡片 - 突出显示 */
+        .v2-feature-card--highlight {
+            grid-column: span 2;
+            background: linear-gradient(135deg, rgba(99, 102, 241, 0.15) 0%, rgba(139, 92, 246, 0.15) 100%) !important;
+            border: 1px solid rgba(139, 92, 246, 0.3) !important;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .v2-feature-card--highlight::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255,255,255,0.05), transparent);
+            transition: left 0.5s ease;
+        }
+
+        .v2-feature-card--highlight:hover::before {
+            left: 100%;
+        }
+
+        @media (max-width: 768px) {
+            .v2-feature-card--highlight {
+                grid-column: span 1;
+            }
+        }
+
+        /* 功能卡片基础样式 */
+        .v2-feature-card {
+            display: flex;
+            flex-direction: column;
+            padding: 1.75rem;
+            background: var(--dark-bg-card);
+            border: 1px solid var(--dark-border);
+            border-radius: 16px;
+            text-decoration: none;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            cursor: pointer;
+        }
+
+        .v2-feature-card:hover {
+            transform: translateY(-4px);
+            border-color: rgba(99, 102, 241, 0.3);
+            box-shadow: 0 20px 40px -10px rgba(0, 0, 0, 0.3), 0 0 20px rgba(99, 102, 241, 0.1);
+        }
+
+        .v2-feature-card__header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 1.25rem;
+        }
+
+        .v2-feature-card__icon {
+            width: 56px;
+            height: 56px;
+            border-radius: 14px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: transform 0.3s ease;
+        }
+
+        .v2-feature-card:hover .v2-feature-card__icon {
+            transform: scale(1.05);
+        }
+
+        /* 图标颜色变体 */
+        .v2-feature-card__icon--purple {
+            background: linear-gradient(135deg, rgba(99, 102, 241, 0.2), rgba(139, 92, 246, 0.2));
+            color: #a78bfa;
+            border: 1px solid rgba(139, 92, 246, 0.3);
+        }
+
+        .v2-feature-card__icon--blue {
+            background: linear-gradient(135deg, rgba(59, 130, 246, 0.2), rgba(37, 99, 235, 0.2));
+            color: #60a5fa;
+            border: 1px solid rgba(59, 130, 246, 0.3);
+        }
+
+        .v2-feature-card__icon--pink {
+            background: linear-gradient(135deg, rgba(236, 72, 153, 0.2), rgba(219, 39, 119, 0.2));
+            color: #f472b6;
+            border: 1px solid rgba(236, 72, 153, 0.3);
+        }
+
+        .v2-feature-card__icon--orange {
+            background: linear-gradient(135deg, rgba(249, 115, 22, 0.2), rgba(234, 88, 12, 0.2));
+            color: #fb923c;
+            border: 1px solid rgba(249, 115, 22, 0.3);
+        }
+
+        .v2-feature-card__icon--cyan {
+            background: linear-gradient(135deg, rgba(6, 182, 212, 0.2), rgba(8, 145, 178, 0.2));
+            color: #22d3ee;
+            border: 1px solid rgba(6, 182, 212, 0.3);
+        }
+
+        .v2-feature-card__icon--red {
+            background: linear-gradient(135deg, rgba(239, 68, 68, 0.2), rgba(220, 38, 38, 0.2));
+            color: #f87171;
+            border: 1px solid rgba(239, 68, 68, 0.3);
+        }
+
+        .v2-feature-card__badge {
+            padding: 0.375rem 0.875rem;
+            background: linear-gradient(135deg, #f59e0b, #d97706);
+            color: white;
+            font-size: 0.75rem;
+            font-weight: 600;
+            border-radius: 9999px;
+            text-transform: uppercase;
+            letter-spacing: 0.025em;
+        }
+
+        .v2-feature-card__title {
+            font-size: 1.25rem;
+            font-weight: 600;
+            color: var(--dark-text-primary);
+            margin-bottom: 0.5rem;
+        }
+
+        .v2-feature-card__desc {
+            font-size: 0.9375rem;
+            color: var(--dark-text-secondary);
+            line-height: 1.6;
+            margin-bottom: 1.25rem;
+            flex-grow: 1;
+        }
+
+        .v2-feature-card__footer {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding-top: 1rem;
+            border-top: 1px solid var(--dark-border);
+        }
+
+        .v2-feature-card__tags {
+            font-size: 0.8125rem;
+            color: #a78bfa;
+            font-weight: 500;
+        }
+
+        .v2-feature-card__meta {
+            font-size: 0.8125rem;
+            color: var(--dark-text-tertiary);
+        }
+
+        .v2-feature-card__arrow {
+            width: 32px;
+            height: 32px;
+            background: rgba(139, 92, 246, 0.2);
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #a78bfa;
+            transition: all 0.2s ease;
+        }
+
+        .v2-feature-card:hover .v2-feature-card__arrow {
+            background: rgba(139, 92, 246, 0.3);
+            transform: translateX(4px);
+        }
+
+        /* 响应式调整 */
+        @media (max-width: 1024px) {
+            .v2-quick-start-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
+        }
+
+        @media (max-width: 640px) {
+            .v2-quick-start-section {
+                padding: 2rem 1rem;
+            }
+
+            .v2-section__title {
+                font-size: 1.75rem;
+            }
+
+            .v2-quick-start-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .v2-feature-card {
+                padding: 1.25rem;
+            }
+        }
     </style>
 {% endblock %}
 
@@ -470,62 +729,113 @@
             </div>
         </div>
 
-        <!-- 快速操作区域 -->
-        <div class="quick-actions-section">
-            <div class="section-header">
-                <h2 class="section-title">快速开始</h2>
-                <p class="section-subtitle">选择一种方式开始您的创作</p>
+        <!-- 快速操作区域 - V2 设计风格 -->
+        <div class="v2-quick-start-section">
+            <div class="v2-section-header">
+                <div class="v2-section__badge">
+                    <span class="v2-section__badge-dot"></span>
+                    <span>快速开始</span>
+                </div>
+                <h2 class="v2-section__title">选择创作方式</h2>
+                <p class="v2-section__subtitle">从设定到内容，AI 全流程辅助您的创作</p>
             </div>
             
-            <div class="quick-actions-grid">
-                <div class="action-card primary" onclick="location.href='/phase-one-setup'">
-                    <div class="action-icon">🎨</div>
-                    <h3>两阶段生成</h3>
-                    <p>使用新的两阶段模式，先完善设定再生成内容，质量更可控</p>
-                    <div class="action-btn">开始两阶段生成 →</div>
-                </div>
+            <div class="v2-quick-start-grid">
+                <!-- 主要功能卡片 -->
+                <a href="/phase-one-setup" class="v2-feature-card v2-feature-card--highlight">
+                    <div class="v2-feature-card__header">
+                        <div class="v2-feature-card__icon v2-feature-card__icon--purple">
+                            <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <path d="M12 2L2 7l10 5 10-5-10-5z"></path>
+                                <path d="M2 17l10 5 10-5"></path>
+                                <path d="M2 12l10 5 10-5"></path>
+                            </svg>
+                        </div>
+                        <span class="v2-feature-card__badge">推荐</span>
+                    </div>
+                    <h3 class="v2-feature-card__title">两阶段生成</h3>
+                    <p class="v2-feature-card__desc">先生成完整的世界观设定，再批量生成章节内容，让故事更有连贯性和质感</p>
+                    <div class="v2-feature-card__footer">
+                        <span class="v2-feature-card__tags">智能设定 · 批量生成</span>
+                        <span class="v2-feature-card__arrow">
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <line x1="5" y1="12" x2="19" y2="12"></line>
+                                <polyline points="12,5 19,12 12,19"></polyline>
+                            </svg>
+                        </span>
+                    </div>
+                </a>
                 
-                <div class="action-card secondary" onclick="location.href='/project-management'">
-                    <div class="action-icon">📂</div>
-                    <h3>项目管理</h3>
-                    <p>管理两阶段生成的项目，查看进度和继续生成</p>
-                    <div class="action-btn">管理项目 →</div>
-                </div>
+                <!-- 其他功能卡片 -->
+                <a href="/project-management" class="v2-feature-card">
+                    <div class="v2-feature-card__icon v2-feature-card__icon--blue">
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path>
+                        </svg>
+                    </div>
+                    <h3 class="v2-feature-card__title">项目管理</h3>
+                    <p class="v2-feature-card__desc">管理所有小说项目，查看进度、继续生成、导出作品</p>
+                    <div class="v2-feature-card__footer">
+                        <span class="v2-feature-card__meta">查看进度</span>
+                    </div>
+                </a>
                 
-                <div class="action-card secondary" onclick="scrollToGenerationForm()">
-                    <div class="action-icon">✨</div>
-                    <h3>自定义创作</h3>
-                    <p>输入您自己的创意和设定，开始全新的小说创作</p>
-                    <div class="action-btn">开始创作 →</div>
-                </div>
+                <a href="/home" class="v2-feature-card">
+                    <div class="v2-feature-card__icon v2-feature-card__icon--pink">
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon>
+                        </svg>
+                    </div>
+                    <h3 class="v2-feature-card__title">创意库</h3>
+                    <p class="v2-feature-card__desc">从预设创意中选择灵感，快速启动创作之旅</p>
+                    <div class="v2-feature-card__footer">
+                        <span class="v2-feature-card__meta">12 个模板</span>
+                    </div>
+                </a>
                 
-                <div class="action-card secondary" onclick="document.getElementById('creative-ideas-section').scrollIntoView({behavior: 'smooth'})">
-                    <div class="action-icon">💡</div>
-                    <h3>创意库</h3>
-                    <p>从预设的创意库中选择灵感，快速启动创作</p>
-                    <div class="action-btn">浏览创意 →</div>
-                </div>
+                <a href="/novels" class="v2-feature-card">
+                    <div class="v2-feature-card__icon v2-feature-card__icon--orange">
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path>
+                            <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"></path>
+                        </svg>
+                    </div>
+                    <h3 class="v2-feature-card__title">查看作品</h3>
+                    <p class="v2-feature-card__desc">浏览和管理已创作的小说，支持在线阅读和导出</p>
+                    <div class="v2-feature-card__footer">
+                        <span class="v2-feature-card__meta">在线阅读</span>
+                    </div>
+                </a>
                 
-                <div class="action-card secondary" onclick="location.href='/novels'">
-                    <div class="action-icon">📚</div>
-                    <h3>查看作品</h3>
-                    <p>浏览和管理您已创作的小说项目</p>
-                    <div class="action-btn">查看作品 →</div>
-                </div>
+                <a href="/cover-maker" class="v2-feature-card">
+                    <div class="v2-feature-card__icon v2-feature-card__icon--cyan">
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
+                            <circle cx="8.5" cy="8.5" r="1.5"></circle>
+                            <polyline points="21 15 16 10 5 21"></polyline>
+                        </svg>
+                    </div>
+                    <h3 class="v2-feature-card__title">封面制作</h3>
+                    <p class="v2-feature-card__desc">为小说生成精美 AI 封面，支持多种风格定制</p>
+                    <div class="v2-feature-card__footer">
+                        <span class="v2-feature-card__meta">AI 设计</span>
+                    </div>
+                </a>
                 
-                <div class="action-card secondary" onclick="location.href='/cover-maker'">
-                    <div class="action-icon">🎨</div>
-                    <h3>封面制作</h3>
-                    <p>为您的小说作品生成精美的AI封面设计</p>
-                    <div class="action-btn">制作封面 →</div>
-                </div>
-
-                <div class="action-card secondary" onclick="location.href='/fanqie-upload'">
-                    <div class="action-icon">🍅</div>
-                    <h3>番茄上传</h3>
-                    <p>将完成的小说一键上传到番茄小说平台</p>
-                    <div class="action-btn">开始上传 →</div>
-                </div>
+                <a href="/fanqie-upload" class="v2-feature-card">
+                    <div class="v2-feature-card__icon v2-feature-card__icon--red">
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                            <polyline points="17 8 12 3 7 8"></polyline>
+                            <line x1="12" y1="3" x2="12" y2="15"></line>
+                        </svg>
+                    </div>
+                    <h3 class="v2-feature-card__title">番茄上传</h3>
+                    <p class="v2-feature-card__desc">一键上传到番茄小说平台，支持批量上传和自动发布</p>
+                    <div class="v2-feature-card__footer">
+                        <span class="v2-feature-card__meta">一键发布</span>
+                    </div>
+                </a>
             </div>
         </div>
 

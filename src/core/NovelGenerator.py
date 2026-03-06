@@ -317,6 +317,41 @@ class NovelGenerator:
         print(f"默认提供商: {default_provider}")
         print(f"当前模型: {current_model}")
 
+    def _update_step_status(self, step_name: str, step_state: str, message: str = None):
+        """🔥 更新单个步骤的状态（用于前端进度显示）
+        
+        Args:
+            step_name: 步骤名称，如 'writing_style', 'worldview', 'character_design' 等
+            step_state: 步骤状态，'waiting'/'active'/'completed'/'failed'
+            message: 可选的状态描述消息
+        """
+        try:
+            if hasattr(self, '_update_task_status_callback'):
+                task_id = getattr(self, '_current_task_id', None)
+                if task_id and callable(self._update_task_status_callback):
+                    # 构建步骤状态字典
+                    step_status = {
+                        'step': step_name,
+                        'status': step_state,
+                        'message': message or f'步骤 {step_name} 状态: {step_state}'
+                    }
+                    # 调用回调，传入当前进度和步骤状态
+                    current_progress = getattr(self, 'overall_progress', 0)
+                    # 🔥 传递 points_consumed 点数消耗
+                    points_consumed = getattr(self, '_api_points_consumed', 0)
+                    self._update_task_status_callback(
+                        task_id, 
+                        'generating', 
+                        current_progress, 
+                        None,
+                        step_name,  # current_step
+                        step_status,
+                        points_consumed  # 🔥 添加点数消耗
+                    )
+                    self.logger.info(f"🔄 步骤状态更新: {step_name} -> {step_state}")
+        except Exception as callback_error:
+            print(f"⚠️ 步骤状态更新回调失败: {callback_error}")
+
     # ==================== 主要接口方法 ====================
 
     def phase_one_generation(self, creative_seed, total_chapters: Optional[int] = None, start_new: bool = False, target_platform: str = "fanqie"):
@@ -635,6 +670,9 @@ class NovelGenerator:
         """
         self.logger.info("⚙️  正在执行【指令精炼】，将人类创意转换为AI必须遵守的硬性指令...")
         
+        # 🔥 更新步骤状态为进行中（黄色）
+        self._update_step_status('writing_style', 'active', '正在调用AI进行创意精炼...')
+        
         # 1. 提取核心组件
         core_setting = creative_work.get("coreSetting", "未提供核心设定。")
         core_selling_points = creative_work.get("coreSellingPoints", "未提供核心卖点。")
@@ -700,6 +738,9 @@ class NovelGenerator:
                     f.write(refined_instruction)
                 
                 self.logger.info(f"✅  指令精炼完成，已保存至: {output_filepath}")
+                
+                # 🔥 更新步骤状态为已完成（绿色）
+                self._update_step_status('writing_style', 'completed', '创意精炼完成')
                     
             except Exception as e:
                 print(f"⚠️  保存精炼指令文件失败: {e}")
@@ -710,6 +751,8 @@ class NovelGenerator:
             
         except Exception as e:
             print(f"❌ AI精炼过程出错: {e}")
+            # 🔥 更新步骤状态为失败（红色）
+            self._update_step_status('writing_style', 'failed', f'AI精炼失败: {str(e)[:50]}')
             import traceback
             traceback.print_exc()
             print("  🔄 降级到基础模板")
@@ -1159,6 +1202,9 @@ class NovelGenerator:
         print("=== 步骤3.5: 构建势力/阵营系统 ===")
         self.novel_data["current_progress"]["stage"] = "势力系统设计"
         
+        # 🔥 更新步骤状态为进行中（黄色）
+        self._update_step_status('faction_system', 'active', '正在构建势力/阵营系统...')
+        
         faction_system = self.content_generator.generate_faction_system(
             novel_title=self.novel_data["novel_title"],
             core_worldview=self.novel_data.get("core_worldview", {}),
@@ -1169,10 +1215,14 @@ class NovelGenerator:
         if faction_system:
             self.novel_data["faction_system"] = faction_system
             print("✅ 势力/阵营系统构建完成")
+            # 🔥 更新步骤状态为已完成（绿色）
+            self._update_step_status('faction_system', 'completed', '势力/阵营系统构建完成')
             # 保存到材料管理器
             self._save_material_to_manager("势力系统", faction_system, novel_title=self.novel_data["novel_title"])
         else:
             print("⚠️ 势力/阵营系统生成失败，将使用默认设定")
+            # 🔥 更新步骤状态为失败（红色）
+            self._update_step_status('faction_system', 'failed', '势力系统生成失败，使用默认设定')
             # 创建一个基础的势力系统结构，确保后续流程不会出错
             self.novel_data["faction_system"] = {
                 "factions": [],
@@ -1184,6 +1234,9 @@ class NovelGenerator:
         # 核心角色设计（现在可以基于势力系统）
         print("=== 步骤4: 设计核心角色 (主角/核心盟友/宿敌) ===")
         self.novel_data["current_progress"]["stage"] = "核心角色设计"
+        
+        # 🔥 更新步骤状态为进行中（黄色）
+        self._update_step_status('character_design', 'active', '正在设计核心角色...')
         
         core_characters = self.content_generator.generate_character_design(
             novel_title=self.novel_data["novel_title"],
@@ -1198,7 +1251,12 @@ class NovelGenerator:
         
         if not core_characters:
             print("❌ 核心角色设计失败，终止生成")
+            # 🔥 更新步骤状态为失败（红色）
+            self._update_step_status('character_design', 'failed', '核心角色设计失败')
             return False
+        
+        # 🔥 更新步骤状态为已完成（绿色）
+        self._update_step_status('character_design', 'completed', '核心角色设计完成')
         
         # 持久化核心角色数据
         print("=== 步骤 4.5: 持久化核心角色数据 ===")
@@ -1381,6 +1439,9 @@ class NovelGenerator:
         """生成世界观"""
         print("=== 步骤3: 构建核心世界观 ===")
         
+        # 🔥 更新步骤状态为进行中（黄色）
+        self._update_step_status('worldview', 'active', '正在构建核心世界观...')
+        
         core_worldview = self.content_generator.generate_core_worldview(
             self.novel_data["novel_title"],
             self.novel_data["novel_synopsis"],
@@ -1392,9 +1453,13 @@ class NovelGenerator:
         
         if not core_worldview:
             print("❌ 世界观构建失败，终止生成")
+            # 🔥 更新步骤状态为失败（红色）
+            self._update_step_status('worldview', 'failed', '世界观构建失败')
             return False
         
         print("✅ 世界观构建完成")
+        # 🔥 更新步骤状态为已完成（绿色）
+        self._update_step_status('worldview', 'completed', '世界观构建完成')
         
         # 保存到材料管理器
         self._save_material_to_manager("世界观", core_worldview, novel_title=self.novel_data["novel_title"])
