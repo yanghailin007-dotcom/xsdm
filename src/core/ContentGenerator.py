@@ -4171,12 +4171,14 @@ class ContentGenerator:
             try:
                 safe_title = re.sub(r'[\\/*?:"<>|]', "_", novel_title)
                 
-                # 🔥 使用用户隔离路径
+                # 🔥 使用用户隔离路径（从 NovelGenerator 获取用户名）
                 try:
                     from web.utils.path_utils import get_user_novel_dir
-                    output_dir = get_user_novel_dir(create=True)
-                except Exception:
-                    # 如果没有 Flask 上下文，使用默认路径
+                    username = getattr(self.novel_generator, '_username', None)
+                    output_dir = get_user_novel_dir(username=username, create=True)
+                except Exception as e:
+                    # 如果失败，使用默认路径
+                    print(f"  ⚠️ 获取用户隔离路径失败: {e}，使用默认路径")
                     output_dir = "小说项目"
                 
                 os.makedirs(output_dir, exist_ok=True)

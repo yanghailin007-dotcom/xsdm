@@ -272,6 +272,11 @@ class NovelGenerator:
         self._user_id = user_id
         self.logger.info(f"👤 已设置用户ID: {user_id}")
     
+    def set_username(self, username: str):
+        """设置当前用户名（用于用户隔离路径）"""
+        self._username = username
+        self.logger.info(f"👤 已设置用户名: {username}")
+    
     def get_api_points_consumed(self) -> int:
         """获取API调用消耗的点数"""
         return self._api_points_consumed
@@ -760,12 +765,14 @@ class NovelGenerator:
             try:
                 safe_title = re.sub(r'[\\/*?:"<>|]', "_", novel_title)
                 
-                # 🔥 使用用户隔离路径
+                # 🔥 使用用户隔离路径（优先使用已设置的用户名）
                 try:
                     from web.utils.path_utils import get_user_novel_dir
-                    output_dir = get_user_novel_dir(create=True)
-                except Exception:
-                    # 如果没有 Flask 上下文，使用默认路径
+                    username = getattr(self, '_username', None)
+                    output_dir = get_user_novel_dir(username=username, create=True)
+                except Exception as e:
+                    # 如果失败，使用默认路径
+                    self.logger.warning(f"获取用户隔离路径失败: {e}，使用默认路径")
                     output_dir = Path("小说项目")
                     output_dir.mkdir(exist_ok=True)
                 

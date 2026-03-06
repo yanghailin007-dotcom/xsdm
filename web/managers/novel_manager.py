@@ -1086,6 +1086,12 @@ class NovelGenerationManager:
                 # 🔥 设置停止检查回调
                 setattr(novel_generator, '_stop_check_callback', lambda: self._check_stop_flag(task_id))
                 
+                # 🔥 设置用户名用于用户隔离路径
+                username = config.get('username')
+                if username:
+                    novel_generator.set_username(username)
+                    logger.info(f"任务 {task_id}: 已设置用户名 {username} 用于用户隔离路径")
+                
                 # 🔥 设置用户ID用于API调用实时扣费
                 user_id = config.get('user_id')
                 if user_id:
