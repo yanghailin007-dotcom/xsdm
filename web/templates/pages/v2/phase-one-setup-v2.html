@@ -441,12 +441,164 @@
                     descEl.textContent = message;
                 }
             }
+            
+            // 🔥 根据进度更新步骤状态
+            updateStepsByProgress(percentage);
+        }
+        
+        // 根据进度更新步骤状态
+        function updateStepsByProgress(percentage) {
+            const steps = [
+                { id: 'writing_style', threshold: 10 },
+                { id: 'market_analysis', threshold: 15 },
+                { id: 'worldview', threshold: 30 },
+                { id: 'faction_system', threshold: 40 },
+                { id: 'character_design', threshold: 50 },
+                { id: 'emotional_blueprint', threshold: 60 },
+                { id: 'growth_plan', threshold: 70 },
+                { id: 'stage_plan', threshold: 75 },
+                { id: 'detailed_stage_plans', threshold: 80 },
+                { id: 'expectation_mapping', threshold: 85 },
+                { id: 'system_init', threshold: 90 },
+                { id: 'saving', threshold: 95 },
+                { id: 'quality_assessment', threshold: 100 }
+            ];
+            
+            steps.forEach((step, index) => {
+                const stepEl = document.querySelector(`[data-step="${step.id}"]`);
+                if (!stepEl) return;
+                
+                if (percentage >= step.threshold) {
+                    // 已完成
+                    stepEl.setAttribute('data-status', 'completed');
+                    const badge = stepEl.querySelector('.step-status-badge');
+                    if (badge) badge.textContent = '已完成';
+                } else if (percentage >= step.threshold - 5 && percentage < step.threshold) {
+                    // 进行中（接近阈值）
+                    stepEl.setAttribute('data-status', 'active');
+                    const badge = stepEl.querySelector('.step-status-badge');
+                    if (badge) badge.textContent = '进行中';
+                } else {
+                    // 等待中
+                    stepEl.setAttribute('data-status', 'waiting');
+                    const badge = stepEl.querySelector('.step-status-badge');
+                    if (badge) badge.textContent = '等待中';
+                }
+            });
+            
+            // 更新步骤计数
+            const completedSteps = steps.filter(s => percentage >= s.threshold).length;
+            const stepsStatus = document.getElementById('steps-status');
+            if (stepsStatus) {
+                stepsStatus.textContent = `${completedSteps}/${steps.length} 完成`;
+            }
         }
         
         // 兼容函数 - phase-one-generation.js 可能使用这些函数名
         window.updateProgress = updateProgressUI;
         window.setProgress = updateProgressUI;
         window.showProgress = showProgressSection;
+        
+        // ==================== 开始生成功能 ====================
+        
+        async function startPhaseOneGenerationWithResume(event) {
+            console.log('[V2] startPhaseOneGenerationWithResume 被调用');
+            if (event) event.preventDefault();
+            
+            const form = document.getElementById('phase-one-form');
+            const formData = new FormData(form);
+            const data = Object.fromEntries(formData.entries());
+            
+            console.log('[V2] 表单数据:', data);
+            
+            // 验证必填字段
+            if (!data.title || !data.title.trim()) {
+                alert('请输入小说标题');
+                return;
+            }
+            if (!data.synopsis || !data.synopsis.trim()) {
+                alert('请输入小说简介');
+                return;
+            }
+            if (!data.core_setting || !data.core_setting.trim()) {
+                alert('请输入核心设定');
+                return;
+            }
+            
+            console.log('[V2] 显示进度区域');
+            showProgressSection();
+            
+            // 更新头部标题
+            const headerTitle = document.getElementById('progress-header-title');
+            if (headerTitle) {
+                headerTitle.textContent = '🔄 正在生成设定...';
+            }
+            
+            // 调用 API
+            console.log('[V2] 调用 API: /api/phase-one/generate');
+            try {
+                const response = await fetch('/api/phase-one/generate', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(data)
+                });
+                
+                console.log('[V2] API 响应:', response.status);
+                
+                if (response.status === 401) {
+                    alert('请先登录');
+                    window.location.href = '/login';
+                    return;
+                }
+                
+                const result = await response.json();
+                console.log('[V2] API 结果:', result);
+                
+                if (result.success) {
+                    console.log('[V2] 任务启动成功:', result.task_id);
+                    // 开始轮询进度
+                    startProgressPolling(result.task_id);
+                } else {
+                    throw new Error(result.error || '启动失败');
+                }
+            } catch (error) {
+                console.error('[V2] 生成失败:', error);
+                alert('启动失败: ' + error.message);
+            }
+        }
+        
+        // 轮询进度
+        function startProgressPolling(taskId) {
+            console.log('[V2] 开始轮询进度:', taskId);
+            const interval = setInterval(async () => {
+                try {
+                    const response = await fetch(`/api/phase-one/task/${taskId}/status`);
+                    const result = await response.json();
+                    
+                    console.log('[V2] 进度 API 返回:', result);
+                    
+                    if (result.success && result.data) {
+                        const progress = result.data.progress || 0;
+                        const message = result.data.message || result.data.current_step || '生成中...';
+                        const status = result.data.status || 'generating';
+                        
+                        console.log('[V2] 进度:', progress, '状态:', status, '消息:', message);
+                        updateProgressUI(progress, message);
+                        
+                        if (status === 'completed' || status === 'failed') {
+                            clearInterval(interval);
+                            if (status === 'completed') {
+                                showResultsSection();
+                            }
+                        }
+                    } else {
+                        console.log('[V2] 进度数据不可用:', result);
+                    }
+                } catch (error) {
+                    console.error('[V2] 轮询进度失败:', error);
+                }
+            }, 2000);
+        }
         
         // ==================== 停止生成功能 ====================
         

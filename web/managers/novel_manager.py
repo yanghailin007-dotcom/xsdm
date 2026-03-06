@@ -893,14 +893,16 @@ class NovelGenerationManager:
         
         # 启动后台任务
         def run_generation():
+            logger.info(f"任务 {task_id}: 后台线程启动")
             try:
                 generation_mode = config.get("generation_mode", "full_auto")
+                logger.info(f"任务 {task_id}: 生成模式 = {generation_mode}")
                 if generation_mode == "phase_one_only":
                     self._run_phase_one_task(task_id, config)
                 else:
                     self._run_generation_task(task_id, config)
             except Exception as e:
-                logger.error(f"生成任务执行失败: {e}")
+                logger.error(f"任务 {task_id}: 生成任务执行失败: {e}")
                 self._update_task_status(task_id, "failed", 0, str(e))
         
         thread = threading.Thread(target=run_generation)
@@ -913,6 +915,7 @@ class NovelGenerationManager:
 
     def _run_phase_one_task(self, task_id: str, config: Dict[str, Any]):
         """执行第一阶段生成任务"""
+        logger.info(f"任务 {task_id}: _run_phase_one_task 开始执行")
         try:
             title = config.get("title", "未命名小说")
             is_resume_mode = config.get("is_resume_mode", False)

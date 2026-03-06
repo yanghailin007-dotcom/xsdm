@@ -1009,6 +1009,7 @@ def start_phase_one_generation():
 @login_required
 def start_phase_one_generate():
     """启动第一阶段生成任务（带点数扣除）"""
+    logger.info("🚀 [PHASE_ONE_API] 收到生成请求")
     try:
         data = request.json or {}
         
@@ -1150,41 +1151,36 @@ def get_phase_one_task_status(task_id):
         if "error" in task_status:
             return jsonify({"success": False, "error": task_status["error"]}), 404
         
-        # 返回任务状态
-        response = {
-            "success": True,
+        # 构建 data 对象
+        data = {
             "task_id": task_id,
             "status": task_status.get("status", "unknown"),
             "progress": task_status.get("progress", 0),
+            "message": task_status.get("status_message") or task_status.get("current_step") or "生成中...",
             "current_step": task_status.get("current_step", ""),
             "created_at": task_status.get("created_at", ""),
-            "updated_at": task_status.get("updated_at", "")
+            "updated_at": task_status.get("updated_at", ""),
+            "points_consumed": task_status.get("points_consumed", 0),
+            "points_estimated": task_status.get("config", {}).get("estimated_points", 400),
+            "points_total": task_status.get("points_total", 400)
         }
         
         # 添加详细的步骤状态（如果存在）
         if "step_status" in task_status:
-            response["step_status"] = task_status["step_status"]
-        
-        # 添加创造点消耗信息
-        # points_consumed: 实际API调用消耗的点数（实时）
-        # points_total: 预估总消耗（预扣费金额）
-        response["points_consumed"] = task_status.get("points_consumed", 0)
-        response["points_estimated"] = task_status.get("config", {}).get("estimated_points", 400)
-        response["points_total"] = task_status.get("points_total", 400)
-        
-        # 添加状态消息
-        if "status_message" in task_status:
-            response["status_message"] = task_status["status_message"]
+            data["step_status"] = task_status["step_status"]
         
         # 如果任务完成，包含结果
         if task_status.get("status") == "completed" and "result" in task_status:
-            response["result"] = task_status["result"]
+            data["result"] = task_status["result"]
         
         # 如果任务失败，包含错误信息
         if task_status.get("status") == "failed" and "error" in task_status:
-            response["error"] = task_status["error"]
+            data["error"] = task_status["error"]
         
-        return jsonify(response)
+        return jsonify({
+            "success": True,
+            "data": data
+        })
         
     except Exception as e:
         logger.error(f"❌ [PHASE_ONE] 获取任务状态失败: {e}")

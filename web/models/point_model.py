@@ -525,6 +525,9 @@ class PointModel:
     def calculate_phase1_cost(self, total_chapters: int = 200, 
                               estimated_characters: int = 4) -> Dict[str, Any]:
         """计算第一阶段消耗"""
+        # 🔥 修复：确保 total_chapters 是整数
+        total_chapters = int(total_chapters) if total_chapters else 200
+        
         breakdown = {
             'planning': self.get_config('phase1_planning', 1),
             'worldview': self.get_config('phase1_worldview', 3),
