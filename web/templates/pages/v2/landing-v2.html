@@ -697,7 +697,7 @@
     // 🔥 首页"开始创作"按钮：根据登录状态智能跳转
     async function handleStartCreating() {
         try {
-            const response = await fetch('/api/check-session');
+            const response = await fetch('/api/current-user');
             const data = await response.json();
             
             if (data.success && data.logged_in) {
@@ -762,7 +762,7 @@
     // 🔥 首页"开始创作"按钮：根据登录状态智能跳转
     async function handleStartCreating() {
         try {
-            const response = await fetch('/api/check-session');
+            const response = await fetch('/api/current-user');
             const data = await response.json();
             
             if (data.success && data.logged_in) {

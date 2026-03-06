@@ -1032,7 +1032,7 @@
             document.body.style.opacity = '0';
             
             try {
-                const response = await fetch('/api/check-session');
+                const response = await fetch('/api/current-user');
                 const data = await response.json();
                 
                 setTimeout(() => {
