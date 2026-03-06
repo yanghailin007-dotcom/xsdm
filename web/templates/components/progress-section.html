@@ -1,7 +1,7 @@
 <!-- 生成进度展示组件 V2 - 详细步骤追踪 -->
-<div class="progress-section active" id="progress-section">
+<div class="progress-section" id="progress-section" style="display: none;">
     <div class="progress-header">
-        <h3>🔄 正在生成设定...</h3>
+        <h3 id="progress-header-title">🔄 正在生成设定...</h3>
         <div class="progress-percentage" id="progress-percentage">0%</div>
     </div>
     
@@ -527,6 +527,180 @@
     }
     50% {
         box-shadow: 0 0 0 8px rgba(99, 102, 241, 0);
+    }
+}
+
+/* ========== V2 美化样式增强 ========== */
+
+/* 进行中状态 - 琥珀色高亮 */
+.progress-step-item[data-status="active"] {
+    background: linear-gradient(135deg, rgba(251, 191, 36, 0.15) 0%, rgba(245, 158, 11, 0.05) 100%);
+    border: 1px solid rgba(251, 191, 36, 0.5);
+    box-shadow: 0 0 20px rgba(251, 191, 36, 0.2), inset 0 1px 0 rgba(255, 255, 255, 0.1);
+}
+
+.progress-step-item[data-status="active"] .step-content h4 {
+    color: #fbbf24;
+    text-shadow: 0 0 10px rgba(251, 191, 36, 0.3);
+}
+
+.progress-step-item[data-status="active"] .step-content p {
+    color: #fcd34d;
+}
+
+.progress-step-item[data-status="active"] .step-number {
+    background: linear-gradient(135deg, #fbbf24 0%, #f59e0b 100%);
+    border-color: #fbbf24;
+    color: #1e293b;
+    box-shadow: 0 0 15px rgba(251, 191, 36, 0.6);
+    animation: amberPulse 2s ease-in-out infinite;
+}
+
+.progress-step-item[data-status="active"] .step-status-badge {
+    background: rgba(251, 191, 36, 0.25);
+    color: #fbbf24;
+    border: 1px solid rgba(251, 191, 36, 0.4);
+    font-weight: 600;
+}
+
+/* 已完成状态 - 翠绿色 */
+.progress-step-item[data-status="completed"] {
+    background: linear-gradient(135deg, rgba(16, 185, 129, 0.1) 0%, rgba(5, 150, 105, 0.05) 100%);
+    border: 1px solid rgba(16, 185, 129, 0.4);
+}
+
+.progress-step-item[data-status="completed"] .step-content h4 {
+    color: #34d399;
+}
+
+.progress-step-item[data-status="completed"] .step-content p {
+    color: #6ee7b7;
+}
+
+.progress-step-item[data-status="completed"] .step-number {
+    background: linear-gradient(135deg, #34d399 0%, #10b981 100%);
+    border-color: #10b981;
+    color: white;
+    box-shadow: 0 0 10px rgba(16, 185, 129, 0.4);
+}
+
+.progress-step-item[data-status="completed"] .step-icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 24px;
+    height: 24px;
+    background: linear-gradient(135deg, #34d399 0%, #10b981 100%);
+    border-radius: 50%;
+    color: white;
+    font-size: 0.8rem;
+    box-shadow: 0 2px 8px rgba(16, 185, 129, 0.4);
+}
+
+.progress-step-item[data-status="completed"] .step-status-badge {
+    background: rgba(16, 185, 129, 0.25);
+    color: #34d399;
+    border: 1px solid rgba(16, 185, 129, 0.4);
+    font-weight: 600;
+}
+
+/* 失败状态 - 红色 */
+.progress-step-item[data-status="failed"] {
+    background: linear-gradient(135deg, rgba(239, 68, 68, 0.1) 0%, rgba(220, 38, 38, 0.05) 100%);
+    border: 1px solid rgba(239, 68, 68, 0.4);
+}
+
+.progress-step-item[data-status="failed"] .step-content h4 {
+    color: #f87171;
+}
+
+.progress-step-item[data-status="failed"] .step-content p {
+    color: #fca5a5;
+}
+
+.progress-step-item[data-status="failed"] .step-number {
+    background: linear-gradient(135deg, #f87171 0%, #ef4444 100%);
+    border-color: #ef4444;
+    color: white;
+    box-shadow: 0 0 10px rgba(239, 68, 68, 0.4);
+}
+
+.progress-step-item[data-status="failed"] .step-icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 24px;
+    height: 24px;
+    background: linear-gradient(135deg, #f87171 0%, #ef4444 100%);
+    border-radius: 50%;
+    color: white;
+    font-size: 0.8rem;
+    box-shadow: 0 2px 8px rgba(239, 68, 68, 0.4);
+}
+
+.progress-step-item[data-status="failed"] .step-status-badge {
+    background: rgba(239, 68, 68, 0.25);
+    color: #f87171;
+    border: 1px solid rgba(239, 68, 68, 0.4);
+    font-weight: 600;
+}
+
+/* 等待中状态 - 柔和灰色 */
+.progress-step-item[data-status="waiting"] {
+    opacity: 0.7;
+}
+
+.progress-step-item[data-status="waiting"] .step-content h4 {
+    color: #94a3b8;
+}
+
+.progress-step-item[data-status="waiting"] .step-content p {
+    color: #64748b;
+}
+
+.progress-step-item[data-status="waiting"] .step-number {
+    background: rgba(71, 85, 105, 0.5);
+    border-color: rgba(100, 116, 139, 0.5);
+    color: #94a3b8;
+}
+
+.progress-step-item[data-status="waiting"] .step-status-badge {
+    background: rgba(71, 85, 105, 0.3);
+    color: #64748b;
+}
+
+/* 当前步骤详情优化 */
+.current-step-detail {
+    background: linear-gradient(135deg, rgba(15, 23, 42, 0.8) 0%, rgba(30, 41, 59, 0.8) 100%);
+    border: 1px solid rgba(251, 191, 36, 0.3);
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3), 0 0 30px rgba(251, 191, 36, 0.1);
+}
+
+.current-step-detail::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 2px;
+    background: linear-gradient(90deg, transparent, #fbbf24, transparent);
+    opacity: 0.6;
+}
+
+.current-step-detail {
+    position: relative;
+    overflow: hidden;
+}
+
+/* 琥珀色脉冲动画 */
+@keyframes amberPulse {
+    0%, 100% {
+        box-shadow: 0 0 0 0 rgba(251, 191, 36, 0.6);
+        transform: scale(1);
+    }
+    50% {
+        box-shadow: 0 0 0 12px rgba(251, 191, 36, 0);
+        transform: scale(1.05);
     }
 }
 </style>

@@ -1,5 +1,5 @@
 <!-- 生成表单 -->
-<form id="phase-one-form">
+<form id="phase-one-form" onsubmit="checkPointsBeforeSubmit(event)">
     <div class="form-group">
         <label for="novel-title">小说标题</label>
         <input type="text" id="novel-title" name="title" 
@@ -36,11 +36,8 @@
             <select id="generation-mode" name="generation_mode" onchange="handleGenerationModeChange()">
                 <option value="phase_one_only">仅第一阶段（生成设定后暂停）</option>
                 <option value="full_two_phase">完整两阶段（继续生成章节）</option>
-                <option value="resume_mode" id="resume-mode-option">🔄 恢复模式（继续未完成的生成）</option>
+                <option value="resume_mode" id="resume-mode-option" style="display: none;">🔄 恢复模式（继续未完成的生成）</option>
             </select>
-            <div id="resume-mode-hint" style="display: none; margin-top: 8px; padding: 8px 12px; background: rgba(99, 102, 241, 0.1); border-radius: 6px; font-size: 13px; color: var(--text-secondary);">
-                💡 检测到有未完成的生成任务，可以选择恢复模式继续生成
-            </div>
         </div>
     </div>
 

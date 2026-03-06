@@ -229,6 +229,147 @@
         function goToRecharge() {
             window.location.href = '/recharge';
         }
+        
+        // 开始生成（如果外部JS未加载，使用此降级方案）
+        async function startPhaseOneGenerationWithResume(event) {
+            if (event) event.preventDefault();
+            
+            const form = document.getElementById('phase-one-form');
+            const formData = new FormData(form);
+            const data = Object.fromEntries(formData.entries());
+            
+            // 验证必填字段
+            if (!data.title || !data.title.trim()) {
+                alert('请输入小说标题');
+                return;
+            }
+            if (!data.synopsis || !data.synopsis.trim()) {
+                alert('请输入小说简介');
+                return;
+            }
+            if (!data.core_setting || !data.core_setting.trim()) {
+                alert('请输入核心设定');
+                return;
+            }
+            
+            console.log('开始生成设定:', data);
+            
+            // 显示进度区域
+            showProgressSection();
+            
+            // 更新头部标题为正在生成
+            const headerTitle = document.getElementById('progress-header-title');
+            if (headerTitle) {
+                headerTitle.textContent = '🔄 正在生成设定...';
+            }
+            
+            // 更新状态消息
+            const statusMessage = document.getElementById('status-message');
+            if (statusMessage) {
+                statusMessage.textContent = '正在启动生成任务...';
+                statusMessage.className = 'status-message info';
+            }
+            
+            // 这里应该调用实际的API，暂时模拟
+            try {
+                const response = await fetch('/api/phase-one/start', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(data)
+                });
+                
+                if (response.status === 401) {
+                    alert('请先登录');
+                    window.location.href = '/login';
+                    return;
+                }
+                
+                const result = await response.json();
+                
+                if (result.success) {
+                    console.log('生成任务已启动:', result.task_id);
+                    // 开始轮询进度...
+                } else {
+                    throw new Error(result.error || '启动失败');
+                }
+            } catch (error) {
+                console.error('生成失败:', error);
+                // 显示错误但不隐藏进度区域，让用户可以重试
+                const statusMessage = document.getElementById('status-message');
+                if (statusMessage) {
+                    statusMessage.textContent = '启动失败: ' + error.message;
+                    statusMessage.className = 'status-message error';
+                }
+            }
+        }
+
+        // 显示进度区域
+        function showProgressSection() {
+            const progressSection = document.getElementById('progress-section');
+            if (progressSection) {
+                progressSection.style.display = 'block';
+                progressSection.classList.add('active');
+                console.log('[UI] 进度区域已显示');
+            }
+        }
+        
+        // 隐藏进度区域
+        function hideProgressSection() {
+            const progressSection = document.getElementById('progress-section');
+            if (progressSection) {
+                progressSection.style.display = 'none';
+                progressSection.classList.remove('active');
+            }
+        }
+        
+        // 显示结果区域
+        function showResultsSection() {
+            const resultsSection = document.getElementById('results-section');
+            if (resultsSection) {
+                resultsSection.style.display = 'block';
+            }
+        }
+        
+        // 隐藏结果区域
+        function hideResultsSection() {
+            const resultsSection = document.getElementById('results-section');
+            if (resultsSection) {
+                resultsSection.style.display = 'none';
+            }
+        }
+        
+        // 全局进度更新函数 - 供外部JS调用
+        function updateProgressUI(percentage, message) {
+            console.log('[UI] 更新进度:', percentage, message);
+            
+            // 确保进度区域显示
+            showProgressSection();
+            
+            // 更新百分比文本
+            const percentageEl = document.getElementById('progress-percentage');
+            if (percentageEl) {
+                percentageEl.textContent = percentage + '%';
+            }
+            
+            // 更新进度条
+            const barEl = document.getElementById('progress-bar-fill');
+            if (barEl) {
+                barEl.style.width = percentage + '%';
+            }
+            
+            // 更新当前步骤信息
+            if (message) {
+                const descEl = document.getElementById('current-step-desc');
+                if (descEl) {
+                    descEl.textContent = message;
+                }
+            }
+        }
+        
+        // 兼容函数 - phase-one-generation.js 可能使用这些函数名
+        window.updateProgress = updateProgressUI;
+        window.setProgress = updateProgressUI;
+        window.showProgress = showProgressSection;
 
         // 页面加载完成后执行
         document.addEventListener('DOMContentLoaded', function() {
@@ -244,6 +385,10 @@
             
             // 加载用户创造点余额
             loadUserPointsBalance();
+            
+            // 初始化：隐藏进度和结果区域
+            hideProgressSection();
+            hideResultsSection();
             
             console.log('第一阶段设定页面已加载完成');
         });

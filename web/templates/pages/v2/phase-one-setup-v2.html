@@ -374,6 +374,388 @@
         function goToRecharge() {
             window.location.href = '/recharge';
         }
+        
+        // ==================== 进度和结果显示控制 ====================
+        
+        // 显示进度区域
+        function showProgressSection() {
+            const progressSection = document.getElementById('progress-section');
+            if (progressSection) {
+                progressSection.style.display = 'block';
+                progressSection.classList.add('active');
+                console.log('[V2-UI] 进度区域已显示');
+            } else {
+                console.error('[V2-UI] 未找到进度区域元素 #progress-section');
+            }
+        }
+        
+        // 隐藏进度区域
+        function hideProgressSection() {
+            const progressSection = document.getElementById('progress-section');
+            if (progressSection) {
+                progressSection.style.display = 'none';
+                progressSection.classList.remove('active');
+            }
+        }
+        
+        // 显示结果区域
+        function showResultsSection() {
+            const resultsSection = document.getElementById('results-section');
+            if (resultsSection) {
+                resultsSection.style.display = 'block';
+                console.log('[V2-UI] 结果区域已显示');
+            }
+        }
+        
+        // 隐藏结果区域
+        function hideResultsSection() {
+            const resultsSection = document.getElementById('results-section');
+            if (resultsSection) {
+                resultsSection.style.display = 'none';
+            }
+        }
+        
+        // 全局进度更新函数 - 供外部JS调用
+        function updateProgressUI(percentage, message) {
+            console.log('[V2-UI] 更新进度:', percentage, message);
+            
+            // 确保进度区域显示
+            showProgressSection();
+            
+            // 更新百分比文本
+            const percentageEl = document.getElementById('progress-percentage');
+            if (percentageEl) {
+                percentageEl.textContent = percentage + '%';
+            }
+            
+            // 更新进度条
+            const barEl = document.getElementById('progress-bar-fill');
+            if (barEl) {
+                barEl.style.width = percentage + '%';
+            }
+            
+            // 更新当前步骤信息
+            if (message) {
+                const descEl = document.getElementById('current-step-desc');
+                if (descEl) {
+                    descEl.textContent = message;
+                }
+            }
+        }
+        
+        // 兼容函数 - phase-one-generation.js 可能使用这些函数名
+        window.updateProgress = updateProgressUI;
+        window.setProgress = updateProgressUI;
+        window.showProgress = showProgressSection;
+        
+        // ==================== 停止生成功能 ====================
+        
+        // 显示停止确认弹窗
+        function stopGeneration() {
+            console.log('[V2] 显示停止确认弹窗');
+            
+            // 如果已存在弹窗，先移除
+            const existingModal = document.getElementById('stop-confirm-modal');
+            if (existingModal) existingModal.remove();
+            
+            // 创建弹窗
+            const modal = document.createElement('div');
+            modal.id = 'stop-confirm-modal';
+            modal.innerHTML = `
+                <div style="
+                    position: fixed;
+                    top: 0;
+                    left: 0;
+                    right: 0;
+                    bottom: 0;
+                    background: rgba(0, 0, 0, 0.7);
+                    backdrop-filter: blur(12px);
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    z-index: 99999;
+                    animation: fadeIn 0.3s ease;
+                ">
+                    <div style="
+                        background: linear-gradient(145deg, rgba(15, 23, 42, 0.95) 0%, rgba(30, 41, 59, 0.95) 100%);
+                        border: 1px solid rgba(239, 68, 68, 0.3);
+                        border-radius: 20px;
+                        padding: 2.5rem;
+                        max-width: 420px;
+                        width: 90%;
+                        text-align: center;
+                        box-shadow: 
+                            0 25px 50px -12px rgba(0, 0, 0, 0.8),
+                            0 0 40px rgba(239, 68, 68, 0.15);
+                        animation: slideUp 0.3s ease;
+                    ">
+                        <!-- 警告图标 -->
+                        <div style="
+                            width: 80px;
+                            height: 80px;
+                            margin: 0 auto 1.5rem;
+                            background: linear-gradient(135deg, #f87171 0%, #ef4444 100%);
+                            border-radius: 50%;
+                            display: flex;
+                            align-items: center;
+                            justify-content: center;
+                            box-shadow: 0 10px 30px rgba(239, 68, 68, 0.4);
+                            animation: pulseWarning 2s ease-in-out infinite;
+                        ">
+                            <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                                <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path>
+                                <line x1="12" y1="9" x2="12" y2="13"></line>
+                                <line x1="12" y1="17" x2="12.01" y2="17"></line>
+                            </svg>
+                        </div>
+                        
+                        <h3 style="
+                            color: #f87171;
+                            margin-bottom: 0.75rem;
+                            font-size: 1.5rem;
+                            font-weight: 700;
+                        ">
+                            确认停止生成？
+                        </h3>
+                        
+                        <p style="
+                            color: #94a3b8;
+                            margin-bottom: 1.5rem;
+                            font-size: 0.95rem;
+                            line-height: 1.6;
+                        ">
+                            停止后将保存当前进度，已消耗的创造点不予返还。您可以随时恢复生成。
+                        </p>
+                        
+                        <!-- 信息提示 -->
+                        <div style="
+                            background: rgba(239, 68, 68, 0.08);
+                            border: 1px solid rgba(239, 68, 68, 0.2);
+                            border-radius: 12px;
+                            padding: 1rem;
+                            margin-bottom: 1.5rem;
+                            text-align: left;
+                        ">
+                            <div style="display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.5rem;">
+                                <span style="color: #f87171;">⚡</span>
+                                <span style="color: #f87171; font-weight: 600; font-size: 0.875rem;">注意</span>
+                            </div>
+                            <p style="color: #fca5a5; font-size: 0.8rem; margin: 0;">
+                                当前进度已保存，您可以稍后从项目页面继续生成。
+                            </p>
+                        </div>
+                        
+                        <div style="display: flex; gap: 0.75rem;">
+                            <button onclick="closeStopModal()" style="
+                                flex: 1;
+                                padding: 0.875rem 1rem;
+                                background: rgba(255, 255, 255, 0.05);
+                                border: 1px solid rgba(255, 255, 255, 0.1);
+                                border-radius: 10px;
+                                color: #94a3b8;
+                                cursor: pointer;
+                                font-size: 0.875rem;
+                                font-weight: 500;
+                                transition: all 0.2s ease;
+                            " onmouseover="this.style.background='rgba(255,255,255,0.1)';this.style.color='#e2e8f0'" 
+                            onmouseout="this.style.background='rgba(255,255,255,0.05)';this.style.color='#94a3b8'">
+                                继续生成
+                            </button>
+                            <button onclick="confirmStopGeneration()" style="
+                                flex: 1.2;
+                                padding: 0.875rem 1rem;
+                                background: linear-gradient(135deg, #f87171 0%, #ef4444 100%);
+                                border: none;
+                                border-radius: 10px;
+                                color: white;
+                                cursor: pointer;
+                                font-size: 0.875rem;
+                                font-weight: 600;
+                                box-shadow: 0 4px 15px rgba(239, 68, 68, 0.4);
+                                transition: all 0.2s ease;
+                            " onmouseover="this.style.transform='translateY(-2px)';this.style.boxShadow='0 6px 20px rgba(239,68,68,0.5)'" 
+                            onmouseout="this.style.transform='translateY(0)';this.style.boxShadow='0 4px 15px rgba(239,68,68,0.4)'">
+                                🛑 确认停止
+                            </button>
+                        </div>
+                    </div>
+                </div>
+                
+                <style>
+                    @keyframes fadeIn {
+                        from { opacity: 0; }
+                        to { opacity: 1; }
+                    }
+                    @keyframes slideUp {
+                        from { 
+                            opacity: 0;
+                            transform: translateY(20px) scale(0.95);
+                        }
+                        to { 
+                            opacity: 1;
+                            transform: translateY(0) scale(1);
+                        }
+                    }
+                    @keyframes pulseWarning {
+                        0%, 100% { 
+                            box-shadow: 0 10px 30px rgba(239, 68, 68, 0.4);
+                            transform: scale(1);
+                        }
+                        50% { 
+                            box-shadow: 0 10px 40px rgba(239, 68, 68, 0.6);
+                            transform: scale(1.05);
+                        }
+                    }
+                </style>
+            `;
+            
+            document.body.appendChild(modal);
+            document.body.style.overflow = 'hidden';
+        }
+        
+        // 关闭停止确认弹窗
+        function closeStopModal() {
+            const modal = document.getElementById('stop-confirm-modal');
+            if (modal) {
+                modal.style.animation = 'fadeOut 0.2s ease forwards';
+                setTimeout(() => {
+                    modal.remove();
+                    document.body.style.overflow = '';
+                }, 200);
+            }
+        }
+        
+        // 确认停止生成
+        async function confirmStopGeneration() {
+            console.log('[V2] 确认停止生成');
+            closeStopModal();
+            
+            // 显示停止中状态
+            const stopBtn = document.getElementById('stop-btn');
+            if (stopBtn) {
+                stopBtn.innerHTML = '⏹️ 停止中...';
+                stopBtn.disabled = true;
+            }
+            
+            // 获取当前任务ID（假设存储在全局变量中）
+            const taskId = window.currentTaskId || window.phaseOneTaskId;
+            
+            if (!taskId) {
+                console.warn('[V2] 未找到任务ID，无法停止');
+                showStopResult('未找到正在进行的生成任务', 'warning');
+                return;
+            }
+            
+            try {
+                const response = await fetch(`/api/phase-one/stop/${taskId}`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' }
+                });
+                
+                const result = await response.json();
+                
+                if (result.success) {
+                    console.log('[V2] 生成已停止');
+                    showStopResult('生成已停止，进度已保存', 'success');
+                    // 隐藏进度区域，显示结果或表单
+                    hideProgressSection();
+                } else {
+                    throw new Error(result.error || '停止失败');
+                }
+            } catch (error) {
+                console.error('[V2] 停止生成失败:', error);
+                showStopResult('停止失败: ' + error.message, 'error');
+            } finally {
+                if (stopBtn) {
+                    stopBtn.innerHTML = '🛑 停止生成';
+                    stopBtn.disabled = false;
+                }
+            }
+        }
+        
+        // 显示停止结果提示
+        function showStopResult(message, type) {
+            // 移除已存在的结果提示
+            const existingToast = document.getElementById('stop-result-toast');
+            if (existingToast) existingToast.remove();
+            
+            const colors = {
+                success: { bg: 'rgba(16, 185, 129, 0.9)', border: '#10b981', icon: '✓' },
+                error: { bg: 'rgba(239, 68, 68, 0.9)', border: '#ef4444', icon: '✕' },
+                warning: { bg: 'rgba(251, 191, 36, 0.9)', border: '#fbbf24', icon: '⚠' }
+            };
+            
+            const color = colors[type] || colors.warning;
+            
+            const toast = document.createElement('div');
+            toast.id = 'stop-result-toast';
+            toast.innerHTML = `
+                <div style="
+                    position: fixed;
+                    top: 24px;
+                    right: 24px;
+                    background: ${color.bg};
+                    border: 1px solid ${color.border};
+                    border-radius: 12px;
+                    padding: 1rem 1.25rem;
+                    display: flex;
+                    align-items: center;
+                    gap: 0.75rem;
+                    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
+                    z-index: 100000;
+                    animation: slideInRight 0.3s ease;
+                    backdrop-filter: blur(10px);
+                ">
+                    <span style="
+                        width: 24px;
+                        height: 24px;
+                        background: white;
+                        border-radius: 50%;
+                        display: flex;
+                        align-items: center;
+                        justify-content: center;
+                        font-size: 0.875rem;
+                        color: ${color.border};
+                        font-weight: bold;
+                    ">${color.icon}</span>
+                    <span style="color: white; font-weight: 500; font-size: 0.9rem;">${message}</span>
+                </div>
+                
+                <style>
+                    @keyframes slideInRight {
+                        from { 
+                            opacity: 0;
+                            transform: translateX(100px);
+                        }
+                        to { 
+                            opacity: 1;
+                            transform: translateX(0);
+                        }
+                    }
+                    @keyframes slideOutRight {
+                        from { 
+                            opacity: 1;
+                            transform: translateX(0);
+                        }
+                        to { 
+                            opacity: 0;
+                            transform: translateX(100px);
+                        }
+                    }
+                </style>
+            `;
+            
+            document.body.appendChild(toast);
+            
+            // 3秒后自动移除
+            setTimeout(() => {
+                const toastEl = document.getElementById('stop-result-toast');
+                if (toastEl) {
+                    toastEl.firstElementChild.style.animation = 'slideOutRight 0.3s ease forwards';
+                    setTimeout(() => toastEl.remove(), 300);
+                }
+            }, 3000);
+        }
 
         // 页面加载完成后执行
         document.addEventListener('DOMContentLoaded', function() {
@@ -398,16 +780,15 @@
             // 加载用户创造点余额
             loadUserPointsBalance();
             
-            // 🔥 绑定表单提交事件
+            // 🔥 初始化：隐藏进度和结果区域
+            hideProgressSection();
+            hideResultsSection();
+            
+            // 🔥 表单提交事件已在 generation-form.html 中绑定
+            // 这里只需要确保表单元素存在
             const form = document.getElementById('phase-one-form');
             if (form) {
-                console.log('✅ [V2] 找到表单元素，绑定submit事件');
-                form.addEventListener('submit', function(event) {
-                    console.log('🚀 [V2] 表单submit事件触发');
-                    event.preventDefault();
-                    event.stopPropagation();
-                    checkPointsBeforeSubmit(event);
-                });
+                console.log('✅ [V2] 找到表单元素');
             } else {
                 console.error('❌ [V2] 未找到表单元素 #phase-one-form');
             }
