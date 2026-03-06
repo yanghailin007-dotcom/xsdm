@@ -1026,10 +1026,30 @@
             }
         }
 
-        function enterNovel() {
+        // 🔥 智能跳转：根据登录状态决定跳转目标
+        async function enterNovel() {
             document.body.style.transition = 'opacity 0.5s';
             document.body.style.opacity = '0';
-            setTimeout(() => window.location.href = '/home', 500);
+            
+            try {
+                const response = await fetch('/api/check-session');
+                const data = await response.json();
+                
+                setTimeout(() => {
+                    if (data.success && data.logged_in) {
+                        // 已登录：跳转到工作台
+                        window.location.href = '/v2/project-management';
+                    } else {
+                        // 未登录：跳转到登录页
+                        window.location.href = '/login';
+                    }
+                }, 500);
+            } catch (error) {
+                console.error('检查登录状态失败:', error);
+                setTimeout(() => {
+                    window.location.href = '/login';
+                }, 500);
+            }
         }
 
         function enterVideo() {
