@@ -2450,6 +2450,13 @@ def register_additional_routes(app):
                 checkpoint_info = checkpoint_mgr.get_resume_info()
                 logger.info(f"✅ [STOP] 检查点已更新，当前步骤: {current_step}")
             
+            # 🔥 设置停止标志，通知生成线程停止
+            manager.stop_task(task_id)
+            
+            # 等待一段时间让生成线程检测到停止标志并退出
+            import time
+            time.sleep(1)
+            
             # 标记任务为已停止
             manager._update_task_status(task_id, "stopped", task_status.get("progress", 0))
             

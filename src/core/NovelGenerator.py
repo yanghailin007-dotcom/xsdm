@@ -317,6 +317,27 @@ class NovelGenerator:
         print(f"默认提供商: {default_provider}")
         print(f"当前模型: {current_model}")
 
+    def _check_stop_requested(self, context: str = "") -> None:
+        """🔥 检查是否被请求停止生成
+        
+        Args:
+            context: 当前上下文描述，用于日志
+            
+        Raises:
+            InterruptedError: 当停止标志被设置时
+        """
+        try:
+            if hasattr(self, '_stop_check_callback'):
+                # 调用停止检查回调
+                self._stop_check_callback()
+                # 如果没有抛出异常，说明没有被停止
+        except InterruptedError:
+            self.logger.info(f"🛑 生成被用户停止{' - ' + context if context else ''}")
+            raise
+        except Exception as e:
+            # 检查失败时不中断生成，只记录日志
+            self.logger.debug(f"停止检查失败: {e}")
+    
     def _update_step_status(self, step_name: str, step_state: str, message: str = None):
         """🔥 更新单个步骤的状态（用于前端进度显示）
         
@@ -325,6 +346,10 @@ class NovelGenerator:
             step_state: 步骤状态，'waiting'/'active'/'completed'/'failed'
             message: 可选的状态描述消息
         """
+        # 🔥 检查是否被请求停止（只在步骤开始时检查）
+        if step_state == 'active':
+            self._check_stop_requested(f"步骤 '{step_name}' 开始前")
+        
         try:
             if hasattr(self, '_update_task_status_callback'):
                 task_id = getattr(self, '_current_task_id', None)
@@ -379,6 +404,10 @@ class NovelGenerator:
                 print(f"⚠️ 失败通知回调失败: {callback_error}")
         
         self.logger.info("[START] 开始第一阶段设定生成...")
+        
+        # 🔥 检查是否被请求停止
+        self._check_stop_requested("生成开始前")
+        
         # 不打印完整的创意种子，避免过长输出
         if isinstance(creative_seed, dict):
             novel_title = creative_seed.get('novelTitle') or creative_seed.get('novel_title')

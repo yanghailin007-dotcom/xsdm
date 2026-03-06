@@ -96,6 +96,9 @@ class NovelGenerationManager:
         self.active_tasks = {}
         self.task_threads = {}
         
+        # 🔥 新增：任务停止标志字典 {task_id: True/False}
+        self._stop_flags = {}
+        
         # 🔥 新增：初始化检查点管理器
         try:
             from src.managers.stage_plan.generation_checkpoint import GenerationCheckpoint
@@ -108,6 +111,50 @@ class NovelGenerationManager:
         logger.info("🔧 NovelGenerationManager 初始化开始")
         self.load_existing_novels()
         logger.info(f"🔧 NovelGenerationManager 初始化完成，加载了 {len(self.novel_projects)} 个小说项目")
+
+    def stop_task(self, task_id: str) -> bool:
+        """
+        请求停止指定任务
+        
+        Args:
+            task_id: 任务ID
+            
+        Returns:
+            是否成功设置停止标志
+        """
+        if task_id in self.active_tasks:
+            self._stop_flags[task_id] = True
+            logger.info(f"🛑 任务 {task_id}: 已设置停止标志")
+            return True
+        logger.warning(f"⚠️ 任务 {task_id}: 未找到活跃任务，无法设置停止标志")
+        return False
+    
+    def is_task_stopped(self, task_id: str) -> bool:
+        """
+        检查任务是否被请求停止
+        
+        Args:
+            task_id: 任务ID
+            
+        Returns:
+            是否已请求停止
+        """
+        return self._stop_flags.get(task_id, False)
+    
+    def _check_stop_flag(self, task_id: str, message: str = "任务被用户停止") -> None:
+        """
+        检查停止标志，如果设置了则抛出异常中断执行
+        
+        Args:
+            task_id: 任务ID
+            message: 停止时的异常消息
+            
+        Raises:
+            InterruptedError: 当停止标志被设置时
+        """
+        if self._stop_flags.get(task_id, False):
+            logger.info(f"🛑 任务 {task_id}: {message}")
+            raise InterruptedError(message)
 
     def _update_task_status(self, task_id: str, status: str, progress: int, error: Optional[str] = None, 
                             current_step: str = None, step_status: Dict = None, points_consumed: int = None):
@@ -1035,6 +1082,9 @@ class NovelGenerationManager:
                 # 为生成器设置进度回调（使用动态属性设置）
                 setattr(novel_generator, '_update_task_status_callback', self._update_task_status)
                 setattr(novel_generator, '_current_task_id', task_id)
+                
+                # 🔥 设置停止检查回调
+                setattr(novel_generator, '_stop_check_callback', lambda: self._check_stop_flag(task_id))
                 
                 # 🔥 设置用户ID用于API调用实时扣费
                 user_id = config.get('user_id')
