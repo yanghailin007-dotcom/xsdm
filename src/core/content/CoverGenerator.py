@@ -85,9 +85,17 @@ class CoverGenerator:
             
             print(f"  📝 封面提示词: {cover_prompt[:100]}...")
             
-            # 创建小说项目目录（如果不存在）
+            # 创建小说项目目录（使用用户隔离路径）
             safe_title = re.sub(r'[\\/*?:"<>|]', "_", novel_title)
-            project_dir = "小说项目"
+            
+            # 🔥 使用用户隔离路径
+            try:
+                from web.utils.path_utils import get_user_novel_dir
+                project_dir = get_user_novel_dir(create=True)
+            except Exception:
+                # 如果没有 Flask 上下文，使用默认路径
+                project_dir = "小说项目"
+            
             if not os.path.exists(project_dir):
                 os.makedirs(project_dir)
             

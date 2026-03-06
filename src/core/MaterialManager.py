@@ -21,8 +21,15 @@ class MaterialManager:
         self.novel_title = novel_title
         self.safe_title = self._sanitize_filename(novel_title)
         
-        # 创建基础目录结构
-        self.base_dir = Path("小说项目") / self.safe_title
+        # 🔥 创建基础目录结构（使用用户隔离路径）
+        try:
+            from web.utils.path_utils import get_user_novel_dir
+            user_dir = get_user_novel_dir(create=True)
+            self.base_dir = user_dir / self.safe_title
+        except Exception:
+            # 如果没有 Flask 上下文，使用默认路径
+            self.base_dir = Path("小说项目") / self.safe_title
+        
         self.base_dir.mkdir(parents=True, exist_ok=True)
         
         # 创建子目录

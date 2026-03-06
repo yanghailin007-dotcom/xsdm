@@ -85,10 +85,18 @@ class ProjectManager:
     def find_existing_projects(self, creative_seed: Optional[str] = None) -> List[Dict]:
         """查找现有项目 - 使用相对路径"""
         projects = []
-        base_dir = Path("小说项目")
         
-        if not base_dir.exists():
-            return projects
+        # 🔥 使用用户隔离路径
+        try:
+            from web.utils.path_utils import get_user_novel_dir
+            base_dir = get_user_novel_dir(create=False)
+            if not base_dir.exists():
+                return projects
+        except Exception:
+            # 如果没有 Flask 上下文，使用默认路径
+            base_dir = Path("小说项目")
+            if not base_dir.exists():
+                return projects
         
         # 确保 creative_seed 是字符串
         if creative_seed is None:

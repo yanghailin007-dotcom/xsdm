@@ -1228,7 +1228,16 @@ class StagePlanManager:
                 if novel_title:
                     # 清理文件名（添加冒号到不允许的字符列表中）
                     safe_title = re.sub(r'[\\/*?"<>|:]', "_", novel_title)
-                    project_dir = Path("小说项目") / novel_title
+                    
+                    # 🔥 使用用户隔离路径
+                    try:
+                        from web.utils.path_utils import get_user_novel_dir
+                        user_dir = get_user_novel_dir(create=True)
+                        project_dir = user_dir / novel_title
+                    except Exception:
+                        # 如果没有 Flask 上下文，使用默认路径
+                        project_dir = Path("小说项目") / novel_title
+                    
                     if not project_dir.exists():
                         project_dir = Path("小说项目") / safe_title
                     

@@ -13,7 +13,14 @@ class NovelPathConfig:
     """小说项目路径配置管理器"""
     
     def __init__(self):
-        self.base_dir = Path("小说项目")
+        # 🔥 使用用户隔离路径（如果有Flask上下文）
+        try:
+            from web.utils.path_utils import get_user_novel_dir
+            self.base_dir = get_user_novel_dir(create=True)
+        except Exception:
+            # 没有Flask上下文时使用默认路径
+            self.base_dir = Path("小说项目")
+        
         self.templates_dir = Path("templates")
         
     def get_safe_title(self, title: str) -> str:
