@@ -1022,12 +1022,19 @@ class NovelGenerationManager:
                     logger.info(f"任务 {task_id}: 已设置用户ID {user_id} 用于API调用扣费")
                 
                 # 🔥 传递 start_new 和 target_platform 参数给生成器
+                logger.info(f"任务 {task_id}: 🚀 开始调用 phase_one_generation...")
+                logger.info(f"任务 {task_id}: 📋 创意种子: {creative_seed.get('novelTitle', 'N/A')}")
+                
+                import time
+                start_time = time.time()
                 success = novel_generator.phase_one_generation(
                     creative_seed,
                     total_chapters,
                     start_new=config.get("start_new", False),
                     target_platform=config.get("target_platform", "fanqie")
                 )
+                elapsed = time.time() - start_time
+                logger.info(f"任务 {task_id}: ✅ phase_one_generation 完成，耗时: {elapsed:.2f}秒, 结果: {success}")
                 
                 if success:
                     # 标记步骤完成

@@ -343,16 +343,16 @@ class NovelGenerator:
             except Exception as callback_error:
                 print(f"⚠️ 失败通知回调失败: {callback_error}")
         
-        print("[START] 开始第一阶段设定生成...")
+        self.logger.info("[START] 开始第一阶段设定生成...")
         # 不打印完整的创意种子，避免过长输出
         if isinstance(creative_seed, dict):
             novel_title = creative_seed.get('novelTitle') or creative_seed.get('novel_title')
             if novel_title:
-                print(f"创意种子标题: {novel_title}")
+                self.logger.info(f"创意种子标题: {novel_title}")
             else:
-                print(f"创意种子类型: {type(creative_seed).__name__}")
+                self.logger.info(f"创意种子类型: {type(creative_seed).__name__}")
         else:
-            print(f"创意种子类型: {type(creative_seed).__name__}")
+            self.logger.info(f"创意种子类型: {type(creative_seed).__name__}")
 
         if total_chapters is None:
             total_chapters = self.config.get("defaults", {}).get("total_chapters", 200)
@@ -366,13 +366,13 @@ class NovelGenerator:
             # 检查是否有检查点可以恢复
             checkpoint_data = self._check_for_resume_checkpoint(creative_seed, total_chapters)
             if checkpoint_data:
-                print(f"🔄 检测到检查点，从步骤 '{checkpoint_data['current_step']}' 恢复")
+                self.logger.info(f"🔄 检测到检查点，从步骤 '{checkpoint_data['current_step']}' 恢复")
                 return self._resume_phase_one_from_checkpoint(checkpoint_data, creative_seed, total_chapters)
         else:
-            print("🆕 用户选择从头开始，跳过检查点恢复")
+            self.logger.info("🆕 用户选择从头开始，跳过检查点恢复")
         
         # 没有检查点或用户选择从头开始，从头开始生成
-        print("🆕 从头开始生成")
+        self.logger.info("🆕 从头开始生成")
         
         # 注意：初始检查点将在方案生成完成后再创建，那时才会有所有必要字段
         
@@ -633,7 +633,7 @@ class NovelGenerator:
         Returns:
             str: 精炼后的、可直接用作AI Prompt的文本指令。
         """
-        print("⚙️  正在执行【指令精炼】，将人类创意转换为AI必须遵守的硬性指令...")
+        self.logger.info("⚙️  正在执行【指令精炼】，将人类创意转换为AI必须遵守的硬性指令...")
         
         # 1. 提取核心组件
         core_setting = creative_work.get("coreSetting", "未提供核心设定。")
@@ -663,7 +663,7 @@ class NovelGenerator:
         refined_instruction = None
         try:
             # 3. 调用AI进行真正的精炼
-            print("  🤖 正在调用AI进行创意精炼...")
+            self.logger.info("  🤖 正在调用AI进行创意精炼...")
             
             if not hasattr(self.api_client, 'call_api'):
                 print("  ❌ API客户端缺少call_api方法，尝试使用generate_content_with_retry")
@@ -699,7 +699,7 @@ class NovelGenerator:
                 with open(output_filepath, 'w', encoding='utf-8') as f:
                     f.write(refined_instruction)
                 
-                print(f"✅  指令精炼完成，已保存至: {output_filepath}")
+                self.logger.info(f"✅  指令精炼完成，已保存至: {output_filepath}")
                     
             except Exception as e:
                 print(f"⚠️  保存精炼指令文件失败: {e}")
