@@ -831,11 +831,25 @@ class PhaseGenerator:
             
             print(f"🎉 第一阶段结果保存完成！(已保存为{len(products_mapping)}个单独文件)")
             
-            # 删除临时文件
+            # 删除临时文件（包括用户隔离路径下的）
             try:
                 import glob
+                from pathlib import Path
+                
+                temp_files = []
+                # 清理根目录下的临时文件（兼容旧路径）
                 temp_files_pattern = os.path.join("小说项目", "未定稿创意_*_Refined_AI_Brief.txt")
-                temp_files = glob.glob(temp_files_pattern)
+                temp_files.extend(glob.glob(temp_files_pattern))
+                
+                # 清理用户隔离路径下的临时文件
+                try:
+                    from web.utils.path_utils import get_user_novel_dir
+                    user_dir = get_user_novel_dir(create=False)
+                    if user_dir.exists():
+                        user_pattern = os.path.join(user_dir, "未定稿创意_*_Refined_AI_Brief.txt")
+                        temp_files.extend(glob.glob(user_pattern))
+                except Exception:
+                    pass  # 如果没有 Flask 上下文，忽略用户路径
                 
                 if temp_files:
                     print(f"🗑️  找到 {len(temp_files)} 个临时文件，准备删除...")

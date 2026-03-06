@@ -727,11 +727,19 @@ class NovelGenerator:
             else:
                 print("  ✅ AI精炼成功")
             
-            # 4. 保存到文件
+            # 4. 保存到文件（使用用户隔离路径）
             try:
                 safe_title = re.sub(r'[\\/*?:"<>|]', "_", novel_title)
-                output_dir = "小说项目"
-                os.makedirs(output_dir, exist_ok=True)
+                
+                # 🔥 使用用户隔离路径
+                try:
+                    from web.utils.path_utils import get_user_novel_dir
+                    output_dir = get_user_novel_dir(create=True)
+                except Exception:
+                    # 如果没有 Flask 上下文，使用默认路径
+                    output_dir = Path("小说项目")
+                    output_dir.mkdir(exist_ok=True)
+                
                 output_filepath = os.path.join(output_dir, f"{safe_title}_Refined_AI_Brief.txt")
                 
                 with open(output_filepath, 'w', encoding='utf-8') as f:
