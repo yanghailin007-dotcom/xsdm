@@ -327,6 +327,16 @@ class NovelGenerator:
             "resume_data": None
         }
     
+    @property
+    def _ctx(self) -> Dict:
+        """
+        获取当前任务上下文（便捷属性）
+        
+        Returns:
+            任务的 novel_data 字典
+        """
+        return self._get_task_context()
+    
     def _get_task_context(self, task_id: str = None) -> Dict:
         """
         获取任务上下文（支持并发）
@@ -341,7 +351,7 @@ class NovelGenerator:
             task_id = getattr(self, '_current_task_id', None)
         
         if task_id is None:
-            return self.novel_data  # 向后兼容
+            return self._ctx  # 向后兼容
         
         with self._task_lock:
             if task_id not in self._task_contexts:
@@ -449,7 +459,7 @@ class NovelGenerator:
             target_platform: 目标平台 (fanqie/qidian/zhihu)  # 🔥 新增平台参数
         """
         # 🔥 保存平台信息到novel_data
-        self.novel_data["target_platform"] = target_platform
+        self._ctx["target_platform"] = target_platform
         def notify_failure(error_msg: str):
             """通知任务失败"""
             try:
@@ -548,7 +558,7 @@ class NovelGenerator:
             selected_plan = self.plan_generator.generate_and_select_plan(
                 processed_creative_seed,
                 self.content_generator,
-                target_platform=self.novel_data.get("target_platform", "fanqie")
+                target_platform=self._ctx.get("target_platform", "fanqie")
             )
             if not selected_plan:
                 error_msg = "方案生成失败：无法生成符合要求的创作方案"
@@ -648,14 +658,14 @@ class NovelGenerator:
     def _setup_novel_info(self, selected_plan: Dict, creative_seed, total_chapters: Optional[int]) -> bool:
         """设置小说基础信息"""
         try:
-            self.novel_data["selected_plan"] = selected_plan
+            self._ctx["selected_plan"] = selected_plan
             self.novel_title = selected_plan["title"]
-            self.novel_data["novel_title"] = self.novel_title
-            self.novel_data["novel_synopsis"] = selected_plan["synopsis"]
-            self.novel_data["creative_seed"] = creative_seed
-            self.novel_data["category"] = selected_plan.get('tags', {}).get('main_category', '未分类')
-            self.novel_data["current_progress"]["total_chapters"] = total_chapters
-            self.novel_data["current_progress"]["start_time"] = datetime.now().isoformat()
+            self._ctx["novel_title"] = self.novel_title
+            self._ctx["novel_synopsis"] = selected_plan["synopsis"]
+            self._ctx["creative_seed"] = creative_seed
+            self._ctx["category"] = selected_plan.get('tags', {}).get('main_category', '未分类')
+            self._ctx["current_progress"]["total_chapters"] = total_chapters
+            self._ctx["current_progress"]["start_time"] = datetime.now().isoformat()
 
             # 现在有了 novel_title，初始化质量评估器（使用统一路径配置）
             from src.core.QualityAssessor import QualityAssessor
@@ -699,7 +709,7 @@ class NovelGenerator:
                 return False
             
             # 第五阶段：章节内容生成
-            total_chapters = self.novel_data["current_progress"]["total_chapters"]
+            total_chapters = self._ctx["current_progress"]["total_chapters"]
             return self._generate_all_chapters(total_chapters)
 
         except Exception as e:
@@ -718,12 +728,12 @@ class NovelGenerator:
         
         # 更新novel_data
         if chapter_number and result:
-            self.novel_data.setdefault("generated_chapters", {})[chapter_number] = result
-            self.novel_data["current_progress"]["completed_chapters"] = len(self.novel_data["generated_chapters"])
+            self._ctx.setdefault("generated_chapters", {})[chapter_number] = result
+            self._ctx["current_progress"]["completed_chapters"] = len(self._ctx["generated_chapters"])
             
             # 保存章节
             self.project_manager.save_single_chapter(
-                self.novel_data["novel_title"], 
+                self._ctx["novel_title"], 
                 chapter_number, 
                 result
             )
@@ -977,7 +987,7 @@ class NovelGenerator:
     def _initialize_material_manager(self):
         """初始化材料管理器"""
         try:
-            novel_title = self.novel_data.get("novel_title")
+            novel_title = self._ctx.get("novel_title")
             if novel_title:
                 self.material_manager = MaterialManager(novel_title)
                 print(f"✅ 材料管理器初始化成功: {novel_title}")
@@ -997,13 +1007,13 @@ class NovelGenerator:
             
         try:
             project_info = {
-                "novel_title": self.novel_data.get("novel_title"),
-                "category": self.novel_data.get("category"),
-                "synopsis": self.novel_data.get("novel_synopsis"),
-                "creative_seed": self.novel_data.get("creative_seed"),
-                "selected_plan": self.novel_data.get("selected_plan"),
-                "total_chapters": self.novel_data.get("current_progress", {}).get("total_chapters", 0),
-                "start_time": self.novel_data.get("current_progress", {}).get("start_time"),
+                "novel_title": self._ctx.get("novel_title"),
+                "category": self._ctx.get("category"),
+                "synopsis": self._ctx.get("novel_synopsis"),
+                "creative_seed": self._ctx.get("creative_seed"),
+                "selected_plan": self._ctx.get("selected_plan"),
+                "total_chapters": self._ctx.get("current_progress", {}).get("total_chapters", 0),
+                "start_time": self._ctx.get("current_progress", {}).get("start_time"),
                 "generation_config": self.config,
                 "created_time": datetime.now().isoformat()
             }
@@ -1020,7 +1030,7 @@ class NovelGenerator:
     def signal_handler(self, signum, frame):
         """处理中断信号"""
         print(f"\n\n收到中断信号，正在保存进度...")
-        self.project_manager.save_project_progress(self.novel_data)
+        self.project_manager.save_project_progress(self._ctx)
         print("进度已保存，可以安全退出。")
         sys.exit(0)
 
@@ -1034,8 +1044,8 @@ class NovelGenerator:
             if not data:
                 return False
                 
-            self.novel_data = data
-            print(f"✅ 项目数据加载完成: {self.novel_data.get('novel_title', '未知标题')}")
+            self._ctx = data
+            print(f"✅ 项目数据加载完成: {self._ctx.get('novel_title', '未知标题')}")
             return True
             
         except Exception as e:
@@ -1047,11 +1057,11 @@ class NovelGenerator:
         print("继续生成小说...")
         
         # 检查是否有续写数据
-        if not self.novel_data.get("is_resuming"):
+        if not self._ctx.get("is_resuming"):
             print("❌ 没有续写数据，无法执行续写")
             return False
         
-        resume_data = self.novel_data.get("resume_data", {})
+        resume_data = self._ctx.get("resume_data", {})
         from_chapter = resume_data.get("from_chapter", 1)
         additional_chapters = resume_data.get("additional_chapters", 10)
         
@@ -1091,7 +1101,7 @@ class NovelGenerator:
                 # 2. 委托给ContentGenerator生成内容
                 print(f"🔄 调用ContentGenerator生成第{chapter_num}章内容...")
                 chapter_result = self.content_generator.generate_chapter_content_for_novel(
-                    chapter_num, self.novel_data, context
+                    chapter_num, self._ctx, context
                 )
 
                 if not chapter_result:
@@ -1194,23 +1204,23 @@ class NovelGenerator:
             
             # 检查novel_data
             print(f"  📚 检查novel_data...")
-            if not hasattr(self, 'novel_data') or not self.novel_data:
+            if not hasattr(self, 'novel_data') or not self._ctx:
                 print(f"    ⚠️ novel_data不存在或为空，创建基础结构")
                 self._initialize_data_structures()
             
             # 检查current_progress键是否存在
-            if "current_progress" not in self.novel_data or not self.novel_data["current_progress"]:
+            if "current_progress" not in self._ctx or not self._ctx["current_progress"]:
                 print(f"    ⚠️ current_progress不存在或为空，重新初始化数据结构")
                 self._initialize_data_structures()
             
             # 使用安全的字典访问方式，提供默认值
-            total_chapters = self.novel_data.get("current_progress", {}).get("total_chapters", 30)
+            total_chapters = self._ctx.get("current_progress", {}).get("total_chapters", 30)
             print(f"    ✅ novel_data存在, 总章节数: {total_chapters}")
             
             context = GenerationContext(
                 chapter_number=chapter_num,
                 total_chapters=total_chapters,
-                novel_data=self.novel_data,
+                novel_data=self._ctx,
                 stage_plan=stage_plan,
                 event_context=event_context,
                 foreshadowing_context=foreshadowing_context,
@@ -1231,8 +1241,8 @@ class NovelGenerator:
             try:
                 base_context = GenerationContext(
                     chapter_number=chapter_num,
-                    total_chapters=self.novel_data.get("current_progress", {}).get("total_chapters", 30) if hasattr(self, 'novel_data') and self.novel_data else 30,
-                    novel_data=self.novel_data if hasattr(self, 'novel_data') else {},
+                    total_chapters=self._ctx.get("current_progress", {}).get("total_chapters", 30) if hasattr(self, '_ctx') and self._ctx else 30,
+                    novel_data=self._ctx if hasattr(self, '_ctx') else {},
                     stage_plan={},
                     event_context={},
                     foreshadowing_context={},
@@ -1259,7 +1269,7 @@ class NovelGenerator:
         
         # 简化版本，直接返回第一个分类
         selected_category = categories[0]
-        self.novel_data["category"] = selected_category
+        self._ctx["category"] = selected_category
         print(f"  ✓ 已选择分类: {selected_category}")
         return selected_category
 
@@ -1272,12 +1282,12 @@ class NovelGenerator:
         print("="*60)
         
         # 生成写作风格指南
-        self.novel_data["current_progress"]["stage"] = "写作风格制定"
+        self._ctx["current_progress"]["stage"] = "写作风格制定"
         if not self._generate_writing_style_guide():
             print("⚠️ 写作风格指南生成失败，使用默认风格")
         
         # 市场分析
-        self.novel_data["current_progress"]["stage"] = "市场分析"
+        self._ctx["current_progress"]["stage"] = "市场分析"
         if not self._generate_market_analysis():
             return False
         
@@ -1290,37 +1300,37 @@ class NovelGenerator:
         print("="*60)
         
         # 世界观构建
-        self.novel_data["current_progress"]["stage"] = "世界观构建"
+        self._ctx["current_progress"]["stage"] = "世界观构建"
         if not self._generate_worldview():
             return False
         
         # 【新增】势力/阵营系统构建
         print("=== 步骤3.5: 构建势力/阵营系统 ===")
-        self.novel_data["current_progress"]["stage"] = "势力系统设计"
+        self._ctx["current_progress"]["stage"] = "势力系统设计"
         
         # 🔥 更新步骤状态为进行中（黄色）
         self._update_step_status('faction_system', 'active', '正在构建势力/阵营系统...')
         
         faction_system = self.content_generator.generate_faction_system(
-            novel_title=self.novel_data["novel_title"],
-            core_worldview=self.novel_data.get("core_worldview", {}),
-            selected_plan=self.novel_data["selected_plan"],
-            market_analysis=self.novel_data.get("market_analysis", {})
+            novel_title=self._ctx["novel_title"],
+            core_worldview=self._ctx.get("core_worldview", {}),
+            selected_plan=self._ctx["selected_plan"],
+            market_analysis=self._ctx.get("market_analysis", {})
         )
         
         if faction_system:
-            self.novel_data["faction_system"] = faction_system
+            self._ctx["faction_system"] = faction_system
             print("✅ 势力/阵营系统构建完成")
             # 🔥 更新步骤状态为已完成（绿色）
             self._update_step_status('faction_system', 'completed', '势力/阵营系统构建完成')
             # 保存到材料管理器
-            self._save_material_to_manager("势力系统", faction_system, novel_title=self.novel_data["novel_title"])
+            self._save_material_to_manager("势力系统", faction_system, novel_title=self._ctx["novel_title"])
         else:
             print("⚠️ 势力/阵营系统生成失败，将使用默认设定")
             # 🔥 更新步骤状态为失败（红色）
             self._update_step_status('faction_system', 'failed', '势力系统生成失败，使用默认设定')
             # 创建一个基础的势力系统结构，确保后续流程不会出错
-            self.novel_data["faction_system"] = {
+            self._ctx["faction_system"] = {
                 "factions": [],
                 "main_conflict": "待定",
                 "faction_power_balance": "待定",
@@ -1329,19 +1339,19 @@ class NovelGenerator:
         
         # 核心角色设计（现在可以基于势力系统）
         print("=== 步骤4: 设计核心角色 (主角/核心盟友/宿敌) ===")
-        self.novel_data["current_progress"]["stage"] = "核心角色设计"
+        self._ctx["current_progress"]["stage"] = "核心角色设计"
         
         # 🔥 更新步骤状态为进行中（黄色）
         self._update_step_status('character_design', 'active', '正在设计核心角色...')
         
         core_characters = self.content_generator.generate_character_design(
-            novel_title=self.novel_data["novel_title"],
-            core_worldview=self.novel_data.get("core_worldview", {}),
-            selected_plan=self.novel_data["selected_plan"],
-            market_analysis=self.novel_data.get("market_analysis", {}),
+            novel_title=self._ctx["novel_title"],
+            core_worldview=self._ctx.get("core_worldview", {}),
+            selected_plan=self._ctx["selected_plan"],
+            market_analysis=self._ctx.get("market_analysis", {}),
             design_level="core",
-            global_growth_plan=self.novel_data.get("global_growth_plan"),
-            overall_stage_plans=self.novel_data.get("overall_stage_plans"),
+            global_growth_plan=self._ctx.get("global_growth_plan"),
+            overall_stage_plans=self._ctx.get("overall_stage_plans"),
             custom_main_character_name=getattr(self, 'custom_main_character_name', None) or ""
         )
         
@@ -1360,7 +1370,7 @@ class NovelGenerator:
         # 检查 quality_assessor 是否已初始化
         if self.quality_assessor is not None:
             self.quality_assessor.persist_initial_character_designs(
-                novel_title=self.novel_data["novel_title"],
+                novel_title=self._ctx["novel_title"],
                 character_design=core_characters
             )
         else:
@@ -1368,7 +1378,7 @@ class NovelGenerator:
             print("⚠️ 质量评估器尚未初始化，将延迟持久化")
             # TODO: 在后续流程中会通过质量评估器进行持久化
         
-        self.novel_data["character_design"] = core_characters
+        self._ctx["character_design"] = core_characters
         print("✅ 核心角色设计完成，已建立角色基础库。")
         
         return True
@@ -1380,42 +1390,42 @@ class NovelGenerator:
         print("="*60)
         
         # 生成情绪蓝图
-        self.novel_data["current_progress"]["stage"] = "情绪蓝图规划"
+        self._ctx["current_progress"]["stage"] = "情绪蓝图规划"
         if not self.emotional_blueprint_manager.generate_emotional_blueprint(
-            self.novel_data["novel_title"],
-            self.novel_data["novel_synopsis"],
-            self.novel_data["creative_seed"]
+            self._ctx["novel_title"],
+            self._ctx["novel_synopsis"],
+            self._ctx["creative_seed"]
         ):
             print("❌ 情绪蓝图生成失败，无法进行后续情绪引导。")
             return False
         
         # 全局成长规划
-        self.novel_data["current_progress"]["stage"] = "成长规划"
+        self._ctx["current_progress"]["stage"] = "成长规划"
         if not self._generate_global_growth_plan():
             print("⚠️ 全局成长规划生成失败，使用基础框架")
         
         # 生成全书阶段计划
-        self.novel_data["current_progress"]["stage"] = "阶段计划"
-        creative_seed = self.novel_data["creative_seed"]
-        total_chapters = self.novel_data["current_progress"]["total_chapters"]
+        self._ctx["current_progress"]["stage"] = "阶段计划"
+        creative_seed = self._ctx["creative_seed"]
+        total_chapters = self._ctx["current_progress"]["total_chapters"]
         
         overall_stage_plans = self.stage_plan_manager.generate_overall_stage_plan(
             creative_seed,
-            self.novel_data["novel_title"],
-            self.novel_data["novel_synopsis"],
-            self.novel_data.get("market_analysis", {}),
-            self.novel_data.get("global_growth_plan", {}),
-            self.novel_data.get("emotional_blueprint", {}),
+            self._ctx["novel_title"],
+            self._ctx["novel_synopsis"],
+            self._ctx.get("market_analysis", {}),
+            self._ctx.get("global_growth_plan", {}),
+            self._ctx.get("emotional_blueprint", {}),
             total_chapters
         )
         
-        self.novel_data["overall_stage_plans"] = overall_stage_plans
+        self._ctx["overall_stage_plans"] = overall_stage_plans
         
         if not overall_stage_plans:
             print("⚠️ 全书阶段计划生成失败，使用默认阶段划分")
         
         # 生成阶段详细写作计划
-        self.novel_data["current_progress"]["stage"] = "阶段详细计划"
+        self._ctx["current_progress"]["stage"] = "阶段详细计划"
         if not self._generate_stage_writing_plans():
             print("❌ 生成阶段详细写作计划失败")
             return False
@@ -1424,7 +1434,7 @@ class NovelGenerator:
         print("✅ 元素登场时机由期待感系统统一管理")
         
         # 初始化系统
-        self.novel_data["current_progress"]["stage"] = "系统初始化"
+        self._ctx["current_progress"]["stage"] = "系统初始化"
         self._initialize_systems()
         
         return True
@@ -1436,7 +1446,7 @@ class NovelGenerator:
         print("="*60)
         
         # 创建项目目录和保存初始进度
-        self.novel_data["current_progress"]["stage"] = "项目初始化"
+        self._ctx["current_progress"]["stage"] = "项目初始化"
         self._initialize_project()
         
         return True
@@ -1461,12 +1471,12 @@ class NovelGenerator:
         
         for batch_start in range(start_chapter, total_chapters + 1, actual_chapters_per_batch):
             batch_end = min(batch_start + actual_chapters_per_batch - 1, total_chapters)
-            self.novel_data["current_progress"]["current_batch"] += 1
+            self._ctx["current_progress"]["current_batch"] += 1
             
-            print(f"\n批次{self.novel_data['current_progress']['current_batch']}: 第{batch_start}-{batch_end}章")
+            print(f"\n批次{self._ctx['current_progress']['current_batch']}: 第{batch_start}-{batch_end}章")
             
             if not self.generate_chapters_batch(batch_start, batch_end):
-                print(f"❌ 批次{self.novel_data['current_progress']['current_batch']}生成失败")
+                print(f"❌ 批次{self._ctx['current_progress']['current_batch']}生成失败")
                 continue_gen = input("是否继续生成后续章节？(y/n): ").lower()
                 if continue_gen != 'y':
                     break
@@ -1486,40 +1496,40 @@ class NovelGenerator:
         print("=== 步骤1.5: 生成写作风格指南 ===")
         
         try:
-            creative_seed = self.novel_data["creative_seed"]
-            category = self.novel_data.get("category", "未分类")
-            selected_plan = self.novel_data["selected_plan"]
-            market_analysis = self.novel_data.get("market_analysis", {})
+            creative_seed = self._ctx["creative_seed"]
+            category = self._ctx.get("category", "未分类")
+            selected_plan = self._ctx["selected_plan"]
+            market_analysis = self._ctx.get("market_analysis", {})
             
             writing_style = self.content_generator.generate_writing_style_guide(
                 creative_seed, category, selected_plan, market_analysis
             )
             
             if writing_style:
-                self.novel_data["writing_style_guide"] = writing_style
+                self._ctx["writing_style_guide"] = writing_style
                 print("✅ 写作风格指南生成完成")
                 self._save_writing_style_to_file(writing_style)
                 return True
             else:
                 print("⚠️ 写作风格指南生成失败，使用默认风格")
-                self.novel_data["writing_style_guide"] = self._get_default_writing_style(category)
+                self._ctx["writing_style_guide"] = self._get_default_writing_style(category)
                 return True
                 
         except Exception as e:
             print(f"⚠️ 生成写作风格指南时出错: {e}")
-            self.novel_data["writing_style_guide"] = self._get_default_writing_style(category)
+            self._ctx["writing_style_guide"] = self._get_default_writing_style(category)
             return True
 
     def _generate_market_analysis(self) -> bool:
         """生成市场分析"""
         print("=== 步骤2: 进行市场分析和卖点提炼 ===")
         
-        creative_seed = self.novel_data["creative_seed"]
-        selected_plan = self.novel_data["selected_plan"]
+        creative_seed = self._ctx["creative_seed"]
+        selected_plan = self._ctx["selected_plan"]
         
         market_analysis = self.content_generator.generate_market_analysis(creative_seed, selected_plan)
         
-        self.novel_data["market_analysis"] = market_analysis
+        self._ctx["market_analysis"] = market_analysis
         
         if not market_analysis:
             print("  ❌ 市场分析失败，终止生成")
@@ -1539,13 +1549,13 @@ class NovelGenerator:
         self._update_step_status('worldview', 'active', '正在构建核心世界观...')
         
         core_worldview = self.content_generator.generate_core_worldview(
-            self.novel_data["novel_title"],
-            self.novel_data["novel_synopsis"],
-            self.novel_data["selected_plan"],
-            self.novel_data.get("market_analysis", {})
+            self._ctx["novel_title"],
+            self._ctx["novel_synopsis"],
+            self._ctx["selected_plan"],
+            self._ctx.get("market_analysis", {})
         )
         
-        self.novel_data["core_worldview"] = core_worldview
+        self._ctx["core_worldview"] = core_worldview
         
         if not core_worldview:
             print("❌ 世界观构建失败，终止生成")
@@ -1558,7 +1568,7 @@ class NovelGenerator:
         self._update_step_status('worldview', 'completed', '世界观构建完成')
         
         # 保存到材料管理器
-        self._save_material_to_manager("世界观", core_worldview, novel_title=self.novel_data["novel_title"])
+        self._save_material_to_manager("世界观", core_worldview, novel_title=self._ctx["novel_title"])
         return True
 
     def _generate_global_growth_plan(self) -> bool:
@@ -1566,9 +1576,9 @@ class NovelGenerator:
         print("=== 步骤5: 制定全书成长规划框架 ===")
         
         try:
-            self.novel_data["global_growth_plan"] = self.global_growth_planner.generate_global_growth_plan()
+            self._ctx["global_growth_plan"] = self.global_growth_planner.generate_global_growth_plan()
             
-            if self.novel_data["global_growth_plan"]:
+            if self._ctx["global_growth_plan"]:
                 print("✅ 全书成长规划框架制定完成")
                 return True
             else:
@@ -1583,7 +1593,7 @@ class NovelGenerator:
         """生成各阶段详细写作计划"""
         print("=== 步骤6: 生成各阶段详细写作计划 ===")
         
-        overall_stage_plans = self.novel_data.get("overall_stage_plans", {})
+        overall_stage_plans = self._ctx.get("overall_stage_plans", {})
         if not overall_stage_plans or "overall_stage_plan" not in overall_stage_plans:
             print("❌ 没有全书阶段计划，无法生成详细写作计划")
             return False
@@ -1592,7 +1602,7 @@ class NovelGenerator:
             stage_plan_container = overall_stage_plans
             stage_plan_dict = stage_plan_container["overall_stage_plan"]
             
-            self.novel_data["stage_writing_plans"] = {}
+            self._ctx["stage_writing_plans"] = {}
             
             for stage_name, stage_info in stage_plan_dict.items():
                 chapter_range_str = stage_info["chapter_range"]
@@ -1610,22 +1620,22 @@ class NovelGenerator:
                 stage_plan = self.stage_plan_manager.generate_stage_writing_plan(
                     stage_name=stage_name,
                     stage_range=stage_range,
-                    creative_seed=self.novel_data["creative_seed"],
-                    novel_title=self.novel_data["novel_title"],
-                    novel_synopsis=self.novel_data["novel_synopsis"],
+                    creative_seed=self._ctx["creative_seed"],
+                    novel_title=self._ctx["novel_title"],
+                    novel_synopsis=self._ctx["novel_synopsis"],
                     overall_stage_plan=stage_plan_dict
                 )
                 
                 if stage_plan:
-                    self.novel_data["stage_writing_plans"][stage_name] = stage_plan
+                    self._ctx["stage_writing_plans"][stage_name] = stage_plan
                     print(f"  ✅ {stage_name} 详细计划生成成功")
                 else:
                     print(f"  ❌ {stage_name} 详细计划生成失败")
             
-            success_count = len(self.novel_data["stage_writing_plans"])
+            success_count = len(self._ctx["stage_writing_plans"])
             if success_count > 0:
                 print(f"✅ 阶段详细计划生成完成: {success_count}/{len(stage_plan_dict)} 个阶段")
-                self._save_material_to_manager("阶段计划", self.novel_data["stage_writing_plans"], total_stages=success_count)
+                self._save_material_to_manager("阶段计划", self._ctx["stage_writing_plans"], total_stages=success_count)
                 return True
             else:
                 print("❌ 所有阶段详细计划生成失败")
@@ -1651,11 +1661,11 @@ class NovelGenerator:
         else:
             print("⚠️ 阶段计划管理器未初始化，跳过写作计划加载")
         
-        if self.novel_data["overall_stage_plans"]:
+        if self._ctx["overall_stage_plans"]:
             self.event_driven_manager.initialize_event_system()
             print("✅ 事件系统初始化完成")
         
-        if self.novel_data["character_design"]:
+        if self._ctx["character_design"]:
             # 期待感管理系统将在事件规划时自动初始化
             print("✅ 期待感管理系统已就绪")
         
@@ -1664,36 +1674,36 @@ class NovelGenerator:
     def _initialize_project(self):
         """初始化项目"""
         import re
-        safe_title = re.sub(r'[\\/*?:"<>|]', "_", self.novel_data["novel_title"])
+        safe_title = re.sub(r'[\\/*?:"<>|]', "_", self._ctx["novel_title"])
         import os
         
         # 使用新的路径配置系统
         from src.config.path_config import path_config
-        paths = path_config.ensure_directories(self.novel_data["novel_title"])
+        paths = path_config.ensure_directories(self._ctx["novel_title"])
         
         print(f"✅ 项目目录已创建: {paths['project_root']}")
         print(f"📁 章节目录: {paths['chapters_dir']}")
         
-        self.project_manager.save_project_progress(self.novel_data)
+        self.project_manager.save_project_progress(self._ctx)
         print("✅ 项目初始进度已保存")
 
     def _finalize_generation(self) -> bool:
         """完成生成过程"""
-        self.novel_data["current_progress"]["stage"] = "完成"
+        self._ctx["current_progress"]["stage"] = "完成"
         
         # 保存最终进度和导出总览
-        self.project_manager.save_project_progress(self.novel_data)
-        self.project_manager.export_novel_overview(self.novel_data)
+        self.project_manager.save_project_progress(self._ctx)
+        self.project_manager.export_novel_overview(self._ctx)
         
         # 生成小说封面 - 只有当所有章节都生成完成时才生成
-        total_chapters = self.novel_data["current_progress"]["total_chapters"]
-        completed_chapters = self.novel_data["current_progress"]["completed_chapters"]
+        total_chapters = self._ctx["current_progress"]["total_chapters"]
+        completed_chapters = self._ctx["current_progress"]["completed_chapters"]
         
         if completed_chapters >= total_chapters:
             print("\n" + "="*60)
             print("🎨 最后一步：生成小说封面")
             print("="*60)
-            self.novel_data["current_progress"]["stage"] = "封面生成"
+            self._ctx["current_progress"]["stage"] = "封面生成"
             if not self._generate_novel_cover():
                 print("⚠️ 封面生成失败，项目已完成但无封面。")
         else:
@@ -1705,7 +1715,7 @@ class NovelGenerator:
         # print("="*60)
         #
         # target_dir = r"C:\work1.0\Chrome\小说项目"
-        # novel_title = self.novel_data.get("novel_title")
+        # novel_title = self._ctx.get("novel_title")
         #
         # if novel_title:
         #     copy_success = self.project_manager.copy_project_to_directory(novel_title, target_dir)
@@ -1761,15 +1771,15 @@ class NovelGenerator:
         author_name = "北莽王庭的达延"
         
         result = self.cover_generator.generate_novel_cover(
-            self.novel_data.get("novel_title", ""),
-            self.novel_data.get("novel_synopsis", ""),
-            self.novel_data.get("category", "未分类"),
+            self._ctx.get("novel_title", ""),
+            self._ctx.get("novel_synopsis", ""),
+            self._ctx.get("category", "未分类"),
             author_name
         )
         
         if result.get("success"):
-            self.novel_data["cover_image"] = result.get("local_path")
-            self.novel_data["cover_generated"] = True
+            self._ctx["cover_image"] = result.get("local_path")
+            self._ctx["cover_generated"] = True
             return True
         else:
             return False
@@ -1778,8 +1788,8 @@ class NovelGenerator:
 
     def initialize_expectation_elements(self):
         """初始化需要铺垫的重要元素（使用期待感系统）"""
-        if self.novel_data["core_worldview"]:
-            factions = self.novel_data["core_worldview"].get("major_factions", [])
+        if self._ctx["core_worldview"]:
+            factions = self._ctx["core_worldview"].get("major_factions", [])
             for i, faction in enumerate(factions):
                 intro_chapter = 10 + (i * 15)
                 # 使用期待感系统注册势力
@@ -1792,8 +1802,8 @@ class NovelGenerator:
                 )
                 print(f"✓ 从世界观注册势力期待: {faction}")
         
-        if self.novel_data["character_design"]:
-            important_chars = self.novel_data["character_design"].get("important_characters", [])
+        if self._ctx["character_design"]:
+            important_chars = self._ctx["character_design"].get("important_characters", [])
             for i, char in enumerate(important_chars):
                 if i < 3:
                     intro_chapter = 5 + (i * 8)
@@ -1813,17 +1823,17 @@ class NovelGenerator:
             from src.utils.path_manager import path_manager
             
             style_data = {
-                "novel_title": self.novel_data["novel_title"],
-                "category": self.novel_data.get("category", "未分类"),
-                "creative_seed": self.novel_data.get("creative_seed", ""),
+                "novel_title": self._ctx["novel_title"],
+                "category": self._ctx.get("category", "未分类"),
+                "creative_seed": self._ctx.get("creative_seed", ""),
                 "created_time": datetime.now().isoformat(),
                 "writing_style_guide": writing_style
             }
             
-            success = path_manager.save_writing_style_guide(self.novel_data["novel_title"], writing_style)
+            success = path_manager.save_writing_style_guide(self._ctx["novel_title"], writing_style)
             
             if success:
-                paths = path_manager.path_config.get_project_paths(self.novel_data["novel_title"])
+                paths = path_manager.path_config.get_project_paths(self._ctx["novel_title"])
                 actual_path = paths["writing_style_guide"]
                 print(f"📝 写作风格指南已保存到: {actual_path}")
             else:
@@ -1868,12 +1878,12 @@ class NovelGenerator:
         print("🎊 小说生成完成摘要")
         print("="*60)
         
-        print(f"📖 小说标题: {self.novel_data['novel_title']}")
-        print(f"📚 小说分类: {self.novel_data.get('category', '未分类')}")
-        print(f"📝 总章节数: {self.novel_data['current_progress']['completed_chapters']}/{self.novel_data['current_progress']['total_chapters']}")
+        print(f"📖 小说标题: {self._ctx['novel_title']}")
+        print(f"📚 小说分类: {self._ctx.get('category', '未分类')}")
+        print(f"📝 总章节数: {self._ctx['current_progress']['completed_chapters']}/{self._ctx['current_progress']['total_chapters']}")
         
         # 字数统计
-        total_words = sum(chapter.get('word_count', 0) for chapter in self.novel_data["generated_chapters"].values())
+        total_words = sum(chapter.get('word_count', 0) for chapter in self._ctx["generated_chapters"].values())
         print(f"📊 总字数: {total_words}字")
         
         print("="*60)
@@ -1921,27 +1931,27 @@ class NovelGenerator:
             print("="*60)
             
             # 🔥 修复：确保novel_data中有novel_title和current_progress
-            if not self.novel_data.get("novel_title"):
-                self.novel_data["novel_title"] = novel_title
+            if not self._ctx.get("novel_title"):
+                self._ctx["novel_title"] = novel_title
             
             # 🔥 修复：确保current_progress结构存在并正确初始化
-            if "current_progress" not in self.novel_data or not self.novel_data["current_progress"]:
+            if "current_progress" not in self._ctx or not self._ctx["current_progress"]:
                 print("📋 初始化 current_progress 结构...")
-                self.novel_data["current_progress"] = {
+                self._ctx["current_progress"] = {
                     "completed_chapters": 0,
-                    "total_chapters": self.novel_data.get("total_chapters", 200),
+                    "total_chapters": self._ctx.get("total_chapters", 200),
                     "stage": "第二阶段生成",
                     "current_stage": "第二阶段",
                     "start_time": datetime.now().isoformat()
                 }
-                print(f"✅ current_progress 已初始化: 总章节数 = {self.novel_data['current_progress']['total_chapters']}")
+                print(f"✅ current_progress 已初始化: 总章节数 = {self._ctx['current_progress']['total_chapters']}")
             
-            print(f"📚 小说标题: {self.novel_data.get('novel_title', '未知')}")
+            print(f"📚 小说标题: {self._ctx.get('novel_title', '未知')}")
             print(f"📖 起始章节: {from_chapter}")
             print(f"📊 生成章节数: {chapters_to_generate}")
             
             # 确保有novel_title
-            if not self.novel_data.get("novel_title"):
+            if not self._ctx.get("novel_title"):
                 print("❌ 小说标题未设置，无法继续生成")
                 return False
             
@@ -1962,7 +1972,7 @@ class NovelGenerator:
                 print("\n✅ 第二阶段章节生成完成")
                 
                 # 保存进度
-                self.project_manager.save_project_progress(self.novel_data)
+                self.project_manager.save_project_progress(self._ctx)
                 
                 return True
             else:
