@@ -4,7 +4,7 @@
 两阶段小说生成API接口 - 完整版本
 """
 
-from flask import Blueprint, request, jsonify
+from flask import Blueprint, request, jsonify, session
 from datetime import datetime
 import re
 import os
@@ -33,6 +33,9 @@ from web.utils.path_utils import (
     get_current_username,
     is_admin
 )
+
+# 视频项目目录
+VIDEO_PROJECTS_DIR = Path(__file__).parent.parent.parent / '视频项目'
 
 # 导入管理器
 try:
@@ -1439,8 +1442,15 @@ def register_additional_routes(app):
                 # 确定第二阶段状态
                 phase_two_status = 'not_started'
                 phase_two_completed_at = None
-                total_chapters = project.get('total_chapters', 0)
-                completed_chapters = project.get('completed_chapters', 0)
+                # 🔥 修复：确保转换为整数
+                try:
+                    total_chapters = int(project.get('total_chapters', 0) or 0)
+                except (ValueError, TypeError):
+                    total_chapters = 0
+                try:
+                    completed_chapters = int(project.get('completed_chapters', 0) or 0)
+                except (ValueError, TypeError):
+                    completed_chapters = 0
                 
                 if completed_chapters > 0:
                     if completed_chapters >= total_chapters and total_chapters > 0:
@@ -1607,16 +1617,20 @@ def register_additional_routes(app):
             # 从内存中删除项目
             del manager.novel_projects[title]
             
-            # 保存更改（序列化到文件）
-            manager._save_projects()
+            # 注意：NovelGenerationManager 没有 _save_projects 方法
+            # 项目数据是动态从文件系统加载的，删除目录后下次加载会自动更新
             
             # 删除项目目录
             import shutil
             from pathlib import Path
+            from web.utils.path_utils import get_novel_project_dir, get_current_username
+            
+            # 获取当前用户名（用于构建正确的用户隔离路径）
+            username = get_current_username()
             
             # 小说项目目录
-            novel_project_dir = Path(manager.base_dir) / title
-            if novel_project_dir.exists():
+            novel_project_dir = get_novel_project_dir(title, username, create=False)
+            if novel_project_dir and novel_project_dir.exists():
                 shutil.rmtree(novel_project_dir)
                 logger.info(f"✅ 已删除小说项目目录: {novel_project_dir}")
             
@@ -2276,12 +2290,17 @@ def register_additional_routes(app):
             # ===== 创造点扣除结束 =====
             
             # 调用管理器启动第二阶段生成任务
+            user_id = session.get('user_id')
+            username = session.get('username')
+            
             generation_config = {
                 "novel_title": novel_title,
                 "from_chapter": from_chapter,
                 "chapters_to_generate": chapters_to_generate,
                 "chapters_per_batch": chapters_per_batch,
-                "generation_notes": generation_notes
+                "generation_notes": generation_notes,
+                "user_id": user_id,
+                "username": username
             }
             
             try:

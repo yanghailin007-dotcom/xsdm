@@ -652,14 +652,28 @@ class NovelGenerationManager:
             
             average_score = total_score / scored_chapters if scored_chapters > 0 else 0
             
+            # 辅助函数：安全获取整数章节数
+            def _get_int_chapters(data_dict, *keys, default=0):
+                """安全地从嵌套字典中获取整数章节数"""
+                try:
+                    val = data_dict
+                    for key in keys:
+                        if not isinstance(val, dict):
+                            return default
+                        val = val.get(key, default)
+                    # 转换为整数
+                    return int(val) if val is not None else default
+                except (ValueError, TypeError):
+                    return default
+            
             # 获取目标章节数，优先从数据中获取，否则使用已生成章节数
             # 修复：正确的字段路径是 progress.total_chapters，而不是 current_progress.total_chapters
-            # 修复：使用明确的检查，避免将0视为False
+            # 修复：确保所有值都转换为整数后再比较
             target_chapters = (
-                data.get("progress", {}).get("total_chapters", 0) if data.get("progress", {}).get("total_chapters", 0) > 0 else
-                (data.get("total_chapters", 0) if data.get("total_chapters", 0) > 0 else
-                (data.get("novel_info", {}).get("total_chapters", 0) if data.get("novel_info", {}).get("total_chapters", 0) > 0 else
-                (data.get("novel_info", {}).get("creative_seed", {}).get("totalChapters", 0) if data.get("novel_info", {}).get("creative_seed", {}).get("totalChapters", 0) > 0 else
+                _get_int_chapters(data, "progress", "total_chapters") if _get_int_chapters(data, "progress", "total_chapters") > 0 else
+                (_get_int_chapters(data, "total_chapters") if _get_int_chapters(data, "total_chapters") > 0 else
+                (_get_int_chapters(data, "novel_info", "total_chapters") if _get_int_chapters(data, "novel_info", "total_chapters") > 0 else
+                (_get_int_chapters(data, "novel_info", "creative_seed", "totalChapters") if _get_int_chapters(data, "novel_info", "creative_seed", "totalChapters") > 0 else
                 completed_chapters)))
             )
             
@@ -1762,14 +1776,17 @@ class NovelGenerationManager:
             
             logger.info(f"任务 {task_id}: ✅ 成功加载小说数据，开始准备第二阶段生成")
             
-            # 🔥 关键修复：将现有项目数据设置到novel_generator中
-            # 这样phase_two_generation才能访问到novel_title等数据
-            novel_generator.novel_data = novel_detail
-            novel_generator.novel_data["is_resuming"] = True
-            novel_generator.novel_data["resume_data"] = {
-                "from_chapter": from_chapter,
-                "chapters_to_generate": chapters_to_generate
-            }
+            # 🔥 并发支持：设置任务上下文
+            # 为当前任务创建独立的上下文，避免多任务数据冲突
+            setattr(novel_generator, '_current_task_id', task_id)
+            with novel_generator._task_lock:
+                novel_generator._task_contexts[task_id] = novel_detail.copy()
+                novel_generator._task_contexts[task_id]["is_resuming"] = True
+                novel_generator._task_contexts[task_id]["resume_data"] = {
+                    "from_chapter": from_chapter,
+                    "chapters_to_generate": chapters_to_generate
+                }
+            logger.info(f"任务 {task_id}: ✅ 任务上下文已设置，数据隔离已启用")
             
             # 初始化材料管理器（如果需要）
             if not novel_generator.material_manager:
@@ -1784,6 +1801,21 @@ class NovelGenerationManager:
                 setattr(novel_generator, '_phase_two_from_chapter', from_chapter)
                 setattr(novel_generator, '_phase_two_total_chapters', chapters_to_generate)
                 
+                # 🔥 设置停止检查回调
+                setattr(novel_generator, '_stop_check_callback', lambda: self._check_stop_flag(task_id))
+                
+                # 🔥 设置用户名用于用户隔离路径
+                username = config.get('username')
+                if username:
+                    novel_generator.set_username(username)
+                    logger.info(f"任务 {task_id}: 已设置用户名 {username} 用于用户隔离路径")
+                
+                # 🔥 设置用户ID用于API调用实时扣费
+                user_id = config.get('user_id')
+                if user_id:
+                    novel_generator.set_user_id(user_id)
+                    logger.info(f"任务 {task_id}: 已设置用户ID {user_id} 用于API调用扣费")
+                
                 # 🔥 修复：传递novel_title而不是phase_one_file
                 success = novel_generator.phase_two_generation(
                     novel_title,  # 使用实际的小说标题
@@ -1796,13 +1828,16 @@ class NovelGenerationManager:
                     self._update_task_status(task_id, "completed", 100)
                     
                     task_result = self.task_results.get(task_id, {})
+                    # 🔥 并发安全：使用任务上下文获取生成的章节数据
+                    task_ctx = novel_generator._get_task_context(task_id)
+                    generated_chapters = task_ctx.get("generated_chapters", {})
                     task_result["result"] = {
                         "novel_title": novel_title,
                         "from_chapter": from_chapter,
                         "chapters_to_generate": chapters_to_generate,
                         "phase_two_completed": True,
-                        "generated_chapters": novel_generator.novel_data.get("generated_chapters", {}),
-                        "total_generated": len(novel_generator.novel_data.get("generated_chapters", {}))
+                        "generated_chapters": generated_chapters,
+                        "total_generated": len(generated_chapters)
                     }
                     self.task_results[task_id] = task_result
                     

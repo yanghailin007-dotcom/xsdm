@@ -1,0 +1,224 @@
+{% extends "layouts/base-v2.html" %}
+
+{% block title %}支付成功 - 小说生成器{% endblock %}
+
+{% block extra_css %}
+<style>
+.v2-success-page {
+    min-height: calc(100vh - 64px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: var(--v2-space-8);
+    background: var(--v2-bg-primary);
+}
+
+.v2-success-card {
+    background: var(--v2-bg-secondary);
+    border: 1px solid var(--v2-border-default);
+    border-radius: var(--v2-radius-2xl);
+    padding: var(--v2-space-10);
+    max-width: 420px;
+    width: 100%;
+    text-align: center;
+}
+
+.v2-success-icon {
+    width: 80px;
+    height: 80px;
+    background: rgba(34, 197, 94, 0.15);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 0 auto var(--v2-space-6);
+}
+
+.v2-success-icon svg {
+    width: 40px;
+    height: 40px;
+    color: var(--v2-success);
+}
+
+.v2-success-title {
+    font-size: var(--v2-text-2xl);
+    font-weight: var(--v2-font-bold);
+    color: var(--v2-text-primary);
+    margin-bottom: var(--v2-space-2);
+}
+
+.v2-success-message {
+    font-size: var(--v2-text-base);
+    color: var(--v2-text-tertiary);
+    margin-bottom: var(--v2-space-8);
+}
+
+.v2-order-info {
+    background: var(--v2-bg-tertiary);
+    border-radius: var(--v2-radius-lg);
+    padding: var(--v2-space-5);
+    margin-bottom: var(--v2-space-8);
+    text-align: left;
+}
+
+.v2-order-info__row {
+    display: flex;
+    justify-content: space-between;
+    padding: var(--v2-space-2) 0;
+    border-bottom: 1px solid var(--v2-border-subtle);
+}
+
+.v2-order-info__row:last-child {
+    border-bottom: none;
+}
+
+.v2-order-info__label {
+    font-size: var(--v2-text-sm);
+    color: var(--v2-text-tertiary);
+}
+
+.v2-order-info__value {
+    font-size: var(--v2-text-sm);
+    color: var(--v2-text-primary);
+    font-weight: var(--v2-font-medium);
+}
+
+.v2-order-info__value--success {
+    color: var(--v2-success);
+}
+
+.v2-order-info__value--primary {
+    color: var(--v2-primary-400);
+}
+
+.v2-success-actions {
+    display: flex;
+    flex-direction: column;
+    gap: var(--v2-space-3);
+}
+
+.v2-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: var(--v2-space-2);
+    padding: var(--v2-space-3) var(--v2-space-6);
+    font-size: var(--v2-text-base);
+    font-weight: var(--v2-font-medium);
+    border-radius: var(--v2-radius-lg);
+    border: none;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    text-decoration: none;
+}
+
+.v2-btn--primary {
+    background: linear-gradient(135deg, var(--v2-primary-600), var(--v2-accent-purple));
+    color: var(--v2-text-inverse);
+}
+
+.v2-btn--primary:hover {
+    transform: translateY(-1px);
+    box-shadow: var(--v2-shadow-glow);
+}
+
+.v2-btn--secondary {
+    background: var(--v2-bg-tertiary);
+    color: var(--v2-text-primary);
+    border: 1px solid var(--v2-border-default);
+}
+
+.v2-btn--secondary:hover {
+    background: var(--v2-bg-elevated);
+    border-color: var(--v2-border-hover);
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="v2-success-page">
+    <div class="v2-success-card">
+        
+        <!-- 成功图标 -->
+        <div class="v2-success-icon">
+            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+            </svg>
+        </div>
+        
+        <h1 class="v2-success-title">支付成功！</h1>
+        <p class="v2-success-message">您的点数已到账，可以开始创作了</p>
+        
+        <!-- 订单信息 -->
+        <div class="v2-order-info">
+            <div class="v2-order-info__row">
+                <span class="v2-order-info__label">订单号</span>
+                <span id="orderId" class="v2-order-info__value" style="font-family: var(--v2-font-mono);">--</span>
+            </div>
+            <div class="v2-order-info__row">
+                <span class="v2-order-info__label">支付金额</span>
+                <span id="amount" class="v2-order-info__value">¥--</span>
+            </div>
+            <div class="v2-order-info__row">
+                <span class="v2-order-info__label">获得点数</span>
+                <span id="points" class="v2-order-info__value v2-order-info__value--success">--点</span>
+            </div>
+            <div class="v2-order-info__row">
+                <span class="v2-order-info__label">当前余额</span>
+                <span id="balance" class="v2-order-info__value v2-order-info__value--primary">--点</span>
+            </div>
+        </div>
+        
+        <!-- 操作按钮 -->
+        <div class="v2-success-actions">
+            <a href="/recharge" class="v2-btn v2-btn--primary">继续充值</a>
+            <a href="/" class="v2-btn v2-btn--secondary">返回首页</a>
+        </div>
+    </div>
+</div>
+
+<script>
+// 获取URL参数
+function getUrlParam(name) {
+    const params = new URLSearchParams(window.location.search);
+    return params.get(name);
+}
+
+// 加载订单信息
+async function loadOrderInfo() {
+    const orderId = getUrlParam('out_trade_no');
+    
+    if (orderId) {
+        document.getElementById('orderId').textContent = orderId;
+        
+        try {
+            // 查询订单信息
+            const resp = await fetch(`/api/payment/query?order_id=${orderId}`);
+            const result = await resp.json();
+            
+            if (result.success) {
+                const data = result.data;
+                document.getElementById('amount').textContent = `¥${data.amount}`;
+                document.getElementById('points').textContent = `${data.total_points}点`;
+            }
+        } catch (e) {
+            console.error('加载订单信息失败:', e);
+        }
+    }
+    
+    // 加载当前余额
+    try {
+        const resp = await fetch('/api/points/balance');
+        const result = await resp.json();
+        if (result.success) {
+            document.getElementById('balance').textContent = `${result.data.balance}点`;
+        }
+    } catch (e) {
+        console.error('加载余额失败:', e);
+    }
+}
+
+// 初始化
+loadOrderInfo();
+</script>
+{% endblock %}

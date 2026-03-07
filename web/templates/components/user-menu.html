@@ -524,6 +524,14 @@ async function loadUserPoints() {
     }
 }
 
+// 监听余额更新事件（当充值成功后刷新显示）
+window.addEventListener('balanceUpdated', function(event) {
+    if (event.detail && event.detail.balance !== undefined) {
+        document.getElementById('nav-points-value').textContent = event.detail.balance;
+        document.getElementById('dropdown-points-value').textContent = event.detail.balance;
+    }
+});
+
 // 检查签到状态
 async function checkCheckinStatus() {
     try {

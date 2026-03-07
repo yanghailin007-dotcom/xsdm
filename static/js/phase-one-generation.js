@@ -516,7 +516,7 @@ async function stopGeneration() {
             }
             
             // 显示恢复选项
-            showResumeOption(result.checkpoint_info);
+            showResumeCheckpointModal(result.checkpoint_info);
         } else {
             throw new Error(result.error || '停止生成失败');
         }
@@ -526,8 +526,8 @@ async function stopGeneration() {
     }
 }
 
-// 显示恢复生成选项
-function showResumeOption(checkpointInfo) {
+// 显示恢复生成选项弹窗（停止生成后使用）
+function showResumeCheckpointModal(checkpointInfo) {
     if (!checkpointInfo) return;
     
     // 创建恢复提示弹窗
@@ -581,7 +581,7 @@ function showResumeOption(checkpointInfo) {
                 </p>
                 
                 <div style="display: flex; gap: 0.75rem;">
-                    <button onclick="closeResumeModal()" style="
+                    <button onclick="closeResumeCheckpointModal()" style="
                         flex: 1;
                         padding: 0.875rem 1rem;
                         background: rgba(255, 255, 255, 0.08);
@@ -595,7 +595,7 @@ function showResumeOption(checkpointInfo) {
                     onmouseout="this.style.background='rgba(255,255,255,0.08)';this.style.color='#94a3b8'">
                         稍后继续
                     </button>
-                    <button onclick="resumeGeneration('${checkpointInfo.novel_title}')" style="
+                    <button onclick="resumeGenerationFromCheckpoint('${checkpointInfo.novel_title}')" style="
                         flex: 1.2;
                         padding: 0.875rem 1rem;
                         background: linear-gradient(135deg, #6366f1 0%, #818cf8 100%);
@@ -619,7 +619,7 @@ function showResumeOption(checkpointInfo) {
 }
 
 // 关闭恢复弹窗
-window.closeResumeModal = function() {
+window.closeResumeCheckpointModal = function() {
     const modal = document.getElementById('resume-option-modal');
     if (modal) {
         modal.remove();
@@ -627,9 +627,9 @@ window.closeResumeModal = function() {
     }
 };
 
-// 恢复生成
-async function resumeGeneration(novelTitle) {
-    closeResumeModal();
+// 从检查点恢复生成
+async function resumeGenerationFromCheckpoint(novelTitle) {
+    closeResumeCheckpointModal();
     showStatusMessage('🔄 正在恢复生成...', 'info');
     
     try {

@@ -488,6 +488,24 @@ def register_page_routes(app):
             return render_template('recharge.html')
         return render_template('pages/v2/recharge-v2.html')
 
+    @app.route('/points', methods=['GET'])
+    @login_required
+    def points():
+        """余额管理页面"""
+        ui_version = request.args.get('ui', '').lower()
+        if ui_version == 'v1':
+            return render_template('recharge.html')
+        return render_template('pages/v2/recharge-v2.html')
+
+    @app.route('/payment/success', methods=['GET'])
+    @login_required
+    def payment_success():
+        """支付成功页面"""
+        ui_version = request.args.get('ui', '').lower()
+        if ui_version == 'v1':
+            return render_template('payment-success.html')
+        return render_template('pages/v2/payment-success-v2.html')
+
     @app.route('/settings', methods=['GET'])
     @login_required
     def settings():

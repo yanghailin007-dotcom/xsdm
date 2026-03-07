@@ -351,7 +351,7 @@ class NovelGenerator:
             task_id = getattr(self, '_current_task_id', None)
         
         if task_id is None:
-            return self._ctx  # 向后兼容
+            return self.novel_data  # 向后兼容，使用默认上下文
         
         with self._task_lock:
             if task_id not in self._task_contexts:

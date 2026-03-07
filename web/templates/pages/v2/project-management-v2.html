@@ -807,19 +807,37 @@
                 return;
             }
 
+            console.log(`🗑️ 正在删除项目: ${projectTitle}`);
+            const encodedTitle = encodeURIComponent(projectTitle);
+            console.log(`🔗 请求 URL: /api/novel-project/${encodedTitle}`);
+
             try {
-                const response = await fetch(`/api/novel-project/${encodeURIComponent(projectTitle)}`, {
-                    method: 'DELETE'
+                const response = await fetch(`/api/novel-project/${encodedTitle}`, {
+                    method: 'DELETE',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    }
                 });
 
+                console.log(`📡 响应状态: ${response.status}`);
+
                 if (!response.ok) {
-                    const errorData = await response.json();
-                    throw new Error(errorData.error || '删除失败');
+                    let errorMsg = '删除失败';
+                    try {
+                        const errorData = await response.json();
+                        errorMsg = errorData.error || errorMsg;
+                    } catch (e) {
+                        errorMsg = `HTTP ${response.status}: ${response.statusText}`;
+                    }
+                    throw new Error(errorMsg);
                 }
 
+                const result = await response.json();
+                console.log('✅ 删除成功:', result);
                 showStatusMessage(`✅ 项目 "${projectTitle}" 已删除`, 'success');
                 await loadProjects();
             } catch (error) {
+                console.error('❌ 删除失败:', error);
                 showStatusMessage(`❌ 删除失败: ${error.message}`, 'error');
             }
         }

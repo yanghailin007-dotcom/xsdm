@@ -110,6 +110,14 @@
         }
     }
     
+    // 监听余额更新事件（当充值成功后刷新显示）
+    window.addEventListener('balanceUpdated', function(event) {
+        const pointsEl = document.getElementById('v2UserPoints');
+        if (pointsEl && event.detail && event.detail.balance !== undefined) {
+            pointsEl.textContent = event.detail.balance + ' 点';
+        }
+    });
+    
     // 页面加载完成后加载点数
     if (document.readyState === 'loading') {
         document.addEventListener('DOMContentLoaded', loadV2UserPoints);

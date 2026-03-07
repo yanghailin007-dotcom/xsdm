@@ -33,9 +33,31 @@
             <a href="/project-management" class="v2-nav-link {% if request.endpoint == 'project_management' %}v2-nav-link--active{% endif %}">
                 <span>项目</span>
             </a>
-            <a href="/phase-one-setup" class="v2-nav-link {% if request.endpoint == 'phase_one_setup' %}v2-nav-link--active{% endif %}">
-                <span>创作</span>
-            </a>
+            <!-- 创作下拉菜单 -->
+            <div class="v2-nav-dropdown">
+                <a href="/phase-one-setup" class="v2-nav-link {% if request.endpoint in ['phase_one_setup', 'phase_two_generation'] %}v2-nav-link--active{% endif %}">
+                    <span>创作</span>
+                    <svg width="12" height="12" viewBox="0 0 12 12" fill="none" style="margin-left: 2px; opacity: 0.7;">
+                        <path d="M2.5 4.5L6 8L9.5 4.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+                    </svg>
+                </a>
+                <div class="v2-nav-dropdown__menu">
+                    <a href="/phase-one-setup" class="v2-dropdown-item {% if request.endpoint == 'phase_one_setup' %}v2-dropdown-item--active{% endif %}">
+                        <span class="v2-dropdown-item__icon">✨</span>
+                        <div class="v2-dropdown-item__content">
+                            <span class="v2-dropdown-item__title">新建创作</span>
+                            <span class="v2-dropdown-item__desc">从设定开始，一阶段生成</span>
+                        </div>
+                    </a>
+                    <a href="/project-management?filter=phase-one-only" class="v2-dropdown-item">
+                        <span class="v2-dropdown-item__icon">📝</span>
+                        <div class="v2-dropdown-item__content">
+                            <span class="v2-dropdown-item__title">继续生成</span>
+                            <span class="v2-dropdown-item__desc">选择项目，进入二阶段</span>
+                        </div>
+                    </a>
+                </div>
+            </div>
             <a href="/novels" class="v2-nav-link {% if request.endpoint == 'novels_view' %}v2-nav-link--active{% endif %}">
                 <span>作品</span>
             </a>
@@ -166,6 +188,85 @@
     align-items: center;
     gap: 12px;
     flex-shrink: 0;
+}
+
+/* 导航下拉菜单 */
+.v2-nav-dropdown {
+    position: relative;
+}
+
+.v2-nav-dropdown__menu {
+    position: absolute;
+    top: 100%;
+    left: 50%;
+    transform: translateX(-50%) translateY(8px);
+    background: rgba(15, 23, 42, 0.95);
+    backdrop-filter: blur(20px);
+    border: 1px solid var(--v2-border-default);
+    border-radius: 12px;
+    padding: 8px;
+    min-width: 220px;
+    opacity: 0;
+    visibility: hidden;
+    transition: all 0.2s ease;
+    z-index: var(--v2-z-dropdown);
+    box-shadow: 0 20px 40px rgba(0, 0, 0, 0.4);
+}
+
+.v2-nav-dropdown:hover .v2-nav-dropdown__menu {
+    opacity: 1;
+    visibility: visible;
+    transform: translateX(-50%) translateY(4px);
+}
+
+.v2-dropdown-item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px;
+    border-radius: 8px;
+    text-decoration: none;
+    transition: all 0.2s ease;
+    border: 1px solid transparent;
+}
+
+.v2-dropdown-item:hover {
+    background: var(--v2-bg-tertiary);
+    border-color: var(--v2-border-hover);
+}
+
+.v2-dropdown-item--active {
+    background: var(--v2-bg-tertiary);
+    border-color: var(--v2-border-hover);
+}
+
+.v2-dropdown-item__icon {
+    width: 36px;
+    height: 36px;
+    background: linear-gradient(135deg, rgba(99, 102, 241, 0.2), rgba(139, 92, 246, 0.1));
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 16px;
+    flex-shrink: 0;
+}
+
+.v2-dropdown-item__content {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.v2-dropdown-item__title {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--v2-text-primary);
+}
+
+.v2-dropdown-item__desc {
+    font-size: 12px;
+    color: var(--v2-text-secondary);
 }
 
 /* 响应式：移动端隐藏中间导航 */

@@ -1,651 +1,1307 @@
 {% extends "layouts/base-v2.html" %}
 
-{% block title %}充值点数{% endblock %}
+{% block title %}充值中心 - 小说生成器{% endblock %}
 
 {% block extra_css %}
 <style>
-.recharge-container {
-    max-width: 800px;
+/* ==================== 充值页面样式 ==================== */
+
+.v2-recharge-page {
+    min-height: calc(100vh - 64px);
+    padding: var(--v2-space-8) var(--v2-space-6);
+    background: var(--v2-bg-primary);
+}
+
+.v2-recharge-container {
+    max-width: 1200px;
     margin: 0 auto;
-    padding: 60px 24px;
 }
 
-.recharge-header {
+/* 页面标题 */
+.v2-recharge-header {
     text-align: center;
-    margin-bottom: 48px;
+    margin-bottom: var(--v2-space-8);
 }
 
-.recharge-title {
-    font-size: 36px;
-    font-weight: 700;
-    color: #fff;
-    margin-bottom: 12px;
+.v2-recharge-title {
+    font-size: var(--v2-text-3xl);
+    font-weight: var(--v2-font-bold);
+    color: var(--v2-text-primary);
+    margin-bottom: var(--v2-space-2);
 }
 
-.recharge-subtitle {
-    font-size: 16px;
-    color: rgba(255,255,255,0.5);
+.v2-recharge-subtitle {
+    font-size: var(--v2-text-base);
+    color: var(--v2-text-tertiary);
 }
 
-.balance-card {
-    background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
-    border-radius: 16px;
-    padding: 32px;
-    margin-bottom: 40px;
-    text-align: center;
-}
-
-.balance-label {
-    font-size: 14px;
-    color: rgba(255,255,255,0.8);
-    margin-bottom: 8px;
-}
-
-.balance-value {
-    font-size: 48px;
-    font-weight: 700;
-    color: #fff;
-}
-
-.recharge-section {
-    background: rgba(255,255,255,0.03);
-    border: 1px solid rgba(255,255,255,0.06);
-    border-radius: 16px;
-    padding: 32px;
-    margin-bottom: 24px;
-}
-
-.recharge-section h2 {
-    font-size: 20px;
-    font-weight: 600;
-    color: #fff;
-    margin-bottom: 24px;
-}
-
-.recharge-options {
+/* 主布局网格 */
+.v2-recharge-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
-    gap: 16px;
+    grid-template-columns: 320px 1fr;
+    gap: var(--v2-space-6);
 }
 
-.recharge-option {
-    position: relative;
-    background: rgba(255,255,255,0.05);
-    border: 2px solid rgba(255,255,255,0.1);
-    border-radius: 12px;
-    padding: 20px;
-    text-align: center;
-    cursor: pointer;
-    transition: all 0.3s ease;
+@media (max-width: 1024px) {
+    .v2-recharge-grid {
+        grid-template-columns: 1fr;
+    }
 }
 
-.recharge-option:hover {
-    border-color: rgba(99, 102, 241, 0.5);
-    background: rgba(255,255,255,0.08);
+/* 卡片基础样式 */
+.v2-recharge-card {
+    background: var(--v2-bg-secondary);
+    border: 1px solid var(--v2-border-default);
+    border-radius: var(--v2-radius-xl);
+    padding: var(--v2-space-6);
 }
 
-.recharge-option.active {
-    border-color: #6366f1;
-    background: rgba(99, 102, 241, 0.1);
+.v2-recharge-card__title {
+    font-size: var(--v2-text-lg);
+    font-weight: var(--v2-font-semibold);
+    color: var(--v2-text-primary);
+    margin-bottom: var(--v2-space-4);
 }
 
-.recharge-option .amount {
-    font-size: 24px;
-    font-weight: 700;
-    color: #fff;
-    margin-bottom: 4px;
+/* 余额卡片 */
+.v2-balance-display {
+    margin-bottom: var(--v2-space-2);
 }
 
-.recharge-option .unit {
-    font-size: 14px;
-    color: rgba(255,255,255,0.5);
+.v2-balance-amount {
+    font-size: var(--v2-text-4xl);
+    font-weight: var(--v2-font-bold);
+    color: var(--v2-text-primary);
 }
 
-.recharge-option .bonus {
-    position: absolute;
-    top: -8px;
-    right: -8px;
-    background: linear-gradient(135deg, #22c55e, #16a34a);
-    color: #fff;
-    font-size: 11px;
-    font-weight: 600;
-    padding: 4px 8px;
-    border-radius: 20px;
+.v2-balance-unit {
+    font-size: var(--v2-text-lg);
+    color: var(--v2-text-tertiary);
+    margin-left: var(--v2-space-1);
 }
 
-.custom-amount {
-    margin-top: 24px;
-}
-
-.custom-amount label {
-    display: block;
-    font-size: 14px;
-    color: rgba(255,255,255,0.6);
-    margin-bottom: 8px;
-}
-
-.custom-amount input {
-    width: 100%;
-    max-width: 200px;
-    padding: 12px 16px;
-    background: rgba(255,255,255,0.05);
-    border: 1px solid rgba(255,255,255,0.1);
-    border-radius: 8px;
-    color: #fff;
-    font-size: 16px;
-}
-
-.custom-amount input:focus {
-    outline: none;
-    border-color: #6366f1;
-}
-
-.custom-amount input::placeholder {
-    color: rgba(255,255,255,0.3);
-}
-
-.recharge-summary {
-    background: rgba(255,255,255,0.05);
-    border-radius: 12px;
-    padding: 20px;
-    margin-top: 24px;
-}
-
-.summary-row {
+.v2-balance-stats {
     display: flex;
-    justify-content: space-between;
-    margin-bottom: 12px;
-    font-size: 14px;
+    gap: var(--v2-space-4);
+    margin-top: var(--v2-space-4);
+    padding-top: var(--v2-space-4);
+    border-top: 1px solid var(--v2-border-subtle);
 }
 
-.summary-row:last-child {
-    margin-bottom: 0;
-    padding-top: 12px;
-    border-top: 1px solid rgba(255,255,255,0.1);
-    font-weight: 600;
+.v2-balance-stat {
+    font-size: var(--v2-text-sm);
 }
 
-.summary-row .label {
-    color: rgba(255,255,255,0.6);
+.v2-balance-stat__label {
+    color: var(--v2-text-tertiary);
 }
 
-.summary-row .value {
-    color: #fff;
+.v2-balance-stat__value {
+    color: var(--v2-success);
+    font-weight: var(--v2-font-medium);
 }
 
-.summary-row .value.total {
-    color: #6366f1;
-    font-size: 18px;
+.v2-balance-stat__value--spent {
+    color: var(--v2-warning);
 }
 
-.btn-recharge {
-    display: block;
-    width: 100%;
-    padding: 16px 24px;
-    background: linear-gradient(135deg, #6366f1, #8b5cf6);
-    color: #fff;
-    border: none;
-    border-radius: 12px;
-    font-size: 16px;
-    font-weight: 600;
-    cursor: pointer;
-    transition: all 0.3s;
-    margin-top: 24px;
+/* 充值说明 */
+.v2-recharge-info-list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
 }
 
-.btn-recharge:hover:not(:disabled) {
-    transform: translateY(-2px);
-    box-shadow: 0 8px 24px rgba(99, 102, 241, 0.3);
+.v2-recharge-info-item {
+    display: flex;
+    align-items: flex-start;
+    gap: var(--v2-space-2);
+    padding: var(--v2-space-2) 0;
+    font-size: var(--v2-text-sm);
+    color: var(--v2-text-secondary);
 }
 
-.btn-recharge:disabled {
-    opacity: 0.5;
-    cursor: not-allowed;
+.v2-recharge-info-item::before {
+    content: "•";
+    color: var(--v2-primary-500);
+    font-weight: bold;
 }
 
-.recharge-records {
-    background: rgba(255,255,255,0.03);
-    border: 1px solid rgba(255,255,255,0.06);
-    border-radius: 16px;
-    padding: 32px;
+/* 充值记录 */
+.v2-order-list {
+    display: flex;
+    flex-direction: column;
+    gap: var(--v2-space-3);
 }
 
-.recharge-records h2 {
-    font-size: 20px;
-    font-weight: 600;
-    color: #fff;
-    margin-bottom: 24px;
-}
-
-.record-item {
+.v2-order-item {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    padding: 16px 0;
-    border-bottom: 1px solid rgba(255,255,255,0.05);
+    padding: var(--v2-space-3);
+    background: var(--v2-bg-tertiary);
+    border-radius: var(--v2-radius-lg);
 }
 
-.record-item:last-child {
-    border-bottom: none;
+.v2-order-item__info {
+    display: flex;
+    flex-direction: column;
+    gap: var(--v2-space-1);
 }
 
-.record-info h4 {
-    font-size: 14px;
-    font-weight: 500;
-    color: #fff;
-    margin-bottom: 4px;
+.v2-order-item__amount {
+    font-size: var(--v2-text-base);
+    font-weight: var(--v2-font-semibold);
+    color: var(--v2-text-primary);
 }
 
-.record-info p {
+.v2-order-item__date {
+    font-size: var(--v2-text-xs);
+    color: var(--v2-text-muted);
+}
+
+.v2-order-item__status {
+    font-size: var(--v2-text-xs);
+    padding: var(--v2-space-1) var(--v2-space-2);
+    border-radius: var(--v2-radius-sm);
+    font-weight: var(--v2-font-medium);
+}
+
+.v2-order-item__status--completed {
+    background: rgba(34, 197, 94, 0.15);
+    color: var(--v2-success);
+}
+
+.v2-order-item__status--pending {
+    background: rgba(245, 158, 11, 0.15);
+    color: var(--v2-warning);
+}
+
+.v2-order-item__status--failed {
+    background: rgba(239, 68, 68, 0.15);
+    color: var(--v2-error);
+}
+
+.v2-order-empty {
+    text-align: center;
+    padding: var(--v2-space-6);
+    color: var(--v2-text-tertiary);
+    font-size: var(--v2-text-sm);
+}
+
+/* 充值选项网格 */
+.v2-recharge-options {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+    gap: var(--v2-space-4);
+    margin-bottom: var(--v2-space-6);
+}
+
+.v2-recharge-option {
+    position: relative;
+    background: var(--v2-bg-tertiary);
+    border: 2px solid var(--v2-border-default);
+    border-radius: var(--v2-radius-lg);
+    padding: var(--v2-space-4);
+    text-align: center;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    user-select: none;
+}
+
+.v2-recharge-option:hover {
+    border-color: var(--v2-border-hover);
+    background: var(--v2-bg-elevated);
+}
+
+.v2-recharge-option--selected {
+    border-color: var(--v2-primary-500) !important;
+    background: rgba(99, 102, 241, 0.15) !important;
+    box-shadow: 0 0 0 1px var(--v2-primary-500);
+}
+
+.v2-recharge-option--selected::after {
+    content: '✓';
+    position: absolute;
+    top: 8px;
+    right: 8px;
+    width: 20px;
+    height: 20px;
+    background: var(--v2-primary-500);
+    color: white;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
     font-size: 12px;
-    color: rgba(255,255,255,0.4);
+    font-weight: bold;
 }
 
-.record-amount {
-    text-align: right;
+.v2-recharge-option--selected {
+    border-color: var(--v2-primary-500);
+    background: rgba(99, 102, 241, 0.1);
 }
 
-.record-amount .points {
-    font-size: 16px;
-    font-weight: 600;
-    color: #22c55e;
+.v2-recharge-option__amount {
+    font-size: var(--v2-text-xl);
+    font-weight: var(--v2-font-bold);
+    color: var(--v2-text-primary);
+    margin-bottom: var(--v2-space-1);
 }
 
-.record-amount .money {
-    font-size: 12px;
-    color: rgba(255,255,255,0.4);
+.v2-recharge-option__label {
+    font-size: var(--v2-text-sm);
+    color: var(--v2-text-secondary);
 }
 
-.status-completed {
-    color: #22c55e;
+.v2-recharge-option__bonus {
+    position: absolute;
+    top: -8px;
+    right: -8px;
+    background: var(--v2-success);
+    color: var(--v2-text-inverse);
+    font-size: var(--v2-text-xs);
+    font-weight: var(--v2-font-semibold);
+    padding: 2px 8px;
+    border-radius: var(--v2-radius-full);
 }
 
-.status-pending {
-    color: #f59e0b;
+.v2-recharge-option__hint {
+    margin-top: var(--v2-space-2);
+    font-size: var(--v2-text-xs);
+    color: var(--v2-primary-400);
 }
 
-.status-failed {
-    color: #ef4444;
+/* 自定义金额 */
+.v2-custom-amount {
+    margin-bottom: var(--v2-space-6);
 }
 
-.payment-modal {
-    display: none;
+.v2-custom-amount__label {
+    display: block;
+    font-size: var(--v2-text-sm);
+    color: var(--v2-text-secondary);
+    margin-bottom: var(--v2-space-2);
+}
+
+.v2-custom-amount__row {
+    display: flex;
+    gap: var(--v2-space-3);
+}
+
+.v2-custom-amount__input-wrapper {
+    position: relative;
+    flex: 1;
+}
+
+.v2-custom-amount__prefix {
+    position: absolute;
+    left: var(--v2-space-3);
+    top: 50%;
+    transform: translateY(-50%);
+    color: var(--v2-text-tertiary);
+    font-size: var(--v2-text-base);
+}
+
+.v2-custom-amount__input {
+    width: 100%;
+    background: var(--v2-bg-tertiary);
+    border: 1px solid var(--v2-border-default);
+    border-radius: var(--v2-radius-lg);
+    padding: var(--v2-space-3) var(--v2-space-3) var(--v2-space-3) var(--v2-space-8);
+    font-size: var(--v2-text-base);
+    color: var(--v2-text-primary);
+    transition: border-color 0.2s ease;
+    height: 48px;
+    box-sizing: border-box;
+}
+
+.v2-custom-amount__input:focus {
+    outline: none;
+    border-color: var(--v2-primary-500);
+}
+
+.v2-custom-amount__input::placeholder {
+    color: var(--v2-text-muted);
+}
+
+/* 支付方式 */
+.v2-pay-methods {
+    margin-bottom: var(--v2-space-6);
+}
+
+.v2-pay-methods__label {
+    display: block;
+    font-size: var(--v2-text-sm);
+    color: var(--v2-text-secondary);
+    margin-bottom: var(--v2-space-3);
+}
+
+.v2-pay-methods__list {
+    display: flex;
+    gap: var(--v2-space-3);
+}
+
+.v2-pay-method {
+    display: flex;
+    align-items: center;
+    gap: var(--v2-space-2);
+    padding: var(--v2-space-3) var(--v2-space-4);
+    background: var(--v2-bg-tertiary);
+    border: 1px solid var(--v2-border-default);
+    border-radius: var(--v2-radius-lg);
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.v2-pay-method:hover {
+    border-color: var(--v2-border-hover);
+}
+
+.v2-pay-method--selected {
+    border-color: var(--v2-primary-500);
+    background: rgba(99, 102, 241, 0.1);
+}
+
+.v2-pay-method__radio {
+    width: 16px;
+    height: 16px;
+    accent-color: var(--v2-primary-500);
+}
+
+.v2-pay-method__name {
+    font-size: var(--v2-text-sm);
+    color: var(--v2-text-primary);
+}
+
+.v2-pay-method__badge {
+    font-size: var(--v2-text-xs);
+    padding: 2px 6px;
+    background: var(--v2-primary-500);
+    color: var(--v2-text-inverse);
+    border-radius: var(--v2-radius-sm);
+}
+
+/* 按钮 */
+/* 充值页面专用按钮 - 避免影响导航栏 */
+.v2-recharge-card .v2-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: var(--v2-space-2);
+    padding: 0 var(--v2-space-6);
+    font-size: var(--v2-text-base);
+    font-weight: var(--v2-font-medium);
+    border-radius: var(--v2-radius-lg);
+    border: none;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    height: 48px;
+    box-sizing: border-box;
+    white-space: nowrap;
+}
+
+.v2-recharge-card .v2-btn--primary {
+    background: linear-gradient(135deg, var(--v2-primary-600), var(--v2-accent-purple));
+    color: var(--v2-text-inverse);
+}
+
+.v2-recharge-card .v2-btn--primary:hover {
+    transform: translateY(-1px);
+    box-shadow: var(--v2-shadow-glow);
+}
+
+.v2-recharge-card .v2-btn--secondary {
+    background: var(--v2-bg-tertiary);
+    color: var(--v2-text-primary);
+    border: 1px solid var(--v2-border-default);
+}
+
+.v2-recharge-card .v2-btn--secondary:hover {
+    background: var(--v2-bg-elevated);
+    border-color: var(--v2-border-hover);
+}
+
+/* 加载动画 */
+.v2-skeleton {
+    background: linear-gradient(90deg, var(--v2-bg-tertiary) 25%, var(--v2-bg-elevated) 50%, var(--v2-bg-tertiary) 75%);
+    background-size: 200% 100%;
+    animation: v2-skeleton-loading 1.5s infinite;
+    border-radius: var(--v2-radius-lg);
+    height: 80px;
+}
+
+@keyframes v2-skeleton-loading {
+    0% { background-position: 200% 0; }
+    100% { background-position: -200% 0; }
+}
+
+/* 弹窗 */
+.v2-modal-overlay {
     position: fixed;
     top: 0;
     left: 0;
     right: 0;
     bottom: 0;
-    background: rgba(0,0,0,0.8);
-    z-index: 1000;
-    justify-content: center;
+    background: rgba(0, 0, 0, 0.85);
+    backdrop-filter: blur(8px);
+    display: none;
     align-items: center;
+    justify-content: center;
+    z-index: 9999;
+    visibility: hidden;
+    opacity: 0;
+    transition: opacity 0.3s ease, visibility 0.3s ease;
 }
 
-.payment-modal.active {
-    display: flex;
+.v2-modal-overlay--open {
+    display: flex !important;
+    visibility: visible !important;
+    opacity: 1 !important;
 }
 
-.payment-modal-content {
-    background: #1a1a1a;
-    border-radius: 16px;
-    padding: 40px;
-    text-align: center;
+.v2-modal {
+    background: var(--v2-bg-secondary);
+    border: 1px solid var(--v2-border-default);
+    border-radius: var(--v2-radius-2xl);
+    padding: var(--v2-space-6);
     max-width: 400px;
     width: 90%;
 }
 
-.payment-modal-content h3 {
-    font-size: 20px;
-    font-weight: 600;
-    color: #fff;
-    margin-bottom: 16px;
+.v2-modal__header {
+    text-align: center;
+    margin-bottom: var(--v2-space-6);
 }
 
-.payment-modal-content p {
-    color: rgba(255,255,255,0.6);
-    margin-bottom: 24px;
+.v2-modal__title {
+    font-size: var(--v2-text-xl);
+    font-weight: var(--v2-font-bold);
+    color: var(--v2-text-primary);
+    margin-bottom: var(--v2-space-2);
 }
 
-.loading-spinner {
-    width: 48px;
-    height: 48px;
-    border: 3px solid rgba(255,255,255,0.1);
-    border-top-color: #6366f1;
+.v2-modal__subtitle {
+    font-size: var(--v2-text-sm);
+    color: var(--v2-text-tertiary);
+}
+
+.v2-modal__content {
+    margin-bottom: var(--v2-space-6);
+}
+
+.v2-modal__qrcode {
+    background: white;
+    border-radius: var(--v2-radius-lg);
+    padding: var(--v2-space-4);
+    display: flex;
+    justify-content: center;
+}
+
+.v2-modal__qrcode img {
+    width: 200px;
+    height: 200px;
+}
+
+.v2-modal__actions {
+    display: flex;
+    gap: var(--v2-space-3);
+}
+
+.v2-modal__actions .v2-btn {
+    flex: 1;
+    height: 44px;
+    padding: 0 var(--v2-space-4);
+}
+
+/* 检测状态动画 */
+.checking-dot {
+    animation: checking-pulse 1.5s infinite;
+    display: inline-block;
+}
+
+@keyframes checking-pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.3; }
+}
+
+/* 成功图标 */
+.v2-success-icon {
+    width: 64px;
+    height: 64px;
+    background: rgba(34, 197, 94, 0.15);
     border-radius: 50%;
-    animation: spin 1s linear infinite;
-    margin: 0 auto 24px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 0 auto var(--v2-space-4);
 }
 
-@keyframes spin {
-    to { transform: rotate(360deg); }
-}
-
-.toast {
-    position: fixed;
-    top: 80px;
-    left: 50%;
-    transform: translateX(-50%);
-    padding: 12px 24px;
-    background: rgba(34, 197, 94, 0.9);
-    color: #fff;
-    border-radius: 8px;
-    font-weight: 500;
-    z-index: 1001;
-    animation: slideDown 0.3s ease;
-}
-
-@keyframes slideDown {
-    from {
-        opacity: 0;
-        transform: translateX(-50%) translateY(-20px);
-    }
-    to {
-        opacity: 1;
-        transform: translateX(-50%) translateY(0);
-    }
+.v2-success-icon svg {
+    width: 32px;
+    height: 32px;
+    color: var(--v2-success);
 }
 </style>
 {% endblock %}
 
 {% block content %}
-<div class="recharge-container">
-    <div class="recharge-header">
-        <h1 class="recharge-title">充值点数</h1>
-        <p class="recharge-subtitle">1元 = 1点，充值越多赠送越多</p>
-    </div>
-
-    <div class="balance-card">
-        <div class="balance-label">当前余额</div>
-        <div class="balance-value" id="current-balance">-</div>
-    </div>
-
-    <div class="recharge-section">
-        <h2>选择充值金额</h2>
-        <div class="recharge-options" id="recharge-options">
-            <!-- 动态生成 -->
-        </div>
+<div class="v2-recharge-page">
+    <div class="v2-recharge-container">
         
-        <div class="custom-amount">
-            <label>自定义金额</label>
-            <input type="number" id="custom-amount" placeholder="请输入金额（元）" min="1">
+        <!-- 页面标题 -->
+        <div class="v2-recharge-header">
+            <h1 class="v2-recharge-title">💎 充值中心</h1>
+            <p class="v2-recharge-subtitle">充值点数，解锁更多创作功能</p>
         </div>
 
-        <div class="recharge-summary" id="recharge-summary" style="display: none;">
-            <div class="summary-row">
-                <span class="label">充值金额</span>
-                <span class="value" id="summary-amount">0元</span>
-            </div>
-            <div class="summary-row" id="summary-bonus-row">
-                <span class="label">赠送点数</span>
-                <span class="value" id="summary-bonus">+0点</span>
-            </div>
-            <div class="summary-row">
-                <span class="label">总计获得</span>
-                <span class="value total" id="summary-total">0点</span>
-            </div>
-        </div>
+        <div class="v2-recharge-grid">
+            
+            <!-- 左侧：用户信息 -->
+            <div class="v2-recharge-left">
+                <!-- 点数余额卡片 -->
+                <div class="v2-recharge-card" style="margin-bottom: var(--v2-space-4);">
+                    <h3 class="v2-recharge-card__title">当前余额</h3>
+                    <div class="v2-balance-display">
+                        <span id="balance" class="v2-balance-amount">--</span>
+                        <span class="v2-balance-unit">点</span>
+                    </div>
+                    <div class="v2-balance-stats">
+                        <div class="v2-balance-stat">
+                            <span class="v2-balance-stat__label">累计获得:</span>
+                            <span id="totalEarned" class="v2-balance-stat__value">--</span>
+                        </div>
+                        <div class="v2-balance-stat">
+                            <span class="v2-balance-stat__label">累计消费:</span>
+                            <span id="totalSpent" class="v2-balance-stat__value--spent">--</span>
+                        </div>
+                    </div>
+                </div>
 
-        <button class="btn-recharge" id="btn-recharge" onclick="startRecharge()" disabled>
-            立即充值
-        </button>
-    </div>
+                <!-- 充值说明 -->
+                <div class="v2-recharge-card" style="margin-bottom: var(--v2-space-4);">
+                    <h3 class="v2-recharge-card__title">💡 充值说明</h3>
+                    <ul class="v2-recharge-info-list">
+                        <li class="v2-recharge-info-item">1元 = 1点，0.01元起充（测试）</li>
+                        <li class="v2-recharge-info-item">充值100元起送10点，多充多送</li>
+                        <li class="v2-recharge-info-item">支持支付宝、微信支付</li>
+                        <li class="v2-recharge-info-item">充值即时到账，可开发票</li>
+                    </ul>
+                </div>
 
-    <div class="recharge-records">
-        <h2>充值记录</h2>
-        <div id="recharge-records">
-            <!-- 动态生成 -->
+                <!-- 最近充值记录 -->
+                <div class="v2-recharge-card">
+                    <h3 class="v2-recharge-card__title">📋 最近充值</h3>
+                    <div id="orderList" class="v2-order-list">
+                        <p class="v2-order-empty">加载中...</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 右侧：充值选项 -->
+            <div class="v2-recharge-right">
+                <div class="v2-recharge-card">
+                    <h3 class="v2-recharge-card__title">选择充值金额</h3>
+                    
+                    <!-- 充值选项网格 -->
+                    <div id="rechargeOptions" class="v2-recharge-options">
+                        <div class="v2-skeleton"></div>
+                        <div class="v2-skeleton"></div>
+                        <div class="v2-skeleton"></div>
+                    </div>
+
+                    <!-- 自定义金额 -->
+                    <div class="v2-custom-amount">
+                        <label class="v2-custom-amount__label">自定义金额</label>
+                        <div class="v2-custom-amount__row">
+                            <div class="v2-custom-amount__input-wrapper">
+                                <span class="v2-custom-amount__prefix">¥</span>
+                                <input type="number" id="customAmount" 
+                                    class="v2-custom-amount__input"
+                                    placeholder="输入金额（0.01-5000）" min="0.01" max="5000" step="0.01">
+                            </div>
+                            <button type="button" onclick="handleCustomRecharge(); return false;" class="v2-btn v2-btn--primary" id="rechargeBtn">
+                                立即充值
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- 支付方式 -->
+                    <div class="v2-pay-methods">
+                        <label class="v2-pay-methods__label">支付方式</label>
+                        <div class="v2-pay-methods__list">
+                            <label class="v2-pay-method v2-pay-method--selected">
+                                <input type="radio" name="payType" value="alipay" checked class="v2-pay-method__radio">
+                                <span class="v2-pay-method__name">支付宝</span>
+                                <span class="v2-pay-method__badge">推荐</span>
+                            </label>
+                        </div>
+                    </div>
+                </div>
+            </div>
         </div>
     </div>
 </div>
 
-<div class="payment-modal" id="payment-modal">
-    <div class="payment-modal-content">
-        <div class="loading-spinner"></div>
-        <h3>正在跳转到支付页面...</h3>
-        <p>请在新打开的页面完成支付</p>
-        <button class="btn-recharge" onclick="closePaymentModal()" style="margin-top: 16px;">
-            取消
-        </button>
+<!-- 支付弹窗 -->
+<div id="payModal" class="v2-modal-overlay">
+    <div class="v2-modal">
+        <div class="v2-modal__header">
+            <h3 class="v2-modal__title">支付宝扫码支付</h3>
+            <p class="v2-modal__subtitle">订单金额: ¥<span id="modalAmount">0</span></p>
+        </div>
+        
+        <div class="v2-modal__content" id="payModalContent">
+            <!-- 支付方式提示 -->
+            <div style="text-align: center; margin-bottom: var(--v2-space-4);">
+                <span style="color: var(--v2-text-secondary); font-size: var(--v2-text-sm);">请使用支付宝扫码支付</span>
+                <br>
+                <span style="color: var(--v2-text-tertiary); font-size: var(--v2-text-xs);">支付完成后系统会自动检测（每2秒）</span>
+            </div>
+
+            <!-- 二维码 -->
+            <div class="v2-modal__qrcode">
+                <div id="qrcode">
+                    <span style="color: var(--v2-text-muted);">加载中...</span>
+                </div>
+            </div>
+            
+            <!-- 检测状态提示 -->
+            <div id="checkingStatus" style="text-align: center; margin-top: var(--v2-space-4); display: none;">
+                <span style="color: var(--v2-primary-400); font-size: var(--v2-text-sm);">
+                    <span class="checking-dot">●</span> 正在检测支付状态...
+                </span>
+            </div>
+            
+            <!-- 状态消息提示（成功/错误/警告） -->
+            <div id="statusMessage" style="margin-top: var(--v2-space-4); display: none;">
+                <div id="statusMessageContent" style="display: flex; align-items: center; gap: var(--v2-space-3); padding: var(--v2-space-3) var(--v2-space-4); border-radius: var(--v2-radius-lg); font-size: var(--v2-text-sm);">
+                    <span id="statusIcon"></span>
+                    <span id="statusText"></span>
+                </div>
+            </div>
+            
+            <!-- 操作提示 -->
+            <div id="actionHint" style="text-align: center; margin-top: var(--v2-space-3);">
+                <span style="color: var(--v2-text-tertiary); font-size: var(--v2-text-xs);">
+                    💡 扫码支付后无需操作，系统会自动到账
+                </span>
+            </div>
+        </div>
+
+        <div class="v2-modal__actions">
+            <button onclick="closePayModal()" class="v2-btn v2-btn--secondary">取消</button>
+            <button onclick="checkOrderStatus()" class="v2-btn v2-btn--primary">已完成支付</button>
+        </div>
+
+        <p style="text-align: center; color: var(--v2-text-muted); font-size: var(--v2-text-xs); margin-top: var(--v2-space-4);">
+            订单号: <span id="modalOrderId" style="font-family: var(--v2-font-mono);"></span>
+        </p>
     </div>
 </div>
 
 <script>
-let rechargeConfig = null;
-let selectedAmount = 0;
-let selectedBonus = 0;
+let paymentConfig = null;
+let currentOrderId = null;
+let checkStatusInterval = null;
+let statusCheckStartTime = null;  // 检测开始时间
+let originalModalContent = null;  // 保存原始弹窗内容
+let originalModalActions = null;  // 保存原始按钮区域
 
-// 初始化
-document.addEventListener('DOMContentLoaded', async function() {
-    await loadConfig();
+// 页面加载
+async function init() {
     await loadBalance();
-    await loadRecords();
-    
-    // 自定义金额输入监听
-    document.getElementById('custom-amount').addEventListener('input', function() {
-        const value = parseInt(this.value) || 0;
-        if (value > 0) {
-            // 清除选中状态
-            document.querySelectorAll('.recharge-option').forEach(opt => opt.classList.remove('active'));
-            selectAmount(value, 0);
-        }
-    });
-});
-
-// 加载配置
-async function loadConfig() {
-    try {
-        const response = await fetch('/api/payment/config');
-        const result = await response.json();
-        
-        if (result.success) {
-            rechargeConfig = result.data;
-            renderOptions();
-        } else {
-            showToast(result.error || '加载配置失败');
-        }
-    } catch (error) {
-        console.error('加载配置失败:', error);
-        showToast('加载配置失败');
-    }
-}
-
-// 渲染充值选项
-function renderOptions() {
-    const container = document.getElementById('recharge-options');
-    container.innerHTML = '';
-    
-    rechargeConfig.recharge_options.forEach(option => {
-        const div = document.createElement('div');
-        div.className = 'recharge-option';
-        div.innerHTML = `
-            <div class="amount">${option.amount}</div>
-            <div class="unit">元</div>
-            ${option.bonus > 0 ? `<div class="bonus">送${option.bonus}</div>` : ''}
-        `;
-        div.onclick = function() {
-            // 清除其他选中状态
-            document.querySelectorAll('.recharge-option').forEach(opt => opt.classList.remove('active'));
-            // 清除自定义金额
-            document.getElementById('custom-amount').value = '';
-            // 添加选中状态
-            this.classList.add('active');
-            selectAmount(option.amount, option.bonus);
-        };
-        container.appendChild(div);
-    });
-}
-
-// 选择金额
-function selectAmount(amount, bonus) {
-    selectedAmount = amount;
-    selectedBonus = bonus;
-    
-    // 更新汇总
-    document.getElementById('recharge-summary').style.display = 'block';
-    document.getElementById('summary-amount').textContent = amount + '元';
-    document.getElementById('summary-bonus').textContent = '+' + bonus + '点';
-    document.getElementById('summary-total').textContent = (amount + bonus) + '点';
-    
-    // 启用充值按钮
-    document.getElementById('btn-recharge').disabled = false;
+    await loadPaymentConfig();
+    await loadOrderList();
 }
 
 // 加载余额
 async function loadBalance() {
     try {
-        const response = await fetch('/api/points/balance');
-        const result = await response.json();
-        
+        const resp = await fetch('/api/points/balance');
+        const result = await resp.json();
         if (result.success) {
-            document.getElementById('current-balance').textContent = result.data.balance.toLocaleString();
+            document.getElementById('balance').textContent = result.data.balance;
+            document.getElementById('totalEarned').textContent = result.data.total_earned;
+            document.getElementById('totalSpent').textContent = result.data.total_spent;
+            
+            // 广播余额更新事件，通知其他组件（如用户菜单）更新显示
+            window.dispatchEvent(new CustomEvent('balanceUpdated', {
+                detail: {
+                    balance: result.data.balance,
+                    total_earned: result.data.total_earned,
+                    total_spent: result.data.total_spent
+                }
+            }));
         }
-    } catch (error) {
-        console.error('加载余额失败:', error);
+    } catch (e) {
+        console.error('加载余额失败:', e);
     }
 }
 
-// 加载充值记录
-async function loadRecords() {
+// 加载支付配置
+async function loadPaymentConfig() {
     try {
-        const response = await fetch('/api/payment/orders');
-        const result = await response.json();
-        
-        const container = document.getElementById('recharge-records');
-        
-        if (result.success && result.data.orders.length > 0) {
-            container.innerHTML = result.data.orders.map(order => `
-                <div class="record-item">
-                    <div class="record-info">
-                        <h4>充值 ${order.amount}点 ${order.bonus > 0 ? `(送${order.bonus}点)` : ''}</h4>
-                        <p>${new Date(order.created_at * 1000).toLocaleString()}</p>
-                    </div>
-                    <div class="record-amount">
-                        <div class="points">+${order.total_points}点</div>
-                        <div class="money">¥${order.amount}</div>
-                        <div class="status-${order.status}">${getStatusText(order.status)}</div>
-                    </div>
-                </div>
-            `).join('');
-        } else {
-            container.innerHTML = '<p style="text-align: center; color: rgba(255,255,255,0.4);">暂无充值记录</p>';
+        const resp = await fetch('/api/payment/config');
+        const result = await resp.json();
+        if (result.success) {
+            paymentConfig = result.data;
+            renderRechargeOptions(result.data.recharge_options);
         }
-    } catch (error) {
-        console.error('加载记录失败:', error);
+    } catch (e) {
+        console.error('加载支付配置失败:', e);
     }
 }
 
-function getStatusText(status) {
-    const statusMap = {
-        'pending': '待支付',
-        'completed': '已完成',
-        'failed': '失败'
-    };
-    return statusMap[status] || status;
+// 渲染充值选项
+function renderRechargeOptions(options) {
+    const container = document.getElementById('rechargeOptions');
+    container.innerHTML = options.map(opt => `
+        <div onclick="handleRecharge(${opt.amount}, this)" class="v2-recharge-option" style="cursor: pointer;">
+            <div class="v2-recharge-option__amount">¥${opt.amount}</div>
+            <div class="v2-recharge-option__label">${opt.label}</div>
+            ${opt.bonus > 0 ? `<span class="v2-recharge-option__bonus">+${opt.bonus}点</span>` : ''}
+            <div class="v2-recharge-option__hint">点击立即支付 →</div>
+        </div>
+    `).join('');
 }
 
-// 开始充值
-async function startRecharge() {
-    if (selectedAmount <= 0) {
-        showToast('请选择充值金额');
+// 处理充值 - 选择金额后填充到自定义输入框并立即创建订单
+async function handleRecharge(amount, element) {
+    console.log('handleRecharge called with amount:', amount);
+    document.getElementById('customAmount').value = amount;
+    
+    // 高亮选中的选项
+    document.querySelectorAll('.v2-recharge-option').forEach(opt => {
+        opt.classList.remove('v2-recharge-option--selected');
+    });
+    
+    // 如果传入了元素，高亮它
+    if (element) {
+        element.classList.add('v2-recharge-option--selected');
+    } else if (event && event.currentTarget) {
+        event.currentTarget.classList.add('v2-recharge-option--selected');
+    }
+    
+    // 立即创建订单
+    await createOrder(amount);
+}
+
+// 自定义金额充值
+async function handleCustomRecharge() {
+    console.log('handleCustomRecharge called');
+    const input = document.getElementById('customAmount');
+    const amount = parseFloat(input.value);
+    console.log('Amount:', amount);
+    
+    if (!amount || amount < 0.01) {
+        showToast('最低充值金额为0.01元', 'warning');
+        input.focus();
+        return;
+    }
+    if (amount > 5000) {
+        showToast('单笔充值不能超过5000元', 'warning');
+        input.focus();
         return;
     }
     
+    // 禁用按钮防止重复点击
+    const btn = document.getElementById('rechargeBtn');
+    if (btn) {
+        btn.disabled = true;
+        btn.textContent = '处理中...';
+    }
+    
     try {
-        const response = await fetch('/api/payment/create_order', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ amount: selectedAmount })
-        });
-        
-        const result = await response.json();
-        
-        if (result.success) {
-            // 显示支付中弹窗
-            document.getElementById('payment-modal').classList.add('active');
-            
-            // 获取支付表单
-            const payResponse = await fetch(`/api/payment/pay?order_id=${result.data.order_id}`);
-            const payResult = await payResponse.json();
-            
-            if (payResult.success) {
-                // 创建表单并提交
-                const form = document.createElement('form');
-                form.method = 'POST';
-                form.action = payResult.data.pay_url;
-                form.target = '_blank';
-                
-                for (const [key, value] of Object.entries(payResult.data.pay_params)) {
-                    const input = document.createElement('input');
-                    input.type = 'hidden';
-                    input.name = key;
-                    input.value = value;
-                    form.appendChild(input);
-                }
-                
-                document.body.appendChild(form);
-                form.submit();
-                document.body.removeChild(form);
-                
-                // 开始轮询订单状态
-                startPolling(result.data.order_id);
-            } else {
-                closePaymentModal();
-                showToast(payResult.error || '支付请求失败');
-            }
-        } else {
-            showToast(result.error || '创建订单失败');
+        await createOrder(amount);
+    } finally {
+        // 恢复按钮
+        if (btn) {
+            btn.disabled = false;
+            btn.textContent = '立即充值';
         }
-    } catch (error) {
-        console.error('充值失败:', error);
-        showToast('充值失败，请稍后重试');
     }
 }
 
-// 轮询订单状态
-function startPolling(orderId) {
-    let pollCount = 0;
-    const maxPolls = 60; // 最多轮询60次（5分钟）
-    
-    const pollInterval = setInterval(async () => {
-        pollCount++;
+// 创建订单
+async function createOrder(amount) {
+    console.log('Creating order for amount:', amount);
+    try {
+        const resp = await fetch('/api/payment/create_order', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ amount })
+        });
+        console.log('Response status:', resp.status);
+        const result = await resp.json();
+        console.log('Response:', result);
         
-        if (pollCount > maxPolls) {
-            clearInterval(pollInterval);
-            closePaymentModal();
-            showToast('支付超时，请稍后查询订单状态');
+        if (result.success) {
+            currentOrderId = result.data.order_id;
+            await getPayUrl(currentOrderId);
+        } else {
+            showToast(result.error || '创建订单失败', 'error');
+        }
+    } catch (e) {
+        console.error('Error creating order:', e);
+        showToast('网络错误，请稍后重试: ' + e.message, 'error');
+    }
+}
+
+// 获取支付URL
+async function getPayUrl(orderId) {
+    try {
+        const resp = await fetch(`/api/payment/pay?order_id=${orderId}`);
+        const result = await resp.json();
+        
+        if (result.success) {
+            showPayModal(result.data);
+        } else {
+            showToast(result.error || '获取支付信息失败', 'error');
+        }
+    } catch (e) {
+        showToast('网络错误，请稍后重试', 'error');
+    }
+}
+
+// 显示支付弹窗
+function showPayModal(payData) {
+    console.log('Showing pay modal:', payData);
+    const params = payData.pay_params;
+    document.getElementById('modalAmount').textContent = params.money;
+    document.getElementById('modalOrderId').textContent = params.out_trade_no;
+    
+    // 保存原始弹窗内容（第一次打开时）
+    const modalContent = document.getElementById('payModalContent');
+    const modalActions = document.querySelector('.v2-modal__actions');
+    if (!originalModalContent && modalContent) {
+        originalModalContent = modalContent.innerHTML;
+    }
+    if (!originalModalActions && modalActions) {
+        originalModalActions = modalActions.innerHTML;
+    }
+    
+    // 恢复原始内容（如果是第二次打开）
+    if (originalModalContent && modalContent) {
+        modalContent.innerHTML = originalModalContent;
+    }
+    if (originalModalActions && modalActions) {
+        modalActions.innerHTML = originalModalActions;
+    }
+    
+    // 重置状态
+    hideStatusMessage();
+    const checkingEl = document.getElementById('checkingStatus');
+    if (checkingEl) {
+        checkingEl.style.display = 'none';
+    }
+    
+    // 构建支付链接
+    const queryString = new URLSearchParams(params).toString();
+    const fullUrl = `${payData.pay_url}?${queryString}`;
+    console.log('Pay URL:', fullUrl);
+    
+    // 生成二维码
+    document.getElementById('qrcode').innerHTML = `<img src="https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(fullUrl)}" alt="支付二维码">`;
+    
+    // 显示弹窗
+    const modal = document.getElementById('payModal');
+    console.log('Modal element:', modal);
+    console.log('Modal current classes:', modal.className);
+    console.log('Modal current display:', modal.style.display);
+    
+    modal.classList.add('v2-modal-overlay--open');
+    modal.style.display = 'flex';
+    modal.style.visibility = 'visible';
+    modal.style.opacity = '1';
+    
+    console.log('Modal after update - classes:', modal.className);
+    console.log('Modal after update - display:', modal.style.display);
+    
+    // 开始轮询订单状态
+    startStatusCheck();
+}
+
+// 关闭支付弹窗
+function closePayModal() {
+    const modal = document.getElementById('payModal');
+    modal.classList.remove('v2-modal-overlay--open');
+    modal.style.display = 'none';
+    modal.style.visibility = 'hidden';
+    modal.style.opacity = '0';
+    
+    // 停止轮询
+    stopStatusCheck();
+    
+    // 恢复原始弹窗内容（如果已被支付成功页面替换）
+    const modalContent = document.getElementById('payModalContent');
+    const modalActions = document.querySelector('.v2-modal__actions');
+    if (originalModalContent && modalContent) {
+        modalContent.innerHTML = originalModalContent;
+    }
+    if (originalModalActions && modalActions) {
+        modalActions.innerHTML = originalModalActions;
+    }
+    
+    // 隐藏状态消息
+    hideStatusMessage();
+    
+    // 刷新余额和订单列表
+    loadBalance();
+    loadOrderList();
+}
+
+// 切换支付方式
+function switchPayType(type) {
+    const btnAlipay = document.getElementById('btnAlipay');
+    const btnWxpay = document.getElementById('btnWxpay');
+    
+    if (type === 'alipay') {
+        btnAlipay.classList.add('v2-btn--primary');
+        btnAlipay.classList.remove('v2-btn--secondary');
+        btnWxpay.classList.add('v2-btn--secondary');
+        btnWxpay.classList.remove('v2-btn--primary');
+    } else {
+        btnWxpay.classList.add('v2-btn--primary');
+        btnWxpay.classList.remove('v2-btn--secondary');
+        btnAlipay.classList.add('v2-btn--secondary');
+        btnAlipay.classList.remove('v2-btn--primary');
+    }
+}
+
+// 开始状态检查（自动轮询）
+function startStatusCheck() {
+    stopStatusCheck();
+    console.log('开始自动检测支付状态...');
+    
+    // 记录检测开始时间
+    statusCheckStartTime = Date.now();
+    
+    // 显示检测状态
+    const checkingEl = document.getElementById('checkingStatus');
+    if (checkingEl) {
+        checkingEl.style.display = 'block';
+        checkingEl.innerHTML = '<span class="checking-dot">●</span> 正在检测支付状态...（每2秒检测一次）';
+    }
+    
+    let checkCount = 0;
+    const maxChecks = 150; // 最多检测300秒（5分钟）
+    
+    // 立即检测一次
+    checkAndUpdateStatus();
+    
+    // 每2秒检测一次
+    checkStatusInterval = setInterval(async () => {
+        checkCount++;
+        if (checkCount > maxChecks) {
+            console.log('检测超时，停止轮询');
+            stopStatusCheck();
+            if (checkingEl) {
+                checkingEl.innerHTML = '<span style="color: var(--v2-warning);">⚠️ 检测超时，如果已支付请点击"已完成支付"</span>';
+            }
             return;
         }
         
-        try {
-            const response = await fetch(`/api/payment/query?order_id=${orderId}`);
-            const result = await response.json();
-            
-            if (result.success && result.data.status === 'completed') {
-                clearInterval(pollInterval);
-                closePaymentModal();
-                showToast('充值成功！');
-                await loadBalance();
-                await loadRecords();
+        await checkAndUpdateStatus();
+    }, 2000);
+}
+
+// 检测订单状态并更新UI
+async function checkAndUpdateStatus() {
+    if (!currentOrderId) return;
+    
+    try {
+        console.log('自动检测订单状态:', currentOrderId);
+        const resp = await fetch(`/api/payment/query?order_id=${currentOrderId}`);
+        const result = await resp.json();
+        console.log('检测结果:', result);
+        
+        if (result.success && result.data.status === 'completed') {
+            console.log('✅ 检测到支付成功！');
+            // 检测到支付成功，显示成功提示
+            showPaymentSuccess(result.data);
+            return true;
+        } else {
+            // 更新检测时间显示
+            const checkingEl = document.getElementById('checkingStatus');
+            if (checkingEl && checkingEl.style.display !== 'none' && statusCheckStartTime) {
+                const elapsedSeconds = Math.floor((Date.now() - statusCheckStartTime) / 1000);
+                checkingEl.innerHTML = '<span class="checking-dot">●</span> 正在检测支付状态...（已检测 ' + elapsedSeconds + ' 秒）';
             }
-        } catch (error) {
-            console.error('轮询失败:', error);
         }
-    }, 5000); // 每5秒查询一次
+    } catch (e) {
+        console.error('轮询检查失败:', e);
+    }
+    return false;
 }
 
-function closePaymentModal() {
-    document.getElementById('payment-modal').classList.remove('active');
+// 停止状态检查
+function stopStatusCheck() {
+    if (checkStatusInterval) {
+        clearInterval(checkStatusInterval);
+        checkStatusInterval = null;
+    }
 }
 
-function showToast(message) {
+// 检查订单状态（点击"已完成支付"按钮时调用）
+async function checkOrderStatus() {
+    if (!currentOrderId) return;
+    
+    // 显示检测中状态
+    const checkingEl = document.getElementById('checkingStatus');
+    const btn = event.target;
+    const originalText = btn.textContent;
+    
+    if (checkingEl) {
+        checkingEl.style.display = 'block';
+        checkingEl.innerHTML = '<span class="checking-dot">●</span> 正在查询易支付平台...';
+    }
+    btn.textContent = '查询中...';
+    btn.disabled = true;
+    
+    try {
+        console.log('手动检测订单状态:', currentOrderId);
+        const resp = await fetch(`/api/payment/query?order_id=${currentOrderId}`);
+        const result = await resp.json();
+        console.log('检测结果:', result);
+        
+        if (result.success && result.data.status === 'completed') {
+            console.log('✅ 支付成功！');
+            // 支付成功！显示成功提示
+            showPaymentSuccess(result.data);
+        } else if (result.success && result.data.status === 'pending') {
+            showStatusMessage('warning', '订单尚未支付', '请完成扫码支付后，等待自动检测或点击"已完成支付"');
+        } else if (result.data && result.data.msg && result.data.msg.includes('订单编号不存在')) {
+            showStatusMessage('error', '订单不存在', '该订单可能在支付平台已过期，请取消后重新创建订单');
+        } else {
+            showStatusMessage('error', '查询失败', result.error || '请稍后重试或联系客服');
+        }
+    } catch (e) {
+        console.error('检查状态失败:', e);
+        showStatusMessage('error', '网络错误', '请检查网络连接后重试');
+    } finally {
+        // 恢复按钮状态
+        btn.textContent = originalText;
+        btn.disabled = false;
+    }
+}
+
+// 显示状态消息（替代 alert）
+function showStatusMessage(type, message, subMessage = '') {
+    const statusEl = document.getElementById('statusMessage');
+    const contentEl = document.getElementById('statusMessageContent');
+    const iconEl = document.getElementById('statusIcon');
+    const textEl = document.getElementById('statusText');
+    
+    if (!statusEl || !contentEl || !iconEl || !textEl) return;
+    
+    // 隐藏检测状态
+    const checkingEl = document.getElementById('checkingStatus');
+    if (checkingEl) checkingEl.style.display = 'none';
+    
+    // 设置样式
+    const styles = {
+        success: {
+            bg: 'rgba(34, 197, 94, 0.1)',
+            border: '1px solid rgba(34, 197, 94, 0.3)',
+            color: 'var(--v2-success)',
+            icon: '✓'
+        },
+        warning: {
+            bg: 'rgba(245, 158, 11, 0.1)',
+            border: '1px solid rgba(245, 158, 11, 0.3)',
+            color: 'var(--v2-warning)',
+            icon: '⏳'
+        },
+        error: {
+            bg: 'rgba(239, 68, 68, 0.1)',
+            border: '1px solid rgba(239, 68, 68, 0.3)',
+            color: 'var(--v2-error)',
+            icon: '✕'
+        },
+        info: {
+            bg: 'rgba(99, 102, 241, 0.1)',
+            border: '1px solid rgba(99, 102, 241, 0.3)',
+            color: 'var(--v2-primary-400)',
+            icon: 'ⓘ'
+        }
+    };
+    
+    const style = styles[type] || styles.info;
+    
+    contentEl.style.background = style.bg;
+    contentEl.style.border = style.border;
+    contentEl.style.color = style.color;
+    iconEl.textContent = style.icon;
+    textEl.innerHTML = message + (subMessage ? `<br><span style="font-size: var(--v2-text-xs); opacity: 0.8;">${subMessage}</span>` : '');
+    
+    statusEl.style.display = 'block';
+}
+
+// 隐藏状态消息
+function hideStatusMessage() {
+    const statusEl = document.getElementById('statusMessage');
+    if (statusEl) statusEl.style.display = 'none';
+}
+
+// Toast 提示（替代 alert）
+function showToast(message, type = 'info') {
+    // 移除已有的 toast
+    const existingToast = document.querySelector('.v2-toast');
+    if (existingToast) {
+        existingToast.remove();
+    }
+    
     const toast = document.createElement('div');
-    toast.className = 'toast';
-    toast.textContent = message;
+    toast.className = 'v2-toast';
+    
+    const colors = {
+        success: '#22c55e',
+        error: '#ef4444',
+        warning: '#f59e0b',
+        info: '#6366f1'
+    };
+    const icons = {
+        success: '✓',
+        error: '✕',
+        warning: '⚠',
+        info: 'ⓘ'
+    };
+    
+    toast.innerHTML = `
+        <span style="margin-right: 8px;">${icons[type] || icons.info}</span>
+        <span>${message}</span>
+    `;
+    
+    toast.style.cssText = `
+        position: fixed;
+        top: 20px;
+        left: 50%;
+        transform: translateX(-50%) translateY(-100px);
+        background: ${colors[type] || colors.info};
+        color: white;
+        padding: 12px 24px;
+        border-radius: 8px;
+        font-size: 14px;
+        font-weight: 500;
+        display: flex;
+        align-items: center;
+        z-index: 10000;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+        opacity: 0;
+        transition: all 0.3s ease;
+    `;
+    
     document.body.appendChild(toast);
     
+    // 动画显示
+    requestAnimationFrame(() => {
+        toast.style.opacity = '1';
+        toast.style.transform = 'translateX(-50%) translateY(0)';
+    });
+    
+    // 3秒后自动消失
     setTimeout(() => {
-        toast.remove();
+        toast.style.opacity = '0';
+        toast.style.transform = 'translateX(-50%) translateY(-100px)';
+        setTimeout(() => toast.remove(), 300);
     }, 3000);
 }
+
+// 显示支付成功提示
+function showPaymentSuccess(orderData) {
+    console.log('显示支付成功提示:', orderData);
+    
+    // 停止轮询
+    stopStatusCheck();
+    
+    // 更新弹窗内容为成功提示
+    const modalContent = document.getElementById('payModalContent');
+    if (!modalContent) {
+        console.error('找不到弹窗内容元素');
+        return;
+    }
+    
+    modalContent.innerHTML = `
+        <div style="text-align: center; padding: var(--v2-space-6);">
+            <div style="width: 80px; height: 80px; background: rgba(34, 197, 94, 0.15); border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto var(--v2-space-4);">
+                <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="#22c55e" stroke-width="2">
+                    <path d="M20 6L9 17l-5-5"/>
+                </svg>
+            </div>
+            <h3 style="color: var(--v2-text-primary); font-size: var(--v2-text-xl); margin-bottom: var(--v2-space-2);">支付成功！</h3>
+            <p style="color: var(--v2-text-secondary); font-size: var(--v2-text-sm); margin-bottom: var(--v2-space-4);">
+                充值金额: ¥${orderData.amount}<br>
+                获得点数: ${orderData.total_points}点
+            </p>
+            <div style="background: var(--v2-bg-tertiary); border-radius: var(--v2-radius-lg); padding: var(--v2-space-4); margin-bottom: var(--v2-space-4);">
+                <div style="display: flex; justify-content: space-between; margin-bottom: var(--v2-space-2);">
+                    <span style="color: var(--v2-text-tertiary); font-size: var(--v2-text-sm);">订单号</span>
+                    <span style="color: var(--v2-text-primary); font-size: var(--v2-text-sm); font-family: var(--v2-font-mono);">${orderData.order_id}</span>
+                </div>
+                <div style="display: flex; justify-content: space-between;">
+                    <span style="color: var(--v2-text-tertiary); font-size: var(--v2-text-sm);">当前余额</span>
+                    <span style="color: var(--v2-success); font-size: var(--v2-text-sm); font-weight: bold;" id="newBalance">加载中...</span>
+                </div>
+            </div>
+        </div>
+    `;
+    
+    // 更新按钮
+    const modalActions = document.querySelector('.v2-modal__actions');
+    modalActions.innerHTML = `
+        <button onclick="closePayModal()" class="v2-btn v2-btn--primary" style="flex: 1;">完成</button>
+    `;
+    
+    // 刷新余额并显示
+    loadBalance().then(() => {
+        const balanceEl = document.getElementById('balance');
+        const newBalanceEl = document.getElementById('newBalance');
+        if (balanceEl && newBalanceEl) {
+            newBalanceEl.textContent = balanceEl.textContent + '点';
+        }
+    });
+    
+    // 刷新订单列表
+    loadOrderList();
+    
+    // 停止轮询
+    stopStatusCheck();
+}
+
+// 加载订单列表
+async function loadOrderList() {
+    try {
+        const resp = await fetch('/api/payment/orders?limit=5');
+        const result = await resp.json();
+        
+        const container = document.getElementById('orderList');
+        if (result.success && result.data.orders.length > 0) {
+            container.innerHTML = result.data.orders.map(order => {
+                const statusClass = order.status === 'completed' ? 'v2-order-item__status--completed' : 
+                                   order.status === 'pending' ? 'v2-order-item__status--pending' : 'v2-order-item__status--failed';
+                const statusText = order.status === 'completed' ? '已完成' : 
+                                  order.status === 'pending' ? '待支付' : '已取消';
+                const date = new Date(order.created_at * 1000).toLocaleDateString();
+                return `
+                    <div class="v2-order-item">
+                        <div class="v2-order-item__info">
+                            <div class="v2-order-item__amount">¥${order.amount}</div>
+                            <div class="v2-order-item__date">${date}</div>
+                        </div>
+                        <span class="v2-order-item__status ${statusClass}">${statusText}</span>
+                    </div>
+                `;
+            }).join('');
+        } else {
+            container.innerHTML = '<p class="v2-order-empty">暂无充值记录</p>';
+        }
+    } catch (e) {
+        console.error('加载订单列表失败:', e);
+    }
+}
+
+// 初始化
+init();
 </script>
 {% endblock %}

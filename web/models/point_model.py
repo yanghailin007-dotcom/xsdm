@@ -103,6 +103,23 @@ class PointModel:
                 )
             """)
             
+            # 支付订单表
+            conn.execute("""
+                CREATE TABLE IF NOT EXISTS payment_orders (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    order_id TEXT NOT NULL UNIQUE,
+                    user_id INTEGER NOT NULL,
+                    amount REAL NOT NULL,
+                    bonus INTEGER DEFAULT 0,
+                    total_points INTEGER NOT NULL,
+                    status TEXT DEFAULT 'pending' CHECK(status IN ('pending', 'completed', 'failed', 'cancelled')),
+                    trade_no TEXT,
+                    paid_at INTEGER,
+                    created_at INTEGER NOT NULL,
+                    FOREIGN KEY (user_id) REFERENCES users(id)
+                )
+            """)
+            
             conn.commit()
             logger.info("✅ 点数系统数据库表初始化完成")
     

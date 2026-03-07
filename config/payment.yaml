@@ -1,4 +1,4 @@
-# 易支付（YiiPay）配置
+# 易支付（ZPay）配置
 # 1:1 充值比例：1元 = 1点
 
 # 支付开关
@@ -6,15 +6,14 @@ enabled: true
 
 # 易支付接口配置
 yipay:
-  # 易支付接口地址（请替换为您的易支付平台地址）
-  # 例如: https://pay.example.com
-  api_url: "https://pay.example.com"
+  # 易支付接口地址
+  api_url: "https://zpayz.cn"
   
   # 商户ID
-  merchant_id: "YOUR_MERCHANT_ID"
+  merchant_id: "2025082311011032"
   
   # 商户密钥（重要：请妥善保管，不要泄露）
-  merchant_key: "YOUR_MERCHANT_KEY"
+  merchant_key: "H9TEykkzChooxOXMeKX8KRn9e1hnjmPu"
   
   # 支付方式
   pay_type: "alipay"  # 可选: alipay, wxpay, qqpay
@@ -32,6 +31,9 @@ exchange_rate: 1
 # 充值选项（用户可选择的面额）
 # 规则：30起充，100开始送，多充多送
 recharge_options:
+  - amount: 0.01
+    bonus: 0      # 测试金额
+    label: "测试0.01点"
   - amount: 30
     bonus: 0      # 起充门槛，不送
     label: "30点"
@@ -57,8 +59,8 @@ recharge_options:
     bonus: 1800   # 充5000送1800（最划算）
     label: "5000点"
 
-# 最低充值金额
-min_amount: 30
+# 最低充值金额（测试模式设为0.01，生产环境建议30）
+min_amount: 0.01
 
 # 最高充值金额
 max_amount: 5000
