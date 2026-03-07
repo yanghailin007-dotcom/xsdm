@@ -28,7 +28,7 @@ class APIClient:
         # 频率限制相关属性 - 安全访问配置
         rate_limit_config = self.config.get("rate_limit", {})
         self.rate_limit_enabled = rate_limit_config.get("enabled", False)
-        self.rate_limit_interval = rate_limit_config.get("interval", 3)
+        self.rate_limit_interval = rate_limit_config.get("interval", 10)
         self.rate_limit_max_requests = rate_limit_config.get("max_requests", 1)
         self.last_request_time = 0  # 上次请求时间戳
         self.request_count = 0      # 当前间隔内的请求计数
@@ -264,10 +264,13 @@ class APIClient:
     def _calculate_timeout(self, purpose: str, attempt: int) -> int:
         """根据目的和尝试次数计算超时时间"""
         base_timeouts = {
-            "快速质量评估": 10,
-            "提示词优化": 10  # 提示词优化通常较快
+            "章节生成": 120,
+            "内容生成": 90,
+            "质量评估": 60,
+            "快速质量评估": 60,
+            "提示词优化": 60
         }
-        timeout = 10  # 默认超时（缩短为10秒快速失败）
+        timeout = 60  # 默认超时60秒
         for key, value in base_timeouts.items():
             if key in purpose:
                 timeout = value

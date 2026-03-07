@@ -160,20 +160,30 @@ def register_page_routes(app):
                 from web.models.point_model import point_model
                 user_id = session['user_id']
                 
-                # 检查用户是否已领取注册奖励（有交易记录表示已领取）
-                transactions = point_model.get_transactions(user_id, page=1, limit=10)
-                has_claimed_bonus = False
-                if transactions and transactions.get('transactions'):
-                    for t in transactions['transactions']:
-                        if t.get('source') == 'register_bonus':
-                            has_claimed_bonus = True
-                            break
-                
-                # 如果没有领取过奖励，显示欢迎弹窗
-                if not has_claimed_bonus:
-                    welcome_bonus = point_model.get_config('register_bonus', 88)
-                    show_welcome = True
-                    logger.info(f"✅ 用户 {user_id} 未领取注册奖励，将显示欢迎弹窗")
+                # 🔥 双重检查1：检查是否已标记看过欢迎弹窗
+                if user_model.has_seen_welcome(user_id):
+                    logger.info(f"用户 {user_id} 已看过欢迎弹窗，跳过显示")
+                    show_welcome = False
+                else:
+                    # 🔥 双重检查2：检查交易记录
+                    transactions = point_model.get_transactions(user_id, page=1, limit=10)
+                    has_claimed_bonus = False
+                    if transactions and transactions.get('transactions'):
+                        for t in transactions['transactions']:
+                            if t.get('source') == 'register_bonus':
+                                has_claimed_bonus = True
+                                # 如果已有交易记录但未标记，补充标记
+                                user_model.mark_welcome_shown(user_id)
+                                logger.info(f"用户 {user_id} 已有交易记录，补充标记")
+                                break
+                    
+                    # 如果没有领取过奖励，显示欢迎弹窗
+                    if not has_claimed_bonus:
+                        welcome_bonus = point_model.get_config('register_bonus', 88)
+                        show_welcome = True
+                        logger.info(f"✅ 用户 {user_id} 未领取注册奖励，将显示欢迎弹窗")
+                    else:
+                        logger.info(f"用户 {user_id} 已有交易记录，不显示弹窗")
                     
             except Exception as e:
                 logger.error(f"❌ 检查欢迎弹窗状态失败: {e}")
@@ -584,12 +594,24 @@ def register_page_routes(app):
             from web.models.user_model import user_model
             from web.models.point_model import point_model
             
-            # 检查是否已领取过
+            # 🔥 双重检查：先检查是否已标记看过弹窗（快速路径）
+            if user_model.has_seen_welcome(user_id):
+                logger.info(f"用户 {user_id} 已标记看过欢迎弹窗，跳过重复奖励")
+                return jsonify({'success': False, 'error': '奖励已领取'}), 400
+            
+            # 🔥 再次检查交易记录（确保数据一致性）
             transactions = point_model.get_transactions(user_id, page=1, limit=10)
             if transactions and transactions.get('transactions'):
                 for t in transactions['transactions']:
                     if t.get('source') == 'register_bonus':
+                        # 如果已有交易记录但未标记，则补充标记
+                        user_model.mark_welcome_shown(user_id)
+                        logger.info(f"用户 {user_id} 已有交易记录，标记为已看过")
                         return jsonify({'success': False, 'error': '奖励已领取'}), 400
+            
+            # 🔥 先标记已看过（防止并发重复领取）
+            # 即使后续发放失败，也不会重复发放
+            user_model.mark_welcome_shown(user_id)
             
             # 发放注册奖励
             bonus_amount = point_model.get_config('register_bonus', 88)
@@ -601,8 +623,6 @@ def register_page_routes(app):
             )
             
             if point_result['success']:
-                # 标记已看过弹窗（作为领取记录）
-                user_model.mark_welcome_shown(user_id)
                 logger.info(f"✅ 用户 {user_id} 领取注册奖励 {bonus_amount} 点")
                 return jsonify({
                     'success': True, 
