@@ -115,64 +115,42 @@ class PhaseGenerator:
             print("开始第一阶段准备工作...")
             
             # 第一阶段：基础规划 (10-30%)
-            update_step_status('writing_style', 'active', 10)
-            update_progress_callback('writing_style', 10, "正在制定写作风格指南...", 
-                                     step_status={'writing_style': 'active'})
-            if not self._generate_foundation_planning():
+            # 传递步骤状态更新回调给 _generate_foundation_planning
+            if not self._generate_foundation_planning(update_step_status=update_step_status):
                 error_msg = "基础规划生成失败"
                 print(f"❌ {error_msg}")
                 notify_failure(error_msg)
                 return False
-            update_step_status('writing_style', 'completed', 15)
-            update_step_status('market_analysis', 'completed', 25)
             update_progress_callback('planning', 30, "基础规划完成",
                                      step_status={'writing_style': 'completed', 'market_analysis': 'completed'})
             
             # 第二阶段：世界观与角色设计 (30-55%)
-            update_step_status('worldview', 'active', 35)
-            update_progress_callback('worldview_generation', 35, "正在构建世界观...",
-                                     step_status={'worldview': 'active'})
-            if not self._generate_worldview_and_characters():
+            if not self._generate_worldview_and_characters(update_step_status=update_step_status):
                 error_msg = "世界观与角色设计失败"
                 print(f"❌ {error_msg}")
                 notify_failure(error_msg)
                 return False
-            update_step_status('worldview', 'completed', 40)
-            update_step_status('faction_system', 'completed', 45)
-            update_step_status('character_design', 'completed', 55)
             update_progress_callback('character_design', 55, "角色设计完成",
                                      step_status={'worldview': 'completed', 'faction_system': 'completed', 
                                                  'character_design': 'completed'})
             
             # 第三阶段：全书规划 (55-80%)
-            update_step_status('emotional_blueprint', 'active', 60)
-            update_progress_callback('story_outline', 60, "正在制定全书大纲...",
-                                     step_status={'emotional_blueprint': 'active'})
-            if not self._generate_overall_planning():
+            if not self._generate_overall_planning(update_step_status=update_step_status):
                 error_msg = "全书规划制定失败"
                 print(f"❌ {error_msg}")
                 notify_failure(error_msg)
                 return False
-            update_step_status('emotional_blueprint', 'completed', 65)
-            update_step_status('growth_plan', 'completed', 70)
-            update_step_status('stage_plan', 'completed', 75)
-            update_step_status('detailed_stage_plans', 'completed', 78)
-            update_step_status('expectation_mapping', 'completed', 80)
             update_progress_callback('story_outline', 80, "全书大纲制定完成",
                                      step_status={'emotional_blueprint': 'completed', 'growth_plan': 'completed',
                                                  'stage_plan': 'completed', 'detailed_stage_plans': 'completed',
-                                                 'expectation_mapping': 'completed'})
+                                                 'expectation_mapping': 'completed', 'system_init': 'completed'})
             
             # 第四阶段：保存结果 (80-90%)
-            update_step_status('saving', 'active', 85)
-            update_progress_callback('saving', 85, "正在保存设定结果...",
-                                     step_status={'saving': 'active'})
-            if not self._prepare_content_generation():
+            if not self._prepare_content_generation(update_step_status=update_step_status):
                 error_msg = "保存设定结果失败"
                 print(f"❌ {error_msg}")
                 notify_failure(error_msg)
                 return False
-            update_step_status('saving', 'completed', 90)
             update_progress_callback('saving', 90, "设定结果保存完成",
                                      step_status={'saving': 'completed'})
             
@@ -242,38 +220,67 @@ class PhaseGenerator:
             notify_failure(error_msg)
             return False
     
-    def _generate_foundation_planning(self) -> bool:
-        """生成基础规划"""
+    def _generate_foundation_planning(self, update_step_status=None) -> bool:
+        """生成基础规划
+        
+        Args:
+            update_step_status: 可选的步骤状态更新回调函数，用于实时更新前端进度
+        """
         print("\n" + "="*60)
         print("📝 第一阶段：基础规划")
         print("="*60)
         
-        # 生成写作风格指南
+        # 生成写作风格指南 - 在真正开始生成时才标记为 active
+        print("📝 步骤6: 写作风格制定")
         self.generator.novel_data["current_progress"]["stage"] = "写作风格制定"
+        if update_step_status:
+            update_step_status('writing_style', 'active', 10)
+        
         if not self._generate_writing_style_guide():
             print("⚠️ 写作风格指南生成失败，使用默认风格")
         
-        # 市场分析
+        # 写作风格完成后标记为 completed
+        if update_step_status:
+            update_step_status('writing_style', 'completed', 15)
+        
+        # 市场分析 - 在真正开始时才标记为 active
+        print("📊 步骤7: 市场分析")
         self.generator.novel_data["current_progress"]["stage"] = "市场分析"
+        if update_step_status:
+            update_step_status('market_analysis', 'active', 20)
+        
         if not self._generate_market_analysis():
             return False
         
+        # 市场分析完成后标记为 completed
+        if update_step_status:
+            update_step_status('market_analysis', 'completed', 25)
+        
         return True
     
-    def _generate_worldview_and_characters(self) -> bool:
+    def _generate_worldview_and_characters(self, update_step_status=None) -> bool:
         """生成世界观、势力和角色设计"""
         print("\n" + "="*60)
         print("🌍 第二阶段：世界观与势力系统设计")
         print("="*60)
         
-        # 世界观构建
+        # 世界观构建 - 步骤8
+        print("🌍 步骤8: 世界观构建")
         self.generator.novel_data["current_progress"]["stage"] = "世界观构建"
+        if update_step_status:
+            update_step_status('worldview', 'active', 35)
+        
         if not self._generate_worldview():
             return False
         
-        # 【新增】势力/阵营系统构建
-        print("=== 步骤3.5: 构建势力/阵营系统 ===")
+        if update_step_status:
+            update_step_status('worldview', 'completed', 40)
+        
+        # 【新增】势力/阵营系统构建 - 步骤9
+        print("⚔️ 步骤9: 构建势力/阵营系统")
         self.generator.novel_data["current_progress"]["stage"] = "势力系统设计"
+        if update_step_status:
+            update_step_status('faction_system', 'active', 42)
         
         faction_system = self.generator.content_generator.generate_faction_system(
             novel_title=self.generator.novel_data["novel_title"],
@@ -297,9 +304,15 @@ class PhaseGenerator:
                 "recommended_starting_faction": "待定"
             }
         
-        # 核心角色设计（现在可以基于势力系统）
-        print("=== 步骤4: 设计核心角色 (主角/核心盟友/宿敌) ===")
+        # 势力系统完成
+        if update_step_status:
+            update_step_status('faction_system', 'completed', 45)
+        
+        # 核心角色设计（现在可以基于势力系统） - 步骤10
+        print("👤 步骤10: 设计核心角色 (主角/核心盟友/宿敌)")
         self.generator.novel_data["current_progress"]["stage"] = "核心角色设计"
+        if update_step_status:
+            update_step_status('character_design', 'active', 48)
         
         core_characters = self.generator.content_generator.generate_character_design(
             novel_title=self.generator.novel_data["novel_title"],
@@ -332,16 +345,24 @@ class PhaseGenerator:
         self.generator.novel_data["character_design"] = core_characters
         print("✅ 核心角色设计完成，已建立角色基础库。")
         
+        # 角色设计完成
+        if update_step_status:
+            update_step_status('character_design', 'completed', 55)
+        
         return True
     
-    def _generate_overall_planning(self) -> bool:
+    def _generate_overall_planning(self, update_step_status=None) -> bool:
         """生成全书规划"""
         print("\n" + "="*60)
         print("📊 第三阶段：全书规划")
         print("="*60)
         
-        # 生成情绪蓝图
+        # 生成情绪蓝图 - 步骤11
+        print("🎨 步骤11: 情绪蓝图规划")
         self.generator.novel_data["current_progress"]["stage"] = "情绪蓝图规划"
+        if update_step_status:
+            update_step_status('emotional_blueprint', 'active', 60)
+        
         if not self.generator.emotional_blueprint_manager.generate_emotional_blueprint(
             self.generator.novel_data["novel_title"],
             self.generator.novel_data["novel_synopsis"],
@@ -350,13 +371,27 @@ class PhaseGenerator:
             print("❌ 情绪蓝图生成失败，无法进行后续情绪引导。")
             return False
         
-        # 全局成长规划
+        if update_step_status:
+            update_step_status('emotional_blueprint', 'completed', 65)
+        
+        # 全局成长规划 - 步骤12
+        print("📈 步骤12: 成长规划")
         self.generator.novel_data["current_progress"]["stage"] = "成长规划"
+        if update_step_status:
+            update_step_status('growth_plan', 'active', 68)
+        
         if not self._generate_global_growth_plan():
             print("⚠️ 全局成长规划生成失败，使用基础框架")
         
-        # 生成全书阶段计划
+        if update_step_status:
+            update_step_status('growth_plan', 'completed', 70)
+        
+        # 生成全书阶段计划 - 步骤13
+        print("🗓️ 步骤13: 阶段计划")
         self.generator.novel_data["current_progress"]["stage"] = "阶段计划"
+        if update_step_status:
+            update_step_status('stage_plan', 'active', 72)
+        
         creative_seed = self.generator.novel_data.get("creative_seed") or self.generator.novel_data.get("selected_plan", {})
         total_chapters = self.generator.novel_data["current_progress"]["total_chapters"]
         
@@ -375,30 +410,63 @@ class PhaseGenerator:
         if not overall_stage_plans:
             print("⚠️ 全书阶段计划生成失败，使用默认阶段划分")
         
-        # 生成阶段详细写作计划
+        if update_step_status:
+            update_step_status('stage_plan', 'completed', 75)
+        
+        # 生成阶段详细写作计划 - 步骤14
+        print("📋 步骤14: 阶段详细计划")
         self.generator.novel_data["current_progress"]["stage"] = "阶段详细计划"
+        if update_step_status:
+            update_step_status('detailed_stage_plans', 'active', 76)
+        
         if not self._generate_stage_writing_plans():
             print("❌ 生成阶段详细写作计划失败")
             return False
         
-        # 元素登场时机已由期待感系统管理
+        if update_step_status:
+            update_step_status('detailed_stage_plans', 'completed', 78)
+        
+        # 元素登场时机已由期待感系统管理 - 步骤15
+        print("🎯 步骤15: 期待感映射")
+        self.generator.novel_data["current_progress"]["stage"] = "期待感映射"
+        if update_step_status:
+            update_step_status('expectation_mapping', 'active', 79)
+        
         print("✅ 元素登场时机由期待感系统统一管理")
         
-        # 初始化系统
+        if update_step_status:
+            update_step_status('expectation_mapping', 'completed', 80)
+        
+        # 初始化系统 - 步骤16
+        print("⚙️ 步骤16: 系统初始化")
         self.generator.novel_data["current_progress"]["stage"] = "系统初始化"
+        if update_step_status:
+            update_step_status('system_init', 'active', 82)
+        
         self._initialize_systems()
+        
+        if update_step_status:
+            update_step_status('system_init', 'completed', 85)
         
         return True
     
-    def _prepare_content_generation(self) -> bool:
+    def _prepare_content_generation(self, update_step_status=None) -> bool:
         """准备内容生成"""
         print("\n" + "="*60)
         print("🛠️ 第四阶段：内容生成准备")
         print("="*60)
         
+        # 保存结果 - 步骤17
+        print("💾 步骤17: 保存设定结果")
+        self.generator.novel_data["current_progress"]["stage"] = "保存设定结果"
+        if update_step_status:
+            update_step_status('saving', 'active', 87)
+        
         # 创建项目目录和保存初始进度
-        self.generator.novel_data["current_progress"]["stage"] = "项目初始化"
         self._initialize_project()
+        
+        if update_step_status:
+            update_step_status('saving', 'completed', 90)
         
         return True
     

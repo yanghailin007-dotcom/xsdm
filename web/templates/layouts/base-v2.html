@@ -51,6 +51,16 @@
         <span class="v2-version-switcher__current">V2</span>
     </div>
     
+    <!-- i18n 国际化 -->
+    <script src="/static/js/i18n.js"></script>
+    <script>
+        // 所有页面加载完成后应用翻译
+        document.addEventListener('DOMContentLoaded', function() {
+            if (typeof I18N !== 'undefined') {
+                I18N.init();
+            }
+        });
+    </script>
     {% block extra_js %}{% endblock %}
 </body>
 </html>

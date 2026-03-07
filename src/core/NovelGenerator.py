@@ -505,6 +505,9 @@ class NovelGenerator:
         # 没有检查点或用户选择从头开始，从头开始生成
         self.logger.info("🆕 从头开始生成")
         
+        # 重置API调用点数计数器
+        self.reset_api_points_counter()
+        
         # 注意：初始检查点将在方案生成完成后再创建，那时才会有所有必要字段
         
         if isinstance(creative_seed, str):
@@ -631,6 +634,10 @@ class NovelGenerator:
         使用模块化的方式处理生成流程
         """
         print("[START] 开始全自动小说生成 (重构版本)...")
+        
+        # 重置API调用点数计数器
+        self.reset_api_points_counter()
+        
         # 不打印完整的创意种子，避免过长输出
         if isinstance(creative_seed, dict):
             novel_title = creative_seed.get('novelTitle') or creative_seed.get('novel_title')
@@ -795,8 +802,8 @@ class NovelGenerator:
         """
         self.logger.info("⚙️  正在执行【指令精炼】，将人类创意转换为AI必须遵守的硬性指令...")
         
-        # 🔥 更新步骤状态为进行中（黄色）
-        self._update_step_status('writing_style', 'active', '正在调用AI进行创意精炼...')
+        # 🔥 更新步骤状态为进行中（黄色）- 步骤1: 创意精炼
+        self._update_step_status('creative_refinement', 'active', '正在调用AI进行创意精炼...')
         
         # 1. 提取核心组件
         core_setting = creative_work.get("coreSetting", "未提供核心设定。")
@@ -874,8 +881,8 @@ class NovelGenerator:
                 
                 self.logger.info(f"✅  指令精炼完成，已保存至: {output_filepath}")
                 
-                # 🔥 更新步骤状态为已完成（绿色）
-                self._update_step_status('writing_style', 'completed', '创意精炼完成')
+                # 🔥 更新步骤状态为已完成（绿色）- 步骤1: 创意精炼
+                self._update_step_status('creative_refinement', 'completed', '创意精炼完成')
                     
             except Exception as e:
                 print(f"⚠️  保存精炼指令文件失败: {e}")
@@ -886,8 +893,8 @@ class NovelGenerator:
             
         except Exception as e:
             print(f"❌ AI精炼过程出错: {e}")
-            # 🔥 更新步骤状态为失败（红色）
-            self._update_step_status('writing_style', 'failed', f'AI精炼失败: {str(e)[:50]}')
+            # 🔥 更新步骤状态为失败（红色）- 步骤1: 创意精炼
+            self._update_step_status('creative_refinement', 'failed', f'AI精炼失败: {str(e)[:50]}')
             import traceback
             traceback.print_exc()
             print("  🔄 降级到基础模板")

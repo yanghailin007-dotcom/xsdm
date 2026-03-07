@@ -322,6 +322,48 @@ def get_public_config():
         })
 
 
+# ==================== 生成失败返还API ====================
+
+@points_api.route('/refund-generation-points', methods=['POST'])
+@login_required_api
+def refund_generation_points():
+    """
+    返还生成任务的创造点
+    用于连续轮询失败等异常场景
+    """
+    user_id = session.get('user_id')
+    if not user_id:
+        return jsonify({'success': False, 'error': '用户信息不完整，请重新登录'}), 401
+    
+    data = request.get_json()
+    if not data:
+        return jsonify({'success': False, 'error': '请求数据不能为空'}), 400
+    
+    task_id = data.get('task_id')
+    reason = data.get('reason', '连续轮询失败，系统自动返还')
+    
+    if not task_id:
+        return jsonify({'success': False, 'error': '缺少task_id参数'}), 400
+    
+    # 使用related_id作为task_id来查找消费记录并回滚
+    result = point_model.rollback_points(user_id, task_id, reason)
+    
+    if result['success']:
+        return jsonify({
+            'success': True,
+            'message': '创造点已返还',
+            'refund_amount': result.get('amount', 0),
+            'current_balance': result.get('balance', 0)
+        })
+    else:
+        # 如果回滚失败（比如没有找到消费记录或已经回滚过）
+        return jsonify({
+            'success': False,
+            'error': result.get('error', '返还失败'),
+            'already_refunded': '已经回滚过' in result.get('error', '')
+        }), 400
+
+
 # ==================== 管理员API ====================
 
 @points_api.route('/admin/config', methods=['GET'])

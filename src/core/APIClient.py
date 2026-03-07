@@ -465,9 +465,6 @@ class APIClient:
                 
                 # 更新频率限制计数器（只在成功建立连接时计数）
                 self._update_rate_limit()
-                # 触发API调用扣费回调（只在第一次成功尝试时扣费）
-                if attempt == 0:
-                    self._trigger_api_call_callback(purpose, attempt + 1)
                 # 检查HTTP状态码
                 if response.status_code != 200:
                     self.logger.error(f"  ❌ HTTP错误: 状态码 {response.status_code}")
@@ -522,6 +519,8 @@ class APIClient:
                 # 基本内容验证
                 if len(cleaned_content) > 10:
                     self.logger.info(f"  ✓ API响应验证通过")
+                    # 触发API调用扣费回调（每次成功调用都扣费1点）
+                    self._trigger_api_call_callback(purpose, attempt + 1)
                     return cleaned_content
                 else:
                     self.logger.info(f"  ❌ 内容过短，准备重试...")

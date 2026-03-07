@@ -694,9 +694,14 @@
         
         // 轮询进度
         let progressPollingInterval = null;
+        let pollFailureCount = 0;  // 连续失败计数器
+        const MAX_POLL_FAILURES = 10;  // 最大连续失败次数
         
         function startProgressPolling(taskId) {
             console.log('[V2] 开始轮询进度:', taskId);
+            
+            // 🔥 重置失败计数器
+            pollFailureCount = 0;
             
             // 🔥 保存任务ID到全局变量，供停止生成使用
             window.currentTaskId = taskId;
@@ -713,6 +718,9 @@
                     const result = await response.json();
                     
                     console.log('[V2] 进度 API 返回:', result);
+                    
+                    // 🔥 成功获取响应，重置失败计数器
+                    pollFailureCount = 0;
                     
                     if (result.success && result.data) {
                         const progress = result.data.progress || 0;
@@ -752,8 +760,172 @@
                     }
                 } catch (error) {
                     console.error('[V2] 轮询进度失败:', error);
+                    pollFailureCount++;
+                    console.warn(`[V2] 连续失败次数: ${pollFailureCount}/${MAX_POLL_FAILURES}`);
+                    
+                    // 🔥 如果连续失败超过阈值，处理异常
+                    if (pollFailureCount >= MAX_POLL_FAILURES) {
+                        console.error('[V2] 连续失败超过阈值，停止轮询并处理异常');
+                        clearInterval(progressPollingInterval);
+                        progressPollingInterval = null;
+                        handlePollFailure(taskId);
+                    }
                 }
             }, 2000);
+        }
+        
+        // 🔥 处理连续轮询失败
+        async function handlePollFailure(taskId) {
+            console.log('[V2] 处理连续轮询失败, 任务ID:', taskId);
+            
+            // 尝试返还创造点
+            let refundSuccess = false;
+            let refundMessage = '';
+            
+            try {
+                // 调用后端 API 返还创造点
+                const response = await fetch('/api/points/refund-generation-points', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-Novel-Novel-Id': taskId
+                    },
+                    body: JSON.stringify({
+                        task_id: taskId,
+                        reason: '连续轮询失败，系统自动返还'
+                    })
+                });
+                
+                const result = await response.json();
+                if (result.success) {
+                    refundSuccess = true;
+                    refundMessage = `已返还 ${result.refund_amount || 39} 创造点至您的账户`;
+                    console.log('[V2] 创造点返还成功:', result);
+                } else {
+                    console.warn('[V2] 创造点返还失败:', result.error);
+                    refundMessage = result.error || '返还失败，请联系管理员';
+                }
+            } catch (error) {
+                console.error('[V2] 调用返还 API 失败:', error);
+                refundMessage = '网络错误，请联系管理员处理';
+            }
+            
+            // 刷新用户余额显示
+            loadUserPointsBalance();
+            
+            // 显示错误弹窗
+            showPollFailureModal(refundSuccess, refundMessage);
+        }
+        
+        // 显示轮询失败弹窗
+        function showPollFailureModal(refundSuccess, refundMessage) {
+            // 移除已存在的弹窗
+            const existingModal = document.getElementById('poll-failure-modal');
+            if (existingModal) existingModal.remove();
+            
+            const modal = document.createElement('div');
+            modal.id = 'poll-failure-modal';
+            modal.innerHTML = `
+                <div style="
+                    position: fixed;
+                    top: 0;
+                    left: 0;
+                    right: 0;
+                    bottom: 0;
+                    background: rgba(0, 0, 0, 0.8);
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    z-index: 100000;
+                    backdrop-filter: blur(5px);
+                ">
+                    <div style="
+                        background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);
+                        border: 2px solid ${refundSuccess ? '#10b981' : '#ef4444'};
+                        border-radius: 16px;
+                        padding: 2rem;
+                        max-width: 480px;
+                        width: 90%;
+                        text-align: center;
+                        box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+                    ">
+                        <div style="
+                            width: 64px;
+                            height: 64px;
+                            background: ${refundSuccess ? 'rgba(16, 185, 129, 0.2)' : 'rgba(239, 68, 68, 0.2)'};
+                            border-radius: 50%;
+                            display: flex;
+                            align-items: center;
+                            justify-content: center;
+                            margin: 0 auto 1.5rem;
+                            font-size: 2rem;
+                        ">
+                            ${refundSuccess ? '✅' : '⚠️'}
+                        </div>
+                        
+                        <h3 style="
+                            color: #f1f5f9;
+                            margin: 0 0 1rem;
+                            font-size: 1.25rem;
+                            font-weight: 600;
+                        ">生成连接异常</h3>
+                        
+                        <p style="
+                            color: #94a3b8;
+                            margin: 0 0 1rem;
+                            line-height: 1.6;
+                        ">
+                            检测到连续多次无法连接到服务器，已停止生成任务。
+                        </p>
+                        
+                        <div style="
+                            background: rgba(30, 41, 59, 0.8);
+                            border-radius: 12px;
+                            padding: 1rem;
+                            margin-bottom: 1.5rem;
+                        ">
+                            <p style="
+                                color: ${refundSuccess ? '#10b981' : '#fbbf24'};
+                                margin: 0;
+                                font-weight: 500;
+                                font-size: 0.95rem;
+                            ">${refundMessage}</p>
+                        </div>
+                        
+                        <div style="display: flex; gap: 1rem; justify-content: center;">
+                            <button onclick="location.reload()" style="
+                                background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+                                color: white;
+                                border: none;
+                                padding: 0.75rem 1.5rem;
+                                border-radius: 8px;
+                                font-weight: 500;
+                                cursor: pointer;
+                                transition: all 0.2s;
+                            " onmouseover="this.style.transform='scale(1.05)'" onmouseout="this.style.transform='scale(1)'">
+                                🔄 刷新页面重试
+                            </button>
+                            <button onclick="document.getElementById('poll-failure-modal').remove(); showSetupSection();" style="
+                                background: rgba(255, 255, 255, 0.1);
+                                color: #cbd5e1;
+                                border: 1px solid rgba(255, 255, 255, 0.2);
+                                padding: 0.75rem 1.5rem;
+                                border-radius: 8px;
+                                font-weight: 500;
+                                cursor: pointer;
+                                transition: all 0.2s;
+                            " onmouseover="this.style.background='rgba(255, 255, 255, 0.15)'" onmouseout="this.style.background='rgba(255, 255, 255, 0.1)'">
+                                ← 返回设置
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            `;
+            
+            document.body.appendChild(modal);
+            
+            // 更新 UI 状态
+            updateProgressUI(0, '连接异常', null, null);
         }
         
         // ==================== 停止生成功能 ====================

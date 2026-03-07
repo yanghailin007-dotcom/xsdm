@@ -1,6 +1,6 @@
 {% extends "layouts/base-v2.html" %}
 
-{% block title %}偏好设置{% endblock %}
+{% block title %}<span data-i18n="settings.title">偏好设置</span>{% endblock %}
 
 {% block extra_css %}
 <style>
@@ -197,18 +197,18 @@ input:checked + .slider:before {
 {% block content %}
 <div class="settings-container">
     <div class="settings-header">
-        <h1 class="settings-title">偏好设置</h1>
-        <p class="settings-subtitle">自定义您的使用体验</p>
+        <h1 class="settings-title" data-i18n="settings.title">偏好设置</h1>
+        <p class="settings-subtitle" data-i18n="settings.subtitle">自定义您的使用体验</p>
     </div>
 
     <!-- 界面设置 -->
     <div class="settings-card">
-        <h2>🎨 界面设置</h2>
+        <h2 data-i18n="settings.appearance.title">🎨 界面设置</h2>
         
         <div class="setting-item">
             <div class="setting-info">
-                <h3>深色模式</h3>
-                <p>使用深色主题保护眼睛</p>
+                <h3 data-i18n="settings.darkMode">深色模式</h3>
+                <p data-i18n="settings.darkMode.desc">使用深色主题保护眼睛</p>
             </div>
             <label class="switch">
                 <input type="checkbox" id="dark-mode" checked disabled>
@@ -218,12 +218,12 @@ input:checked + .slider:before {
         
         <div class="setting-item">
             <div class="setting-info">
-                <h3>语言</h3>
-                <p>选择界面显示语言</p>
+                <h3 data-i18n="settings.language">语言</h3>
+                <p data-i18n="settings.language.desc">选择界面显示语言</p>
             </div>
-            <select class="setting-select" id="language">
+            <select class="setting-select" id="language" onchange="previewLanguage(this.value)">
                 <option value="zh-CN">简体中文</option>
-                <option value="zh-TW">繁体中文</option>
+                <option value="zh-TW">繁體中文</option>
                 <option value="en">English</option>
             </select>
         </div>
@@ -231,12 +231,12 @@ input:checked + .slider:before {
 
     <!-- 通知设置 -->
     <div class="settings-card">
-        <h2>🔔 通知设置</h2>
+        <h2 data-i18n="settings.notification.title">🔔 通知设置</h2>
         
         <div class="setting-item">
             <div class="setting-info">
-                <h3>邮件通知</h3>
-                <p>接收重要更新和提醒</p>
+                <h3 data-i18n="settings.emailNotify">邮件通知</h3>
+                <p data-i18n="settings.emailNotify.desc">接收重要更新和提醒</p>
             </div>
             <label class="switch">
                 <input type="checkbox" id="email-notify" checked>
@@ -246,8 +246,8 @@ input:checked + .slider:before {
         
         <div class="setting-item">
             <div class="setting-info">
-                <h3>生成完成提醒</h3>
-                <p>AI生成任务完成时通知我</p>
+                <h3 data-i18n="settings.generationNotify">生成完成提醒</h3>
+                <p data-i18n="settings.generationNotify.desc">AI生成任务完成时通知我</p>
             </div>
             <label class="switch">
                 <input type="checkbox" id="generation-notify" checked>
@@ -258,12 +258,12 @@ input:checked + .slider:before {
 
     <!-- 创作设置 -->
     <div class="settings-card">
-        <h2>✍️ 创作设置</h2>
+        <h2 data-i18n="settings.creation.title">✍️ 创作设置</h2>
         
         <div class="setting-item">
             <div class="setting-info">
-                <h3>自动保存</h3>
-                <p>编辑时自动保存草稿</p>
+                <h3 data-i18n="settings.autoSave">自动保存</h3>
+                <p data-i18n="settings.autoSave.desc">编辑时自动保存草稿</p>
             </div>
             <label class="switch">
                 <input type="checkbox" id="auto-save" checked>
@@ -273,24 +273,24 @@ input:checked + .slider:before {
         
         <div class="setting-item">
             <div class="setting-info">
-                <h3>默认生成模式</h3>
-                <p>选择章节生成的默认模式</p>
+                <h3 data-i18n="settings.defaultMode">默认生成模式</h3>
+                <p data-i18n="settings.defaultMode.desc">选择章节生成的默认模式</p>
             </div>
             <select class="setting-select" id="default-mode">
-                <option value="batch">批量模式</option>
-                <option value="refined">精修模式</option>
+                <option value="batch" data-i18n="settings.mode.batch">批量模式</option>
+                <option value="refined" data-i18n="settings.mode.refined">精修模式</option>
             </select>
         </div>
     </div>
 
     <!-- 隐私设置 -->
     <div class="settings-card">
-        <h2>🔒 隐私设置</h2>
+        <h2 data-i18n="settings.privacy.title">🔒 隐私设置</h2>
         
         <div class="setting-item">
             <div class="setting-info">
-                <h3>公开我的作品</h3>
-                <p>允许其他用户查看您的作品</p>
+                <h3 data-i18n="settings.publicWorks">公开我的作品</h3>
+                <p data-i18n="settings.publicWorks.desc">允许其他用户查看您的作品</p>
             </div>
             <label class="switch">
                 <input type="checkbox" id="public-works">
@@ -300,8 +300,8 @@ input:checked + .slider:before {
         
         <div class="setting-item">
             <div class="setting-info">
-                <h3>数据分享</h3>
-                <p>贡献匿名数据帮助改进AI</p>
+                <h3 data-i18n="settings.dataShare">数据分享</h3>
+                <p data-i18n="settings.dataShare.desc">贡献匿名数据帮助改进AI</p>
             </div>
             <label class="switch">
                 <input type="checkbox" id="data-share" checked>
@@ -312,86 +312,144 @@ input:checked + .slider:before {
 
     <!-- 高级功能 -->
     <div class="settings-card">
-        <h2>⚙️ 高级功能</h2>
+        <h2 data-i18n="settings.advanced.title">⚙️ 高级功能</h2>
         
         <div class="setting-item">
             <div class="setting-info">
-                <h3>实验性功能</h3>
-                <p>提前体验新功能</p>
+                <h3 data-i18n="settings.experimental">实验性功能</h3>
+                <p data-i18n="settings.experimental.desc">提前体验新功能</p>
             </div>
             <div class="coming-soon">
                 <span>🔧</span>
-                <span>即将上线</span>
+                <span data-i18n="settings.comingSoon">即将上线</span>
             </div>
         </div>
         
         <div class="setting-item">
             <div class="setting-info">
-                <h3>开发者模式</h3>
-                <p>显示调试信息和API日志</p>
+                <h3 data-i18n="settings.devMode">开发者模式</h3>
+                <p data-i18n="settings.devMode.desc">显示调试信息和API日志</p>
             </div>
             <div class="coming-soon">
                 <span>🔧</span>
-                <span>即将上线</span>
+                <span data-i18n="settings.comingSoon">即将上线</span>
             </div>
         </div>
     </div>
 
-    <button class="btn-save" onclick="saveSettings()">保存设置</button>
+    <button class="btn-save" onclick="saveSettings()" data-i18n="save">保存</button>
 </div>
 
-<script>
-// 页面加载时读取本地存储的设置
-document.addEventListener('DOMContentLoaded', function() {
-    const settings = JSON.parse(localStorage.getItem('userSettings') || '{}');
-    
-    if (settings.emailNotify !== undefined) {
-        document.getElementById('email-notify').checked = settings.emailNotify;
-    }
-    if (settings.generationNotify !== undefined) {
-        document.getElementById('generation-notify').checked = settings.generationNotify;
-    }
-    if (settings.autoSave !== undefined) {
-        document.getElementById('auto-save').checked = settings.autoSave;
-    }
-    if (settings.language) {
-        document.getElementById('language').value = settings.language;
-    }
-    if (settings.defaultMode) {
-        document.getElementById('default-mode').value = settings.defaultMode;
-    }
-    if (settings.publicWorks !== undefined) {
-        document.getElementById('public-works').checked = settings.publicWorks;
-    }
-    if (settings.dataShare !== undefined) {
-        document.getElementById('data-share').checked = settings.dataShare;
-    }
-});
+<script src="/static/js/i18n.js"></script>
 
+<script>
+// 简单的翻译字典（如果i18n.js加载失败时使用）
+const I18N_FALLBACK = {
+    'zh-CN': {
+        'settings.saved': '设置已保存',
+        'settings.lang.zh-CN': '简体中文',
+        'settings.lang.zh-TW': '繁體中文',
+        'settings.lang.en': 'English'
+    },
+    'en': {
+        'settings.saved': 'Settings saved',
+        'settings.lang.zh-CN': 'Simplified Chinese',
+        'settings.lang.zh-TW': 'Traditional Chinese',
+        'settings.lang.en': 'English'
+    }
+};
+
+// 获取翻译
+function t(key) {
+    if (typeof I18N !== 'undefined') {
+        return I18N.t(key);
+    }
+    const lang = localStorage.getItem('userSettings') ? 
+        JSON.parse(localStorage.getItem('userSettings')).language || 'zh-CN' : 'zh-CN';
+    return I18N_FALLBACK[lang]?.[key] || key;
+}
+
+// 显示提示消息
+function showToast(message) {
+    const toast = document.createElement('div');
+    toast.className = 'toast';
+    toast.textContent = message;
+    document.body.appendChild(toast);
+    setTimeout(() => toast.remove(), 3000);
+}
+
+// 记录原始语言（页面加载时的语言）
+let originalLanguage = 'zh-CN';
+let previewedLanguage = null;
+
+// 预览语言切换（不保存，立即生效）
+function previewLanguage(lang) {
+    previewedLanguage = lang;
+    if (typeof I18N !== 'undefined') {
+        I18N.setLanguage(lang);
+        showToast(t('settings.language') + ' - ' + t('settings.saved'));
+    }
+}
+
+// 保存设置
 function saveSettings() {
+    const newLanguage = document.getElementById('language').value;
+    const oldSettings = JSON.parse(localStorage.getItem('userSettings') || '{}');
+    
     const settings = {
         emailNotify: document.getElementById('email-notify').checked,
         generationNotify: document.getElementById('generation-notify').checked,
         autoSave: document.getElementById('auto-save').checked,
-        language: document.getElementById('language').value,
+        language: newLanguage,
         defaultMode: document.getElementById('default-mode').value,
         publicWorks: document.getElementById('public-works').checked,
         dataShare: document.getElementById('data-share').checked
     };
     
     localStorage.setItem('userSettings', JSON.stringify(settings));
-    showToast('设置已保存');
+    
+    // 如果语言发生变化，刷新页面以全局应用
+    if (oldSettings.language !== newLanguage) {
+        showToast(t('settings.saved') + ' - ' + 'Reloading...');
+        setTimeout(() => window.location.reload(), 500);
+    } else {
+        showToast(t('settings.saved'));
+    }
 }
 
-function showToast(message) {
-    const toast = document.createElement('div');
-    toast.className = 'toast';
-    toast.textContent = message;
-    document.body.appendChild(toast);
+// 页面加载完成后初始化
+document.addEventListener('DOMContentLoaded', function() {
+    const settings = JSON.parse(localStorage.getItem('userSettings') || '{}');
     
-    setTimeout(() => {
-        toast.remove();
-    }, 3000);
-}
+    // 记录原始语言
+    originalLanguage = settings.language || 'zh-CN';
+    
+    // 设置各项状态
+    if (settings.emailNotify !== undefined) 
+        document.getElementById('email-notify').checked = settings.emailNotify;
+    if (settings.generationNotify !== undefined) 
+        document.getElementById('generation-notify').checked = settings.generationNotify;
+    if (settings.autoSave !== undefined) 
+        document.getElementById('auto-save').checked = settings.autoSave;
+    if (settings.defaultMode) 
+        document.getElementById('default-mode').value = settings.defaultMode;
+    if (settings.publicWorks !== undefined) 
+        document.getElementById('public-works').checked = settings.publicWorks;
+    if (settings.dataShare !== undefined) 
+        document.getElementById('data-share').checked = settings.dataShare;
+    if (settings.language) 
+        document.getElementById('language').value = settings.language;
+    
+    // 如果i18n加载成功，应用翻译
+    if (typeof I18N !== 'undefined') {
+        const savedLang = settings.language || 'zh-CN';
+        if (I18N.getLanguage() !== savedLang) {
+            I18N.setLanguage(savedLang);
+        } else {
+            I18N.applyToPage();
+        }
+    }
+});
 </script>
+
 {% endblock %}

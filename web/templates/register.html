@@ -3,7 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>注册 - 大文娱创作平台</title>
+    <title data-i18n="register.title">Register - Da Wenyu Creation Platform</title>
+    <script src="/static/js/i18n.js"></script>
     <style>
         /* ==================== 完整设计系统内联版 ==================== */
         :root {
@@ -514,6 +515,29 @@
             }
         }
 
+        /* 奖励提示横幅 */
+        .reward-banner {
+            background: linear-gradient(135deg, rgba(251, 191, 36, 0.15) 0%, rgba(245, 158, 11, 0.1) 100%);
+            border: 1px solid rgba(251, 191, 36, 0.3);
+            border-radius: 0.75rem;
+            padding: 0.75rem 1rem;
+            margin-top: 1rem;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            animation: pulse 2s ease-in-out infinite;
+        }
+        
+        .reward-icon {
+            font-size: 1.25rem;
+        }
+        
+        .reward-text {
+            color: #fbbf24;
+            font-weight: 600;
+            font-size: 0.875rem;
+        }
+
         /* 页脚 */
         .register-footer {
             text-align: center;
@@ -528,10 +552,69 @@
                 padding: 1.5rem;
             }
         }
+        /* 语言切换器样式 */
+        .language-switcher {
+            position: absolute;
+            top: 1.5rem;
+            right: 1.5rem;
+            z-index: 10;
+        }
+        
+        .language-select {
+            padding: 0.5rem 2rem 0.5rem 0.75rem;
+            background: rgba(255, 255, 255, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 0.5rem;
+            color: var(--text-secondary);
+            font-size: 0.875rem;
+            cursor: pointer;
+            appearance: none;
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='rgba(255,255,255,0.5)' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
+            background-repeat: no-repeat;
+            background-position: right 0.5rem center;
+            background-size: 1rem;
+            transition: all 0.2s;
+        }
+        
+        .language-select:hover {
+            background: rgba(255, 255, 255, 0.15);
+            border-color: rgba(255, 255, 255, 0.3);
+        }
+        
+        .language-select:focus {
+            outline: none;
+            border-color: var(--primary-500);
+        }
+        
+        .language-select option {
+            background: #1e293b;
+            color: #fff;
+        }
+        
+        @media (max-width: 480px) {
+            .language-switcher {
+                top: 1rem;
+                right: 1rem;
+            }
+            
+            .language-select {
+                padding: 0.375rem 1.75rem 0.375rem 0.625rem;
+                font-size: 0.8rem;
+            }
+        }
     </style>
 </head>
 <body>
     <div class="register-page">
+        <!-- 语言切换器 -->
+        <div class="language-switcher">
+            <select class="language-select" id="language-switcher" onchange="switchLanguage(this.value)">
+                <option value="zh-CN">🇨🇳 简体中文</option>
+                <option value="zh-TW">🇨🇳 繁體中文</option>
+                <option value="en">🇬🇧 English</option>
+            </select>
+        </div>
+        
         <!-- 注册容器 -->
         <div class="register-container">
             <div class="register-card">
@@ -542,30 +625,13 @@
                 <!-- 头部 -->
                 <div class="register-header">
                     <div class="register-logo">🚀</div>
-                    <h1 class="register-title">创建账户</h1>
-                    <p class="register-subtitle">加入大文娱创作平台，开启AI创作之旅</p>
+                    <h1 class="register-title" data-i18n="register.title">Create Account</h1>
+                    <p class="register-subtitle" data-i18n="register.subtitle">Join Da Wenyu, start your AI creation journey</p>
                     
                     <!-- 注册奖励提示 -->
-                    <div style="
-                        background: linear-gradient(135deg, rgba(251, 191, 36, 0.15) 0%, rgba(245, 158, 11, 0.1) 100%);
-                        border: 1px solid rgba(251, 191, 36, 0.3);
-                        border-radius: 0.75rem;
-                        padding: 0.75rem 1rem;
-                        margin-top: 1rem;
-                        display: inline-flex;
-                        align-items: center;
-                        gap: 0.5rem;
-                        animation: pulse 2s ease-in-out infinite;
-                    ">
-                        <span style="font-size: 1.25rem;">🎁</span>
-                        <span style="color: #fbbf24; font-weight: 600; font-size: 0.875rem;">注册即送</span>
-                        <span style="
-                            color: #fbbf24;
-                            font-weight: 800;
-                            font-size: 1.25rem;
-                            text-shadow: 0 0 10px rgba(251, 191, 36, 0.5);
-                        ">88</span>
-                        <span style="color: #fbbf24; font-weight: 600; font-size: 0.875rem;">创造点</span>
+                    <div class="reward-banner">
+                        <span class="reward-icon">🎁</span>
+                        <span class="reward-text" data-i18n="register.reward">Get 88 Creation Points FREE</span>
                     </div>
                 </div>
 
@@ -578,13 +644,15 @@
                 <!-- 注册表单 -->
                 <form class="register-form" id="registerForm">
                     <div class="form-group">
-                        <label class="form-label">用户名</label>
+                        <label class="form-label" data-i18n="register.username">Username</label>
                         <div class="input-wrapper">
                             <input 
                                 type="text" 
                                 id="username-input" 
                                 class="form-input" 
-                                placeholder="请输入用户名（3-20个字符）"
+                                data-i18n="register.username.placeholder"
+                                data-i18n-attr="placeholder"
+                                placeholder="Enter username (3-20 characters)"
                                 required
                                 autocomplete="username"
                                 maxlength="20"
@@ -595,13 +663,15 @@
                     </div>
 
                     <div class="form-group">
-                        <label class="form-label">密码</label>
+                        <label class="form-label" data-i18n="register.password">Password</label>
                         <div class="input-wrapper">
                             <input 
                                 type="password" 
                                 id="password-input" 
                                 class="form-input" 
-                                placeholder="请输入密码（至少6个字符）"
+                                data-i18n="register.password.placeholder"
+                                data-i18n-attr="placeholder"
+                                placeholder="Enter password (at least 6 characters)"
                                 required
                                 autocomplete="new-password"
                             >
@@ -614,13 +684,15 @@
                     </div>
 
                     <div class="form-group">
-                        <label class="form-label">确认密码</label>
+                        <label class="form-label" data-i18n="register.confirmPassword">Confirm Password</label>
                         <div class="input-wrapper">
                             <input 
                                 type="password" 
                                 id="password-confirm-input" 
                                 class="form-input" 
-                                placeholder="请再次输入密码"
+                                data-i18n="register.confirmPassword.placeholder"
+                                data-i18n-attr="placeholder"
+                                placeholder="Enter password again"
                                 required
                                 autocomplete="new-password"
                             >
@@ -629,13 +701,15 @@
                     </div>
 
                     <div class="form-group">
-                        <label class="form-label">邮箱（可选）</label>
+                        <label class="form-label" data-i18n="register.email">Email (Optional)</label>
                         <div class="input-wrapper">
                             <input 
                                 type="email" 
                                 id="email-input" 
                                 class="form-input" 
-                                placeholder="请输入邮箱"
+                                data-i18n="register.email.placeholder"
+                                data-i18n-attr="placeholder"
+                                placeholder="Enter email address"
                                 autocomplete="email"
                             >
                             <span class="input-icon">📧</span>
@@ -643,23 +717,24 @@
                     </div>
 
                     <button type="submit" class="btn btn-primary" id="registerBtn">
-                        <span>注 册</span>
+                        <span data-i18n="register.submit">Create Account</span>
                         <div id="loadingSpinner" class="loading-spinner" style="display: none;"></div>
                     </button>
                 </form>
 
                 <!-- 分隔线 -->
-                <div class="divider-text">已有账户</div>
+                <div class="divider-text" data-i18n="register.haveAccount">Already have an account?</div>
 
                 <!-- 登录链接 -->
                 <div class="login-prompt">
-                    已有账户？<a href="/login" class="login-link">立即登录</a>
+                    <span data-i18n="register.haveAccount">Already have an account?</span>
+                    <a href="/login" class="login-link" data-i18n="register.login">Login Now</a>
                 </div>
             </div>
 
             <!-- 页脚 -->
             <div class="register-footer">
-                <p>&copy; 2024 大文娱系统 | 版本 2.0</p>
+                <p>&copy; 2024 <span data-i18n="app.name">Da Wenyu Creation Platform</span> | v2.0</p>
             </div>
         </div>
     </div>
@@ -716,7 +791,7 @@
                 return;
             }
 
-            usernameStatus.textContent = '检查中...';
+            usernameStatus.textContent = I18N.t('loading');
             usernameStatus.className = 'username-status checking';
 
             clearTimeout(usernameCheckTimeout);
@@ -729,10 +804,10 @@
                 .then(res => res.json())
                 .then(data => {
                     if (data.available) {
-                        usernameStatus.textContent = '✓ 用户名可用';
+                        usernameStatus.textContent = '✓ ' + I18N.t('register.username.hint');
                         usernameStatus.className = 'username-status available';
                     } else {
-                        usernameStatus.textContent = '✗ 用户名已存在';
+                        usernameStatus.textContent = '✗ ' + I18N.t('register.error.username.taken');
                         usernameStatus.className = 'username-status unavailable';
                     }
                 })
@@ -754,7 +829,13 @@
 
             const width = Math.min(strength * 20, 100);
             const colors = ['#ef4444', '#ef4444', '#f59e0b', '#22c55e', '#22c55e'];
-            const texts = ['太弱', '弱', '一般', '强', '很强'];
+            const texts = [
+                I18N.t('register.password.weak'),
+                I18N.t('register.password.weak'),
+                I18N.t('register.password.medium'),
+                I18N.t('register.password.strong'),
+                I18N.t('register.password.strong')
+            ];
 
             passwordStrengthBar.style.width = width + '%';
             passwordStrengthBar.style.background = colors[strength - 1] || 'transparent';
@@ -795,23 +876,23 @@
 
             // 验证
             if (username.length < 3 || username.length > 20) {
-                showMessage('用户名长度必须在3-20个字符之间', 'error');
+                showMessage(I18N.t('register.error.username.length'), 'error');
                 return;
             }
 
             if (password.length < 6) {
-                showMessage('密码长度至少6个字符', 'error');
+                showMessage(I18N.t('register.error.password.length'), 'error');
                 return;
             }
 
             if (password !== passwordConfirm) {
-                showMessage('两次输入的密码不一致', 'error');
+                showMessage(I18N.t('register.error.password.mismatch'), 'error');
                 return;
             }
 
             // 验证邮箱格式（如果提供了）
             if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-                showMessage('邮箱格式不正确', 'error');
+                showMessage(I18N.t('register.error.email.invalid'), 'error');
                 return;
             }
 
@@ -833,8 +914,8 @@
                 const data = await response.json();
 
                 if (data.success) {
-                    showMessage('注册成功！正在跳转到首页...', 'success');
-                    registerBtn.innerHTML = '<span>✓ 注册成功</span>';
+                    showMessage(I18N.t('register.success'), 'success');
+                    registerBtn.innerHTML = '<span>✓ ' + I18N.t('register.success') + '</span>';
                     registerBtn.style.background = 'linear-gradient(135deg, #22c55e 0%, #16a34a 100%)';
                     
                     setTimeout(() => {
@@ -842,21 +923,90 @@
                         window.location.href = '/landing';
                     }, 2000);
                 } else {
-                    showMessage(data.error || '注册失败', 'error');
+                    showMessage(data.error || I18N.t('register.error.generic'), 'error');
                     registerBtn.disabled = false;
                     loadingSpinner.style.display = 'none';
                 }
             } catch (error) {
-                console.error('注册错误:', error);
-                showMessage('注册失败，请稍后重试', 'error');
+                console.error('Register error:', error);
+                showMessage(I18N.t('register.error.generic'), 'error');
                 registerBtn.disabled = false;
                 loadingSpinner.style.display = 'none';
             }
         });
 
-        // 页面加载完成后焦点到用户名
+        // 语言切换函数
+        function switchLanguage(lang) {
+            if (I18N && I18N.setLanguage) {
+                I18N.setLanguage(lang);
+                // 保存语言偏好到localStorage
+                const settings = JSON.parse(localStorage.getItem('userSettings') || '{}');
+                settings.language = lang;
+                localStorage.setItem('userSettings', JSON.stringify(settings));
+                console.log('语言已切换到:', lang);
+            }
+        }
+        
+        // 检测浏览器语言
+        function detectBrowserLanguage() {
+            const browserLang = navigator.language || navigator.userLanguage || 'zh-CN';
+            console.log('检测到浏览器语言:', browserLang);
+            
+            // 映射浏览器语言到支持的语言
+            if (browserLang.startsWith('zh-Hant') || browserLang === 'zh-TW' || browserLang === 'zh-HK') {
+                return 'zh-TW'; // 繁體中文
+            } else if (browserLang.startsWith('zh')) {
+                return 'zh-CN'; // 简体中文
+            } else if (browserLang.startsWith('en')) {
+                return 'en'; // 英文
+            }
+            return 'zh-CN'; // 默认简体中文
+        }
+        
+        // 检测是否是首次访问（没有保存的语言偏好）
+        function isFirstVisit() {
+            const settings = localStorage.getItem('userSettings');
+            if (!settings) return true;
+            try {
+                const parsed = JSON.parse(settings);
+                return !parsed.language;
+            } catch {
+                return true;
+            }
+        }
+        
+        // 页面加载完成后初始化
         document.addEventListener('DOMContentLoaded', () => {
+            // 焦点到用户名输入框
             usernameInput.focus();
+            
+            // 初始化语言
+            const settings = JSON.parse(localStorage.getItem('userSettings') || '{}');
+            let targetLang = settings.language;
+            
+            // 如果是首次访问，使用浏览器语言
+            if (!targetLang) {
+                targetLang = detectBrowserLanguage();
+                console.log('首次访问，使用浏览器语言:', targetLang);
+                // 保存初始语言设置
+                settings.language = targetLang;
+                localStorage.setItem('userSettings', JSON.stringify(settings));
+            } else {
+                console.log('使用已保存的语言:', targetLang);
+            }
+            
+            // 更新语言选择器
+            const langSwitcher = document.getElementById('language-switcher');
+            if (langSwitcher) {
+                langSwitcher.value = targetLang;
+            }
+            
+            // 应用语言（延迟确保i18n已加载）
+            setTimeout(() => {
+                if (typeof I18N !== 'undefined' && I18N.setLanguage) {
+                    I18N.setLanguage(targetLang);
+                }
+            }, 100);
         });
     </script>
 </body>
