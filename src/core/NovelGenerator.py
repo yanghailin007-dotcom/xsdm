@@ -89,8 +89,10 @@ from src.utils.logger import get_logger
 
 class NovelGenerator:
     """
-    小说生成器主类 - 重构版本
+    小说生成器主类 - 重构版本（支持并发）
     这是一个轻量级的控制器，负责协调各个专门模块的工作
+    
+    🔥 并发支持：每个任务有独立的上下文，通过 task_contexts 管理
     """
 
     def __init__(self, config):
@@ -288,8 +290,18 @@ class NovelGenerator:
         self.logger.info("🔄 API调用点数计数器已重置")
 
     def _initialize_data_structures(self):
-        """初始化数据结构"""
-        self.novel_data = {
+        """初始化数据结构（支持并发）"""
+        # 🔥 并发支持：每个任务有独立的上下文
+        import threading
+        self._task_lock = threading.Lock()
+        self._task_contexts = {}  # {task_id: novel_data}
+        
+        # 保留默认 novel_data 用于向后兼容（无任务ID时使用）
+        self.novel_data = self._create_default_novel_data()
+    
+    def _create_default_novel_data(self) -> Dict:
+        """创建默认的 novel_data 结构"""
+        return {
             "current_progress": {
                 "completed_chapters": 0,
                 "total_chapters": 0,
@@ -307,6 +319,39 @@ class NovelGenerator:
             "is_resuming": False,
             "resume_data": None
         }
+    
+    def _get_task_context(self, task_id: str = None) -> Dict:
+        """
+        获取任务上下文（支持并发）
+        
+        Args:
+            task_id: 任务ID，如果为None则使用当前任务ID或返回默认上下文
+            
+        Returns:
+            任务的 novel_data 字典
+        """
+        if task_id is None:
+            task_id = getattr(self, '_current_task_id', None)
+        
+        if task_id is None:
+            return self.novel_data  # 向后兼容
+        
+        with self._task_lock:
+            if task_id not in self._task_contexts:
+                self._task_contexts[task_id] = self._create_default_novel_data()
+            return self._task_contexts[task_id]
+    
+    def _cleanup_task_context(self, task_id: str) -> None:
+        """
+        清理任务上下文（任务完成后调用）
+        
+        Args:
+            task_id: 任务ID
+        """
+        with self._task_lock:
+            if task_id in self._task_contexts:
+                del self._task_contexts[task_id]
+                self.logger.info(f"🧹 任务 {task_id}: 上下文已清理")
 
     def _setup_signal_handlers(self):
         """设置中断信号处理"""
