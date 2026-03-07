@@ -406,10 +406,12 @@ class PhaseGenerator:
         """生成写作风格指南"""
         print("=== 步骤1.5: 生成写作风格指南 ===")
         
+        # 🔥 先获取 category，确保即使在异常时也能使用
+        category = self.generator.novel_data.get("category", "未分类")
+        
         try:
             # 🔥 安全获取 creative_seed，如果不存在则使用 selected_plan
             creative_seed = self.generator.novel_data.get("creative_seed") or self.generator.novel_data.get("selected_plan", {})
-            category = self.generator.novel_data.get("category", "未分类")
             selected_plan = self.generator.novel_data.get("selected_plan", {})
             market_analysis = self.generator.novel_data.get("market_analysis", {})
             
