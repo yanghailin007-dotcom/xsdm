@@ -526,31 +526,50 @@ class NovelGenerator:
             if hasattr(self, '_update_task_status_callback'):
                 task_id = getattr(self, '_current_task_id', None)
                 if task_id and callable(self._update_task_status_callback):
-                    self._update_task_status_callback(task_id, 'generating', 15, None)
+                    self._update_task_status_callback(
+                        task_id, 'generating', 5, None,
+                        current_step='creative_refinement',
+                        step_status={'creative_refinement': 'active'}
+                    )
         except:
             pass
 
         try:
             refined_creative_seed = self.refine_creative_work_for_ai(creative_work_dict, temp_title_for_filename)
             
-            # 更新进度：创意精炼完成
+            # 更新进度：创意精炼完成，开始同人检测
             try:
                 if hasattr(self, '_update_task_status_callback'):
                     task_id = getattr(self, '_current_task_id', None)
                     if task_id and callable(self._update_task_status_callback):
-                        self._update_task_status_callback(task_id, 'generating', 25, None)
+                        self._update_task_status_callback(
+                            task_id, 'generating', 10, None,
+                            current_step='fanfiction_detection',
+                            step_status={
+                                'creative_refinement': 'completed',
+                                'fanfiction_detection': 'active'
+                            }
+                        )
             except:
                 pass
 
             # 预处理：检测同人小说并获取背景资料
             processed_creative_seed = self._preprocess_creative_seed(refined_creative_seed)
             
-            # 更新进度：开始方案生成
+            # 更新进度：同人检测完成，开始生成多个方案
             try:
                 if hasattr(self, '_update_task_status_callback'):
                     task_id = getattr(self, '_current_task_id', None)
                     if task_id and callable(self._update_task_status_callback):
-                        self._update_task_status_callback(task_id, 'generating', 30, None)
+                        self._update_task_status_callback(
+                            task_id, 'generating', 15, None,
+                            current_step='multiple_plans',
+                            step_status={
+                                'creative_refinement': 'completed',
+                                'fanfiction_detection': 'completed',
+                                'multiple_plans': 'active'
+                            }
+                        )
             except:
                 pass
             
@@ -571,7 +590,17 @@ class NovelGenerator:
                 if hasattr(self, '_update_task_status_callback'):
                     task_id = getattr(self, '_current_task_id', None)
                     if task_id and callable(self._update_task_status_callback):
-                        self._update_task_status_callback(task_id, 'generating', 35, None)
+                        self._update_task_status_callback(
+                            task_id, 'generating', 30, None,
+                            current_step='plan_selection',
+                            step_status={
+                                'creative_refinement': 'completed',
+                                'fanfiction_detection': 'completed',
+                                'multiple_plans': 'completed',
+                                'freshness_assessment': 'completed',
+                                'plan_selection': 'completed'
+                            }
+                        )
             except:
                 pass
 

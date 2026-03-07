@@ -464,6 +464,11 @@
             
             // 步骤名称映射：后端名称 -> 前端ID
             const backendToFrontend = {
+                'creative_refinement': 'creative_refinement',
+                'fanfiction_detection': 'fanfiction_detection',
+                'multiple_plans': 'multiple_plans',
+                'freshness_assessment': 'freshness_assessment',
+                'plan_selection': 'plan_selection',
                 'writing_style': 'writing_style',
                 'market_analysis': 'market_analysis',
                 'worldview': 'worldview',
@@ -549,8 +554,15 @@
         
         // 步骤映射 - 后端步骤名称 -> 前端步骤ID
         const STEP_NAME_MAPPING = {
-            'initialization': 'writing_style',
-            'planning': 'market_analysis',
+            'initialization': 'creative_refinement',
+            'creative_refinement': 'creative_refinement',
+            'fanfiction_detection': 'fanfiction_detection',
+            'multiple_plans': 'multiple_plans',
+            'freshness_assessment': 'freshness_assessment',
+            'plan_selection': 'plan_selection',
+            'planning': 'writing_style',
+            'writing_style': 'writing_style',
+            'market_analysis': 'market_analysis',
             'worldview_generation': 'worldview',
             'character_design': 'character_design',
             'story_outline': 'stage_plan',
@@ -568,6 +580,7 @@
             
             // 所有步骤
             const allSteps = [
+                'creative_refinement', 'fanfiction_detection', 'multiple_plans', 'freshness_assessment', 'plan_selection',
                 'writing_style', 'market_analysis', 'worldview', 'faction_system',
                 'character_design', 'emotional_blueprint', 'growth_plan', 'stage_plan',
                 'detailed_stage_plans', 'expectation_mapping', 'system_init', 'saving', 'quality_assessment'

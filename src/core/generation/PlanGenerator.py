@@ -88,6 +88,31 @@ class PlanGenerator:
             *   **尊重时间线**: 严格遵循原著的时间线逻辑，不允许出现明显的时间线矛盾。
             *   **可信度警示**: 如果背景资料可信度较低，设计方案时必须更加谨慎，优先选择已验证的信息。
         """
+    
+    def _update_step_status(self, step_name: str, status: str, progress: int = None):
+        """更新步骤状态"""
+        try:
+            if hasattr(self.content_generator, 'generator') and self.content_generator.generator:
+                generator = self.content_generator.generator
+                if hasattr(generator, '_update_task_status_callback'):
+                    task_id = getattr(generator, '_current_task_id', None)
+                    if task_id and callable(generator._update_task_status_callback):
+                        generator._update_task_status_callback(
+                            task_id, 'generating', progress or 0, None,
+                            current_step=step_name,
+                            step_status={step_name: status}
+                        )
+            # 同时通过事件总线发布
+            if hasattr(self.content_generator, 'generator') and self.content_generator.generator:
+                generator = self.content_generator.generator
+                if hasattr(generator, 'event_bus'):
+                    generator.event_bus.publish('phase_one.step_status', {
+                        'step': step_name,
+                        'status': status,
+                        'progress': progress
+                    })
+        except Exception as e:
+            print(f"⚠️ 步骤状态更新失败: {e}")
 
     def generate_and_select_plan(self, creative_seed: str, content_generator, target_platform: str = "fanqie") -> Optional[Dict]:
         """
@@ -120,6 +145,9 @@ class PlanGenerator:
         # 注入"毒点红线"和"高分蓝图"，并传递平台参数
         refined_creative_seed = self._prepare_refined_seed(creative_work, temp_title_for_filename, target_platform)
         
+        # 更新步骤状态：正在生成多个方案
+        self._update_step_status('multiple_plans', 'active', 18)
+        
         # 生成方案
         plans_data = content_generator.generate_multiple_plans(refined_creative_seed, "")
         
@@ -133,6 +161,9 @@ class PlanGenerator:
         # 处理主角名字
         self._extract_main_character_name(plans_data, content_generator)
         
+        # 更新步骤状态：开始新鲜度评估
+        self._update_step_status('freshness_assessment', 'active', 22)
+        
         # 评估方案质量
         qualified_plans = self._evaluate_plans(plans, creative_work)
         
@@ -140,8 +171,17 @@ class PlanGenerator:
             print("❌ 所有方案评价均未通过")
             return None
         
+        # 更新步骤状态：开始选择最佳方案
+        self._update_step_status('plan_selection', 'active', 28)
+        
         # 选择最佳方案
-        return self._select_best_plan(qualified_plans)
+        selected_plan = self._select_best_plan(qualified_plans)
+        
+        # 更新步骤状态：方案选择完成
+        if selected_plan:
+            self._update_step_status('plan_selection', 'completed', 30)
+        
+        return selected_plan
 
     def _prepare_refined_seed(self, creative_work: dict, temp_title: str, target_platform: str = "fanqie") -> str:
         """准备精炼后的创意种子"""
