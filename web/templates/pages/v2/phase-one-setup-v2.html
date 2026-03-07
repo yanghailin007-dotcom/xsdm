@@ -457,6 +457,7 @@
             
             // 所有步骤（按顺序）
             const allSteps = [
+                'creative_refinement', 'fanfiction_detection', 'multiple_plans', 'freshness_assessment', 'plan_selection',
                 'writing_style', 'market_analysis', 'worldview', 'faction_system',
                 'character_design', 'emotional_blueprint', 'growth_plan', 'stage_plan',
                 'detailed_stage_plans', 'expectation_mapping', 'system_init', 'saving', 'quality_assessment'
@@ -731,9 +732,9 @@
                         
                         // 🔥 更新点数消耗显示
                         const pointsConsumed = result.data.points_consumed || 0;
-                        const pointsTotal = result.data.points_total || 400;
+                        const pointsEstimated = result.data.points_estimated || result.data.points_total || 400;
                         if (typeof updatePointsConsumed === 'function') {
-                            updatePointsConsumed(pointsConsumed, pointsTotal);
+                            updatePointsConsumed(pointsConsumed, pointsEstimated);
                         }
                         
                         console.log('[V2] 进度:', progress, '状态:', status, '当前步骤:', currentStep, '消息:', message, '步骤状态:', stepStatus, '点数:', pointsConsumed);
