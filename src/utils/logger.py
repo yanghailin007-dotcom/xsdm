@@ -132,8 +132,8 @@ class Logger:
     def _safe_print(self, message: str, output_stream):
         """安全的打印方法，处理编码问题"""
         try:
-            # 直接打印到输出流
-            print(message, file=output_stream)
+            # 直接打印到输出流，并立即刷新
+            print(message, file=output_stream, flush=True)
             return True
         except (UnicodeEncodeError, OSError):
             # 回退: 移除特殊字符后打印
@@ -141,19 +141,19 @@ class Logger:
                 # 使用更安全的编码方式
                 safe_line = message.encode('utf-8', errors='ignore').decode('utf-8')
                 if safe_line.strip():  # 只有当清理后还有内容时才打印
-                    print(safe_line, file=output_stream)
+                    print(safe_line, file=output_stream, flush=True)
                     return True
             except (UnicodeEncodeError, OSError):
                 # 进一步回退: 使用ASCII
                 try:
                     safe_line = message.encode('ascii', 'ignore').decode('ascii')
                     if safe_line.strip():
-                        print(safe_line, file=output_stream)
+                        print(safe_line, file=output_stream, flush=True)
                         return True
                 except OSError:
                     # 如果仍然失败，尝试最基本的输出
                     try:
-                        print(f"[{self.module}] LOG: Output failed", file=output_stream)
+                        print(f"[{self.module}] LOG: Output failed", file=output_stream, flush=True)
                         return True
                     except OSError:
                         pass  # 静默忽略
