@@ -78,6 +78,20 @@ class APIClient:
         self.on_api_call_callback = callback
         self.logger.info(f"✓ API调用扣费回调已设置")
     
+    def set_username(self, username: str):
+        """设置当前用户名 - 用于日志区分不同用户
+        
+        Args:
+            username: 用户名
+        """
+        self._username = username
+        self.logger.info(f"👤 APIClient: 已设置用户名 {username}")
+    
+    def _get_username_str(self) -> str:
+        """获取用户名字符串用于日志"""
+        username = getattr(self, '_username', None)
+        return f"[{username}] " if username else ""
+    
     def _trigger_api_call_callback(self, purpose: str, attempt: int = 1):
         """触发API调用回调 - 扣除点数"""
         self.api_call_counter += 1
@@ -107,15 +121,16 @@ class APIClient:
         elapsed = current_time - self.last_request_time
         
         # 详细日志：当前状态
-        self.logger.info(f"🔍 频率限制检查:")
-        self.logger.info(f"   - 当前时间: {current_time:.2f}")
-        self.logger.info(f"   - 上次请求时间: {self.last_request_time:.2f}")
-        self.logger.info(f"   - 已过时间: {elapsed:.2f}s (间隔: {self.rate_limit_interval}s)")
-        self.logger.info(f"   - 当前请求计数: {self.request_count}/{self.rate_limit_max_requests}")
+        user_str = self._get_username_str()
+        self.logger.info(f"{user_str}🔍 频率限制检查:")
+        self.logger.info(f"{user_str}   - 当前时间: {current_time:.2f}")
+        self.logger.info(f"{user_str}   - 上次请求时间: {self.last_request_time:.2f}")
+        self.logger.info(f"{user_str}   - 已过时间: {elapsed:.2f}s (间隔: {self.rate_limit_interval}s)")
+        self.logger.info(f"{user_str}   - 当前请求计数: {self.request_count}/{self.rate_limit_max_requests}")
         
         # 如果超过间隔时间，重置计数器
         if elapsed > self.rate_limit_interval:
-            self.logger.info(f"✅ 频率限制: 时间间隔已超过，重置计数器")
+            self.logger.info(f"{user_str}✅ 频率限制: 时间间隔已超过，重置计数器")
             self.request_count = 0
             self.last_request_time = current_time
             return False
@@ -123,9 +138,9 @@ class APIClient:
         # 检查是否超过最大请求数
         if self.request_count >= self.rate_limit_max_requests:
             wait_time = self.rate_limit_interval - elapsed
-            self.logger.warning(f"⚠️ 频率限制触发!")
-            self.logger.warning(f"   - 请求计数: {self.request_count} >= {self.rate_limit_max_requests}")
-            self.logger.warning(f"   - 需要等待: {wait_time:.2f}s")
+            self.logger.warning(f"{user_str}⚠️ 频率限制触发!")
+            self.logger.warning(f"{user_str}   - 请求计数: {self.request_count} >= {self.rate_limit_max_requests}")
+            self.logger.warning(f"{user_str}   - 需要等待: {wait_time:.2f}s")
             
             if wait_time > 0:
                 self.logger.info(f"⏰ 频率限制: 等待 {wait_time:.1f} 秒...")
@@ -419,8 +434,9 @@ class APIClient:
             "stream": True
         }
         # 智能重试策略
+        user_str = self._get_username_str()
         for attempt in range(self.config["defaults"]["max_retries"]):
-            self.logger.info(f"🚀 开始第 {attempt+1}/{self.config['defaults']['max_retries']} 次API调用尝试")
+            self.logger.info(f"{user_str}🚀 开始第 {attempt+1}/{self.config['defaults']['max_retries']} 次API调用尝试")
             
             # 检查频率限制（在重试循环内部，因为重试也算作请求）
             rate_limit_result = self._check_rate_limit()
@@ -429,19 +445,20 @@ class APIClient:
             timeout = self._calculate_timeout(purpose, attempt)
             
             try:
-                self.logger.info(f"  📡 发起{target_provider.upper()} API请求:")
-                self.logger.info(f"     - 目的: {purpose}")
-                self.logger.info(f"     - 模型: {model_name}")
-                self.logger.info(f"     - 超时: {timeout}秒")
-                self.logger.info(f"     - 流式传输: 启用")
-                self.logger.info(f"     - API URL: {api_url[:50]}...")
-                self.logger.info(f"     - 请求载荷大小: {len(str(payload))} 字符")
+                self.logger.info(f"{user_str}  📡 发起{target_provider.upper()} API请求:")
+                self.logger.info(f"{user_str}     - 用户: {getattr(self, '_username', 'unknown')}")
+                self.logger.info(f"{user_str}     - 目的: {purpose}")
+                self.logger.info(f"{user_str}     - 模型: {model_name}")
+                self.logger.info(f"{user_str}     - 超时: {timeout}秒")
+                self.logger.info(f"{user_str}     - 流式传输: 启用")
+                self.logger.info(f"{user_str}     - API URL: {api_url[:50]}...")
+                self.logger.info(f"{user_str}     - 请求载荷大小: {len(str(payload))} 字符")
                 
                 response = requests.post(api_url, headers=headers, json=payload, timeout=timeout, stream=True)
                 
-                self.logger.info(f"  📡 API响应收到:")
-                self.logger.info(f"     - 状态码: {response.status_code}")
-                self.logger.info(f"     - 响应时间: {time.time() - start_time:.2f}秒")
+                self.logger.info(f"{user_str}  📡 API响应收到:")
+                self.logger.info(f"{user_str}     - 状态码: {response.status_code}")
+                self.logger.info(f"{user_str}     - 响应时间: {time.time() - start_time:.2f}秒")
                 
                 # 更新频率限制计数器（只在成功建立连接时计数）
                 self._update_rate_limit()

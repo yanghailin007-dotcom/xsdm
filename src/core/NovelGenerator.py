@@ -275,9 +275,16 @@ class NovelGenerator:
         self.logger.info(f"👤 已设置用户ID: {user_id}")
     
     def set_username(self, username: str):
-        """设置当前用户名（用于用户隔离路径）"""
+        """设置当前用户名（用于用户隔离路径和API日志）"""
         self._username = username
         self.logger.info(f"👤 已设置用户名: {username}")
+        
+        # 🔥 同时设置 APIClient 的用户名，用于日志区分
+        if hasattr(self, 'api_client') and self.api_client:
+            try:
+                self.api_client.set_username(username)
+            except Exception as e:
+                self.logger.debug(f"设置 APIClient 用户名失败: {e}")
     
     def get_api_points_consumed(self) -> int:
         """获取API调用消耗的点数"""
