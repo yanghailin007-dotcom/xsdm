@@ -345,7 +345,7 @@ class PhaseGenerator:
         if not self.generator.emotional_blueprint_manager.generate_emotional_blueprint(
             self.generator.novel_data["novel_title"],
             self.generator.novel_data["novel_synopsis"],
-            self.generator.novel_data["creative_seed"]
+            self.generator.novel_data.get("creative_seed") or self.generator.novel_data.get("selected_plan", {})
         ):
             print("❌ 情绪蓝图生成失败，无法进行后续情绪引导。")
             return False
@@ -357,7 +357,7 @@ class PhaseGenerator:
         
         # 生成全书阶段计划
         self.generator.novel_data["current_progress"]["stage"] = "阶段计划"
-        creative_seed = self.generator.novel_data["creative_seed"]
+        creative_seed = self.generator.novel_data.get("creative_seed") or self.generator.novel_data.get("selected_plan", {})
         total_chapters = self.generator.novel_data["current_progress"]["total_chapters"]
         
         overall_stage_plans = self.generator.stage_plan_manager.generate_overall_stage_plan(
@@ -407,9 +407,10 @@ class PhaseGenerator:
         print("=== 步骤1.5: 生成写作风格指南 ===")
         
         try:
-            creative_seed = self.generator.novel_data["creative_seed"]
+            # 🔥 安全获取 creative_seed，如果不存在则使用 selected_plan
+            creative_seed = self.generator.novel_data.get("creative_seed") or self.generator.novel_data.get("selected_plan", {})
             category = self.generator.novel_data.get("category", "未分类")
-            selected_plan = self.generator.novel_data["selected_plan"]
+            selected_plan = self.generator.novel_data.get("selected_plan", {})
             market_analysis = self.generator.novel_data.get("market_analysis", {})
             
             writing_style = self.generator.content_generator.generate_writing_style_guide(
@@ -435,8 +436,9 @@ class PhaseGenerator:
         """生成市场分析"""
         print("=== 步骤2: 进行市场分析和卖点提炼 ===")
         
-        creative_seed = self.generator.novel_data["creative_seed"]
-        selected_plan = self.generator.novel_data["selected_plan"]
+        # 🔥 安全获取 creative_seed
+        creative_seed = self.generator.novel_data.get("creative_seed") or self.generator.novel_data.get("selected_plan", {})
+        selected_plan = self.generator.novel_data.get("selected_plan", {})
         
         market_analysis = self.generator.content_generator.generate_market_analysis(creative_seed, selected_plan)
         
