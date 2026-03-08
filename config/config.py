@@ -31,6 +31,7 @@ CONFIG = {
     # - [L]gemini-3.1-pro-preview: 测试通过，响应时间~10s（冷启动）
     # - 注意: Lemon API 模型名称需要 [L] 前缀
     # - 建议超时设置: 300秒（5分钟）以应对冷启动
+    # - 如遇404错误，可能是服务暂时不可用，会自动切换到备用端点
     "api_endpoints": {
         "gemini": [
             {
@@ -49,7 +50,7 @@ CONFIG = {
                 "api_key": os.getenv('GEMINI_API_KEY', 'sk-zQHbJRdcVeNKX2ZqR18AMj5qutH4lDCZSmgE7WPP3aBdDdbw'),
                 "model": "gemini-3-pro-preview",  # 小创 API 不需要前缀
                 "priority": 2,                 # 备用优先级
-                "enabled": True,
+                "enabled": False,              # 暂时禁用（连接超时）
                 "timeout": 120,
                 "max_retries": 3
             }
