@@ -1085,23 +1085,46 @@ class NovelGenerator:
     def signal_handler(self, signum, frame):
         """处理中断信号 - 需要按两次 Ctrl+C 才会退出"""
         import time
+        import os
         current_time = time.time()
         
+        # 🔥 Windows 兼容：使用环境变量存储计数器（避免实例变量被重置）
+        count_key = '_NOVEL_GENERATOR_SIGINT_COUNT'
+        time_key = '_NOVEL_GENERATOR_SIGINT_TIME'
+        
+        # 获取当前计数
+        try:
+            count = int(os.environ.get(count_key, '0'))
+            last_time = float(os.environ.get(time_key, '0'))
+        except:
+            count = 0
+            last_time = 0
+        
         # 如果超过 3 秒，重置计数器
-        if current_time - self._sigint_last_time > 3:
-            self._sigint_count = 0
+        if current_time - last_time > 3:
+            count = 0
         
-        self._sigint_count += 1
-        self._sigint_last_time = current_time
+        count += 1
+        os.environ[count_key] = str(count)
+        os.environ[time_key] = str(current_time)
         
-        if self._sigint_count == 1:
-            print(f"\n\n⚠️  收到第一次中断信号 (Ctrl+C)")
+        print(f"\n\n{'='*60}")
+        print(f"⚠️  收到中断信号 (Ctrl+C) - 第 {count} 次")
+        print(f"{'='*60}")
+        
+        if count == 1:
             print("📝 正在保存进度...")
-            self.project_manager.save_project_progress(self._ctx)
-            print("✅ 进度已保存")
-            print("💡 提示：3 秒内再按一次 Ctrl+C 才会退出，否则继续生成\n")
-        elif self._sigint_count >= 2:
-            print(f"\n\n收到第二次中断信号，正在退出...")
+            try:
+                self.project_manager.save_project_progress(self._ctx)
+                print("✅ 进度已保存")
+            except Exception as e:
+                print(f"⚠️ 保存进度失败: {e}")
+            print("\n💡 提示：3 秒内再按一次 Ctrl+C 才会退出")
+            print("      不按则继续生成...\n")
+            # 🔥 关键：不退出，让程序继续运行
+            return
+        else:
+            print("🚪 收到第二次中断信号，正在退出...")
             sys.exit(0)
 
     # ==================== 兼容性方法 ====================
@@ -1899,25 +1922,42 @@ class NovelGenerator:
 
     def _save_writing_style_to_file(self, writing_style: Dict):
         """保存写作风格指南到JSON文件"""
+        import os
         try:
             from src.utils.path_manager import path_manager
             
+            novel_title = self._ctx.get("novel_title", "unknown")
+            print(f"🔥 [_save_writing_style_to_file] 开始保存写作风格指南: {novel_title}")
+            
             style_data = {
-                "novel_title": self._ctx["novel_title"],
+                "novel_title": novel_title,
                 "category": self._ctx.get("category", "未分类"),
                 "creative_seed": self._ctx.get("creative_seed", ""),
                 "created_time": datetime.now().isoformat(),
                 "writing_style_guide": writing_style
             }
             
-            success = path_manager.save_writing_style_guide(self._ctx["novel_title"], writing_style)
+            # 🔥 确保目录存在
+            paths = path_manager.path_config.get_project_paths(novel_title)
+            style_path = paths.get("writing_style_guide")
+            if style_path:
+                os.makedirs(os.path.dirname(style_path), exist_ok=True)
+                print(f"🔥 目录已确保存在: {os.path.dirname(style_path)}")
+            
+            success = path_manager.save_writing_style_guide(novel_title, writing_style)
             
             if success:
-                paths = path_manager.path_config.get_project_paths(self._ctx["novel_title"])
+                paths = path_manager.path_config.get_project_paths(novel_title)
                 actual_path = paths["writing_style_guide"]
-                print(f"📝 写作风格指南已保存到: {actual_path}")
+                print(f"✅ 写作风格指南已保存到: {actual_path}")
+                # 🔥 验证文件存在
+                if os.path.exists(actual_path):
+                    file_size = os.path.getsize(actual_path)
+                    print(f"✅ 文件验证成功: {actual_path} ({file_size} bytes)")
+                else:
+                    print(f"❌ 文件验证失败: 文件不存在 {actual_path}")
             else:
-                print(f"⚠️ 写作风格指南保存失败")
+                print(f"⚠️ 写作风格指南保存失败 (path_manager返回False)")
 
         except Exception as e:
             print(f"⚠️ 保存写作风格指南失败: {e}")
@@ -1951,6 +1991,60 @@ class NovelGenerator:
                 print(f"⚠️ {material_type}保存失败: {result.get('error')}")
         except Exception as e:
             print(f"❌ 保存{material_type}到材料管理器失败: {e}")
+        
+        # 🔥 关键修复：同时直接保存到文件（确保阶段一产物落地）
+        try:
+            self._force_save_material_to_file(material_type, content)
+        except Exception as e:
+            print(f"⚠️ 强制保存{material_type}到文件失败: {e}")
+    
+    def _force_save_material_to_file(self, material_type: str, content: Any):
+        """强制保存材料到项目目录（不依赖材料管理器）"""
+        import os
+        import json
+        from src.utils.path_manager import path_manager
+        
+        novel_title = self._ctx.get("novel_title") or self.novel_data.get("novel_title")
+        if not novel_title:
+            print(f"⚠️ 无法保存{material_type}: 小说标题未知")
+            return
+        
+        paths = path_manager.path_config.get_project_paths(novel_title)
+        safe_title = path_manager.path_config.get_safe_filename(novel_title)
+        
+        # 根据材料类型确定保存路径
+        file_mappings = {
+            "市场分析": (paths.get("market_analysis"), "market_analysis"),
+            "世界观": (os.path.join(paths.get("worldview_dir", ""), f"{safe_title}_世界观.json"), "core_worldview"),
+            "势力系统": (os.path.join(paths.get("worldview_dir", ""), f"{safe_title}_势力系统.json"), "faction_system"),
+        }
+        
+        file_path, data_key = file_mappings.get(material_type, (None, None))
+        if not file_path:
+            print(f"⚠️ 未知的材料类型: {material_type}")
+            return
+        
+        # 确保目录存在
+        os.makedirs(os.path.dirname(file_path), exist_ok=True)
+        
+        # 准备数据
+        data_to_save = {
+            "novel_title": novel_title,
+            "material_type": material_type,
+            "created_time": datetime.now().isoformat(),
+            data_key or "content": content
+        }
+        
+        # 写入文件
+        with open(file_path, 'w', encoding='utf-8') as f:
+            json.dump(data_to_save, f, ensure_ascii=False, indent=2)
+        
+        # 验证
+        if os.path.exists(file_path):
+            file_size = os.path.getsize(file_path)
+            print(f"🔥 [强制保存] {material_type}已保存: {file_path} ({file_size} bytes)")
+        else:
+            print(f"❌ [强制保存] {material_type}保存失败: 文件未创建")
 
     def _print_generation_summary(self):
         """打印生成摘要"""

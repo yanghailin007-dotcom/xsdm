@@ -196,14 +196,31 @@ class PathManager:
         """保存写作风格指南"""
         try:
             paths = self.path_config.get_project_paths(novel_title)
+            file_path = paths["writing_style_guide"]
             
-            with open(paths["writing_style_guide"], 'w', encoding='utf-8') as f:
+            # 🔥 关键修复：确保目录存在
+            dir_path = os.path.dirname(file_path)
+            os.makedirs(dir_path, exist_ok=True)
+            
+            # 🔥 添加详细调试日志
+            self.logger.info(f"📝 正在保存写作风格指南到: {file_path}")
+            
+            with open(file_path, 'w', encoding='utf-8') as f:
                 json.dump(style_data, f, ensure_ascii=False, indent=2)
             
-            self.logger.info(f"✅ 写作风格指南已保存: {paths['writing_style_guide']}")
-            return True
+            # 验证文件是否真的写入
+            if os.path.exists(file_path):
+                file_size = os.path.getsize(file_path)
+                self.logger.info(f"✅ 写作风格指南已保存: {file_path} ({file_size} bytes)")
+                return True
+            else:
+                self.logger.error(f"❌ 文件写入后未找到: {file_path}")
+                return False
+                
         except Exception as e:
             self.logger.error(f"❌ 保存写作风格指南失败: {e}")
+            import traceback
+            self.logger.error(traceback.format_exc())
             return False
     
     def load_writing_style_guide(self, novel_title: str) -> Optional[Dict]:

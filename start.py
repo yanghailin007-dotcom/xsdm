@@ -24,6 +24,7 @@ import webbrowser
 import time
 import argparse
 import datetime
+import signal
 from pathlib import Path
 
 # 设置控制台编码
@@ -346,20 +347,61 @@ def run_foreground(open_browser_flag=True):
             print(f"{Colors.BLUE}[INFO]{Colors.RESET} 服务启动中... (PID: {process.pid})")
             print(f"{Colors.BLUE}[INFO]{Colors.RESET} 按 Ctrl+C 停止服务\n")
             
-            try:
-                for line in process.stdout:
+            # 🔥 双击 Ctrl+C 检测变量
+            _sigint_count = 0
+            _sigint_time = 0
+            
+            def handle_sigint():
+                """处理 Ctrl+C，返回 True 表示继续运行，False 表示退出"""
+                nonlocal _sigint_count, _sigint_time
+                current_time = time.time()
+                
+                # 如果超过 3 秒，重置计数器
+                if current_time - _sigint_time > 3:
+                    _sigint_count = 0
+                
+                _sigint_count += 1
+                _sigint_time = current_time
+                
+                if _sigint_count == 1:
+                    # 第一次 Ctrl+C：请求停止，但不终止进程
+                    print(f"\n{Colors.YELLOW}[INFO]{Colors.RESET} ========================================")
+                    print(f"{Colors.YELLOW}[INFO]{Colors.RESET} 收到第一次 Ctrl+C，正在请求停止生成...")
+                    print(f"{Colors.YELLOW}[INFO]{Colors.RESET} ========================================")
+                    print(f"{Colors.YELLOW}[INFO]{Colors.RESET} 3 秒内再按一次 Ctrl+C 强制退出服务器")
+                    print(f"{Colors.YELLOW}[INFO]{Colors.RESET} 不按则等待当前生成完成...\n")
+                    
+                    # 🔥 不再向子进程发送信号（避免误判为第二次 Ctrl+C）
+                    # 全局停止标志会在 web_server_refactored.py 中自动处理
+                    return True  # 继续运行
+                else:
+                    # 第二次 Ctrl+C：强制退出
+                    print(f"\n{Colors.RED}[INFO]{Colors.RESET} 收到第二次 Ctrl+C，强制退出...")
+                    return False  # 退出
+            
+            # 主循环读取输出
+            while True:
+                try:
+                    line = process.stdout.readline()
+                    if not line:
+                        # 子进程结束
+                        break
                     print(line, end='')
                     log_f.write(line)
                     log_f.flush()
-            except KeyboardInterrupt:
-                print(f"\n{Colors.YELLOW}[INFO]{Colors.RESET} 正在停止服务...")
-                process.terminate()
-                try:
-                    process.wait(timeout=5)
-                except:
-                    process.kill()
-                remove_pid_file()
-                print(f"{Colors.GREEN}[OK]{Colors.RESET} 服务已停止")
+                except KeyboardInterrupt:
+                    if not handle_sigint():
+                        break
+            
+            # 终止进程
+            print(f"\n{Colors.YELLOW}[INFO]{Colors.RESET} 正在停止服务...")
+            process.terminate()
+            try:
+                process.wait(timeout=5)
+            except:
+                process.kill()
+            remove_pid_file()
+            print(f"{Colors.GREEN}[OK]{Colors.RESET} 服务已停止")
     except Exception as e:
         print(f"{Colors.RED}[ERR]{Colors.RESET} 启动失败: {e}")
         remove_pid_file()
