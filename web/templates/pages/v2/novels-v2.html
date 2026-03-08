@@ -1476,9 +1476,99 @@
             alert(message);
         }
 
-        function exportNovel(title) {
-            // 直接下载ZIP打包文件
-            window.open(`/api/export/novel-zip/${encodeURIComponent(title)}`, '_blank');
+        async function exportNovel(title) {
+            try {
+                // 先检查项目是否有内容
+                showLoadingOverlay('正在检查项目内容...');
+                
+                const response = await fetch(`/api/project/${encodeURIComponent(title)}`);
+                if (!response.ok) {
+                    throw new Error('无法获取项目信息');
+                }
+                
+                const projectData = await response.json();
+                const generatedChapters = projectData.generated_chapters || {};
+                const chapterCount = Object.keys(generatedChapters).length;
+                
+                hideLoadingOverlay();
+                
+                // 检查是否有可导出的内容
+                if (chapterCount === 0) {
+                    // 显示友好提示
+                    showExportEmptyDialog(title, projectData);
+                    return;
+                }
+                
+                // 有内容，直接下载
+                showSuccessMessage(`正在导出 ${chapterCount} 个章节...`);
+                window.location.href = `/api/export/novel-zip/${encodeURIComponent(title)}`;
+                
+            } catch (error) {
+                hideLoadingOverlay();
+                console.error('检查项目失败:', error);
+                // 出错时仍然尝试直接下载，让后端处理
+                window.location.href = `/api/export/novel-zip/${encodeURIComponent(title)}`;
+            }
+        }
+        
+        function showExportEmptyDialog(title, projectData) {
+            const createdDate = projectData.creation_time ? new Date(projectData.creation_time).toLocaleDateString() : '未知';
+            const status = projectData.status || 'draft';
+            const statusText = {
+                'draft': '草稿',
+                'phase_one_completed': '已完成第一阶段设定',
+                'generating': '生成中',
+                'completed': '已完成'
+            }[status] || status;
+            
+            const dialogHtml = `
+                <div id="export-empty-dialog" class="dialog-overlay" onclick="if(event.target === this) closeExportEmptyDialog()">
+                    <div class="dialog-content">
+                        <div class="dialog-header" style="background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);">
+                            <h3>⚠️ 项目暂无内容</h3>
+                            <p>《${escapeHtml(title)}》暂无可导出的章节内容</p>
+                        </div>
+                        
+                        <div class="dialog-body">
+                            <div style="background: rgba(245, 158, 11, 0.1); border: 1px solid rgba(245, 158, 11, 0.3); border-radius: 0.5rem; padding: 1rem; margin-bottom: 1rem;">
+                                <div style="display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.5rem;">
+                                    <span style="font-size: 1.25rem;">📊</span>
+                                    <span style="font-weight: 600;">项目状态</span>
+                                </div>
+                                <div style="font-size: 0.875rem; color: var(--text-secondary);">
+                                    <div>创建时间: ${createdDate}</div>
+                                    <div>当前状态: ${statusText}</div>
+                                    <div>已生成章节: 0 章</div>
+                                </div>
+                            </div>
+                            
+                            <p style="color: var(--text-secondary); font-size: 0.875rem; line-height: 1.6;">
+                                该项目尚未生成任何章节内容。您可以：<br><br>
+                                1. 点击"续写"按钮开始生成章节<br>
+                                2. 完成后再次导出即可下载完整内容
+                            </p>
+                        </div>
+                        
+                        <div class="dialog-actions">
+                            <button class="dialog-btn secondary" onclick="closeExportEmptyDialog()">取消</button>
+                            <button class="dialog-btn primary" onclick="closeExportEmptyDialog(); continueNovel('${escapeHtml(title)}');" style="background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);">
+                                📝 去续写
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            `;
+            
+            const dialogContainer = document.createElement('div');
+            dialogContainer.innerHTML = dialogHtml;
+            document.body.appendChild(dialogContainer);
+        }
+        
+        function closeExportEmptyDialog() {
+            const dialog = document.getElementById('export-empty-dialog');
+            if (dialog) {
+                dialog.remove();
+            }
         }
 
         function escapeHtml(text) {
