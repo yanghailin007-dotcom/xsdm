@@ -1190,9 +1190,11 @@
                             <button class="novel-btn novel-btn-primary" onclick="viewNovel('${escapeHtml(novel.title)}')">
                                 📖 阅读
                             </button>
+                            ${!novel.is_public ? `
                             <button class="novel-btn novel-btn-secondary" onclick="continueNovel('${escapeHtml(novel.title)}')">
                                 ➕ 续写
                             </button>
+                            ` : ''}
                             <button class="novel-btn novel-btn-secondary" onclick="exportNovel('${escapeHtml(novel.title)}')">
                                 📥 导出
                             </button>
