@@ -410,6 +410,12 @@ const I18N = {
             'workspace.continueSection.emptyDesc': '您还没有完成第一阶段设定的项目',
             'workspace.continueSection.startNew': '开始新建创作',
             
+            // 导出功能
+            'export.title': '导出',
+            'export.txt': '导出 TXT',
+            'export.zip': '打包 ZIP',
+            'export.json': '导出 JSON',
+            
             // 账户页面
             'account.title': '账户设置',
             'account.subtitle': '管理你的账户信息和安全设置',
@@ -861,6 +867,12 @@ const I18N = {
             'workspace.continueSection.emptyTitle': '暫無待生成專案',
             'workspace.continueSection.emptyDesc': '您還沒有完成第一階段設定的專案',
             'workspace.continueSection.startNew': '開始新建創作',
+            
+            // 導出功能
+            'export.title': '導出',
+            'export.txt': '導出 TXT',
+            'export.zip': '打包 ZIP',
+            'export.json': '導出 JSON',
         },
         
         'en': {
@@ -1340,6 +1352,12 @@ const I18N = {
             'step.system_init': 'System Init',
             'step.saving': 'Saving Results',
             'step.quality_assessment': 'Quality Assessment',
+            
+            // Export
+            'export.title': 'Export',
+            'export.txt': 'Export TXT',
+            'export.zip': 'Package ZIP',
+            'export.json': 'Export JSON',
         }
     },
     

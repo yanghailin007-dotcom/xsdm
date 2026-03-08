@@ -999,9 +999,15 @@ input:checked + .slider:before {
                 <button class="v2-btn v2-btn--secondary" id="reading-settings-btn" onclick="toggleReadingSettings()">
                     ⚙️ <span data-i18n="novel.settings">设置</span>
                 </button>
-                <button class="v2-btn v2-btn--secondary" id="export-json-btn" onclick="exportChapterData()">
-                    📥 <span data-i18n="novel.export">导出</span>
-                </button>
+                <div class="export-dropdown" style="position: relative; display: inline-block;">
+                    <button class="v2-btn v2-btn--secondary" onclick="toggleExportMenu()">
+                        📥 <span data-i18n="novel.export">导出</span> ▼
+                    </button>
+                    <div class="export-menu" id="novel-export-menu" style="display: none; position: absolute; right: 0; top: 100%; margin-top: 4px; background: var(--v2-bg-secondary); border: 1px solid var(--v2-border-default); border-radius: 8px; padding: 8px; min-width: 140px; z-index: 100; box-shadow: 0 4px 12px rgba(0,0,0,0.3);">
+                        <button class="export-option" onclick="exportNovelTxt()" style="display: block; width: 100%; padding: 8px 12px; text-align: left; background: none; border: none; color: var(--v2-text-primary); cursor: pointer; border-radius: 4px; font-size: 14px;">📝 导出 TXT</button>
+                        <button class="export-option" onclick="exportNovelZip()" style="display: block; width: 100%; padding: 8px 12px; text-align: left; background: none; border: none; color: var(--v2-text-primary); cursor: pointer; border-radius: 4px; font-size: 14px; margin-top: 4px;">📦 打包 ZIP</button>
+                    </div>
+                </div>
                 <button class="v2-btn v2-btn--secondary" id="print-btn" onclick="printChapter()">
                     🖨️ <span data-i18n="novel.print">打印</span>
                 </button>
@@ -1358,6 +1364,54 @@ input:checked + .slider:before {
 {% block extra_js %}
 <script src="/static/js/novel_view.js"></script>
 <script>
+    // 获取当前小说标题
+    function getNovelTitle() {
+        const urlParams = new URLSearchParams(window.location.search);
+        return urlParams.get('title') || '';
+    }
+
+    // 导出下拉菜单控制
+    let exportMenuOpen = false;
+    
+    function toggleExportMenu() {
+        const menu = document.getElementById('novel-export-menu');
+        if (menu.style.display === 'none') {
+            menu.style.display = 'block';
+            exportMenuOpen = true;
+        } else {
+            menu.style.display = 'none';
+            exportMenuOpen = false;
+        }
+    }
+    
+    // 点击其他地方关闭菜单
+    document.addEventListener('click', function(e) {
+        if (!e.target.closest('.export-dropdown') && exportMenuOpen) {
+            document.getElementById('novel-export-menu').style.display = 'none';
+            exportMenuOpen = false;
+        }
+    });
+    
+    // 导出 TXT
+    function exportNovelTxt() {
+        const title = getNovelTitle();
+        if (title) {
+            window.open(`/api/export-novel?title=${encodeURIComponent(title)}&format=txt`, '_blank');
+        }
+        document.getElementById('novel-export-menu').style.display = 'none';
+        exportMenuOpen = false;
+    }
+    
+    // 导出 ZIP
+    function exportNovelZip() {
+        const title = getNovelTitle();
+        if (title) {
+            window.open(`/api/export/novel-zip/${encodeURIComponent(title)}`, '_blank');
+        }
+        document.getElementById('novel-export-menu').style.display = 'none';
+        exportMenuOpen = false;
+    }
+
     // 退出登录函数
     function logout() {
         if (confirm('确定要退出登录吗？')) {

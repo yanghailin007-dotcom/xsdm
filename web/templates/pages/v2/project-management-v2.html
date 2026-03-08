@@ -596,7 +596,13 @@
                 if (project.phase_two && project.phase_two.status === 'completed') {
                     buttons = `
                         <button class="v2-btn v2-btn--primary" onclick="viewProject('${escapeJs(project.title)}')">📖 查看内容</button>
-                        <button class="v2-btn v2-btn--secondary" onclick="exportProject('${escapeJs(project.title)}')">📤 导出</button>
+                        <div class="export-dropdown" style="position: relative; display: inline-block;">
+                            <button class="v2-btn v2-btn--secondary" onclick="toggleExportMenu('${escapeJs(project.title)}')">📤 导出 ▼</button>
+                            <div class="export-menu" id="export-menu-${escapeJs(project.title)}" style="display: none; position: absolute; right: 0; top: 100%; margin-top: 4px; background: var(--v2-bg-secondary); border: 1px solid var(--v2-border-default); border-radius: 8px; padding: 8px; min-width: 140px; z-index: 100; box-shadow: 0 4px 12px rgba(0,0,0,0.3);">
+                                <button class="export-option" onclick="exportProjectTxt('${escapeJs(project.title)}')" style="display: block; width: 100%; padding: 8px 12px; text-align: left; background: none; border: none; color: var(--v2-text-primary); cursor: pointer; border-radius: 4px; font-size: 14px;">📝 导出 TXT</button>
+                                <button class="export-option" onclick="exportProjectZip('${escapeJs(project.title)}')" style="display: block; width: 100%; padding: 8px 12px; text-align: left; background: none; border: none; color: var(--v2-text-primary); cursor: pointer; border-radius: 4px; font-size: 14px; margin-top: 4px;">📦 打包 ZIP</button>
+                            </div>
+                        </div>
                     `;
                 } else {
                     buttons = `
@@ -758,6 +764,45 @@
 
         function viewPhaseOneResult(projectTitle) {
             window.location.href = `/phase-one-setup?continue=${encodeURIComponent(projectTitle)}`;
+        }
+
+        let currentOpenMenu = null;
+
+        function toggleExportMenu(projectTitle) {
+            const menuId = `export-menu-${projectTitle}`;
+            const menu = document.getElementById(menuId);
+            
+            // 关闭其他打开的菜单
+            if (currentOpenMenu && currentOpenMenu !== menu) {
+                currentOpenMenu.style.display = 'none';
+            }
+            
+            // 切换当前菜单
+            if (menu.style.display === 'none') {
+                menu.style.display = 'block';
+                currentOpenMenu = menu;
+            } else {
+                menu.style.display = 'none';
+                currentOpenMenu = null;
+            }
+        }
+
+        // 点击页面其他地方关闭菜单
+        document.addEventListener('click', function(e) {
+            if (!e.target.closest('.export-dropdown')) {
+                document.querySelectorAll('.export-menu').forEach(menu => {
+                    menu.style.display = 'none';
+                });
+                currentOpenMenu = null;
+            }
+        });
+
+        function exportProjectTxt(projectTitle) {
+            window.open(`/api/export-novel?title=${encodeURIComponent(projectTitle)}&format=txt`, '_blank');
+        }
+
+        function exportProjectZip(projectTitle) {
+            window.open(`/api/export/novel-zip/${encodeURIComponent(projectTitle)}`, '_blank');
         }
 
         async function exportProject(projectTitle) {
