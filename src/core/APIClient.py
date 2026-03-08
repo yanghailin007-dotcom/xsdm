@@ -526,7 +526,7 @@ class APIClient:
             ],
             "temperature": temperature,
             "max_tokens": max_tokens,
-            "stream": True
+            "stream": False
         }
         
         user_str = self._get_username_str()
@@ -538,7 +538,7 @@ class APIClient:
             self.logger.info(f"{user_str}     - 模型: {model_name}")
             self.logger.info(f"{user_str}     - 超时: {timeout}秒")
             
-            response = requests.post(api_url, headers=headers, json=payload, timeout=timeout, stream=True)
+            response = requests.post(api_url, headers=headers, json=payload, timeout=timeout, stream=False)
             
             elapsed = time.time() - start_time
             self.logger.info(f"{user_str}     - 响应状态: {response.status_code} (耗时:{elapsed:.2f}s)")
@@ -554,7 +554,7 @@ class APIClient:
                         self.logger.warning(f"  ⏰ 429错误，等待 {wait_time:.1f}s 后重试...")
                         time.sleep(wait_time)
                         # 重新尝试一次
-                        response = requests.post(api_url, headers=headers, json=payload, timeout=timeout, stream=True)
+                        response = requests.post(api_url, headers=headers, json=payload, timeout=timeout, stream=False)
                         if response.status_code == 200:
                             pass  # 成功继续处理
                         else:
@@ -567,8 +567,14 @@ class APIClient:
             # 更新频率限制计数器
             self._update_rate_limit()
             
-            # 处理流式响应
-            content = self._process_stream_response(response)
+            # 处理非流式响应
+            try:
+                result = response.json()
+                content = result['choices'][0]['message']['content']
+            except (KeyError, json.JSONDecodeError) as e:
+                self.logger.error(f"  ❌ 解析响应失败: {e}")
+                return None
+            
             if not content:
                 self.logger.warning(f"  ⚠️ 端点 {endpoint_name} 返回空内容")
                 return None
