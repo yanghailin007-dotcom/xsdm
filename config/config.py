@@ -53,16 +53,6 @@ CONFIG = {
                 "enabled": False,              # 暂时禁用（连接超时）
                 "timeout": 120,
                 "max_retries": 3
-            },
-            {
-                "name": "deepseek-backup",
-                "api_url": "https://api.deepseek.com/v1/chat/completions",
-                "api_key": os.getenv('DEEPSEEK_API_KEY', 'sk-1342f04c85c5452ab46c673aa1a12c0b'),
-                "model": "deepseek-reasoner",
-                "priority": 3,
-                "enabled": True,
-                "timeout": 120,
-                "max_retries": 3
             }
         ],
         "deepseek": [

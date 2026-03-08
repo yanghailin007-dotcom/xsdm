@@ -675,8 +675,63 @@ class APIClient:
                 self.logger.warning(f"   ⚠️ 端点 {endpoint.name} 调用失败，尝试下一个...")
         
         # 所有端点都失败
-        self.logger.error(f"💥 所有端点均失败，已尝试: {tried_endpoints}")
+        self.logger.error(f"💥 {target_provider} 所有端点均失败，已尝试: {tried_endpoints}")
+        
+        # 🔄 如果 gemini 池子失败，尝试 deepseek 池子作为保底
+        if target_provider == "gemini" and "deepseek" in self.endpoint_pools:
+            self.logger.warning(f"🔄 尝试切换到 deepseek 池子作为保底...")
+            return self._call_with_provider("deepseek", system_prompt, user_prompt, 
+                                            temperature, purpose, model_name, user_str)
+        
         return None
+    
+    def _call_with_provider(self, provider: str, system_prompt: str, user_prompt: str,
+                           temperature: Optional[float], purpose: str, 
+                           model_name: Optional[str], user_str: str) -> Optional[str]:
+        """使用指定 provider 调用 API"""
+        pool = self.endpoint_pools.get(provider)
+        if not pool:
+            return None
+        
+        available_endpoints = pool.get_available_endpoints()
+        if not available_endpoints:
+            return None
+        
+        self.logger.info(f"{user_str}🚀 开始使用 {provider} 池子")
+        
+        for endpoint in available_endpoints:
+            self.logger.info(f"   尝试端点: {endpoint.name}")
+            
+            endpoint_config = endpoint.get_config()
+            if model_name:
+                endpoint_config["model"] = model_name
+            
+            temp = temperature or self.config.get("defaults", {}).get("temperature", 0.7)
+            max_tokens = self.config.get("defaults", {}).get("max_tokens", 60000)
+            timeout = endpoint.timeout
+            
+            result = self._call_single_endpoint(
+                endpoint_config=endpoint_config,
+                system_prompt=system_prompt,
+                user_prompt=user_prompt,
+                temperature=temp,
+                max_tokens=max_tokens,
+                timeout=timeout,
+                purpose=purpose
+            )
+            
+            if result:
+                endpoint.record_success(time.time())
+                self.logger.info(f"   ✅ {provider} 端点 {endpoint.name} 调用成功")
+                self._trigger_api_call_callback(purpose, 1)
+                return result
+            else:
+                endpoint.record_failure("call_failed")
+                self.logger.warning(f"   ⚠️ {provider} 端点 {endpoint.name} 调用失败")
+        
+        self.logger.error(f"💥 {provider} 所有端点均失败")
+        return None
+    
     def _extract_retry_after_from_error(self, response) -> Optional[float]:
         """从错误响应中提取重试等待时间"""
         self.logger.info(f"  🔍 开始提取重试等待时间...")
