@@ -36,7 +36,7 @@ CONFIG = {
         "gemini": [
             {
                 "name": "lemon-api",           # 主端点：Lemon API
-                "api_url": "https://new.lemonapi.site/v1",
+                "api_url": "https://new.lemonapi.site/v1/chat/completions",
                 "api_key": os.getenv('LEMON_API_KEY', 'sk-n7M8j3un3p4QBfKNHxYDVmnhZELU4eicBrhBDsZEu23h3uXg'),
                 "model": "[L]gemini-3.1-pro-preview",  # 3.1 模型（测试通过）
                 "priority": 1,                 # 优先级最高
