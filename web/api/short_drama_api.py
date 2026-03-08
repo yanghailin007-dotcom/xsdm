@@ -5152,15 +5152,6 @@ def optimize_shots_with_ai(shots: list, title: str, style: str = "cinematic") ->
 def register_short_drama_routes(app):
     """注册短剧工作台路由"""
     app.register_blueprint(short_drama_api)
-    
-    # 注册导出功能 API
-    try:
-        from web.api.export_api import export_api
-        app.register_blueprint(export_api)
-        logger.info('✅ 导出功能 API 已注册')
-    except Exception as e:
-        logger.warning(f'⚠️ 导出功能 API 注册失败: {e}')
-    
     logger.info('✅ 短剧工作台 API 已注册')
 
 @short_drama_api.route('/portraits', methods=['GET'])
