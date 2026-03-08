@@ -566,12 +566,17 @@
             margin-bottom: 0.75rem;
             line-height: 1.4;
             padding-right: 5rem;
+            min-height: calc(1.125rem * 1.4 * 2);
+            display: -webkit-box;
+            -webkit-line-clamp: 2;
+            -webkit-box-orient: vertical;
+            overflow: hidden;
         }
 
         .novel-meta {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 1rem;
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 0.5rem 1rem;
             font-size: 0.8rem;
             color: var(--text-tertiary);
         }
