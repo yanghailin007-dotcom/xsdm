@@ -1,4 +1,6 @@
-"""API客户端类 - 配置驱动，稳定JSON解析版本"""
+"""API客户端类 - 配置驱动，稳定JSON解析版本
+支持多API端点池和故障转移
+"""
 import sys
 from pathlib import Path
 
@@ -15,6 +17,7 @@ from typing import Optional, Any, Dict, Iterator, List, Tuple
 from datetime import datetime
 from src.utils.logger import get_logger
 from src.prompts.Prompts import Prompts
+from src.core.APIEndpointPool import APIEndpointPool, APIEndpoint
 
 class APIClient:
     def __init__(self, config):
@@ -34,7 +37,14 @@ class APIClient:
         self.request_count = 0      # 当前间隔内的请求计数
         # 从配置中获取默认提供商
         self.default_provider = self.config.get("default_provider", "gemini")
+        
+        # 🔥 初始化API端点池（新的多API支持）
+        self.endpoint_pools: Dict[str, APIEndpointPool] = {}
+        self._initialize_endpoint_pools()
+        
+        # 向后兼容：获取可用提供商列表
         self.available_providers = self._get_available_providers()
+        
         # 加载模型路由配置
         self.model_routing_enabled = self.config.get("model_routing", {}).get("enabled", False)
         self.model_routes = self.config.get("model_routing", {}).get("routes", {})
@@ -50,6 +60,10 @@ class APIClient:
                 self.logger.info("❌ 没有可用的AI服务提供商")
         self.logger.info(f"✓ 默认使用: {self.default_provider.upper()}") 
         self.logger.info(f"✓ 可用提供商: {self.available_providers}")
+        
+        # 打印端点池状态
+        self._log_endpoint_pool_status()
+        
         # 显示频率限制状态
         if self.rate_limit_enabled:
             self.logger.info(f"⏰ 频率限制: 启用 ({self.rate_limit_interval}秒内最多{self.rate_limit_max_requests}次请求)")
@@ -68,6 +82,56 @@ class APIClient:
         os.makedirs(self.optimized_prompts_dir, exist_ok=True)
         # 加载已优化的提示词
         self.optimized_prompts = self._load_optimized_prompts()
+    
+    def _initialize_endpoint_pools(self):
+        """初始化API端点池 - 支持新的api_endpoints配置格式"""
+        api_endpoints_config = self.config.get("api_endpoints", {})
+        
+        # 如果配置了新的 api_endpoints 格式
+        if api_endpoints_config:
+            for provider, endpoints in api_endpoints_config.items():
+                if endpoints and isinstance(endpoints, list):
+                    self.endpoint_pools[provider] = APIEndpointPool(provider, endpoints)
+                    self.logger.info(f"✅ 初始化 {provider} 端点池: {len(endpoints)} 个端点")
+        
+        # 向后兼容：从旧版配置（api_keys, api_urls, models）创建端点池
+        else:
+            self._migrate_legacy_config()
+    
+    def _migrate_legacy_config(self):
+        """从旧版配置迁移到端点池"""
+        api_keys = self.config.get("api_keys", {})
+        api_urls = self.config.get("api_urls", {})
+        models = self.config.get("models", {})
+        
+        for provider in ["gemini", "deepseek", "yuanbao"]:
+            if api_keys.get(provider) and api_urls.get(provider):
+                endpoints = [{
+                    "name": f"{provider}-legacy",
+                    "api_url": api_urls[provider],
+                    "api_key": api_keys[provider],
+                    "model": models.get(provider, "default"),
+                    "priority": 1,
+                    "enabled": True
+                }]
+                self.endpoint_pools[provider] = APIEndpointPool(provider, endpoints)
+                self.logger.info(f"⚠️ 使用旧版配置创建 {provider} 端点池")
+    
+    def _log_endpoint_pool_status(self):
+        """打印端点池状态"""
+        self.logger.info("📊 API端点池状态:")
+        for provider, pool in self.endpoint_pools.items():
+            stats = pool.get_pool_stats()
+            available = stats["available_endpoints"]
+            total = stats["total_endpoints"]
+            self.logger.info(f"   {provider}: {available}/{total} 个端点可用")
+            for ep in stats["endpoints"]:
+                status_icon = "🟢" if ep["status"] == "healthy" else "🟡" if ep["status"] == "degraded" else "🔴"
+                self.logger.info(f"      {status_icon} {ep['name']} (P{ep['priority']}) - {ep['status']} - 成功率:{ep['success_rate']}")
+    
+    def get_endpoint_pool(self, provider: str) -> Optional[APIEndpointPool]:
+        """获取指定提供商的端点池"""
+        return self.endpoint_pools.get(provider)
     
     def set_api_call_callback(self, callback):
         """设置API调用回调函数 - 用于实时点数扣除
@@ -183,11 +247,10 @@ class APIClient:
         except Exception as e:
             self.logger.info(f"❌ 保存优化提示词失败: {e}")
     def _get_available_providers(self) -> List[str]:
-        """获取配置中启用的AI服务提供商"""
+        """获取配置中启用的AI服务提供商（基于端点池）"""
         available = []
-        api_keys = self.config.get("api_keys", {})
-        for provider in ["deepseek", "yuanbao", "gemini"]:
-            if api_keys.get(provider):
+        for provider, pool in self.endpoint_pools.items():
+            if pool.get_available_endpoints():
                 available.append(provider)
         return available
     def _get_routed_model(self, content_type: str, chapter_number: Optional[int] = None) -> Optional[str]:
@@ -226,35 +289,65 @@ class APIClient:
 
     def _get_provider_config(self, provider: Optional[str] = None,
                             content_type: Optional[str] = None,
-                            chapter_number: Optional[int] = None) -> Dict[str, Any]:
+                            chapter_number: Optional[int] = None,
+                            endpoint: Optional[APIEndpoint] = None) -> Dict[str, Any]:
         """
-        获取特定提供商的配置，支持模型路由
+        获取特定提供商的配置，支持模型路由和端点池
         
         Args:
             provider: 提供商名称（可选）
             content_type: 内容类型（用于模型路由）
             chapter_number: 章节号（用于黄金三章判断）
+            endpoint: 指定的端点（优先使用）
         """
         if provider is None:
             provider = self.default_provider
         
-        # 检查是否有模型路由
-        routed_model = None
-        if content_type:
-            routed_model = self._get_routed_model(content_type, chapter_number)
-        
-        # 如果有路由模型且提供商是 gemini，使用路由模型
-        if routed_model and provider == "gemini":
-            model_name = routed_model
+        # 如果提供了端点，直接使用端点的配置
+        if endpoint:
+            config = endpoint.get_config()
+            model_name = config["model"]
         else:
-            model_name = self.config["models"][provider]
+            # 检查是否有模型路由
+            routed_model = None
+            if content_type:
+                routed_model = self._get_routed_model(content_type, chapter_number)
+            
+            # 如果有路由模型且提供商是 gemini，使用路由模型
+            if routed_model and provider == "gemini":
+                model_name = routed_model
+            else:
+                # 向后兼容：从旧配置获取模型
+                model_name = self.config.get("models", {}).get(provider, "gemini-3-pro-preview")
+            
+            # 从端点池获取下一个可用端点
+            pool = self.endpoint_pools.get(provider)
+            if pool:
+                next_endpoint = pool.get_next_endpoint()
+                if next_endpoint:
+                    config = next_endpoint.get_config()
+                else:
+                    # 没有可用端点，使用旧配置
+                    config = {
+                        "api_key": self.config.get("api_keys", {}).get(provider, ""),
+                        "api_url": self.config.get("api_urls", {}).get(provider, ""),
+                        "model": model_name
+                    }
+            else:
+                # 没有端点池，使用旧配置
+                config = {
+                    "api_key": self.config.get("api_keys", {}).get(provider, ""),
+                    "api_url": self.config.get("api_urls", {}).get(provider, ""),
+                    "model": model_name
+                }
         
         return {
-            "api_key": self.config["api_keys"][provider],
-            "api_url": self.config["api_urls"][provider],
-            "model": model_name,
-            "temperature": self.config["defaults"]["temperature"],
-            "max_tokens": self.config["defaults"]["max_tokens"]
+            "api_key": config["api_key"],
+            "api_url": config["api_url"],
+            "model": config["model"],
+            "temperature": self.config.get("defaults", {}).get("temperature", 0.7),
+            "max_tokens": self.config.get("defaults", {}).get("max_tokens", 60000),
+            "endpoint_name": config.get("name", "unknown")
         }
     def clean_api_response(self, response: str) -> str:
         """清理API响应，移除Markdown代码块标记"""
@@ -400,32 +493,31 @@ class APIClient:
         with open(filename, "w", encoding="utf-8") as f:
             f.write(content)
         self.logger.info(f"  💾 {stage}响应已保存到: {filename}")
-    def call_api(self, system_prompt: str, user_prompt: str,
-                temperature: Optional[float] = None, purpose: str = "未知",
-                provider: Optional[str] = None, model_name: Optional[str] = None) -> Optional[str]:
-        """API调用 - 使用配置的默认提供商或指定提供商，支持自定义模型名称"""
-        # 最高优先级：在发送给AI之前，将网站风格适配文本添加到system_prompt的最前面
-        if self.website_style_enabled and self.website_style_text:
-            system_prompt = self.website_style_text + "\n\n" + system_prompt
-        target_provider = provider if provider else self.default_provider
-        if target_provider not in self.available_providers:
-            self.logger.info(f"❌ {target_provider.upper()} 未配置或不可用")
-            return None
-        provider_config = self._get_provider_config(target_provider)
-        api_url = provider_config["api_url"]
-        api_key = provider_config["api_key"]
-        # 如果没有指定自定义模型名称，使用配置中的模型
-        # 确保model_name是str类型，不是Optional[str]
-        if model_name is None:
-            model_name = provider_config["model"]
-        # model_name现在保证是str类型
-        temperature = temperature or provider_config["temperature"]
-        max_tokens = provider_config["max_tokens"]
+    def _call_single_endpoint(
+        self, 
+        endpoint_config: Dict[str, Any],
+        system_prompt: str, 
+        user_prompt: str,
+        temperature: float,
+        max_tokens: int,
+        timeout: int,
+        purpose: str
+    ) -> Optional[str]:
+        """
+        调用单个API端点
+        
+        Returns:
+            API响应内容，失败返回None
+        """
+        api_url = endpoint_config["api_url"]
+        api_key = endpoint_config["api_key"]
+        model_name = endpoint_config["model"]
+        endpoint_name = endpoint_config.get("name", "unknown")
+        
         headers = {
             "Authorization": f"Bearer {api_key}",
             "Content-Type": "application/json"
         }
-        # 强制开启流式传输
         payload = {
             "model": model_name,
             "messages": [
@@ -436,176 +528,148 @@ class APIClient:
             "max_tokens": max_tokens,
             "stream": True
         }
-        # 智能重试策略
+        
         user_str = self._get_username_str()
-        for attempt in range(self.config["defaults"]["max_retries"]):
-            self.logger.info(f"{user_str}🚀 开始第 {attempt+1}/{self.config['defaults']['max_retries']} 次API调用尝试")
+        start_time = time.time()
+        
+        try:
+            self.logger.info(f"{user_str}  📡 发起API请求 [端点: {endpoint_name}]:")
+            self.logger.info(f"{user_str}     - 目的: {purpose}")
+            self.logger.info(f"{user_str}     - 模型: {model_name}")
+            self.logger.info(f"{user_str}     - 超时: {timeout}秒")
             
-            # 检查频率限制（在重试循环内部，因为重试也算作请求）
-            rate_limit_result = self._check_rate_limit()
+            response = requests.post(api_url, headers=headers, json=payload, timeout=timeout, stream=True)
             
-            start_time = time.time()
-            timeout = self._calculate_timeout(purpose, attempt)
+            elapsed = time.time() - start_time
+            self.logger.info(f"{user_str}     - 响应状态: {response.status_code} (耗时:{elapsed:.2f}s)")
             
-            try:
-                self.logger.info(f"{user_str}  📡 发起{target_provider.upper()} API请求:")
-                self.logger.info(f"{user_str}     - 用户: {getattr(self, '_username', 'unknown')}")
-                self.logger.info(f"{user_str}     - 目的: {purpose}")
-                self.logger.info(f"{user_str}     - 模型: {model_name}")
-                self.logger.info(f"{user_str}     - 超时: {timeout}秒")
-                self.logger.info(f"{user_str}     - 流式传输: 启用")
-                self.logger.info(f"{user_str}     - API URL: {api_url[:50]}...")
-                self.logger.info(f"{user_str}     - 请求载荷大小: {len(str(payload))} 字符")
+            # 检查HTTP状态码
+            if response.status_code != 200:
+                self.logger.error(f"  ❌ HTTP错误: 状态码 {response.status_code}")
                 
-                response = requests.post(api_url, headers=headers, json=payload, timeout=timeout, stream=True)
-                
-                self.logger.info(f"{user_str}  📡 API响应收到:")
-                self.logger.info(f"{user_str}     - 状态码: {response.status_code}")
-                self.logger.info(f"{user_str}     - 响应时间: {time.time() - start_time:.2f}秒")
-                
-                # 更新频率限制计数器（只在成功建立连接时计数）
-                self._update_rate_limit()
-                # 检查HTTP状态码
-                if response.status_code != 200:
-                    self.logger.error(f"  ❌ HTTP错误: 状态码 {response.status_code}")
-                    
-                    # 特殊处理429错误 - 提取等待时间
-                    if response.status_code == 429:
-                        self.logger.error(f"  🚨 触发429错误 - API配额限制!")
-                        wait_time = self._extract_retry_after_from_error(response)
-                        if wait_time:
-                            self.logger.error(f"  ⏰ API返回等待时间: {wait_time:.1f} 秒")
-                            self.logger.error(f"  💤 开始等待...")
-                            time.sleep(wait_time)
-                            self.logger.error(f"  ✅ 等待结束，立即重试")
-                            continue  # 直接重试，不消耗重试次数
+                # 特殊处理429错误
+                if response.status_code == 429:
+                    wait_time = self._extract_retry_after_from_error(response)
+                    if wait_time:
+                        self.logger.warning(f"  ⏰ 429错误，等待 {wait_time:.1f}s 后重试...")
+                        time.sleep(wait_time)
+                        # 重新尝试一次
+                        response = requests.post(api_url, headers=headers, json=payload, timeout=timeout, stream=True)
+                        if response.status_code == 200:
+                            pass  # 成功继续处理
                         else:
-                            self.logger.error(f"  ❌ 无法从API响应中提取重试时间")
-                    
-                    # 记录详细的错误信息
-                    try:
-                        error_detail = response.json()
-                        self.logger.error(f"  📋 错误详情: {json.dumps(error_detail, ensure_ascii=False, indent=2)}")
-                        
-                        # 检查是否是rate_limit相关的错误
-                        if 'error' in error_detail:
-                            error_msg = error_detail['error'].get('message', '').lower()
-                            if 'rate' in error_msg or 'limit' in error_msg or 'quota' in error_msg:
-                                self.logger.error(f"  🚨 检测到配额/频率限制错误!")
-                                
-                    except Exception as parse_error:
-                        self.logger.error(f"  📋 解析错误响应失败: {parse_error}")
-                        self.logger.error(f"  📋 原始响应文本: {response.text[:500]}")
-                    
-                    response.raise_for_status()
-                # 处理流式响应
-                content = self._process_stream_response(response)
-                if not content:
-                    self.logger.info(f"  ❌ API返回空内容")
-                    # 即使空内容也保存调试信息
-                    self._save_api_call_debug(system_prompt, user_prompt, "", purpose, target_provider, model_name, attempt+1)
-                    if attempt < self.config["defaults"]["max_retries"] - 1:
-                        continue
+                            return None
                     else:
                         return None
-                # 保存完整的API调用调试信息（输入+回复）
-                self._save_api_call_debug(system_prompt, user_prompt, content, purpose, target_provider, model_name, attempt+1)
-                cleaned_content = self.clean_api_response(content)
-                self.logger.info(f"  清理后内容长度: {len(cleaned_content)}字符")
-                # 记录请求时间
-                request_time = time.time() - start_time
-                self.request_times.append((purpose, request_time, target_provider))
-                self.logger.info(f"  ⏱️  API调用总耗时: {request_time:.1f}秒")
-                # 基本内容验证
-                if len(cleaned_content) > 10:
-                    self.logger.info(f"  ✓ API响应验证通过")
-                    # 触发API调用扣费回调（每次成功调用都扣费1点）
-                    self._trigger_api_call_callback(purpose, attempt + 1)
-                    return cleaned_content
                 else:
-                    self.logger.info(f"  ❌ 内容过短，准备重试...")
-                    continue
-            except requests.exceptions.Timeout as e:
-                request_time = time.time() - start_time
-                self.logger.error(f"  ⏰ {target_provider.upper()} API超时:")
-                self.logger.error(f"     - 已等待时间: {request_time:.1f}秒")
-                self.logger.error(f"     - 设置超时: {timeout}秒")
-                self.logger.error(f"     - 超时异常: {str(e)}")
+                    return None
+            
+            # 更新频率限制计数器
+            self._update_rate_limit()
+            
+            # 处理流式响应
+            content = self._process_stream_response(response)
+            if not content:
+                self.logger.warning(f"  ⚠️ 端点 {endpoint_name} 返回空内容")
+                return None
+            
+            # 保存调试信息
+            self._save_api_call_debug(system_prompt, user_prompt, content, purpose, endpoint_name, model_name, 1)
+            
+            cleaned_content = self.clean_api_response(content)
+            if len(cleaned_content) > 10:
+                return cleaned_content
+            else:
+                self.logger.warning(f"  ⚠️ 内容过短 ({len(cleaned_content)}字符)")
+                return None
                 
-                if attempt < self.config["defaults"]["max_retries"] - 1:
-                    delay = 30
-                    self.logger.warning(f"  ⏳ 超时重试策略: 等待{delay}秒后进行第{attempt+2}次尝试...")
-                    time.sleep(delay)
-                else:
-                    self.logger.error(f"  💥 所有重试尝试均已超时失败")
-                    
-            except requests.exceptions.RequestException as e:
-                request_time = time.time() - start_time
-                self.logger.error(f"  🌐 {target_provider.upper()} 网络请求异常:")
-                self.logger.error(f"     - 请求时间: {request_time:.1f}秒")
-                self.logger.error(f"     - 异常类型: {type(e).__name__}")
-                self.logger.error(f"     - 异常信息: {str(e)}")
-                
-                # 特殊处理429错误（在异常中）
-                if hasattr(e, 'response') and e.response is not None:
-                    self.logger.error(f"     - HTTP状态码: {e.response.status_code}")
-                    
-                    if e.response.status_code == 429:
-                        self.logger.error(f"  🚨 异常中检测到429错误 - API配额限制!")
-                        wait_time = self._extract_retry_after_from_error(e.response)
-                        if wait_time:
-                            self.logger.error(f"  ⏰ 从异常响应提取等待时间: {wait_time:.1f} 秒")
-                            self.logger.error(f"  💤 开始等待...")
-                            time.sleep(wait_time)
-                            self.logger.error(f"  ✅ 等待结束，立即重试")
-                            continue  # 直接重试，不消耗重试次数
-                        else:
-                            self.logger.error(f"  ❌ 无法从异常响应中提取重试时间")
-                            
-                    # 记录响应内容
-                    try:
-                        error_content = e.response.text
-                        self.logger.error(f"  📋 错误响应内容: {error_content[:500]}...")
-                        
-                        # 检查是否包含rate_limit相关信息
-                        if 'rate' in error_content.lower() or 'limit' in error_content.lower() or 'quota' in error_content.lower():
-                            self.logger.error(f"  🚨 错误响应中包含配额/频率限制信息!")
-                            
-                    except Exception as response_error:
-                        self.logger.error(f"  📋 读取错误响应失败: {response_error}")
-                
-                self._save_api_call_debug(system_prompt, user_prompt, f"网络请求异常: {e}", purpose, target_provider, model_name, attempt+1)
-                
-                if attempt < self.config["defaults"]["max_retries"] - 1:
-                    delay = 30
-                    self.logger.warning(f"  ⏳ 网络异常重试策略: 等待{delay}秒后进行第{attempt+2}次尝试...")
-                    time.sleep(delay)
-                else:
-                    self.logger.error(f"  💥 所有重试尝试均因网络异常失败")
-                    
-            except Exception as e:
-                request_time = time.time() - start_time
-                self.logger.error(f"  ❌ {target_provider.upper()} API调用发生未知异常:")
-                self.logger.error(f"     - 请求时间: {request_time:.1f}秒")
-                self.logger.error(f"     - 异常类型: {type(e).__name__}")
-                self.logger.error(f"     - 异常信息: {str(e)}")
-                
-                # 记录完整的堆栈跟踪
-                import traceback
-                self.logger.error(f"  📋 堆栈跟踪:")
-                for line in traceback.format_exc().split('\n'):
-                    if line.strip():
-                        self.logger.error(f"     {line}")
-                
-                self._save_api_call_debug(system_prompt, user_prompt, f"API调用失败: {e}", purpose, target_provider, model_name, attempt+1)
-                
-                if attempt < self.config["defaults"]["max_retries"] - 1:
-                    delay = 30
-                    self.logger.warning(f"  ⏳ 未知异常重试策略: 等待{delay}秒后进行第{attempt+2}次尝试...")
-                    time.sleep(delay)
-                else:
-                    self.logger.error(f"  💥 所有重试尝试均因未知异常失败")
-        self.logger.info(f"  💥 {target_provider.upper()} API所有重试均失败，目的: {purpose}")
+        except requests.exceptions.Timeout:
+            elapsed = time.time() - start_time
+            self.logger.error(f"  ⏰ 端点 {endpoint_name} 超时 (已等待{elapsed:.1f}s)")
+            return None
+        except requests.exceptions.RequestException as e:
+            self.logger.error(f"  🌐 端点 {endpoint_name} 请求异常: {e}")
+            return None
+        except Exception as e:
+            self.logger.error(f"  ❌ 端点 {endpoint_name} 未知异常: {e}")
+            return None
+
+    def call_api(self, system_prompt: str, user_prompt: str,
+                temperature: Optional[float] = None, purpose: str = "未知",
+                provider: Optional[str] = None, model_name: Optional[str] = None) -> Optional[str]:
+        """
+        API调用 - 支持多端点故障转移
+        
+        优先使用端点池中的高优先级端点，失败时自动切换到备用端点
+        """
+        # 最高优先级：在发送给AI之前，将网站风格适配文本添加到system_prompt的最前面
+        if self.website_style_enabled and self.website_style_text:
+            system_prompt = self.website_style_text + "\n\n" + system_prompt
+        
+        target_provider = provider if provider else self.default_provider
+        user_str = self._get_username_str()
+        
+        # 检查频率限制
+        self._check_rate_limit()
+        
+        # 获取端点池
+        pool = self.endpoint_pools.get(target_provider)
+        if not pool:
+            self.logger.error(f"❌ 没有找到 {target_provider} 的端点池")
+            return None
+        
+        # 获取可用端点
+        available_endpoints = pool.get_available_endpoints()
+        if not available_endpoints:
+            self.logger.error(f"❌ {target_provider} 没有可用的API端点")
+            return None
+        
+        self.logger.info(f"{user_str}🚀 开始API调用 [提供商:{target_provider}] 目的:{purpose}")
+        self.logger.info(f"   可用端点: {[ep.name for ep in available_endpoints]}")
+        
+        # 遍历所有可用端点进行尝试
+        tried_endpoints = []
+        
+        for endpoint in available_endpoints:
+            tried_endpoints.append(endpoint.name)
+            self.logger.info(f"   尝试端点: {endpoint.name} (优先级:{endpoint.priority})")
+            
+            # 获取端点配置
+            endpoint_config = endpoint.get_config()
+            
+            # 如果指定了自定义模型名称，覆盖端点配置中的模型
+            if model_name:
+                endpoint_config["model"] = model_name
+            
+            # 获取温度和最大token
+            temp = temperature or self.config.get("defaults", {}).get("temperature", 0.7)
+            max_tokens = self.config.get("defaults", {}).get("max_tokens", 60000)
+            timeout = endpoint.timeout
+            
+            # 尝试调用
+            result = self._call_single_endpoint(
+                endpoint_config=endpoint_config,
+                system_prompt=system_prompt,
+                user_prompt=user_prompt,
+                temperature=temp,
+                max_tokens=max_tokens,
+                timeout=timeout,
+                purpose=purpose
+            )
+            
+            if result:
+                # 成功，记录并返回
+                endpoint.record_success(time.time())  # 简化处理，实际应该在_call_single_endpoint中传递时间
+                self.logger.info(f"   ✅ 端点 {endpoint.name} 调用成功")
+                self._trigger_api_call_callback(purpose, 1)
+                return result
+            else:
+                # 失败，记录失败
+                endpoint.record_failure("call_failed")
+                self.logger.warning(f"   ⚠️ 端点 {endpoint.name} 调用失败，尝试下一个...")
+        
+        # 所有端点都失败
+        self.logger.error(f"💥 所有端点均失败，已尝试: {tried_endpoints}")
         return None
     def _extract_retry_after_from_error(self, response) -> Optional[float]:
         """从错误响应中提取重试等待时间"""
@@ -1022,28 +1086,90 @@ User Prompt: {len(original_user)} → {len(optimized_data.get('optimized_user_pr
         """列出所有已优化的提示词"""
         return list(self.optimized_prompts.keys())
     def get_available_providers(self) -> List[str]:
-        """获取可用的AI服务提供商列表"""
-        return self.available_providers.copy()
+        """获取可用的AI服务提供商列表（基于端点池）"""
+        return self._get_available_providers()
+    
     def is_provider_available(self, provider: str) -> bool:
         """检查特定提供商是否可用"""
-        return provider in self.available_providers
+        pool = self.endpoint_pools.get(provider)
+        if pool:
+            return len(pool.get_available_endpoints()) > 0
+        return False
+    
     def get_default_provider(self) -> str:
         """获取默认的提供商"""
         return self.default_provider
+    
     def set_default_provider(self, provider: str) -> bool:
         """设置默认提供商"""
-        if provider in self.available_providers:
+        if self.is_provider_available(provider):
             self.default_provider = provider
             self.logger.info(f"✓ 默认提供商已设置为: {provider.upper()}")
             return True
         else:
             self.logger.info(f"❌ {provider.upper()} 不可用，无法设置为默认")
             return False
+    
     def get_current_model(self, provider: Optional[str] = None) -> str:
-        """获取当前使用的模型"""
+        """获取当前使用的模型（优先端点池）"""
         target_provider = provider if provider else self.default_provider
+        pool = self.endpoint_pools.get(target_provider)
+        if pool:
+            endpoint = pool.get_next_endpoint()
+            if endpoint:
+                return endpoint.model
+        # 向后兼容
         config = self._get_provider_config(target_provider)
         return config.get("model", "未知")
+    
+    # ========== API端点池管理方法 ==========
+    
+    def get_endpoint_pool_stats(self, provider: Optional[str] = None) -> Dict[str, Any]:
+        """
+        获取端点池统计信息
+        
+        Args:
+            provider: 提供商名称，None则返回所有提供商
+        """
+        if provider:
+            pool = self.endpoint_pools.get(provider)
+            if pool:
+                return {provider: pool.get_pool_stats()}
+            return {}
+        else:
+            return {p: pool.get_pool_stats() for p, pool in self.endpoint_pools.items()}
+    
+    def reset_endpoint(self, provider: str, endpoint_name: str) -> bool:
+        """手动重置端点状态"""
+        pool = self.endpoint_pools.get(provider)
+        if pool:
+            return pool.reset_endpoint(endpoint_name)
+        return False
+    
+    def disable_endpoint(self, provider: str, endpoint_name: str) -> bool:
+        """禁用指定端点"""
+        pool = self.endpoint_pools.get(provider)
+        if pool:
+            return pool.disable_endpoint(endpoint_name)
+        return False
+    
+    def enable_endpoint(self, provider: str, endpoint_name: str) -> bool:
+        """启用指定端点"""
+        pool = self.endpoint_pools.get(provider)
+        if pool:
+            return pool.enable_endpoint(endpoint_name)
+        return False
+    
+    def refresh_endpoint_pools(self):
+        """刷新端点池状态（将不健康端点恢复为降级状态，允许重试）"""
+        for provider, pool in self.endpoint_pools.items():
+            for ep in pool.endpoints:
+                if ep.status.value == "unhealthy":
+                    # 如果已经过了冷却期，自动恢复
+                    if ep.last_failure_time and (time.time() - ep.last_failure_time) > 300:
+                        ep.status = pool.endpoint_pool.EndpointStatus.DEGRADED
+                        ep.consecutive_failures = 0
+                        self.logger.info(f"自动恢复端点 {provider}/{ep.name} 为降级状态")
     def repair_json_with_ai(self, broken_json: str, original_purpose: str) -> Optional[Any]:
         """使用AI修复破损的JSON"""
         self.logger.info("  🛠️ 尝试使用AI修复破损的JSON...")

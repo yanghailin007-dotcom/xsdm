@@ -21,8 +21,56 @@ from src.utils.logger import get_logger
 
 CONFIG = {
     # 默认提供商配置
-    "default_provider": "gemini",  # 默认使用deepseek
+    "default_provider": "gemini",  # 默认使用gemini
 
+    # ============================================================
+    # 🔥 新的多API端点池配置（推荐）- 支持故障转移和优先级调度
+    # ============================================================
+    # 测试结果: 2026-03-08
+    # - Lemon API (new.lemonapi.site) 测试通过 ✅
+    # - [L]gemini-3.1-pro-preview: 测试通过，响应时间~10s（冷启动）
+    # - 注意: Lemon API 模型名称需要 [L] 前缀
+    # - 建议超时设置: 300秒（5分钟）以应对冷启动
+    "api_endpoints": {
+        "gemini": [
+            {
+                "name": "lemon-api",           # 主端点：Lemon API
+                "api_url": "https://new.lemonapi.site/v1",
+                "api_key": os.getenv('LEMON_API_KEY', 'sk-n7M8j3un3p4QBfKNHxYDVmnhZELU4eicBrhBDsZEu23h3uXg'),
+                "model": "[L]gemini-3.1-pro-preview",  # 3.1 模型（测试通过）
+                "priority": 1,                 # 优先级最高
+                "enabled": True,
+                "timeout": 300,                # 5分钟超时（3.1模型冷启动需要~10s）
+                "max_retries": 3
+            },
+            {
+                "name": "xiaochuang-backup",   # 备用端点：小创 API
+                "api_url": "https://newapi.xiaochuang.cc/v1/chat/completions",
+                "api_key": os.getenv('GEMINI_API_KEY', 'sk-zQHbJRdcVeNKX2ZqR18AMj5qutH4lDCZSmgE7WPP3aBdDdbw'),
+                "model": "gemini-3-pro-preview",  # 小创 API 不需要前缀
+                "priority": 2,                 # 备用优先级
+                "enabled": True,
+                "timeout": 120,
+                "max_retries": 3
+            }
+        ],
+        "deepseek": [
+            {
+                "name": "deepseek-official",
+                "api_url": "https://api.deepseek.com/v1/chat/completions",
+                "api_key": os.getenv('DEEPSEEK_API_KEY', 'sk-1342f04c85c5452ab46c673aa1a12c0b'),
+                "model": "deepseek-reasoner",
+                "priority": 1,
+                "enabled": True,
+                "timeout": 120,
+                "max_retries": 3
+            }
+        ]
+    },
+
+    # ============================================================
+    # 旧的单API配置（向后兼容 - 未配置api_endpoints时使用）
+    # ============================================================
     "api_keys": {
         "deepseek": os.getenv('DEEPSEEK_API_KEY', 'sk-1342f04c85c5452ab46c673aa1a12c0b'),
         "yuanbao": os.getenv('DEEPSEEK_API_KEY', 'sk-1342f04c85c5452ab46c673aa1a12c0b'),
@@ -31,16 +79,12 @@ CONFIG = {
     "api_urls": {
         "deepseek": "https://api.deepseek.com/v1/chat/completions",
         "yuanbao": "https://api.deepseek.com/v1/chat/completions",
-        #"gemini": "https://metamrb.zenymes.com/v1/chat/completions"
         "gemini": "https://newapi.xiaochuang.cc/v1/chat/completions"
-        #"gemini": "https://api.mttieeo.com/v1/chat/completions"
     },
     "models": {
         "deepseek": "deepseek-reasoner",
         "yuanbao": "deepseek-reasoner",
-        #"gemini": "gemini-2.5-pro"
         "gemini": "gemini-3-pro-preview"
-        #"gemini": "[渠道1]gemini-3-pro-preview"
     },
     # 分层模型配置 - 用于降低成本（保留关键任务用3.0）
     "model_routing": {
