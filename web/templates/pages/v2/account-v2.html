@@ -356,8 +356,8 @@
 
     <!-- 页面标题 -->
     <div class="v2-page-header">
-        <h1 class="v2-page-title">账户设置</h1>
-        <p class="v2-page-subtitle">管理你的账户信息和安全设置</p>
+        <h1 class="v2-page-title" data-i18n="account.title">账户设置</h1>
+        <p class="v2-page-subtitle" data-i18n="account.subtitle">管理你的账户信息和安全设置</p>
     </div>
 
     <!-- 内容区域 -->
@@ -366,20 +366,20 @@
         <div class="v2-account-card">
             <div class="v2-card-header">
                 <div class="v2-card-icon v2-card-icon--blue">👤</div>
-                <h2 class="v2-card-title">基本信息</h2>
+                <h2 class="v2-card-title" data-i18n="account.basicInfo.title">基本信息</h2>
             </div>
             
             <div class="v2-info-list">
                 <div class="v2-info-item">
-                    <span class="v2-info-label">用户名</span>
+                    <span class="v2-info-label" data-i18n="account.basicInfo.username">用户名</span>
                     <span class="v2-info-value" id="currentUsername">加载中...</span>
                 </div>
                 <div class="v2-info-item">
-                    <span class="v2-info-label">用户ID</span>
+                    <span class="v2-info-label" data-i18n="account.basicInfo.userId">用户ID</span>
                     <span class="v2-info-value" id="currentUserId">-</span>
                 </div>
                 <div class="v2-info-item">
-                    <span class="v2-info-label">账户状态</span>
+                    <span class="v2-info-label" data-i18n="account.basicInfo.status">账户状态</span>
                     <span class="v2-info-value" style="color: var(--v2-success);">✓ 正常</span>
                 </div>
             </div>
@@ -389,7 +389,7 @@
         <div class="v2-account-card">
             <div class="v2-card-header">
                 <div class="v2-card-icon v2-card-icon--purple">🔐</div>
-                <h2 class="v2-card-title">修改密码</h2>
+                <h2 class="v2-card-title" data-i18n="account.changePassword.title">修改密码</h2>
             </div>
             
             <!-- 消息提示 -->
@@ -397,38 +397,38 @@
             
             <form id="changePasswordForm" class="v2-form">
                 <div class="v2-form-group">
-                    <label class="v2-form-label">当前密码</label>
+                    <label class="v2-form-label" data-i18n="account.changePassword.current">当前密码</label>
                     <input 
                         type="password" 
                         class="v2-form-input" 
                         id="currentPassword" 
                         required 
-                        placeholder="请输入当前密码">
+                        data-i18n-placeholder="account.changePassword.currentPlaceholder" placeholder="请输入当前密码">
                 </div>
                 
                 <div class="v2-form-group">
-                    <label class="v2-form-label">新密码</label>
+                    <label class="v2-form-label" data-i18n="account.changePassword.new">新密码</label>
                     <input 
                         type="password" 
                         class="v2-form-input" 
                         id="newPassword" 
                         required 
                         minlength="6"
-                        placeholder="请输入新密码（至少6个字符）">
+                        data-i18n-placeholder="account.changePassword.newPlaceholder" placeholder="请输入新密码（至少6个字符）">
                 </div>
                 
                 <div class="v2-form-group">
-                    <label class="v2-form-label">确认新密码</label>
+                    <label class="v2-form-label" data-i18n="account.changePassword.confirm">确认新密码</label>
                     <input 
                         type="password" 
                         class="v2-form-input" 
                         id="confirmPassword" 
                         required 
-                        placeholder="请再次输入新密码">
+                        data-i18n-placeholder="account.changePassword.confirmPlaceholder" placeholder="请再次输入新密码">
                 </div>
                 
                 <button type="submit" class="v2-btn v2-btn--primary" id="changePasswordBtn" style="align-self: flex-start;">
-                    <span>修改密码</span>
+                    <span data-i18n="account.changePassword.btn">修改密码</span>
                     <div id="passwordSpinner" class="v2-loading-spinner" style="display: none;"></div>
                 </button>
             </form>
@@ -438,16 +438,16 @@
         <div class="v2-account-card v2-account-card--danger">
             <div class="v2-card-header">
                 <div class="v2-card-icon v2-card-icon--red">⚠️</div>
-                <h2 class="v2-card-title">危险区域</h2>
+                <h2 class="v2-card-title" data-i18n="account.dangerZone.title">危险区域</span>
             </div>
             
             <div class="v2-info-list">
                 <div class="v2-info-item">
                     <div>
-                        <div style="font-size: var(--v2-text-sm); font-weight: var(--v2-font-medium); color: var(--v2-text-primary); margin-bottom: var(--v2-space-1);">
+                        <div style="font-size: var(--v2-text-sm); font-weight: var(--v2-font-medium); color: var(--v2-text-primary); margin-bottom: var(--v2-space-1);" data-i18n="account.dangerZone.logout.title">
                             退出登录
                         </div>
-                        <div style="font-size: var(--v2-text-xs); color: var(--v2-text-tertiary);">
+                        <div style="font-size: var(--v2-text-xs); color: var(--v2-text-tertiary);" data-i18n="account.dangerZone.logout.desc">
                             退出当前账户并返回登录页
                         </div>
                     </div>

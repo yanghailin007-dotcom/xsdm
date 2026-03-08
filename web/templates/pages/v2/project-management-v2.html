@@ -352,10 +352,10 @@
     <div class="v2-page-header">
         <div class="v2-page-header__badge">
             <span>🗂️</span>
-            <span>项目管理中心</span>
+            <span data-i18n="projectMgmt.badge">项目管理中心</span>
         </div>
-        <h1 class="v2-page-header__title">管理您的小说项目</h1>
-        <p class="v2-page-header__subtitle">统一管理两阶段生成的小说项目，查看进度和进行后续操作</p>
+        <h1 class="v2-page-header__title" data-i18n="projectMgmt.title">管理您的小说项目</h1>
+        <p class="v2-page-header__subtitle" data-i18n="projectMgmt.subtitle">统一管理两阶段生成的小说项目，查看进度和进行后续操作</p>
     </div>
 
     <!-- 统计概览 -->
@@ -363,22 +363,22 @@
         <div class="v2-stat-card">
             <div class="v2-stat-card__icon">📚</div>
             <div class="v2-stat-card__value" id="total-projects">-</div>
-            <div class="v2-stat-card__label">总项目数</div>
+            <div class="v2-stat-card__label" data-i18n="projectMgmt.stat.totalProjects">总项目数</div>
         </div>
         <div class="v2-stat-card">
             <div class="v2-stat-card__icon">✅</div>
             <div class="v2-stat-card__value" id="completed-projects">-</div>
-            <div class="v2-stat-card__label">已完成</div>
+            <div class="v2-stat-card__label" data-i18n="projectMgmt.stat.completed">已完成</div>
         </div>
         <div class="v2-stat-card">
             <div class="v2-stat-card__icon">🔄</div>
             <div class="v2-stat-card__value" id="active-projects">-</div>
-            <div class="v2-stat-card__label">进行中</div>
+            <div class="v2-stat-card__label" data-i18n="projectMgmt.stat.inProgress">进行中</div>
         </div>
         <div class="v2-stat-card">
             <div class="v2-stat-card__icon">📝</div>
             <div class="v2-stat-card__value" id="total-chapters">-</div>
-            <div class="v2-stat-card__label">总章节数</div>
+            <div class="v2-stat-card__label" data-i18n="projectMgmt.stat.totalChapters">总章节数</div>
         </div>
     </div>
 
@@ -405,16 +405,16 @@
                 <option value="title">标题排序</option>
                 <option value="progress">进度排序</option>
             </select>
-            <input type="text" class="v2-filter-input" id="search-filter" placeholder="搜索项目..." oninput="filterProjects()">
+            <input type="text" class="v2-filter-input" id="search-filter" data-i18n-placeholder="projectMgmt.searchPlaceholder" placeholder="搜索项目..." oninput="filterProjects()">
         </div>
         <div class="v2-action-buttons">
             <button class="v2-btn v2-btn--secondary" onclick="refreshProjects()">
                 <span>🔄</span>
-                <span>刷新</span>
+                <span data-i18n="common.refresh">刷新</span>
             </button>
             <button class="v2-btn v2-btn--primary" onclick="location.href='/phase-one-setup'">
                 <span>➕</span>
-                <span>新建项目</span>
+                <span data-i18n="common.newProject">新建项目</span>
             </button>
         </div>
     </div>
@@ -426,7 +426,7 @@
     <div id="projects-container">
         <div class="v2-loading">
             <div class="v2-spinner"></div>
-            <p style="color: var(--v2-text-secondary);">加载项目中...</p>
+            <p style="color: var(--v2-text-secondary);" data-i18n="common.loadingProjects">加载项目中...</p>
         </div>
     </div>
 </div>

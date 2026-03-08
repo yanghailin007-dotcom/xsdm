@@ -966,49 +966,49 @@
     <main class="main-content">
         <!-- 页面标题 -->
         <div class="page-header">
-            <h1>📚 我的创作作品</h1>
-            <p>管理和浏览您所有的AI小说创作项目</p>
+            <h1 data-i18n="novels.title">📚 我的创作作品</h1>
+            <p data-i18n="novels.subtitle">管理和浏览您所有的AI小说创作项目</p>
         </div>
 
         <!-- 统计信息 -->
         <div class="stats-row" id="stats-row">
             <div class="stat-card">
                 <div class="stat-value" id="total-novels">-</div>
-                <div class="stat-label">创作项目</div>
+                <div class="stat-label" data-i18n="novels.stat.projects">创作项目</div>
             </div>
             <div class="stat-card">
                 <div class="stat-value" id="total-chapters">-</div>
-                <div class="stat-label">总章节数</div>
+                <div class="stat-label" data-i18n="novels.stat.chapters">总章节数</div>
             </div>
             <div class="stat-card">
                 <div class="stat-value" id="total-words">-</div>
-                <div class="stat-label">总字数</div>
+                <div class="stat-label" data-i18n="novels.stat.words">总字数</div>
             </div>
             <div class="stat-card">
                 <div class="stat-value" id="completed-novels">-</div>
-                <div class="stat-label">已完成</div>
+                <div class="stat-label" data-i18n="novels.stat.completed">已完成</div>
             </div>
         </div>
 
         <!-- 筛选区域 -->
         <div class="filters-section">
             <div class="filters-header">
-                <div class="filters-title">筛选和搜索</div>
+                <div class="filters-title" data-i18n="novels.filters.title">筛选和搜索</div>
                 <div class="view-controls">
-                    <button class="view-btn active" onclick="setViewMode('grid')">📱 网格</button>
-                    <button class="view-btn" onclick="setViewMode('list')">📋 列表</button>
+                    <button class="view-btn active" onclick="setViewMode('grid')">📱 <span data-i18n="novels.view.grid">网格</span></button>
+                    <button class="view-btn" onclick="setViewMode('list')">📋 <span data-i18n="novels.view.list">列表</span></button>
                 </div>
             </div>
             
             <div class="search-box">
-                <input type="text" placeholder="搜索小说标题、简介或设定..." id="search-input" oninput="filterNovels()">
+                <input type="text" data-i18n-placeholder="novels.searchPlaceholder" placeholder="搜索小说标题、简介或设定..." id="search-input" oninput="filterNovels()">
             </div>
             
             <div class="filter-tags">
-                <div class="filter-tag active" data-filter="all" onclick="setFilter('all')">全部</div>
-                <div class="filter-tag" data-filter="completed" onclick="setFilter('completed')">已完成</div>
-                <div class="filter-tag" data-filter="generating" onclick="setFilter('generating')">生成中</div>
-                <div class="filter-tag" data-filter="paused" onclick="setFilter('paused')">已暂停</div>
+                <div class="filter-tag active" data-filter="all" onclick="setFilter('all')" data-i18n="novels.filter.all">全部</div>
+                <div class="filter-tag" data-filter="completed" onclick="setFilter('completed')" data-i18n="novels.filter.completed">已完成</div>
+                <div class="filter-tag" data-filter="generating" onclick="setFilter('generating')" data-i18n="novels.filter.generating">生成中</div>
+                <div class="filter-tag" data-filter="paused" onclick="setFilter('paused')" data-i18n="novels.filter.paused">已暂停</div>
             </div>
         </div>
 
@@ -1023,11 +1023,11 @@
         <!-- 空状态 -->
         <div class="empty-state" id="empty-state" style="display: none;">
             <div class="empty-icon">📝</div>
-            <div class="empty-title">还没有创作作品</div>
-            <div class="empty-description">
+            <div class="empty-title" data-i18n="novels.empty.title">还没有创作作品</div>
+            <div class="empty-description" data-i18n="novels.empty.desc">
                 开始您的第一个AI小说创作之旅吧！点击上方"新建创作"按钮开始。
             </div>
-            <a href="/" class="nav-btn primary">🚀 开始创作</a>
+            <a href="/" class="nav-btn primary">🚀 <span data-i18n="novels.empty.start">开始创作</span></a>
         </div>
     </main>
 {% endblock %}

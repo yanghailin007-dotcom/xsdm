@@ -37,29 +37,29 @@
         <!-- Badge -->
         <div class="v2-hero__badge">
             <span class="v2-hero__badge-dot"></span>
-            <span>欢迎回来，{{ session.username }}</span>
+            <span data-i18n="workspace.welcome" data-i18n-params="{username: '{{ session.username }}'}">欢迎回来，{{ session.username }}</span>
         </div>
         
         <!-- 标题 -->
         <h1 class="v2-hero__title">
-            <span class="v2-gradient-text">开始你的创作之旅</span>
+            <span class="v2-gradient-text" data-i18n="workspace.title">开始你的创作之旅</span>
         </h1>
         
-        <p class="v2-hero__subtitle">选择一个工具，让 AI 助你实现创意</p>
+        <p class="v2-hero__subtitle" data-i18n="workspace.subtitle">选择一个工具，让 AI 助你实现创意</p>
         
         <!-- 快捷统计 -->
         <div class="v2-hero__stats">
             <div class="v2-hero-stat">
                 <div class="v2-hero-stat__value">{{ project_count or 1 }}</div>
-                <div class="v2-hero-stat__label">创作项目</div>
+                <div class="v2-hero-stat__label" data-i18n="workspace.stat.projects">创作项目</div>
             </div>
             <div class="v2-hero-stat">
                 <div class="v2-hero-stat__value">{{ chapter_count or 14 }}</div>
-                <div class="v2-hero-stat__label">生成章节</div>
+                <div class="v2-hero-stat__label" data-i18n="workspace.stat.chapters">生成章节</div>
             </div>
             <div class="v2-hero-stat">
                 <div class="v2-hero-stat__value">{{ points or 88 }}</div>
-                <div class="v2-hero-stat__label">创造点</div>
+                <div class="v2-hero-stat__label" data-i18n="workspace.stat.points">创造点</div>
             </div>
         </div>
     </div>
@@ -68,23 +68,22 @@
 <!-- 快速操作 -->
 <section class="v2-features" id="features">
     <div class="v2-section-header">
-        <div class="v2-section__label">Quick Actions</div>
-        <h2 class="v2-section__title">快速开始</h2>
+        <div class="v2-section__label" data-i18n="workspace.quickActions.label">Quick Actions</div>
+        <h2 class="v2-section__title" data-i18n="workspace.quickActions.title">快速开始</h2>
     </div>
     
     <div class="v2-features__grid">
         <!-- 两阶段生成 -->
         <a href="/phase-one-setup" class="v2-card v2-card--gradient">
             <div class="v2-card__icon v2-card__icon--purple">🎨</div>
-            <h3 class="v2-card__title">两阶段生成</h3>
-            <p class="v2-card__desc">
+            <h3 class="v2-card__title" data-i18n="workspace.card.twoPhase.title">两阶段生成</h3>
+            <p class="v2-card__desc" data-i18n="workspace.card.twoPhase.desc">
                 从设定到内容，AI 全流程辅助创作。先生成世界观设定，再批量生成章节。
             </p>
             <div class="v2-card__footer">
-                <span style="color: var(--v2-text-tertiary);">智能设定 · 批量生成</span>
-                <span class="v2-card__link">
-                    开始
-                    <span>→</span>
+                <span style="color: var(--v2-text-tertiary);" data-i18n="workspace.card.twoPhase.tag">智能设定 · 批量生成</span>
+                <span class="v2-card__link" data-i18n="workspace.card.start">
+                    开始 →
                 </span>
             </div>
         </a>
@@ -92,15 +91,14 @@
         <!-- 项目管理 -->
         <a href="/project-management" class="v2-card v2-card--gradient">
             <div class="v2-card__icon v2-card__icon--green">📁</div>
-            <h3 class="v2-card__title">项目管理</h3>
-            <p class="v2-card__desc">
+            <h3 class="v2-card__title" data-i18n="workspace.card.projectMgmt.title">项目管理</h3>
+            <p class="v2-card__desc" data-i18n="workspace.card.projectMgmt.desc">
                 管理所有小说项目，查看进度、继续生成、导出作品。支持多项目并行管理。
             </p>
             <div class="v2-card__footer">
-                <span style="color: var(--v2-text-tertiary);">查看进度 · 继续创作</span>
-                <span class="v2-card__link">
-                    进入
-                    <span>→</span>
+                <span style="color: var(--v2-text-tertiary);" data-i18n="workspace.card.projectMgmt.tag">查看进度 · 继续创作</span>
+                <span class="v2-card__link" data-i18n="workspace.card.enter">
+                    进入 →
                 </span>
             </div>
         </a>
@@ -108,15 +106,14 @@
         <!-- 创意库 -->
         <a href="/home" class="v2-card v2-card--gradient">
             <div class="v2-card__icon v2-card__icon--pink">✨</div>
-            <h3 class="v2-card__title">创意库</h3>
-            <p class="v2-card__desc">
+            <h3 class="v2-card__title" data-i18n="workspace.card.creativeLib.title">创意库</h3>
+            <p class="v2-card__desc" data-i18n="workspace.card.creativeLib.desc">
                 从预设创意中选择灵感，快速启动创作。多种题材模板任你选择。
             </p>
             <div class="v2-card__footer">
-                <span style="color: var(--v2-text-tertiary);">12 个创意模板</span>
-                <span class="v2-card__link">
-                    浏览
-                    <span>→</span>
+                <span style="color: var(--v2-text-tertiary);" data-i18n="workspace.card.creativeLib.tag">12 个创意模板</span>
+                <span class="v2-card__link" data-i18n="workspace.card.browse">
+                    浏览 →
                 </span>
             </div>
         </a>
@@ -124,15 +121,14 @@
         <!-- 查看作品 -->
         <a href="/novels" class="v2-card v2-card--gradient">
             <div class="v2-card__icon v2-card__icon--orange">📚</div>
-            <h3 class="v2-card__title">查看作品</h3>
-            <p class="v2-card__desc">
+            <h3 class="v2-card__title" data-i18n="workspace.card.viewWorks.title">查看作品</h3>
+            <p class="v2-card__desc" data-i18n="workspace.card.viewWorks.desc">
                 浏览和管理已创作的小说章节，支持在线阅读、编辑和导出。
             </p>
             <div class="v2-card__footer">
-                <span style="color: var(--v2-text-tertiary);">在线阅读 · 编辑导出</span>
-                <span class="v2-card__link">
-                    查看
-                    <span>→</span>
+                <span style="color: var(--v2-text-tertiary);" data-i18n="workspace.card.viewWorks.tag">在线阅读 · 编辑导出</span>
+                <span class="v2-card__link" data-i18n="workspace.card.view">
+                    查看 →
                 </span>
             </div>
         </a>
