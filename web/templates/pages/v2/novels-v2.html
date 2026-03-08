@@ -502,9 +502,10 @@
         /* 小说网格 */
         .novels-grid {
             display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
+            grid-template-columns: repeat(auto-fill, minmax(380px, 1fr));
             gap: 1.5rem;
             animation: fadeIn 0.8s ease-out;
+            align-items: stretch;
         }
 
         @keyframes fadeIn {
@@ -516,7 +517,7 @@
             grid-template-columns: 1fr;
         }
 
-        /* 小说卡片 */
+        /* 小说卡片 - 使用flex布局确保对齐 */
         .novel-card {
             background: rgba(30, 41, 59, 0.6);
             backdrop-filter: blur(20px);
@@ -525,6 +526,9 @@
             overflow: hidden;
             transition: all 0.3s;
             position: relative;
+            display: flex;
+            flex-direction: column;
+            height: 100%;
         }
 
         .novel-card::before {
@@ -553,6 +557,7 @@
             padding: 1.5rem;
             border-bottom: 1px solid rgba(255, 255, 255, 0.05);
             position: relative;
+            flex-shrink: 0;
         }
 
         .novel-title {
@@ -1170,19 +1175,9 @@
                             <button class="novel-btn novel-btn-secondary" onclick="continueNovel('${escapeHtml(novel.title)}')">
                                 ➕ 续写
                             </button>
-                            <div class="export-dropdown" style="position: relative; display: inline-block;">
-                                <button class="novel-btn novel-btn-secondary" onclick="toggleExportMenu('${escapeHtml(novel.title)}')">
-                                    📥 导出 ▼
-                                </button>
-                                <div class="export-menu" id="export-menu-${escapeHtml(novel.title)}" style="display: none; position: absolute; right: 0; top: 100%; margin-top: 4px; background: var(--v2-bg-secondary); border: 1px solid var(--v2-border-default); border-radius: 8px; padding: 8px; min-width: 140px; z-index: 100; box-shadow: 0 4px 12px rgba(0,0,0,0.3);">
-                                    <button class="export-option" onclick="exportNovelTxt('${escapeHtml(novel.title)}')" style="display: block; width: 100%; padding: 8px 12px; text-align: left; background: none; border: none; color: var(--v2-text-primary); cursor: pointer; border-radius: 4px; font-size: 14px;">
-                                        📝 导出 TXT
-                                    </button>
-                                    <button class="export-option" onclick="exportNovelZip('${escapeHtml(novel.title)}')" style="display: block; width: 100%; padding: 8px 12px; text-align: left; background: none; border: none; color: var(--v2-text-primary); cursor: pointer; border-radius: 4px; font-size: 14px; margin-top: 4px;">
-                                        📦 打包 ZIP
-                                    </button>
-                                </div>
-                            </div>
+                            <button class="novel-btn novel-btn-secondary" onclick="exportNovel('${escapeHtml(novel.title)}')">
+                                📥 导出
+                            </button>
                         </div>
                     </div>
                 </div>
@@ -1441,42 +1436,8 @@
             alert(message);
         }
 
-        let currentOpenMenu = null;
-
-        function toggleExportMenu(title) {
-            const menuId = `export-menu-${title}`;
-            const menu = document.getElementById(menuId);
-            
-            // 关闭其他打开的菜单
-            if (currentOpenMenu && currentOpenMenu !== menu) {
-                currentOpenMenu.style.display = 'none';
-            }
-            
-            // 切换当前菜单
-            if (menu.style.display === 'none') {
-                menu.style.display = 'block';
-                currentOpenMenu = menu;
-            } else {
-                menu.style.display = 'none';
-                currentOpenMenu = null;
-            }
-        }
-
-        // 点击页面其他地方关闭菜单
-        document.addEventListener('click', function(e) {
-            if (!e.target.closest('.export-dropdown')) {
-                document.querySelectorAll('.export-menu').forEach(menu => {
-                    menu.style.display = 'none';
-                });
-                currentOpenMenu = null;
-            }
-        });
-
-        function exportNovelTxt(title) {
-            window.open(`/api/export-novel?title=${encodeURIComponent(title)}&format=txt`, '_blank');
-        }
-
-        function exportNovelZip(title) {
+        function exportNovel(title) {
+            // 直接下载ZIP打包文件
             window.open(`/api/export/novel-zip/${encodeURIComponent(title)}`, '_blank');
         }
 

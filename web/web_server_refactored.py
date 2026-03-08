@@ -64,6 +64,7 @@ from web.api.short_drama_api import register_short_drama_routes
 from web.api.script_quality_check import register_script_quality_routes
 from web.api.tts_api import register_tts_routes
 from web.api.points_api import points_api
+from web.api.export_api import export_api
 
 # 导入页面路由模块
 from web.routes.auth_routes import register_auth_routes, register_page_routes
@@ -331,6 +332,10 @@ def create_app():
     # 21. 支付系统 API 路由
     from web.api.payment_api import payment_api
     app.register_blueprint(payment_api)
+
+    # 22. 导出功能 API 路由
+    app.register_blueprint(export_api)
+    logger.info("✅ export_api 导出功能已注册")
 
     # 🔥 同步预初始化 NovelGenerator（确保服务器启动时完成）
     logger.info("🔄 开始预初始化 NovelGenerator...")
