@@ -502,10 +502,10 @@
         /* 小说网格 */
         .novels-grid {
             display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(380px, 1fr));
+            grid-template-columns: repeat(auto-fill, minmax(360px, 1fr));
             gap: 1.5rem;
             animation: fadeIn 0.8s ease-out;
-            align-items: stretch;
+            align-items: start;
         }
 
         @keyframes fadeIn {
@@ -528,7 +528,6 @@
             position: relative;
             display: flex;
             flex-direction: column;
-            height: 100%;
         }
 
         .novel-card::before {
@@ -610,6 +609,10 @@
 
         .novel-body {
             padding: 1.25rem 1.5rem;
+            display: flex;
+            flex-direction: column;
+            flex: 1;
+            min-height: 200px;
         }
 
         .novel-description {
@@ -621,6 +624,15 @@
             -webkit-line-clamp: 3;
             -webkit-box-orient: vertical;
             overflow: hidden;
+            min-height: calc(1.6em * 3);
+        }
+
+        /* 空简介时的占位样式 */
+        .novel-description:empty::before,
+        .novel-description[data-empty="true"]::before {
+            content: '暂无简介';
+            color: var(--text-muted);
+            font-style: italic;
         }
 
         .novel-progress {
@@ -678,6 +690,7 @@
         .novel-actions {
             display: flex;
             gap: 0.5rem;
+            margin-top: auto;
         }
 
         .novel-btn {
