@@ -702,6 +702,17 @@ class NovelGenerator:
             self._ctx["category"] = selected_plan.get('tags', {}).get('main_category', '未分类')
             self._ctx["current_progress"]["total_chapters"] = total_chapters
             self._ctx["current_progress"]["start_time"] = datetime.now().isoformat()
+            
+            # 🔥 同步更新 novel_data（PhaseGenerator 使用 novel_data）
+            self.novel_data["novel_title"] = self.novel_title
+            self.novel_data["novel_synopsis"] = selected_plan["synopsis"]
+            self.novel_data["creative_seed"] = creative_seed
+            self.novel_data["category"] = selected_plan.get('tags', {}).get('main_category', '未分类')
+            self.novel_data["selected_plan"] = selected_plan
+            if "current_progress" not in self.novel_data:
+                self.novel_data["current_progress"] = {}
+            self.novel_data["current_progress"]["total_chapters"] = total_chapters
+            self.novel_data["current_progress"]["start_time"] = datetime.now().isoformat()
 
             # 现在有了 novel_title，初始化质量评估器（使用统一路径配置）
             from src.core.QualityAssessor import QualityAssessor
