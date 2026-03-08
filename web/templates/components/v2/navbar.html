@@ -35,7 +35,7 @@
             </a>
             <!-- 创作下拉菜单 -->
             <div class="v2-nav-dropdown">
-                <a href="/phase-one-setup" class="v2-nav-link {% if request.endpoint in ['phase_one_setup', 'phase_two_generation'] %}v2-nav-link--active{% endif %}">
+                <a href="/phase-two-generation" class="v2-nav-link {% if request.endpoint in ['phase_one_setup', 'phase_two_generation'] %}v2-nav-link--active{% endif %}">
                     <span data-i18n="nav.create">创作</span>
                     <svg width="12" height="12" viewBox="0 0 12 12" fill="none" style="margin-left: 2px; opacity: 0.7;">
                         <path d="M2.5 4.5L6 8L9.5 4.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
@@ -82,7 +82,7 @@
             </select>
         </div>
         {% if session.logged_in %}
-            <a href="/phase-one-setup" class="v2-btn v2-btn--primary v2-btn--sm">
+            <a href="/phase-two-generation" class="v2-btn v2-btn--primary v2-btn--sm">
                 <span>✨</span>
                 <span data-i18n="nav.create">新建创作</span>
             </a>
