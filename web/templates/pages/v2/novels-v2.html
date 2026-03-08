@@ -1499,8 +1499,7 @@
                     return;
                 }
                 
-                // 有内容，直接下载
-                showSuccessMessage(`正在导出 ${chapterCount} 个章节...`);
+                // 有内容，直接下载 ZIP 包
                 window.location.href = `/api/export/novel-zip/${encodeURIComponent(title)}`;
                 
             } catch (error) {
