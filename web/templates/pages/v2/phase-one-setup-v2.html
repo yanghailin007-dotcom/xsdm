@@ -143,6 +143,94 @@
             border-radius: 16px !important;
         }
         
+        /* V2 弹窗样式 */
+        .v2-dialog-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.8);
+            backdrop-filter: blur(12px);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 100000;
+            animation: v2-fade-in 0.2s ease;
+        }
+        
+        @keyframes v2-fade-in {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+        
+        .v2-dialog-content {
+            background: var(--v2-bg-secondary);
+            border: 1px solid var(--v2-border-default);
+            border-radius: 20px;
+            width: 90%;
+            max-width: 480px;
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.8);
+            animation: v2-dialog-slide-up 0.3s ease;
+            overflow: hidden;
+        }
+        
+        @keyframes v2-dialog-slide-up {
+            from { 
+                opacity: 0;
+                transform: translateY(20px) scale(0.95);
+            }
+            to { 
+                opacity: 1;
+                transform: translateY(0) scale(1);
+            }
+        }
+        
+        .v2-dialog-header {
+            padding: 1.75rem 1.5rem 1.25rem;
+            text-align: center;
+            color: white;
+        }
+        
+        .v2-dialog-icon {
+            width: 60px;
+            height: 60px;
+            margin: 0 auto 1rem;
+            background: rgba(255, 255, 255, 0.2);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.75rem;
+            backdrop-filter: blur(4px);
+        }
+        
+        .v2-dialog-title {
+            font-size: 1.35rem;
+            font-weight: 700;
+            margin: 0 0 0.25rem;
+        }
+        
+        .v2-dialog-subtitle {
+            font-size: 0.9rem;
+            opacity: 0.9;
+            margin: 0;
+        }
+        
+        .v2-dialog-body {
+            padding: 1.5rem;
+        }
+        
+        .v2-dialog-actions {
+            display: flex;
+            gap: 0.75rem;
+            padding: 0 1.5rem 1.5rem;
+        }
+        
+        .v2-dialog-actions .v2-btn {
+            flex: 1;
+        }
+        
         /* 语言切换器 */
         .v2-page-lang-switcher {
             position: fixed;

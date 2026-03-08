@@ -105,23 +105,151 @@ function handleGenerationModeChange() {
     
     if (modeSelect.value === 'resume_mode') {
         if (!currentResumeInfo) {
-            alert('当前没有可恢复的任务，请选择其他生成模式');
+            showResumeAlertModal('当前没有可恢复的任务', '请选择其他生成模式');
             modeSelect.value = 'phase_one_only';
             return;
         }
         
-        // 确认是否要恢复
-        const confirmMsg = `确认要恢复生成吗？\n\n` +
-                          `任务：${currentResumeInfo.novel_title}\n` +
-                          `阶段：${currentResumeInfo.phase_name}\n` +
-                          `当前步骤：${currentResumeInfo.current_step}\n` +
-                          `进度：${currentResumeInfo.progress_percentage}%\n\n` +
-                          `将从上次的下一步骤继续生成。`;
-        
-        if (!confirm(confirmMsg)) {
+        // 显示 V2 风格的恢复确认弹窗
+        showResumeConfirmModal(currentResumeInfo, modeSelect);
+    }
+}
+
+/**
+ * 显示 V2 风格的恢复确认弹窗
+ */
+function showResumeConfirmModal(resumeInfo, modeSelect) {
+    // 移除已存在的弹窗
+    const existingModal = document.getElementById('resume-confirm-modal');
+    if (existingModal) existingModal.remove();
+    
+    const modal = document.createElement('div');
+    modal.id = 'resume-confirm-modal';
+    modal.innerHTML = `
+        <div class="v2-dialog-overlay" onclick="if(event.target === this) closeResumeConfirmModal(false)">
+            <div class="v2-dialog-content" style="max-width: 480px;">
+                <div class="v2-dialog-header" style="background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);">
+                    <div class="v2-dialog-icon">🔄</div>
+                    <h3 class="v2-dialog-title">恢复生成确认</h3>
+                    <p class="v2-dialog-subtitle">继续未完成的创作任务</p>
+                </div>
+                <div class="v2-dialog-body">
+                    <div style="
+                        background: rgba(99, 102, 241, 0.1);
+                        border: 1px solid rgba(99, 102, 241, 0.2);
+                        border-radius: 12px;
+                        padding: 1.25rem;
+                        margin-bottom: 1.5rem;
+                    ">
+                        <div style="margin-bottom: 0.75rem;">
+                            <span style="color: var(--v2-text-muted); font-size: 0.875rem;">任务名称</span>
+                            <div style="color: var(--v2-text-primary); font-weight: 600; font-size: 1.1rem;">${escapeHtml(resumeInfo.novel_title)}</div>
+                        </div>
+                        <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 0.75rem;">
+                            <div>
+                                <span style="color: var(--v2-text-muted); font-size: 0.875rem;">当前阶段</span>
+                                <div style="color: var(--v2-text-secondary);">${escapeHtml(resumeInfo.phase_name)}</div>
+                            </div>
+                            <div>
+                                <span style="color: var(--v2-text-muted); font-size: 0.875rem;">当前步骤</span>
+                                <div style="color: var(--v2-text-secondary);">${escapeHtml(resumeInfo.current_step)}</div>
+                            </div>
+                        </div>
+                        <div style="margin-top: 0.75rem;">
+                            <span style="color: var(--v2-text-muted); font-size: 0.875rem;">完成进度</span>
+                            <div style="display: flex; align-items: center; gap: 0.75rem; margin-top: 0.25rem;">
+                                <div style="flex: 1; height: 8px; background: var(--v2-bg-tertiary); border-radius: 4px; overflow: hidden;">
+                                    <div style="width: ${resumeInfo.progress_percentage}%; height: 100%; background: linear-gradient(90deg, #6366f1, #8b5cf6); border-radius: 4px;"></div>
+                                </div>
+                                <span style="color: var(--v2-primary-400); font-weight: 600;">${resumeInfo.progress_percentage}%</span>
+                            </div>
+                        </div>
+                    </div>
+                    <p style="color: var(--v2-text-secondary); font-size: 0.9rem; line-height: 1.5; margin: 0;">
+                        💡 将从上次保存的步骤继续生成，无需重新开始。
+                    </p>
+                </div>
+                <div class="v2-dialog-actions">
+                    <button class="v2-btn v2-btn--secondary" onclick="closeResumeConfirmModal(false)">
+                        <span>取消</span>
+                    </button>
+                    <button class="v2-btn v2-btn--primary" onclick="closeResumeConfirmModal(true)" style="background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);">
+                        <span>🔄 确认恢复</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+    `;
+    
+    document.body.appendChild(modal);
+    
+    // 保存回调
+    window._resumeConfirmCallback = (confirmed) => {
+        if (!confirmed) {
             modeSelect.value = 'phase_one_only';
         }
+        modal.remove();
+    };
+}
+
+/**
+ * 关闭恢复确认弹窗
+ */
+function closeResumeConfirmModal(confirmed) {
+    if (window._resumeConfirmCallback) {
+        window._resumeConfirmCallback(confirmed);
     }
+}
+
+/**
+ * 显示 V2 风格的提示弹窗
+ */
+function showResumeAlertModal(title, message) {
+    const existingModal = document.getElementById('resume-alert-modal');
+    if (existingModal) existingModal.remove();
+    
+    const modal = document.createElement('div');
+    modal.id = 'resume-alert-modal';
+    modal.innerHTML = `
+        <div class="v2-dialog-overlay" onclick="if(event.target === this) closeResumeAlertModal()">
+            <div class="v2-dialog-content" style="max-width: 400px;">
+                <div class="v2-dialog-header" style="background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);">
+                    <div class="v2-dialog-icon">⚠️</div>
+                    <h3 class="v2-dialog-title">${escapeHtml(title)}</h3>
+                </div>
+                <div class="v2-dialog-body">
+                    <p style="color: var(--v2-text-secondary); font-size: 0.95rem; line-height: 1.5; margin: 0;">
+                        ${escapeHtml(message)}
+                    </p>
+                </div>
+                <div class="v2-dialog-actions">
+                    <button class="v2-btn v2-btn--primary" onclick="closeResumeAlertModal()" style="width: 100%; background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);">
+                        <span>知道了</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+    `;
+    
+    document.body.appendChild(modal);
+}
+
+/**
+ * 关闭提示弹窗
+ */
+function closeResumeAlertModal() {
+    const modal = document.getElementById('resume-alert-modal');
+    if (modal) modal.remove();
+}
+
+/**
+ * HTML 转义辅助函数
+ */
+function escapeHtml(text) {
+    if (!text) return '';
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
 }
 
 /**
