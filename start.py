@@ -364,16 +364,13 @@ def run_foreground(open_browser_flag=True):
                 _sigint_time = current_time
                 
                 if _sigint_count == 1:
-                    # 第一次 Ctrl+C：请求停止，但不终止进程
+                    # 第一次 Ctrl+C：仅提示，不停止生成
                     print(f"\n{Colors.YELLOW}[INFO]{Colors.RESET} ========================================")
-                    print(f"{Colors.YELLOW}[INFO]{Colors.RESET} 收到第一次 Ctrl+C，正在请求停止生成...")
+                    print(f"{Colors.YELLOW}[INFO]{Colors.RESET} 收到第一次 Ctrl+C（提示）")
                     print(f"{Colors.YELLOW}[INFO]{Colors.RESET} ========================================")
                     print(f"{Colors.YELLOW}[INFO]{Colors.RESET} 3 秒内再按一次 Ctrl+C 强制退出服务器")
-                    print(f"{Colors.YELLOW}[INFO]{Colors.RESET} 不按则等待当前生成完成...\n")
-                    
-                    # 🔥 不再向子进程发送信号（避免误判为第二次 Ctrl+C）
-                    # 全局停止标志会在 web_server_refactored.py 中自动处理
-                    return True  # 继续运行
+                    print(f"{Colors.YELLOW}[INFO]{Colors.RESET} 生成任务继续运行...\n")
+                    return True  # 继续运行，什么都不做
                 else:
                     # 第二次 Ctrl+C：强制退出
                     print(f"\n{Colors.RED}[INFO]{Colors.RESET} 收到第二次 Ctrl+C，强制退出...")
