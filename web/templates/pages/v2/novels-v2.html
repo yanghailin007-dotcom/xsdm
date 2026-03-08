@@ -1258,8 +1258,30 @@
             window.open(`/novel?title=${encodeURIComponent(title)}`, '_blank');
         }
 
-        function continueNovel(title) {
-            showContinueDialog(title);
+        async function continueNovel(title) {
+            // 跳转到二阶段续写界面
+            try {
+                showLoadingOverlay('正在准备续写环境...');
+                
+                // 调用 API 准备进入第二阶段
+                const response = await fetch(`/api/phase-one/continue-to-phase-two/${encodeURIComponent(title)}`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' }
+                });
+                
+                const result = await response.json();
+                
+                if (!result.success) {
+                    throw new Error(result.error || '进入续写模式失败');
+                }
+                
+                // 跳转到二阶段生成界面
+                window.location.href = `/phase-two-generation?title=${encodeURIComponent(title)}`;
+            } catch (error) {
+                hideLoadingOverlay();
+                console.error('进入续写模式失败:', error);
+                alert('进入续写模式失败: ' + error.message);
+            }
         }
 
         function showContinueDialog(title) {
