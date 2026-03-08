@@ -388,6 +388,27 @@ const I18N = {
             'workspace.card.enter': '进入 →',
             'workspace.card.browse': '浏览 →',
             'workspace.card.view': '查看 →',
+            'workspace.card.create': '制作 →',
+            'workspace.card.upload': '上传 →',
+            
+            // 封面制作卡片
+            'workspace.card.coverMaker.title': '封面制作',
+            'workspace.card.coverMaker.desc': '为小说生成精美的 AI 封面设计，支持多种风格和尺寸定制。',
+            'workspace.card.coverMaker.tag': 'AI 设计 · 一键生成',
+            
+            // 番茄上传卡片
+            'workspace.card.fanqieUpload.title': '番茄上传',
+            'workspace.card.fanqieUpload.desc': '一键将作品上传到番茄小说平台，支持批量上传和自动发布。',
+            'workspace.card.fanqieUpload.tag': '一键上传 · 自动发布',
+            
+            // 继续生成部分
+            'workspace.continueSection.label': 'Continue',
+            'workspace.continueSection.title': '继续生成',
+            'workspace.continueSection.subtitle': '以下项目已完成第一阶段设定，可立即开始生成章节',
+            'workspace.continueSection.loading': '正在加载可继续生成的项目...',
+            'workspace.continueSection.emptyTitle': '暂无待生成项目',
+            'workspace.continueSection.emptyDesc': '您还没有完成第一阶段设定的项目',
+            'workspace.continueSection.startNew': '开始新建创作',
             
             // 账户页面
             'account.title': '账户设置',
@@ -793,6 +814,53 @@ const I18N = {
             'step.system_init': '系統初始化',
             'step.saving': '儲存結果',
             'step.quality_assessment': '品質評估',
+            
+            // 工作台
+            'workspace.welcome': '歡迎回來，{{username}}',
+            'workspace.title': '開始你的創作之旅',
+            'workspace.subtitle': '選擇一個工具，讓 AI 助你實現創意',
+            'workspace.stat.projects': '創作專案',
+            'workspace.stat.chapters': '生成章節',
+            'workspace.stat.points': '創造點',
+            'workspace.quickActions.label': 'Quick Actions',
+            'workspace.quickActions.title': '快速開始',
+            'workspace.card.twoPhase.title': '兩階段生成',
+            'workspace.card.twoPhase.desc': '從設定到內容，AI 全流程輔助創作。先生成世界觀設定，再批量生成章節。',
+            'workspace.card.twoPhase.tag': '智能設定 · 批量生成',
+            'workspace.card.projectMgmt.title': '專案管理',
+            'workspace.card.projectMgmt.desc': '管理所有小說專案，查看進度、繼續生成、導出作品。支援多專案並行管理。',
+            'workspace.card.projectMgmt.tag': '查看進度 · 繼續創作',
+            'workspace.card.creativeLib.title': '創意庫',
+            'workspace.card.creativeLib.desc': '從預設創意中選擇靈感，快速啟動創作。多種題材模板任您選擇。',
+            'workspace.card.creativeLib.tag': '12 個創意模板',
+            'workspace.card.viewWorks.title': '查看作品',
+            'workspace.card.viewWorks.desc': '瀏覽和管理已創作的小說章節，支援在線閱讀、編輯和導出。',
+            'workspace.card.viewWorks.tag': '在線閱讀 · 編輯導出',
+            'workspace.card.start': '開始 →',
+            'workspace.card.enter': '進入 →',
+            'workspace.card.browse': '瀏覽 →',
+            'workspace.card.view': '查看 →',
+            'workspace.card.create': '製作 →',
+            'workspace.card.upload': '上傳 →',
+            
+            // 封面製作卡片
+            'workspace.card.coverMaker.title': '封面製作',
+            'workspace.card.coverMaker.desc': '為小說生成精美的 AI 封面設計，支援多種風格和尺寸定制。',
+            'workspace.card.coverMaker.tag': 'AI 設計 · 一鍵生成',
+            
+            // 番茄上傳卡片
+            'workspace.card.fanqieUpload.title': '番茄上傳',
+            'workspace.card.fanqieUpload.desc': '一鍵將作品上傳到番茄小說平台，支援批量上傳和自動發佈。',
+            'workspace.card.fanqieUpload.tag': '一鍵上傳 · 自動發佈',
+            
+            // 繼續生成部分
+            'workspace.continueSection.label': 'Continue',
+            'workspace.continueSection.title': '繼續生成',
+            'workspace.continueSection.subtitle': '以下專案已完成第一階段設定，可立即開始生成章節',
+            'workspace.continueSection.loading': '正在載入可繼續生成的專案...',
+            'workspace.continueSection.emptyTitle': '暫無待生成專案',
+            'workspace.continueSection.emptyDesc': '您還沒有完成第一階段設定的專案',
+            'workspace.continueSection.startNew': '開始新建創作',
         },
         
         'en': {
@@ -1175,6 +1243,27 @@ const I18N = {
             'workspace.card.enter': 'Enter →',
             'workspace.card.browse': 'Browse →',
             'workspace.card.view': 'View →',
+            'workspace.card.create': 'Create →',
+            'workspace.card.upload': 'Upload →',
+            
+            // Cover Maker Card
+            'workspace.card.coverMaker.title': 'Cover Maker',
+            'workspace.card.coverMaker.desc': 'Generate beautiful AI cover designs for your novel, supporting multiple styles and sizes.',
+            'workspace.card.coverMaker.tag': 'AI Design · One-click',
+            
+            // Fanqie Upload Card
+            'workspace.card.fanqieUpload.title': 'Fanqie Upload',
+            'workspace.card.fanqieUpload.desc': 'One-click upload to Fanqie Novel platform, supporting batch upload and auto-publish.',
+            'workspace.card.fanqieUpload.tag': 'One-click · Auto-publish',
+            
+            // Continue Section
+            'workspace.continueSection.label': 'Continue',
+            'workspace.continueSection.title': 'Continue Generation',
+            'workspace.continueSection.subtitle': 'These projects have completed phase one setup and are ready for chapter generation',
+            'workspace.continueSection.loading': 'Loading projects...',
+            'workspace.continueSection.emptyTitle': 'No Pending Projects',
+            'workspace.continueSection.emptyDesc': 'You have no projects with completed phase one setup',
+            'workspace.continueSection.startNew': 'Start New Creation',
             
             // Account Page
             'account.title': 'Account Settings',

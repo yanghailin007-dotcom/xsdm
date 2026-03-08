@@ -136,13 +136,13 @@
         <!-- 封面制作 -->
         <a href="/cover-maker" class="v2-card v2-card--gradient">
             <div class="v2-card__icon v2-card__icon--pink">🖼️</div>
-            <h3 class="v2-card__title">封面制作</h3>
-            <p class="v2-card__desc">
+            <h3 class="v2-card__title" data-i18n="workspace.card.coverMaker.title">封面制作</h3>
+            <p class="v2-card__desc" data-i18n="workspace.card.coverMaker.desc">
                 为小说生成精美的 AI 封面设计，支持多种风格和尺寸定制。
             </p>
             <div class="v2-card__footer">
-                <span style="color: var(--v2-text-tertiary);">AI 设计 · 一键生成</span>
-                <span class="v2-card__link">
+                <span style="color: var(--v2-text-tertiary);" data-i18n="workspace.card.coverMaker.tag">AI 设计 · 一键生成</span>
+                <span class="v2-card__link" data-i18n="workspace.card.create">
                     制作
                     <span>→</span>
                 </span>
@@ -152,13 +152,13 @@
         <!-- 番茄上传 -->
         <a href="/fanqie-upload" class="v2-card v2-card--gradient">
             <div class="v2-card__icon v2-card__icon--purple">🍅</div>
-            <h3 class="v2-card__title">番茄上传</h3>
-            <p class="v2-card__desc">
+            <h3 class="v2-card__title" data-i18n="workspace.card.fanqieUpload.title">番茄上传</h3>
+            <p class="v2-card__desc" data-i18n="workspace.card.fanqieUpload.desc">
                 一键将作品上传到番茄小说平台，支持批量上传和自动发布。
             </p>
             <div class="v2-card__footer">
-                <span style="color: var(--v2-text-tertiary);">一键上传 · 自动发布</span>
-                <span class="v2-card__link">
+                <span style="color: var(--v2-text-tertiary);" data-i18n="workspace.card.fanqieUpload.tag">一键上传 · 自动发布</span>
+                <span class="v2-card__link" data-i18n="workspace.card.upload">
                     上传
                     <span>→</span>
                 </span>
@@ -171,15 +171,15 @@
 <section class="v2-section v2-section--alt" id="continue-generation-section">
     <div class="v2-section__content">
         <div class="v2-section-header">
-            <div class="v2-section__label">Continue</div>
-            <h2 class="v2-section__title">继续生成</h2>
-            <p class="v2-section__subtitle">以下项目已完成第一阶段设定，可立即开始生成章节</p>
+            <div class="v2-section__label" data-i18n="workspace.continueSection.label">Continue</div>
+            <h2 class="v2-section__title" data-i18n="workspace.continueSection.title">继续生成</h2>
+            <p class="v2-section__subtitle" data-i18n="workspace.continueSection.subtitle">以下项目已完成第一阶段设定，可立即开始生成章节</p>
         </div>
         
         <!-- 加载中状态 -->
         <div id="continue-projects-loading" class="v2-card" style="padding: 40px; text-align: center;">
             <div style="display: inline-block; width: 40px; height: 40px; border: 3px solid var(--v2-border-default); border-top-color: var(--v2-primary-500); border-radius: 50%; animation: spin 1s linear infinite;"></div>
-            <p style="margin-top: 16px; color: var(--v2-text-secondary);">正在加载可继续生成的项目...</p>
+            <p style="margin-top: 16px; color: var(--v2-text-secondary);" data-i18n="workspace.continueSection.loading">正在加载可继续生成的项目...</p>
         </div>
         
         <!-- 项目列表容器 -->
@@ -190,11 +190,11 @@
         <!-- 空状态 -->
         <div id="continue-projects-empty" class="v2-card" style="display: none; padding: 40px; text-align: center;">
             <div style="font-size: 48px; margin-bottom: 16px;">📋</div>
-            <h3 style="font-size: 18px; font-weight: 600; margin-bottom: 8px;">暂无待生成项目</h3>
-            <p style="color: var(--v2-text-secondary); margin-bottom: 20px;">您还没有完成第一阶段设定的项目</p>
+            <h3 style="font-size: 18px; font-weight: 600; margin-bottom: 8px;" data-i18n="workspace.continueSection.emptyTitle">暂无待生成项目</h3>
+            <p style="color: var(--v2-text-secondary); margin-bottom: 20px;" data-i18n="workspace.continueSection.emptyDesc">您还没有完成第一阶段设定的项目</p>
             <a href="/phase-one-setup" class="v2-btn v2-btn--primary">
                 <span>✨</span>
-                <span>开始新建创作</span>
+                <span data-i18n="workspace.continueSection.startNew">开始新建创作</span>
             </a>
         </div>
     </div>
