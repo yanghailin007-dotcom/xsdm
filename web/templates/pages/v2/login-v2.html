@@ -361,6 +361,44 @@
     color: var(--v2-text-muted);
 }
 
+/* 语言切换器 */
+.v2-language-switcher {
+    position: absolute;
+    top: 1.5rem;
+    right: 1.5rem;
+    z-index: 10;
+}
+
+.v2-language-select {
+    padding: 0.5rem 2rem 0.5rem 0.75rem;
+    background: rgba(255, 255, 255, 0.1);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    border-radius: 0.5rem;
+    color: var(--v2-text-secondary);
+    font-size: 0.875rem;
+    cursor: pointer;
+    appearance: none;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='rgba(255,255,255,0.5)' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 0.5rem center;
+    background-size: 16px;
+}
+
+.v2-language-select:hover {
+    background: rgba(255, 255, 255, 0.15);
+    border-color: rgba(255, 255, 255, 0.3);
+}
+
+.v2-language-select:focus {
+    outline: none;
+    border-color: var(--v2-primary);
+}
+
+.v2-language-select option {
+    background: #1e293b;
+    color: #fff;
+}
+
 /* 响应式 */
 @media (max-width: 480px) {
     .v2-login-page {
@@ -382,6 +420,15 @@
 
 {% block content %}
 <div class="v2-login-page">
+    <!-- 语言切换器 -->
+    <div class="v2-language-switcher">
+        <select class="v2-language-select" id="language-switcher" onchange="switchLanguage(this.value)">
+            <option value="zh-CN">简体中文</option>
+            <option value="zh-TW">繁體中文</option>
+            <option value="en">English</option>
+        </select>
+    </div>
+    
     <div class="v2-login-container">
         <div class="v2-login-card">
             <!-- 头部 -->
@@ -406,8 +453,8 @@
                         </svg>
                     </div>
                 </div>
-                <h1 class="v2-login-title">大文娱创作平台</h1>
-                <p class="v2-login-subtitle">AI驱动的全能娱乐创作系统</p>
+                <h1 class="v2-login-title" data-i18n="app.name">大文娱创作平台</h1>
+                <p class="v2-login-subtitle" data-i18n="app.tagline">AI驱动的全能娱乐创作系统</p>
             </div>
 
             <!-- 错误提示（默认隐藏） -->
@@ -419,37 +466,37 @@
             <!-- 登录表单 -->
             <form class="v2-login-form" id="loginForm">
                 <div class="v2-form-group">
-                    <label class="v2-form-label">用户名</label>
-                    <input type="text" id="username" class="v2-form-input" placeholder="请输入用户名" required autocomplete="username">
+                    <label class="v2-form-label" data-i18n="login.username">用户名</label>
+                    <input type="text" id="username" class="v2-form-input" placeholder="请输入用户名" data-i18n-placeholder="login.username.placeholder" required autocomplete="username">
                 </div>
 
                 <div class="v2-form-group">
-                    <label class="v2-form-label">密码</label>
-                    <input type="password" id="password" class="v2-form-input" placeholder="请输入密码" required autocomplete="current-password">
+                    <label class="v2-form-label" data-i18n="login.password">密码</label>
+                    <input type="password" id="password" class="v2-form-input" placeholder="请输入密码" data-i18n-placeholder="login.password.placeholder" required autocomplete="current-password">
                 </div>
 
                 <div class="v2-form-options">
                     <label class="v2-checkbox-wrapper">
                         <input type="checkbox" id="remember">
-                        <span>记住我</span>
+                        <span data-i18n="login.remember">记住我</span>
                     </label>
-                    <a href="#" class="v2-forgot-link">忘记密码？</a>
+                    <a href="#" class="v2-forgot-link" data-i18n="login.forgot">忘记密码？</a>
                 </div>
 
                 <button type="submit" class="v2-login-btn" id="loginBtn">
-                    <span>登录</span>
+                    <span data-i18n="login.submit">登录</span>
                     <div id="loadingSpinner" class="v2-loading-spinner" style="display: none;"></div>
                 </button>
             </form>
 
             <!-- 注册 -->
             <div class="v2-register-prompt">
-                还没有账户？<a href="/register" class="v2-register-link">立即注册</a>
+                <span data-i18n="login.noAccount">还没有账户？</span><a href="/register" class="v2-register-link" data-i18n="login.register">立即注册</a>
             </div>
             
             <!-- 演示账户 -->
             <div class="v2-demo-accounts">
-                <button type="button" class="v2-demo-btn" onclick="fillDemo('test', 'test123')">测试账户</button>
+                <button type="button" class="v2-demo-btn" onclick="fillDemo('test', 'test123')" data-i18n="login.demoAccount">测试账户</button>
             </div>
         </div>
 
@@ -539,8 +586,55 @@
         document.getElementById('errorAlert').classList.remove('v2-alert--show');
     });
 
-    // 页面加载完成后聚焦到用户名
+    // 检测浏览器语言
+    function detectBrowserLanguage() {
+        const browserLang = navigator.language || navigator.userLanguage || 'zh-CN';
+        if (browserLang.startsWith('zh-Hant') || browserLang === 'zh-TW' || browserLang === 'zh-HK') {
+            return 'zh-TW';
+        } else if (browserLang.startsWith('zh')) {
+            return 'zh-CN';
+        } else if (browserLang.startsWith('en')) {
+            return 'en';
+        }
+        return 'zh-CN';
+    }
+
+    // 切换语言
+    function switchLanguage(lang) {
+        if (typeof I18N !== 'undefined' && I18N.setLanguage) {
+            I18N.setLanguage(lang);
+            // 保存语言设置
+            const settings = JSON.parse(localStorage.getItem('userSettings') || '{}');
+            settings.language = lang;
+            localStorage.setItem('userSettings', JSON.stringify(settings));
+        }
+    }
+
+    // 页面加载完成后
     document.addEventListener('DOMContentLoaded', () => {
+        // 初始化语言
+        const settings = JSON.parse(localStorage.getItem('userSettings') || '{}');
+        let targetLang = settings.language;
+        
+        if (!targetLang) {
+            targetLang = detectBrowserLanguage();
+            settings.language = targetLang;
+            localStorage.setItem('userSettings', JSON.stringify(settings));
+        }
+        
+        // 更新语言选择器
+        const langSwitcher = document.getElementById('language-switcher');
+        if (langSwitcher) {
+            langSwitcher.value = targetLang;
+        }
+        
+        // 应用语言
+        setTimeout(() => {
+            if (typeof I18N !== 'undefined' && I18N.setLanguage) {
+                I18N.setLanguage(targetLang);
+            }
+        }, 100);
+        
         // 检查URL参数，如果有用户名则自动填充（从注册页跳转过来）
         const urlParams = new URLSearchParams(window.location.search);
         const prefillUsername = urlParams.get('username');

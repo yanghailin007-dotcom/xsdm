@@ -4,7 +4,7 @@
 #}
 <nav class="v2-navbar">
     <!-- 左侧：Logo + 品牌 -->
-    <a href="/landing" class="v2-navbar__brand">
+    <a href="/landing" class="v2-navbar__brand" data-i18n="app.name">
         <div class="v2-navbar__logo">
             <svg class="v2-navbar__logo-svg" viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
                 <path d="M50 5 L55 40 L95 50 L55 60 L50 95 L45 60 L5 50 L45 40 Z" fill="white"/>
@@ -21,22 +21,22 @@
                 </defs>
             </svg>
         </div>
-        <span class="v2-navbar__brand-text">大文娱</span>
+        <span class="v2-navbar__brand-text" data-i18n="app.name.short">大文娱</span>
     </a>
 
     <!-- 中间：导航链接（Linear风格 pill 切换） -->
     <div class="v2-navbar__center">
         {% if session.logged_in %}
             <a href="/" class="v2-nav-link {% if request.endpoint == 'index' or request.endpoint == 'home' %}v2-nav-link--active{% endif %}">
-                <span>工作台</span>
+                <span data-i18n="nav.workspace">工作台</span>
             </a>
             <a href="/project-management" class="v2-nav-link {% if request.endpoint == 'project_management' %}v2-nav-link--active{% endif %}">
-                <span>项目</span>
+                <span data-i18n="nav.projects">项目</span>
             </a>
             <!-- 创作下拉菜单 -->
             <div class="v2-nav-dropdown">
                 <a href="/phase-one-setup" class="v2-nav-link {% if request.endpoint in ['phase_one_setup', 'phase_two_generation'] %}v2-nav-link--active{% endif %}">
-                    <span>创作</span>
+                    <span data-i18n="nav.create">创作</span>
                     <svg width="12" height="12" viewBox="0 0 12 12" fill="none" style="margin-left: 2px; opacity: 0.7;">
                         <path d="M2.5 4.5L6 8L9.5 4.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
                     </svg>
@@ -59,29 +59,37 @@
                 </div>
             </div>
             <a href="/novels" class="v2-nav-link {% if request.endpoint == 'novels_view' %}v2-nav-link--active{% endif %}">
-                <span>作品</span>
+                <span data-i18n="nav.works">作品</span>
             </a>
         {% else %}
             <a href="/landing" class="v2-nav-link {% if request.endpoint == 'landing' %}v2-nav-link--active{% endif %}">
-                <span>首页</span>
+                <span data-i18n="nav.home">首页</span>
             </a>
             <a href="#features" class="v2-nav-link" onclick="document.getElementById('features')?.scrollIntoView({behavior: 'smooth'}); return false;">
-                <span>功能</span>
+                <span data-i18n="nav.features">功能</span>
             </a>
         {% endif %}
     </div>
     
     <!-- 右侧：操作区域 -->
     <div class="v2-navbar__right">
+        <!-- 语言切换器 -->
+        <div class="v2-navbar__lang">
+            <select id="language-switcher" class="v2-lang-select" onchange="switchLanguage(this.value)">
+                <option value="zh-CN">简体中文</option>
+                <option value="zh-TW">繁體中文</option>
+                <option value="en">English</option>
+            </select>
+        </div>
         {% if session.logged_in %}
             <a href="/phase-one-setup" class="v2-btn v2-btn--primary v2-btn--sm">
                 <span>✨</span>
-                <span>新建创作</span>
+                <span data-i18n="nav.create">新建创作</span>
             </a>
             {% include 'components/v2/user-menu.html' %}
         {% else %}
-            <a href="/login" class="v2-nav-link">登录</a>
-            <a href="/login?action=register" class="v2-btn v2-btn--primary v2-btn--sm">开始使用</a>
+            <a href="/login" class="v2-nav-link" data-i18n="nav.login">登录</a>
+            <a href="/login?action=register" class="v2-btn v2-btn--primary v2-btn--sm" data-i18n="nav.getStarted">开始使用</a>
         {% endif %}
     </div>
 </nav>
@@ -269,6 +277,43 @@
     color: var(--v2-text-secondary);
 }
 
+/* 语言切换器 */
+.v2-navbar__lang {
+    display: flex;
+    align-items: center;
+}
+
+.v2-lang-select {
+    padding: 4px 8px;
+    padding-right: 20px;
+    background: var(--v2-bg-tertiary);
+    border: 1px solid var(--v2-border-default);
+    border-radius: 6px;
+    color: var(--v2-text-secondary);
+    font-size: 13px;
+    cursor: pointer;
+    appearance: none;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='rgba(255,255,255,0.5)' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 4px center;
+    background-size: 12px;
+}
+
+.v2-lang-select:hover {
+    border-color: var(--v2-border-hover);
+    color: var(--v2-text-primary);
+}
+
+.v2-lang-select:focus {
+    outline: none;
+    border-color: var(--v2-primary-500);
+}
+
+.v2-lang-select option {
+    background: #1e293b;
+    color: #fff;
+}
+
 /* 响应式：移动端隐藏中间导航 */
 @media (max-width: 768px) {
     .v2-navbar__center {
@@ -277,6 +322,10 @@
     
     .v2-navbar {
         padding: 0 16px;
+    }
+    
+    .v2-navbar__lang {
+        display: none;
     }
 }
 </style>

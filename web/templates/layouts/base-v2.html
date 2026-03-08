@@ -54,10 +54,42 @@
     <!-- i18n 国际化 -->
     <script src="/static/js/i18n.js"></script>
     <script>
+        // 检测浏览器语言
+        function detectBrowserLanguage() {
+            const browserLang = navigator.language || navigator.userLanguage || 'zh-CN';
+            if (browserLang.startsWith('zh-Hant') || browserLang === 'zh-TW' || browserLang === 'zh-HK') {
+                return 'zh-TW';
+            } else if (browserLang.startsWith('zh')) {
+                return 'zh-CN';
+            } else if (browserLang.startsWith('en')) {
+                return 'en';
+            }
+            return 'zh-CN';
+        }
+
+        // 切换语言
+        function switchLanguage(lang) {
+            if (typeof I18N !== 'undefined' && I18N.setLanguage) {
+                I18N.setLanguage(lang);
+                // 保存语言设置
+                const settings = JSON.parse(localStorage.getItem('userSettings') || '{}');
+                settings.language = lang;
+                localStorage.setItem('userSettings', JSON.stringify(settings));
+            }
+        }
+
         // 所有页面加载完成后应用翻译
         document.addEventListener('DOMContentLoaded', function() {
+            // 初始化 i18n
             if (typeof I18N !== 'undefined') {
                 I18N.init();
+            }
+            
+            // 同步语言选择器状态
+            const settings = JSON.parse(localStorage.getItem('userSettings') || '{}');
+            const langSwitcher = document.getElementById('language-switcher');
+            if (langSwitcher && settings.language) {
+                langSwitcher.value = settings.language;
             }
         });
     </script>

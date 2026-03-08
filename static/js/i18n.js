@@ -12,6 +12,7 @@ const I18N = {
         'zh-CN': {
             // 通用
             'app.name': '大文娱创作平台',
+            'app.name.short': '大文娱',
             'app.tagline': 'AI驱动的创意写作助手',
             'loading': '加载中...',
             'save': '保存',
@@ -101,6 +102,7 @@ const I18N = {
             'login.submit': '登录',
             'login.noAccount': '还没有账号？',
             'login.register': '立即注册',
+            'login.demoAccount': '测试账户',
             'login.error.empty': '请填写用户名和密码',
             'login.error.invalid': '用户名或密码错误',
             'login.success': '登录成功！',
@@ -145,6 +147,52 @@ const I18N = {
             'settings.devMode': '开发者模式',
             'settings.devMode.desc': '显示调试信息和API日志',
             'settings.comingSoon': '即将上线',
+            
+            // 导航
+            'nav.home': '首页',
+            'nav.features': '功能',
+            'nav.create': '新建创作',
+            'nav.workspace': '工作台',
+            'nav.projects': '项目',
+            'nav.works': '作品',
+            'nav.login': '登录',
+            'nav.getStarted': '开始使用',
+            'nav.logout': '退出',
+            'nav.settings': '设置',
+            
+            // 页脚
+            'footer.help': '帮助中心',
+            'footer.terms': '使用条款',
+            'footer.privacy': '隐私政策',
+            'footer.contact': '联系我们',
+            'footer.copyright': '© 2024 大文娱系统 - AI 创作平台',
+            
+            // Landing 页面
+            'landing.title': '大文娱系统 - AI 创作平台',
+            'landing.subtitle': '用 AI 将创意变成作品',
+            'landing.description': '小说 · 视频 · 动漫 · 一站式创作体验',
+            'landing.description.full': '大文娱系统提供全流程 AI 辅助创作工具，从创意构思到成品输出，让创作变得简单高效',
+            'landing.cta.start': '🚀 开始创作',
+            'landing.cta.learnMore': '📖 了解更多',
+            'landing.stats.tools': '创作工具',
+            'landing.stats.ai': '全流程辅助',
+            'landing.stats.platform': '一站式平台',
+            'landing.quickStart': '快速开始',
+            'landing.chooseEntry': '选择创作入口',
+            'landing.novel.title': '小说创作',
+            'landing.novel.desc': 'AI 驱动的智能小说生成系统',
+            'landing.novel.features': '两阶段生成 · 智能世界观',
+            'landing.novel.enter': '进入 →',
+            'landing.video.title': '视频制作',
+            'landing.video.desc': '多模式视频生成系统',
+            'landing.video.features': '多模式生成 · 自动剪辑',
+            'landing.video.enter': '进入 →',
+            'landing.features.title': '核心特性',
+            'landing.features.why': '为什么选择大文娱',
+            'landing.feature.efficient': '高效创作',
+            'landing.feature.precise': '精准生成',
+            'landing.feature.secure': '数据安全',
+            'landing.feature.updated': '持续更新',
             
             // 首页
             'home.welcome': '欢迎回来',
@@ -198,6 +246,7 @@ const I18N = {
         'zh-TW': {
             // 通用
             'app.name': '大文娛創作平台',
+            'app.name.short': '大文娛',
             'app.tagline': 'AI驅動的創意寫作助手',
             'loading': '載入中...',
             'save': '儲存',
@@ -287,6 +336,7 @@ const I18N = {
             'login.submit': '登入',
             'login.noAccount': '還沒有帳號？',
             'login.register': '立即註冊',
+            'login.demoAccount': '測試帳號',
             'login.error.empty': '請填寫使用者名稱和密碼',
             'login.error.invalid': '使用者名稱或密碼錯誤',
             'login.success': '登入成功！',
@@ -331,6 +381,52 @@ const I18N = {
             'settings.devMode': '開發者模式',
             'settings.devMode.desc': '顯示除錯資訊和API日誌',
             'settings.comingSoon': '即將上線',
+            
+            // 導航
+            'nav.home': '首頁',
+            'nav.features': '功能',
+            'nav.create': '建立創作',
+            'nav.workspace': '工作台',
+            'nav.projects': '專案',
+            'nav.works': '作品',
+            'nav.login': '登入',
+            'nav.getStarted': '開始使用',
+            'nav.logout': '登出',
+            'nav.settings': '設定',
+            
+            // 頁腳
+            'footer.help': '幫助中心',
+            'footer.terms': '使用條款',
+            'footer.privacy': '隱私政策',
+            'footer.contact': '聯繫我們',
+            'footer.copyright': '© 2024 大文娛系統 - AI 創作平台',
+            
+            // Landing 頁面
+            'landing.title': '大文娛系統 - AI 創作平台',
+            'landing.subtitle': '用 AI 將創意變成作品',
+            'landing.description': '小說 · 視頻 · 動漫 · 一站式創作體驗',
+            'landing.description.full': '大文娛系統提供全流程 AI 輔助創作工具，從創意構思到成品輸出，讓創作變得簡單高效',
+            'landing.cta.start': '🚀 開始創作',
+            'landing.cta.learnMore': '📖 了解更多',
+            'landing.stats.tools': '創作工具',
+            'landing.stats.ai': '全流程輔助',
+            'landing.stats.platform': '一站式平台',
+            'landing.quickStart': '快速開始',
+            'landing.chooseEntry': '選擇創作入口',
+            'landing.novel.title': '小說創作',
+            'landing.novel.desc': 'AI 驅動的智能小說生成系統',
+            'landing.novel.features': '兩階段生成 · 智能世界觀',
+            'landing.novel.enter': '進入 →',
+            'landing.video.title': '視頻製作',
+            'landing.video.desc': '多模式視頻生成系統',
+            'landing.video.features': '多模式生成 · 自動剪輯',
+            'landing.video.enter': '進入 →',
+            'landing.features.title': '核心特性',
+            'landing.features.why': '為什麼選擇大文娛',
+            'landing.feature.efficient': '高效創作',
+            'landing.feature.precise': '精准生成',
+            'landing.feature.secure': '數據安全',
+            'landing.feature.updated': '持續更新',
             
             // 首頁
             'home.welcome': '歡迎回來',
@@ -384,6 +480,7 @@ const I18N = {
         'en': {
             // General
             'app.name': 'Da Wenyu Creation Platform',
+            'app.name.short': 'Da Wenyu',
             'app.tagline': 'AI-Powered Creative Writing Assistant',
             'loading': 'Loading...',
             'save': 'Save',
@@ -474,6 +571,7 @@ const I18N = {
             'login.submit': 'Login',
             'login.noAccount': "Don't have an account?",
             'login.register': 'Register Now',
+            'login.demoAccount': 'Demo Account',
             'login.error.empty': 'Please enter username and password',
             'login.error.invalid': 'Invalid username or password',
             'login.success': 'Login successful!',
@@ -518,6 +616,52 @@ const I18N = {
             'settings.devMode': 'Developer Mode',
             'settings.devMode.desc': 'Show debug info and API logs',
             'settings.comingSoon': 'Coming Soon',
+            
+            // Navigation
+            'nav.home': 'Home',
+            'nav.features': 'Features',
+            'nav.create': 'Create',
+            'nav.workspace': 'Workspace',
+            'nav.projects': 'Projects',
+            'nav.works': 'Works',
+            'nav.login': 'Login',
+            'nav.getStarted': 'Get Started',
+            'nav.logout': 'Logout',
+            'nav.settings': 'Settings',
+            
+            // Footer
+            'footer.help': 'Help Center',
+            'footer.terms': 'Terms of Use',
+            'footer.privacy': 'Privacy Policy',
+            'footer.contact': 'Contact Us',
+            'footer.copyright': '© 2024 Da Wenyu - AI Creation Platform',
+            
+            // Landing page
+            'landing.title': 'Da Wenyu - AI Creation Platform',
+            'landing.subtitle': 'Turn ideas into works with AI',
+            'landing.description': 'Novels · Videos · Anime · One-stop creation experience',
+            'landing.description.full': 'Da Wenyu provides full-process AI-assisted creation tools, from idea to finished product, making creation simple and efficient',
+            'landing.cta.start': '🚀 Start Creating',
+            'landing.cta.learnMore': '📖 Learn More',
+            'landing.stats.tools': 'Creation Tools',
+            'landing.stats.ai': 'AI Powered',
+            'landing.stats.platform': 'Platform',
+            'landing.quickStart': 'QUICK START',
+            'landing.chooseEntry': 'Choose Creation Entry',
+            'landing.novel.title': 'Novel Creation',
+            'landing.novel.desc': 'AI-powered intelligent novel generation system',
+            'landing.novel.features': 'Two-phase · Smart Worldview',
+            'landing.novel.enter': 'Enter →',
+            'landing.video.title': 'Video Production',
+            'landing.video.desc': 'Multi-modal video generation system',
+            'landing.video.features': 'Multi-mode · Auto Edit',
+            'landing.video.enter': 'Enter →',
+            'landing.features.title': 'FEATURES',
+            'landing.features.why': 'Why Choose Da Wenyu',
+            'landing.feature.efficient': 'Efficient',
+            'landing.feature.precise': 'Precise',
+            'landing.feature.secure': 'Secure',
+            'landing.feature.updated': 'Updated',
             
             // Home
             'home.welcome': 'Welcome back',
@@ -692,6 +836,14 @@ const I18N = {
             const key = el.getAttribute('data-i18n-title');
             if (key) {
                 el.title = this.t(key);
+            }
+        });
+        
+        // 翻译带有data-i18n-placeholder属性的元素的placeholder
+        document.querySelectorAll('[data-i18n-placeholder]').forEach(el => {
+            const key = el.getAttribute('data-i18n-placeholder');
+            if (key) {
+                el.placeholder = this.t(key);
             }
         });
         
