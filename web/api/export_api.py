@@ -185,10 +185,19 @@ def export_novel_zip(title):
     - 写作计划
     """
     try:
-        # 构建小说项目路径
-        project_dir = NOVEL_PROJECTS_DIR / title
-        if not project_dir.exists():
+        # 使用 NovelGenerationManager 查找项目路径
+        from web.managers.novel_manager import NovelGenerationManager
+        manager = NovelGenerationManager()
+        
+        # 获取项目详细信息以确定正确路径
+        novel_detail = manager.get_novel_detail(title)
+        if not novel_detail:
             return jsonify({'success': False, 'error': '小说项目不存在'}), 404
+        
+        # 构建小说项目完整路径
+        project_dir = Path(novel_detail.get('project_path', ''))
+        if not project_dir or not project_dir.exists():
+            return jsonify({'success': False, 'error': '小说项目路径不存在'}), 404
         
         # 创建临时 ZIP 文件
         temp_file = tempfile.NamedTemporaryFile(suffix='.zip', delete=False)
