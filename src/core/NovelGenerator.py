@@ -729,12 +729,18 @@ class NovelGenerator:
             print("开始生成完整小说...")
             
             # 第一阶段：基础规划
+            print("🔄 开始第一阶段：基础规划...")
             if not self._generate_foundation_planning():
+                print("❌ 第一阶段失败")
                 return False
+            print("✅ 第一阶段完成")
             
             # 第二阶段：世界观与角色设计
+            print("🔄 开始第二阶段：世界观与角色设计...")
             if not self._generate_worldview_and_characters():
+                print("❌ 第二阶段失败")
                 return False
+            print("✅ 第二阶段完成")
             
             # 第三阶段：全书规划
             if not self._generate_overall_planning():
@@ -1336,9 +1342,12 @@ class NovelGenerator:
         print("="*60)
         
         # 世界观构建
+        print("🔄 开始构建世界观...")
         self._ctx["current_progress"]["stage"] = "世界观构建"
         if not self._generate_worldview():
+            print("❌ 世界观构建失败")
             return False
+        print("✅ 世界观构建完成")
         
         # 【新增】势力/阵营系统构建
         print("=== 步骤3.5: 构建势力/阵营系统 ===")
@@ -1584,12 +1593,19 @@ class NovelGenerator:
         # 🔥 更新步骤状态为进行中（黄色）
         self._update_step_status('worldview', 'active', '正在构建核心世界观...')
         
+        print("🔄 调用 content_generator.generate_core_worldview...")
+        print(f"   - novel_title: {self._ctx.get('novel_title', 'N/A')}")
+        print(f"   - selected_plan keys: {list(self._ctx.get('selected_plan', {}).keys())}")
+        print(f"   - market_analysis keys: {list(self._ctx.get('market_analysis', {}).keys())}")
+        
         core_worldview = self.content_generator.generate_core_worldview(
             self._ctx["novel_title"],
             self._ctx["novel_synopsis"],
             self._ctx["selected_plan"],
             self._ctx.get("market_analysis", {})
         )
+        
+        print(f"🔄 generate_core_worldview 返回: {type(core_worldview)}")
         
         self._ctx["core_worldview"] = core_worldview
         

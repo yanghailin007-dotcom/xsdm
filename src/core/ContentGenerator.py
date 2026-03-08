@@ -563,6 +563,7 @@ class ContentGenerator:
     def generate_core_worldview(self, novel_title: str, novel_synopsis: str, selected_plan: Dict, market_analysis: Dict) -> Optional[Dict]:
         """生成核心世界观"""
         self.logger.info("=== 步骤3: 构建核心世界观 ===")
+        self.logger.info(f"📥 输入参数 - novel_title: {novel_title}, selected_plan type: {type(selected_plan)}, market_analysis type: {type(market_analysis)}")
         # 从selected_plan中提取核心设定
         core_settings = selected_plan.get("core_settings", {})
         story_development = selected_plan.get("story_development", {})
@@ -590,9 +591,15 @@ class ContentGenerator:
     世界观需要与核心设定和故事发展保持一致，并提供足够的扩展空间。
 """
         context += "\n\n## 创新要求\n世界观构建需要避免常见套路，追求独特性和创新性，提供新颖的世界观设定。"
+        self.logger.info(f"🔄 准备调用 API 生成世界观, context length: {len(context)} chars")
         result = self.api_client.generate_content_with_retry("core_worldview", context, purpose="世界观构建")
+        self.logger.info(f"🔄 API 返回结果类型: {type(result)}")
         if result:
+            self.logger.info("🔄 开始评估和优化内容...")
             result = self._assess_and_optimize_content(result, "core_worldview", "世界观构建")
+            self.logger.info("✅ 世界观构建完成")
+        else:
+            self.logger.warning("⚠️ API 返回 None，世界观构建失败")
         return result
     def generate_faction_system(self, novel_title: str, core_worldview: Dict,
                                selected_plan: Dict, market_analysis: Dict) -> Optional[Dict]:
