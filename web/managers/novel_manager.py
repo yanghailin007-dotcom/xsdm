@@ -626,9 +626,19 @@ class NovelGenerationManager:
         return quality_data
 
     def get_novel_projects(self) -> List[Dict[str, Any]]:
-        """获取所有小说项目"""
+        """获取所有小说项目（根据当前用户过滤）"""
         projects = []
+        current_user = get_current_username()
+        is_user_admin = is_admin(current_user)
+        
         for title, data in self.novel_projects.items():
+            # 用户隔离：只返回当前用户的项目 + 公开项目
+            owner = data.get('owner', 'unknown')
+            is_public = owner == 'public'
+            
+            # 非管理员只能看到自己的项目和公开项目
+            if not is_user_admin and owner != current_user and not is_public:
+                continue
             generated_chapters = data.get("generated_chapters", {})
             completed_chapters = len(generated_chapters)
             
@@ -682,10 +692,6 @@ class NovelGenerationManager:
             core_setting = creative_seed.get("coreSetting", "") if isinstance(creative_seed, dict) else str(creative_seed)[:200]
             synopsis = data.get("novel_synopsis", "") or data.get("synopsis", "")
             
-            # 获取项目所有者
-            owner = data.get('owner', 'unknown')
-            is_public = owner == 'public'
-            
             projects.append({
                 "title": title,
                 "novel_title": title,  # 🔥 修复：添加 novel_title 字段以匹配前端期望
@@ -703,7 +709,7 @@ class NovelGenerationManager:
                 # 用户隔离相关字段
                 "owner": owner,
                 "is_public": is_public,
-                "is_owner": owner == get_current_username() or is_public
+                "is_owner": owner == current_user or is_public
             })
         return sorted(projects, key=lambda x: x["last_updated"], reverse=True)
 
