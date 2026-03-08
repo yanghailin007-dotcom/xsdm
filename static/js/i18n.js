@@ -222,6 +222,47 @@ const I18N = {
             'gen.status.completed': '已完成',
             'gen.status.failed': '失败',
             
+            // Phase 1 页面
+            'phase1.badge': '第一阶段设定生成',
+            'phase1.title': '两阶段小说生成',
+            'phase1.subtitle': '生成完整的世界观设定、角色设计和故事大纲',
+            'phase1.form.title': '创意输入与配置',
+            'phase1.guide.title': '使用说明',
+            'phase1.guide.goal.title': '🎯 第一阶段目标',
+            'phase1.guide.goal.desc': '生成完整的世界观设定、角色设计和详细的故事大纲，为后续章节内容生成提供高质量的基础框架。',
+            'phase1.guide.content.title': '⚙️ 生成内容',
+            'phase1.guide.content.desc': '• 世界观设定和背景故事<br>• 主要角色设计和性格特征<br>• 故事发展阶段规划<br>• 详细章节大纲<br>• 情感线索和伏笔安排',
+            'phase1.guide.bestPractice.title': '💡 最佳实践',
+            'phase1.guide.bestPractice.desc': '• 核心设定描述尽量详细（建议300字以上）<br>• 明确故事的主要卖点和特色<br>• 合理规划章节数量（建议20-100章）<br>• 可以先仅生成设定，审核后再继续生成章节',
+            'phase1.guide.nextSteps.title': '🔄 后续操作',
+            'phase1.guide.nextSteps.desc': '第一阶段完成后，您可以：<br>• 立即继续第二阶段章节生成<br>• 保存项目，稍后继续<br>• 查看和编辑生成的设定<br>• 调整生成参数后重新生成',
+            
+            // Dashboard 页面
+            'dashboard.title': '📊 创作仪表板',
+            'dashboard.subtitle': '查看你的创作数据统计和分析',
+            'dashboard.stat.chapters': '生成章节数',
+            'dashboard.stat.thisSession': '↑ 本次生成',
+            'dashboard.stat.words': '总字数',
+            'dashboard.stat.avgScore': '平均质量分',
+            'dashboard.stat.progress': '生成进度',
+            'dashboard.detail.chapters': '章节详情',
+            'dashboard.detail.scoreDist': '质量分数分布',
+            'dashboard.table.chapter': '章节',
+            'dashboard.table.title': '标题',
+            'dashboard.table.words': '字数',
+            'dashboard.table.score': '质量分',
+            'dashboard.table.status': '状态',
+            'dashboard.table.action': '操作',
+            
+            // 通用
+            'common.loading': '加载中...',
+            'common.save': '保存',
+            'common.cancel': '取消',
+            'common.confirm': '确认',
+            'common.delete': '删除',
+            'common.edit': '编辑',
+            'common.create': '创建',
+            
             // 步骤名称
             'step.creative_refinement': '创意精炼',
             'step.fanfiction_detection': '同人检测',
@@ -455,6 +496,21 @@ const I18N = {
             'gen.status.processing': '處理中',
             'gen.status.completed': '已完成',
             'gen.status.failed': '失敗',
+            
+            // Phase 1 頁面
+            'phase1.badge': '第一階段設定生成',
+            'phase1.title': '兩階段小說生成',
+            'phase1.subtitle': '生成完整的世界觀設定、角色設計和故事大綱',
+            'phase1.form.title': '創意輸入與配置',
+            'phase1.guide.title': '使用說明',
+            'phase1.guide.goal.title': '🎯 第一階段目標',
+            'phase1.guide.goal.desc': '生成完整的世界觀設定、角色設計和詳細的故事大綱，為後續章節內容生成提供高質量的基礎框架。',
+            'phase1.guide.content.title': '⚙️ 生成內容',
+            'phase1.guide.content.desc': '• 世界觀設定和背景故事<br>• 主要角色設計和性格特徵<br>• 故事發展階段規劃<br>• 詳細章節大綱<br>• 情感線索和伏筆安排',
+            'phase1.guide.bestPractice.title': '💡 最佳實踐',
+            'phase1.guide.bestPractice.desc': '• 核心設定描述儘量詳細（建議300字以上）<br>• 明確故事的主要賣點和特色<br>• 合理規劃章節數量（建議20-100章）<br>• 可以先僅生成設定，審核後再繼續生成章節',
+            'phase1.guide.nextSteps.title': '🔄 後續操作',
+            'phase1.guide.nextSteps.desc': '第一階段完成後，您可以：<br>• 立即繼續第二階段章節生成<br>• 保存專案，稍後繼續<br>• 查看和編輯生成的設定<br>• 調整生成參數後重新生成',
             
             // 步驟名稱
             'step.creative_refinement': '創意精煉',
@@ -690,6 +746,47 @@ const I18N = {
             'gen.status.processing': 'Processing',
             'gen.status.completed': 'Completed',
             'gen.status.failed': 'Failed',
+            
+            // Phase 1 Page
+            'phase1.badge': 'Phase 1: Setup Generation',
+            'phase1.title': 'Two-Phase Novel Generation',
+            'phase1.subtitle': 'Generate complete world-building, character design and story outline',
+            'phase1.form.title': 'Creative Input & Configuration',
+            'phase1.guide.title': 'Instructions',
+            'phase1.guide.goal.title': '🎯 Phase 1 Goal',
+            'phase1.guide.goal.desc': 'Generate complete world-building, character design and detailed story outline to provide a high-quality foundation for subsequent chapter generation.',
+            'phase1.guide.content.title': '⚙️ Generated Content',
+            'phase1.guide.content.desc': '• World-building and background story<br>• Main character design and personality traits<br>• Story development stage planning<br>• Detailed chapter outlines<br>• Emotional threads and foreshadowing',
+            'phase1.guide.bestPractice.title': '💡 Best Practices',
+            'phase1.guide.bestPractice.desc': '• Describe core settings in detail (300+ words recommended)<br>• Clarify main selling points and features<br>• Plan chapter count reasonably (20-100 chapters recommended)<br>• Generate settings first, review before continuing',
+            'phase1.guide.nextSteps.title': '🔄 Next Steps',
+            'phase1.guide.nextSteps.desc': 'After Phase 1 completes, you can:<br>• Continue to Phase 2 chapter generation<br>• Save project and continue later<br>• View and edit generated settings<br>• Adjust parameters and regenerate',
+            
+            // Dashboard Page
+            'dashboard.title': '📊 Dashboard',
+            'dashboard.subtitle': 'View your creation statistics and analysis',
+            'dashboard.stat.chapters': 'Chapters Generated',
+            'dashboard.stat.thisSession': '↑ This Session',
+            'dashboard.stat.words': 'Total Words',
+            'dashboard.stat.avgScore': 'Avg Quality Score',
+            'dashboard.stat.progress': 'Progress',
+            'dashboard.detail.chapters': 'Chapter Details',
+            'dashboard.detail.scoreDist': 'Quality Score Distribution',
+            'dashboard.table.chapter': 'Chapter',
+            'dashboard.table.title': 'Title',
+            'dashboard.table.words': 'Words',
+            'dashboard.table.score': 'Score',
+            'dashboard.table.status': 'Status',
+            'dashboard.table.action': 'Action',
+            
+            // Common
+            'common.loading': 'Loading...',
+            'common.save': 'Save',
+            'common.cancel': 'Cancel',
+            'common.confirm': 'Confirm',
+            'common.delete': 'Delete',
+            'common.edit': 'Edit',
+            'common.create': 'Create',
             
             // Step names
             'step.creative_refinement': 'Creative Refinement',

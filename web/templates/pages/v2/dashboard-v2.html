@@ -472,8 +472,8 @@
 <div class="v2-dashboard-page">
     <!-- 页面标题 -->
     <div class="v2-page-header">
-        <h1 class="v2-page-title">📊 创作仪表板</h1>
-        <p class="v2-page-subtitle">查看你的创作数据统计和分析</p>
+        <h1 class="v2-page-title" data-i18n="dashboard.title">📊 创作仪表板</h1>
+        <p class="v2-page-subtitle" data-i18n="dashboard.subtitle">查看你的创作数据统计和分析</p>
     </div>
 
     <!-- 内容区域 -->
@@ -482,26 +482,26 @@
         <div class="v2-stats-grid">
             <div class="v2-stat-card">
                 <div class="v2-stat-icon v2-stat-icon--blue">📚</div>
-                <div class="v2-stat-label">生成章节数</div>
+                <div class="v2-stat-label" data-i18n="dashboard.stat.chapters">生成章节数</div>
                 <div class="v2-stat-value" id="metric-chapters">0</div>
-                <div class="v2-stat-trend v2-stat-trend--positive">↑ 本次生成</div>
+                <div class="v2-stat-trend v2-stat-trend--positive" data-i18n="dashboard.stat.thisSession">↑ 本次生成</div>
             </div>
             
             <div class="v2-stat-card">
                 <div class="v2-stat-icon v2-stat-icon--green">📝</div>
-                <div class="v2-stat-label">总字数</div>
+                <div class="v2-stat-label" data-i18n="dashboard.stat.words">总字数</div>
                 <div class="v2-stat-value" id="metric-words">0</div>
             </div>
             
             <div class="v2-stat-card">
                 <div class="v2-stat-icon v2-stat-icon--purple">⭐</div>
-                <div class="v2-stat-label">平均质量分</div>
+                <div class="v2-stat-label" data-i18n="dashboard.stat.avgScore">平均质量分</div>
                 <div class="v2-stat-value" id="metric-score">-</div>
             </div>
             
             <div class="v2-stat-card">
                 <div class="v2-stat-icon v2-stat-icon--orange">📈</div>
-                <div class="v2-stat-label">生成进度</div>
+                <div class="v2-stat-label" data-i18n="dashboard.stat.progress">生成进度</div>
                 <div class="v2-stat-value" id="metric-progress">0%</div>
                 <div class="v2-progress-bar">
                     <div class="v2-progress-fill" id="main-progress" style="width: 0%"></div>
@@ -515,18 +515,18 @@
             <div class="v2-detail-card">
                 <div class="v2-detail-header">
                     <div class="v2-detail-icon">📚</div>
-                    <h2 class="v2-detail-title">章节详情</h2>
+                    <h2 class="v2-detail-title" data-i18n="dashboard.detail.chapters">章节详情</h2>
                 </div>
                 <div class="v2-table-container">
                     <table class="v2-table">
                         <thead>
                             <tr>
-                                <th>章节</th>
-                                <th>标题</th>
-                                <th>字数</th>
-                                <th>质量分</th>
-                                <th>状态</th>
-                                <th>操作</th>
+                                <th data-i18n="dashboard.table.chapter">章节</th>
+                                <th data-i18n="dashboard.table.title">标题</th>
+                                <th data-i18n="dashboard.table.words">字数</th>
+                                <th data-i18n="dashboard.table.score">质量分</th>
+                                <th data-i18n="dashboard.table.status">状态</th>
+                                <th data-i18n="dashboard.table.action">操作</th>
                             </tr>
                         </thead>
                         <tbody id="chapters-tbody">
@@ -534,7 +534,7 @@
                                 <td colspan="6">
                                     <div class="v2-empty-state">
                                         <div class="v2-spinner"></div>
-                                        <div>加载中...</div>
+                                        <div data-i18n="common.loading">加载中...</div>
                                     </div>
                                 </td>
                             </tr>
@@ -547,12 +547,12 @@
             <div class="v2-detail-card">
                 <div class="v2-detail-header">
                     <div class="v2-detail-icon">📊</div>
-                    <h2 class="v2-detail-title">质量分数分布</h2>
+                    <h2 class="v2-detail-title" data-i18n="dashboard.detail.scoreDist">质量分数分布</h2>
                 </div>
                 <div class="v2-chart-container" id="score-distribution">
                     <div class="v2-empty-state">
                         <div class="v2-spinner"></div>
-                        <div>加载中...</div>
+                        <div data-i18n="common.loading">加载中...</div>
                     </div>
                 </div>
             </div>

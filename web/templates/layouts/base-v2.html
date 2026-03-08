@@ -87,9 +87,10 @@
             
             // 同步语言选择器状态
             const settings = JSON.parse(localStorage.getItem('userSettings') || '{}');
-            const langSwitcher = document.getElementById('language-switcher');
-            if (langSwitcher && settings.language) {
-                langSwitcher.value = settings.language;
+            if (settings.language) {
+                document.querySelectorAll('#language-switcher, #page-language-switcher').forEach(el => {
+                    if (el) el.value = settings.language;
+                });
             }
         });
     </script>

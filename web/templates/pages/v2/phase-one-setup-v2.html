@@ -142,19 +142,62 @@
             border: 1px solid var(--v2-border-default) !important;
             border-radius: 16px !important;
         }
+        
+        /* 语言切换器 */
+        .v2-page-lang-switcher {
+            position: fixed;
+            top: 80px;
+            right: 24px;
+            z-index: 100;
+        }
+        
+        .v2-page-lang-select {
+            padding: 6px 10px;
+            padding-right: 24px;
+            background: var(--v2-bg-tertiary);
+            border: 1px solid var(--v2-border-default);
+            border-radius: 8px;
+            color: var(--v2-text-secondary);
+            font-size: 13px;
+            cursor: pointer;
+            appearance: none;
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='rgba(255,255,255,0.5)' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
+            background-repeat: no-repeat;
+            background-position: right 6px center;
+            background-size: 12px;
+        }
+        
+        .v2-page-lang-select:hover {
+            border-color: var(--v2-border-hover);
+            color: var(--v2-text-primary);
+        }
+        
+        .v2-page-lang-select option {
+            background: #1e293b;
+            color: #fff;
+        }
     </style>
 {% endblock %}
 
 {% block content %}
 <div class="v2-phase-container">
+    <!-- 语言切换器 -->
+    <div class="v2-page-lang-switcher">
+        <select id="page-language-switcher" class="v2-page-lang-select" onchange="switchLanguage(this.value)">
+            <option value="zh-CN">简体中文</option>
+            <option value="zh-TW">繁體中文</option>
+            <option value="en">English</option>
+        </select>
+    </div>
+    
     <!-- V2 页面头部 -->
     <div class="v2-page-header">
         <div class="v2-page-header__badge">
             <span class="v2-page-header__badge-dot"></span>
-            <span>第一阶段设定生成</span>
+            <span data-i18n="phase1.badge">第一阶段设定生成</span>
         </div>
-        <h1 class="v2-page-header__title">两阶段小说生成</h1>
-        <p class="v2-page-header__subtitle">生成完整的世界观设定、角色设计和故事大纲</p>
+        <h1 class="v2-page-header__title" data-i18n="phase1.title">两阶段小说生成</h1>
+        <p class="v2-page-header__subtitle" data-i18n="phase1.subtitle">生成完整的世界观设定、角色设计和故事大纲</p>
     </div>
 
     <!-- 主内容区域 -->
@@ -164,7 +207,7 @@
             <div class="v2-content-card">
                 <div class="v2-content-card__header">
                     <div class="v2-content-card__icon">✨</div>
-                    <h2 class="v2-content-card__title">创意输入与配置</h2>
+                    <h2 class="v2-content-card__title" data-i18n="phase1.form.title">创意输入与配置</h2>
                 </div>
 
                 <!-- 导入创意库组件 -->
@@ -189,17 +232,17 @@
             <div class="v2-content-card">
                 <div class="v2-content-card__header">
                     <div class="v2-content-card__icon">📖</div>
-                    <h2 class="v2-content-card__title">使用说明</h2>
+                    <h2 class="v2-content-card__title" data-i18n="phase1.guide.title">使用说明</h2>
                 </div>
 
                 <div class="v2-info-item">
-                    <h4>🎯 第一阶段目标</h4>
-                    <p>生成完整的世界观设定、角色设计和详细的故事大纲，为后续章节内容生成提供高质量的基础框架。</p>
+                    <h4 data-i18n="phase1.guide.goal.title">🎯 第一阶段目标</h4>
+                    <p data-i18n="phase1.guide.goal.desc">生成完整的世界观设定、角色设计和详细的故事大纲，为后续章节内容生成提供高质量的基础框架。</p>
                 </div>
 
                 <div class="v2-info-item">
-                    <h4>⚙️ 生成内容</h4>
-                    <p>• 世界观设定和背景故事<br>
+                    <h4 data-i18n="phase1.guide.content.title">⚙️ 生成内容</h4>
+                    <p data-i18n-html="phase1.guide.content.desc">• 世界观设定和背景故事<br>
                        • 主要角色设计和性格特征<br>
                        • 故事发展阶段规划<br>
                        • 详细章节大纲（每章的情节要点）<br>
@@ -207,16 +250,16 @@
                 </div>
 
                 <div class="v2-info-item">
-                    <h4>💡 最佳实践</h4>
-                    <p>• 核心设定描述尽量详细（建议300字以上）<br>
+                    <h4 data-i18n="phase1.guide.bestPractice.title">💡 最佳实践</h4>
+                    <p data-i18n-html="phase1.guide.bestPractice.desc">• 核心设定描述尽量详细（建议300字以上）<br>
                        • 明确故事的主要卖点和特色<br>
                        • 合理规划章节数量（建议20-100章）<br>
                        • 可以先仅生成设定，审核后再继续生成章节</p>
                 </div>
 
                 <div class="v2-info-item">
-                    <h4>🔄 后续操作</h4>
-                    <p>第一阶段完成后，您可以：<br>
+                    <h4 data-i18n="phase1.guide.nextSteps.title">🔄 后续操作</h4>
+                    <p data-i18n-html="phase1.guide.nextSteps.desc">第一阶段完成后，您可以：<br>
                        • 立即继续第二阶段章节生成<br>
                        • 保存项目，稍后继续<br>
                        • 查看和编辑生成的设定<br>
