@@ -146,33 +146,33 @@
             </svg>
         </div>
         
-        <h1 class="v2-success-title">支付成功！</h1>
-        <p class="v2-success-message">您的点数已到账，可以开始创作了</p>
+        <h1 class="v2-success-title" data-i18n="paymentSuccess.title">支付成功！</h1>
+        <p class="v2-success-message" data-i18n="paymentSuccess.message">您的点数已到账，可以开始创作了</p>
         
         <!-- 订单信息 -->
         <div class="v2-order-info">
             <div class="v2-order-info__row">
-                <span class="v2-order-info__label">订单号</span>
+                <span class="v2-order-info__label" data-i18n="paymentSuccess.orderId">订单号</span>
                 <span id="orderId" class="v2-order-info__value" style="font-family: var(--v2-font-mono);">--</span>
             </div>
             <div class="v2-order-info__row">
-                <span class="v2-order-info__label">支付金额</span>
+                <span class="v2-order-info__label" data-i18n="paymentSuccess.amount">支付金额</span>
                 <span id="amount" class="v2-order-info__value">¥--</span>
             </div>
             <div class="v2-order-info__row">
-                <span class="v2-order-info__label">获得点数</span>
+                <span class="v2-order-info__label" data-i18n="paymentSuccess.points">获得点数</span>
                 <span id="points" class="v2-order-info__value v2-order-info__value--success">--点</span>
             </div>
             <div class="v2-order-info__row">
-                <span class="v2-order-info__label">当前余额</span>
+                <span class="v2-order-info__label" data-i18n="paymentSuccess.balance">当前余额</span>
                 <span id="balance" class="v2-order-info__value v2-order-info__value--primary">--点</span>
             </div>
         </div>
         
         <!-- 操作按钮 -->
         <div class="v2-success-actions">
-            <a href="/recharge" class="v2-btn v2-btn--primary">继续充值</a>
-            <a href="/" class="v2-btn v2-btn--secondary">返回首页</a>
+            <a href="/recharge" class="v2-btn v2-btn--primary" data-i18n="paymentSuccess.continue">继续充值</a>
+            <a href="/" class="v2-btn v2-btn--secondary" data-i18n="paymentSuccess.backHome">返回首页</a>
         </div>
     </div>
 </div>

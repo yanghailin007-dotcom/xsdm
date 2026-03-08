@@ -997,15 +997,15 @@ input:checked + .slider:before {
             </div>
             <div class="v2-toolbar-right">
                 <button class="v2-btn v2-btn--secondary" id="reading-settings-btn" onclick="toggleReadingSettings()">
-                    ⚙️ 设置
+                    ⚙️ <span data-i18n="novel.settings">设置</span>
                 </button>
                 <button class="v2-btn v2-btn--secondary" id="export-json-btn" onclick="exportChapterData()">
-                    📥 导出
+                    📥 <span data-i18n="novel.export">导出</span>
                 </button>
                 <button class="v2-btn v2-btn--secondary" id="print-btn" onclick="printChapter()">
-                    🖨️ 打印
+                    🖨️ <span data-i18n="novel.print">打印</span>
                 </button>
-                <a href="/novels" class="v2-btn v2-btn--ghost">返回列表</a>
+                <a href="/novels" class="v2-btn v2-btn--ghost" data-i18n="novel.backToList">返回列表</a>
             </div>
         </div>
     </div>
@@ -1013,9 +1013,9 @@ input:checked + .slider:before {
     <!-- 阅读设置面板 -->
     <div class="reading-settings-panel" id="reading-settings-panel">
         <div class="settings-content">
-            <h4>阅读设置</h4>
+            <h4 data-i18n="novel.readingSettings.title">阅读设置</h4>
             <div class="setting-item">
-                <label>字体大小：</label>
+                <label data-i18n="novel.readingSettings.fontSize">字体大小：</label>
                 <div class="font-size-controls">
                     <button class="v2-btn v2-btn--secondary v2-btn--sm" onclick="adjustFontSize(-2)">A-</button>
                     <span id="font-size-display">18px</span>
@@ -1023,19 +1023,19 @@ input:checked + .slider:before {
                 </div>
             </div>
             <div class="setting-item">
-                <label>背景主题：</label>
+                <label data-i18n="novel.readingSettings.theme">背景主题：</label>
                 <div class="theme-controls">
-                    <button class="theme-btn" data-theme="light" onclick="setReadingTheme('light')">☀️ 白天</button>
-                    <button class="theme-btn" data-theme="sepia" onclick="setReadingTheme('sepia')">📖 护眼</button>
-                    <button class="theme-btn active" data-theme="dark" onclick="setReadingTheme('dark')">🌙 夜间</button>
+                    <button class="theme-btn" data-theme="light" onclick="setReadingTheme('light')">☀️ <span data-i18n="novel.theme.light">白天</span></button>
+                    <button class="theme-btn" data-theme="sepia" onclick="setReadingTheme('sepia')">📖 <span data-i18n="novel.theme.sepia">护眼</span></button>
+                    <button class="theme-btn active" data-theme="dark" onclick="setReadingTheme('dark')">🌙 <span data-i18n="novel.theme.dark">夜间</span></button>
                 </div>
             </div>
             <div class="setting-item">
-                <label>行间距：</label>
+                <label data-i18n="novel.readingSettings.lineHeight">行间距：</label>
                 <div class="line-height-controls">
-                    <button class="v2-btn v2-btn--secondary v2-btn--sm" onclick="adjustLineHeight(-0.1)">紧密</button>
+                    <button class="v2-btn v2-btn--secondary v2-btn--sm" onclick="adjustLineHeight(-0.1)" data-i18n="novel.lineHeight.compact">紧密</button>
                     <span id="line-height-display">1.8</span>
-                    <button class="v2-btn v2-btn--secondary v2-btn--sm" onclick="adjustLineHeight(0.1)">宽松</button>
+                    <button class="v2-btn v2-btn--secondary v2-btn--sm" onclick="adjustLineHeight(0.1)" data-i18n="novel.lineHeight.loose">宽松</button>
                 </div>
             </div>
         </div>
@@ -1049,17 +1049,17 @@ input:checked + .slider:before {
             <div class="left-sidebar" id="left-sidebar">
                 <!-- 小说基本信息 -->
                 <div class="design-section">
-                    <div class="design-section-title">📚 小说信息</div>
+                    <div class="design-section-title">📚 <span data-i18n="novel.sidebar.info">小说信息</span></div>
                     <div class="design-item">
-                        <div class="design-item-label">标题</div>
+                        <div class="design-item-label" data-i18n="novel.sidebar.title">标题</div>
                         <div class="design-item-value" id="novel-title-sidebar">加载中...</div>
                     </div>
                     <div class="design-item">
-                        <div class="design-item-label">进度</div>
+                        <div class="design-item-label" data-i18n="novel.sidebar.progress">进度</div>
                         <div class="design-item-value" id="novel-progress">0/50</div>
                     </div>
                     <div class="design-item">
-                        <div class="design-item-label">状态</div>
+                        <div class="design-item-label" data-i18n="novel.sidebar.status">状态</div>
                         <div class="design-item-value" id="novel-status">
                             <span class="status-badge status-generating">生成中</span>
                         </div>
@@ -1068,20 +1068,20 @@ input:checked + .slider:before {
 
                 <!-- 核心设定 -->
                 <div class="design-section">
-                    <div class="design-section-title">⚙️ 核心设定</div>
+                    <div class="design-section-title">⚙️ <span data-i18n="novel.sidebar.coreSetting">核心设定</span></div>
                     <div class="design-item">
-                        <div class="design-item-label">核心设定</div>
+                        <div class="design-item-label" data-i18n="novel.sidebar.coreSetting">核心设定</div>
                         <div class="design-item-value" id="core-setting">加载中...</div>
                     </div>
                     <div class="design-item">
-                        <div class="design-item-label">卖点</div>
+                        <div class="design-item-label" data-i18n="novel.sidebar.sellingPoints">卖点</div>
                         <div class="design-item-value" id="core-selling-points">加载中...</div>
                     </div>
                 </div>
 
                 <!-- 章节导航 -->
                 <div class="design-section">
-                    <div class="design-section-title">📄 章节导航</div>
+                    <div class="design-section-title">📄 <span data-i18n="novel.sidebar.chapterNav">章节导航</span></div>
                     <div class="chapters-list-container" id="chapters-list-container">
                         <div class="chapters-list" id="chapters-list">
                             <div class="loading-placeholder">
@@ -1108,13 +1108,13 @@ input:checked + .slider:before {
             <!-- 中间：正文内容 -->
             <div class="center-content" id="center-content">
                 <div class="content-header">
-                    <h2 id="chapter-title">选择章节阅读</h2>
-                    <p id="chapter-meta">点击左侧章节列表选择要查看的章节</p>
+                    <h2 id="chapter-title" data-i18n="novel.selectChapter">选择章节阅读</h2>
+                    <p id="chapter-meta" data-i18n="novel.selectChapterHint">点击左侧章节列表选择要查看的章节</p>
                 </div>
                 <div class="content-body" id="chapter-content">
                     <div class="loading-placeholder">
                         <div class="spinner"></div>
-                        <p>请从左侧选择章节开始阅读</p>
+                        <p data-i18n="novel.selectChapterPrompt">请从左侧选择章节开始阅读</p>
                     </div>
                 </div>
                 

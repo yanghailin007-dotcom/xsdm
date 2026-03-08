@@ -198,55 +198,55 @@
 {% block content %}
 <div class="contact-container">
     <div class="contact-header">
-        <h1 class="contact-title">联系我们</h1>
-        <p class="contact-subtitle">有任何问题或建议？我们期待听到您的声音</p>
+        <h1 class="contact-title" data-i18n="contact.title">联系我们</h1>
+        <p class="contact-subtitle" data-i18n="contact.subtitle">有任何问题或建议？我们期待听到您的声音</p>
     </div>
 
     <div class="contact-grid">
         <div class="contact-card">
             <div class="contact-icon">📧</div>
-            <h3>邮件联系</h3>
-            <p>发送邮件至 support@example.com<br>我们会在24小时内回复</p>
+            <h3 data-i18n="contact.card.email.title">邮件联系</h3>
+            <p data-i18n="contact.card.email.desc">发送邮件至 support@example.com<br>我们会在24小时内回复</p>
         </div>
         <div class="contact-card">
             <div class="contact-icon">💬</div>
-            <h3>在线客服</h3>
-            <p>工作日 9:00-18:00<br>实时为您解答问题</p>
+            <h3 data-i18n="contact.card.online.title">在线客服</h3>
+            <p data-i18n="contact.card.online.desc">工作日 9:00-18:00<br>实时为您解答问题</p>
         </div>
         <div class="contact-card">
             <div class="contact-icon">📱</div>
-            <h3>微信公众号</h3>
-            <p>关注我们的公众号<br>获取最新动态和教程</p>
+            <h3 data-i18n="contact.card.wechat.title">微信公众号</h3>
+            <p data-i18n="contact.card.wechat.desc">关注我们的公众号<br>获取最新动态和教程</p>
         </div>
     </div>
 
     <div class="contact-form-section">
-        <h2>发送消息</h2>
-        <p>填写以下表单，我们会尽快与您联系</p>
+        <h2 data-i18n="contact.form.title">发送消息</h2>
+        <p data-i18n="contact.form.desc">填写以下表单，我们会尽快与您联系</p>
         
         <form onsubmit="submitForm(event)">
             <div class="form-group">
-                <label for="name">您的姓名</label>
-                <input type="text" id="name" name="name" placeholder="请输入您的姓名" required>
+                <label for="name" data-i18n="contact.form.name">您的姓名</label>
+                <input type="text" id="name" name="name" data-i18n-placeholder="contact.form.name.placeholder" placeholder="请输入您的姓名" required>
             </div>
             <div class="form-group">
-                <label for="email">邮箱地址</label>
-                <input type="email" id="email" name="email" placeholder="请输入您的邮箱" required>
+                <label for="email" data-i18n="contact.form.email">邮箱地址</label>
+                <input type="email" id="email" name="email" data-i18n-placeholder="contact.form.email.placeholder" placeholder="请输入您的邮箱" required>
             </div>
             <div class="form-group">
-                <label for="subject">主题</label>
-                <input type="text" id="subject" name="subject" placeholder="请输入消息主题" required>
+                <label for="subject" data-i18n="contact.form.subject">主题</label>
+                <input type="text" id="subject" name="subject" data-i18n-placeholder="contact.form.subject.placeholder" placeholder="请输入消息主题" required>
             </div>
             <div class="form-group">
-                <label for="message">消息内容</label>
-                <textarea id="message" name="message" placeholder="请详细描述您的问题或建议..." required></textarea>
+                <label for="message" data-i18n="contact.form.message">消息内容</label>
+                <textarea id="message" name="message" data-i18n-placeholder="contact.form.message.placeholder" placeholder="请详细描述您的问题或建议..." required></textarea>
             </div>
-            <button type="submit" class="btn-submit">发送消息</button>
+            <button type="submit" class="btn-submit" data-i18n="contact.form.submit">发送消息</button>
         </form>
     </div>
 
     <div class="social-links">
-        <h3>关注我们的社交媒体</h3>
+        <h3 data-i18n="contact.social.title">关注我们的社交媒体</h3>
         <div class="social-icons">
             <a href="#" class="social-icon" title="微信">📱</a>
             <a href="#" class="social-icon" title="微博">📝</a>
@@ -259,7 +259,7 @@
 <script>
 function submitForm(event) {
     event.preventDefault();
-    alert('感谢您的留言！我们会尽快与您联系。');
+    alert(I18N.t('contact.form.success'));
     event.target.reset();
 }
 </script>

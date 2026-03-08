@@ -551,8 +551,8 @@
         
         <!-- 页面标题 -->
         <div class="v2-recharge-header">
-            <h1 class="v2-recharge-title">💎 充值中心</h1>
-            <p class="v2-recharge-subtitle">充值点数，解锁更多创作功能</p>
+            <h1 class="v2-recharge-title">💎 <span data-i18n="recharge.title">充值中心</span></h1>
+            <p class="v2-recharge-subtitle" data-i18n="recharge.subtitle">充值点数，解锁更多创作功能</p>
         </div>
 
         <div class="v2-recharge-grid">
@@ -561,18 +561,18 @@
             <div class="v2-recharge-left">
                 <!-- 点数余额卡片 -->
                 <div class="v2-recharge-card" style="margin-bottom: var(--v2-space-4);">
-                    <h3 class="v2-recharge-card__title">当前余额</h3>
+                    <h3 class="v2-recharge-card__title" data-i18n="recharge.currentBalance">当前余额</h3>
                     <div class="v2-balance-display">
                         <span id="balance" class="v2-balance-amount">--</span>
-                        <span class="v2-balance-unit">点</span>
+                        <span class="v2-balance-unit" data-i18n="recharge.points">点</span>
                     </div>
                     <div class="v2-balance-stats">
                         <div class="v2-balance-stat">
-                            <span class="v2-balance-stat__label">累计获得:</span>
+                            <span class="v2-balance-stat__label" data-i18n="recharge.totalEarned">累计获得:</span>
                             <span id="totalEarned" class="v2-balance-stat__value">--</span>
                         </div>
                         <div class="v2-balance-stat">
-                            <span class="v2-balance-stat__label">累计消费:</span>
+                            <span class="v2-balance-stat__label" data-i18n="recharge.totalSpent">累计消费:</span>
                             <span id="totalSpent" class="v2-balance-stat__value--spent">--</span>
                         </div>
                     </div>
@@ -580,7 +580,7 @@
 
                 <!-- 充值说明 -->
                 <div class="v2-recharge-card" style="margin-bottom: var(--v2-space-4);">
-                    <h3 class="v2-recharge-card__title">💡 充值说明</h3>
+                    <h3 class="v2-recharge-card__title">💡 <span data-i18n="recharge.instructions.title">充值说明</span></h3>
                     <ul class="v2-recharge-info-list">
                         <li class="v2-recharge-info-item">1元 = 1点，0.01元起充（测试）</li>
                         <li class="v2-recharge-info-item">充值100元起送10点，多充多送</li>
@@ -591,9 +591,9 @@
 
                 <!-- 最近充值记录 -->
                 <div class="v2-recharge-card">
-                    <h3 class="v2-recharge-card__title">📋 最近充值</h3>
+                    <h3 class="v2-recharge-card__title">📋 <span data-i18n="recharge.recentOrders">最近充值</span></h3>
                     <div id="orderList" class="v2-order-list">
-                        <p class="v2-order-empty">加载中...</p>
+                        <p class="v2-order-empty" data-i18n="common.loading">加载中...</p>
                     </div>
                 </div>
             </div>
@@ -601,7 +601,7 @@
             <!-- 右侧：充值选项 -->
             <div class="v2-recharge-right">
                 <div class="v2-recharge-card">
-                    <h3 class="v2-recharge-card__title">选择充值金额</h3>
+                    <h3 class="v2-recharge-card__title" data-i18n="recharge.selectAmount">选择充值金额</h3>
                     
                     <!-- 充值选项网格 -->
                     <div id="rechargeOptions" class="v2-recharge-options">
@@ -612,15 +612,15 @@
 
                     <!-- 自定义金额 -->
                     <div class="v2-custom-amount">
-                        <label class="v2-custom-amount__label">自定义金额</label>
+                        <label class="v2-custom-amount__label" data-i18n="recharge.customAmount">自定义金额</label>
                         <div class="v2-custom-amount__row">
                             <div class="v2-custom-amount__input-wrapper">
                                 <span class="v2-custom-amount__prefix">¥</span>
                                 <input type="number" id="customAmount" 
                                     class="v2-custom-amount__input"
-                                    placeholder="输入金额（0.01-5000）" min="0.01" max="5000" step="0.01">
+                                    data-i18n-placeholder="recharge.customAmount.placeholder" placeholder="输入金额（0.01-5000）" min="0.01" max="5000" step="0.01">
                             </div>
-                            <button type="button" onclick="handleCustomRecharge(); return false;" class="v2-btn v2-btn--primary" id="rechargeBtn">
+                            <button type="button" onclick="handleCustomRecharge(); return false;" class="v2-btn v2-btn--primary" id="rechargeBtn" data-i18n="recharge.rechargeNow">
                                 立即充值
                             </button>
                         </div>
@@ -628,12 +628,12 @@
 
                     <!-- 支付方式 -->
                     <div class="v2-pay-methods">
-                        <label class="v2-pay-methods__label">支付方式</label>
+                        <label class="v2-pay-methods__label" data-i18n="recharge.payMethod">支付方式</label>
                         <div class="v2-pay-methods__list">
                             <label class="v2-pay-method v2-pay-method--selected">
                                 <input type="radio" name="payType" value="alipay" checked class="v2-pay-method__radio">
-                                <span class="v2-pay-method__name">支付宝</span>
-                                <span class="v2-pay-method__badge">推荐</span>
+                                <span class="v2-pay-method__name" data-i18n="recharge.alipay">支付宝</span>
+                                <span class="v2-pay-method__badge" data-i18n="recharge.recommended">推荐</span>
                             </label>
                         </div>
                     </div>
@@ -647,8 +647,8 @@
 <div id="payModal" class="v2-modal-overlay">
     <div class="v2-modal">
         <div class="v2-modal__header">
-            <h3 class="v2-modal__title">支付宝扫码支付</h3>
-            <p class="v2-modal__subtitle">订单金额: ¥<span id="modalAmount">0</span></p>
+            <h3 class="v2-modal__title" data-i18n="recharge.modal.title">支付宝扫码支付</h3>
+            <p class="v2-modal__subtitle"><span data-i18n="recharge.modal.orderAmount">订单金额:</span> ¥<span id="modalAmount">0</span></p>
         </div>
         
         <div class="v2-modal__content" id="payModalContent">
@@ -690,12 +690,12 @@
         </div>
 
         <div class="v2-modal__actions">
-            <button onclick="closePayModal()" class="v2-btn v2-btn--secondary">取消</button>
-            <button onclick="checkOrderStatus()" class="v2-btn v2-btn--primary">已完成支付</button>
+            <button onclick="closePayModal()" class="v2-btn v2-btn--secondary" data-i18n="common.cancel">取消</button>
+            <button onclick="checkOrderStatus()" class="v2-btn v2-btn--primary" data-i18n="recharge.modal.completed">已完成支付</button>
         </div>
 
         <p style="text-align: center; color: var(--v2-text-muted); font-size: var(--v2-text-xs); margin-top: var(--v2-space-4);">
-            订单号: <span id="modalOrderId" style="font-family: var(--v2-font-mono);"></span>
+            <span data-i18n="recharge.orderId">订单号:</span> <span id="modalOrderId" style="font-family: var(--v2-font-mono);"></span>
         </p>
     </div>
 </div>
