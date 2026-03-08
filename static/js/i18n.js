@@ -1449,8 +1449,20 @@ const I18N = {
         document.querySelectorAll('[data-i18n]').forEach(el => {
             const key = el.getAttribute('data-i18n');
             const attr = el.getAttribute('data-i18n-attr');
+            const paramsAttr = el.getAttribute('data-i18n-params');
+            
+            // 解析参数
+            let params = {};
+            if (paramsAttr) {
+                try {
+                    params = JSON.parse(paramsAttr);
+                } catch (e) {
+                    console.warn('Invalid data-i18n-params:', paramsAttr);
+                }
+            }
+            
             if (key) {
-                const translation = this.t(key);
+                const translation = this.t(key, params);
                 if (attr) {
                     // 如果指定了属性，则翻译该属性
                     el.setAttribute(attr, translation);
