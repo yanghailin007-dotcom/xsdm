@@ -132,9 +132,10 @@ def export_complete_package():
                 zf.write(project_info_file, f"04_配置/项目信息.json")
             
             # 6. 添加 README 说明文件
+            now_str = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
             readme_content = f"""# {episode_title} - 成片导出包
 
-导出时间: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
+导出时间: {now_str}
 
 ## 目录结构
 
@@ -208,60 +209,28 @@ def export_novel_zip(title):
         temp_file.close()
         
         with zipfile.ZipFile(temp_file.name, 'w', zipfile.ZIP_DEFLATED) as zf:
-            # 1. 添加章节内容
+            # 递归导出项目目录中的所有文件
+            file_count = 0
+            for item in project_dir.rglob('*'):
+                if item.is_file():
+                    # 计算相对路径
+                    arcname = item.relative_to(project_dir)
+                    try:
+                        zf.write(item, arcname)
+                        file_count += 1
+                    except Exception as e:
+                        print(f"添加文件失败 {item}: {e}")
+            
+            # 尝试合并章节内容（如果存在chapters目录）
             chapters_dir = project_dir / 'chapters'
             if chapters_dir.exists():
-                for chapter_file in chapters_dir.glob('*.txt'):
-                    zf.write(chapter_file, f"01_章节内容/{chapter_file.name}")
-            
-            # 2. 添加项目配置
-            config_file = project_dir / 'novel_data.json'
-            if config_file.exists():
-                zf.write(config_file, f"02_项目配置/novel_data.json")
-            
-            # 3. 添加核心设定文件
-            core_files = [
-                ('creative_seed.json', '创意种子'),
-                ('selected_plan.json', '选定方案'),
-                ('core_worldview.json', '核心世界观'),
-                ('character_design.json', '角色设计'),
-                ('overall_stage_plans.json', '阶段大纲'),
-            ]
-            for filename, desc in core_files:
-                file_path = project_dir / filename
-                if file_path.exists():
-                    zf.write(file_path, f"03_核心设定/{filename}")
-            
-            # 4. 添加阶段写作计划
-            stage_plans_dir = project_dir / 'stage_plans'
-            if stage_plans_dir.exists():
-                for stage_file in stage_plans_dir.glob('*_writing_plan.json'):
-                    zf.write(stage_file, f"04_写作计划/{stage_file.name}")
-            
-            # 5. 添加势力系统
-            factions_file = project_dir / 'factions' / 'factions.json'
-            if factions_file.exists():
-                zf.write(factions_file, f"05_势力系统/factions.json")
-            
-            # 6. 添加情感蓝图
-            emotional_file = project_dir / 'emotional_blueprint.json'
-            if emotional_file.exists():
-                zf.write(emotional_file, f"06_情感蓝图/emotional_blueprint.json")
-            
-            # 7. 添加成长规划
-            growth_file = project_dir / 'growth_plan.json'
-            if growth_file.exists():
-                zf.write(growth_file, f"07_成长规划/growth_plan.json")
-            
-            # 8. 添加完整小说文本（合并所有章节）
-            full_text = []
-            full_text.append(f"# {title}")
-            full_text.append(f"导出时间: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
-            full_text.append("=" * 50)
-            full_text.append("")
-            
-            # 尝试读取章节内容
-            if chapters_dir.exists():
+                full_text = []
+                full_text.append(f"# {title}")
+                now_str = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+                full_text.append(f"导出时间: {now_str}")
+                full_text.append("=" * 50)
+                full_text.append("")
+                
                 chapter_files = sorted(chapters_dir.glob('*.txt'))
                 for chapter_file in chapter_files:
                     try:
@@ -270,37 +239,39 @@ def export_novel_zip(title):
                             full_text.append("\n\n")
                     except Exception as e:
                         print(f"读取章节失败 {chapter_file}: {e}")
-            
-            if len(full_text) > 4:  # 如果有内容
-                zf.writestr(f"00_完整小说.txt", "\n".join(full_text))
+                
+                if len(full_text) > 4:  # 如果有内容
+                    zf.writestr(f"00_完整小说.txt", "\n".join(full_text))
+                    file_count += 1
             
             # 9. 添加 README 说明文件
+            now_str = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
             readme_content = f"""# {title} - 小说项目导出包
 
-导出时间: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
+导出时间: {now_str}
+共导出 {file_count} 个文件
 
 ## 目录结构
 
-- 00_完整小说.txt - 合并所有章节的完整小说文本
-- 01_章节内容/ - 各章节独立文本文件
-- 02_项目配置/ - 项目基础配置 (novel_data.json)
-- 03_核心设定/ - 创意种子、世界观、角色设计等
-- 04_写作计划/ - 各阶段详细写作计划
-- 05_势力系统/ - 势力关系配置
-- 06_情感蓝图/ - 情感线规划
-- 07_成长规划/ - 角色成长规划
+本导出包包含项目的完整文件结构：
+
+- project_info/ - 项目信息配置
+- 写作计划/ - 各阶段写作计划
+- 生成材料/ - AI生成的设定材料
+- 数据文件/ - 项目数据文件
+- *_项目信息.json - 项目元数据
+- *_writing_style_guide.json - 写作风格指南
+- 00_完整小说.txt (如存在章节) - 合并所有章节的完整小说文本
 
 ## 使用说明
 
-1. **完整小说.txt**: 直接阅读或导入到 Word 等软件
-2. **章节内容/**: 单独查看或编辑各章节
-3. **项目配置/**: 包含项目的完整数据，可用于恢复项目
-4. **核心设定/**: 查看 AI 生成的世界观和角色设定
+1. 解压后将文件夹放回原项目目录即可恢复项目
+2. 包含所有AI生成的设定、大纲、写作计划
+3. 如有章节内容，可在 00_完整小说.txt 中查看
 
 ## 注意事项
 
 - 此导出包包含项目的所有数据，请妥善保管
-- 如需恢复项目，将文件解压后放回原项目目录即可
 - 建议定期导出备份重要项目
 """
             zf.writestr("README.md", readme_content)
