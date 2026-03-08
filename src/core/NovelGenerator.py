@@ -371,7 +371,9 @@ class NovelGenerator:
                 self.logger.info(f"🧹 任务 {task_id}: 上下文已清理")
 
     def _setup_signal_handlers(self):
-        """设置中断信号处理"""
+        """设置中断信号处理 - 需要按两次 Ctrl+C 才会退出"""
+        self._sigint_count = 0
+        self._sigint_last_time = 0
         try:
             signal.signal(signal.SIGINT, self.signal_handler)
         except ValueError:
@@ -1081,11 +1083,26 @@ class NovelGenerator:
             print(f"❌ 保存项目信息到材料管理器失败: {e}")
 
     def signal_handler(self, signum, frame):
-        """处理中断信号"""
-        print(f"\n\n收到中断信号，正在保存进度...")
-        self.project_manager.save_project_progress(self._ctx)
-        print("进度已保存，可以安全退出。")
-        sys.exit(0)
+        """处理中断信号 - 需要按两次 Ctrl+C 才会退出"""
+        import time
+        current_time = time.time()
+        
+        # 如果超过 3 秒，重置计数器
+        if current_time - self._sigint_last_time > 3:
+            self._sigint_count = 0
+        
+        self._sigint_count += 1
+        self._sigint_last_time = current_time
+        
+        if self._sigint_count == 1:
+            print(f"\n\n⚠️  收到第一次中断信号 (Ctrl+C)")
+            print("📝 正在保存进度...")
+            self.project_manager.save_project_progress(self._ctx)
+            print("✅ 进度已保存")
+            print("💡 提示：3 秒内再按一次 Ctrl+C 才会退出，否则继续生成\n")
+        elif self._sigint_count >= 2:
+            print(f"\n\n收到第二次中断信号，正在退出...")
+            sys.exit(0)
 
     # ==================== 兼容性方法 ====================
     # 为了保持向后兼容，保留一些常用的方法签名
