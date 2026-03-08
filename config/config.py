@@ -134,7 +134,7 @@ CONFIG = {
     },
     "defaults": {
         "temperature": 0.7,
-        "max_tokens": 60000,
+        "max_tokens": 8192,
         "total_chapters": 200,
         "max_retries": 3,
         "chapters_per_batch": 3,
