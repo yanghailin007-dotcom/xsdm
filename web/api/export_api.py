@@ -194,10 +194,14 @@ def export_novel_zip(title):
         if not novel_detail:
             return jsonify({'success': False, 'error': '小说项目不存在'}), 404
         
-        # 构建小说项目完整路径
-        project_dir = Path(novel_detail.get('project_path', ''))
-        if not project_dir or not project_dir.exists():
-            return jsonify({'success': False, 'error': '小说项目路径不存在'}), 404
+        # 构建小说项目完整路径 (owner/title 结构)
+        owner = novel_detail.get('owner', 'anonymous')
+        project_dir = NOVEL_PROJECTS_DIR / owner / title
+        if not project_dir.exists():
+            # 尝试直接查找（兼容旧结构）
+            project_dir = NOVEL_PROJECTS_DIR / title
+            if not project_dir.exists():
+                return jsonify({'success': False, 'error': '小说项目路径不存在'}), 404
         
         # 创建临时 ZIP 文件
         temp_file = tempfile.NamedTemporaryFile(suffix='.zip', delete=False)
