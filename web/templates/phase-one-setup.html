@@ -98,8 +98,8 @@
     <script>
         // ==================== 创造点计算器 ====================
         // 第一阶段设定生成 - API调用统计（基于实际代码分析）
-        // 总计: 39点创造点
-        const PHASE_ONE_BASE_COST = 39;
+        // 动态计算（默认75点，200章约75-119点）
+        let PHASE_ONE_BASE_COST = 75;
         let currentPointsCost = PHASE_ONE_BASE_COST;
         let userPointsBalance = 0;
         

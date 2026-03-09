@@ -541,21 +541,42 @@ class PointModel:
     
     def calculate_phase1_cost(self, total_chapters: int = 200, 
                               estimated_characters: int = 4) -> Dict[str, Any]:
-        """计算第一阶段消耗"""
-        # 🔥 修复：确保 total_chapters 是整数
+        """
+        计算第一阶段消耗（基于实际 API 调用次数估算）
+        
+        实际流程分析：
+        - 基础流程：创意精炼(1) + 方案生成循环(4轮×2次) + 风格指南(1) + 市场分析(3次) + 世界观(3次) + 势力系统(1) = 19次
+        - 角色设计：核心角色(1) + 配角补充(1) = 2次
+        - 情绪蓝图：1次
+        - 成长规划：1次
+        - 阶段计划：按阶段计算，每阶段约 10-15 次 API 调用
+        """
         total_chapters = int(total_chapters) if total_chapters else 200
         
+        # 基础流程固定消耗（与章节数无关）
+        base_cost = 25  # 创意精炼 + 方案循环(8次) + 风格指南 + 市场分析(3次) + 世界观(3次) + 势力系统 + 角色设计(2次) + 情绪蓝图 + 成长规划
+        
+        # 阶段相关消耗（每阶段约 12 次 API 调用）
+        # 阶段数 = 总章节数 / 每阶段章节数(约30章)
+        estimated_stages = max(3, total_chapters // 30)  # 至少3个阶段
+        stage_cost = estimated_stages * 12  # 每阶段约12次调用
+        
+        # 质量评估和验证
+        validation_cost = estimated_stages * 2  # 每个阶段的质量评估
+        
         breakdown = {
-            'planning': self.get_config('phase1_planning', 1),
-            'worldview': self.get_config('phase1_worldview', 3),
-            'characters': self.get_config('phase1_characters', 2) * estimated_characters,
-            'outline': (total_chapters // 10) * self.get_config('phase1_outline', 1),
-            'validation': self.get_config('phase1_validation', 1)
+            'base_flow': base_cost,
+            'stage_planning': stage_cost,
+            'validation': validation_cost,
+            'buffer': 10  # 预留缓冲（实际可能有额外调用）
         }
         
+        total = sum(breakdown.values())
+        
         return {
-            'total': sum(breakdown.values()),
-            'breakdown': breakdown
+            'total': total,
+            'breakdown': breakdown,
+            'note': f'预估基于 {estimated_stages} 个阶段，实际消耗可能因生成复杂度而异'
         }
     
     def calculate_phase2_cost(self, chapter_count: int, 

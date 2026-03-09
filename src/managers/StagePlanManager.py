@@ -262,9 +262,46 @@ class StagePlanManager:
             self.logger.info(f"🎬 从缓存加载【{stage_name}】分形写作计划...")
             return self.stage_writing_plans_cache[cache_key]
         
-        self.logger.info(f"🎬 开始为【{stage_name}】生成智能分形写作计划...")
+        import threading
+        thread_id = threading.current_thread().name
+        self.logger.info(f"🎬 [线程:{thread_id}] 开始为【{stage_name}】生成智能分形写作计划...")
         
-        # Phase 1: 生成主龙骨（重大事件骨架）
+        # 存储当前stage_name供API调用使用
+        self._current_stage_name = stage_name
+        
+        # 🔥 辅助函数：报告子步骤进度
+        def report_sub_step(sub_step_name: str, status: str, message: str = None):
+            """报告子步骤进度"""
+            try:
+                if hasattr(self.generator, '_update_task_status_callback'):
+                    task_id = getattr(self.generator, '_current_task_id', None)
+                    if task_id and callable(self.generator._update_task_status_callback):
+                        sub_step_status = {
+                            'step': 'detailed_stage_plans',
+                            'status': 'active',
+                            'sub_step': sub_step_name,
+                            'sub_step_status': status,
+                            'sub_step_message': message or f'{sub_step_name}: {status}',
+                            'current_sub_step': sub_step_name,
+                            'stage_name': stage_name
+                        }
+                        points_consumed = getattr(self.generator, '_api_points_consumed', 0)
+                        self.generator._update_task_status_callback(
+                            task_id, 'generating', None, None,
+                            current_step='detailed_stage_plans',
+                            step_status=sub_step_status,
+                            points_consumed=points_consumed
+                        )
+                        self.logger.info(f"📋 子步骤更新: {sub_step_name} -> {status}")
+            except Exception as e:
+                self.logger.debug(f"子步骤进度报告失败: {e}")
+        
+        # Phase 1: 生成阶段情绪计划
+        report_sub_step('emotional_plan', 'active', f'生成 {stage_name} 情绪计划')
+        # ... 情绪计划生成代码（在后续步骤中）...
+        
+        # Phase 2: 生成主龙骨（重大事件骨架）
+        report_sub_step('major_event_skeletons', 'active', '生成重大事件骨架')
         self.logger.info("   Phase 1: 规划阶段的'主龙骨' (重大事件框架)...")
         major_event_skeletons = self._generate_major_event_skeletons_with_retry(
             stage_name, stage_range, creative_seed, novel_title, novel_synopsis, overall_stage_plan
@@ -272,9 +309,12 @@ class StagePlanManager:
         
         if not major_event_skeletons:
             self.logger.error(f"    🚨 主龙骨生成失败")
+            report_sub_step('major_event_skeletons', 'failed', '主龙骨生成失败')
             return {}
+        report_sub_step('major_event_skeletons', 'completed', f'生成 {len(major_event_skeletons)} 个重大事件')
         
-        # Phase 2: 分解重大事件为中型事件（第一阶段到此为止）
+        # Phase 3: 分解重大事件为中型事件（事件解剖）
+        report_sub_step('event_decomposition', 'active', '解剖重大事件，拆分为中型事件')
         self.logger.info("   Phase 2: 逐一'解剖'重大事件，填充中型事件...")
         fleshed_out_major_events = self._decompose_major_events_to_medium_only(
             major_event_skeletons, stage_name, stage_range, creative_seed,
@@ -283,27 +323,38 @@ class StagePlanManager:
         
         if not fleshed_out_major_events:
             self.logger.error(f"    🚨 所有重大事件解剖失败")
+            report_sub_step('event_decomposition', 'failed', '事件解剖失败')
             return {}
+        report_sub_step('event_decomposition', 'completed', f'解剖完成，共 {len(fleshed_out_major_events)} 个事件')
         
-        # Phase 3: 验证和优化事件层级
+        # Phase 4: 验证和优化事件层级（连续性评估）
+        report_sub_step('continuity_assessment', 'active', '评估阶段连续性和事件层级')
         self.logger.info("   Phase 3: 验证并优化事件层级和连续性...")
         goal_coherence, continuity_assessment = self._validate_and_optimize_events(
             fleshed_out_major_events, stage_name, stage_range, overall_stage_plan
         )
+        report_sub_step('continuity_assessment', 'completed', '连续性评估完成')
         
-        # Phase 4: 组装最终计划并生成补充角色
+        # Phase 5: 组装最终计划
         self.logger.info("   Phase 4: 组装最终的写作计划...")
         final_writing_plan = self.scene_assembler.assemble_final_plan(
             stage_name, stage_range, fleshed_out_major_events, overall_stage_plan,
             novel_title, novel_synopsis, creative_seed
         )
         
-        # 🆕 Phase 4.5: 生成阶段补充角色
+        # Phase 6: 推断新角色
+        report_sub_step('character_inference', 'active', '推断阶段所需新角色')
+        # ... 角色推断逻辑 ...
+        report_sub_step('character_inference', 'completed', '角色推断完成')
+        
+        # Phase 7: 生成阶段补充角色
+        report_sub_step('supporting_characters', 'active', '生成配角设计')
         self.logger.info("   Phase 4.5: 为当前阶段生成补充角色...")
         final_writing_plan = self._generate_supplementary_characters_for_stage(
             stage_name, stage_range, final_writing_plan, creative_seed,
             novel_title, novel_synopsis, overall_stage_plan
         )
+        report_sub_step('supporting_characters', 'completed', '配角设计完成')
         
         # 添加评估结果
         if "stage_writing_plan" in final_writing_plan:

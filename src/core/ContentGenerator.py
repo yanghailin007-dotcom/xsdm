@@ -652,6 +652,97 @@ class ContentGenerator:
             self.logger.error("❌ 势力/阵营系统生成失败")
             return None
     
+    def generate_worldview_with_factions(self, novel_title: str, novel_synopsis: str, selected_plan: Dict,
+                                         market_analysis: Dict) -> Optional[Dict]:
+        """
+        🔥 合并优化：同时生成世界观和势力系统
+        将两次API调用合并为一次，节省时间且保持连贯性
+        """
+        self.logger.info("=== 步骤3: 合并构建世界观与势力系统 ===")
+        
+        # 从selected_plan中提取核心设定
+        core_settings = selected_plan.get("core_settings", {})
+        story_development = selected_plan.get("story_development", {})
+        world_background = core_settings.get("world_background", "")
+        golden_finger = core_settings.get("golden_finger", "")
+        core_selling_points = core_settings.get("core_selling_points", [])
+        protagonist_position = story_development.get("protagonist_position", "")
+        main_plot = story_development.get("main_plot", [])
+        
+        user_prompt = f"""
+## 小说信息
+- **小说标题**: {novel_title}
+- **小说简介**: {novel_synopsis}
+- **市场分析**: {json.dumps(market_analysis, ensure_ascii=False)}
+- **核心设定**:
+  - 世界观背景: {world_background}
+  - 金手指/系统: {golden_finger}
+  - 核心爽点: {', '.join(core_selling_points) if isinstance(core_selling_points, list) else core_selling_points}
+  - 主角定位: {protagonist_position}
+  - 主线脉络: {', '.join(main_plot) if isinstance(main_plot, list) else main_plot}
+
+## 核心任务
+请同时构建【世界观框架】和【势力系统】，确保两者在逻辑上完全自洽统一。
+
+### 第一部分：世界观框架 (core_worldview)
+请提供以下字段：
+- world_overview: 世界概览（整体描述）
+- power_system: 力量体系（修炼/能力系统详细说明）
+- world_rules: 世界规则（运行法则和限制）
+- key_locations: 关键地点（列表，3-5个重要场景）
+- time_background: 时间背景
+
+### 第二部分：势力系统 (faction_system)
+请提供以下字段：
+- factions: 势力列表（3-7个主要势力），每个包含：
+  - name: 势力名称
+  - description: 势力描述
+  - goals: 势力目标
+  - strengths: 优势
+  - weaknesses: 劣势
+  - relationships: 与其他势力的关系
+- main_conflict: 主要冲突（势力间核心矛盾）
+- faction_power_balance: 势力力量对比
+- recommended_starting_faction: 推荐主角初始势力
+
+## 设计要求
+1. **逻辑自洽**：势力系统必须与世界观设定（尤其是力量体系）保持一致
+2. **冲突驱动**：势力间关系要有明确的矛盾点和冲突潜力
+3. **主角切入点**：提供主角如何融入这个世界的清晰路径
+4. **创新性**：避免常见套路，追求独特性和新颖性
+
+请以JSON格式返回，包含 core_worldview 和 faction_system 两个顶层字段。
+"""
+        
+        try:
+            result = self.api_client.generate_content_with_retry(
+                "worldview_with_factions",
+                user_prompt,
+                purpose="合并生成世界观和势力系统"
+            )
+            
+            if result and isinstance(result, dict):
+                # 检查结果是否包含两个部分
+                has_worldview = 'core_worldview' in result or any(k in result for k in ['world_overview', 'power_system', 'world_rules'])
+                has_factions = 'faction_system' in result or 'factions' in result
+                
+                if has_worldview and has_factions:
+                    self.logger.info("✅ 合并世界观与势力系统生成成功")
+                    return result
+                else:
+                    self.logger.warning(f"  ⚠️ 返回格式不完整，尝试兼容处理")
+                    return {
+                        'core_worldview': result.get('core_worldview', result),
+                        'faction_system': result.get('faction_system', result)
+                    }
+            else:
+                self.logger.error("❌ 合并世界观与势力系统生成失败")
+                return None
+                
+        except Exception as e:
+            self.logger.error(f"❌ 合并生成世界观与势力系统时出错: {e}")
+            return None
+    
     def generate_character_design(self, novel_title: str, core_worldview: Dict, selected_plan: Dict,
                                   market_analysis: Dict, design_level: str,
                                   existing_characters: Optional[Dict] = None,
@@ -3631,6 +3722,78 @@ class ContentGenerator:
         except Exception as e:
             self.logger.error(f"  ❌ 生成写作风格指南时出错: {e}")
             return None  
+    
+    def generate_foundation_planning(self, creative_seed: str, category: str, selected_plan: Dict, novel_title: str, novel_synopsis: str) -> Optional[Dict]:
+        """
+        🔥 合并优化：同时生成写作风格指南和市场分析
+        将两次API调用合并为一次，节省时间且保持质量
+        """
+        self.logger.info(f"  🎯 合并生成基础规划（写作风格+市场分析）...")
+        try:
+            # 构建合并提示词
+            user_prompt = f"""
+请为以下小说同时生成【写作风格指南】和【市场分析】两部分内容。
+
+## 小说信息
+小说标题: {novel_title}
+小说简介: {novel_synopsis}
+小说分类: {category}
+小说创意: {creative_seed}
+核心主题: {selected_plan.get('core_direction', '')}
+目标读者: {selected_plan.get('target_audience', '')}
+
+## 输出要求
+
+### 第一部分：写作风格指南 (writing_style_guide)
+请提供以下字段：
+- core_style: 核心风格定位（简洁描述，100字以内）
+- language_characteristics: 语言特点（列表，3-5个关键词）
+- narration_techniques: 叙事技巧（列表，2-3个要点）
+- dialogue_style: 对话风格（简洁描述）
+- chapter_techniques: 章节技巧（列表）
+- key_principles: 核心原则（列表，3-5条）
+
+### 第二部分：市场分析 (market_analysis)
+请提供以下字段：
+- target_platform: 目标平台（如：番茄小说）
+- genre_positioning: 类型定位
+- core_selling_points: 核心卖点（列表，3-5条，必须具体且有吸引力）
+- target_audience: 目标读者画像（详细描述）
+- competitive_advantages: 竞争优势（列表）
+- market_risks: 市场风险（列表）
+- confidence_score: 信心评分（1-10分）
+
+【创新要求】请提供有深度的分析，避免泛泛而谈，挖掘独特的市场切入点
+
+请以JSON格式返回，包含 writing_style_guide 和 market_analysis 两个顶层字段。
+"""
+            
+            result = self.api_client.generate_content_with_retry(
+                "foundation_planning",
+                user_prompt,
+                purpose="合并生成写作风格指南和市场分析"
+            )
+            
+            if result and isinstance(result, dict):
+                # 检查结果是否包含两个部分
+                if 'writing_style_guide' in result and 'market_analysis' in result:
+                    self.logger.info(f"  ✅ 合并基础规划生成成功")
+                    return result
+                else:
+                    # 尝试兼容旧格式
+                    self.logger.warning(f"  ⚠️ 返回格式不完整，尝试兼容处理")
+                    return {
+                        'writing_style_guide': result.get('writing_style_guide', result),
+                        'market_analysis': result.get('market_analysis', result)
+                    }
+            else:
+                self.logger.error(f"  ❌ 合并基础规划生成失败")
+                return None
+                
+        except Exception as e:
+            self.logger.error(f"  ❌ 合并生成基础规划时出错: {e}")
+            return None
+    
     def _get_empty_period_guidance(self, chapter_number: int, event_context: Dict) -> str:
         return "# 🎯 事件执行指导\n\n当前处于事件空窗期，重点推进主线情节和角色发展。"
     def _get_previous_world_state(self, novel_title: str) -> Dict:
@@ -4053,28 +4216,51 @@ class ContentGenerator:
         except (json.JSONDecodeError, Exception) as e:
             self.logger.debug(f"  📝 创意种子解析失败或无背景资料: {e}")
         
-        # 核心修改：强化Prompt，从源头要求完美设计，并添加背景资料信息
+        # 🔥 优化版本：生成2个高质量方案，自带评分（减少API调用次数）
         full_prompt = f"""
 内容：
 创意种子：{creative_seed}
 小说分类：{category}
 {background_info_note}
-##【！！！最高指令：追求完美！！！】
-你必须生成3个不同风格的小说方案。对于**每一个方案**，都必须遵守以下"完美主义"规则：
+##【！！！最高指令：追求完美并自我评估！！！】
+你必须生成**2个**（不是3个）不同风格的、追求极致完美的小说方案。
+
+对于**每一个方案**，在生成完整内容的同时，你必须进行严格的自我评估并给出分数：
+
+### 方案质量评分标准（满分10分）：
+1. **创新性 (0-3分)**: 金手指和核心设定是否新颖独特，避免套路化
+2. **吸引力 (0-3分)**: 标题和核心卖点是否能瞬间抓住读者眼球
+3. **可执行性 (0-2分)**: 设定能否在长篇故事中持续展现和升级
+4. **完整性 (0-2分)**: 世界观、角色、情节是否自洽完整
+
+### 新鲜度评分标准（满分5分）：
+1. **题材新颖度 (0-2分)**: 与当前热门作品的差异化程度
+2. **设定独特性 (0-2分)**: 金手指和核心机制的独特程度  
+3. **创意突破 (0-1分)**: 是否有令人眼前一亮的创新点
+
+### 完美主义规则：
 1.  **金手指设计 (必须完美)**:
-    *   金手指必须具备被市场验证过的，可行的金手指方案。
-    *   金手指必须具备高度的【新颖性】和【独特性】。
-    *   金手指必须与【主角人设】或【世界观】深度绑定，成为故事有机的一部分，而不是一个工具。
-    *   金手指必须具备清晰的【成长潜力】和多种【趣味玩法】。
+    *   金手指必须具备被市场验证过的可行性
+    *   金手指必须具备高度的【新颖性】和【独特性】
+    *   金手指必须与【主角人设】或【世界观】深度绑定
+    *   金手指必须具备清晰的【成长潜力】和多种【趣味玩法】
 2.  **核心卖点设计 (必须完美)**:
-    *   卖点必须【清晰明确】，一句话就能概括。
-    *   卖点必须【极具吸引力】，能瞬间抓住读者眼球。
-    *   卖点必须【可执行性强】，能够在整个长篇故事中被反复、持续地展现和升级。
-3.  **标题约束**: 每个方案的标题都**必须严格控制在4-15个字符之间（包含标点）**。标题要简洁、有冲击力。
-4.  **风格差异**: 3个方案的核心设定（尤其是金手指）和主线发展必须有明显的区别。
-5.  **背景资料遵循**: 如果上述背景资料可用，所有方案必须严格基于提供的背景资料进行设计，确保与原著设定一致。
-如果无法满足上述对"金手指"和"核心卖点"的完美要求，则视为任务失败。
-请严格按照你的System Prompt中定义的JSON格式返回结果。
+    *   卖点必须【清晰明确】，一句话就能概括
+    *   卖点必须【极具吸引力】，能瞬间抓住读者眼球
+    *   卖点必须【可执行性强】，能持续展现和升级
+3.  **标题约束**: 每个方案的标题都**必须严格控制在4-15个字符之间**
+4.  **风格差异**: 2个方案的核心设定必须有明显的区别
+5.  **背景资料遵循**: 如有背景资料，必须严格遵循原著设定
+
+### 输出要求：
+每个方案必须包含以下评估字段：
+- `_quality_score`: 质量总分（满分10分，8.0以上视为优秀）
+- `_freshness_score`: 新鲜度总分（满分5分，3.0以上视为合格）
+- `_total_score`: 综合总分（质量×0.7 + 新鲜度×0.6，满分10分）
+- `_evaluation_notes`: 对各维度的简要评价（50字以内）
+
+只有综合评分8.5分以上的方案才值得返回。
+请严格按照JSON格式返回结果。
 """
         try:
             # 调用API生成内容

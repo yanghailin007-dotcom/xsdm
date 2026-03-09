@@ -114,48 +114,69 @@ class PhaseGenerator:
         try:
             print("开始第一阶段准备工作...")
             
-            # 第一阶段：基础规划 (10-30%)
-            # 传递步骤状态更新回调给 _generate_foundation_planning
+            # 🔥 基于 13 个标准步骤的进度映射
+            step_progress_map = {
+                'initialization': 0,
+                'writing_style': 8,
+                'market_analysis': 15,
+                'worldview': 23,
+                'faction_system': 31,
+                'character_design': 38,
+                'emotional_blueprint': 46,
+                'growth_plan': 54,
+                'stage_plan': 62,
+                'detailed_stage_plans': 69,
+                'expectation_mapping': 77,
+                'system_init': 85,
+                'saving': 92,
+                'quality_assessment': 100
+            }
+            
+            # 第一阶段：基础规划 (writing_style + market_analysis)
+            update_step_status('writing_style', 'active', step_progress_map['writing_style'])
             if not self._generate_foundation_planning(update_step_status=update_step_status):
                 error_msg = "基础规划生成失败"
                 print(f"❌ {error_msg}")
                 notify_failure(error_msg)
                 return False
-            update_progress_callback('planning', 30, "基础规划完成",
+            update_progress_callback('market_analysis', step_progress_map['market_analysis'], "基础规划完成",
                                      step_status={'writing_style': 'completed', 'market_analysis': 'completed'})
             
-            # 第二阶段：世界观与角色设计 (30-55%)
+            # 第二阶段：世界观与角色设计 (worldview + faction_system + character_design)
+            update_step_status('worldview', 'active', step_progress_map['worldview'])
             if not self._generate_worldview_and_characters(update_step_status=update_step_status):
                 error_msg = "世界观与角色设计失败"
                 print(f"❌ {error_msg}")
                 notify_failure(error_msg)
                 return False
-            update_progress_callback('character_design', 55, "角色设计完成",
+            update_progress_callback('character_design', step_progress_map['character_design'], "角色设计完成",
                                      step_status={'worldview': 'completed', 'faction_system': 'completed', 
                                                  'character_design': 'completed'})
             
-            # 第三阶段：全书规划 (55-80%)
+            # 第三阶段：全书规划 (emotional_blueprint + growth_plan + stage_plan + detailed_stage_plans + expectation_mapping + system_init)
+            update_step_status('emotional_blueprint', 'active', step_progress_map['emotional_blueprint'])
             if not self._generate_overall_planning(update_step_status=update_step_status):
                 error_msg = "全书规划制定失败"
                 print(f"❌ {error_msg}")
                 notify_failure(error_msg)
                 return False
-            update_progress_callback('story_outline', 80, "全书大纲制定完成",
+            update_progress_callback('system_init', step_progress_map['system_init'], "全书大纲制定完成",
                                      step_status={'emotional_blueprint': 'completed', 'growth_plan': 'completed',
                                                  'stage_plan': 'completed', 'detailed_stage_plans': 'completed',
                                                  'expectation_mapping': 'completed', 'system_init': 'completed'})
             
-            # 第四阶段：保存结果 (80-90%)
+            # 第四阶段：保存结果
+            update_step_status('saving', 'active', step_progress_map['saving'])
             if not self._prepare_content_generation(update_step_status=update_step_status):
                 error_msg = "保存设定结果失败"
                 print(f"❌ {error_msg}")
                 notify_failure(error_msg)
                 return False
-            update_progress_callback('saving', 90, "设定结果保存完成",
+            update_progress_callback('saving', step_progress_map['saving'], "设定结果保存完成",
                                      step_status={'saving': 'completed'})
             
-            # 保存第一阶段结果 (90-95%)
-            update_progress_callback('validation', 92, "正在保存第一阶段结果...")
+            # 保存第一阶段结果
+            update_progress_callback('saving', step_progress_map['saving'], "正在保存第一阶段结果...")
             try:
                 save_success = self._save_phase_one_result()
                 if not save_success:
@@ -168,9 +189,9 @@ class PhaseGenerator:
             print("✅ 已完成：基础规划、世界观构建、角色设计、全书规划")
             print("📝 下一步：可以继续第二阶段的章节内容生成")
 
-            # 🔥 新增：自动进行质量评估 (95-100%)
-            update_step_status('quality_assessment', 'active', 95)
-            update_progress_callback('assessment', 95, "正在进行AI质量评估...",
+            # 🔥 新增：自动进行质量评估 (100%)
+            update_step_status('quality_assessment', 'active', 100)
+            update_progress_callback('quality_assessment', 100, "正在进行AI质量评估...",
                                      step_status={'quality_assessment': 'active'})
             print("\n" + "="*60)
             print("📊 正在进行写作计划AI质量评估...")
@@ -221,92 +242,172 @@ class PhaseGenerator:
             return False
     
     def _generate_foundation_planning(self, update_step_status=None) -> bool:
-        """生成基础规划
+        """
+        生成基础规划 - 🔥 优化版本：合并写作风格和市场分析
         
         Args:
             update_step_status: 可选的步骤状态更新回调函数，用于实时更新前端进度
         """
         print("\n" + "="*60)
-        print("📝 第一阶段：基础规划")
+        print("📝 第一阶段：基础规划（合并优化版）")
         print("="*60)
         
-        # 生成写作风格指南 - 在真正开始生成时才标记为 active
-        print("📝 步骤6: 写作风格制定")
-        self.generator.novel_data["current_progress"]["stage"] = "写作风格制定"
+        # 🔥 优化：合并生成写作风格指南和市场分析
+        print("📝 步骤6-7: 合并生成写作风格指南和市场分析...")
+        self.generator.novel_data["current_progress"]["stage"] = "基础规划"
+        if update_step_status:
+            update_step_status('writing_style', 'active', 10)
+        
+        try:
+            # 获取必要数据
+            category = self.generator.novel_data.get("category", "未分类")
+            creative_seed = self.generator.novel_data.get("creative_seed") or self.generator.novel_data.get("selected_plan", {})
+            selected_plan = self.generator.novel_data.get("selected_plan", {})
+            novel_title = self.generator.novel_data.get("novel_title", "")
+            novel_synopsis = self.generator.novel_data.get("novel_synopsis", "")
+            
+            # 调用合并生成方法
+            foundation_result = self.generator.content_generator.generate_foundation_planning(
+                creative_seed=creative_seed,
+                category=category,
+                selected_plan=selected_plan,
+                novel_title=novel_title,
+                novel_synopsis=novel_synopsis
+            )
+            
+            if foundation_result:
+                # 提取写作风格指南
+                writing_style = foundation_result.get('writing_style_guide', {})
+                if writing_style:
+                    self.generator.novel_data["writing_style_guide"] = writing_style
+                    print("✅ 写作风格指南生成成功（合并）")
+                    self.generator._save_writing_style_to_file(writing_style)
+                else:
+                    print("⚠️ 写作风格指南部分缺失，使用默认风格")
+                    self.generator.novel_data["writing_style_guide"] = self._get_default_writing_style(category)
+                
+                # 提取市场分析
+                market_analysis = foundation_result.get('market_analysis', {})
+                if market_analysis:
+                    self.generator.novel_data["market_analysis"] = market_analysis
+                    print("✅ 市场分析生成成功（合并）")
+                    # 保存到材料管理器
+                    self.generator._save_material_to_manager("市场分析", market_analysis, creative_seed=creative_seed)
+                else:
+                    print("❌ 市场分析部分缺失")
+                    return False
+                
+                # 两个步骤都完成
+                if update_step_status:
+                    update_step_status('writing_style', 'completed', 15)
+                    update_step_status('market_analysis', 'completed', 25)
+                
+                print("✅ 基础规划合并生成完成")
+                return True
+            else:
+                print("❌ 基础规划合并生成失败，尝试降级为分步生成...")
+                # 🔥 降级方案：分别调用旧方法
+                return self._generate_foundation_planning_fallback(update_step_status)
+                
+        except Exception as e:
+            print(f"⚠️ 合并生成基础规划时出错: {e}")
+            print("🔄 降级为分步生成...")
+            return self._generate_foundation_planning_fallback(update_step_status)
+    
+    def _generate_foundation_planning_fallback(self, update_step_status=None) -> bool:
+        """基础规划生成的降级方案（分步调用）"""
+        print("📝 使用降级方案：分步生成写作风格和市场分析...")
+        
+        # 生成写作风格指南
         if update_step_status:
             update_step_status('writing_style', 'active', 10)
         
         if not self._generate_writing_style_guide():
             print("⚠️ 写作风格指南生成失败，使用默认风格")
         
-        # 写作风格完成后标记为 completed
         if update_step_status:
             update_step_status('writing_style', 'completed', 15)
         
-        # 市场分析 - 在真正开始时才标记为 active
-        print("📊 步骤7: 市场分析")
-        self.generator.novel_data["current_progress"]["stage"] = "市场分析"
+        # 市场分析
         if update_step_status:
             update_step_status('market_analysis', 'active', 20)
         
         if not self._generate_market_analysis():
             return False
         
-        # 市场分析完成后标记为 completed
         if update_step_status:
             update_step_status('market_analysis', 'completed', 25)
         
         return True
     
     def _generate_worldview_and_characters(self, update_step_status=None) -> bool:
-        """生成世界观、势力和角色设计"""
+        """
+        生成世界观、势力和角色设计 - 🔥 优化版本：合并世界观和势力系统
+        """
         print("\n" + "="*60)
-        print("🌍 第二阶段：世界观与势力系统设计")
+        print("🌍 第二阶段：世界观与势力系统设计（合并优化版）")
         print("="*60)
         
-        # 世界观构建 - 步骤8
-        print("🌍 步骤8: 世界观构建")
-        self.generator.novel_data["current_progress"]["stage"] = "世界观构建"
+        # 🔥 优化：合并生成世界观和势力系统
+        print("🌍 步骤8-9: 合并生成世界观与势力系统...")
+        self.generator.novel_data["current_progress"]["stage"] = "世界观与势力系统"
         if update_step_status:
             update_step_status('worldview', 'active', 35)
         
-        if not self._generate_worldview():
-            return False
-        
-        if update_step_status:
-            update_step_status('worldview', 'completed', 40)
-        
-        # 【新增】势力/阵营系统构建 - 步骤9
-        print("⚔️ 步骤9: 构建势力/阵营系统")
-        self.generator.novel_data["current_progress"]["stage"] = "势力系统设计"
-        if update_step_status:
-            update_step_status('faction_system', 'active', 42)
-        
-        faction_system = self.generator.content_generator.generate_faction_system(
-            novel_title=self.generator.novel_data["novel_title"],
-            core_worldview=self.generator.novel_data.get("core_worldview", {}),
-            selected_plan=self.generator.novel_data["selected_plan"],
-            market_analysis=self.generator.novel_data.get("market_analysis", {})
-        )
-        
-        if faction_system:
-            self.generator.novel_data["faction_system"] = faction_system
-            print("✅ 势力/阵营系统构建完成")
-            # 保存到材料管理器
-            self.generator._save_material_to_manager("势力系统", faction_system, novel_title=self.generator.novel_data["novel_title"])
-        else:
-            print("⚠️ 势力/阵营系统生成失败，将使用默认设定")
-            # 创建一个基础的势力系统结构，确保后续流程不会出错
-            self.generator.novel_data["faction_system"] = {
-                "factions": [],
-                "main_conflict": "待定",
-                "faction_power_balance": "待定",
-                "recommended_starting_faction": "待定"
-            }
-        
-        # 势力系统完成
-        if update_step_status:
-            update_step_status('faction_system', 'completed', 45)
+        try:
+            novel_title = self.generator.novel_data["novel_title"]
+            novel_synopsis = self.generator.novel_data["novel_synopsis"]
+            selected_plan = self.generator.novel_data["selected_plan"]
+            market_analysis = self.generator.novel_data.get("market_analysis", {})
+            
+            # 调用合并生成方法
+            worldview_result = self.generator.content_generator.generate_worldview_with_factions(
+                novel_title=novel_title,
+                novel_synopsis=novel_synopsis,
+                selected_plan=selected_plan,
+                market_analysis=market_analysis
+            )
+            
+            if worldview_result:
+                # 提取世界观
+                core_worldview = worldview_result.get('core_worldview', {})
+                if core_worldview:
+                    self.generator.novel_data["core_worldview"] = core_worldview
+                    print("✅ 世界观构建完成（合并）")
+                else:
+                    print("❌ 世界观部分缺失")
+                    return False
+                
+                # 提取势力系统
+                faction_system = worldview_result.get('faction_system', {})
+                if faction_system:
+                    self.generator.novel_data["faction_system"] = faction_system
+                    print("✅ 势力/阵营系统构建完成（合并）")
+                    # 保存到材料管理器
+                    self.generator._save_material_to_manager("势力系统", faction_system, novel_title=novel_title)
+                else:
+                    print("⚠️ 势力系统部分缺失，将使用默认设定")
+                    self.generator.novel_data["faction_system"] = {
+                        "factions": [],
+                        "main_conflict": "待定",
+                        "faction_power_balance": "待定",
+                        "recommended_starting_faction": "待定"
+                    }
+                
+                # 两个步骤都完成
+                if update_step_status:
+                    update_step_status('worldview', 'completed', 40)
+                    update_step_status('faction_system', 'completed', 45)
+                
+                print("✅ 世界观与势力系统合并生成完成")
+            else:
+                print("❌ 世界观与势力系统合并生成失败，尝试降级为分步生成...")
+                return self._generate_worldview_and_characters_fallback(update_step_status)
+                
+        except Exception as e:
+            print(f"⚠️ 合并生成世界观与势力系统时出错: {e}")
+            print("🔄 降级为分步生成...")
+            return self._generate_worldview_and_characters_fallback(update_step_status)
         
         # 核心角色设计（现在可以基于势力系统） - 步骤10
         print("👤 步骤10: 设计核心角色 (主角/核心盟友/宿敌)")
@@ -470,6 +571,49 @@ class PhaseGenerator:
         
         return True
     
+    def _generate_worldview_and_characters_fallback(self, update_step_status=None) -> bool:
+        """世界观与角色设计的降级方案（分步调用）"""
+        print("🌍 使用降级方案：分步生成世界观和势力系统...")
+        
+        # 世界观构建
+        if update_step_status:
+            update_step_status('worldview', 'active', 35)
+        
+        if not self._generate_worldview():
+            return False
+        
+        if update_step_status:
+            update_step_status('worldview', 'completed', 40)
+        
+        # 势力/阵营系统构建
+        if update_step_status:
+            update_step_status('faction_system', 'active', 42)
+        
+        faction_system = self.generator.content_generator.generate_faction_system(
+            novel_title=self.generator.novel_data["novel_title"],
+            core_worldview=self.generator.novel_data.get("core_worldview", {}),
+            selected_plan=self.generator.novel_data["selected_plan"],
+            market_analysis=self.generator.novel_data.get("market_analysis", {})
+        )
+        
+        if faction_system:
+            self.generator.novel_data["faction_system"] = faction_system
+            print("✅ 势力/阵营系统构建完成")
+            self.generator._save_material_to_manager("势力系统", faction_system, novel_title=self.generator.novel_data["novel_title"])
+        else:
+            print("⚠️ 势力/阵营系统生成失败，将使用默认设定")
+            self.generator.novel_data["faction_system"] = {
+                "factions": [],
+                "main_conflict": "待定",
+                "faction_power_balance": "待定",
+                "recommended_starting_faction": "待定"
+            }
+        
+        if update_step_status:
+            update_step_status('faction_system', 'completed', 45)
+        
+        return True
+    
     def _generate_writing_style_guide(self) -> bool:
         """生成写作风格指南"""
         print("=== 步骤1.5: 生成写作风格指南 ===")
@@ -566,8 +710,11 @@ class PhaseGenerator:
             return False
     
     def _generate_stage_writing_plans(self) -> bool:
-        """生成各阶段详细写作计划"""
-        print("=== 步骤6: 生成各阶段详细写作计划 ===")
+        """
+        生成各阶段详细写作计划 - 🔥 优化版本：并行生成
+        使用多线程并行生成4个阶段的详细计划，大幅缩短总时间
+        """
+        print("=== 步骤6: 生成各阶段详细写作计划（并行模式）===")
         
         overall_stage_plans = self.generator.novel_data.get("overall_stage_plans", {})
         if not overall_stage_plans or "overall_stage_plan" not in overall_stage_plans:
@@ -580,37 +727,86 @@ class PhaseGenerator:
             
             self.generator.novel_data["stage_writing_plans"] = {}
             
+            # 🔥 优化：准备并行生成的任务列表
+            import re
+            stage_tasks = []
+            
             for stage_name, stage_info in stage_plan_dict.items():
                 chapter_range_str = stage_info["chapter_range"]
-                
-                import re
                 numbers = re.findall(r'\d+', chapter_range_str)
                 if len(numbers) >= 2:
                     stage_range = f"{numbers[0]}-{numbers[1]}"
                 else:
                     stage_range = "1-3"
                 
-                print(f"  📋 生成 {stage_name} 的详细写作计划...")
-                print(f"  📋 章节范围: {stage_range}")
+                stage_tasks.append({
+                    'stage_name': stage_name,
+                    'stage_range': stage_range,
+                    'creative_seed': self.generator.novel_data["creative_seed"],
+                    'novel_title': self.generator.novel_data["novel_title"],
+                    'novel_synopsis': self.generator.novel_data["novel_synopsis"],
+                    'overall_stage_plan': stage_plan_dict
+                })
+            
+            print(f"  🚀 启动并行生成：共 {len(stage_tasks)} 个阶段")
+            print(f"  ⏱️  预计节省 {len(stage_tasks)-1} 倍时间")
+            
+            # 🔥 优化：使用线程池并行生成
+            from concurrent.futures import ThreadPoolExecutor, as_completed
+            
+            import threading
+            
+            def generate_single_stage(task):
+                """生成单个阶段的包装函数"""
+                stage_name = task['stage_name']
+                thread_id = threading.current_thread().name
+                try:
+                    print(f"  📋 [{stage_name}] [线程:{thread_id}] 开始生成...")
+                    stage_plan = self.generator.stage_plan_manager.generate_stage_writing_plan(
+                        stage_name=stage_name,
+                        stage_range=task['stage_range'],
+                        creative_seed=task['creative_seed'],
+                        novel_title=task['novel_title'],
+                        novel_synopsis=task['novel_synopsis'],
+                        overall_stage_plan=task['overall_stage_plan']
+                    )
+                    if stage_plan:
+                        print(f"  ✅ [{stage_name}] [线程:{thread_id}] 生成成功")
+                        return stage_name, stage_plan
+                    else:
+                        print(f"  ❌ [{stage_name}] [线程:{thread_id}] 生成失败")
+                        return stage_name, None
+                except Exception as e:
+                    print(f"  ❌ [{stage_name}] [线程:{thread_id}] 生成异常: {e}")
+                    return stage_name, None
+            
+            # 使用线程池并行执行（max_workers=4表示最多同时4个线程）
+            with ThreadPoolExecutor(max_workers=4) as executor:
+                # 提交所有任务
+                future_to_stage = {
+                    executor.submit(generate_single_stage, task): task['stage_name'] 
+                    for task in stage_tasks
+                }
                 
-                stage_plan = self.generator.stage_plan_manager.generate_stage_writing_plan(
-                    stage_name=stage_name,
-                    stage_range=stage_range,
-                    creative_seed=self.generator.novel_data["creative_seed"],
-                    novel_title=self.generator.novel_data["novel_title"],
-                    novel_synopsis=self.generator.novel_data["novel_synopsis"],
-                    overall_stage_plan=stage_plan_dict
-                )
-                
-                if stage_plan:
-                    self.generator.novel_data["stage_writing_plans"][stage_name] = stage_plan
-                    print(f"  ✅ {stage_name} 详细计划生成成功")
-                else:
-                    print(f"  ❌ {stage_name} 详细计划生成失败")
+                # 收集结果（按完成顺序）
+                completed_count = 0
+                for future in as_completed(future_to_stage):
+                    stage_name, stage_plan = future.result()
+                    completed_count += 1
+                    if stage_plan:
+                        self.generator.novel_data["stage_writing_plans"][stage_name] = stage_plan
+                        print(f"  📥 [主线程] 收集到 [{stage_name}] 结果 ({completed_count}/{len(stage_tasks)})")
+                    else:
+                        print(f"  ⚠️  [主线程] [{stage_name}] 返回空结果 ({completed_count}/{len(stage_tasks)})")
             
             success_count = len(self.generator.novel_data["stage_writing_plans"])
+            total_count = len(stage_tasks)
+            
             if success_count > 0:
-                print(f"✅ 阶段详细计划生成完成: {success_count}/{len(stage_plan_dict)} 个阶段")
+                print(f"\n✅ 阶段详细计划生成完成: {success_count}/{total_count} 个阶段")
+                if success_count < total_count:
+                    failed_stages = [t['stage_name'] for t in stage_tasks if t['stage_name'] not in self.generator.novel_data["stage_writing_plans"]]
+                    print(f"  ⚠️  失败阶段: {', '.join(failed_stages)}")
                 
                 # 🔥 新增：为每个阶段生成并保存期待感映射
                 self._generate_and_save_expectation_maps()
@@ -790,8 +986,11 @@ class PhaseGenerator:
                 print(f"❌ 缺少必需字段: {missing_fields}")
                 return False
             
+            # 🔥 获取用户名用于用户隔离路径
+            username = getattr(self.generator, '_username', None)
+            
             # 使用统一路径配置系统创建目录结构
-            paths = path_config.ensure_directories(self.generator.novel_data["novel_title"])
+            paths = path_config.ensure_directories(self.generator.novel_data["novel_title"], username=username)
             print(f"✅ 项目目录已创建: {paths['project_root']}")
             
             # 不再创建单独的第一阶段目录，所有文件统一保存到主项目目录

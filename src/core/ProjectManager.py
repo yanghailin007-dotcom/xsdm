@@ -431,6 +431,15 @@ class ProjectManager:
         # 防御式编程：如果 novel_title 缺失，使用默认值
         novel_title = novel_data.get("novel_title", "未定稿创意")
         
+        # 🔥 获取用户名（优先从 novel_data 获取，否则尝试从 Flask 上下文获取）
+        username = novel_data.get("_username") or novel_data.get("username")
+        if not username:
+            try:
+                from web.utils.path_utils import get_current_username
+                username = get_current_username()
+            except Exception:
+                username = None
+        
         # 确保 creative_seed 被保存为 dict（防止字符串持久化）
         normalized_creative_seed = ensure_seed_dict(novel_data.get("creative_seed", {}))
         # 计算质量统计
@@ -455,16 +464,16 @@ class ProjectManager:
         # 保存成长路线和写作计划到独立文件
         growth_plan = novel_data.get("global_growth_plan", {})
         if growth_plan:
-            growth_plan_manager.save_growth_plan(novel_title, growth_plan)
+            growth_plan_manager.save_growth_plan(novel_title, growth_plan, username=username)
             self.logger.info(f"✅ 成长路线已保存到独立文件")
         
         stage_plans = novel_data.get("stage_writing_plans", {})
         if stage_plans:
-            growth_plan_manager.save_stage_writing_plans(novel_title, stage_plans)
+            growth_plan_manager.save_stage_writing_plans(novel_title, stage_plans, username=username)
             self.logger.info(f"✅ 写作计划已保存到独立文件")
         
-        # 获取路径配置
-        paths = path_config.get_project_paths(novel_title)
+        # 获取路径配置（传递用户名）
+        paths = path_config.get_project_paths(novel_title, username=username)
         
         # 构建完整的项目数据（不包含成长路线和写作计划,因为已保存到独立文件）
         # 预编译正则表达式避免f-string中的反斜杠问题
@@ -512,8 +521,16 @@ class ProjectManager:
             }
         }
         try:
-            # 使用统一路径管理器保存项目信息
-            success = path_manager.save_project_info(novel_title, data)
+            # 🔥 获取用户名用于用户隔离路径
+            username = None
+            try:
+                from web.utils.path_utils import get_current_username
+                username = get_current_username()
+            except Exception:
+                pass
+            
+            # 使用统一路径管理器保存项目信息（传递用户名）
+            success = path_manager.save_project_info(novel_title, data, username=username)
             if success:
                 self.logger.info(f"✓ 项目进度已保存: {paths['project_info']}")
                 self.logger.info(f"  - 进度信息: {current_progress['completed_chapters']}/{current_progress['total_chapters']}章")

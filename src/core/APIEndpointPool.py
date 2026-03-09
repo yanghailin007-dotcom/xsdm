@@ -51,23 +51,21 @@ class APIEndpoint:
     
     @property
     def is_available(self) -> bool:
-        """检查端点是否可用"""
+        """检查端点是否可用 - 连续失败不会禁用，只会降低优先级"""
         if not self.enabled:
             return False
         if self.status == EndpointStatus.DISABLED:
             return False
-        # 如果连续失败超过5次，标记为不健康
-        if self.consecutive_failures >= 5:
-            self.status = EndpointStatus.UNHEALTHY
-            return False
-        # 如果不健康但已经过了冷却期（5分钟），尝试恢复
-        if self.status == EndpointStatus.UNHEALTHY:
-            if self.last_failure_time and (time.time() - self.last_failure_time) > 300:
-                self.status = EndpointStatus.DEGRADED
-                self.consecutive_failures = 0
-                return True
-            return False
         return True
+    
+    @property
+    def dynamic_priority(self) -> int:
+        """动态优先级：连续失败会降低优先级，但保持可用"""
+        # 基础优先级
+        base = self.priority
+        # 连续失败惩罚：每次失败降低10个优先级（相当于放到最后）
+        penalty = self.consecutive_failures * 10
+        return base + penalty
     
     def record_success(self, response_time: float):
         """记录成功请求"""
@@ -85,19 +83,16 @@ class APIEndpoint:
             self.status = EndpointStatus.HEALTHY
     
     def record_failure(self, error_type: str = "unknown"):
-        """记录失败请求"""
+        """记录失败请求 - 只降低优先级，不禁用端点"""
         self.total_requests += 1
         self.failed_requests += 1
         self.consecutive_failures += 1
         self.last_failure_time = time.time()
         
-        # 根据连续失败次数更新状态
-        if self.consecutive_failures >= 5:
-            self.status = EndpointStatus.UNHEALTHY
-            self.logger.warning(f"端点 {self.name} 连续失败 {self.consecutive_failures} 次，标记为不健康")
-        elif self.consecutive_failures >= 3:
+        # 连续失败只会降低优先级，不会禁用端点
+        if self.consecutive_failures >= 3:
             self.status = EndpointStatus.DEGRADED
-            self.logger.warning(f"端点 {self.name} 连续失败 {self.consecutive_failures} 次，标记为性能下降")
+            self.logger.warning(f"端点 {self.name} 连续失败 {self.consecutive_failures} 次，优先级降低至 {self.dynamic_priority}")
     
     def get_config(self) -> Dict[str, Any]:
         """获取端点配置（用于API调用）"""
@@ -156,17 +151,18 @@ class APIEndpointPool:
             self.logger.info(f"端点池初始化完成，共 {len(self.endpoints)} 个端点")
     
     def get_available_endpoints(self) -> List[APIEndpoint]:
-        """获取所有可用的端点（按优先级排序）"""
+        """获取所有可用的端点（按动态优先级排序，连续失败的端点排在最后）"""
         available = [ep for ep in self.endpoints if ep.is_available]
-        return sorted(available, key=lambda e: (e.priority, -e.success_rate))
+        # 按动态优先级排序（连续失败多的端点优先级会被降低）
+        return sorted(available, key=lambda e: (e.dynamic_priority, -e.success_rate))
     
     def get_next_endpoint(self) -> Optional[APIEndpoint]:
-        """获取下一个可用的端点（轮询+优先级）"""
+        """获取下一个可用的端点（轮询+动态优先级）"""
         available = self.get_available_endpoints()
         if not available:
             return None
         
-        # 优先返回优先级最高的
+        # 优先返回动态优先级最高的
         return available[0]
     
     def get_endpoint_by_name(self, name: str) -> Optional[APIEndpoint]:
@@ -237,7 +233,9 @@ class APIEndpointPool:
                 {
                     "name": ep.name,
                     "priority": ep.priority,
+                    "dynamic_priority": ep.dynamic_priority,
                     "status": ep.status.value,
+                    "is_available": ep.is_available,
                     "success_rate": f"{ep.success_rate:.2%}",
                     "total_requests": ep.total_requests,
                     "avg_response_time": f"{ep.avg_response_time:.2f}s",
@@ -278,3 +276,18 @@ class APIEndpointPool:
             self.logger.info(f"启用端点 {name}")
             return True
         return False
+    
+    def reset_all_endpoints(self) -> int:
+        """重置所有端点为健康状态，返回重置的端点数量"""
+        reset_count = 0
+        for endpoint in self.endpoints:
+            if endpoint.status != EndpointStatus.HEALTHY or endpoint.consecutive_failures > 0:
+                old_status = endpoint.status
+                endpoint.status = EndpointStatus.HEALTHY
+                endpoint.consecutive_failures = 0
+                endpoint.last_failure_time = None
+                self.logger.info(f"🔄 重置端点 {endpoint.name}: {old_status.value} -> healthy")
+                reset_count += 1
+        if reset_count > 0:
+            self.logger.info(f"✅ 共重置 {reset_count} 个端点")
+        return reset_count

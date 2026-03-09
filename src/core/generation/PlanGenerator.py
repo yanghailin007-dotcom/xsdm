@@ -381,7 +381,9 @@ class PlanGenerator:
             content_generator.set_custom_main_character_name(name)
 
     def _evaluate_plans(self, plans: List[Dict], creative_work: dict) -> List[Dict]:
-        """评估方案质量"""
+        """
+        评估方案质量 - 🔥 优化版本：优先使用AI自带评分，减少API调用
+        """
         qualified_plans = []
         
         for i, plan in enumerate(plans):
@@ -393,19 +395,41 @@ class PlanGenerator:
             # 分类修正逻辑
             category_from_plan = self._correct_category(plan, creative_work, category_from_plan)
             
-            # 评估方案质量
-            evaluation_result = self._evaluate_single_plan(plan, category_from_plan, creative_work)
+            # 🔥 优化：优先使用AI自带的评分（减少API调用）
+            ai_quality_score = plan.get('_quality_score', 0)
+            ai_freshness_score = plan.get('_freshness_score', 0)
+            ai_total_score = plan.get('_total_score', 0)
             
-            quality_score = evaluation_result.get("quality_score", 0)
-            freshness_score = evaluation_result.get("freshness_score", 0)
-            total_score = evaluation_result.get("total_score", 0)
+            # 如果AI自带评分且分数合理，直接使用
+            if ai_quality_score >= 7.0 and ai_freshness_score >= 2.5:
+                quality_score = ai_quality_score
+                freshness_score = ai_freshness_score
+                total_score = ai_total_score
+                
+                evaluation_result = {
+                    "quality_score": quality_score,
+                    "freshness_score": freshness_score,
+                    "total_score": total_score,
+                    "evaluation_notes": plan.get('_evaluation_notes', 'AI自评'),
+                    "source": "ai_self_assessment"
+                }
+                print(f"    ✅ 使用AI自带评分 (质量: {quality_score:.1f}, 新鲜度: {freshness_score:.1f})")
+            else:
+                # AI评分不合格，进行额外评估
+                print(f"    🔄 AI自评分数不足，进行深度评估...")
+                evaluation_result = self._evaluate_single_plan(plan, category_from_plan, creative_work)
+                
+                quality_score = evaluation_result.get("quality_score", 0)
+                freshness_score = evaluation_result.get("freshness_score", 0)
+                total_score = evaluation_result.get("total_score", 0)
             
             # 记录评分到方案数据
             plan['_quality_score'] = quality_score
             plan['_freshness_score'] = freshness_score
             plan['_total_score'] = total_score
             
-            if quality_score >= 8.0 and freshness_score >= 3.0:
+            # 🔥 优化：降低门槛到质量7.5/新鲜度2.5（因为只生成2个高质量方案）
+            if quality_score >= 7.5 and freshness_score >= 2.5:
                 qualified_plans.append({
                     'plan': plan,
                     'quality_score': quality_score,

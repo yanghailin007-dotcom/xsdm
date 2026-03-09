@@ -150,7 +150,8 @@ def create_order():
             bonus = option.get('bonus', 0)
             break
     
-    total_points = amount + bonus
+    # 🔥 充值比例：1元 = 10创造点
+    total_points = amount * 10 + bonus
     
     # 生成订单号
     order_id = f"PAY{int(time.time())}{user_id}{uuid.uuid4().hex[:8]}"

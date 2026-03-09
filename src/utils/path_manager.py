@@ -29,10 +29,17 @@ class PathManager:
             self.logger.error(f"❌ 初始化项目目录结构失败: {e}")
             return {}
     
-    def save_project_info(self, novel_title: str, project_data: Dict) -> bool:
-        """保存项目信息文件"""
+    def save_project_info(self, novel_title: str, project_data: Dict, username: str = None) -> bool:
+        """
+        保存项目信息文件
+        
+        Args:
+            novel_title: 小说标题
+            project_data: 项目数据
+            username: 用户名（可选），用于用户隔离路径
+        """
         try:
-            paths = self.path_config.get_project_paths(novel_title)
+            paths = self.path_config.get_project_paths(novel_title, username=username)
             
             # 确保目录存在
             os.makedirs(os.path.dirname(paths["project_info"]), exist_ok=True)
@@ -46,10 +53,16 @@ class PathManager:
             self.logger.error(f"❌ 保存项目信息失败: {e}")
             return False
     
-    def load_project_info(self, novel_title: str) -> Optional[Dict]:
-        """加载项目信息文件 - 支持多种路径格式"""
+    def load_project_info(self, novel_title: str, username: str = None) -> Optional[Dict]:
+        """
+        加载项目信息文件 - 支持多种路径格式
+        
+        Args:
+            novel_title: 小说标题
+            username: 用户名（可选），用于用户隔离路径
+        """
         try:
-            paths = self.path_config.get_project_paths(novel_title)
+            paths = self.path_config.get_project_paths(novel_title, username=username)
             
             # 🔥 修复：尝试多个可能的路径
             possible_paths = [
@@ -83,10 +96,10 @@ class PathManager:
             self.logger.error(f"❌ 加载项目信息失败: {e}")
             return None
     
-    def save_chapter(self, novel_title: str, chapter_number: int, chapter_data: Dict) -> bool:
+    def save_chapter(self, novel_title: str, chapter_number: int, chapter_data: Dict, username: str = None) -> bool:
         """保存章节文件"""
         try:
-            chapter_path = self.path_config.get_chapter_file_path(novel_title, chapter_number, chapter_data.get("chapter_title", ""))
+            chapter_path = self.path_config.get_chapter_file_path(novel_title, chapter_number, chapter_data.get("chapter_title", ""), username=username)
             
             # 确保目录存在
             os.makedirs(os.path.dirname(chapter_path), exist_ok=True)

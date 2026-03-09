@@ -197,16 +197,16 @@ class NovelPathConfig:
         
         return paths
     
-    def get_chapter_file_path(self, novel_title: str, chapter_number: int, chapter_title: str = "") -> str:
+    def get_chapter_file_path(self, novel_title: str, chapter_number: int, chapter_title: str = "", username: str = None) -> str:
         """获取章节文件路径"""
-        paths = self.get_project_paths(novel_title)
+        paths = self.get_project_paths(novel_title, username=username)
         safe_chapter_title = re.sub(r'[\\/*?:"<>|]', "_", chapter_title) if chapter_title else f"第{chapter_number}章"
         chapters_dir = Path(paths["chapters_dir"])
         return str(chapters_dir / f"第{chapter_number:03d}章_{safe_chapter_title}.json")
     
-    def get_backup_path(self, novel_title: str, file_type: str, timestamp: str = "") -> str:
+    def get_backup_path(self, novel_title: str, file_type: str, timestamp: str = "", username: str = None) -> str:
         """获取备份文件路径"""
-        paths = self.get_project_paths(novel_title)
+        paths = self.get_project_paths(novel_title, username=username)
         safe_title = self.get_safe_title(novel_title)
         
         if not timestamp:
@@ -216,9 +216,9 @@ class NovelPathConfig:
         backup_dir = Path(paths["backup_dir"])
         return str(backup_dir / f"{safe_title}_{file_type}_{timestamp}.json")
     
-    def get_quality_data_path(self, novel_title: str, data_type: str) -> str:
+    def get_quality_data_path(self, novel_title: str, data_type: str, username: str = None) -> str:
         """获取质量数据文件路径"""
-        paths = self.get_project_paths(novel_title)
+        paths = self.get_project_paths(novel_title, username=username)
         safe_title = self.get_safe_title(novel_title)
         
         if data_type == "character_development":
@@ -236,16 +236,16 @@ class NovelPathConfig:
         else:
             return str(Path(paths["quality_reports_dir"]) / f"{safe_title}_{data_type}.json")
     
-    def get_mindset_path(self, novel_title: str, character_name: str) -> str:
+    def get_mindset_path(self, novel_title: str, character_name: str, username: str = None) -> str:
         """获取角色心境文件路径"""
-        paths = self.get_project_paths(novel_title)
+        paths = self.get_project_paths(novel_title, username=username)
         safe_title = self.get_safe_title(novel_title)
         safe_character = "".join(c for c in character_name if c.isalnum() or c in (' ', '-', '_')).rstrip()
         return str(Path(paths["mindset_dir"]) / f"{safe_title}_mindset_{safe_character}.json")
     
-    def get_material_path(self, novel_title: str, material_type: str, timestamp: str = "") -> str:
+    def get_material_path(self, novel_title: str, material_type: str, timestamp: str = "", username: str = None) -> str:
         """获取材料文件路径"""
-        paths = self.get_project_paths(novel_title)
+        paths = self.get_project_paths(novel_title, username=username)
         safe_title = self.get_safe_title(novel_title)
         
         if not timestamp:
@@ -263,9 +263,9 @@ class NovelPathConfig:
         else:
             return str(Path(paths["materials_dir"]) / f"{safe_title}_{material_type}_{timestamp}.json")
     
-    def get_stage_plan_path(self, novel_title: str, stage_name: str, timestamp: str = "") -> str:
+    def get_stage_plan_path(self, novel_title: str, stage_name: str, timestamp: str = "", username: str = None) -> str:
         """获取阶段计划文件路径（新版本）"""
-        paths = self.get_project_paths(novel_title)
+        paths = self.get_project_paths(novel_title, username=username)
         safe_title = self.get_safe_title(novel_title)
         safe_stage = "".join(c for c in stage_name if c.isalnum() or c in (' ', '-', '_')).rstrip()
         
@@ -275,9 +275,9 @@ class NovelPathConfig:
         
         return str(Path(paths["stage_plans_dir"]) / f"{safe_title}_{safe_stage}_plan_{timestamp}.json")
     
-    def get_writing_plan_path(self, novel_title: str, stage_name: str, timestamp: str = "") -> str:
+    def get_writing_plan_path(self, novel_title: str, stage_name: str, timestamp: str = "", username: str = None) -> str:
         """获取写作计划文件路径"""
-        paths = self.get_project_paths(novel_title)
+        paths = self.get_project_paths(novel_title, username=username)
         safe_title = self.get_safe_title(novel_title)
         safe_stage = "".join(c for c in stage_name if c.isalnum() or c in (' ', '-', '_')).rstrip()
         
@@ -287,9 +287,9 @@ class NovelPathConfig:
         
         return str(Path(paths["writing_plans_dir"]) / f"{safe_title}_{safe_stage}_writing_plan_{timestamp}.json")
     
-    def check_legacy_files(self, novel_title: str) -> Dict[str, bool]:
+    def check_legacy_files(self, novel_title: str, username: str = None) -> Dict[str, bool]:
         """检查是否存在旧版本文件"""
-        paths = self.get_project_paths(novel_title)
+        paths = self.get_project_paths(novel_title, username=username)
         legacy_files = {}
         
         legacy_checks = [

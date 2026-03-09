@@ -211,26 +211,54 @@ class NovelGenerationManager:
         if current_step:
             self.task_results[task_id]["current_step"] = current_step
             self.task_progress[task_id]["current_step"] = current_step
+            
+            # 🔥 基于 13 个标准步骤重新计算进度百分比
+            phase_one_steps = [
+                'initialization',           # 0%
+                'writing_style',            # 8%
+                'market_analysis',          # 15%
+                'worldview',                # 23%
+                'faction_system',           # 31%
+                'character_design',         # 38%
+                'emotional_blueprint',      # 46%
+                'growth_plan',              # 54%
+                'stage_plan',               # 62%
+                'detailed_stage_plans',     # 69%
+                'expectation_mapping',      # 77%
+                'system_init',              # 85%
+                'saving',                   # 92%
+                'quality_assessment'        # 100%
+            ]
+            
+            if current_step in phase_one_steps:
+                step_index = phase_one_steps.index(current_step)
+                calculated_progress = int((step_index / (len(phase_one_steps) - 1)) * 100)
+                # 如果传入的进度与计算的不一致，使用计算的进度
+                if abs(progress - calculated_progress) > 10:
+                    progress = calculated_progress
+                    self.task_results[task_id]["progress"] = progress
+                    self.task_progress[task_id]["progress"] = progress
         else:
-            # 使用进度映射
+            # 使用进度映射（基于 13 个步骤的粗略映射）
             step_mapping = {
                 0: "initialization",
-                10: "initialization",
-                20: "planning",
-                40: "planning",
-                45: "worldview_generation",
-                60: "character_design",
-                65: "story_outline",
-                68: "global_growth_planning",
-                70: "global_growth_planning",
-                72: "global_growth_planning",
-                75: "stage_planning",
-                80: "story_outline",
-                85: "validation",
-                95: "validation",
-                100: "completed"
+                8: "writing_style",
+                15: "market_analysis",
+                23: "worldview",
+                31: "faction_system",
+                38: "character_design",
+                46: "emotional_blueprint",
+                54: "growth_plan",
+                62: "stage_plan",
+                69: "detailed_stage_plans",
+                77: "expectation_mapping",
+                85: "system_init",
+                92: "saving",
+                100: "quality_assessment"
             }
-            current_step = step_mapping.get(progress, "initialization")
+            # 找到最接近的进度
+            closest_progress = min(step_mapping.keys(), key=lambda x: abs(x - progress))
+            current_step = step_mapping.get(closest_progress, "initialization")
             self.task_results[task_id]["current_step"] = current_step
             self.task_progress[task_id]["current_step"] = current_step
         
@@ -238,13 +266,32 @@ class NovelGenerationManager:
         if step_status:
             if "step_status" not in self.task_results[task_id]:
                 self.task_results[task_id]["step_status"] = {}
+            
             # 🔥 修复：step_status 是包含 step/status/message 的字典
-            if isinstance(step_status, dict) and 'step' in step_status:
-                step_name = step_status['step']
-                self.task_results[task_id]["step_status"][step_name] = step_status
-            else:
-                # 兼容旧格式：直接更新
-                self.task_results[task_id]["step_status"].update(step_status)
+            if isinstance(step_status, dict):
+                if 'step' in step_status:
+                    step_name = step_status['step']
+                    self.task_results[task_id]["step_status"][step_name] = step_status
+                    
+                    # 🔥 新增：如果包含子步骤信息，单独存储
+                    if 'sub_step' in step_status:
+                        sub_step_name = step_status['sub_step']
+                        if 'sub_steps' not in self.task_results[task_id]:
+                            self.task_results[task_id]['sub_steps'] = {}
+                        self.task_results[task_id]['sub_steps'][sub_step_name] = {
+                            'status': step_status.get('sub_step_status', 'active'),
+                            'message': step_status.get('sub_step_message', ''),
+                            'parent_step': step_name,
+                            'timestamp': datetime.now().isoformat()
+                        }
+                else:
+                    # 兼容旧格式：直接更新
+                    self.task_results[task_id]["step_status"].update(step_status)
+            
+            # 🔥 新增：如果提供了 current_sub_step，更新当前子步骤
+            if isinstance(step_status, dict) and 'current_sub_step' in step_status:
+                self.task_results[task_id]['current_sub_step'] = step_status['current_sub_step']
+                self.task_progress[task_id]['current_sub_step'] = step_status['current_sub_step']
         
         # 更新创造点消耗（如果提供了）
         if points_consumed is not None:
@@ -337,7 +384,8 @@ class NovelGenerationManager:
                     project_info_path = self._find_project_info_file(project_path)
                     
                     if project_info_path and project_info_path.exists():
-                        with open(project_info_path, 'r', encoding='utf-8') as f:
+                        # 🔥 使用 utf-8-sig 编码来处理带 BOM 的 UTF-8 文件
+                        with open(project_info_path, 'r', encoding='utf-8-sig') as f:
                             content = f.read()
                             novel_data = json.loads(content)
                         
@@ -643,12 +691,46 @@ class NovelGenerationManager:
         return quality_data
 
     def get_novel_projects(self) -> List[Dict[str, Any]]:
-        """获取所有小说项目（根据当前用户过滤）"""
+        """获取所有小说项目（根据当前用户过滤）- 动态加载"""
         projects = []
         current_user = get_current_username()
         is_user_admin = is_admin(current_user)
         
-        for title, data in self.novel_projects.items():
+        # 🔥 动态加载当前用户的项目，而不是使用启动时缓存的 self.novel_projects
+        from web.utils.path_utils import list_user_projects
+        user_projects = list_user_projects(current_user, include_public=True)
+        
+        # 重新加载项目数据
+        for project_info in user_projects:
+            try:
+                title = project_info['title']
+                owner = project_info['owner']
+                project_path = Path(project_info['path'])
+                
+                # 查找项目信息文件
+                project_info_path = self._find_project_info_file(project_path)
+                
+                if project_info_path and project_info_path.exists():
+                    # 🔥 使用 utf-8-sig 编码来处理带 BOM 的 UTF-8 文件
+                    with open(project_info_path, 'r', encoding='utf-8-sig') as f:
+                        data = json.load(f)
+                    # 添加 owner 信息
+                    data['owner'] = owner
+                else:
+                    # 如果没有项目信息文件，创建基本数据结构
+                    data = {
+                        'novel_title': title,
+                        'owner': owner,
+                        'generated_chapters': {},
+                        'creation_time': datetime.now().isoformat()
+                    }
+            except Exception as e:
+                logger.error(f"❌ 动态加载项目失败 {title}: {e}")
+                continue
+            
+            # 🔥 确保数据被添加到 self.novel_projects 缓存（如果不存在）
+            if title not in self.novel_projects:
+                self.novel_projects[title] = data
             # 用户隔离：只返回当前用户的项目 + 公开项目
             owner = data.get('owner', 'unknown')
             is_public = owner == 'public'

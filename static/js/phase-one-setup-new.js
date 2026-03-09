@@ -615,25 +615,60 @@ class PhaseOneSetup {
     getStepMessage(step) {
         const stepMessages = {
             'initialization': '正在初始化生成环境...',
-            'planning': '正在规划故事结构...',
+            // 🔥 优化：合并方案生成和评估步骤
+            'creative_refinement': '正在精炼创意...',
+            'fanfiction_detection': '正在检测同人文...',
+            'multiple_plans': '正在生成并评估方案...',
+            'detailed_stage_plans': '正在并行生成各阶段详细计划...',
+            'freshness_assessment': '正在评估方案质量...',
+            'quality_evaluation': '正在评估方案质量...',
+            'plan_selection': '正在选择最佳方案...',
+            // 核心生成阶段
+            'writing_style': '正在生成写作风格...',
+            'worldview': '正在生成世界观...',
             'worldview_generation': '正在生成世界观设定...',
             'character_design': '正在设计角色...',
+            'character_generation': '正在生成角色设定...',
+            'stage_plan': '正在规划阶段计划...',
+            'stage_planning': '正在规划故事阶段...',
             'story_outline': '正在生成故事大纲...',
             'validation': '正在验证生成结果...',
             'completed': '生成完成！'
         };
         
-        return stepMessages[step] || '处理中...';
+        return stepMessages[step] || `正在处理: ${step}...`;
     }
 
     updateProgressSteps(currentStep, stepStatus = null) {
         // 步骤映射：API 返回的步骤名 -> HTML data-step 属性
+        // 注意：以下是新流程的所有可能步骤
         const stepMapping = {
+            // 初始化
+            'initialization': 'planning',
+            // 创意精炼阶段
+            'creative_refinement': 'planning',
+            // 同人文检测
+            'fanfiction_detection': 'planning',
+            // 多方案生成
+            'multiple_plans': 'planning',
+            // 方案评估
+            'freshness_assessment': 'planning',
+            'quality_evaluation': 'planning',
+            'plan_selection': 'planning',
+            // 核心生成阶段（合并优化）
+            'writing_style': 'planning',
+            'market_analysis': 'planning',
+            'foundation_planning': 'planning',  // 合并步骤
             'planning': 'planning',
             'worldview_generation': 'worldview',
             'worldview': 'worldview',
+            'faction_system': 'worldview',
+            'worldview_with_factions': 'worldview',  // 合并步骤
             'character_design': 'characters',
+            'character_generation': 'characters',
             'characters': 'characters',
+            'stage_plan': 'planning-detailed',
+            'stage_planning': 'planning-detailed',
             'story_outline': 'outlines',
             'outlines': 'outlines',
             'validation': 'validation',
@@ -712,6 +747,39 @@ class PhaseOneSetup {
     
     updateCurrentStepDetail(currentStep) {
         const stepDetails = {
+            // 新流程步骤（合并优化）
+            'creative_refinement': {
+                name: '✨ 创意精炼',
+                desc: '正在将创意精炼为AI可执行的生成指令...'
+            },
+            'fanfiction_detection': {
+                name: '🔍 同人文检测',
+                desc: '正在检测是否为同人作品并评估合规性...'
+            },
+            'multiple_plans': {
+                name: '🎯 方案生成',
+                desc: '正在基于创意生成多个可行的小说方案...'
+            },
+            'freshness_assessment': {
+                name: '🎯 方案评估',
+                desc: '正在综合评估方案的质量和市场竞争力...'
+            },
+            'quality_evaluation': {
+                name: '🎯 方案评估',
+                desc: '正在综合评估方案的质量和市场竞争力...'
+            },
+            'plan_selection': {
+                name: '✅ 方案选择',
+                desc: '正在综合评估选择最佳方案...'
+            },
+            'foundation_planning': {
+                name: '📋 基础规划',
+                desc: '正在合并生成写作风格指南和市场分析...'
+            },
+            'writing_style': {
+                name: '✍️ 写作风格',
+                desc: '正在生成符合市场定位的写作风格指南...'
+            },
             'planning': {
                 name: '📋 基础规划',
                 desc: '正在分析创意种子，制定写作风格和市场定位...'
@@ -724,13 +792,33 @@ class PhaseOneSetup {
                 name: '🌍 世界观设计',
                 desc: '正在构建完整的世界观和背景设定...'
             },
+            'worldview_with_factions': {
+                name: '🌍 世界观与势力',
+                desc: '正在合并生成世界观框架和势力系统...'
+            },
             'character_design': {
                 name: '👥 角色设计',
                 desc: '正在设计主要角色和人物关系...'
             },
+            'character_generation': {
+                name: '👥 角色生成',
+                desc: '正在生成详细的角色设定...'
+            },
             'characters': {
                 name: '👥 角色设计',
                 desc: '正在设计主要角色和人物关系...'
+            },
+            'stage_plan': {
+                name: '📅 阶段规划',
+                desc: '正在规划全书的阶段结构和情节节奏...'
+            },
+            'stage_planning': {
+                name: '📅 阶段规划',
+                desc: '正在规划全书的阶段结构和情节节奏...'
+            },
+            'detailed_stage_plans': {
+                name: '📅 阶段详细计划',
+                desc: '正在并行生成4个阶段的详细写作计划（起承转合）...'
             },
             'story_outline': {
                 name: '📝 详细规划',
@@ -1104,10 +1192,15 @@ class PhaseOneSetup {
     }
 
     showProgress() {
+        // 优先使用详细进度区域，如果没有则使用loading-overlay
         const progressSection = document.getElementById('progress-section');
+        const loadingOverlay = document.getElementById('loading-overlay');
+        
         if (progressSection) {
             progressSection.style.display = 'block';
             progressSection.classList.add('active');
+        } else if (loadingOverlay) {
+            loadingOverlay.classList.add('active');
         }
         
         // 初始化创造点显示（使用预估点数或默认值）
@@ -1123,8 +1216,12 @@ class PhaseOneSetup {
 
     hideProgress() {
         const progressSection = document.getElementById('progress-section');
+        const loadingOverlay = document.getElementById('loading-overlay');
+        
         if (progressSection) {
             progressSection.style.display = 'none';
+        } else if (loadingOverlay) {
+            loadingOverlay.classList.remove('active');
         }
     }
 
@@ -1136,9 +1233,16 @@ class PhaseOneSetup {
     }
 
     updateProgressMessage(message) {
+        // 优先使用详细进度消息区域
         const progressMessage = document.getElementById('progress-message');
         if (progressMessage) {
             progressMessage.textContent = message;
+        }
+        
+        // 同时更新loading-overlay中的文本（如果存在）
+        const loadingText = document.getElementById('loading-text');
+        if (loadingText) {
+            loadingText.textContent = message;
         }
     }
 

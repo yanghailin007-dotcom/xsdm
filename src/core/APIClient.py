@@ -93,6 +93,11 @@ class APIClient:
                 if endpoints and isinstance(endpoints, list):
                     self.endpoint_pools[provider] = APIEndpointPool(provider, endpoints)
                     self.logger.info(f"✅ 初始化 {provider} 端点池: {len(endpoints)} 个端点")
+                    # 🔄 启动时重置所有端点为健康状态
+                    pool = self.endpoint_pools[provider]
+                    reset_count = pool.reset_all_endpoints()
+                    if reset_count > 0:
+                        self.logger.info(f"🔄 {provider} 端点池重置了 {reset_count} 个端点")
         
         # 向后兼容：从旧版配置（api_keys, api_urls, models）创建端点池
         else:
@@ -207,15 +212,15 @@ class APIClient:
             self.logger.warning(f"{user_str}   - 需要等待: {wait_time:.2f}s")
             
             if wait_time > 0:
-                self.logger.info(f"⏰ 频率限制: 等待 {wait_time:.1f} 秒...")
+                self.logger.info(f"{user_str}⏰ 频率限制: 等待 {wait_time:.1f} 秒...")
                 time.sleep(wait_time)
                 # 等待结束后重置
                 self.request_count = 0
                 self.last_request_time = time.time()
-                self.logger.info(f"✅ 频率限制: 等待结束，计数器已重置")
+                self.logger.info(f"{user_str}✅ 频率限制: 等待结束，计数器已重置")
                 return False
         
-        self.logger.info(f"✅ 频率限制: 检查通过，可以发起请求")
+        self.logger.info(f"{user_str}✅ 频率限制: 检查通过，可以发起请求")
         return False
     def _update_rate_limit(self):
         """更新频率限制计数器"""
@@ -224,9 +229,10 @@ class APIClient:
             if self.request_count == 1:  # 第一次请求时设置开始时间
                 self.last_request_time = time.time()
             
-            self.logger.info(f"📊 频率限制更新:")
-            self.logger.info(f"   - 请求计数: {self.request_count}/{self.rate_limit_max_requests}")
-            self.logger.info(f"   - 计数开始时间: {self.last_request_time:.2f}")
+            user_str = self._get_username_str()
+            self.logger.info(f"{user_str}📊 频率限制更新:")
+            self.logger.info(f"{user_str}   - 请求计数: {self.request_count}/{self.rate_limit_max_requests}")
+            self.logger.info(f"{user_str}   - 计数开始时间: {self.last_request_time:.2f}")
     def _load_optimized_prompts(self) -> Dict[str, Dict[str, Any]]:
         """加载已优化的提示词"""
         optimized_file = f"{self.optimized_prompts_dir}/optimized_prompts.json"
@@ -267,22 +273,24 @@ class APIClient:
         if not self.model_routing_enabled:
             return None
         
+        user_str = self._get_username_str()
+        
         # 特殊处理：黄金三章使用专用模型
         if content_type == "chapter_quality_assessment" and chapter_number in [1, 2, 3]:
             golden_key = "chapter_quality_assessment_golden"
             if golden_key in self.model_routes:
-                self.logger.info(f"🎯 检测到黄金第{chapter_number}章，使用路由模型: {golden_key} -> {self.model_routes[golden_key]}")
+                self.logger.info(f"{user_str}🎯 检测到黄金第{chapter_number}章，使用路由模型: {golden_key} -> {self.model_routes[golden_key]}")
                 return self.model_routes[golden_key]
         
         # 查找精确匹配的路由
         if content_type in self.model_routes:
             routed_model = self.model_routes[content_type]
-            self.logger.info(f"🔄 使用路由模型: {content_type} -> {routed_model}")
+            self.logger.info(f"{user_str}🔄 使用路由模型: {content_type} -> {routed_model}")
             return routed_model
         
         # 如果没有精确匹配，返回默认路由模型
         if self.default_routed_model:
-            self.logger.info(f"⚠️ 未找到精确路由，使用默认路由模型: {self.default_routed_model}")
+            self.logger.info(f"{user_str}⚠️ 未找到精确路由，使用默认路由模型: {self.default_routed_model}")
             return self.default_routed_model
         
         return None
@@ -436,7 +444,7 @@ class APIClient:
             self.logger.info(f"  异常堆栈: {traceback.format_exc()}")
         
         self.logger.info(f"  流式传输完成 - 总行数: {line_count}, 数据块数: {data_count}")
-        self.logger.info(f"  最终内容长度: {len(full_content)}字符")
+        self.logger.info(f"  最终内容长度: {len(full_content)}字符/{len(full_content.encode('utf-8'))}字节")
         
         # 如果内容为空但有数据块，输出调试信息
         if len(full_content) == 0 and data_count > 0:
@@ -468,7 +476,7 @@ class APIClient:
 模型: {model}
 目的: {purpose}
 尝试次数: {attempt}
-响应长度: {len(response) if response else 0}字符
+响应长度: {len(response) if response else 0}字符/{len(response.encode('utf-8')) if response else 0}字节
 ========== 系统提示 (System Prompt) ==========
 {system_prompt}
 ========== 用户提示 (User Prompt) ==========
@@ -529,11 +537,13 @@ class APIClient:
             "stream": False
         }
         
+        import threading
+        thread_id = threading.current_thread().name
         user_str = self._get_username_str()
         start_time = time.time()
         
         try:
-            self.logger.info(f"{user_str}  📡 发起API请求 [端点: {endpoint_name}]:")
+            self.logger.info(f"{user_str}  📡 [{thread_id}] 发起API请求 [端点: {endpoint_name}]:")
             self.logger.info(f"{user_str}     - 目的: {purpose}")
             self.logger.info(f"{user_str}     - 模型: {model_name}")
             self.logger.info(f"{user_str}     - 超时: {timeout}秒")
@@ -541,17 +551,17 @@ class APIClient:
             response = requests.post(api_url, headers=headers, json=payload, timeout=timeout, stream=False)
             
             elapsed = time.time() - start_time
-            self.logger.info(f"{user_str}     - 响应状态: {response.status_code} (耗时:{elapsed:.2f}s)")
+            self.logger.info(f"{user_str}     - [{thread_id}] 响应状态: {response.status_code} (耗时:{elapsed:.2f}s)")
             
             # 检查HTTP状态码
             if response.status_code != 200:
-                self.logger.error(f"  ❌ HTTP错误: 状态码 {response.status_code}")
+                self.logger.error(f"{user_str}  ❌ HTTP错误: 状态码 {response.status_code}")
                 
                 # 特殊处理429错误
                 if response.status_code == 429:
-                    wait_time = self._extract_retry_after_from_error(response)
+                    wait_time = self._extract_retry_after_from_error(response, user_str)
                     if wait_time:
-                        self.logger.warning(f"  ⏰ 429错误，等待 {wait_time:.1f}s 后重试...")
+                        self.logger.warning(f"{user_str}  ⏰ 429错误，等待 {wait_time:.1f}s 后重试...")
                         time.sleep(wait_time)
                         # 重新尝试一次
                         response = requests.post(api_url, headers=headers, json=payload, timeout=timeout, stream=False)
@@ -572,11 +582,11 @@ class APIClient:
                 result = response.json()
                 content = result['choices'][0]['message']['content']
             except (KeyError, json.JSONDecodeError) as e:
-                self.logger.error(f"  ❌ 解析响应失败: {e}")
+                self.logger.error(f"{user_str}  ❌ 解析响应失败: {e}")
                 return None
             
             if not content:
-                self.logger.warning(f"  ⚠️ 端点 {endpoint_name} 返回空内容")
+                self.logger.warning(f"{user_str}  ⚠️ 端点 {endpoint_name} 返回空内容")
                 return None
             
             # 保存调试信息
@@ -586,18 +596,18 @@ class APIClient:
             if len(cleaned_content) > 10:
                 return cleaned_content
             else:
-                self.logger.warning(f"  ⚠️ 内容过短 ({len(cleaned_content)}字符)")
+                self.logger.warning(f"{user_str}  ⚠️ 内容过短 ({len(cleaned_content)}字符)")
                 return None
                 
         except requests.exceptions.Timeout:
             elapsed = time.time() - start_time
-            self.logger.error(f"  ⏰ 端点 {endpoint_name} 超时 (已等待{elapsed:.1f}s)")
+            self.logger.error(f"{user_str}  ⏰ 端点 {endpoint_name} 超时 (已等待{elapsed:.1f}s)")
             return None
         except requests.exceptions.RequestException as e:
-            self.logger.error(f"  🌐 端点 {endpoint_name} 请求异常: {e}")
+            self.logger.error(f"{user_str}  🌐 端点 {endpoint_name} 请求异常: {e}")
             return None
         except Exception as e:
-            self.logger.error(f"  ❌ 端点 {endpoint_name} 未知异常: {e}")
+            self.logger.error(f"{user_str}  ❌ 端点 {endpoint_name} 未知异常: {e}")
             return None
 
     def call_api(self, system_prompt: str, user_prompt: str,
@@ -626,19 +636,33 @@ class APIClient:
         
         # 获取可用端点
         available_endpoints = pool.get_available_endpoints()
+        
+        # 🔍 显示所有端点状态（用于诊断）
+        all_stats = pool.get_pool_stats()
+        total_eps = all_stats["total_endpoints"]
+        available_eps = all_stats["available_endpoints"]
+        self.logger.info(f"{user_str}🚀 开始API调用 [提供商:{target_provider}] 目的:{purpose}")
+        self.logger.info(f"{user_str}   端点状态: {available_eps}/{total_eps} 个可用")
+        for ep in all_stats["endpoints"]:
+            status_icon = "🟢" if ep["status"] == "healthy" else "🟡" if ep["status"] == "degraded" else "🔴"
+            avail_mark = "✓" if ep["is_available"] else "✗"
+            priority_info = f"P{ep['priority']}"
+            if ep.get('dynamic_priority', ep['priority']) != ep['priority']:
+                priority_info = f"P{ep['priority']}→{ep['dynamic_priority']}"
+            self.logger.info(f"{user_str}      {status_icon} {ep['name']} ({priority_info}) - 可用:{avail_mark} 失败:{ep.get('consecutive_failures', 0)}")
+        
         if not available_endpoints:
-            self.logger.error(f"❌ {target_provider} 没有可用的API端点")
+            self.logger.error(f"{user_str}❌ {target_provider} 没有可用的API端点")
             return None
         
-        self.logger.info(f"{user_str}🚀 开始API调用 [提供商:{target_provider}] 目的:{purpose}")
-        self.logger.info(f"   可用端点: {[ep.name for ep in available_endpoints]}")
+        self.logger.info(f"{user_str}   将尝试: {[ep.name for ep in available_endpoints]}")
         
         # 遍历所有可用端点进行尝试
         tried_endpoints = []
         
         for endpoint in available_endpoints:
             tried_endpoints.append(endpoint.name)
-            self.logger.info(f"   尝试端点: {endpoint.name} (优先级:{endpoint.priority})")
+            self.logger.info(f"{user_str}   尝试端点: {endpoint.name} (优先级:{endpoint.priority})")
             
             # 获取端点配置
             endpoint_config = endpoint.get_config()
@@ -666,20 +690,20 @@ class APIClient:
             if result:
                 # 成功，记录并返回
                 endpoint.record_success(time.time())  # 简化处理，实际应该在_call_single_endpoint中传递时间
-                self.logger.info(f"   ✅ 端点 {endpoint.name} 调用成功")
+                self.logger.info(f"{user_str}   ✅ 端点 {endpoint.name} 调用成功")
                 self._trigger_api_call_callback(purpose, 1)
                 return result
             else:
                 # 失败，记录失败
                 endpoint.record_failure("call_failed")
-                self.logger.warning(f"   ⚠️ 端点 {endpoint.name} 调用失败，尝试下一个...")
+                self.logger.warning(f"{user_str}   ⚠️ 端点 {endpoint.name} 调用失败，尝试下一个...")
         
         # 所有端点都失败
-        self.logger.error(f"💥 {target_provider} 所有端点均失败，已尝试: {tried_endpoints}")
+        self.logger.error(f"{user_str}💥 {target_provider} 所有端点均失败，已尝试: {tried_endpoints}")
         
         # 🔄 如果 gemini 池子失败，尝试 deepseek 池子作为保底
         if target_provider == "gemini" and "deepseek" in self.endpoint_pools:
-            self.logger.warning(f"🔄 尝试切换到 deepseek 池子作为保底...")
+            self.logger.warning(f"{user_str}🔄 尝试切换到 deepseek 池子作为保底...")
             return self._call_with_provider("deepseek", system_prompt, user_prompt, 
                                             temperature, purpose, model_name, user_str)
         
@@ -700,7 +724,7 @@ class APIClient:
         self.logger.info(f"{user_str}🚀 开始使用 {provider} 池子")
         
         for endpoint in available_endpoints:
-            self.logger.info(f"   尝试端点: {endpoint.name}")
+            self.logger.info(f"{user_str}   尝试端点: {endpoint.name}")
             
             endpoint_config = endpoint.get_config()
             if model_name:
@@ -722,29 +746,29 @@ class APIClient:
             
             if result:
                 endpoint.record_success(time.time())
-                self.logger.info(f"   ✅ {provider} 端点 {endpoint.name} 调用成功")
+                self.logger.info(f"{user_str}   ✅ {provider} 端点 {endpoint.name} 调用成功")
                 self._trigger_api_call_callback(purpose, 1)
                 return result
             else:
                 endpoint.record_failure("call_failed")
-                self.logger.warning(f"   ⚠️ {provider} 端点 {endpoint.name} 调用失败")
+                self.logger.warning(f"{user_str}   ⚠️ {provider} 端点 {endpoint.name} 调用失败")
         
-        self.logger.error(f"💥 {provider} 所有端点均失败")
+        self.logger.error(f"{user_str}💥 {provider} 所有端点均失败")
         return None
     
-    def _extract_retry_after_from_error(self, response) -> Optional[float]:
+    def _extract_retry_after_from_error(self, response, user_str: str = "") -> Optional[float]:
         """从错误响应中提取重试等待时间"""
-        self.logger.info(f"  🔍 开始提取重试等待时间...")
+        self.logger.info(f"{user_str}  🔍 开始提取重试等待时间...")
         
         try:
             # 尝试从JSON响应中提取错误信息
             error_data = response.json()
-            self.logger.info(f"  📋 成功解析错误响应JSON: {type(error_data)}")
+            self.logger.info(f"{user_str}  📋 成功解析错误响应JSON: {type(error_data)}")
             
             # 处理Gemini格式的错误信息
             if 'error' in error_data and 'message' in error_data['error']:
                 message = error_data['error']['message']
-                self.logger.info(f"  📝 错误消息: {message[:200]}...")
+                self.logger.info(f"{user_str}  📝 错误消息: {message[:200]}...")
                 
                 # 使用正则表达式提取等待时间
                 import re
@@ -755,46 +779,46 @@ class APIClient:
                     r'(\d+\.?\d*) seconds',  # 通用格式
                 ]
                 
-                self.logger.info(f"  🔍 尝试从错误消息中提取等待时间，使用 {len(retry_patterns)} 种模式...")
+                self.logger.info(f"{user_str}  🔍 尝试从错误消息中提取等待时间，使用 {len(retry_patterns)} 种模式...")
                 
                 for i, pattern in enumerate(retry_patterns):
                     match = re.search(pattern, message, re.IGNORECASE)
                     if match:
                         wait_time = float(match.group(1))
                         buffered_time = wait_time + 1.0  # 多等1秒确保
-                        self.logger.info(f"  ✅ 模式 {i+1} 匹配成功: 原始={wait_time}s, 缓冲后={buffered_time}s")
+                        self.logger.info(f"{user_str}  ✅ 模式 {i+1} 匹配成功: 原始={wait_time}s, 缓冲后={buffered_time}s")
                         return buffered_time
                     else:
-                        self.logger.debug(f"  ❌ 模式 {i+1} 未匹配: {pattern}")
+                        self.logger.debug(f"{user_str}  ❌ 模式 {i+1} 未匹配: {pattern}")
                 
-                self.logger.info(f"  ❌ 所有重试时间模式均未匹配")
+                self.logger.info(f"{user_str}  ❌ 所有重试时间模式均未匹配")
             else:
-                self.logger.info(f"  ⚠️ 错误响应中没有找到 'error.message' 字段")
-                self.logger.info(f"  📋 错误响应结构: {list(error_data.keys()) if isinstance(error_data, dict) else type(error_data)}")
+                self.logger.info(f"{user_str}  ⚠️ 错误响应中没有找到 'error.message' 字段")
+                self.logger.info(f"{user_str}  📋 错误响应结构: {list(error_data.keys()) if isinstance(error_data, dict) else type(error_data)}")
                 
             # 检查Retry-After头部
             if 'Retry-After' in response.headers:
                 retry_after = response.headers['Retry-After']
-                self.logger.info(f"  📋 发现Retry-After头部: {retry_after}")
+                self.logger.info(f"{user_str}  📋 发现Retry-After头部: {retry_after}")
                 
                 try:
                     wait_time = float(retry_after)
                     buffered_time = wait_time + 1.0
-                    self.logger.info(f"  ✅ 从Retry-After头部提取等待时间: 原始={wait_time}s, 缓冲后={buffered_time}s")
+                    self.logger.info(f"{user_str}  ✅ 从Retry-After头部提取等待时间: 原始={wait_time}s, 缓冲后={buffered_time}s")
                     return buffered_time
                 except ValueError:
-                    self.logger.info(f"  ❌ Retry-After头部无法转换为数字: {retry_after}")
+                    self.logger.info(f"{user_str}  ❌ Retry-After头部无法转换为数字: {retry_after}")
             else:
-                self.logger.info(f"  📋 响应头部: {dict(response.headers)}")
+                self.logger.info(f"{user_str}  📋 响应头部: {dict(response.headers)}")
                 
         except json.JSONDecodeError as e:
-            self.logger.error(f"  ❌ 解析错误响应JSON失败: {e}")
-            self.logger.error(f"  📋 原始响应文本: {response.text[:200]}...")
+            self.logger.error(f"{user_str}  ❌ 解析错误响应JSON失败: {e}")
+            self.logger.error(f"{user_str}  📋 原始响应文本: {response.text[:200]}...")
         except Exception as e:
-            self.logger.error(f"  ❌ 提取重试时间时发生异常: {e}")
-            self.logger.error(f"  📋 异常类型: {type(e).__name__}")
+            self.logger.error(f"{user_str}  ❌ 提取重试时间时发生异常: {e}")
+            self.logger.error(f"{user_str}  📋 异常类型: {type(e).__name__}")
             
-        self.logger.info(f"  ❌ 无法提取重试等待时间，返回None")
+        self.logger.info(f"{user_str}  ❌ 无法提取重试等待时间，返回None")
         return None
 # 文件: APIClient.py
     def _extract_json_content(self, response: str) -> Optional[str]:
@@ -894,10 +918,12 @@ class APIClient:
 # 文件: APIClient.py
     def parse_json_response(self, response: str) -> Optional[Any]:
         """解析JSON响应 - 超级增强版本（已移除不稳定的AI修复）"""
+        import threading
+        thread_id = threading.current_thread().name
         if not response:
-            self.logger.info("  ❌ 传入的响应为空")
+            self.logger.info(f"  [{thread_id}] ❌ 传入的响应为空")
             return None
-        self.logger.info(f"  开始解析JSON响应，原始长度: {len(response)}")
+        self.logger.info(f"  [{thread_id}] 开始解析JSON响应，原始长度: {len(response)}字符/{len(response.encode('utf-8'))}字节")
         # 步骤1: 提取JSON内容
         json_content = self._extract_json_content(response)
         if not json_content:
@@ -905,22 +931,22 @@ class APIClient:
             # 即使无法提取，也保存原始响应用于调试
             self._save_debug_response(response, "failed_extraction")
             return None
-        self.logger.info(f"  提取的JSON内容长度: {len(json_content)}")
+        self.logger.info(f"  [{thread_id}] 提取的JSON内容长度: {len(json_content)}字符/{len(json_content.encode('utf-8'))}字节")
         # 步骤2: 尝试直接解析
         try:
             result = json.loads(json_content)
-            self.logger.info("  ✓ JSON直接解析成功")
+            self.logger.info(f"  [{thread_id}] ✓ JSON直接解析成功")
             return result
         except json.JSONDecodeError as e:
-            self.logger.info(f"  - 首次JSON解析失败: {e}")
+            self.logger.info(f"  [{thread_id}] - 首次JSON解析失败: {e}")
         # 步骤3: 尝试修复后解析
         try:
             fixed_json = self._fix_json_format(json_content)
             result = json.loads(fixed_json)
-            self.logger.info("  ✓ JSON修复后解析成功")
+            self.logger.info(f"  [{thread_id}] ✓ JSON修复后解析成功")
             return result
         except json.JSONDecodeError as e:
-            self.logger.info(f"  - JSON修复后仍然解析失败: {e}")
+            self.logger.info(f"  [{thread_id}] - JSON修复后仍然解析失败: {e}")
         # 步骤4: 尝试使用更宽松的解析 (已禁用，因为会导致slice对象bug)
         # ast.literal_eval 会把 slice(None, 20, None) 解析成实际的 slice 对象而不是字符串
         # 这会导致 chapter_data["content"] 变成 slice 对象，引发严重bug
@@ -933,7 +959,7 @@ class APIClient:
         #     self.logger.info(f"  - ast.literal_eval也失败: {e}")
         # 步骤5: 保存失败的JSON用于调试
         self._save_debug_response(json_content, "failed_json_parse")
-        self.logger.info("  💥 所有本地解析和修复方法均失败。放弃本次结果，交由上层重试。")
+        self.logger.info(f"  [{thread_id}] 💥 所有本地解析和修复方法均失败。放弃本次结果，交由上层重试。")
         return None
     def _add_json_format_requirements(self, system_prompt: str) -> str:
         """在system_prompt中添加严格的JSON格式要求和中文语言要求"""
@@ -967,32 +993,36 @@ class APIClient:
                                   provider: Optional[str] = None, enable_prompt_optimization: bool = False,
                                   chapter_number: Optional[int] = None) -> Optional[Any]:
         """带重试机制的内容生成 - 增强JSON格式要求版本，支持模型路由"""
+        import threading
+        thread_id = threading.current_thread().name
+        user_str = self._get_username_str()
+        
         # 验证内容类型是否支持
         if content_type not in self.Prompts:
-            self.logger.info(f"❌ 不支持的内容类型: {content_type}")
-            self.logger.info(f"💡 支持的内容类型: {list(self.Prompts.prompts.keys())}")
+            self.logger.info(f"{user_str}❌ 不支持的内容类型: {content_type}")
+            self.logger.info(f"{user_str}💡 支持的内容类型: {list(self.Prompts.prompts.keys())}")
             return None
         
         # 获取基础系统提示词
         try:
             base_system_prompt = self.Prompts[content_type]
             if not base_system_prompt:
-                self.logger.info(f"❌ 内容类型 {content_type} 的提示词为空")
+                self.logger.info(f"{user_str}❌ 内容类型 {content_type} 的提示词为空")
                 return None
         except Exception as e:
-            self.logger.info(f"❌ 获取内容类型 {content_type} 的提示词时出错: {e}")
+            self.logger.info(f"{user_str}❌ 获取内容类型 {content_type} 的提示词时出错: {e}")
             return None
         # 确定使用的提供商
         target_provider = provider if provider else self.default_provider
         if target_provider not in self.available_providers:
-            self.logger.info(f"❌ {target_provider.upper()} 未配置或不可用")
+            self.logger.info(f"{user_str}❌ {target_provider.upper()} 未配置或不可用")
             return None
         # 传入 content_type 和 chapter_number 以支持模型路由
         provider_config = self._get_provider_config(target_provider, content_type, chapter_number)
         routed_model = provider_config['model']  # 获取路由后的模型名称
-        self.logger.info(f"✓ 使用 {target_provider.upper()} ({routed_model}) 生成 {content_type}")
+        self.logger.info(f"{user_str}[{thread_id}] ✓ 使用 {target_provider.upper()} ({routed_model}) 生成 {content_type}")
         if chapter_number is not None:
-            self.logger.info(f"  📖 章节号: {chapter_number}")
+            self.logger.info(f"{user_str}  📖 章节号: {chapter_number}")
         # 在system_prompt中添加严格的JSON格式要求
         final_system_prompt_for_api = self._add_json_format_requirements(base_system_prompt)
         # 准备重试的用户提示词
@@ -1003,25 +1033,25 @@ class APIClient:
         ]
         for json_attempt in range(self.config["defaults"]["json_retries"]):
             current_user_prompt = retry_prompts[min(json_attempt, len(retry_prompts)-1)]
-            self.logger.info(f"  第{json_attempt+1}次生成尝试...")
+            self.logger.info(f"{user_str}  [{thread_id}] 第{json_attempt+1}次生成尝试...")
             # 传递路由后的模型名称给 call_api
             result = self.call_api(final_system_prompt_for_api, current_user_prompt, temperature, purpose, target_provider, model_name=routed_model)
             if result:
-                self.logger.info(f"  API调用成功，开始解析JSON...")
+                self.logger.info(f"{user_str}  [{thread_id}] API调用成功，开始解析JSON...")
                 parsed = self.parse_json_response(result)
                 if parsed:
-                    self.logger.info(f"  ✓ JSON解析成功，返回结果")
+                    self.logger.info(f"{user_str}  [{thread_id}] ✓ JSON解析成功，返回结果")
                     # 如果启用了提示词优化，尝试优化提示词
                     if enable_prompt_optimization:
                         self.optimize_prompts(content_type, base_system_prompt, user_prompt, result, parsed)
                     return parsed
                 else:
-                    self.logger.info(f"  🔄 JSON解析失败，准备重试...")
+                    self.logger.info(f"{user_str}  [{thread_id}] 🔄 JSON解析失败，准备重试...")
                     time.sleep(10)
             else:
-                self.logger.info(f"  🔄 API调用无结果，准备重试...")
+                self.logger.info(f"{user_str}  [{thread_id}] 🔄 API调用无结果，准备重试...")
                 time.sleep(10)
-        self.logger.info(f"❌ {content_type}生成失败，所有重试均未成功")
+        self.logger.info(f"{user_str}❌ {content_type}生成失败，所有重试均未成功")
         return None
     def optimize_prompts(self, content_type: str, original_system_prompt: str,
                         original_user_prompt: str, api_response: str, parsed_result: Any):
@@ -1258,7 +1288,7 @@ User Prompt: {len(original_user)} → {len(optimized_data.get('optimized_user_pr
             if repaired_content:
                 # 清理修复后的内容
                 cleaned_repaired = self.clean_api_response(repaired_content)
-                self.logger.info(f"  📏 AI修复后内容长度: {len(cleaned_repaired)}字符")
+                self.logger.info(f"  📏 AI修复后内容长度: {len(cleaned_repaired)}字符/{len(cleaned_repaired.encode('utf-8'))}字节")
                 # 尝试解析修复后的JSON
                 try:
                     result = json.loads(cleaned_repaired)

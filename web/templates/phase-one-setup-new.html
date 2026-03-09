@@ -475,7 +475,7 @@
                             </div>
                         </div>
 
-                        <!-- 创造点消耗提示 -->
+                        <!-- 创造点消耗提示 - 固定显示最大消耗 -->
                         <div class="points-cost-hint" style="
                             background: linear-gradient(135deg, rgba(251, 191, 36, 0.15) 0%, rgba(245, 158, 11, 0.08) 100%);
                             border: 2px solid rgba(251, 191, 36, 0.4);
@@ -490,15 +490,18 @@
                         ">
                             <div style="display: flex; align-items: center; gap: 0.5rem;">
                                 <span style="font-size: 1.5rem;">⚡</span>
-                                <span style="color: var(--dark-text-secondary); font-size: 0.875rem; font-weight: 500;">预估消耗</span>
+                                <div style="display: flex; flex-direction: column;">
+                                    <span style="color: var(--dark-text-secondary); font-size: 0.875rem; font-weight: 500;">预计消耗</span>
+                                    <span style="color: var(--dark-text-tertiary); font-size: 0.75rem;">200章约119创造点</span>
+                                </div>
                             </div>
                             <div style="display: flex; align-items: center; gap: 0.5rem;">
-                                <span id="points-cost-display" style="
+                                <span style="
                                     font-size: 1.5rem;
                                     font-weight: 800;
                                     color: #fbbf24;
                                     text-shadow: 0 0 15px rgba(251, 191, 36, 0.5);
-                                ">39</span>
+                                ">119</span>
                                 <span style="color: #fbbf24; font-size: 0.875rem; font-weight: 600;">创造点</span>
                             </div>
                         </div>
@@ -514,23 +517,12 @@
                             border: 1px solid rgba(255, 255, 255, 0.05);
                         ">
                             <i class="fas fa-info-circle" style="color: #fbbf24;"></i> 
-                            共39次API调用：基础设定(14次) + 4阶段详细计划(24次) + 评估(1次)
+                            <span>基础流程25点 + 阶段规划72点 + 质量评估12点 + 缓冲10点</span>
                         </div>
 
                         <div class="form-actions">
                             <button type="button" class="btn btn-primary" id="submit-btn" style="width: 100%; position: relative;" onclick="console.log('🔘 [BUTTON] 按钮被点击'); document.getElementById('phase-one-form').dispatchEvent(new Event('submit', {cancelable: true}));">
                                 <span>🚀 开始生成设定</span>
-                                <span style="
-                                    position: absolute;
-                                    right: 1rem;
-                                    top: 50%;
-                                    transform: translateY(-50%);
-                                    font-size: 0.75rem;
-                                    opacity: 0.9;
-                                    background: rgba(0,0,0,0.3);
-                                    padding: 0.25rem 0.5rem;
-                                    border-radius: 0.25rem;
-                                ">-39⚡</span>
                             </button>
                         </div>
                     </form>
@@ -620,7 +612,9 @@
             initCharCounter();
             
             // 初始化创造点计算
+            console.log('[Points] 开始初始化创造点计算...');
             initPointsCalculator();
+            console.log('[Points] 创造点计算初始化完成');
             
             // 绑定打开创意编辑器按钮
             const openEditorBtn = document.getElementById('open-creative-editor-btn');
@@ -653,29 +647,22 @@
         // ==================== 创造点计算器 ====================
         // 第一阶段设定生成 - API调用统计（基于实际代码分析）
         // 
-        // 【基础设定】
-        // 1. 写作风格指南: 1次
-        // 2. 市场分析: 1次 + 质量评估: 1次 + 新鲜度: 1次 = 3次
-        // 3. 核心世界观: 1次 + 质量评估: 1次 + 新鲜度: 1次 = 3次  
-        // 4. 势力/阵营系统: 1次 + 质量评估: 1次 + 新鲜度: 1次 = 3次
-        // 5. 核心角色设计: 1次（无评估）
-        // 6. 情绪蓝图: 1次
-        // 7. 全局成长规划: 1次
-        // 8. 全书阶段计划: 1次
+        // 【基础流程】约25次调用
+        // - 创意精炼、方案生成循环、风格指南、市场分析、世界观、势力系统
+        // - 角色设计、情绪蓝图、成长规划
         //
-        // 【4个阶段详细计划 - 每阶段约6次调用】
-        // - 生成重大事件骨架: 1次 × 4阶段 = 4次
-        // - 分解重大事件为中型事件: 4次 × 4阶段 = 16次（每阶段平均4个重大事件）
-        // - 生成阶段补充角色: 1次 × 4阶段 = 4次
+        // 【阶段计划】每阶段约12次调用（按章节数计算阶段数）
+        // - 200章约6-7个阶段
         //
-        // 【最终评估】
-        // 整体质量评估: 1次
+        // 【质量评估】每个阶段约2次调用
         //
-        // 总计: 1+3+3+3+1+1+1+1 + 24 + 1 = 39点创造点
+        // 【缓冲】预留10点应对额外调用
         
-        const PHASE_ONE_BASE_COST = 39; // 第一阶段实际消耗（约39次API调用）
-        let currentPointsCost = PHASE_ONE_BASE_COST;
+        let currentPointsCost = 119;
         let userPointsBalance = 0;
+        
+        // 🔥 简化的创造点计算 - 仅用于余额检查
+        const PHASE_ONE_BASE_COST = 119; // 200章固定消耗
         
         async function loadUserPointsBalance() {
             try {
@@ -684,6 +671,8 @@
                     const result = await response.json();
                     if (result.success) {
                         userPointsBalance = result.data.balance;
+                        // 更新UI显示余额
+                        updateBalanceDisplay();
                         return userPointsBalance;
                     }
                 }
@@ -693,70 +682,53 @@
             return 0;
         }
         
+        function updateBalanceDisplay() {
+            // 可以在这里更新余额显示（如果有余额显示元素）
+            console.log('💰 当前余额:', userPointsBalance);
+        }
+        
         function initPointsCalculator() {
-            const totalChaptersInput = document.getElementById('total-chapters');
-            const generationModeSelect = document.getElementById('generation-mode');
-            const pointsDisplay = document.getElementById('points-cost-display');
-            const pointsHint = document.querySelector('.points-cost-hint');
+            console.log('[Points] initPointsCalculator 开始执行');
             
-            if (!pointsDisplay) return;
+            const generationModeSelect = document.getElementById('generation-mode');
+            const pointsHint = document.querySelector('.points-cost-hint');
             
             // 加载用户余额
             loadUserPointsBalance();
             
-            // 计算创造点消耗
-            function calculatePoints() {
+            // 计算总消耗（用于余额检查）
+            function calculateTotalCost() {
                 const generationMode = generationModeSelect?.value || 'phase_one_only';
+                let totalCost = PHASE_ONE_BASE_COST;
                 
-                // 基础消耗：第一阶段设定生成（12次API调用）
-                // - 写作风格指南、市场分析、核心世界观
-                // - 势力/阵营系统、核心角色设计
-                // - 情绪蓝图、全局成长规划、全书阶段计划
-                // - 4个阶段详细计划、质量评估
-                let points = PHASE_ONE_BASE_COST;
-                
-                // 如果选择完整两阶段，需要额外消耗
+                // 如果选择完整两阶段，计算额外消耗
                 if (generationMode === 'full_two_phase') {
-                    // 第二阶段每章都需要调用API生成内容
-                    // 预估：每章约1-2次API调用，这里按平均值估算
-                    const totalChapters = parseInt(totalChaptersInput?.value) || 200;
-                    // 第二阶段：每10章约10-15点（批量生成优化后）
-                    points += Math.ceil(totalChapters / 10) * 8;
+                    const totalChapters = parseInt(document.getElementById('total-chapters')?.value) || 200;
+                    // 第二阶段：每10章约8点
+                    totalCost += Math.ceil(totalChapters / 10) * 8;
                 }
                 
-                currentPointsCost = points;
+                currentPointsCost = totalCost;
                 
-                // 更新显示
-                pointsDisplay.textContent = points;
-                
-                // 检查余额是否充足
-                if (userPointsBalance > 0 && points > userPointsBalance) {
+                // 检查余额是否充足，更新UI颜色
+                if (pointsHint && userPointsBalance > 0 && totalCost > userPointsBalance) {
                     pointsHint.style.borderColor = 'rgba(239, 68, 68, 0.5)';
                     pointsHint.style.background = 'linear-gradient(135deg, rgba(239, 68, 68, 0.1) 0%, rgba(239, 68, 68, 0.05) 100%)';
-                    pointsDisplay.style.color = '#ef4444';
-                } else {
+                } else if (pointsHint) {
                     pointsHint.style.borderColor = 'rgba(251, 191, 36, 0.3)';
                     pointsHint.style.background = 'linear-gradient(135deg, rgba(251, 191, 36, 0.1) 0%, rgba(245, 158, 11, 0.05) 100%)';
-                    pointsDisplay.style.color = '#fbbf24';
                 }
                 
-                // 添加动画效果
-                pointsDisplay.style.transform = 'scale(1.2)';
-                setTimeout(() => {
-                    pointsDisplay.style.transform = 'scale(1)';
-                }, 200);
+                return totalCost;
             }
             
-            // 绑定事件监听
-            if (totalChaptersInput) {
-                totalChaptersInput.addEventListener('input', calculatePoints);
-            }
+            // 绑定生成模式变化事件
             if (generationModeSelect) {
-                generationModeSelect.addEventListener('change', calculatePoints);
+                generationModeSelect.addEventListener('change', calculateTotalCost);
             }
             
             // 初始计算
-            calculatePoints();
+            calculateTotalCost();
         }
         
         // ==================== 创造点余额检查 ====================

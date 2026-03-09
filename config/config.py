@@ -26,8 +26,10 @@ CONFIG = {
     # ============================================================
     # 🔥 新的多API端点池配置（推荐）- 支持故障转移和优先级调度
     # ============================================================
-    # 测试结果: 2026-03-08
-    # - Lemon API (new.lemonapi.site) 测试通过 ✅
+    # 测试结果: 2026-03-09
+    # - Aiberm API (aiberm.com) 测试通过 ✅ - 优先级1（最高）
+    # - google/gemini-3.1-pro: 测试通过，响应时间~11s
+    # - Lemon API (new.lemonapi.site) 测试通过 ✅ - 优先级2
     # - [L]gemini-3.1-pro-preview: 测试通过，响应时间~10s（冷启动）
     # - 注意: Lemon API 模型名称需要 [L] 前缀
     # - 建议超时设置: 300秒（5分钟）以应对冷启动
@@ -35,13 +37,23 @@ CONFIG = {
     "api_endpoints": {
         "gemini": [
             {
-                "name": "lemon-api",           # 主端点：Lemon API
+                "name": "aiberm",              # 🆕 新端点：Aiberm API（已测试通过）
+                "api_url": "https://aiberm.com/v1/chat/completions",
+                "api_key": os.getenv('AIBERM_API_KEY', 'sk-dWu7JFD69zTYeSLZiWV8OQYBjQ2IoJlQCmSo3f963ArGEAju'),
+                "model": "google/gemini-3.1-pro",  # Gemini 3.1 Pro
+                "priority": 1,                 # ✅ 测试通过，设为最高优先级
+                "enabled": True,
+                "timeout": 300,
+                "max_retries": 3
+            },
+            {
+                "name": "lemon-api",           # 备用端点：Lemon API
                 "api_url": "https://new.lemonapi.site/v1/chat/completions",
                 "api_key": os.getenv('LEMON_API_KEY', 'sk-n7M8j3un3p4QBfKNHxYDVmnhZELU4eicBrhBDsZEu23h3uXg'),
-                "model": "[L]gemini-3.1-pro-preview",  # 3.1 模型（测试通过）
-                "priority": 1,                 # 优先级最高
+                "model": "[L]gemini-3.1-pro-preview",  # 3.1 模型
+                "priority": 2,                 # 降为备用优先级
                 "enabled": True,
-                "timeout": 300,                # 5分钟超时（3.1模型冷启动需要~10s）
+                "timeout": 300,
                 "max_retries": 3
             },
             {
@@ -49,9 +61,9 @@ CONFIG = {
                 "api_url": "https://newapi.xiaochuang.cc/v1/chat/completions",
                 "api_key": os.getenv('GEMINI_API_KEY', 'sk-zQHbJRdcVeNKX2ZqR18AMj5qutH4lDCZSmgE7WPP3aBdDdbw'),
                 "model": "gemini-3-pro-preview",  # 小创 API 不需要前缀
-                "priority": 2,                 # 备用优先级
-                "enabled": False,              # 暂时禁用（连接超时）
-                "timeout": 120,
+                "priority": 3,                 # 备用优先级
+                "enabled": True,
+                "timeout": 180,
                 "max_retries": 3
             }
         ],
@@ -124,9 +136,9 @@ CONFIG = {
     },
     # 在 config.py 或配置文件中添加
     "rate_limit": {
-        "enabled": True,  # 频率限制开关
-        "interval": 1,    # 限制间隔（秒），默认1秒
-        "max_requests": 1 # 间隔内最大请求次数
+        "enabled": False,  # 频率限制开关 - 已禁用
+        "interval": 1,     # 限制间隔（秒），默认1秒
+        "max_requests": 1  # 间隔内最大请求次数
     },
     "website_style_adaptation": {
         "enabled": True,

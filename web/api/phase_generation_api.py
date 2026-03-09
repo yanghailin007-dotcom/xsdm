@@ -1173,6 +1173,28 @@ def get_phase_one_task_status(task_id):
         if "step_status" in task_status:
             data["step_status"] = task_status["step_status"]
         
+        # 🔥 新增：添加子步骤信息（用于详细UI显示）
+        if "sub_steps" in task_status:
+            data["sub_steps"] = task_status["sub_steps"]
+        if "current_sub_step" in task_status:
+            data["current_sub_step"] = task_status["current_sub_step"]
+        
+        # 🔥 新增：添加检查点定义的子步骤结构（供前端参考）
+        from src.managers.stage_plan.generation_checkpoint import GenerationCheckpoint
+        if task_status.get("current_step") in GenerationCheckpoint.PHASES['phase_one'].get('sub_steps', {}):
+            data["sub_step_definitions"] = GenerationCheckpoint.PHASES['phase_one']['sub_steps'][task_status.get("current_step")]
+        
+        # 🔥 新增：添加预估时间和API调用次数
+        try:
+            config = task_status.get("config", {})
+            total_chapters = config.get("total_chapters", 200)
+            estimate = GenerationCheckpoint.calculate_phase_one_estimate(total_chapters)
+            data["estimated_time"] = estimate["estimated_time_formatted"]
+            data["estimated_api_calls"] = estimate["total_api_calls"]
+            data["estimate_breakdown"] = estimate["breakdown"]
+        except Exception as e:
+            logger.debug(f"计算预估信息失败: {e}")
+        
         # 如果任务完成，包含结果
         if task_status.get("status") == "completed" and "result" in task_status:
             data["result"] = task_status["result"]

@@ -730,6 +730,55 @@
             min-width: 100px;
             max-width: calc(50% - 4px);
         }
+        
+        /* 🔥 导出菜单样式 */
+        .export-dropdown {
+            position: relative;
+            display: inline-block;
+        }
+        
+        .export-menu {
+            display: none;
+            position: absolute;
+            right: 0;
+            top: 100%;
+            margin-top: 4px;
+            background: rgba(30, 41, 59, 0.95);
+            border: 1px solid rgba(148, 163, 184, 0.2);
+            border-radius: 8px;
+            padding: 8px;
+            min-width: 160px;
+            z-index: 1000;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.4);
+            backdrop-filter: blur(10px);
+        }
+        
+        .export-menu.show {
+            display: block;
+        }
+        
+        .export-option {
+            display: block;
+            width: 100%;
+            padding: 10px 14px;
+            text-align: left;
+            background: none;
+            border: none;
+            color: #e2e8f0;
+            cursor: pointer;
+            border-radius: 6px;
+            font-size: 14px;
+            transition: all 0.2s ease;
+        }
+        
+        .export-option:hover {
+            background: rgba(59, 130, 246, 0.2);
+            color: #60a5fa;
+        }
+        
+        .export-option:not(:last-child) {
+            margin-bottom: 4px;
+        }
 
         @media (max-width: 1200px) {
             .project-actions .action-btn {
@@ -1247,19 +1296,30 @@
         function createActionsSection(project) {
             let actions = '';
             
-            // 根据项目状态显示不同操作
+            // 🔥 所有项目都显示导出按钮（与作品页面一致）
+            actions = `
+                <div class="export-dropdown" style="position: relative; display: inline-block;">
+                    <button class="action-btn secondary" onclick="toggleExportMenu('${escapeHtml(project.title)}')">
+                        📥 导出 ▼
+                    </button>
+                    <div class="export-menu" id="export-menu-${escapeHtml(project.title)}" style="display: none; position: absolute; right: 0; top: 100%; margin-top: 4px; background: var(--dark-bg-card); border: 1px solid var(--dark-border); border-radius: 8px; padding: 8px; min-width: 140px; z-index: 100; box-shadow: 0 4px 12px rgba(0,0,0,0.3);">
+                        <button class="export-option" onclick="exportNovelTxt('${escapeHtml(project.title)}')" style="display: block; width: 100%; padding: 8px 12px; text-align: left; background: none; border: none; color: var(--dark-text-primary); cursor: pointer; border-radius: 4px; font-size: 14px;">📝 导出 TXT</button>
+                        <button class="export-option" onclick="exportNovelZip('${escapeHtml(project.title)}')" style="display: block; width: 100%; padding: 8px 12px; text-align: left; background: none; border: none; color: var(--dark-text-primary); cursor: pointer; border-radius: 4px; font-size: 14px; margin-top: 4px;">📦 打包 ZIP</button>
+                        <button class="export-option" onclick="exportProject('${escapeHtml(project.title)}')" style="display: block; width: 100%; padding: 8px 12px; text-align: left; background: none; border: none; color: var(--dark-text-primary); cursor: pointer; border-radius: 4px; font-size: 14px; margin-top: 4px;">📊 导出 JSON</button>
+                    </div>
+                </div>
+            `;
+            
+            // 根据项目状态显示其他操作
             if (project.phase_one && project.phase_one.status === 'completed') {
                 if (project.phase_two && project.phase_two.status === 'completed') {
-                    actions = `
+                    actions += `
                         <button class="action-btn primary" onclick="viewProject('${escapeHtml(project.title)}')">
                             📖 查看内容
                         </button>
-                        <button class="action-btn secondary" onclick="exportProject('${escapeHtml(project.title)}')">
-                            📤 导出项目
-                        </button>
                     `;
                 } else {
-                    actions = `
+                    actions += `
                         <button class="action-btn primary" onclick="continueToPhaseTwo('${escapeHtml(project.title)}')">
                             📝 继续生成
                         </button>
@@ -1281,7 +1341,7 @@
                     `;
                 }
             } else {
-                actions = `
+                actions += `
                     <button class="action-btn secondary" onclick="continuePhaseOne('${escapeHtml(project.title)}')">
                         ⚙️ 继续设计
                     </button>
@@ -1432,6 +1492,46 @@
             }
         }
 
+        // 🔥 导出下拉菜单控制
+        let exportMenuOpen = {};
+        
+        function toggleExportMenu(projectTitle) {
+            const menu = document.getElementById(`export-menu-${projectTitle}`);
+            if (menu) {
+                const isOpen = menu.style.display === 'block';
+                // 关闭所有其他菜单
+                document.querySelectorAll('.export-menu').forEach(m => m.style.display = 'none');
+                // 切换当前菜单
+                menu.style.display = isOpen ? 'none' : 'block';
+                exportMenuOpen[projectTitle] = !isOpen;
+            }
+        }
+        
+        // 点击其他地方关闭导出菜单
+        document.addEventListener('click', function(e) {
+            if (!e.target.closest('.export-dropdown')) {
+                document.querySelectorAll('.export-menu').forEach(menu => {
+                    menu.style.display = 'none';
+                });
+            }
+        });
+        
+        // 🔥 导出TXT（与作品页面一致）
+        function exportNovelTxt(projectTitle) {
+            window.open(`/api/export-novel?title=${encodeURIComponent(projectTitle)}&format=txt`, '_blank');
+            // 关闭菜单
+            const menu = document.getElementById(`export-menu-${projectTitle}`);
+            if (menu) menu.style.display = 'none';
+        }
+        
+        // 🔥 导出ZIP（与作品页面一致）
+        function exportNovelZip(projectTitle) {
+            window.open(`/api/export/novel-zip/${encodeURIComponent(projectTitle)}`, '_blank');
+            // 关闭菜单
+            const menu = document.getElementById(`export-menu-${projectTitle}`);
+            if (menu) menu.style.display = 'none';
+        }
+        
         function viewProject(projectTitle) {
             window.location.href = `/novel?title=${encodeURIComponent(projectTitle)}`;
         }

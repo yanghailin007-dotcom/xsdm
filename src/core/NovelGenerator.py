@@ -1117,6 +1117,9 @@ class NovelGenerator:
         if count == 1:
             print("📝 正在保存进度...")
             try:
+                # 🔥 确保用户名被传递到 _ctx
+                if hasattr(self, '_username') and self._username:
+                    self._ctx['_username'] = self._username
                 self.project_manager.save_project_progress(self._ctx)
                 print("✅ 进度已保存")
             except Exception as e:
@@ -1784,11 +1787,15 @@ class NovelGenerator:
         
         # 使用新的路径配置系统
         from src.config.path_config import path_config
-        paths = path_config.ensure_directories(self._ctx["novel_title"])
+        username = getattr(self, '_username', None)
+        paths = path_config.ensure_directories(self._ctx["novel_title"], username=username)
         
         print(f"✅ 项目目录已创建: {paths['project_root']}")
         print(f"📁 章节目录: {paths['chapters_dir']}")
         
+        # 🔥 确保用户名被传递到 _ctx
+        if hasattr(self, '_username') and self._username:
+            self._ctx['_username'] = self._username
         self.project_manager.save_project_progress(self._ctx)
         print("✅ 项目初始进度已保存")
 
@@ -1796,6 +1803,9 @@ class NovelGenerator:
         """完成生成过程"""
         self._ctx["current_progress"]["stage"] = "完成"
         
+        # 🔥 确保用户名被传递到 _ctx
+        if hasattr(self, '_username') and self._username:
+            self._ctx['_username'] = self._username
         # 保存最终进度和导出总览
         self.project_manager.save_project_progress(self._ctx)
         self.project_manager.export_novel_overview(self._ctx)
