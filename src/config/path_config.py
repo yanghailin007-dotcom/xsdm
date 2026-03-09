@@ -122,8 +122,10 @@ class NovelPathConfig:
             
             # 质量和评估
             "quality_reports_dir": str(project_dir / "quality_reports"),
-            "character_development": str(project_dir / "quality_reports" / "character_development.json"),
             "quality_assessments": str(project_dir / "quality_reports" / "quality_assessments.json"),
+            
+            # 角色发展表 - 运行时数据，存储在项目根目录
+            "character_development": str(project_dir / "character_development.json"),
             
             # 世界状态管理
             "world_state": str(project_dir / "world_state.json"),
