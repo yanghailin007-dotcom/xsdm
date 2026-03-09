@@ -17,18 +17,20 @@ from src.utils.logger import get_logger
 from src.config.path_config import path_config
 
 class WorldStateManager:
-    def __init__(self, storage_path: Optional[str] = None, novel_title: Optional[str] = None):
+    def __init__(self, storage_path: Optional[str] = None, novel_title: Optional[str] = None, username: Optional[str] = None):
         """
         初始化世界状态管理器
         
         Args:
             storage_path: 存储路径（已弃用，保留用于向后兼容）
             novel_title: 小说标题，用于获取统一的项目路径
+            username: 用户名，用于构建正确的用户隔离路径
         """
         # 如果提供了小说标题，使用统一的路径配置系统
         if novel_title:
             self.novel_title = novel_title
-            paths = path_config.get_project_paths(novel_title)
+            self.username = username
+            paths = path_config.get_project_paths(novel_title, username=username)
             self.storage_path = os.path.abspath(paths["quality_reports_dir"])
         elif storage_path:
             # 向后兼容：使用提供的存储路径
@@ -44,6 +46,7 @@ class WorldStateManager:
         self.logger.info(f"🌐 世界状态管理器初始化:")
         self.logger.info(f"   存储路径: {self.storage_path}")
         self.logger.info(f"   小说标题: {self.novel_title or '未指定'}")
+        self.logger.info(f"   用户名: {getattr(self, 'username', None) or '未指定'}")
         self.logger.info(f"   当前工作目录: {os.getcwd()}")
         # 确保存储目录存在
         os.makedirs(self.storage_path, exist_ok=True)
@@ -195,7 +198,7 @@ class WorldStateManager:
     def _event_file(self, novel_title: str) -> str:
         # 如果有指定小说标题，使用统一路径配置
         if self.novel_title == novel_title:
-            paths = path_config.get_project_paths(novel_title)
+            paths = path_config.get_project_paths(novel_title, username=getattr(self, 'username', None))
             return str(Path(paths["events_dir"]) / f"{novel_title}_events.jsonl")
         # 向后兼容
         return os.path.join(self.events_path, f"{novel_title}_events.jsonl")
@@ -333,7 +336,7 @@ class WorldStateManager:
     def _relationships_file(self, novel_title: str) -> str:
         # 如果有指定小说标题，使用统一路径配置
         if self.novel_title == novel_title:
-            paths = path_config.get_project_paths(novel_title)
+            paths = path_config.get_project_paths(novel_title, username=getattr(self, 'username', None))
             return paths["relationships"]
         # 向后兼容
         return os.path.join(self.relationships_path, f"{novel_title}_relationships.json")
@@ -384,7 +387,7 @@ class WorldStateManager:
     def _money_ledger_file(self, novel_title: str) -> str:
         # 如果有指定小说标题，使用统一路径配置
         if self.novel_title == novel_title:
-            paths = path_config.get_project_paths(novel_title)
+            paths = path_config.get_project_paths(novel_title, username=getattr(self, 'username', None))
             return str(Path(paths["events_dir"]) / f"{novel_title}_money_ledger.json")
         # 向后兼容
         return os.path.join(self.ledgers_path, f"{novel_title}_money_ledger.json")
@@ -994,7 +997,7 @@ class WorldStateManager:
         """
         # 使用统一路径配置获取角色发展文件路径
         if self.novel_title == novel_title:
-            character_file = path_config.get_quality_data_path(novel_title, "character_development")
+            character_file = path_config.get_quality_data_path(novel_title, "character_development", username=getattr(self, 'username', None))
         else:
             # 向后兼容：使用旧路径
             character_file = os.path.join(self.storage_path, f"{novel_title}_character_development.json")
