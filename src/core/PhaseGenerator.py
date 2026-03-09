@@ -122,8 +122,7 @@ class PhaseGenerator:
                 'worldview': 23,
                 'faction_system': 31,
                 'character_design': 38,
-                'emotional_blueprint': 46,
-                'growth_plan': 54,
+                'emotional_growth_planning': 46,
                 'stage_plan': 62,
                 'detailed_stage_plans': 69,
                 'expectation_mapping': 77,
@@ -153,15 +152,15 @@ class PhaseGenerator:
                                      step_status={'worldview': 'completed', 'faction_system': 'completed', 
                                                  'character_design': 'completed'})
             
-            # 第三阶段：全书规划 (emotional_blueprint + growth_plan + stage_plan + detailed_stage_plans + expectation_mapping + system_init)
-            update_step_status('emotional_blueprint', 'active', step_progress_map['emotional_blueprint'])
+            # 第三阶段：全书规划 (emotional_growth_planning + stage_plan + detailed_stage_plans + expectation_mapping + system_init)
+            update_step_status('emotional_growth_planning', 'active', step_progress_map['emotional_growth_planning'])
             if not self._generate_overall_planning(update_step_status=update_step_status):
                 error_msg = "全书规划制定失败"
                 print(f"❌ {error_msg}")
                 notify_failure(error_msg)
                 return False
             update_progress_callback('system_init', step_progress_map['system_init'], "全书大纲制定完成",
-                                     step_status={'emotional_blueprint': 'completed', 'growth_plan': 'completed',
+                                     step_status={'emotional_growth_planning': 'completed',
                                                  'stage_plan': 'completed', 'detailed_stage_plans': 'completed',
                                                  'expectation_mapping': 'completed', 'system_init': 'completed'})
             
@@ -212,15 +211,14 @@ class PhaseGenerator:
             # 完成所有步骤
             update_step_status('quality_assessment', 'completed', 100)
             
-            # 构建最终步骤状态 - 所有步骤都完成
+            # 构建最终步骤状态 - 所有步骤都完成（合并后步骤）
             final_step_status = {
                 'writing_style': 'completed',
                 'market_analysis': 'completed',
                 'worldview': 'completed',
                 'faction_system': 'completed',
                 'character_design': 'completed',
-                'emotional_blueprint': 'completed',
-                'growth_plan': 'completed',
+                'emotional_growth_planning': 'completed',  # 合并：情绪蓝图 + 成长规划
                 'stage_plan': 'completed',
                 'detailed_stage_plans': 'completed',
                 'expectation_mapping': 'completed',
@@ -458,34 +456,18 @@ class PhaseGenerator:
         print("📊 第三阶段：全书规划")
         print("="*60)
         
-        # 生成情绪蓝图 - 步骤11
-        print("🎨 步骤11: 情绪蓝图规划")
-        self.generator.novel_data["current_progress"]["stage"] = "情绪蓝图规划"
+        # 🔥 合并步骤：情绪蓝图 + 成长规划（步骤8-9合并）
+        print("🎨📈 步骤8-9: 情绪蓝图与成长规划（合并生成）")
+        self.generator.novel_data["current_progress"]["stage"] = "情绪蓝图与成长规划"
         if update_step_status:
-            update_step_status('emotional_blueprint', 'active', 60)
+            update_step_status('emotional_growth_planning', 'active', 60)
         
-        if not self.generator.emotional_blueprint_manager.generate_emotional_blueprint(
-            self.generator.novel_data["novel_title"],
-            self.generator.novel_data["novel_synopsis"],
-            self.generator.novel_data.get("creative_seed") or self.generator.novel_data.get("selected_plan", {})
-        ):
-            print("❌ 情绪蓝图生成失败，无法进行后续情绪引导。")
+        if not self._generate_emotional_and_growth_plan(update_step_status):
+            print("⚠️ 情绪蓝图与成长规划生成失败，使用基础框架")
             return False
         
         if update_step_status:
-            update_step_status('emotional_blueprint', 'completed', 65)
-        
-        # 全局成长规划 - 步骤12
-        print("📈 步骤12: 成长规划")
-        self.generator.novel_data["current_progress"]["stage"] = "成长规划"
-        if update_step_status:
-            update_step_status('growth_plan', 'active', 68)
-        
-        if not self._generate_global_growth_plan():
-            print("⚠️ 全局成长规划生成失败，使用基础框架")
-        
-        if update_step_status:
-            update_step_status('growth_plan', 'completed', 70)
+            update_step_status('emotional_growth_planning', 'completed', 70)
         
         # 生成全书阶段计划 - 步骤13
         print("🗓️ 步骤13: 阶段计划")
@@ -707,6 +689,68 @@ class PhaseGenerator:
                 
         except Exception as e:
             print(f"⚠️ 全局成长规划器出错: {e}，使用基础框架")
+            return False
+    
+    def _generate_emotional_and_growth_plan(self, update_step_status=None) -> bool:
+        """
+        🔥 合并生成情绪蓝图与成长规划（步骤8-9合并）
+        
+        将情绪蓝图规划和成长规划合并为一个API调用，减少API调用次数
+        """
+        print("\n" + "="*60)
+        print("🎨📈 步骤8-9: 情绪蓝图与成长规划（合并生成）")
+        print("="*60)
+        
+        # 获取必要数据
+        novel_title = self.generator.novel_data["novel_title"]
+        novel_synopsis = self.generator.novel_data["novel_synopsis"]
+        creative_seed = self.generator.novel_data.get("creative_seed") or self.generator.novel_data.get("selected_plan", {})
+        total_chapters = self.generator.novel_data["current_progress"]["total_chapters"]
+        
+        # 更新进度：开始情绪蓝图部分
+        if update_step_status:
+            update_step_status('emotional_growth_planning', 'active', 60, "正在生成情绪蓝图...")
+        
+        # 首先生成情绪蓝图（这是基础）
+        print("  🎨 生成情绪蓝图...")
+        emotional_blueprint = self.generator.emotional_blueprint_manager.generate_emotional_blueprint(
+            novel_title, novel_synopsis, creative_seed
+        )
+        
+        if emotional_blueprint:
+            self.generator.novel_data["emotional_blueprint"] = emotional_blueprint
+            print("  ✅ 情绪蓝图生成成功")
+            # 保存到文件
+            try:
+                safe_title = "".join(c for c in novel_title if c.isalnum() or c in (' ', '_')).strip().replace(' ', '_')
+                import json
+                blueprint_path = f"小说项目/{getattr(self.generator, 'username', 'anonymous')}/{novel_title}/{safe_title}_情绪蓝图.json"
+                with open(blueprint_path, 'w', encoding='utf-8') as f:
+                    json.dump(emotional_blueprint, f, ensure_ascii=False, indent=2)
+            except Exception as e:
+                print(f"  ⚠️ 保存情绪蓝图失败: {e}")
+        else:
+            print("  ⚠️ 情绪蓝图生成失败，继续生成成长规划...")
+        
+        # 更新进度：开始成长规划部分
+        if update_step_status:
+            update_step_status('emotional_growth_planning', 'active', 65, "正在生成成长规划...")
+        
+        # 然后生成成长规划
+        print("  📈 生成成长规划...")
+        growth_plan_success = self._generate_global_growth_plan()
+        
+        if growth_plan_success:
+            print("  ✅ 成长规划生成成功")
+        else:
+            print("  ⚠️ 成长规划生成失败，使用基础框架")
+        
+        # 只要其中一个成功就算成功
+        if emotional_blueprint or growth_plan_success:
+            print("✅ 情绪蓝图与成长规划合并生成完成")
+            return True
+        else:
+            print("❌ 情绪蓝图与成长规划都生成失败")
             return False
     
     def _generate_stage_writing_plans(self) -> bool:

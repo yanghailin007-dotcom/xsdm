@@ -622,11 +622,11 @@
         function updateStepsWithDetailedStatus(stepStatus, currentStep) {
             console.log('[V2-UI] 使用详细步骤状态更新:', stepStatus);
             
-            // 所有步骤（按顺序）- 合并后共15步
+            // 所有步骤（按顺序）- 合并后共14步
             const allSteps = [
                 'creative_refinement', 'fanfiction_detection', 'multiple_plans', 'plan_selection',
                 'foundation_planning', 'worldview_with_factions', 'character_design',
-                'emotional_blueprint', 'growth_plan', 'stage_plan',
+                'emotional_growth_planning', 'stage_plan',
                 'detailed_stage_plans', 'expectation_mapping', 'system_init', 'saving', 'quality_assessment'
             ];
             
@@ -638,8 +638,9 @@
                 'multiple_plans': 'multiple_plans',
                 'plan_selection': 'plan_selection',
                 'character_design': 'character_design',
-                'emotional_blueprint': 'emotional_blueprint',
-                'growth_plan': 'growth_plan',
+                'emotional_growth_planning': 'emotional_growth_planning',
+                'emotional_blueprint': 'emotional_growth_planning',
+                'growth_plan': 'emotional_growth_planning',
                 'stage_plan': 'stage_plan',
                 'detailed_stage_plans': 'detailed_stage_plans',
                 'expectation_mapping': 'expectation_mapping',
@@ -660,7 +661,7 @@
                 'quality_evaluation': 'multiple_plans',
                 'planning': 'foundation_planning',
                 'story_outline': 'stage_plan',
-                'global_growth_planning': 'growth_plan',
+                'global_growth_planning': 'emotional_growth_planning',
                 'stage_planning': 'detailed_stage_plans',
                 'validation': 'quality_assessment',
                 'completed': 'quality_assessment'
@@ -742,8 +743,11 @@
             'worldview_generation': 'worldview_with_factions',
             'worldview_with_factions': 'worldview_with_factions',
             'character_design': 'character_design',
+            'emotional_growth_planning': 'emotional_growth_planning',
+            'emotional_blueprint': 'emotional_growth_planning',
+            'growth_plan': 'emotional_growth_planning',
             'story_outline': 'stage_plan',
-            'global_growth_planning': 'growth_plan',
+            'global_growth_planning': 'emotional_growth_planning',
             'stage_planning': 'detailed_stage_plans',
             'validation': 'saving',
             'completed': 'quality_assessment'
@@ -755,11 +759,11 @@
             
             const stepId = STEP_NAME_MAPPING[currentStep] || currentStep;
             
-            // 所有步骤（合并后共15步）
+            // 所有步骤（合并后共14步）
             const allSteps = [
                 'creative_refinement', 'fanfiction_detection', 'multiple_plans', 'plan_selection',
                 'foundation_planning', 'worldview_with_factions', 'character_design',
-                'emotional_blueprint', 'growth_plan', 'stage_plan',
+                'emotional_growth_planning', 'stage_plan',
                 'detailed_stage_plans', 'expectation_mapping', 'system_init', 'saving', 'quality_assessment'
             ];
             
