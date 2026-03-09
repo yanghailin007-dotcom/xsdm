@@ -718,9 +718,11 @@ class NovelGenerator:
 
             # 现在有了 novel_title，初始化质量评估器（使用统一路径配置）
             from src.core.QualityAssessor import QualityAssessor
+            username = getattr(self, '_username', None)
             self.quality_assessor = QualityAssessor(
                 api_client=self.api_client,
-                novel_title=self.novel_title
+                novel_title=self.novel_title,
+                username=username
             )
             # 更新 content_generator 的 quality_assessor 引用
             self.content_generator.quality_assessor = self.quality_assessor

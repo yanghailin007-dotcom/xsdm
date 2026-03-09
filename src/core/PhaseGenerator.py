@@ -1317,10 +1317,12 @@ class PhaseGenerator:
             
             # 初始化质量评估器
             novel_title = self.generator.novel_data['novel_title']
+            username = getattr(self.generator, '_username', None)
             from src.core.QualityAssessor import QualityAssessor
             self.generator.quality_assessor = QualityAssessor(
                 api_client=self.generator.api_client,
-                novel_title=novel_title
+                novel_title=novel_title,
+                username=username
             )
             self.generator.content_generator.quality_assessor = self.generator.quality_assessor
             print(f"✅ 质量评估器已初始化: {novel_title}")
@@ -1485,10 +1487,12 @@ class PhaseGenerator:
             
             # 初始化质量评估器
             novel_title = phase_one_index["novel_title"]
+            username = getattr(self.generator, '_username', None)
             from src.core.QualityAssessor import QualityAssessor
             self.generator.quality_assessor = QualityAssessor(
                 api_client=self.generator.api_client,
-                novel_title=novel_title
+                novel_title=novel_title,
+                username=username
             )
             self.generator.content_generator.quality_assessor = self.generator.quality_assessor
             print(f"✅ 质量评估器已初始化: {novel_title}")
@@ -1549,10 +1553,12 @@ class PhaseGenerator:
         try:
             # 初始化质量评估器
             novel_title = phase_one_result.get("novel_title", "未命名小说")
+            username = getattr(self.generator, '_username', None)
             from src.core.QualityAssessor import QualityAssessor
             self.generator.quality_assessor = QualityAssessor(
                 api_client=self.generator.api_client,
-                novel_title=novel_title
+                novel_title=novel_title,
+                username=username
             )
             self.generator.content_generator.quality_assessor = self.generator.quality_assessor
             print(f"✅ 质量评估器已初始化: {novel_title}")

@@ -167,9 +167,11 @@ class ContentGenerator:
             raise ValueError(error_msg)
         
         try:
+            username = getattr(self, '_username', None)
             self.quality_assessor = QualityAssessor(
                 api_client=self.api_client,
-                novel_title=novel_title
+                novel_title=novel_title,
+                username=username
             )
             self.logger.info(f"  ✅ QualityAssessor 初始化成功: {novel_title}")
             
