@@ -129,8 +129,18 @@ class EventExtractor:
         # 清理标题中的特殊字符
         safe_title = re.sub(r'[\\/*?"<>|]', "_", title)
         
-        # 检查多个可能的路径
+        # 获取用户隔离基础路径
+        try:
+            from web.utils.path_utils import get_user_novel_dir
+            base_dir = get_user_novel_dir(create=False)
+        except Exception:
+            base_dir = Path("小说项目")
+        
+        # 检查多个可能的路径（用户隔离路径优先）
         project_paths = [
+            base_dir / safe_title / "planning",
+            base_dir / title / "planning",
+            # 兼容旧路径
             Path("小说项目") / safe_title / "planning",
             Path("小说项目") / title / "planning",
         ]
@@ -331,8 +341,18 @@ class EventExtractor:
         # 清理标题中的特殊字符
         safe_title = re.sub(r'[\\/*?"<>|]', "_", title)
         
-        # 检查多个可能的路径
+        # 获取用户隔离基础路径
+        try:
+            from web.utils.path_utils import get_user_novel_dir
+            base_dir = get_user_novel_dir(create=False)
+        except Exception:
+            base_dir = Path("小说项目")
+        
+        # 检查多个可能的路径（用户隔离路径优先）
         project_paths = [
+            base_dir / safe_title / "characters",
+            base_dir / title / "characters",
+            # 兼容旧路径
             Path("小说项目") / safe_title / "characters",
             Path("小说项目") / title / "characters",
         ]

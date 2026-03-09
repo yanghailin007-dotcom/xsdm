@@ -42,9 +42,23 @@ class WorldviewDataManager:
     def __init__(self, project_title):
         self.project_title = project_title
         self.safe_title = re.sub(r'[\\/*?"<>|]', "_", project_title)
-        self.project_dir = Path("小说项目") / self.project_title
-        if not self.project_dir.exists():
-            self.project_dir = Path("小说项目") / self.safe_title
+        
+        # 🔥 使用用户隔离路径
+        try:
+            from web.utils.path_utils import get_user_novel_dir
+            base_dir = get_user_novel_dir(create=False)
+            self.project_dir = base_dir / self.project_title
+            if not self.project_dir.exists():
+                self.project_dir = base_dir / self.safe_title
+            # 如果用户路径不存在，回退到默认路径
+            if not self.project_dir.exists():
+                self.project_dir = Path("小说项目") / self.project_title
+                if not self.project_dir.exists():
+                    self.project_dir = Path("小说项目") / self.safe_title
+        except Exception:
+            self.project_dir = Path("小说项目") / self.project_title
+            if not self.project_dir.exists():
+                self.project_dir = Path("小说项目") / self.safe_title
         
         self.worldview_file = self.project_dir / "worldview_data.json"
     

@@ -1098,6 +1098,7 @@ def start_phase_one_generate():
         
         # 获取当前用户名
         username = get_current_username()
+        logger.info(f"👤 [PHASE_ONE_API] 当前用户名: {username}")
         
         # 构建生成参数
         generation_params = {
@@ -2770,7 +2771,13 @@ def register_additional_routes(app):
             # 如果没有找到文件，尝试从生成的目录中查找
             if not raw_files['output_files']:
                 from pathlib import Path
-                project_dir = Path("小说项目") / title
+                # 🔥 使用用户隔离路径
+                try:
+                    from web.utils.path_utils import get_user_novel_dir
+                    base_dir = get_user_novel_dir(create=False)
+                except Exception:
+                    base_dir = Path("小说项目")
+                project_dir = base_dir / title
                 chapter_files = []
                 
                 # 搜索可能的章节文件位置
@@ -2799,7 +2806,12 @@ def register_additional_routes(app):
                     logger.info(f"[CONTENT_REVIEW] 找到章节文件: {file_path.name}")
             
             # 添加输入文件（写作计划等）
-            planning_dir = Path("小说项目") / title / "planning"
+            try:
+                from web.utils.path_utils import get_user_novel_dir
+                base_dir = get_user_novel_dir(create=False)
+            except Exception:
+                base_dir = Path("小说项目")
+            planning_dir = base_dir / title / "planning"
             if planning_dir.exists():
                 for file_path in planning_dir.glob("*写作计划*.json"):
                     raw_files['input_files'].append({
@@ -2811,7 +2823,7 @@ def register_additional_routes(app):
                     })
             
             # 添加其他可能的质量评价文件
-            quality_dir = Path("小说项目") / title / "quality_reports"
+            quality_dir = base_dir / title / "quality_reports"
             if quality_dir.exists():
                 for file_path in quality_dir.glob(f"*{chapter_num}*.json"):
                     raw_files['quality_files'].append({

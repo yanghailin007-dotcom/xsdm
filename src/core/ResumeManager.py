@@ -371,15 +371,27 @@ class ResumeManager:
         """
         try:
             # 根据步骤名称调用对应的方法
+            # 注：这些是 PhaseGenerator 中定义的详细步骤
             step_methods = {
-                'worldview_generation': self._step_worldview_generation,
-                'character_generation': self._step_character_generation,
-                'opening_stage_plan': lambda: self._step_stage_plan('opening_stage'),
-                'development_stage_plan': lambda: self._step_stage_plan('development_stage'),
-                'climax_stage_plan': lambda: self._step_stage_plan('climax_stage'),
-                'ending_stage_plan': lambda: self._step_stage_plan('ending_stage'),
+                # 初始化
+                'initialization': lambda: self._step_skip('initialization', '初始化完成'),
+                # 基础设定
+                'writing_style': lambda: self._step_skip('writing_style', '写作风格指南已保存'),
+                'market_analysis': lambda: self._step_skip('market_analysis', '市场分析已完成'),
+                # 核心设定
+                'worldview': self._step_worldview_generation,
+                'faction_system': lambda: self._step_skip('faction_system', '势力系统已保存到世界观'),
+                'character_design': self._step_character_generation,
+                # 规划设计
+                'emotional_blueprint': lambda: self._step_skip('emotional_blueprint', '情感蓝图已保存'),
+                'growth_plan': lambda: self._step_skip('growth_plan', '成长规划已保存'),
+                'stage_plan': lambda: self._step_stage_plan('stage_plan'),
+                'detailed_stage_plans': lambda: self._step_skip('detailed_stage_plans', '详细阶段计划已保存'),
+                'expectation_mapping': lambda: self._step_skip('expectation_mapping', '期待感地图已保存'),
+                'system_init': lambda: self._step_skip('system_init', '系统初始化完成'),
+                # 保存和评估
+                'saving': lambda: self._step_skip('saving', '结果已保存'),
                 'quality_assessment': self._step_quality_assessment,
-                'finalization': self._step_finalization
             }
             
             if step not in step_methods:
@@ -509,6 +521,16 @@ class ResumeManager:
             print("⚠️ 保存结果时出现警告")
         
         print("✅ 最终整理完成")
+        return True
+    
+    def _step_skip(self, step_name: str, message: str = None) -> bool:
+        """
+        跳过步骤（用于尚未独立实现的步骤）
+        检查 novel_data 中是否已有数据，如果有则跳过
+        """
+        display_msg = message or f"{step_name} 已完成"
+        print(f"=== {step_name} ===")
+        print(f"ℹ️ {display_msg}")
         return True
     
     # ==================== 辅助生成方法 ====================

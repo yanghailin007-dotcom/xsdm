@@ -192,10 +192,17 @@ class PathManager:
             self.logger.error(f"❌ 加载阶段计划失败: {stage_name} - {e}")
             return None
     
-    def save_writing_style_guide(self, novel_title: str, style_data: Dict) -> bool:
-        """保存写作风格指南"""
+    def save_writing_style_guide(self, novel_title: str, style_data: Dict, username: str = None) -> bool:
+        """
+        保存写作风格指南
+        
+        Args:
+            novel_title: 小说标题
+            style_data: 写作风格数据
+            username: 可选，指定用户名。如果不提供，将使用当前登录用户
+        """
         try:
-            paths = self.path_config.get_project_paths(novel_title)
+            paths = self.path_config.get_project_paths(novel_title, username=username)
             file_path = paths["writing_style_guide"]
             
             # 🔥 关键修复：确保目录存在

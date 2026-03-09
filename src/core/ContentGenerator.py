@@ -1453,10 +1453,20 @@ class ContentGenerator:
             import re
             safe_title = re.sub(r'[\\/*?:"<>|]', '_', novel_title)
             
-            chapters_dir = Path(f"小说项目/{safe_title}/chapters")
+            # 获取用户隔离基础路径
+            try:
+                from web.utils.path_utils import get_user_novel_dir
+                user_base_dir = get_user_novel_dir(create=False)
+            except Exception:
+                user_base_dir = Path("小说项目")
+            
+            chapters_dir = user_base_dir / safe_title / "chapters"
             if not chapters_dir.exists():
-                self.logger.warning(f"  ⚠️ 章节目录不存在: {chapters_dir}")
-                return None
+                # 兼容旧路径
+                chapters_dir = Path(f"小说项目/{safe_title}/chapters")
+                if not chapters_dir.exists():
+                    self.logger.warning(f"  ⚠️ 章节目录不存在: {chapters_dir}")
+                    return None
             
             # 查找可能的章节文件
             possible_patterns = [
@@ -4241,8 +4251,15 @@ class ContentGenerator:
             # 清理标题
             safe_title = re.sub(r'[\\/*?:"<>|]', '_', novel_title)
             
+            # 获取用户隔离基础路径
+            try:
+                from web.utils.path_utils import get_user_novel_dir
+                user_base_dir = get_user_novel_dir(create=True)
+            except Exception:
+                user_base_dir = Path("小说项目")
+            
             # 创建提示词目录
-            prompts_dir = Path(f"小说项目/{safe_title}/generation_prompts")
+            prompts_dir = user_base_dir / safe_title / "generation_prompts"
             prompts_dir.mkdir(parents=True, exist_ok=True)
             
             # 保存提示词文件

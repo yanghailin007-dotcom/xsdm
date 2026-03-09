@@ -1125,9 +1125,12 @@ class NovelGenerationManager:
                 
                 # 🔥 设置用户名用于用户隔离路径
                 username = config.get('username')
+                logger.info(f"任务 {task_id}: 从config获取用户名: {username}")
                 if username:
                     novel_generator.set_username(username)
                     logger.info(f"任务 {task_id}: 已设置用户名 {username} 用于用户隔离路径")
+                else:
+                    logger.warning(f"任务 {task_id}: config中没有用户名，将使用anonymous")
                 
                 # 🔥 设置用户ID用于API调用实时扣费
                 user_id = config.get('user_id')
@@ -1435,15 +1438,24 @@ class NovelGenerationManager:
             novel_title = config.get("title") or config.get("creative_seed", {}).get("novelTitle", "未命名小说")
             safe_title = re.sub(r'[\\/*?:"<>|]', "_", novel_title)
             
-            # 检查项目目录
-            project_dir = Path("小说项目")
+            # 🔥 使用用户隔离路径
+            try:
+                from web.utils.path_utils import get_user_novel_dir
+                project_dir = get_user_novel_dir(create=False)
+            except Exception:
+                project_dir = Path("小说项目")
+            
             if not project_dir.exists():
                 return False
             
-            # 检查具体的小说文件 - 优先使用新路径
+            # 检查具体的小说文件 - 优先使用用户隔离路径
             novel_dir = project_dir / safe_title / "chapters"
             if not novel_dir.exists():
-                novel_dir = project_dir / f"{safe_title}_章节"
+                # 回退到默认路径
+                fallback_dir = Path("小说项目")
+                novel_dir = fallback_dir / safe_title / "chapters"
+                if not novel_dir.exists():
+                    novel_dir = fallback_dir / f"{safe_title}_章节"
             
             if novel_dir.exists():
                 chapter_files = list(novel_dir.glob("*.txt"))

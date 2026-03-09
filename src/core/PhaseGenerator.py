@@ -879,10 +879,18 @@ class PhaseGenerator:
                 json.dump(phase_one_index, f, ensure_ascii=False, indent=2)
             print(f"✅ 第一阶段索引文件已保存: {phase_one_index_file}")
             
-            # 同时保存为主项目信息文件（使用新路径结构）
-            main_project_file = f"小说项目/{safe_title}/{safe_title}_项目信息.json"
+            # 同时保存为主项目信息文件（使用用户隔离路径）
+            # 获取用户隔离基础路径
+            try:
+                from web.utils.path_utils import get_user_novel_dir
+                username = getattr(self.generator, '_username', None)
+                user_base_dir = get_user_novel_dir(username=username, create=True)
+            except Exception:
+                user_base_dir = Path("小说项目")
+            
+            main_project_file = user_base_dir / safe_title / f"{safe_title}_项目信息.json"
             # 确保目录存在
-            os.makedirs(os.path.dirname(main_project_file), exist_ok=True)
+            os.makedirs(os.path.dirname(str(main_project_file)), exist_ok=True)
             project_info = {
                 "novel_title": self.generator.novel_data["novel_title"],
                 "novel_synopsis": self.generator.novel_data["novel_synopsis"],
@@ -1679,12 +1687,23 @@ class PhaseGenerator:
             novel_title = self.generator.novel_data.get("novel_title", "")
             safe_title = re.sub(r'[\\/*?:"<>|]', "_", novel_title)
 
-            # 构建写作计划文件路径
-            plan_path = Path(f"小说项目/{safe_title}/plans/{safe_title}_opening_stage_writing_plan.json")
+            # 获取用户隔离基础路径
+            try:
+                from web.utils.path_utils import get_user_novel_dir
+                username = getattr(self.generator, '_username', None)
+                user_base_dir = get_user_novel_dir(username=username, create=False)
+            except Exception:
+                user_base_dir = Path("小说项目")
 
+            # 构建写作计划文件路径（用户隔离路径优先）
+            plan_path = user_base_dir / safe_title / "plans" / f"{safe_title}_opening_stage_writing_plan.json"
+            
             if not plan_path.exists():
-                print(f"⚠️ 写作计划文件不存在: {plan_path}")
-                return None
+                # 兼容旧路径
+                plan_path = Path(f"小说项目/{safe_title}/plans/{safe_title}_opening_stage_writing_plan.json")
+                if not plan_path.exists():
+                    print(f"⚠️ 写作计划文件不存在: {plan_path}")
+                    return None
 
             print(f"📋 评估文件: {plan_path}")
 

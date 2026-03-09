@@ -55,8 +55,17 @@ class FanqieUploader:
     def validate_novel_for_upload(self, novel_title: str) -> Dict[str, Any]:
         """验证小说是否可以上传到番茄"""
         try:
-            # 尝试多种可能的项目文件路径
+            # 获取用户隔离基础路径
+            try:
+                from web.utils.path_utils import get_user_novel_dir
+                user_base_dir = get_user_novel_dir(create=False)
+            except Exception:
+                user_base_dir = Path("小说项目")
+            
+            # 尝试多种可能的项目文件路径（用户隔离路径优先）
             possible_paths = [
+                # 用户隔离路径：小说项目/用户名/小说标题/小说标题_项目信息.json
+                user_base_dir / novel_title / f"{novel_title}_项目信息.json",
                 # 新目录结构：小说项目/小说标题/小说标题_项目信息.json
                 Path("小说项目") / novel_title / f"{novel_title}_项目信息.json",
                 # 旧目录结构：小说项目/小说标题_项目信息.json
@@ -123,8 +132,9 @@ class FanqieUploader:
                 except Exception as e:
                     self.logger.warning(f"⚠️ 加载角色设计文件失败: {e}")
             
-            # 检查章节文件 - 支持多种目录结构
+            # 检查章节文件 - 支持多种目录结构（用户隔离路径优先）
             chapter_dirs = [
+                user_base_dir / novel_title / "chapters",  # 用户隔离路径：小说项目/用户名/标题/chapters
                 Path("小说项目") / novel_title / "chapters",  # 新结构：小说项目/标题/chapters
                 Path("小说项目") / f"{novel_title}_章节",      # 旧结构：小说项目/标题_章节
                 Path("小说项目") / "chapters",                 # 通用章节目录

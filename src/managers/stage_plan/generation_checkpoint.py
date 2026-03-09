@@ -12,19 +12,25 @@ from src.utils.logger import get_logger
 class GenerationCheckpoint:
     """生成检查点管理器"""
     
-    # 生成阶段定义
+    # 生成阶段定义 - 与 PhaseGenerator 完全匹配
     PHASES = {
         'phase_one': {
             'name': '第一阶段设定生成',
             'steps': [
-                'worldview_generation',      # 世界观生成
-                'character_generation',      # 角色生成
-                'opening_stage_plan',        # 开篇阶段计划
-                'development_stage_plan',    # 发展阶段计划
-                'climax_stage_plan',        # 高潮阶段计划
-                'ending_stage_plan',        # 结局阶段计划
-                'quality_assessment',       # 质量评估
-                'finalization'              # 最终整理
+                'initialization',           # 初始化（新增）
+                'writing_style',            # 1. 写作风格指南生成
+                'market_analysis',          # 2. 市场分析
+                'worldview',                # 3. 核心世界观构建
+                'faction_system',           # 4. 势力系统设计
+                'character_design',         # 5. 角色设计
+                'emotional_blueprint',      # 6. 情感蓝图设计
+                'growth_plan',              # 7. 全局成长规划
+                'stage_plan',               # 8. 分阶段大纲
+                'detailed_stage_plans',     # 9. 详细阶段计划
+                'expectation_mapping',      # 10. 期待感地图
+                'system_init',              # 11. 系统初始化
+                'saving',                   # 12. 保存结果
+                'quality_assessment'        # 13. 质量评估
             ]
         },
         'phase_two': {

@@ -5504,7 +5504,13 @@ def _load_writing_plan_file(novel_title: str, episode_id: str = None) -> dict:
         from pathlib import Path
         import re
 
-        novel_dir = Path('小说项目') / novel_title
+        # 🔥 使用用户隔离路径
+        try:
+            from web.utils.path_utils import get_user_novel_dir
+            base_dir = get_user_novel_dir(create=False)
+        except Exception:
+            base_dir = Path('小说项目')
+        novel_dir = base_dir / novel_title
         plans_dir = novel_dir / 'plans'
 
         if not plans_dir.exists():
@@ -6039,8 +6045,15 @@ def _load_character_design_file(novel_title: str) -> dict:
     try:
         from pathlib import Path
 
+        # 🔥 使用用户隔离路径
+        try:
+            from web.utils.path_utils import get_user_novel_dir
+            base_dir = get_user_novel_dir(create=False)
+        except Exception:
+            base_dir = Path('小说项目')
+        
         # 查找角色设计文件
-        novel_dir = Path('小说项目') / novel_title
+        novel_dir = base_dir / novel_title
         character_file = novel_dir / 'characters' / f'{novel_title}_角色设计.json'
 
         if not character_file.exists():

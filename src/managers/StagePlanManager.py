@@ -61,7 +61,15 @@ class StagePlanManager:
         self.logger = get_logger("StagePlanManager")
         
         # 为阶段计划创建专用的存储目录（必须在初始化组件之前）
-        self.plans_dir = Path("./小说项目").resolve()
+        # 使用用户隔离路径（从 generator 获取用户名）
+        try:
+            from web.utils.path_utils import get_user_novel_dir
+            username = getattr(self.generator, '_username', None)
+            self.plans_dir = get_user_novel_dir(username=username, create=True)
+        except Exception as e:
+            # 如果失败，使用默认路径
+            self.logger.warning(f"获取用户隔离路径失败: {e}，使用默认路径")
+            self.plans_dir = Path("./小说项目").resolve()
         os.makedirs(self.plans_dir, exist_ok=True)
         
         # 初始化各个管理器

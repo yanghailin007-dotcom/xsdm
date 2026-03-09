@@ -1044,8 +1044,10 @@ class NovelGenerator:
         try:
             novel_title = self._ctx.get("novel_title")
             if novel_title:
-                self.material_manager = MaterialManager(novel_title)
-                print(f"✅ 材料管理器初始化成功: {novel_title}")
+                # 🔥 传递用户名用于用户隔离路径
+                username = getattr(self, '_username', None)
+                self.material_manager = MaterialManager(novel_title, username=username)
+                print(f"✅ 材料管理器初始化成功: {novel_title} (用户: {username})")
                 
                 # 保存项目信息到材料管理器
                 self._save_project_info_to_materials()
@@ -1891,8 +1893,12 @@ class NovelGenerator:
 
     def initialize_expectation_elements(self):
         """初始化需要铺垫的重要元素（使用期待感系统）"""
-        if self._ctx["core_worldview"]:
-            factions = self._ctx["core_worldview"].get("major_factions", [])
+        # 优先从 novel_data 获取，如果不存在则尝试从 _ctx 获取
+        core_worldview = self.novel_data.get("core_worldview") or self._ctx.get("core_worldview")
+        character_design = self.novel_data.get("character_design") or self._ctx.get("character_design")
+        
+        if core_worldview:
+            factions = core_worldview.get("major_factions", [])
             for i, faction in enumerate(factions):
                 intro_chapter = 10 + (i * 15)
                 # 使用期待感系统注册势力
@@ -1905,8 +1911,8 @@ class NovelGenerator:
                 )
                 print(f"✓ 从世界观注册势力期待: {faction}")
         
-        if self._ctx["character_design"]:
-            important_chars = self._ctx["character_design"].get("important_characters", [])
+        if character_design:
+            important_chars = character_design.get("important_characters", [])
             for i, char in enumerate(important_chars):
                 if i < 3:
                     intro_chapter = 5 + (i * 8)
@@ -1929,6 +1935,10 @@ class NovelGenerator:
             novel_title = self._ctx.get("novel_title", "unknown")
             print(f"🔥 [_save_writing_style_to_file] 开始保存写作风格指南: {novel_title}")
             
+            # 🔥 获取用户名用于用户隔离路径
+            username = getattr(self, '_username', None)
+            print(f"🔥 [_save_writing_style_to_file] 使用用户名: {username}")
+            
             style_data = {
                 "novel_title": novel_title,
                 "category": self._ctx.get("category", "未分类"),
@@ -1937,17 +1947,17 @@ class NovelGenerator:
                 "writing_style_guide": writing_style
             }
             
-            # 🔥 确保目录存在
-            paths = path_manager.path_config.get_project_paths(novel_title)
+            # 🔥 确保目录存在（使用用户隔离路径）
+            paths = path_manager.path_config.get_project_paths(novel_title, username=username)
             style_path = paths.get("writing_style_guide")
             if style_path:
                 os.makedirs(os.path.dirname(style_path), exist_ok=True)
                 print(f"🔥 目录已确保存在: {os.path.dirname(style_path)}")
             
-            success = path_manager.save_writing_style_guide(novel_title, writing_style)
+            success = path_manager.save_writing_style_guide(novel_title, writing_style, username=username)
             
             if success:
-                paths = path_manager.path_config.get_project_paths(novel_title)
+                paths = path_manager.path_config.get_project_paths(novel_title, username=username)
                 actual_path = paths["writing_style_guide"]
                 print(f"✅ 写作风格指南已保存到: {actual_path}")
                 # 🔥 验证文件存在
@@ -2009,8 +2019,11 @@ class NovelGenerator:
             print(f"⚠️ 无法保存{material_type}: 小说标题未知")
             return
         
-        paths = path_manager.path_config.get_project_paths(novel_title)
-        safe_title = path_manager.path_config.get_safe_filename(novel_title)
+        # 🔥 获取用户名用于用户隔离路径
+        username = getattr(self, '_username', None)
+        
+        paths = path_manager.path_config.get_project_paths(novel_title, username=username)
+        safe_title = path_manager.path_config.get_safe_title(novel_title)
         
         # 根据材料类型确定保存路径
         file_mappings = {

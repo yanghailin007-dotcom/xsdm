@@ -86,8 +86,18 @@ def get_episode_number(novel_title: str, event_name: str, episode_title: str = N
     """
     import re
 
-    # 🔥 优先尝试从 plan 文件读取
-    plan_file = NOVEL_PROJECTS_DIR / novel_title / 'plans' / f'{novel_title}_opening_stage_writing_plan.json'
+    # 🔥 优先尝试从 plan 文件读取（支持用户隔离路径）
+    # 获取用户隔离路径
+    try:
+        from web.utils.path_utils import get_user_novel_dir
+        user_base_dir = get_user_novel_dir(create=False)
+        plan_file = user_base_dir / novel_title / 'plans' / f'{novel_title}_opening_stage_writing_plan.json'
+        if not plan_file.exists():
+            # 回退到默认路径
+            plan_file = NOVEL_PROJECTS_DIR / novel_title / 'plans' / f'{novel_title}_opening_stage_writing_plan.json'
+    except Exception:
+        plan_file = NOVEL_PROJECTS_DIR / novel_title / 'plans' / f'{novel_title}_opening_stage_writing_plan.json'
+    
     if plan_file.exists():
         try:
             with open(plan_file, 'r', encoding='utf-8') as f:

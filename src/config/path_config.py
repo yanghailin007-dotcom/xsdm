@@ -13,15 +13,43 @@ class NovelPathConfig:
     """小说项目路径配置管理器"""
     
     def __init__(self):
-        # 🔥 使用用户隔离路径（如果有Flask上下文）
-        try:
+        # 🔥 不再在初始化时固定base_dir，而是动态获取
+        self._cached_base_dir = None
+        self._cached_username = None
+        self.templates_dir = Path("templates")
+    
+    def _get_base_dir(self, username: str = None) -> Path:
+        """
+        动态获取基础目录（支持用户隔离）
+        
+        Args:
+            username: 可选，指定用户名。如果不提供，将动态获取当前登录用户
+        
+        Returns:
+            用户隔离的基础目录路径
+        """
+        # 如果提供了用户名，直接使用
+        if username:
             from web.utils.path_utils import get_user_novel_dir
-            self.base_dir = get_user_novel_dir(create=True)
+            return get_user_novel_dir(username=username, create=True)
+        
+        # 尝试动态获取当前用户
+        try:
+            from web.utils.path_utils import get_user_novel_dir, get_current_username
+            current_user = get_current_username()
+            # 如果当前用户与缓存的不同，清除缓存
+            if current_user != self._cached_username:
+                self._cached_username = current_user
+                self._cached_base_dir = None
+            
+            # 使用缓存或重新获取
+            if self._cached_base_dir is None:
+                self._cached_base_dir = get_user_novel_dir(username=current_user, create=True)
+            
+            return self._cached_base_dir
         except Exception:
             # 没有Flask上下文时使用默认路径
-            self.base_dir = Path("小说项目")
-        
-        self.templates_dir = Path("templates")
+            return Path("小说项目")
         
     def get_safe_title(self, title: str) -> str:
         """生成安全的文件名 - 保留文件系统支持的字符（包括中文冒号和逗号）"""
@@ -34,10 +62,20 @@ class NovelPathConfig:
         
         return safe_title
     
-    def get_project_paths(self, novel_title: str) -> Dict[str, str]:
-        """获取项目的所有路径配置"""
+    def get_project_paths(self, novel_title: str, username: str = None) -> Dict[str, str]:
+        """
+        获取项目的所有路径配置
+        
+        Args:
+            novel_title: 小说标题
+            username: 可选，指定用户名。如果不提供，将使用当前登录用户
+        
+        Returns:
+            项目路径字典
+        """
         safe_title = self.get_safe_title(novel_title)
-        project_dir = self.base_dir / safe_title
+        base_dir = self._get_base_dir(username)
+        project_dir = base_dir / safe_title
         
         materials_dir = project_dir / "materials"
         market_analysis_dir = materials_dir / "market_analysis"
@@ -112,16 +150,22 @@ class NovelPathConfig:
             "material_index": str(project_dir / f"{safe_title}_材料索引.json"),
             
             # 兼容性路径（支持旧版本）
-            "legacy_chapters_dir": str(self.base_dir / f"{safe_title}_章节"),
-            "legacy_project_info": str(self.base_dir / f"{safe_title}_项目信息.json"),
-            "legacy_novel_overview": str(self.base_dir / f"{safe_title}_章节总览.json"),
-            "legacy_element_introduction": str(self.base_dir / f"{safe_title}_元素引入计划.json"),
-            "legacy_writing_style": str(self.base_dir / f"{safe_title}_写作风格指南.json")
+            "legacy_chapters_dir": str(base_dir / f"{safe_title}_章节"),
+            "legacy_project_info": str(base_dir / f"{safe_title}_项目信息.json"),
+            "legacy_novel_overview": str(base_dir / f"{safe_title}_章节总览.json"),
+            "legacy_element_introduction": str(base_dir / f"{safe_title}_元素引入计划.json"),
+            "legacy_writing_style": str(base_dir / f"{safe_title}_写作风格指南.json")
         }
     
-    def ensure_directories(self, novel_title: str) -> Dict[str, str]:
-        """确保项目目录结构存在并返回路径"""
-        paths = self.get_project_paths(novel_title)
+    def ensure_directories(self, novel_title: str, username: str = None) -> Dict[str, str]:
+        """
+        确保项目目录结构存在并返回路径
+        
+        Args:
+            novel_title: 小说标题
+            username: 可选，指定用户名。如果不提供，将使用当前登录用户
+        """
+        paths = self.get_project_paths(novel_title, username=username)
         
         # 创建所有必要的目录
         directories_to_create = [
