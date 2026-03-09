@@ -724,7 +724,9 @@ class PhaseGenerator:
             try:
                 safe_title = "".join(c for c in novel_title if c.isalnum() or c in (' ', '_')).strip().replace(' ', '_')
                 import json
-                blueprint_path = f"小说项目/{getattr(self.generator, 'username', 'anonymous')}/{novel_title}/{safe_title}_情绪蓝图.json"
+                username = getattr(self.generator, '_username', 'anonymous')
+                blueprint_path = f"小说项目/{username}/{novel_title}/{safe_title}_情绪蓝图.json"
+                os.makedirs(os.path.dirname(blueprint_path), exist_ok=True)
                 with open(blueprint_path, 'w', encoding='utf-8') as f:
                     json.dump(emotional_blueprint, f, ensure_ascii=False, indent=2)
             except Exception as e:
