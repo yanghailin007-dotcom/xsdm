@@ -5,21 +5,20 @@ let phaseOneResult = null;
 let estimatedPoints = 0;  // 预估点数
 let pointsCheckInterval = null;  // 点数轮询间隔
 
-// 详细步骤映射（12个步骤）- 对应实际的设定生成流程
+// 详细步骤映射（11个步骤）- 对应实际的设定生成流程（步骤6-7合并）
 const DETAILED_STEP_ORDER = [
     'writing_style',           // 1. 写作风格制定
     'market_analysis',         // 2. 市场分析
     'worldview',               // 3. 世界观构建
     'faction_system',          // 4. 势力系统设计
     'character_design',        // 5. 核心角色设计
-    'emotional_blueprint',     // 6. 情绪蓝图规划
-    'growth_plan',             // 7. 成长规划
-    'stage_plan',              // 8. 全书阶段计划
-    'detailed_stage_plans',    // 9. 阶段详细计划
-    'expectation_mapping',     // 10. 期待感映射
-    'system_init',             // 11. 系统初始化
-    'saving',                  // 12. 保存设定结果
-    'quality_assessment'       // 13. AI质量评估
+    'emotional_growth_planning', // 6. 情绪蓝图与成长规划（合并）
+    'stage_plan',              // 7. 全书阶段计划
+    'detailed_stage_plans',    // 8. 阶段详细计划
+    'expectation_mapping',     // 9. 期待感映射
+    'system_init',             // 10. 系统初始化
+    'saving',                  // 11. 保存设定结果
+    'quality_assessment'       // 12. AI质量评估
 ];
 
 // 步骤名称映射
@@ -29,8 +28,9 @@ const STEP_NAMES = {
     'worldview': '🌍 世界观构建',
     'faction_system': '⚔️ 势力系统设计',
     'character_design': '👥 核心角色设计',
-    'emotional_blueprint': '💫 情绪蓝图规划',
-    'growth_plan': '📈 成长规划',
+    'emotional_growth_planning': '💫📈 情绪蓝图与成长规划',
+    'emotional_blueprint': '💫 情绪蓝图规划',  // 兼容旧步骤名
+    'growth_plan': '📈 成长规划',  // 兼容旧步骤名
     'stage_plan': '📚 全书阶段计划',
     'detailed_stage_plans': '📖 阶段详细计划',
     'expectation_mapping': '🎯 期待感映射',
