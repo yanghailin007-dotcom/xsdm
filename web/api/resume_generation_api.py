@@ -44,7 +44,9 @@ def get_resumable_tasks():
         if not manager:
             return jsonify({"success": False, "error": "管理器未初始化"}), 500
         
-        tasks = manager.get_resumable_tasks()
+        # 🔥 修复：获取当前用户名，只返回该用户的可恢复任务
+        username = session.get('username')
+        tasks = manager.get_resumable_tasks(username=username)
         
         logger.info(f"✅ 获取可恢复任务列表: {len(tasks)} 个任务")
         
@@ -69,22 +71,24 @@ def get_resume_info(title):
         if not manager:
             return jsonify({"success": False, "error": "管理器未初始化"}), 500
         
-        logger.info(f"🔍 查找检查点: {title}")
+        # 🔥 修复：获取当前用户名
+        username = session.get('username')
+        logger.info(f"🔍 查找检查点: {title} (用户: {username})")
         
         # 首先尝试直接查找
-        resume_info = manager.get_resume_info(title)
+        resume_info = manager.get_resume_info(title, username=username)
         
         if not resume_info:
             # 如果直接查找失败，尝试通过 creative_title 查找
             logger.info(f"📋 直接查找失败，尝试通过 creative_title 映射查找...")
-            all_tasks = manager.get_resumable_tasks()
+            all_tasks = manager.get_resumable_tasks(username=username)
             
             for task in all_tasks:
                 if task.get('creative_title') == title:
                     logger.info(f"✅ 找到映射: {title} -> {task.get('novel_title')}")
                     # 使用实际书名获取信息
                     actual_title = task.get('novel_title')
-                    resume_info = manager.get_resume_info(actual_title)
+                    resume_info = manager.get_resume_info(actual_title, username=username)
                     if resume_info:
                         # 添加映射信息到响应中
                         resume_info['original_request_title'] = title
@@ -171,7 +175,7 @@ def resume_generation():
             "success": True,
             "task_id": task_id,
             "message": "生成任务已恢复",
-            "resume_info": manager.get_resume_info(title)
+            "resume_info": manager.get_resume_info(title, username=username)
         })
         
     except Exception as e:
@@ -195,7 +199,9 @@ def delete_checkpoint():
         if not manager:
             return jsonify({"success": False, "error": "管理器未初始化"}), 500
         
-        success = manager.delete_checkpoint(title)
+        # 🔥 修复：获取当前用户名
+        username = session.get('username')
+        success = manager.delete_checkpoint(title, username=username)
         
         if success:
             logger.info(f"✅ 检查点已删除: {title}")
@@ -233,7 +239,8 @@ def start_generation_with_resume_option():
             return jsonify({"success": False, "error": "管理器未初始化"}), 500
         
         # 检查是否有可用的检查点
-        has_checkpoint = manager.get_resume_info(title) is not None
+        username = session.get('username')
+        has_checkpoint = manager.get_resume_info(title, username=username) is not None
         
         if has_checkpoint and resume_if_available:
             # 恢复模式

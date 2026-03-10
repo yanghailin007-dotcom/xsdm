@@ -246,39 +246,47 @@ class ResumableNovelGenerationManager:
         
         return actual_task_id
     
-    def get_resumable_tasks(self) -> list:
+    def get_resumable_tasks(self, username: str = None) -> list:
         """
         获取所有可恢复的任务列表
         
+        Args:
+            username: 用户名（可选），如果提供则只返回该用户的任务
+            
         Returns:
             可恢复任务列表
         """
-        return self.recovery_manager.find_resumable_tasks()
+        return self.recovery_manager.find_resumable_tasks(username=username)
     
-    def get_resume_info(self, title: str) -> Optional[Dict]:
+    def get_resume_info(self, title: str, username: str = None) -> Optional[Dict]:
         """
         获取特定任务的恢复信息
         支持通过创意标题或实际生成的书名查找
         
         Args:
             title: 小说标题（可以是创意标题或实际书名）
+            username: 用户名（可选），用于定位用户隔离路径
             
         Returns:
             恢复信息字典
         """
-        # 首先尝试直接匹配
-        checkpoint_mgr = GenerationCheckpoint(title, self.workspace_dir)
-        if checkpoint_mgr.can_resume():
-            return checkpoint_mgr.get_resume_info()
+        # 🔥 修复：首先尝试使用指定的用户名查找
+        if username:
+            checkpoint_mgr = GenerationCheckpoint(title, self.workspace_dir, username=username)
+            if checkpoint_mgr.can_resume():
+                return checkpoint_mgr.get_resume_info()
         
         # 如果直接匹配失败，遍历所有任务查找匹配的 creative_title
-        all_tasks = self.get_resumable_tasks()
+        all_tasks = self.get_resumable_tasks(username=username)
         for task in all_tasks:
             # 检查 creative_title 是否匹配
             if task.get('creative_title') == title:
-                # 找到匹配的任务，使用实际的书名获取信息
+                # 找到匹配的任务，使用实际的书名和用户名获取信息
                 actual_title = task.get('novel_title')
-                return self.get_resume_info(actual_title)
+                task_username = task.get('username')
+                checkpoint_mgr = GenerationCheckpoint(actual_title, self.workspace_dir, username=task_username)
+                if checkpoint_mgr.can_resume():
+                    return checkpoint_mgr.get_resume_info()
             
             # 检查 novel_title 是否匹配
             if task.get('novel_title') == title:
@@ -286,20 +294,27 @@ class ResumableNovelGenerationManager:
         
         return None
     
-    def delete_checkpoint(self, title: str) -> bool:
+    def delete_checkpoint(self, title: str, username: str = None) -> bool:
         """
         删除检查点（完成任务后调用）
         
         Args:
             title: 小说标题
+            username: 用户名（可选），用于定位用户隔离路径
             
         Returns:
             是否成功删除
         """
-        checkpoint_mgr = GenerationCheckpoint(title, self.workspace_dir)
+        # 🔥 修复：先尝试查找任务获取用户名
+        if not username:
+            task_info = self.get_resume_info(title)
+            if task_info:
+                username = task_info.get('username')
+        
+        checkpoint_mgr = GenerationCheckpoint(title, self.workspace_dir, username=username)
         return checkpoint_mgr.delete_checkpoint()
     
-    def update_checkpoint_data(self, title: str, phase: str, step: str, data: Dict) -> bool:
+    def update_checkpoint_data(self, title: str, phase: str, step: str, data: Dict, username: str = None) -> bool:
         """
         更新检查点数据
         
@@ -308,11 +323,18 @@ class ResumableNovelGenerationManager:
             phase: 生成阶段
             step: 当前步骤
             data: 要保存的数据
+            username: 用户名（可选），用于定位用户隔离路径
             
         Returns:
             是否成功更新
         """
-        checkpoint_mgr = GenerationCheckpoint(title, self.workspace_dir)
+        # 🔥 修复：先尝试查找任务获取用户名
+        if not username:
+            task_info = self.get_resume_info(title)
+            if task_info:
+                username = task_info.get('username')
+        
+        checkpoint_mgr = GenerationCheckpoint(title, self.workspace_dir, username=username)
         
         # 加载现有检查点
         existing_data = checkpoint_mgr.load_checkpoint()

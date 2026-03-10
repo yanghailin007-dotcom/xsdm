@@ -192,6 +192,7 @@ class GenerationCheckpoint:
                 'novel_title': self.novel_title,
                 'creative_title': data.get('creative_title', self.novel_title) if data else self.novel_title,  # 保存原始创意标题
                 'creative_seed_id': data.get('creative_seed_id') if data else None,  # 保存创意ID
+                'username': self.username,  # 🔥 保存用户名，用于恢复时定位正确的路径
                 'phase': phase,
                 'current_step': step,
                 'step_status': step_status,
@@ -409,10 +410,13 @@ class CheckpointRecoveryManager:
         self.logger = get_logger("CheckpointRecoveryManager")
         self.current_checkpoint: Optional[GenerationCheckpoint] = None
     
-    def find_resumable_tasks(self) -> List[Dict]:
+    def find_resumable_tasks(self, username: str = None) -> List[Dict]:
         """
         查找所有可以恢复的任务
         
+        Args:
+            username: 用户名（可选），如果提供则只查找该用户的项目
+            
         Returns:
             可恢复任务列表，每个任务包含novel_title和creative_title用于匹配
         """
@@ -424,19 +428,51 @@ class CheckpointRecoveryManager:
             return resumable_tasks
         
         self.logger.info(f"🔍 开始扫描项目目录查找检查点...")
+        if username:
+            self.logger.info(f"  👤 指定用户: {username}")
+        
         total_dirs = 0
         with_checkpoint = 0
         
-        for project_dir in projects_dir.iterdir():
-            if not project_dir.is_dir():
-                continue
+        # 🔥 修复：支持用户隔离路径结构
+        # 扫描路径列表：(项目目录, 用户名)
+        scan_paths = []
+        
+        if username:
+            # 如果指定了用户名，只扫描该用户的目录
+            user_dir = projects_dir / username
+            if user_dir.exists():
+                scan_paths = [(project_dir, username) for project_dir in user_dir.iterdir() if project_dir.is_dir()]
+        else:
+            # 未指定用户名，扫描所有位置
+            # 1. 首先扫描旧的非用户隔离路径（向后兼容）
+            for project_dir in projects_dir.iterdir():
+                if project_dir.is_dir() and not (project_dir / ".generation").exists() and project_dir.name != ".generation":
+                    # 这可能是用户目录，跳过（会在下面扫描）
+                    # 或者是一个没有检查点的旧项目目录
+                    checkpoint_file = project_dir / ".generation" / "checkpoint.json"
+                    if checkpoint_file.exists():
+                        scan_paths.append((project_dir, None))
             
+            # 2. 扫描用户隔离路径：小说项目/用户名/小说名/
+            for user_dir in projects_dir.iterdir():
+                if not user_dir.is_dir():
+                    continue
+                # 检查这是否是一个用户目录（包含小说项目子目录）
+                for project_dir in user_dir.iterdir():
+                    if project_dir.is_dir():
+                        scan_paths.append((project_dir, user_dir.name))
+        
+        self.logger.info(f"  📂 发现 {len(scan_paths)} 个项目目录需要检查")
+        
+        for project_dir, project_username in scan_paths:
             total_dirs += 1
             checkpoint_file = project_dir / ".generation" / "checkpoint.json"
             
             # 只有当 checkpoint.json 文件真正存在时才认为有检查点
             if checkpoint_file.exists() and checkpoint_file.is_file():
-                self.logger.info(f"  📁 发现检查点: {project_dir.name}")
+                with_checkpoint += 1
+                self.logger.info(f"  📁 发现检查点: {project_dir.name} (用户: {project_username or 'unknown'})")
                 
                 try:
                     with open(checkpoint_file, 'r', encoding='utf-8') as f:
@@ -445,12 +481,14 @@ class CheckpointRecoveryManager:
                     novel_title = checkpoint_data.get('novel_title', 'Unknown')
                     creative_title = checkpoint_data.get('creative_title', novel_title)
                     creative_seed_id = checkpoint_data.get('creative_seed_id')
+                    checkpoint_username = checkpoint_data.get('username', project_username)
                     
                     self.logger.info(f"    novel_title: {novel_title}")
                     self.logger.info(f"    creative_title: {creative_title}")
+                    self.logger.info(f"    username: {checkpoint_username}")
                     
-                    # 使用原始目录名创建检查点管理器，确保能找到文件
-                    checkpoint_mgr = GenerationCheckpoint(novel_title, self.workspace_dir)
+                    # 使用原始目录名创建检查点管理器，传入正确的用户名
+                    checkpoint_mgr = GenerationCheckpoint(novel_title, self.workspace_dir, username=checkpoint_username)
                     # 强制使用实际存在的目录路径
                     checkpoint_mgr.checkpoint_dir = project_dir / ".generation"
                     checkpoint_mgr.checkpoint_file = checkpoint_file
@@ -462,6 +500,7 @@ class CheckpointRecoveryManager:
                         resume_info['creative_title'] = creative_title
                         resume_info['creative_seed_id'] = creative_seed_id
                         resume_info['directory_name'] = project_dir.name
+                        resume_info['username'] = checkpoint_username
                         resumable_tasks.append(resume_info)
                         self.logger.info(f"    ✅ 成功添加到任务列表")
                     else:
@@ -475,7 +514,7 @@ class CheckpointRecoveryManager:
                 except Exception as e:
                     self.logger.error(f"    ❌ 读取检查点失败 {project_dir.name}: {e}")
             else:
-                self.logger.info(f"  📁 没有检查点文件")
+                self.logger.debug(f"  📁 没有检查点文件: {project_dir.name}")
         
         self.logger.info(f"🎯 扫描完成: {total_dirs} 个目录，{with_checkpoint} 个有检查点，{len(resumable_tasks)} 个可用任务")
         
@@ -503,24 +542,45 @@ class CheckpointRecoveryManager:
         except Exception as e:
             self.logger.error(f"    修复JSON失败: {e}")
     
-    def prepare_resume(self, novel_title: str) -> Optional[GenerationCheckpoint]:
+    def prepare_resume(self, novel_title: str, username: str = None) -> Optional[GenerationCheckpoint]:
         """
         准备恢复任务
         
         Args:
             novel_title: 要恢复的小说标题
+            username: 用户名（可选），用于定位用户隔离路径下的检查点
             
         Returns:
             检查点管理器实例
         """
-        checkpoint_mgr = GenerationCheckpoint(novel_title, self.workspace_dir)
+        # 🔥 修复：首先尝试使用指定的用户名查找
+        if username:
+            checkpoint_mgr = GenerationCheckpoint(novel_title, self.workspace_dir, username=username)
+            if checkpoint_mgr.can_resume():
+                self.current_checkpoint = checkpoint_mgr
+                self.logger.info(f"✅ 在用户 {username} 的路径下找到检查点: {novel_title}")
+                return checkpoint_mgr
         
-        if not checkpoint_mgr.can_resume():
-            self.logger.warning(f"任务 {novel_title} 没有可用的检查点")
-            return None
+        # 如果没有指定用户名，或指定用户名下没有找到，尝试从所有可恢复任务中查找
+        all_tasks = self.find_resumable_tasks()
+        for task in all_tasks:
+            if task.get('novel_title') == novel_title or task.get('creative_title') == novel_title:
+                task_username = task.get('username')
+                checkpoint_mgr = GenerationCheckpoint(novel_title, self.workspace_dir, username=task_username)
+                if checkpoint_mgr.can_resume():
+                    self.current_checkpoint = checkpoint_mgr
+                    self.logger.info(f"✅ 找到检查点: {novel_title} (用户: {task_username or 'unknown'})")
+                    return checkpoint_mgr
         
-        self.current_checkpoint = checkpoint_mgr
-        return checkpoint_mgr
+        # 最后尝试不使用用户名（向后兼容旧路径）
+        checkpoint_mgr = GenerationCheckpoint(novel_title, self.workspace_dir, username=None)
+        if checkpoint_mgr.can_resume():
+            self.current_checkpoint = checkpoint_mgr
+            self.logger.info(f"✅ 在旧路径下找到检查点: {novel_title}")
+            return checkpoint_mgr
+        
+        self.logger.warning(f"任务 {novel_title} 没有可用的检查点")
+        return None
     
     def resume_from_checkpoint(self, novel_title: str, generation_callback):
         """
