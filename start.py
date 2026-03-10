@@ -522,11 +522,41 @@ def main():
                        help='实时跟踪日志输出')
     parser.add_argument('--no-browser', action='store_true', 
                        help='前台运行时不自动打开浏览器')
+    parser.add_argument('--cleanup-only', action='store_true',
+                       help='仅运行日志清理，不启动服务')
     
     args = parser.parse_args()
     
+    # 🔥 自动清理旧日志（保留最近3天）
+    if not args.cleanup_only:
+        try:
+            # 导入清理模块
+            sys.path.insert(0, str(PROJECT_DIR))
+            from scripts.cleanup_debug_logs import cleanup_debug_logs
+            
+            print(f"{Colors.CYAN}[AUTO-CLEANUP] 正在自动清理过期日志...{Colors.RESET}")
+            result = cleanup_debug_logs(keep_days=3, dry_run=False)
+            
+            if result['deleted'] > 0:
+                print(f"{Colors.GREEN}[AUTO-CLEANUP] 已清理 {result['deleted']} 个旧日志文件，释放 {result['freed_bytes']/1024/1024:.2f} MB{Colors.RESET}")
+            else:
+                print(f"{Colors.CYAN}[AUTO-CLEANUP] 没有需要清理的旧日志文件{Colors.RESET}")
+                
+        except Exception as e:
+            # 清理失败不影响服务启动
+            print(f"{Colors.YELLOW}[AUTO-CLEANUP] 日志清理过程出错（不影响服务启动）: {e}{Colors.RESET}")
+    
     # 处理各种命令
-    if args.stop:
+    if args.cleanup_only:
+        # 仅运行清理
+        try:
+            sys.path.insert(0, str(PROJECT_DIR))
+            from scripts.cleanup_debug_logs import cleanup_debug_logs
+            cleanup_debug_logs(keep_days=3, dry_run=False)
+        except Exception as e:
+            print(f"{Colors.RED}[ERROR] 清理失败: {e}{Colors.RESET}")
+            sys.exit(1)
+    elif args.stop:
         stop_service()
     elif args.status:
         show_status()
