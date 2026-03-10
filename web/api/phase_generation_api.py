@@ -1543,16 +1543,27 @@ def register_additional_routes(app):
             if not novel_detail:
                 return jsonify({"success": False, "error": "项目不存在"}), 404
             
-            # 🔥 修复：正确获取总章节数，优先级从高到低
+            # 🔥 修复：正确获取总章节数，优先级从高到低（确保转换为整数）
+            def get_int_chapters(data, key_path, default=0):
+                """安全获取章节数并转为整数"""
+                try:
+                    keys = key_path.split('.')
+                    value = data
+                    for k in keys:
+                        value = value.get(k, {}) if isinstance(value, dict) else default
+                    return int(value) if value else default
+                except (ValueError, TypeError):
+                    return default
+            
             total_chapters = (
-                novel_detail.get('current_progress', {}).get('total_chapters', 0) if
-                novel_detail.get('current_progress', {}).get('total_chapters', 0) > 0 else
-                novel_detail.get('total_chapters', 0) if
-                novel_detail.get('total_chapters', 0) > 0 else
-                novel_detail.get('progress', {}).get('total_chapters', 0) if
-                novel_detail.get('progress', {}).get('total_chapters', 0) > 0 else
-                novel_detail.get('novel_info', {}).get('total_chapters', 0) if
-                novel_detail.get('novel_info', {}).get('total_chapters', 0) > 0 else
+                get_int_chapters(novel_detail, 'current_progress.total_chapters') if
+                get_int_chapters(novel_detail, 'current_progress.total_chapters') > 0 else
+                get_int_chapters(novel_detail, 'total_chapters') if
+                get_int_chapters(novel_detail, 'total_chapters') > 0 else
+                get_int_chapters(novel_detail, 'progress.total_chapters') if
+                get_int_chapters(novel_detail, 'progress.total_chapters') > 0 else
+                get_int_chapters(novel_detail, 'novel_info.total_chapters') if
+                get_int_chapters(novel_detail, 'novel_info.total_chapters') > 0 else
                 200  # 默认值
             )
             
