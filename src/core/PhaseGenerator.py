@@ -182,28 +182,28 @@ class PhaseGenerator:
                                      step_status={'writing_style': 'completed', 'market_analysis': 'completed'})
             
             # 第二阶段：世界观与角色设计 (worldview + faction_system + character_design)
-            logger.info("🔥 即将进入第二阶段: _generate_worldview_and_characters")
+            self.logger.info("🔥 即将进入第二阶段: _generate_worldview_and_characters")
             print("\n🔥 即将进入第二阶段: _generate_worldview_and_characters")
             update_step_status('worldview', 'active', step_progress_map['worldview'])
             result = self._generate_worldview_and_characters(update_step_status=update_step_status)
-            logger.info(f"🔥 _generate_worldview_and_characters 返回: {result}")
+            self.logger.info(f"🔥 _generate_worldview_and_characters 返回: {result}")
             print(f"🔥 _generate_worldview_and_characters 返回: {result}")
             if not result:
                 error_msg = "世界观与角色设计失败"
                 print(f"❌ {error_msg}")
                 notify_failure(error_msg)
                 return False
-            logger.info("🔥 第二阶段完成，继续执行...")
+            self.logger.info("🔥 第二阶段完成，继续执行...")
             print("🔥 第二阶段完成，继续执行...")
             update_progress_callback('character_design', step_progress_map['character_design'], "角色设计完成",
                                      step_status={'worldview': 'completed', 'faction_system': 'completed', 
                                                  'character_design': 'completed'})
             
             # 第三阶段：全书规划 (emotional_growth_planning + stage_plan + detailed_stage_plans + expectation_mapping + system_init)
-            logger.info("🔥 即将进入第三阶段: _generate_overall_planning")
+            self.logger.info("🔥 即将进入第三阶段: _generate_overall_planning")
             print("\n🔥 即将进入第三阶段: _generate_overall_planning")
             update_step_status('emotional_growth_planning', 'active', step_progress_map['emotional_growth_planning'])
-            logger.info("✅ 已更新 emotional_growth_planning 状态为 active")
+            self.logger.info("✅ 已更新 emotional_growth_planning 状态为 active")
             print("✅ 已更新 emotional_growth_planning 状态为 active")
             if not self._generate_overall_planning(update_step_status=update_step_status):
                 error_msg = "全书规划制定失败"
@@ -461,7 +461,7 @@ class PhaseGenerator:
         
         # 核心角色设计（现在可以基于势力系统） - 步骤10
         print("👤 步骤10: 设计核心角色 (主角/核心盟友/宿敌)")
-        logger.info("🔥 即将调用 generate_character_design API...")
+        self.logger.info("🔥 即将调用 generate_character_design API...")
         print("🔥 即将调用 generate_character_design API...")
         self.generator.novel_data["current_progress"]["stage"] = "核心角色设计"
         if update_step_status:
@@ -499,18 +499,18 @@ class PhaseGenerator:
         print("✅ 核心角色设计完成，已建立角色基础库。")
         
         # 角色设计完成
-        logger.info("🔥 character_design 即将标记为 completed...")
+        self.logger.info("🔥 character_design 即将标记为 completed...")
         print("🔥 character_design 即将标记为 completed...")
         if update_step_status:
             update_step_status('character_design', 'completed', 55)
-        logger.info("🔥 character_design 已标记 completed，即将返回 True")
+        self.logger.info("🔥 character_design 已标记 completed，即将返回 True")
         print("🔥 character_design 已标记 completed，即将返回 True")
         
         return True
     
     def _generate_overall_planning(self, update_step_status=None) -> bool:
         """生成全书规划"""
-        logger.info("🔥 _generate_overall_planning 被调用!")
+        self.logger.info("🔥 _generate_overall_planning 被调用!")
         print("\n" + "="*60)
         print("🔥 _generate_overall_planning 被调用!")
         print("📊 第三阶段：全书规划")
@@ -760,11 +760,11 @@ class PhaseGenerator:
         import logging
         logger = logging.getLogger("PhaseGenerator")
         
-        logger.info("🔥🔥🔥 _generate_emotional_and_growth_plan 函数入口!")
+        self.logger.info("🔥🔥🔥 _generate_emotional_and_growth_plan 函数入口!")
         print("\n🔥🔥🔥 _generate_emotional_and_growth_plan 函数入口!")
-        logger.info("="*60)
-        logger.info("🎨📈 步骤8-9: 情绪蓝图与成长规划（真正合并为一个API调用）")
-        logger.info("="*60)
+        self.logger.info("="*60)
+        self.logger.info("🎨📈 步骤8-9: 情绪蓝图与成长规划（真正合并为一个API调用）")
+        self.logger.info("="*60)
         
         print("\n" + "="*60)
         print("🎨📈 步骤8-9: 情绪蓝图与成长规划（真正合并为一个API调用）")
@@ -781,25 +781,25 @@ class PhaseGenerator:
             update_step_status('emotional_growth_planning', 'active', 60)
         
         # 🔥 构建合并的提示词
-        logger.info("🔨 构建合并提示词...")
+        self.logger.info("🔨 构建合并提示词...")
         print("  🔨 构建合并提示词...")
         prompt = self._build_combined_emotional_and_growth_prompt(
             novel_title, novel_synopsis, creative_seed, total_chapters
         )
-        logger.info(f"✅ 提示词构建完成，长度: {len(prompt)}")
+        self.logger.info(f"✅ 提示词构建完成，长度: {len(prompt)}")
         print(f"  ✅ 提示词构建完成，长度: {len(prompt)}")
         
         # 🔥 真正的单次API调用
-        logger.info("🚀 调用AI生成合并的情绪蓝图与成长规划...")
+        self.logger.info("🚀 调用AI生成合并的情绪蓝图与成长规划...")
         print("  🚀 调用AI生成合并的情绪蓝图与成长规划...")
         print(f"  ⏱️ 开始时间: {__import__('datetime').datetime.now().strftime('%H:%M:%S')}")
         
         # 🔥 检查API客户端
         if not hasattr(self.generator, 'api_client') or not self.generator.api_client:
-            logger.error("❌ API客户端不存在")
+            self.logger.error("❌ API客户端不存在")
             print("  ❌ API客户端不存在")
             return False
-        logger.info(f"🔍 API客户端: {type(self.generator.api_client)}")
+        self.logger.info(f"🔍 API客户端: {type(self.generator.api_client)}")
         print(f"  🔍 API客户端: {type(self.generator.api_client)}")
         
         # 🔥 检查提示词
@@ -893,7 +893,7 @@ class PhaseGenerator:
         import logging
         logger = logging.getLogger("PhaseGenerator")
         
-        logger.info(f"🔍 构建提示词... novel_title={novel_title}, creative_seed类型={type(creative_seed)}")
+        self.logger.info(f"🔍 构建提示词... novel_title={novel_title}, creative_seed类型={type(creative_seed)}")
         print(f"  🔍 构建提示词...")
         print(f"  🔍 novel_title: {novel_title}")
         print(f"  🔍 creative_seed类型: {type(creative_seed)}")
