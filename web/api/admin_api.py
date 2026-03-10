@@ -58,9 +58,13 @@ def verify_admin_password(password: str) -> bool:
 @admin_api.route('/users', methods=['GET'])
 @admin_required
 def get_all_users():
-    """获取所有用户列表"""
+    """获取所有用户列表（包含点数信息）"""
     try:
         users = user_model.get_all_users()
+        # 为每个用户添加点数信息
+        for user in users:
+            points_info = point_model.get_user_points(user['id'])
+            user['points'] = points_info['balance']
         return jsonify({
             'success': True,
             'data': users

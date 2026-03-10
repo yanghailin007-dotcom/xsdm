@@ -671,6 +671,11 @@
                         </span>
                     </td>
                     <td>
+                        <span style="font-weight: 600; color: ${user.points > 0 ? 'var(--v2-accent-green)' : 'var(--v2-text-secondary)'}">
+                            💰 ${user.points || 0}
+                        </span>
+                    </td>
+                    <td>
                         <span class="badge ${user.is_active ? 'badge-active' : 'badge-inactive'}">
                             ${user.is_active ? '✅ 正常' : '⛔ 禁用'}
                         </span>
@@ -701,6 +706,7 @@
                             <th>用户</th>
                             <th>手机号</th>
                             <th>角色</th>
+                            <th>创造点</th>
                             <th>状态</th>
                             <th>注册时间</th>
                             <th>最后登录</th>
