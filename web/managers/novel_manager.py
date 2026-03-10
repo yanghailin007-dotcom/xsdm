@@ -6,11 +6,114 @@ import json
 import re
 import threading
 import uuid
+import time
 from datetime import datetime
 from pathlib import Path
 from typing import Dict, Any, List, Optional
 
 from web.web_config import logger, BASE_DIR, CREATIVE_IDEAS_FILE
+
+
+# 🔥 线程监控器：确保后台线程健康运行
+class ThreadMonitor:
+    """线程健康监控器，检测线程是否存活并在必要时恢复"""
+    
+    def __init__(self, check_interval=30):
+        self.check_interval = check_interval  # 检查间隔（秒）
+        self.monitored_threads = {}  # {task_id: {'thread': thread, 'restart_func': func, 'last_alive': timestamp}}
+        self._stop_event = threading.Event()
+        self._monitor_thread = None
+        self._lock = threading.Lock()
+        
+    def start_monitoring(self):
+        """启动监控线程"""
+        if self._monitor_thread is None or not self._monitor_thread.is_alive():
+            self._stop_event.clear()
+            self._monitor_thread = threading.Thread(target=self._monitor_loop, name="ThreadMonitor")
+            self._monitor_thread.daemon = False  # 重要：不是daemon线程
+            self._monitor_thread.start()
+            logger.info("✅ 线程监控器已启动")
+    
+    def stop_monitoring(self):
+        """停止监控"""
+        self._stop_event.set()
+        if self._monitor_thread:
+            self._monitor_thread.join(timeout=5)
+            logger.info("⏹️ 线程监控器已停止")
+    
+    def register_thread(self, task_id, thread, restart_func):
+        """注册要监控的线程
+        
+        Args:
+            task_id: 任务ID
+            thread: 线程对象
+            restart_func: 线程死亡时的恢复函数，格式：restart_func(task_id) -> new_thread
+        """
+        with self._lock:
+            self.monitored_threads[task_id] = {
+                'thread': thread,
+                'restart_func': restart_func,
+                'last_alive': time.time(),
+                'restart_count': 0
+            }
+            logger.info(f"📋 注册线程监控: {task_id}")
+    
+    def unregister_thread(self, task_id):
+        """取消注册线程"""
+        with self._lock:
+            if task_id in self.monitored_threads:
+                del self.monitored_threads[task_id]
+                logger.info(f"🗑️ 取消线程监控: {task_id}")
+    
+    def _monitor_loop(self):
+        """监控循环"""
+        while not self._stop_event.is_set():
+            try:
+                self._check_threads()
+            except Exception as e:
+                logger.error(f"❌ 线程监控异常: {e}")
+            
+            # 等待检查间隔
+            self._stop_event.wait(self.check_interval)
+    
+    def _check_threads(self):
+        """检查所有注册的线程"""
+        with self._lock:
+            dead_threads = []
+            
+            for task_id, info in self.monitored_threads.items():
+                thread = info['thread']
+                
+                if not thread.is_alive():
+                    # 线程已死亡
+                    info['last_alive'] = time.time()
+                    info['restart_count'] += 1
+                    
+                    if info['restart_count'] <= 3:  # 最多重启3次
+                        logger.warning(f"⚠️ 检测到线程死亡: {task_id}，第{info['restart_count']}次重启")
+                        try:
+                            # 调用恢复函数
+                            new_thread = info['restart_func'](task_id)
+                            if new_thread:
+                                info['thread'] = new_thread
+                                logger.info(f"✅ 线程已重启: {task_id}")
+                            else:
+                                logger.error(f"❌ 线程重启失败: {task_id}，恢复函数返回None")
+                                dead_threads.append(task_id)
+                        except Exception as e:
+                            logger.error(f"❌ 线程重启异常: {task_id} - {e}")
+                            dead_threads.append(task_id)
+                    else:
+                        logger.error(f"❌ 线程重启次数超过限制: {task_id}，不再尝试重启")
+                        dead_threads.append(task_id)
+            
+            # 清理无法恢复的线程
+            for task_id in dead_threads:
+                del self.monitored_threads[task_id]
+
+
+# 全局线程监控器实例
+_thread_monitor = ThreadMonitor()
 from web.utils.path_utils import (
     get_user_novel_dir,
     get_public_projects_dir,
@@ -117,6 +220,12 @@ class NovelGenerationManager:
         
         logger.info("🔧 NovelGenerationManager 初始化开始")
         self.load_existing_novels()
+        
+        # 🔥 启动线程监控器
+        global _thread_monitor
+        _thread_monitor.start_monitoring()
+        logger.info("✅ 线程监控器已启动")
+        
         logger.info(f"🔧 NovelGenerationManager 初始化完成，加载了 {len(self.novel_projects)} 个小说项目")
 
     def stop_task(self, task_id: str) -> bool:
@@ -1069,12 +1178,36 @@ class NovelGenerationManager:
             except Exception as e:
                 logger.error(f"任务 {task_id}: 生成任务执行失败: {e}")
                 self._update_task_status(task_id, "failed", 0, str(e))
+            finally:
+                # 任务结束，取消线程监控
+                _thread_monitor.unregister_thread(task_id)
+                logger.info(f"任务 {task_id}: 后台线程结束")
         
-        thread = threading.Thread(target=run_generation)
-        thread.daemon = True
+        # 🔥 修复：使用非daemon线程，并注册到监控器
+        thread = threading.Thread(target=run_generation, name=f"Generation-{task_id[:8]}")
+        thread.daemon = False  # 重要：改为False，确保线程不被强制终止
         thread.start()
         
         self.task_threads[task_id] = thread
+        
+        # 注册到线程监控器
+        def restart_generation_thread(tid):
+            """恢复生成任务"""
+            logger.info(f"🔄 尝试恢复任务: {tid}")
+            # 检查任务状态，如果还在运行则不重启
+            task_info = self.task_results.get(tid, {})
+            if task_info.get('status') in ['completed', 'failed']:
+                logger.info(f"任务 {tid} 已结束，无需恢复")
+                return None
+            
+            # 重新创建线程
+            new_thread = threading.Thread(target=run_generation, name=f"Generation-{tid[:8]}-R")
+            new_thread.daemon = False
+            new_thread.start()
+            self.task_threads[tid] = new_thread
+            return new_thread
+        
+        _thread_monitor.register_thread(task_id, thread, restart_generation_thread)
         
         return task_id
 
@@ -1719,12 +1852,33 @@ class NovelGenerationManager:
             except Exception as e:
                 logger.error(f"续写任务执行失败: {e}")
                 self._update_task_status(task_id, "failed", 0, str(e))
+            finally:
+                # 任务结束，取消线程监控
+                _thread_monitor.unregister_thread(task_id)
+                logger.info(f"续写任务 {task_id}: 后台线程结束")
         
-        thread = threading.Thread(target=run_resume_generation)
-        thread.daemon = True
+        # 🔥 修复：使用非daemon线程
+        thread = threading.Thread(target=run_resume_generation, name=f"Resume-{task_id[:8]}")
+        thread.daemon = False
         thread.start()
         
         self.task_threads[task_id] = thread
+        
+        # 注册到线程监控器
+        def restart_resume_thread(tid):
+            """恢复续写任务"""
+            logger.info(f"🔄 尝试恢复续写任务: {tid}")
+            task_info = self.task_results.get(tid, {})
+            if task_info.get('status') in ['completed', 'failed']:
+                return None
+            
+            new_thread = threading.Thread(target=run_resume_generation, name=f"Resume-{tid[:8]}-R")
+            new_thread.daemon = False
+            new_thread.start()
+            self.task_threads[tid] = new_thread
+            return new_thread
+        
+        _thread_monitor.register_thread(task_id, thread, restart_resume_thread)
         
         return task_id
 
@@ -1761,12 +1915,33 @@ class NovelGenerationManager:
             except Exception as e:
                 logger.error(f"第二阶段任务执行失败: {e}")
                 self._update_task_status(task_id, "failed", 0, str(e))
+            finally:
+                # 任务结束，取消线程监控
+                _thread_monitor.unregister_thread(task_id)
+                logger.info(f"第二阶段任务 {task_id}: 后台线程结束")
         
-        thread = threading.Thread(target=run_phase_two_generation)
-        thread.daemon = True
+        # 🔥 修复：使用非daemon线程
+        thread = threading.Thread(target=run_phase_two_generation, name=f"Phase2-{task_id[:8]}")
+        thread.daemon = False
         thread.start()
         
         self.task_threads[task_id] = thread
+        
+        # 注册到线程监控器
+        def restart_phase2_thread(tid):
+            """恢复第二阶段任务"""
+            logger.info(f"🔄 尝试恢复第二阶段任务: {tid}")
+            task_info = self.task_results.get(tid, {})
+            if task_info.get('status') in ['completed', 'failed']:
+                return None
+            
+            new_thread = threading.Thread(target=run_phase_two_generation, name=f"Phase2-{tid[:8]}-R")
+            new_thread.daemon = False
+            new_thread.start()
+            self.task_threads[tid] = new_thread
+            return new_thread
+        
+        _thread_monitor.register_thread(task_id, thread, restart_phase2_thread)
         
         return task_id
 
