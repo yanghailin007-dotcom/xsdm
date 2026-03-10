@@ -623,7 +623,8 @@
                     showToast('❌', result.error || '加载失败', 'error');
                 }
             } catch (error) {
-                showToast('❌', '网络错误', 'error');
+                console.error('充值请求错误:', error);
+                showToast('❌', '网络错误: ' + error.message, 'error');
             } finally {
                 btn.disabled = false;
             }
@@ -844,14 +845,18 @@
                 });
                 
                 const result = await response.json();
-                if (result.success) {
+                if (!response.ok) {
+                    showToast('❌', result.error || `请求失败 (${response.status})`, 'error');
+                } else if (result.success) {
                     showToast('✅', `成功充值 ${amount} 点`, 'success');
                     closeModal('recharge-modal');
+                    loadUsers();
                 } else {
                     showToast('❌', result.error || '充值失败', 'error');
                 }
             } catch (error) {
-                showToast('❌', '网络错误', 'error');
+                console.error('充值请求错误:', error);
+                showToast('❌', '网络错误: ' + error.message, 'error');
             }
         }
         
@@ -867,14 +872,17 @@
                 });
                 
                 const result = await response.json();
-                if (result.success) {
+                if (!response.ok) {
+                    showToast('❌', result.error || `请求失败 (${response.status})`, 'error');
+                } else if (result.success) {
                     showToast('✅', '密码已重置为 123456', 'success');
                     closeModal('reset-password-modal');
                 } else {
                     showToast('❌', result.error || '重置失败', 'error');
                 }
             } catch (error) {
-                showToast('❌', '网络错误', 'error');
+                console.error('充值请求错误:', error);
+                showToast('❌', '网络错误: ' + error.message, 'error');
             }
         }
         
@@ -891,7 +899,9 @@
                 });
                 
                 const result = await response.json();
-                if (result.success) {
+                if (!response.ok) {
+                    showToast('❌', result.error || `请求失败 (${response.status})`, 'error');
+                } else if (result.success) {
                     showToast('✅', result.message, 'success');
                     closeModal('toggle-status-modal');
                     loadUsers();
@@ -899,7 +909,8 @@
                     showToast('❌', result.error || '操作失败', 'error');
                 }
             } catch (error) {
-                showToast('❌', '网络错误', 'error');
+                console.error('充值请求错误:', error);
+                showToast('❌', '网络错误: ' + error.message, 'error');
             }
         }
         
@@ -915,7 +926,9 @@
                 });
                 
                 const result = await response.json();
-                if (result.success) {
+                if (!response.ok) {
+                    showToast('❌', result.error || `请求失败 (${response.status})`, 'error');
+                } else if (result.success) {
                     showToast('✅', '用户已删除', 'success');
                     closeModal('delete-user-modal');
                     loadUsers();
@@ -923,7 +936,8 @@
                     showToast('❌', result.error || '删除失败', 'error');
                 }
             } catch (error) {
-                showToast('❌', '网络错误', 'error');
+                console.error('充值请求错误:', error);
+                showToast('❌', '网络错误: ' + error.message, 'error');
             }
         }
         

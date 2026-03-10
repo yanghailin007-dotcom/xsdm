@@ -29,17 +29,30 @@ def verify_admin_password(password: str) -> bool:
     Returns:
         bool: 验证是否通过
     """
+    logger.info(f"🔐 开始二次验证 - session: {dict(session)}")
+    
     if not password:
+        logger.warning("❌ 二次验证失败: 密码为空")
         return False
     
     # 获取当前登录的管理员用户名
     admin_username = session.get('username')
     if not admin_username:
+        logger.warning("❌ 二次验证失败: session中没有username")
         return False
     
+    logger.info(f"🔐 验证管理员: {admin_username}")
+    
     # 验证密码
-    admin_user = user_model.verify_user(admin_username, password)
-    return admin_user is not None and admin_user.get('is_admin')
+    try:
+        admin_user = user_model.verify_user(admin_username, password)
+        logger.info(f"🔐 verify_user结果: {admin_user is not None}")
+        if admin_user:
+            logger.info(f"🔐 用户is_admin: {admin_user.get('is_admin')}")
+        return admin_user is not None and admin_user.get('is_admin')
+    except Exception as e:
+        logger.error(f"❌ 二次验证异常: {e}")
+        return False
 
 
 @admin_api.route('/users', methods=['GET'])
