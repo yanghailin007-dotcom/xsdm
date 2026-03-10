@@ -1111,7 +1111,7 @@ class NovelGenerationManager:
         except:
             return False
 
-    def export_novel(self, title: str, format_type: str = "json") -> Dict[str, Any]:
+    def export_novel(self, title: str, format_type: str = "json", username: str = None) -> Dict[str, Any]:
         """导出小说"""
         novel_data = self.novel_projects.get(title)
         if not novel_data:
@@ -1126,12 +1126,37 @@ class NovelGenerationManager:
             text_content.append(f"## 简介\n{novel_data.get('story_synopsis', '')}")
             text_content.append("---\n")
 
-            chapters = novel_data.get("generated_chapters", {})
-            for chapter_num in sorted(chapters.keys()):
-                chapter = chapters[chapter_num]
-                text_content.append(f"## {chapter.get('outline', {}).get('章节标题', f'第{chapter_num}章')}")
-                text_content.append(chapter.get('content', ''))
-                text_content.append("\n---\n")
+            # 🔥 修复：从文件系统加载章节内容（支持用户隔离路径）
+            try:
+                from src.utils.path_manager import path_manager
+                
+                # 如果没有提供username，尝试从novel_data获取owner
+                if not username and 'owner' in novel_data:
+                    username = novel_data['owner']
+                
+                # 从文件系统加载所有章节
+                chapters = path_manager.get_all_chapters(title, username=username)
+                
+                if not chapters:
+                    # 如果文件系统没有，回退到内存数据
+                    chapters = novel_data.get("generated_chapters", {})
+                    
+                for chapter_num in sorted(chapters.keys()):
+                    chapter = chapters[chapter_num]
+                    chapter_title = chapter.get('chapter_title', f'第{chapter_num}章')
+                    text_content.append(f"## {chapter_title}")
+                    text_content.append(chapter.get('content', ''))
+                    text_content.append("\n---\n")
+                    
+            except Exception as e:
+                logger.error(f"❌ 导出时加载章节失败: {e}")
+                # 回退到内存数据
+                chapters = novel_data.get("generated_chapters", {})
+                for chapter_num in sorted(chapters.keys()):
+                    chapter = chapters[chapter_num]
+                    text_content.append(f"## {chapter.get('outline', {}).get('章节标题', f'第{chapter_num}章')}")
+                    text_content.append(chapter.get('content', ''))
+                    text_content.append("\n---\n")
 
             return {
                 "content": "\n".join(text_content),

@@ -253,11 +253,15 @@ def register_novel_routes(app, manager: NovelGenerationManager):
             return jsonify({"error": str(e)}), 500
 
     @app.route('/api/project/<title>/export', methods=['GET'])
+    @login_required
     def export_novel(title):
         """导出小说"""
         try:
             format_type = request.args.get('format', 'json')
-            result = manager.export_novel(title, format_type)
+            
+            # 🔥 修复：获取当前用户名用于用户隔离路径
+            username = session.get('username')
+            result = manager.export_novel(title, format_type, username=username)
 
             if "error" in result:
                 return jsonify(result), 400

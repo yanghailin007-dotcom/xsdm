@@ -115,10 +115,10 @@ class PathManager:
             self.logger.error(f"❌ 保存章节失败: 第{chapter_number}章 - {e}")
             return False
     
-    def load_chapter(self, novel_title: str, chapter_number: int) -> Optional[Dict]:
+    def load_chapter(self, novel_title: str, chapter_number: int, username: str = None) -> Optional[Dict]:
         """加载章节文件"""
         try:
-            paths = self.path_config.get_project_paths(novel_title)
+            paths = self.path_config.get_project_paths(novel_title, username=username)
             chapters_dir = Path(paths["chapters_dir"])
             
             # 查找章节文件
@@ -140,10 +140,10 @@ class PathManager:
             self.logger.error(f"❌ 加载章节失败: 第{chapter_number}章 - {e}")
             return None
     
-    def get_all_chapters(self, novel_title: str) -> Dict[int, Dict]:
+    def get_all_chapters(self, novel_title: str, username: str = None) -> Dict[int, Dict]:
         """获取所有章节"""
         try:
-            paths = self.path_config.get_project_paths(novel_title)
+            paths = self.path_config.get_project_paths(novel_title, username=username)
             chapters_dir = Path(paths["chapters_dir"])
             
             if not chapters_dir.exists():
