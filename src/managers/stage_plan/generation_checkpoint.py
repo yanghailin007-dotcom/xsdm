@@ -17,6 +17,8 @@ class GenerationCheckpoint:
     PHASES = {
         'phase_one': {
             'name': '第一阶段设定生成',
+            # 🔥 修复：与 PhaseGenerator 的 step_progress_map 严格对齐（13个步骤）
+            # emotional_blueprint 和 growth_plan 合并为 emotional_growth_planning
             'steps': [
                 'initialization',           # 0% 初始化
                 'writing_style',            # 8% 写作风格指南生成
@@ -24,8 +26,7 @@ class GenerationCheckpoint:
                 'worldview',                # 23% 核心世界观构建
                 'faction_system',           # 31% 势力系统设计
                 'character_design',         # 38% 角色设计
-                'emotional_blueprint',      # 46% 情感蓝图设计
-                'growth_plan',              # 54% 全局成长规划
+                'emotional_growth_planning', # 46% 情感蓝图与全局成长规划（合并）
                 'stage_plan',               # 62% 分阶段大纲
                 'detailed_stage_plans',     # 69% 详细阶段计划
                 'expectation_mapping',      # 77% 期待感地图
@@ -58,10 +59,8 @@ class GenerationCheckpoint:
                 'character_design': [
                     ('core_characters', '核心角色设计（主角/盟友/宿敌）')
                 ],
-                'emotional_blueprint': [
-                    ('emotional_blueprint', '生成全书情绪蓝图')
-                ],
-                'growth_plan': [
+                'emotional_growth_planning': [
+                    ('emotional_blueprint', '生成全书情绪蓝图'),
                     ('growth_plan', '生成全书全局成长规划')
                 ],
                 'stage_plan': [
@@ -115,8 +114,7 @@ class GenerationCheckpoint:
                 'worldview': {'calls': 3, 'time_min': 3, 'time_max': 6},  # 世界观+质量评估+新鲜度
                 'faction_system': {'calls': 1, 'time_min': 1, 'time_max': 3},
                 'character_design': {'calls': 1, 'time_min': 1, 'time_max': 3},
-                'emotional_blueprint': {'calls': 1, 'time_min': 1, 'time_max': 2},
-                'growth_plan': {'calls': 1, 'time_min': 1, 'time_max': 2},
+                'emotional_growth_planning': {'calls': 2, 'time_min': 2, 'time_max': 4},  # 情感蓝图 + 成长规划
                 'stage_plan': {'calls': 1, 'time_min': 1, 'time_max': 2},
                 # detailed_stage_plans 是动态的，按阶段计算
                 'detailed_stage_plans_per_stage': {

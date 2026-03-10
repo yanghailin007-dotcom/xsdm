@@ -68,6 +68,46 @@ class PhaseGenerator:
                             points_consumed=points_consumed
                         )
                 
+                # 🔥 新增：保存检查点（关键步骤完成后）
+                try:
+                    # 只在主要步骤完成时保存检查点（步骤名称在 step_progress_map 中）
+                    step_progress_map_keys = ['initialization', 'writing_style', 'market_analysis',
+                                              'worldview', 'faction_system', 'character_design',
+                                              'emotional_growth_planning', 'stage_plan', 'detailed_stage_plans',
+                                              'expectation_mapping', 'system_init', 'saving', 'quality_assessment']
+                    if stage_name in step_progress_map_keys:
+                        # 获取小说标题
+                        title = None
+                        if hasattr(self.generator, 'creative_title'):
+                            title = self.generator.creative_title
+                        elif hasattr(self.generator, 'novel_data') and 'title' in self.generator.novel_data:
+                            title = self.generator.novel_data['title']
+                        
+                        if title:
+                            from src.managers.stage_plan.generation_checkpoint import GenerationCheckpoint
+                            checkpoint_mgr = GenerationCheckpoint(title, Path.cwd())
+                            
+                            # 判断步骤状态：completed 或 in_progress
+                            step_status_str = 'in_progress'
+                            if step_status and isinstance(step_status, dict):
+                                # 如果当前步骤在 step_status 中标记为 completed，则使用 completed
+                                if step_status.get(stage_name) in ['completed', 'done']:
+                                    step_status_str = 'completed'
+                            
+                            checkpoint_mgr.create_checkpoint(
+                                phase='phase_one',
+                                step=stage_name,
+                                data={
+                                    'progress': progress,
+                                    'message': message,
+                                    'points_consumed': points_consumed,
+                                    'step_status': step_status
+                                },
+                                step_status=step_status_str
+                            )
+                except Exception as checkpoint_error:
+                    print(f"⚠️ 保存检查点失败: {checkpoint_error}")
+                
                 # 更新内部状态
                 if hasattr(self.generator, 'novel_data') and 'current_progress' in self.generator.novel_data:
                     self.generator.novel_data['current_progress']['stage'] = stage_name

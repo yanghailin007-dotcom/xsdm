@@ -1302,14 +1302,14 @@ class NovelGenerationManager:
             logger.info(f"任务 {task_id}: 📋 分析创意种子 (40%)")
             self._update_task_status(task_id, "generating", 40)
             
-            # 更新检查点 - 开始分析
+            # 更新检查点 - 开始世界观构建
             if self.checkpoint_enabled:
-                self._update_checkpoint(title, "phase_one", "worldview_generation", {"status": "analyzing_seed"}, step_status="in_progress")
+                self._update_checkpoint(title, "phase_one", "worldview", {"status": "analyzing_seed"}, step_status="in_progress")
             self._update_task_status(task_id, "generating", 60)
             
-            # 更新检查点 - 开始角色生成（在实际调用前保存为 in_progress）
+            # 更新检查点 - 开始角色设计（在实际调用前保存为 in_progress）
             if self.checkpoint_enabled:
-                self._update_checkpoint(title, "phase_one", "character_generation", {"status": "generating_worldview"}, step_status="in_progress")
+                self._update_checkpoint(title, "phase_one", "character_design", {"status": "generating_worldview"}, step_status="in_progress")
             
             try:
                 # 为生成器设置进度回调（使用动态属性设置）
@@ -1350,9 +1350,9 @@ class NovelGenerationManager:
                 logger.info(f"任务 {task_id}: ✅ phase_one_generation 完成，耗时: {elapsed:.2f}秒, 结果: {success}")
                 
                 if success:
-                    # 标记步骤完成
+                    # 标记步骤完成 - 质量评估完成
                     if self.checkpoint_enabled:
-                        self._update_checkpoint(title, "phase_one", "character_generation", {"status": "completed"}, step_status="completed")
+                        self._update_checkpoint(title, "phase_one", "quality_assessment", {"status": "completed"}, step_status="completed")
                     
                     self._update_task_status(task_id, "completed", 100)
                     
@@ -1384,7 +1384,7 @@ class NovelGenerationManager:
                     
                     # 标记步骤失败，保留检查点以便恢复
                     if self.checkpoint_enabled:
-                        self._update_checkpoint(title, "phase_one", "character_generation", {"status": "failed", "error": "第一阶段设定生成返回 False"}, step_status="failed")
+                        self._update_checkpoint(title, "phase_one", "character_design", {"status": "failed", "error": "第一阶段设定生成返回 False"}, step_status="failed")
                     
             except Exception as e:
                 logger.error(f"任务 {task_id}: phase_one_generation 执行异常: {e}")
@@ -1394,7 +1394,7 @@ class NovelGenerationManager:
                 
                 # 标记步骤失败
                 if self.checkpoint_enabled:
-                    self._update_checkpoint(title, "phase_one", "character_generation", {"status": "failed", "error": str(e)}, step_status="failed")
+                    self._update_checkpoint(title, "phase_one", "character_design", {"status": "failed", "error": str(e)}, step_status="failed")
             
         except Exception as e:
             logger.error(f"任务 {task_id}: 第一阶段生成任务发生未捕获的异常: {e}")
