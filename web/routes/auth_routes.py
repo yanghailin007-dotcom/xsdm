@@ -32,7 +32,7 @@ def register_auth_routes(app):
             
             if request.is_json:
                 data = request.json
-                logger.info(f"🔍 JSON数据: {data}")
+                logger.info(f"🔍 收到 JSON 登录请求")
             else:
                 data = request.form
                 logger.info(f"🔍 Form数据: {dict(data)}")
@@ -40,7 +40,7 @@ def register_auth_routes(app):
             username = (data.get('username') or '').strip() if data else ''
             password = data.get('password') or '' if data else ''
             
-            logger.info(f"🔍 提取的用户名: '{username}', 密码长度: {len(password) if password else 0}")
+            logger.info(f"🔍 登录用户: '{username}'")
 
             # 特殊处理：如果用户名是 "test"，允许空密码或任意密码登录（测试模式）
             if username.lower() == 'test':
