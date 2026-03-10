@@ -38,6 +38,16 @@
             <span>立即充值</span>
         </a>
         
+        {% if session.is_admin %}
+        <div class="v2-dropdown__divider"></div>
+        
+        <a href="/admin/users" class="v2-dropdown__item" style="color: var(--v2-accent-purple);">
+            <span>👑</span>
+            <span>用户管理</span>
+            <span style="margin-left: auto; font-size: 11px; background: linear-gradient(135deg, #a78bfa 0%, #8b5cf6 100%); color: white; padding: 2px 8px; border-radius: 10px;">ADMIN</span>
+        </a>
+        {% endif %}
+        
         <div class="v2-dropdown__divider"></div>
         
         <a href="/help" class="v2-dropdown__item">

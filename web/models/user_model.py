@@ -296,6 +296,85 @@ class UserModel:
                 conn.commit()
         except Exception as e:
             logger.error(f"❌ 记录登录日志失败: {e}")
+    
+    # ==================== 管理员方法 ====================
+    
+    def get_all_users(self) -> list:
+        """获取所有用户列表（用于管理员）"""
+        try:
+            with self._get_connection() as conn:
+                users = conn.execute(
+                    """
+                    SELECT id, username, phone, email, is_active, is_admin, 
+                           created_at, last_login_at
+                    FROM users
+                    ORDER BY id DESC
+                    """
+                ).fetchall()
+                return [dict(user) for user in users]
+        except Exception as e:
+            logger.error(f"❌ 获取用户列表失败: {e}")
+            return []
+    
+    def update_user_status(self, user_id: int, is_active: bool) -> dict:
+        """更新用户状态（禁用/启用）"""
+        try:
+            with self._get_connection() as conn:
+                conn.execute(
+                    "UPDATE users SET is_active = ?, updated_at = ? WHERE id = ?",
+                    (1 if is_active else 0, datetime.now().isoformat(), user_id)
+                )
+                conn.commit()
+                status = "启用" if is_active else "禁用"
+                logger.info(f"✅ 用户 {user_id} 已{status}")
+                return {"success": True, "message": f"用户已{status}"}
+        except Exception as e:
+            logger.error(f"❌ 更新用户状态失败: {e}")
+            return {"success": False, "error": str(e)}
+    
+    def reset_password(self, user_id: int, new_password: str = "123456") -> dict:
+        """重置用户密码"""
+        try:
+            password_hash = self._hash_password(new_password)
+            with self._get_connection() as conn:
+                conn.execute(
+                    "UPDATE users SET password_hash = ?, updated_at = ? WHERE id = ?",
+                    (password_hash, datetime.now().isoformat(), user_id)
+                )
+                conn.commit()
+                logger.info(f"✅ 用户 {user_id} 密码已重置")
+                return {"success": True, "message": "密码已重置", "new_password": new_password}
+        except Exception as e:
+            logger.error(f"❌ 重置密码失败: {e}")
+            return {"success": False, "error": str(e)}
+    
+    def delete_user(self, user_id: int) -> dict:
+        """删除用户"""
+        try:
+            with self._get_connection() as conn:
+                # 先删除关联的登录日志
+                conn.execute("DELETE FROM login_logs WHERE user_id = ?", (user_id,))
+                # 删除用户
+                conn.execute("DELETE FROM users WHERE id = ?", (user_id,))
+                conn.commit()
+                logger.info(f"✅ 用户 {user_id} 已删除")
+                return {"success": True, "message": "用户已删除"}
+        except Exception as e:
+            logger.error(f"❌ 删除用户失败: {e}")
+            return {"success": False, "error": str(e)}
+    
+    def get_user_by_id(self, user_id: int) -> Optional[Dict[str, Any]]:
+        """根据ID获取用户信息"""
+        try:
+            with self._get_connection() as conn:
+                user = conn.execute(
+                    "SELECT * FROM users WHERE id = ?",
+                    (user_id,)
+                ).fetchone()
+                return dict(user) if user else None
+        except Exception as e:
+            logger.error(f"❌ 获取用户失败: {e}")
+            return None
 
 
 class VerificationCodeModel:

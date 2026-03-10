@@ -413,7 +413,7 @@ class NovelGenerator:
         Args:
             step_name: 步骤名称，如 'writing_style', 'worldview', 'character_design' 等
             step_state: 步骤状态，'waiting'/'active'/'completed'/'failed'
-            message: 可选的状态描述消息
+            message: 可选的状态描述消息（已废弃，保持兼容）
         """
         # 🔥 检查是否被请求停止（只在步骤开始时检查）
         if step_state == 'active':
@@ -423,12 +423,8 @@ class NovelGenerator:
             if hasattr(self, '_update_task_status_callback'):
                 task_id = getattr(self, '_current_task_id', None)
                 if task_id and callable(self._update_task_status_callback):
-                    # 构建步骤状态字典
-                    step_status = {
-                        'step': step_name,
-                        'status': step_state,
-                        'message': message or f'步骤 {step_name} 状态: {step_state}'
-                    }
+                    # 🔥 统一格式：使用简单的 {step_name: status} 格式
+                    step_status = {step_name: step_state}
                     # 调用回调，传入当前进度和步骤状态
                     current_progress = getattr(self, 'overall_progress', 0)
                     # 🔥 传递 points_consumed 点数消耗
@@ -536,8 +532,9 @@ class NovelGenerator:
                         current_step='creative_refinement',
                         step_status={'creative_refinement': 'active'}
                     )
-        except:
-            pass
+                    self.logger.info(f"[phase_one] 步骤状态更新: creative_refinement -> active")
+        except Exception as e:
+            self.logger.error(f"[phase_one] 步骤状态更新失败: creative_refinement, 错误: {e}")
 
         try:
             refined_creative_seed = self.refine_creative_work_for_ai(creative_work_dict, temp_title_for_filename)
@@ -555,8 +552,9 @@ class NovelGenerator:
                                 'fanfiction_detection': 'active'
                             }
                         )
-            except:
-                pass
+                        self.logger.info(f"[phase_one] 步骤状态更新: creative_refinement -> completed, fanfiction_detection -> active")
+            except Exception as e:
+                self.logger.error(f"[phase_one] 步骤状态更新失败: fanfiction_detection, 错误: {e}")
 
             # 预处理：检测同人小说并获取背景资料
             processed_creative_seed = self._preprocess_creative_seed(refined_creative_seed)
@@ -575,8 +573,9 @@ class NovelGenerator:
                                 'multiple_plans': 'active'
                             }
                         )
-            except:
-                pass
+                        self.logger.info(f"[phase_one] 步骤状态更新: fanfiction_detection -> completed, multiple_plans -> active")
+            except Exception as e:
+                self.logger.error(f"[phase_one] 步骤状态更新失败: multiple_plans, 错误: {e}")
             
             # 第一步：生成和选择方案（🔥 传递平台参数）
             selected_plan = self.plan_generator.generate_and_select_plan(
@@ -606,8 +605,9 @@ class NovelGenerator:
                                 'plan_selection': 'completed'
                             }
                         )
-            except:
-                pass
+                        self.logger.info(f"[phase_one] 步骤状态更新: multiple_plans -> completed, plan_selection -> completed")
+            except Exception as e:
+                self.logger.error(f"[phase_one] 步骤状态更新失败: plan_selection, 错误: {e}")
 
             # 第二步：设置基础信息
             if not self._setup_novel_info(selected_plan, creative_seed, total_chapters):

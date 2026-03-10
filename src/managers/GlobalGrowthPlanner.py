@@ -898,7 +898,7 @@ class GlobalGrowthPlanner:
         return "1-100"
     
     def _notify_progress(self, stage_name: str, progress: int, message: Optional[str] = None):
-        """通知进度更新"""
+        """通知进度更新 - 🔥 修复：作为 emotional_growth_planning 的子步骤，不更新 current_step"""
         try:
             # 如果novel_generator有进度回调，使用它
             if hasattr(self.novel_generator, '_update_task_status_callback'):
@@ -906,7 +906,12 @@ class GlobalGrowthPlanner:
                 task_id = getattr(self.novel_generator, '_current_task_id', None)
                 
                 if callback and callable(callback) and task_id:
-                    callback(task_id, 'generating', progress, message)
+                    # 🔥 关键修复：不传递 current_step，避免覆盖 emotional_growth_planning
+                    # 只更新进度百分比和消息，保持当前步骤为 emotional_growth_planning
+                    sub_step_status = {'emotional_growth_planning': 'active'}
+                    callback(task_id, 'generating', progress, message, 
+                             current_step='emotional_growth_planning',  # 保持步骤不变
+                             step_status=sub_step_status)
                     self.logger.info(f"  📊 进度更新: {progress}% - {message or ''}")
             
             # 如果novel_generator有event_bus，也发布事件

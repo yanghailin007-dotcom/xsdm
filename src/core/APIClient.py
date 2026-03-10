@@ -1035,7 +1035,9 @@ class APIClient:
             current_user_prompt = retry_prompts[min(json_attempt, len(retry_prompts)-1)]
             self.logger.info(f"{user_str}  [{thread_id}] 第{json_attempt+1}次生成尝试...")
             # 传递路由后的模型名称给 call_api
-            result = self.call_api(final_system_prompt_for_api, current_user_prompt, temperature, purpose, target_provider, model_name=routed_model)
+            # 使用端点配置中的模型名称，不传递路由模型以覆盖
+            # 端点池中的每个端点有自己的模型配置，应该优先使用端点配置的模型
+            result = self.call_api(final_system_prompt_for_api, current_user_prompt, temperature, purpose, target_provider, model_name=None)
             if result:
                 self.logger.info(f"{user_str}  [{thread_id}] API调用成功，开始解析JSON...")
                 parsed = self.parse_json_response(result)

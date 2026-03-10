@@ -638,7 +638,9 @@
                     if (stepEl) {
                         stepEl.setAttribute('data-status', 'completed');
                         const badge = stepEl.querySelector('.step-status-badge');
+                        const icon = stepEl.querySelector('.step-icon');
                         if (badge) badge.textContent = '已完成';
+                        if (icon) icon.textContent = '✅';
                     }
                 });
                 // 更新步骤计数
@@ -717,10 +719,12 @@
                 
                 // 状态映射到UI显示
                 const badge = stepEl.querySelector('.step-status-badge');
+                const icon = stepEl.querySelector('.step-icon');
                 switch (status) {
                     case 'completed':
                         stepEl.setAttribute('data-status', 'completed');
                         if (badge) badge.textContent = '已完成';
+                        if (icon) icon.textContent = '✅';
                         completedCount++;
                         break;
                     case 'active':
@@ -729,14 +733,17 @@
                             const msg = typeof statusInfo === 'object' ? statusInfo.message : '进行中';
                             badge.textContent = msg && msg.length > 10 ? msg.substring(0, 10) + '...' : (msg || '进行中');
                         }
+                        if (icon) icon.textContent = '🔄';
                         break;
                     case 'failed':
                         stepEl.setAttribute('data-status', 'failed');
                         if (badge) badge.textContent = '失败';
+                        if (icon) icon.textContent = '❌';
                         break;
                     default:
                         stepEl.setAttribute('data-status', 'waiting');
                         if (badge) badge.textContent = '等待中';
+                        if (icon) icon.textContent = '⏳';
                 }
             });
             
@@ -790,7 +797,9 @@
                     if (stepEl) {
                         stepEl.setAttribute('data-status', 'completed');
                         const badge = stepEl.querySelector('.step-status-badge');
+                        const icon = stepEl.querySelector('.step-icon');
                         if (badge) badge.textContent = '已完成';
+                        if (icon) icon.textContent = '✅';
                     }
                 });
                 // 更新步骤计数
@@ -818,21 +827,23 @@
                 const stepEl = document.querySelector(`[data-step="${step}"]`);
                 if (!stepEl) return;
                 
+                const badge = stepEl.querySelector('.step-status-badge');
+                const icon = stepEl.querySelector('.step-icon');
                 if (index < currentIndex) {
                     // 已完成 - 绿色
                     stepEl.setAttribute('data-status', 'completed');
-                    const badge = stepEl.querySelector('.step-status-badge');
                     if (badge) badge.textContent = '已完成';
+                    if (icon) icon.textContent = '✅';
                 } else if (index === currentIndex) {
                     // 进行中 - 黄色
                     stepEl.setAttribute('data-status', 'active');
-                    const badge = stepEl.querySelector('.step-status-badge');
+                    if (icon) icon.textContent = '🔄';
                     if (badge) badge.textContent = '进行中';
                 } else {
                     // 等待中 - 灰色
                     stepEl.setAttribute('data-status', 'waiting');
-                    const badge = stepEl.querySelector('.step-status-badge');
                     if (badge) badge.textContent = '等待中';
+                    if (icon) icon.textContent = '⏳';
                 }
             });
             

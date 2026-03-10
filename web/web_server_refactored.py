@@ -399,6 +399,11 @@ def create_app():
     app.register_blueprint(export_api)
     logger.info("✅ export_api 导出功能已注册")
 
+    # 23. 管理员 API 路由
+    from web.api.admin_api import admin_api
+    app.register_blueprint(admin_api)
+    logger.info("✅ admin_api 管理员功能已注册")
+
     # 🔥 同步预初始化 NovelGenerator（确保服务器启动时完成）
     logger.info("🔄 开始预初始化 NovelGenerator...")
     try:
@@ -797,6 +802,19 @@ def register_contract_routes(app):
         except Exception as e:
             logger.error(f"❌ 加载测试页面失败: {e}")
             return f"测试页面加载失败: {str(e)}", 500
+
+    @app.route('/admin/users')
+    def admin_users_page():
+        """管理员用户管理页面"""
+        try:
+            from flask import render_template, session, redirect, url_for
+            # 检查是否为管理员
+            if not session.get('is_admin'):
+                return redirect('/login')
+            return render_template('pages/v2/admin-users.html')
+        except Exception as e:
+            logger.error(f"❌ 加载管理员页面失败: {e}")
+            return f"管理员页面加载失败: {str(e)}", 500
 
     @app.route('/api/contract/users/enabled', methods=['GET'])
     def get_contract_enabled_users():

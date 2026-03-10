@@ -1,0 +1,861 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>用户管理 - 管理员后台</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/v2/design-system.css') }}">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', sans-serif;
+            background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
+            min-height: 100vh;
+            color: #e2e8f0;
+        }
+        
+        .admin-container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 24px;
+        }
+        
+        .admin-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 32px;
+            padding-bottom: 24px;
+            border-bottom: 1px solid rgba(148, 163, 184, 0.1);
+        }
+        
+        .admin-title {
+            font-size: 28px;
+            font-weight: 700;
+            background: linear-gradient(135deg, #60a5fa 0%, #a78bfa 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+        
+        .admin-subtitle {
+            font-size: 14px;
+            color: #94a3b8;
+            margin-top: 4px;
+        }
+        
+        .back-link {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            color: #94a3b8;
+            text-decoration: none;
+            font-size: 14px;
+            transition: all 0.2s;
+        }
+        
+        .back-link:hover {
+            color: #60a5fa;
+        }
+        
+        .stats-bar {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 16px;
+            margin-bottom: 32px;
+        }
+        
+        .stat-card {
+            background: rgba(30, 41, 59, 0.6);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(148, 163, 184, 0.1);
+            border-radius: 12px;
+            padding: 20px;
+            text-align: center;
+        }
+        
+        .stat-value {
+            font-size: 32px;
+            font-weight: 700;
+            color: #60a5fa;
+            margin-bottom: 4px;
+        }
+        
+        .stat-label {
+            font-size: 14px;
+            color: #94a3b8;
+        }
+        
+        .users-table-container {
+            background: rgba(30, 41, 59, 0.6);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(148, 163, 184, 0.1);
+            border-radius: 16px;
+            overflow: hidden;
+        }
+        
+        .table-header {
+            padding: 20px 24px;
+            border-bottom: 1px solid rgba(148, 163, 184, 0.1);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .table-title {
+            font-size: 18px;
+            font-weight: 600;
+            color: #f1f5f9;
+        }
+        
+        .search-box {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+        
+        .search-input {
+            background: rgba(15, 23, 42, 0.6);
+            border: 1px solid rgba(148, 163, 184, 0.2);
+            border-radius: 8px;
+            padding: 10px 16px;
+            color: #e2e8f0;
+            font-size: 14px;
+            width: 240px;
+            outline: none;
+            transition: all 0.2s;
+        }
+        
+        .search-input:focus {
+            border-color: #60a5fa;
+            box-shadow: 0 0 0 3px rgba(96, 165, 250, 0.1);
+        }
+        
+        .search-input::placeholder {
+            color: #64748b;
+        }
+        
+        .refresh-btn {
+            background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+            border: none;
+            border-radius: 8px;
+            padding: 10px 20px;
+            color: white;
+            font-size: 14px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .refresh-btn:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
+        }
+        
+        .refresh-btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+        }
+        
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        
+        thead {
+            background: rgba(15, 23, 42, 0.4);
+        }
+        
+        th {
+            padding: 16px 24px;
+            text-align: left;
+            font-size: 13px;
+            font-weight: 600;
+            color: #94a3b8;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        
+        td {
+            padding: 16px 24px;
+            border-bottom: 1px solid rgba(148, 163, 184, 0.05);
+            font-size: 14px;
+            color: #e2e8f0;
+        }
+        
+        tr:hover {
+            background: rgba(96, 165, 250, 0.05);
+        }
+        
+        .user-info {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+        
+        .user-avatar {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #60a5fa 0%, #a78bfa 100%);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 600;
+            font-size: 16px;
+            color: white;
+        }
+        
+        .user-name {
+            font-weight: 500;
+            color: #f1f5f9;
+        }
+        
+        .user-id {
+            font-size: 12px;
+            color: #64748b;
+            margin-top: 2px;
+        }
+        
+        .badge {
+            display: inline-flex;
+            align-items: center;
+            padding: 4px 10px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 500;
+        }
+        
+        .badge-admin {
+            background: rgba(168, 85, 247, 0.2);
+            color: #c084fc;
+            border: 1px solid rgba(168, 85, 247, 0.3);
+        }
+        
+        .badge-user {
+            background: rgba(96, 165, 250, 0.2);
+            color: #60a5fa;
+            border: 1px solid rgba(96, 165, 250, 0.3);
+        }
+        
+        .badge-active {
+            background: rgba(34, 197, 94, 0.2);
+            color: #4ade80;
+            border: 1px solid rgba(34, 197, 94, 0.3);
+        }
+        
+        .badge-inactive {
+            background: rgba(239, 68, 68, 0.2);
+            color: #f87171;
+            border: 1px solid rgba(239, 68, 68, 0.3);
+        }
+        
+        .actions {
+            display: flex;
+            gap: 8px;
+        }
+        
+        .action-btn {
+            background: rgba(15, 23, 42, 0.6);
+            border: 1px solid rgba(148, 163, 184, 0.2);
+            border-radius: 6px;
+            padding: 8px 12px;
+            color: #e2e8f0;
+            font-size: 13px;
+            cursor: pointer;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+        
+        .action-btn:hover {
+            background: rgba(96, 165, 250, 0.1);
+            border-color: #60a5fa;
+        }
+        
+        .action-btn.recharge {
+            background: rgba(34, 197, 94, 0.1);
+            border-color: rgba(34, 197, 94, 0.3);
+            color: #4ade80;
+        }
+        
+        .action-btn.recharge:hover {
+            background: rgba(34, 197, 94, 0.2);
+        }
+        
+        .action-btn.danger {
+            background: rgba(239, 68, 68, 0.1);
+            border-color: rgba(239, 68, 68, 0.3);
+            color: #f87171;
+        }
+        
+        .action-btn.danger:hover {
+            background: rgba(239, 68, 68, 0.2);
+        }
+        
+        .loading {
+            text-align: center;
+            padding: 60px;
+            color: #94a3b8;
+        }
+        
+        .empty-state {
+            text-align: center;
+            padding: 60px;
+            color: #94a3b8;
+        }
+        
+        .empty-state-icon {
+            font-size: 48px;
+            margin-bottom: 16px;
+            opacity: 0.5;
+        }
+        
+        /* Modal Styles */
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.7);
+            backdrop-filter: blur(4px);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+        }
+        
+        .modal-overlay.active {
+            display: flex;
+        }
+        
+        .modal {
+            background: rgba(30, 41, 59, 0.95);
+            border: 1px solid rgba(148, 163, 184, 0.2);
+            border-radius: 16px;
+            padding: 24px;
+            width: 90%;
+            max-width: 400px;
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+        }
+        
+        .modal-title {
+            font-size: 18px;
+            font-weight: 600;
+            margin-bottom: 16px;
+            color: #f1f5f9;
+        }
+        
+        .modal-content {
+            color: #94a3b8;
+            margin-bottom: 24px;
+            font-size: 14px;
+            line-height: 1.6;
+        }
+        
+        .modal-actions {
+            display: flex;
+            gap: 12px;
+            justify-content: flex-end;
+        }
+        
+        .modal-btn {
+            padding: 10px 20px;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s;
+            border: none;
+        }
+        
+        .modal-btn.secondary {
+            background: rgba(148, 163, 184, 0.1);
+            color: #94a3b8;
+        }
+        
+        .modal-btn.secondary:hover {
+            background: rgba(148, 163, 184, 0.2);
+        }
+        
+        .modal-btn.primary {
+            background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+            color: white;
+        }
+        
+        .modal-btn.primary:hover {
+            box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
+        }
+        
+        .modal-btn.danger {
+            background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+            color: white;
+        }
+        
+        .modal-btn.danger:hover {
+            box-shadow: 0 4px 12px rgba(239, 68, 68, 0.3);
+        }
+        
+        .recharge-input {
+            background: rgba(15, 23, 42, 0.6);
+            border: 1px solid rgba(148, 163, 184, 0.2);
+            border-radius: 8px;
+            padding: 12px 16px;
+            color: #e2e8f0;
+            font-size: 16px;
+            width: 100%;
+            margin-top: 12px;
+            outline: none;
+        }
+        
+        .recharge-input:focus {
+            border-color: #60a5fa;
+        }
+        
+        .toast {
+            position: fixed;
+            top: 24px;
+            right: 24px;
+            background: rgba(30, 41, 59, 0.95);
+            border: 1px solid rgba(148, 163, 184, 0.2);
+            border-radius: 12px;
+            padding: 16px 24px;
+            display: none;
+            align-items: center;
+            gap: 12px;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
+            z-index: 2000;
+            animation: slideIn 0.3s ease;
+        }
+        
+        .toast.show {
+            display: flex;
+        }
+        
+        .toast.success {
+            border-color: rgba(34, 197, 94, 0.3);
+        }
+        
+        .toast.error {
+            border-color: rgba(239, 68, 68, 0.3);
+        }
+        
+        @keyframes slideIn {
+            from {
+                transform: translateX(100%);
+                opacity: 0;
+            }
+            to {
+                transform: translateX(0);
+                opacity: 1;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="admin-container">
+        <div class="admin-header">
+            <div>
+                <h1 class="admin-title">👥 用户管理</h1>
+                <p class="admin-subtitle">管理员后台 - 管理所有用户账户</p>
+            </div>
+            <a href="/novels" class="back-link">
+                <span>←</span>
+                <span>返回首页</span>
+            </a>
+        </div>
+        
+        <div class="stats-bar">
+            <div class="stat-card">
+                <div class="stat-value" id="total-users">-</div>
+                <div class="stat-label">总用户数</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value" id="active-users">-</div>
+                <div class="stat-label">活跃用户</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value" id="admin-users">-</div>
+                <div class="stat-label">管理员</div>
+            </div>
+        </div>
+        
+        <div class="users-table-container">
+            <div class="table-header">
+                <h2 class="table-title">用户列表</h2>
+                <div class="search-box">
+                    <input type="text" class="search-input" id="search-input" placeholder="搜索用户名或手机号...">
+                    <button class="refresh-btn" id="refresh-btn" onclick="loadUsers()">
+                        <span>🔄</span>
+                        <span>刷新</span>
+                    </button>
+                </div>
+            </div>
+            
+            <div id="users-table-content">
+                <div class="loading">加载中...</div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Recharge Modal -->
+    <div class="modal-overlay" id="recharge-modal">
+        <div class="modal">
+            <h3 class="modal-title">💎 用户充值</h3>
+            <div class="modal-content">
+                <p>为用户 <strong id="recharge-username"></strong> 充值创造点</p>
+                <input type="number" class="recharge-input" id="recharge-amount" placeholder="输入充值点数" min="1" value="1000">
+            </div>
+            <div class="modal-actions">
+                <button class="modal-btn secondary" onclick="closeModal('recharge-modal')">取消</button>
+                <button class="modal-btn primary" onclick="confirmRecharge()">确认充值</button>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Reset Password Modal -->
+    <div class="modal-overlay" id="reset-password-modal">
+        <div class="modal">
+            <h3 class="modal-title">🔑 重置密码</h3>
+            <div class="modal-content">
+                <p>确定要重置用户 <strong id="reset-username"></strong> 的密码吗？</p>
+                <p>新密码将为：<strong>123456</strong></p>
+            </div>
+            <div class="modal-actions">
+                <button class="modal-btn secondary" onclick="closeModal('reset-password-modal')">取消</button>
+                <button class="modal-btn danger" onclick="confirmResetPassword()">确认重置</button>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Toggle Status Modal -->
+    <div class="modal-overlay" id="toggle-status-modal">
+        <div class="modal">
+            <h3 class="modal-title" id="toggle-status-title">用户状态</h3>
+            <div class="modal-content" id="toggle-status-content">
+                <p>确定要更改此用户的状态吗？</p>
+            </div>
+            <div class="modal-actions">
+                <button class="modal-btn secondary" onclick="closeModal('toggle-status-modal')">取消</button>
+                <button class="modal-btn primary" id="toggle-status-confirm" onclick="confirmToggleStatus()">确认</button>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Delete User Modal -->
+    <div class="modal-overlay" id="delete-user-modal">
+        <div class="modal">
+            <h3 class="modal-title">⚠️ 删除用户</h3>
+            <div class="modal-content">
+                <p>确定要删除用户 <strong id="delete-username"></strong> 吗？</p>
+                <p style="color: #f87171; margin-top: 8px;">此操作不可恢复！</p>
+            </div>
+            <div class="modal-actions">
+                <button class="modal-btn secondary" onclick="closeModal('delete-user-modal')">取消</button>
+                <button class="modal-btn danger" onclick="confirmDeleteUser()">确认删除</button>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Toast -->
+    <div class="toast" id="toast">
+        <span id="toast-icon"></span>
+        <span id="toast-message"></span>
+    </div>
+
+    <script>
+        let currentUsers = [];
+        let currentActionUser = null;
+        
+        // Load users on page load
+        document.addEventListener('DOMContentLoaded', loadUsers);
+        
+        // Search functionality
+        document.getElementById('search-input').addEventListener('input', (e) => {
+            const query = e.target.value.toLowerCase();
+            const filtered = currentUsers.filter(user => 
+                user.username.toLowerCase().includes(query) ||
+                (user.phone && user.phone.includes(query))
+            );
+            renderUsers(filtered);
+        });
+        
+        async function loadUsers() {
+            const btn = document.getElementById('refresh-btn');
+            btn.disabled = true;
+            
+            try {
+                const response = await fetch('/api/admin/users');
+                const result = await response.json();
+                
+                if (result.success) {
+                    currentUsers = result.data;
+                    renderUsers(currentUsers);
+                    updateStats(currentUsers);
+                } else {
+                    showToast('❌', result.error || '加载失败', 'error');
+                }
+            } catch (error) {
+                showToast('❌', '网络错误', 'error');
+            } finally {
+                btn.disabled = false;
+            }
+        }
+        
+        function updateStats(users) {
+            const total = users.length;
+            const active = users.filter(u => u.is_active).length;
+            const admins = users.filter(u => u.is_admin).length;
+            
+            document.getElementById('total-users').textContent = total;
+            document.getElementById('active-users').textContent = active;
+            document.getElementById('admin-users').textContent = admins;
+        }
+        
+        function renderUsers(users) {
+            const container = document.getElementById('users-table-content');
+            
+            if (users.length === 0) {
+                container.innerHTML = `
+                    <div class="empty-state">
+                        <div class="empty-state-icon">👤</div>
+                        <p>暂无用户数据</p>
+                    </div>
+                `;
+                return;
+            }
+            
+            const rows = users.map(user => `
+                <tr>
+                    <td>
+                        <div class="user-info">
+                            <div class="user-avatar">${user.username.charAt(0).toUpperCase()}</div>
+                            <div>
+                                <div class="user-name">${user.username}</div>
+                                <div class="user-id">ID: ${user.id}</div>
+                            </div>
+                        </div>
+                    </td>
+                    <td>${user.phone || '-'}</td>
+                    <td>
+                        <span class="badge ${user.is_admin ? 'badge-admin' : 'badge-user'}">
+                            ${user.is_admin ? '👑 管理员' : '👤 用户'}
+                        </span>
+                    </td>
+                    <td>
+                        <span class="badge ${user.is_active ? 'badge-active' : 'badge-inactive'}">
+                            ${user.is_active ? '✅ 正常' : '⛔ 禁用'}
+                        </span>
+                    </td>
+                    <td>${formatDate(user.created_at)}</td>
+                    <td>${formatDate(user.last_login_at)}</td>
+                    <td>
+                        <div class="actions">
+                            <button class="action-btn recharge" onclick="openRechargeModal(${user.id}, '${user.username}')" title="充值">
+                                💎
+                            </button>
+                            <button class="action-btn" onclick="openResetPasswordModal(${user.id}, '${user.username}')" title="重置密码">
+                                🔑
+                            </button>
+                            <button class="action-btn ${user.is_active ? 'danger' : ''}" onclick="openToggleStatusModal(${user.id}, '${user.username}', ${user.is_active})" title="${user.is_active ? '禁用' : '启用'}">
+                                ${user.is_active ? '⛔' : '✅'}
+                            </button>
+                            ${!user.is_admin ? `<button class="action-btn danger" onclick="openDeleteModal(${user.id}, '${user.username}')" title="删除">🗑️</button>` : ''}
+                        </div>
+                    </td>
+                </tr>
+            `).join('');
+            
+            container.innerHTML = `
+                <table>
+                    <thead>
+                        <tr>
+                            <th>用户</th>
+                            <th>手机号</th>
+                            <th>角色</th>
+                            <th>状态</th>
+                            <th>注册时间</th>
+                            <th>最后登录</th>
+                            <th>操作</th>
+                        </tr>
+                    </thead>
+                    <tbody>${rows}</tbody>
+                </table>
+            `;
+        }
+        
+        function formatDate(dateStr) {
+            if (!dateStr) return '-';
+            const date = new Date(dateStr);
+            return date.toLocaleString('zh-CN', {
+                year: 'numeric',
+                month: '2-digit',
+                day: '2-digit',
+                hour: '2-digit',
+                minute: '2-digit'
+            });
+        }
+        
+        // Modal functions
+        function openRechargeModal(userId, username) {
+            currentActionUser = { id: userId, username };
+            document.getElementById('recharge-username').textContent = username;
+            document.getElementById('recharge-modal').classList.add('active');
+        }
+        
+        function openResetPasswordModal(userId, username) {
+            currentActionUser = { id: userId, username };
+            document.getElementById('reset-username').textContent = username;
+            document.getElementById('reset-password-modal').classList.add('active');
+        }
+        
+        function openToggleStatusModal(userId, username, isActive) {
+            currentActionUser = { id: userId, username, isActive };
+            document.getElementById('toggle-status-title').textContent = isActive ? '⛔ 禁用用户' : '✅ 启用用户';
+            document.getElementById('toggle-status-content').innerHTML = `
+                <p>确定要${isActive ? '禁用' : '启用'}用户 <strong>${username}</strong> 吗？</p>
+                ${isActive ? '<p style="color: #f87171; margin-top: 8px;">禁用后该用户将无法登录</p>' : ''}
+            `;
+            document.getElementById('toggle-status-confirm').textContent = isActive ? '确认禁用' : '确认启用';
+            document.getElementById('toggle-status-modal').classList.add('active');
+        }
+        
+        function openDeleteModal(userId, username) {
+            currentActionUser = { id: userId, username };
+            document.getElementById('delete-username').textContent = username;
+            document.getElementById('delete-user-modal').classList.add('active');
+        }
+        
+        function closeModal(modalId) {
+            document.getElementById(modalId).classList.remove('active');
+            currentActionUser = null;
+        }
+        
+        // Action functions
+        async function confirmRecharge() {
+            const amount = parseInt(document.getElementById('recharge-amount').value);
+            if (!amount || amount <= 0) {
+                showToast('❌', '请输入有效的充值点数', 'error');
+                return;
+            }
+            
+            try {
+                const response = await fetch('/api/admin/users/recharge', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        user_id: currentActionUser.id,
+                        amount: amount
+                    })
+                });
+                
+                const result = await response.json();
+                if (result.success) {
+                    showToast('✅', `成功充值 ${amount} 点`, 'success');
+                    closeModal('recharge-modal');
+                } else {
+                    showToast('❌', result.error || '充值失败', 'error');
+                }
+            } catch (error) {
+                showToast('❌', '网络错误', 'error');
+            }
+        }
+        
+        async function confirmResetPassword() {
+            try {
+                const response = await fetch('/api/admin/users/reset-password', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ user_id: currentActionUser.id })
+                });
+                
+                const result = await response.json();
+                if (result.success) {
+                    showToast('✅', '密码已重置为 123456', 'success');
+                    closeModal('reset-password-modal');
+                } else {
+                    showToast('❌', result.error || '重置失败', 'error');
+                }
+            } catch (error) {
+                showToast('❌', '网络错误', 'error');
+            }
+        }
+        
+        async function confirmToggleStatus() {
+            try {
+                const response = await fetch('/api/admin/users/toggle-status', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        user_id: currentActionUser.id,
+                        is_active: !currentActionUser.isActive
+                    })
+                });
+                
+                const result = await response.json();
+                if (result.success) {
+                    showToast('✅', result.message, 'success');
+                    closeModal('toggle-status-modal');
+                    loadUsers();
+                } else {
+                    showToast('❌', result.error || '操作失败', 'error');
+                }
+            } catch (error) {
+                showToast('❌', '网络错误', 'error');
+            }
+        }
+        
+        async function confirmDeleteUser() {
+            try {
+                const response = await fetch('/api/admin/users/delete', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ user_id: currentActionUser.id })
+                });
+                
+                const result = await response.json();
+                if (result.success) {
+                    showToast('✅', '用户已删除', 'success');
+                    closeModal('delete-user-modal');
+                    loadUsers();
+                } else {
+                    showToast('❌', result.error || '删除失败', 'error');
+                }
+            } catch (error) {
+                showToast('❌', '网络错误', 'error');
+            }
+        }
+        
+        function showToast(icon, message, type) {
+            const toast = document.getElementById('toast');
+            document.getElementById('toast-icon').textContent = icon;
+            document.getElementById('toast-message').textContent = message;
+            toast.className = `toast ${type} show`;
+            
+            setTimeout(() => {
+                toast.classList.remove('show');
+            }, 3000);
+        }
+        
+        // Close modal when clicking outside
+        document.querySelectorAll('.modal-overlay').forEach(overlay => {
+            overlay.addEventListener('click', (e) => {
+                if (e.target === overlay) {
+                    overlay.classList.remove('active');
+                }
+            });
+        });
+    </script>
+</body>
+</html>

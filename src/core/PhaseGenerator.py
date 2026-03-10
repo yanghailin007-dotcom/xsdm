@@ -503,7 +503,7 @@ class PhaseGenerator:
         if update_step_status:
             update_step_status('detailed_stage_plans', 'active', 76)
         
-        if not self._generate_stage_writing_plans():
+        if not self._generate_stage_writing_plans(update_step_status):
             print("❌ 生成阶段详细写作计划失败")
             return False
         
@@ -694,12 +694,12 @@ class PhaseGenerator:
     
     def _generate_emotional_and_growth_plan(self, update_step_status=None) -> bool:
         """
-        🔥 合并生成情绪蓝图与成长规划（步骤8-9合并）
+        🔥 真正合并生成：情绪蓝图 + 成长规划（步骤8-9合并）
         
-        将情绪蓝图规划和成长规划合并为一个API调用，减少API调用次数
+        真正合并为一个API调用，大幅减少API调用次数和时间
         """
         print("\n" + "="*60)
-        print("🎨📈 步骤8-9: 情绪蓝图与成长规划（合并生成）")
+        print("🎨📈 步骤8-9: 情绪蓝图与成长规划（真正合并为一个API调用）")
         print("="*60)
         
         # 获取必要数据
@@ -708,19 +708,39 @@ class PhaseGenerator:
         creative_seed = self.generator.novel_data.get("creative_seed") or self.generator.novel_data.get("selected_plan", {})
         total_chapters = self.generator.novel_data["current_progress"]["total_chapters"]
         
-        # 更新进度：开始情绪蓝图部分
+        # 更新进度
         if update_step_status:
             update_step_status('emotional_growth_planning', 'active', 60)
         
-        # 首先生成情绪蓝图（这是基础）
-        print("  🎨 生成情绪蓝图...")
-        emotional_blueprint = self.generator.emotional_blueprint_manager.generate_emotional_blueprint(
-            novel_title, novel_synopsis, creative_seed
+        # 🔥 构建合并的提示词
+        prompt = self._build_combined_emotional_and_growth_prompt(
+            novel_title, novel_synopsis, creative_seed, total_chapters
         )
         
+        # 🔥 真正的单次API调用
+        print("  🚀 调用AI生成合并的情绪蓝图与成长规划...")
+        result = self.generator.api_client.generate_content_with_retry(
+            "emotional_blueprint",  # 使用情绪蓝图的content_type
+            prompt,
+            purpose="合并生成情绪蓝图与成长规划"
+        )
+        
+        if not result:
+            print("  ❌ 合并生成失败")
+            return False
+        
+        # 更新进度
+        if update_step_status:
+            update_step_status('emotional_growth_planning', 'active', 65)
+        
+        # 解析结果并分别存储
+        emotional_blueprint = result.get("emotional_blueprint", {})
+        global_growth_plan = result.get("global_growth_plan", {})
+        
+        # 存储情绪蓝图
         if emotional_blueprint:
             self.generator.novel_data["emotional_blueprint"] = emotional_blueprint
-            print("  ✅ 情绪蓝图生成成功")
+            print("  ✅ 情绪蓝图提取成功")
             # 保存到文件
             try:
                 safe_title = "".join(c for c in novel_title if c.isalnum() or c in (' ', '_')).strip().replace(' ', '_')
@@ -732,31 +752,112 @@ class PhaseGenerator:
                     json.dump(emotional_blueprint, f, ensure_ascii=False, indent=2)
             except Exception as e:
                 print(f"  ⚠️ 保存情绪蓝图失败: {e}")
-        else:
-            print("  ⚠️ 情绪蓝图生成失败，继续生成成长规划...")
         
-        # 更新进度：开始成长规划部分
-        if update_step_status:
-            update_step_status('emotional_growth_planning', 'active', 65)
-        
-        # 然后生成成长规划
-        print("  📈 生成成长规划...")
-        growth_plan_success = self._generate_global_growth_plan()
-        
-        if growth_plan_success:
-            print("  ✅ 成长规划生成成功")
-        else:
-            print("  ⚠️ 成长规划生成失败，使用基础框架")
+        # 存储成长规划
+        if global_growth_plan:
+            self.generator.novel_data["global_growth_plan"] = global_growth_plan
+            # 同时设置到GlobalGrowthPlanner
+            if hasattr(self.generator, 'global_growth_planner'):
+                self.generator.global_growth_planner.global_growth_plan = global_growth_plan
+            print("  ✅ 成长规划提取成功")
         
         # 只要其中一个成功就算成功
-        if emotional_blueprint or growth_plan_success:
-            print("✅ 情绪蓝图与成长规划合并生成完成")
+        if emotional_blueprint or global_growth_plan:
+            print("✅ 情绪蓝图与成长规划合并生成完成（单次API调用）")
+            if update_step_status:
+                update_step_status('emotional_growth_planning', 'completed', 70)
             return True
         else:
             print("❌ 情绪蓝图与成长规划都生成失败")
             return False
     
-    def _generate_stage_writing_plans(self) -> bool:
+    def _build_combined_emotional_and_growth_prompt(self, novel_title: str, novel_synopsis: str, creative_seed: dict, total_chapters: int) -> str:
+        """构建合并的提示词：同时生成情绪蓝图和成长规划"""
+        
+        # 提取创意种子信息
+        original_selling_points = creative_seed.get("coreSellingPoints", "未提供核心卖点。") if isinstance(creative_seed, dict) else str(creative_seed)
+        storyline = creative_seed.get("completeStoryline", {}) if isinstance(creative_seed, dict) else {}
+        
+        return f"""# 角色：顶级网文策划专家
+
+你的任务是为小说同时设计【情绪蓝图】和【成长规划】两部分内容。这是一次性输出两个相互关联的规划。
+
+# 小说核心信息
+*   **书名**: {novel_title}
+*   **简介**: {novel_synopsis}
+*   **核心卖点**: {original_selling_points}
+*   **总章节数**: {total_chapters}
+
+# 第一部分：情绪蓝图设计
+
+## 任务
+设计全书的情绪发展蓝图，规划读者在不同阶段应体验的核心情绪流。
+
+## 输出要求
+1. **核心情感光谱**: 提炼3-5个核心情绪关键词（如：复仇宣泄感、守护温情、兄弟情谊等）
+2. **四段式情绪弧线**: 
+   - 起(开局15%): 从什么情绪到什么情绪
+   - 承(发展35%): 情绪如何深化和发展
+   - 转(高潮30%): 情绪如何推向顶点
+   - 合(结局20%): 情绪如何圆满收束
+3. **关键情绪转折点**: 2-3个重要的情绪转折节点
+
+# 第二部分：成长规划
+
+## 任务
+基于"起承转合"四段式结构，规划人物成长、势力发展和能力体系演进。
+
+## 输出要求
+1. **阶段框架**: 四个阶段的章节范围和核心目标
+2. **人物成长弧线**: 主角在四阶段的关键成长节点
+3. **势力发展**: 各方势力的演变规划
+4. **能力体系演进**: 能力/等级的升级节奏
+
+# 输出格式
+你必须返回一个严格的JSON对象，包含两个顶层key：
+
+```json
+{{
+    "emotional_blueprint": {{
+        "overall_emotional_tone": "string (全书情感基调概括)",
+        "emotional_spectrum": ["string", "string", "string"],
+        "stage_emotional_arcs": {{
+            "opening_stage": {{
+                "description": "string",
+                "start_emotion": "string", 
+                "end_emotion": "string"
+            }},
+            "development_stage": {{...}},
+            "climax_stage": {{...}},
+            "ending_stage": {{...}}
+        }},
+        "key_emotional_turning_points": [
+            {{"approx_chapter_percent": number, "description": "string"}}
+        ]
+    }},
+    "global_growth_plan": {{
+        "stage_framework": [
+            {{"stage_name": "起(开局)", "chapter_range": "string", "core_objective": "string"}},
+            {{"stage_name": "承(发展)", "chapter_range": "string", "core_objective": "string"}},
+            {{"stage_name": "转(高潮)", "chapter_range": "string", "core_objective": "string"}},
+            {{"stage_name": "合(结局)", "chapter_range": "string", "core_objective": "string"}}
+        ],
+        "character_growth": {{
+            "protagonist_arc": "string (主角成长主线)",
+            "key_milestones": ["string", "string"]
+        }},
+        "power_system_evolution": {{
+            "early_stage": "string",
+            "mid_stage": "string", 
+            "late_stage": "string"
+        }}
+    }}
+}}
+```
+
+注意：确保两个部分相互协调，情绪高潮与成长高潮要同步。"""
+    
+    def _generate_stage_writing_plans(self, update_step_status=None) -> bool:
         """
         生成各阶段详细写作计划 - 🔥 优化版本：并行生成
         使用多线程并行生成4个阶段的详细计划，大幅缩短总时间
@@ -837,14 +938,20 @@ class PhaseGenerator:
                 
                 # 收集结果（按完成顺序）
                 completed_count = 0
+                total_tasks = len(stage_tasks)
                 for future in as_completed(future_to_stage):
                     stage_name, stage_plan = future.result()
                     completed_count += 1
                     if stage_plan:
                         self.generator.novel_data["stage_writing_plans"][stage_name] = stage_plan
-                        print(f"  📥 [主线程] 收集到 [{stage_name}] 结果 ({completed_count}/{len(stage_tasks)})")
+                        print(f"  📥 [主线程] 收集到 [{stage_name}] 结果 ({completed_count}/{total_tasks})")
                     else:
-                        print(f"  ⚠️  [主线程] [{stage_name}] 返回空结果 ({completed_count}/{len(stage_tasks)})")
+                        print(f"  ⚠️  [主线程] [{stage_name}] 返回空结果 ({completed_count}/{total_tasks})")
+                    
+                    # 🔥 关键修复：更新进度，让前端看到变化 (76% -> 78%)
+                    if update_step_status and total_tasks > 0:
+                        progress = 76 + int((completed_count / total_tasks) * 2)  # 76% -> 78%
+                        update_step_status('detailed_stage_plans', 'active', progress)
             
             success_count = len(self.generator.novel_data["stage_writing_plans"])
             total_count = len(stage_tasks)

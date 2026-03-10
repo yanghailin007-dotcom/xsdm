@@ -267,31 +267,10 @@ class NovelGenerationManager:
             if "step_status" not in self.task_results[task_id]:
                 self.task_results[task_id]["step_status"] = {}
             
-            # 🔥 修复：step_status 是包含 step/status/message 的字典
+            # 🔥 统一格式：简单的 {step_name: status} 字典
             if isinstance(step_status, dict):
-                if 'step' in step_status:
-                    step_name = step_status['step']
-                    self.task_results[task_id]["step_status"][step_name] = step_status
-                    
-                    # 🔥 新增：如果包含子步骤信息，单独存储
-                    if 'sub_step' in step_status:
-                        sub_step_name = step_status['sub_step']
-                        if 'sub_steps' not in self.task_results[task_id]:
-                            self.task_results[task_id]['sub_steps'] = {}
-                        self.task_results[task_id]['sub_steps'][sub_step_name] = {
-                            'status': step_status.get('sub_step_status', 'active'),
-                            'message': step_status.get('sub_step_message', ''),
-                            'parent_step': step_name,
-                            'timestamp': datetime.now().isoformat()
-                        }
-                else:
-                    # 兼容旧格式：直接更新
-                    self.task_results[task_id]["step_status"].update(step_status)
-            
-            # 🔥 新增：如果提供了 current_sub_step，更新当前子步骤
-            if isinstance(step_status, dict) and 'current_sub_step' in step_status:
-                self.task_results[task_id]['current_sub_step'] = step_status['current_sub_step']
-                self.task_progress[task_id]['current_sub_step'] = step_status['current_sub_step']
+                self.task_results[task_id]["step_status"].update(step_status)
+                logger.info(f"任务 {task_id}: 更新步骤状态: {step_status}")
         
         # 更新创造点消耗（如果提供了）
         if points_consumed is not None:
