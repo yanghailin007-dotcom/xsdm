@@ -1328,7 +1328,8 @@ class PhaseGenerator:
             except Exception:
                 user_base_dir = Path("小说项目")
             
-            main_project_file = user_base_dir / safe_title / f"{safe_title}_项目信息.json"
+            # 🔥 修复：使用标准的项目信息文件名 "项目信息.json"
+            main_project_file = user_base_dir / safe_title / "项目信息.json"
             # 确保目录存在
             os.makedirs(os.path.dirname(str(main_project_file)), exist_ok=True)
             project_info = {

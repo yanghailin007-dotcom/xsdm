@@ -499,7 +499,12 @@ class NovelGenerationManager:
     
     def _find_project_info_file(self, project_path: Path) -> Optional[Path]:
         """查找项目信息文件"""
-        # 优先查找 小说名_项目信息.json
+        # 🔥 修复：优先查找新的标准文件名 "项目信息.json"
+        info_file = project_path / "项目信息.json"
+        if info_file.exists():
+            return info_file
+        
+        # 备选：旧版本的 "小说名_项目信息.json"
         info_file = project_path / f"{project_path.name}_项目信息.json"
         if info_file.exists():
             return info_file

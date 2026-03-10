@@ -109,13 +109,16 @@ class ProjectManager:
         # 安全处理字符串
         safe_seed = re.sub(r'[\\/*?:"<>|]', "_", safe_seed) if safe_seed else ""
         
-        # 1. 首先扫描新路径结构（项目目录中的 project_info.json）
+        # 1. 首先扫描新路径结构（项目目录中的 项目信息.json 或 project_info.json）
         if base_dir.exists():
             for item in os.listdir(base_dir):
                 item_path = base_dir / item
                 # 只处理目录
                 if item_path.is_dir():
-                    project_info_path = item_path / "project_info.json"
+                    # 🔥 修复：优先扫描新的标准文件名 "项目信息.json"，兼容 "project_info.json"
+                    project_info_path = item_path / "项目信息.json"
+                    if not project_info_path.exists():
+                        project_info_path = item_path / "project_info.json"
                     if project_info_path.exists():
                         try:
                             with open(project_info_path, 'r', encoding='utf-8') as f:
