@@ -65,8 +65,15 @@ class ResumeManager:
                 print("ℹ️  无法确定小说标题，从头开始")
                 return None
             
+            # 获取用户名（用于用户隔离路径）
+            username = None
+            if hasattr(self.generator, '_username'):
+                username = self.generator._username
+            elif hasattr(self.generator, 'novel_data') and 'username' in self.generator.novel_data:
+                username = self.generator.novel_data['username']
+            
             # 创建检查点管理器
-            checkpoint_mgr = GenerationCheckpoint(title, Path.cwd())
+            checkpoint_mgr = GenerationCheckpoint(title, Path.cwd(), username=username)
             
             # 检查是否有检查点
             if not checkpoint_mgr.can_resume():
@@ -173,7 +180,15 @@ class ResumeManager:
             
             # 使用实际的小说标题创建检查点
             title = self.generator.novel_data.get('novel_title') or '未命名'
-            checkpoint_mgr = GenerationCheckpoint(title, Path.cwd())
+            
+            # 获取用户名（用于用户隔离路径）
+            username = None
+            if hasattr(self.generator, '_username'):
+                username = self.generator._username
+            elif 'username' in self.generator.novel_data:
+                username = self.generator.novel_data['username']
+            
+            checkpoint_mgr = GenerationCheckpoint(title, Path.cwd(), username=username)
             
             # 保存完整的 novel_data - 转换 set 为 list
             initial_data = self._prepare_data_for_checkpoint(self.generator.novel_data)
@@ -263,7 +278,15 @@ class ResumeManager:
             
             # 初始化检查点管理器
             title = self.generator.novel_data.get('novel_title', '未命名')
-            checkpoint_mgr = GenerationCheckpoint(title, Path.cwd())
+            
+            # 获取用户名（用于用户隔离路径）
+            username = None
+            if hasattr(self.generator, '_username'):
+                username = self.generator._username
+            elif 'username' in self.generator.novel_data:
+                username = self.generator.novel_data['username']
+            
+            checkpoint_mgr = GenerationCheckpoint(title, Path.cwd(), username=username)
             
             # 执行剩余步骤
             for i in range(start_index, len(steps)):

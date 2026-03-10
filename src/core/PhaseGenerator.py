@@ -83,9 +83,16 @@ class PhaseGenerator:
                         elif hasattr(self.generator, 'novel_data') and 'title' in self.generator.novel_data:
                             title = self.generator.novel_data['title']
                         
+                        # 获取用户名（用于用户隔离路径）
+                        username = None
+                        if hasattr(self.generator, '_username'):
+                            username = self.generator._username
+                        elif hasattr(self.generator, 'novel_data') and 'username' in self.generator.novel_data:
+                            username = self.generator.novel_data['username']
+                        
                         if title:
                             from src.managers.stage_plan.generation_checkpoint import GenerationCheckpoint
-                            checkpoint_mgr = GenerationCheckpoint(title, Path.cwd())
+                            checkpoint_mgr = GenerationCheckpoint(title, Path.cwd(), username=username)
                             
                             # 判断步骤状态：completed 或 in_progress
                             step_status_str = 'in_progress'
