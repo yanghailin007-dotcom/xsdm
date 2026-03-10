@@ -709,7 +709,7 @@ class PhaseGenerator:
         
         # 更新进度：开始情绪蓝图部分
         if update_step_status:
-            update_step_status('emotional_growth_planning', 'active', 60, "正在生成情绪蓝图...")
+            update_step_status('emotional_growth_planning', 'active', 60)
         
         # 首先生成情绪蓝图（这是基础）
         print("  🎨 生成情绪蓝图...")
@@ -736,7 +736,7 @@ class PhaseGenerator:
         
         # 更新进度：开始成长规划部分
         if update_step_status:
-            update_step_status('emotional_growth_planning', 'active', 65, "正在生成成长规划...")
+            update_step_status('emotional_growth_planning', 'active', 65)
         
         # 然后生成成长规划
         print("  📈 生成成长规划...")
