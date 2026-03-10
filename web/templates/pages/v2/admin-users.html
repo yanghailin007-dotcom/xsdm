@@ -756,7 +756,11 @@
         
         function closeModal(modalId) {
             document.getElementById(modalId).classList.remove('active');
-            currentActionUser = null;
+            // 只有关闭操作模态框时才清空 currentActionUser
+            // 二次验证模态框 (admin-auth-modal) 不清空
+            if (modalId !== 'admin-auth-modal') {
+                currentActionUser = null;
+            }
         }
         
         // Pending action storage
