@@ -719,19 +719,49 @@ class PhaseGenerator:
         
         # 🔥 真正的单次API调用
         print("  🚀 调用AI生成合并的情绪蓝图与成长规划...")
-        result = self.generator.api_client.generate_content_with_retry(
-            "emotional_blueprint",  # 使用情绪蓝图的content_type
-            prompt,
-            purpose="合并生成情绪蓝图与成长规划"
-        )
+        print(f"  ⏱️ 开始时间: {__import__('datetime').datetime.now().strftime('%H:%M:%S')}")
+        
+        try:
+            result = self.generator.api_client.generate_content_with_retry(
+                "emotional_blueprint",  # 使用情绪蓝图的content_type
+                prompt,
+                purpose="合并生成情绪蓝图与成长规划"
+            )
+        except Exception as e:
+            print(f"  ❌ API调用异常: {e}")
+            import traceback
+            traceback.print_exc()
+            return False
+        
+        print(f"  ⏱️ 结束时间: {__import__('datetime').datetime.now().strftime('%H:%M:%S')}")
         
         if not result:
-            print("  ❌ 合并生成失败")
+            print("  ❌ 合并生成失败，API返回None")
             return False
+        
+        # 🔥 调试：打印返回结果类型和内容
+        print(f"  🔍 API返回类型: {type(result)}")
+        if isinstance(result, dict):
+            print(f"  🔍 API返回键: {list(result.keys())}")
         
         # 更新进度
         if update_step_status:
             update_step_status('emotional_growth_planning', 'active', 65)
+        
+        # 🔥 解析结果并分别存储（处理字符串返回的情况）
+        import json
+        if isinstance(result, str):
+            try:
+                result = json.loads(result)
+                print("  ✅ JSON字符串解析成功")
+            except json.JSONDecodeError as e:
+                print(f"  ❌ JSON解析失败: {e}")
+                print(f"  ⚠️ 原始内容: {result[:200]}...")
+                return False
+        
+        if not isinstance(result, dict):
+            print(f"  ❌ 返回结果不是字典类型: {type(result)}")
+            return False
         
         # 解析结果并分别存储
         emotional_blueprint = result.get("emotional_blueprint", {})
@@ -774,9 +804,23 @@ class PhaseGenerator:
     def _build_combined_emotional_and_growth_prompt(self, novel_title: str, novel_synopsis: str, creative_seed: dict, total_chapters: int) -> str:
         """构建合并的提示词：同时生成情绪蓝图和成长规划"""
         
+        print(f"  🔍 构建提示词...")
+        print(f"  🔍 novel_title: {novel_title}")
+        print(f"  🔍 creative_seed类型: {type(creative_seed)}")
+        
         # 提取创意种子信息
-        original_selling_points = creative_seed.get("coreSellingPoints", "未提供核心卖点。") if isinstance(creative_seed, dict) else str(creative_seed)
-        storyline = creative_seed.get("completeStoryline", {}) if isinstance(creative_seed, dict) else {}
+        try:
+            if isinstance(creative_seed, dict):
+                original_selling_points = creative_seed.get("coreSellingPoints", "未提供核心卖点。")
+                storyline = creative_seed.get("completeStoryline", {})
+            else:
+                original_selling_points = str(creative_seed)
+                storyline = {}
+                print(f"  ⚠️ creative_seed不是字典，转为字符串: {original_selling_points[:100]}...")
+        except Exception as e:
+            print(f"  ⚠️ 提取创意种子信息失败: {e}")
+            original_selling_points = "未提供核心卖点。"
+            storyline = {}
         
         return f"""# 角色：顶级网文策划专家
 

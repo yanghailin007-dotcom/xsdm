@@ -20,6 +20,28 @@ def admin_required(f):
     return decorated_function
 
 
+def verify_admin_password(password: str) -> bool:
+    """验证管理员密码
+    
+    Args:
+        password: 管理员输入的二次验证密码
+    
+    Returns:
+        bool: 验证是否通过
+    """
+    if not password:
+        return False
+    
+    # 获取当前登录的管理员用户名
+    admin_username = session.get('username')
+    if not admin_username:
+        return False
+    
+    # 验证密码
+    admin_user = user_model.verify_user(admin_username, password)
+    return admin_user is not None and admin_user.get('is_admin')
+
+
 @admin_api.route('/users', methods=['GET'])
 @admin_required
 def get_all_users():
@@ -43,6 +65,11 @@ def recharge_user():
         data = request.get_json()
         user_id = data.get('user_id')
         amount = data.get('amount', 0)
+        password = data.get('password')
+        
+        # 二次验证：验证管理员密码
+        if not verify_admin_password(password):
+            return jsonify({'success': False, 'error': '管理员密码验证失败'}), 403
         
         if not user_id or not amount:
             return jsonify({'success': False, 'error': '缺少必要参数'}), 400
@@ -85,6 +112,11 @@ def reset_user_password():
     try:
         data = request.get_json()
         user_id = data.get('user_id')
+        password = data.get('password')
+        
+        # 二次验证：验证管理员密码
+        if not verify_admin_password(password):
+            return jsonify({'success': False, 'error': '管理员密码验证失败'}), 403
         
         if not user_id:
             return jsonify({'success': False, 'error': '缺少用户ID'}), 400
@@ -119,6 +151,11 @@ def toggle_user_status():
         data = request.get_json()
         user_id = data.get('user_id')
         is_active = data.get('is_active')
+        password = data.get('password')
+        
+        # 二次验证：验证管理员密码
+        if not verify_admin_password(password):
+            return jsonify({'success': False, 'error': '管理员密码验证失败'}), 403
         
         if not user_id or is_active is None:
             return jsonify({'success': False, 'error': '缺少必要参数'}), 400
@@ -157,6 +194,11 @@ def delete_user():
     try:
         data = request.get_json()
         user_id = data.get('user_id')
+        password = data.get('password')
+        
+        # 二次验证：验证管理员密码
+        if not verify_admin_password(password):
+            return jsonify({'success': False, 'error': '管理员密码验证失败'}), 403
         
         if not user_id:
             return jsonify({'success': False, 'error': '缺少用户ID'}), 400

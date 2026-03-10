@@ -519,7 +519,7 @@
             </div>
             <div class="modal-actions">
                 <button class="modal-btn secondary" onclick="closeModal('recharge-modal')">取消</button>
-                <button class="modal-btn primary" onclick="confirmRecharge()">确认充值</button>
+                <button class="modal-btn primary" onclick="requestAdminAuth('recharge')">确认充值</button>
             </div>
         </div>
     </div>
@@ -534,7 +534,7 @@
             </div>
             <div class="modal-actions">
                 <button class="modal-btn secondary" onclick="closeModal('reset-password-modal')">取消</button>
-                <button class="modal-btn danger" onclick="confirmResetPassword()">确认重置</button>
+                <button class="modal-btn danger" onclick="requestAdminAuth('reset')">确认重置</button>
             </div>
         </div>
     </div>
@@ -563,7 +563,23 @@
             </div>
             <div class="modal-actions">
                 <button class="modal-btn secondary" onclick="closeModal('delete-user-modal')">取消</button>
-                <button class="modal-btn danger" onclick="confirmDeleteUser()">确认删除</button>
+                <button class="modal-btn danger" onclick="requestAdminAuth('delete')">确认删除</button>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Admin Auth Modal (Secondary Verification) -->
+    <div class="modal-overlay" id="admin-auth-modal">
+        <div class="modal" style="border: 2px solid rgba(239, 68, 68, 0.5);">
+            <h3 class="modal-title">🔐 管理员二次验证</h3>
+            <div class="modal-content">
+                <p>请输入您的管理员密码以继续操作</p>
+                <input type="password" class="recharge-input" id="admin-password" placeholder="输入管理员密码" style="margin-top: 12px; border-color: rgba(239, 68, 68, 0.3);">
+                <p id="auth-error" style="color: #f87171; font-size: 12px; margin-top: 8px; display: none;">密码验证失败</p>
+            </div>
+            <div class="modal-actions">
+                <button class="modal-btn secondary" onclick="closeModal('admin-auth-modal')">取消</button>
+                <button class="modal-btn danger" onclick="confirmAdminAuth()">验证并执行</button>
             </div>
         </div>
     </div>
@@ -742,13 +758,79 @@
             currentActionUser = null;
         }
         
-        // Action functions
-        async function confirmRecharge() {
+        // Pending action storage
+        let pendingAction = null;
+        let pendingActionData = null;
+
+        // Request admin authentication for sensitive actions
+        function requestAdminAuth(action) {
+            pendingAction = action;
+            document.getElementById('admin-password').value = '';
+            document.getElementById('auth-error').style.display = 'none';
+            document.getElementById('admin-auth-modal').classList.add('active');
+        }
+
+        // Confirm admin authentication and execute action
+        async function confirmAdminAuth() {
+            const password = document.getElementById('admin-password').value;
+            if (!password) {
+                document.getElementById('auth-error').textContent = '请输入密码';
+                document.getElementById('auth-error').style.display = 'block';
+                return;
+            }
+
+            // Store password for API calls
+            pendingActionData = { password };
+            
+            // Close auth modal
+            closeModal('admin-auth-modal');
+
+            // Execute the pending action
+            switch(pendingAction) {
+                case 'recharge':
+                    await executeRecharge();
+                    break;
+                case 'reset':
+                    await executeResetPassword();
+                    break;
+                case 'toggle':
+                    await executeToggleStatus();
+                    break;
+                case 'delete':
+                    await executeDeleteUser();
+                    break;
+            }
+            
+            // Clear pending action
+            pendingAction = null;
+            pendingActionData = null;
+        }
+        
+        // Action functions - Step 1: Open modals
+        function confirmRecharge() {
             const amount = parseInt(document.getElementById('recharge-amount').value);
             if (!amount || amount <= 0) {
                 showToast('❌', '请输入有效的充值点数', 'error');
                 return;
             }
+            requestAdminAuth('recharge');
+        }
+        
+        function confirmResetPassword() {
+            requestAdminAuth('reset');
+        }
+        
+        function confirmToggleStatus() {
+            requestAdminAuth('toggle');
+        }
+        
+        function confirmDeleteUser() {
+            requestAdminAuth('delete');
+        }
+
+        // Action functions - Step 2: Execute with auth
+        async function executeRecharge() {
+            const amount = parseInt(document.getElementById('recharge-amount').value);
             
             try {
                 const response = await fetch('/api/admin/users/recharge', {
@@ -756,7 +838,8 @@
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
                         user_id: currentActionUser.id,
-                        amount: amount
+                        amount: amount,
+                        password: pendingActionData.password
                     })
                 });
                 
@@ -772,12 +855,15 @@
             }
         }
         
-        async function confirmResetPassword() {
+        async function executeResetPassword() {
             try {
                 const response = await fetch('/api/admin/users/reset-password', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ user_id: currentActionUser.id })
+                    body: JSON.stringify({ 
+                        user_id: currentActionUser.id,
+                        password: pendingActionData.password
+                    })
                 });
                 
                 const result = await response.json();
@@ -792,14 +878,15 @@
             }
         }
         
-        async function confirmToggleStatus() {
+        async function executeToggleStatus() {
             try {
                 const response = await fetch('/api/admin/users/toggle-status', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
                         user_id: currentActionUser.id,
-                        is_active: !currentActionUser.isActive
+                        is_active: !currentActionUser.isActive,
+                        password: pendingActionData.password
                     })
                 });
                 
@@ -816,12 +903,15 @@
             }
         }
         
-        async function confirmDeleteUser() {
+        async function executeDeleteUser() {
             try {
                 const response = await fetch('/api/admin/users/delete', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ user_id: currentActionUser.id })
+                    body: JSON.stringify({ 
+                        user_id: currentActionUser.id,
+                        password: pendingActionData.password
+                    })
                 });
                 
                 const result = await response.json();
