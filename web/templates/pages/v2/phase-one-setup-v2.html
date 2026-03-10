@@ -246,6 +246,74 @@
         <p class="v2-page-header__subtitle" data-i18n="phase1.subtitle">生成完整的世界观设定、角色设计和故事大纲</p>
     </div>
 
+    <!-- 🔥 恢复提示横幅 - 检测是否有未完成的生成任务 -->
+    <div id="resume-banner" style="display: none; margin-bottom: 24px;">
+        <div style="
+            background: linear-gradient(135deg, rgba(99, 102, 241, 0.15), rgba(139, 92, 246, 0.1));
+            border: 1px solid rgba(99, 102, 241, 0.3);
+            border-radius: 16px;
+            padding: 20px 24px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 20px;
+            flex-wrap: wrap;
+        ">
+            <div style="display: flex; align-items: center; gap: 16px; flex: 1;">
+                <div style="
+                    width: 48px;
+                    height: 48px;
+                    background: linear-gradient(135deg, #6366f1, #8b5cf6);
+                    border-radius: 12px;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    font-size: 24px;
+                    flex-shrink: 0;
+                ">🔄</div>
+                <div>
+                    <h3 style="font-size: 16px; font-weight: 600; margin-bottom: 4px; color: var(--v2-text-primary);">
+                        继续生成 <span id="resume-project-title">项目</span>
+                    </h3>
+                    <p style="font-size: 14px; color: var(--v2-text-secondary); margin: 0;">
+                        您有未完成的设定生成任务，已生成 <span id="resume-progress" style="color: var(--v2-primary-400); font-weight: 600;">-</span> 
+                        · 最后更新 <span id="resume-last-updated">-</span>
+                    </p>
+                </div>
+            </div>
+            <div style="display: flex; gap: 12px; flex-shrink: 0;">
+                <button onclick="resumeGeneration()" style="
+                    padding: 10px 20px;
+                    background: linear-gradient(135deg, #6366f1, #8b5cf6);
+                    border: none;
+                    border-radius: 10px;
+                    color: white;
+                    font-weight: 600;
+                    cursor: pointer;
+                    transition: all 0.2s;
+                    white-space: nowrap;
+                " onmouseover="this.style.transform='translateY(-2px)'; this.style.boxShadow='0 8px 20px rgba(99, 102, 241, 0.4)';" 
+                   onmouseout="this.style.transform=''; this.style.boxShadow='';">
+                    ▶️ 继续生成
+                </button>
+                <button onclick="startNewGeneration()" style="
+                    padding: 10px 20px;
+                    background: var(--v2-bg-tertiary);
+                    border: 1px solid var(--v2-border-default);
+                    border-radius: 10px;
+                    color: var(--v2-text-secondary);
+                    font-weight: 500;
+                    cursor: pointer;
+                    transition: all 0.2s;
+                    white-space: nowrap;
+                " onmouseover="this.style.borderColor='var(--v2-border-hover)'; this.style.color='var(--v2-text-primary)';" 
+                   onmouseout="this.style.borderColor=''; this.style.color='';">
+                    🆕 重新开始
+                </button>
+            </div>
+        </div>
+    </div>
+
     <!-- 主内容区域 -->
     <div class="v2-main-content">
         <!-- 左侧：创意输入和配置 -->
@@ -1518,6 +1586,161 @@
             }, 3000);
         }
 
+        // 🔥 检测是否有未完成的生成项目
+        async function checkIncompleteProjects() {
+            try {
+                console.log('[V2] 检测未完成项目...');
+                const response = await fetch('/api/projects/with-phase-status');
+                const result = await response.json();
+                
+                if (!result.success) {
+                    console.log('[V2] 无法获取项目状态');
+                    return;
+                }
+                
+                // 查找第一阶段已开始但未完成的项目
+                const incompleteProjects = result.projects.filter(p => 
+                    p.phase_one && 
+                    p.phase_one.status === 'not_started' && 
+                    p.status === 'designing'
+                );
+                
+                if (incompleteProjects.length > 0) {
+                    // 取最近的一个项目
+                    const project = incompleteProjects[0];
+                    console.log('[V2] 发现未完成项目:', project.title);
+                    
+                    // 显示恢复横幅
+                    const banner = document.getElementById('resume-banner');
+                    const titleEl = document.getElementById('resume-project-title');
+                    const progressEl = document.getElementById('resume-progress');
+                    const updatedEl = document.getElementById('resume-last-updated');
+                    
+                    if (banner && titleEl) {
+                        titleEl.textContent = project.title;
+                        
+                        // 计算已完成进度
+                        const completed = project.phase_one?.completed_count || 0;
+                        const total = project.phase_one?.total_count || 7;
+                        progressEl.textContent = `${completed}/${total} 个设定`;
+                        
+                        // 显示最后更新时间
+                        const updated = project.last_updated || project.created_at;
+                        if (updated) {
+                            const date = new Date(updated);
+                            const now = new Date();
+                            const diff = Math.floor((now - date) / 1000 / 60); // 分钟
+                            
+                            if (diff < 60) {
+                                updatedEl.textContent = diff + ' 分钟前';
+                            } else if (diff < 1440) {
+                                updatedEl.textContent = Math.floor(diff / 60) + ' 小时前';
+                            } else {
+                                updatedEl.textContent = Math.floor(diff / 1440) + ' 天前';
+                            }
+                        }
+                        
+                        banner.style.display = 'block';
+                        
+                        // 保存项目信息供恢复使用
+                        window.resumeProjectInfo = project;
+                    }
+                } else {
+                    console.log('[V2] 未发现未完成项目');
+                }
+            } catch (error) {
+                console.error('[V2] 检测未完成项目失败:', error);
+            }
+        }
+        
+        // 🔥 继续生成函数
+        async function resumeGeneration() {
+            if (!window.resumeProjectInfo) {
+                alert('未找到项目信息');
+                return;
+            }
+            
+            const project = window.resumeProjectInfo;
+            console.log('[V2] 继续生成项目:', project.title);
+            
+            // 填充表单
+            const titleInput = document.getElementById('novel-title');
+            const synopsisInput = document.getElementById('novel-synopsis');
+            const coreSettingInput = document.getElementById('core-setting');
+            const totalChaptersInput = document.getElementById('total-chapters');
+            
+            if (titleInput) titleInput.value = project.title || '';
+            if (synopsisInput) synopsisInput.value = project.synopsis || '';
+            if (coreSettingInput) coreSettingInput.value = project.core_setting || '';
+            if (totalChaptersInput) totalChaptersInput.value = project.total_chapters || 200;
+            
+            // 隐藏恢复横幅
+            const banner = document.getElementById('resume-banner');
+            if (banner) banner.style.display = 'none';
+            
+            // 显示提示
+            showResumeNotification(`已加载项目「${project.title}」，请检查设定后点击生成`);
+        }
+        
+        // 🔥 开始新生成
+        function startNewGeneration() {
+            // 清空表单
+            const titleInput = document.getElementById('novel-title');
+            const synopsisInput = document.getElementById('novel-synopsis');
+            const coreSettingInput = document.getElementById('core-setting');
+            
+            if (titleInput) titleInput.value = '';
+            if (synopsisInput) synopsisInput.value = '';
+            if (coreSettingInput) coreSettingInput.value = '';
+            
+            // 隐藏恢复横幅
+            const banner = document.getElementById('resume-banner');
+            if (banner) banner.style.display = 'none';
+            
+            // 清空恢复信息
+            window.resumeProjectInfo = null;
+        }
+        
+        // 🔥 显示恢复通知
+        function showResumeNotification(message) {
+            const toast = document.createElement('div');
+            toast.id = 'resume-notification';
+            toast.innerHTML = `
+                <div style="
+                    position: fixed;
+                    top: 100px;
+                    left: 50%;
+                    transform: translateX(-50%);
+                    background: linear-gradient(135deg, rgba(99, 102, 241, 0.95), rgba(139, 92, 246, 0.95));
+                    border: 1px solid rgba(255, 255, 255, 0.2);
+                    border-radius: 12px;
+                    padding: 16px 24px;
+                    display: flex;
+                    align-items: center;
+                    gap: 12px;
+                    box-shadow: 0 10px 40px rgba(99, 102, 241, 0.4);
+                    z-index: 100000;
+                    animation: slideDown 0.3s ease;
+                    backdrop-filter: blur(10px);
+                ">
+                    <span style="font-size: 20px;">✨</span>
+                    <span style="color: white; font-weight: 500;">${message}</span>
+                </div>
+                <style>
+                    @keyframes slideDown {
+                        from { opacity: 0; transform: translateX(-50%) translateY(-20px); }
+                        to { opacity: 1; transform: translateX(-50%) translateY(0); }
+                    }
+                </style>
+            `;
+            document.body.appendChild(toast);
+            
+            setTimeout(() => {
+                const el = document.getElementById('resume-notification');
+                if (el) el.remove();
+            }, 5000);
+        }
+        
         // 页面加载完成后执行
         document.addEventListener('DOMContentLoaded', function() {
             console.log('🚀 [V2] DOM加载完成，开始初始化');
@@ -1547,6 +1770,9 @@
             // 🔥 初始化：隐藏进度和结果区域
             hideProgressSection();
             hideResultsSection();
+            
+            // 🔥 检测未完成项目
+            checkIncompleteProjects();
             
             // 🔥 表单提交事件已在 generation-form.html 中绑定
             // 这里只需要确保表单元素存在
