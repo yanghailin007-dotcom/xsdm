@@ -211,7 +211,7 @@ class PhaseGenerator:
             # 完成所有步骤
             update_step_status('quality_assessment', 'completed', 100)
             
-            # 构建最终步骤状态 - 所有步骤都完成（合并后步骤）
+            # 🔥 修复：构建最终步骤状态，添加 'completed' 标记
             final_step_status = {
                 'writing_style': 'completed',
                 'market_analysis': 'completed',
@@ -224,7 +224,8 @@ class PhaseGenerator:
                 'expectation_mapping': 'completed',
                 'system_init': 'completed',
                 'saving': 'completed',
-                'quality_assessment': 'completed'
+                'quality_assessment': 'completed',
+                'completed': 'completed'  # 🔥 添加完成标记，前端识别
             }
             
             update_progress_callback('completed', 100, "第一阶段设定生成完成",

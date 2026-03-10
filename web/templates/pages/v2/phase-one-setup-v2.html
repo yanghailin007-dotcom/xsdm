@@ -620,7 +620,7 @@
         
         // 🔥 使用后端返回的详细步骤状态更新UI
         function updateStepsWithDetailedStatus(stepStatus, currentStep) {
-            console.log('[V2-UI] 使用详细步骤状态更新:', stepStatus);
+            console.log('[V2-UI] 使用详细步骤状态更新:', stepStatus, '当前步骤:', currentStep);
             
             // 所有步骤（按顺序）- 合并后共14步
             const allSteps = [
@@ -629,6 +629,25 @@
                 'emotional_growth_planning', 'stage_plan',
                 'detailed_stage_plans', 'expectation_mapping', 'system_init', 'saving', 'quality_assessment'
             ];
+            
+            // 🔥 特殊处理：如果当前步骤是 'completed'，所有步骤都标记为完成
+            if (currentStep === 'completed' || (stepStatus && stepStatus.completed === 'completed')) {
+                console.log('[V2-UI] 检测到完成状态，所有步骤标记为已完成');
+                allSteps.forEach(step => {
+                    const stepEl = document.querySelector(`[data-step="${step}"]`);
+                    if (stepEl) {
+                        stepEl.setAttribute('data-status', 'completed');
+                        const badge = stepEl.querySelector('.step-status-badge');
+                        if (badge) badge.textContent = '已完成';
+                    }
+                });
+                // 更新步骤计数
+                const stepsStatus = document.getElementById('steps-status');
+                if (stepsStatus) {
+                    stepsStatus.textContent = `${allSteps.length}/${allSteps.length} 完成`;
+                }
+                return;
+            }
             
             // 步骤名称映射：后端名称 -> 前端ID（适配合并后的步骤）
             const backendToFrontend = {
@@ -663,8 +682,8 @@
                 'story_outline': 'stage_plan',
                 'global_growth_planning': 'emotional_growth_planning',
                 'stage_planning': 'detailed_stage_plans',
-                'validation': 'quality_assessment',
-                'completed': 'quality_assessment'
+                'validation': 'saving'
+                // 🔥 移除：'completed' 不再映射到具体步骤，由上面特殊处理
             };
             
             // 首先重置所有步骤为等待状态
@@ -749,13 +768,38 @@
             'story_outline': 'stage_plan',
             'global_growth_planning': 'emotional_growth_planning',
             'stage_planning': 'detailed_stage_plans',
-            'validation': 'saving',
-            'completed': 'quality_assessment'
+            'validation': 'saving'
+            // 🔥 移除：'completed' 不再映射，由特殊逻辑处理
         };
         
         // 根据当前步骤名称更新步骤状态
         function updateStepStatusByName(currentStep) {
             console.log('[V2-UI] 更新步骤状态:', currentStep);
+            
+            // 🔥 特殊处理：如果当前步骤是 'completed'，所有步骤都标记为完成
+            if (currentStep === 'completed') {
+                console.log('[V2-UI] 检测到完成状态，所有步骤标记为已完成');
+                const allSteps = [
+                    'creative_refinement', 'fanfiction_detection', 'multiple_plans', 'plan_selection',
+                    'foundation_planning', 'worldview_with_factions', 'character_design',
+                    'emotional_growth_planning', 'stage_plan',
+                    'detailed_stage_plans', 'expectation_mapping', 'system_init', 'saving', 'quality_assessment'
+                ];
+                allSteps.forEach(step => {
+                    const stepEl = document.querySelector(`[data-step="${step}"]`);
+                    if (stepEl) {
+                        stepEl.setAttribute('data-status', 'completed');
+                        const badge = stepEl.querySelector('.step-status-badge');
+                        if (badge) badge.textContent = '已完成';
+                    }
+                });
+                // 更新步骤计数
+                const stepsStatus = document.getElementById('steps-status');
+                if (stepsStatus) {
+                    stepsStatus.textContent = `${allSteps.length}/${allSteps.length} 完成`;
+                }
+                return;
+            }
             
             const stepId = STEP_NAME_MAPPING[currentStep] || currentStep;
             
@@ -946,6 +990,8 @@
                             clearInterval(progressPollingInterval);
                             progressPollingInterval = null;
                             if (status === 'completed') {
+                                // 🔥 确保所有步骤标记为完成
+                                updateStepStatusByName('completed');
                                 showResultsSection();
                             }
                         }
