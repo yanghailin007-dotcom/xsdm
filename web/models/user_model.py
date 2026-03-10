@@ -111,7 +111,8 @@ class UserModel:
             # 兼容旧版 SHA256
             return hashlib.sha256(password.encode()).hexdigest() == hashed
     
-    def create_user(self, username: str, password: str, phone: Optional[str] = None, email: Optional[str] = None) -> Dict[str, Any]:
+    def create_user(self, username: str, password: str, phone: Optional[str] = None, 
+                    email: Optional[str] = None, is_admin: bool = False) -> Dict[str, Any]:
         """
         创建新用户
         
@@ -120,6 +121,7 @@ class UserModel:
             password: 密码
             phone: 手机号（可选）
             email: 邮箱（可选）
+            is_admin: 是否为管理员（默认False）
             
         Returns:
             包含success和message或error的字典
@@ -160,12 +162,13 @@ class UserModel:
                 import time
                 actual_phone = phone if phone else f'NULL_{username}_{int(time.time())}'
                 password_hash = self._hash_password(password)
+                is_admin_int = 1 if is_admin else 0
                 cursor = conn.execute(
                     """
-                    INSERT INTO users (username, password_hash, phone, email)
-                    VALUES (?, ?, ?, ?)
+                    INSERT INTO users (username, password_hash, phone, email, is_admin)
+                    VALUES (?, ?, ?, ?, ?)
                     """,
-                    (username, password_hash, actual_phone, email)
+                    (username, password_hash, actual_phone, email, is_admin_int)
                 )
                 user_id = cursor.lastrowid
                 conn.commit()
@@ -346,6 +349,44 @@ class UserModel:
                 return {"success": True, "message": "密码已重置", "new_password": new_password}
         except Exception as e:
             logger.error(f"❌ 重置密码失败: {e}")
+            return {"success": False, "error": str(e)}
+    
+    def set_admin_status(self, username: str, is_admin: bool) -> dict:
+        """设置用户的管理员状态"""
+        try:
+            is_admin_int = 1 if is_admin else 0
+            with self._get_connection() as conn:
+                cursor = conn.execute(
+                    "UPDATE users SET is_admin = ?, updated_at = ? WHERE username = ?",
+                    (is_admin_int, datetime.now().isoformat(), username)
+                )
+                conn.commit()
+                if cursor.rowcount > 0:
+                    logger.info(f"✅ 用户 {username} 管理员状态已设置为: {is_admin}")
+                    return {"success": True, "message": "管理员状态已更新"}
+                else:
+                    return {"success": False, "error": "用户不存在"}
+        except Exception as e:
+            logger.error(f"❌ 更新管理员状态失败: {e}")
+            return {"success": False, "error": str(e)}
+    
+    def update_password(self, username: str, new_password: str) -> dict:
+        """根据用户名更新密码"""
+        try:
+            password_hash = self._hash_password(new_password)
+            with self._get_connection() as conn:
+                cursor = conn.execute(
+                    "UPDATE users SET password_hash = ?, updated_at = ? WHERE username = ?",
+                    (password_hash, datetime.now().isoformat(), username)
+                )
+                conn.commit()
+                if cursor.rowcount > 0:
+                    logger.info(f"✅ 用户 {username} 密码已更新")
+                    return {"success": True, "message": "密码已更新"}
+                else:
+                    return {"success": False, "error": "用户不存在"}
+        except Exception as e:
+            logger.error(f"❌ 更新密码失败: {e}")
             return {"success": False, "error": str(e)}
     
     def delete_user(self, user_id: int) -> dict:

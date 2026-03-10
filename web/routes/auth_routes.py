@@ -65,17 +65,19 @@ def register_auth_routes(app):
             logger.info(f"🔍 验证结果: {verify_result}")
             
             if verify_result:
-                # 从数据库获取用户ID
+                # 从数据库获取用户ID和管理员状态
                 from web.models.user_model import user_model
                 from web.models.point_model import point_model
                 user = user_model.get_user_by_username(username)
                 user_id = user.get('id') if user else None
+                is_admin = user.get('is_admin', 0) if user else 0
                 
                 session['logged_in'] = True
                 session['username'] = username
                 session['user_id'] = user_id
+                session['is_admin'] = bool(is_admin)
                 session.permanent = True
-                logger.info(f"✅ 用户登录成功: {username} (ID: {user_id})")
+                logger.info(f"✅ 用户登录成功: {username} (ID: {user_id}, is_admin: {is_admin})")
                 
                 # 为用户创建小说项目目录（如果不存在）
                 try:
@@ -549,7 +551,8 @@ def register_page_routes(app):
                 'success': True,
                 'username': session.get('username', 'unknown'),
                 'user_id': session.get('user_id'),
-                'logged_in': True
+                'logged_in': True,
+                'is_admin': session.get('is_admin', False)
             })
         return jsonify({
             'success': False,

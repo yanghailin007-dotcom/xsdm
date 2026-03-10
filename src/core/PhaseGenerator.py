@@ -142,18 +142,29 @@ class PhaseGenerator:
                                      step_status={'writing_style': 'completed', 'market_analysis': 'completed'})
             
             # 第二阶段：世界观与角色设计 (worldview + faction_system + character_design)
+            logger.info("🔥 即将进入第二阶段: _generate_worldview_and_characters")
+            print("\n🔥 即将进入第二阶段: _generate_worldview_and_characters")
             update_step_status('worldview', 'active', step_progress_map['worldview'])
-            if not self._generate_worldview_and_characters(update_step_status=update_step_status):
+            result = self._generate_worldview_and_characters(update_step_status=update_step_status)
+            logger.info(f"🔥 _generate_worldview_and_characters 返回: {result}")
+            print(f"🔥 _generate_worldview_and_characters 返回: {result}")
+            if not result:
                 error_msg = "世界观与角色设计失败"
                 print(f"❌ {error_msg}")
                 notify_failure(error_msg)
                 return False
+            logger.info("🔥 第二阶段完成，继续执行...")
+            print("🔥 第二阶段完成，继续执行...")
             update_progress_callback('character_design', step_progress_map['character_design'], "角色设计完成",
                                      step_status={'worldview': 'completed', 'faction_system': 'completed', 
                                                  'character_design': 'completed'})
             
             # 第三阶段：全书规划 (emotional_growth_planning + stage_plan + detailed_stage_plans + expectation_mapping + system_init)
+            logger.info("🔥 即将进入第三阶段: _generate_overall_planning")
+            print("\n🔥 即将进入第三阶段: _generate_overall_planning")
             update_step_status('emotional_growth_planning', 'active', step_progress_map['emotional_growth_planning'])
+            logger.info("✅ 已更新 emotional_growth_planning 状态为 active")
+            print("✅ 已更新 emotional_growth_planning 状态为 active")
             if not self._generate_overall_planning(update_step_status=update_step_status):
                 error_msg = "全书规划制定失败"
                 print(f"❌ {error_msg}")
@@ -410,6 +421,8 @@ class PhaseGenerator:
         
         # 核心角色设计（现在可以基于势力系统） - 步骤10
         print("👤 步骤10: 设计核心角色 (主角/核心盟友/宿敌)")
+        logger.info("🔥 即将调用 generate_character_design API...")
+        print("🔥 即将调用 generate_character_design API...")
         self.generator.novel_data["current_progress"]["stage"] = "核心角色设计"
         if update_step_status:
             update_step_status('character_design', 'active', 48)
@@ -446,14 +459,20 @@ class PhaseGenerator:
         print("✅ 核心角色设计完成，已建立角色基础库。")
         
         # 角色设计完成
+        logger.info("🔥 character_design 即将标记为 completed...")
+        print("🔥 character_design 即将标记为 completed...")
         if update_step_status:
             update_step_status('character_design', 'completed', 55)
+        logger.info("🔥 character_design 已标记 completed，即将返回 True")
+        print("🔥 character_design 已标记 completed，即将返回 True")
         
         return True
     
     def _generate_overall_planning(self, update_step_status=None) -> bool:
         """生成全书规划"""
+        logger.info("🔥 _generate_overall_planning 被调用!")
         print("\n" + "="*60)
+        print("🔥 _generate_overall_planning 被调用!")
         print("📊 第三阶段：全书规划")
         print("="*60)
         
@@ -701,6 +720,8 @@ class PhaseGenerator:
         import logging
         logger = logging.getLogger("PhaseGenerator")
         
+        logger.info("🔥🔥🔥 _generate_emotional_and_growth_plan 函数入口!")
+        print("\n🔥🔥🔥 _generate_emotional_and_growth_plan 函数入口!")
         logger.info("="*60)
         logger.info("🎨📈 步骤8-9: 情绪蓝图与成长规划（真正合并为一个API调用）")
         logger.info("="*60)
@@ -748,7 +769,7 @@ class PhaseGenerator:
         try:
             print("  🚀 正在调用 generate_content_with_retry...")
             result = self.generator.api_client.generate_content_with_retry(
-                "emotional_blueprint",  # 使用情绪蓝图的content_type
+                "emotional_blueprint_generation",  # 使用正确的content_type
                 prompt,
                 purpose="合并生成情绪蓝图与成长规划"
             )

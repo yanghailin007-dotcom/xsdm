@@ -1,223 +1,54 @@
+"""规划类提示词配置"""
+
 class PlanningPrompts:
     def __init__(self):
         self.prompts = {
-            "stage_emotional_planning": """
-内容：
-你是一位顶级的网文编辑与剧情架构师，精通通过设计精妙的情感曲线和【期待感钩子】来提升读者粘性和追读率。你的任务是为小说的特定阶段，制定一份详细、可执行的情感与期待感策略和章节分解计划。
+            "emotional_development_planning": """
+你是一位资深网络小说角色成长与情感发展策划专家。请基于提供的角色设定、世界观和全书大纲，为主角和核心配角制定详细的成长与情感发展计划。
 
-**核心指令**：
-1.  **身份定位**：始终以专业编辑的视角进行分析，语言精炼、专业、可落地。
-2.  **严格格式**：你的输出必须是一个完整的、严格符合以下结构和字段说明的JSON对象。不要在JSON代码块之外添加任何解释或说明。
-3.  **忠于输入**：你的所有规划都必须严格基于用户提供的"小说背景资料"和"全书情绪规划"，不得偏离或创造新的核心设定。
-4.  【重要任务】：你必须根据阶段目标（arc_goal）和情节摘要（summary），创造性地设计出“reader_expectation_management”模块，这是你本次工作的核心价值体现。
+**核心任务**：
+1. **主角成长线**：为主角设计一个从开局到结局的成长弧线，包括能力、心智、地位、情感等方面的变化。
+2. **配角群像**：为核心配角设计各自的成长或转变路径，确保他们不是静态的背景板。
+3. **情感发展**：规划主角与重要角色之间（如爱情、复仇、联盟、支配）的情感关系如何随剧情推进而演变。
+4. **阶段对应**：将成长计划与"起承转合"四阶段对应，明确每个阶段需要达成的成长目标。
 
-**输出JSON结构与字段说明**：
+**输出要求**：
+请严格按照以下JSON格式输出，不要包含任何额外的解释文字：
 ```json
 {
-    "stage_emotional_strategy": {
-        "overall_emotional_goal": "[用1-2句话总结这个阶段的核心情感目标和读者体验。必须明确、可执行，例如：'通过XX事件，让读者感受到XX情绪，从而建立XX认知。']",
-        "emotional_pacing_plan": "[描述本阶段的情感节奏策略。例如：快节奏、高爽点密集；或先抑后扬，积累情绪势能；或张弛有度，包含明确的爆发点和缓和期。]",
-        "key_emotional_arcs": [
-            "[列出本阶段最重要的1-3条情感发展线，例如：主角的复仇线、主角与某配角的关系线、公众对主角的认知变化线。]"
-        ],
-        "emotional_intensity_curve": "[描述本阶段情感强度的整体走势。例如：'以低谷开局，通过XX事件急剧拉升至高峰，随后在高位震荡爬升，最终在阶段末尾达到顶点。']"
-    },
-    
-    "reader_expectation_management": {
-        "main_expectation_hook": "[【AI设计】根据阶段目标，设计一个核心悬念来钩住读者。例如：'主角何时才能一雪前耻？'或'他能否在宗门大比中隐藏实力并夺冠？']",
-        "expectation_mechanics": [
-            "[【AI设计】设计2-3个具体的情节机制或桥段，用于在本阶段内反复强化和运营主要期待感。例如：'1.【危机试探】：不断出现刚好在主角能力边缘的危机，看他如何巧妙化解。', '2.【对手挑衅】：安排一个不知情的配角反复挑衅主角，积累读者的打脸期待。']"
-        ],
-        "tension_release_points": {
-            "mini_payoff": "[【AI设计】设计1-2个小的回报点，用于缓解读者的追读焦虑，给予阶段性小爽点。例如：'主角在无人角落展露一手绝活，被关键配角无意中瞥见。']",
-            "major_payoff_setup": "[【AI设计】描述在本阶段末尾，如何将期待感推向高潮，并为下一阶段的重大回报做足铺垫。例如：'主角集齐所有材料，宣布闭关，为下一阶段的惊天突破做好准备。']"
-        }
-    },
-    
-    "chapter_emotional_breakdown": [
-        {
-            "chapter_range": "[章节范围，例如：'1-5章']",
-            "emotional_focus": "[该分段的核心情感重点，例如：'建立复仇动机'或'首次展现实力']",
-            "target_reader_emotion": "[希望读者在此分段体验到的核心情绪，例如：'愤怒、同情、压抑' -> '惊喜、希望、爽快']",
-            "key_scenes_design": "[设计1-2个关键场景，用于承载和引爆核心情感。]",
-            "intensity_level": "[评估该分段的情感强度等级 (低/中/高/极高)]"
-        }
-    ],
-    "emotional_turning_points": [
-        {
-            "approximate_chapter": "[预估的转折点发生章节，例如：'约第X章']",
-            "emotional_shift": "[描述情感转变的具体内容，例如：'从个人复仇的快感，转变为对力量失控的恐惧。']",
-            "preparation_chapters": "[为这个转折点进行铺垫的章节范围或关键事件。]",
-            "impact_description": "[说明该转折对主角成长、后续情节和读者体验的影响。]"
-        }
-    ],
-    "emotional_supporting_elements": {
-        "settings_for_emotion": [
-            "[列出能有效烘托本阶段核心情感的环境或场景，例如：'阴暗压抑的矿洞'、'万众瞩目的竞技场']"
-        ],
-        "symbolic_elements": [
-            "[列出具有象征意义、能承载情感的物品或意象，例如：'从奴役工具变为复仇武器的矿镐']"
-        ],
-        "relationship_developments": [
-            "[列出本阶段需要重点发展、用以推动情感的角色关系。]"
-        ]
-    },
-    "emotional_break_planning": {
-        "break_chapters": [
-            "[建议设置情感缓冲章节的大致位置，例如：'在XX重大事件后' 或 '约第X章']"
-        ],
-        "break_activities": [
-            "[设计缓冲期可以发生的具体情节，例如：'清点战利品与规划未来'、'与战友的日常互动']"
-        ],
-        "purpose": "[说明设置这些缓冲章节的目的，例如：'舒缓读者紧张情绪，并通过侧面描写来巩固胜利成果，为下一阶段蓄力。']"
-    }
-}
-""",
-
-            "emotional_development_planning": """
-内容：
-你是一位资深的番茄小说编辑和营销专家，精通番茄平台的爆款逻辑、读者偏好和推荐算法。
-
-**情绪规划要求**：
-1. 跟随主角成长弧线设计情绪变化
-2. 每个阶段要有明确的情绪基调和情感目标
-3. 设计关键情感转折点和情感高潮
-4. 考虑读者情感体验的起伏节奏
-5. 情感发展要服务于主题和角色成长
-
-请按以下结构输出：
-{
-    "overall_emotional_arc": "全书情感发展总览",
-    "stage_emotional_planning": {
+    "protagonist_growth": {
         "opening_stage": {
-            "emotional_tone": "情绪基调",
-            "key_emotional_moments": ["关键情感时刻"],
-            "emotional_growth": "情感成长重点",
-            "reader_experience_goal": "读者情感体验目标"
+            "personality_development": "主角在开局阶段（1-30章）的性格特点、初始能力和主要困境。",
+            "ability_advancement": ["初始能力1", "初始能力2"],
+            "key_growth_points": ["初期关键成长点1", "初期关键成长点2"]
         },
         "development_stage": {
-            "emotional_tone": "情绪基调", 
-            "key_emotional_moments": ["关键情感时刻"],
-            "emotional_growth": "情感成长重点",
-            "reader_experience_goal": "读者情感体验目标"
+            "personality_development": "主角在发展阶段（31-100章）的性格如何变化，遇到什么挑战。",
+            "ability_advancement": ["中期获得能力1", "中期获得能力2"],
+            "key_growth_points": ["中期关键成长点1", "中期关键成长点2"],
+            "relationship_evolution": "与重要角色的关系如何发展"
         },
         "climax_stage": {
-            "emotional_tone": "情绪基调",
-            "key_emotional_moments": ["关键情感时刻"], 
-            "emotional_growth": "情感成长重点",
-            "reader_experience_goal": "读者情感体验目标"
+            "personality_development": "主角在高潮阶段（101-160章）如何面对最大挑战，性格如何成熟。",
+            "ability_advancement": ["后期核心能力1", "后期核心能力2"],
+            "key_growth_points": ["后期关键成长点1", "后期关键成长点2"],
+            "relationship_evolution": "关系发展到何种程度"
         },
         "ending_stage": {
-            "emotional_tone": "情绪基调",
-            "key_emotional_moments": ["关键情感时刻"],
-            "emotional_growth": "情感成长重点", 
-            "reader_experience_goal": "读者情感体验目标"
-        },
-        "final_stage": {
-            "emotional_tone": "情绪基调",
-            "key_emotional_moments": ["关键情感时刻"],
-            "emotional_growth": "情感成长重点",
-            "reader_experience_goal": "读者情感体验目标"
+            "personality_development": "主角在结局阶段（161-200章）的最终状态，与开局形成鲜明对比。",
+            "ability_advancement": ["最终能力1", "最终能力2"],
+            "key_growth_points": ["最终关键成长点1", "最终关键成长点2"],
+            "relationship_evolution": "关系的最终状态"
         }
     },
-    "emotional_turning_points": [
+    "supporting_characters": [
         {
-            "chapter_range": "章节范围",
-            "emotional_shift": "情感转变描述",
-            "impact_on_protagonist": "对主角的影响",
-            "reader_emotional_journey": "读者情感旅程"
+            "name": "配角名称",
+            "role": "角色定位",
+            "growth_arc": "该角色的成长或毁灭弧线简述。",
+            "key_development_points": ["关键发展节点1"]
         }
     ],
-    "emotional_pacing_guidelines": {
-        "high_intensity_chapters": "高潮章节密度",
-        "emotional_break_pattern": "情绪缓冲模式", 
-        "climax_buildup_strategy": "情感高潮构建策略"
-    }
-}
-""",
-
-            "global_growth_planning": """
-内容：
-你是一位顶级的商业小说架构师，专精于为各类小说设计引人入胜的成长体系和情节框架。你的核心能力是基于用户提供的小说设定，构建一个与“起承转合”四段式严格对齐的、系统化的全书成长规划。
-
-**核心任务**
-根据用户提供的小说核心信息，生成一份严格遵循“起承转合”结构的成长规划。
-
-**输出规则**
-1.  **严格的JSON格式**：你的唯一输出必须是一个单一、完整且严格有效的JSON对象。禁止在JSON对象前后添加任何介绍、解释或总结性文字。
-2.  **【【核心指令：固定四段式结构】】**：你必须严格按照“起承转合”（opening, development, climax, ending）四个阶段来构建`stage_framework`和`stage_specific_growth`。**严禁**自行创造阶段名称。`stage_framework` 和 `character_growth_arcs.stage_specific_growth` 必须是**对象（Object）**，其 `key` 必须是 `"opening_stage"`, `"development_stage"`, `"climax_stage"`, `"ending_stage"`。
-3.  **按比例分配章节**：请基于“总章节数”和推荐比例（**起15%, 承35%, 转30%, 合20%**）来估算并填充每个阶段的`chapter_range`。
-4.  **忠于设定**：所有规划必须严格基于用户提供的核心设定。如果某些模块（如势力、能力体系）在用户输入中未提及，则在生成的JSON中省略对应的键，或将其值设为null，绝不虚构。
-5.  **简洁聚焦**：填充内容时，使用精炼、有力的短语和要点。
-
-**JSON输出结构**
-{
-    "overview": "对全书成长规划的高度概括，点明核心主线和爽点节奏。",
-    "stage_framework": {
-        "opening_stage": {
-            "stage_name": "起 (开局阶段)",
-            "chapter_range": "string // 例如：1-15章 (基于总章节数的15%)",
-            "core_objectives": ["核心目标1"],
-            "key_growth_themes": ["成长主题1"],
-            "milestone_events": ["关键剧情转折点1"]
-        },
-        "development_stage": {
-            "stage_name": "承 (发展阶段)",
-            "chapter_range": "string // 例如：16-50章 (基于总章节数的35%)",
-            "core_objectives": ["核心目标1"],
-            "key_growth_themes": ["成长主题1"],
-            "milestone_events": ["关键剧情转折点1"]
-        },
-        "climax_stage": {
-            "stage_name": "转 (高潮阶段)",
-            "chapter_range": "string // 例如：51-80章 (基于总章节数的30%)",
-            "core_objectives": ["核心目标1"],
-            "key_growth_themes": ["成长主题1"],
-            "milestone_events": ["关键剧情转折点1"]
-        },
-        "ending_stage": {
-            "stage_name": "合 (结局阶段)",
-            "chapter_range": "string // 例如：81-100章 (基于总章节数的20%)",
-            "core_objectives": ["核心目标1"],
-            "key_growth_themes": ["成长主题1"],
-            "milestone_events": ["关键剧情转折点1"]
-        }
-    },
-    "character_growth_arcs": {
-        "protagonist": {
-            "overall_arc": "总结主角从故事开始到结束的完整成长弧线，点明其核心转变。",
-            "stage_specific_growth": {
-                "opening_stage": {
-                    "personality_development": "该阶段的性格发展与转变",
-                    "ability_progression": "该阶段的能力进展与突破",
-                    "relationship_evolution": "该阶段的人际关系演变"
-                },
-                "development_stage": {
-                    "personality_development": "...",
-                    "ability_progression": "...",
-                    "relationship_evolution": "..."
-                },
-                "climax_stage": {
-                    "personality_development": "...",
-                    "ability_progression": "...",
-                    "relationship_evolution": "..."
-                },
-                "ending_stage": {
-                    "personality_development": "...",
-                    "ability_progression": "...",
-                    "relationship_evolution": "..."
-                }
-            }
-        },
-        "supporting_characters": [
-            {
-                "name": "配角名称",
-                "role": "角色定位",
-                "growth_arc": "该角色的成长或毁灭弧线简述。",
-                "key_development_points": ["关键发展节点1"]
-            }
-        ]
-    },
     "faction_development_trajectory": null, // (可选)
     "ability_system_evolution": null, // (可选)
     "emotional_development_journey": {
@@ -231,6 +62,41 @@ class PlanningPrompts:
 }
 """,
             "emotional_blueprint_generation": """
+你是一位资深的网络小说情绪架构专家。你的任务是为小说设计全书的情绪蓝图，确保读者情绪被精准调动。
+
+# 情绪蓝图设计
+设计全书的情感光谱和阶段情绪弧线。
+
+## 核心要求
+1. **情感光谱**：定义3-5个核心情感标签（如：期待、紧张、愤怒、感动、爽感）
+2. **阶段情绪弧线**：为"起承转合"四阶段设计情感起伏曲线
+3. **情绪高潮点**：标记全书的情感爆发节点
+4. **情绪节奏控制**：确保紧张与舒缓交替，避免读者疲劳
+
+# 输出格式
+严格返回JSON格式：
+{
+    "emotional_blueprint": {
+        "emotional_spectrum": ["情感标签1", "情感标签2", ...],
+        "stage_emotional_arcs": {
+            "opening_stage": {"dominant_emotion": "主导情绪", "curve": "上升/下降/波动", "intensity": 1-10},
+            "development_stage": {...},
+            "climax_stage": {...},
+            "ending_stage": {...}
+        },
+        "climax_moments": ["高潮点1", "高潮点2", ...]
+    },
+    "global_growth_plan": {
+        "protagonist_growth": {
+            "opening_stage": {"ability_level": "初始能力", "key_growth": "本阶段成长重点"},
+            "development_stage": {...},
+            "climax_stage": {...},
+            "ending_stage": {...}
+        },
+        "ability_system_progression": ["能力1", "能力2", ...],
+        "key_relationships_development": [...]
+    }
+}
 """,
             "stage_foreshadowing_planning": """
 你是一位资深的番茄网络小说节奏控制专家。请为小说的特定阶段制定详细的伏笔铺垫计划。...
@@ -262,128 +128,655 @@ class PlanningPrompts:
 动机深化：主角的目标和动机会如何深化？
 关系发展：与重要角色的关系如何变化？
 
-配角发展计划
-重要配角：哪些配角需要重点发展？
-新角色引入：需要引入哪些新角色？
-关系网络：角色关系网络如何演变？
+配角任务分配
+哪些配角在本阶段有重要戏份？
+他们的任务是什么？（帮助主角、制造障碍、揭示信息）
 
-2. 势力发展规划
-势力格局变化
-权力转移：势力间的权力平衡如何变化？
-新联盟：会形成哪些新的联盟关系？
-冲突升级：现有冲突如何升级或转化？
-新兴势力：是否有新势力登场？
+2. 势力关系演变
+各阵营在本阶段的动态
+势力对比如何变化？
+有哪些重要的联盟或背叛？
 
-世界观扩展
-新地域：需要展现哪些新地点或场景？
-文化揭示：可以揭示哪些世界观细节？
-体系完善：力量体系或社会体系如何完善？
+3. 核心剧情推进
+本阶段需要完成的核心剧情目标
+关键剧情节点（3-5个）
+每个节点的大致位置和作用
 
-3. 物品功法规划
-能力突破路线
-技能解锁：主角会解锁哪些新技能？
-装备升级：重要装备如何升级或获得？
-境界突破：修行境界或能力等级如何突破？
-特殊机缘：会获得哪些特殊机缘或物品？
+4. 情绪节奏设计
+本阶段的情绪基调（紧张、轻松、压抑、激昂）
+情绪高潮点在哪里？
+如何控制节奏避免读者疲劳？
 
-系统完善
-规则揭示：需要揭示哪些系统规则？
-限制突破：现有的限制如何被突破？
-新功能解锁：系统会解锁哪些新功能？
+5. 爽点与期待感设计
+本阶段的主要爽点（打脸、突破、收获、揭秘）
+如何设置期待感？
+如何安排反转？
 
-4. 情感发展计划
-情感线索
-主要情感：主角的主要情感线如何发展？
-次要情感：配角的情感线如何安排？
-情感冲突：会有什么情感冲突或转折？
+**输出格式要求**
+请严格按照以下JSON格式输出，不要包含任何额外的解释文字或markdown代码块标记：
 
-5. 关键里程碑
-列出本阶段必须达成的关键成长节点，每个节点应包含：
-具体成就
-发生的大致章节位置
-对后续剧情的影响
+{{
+    "stage_content_plan": {{
+        "stage_theme": "本阶段的核心主题（一句话概括）",
+        "protagonist_growth": {{
+            "character_arc": "主角在本阶段的成长轨迹",
+            "ability_development": ["能力成长点1", "能力成长点2"],
+            "relationship_changes": ["关系变化1", "关系变化2"]
+        }},
+        "faction_dynamics": {{
+            "major_shifts": ["势力变化1", "势力变化2"],
+            "key_conflicts": ["关键冲突1", "关键冲突2"],
+            "new_alliances": ["新联盟1", "新联盟2"]
+        }},
+        "plot_milestones": [
+            {{
+                "milestone_name": "剧情节点名称",
+                "estimated_position": "大概位置（如第35章）",
+                "main_goal": "这个节点要完成什么",
+                "emotional_impact": "情绪影响（爽点/泪点/转折点）"
+            }}
+        ],
+        "emotional_arc": {{
+            "dominant_tone": "主导情绪基调",
+            "climax_moments": ["高潮点1", "高潮点2"],
+            "pacing_strategy": "节奏控制策略"
+        }},
+        "satisfaction_design": {{
+            "major_payoffs": ["大爽点1", "大爽点2"],
+            "anticipation_hooks": ["期待感钩子1", "期待感钩子2"],
+            "plot_twists": ["反转设计1", "反转设计2"]
+        }}
+    }}
+}}
+""",
 
-**输出格式**
-{
-"stage_name": "{stage_name}",
-"chapter_range": "{chapter_range}",
-"character_growth_plan": {
-"protagonist_development": {
-"personality_evolution": "性格演变描述",
-"ability_advancement": ["新能力1", "新能力2"],
-"motivation_deepening": "动机深化描述",
-"key_growth_moments": [
-{
-"moment": "成长时刻描述",
-"approximate_chapter": "大致章节",
-"impact": "对后续的影响"
-}
-]
-},
-"supporting_characters_development": {
-"focus_characters": ["需要重点发展的配角"],
-"new_characters": ["需要引入的新角色"],
-"relationship_evolution": {
-"character1_character2": "关系变化描述"
-}
-}
-},
-"faction_development_plan": {
-"power_structure_changes": {
-"rising_powers": ["新兴势力"],
-"declining_powers": ["衰落势力"],
-"new_alliances": ["新联盟关系"]
-},
-"conflict_escalation": {
-"ongoing_conflicts": ["持续冲突及其升级"],
-"new_conflicts": ["新出现的冲突"]
-},
-"world_building_expansion": {
-"new_locations": ["新地点"],
-"cultural_revelations": ["文化揭示"],
-"system_refinements": ["体系完善"]
-}
-},
-"ability_equipment_plan": {
-"skill_progression": {
-"new_skills": ["新技能1", "新技能2"],
-"skill_upgrades": ["技能升级1", "技能升级2"]
-},
-"equipment_advancement": {
-"new_equipment": ["新装备"],
-"equipment_upgrades": ["装备升级"]
-},
-"breakthrough_moments": [
-{
-"breakthrough": "突破描述",
-"requirements": "突破条件",
-"consequences": "突破后果"
-}
-],
-"system_evolution": {
-"rule_revelations": ["规则揭示"],
-"limitation_breakthroughs": ["限制突破"],
-"new_features": ["新功能解锁"]
-}
-},
-"emotional_development_plan": {
-"main_emotional_arc": "主要情感线发展",
-"secondary_emotional_arcs": ["次要情感线"],
-"emotional_conflicts": ["情感冲突"]
-},
-"key_milestones": [
-{
-"milestone": "里程碑描述",
-"chapter_range": "发生章节范围",
-"significance": "重要性说明"
-}
-],
-"content_synopsis": "本阶段内容总体概述"
-}
+            "stage_writing_planning": """
+你是一位顶级的网络小说剧情架构师AI，专精于将高阶大纲分解为结构化、可执行的阶段性写作计划。
 
-请确保规划具体、可执行，并与前后阶段自然衔接。
+内容:
+你正在为一个{platform_name}小说项目制定阶段写作计划。
+
+小说标题：{novel_title}
+阶段范围：{stage_range}
+
+创意种子信息：
+{creative_seed_info}
+
+参考材料：
+{reference_materials}
+
+你的任务是根据提供的创意种子和参考材料，为"{stage_name}"制定详细的写作计划。
+
+请按照以下JSON格式输出阶段计划：
+{{
+    "stage_writing_plan": {{
+        "stage_name": "{stage_name}",
+        "stage_range": "{stage_range}",
+        "chapter_count": {chapter_count},
+        "creative_essence": "本阶段需要体现的核心创意点",
+        "stage_goals": [
+            "阶段目标1",
+            "阶段目标2"
+        ],
+        "plot_structure": {{
+            "opening": "开局设计和钩子",
+            "development": "发展阶段的主要情节",
+            "climax": "阶段高潮设计",
+            "transition": "如何衔接到下一阶段"
+        }},
+        "character_focus": {{
+            "protagonist_tasks": ["主角任务1", "主角任务2"],
+            "character_development": "本阶段人物成长重点",
+            "key_relationships": "关键关系发展"
+        }},
+        "emotional_arc": {{
+            "dominant_emotion": "主导情绪",
+            "emotional_curve": "情绪曲线设计",
+            "climax_moments": ["情绪高潮点1", "情绪高潮点2"]
+        }},
+        "satisfaction_design": {{
+            "major_payoffs": ["爽点1", "爽点2"],
+            "anticipation_building": "期待感营造方式",
+            "plot_twists": ["反转设计1"]
+        }},
+        "key_events": [
+            {{
+                "event_name": "事件名称",
+                "chapter_range": "大致章节范围",
+                "event_type": "事件类型（战斗/揭秘/情感/收获）",
+                "significance": "对整体剧情的影响"
+            }}
+        ],
+        "writing_guidance": {{
+            "tone_style": "本阶段的语气和风格建议",
+            "pacing_strategy": "节奏控制策略",
+            "key_scenes": ["关键场景1", "关键场景2"],
+            "things_to_avoid": ["避免事项1", "避免事项2"]
+        }}
+    }}
+}}
+
+注意：
+1. 确保计划具体、可执行
+2. 所有设计必须忠实于创意种子
+3. 考虑与前后阶段的衔接
+4. 突出{platform_name}平台特色（爽点、快节奏、强情绪）
+""",
+
+            "overall_stage_plan": """
+你是一位顶级的网络小说结构规划专家，专精于"起承转合"四段式小说架构设计。
+
+内容:
+请根据以下信息，设计全书的整体阶段划分：
+
+小说标题：{novel_title}
+小说简介：{novel_synopsis}
+总章节数：{total_chapters}
+
+创意种子：
+{creative_seed}
+
+市场分析：
+{market_analysis}
+
+成长规划（参考）：
+{growth_plan}
+
+情绪蓝图（参考）：
+{emotional_blueprint}
+
+请按照"起承转合"四段式结构，将全书划分为四个阶段：
+1. **起（开局阶段）**：约占15-20%，建立世界观、引入主角、展现金手指、埋下核心冲突
+2. **承（发展阶段）**：约占35-40%，展开主线、升级成长、建立势力、深化冲突
+3. **转（高潮阶段）**：约占25-30%，核心冲突爆发、最大危机、最终对决准备
+4. **合（结局阶段）**：约占10-15%，收束所有线索、最终对决、圆满或开放式结局
+
+请严格按照以下JSON格式输出：
+{{
+    "overall_stage_plan": {{
+        "structural_model": "四段式（起承转合）",
+        "total_chapters": {total_chapters},
+        "opening_stage": {{
+            "stage_name": "起（开局阶段）",
+            "chapter_range": "1-{opening_end}",
+            "chapter_count": {opening_chapters},
+            "core_mission": "本阶段的核心任务",
+            "plot_goals": ["剧情目标1", "剧情目标2"],
+            "character_goals": ["人物目标1", "人物目标2"],
+            "emotional_goals": ["情绪目标1", "情绪目标2"],
+            "key_deliverables": ["必须完成的事项1", "必须完成的事项2"],
+            "ending_hook": "阶段结束时留下的钩子，吸引读者进入下一阶段"
+        }},
+        "development_stage": {{
+            "stage_name": "承（发展阶段）",
+            "chapter_range": "{development_start}-{development_end}",
+            "chapter_count": {development_chapters},
+            "core_mission": "本阶段的核心任务",
+            "plot_goals": ["剧情目标1", "剧情目标2"],
+            "character_goals": ["人物目标1", "人物目标2"],
+            "emotional_goals": ["情绪目标1", "情绪目标2"],
+            "key_deliverables": ["必须完成的事项1", "必须完成的事项2"],
+            "ending_hook": "阶段结束时留下的钩子"
+        }},
+        "climax_stage": {{
+            "stage_name": "转（高潮阶段）",
+            "chapter_range": "{climax_start}-{climax_end}",
+            "chapter_count": {climax_chapters},
+            "core_mission": "本阶段的核心任务",
+            "plot_goals": ["剧情目标1", "剧情目标2"],
+            "character_goals": ["人物目标1", "人物目标2"],
+            "emotional_goals": ["情绪目标1", "情绪目标2"],
+            "key_deliverables": ["必须完成的事项1", "必须完成的事项2"],
+            "ending_hook": "阶段结束时留下的钩子"
+        }},
+        "ending_stage": {{
+            "stage_name": "合（结局阶段）",
+            "chapter_range": "{ending_start}-{total_chapters}",
+            "chapter_count": {ending_chapters},
+            "core_mission": "本阶段的核心任务",
+            "plot_goals": ["剧情目标1", "剧情目标2"],
+            "character_goals": ["人物目标1", "人物目标2"],
+            "emotional_goals": ["情绪目标1", "情绪目标2"],
+            "key_deliverables": ["必须完成的事项1", "必须完成的事项2"],
+            "ending_style": "结局风格（圆满/开放/悬念/悲剧）"
+        }}
+    }}
+}}
+
+注意事项：
+1. 各阶段章节数之和必须等于{total_chapters}
+2. 每个阶段的core_mission必须清晰具体
+3. 阶段之间的钩子要有机衔接
+4. 目标设计要考虑市场分析中的读者期待
+5. 关键交付物必须是可验证的具体成果
+""",
+
+            "foundation_planning": """
+你是一位资深的网络小说开篇策划专家，专精于小说基础设定设计。
+
+内容:
+请根据提供的创意种子，设计小说的基础设定。
+
+小说标题：{novel_title}
+小说简介：{novel_synopsis}
+
+创意种子：
+{creative_seed}
+
+市场定位：
+{market_analysis}
+
+请设计以下内容：
+1. **写作风格指南**：确定小说的叙事风格、语言风格、节奏特点
+2. **市场定位策略**：基于市场分析，确定目标读者和差异化策略
+
+请严格按照以下JSON格式输出：
+{{
+    "writing_style_guide": {{
+        "narrative_perspective": "叙事视角（第一人称/第三人称）",
+        "narrative_style": "叙事风格（热血冷静/轻松幽默/黑暗压抑/史诗宏大）",
+        "language_style": "语言风格（简洁明快/华丽辞藻/口语化/文艺范）",
+        "pacing_characteristics": "节奏特点（快节奏爽文/慢热沉淀/张弛有度）",
+        "chapter_structure": "章节结构建议",
+        "dialogue_style": "对话风格",
+        "description_balance": "描写与叙述的平衡",
+        "platform_adaptations": "平台适配建议（针对{platform_name}）"
+    }},
+    "market_positioning": {{
+        "target_reader_profile": "目标读者画像",
+        "core_selling_points": ["核心卖点1", "核心卖点2", "核心卖点3"],
+        "differentiation_strategy": "差异化竞争策略",
+        "genre_positioning": "类型定位",
+        "competitive_advantages": ["竞争优势1", "竞争优势2"],
+        "potential_risks": ["潜在风险1", "潜在风险2"],
+        "risk_mitigation": "风险规避建议"
+    }}
+}}
+""",
+
+            "worldview_with_factions": """
+你是一位资深的网络小说世界观与势力系统设计专家。你的任务是设计一个完整的世界观和势力系统。
+
+内容:
+请基于提供的小说创意种子，设计世界观和势力系统。
+
+小说标题：{novel_title}
+小说简介：{novel_synopsis}
+创意种子：
+{creative_seed}
+市场分析：
+{market_analysis}
+
+请设计以下内容：
+1. **核心世界观**：世界背景、力量体系、核心规则
+2. **势力系统**：各方势力、势力间关系、冲突格局
+
+请严格按照以下JSON格式输出：
+{{
+    "core_worldview": {{
+        "world_overview": "世界背景概述",
+        "power_system": "力量体系说明",
+        "core_rules": "世界运行的核心规则",
+        "unique_features": "世界独特设定",
+        "geography": "地理概况（如相关）",
+        "history_background": "历史背景（如相关）"
+    }},
+    "faction_system": {{
+        "factions": [
+            {{
+                "name": "势力名称",
+                "type": "势力类型（宗门/家族/国家/组织）",
+                "description": "势力描述",
+                "strength_level": "实力等级",
+                "relationship_with_protagonist": "与主角关系",
+                "key_characters": ["关键人物1", "关键人物2"]
+            }}
+        ],
+        "main_conflict": "主要冲突格局",
+        "faction_power_balance": "势力间力量平衡",
+        "recommended_starting_faction": "推荐主角开局关联的势力"
+    }}
+}}
+""",
+
+            "character_design_core": """
+你是一位资深的网络小说角色设计专家。你的任务是设计小说的核心角色。
+
+内容:
+请基于提供的创意种子、世界观和势力系统，设计核心角色。
+
+小说标题：{novel_title}
+核心世界观：
+{core_worldview}
+势力系统：
+{faction_system}
+创意种子：
+{creative_seed}
+
+请设计以下内容：
+1. **主角设定**：详细的主角人设
+2. **核心盟友**：2-3个重要盟友
+3. **主要反派/对手**：1-2个主要对手
+
+请严格按照以下JSON格式输出：
+{{
+    "protagonist": {{
+        "name": "主角姓名",
+        "gender": "性别",
+        "age": "年龄",
+        "appearance": "外貌特征",
+        "personality": "性格特点",
+        "background": "身世背景",
+        "motivation": "核心动机",
+        "initial_ability": "初始能力",
+        "growth_potential": "成长潜力",
+        "unique_traits": "独特特质",
+        "catchphrases": ["口头禅1", "口头禅2"]
+    }},
+    "core_allies": [
+        {{
+            "name": "盟友姓名",
+            "role": "角色定位（导师/伙伴/爱人）",
+            "description": "角色描述",
+            "relationship_with_protagonist": "与主角关系"
+        }}
+    ],
+    "main_antagonists": [
+        {{
+            "name": "反派姓名",
+            "role": "角色定位（宿敌/boss/对手）",
+            "description": "角色描述",
+            "conflict_with_protagonist": "与主角的冲突"
+        }}
+    ]
+}}
+""",
+
+            "global_growth_planning": """
+你是一位资深的网络小说成长路线规划专家。你的任务是为小说设计全书的成长规划。
+
+内容:
+请基于提供的创意种子、角色设定和世界观，设计全书的成长规划。
+
+小说标题：{novel_title}
+主角设定：
+{protagonist}
+世界观：
+{worldview}
+创意种子：
+{creative_seed}
+
+请设计以下内容：
+1. **主角成长路线图**：按"起承转合"四阶段规划主角成长
+2. **能力体系进阶**：主角能力如何逐步提升
+3. **关键关系发展**：主角与重要角色的关系演变
+
+请严格按照以下JSON格式输出：
+{{
+    "protagonist_growth": {{
+        "opening_stage": {{
+            "ability_level": "开局能力水平",
+            "key_growth": "本阶段成长重点",
+            "milestones": ["里程碑1", "里程碑2"]
+        }},
+        "development_stage": {{
+            "ability_level": "发展阶段能力",
+            "key_growth": "本阶段成长重点",
+            "milestones": ["里程碑1", "里程碑2"]
+        }},
+        "climax_stage": {{
+            "ability_level": "高潮阶段能力",
+            "key_growth": "本阶段成长重点",
+            "milestones": ["里程碑1", "里程碑2"]
+        }},
+        "ending_stage": {{
+            "ability_level": "最终能力水平",
+            "key_growth": "本阶段成长重点",
+            "milestones": ["里程碑1", "里程碑2"]
+        }}
+    }},
+    "ability_system_progression": [
+        "能力进阶节点1",
+        "能力进阶节点2",
+        "能力进阶节点3"
+    ],
+    "key_relationships_development": [
+        {{
+            "character": "角色名称",
+            "relationship_arc": "关系发展弧线"
+        }}
+    ]
+}}
+""",
+
+            "stage_writing_plan": """
+你是一位顶级的网络小说剧情架构师AI，专精于将高阶大纲分解为结构化、可执行的阶段性写作计划。
+
+内容:
+你正在为一个{platform_name}小说项目制定阶段写作计划。
+
+小说标题：{novel_title}
+阶段范围：{stage_range}
+
+创意种子信息：
+{creative_seed_info}
+
+参考材料：
+{reference_materials}
+
+你的任务是根据提供的创意种子和参考材料，为"{stage_name}"制定详细的写作计划。
+
+请按照以下JSON格式输出阶段计划：
+{{
+    "stage_writing_plan": {{
+        "stage_name": "{stage_name}",
+        "stage_range": "{stage_range}",
+        "chapter_count": {chapter_count},
+        "creative_essence": "本阶段需要体现的核心创意点",
+        "stage_goals": [
+            "阶段目标1",
+            "阶段目标2"
+        ],
+        "plot_structure": {{
+            "opening": "开局设计和钩子",
+            "development": "发展阶段的主要情节",
+            "climax": "阶段高潮设计",
+            "transition": "如何衔接到下一阶段"
+        }},
+        "character_focus": {{
+            "protagonist_tasks": ["主角任务1", "主角任务2"],
+            "character_development": "本阶段人物成长重点",
+            "key_relationships": "关键关系发展"
+        }},
+        "emotional_arc": {{
+            "dominant_emotion": "主导情绪",
+            "emotional_curve": "情绪曲线设计",
+            "climax_moments": ["情绪高潮点1", "情绪高潮点2"]
+        }},
+        "satisfaction_design": {{
+            "major_payoffs": ["爽点1", "爽点2"],
+            "anticipation_building": "期待感营造方式",
+            "plot_twists": ["反转设计1"]
+        }},
+        "key_events": [
+            {{
+                "event_name": "事件名称",
+                "chapter_range": "大致章节范围",
+                "event_type": "事件类型（战斗/揭秘/情感/收获）",
+                "significance": "对整体剧情的影响"
+            }}
+        ],
+        "writing_guidance": {{
+            "tone_style": "本阶段的语气和风格建议",
+            "pacing_strategy": "节奏控制策略",
+            "key_scenes": ["关键场景1", "关键场景2"],
+            "things_to_avoid": ["避免事项1", "避免事项2"]
+        }}
+    }}
+}}
+
+注意：
+1. 确保计划具体、可执行
+2. 所有设计必须忠实于创意种子
+3. 考虑与前后阶段的衔接
+4. 突出{platform_name}平台特色（爽点、快节奏、强情绪）
+""",
+
+            "stage_emotional_planning": """
+你是一位资深的网络小说情绪节奏设计专家。你的任务是为特定阶段设计详细的情绪规划。
+
+阶段名称：{stage_name}
+章节范围：{chapter_range}
+情绪蓝图参考：
+{emotional_blueprint}
+
+请设计以下内容：
+1. 本阶段的主导情绪
+2. 情绪曲线设计
+3. 情绪高潮点安排
+4. 与前后阶段的情绪衔接
+
+请严格按照以下JSON格式输出：
+{{
+    "stage_emotional_plan": {{
+        "stage_name": "{stage_name}",
+        "dominant_emotion": "主导情绪",
+        "emotional_curve": "情绪曲线描述（如：低开高走/波动上升/持续紧张）",
+        "curve_description": "情绪曲线的详细说明",
+        "climax_moments": [
+            {{
+                "position": "大致位置",
+                "emotion": "情绪类型",
+                "intensity": 8,
+                "description": "情绪爆发点描述"
+            }}
+        ],
+        "transition_to_next": "如何衔接到下一阶段的情绪",
+        "pacing_strategy": "节奏控制策略"
+    }}
+}}
+""",
+
+            "chapter_event_design": """
+你是一位资深的网络小说剧情设计专家。请为指定章节设计详细的事件。
+
+小说信息：
+- 标题：{novel_title}
+- 当前章节：第{chapter_number}章
+- 阶段：{stage_name}
+
+上下文信息：
+{context_info}
+
+请设计以下内容：
+1. 本章的核心事件
+2. 事件的起因、经过、结果
+3. 涉及的角色及其互动
+4. 本章的情绪设计
+5. 结尾钩子
+
+请严格按照以下JSON格式输出：
+{{
+    "chapter_event": {{
+        "core_event": "核心事件描述",
+        "cause": "事件起因",
+        "process": "事件经过",
+        "result": "事件结果",
+        "involved_characters": ["角色1", "角色2"],
+        "character_interactions": "角色互动描述",
+        "emotional_design": "情绪设计",
+        "ending_hook": "结尾钩子",
+        "plot_significance": "对整体剧情的意义"
+    }}
+}}
+""",
+
+            "chapter_content_generation": """
+你是一位顶级的网络小说写作专家。请根据提供的信息，撰写小说章节内容。
+
+小说信息：
+- 标题：{novel_title}
+- 当前章节：第{chapter_number}章
+- 章节标题：{chapter_title}
+
+事件设计：
+{event_design}
+
+上下文信息：
+{context_info}
+
+写作要求：
+1. 语言流畅，描写生动
+2. 对话自然，符合角色性格
+3. 节奏紧凑，避免拖沓
+4. 突出爽点，控制情绪节奏
+5. 结尾留有钩子
+
+请直接输出章节正文，不要包含JSON格式或其他标记。
+""",
+
+            "chapter_optimization": """
+你是一位资深的网络小说编辑专家。请对提供的章节内容进行优化。
+
+章节信息：
+- 标题：{chapter_title}
+- 章节号：{chapter_number}
+
+原始内容：
+{original_content}
+
+优化要求：
+{optimization_requirements}
+
+请提供优化后的内容，并说明优化点。
+""",
+
+            "chapter_quality_assessment": """
+你是一位资深的网络小说质量评估专家。请对提供的章节进行质量评估。
+
+章节信息：
+- 标题：{chapter_title}
+- 章节号：{chapter_number}
+
+章节内容：
+{chapter_content}
+
+请从以下维度进行评估：
+1. 可读性（语言流畅度、错别字、标点符号）
+2. 剧情节奏（张弛有度、有无拖沓）
+3. 人物塑造（言行一致、性格鲜明）
+4. 情绪控制（能否调动读者情绪）
+5. 爽点设计（是否有足够的爽点）
+6. 钩子设置（结尾是否有吸引力）
+
+请严格按照以下JSON格式输出：
+{{
+    "quality_assessment": {{
+        "readability": {{"score": 85, "comments": "评价"}},
+        "pacing": {{"score": 80, "comments": "评价"}},
+        "characterization": {{"score": 82, "comments": "评价"}},
+        "emotional_impact": {{"score": 88, "comments": "评价"}},
+        "satisfaction": {{"score": 85, "comments": "评价"}},
+        "hook": {{"score": 90, "comments": "评价"}},
+        "overall_score": 85,
+        "summary": "总体评价",
+        "suggestions": ["改进建议1", "改进建议2"]
+    }}
+}}
 """,
 
             # 元素时机规划已移除，由期待感系统统一管理
             # element_timing_planning prompt 已废弃
         }
+
+    def get(self, key, default=None):
+        """兼容字典的get方法"""
+        return self.prompts.get(key, default)
+
+    def __getitem__(self, key):
+        """支持字典式访问"""
+        return self.prompts[key]
+
+    def __contains__(self, key):
+        """支持in操作符"""
+        return key in self.prompts

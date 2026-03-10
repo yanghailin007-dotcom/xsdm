@@ -11,7 +11,7 @@ class UserAuth:
     def __init__(self):
         # 默认账户配置（用于初始化数据库）
         self.default_users = {
-            "admin": {"password": "admin", "is_admin": True, "phone": None},
+            "admin": {"password": "yanghailin", "is_admin": True, "phone": None},
             "test": {"password": "", "is_admin": False, "phone": None}  # 空密码表示任意密码
         }
         # 初始化默认用户到数据库
@@ -31,14 +31,22 @@ class UserAuth:
                         username=username,
                         password=config["password"] if config["password"] else "test123",  # test用户给一个默认密码
                         phone=config["phone"],
-                        email=None
+                        email=None,
+                        is_admin=config.get("is_admin", False)
                     )
                     if result.get("success"):
                         logger.info(f"✅ 初始化默认用户: {username}")
                     else:
                         logger.warning(f"⚠️ 初始化用户失败: {username} - {result.get('error')}")
                 else:
-                    logger.info(f"✅ 默认用户已存在: {username}")
+                    # 更新现有默认用户的密码和管理员状态
+                    if username == "admin":
+                        user_model.update_password(username, config["password"])
+                        # 确保 admin 用户有管理员权限
+                        user_model.set_admin_status(username, True)
+                        logger.info(f"✅ 已同步默认用户密码和管理员权限: {username}")
+                    else:
+                        logger.info(f"✅ 默认用户已存在: {username}")
                     
         except Exception as e:
             logger.error(f"❌ 初始化默认用户失败: {e}")
