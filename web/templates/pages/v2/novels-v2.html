@@ -612,6 +612,18 @@
             color: var(--text-tertiary);
         }
 
+        .status-resumable {
+            background: linear-gradient(135deg, rgba(16, 185, 129, 0.2), rgba(52, 211, 153, 0.2));
+            color: #34d399;
+            border: 1px solid rgba(52, 211, 153, 0.3);
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.7; }
+        }
+
         .novel-body {
             padding: 1.25rem 1.5rem;
             display: flex;
@@ -1063,6 +1075,20 @@
         let searchTerm = '';
 
         document.addEventListener('DOMContentLoaded', function() {
+            // 🔥 改进：从 URL 参数中读取 filter
+            const urlParams = new URLSearchParams(window.location.search);
+            const filterParam = urlParams.get('filter');
+            if (filterParam && ['all', 'completed', 'generating', 'paused'].includes(filterParam)) {
+                currentFilter = filterParam;
+                // 更新筛选标签的显示
+                document.querySelectorAll('.filter-tag').forEach(tag => {
+                    tag.classList.remove('active');
+                    if (tag.dataset.filter === filterParam) {
+                        tag.classList.add('active');
+                    }
+                });
+            }
+            
             loadNovels();
             loadStats();
         });
@@ -1142,8 +1168,41 @@
             const createdDate = novel.created_at ? 
                 new Date(novel.created_at).toLocaleDateString('zh-CN') : '未知';
             
-            const statusClass = getStatusClass(novel.status);
-            const statusText = getStatusText(novel.status);
+            // 🔥 改进：判断是否为"可续写"状态（第一阶段完成但第二阶段未完成）
+            const canResume = novel.status === 'paused' && novel.completed_chapters === 0 && novel.total_chapters > 0;
+            const statusClass = canResume ? 'status-resumable' : getStatusClass(novel.status);
+            const statusText = canResume ? '可续写' : getStatusText(novel.status);
+
+            // 🔥 改进：根据状态显示不同的操作按钮
+            let actionButtons = `
+                <button class="novel-btn novel-btn-primary" onclick="viewNovel('${escapeHtml(novel.title)}')">
+                    📖 阅读
+                </button>
+            `;
+            
+            if (!novel.is_public) {
+                if (canResume) {
+                    // 可续写状态：显示醒目的"继续生成"按钮
+                    actionButtons += `
+                        <button class="novel-btn" style="background: linear-gradient(135deg, #10b981, #34d399); color: white; border: none;" onclick="continueNovel('${escapeHtml(novel.title)}')">
+                            ▶️ 继续生成
+                        </button>
+                    `;
+                } else if (novel.status !== 'completed') {
+                    // 其他未完成状态：显示"续写"按钮
+                    actionButtons += `
+                        <button class="novel-btn novel-btn-secondary" onclick="continueNovel('${escapeHtml(novel.title)}')">
+                            ➕ 续写
+                        </button>
+                    `;
+                }
+            }
+            
+            actionButtons += `
+                <button class="novel-btn novel-btn-secondary" onclick="exportNovel('${escapeHtml(novel.title)}')">
+                    📥 导出
+                </button>
+            `;
 
             return `
                 <div class="novel-card">
@@ -1187,17 +1246,7 @@
                         </div>
                         
                         <div class="novel-actions">
-                            <button class="novel-btn novel-btn-primary" onclick="viewNovel('${escapeHtml(novel.title)}')">
-                                📖 阅读
-                            </button>
-                            ${!novel.is_public ? `
-                            <button class="novel-btn novel-btn-secondary" onclick="continueNovel('${escapeHtml(novel.title)}')">
-                                ➕ 续写
-                            </button>
-                            ` : ''}
-                            <button class="novel-btn novel-btn-secondary" onclick="exportNovel('${escapeHtml(novel.title)}')">
-                                📥 导出
-                            </button>
+                            ${actionButtons}
                         </div>
                     </div>
                 </div>

@@ -327,12 +327,21 @@ async function loadContinueProjects() {
             if (continueProjects.length > 3) {
                 listContainer.innerHTML += `
                     <div style="text-align: center; margin-top: 16px;">
-                        <a href="/project-management?filter=phase-one-only" class="v2-btn v2-btn--secondary">
+                        <a href="/novels?filter=paused" class="v2-btn v2-btn--secondary">
                             查看全部 ${continueProjects.length} 个项目 →
                         </a>
                     </div>
                 `;
             }
+            
+            // 🔥 改进：添加提示信息，引导用户去"我的作品"页面
+            listContainer.innerHTML += `
+                <div style="text-align: center; margin-top: 12px; padding: 12px; background: rgba(99, 102, 241, 0.1); border-radius: 8px;">
+                    <span style="color: var(--v2-text-secondary); font-size: 14px;">
+                        💡 提示：您可以在"我的作品"页面查看所有可续写的项目
+                    </span>
+                </div>
+            `;
         }
     } catch (error) {
         console.error('加载可继续生成项目失败:', error);

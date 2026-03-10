@@ -1348,27 +1348,44 @@ def continue_to_phase_two(title):
         
         logger.info(f"🔄 [PHASE_TRANSITION] 准备从第一阶段跳转到第二阶段: {title}")
         
-        # 验证项目存在且第一阶段已完成
+        # 验证项目存在
         novel_detail = manager.get_novel_detail(title)
         if not novel_detail:
             return jsonify({"success": False, "error": "项目不存在"}), 404
         
-        # 检查第一阶段产物
-        quality_data = novel_detail.get("quality_data", {})
-        has_phase_one_products = bool(quality_data) or bool(novel_detail.get("core_worldview"))
+        # 🔥 修复：使用与 with-phase-status API 相同的判断逻辑
+        # 使用 ProductLoader 检查产物完整性
+        loader = ProductLoader(title, logger)
+        products = loader.load_all_products()
         
-        if not has_phase_one_products:
+        # 必须完成所有7个核心产物
+        required_categories = ['worldview', 'factions', 'characters', 'growth', 'writing', 'storyline', 'market']
+        completed_count = sum(1 for category in required_categories if products.get(category, {}).get('complete', False))
+        
+        logger.info(f"📊 [PHASE_TRANSITION] 项目 {title}: 完成 {completed_count}/7 个核心产物")
+        
+        # 详细日志
+        for category in required_categories:
+            status = "✅" if products.get(category, {}).get('complete', False) else "❌"
+            logger.info(f"  {status} {category}")
+        
+        if completed_count < 7:
             return jsonify({
                 "success": False,
-                "error": "第一阶段尚未完成，请先完成设定生成"
+                "error": f"第一阶段尚未完成，仅完成 {completed_count}/7 个设定，请先完成所有设定生成",
+                "completed_products": completed_count,
+                "required_products": 7,
+                "missing_products": [cat for cat in required_categories if not products.get(cat, {}).get('complete', False)]
             }), 400
         
-        logger.info(f"✅ [PHASE_TRANSITION] 第一阶段验证通过，准备跳转到第二阶段")
+        logger.info(f"✅ [PHASE_TRANSITION] 第一阶段验证通过（7/7产物完成），准备跳转到第二阶段")
         
         return jsonify({
             "success": True,
             "message": "可以继续第二阶段生成",
-            "project_title": title
+            "project_title": title,
+            "phase_one_completed": True,
+            "completed_products": completed_count
         })
         
     except Exception as e:
