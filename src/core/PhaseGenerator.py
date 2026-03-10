@@ -698,6 +698,13 @@ class PhaseGenerator:
         
         真正合并为一个API调用，大幅减少API调用次数和时间
         """
+        import logging
+        logger = logging.getLogger("PhaseGenerator")
+        
+        logger.info("="*60)
+        logger.info("🎨📈 步骤8-9: 情绪蓝图与成长规划（真正合并为一个API调用）")
+        logger.info("="*60)
+        
         print("\n" + "="*60)
         print("🎨📈 步骤8-9: 情绪蓝图与成长规划（真正合并为一个API调用）")
         print("="*60)
@@ -713,20 +720,39 @@ class PhaseGenerator:
             update_step_status('emotional_growth_planning', 'active', 60)
         
         # 🔥 构建合并的提示词
+        logger.info("🔨 构建合并提示词...")
+        print("  🔨 构建合并提示词...")
         prompt = self._build_combined_emotional_and_growth_prompt(
             novel_title, novel_synopsis, creative_seed, total_chapters
         )
+        logger.info(f"✅ 提示词构建完成，长度: {len(prompt)}")
+        print(f"  ✅ 提示词构建完成，长度: {len(prompt)}")
         
         # 🔥 真正的单次API调用
+        logger.info("🚀 调用AI生成合并的情绪蓝图与成长规划...")
         print("  🚀 调用AI生成合并的情绪蓝图与成长规划...")
         print(f"  ⏱️ 开始时间: {__import__('datetime').datetime.now().strftime('%H:%M:%S')}")
         
+        # 🔥 检查API客户端
+        if not hasattr(self.generator, 'api_client') or not self.generator.api_client:
+            logger.error("❌ API客户端不存在")
+            print("  ❌ API客户端不存在")
+            return False
+        logger.info(f"🔍 API客户端: {type(self.generator.api_client)}")
+        print(f"  🔍 API客户端: {type(self.generator.api_client)}")
+        
+        # 🔥 检查提示词
+        print(f"  🔍 提示词长度: {len(prompt) if prompt else 0}")
+        
+        result = None
         try:
+            print("  🚀 正在调用 generate_content_with_retry...")
             result = self.generator.api_client.generate_content_with_retry(
                 "emotional_blueprint",  # 使用情绪蓝图的content_type
                 prompt,
                 purpose="合并生成情绪蓝图与成长规划"
             )
+            print(f"  ✅ generate_content_with_retry 返回了结果: {result is not None}")
         except Exception as e:
             print(f"  ❌ API调用异常: {e}")
             import traceback
@@ -803,7 +829,10 @@ class PhaseGenerator:
     
     def _build_combined_emotional_and_growth_prompt(self, novel_title: str, novel_synopsis: str, creative_seed: dict, total_chapters: int) -> str:
         """构建合并的提示词：同时生成情绪蓝图和成长规划"""
+        import logging
+        logger = logging.getLogger("PhaseGenerator")
         
+        logger.info(f"🔍 构建提示词... novel_title={novel_title}, creative_seed类型={type(creative_seed)}")
         print(f"  🔍 构建提示词...")
         print(f"  🔍 novel_title: {novel_title}")
         print(f"  🔍 creative_seed类型: {type(creative_seed)}")
