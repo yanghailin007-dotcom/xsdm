@@ -1244,20 +1244,29 @@ class QualityAssessor:
         # 2. 处理重要配角
         important_characters = character_design.get("important_characters", [])
         if important_characters and isinstance(important_characters, list):
-            for character in important_characters:
+            for idx, character in enumerate(important_characters):
                 if character and isinstance(character, dict) and character.get('name'):
+                    char_name = character.get('name')
                     # 如果没有 role_type，从 role 字段推断，并默认为重要配角
                     if 'role_type' not in character:
                         character['role_type'] = "重要配角"
-                    self.logger.info(f"    -> 持久化重要角色: {character.get('name')}")
-                    self.world_state_manager.manage_character_development_table(
-                        novel_title,
-                        character,
-                        current_chapter=0,
-                        action="update"
-                    )
+                    self.logger.info(f"    -> 持久化重要角色 [{idx+1}/{len(important_characters)}]: {char_name}")
+                    try:
+                        self.world_state_manager.manage_character_development_table(
+                            novel_title,
+                            character,
+                            current_chapter=0,
+                            action="update"
+                        )
+                        self.logger.info(f"    ✅ 角色 {char_name} 持久化完成")
+                    except Exception as e:
+                        self.logger.error(f"    ❌ 角色 {char_name} 持久化失败: {e}")
+                        import traceback
+                        traceback.print_exc()
+                        # 继续处理下一个角色，不要中断
+                        continue
         
-        self.logger.info("  ✅ 初始角色设计已成功持久化（设计文件 + 发展表）。")
+        self.logger.info("  ✅ 初始角色设计持久化流程结束（设计文件 + 发展表）。")
     def optimize_novel_plan(self, plan_to_optimize, optimization_params):
         market_analysis = optimization_params.get("market_competitor_analysis")
         """优化小说方案 - 支持新鲜度要求"""

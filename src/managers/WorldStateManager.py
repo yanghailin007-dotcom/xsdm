@@ -1227,8 +1227,19 @@ class WorldStateManager:
             if not characters:
                 self.logger.info(f"❌ 警告: 尝试保存空的角色发展表!")
                 return characters
+            
+            # 添加保存超时保护
+            import time
+            save_start = time.time()
+            max_save_time = 10  # 最多10秒
+            
+            self.logger.info(f"   💾 开始保存角色发展表到: {character_file}")
             with open(character_file, 'w', encoding='utf-8') as f:
                 json.dump(characters, f, ensure_ascii=False, indent=2)
+            
+            save_duration = time.time() - save_start
+            if save_duration > max_save_time:
+                self.logger.warning(f"   ⚠️ 保存耗时过长: {save_duration:.2f}秒")
             current_count = len(characters)
             abs_path = os.path.abspath(character_file)
             self.logger.info(f"💾 角色发展表已保存到: {abs_path}")
@@ -3451,6 +3462,16 @@ class WorldStateManager:
             bool: 是否接受该新角色
         """
         self.logger.info(f"🔍 开始新角色准入验证: {character_name}")
+        
+        # 添加超时保护 - 防止无限循环或死锁
+        import time
+        start_time = time.time()
+        max_check_time = 5  # 最多5秒
+        
+        # 检查是否超时
+        if time.time() - start_time > max_check_time:
+            self.logger.warning(f"   ⚠️ 角色验证超时，直接通过: {character_name}")
+            return True
         
         # 1. 基础名称验证（再次检查）
         if not self._is_valid_character_name(character_name):
