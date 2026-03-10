@@ -872,82 +872,35 @@ class PhaseGenerator:
     # ElementTimingPlanner已移除，元素登场时机由期待感系统统一管理
     
     def _generate_and_save_expectation_maps(self):
-        """为所有阶段生成并保存期待感映射"""
+        """为所有阶段生成并保存期待感映射 - 使用Enriched版本"""
         try:
-            print("\n=== 步骤6.5: 生成期待感映射 ===")
+            print("\n=== 步骤6.5: 生成期待感映射（Enriched版本） ===")
             
-            from src.managers.ExpectationManager import ExpectationManager, ExpectationIntegrator
+            # 🔥 使用新的Enriched期待感管理器
+            from src.managers.ExpectationManager_enriched import (
+                EnrichedExpectationManager, 
+                generate_enriched_expectation_maps
+            )
             
-            # 创建期待感管理器
-            expectation_manager = ExpectationManager()
-            expectation_integrator = ExpectationIntegrator(expectation_manager)
+            # 获取API客户端
+            api_client = getattr(self.generator, 'api_client', None)
             
-            all_expectation_maps = {}
-            total_tagged = 0
+            # 批量生成所有阶段的期待感映射
+            stage_plans = self.generator.novel_data.get("stage_writing_plans", {})
             
-            # 遍历所有阶段
-            for stage_name, stage_plan in self.generator.novel_data["stage_writing_plans"].items():
-                stage_writing_plan = stage_plan.get("stage_writing_plan", {})
-                major_events = stage_writing_plan.get("event_system", {}).get("major_events", [])
-                
-                if not major_events:
-                    print(f"  ⚠️ {stage_name} 没有重大事件，跳过")
-                    continue
-                
-                print(f"  📋 为 {stage_name} 的 {len(major_events)} 个事件生成期待感...")
-                
-                # 为该阶段的每个事件生成期待感标签
-                stage_tagged = 0
-                for event in major_events:
-                    try:
-                        event_name = event.get("name", "未命名事件")
-                        # 🔥 修复：确保事件有id字段，如果没有则生成一个
-                        event_id = event.get("id")
-                        if not event_id:
-                            event_id = f"event_{event_name}"
-                            # 将生成的id添加到事件对象中，确保后续访问时使用相同的id
-                            event["id"] = event_id
-                        
-                        # 使用自动选择期待类型（从API复用）
-                        from web.api.phase_generation_api import select_expectation_type
-                        exp_type = select_expectation_type(event)
-                        
-                        # 解析章节范围
-                        chapter_range = event.get("chapter_range", "1-10")
-                        try:
-                            from src.managers.StagePlanUtils import parse_chapter_range
-                            start_ch, end_ch = parse_chapter_range(chapter_range)
-                            target_ch = max(start_ch + 3, end_ch)
-                        except:
-                            target_ch = end_ch
-                            start_ch = 1
-                        
-                        # 种植期待
-                        exp_id = expectation_manager.tag_event_with_expectation(
-                            event_id=event_id,
-                            expectation_type=exp_type,
-                            planting_chapter=start_ch,
-                            description=f"{event_name}: {event.get('main_goal', '')[:80]}...",
-                            target_chapter=target_ch
-                        )
-                        
-                        stage_tagged += 1
-                    except Exception as e:
-                        print(f"    ❌ 为事件 '{event.get('name')}' 生成期待感失败: {e}")
-                        continue
-                
-                total_tagged += stage_tagged
-                print(f"    ✅ {stage_name} 成功标记 {stage_tagged} 个事件")
-                
-                # 导出该阶段的期待感映射
-                expectation_map = expectation_manager.export_expectation_map()
-                
-                # 清空管理器，为下一阶段准备
-                expectation_manager = ExpectationManager()
-                expectation_integrator = ExpectationIntegrator(expectation_manager)
-                
-                # 保存到阶段计划中
-                all_expectation_maps[stage_name] = expectation_map
+            if not stage_plans:
+                print("⚠️ 没有找到阶段计划，跳过期待感映射生成")
+                return
+            
+            print(f"🎯 开始为 {len(stage_plans)} 个阶段生成Enriched期待感映射...")
+            
+            all_expectation_maps = generate_enriched_expectation_maps(
+                stage_plans=stage_plans,
+                api_client=api_client
+            )
+            
+            total_tagged = sum(len(m) for m in all_expectation_maps.values())
+            print(f"✅ 期待感映射生成完成: {len(all_expectation_maps)} 个阶段, 共 {total_tagged} 个事件")
             
             # 将所有期待感映射保存到stage_writing_plans中
             if all_expectation_maps:

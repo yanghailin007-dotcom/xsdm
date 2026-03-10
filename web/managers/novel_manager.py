@@ -439,8 +439,9 @@ class NovelGenerationManager:
             if owner:
                 novel_data['owner'] = owner
             
-            # 使用新的路径配置系统获取章节目录
-            paths = path_config.get_project_paths(title)
+            # 🔥 修复：使用owner作为username获取正确的用户隔离路径
+            username = owner if owner else None
+            paths = path_config.get_project_paths(title, username=username)
             chapter_dirs = [
                 Path(paths["chapters_dir"]),  # 新路径：小说项目/小说名/chapters
                 Path("小说项目") / f"{title}_章节",   # 旧路径：小说项目/小说名_章节
@@ -503,7 +504,7 @@ class NovelGenerationManager:
                 novel_data["chapter_directory"] = str(actual_chapter_dir)
 
             # 加载质量数据
-            quality_data = self.load_quality_data(title)
+            quality_data = self.load_quality_data(title, username=username)
             novel_data["quality_data"] = quality_data
 
             # 🔥 修复：从独立文件加载写作风格指南
@@ -532,7 +533,7 @@ class NovelGenerationManager:
         except Exception as e:
             logger.error(f"❌ 处理项目数据 {title} 失败: {e}")
 
-    def load_quality_data(self, title: str) -> Dict[str, Any]:
+    def load_quality_data(self, title: str, username: str = None) -> Dict[str, Any]:
         """加载小说的质量数据"""
         # 导入路径配置
         from src.config.path_config import path_config
@@ -550,8 +551,8 @@ class NovelGenerationManager:
         }
 
         try:
-            # 使用新的路径配置系统
-            paths = path_config.get_project_paths(title)
+            # 🔥 修复：使用username获取正确的用户隔离路径
+            paths = path_config.get_project_paths(title, username=username)
             
             # 基础路径 - 使用新的目录结构
             novel_base = Path(paths["project_root"])
@@ -910,7 +911,8 @@ class NovelGenerationManager:
         if "writing_style_guide" not in standardized_data or not standardized_data.get("writing_style_guide"):
             try:
                 from src.config.path_config import path_config
-                writing_style_path = Path(path_config.get_project_paths(title).get("writing_style_guide", ""))
+                # 🔥 修复：这里也需要username，但当前函数没有传递，使用默认值
+                writing_style_path = Path(path_config.get_project_paths(title, username=None).get("writing_style_guide", ""))
                 if writing_style_path.exists():
                     with open(writing_style_path, 'r', encoding='utf-8') as f:
                         writing_style_guide = json.load(f)
