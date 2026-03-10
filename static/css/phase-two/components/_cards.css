@@ -1,0 +1,411 @@
+/**
+ * Phase Two - Card Components
+ * 所有卡片组件样式：产物卡片、章节卡片、统计卡片
+ */
+
+/* ==================== 基础卡片 ==================== */
+.pt-card {
+  background: var(--pt-bg-card);
+  border: 1px solid var(--pt-border-subtle);
+  border-radius: var(--pt-radius-xl);
+  padding: var(--pt-space-6);
+  transition: all var(--pt-duration-normal) var(--pt-ease-out);
+}
+
+.pt-card:hover {
+  background: var(--pt-bg-card-hover);
+  border-color: var(--pt-border-hover);
+}
+
+/* ==================== 产物卡片 V2 ==================== */
+.pt-product-card {
+  position: relative;
+  background: rgba(26, 26, 37, 0.4);
+  backdrop-filter: blur(20px);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: var(--pt-radius-xl);
+  padding: var(--pt-space-6);
+  cursor: pointer;
+  overflow: hidden;
+  box-shadow: var(--pt-shadow-card);
+  transition: all var(--pt-duration-slow) var(--pt-ease-out-expo);
+}
+
+/* 顶部渐变条 */
+.pt-product-card::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 3px;
+  background: var(--pt-gradient-brand);
+  opacity: 0;
+  transition: opacity var(--pt-duration-normal) ease;
+}
+
+/* 悬停效果 */
+.pt-product-card:hover {
+  transform: translateY(-6px) scale(1.02);
+  background: rgba(35, 35, 50, 0.6);
+  border-color: rgba(255, 255, 255, 0.15);
+  box-shadow: 
+    0 12px 48px rgba(99, 102, 241, 0.15),
+    0 4px 16px rgba(0, 0, 0, 0.3),
+    inset 0 1px 0 rgba(255, 255, 255, 0.1);
+}
+
+.pt-product-card:hover::before {
+  opacity: 1;
+}
+
+/* 图标容器 */
+.pt-product-card__icon {
+  width: 52px;
+  height: 52px;
+  border-radius: var(--pt-radius-lg);
+  background: linear-gradient(135deg, 
+    rgba(99, 102, 241, 0.2), 
+    rgba(34, 211, 238, 0.2)
+  );
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 26px;
+  margin-bottom: var(--pt-space-4);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  transition: all var(--pt-duration-normal) var(--pt-ease-out-back);
+}
+
+.pt-product-card:hover .pt-product-card__icon {
+  transform: scale(1.1) rotate(-5deg);
+  background: linear-gradient(135deg, 
+    rgba(99, 102, 241, 0.3), 
+    rgba(34, 211, 238, 0.3)
+  );
+}
+
+/* 标题 */
+.pt-product-card__title {
+  color: var(--pt-text-primary);
+  font-size: 15px;
+  font-weight: 600;
+  margin: 0 0 var(--pt-space-2) 0;
+}
+
+/* 描述 */
+.pt-product-card__desc {
+  color: var(--pt-text-tertiary);
+  font-size: 13px;
+  line-height: 1.6;
+  margin: 0 0 var(--pt-space-4) 0;
+}
+
+/* 状态指示器 */
+.pt-product-card__status {
+  display: flex;
+  align-items: center;
+  gap: var(--pt-space-2);
+}
+
+.pt-status-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: var(--pt-radius-full);
+  background: var(--pt-text-muted);
+  transition: all var(--pt-duration-normal) ease;
+}
+
+.pt-status-dot--complete {
+  background: var(--pt-accent-success);
+  box-shadow: 0 0 8px rgba(34, 197, 94, 0.5);
+}
+
+.pt-status-dot--loading {
+  background: var(--pt-accent-primary);
+  animation: pulse-dot 1.5s ease-in-out infinite;
+}
+
+@keyframes pulse-dot {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.5; transform: scale(0.8); }
+}
+
+.pt-status-text {
+  color: var(--pt-text-tertiary);
+  font-size: 12px;
+  font-weight: 500;
+}
+
+/* 操作按钮 */
+.pt-product-card__action {
+  margin-top: var(--pt-space-4);
+  padding-top: var(--pt-space-4);
+  border-top: 1px solid var(--pt-border-subtle);
+  color: var(--pt-accent-primary-light);
+  font-size: 13px;
+  font-weight: 500;
+  display: flex;
+  align-items: center;
+  gap: var(--pt-space-2);
+  transition: gap var(--pt-duration-normal) ease;
+}
+
+.pt-product-card:hover .pt-product-card__action {
+  gap: var(--pt-space-3);
+}
+
+/* ==================== 8个产物卡片特定样式 ==================== */
+/* 项目可视化 - 紫色主题 */
+.pt-product-card--viewer::before {
+  background: linear-gradient(90deg, #8b5cf6, #a78bfa);
+}
+
+/* 世界观 - 蓝色主题 */
+.pt-product-card--worldview::before {
+  background: linear-gradient(90deg, #3b82f6, #60a5fa);
+}
+
+/* 势力系统 - 红色主题 */
+.pt-product-card--factions::before {
+  background: linear-gradient(90deg, #ef4444, #f87171);
+}
+
+/* 角色设计 - 粉色主题 */
+.pt-product-card--characters::before {
+  background: linear-gradient(90deg, #ec4899, #f472b6);
+}
+
+/* 成长路线 - 绿色主题 */
+.pt-product-card--growth::before {
+  background: linear-gradient(90deg, #10b981, #34d399);
+}
+
+/* 写作计划 - 橙色主题 */
+.pt-product-card--writing::before {
+  background: linear-gradient(90deg, #f59e0b, #fbbf24);
+}
+
+/* 故事线 - 青色主题 */
+.pt-product-card--storyline::before {
+  background: linear-gradient(90deg, #06b6d4, #22d3ee);
+}
+
+/* 市场分析 - 灰色主题 */
+.pt-product-card--market::before {
+  background: linear-gradient(90deg, #6b7280, #9ca3af);
+}
+
+/* ==================== 章节卡片 V2 ==================== */
+.pt-chapter-card {
+  position: relative;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid var(--pt-border-subtle);
+  border-radius: var(--pt-radius-lg);
+  padding: var(--pt-space-4);
+  min-height: 100px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  cursor: pointer;
+  transition: all var(--pt-duration-normal) var(--pt-ease-out);
+}
+
+.pt-chapter-card:hover {
+  background: rgba(255, 255, 255, 0.06);
+  border-color: var(--pt-border-default);
+  transform: translateY(-2px);
+}
+
+/* 完成状态 */
+.pt-chapter-card--completed {
+  background: rgba(34, 197, 94, 0.1);
+  border-color: rgba(34, 197, 94, 0.3);
+}
+
+.pt-chapter-card--completed:hover {
+  background: rgba(34, 197, 94, 0.15);
+  border-color: rgba(34, 197, 94, 0.5);
+  box-shadow: 0 0 20px rgba(34, 197, 94, 0.1);
+}
+
+/* 生成中状态 */
+.pt-chapter-card--generating {
+  background: rgba(99, 102, 241, 0.15);
+  border-color: rgba(99, 102, 241, 0.5);
+  animation: chapter-pulse 2s ease-in-out infinite;
+}
+
+@keyframes chapter-pulse {
+  0%, 100% { 
+    box-shadow: 0 0 0 0 rgba(99, 102, 241, 0.3);
+    transform: scale(1);
+  }
+  50% { 
+    box-shadow: 0 0 20px 4px rgba(99, 102, 241, 0.2);
+    transform: scale(1.02);
+  }
+}
+
+/* 章节号 */
+.pt-chapter-card__number {
+  color: var(--pt-text-primary);
+  font-size: 14px;
+  font-weight: 700;
+  margin-bottom: var(--pt-space-2);
+}
+
+/* 章节标题 */
+.pt-chapter-card__title {
+  color: var(--pt-text-secondary);
+  font-size: 12px;
+  line-height: 1.4;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+/* 进度环容器 */
+.pt-chapter-card__progress {
+  position: absolute;
+  top: var(--pt-space-2);
+  right: var(--pt-space-2);
+  width: 24px;
+  height: 24px;
+}
+
+/* ==================== 统计卡片 V2 ==================== */
+.pt-stat-card {
+  position: relative;
+  background: linear-gradient(145deg, 
+    rgba(26, 26, 37, 0.8), 
+    rgba(35, 35, 50, 0.6)
+  );
+  border-radius: var(--pt-radius-xl);
+  padding: var(--pt-space-6);
+  text-align: center;
+  border: 1px solid var(--pt-border-subtle);
+  overflow: hidden;
+}
+
+/* 背景装饰 */
+.pt-stat-card::before {
+  content: '';
+  position: absolute;
+  top: -50%;
+  right: -50%;
+  width: 100%;
+  height: 100%;
+  background: radial-gradient(circle, 
+    rgba(99, 102, 241, 0.08) 0%, 
+    transparent 70%
+  );
+  pointer-events: none;
+}
+
+.pt-stat-card__value {
+  font-size: 36px;
+  font-weight: 700;
+  background: var(--pt-gradient-text);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  margin-bottom: var(--pt-space-2);
+  position: relative;
+}
+
+.pt-stat-card__label {
+  color: var(--pt-text-tertiary);
+  font-size: 13px;
+  font-weight: 500;
+}
+
+/* ==================== 骨架屏卡片 ==================== */
+.pt-skeleton-card {
+  background: var(--pt-bg-card);
+  border-radius: var(--pt-radius-xl);
+  padding: var(--pt-space-6);
+}
+
+.pt-skeleton {
+  background: linear-gradient(
+    90deg,
+    rgba(255, 255, 255, 0.03) 0%,
+    rgba(255, 255, 255, 0.08) 50%,
+    rgba(255, 255, 255, 0.03) 100%
+  );
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite;
+  border-radius: var(--pt-radius-sm);
+}
+
+@keyframes shimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+
+.pt-skeleton--icon {
+  width: 52px;
+  height: 52px;
+  border-radius: var(--pt-radius-lg);
+  margin-bottom: var(--pt-space-4);
+}
+
+.pt-skeleton--title {
+  height: 20px;
+  width: 60%;
+  margin-bottom: var(--pt-space-2);
+}
+
+.pt-skeleton--text {
+  height: 16px;
+  width: 100%;
+  margin-bottom: var(--pt-space-2);
+}
+
+.pt-skeleton--text-short {
+  width: 70%;
+}
+
+/* ==================== 网格布局 ==================== */
+.pt-product-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: var(--pt-space-5);
+}
+
+.pt-chapter-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  gap: var(--pt-space-3);
+}
+
+.pt-stat-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: var(--pt-space-5);
+}
+
+/* 响应式 */
+@media (max-width: 1200px) {
+  .pt-stat-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (max-width: 768px) {
+  .pt-product-grid {
+    grid-template-columns: 1fr;
+  }
+  
+  .pt-chapter-grid {
+    grid-template-columns: repeat(3, 1fr);
+  }
+  
+  .pt-stat-grid {
+    grid-template-columns: 1fr 1fr;
+    gap: var(--pt-space-3);
+  }
+}

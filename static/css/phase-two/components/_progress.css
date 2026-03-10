@@ -1,0 +1,229 @@
+/**
+ * Phase Two - Progress Components
+ * 进度条、进度环等组件
+ */
+
+/* ==================== 进度条容器 ==================== */
+.pt-progress {
+  width: 100%;
+}
+
+.pt-progress__header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: var(--pt-space-3);
+}
+
+.pt-progress__title {
+  color: var(--pt-text-primary);
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.pt-progress__percentage {
+  color: var(--pt-accent-primary);
+  font-size: 16px;
+  font-weight: 700;
+}
+
+/* ==================== 进度条 ==================== */
+.pt-progress__bar {
+  height: 8px;
+  background: var(--pt-bg-tertiary);
+  border-radius: var(--pt-radius-full);
+  overflow: hidden;
+  position: relative;
+}
+
+.pt-progress__fill {
+  height: 100%;
+  background: var(--pt-gradient-brand);
+  border-radius: var(--pt-radius-full);
+  transition: width var(--pt-duration-slower) var(--pt-ease-out);
+  position: relative;
+  box-shadow: 0 0 12px rgba(99, 102, 241, 0.3);
+}
+
+/* 条纹动画 */
+.pt-progress__fill--striped {
+  background-image: linear-gradient(
+    45deg,
+    rgba(255, 255, 255, 0.15) 25%,
+    transparent 25%,
+    transparent 50%,
+    rgba(255, 255, 255, 0.15) 50%,
+    rgba(255, 255, 255, 0.15) 75%,
+    transparent 75%,
+    transparent
+  );
+  background-size: 20px 20px;
+  animation: progress-stripes 1s linear infinite;
+}
+
+@keyframes progress-stripes {
+  from { background-position: 20px 0; }
+  to { background-position: 0 0; }
+}
+
+/* ==================== 进度环 ==================== */
+.pt-progress-ring {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.pt-progress-ring__svg {
+  transform: rotate(-90deg);
+}
+
+.pt-progress-ring__bg {
+  fill: none;
+  stroke: var(--pt-bg-tertiary);
+  stroke-width: 4;
+}
+
+.pt-progress-ring__progress {
+  fill: none;
+  stroke: var(--pt-accent-primary);
+  stroke-width: 4;
+  stroke-linecap: round;
+  stroke-dasharray: 126; /* 2 * PI * 20 */
+  stroke-dashoffset: 126;
+  transition: stroke-dashoffset var(--pt-duration-slower) var(--pt-ease-out);
+}
+
+.pt-progress-ring__text {
+  position: absolute;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--pt-text-primary);
+}
+
+/* 尺寸变体 */
+.pt-progress-ring--sm {
+  width: 24px;
+  height: 24px;
+}
+
+.pt-progress-ring--sm .pt-progress-ring__bg,
+.pt-progress-ring--sm .pt-progress-ring__progress {
+  stroke-width: 3;
+}
+
+.pt-progress-ring--lg {
+  width: 64px;
+  height: 64px;
+}
+
+.pt-progress-ring--lg .pt-progress-ring__text {
+  font-size: 16px;
+}
+
+/* ==================== 当前章节卡片 ==================== */
+.pt-current-chapter {
+  display: flex;
+  align-items: center;
+  gap: var(--pt-space-4);
+  padding: var(--pt-space-5);
+  background: linear-gradient(145deg, 
+    rgba(99, 102, 241, 0.1), 
+    rgba(34, 211, 238, 0.05)
+  );
+  border: 1px solid rgba(99, 102, 241, 0.2);
+  border-radius: var(--pt-radius-xl);
+  margin: var(--pt-space-6) 0;
+}
+
+.pt-current-chapter__icon {
+  width: 56px;
+  height: 56px;
+  border-radius: var(--pt-radius-lg);
+  background: var(--pt-gradient-brand);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 28px;
+  flex-shrink: 0;
+}
+
+.pt-current-chapter__content {
+  flex: 1;
+  min-width: 0;
+}
+
+.pt-current-chapter__label {
+  color: var(--pt-accent-primary-light);
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-bottom: var(--pt-space-1);
+}
+
+.pt-current-chapter__title {
+  color: var(--pt-text-primary);
+  font-size: 18px;
+  font-weight: 600;
+  margin-bottom: var(--pt-space-1);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.pt-current-chapter__meta {
+  color: var(--pt-text-tertiary);
+  font-size: 13px;
+}
+
+/* ==================== 章节进度包装器 ==================== */
+.pt-chapter-progress {
+  margin: var(--pt-space-6) 0;
+  padding: var(--pt-space-5);
+  background: var(--pt-bg-secondary);
+  border: 1px solid var(--pt-border-subtle);
+  border-radius: var(--pt-radius-xl);
+}
+
+.pt-chapter-progress__header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: var(--pt-space-4);
+}
+
+.pt-chapter-progress__title {
+  color: var(--pt-text-primary);
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.pt-chapter-progress__count {
+  font-size: 13px;
+  color: var(--pt-text-tertiary);
+  background: var(--pt-bg-tertiary);
+  padding: var(--pt-space-1) var(--pt-space-3);
+  border-radius: var(--pt-radius-full);
+}
+
+/* ==================== 统计网格 ==================== */
+.pt-stats-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: var(--pt-space-5);
+  margin: var(--pt-space-6) 0;
+}
+
+@media (max-width: 1200px) {
+  .pt-stats-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (max-width: 768px) {
+  .pt-stats-grid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: var(--pt-space-3);
+  }
+}

@@ -310,15 +310,16 @@ def register_page_routes(app):
     @app.route('/phase-two-generation', methods=['GET'])
     @login_required
     def phase_two_generation():
-        """第二阶段章节生成页面 - 默认 V2 UI"""
-        # 检查是否请求 V1 版本（V2 为默认）
-        ui_version = request.args.get('ui', '').lower()
-        if ui_version == 'v1':
-            logger.info("📄 Loading phase-two-generation.html (V1 UI)")
-            return render_template('phase-two-generation.html')
-        
-        logger.info("📄 Loading phase-two-generation-v2.html (V2 UI - 默认)")
-        return render_template('pages/v2/phase-two-generation-v2.html')
+        """第二阶段章节生成页面 - Glassmorphism UI v2.0"""
+        logger.info("📄 Loading phase-two-generation.html (Glassmorphism UI v2.0)")
+        return render_template('phase-two-generation.html')
+
+    @app.route('/phase-two-demo', methods=['GET'])
+    @login_required
+    def phase_two_demo():
+        """第二阶段UI设计演示页面 - Glassmorphism Design System"""
+        logger.info("📄 Loading phase-two-demo.html (UI Demo)")
+        return render_template('pages/v2/phase-two-demo.html')
 
     @app.route('/project-management', methods=['GET'])
     @login_required

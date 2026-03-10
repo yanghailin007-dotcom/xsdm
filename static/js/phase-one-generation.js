@@ -42,16 +42,23 @@ const STEP_NAMES = {
 async function startPhaseOneGeneration(event) {
     event.preventDefault();
 
+    const modeSelect = document.getElementById('generation-mode');
+    const isResumeMode = modeSelect && modeSelect.value === 'resume_mode';
+
     const formData = {
         title: document.getElementById('novel-title').value,
         synopsis: document.getElementById('novel-synopsis').value,
         core_setting: document.getElementById('core-setting').value,
         core_selling_points: document.getElementById('core-selling-points').value,
         total_chapters: parseInt(document.getElementById('total-chapters').value),
-        generation_mode: document.getElementById('generation-mode').value,
+        generation_mode: modeSelect ? modeSelect.value : 'phase_one_only',
         target_platform: document.getElementById('target-platform').value || 'fanqie',
-        creative_seed: selectedCreativeId ? loadedCreativeIdeas.find(i => i.id === selectedCreativeId)?.raw_data : null
+        creative_seed: selectedCreativeId ? loadedCreativeIdeas.find(i => i.id === selectedCreativeId)?.raw_data : null,
+        // 🔥 关键修复：非恢复模式下，明确告知后端从头开始，不要检查检查点
+        start_new: !isResumeMode
     };
+    
+    console.log(`🎯 生成模式: ${formData.generation_mode}, 从头开始: ${formData.start_new}`);
 
     console.log('🎯 目标平台:', formData.target_platform);
 
@@ -248,6 +255,13 @@ function handlePhaseOneComplete(taskStatus) {
     updateStepStatus('preview', true);
     
     phaseOneResult = taskStatus.result;
+    
+    // 存储结果到 localStorage，确保刷新页面后按钮仍然可用
+    if (phaseOneResult && phaseOneResult.novel_title) {
+        localStorage.setItem('phaseOneResult', JSON.stringify(phaseOneResult));
+        localStorage.setItem('lastNovelTitle', phaseOneResult.novel_title);
+    }
+    
     showResultsSection(phaseOneResult);
     showStatusMessage('✅ 第一阶段设定生成完成！', 'success');
     
@@ -407,10 +421,26 @@ function switchResultTab(tabName) {
 
 // ==================== 后续操作功能 ====================
 async function continueToPhaseTwo() {
-    if (!phaseOneResult || !phaseOneResult.novel_title) {
-        showStatusMessage('❌ 没有有效的第一阶段结果', 'error');
+    // 优先使用内存中的结果，如果没有则尝试从 localStorage 读取
+    let result = phaseOneResult;
+    if (!result || !result.novel_title) {
+        try {
+            const savedResult = localStorage.getItem('phaseOneResult');
+            if (savedResult) {
+                result = JSON.parse(savedResult);
+            }
+        } catch (e) {
+            console.error('读取 localStorage 失败:', e);
+        }
+    }
+    
+    if (!result || !result.novel_title) {
+        showStatusMessage('❌ 没有有效的第一阶段结果，请重新生成', 'error');
         return;
     }
+    
+    // 使用读取到的结果
+    phaseOneResult = result;
 
     try {
         showStatusMessage('🔄 正在准备第二阶段...', 'info');

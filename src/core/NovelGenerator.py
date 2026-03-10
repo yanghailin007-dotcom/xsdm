@@ -469,6 +469,7 @@ class NovelGenerator:
                 print(f"⚠️ 失败通知回调失败: {callback_error}")
         
         self.logger.info("[START] 开始第一阶段设定生成...")
+        self.logger.info(f"[PARAM] start_new={start_new}, target_platform={target_platform}")
         
         # 🔥 检查是否被请求停止
         self._check_stop_requested("生成开始前")
@@ -492,11 +493,14 @@ class NovelGenerator:
         # 🔥 修复：只有当 start_new=False 时才检查检查点
         # 如果用户选择"从新开始"（start_new=True），则跳过检查点恢复
         if not start_new:
+            self.logger.info("🔍 检查是否有可恢复的检查点...")
             # 检查是否有检查点可以恢复
             checkpoint_data = self._check_for_resume_checkpoint(creative_seed, total_chapters)
             if checkpoint_data:
                 self.logger.info(f"🔄 检测到检查点，从步骤 '{checkpoint_data['current_step']}' 恢复")
                 return self._resume_phase_one_from_checkpoint(checkpoint_data, creative_seed, total_chapters)
+            else:
+                self.logger.info("ℹ️ 未检测到检查点，将从头开始")
         else:
             self.logger.info("🆕 用户选择从头开始，跳过检查点恢复")
         

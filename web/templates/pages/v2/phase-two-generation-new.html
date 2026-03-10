@@ -5,71 +5,41 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>第二阶段：章节生成 - 小说生成系统</title>
     
-    <!-- V2 设计系统样式 -->
-    <link rel="stylesheet" href="/static/css/v2/design-system.css?v=2">
-    <link rel="stylesheet" href="/static/css/v2/components.css?v=2">
-    <link rel="stylesheet" href="/static/css/v2/layouts.css?v=2">
+    <!-- 新样式表 -->
+    <link rel="stylesheet" href="/static/css/phase-two-generation.css">
     
-    <!-- Phase Two 专用样式 -->
-    <link rel="stylesheet" href="/static/css/phase-two-generation.css?v=2">
-    
-    <!-- 角色编辑器样式 -->
-    <link rel="stylesheet" href="/static/css/character-editor.css">
-    <link rel="stylesheet" href="/static/css/character-editor-json-based.css">
+    <!-- 兼容性样式（逐步迁移后删除） -->
+    <link rel="stylesheet" href="/static/css/phase-two-generation.css.old" disabled>
     
     <style>
-        /* V2 Navbar 适配 - 为fixed定位的导航栏留出空间 */
+        /* 页面级别的微调 */
         body {
-            padding-top: 60px;
+            margin: 0;
+            padding: 0;
+            background: var(--pt-bg-primary);
+            color: var(--pt-text-primary);
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            -webkit-font-smoothing: antialiased;
         }
         
-        /* 背景装饰 */
-        .bg-decoration {
-            position: fixed;
+        /* 导航栏兼容 */
+        .navbar {
+            height: var(--pt-navbar-height);
+            background: rgba(10, 10, 15, 0.95);
+            border-bottom: 1px solid var(--pt-border-subtle);
+            backdrop-filter: blur(20px);
+            position: sticky;
             top: 0;
-            left: 0;
-            right: 0;
-            bottom: 0;
-            pointer-events: none;
-            overflow: hidden;
-            z-index: -1;
-        }
-        
-        .bg-decoration__gradient {
-            position: absolute;
-            width: 800px;
-            height: 800px;
-            background: radial-gradient(circle, rgba(99, 102, 241, 0.12) 0%, transparent 70%);
-            top: -200px;
-            right: -200px;
-            animation: float 20s ease-in-out infinite;
-        }
-        
-        .bg-decoration__gradient--2 {
-            position: absolute;
-            width: 600px;
-            height: 600px;
-            background: radial-gradient(circle, rgba(34, 211, 238, 0.08) 0%, transparent 70%);
-            bottom: -100px;
-            left: -100px;
-            animation: float 15s ease-in-out infinite reverse;
-        }
-        
-        @keyframes float {
-            0%, 100% { transform: translate(0, 0) scale(1); }
-            50% { transform: translate(30px, -30px) scale(1.1); }
+            z-index: 100;
         }
     </style>
 </head>
 <body>
-    <!-- 背景装饰 -->
-    <div class="bg-decoration">
-        <div class="bg-decoration__gradient"></div>
-        <div class="bg-decoration__gradient--2"></div>
-    </div>
-
-    <!-- V2 导航栏 -->
-    {% include 'components/v2/navbar.html' %}
+    <!-- 导航栏 -->
+    <nav class="navbar">
+        <!-- 使用原有 navbar 组件 -->
+        {% include 'components/navbar.html' %}
+    </nav>
     
     <!-- 主容器 -->
     <div class="pt-container">
@@ -82,29 +52,29 @@
         <!-- 进度步骤 -->
         <div class="pt-steps">
             <div class="pt-step pt-step--completed" onclick="location.href='/phase-one-setup'">
-                <span>✅</span>
+                <span class="pt-step__icon">✅</span>
                 <span>设计完成</span>
             </div>
             <div class="pt-step-connector pt-step-connector--completed"></div>
             <div class="pt-step pt-step--active">
-                <span>⚙️</span>
+                <span class="pt-step__icon">⚙️</span>
                 <span>章节生成</span>
             </div>
             <div class="pt-step-connector"></div>
             <div class="pt-step pt-step--pending" onclick="goToContentReview()">
-                <span>👁️</span>
+                <span class="pt-step__icon">👁️</span>
                 <span>内容审核</span>
             </div>
             <div class="pt-step-connector"></div>
             <div class="pt-step pt-step--pending">
-                <span>🎉</span>
+                <span class="pt-step__icon">🎉</span>
                 <span>生成完成</span>
             </div>
         </div>
         
-        <!-- 主布局 -->
+        <!-- 主布局：双栏 -->
         <div class="pt-layout">
-            <!-- 左侧边栏 - 项目列表 -->
+            <!-- 左侧边栏 -->
             <aside class="pt-sidebar">
                 <div class="pt-sidebar__inner">
                     <div class="pt-sidebar__title">
@@ -112,6 +82,7 @@
                         <span>选择项目</span>
                     </div>
                     
+                    <!-- 项目列表 -->
                     <div id="projects-list">
                         <!-- 骨架屏 -->
                         <div class="pt-skeleton-card">
@@ -119,14 +90,10 @@
                             <div class="pt-skeleton pt-skeleton--title"></div>
                             <div class="pt-skeleton pt-skeleton--text"></div>
                         </div>
-                        <div class="pt-skeleton-card" style="margin-top: 12px;">
-                            <div class="pt-skeleton pt-skeleton--icon"></div>
-                            <div class="pt-skeleton pt-skeleton--title"></div>
-                            <div class="pt-skeleton pt-skeleton--text"></div>
-                        </div>
                     </div>
                     
-                    <button class="pt-btn pt-btn--secondary pt-btn--block" style="margin-top: 24px;" onclick="location.href='/phase-one-setup'">
+                    <!-- 创建新项目按钮 -->
+                    <button class="pt-btn pt-btn--secondary pt-btn--block" style="margin-top: var(--pt-space-5);" onclick="location.href='/phase-one-setup'">
                         ➕ 创建新项目
                     </button>
                 </div>
@@ -262,13 +229,13 @@
                     </section>
                     
                     <!-- 生成配置表单 -->
-                    <section id="generation-form">
+                    <section id="generation-form" style="display: none;">
                         <div class="pt-main__title">
                             <span>🚀</span>
                             <span>章节生成配置</span>
                         </div>
                         
-                        <form id="generation-config-form" onsubmit="startPhaseTwoGeneration(event)">
+                        <form class="pt-config-form" onsubmit="startPhaseTwoGeneration(event)">
                             <div class="pt-config-grid">
                                 <div class="pt-form-group">
                                     <label class="pt-form-group__label">起始章节</label>
@@ -315,7 +282,7 @@
                             <!-- 创造点消耗估算 -->
                             <div class="pt-points-section">
                                 <div class="pt-points-section__header">
-                                    <span style="font-size: 20px;">💰</span>
+                                    <span class="pt-points-section__icon">💰</span>
                                     <span class="pt-points-section__title">创造点消耗估算</span>
                                 </div>
                                 <div class="pt-points-list">
@@ -358,7 +325,7 @@
                     </section>
                     
                     <!-- 进度显示区域 -->
-                    <section id="progress-section" class="pt-hidden">
+                    <section id="progress-section" style="display: none;">
                         <div class="pt-progress">
                             <div class="pt-progress__header">
                                 <span class="pt-progress__title">🔄 正在生成章节...</span>
@@ -393,7 +360,7 @@
                         </div>
                         
                         <!-- 停止按钮 -->
-                        <div class="pt-action-buttons pt-action-buttons--center" style="margin-top: 32px;">
+                        <div class="pt-action-buttons pt-action-buttons--center" style="margin-top: var(--pt-space-6);">
                             <button type="button" class="pt-btn pt-btn--danger pt-btn--lg" onclick="stopGeneration()">
                                 <span>⏹️</span>
                                 <span>停止生成</span>
@@ -402,7 +369,7 @@
                     </section>
                     
                     <!-- 生成结果区域 -->
-                    <section id="generation-results" class="pt-hidden">
+                    <section id="generation-results" style="display: none;">
                         <div class="pt-main__title">
                             <span>✅</span>
                             <span>生成结果</span>
@@ -429,7 +396,7 @@
                         </div>
                         
                         <!-- 操作按钮 -->
-                        <div class="pt-action-buttons pt-action-buttons--center" style="margin-top: 48px;">
+                        <div class="pt-action-buttons pt-action-buttons--center" style="margin-top: var(--pt-space-8);">
                             <button class="pt-btn pt-btn--primary pt-btn--lg" onclick="goToChapterView()">
                                 📖 查看章节内容
                             </button>
@@ -452,6 +419,7 @@
     <!-- 右侧面板开关 -->
     <button class="pt-panel-toggle" id="panel-toggle" onclick="toggleRightPanel()">
         <span>📊</span>
+        <span class="pt-panel-toggle__badge" id="notification-count" style="display: none;">0</span>
     </button>
     
     <!-- 右侧面板 -->
@@ -494,32 +462,15 @@
                     <span>创造点余额</span>
                 </div>
                 <div class="pt-balance-card">
-                    <div class="pt-balance-card__amount" id="sidebar-balance-amount">--</div>
+                    <div class="pt-balance-card__amount" id="sidebar-balance">--</div>
                     <div class="pt-balance-card__label">当前余额</div>
                 </div>
             </div>
         </div>
     </div>
     
-    <!-- 创意编辑器模态框容器 -->
-    <div id="creative-editor-modal-container"></div>
-
-    <!-- ==================== JavaScript ==================== -->
-    
-    <!-- 主要功能脚本 -->
-    <script src="/static/js/phase-two-generation.js?v=2"></script>
-    <script src="/static/js/creative-editor-phase-two.js"></script>
-    <script src="/static/js/character-editor.js"></script>
-    <script src="/static/js/character-editor-json-based.js"></script>
-    <script src="/static/js/confirm-dialog.js"></script>
-    
-    <!-- 引导系统 -->
-    <script src="/static/js/guide-system.js"></script>
-    <script src="/static/js/guides/phase2-guide.js"></script>
-    
+    <!-- JavaScript -->
     <script>
-        // ==================== 页面交互功能 ====================
-        
         // 右侧面板切换
         function toggleRightPanel() {
             const panel = document.getElementById('right-panel');
@@ -542,149 +493,62 @@
             document.getElementById('panel-balance').style.display = tab === 'balance' ? 'block' : 'none';
         }
         
-        // 退出登录
-        function logout() {
-            confirmLogout().then(confirmed => {
-                if (confirmed) {
-                    window.location.href = '/logout';
-                }
-            });
-        }
-        
-        // 加载用户创造点余额
-        async function loadUserPoints() {
-            try {
-                console.log('阶段二页面：开始加载余额...');
-                
-                const currentBalanceEl = document.getElementById('points-current-balance');
-                const sidebarBalanceEl = document.getElementById('sidebar-balance-amount');
-                
-                if (!currentBalanceEl || !sidebarBalanceEl) {
-                    console.error('阶段二页面：找不到余额显示元素');
-                    return;
-                }
-                
-                const response = await fetch('/api/points/balance');
-                console.log('阶段二页面：余额API响应:', response.status);
-                
-                if (response.ok) {
-                    const result = await response.json();
-                    console.log('阶段二页面：余额API返回:', result);
-                    
-                    if (result.success && result.data) {
-                        const balance = result.data.balance !== undefined ? result.data.balance : (result.data.data?.balance || 0);
-                        console.log('阶段二页面：解析到余额:', balance);
-                        
-                        currentBalanceEl.textContent = balance + ' 点';
-                        sidebarBalanceEl.textContent = balance;
-                        
-                        updateBalanceStatus(balance);
-                    } else {
-                        console.error('阶段二页面：API返回数据格式错误:', result);
-                        currentBalanceEl.textContent = '获取失败';
-                        sidebarBalanceEl.textContent = '-';
-                    }
-                } else {
-                    console.error('阶段二页面：余额API请求失败:', response.status);
-                    currentBalanceEl.textContent = '获取失败';
-                    sidebarBalanceEl.textContent = '-';
-                }
-            } catch (error) {
-                console.error('阶段二页面：加载余额失败:', error);
-                const currentBalanceEl = document.getElementById('points-current-balance');
-                const sidebarBalanceEl = document.getElementById('sidebar-balance-amount');
-                if (currentBalanceEl) currentBalanceEl.textContent = '获取失败';
-                if (sidebarBalanceEl) sidebarBalanceEl.textContent = '-';
-            }
-        }
-        
-        // 更新余额状态（检查是否充足）
-        function updateBalanceStatus(balance) {
-            const totalCostEl = document.getElementById('points-total-cost');
-            const balanceEl = document.getElementById('points-current-balance');
-            
-            if (totalCostEl && balanceEl) {
-                const totalCostText = totalCostEl.textContent;
-                const totalCost = parseInt(totalCostText) || 0;
-                
-                if (balance < totalCost) {
-                    balanceEl.classList.add('insufficient');
-                    balanceEl.title = '余额不足，请充值';
-                } else {
-                    balanceEl.classList.remove('insufficient');
-                    balanceEl.title = '余额充足';
-                }
-            }
-        }
-        
-        // 页面加载时执行
+        // 页面加载完成后初始化
         document.addEventListener('DOMContentLoaded', function() {
-            // 加载余额
+            // 加载用户余额
             loadUserPoints();
-            
-            // 动态加载创意编辑器模态框
-            fetch('/templates/components/creative-editor-modal.html')
-                .then(response => response.text())
-                .then(html => {
-                    const container = document.getElementById('creative-editor-modal-container');
-                    if (container) container.innerHTML = html;
-                })
-                .catch(error => {
-                    console.error('加载创意编辑器失败:', error);
-                });
+            // 加载项目列表
+            loadProjectsList();
         });
         
-        // ==================== 导航功能 ====================
-        
-        function goToContentReview() {
-            const currentUrl = new URL(window.location.href);
-            const title = currentUrl.searchParams.get('title');
-            if (title) {
-                window.location.href = '/content-review?title=' + encodeURIComponent(title);
-            } else {
-                showStatusMessage('请先从左侧选择一个项目', 'error');
+        // 加载用户余额
+        async function loadUserPoints() {
+            try {
+                const response = await fetch('/api/points/balance');
+                if (response.ok) {
+                    const result = await response.json();
+                    if (result.success && result.data) {
+                        const balance = result.data.balance || 0;
+                        document.getElementById('points-current-balance').textContent = balance + ' 点';
+                        document.getElementById('sidebar-balance').textContent = balance;
+                    }
+                }
+            } catch (e) {
+                console.error('加载余额失败:', e);
             }
         }
         
-        function goToChapterView() {
-            const currentUrl = new URL(window.location.href);
-            const title = currentUrl.searchParams.get('title');
-            if (title) {
-                window.location.href = '/chapter-view?title=' + encodeURIComponent(title);
-            }
+        // 加载项目列表
+        async function loadProjectsList() {
+            // 实际实现需要调用API
+            console.log('加载项目列表...');
         }
         
-        function goToNovelView() {
-            const currentUrl = new URL(window.location.href);
-            const title = currentUrl.searchParams.get('title');
-            if (title) {
-                window.location.href = '/novel?title=' + encodeURIComponent(title);
-            }
-        }
+        // 产物卡片功能（占位）
+        function viewProjectViewer() { console.log('查看项目可视化'); }
+        function editProductCategory(category) { console.log('编辑类别:', category); }
+        function goToStorylinePage() { console.log('查看故事线'); }
+        function refreshPhaseOneProducts() { console.log('刷新产物数据'); }
+        function exportPhaseOneProducts() { console.log('导出产物'); }
+        function validatePhaseOneProducts() { console.log('验证产物'); }
         
-        function continueMoreChapters() {
-            document.getElementById('generation-results').classList.add('pt-hidden');
-            document.getElementById('generation-form').style.display = 'block';
-            window.scrollTo({ top: document.getElementById('generation-form').offsetTop - 100, behavior: 'smooth' });
+        // 生成功能（占位）
+        function startPhaseTwoGeneration(event) {
+            event.preventDefault();
+            console.log('开始生成章节');
         }
+        function pauseGeneration() { console.log('暂停生成'); }
+        function resumeGeneration() { console.log('继续生成'); }
+        function stopGeneration() { console.log('停止生成'); }
         
-        // ==================== 状态消息 ====================
-        
-        function showStatusMessage(message, type = 'info') {
-            const statusEl = document.getElementById('status-message');
-            statusEl.textContent = message;
-            statusEl.className = 'pt-status-message pt-status-message--' + type;
-            statusEl.classList.remove('pt-hidden');
-            
-            setTimeout(() => {
-                statusEl.classList.add('pt-hidden');
-            }, 5000);
-        }
+        // 导航功能（占位）
+        function goToContentReview() { location.href = '/content-review'; }
+        function goToChapterView() { location.href = '/chapter-view'; }
+        function goToNovelView() { location.href = '/novel-view'; }
+        function continueMoreChapters() { console.log('继续生成'); }
     </script>
     
-    <script src="/static/js/user-info.js"></script>
-    
-    <!-- V2 页脚 -->
-    {% include 'components/v2/footer.html' %}
+    <!-- 引入原有的 JavaScript 文件 -->
+    <script src="/static/js/phase-two-generation.js"></script>
 </body>
 </html>

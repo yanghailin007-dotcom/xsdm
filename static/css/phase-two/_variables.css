@@ -1,0 +1,121 @@
+/**
+ * Phase Two - Design Tokens / CSS Variables
+ * 设计令牌系统 - 颜色、间距、阴影、动画等
+ */
+
+:root {
+  /* ==================== 颜色系统 ==================== */
+  
+  /* 背景色 */
+  --pt-bg-primary: #0a0a0f;
+  --pt-bg-secondary: #12121a;
+  --pt-bg-tertiary: #1a1a25;
+  --pt-bg-card: rgba(26, 26, 37, 0.6);
+  --pt-bg-card-hover: rgba(35, 35, 50, 0.8);
+  --pt-bg-elevated: #232332;
+  
+  /* 边框 */
+  --pt-border-subtle: rgba(255, 255, 255, 0.06);
+  --pt-border-default: rgba(255, 255, 255, 0.1);
+  --pt-border-hover: rgba(255, 255, 255, 0.15);
+  --pt-border-active: rgba(255, 255, 255, 0.2);
+  
+  /* 文字 */
+  --pt-text-primary: #fafafa;
+  --pt-text-secondary: #a1a1aa;
+  --pt-text-tertiary: #71717a;
+  --pt-text-muted: #52525b;
+  
+  /* 品牌色 */
+  --pt-accent-primary: #6366f1;
+  --pt-accent-primary-light: #818cf8;
+  --pt-accent-secondary: #22d3ee;
+  --pt-accent-success: #22c55e;
+  --pt-accent-warning: #f59e0b;
+  --pt-accent-danger: #ef4444;
+  
+  /* 渐变 */
+  --pt-gradient-brand: linear-gradient(135deg, var(--pt-accent-primary) 0%, var(--pt-accent-secondary) 100%);
+  --pt-gradient-success: linear-gradient(135deg, var(--pt-accent-success) 0%, #34d399 100%);
+  --pt-gradient-text: linear-gradient(135deg, #fff 0%, #a1a1aa 100%);
+  
+  /* ==================== 间距系统 ==================== */
+  --pt-space-1: 4px;
+  --pt-space-2: 8px;
+  --pt-space-3: 12px;
+  --pt-space-4: 16px;
+  --pt-space-5: 20px;
+  --pt-space-6: 24px;
+  --pt-space-8: 32px;
+  --pt-space-10: 40px;
+  --pt-space-12: 48px;
+  
+  /* ==================== 圆角系统 ==================== */
+  --pt-radius-sm: 6px;
+  --pt-radius-md: 10px;
+  --pt-radius-lg: 14px;
+  --pt-radius-xl: 18px;
+  --pt-radius-2xl: 24px;
+  --pt-radius-full: 9999px;
+  
+  /* ==================== 阴影系统 ==================== */
+  --pt-shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.3);
+  --pt-shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.4), 0 2px 4px -2px rgba(0, 0, 0, 0.3);
+  --pt-shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.5), 0 4px 6px -4px rgba(0, 0, 0, 0.4);
+  --pt-shadow-glow: 0 0 20px rgba(99, 102, 241, 0.15);
+  --pt-shadow-glow-success: 0 0 20px rgba(34, 197, 94, 0.15);
+  --pt-shadow-card: 
+    0 2px 8px rgba(0, 0, 0, 0.2),
+    0 8px 32px rgba(0, 0, 0, 0.3),
+    inset 0 1px 0 rgba(255, 255, 255, 0.05);
+  
+  /* ==================== 动画曲线 ==================== */
+  --pt-ease-out: cubic-bezier(0.4, 0, 0.2, 1);
+  --pt-ease-out-expo: cubic-bezier(0.16, 1, 0.3, 1);
+  --pt-ease-out-back: cubic-bezier(0.34, 1.56, 0.64, 1);
+  --pt-ease-spring: cubic-bezier(0.175, 0.885, 0.32, 1.275);
+  
+  /* ==================== 动画时长 ==================== */
+  --pt-duration-fast: 150ms;
+  --pt-duration-normal: 250ms;
+  --pt-duration-slow: 350ms;
+  --pt-duration-slower: 500ms;
+  
+  /* ==================== 布局 ==================== */
+  --pt-sidebar-width: 260px;
+  --pt-right-panel-width: 360px;
+  --pt-navbar-height: 64px;
+  --pt-max-content-width: 1400px;
+  
+  /* ==================== Z-Index 层级 ==================== */
+  --pt-z-dropdown: 100;
+  --pt-z-sticky: 200;
+  --pt-z-fixed: 300;
+  --pt-z-modal-backdrop: 400;
+  --pt-z-modal: 500;
+  --pt-z-popover: 600;
+  --pt-z-tooltip: 700;
+}
+
+/* 暗色模式（默认） */
+[data-theme="dark"] {
+  /* 已定义在 :root 中 */
+}
+
+/* 亮色模式 */
+[data-theme="light"] {
+  --pt-bg-primary: #ffffff;
+  --pt-bg-secondary: #f8fafc;
+  --pt-bg-tertiary: #f1f5f9;
+  --pt-bg-card: rgba(255, 255, 255, 0.9);
+  --pt-bg-card-hover: rgba(248, 250, 252, 0.95);
+  
+  --pt-border-subtle: rgba(0, 0, 0, 0.06);
+  --pt-border-default: rgba(0, 0, 0, 0.1);
+  --pt-border-hover: rgba(0, 0, 0, 0.15);
+  
+  --pt-text-primary: #0f172a;
+  --pt-text-secondary: #475569;
+  --pt-text-tertiary: #64748b;
+  --pt-text-muted: #94a3b8;
+}

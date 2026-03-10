@@ -91,9 +91,9 @@
     <script src="/static/js/utils.js"></script>
     <script src="/static/js/user-info.js"></script>
     <script src="/static/js/creative-library.js"></script>
-    <script src="/static/js/resume-generation.js"></script>
+    <script src="/static/js/resume-generation.js?v=2"></script>
     <script src="/static/js/creative-editor.js"></script>
-    <script src="/static/js/phase-one-generation.js"></script>
+    <script src="/static/js/phase-one-generation.js?v=3"></script>
     
     <script>
         // ==================== 创造点计算器 ====================
@@ -390,7 +390,34 @@
             hideProgressSection();
             hideResultsSection();
             
+            // 尝试从 localStorage 恢复上次生成结果
+            restorePhaseOneResult();
+            
             console.log('第一阶段设定页面已加载完成');
+        });
+        
+        // 从 localStorage 恢复生成结果
+        function restorePhaseOneResult() {
+            try {
+                const savedResult = localStorage.getItem('phaseOneResult');
+                if (savedResult) {
+                    const result = JSON.parse(savedResult);
+                    if (result && result.novel_title) {
+                        console.log('从 localStorage 恢复生成结果:', result.novel_title);
+                        // 设置全局变量供按钮使用
+                        if (typeof phaseOneResult !== 'undefined') {
+                            phaseOneResult = result;
+                        } else {
+                            window.phaseOneResult = result;
+                        }
+                        // 显示结果区域
+                        showResultsSection();
+                        showStatusMessage('✅ 已恢复上次的生成结果', 'info');
+                    }
+                }
+            } catch (e) {
+                console.error('恢复生成结果失败:', e);
+            }
         });
     </script>
 </body>

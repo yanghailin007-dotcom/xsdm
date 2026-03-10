@@ -1253,9 +1253,10 @@ class NovelGenerationManager:
             
             # 🔥 新增：获取 start_new 参数，用户选择"从新开始"时应删除现有检查点
             start_new = config.get("start_new", False)
+            username = config.get('username')
             if start_new:
-                logger.info(f"🆕 用户选择从头开始，将删除现有检查点")
-                self._delete_existing_checkpoint(title)
+                logger.info(f"🆕 用户选择从头开始，将删除现有检查点 (用户: {username})")
+                self._delete_existing_checkpoint(title, username)
             
             # 创建初始检查点（仅在非恢复模式下）
             if self.checkpoint_enabled and not is_resume_mode:
@@ -1486,17 +1487,18 @@ class NovelGenerationManager:
         except Exception as e:
             logger.error(f"❌ 创建初始检查点失败: {e}")
     
-    def _delete_existing_checkpoint(self, title: str):
+    def _delete_existing_checkpoint(self, title: str, username: str = None):
         """删除现有检查点（用于从头开始生成）"""
         try:
             from src.managers.stage_plan.generation_checkpoint import GenerationCheckpoint
             from pathlib import Path
             
-            username = getattr(self, '_current_username', None)
-            checkpoint_mgr = GenerationCheckpoint(title, Path.cwd(), username=username)
+            # 🔥 优先使用传入的用户名，否则使用当前用户名
+            actual_username = username or getattr(self, '_current_username', None)
+            checkpoint_mgr = GenerationCheckpoint(title, Path.cwd(), username=actual_username)
             checkpoint_mgr.delete_checkpoint()
              
-            logger.info(f"✅ 已删除现有检查点: {title}")
+            logger.info(f"✅ 已删除现有检查点: {title} (用户: {actual_username})")
              
         except Exception as e:
             logger.error(f"❌ 删除检查点失败: {e}")
