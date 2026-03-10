@@ -1172,7 +1172,8 @@ def get_phase_one_task_status(task_id):
         # 添加详细的步骤状态（如果存在）
         if "step_status" in task_status:
             data["step_status"] = task_status["step_status"]
-            logger.info(f"[PHASE_ONE_STATUS] 任务 {task_id}: 返回 step_status: {task_status['step_status']}")
+            # 🔥 降低日志级别为debug，避免刷屏
+            logger.debug(f"[PHASE_ONE_STATUS] 任务 {task_id}: 返回 step_status: {task_status['step_status']}")
         
         # 🔥 新增：添加子步骤信息（用于详细UI显示）
         if "sub_steps" in task_status:
