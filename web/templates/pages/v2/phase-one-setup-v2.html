@@ -1619,28 +1619,46 @@
                     if (banner && titleEl) {
                         titleEl.textContent = project.title;
                         
-                        // 计算已完成进度
-                        const completed = project.phase_one?.completed_count || 0;
-                        const total = project.phase_one?.total_count || 7;
-                        progressEl.textContent = `${completed}/${total} 个设定`;
-                        
-                        // 显示最后更新时间
-                        const updated = project.last_updated || project.created_at;
-                        if (updated) {
-                            const date = new Date(updated);
-                            const now = new Date();
-                            const diff = Math.floor((now - date) / 1000 / 60); // 分钟
-                            
-                            if (diff < 60) {
-                                updatedEl.textContent = diff + ' 分钟前';
-                            } else if (diff < 1440) {
-                                updatedEl.textContent = Math.floor(diff / 60) + ' 小时前';
-                            } else {
-                                updatedEl.textContent = Math.floor(diff / 1440) + ' 天前';
-                            }
-                        }
-                        
+                        // 显示恢复横幅（先显示加载状态）
                         banner.style.display = 'block';
+                        progressEl.textContent = '加载中...';
+                        
+                        // 获取检查点信息以显示步骤进度
+                        fetch(`/api/resumable-tasks/${encodeURIComponent(project.title)}`)
+                            .then(r => r.json())
+                            .then(checkpointResult => {
+                                if (checkpointResult.success && checkpointResult.resume_info) {
+                                    const info = checkpointResult.resume_info;
+                                    const completed = info.completed_steps || 0;
+                                    const total = info.total_steps || 14;
+                                    progressEl.textContent = `${completed}/${total} 个步骤`;
+                                    
+                                    // 显示最后更新时间（使用检查点时间）
+                                    const updated = info.timestamp || project.last_updated || project.created_at;
+                                    if (updated) {
+                                        const date = new Date(updated);
+                                        const now = new Date();
+                                        const diff = Math.floor((now - date) / 1000 / 60); // 分钟
+                                        
+                                        if (diff < 1) {
+                                            updatedEl.textContent = '刚刚';
+                                        } else if (diff < 60) {
+                                            updatedEl.textContent = diff + ' 分钟前';
+                                        } else if (diff < 1440) {
+                                            updatedEl.textContent = Math.floor(diff / 60) + ' 小时前';
+                                        } else {
+                                            updatedEl.textContent = Math.floor(diff / 1440) + ' 天前';
+                                        }
+                                    }
+                                } else {
+                                    // 检查点不可用，隐藏横幅
+                                    banner.style.display = 'none';
+                                }
+                            })
+                            .catch(err => {
+                                console.error('[V2] 获取检查点信息失败:', err);
+                                banner.style.display = 'none';
+                            });
                         
                         // 保存项目信息供恢复使用
                         window.resumeProjectInfo = project;
