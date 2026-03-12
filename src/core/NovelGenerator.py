@@ -44,6 +44,9 @@ from src.core.content.CoverGenerator import CoverGenerator
 from src.core.PhaseGenerator import PhaseGenerator
 from src.core.ResumeManager import ResumeManager
 
+# 导入批量生成模块
+from src.core.batch_generation.integration import BatchGenerationAdapter
+
 # 导入工具组件
 from src.utils.DouBaoImageGenerator import DouBaoImageGenerator
 from src.core.ContentVerifier import ContentVerifier
@@ -155,6 +158,12 @@ class NovelGenerator:
             event_bus=EventBus(),  # 临时创建，后面会被覆盖
             quality_assessor=None
         )
+        
+        # 初始化批量生成适配器
+        self.content_generator.batch_adapter = BatchGenerationAdapter(
+            self.content_generator
+        )
+        
         self.project_manager = ProjectManager()
         
         # 事件总线（重新创建以正确的引用）
@@ -1185,69 +1194,383 @@ class NovelGenerator:
             return False
 
     def generate_chapters_batch(self, start_chapter: int, end_chapter: int) -> bool:
-        """批量生成章节"""
-        for chapter_num in range(start_chapter, end_chapter + 1):
+        """
+        批量生成章节
+        
+        优化：使用中型事件批量生成，减少API调用次数
+        """
+        print(f"\n🚀 启动批量生成优化模式（第{start_chapter}-{end_chapter}章）")
+        
+        # 尝试导入批量生成模块
+        try:
+            from src.core.batch_generation import MediumEventBatchProcessor
+            batch_processor = MediumEventBatchProcessor(self.api_client, self)
+            use_batch_mode = True
+            print("✅ 批量生成模块加载成功")
+        except Exception as e:
+            print(f"⚠️ 批量生成模块加载失败，回退到逐章生成: {e}")
+            use_batch_mode = False
+        
+        # 如果使用批量生成，先初始化事件系统
+        if use_batch_mode:
+            # 确保事件系统已初始化（这样才能获取中型事件）
+            if hasattr(self, 'event_driven_manager') and self.event_driven_manager:
+                print("   🔄 初始化事件系统...")
+                try:
+                    self.event_driven_manager.initialize_event_system()
+                    print("   ✅ 事件系统初始化完成")
+                except Exception as e:
+                    print(f"   ⚠️ 事件系统初始化失败: {e}")
+            
+            return self._generate_chapters_by_medium_event(
+                start_chapter, end_chapter, batch_processor
+            )
+        else:
+            # 回退到逐章生成
+            return self._generate_chapters_one_by_one(start_chapter, end_chapter)
+    
+    def _generate_chapters_by_medium_event(
+        self, 
+        start_chapter: int, 
+        end_chapter: int,
+        batch_processor
+    ) -> bool:
+        """
+        按中型事件批量生成章节
+        
+        这是优化后的生成方式，可以节省50-60%的API调用
+        """
+        print(f"\n📦 按中型事件批量生成（第{start_chapter}-{end_chapter}章）")
+        
+        # 获取中型事件列表
+        medium_events = self._get_medium_events_in_range(start_chapter, end_chapter)
+        
+        if not medium_events:
+            print("⚠️ 未找到中型事件信息，回退到逐章生成")
+            return self._generate_chapters_one_by_one(start_chapter, end_chapter)
+        
+        print(f"📋 找到 {len(medium_events)} 个中型事件")
+        
+        # 准备novel_data
+        novel_data = {
+            'novel_title': self._ctx.get('novel_title', 'Unknown'),
+            'username': getattr(self, '_username', None),
+            'creative_seed': self._ctx.get('creative_seed', {}),
+            'selected_plan': self._ctx.get('selected_plan', {}),
+            'stage_writing_plans': self._ctx.get('stage_writing_plans', {}),
+            'overall_stage_plans': self._ctx.get('overall_stage_plans', {}),
+            'core_worldview': self._ctx.get('core_worldview', {}),
+            'character_design': self._ctx.get('character_design', {}),
+            'writing_style_guide': self._ctx.get('writing_style_guide', {})
+        }
+        
+        # 🔥 修复：检测黄金三章范围（第1-3章），即使事件拆分也要整体生成
+        golden_chapters_range = None
+        if start_chapter <= 1 and end_chapter >= 3:
+            # 检查是否有覆盖第1-3章的事件
+            has_ch1 = any(self._parse_chapter_range(e.get('chapter_range', ''))[0] == 1 for e in medium_events)
+            has_ch3 = any(self._parse_chapter_range(e.get('chapter_range', ''))[1] >= 3 for e in medium_events)
+            
+            if has_ch1:
+                # 找到第1-3章的所有事件，合并处理
+                golden_events = [e for e in medium_events 
+                               if self._parse_chapter_range(e.get('chapter_range', ''))[0] in [1, 2, 3]]
+                if golden_events:
+                    golden_chapters_range = (1, min(3, end_chapter))
+                    print(f"\n✨ 检测到黄金三章范围，将整体生成第1-{golden_chapters_range[1]}章")
+                    print(f"   涉及事件: {', '.join(e.get('name', 'Unknown') for e in golden_events)}")
+        
+        # 如果有黄金三章，先整体生成
+        if golden_chapters_range:
+            print(f"\n🎯 [黄金三章] 整体生成第1-{golden_chapters_range[1]}章")
             try:
-                print(f"\n📖 开始生成第{chapter_num}章...")
+                # 使用第一个事件作为代表（主要是获取名称等信息）
+                main_event = next(e for e in medium_events 
+                                 if self._parse_chapter_range(e.get('chapter_range', ''))[0] == 1)
                 
-                # 调用第二阶段进度回调（如果有）
-                if hasattr(self, '_phase_two_progress_callback') and callable(self._phase_two_progress_callback):
-                    try:
-                        self._phase_two_progress_callback(chapter_num, "generating")
-                    except Exception as callback_error:
-                        print(f"⚠️ 进度回调失败: {callback_error}")
-                
-                # 1. 准备生成上下文
-                context = self._prepare_generation_context(chapter_num)
-                
-                if context is None:
-                    print(f"❌ 第{chapter_num}章生成上下文为None，跳过该章")
-                    continue
-                
-                # 2. 委托给ContentGenerator生成内容
-                print(f"🔄 调用ContentGenerator生成第{chapter_num}章内容...")
-                chapter_result = self.content_generator.generate_chapter_content_for_novel(
-                    chapter_num, self._ctx, context
+                result = batch_processor.process_medium_event(
+                    medium_event=main_event,
+                    chapter_range=golden_chapters_range,
+                    novel_data=novel_data,
+                    skip_assessment=False
                 )
-
-                if not chapter_result:
-                    print(f"❌ 第{chapter_num}章内容生成失败")
-                    continue
-
-                # 3. 发布生成完成事件
-                self.event_bus.publish('chapter.generated', {
-                    'chapter_number': chapter_num,
-                    'result': chapter_result,
-                    'context': context
-                })
-
-                # 4. 调用第二阶段进度回调，传递完整的章节数据
-                if hasattr(self, '_phase_two_progress_callback') and callable(self._phase_two_progress_callback):
-                    try:
-                        # 构建章节数据用于进度更新
-                        chapter_data = {
-                            "status": "completed",
-                            "chapter_title": chapter_result.get('chapter_title', f"第{chapter_num}章"),
-                            "word_count": chapter_result.get('word_count', len(chapter_result.get('content', ''))),
-                            "error": None
+                
+                if result.success:
+                    print(f"   ✅ 黄金三章整体生成成功: {len(result.chapters)}章")
+                    print(f"   💰 创造点消耗: {result.points_consumed}点，节省: {result.points_saved}点")
+                    
+                    # 保存生成的章节
+                    for ch_num, chapter_content in result.chapters.items():
+                        chapter_result = {
+                            'chapter_number': ch_num,
+                            'chapter_title': chapter_content.title,
+                            'content': chapter_content.content,
+                            'word_count': len(chapter_content.content),
+                            'key_events': chapter_content.key_events,
+                            'character_states': chapter_content.character_states
                         }
-                        self._phase_two_progress_callback(chapter_num, "completed", chapter_data)
-                    except Exception as callback_error:
-                        print(f"⚠️ 进度回调失败: {callback_error}")
-
-                print(f"✅ 第{chapter_num}章生成完成: {chapter_result.get('chapter_title', '未知标题')}")
-                
+                        
+                        self.event_bus.publish('chapter.generated', {
+                            'chapter_number': ch_num,
+                            'result': chapter_result
+                        })
+                        
+                        if hasattr(self, '_phase_two_progress_callback') and callable(self._phase_two_progress_callback):
+                            chapter_data = {
+                                "status": "completed",
+                                "chapter_title": chapter_content.title,
+                                "word_count": len(chapter_content.content)
+                            }
+                            self._phase_two_progress_callback(ch_num, "completed", chapter_data)
+                    
+                    # 累加章节计数
+                    current_generated = self._ctx['current_progress'].get('chapters_generated', 0)
+                    self._ctx['current_progress']['chapters_generated'] = current_generated + len(result.chapters)
+                else:
+                    print(f"   ❌ 黄金三章整体生成失败: {result.error}")
+                    # 回退到逐章生成黄金三章
+                    for ch_num in range(1, golden_chapters_range[1] + 1):
+                        self._generate_single_chapter(ch_num)
+                        # 累加计数
+                        current_generated = self._ctx['current_progress'].get('chapters_generated', 0)
+                        self._ctx['current_progress']['chapters_generated'] = current_generated + 1
             except Exception as e:
-                error_msg = f"生成第{chapter_num}章时出错: {e}"
-                print(f"❌ {error_msg}")
+                print(f"   ❌ 黄金三章处理异常: {e}")
+                import traceback
+                traceback.print_exc()
+            
+            # 从列表中移除已处理的黄金三章事件
+            medium_events = [e for e in medium_events 
+                           if self._parse_chapter_range(e.get('chapter_range', ''))[0] > 3]
+            print(f"   📋 剩余 {len(medium_events)} 个中型事件待处理")
+        
+        # 按中型事件批量生成剩余章节
+        for i, medium_event in enumerate(medium_events, 1):
+            event_name = medium_event.get('name', f'事件{i}')
+            chapter_range = medium_event.get('chapter_range', '')
+            
+            print(f"\n🎯 [{i}/{len(medium_events)}] 处理中型事件: {event_name}")
+            print(f"   章节范围: {chapter_range}")
+            
+            try:
+                # 解析章节范围
+                start_ch, end_ch = self._parse_chapter_range(chapter_range)
                 
-                self.event_bus.publish('error.occurred', {
-                    'type': 'generation_failed',
-                    'chapter': chapter_num,
-                    'error': str(e)
-                })
+                # 限制在要生成的范围内
+                start_ch = max(start_ch, start_chapter)
+                end_ch = min(end_ch, end_chapter)
+                
+                if start_ch > end_ch:
+                    continue
+                
+                # 调用批量生成
+                result = batch_processor.process_medium_event(
+                    medium_event=medium_event,
+                    chapter_range=(start_ch, end_ch),
+                    novel_data=novel_data,
+                    skip_assessment=False
+                )
+                
+                if result.success:
+                    print(f"   ✅ 批量生成成功: {len(result.chapters)}章")
+                    print(f"   💰 创造点消耗: {result.points_consumed}点，节省: {result.points_saved}点")
+                    
+                    # 保存生成的章节
+                    for ch_num, chapter_content in result.chapters.items():
+                        # 转换格式并保存
+                        chapter_result = {
+                            'chapter_number': ch_num,
+                            'chapter_title': chapter_content.title,
+                            'content': chapter_content.content,
+                            'word_count': len(chapter_content.content),
+                            'key_events': chapter_content.key_events,
+                            'character_states': chapter_content.character_states
+                        }
+                        
+                        # 发布事件
+                        self.event_bus.publish('chapter.generated', {
+                            'chapter_number': ch_num,
+                            'result': chapter_result
+                        })
+                        
+                        # 进度回调
+                        if hasattr(self, '_phase_two_progress_callback') and callable(self._phase_two_progress_callback):
+                            chapter_data = {
+                                "status": "completed",
+                                "chapter_title": chapter_content.title,
+                                "word_count": len(chapter_content.content)
+                            }
+                            self._phase_two_progress_callback(ch_num, "completed", chapter_data)
+                    
+                    # 更新统计（累加）
+                    current_generated = self._ctx['current_progress'].get('chapters_generated', 0)
+                    self._ctx['current_progress']['chapters_generated'] = current_generated + len(result.chapters)
+                    
+                else:
+                    print(f"   ❌ 批量生成失败: {result.error}")
+                    # 回退到逐章生成这个事件
+                    print(f"   🔄 回退到逐章生成...")
+                    for ch_num in range(start_ch, end_ch + 1):
+                        self._generate_single_chapter(ch_num)
+                        # 累加计数
+                        current_generated = self._ctx['current_progress'].get('chapters_generated', 0)
+                        self._ctx['current_progress']['chapters_generated'] = current_generated + 1
+                        
+            except Exception as e:
+                print(f"   ❌ 处理中型事件时出错: {e}")
+                import traceback
+                traceback.print_exc()
+                continue
         
         return True
+    
+    def _generate_chapters_one_by_one(self, start_chapter: int, end_chapter: int) -> bool:
+        """逐章生成（原始方式）"""
+        print(f"\n📖 逐章生成模式（第{start_chapter}-{end_chapter}章）")
+        
+        for chapter_num in range(start_chapter, end_chapter + 1):
+            if not self._generate_single_chapter(chapter_num):
+                return False
+        
+        return True
+    
+    def _generate_single_chapter(self, chapter_num: int) -> bool:
+        """生成单个章节"""
+        try:
+            print(f"\n📖 开始生成第{chapter_num}章...")
+            
+            # 进度回调
+            if hasattr(self, '_phase_two_progress_callback') and callable(self._phase_two_progress_callback):
+                self._phase_two_progress_callback(chapter_num, "generating")
+            
+            # 准备上下文
+            context = self._prepare_generation_context(chapter_num)
+            if context is None:
+                print(f"❌ 第{chapter_num}章生成上下文为None")
+                return False
+            
+            # 生成内容
+            chapter_result = self.content_generator.generate_chapter_content_for_novel(
+                chapter_num, self._ctx, context
+            )
+            
+            if not chapter_result:
+                print(f"❌ 第{chapter_num}章内容生成失败")
+                return False
+            
+            # 发布事件
+            self.event_bus.publish('chapter.generated', {
+                'chapter_number': chapter_num,
+                'result': chapter_result,
+                'context': context
+            })
+            
+            # 进度回调
+            if hasattr(self, '_phase_two_progress_callback') and callable(self._phase_two_progress_callback):
+                chapter_data = {
+                    "status": "completed",
+                    "chapter_title": chapter_result.get('chapter_title', f"第{chapter_num}章"),
+                    "word_count": chapter_result.get('word_count', len(chapter_result.get('content', '')))
+                }
+                self._phase_two_progress_callback(chapter_num, "completed", chapter_data)
+            
+            print(f"✅ 第{chapter_num}章生成完成")
+            return True
+            
+        except Exception as e:
+            print(f"❌ 生成第{chapter_num}章时出错: {e}")
+            return False
+    
+    def _get_medium_events_in_range(self, start_ch: int, end_ch: int) -> List[Dict]:
+        """获取指定章节范围内的中型事件"""
+        medium_events = []
+        
+        try:
+            # 优先从event_driven_manager获取事件
+            if hasattr(self, 'event_driven_manager') and self.event_driven_manager:
+                print(f"   🔍 从EventDrivenManager获取中型事件...")
+                
+                # 获取所有活跃的中型事件 (active_events是字典)
+                active_events_dict = getattr(self.event_driven_manager, 'active_events', {})
+                
+                for event_name, event in active_events_dict.items():
+                    # 类型检查：确保 event 是字典
+                    if not isinstance(event, dict):
+                        print(f"      ⚠️ 跳过非字典事件: {event_name} = {event} (类型: {type(event)})")
+                        continue
+                    
+                    if event.get('type') == 'medium_event':
+                        event_range = event.get('chapter_range', '')
+                        if not event_range:
+                            # 如果没有chapter_range，使用start/end_chapter
+                            start = event.get('start_chapter', 0)
+                            end = event.get('end_chapter', 0)
+                            event_range = f"{start}-{end}"
+                            event['chapter_range'] = event_range
+                        
+                        event_start, event_end = self._parse_chapter_range(event_range)
+                        
+                        # 检查是否与要生成的范围重叠
+                        if event_start <= end_ch and event_end >= start_ch:
+                            medium_events.append(event)
+                            print(f"      ✅ 找到中型事件: {event.get('name', 'Unknown')} ({event_range})")
+                
+                if medium_events:
+                    print(f"   📋 从EventDrivenManager找到 {len(medium_events)} 个中型事件")
+            
+            # 如果从EventDrivenManager没有找到，尝试从stage_writing_plans获取
+            if not medium_events:
+                print(f"   🔍 从stage_writing_plans获取中型事件...")
+                stage_plans = self._ctx.get('stage_writing_plans', {})
+                
+                for stage_name, plan in stage_plans.items():
+                    event_system = plan.get('event_system', {})
+                    
+                    # 遍历重大事件
+                    for major_event in event_system.get('major_events', []):
+                        # 遍历中型事件
+                        for phase, events in major_event.get('composition', {}).items():
+                            # 类型检查：确保 events 是列表
+                            if not isinstance(events, list):
+                                print(f"      ⚠️ composition['{phase}'] 不是列表: {type(events)}")
+                                continue
+                            for event in events:
+                                # 类型检查：确保 event 是字典
+                                if not isinstance(event, dict):
+                                    print(f"      ⚠️ 跳过非字典事件项: {event} (类型: {type(event)})")
+                                    continue
+                                event_range = event.get('chapter_range', '')
+                                event_start, event_end = self._parse_chapter_range(event_range)
+                                
+                                # 检查是否与要生成的范围重叠
+                                if event_start <= end_ch and event_end >= start_ch:
+                                    event['type'] = 'medium'  # 确保类型标记
+                                    medium_events.append(event)
+            
+            # 按章节范围排序
+            medium_events.sort(key=lambda e: self._parse_chapter_range(e.get('chapter_range', '0-0'))[0])
+            
+            print(f"   📊 总共找到 {len(medium_events)} 个中型事件")
+            
+        except Exception as e:
+            print(f"⚠️ 获取中型事件时出错: {e}")
+            import traceback
+            traceback.print_exc()
+        
+        return medium_events
+    
+    def _parse_chapter_range(self, chapter_range: str) -> tuple:
+        """解析章节范围字符串"""
+        try:
+            if '-' in chapter_range:
+                parts = chapter_range.split('-')
+                start = int(parts[0])
+                end = int(parts[1])
+            else:
+                start = end = int(chapter_range)
+            return (start, end)
+        except:
+            return (0, 0)
 
     def _prepare_generation_context(self, chapter_num: int):
         """准备生成上下文"""

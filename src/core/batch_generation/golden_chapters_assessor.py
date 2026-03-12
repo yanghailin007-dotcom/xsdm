@@ -147,10 +147,10 @@ class GoldenChaptersAssessor:
         # 5. 调用API评估
         try:
             result = self.api_client.generate_content_with_retry(
-                content_type="golden_chapters_assessment",
+                content_type="chapter_quality_assessment",
                 user_prompt=prompt,
                 purpose=f"评估《{novel_title}》黄金三章吸引力",
-                chapter_number=1  # 标记为黄金三章
+                chapter_number=1
             )
             
             if result:

@@ -152,8 +152,15 @@ class WritingStyleGuideLoader:
         return "\n".join(lines)
     
     @classmethod
-    def _format_language_characteristics(cls, chars: Dict) -> str:
+    def _format_language_characteristics(cls, chars) -> str:
         """格式化语言特点（番茄向）"""
+        # 类型检查
+        if isinstance(chars, str):
+            return f"### 语言特点\n\n{chars}\n"
+        
+        if not chars:
+            chars = {}
+        
         lines = ["### 语言特点", ""]
         
         # 句式结构
@@ -184,8 +191,12 @@ class WritingStyleGuideLoader:
         return "\n".join(lines)
     
     @classmethod
-    def _format_narration_techniques(cls, techniques: Dict) -> str:
+    def _format_narration_techniques(cls, techniques) -> str:
         """格式化叙事技巧"""
+        # 类型检查
+        if isinstance(techniques, str):
+            return f"### 叙事技巧\n\n{techniques}\n"
+        
         if not techniques:
             techniques = {
                 "perspective": "第三人称有限视角，紧贴主角心理",
@@ -210,8 +221,15 @@ class WritingStyleGuideLoader:
         return "\n".join(lines)
     
     @classmethod
-    def _format_chapter_techniques(cls, techniques: Dict) -> str:
+    def _format_chapter_techniques(cls, techniques) -> str:
         """格式化章节技巧（卡点重点）"""
+        # 类型检查
+        if isinstance(techniques, str):
+            return f"### 章节技巧\n\n{techniques}\n"
+        
+        if not techniques:
+            techniques = {}
+        
         lines = ["### 章节技巧", ""]
         
         # 开篇
@@ -239,10 +257,14 @@ class WritingStyleGuideLoader:
         return "\n".join(lines)
     
     @classmethod
-    def _format_dialogue_style(cls, style: Dict) -> str:
+    def _format_dialogue_style(cls, style) -> str:
         """格式化对话风格"""
         if not style:
             return ""
+        
+        # 类型检查：如果 style 是字符串，返回默认值
+        if isinstance(style, str):
+            return "### 对话风格\n\n对话要符合角色身份，避免千人一面\n"
         
         lines = ["### 对话风格", ""]
         
@@ -271,10 +293,14 @@ class WritingStyleGuideLoader:
         return "\n".join(lines)
     
     @classmethod
-    def _format_interaction_design(cls, design: Dict) -> str:
+    def _format_interaction_design(cls, design) -> str:
         """格式化互动设计"""
         if not design:
             return ""
+        
+        # 类型检查
+        if isinstance(design, str):
+            return f"### 互动设计\n\n{design}\n"
         
         lines = ["### 读者互动设计", ""]
         

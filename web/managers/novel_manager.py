@@ -470,23 +470,43 @@ class NovelGenerationManager:
                 # 对于不在标准列表中的步骤，只标记当前为active
                 self.task_results[task_id]["step_status"][current_step] = "active"
         else:
-            # 使用进度映射（基于 13 个步骤的粗略映射）
-            step_mapping = {
-                0: "initialization",
-                8: "writing_style",
-                15: "market_analysis",
-                23: "worldview",
-                31: "faction_system",
-                38: "character_design",
-                46: "emotional_blueprint",
-                54: "growth_plan",
-                62: "stage_plan",
-                69: "detailed_stage_plans",
-                77: "expectation_mapping",
-                85: "system_init",
-                92: "saving",
-                100: "quality_assessment"
-            }
+            # 🔥 修复：检查是否是第二阶段任务
+            task_result = self.task_results.get(task_id, {})
+            is_phase_two = task_result.get("generation_mode") == "phase_two_only" or \
+                          (task_result.get("from_chapter") is not None and task_result.get("chapters_to_generate") is not None)
+            
+            if is_phase_two:
+                # 第二阶段步骤映射
+                step_mapping = {
+                    0: "initialization",
+                    10: "initializing",
+                    20: "initializing", 
+                    25: "loading_project",
+                    30: "preparing",
+                    35: "starting_generation",
+                    40: "generating_chapters",
+                    60: "generating_chapters",
+                    80: "generating_chapters",
+                    100: "completed"
+                }
+            else:
+                # 使用进度映射（基于 13 个步骤的粗略映射）- 第一阶段
+                step_mapping = {
+                    0: "initialization",
+                    8: "writing_style",
+                    15: "market_analysis",
+                    23: "worldview",
+                    31: "faction_system",
+                    38: "character_design",
+                    46: "emotional_blueprint",
+                    54: "growth_plan",
+                    62: "stage_plan",
+                    69: "detailed_stage_plans",
+                    77: "expectation_mapping",
+                    85: "system_init",
+                    92: "saving",
+                    100: "quality_assessment"
+                }
             # 找到最接近的进度
             closest_progress = min(step_mapping.keys(), key=lambda x: abs(x - progress))
             current_step = step_mapping.get(closest_progress, "initialization")
@@ -2303,6 +2323,12 @@ class NovelGenerationManager:
                 
                 novel_generator = NovelGenerator(generator_config)
                 
+                # 🔥 关键修复：设置用户名，确保文件路径正确
+                username = config.get("username")
+                if username:
+                    novel_generator._username = username
+                    logger.info(f"任务 {task_id}: 👤 设置用户名: {username}")
+                
             except Exception as e:
                 logger.error(f"任务 {task_id}: 创建 NovelGenerator 失败: {e}")
                 self._update_task_status(task_id, "failed", 0, f"创建生成器失败: {str(e)}")
@@ -2349,7 +2375,14 @@ class NovelGenerationManager:
                 }
             logger.info(f"任务 {task_id}: ✅ 任务上下文已设置，数据隔离已启用")
             
-            # 初始化材料管理器（如果需要）
+            # 🔥 修复：先设置用户名，再初始化材料管理器
+            username = config.get('username')
+            if username:
+                novel_generator._username = username
+                novel_generator.set_username(username)
+                logger.info(f"任务 {task_id}: 已设置用户名 {username} 用于用户隔离路径")
+            
+            # 初始化材料管理器（如果需要）- 必须在设置用户名之后
             if not novel_generator.material_manager:
                 novel_generator._initialize_material_manager()
             
@@ -2364,12 +2397,6 @@ class NovelGenerationManager:
                 
                 # 🔥 设置停止检查回调
                 setattr(novel_generator, '_stop_check_callback', lambda: self._check_stop_flag(task_id))
-                
-                # 🔥 设置用户名用于用户隔离路径
-                username = config.get('username')
-                if username:
-                    novel_generator.set_username(username)
-                    logger.info(f"任务 {task_id}: 已设置用户名 {username} 用于用户隔离路径")
                 
                 # 🔥 设置用户ID用于API调用实时扣费
                 user_id = config.get('user_id')

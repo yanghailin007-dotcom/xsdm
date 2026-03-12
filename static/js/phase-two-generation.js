@@ -1755,6 +1755,9 @@ function initializeChapterProgress() {
     const chaptersToGenerate = parseInt(document.getElementById('chapters-to-generate').value);
     const grid = document.getElementById('chapter-progress-grid');
     
+    // 标记是否已经开始生成
+    window.generationStarted = false;
+    
     let html = '';
     for (let i = 0; i < chaptersToGenerate; i++) {
         const chapterNumber = fromChapter + i;
@@ -1770,9 +1773,14 @@ function initializeChapterProgress() {
     }
     
     grid.innerHTML = html;
+    // 添加grid类以便应用样式
+    grid.classList.add('v2-chapter-grid');
     
-    // 添加队列演示动画 - 让前几个章节短暂显示排队效果
+    // 添加队列演示动画 - 预览效果
     setTimeout(() => {
+        // 如果已经开始生成了，不要覆盖实际状态
+        if (window.generationStarted) return;
+        
         const firstCard = document.getElementById(`chapter-${fromChapter}`);
         const secondCard = document.getElementById(`chapter-${fromChapter + 1}`);
         
@@ -1787,8 +1795,11 @@ function initializeChapterProgress() {
             secondCard.querySelector('.v2-chapter-mini__status').textContent = '排队';
         }
         
-        // 2秒后恢复等待状态
+        // 3秒后恢复等待状态（给用户足够时间看到效果）
         setTimeout(() => {
+            // 再次检查，如果已经开始生成了，不要覆盖
+            if (window.generationStarted) return;
+            
             if (firstCard) {
                 firstCard.classList.remove('v2-chapter-mini--generating');
                 firstCard.classList.add('v2-chapter-mini--pending');
@@ -1799,25 +1810,88 @@ function initializeChapterProgress() {
                 secondCard.classList.add('v2-chapter-mini--pending');
                 secondCard.querySelector('.v2-chapter-mini__status').textContent = '等待';
             }
-        }, 2000);
+        }, 3000);
     }, 500);
+}
+
+/**
+ * 触发完成涟漪效果 - 当一个章节完成时，相邻章节会有波纹扩散效果
+ */
+function triggerRippleEffect(completedChapterNum) {
+    // 获取相邻的章节（前后各1个）
+    const neighbors = [
+        document.getElementById(`chapter-${completedChapterNum - 1}`),
+        document.getElementById(`chapter-${completedChapterNum + 1}`)
+    ];
+    
+    neighbors.forEach((neighbor, index) => {
+        if (neighbor) {
+            // 延迟触发，产生波纹扩散效果
+            setTimeout(() => {
+                neighbor.style.animation = 'completion-ripple 0.6s ease-out';
+                setTimeout(() => {
+                    neighbor.style.animation = '';
+                }, 600);
+            }, index * 100); // 100ms间隔
+        }
+    });
 }
 
 function updateChapterProgress(taskStatus) {
     if (!taskStatus.chapter_progress) return;
     
+    // 标记已经开始生成
+    window.generationStarted = true;
+    
+    // 添加队列流动线效果
+    const grid = document.getElementById('chapter-progress-grid');
+    if (grid) {
+        grid.classList.add('v2-chapter-grid--active');
+    }
+    
+    // 显示队列进度条
+    const queueProgressContainer = document.getElementById('queue-progress-container');
+    if (queueProgressContainer) {
+        queueProgressContainer.style.display = 'block';
+    }
+    
+    // 计算队列进度
+    const totalChapters = taskStatus.chapter_progress.length;
+    const completedChapters = taskStatus.chapter_progress.filter(ch => ch.status === 'completed').length;
+    const progressPercent = Math.round((completedChapters / totalChapters) * 100);
+    
+    // 更新队列进度条
+    const queueProgressFill = document.getElementById('queue-progress-fill');
+    const queueProgressText = document.getElementById('queue-progress-text');
+    if (queueProgressFill) {
+        queueProgressFill.style.width = `${progressPercent}%`;
+    }
+    if (queueProgressText) {
+        queueProgressText.textContent = `${progressPercent}% (${completedChapters}/${totalChapters})`;
+    }
+    
     // 找出正在生成的章节和下一个排队的章节
     const generatingIndex = taskStatus.chapter_progress.findIndex(ch => ch.status === 'generating');
     const nextQueuedIndex = generatingIndex >= 0 ? generatingIndex + 1 : -1;
     
+    // 获取范围
+    const fromChapter = parseInt(document.getElementById('from-chapter').value);
+    
     taskStatus.chapter_progress.forEach((chapter, index) => {
         const chapterCard = document.getElementById(`chapter-${chapter.chapter_number}`);
         if (chapterCard) {
+            // 获取之前的状态（用于检测状态变化）
+            const previousStatus = chapterCard.dataset.status || 'pending';
+            
             // 确定状态：如果是下一个要生成的，标记为queued
             let displayStatus = chapter.status;
             if (chapter.status === 'pending' && index === nextQueuedIndex) {
                 displayStatus = 'queued';
             }
+            
+            // 检测状态变化
+            const statusChanged = previousStatus !== displayStatus;
+            chapterCard.dataset.status = displayStatus;
             
             // 更新状态样式
             const statusClassMap = {
@@ -1829,6 +1903,29 @@ function updateChapterProgress(taskStatus) {
             };
             
             chapterCard.className = `v2-chapter-mini ${statusClassMap[displayStatus] || 'v2-chapter-mini--pending'}`;
+            
+            // 如果状态变为完成，触发完成动画和涟漪效果
+            if (statusChanged && displayStatus === 'completed') {
+                chapterCard.classList.add('v2-chapter-mini--just-completed');
+                // 动画结束后移除类
+                setTimeout(() => {
+                    chapterCard.classList.remove('v2-chapter-mini--just-completed');
+                }, 1200);
+                
+                // 触发相邻章节的涟漪效果
+                triggerRippleEffect(chapter.chapter_number);
+            }
+            // 如果是生成中状态，添加脉冲效果
+            else if (displayStatus === 'generating') {
+                chapterCard.style.animation = 'pulse-card 1.5s ease-in-out infinite';
+            }
+            // 如果是排队状态，添加呼吸效果
+            else if (displayStatus === 'queued') {
+                chapterCard.style.animation = 'queue-waiting 2s ease-in-out infinite';
+            }
+            else {
+                chapterCard.style.animation = '';
+            }
             
             // 更新状态文字
             const statusElement = chapterCard.querySelector('.v2-chapter-mini__status');
@@ -1918,6 +2015,18 @@ function handleGenerationComplete(taskStatus) {
     showGenerationResults(taskStatus);
     addLogEntry('success', '章节生成任务完成！');
     showStatusMessage('🎉 章节生成完成！', 'success');
+    
+    // 隐藏队列进度条
+    const queueProgressContainer = document.getElementById('queue-progress-container');
+    if (queueProgressContainer) {
+        queueProgressContainer.style.display = 'none';
+    }
+    
+    // 移除队列流动效果
+    const grid = document.getElementById('chapter-progress-grid');
+    if (grid) {
+        grid.classList.remove('v2-chapter-grid--active');
+    }
 }
 
 function handleGenerationStopped(taskStatus) {
@@ -1928,18 +2037,45 @@ function handleGenerationStopped(taskStatus) {
 
 function showGenerationResults(taskStatus) {
     const resultsDiv = document.getElementById('generation-results');
-    resultsDiv.style.display = 'block';
+    if (!resultsDiv) return;
     
-    // 更新统计信息
-    const generatedChapters = taskStatus.generated_chapters || [];
-    const totalWords = generatedChapters.reduce((sum, chapter) => sum + (chapter.word_count || 0), 0);
-    const avgScore = generatedChapters.reduce((sum, chapter) => sum + (chapter.quality_score || 0), 0) / generatedChapters.length;
+    resultsDiv.style.display = 'block';
+    resultsDiv.classList.add('active');
+    
+    // 🔥 修复：处理 generated_chapters 可能是对象或数组的情况
+    let generatedChapters = taskStatus.generated_chapters || [];
+    
+    // 如果是对象格式（键值对），转换为数组
+    if (generatedChapters && typeof generatedChapters === 'object' && !Array.isArray(generatedChapters)) {
+        generatedChapters = Object.values(generatedChapters);
+    }
+    
+    // 从 chapter_progress 中提取已完成的章节作为备选数据源
+    if ((!generatedChapters || generatedChapters.length === 0) && taskStatus.chapter_progress) {
+        generatedChapters = taskStatus.chapter_progress.filter(ch => ch.status === 'completed');
+    }
+    
+    console.log('[DEBUG] showGenerationResults:', {
+        generatedChaptersCount: generatedChapters.length,
+        taskStatus: taskStatus
+    });
+    
+    // 计算统计信息
+    const totalChapters = generatedChapters.length;
+    const totalWords = generatedChapters.reduce((sum, chapter) => sum + (chapter.word_count || chapter.content?.length || 0), 0);
+    const avgScore = totalChapters > 0 ? generatedChapters.reduce((sum, chapter) => sum + (chapter.quality_score || 0), 0) / totalChapters : 0;
     const generationTime = generationStartTime ? Math.round((Date.now() - generationStartTime) / 60000) : 0;
     
-    document.getElementById('total-generated').textContent = generatedChapters.length;
-    document.getElementById('total-words').textContent = totalWords.toLocaleString();
-    document.getElementById('average-score').textContent = avgScore.toFixed(1);
-    document.getElementById('generation-time').textContent = `${generationTime}分钟`;
+    // 安全地更新DOM元素
+    const totalGeneratedEl = document.getElementById('total-generated');
+    const totalWordsEl = document.getElementById('total-words');
+    const avgScoreEl = document.getElementById('average-score');
+    const genTimeEl = document.getElementById('generation-time');
+    
+    if (totalGeneratedEl) totalGeneratedEl.textContent = totalChapters;
+    if (totalWordsEl) totalWordsEl.textContent = totalWords.toLocaleString();
+    if (avgScoreEl) avgScoreEl.textContent = avgScore.toFixed(1);
+    if (genTimeEl) genTimeEl.textContent = `${generationTime}分钟`;
 }
 
 // ==================== 控制功能 ====================
@@ -2151,14 +2287,11 @@ function hideGenerationForm() {
     }
 }
 
-function showGenerationResults() {
-    hideProgressSection();
-    document.getElementById('generation-results').classList.add('active');
-    updateStepStatus('complete', true);
-}
-
 function hideGenerationResults() {
-    document.getElementById('generation-results').classList.remove('active');
+    const resultsDiv = document.getElementById('generation-results');
+    if (resultsDiv) {
+        resultsDiv.classList.remove('active');
+    }
 }
 
 function updateProgress(percentage, message) {

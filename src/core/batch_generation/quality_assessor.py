@@ -205,7 +205,7 @@ class LayeredQualityAssessor:
         
         try:
             result = self.api_client.generate_content_with_retry(
-                content_type="batch_quality_assessment_l1",
+                content_type="chapter_quality_assessment",
                 user_prompt=prompt,
                 purpose=f"Level 1质量评估: {medium_event.get('name', '')}"
             )
@@ -308,7 +308,7 @@ class LayeredQualityAssessor:
         
         try:
             result = self.api_client.generate_content_with_retry(
-                content_type="batch_quality_assessment_l2",
+                content_type="chapter_quality_assessment",
                 user_prompt=prompt,
                 purpose=f"Level 2深度评估: {medium_event.get('name', '')}"
             )

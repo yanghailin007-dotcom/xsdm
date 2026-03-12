@@ -83,10 +83,10 @@ class GoldenChaptersGenerator:
         
         try:
             result = self.api_client.generate_content_with_retry(
-                content_type="golden_chapters_generation",
+                content_type="chapter_content_generation",
                 user_prompt=prompt,
                 purpose=f"整体生成《{novel_title}》黄金三章",
-                chapter_number=1  # 标记为黄金三章，可能触发专用模型
+                chapter_number=1
             )
             
             if not result:

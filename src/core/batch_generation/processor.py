@@ -69,7 +69,8 @@ class MediumEventBatchProcessor:
         self.assessor = LayeredQualityAssessor(api_client)
         self.fallback_handler = BatchFallbackHandler(
             scene_generator=self,
-            content_generator=self.content_generator
+            content_generator=self.content_generator,
+            novel_generator=novel_generator
         )
         
         self.logger = logging.getLogger(__name__)
@@ -107,6 +108,17 @@ class MediumEventBatchProcessor:
         """
         start_ch, end_ch = chapter_range
         span = end_ch - start_ch + 1
+        
+        # 验证 medium_event 类型
+        if not isinstance(medium_event, dict):
+            self.logger.error(f"[BatchProcessor] medium_event 类型错误: {type(medium_event)}, 值: {medium_event}")
+            return BatchProcessResult(
+                success=False,
+                error=f"medium_event 类型错误: 期望 dict, 得到 {type(medium_event)}"
+            )
+        
+        # 调试：记录 medium_event 的内容
+        self.logger.info(f"[BatchProcessor] medium_event 内容: {medium_event}")
         
         novel_title = novel_data.get("novel_title", "Unknown")
         username = novel_data.get("username")
@@ -160,7 +172,9 @@ class MediumEventBatchProcessor:
             api_calls_used = api_calls_after - api_calls_before
             
         except Exception as e:
+            import traceback
             self.logger.error(f"[BatchProcessor] 批量生成失败: {e}")
+            self.logger.error(f"[BatchProcessor] 堆栈追踪:\n{traceback.format_exc()}")
             
             # 回退到逐章生成
             import asyncio

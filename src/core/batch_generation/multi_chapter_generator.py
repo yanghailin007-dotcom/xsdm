@@ -65,6 +65,12 @@ class MultiChapterContentGenerator:
         Returns:
             {chapter_num: ChapterContent} 生成的章节内容
         """
+        # 调试：检查参数类型
+        self.logger.info(f"[MultiChapterGen] 参数类型检查: medium_event={type(medium_event)}, scenes={type(scenes_by_chapter)}")
+        if not isinstance(medium_event, dict):
+            self.logger.error(f"[MultiChapterGen] medium_event 类型错误: {type(medium_event)}, 值={medium_event}")
+            raise TypeError(f"medium_event 必须是字典，而不是 {type(medium_event)}")
+        
         start_ch, end_ch = chapter_range
         span = end_ch - start_ch + 1
         
@@ -95,8 +101,9 @@ class MultiChapterContentGenerator:
         api_calls_before = getattr(self.api_client, 'api_call_counter', 0)
         
         try:
+            # 使用 chapter_content_generation 类型，因为这是API支持的标准类型
             result = self.api_client.generate_content_with_retry(
-                content_type="multi_chapter_content",
+                content_type="chapter_content_generation",
                 user_prompt=prompt,
                 purpose=f"批量生成{novel_title}第{start_ch}-{end_ch}章"
             )
@@ -133,6 +140,10 @@ class MultiChapterContentGenerator:
         novel_title: str
     ) -> str:
         """构建多章生成Prompt"""
+        # 直接检查 medium_event 类型
+        if not isinstance(medium_event, dict):
+            raise TypeError(f"_build_prompt: medium_event 必须是 dict, 而不是 {type(medium_event)}: {medium_event}")
+        
         start_ch, end_ch = chapter_range
         
         # 格式化场景规划
@@ -223,9 +234,18 @@ class MultiChapterContentGenerator:
         
         for ch_num in sorted(scenes_by_chapter.keys()):
             scenes = scenes_by_chapter[ch_num]
+            # 调试：检查 scenes 类型
+            if not isinstance(scenes, list):
+                self.logger.error(f"[MultiChapterGen] scenes 类型错误: ch={ch_num}, type={type(scenes)}, value={scenes}")
+                continue
+            
             lines.append(f"\n### 第{ch_num}章场景")
             
             for i, scene in enumerate(scenes, 1):
+                # 调试：检查 scene 类型
+                if not isinstance(scene, dict):
+                    self.logger.error(f"[MultiChapterGen] scene 类型错误: ch={ch_num}, idx={i}, type={type(scene)}, value={scene}")
+                    continue
                 name = scene.get('name', f'场景{i}')
                 position = scene.get('position', 'unknown')
                 purpose = scene.get('purpose', '')

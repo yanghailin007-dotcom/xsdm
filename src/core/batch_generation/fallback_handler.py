@@ -50,9 +50,10 @@ class BatchFallbackHandler:
     3. 逐章生成（最终保障）
     """
     
-    def __init__(self, scene_generator, content_generator):
+    def __init__(self, scene_generator, content_generator, novel_generator=None):
         self.scene_generator = scene_generator
         self.content_generator = content_generator
+        self.novel_generator = novel_generator
         self.logger = logging.getLogger(__name__)
         
         # 配置
@@ -328,16 +329,49 @@ class BatchFallbackHandler:
                     self.logger.warning(f"[FallbackHandler] 第{ch_num}章场景缺失，使用默认")
                     scenes = self._create_default_scenes(medium_event, ch_num)
                 
-                # 逐章生成内容
-                chapter_content = self.content_generator.generate_chapter_content(
-                    chapter_params={
-                        "chapter_number": ch_num,
-                        "pre_designed_scenes": scenes,
-                        "consistency_guidance": current_guidance,
-                        "novel_title": novel_title,
-                        "medium_event": medium_event
+                # 逐章生成内容 - 使用 novel_generator 的 content_generator
+                chapter_content = None
+                if self.novel_generator and hasattr(self.novel_generator, 'content_generator'):
+                    # 构建完整的 novel_data
+                    novel_data = {
+                        'novel_title': novel_title,
+                        'generated_chapters': [],
+                        'chapter_status': {},
+                        'current_progress': {
+                            'total_chapters': getattr(self.novel_generator, '_total_chapters', 200),
+                            'chapters_generated': ch_num - 1
+                        }
                     }
-                )
+                    # 使用原始的 ContentGenerator 逐章生成
+                    chapter_result = self.novel_generator.content_generator.generate_chapter_content_for_novel(
+                        chapter_number=ch_num,
+                        novel_data=novel_data
+                    )
+                    if chapter_result:
+                        chapter_content = {
+                            "title": chapter_result.get("chapter_title", f"第{ch_num}章"),
+                            "content": chapter_result.get("content", ""),
+                            "key_events": chapter_result.get("key_events", []),
+                            "character_states": chapter_result.get("character_states", {})
+                        }
+                else:
+                    # 降级：使用 MultiChapterContentGenerator 的生成方法（单章）
+                    from .multi_chapter_generator import ChapterContent
+                    single_chapter_content = self.content_generator.generate(
+                        medium_event=medium_event,
+                        chapter_range=(ch_num, ch_num),
+                        scenes_by_chapter={ch_num: scenes},
+                        consistency_guidance=current_guidance,
+                        novel_title=novel_title
+                    )
+                    if ch_num in single_chapter_content:
+                        ch_data = single_chapter_content[ch_num]
+                        chapter_content = {
+                            "title": ch_data.title,
+                            "content": ch_data.content,
+                            "key_events": ch_data.key_events,
+                            "character_states": ch_data.character_states
+                        }
                 
                 if chapter_content:
                     all_content[ch_num] = chapter_content
