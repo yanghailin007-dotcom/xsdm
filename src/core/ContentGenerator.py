@@ -1887,6 +1887,17 @@ class ContentGenerator:
         if score < quality_threshold:
             return True, f"评分{score:.1f}低于优化阈值{quality_threshold:.1f}分（第{retry_count}次尝试），需要优化"
 
+        # 检查字数偏差（可配置阈值）
+        word_count_deviation = assessment.get('word_count_deviation', False)
+        word_count = assessment.get('word_count', 0)
+        if word_count_deviation:
+            min_threshold = assessment.get('min_word_threshold', 1500)
+            max_threshold = assessment.get('max_word_threshold', 3500)
+            if word_count < min_threshold:
+                return True, f"字数{word_count}低于阈值{min_threshold}字，需要重新生成"
+            else:
+                return True, f"字数{word_count}高于阈值{max_threshold}字，需要重新生成"
+
         # 检查严重一致性问题的存在
         consistency_issues = assessment.get("consistency_issues", [])
         severe_issues = [issue for issue in consistency_issues if issue.get('severity') == '高']
@@ -1895,7 +1906,7 @@ class ContentGenerator:
                 self.logger.info(f"  - {issue}")
             return True, f"存在{len(severe_issues)}个严重一致性问题，需要优化"
 
-        return False, f"评分{score:.1f}良好，跳过优化"
+        return False, f"评分{score:.1f}良好，字数符合要求，跳过优化"
 
     def _build_transition_requirement(self, previous_end_state, chapter_number: int) -> str:
         """构建衔接场景要求"""
@@ -2189,6 +2200,13 @@ class ContentGenerator:
 
 请你作为一名优秀的小说家，根据以上所有指令，直接创作出本章的完整内容。
 你的任务是将【写作蓝图】中的六段式场景要点，流畅地、富有文采地串联成一篇完整的、高质量的小说章节。请特别注意每个场景的【功能定位】和【篇幅占比】，确保章节结构清晰，节奏感强。
+
+## 5. 字数要求（严格执行）
+**目标字数：约2000字（建议范围：1800-2500字）**
+- 字数统计包含汉字和标点符号
+- 少于{chapter_params.get('min_word_threshold', 1500)}字：情节过于单薄，将被要求重新生成
+- 多于{chapter_params.get('max_word_threshold', 3500)}字：内容过于冗长，将被要求重新生成
+- 建议控制在1800-2500字之间，确保内容充实且节奏紧凑
 
 **重要提醒**：请严格遵循上述【情绪强度指南】，确保本章的情感表达和节奏控制符合要求的强度级别。
 """
@@ -2573,6 +2591,9 @@ class ContentGenerator:
             "event_context": json.dumps(event_context, ensure_ascii=False),
             "growth_context": json.dumps(growth_context, ensure_ascii=False),
             "consistency_guidance": consistency_guidance,  # <-- 将提前生成好的指导放入最终参数
+            # 🔥 新增：字数阈值参数
+            "min_word_threshold": novel_data.get('min_word_threshold', 1500),
+            "max_word_threshold": novel_data.get('max_word_threshold', 3500),
         }
         self.logger.info(f"  ✅ 第{chapter_number}章参数准备完成")
         return params

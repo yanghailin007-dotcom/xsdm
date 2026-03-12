@@ -1,0 +1,687 @@
+/**
+ * Book Reader - 仿真翻页书阅读器样式
+ * 版本: 1.0
+ */
+
+/* ==================== 书籍阅读器容器 ==================== */
+.book-reader-container {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
+    z-index: 9999;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+
+.book-reader-container.hidden {
+    display: none !important;
+}
+
+/* ==================== 顶部工具栏 ==================== */
+.book-reader-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 12px 24px;
+    background: rgba(0, 0, 0, 0.3);
+    backdrop-filter: blur(10px);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    z-index: 10;
+}
+
+.book-reader-header__left,
+.book-reader-header__right {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.book-reader-header__title {
+    font-size: 16px;
+    font-weight: 500;
+    color: rgba(255, 255, 255, 0.9);
+    max-width: 300px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.book-reader-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    padding: 8px 16px;
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    background: rgba(255, 255, 255, 0.1);
+    color: rgba(255, 255, 255, 0.8);
+    border-radius: 8px;
+    font-size: 13px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.book-reader-btn:hover {
+    background: rgba(255, 255, 255, 0.15);
+    border-color: rgba(255, 255, 255, 0.3);
+}
+
+.book-reader-btn--primary {
+    background: linear-gradient(135deg, #6366f1, #8b5cf6);
+    border-color: transparent;
+    color: white;
+}
+
+.book-reader-btn--primary:hover {
+    background: linear-gradient(135deg, #5558e0, #7c4de8);
+    transform: translateY(-1px);
+}
+
+.book-reader-btn--icon {
+    width: 36px;
+    height: 36px;
+    padding: 0;
+    border-radius: 50%;
+}
+
+/* ==================== 书籍主体区域 ==================== */
+.book-reader-body {
+    flex: 1;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    padding: 20px;
+    perspective: 1500px;
+    overflow: hidden;
+}
+
+/* ==================== 书籍外观 ==================== */
+.book {
+    position: relative;
+    width: 900px;
+    height: 600px;
+    transform-style: preserve-3d;
+    transition: transform 0.5s ease;
+}
+
+/* 书籍阴影 */
+.book::before {
+    content: '';
+    position: absolute;
+    bottom: -20px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 80%;
+    height: 40px;
+    background: radial-gradient(ellipse, rgba(0, 0, 0, 0.4) 0%, transparent 70%);
+    filter: blur(10px);
+}
+
+/* ==================== 书页 ==================== */
+.book-page {
+    position: absolute;
+    width: 50%;
+    height: 100%;
+    top: 0;
+    background: #faf8f3;
+    box-shadow: 
+        inset 30px 0 40px -30px rgba(0, 0, 0, 0.1),
+        inset -2px 0 5px rgba(0, 0, 0, 0.05);
+    transform-origin: left center;
+    transform-style: preserve-3d;
+    transition: transform 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+    overflow: hidden;
+}
+
+/* 书页正面 */
+.book-page__front,
+.book-page__back {
+    position: absolute;
+    width: 100%;
+    height: 100%;
+    padding: 40px 35px;
+    backface-visibility: hidden;
+    overflow: hidden;
+}
+
+.book-page__front {
+    background: linear-gradient(to right, #f5f2e9 0%, #faf8f3 5%, #faf8f3 100%);
+}
+
+.book-page__back {
+    background: linear-gradient(to left, #f5f2e9 0%, #faf8f3 5%, #faf8f3 100%);
+    transform: rotateY(180deg);
+}
+
+/* 左页 */
+.book-page--left {
+    left: 0;
+    border-radius: 4px 0 0 4px;
+    transform-origin: right center;
+}
+
+.book-page--left .book-page__front {
+    background: linear-gradient(to left, #f0ece0 0%, #faf8f3 8%, #faf8f3 100%);
+}
+
+.book-page--left .book-page__back {
+    background: linear-gradient(to right, #f0ece0 0%, #faf8f3 8%, #faf8f3 100%);
+}
+
+/* 右页 */
+.book-page--right {
+    right: 0;
+    border-radius: 0 4px 4px 0;
+    transform-origin: left center;
+}
+
+/* 书页翻起状态 */
+.book-page.flipped {
+    transform: rotateY(-180deg);
+}
+
+.book-page--left.flipped {
+    transform: rotateY(180deg);
+}
+
+/* 书页内容 */
+.book-page__content {
+    width: 100%;
+    height: 100%;
+    overflow: hidden;
+    font-family: 'Noto Serif SC', 'Source Han Serif SC', 'SimSun', serif;
+    font-size: 16px;
+    line-height: 1.8;
+    color: #333;
+    text-align: justify;
+}
+
+.book-page__content p {
+    margin: 0 0 1em 0;
+    text-indent: 2em;
+}
+
+.book-page__content p:first-child {
+    text-indent: 0;
+}
+
+/* 章节标题 */
+.book-chapter-title {
+    font-size: 22px;
+    font-weight: 600;
+    color: #1a1a1a;
+    margin-bottom: 20px;
+    padding-bottom: 15px;
+    border-bottom: 2px solid #e0d5c0;
+    text-align: center;
+}
+
+.book-chapter-subtitle {
+    font-size: 13px;
+    color: #888;
+    margin-bottom: 30px;
+    text-align: center;
+}
+
+/* 页码 */
+.book-page__number {
+    position: absolute;
+    bottom: 20px;
+    font-size: 12px;
+    color: #999;
+    font-family: Georgia, serif;
+}
+
+.book-page__front .book-page__number {
+    right: 35px;
+}
+
+.book-page__back .book-page__number {
+    left: 35px;
+}
+
+/* ==================== 书脊 ==================== */
+.book-spine {
+    position: absolute;
+    left: 50%;
+    top: 0;
+    transform: translateX(-50%);
+    width: 40px;
+    height: 100%;
+    background: linear-gradient(to right, 
+        #d4c4a8 0%, 
+        #e8dcc8 20%, 
+        #f5f0e6 50%, 
+        #e8dcc8 80%, 
+        #d4c4a8 100%
+    );
+    box-shadow: 
+        inset 2px 0 5px rgba(0, 0, 0, 0.1),
+        inset -2px 0 5px rgba(0, 0, 0, 0.1);
+    z-index: 5;
+}
+
+/* ==================== 翻页按钮 ==================== */
+.book-nav-btn {
+    position: absolute;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 50px;
+    height: 100px;
+    background: rgba(255, 255, 255, 0.1);
+    border: none;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 24px;
+    color: rgba(255, 255, 255, 0.6);
+    transition: all 0.3s ease;
+    opacity: 0;
+    z-index: 20;
+}
+
+.book:hover .book-nav-btn {
+    opacity: 1;
+}
+
+.book-nav-btn:hover {
+    background: rgba(255, 255, 255, 0.2);
+    color: white;
+}
+
+.book-nav-btn--prev {
+    left: -60px;
+    border-radius: 8px 0 0 8px;
+}
+
+.book-nav-btn--next {
+    right: -60px;
+    border-radius: 0 8px 8px 0;
+}
+
+.book-nav-btn:disabled {
+    opacity: 0.3 !important;
+    cursor: not-allowed;
+}
+
+/* ==================== 底部控制栏 ==================== */
+.book-reader-footer {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 20px;
+    padding: 16px 24px;
+    background: rgba(0, 0, 0, 0.3);
+    backdrop-filter: blur(10px);
+    border-top: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.book-progress {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    color: rgba(255, 255, 255, 0.7);
+    font-size: 14px;
+}
+
+.book-progress__bar {
+    width: 200px;
+    height: 4px;
+    background: rgba(255, 255, 255, 0.2);
+    border-radius: 2px;
+    overflow: hidden;
+}
+
+.book-progress__fill {
+    height: 100%;
+    background: linear-gradient(90deg, #6366f1, #8b5cf6);
+    border-radius: 2px;
+    transition: width 0.3s ease;
+}
+
+.book-page-input {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    color: rgba(255, 255, 255, 0.7);
+    font-size: 14px;
+}
+
+.book-page-input input {
+    width: 60px;
+    padding: 6px 10px;
+    background: rgba(255, 255, 255, 0.1);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    border-radius: 6px;
+    color: white;
+    text-align: center;
+    font-size: 14px;
+}
+
+.book-page-input input:focus {
+    outline: none;
+    border-color: #6366f1;
+}
+
+/* ==================== 设置面板 ==================== */
+.book-settings-panel {
+    position: absolute;
+    top: 60px;
+    right: 24px;
+    width: 280px;
+    background: rgba(30, 30, 40, 0.95);
+    backdrop-filter: blur(20px);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 16px;
+    padding: 20px;
+    z-index: 100;
+    opacity: 0;
+    visibility: hidden;
+    transform: translateY(-10px);
+    transition: all 0.3s ease;
+}
+
+.book-settings-panel.active {
+    opacity: 1;
+    visibility: visible;
+    transform: translateY(0);
+}
+
+.book-settings-panel__title {
+    font-size: 16px;
+    font-weight: 600;
+    color: white;
+    margin-bottom: 20px;
+    padding-bottom: 12px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.book-setting-item {
+    margin-bottom: 20px;
+}
+
+.book-setting-item__label {
+    font-size: 13px;
+    color: rgba(255, 255, 255, 0.6);
+    margin-bottom: 10px;
+    display: block;
+}
+
+.book-setting-options {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+
+.book-setting-option {
+    padding: 6px 12px;
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 6px;
+    color: rgba(255, 255, 255, 0.7);
+    font-size: 13px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.book-setting-option:hover,
+.book-setting-option.active {
+    background: rgba(99, 102, 241, 0.2);
+    border-color: #6366f1;
+    color: white;
+}
+
+/* 主题选择 */
+.book-theme-options {
+    display: flex;
+    gap: 12px;
+}
+
+.book-theme-option {
+    width: 40px;
+    height: 40px;
+    border-radius: 8px;
+    cursor: pointer;
+    border: 2px solid transparent;
+    transition: all 0.2s ease;
+    position: relative;
+}
+
+.book-theme-option:hover,
+.book-theme-option.active {
+    border-color: #6366f1;
+    transform: scale(1.1);
+}
+
+.book-theme-option--light {
+    background: #faf8f3;
+}
+
+.book-theme-option--sepia {
+    background: #f4ecd8;
+}
+
+.book-theme-option--dark {
+    background: #2d2d2d;
+}
+
+.book-theme-option--dark::after {
+    content: '✓';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    color: white;
+    font-size: 18px;
+}
+
+/* ==================== 章节列表侧边栏 ==================== */
+.book-chapter-panel {
+    position: absolute;
+    top: 60px;
+    left: 24px;
+    width: 300px;
+    max-height: calc(100% - 80px);
+    background: rgba(30, 30, 40, 0.95);
+    backdrop-filter: blur(20px);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 16px;
+    padding: 20px;
+    z-index: 100;
+    opacity: 0;
+    visibility: hidden;
+    transform: translateX(-10px);
+    transition: all 0.3s ease;
+    overflow-y: auto;
+}
+
+.book-chapter-panel.active {
+    opacity: 1;
+    visibility: visible;
+    transform: translateX(0);
+}
+
+.book-chapter-panel__title {
+    font-size: 16px;
+    font-weight: 600;
+    color: white;
+    margin-bottom: 16px;
+    padding-bottom: 12px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.book-chapter-list {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.book-chapter-item {
+    padding: 10px 12px;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.book-chapter-item:hover {
+    background: rgba(255, 255, 255, 0.05);
+}
+
+.book-chapter-item.active {
+    background: rgba(99, 102, 241, 0.2);
+}
+
+.book-chapter-item__number {
+    font-size: 13px;
+    color: rgba(255, 255, 255, 0.5);
+    width: 40px;
+}
+
+.book-chapter-item__title {
+    flex: 1;
+    font-size: 14px;
+    color: rgba(255, 255, 255, 0.8);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+/* ==================== 动画效果 ==================== */
+@keyframes pageFlip {
+    0% { transform: rotateY(0deg); }
+    50% { transform: rotateY(-90deg); }
+    100% { transform: rotateY(-180deg); }
+}
+
+@keyframes pageFlipReverse {
+    0% { transform: rotateY(-180deg); }
+    50% { transform: rotateY(-90deg); }
+    100% { transform: rotateY(0deg); }
+}
+
+/* 翻页时的阴影效果 */
+.book-page.flipping {
+    box-shadow: 
+        -10px 0 30px rgba(0, 0, 0, 0.3),
+        inset 30px 0 40px -30px rgba(0, 0, 0, 0.1);
+}
+
+/* ==================== 响应式适配 ==================== */
+@media (max-width: 1024px) {
+    .book {
+        width: 700px;
+        height: 500px;
+    }
+    
+    .book-page__content {
+        font-size: 14px;
+    }
+}
+
+@media (max-width: 768px) {
+    .book-reader-body {
+        padding: 10px;
+    }
+    
+    .book {
+        width: 100%;
+        max-width: 500px;
+        height: 400px;
+    }
+    
+    /* 移动端单页模式 */
+    .book-page--left {
+        display: none;
+    }
+    
+    .book-page--right {
+        width: 100%;
+        right: 0;
+    }
+    
+    .book-spine {
+        display: none;
+    }
+    
+    .book-nav-btn {
+        opacity: 1;
+        width: 40px;
+        height: 60px;
+    }
+    
+    .book-nav-btn--prev {
+        left: 10px;
+    }
+    
+    .book-nav-btn--next {
+        right: 10px;
+    }
+}
+
+/* ==================== 主题样式 ==================== */
+/* 浅色主题 */
+.book-theme-light .book-page__front,
+.book-theme-light .book-page__back {
+    background: #faf8f3;
+    color: #333;
+}
+
+/* 护眼主题 */
+.book-theme-sepia .book-page__front,
+.book-theme-sepia .book-page__back {
+    background: #f4ecd8;
+    color: #5c4b37;
+}
+
+.book-theme-sepia .book-chapter-title {
+    color: #3d3024;
+    border-color: #d4c9b0;
+}
+
+/* 深色主题 */
+.book-theme-dark .book-page__front,
+.book-theme-dark .book-page__back {
+    background: #2d2d2d;
+    color: #d4d4d4;
+}
+
+.book-theme-dark .book-chapter-title {
+    color: #fff;
+    border-color: #444;
+}
+
+.book-theme-dark .book-page__number {
+    color: #666;
+}
+
+/* ==================== 加载动画 ==================== */
+.book-loading {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    text-align: center;
+    color: rgba(255, 255, 255, 0.6);
+}
+
+.book-loading__spinner {
+    width: 40px;
+    height: 40px;
+    border: 3px solid rgba(255, 255, 255, 0.1);
+    border-top-color: #6366f1;
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+    margin: 0 auto 16px;
+}
+
+@keyframes spin {
+    to { transform: rotate(360deg); }
+}

@@ -113,6 +113,26 @@ class ChapterGenerator:
                 chapter_data["quality_assessment"] = assessment
                 self.logger.info(f"  质量评分: {score:.1f}分")
                 
+                # 🔥 新增：字数检查（可配置阈值），只记录不调整
+                current_word_count = len(chapter_data.get("content", ""))
+                # 从配置读取阈值，默认少于1500或多于3500触发重新生成
+                min_word_threshold = chapter_params.get('min_word_threshold', 1500)
+                max_word_threshold = chapter_params.get('max_word_threshold', 3500)
+                
+                word_count_ok = min_word_threshold <= current_word_count <= max_word_threshold
+                if not word_count_ok:
+                    if current_word_count < min_word_threshold:
+                        self.logger.warning(f"  ⚠️ 字数不足: {current_word_count}字，低于阈值{min_word_threshold}字，将重新生成")
+                    else:
+                        self.logger.warning(f"  ⚠️ 字数超标: {current_word_count}字，高于阈值{max_word_threshold}字，将重新生成")
+                    # 将字数偏差记录到评估中，触发重新生成
+                    assessment['word_count_deviation'] = True
+                    assessment['word_count'] = current_word_count
+                    assessment['min_word_threshold'] = min_word_threshold
+                    assessment['max_word_threshold'] = max_word_threshold
+                else:
+                    self.logger.info(f"  ✓ 字数符合要求: {current_word_count}字 (阈值: {min_word_threshold}-{max_word_threshold}字)")
+                
                 # 根据质量决定是否优化（使用渐进式阈值）
                 optimize_needed, optimize_reason = self.cg._should_optimize_based_on_config(
                     assessment, retry_count=attempt, chapter_number=chapter_number

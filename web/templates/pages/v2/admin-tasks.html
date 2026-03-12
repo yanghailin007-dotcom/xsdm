@@ -1,0 +1,1033 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>生成任务监控 - 管理员后台</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/v2/design-system.css') }}">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', sans-serif;
+            background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
+            min-height: 100vh;
+            color: #e2e8f0;
+        }
+        
+        .admin-container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 24px;
+        }
+        
+        .admin-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 24px;
+            padding-bottom: 20px;
+            border-bottom: 1px solid rgba(148, 163, 184, 0.1);
+        }
+        
+        .admin-title {
+            font-size: 28px;
+            font-weight: 700;
+            background: linear-gradient(135deg, #60a5fa 0%, #a78bfa 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+        
+        .admin-subtitle {
+            font-size: 14px;
+            color: #94a3b8;
+            margin-top: 4px;
+        }
+        
+        .back-link {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            color: #94a3b8;
+            text-decoration: none;
+            font-size: 14px;
+            transition: all 0.2s;
+        }
+        
+        .back-link:hover {
+            color: #60a5fa;
+        }
+        
+        .nav-tabs {
+            display: flex;
+            gap: 12px;
+            margin-bottom: 24px;
+            border-bottom: 1px solid rgba(148, 163, 184, 0.1);
+            padding-bottom: 12px;
+        }
+        
+        .nav-tab {
+            padding: 10px 20px;
+            background: rgba(30, 41, 59, 0.6);
+            border: 1px solid rgba(148, 163, 184, 0.2);
+            border-radius: 8px;
+            color: #94a3b8;
+            text-decoration: none;
+            font-size: 14px;
+            transition: all 0.2s;
+        }
+        
+        .nav-tab:hover {
+            background: rgba(96, 165, 250, 0.1);
+            border-color: rgba(96, 165, 250, 0.3);
+            color: #60a5fa;
+        }
+        
+        .nav-tab.active {
+            background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+            border-color: transparent;
+            color: white;
+        }
+        
+        /* 系统状态卡片 */
+        .system-stats {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 16px;
+            margin-bottom: 24px;
+        }
+        
+        .stat-card {
+            background: rgba(30, 41, 59, 0.6);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(148, 163, 184, 0.1);
+            border-radius: 12px;
+            padding: 20px;
+            text-align: center;
+        }
+        
+        .stat-value {
+            font-size: 32px;
+            font-weight: 700;
+            margin-bottom: 4px;
+        }
+        
+        .stat-value.active { color: #60a5fa; }
+        .stat-value.success { color: #22c55e; }
+        .stat-value.error { color: #ef4444; }
+        .stat-value.warning { color: #f59e0b; }
+        
+        .stat-label {
+            font-size: 14px;
+            color: #94a3b8;
+        }
+        
+        /* 任务列表 */
+        .tasks-section {
+            margin-bottom: 32px;
+        }
+        
+        .section-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 16px;
+        }
+        
+        .section-title {
+            font-size: 18px;
+            font-weight: 600;
+            color: #f1f5f9;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .section-badge {
+            background: rgba(96, 165, 250, 0.2);
+            color: #60a5fa;
+            padding: 2px 10px;
+            border-radius: 12px;
+            font-size: 12px;
+            font-weight: 500;
+        }
+        
+        .toolbar {
+            display: flex;
+            gap: 12px;
+        }
+        
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 8px 16px;
+            border-radius: 8px;
+            font-size: 13px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s;
+            border: none;
+        }
+        
+        .btn-primary {
+            background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+            color: white;
+        }
+        
+        .btn-primary:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
+        }
+        
+        .btn-danger {
+            background: rgba(239, 68, 68, 0.1);
+            border: 1px solid rgba(239, 68, 68, 0.3);
+            color: #f87171;
+        }
+        
+        .btn-danger:hover {
+            background: rgba(239, 68, 68, 0.2);
+        }
+        
+        .btn-secondary {
+            background: rgba(30, 41, 59, 0.6);
+            border: 1px solid rgba(148, 163, 184, 0.2);
+            color: #e2e8f0;
+        }
+        
+        .btn-secondary:hover {
+            background: rgba(96, 165, 250, 0.1);
+            border-color: rgba(96, 165, 250, 0.3);
+        }
+        
+        /* 任务卡片 */
+        .tasks-grid {
+            display: grid;
+            gap: 12px;
+        }
+        
+        .task-card {
+            background: rgba(30, 41, 59, 0.6);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(148, 163, 184, 0.1);
+            border-radius: 12px;
+            padding: 16px;
+            transition: all 0.2s;
+        }
+        
+        .task-card:hover {
+            border-color: rgba(148, 163, 184, 0.2);
+            transform: translateY(-1px);
+        }
+        
+        .task-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 12px;
+        }
+        
+        .task-info {
+            flex: 1;
+        }
+        
+        .task-title {
+            font-size: 15px;
+            font-weight: 600;
+            color: #f1f5f9;
+            margin-bottom: 4px;
+        }
+        
+        .task-id {
+            font-size: 12px;
+            color: #64748b;
+            font-family: monospace;
+        }
+        
+        .task-status {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 500;
+        }
+        
+        .status-running {
+            background: rgba(96, 165, 250, 0.1);
+            border: 1px solid rgba(96, 165, 250, 0.3);
+            color: #60a5fa;
+        }
+        
+        .status-completed {
+            background: rgba(34, 197, 94, 0.1);
+            border: 1px solid rgba(34, 197, 94, 0.3);
+            color: #22c55e;
+        }
+        
+        .status-failed {
+            background: rgba(239, 68, 68, 0.1);
+            border: 1px solid rgba(239, 68, 68, 0.3);
+            color: #f87171;
+        }
+        
+        .status-pending {
+            background: rgba(251, 191, 36, 0.1);
+            border: 1px solid rgba(251, 191, 36, 0.3);
+            color: #fbbf24;
+        }
+        
+        .task-progress {
+            margin-bottom: 12px;
+        }
+        
+        .progress-bar {
+            height: 6px;
+            background: rgba(15, 23, 42, 0.6);
+            border-radius: 3px;
+            overflow: hidden;
+        }
+        
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #3b82f6 0%, #60a5fa 100%);
+            border-radius: 3px;
+            transition: width 0.3s ease;
+        }
+        
+        .progress-fill.completed {
+            background: linear-gradient(90deg, #22c55e 0%, #4ade80 100%);
+        }
+        
+        .progress-fill.error {
+            background: linear-gradient(90deg, #ef4444 0%, #f87171 100%);
+        }
+        
+        .task-meta {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 16px;
+            font-size: 13px;
+            color: #94a3b8;
+            margin-bottom: 12px;
+        }
+        
+        .task-meta-item {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+        
+        .task-actions {
+            display: flex;
+            justify-content: flex-end;
+            gap: 8px;
+        }
+        
+        .empty-state {
+            text-align: center;
+            padding: 60px;
+            color: #94a3b8;
+        }
+        
+        .empty-icon {
+            font-size: 48px;
+            margin-bottom: 16px;
+            opacity: 0.5;
+        }
+        
+        /* 系统资源使用率 */
+        .resource-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 16px;
+            margin-bottom: 24px;
+        }
+        
+        .resource-card {
+            background: rgba(30, 41, 59, 0.6);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(148, 163, 184, 0.1);
+            border-radius: 12px;
+            padding: 16px;
+        }
+        
+        .resource-title {
+            font-size: 13px;
+            color: #94a3b8;
+            margin-bottom: 12px;
+        }
+        
+        .resource-value {
+            font-size: 24px;
+            font-weight: 700;
+            margin-bottom: 8px;
+        }
+        
+        .resource-bar {
+            height: 4px;
+            background: rgba(15, 23, 42, 0.6);
+            border-radius: 2px;
+            overflow: hidden;
+        }
+        
+        .resource-fill {
+            height: 100%;
+            border-radius: 2px;
+            transition: width 0.3s ease;
+        }
+        
+        .resource-fill.low { background: #22c55e; }
+        .resource-fill.medium { background: #f59e0b; }
+        .resource-fill.high { background: #ef4444; }
+        
+        /* Modal Styles */
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.7);
+            backdrop-filter: blur(4px);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+        }
+        
+        .modal-overlay.active {
+            display: flex;
+        }
+        
+        .modal {
+            background: rgba(30, 41, 59, 0.95);
+            border: 1px solid rgba(148, 163, 184, 0.2);
+            border-radius: 16px;
+            padding: 24px;
+            width: 90%;
+            max-width: 400px;
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+        }
+        
+        .modal-title {
+            font-size: 18px;
+            font-weight: 600;
+            margin-bottom: 16px;
+            color: #f1f5f9;
+        }
+        
+        .modal-content {
+            color: #94a3b8;
+            margin-bottom: 24px;
+            font-size: 14px;
+            line-height: 1.6;
+        }
+        
+        .modal-actions {
+            display: flex;
+            gap: 12px;
+            justify-content: flex-end;
+        }
+        
+        .modal-btn {
+            padding: 10px 20px;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s;
+            border: none;
+        }
+        
+        .modal-btn.secondary {
+            background: rgba(148, 163, 184, 0.1);
+            color: #94a3b8;
+        }
+        
+        .modal-btn.secondary:hover {
+            background: rgba(148, 163, 184, 0.2);
+        }
+        
+        .modal-btn.danger {
+            background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+            color: white;
+        }
+        
+        .modal-btn.danger:hover {
+            box-shadow: 0 4px 12px rgba(239, 68, 68, 0.3);
+        }
+        
+        .input-field {
+            background: rgba(15, 23, 42, 0.6);
+            border: 1px solid rgba(148, 163, 184, 0.2);
+            border-radius: 8px;
+            padding: 12px 16px;
+            color: #e2e8f0;
+            font-size: 14px;
+            width: 100%;
+            margin-top: 8px;
+            outline: none;
+        }
+        
+        .input-field:focus {
+            border-color: #60a5fa;
+        }
+        
+        .toast {
+            position: fixed;
+            top: 24px;
+            right: 24px;
+            background: rgba(30, 41, 59, 0.95);
+            border: 1px solid rgba(148, 163, 184, 0.2);
+            border-radius: 12px;
+            padding: 16px 24px;
+            display: none;
+            align-items: center;
+            gap: 12px;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
+            z-index: 2000;
+            animation: slideIn 0.3s ease;
+        }
+        
+        .toast.show {
+            display: flex;
+        }
+        
+        .toast.success {
+            border-color: rgba(34, 197, 94, 0.3);
+        }
+        
+        .toast.error {
+            border-color: rgba(239, 68, 68, 0.3);
+        }
+        
+        @keyframes slideIn {
+            from {
+                transform: translateX(100%);
+                opacity: 0;
+            }
+            to {
+                transform: translateX(0);
+                opacity: 1;
+            }
+        }
+        
+        @media (max-width: 768px) {
+            .resource-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="admin-container">
+        <div class="admin-header">
+            <div>
+                <h1 class="admin-title">🔄 生成任务监控</h1>
+                <p class="admin-subtitle">管理员后台 - 监控小说生成任务和系统资源</p>
+            </div>
+            <a href="/novels" class="back-link">
+                <span>←</span>
+                <span>返回首页</span>
+            </a>
+        </div>
+        
+        <div class="nav-tabs">
+            <a href="/admin/users" class="nav-tab">👥 用户管理</a>
+            <a href="/admin/tasks" class="nav-tab active">🔄 任务监控</a>
+            <a href="/admin/logs" class="nav-tab">📝 日志管理</a>
+        </div>
+        
+        <!-- 系统资源使用率 -->
+        <div class="resource-grid" id="resource-grid">
+            <div class="resource-card">
+                <div class="resource-title">CPU 使用率</div>
+                <div class="resource-value" id="cpu-value">--%</div>
+                <div class="resource-bar">
+                    <div class="resource-fill" id="cpu-bar" style="width: 0%"></div>
+                </div>
+            </div>
+            <div class="resource-card">
+                <div class="resource-title">内存使用率</div>
+                <div class="resource-value" id="memory-value">--%</div>
+                <div class="resource-bar">
+                    <div class="resource-fill" id="memory-bar" style="width: 0%"></div>
+                </div>
+            </div>
+            <div class="resource-card">
+                <div class="resource-title">磁盘使用率</div>
+                <div class="resource-value" id="disk-value">--%</div>
+                <div class="resource-bar">
+                    <div class="resource-fill" id="disk-bar" style="width: 0%"></div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- 任务统计 -->
+        <div class="system-stats">
+            <div class="stat-card">
+                <div class="stat-value active" id="active-count">-</div>
+                <div class="stat-label">进行中任务</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value success" id="completed-count">-</div>
+                <div class="stat-label">已完成任务</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value error" id="failed-count">-</div>
+                <div class="stat-label">失败任务</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value warning" id="total-count">-</div>
+                <div class="stat-label">任务总数</div>
+            </div>
+        </div>
+        
+        <!-- 进行中的任务 -->
+        <div class="tasks-section">
+            <div class="section-header">
+                <h2 class="section-title">
+                    🚀 进行中的生成任务
+                    <span class="section-badge" id="active-badge">0</span>
+                </h2>
+                <div class="toolbar">
+                    <button class="btn btn-secondary" onclick="refreshTasks()">
+                        <span>🔄</span>
+                        <span>刷新</span>
+                    </button>
+                    <button class="btn btn-danger" onclick="openStopAllModal()">
+                        <span>⏹️</span>
+                        <span>停止所有</span>
+                    </button>
+                </div>
+            </div>
+            <div class="tasks-grid" id="active-tasks">
+                <div class="empty-state">
+                    <div class="empty-icon">🚀</div>
+                    <p>暂无进行中的生成任务</p>
+                </div>
+            </div>
+        </div>
+        
+        <!-- 已完成的任务 -->
+        <div class="tasks-section">
+            <div class="section-header">
+                <h2 class="section-title">
+                    ✅ 已完成的任务
+                    <span class="section-badge" id="completed-badge">0</span>
+                </h2>
+            </div>
+            <div class="tasks-grid" id="completed-tasks">
+                <div class="empty-state">
+                    <div class="empty-icon">✅</div>
+                    <p>暂无已完成的任务</p>
+                </div>
+            </div>
+        </div>
+        
+        <!-- 失败的任务 -->
+        <div class="tasks-section">
+            <div class="section-header">
+                <h2 class="section-title">
+                    ❌ 失败的任务
+                    <span class="section-badge" id="failed-badge">0</span>
+                </h2>
+            </div>
+            <div class="tasks-grid" id="failed-tasks">
+                <div class="empty-state">
+                    <div class="empty-icon">❌</div>
+                    <p>暂无失败的任务</p>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Stop Task Modal -->
+    <div class="modal-overlay" id="stop-task-modal">
+        <div class="modal">
+            <h3 class="modal-title">⏹️ 停止任务</h3>
+            <div class="modal-content">
+                <p>确定要停止任务 <strong id="stop-task-title"></strong> 吗？</p>
+                <p style="color: #f87171; margin-top: 8px;">此操作不可撤销</p>
+            </div>
+            <div class="modal-actions">
+                <button class="modal-btn secondary" onclick="closeModal('stop-task-modal')">取消</button>
+                <button class="modal-btn danger" onclick="openAuthModal('stop')">确认停止</button>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Stop All Modal -->
+    <div class="modal-overlay" id="stop-all-modal">
+        <div class="modal">
+            <h3 class="modal-title">⏹️ 停止所有任务</h3>
+            <div class="modal-content">
+                <p>确定要停止所有进行中的生成任务吗？</p>
+                <p style="color: #f87171; margin-top: 8px;">此操作不可撤销，请谨慎操作！</p>
+            </div>
+            <div class="modal-actions">
+                <button class="modal-btn secondary" onclick="closeModal('stop-all-modal')">取消</button>
+                <button class="modal-btn danger" onclick="openAuthModal('stopAll')">确认停止所有</button>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Admin Auth Modal -->
+    <div class="modal-overlay" id="auth-modal">
+        <div class="modal">
+            <h3 class="modal-title">🔐 管理员验证</h3>
+            <div class="modal-content">
+                <p>请输入您的管理员密码以继续操作</p>
+                <input type="password" class="input-field" id="admin-password" placeholder="管理员密码">
+                <p id="auth-error" style="color: #f87171; font-size: 12px; margin-top: 8px; display: none;">密码验证失败</p>
+            </div>
+            <div class="modal-actions">
+                <button class="modal-btn secondary" onclick="closeModal('auth-modal')">取消</button>
+                <button class="modal-btn danger" onclick="confirmAuth()">验证并执行</button>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Toast -->
+    <div class="toast" id="toast">
+        <span id="toast-icon"></span>
+        <span id="toast-message"></span>
+    </div>
+
+    <script>
+        let currentTasks = { active: [], completed: [], failed: [] };
+        let currentAction = null;
+        let currentTaskId = null;
+        let refreshInterval = null;
+        
+        // 初始化
+        document.addEventListener('DOMContentLoaded', () => {
+            loadTasks();
+            loadSystemStatus();
+            
+            // 自动刷新（每5秒）
+            refreshInterval = setInterval(() => {
+                loadTasks();
+                loadSystemStatus();
+            }, 5000);
+        });
+        
+        // 页面卸载时清除定时器
+        window.addEventListener('beforeunload', () => {
+            if (refreshInterval) {
+                clearInterval(refreshInterval);
+            }
+        });
+        
+        // 加载生成任务
+        async function loadTasks() {
+            try {
+                const response = await fetch('/api/admin/generation-tasks');
+                const result = await response.json();
+                
+                if (result.success) {
+                    currentTasks = result.data;
+                    renderTasks();
+                    updateStats(result.data.summary);
+                } else {
+                    showToast('❌', result.error || '加载失败', 'error');
+                }
+            } catch (error) {
+                console.error('加载任务失败:', error);
+            }
+        }
+        
+        // 加载系统状态
+        async function loadSystemStatus() {
+            try {
+                const response = await fetch('/api/admin/system-status');
+                const result = await response.json();
+                
+                if (result.success) {
+                    updateResourceDisplay(result.data);
+                }
+            } catch (error) {
+                console.error('加载系统状态失败:', error);
+            }
+        }
+        
+        // 更新资源显示
+        function updateResourceDisplay(data) {
+            // CPU
+            const cpuPercent = Math.round(data.cpu.percent);
+            document.getElementById('cpu-value').textContent = cpuPercent + '%';
+            document.getElementById('cpu-bar').style.width = cpuPercent + '%';
+            document.getElementById('cpu-bar').className = 'resource-fill ' + getResourceLevel(cpuPercent);
+            
+            // 内存
+            const memoryPercent = Math.round(data.memory.percent);
+            document.getElementById('memory-value').textContent = memoryPercent + '%';
+            document.getElementById('memory-bar').style.width = memoryPercent + '%';
+            document.getElementById('memory-bar').className = 'resource-fill ' + getResourceLevel(memoryPercent);
+            
+            // 磁盘
+            const diskPercent = Math.round(data.disk.percent);
+            document.getElementById('disk-value').textContent = diskPercent + '%';
+            document.getElementById('disk-bar').style.width = diskPercent + '%';
+            document.getElementById('disk-bar').className = 'resource-fill ' + getResourceLevel(diskPercent);
+        }
+        
+        function getResourceLevel(percent) {
+            if (percent < 50) return 'low';
+            if (percent < 80) return 'medium';
+            return 'high';
+        }
+        
+        // 更新统计数字
+        function updateStats(summary) {
+            document.getElementById('active-count').textContent = summary.active_count;
+            document.getElementById('completed-count').textContent = summary.completed_count;
+            document.getElementById('failed-count').textContent = summary.failed_count;
+            document.getElementById('total-count').textContent = summary.total;
+            
+            document.getElementById('active-badge').textContent = summary.active_count;
+            document.getElementById('completed-badge').textContent = summary.completed_count;
+            document.getElementById('failed-badge').textContent = summary.failed_count;
+        }
+        
+        // 渲染任务列表
+        function renderTasks() {
+            renderTaskList('active-tasks', currentTasks.active, true);
+            renderTaskList('completed-tasks', currentTasks.completed, false);
+            renderTaskList('failed-tasks', currentTasks.failed, false);
+        }
+        
+        function renderTaskList(containerId, tasks, showActions) {
+            const container = document.getElementById(containerId);
+            
+            if (tasks.length === 0) {
+                const emptyIcons = { 'active-tasks': '🚀', 'completed-tasks': '✅', 'failed-tasks': '❌' };
+                const emptyTexts = { 
+                    'active-tasks': '暂无进行中的生成任务', 
+                    'completed-tasks': '暂无已完成的任务', 
+                    'failed-tasks': '暂无失败的任务' 
+                };
+                container.innerHTML = `
+                    <div class="empty-state">
+                        <div class="empty-icon">${emptyIcons[containerId]}</div>
+                        <p>${emptyTexts[containerId]}</p>
+                    </div>
+                `;
+                return;
+            }
+            
+            container.innerHTML = tasks.map(task => createTaskCard(task, showActions)).join('');
+        }
+        
+        function createTaskCard(task, showActions) {
+            const statusClass = getStatusClass(task.status);
+            const statusText = getStatusText(task.status);
+            const progressClass = task.status === 'completed' ? 'completed' : (task.status === 'failed' || task.status === 'cancelled') ? 'error' : '';
+            const generationModeText = getGenerationModeText(task.generation_mode);
+            
+            return `
+                <div class="task-card">
+                    <div class="task-header">
+                        <div class="task-info">
+                            <div class="task-title">${task.novel_title}</div>
+                            <div class="task-id">${task.task_id.substring(0, 8)}... | ${generationModeText}</div>
+                        </div>
+                        <span class="task-status ${statusClass}">${statusText}</span>
+                    </div>
+                    <div class="task-progress">
+                        <div class="progress-bar">
+                            <div class="progress-fill ${progressClass}" style="width: ${task.progress}%"></div>
+                        </div>
+                    </div>
+                    <div class="task-meta">
+                        <span class="task-meta-item">📊 ${task.progress}%</span>
+                        <span class="task-meta-item">🕐 ${formatDuration(task.created_at, task.updated_at)}</span>
+                        ${task.points_consumed > 0 ? `<span class="task-meta-item">💎 ${task.points_consumed} 点</span>` : ''}
+                        ${task.current_step ? `<span class="task-meta-item">⚙️ ${task.current_step}</span>` : ''}
+                        ${task.error ? `<span class="task-meta-item" style="color: #f87171;">❌ ${task.error.substring(0, 50)}${task.error.length > 50 ? '...' : ''}</span>` : ''}
+                    </div>
+                    ${showActions ? `
+                    <div class="task-actions">
+                        <button class="btn btn-danger" onclick="openStopTaskModal('${task.task_id}', '${task.novel_title}')">
+                            <span>⏹️</span>
+                            <span>停止</span>
+                        </button>
+                    </div>
+                    ` : ''}
+                </div>
+            `;
+        }
+        
+        function getStatusClass(status) {
+            const statusMap = {
+                'running': 'status-running',
+                'generating': 'status-running',
+                'initializing': 'status-pending',
+                'completed': 'status-completed',
+                'success': 'status-completed',
+                'failed': 'status-failed',
+                'error': 'status-failed',
+                'cancelled': 'status-failed'
+            };
+            return statusMap[status?.toLowerCase()] || 'status-pending';
+        }
+        
+        function getStatusText(status) {
+            const statusMap = {
+                'running': '运行中',
+                'generating': '生成中',
+                'initializing': '初始化中',
+                'completed': '已完成',
+                'success': '成功',
+                'failed': '失败',
+                'error': '错误',
+                'cancelled': '已取消'
+            };
+            return statusMap[status?.toLowerCase()] || status;
+        }
+        
+        function getGenerationModeText(mode) {
+            const modeMap = {
+                'full': '完整流程',
+                'phase_one_only': '仅一阶段',
+                'phase_two_only': '仅二阶段',
+                'resume': '续写'
+            };
+            return modeMap[mode] || mode;
+        }
+        
+        function formatDuration(createdAt, updatedAt) {
+            const start = new Date(createdAt);
+            const end = updatedAt ? new Date(updatedAt) : new Date();
+            const diff = Math.floor((end - start) / 1000);
+            
+            if (diff < 60) return diff + '秒';
+            if (diff < 3600) return Math.floor(diff / 60) + '分钟';
+            if (diff < 86400) return Math.floor(diff / 3600) + '小时';
+            return Math.floor(diff / 86400) + '天';
+        }
+        
+        // 停止任务
+        function openStopTaskModal(taskId, title) {
+            currentTaskId = taskId;
+            currentAction = 'stop';
+            document.getElementById('stop-task-title').textContent = title;
+            document.getElementById('stop-task-modal').classList.add('active');
+        }
+        
+        function openStopAllModal() {
+            currentAction = 'stopAll';
+            document.getElementById('stop-all-modal').classList.add('active');
+        }
+        
+        function openAuthModal(action) {
+            closeModal(action === 'stop' ? 'stop-task-modal' : 'stop-all-modal');
+            document.getElementById('admin-password').value = '';
+            document.getElementById('auth-error').style.display = 'none';
+            document.getElementById('auth-modal').classList.add('active');
+        }
+        
+        function closeModal(modalId) {
+            document.getElementById(modalId).classList.remove('active');
+        }
+        
+        async function confirmAuth() {
+            const password = document.getElementById('admin-password').value;
+            
+            if (currentAction === 'stop') {
+                await stopTask(currentTaskId, password);
+            } else if (currentAction === 'stopAll') {
+                await stopAllTasks(password);
+            }
+        }
+        
+        async function stopTask(taskId, password) {
+            try {
+                const response = await fetch(`/api/admin/generation-tasks/${taskId}/stop`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ password })
+                });
+                
+                const result = await response.json();
+                
+                if (result.success) {
+                    closeModal('auth-modal');
+                    showToast('✅', '任务已停止', 'success');
+                    loadTasks();
+                } else {
+                    if (result.error === '管理员密码验证失败') {
+                        document.getElementById('auth-error').style.display = 'block';
+                    } else {
+                        showToast('❌', result.error, 'error');
+                    }
+                }
+            } catch (error) {
+                showToast('❌', '网络错误', 'error');
+            }
+        }
+        
+        async function stopAllTasks(password) {
+            try {
+                const response = await fetch('/api/admin/generation-tasks/stop-all', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ password })
+                });
+                
+                const result = await response.json();
+                
+                if (result.success) {
+                    closeModal('auth-modal');
+                    showToast('✅', result.message, 'success');
+                    loadTasks();
+                } else {
+                    if (result.error === '管理员密码验证失败') {
+                        document.getElementById('auth-error').style.display = 'block';
+                    } else {
+                        showToast('❌', result.error, 'error');
+                    }
+                }
+            } catch (error) {
+                showToast('❌', '网络错误', 'error');
+            }
+        }
+        
+        // 刷新任务
+        function refreshTasks() {
+            loadTasks();
+            loadSystemStatus();
+            showToast('🔄', '已刷新', 'success');
+        }
+        
+        // Toast 提示
+        function showToast(icon, message, type) {
+            const toast = document.getElementById('toast');
+            document.getElementById('toast-icon').textContent = icon;
+            document.getElementById('toast-message').textContent = message;
+            toast.className = `toast ${type} show`;
+            
+            setTimeout(() => {
+                toast.classList.remove('show');
+            }, 3000);
+        }
+        
+        // 点击模态框外部关闭
+        document.querySelectorAll('.modal-overlay').forEach(overlay => {
+            overlay.addEventListener('click', (e) => {
+                if (e.target === overlay) {
+                    overlay.classList.remove('active');
+                }
+            });
+        });
+    </script>
+</body>
+</html>

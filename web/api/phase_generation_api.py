@@ -231,9 +231,9 @@ class ProductLoader:
             # 默认使用用户目录下的路径（用于新建项目）
             self.project_dir = get_novel_project_dir(self.original_title, username, create=False)
         
-        # 🔥 调试信息
+        # 项目目录不存在时的兼容处理
         if not self.project_dir.exists():
-            self.logger.info(f"[PATH_DEBUG] 项目目录不存在，将使用: {self.project_dir}")
+            self.logger.debug(f"[PATH] 项目目录不存在: {self.project_dir}")
         
         # 兼容旧路径
         self.legacy_phase_one_dir = Path("小说项目") / f"{self.original_title}_第一阶段设定"
@@ -315,13 +315,10 @@ class ProductLoader:
         if not quality_data:
             return
         
-        self.logger.info(f"[PRODUCTS_DEBUG] 从manager获取quality_data，包含 {len(quality_data)} 个键")
-        
+        # 从 quality_data 加载写作计划
         writing_plans = quality_data.get("writing_plans", {})
         if writing_plans:
-            self.logger.info(f"[PRODUCTS_DEBUG] 从quality_data找到 {len(writing_plans)} 个写作计划")
-            
-            # 🔥 修复：合并所有阶段的写作计划，而不是只取第一个
+            # 合并所有阶段的写作计划
             all_stages = {}
             stage_names = []
             
@@ -329,27 +326,20 @@ class ProductLoader:
                 if plan_data and isinstance(plan_data, dict):
                     all_stages[stage_name] = plan_data
                     stage_names.append(stage_name)
-                    self.logger.info(f"  收集阶段: {stage_name}")
             
             if all_stages:
-                # 🔥 修复：检查是否有有效的阶段名（不是unknown）
+                # 检查是否有有效的阶段名（不是unknown）
                 valid_stages = [s for s in stage_names if s != 'unknown']
                 if valid_stages:
-                    # 创建合并后的写作计划（与_load_writing_plans中的格式一致）
                     merged_plan = {
                         'stage_names': stage_names,
                         'total_stages': len(stage_names),
                         'stages': all_stages
                     }
-                    
                     products['writing']['content'] = json.dumps(merged_plan, ensure_ascii=False, indent=2)
                     products['writing']['complete'] = True
                     products['writing']['file_path'] = f"quality_data/writing_plans/merged"
-                    self.logger.info(f"[WRITING_DEBUG] 从quality_data加载合并的写作计划: {len(stage_names)} 个阶段 ({stage_names})")
-                else:
-                    self.logger.info(f"[WRITING_DEBUG] quality_data中的writing_plans阶段名无效，将尝试从文件加载")
-            else:
-                self.logger.info(f"[WRITING_DEBUG] quality_data中的writing_plans为空，未加载")
+                    self.logger.debug(f"[PRODUCTS] 从quality_data加载写作计划: {len(stage_names)}个阶段")
     
     def _load_from_standard_structure(self, products):
         if not products['worldview']['complete']:
@@ -407,36 +397,27 @@ class ProductLoader:
                 self.logger.error(f"加载characters失败: {e}")
     
     def _load_writing_plans(self, products):
-        self.logger.info(f"[WRITING_DEBUG] 开始从plans目录加载写作计划: {self.project_dir / 'plans'}")
         # 首先尝试从 plans 目录加载所有阶段的写作计划
         plans_dir = self.project_dir / "plans"
         if plans_dir.exists():
             stage_files = list(plans_dir.glob("*_writing_plan.json"))
             if stage_files:
-                self.logger.info(f"[WRITING_DEBUG] 找到 {len(stage_files)} 个写作计划文件: {[f.name for f in stage_files[:5]]}")
                 try:
                     # 先收集所有文件和对应的阶段名称
                     file_stage_pairs = []
                     
                     for stage_file in stage_files:
                         # 从文件名提取阶段名称
-                        # 文件名格式: 吞噬万界：从一把生锈铁剑开始_climax_stage_writing_plan.json
-                        # 使用正则表达式匹配 (xxx)_stage)_writing_plan
                         import re
                         match = re.search(r'_(.+?_stage)_writing_plan\.json$', stage_file.name)
                         if match:
                             stage_name = match.group(1)
-                            self.logger.info(f"[WRITING_DEBUG] 正则匹配成功: {stage_file.name} -> stage_name={stage_name}")
                         else:
-                            # 备用方案：尝试从 stem 中提取
-                            self.logger.info(f"[WRITING_DEBUG] 正则匹配失败，使用备用方案: {stage_file.name}")
-                            stem = stage_file.stem  # xxx_climax_stage
+                            stem = stage_file.stem
                             parts = stem.split('_')
-                            # 找到包含 'stage' 的部分
                             stage_name = None
                             for i, part in enumerate(parts):
                                 if 'stage' in part and i > 0:
-                                    # 重建阶段名称（可能包含多个下划线）
                                     stage_parts = []
                                     for j in range(1, i + 1):
                                         stage_parts.append(parts[j])
@@ -444,20 +425,16 @@ class ProductLoader:
                                     break
                             
                             if not stage_name:
-                                self.logger.info(f"[WRITING_DEBUG] 备用方案也失败，跳过: {stage_file.name}")
                                 continue
                         
                         # 只处理标准阶段
                         if stage_name not in STAGE_ORDER_MAP:
-                            self.logger.info(f"  跳过非标准阶段: {stage_name} (文件: {stage_file.name})")
                             continue
                         
                         file_stage_pairs.append((stage_name, stage_file))
-                        self.logger.info(f"  找到阶段文件: {stage_name} -> {stage_file.name}")
                     
                     # 按照标准阶段顺序排序文件
                     sorted_pairs = sorted(file_stage_pairs, key=lambda x: STAGE_ORDER_MAP.get(x[0], 999))
-                    self.logger.info(f"  排序后的阶段顺序: {[p[0] for p in sorted_pairs]}")
                     
                     # 合并所有阶段的写作计划
                     all_stages = {}
@@ -466,11 +443,8 @@ class ProductLoader:
                     for stage_name, stage_file in sorted_pairs:
                         with open(stage_file, 'r', encoding='utf-8') as f:
                             stage_data = json.load(f)
-                        
-                        # 存储阶段数据
                         all_stages[stage_name] = stage_data
                         stage_names.append(stage_name)
-                        self.logger.info(f"  加载阶段: {stage_name} (从 {stage_file.name})")
                     
                     # 创建合并后的写作计划
                     merged_plan = {
@@ -482,7 +456,7 @@ class ProductLoader:
                     products['writing']['content'] = json.dumps(merged_plan, ensure_ascii=False, indent=2)
                     products['writing']['complete'] = True
                     products['writing']['file_path'] = str(plans_dir)
-                    self.logger.info(f"[WRITING_DEBUG] 已加载产物: writing (从 {len(stage_files)} 个阶段文件), stages={stage_names}")
+                    self.logger.info(f"已加载写作计划: {len(stage_files)}个阶段")
                     return
                 except Exception as e:
                     self.logger.error(f"从 plans 目录加载writing计划失败: {e}")
@@ -526,22 +500,16 @@ class ProductLoader:
     
     def _load_growth_plan(self, products):
         """加载成长路线文件"""
-        self.logger.info(f"[GROWTH_DEBUG] 开始加载成长路线: original_title={self.original_title}, safe_title={self.safe_title}")
-        self.logger.info(f"[GROWTH_DEBUG] 项目目录: {self.project_dir}")
-        self.logger.info(f"[GROWTH_DEBUG] 项目目录是否存在: {self.project_dir.exists()}")
-        
+        # 尝试从 planning 或 materials 目录加载成长路线
         growth_dirs = [
             self.project_dir / "planning",
             self.project_dir / "materials" / "phase_one_products"
         ]
         
-        for idx, growth_dir in enumerate(growth_dirs):
-            self.logger.info(f"[GROWTH_DEBUG] 检查目录 {idx}: {growth_dir}, 存在: {growth_dir.exists()}")
-            
+        for growth_dir in growth_dirs:
             if not growth_dir.exists():
                 continue
             
-            # 尝试多种可能的文件名模式
             patterns = [
                 f"{self.original_title}_成长路线.json",
                 f"{self.safe_title}_成长路线.json",
@@ -550,12 +518,7 @@ class ProductLoader:
             ]
             
             for pattern in patterns:
-                self.logger.info(f"[GROWTH_DEBUG]  搜索模式: {pattern}")
                 matching_files = list(growth_dir.glob(pattern))
-                self.logger.info(f"[GROWTH_DEBUG]  找到文件数: {len(matching_files)}")
-                if matching_files:
-                    self.logger.info(f"[GROWTH_DEBUG]  文件列表: {[f.name for f in matching_files]}")
-                
                 if matching_files:
                     try:
                         with open(matching_files[0], 'r', encoding='utf-8') as f:
@@ -567,8 +530,6 @@ class ProductLoader:
                         return
                     except Exception as e:
                         self.logger.error(f"加载growth计划失败: {e}")
-        
-        self.logger.info(f"[GROWTH_DEBUG] 未找到成长路线文件")
     
     def _load_market_analysis(self, products):
         market_dirs = [
@@ -595,7 +556,6 @@ class ProductLoader:
         try:
             writing_content = products['writing']['content']
             if not writing_content:
-                self.logger.info("[STORYLINE_DEBUG] writing_content 为空，跳过提取")
                 return
             
             writing_data = json.loads(writing_content)
@@ -608,11 +568,8 @@ class ProductLoader:
             standard_stages = ['opening_stage', 'development_stage', 'rising_stage', 'climax_stage', 'resolution_stage', 'ending_stage']
             has_stage_as_top_level = any(stage in writing_data for stage in standard_stages)
             
-            self.logger.info(f"[STORYLINE_DEBUG] 检查写作计划结构: has_stages={has_stages}, has_stage_names={has_stage_names}, has_stage_as_top_level={has_stage_as_top_level}")
-            
             # 🔥 新增：处理planning目录格式（阶段名作为顶级键）
             if has_stage_as_top_level and not has_stages:
-                self.logger.info("[STORYLINE_DEBUG] 检测到planning目录格式，转换为标准格式")
                 # 转换为标准多阶段格式
                 converted_stages = {}
                 stage_names = []
@@ -628,7 +585,6 @@ class ProductLoader:
                     }
                     has_stages = True
                     has_stage_names = True
-                    self.logger.info(f"[STORYLINE_DEBUG] 转换完成，包含阶段: {stage_names}")
             
             if has_stages and has_stage_names:
                 # 从所有阶段提取重大事件
@@ -666,14 +622,9 @@ class ProductLoader:
                             expectation_map = None
                             special_emotional_events = []
                         
-                        # 🔥 调试：检查stage_plan结构
-                        self.logger.info(f"[STORYLINE_DEBUG] 阶段 {stage_name}: event_system类型={type(event_system)}, major_events数量={len(major_events) if major_events else 0}")
-                        
                         # 🔥 新增：优先检查是否已经有expectation_map
                         if expectation_map:
                             all_expectation_maps[stage_name] = expectation_map
-                            total_exp = len(expectation_map.get('expectations', {}))
-                            self.logger.info(f"[STORYLINE] 从{stage_name}加载已有的期待感映射: {total_exp} 个期待")
                         
                         # 🔥 修复：无论是否有事件，都添加stage_info
                         stage_info.append({
@@ -723,7 +674,6 @@ class ProductLoader:
                 
                 # 🔥 新增：按章节顺序排序所有事件
                 all_major_events.sort(key=lambda e: e.get('_start_chapter', 1))
-                self.logger.info(f"[STORYLINE_DEBUG] 按章节排序后的事件顺序: {[(e.get('name'), e.get('_start_chapter')) for e in all_major_events]}")
                 
                 if all_major_events:
                     storyline_data = {
@@ -731,16 +681,10 @@ class ProductLoader:
                         'total_major_events': len(all_major_events),
                         'major_events': all_major_events
                     }
-                    # 🔥 新增：打印调试信息
-                    stage_names_debug = [s.get('stage_name', 'unknown') for s in stage_info]
-                    logger.info(f"[STORYLINE_DEBUG] 提取的故事线包含阶段: {stage_names_debug}")
-                    logger.info(f"[STORYLINE_DEBUG] 总事件数: {len(all_major_events)}, 各阶段事件数: {[(s.get('stage_name'), s.get('major_event_count')) for s in stage_info]}")
                     
                     # 🔥 新增：添加期待感映射到故事线数据
                     if all_expectation_maps:
                         storyline_data['expectation_maps'] = all_expectation_maps
-                        total_expectations = sum(len(em.get('expectations', {})) for em in all_expectation_maps.values())
-                        self.logger.info(f"[EXPECTATION_MAP] 添加期待感映射到故事线: {len(all_expectation_maps)} 个阶段, 共 {total_expectations} 个期待")
                     
                     products['storyline']['content'] = json.dumps(storyline_data, ensure_ascii=False, indent=2)
                     products['storyline']['complete'] = True
@@ -923,8 +867,6 @@ class ProductLoader:
                                         # 🔥 新增：添加期待感映射到故事线数据
                                         if all_expectation_maps:
                                             storyline_data['expectation_maps'] = all_expectation_maps
-                                            total_expectations = sum(len(em.get('expectations', {})) for em in all_expectation_maps.values())
-                                            self.logger.info(f"[EXPECTATION_MAP] 添加期待感映射到故事线(旧格式): {len(all_expectation_maps)} 个阶段, 共 {total_expectations} 个期待")
                                         
                                         products[category]['content'] = json.dumps(storyline_data, ensure_ascii=False, indent=2)
                                         products[category]['complete'] = True
@@ -1339,14 +1281,12 @@ def get_phase_one_products(title):
     try:
         # 🔥 防御性检查：验证项目标题
         if not title or title == 'undefined' or not title.strip():
-            logger.error(f"[PRODUCTS_DEBUG] ❌ 无效的项目标题: '{title}'")
+            logger.error(f"[PRODUCTS] 无效的项目标题: '{title}'")
             return jsonify({
                 "success": False,
                 "error": "项目标题无效",
                 "hint": "请从正常入口访问，不要直接在URL中输入undefined"
             }), 400
-        
-        logger.info(f"[PRODUCTS_DEBUG] 📋 开始加载项目产物: {title}")
         
         loader = ProductLoader(title, logger)
         products = loader.load_all_products()
@@ -1354,20 +1294,10 @@ def get_phase_one_products(title):
         completed = sum(1 for p in products.values() if p['complete'])
         total = len(products)
         
-        # 🔥 新增：详细列出每个产物的状态
-        product_status_list = []
-        for category, product in products.items():
-            status = "✅ 已完成" if product['complete'] else "❌ 未生成"
-            product_status_list.append(f"{category}: {status}")
-        
-        logger.info(f"[PRODUCTS_DEBUG] 📊 产物加载完成: {completed}/{total} 个产物已加载")
-        logger.info(f"[PRODUCTS_DEBUG] 📋 产物详情:\n  " + "\n  ".join(product_status_list))
+        logger.info(f"[PRODUCTS] 加载产物完成: {completed}/{total} 个")
         
         if completed == 0:
-            logger.error(f"[PRODUCTS_DEBUG] ❌ 未找到任何产物文件")
-            logger.info(f"[PRODUCTS_DEBUG] 📁 检查的目录:")
-            logger.info(f"  - 标准项目目录: {loader.project_dir}")
-            logger.info(f"  - 旧第一阶段目录: {loader.legacy_phase_one_dir}")
+            logger.warning(f"[PRODUCTS] 未找到产物: {title}")
             return jsonify({
                 "success": False,
                 "error": "第一阶段产物不存在",
@@ -1673,7 +1603,153 @@ def register_additional_routes(app):
             if not manager:
                 return jsonify({"success": False, "error": "Manager not initialized"}), 500
             
+            # 🔥 关键修复：先尝试获取项目详情
             novel_detail = manager.get_novel_detail(title)
+            
+            # 检查缓存的项目是否有章节数据
+            has_chapters = False
+            if novel_detail:
+                generated_chapters = novel_detail.get('generated_chapters', {})
+                has_chapters = len(generated_chapters) > 0 if generated_chapters else False
+            
+            # 如果项目不在缓存中，或者没有章节数据，尝试重新加载
+            if not novel_detail or not has_chapters:
+                reason = "不在缓存中" if not novel_detail else "没有章节数据"
+                logger.info(f"[PROJECT_INFO] 项目 {title} {reason}，尝试重新加载...")
+                
+                # 🔥 关键修复：强制从文件系统重新加载项目
+                # 先尝试直接从文件系统加载（而不是依赖缓存）
+                from web.utils.path_utils import list_user_projects, get_current_username
+                current_user = get_current_username()
+                logger.info(f"[PROJECT_INFO] 当前登录用户: {current_user}")
+                
+                # 🔥 关键修复：遍历所有用户目录查找项目，而不仅是当前用户
+                all_projects = []
+                
+                # 1. 首先尝试当前用户
+                user_projects = list_user_projects(current_user, include_public=True)
+                all_projects.extend(user_projects)
+                
+                # 2. 如果当前用户是管理员，也扫描其他用户
+                from web.utils.path_utils import is_admin
+                if is_admin(current_user):
+                    from web.utils.path_utils import NOVEL_PROJECTS_ROOT
+                    for user_dir in NOVEL_PROJECTS_ROOT.iterdir():
+                        if user_dir.is_dir() and not user_dir.name.startswith('_'):
+                            other_projects = list_user_projects(user_dir.name, include_public=False)
+                            all_projects.extend(other_projects)
+                
+                # 3. 去重并查找目标项目
+                seen_paths = set()
+                target_project = None
+                for proj in all_projects:
+                    if proj['title'] == title and proj['path'] not in seen_paths:
+                        seen_paths.add(proj['path'])
+                        # 检查这个项目路径下是否有章节文件
+                        from pathlib import Path
+                        project_path = Path(proj['path'])
+                        chapters_dir = project_path / "chapters"
+                        if chapters_dir.exists() and any(chapters_dir.iterdir()):
+                            # 找到了有章节文件的项目
+                            target_project = proj
+                            logger.info(f"[PROJECT_INFO] 找到有章节的项目: {proj['path']}, owner={proj.get('owner')}")
+                            break
+                        elif target_project is None:
+                            # 先记录第一个匹配的项目（即使没有章节）
+                            target_project = proj
+                
+                if target_project:
+                    try:
+                        from pathlib import Path
+                        import json
+                        project_path = Path(target_project['path'])
+                        logger.info(f"[PROJECT_INFO] 使用项目路径: {project_path}")
+                        
+                        # 查找项目信息文件
+                        info_files = [
+                            project_path / "项目信息.json",
+                            project_path / f"{target_project['title']}_项目信息.json",
+                            project_path / "design" / "step_07_final" / "complete_novel_design.json",
+                            project_path / "step_07_final" / "complete_novel_design.json",
+                        ]
+                        for info_file in info_files:
+                            if info_file.exists():
+                                with open(info_file, 'r', encoding='utf-8-sig') as f:
+                                    novel_data = json.load(f)
+                                # 关键修复：确保 owner 字段正确设置，否则章节路径可能错误
+                                # 使用当前登录用户作为 owner，而不是项目原来的 owner
+                                owner_value = current_user
+                                novel_data['owner'] = owner_value
+                                # 强制重新加载项目数据
+                                manager._load_project_from_data(title, novel_data, title, owner=owner_value)
+                                logger.info(f"[PROJECT_INFO] 已强制重新加载项目 {title}, owner={owner_value}")
+                                break
+                    except Exception as e:
+                        logger.error(f"[PROJECT_INFO] 强制重新加载失败: {e}")
+                        import traceback
+                        logger.error(f"[PROJECT_INFO] 错误堆栈: {traceback.format_exc()}")
+                else:
+                    logger.warning(f"[PROJECT_INFO] 未找到项目 {title}")
+                
+                # 再次获取项目详情
+                novel_detail = manager.get_novel_detail(title)
+            
+            # 🔥 关键修复：如果仍然找不到，尝试直接从文件系统加载项目
+            if not novel_detail:
+                from web.utils.path_utils import list_user_projects, get_current_username
+                current_user = get_current_username()
+                logger.info(f"[PROJECT_INFO] 尝试为用户 {current_user} 直接加载项目 {title}")
+                
+                # 查找用户可访问的所有项目
+                user_projects = list_user_projects(current_user, include_public=True)
+                target_project = None
+                for proj in user_projects:
+                    if proj['title'] == title:
+                        target_project = proj
+                        break
+                
+                if target_project:
+                    logger.info(f"[PROJECT_INFO] 找到项目 {title}，owner={target_project.get('owner')}")
+                    # 使用 manager 的方法加载项目
+                    try:
+                        # 强制重新加载特定项目
+                        from pathlib import Path
+                        import json
+                        
+                        project_path = Path(target_project['path'])
+                        # 查找项目信息文件
+                        project_info_files = [
+                            project_path / "项目信息.json",
+                            project_path / f"{target_project['title']}_项目信息.json",
+                            project_path / "design" / "step_07_final" / "complete_novel_design.json",
+                            project_path / "step_07_final" / "complete_novel_design.json",
+                        ]
+                        
+                        for info_file in project_info_files:
+                            if info_file.exists():
+                                with open(info_file, 'r', encoding='utf-8-sig') as f:
+                                    novel_data = json.load(f)
+                                # 关键修复：确保 owner 正确设置
+                                # 如果 owner 是 anonymous 或空，使用 current_user
+                                owner_value = target_project.get('owner')
+                                if not owner_value or owner_value == 'anonymous':
+                                    owner_value = current_user
+                                novel_data['owner'] = owner_value
+                                # 加载到 manager
+                                manager._load_project_from_data(
+                                    title, 
+                                    novel_data, 
+                                    title, 
+                                    owner=owner_value
+                                )
+                                logger.info(f"[PROJECT_INFO] 已重新加载项目 {title}")
+                                break
+                        
+                        # 再次尝试获取项目详情
+                        novel_detail = manager.get_novel_detail(title)
+                    except Exception as e:
+                        logger.error(f"[PROJECT_INFO] 直接加载项目失败: {e}")
+            
             if not novel_detail:
                 return jsonify({"success": False, "error": "项目不存在"}), 404
             
@@ -1701,7 +1777,41 @@ def register_additional_routes(app):
                 200  # 默认值
             )
             
-            completed_chapters = len(novel_detail.get('generated_chapters', {}))
+            # 🔥 调试：检查 generated_chapters 数据
+            gen_chapters_data = novel_detail.get('generated_chapters')
+            logger.info(f"[PROJECT_INFO_DEBUG] novel_detail type: {type(novel_detail)}")
+            logger.info(f"[PROJECT_INFO_DEBUG] generated_chapters type: {type(gen_chapters_data)}")
+            logger.info(f"[PROJECT_INFO_DEBUG] generated_chapters value: {gen_chapters_data}")
+            
+            if gen_chapters_data is None:
+                completed_chapters = 0
+                logger.warning(f"[PROJECT_INFO_DEBUG] generated_chapters is None, setting completed_chapters to 0")
+            elif isinstance(gen_chapters_data, dict):
+                completed_chapters = len(gen_chapters_data)
+                logger.info(f"[PROJECT_INFO_DEBUG] generated_chapters is dict with {completed_chapters} chapters")
+            else:
+                completed_chapters = 0
+                logger.warning(f"[PROJECT_INFO_DEBUG] generated_chapters is not a dict: {type(gen_chapters_data)}")
+            
+            # 🔥 关键修复：如果内存中没有章节数据，直接从文件系统读取
+            if completed_chapters == 0:
+                try:
+                    from pathlib import Path
+                    import glob
+                    
+                    # 获取项目路径
+                    chapter_dir = novel_detail.get('chapter_directory')
+                    if chapter_dir:
+                        chapter_path = Path(chapter_dir)
+                        if chapter_path.exists():
+                            # 统计章节文件数量
+                            chapter_files = list(chapter_path.glob('第*.json')) + list(chapter_path.glob('第*.txt'))
+                            file_chapter_count = len(chapter_files)
+                            if file_chapter_count > 0:
+                                completed_chapters = file_chapter_count
+                                logger.info(f"[PROJECT_INFO] 从文件系统读取到 {file_chapter_count} 个章节文件")
+                except Exception as e:
+                    logger.warning(f"[PROJECT_INFO] 从文件系统读取章节失败: {e}")
             
             # 🔥 改进：使用与get_projectsWithPhaseStatus相同的详细检查逻辑
             # 使用ProductLoader来检查所有7个产物
@@ -1747,9 +1857,10 @@ def register_additional_routes(app):
                 'generated_chapters': novel_detail.get('generated_chapters', {})
             }
             
-            # 合并信息
+            # 合并信息 - 删除 novel_detail 中可能存在的空 phase_info，确保使用正确的 phase_info
+            novel_detail_clean = {k: v for k, v in novel_detail.items() if k != 'phase_info'}
             result = {
-                **novel_detail,
+                **novel_detail_clean,
                 **phase_info
             }
             
@@ -1874,8 +1985,6 @@ def register_additional_routes(app):
             storyline_data = None
             expectation_map = None
             
-            logger.info(f"[STORYLINE_DEBUG] 开始提取故事线数据")
-            
             # ========== 第一步：尝试从产物文件加载storyline产物 ==========
             loader = ProductLoader(title, logger)
             products = loader.load_all_products()
@@ -1884,24 +1993,17 @@ def register_additional_routes(app):
             if products['storyline']['complete']:
                 try:
                     storyline_content = json.loads(products['storyline']['content'])
-                    logger.info(f"[STORYLINE_DEBUG] 从storyline产物解析数据，类型: {type(storyline_content)}")
                     
                     # 检查是否包含 stage_info（多阶段数据）
                     if 'stage_info' in storyline_content and 'major_events' in storyline_content:
                         storyline_data = storyline_content
-                        logger.info(f"[STORYLINE] 使用storyline产物数据: {len(storyline_content.get('stage_info', []))} 个阶段, {len(storyline_content.get('major_events', []))} 个重大事件")
-                        # 🔥 新增：打印所有阶段名称
-                        stage_names = [s.get('stage_name', 'unknown') for s in storyline_content.get('stage_info', [])]
-                        logger.info(f"[STORYLINE] 包含的阶段: {stage_names}")
+                        logger.info(f"[STORYLINE] 使用storyline数据: {len(storyline_content.get('stage_info', []))}个阶段, {len(storyline_content.get('major_events', []))}个事件")
                         
                         # 🔥 修复：提取期待感映射
                         if 'expectation_maps' in storyline_content:
                             expectation_map = storyline_content['expectation_maps']
-                            total_expectations = sum(len(em.get('expectations', {})) for em in expectation_map.values())
-                            logger.info(f"[EXPECTATION_MAP] 使用已有的期待感映射: {len(expectation_map)} 个阶段, 共 {total_expectations} 个期待")
                     else:
                         storyline_data = storyline_content
-                        logger.info(f"[STORYLINE] 使用storyline产物数据（单阶段或其他格式）")
                 except Exception as e:
                     logger.error(f"[STORYLINE] 解析storyline产物失败: {e}")
             
@@ -1909,17 +2011,14 @@ def register_additional_routes(app):
             if not storyline_data and products['writing']['complete']:
                 try:
                     writing_content = json.loads(products['writing']['content'])
-                    logger.info(f"[STORYLINE_DEBUG] 从写作计划产物解析数据")
                     
                     # 检查是否是多阶段数据结构
                     if 'stages' in writing_content and 'stage_names' in writing_content:
-                        logger.info(f"[STORYLINE] 检测到多阶段写作计划，开始提取重大事件")
                         all_major_events = []
                         stage_info = []
                         
                         # 按照标准阶段顺序排序
                         sorted_stage_names = get_sorted_stages(writing_content['stage_names'])
-                        logger.info(f"[STORYLINE] 阶段顺序: {sorted_stage_names}")
                         
                         for stage_name in sorted_stage_names:
                             if stage_name in writing_content['stages']:
@@ -1927,7 +2026,6 @@ def register_additional_routes(app):
                                 stage_plan = stage_data.get('stage_writing_plan', {})
                                 
                                 major_events = stage_plan.get('event_system', {}).get('major_events', [])
-                                logger.info(f"[STORYLINE] 阶段 {stage_name} 的重大事件数量: {len(major_events)}")
                                 
                                 if major_events:
                                     # 为每个事件添加阶段信息和中级事件
@@ -2163,11 +2261,9 @@ def register_additional_routes(app):
                 # 检查storyline_data中是否已经包含expectation_maps
                 if 'expectation_maps' in storyline_data and storyline_data['expectation_maps']:
                     expectation_map = storyline_data['expectation_maps']
-                    total_expectations = sum(len(em.get('expectations', {})) for em in expectation_map.values())
-                    logger.info(f"[EXPECTATION_MAP] 使用故事线中已有的期待感映射: {len(expectation_map)} 个阶段, 共 {total_expectations} 个期待")
                 elif storyline_data.get('major_events'):
                     # 只有在完全没有期待感映射时才生成
-                    logger.info(f"[STORYLINE] 故事线数据已加载，但未找到期待感映射，开始自动生成...")
+                    logger.info(f"[STORYLINE] 未找到期待感映射，开始自动生成...")
                     
                     try:
                         from src.managers.ExpectationManager import ExpectationManager, ExpectationIntegrator
@@ -2211,23 +2307,8 @@ def register_additional_routes(app):
             
             # ========== 最后：将期待感映射添加到故事线数据中 ==========
             if storyline_data and expectation_map:
-                storyline_data['expectation_maps'] = expectation_map  # 🔥 修复：使用复数形式 expectation_maps
-                
-                # 🔥 新增：详细的调试日志
-                if isinstance(expectation_map, dict):
-                    if 'expectations' in expectation_map:
-                        total_count = len(expectation_map.get('expectations', {}))
-                        logger.info(f"[STORYLINE] 已添加期待感映射到故事线数据 (单阶段格式, 共 {total_count} 个期待)")
-                    elif 'expectation_maps' in expectation_map or isinstance(list(expectation_map.values())[0] if expectation_map else {}, dict):
-                        # 多阶段格式
-                        total_stages = len(expectation_map)
-                        total_exp = sum(len(em.get('expectations', {})) for em in expectation_map.values())
-                        logger.info(f"[STORYLINE] 已添加期待感映射到故事线数据 (多阶段格式, {total_stages} 个阶段, 共 {total_exp} 个期待)")
-                
-                logger.info(f"[STORYLINE_DEBUG] expectation_map结构: {list(expectation_map.keys()) if isinstance(expectation_map, dict) else type(expectation_map)}")
-            elif storyline_data and not expectation_map:
-                logger.info(f"[STORYLINE] ⚠️ 故事线数据存在但没有期待感映射，前端将不会显示期待感标签")
-                logger.info(f"[STORYLINE_DEBUG] storyline_data键: {list(storyline_data.keys())}")
+                storyline_data['expectation_maps'] = expectation_map
+                logger.info(f"[STORYLINE] 已添加期待感映射到故事线数据")
             
             if not storyline_data:
                 return jsonify({
@@ -2404,6 +2485,9 @@ def register_additional_routes(app):
             chapters_to_generate = data.get('chapters_to_generate')
             chapters_per_batch = data.get('chapters_per_batch', 1)
             generation_notes = data.get('generation_notes', '')
+            # 🔥 新增：字数阈值参数
+            min_word_threshold = data.get('min_word_threshold', 1500)
+            max_word_threshold = data.get('max_word_threshold', 3500)
             
             # 参数验证
             if not novel_title:
@@ -2468,7 +2552,10 @@ def register_additional_routes(app):
                 "chapters_per_batch": chapters_per_batch,
                 "generation_notes": generation_notes,
                 "user_id": user_id,
-                "username": username
+                "username": username,
+                # 🔥 新增：字数阈值配置
+                "min_word_threshold": min_word_threshold,
+                "max_word_threshold": max_word_threshold
             }
             
             try:

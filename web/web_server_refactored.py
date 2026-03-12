@@ -97,6 +97,12 @@ from web.web_config import (
     logger, FlaskConfig, APP_INFO, MODULE_STATUS,
     BASE_DIR, CREATIVE_IDEAS_FILE
 )
+
+# 初始化日志系统 - 按日期生成日志文件
+from src.utils.logger import Logger
+log_dir = os.path.join(BASE_DIR, 'logs')
+Logger.enable_file_logging(log_file='logs/server_%Y-%m-%d.log', log_dir=log_dir)
+logger.info(f"✅ 日志系统已初始化: {log_dir}/server_YYYY-MM-DD.log")
 from web.auth import user_auth
 from web.managers.novel_manager import NovelGenerationManager
 
@@ -815,6 +821,32 @@ def register_contract_routes(app):
         except Exception as e:
             logger.error(f"❌ 加载管理员页面失败: {e}")
             return f"管理员页面加载失败: {str(e)}", 500
+
+    @app.route('/admin/logs')
+    def admin_logs_page():
+        """日志管理页面"""
+        try:
+            from flask import render_template, session, redirect, url_for
+            # 检查是否为管理员
+            if not session.get('is_admin'):
+                return redirect('/login')
+            return render_template('pages/v2/admin-logs.html')
+        except Exception as e:
+            logger.error(f"❌ 加载日志管理页面失败: {e}")
+            return f"日志管理页面加载失败: {str(e)}", 500
+
+    @app.route('/admin/tasks')
+    def admin_tasks_page():
+        """生成任务监控页面"""
+        try:
+            from flask import render_template, session, redirect, url_for
+            # 检查是否为管理员
+            if not session.get('is_admin'):
+                return redirect('/login')
+            return render_template('pages/v2/admin-tasks.html')
+        except Exception as e:
+            logger.error(f"❌ 加载任务监控页面失败: {e}")
+            return f"任务监控页面加载失败: {str(e)}", 500
 
     @app.route('/api/contract/users/enabled', methods=['GET'])
     def get_contract_enabled_users():

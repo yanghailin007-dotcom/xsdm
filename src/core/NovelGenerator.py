@@ -1261,7 +1261,10 @@ class NovelGenerator:
             'overall_stage_plans': self._ctx.get('overall_stage_plans', {}),
             'core_worldview': self._ctx.get('core_worldview', {}),
             'character_design': self._ctx.get('character_design', {}),
-            'writing_style_guide': self._ctx.get('writing_style_guide', {})
+            'writing_style_guide': self._ctx.get('writing_style_guide', {}),
+            # 🔥 新增：字数阈值参数
+            'min_word_threshold': self._ctx.get('min_word_threshold', 1500),
+            'max_word_threshold': self._ctx.get('max_word_threshold', 3500)
         }
         
         # 🔥 修复：检测黄金三章范围（第1-3章），即使事件拆分也要整体生成
@@ -2484,7 +2487,14 @@ class NovelGenerator:
 
     # ==================== 第二阶段生成方法 ====================
     
-    def phase_two_generation(self, novel_title: str, from_chapter: int, chapters_to_generate: int) -> bool:
+    def phase_two_generation(
+        self, 
+        novel_title: str, 
+        from_chapter: int, 
+        chapters_to_generate: int,
+        min_word_threshold: int = 1500,
+        max_word_threshold: int = 3500
+    ) -> bool:
         """
         第二阶段生成：从第一阶段产物继续生成章节内容
         
@@ -2492,10 +2502,16 @@ class NovelGenerator:
             novel_title: 小说标题
             from_chapter: 起始章节号
             chapters_to_generate: 要生成的章节数
+            min_word_threshold: 最少字数限制（默认1500）
+            max_word_threshold: 最多字数限制（默认3500）
             
         Returns:
             是否成功
         """
+        # 🔥 保存字数阈值到上下文
+        self._ctx["min_word_threshold"] = min_word_threshold
+        self._ctx["max_word_threshold"] = max_word_threshold
+        self.logger.info(f"📝 字数阈值设置: {min_word_threshold}-{max_word_threshold}字")
         try:
             print("\n" + "="*60)
             print("🚀 开始第二阶段章节生成")

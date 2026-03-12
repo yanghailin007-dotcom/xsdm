@@ -342,7 +342,10 @@ function displayProjectInfo(projectData) {
     }
     
     // 优先使用后端计算的 completed_chapters（如果有）
-    if (projectData.phase_info && projectData.phase_info.completed_chapters !== undefined) {
+    // 先检查顶层 completed_chapters，如果不存在或无效，再检查 phase_info
+    if (projectData.completed_chapters !== undefined && projectData.completed_chapters > 0) {
+        completedChapters = projectData.completed_chapters;
+    } else if (projectData.phase_info && projectData.phase_info.completed_chapters !== undefined && projectData.phase_info.completed_chapters > 0) {
         completedChapters = projectData.phase_info.completed_chapters;
     }
     
@@ -1591,8 +1594,8 @@ async function exportPhaseOneProducts() {
         const folderName = title.replace(/[\\/:*?"<>|]/g, '_');
         const productsFolder = zip.folder(`${folderName}_第一阶段产物`);
         
-        // 🔥 修复：优先使用 phaseOneProductsData（实际显示在卡片上的数据）
-        // 其次使用 currentProject（项目数据）
+        // 🔥 修复：优先使用 currentProject（项目原始数据）
+        // 其次使用 phaseOneProductsData（前端显示数据）
         const products = [];
         
         // 1. 创意种子 - 从 currentProject.creative_seed 获取
@@ -1601,56 +1604,56 @@ async function exportPhaseOneProducts() {
             products.push('01_创意种子.json');
         }
         
-        // 2. 世界观设定 - 优先使用 phaseOneProductsData，其次 currentProject
-        const worldviewData = phaseOneProductsData.worldview?.content || currentProject.core_worldview;
+        // 2. 世界观设定 - 优先使用 currentProject，其次 phaseOneProductsData
+        const worldviewData = currentProject.core_worldview || phaseOneProductsData.worldview?.content;
         if (worldviewData) {
             const content = typeof worldviewData === 'string' ? worldviewData : JSON.stringify(worldviewData, null, 2);
             productsFolder.file('02_世界观设定.json', content);
             products.push('02_世界观设定.json');
         }
         
-        // 3. 势力/阵营系统 - 优先使用 phaseOneProductsData
-        const factionsData = phaseOneProductsData.factions?.content || currentProject.faction_system || currentProject.factions;
+        // 3. 势力/阵营系统 - 优先使用 currentProject
+        const factionsData = currentProject.faction_system || currentProject.factions || phaseOneProductsData.factions?.content;
         if (factionsData) {
             const content = typeof factionsData === 'string' ? factionsData : JSON.stringify(factionsData, null, 2);
             productsFolder.file('03_势力系统.json', content);
             products.push('03_势力系统.json');
         }
         
-        // 4. 角色设计 - 优先使用 phaseOneProductsData
-        const charactersData = phaseOneProductsData.characters?.content || currentProject.character_design || currentProject.characters;
+        // 4. 角色设计 - 优先使用 currentProject
+        const charactersData = currentProject.character_design || currentProject.characters || phaseOneProductsData.characters?.content;
         if (charactersData) {
             const content = typeof charactersData === 'string' ? charactersData : JSON.stringify(charactersData, null, 2);
             productsFolder.file('04_角色设计.json', content);
             products.push('04_角色设计.json');
         }
         
-        // 5. 成长路线 - 优先使用 phaseOneProductsData，其次 currentProject
-        const growthData = phaseOneProductsData.growth?.content || currentProject.global_growth_plan || currentProject.growth;
+        // 5. 成长路线 - 优先使用 currentProject，其次 phaseOneProductsData
+        const growthData = currentProject.global_growth_plan || currentProject.growth || phaseOneProductsData.growth?.content;
         if (growthData) {
             const content = typeof growthData === 'string' ? growthData : JSON.stringify(growthData, null, 2);
             productsFolder.file('05_成长路线.json', content);
             products.push('05_成长路线.json');
         }
         
-        // 6. 写作计划 - 优先使用 phaseOneProductsData，其次 currentProject
-        const writingData = phaseOneProductsData.writing?.content || currentProject.stage_writing_plans || currentProject.writing;
+        // 6. 写作计划 - 优先使用 currentProject，其次 phaseOneProductsData
+        const writingData = currentProject.stage_writing_plans || currentProject.writing || phaseOneProductsData.writing?.content;
         if (writingData) {
             const content = typeof writingData === 'string' ? writingData : JSON.stringify(writingData, null, 2);
             productsFolder.file('06_写作计划.json', content);
             products.push('06_写作计划.json');
         }
         
-        // 7. 故事线 - 优先使用 phaseOneProductsData
-        const storylineData = phaseOneProductsData.storyline?.content || currentProject.storyline || currentProject.plot_outline;
+        // 7. 故事线 - 优先使用 currentProject
+        const storylineData = currentProject.storyline || currentProject.plot_outline || phaseOneProductsData.storyline?.content;
         if (storylineData) {
             const content = typeof storylineData === 'string' ? storylineData : JSON.stringify(storylineData, null, 2);
             productsFolder.file('07_故事线.json', content);
             products.push('07_故事线.json');
         }
         
-        // 8. 市场分析 - 优先使用 phaseOneProductsData，其次 currentProject
-        const marketData = phaseOneProductsData.market?.content || currentProject.market_analysis || currentProject.market;
+        // 8. 市场分析 - 优先使用 currentProject，其次 phaseOneProductsData
+        const marketData = currentProject.market_analysis || currentProject.market || phaseOneProductsData.market?.content;
         if (marketData) {
             const content = typeof marketData === 'string' ? marketData : JSON.stringify(marketData, null, 2);
             productsFolder.file('08_市场分析.json', content);
@@ -1738,7 +1741,10 @@ async function startPhaseTwoGeneration(event) {
         from_chapter: parseInt(document.getElementById('from-chapter').value),
         chapters_to_generate: parseInt(document.getElementById('chapters-to-generate').value),
         chapters_per_batch: parseInt(document.getElementById('chapters-per-batch').value),
-        generation_notes: document.getElementById('generation-notes').value
+        generation_notes: document.getElementById('generation-notes').value,
+        // 🔥 新增：字数阈值参数
+        min_word_threshold: parseInt(document.getElementById('min-word-threshold')?.value || 1500),
+        max_word_threshold: parseInt(document.getElementById('max-word-threshold')?.value || 3500)
     };
 
     // 计算所需点数
@@ -2387,6 +2393,8 @@ let readerChapters = [];
 function loadReaderChapterList() {
     const listContainer = document.getElementById('reader-chapter-list');
     const countElement = document.getElementById('reader-chapter-count');
+    const gridContainer = document.getElementById('reader-chapter-grid-list');
+    const gridCountElement = document.getElementById('reader-chapter-grid-count');
     
     console.log('[DEBUG] loadReaderChapterList, currentProject:', currentProject);
     
@@ -2412,6 +2420,12 @@ function loadReaderChapterList() {
         if (countElement) {
             countElement.textContent = '0章';
         }
+        if (gridContainer) {
+            gridContainer.innerHTML = '<div class="v2-reader-sidebar__empty">暂无已生成章节</div>';
+        }
+        if (gridCountElement) {
+            gridCountElement.textContent = '0 章';
+        }
         return;
     }
     
@@ -2430,21 +2444,39 @@ function loadReaderChapterList() {
     if (countElement) {
         countElement.textContent = `${chapters.length}章`;
     }
+    if (gridCountElement) {
+        gridCountElement.textContent = `${chapters.length} 章`;
+    }
     
-    // 生成列表HTML
+    // 生成传统列表HTML
     if (listContainer) {
         if (chapters.length === 0) {
             listContainer.innerHTML = '<div class="v2-reader-sidebar__empty">暂无章节</div>';
-            return;
+        } else {
+            listContainer.innerHTML = chapters.map(ch => `
+                <div class="v2-reader-sidebar__item ${ch.chapter_number === readerCurrentChapter ? 'v2-reader-sidebar__item--active' : ''}" 
+                     onclick="readerLoadChapter(${ch.chapter_number})">
+                    <span>第${ch.chapter_number}章</span>
+                    <span style="color: rgba(255,255,255,0.4); font-size: 12px;">${ch.word_count || 0}字</span>
+                </div>
+            `).join('');
         }
-        
-        listContainer.innerHTML = chapters.map(ch => `
-            <div class="v2-reader-sidebar__item ${ch.chapter_number === readerCurrentChapter ? 'v2-reader-sidebar__item--active' : ''}" 
-                 onclick="readerLoadChapter(${ch.chapter_number})">
-                <span>第${ch.chapter_number}章</span>
-                <span style="color: rgba(255,255,255,0.4); font-size: 12px;">${ch.word_count || 0}字</span>
-            </div>
-        `).join('');
+    }
+    
+    // 生成网格入口HTML
+    if (gridContainer) {
+        if (chapters.length === 0) {
+            gridContainer.innerHTML = '<div class="v2-reader-sidebar__empty">暂无已生成章节</div>';
+        } else {
+            gridContainer.innerHTML = chapters.map(ch => `
+                <div class="v2-chapter-mini v2-chapter-mini--completed" 
+                     onclick="openBookReaderAndLoadChapter(${ch.chapter_number})"
+                     title="${ch.chapter_title || '第' + ch.chapter_number + '章'}">
+                    <span class="v2-chapter-mini__num">${ch.chapter_number}</span>
+                    <span class="v2-chapter-mini__status">已完成</span>
+                </div>
+            `).join('');
+        }
     }
 }
 
@@ -2956,6 +2988,18 @@ window.addEventListener('beforeunload', function() {
         clearInterval(progressInterval);
     }
 });
+
+// ==================== 翻页书阅读器兼容性函数 ====================
+// 这些函数在 HTML 内联 script 中定义，这里提供空函数作为备份
+if (typeof openBookReaderAndLoadChapter !== 'function') {
+    window.openBookReaderAndLoadChapter = function(chapterNum) {
+        // 如果 HTML 中的函数还未加载，显示提示
+        console.warn('翻页书阅读器函数尚未加载');
+        if (typeof showStatusMessage === 'function') {
+            showStatusMessage('请等待页面加载完成后重试', 'info');
+        }
+    };
+}
 
 // ==================== 点数不足弹窗 ====================
 function showPointsInsufficientDialog(currentBalance, requiredPoints, deficit) {

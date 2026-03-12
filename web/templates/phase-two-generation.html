@@ -13,6 +13,9 @@
     <!-- Phase Two 专用样式 -->
     <link rel="stylesheet" href="/static/css/phase-two-generation.css?v=8">
     
+    <!-- 翻页书阅读器样式 -->
+    <link rel="stylesheet" href="/static/css/book-reader.css?v=1">
+    
     <!-- JSZip 库用于 ZIP 打包 -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
@@ -1885,82 +1888,25 @@
                             </div>
                         </div>
                         
-                        <!-- 阅读器主界面 -->
-                        <div class="v2-reader-layout">
-                            <!-- 左侧：章节列表 -->
-                            <aside class="v2-reader-sidebar">
-                                <div class="v2-reader-sidebar__header">
-                                    <span>📚 章节列表</span>
-                                    <span id="reader-chapter-count">0章</span>
-                                </div>
-                                <div class="v2-reader-sidebar__list" id="reader-chapter-list">
-                                    <!-- 章节列表动态生成 -->
-                                    <div class="v2-reader-sidebar__empty">暂无章节</div>
-                                </div>
-                            </aside>
-                            
-                            <!-- 中间：正文阅读区 -->
-                            <div class="v2-reader-content">
-                                <div class="v2-reader-content__header">
-                                    <h2 id="reader-chapter-title">选择章节开始阅读</h2>
-                                    <div class="v2-reader-content__meta">
-                                        <span id="reader-chapter-number">-</span>
-                                        <span class="v2-divider">|</span>
-                                        <span id="reader-word-count">0字</span>
-                                        <span class="v2-divider">|</span>
-                                        <span id="reader-quality-score">质量分: -</span>
-                                    </div>
-                                </div>
-                                <div class="v2-reader-content__body" id="reader-chapter-text">
-                                    <div class="v2-reader-placeholder">
-                                        <span>📖</span>
-                                        <p>请从左侧选择章节开始阅读</p>
-                                    </div>
-                                </div>
-                                <!-- 悬浮导航栏 -->
-                                <div class="v2-reader-nav">
-                                    <button class="v2-reader-nav__btn" id="reader-prev-btn" onclick="readerPrevChapter()" disabled>
-                                        ← 上一章
-                                    </button>
-                                    <button class="v2-reader-nav__btn v2-reader-nav__btn--outline" onclick="readerBackToList()">
-                                        返回列表
-                                    </button>
-                                    <button class="v2-reader-nav__btn" id="reader-next-btn" onclick="readerNextChapter()" disabled>
-                                        下一章 →
-                                    </button>
-                                </div>
+                        <!-- 章节列表入口 -->
+                        <div id="reader-chapter-grid" class="v2-chapter-section">
+                            <div class="v2-chapter-section__header">
+                                <span class="v2-chapter-section__title">📚 已生成章节</span>
+                                <span class="v2-chapter-section__count" id="reader-chapter-grid-count">0 章</span>
                             </div>
-                            
-                            <!-- 右侧：章节信息 -->
-                            <aside class="v2-reader-info">
-                                <div class="v2-reader-info__section">
-                                    <h4>📊 本章统计</h4>
-                                    <div class="v2-reader-info__item">
-                                        <span>字数</span>
-                                        <span id="info-word-count">-</span>
-                                    </div>
-                                    <div class="v2-reader-info__item">
-                                        <span>质量分</span>
-                                        <span id="info-quality-score">-</span>
-                                    </div>
-                                    <div class="v2-reader-info__item">
-                                        <span>生成时间</span>
-                                        <span id="info-gen-time">-</span>
-                                    </div>
-                                </div>
-                                <div class="v2-reader-info__section">
-                                    <h4>📝 快捷操作</h4>
-                                    <button class="v2-reader-info__btn" onclick="readerRegenerateChapter()">
-                                        🔄 重新生成
-                                    </button>
-                                    <button class="v2-reader-info__btn" onclick="readerExportChapter()">
-                                        📤 导出本章
-                                    </button>
-                                    <button class="v2-reader-info__btn" onclick="readerCopyChapter()">
-                                        📋 复制内容
-                                    </button>
-                                </div>
-                            </aside>
+                            <div class="v2-chapter-grid" id="reader-chapter-grid-list">
+                                <!-- 章节卡片动态生成 -->
+                            </div>
+                        </div>
+                        
+                        <!-- 翻页书阅读器入口按钮 -->
+                        <div style="text-align: center; margin: 32px 0; padding: 32px; background: linear-gradient(145deg, rgba(99, 102, 241, 0.05), rgba(139, 92, 246, 0.05)); border-radius: 16px; border: 1px dashed rgba(99, 102, 241, 0.3);">
+                            <div style="font-size: 48px; margin-bottom: 16px;">📖</div>
+                            <h4 style="font-size: 18px; margin-bottom: 8px; color: var(--pt-text-primary);">仿真翻页书阅读体验</h4>
+                            <p style="color: var(--pt-text-secondary); margin-bottom: 20px;">优雅的畅读界面，支持翻页动画、多种主题、字体调节</p>
+                            <button class="pt-btn pt-btn--primary pt-btn--lg" onclick="openBookReader()">
+                                📖 打开书籍阅读器
+                            </button>
                         </div>
                     </div>
                     
@@ -2113,7 +2059,7 @@
     <!-- ==================== JavaScript ==================== -->
     
     <!-- 主要功能脚本 -->
-    <script src="/static/js/phase-two-generation.js?v=8"></script>
+    <script src="/static/js/phase-two-generation.js?v=9"></script>
     <script src="/static/js/creative-editor-phase-two.js"></script>
     <script src="/static/js/character-editor.js"></script>
     <script src="/static/js/character-editor-json-based.js"></script>
@@ -2286,10 +2232,509 @@
                 statusEl.classList.add('pt-hidden');
             }, 5000);
         }
+        
+        // ==================== 翻页书阅读器 ====================
+        
+        let bookReaderCurrentChapter = null;
+        let bookReaderChapters = [];
+        let bookCurrentPage = 1;
+        let bookTotalPages = 0;
+        let bookPages = []; // 存储分页后的内容
+        let bookCurrentTheme = 'light';
+        let bookCurrentFontSize = 16;
+        let bookCurrentLineHeight = 1.8;
+        
+        // 打开书籍阅读器
+        function openBookReader() {
+            if (!currentProject) {
+                showStatusMessage('请先选择一个项目', 'error');
+                return;
+            }
+            
+            const container = document.getElementById('book-reader-container');
+            container.classList.remove('hidden');
+            document.body.style.overflow = 'hidden';
+            
+            // 加载章节列表
+            loadBookChapterList();
+        }
+        
+        // 关闭书籍阅读器
+        function closeBookReader() {
+            const container = document.getElementById('book-reader-container');
+            container.classList.add('hidden');
+            document.body.style.overflow = '';
+            
+            // 关闭面板
+            document.getElementById('book-chapter-panel').classList.remove('active');
+            document.getElementById('book-settings-panel').classList.remove('active');
+        }
+        
+        // 加载章节列表
+        async function loadBookChapterList() {
+            const listContainer = document.getElementById('book-chapter-list');
+            const gridContainer = document.getElementById('reader-chapter-grid-list');
+            const countElement = document.getElementById('reader-chapter-grid-count');
+            
+            try {
+                // 优先使用 currentProject 中的章节数据
+                let chapters = [];
+                
+                if (currentProject) {
+                    if (currentProject.generated_chapters) {
+                        chapters = currentProject.generated_chapters;
+                    } else if (currentProject.phase_info && currentProject.phase_info.generated_chapters) {
+                        chapters = currentProject.phase_info.generated_chapters;
+                    }
+                }
+                
+                // 转换为数组
+                if (typeof chapters === 'object' && !Array.isArray(chapters)) {
+                    chapters = Object.values(chapters);
+                }
+                
+                // 按章节号排序
+                chapters.sort((a, b) => (a.chapter_number || 0) - (b.chapter_number || 0));
+                bookReaderChapters = chapters;
+                
+                if (countElement) {
+                    countElement.textContent = `${bookReaderChapters.length} 章`;
+                }
+                
+                // 更新章节列表面板
+                if (listContainer) {
+                    if (bookReaderChapters.length === 0) {
+                        listContainer.innerHTML = '<div style="padding: 20px; text-align: center; color: rgba(255,255,255,0.5);">暂无章节</div>';
+                    } else {
+                        listContainer.innerHTML = bookReaderChapters.map((ch, index) => {
+                            const chapterTitle = ch.chapter_title || ch.title || (ch.outline && ch.outline['章节标题']) || '未命名';
+                            return `
+                                <div class="book-chapter-item ${index === 0 ? 'active' : ''}" 
+                                     onclick="bookLoadChapter(${ch.chapter_number})">
+                                    <span class="book-chapter-item__number">第${ch.chapter_number}章</span>
+                                    <span class="book-chapter-item__title">${chapterTitle}</span>
+                                </div>
+                            `;
+                        }).join('');
+                    }
+                }
+                
+                // 更新章节网格入口
+                if (gridContainer) {
+                    if (bookReaderChapters.length === 0) {
+                        gridContainer.innerHTML = '<div class="v2-reader-sidebar__empty">暂无已生成章节</div>';
+                    } else {
+                        gridContainer.innerHTML = bookReaderChapters.map(ch => {
+                            const chapterTitle = ch.chapter_title || ch.title || (ch.outline && ch.outline['章节标题']) || `第${ch.chapter_number}章`;
+                            return `
+                                <div class="v2-chapter-mini v2-chapter-mini--completed" 
+                                     onclick="openBookReaderAndLoadChapter(${ch.chapter_number})"
+                                     title="${chapterTitle}">
+                                    <span class="v2-chapter-mini__num">${ch.chapter_number}</span>
+                                    <span class="v2-chapter-mini__status">已完成</span>
+                                </div>
+                            `;
+                        }).join('');
+                    }
+                }
+                
+                // 自动加载第一章
+                if (bookReaderChapters.length > 0) {
+                    bookLoadChapter(bookReaderChapters[0].chapter_number);
+                }
+            } catch (error) {
+                console.error('加载章节列表失败:', error);
+                if (listContainer) {
+                    listContainer.innerHTML = '<div style="padding: 20px; text-align: center; color: rgba(255,255,255,0.5);">加载失败</div>';
+                }
+            }
+        }
+        
+        // 打开阅读器并加载指定章节
+        function openBookReaderAndLoadChapter(chapterNum) {
+            openBookReader();
+            setTimeout(() => bookLoadChapter(chapterNum), 100);
+        }
+        
+        // 加载章节内容
+        async function bookLoadChapter(chapterNum) {
+            const chapter = bookReaderChapters.find(ch => ch.chapter_number === chapterNum);
+            if (!chapter) return;
+            
+            bookReaderCurrentChapter = chapterNum;
+            
+            // 更新标题
+            document.getElementById('book-reader-title').textContent = `第${chapterNum}章 ${chapter.title || ''}`;
+            
+            // 更新章节列表高亮
+            document.querySelectorAll('.book-chapter-item').forEach((item, index) => {
+                item.classList.toggle('active', bookReaderChapters[index].chapter_number === chapterNum);
+            });
+            
+            // 加载完整内容
+            try {
+                const projectTitle = currentProject.novel_title || currentProject.title;
+                // 使用正确的 API 端点：/api/project/<title>/chapter/<chapter_num>
+                const response = await fetch(`/api/project/${encodeURIComponent(projectTitle)}/chapter/${chapterNum}`);
+                if (!response.ok) throw new Error('加载失败');
+                
+                const result = await response.json();
+                const content = result.content || result.chapter?.content || '暂无内容';
+                
+                // 分页处理
+                paginateContent(content, chapter.title || `第${chapterNum}章`);
+            } catch (error) {
+                console.error('加载章节内容失败:', error);
+                paginateContent('加载内容失败，请稍后重试', '错误');
+            }
+        }
+        
+        // 分页处理
+        function paginateContent(content, chapterTitle) {
+            // 清理内容
+            const cleanContent = content.replace(/\n\s*\n/g, '\n').trim();
+            const paragraphs = cleanContent.split('\n').filter(p => p.trim());
+            
+            // 每页大约 450 字（根据界面大小调整）
+            const charsPerPage = 450;
+            bookPages = [];
+            
+            let currentPage = '';
+            let currentChars = 0;
+            
+            // 添加章节标题作为第一段
+            paragraphs.unshift(chapterTitle);
+            
+            for (let i = 0; i < paragraphs.length; i++) {
+                const para = paragraphs[i];
+                const paraLength = para.length;
+                
+                if (currentChars + paraLength > charsPerPage && currentPage) {
+                    // 当前页已满，保存并开始新页
+                    bookPages.push(currentPage);
+                    currentPage = para + '\n\n';
+                    currentChars = paraLength;
+                } else {
+                    currentPage += para + '\n\n';
+                    currentChars += paraLength + 2;
+                }
+            }
+            
+            // 保存最后一页
+            if (currentPage) {
+                bookPages.push(currentPage);
+            }
+            
+            // 如果只有一页，添加空白页保持双页显示
+            if (bookPages.length === 1) {
+                bookPages.push('');
+            }
+            
+            bookTotalPages = bookPages.length;
+            bookCurrentPage = 1;
+            
+            // 更新页码显示
+            document.getElementById('book-total-pages').textContent = bookTotalPages;
+            document.getElementById('book-page-input').max = bookTotalPages;
+            document.getElementById('book-page-input').value = 1;
+            
+            // 渲染当前页面
+            renderBookPages();
+            updateBookProgress();
+        }
+        
+        // 渲染页面内容
+        function renderBookPages() {
+            const leftContent = document.getElementById('book-page-left-content');
+            const rightContent = document.getElementById('book-page-right-content');
+            const leftNumber = document.getElementById('book-page-left-number');
+            const rightNumber = document.getElementById('book-page-right-number');
+            
+            // 左页（奇数页码）
+            if (bookCurrentPage <= bookTotalPages) {
+                leftContent.innerHTML = formatPageContent(bookPages[bookCurrentPage - 1], bookCurrentPage === 1);
+                leftNumber.textContent = bookCurrentPage;
+            } else {
+                leftContent.innerHTML = '';
+                leftNumber.textContent = '-';
+            }
+            
+            // 右页（偶数页码）
+            if (bookCurrentPage + 1 <= bookTotalPages) {
+                rightContent.innerHTML = formatPageContent(bookPages[bookCurrentPage], false);
+                rightNumber.textContent = bookCurrentPage + 1;
+            } else {
+                rightContent.innerHTML = '<div style="display: flex; height: 100%; align-items: center; justify-content: center; color: #999; font-size: 14px;">本章完</div>';
+                rightNumber.textContent = '-';
+            }
+            
+            // 更新翻页按钮状态
+            document.getElementById('book-prev-btn').disabled = bookCurrentPage <= 1;
+            document.getElementById('book-next-btn').disabled = bookCurrentPage + 1 >= bookTotalPages;
+        }
+        
+        // 格式化页面内容
+        function formatPageContent(content, isFirstPage) {
+            if (!content) return '';
+            
+            const lines = content.split('\n').filter(line => line.trim());
+            
+            return lines.map((line, index) => {
+                // 第一页的第一行是标题
+                if (isFirstPage && index === 0) {
+                    return `<div class="book-chapter-title">${line}</div>`;
+                }
+                return `<p>${line}</p>`;
+            }).join('');
+        }
+        
+        // 上一页
+        function bookPrevPage() {
+            if (bookCurrentPage > 1) {
+                bookCurrentPage = Math.max(1, bookCurrentPage - 2);
+                renderBookPages();
+                updateBookProgress();
+                document.getElementById('book-page-input').value = bookCurrentPage;
+            }
+        }
+        
+        // 下一页
+        function bookNextPage() {
+            if (bookCurrentPage + 1 < bookTotalPages) {
+                bookCurrentPage = Math.min(bookTotalPages, bookCurrentPage + 2);
+                renderBookPages();
+                updateBookProgress();
+                document.getElementById('book-page-input').value = bookCurrentPage;
+            }
+        }
+        
+        // 跳转到指定页
+        function jumpToBookPage(pageNum) {
+            pageNum = parseInt(pageNum);
+            if (pageNum >= 1 && pageNum <= bookTotalPages) {
+                // 调整到奇数页码
+                bookCurrentPage = pageNum % 2 === 0 ? pageNum - 1 : pageNum;
+                renderBookPages();
+                updateBookProgress();
+            }
+        }
+        
+        // 更新进度
+        function updateBookProgress() {
+            const progress = ((bookCurrentPage + 1) / bookTotalPages * 100).toFixed(1);
+            document.getElementById('book-progress-fill').style.width = `${progress}%`;
+            document.getElementById('book-progress-text').textContent = `${progress}%`;
+        }
+        
+        // 切换章节列表面板
+        function toggleChapterPanel() {
+            const panel = document.getElementById('book-chapter-panel');
+            const settingsPanel = document.getElementById('book-settings-panel');
+            settingsPanel.classList.remove('active');
+            panel.classList.toggle('active');
+        }
+        
+        // 切换设置面板
+        function toggleBookSettings() {
+            const panel = document.getElementById('book-settings-panel');
+            const chapterPanel = document.getElementById('book-chapter-panel');
+            chapterPanel.classList.remove('active');
+            panel.classList.toggle('active');
+        }
+        
+        // 设置主题
+        function setBookTheme(theme) {
+            bookCurrentTheme = theme;
+            const container = document.getElementById('book-reader-container');
+            const book = document.getElementById('book');
+            
+            // 移除旧主题
+            book.classList.remove('book-theme-light', 'book-theme-sepia', 'book-theme-dark');
+            
+            // 添加新主题
+            book.classList.add(`book-theme-${theme}`);
+            
+            // 更新选中状态
+            document.querySelectorAll('.book-theme-option').forEach(el => {
+                el.classList.remove('active');
+            });
+            event.target.classList.add('active');
+        }
+        
+        // 设置字体大小
+        function setBookFontSize(size) {
+            bookCurrentFontSize = size;
+            const contents = document.querySelectorAll('.book-page__content');
+            contents.forEach(el => {
+                el.style.fontSize = `${size}px`;
+            });
+            
+            // 更新选中状态
+            event.target.parentElement.querySelectorAll('.book-setting-option').forEach(el => {
+                el.classList.remove('active');
+            });
+            event.target.classList.add('active');
+        }
+        
+        // 设置行间距
+        function setBookLineHeight(height) {
+            bookCurrentLineHeight = height;
+            const contents = document.querySelectorAll('.book-page__content');
+            contents.forEach(el => {
+                el.style.lineHeight = height;
+            });
+            
+            // 更新选中状态
+            event.target.parentElement.querySelectorAll('.book-setting-option').forEach(el => {
+                el.classList.remove('active');
+            });
+            event.target.classList.add('active');
+        }
+        
+        // 键盘导航
+        document.addEventListener('keydown', function(e) {
+            const container = document.getElementById('book-reader-container');
+            if (container.classList.contains('hidden')) return;
+            
+            if (e.key === 'ArrowLeft') {
+                bookPrevPage();
+            } else if (e.key === 'ArrowRight') {
+                bookNextPage();
+            } else if (e.key === 'Escape') {
+                closeBookReader();
+            }
+        });
+        
+        // 点击夆部关闭面板
+        document.addEventListener('click', function(e) {
+            const chapterPanel = document.getElementById('book-chapter-panel');
+            const settingsPanel = document.getElementById('book-settings-panel');
+            
+            if (!e.target.closest('.book-chapter-panel') && !e.target.closest('.book-reader-btn')) {
+                chapterPanel.classList.remove('active');
+            }
+            if (!e.target.closest('.book-settings-panel') && !e.target.closest('.book-reader-btn')) {
+                settingsPanel.classList.remove('active');
+            }
+        });
     </script>
     
     <script src="/static/js/user-info.js"></script>
     
+    <!-- ==================== 翻页书阅读器 ==================== -->
+    <div id="book-reader-container" class="book-reader-container hidden">
+        <!-- 顶部工具栏 -->
+        <header class="book-reader-header">
+            <div class="book-reader-header__left">
+                <button class="book-reader-btn book-reader-btn--icon" onclick="closeBookReader()" title="关闭">
+                    ✕
+                </button>
+                <span class="book-reader-header__title" id="book-reader-title">未选择章节</span>
+            </div>
+            <div class="book-reader-header__right">
+                <button class="book-reader-btn" onclick="toggleChapterPanel()">
+                    📚 章节
+                </button>
+                <button class="book-reader-btn" onclick="toggleBookSettings()">
+                    ⚙️ 设置
+                </button>
+            </div>
+        </header>
+        
+        <!-- 章节列表面板 -->
+        <div id="book-chapter-panel" class="book-chapter-panel">
+            <div class="book-chapter-panel__title">📚 章节列表</div>
+            <div class="book-chapter-list" id="book-chapter-list">
+                <!-- 章节列表动态生成 -->
+            </div>
+        </div>
+        
+        <!-- 设置面板 -->
+        <div id="book-settings-panel" class="book-settings-panel">
+            <div class="book-settings-panel__title">⚙️ 阅读设置</div>
+            
+            <div class="book-setting-item">
+                <label class="book-setting-item__label">背景主题</label>
+                <div class="book-theme-options">
+                    <div class="book-theme-option book-theme-option--light active" onclick="setBookTheme('light')" title="浅色"></div>
+                    <div class="book-theme-option book-theme-option--sepia" onclick="setBookTheme('sepia')" title="护眼"></div>
+                    <div class="book-theme-option book-theme-option--dark" onclick="setBookTheme('dark')" title="深色"></div>
+                </div>
+            </div>
+            
+            <div class="book-setting-item">
+                <label class="book-setting-item__label">字体大小</label>
+                <div class="book-setting-options">
+                    <div class="book-setting-option" onclick="setBookFontSize(14)">小</div>
+                    <div class="book-setting-option active" onclick="setBookFontSize(16)">中</div>
+                    <div class="book-setting-option" onclick="setBookFontSize(18)">大</div>
+                    <div class="book-setting-option" onclick="setBookFontSize(20)">超大</div>
+                </div>
+            </div>
+            
+            <div class="book-setting-item">
+                <label class="book-setting-item__label">行间距</label>
+                <div class="book-setting-options">
+                    <div class="book-setting-option" onclick="setBookLineHeight(1.5)">紧凑</div>
+                    <div class="book-setting-option active" onclick="setBookLineHeight(1.8)">适中</div>
+                    <div class="book-setting-option" onclick="setBookLineHeight(2.2)">舒适</div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- 书籍主体区域 -->
+        <div class="book-reader-body" id="book-reader-body">
+            <div class="book" id="book">
+                <!-- 左页 -->
+                <div class="book-page book-page--left" id="book-page-left">
+                    <div class="book-page__front">
+                        <div class="book-page__content" id="book-page-left-content">
+                            <!-- 左页内容 -->
+                        </div>
+                        <span class="book-page__number" id="book-page-left-number">-</span>
+                    </div>
+                </div>
+                
+                <!-- 书脊 -->
+                <div class="book-spine"></div>
+                
+                <!-- 右页 -->
+                <div class="book-page book-page--right" id="book-page-right">
+                    <div class="book-page__front">
+                        <div class="book-page__content" id="book-page-right-content">
+                            <!-- 右页内容 -->
+                        </div>
+                        <span class="book-page__number" id="book-page-right-number">-</span>
+                    </div>
+                </div>
+                
+                <!-- 翻页按钮 -->
+                <button class="book-nav-btn book-nav-btn--prev" id="book-prev-btn" onclick="bookPrevPage()" disabled>
+                    ‹
+                </button>
+                <button class="book-nav-btn book-nav-btn--next" id="book-next-btn" onclick="bookNextPage()" disabled>
+                    ›
+                </button>
+            </div>
+        </div>
+        
+        <!-- 底部控制栏 -->
+        <footer class="book-reader-footer">
+            <div class="book-progress">
+                <span>阅读进度</span>
+                <div class="book-progress__bar">
+                    <div class="book-progress__fill" id="book-progress-fill" style="width: 0%"></div>
+                </div>
+                <span id="book-progress-text">0%</span>
+            </div>
+            <div class="book-page-input">
+                <span>第</span>
+                <input type="number" id="book-page-input" min="1" value="1" onchange="jumpToBookPage(this.value)">
+                <span>/ <span id="book-total-pages">0</span> 页</span>
+            </div>
+        </footer>
+    </div>
+
     <!-- V2 页脚 -->
     {% include 'components/v2/footer.html' %}
 </body>

@@ -3293,7 +3293,10 @@ function updateDebugPaginationNavigation() {
     }
     
     if (nextPageBtn) {
-        nextPageBtn.disabled = currentPage >= totalPages;
+        // 修改：最后一页时不禁用按钮，允许点击进入下一章
+        // 如果没有下一章，nextPage 函数会显示提示
+        const nextChapterData = chaptersData.find(c => c.chapter_number > currentChapter);
+        nextPageBtn.disabled = (currentPage >= totalPages) && !nextChapterData;
     }
 }
 
@@ -3314,7 +3317,10 @@ function updateReadingPaginationNavigation() {
     }
     
     if (nextPageBtn) {
-        nextPageBtn.disabled = currentPage >= totalPages;
+        // 修改：最后一页时不禁用按钮，允许点击进入下一章
+        // 如果没有下一章，nextPage 函数会显示提示
+        const nextChapterData = chaptersData.find(c => c.chapter_number > currentChapter);
+        nextPageBtn.disabled = (currentPage >= totalPages) && !nextChapterData;
     }
 }
 
@@ -3378,6 +3384,15 @@ function nextPage() {
         updatePaginationNavigation();
         scrollToContentTop();
         showKeyboardHint('→ 下一页');
+    } else if (currentPage >= totalPages) {
+        // 当前章节最后一页，自动进入下一章
+        const nextChapterData = chaptersData.find(c => c.chapter_number > currentChapter);
+        if (nextChapterData) {
+            showKeyboardHint('→ 下一章');
+            loadChapter(currentNovelTitle, nextChapterData.chapter_number);
+        } else {
+            showNotification('已经是最后一章了', 'info');
+        }
     }
 }
 
@@ -3789,6 +3804,15 @@ function nextChapterPage() {
         displayCurrentChapterPage();
         updateChapterPaginationNavigation();
         console.log(`切换到章节页 ${currentChapterPage}`);
+    } else if (currentChapterPage >= totalChapterPages) {
+        // 当前章节最后一页，自动进入下一章
+        const nextChapterData = chaptersData.find(c => c.chapter_number > currentChapter);
+        if (nextChapterData) {
+            console.log('当前章节已读完，自动进入下一章:', nextChapterData.chapter_number);
+            loadChapter(currentNovelTitle, nextChapterData.chapter_number);
+        } else {
+            showNotification('已经是最后一章了', 'info');
+        }
     }
 }
 

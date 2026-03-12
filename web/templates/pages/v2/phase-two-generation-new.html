@@ -272,6 +272,29 @@
                                 </div>
                             </div>
                             
+                            <!-- 🔥 新增：字数控制配置 -->
+                            <div class="pt-config-grid">
+                                <div class="pt-form-group">
+                                    <label class="pt-form-group__label">
+                                        最少字数限制
+                                        <span class="pt-form-group__hint" style="margin-left: 4px; color: #999;">(?)</span>
+                                    </label>
+                                    <input type="number" id="min-word-threshold" name="min_word_threshold" 
+                                           class="pt-form-group__input" value="1500" min="500" max="3000" step="100">
+                                    <span class="pt-form-group__hint">少于此字数将重新生成（默认1500）</span>
+                                </div>
+                                
+                                <div class="pt-form-group">
+                                    <label class="pt-form-group__label">
+                                        最多字数限制
+                                        <span class="pt-form-group__hint" style="margin-left: 4px; color: #999;">(?)</span>
+                                    </label>
+                                    <input type="number" id="max-word-threshold" name="max_word_threshold" 
+                                           class="pt-form-group__input" value="3500" min="2000" max="8000" step="100">
+                                    <span class="pt-form-group__hint">多于此字数将重新生成（默认3500）</span>
+                                </div>
+                            </div>
+                            
                             <div class="pt-form-group">
                                 <label class="pt-form-group__label">生成说明（可选）</label>
                                 <textarea id="generation-notes" name="generation_notes" rows="3"
@@ -549,6 +572,6 @@
     </script>
     
     <!-- 引入原有的 JavaScript 文件 -->
-    <script src="/static/js/phase-two-generation.js"></script>
+    <script src="/static/js/phase-two-generation.js?v=9"></script>
 </body>
 </html>

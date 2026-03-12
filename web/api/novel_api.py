@@ -223,6 +223,20 @@ def register_novel_routes(app, manager: NovelGenerationManager):
         """获取小说详情"""
         try:
             novel_detail = manager.get_novel_detail(title)
+            
+            # 🔥 关键修复：检查缓存的项目是否有章节数据
+            has_chapters = False
+            if novel_detail:
+                generated_chapters = novel_detail.get('generated_chapters', {})
+                has_chapters = len(generated_chapters) > 0 if generated_chapters else False
+            
+            # 如果项目不在缓存中，或者没有章节数据，尝试重新加载
+            if not novel_detail or not has_chapters:
+                reason = "不在缓存中" if not novel_detail else "没有章节数据"
+                logger.info(f"[NOVEL_API] 项目 {title} {reason}，尝试重新加载...")
+                manager.load_existing_novels()
+                novel_detail = manager.get_novel_detail(title)
+            
             if not novel_detail:
                 return jsonify({"error": "小说不存在"}), 404
             

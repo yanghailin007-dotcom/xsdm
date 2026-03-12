@@ -286,12 +286,76 @@ class NovelGenerationManager:
         logger.info("🔧 NovelGenerationManager 初始化开始")
         self.load_existing_novels()
         
+        # 🔥 加载历史任务（包括进行中的任务）
+        self._load_persisted_tasks()
+        
         # 🔥 启动线程监控器
         global _thread_monitor
         _thread_monitor.start_monitoring()
         logger.info("✅ 线程监控器已启动")
         
-        logger.info(f"🔧 NovelGenerationManager 初始化完成，加载了 {len(self.novel_projects)} 个小说项目")
+        logger.info(f"🔧 NovelGenerationManager 初始化完成，加载了 {len(self.novel_projects)} 个小说项目，{len(self.task_results)} 个任务")
+
+    def _load_persisted_tasks(self):
+        """从文件加载持久化的任务数据"""
+        try:
+            from web.utils.task_persistence import TaskPersistence
+            
+            # 加载所有历史任务（包括已完成和失败的）
+            all_tasks = TaskPersistence.load_all_tasks(
+                include_completed=True,
+                include_failed=True
+            )
+            
+            loaded_count = 0
+            for task_data in all_tasks:
+                task_id = task_data.get('task_id')
+                if task_id:
+                    self.task_results[task_id] = task_data
+                    loaded_count += 1
+            
+            # 检查是否有进行中的任务（服务器重启后这些任务实际上已不再运行）
+            active_tasks = TaskPersistence.load_active_tasks()
+            for task_data in active_tasks:
+                task_id = task_data.get('task_id')
+                if task_id and task_id in self.task_results:
+                    # 标记为异常中断
+                    self.task_results[task_id]['status'] = 'failed'
+                    self.task_results[task_id]['error'] = '服务器重启导致任务中断'
+                    self.task_results[task_id]['updated_at'] = datetime.now().isoformat()
+                    # 保存更新后的状态
+                    TaskPersistence.save_task(self.task_results[task_id])
+                    logger.warning(f"⚠️ 任务 {task_id} 因服务器重启被标记为失败")
+            
+            logger.info(f"✅ 已加载 {loaded_count} 个历史任务（{len(active_tasks)} 个因重启被标记为失败）")
+            
+            # 🔥 启动定期清理任务
+            self._start_cleanup_timer()
+            
+        except Exception as e:
+            logger.error(f"❌ 加载持久化任务失败: {e}")
+
+    def _start_cleanup_timer(self):
+        """启动定期清理过期任务的定时器"""
+        def cleanup_and_reschedule():
+            try:
+                from web.utils.task_persistence import TaskPersistence
+                cleaned = TaskPersistence.cleanup_old_tasks()
+                if cleaned > 0:
+                    logger.info(f"🧹 定期清理完成，已删除 {cleaned} 个过期任务")
+            except Exception as e:
+                logger.error(f"❌ 定期清理任务失败: {e}")
+            
+            # 重新启动定时器（每24小时执行一次）
+            self._cleanup_timer = threading.Timer(24 * 3600, cleanup_and_reschedule)
+            self._cleanup_timer.daemon = True
+            self._cleanup_timer.start()
+        
+        # 启动第一次定时器
+        self._cleanup_timer = threading.Timer(24 * 3600, cleanup_and_reschedule)
+        self._cleanup_timer.daemon = True
+        self._cleanup_timer.start()
+        logger.info("✅ 已启动任务定期清理定时器（每24小时）")
 
     def stop_task(self, task_id: str) -> bool:
         """
@@ -530,6 +594,13 @@ class NovelGenerationManager:
         # 🔥 修复：处理 progress 为 None 的情况
         log_progress = progress if progress is not None else self.task_results[task_id].get("progress", 0)
         logger.info(f"任务 {task_id}: 进度更新 {log_progress}% - 当前步骤: {current_step}")
+        
+        # 🔥 新增：持久化保存任务状态
+        try:
+            from web.utils.task_persistence import TaskPersistence
+            TaskPersistence.save_task(self.task_results[task_id])
+        except Exception as e:
+            logger.warning(f"⚠️ 保存任务状态失败: {e}")
 
     def update_step_status(self, task_id: str, step_name: str, status: str, points_cost: int = 0):
         """更新特定步骤的状态和创造点消耗"""
@@ -778,19 +849,27 @@ class NovelGenerationManager:
                                 chapter_content = chapter_json.get("content", file_content)
                                 chapter_title = chapter_json.get("chapter_title", chapter_file.stem.replace("第", "").replace("章", ""))
                                 chapter_word_count = chapter_json.get("word_count", len(chapter_content))
+                                # 🔥 新增：读取质量分和质量评估
+                                chapter_quality_score = chapter_json.get("quality_score")
+                                chapter_quality_assessment = chapter_json.get("quality_assessment", {})
 
                             except json.JSONDecodeError:
                                 # 如果不是JSON格式，直接使用原始内容
                                 chapter_content = file_content
                                 chapter_title = chapter_file.stem.replace("第", "").replace("章", "")
                                 chapter_word_count = len(chapter_content)
+                                chapter_quality_score = None
+                                chapter_quality_assessment = {}
 
                             generated_chapters[chapter_num] = {
                                 "chapter_number": chapter_num,
                                 "title": chapter_title,
                                 "content": chapter_content,
                                 "word_count": chapter_word_count,
-                                "file_path": str(chapter_file)
+                                "file_path": str(chapter_file),
+                                # 🔥 新增：保存质量分信息
+                                "quality_score": chapter_quality_score,
+                                "quality": chapter_quality_assessment
                             }
                         except Exception as e:
                             logger.info(f"⚠️ 加载章节 {chapter_file.name} 失败: {e}")
@@ -822,7 +901,9 @@ class NovelGenerationManager:
                     if novel_data.get("writing_style_guide"):
                         logger.info(f"  ✅ 从项目信息中获取写作风格指南")
                     else:
-                        logger.warning(f"  ⚠️ 写作风格指南文件不存在: {writing_style_path}")
+                        # 只在非 anonymous 用户时打印警告，避免启动时大量警告
+                        if username and username != 'anonymous':
+                            logger.warning(f"  ⚠️ 写作风格指南文件不存在: {writing_style_path}")
                         novel_data["writing_style_guide"] = {}
             except Exception as e:
                 logger.warning(f"  ⚠️ 加载写作风格指南失败: {e}")
@@ -1443,6 +1524,13 @@ class NovelGenerationManager:
             "progress": 0,
             "timestamp": datetime.now().isoformat()
         }
+        
+        # 🔥 新增：持久化保存新创建的任务
+        try:
+            from web.utils.task_persistence import TaskPersistence
+            TaskPersistence.save_task(self.task_results[task_id])
+        except Exception as e:
+            logger.warning(f"⚠️ 保存新任务失败: {e}")
         
         # 启动后台任务
         def run_generation():
@@ -2194,6 +2282,13 @@ class NovelGenerationManager:
             "timestamp": datetime.now().isoformat()
         }
         
+        # 🔥 新增：持久化保存新创建的任务
+        try:
+            from web.utils.task_persistence import TaskPersistence
+            TaskPersistence.save_task(phase_two_task)
+        except Exception as e:
+            logger.warning(f"⚠️ 保存新任务失败: {e}")
+        
         # 启动后台第二阶段任务
         def run_phase_two_generation():
             try:
@@ -2411,10 +2506,13 @@ class NovelGenerationManager:
                     logger.info(f"任务 {task_id}: 已设置用户ID {user_id} 用于API调用扣费")
                 
                 # 🔥 修复：传递novel_title而不是phase_one_file
+                # 🔥 新增：传递字数阈值参数
                 success = novel_generator.phase_two_generation(
                     novel_title,  # 使用实际的小说标题
                     from_chapter,
-                    chapters_to_generate
+                    chapters_to_generate,
+                    min_word_threshold=config.get('min_word_threshold', 1500),
+                    max_word_threshold=config.get('max_word_threshold', 3500)
                 )
                 
                 if success:
