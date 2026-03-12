@@ -2615,6 +2615,108 @@ function exportSingleChapter(chapter) {
     URL.revokeObjectURL(url);
 }
 
+// 打包整个项目为 ZIP
+async function exportProjectAsZip() {
+    if (!currentProject) {
+        showStatusMessage('请先选择一个项目', 'warning');
+        return;
+    }
+    
+    showStatusMessage('正在打包项目，请稍候...', 'info');
+    
+    try {
+        const zip = new JSZip();
+        const title = currentProject.novel_title || currentProject.title || '未命名小说';
+        const folderName = title.replace(/[\\/:*?"<>|]/g, '_');
+        const projectFolder = zip.folder(folderName);
+        
+        // 1. 添加小说正文（合并版）
+        let novelContent = `${title}\n\n`;
+        novelContent += `作者：${currentProject.author || 'AI生成'}\n`;
+        novelContent += `总章节：${currentProject.total_chapters || 200}\n`;
+        novelContent += `类别：${currentProject.category || '未分类'}\n\n`;
+        novelContent += `简介：${currentProject.synopsis || '暂无简介'}\n\n`;
+        novelContent += `========================\n\n`;
+        
+        // 获取章节列表
+        let chapters = currentProject.generated_chapters || {};
+        if (typeof chapters === 'object' && !Array.isArray(chapters)) {
+            chapters = Object.values(chapters);
+        }
+        chapters.sort((a, b) => (a.chapter_number || 0) - (b.chapter_number || 0));
+        
+        // 添加每章内容到合并版
+        chapters.forEach(ch => {
+            novelContent += `第${ch.chapter_number}章 ${ch.chapter_title || ''}\n\n`;
+            novelContent += `${ch.content || ch.chapter_content || ''}\n\n`;
+            novelContent += `------------------------\n\n`;
+        });
+        
+        projectFolder.file(`${folderName}_全文.txt`, novelContent);
+        
+        // 2. 创建分章文件夹
+        const chaptersFolder = projectFolder.folder('分章');
+        chapters.forEach(ch => {
+            const chapterContent = `第${ch.chapter_number}章 ${ch.chapter_title || ''}\n\n`;
+            const content = ch.content || ch.chapter_content || '暂无内容';
+            chaptersFolder.file(`第${ch.chapter_number}章.txt`, chapterContent + content);
+        });
+        
+        // 3. 添加设定文档
+        const settingsFolder = projectFolder.folder('设定');
+        
+        // 世界观
+        if (currentProject.core_worldview) {
+            settingsFolder.file('世界观.txt', JSON.stringify(currentProject.core_worldview, null, 2));
+        }
+        
+        // 角色设计
+        if (currentProject.character_design) {
+            settingsFolder.file('角色设计.txt', JSON.stringify(currentProject.character_design, null, 2));
+        }
+        
+        // 成长路线
+        if (currentProject.global_growth_plan) {
+            settingsFolder.file('成长路线.txt', JSON.stringify(currentProject.global_growth_plan, null, 2));
+        }
+        
+        // 写作计划
+        if (currentProject.stage_writing_plans) {
+            settingsFolder.file('写作计划.txt', JSON.stringify(currentProject.stage_writing_plans, null, 2));
+        }
+        
+        // 4. 添加项目信息
+        const projectInfo = {
+            小说标题: title,
+            作者: currentProject.author || 'AI生成',
+            类别: currentProject.category || '未分类',
+            总章节: currentProject.total_chapters || 200,
+            已完成章节: chapters.length,
+            总字数: chapters.reduce((sum, ch) => sum + (ch.word_count || 0), 0),
+            创建时间: currentProject.created_at || '未知',
+            简介: currentProject.synopsis || '暂无简介'
+        };
+        
+        let infoContent = '项目信息\n';
+        infoContent += '========================\n\n';
+        Object.entries(projectInfo).forEach(([key, value]) => {
+            infoContent += `${key}: ${value}\n`;
+        });
+        
+        projectFolder.file('项目信息.txt', infoContent);
+        
+        // 5. 生成并下载 ZIP
+        const zipBlob = await zip.generateAsync({ type: 'blob' });
+        saveAs(zipBlob, `${folderName}_项目打包.zip`);
+        
+        showStatusMessage(`项目打包完成！包含 ${chapters.length} 章`, 'success');
+        
+    } catch (error) {
+        console.error('打包项目失败:', error);
+        showStatusMessage('打包项目失败: ' + error.message, 'error');
+    }
+}
+
 // ==================== 工具函数 ====================
 function showProgressSection() {
     const progressSection = document.getElementById('progress-section');

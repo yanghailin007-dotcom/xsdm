@@ -13,6 +13,10 @@
     <!-- Phase Two 专用样式 -->
     <link rel="stylesheet" href="/static/css/phase-two-generation.css?v=8">
     
+    <!-- JSZip 库用于 ZIP 打包 -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
+    
     <!-- 角色编辑器样式 -->
     <link rel="stylesheet" href="/static/css/character-editor.css">
     <link rel="stylesheet" href="/static/css/character-editor-json-based.css">
@@ -1385,6 +1389,33 @@
             color: rgba(255, 255, 255, 0.5);
         }
         
+        /* ZIP 导出选项高亮 */
+        .v2-export-option--highlight {
+            background: linear-gradient(135deg, rgba(99, 102, 241, 0.15), rgba(139, 92, 246, 0.1));
+            border-color: rgba(99, 102, 241, 0.4);
+            position: relative;
+        }
+        
+        .v2-export-option--highlight::before {
+            content: '推荐';
+            position: absolute;
+            top: -8px;
+            right: 12px;
+            background: linear-gradient(135deg, #6366f1, #8b5cf6);
+            color: white;
+            font-size: 10px;
+            padding: 2px 8px;
+            border-radius: 10px;
+            font-weight: 600;
+        }
+        
+        .v2-export-option--highlight:hover {
+            background: linear-gradient(135deg, rgba(99, 102, 241, 0.25), rgba(139, 92, 246, 0.2));
+            border-color: rgba(99, 102, 241, 0.6);
+            transform: translateY(-3px);
+            box-shadow: 0 8px 25px rgba(99, 102, 241, 0.3);
+        }
+        
         /* 响应式适配 */
         @media (max-width: 1200px) {
             .v2-reader-layout {
@@ -1987,11 +2018,6 @@
                                     <div class="v2-export-option__title">导出为 TXT</div>
                                     <div class="v2-export-option__desc">纯文本格式，兼容所有设备</div>
                                 </div>
-                                <div class="v2-export-option" onclick="exportNovel('docx')">
-                                    <div class="v2-export-option__icon">📄</div>
-                                    <div class="v2-export-option__title">导出为 Word</div>
-                                    <div class="v2-export-option__desc">带格式的 Word 文档</div>
-                                </div>
                                 <div class="v2-export-option" onclick="exportNovel('markdown')">
                                     <div class="v2-export-option__icon">📑</div>
                                     <div class="v2-export-option__title">导出为 Markdown</div>
@@ -2001,6 +2027,11 @@
                                     <div class="v2-export-option__icon">📁</div>
                                     <div class="v2-export-option__title">分章导出</div>
                                     <div class="v2-export-option__desc">每章一个文件</div>
+                                </div>
+                                <div class="v2-export-option v2-export-option--highlight" onclick="exportProjectAsZip()">
+                                    <div class="v2-export-option__icon">🗜️</div>
+                                    <div class="v2-export-option__title">打包下载 (ZIP)</div>
+                                    <div class="v2-export-option__desc">整个项目打包下载</div>
                                 </div>
                             </div>
                         </div>
