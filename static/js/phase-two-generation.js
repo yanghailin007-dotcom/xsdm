@@ -1583,25 +1583,84 @@ async function exportPhaseOneProducts() {
         return;
     }
 
+    showStatusMessage('📦 正在打包产物，请稍候...', 'info');
+
     try {
-        const response = await fetch(`/api/phase-one/products/${encodeURIComponent(currentProject.novel_title || currentProject.title)}/export`);
+        const zip = new JSZip();
+        const title = currentProject.novel_title || currentProject.title || '未命名小说';
+        const folderName = title.replace(/[\\/:*?"<>|]/g, '_');
+        const productsFolder = zip.folder(`${folderName}_第一阶段产物`);
         
-        if (!response.ok) {
-            throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+        // 1. 创意种子
+        if (currentProject.creative_seed) {
+            productsFolder.file('01_创意种子.json', JSON.stringify(currentProject.creative_seed, null, 2));
         }
         
-        const blob = await response.blob();
-        const url = window.URL.createObjectURL(blob);
+        // 2. 世界观设定
+        if (currentProject.core_worldview) {
+            productsFolder.file('02_世界观设定.json', JSON.stringify(currentProject.core_worldview, null, 2));
+        }
         
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = `${currentProject.novel_title || currentProject.title}_第一阶段产物.json`;
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
-        window.URL.revokeObjectURL(url);
+        // 3. 势力/阵营系统
+        if (currentProject.faction_system || currentProject.factions) {
+            productsFolder.file('03_势力系统.json', JSON.stringify(currentProject.faction_system || currentProject.factions, null, 2));
+        }
         
-        showStatusMessage('✅ 产物导出成功', 'success');
+        // 4. 角色设计
+        if (currentProject.character_design || currentProject.characters) {
+            productsFolder.file('04_角色设计.json', JSON.stringify(currentProject.character_design || currentProject.characters, null, 2));
+        }
+        
+        // 5. 成长路线
+        if (currentProject.global_growth_plan || currentProject.growth) {
+            productsFolder.file('05_成长路线.json', JSON.stringify(currentProject.global_growth_plan || currentProject.growth, null, 2));
+        }
+        
+        // 6. 写作计划
+        if (currentProject.stage_writing_plans || currentProject.writing) {
+            productsFolder.file('06_写作计划.json', JSON.stringify(currentProject.stage_writing_plans || currentProject.writing, null, 2));
+        }
+        
+        // 7. 故事线/情节大纲
+        if (currentProject.storyline || currentProject.plot_outline) {
+            productsFolder.file('07_故事线.json', JSON.stringify(currentProject.storyline || currentProject.plot_outline, null, 2));
+        }
+        
+        // 8. 市场分析
+        if (currentProject.market_analysis || currentProject.market) {
+            productsFolder.file('08_市场分析.json', JSON.stringify(currentProject.market_analysis || currentProject.market, null, 2));
+        }
+        
+        // 9. 写作风格指南
+        if (currentProject.writing_style_guide) {
+            productsFolder.file('09_写作风格指南.json', JSON.stringify(currentProject.writing_style_guide, null, 2));
+        }
+        
+        // 10. 创建产物清单
+        const manifest = {
+            项目标题: title,
+            导出时间: new Date().toLocaleString(),
+            产物列表: [
+                currentProject.creative_seed && '01_创意种子.json',
+                currentProject.core_worldview && '02_世界观设定.json',
+                (currentProject.faction_system || currentProject.factions) && '03_势力系统.json',
+                (currentProject.character_design || currentProject.characters) && '04_角色设计.json',
+                (currentProject.global_growth_plan || currentProject.growth) && '05_成长路线.json',
+                (currentProject.stage_writing_plans || currentProject.writing) && '06_写作计划.json',
+                (currentProject.storyline || currentProject.plot_outline) && '07_故事线.json',
+                (currentProject.market_analysis || currentProject.market) && '08_市场分析.json',
+                currentProject.writing_style_guide && '09_写作风格指南.json'
+            ].filter(Boolean)
+        };
+        
+        productsFolder.file('📋产物清单.json', JSON.stringify(manifest, null, 2));
+        
+        // 生成并下载 ZIP
+        const zipBlob = await zip.generateAsync({ type: 'blob' });
+        saveAs(zipBlob, `${folderName}_第一阶段产物.zip`);
+        
+        showStatusMessage(`✅ 产物打包完成！共 ${manifest.产物列表.length} 个产物`, 'success');
+        
     } catch (error) {
         console.error('导出产物失败:', error);
         showStatusMessage(`❌ 导出失败: ${error.message}`, 'error');
