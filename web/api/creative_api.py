@@ -202,6 +202,11 @@ def register_creative_routes(app, manager: NovelGenerationManager):
                 "creative_seed": selected_idea,  # 传递完整的创意数据
                 "use_creative_file": True
             }
+            
+            # 🔥 添加当前用户名到 config，确保用户隔离路径正确
+            from web.utils.path_utils import get_current_username
+            novel_config['username'] = get_current_username()
+            novel_config['user_id'] = session.get('user_id')
 
             # 启动生成任务
             task_id = manager.start_generation(novel_config)

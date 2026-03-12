@@ -15,8 +15,9 @@ from src.utils.logger import get_logger
 class EventExtractor:
     """通用事件提取器"""
     
-    def __init__(self, logger_instance=None):
+    def __init__(self, logger_instance=None, username: str = None):
         self.logger = logger_instance or get_logger("EventExtractor")
+        self._username = username
     
     def extract_all_major_events(self, novel_data: Dict) -> List[Dict]:
         """
@@ -132,7 +133,9 @@ class EventExtractor:
         # 获取用户隔离基础路径
         try:
             from web.utils.path_utils import get_user_novel_dir
-            base_dir = get_user_novel_dir(create=False)
+            # 🔥 优先使用传入的 username，其次从 novel_data 获取，最后使用默认
+            username = self._username or novel_data.get('_username') or novel_data.get('username')
+            base_dir = get_user_novel_dir(username=username, create=False)
         except Exception:
             base_dir = Path("小说项目")
         
@@ -344,7 +347,9 @@ class EventExtractor:
         # 获取用户隔离基础路径
         try:
             from web.utils.path_utils import get_user_novel_dir
-            base_dir = get_user_novel_dir(create=False)
+            # 🔥 优先使用传入的 username，其次从 novel_data 获取，最后使用默认
+            username = self._username or novel_data.get('_username') or novel_data.get('username')
+            base_dir = get_user_novel_dir(username=username, create=False)
         except Exception:
             base_dir = Path("小说项目")
         
@@ -721,10 +726,22 @@ class EventExtractor:
 
 # 创建全局实例
 _event_extractor_instance = None
+_event_extractor_username = None
 
-def get_event_extractor(logger_instance=None) -> EventExtractor:
-    """获取事件提取器实例（单例模式）"""
-    global _event_extractor_instance
+def get_event_extractor(logger_instance=None, username: str = None) -> EventExtractor:
+    """获取事件提取器实例（单例模式）
+    
+    Args:
+        logger_instance: 日志实例
+        username: 用户名（用于用户隔离路径），如果与之前不同会创建新实例
+    """
+    global _event_extractor_instance, _event_extractor_username
+    
+    # 🔥 如果 username 改变，需要创建新实例
+    if username != _event_extractor_username:
+        _event_extractor_instance = None
+        _event_extractor_username = username
+    
     if _event_extractor_instance is None:
-        _event_extractor_instance = EventExtractor(logger_instance)
+        _event_extractor_instance = EventExtractor(logger_instance, username=username)
     return _event_extractor_instance

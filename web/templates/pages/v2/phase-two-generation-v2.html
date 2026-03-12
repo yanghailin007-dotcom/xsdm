@@ -898,6 +898,88 @@
             background: rgba(34, 197, 94, 0.1);
         }
 
+        /* ==================== V2 创意卡片样式覆盖 (用于项目选择列表) ==================== */
+        .creative-idea-card {
+            background: var(--v2-bg-tertiary) !important;
+            border: 1px solid var(--v2-border-subtle) !important;
+            border-radius: 12px !important;
+            padding: 20px !important;
+            cursor: pointer;
+            transition: all 0.25s var(--ease-out-expo);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .creative-idea-card:hover {
+            border-color: var(--v2-primary) !important;
+            transform: translateY(-2px);
+            box-shadow: var(--shadow-md);
+        }
+
+        .creative-idea-card.selected {
+            border-color: var(--v2-primary) !important;
+            border-width: 2px !important;
+            background: rgba(99, 102, 241, 0.1) !important;
+            box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.15);
+        }
+
+        .creative-idea-card .creative-idea-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 12px;
+        }
+
+        .creative-idea-card .creative-idea-title {
+            font-size: 1.1rem;
+            font-weight: 600;
+            color: var(--v2-text-primary) !important;
+            margin: 0;
+            line-height: 1.3;
+            -webkit-text-fill-color: var(--v2-text-primary) !important;
+            background: none !important;
+        }
+
+        .creative-idea-card .creative-idea-id {
+            background: var(--v2-bg-secondary) !important;
+            color: var(--v2-text-secondary) !important;
+            padding: 4px 10px;
+            border-radius: 6px;
+            font-size: 0.75rem;
+            font-weight: 500;
+            box-shadow: none;
+        }
+
+        .creative-idea-card .creative-idea-content {
+            color: var(--v2-text-secondary) !important;
+        }
+
+        /* 状态标签样式 - 整合版 */
+        .creative-idea-card .creative-idea-id.status-ready {
+            background: rgba(34, 197, 94, 0.15) !important;
+            color: var(--v2-success) !important;
+        }
+
+        .creative-idea-card .creative-idea-id.status-pending {
+            background: rgba(148, 163, 184, 0.15) !important;
+            color: var(--v2-text-muted) !important;
+        }
+
+        .creative-idea-card .creative-idea-id.status-generating {
+            background: rgba(99, 102, 241, 0.15) !important;
+            color: var(--v2-primary) !important;
+        }
+
+        .creative-idea-card .creative-idea-id.status-designing {
+            background: rgba(245, 158, 11, 0.15) !important;
+            color: var(--v2-warning) !important;
+        }
+
+        .creative-idea-card .creative-idea-id.status-completed {
+            background: rgba(34, 197, 94, 0.2) !important;
+            color: var(--v2-success) !important;
+        }
+
         /* ==================== 创意编辑器模态框 ==================== */
         #creative-editor-modal-phase-two > div {
             background: var(--v2-bg-secondary) !important;

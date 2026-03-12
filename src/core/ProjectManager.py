@@ -199,11 +199,24 @@ class ProjectManager:
         # 按时间倒序排序
         projects.sort(key=lambda x: x.get("timestamp", ""), reverse=True)
         return projects
-    def load_project(self, novel_title: str) -> Optional[Dict]:
-        """加载项目数据 - 使用统一路径配置系统"""
+    def load_project(self, novel_title: str, username: str = None) -> Optional[Dict]:
+        """加载项目数据 - 使用统一路径配置系统
+        
+        Args:
+            novel_title: 小说标题
+            username: 用户名（可选），用于用户隔离路径
+        """
         try:
+            # 🔥 获取用户名（如果未提供，尝试从 Flask 上下文获取）
+            if not username:
+                try:
+                    from web.utils.path_utils import get_current_username
+                    username = get_current_username()
+                except Exception:
+                    username = None
+            
             # 使用统一路径管理器加载项目信息
-            project_data = path_manager.load_project_info(novel_title)
+            project_data = path_manager.load_project_info(novel_title, username=username)
             
             # 🔥 修复：如果新路径不存在，尝试多种可能的路径（向后兼容）
             if project_data is None:
@@ -212,7 +225,9 @@ class ProjectManager:
                 
                 # 尝试多个可能的路径
                 possible_paths = [
-                    # 新路径：小说项目/小说名/小说名_项目信息.json
+                    # 新路径：小说项目/用户名/小说名/小说名_项目信息.json
+                    f"小说项目/{username}/{safe_title}/{safe_title}_项目信息.json" if username else None,
+                    # 旧路径：小说项目/小说名/小说名_项目信息.json
                     f"小说项目/{safe_title}/{safe_title}_项目信息.json",
                     # 备选路径：小说项目/小说名/project_info.json
                     f"小说项目/{safe_title}/project_info.json",
@@ -221,7 +236,7 @@ class ProjectManager:
                 ]
                 
                 for old_path in possible_paths:
-                    if os.path.exists(old_path):
+                    if old_path and os.path.exists(old_path):
                         try:
                             with open(old_path, 'r', encoding='utf-8') as f:
                                 project_data = json.load(f)
@@ -235,14 +250,14 @@ class ProjectManager:
                     self.logger.info(f"❌ 未找到项目: {novel_title}")
                     return None
             
-            # 尝试从独立文件加载成长路线和写作计划
-            growth_plan = growth_plan_manager.load_growth_plan(novel_title)
-            stage_plans = growth_plan_manager.load_stage_writing_plans(novel_title)
+            # 尝试从独立文件加载成长路线和写作计划（传入 username 确保用户隔离）
+            growth_plan = growth_plan_manager.load_growth_plan(novel_title, username=username)
+            stage_plans = growth_plan_manager.load_stage_writing_plans(novel_title, username=username)
 
             # 🔥 新增：从独立文件加载写作风格指南
             writing_style_guide = {}
             try:
-                writing_style_path = path_manager.path_config.get_project_paths(novel_title)["writing_style_guide"]
+                writing_style_path = path_manager.path_config.get_project_paths(novel_title, username=username)["writing_style_guide"]
                 self.logger.info(f"🔍 尝试加载写作风格指南: {writing_style_path}")
                 if os.path.exists(writing_style_path):
                     with open(writing_style_path, 'r', encoding='utf-8') as f:
@@ -254,7 +269,7 @@ class ProjectManager:
                     if project_data and "novel_title" in project_data:
                         alt_title = project_data["novel_title"]
                         if alt_title != novel_title:
-                            alt_paths = path_manager.path_config.get_project_paths(alt_title)
+                            alt_paths = path_manager.path_config.get_project_paths(alt_title, username=username)
                             alt_path = alt_paths["writing_style_guide"]
                             self.logger.info(f"🔍 尝试使用备选标题加载: {alt_path}")
                             if os.path.exists(alt_path):
@@ -271,18 +286,18 @@ class ProjectManager:
                 self.logger.warning(f"详细错误: {traceback.format_exc()}")
                 writing_style_guide = project_data.get("writing_style_guide", {})
             
-            # 如果独立文件不存在,从项目信息中迁移
+            # 如果独立文件不存在,从项目信息中迁移（传入 username 确保用户隔离）
             if growth_plan is None and project_data.get("global_growth_plan"):
                 self.logger.info(f"📦 检测到成长路线在项目信息中,准备迁移...")
-                growth_plan_manager.migrate_growth_plan_from_project_info(novel_title, project_data)
-                growth_plan = growth_plan_manager.load_growth_plan(novel_title)
+                growth_plan_manager.migrate_growth_plan_from_project_info(novel_title, project_data, username=username)
+                growth_plan = growth_plan_manager.load_growth_plan(novel_title, username=username)
             
             if stage_plans is None and project_data.get("stage_writing_plans"):
                 self.logger.info(f"📦 检测到写作计划在项目信息中,准备迁移...")
                 if growth_plan is None:
                     # 如果还没迁移过,进行迁移
-                    growth_plan_manager.migrate_growth_plan_from_project_info(novel_title, project_data)
-                stage_plans = growth_plan_manager.load_stage_writing_plans(novel_title)
+                    growth_plan_manager.migrate_growth_plan_from_project_info(novel_title, project_data, username=username)
+                stage_plans = growth_plan_manager.load_stage_writing_plans(novel_title, username=username)
             
             # 🔥 修复：从项目信息中提取总章节数
             # 优先级：progress.total_chapters > 顶层total_chapters > 默认值
@@ -332,7 +347,7 @@ class ProjectManager:
                 "quality_statistics": project_data.get("quality_statistics", {})
             }
             # 加载章节具体内容 - 使用新的路径配置系统
-            paths = path_config.get_project_paths(novel_data["novel_title"])
+            paths = path_config.get_project_paths(novel_data["novel_title"], username=username)
             chapters_dir = Path(paths["chapters_dir"])
             
             if chapters_dir.exists():
@@ -393,7 +408,7 @@ class ProjectManager:
             import traceback
             traceback.print_exc()
             return None
-    def save_single_chapter(self, novel_title: str, chapter_number: int, chapter_data: Dict):
+    def save_single_chapter(self, novel_title: str, chapter_number: int, chapter_data: Dict, username: str = None):
         """保存单章内容 - 使用统一路径管理器"""
         # 提取所有章节特定的信息
         chapter_json_data = {
@@ -419,12 +434,12 @@ class ProjectManager:
             "previous_chapter_summary": chapter_data.get("previous_chapters_summary", ""),
         }
         
-        # 使用路径管理器保存章节
-        success = path_manager.save_chapter(novel_title, chapter_number, chapter_json_data)
+        # 使用路径管理器保存章节（传递用户名）
+        success = path_manager.save_chapter(novel_title, chapter_number, chapter_json_data, username=username)
         if success:
             # 获取并显示绝对路径
             from src.config.path_config import path_config
-            paths = path_config.get_project_paths(novel_title)
+            paths = path_config.get_project_paths(novel_title, username=username)
             abs_chapters_dir = os.path.abspath(paths["chapters_dir"])
             self.logger.info(f"✅ 第{chapter_number}章已保存到: {abs_chapters_dir}")
         else:
@@ -524,15 +539,8 @@ class ProjectManager:
             }
         }
         try:
-            # 🔥 获取用户名用于用户隔离路径
-            username = None
-            try:
-                from web.utils.path_utils import get_current_username
-                username = get_current_username()
-            except Exception:
-                pass
-            
             # 使用统一路径管理器保存项目信息（传递用户名）
+            # 🔥 注意：username 已经在方法开头从 novel_data 获取
             success = path_manager.save_project_info(novel_title, data, username=username)
             if success:
                 self.logger.info(f"✓ 项目进度已保存: {paths['project_info']}")
@@ -666,7 +674,9 @@ class ProjectManager:
         }
         try:
             # 使用新的路径配置系统
-            paths = path_config.get_project_paths(novel_data["novel_title"])
+            # 🔥 修复：从 novel_data 获取 username，确保使用正确的用户隔离路径
+            username = novel_data.get('_username')
+            paths = path_config.get_project_paths(novel_data["novel_title"], username=username)
             
             with open(paths["novel_overview"], 'w', encoding='utf-8') as f:
                 json.dump(overview_data, f, ensure_ascii=False, indent=2)
@@ -704,11 +714,11 @@ class ProjectManager:
         except Exception as e:
             self.logger.info(f"❌ 加载元素引入计划失败: {e}")
             return {}    
-    def get_actual_chapter_files(self, novel_title: str) -> Dict:
+    def get_actual_chapter_files(self, novel_title: str, username: str = None) -> Dict:
         """获取实际的章节文件信息"""
         # 使用新的路径配置系统
         # path_config 已经使用绝对路径，不需要再次转换
-        paths = path_config.get_project_paths(novel_title)
+        paths = path_config.get_project_paths(novel_title, username=username)
         chapters_dir = Path(paths["chapters_dir"])
         
         result = {

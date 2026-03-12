@@ -20,6 +20,106 @@ class EmotionalPlanManager:
         self.logger = get_logger("EmotionalPlanManager")
         self.generator = novel_generator
 
+    def generate_all_stages_emotional_plan(self, stages_info: List[Dict], emotional_blueprint: Dict) -> Dict[str, Dict]:
+        """
+        🔥 优化：一次性为所有阶段生成情绪计划（合并API调用）
+        
+        Args:
+            stages_info: 阶段信息列表，每个包含 stage_name 和 stage_range
+            emotional_blueprint: 全书的情绪蓝图
+            
+        Returns:
+            字典，key是阶段名，value是该阶段的情绪计划
+        """
+        if not stages_info:
+            return {}
+        
+        self.logger.info(f"   💖 正在合并生成 {len(stages_info)} 个阶段的情绪计划...")
+        
+        # 构建包含所有阶段的提示词
+        stages_desc = []
+        for i, stage in enumerate(stages_info, 1):
+            stage_name = stage['stage_name']
+            stage_range = stage['stage_range']
+            stage_arc = emotional_blueprint.get("stage_emotional_arcs", {}).get(stage_name, {})
+            arc_desc = stage_arc.get('description', '情绪发展')
+            stages_desc.append(f"{i}. {stage_name} ({stage_range}): {arc_desc}")
+        
+        emotional_spectrum = emotional_blueprint.get("emotional_spectrum", [])
+        prompt = self._build_all_stages_prompt(stages_desc, emotional_spectrum)
+        
+        # 单次API调用生成所有阶段的情绪计划
+        all_plans = self.generator.api_client.generate_content_with_retry(
+            "stage_emotional_planning",
+            prompt,
+            purpose=f"批量生成{len(stages_info)}个阶段情绪计划"
+        )
+        
+        if not all_plans or "stages_emotional_plans" not in all_plans:
+            self.logger.warning("   ⚠️ 合并生成情绪计划失败，回退到单阶段生成")
+            # 回退到逐个生成
+            result = {}
+            for stage in stages_info:
+                plan = self.generate_stage_emotional_plan(
+                    stage['stage_name'], 
+                    stage['stage_range'], 
+                    emotional_blueprint
+                )
+                if plan:
+                    result[stage['stage_name']] = plan
+            return result
+        
+        # 解析返回结果
+        result = {}
+        plans_list = all_plans.get("stages_emotional_plans", [])
+        for plan in plans_list:
+            stage_name = plan.get("stage_name")
+            if stage_name and "emotional_segments" in plan:
+                result[stage_name] = plan
+                self.logger.info(f"   ✅ {stage_name} 情绪计划已提取")
+        
+        self.logger.info(f"   ✅ 成功生成 {len(result)}/{len(stages_info)} 个阶段的情绪计划")
+        return result
+
+    def _build_all_stages_prompt(self, stages_desc: List[str], emotional_spectrum: List[str]) -> str:
+        """构建批量生成所有阶段情绪计划的提示词"""
+        stages_text = "\n".join(stages_desc)
+        return f"""
+# 角色：金牌网文编辑，情绪节奏大师
+
+# 核心任务
+为小说的以下阶段，分别设计具体、可执行的【情绪节奏方案】。你需要将抽象的情绪目标，拆解成若干个情绪小节，并为每个小节分配章节范围和核心任务。
+
+# 阶段列表
+{stages_text}
+
+# 全书核心情感光谱
+{', '.join(emotional_spectrum) if emotional_spectrum else '爽感、压抑、期待、惊喜、悲愤、热血、感动'}
+
+# 工作要求
+1. 为每个阶段分为3-5个【情绪分段】(Emotional Segments)。
+2. 每个分段都要有一个明确的【情绪关键词】（从情感光谱中选取或创造更具体的）。
+3. 为每个分段规划【核心情绪任务】，即通过什么类型的事件来达成该情绪。
+
+# 输出格式 (严格JSON)
+{{
+    "stages_emotional_plans": [
+        {{
+            "stage_name": "阶段名称",
+            "main_emotional_arc": "该阶段核心情绪弧线",
+            "emotional_segments": [
+                {{
+                    "segment_name": "情绪分段名称",
+                    "chapter_range": "章节范围",
+                    "target_emotion_keyword": "核心情绪关键词",
+                    "core_emotional_task": "如何达成该情绪"
+                }}
+            ]
+        }}
+    ]
+}}
+"""
+
     def generate_stage_emotional_plan(self, stage_name: str, stage_range: str, emotional_blueprint: Dict) -> Dict:
         """
         根据情绪蓝图，为指定阶段生成详细的情绪执行计划。

@@ -7,11 +7,76 @@ import re
 import threading
 import uuid
 import time
+import atexit
+import signal
+import sys
 from datetime import datetime
 from pathlib import Path
 from typing import Dict, Any, List, Optional
 
 from web.web_config import logger, BASE_DIR, CREATIVE_IDEAS_FILE
+
+
+# 🔥 全局清理函数：主进程退出时停止所有子线程
+def _cleanup_on_exit():
+    """主进程退出时清理所有生成任务"""
+    logger.info("🧹 主进程退出，开始清理生成任务...")
+    try:
+        # 获取全局管理器实例并停止所有任务
+        global _thread_monitor
+        if '_thread_monitor' in globals():
+            _thread_monitor.stop_monitoring()
+            
+        # 尝试获取 novel_manager 实例并停止所有活跃任务
+        global novel_manager
+        if 'novel_manager' in globals() and novel_manager:
+            # 停止所有活跃任务
+            for task_id in list(novel_manager.active_tasks.keys()):
+                logger.info(f"⏹️ 停止任务: {task_id}")
+                novel_manager.stop_task(task_id)
+            
+            # 停止所有任务线程
+            for task_id, thread in list(novel_manager.task_threads.items()):
+                if thread.is_alive():
+                    logger.info(f"⏹️ 等待线程结束: {task_id}")
+                    # 设置停止标志
+                    novel_manager._stop_flags[task_id] = True
+                    # 等待线程结束（最多3秒）
+                    thread.join(timeout=3)
+                    
+        logger.info("✅ 清理完成")
+    except Exception as e:
+        logger.error(f"❌ 清理过程出错: {e}")
+
+
+def force_kill_all_threads():
+    """
+    强制终止所有生成线程（仅在极端情况下使用）
+    使用 os._exit 强制退出，不执行任何清理
+    """
+    logger.warning("⚠️ 强制终止所有线程！")
+    os._exit(1)
+
+
+# 🔥 信号处理器：捕获进程终止信号
+def _signal_handler(signum, frame):
+    """处理进程终止信号"""
+    sig_name = signal.Signals(signum).name if hasattr(signal, 'Signals') else str(signum)
+    logger.info(f"📡 收到信号 {sig_name}，准备退出...")
+    _cleanup_on_exit()
+    # 使用 os._exit 强制退出所有线程
+    os._exit(0)
+
+
+# 注册 atexit 清理函数
+atexit.register(_cleanup_on_exit)
+
+# 注册信号处理器（在 Windows 上 SIGTERM 可能不可用，所以用 try-except）
+try:
+    signal.signal(signal.SIGTERM, _signal_handler)
+    signal.signal(signal.SIGINT, _signal_handler)
+except (AttributeError, ValueError):
+    pass  # 在某些平台上信号可能不可用
 
 
 # 🔥 线程监控器：确保后台线程健康运行
@@ -282,37 +347,52 @@ class NovelGenerationManager:
         except ImportError:
             pass  # 如果导入失败，忽略
 
-    def _update_task_status(self, task_id: str, status: str, progress: int, error: Optional[str] = None, 
+    def _update_task_status(self, task_id: str, status: str, progress: int = None, error: Optional[str] = None, 
                             current_step: str = None, step_status: Dict = None, points_consumed: int = None):
-        """更新任务状态和进度 - 支持详细步骤状态和创造点消耗"""
+        """更新任务状态和进度 - 支持详细步骤状态和创造点消耗
+        
+        Args:
+            progress: 进度值(0-100)，如果为None则保持已有进度不变
+        """
         # 🔥 修复：即使task_id不在task_results中，也要初始化它（防止任务初始化失败导致的404）
         if task_id not in self.task_results:
             logger.info(f"⚠️ 任务 {task_id} 不在 task_results 中，初始化基础结构")
             self.task_results[task_id] = {
                 "task_id": task_id,
                 "status": status,
-                "progress": progress,
+                "progress": progress if progress is not None else 0,
                 "created_at": datetime.now().isoformat(),
                 "updated_at": datetime.now().isoformat(),
                 "step_status": {},
+                "sub_step_progress": {},  # 🔥 新增：子步骤进度跟踪
                 "points_consumed": 0,
                 "points_total": 400
             }
         else:
-            self.task_results[task_id].update({
+            update_data = {
                 "status": status,
-                "progress": progress,
                 "updated_at": datetime.now().isoformat()
-            })
+            }
+            # 🔥 修复：只有当 progress 不为 None 时才更新进度
+            if progress is not None:
+                update_data["progress"] = progress
+            self.task_results[task_id].update(update_data)
             if error:
                 self.task_results[task_id]["error"] = error
 
         # 🔥 修复：始终更新task_progress，确保get_task_progress能返回数据
-        self.task_progress[task_id] = {
+        task_progress_data = {
             "status": status,
-            "progress": progress,
             "timestamp": datetime.now().isoformat()
         }
+        # 🔥 修复：只有当 progress 不为 None 时才更新进度
+        if progress is not None:
+            task_progress_data["progress"] = progress
+        else:
+            # 保持已有进度
+            task_progress_data["progress"] = self.task_results[task_id].get("progress", 0)
+        
+        self.task_progress[task_id] = task_progress_data
         if error:
             self.task_progress[task_id]["error"] = error
         
@@ -321,32 +401,74 @@ class NovelGenerationManager:
             self.task_results[task_id]["current_step"] = current_step
             self.task_progress[task_id]["current_step"] = current_step
             
-            # 🔥 基于 13 个标准步骤重新计算进度百分比
+            # 🔥 基于 14 个标准步骤重新计算进度百分比（支持子步骤细粒度进度）
             phase_one_steps = [
-                'initialization',           # 0%
-                'writing_style',            # 8%
-                'market_analysis',          # 15%
-                'worldview',                # 23%
-                'faction_system',           # 31%
-                'character_design',         # 38%
-                'emotional_blueprint',      # 46%
-                'growth_plan',              # 54%
-                'stage_plan',               # 62%
-                'detailed_stage_plans',     # 69%
-                'expectation_mapping',      # 77%
-                'system_init',              # 85%
-                'saving',                   # 92%
-                'quality_assessment'        # 100%
+                'creative_refinement',      # 1. 创意精炼
+                'fanfiction_detection',     # 2. 同人检测
+                'multiple_plans',           # 3. 生成多个方案
+                'plan_selection',           # 4. 选择最佳方案
+                'foundation_planning',      # 5. 基础规划（写作风格+市场分析）
+                'worldview_with_factions',  # 6. 世界观与势力系统
+                'character_design',         # 7. 核心角色设计
+                'emotional_growth_planning', # 8. 情绪蓝图与成长规划
+                'stage_plan',               # 9. 全书阶段计划
+                'detailed_stage_plans',     # 10. 阶段详细计划
+                'expectation_mapping',      # 11. 期待感映射
+                'system_init',              # 12. 系统初始化
+                'saving',                   # 13. 保存设定结果
+                'quality_assessment'        # 14. AI质量评估
             ]
+            
+            # 🔥 修复：自动更新 step_status，将当前步骤及之前的步骤标记为完成
+            if "step_status" not in self.task_results[task_id]:
+                self.task_results[task_id]["step_status"] = {}
+            if "sub_step_progress" not in self.task_results[task_id]:
+                self.task_results[task_id]["sub_step_progress"] = {}
             
             if current_step in phase_one_steps:
                 step_index = phase_one_steps.index(current_step)
+                
+                # 🔥 获取当前已有进度（如果 progress 为 None，使用已有进度）
+                current_progress = self.task_results[task_id].get("progress", 0)
+                
+                # 🔥 修复：优先使用传入的进度，只在需要时计算基础进度
                 calculated_progress = int((step_index / (len(phase_one_steps) - 1)) * 100)
-                # 如果传入的进度与计算的不一致，使用计算的进度
-                if abs(progress - calculated_progress) > 10:
+                
+                # 只有在以下情况才使用计算进度：
+                # 1. 没有传入进度（为0或None）
+                # 2. 传入进度明显异常（与计算进度相差超过50%，可能是错误值）
+                if progress is None or progress == 0:
                     progress = calculated_progress
-                    self.task_results[task_id]["progress"] = progress
-                    self.task_progress[task_id]["progress"] = progress
+                elif abs(progress - calculated_progress) > 50:
+                    # 传入进度与计算进度相差过大，可能是错误，使用计算进度
+                    self.logger.warning(f"任务 {task_id}: 传入进度 {progress}% 与计算进度 {calculated_progress}% 相差过大，使用计算进度")
+                    progress = calculated_progress
+                # 否则保留传入的进度（信任调用方提供的精确值）
+                
+                # 🔥 新增：如果是 detailed_stage_plans，根据子步骤计算细粒度进度
+                if current_step == 'detailed_stage_plans':
+                    if step_status and isinstance(step_status, dict) and 'sub_step' in step_status:
+                        sub_progress = self._calculate_detailed_stage_progress(task_id, step_status)
+                        # 将子步骤进度叠加到基础进度上（detailed_stage_plans 占 69% ~ 77%，跨度8%）
+                        progress = 69 + int(sub_progress * 0.08)
+                    else:
+                        # 如果没有子步骤信息，使用默认进度（69% + 阶段内偏移）
+                        progress = 69
+                
+                self.task_results[task_id]["progress"] = progress
+                
+                # 🔥 更新所有步骤状态：之前的完成，当前的进行中，之后的等待中
+                for i, step in enumerate(phase_one_steps):
+                    if i < step_index:
+                        self.task_results[task_id]["step_status"][step] = "completed"
+                    elif i == step_index:
+                        self.task_results[task_id]["step_status"][step] = "active"
+                    else:
+                        if step not in self.task_results[task_id]["step_status"]:
+                            self.task_results[task_id]["step_status"][step] = "waiting"
+            else:
+                # 对于不在标准列表中的步骤，只标记当前为active
+                self.task_results[task_id]["step_status"][current_step] = "active"
         else:
             # 使用进度映射（基于 13 个步骤的粗略映射）
             step_mapping = {
@@ -385,7 +507,9 @@ class NovelGenerationManager:
         if points_consumed is not None:
             self.task_results[task_id]["points_consumed"] = points_consumed
         
-        logger.info(f"任务 {task_id}: 进度更新 {progress}% - 当前步骤: {current_step}")
+        # 🔥 修复：处理 progress 为 None 的情况
+        log_progress = progress if progress is not None else self.task_results[task_id].get("progress", 0)
+        logger.info(f"任务 {task_id}: 进度更新 {log_progress}% - 当前步骤: {current_step}")
 
     def update_step_status(self, task_id: str, step_name: str, status: str, points_cost: int = 0):
         """更新特定步骤的状态和创造点消耗"""
@@ -405,6 +529,65 @@ class NovelGenerationManager:
             self.task_results[task_id]["points_consumed"] = current_points + points_cost
         
         logger.info(f"任务 {task_id}: 步骤 {step_name} 更新为 {status}, 创造点: +{points_cost}")
+
+    def _calculate_detailed_stage_progress(self, task_id: str, step_status: Dict) -> int:
+        """
+        计算 detailed_stage_plans 步骤的子步骤进度
+        
+        detailed_stage_plans 步骤包含4个阶段（起承转合），每个阶段有7个子步骤：
+        1. emotional_plan - 情绪计划
+        2. major_event_skeletons - 重大事件骨架
+        3. event_decomposition - 事件分解
+        4. continuity_assessment - 连续性评估
+        5. scene_assembly - 场景组装
+        6. character_inference - 角色推断
+        7. supporting_characters - 配角生成
+        
+        总共 4 * 7 = 28 个子步骤
+        """
+        try:
+            # 获取当前阶段和子步骤
+            sub_step = step_status.get('sub_step', '')
+            stage_name = step_status.get('stage_name', '')
+            sub_step_status = step_status.get('sub_step_status', '')
+            
+            # 定义阶段顺序
+            stages = ['opening_stage', 'rising_stage', 'turning_stage', 'resolution_stage']
+            # 定义子步骤顺序
+            sub_steps = [
+                'emotional_plan',
+                'major_event_skeletons', 
+                'event_decomposition',
+                'continuity_assessment',
+                'scene_assembly',
+                'character_inference',
+                'supporting_characters'
+            ]
+            
+            # 计算已完成的子步骤数量
+            completed_count = 0
+            
+            # 计算已完成阶段数
+            current_stage_index = stages.index(stage_name) if stage_name in stages else 0
+            completed_count += current_stage_index * len(sub_steps)
+            
+            # 计算当前阶段已完成的子步骤数
+            if sub_step in sub_steps:
+                current_sub_index = sub_steps.index(sub_step)
+                if sub_step_status in ['completed', 'active']:
+                    completed_count += current_sub_index + 1
+                else:
+                    completed_count += current_sub_index
+            
+            # 计算进度百分比（0-100）
+            total_sub_steps = len(stages) * len(sub_steps)  # 28
+            progress = int((completed_count / total_sub_steps) * 100)
+            
+            return min(progress, 100)
+            
+        except Exception as e:
+            logger.warning(f"计算详细阶段进度失败: {e}")
+            return 0
 
     def get_task_status(self, task_id: str) -> Dict[str, Any]:
         """获取任务状态"""
@@ -734,25 +917,64 @@ class NovelGenerationManager:
             
             # 🔥 修复：处理找到的所有计划文件（无论来自哪个目录）
             for plan_file in plan_files:
-                with open(plan_file, 'r', encoding='utf-8') as f:
-                    plan_data = json.load(f)
+                try:
+                    with open(plan_file, 'r', encoding='utf-8') as f:
+                        plan_data = json.load(f)
+                    
                     # 🔥 修复：从文件名提取阶段名
                     # 文件名格式：吞噬万界：从一把生锈铁剑开始_opening_stage_writing_plan.json
+                    # 🔥 调试：打印文件名
+                    logger.info(f"[PLAN_DEBUG] 处理文件: {plan_file.name}, 路径: {plan_file}")
+                    
+                    # 🔥 改进：更 robust 的阶段名提取
+                    stage_name = None
+                    
+                    # 方法1：从文件名提取
                     match = re.search(r'_(.+?)_stage_writing_plan\.json$', plan_file.name)
                     if match:
                         stage_name = match.group(1)
-                    else:
-                        # 尝试从 plan_data 中获取 stage_name
+                        logger.info(f"[PLAN_DEBUG] 正则匹配成功: {plan_file.name} -> stage_name={stage_name}")
+                    
+                    # 方法2：尝试从stem提取（备用）
+                    if not stage_name:
+                        stem = plan_file.stem  # 例如: 诡异降临：我的首秀是带货_opening_stage
+                        parts = stem.split('_')
+                        for i, part in enumerate(parts):
+                            if 'stage' in part.lower() and i > 0:
+                                # 重建阶段名
+                                stage_parts = []
+                                for j in range(max(0, i-2), i+1):  # 多取几个部分确保完整
+                                    if j < len(parts):
+                                        stage_parts.append(parts[j])
+                                stage_name = '_'.join(stage_parts)
+                                # 清理阶段名
+                                stage_name = stage_name.replace('_writing', '').replace('_plan', '')
+                                if stage_name:
+                                    logger.info(f"[PLAN_DEBUG] 从stem提取阶段名: {plan_file.name} -> {stage_name}")
+                                    break
+                    
+                    # 方法3：从文件内容提取
+                    if not stage_name:
+                        logger.info(f"[PLAN_DEBUG] 尝试从数据中提取: {plan_file.name}")
                         if isinstance(plan_data, dict):
                             stage_writing_plan = plan_data.get("stage_writing_plan", {})
                             if isinstance(stage_writing_plan, dict):
-                                stage_name = stage_writing_plan.get("stage_name", "unknown")
-                            else:
-                                stage_name = "unknown"
-                        else:
-                            stage_name = "unknown"
+                                stage_name = stage_writing_plan.get("stage_name", "")
+                            if not stage_name:
+                                # 尝试从其他字段提取
+                                stage_name = plan_data.get("stage_name", "")
+                        if stage_name:
+                            logger.info(f"[PLAN_DEBUG] 从数据中提取阶段名: {stage_name}")
+                    
+                    # 如果都失败了，使用unknown
+                    if not stage_name:
+                        stage_name = "unknown"
+                        logger.warning(f"[PLAN_DEBUG] 无法提取阶段名，使用unknown: {plan_file.name}")
+                    
                     quality_data["writing_plans"][stage_name] = plan_data
                     logger.info(f"✅ 已加载写作计划: {plan_file.name} -> 阶段: {stage_name}")
+                except Exception as e:
+                    logger.error(f"❌ 加载写作计划失败 {plan_file}: {e}")
 
             # 加载关系数据
             relationships_file = Path(paths.get("relationships", novel_base / "relationships.json"))
@@ -1004,8 +1226,9 @@ class NovelGenerationManager:
         if "writing_style_guide" not in standardized_data or not standardized_data.get("writing_style_guide"):
             try:
                 from src.config.path_config import path_config
-                # 🔥 修复：这里也需要username，但当前函数没有传递，使用默认值
-                writing_style_path = Path(path_config.get_project_paths(title, username=None).get("writing_style_guide", ""))
+                # 🔥 修复：从 novel_data 获取 owner 作为 username
+                username = novel_data.get('owner')
+                writing_style_path = Path(path_config.get_project_paths(title, username=username).get("writing_style_guide", ""))
                 if writing_style_path.exists():
                     with open(writing_style_path, 'r', encoding='utf-8') as f:
                         writing_style_guide = json.load(f)
@@ -1262,7 +1485,10 @@ class NovelGenerationManager:
             if self.checkpoint_enabled and not is_resume_mode:
                 self._create_initial_checkpoint(title, config, task_id, self._current_username)
             
-            self._update_task_status(task_id, "generating", 10)
+            # 🔥 修复：当 start_new=True 时，跳过预更新进度，让 phase_one_generation 全权控制
+            # 避免进度从 60% 跳回 0% 的奇怪现象
+            if not start_new:
+                self._update_task_status(task_id, "generating", 10, current_step="creative_refinement")
             
             # 检查创意种子
             creative_seed = config.get("creative_seed", {})
@@ -1323,24 +1549,26 @@ class NovelGenerationManager:
             
             total_chapters = config.get("total_chapters", 200)
             
-            # 更新进度
-            self._update_task_status(task_id, "generating", 20)
-            
-            # 🔥 新增：更新检查点 - 初始化完成
-            if self.checkpoint_enabled:
-                self._update_checkpoint(title, "phase_one", "initialization", {"status": "generator_initialized"}, step_status="completed")
-            
-            logger.info(f"任务 {task_id}: 📋 分析创意种子 (40%)")
-            self._update_task_status(task_id, "generating", 40)
-            
-            # 更新检查点 - 开始世界观构建
-            if self.checkpoint_enabled:
-                self._update_checkpoint(title, "phase_one", "worldview", {"status": "analyzing_seed"}, step_status="in_progress")
-            self._update_task_status(task_id, "generating", 60)
-            
-            # 更新检查点 - 开始角色设计（在实际调用前保存为 in_progress）
-            if self.checkpoint_enabled:
-                self._update_checkpoint(title, "phase_one", "character_design", {"status": "generating_worldview"}, step_status="in_progress")
+            # 🔥 修复：当 start_new=True 时，跳过预更新进度
+            if not start_new:
+                # 更新进度
+                self._update_task_status(task_id, "generating", 20, current_step="fanfiction_detection")
+                
+                # 🔥 新增：更新检查点 - 初始化完成
+                if self.checkpoint_enabled:
+                    self._update_checkpoint(title, "phase_one", "initialization", {"status": "generator_initialized"}, step_status="completed")
+                
+                logger.info(f"任务 {task_id}: 📋 分析创意种子 (40%)")
+                self._update_task_status(task_id, "generating", 40, current_step="multiple_plans")
+                
+                # 更新检查点 - 开始世界观构建
+                if self.checkpoint_enabled:
+                    self._update_checkpoint(title, "phase_one", "worldview", {"status": "analyzing_seed"}, step_status="in_progress")
+                self._update_task_status(task_id, "generating", 60, current_step="worldview_with_factions")
+                
+                # 更新检查点 - 开始角色设计（在实际调用前保存为 in_progress）
+                if self.checkpoint_enabled:
+                    self._update_checkpoint(title, "phase_one", "character_design", {"status": "generating_worldview"}, step_status="in_progress")
             
             try:
                 # 为生成器设置进度回调（使用动态属性设置）
@@ -1385,7 +1613,7 @@ class NovelGenerationManager:
                     if self.checkpoint_enabled:
                         self._update_checkpoint(title, "phase_one", "quality_assessment", {"status": "completed"}, step_status="completed")
                     
-                    self._update_task_status(task_id, "completed", 100)
+                    self._update_task_status(task_id, "completed", 100, current_step="quality_assessment")
                     
                     # 保存第一阶段结果到任务结果中
                     task_result = self.task_results.get(task_id, {})
@@ -2092,6 +2320,20 @@ class NovelGenerationManager:
                 logger.error(f"任务 {task_id}: ❌ 无法加载小说数据: {novel_title}")
                 self._update_task_status(task_id, "failed", 30, f"无法加载小说数据: {novel_title}")
                 return
+            
+            # 关键修复：将 overall_stage_plans 同步到 novel_generator.novel_data
+            if "overall_stage_plans" in novel_detail:
+                novel_generator.novel_data["overall_stage_plans"] = novel_detail["overall_stage_plans"]
+                logger.info(f"任务 {task_id}: ✅ 已加载 overall_stage_plans")
+            else:
+                logger.warning(f"任务 {task_id}: ⚠️ 项目数据中没有 overall_stage_plans")
+            
+            # 同步其他关键数据
+            for key in ["novel_title", "novel_synopsis", "creative_seed", "category", "selected_plan", 
+                        "global_growth_plan", "stage_writing_plans", "character_design", "core_worldview"]:
+                if key in novel_detail and novel_detail[key]:
+                    novel_generator.novel_data[key] = novel_detail[key]
+                    logger.info(f"任务 {task_id}: ✅ 已同步 {key}")
             
             logger.info(f"任务 {task_id}: ✅ 成功加载小说数据，开始准备第二阶段生成")
             

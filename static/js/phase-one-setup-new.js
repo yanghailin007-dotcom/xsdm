@@ -561,8 +561,11 @@ class PhaseOneSetup {
                     return;
                 }
 
-                const taskStatus = await response.json();
-                console.log('📋 [DEBUG] 任务状态数据:', taskStatus);
+                const result = await response.json();
+                console.log('📋 [DEBUG] 任务状态数据:', result);
+                
+                // 🔥 修复：后端返回的数据嵌套在 data 字段中
+                const taskStatus = result.data || result;
                 
                 this.updateProgressUI(taskStatus);
 

@@ -69,10 +69,15 @@ class GrowthPlanManager:
             self.logger.error(f"❌ 保存成长路线失败: {e}")
             return False
     
-    def load_growth_plan(self, novel_title: str) -> Optional[Dict]:
-        """从独立文件加载成长路线"""
+    def load_growth_plan(self, novel_title: str, username: str = None) -> Optional[Dict]:
+        """从独立文件加载成长路线
+        
+        Args:
+            novel_title: 小说标题
+            username: 用户名（可选），用于用户隔离路径
+        """
         try:
-            file_path = self.get_growth_plan_path(novel_title)
+            file_path = self.get_growth_plan_path(novel_title, username=username)
             
             if not os.path.exists(file_path):
                 self.logger.info(f"⚠️ 成长路线文件不存在: {file_path}")
@@ -112,10 +117,15 @@ class GrowthPlanManager:
             self.logger.error(f"❌ 保存写作计划失败: {e}")
             return False
     
-    def load_stage_writing_plans(self, novel_title: str) -> Optional[Dict]:
-        """从独立文件加载写作计划"""
+    def load_stage_writing_plans(self, novel_title: str, username: str = None) -> Optional[Dict]:
+        """从独立文件加载写作计划
+        
+        Args:
+            novel_title: 小说标题
+            username: 用户名（可选），用于用户隔离路径
+        """
         try:
-            file_path = self.get_stage_writing_plans_path(novel_title)
+            file_path = self.get_stage_writing_plans_path(novel_title, username=username)
             
             if not os.path.exists(file_path):
                 self.logger.info(f"⚠️ 写作计划文件不存在: {file_path}")
@@ -174,21 +184,31 @@ class GrowthPlanManager:
             self.logger.error(f"❌ 迁移成长路线数据失败: {e}")
             return False
     
-    def get_all_planning_files(self, novel_title: str) -> Dict[str, Optional[str]]:
-        """获取所有规划文件的路径"""
-        paths = path_config.get_project_paths(novel_title)
+    def get_all_planning_files(self, novel_title: str, username: str = None) -> Dict[str, Optional[str]]:
+        """获取所有规划文件的路径
+        
+        Args:
+            novel_title: 小说标题
+            username: 用户名（可选），用于用户隔离路径
+        """
+        paths = path_config.get_project_paths(novel_title, username=username)
         safe_title = path_config.get_safe_title(novel_title)
         
         return {
-            "global_growth_plan": self.get_growth_plan_path(novel_title),
-            "stage_writing_plans": self.get_stage_writing_plans_path(novel_title),
+            "global_growth_plan": self.get_growth_plan_path(novel_title, username=username),
+            "stage_writing_plans": self.get_stage_writing_plans_path(novel_title, username=username),
             "overall_stage_plans": paths.get("overall_stage_plans"),
             "writing_style_guide": paths.get("writing_style_guide"),
         }
     
-    def validate_planning_files(self, novel_title: str) -> Dict[str, bool]:
-        """验证所有规划文件是否存在"""
-        file_paths = self.get_all_planning_files(novel_title)
+    def validate_planning_files(self, novel_title: str, username: str = None) -> Dict[str, bool]:
+        """验证所有规划文件是否存在
+        
+        Args:
+            novel_title: 小说标题
+            username: 用户名（可选），用于用户隔离路径
+        """
+        file_paths = self.get_all_planning_files(novel_title, username=username)
         
         validation_results = {}
         for file_type, file_path in file_paths.items():

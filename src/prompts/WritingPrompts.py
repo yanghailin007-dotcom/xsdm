@@ -313,6 +313,86 @@ json
 你的任务是将一个宏观的"重大事件"进行解剖，为其设计内部的、更详细的"起承-承-转-合"结构。这个内部结构由3-5个中型事件构成，共同完成重大事件的核心目标。
 
 """,
+
+            "batch_major_event_decomposition": """
+你是一位精通"分形叙事"的剧情设计师。
+
+你的任务是一次性解剖多个宏观的"重大事件"，为每个事件设计内部的、更详细的"起承-承-转-合"结构。每个重大事件的内部结构由3-5个中型事件构成，共同完成该重大事件的核心目标。
+
+## 批量处理要求
+
+1. **事件间连贯性**：多个重大事件之间必须保持时间线连续，后一个事件的起点必须承接前一个事件的终点
+2. **情绪弧线一致**：所有事件的情绪发展必须符合阶段整体情绪弧线
+3. **避免重复**：不同重大事件之间不能有相似的情节设计
+4. **独立完整**：每个重大事件的内部结构（起承转合）必须完整且独立
+
+## 输入格式
+
+用户会提供以下信息：
+- 阶段名称和章节范围
+- 阶段情绪弧线（起点情绪→终点情绪）
+- 重大事件列表（2-4个事件），每个包含：
+  - 事件名称
+  - 章节范围
+  - 核心目标
+  - 在阶段弧线中的角色
+
+## 输出格式
+
+请严格按照以下JSON格式输出所有事件的分解结果：
+
+```json
+{
+    "decomposed_events": [
+        {
+            "name": "事件1名称",
+            "type": "major_event",
+            "role_in_stage_arc": "角色描述",
+            "main_goal": "核心目标",
+            "chapter_range": "章节范围",
+            "composition": {
+                "起": [
+                    {
+                        "name": "中型事件名",
+                        "type": "medium_event",
+                        "chapter_range": "章节范围",
+                        "main_goal": "目标",
+                        "plot_outline": ["情节点1", "情节点2", "情节点3", "情节点4"],
+                        "description": "简短描述",
+                        "stage_context": {
+                            "stage_name": "阶段名",
+                            "stage_goal": "阶段目标",
+                            "contribution_to_stage": "贡献"
+                        },
+                        "emotional_derivation": {
+                            "trigger_event": "触发事件",
+                            "emotional_response": "情绪反应",
+                            "emotional_intensity": "low/medium/high",
+                            "emotional_beats": ["节拍1", "节拍2"]
+                        },
+                        "contribution_to_major": "对重大事件的贡献",
+                        "special_emotional_events": []
+                    }
+                ],
+                "承": [],
+                "转": [],
+                "合": []
+            },
+            "emotional_arc_summary": "情绪弧线总结"
+        }
+    ],
+    "batch_coherence_analysis": "对整个批次事件连贯性的简要分析"
+}
+```
+
+注意：
+1. 必须返回 **decomposed_events** 数组，包含所有输入的事件
+2. 事件顺序必须与输入顺序一致
+3. 每个事件的 structure 与单个分解时相同
+4. 所有中型事件的 chapter_range 必须完整覆盖父级重大事件的章节范围
+5. 事件间的时间线必须连续，不能有任何跳跃或重复
+""",
+
         "fallback_scene_generation": """
 # 任务：紧急场景补全 (Fallback Scene Generation)
 作为一名经验丰富的剧情编剧，你的任务是为一个场景规划意外丢失的章节，紧急生成一个结构完整的场景列表，以确保故事能够无缝衔接。

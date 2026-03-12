@@ -62,15 +62,9 @@ class StagePlanManager:
         
         # 为阶段计划创建专用的存储目录（必须在初始化组件之前）
         # 使用用户隔离路径（从 generator 获取用户名）
-        try:
-            from web.utils.path_utils import get_user_novel_dir
-            username = getattr(self.generator, '_username', None)
-            self.plans_dir = get_user_novel_dir(username=username, create=True)
-        except Exception as e:
-            # 如果失败，使用默认路径
-            self.logger.warning(f"获取用户隔离路径失败: {e}，使用默认路径")
-            self.plans_dir = Path("./小说项目").resolve()
-        os.makedirs(self.plans_dir, exist_ok=True)
+        # 🔥 修复：使用动态获取路径，避免初始化时 username 未设置的问题
+        self._plans_dir_cache = None
+        self._init_plans_dir()
         
         # 初始化各个管理器
         self.event_manager = EventManager(self)
@@ -78,6 +72,31 @@ class StagePlanManager:
         
         # 初始化专职组件
         self._init_components()
+    
+    def _init_plans_dir(self):
+        """初始化 plans_dir，支持动态刷新"""
+        try:
+            from web.utils.path_utils import get_user_novel_dir
+            username = getattr(self.generator, '_username', None)
+            self._plans_dir_cache = get_user_novel_dir(username=username, create=True)
+        except Exception as e:
+            # 如果失败，使用默认路径
+            self.logger.warning(f"获取用户隔离路径失败: {e}，使用默认路径")
+            self._plans_dir_cache = Path("./小说项目").resolve()
+        os.makedirs(self._plans_dir_cache, exist_ok=True)
+    
+    @property
+    def plans_dir(self):
+        """动态获取 plans_dir，确保获取最新的 username"""
+        # 🔥 修复：每次使用时重新获取路径，避免 username 未设置时使用 anonymous
+        try:
+            from web.utils.path_utils import get_user_novel_dir
+            username = getattr(self.generator, '_username', None)
+            current_plans_dir = get_user_novel_dir(username=username, create=True)
+            return current_plans_dir
+        except Exception as e:
+            self.logger.warning(f"动态获取路径失败: {e}，使用缓存路径")
+            return self._plans_dir_cache or Path("./小说项目").resolve()
         
         # 阶段特性描述（"起承转合"四段式）
         self.stage_characteristics = {
@@ -125,8 +144,9 @@ class StagePlanManager:
 
         self.event_decomposer = EventDecomposer(api_client)
         self.plan_validator = PlanValidator()
+        # 🔥 修复：传递获取路径的函数，而不是固定路径，确保 username 设置后能获取正确路径
         self.plan_persistence = StagePlanPersistence(
-            self.plans_dir,
+            lambda: self.plans_dir,
             lambda: self.generator.novel_data
         )
         self.event_optimizer = EventOptimizer(api_client)
@@ -222,7 +242,8 @@ class StagePlanManager:
     
     def generate_stage_writing_plan(self, stage_name: str, stage_range: str,
                                    creative_seed: Any, novel_title: str,
-                                   novel_synopsis: str, overall_stage_plan: Dict) -> Dict:
+                                   novel_synopsis: str, overall_stage_plan: Dict,
+                                   stage_emotional_plan: Dict = None) -> Dict:
         """
         生成阶段写作计划（重构版 - 使用专职组件）
         
@@ -233,6 +254,7 @@ class StagePlanManager:
             novel_title: 小说标题
             novel_synopsis: 小说简介
             overall_stage_plan: 整体阶段计划
+            stage_emotional_plan: 预生成的阶段情绪计划（可选，用于批量优化）
             
         Returns:
             生成的阶段写作计划
@@ -296,15 +318,22 @@ class StagePlanManager:
             except Exception as e:
                 self.logger.debug(f"子步骤进度报告失败: {e}")
         
-        # Phase 1: 生成阶段情绪计划
-        report_sub_step('emotional_plan', 'active', f'生成 {stage_name} 情绪计划')
-        # ... 情绪计划生成代码（在后续步骤中）...
+        # Phase 1: 生成阶段情绪计划（如果未传入预生成的计划）
+        if stage_emotional_plan is None:
+            report_sub_step('emotional_plan', 'active', f'生成 {stage_name} 情绪计划')
+            emotional_blueprint = self.generator.novel_data.get("emotional_blueprint", {})
+            stage_emotional_plan = self.emotional_manager.generate_stage_emotional_plan(
+                stage_name, stage_range, emotional_blueprint
+            )
+        else:
+            self.logger.info(f"   💖 使用预生成的情绪计划 for {stage_name}")
         
         # Phase 2: 生成主龙骨（重大事件骨架）
         report_sub_step('major_event_skeletons', 'active', '生成重大事件骨架')
         self.logger.info("   Phase 1: 规划阶段的'主龙骨' (重大事件框架)...")
         major_event_skeletons = self._generate_major_event_skeletons_with_retry(
-            stage_name, stage_range, creative_seed, novel_title, novel_synopsis, overall_stage_plan
+            stage_name, stage_range, creative_seed, novel_title, novel_synopsis, overall_stage_plan,
+            stage_emotional_plan=stage_emotional_plan
         )
         
         if not major_event_skeletons:
@@ -702,16 +731,18 @@ class StagePlanManager:
     
     def _generate_major_event_skeletons_with_retry(self, stage_name: str, stage_range: str,
                                                  creative_seed: Dict, novel_title: str,
-                                                 novel_synopsis: str, overall_stage_plan: Dict) -> List[Dict]:
+                                                 novel_synopsis: str, overall_stage_plan: Dict,
+                                                 stage_emotional_plan: Dict = None) -> List[Dict]:
         """生成重大事件骨架（带重试）"""
         start_chap, end_chap = parse_chapter_range(stage_range)
         stage_length = max(1, end_chap - start_chap + 1)
         
-        # 生成阶段情绪计划
-        emotional_blueprint = self.generator.novel_data.get("emotional_blueprint", {})
-        stage_emotional_plan = self.emotional_manager.generate_stage_emotional_plan(
-            stage_name, stage_range, emotional_blueprint
-        )
+        # 如果没有传入情绪计划，则单独生成
+        if stage_emotional_plan is None:
+            emotional_blueprint = self.generator.novel_data.get("emotional_blueprint", {})
+            stage_emotional_plan = self.emotional_manager.generate_stage_emotional_plan(
+                stage_name, stage_range, emotional_blueprint
+            )
         
         # 计算事件密度
         density_requirements = self.event_manager.calculate_optimal_event_density_by_stage(
@@ -748,7 +779,11 @@ class StagePlanManager:
                                              stage_name: str, stage_range: str,
                                              creative_seed: Dict, novel_title: str,
                                              novel_synopsis: str, overall_stage_plan: Dict) -> List[Dict]:
-        """分解重大事件为中型事件（第一阶段专用 - 不进行场景分解）"""
+        """
+        分解重大事件为中型事件（第一阶段专用 - 不进行场景分解）
+        
+        【优化版】支持批量分解，可以同时处理多个重大事件，提高效率和连贯性
+        """
         self.logger.info("    [第一阶段] 只分解到中型事件，不进行场景分解...")
         fleshed_out_major_events = []
         
@@ -767,62 +802,137 @@ class StagePlanManager:
         plot_manager.register_plot_points_from_events(major_event_skeletons)
         self.logger.info(f"    📊 情节管理器已初始化，注册了 {len(plot_manager.tracked_plot_points)} 个核心情节跟踪点")
         
-        for idx, skeleton in enumerate(major_event_skeletons):
-            self.logger.info(f"    -> 正在解剖重大事件: '{skeleton['name']}' ({skeleton['chapter_range']})")
+        # ========== 优化：使用批量分解策略 ==========
+        # 策略：将事件分批处理，每批2-3个事件（根据事件总数动态调整）
+        total_events = len(major_event_skeletons)
+        
+        # 动态确定批次大小：
+        # - 2-3个事件：一批处理
+        # - 4-6个事件：每批2个
+        # - 7+个事件：每批3个
+        if total_events <= 3:
+            batch_size = total_events  # 全部一起处理
+        elif total_events <= 6:
+            batch_size = 2  # 每批2个
+        else:
+            batch_size = 3  # 每批3个
+        
+        self.logger.info(f"    🚀 使用批量分解策略：共{total_events}个事件，分{((total_events-1)//batch_size)+1}批处理（每批{batch_size}个）")
+        
+        # 分批处理
+        for batch_start in range(0, total_events, batch_size):
+            batch_end = min(batch_start + batch_size, total_events)
+            batch_skeletons = major_event_skeletons[batch_start:batch_end]
             
-            # 🔥 新增：获取情节约束上下文
-            plot_constraint_context = plot_manager.get_context_for_next_event(fleshed_out_major_events)
-            if idx > 0:  # 只在非第一个事件时显示
-                self.logger.info(f"       📋 情节约束：已完成 {len(plot_manager.event_state_chain)} 个前置事件")
+            self.logger.info(f"    📦 处理第{batch_start//batch_size + 1}批: 事件{batch_start+1}-{batch_end}")
+            for i, sk in enumerate(batch_skeletons, 1):
+                self.logger.info(f"       [{i}] '{sk['name']}' ({sk['chapter_range']})")
             
-            fleshed_out_event = None
-            for attempt in range(3):
-                try:
-                    fleshed_out_event = self.event_decomposer.decompose_major_event(
-                        major_event_skeleton=skeleton,
-                        stage_name=stage_name,
-                        stage_range=stage_range,
-                        novel_title=novel_title,
-                        novel_synopsis=novel_synopsis,
-                        creative_seed=creative_seed,
-                        overall_stage_plan=overall_stage_plan,
-                        global_novel_data=self.generator.novel_data,
-                        stage_emotional_arc=stage_emotional_arc,
-                        overall_emotional_blueprint=emotional_blueprint,
-                        plot_constraint_context=plot_constraint_context  # 🔥 新增参数
-                    )
+            # 尝试批量分解
+            batch_results = []
+            try:
+                batch_results = self.event_decomposer.decompose_multiple_major_events(
+                    major_event_skeletons=batch_skeletons,
+                    stage_name=stage_name,
+                    stage_range=stage_range,
+                    novel_title=novel_title,
+                    novel_synopsis=novel_synopsis,
+                    creative_seed=creative_seed,
+                    overall_stage_plan=overall_stage_plan,
+                    global_novel_data=self.generator.novel_data,
+                    stage_emotional_arc=stage_emotional_arc,
+                    overall_emotional_blueprint=emotional_blueprint
+                )
+            except Exception as e:
+                self.logger.error(f"    ❌ 批量分解失败: {e}，将回退到逐个分解")
+                batch_results = []
+            
+            # 处理批量分解结果
+            if batch_results and len(batch_results) == len(batch_skeletons):
+                self.logger.info(f"    ✅ 批量分解成功: {len(batch_results)}个事件")
+                
+                for idx, (fleshed_out_event, skeleton) in enumerate(zip(batch_results, batch_skeletons)):
+                    global_idx = batch_start + idx  # 在整体列表中的索引
                     
                     if fleshed_out_event:
-                        self.logger.info(f"      ✅ 成功分解为中型事件（第一阶段到此为止）")
-                        break
-                    else:
-                        self.logger.warning(f"      ⚠️ 第{attempt+1}次解剖失败")
-                except Exception as e:
-                    self.logger.error(f"      ❌ 第{attempt+1}次解剖出错: {e}")
-                    if attempt < 2:
-                        import time
-                        time.sleep(2 ** attempt)
-            
-            if fleshed_out_event:
-                # 🔥 新增：检查情节重复
-                duplication_issues = plot_manager.check_plot_duplication(fleshed_out_event)
-                if duplication_issues:
-                    self.logger.warning(f"       ⚠️ 检测到情节重复问题：{duplication_issues}")
-                else:
-                    self.logger.info(f"       ✅ 情节唯一性检查通过")
+                        # 🔥 新增：检查情节重复
+                        duplication_issues = plot_manager.check_plot_duplication(fleshed_out_event)
+                        if duplication_issues:
+                            self.logger.warning(f"       ⚠️ 事件'{skeleton['name']}'检测到情节重复问题：{duplication_issues}")
+                        else:
+                            self.logger.info(f"       ✅ 事件'{skeleton['name']}'情节唯一性检查通过")
 
-                # 🔥 新增：标记事件完成，更新状态链
-                event_state = plot_manager.mark_event_completed(fleshed_out_event, idx)
-                self.logger.info(f"       📝 已记录事件状态：完成 {len(event_state.completed_plot_points)} 个情节点")
-                
-                # 验证并修正章节覆盖率
-                fleshed_out_event = self.plan_validator.validate_and_correct_major_event_coverage(
-                    skeleton, fleshed_out_event
-                )
-                
-                fleshed_out_major_events.append(fleshed_out_event)
+                        # 🔥 新增：标记事件完成，更新状态链
+                        event_state = plot_manager.mark_event_completed(fleshed_out_event, global_idx)
+                        self.logger.info(f"       📝 事件'{skeleton['name']}'完成：{len(event_state.completed_plot_points)}个情节点")
+                        
+                        # 验证并修正章节覆盖率
+                        fleshed_out_event = self.plan_validator.validate_and_correct_major_event_coverage(
+                            skeleton, fleshed_out_event
+                        )
+                        
+                        fleshed_out_major_events.append(fleshed_out_event)
+                    else:
+                        self.logger.error(f"    🚨 重大事件 '{skeleton['name']}' 解剖失败")
             else:
-                self.logger.error(f"    🚨 重大事件 '{skeleton['name']}' 解剖失败")
+                # 批量失败，回退到逐个分解这一批
+                self.logger.warning(f"    ⚠️ 批量分解返回结果异常（期望{len(batch_skeletons)}个，实际{len(batch_results) if batch_results else 0}个），回退到逐个分解")
+                
+                for idx, skeleton in enumerate(batch_skeletons):
+                    global_idx = batch_start + idx
+                    self.logger.info(f"    -> 逐个解剖: '{skeleton['name']}' ({skeleton['chapter_range']})")
+                    
+                    # 🔥 新增：获取情节约束上下文
+                    plot_constraint_context = plot_manager.get_context_for_next_event(fleshed_out_major_events)
+                    
+                    fleshed_out_event = None
+                    for attempt in range(3):
+                        try:
+                            fleshed_out_event = self.event_decomposer.decompose_major_event(
+                                major_event_skeleton=skeleton,
+                                stage_name=stage_name,
+                                stage_range=stage_range,
+                                novel_title=novel_title,
+                                novel_synopsis=novel_synopsis,
+                                creative_seed=creative_seed,
+                                overall_stage_plan=overall_stage_plan,
+                                global_novel_data=self.generator.novel_data,
+                                stage_emotional_arc=stage_emotional_arc,
+                                overall_emotional_blueprint=emotional_blueprint,
+                                plot_constraint_context=plot_constraint_context
+                            )
+                            
+                            if fleshed_out_event:
+                                self.logger.info(f"      ✅ 成功分解为中型事件")
+                                break
+                            else:
+                                self.logger.warning(f"      ⚠️ 第{attempt+1}次解剖失败")
+                        except Exception as e:
+                            self.logger.error(f"      ❌ 第{attempt+1}次解剖出错: {e}")
+                            if attempt < 2:
+                                import time
+                                time.sleep(2 ** attempt)
+                    
+                    if fleshed_out_event:
+                        # 检查情节重复
+                        duplication_issues = plot_manager.check_plot_duplication(fleshed_out_event)
+                        if duplication_issues:
+                            self.logger.warning(f"       ⚠️ 检测到情节重复问题：{duplication_issues}")
+                        else:
+                            self.logger.info(f"       ✅ 情节唯一性检查通过")
+
+                        # 标记事件完成
+                        event_state = plot_manager.mark_event_completed(fleshed_out_event, global_idx)
+                        self.logger.info(f"       📝 已记录事件状态：完成 {len(event_state.completed_plot_points)} 个情节点")
+                        
+                        # 验证并修正章节覆盖率
+                        fleshed_out_event = self.plan_validator.validate_and_correct_major_event_coverage(
+                            skeleton, fleshed_out_event
+                        )
+                        
+                        fleshed_out_major_events.append(fleshed_out_event)
+                    else:
+                        self.logger.error(f"    🚨 重大事件 '{skeleton['name']}' 解剖失败")
         
         # 🔥 新增：输出情节状态摘要
         state_summary = plot_manager.get_state_summary()
@@ -852,7 +962,7 @@ class StagePlanManager:
     def _validate_and_optimize_events(self, fleshed_out_major_events: List[Dict],
                                      stage_name: str, stage_range: str,
                                      overall_stage_plan: Dict) -> tuple:
-        """验证和优化事件系统"""
+        """验证和优化事件系统（优化版：合并目标层级和连续性验证）"""
         # 构建临时计划结构
         temp_plan = {
             "stage_writing_plan": {
@@ -864,18 +974,13 @@ class StagePlanManager:
             }
         }
         
-        # 验证目标层级一致性
-        goal_coherence = self.plan_validator.validate_goal_hierarchy_coherence(
-            temp_plan, stage_name, self.generator.api_client
-        )
-        
-        # 验证连续性
+        # 【优化】使用批量验证方法，一次性完成目标层级和连续性评估
         creative_seed = overall_stage_plan.get("creative_seed", "")
         novel_title = self.generator.novel_data.get("novel_title", "")
         novel_synopsis = self.generator.novel_data.get("novel_synopsis", "")
         
-        continuity_assessment = self.assess_stage_event_continuity(
-            temp_plan, stage_name, stage_range, creative_seed, novel_title, novel_synopsis
+        goal_coherence, continuity_assessment = self.plan_validator.validate_goal_hierarchy_and_continuity(
+            temp_plan, stage_name, stage_range, creative_seed, novel_title, novel_synopsis, self.generator.api_client
         )
 
         # 🔥 新增：验证重大事件章节范围覆盖

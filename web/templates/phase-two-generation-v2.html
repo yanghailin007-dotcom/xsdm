@@ -8,6 +8,9 @@
     <!-- 新样式表 -->
     <link rel="stylesheet" href="/static/css/phase-two-generation.css">
     
+    <!-- 引入创意库样式（用于项目选择卡片） -->
+    <link rel="stylesheet" href="/static/css/creative-library.css">
+    
     <!-- 兼容性样式（逐步迁移后删除） -->
     <link rel="stylesheet" href="/static/css/phase-two-generation.css.old" disabled>
     
@@ -31,6 +34,111 @@
             position: sticky;
             top: 0;
             z-index: 100;
+        }
+        
+        /* ==================== 项目选择卡片样式（与一阶段创意选择保持一致） ==================== */
+        #projects-list .creative-ideas-grid {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+        
+        #projects-list .creative-idea-card {
+            background: rgba(255, 255, 255, 0.95);
+            border: 2px solid transparent;
+            border-radius: 16px;
+            padding: 16px 20px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+        }
+        
+        #projects-list .creative-idea-card:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15);
+            border-color: #6366f1;
+        }
+        
+        /* 选中状态 - 与一阶段创意选择保持一致 */
+        #projects-list .creative-idea-card.selected {
+            border-color: #10b981;
+            border-width: 3px;
+            background: linear-gradient(135deg, rgba(16, 185, 129, 0.15) 0%, rgba(255, 255, 255, 0.98) 100%);
+            box-shadow: 
+                0 0 0 4px rgba(16, 185, 129, 0.2),
+                0 12px 40px rgba(16, 185, 129, 0.35),
+                inset 0 0 0 1px rgba(16, 185, 129, 0.3);
+            transform: scale(1.02);
+        }
+        
+        /* 右上角对勾标记 */
+        #projects-list .creative-idea-card.selected::after {
+            content: '✓';
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+            color: white;
+            width: 28px;
+            height: 28px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            font-size: 14px;
+            z-index: 10;
+            box-shadow: 
+                0 4px 12px rgba(16, 185, 129, 0.5),
+                0 0 0 3px rgba(255, 255, 255, 0.8);
+            animation: checkmarkPop 0.3s ease-out;
+            border: 2px solid white;
+        }
+        
+        @keyframes checkmarkPop {
+            0% { transform: scale(0); opacity: 0; }
+            50% { transform: scale(1.1); }
+            100% { transform: scale(1); opacity: 1; }
+        }
+        
+        /* 左侧选中指示条 */
+        #projects-list .creative-idea-card.selected .creative-idea-header::before {
+            content: '';
+            position: absolute;
+            left: -20px;
+            top: 50%;
+            transform: translateY(-50%);
+            width: 5px;
+            height: 32px;
+            background: linear-gradient(180deg, #10b981 0%, #059669 100%);
+            border-radius: 0 3px 3px 0;
+            box-shadow: 0 0 8px rgba(16, 185, 129, 0.6);
+        }
+        
+        /* 状态标签颜色 */
+        #projects-list .creative-idea-id {
+            background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
+            color: white;
+            padding: 4px 10px;
+            border-radius: 20px;
+            font-size: 0.75rem;
+            font-weight: 700;
+            box-shadow: 0 2px 6px rgba(99, 102, 241, 0.3);
+        }
+        
+        /* 不同状态的颜色 */
+        #projects-list .creative-idea-card[data-status="completed"] .creative-idea-id {
+            background: linear-gradient(135deg, #10b981 0%, #34d399 100%);
+        }
+        
+        #projects-list .creative-idea-card[data-status="generating"] .creative-idea-id {
+            background: linear-gradient(135deg, #f59e0b 0%, #fbbf24 100%);
+        }
+        
+        #projects-list .creative-idea-card[data-status="ready"] .creative-idea-id {
+            background: linear-gradient(135deg, #3b82f6 0%, #60a5fa 100%);
         }
     </style>
 </head>

@@ -332,17 +332,24 @@ class ProductLoader:
                     self.logger.info(f"  收集阶段: {stage_name}")
             
             if all_stages:
-                # 创建合并后的写作计划（与_load_writing_plans中的格式一致）
-                merged_plan = {
-                    'stage_names': stage_names,
-                    'total_stages': len(stage_names),
-                    'stages': all_stages
-                }
-                
-                products['writing']['content'] = json.dumps(merged_plan, ensure_ascii=False, indent=2)
-                products['writing']['complete'] = True
-                products['writing']['file_path'] = f"quality_data/writing_plans/merged"
-                self.logger.info(f"从quality_data加载合并的写作计划: {len(stage_names)} 个阶段 ({stage_names})")
+                # 🔥 修复：检查是否有有效的阶段名（不是unknown）
+                valid_stages = [s for s in stage_names if s != 'unknown']
+                if valid_stages:
+                    # 创建合并后的写作计划（与_load_writing_plans中的格式一致）
+                    merged_plan = {
+                        'stage_names': stage_names,
+                        'total_stages': len(stage_names),
+                        'stages': all_stages
+                    }
+                    
+                    products['writing']['content'] = json.dumps(merged_plan, ensure_ascii=False, indent=2)
+                    products['writing']['complete'] = True
+                    products['writing']['file_path'] = f"quality_data/writing_plans/merged"
+                    self.logger.info(f"[WRITING_DEBUG] 从quality_data加载合并的写作计划: {len(stage_names)} 个阶段 ({stage_names})")
+                else:
+                    self.logger.info(f"[WRITING_DEBUG] quality_data中的writing_plans阶段名无效，将尝试从文件加载")
+            else:
+                self.logger.info(f"[WRITING_DEBUG] quality_data中的writing_plans为空，未加载")
     
     def _load_from_standard_structure(self, products):
         if not products['worldview']['complete']:
@@ -400,11 +407,13 @@ class ProductLoader:
                 self.logger.error(f"加载characters失败: {e}")
     
     def _load_writing_plans(self, products):
+        self.logger.info(f"[WRITING_DEBUG] 开始从plans目录加载写作计划: {self.project_dir / 'plans'}")
         # 首先尝试从 plans 目录加载所有阶段的写作计划
         plans_dir = self.project_dir / "plans"
         if plans_dir.exists():
             stage_files = list(plans_dir.glob("*_writing_plan.json"))
             if stage_files:
+                self.logger.info(f"[WRITING_DEBUG] 找到 {len(stage_files)} 个写作计划文件: {[f.name for f in stage_files[:5]]}")
                 try:
                     # 先收集所有文件和对应的阶段名称
                     file_stage_pairs = []
@@ -414,11 +423,13 @@ class ProductLoader:
                         # 文件名格式: 吞噬万界：从一把生锈铁剑开始_climax_stage_writing_plan.json
                         # 使用正则表达式匹配 (xxx)_stage)_writing_plan
                         import re
-                        match = re.search(r'_([^_]+_stage)_writing_plan$', stage_file.name)
+                        match = re.search(r'_(.+?_stage)_writing_plan\.json$', stage_file.name)
                         if match:
                             stage_name = match.group(1)
+                            self.logger.info(f"[WRITING_DEBUG] 正则匹配成功: {stage_file.name} -> stage_name={stage_name}")
                         else:
                             # 备用方案：尝试从 stem 中提取
+                            self.logger.info(f"[WRITING_DEBUG] 正则匹配失败，使用备用方案: {stage_file.name}")
                             stem = stage_file.stem  # xxx_climax_stage
                             parts = stem.split('_')
                             # 找到包含 'stage' 的部分
@@ -433,6 +444,7 @@ class ProductLoader:
                                     break
                             
                             if not stage_name:
+                                self.logger.info(f"[WRITING_DEBUG] 备用方案也失败，跳过: {stage_file.name}")
                                 continue
                         
                         # 只处理标准阶段
@@ -470,7 +482,7 @@ class ProductLoader:
                     products['writing']['content'] = json.dumps(merged_plan, ensure_ascii=False, indent=2)
                     products['writing']['complete'] = True
                     products['writing']['file_path'] = str(plans_dir)
-                    self.logger.info(f"已加载产物: writing (从 {len(stage_files)} 个阶段文件)")
+                    self.logger.info(f"[WRITING_DEBUG] 已加载产物: writing (从 {len(stage_files)} 个阶段文件), stages={stage_names}")
                     return
                 except Exception as e:
                     self.logger.error(f"从 plans 目录加载writing计划失败: {e}")
@@ -583,12 +595,42 @@ class ProductLoader:
         try:
             writing_content = products['writing']['content']
             if not writing_content:
+                self.logger.info("[STORYLINE_DEBUG] writing_content 为空，跳过提取")
                 return
             
             writing_data = json.loads(writing_content)
             
             # 检查是否是多阶段合并的写作计划
-            if 'stages' in writing_data and 'stage_names' in writing_data:
+            has_stages = 'stages' in writing_data
+            has_stage_names = 'stage_names' in writing_data
+            
+            # 🔥 新增：检测planning目录格式（阶段名作为顶级键）
+            standard_stages = ['opening_stage', 'development_stage', 'rising_stage', 'climax_stage', 'resolution_stage', 'ending_stage']
+            has_stage_as_top_level = any(stage in writing_data for stage in standard_stages)
+            
+            self.logger.info(f"[STORYLINE_DEBUG] 检查写作计划结构: has_stages={has_stages}, has_stage_names={has_stage_names}, has_stage_as_top_level={has_stage_as_top_level}")
+            
+            # 🔥 新增：处理planning目录格式（阶段名作为顶级键）
+            if has_stage_as_top_level and not has_stages:
+                self.logger.info("[STORYLINE_DEBUG] 检测到planning目录格式，转换为标准格式")
+                # 转换为标准多阶段格式
+                converted_stages = {}
+                stage_names = []
+                for stage_name in standard_stages:
+                    if stage_name in writing_data:
+                        converted_stages[stage_name] = writing_data[stage_name]
+                        stage_names.append(stage_name)
+                
+                if converted_stages:
+                    writing_data = {
+                        'stages': converted_stages,
+                        'stage_names': stage_names
+                    }
+                    has_stages = True
+                    has_stage_names = True
+                    self.logger.info(f"[STORYLINE_DEBUG] 转换完成，包含阶段: {stage_names}")
+            
+            if has_stages and has_stage_names:
                 # 从所有阶段提取重大事件
                 all_major_events = []
                 stage_info = []
@@ -600,24 +642,43 @@ class ProductLoader:
                 for stage_name in sorted_stage_names:
                     if stage_name in writing_data['stages']:
                         stage_data = writing_data['stages'][stage_name]
-                        stage_plan = stage_data.get('stage_writing_plan', {})
                         
-                        # 🔥 新增：优先检查stage_plan中是否已经有expectation_map
-                        expectation_map = stage_plan.get('expectation_map')
+                        # 🔥 修复：处理两种可能的数据结构
+                        # 情况1: stage_data 包含 stage_writing_plan 层级（标准结构）
+                        # 情况2: stage_data 直接包含 event_system（从 quality_data 加载的结构）
+                        if isinstance(stage_data, dict) and 'stage_writing_plan' in stage_data:
+                            stage_plan = stage_data.get('stage_writing_plan', {})
+                            event_system = stage_plan.get('event_system', {})
+                            major_events = event_system.get('major_events', [])
+                            chapter_range = stage_plan.get('chapter_range', '')
+                            expectation_map = stage_plan.get('expectation_map')
+                            special_emotional_events = event_system.get('special_emotional_events', [])
+                        elif isinstance(stage_data, dict):
+                            # 直接从 stage_data 获取（quality_data结构）
+                            event_system = stage_data.get('event_system', {})
+                            major_events = event_system.get('major_events', [])
+                            chapter_range = stage_data.get('chapter_range', '')
+                            expectation_map = stage_data.get('expectation_map')
+                            special_emotional_events = event_system.get('special_emotional_events', [])
+                        else:
+                            major_events = []
+                            chapter_range = ''
+                            expectation_map = None
+                            special_emotional_events = []
+                        
+                        # 🔥 调试：检查stage_plan结构
+                        self.logger.info(f"[STORYLINE_DEBUG] 阶段 {stage_name}: event_system类型={type(event_system)}, major_events数量={len(major_events) if major_events else 0}")
+                        
+                        # 🔥 新增：优先检查是否已经有expectation_map
                         if expectation_map:
                             all_expectation_maps[stage_name] = expectation_map
                             total_exp = len(expectation_map.get('expectations', {}))
                             self.logger.info(f"[STORYLINE] 从{stage_name}加载已有的期待感映射: {total_exp} 个期待")
                         
-                        # 提取该阶段的重大事件
-                        major_events = stage_plan.get('event_system', {}).get('major_events', [])
-                        # 🔥 修复：也提取特殊情感事件
-                        special_emotional_events = stage_plan.get('event_system', {}).get('special_emotional_events', [])
-                        
                         # 🔥 修复：无论是否有事件，都添加stage_info
                         stage_info.append({
                             'stage_name': stage_name,
-                            'chapter_range': stage_plan.get('chapter_range', ''),
+                            'chapter_range': chapter_range,
                             'major_event_count': len(major_events)
                         })
                         
@@ -625,7 +686,7 @@ class ProductLoader:
                             # 为每个事件添加阶段信息和中级事件
                             for event in major_events:
                                 event['_stage'] = stage_name
-                                event['_chapter_range'] = stage_plan.get('chapter_range', '')
+                                event['_chapter_range'] = chapter_range
                                 
                                 # 🔥 新增：解析起始章节用于排序
                                 chapter_range = event.get('chapter_range', '1-10')
@@ -1212,6 +1273,60 @@ def get_phase_one_task_status(task_id):
         
     except Exception as e:
         logger.error(f"❌ [PHASE_ONE] 获取任务状态失败: {e}")
+        import traceback
+        logger.error(f"错误堆栈: {traceback.format_exc()}")
+        return jsonify({"success": False, "error": str(e)}), 500
+
+
+@phase_api.route('/phase-one/active-tasks', methods=['GET'])
+@login_required
+def get_active_phase_one_tasks():
+    """获取当前用户活跃的第一阶段生成任务"""
+    try:
+        if not manager:
+            return jsonify({"success": False, "error": "管理器未初始化"}), 500
+        
+        # 获取当前用户名
+        from flask import session
+        current_user_id = session.get('user_id')
+        
+        # 获取所有任务
+        all_tasks = manager.get_all_tasks()
+        
+        # 筛选进行中的任务（generating 状态）
+        active_tasks = []
+        for task in all_tasks:
+            task_status = task.get("status", "")
+            if task_status in ["generating", "initializing"]:
+                # 检查任务是否属于当前用户
+                task_config = task.get("config", {})
+                task_user_id = task_config.get("user_id")
+                
+                # 如果任务有 user_id 且匹配当前用户，或者任务没有 user_id（兼容性）
+                if task_user_id is None or task_user_id == current_user_id:
+                    active_tasks.append({
+                        "task_id": task.get("task_id"),
+                        "title": task.get("title", "未知"),
+                        "status": task_status,
+                        "progress": task.get("progress", 0),
+                        "current_step": task.get("current_step", ""),
+                        "created_at": task.get("created_at"),
+                        "updated_at": task.get("updated_at")
+                    })
+        
+        # 按更新时间排序，最新的在前
+        active_tasks.sort(key=lambda x: x.get("updated_at", ""), reverse=True)
+        
+        logger.info(f"[ACTIVE_TASKS] 找到 {len(active_tasks)} 个活跃任务")
+        
+        return jsonify({
+            "success": True,
+            "tasks": active_tasks,
+            "count": len(active_tasks)
+        })
+        
+    except Exception as e:
+        logger.error(f"❌ [ACTIVE_TASKS] 获取活跃任务失败: {e}")
         import traceback
         logger.error(f"错误堆栈: {traceback.format_exc()}")
         return jsonify({"success": False, "error": str(e)}), 500

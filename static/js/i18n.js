@@ -151,7 +151,8 @@ const I18N = {
             // 导航
             'nav.home': '首页',
             'nav.features': '功能',
-            'nav.create': '新建创作',
+            'nav.create': '创作',
+            'nav.newCreate': '新建创作',
             'nav.workspace': '工作台',
             'nav.projects': '项目',
             'nav.works': '作品',
@@ -636,7 +637,8 @@ const I18N = {
             // 導航
             'nav.home': '首頁',
             'nav.features': '功能',
-            'nav.create': '建立創作',
+            'nav.create': '創作',
+            'nav.newCreate': '建立創作',
             'nav.workspace': '工作台',
             'nav.projects': '專案',
             'nav.works': '作品',
@@ -1021,6 +1023,7 @@ const I18N = {
             'nav.home': 'Home',
             'nav.features': 'Features',
             'nav.create': 'Create',
+            'nav.newCreate': 'New Creation',
             'nav.workspace': 'Workspace',
             'nav.projects': 'Projects',
             'nav.works': 'Works',

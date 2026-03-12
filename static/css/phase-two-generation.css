@@ -551,6 +551,75 @@ body {
   background: rgba(99, 102, 241, 0.15);
   color: var(--pt-accent-primary);
   border: 1px solid rgba(99, 102, 241, 0.3);
+  position: relative;
+  overflow: hidden;
+}
+
+/* 排队流动光效 */
+.pt-chapter-card--generating::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    rgba(99, 102, 241, 0.4) 50%,
+    transparent 100%
+  );
+  animation: queue-flow 1.5s ease-in-out infinite;
+}
+
+/* 扫描线效果 */
+.pt-chapter-card--generating::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    rgba(99, 102, 241, 0.8),
+    rgba(167, 139, 250, 0.8),
+    transparent
+  );
+  animation: scan-line 2s linear infinite;
+}
+
+/* 排队等待状态 */
+.pt-chapter-card--queued {
+  background: rgba(99, 102, 241, 0.05);
+  color: rgba(99, 102, 241, 0.6);
+  border: 1px dashed rgba(99, 102, 241, 0.2);
+  position: relative;
+}
+
+/* 等待中的虚线流动 */
+.pt-chapter-card--queued::before {
+  content: '';
+  position: absolute;
+  inset: -1px;
+  border-radius: var(--pt-radius-md);
+  padding: 1px;
+  background: linear-gradient(
+    90deg,
+    rgba(99, 102, 241, 0.1),
+    rgba(99, 102, 241, 0.3),
+    rgba(99, 102, 241, 0.1)
+  );
+  -webkit-mask: 
+    linear-gradient(#fff 0 0) content-box, 
+    linear-gradient(#fff 0 0);
+  mask: 
+    linear-gradient(#fff 0 0) content-box, 
+    linear-gradient(#fff 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+  animation: queue-waiting 2s linear infinite;
 }
 
 .pt-chapter-card--pending {
@@ -559,6 +628,7 @@ body {
   border: 1px solid var(--pt-border-subtle);
 }
 
+/* 脉冲动画 - 增强版 */
 .pt-chapter-card__pulse {
   position: absolute;
   width: 100%;
@@ -572,6 +642,68 @@ body {
 @keyframes pulse-ring {
   0% { transform: scale(1); opacity: 0.3; }
   100% { transform: scale(1.2); opacity: 0; }
+}
+
+/* 排队流动动画 */
+@keyframes queue-flow {
+  0% {
+    left: -100%;
+  }
+  50% {
+    left: 100%;
+  }
+  100% {
+    left: 100%;
+  }
+}
+
+/* 扫描线动画 */
+@keyframes scan-line {
+  0% {
+    transform: translateY(0);
+    opacity: 0;
+  }
+  10% {
+    opacity: 1;
+  }
+  90% {
+    opacity: 1;
+  }
+  100% {
+    transform: translateY(var(--card-height, 60px));
+    opacity: 0;
+  }
+}
+
+/* 等待队列动画 */
+@keyframes queue-waiting {
+  0% {
+    background-position: 0% 50%;
+  }
+  100% {
+    background-position: 200% 50%;
+  }
+}
+
+/* 章节序号特殊样式 */
+.pt-chapter-card--generating .chapter-number {
+  position: relative;
+  z-index: 1;
+  font-weight: 700;
+}
+
+/* 生成中图标动画 */
+.pt-chapter-card--generating .generating-icon {
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 /* ==================== Skeleton ==================== */
@@ -759,6 +891,29 @@ body {
 
 .pt-hidden {
   display: none !important;
+}
+
+/* 进度区域显示 */
+#progress-section,
+#generation-results {
+  transition: opacity 0.3s ease, transform 0.3s ease;
+}
+
+#progress-section.active,
+#generation-results.active {
+  display: block !important;
+  animation: slideUpFade 0.4s ease;
+}
+
+@keyframes slideUpFade {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 /* ==================== Right Panel ==================== */

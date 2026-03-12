@@ -27,7 +27,8 @@ class ConsistencyGatherer:
     def _get_previous_world_state(self, novel_title: str) -> Dict:
         """从文件中加载前面章节的世界状态"""
         from src.managers.WorldStateManager import WorldStateManager
-        username = getattr(self.generator, '_username', None)
+        # 关键修复：从 novel_generator 获取 _username
+        username = getattr(self.generator.novel_generator, '_username', None)
         wsm = WorldStateManager(novel_title=novel_title, username=username)
         return wsm.get_novel_world_state(novel_title)
     

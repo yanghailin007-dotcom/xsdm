@@ -25,20 +25,18 @@ async function loadCreativeIdeas() {
         if (result.success && result.creative_ideas) {
             loadedCreativeIdeas = result.creative_ideas;
 
-            // 显示创意库区域
-            document.getElementById('creative-library-content').style.display = 'block';
+            // 检测页面结构并渲染
+            const legacyContent = document.getElementById('creative-library-content');
+            const legacySelect = document.getElementById('creative-idea-select');
+            const newContainer = document.getElementById('creative-library-container');
 
-            // 填充选择框
-            const select = document.getElementById('creative-idea-select');
-            select.innerHTML = '<option value="">-- 请选择一个创意 --</option>';
-
-            result.creative_ideas.forEach(idea => {
-                const option = document.createElement('option');
-                option.value = idea.id;
-                const title = idea.raw_data?.novelTitle || `创意 #${idea.id}`;
-                option.textContent = title;
-                select.appendChild(option);
-            });
+            if (legacyContent && legacySelect) {
+                // 旧版页面结构
+                renderLegacyCreativeLibrary(result.creative_ideas);
+            } else if (newContainer) {
+                // 新版页面结构 (phase-one-setup-new.html)
+                renderNewCreativeLibrary(result.creative_ideas);
+            }
 
             showStatusMessage(`✅ 成功加载 ${result.count} 个创意`, 'success');
         } else {
@@ -47,6 +45,106 @@ async function loadCreativeIdeas() {
     } catch (error) {
         console.error('加载创意库失败:', error);
         showStatusMessage(`❌ 加载创意库失败: ${error.message}`, 'error');
+    }
+}
+
+// 渲染旧版创意库
+function renderLegacyCreativeLibrary(ideas) {
+    const content = document.getElementById('creative-library-content');
+    const select = document.getElementById('creative-idea-select');
+    
+    if (content) content.style.display = 'block';
+    if (select) {
+        select.innerHTML = '<option value="">-- 请选择一个创意 --</option>';
+        ideas.forEach(idea => {
+            const option = document.createElement('option');
+            option.value = idea.id;
+            const title = idea.raw_data?.novelTitle || `创意 #${idea.id}`;
+            option.textContent = title;
+            select.appendChild(option);
+        });
+    }
+}
+
+// 渲染新版创意库 (V3 玻璃拟态UI)
+function renderNewCreativeLibrary(ideas) {
+    const container = document.getElementById('creative-library-container');
+    if (!container) return;
+
+    if (ideas.length === 0) {
+        container.innerHTML = `
+            <div class="pt-empty-state" style="padding: 24px; text-align: center;">
+                <div style="font-size: 32px; margin-bottom: 8px;">💡</div>
+                <p style="color: var(--pt-text-secondary); font-size: 14px;">暂无创意</p>
+                <p style="color: var(--pt-text-tertiary); font-size: 12px; margin-top: 4px;">点击上方按钮创建新创意</p>
+            </div>
+        `;
+        return;
+    }
+
+    // 构建创意卡片列表
+    let html = '<div class="creative-list" style="display: flex; flex-direction: column; gap: 12px;">';
+    
+    ideas.forEach(idea => {
+        const title = idea.raw_data?.novelTitle || `创意 #${idea.id}`;
+        const coreSetting = idea.core_setting ? idea.core_setting.substring(0, 60) + '...' : '暂无设定';
+        
+        html += `
+            <div class="creative-card" 
+                 onclick="selectCreativeForNewUI(${idea.id})"
+                 style="background: rgba(255,255,255,0.03); 
+                        border: 1px solid rgba(255,255,255,0.08); 
+                        border-radius: 8px; 
+                        padding: 12px; 
+                        cursor: pointer;
+                        transition: all 0.2s;
+                        hover: background: rgba(255,255,255,0.06);"
+                 onmouseover="this.style.background='rgba(255,255,255,0.06)'"
+                 onmouseout="this.style.background='rgba(255,255,255,0.03)'">
+                <div style="font-weight: 600; font-size: 14px; color: var(--pt-text-primary); margin-bottom: 4px;">
+                    ${title}
+                </div>
+                <div style="font-size: 12px; color: var(--pt-text-secondary); line-height: 1.4;">
+                    ${coreSetting}
+                </div>
+            </div>
+        `;
+    });
+    
+    html += '</div>';
+    container.innerHTML = html;
+}
+
+// 新版UI选择创意
+function selectCreativeForNewUI(ideaId) {
+    const idea = loadedCreativeIdeas.find(i => i.id === ideaId);
+    if (!idea) return;
+    
+    selectedCreativeId = ideaId;
+    
+    // 填充表单
+    fillFormFromIdea(idea);
+    
+    // 高亮选中的卡片
+    document.querySelectorAll('.creative-card').forEach(card => {
+        card.style.borderColor = 'rgba(255,255,255,0.08)';
+        card.style.background = 'rgba(255,255,255,0.03)';
+    });
+    event.currentTarget.style.borderColor = 'var(--pt-primary, #6366f1)';
+    event.currentTarget.style.background = 'rgba(99,102,241,0.1)';
+    
+    showStatusMessage(`✅ 已选择: ${idea.raw_data?.novelTitle || `创意 #${idea.id}`}`, 'success');
+    
+    // 🔥 新增：检查是否有可恢复的检查点
+    const title = idea.raw_data?.novelTitle || idea.title;
+    if (title && typeof checkTaskResumeStatus === 'function') {
+        console.log(`🔍 [RESUME] 选择创意后检查检查点: ${title}`);
+        checkTaskResumeStatus(title).then(resumeInfo => {
+            if (resumeInfo && typeof showResumeOption === 'function') {
+                showResumeOption(resumeInfo);
+                console.log(`✅ [RESUME] 发现可恢复的检查点: ${resumeInfo.progress_percentage}%`);
+            }
+        });
     }
 }
 
@@ -146,10 +244,22 @@ function fillFormFromIdea(idea) {
     const coreSettingField = document.getElementById('core-setting');
     const sellingPointsField = document.getElementById('core-selling-points');
     
-    if (titleField) titleField.value = idea.raw_data?.novelTitle || `创意${idea.id}的小说`;
+    const title = idea.raw_data?.novelTitle || `创意${idea.id}的小说`;
+    if (titleField) titleField.value = title;
     if (synopsisField) synopsisField.value = idea.core_setting ? idea.core_setting.substring(0, 200) : '';
     if (coreSettingField) coreSettingField.value = idea.core_setting || '';
     if (sellingPointsField) sellingPointsField.value = idea.core_selling_points || '爽文节奏 + 独特设定 + 人物成长';
+    
+    // 🔥 新增：填充后检查是否有可恢复的检查点（用于下拉框选择）
+    if (title && typeof checkTaskResumeStatus === 'function') {
+        console.log(`🔍 [RESUME] 填充表单后检查检查点: ${title}`);
+        checkTaskResumeStatus(title).then(resumeInfo => {
+            if (resumeInfo && typeof showResumeOption === 'function') {
+                showResumeOption(resumeInfo);
+                console.log(`✅ [RESUME] 发现可恢复的检查点: ${resumeInfo.progress_percentage}%`);
+            }
+        });
+    }
 }
 
 // 获取默认阶段名称

@@ -384,7 +384,9 @@ def get_novel_content():
         
         # 🔥 使用通用事件提取器提取事件和角色
         from src.managers.EventExtractor import get_event_extractor
-        event_extractor = get_event_extractor(logger)
+        from web.utils.path_utils import get_current_username
+        username = get_current_username()
+        event_extractor = get_event_extractor(logger, username=username)
         
         # 提取事件 - 返回层级结构
         all_events = event_extractor.extract_all_major_events(novel_detail)
@@ -575,7 +577,9 @@ def generate_prompt():
         
         # 首先获取所有重大事件（用于查找）
         from src.managers.EventExtractor import get_event_extractor
-        event_extractor = get_event_extractor(logger)
+        from web.utils.path_utils import get_current_username
+        username = get_current_username()
+        event_extractor = get_event_extractor(logger, username=username)
         all_major_events = event_extractor.extract_all_major_events(novel_detail)
         
         # 创建重大事件索引（按ID或名称查找）
@@ -741,7 +745,9 @@ def generate_prompt():
         if not selected_characters:
             # 第一步：从角色设计中获取所有已知角色
             from src.managers.EventExtractor import get_event_extractor
-            event_extractor = get_event_extractor(logger)
+            from web.utils.path_utils import get_current_username
+            username = get_current_username()
+            event_extractor = get_event_extractor(logger, username=username)
             all_character_designs = event_extractor.extract_character_designs(novel_detail)
 
             logger.info(f"👥 [VIDEO] 从角色设计中提取到 {len(all_character_designs)} 个角色")
@@ -1085,7 +1091,9 @@ def generate_storyboard():
         
         # 🔥 新增：使用通用事件提取器提取事件和角色
         from src.managers.EventExtractor import get_event_extractor
-        event_extractor = get_event_extractor(logger)
+        from web.utils.path_utils import get_current_username
+        username = get_current_username()
+        event_extractor = get_event_extractor(logger, username=username)
 
         # 提取事件
         all_events = event_extractor.extract_all_major_events(novel_detail)
@@ -2493,7 +2501,9 @@ def generate_character_portrait():
         else:
             # 角色模式：使用EventExtractor生成剧照提示词
             from src.managers.EventExtractor import get_event_extractor
-            event_extractor = get_event_extractor(logger)
+            from web.utils.path_utils import get_current_username
+            username = get_current_username()
+            event_extractor = get_event_extractor(logger, username=username)
             
             logger.info(f"🔧 [VIDEO] 开始生成角色提示词...")
             # 生成剧照提示词
@@ -3118,7 +3128,9 @@ def get_character_details():
         
         # 提取角色设计
         from src.managers.EventExtractor import get_event_extractor
-        event_extractor = get_event_extractor(logger)
+        from web.utils.path_utils import get_current_username
+        username = get_current_username()
+        event_extractor = get_event_extractor(logger, username=username)
         
         characters = event_extractor.extract_character_designs(novel_detail)
         
@@ -3361,7 +3373,9 @@ def generate_portrait_first_workflow():
             return jsonify({"success": False, "error": "小说项目不存在"}), 404
 
         from src.managers.EventExtractor import get_event_extractor
-        event_extractor = get_event_extractor(logger)
+        from web.utils.path_utils import get_current_username
+        username = get_current_username()
+        event_extractor = get_event_extractor(logger, username=username)
 
         # ========== 第一步：提取事件和角色 ==========
         logger.info(f"📋 [步骤1/4] 提取事件和角色...")
@@ -3779,7 +3793,9 @@ def adapt_to_short_drama():
             return jsonify({"success": False, "error": "小说项目不存在"}), 404
 
         from src.managers.EventExtractor import get_event_extractor
-        event_extractor = get_event_extractor(logger)
+        from web.utils.path_utils import get_current_username
+        username = get_current_username()
+        event_extractor = get_event_extractor(logger, username=username)
 
         # 提取原始事件
         all_events = event_extractor.extract_all_major_events(novel_detail)
@@ -4156,7 +4172,9 @@ def style_conversion():
 
         # 获取事件提取器
         from src.managers.EventExtractor import get_event_extractor
-        event_extractor = get_event_extractor(logger)
+        from web.utils.path_utils import get_current_username
+        username = get_current_username()
+        event_extractor = get_event_extractor(logger, username=username)
 
         # 提取角色数据（用于统计）
         characters = event_extractor.extract_character_designs(novel_detail)
@@ -4233,7 +4251,9 @@ def generate_batch_portraits():
 
         # 获取事件提取器
         from src.managers.EventExtractor import get_event_extractor
-        event_extractor = get_event_extractor(logger)
+        from web.utils.path_utils import get_current_username
+        username = get_current_username()
+        event_extractor = get_event_extractor(logger, username=username)
 
         # 提取角色数据
         all_characters = event_extractor.extract_character_designs(novel_detail)

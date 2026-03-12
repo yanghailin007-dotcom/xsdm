@@ -5,38 +5,47 @@ let phaseOneResult = null;
 let estimatedPoints = 0;  // 预估点数
 let pointsCheckInterval = null;  // 点数轮询间隔
 
-// 详细步骤映射（11个步骤）- 对应实际的设定生成流程（步骤6-7合并）
+// 详细步骤映射（14个步骤）- 对应实际的设定生成流程
 const DETAILED_STEP_ORDER = [
-    'writing_style',           // 1. 写作风格制定
-    'market_analysis',         // 2. 市场分析
-    'worldview',               // 3. 世界观构建
-    'faction_system',          // 4. 势力系统设计
-    'character_design',        // 5. 核心角色设计
-    'emotional_growth_planning', // 6. 情绪蓝图与成长规划（合并）
-    'stage_plan',              // 7. 全书阶段计划
-    'detailed_stage_plans',    // 8. 阶段详细计划
-    'expectation_mapping',     // 9. 期待感映射
-    'system_init',             // 10. 系统初始化
-    'saving',                  // 11. 保存设定结果
-    'quality_assessment'       // 12. AI质量评估
+    'creative_refinement',      // 1. 创意精炼
+    'fanfiction_detection',     // 2. 同人检测
+    'multiple_plans',           // 3. 生成多个方案
+    'plan_selection',           // 4. 选择最佳方案
+    'foundation_planning',      // 5. 基础规划（写作风格+市场分析）
+    'worldview_with_factions',  // 6. 世界观与势力系统
+    'character_design',         // 7. 核心角色设计
+    'emotional_growth_planning', // 8. 情绪蓝图与成长规划
+    'stage_plan',               // 9. 全书阶段计划
+    'detailed_stage_plans',     // 10. 阶段详细计划
+    'expectation_mapping',      // 11. 期待感映射
+    'system_init',              // 12. 系统初始化
+    'saving',                   // 13. 保存设定结果
+    'quality_assessment'        // 14. AI质量评估
 ];
 
-// 步骤名称映射
+// 步骤名称映射（14个步骤）
 const STEP_NAMES = {
-    'writing_style': '📝 写作风格制定',
-    'market_analysis': '📊 市场分析',
-    'worldview': '🌍 世界观构建',
-    'faction_system': '⚔️ 势力系统设计',
+    'creative_refinement': '✨ 创意精炼',
+    'fanfiction_detection': '🔍 同人检测',
+    'multiple_plans': '📋 生成多个方案',
+    'plan_selection': '🎯 选择最佳方案',
+    'foundation_planning': '📝 基础规划',
+    'worldview_with_factions': '🌍 世界观与势力',
     'character_design': '👥 核心角色设计',
-    'emotional_growth_planning': '💫📈 情绪蓝图与成长规划',
-    'emotional_blueprint': '💫 情绪蓝图规划',  // 兼容旧步骤名
-    'growth_plan': '📈 成长规划',  // 兼容旧步骤名
+    'emotional_growth_planning': '💫 情绪与成长规划',
     'stage_plan': '📚 全书阶段计划',
     'detailed_stage_plans': '📖 阶段详细计划',
     'expectation_mapping': '🎯 期待感映射',
     'system_init': '🔧 系统初始化',
     'saving': '💾 保存设定结果',
-    'quality_assessment': '✅ AI质量评估'
+    'quality_assessment': '✅ AI质量评估',
+    // 兼容旧步骤名
+    'writing_style': '📝 写作风格制定',
+    'market_analysis': '📊 市场分析',
+    'worldview': '🌍 世界观构建',
+    'faction_system': '⚔️ 势力系统设计',
+    'emotional_blueprint': '💫 情绪蓝图规划',
+    'growth_plan': '📈 成长规划'
 };
 
 async function startPhaseOneGeneration(event) {
@@ -118,19 +127,34 @@ async function startPhaseOneGeneration(event) {
 // 更新生成进度状态
 async function updateProgressStatus(taskId) {
     try {
+        console.log(`[DEBUG] 查询任务状态: ${taskId}`);
         const response = await fetch(`/api/phase-one/task/${taskId}/status`);
-        if (!response.ok) return;
+        if (!response.ok) {
+            console.warn(`[DEBUG] 状态查询失败: ${response.status}`);
+            return;
+        }
 
-        const taskStatus = await response.json();
+        const result = await response.json();
+        console.log(`[DEBUG] 收到状态更新:`, result);
+        
+        // 🔥 修复：后端返回的数据嵌套在 data 字段中
+        const taskStatus = result.data || result;
         
         // 更新进度条和百分比
-        updateProgress(taskStatus.progress || 0, taskStatus.status_message || '生成中...');
+        updateProgress(taskStatus.progress || 0, taskStatus.message || taskStatus.status_message || '生成中...');
 
         // 更新详细步骤状态（如果后端返回了step_status）
-        if (taskStatus.step_status) {
+        if (taskStatus.step_status && Object.keys(taskStatus.step_status).length > 0) {
+            console.log(`[DEBUG] 更新详细步骤状态:`, taskStatus.step_status);
             updateDetailedStepStatus(taskStatus.step_status);
-        } else if (taskStatus.current_step) {
+        } else {
+            console.log(`[DEBUG] 无 step_status 或为空，跳过详细步骤更新`);
+        }
+        
+        // 兼容旧版本，使用current_step
+        if (taskStatus.current_step) {
             // 兼容旧版本，使用current_step
+            console.log(`[DEBUG] 更新当前步骤: ${taskStatus.current_step}`);
             updateProgressSteps(taskStatus.current_step);
         }
 
@@ -141,7 +165,7 @@ async function updateProgressStatus(taskId) {
 
         // 更新当前步骤详情
         if (taskStatus.current_step) {
-            updateCurrentStepDetail(taskStatus.current_step, taskStatus.status_message);
+            updateCurrentStepDetail(taskStatus.current_step, taskStatus.message || taskStatus.status_message);
         }
 
         // 检查是否完成
@@ -159,13 +183,25 @@ async function updateProgressStatus(taskId) {
 
 // 更新详细步骤状态
 function updateDetailedStepStatus(stepStatus) {
+    console.log(`[DEBUG] updateDetailedStepStatus 被调用:`, stepStatus);
+    
+    // 防御性检查：确保 stepStatus 是有效对象
+    if (!stepStatus || typeof stepStatus !== 'object' || Object.keys(stepStatus).length === 0) {
+        console.warn(`[DEBUG] stepStatus 为空或无效，跳过更新`);
+        return;
+    }
+    
     // stepStatus 是一个对象，键是步骤名，值是状态
+    let activeStepFound = false;
+    
     for (const [stepName, status] of Object.entries(stepStatus)) {
         const stepElement = document.querySelector(`[data-step="${stepName}"]`);
+        console.log(`[DEBUG] 查找步骤 ${stepName}:`, stepElement ? '找到' : '未找到');
         if (stepElement) {
             stepElement.setAttribute('data-status', status);
             const badge = stepElement.querySelector('.step-status-badge');
             const icon = stepElement.querySelector('.step-icon');
+            const text = stepElement.querySelector('span:nth-child(2)');
             
             const statusText = {
                 'waiting': '等待中',
@@ -174,16 +210,55 @@ function updateDetailedStepStatus(stepStatus) {
                 'failed': '失败'
             };
             
+            // 更新状态文本
             if (badge) badge.textContent = statusText[status] || status;
-            if (icon) icon.textContent = status === 'completed' ? '✓' : status === 'failed' ? '✗' : '⏳';
+            
+            // 更新图标
+            if (icon) {
+                if (status === 'completed') {
+                    icon.textContent = '✅';
+                } else if (status === 'failed') {
+                    icon.textContent = '❌';
+                } else if (status === 'active') {
+                    icon.textContent = '⚡';
+                    activeStepFound = true;
+                } else {
+                    icon.textContent = '⏳';
+                }
+            }
+            
+            // 更新样式
+            if (status === 'completed') {
+                stepElement.style.background = 'rgba(34, 197, 94, 0.1)';
+                stepElement.style.borderColor = 'rgba(34, 197, 94, 0.3)';
+                if (text) text.style.color = 'var(--v2-accent-green, #22c55e)';
+                if (badge) badge.style.color = 'var(--v2-accent-green, #22c55e)';
+            } else if (status === 'active') {
+                stepElement.style.background = 'rgba(99, 102, 241, 0.15)';
+                stepElement.style.borderColor = 'var(--v2-primary-500, #6366f1)';
+                if (text) text.style.color = 'var(--v2-text-primary, #fafafa)';
+                if (badge) badge.style.color = 'var(--v2-primary-400, #818cf8)';
+            } else if (status === 'failed') {
+                stepElement.style.background = 'rgba(239, 68, 68, 0.1)';
+                stepElement.style.borderColor = 'rgba(239, 68, 68, 0.3)';
+                if (text) text.style.color = 'var(--v2-accent-red, #ef4444)';
+                if (badge) badge.style.color = 'var(--v2-accent-red, #ef4444)';
+            } else {
+                // waiting
+                stepElement.style.background = 'rgba(255,255,255,0.03)';
+                stepElement.style.borderColor = 'rgba(255,255,255,0.06)';
+                if (text) text.style.color = 'var(--v2-text-secondary, #a1a1aa)';
+                if (badge) badge.style.color = 'var(--v2-text-tertiary, #71717a)';
+            }
         }
     }
     
     // 计算并更新完成步骤数
     const completedSteps = Object.values(stepStatus).filter(s => s === 'completed').length;
+    const totalSteps = DETAILED_STEP_ORDER.length;
     const stepsStatusEl = document.getElementById('steps-status');
     if (stepsStatusEl) {
-        stepsStatusEl.textContent = `${completedSteps}/${DETAILED_STEP_ORDER.length} 完成`;
+        stepsStatusEl.textContent = `${completedSteps}/${totalSteps} 完成`;
     }
 }
 
@@ -211,17 +286,25 @@ function updateCurrentStepDetail(stepName, message) {
 
 // 更新进度条
 function updateProgress(percentage, message) {
+    console.log(`[DEBUG] updateProgress: ${percentage}% - ${message}`);
     const progressBar = document.getElementById('progress-bar-fill');
     const percentageText = document.getElementById('progress-percentage');
+    const progressMessage = document.getElementById('progress-message');
+    
+    console.log(`[DEBUG] progressBar:`, progressBar, 'percentageText:', percentageText, 'progressMessage:', progressMessage);
     
     if (progressBar) {
         progressBar.style.width = `${percentage}%`;
+        console.log(`[DEBUG] 进度条已更新: ${percentage}%`);
     }
     if (percentageText) {
         percentageText.textContent = `${percentage}%`;
+        console.log(`[DEBUG] 百分比文本已更新: ${percentage}%`);
     }
-    
-    console.log(`进度: ${percentage}% - ${message}`);
+    if (progressMessage && message) {
+        progressMessage.textContent = message;
+        console.log(`[DEBUG] 进度消息已更新: ${message}`);
+    }
 }
 
 // 更新进度步骤
@@ -506,11 +589,75 @@ async function stopGeneration() {
         return;
     }
     
-    // 确认对话框
-    if (!confirm('确定要停止生成吗？\n\n已消耗的创作点不会返还，但未使用的预估点数将返还到您的账户。\n当前进度将被保存，您可以稍后恢复生成。')) {
-        return;
-    }
+    // 🔥 使用 V2 风格的确认弹窗替代原生 confirm
+    showStopConfirmModal();
+}
+
+// 🔥 显示 V2 风格的停止确认弹窗
+function showStopConfirmModal() {
+    // 移除已存在的弹窗
+    const existingModal = document.getElementById('stop-confirm-modal');
+    if (existingModal) existingModal.remove();
     
+    const modal = document.createElement('div');
+    modal.id = 'stop-confirm-modal';
+    modal.innerHTML = `
+        <div class="v2-dialog-overlay" onclick="if(event.target === this) closeStopConfirmModal(false)">
+            <div class="v2-dialog-content" style="max-width: 480px;">
+                <div class="v2-dialog-header" style="background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);">
+                    <div class="v2-dialog-icon">🛑</div>
+                    <h3 class="v2-dialog-title">确认停止生成</h3>
+                    <p class="v2-dialog-subtitle">已生成的进度将被保存</p>
+                </div>
+                <div class="v2-dialog-body">
+                    <div style="
+                        background: rgba(239, 68, 68, 0.1);
+                        border: 1px solid rgba(239, 68, 68, 0.2);
+                        border-radius: 12px;
+                        padding: 1.25rem;
+                        margin-bottom: 1.5rem;
+                        text-align: left;
+                    ">
+                        <p style="color: var(--v2-text-secondary); font-size: 0.95rem; line-height: 1.6; margin: 0 0 0.75rem 0;">
+                            <strong style="color: var(--v2-text-primary);">💡 注意事项：</strong>
+                        </p>
+                        <ul style="color: var(--v2-text-secondary); font-size: 0.9rem; line-height: 1.7; margin: 0; padding-left: 1.25rem;">
+                            <li>已消耗的创作点<strong style="color: var(--v2-text-primary);">不会返还</strong></li>
+                            <li>未使用的预估点数将<strong style="color: var(--v2-accent-green);">返还到您的账户</strong></li>
+                            <li>当前进度将被保存，您可以<strong style="color: var(--v2-primary-400);">稍后恢复生成</strong></li>
+                        </ul>
+                    </div>
+                    <p style="color: var(--v2-text-tertiary); font-size: 0.85rem; text-align: center; margin: 0;">
+                        停止后可以在生成模式下拉框选择"🔄 恢复模式"继续
+                    </p>
+                </div>
+                <div class="v2-dialog-actions">
+                    <button class="v2-btn v2-btn--secondary" onclick="closeStopConfirmModal(false)">
+                        <span>取消，继续生成</span>
+                    </button>
+                    <button class="v2-btn v2-btn--primary" onclick="closeStopConfirmModal(true)" style="background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);">
+                        <span>🛑 确认停止</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+    `;
+    
+    document.body.appendChild(modal);
+}
+
+// 🔥 关闭停止确认弹窗
+function closeStopConfirmModal(confirmed) {
+    const modal = document.getElementById('stop-confirm-modal');
+    if (modal) modal.remove();
+    
+    if (confirmed) {
+        doStopGeneration();
+    }
+}
+
+// 🔥 实际执行停止生成
+async function doStopGeneration() {
     try {
         showStatusMessage('🛑 正在停止生成并返还剩余点数...', 'info');
         
@@ -537,16 +684,30 @@ async function stopGeneration() {
                 : '没有可返还的点数';
             showStatusMessage(`✅ 生成已停止！${refundMsg}。进度已保存，可以稍后恢复生成。`, 'success');
             
-            // 隐藏进度区域
-            hideProgressSection();
+            // 🔥 修复：停止后停留在进度区域，不隐藏
+            // 更新进度显示为已停止状态
+            const progressMessage = document.getElementById('progress-message');
+            const progressPercentage = document.getElementById('progress-percentage');
+            
+            if (progressMessage) {
+                progressMessage.innerHTML = '<span style="color: var(--v2-accent-orange, #fbbf24);">⏸️ 生成已停止</span> - 进度已保存，可随时恢复';
+            }
+            if (progressPercentage) {
+                progressPercentage.style.color = 'var(--v2-accent-orange, #fbbf24)';
+            }
+            
+            // 更新步骤条状态
+            updateStepStatus('generation', true);
             
             // 刷新用户点数显示
             if (typeof loadUserPointsBalance === 'function') {
                 await loadUserPointsBalance();
             }
             
-            // 显示恢复选项
-            showResumeCheckpointModal(result.checkpoint_info);
+            // 显示恢复选项（V2 风格弹窗）
+            if (result.checkpoint_info) {
+                showResumeCheckpointModalV2(result.checkpoint_info);
+            }
         } else {
             throw new Error(result.error || '停止生成失败');
         }
@@ -556,105 +717,101 @@ async function stopGeneration() {
     }
 }
 
-// 显示恢复生成选项弹窗（停止生成后使用）
-function showResumeCheckpointModal(checkpointInfo) {
+// 显示恢复生成选项弹窗（停止生成后使用）- V2 风格
+function showResumeCheckpointModalV2(checkpointInfo) {
     if (!checkpointInfo) return;
     
-    // 创建恢复提示弹窗
-    const resumeModal = document.createElement('div');
-    resumeModal.id = 'resume-option-modal';
-    resumeModal.innerHTML = `
-        <div style="
-            position: fixed;
-            top: 0;
-            left: 0;
-            right: 0;
-            bottom: 0;
-            background: rgba(0, 0, 0, 0.8);
-            backdrop-filter: blur(8px);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            z-index: 99999;
-        ">
-            <div style="
-                background: linear-gradient(145deg, #1e293b 0%, #0f172a 100%);
-                border: 2px solid #6366f1;
-                border-radius: 1rem;
-                padding: 2rem;
-                max-width: 420px;
-                width: 90%;
-                text-align: center;
-            ">
-                <div style="
-                    width: 70px;
-                    height: 70px;
-                    margin: 0 auto 1.25rem;
-                    background: linear-gradient(135deg, #6366f1 0%, #818cf8 100%);
-                    border-radius: 50%;
-                    display: flex;
-                    align-items: center;
-                    justify-content: center;
-                    box-shadow: 0 10px 25px rgba(99, 102, 241, 0.4);
-                ">
-                    <span style="font-size: 2rem;">💾</span>
+    // 移除已存在的弹窗
+    const existingModal = document.getElementById('resume-checkpoint-modal-v2');
+    if (existingModal) existingModal.remove();
+    
+    const modal = document.createElement('div');
+    modal.id = 'resume-checkpoint-modal-v2';
+    modal.innerHTML = `
+        <div class="v2-dialog-overlay" onclick="if(event.target === this) closeResumeCheckpointModalV2()">
+            <div class="v2-dialog-content" style="max-width: 480px;">
+                <div class="v2-dialog-header" style="background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);">
+                    <div class="v2-dialog-icon">💾</div>
+                    <h3 class="v2-dialog-title">进度已保存</h3>
+                    <p class="v2-dialog-subtitle">生成进度已保存到检查点</p>
                 </div>
-                
-                <h3 style="color: #818cf8; margin-bottom: 1rem; font-size: 1.35rem; font-weight: 700;">
-                    进度已保存
-                </h3>
-                
-                <p style="color: #94a3b8; margin-bottom: 1.5rem; line-height: 1.6;">
-                    生成进度已保存到检查点<br>
-                    <strong style="color: #e2e8f0;">${checkpointInfo.novel_title || '未命名'}</strong><br>
-                    当前步骤: ${checkpointInfo.current_step || '未知'}
-                </p>
-                
-                <div style="display: flex; gap: 0.75rem;">
-                    <button onclick="closeResumeCheckpointModal()" style="
-                        flex: 1;
-                        padding: 0.875rem 1rem;
-                        background: rgba(255, 255, 255, 0.08);
-                        border: 1px solid rgba(255, 255, 255, 0.2);
-                        border-radius: 0.5rem;
-                        color: #94a3b8;
-                        cursor: pointer;
-                        font-size: 0.875rem;
-                        font-weight: 500;
-                    " onmouseover="this.style.background='rgba(255,255,255,0.15)';this.style.color='#e2e8f0'" 
-                    onmouseout="this.style.background='rgba(255,255,255,0.08)';this.style.color='#94a3b8'">
-                        稍后继续
+                <div class="v2-dialog-body">
+                    <div style="
+                        background: rgba(99, 102, 241, 0.1);
+                        border: 1px solid rgba(99, 102, 241, 0.2);
+                        border-radius: 12px;
+                        padding: 1.25rem;
+                        margin-bottom: 1.5rem;
+                    ">
+                        <div style="margin-bottom: 0.75rem;">
+                            <span style="color: var(--v2-text-muted); font-size: 0.875rem;">项目名称</span>
+                            <div style="color: var(--v2-text-primary); font-weight: 600; font-size: 1.1rem;">${escapeHtml(checkpointInfo.novel_title || '未命名')}</div>
+                        </div>
+                        <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 0.75rem;">
+                            <div>
+                                <span style="color: var(--v2-text-muted); font-size: 0.875rem;">当前步骤</span>
+                                <div style="color: var(--v2-text-secondary);">${escapeHtml(checkpointInfo.current_step || '未知')}</div>
+                            </div>
+                            <div>
+                                <span style="color: var(--v2-text-muted); font-size: 0.875rem;">保存时间</span>
+                                <div style="color: var(--v2-text-secondary);">刚刚</div>
+                            </div>
+                        </div>
+                    </div>
+                    <p style="color: var(--v2-text-secondary); font-size: 0.9rem; line-height: 1.5; margin: 0;">
+                        💡 您可以稍后从生成模式下拉框选择"🔄 恢复模式"继续生成，或点击"立即恢复"马上继续。
+                    </p>
+                </div>
+                <div class="v2-dialog-actions">
+                    <button class="v2-btn v2-btn--secondary" onclick="closeResumeCheckpointModalV2()">
+                        <span>⏸️ 稍后继续</span>
                     </button>
-                    <button onclick="resumeGenerationFromCheckpoint('${checkpointInfo.novel_title}')" style="
-                        flex: 1.2;
-                        padding: 0.875rem 1rem;
-                        background: linear-gradient(135deg, #6366f1 0%, #818cf8 100%);
-                        border: none;
-                        border-radius: 0.5rem;
-                        color: white;
-                        cursor: pointer;
-                        font-size: 0.875rem;
-                        font-weight: 700;
-                        box-shadow: 0 4px 15px rgba(99, 102, 241, 0.4);
-                    " onmouseover="this.style.transform='translateY(-2px)';this.style.boxShadow='0 6px 20px rgba(99, 102, 241, 0.5)'" 
-                    onmouseout="this.style.transform='translateY(0)';this.style.boxShadow='0 4px 15px rgba(99, 102, 241, 0.4)'">
-                        🚀 立即恢复
+                    <button class="v2-btn v2-btn--primary" onclick="resumeGenerationFromCheckpointV2('${checkpointInfo.novel_title}')" style="background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);">
+                        <span>🚀 立即恢复</span>
                     </button>
                 </div>
             </div>
         </div>
     `;
-    document.body.appendChild(resumeModal);
-    document.body.style.overflow = 'hidden';
+    
+    document.body.appendChild(modal);
 }
 
-// 关闭恢复弹窗
+// 关闭 V2 恢复弹窗
+function closeResumeCheckpointModalV2() {
+    const modal = document.getElementById('resume-checkpoint-modal-v2');
+    if (modal) modal.remove();
+}
+
+// 从 V2 弹窗恢复生成
+async function resumeGenerationFromCheckpointV2(novelTitle) {
+    closeResumeCheckpointModalV2();
+    await resumeGenerationFromCheckpoint(novelTitle);
+}
+
+// 兼容旧版本的恢复弹窗（空实现，使用 V2 版本）
+function showResumeCheckpointModal(checkpointInfo) {
+    showResumeCheckpointModalV2(checkpointInfo);
+}
+
+// HTML 转义辅助函数
+function escapeHtml(text) {
+    if (!text) return '';
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+}
+
+// 关闭恢复弹窗（兼容旧版本和新版本）
 window.closeResumeCheckpointModal = function() {
-    const modal = document.getElementById('resume-option-modal');
-    if (modal) {
-        modal.remove();
+    // 关闭旧版本弹窗
+    const oldModal = document.getElementById('resume-option-modal');
+    if (oldModal) {
+        oldModal.remove();
         document.body.style.overflow = '';
     }
+    // 关闭 V2 弹窗
+    closeResumeCheckpointModalV2();
 };
 
 // 从检查点恢复生成
@@ -704,22 +861,162 @@ async function resumeGenerationFromCheckpoint(novelTitle) {
 
 // ==================== 工具函数 ====================
 function showProgressSection() {
-    document.getElementById('progress-section').classList.add('active');
-    document.getElementById('results-section').classList.remove('active');
+    console.log('[DEBUG] showProgressSection 被调用');
+    const formSection = document.getElementById('form-section');
+    const progressSection = document.getElementById('progress-section');
+    const resultsSection = document.getElementById('results-section');
+    
+    console.log('[DEBUG] formSection:', formSection, 'progressSection:', progressSection, 'resultsSection:', resultsSection);
+    
+    // 隐藏表单区域
+    if (formSection) {
+        formSection.style.display = 'none';
+        console.log('[DEBUG] 表单区域已隐藏');
+    }
+    
+    // 显示进度区域
+    if (progressSection) {
+        progressSection.classList.add('active');
+        progressSection.classList.add('pt-progress-section--active');
+        progressSection.style.display = 'block';
+        console.log('[DEBUG] 进度区域已显示');
+    }
+    
+    // 隐藏结果区域
+    if (resultsSection) {
+        resultsSection.classList.remove('active');
+        resultsSection.classList.remove('pt-results-section--active');
+    }
+    
+    // 更新步骤条状态
+    updateStepStatus('generation', true);
+    
+    // 滚动到页面顶部，让用户看到进度
+    window.scrollTo({ top: 0, behavior: 'smooth' });
 }
 
 function hideProgressSection() {
-    document.getElementById('progress-section').classList.remove('active');
+    const formSection = document.getElementById('form-section');
+    const progressSection = document.getElementById('progress-section');
+    
+    if (progressSection) {
+        progressSection.classList.remove('active');
+        progressSection.classList.remove('pt-progress-section--active');
+    }
+    
+    // 恢复显示表单区域
+    if (formSection) {
+        formSection.style.display = 'block';
+    }
+}
+
+// ==================== 步骤切换功能 ====================
+function switchToStep(step) {
+    console.log(`[DEBUG] switchToStep: ${step}`);
+    
+    const formSection = document.getElementById('form-section');
+    const progressSection = document.getElementById('progress-section');
+    const resultsSection = document.getElementById('results-section');
+    
+    switch(step) {
+        case 'input':
+            // 显示表单，隐藏进度和结果
+            if (formSection) formSection.style.display = 'block';
+            if (progressSection) {
+                progressSection.classList.remove('active', 'pt-progress-section--active');
+                progressSection.style.display = 'none';
+            }
+            if (resultsSection) {
+                resultsSection.classList.remove('active', 'pt-results-section--active');
+            }
+            updateStepStatus('input', true);
+            break;
+            
+        case 'generation':
+            // 显示进度，隐藏表单（结果区域保持原状）
+            if (formSection) formSection.style.display = 'none';
+            if (progressSection) {
+                progressSection.style.display = 'block';
+                progressSection.classList.add('active', 'pt-progress-section--active');
+            }
+            updateStepStatus('generation', true);
+            break;
+            
+        case 'preview':
+            // 显示结果，隐藏表单和进度
+            if (formSection) formSection.style.display = 'none';
+            if (progressSection) {
+                progressSection.classList.remove('active', 'pt-progress-section--active');
+            }
+            if (resultsSection) {
+                resultsSection.classList.add('active', 'pt-results-section--active');
+            }
+            updateStepStatus('preview', true);
+            break;
+            
+        case 'phase-two':
+            // 跳转到第二阶段
+            const title = document.getElementById('novel-title')?.value;
+            if (title) {
+                window.location.href = '/phase-two-generation?title=' + encodeURIComponent(title);
+            } else {
+                window.location.href = '/phase-two-generation';
+            }
+            return;
+    }
+    
+    // 滚动到页面顶部
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+// ==================== 返回表单功能 ====================
+function showFormSection() {
+    console.log('[DEBUG] showFormSection 被调用');
+    // 使用新的步骤切换函数
+    switchToStep('input');
 }
 
 function showResultsSection(result) {
-    hideProgressSection();
-    document.getElementById('results-section').classList.add('active');
+    const formSection = document.getElementById('form-section');
+    const progressSection = document.getElementById('progress-section');
+    const resultsSection = document.getElementById('results-section');
+    
+    // 隐藏进度区域
+    if (progressSection) {
+        progressSection.classList.remove('active');
+        progressSection.classList.remove('pt-progress-section--active');
+    }
+    
+    // 隐藏表单区域
+    if (formSection) {
+        formSection.style.display = 'none';
+    }
+    
+    // 显示结果区域
+    if (resultsSection) {
+        resultsSection.classList.add('active');
+        resultsSection.classList.add('pt-results-section--active');
+    }
+    
     updateStepStatus('preview', true);
+    
+    // 滚动到页面顶部
+    window.scrollTo({ top: 0, behavior: 'smooth' });
 }
 
 function hideResultsSection() {
-    document.getElementById('results-section').classList.remove('active');
+    const formSection = document.getElementById('form-section');
+    const resultsSection = document.getElementById('results-section');
+    
+    if (resultsSection) {
+        resultsSection.classList.remove('active');
+        resultsSection.classList.remove('pt-results-section--active');
+    }
+    
+    // 恢复显示表单区域
+    if (formSection) {
+        formSection.style.display = 'block';
+    }
 }
 
 function updateStepStatus(stepName, isActive) {
@@ -729,13 +1026,24 @@ function updateStepStatus(stepName, isActive) {
     steps.forEach((step, index) => {
         const stepElement = document.getElementById(`step-${step}`);
         if (stepElement) {
-            stepElement.classList.remove('active', 'completed');
+            // 移除所有状态类
+            stepElement.classList.remove('pt-step--active', 'pt-step--completed', 'pt-step--pending');
+            
             if (index < currentIndex) {
-                stepElement.classList.add('completed');
+                stepElement.classList.add('pt-step--completed');
             } else if (index === currentIndex && isActive) {
-                stepElement.classList.add('active');
+                stepElement.classList.add('pt-step--active');
             } else {
-                stepElement.classList.add('pending');
+                stepElement.classList.add('pt-step--pending');
+            }
+        }
+        
+        // 更新连接线
+        const connectorElement = document.getElementById(`connector-${step}`);
+        if (connectorElement) {
+            connectorElement.classList.remove('pt-step-connector--completed');
+            if (index < currentIndex) {
+                connectorElement.classList.add('pt-step-connector--completed');
             }
         }
     });
@@ -750,8 +1058,18 @@ function resetAllSteps() {
             stepElement.setAttribute('data-status', 'waiting');
             const badge = stepElement.querySelector('.step-status-badge');
             const icon = stepElement.querySelector('.step-icon');
-            if (badge) badge.textContent = '等待中';
+            const text = stepElement.querySelector('span:nth-child(2)');
+            
+            if (badge) {
+                badge.textContent = '等待中';
+                badge.style.color = 'var(--v2-text-tertiary, #71717a)';
+            }
             if (icon) icon.textContent = '⏳';
+            if (text) text.style.color = 'var(--v2-text-secondary, #a1a1aa)';
+            
+            // 重置样式
+            stepElement.style.background = 'rgba(255,255,255,0.03)';
+            stepElement.style.borderColor = 'rgba(255,255,255,0.06)';
         }
     });
     
@@ -805,3 +1123,65 @@ function resetForm() {
         showStatusMessage('🔄 表单已重置', 'info');
     }
 }
+
+// ==================== 页面加载时恢复活跃任务 ====================
+async function restoreActiveTaskOnLoad() {
+    console.log('[RESTORE] 检查是否有进行中的生成任务...');
+    
+    try {
+        const response = await fetch('/api/phase-one/active-tasks');
+        if (!response.ok) {
+            console.warn('[RESTORE] 获取活跃任务失败:', response.status);
+            return;
+        }
+        
+        const result = await response.json();
+        if (!result.success || !result.tasks || result.tasks.length === 0) {
+            console.log('[RESTORE] 没有进行中的生成任务');
+            return;
+        }
+        
+        // 获取最新的活跃任务
+        const activeTask = result.tasks[0];
+        console.log('[RESTORE] 发现活跃任务:', activeTask);
+        
+        // 恢复任务状态
+        currentTaskId = activeTask.task_id;
+        
+        // 显示恢复提示
+        showStatusMessage(`🔄 检测到进行中的生成任务: ${activeTask.title}`, 'info');
+        
+        // 切换到进度区域
+        switchToStep('generation');
+        
+        // 更新进度显示
+        updateProgress(activeTask.progress || 0, `恢复任务: ${activeTask.current_step || '生成中...'}`);
+        
+        // 如果有小说标题，填充到表单
+        if (activeTask.title && activeTask.title !== '未知') {
+            const titleInput = document.getElementById('novel-title');
+            if (titleInput && !titleInput.value) {
+                titleInput.value = activeTask.title;
+            }
+        }
+        
+        // 开始轮询进度
+        progressInterval = setInterval(() => {
+            updateProgressStatus(currentTaskId);
+        }, 2000);
+        
+        // 立即查询一次最新状态
+        await updateProgressStatus(currentTaskId);
+        
+        console.log('[RESTORE] 任务恢复完成，开始轮询进度');
+        
+    } catch (error) {
+        console.error('[RESTORE] 恢复活跃任务失败:', error);
+    }
+}
+
+// 页面加载完成后检查活跃任务
+document.addEventListener('DOMContentLoaded', function() {
+    // 延迟执行，确保其他初始化完成
+    setTimeout(restoreActiveTaskOnLoad, 1000);
+});

@@ -114,27 +114,41 @@ function displayProjectsList(projects) {
         return;
     }
 
-    let html = '';
+    let html = '<div class="creative-ideas-grid" style="grid-template-columns: 1fr; gap: 16px; max-height: none; padding: 0;">';
+    
     projects.forEach(project => {
         // 对标题进行HTML转义，避免特殊字符导致的问题
         const escapedTitle = project.title.replace(/'/g, "\\'").replace(/"/g, '\\"');
+        const statusText = getProjectStatusText(project);
+        const statusClass = getProjectStatusClass(project);
         
-        // 🔥 改进：所有项目都可以点击，移除点击限制
+        // 🔥 使用与一阶段创意选择相同的卡片样式
         html += `
-            <div class="project-card"
+            <div class="creative-idea-card project-select-card"
                  data-title="${escapedTitle}"
-                 onclick="selectProject('${escapedTitle}')"
-                 style="cursor: pointer;">
-                <div class="project-title">${project.title}</div>
-                <div class="project-info">总章节: ${project.total_chapters || 0}</div>
-                <div class="project-info">已完成: ${project.completed_chapters || 0} 章</div>
-                <div class="project-status ${getProjectStatusClass(project)}">
-                    ${getProjectStatusText(project)}
+                 data-status="${statusClass.replace('status-', '')}"
+                 onclick="selectProject('${escapedTitle}', this)"
+                 style="cursor: pointer; padding: 20px;">
+                <div class="creative-idea-header" style="margin-bottom: 12px;">
+                    <h4 class="creative-idea-title" style="font-size: 1.1rem;">${project.title}</h4>
+                    <span class="creative-idea-id ${statusClass}" style="font-size: 0.75rem; padding: 4px 10px; border-radius: 6px;">${statusText}</span>
+                </div>
+                <div class="creative-idea-content" style="color: var(--v2-text-secondary);">
+                    <div style="display: flex; gap: 16px; font-size: 0.9rem; margin-bottom: 8px;">
+                        <span style="color: var(--v2-text-secondary);">📚 总章节: <strong style="color: var(--v2-text-primary);">${project.total_chapters || 0}</strong></span>
+                        <span style="color: var(--v2-text-secondary);">✅ 已完成: <strong style="color: var(--v2-text-primary);">${project.completed_chapters || 0} 章</strong></span>
+                    </div>
+                    <div class="project-status-bar" style="margin-top: 12px;">
+                        <div style="height: 6px; background: var(--v2-bg-secondary); border-radius: 3px; overflow: hidden;">
+                            <div style="height: 100%; width: ${((project.completed_chapters || 0) / (project.total_chapters || 1)) * 100}%; background: linear-gradient(90deg, var(--v2-success), #4ade80); border-radius: 3px; transition: width 0.3s;"></div>
+                        </div>
+                    </div>
                 </div>
             </div>
         `;
     });
     
+    html += '</div>';
     projectsList.innerHTML = html;
 }
 
@@ -202,11 +216,11 @@ async function autoSelectProject(projectTitle) {
     console.log('🔄 [DEBUG] 开始自动选择项目:', projectTitle);
     
     // 查找项目卡片并触发选择
-    const projectCards = document.querySelectorAll('.project-card');
+    const projectCards = document.querySelectorAll('.creative-idea-card');
     let foundCard = null;
     
     for (const card of projectCards) {
-        const titleElement = card.querySelector('.project-title');
+        const titleElement = card.querySelector('.creative-idea-title');
         if (titleElement && titleElement.textContent === projectTitle) {
             foundCard = card;
             break;
@@ -238,28 +252,32 @@ async function autoSelectProject(projectTitle) {
 function getProjectStatusText(project) {
     if (project.phase_one && project.phase_one.status === 'completed') {
         if (project.phase_two && project.phase_two.status === 'completed') {
-            return '已完成';
+            return '✓ 全部完成';
         } else if (project.phase_two && project.phase_two.status === 'generating') {
-            return '生成中';
+            return '▶ 章节生成中';
         } else {
-            return '可生成';
+            return '✅ 一阶段完成';
         }
     } else if (project.phase_one && project.phase_one.status === 'generating') {
-        return '设计中';
+        return '⏳ 设计中';
     } else {
-        return '未完成';
+        return '○ 未开始';
     }
 }
 
-async function selectProject(projectTitle) {
+async function selectProject(projectTitle, clickedElement = null) {
     try {
         // 取消之前选中的项目
-        document.querySelectorAll('.project-card').forEach(card => {
+        document.querySelectorAll('.creative-idea-card').forEach(card => {
             card.classList.remove('selected');
         });
 
-        // 选中当前项目
-        event.currentTarget.classList.add('selected');
+        // 选中当前项目 - 使用传入的元素或根据标题查找
+        const clickedCard = clickedElement || document.querySelector(`.creative-idea-card[data-title="${projectTitle}"]`);
+        
+        if (clickedCard) {
+            clickedCard.classList.add('selected');
+        }
 
         // 加载项目详情
         const response = await fetch(`/api/project/${encodeURIComponent(projectTitle)}/with-phase-info`);
@@ -286,7 +304,22 @@ async function selectProject(projectTitle) {
 }
 
 function displayProjectInfo(projectData) {
+    console.log('[DEBUG] displayProjectInfo 开始执行:', projectData.novel_title || projectData.title);
+    
+    // 🔥 延迟检查元素是否存在
+    setTimeout(() => {
+        const delayedCheck = document.getElementById('selected-project-info');
+        console.log('[DEBUG] 100ms后检查 selected-project-info:', delayedCheck);
+    }, 100);
+    
     const infoDiv = document.getElementById('selected-project-info');
+    console.log('[DEBUG] selected-project-info 元素:', infoDiv);
+    
+    // 🔥 检查整个文档中是否有这个 ID
+    const allElements = document.querySelectorAll('[id]');
+    const hasSelectedInfo = Array.from(allElements).some(el => el.id === 'selected-project-info');
+    console.log('[DEBUG] 文档中是否存在 selected-project-info ID:', hasSelectedInfo);
+    console.log('[DEBUG] 所有ID列表:', Array.from(allElements).map(el => el.id).slice(0, 20));
     
     // 🔥 修复：优先从phase_info获取总章节数，然后尝试其他可能的位置
     const totalChapters = (
@@ -299,12 +332,47 @@ function displayProjectInfo(projectData) {
     );
     
     const completedChapters = Object.keys(projectData.generated_chapters || {}).length;
+    console.log(`[DEBUG] 总章节: ${totalChapters}, 已完成: ${completedChapters}`);
     
-    infoDiv.style.display = 'block';
-    document.getElementById('current-project-title').textContent = projectData.novel_title || projectData.title || '未命名';
-    document.getElementById('current-project-total-chapters').textContent = totalChapters;
-    document.getElementById('current-project-completed-chapters').textContent = completedChapters;
-    document.getElementById('current-project-status').textContent = '准备就绪';
+    // 🔥 修复：添加空值检查，兼容不同版本的HTML结构
+    if (infoDiv) {
+        infoDiv.style.display = 'block';
+        console.log('[DEBUG] selected-project-info 已显示');
+    } else {
+        console.warn('[DEBUG] selected-project-info 元素不存在');
+    }
+    
+    const titleEl = document.getElementById('current-project-title');
+    if (titleEl) {
+        titleEl.textContent = projectData.novel_title || projectData.title || '未命名';
+        console.log('[DEBUG] current-project-title 已更新:', titleEl.textContent);
+    } else {
+        console.warn('[DEBUG] current-project-title 元素不存在');
+    }
+    
+    const totalChaptersEl = document.getElementById('current-project-total-chapters');
+    if (totalChaptersEl) {
+        totalChaptersEl.textContent = totalChapters;
+        console.log('[DEBUG] current-project-total-chapters 已更新');
+    } else {
+        console.warn('[DEBUG] current-project-total-chapters 元素不存在');
+    }
+    
+    const completedChaptersEl = document.getElementById('current-project-completed-chapters');
+    if (completedChaptersEl) {
+        completedChaptersEl.textContent = completedChapters;
+        console.log('[DEBUG] current-project-completed-chapters 已更新');
+    } else {
+        console.warn('[DEBUG] current-project-completed-chapters 元素不存在');
+    }
+    
+    const statusEl = document.getElementById('current-project-status');
+    if (statusEl) {
+        statusEl.textContent = '准备就绪';
+        console.log('[DEBUG] current-project-status 已更新');
+    } else {
+        console.warn('[DEBUG] current-project-status 元素不存在');
+    }
     
     // 更新表单默认值
     const fromChapter = document.getElementById('from-chapter');
@@ -457,21 +525,46 @@ function updatePointsCostEstimate(chapterCount) {
 function displayProjectDetails(projectData) {
     const detailsDiv = document.getElementById('project-details');
     
+    // 添加空值检查
+    if (!detailsDiv) {
+        console.warn('[DEBUG] project-details 元素不存在，跳过显示项目详情');
+        return;
+    }
+    
+    // 关键修复：从多个可能的位置获取数据
+    const novelTitle = projectData.novel_title || projectData.title || '未命名';
+    const synopsis = projectData.story_synopsis || projectData.synopsis || projectData.novel_synopsis || '暂无简介';
+    const setting = projectData.core_setting || projectData.core_worldview || projectData.worldview_setting || '暂无设定';
+    
     let html = `
-        <div class="result-item">
-            <h4>📋 项目信息</h4>
-            <p><strong>标题:</strong> ${projectData.novel_title || '未命名'}</p>
-            <p><strong>简介:</strong> ${projectData.story_synopsis || '暂无简介'}</p>
-            <p><strong>核心设定:</strong> ${projectData.core_setting || '暂无设定'}</p>
+        <div class="result-item" style="background: rgba(99, 102, 241, 0.05); border: 1px solid rgba(99, 102, 241, 0.2); border-radius: 12px; padding: 16px; margin-bottom: 16px;">
+            <h4 style="margin: 0 0 12px 0; color: #a78bfa; font-size: 14px; font-weight: 600;">📋 项目信息</h4>
+            <p style="margin: 8px 0; color: #fff; font-size: 13px;"><strong style="color: rgba(255,255,255,0.6);">标题:</strong> ${novelTitle}</p>
+            <p style="margin: 8px 0; color: rgba(255,255,255,0.8); font-size: 13px; line-height: 1.6;"><strong style="color: rgba(255,255,255,0.6);">简介:</strong> ${synopsis}</p>
+            <p style="margin: 8px 0; color: rgba(255,255,255,0.8); font-size: 13px; line-height: 1.6;"><strong style="color: rgba(255,255,255,0.6);">核心设定:</strong> ${setting}</p>
         </div>
     `;
     
-    if (projectData.phase_one) {
+    // 关键修复：更准确地判断第一阶段完成状态
+    const phaseOneStatus = projectData.phase_one?.status || 
+                          (projectData.phase_info?.phase_one?.status);
+    
+    if (phaseOneStatus === 'completed' || phaseOneStatus === '已完成') {
+        const completedAt = projectData.phase_one?.completed_at || 
+                           projectData.phase_info?.phase_one?.completed_at ||
+                           projectData.created_at;
         html += `
-            <div class="result-item">
-                <h4>✅ 第一阶段状态</h4>
-                <p><strong>状态:</strong> <span style="color: #10b981;">已完成</span></p>
-                <p><strong>完成时间:</strong> ${new Date(projectData.phase_one.completed_at || Date.now()).toLocaleString()}</p>
+            <div class="result-item" style="background: rgba(34, 197, 94, 0.05); border: 1px solid rgba(34, 197, 94, 0.2); border-radius: 12px; padding: 16px;">
+                <h4 style="margin: 0 0 12px 0; color: #22c55e; font-size: 14px; font-weight: 600;">✅ 第一阶段状态</h4>
+                <p style="margin: 8px 0; font-size: 13px;"><strong style="color: rgba(255,255,255,0.6);">状态:</strong> <span style="color: #22c55e; font-weight: 500;">已完成</span></p>
+                <p style="margin: 8px 0; color: rgba(255,255,255,0.7); font-size: 13px;"><strong style="color: rgba(255,255,255,0.6);">完成时间:</strong> ${completedAt ? new Date(completedAt).toLocaleString('zh-CN') : '未知'}</p>
+            </div>
+        `;
+    } else {
+        html += `
+            <div class="result-item" style="background: rgba(255, 255, 255, 0.03); border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 12px; padding: 16px;">
+                <h4 style="margin: 0 0 12px 0; color: rgba(255,255,255,0.5); font-size: 14px; font-weight: 600;">⏳ 第一阶段状态</h4>
+                <p style="margin: 8px 0; font-size: 13px;"><strong style="color: rgba(255,255,255,0.6);">状态:</strong> <span style="color: rgba(255,255,255,0.5);">未完成</span></p>
             </div>
         `;
     }
@@ -503,13 +596,31 @@ function calculateTotalWords(chapters) {
 }
 
 function showCreativeEnhancement() {
-    document.getElementById('phase-one-products-section').style.display = 'block';
+    console.log('[DEBUG] showCreativeEnhancement 被调用');
+    // 🔥 修复：兼容不同版本的HTML结构
+    const productsSection = document.getElementById('phase-one-products-section') || document.getElementById('products-section');
+    console.log('[DEBUG] productsSection 元素:', productsSection);
+    if (productsSection) {
+        productsSection.style.display = 'block';
+        console.log('[DEBUG] productsSection 已显示');
+    } else {
+        console.warn('[DEBUG] productsSection 元素不存在 (phase-one-products-section 或 products-section)');
+    }
     // 加载第一阶段产物数据
     loadPhaseOneProducts();
 }
 
 function showGenerationForm() {
-    document.getElementById('phase-two-form').style.display = 'block';
+    console.log('[DEBUG] showGenerationForm 被调用');
+    // 🔥 修复：兼容不同版本的HTML结构
+    const form = document.getElementById('phase-two-form') || document.getElementById('generation-form');
+    console.log('[DEBUG] form 元素:', form);
+    if (form) {
+        form.style.display = 'block';
+        console.log('[DEBUG] form 已显示');
+    } else {
+        console.warn('[DEBUG] form 元素不存在 (phase-two-form 或 generation-form)');
+    }
 }
 
 // ==================== 第一阶段产物管理功能 ====================
@@ -517,14 +628,22 @@ let phaseOneProductsData = {};
 
 async function loadPhaseOneProducts() {
     if (!currentProject) {
-        showStatusMessage('❌ 请先选择一个项目', 'error');
+        console.log('[DEBUG] loadPhaseOneProducts: 没有当前项目，跳过');
         return;
     }
 
+    const projectTitle = currentProject.novel_title || currentProject.title;
+    console.log(`[DEBUG] loadPhaseOneProducts: 开始加载项目 ${projectTitle}`);
+
     try {
-        showStatusMessage('🔄 正在加载第一阶段产物...', 'info');
+        const response = await fetch(`/api/phase-one/products/${encodeURIComponent(projectTitle)}`);
         
-        const response = await fetch(`/api/phase-one/products/${encodeURIComponent(currentProject.novel_title || currentProject.title)}`);
+        if (response.status === 404) {
+            console.warn(`[DEBUG] 产物API返回404，项目可能尚未生成产物: ${projectTitle}`);
+            // 不显示错误，直接使用模拟数据
+            showMockProductsData();
+            return;
+        }
         
         if (!response.ok) {
             throw new Error(`HTTP ${response.status}: ${response.statusText}`);
@@ -539,15 +658,14 @@ async function loadPhaseOneProducts() {
             await checkFactionSystemStatus();
             
             updateProductsDisplay();
-            showStatusMessage('✅ 第一阶段产物加载完成', 'success');
+            console.log('[DEBUG] 第一阶段产物加载完成');
         } else {
-            throw new Error(result.error || '加载失败');
+            console.warn('[DEBUG] 产物加载返回失败，使用模拟数据:', result.error);
+            showMockProductsData();
         }
     } catch (error) {
-        console.error('加载第一阶段产物失败:', error);
-        showStatusMessage(`❌ 加载产物失败: ${error.message}`, 'error');
-        
-        // 如果加载失败，显示模拟数据
+        console.error('[DEBUG] 加载第一阶段产物失败:', error);
+        // 不显示错误提示，直接使用模拟数据
         showMockProductsData();
     }
 }
@@ -576,21 +694,22 @@ async function checkFactionSystemStatus() {
 }
 
 function updateProductsDisplay() {
-    const categories = ['worldview', 'factions', 'characters', 'growth', 'writing', 'storyline', 'market'];
+    const categories = ['worldview', 'factions', 'characters', 'growth', 'writing', 'storyline', 'market', 'viewer'];
     
     categories.forEach(category => {
-        const statusElement = document.getElementById(`${category}-status`);
-        if (statusElement) {
-            const indicator = statusElement.querySelector('.status-indicator');
-            const text = statusElement.querySelector('.status-text');
-            
-            if (phaseOneProductsData[category] && phaseOneProductsData[category].content) {
-                indicator.className = 'status-indicator complete';
-                text.textContent = '已完成';
-            } else {
-                indicator.className = 'status-indicator';
-                text.textContent = '未生成';
-            }
+        const card = document.querySelector(`.pt-product-card--${category}`);
+        const statusRow = document.getElementById(`${category}-status-text`)?.parentElement;
+        
+        const hasData = phaseOneProductsData[category] && phaseOneProductsData[category].content;
+        
+        // 设置卡片数据状态属性
+        if (card) {
+            card.setAttribute('data-has-data', hasData ? 'true' : 'false');
+        }
+        
+        // 隐藏/显示状态行 - 只在未完成时显示提示
+        if (statusRow) {
+            statusRow.style.display = hasData ? 'none' : 'flex';
         }
     });
 }
@@ -1608,7 +1727,10 @@ function startProgressMonitoring() {
             const response = await fetch(`/api/phase-two/task/${currentTaskId}/status`);
             if (!response.ok) return;
 
-            const taskStatus = await response.json();
+            const result = await response.json();
+            // 🔥 修复：兼容两种数据格式（嵌套data或直接返回）
+            const taskStatus = result.data || result;
+            
             updateProgress(taskStatus.progress || 0, taskStatus.status_message || '生成中...');
             updateChapterProgress(taskStatus);
             updateCurrentChapterInfo(taskStatus);
@@ -1637,49 +1759,94 @@ function initializeChapterProgress() {
     for (let i = 0; i < chaptersToGenerate; i++) {
         const chapterNumber = fromChapter + i;
         html += `
-            <div class="chapter-card" id="chapter-${chapterNumber}">
-                <div class="chapter-number">第${chapterNumber}章</div>
-                <div class="chapter-title">等待生成...</div>
-                <div class="chapter-status pending">等待中</div>
+            <div class="v2-chapter-mini v2-chapter-mini--pending" id="chapter-${chapterNumber}" 
+                 title="第${chapterNumber}章 - 等待中" 
+                 data-chapter="${chapterNumber}"
+                 onclick="showChapterDetails(${chapterNumber})">
+                <span class="v2-chapter-mini__num">${chapterNumber}</span>
+                <span class="v2-chapter-mini__status">等待</span>
             </div>
         `;
     }
     
     grid.innerHTML = html;
+    
+    // 添加队列演示动画 - 让前几个章节短暂显示排队效果
+    setTimeout(() => {
+        const firstCard = document.getElementById(`chapter-${fromChapter}`);
+        const secondCard = document.getElementById(`chapter-${fromChapter + 1}`);
+        
+        if (firstCard) {
+            firstCard.classList.remove('v2-chapter-mini--pending');
+            firstCard.classList.add('v2-chapter-mini--generating');
+            firstCard.querySelector('.v2-chapter-mini__status').textContent = '生成中';
+        }
+        if (secondCard) {
+            secondCard.classList.remove('v2-chapter-mini--pending');
+            secondCard.classList.add('v2-chapter-mini--queued');
+            secondCard.querySelector('.v2-chapter-mini__status').textContent = '排队';
+        }
+        
+        // 2秒后恢复等待状态
+        setTimeout(() => {
+            if (firstCard) {
+                firstCard.classList.remove('v2-chapter-mini--generating');
+                firstCard.classList.add('v2-chapter-mini--pending');
+                firstCard.querySelector('.v2-chapter-mini__status').textContent = '等待';
+            }
+            if (secondCard) {
+                secondCard.classList.remove('v2-chapter-mini--queued');
+                secondCard.classList.add('v2-chapter-mini--pending');
+                secondCard.querySelector('.v2-chapter-mini__status').textContent = '等待';
+            }
+        }, 2000);
+    }, 500);
 }
 
 function updateChapterProgress(taskStatus) {
     if (!taskStatus.chapter_progress) return;
     
-    taskStatus.chapter_progress.forEach(chapter => {
+    // 找出正在生成的章节和下一个排队的章节
+    const generatingIndex = taskStatus.chapter_progress.findIndex(ch => ch.status === 'generating');
+    const nextQueuedIndex = generatingIndex >= 0 ? generatingIndex + 1 : -1;
+    
+    taskStatus.chapter_progress.forEach((chapter, index) => {
         const chapterCard = document.getElementById(`chapter-${chapter.chapter_number}`);
         if (chapterCard) {
-            // 更新状态
-            chapterCard.className = `chapter-card ${chapter.status}`;
-            
-            // 更新标题
-            const titleElement = chapterCard.querySelector('.chapter-title');
-            if (titleElement) {
-                titleElement.textContent = chapter.chapter_title || `第${chapter.chapter_number}章`;
+            // 确定状态：如果是下一个要生成的，标记为queued
+            let displayStatus = chapter.status;
+            if (chapter.status === 'pending' && index === nextQueuedIndex) {
+                displayStatus = 'queued';
             }
             
-            // 更新状态显示
-            const statusElement = chapterCard.querySelector('.chapter-status');
+            // 更新状态样式
+            const statusClassMap = {
+                'pending': 'v2-chapter-mini--pending',
+                'queued': 'v2-chapter-mini--queued',
+                'generating': 'v2-chapter-mini--generating',
+                'completed': 'v2-chapter-mini--completed',
+                'failed': 'v2-chapter-mini--error'
+            };
+            
+            chapterCard.className = `v2-chapter-mini ${statusClassMap[displayStatus] || 'v2-chapter-mini--pending'}`;
+            
+            // 更新状态文字
+            const statusElement = chapterCard.querySelector('.v2-chapter-mini__status');
             if (statusElement) {
-                statusElement.className = `chapter-status ${chapter.status}`;
-                statusElement.textContent = getStatusText(chapter.status);
+                const statusTextMap = {
+                    'pending': '等待',
+                    'queued': '排队',
+                    'generating': '生成中',
+                    'completed': '完成',
+                    'failed': '失败'
+                };
+                statusElement.textContent = statusTextMap[displayStatus] || '等待';
             }
             
-            // 更新字数
-            let wordCountElement = chapterCard.querySelector('.chapter-word-count');
-            if (!wordCountElement && chapter.word_count) {
-                wordCountElement = document.createElement('div');
-                wordCountElement.className = 'chapter-word-count';
-                titleElement.parentNode.insertBefore(wordCountElement, statusElement);
-            }
-            if (wordCountElement) {
-                wordCountElement.textContent = `${chapter.word_count || 0} 字`;
-            }
+            // 更新tooltip
+            const statusText = getStatusText(chapter.status);
+            const titleText = chapter.chapter_title || `第${chapter.chapter_number}章`;
+            chapterCard.title = `${titleText} - ${statusText}${chapter.word_count ? ` (${chapter.word_count}字)` : ''}`;
             
             // 更新日志
             if (chapter.status === 'completed') {
@@ -1703,9 +1870,41 @@ function updateCurrentChapterInfo(taskStatus) {
     }
 }
 
+// 显示章节详情（点击章节卡片时）
+function showChapterDetails(chapterNumber) {
+    const chapterCard = document.getElementById(`chapter-${chapterNumber}`);
+    if (!chapterCard) return;
+    
+    const statusText = chapterCard.querySelector('.v2-chapter-mini__status').textContent;
+    const statusClass = chapterCard.className;
+    
+    let detailText = '';
+    if (statusClass.includes('generating')) {
+        detailText = `第${chapterNumber}章正在生成中，AI正在创作内容...`;
+    } else if (statusClass.includes('queued')) {
+        detailText = `第${chapterNumber}章正在排队等待生成，请稍候...`;
+    } else if (statusClass.includes('completed')) {
+        detailText = `第${chapterNumber}章已生成完成！`;
+    } else if (statusClass.includes('error')) {
+        detailText = `第${chapterNumber}章生成失败，请检查日志。`;
+    } else {
+        detailText = `第${chapterNumber}章等待中，即将开始生成...`;
+    }
+    
+    // 显示提示
+    showNotification(detailText, 'info');
+    
+    // 添加点击动画
+    chapterCard.style.transform = 'scale(0.95)';
+    setTimeout(() => {
+        chapterCard.style.transform = '';
+    }, 150);
+}
+
 function getStatusText(status) {
     const statusMap = {
         'pending': '等待中',
+        'queued': '排队中',
         'generating': '生成中',
         'completed': '已完成',
         'failed': '失败'
@@ -1901,20 +2100,55 @@ function goToContentReview() {
 
 // ==================== 工具函数 ====================
 function showProgressSection() {
-    document.getElementById('progress-section').classList.add('active');
-    document.getElementById('generation-results').classList.remove('active');
+    const progressSection = document.getElementById('progress-section');
+    const resultsSection = document.getElementById('generation-results');
+    const formSection = document.getElementById('generation-form');
+    const productsSection = document.getElementById('products-section');
+    
+    if (progressSection) {
+        progressSection.classList.remove('pt-hidden');
+        progressSection.classList.add('active');
+    }
+    if (resultsSection) {
+        resultsSection.classList.add('pt-hidden');
+        resultsSection.classList.remove('active');
+    }
+    if (formSection) {
+        formSection.style.display = 'none';
+    }
+    // 隐藏第一阶段产物管理区域
+    if (productsSection) {
+        productsSection.style.display = 'none';
+    }
 }
 
 function hideProgressSection() {
-    document.getElementById('progress-section').classList.remove('active');
+    const progressSection = document.getElementById('progress-section');
+    if (progressSection) {
+        progressSection.classList.add('pt-hidden');
+        progressSection.classList.remove('active');
+    }
 }
 
 function showGenerationForm() {
-    document.getElementById('phase-two-form').style.display = 'block';
+    // 🔥 修复：兼容不同版本的HTML结构
+    const form = document.getElementById('phase-two-form') || document.getElementById('generation-form');
+    const productsSection = document.getElementById('products-section');
+    if (form) {
+        form.style.display = 'block';
+    }
+    // 显示第一阶段产物管理区域
+    if (productsSection) {
+        productsSection.style.display = 'block';
+    }
 }
 
 function hideGenerationForm() {
-    document.getElementById('phase-two-form').style.display = 'none';
+    // 🔥 修复：兼容不同版本的HTML结构
+    const form = document.getElementById('phase-two-form') || document.getElementById('generation-form');
+    if (form) {
+        form.style.display = 'none';
+    }
 }
 
 function showGenerationResults() {

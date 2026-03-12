@@ -26,32 +26,30 @@ CONFIG = {
     # ============================================================
     # 🔥 新的多API端点池配置（推荐）- 支持故障转移和优先级调度
     # ============================================================
-    # 测试结果: 2026-03-09
-    # - Aiberm API (aiberm.com) 测试通过 ✅ - 优先级1（最高）
-    # - google/gemini-3.1-pro: 测试通过，响应时间~11s
-    # - Lemon API (new.lemonapi.site) 测试通过 ✅ - 优先级2
-    # - [L]gemini-3.1-pro-preview: 测试通过，响应时间~10s（冷启动）
+    # 测试结果: 2026-03-12
+    # - Lemon API (new.lemonapi.site) 主用 ✅ - 优先级1（最高）
+    # - [L]gemini-3.1-pro-preview: 测试通过，响应时间~10s
+    # - Aiberm API (aiberm.com) 备用 - 优先级2
     # - 注意: Lemon API 模型名称需要 [L] 前缀
     # - 建议超时设置: 300秒（5分钟）以应对冷启动
-    # - 如遇404错误，可能是服务暂时不可用，会自动切换到备用端点
     "api_endpoints": {
         "gemini": [
             {
-                "name": "aiberm",              # 🆕 新端点：Aiberm API（已测试通过）
-                "api_url": "https://aiberm.com/v1/chat/completions",
-                "api_key": os.getenv('AIBERM_API_KEY', 'sk-dWu7JFD69zTYeSLZiWV8OQYBjQ2IoJlQCmSo3f963ArGEAju'),
-                "model": "google/gemini-3.1-pro",  # Gemini 3.1 Pro
-                "priority": 1,                 # ✅ 测试通过，设为最高优先级
+                "name": "lemon-api",           # 🔴 主用端点：Lemon API（放在第一位）
+                "api_url": "https://new.lemonapi.site/v1/chat/completions",
+                "api_key": os.getenv('LEMON_API_KEY', 'sk-n7M8j3un3p4QBfKNHxYDVmnhZELU4eicBrhBDsZEu23h3uXg'),
+                "model": "[L]gemini-3.1-pro-preview",  # 3.1 模型
+                "priority": 1,                 # ✅ 最高优先级
                 "enabled": True,
                 "timeout": 300,
                 "max_retries": 3
             },
             {
-                "name": "lemon-api",           # 备用端点：Lemon API
-                "api_url": "https://new.lemonapi.site/v1/chat/completions",
-                "api_key": os.getenv('LEMON_API_KEY', 'sk-n7M8j3un3p4QBfKNHxYDVmnhZELU4eicBrhBDsZEu23h3uXg'),
-                "model": "[L]gemini-3.1-pro-preview",  # 3.1 模型
-                "priority": 2,                 # 降为备用优先级
+                "name": "aiberm",              # 🟡 备用端点：Aiberm API（403错误时使用）
+                "api_url": "https://aiberm.com/v1/chat/completions",
+                "api_key": os.getenv('AIBERM_API_KEY', 'sk-dWu7JFD69zTYeSLZiWV8OQYBjQ2IoJlQCmSo3f963ArGEAju'),
+                "model": "google/gemini-3.1-pro",  # Gemini 3.1 Pro
+                "priority": 2,                 # 优先级2（降低）
                 "enabled": True,
                 "timeout": 300,
                 "max_retries": 3

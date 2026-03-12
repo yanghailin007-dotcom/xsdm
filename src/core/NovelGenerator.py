@@ -425,14 +425,14 @@ class NovelGenerator:
                 if task_id and callable(self._update_task_status_callback):
                     # 🔥 统一格式：使用简单的 {step_name: status} 格式
                     step_status = {step_name: step_state}
-                    # 调用回调，传入当前进度和步骤状态
-                    current_progress = getattr(self, 'overall_progress', 0)
+                    # 🔥 修复：不传入固定的进度值(0)，让外部保持已有进度
+                    # 传入 None 表示不修改进度，只更新步骤状态
                     # 🔥 传递 points_consumed 点数消耗
                     points_consumed = getattr(self, '_api_points_consumed', 0)
                     self._update_task_status_callback(
                         task_id, 
                         'generating', 
-                        current_progress, 
+                        None,  # 🔥 传入 None，让外部保持已有进度
                         None,
                         step_name,  # current_step
                         step_status,
@@ -792,11 +792,13 @@ class NovelGenerator:
             self._ctx.setdefault("generated_chapters", {})[chapter_number] = result
             self._ctx["current_progress"]["completed_chapters"] = len(self._ctx["generated_chapters"])
             
-            # 保存章节
+            # 保存章节（传递用户名确保用户隔离）
+            username = getattr(self, '_username', None)
             self.project_manager.save_single_chapter(
                 self._ctx["novel_title"], 
                 chapter_number, 
-                result
+                result,
+                username=username
             )
 
     def _on_chapter_assessed(self, data):
@@ -1490,21 +1492,27 @@ class NovelGenerator:
         
         return True
 
-    def _generate_overall_planning(self) -> bool:
+    def _generate_overall_planning(self, update_step_status=None) -> bool:
         """生成全书规划"""
         print("\n" + "="*60)
         print("📊 第三阶段：全书规划")
         print("="*60)
         
+        # 使用传入的回调或默认的内部方法
+        _update_step = update_step_status if update_step_status else self._update_step_status
+        
         # 生成情绪蓝图
         self._ctx["current_progress"]["stage"] = "情绪蓝图规划"
+        _update_step('emotional_growth_planning', 'active', '正在生成情绪蓝图...')
         if not self.emotional_blueprint_manager.generate_emotional_blueprint(
             self._ctx["novel_title"],
             self._ctx["novel_synopsis"],
             self._ctx["creative_seed"]
         ):
             print("❌ 情绪蓝图生成失败，无法进行后续情绪引导。")
+            _update_step('emotional_growth_planning', 'failed', '情绪蓝图生成失败')
             return False
+        _update_step('emotional_growth_planning', 'completed', '情绪蓝图生成完成')
         
         # 全局成长规划
         self._ctx["current_progress"]["stage"] = "成长规划"
@@ -1513,6 +1521,7 @@ class NovelGenerator:
         
         # 生成全书阶段计划
         self._ctx["current_progress"]["stage"] = "阶段计划"
+        _update_step('stage_plan', 'active', '正在生成全书阶段计划...')
         creative_seed = self._ctx["creative_seed"]
         total_chapters = self._ctx["current_progress"]["total_chapters"]
         
@@ -1531,18 +1540,25 @@ class NovelGenerator:
         if not overall_stage_plans:
             print("⚠️ 全书阶段计划生成失败，使用默认阶段划分")
         
+        _update_step('stage_plan', 'completed', '全书阶段计划生成完成')
+        
         # 生成阶段详细写作计划
         self._ctx["current_progress"]["stage"] = "阶段详细计划"
-        if not self._generate_stage_writing_plans():
+        _update_step('detailed_stage_plans', 'active', '正在生成阶段详细写作计划...')
+        if not self._generate_stage_writing_plans(update_step_status=_update_step):
             print("❌ 生成阶段详细写作计划失败")
+            _update_step('detailed_stage_plans', 'failed', '阶段详细写作计划生成失败')
             return False
+        _update_step('detailed_stage_plans', 'completed', '阶段详细写作计划生成完成')
         
         # 元素登场时机已由期待感系统管理
         print("✅ 元素登场时机由期待感系统统一管理")
         
         # 初始化系统
         self._ctx["current_progress"]["stage"] = "系统初始化"
+        _update_step('system_init', 'active', '正在初始化系统...')
         self._initialize_systems()
+        _update_step('system_init', 'completed', '系统初始化完成')
         
         return True
 
@@ -1703,9 +1719,15 @@ class NovelGenerator:
             print(f"⚠️ 全局成长规划器出错: {e}，使用基础框架")
             return False
 
-    def _generate_stage_writing_plans(self) -> bool:
+    def _generate_stage_writing_plans(self, update_step_status=None) -> bool:
         """生成各阶段详细写作计划"""
         print("=== 步骤6: 生成各阶段详细写作计划 ===")
+        
+        # 使用传入的回调或默认的内部方法
+        _update_step = update_step_status if update_step_status else self._update_step_status
+        
+        # 更新步骤状态为进行中
+        _update_step('detailed_stage_plans', 'active', '正在并行生成各阶段详细写作计划...')
         
         overall_stage_plans = self._ctx.get("overall_stage_plans", {})
         if not overall_stage_plans or "overall_stage_plan" not in overall_stage_plans:
@@ -1718,6 +1740,25 @@ class NovelGenerator:
             
             self._ctx["stage_writing_plans"] = {}
             
+            # 🔥 优化：先批量生成所有阶段的情绪计划（单次API调用）
+            print("  💖 批量生成所有阶段的情绪计划...")
+            emotional_blueprint = self.novel_data.get("emotional_blueprint", {})
+            stages_info = []
+            for stage_name, stage_info in stage_plan_dict.items():
+                chapter_range_str = stage_info["chapter_range"]
+                import re
+                numbers = re.findall(r'\d+', chapter_range_str)
+                if len(numbers) >= 2:
+                    stage_range = f"{numbers[0]}-{numbers[1]}"
+                else:
+                    stage_range = "1-3"
+                stages_info.append({'stage_name': stage_name, 'stage_range': stage_range})
+            
+            all_stages_emotional_plans = self.emotional_plan_manager.generate_all_stages_emotional_plan(
+                stages_info, emotional_blueprint
+            )
+            print(f"  ✅ 成功生成 {len(all_stages_emotional_plans)} 个阶段的情绪计划")
+            
             for stage_name, stage_info in stage_plan_dict.items():
                 chapter_range_str = stage_info["chapter_range"]
                 
@@ -1728,6 +1769,9 @@ class NovelGenerator:
                 else:
                     stage_range = "1-3"
                 
+                # 获取预生成的情绪计划
+                pre_generated_emotional_plan = all_stages_emotional_plans.get(stage_name)
+                
                 print(f"  📋 生成 {stage_name} 的详细写作计划...")
                 print(f"  📋 章节范围: {stage_range}")
                 
@@ -1737,7 +1781,8 @@ class NovelGenerator:
                     creative_seed=self._ctx["creative_seed"],
                     novel_title=self._ctx["novel_title"],
                     novel_synopsis=self._ctx["novel_synopsis"],
-                    overall_stage_plan=stage_plan_dict
+                    overall_stage_plan=stage_plan_dict,
+                    stage_emotional_plan=pre_generated_emotional_plan
                 )
                 
                 if stage_plan:
@@ -2136,6 +2181,18 @@ class NovelGenerator:
             # 🔥 修复：确保novel_data中有novel_title和current_progress
             if not self._ctx.get("novel_title"):
                 self._ctx["novel_title"] = novel_title
+
+            # 关键修复：同时设置 self.novel_data，供 StagePlanPersistence 使用
+            if not self.novel_data.get("novel_title"):
+                self.novel_data["novel_title"] = novel_title
+                self.logger.info(f"已设置 novel_data['novel_title'] = {novel_title}")
+            
+            # 关键修复：将 novel_data 中的关键数据同步到 _ctx
+            for key in ["overall_stage_plans", "global_growth_plan", "stage_writing_plans", 
+                       "character_design", "core_worldview", "novel_synopsis", "creative_seed"]:
+                if self.novel_data.get(key) and not self._ctx.get(key):
+                    self._ctx[key] = self.novel_data[key]
+                    self.logger.info(f"已同步 {key} 到 _ctx")
             
             # 🔥 修复：确保current_progress结构存在并正确初始化
             if "current_progress" not in self._ctx or not self._ctx["current_progress"]:
@@ -2175,6 +2232,9 @@ class NovelGenerator:
                 print("\n✅ 第二阶段章节生成完成")
                 
                 # 保存进度
+                # 🔥 确保用户名被传递到 _ctx
+                if hasattr(self, '_username') and self._username:
+                    self._ctx['_username'] = self._username
                 self.project_manager.save_project_progress(self._ctx)
                 
                 return True

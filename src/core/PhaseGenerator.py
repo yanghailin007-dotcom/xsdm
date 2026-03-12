@@ -1040,6 +1040,15 @@ class PhaseGenerator:
             print(f"  🚀 启动并行生成：共 {len(stage_tasks)} 个阶段")
             print(f"  ⏱️  预计节省 {len(stage_tasks)-1} 倍时间")
             
+            # 🔥 优化：先批量生成所有阶段的情绪计划（单次API调用）
+            print("  💖 批量生成所有阶段的情绪计划...")
+            emotional_blueprint = self.generator.novel_data.get("emotional_blueprint", {})
+            stages_info = [{'stage_name': t['stage_name'], 'stage_range': t['stage_range']} for t in stage_tasks]
+            all_stages_emotional_plans = self.generator.emotional_plan_manager.generate_all_stages_emotional_plan(
+                stages_info, emotional_blueprint
+            )
+            print(f"  ✅ 成功生成 {len(all_stages_emotional_plans)} 个阶段的情绪计划")
+            
             # 🔥 优化：使用线程池并行生成
             from concurrent.futures import ThreadPoolExecutor, as_completed
             
@@ -1049,6 +1058,8 @@ class PhaseGenerator:
                 """生成单个阶段的包装函数"""
                 stage_name = task['stage_name']
                 thread_id = threading.current_thread().name
+                # 获取预生成的情绪计划
+                pre_generated_emotional_plan = all_stages_emotional_plans.get(stage_name)
                 try:
                     print(f"  📋 [{stage_name}] [线程:{thread_id}] 开始生成...")
                     stage_plan = self.generator.stage_plan_manager.generate_stage_writing_plan(
@@ -1057,7 +1068,8 @@ class PhaseGenerator:
                         creative_seed=task['creative_seed'],
                         novel_title=task['novel_title'],
                         novel_synopsis=task['novel_synopsis'],
-                        overall_stage_plan=task['overall_stage_plan']
+                        overall_stage_plan=task['overall_stage_plan'],
+                        stage_emotional_plan=pre_generated_emotional_plan
                     )
                     if stage_plan:
                         print(f"  ✅ [{stage_name}] [线程:{thread_id}] 生成成功")

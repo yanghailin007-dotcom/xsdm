@@ -110,8 +110,9 @@ class StagePlanManager:
         
         self.event_decomposer = EventDecomposer(api_client)
         self.plan_validator = PlanValidator()
+        # 🔥 修复：传递获取路径的函数，而不是固定路径，确保 username 设置后能获取正确路径
         self.plan_persistence = StagePlanPersistence(
-            self.plans_dir,
+            lambda: self.plans_dir,
             lambda: self.generator.novel_data
         )
         self.event_optimizer = EventOptimizer(api_client)

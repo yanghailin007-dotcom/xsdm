@@ -1219,3 +1219,335 @@ class EventDecomposer:
         lines.append("")
 
         return "\n".join(lines)
+
+    def decompose_multiple_major_events(self, major_event_skeletons: List[Dict],
+                                       stage_name: str, stage_range: str,
+                                       novel_title: str, novel_synopsis: str,
+                                       creative_seed: Dict, overall_stage_plan: Dict,
+                                       global_novel_data: Dict,
+                                       stage_emotional_arc: Optional[Dict] = None,
+                                       overall_emotional_blueprint: Optional[Dict] = None) -> List[Dict]:
+        """
+        批量分解多个重大事件为中型事件（优化版）
+        
+        与逐个分解相比的优势：
+        1. 减少API调用次数（一次调用分解多个事件）
+        2. AI能更好地把握多个事件之间的连贯性
+        3. 更好的情节一致性，因为AI能看到全貌
+        
+        Args:
+            major_event_skeletons: 重大事件骨架列表（2-4个事件）
+            stage_name: 阶段名称
+            stage_range: 阶段章节范围
+            novel_title: 小说标题
+            novel_synopsis: 小说简介
+            creative_seed: 创意种子
+            overall_stage_plan: 整体阶段计划
+            global_novel_data: 全局小说数据
+            stage_emotional_arc: 阶段情绪弧线
+            overall_emotional_blueprint: 全书情绪蓝图
+            
+        Returns:
+            分解后的重大事件列表
+        """
+        if not major_event_skeletons:
+            return []
+        
+        # 如果只有一个事件，回退到单个分解
+        if len(major_event_skeletons) == 1:
+            result = self.decompose_major_event(
+                major_event_skeleton=major_event_skeletons[0],
+                stage_name=stage_name,
+                stage_range=stage_range,
+                novel_title=novel_title,
+                novel_synopsis=novel_synopsis,
+                creative_seed=creative_seed,
+                overall_stage_plan=overall_stage_plan,
+                global_novel_data=global_novel_data,
+                stage_emotional_arc=stage_emotional_arc,
+                overall_emotional_blueprint=overall_emotional_blueprint
+            )
+            return [result] if result else []
+        
+        try:
+            # 构建顶层上下文
+            top_level_context_block = self._build_top_level_context(
+                creative_seed, global_novel_data, overall_stage_plan, stage_name
+            )
+            
+            # 构建批量分解的prompt
+            prompt = self._build_batch_decomposition_prompt(
+                major_event_skeletons, stage_name, stage_range, top_level_context_block,
+                stage_emotional_arc, overall_emotional_blueprint
+            )
+            
+            self.logger.info(f"  🚀 批量分解 {len(major_event_skeletons)} 个重大事件: " + 
+                           ", ".join([s.get('name', '未命名') for s in major_event_skeletons]))
+            
+            # 调用API生成（使用更强的模型）
+            result = self.api_client.generate_content_with_retry(
+                content_type="batch_major_event_decomposition",
+                user_prompt=prompt,
+                purpose=f"批量解剖{len(major_event_skeletons)}个重大事件"
+            )
+            
+            if not result:
+                self.logger.warning("  ⚠️ 批量分解失败，回退到逐个分解")
+                return self._fallback_to_individual_decomposition(
+                    major_event_skeletons, stage_name, stage_range,
+                    novel_title, novel_synopsis, creative_seed,
+                    overall_stage_plan, global_novel_data,
+                    stage_emotional_arc, overall_emotional_blueprint
+                )
+            
+            # 解析返回结果
+            decomposed_events = result.get("decomposed_events", [])
+            
+            if not decomposed_events or len(decomposed_events) != len(major_event_skeletons):
+                self.logger.warning(f"  ⚠️ 批量分解返回事件数量不匹配: 期望{len(major_event_skeletons)}, 实际{len(decomposed_events)}")
+                return self._fallback_to_individual_decomposition(
+                    major_event_skeletons, stage_name, stage_range,
+                    novel_title, novel_synopsis, creative_seed,
+                    overall_stage_plan, global_novel_data,
+                    stage_emotional_arc, overall_emotional_blueprint
+                )
+            
+            self.logger.info(f"  ✅ 批量分解成功: {len(decomposed_events)} 个事件")
+            
+            # 验证并修正每个事件的章节范围
+            for i, (event, skeleton) in enumerate(zip(decomposed_events, major_event_skeletons)):
+                if event:
+                    event["chapter_range"] = skeleton.get("chapter_range", event.get("chapter_range", ""))
+            
+            return decomposed_events
+            
+        except Exception as e:
+            self.logger.error(f"  ❌ 批量分解出错: {e}")
+            return self._fallback_to_individual_decomposition(
+                major_event_skeletons, stage_name, stage_range,
+                novel_title, novel_synopsis, creative_seed,
+                overall_stage_plan, global_novel_data,
+                stage_emotional_arc, overall_emotional_blueprint
+            )
+    
+    def _fallback_to_individual_decomposition(self, major_event_skeletons: List[Dict],
+                                             stage_name: str, stage_range: str,
+                                             novel_title: str, novel_synopsis: str,
+                                             creative_seed: Dict, overall_stage_plan: Dict,
+                                             global_novel_data: Dict,
+                                             stage_emotional_arc: Optional[Dict] = None,
+                                             overall_emotional_blueprint: Optional[Dict] = None) -> List[Dict]:
+        """批量分解失败时的回退：逐个分解"""
+        self.logger.info("  🔄 回退到逐个分解模式...")
+        results = []
+        
+        for skeleton in major_event_skeletons:
+            try:
+                result = self.decompose_major_event(
+                    major_event_skeleton=skeleton,
+                    stage_name=stage_name,
+                    stage_range=stage_range,
+                    novel_title=novel_title,
+                    novel_synopsis=novel_synopsis,
+                    creative_seed=creative_seed,
+                    overall_stage_plan=overall_stage_plan,
+                    global_novel_data=global_novel_data,
+                    stage_emotional_arc=stage_emotional_arc,
+                    overall_emotional_blueprint=overall_emotional_blueprint
+                )
+                if result:
+                    results.append(result)
+            except Exception as e:
+                self.logger.error(f"    ❌ 分解事件 '{skeleton.get('name', '未命名')}' 失败: {e}")
+        
+        return results
+    
+    def _build_batch_decomposition_prompt(self, major_event_skeletons: List[Dict],
+                                         stage_name: str, stage_range: str,
+                                         top_level_context: str,
+                                         stage_emotional_arc: Optional[Dict] = None,
+                                         overall_emotional_blueprint: Optional[Dict] = None) -> str:
+        """构建批量事件分解的prompt"""
+        
+        # 构建事件列表
+        events_list = []
+        for i, skeleton in enumerate(major_event_skeletons, 1):
+            events_list.append(f"""
+### 事件{i}: {skeleton.get('name')}
+- **章节范围**: {skeleton.get('chapter_range')}
+- **核心目标**: {skeleton.get('main_goal', '推进主情节')}
+- **在阶段弧线中的角色**: {skeleton.get('role_in_stage_arc', '未定义')}
+""")
+        
+        events_str = "\n".join(events_list)
+        
+        # 构建情绪弧线指导
+        emotional_guidance = ""
+        if stage_emotional_arc:
+            emotional_guidance = f"""
+## 阶段情绪弧线指导（战略级指导）
+- **阶段起点情绪**: {stage_emotional_arc.get('start_emotion', '未定义')}
+- **阶段终点情绪**: {stage_emotional_arc.get('end_emotion', '未定义')}
+- **阶段情绪发展**: {stage_emotional_arc.get('description', '未定义')}
+
+**关键要求**: 
+1. 每个重大事件的情绪必须服务于阶段整体情绪弧线
+2. 事件之间情绪转换要自然流畅，不能突兀
+3. 后一个事件的情绪起点应该承接前一个事件的情绪终点
+"""
+        
+        # 构建情感光谱指导
+        emotional_spectrum_guidance = ""
+        if overall_emotional_blueprint and "emotional_spectrum" in overall_emotional_blueprint:
+            spectrum = overall_emotional_blueprint.get("emotional_spectrum", [])
+            if spectrum:
+                emotional_spectrum_guidance = f"""
+## 全书情感光谱参考
+核心情感驱动力: {', '.join(spectrum)}
+
+这是本小说的情感底色，所有情绪发展都应该与之呼应。
+"""
+        
+        # 构建事件间连贯性要求
+        continuity_requirements = """
+## 事件间连贯性要求（关键）
+1. **时间线连续**: 后一个事件必须紧接着前一个事件的时间线开始，不能跳跃
+2. **情节承接**: 后一个事件必须知道前一个事件的结果状态，并在此基础上发展
+3. **情绪连贯**: 事件之间的情绪转换要自然，形成整体的情绪弧线
+4. **伏笔呼应**: 如果事件1埋下了伏笔，事件2或后续事件需要有所呼应或推进
+5. **避免重复**: 不同事件之间不能有重复的情节设计
+"""
+        
+        return f"""# 任务：批量重大事件"分形解剖"
+你的任务是将多个宏观的"重大事件"，根据其在全书蓝图中的战略地位，**一次性分解**为具体的、可执行的【中型事件】。
+
+{top_level_context}
+
+{emotional_guidance}
+
+{emotional_spectrum_guidance}
+
+{continuity_requirements}
+
+## 待分解的重大事件列表（共{len(major_event_skeletons)}个）
+{events_str}
+
+## 核心原则：从事件推导情绪（不是从情绪规划事件）
+
+**正确的逻辑**:
+1. **事件优先**: 首先规划每个重大事件"起承转合"应该发生什么事件
+2. **情绪推导**: 基于发生的事件，推导主角/读者会感受到什么情绪
+3. **情绪连贯**: 确保情绪发展符合阶段情绪弧线的方向，事件间情绪转换自然
+
+**错误的做法**（严禁）:
+- ❌ 先规定"要压抑"，再去找压抑的事件
+- ❌ 情绪和事件割裂，没有因果联系
+- ❌ 不同事件之间重复相似的情节设计
+
+## 分解原则与规则 (必须严格遵守)
+1. **目标继承与服务**: 每个【中型事件】都必须是为实现【所属重大事件核心目标】和【顶层战略背景】服务的。
+2. **结构完整**: 每个重大事件内的中型事件必须构成服务于其目标的、逻辑连贯的"起、承、转、合"结构。
+3. **【绝对覆盖指令】**: 所有中型事件的chapter_range必须完整且无缝地覆盖父级"重大事件"的整个章节范围。
+4. **【🔥绝对禁止时间重叠】**: 每个中型事件必须紧接着上一个中型事件结束的地方开始，严禁重新描述前一个中型事件已经完成的情节。
+5. **【事件间连贯】**: 不同重大事件之间也要保持时间线连续，后一个重大事件的第一个中型事件必须承接前一个重大事件的最后一个中型事件的结尾状态。
+
+## 【🔥强制规则】情节点数量要求
+
+每个中型事件的 plot_outline 必须严格遵循以下数量规则：
+
+| 章节数 | 情节点数量 | 计算方式 |
+|-------|----------|---------|
+| 1章   | 4-6个    | 每章4-6个 |
+| 2章   | 8-12个   | 每章4-6个 × 2 |
+| 3章   | 12-18个  | 每章4-6个 × 3 |
+| n章   | n×4 到 n×6个 | 每章4-6个 × n |
+
+**⚠️ 这是硬性要求，不是建议！**
+- 如果生成的情节点数量不足，将被判定为不合格
+- 情节点数量宁多勿少（在范围内）
+- 每个情节点必须是具体、可展开的内容，不能空洞
+
+## 【重要】特殊情感事件设计原则
+
+特殊情感事件不是独立的章节事件，而是**附着在中型事件上的情感元素**，用于深化角色关系、调整叙事节奏。
+
+**关键要求**：
+1. **附着到中型事件**：每个特殊情感事件必须明确附着到某个具体的中型事件
+2. **指定目标章节**：如果中型事件跨越多章，必须明确特殊情感事件发生在哪一章
+3. **不要分配chapter_range**：特殊情感事件不占用独立章节，只需要指定目标章节号
+4. **提供融合线索**：给出情感基调、关键元素，让第二阶段的场景生成自然融合
+
+## 输出格式: 严格遵守规则，返回包含所有事件的JSON对象
+
+```json
+{{
+    "decomposed_events": [
+        {{
+            "name": "事件1名称",
+            "type": "major_event",
+            "role_in_stage_arc": "角色描述",
+            "main_goal": "核心目标",
+            "chapter_range": "章节范围",
+            "composition": {{
+                "起": [
+                    {{
+                        "name": "中型事件名",
+                        "type": "medium_event",
+                        "chapter_range": "string",
+                        "main_goal": "目标",
+                        "plot_outline": [
+                            "情节点1：具体发生了什么",
+                            "情节点2：然后发生了什么",
+                            "情节点3：转折点",
+                            "情节点4：高潮",
+                            "情节点5：结尾"
+                        ],
+                        "description": "一句话概括",
+                        "stage_context": {{
+                            "stage_name": "{stage_name}",
+                            "stage_goal": "阶段目标",
+                            "contribution_to_stage": "贡献"
+                        }},
+                        "emotional_derivation": {{
+                            "trigger_event": "触发事件",
+                            "emotional_response": "情绪反应",
+                            "emotional_intensity": "low/medium/high",
+                            "emotional_beats": ["节拍1", "节拍2"]
+                        }},
+                        "alignment_with_stage_arc": {{
+                            "position_in_arc": "起/承/转/合",
+                            "contribution_to_stage_emotion": "贡献"
+                        }},
+                        "contribution_to_major": "对重大事件的贡献",
+                        "special_emotional_events": [
+                            {{
+                                "name": "情感互动名称",
+                                "target_chapter": 10,
+                                "purpose": "目的",
+                                "emotional_tone": "基调",
+                                "key_elements": ["元素1", "元素2"],
+                                "context_hint": "上下文提示"
+                            }}
+                        ]
+                    }}
+                ],
+                "承": [],
+                "转": [],
+                "合": []
+            }},
+            "emotional_arc_summary": "情绪弧线总结"
+        }},
+        // 事件2、事件3... 同样结构
+    ],
+    "batch_coherence_analysis": "对整个批次事件连贯性的分析"
+}}
+```
+
+注意：
+1. 必须返回 **decomposed_events** 数组，包含所有{len(major_event_skeletons)}个事件
+2. 事件顺序必须与输入顺序一致
+3. 每个事件的 structure 与单个分解时相同
+4. **batch_coherence_analysis** 字段简要说明这些事件之间如何保持连贯性
+5. **🔥 plot_outline 数量强制规则**：必须严格遵守"每章4-6个情节点"的规则
+6. 事件间的时间线必须连续，不能有任何跳跃或重复
+"""

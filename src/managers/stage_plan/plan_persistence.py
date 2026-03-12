@@ -11,20 +11,33 @@ from src.utils.logger import get_logger
 class StagePlanPersistence:
     """阶段计划持久化管理器"""
     
-    def __init__(self, plans_dir: Path, novel_data_getter, logger_name: str = "StagePlanPersistence"):
+    def __init__(self, plans_dir_or_getter, novel_data_getter, logger_name: str = "StagePlanPersistence"):
         """
         初始化持久化管理器
         
         Args:
-            plans_dir: 计划保存的基础目录
+            plans_dir_or_getter: 计划保存的基础目录，或获取基础目录的函数
             novel_data_getter: 获取小说数据的函数
             logger_name: 日志名称
         """
-        self.plans_dir = plans_dir
+        self._plans_dir = None
+        self._plans_dir_getter = None
+        
+        # 支持传入路径或获取路径的函数
+        if callable(plans_dir_or_getter):
+            self._plans_dir_getter = plans_dir_or_getter
+        else:
+            self._plans_dir = plans_dir_or_getter
+            
         self.get_novel_data = novel_data_getter
         self.logger = get_logger(logger_name)
-        # 确保基础目录存在
-        os.makedirs(self.plans_dir, exist_ok=True)
+    
+    @property
+    def plans_dir(self) -> Path:
+        """动态获取 plans_dir"""
+        if self._plans_dir_getter:
+            return self._plans_dir_getter()
+        return self._plans_dir
     
     def save_plan_to_file(self, stage_name: str, plan_data: Dict) -> Optional[Path]:
         """

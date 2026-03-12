@@ -23,6 +23,10 @@ def register_novel_routes(app, manager: NovelGenerationManager):
         """开始生成小说"""
         try:
             config = request.json or {}
+            # 🔥 添加当前用户名到 config，确保用户隔离路径正确
+            from web.utils.path_utils import get_current_username
+            config['username'] = get_current_username()
+            config['user_id'] = session.get('user_id')
             task_id = manager.start_generation(config)
             logger.info(f"✅ 生成任务已启动: {task_id}")
             return jsonify({
@@ -70,6 +74,11 @@ def register_novel_routes(app, manager: NovelGenerationManager):
         """兼容性端点：生成章节（使用新的后台任务系统）"""
         try:
             data = request.json or {}
+            
+            # 🔥 添加当前用户名到 data，确保用户隔离路径正确
+            from web.utils.path_utils import get_current_username
+            data['username'] = get_current_username()
+            data['user_id'] = session.get('user_id')
 
             # 使用新的启动系统
             task_id = manager.start_generation(data)

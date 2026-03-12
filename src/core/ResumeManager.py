@@ -647,6 +647,25 @@ class ResumeManager:
             stage_plan_dict = overall_stage_plans["overall_stage_plan"]
             self.generator.novel_data["stage_writing_plans"] = {}
             
+            # 🔥 优化：先批量生成所有阶段的情绪计划（单次API调用）
+            print("  💖 批量生成所有阶段的情绪计划...")
+            emotional_blueprint = self.generator.novel_data.get("emotional_blueprint", {})
+            stages_info = []
+            for stage_name, stage_info in stage_plan_dict.items():
+                chapter_range_str = stage_info["chapter_range"]
+                import re
+                numbers = re.findall(r'\d+', chapter_range_str)
+                if len(numbers) >= 2:
+                    stage_range = f"{numbers[0]}-{numbers[1]}"
+                else:
+                    stage_range = "1-3"
+                stages_info.append({'stage_name': stage_name, 'stage_range': stage_range})
+            
+            all_stages_emotional_plans = self.generator.emotional_plan_manager.generate_all_stages_emotional_plan(
+                stages_info, emotional_blueprint
+            )
+            print(f"  ✅ 成功生成 {len(all_stages_emotional_plans)} 个阶段的情绪计划")
+            
             for stage_name, stage_info in stage_plan_dict.items():
                 chapter_range_str = stage_info["chapter_range"]
                 
@@ -657,13 +676,17 @@ class ResumeManager:
                 else:
                     stage_range = "1-3"
                 
+                # 获取预生成的情绪计划
+                pre_generated_emotional_plan = all_stages_emotional_plans.get(stage_name)
+                
                 stage_plan = self.generator.stage_plan_manager.generate_stage_writing_plan(
                     stage_name=stage_name,
                     stage_range=stage_range,
                     creative_seed=self.generator.novel_data["creative_seed"],
                     novel_title=self.generator.novel_data["novel_title"],
                     novel_synopsis=self.generator.novel_data["novel_synopsis"],
-                    overall_stage_plan=stage_plan_dict
+                    overall_stage_plan=stage_plan_dict,
+                    stage_emotional_plan=pre_generated_emotional_plan
                 )
                 
                 if stage_plan:

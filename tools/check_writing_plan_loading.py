@@ -20,15 +20,17 @@ if sys.platform == 'win32':
 BASE_DIR = Path(__file__).parent.parent
 sys.path.insert(0, str(BASE_DIR))
 
-def check_project_structure(novel_title: str):
+def check_project_structure(novel_title: str, username: str = None):
     """检查项目结构和写作计划文件"""
     print("=" * 80)
     print(f"📋 检查项目: {novel_title}")
+    if username:
+        print(f"👤 用户: {username}")
     print("=" * 80)
     
     # 1. 检查项目目录
     from src.config.path_config import path_config
-    paths = path_config.get_project_paths(novel_title)
+    paths = path_config.get_project_paths(novel_title, username=username)
     
     print("\n📁 项目路径配置:")
     for key, path in paths.items():
@@ -125,10 +127,12 @@ def check_project_structure(novel_title: str):
         return None
 
 
-def simulate_project_loading(novel_title: str):
+def simulate_project_loading(novel_title: str, username: str = None):
     """模拟ProjectManager加载项目的过程"""
     print("\n" + "=" * 80)
     print("🔄 模拟项目加载过程")
+    if username:
+        print(f"👤 用户: {username}")
     print("=" * 80)
     
     from src.core.ProjectManager import ProjectManager
@@ -137,7 +141,7 @@ def simulate_project_loading(novel_title: str):
     pm = ProjectManager()
     
     print("\n1️⃣ 尝试从独立文件加载写作计划...")
-    stage_plans = growth_plan_manager.load_stage_writing_plans(novel_title)
+    stage_plans = growth_plan_manager.load_stage_writing_plans(novel_title, username=username)
     
     if stage_plans:
         print(f"  ✅ 成功加载写作计划")
@@ -257,13 +261,16 @@ def main():
     parser = argparse.ArgumentParser(description='检查写作计划加载情况')
     parser.add_argument('--novel', type=str, default=default_novel, 
                        help='小说标题 (默认: 重生成剑：宿主祭天，法力无边)')
+    parser.add_argument('--username', type=str, default=None,
+                       help='用户名 (用于用户隔离路径)')
     
     args = parser.parse_args()
     
     novel_title = args.novel
+    username = args.username
     
     # 1. 检查项目结构
-    plan_info = check_project_structure(novel_title)
+    plan_info = check_project_structure(novel_title, username=username)
     
     if not plan_info:
         print("\n❌ 无法找到或读取写作计划文件")
@@ -271,10 +278,11 @@ def main():
         print("1. 确认写作计划文件路径是否正确")
         print("2. 检查文件是否存在于指定位置")
         print("3. 确认文件格式是否为有效的JSON")
+        print("4. 如果是用户隔离路径，请使用 --username 参数指定用户名")
         return
     
     # 2. 模拟项目加载
-    stage_plans = simulate_project_loading(novel_title)
+    stage_plans = simulate_project_loading(novel_title, username=username)
     
     # 3. 模拟EventDrivenManager初始化
     current_stage = simulate_eventdriven_initialization(novel_title)

@@ -87,7 +87,8 @@ class ContentGenerator:
             """从文件中加载前面章节的世界状态"""
             from src.managers.WorldStateManager import WorldStateManager
             # 使用 novel_title 和 username 初始化，以使用统一路径配置
-            username = getattr(self.generator, '_username', None)
+            # 关键修复：从 novel_generator 获取 _username，而不是 ContentGenerator 自身
+            username = getattr(self.generator.novel_generator, '_username', None)
             wsm = WorldStateManager(novel_title=novel_title, username=username)
             return wsm.get_novel_world_state(novel_title)
         def _build_consistency_guidance(self, world_state: Dict, novel_title: str) -> str:
@@ -167,7 +168,8 @@ class ContentGenerator:
             raise ValueError(error_msg)
         
         try:
-            username = getattr(self, '_username', None)
+            # 关键修复：从 novel_generator 获取 _username
+            username = getattr(self.novel_generator, '_username', None)
             self.quality_assessor = QualityAssessor(
                 api_client=self.api_client,
                 novel_title=novel_title,

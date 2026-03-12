@@ -15,6 +15,203 @@ class PlanValidator:
     def __init__(self, logger_name: str = "PlanValidator"):
         self.logger = get_logger(logger_name)
     
+    def validate_goal_hierarchy_and_continuity(self, stage_writing_plan: Dict,
+                                               stage_name: str, stage_range: str,
+                                               creative_seed: str, novel_title: str,
+                                               novel_synopsis: str, api_client) -> Tuple[Dict, Dict]:
+        """
+        【优化版】一次性验证目标层级一致性和事件连续性
+        
+        将原本需要2次API调用的验证合并为1次，提高效率
+        
+        Args:
+            stage_writing_plan: 阶段写作计划
+            stage_name: 阶段名称
+            stage_range: 阶段范围
+            creative_seed: 创意种子
+            novel_title: 小说标题
+            novel_synopsis: 小说简介
+            api_client: API客户端
+            
+        Returns:
+            (目标层级评估结果, 连续性评估结果) 元组
+        """
+        self.logger.info(f"  🤖 【网文白金策划师】正在评估{stage_name}阶段目标层级与连续性...")
+        
+        # 提取阶段计划中的关键信息
+        if "stage_writing_plan" in stage_writing_plan:
+            plan_data = stage_writing_plan["stage_writing_plan"]
+        else:
+            plan_data = stage_writing_plan
+        
+        event_system = plan_data.get("event_system", {})
+        major_events = event_system.get("major_events", [])
+        
+        # 构建合并评估提示词
+        merged_prompt = self._build_merged_assessment_prompt(
+            stage_name, stage_range, creative_seed, novel_title,
+            novel_synopsis, plan_data, major_events
+        )
+        
+        try:
+            assessment_result = api_client.generate_content_with_retry(
+                content_type="goal_hierarchy_and_continuity_assessment",
+                user_prompt=merged_prompt,
+                purpose=f"【网文白金策划师】评估{stage_name}阶段目标层级与连续性"
+            )
+            
+            if assessment_result:
+                # 解析合并结果
+                goal_coherence = {
+                    "overall_coherence_score": assessment_result.get("goal_hierarchy", {}).get("overall_coherence_score", 8.0),
+                    "goal_transfer_score": assessment_result.get("goal_hierarchy", {}).get("goal_transfer_score", 8.0),
+                    "goal_transfer_comment": assessment_result.get("goal_hierarchy", {}).get("goal_transfer_comment", ""),
+                    "emotional_coherence_score": assessment_result.get("goal_hierarchy", {}).get("emotional_coherence_score", 8.0),
+                    "emotional_coherence_comment": assessment_result.get("goal_hierarchy", {}).get("emotional_coherence_comment", ""),
+                    "contribution_clarity_score": assessment_result.get("goal_hierarchy", {}).get("contribution_clarity_score", 8.0),
+                    "contribution_clarity_comment": assessment_result.get("goal_hierarchy", {}).get("contribution_clarity_comment", ""),
+                    "logic_innovation_score": assessment_result.get("goal_hierarchy", {}).get("logic_innovation_score", 8.0),
+                    "logic_innovation_comment": assessment_result.get("goal_hierarchy", {}).get("logic_innovation_comment", ""),
+                    "executability_score": assessment_result.get("goal_hierarchy", {}).get("executability_score", 8.0),
+                    "executability_comment": assessment_result.get("goal_hierarchy", {}).get("executability_comment", ""),
+                    "thematic_deepening_score": assessment_result.get("goal_hierarchy", {}).get("thematic_deepening_score", 8.0),
+                    "thematic_deepening_comment": assessment_result.get("goal_hierarchy", {}).get("thematic_deepening_comment", ""),
+                    "character_growth_score": assessment_result.get("goal_hierarchy", {}).get("character_growth_score", 8.0),
+                    "character_growth_comment": assessment_result.get("goal_hierarchy", {}).get("character_growth_comment", ""),
+                    "master_reviewer_verdict": assessment_result.get("goal_hierarchy", {}).get("master_reviewer_verdict", ""),
+                    "perfection_suggestions": assessment_result.get("goal_hierarchy", {}).get("perfection_suggestions", [])
+                }
+                
+                continuity_assessment = {
+                    "overall_continuity_score": assessment_result.get("continuity", {}).get("overall_continuity_score", 10.0),
+                    "logic_coherence_score": assessment_result.get("continuity", {}).get("logic_coherence_score", 10.0),
+                    "logic_coherence_comment": assessment_result.get("continuity", {}).get("logic_coherence_comment", ""),
+                    "narrative_rhythm_score": assessment_result.get("continuity", {}).get("narrative_rhythm_score", 10.0),
+                    "narrative_rhythm_comment": assessment_result.get("continuity", {}).get("narrative_rhythm_comment", ""),
+                    "emotional_continuity_score": assessment_result.get("continuity", {}).get("emotional_continuity_score", 10.0),
+                    "emotional_continuity_comment": assessment_result.get("continuity", {}).get("emotional_continuity_comment", ""),
+                    "plot_progression_score": assessment_result.get("continuity", {}).get("plot_progression_score", 10.0),
+                    "plot_progression_comment": assessment_result.get("continuity", {}).get("plot_progression_comment", ""),
+                    "critical_issues": assessment_result.get("continuity", {}).get("critical_issues", []),
+                    "improvement_recommendations": assessment_result.get("continuity", {}).get("improvement_recommendations", []),
+                    "master_reviewer_verdict": assessment_result.get("continuity", {}).get("master_reviewer_verdict", "")
+                }
+                
+                self.logger.info(f"  ✅ 【网文白金策划师】评估{stage_name}阶段目标层级与连续性完成。")
+                return goal_coherence, continuity_assessment
+            else:
+                self.logger.warning(f"  ⚠️ 【网文白金策划师】评估{stage_name}阶段失败，使用默认结果。")
+                return self._create_default_coherence_assessment(), self._create_default_continuity_assessment()
+                
+        except Exception as e:
+            self.logger.error(f"  ❌ 【网文白金策划师】评估出错: {e}，使用默认结果。")
+            return self._create_default_coherence_assessment(), self._create_default_continuity_assessment()
+    
+    def _build_merged_assessment_prompt(self, stage_name: str, stage_range: str,
+                                       creative_seed: str, novel_title: str,
+                                       novel_synopsis: str, plan_data: Dict,
+                                       major_events: List[Dict]) -> str:
+        """构建合并评估提示词"""
+        hierarchy_description = self._build_hierarchy_description(major_events)
+        
+        prompt_parts = [
+            "# 🎯 【AI网文白金策划师】对阶段事件进行全面深度评估",
+            "",
+            "## 评估任务",
+            f"作为一位对网文爆款打造和读者留存有着极致追求的【网文白金策划师】，你将对**{stage_name}**阶段的事件进行全面的\"商业价值\"深度评估。",
+            "本次评估包含两个部分：**目标层级一致性评估**和**事件连续性评估**",
+            "",
+            "## 背景信息",
+            f"- **小说标题**: {novel_title}",
+            f"- **创意种子**: {creative_seed}",
+            f"- **小说简介**: {novel_synopsis}",
+            f"- **阶段范围**: {stage_range}",
+            "",
+            "## 事件层级结构详情",
+            hierarchy_description,
+            "",
+            "## 第一部分：目标层级一致性评估 (1-10分制)",
+            "",
+            "### 1. 目标传递连贯性与效率 (权重 20%)",
+            "- 阶段目标是否清晰传达给每个重大事件",
+            "- 重大事件的目标是否有效地分解到中型事件",
+            "",
+            "### 2. 情绪目标一致性与爽点分布 (权重 20%)",
+            "- 情绪弧线设计是否贯穿所有事件层级",
+            "- 爽点是否均匀分布，是否有集中爆发的规划",
+            "",
+            "### 3. 贡献关系明确性与驱动力 (权重 15%)",
+            "- 每个事件对其上层目标的贡献是否明确",
+            "- 事件之间的驱动力是否清晰",
+            "",
+            "### 4. 逻辑自洽性与新意融合 (权重 15%)",
+            "- 事件逻辑是否自洽，没有明显漏洞",
+            "- 创意种子的新意是否在事件中得到体现",
+            "",
+            "### 5. 可执行性与写作指导性 (权重 10%)",
+            "### 6. 主题融合度 (权重 10%)",
+            "### 7. 角色成长驱动力 (权重 10%)",
+            "",
+            "## 第二部分：事件连续性评估 (1-10分制)",
+            "",
+            "### 1. 逻辑连贯性 (权重 25%)",
+            "- 事件之间的因果关系是否清晰",
+            "- 前后事件是否有合理的铺垫和呼应",
+            "",
+            "### 2. 节奏合理性 (权重 25%)",
+            "- 事件密度是否恰当",
+            "- 是否有张弛有度的节奏变化",
+            "",
+            "### 3. 情感连续性 (权重 25%)",
+            "- 情绪发展是否自然流畅",
+            "- 是否符合情绪弧线设计",
+            "",
+            "### 4. 主线推进效率 (权重 25%)",
+            "- 事件是否有效推进主线",
+            "- 是否有冗余或偏离主线的事件",
+            "",
+            "## 📋 输出格式 (严格JSON)",
+            "```json",
+            "{",
+            '  "goal_hierarchy": {',
+            '    "overall_coherence_score": "float (0-10)",',
+            '    "goal_transfer_score": "float (0-10)",',
+            '    "goal_transfer_comment": "string",',
+            '    "emotional_coherence_score": "float (0-10)",',
+            '    "emotional_coherence_comment": "string",',
+            '    "contribution_clarity_score": "float (0-10)",',
+            '    "contribution_clarity_comment": "string",',
+            '    "logic_innovation_score": "float (0-10)",',
+            '    "logic_innovation_comment": "string",',
+            '    "executability_score": "float (0-10)",',
+            '    "executability_comment": "string",',
+            '    "thematic_deepening_score": "float (0-10)",',
+            '    "thematic_deepening_comment": "string",',
+            '    "character_growth_score": "float (0-10)",',
+            '    "character_growth_comment": "string",',
+            '    "master_reviewer_verdict": "string",',
+            '    "perfection_suggestions": ["string"]',
+            '  },',
+            '  "continuity": {',
+            '    "overall_continuity_score": "float (0-10)",',
+            '    "logic_coherence_score": "float (0-10)",',
+            '    "logic_coherence_comment": "string",',
+            '    "narrative_rhythm_score": "float (0-10)",',
+            '    "narrative_rhythm_comment": "string",',
+            '    "emotional_continuity_score": "float (0-10)",',
+            '    "emotional_continuity_comment": "string",',
+            '    "plot_progression_score": "float (0-10)",',
+            '    "plot_progression_comment": "string",',
+            '    "critical_issues": ["string"],',
+            '    "improvement_recommendations": ["string"],',
+            '    "master_reviewer_verdict": "string"',
+            '  }',
+            "}",
+            "```"
+        ]
+        
+        return "\n".join(prompt_parts)
+    
     def validate_goal_hierarchy_coherence(self, stage_writing_plan: Dict, 
                                         stage_name: str, api_client) -> Dict:
         """

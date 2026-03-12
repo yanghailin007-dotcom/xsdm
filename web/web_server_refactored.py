@@ -1138,6 +1138,41 @@ def register_monitoring_routes(app):
                 "error": str(e),
                 "timestamp": datetime.now().isoformat()
             }), 503
+        
+    @app.route('/api/task-status/<task_id>', methods=['GET'])
+    def get_task_status_simple(task_id):
+        """获取任务状态 - 简化版API供前端轮询使用"""
+        try:
+            from web.managers.novel_manager import novel_manager
+            
+            # 获取任务状态
+            task_status = novel_manager.get_task_status(task_id)
+            if "error" in task_status:
+                return jsonify({"error": task_status["error"]}), 404
+            
+            # 获取任务进度
+            task_progress = novel_manager.get_task_progress(task_id)
+            
+            # 构建响应
+            response = {
+                "task_id": task_id,
+                "status": task_status.get("status", "unknown"),
+                "progress": task_status.get("progress", 0),
+                "current_step": task_status.get("current_step", ""),
+                "step_status": task_progress.get("step_status", {}),
+                "points_consumed": task_progress.get("points_consumed", 0),
+                "points_total": task_progress.get("points_total", 400)
+            }
+            
+            # 如果任务失败，包含错误信息
+            if task_status.get("status") == "failed" and "error" in task_status:
+                response["error"] = task_status["error"]
+            
+            return jsonify(response)
+            
+        except Exception as e:
+            logger.error(f"❌ 获取任务状态失败: {e}")
+            return jsonify({"error": str(e)}), 500
 
 
 def print_startup_info():
@@ -1175,6 +1210,25 @@ def cleanup_on_exit():
             service_monitor.stop_monitoring()
     except:
         pass
+    
+    # 🔥 停止所有生成任务和线程
+    try:
+        global manager
+        if 'manager' in globals() and manager:
+            logger.info("⏹️ 停止所有生成任务...")
+            # 停止所有活跃任务
+            for task_id in list(manager.active_tasks.keys()):
+                logger.info(f"  停止任务: {task_id}")
+                manager.stop_task(task_id)
+            
+            # 等待线程结束
+            for task_id, thread in list(manager.task_threads.items()):
+                if thread.is_alive():
+                    logger.info(f"  等待线程: {task_id}")
+                    manager._stop_flags[task_id] = True
+                    thread.join(timeout=2)
+    except Exception as e:
+        logger.error(f"❌ 停止生成任务时出错: {e}")
     
     logger.info("✅ 清理完成")
 

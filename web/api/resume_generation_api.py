@@ -158,9 +158,15 @@ def resume_generation():
             logger.info(f"  进度: {progress_info['progress']}% - {progress_info['current_step']}")
         
         # 构建生成参数（从检查点恢复）
+        # 🔥 获取当前用户名和用户ID，确保用户隔离路径正确
+        username = session.get('username')
+        user_id = session.get('user_id')
+        
         generation_params = {
             'title': title,
-            'resume_mode': True
+            'resume_mode': True,
+            'username': username,
+            'user_id': user_id
         }
         
         task_id = manager.start_generation_with_resume(
@@ -240,6 +246,7 @@ def start_generation_with_resume_option():
         
         # 检查是否有可用的检查点
         username = session.get('username')
+        user_id = session.get('user_id')
         has_checkpoint = manager.get_resume_info(title, username=username) is not None
         
         if has_checkpoint and resume_if_available:
@@ -247,7 +254,9 @@ def start_generation_with_resume_option():
             logger.info(f"🔄 检测到检查点，使用恢复模式: {title}")
             generation_params = {
                 'title': title,
-                'resume_mode': True
+                'resume_mode': True,
+                'username': username,
+                'user_id': user_id
             }
             resume_mode = True
         else:
@@ -265,7 +274,9 @@ def start_generation_with_resume_option():
                 'core_selling_points': data.get('core_selling_points', []),
                 'total_chapters': data.get('total_chapters', 200),
                 'generation_mode': data.get('generation_mode', 'phase_one_only'),
-                'creative_seed': data.get('creative_seed')
+                'creative_seed': data.get('creative_seed'),
+                'username': username,
+                'user_id': user_id
             }
             resume_mode = False
         

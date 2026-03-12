@@ -170,10 +170,10 @@ class PathManager:
             self.logger.error(f"❌ 获取所有章节失败: {e}")
             return {}
     
-    def save_stage_plan(self, novel_title: str, stage_name: str, stage_data: Dict) -> bool:
+    def save_stage_plan(self, novel_title: str, stage_name: str, stage_data: Dict, username: str = None) -> bool:
         """保存阶段计划"""
         try:
-            stage_path = self.path_config.get_stage_plan_path(novel_title, stage_name)
+            stage_path = self.path_config.get_stage_plan_path(novel_title, stage_name, username=username)
             
             # 确保目录存在
             os.makedirs(os.path.dirname(stage_path), exist_ok=True)
@@ -187,10 +187,10 @@ class PathManager:
             self.logger.error(f"❌ 保存阶段计划失败: {stage_name} - {e}")
             return False
     
-    def load_stage_plan(self, novel_title: str, stage_name: str) -> Optional[Dict]:
+    def load_stage_plan(self, novel_title: str, stage_name: str, username: str = None) -> Optional[Dict]:
         """加载阶段计划"""
         try:
-            stage_path = self.path_config.get_stage_plan_path(novel_title, stage_name)
+            stage_path = self.path_config.get_stage_plan_path(novel_title, stage_name, username=username)
             
             if not os.path.exists(stage_path):
                 self.logger.info(f"⚠️ 阶段计划文件不存在: {stage_name}")
@@ -243,10 +243,10 @@ class PathManager:
             self.logger.error(traceback.format_exc())
             return False
     
-    def load_writing_style_guide(self, novel_title: str) -> Optional[Dict]:
+    def load_writing_style_guide(self, novel_title: str, username: str = None) -> Optional[Dict]:
         """加载写作风格指南"""
         try:
-            paths = self.path_config.get_project_paths(novel_title)
+            paths = self.path_config.get_project_paths(novel_title, username=username)
             
             if not os.path.exists(paths["writing_style_guide"]):
                 self.logger.info(f"⚠️ 写作风格指南文件不存在")
@@ -261,10 +261,10 @@ class PathManager:
             self.logger.error(f"❌ 加载写作风格指南失败: {e}")
             return None
     
-    def save_novel_overview(self, novel_title: str, overview_data: Dict) -> bool:
+    def save_novel_overview(self, novel_title: str, overview_data: Dict, username: str = None) -> bool:
         """保存小说总览"""
         try:
-            paths = self.path_config.get_project_paths(novel_title)
+            paths = self.path_config.get_project_paths(novel_title, username=username)
             
             with open(paths["novel_overview"], 'w', encoding='utf-8') as f:
                 json.dump(overview_data, f, ensure_ascii=False, indent=2)
@@ -289,10 +289,10 @@ class PathManager:
             self.logger.error(f"❌ 创建备份失败: {file_type} - {e}")
             return None
     
-    def save_quality_data(self, novel_title: str, data_type: str, data: Dict) -> bool:
+    def save_quality_data(self, novel_title: str, data_type: str, data: Dict, username: str = None) -> bool:
         """保存质量数据"""
         try:
-            quality_path = self.path_config.get_quality_data_path(novel_title, data_type)
+            quality_path = self.path_config.get_quality_data_path(novel_title, data_type, username=username)
             
             # 确保目录存在
             os.makedirs(os.path.dirname(quality_path), exist_ok=True)
@@ -306,10 +306,10 @@ class PathManager:
             self.logger.error(f"❌ 保存质量数据失败: {data_type} - {e}")
             return False
     
-    def load_quality_data(self, novel_title: str, data_type: str) -> Optional[Dict]:
+    def load_quality_data(self, novel_title: str, data_type: str, username: str = None) -> Optional[Dict]:
         """加载质量数据"""
         try:
-            quality_path = self.path_config.get_quality_data_path(novel_title, data_type)
+            quality_path = self.path_config.get_quality_data_path(novel_title, data_type, username=username)
             
             if not os.path.exists(quality_path):
                 self.logger.info(f"⚠️ 质量数据文件不存在: {data_type}")
@@ -359,10 +359,10 @@ class PathManager:
             self.logger.error(f"❌ 加载角色心境数据失败: {character_name} - {e}")
             return None
     
-    def save_material_data(self, novel_title: str, material_type: str, data: Dict, timestamp: str = "") -> bool:
+    def save_material_data(self, novel_title: str, material_type: str, data: Dict, timestamp: str = "", username: str = None) -> bool:
         """保存材料数据"""
         try:
-            material_path = self.path_config.get_material_path(novel_title, material_type, timestamp)
+            material_path = self.path_config.get_material_path(novel_title, material_type, timestamp, username=username)
             
             # 确保目录存在
             os.makedirs(os.path.dirname(material_path), exist_ok=True)
@@ -376,10 +376,10 @@ class PathManager:
             self.logger.error(f"❌ 保存材料数据失败: {material_type} - {e}")
             return False
     
-    def load_material_data(self, novel_title: str, material_type: str, timestamp: str = "") -> Optional[Dict]:
+    def load_material_data(self, novel_title: str, material_type: str, timestamp: str = "", username: str = None) -> Optional[Dict]:
         """加载材料数据"""
         try:
-            material_path = self.path_config.get_material_path(novel_title, material_type, timestamp)
+            material_path = self.path_config.get_material_path(novel_title, material_type, timestamp, username=username)
             
             if not os.path.exists(material_path):
                 self.logger.info(f"⚠️ 材料数据文件不存在: {material_type}")
@@ -394,18 +394,18 @@ class PathManager:
             self.logger.error(f"❌ 加载材料数据失败: {material_type} - {e}")
             return None
     
-    def save_world_state(self, novel_title: str, world_state_data: Dict) -> bool:
+    def save_world_state(self, novel_title: str, world_state_data: Dict, username: str = None) -> bool:
         """保存世界状态数据"""
-        return self.save_quality_data(novel_title, "world_state", world_state_data)
+        return self.save_quality_data(novel_title, "world_state", world_state_data, username=username)
     
-    def load_world_state(self, novel_title: str) -> Optional[Dict]:
+    def load_world_state(self, novel_title: str, username: str = None) -> Optional[Dict]:
         """加载世界状态数据"""
-        return self.load_quality_data(novel_title, "world_state")
+        return self.load_quality_data(novel_title, "world_state", username=username)
     
-    def save_events_data(self, novel_title: str, events_data: List[Dict]) -> bool:
+    def save_events_data(self, novel_title: str, events_data: List[Dict], username: str = None) -> bool:
         """保存事件数据"""
         try:
-            events_path = self.path_config.get_quality_data_path(novel_title, "events")
+            events_path = self.path_config.get_quality_data_path(novel_title, "events", username=username)
             
             # 确保目录存在
             os.makedirs(os.path.dirname(events_path), exist_ok=True)
@@ -419,10 +419,10 @@ class PathManager:
             self.logger.error(f"❌ 保存事件数据失败: {e}")
             return False
     
-    def load_events_data(self, novel_title: str) -> Optional[List[Dict]]:
+    def load_events_data(self, novel_title: str, username: str = None) -> Optional[List[Dict]]:
         """加载事件数据"""
         try:
-            events_path = self.path_config.get_quality_data_path(novel_title, "events")
+            events_path = self.path_config.get_quality_data_path(novel_title, "events", username=username)
             
             if not os.path.exists(events_path):
                 self.logger.info(f"⚠️ 事件数据文件不存在")
@@ -437,13 +437,13 @@ class PathManager:
             self.logger.error(f"❌ 加载事件数据失败: {e}")
             return []
     
-    def save_relationships_data(self, novel_title: str, relationships_data: Dict) -> bool:
+    def save_relationships_data(self, novel_title: str, relationships_data: Dict, username: str = None) -> bool:
         """保存关系数据"""
-        return self.save_quality_data(novel_title, "relationships", relationships_data)
+        return self.save_quality_data(novel_title, "relationships", relationships_data, username=username)
     
-    def load_relationships_data(self, novel_title: str) -> Optional[Dict]:
+    def load_relationships_data(self, novel_title: str, username: str = None) -> Optional[Dict]:
         """加载关系数据"""
-        return self.load_quality_data(novel_title, "relationships")
+        return self.load_quality_data(novel_title, "relationships", username=username)
     
     def check_legacy_files(self, novel_title: str) -> Dict[str, bool]:
         """检查旧版本文件"""

@@ -1210,7 +1210,8 @@ class QualityAssessor:
         # ========== 第一步：保存完整的角色设计到独立文件 ==========
         try:
             from src.config.path_config import path_config
-            character_design_file = path_config.get_quality_data_path(novel_title, "character_design")
+            # 🔥 修复：传递 username 参数确保使用正确的用户隔离路径
+            character_design_file = path_config.get_quality_data_path(novel_title, "character_design", username=self.username)
             
             # 确保目录存在
             import os

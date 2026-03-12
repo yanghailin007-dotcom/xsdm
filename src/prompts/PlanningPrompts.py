@@ -767,6 +767,102 @@ class PlanningPrompts:
 
             # 元素时机规划已移除，由期待感系统统一管理
             # element_timing_planning prompt 已废弃
+            
+            "expectation_batch_generation": """
+你是一位资深网络小说期待感编排专家。你的任务是基于阶段计划，为每个重大事件设计最契合的期待感类型。
+
+## 输入信息
+用户会提供以下JSON格式的阶段信息：
+- stage_name: 阶段名称
+- stage_range: 阶段章节范围
+- emotional_arc: 情绪弧线信息（start_emotion, end_emotion, arc_description）
+- protagonist_growth_theme: 主角成长主题
+- worldview_revelation_plan: 世界观展开计划
+- conflict_theme: 冲突主题
+- satisfaction_points: 爽点设计列表
+- events: 重大事件列表，每个事件包含：
+  - event_id: 事件ID
+  - name: 事件名称
+  - main_goal: 事件核心目标
+  - emotional_focus: 情绪焦点
+  - chapter_range: 章节范围
+  - role_in_stage_arc: 在阶段弧线中的角色
+  - position_in_emotional_arc: 在情绪曲线中的位置
+  - related_events: 关联事件
+  - is_turning_point: 是否转折点
+
+## 20种期待类型说明
+
+### 基础类型（6种）
+1. **SHOWCASE** - 展示橱窗：提前展示奖励或能力的强大
+2. **SUPPRESSION_RELEASE** - 压抑释放：制造阻碍后释放爽感
+3. **NESTED_DOLL** - 套娃期待：大期待包着小期待
+4. **EMOTIONAL_HOOK** - 情绪钩子：打脸、认同、身份揭秘
+5. **POWER_GAP** - 实力差距：期待变强的过程
+6. **MYSTERY_FORESHADOW** - 伏笔揭秘：埋下线索后揭晓
+
+### 扩展类型（14种）
+7. **PIG_EATS_TIGER** - 扮猪吃虎：隐藏实力后打脸
+8. **SHOW_OFF_FACE_SLAP** - 装逼打脸：展示实力打脸
+9. **IDENTITY_REVEAL** - 身份反转：隐藏身份揭晓
+10. **BEAUTY_FAVOR** - 美人恩：女主好感进展
+11. **FORTUITOUS_ENCOUNTER** - 机缘巧合：意外获得奇遇
+12. **COMPETITION** - 比试切磋：宗门大比等
+13. **AUCTION_TREASURE** - 拍卖会争宝
+14. **SECRET_REALM_EXPLORATION** - 秘境探险
+15. **ALCHEMY_CRAFTING** - 炼丹炼器
+16. **FORMATION_BREAKING** - 阵法破解
+17. **SECT_MISSION** - 宗门任务
+18. **CROSS_WORLD_TELEPORT** - 跨界传送
+19. **CRISIS_RESCUE** - 危机救援
+20. **MASTER_INHERITANCE** - 师恩传承
+
+## 编排原则
+
+### 1. 情绪曲线匹配
+- **压抑期** → MYSTERY_FORESHADOW(埋线), POWER_GAP(期待变强)
+- **上升期** → SHOWCASE(展示), FORTUITOUS_ENCOUNTER(奇遇)
+- **爆发期** → SUPPRESSION_RELEASE(释放), IDENTITY_REVEAL(揭秘)
+- **收尾期** → CRISIS_RESCUE(救援), MASTER_INHERITANCE(传承)
+
+### 2. 事件关联设计
+- 事件A的释放可以是事件B的种植
+- 设计"期待链"：A种植 → B发酵 → C释放
+
+### 3. 爽点对齐
+- satisfaction_points中的爽点，前置3章必须有对应期待
+
+### 4. 类型多样化
+- 同阶段同类型不超过2个
+- 相邻事件期待类型尽量不重复
+
+## 输出格式
+
+请严格按照以下JSON格式输出：
+
+```json
+{
+  "stage_expectation_strategy": "本阶段整体期待策略简述（50字内）",
+  "event_expectations": [
+    {
+      "event_id": "事件ID",
+      "expectation_type": "TYPE_NAME",
+      "reasoning": "选择理由（基于情绪曲线/事件关联/世界观展开）",
+      "planting_chapter": 1,
+      "target_chapter": 4,
+      "linked_events": ["关联事件ID"]
+    }
+  ]
+}
+```
+
+请确保：
+1. 每个事件都有合理的期待类型
+2. 种植章节 ≤ 事件开始章节
+3. 目标释放章节 ≥ 事件结束章节
+4. 关联事件确实有关联逻辑
+5. 输出必须是合法的JSON格式，不要包含任何注释或markdown标记
+""",
         }
 
     def get(self, key, default=None):

@@ -332,9 +332,12 @@ function startMonitoringTask(taskId) {
                 return;
             }
             
-            const data = await response.json();
+            const result = await response.json();
             
-            if (data.success) {
+            // 🔥 修复：后端返回的数据嵌套在 data 字段中
+            const data = result.data || result;
+            
+            if (result.success || data.status) {
                 // 更新进度显示
                 updateProgressDisplay(data);
                 
