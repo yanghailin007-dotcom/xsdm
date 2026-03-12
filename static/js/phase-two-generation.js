@@ -331,8 +331,22 @@ function displayProjectInfo(projectData) {
         200  // 默认值
     );
     
-    const completedChapters = Object.keys(projectData.generated_chapters || {}).length;
-    console.log(`[DEBUG] 总章节: ${totalChapters}, 已完成: ${completedChapters}`);
+    // 🔥 修复：处理 generated_chapters 可能是对象、数组或undefined的情况
+    let generatedChapters = projectData.generated_chapters || {};
+    let completedChapters = 0;
+    
+    if (Array.isArray(generatedChapters)) {
+        completedChapters = generatedChapters.length;
+    } else if (typeof generatedChapters === 'object') {
+        completedChapters = Object.keys(generatedChapters).length;
+    }
+    
+    // 优先使用后端计算的 completed_chapters（如果有）
+    if (projectData.phase_info && projectData.phase_info.completed_chapters !== undefined) {
+        completedChapters = projectData.phase_info.completed_chapters;
+    }
+    
+    console.log(`[DEBUG] 总章节: ${totalChapters}, 已完成: ${completedChapters}`, generatedChapters);
     
     // 🔥 修复：添加空值检查，兼容不同版本的HTML结构
     if (infoDiv) {
@@ -2297,7 +2311,24 @@ function loadReaderChapterList() {
     const listContainer = document.getElementById('reader-chapter-list');
     const countElement = document.getElementById('reader-chapter-count');
     
-    if (!currentProject || !currentProject.generated_chapters) {
+    console.log('[DEBUG] loadReaderChapterList, currentProject:', currentProject);
+    
+    // 🔥 修复：处理多种数据格式
+    let chapters = null;
+    
+    if (currentProject) {
+        // 优先尝试 generated_chapters
+        if (currentProject.generated_chapters) {
+            chapters = currentProject.generated_chapters;
+        }
+        // 其次尝试 phase_info.generated_chapters
+        else if (currentProject.phase_info && currentProject.phase_info.generated_chapters) {
+            chapters = currentProject.phase_info.generated_chapters;
+        }
+    }
+    
+    if (!chapters) {
+        console.log('[DEBUG] 没有章节数据');
         if (listContainer) {
             listContainer.innerHTML = '<div class="v2-reader-sidebar__empty">暂无章节</div>';
         }
@@ -2306,6 +2337,8 @@ function loadReaderChapterList() {
         }
         return;
     }
+    
+    console.log('[DEBUG] 章节数据:', chapters);
     
     // 转换章节数据为数组
     let chapters = currentProject.generated_chapters;
