@@ -2340,8 +2340,7 @@ function loadReaderChapterList() {
     
     console.log('[DEBUG] 章节数据:', chapters);
     
-    // 转换章节数据为数组
-    let chapters = currentProject.generated_chapters;
+    // 转换章节数据为数组（如果还是对象格式）
     if (typeof chapters === 'object' && !Array.isArray(chapters)) {
         chapters = Object.values(chapters);
     }
