@@ -2234,6 +2234,355 @@ function goToContentReview() {
     }
 }
 
+// ==================== 标签页切换 ====================
+function switchTab(tabName) {
+    console.log(`[DEBUG] 切换到标签页: ${tabName}`);
+    
+    // 隐藏所有标签页内容
+    const allTabs = document.querySelectorAll('.pt-tab-content');
+    allTabs.forEach(tab => {
+        tab.classList.remove('pt-tab-content--active');
+    });
+    
+    // 显示目标标签页
+    const targetTab = document.getElementById(`tab-${tabName}`);
+    if (targetTab) {
+        targetTab.classList.add('pt-tab-content--active');
+    }
+    
+    // 更新步骤条状态
+    const allSteps = document.querySelectorAll('.pt-step');
+    allSteps.forEach(step => {
+        step.classList.remove('pt-step--active');
+        if (step.dataset.tab === tabName) {
+            step.classList.add('pt-step--active');
+        }
+    });
+    
+    // 更新连接器状态
+    updateStepConnectors(tabName);
+    
+    // 如果是阅读器标签，加载章节列表
+    if (tabName === 'reader') {
+        loadReaderChapterList();
+    }
+    
+    // 如果是导出标签，更新统计数据
+    if (tabName === 'export') {
+        updateExportStats();
+    }
+}
+
+// 更新步骤条连接器状态
+function updateStepConnectors(activeTab) {
+    const connectors = document.querySelectorAll('.pt-step-connector');
+    const tabOrder = ['blueprint', 'generate', 'reader', 'export'];
+    const activeIndex = tabOrder.indexOf(activeTab);
+    
+    connectors.forEach((connector, index) => {
+        if (index < activeIndex) {
+            connector.classList.add('pt-step-connector--completed');
+        } else {
+            connector.classList.remove('pt-step-connector--completed');
+        }
+    });
+}
+
+// ==================== 阅读器功能 ====================
+let readerCurrentChapter = null;
+let readerChapters = [];
+
+// 加载阅读器章节列表
+function loadReaderChapterList() {
+    const listContainer = document.getElementById('reader-chapter-list');
+    const countElement = document.getElementById('reader-chapter-count');
+    
+    if (!currentProject || !currentProject.generated_chapters) {
+        if (listContainer) {
+            listContainer.innerHTML = '<div class="v2-reader-sidebar__empty">暂无章节</div>';
+        }
+        if (countElement) {
+            countElement.textContent = '0章';
+        }
+        return;
+    }
+    
+    // 转换章节数据为数组
+    let chapters = currentProject.generated_chapters;
+    if (typeof chapters === 'object' && !Array.isArray(chapters)) {
+        chapters = Object.values(chapters);
+    }
+    
+    // 按章节号排序
+    chapters.sort((a, b) => (a.chapter_number || 0) - (b.chapter_number || 0));
+    readerChapters = chapters;
+    
+    // 更新计数
+    if (countElement) {
+        countElement.textContent = `${chapters.length}章`;
+    }
+    
+    // 生成列表HTML
+    if (listContainer) {
+        if (chapters.length === 0) {
+            listContainer.innerHTML = '<div class="v2-reader-sidebar__empty">暂无章节</div>';
+            return;
+        }
+        
+        listContainer.innerHTML = chapters.map(ch => `
+            <div class="v2-reader-sidebar__item ${ch.chapter_number === readerCurrentChapter ? 'v2-reader-sidebar__item--active' : ''}" 
+                 onclick="readerLoadChapter(${ch.chapter_number})">
+                <span>第${ch.chapter_number}章</span>
+                <span style="color: rgba(255,255,255,0.4); font-size: 12px;">${ch.word_count || 0}字</span>
+            </div>
+        `).join('');
+    }
+}
+
+// 加载特定章节
+function readerLoadChapter(chapterNum) {
+    const chapter = readerChapters.find(ch => ch.chapter_number === chapterNum);
+    if (!chapter) return;
+    
+    readerCurrentChapter = chapterNum;
+    
+    // 更新列表高亮
+    document.querySelectorAll('.v2-reader-sidebar__item').forEach(item => {
+        item.classList.remove('v2-reader-sidebar__item--active');
+    });
+    const activeItem = document.querySelector(`.v2-reader-sidebar__item:nth-child(${readerChapters.indexOf(chapter) + 1})`);
+    if (activeItem) {
+        activeItem.classList.add('v2-reader-sidebar__item--active');
+    }
+    
+    // 更新标题和元数据
+    const titleEl = document.getElementById('reader-chapter-title');
+    const numberEl = document.getElementById('reader-chapter-number');
+    const wordCountEl = document.getElementById('reader-word-count');
+    const qualityScoreEl = document.getElementById('reader-quality-score');
+    const textEl = document.getElementById('reader-chapter-text');
+    
+    // 更新右侧信息
+    const infoWordCount = document.getElementById('info-word-count');
+    const infoQualityScore = document.getElementById('info-quality-score');
+    const infoGenTime = document.getElementById('info-gen-time');
+    
+    if (titleEl) titleEl.textContent = chapter.chapter_title || `第${chapter.chapter_number}章`;
+    if (numberEl) numberEl.textContent = `第${chapter.chapter_number}章`;
+    if (wordCountEl) wordCountEl.textContent = `${chapter.word_count || 0}字`;
+    if (qualityScoreEl) qualityScoreEl.textContent = `质量分: ${chapter.quality_score || chapter.quality?.overall_score || '-'}`;
+    
+    if (infoWordCount) infoWordCount.textContent = `${chapter.word_count || 0}字`;
+    if (infoQualityScore) infoQualityScore.textContent = chapter.quality_score || chapter.quality?.overall_score || '-';
+    if (infoGenTime) infoGenTime.textContent = chapter.generated_at ? new Date(chapter.generated_at).toLocaleString() : '-';
+    
+    // 更新正文内容
+    if (textEl) {
+        const content = chapter.content || chapter.chapter_content || '暂无内容';
+        // 将内容分段显示
+        const paragraphs = content.split('\n').filter(p => p.trim());
+        textEl.innerHTML = paragraphs.map(p => `<p style="margin-bottom: 1em; text-indent: 2em;">${p}</p>`).join('');
+    }
+    
+    // 更新导航按钮状态
+    updateReaderNavButtons();
+}
+
+// 更新导航按钮状态
+function updateReaderNavButtons() {
+    const prevBtn = document.getElementById('reader-prev-btn');
+    const nextBtn = document.getElementById('reader-next-btn');
+    
+    if (prevBtn) {
+        const currentIndex = readerChapters.findIndex(ch => ch.chapter_number === readerCurrentChapter);
+        prevBtn.disabled = currentIndex <= 0;
+    }
+    
+    if (nextBtn) {
+        const currentIndex = readerChapters.findIndex(ch => ch.chapter_number === readerCurrentChapter);
+        nextBtn.disabled = currentIndex >= readerChapters.length - 1;
+    }
+}
+
+// 上一章
+function readerPrevChapter() {
+    const currentIndex = readerChapters.findIndex(ch => ch.chapter_number === readerCurrentChapter);
+    if (currentIndex > 0) {
+        readerLoadChapter(readerChapters[currentIndex - 1].chapter_number);
+    }
+}
+
+// 下一章
+function readerNextChapter() {
+    const currentIndex = readerChapters.findIndex(ch => ch.chapter_number === readerCurrentChapter);
+    if (currentIndex < readerChapters.length - 1) {
+        readerLoadChapter(readerChapters[currentIndex + 1].chapter_number);
+    }
+}
+
+// 返回列表
+function readerBackToList() {
+    readerCurrentChapter = null;
+    document.getElementById('reader-chapter-title').textContent = '选择章节开始阅读';
+    document.getElementById('reader-chapter-number').textContent = '-';
+    document.getElementById('reader-word-count').textContent = '0字';
+    document.getElementById('reader-quality-score').textContent = '质量分: -';
+    document.getElementById('reader-chapter-text').innerHTML = `
+        <div class="v2-reader-placeholder">
+            <span>📖</span>
+            <p>请从左侧选择章节开始阅读</p>
+        </div>
+    `;
+    
+    document.querySelectorAll('.v2-reader-sidebar__item').forEach(item => {
+        item.classList.remove('v2-reader-sidebar__item--active');
+    });
+    
+    updateReaderNavButtons();
+}
+
+// 重新生成章节
+function readerRegenerateChapter() {
+    if (!readerCurrentChapter) {
+        showStatusMessage('请先选择一个章节', 'warning');
+        return;
+    }
+    // 切换到生成标签并开始生成
+    switchTab('generate');
+    document.getElementById('from-chapter').value = readerCurrentChapter;
+    document.getElementById('chapters-to-generate').value = 1;
+    showStatusMessage(`已设置重新生成第${readerCurrentChapter}章，请点击"开始生成章节"`, 'info');
+}
+
+// 导出当前章节
+function readerExportChapter() {
+    if (!readerCurrentChapter) {
+        showStatusMessage('请先选择一个章节', 'warning');
+        return;
+    }
+    const chapter = readerChapters.find(ch => ch.chapter_number === readerCurrentChapter);
+    if (chapter) {
+        exportSingleChapter(chapter);
+    }
+}
+
+// 复制章节内容
+function readerCopyChapter() {
+    if (!readerCurrentChapter) {
+        showStatusMessage('请先选择一个章节', 'warning');
+        return;
+    }
+    const chapter = readerChapters.find(ch => ch.chapter_number === readerCurrentChapter);
+    if (chapter && chapter.content) {
+        navigator.clipboard.writeText(chapter.content).then(() => {
+            showStatusMessage('章节内容已复制到剪贴板', 'success');
+        }).catch(() => {
+            showStatusMessage('复制失败，请手动复制', 'error');
+        });
+    }
+}
+
+// ==================== 导出功能 ====================
+
+// 更新导出页面统计数据
+function updateExportStats() {
+    if (!currentProject || !currentProject.generated_chapters) {
+        document.getElementById('export-total-chapters').textContent = '0';
+        document.getElementById('export-total-words').textContent = '0';
+        document.getElementById('export-avg-score').textContent = '0';
+        document.getElementById('export-avg-words').textContent = '0';
+        return;
+    }
+    
+    let chapters = currentProject.generated_chapters;
+    if (typeof chapters === 'object' && !Array.isArray(chapters)) {
+        chapters = Object.values(chapters);
+    }
+    
+    const totalChapters = chapters.length;
+    const totalWords = chapters.reduce((sum, ch) => sum + (ch.word_count || 0), 0);
+    const avgScore = chapters.reduce((sum, ch) => sum + (ch.quality_score || ch.quality?.overall_score || 0), 0) / totalChapters;
+    const avgWords = totalWords / totalChapters;
+    
+    document.getElementById('export-total-chapters').textContent = totalChapters;
+    document.getElementById('export-total-words').textContent = totalWords.toLocaleString();
+    document.getElementById('export-avg-score').textContent = avgScore.toFixed(1);
+    document.getElementById('export-avg-words').textContent = Math.round(avgWords).toLocaleString();
+}
+
+// 导出小说
+function exportNovel(format) {
+    if (!currentProject || !currentProject.generated_chapters) {
+        showStatusMessage('暂无章节可导出', 'warning');
+        return;
+    }
+    
+    let chapters = currentProject.generated_chapters;
+    if (typeof chapters === 'object' && !Array.isArray(chapters)) {
+        chapters = Object.values(chapters);
+    }
+    
+    // 按章节号排序
+    chapters.sort((a, b) => (a.chapter_number || 0) - (b.chapter_number || 0));
+    
+    let content = '';
+    const title = currentProject.novel_title || currentProject.title || '未命名小说';
+    
+    if (format === 'txt') {
+        content = `${title}\n\n`;
+        chapters.forEach(ch => {
+            content += `第${ch.chapter_number}章 ${ch.chapter_title || ''}\n\n`;
+            content += `${ch.content || ch.chapter_content || ''}\n\n`;
+        });
+    } else if (format === 'markdown') {
+        content = `# ${title}\n\n`;
+        chapters.forEach(ch => {
+            content += `## 第${ch.chapter_number}章 ${ch.chapter_title || ''}\n\n`;
+            content += `${ch.content || ch.chapter_content || ''}\n\n`;
+        });
+    } else if (format === 'docx') {
+        showStatusMessage('Word导出功能开发中，请先使用Markdown格式', 'info');
+        return;
+    }
+    
+    // 下载文件
+    const blob = new Blob([content], { type: 'text/plain;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `${title}.${format}`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    
+    showStatusMessage(`已导出 ${chapters.length} 章到 ${format.toUpperCase()} 文件`, 'success');
+}
+
+// 分章导出
+function exportChaptersSeparate() {
+    if (!currentProject || !currentProject.generated_chapters) {
+        showStatusMessage('暂无章节可导出', 'warning');
+        return;
+    }
+    
+    showStatusMessage('分章导出功能开发中，将导出为ZIP压缩包', 'info');
+}
+
+// 导出单个章节
+function exportSingleChapter(chapter) {
+    const content = `第${chapter.chapter_number}章 ${chapter.chapter_title || ''}\n\n${chapter.content || chapter.chapter_content || ''}`;
+    const blob = new Blob([content], { type: 'text/plain;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `第${chapter.chapter_number}章.txt`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+}
+
 // ==================== 工具函数 ====================
 function showProgressSection() {
     const progressSection = document.getElementById('progress-section');

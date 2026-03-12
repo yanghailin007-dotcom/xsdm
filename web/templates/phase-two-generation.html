@@ -1066,6 +1066,350 @@
             0%, 100% { transform: translate(0, 0) scale(1); }
             50% { transform: translate(30px, -30px) scale(1.1); }
         }
+        
+        /* ==================== 标签页样式 ==================== */
+        .pt-tab-content {
+            display: none;
+            animation: tabFadeIn 0.3s ease-out;
+        }
+        
+        .pt-tab-content--active {
+            display: block;
+        }
+        
+        @keyframes tabFadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(10px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+        
+        /* 步骤条点击样式 */
+        .pt-step {
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+        
+        .pt-step:hover {
+            transform: translateY(-2px);
+        }
+        
+        /* ==================== 阅读器样式 ==================== */
+        .v2-reader-layout {
+            display: grid;
+            grid-template-columns: 240px 1fr 200px;
+            gap: 20px;
+            min-height: 600px;
+        }
+        
+        .v2-reader-sidebar {
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 12px;
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            overflow: hidden;
+        }
+        
+        .v2-reader-sidebar__header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 16px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+            font-size: 14px;
+            font-weight: 500;
+        }
+        
+        .v2-reader-sidebar__list {
+            max-height: 540px;
+            overflow-y: auto;
+        }
+        
+        .v2-reader-sidebar__item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 12px 16px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            border-left: 3px solid transparent;
+        }
+        
+        .v2-reader-sidebar__item:hover {
+            background: rgba(99, 102, 241, 0.1);
+        }
+        
+        .v2-reader-sidebar__item--active {
+            background: rgba(99, 102, 241, 0.15);
+            border-left-color: #6366f1;
+        }
+        
+        .v2-reader-sidebar__item--completed::before {
+            content: '✓';
+            color: #22c55e;
+            font-size: 12px;
+            margin-right: 6px;
+        }
+        
+        .v2-reader-sidebar__empty {
+            padding: 40px 20px;
+            text-align: center;
+            color: rgba(255, 255, 255, 0.4);
+        }
+        
+        .v2-reader-content {
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 12px;
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            display: flex;
+            flex-direction: column;
+            position: relative;
+        }
+        
+        .v2-reader-content__header {
+            padding: 20px 24px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+        }
+        
+        .v2-reader-content__header h2 {
+            font-size: 20px;
+            font-weight: 600;
+            margin: 0 0 8px 0;
+        }
+        
+        .v2-reader-content__meta {
+            font-size: 13px;
+            color: rgba(255, 255, 255, 0.5);
+        }
+        
+        .v2-divider {
+            margin: 0 8px;
+            opacity: 0.3;
+        }
+        
+        .v2-reader-content__body {
+            flex: 1;
+            padding: 24px;
+            overflow-y: auto;
+            line-height: 1.8;
+            font-size: 15px;
+        }
+        
+        .v2-reader-placeholder {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100%;
+            color: rgba(255, 255, 255, 0.4);
+        }
+        
+        .v2-reader-placeholder span {
+            font-size: 48px;
+            margin-bottom: 16px;
+        }
+        
+        .v2-reader-nav {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 16px 24px;
+            border-top: 1px solid rgba(255, 255, 255, 0.08);
+            gap: 12px;
+        }
+        
+        .v2-reader-nav__btn {
+            padding: 10px 20px;
+            border-radius: 8px;
+            border: 1px solid rgba(99, 102, 241, 0.5);
+            background: rgba(99, 102, 241, 0.15);
+            color: #818cf8;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            font-size: 14px;
+        }
+        
+        .v2-reader-nav__btn:hover:not(:disabled) {
+            background: rgba(99, 102, 241, 0.25);
+            transform: translateY(-1px);
+        }
+        
+        .v2-reader-nav__btn:disabled {
+            opacity: 0.4;
+            cursor: not-allowed;
+        }
+        
+        .v2-reader-nav__btn--outline {
+            background: transparent;
+            border-color: rgba(255, 255, 255, 0.2);
+            color: rgba(255, 255, 255, 0.6);
+        }
+        
+        .v2-reader-info {
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 12px;
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            padding: 16px;
+        }
+        
+        .v2-reader-info__section {
+            margin-bottom: 24px;
+        }
+        
+        .v2-reader-info__section h4 {
+            font-size: 13px;
+            font-weight: 600;
+            margin: 0 0 12px 0;
+            color: rgba(255, 255, 255, 0.8);
+            padding-bottom: 8px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+        }
+        
+        .v2-reader-info__item {
+            display: flex;
+            justify-content: space-between;
+            padding: 8px 0;
+            font-size: 13px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+        }
+        
+        .v2-reader-info__item:last-child {
+            border-bottom: none;
+        }
+        
+        .v2-reader-info__btn {
+            width: 100%;
+            padding: 10px;
+            margin-bottom: 8px;
+            border-radius: 8px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            background: rgba(255, 255, 255, 0.05);
+            color: rgba(255, 255, 255, 0.8);
+            cursor: pointer;
+            transition: all 0.2s ease;
+            font-size: 13px;
+        }
+        
+        .v2-reader-info__btn:hover {
+            background: rgba(99, 102, 241, 0.15);
+            border-color: rgba(99, 102, 241, 0.3);
+        }
+        
+        /* ==================== 导出页面样式 ==================== */
+        .v2-export-quality {
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 12px;
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            padding: 24px;
+            margin-bottom: 24px;
+        }
+        
+        .v2-export-quality__title {
+            font-size: 16px;
+            font-weight: 600;
+            margin: 0 0 20px 0;
+        }
+        
+        .v2-export-quality__grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 24px;
+        }
+        
+        .v2-export-quality__chart {
+            text-align: center;
+        }
+        
+        .v2-export-quality__chart canvas {
+            max-width: 100%;
+            height: 200px;
+        }
+        
+        .v2-export-quality__chart p {
+            margin-top: 12px;
+            font-size: 13px;
+            color: rgba(255, 255, 255, 0.5);
+        }
+        
+        .v2-export-options {
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 12px;
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            padding: 24px;
+        }
+        
+        .v2-export-options__title {
+            font-size: 16px;
+            font-weight: 600;
+            margin: 0 0 20px 0;
+        }
+        
+        .v2-export-options__grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 16px;
+        }
+        
+        .v2-export-option {
+            background: rgba(255, 255, 255, 0.03);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            border-radius: 12px;
+            padding: 24px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+        
+        .v2-export-option:hover {
+            background: rgba(99, 102, 241, 0.1);
+            border-color: rgba(99, 102, 241, 0.3);
+            transform: translateY(-2px);
+        }
+        
+        .v2-export-option__icon {
+            font-size: 32px;
+            margin-bottom: 12px;
+        }
+        
+        .v2-export-option__title {
+            font-size: 14px;
+            font-weight: 600;
+            margin-bottom: 8px;
+        }
+        
+        .v2-export-option__desc {
+            font-size: 12px;
+            color: rgba(255, 255, 255, 0.5);
+        }
+        
+        /* 响应式适配 */
+        @media (max-width: 1200px) {
+            .v2-reader-layout {
+                grid-template-columns: 200px 1fr 180px;
+            }
+            
+            .v2-export-options__grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
+        }
+        
+        @media (max-width: 900px) {
+            .v2-reader-layout {
+                grid-template-columns: 1fr;
+            }
+            
+            .v2-reader-sidebar,
+            .v2-reader-info {
+                display: none;
+            }
+            
+            .v2-export-quality__grid {
+                grid-template-columns: 1fr;
+            }
+        }
     </style>
 </head>
 <body>
@@ -1086,26 +1430,26 @@
             <p class="pt-page-header__subtitle">基于第一阶段的设计设定，批量生成高质量的小说章节内容</p>
         </header>
         
-        <!-- 进度步骤 -->
-        <div class="pt-steps">
-            <div class="pt-step pt-step--completed" onclick="location.href='/phase-one-setup'">
-                <span>✅</span>
-                <span>设计完成</span>
+        <!-- 进度步骤 - 改为标签导航 -->
+        <div class="pt-steps" id="phase-tabs">
+            <div class="pt-step pt-step--active" data-tab="blueprint" onclick="switchTab('blueprint')">
+                <span>📋</span>
+                <span>设计蓝图</span>
             </div>
             <div class="pt-step-connector pt-step-connector--completed"></div>
-            <div class="pt-step pt-step--active">
+            <div class="pt-step" data-tab="generate" onclick="switchTab('generate')">
                 <span>⚙️</span>
                 <span>章节生成</span>
             </div>
             <div class="pt-step-connector"></div>
-            <div class="pt-step pt-step--pending" onclick="goToContentReview()">
-                <span>👁️</span>
-                <span>内容审核</span>
+            <div class="pt-step" data-tab="reader" onclick="switchTab('reader')">
+                <span>📖</span>
+                <span>章节阅读</span>
             </div>
             <div class="pt-step-connector"></div>
-            <div class="pt-step pt-step--pending">
+            <div class="pt-step" data-tab="export" onclick="switchTab('export')">
                 <span>🎉</span>
-                <span>生成完成</span>
+                <span>成果导出</span>
             </div>
         </div>
         
@@ -1142,8 +1486,19 @@
             <!-- 主内容区 -->
             <main class="pt-main">
                 <div class="pt-main__inner">
-                    <!-- 产物管理区域 -->
-                    <section id="products-section" class="pt-animate-fade-in">
+                    
+                    <!-- ==================== 标签页 1: 设计蓝图 ==================== -->
+                    <div id="tab-blueprint" class="pt-tab-content pt-tab-content--active">
+                        <div class="pt-section-title">
+                            <div class="pt-section-title__icon">📋</div>
+                            <div class="pt-section-title__text">
+                                <h3>设计蓝图</h3>
+                                <p>查看第一阶段生成的所有设定产物，为章节写作提供参考</p>
+                            </div>
+                        </div>
+                        
+                        <!-- 8个产物卡片 -->
+                        <div class="pt-product-grid" id="products-grid">
                         <div class="pt-section-title">
                             <div class="pt-section-title__icon">📋</div>
                             <div class="pt-section-title__text">
@@ -1266,10 +1621,12 @@
                                 </button>
                             </div>
                         </div>
-                    </section>
+                    </div>
                     
-                    <!-- 生成配置表单 -->
-                    <section id="generation-form">
+                    <!-- ==================== 标签页 2: 章节生成 ==================== -->
+                    <div id="tab-generate" class="pt-tab-content">
+                        <!-- 生成配置表单 -->
+                        <section id="generation-form">
                         <div class="pt-main__title">
                             <span>🚀</span>
                             <span>章节生成配置</span>
@@ -1495,6 +1852,169 @@
                             </button>
                         </div>
                     </section>
+                    </div>
+                    
+                    <!-- ==================== 标签页 3: 章节阅读 ==================== -->
+                    <div id="tab-reader" class="pt-tab-content">
+                        <div class="pt-section-title">
+                            <div class="pt-section-title__icon">📖</div>
+                            <div class="pt-section-title__text">
+                                <h3>章节阅读</h3>
+                                <p>查看已生成的章节内容，支持章节导航和质量评估</p>
+                            </div>
+                        </div>
+                        
+                        <!-- 阅读器主界面 -->
+                        <div class="v2-reader-layout">
+                            <!-- 左侧：章节列表 -->
+                            <aside class="v2-reader-sidebar">
+                                <div class="v2-reader-sidebar__header">
+                                    <span>📚 章节列表</span>
+                                    <span id="reader-chapter-count">0章</span>
+                                </div>
+                                <div class="v2-reader-sidebar__list" id="reader-chapter-list">
+                                    <!-- 章节列表动态生成 -->
+                                    <div class="v2-reader-sidebar__empty">暂无章节</div>
+                                </div>
+                            </aside>
+                            
+                            <!-- 中间：正文阅读区 -->
+                            <div class="v2-reader-content">
+                                <div class="v2-reader-content__header">
+                                    <h2 id="reader-chapter-title">选择章节开始阅读</h2>
+                                    <div class="v2-reader-content__meta">
+                                        <span id="reader-chapter-number">-</span>
+                                        <span class="v2-divider">|</span>
+                                        <span id="reader-word-count">0字</span>
+                                        <span class="v2-divider">|</span>
+                                        <span id="reader-quality-score">质量分: -</span>
+                                    </div>
+                                </div>
+                                <div class="v2-reader-content__body" id="reader-chapter-text">
+                                    <div class="v2-reader-placeholder">
+                                        <span>📖</span>
+                                        <p>请从左侧选择章节开始阅读</p>
+                                    </div>
+                                </div>
+                                <!-- 悬浮导航栏 -->
+                                <div class="v2-reader-nav">
+                                    <button class="v2-reader-nav__btn" id="reader-prev-btn" onclick="readerPrevChapter()" disabled>
+                                        ← 上一章
+                                    </button>
+                                    <button class="v2-reader-nav__btn v2-reader-nav__btn--outline" onclick="readerBackToList()">
+                                        返回列表
+                                    </button>
+                                    <button class="v2-reader-nav__btn" id="reader-next-btn" onclick="readerNextChapter()" disabled>
+                                        下一章 →
+                                    </button>
+                                </div>
+                            </div>
+                            
+                            <!-- 右侧：章节信息 -->
+                            <aside class="v2-reader-info">
+                                <div class="v2-reader-info__section">
+                                    <h4>📊 本章统计</h4>
+                                    <div class="v2-reader-info__item">
+                                        <span>字数</span>
+                                        <span id="info-word-count">-</span>
+                                    </div>
+                                    <div class="v2-reader-info__item">
+                                        <span>质量分</span>
+                                        <span id="info-quality-score">-</span>
+                                    </div>
+                                    <div class="v2-reader-info__item">
+                                        <span>生成时间</span>
+                                        <span id="info-gen-time">-</span>
+                                    </div>
+                                </div>
+                                <div class="v2-reader-info__section">
+                                    <h4>📝 快捷操作</h4>
+                                    <button class="v2-reader-info__btn" onclick="readerRegenerateChapter()">
+                                        🔄 重新生成
+                                    </button>
+                                    <button class="v2-reader-info__btn" onclick="readerExportChapter()">
+                                        📤 导出本章
+                                    </button>
+                                    <button class="v2-reader-info__btn" onclick="readerCopyChapter()">
+                                        📋 复制内容
+                                    </button>
+                                </div>
+                            </aside>
+                        </div>
+                    </div>
+                    
+                    <!-- ==================== 标签页 4: 成果导出 ==================== -->
+                    <div id="tab-export" class="pt-tab-content">
+                        <div class="pt-section-title">
+                            <div class="pt-section-title__icon">🎉</div>
+                            <div class="pt-section-title__text">
+                                <h3>成果导出</h3>
+                                <p>查看生成统计，导出小说内容</p>
+                            </div>
+                        </div>
+                        
+                        <!-- 统计概览 -->
+                        <div class="pt-stats-grid" style="margin-bottom: 32px;">
+                            <div class="pt-stat-card">
+                                <div class="pt-stat-card__value" id="export-total-chapters">0</div>
+                                <div class="pt-stat-card__label">总章节数</div>
+                            </div>
+                            <div class="pt-stat-card">
+                                <div class="pt-stat-card__value" id="export-total-words">0</div>
+                                <div class="pt-stat-card__label">总字数</div>
+                            </div>
+                            <div class="pt-stat-card">
+                                <div class="pt-stat-card__value" id="export-avg-score">0</div>
+                                <div class="pt-stat-card__label">平均质量分</div>
+                            </div>
+                            <div class="pt-stat-card">
+                                <div class="pt-stat-card__value" id="export-avg-words">0</div>
+                                <div class="pt-stat-card__label">平均每章字数</div>
+                            </div>
+                        </div>
+                        
+                        <!-- 质量评分可视化 -->
+                        <div class="v2-export-quality">
+                            <h4 class="v2-export-quality__title">📊 质量分析</h4>
+                            <div class="v2-export-quality__grid">
+                                <div class="v2-export-quality__chart">
+                                    <canvas id="quality-radar-chart"></canvas>
+                                    <p>各维度质量评分</p>
+                                </div>
+                                <div class="v2-export-quality__chart">
+                                    <canvas id="wordcount-trend-chart"></canvas>
+                                    <p>字数趋势</p>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- 导出选项 -->
+                        <div class="v2-export-options">
+                            <h4 class="v2-export-options__title">📤 导出选项</h4>
+                            <div class="v2-export-options__grid">
+                                <div class="v2-export-option" onclick="exportNovel('txt')">
+                                    <div class="v2-export-option__icon">📝</div>
+                                    <div class="v2-export-option__title">导出为 TXT</div>
+                                    <div class="v2-export-option__desc">纯文本格式，兼容所有设备</div>
+                                </div>
+                                <div class="v2-export-option" onclick="exportNovel('docx')">
+                                    <div class="v2-export-option__icon">📄</div>
+                                    <div class="v2-export-option__title">导出为 Word</div>
+                                    <div class="v2-export-option__desc">带格式的 Word 文档</div>
+                                </div>
+                                <div class="v2-export-option" onclick="exportNovel('markdown')">
+                                    <div class="v2-export-option__icon">📑</div>
+                                    <div class="v2-export-option__title">导出为 Markdown</div>
+                                    <div class="v2-export-option__desc">适合二次编辑的格式</div>
+                                </div>
+                                <div class="v2-export-option" onclick="exportChaptersSeparate()">
+                                    <div class="v2-export-option__icon">📁</div>
+                                    <div class="v2-export-option__title">分章导出</div>
+                                    <div class="v2-export-option__desc">每章一个文件</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
                     
                     <!-- 状态消息 -->
                     <div id="status-message" class="pt-status-message pt-hidden"></div>
