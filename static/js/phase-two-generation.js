@@ -1591,66 +1591,84 @@ async function exportPhaseOneProducts() {
         const folderName = title.replace(/[\\/:*?"<>|]/g, '_');
         const productsFolder = zip.folder(`${folderName}_第一阶段产物`);
         
-        // 1. 创意种子
+        // 🔥 修复：优先使用 phaseOneProductsData（实际显示在卡片上的数据）
+        // 其次使用 currentProject（项目数据）
+        const products = [];
+        
+        // 1. 创意种子 - 从 currentProject.creative_seed 获取
         if (currentProject.creative_seed) {
             productsFolder.file('01_创意种子.json', JSON.stringify(currentProject.creative_seed, null, 2));
+            products.push('01_创意种子.json');
         }
         
-        // 2. 世界观设定
-        if (currentProject.core_worldview) {
-            productsFolder.file('02_世界观设定.json', JSON.stringify(currentProject.core_worldview, null, 2));
+        // 2. 世界观设定 - 优先使用 phaseOneProductsData，其次 currentProject
+        const worldviewData = phaseOneProductsData.worldview?.content || currentProject.core_worldview;
+        if (worldviewData) {
+            const content = typeof worldviewData === 'string' ? worldviewData : JSON.stringify(worldviewData, null, 2);
+            productsFolder.file('02_世界观设定.json', content);
+            products.push('02_世界观设定.json');
         }
         
-        // 3. 势力/阵营系统
-        if (currentProject.faction_system || currentProject.factions) {
-            productsFolder.file('03_势力系统.json', JSON.stringify(currentProject.faction_system || currentProject.factions, null, 2));
+        // 3. 势力/阵营系统 - 优先使用 phaseOneProductsData
+        const factionsData = phaseOneProductsData.factions?.content || currentProject.faction_system || currentProject.factions;
+        if (factionsData) {
+            const content = typeof factionsData === 'string' ? factionsData : JSON.stringify(factionsData, null, 2);
+            productsFolder.file('03_势力系统.json', content);
+            products.push('03_势力系统.json');
         }
         
-        // 4. 角色设计
-        if (currentProject.character_design || currentProject.characters) {
-            productsFolder.file('04_角色设计.json', JSON.stringify(currentProject.character_design || currentProject.characters, null, 2));
+        // 4. 角色设计 - 优先使用 phaseOneProductsData
+        const charactersData = phaseOneProductsData.characters?.content || currentProject.character_design || currentProject.characters;
+        if (charactersData) {
+            const content = typeof charactersData === 'string' ? charactersData : JSON.stringify(charactersData, null, 2);
+            productsFolder.file('04_角色设计.json', content);
+            products.push('04_角色设计.json');
         }
         
-        // 5. 成长路线
-        if (currentProject.global_growth_plan || currentProject.growth) {
-            productsFolder.file('05_成长路线.json', JSON.stringify(currentProject.global_growth_plan || currentProject.growth, null, 2));
+        // 5. 成长路线 - 优先使用 phaseOneProductsData，其次 currentProject
+        const growthData = phaseOneProductsData.growth?.content || currentProject.global_growth_plan || currentProject.growth;
+        if (growthData) {
+            const content = typeof growthData === 'string' ? growthData : JSON.stringify(growthData, null, 2);
+            productsFolder.file('05_成长路线.json', content);
+            products.push('05_成长路线.json');
         }
         
-        // 6. 写作计划
-        if (currentProject.stage_writing_plans || currentProject.writing) {
-            productsFolder.file('06_写作计划.json', JSON.stringify(currentProject.stage_writing_plans || currentProject.writing, null, 2));
+        // 6. 写作计划 - 优先使用 phaseOneProductsData，其次 currentProject
+        const writingData = phaseOneProductsData.writing?.content || currentProject.stage_writing_plans || currentProject.writing;
+        if (writingData) {
+            const content = typeof writingData === 'string' ? writingData : JSON.stringify(writingData, null, 2);
+            productsFolder.file('06_写作计划.json', content);
+            products.push('06_写作计划.json');
         }
         
-        // 7. 故事线/情节大纲
-        if (currentProject.storyline || currentProject.plot_outline) {
-            productsFolder.file('07_故事线.json', JSON.stringify(currentProject.storyline || currentProject.plot_outline, null, 2));
+        // 7. 故事线 - 优先使用 phaseOneProductsData
+        const storylineData = phaseOneProductsData.storyline?.content || currentProject.storyline || currentProject.plot_outline;
+        if (storylineData) {
+            const content = typeof storylineData === 'string' ? storylineData : JSON.stringify(storylineData, null, 2);
+            productsFolder.file('07_故事线.json', content);
+            products.push('07_故事线.json');
         }
         
-        // 8. 市场分析
-        if (currentProject.market_analysis || currentProject.market) {
-            productsFolder.file('08_市场分析.json', JSON.stringify(currentProject.market_analysis || currentProject.market, null, 2));
+        // 8. 市场分析 - 优先使用 phaseOneProductsData，其次 currentProject
+        const marketData = phaseOneProductsData.market?.content || currentProject.market_analysis || currentProject.market;
+        if (marketData) {
+            const content = typeof marketData === 'string' ? marketData : JSON.stringify(marketData, null, 2);
+            productsFolder.file('08_市场分析.json', content);
+            products.push('08_市场分析.json');
         }
         
-        // 9. 写作风格指南
+        // 9. 写作风格指南 - 从 currentProject 获取
         if (currentProject.writing_style_guide) {
             productsFolder.file('09_写作风格指南.json', JSON.stringify(currentProject.writing_style_guide, null, 2));
+            products.push('09_写作风格指南.json');
         }
         
         // 10. 创建产物清单
         const manifest = {
             项目标题: title,
             导出时间: new Date().toLocaleString(),
-            产物列表: [
-                currentProject.creative_seed && '01_创意种子.json',
-                currentProject.core_worldview && '02_世界观设定.json',
-                (currentProject.faction_system || currentProject.factions) && '03_势力系统.json',
-                (currentProject.character_design || currentProject.characters) && '04_角色设计.json',
-                (currentProject.global_growth_plan || currentProject.growth) && '05_成长路线.json',
-                (currentProject.stage_writing_plans || currentProject.writing) && '06_写作计划.json',
-                (currentProject.storyline || currentProject.plot_outline) && '07_故事线.json',
-                (currentProject.market_analysis || currentProject.market) && '08_市场分析.json',
-                currentProject.writing_style_guide && '09_写作风格指南.json'
-            ].filter(Boolean)
+            产物数量: products.length,
+            产物列表: products
         };
         
         productsFolder.file('📋产物清单.json', JSON.stringify(manifest, null, 2));
@@ -1659,7 +1677,7 @@ async function exportPhaseOneProducts() {
         const zipBlob = await zip.generateAsync({ type: 'blob' });
         saveAs(zipBlob, `${folderName}_第一阶段产物.zip`);
         
-        showStatusMessage(`✅ 产物打包完成！共 ${manifest.产物列表.length} 个产物`, 'success');
+        showStatusMessage(`✅ 产物打包完成！共 ${products.length} 个产物`, 'success');
         
     } catch (error) {
         console.error('导出产物失败:', error);
