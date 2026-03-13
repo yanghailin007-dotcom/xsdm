@@ -2495,6 +2495,12 @@ class NovelGenerationManager:
                 novel_generator._username = username
                 novel_generator.set_username(username)
                 logger.info(f"任务 {task_id}: 已设置用户名 {username} 用于用户隔离路径")
+                
+                # 🔥 关键修复：刷新 StagePlanManager 的缓存路径
+                if hasattr(novel_generator, 'stage_plan_manager') and novel_generator.stage_plan_manager:
+                    # 重新初始化 plans_dir 缓存
+                    novel_generator.stage_plan_manager._init_plans_dir()
+                    logger.info(f"任务 {task_id}: 已刷新 StagePlanManager 路径缓存")
             
             # 初始化材料管理器（如果需要）- 必须在设置用户名之后
             if not novel_generator.material_manager:
