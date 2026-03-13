@@ -126,3 +126,6 @@ service-status.bat
 START_README.md
 logs/*.log
 server_*.log  # 根目录下的日志文件
+
+# 运行时进程ID文件
+.server.pid
