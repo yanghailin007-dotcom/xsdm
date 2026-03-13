@@ -1,7 +1,7 @@
 """
 管理员API - 用户管理等功能
 """
-from flask import Blueprint, request, jsonify, session, send_file
+from flask import Blueprint, request, jsonify, session, send_file, current_app
 from functools import wraps
 from datetime import datetime
 from web.models.user_model import user_model
@@ -417,11 +417,13 @@ def get_current_log_info():
 def get_generation_tasks():
     """获取所有生成任务状态"""
     try:
-        from web.managers.novel_manager import NovelGenerationManager
+        # 🔥 修复：使用正在运行的全局管理器实例
+        manager = current_app.config.get('MANAGER')
+        if not manager:
+            return jsonify({'success': False, 'error': '管理器未初始化'}), 500
         
-        # 获取管理器实例
-        manager = NovelGenerationManager()
         all_tasks = manager.get_all_tasks()
+        logger.info(f"[ADMIN] 获取所有任务: {len(all_tasks)} 个")
         
         # 分类任务状态
         active_tasks = []
@@ -492,8 +494,10 @@ def stop_generation_task(task_id):
         if not verify_admin_password(password):
             return jsonify({'success': False, 'error': '管理员密码验证失败'}), 403
         
-        from web.managers.novel_manager import NovelGenerationManager
-        manager = NovelGenerationManager()
+        # 🔥 修复：使用正在运行的全局管理器实例
+        manager = current_app.config.get('MANAGER')
+        if not manager:
+            return jsonify({'success': False, 'error': '管理器未初始化'}), 500
         
         # 获取任务状态
         task = manager.get_task_status(task_id)
@@ -526,8 +530,10 @@ def stop_all_generation_tasks():
         if not verify_admin_password(password):
             return jsonify({'success': False, 'error': '管理员密码验证失败'}), 403
         
-        from web.managers.novel_manager import NovelGenerationManager
-        manager = NovelGenerationManager()
+        # 🔥 修复：使用正在运行的全局管理器实例
+        manager = current_app.config.get('MANAGER')
+        if not manager:
+            return jsonify({'success': False, 'error': '管理器未初始化'}), 500
         
         # 获取所有任务
         all_tasks = manager.get_all_tasks()
@@ -572,10 +578,12 @@ def get_system_status():
         # 获取线程信息
         thread_count = threading.active_count()
         
-        # 获取生成任务状态
-        from web.managers.novel_manager import NovelGenerationManager
-        manager = NovelGenerationManager()
-        all_tasks = manager.get_all_tasks()
+        # 🔥 修复：使用正在运行的全局管理器实例
+        manager = current_app.config.get('MANAGER')
+        if manager:
+            all_tasks = manager.get_all_tasks()
+        else:
+            all_tasks = []
         
         active_generations = sum(1 for t in all_tasks 
                                 if t.get('status', '').lower() 

@@ -201,6 +201,9 @@ def create_app():
     
     # 创建全局管理器实例
     manager = NovelGenerationManager()
+    # 🔥 关键：将manager存入app.config，供admin_api等模块使用
+    app.config['MANAGER'] = manager
+    logger.info(f"✅ 全局管理器已创建并注册: {id(manager)}")
     
     # 注册生成的图片访问路由
     @app.route('/generated_images/<path:filename>')
