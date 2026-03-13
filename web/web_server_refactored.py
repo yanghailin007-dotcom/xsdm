@@ -101,8 +101,18 @@ from web.web_config import (
 # 初始化日志系统 - 按日期生成日志文件
 from src.utils.logger import Logger
 log_dir = os.path.join(BASE_DIR, 'logs')
-Logger.enable_file_logging(log_file='logs/server_%Y-%m-%d.log', log_dir=log_dir)
-logger.info(f"✅ 日志系统已初始化: {log_dir}/server_YYYY-MM-DD.log")
+try:
+    Logger.enable_file_logging(log_file='logs/server_%Y-%m-%d.log', log_dir=log_dir)
+    logger.info(f"✅ 日志系统已初始化: {log_dir}/server_YYYY-MM-DD.log")
+    # 🔥 关键：记录启动信息到日志，方便诊断
+    logger.info(f"🚀 服务器启动 - PID: {os.getpid()}, Time: {datetime.now().isoformat()}")
+    logger.info(f"📁 工作目录: {BASE_DIR}")
+    logger.info(f"👤 启动用户: {os.environ.get('USER', os.environ.get('USERNAME', 'unknown')}")
+except Exception as e:
+    # 如果文件日志初始化失败，至少打印到控制台
+    print(f"❌ 文件日志初始化失败: {e}")
+    import traceback
+    traceback.print_exc()
 from web.auth import user_auth
 from web.managers.novel_manager import NovelGenerationManager
 

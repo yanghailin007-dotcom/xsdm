@@ -2272,6 +2272,10 @@ class NovelGenerationManager:
     def start_phase_two_generation(self, config: Dict[str, Any]) -> str:
         """启动第二阶段章节生成任务"""
         task_id = str(uuid.uuid4())
+        username = config.get('username', 'unknown')
+        novel_title = config.get('novel_title', '未命名小说')
+        
+        logger.info(f"🚀 [PHASE2_TASK] 用户 {username} 启动二阶段任务: {novel_title}, task_id={task_id[:8]}")
         
         # 初始化第二阶段任务
         phase_two_task = {
