@@ -1473,12 +1473,20 @@ def register_additional_routes(app):
             if not manager:
                 return jsonify({"success": False, "error": "Manager not initialized"}), 500
             
+            # 🔥 改进：使用 list_user_projects 获取带路径的项目信息
+            from web.utils.path_utils import list_user_projects, get_current_username
+            from pathlib import Path
+            
+            current_user = get_current_username()
+            user_projects_with_paths = list_user_projects(current_user, include_public=True)
+            
+            # 创建路径映射
+            project_path_map = {p['title']: p for p in user_projects_with_paths}
+            
             # 获取所有小说项目
             all_projects = manager.get_novel_projects()
             
             # 🔥 改进：使用与前端相同的ProductLoader来检查产物
-            from pathlib import Path
-            
             # 为每个项目添加阶段状态信息
             projects_with_status = []
             for project in all_projects:
@@ -1538,6 +1546,28 @@ def register_additional_routes(app):
                     completed_chapters = int(project.get('completed_chapters', 0) or 0)
                 except (ValueError, TypeError):
                     completed_chapters = 0
+                
+                # 🔥 关键修复：如果内存中没有章节数据，直接从文件系统读取
+                if completed_chapters == 0:
+                    try:
+                        # 从路径映射获取项目路径
+                        project_title = project.get('title', '')
+                        project_info = project_path_map.get(project_title, {})
+                        project_path_str = project_info.get('path', '')
+                        
+                        if project_path_str:
+                            project_path = Path(project_path_str)
+                            if project_path.exists():
+                                # 尝试从章节目录统计
+                                chapters_dir = project_path / "chapters"
+                                if chapters_dir.exists():
+                                    chapter_files = list(chapters_dir.glob('第*.json')) + list(chapters_dir.glob('第*.txt'))
+                                    file_chapter_count = len(chapter_files)
+                                    if file_chapter_count > 0:
+                                        completed_chapters = file_chapter_count
+                                        logger.info(f"[WITH_PHASE_STATUS] 项目 {project_title}: 从文件系统读取到 {file_chapter_count} 个章节文件")
+                    except Exception as e:
+                        logger.warning(f"[WITH_PHASE_STATUS] 从文件系统读取章节失败: {e}")
                 
                 if completed_chapters > 0:
                     if completed_chapters >= total_chapters and total_chapters > 0:
@@ -1777,11 +1807,11 @@ def register_additional_routes(app):
                 200  # 默认值
             )
             
-            # 🔥 调试：检查 generated_chapters 数据
+            # 🔥 调试：检查 generated_chapters 数据（只记录统计信息，不记录完整内容）
             gen_chapters_data = novel_detail.get('generated_chapters')
-            logger.info(f"[PROJECT_INFO_DEBUG] novel_detail type: {type(novel_detail)}")
-            logger.info(f"[PROJECT_INFO_DEBUG] generated_chapters type: {type(gen_chapters_data)}")
-            logger.info(f"[PROJECT_INFO_DEBUG] generated_chapters value: {gen_chapters_data}")
+            if gen_chapters_data and isinstance(gen_chapters_data, dict):
+                chapter_keys = list(gen_chapters_data.keys())[:5]  # 只显示前5个章节号
+                logger.info(f"[PROJECT_INFO_DEBUG] generated_chapters: {len(gen_chapters_data)} chapters, keys: {chapter_keys}...")
             
             if gen_chapters_data is None:
                 completed_chapters = 0

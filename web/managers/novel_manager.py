@@ -1164,6 +1164,19 @@ class NovelGenerationManager:
             generated_chapters = data.get("generated_chapters", {})
             completed_chapters = len(generated_chapters)
             
+            # 🔥 关键修复：如果内存中没有章节数据，直接从文件系统读取
+            if completed_chapters == 0:
+                try:
+                    chapters_dir = project_path / "chapters"
+                    if chapters_dir.exists():
+                        chapter_files = list(chapters_dir.glob('第*.json')) + list(chapters_dir.glob('第*.txt'))
+                        file_chapter_count = len(chapter_files)
+                        if file_chapter_count > 0:
+                            completed_chapters = file_chapter_count
+                            logger.info(f"[GET_NOVEL_PROJECTS] 项目 {title}: 从文件系统读取到 {file_chapter_count} 个章节文件")
+                except Exception as e:
+                    logger.warning(f"[GET_NOVEL_PROJECTS] 从文件系统读取章节失败: {e}")
+            
             # 计算总字数
             total_word_count = 0
             for chapter_num, chapter_data in generated_chapters.items():
