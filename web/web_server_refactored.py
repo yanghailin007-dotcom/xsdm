@@ -102,12 +102,21 @@ from web.web_config import (
 from src.utils.logger import Logger
 log_dir = os.path.join(BASE_DIR, 'logs')
 try:
+    # 检查现有日志文件
+    from datetime import datetime
+    today_log = os.path.join(log_dir, f"server_{datetime.now().strftime('%Y-%m-%d')}.log")
+    existing_size = os.path.getsize(today_log) if os.path.exists(today_log) else 0
+    
     Logger.enable_file_logging(log_file='logs/server_%Y-%m-%d.log', log_dir=log_dir)
-    logger.info(f"✅ 日志系统已初始化: {log_dir}/server_YYYY-MM-DD.log")
+    
     # 🔥 关键：记录启动信息到日志，方便诊断
+    logger.info(f"="*60)
     logger.info(f"🚀 服务器启动 - PID: {os.getpid()}, Time: {datetime.now().isoformat()}")
     logger.info(f"📁 工作目录: {BASE_DIR}")
     logger.info(f"👤 启动用户: {os.environ.get('USER', os.environ.get('USERNAME', 'unknown')}")
+    logger.info(f"📝 今日日志文件: {today_log}, 追加前大小: {existing_size} bytes")
+    logger.info(f"✅ 日志系统已初始化 (追加模式)")
+    logger.info(f"="*60)
 except Exception as e:
     # 如果文件日志初始化失败，至少打印到控制台
     print(f"❌ 文件日志初始化失败: {e}")
