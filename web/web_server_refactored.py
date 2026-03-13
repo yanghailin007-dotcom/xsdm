@@ -113,7 +113,7 @@ try:
     logger.info(f"="*60)
     logger.info(f"🚀 服务器启动 - PID: {os.getpid()}, Time: {datetime.now().isoformat()}")
     logger.info(f"📁 工作目录: {BASE_DIR}")
-    logger.info(f"👤 启动用户: {os.environ.get('USER', os.environ.get('USERNAME', 'unknown')}")
+    logger.info(f"👤 启动用户: {os.environ.get('USER', os.environ.get('USERNAME', 'unknown'))}")
     logger.info(f"📝 今日日志文件: {today_log}, 追加前大小: {existing_size} bytes")
     logger.info(f"✅ 日志系统已初始化 (追加模式)")
     logger.info(f"="*60)
