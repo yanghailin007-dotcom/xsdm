@@ -678,12 +678,13 @@
             spinner.style.display = 'block';
             
             try {
+                const remember = document.getElementById('remember').checked;
                 const response = await fetch('/login', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
                     },
-                    body: JSON.stringify({ username, password })
+                    body: JSON.stringify({ username, password, remember })
                 });
                 
                 if (response.ok) {

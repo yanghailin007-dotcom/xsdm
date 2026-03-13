@@ -74,7 +74,10 @@ class FlaskConfig:
     SECRET_KEY = os.environ.get('FLASK_SECRET_KEY') or secrets.token_hex(32)
     DEBUG = os.environ.get('FLASK_DEBUG', 'False').lower() == 'true'
     HOST = '0.0.0.0'
-    PORT = 5000  # 
+    PORT = 5000  #
+    
+    # 会话配置
+    PERMANENT_SESSION_LIFETIME = 86400  # 默认1天（秒），记住我功能可延长至30天 
     
 # 应用信息
 APP_INFO = {

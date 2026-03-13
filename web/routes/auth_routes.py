@@ -2,7 +2,7 @@
 认证和基础页面路由
 """
 from flask import render_template, request, jsonify, session, redirect, url_for
-from datetime import datetime
+from datetime import datetime, timedelta
 
 from web.auth import user_auth, login_required
 from web.web_config import logger
@@ -49,11 +49,24 @@ def register_auth_routes(app):
                 user = user_model.get_user_by_username(username)
                 user_id = user.get('id') if user else None
                 
+                # 处理"记住我"选项
+                remember = data.get('remember', False)
+                if isinstance(remember, str):
+                    remember = remember.lower() in ('true', '1', 'yes', 'on')
+                
                 session['logged_in'] = True
                 session['username'] = username
                 session['user_id'] = user_id
                 session.permanent = True
-                logger.info(f"✅ 测试用户登录成功: {username} (ID: {user_id})")
+                
+                # 设置会话过期时间
+                if remember:
+                    session['remember'] = True
+                    app.permanent_session_lifetime = timedelta(days=30)
+                else:
+                    app.permanent_session_lifetime = timedelta(days=1)
+                
+                logger.info(f"✅ 测试用户登录成功: {username} (ID: {user_id}, 记住我: {remember})")
 
                 if request.is_json:
                     return jsonify({'success': True, 'message': '测试用户登录成功', 'redirect': '/landing'})
@@ -72,12 +85,25 @@ def register_auth_routes(app):
                 user_id = user.get('id') if user else None
                 is_admin = user.get('is_admin', 0) if user else 0
                 
+                # 处理"记住我"选项
+                remember = data.get('remember', False)
+                if isinstance(remember, str):
+                    remember = remember.lower() in ('true', '1', 'yes', 'on')
+                
                 session['logged_in'] = True
                 session['username'] = username
                 session['user_id'] = user_id
                 session['is_admin'] = bool(is_admin)
                 session.permanent = True
-                logger.info(f"✅ 用户登录成功: {username} (ID: {user_id}, is_admin: {is_admin})")
+                
+                # 如果选择了"记住我"，设置会话过期时间为30天，否则为1天
+                if remember:
+                    session['remember'] = True
+                    app.permanent_session_lifetime = timedelta(days=30)
+                    logger.info(f"✅ 用户登录成功: {username} (ID: {user_id}, is_admin: {is_admin}, 记住我: 30天)")
+                else:
+                    app.permanent_session_lifetime = timedelta(days=1)
+                    logger.info(f"✅ 用户登录成功: {username} (ID: {user_id}, is_admin: {is_admin}, 会话: 1天)")
                 
                 # 为用户创建小说项目目录（如果不存在）
                 try:
