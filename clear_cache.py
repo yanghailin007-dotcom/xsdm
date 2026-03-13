@@ -59,23 +59,15 @@ def clear_flask_cache():
     return count
 
 def clear_logs():
-    """清理旧日志文件"""
-    print("🔍 清理日志文件...")
-    count = 0
+    """清理旧日志文件 - 保留日志"""
+    print("🔍 检查日志目录...")
     
-    log_dirs = ['logs']
-    for log_dir in log_dirs:
-        if os.path.exists(log_dir):
-            for log_file in Path(log_dir).glob('*.log'):
-                try:
-                    log_file.unlink()
-                    count += 1
-                    print(f"  ✓ 删除: {log_file}")
-                except Exception as e:
-                    pass
+    # 只确保日志目录存在，不删除日志
+    log_dir = Path('logs')
+    log_dir.mkdir(exist_ok=True)
     
-    print(f"✅ 日志清理完成: {count} 个文件\n")
-    return count
+    print("✅ 日志目录已确认 (保留所有日志)\n")
+    return 0
 
 def clear_temp_files():
     """清理临时文件"""

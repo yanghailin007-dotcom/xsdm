@@ -15,10 +15,9 @@ find . -type f -name "*.pyo" -delete 2>/dev/null
 echo "✅ Python 缓存已清理"
 echo ""
 
-# 2. 清理运行时文件
+# 2. 清理运行时文件（保留日志）
 echo "🔍 清理运行时文件..."
 rm -f .server.pid 2>/dev/null
-rm -f logs/server_*.log 2>/dev/null
 echo "✅ 运行时文件已清理"
 echo ""
 
