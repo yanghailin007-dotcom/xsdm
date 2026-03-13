@@ -6,9 +6,9 @@ import os
 from pathlib import Path
 from datetime import datetime
 from typing import Dict, List, Optional, Any
-from src.utils.logger import Logger
+from src.utils.logger import get_logger
 
-logger = Logger.get_logger(__name__)
+logger = get_logger(__name__)
 
 
 class TaskPersistence:
