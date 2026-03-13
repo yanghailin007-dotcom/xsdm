@@ -37,13 +37,21 @@ from web.utils.path_utils import (
 # 视频项目目录
 VIDEO_PROJECTS_DIR = Path(__file__).parent.parent.parent / '视频项目'
 
-# 导入管理器
-try:
-    from web.managers.novel_manager import NovelGenerationManager
-    manager = NovelGenerationManager()
-except Exception as e:
-    print(f"Cannot initialize NovelGenerationManager: {e}")
-    manager = None
+# 🔥 修复：管理器实例将由 web_server_refactored.py 设置
+# 避免在模块导入时创建实例，防止循环导入
+manager = None
+
+# 延迟获取管理器的辅助函数
+def get_manager():
+    """获取管理器实例"""
+    global manager
+    if manager is None:
+        try:
+            from web.managers.novel_manager import NovelGenerationManager
+            manager = NovelGenerationManager()
+        except Exception as e:
+            logger.error(f"无法初始化管理器: {e}")
+    return manager
 
 # API登录装饰器
 def login_required(f):
