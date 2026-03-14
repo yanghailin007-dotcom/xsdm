@@ -55,7 +55,7 @@ class PlanValidator:
         
         try:
             assessment_result = api_client.generate_content_with_retry(
-                content_type="goal_hierarchy_and_continuity_assessment",
+                content_type="goal_hierarchy_coherence_assessment_master_reviewer",
                 user_prompt=merged_prompt,
                 purpose=f"【网文白金策划师】评估{stage_name}阶段目标层级与连续性"
             )
