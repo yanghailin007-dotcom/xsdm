@@ -247,37 +247,49 @@
 
         /* ==================== 用户信息展示 ==================== */
         .user-info-grid {
-            display: grid;
-            gap: var(--space-4);
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
         }
 
         .info-item {
             display: flex;
             justify-content: space-between;
             align-items: center;
-            padding: var(--space-4);
-            background: rgba(15, 23, 42, 0.4);
+            padding: 16px;
+            background: rgba(15, 23, 42, 0.6);
             border-radius: 12px;
+            border: 1px solid rgba(148, 163, 184, 0.1);
         }
 
         .info-label {
             color: var(--text-tertiary);
             font-size: 0.875rem;
+            font-weight: 500;
         }
 
         .info-value {
             color: var(--text-primary);
-            font-weight: 500;
+            font-weight: 600;
+            font-size: 0.9375rem;
         }
 
         /* ==================== 表单样式 ==================== */
+        form {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+
         .form-group {
-            margin-bottom: var(--space-6);
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            margin-bottom: 0;
         }
 
         .form-label {
             display: block;
-            margin-bottom: 8px;
             color: var(--text-secondary);
             font-size: 0.875rem;
             font-weight: 500;
@@ -290,8 +302,9 @@
             border: 1px solid rgba(148, 163, 184, 0.2);
             border-radius: 8px;
             color: var(--text-primary);
-            font-size: 1rem;
+            font-size: 0.9375rem;
             transition: all 0.2s;
+            box-sizing: border-box;
         }
 
         .form-input:focus {
@@ -306,22 +319,24 @@
 
         .btn-primary {
             padding: 12px 24px;
-            background: var(--primary-500);
+            background: linear-gradient(135deg, var(--primary-500), var(--primary-600));
             border: none;
             border-radius: 8px;
             color: white;
-            font-size: 1rem;
+            font-size: 0.9375rem;
             font-weight: 600;
             cursor: pointer;
             transition: all 0.2s;
             display: inline-flex;
             align-items: center;
+            justify-content: center;
             gap: 8px;
+            align-self: flex-start;
         }
 
         .btn-primary:hover {
-            background: var(--primary-600);
             transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(99, 102, 241, 0.4);
         }
 
         .btn-primary:disabled {
@@ -332,21 +347,22 @@
 
         .btn-danger {
             padding: 12px 24px;
-            background: var(--danger);
-            border: none;
+            background: rgba(239, 68, 68, 0.1);
+            border: 1px solid rgba(239, 68, 68, 0.3);
             border-radius: 8px;
-            color: white;
-            font-size: 1rem;
+            color: #ef4444;
+            font-size: 0.9375rem;
             font-weight: 600;
             cursor: pointer;
             transition: all 0.2s;
             display: inline-flex;
             align-items: center;
+            justify-content: center;
             gap: 8px;
         }
 
         .btn-danger:hover {
-            background: #dc2626;
+            background: rgba(239, 68, 68, 0.2);
             transform: translateY(-1px);
         }
 
@@ -374,17 +390,17 @@
 
         /* ==================== 安全提示 ==================== */
         .security-tips {
-            background: rgba(6, 182, 212, 0.1);
+            background: rgba(6, 182, 212, 0.08);
             border: 1px solid rgba(6, 182, 212, 0.2);
             border-radius: 12px;
-            padding: var(--space-6);
-            margin-top: var(--space-8);
+            padding: 20px;
+            margin-top: 24px;
         }
 
         .security-tips h3 {
-            color: var(--accent-500);
-            font-size: 1rem;
-            margin-bottom: var(--space-4);
+            color: #06b6d4;
+            font-size: 0.9375rem;
+            margin-bottom: 16px;
             display: flex;
             align-items: center;
             gap: 8px;
@@ -394,10 +410,12 @@
             list-style: none;
             color: var(--text-secondary);
             font-size: 0.875rem;
+            margin: 0;
+            padding: 0;
         }
 
         .security-tips li {
-            padding: 4px 0;
+            padding: 6px 0;
             padding-left: 20px;
             position: relative;
         }
@@ -406,7 +424,7 @@
             content: '•';
             position: absolute;
             left: 0;
-            color: var(--accent-500);
+            color: #06b6d4;
         }
     </style>
 
@@ -436,8 +454,12 @@
                     <span class="info-value" id="currentUsername">加载中...</span>
                 </div>
                 <div class="info-item">
+                    <span class="info-label">用户ID</span>
+                    <span class="info-value" id="currentUserId">-</span>
+                </div>
+                <div class="info-item">
                     <span class="info-label">账户状态</span>
-                    <span class="info-value" style="color: var(--success);">✅ 正常</span>
+                    <span class="info-value" style="color: #22c55e;">✓ 正常</span>
                 </div>
             </div>
         </div>
@@ -480,12 +502,14 @@
         </div>
 
         <!-- 退出登录 -->
-        <div class="account-section" style="border-color: rgba(239, 68, 68, 0.2);">
-            <h2 class="section-title" style="color: var(--danger);">🚪 退出登录</h2>
-            <p style="color: var(--text-secondary); margin-bottom: 1rem;">退出当前账户，返回登录页面</p>
-            <button class="btn-danger" onclick="logout()">
-                退出登录
-            </button>
+        <div class="account-section" style="border-color: rgba(239, 68, 68, 0.2); background: rgba(239, 68, 68, 0.05);">
+            <h2 class="section-title" style="color: #ef4444;">🚪 退出登录</h2>
+            <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 16px;">
+                <p style="color: var(--text-secondary); margin: 0;">退出当前账户，返回登录页面</p>
+                <button class="btn-danger" onclick="logout()">
+                    退出登录
+                </button>
+            </div>
         </div>
     </main>
 
@@ -497,10 +521,12 @@
                 const response = await fetch('/api/current-user');
                 const data = await response.json();
                 if (data.success) {
-                    document.getElementById('currentUsername').textContent = data.username;
+                    document.getElementById('currentUsername').textContent = data.username || '{{ session.username }}' || '未知';
+                    document.getElementById('currentUserId').textContent = data.user_id || '{{ session.user_id }}' || '-';
                 }
             } catch (error) {
                 console.error('加载用户信息失败:', error);
+                document.getElementById('currentUsername').textContent = '{{ session.username }}' || '未知';
             }
         }
 
