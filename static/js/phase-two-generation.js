@@ -1699,6 +1699,22 @@ function createProductEditDrawer(category, productData) {
     const isWorldview = category === 'worldview';
     const isCharacters = category === 'characters';
     
+    // 调试信息
+    console.log(`[DEBUG] 创建抽屉: ${category}`);
+    console.log(`[DEBUG] productData:`, productData);
+    console.log(`[DEBUG] currentProject.character_design:`, currentProject?.character_design);
+    
+    // 对于角色设计，优先从 currentProject 获取数据
+    if (isCharacters && currentProject?.character_design) {
+        productData = {
+            title: '角色设计',
+            content: typeof currentProject.character_design === 'string' 
+                ? currentProject.character_design 
+                : JSON.stringify(currentProject.character_design, null, 2)
+        };
+        console.log(`[DEBUG] 使用 currentProject 角色数据:`, productData);
+    }
+    
     const drawerHtml = `
         <div id="product-edit-drawer" class="pt-drawer-overlay" onclick="closeProductEditDrawer()">
             <div class="pt-drawer" onclick="event.stopPropagation()">
