@@ -276,6 +276,12 @@ def register_auth_routes(app):
         
         target_user_id = data['user_id']
         
+        # 尝试将 user_id 转为整数（兼容前端字符串）
+        try:
+            target_user_id = int(target_user_id)
+        except (ValueError, TypeError):
+            return jsonify({'success': False, 'error': 'Invalid user_id format'}), 400
+        
         # 获取目标用户信息
         user = user_model.get_user_by_id(target_user_id)
         if not user:
