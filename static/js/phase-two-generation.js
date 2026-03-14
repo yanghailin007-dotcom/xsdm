@@ -1069,14 +1069,11 @@ function editProductCategory(category) {
 
     const productData = phaseOneProductsData[category];
     
-    // 对于势力系统，使用特殊的查看器
-    if (category === 'factions') {
-        viewFactionSystem();
-    } else if (category === 'characters') {
-        // 对于角色，使用友好的角色编辑器
+    // 对于角色，使用友好的角色编辑器
+    if (category === 'characters') {
         openCharacterEditorFromPhaseTwo();
     } else {
-        // 其他产物使用编辑抽屉
+        // 其他产物使用抽屉面板编辑
         createProductEditDrawer(category, productData);
     }
 }
