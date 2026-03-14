@@ -541,6 +541,88 @@
             display: block;
         }
         
+        /* V2 弹窗样式 - 用于停止生成确认弹窗 */
+        .v2-dialog-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.8);
+            backdrop-filter: blur(12px);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 99999;
+            padding: 20px;
+        }
+        
+        .v2-dialog-content {
+            background: linear-gradient(145deg, #1e293b 0%, #0f172a 100%);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 20px;
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+            max-width: 480px;
+            width: 100%;
+            overflow: hidden;
+            animation: v2-dialog-in 0.3s ease-out;
+        }
+        
+        @keyframes v2-dialog-in {
+            from {
+                opacity: 0;
+                transform: scale(0.95) translateY(20px);
+            }
+            to {
+                opacity: 1;
+                transform: scale(1) translateY(0);
+            }
+        }
+        
+        .v2-dialog-header {
+            padding: 24px;
+            text-align: center;
+            color: white;
+        }
+        
+        .v2-dialog-icon {
+            width: 56px;
+            height: 56px;
+            margin: 0 auto 16px;
+            background: rgba(255, 255, 255, 0.2);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 28px;
+        }
+        
+        .v2-dialog-title {
+            font-size: 20px;
+            font-weight: 600;
+            margin: 0 0 8px 0;
+        }
+        
+        .v2-dialog-subtitle {
+            font-size: 14px;
+            opacity: 0.8;
+            margin: 0;
+        }
+        
+        .v2-dialog-body {
+            padding: 24px;
+        }
+        
+        .v2-dialog-actions {
+            padding: 0 24px 24px;
+            display: flex;
+            gap: 12px;
+        }
+        
+        .v2-dialog-actions .v2-btn {
+            flex: 1;
+        }
+        
         /* 结果区域 */
         .pt-results-section {
             display: none;
