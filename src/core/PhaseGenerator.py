@@ -1120,8 +1120,8 @@ class PhaseGenerator:
             with ManagedThreadPool(
                     max_workers=4, 
                     thread_name_prefix="StagePlan",
-                    timeout=300,
-                    task_timeout=60
+                    timeout=600,  # 增加总超时到10分钟
+                    task_timeout=120  # 增加每个任务超时到2分钟
                 ) as executor:
                 # 提交所有任务
                 future_to_stage = {
@@ -1132,19 +1132,28 @@ class PhaseGenerator:
                 # 收集结果（按完成顺序）
                 completed_count = 0
                 total_tasks = len(stage_tasks)
-                for future in as_completed(future_to_stage, timeout=300):
-                    stage_name, stage_plan = future.result(timeout=60)
-                    completed_count += 1
-                    if stage_plan:
-                        self.generator.novel_data["stage_writing_plans"][stage_name] = stage_plan
-                        print(f"  📥 [主线程] 收集到 [{stage_name}] 结果 ({completed_count}/{total_tasks})")
-                    else:
-                        print(f"  ⚠️  [主线程] [{stage_name}] 返回空结果 ({completed_count}/{total_tasks})")
-                    
-                    # 🔥 关键修复：更新进度，让前端看到变化 (76% -> 78%)
-                    if update_step_status and total_tasks > 0:
-                        progress = 76 + int((completed_count / total_tasks) * 2)  # 76% -> 78%
-                        update_step_status('detailed_stage_plans', 'active', progress)
+                # 🔥 修复：不设置 as_completed 的超时，让它一直等待，依靠 task_timeout 来控制单个任务
+                for future in as_completed(future_to_stage):
+                    try:
+                        stage_name, stage_plan = future.result(timeout=120)  # 每个任务结果等待2分钟
+                        completed_count += 1
+                        if stage_plan:
+                            self.generator.novel_data["stage_writing_plans"][stage_name] = stage_plan
+                            print(f"  📥 [主线程] 收集到 [{stage_name}] 结果 ({completed_count}/{total_tasks})")
+                        else:
+                            print(f"  ⚠️  [主线程] [{stage_name}] 返回空结果 ({completed_count}/{total_tasks})")
+                        
+                        # 🔥 关键修复：更新进度，让前端看到变化 (76% -> 78%)
+                        if update_step_status and total_tasks > 0:
+                            progress = 76 + int((completed_count / total_tasks) * 2)  # 76% -> 78%
+                            update_step_status('detailed_stage_plans', 'active', progress)
+                    except TimeoutError:
+                        # 单个任务超时，继续处理其他任务
+                        print(f"  ⏱️  [主线程] 任务超时，跳过 ({completed_count}/{total_tasks})")
+                        continue
+                    except Exception as e:
+                        print(f"  ❌ [主线程] 获取结果失败: {e}")
+                        continue
             
             success_count = len(self.generator.novel_data["stage_writing_plans"])
             total_count = len(stage_tasks)
