@@ -1077,8 +1077,9 @@ class StagePlanManager:
             fleshed_out_major_events = temp_plan["stage_writing_plan"]["event_system"]["major_events"]
         
         continuity_score = float(continuity_assessment.get("overall_continuity_score", 10))
-        if continuity_score < 9.5:
-            self.logger.warning(f"  ⚠️ 阶段事件连续性评分较低 ({continuity_score:.1f})，进行优化...")
+        # 🔥 修复：降低阈值，8.0分以下才需要优化（满分10分）
+        if continuity_score < 8.0:
+            self.logger.warning(f"  ⚠️ 阶段事件连续性评分较低 ({continuity_score:.1f} < 8.0)，进行优化...")
             temp_plan = self.event_optimizer.optimize_based_on_continuity_assessment(
                 temp_plan, continuity_assessment, stage_name, stage_range
             )
