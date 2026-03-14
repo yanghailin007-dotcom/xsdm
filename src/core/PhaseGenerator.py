@@ -1291,128 +1291,133 @@ class PhaseGenerator:
                 print(f"{'='*60}")
                 return batch_results
             
-            # 🔥 优化：动态流水线执行（减少等待时间）
-            # 依赖关系：ending -> climax -> opening
-            #            development 独立（与 opening 并行）
+            # 🔥 优化：双队列流水线模式（队列内顺序，队列间并行）
+            # 队列1: opening -> development (顺序)
+            # 队列2: climax -> ending (顺序)
+            # 两个队列并行执行，最大化CPU利用率
             parallel_start_time = time.time()
             stage_timings = {}
             
-            from threading import Event, Lock
+            from threading import Event, Lock, Semaphore
             
-            # 定义完成事件
-            opening_completed = Event()
-            climax_completed = Event()
-            development_completed = Event()
+            # 定义队列完成事件
+            queue1_ready = Event()  # 队列1可以开始下一个
+            queue2_ready = Event()  # 队列2可以开始下一个
             
             # 存储结果
-            pipeline_results = {}
             results_lock = Lock()
+            completed_stages = set()
             
-            def run_stage_with_dependency(task, dependency_event=None, completion_event=None):
-                """运行阶段，可选择等待依赖"""
-                stage_name = task['stage_name']
-                
-                # 等待依赖完成
-                if dependency_event:
-                    print(f"⏳ [{stage_name}] 等待前置阶段完成...")
-                    dependency_event.wait()
-                    print(f"🚀 [{stage_name}] 前置阶段完成，开始执行")
-                
-                # 执行生成
-                result = generate_single_stage(task)
-                
-                # 存储结果
-                if result and result[1]:  # (stage_name, stage_plan)
-                    with results_lock:
-                        pipeline_results[result[0]] = result[1]
-                        self.generator.novel_data["stage_writing_plans"][result[0]] = result[1]
+            def run_queue1_tasks(tasks):
+                """执行队列1：opening -> development (顺序)"""
+                results = {}
+                for task in tasks:
+                    stage_name = task['stage_name']
+                    print(f"🚀 [队列1] 开始: {stage_name}")
                     
-                    # 通知完成
-                    if completion_event:
-                        completion_event.set()
+                    result = generate_single_stage(task)
                     
-                    return result
-                return stage_name, None
+                    if result and result[1]:
+                        with results_lock:
+                            self.generator.novel_data["stage_writing_plans"][result[0]] = result[1]
+                            completed_stages.add(result[0])
+                        results[result[0]] = result[1]
+                        print(f"✅ [队列1] 完成: {result[0]}")
+                        
+                        # 更新进度
+                        if update_step_status:
+                            total_completed = len(completed_stages)
+                            progress = 76 + int((total_completed / len(stage_tasks)) * 2)
+                            update_step_status('detailed_stage_plans', 'active', progress)
+                    else:
+                        print(f"❌ [队列1] 失败: {stage_name}")
+                
+                queue1_ready.set()
+                return results
             
-            # 准备任务
+            def run_queue2_tasks(tasks):
+                """执行队列2：climax -> ending (顺序)"""
+                results = {}
+                for task in tasks:
+                    stage_name = task['stage_name']
+                    print(f"🚀 [队列2] 开始: {stage_name}")
+                    
+                    result = generate_single_stage(task)
+                    
+                    if result and result[1]:
+                        with results_lock:
+                            self.generator.novel_data["stage_writing_plans"][result[0]] = result[1]
+                            completed_stages.add(result[0])
+                        results[result[0]] = result[1]
+                        print(f"✅ [队列2] 完成: {result[0]}")
+                        
+                        # 更新进度
+                        if update_step_status:
+                            total_completed = len(completed_stages)
+                            progress = 76 + int((total_completed / len(stage_tasks)) * 2)
+                            update_step_status('detailed_stage_plans', 'active', progress)
+                    else:
+                        print(f"❌ [队列2] 失败: {stage_name}")
+                
+                queue2_ready.set()
+                return results
+            
+            # 准备队列任务
             task_map = {t['stage_name']: t for t in stage_tasks}
             
+            queue1_tasks = []
+            queue2_tasks = []
+            
+            # 队列1: opening -> development
+            if 'opening_stage' in task_map:
+                queue1_tasks.append(task_map['opening_stage'])
+            if 'development_stage' in task_map:
+                queue1_tasks.append(task_map['development_stage'])
+            
+            # 队列2: climax -> ending
+            if 'climax_stage' in task_map:
+                queue2_tasks.append(task_map['climax_stage'])
+            if 'ending_stage' in task_map:
+                queue2_tasks.append(task_map['ending_stage'])
+            
             print(f"\n{'='*60}")
-            print(f"🔥 动态流水线执行")
-            print(f"   依赖关系: ending -> climax -> opening")
-            print(f"              development (独立并行)")
+            print(f"🔥 双队列流水线执行")
+            print(f"   队列1 [起→承]: {[t['stage_name'] for t in queue1_tasks]}")
+            print(f"   队列2 [转→合]: {[t['stage_name'] for t in queue2_tasks]}")
+            print(f"   说明: 队列内顺序执行，队列间并行")
             print(f"{'='*60}")
             
+            # 并行启动两个队列
+            queue1_results = {}
+            queue2_results = {}
+            
             with ManagedThreadPool(
-                    max_workers=2,  # 最多2个并行
-                    thread_name_prefix=f"StagePlan_Pipeline",
+                    max_workers=2,  # 两个队列并行
+                    thread_name_prefix=f"StagePlan_Queue",
                     timeout=300,
                     task_timeout=180
                 ) as executor:
                 
-                # 提交起始任务（无依赖）
-                futures = []
+                # 提交两个队列
+                future_queue1 = executor.submit(run_queue1_tasks, queue1_tasks) if queue1_tasks else None
+                future_queue2 = executor.submit(run_queue2_tasks, queue2_tasks) if queue2_tasks else None
                 
-                # opening: 无依赖，完成后触发 climax
-                if 'opening_stage' in task_map:
-                    f_opening = executor.submit(
-                        run_stage_with_dependency,
-                        task_map['opening_stage'],
-                        None,  # 无依赖
-                        opening_completed
-                    )
-                    futures.append(f_opening)
+                print(f"📤 [主线程] 已启动 2 个队列并行执行\n")
                 
-                # development: 无依赖，独立运行
-                if 'development_stage' in task_map:
-                    f_development = executor.submit(
-                        run_stage_with_dependency,
-                        task_map['development_stage'],
-                        None,  # 无依赖
-                        development_completed
-                    )
-                    futures.append(f_development)
-                
-                # climax: 依赖 opening 完成
-                if 'climax_stage' in task_map:
-                    f_climax = executor.submit(
-                        run_stage_with_dependency,
-                        task_map['climax_stage'],
-                        opening_completed,  # 等待 opening
-                        climax_completed
-                    )
-                    futures.append(f_climax)
-                
-                # ending: 依赖 climax 完成
-                if 'ending_stage' in task_map:
-                    f_ending = executor.submit(
-                        run_stage_with_dependency,
-                        task_map['ending_stage'],
-                        climax_completed,  # 等待 climax
-                        None
-                    )
-                    futures.append(f_ending)
-                
-                print(f"📤 [主线程] 已提交 {len(futures)} 个任务到流水线")
-                print(f"   动态执行中...\n")
-                
-                # 收集所有结果
-                for future in as_completed(futures):
+                # 等待两个队列完成
+                if future_queue1:
                     try:
-                        result = future.result(timeout=180)
-                        if result and result[1]:
-                            print(f"✅ [主线程] 完成: [{result[0]}]")
-                        else:
-                            print(f"⚠️  [主线程] 失败: [{result[0] if result else 'unknown'}]")
-                        
-                        # 更新进度
-                        if update_step_status:
-                            total_completed = len(self.generator.novel_data["stage_writing_plans"])
-                            progress = 76 + int((total_completed / len(stage_tasks)) * 2)
-                            update_step_status('detailed_stage_plans', 'active', progress)
-                            
+                        queue1_results = future_queue1.result(timeout=300)
                     except Exception as e:
-                        print(f"💥 [主线程] 异常: {str(e)[:80]}")
+                        print(f"💥 [队列1] 异常: {str(e)[:80]}")
+                
+                if future_queue2:
+                    try:
+                        queue2_results = future_queue2.result(timeout=300)
+                    except Exception as e:
+                        print(f"💥 [队列2] 异常: {str(e)[:80]}")
+                
+                print(f"\n✅ [主线程] 所有队列执行完成")
             
             # 收集所有耗时信息
             for stage_name, plan in self.generator.novel_data["stage_writing_plans"].items():
