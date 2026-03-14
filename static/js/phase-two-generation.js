@@ -1076,8 +1076,8 @@ function editProductCategory(category) {
         // 对于角色，使用友好的角色编辑器
         openCharacterEditorFromPhaseTwo();
     } else {
-        // 其他产物使用编辑模态框
-        createProductEditModal(category, productData);
+        // 其他产物使用编辑抽屉
+        createProductEditDrawer(category, productData);
     }
 }
 
@@ -1683,7 +1683,7 @@ function viewWorldviewViewer() {
     window.location.href = `/worldview-viewer/${encodeURIComponent(projectTitle)}`;
 }
 
-function createProductEditModal(category, productData) {
+function createProductEditDrawer(category, productData) {
     const categoryNames = {
         'worldview': '世界观设定',
         'characters': '角色设计',
@@ -1702,66 +1702,158 @@ function createProductEditModal(category, productData) {
         'market': '📊'
     };
 
-    const modalHtml = `
-        <div id="product-edit-modal" class="pt-modal-overlay">
-            <div class="pt-modal-container">
-                <!-- 头部 -->
-                <div class="pt-modal-header">
-                    <div class="pt-modal-header__left">
-                        <div class="pt-modal-icon">${categoryIcons[category]}</div>
-                        <div class="pt-modal-title-group">
-                            <h3 class="pt-modal-title">编辑${categoryNames[category]}</h3>
-                            <p class="pt-modal-subtitle">修改和完善${categoryNames[category]}内容</p>
+    const isWorldview = category === 'worldview';
+    
+    const drawerHtml = `
+        <div id="product-edit-drawer" class="pt-drawer-overlay" onclick="closeProductEditDrawer()">
+            <div class="pt-drawer" onclick="event.stopPropagation()">
+                <div class="pt-drawer__header">
+                    <div class="pt-drawer__title-group">
+                        <div class="pt-drawer__icon">${categoryIcons[category]}</div>
+                        <div class="pt-drawer__title-text">
+                            <h3>${categoryNames[category]}</h3>
+                            <p>编辑${categoryNames[category]}内容</p>
                         </div>
                     </div>
-                    <div class="pt-modal-header__right">
-                        <button type="button" class="pt-btn pt-btn--primary" onclick="saveProductEdit('${category}')">
-                            <span class="pt-btn__icon">💾</span>
-                            <span class="pt-btn__text">保存</span>
-                        </button>
-                        <button type="button" class="pt-btn pt-btn--ghost" onclick="closeProductEditModal()">
-                            <span class="pt-btn__icon pt-btn__icon--close">×</span>
-                        </button>
-                    </div>
+                    <button class="pt-drawer__close" onclick="closeProductEditDrawer()">×</button>
                 </div>
                 
-                <!-- 内容区域 -->
-                <div class="pt-modal-body">
-                    <div class="pt-form-group">
-                        <label class="pt-form-label">标题</label>
-                        <input type="text" id="product-title" class="pt-form-input" value="${productData?.title || categoryNames[category]}">
-                    </div>
-                    
-                    <div class="pt-form-group">
-                        <label class="pt-form-label">内容</label>
-                        <textarea id="product-content" class="pt-form-textarea" rows="20">${productData?.content || ''}</textarea>
-                    </div>
-                    
-                    <div class="pt-modal-footer">
-                        <span class="pt-hint">💡 提示：详细的内容有助于生成更高质量的小说章节</span>
-                        <span id="product-char-count" class="pt-char-count">${(productData?.content || '').length} 字符</span>
+                ${isWorldview ? `
+                <div class="pt-drawer__tabs">
+                    <button class="pt-drawer__tab active" data-tab="overview" onclick="switchDrawerTab('overview')">基础设定</button>
+                    <button class="pt-drawer__tab" data-tab="power" onclick="switchDrawerTab('power')">力量体系</button>
+                    <button class="pt-drawer__tab" data-tab="rules" onclick="switchDrawerTab('rules')">核心规则</button>
+                    <button class="pt-drawer__tab" data-tab="geo" onclick="switchDrawerTab('geo')">地理历史</button>
+                </div>
+                ` : ''}
+                
+                <div class="pt-drawer__content">
+                    ${isWorldview ? getWorldviewPanels(productData) : getGenericPanel(category, categoryNames, productData)}
+                </div>
+                
+                <div class="pt-drawer__footer">
+                    <span class="pt-drawer__status" id="save-status">未保存更改</span>
+                    <div class="pt-drawer__actions">
+                        <button class="pt-btn pt-btn--secondary" onclick="closeProductEditDrawer()">取消</button>
+                        <button class="pt-btn pt-btn--primary" onclick="saveProductEdit('${category}')">保存修改</button>
                     </div>
                 </div>
             </div>
         </div>
     `;
     
-    document.body.insertAdjacentHTML('beforeend', modalHtml);
+    document.body.insertAdjacentHTML('beforeend', drawerHtml);
+    requestAnimationFrame(() => {
+        const overlay = document.getElementByById('product-edit-drawer');
+        if (overlay) overlay.classList.add('active');
+    });
     
-    // 🔥 修复闪烁：添加 visible 类来显示模态框
-    const modal = document.getElementById('product-edit-modal');
-    if (modal) {
-        modal.classList.add('visible');
+    initDrawerCharCount();
+}
+
+function getWorldviewPanels(productData) {
+    return `
+        <div class="pt-drawer__panel active" data-panel="overview">
+            <div class="pt-form-section">
+                <div class="pt-form-section__title">世界概述</div>
+                <div class="pt-form-field">
+                    <textarea class="pt-form-field__textarea" id="world-overview" placeholder="描述你的世界概况...">${extractField(productData?.content, 'world_overview')}</textarea>
+                </div>
+            </div>
+            <div class="pt-form-section">
+                <div class="pt-form-section__title">独特特色</div>
+                <div class="pt-form-field">
+                    <textarea class="pt-form-field__textarea" id="unique-features" placeholder="世界的独特之处...">${extractField(productData?.content, 'unique_features')}</textarea>
+                </div>
+            </div>
+        </div>
+        
+        <div class="pt-drawer__panel" data-panel="power">
+            <div class="pt-form-section">
+                <div class="pt-form-section__title">力量体系</div>
+                <div class="pt-form-field">
+                    <textarea class="pt-form-field__textarea" id="power-system" placeholder="描述力量体系...">${extractField(productData?.content, 'power_system')}</textarea>
+                </div>
+            </div>
+        </div>
+        
+        <div class="pt-drawer__panel" data-panel="rules">
+            <div class="pt-form-section">
+                <div class="pt-form-section__title">核心规则</div>
+                <div class="pt-form-field">
+                    <textarea class="pt-form-field__textarea" id="core-rules" placeholder="世界运行的核心规则...">${extractField(productData?.content, 'core_rules')}</textarea>
+                </div>
+            </div>
+        </div>
+        
+        <div class="pt-drawer__panel" data-panel="geo">
+            <div class="pt-form-section">
+                <div class="pt-form-section__title">地理与历史</div>
+                <div class="pt-form-field">
+                    <label class="pt-form-field__label">地理环境</label>
+                    <textarea class="pt-form-field__textarea" id="geography" placeholder="主要地理区域...">${extractField(productData?.content, 'geography')}</textarea>
+                </div>
+                <div class="pt-form-field">
+                    <label class="pt-form-field__label">历史背景</label>
+                    <textarea class="pt-form-field__textarea" id="history" placeholder="世界的历史演变...">${extractField(productData?.content, 'history_background')}</textarea>
+                </div>
+            </div>
+        </div>
+    `;
+}
+
+function getGenericPanel(category, categoryNames, productData) {
+    return `
+        <div class="pt-form-section">
+            <div class="pt-form-field">
+                <label class="pt-form-field__label">标题</label>
+                <input type="text" class="pt-form-field__input" id="product-title" value="${productData?.title || categoryNames[category]}">
+            </div>
+            <div class="pt-form-field">
+                <label class="pt-form-field__label">内容</label>
+                <textarea class="pt-form-field__textarea" id="product-content" rows="25">${productData?.content || ''}</textarea>
+            </div>
+        </div>
+    `;
+}
+
+function extractField(content, fieldName) {
+    if (!content) return '';
+    try {
+        const data = JSON.parse(content);
+        return data[fieldName] || '';
+    } catch (e) {
+        return '';
     }
-    
-    // 添加字符计数功能
-    const contentTextarea = document.getElementById('product-content');
-    const charCountSpan = document.getElementById('product-char-count');
-    
-    if (contentTextarea && charCountSpan) {
-        contentTextarea.addEventListener('input', function() {
-            charCountSpan.textContent = this.value.length + ' 字符';
+}
+
+function switchDrawerTab(tabName) {
+    document.querySelectorAll('.pt-drawer__tab').forEach(tab => {
+        tab.classList.toggle('active', tab.dataset.tab === tabName);
+    });
+    document.querySelectorAll('.pt-drawer__panel').forEach(panel => {
+        panel.classList.toggle('active', panel.dataset.panel === tabName);
+    });
+}
+
+function initDrawerCharCount() {
+    const textareas = document.querySelectorAll('.pt-form-field__textarea');
+    textareas.forEach(textarea => {
+        textarea.addEventListener('input', function() {
+            const status = document.getElementById('save-status');
+            if (status) {
+                status.textContent = '未保存更改';
+                status.classList.remove('saved');
+            }
         });
+    });
+}
+
+function closeProductEditDrawer() {
+    const overlay = document.getElementById('product-edit-drawer');
+    if (overlay) {
+        overlay.classList.remove('active');
+        setTimeout(() => overlay.remove(), 350);
     }
 }
 
@@ -1805,7 +1897,7 @@ async function saveProductEdit(category) {
             // 更新显示状态
             updateProductsDisplay();
             
-            closeProductEditModal();
+            closeProductEditDrawer();
             showStatusMessage('✅ 保存成功', 'success');
         } else {
             throw new Error(result.error || '保存失败');
