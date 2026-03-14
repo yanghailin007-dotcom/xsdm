@@ -1703,38 +1703,43 @@ function createProductEditModal(category, productData) {
     };
 
     const modalHtml = `
-        <div id="product-edit-modal" style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.6); z-index: 999999; backdrop-filter: blur(4px); display: flex; justify-content: center; align-items: center;">
-            <div style="position: relative; background: white; border-radius: 16px; box-shadow: 0 25px 80px rgba(0,0,0,0.4); max-width: 900px; width: 90vw; max-height: 85vh; overflow: hidden; border: 1px solid rgba(255,255,255,0.2);">
+        <div id="product-edit-modal" class="pt-modal-overlay">
+            <div class="pt-modal-container">
                 <!-- 头部 -->
-                <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 24px 32px; display: flex; justify-content: space-between; align-items: center;">
-                    <div style="display: flex; align-items: center; gap: 12px;">
-                        <div style="width: 40px; height: 40px; background: rgba(255,255,255,0.2); border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 20px;">${categoryIcons[category]}</div>
-                        <div>
-                            <h3 style="margin: 0; font-size: 22px; font-weight: 700;">编辑${categoryNames[category]}</h3>
-                            <p style="margin: 4px 0 0 0; font-size: 14px; opacity: 0.9;">修改和完善${categoryNames[category]}内容</p>
+                <div class="pt-modal-header">
+                    <div class="pt-modal-header__left">
+                        <div class="pt-modal-icon">${categoryIcons[category]}</div>
+                        <div class="pt-modal-title-group">
+                            <h3 class="pt-modal-title">编辑${categoryNames[category]}</h3>
+                            <p class="pt-modal-subtitle">修改和完善${categoryNames[category]}内容</p>
                         </div>
                     </div>
-                    <div style="display: flex; gap: 12px; align-items: center;">
-                        <button type="button" onclick="saveProductEdit('${category}')" style="background: rgba(255,255,255,0.25); color: white; border: 1px solid rgba(255,255,255,0.35); padding: 10px 20px; border-radius: 8px; cursor: pointer; font-size: 14px; font-weight: 600; transition: all 0.2s;">💾 保存</button>
-                        <button type="button" onclick="closeProductEditModal()" style="background: rgba(255,255,255,0.1); color: white; border: 1px solid rgba(255,255,255,0.2); font-size: 20px; cursor: pointer; padding: 8px; width: 36px; height: 36px; display: flex; align-items: center; justify-content: center; border-radius: 8px; transition: all 0.2s;">×</button>
+                    <div class="pt-modal-header__right">
+                        <button type="button" class="pt-btn pt-btn--primary" onclick="saveProductEdit('${category}')">
+                            <span class="pt-btn__icon">💾</span>
+                            <span class="pt-btn__text">保存</span>
+                        </button>
+                        <button type="button" class="pt-btn pt-btn--ghost" onclick="closeProductEditModal()">
+                            <span class="pt-btn__icon pt-btn__icon--close">×</span>
+                        </button>
                     </div>
                 </div>
                 
                 <!-- 内容区域 -->
-                <div style="padding: 32px; overflow-y: auto; max-height: calc(85vh - 100px); background: #fafbfc;">
-                    <div style="margin-bottom: 20px;">
-                        <label style="display: block; margin-bottom: 8px; font-weight: 600; color: #374151; font-size: 14px;">标题</label>
-                        <input type="text" id="product-title" value="${productData?.title || categoryNames[category]}" style="width: 100%; padding: 14px 16px; border: 2px solid #e5e7eb; border-radius: 10px; font-size: 15px; background: white; color: #1f2937; transition: all 0.2s; font-weight: 500; box-sizing: border-box;">
+                <div class="pt-modal-body">
+                    <div class="pt-form-group">
+                        <label class="pt-form-label">标题</label>
+                        <input type="text" id="product-title" class="pt-form-input" value="${productData?.title || categoryNames[category]}">
                     </div>
                     
-                    <div style="margin-bottom: 20px;">
-                        <label style="display: block; margin-bottom: 8px; font-weight: 600; color: #374151; font-size: 14px;">内容</label>
-                        <textarea id="product-content" rows="20" style="width: 100%; padding: 16px; border: 2px solid #e5e7eb; border-radius: 10px; font-size: 15px; background: white; color: #1f2937; resize: vertical; min-height: 400px; transition: all 0.2s; font-family: inherit; line-height: 1.6; box-sizing: border-box;">${productData?.content || ''}</textarea>
+                    <div class="pt-form-group">
+                        <label class="pt-form-label">内容</label>
+                        <textarea id="product-content" class="pt-form-textarea" rows="20">${productData?.content || ''}</textarea>
                     </div>
                     
-                    <div style="display: flex; justify-content: space-between; align-items: center;">
-                        <span style="color: #6b7280; font-size: 14px;">💡 提示：详细的内容有助于生成更高质量的小说章节</span>
-                        <span id="product-char-count" style="color: #9ca3af; font-size: 13px; font-weight: 500;">${(productData?.content || '').length} 字符</span>
+                    <div class="pt-modal-footer">
+                        <span class="pt-hint">💡 提示：详细的内容有助于生成更高质量的小说章节</span>
+                        <span id="product-char-count" class="pt-char-count">${(productData?.content || '').length} 字符</span>
                     </div>
                 </div>
             </div>
