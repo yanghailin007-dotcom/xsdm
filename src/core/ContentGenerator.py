@@ -735,7 +735,8 @@ class ContentGenerator:
                     self.logger.info("✅ 合并世界观与势力系统生成成功")
                     return result
                 else:
-                    self.logger.warning(f"  ⚠️ 返回格式不完整，尝试兼容处理")
+                    # 尝试兼容旧格式（字段缺失是正常现象）
+                    self.logger.debug(f"  [DEBUG] 返回字段不完整，自动适配: {list(result.keys())}")
                     return {
                         'core_worldview': result.get('core_worldview', result),
                         'faction_system': result.get('faction_system', result)
@@ -3864,8 +3865,8 @@ class ContentGenerator:
                     self.logger.info(f"  ✅ 合并基础规划生成成功")
                     return result
                 else:
-                    # 尝试兼容旧格式
-                    self.logger.warning(f"  ⚠️ 返回格式不完整，尝试兼容处理")
+                    # 尝试兼容旧格式（字段缺失是正常现象，AI可能把所有内容放在一个对象里）
+                    self.logger.debug(f"  [DEBUG] 返回字段不完整，自动适配: {list(result.keys())}")
                     return {
                         'writing_style_guide': result.get('writing_style_guide', result),
                         'market_analysis': result.get('market_analysis', result)
