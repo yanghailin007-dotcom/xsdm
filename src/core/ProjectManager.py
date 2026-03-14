@@ -514,15 +514,6 @@ class ProjectManager:
             # 其他数据...
             # 🔍 先检查并记录缺失 chapter_title 的异常章节
             "chapter_index": self._build_chapter_index_with_validation(generated_chapters),
-                {
-                    "chapter_number": chapter_num,
-                    "chapter_title": chapter_data.get("chapter_title") or f"第{chapter_num}章",
-                    "filename": f"第{int(chapter_num):03d}章_{_invalid_chars_pattern.sub('_', chapter_data.get('chapter_title') or f'第{chapter_num}章')}.txt",
-                    "quality_score": chapter_data.get("quality_assessment", {}).get("overall_score", 0),
-                    "word_count": chapter_data.get("word_count", 0)
-                }
-                for chapter_num, chapter_data in sorted(generated_chapters.items(), key=lambda x: int(x[0]))
-            ],
             "quality_statistics": quality_stats,
             "plot_progression": novel_data.get("plot_progression", []),
             "subplot_settings": {
