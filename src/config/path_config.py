@@ -47,9 +47,21 @@ class NovelPathConfig:
                 self._cached_base_dir = get_user_novel_dir(username=current_user, create=True)
             
             return self._cached_base_dir
-        except Exception:
-            # 没有Flask上下文时使用默认路径
-            return Path("小说项目")
+        except Exception as e:
+            # 没有Flask上下文时使用默认路径（使用绝对路径避免权限问题）
+            # 🔥 修复：使用项目根目录下的绝对路径，而不是相对路径
+            try:
+                # 尝试从当前文件位置推断项目根目录
+                project_root = Path(__file__).parent.parent.parent
+                fallback_dir = project_root / "小说项目"
+                fallback_dir.mkdir(parents=True, exist_ok=True)
+                return fallback_dir
+            except Exception:
+                # 最后兜底：使用系统临时目录
+                import tempfile
+                fallback_dir = Path(tempfile.gettempdir()) / "xsdm_novel_projects"
+                fallback_dir.mkdir(parents=True, exist_ok=True)
+                return fallback_dir
         
     def get_safe_title(self, title: str) -> str:
         """生成安全的文件名 - 保留文件系统支持的字符（包括中文冒号和逗号）"""

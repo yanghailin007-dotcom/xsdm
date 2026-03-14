@@ -6,8 +6,24 @@ from flask import session
 from typing import Optional, List
 import os
 
-# 小说项目根目录
-NOVEL_PROJECTS_ROOT = Path("小说项目")
+# 🔥 修复：使用绝对路径，避免相对路径导致的权限问题
+def _get_novel_projects_root() -> Path:
+    """获取小说项目根目录（绝对路径）"""
+    # 尝试从当前文件位置推断项目根目录
+    try:
+        project_root = Path(__file__).parent.parent.parent
+        novel_root = project_root / "小说项目"
+        # 确保目录存在
+        novel_root.mkdir(parents=True, exist_ok=True)
+        return novel_root
+    except Exception:
+        # 兜底：使用当前工作目录，但转换为绝对路径
+        novel_root = Path("小说项目").resolve()
+        novel_root.mkdir(parents=True, exist_ok=True)
+        return novel_root
+
+# 小说项目根目录（延迟初始化，确保使用绝对路径）
+NOVEL_PROJECTS_ROOT = _get_novel_projects_root()
 
 # 公共项目目录（旧数据迁移至此）
 PUBLIC_PROJECTS_DIR = NOVEL_PROJECTS_ROOT / "_public"
