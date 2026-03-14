@@ -1972,9 +1972,5 @@ def register_script_quality_routes(app):
     """注册剧本质量检查路由"""
     app.register_blueprint(script_quality_api)
 
-    logger.info("=" * 60)
-    logger.info("📋 已注册剧本质量检查API路由:")
-    for rule in app.url_map.iter_rules():
-        if 'api/script' in rule.rule:
-            logger.info(f"  - {rule.methods} {rule.rule} -> {rule.endpoint}")
-    logger.info("=" * 60)
+    # 🔥 精简：只保留一行关键日志
+    logger.info("✅ 剧本质量检查 API 已注册")

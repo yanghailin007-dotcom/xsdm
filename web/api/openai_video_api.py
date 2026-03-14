@@ -320,10 +320,9 @@ def register_openai_video_routes(app):
     """注册 OpenAI 标准视频生成 API 路由"""
     app.register_blueprint(openai_video_api)
     
-    logger.info("=" * 60)
-    logger.info("📋 已注册的 OpenAI 标准视频生成 API 路由 (使用 AI-WX):")
+    # 🔥 精简：只保留一行关键日志，详细路由使用 DEBUG 级别
+    logger.info("✅ OpenAI 视频 API 已注册 (AI-WX)")
+    logger.debug("📋 OpenAI 视频 API 路由详情:")
     for rule in app.url_map.iter_rules():
         if 'v1/videos' in rule.rule:
-            logger.info(f"  - {rule.methods} {rule.rule} -> {rule.endpoint}")
-    logger.info("📡 API 提供商: AI-WX (https://jyapi.ai-wx.cn)")
-    logger.info("=" * 60)
+            logger.debug(f"  - {rule.methods} {rule.rule}")

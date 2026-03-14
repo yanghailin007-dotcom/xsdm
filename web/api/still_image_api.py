@@ -357,13 +357,5 @@ def register_still_image_routes(app):
     """注册剧照图片素材库API路由"""
     app.register_blueprint(still_image_api)
     
-    logger.info("=" * 60)
-    logger.info("📋 已注册的剧照图片素材库API路由:")
-    for rule in app.url_map.iter_rules():
-        if 'still-images' in rule.rule:
-            logger.info(f"  - {rule.methods} {rule.rule} -> {rule.endpoint}")
-    logger.info("=" * 60)
-    logger.info("🎨 剧照图片素材库API已启用")
-    logger.info("💾 支持本地存储和元数据管理")
-    logger.info("📊 提供统计和导出功能")
-    logger.info("=" * 60)
+    # 🔥 精简：只保留一行关键日志
+    logger.info("✅ 剧照图片素材库 API 已注册")

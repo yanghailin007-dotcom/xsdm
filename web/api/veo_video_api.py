@@ -811,13 +811,9 @@ def register_veo_video_routes(app):
     """注册 VeO 视频生成 API 路由"""
     app.register_blueprint(veo_video_api)
     
-    logger.info("=" * 60)
-    logger.info("📋 已注册的 VeO 视频生成 API 路由:")
+    # 🔥 精简：只保留一行关键日志，详细路由使用 DEBUG 级别
+    logger.info("✅ VeO 视频 API 已注册 (AI-WX VeO 3.1)")
+    logger.debug("📋 VeO 视频 API 路由详情:")
     for rule in app.url_map.iter_rules():
         if 'api/veo' in rule.rule or 'api/video/studio' in rule.rule:
-            logger.info(f"  - {rule.methods} {rule.rule} -> {rule.endpoint}")
-    logger.info("📡 API 提供商: AI-WX VeO 3.1")
-    logger.info("🔗 支持图片 URL 输入（推荐）")
-    logger.info("📦 支持 base64 图片输入（自动压缩）")
-    logger.info("📋 视频素材库接口已启用")
-    logger.info("=" * 60)
+            logger.debug(f"  - {rule.methods} {rule.rule}")

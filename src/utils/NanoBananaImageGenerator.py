@@ -173,11 +173,10 @@ class NanoBananaImageGenerator:
         self.output_dir = BASE_DIR / 'generated_images'
         self.output_dir.mkdir(parents=True, exist_ok=True)
         
-        self.logger.debug(f"✅ Nano Banana客户端初始化完成 (enabled={self.enabled})")
-        self.logger.info(f"🔧 已配置 {len(self.providers)} 个图像生成供应商")
-        for idx, provider in enumerate(self.providers):
-            status = "✅ 启用" if provider.get('enabled', True) else "❌ 禁用"
-            self.logger.info(f"  供应商{idx+1}: {provider['name']} - {status}")
+        # 🔥 精简：只保留一行关键日志
+        enabled_count = sum(1 for p in self.providers if p.get('enabled', True))
+        self.logger.info(f"✅ Nano Banana 已配置 ({enabled_count}/{len(self.providers)} 供应商启用)")
+        self.logger.debug(f"  供应商详情: {[p['name'] for p in self.providers]}")
 
     def _call_provider_api(
         self,
