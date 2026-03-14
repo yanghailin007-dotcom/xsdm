@@ -99,21 +99,33 @@ class PlanQualityAssessor:
 返回JSON格式的分析结果。
 """
 
-    def __init__(self, api_key: str = None):
+    def __init__(self, api_key: str = None, api_client=None):
         """初始化评估器
 
         Args:
-            api_key: Anthropic API密钥（可选）
+            api_key: Anthropic API密钥（可选，向后兼容）
+            api_client: APIClient实例（推荐使用，统一使用系统配置的API）
         """
         self.logger = get_logger("PlanQualityAssessor")
-
-        if ANTHROPIC_AVAILABLE and api_key:
+        
+        # 优先使用 api_client（统一API调用）
+        self.api_client = api_client
+        
+        # 向后兼容：如果提供了 api_key 且没有 api_client，使用 Anthropic
+        if api_client:
+            self.use_ai = True
+            self.client = None
+            self.logger.info("✅ 使用APIClient进行AI质量评估")
+        elif ANTHROPIC_AVAILABLE and api_key:
             self.client = Anthropic(api_key=api_key)
             self.use_ai = True
+            self.api_client = None
+            self.logger.info("✅ 使用Anthropic进行AI质量评估")
         else:
             self.client = None
+            self.api_client = None
             self.use_ai = False
-            self.logger.warning("AI评估未启用，将使用规则式评估")
+            self.logger.warning("⚠️ AI评估未启用，将使用规则式评估")
 
     def assess(self, plan_path: Path, use_deep_analysis: bool = False) -> AssessmentResult:
         """评估写作计划
@@ -261,36 +273,77 @@ class PlanQualityAssessor:
             return int(numbers[0])
         return 0
 
+    # 🔥 系统提示词 - 用于APIClient调用
+    SYSTEM_PROMPT = """你是一位资深网文编辑，擅长评估小说写作计划的质量。
+
+请对提供的写作计划进行专业评估，重点关注：
+1. 商业吸引力 - 是否有清晰的爽点和卖点
+2. 结构完整性 - 三幕式结构是否完整
+3. 角色一致性 - 角色动机和行为是否自洽
+4. 节奏合理性 - 章节分配是否合理
+5. 逻辑连贯性 - 剧情发展是否有逻辑漏洞
+
+你必须以JSON格式返回评估结果。"""
+
     def _ai_assess(self, summary: Dict, full_plan: Dict, use_deep_analysis: bool) -> AssessmentResult:
         """使用AI进行评估"""
         import json
 
         summary_str = json.dumps(summary, ensure_ascii=False, indent=2)
+        user_prompt = self.SUMMARY_EVAL_PROMPT.format(plan_summary=summary_str)
 
-        message = self.client.messages.create(
-            model="claude-3-5-sonnet-20241022",
-            max_tokens=4000,
-            messages=[{
-                "role": "user",
-                "content": self.SUMMARY_EVAL_PROMPT.format(plan_summary=summary_str)
-            }]
-        )
-
-        # 解析AI响应
-        response_text = message.content[0].text
         try:
-            # 提取JSON部分
-            if "```json" in response_text:
-                json_start = response_text.find("```json") + 7
-                json_end = response_text.find("```", json_start)
-                response_text = response_text[json_start:json_end].strip()
-            elif "```" in response_text:
-                json_start = response_text.find("```") + 3
-                json_end = response_text.rfind("```")
-                response_text = response_text[json_start:json_end].strip()
+            # 优先使用APIClient（统一API调用）
+            if self.api_client:
+                self.logger.info("🤖 使用APIClient进行AI评估...")
+                # 🔥 使用 call_api 直接调用，传入 system_prompt 和 user_prompt
+                response_text = self.api_client.call_api(
+                    system_prompt=self.SYSTEM_PROMPT,
+                    user_prompt=user_prompt,
+                    purpose="写作计划质量评估"
+                )
+                
+                if not response_text:
+                    self.logger.error("❌ API调用返回空结果")
+                    return self._rule_based_assess(summary, full_plan)
+                
+                # 提取JSON部分
+                if "```json" in response_text:
+                    json_start = response_text.find("```json") + 7
+                    json_end = response_text.find("```", json_start)
+                    response_text = response_text[json_start:json_end].strip()
+                elif "```" in response_text:
+                    json_start = response_text.find("```") + 3
+                    json_end = response_text.rfind("```")
+                    response_text = response_text[json_start:json_end].strip()
+                
+                ai_result = json.loads(response_text)
+            else:
+                # 向后兼容：使用Anthropic
+                self.logger.info("🤖 使用Anthropic进行AI评估...")
+                message = self.client.messages.create(
+                    model="claude-3-5-sonnet-20241022",
+                    max_tokens=4000,
+                    messages=[{
+                        "role": "user",
+                        "content": user_prompt
+                    }]
+                )
+                response_text = message.content[0].text
+                
+                # 提取JSON部分
+                if "```json" in response_text:
+                    json_start = response_text.find("```json") + 7
+                    json_end = response_text.find("```", json_start)
+                    response_text = response_text[json_start:json_end].strip()
+                elif "```" in response_text:
+                    json_start = response_text.find("```") + 3
+                    json_end = response_text.rfind("```")
+                    response_text = response_text[json_start:json_end].strip()
+                
+                ai_result = json.loads(response_text)
 
-            ai_result = json.loads(response_text)
-
+            # 解析结果
             result = AssessmentResult(
                 overall_score=ai_result.get("overall_score", 70),
                 readiness=ai_result.get("readiness", "needs_review"),
@@ -316,12 +369,10 @@ class PlanQualityAssessor:
                 result.issues.extend(deep_issues)
 
         except Exception as e:
-            self.logger.error(f"解析AI响应失败: {e}")
-            result = AssessmentResult(
-                overall_score=70,
-                readiness="needs_review",
-                summary="AI解析失败，请手动检查"
-            )
+            self.logger.error(f"AI评估失败: {e}")
+            # 降级到规则式评估
+            self.logger.info("降级到规则式评估...")
+            result = self._rule_based_assess(summary, full_plan)
 
         return result
 

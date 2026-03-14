@@ -338,10 +338,158 @@ class EnrichedExpectationManager:
         return event_expectations
 
 
+    def generate_all_stages_expectations_batch(self, stage_plans: Dict) -> Dict:
+        """
+        一次性为所有阶段生成期待感映射（优化版：单API调用）
+        
+        Args:
+            stage_plans: 所有阶段的详细计划 {stage_name: stage_plan}
+            
+        Returns:
+            所有阶段的期待感映射 {stage_name: {event_id: expectation_data}}
+        """
+        try:
+            if not self.api_client:
+                self.logger.info("⚠️ 无API客户端，使用本地规则生成所有阶段期待感")
+                all_maps = {}
+                for stage_name, stage_plan in stage_plans.items():
+                    input_data = self.build_stage_input(stage_name, stage_plan)
+                    all_maps[stage_name] = self._generate_local_expectations(input_data)
+                return all_maps
+            
+            # 构建所有阶段的输入数据
+            all_stages_input = {}
+            for stage_name, stage_plan in stage_plans.items():
+                all_stages_input[stage_name] = self.build_stage_input(stage_name, stage_plan)
+            
+            self.logger.info(f"🎯 开始一次性为 {len(stage_plans)} 个阶段批量生成期待感映射...")
+            
+            prompt = self._build_all_stages_expectation_prompt(all_stages_input)
+            
+            result = self.api_client.generate_content_with_retry(
+                content_type="expectation_batch_generation",
+                user_prompt=prompt,
+                purpose=f"一次性为全书{len(stage_plans)}个阶段生成期待感映射"
+            )
+            
+            if result and isinstance(result, dict):
+                self.logger.info(f"✅ 所有阶段期待感映射生成成功")
+                # 解析返回结果
+                all_expectation_maps = {}
+                for stage_name in stage_plans.keys():
+                    stage_key = f"{stage_name}_expectations"
+                    if stage_key in result:
+                        all_expectation_maps[stage_name] = result[stage_key]
+                    elif "event_expectations" in result and stage_name in str(result):
+                        # 兼容旧格式
+                        all_expectation_maps[stage_name] = result.get("event_expectations", {})
+                return all_expectation_maps
+            else:
+                self.logger.warning("⚠️ API返回格式异常，使用本地规则")
+                all_maps = {}
+                for stage_name, stage_plan in stage_plans.items():
+                    input_data = self.build_stage_input(stage_name, stage_plan)
+                    all_maps[stage_name] = self._generate_local_expectations(input_data)
+                return all_maps
+                
+        except Exception as e:
+            self.logger.error(f"❌ 批量生成所有阶段期待感映射失败: {e}")
+            import traceback
+            traceback.print_exc()
+            # 降级到本地规则
+            all_maps = {}
+            for stage_name, stage_plan in stage_plans.items():
+                try:
+                    input_data = self.build_stage_input(stage_name, stage_plan)
+                    all_maps[stage_name] = self._generate_local_expectations(input_data)
+                except:
+                    all_maps[stage_name] = {}
+            return all_maps
+    
+    def _build_all_stages_expectation_prompt(self, all_stages_input: Dict) -> str:
+        """构建一次性生成所有阶段期待感的Prompt"""
+        
+        stages_json = json.dumps(all_stages_input, ensure_ascii=False, indent=2)
+        stage_names = list(all_stages_input.keys())
+        
+        return f"""# 全阶段期待感编排任务
+
+请基于以下所有阶段的完整计划，为每个阶段的每个事件设计最契合的期待感类型。
+
+## 所有阶段信息
+```json
+{stages_json}
+```
+
+## 20种期待类型说明
+
+### 基础类型（6种）
+1. **SHOWCASE** - 展示橱窗：提前展示奖励或能力的强大
+2. **SUPPRESSION_RELEASE** - 压抑释放：制造阻碍后释放爽感
+3. **NESTED_DOLL** - 套娃期待：大期待包着小期待
+4. **EMOTIONAL_HOOK** - 情绪钩子：打脸、认同、身份揭秘
+5. **POWER_GAP** - 实力差距：期待变强的过程
+6. **MYSTERY_FORESHADOW** - 伏笔揭秘：埋下线索后揭晓
+
+### 扩展类型（14种）
+7. **PIG_EATS_TIGER** - 扮猪吃虎：隐藏实力后打脸
+8. **SHOW_OFF_FACE_SLAP** - 装逼打脸：展示实力打脸
+9. **IDENTITY_REVEAL** - 身份反转：隐藏身份揭晓
+10. **BEAUTY_FAVOR** - 美人恩：女主好感进展
+11. **FORTUITOUS_ENCOUNTER** - 机缘巧合：意外获得奇遇
+12. **COMPETITION** - 比试切磋：宗门大比等
+13. **AUCTION_TREASURE** - 拍卖会争宝
+14. **SECRET_REALM_EXPLORATION** - 秘境探险
+15. **ALCHEMY_CRAFTING** - 炼丹炼器
+16. **FORMATION_BREAKING** - 阵法破解
+17. **SECT_MISSION** - 宗门任务
+18. **CROSS_WORLD_TELEPORT** - 跨界传送
+19. **CRISIS_RESCUE** - 危机救援
+20. **MASTER_INHERITANCE** - 师恩传承
+
+## 编排原则
+
+### 1. 情绪曲线匹配
+- **压抑期** → MYSTERY_FORESHADOW(埋线), POWER_GAP(期待变强)
+- **上升期** → SHOWCASE(展示), FORTUITOUS_ENCOUNTER(奇遇)
+- **爆发期** → SUPPRESSION_RELEASE(释放), IDENTITY_REVEAL(揭秘)
+- **收尾期** → CRISIS_RESCUE(救援), MASTER_INHERITANCE(传承)
+
+### 2. 事件关联设计
+- 事件A的释放可以是事件B的种植
+- 设计"期待链"：A种植 → B发酵 → C释放
+- **跨阶段关联**：前一阶段的伏笔可以在后一阶段释放
+
+### 3. 爽点对齐
+- satisfaction_points中的爽点，前置3章必须有对应期待
+
+### 4. 类型多样化
+- 同阶段同类型不超过2个
+- 相邻事件期待类型尽量不重复
+- 跨阶段考虑期待感的递进和升级
+
+## 输出格式
+
+```json
+{{
+  "overall_expectation_strategy": "全书期待感整体策略简述（100字内）",
+{chr(10).join([f'  "{name}_expectations": {{' + chr(10) + '    "stage_expectation_strategy": "本阶段期待策略（50字内）",' + chr(10) + '    "event_expectations": [' + chr(10) + '      {' + chr(10) + '        "event_id": "事件ID",' + chr(10) + '        "expectation_type": "TYPE_NAME",' + chr(10) + '        "reasoning": "选择理由（基于情绪曲线/事件关联/世界观展开）",' + chr(10) + '        "planting_chapter": 1,' + chr(10) + '        "target_chapter": 4,' + chr(10) + '        "linked_events": ["关联事件ID"]' + chr(10) + '      }' + chr(10) + '    ]' + chr(10) + '  }' for name in stage_names])}
+}}
+```
+
+请确保：
+1. 每个阶段的每个事件都有合理的期待类型
+2. 种植章节 ≤ 事件开始章节
+3. 目标释放章节 ≥ 事件结束章节
+4. 关联事件确实有关联逻辑
+5. 跨阶段考虑期待感的递进和升级
+"""
+
+
 # 便捷函数
 def generate_enriched_expectation_maps(stage_plans: Dict, api_client=None) -> Dict:
     """
-    为所有阶段生成增强版期待感映射
+    为所有阶段生成增强版期待感映射（优化版：单API调用）
     
     Args:
         stage_plans: 所有阶段的详细计划
@@ -351,13 +499,5 @@ def generate_enriched_expectation_maps(stage_plans: Dict, api_client=None) -> Di
         所有阶段的期待感映射
     """
     manager = EnrichedExpectationManager(api_client)
-    all_expectation_maps = {}
-    
-    for stage_name, stage_plan in stage_plans.items():
-        expectation_map = manager.generate_stage_expectations_batch(
-            stage_name, stage_plan
-        )
-        if expectation_map:
-            all_expectation_maps[stage_name] = expectation_map
-    
-    return all_expectation_maps
+    # 🔥 优化：使用一次性批量生成，而不是循环调用
+    return manager.generate_all_stages_expectations_batch(stage_plans)

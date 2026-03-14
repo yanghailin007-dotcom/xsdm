@@ -417,6 +417,270 @@ function showResultsSection(result) {
     fillCharactersResult(result);
     fillOutlinesResult(result);
     fillValidationResult(result);
+    
+    // 🔥 加载质量评估结果
+    loadQualityAssessmentResult(result.novel_title);
+}
+
+// 🔥 加载质量评估结果
+async function loadQualityAssessmentResult(novelTitle) {
+    if (!novelTitle) {
+        console.warn('[质量评估] 小说标题为空，无法加载质量评估');
+        fillQualityAssessmentResult(null);
+        return;
+    }
+    
+    try {
+        console.log(`[质量评估] 正在加载: ${novelTitle}`);
+        const response = await fetch(`/api/quality-assessment/${encodeURIComponent(novelTitle)}`);
+        
+        if (response.ok) {
+            const data = await response.json();
+            if (data.success && data.report) {
+                console.log('[质量评估] 加载成功:', data.report);
+                fillQualityAssessmentResult(data.report);
+            } else {
+                console.warn('[质量评估] 报告不存在');
+                fillQualityAssessmentResult(null);
+            }
+        } else {
+            console.warn('[质量评估] API返回错误:', response.status);
+            fillQualityAssessmentResult(null);
+        }
+    } catch (error) {
+        console.error('[质量评估] 加载失败:', error);
+        fillQualityAssessmentResult(null);
+    }
+}
+
+// 🔥 填充质量评估结果到卡片
+function fillQualityAssessmentResult(report) {
+    const scoreEl = document.getElementById('quality-score');
+    const readinessEl = document.getElementById('quality-readiness');
+    const issuesEl = document.getElementById('quality-issues');
+    const summaryEl = document.getElementById('quality-summary');
+    const statusBadgeEl = document.getElementById('quality-status-badge');
+    const detailsBtn = document.getElementById('btn-quality-details');
+    const detailsEl = document.getElementById('quality-details');
+    
+    if (!report) {
+        // 保持默认状态或显示不可用
+        if (scoreEl) scoreEl.textContent = '--';
+        if (readinessEl) {
+            readinessEl.textContent = '未评估';
+            readinessEl.style.color = 'var(--v2-text-secondary)';
+        }
+        if (issuesEl) issuesEl.textContent = '--';
+        if (statusBadgeEl) {
+            statusBadgeEl.textContent = '评估中...';
+            statusBadgeEl.style.background = 'rgba(255, 255, 255, 0.1)';
+        }
+        if (summaryEl) {
+            summaryEl.style.display = 'none';
+            summaryEl.textContent = '';
+        }
+        if (detailsBtn) detailsBtn.style.display = 'none';
+        if (detailsEl) detailsEl.style.display = 'none';
+        return;
+    }
+    
+    const score = report.overall_score || 0;
+    const readiness = report.readiness || 'unknown';
+    const strengths = report.strengths || [];
+    const issues = report.issues || [];
+    const summary = report.summary || '';
+    
+    // 根据分数和状态确定颜色
+    let scoreColor = '#ef4444'; // 红色
+    let statusText = '需修改';
+    let statusColor = '#ef4444';
+    let badgeBg = 'rgba(239, 68, 68, 0.2)';
+    
+    if (score >= 85) {
+        scoreColor = '#22c55e'; // 绿色
+        statusText = '优秀';
+        statusColor = '#22c55e';
+        badgeBg = 'rgba(34, 197, 94, 0.2)';
+    } else if (score >= 70) {
+        scoreColor = '#f59e0b'; // 橙色
+        statusText = '良好';
+        statusColor = '#f59e0b';
+        badgeBg = 'rgba(245, 158, 11, 0.2)';
+    }
+    
+    if (readiness === 'ready') {
+        statusText = '可直接使用';
+        statusColor = '#22c55e';
+        badgeBg = 'rgba(34, 197, 94, 0.2)';
+    } else if (readiness === 'needs_review') {
+        statusText = '建议检查';
+        statusColor = '#f59e0b';
+        badgeBg = 'rgba(245, 158, 11, 0.2)';
+    } else if (readiness === 'needs_revision') {
+        statusText = '需要修改';
+        statusColor = '#ef4444';
+        badgeBg = 'rgba(239, 68, 68, 0.2)';
+    }
+    
+    // 更新卡片显示
+    if (scoreEl) {
+        scoreEl.textContent = score;
+        scoreEl.style.color = scoreColor;
+    }
+    if (readinessEl) {
+        readinessEl.textContent = statusText;
+        readinessEl.style.color = statusColor;
+    }
+    if (issuesEl) {
+        issuesEl.textContent = issues.length;
+        issuesEl.style.color = issues.length > 0 ? '#ef4444' : '#22c55e';
+    }
+    if (statusBadgeEl) {
+        statusBadgeEl.textContent = readiness === 'ready' ? '✅ 已完成' : (readiness === 'needs_review' ? '⚠️ 建议检查' : '❌ 需修改');
+        statusBadgeEl.style.background = badgeBg;
+        statusBadgeEl.style.color = statusColor;
+    }
+    if (summaryEl) {
+        if (summary) {
+            summaryEl.textContent = summary;
+            summaryEl.style.display = 'block';
+        } else {
+            summaryEl.style.display = 'none';
+        }
+    }
+    if (detailsBtn) {
+        detailsBtn.style.display = (strengths.length > 0 || issues.length > 0) ? 'inline-flex' : 'none';
+    }
+    
+    // 准备详情HTML
+    if (detailsEl) {
+        let detailsHtml = '';
+        
+        // 优点列表
+        if (strengths.length > 0) {
+            detailsHtml += `
+                <div style="margin-bottom: 16px;">
+                    <h5 style="color: #22c55e; margin-bottom: 12px; font-size: 14px;">✅ 优点 (${strengths.length}个)</h5>
+                    <ul style="margin: 0; padding-left: 20px; color: var(--v2-text-secondary); font-size: 13px;">
+                        ${strengths.map(s => `<li style="margin-bottom: 4px;">${s}</li>`).join('')}
+                    </ul>
+                </div>
+            `;
+        }
+        
+        // 问题列表
+        if (issues.length > 0) {
+            detailsHtml += `
+                <div>
+                    <h5 style="color: #ef4444; margin-bottom: 12px; font-size: 14px;">⚠️ 需要关注的问题 (${issues.length}个)</h5>
+                    <div style="display: flex; flex-direction: column; gap: 8px;">
+                        ${issues.map(issue => {
+                            const severityColors = {
+                                'critical': '#ef4444',
+                                'high': '#f97316',
+                                'medium': '#f59e0b',
+                                'low': '#6b7280',
+                                'info': '#3b82f6'
+                            };
+                            const severityLabels = {
+                                'critical': '严重',
+                                'high': '高',
+                                'medium': '中',
+                                'low': '低',
+                                'info': '提示'
+                            };
+                            const color = severityColors[issue.severity] || '#6b7280';
+                            const label = severityLabels[issue.severity] || issue.severity;
+                            
+                            return `
+                            <div style="padding: 10px; background: rgba(255, 255, 255, 0.03); border-radius: 6px; border-left: 2px solid ${color};">
+                                <div style="display: flex; align-items: center; gap: 6px; margin-bottom: 2px;">
+                                    <span style="padding: 1px 6px; background: ${color}20; color: ${color}; font-size: 10px; border-radius: 3px; font-weight: 500;">${label}</span>
+                                    <span style="color: var(--v2-text-tertiary); font-size: 11px;">${issue.category}</span>
+                                </div>
+                                <p style="margin: 4px 0 0 0; color: var(--v2-text-primary); font-size: 13px;">${issue.description}</p>
+                                ${issue.suggestion ? `<p style="margin: 4px 0 0 0; color: var(--v2-text-secondary); font-size: 12px;">💡 ${issue.suggestion}</p>` : ''}
+                            </div>
+                            `;
+                        }).join('')}
+                    </div>
+                </div>
+            `;
+        }
+        
+        detailsEl.innerHTML = detailsHtml || '<p style="color: var(--v2-text-secondary); text-align: center;">暂无详细数据</p>';
+    }
+    
+    // 存储报告数据供切换使用
+    window.currentQualityReport = report;
+}
+
+// 🔥 切换质量评估详情显示
+function toggleQualityDetails() {
+    const detailsEl = document.getElementById('quality-details');
+    if (detailsEl) {
+        const isHidden = detailsEl.style.display === 'none';
+        detailsEl.style.display = isHidden ? 'block' : 'none';
+    }
+}
+
+// 🔥 刷新质量评估
+async function refreshQualityAssessment() {
+    const novelTitle = phaseOneResult?.novel_title;
+    if (!novelTitle) {
+        showStatusMessage('❌ 未找到小说标题', 'error');
+        return;
+    }
+    
+    // 重置显示为加载状态
+    const scoreEl = document.getElementById('quality-score');
+    const readinessEl = document.getElementById('quality-readiness');
+    const issuesEl = document.getElementById('quality-issues');
+    const statusBadgeEl = document.getElementById('quality-status-badge');
+    const summaryEl = document.getElementById('quality-summary');
+    const detailsEl = document.getElementById('quality-details');
+    const detailsBtn = document.getElementById('btn-quality-details');
+    
+    if (scoreEl) scoreEl.textContent = '--';
+    if (readinessEl) readinessEl.textContent = '评估中...';
+    if (issuesEl) issuesEl.textContent = '--';
+    if (statusBadgeEl) {
+        statusBadgeEl.textContent = '评估中...';
+        statusBadgeEl.style.background = 'rgba(99, 102, 241, 0.2)';
+        statusBadgeEl.style.color = '#818cf8';
+    }
+    if (summaryEl) summaryEl.style.display = 'none';
+    if (detailsEl) detailsEl.style.display = 'none';
+    if (detailsBtn) detailsBtn.style.display = 'none';
+    
+    // 触发重新评估
+    try {
+        const response = await fetch(`/api/quality-assessment/trigger/${encodeURIComponent(novelTitle)}`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ deep_analysis: true })
+        });
+        
+        if (response.ok) {
+            const data = await response.json();
+            if (data.success && data.report) {
+                showStatusMessage(`✅ 质量评估完成: ${data.report.overall_score}分`, 'success');
+                fillQualityAssessmentResult(data.report);
+            } else {
+                showStatusMessage(`❌ ${data.error || '评估失败'}`, 'error');
+                fillQualityAssessmentResult(null);
+            }
+        } else {
+            showStatusMessage('❌ 触发评估失败', 'error');
+            fillQualityAssessmentResult(null);
+        }
+    } catch (error) {
+        console.error('[质量评估] 刷新失败:', error);
+        showStatusMessage('❌ 网络错误', 'error');
+        fillQualityAssessmentResult(null);
+    }
 }
 
 // 填充总览结果

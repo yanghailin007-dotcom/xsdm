@@ -753,11 +753,15 @@ def register_quality_assessment_routes(app):
 
             # 获取API密钥（用于AI评估）
             request_data = request.get_json() or {}
-            api_key = request_data.get('api_key')
             use_deep_analysis = request_data.get('deep_analysis', True)
 
+            # 🔥 使用APIClient进行AI评估（统一使用系统配置的API）
+            from src.core.APIClient import APIClient
+            from config.config import CONFIG
+            api_client = APIClient(CONFIG)
+            
             # 创建评估器并执行评估
-            assessor = PlanQualityAssessor(api_key=api_key)
+            assessor = PlanQualityAssessor(api_client=api_client)
             result = assessor.assess(plan_path, use_deep_analysis=use_deep_analysis)
 
             # 转换为字典格式

@@ -3276,12 +3276,16 @@ def register_additional_routes(app):
                     "error": "写作计划文件不存在"
                 }), 404
 
-            # 获取API密钥（用于AI评估）
-            api_key = request.json.get('api_key') if request.json else None
+            # 获取深度分析选项
             use_deep_analysis = request.json.get('deep_analysis', True) if request.json else True
 
+            # 🔥 使用APIClient进行AI评估（统一使用系统配置的API）
+            from src.core.APIClient import APIClient
+            from config.config import CONFIG
+            api_client = APIClient(CONFIG)
+            
             # 创建评估器并执行评估
-            assessor = PlanQualityAssessor(api_key=api_key)
+            assessor = PlanQualityAssessor(api_client=api_client)
             result = assessor.assess(plan_path, use_deep_analysis=use_deep_analysis)
 
             # 转换为字典格式

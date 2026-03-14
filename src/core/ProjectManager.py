@@ -250,9 +250,17 @@ class ProjectManager:
                     self.logger.info(f"❌ 未找到项目: {novel_title}")
                     return None
             
-            # 尝试从独立文件加载成长路线和写作计划（传入 username 确保用户隔离）
-            growth_plan = growth_plan_manager.load_growth_plan(novel_title, username=username)
-            stage_plans = growth_plan_manager.load_stage_writing_plans(novel_title, username=username)
+            # 🔥 获取项目目录绝对路径（和其他文件加载方式统一）
+            try:
+                paths = path_config.get_project_paths(novel_title, username=username)
+                project_dir = paths.get("project_root")
+            except Exception as e:
+                self.logger.warning(f"⚠️ 获取项目路径失败，将使用动态路径解析: {e}")
+                project_dir = None
+            
+            # 尝试从独立文件加载成长路线和写作计划（传入 project_dir 确保使用绝对路径）
+            growth_plan = growth_plan_manager.load_growth_plan(novel_title, username=username, project_dir=project_dir)
+            stage_plans = growth_plan_manager.load_stage_writing_plans(novel_title, username=username, project_dir=project_dir)
 
             # 🔥 新增：从独立文件加载写作风格指南
             writing_style_guide = {}
@@ -286,18 +294,18 @@ class ProjectManager:
                 self.logger.warning(f"详细错误: {traceback.format_exc()}")
                 writing_style_guide = project_data.get("writing_style_guide", {})
             
-            # 如果独立文件不存在,从项目信息中迁移（传入 username 确保用户隔离）
+            # 如果独立文件不存在,从项目信息中迁移（传入 project_dir 确保使用绝对路径）
             if growth_plan is None and project_data.get("global_growth_plan"):
                 self.logger.info(f"📦 检测到成长路线在项目信息中,准备迁移...")
-                growth_plan_manager.migrate_growth_plan_from_project_info(novel_title, project_data, username=username)
-                growth_plan = growth_plan_manager.load_growth_plan(novel_title, username=username)
+                growth_plan_manager.migrate_growth_plan_from_project_info(novel_title, project_data, username=username, project_dir=project_dir)
+                growth_plan = growth_plan_manager.load_growth_plan(novel_title, username=username, project_dir=project_dir)
             
             if stage_plans is None and project_data.get("stage_writing_plans"):
                 self.logger.info(f"📦 检测到写作计划在项目信息中,准备迁移...")
                 if growth_plan is None:
                     # 如果还没迁移过,进行迁移
-                    growth_plan_manager.migrate_growth_plan_from_project_info(novel_title, project_data, username=username)
-                stage_plans = growth_plan_manager.load_stage_writing_plans(novel_title, username=username)
+                    growth_plan_manager.migrate_growth_plan_from_project_info(novel_title, project_data, username=username, project_dir=project_dir)
+                stage_plans = growth_plan_manager.load_stage_writing_plans(novel_title, username=username, project_dir=project_dir)
             
             # 🔥 修复：从项目信息中提取总章节数
             # 优先级：progress.total_chapters > 顶层total_chapters > 默认值
@@ -479,15 +487,23 @@ class ProjectManager:
             if current_progress["stage"] == "未开始" or current_progress["stage"] == "大纲阶段":
                 current_progress["stage"] = "写作中"
         
-        # 保存成长路线和写作计划到独立文件
+        # 🔥 获取项目目录绝对路径（和其他文件保存方式统一）
+        try:
+            paths = path_config.get_project_paths(novel_title, username=username)
+            project_dir = paths.get("project_root")
+        except Exception as e:
+            self.logger.warning(f"⚠️ 获取项目路径失败，将使用动态路径解析: {e}")
+            project_dir = None
+        
+        # 保存成长路线和写作计划到独立文件（传入 project_dir 确保使用绝对路径）
         growth_plan = novel_data.get("global_growth_plan", {})
         if growth_plan:
-            growth_plan_manager.save_growth_plan(novel_title, growth_plan, username=username)
+            growth_plan_manager.save_growth_plan(novel_title, growth_plan, username=username, project_dir=project_dir)
             self.logger.info(f"✅ 成长路线已保存到独立文件")
         
         stage_plans = novel_data.get("stage_writing_plans", {})
         if stage_plans:
-            growth_plan_manager.save_stage_writing_plans(novel_title, stage_plans, username=username)
+            growth_plan_manager.save_stage_writing_plans(novel_title, stage_plans, username=username, project_dir=project_dir)
             self.logger.info(f"✅ 写作计划已保存到独立文件")
         
         # 获取路径配置（传递用户名）

@@ -1568,7 +1568,13 @@ class PhaseGenerator:
         
         # 使用新的路径配置系统
         from src.config.path_config import path_config
-        paths = path_config.ensure_directories(self.generator.novel_data["novel_title"])
+        
+        # 🔥 获取用户名并确保传递到 novel_data
+        username = getattr(self.generator, '_username', None)
+        if username:
+            self.generator.novel_data['_username'] = username
+        
+        paths = path_config.ensure_directories(self.generator.novel_data["novel_title"], username=username)
         
         print(f"✅ 项目目录已创建: {paths['project_root']}")
         print(f"📁 章节目录: {paths['chapters_dir']}")
@@ -2425,6 +2431,10 @@ class PhaseGenerator:
     def _finalize_generation(self) -> bool:
         """完成生成过程"""
         self.generator.novel_data["current_progress"]["stage"] = "完成"
+        
+        # 🔥 确保用户名被传递到 novel_data
+        if hasattr(self.generator, '_username') and self.generator._username:
+            self.generator.novel_data['_username'] = self.generator._username
         
         # 保存最终进度和导出总览
         self.generator.project_manager.save_project_progress(self.generator.novel_data)

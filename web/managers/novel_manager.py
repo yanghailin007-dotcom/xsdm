@@ -527,7 +527,11 @@ class NovelGenerationManager:
                     if i < step_index:
                         self.task_results[task_id]["step_status"][step] = "completed"
                     elif i == step_index:
-                        self.task_results[task_id]["step_status"][step] = "active"
+                        # 🔥 修复：如果任务整体已完成，当前步骤也应标记为 completed
+                        if status == "completed":
+                            self.task_results[task_id]["step_status"][step] = "completed"
+                        else:
+                            self.task_results[task_id]["step_status"][step] = "active"
                     else:
                         if step not in self.task_results[task_id]["step_status"]:
                             self.task_results[task_id]["step_status"][step] = "waiting"
