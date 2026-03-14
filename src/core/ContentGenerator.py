@@ -686,19 +686,50 @@ class ContentGenerator:
   - 主角定位: {protagonist_position}
   - 主线脉络: {', '.join(main_plot) if isinstance(main_plot, list) else main_plot}
 
-## 核心任务
-请同时构建【世界观框架】和【势力系统】，确保两者在逻辑上完全自洽统一。
+## 输出格式要求（严格遵守）
 
-### 第一部分：世界观框架 (core_worldview)
-请提供以下字段：
-- world_overview: 世界概览（整体描述）
+你必须返回一个 JSON 对象，且必须包含以下两个顶层字段：
+1. "core_worldview" - 世界观框架
+2. "faction_system" - 势力系统
+
+正确的返回格式示例：
+```json
+{{
+    "core_worldview": {{
+        "world_overview": "世界整体描述...",
+        "power_system": "力量体系详细说明...",
+        "world_rules": ["规则1", "规则2"],
+        "key_locations": ["地点1", "地点2", "地点3"],
+        "time_background": "时间背景描述"
+    }},
+    "faction_system": {{
+        "factions": [
+            {{
+                "name": "势力名称",
+                "description": "势力描述",
+                "goals": "势力目标",
+                "strengths": "优势",
+                "weaknesses": "劣势",
+                "relationships": "与其他势力的关系"
+            }}
+        ],
+        "main_conflict": "主要冲突描述",
+        "faction_power_balance": "力量对比描述",
+        "recommended_starting_faction": "推荐初始势力"
+    }}
+}}
+```
+
+## 内容要求
+
+### core_worldview 字段内容：
+- world_overview: 世界概览（整体描述，200字以内）
 - power_system: 力量体系（修炼/能力系统详细说明）
-- world_rules: 世界规则（运行法则和限制）
+- world_rules: 世界规则（运行法则和限制，列表）
 - key_locations: 关键地点（列表，3-5个重要场景）
 - time_background: 时间背景
 
-### 第二部分：势力系统 (faction_system)
-请提供以下字段：
+### faction_system 字段内容：
 - factions: 势力列表（3-7个主要势力），每个包含：
   - name: 势力名称
   - description: 势力描述
@@ -716,7 +747,7 @@ class ContentGenerator:
 3. **主角切入点**：提供主角如何融入这个世界的清晰路径
 4. **创新性**：避免常见套路，追求独特性和新颖性
 
-请以JSON格式返回，包含 core_worldview 和 faction_system 两个顶层字段。
+【重要】必须严格按照上述 JSON 格式返回，包含 core_worldview 和 faction_system 两个顶层字段，否则无法解析。
 """
         
         try:
@@ -728,25 +759,73 @@ class ContentGenerator:
             
             if result and isinstance(result, dict):
                 # 检查结果是否包含两个部分
-                has_worldview = 'core_worldview' in result or any(k in result for k in ['world_overview', 'power_system', 'world_rules'])
-                has_factions = 'faction_system' in result or 'factions' in result
+                has_worldview_field = 'core_worldview' in result and isinstance(result['core_worldview'], dict)
+                has_faction_field = 'faction_system' in result and isinstance(result['faction_system'], dict)
                 
-                if has_worldview and has_factions:
+                # 也检查子字段是否存在（AI可能把内容放在根级别）
+                has_worldview_content = any(k in result for k in ['world_overview', 'power_system', 'world_rules'])
+                has_faction_content = 'factions' in result
+                
+                if has_worldview_field and has_faction_field:
                     self.logger.info("✅ 合并世界观与势力系统生成成功")
                     return result
                 else:
-                    # 尝试兼容旧格式（字段缺失是正常现象）
-                    self.logger.debug(f"  [DEBUG] 返回字段不完整，自动适配: {list(result.keys())}")
-                    return {
-                        'core_worldview': result.get('core_worldview', result),
-                        'faction_system': result.get('faction_system', result)
-                    }
+                    # 🔥 智能修复：尝试将内容分配到正确的字段
+                    self.logger.warning(f"  ⚠️ AI未按格式返回，尝试智能修复。实际字段: {list(result.keys())}")
+                    
+                    # 情况1：AI把所有内容放在根级别
+                    if has_worldview_content or has_faction_content:
+                        worldview_fields = ['world_overview', 'power_system', 'world_rules', 'key_locations', 'time_background']
+                        faction_fields = ['factions', 'main_conflict', 'faction_power_balance', 'recommended_starting_faction']
+                        
+                        core_worldview = {}
+                        faction_system = {}
+                        
+                        for key, value in result.items():
+                            if key in worldview_fields:
+                                core_worldview[key] = value
+                            elif key in faction_fields:
+                                faction_system[key] = value
+                        
+                        self.logger.info(f"  ✅ 智能分配完成：世界观{len(core_worldview)}个字段，势力系统{len(faction_system)}个字段")
+                        return {
+                            'core_worldview': core_worldview,
+                            'faction_system': faction_system
+                        }
+                    
+                    # 情况2：只返回了其中一个字段
+                    elif has_worldview_field and not has_faction_field:
+                        self.logger.warning(f"  ⚠️ 缺少 faction_system，使用默认值")
+                        result['faction_system'] = {
+                            'factions': [],
+                            'main_conflict': '待补充',
+                            'recommended_starting_faction': '待定'
+                        }
+                        return result
+                    
+                    elif has_faction_field and not has_worldview_field:
+                        self.logger.warning(f"  ⚠️ 缺少 core_worldview，使用默认值")
+                        result['core_worldview'] = {
+                            'world_overview': '待补充',
+                            'power_system': '待补充'
+                        }
+                        return result
+                    
+                    # 情况3：其他未知情况
+                    else:
+                        self.logger.error(f"  ❌ 无法识别的返回格式: {list(result.keys())}")
+                        return {
+                            'core_worldview': result.get('core_worldview', {}),
+                            'faction_system': result.get('faction_system', {})
+                        }
             else:
-                self.logger.error("❌ 合并世界观与势力系统生成失败")
+                self.logger.error("❌ 合并世界观与势力系统生成失败，结果为空")
                 return None
                 
         except Exception as e:
             self.logger.error(f"❌ 合并生成世界观与势力系统时出错: {e}")
+            import traceback
+            self.logger.error(f"错误堆栈: {traceback.format_exc()}")
             return None
     
     def generate_character_design(self, novel_title: str, core_worldview: Dict, selected_plan: Dict,
@@ -3827,10 +3906,38 @@ class ContentGenerator:
 核心主题: {selected_plan.get('core_direction', '')}
 目标读者: {selected_plan.get('target_audience', '')}
 
-## 输出要求
+## 输出格式要求（严格遵守）
 
-### 第一部分：写作风格指南 (writing_style_guide)
-请提供以下字段：
+你必须返回一个 JSON 对象，且必须包含以下两个顶层字段：
+1. "writing_style_guide" - 写作风格指南
+2. "market_analysis" - 市场分析
+
+正确的返回格式示例：
+```json
+{{
+    "writing_style_guide": {{
+        "core_style": "核心风格描述...",
+        "language_characteristics": ["特点1", "特点2", "特点3"],
+        "narration_techniques": ["技巧1", "技巧2"],
+        "dialogue_style": "对话风格描述...",
+        "chapter_techniques": ["技巧1", "技巧2"],
+        "key_principles": ["原则1", "原则2", "原则3"]
+    }},
+    "market_analysis": {{
+        "target_platform": "番茄小说",
+        "genre_positioning": "类型定位描述",
+        "core_selling_points": ["卖点1", "卖点2", "卖点3"],
+        "target_audience": "目标读者画像...",
+        "competitive_advantages": ["优势1", "优势2"],
+        "market_risks": ["风险1", "风险2"],
+        "confidence_score": 8
+    }}
+}}
+```
+
+## 内容要求
+
+### writing_style_guide 字段内容：
 - core_style: 核心风格定位（简洁描述，100字以内）
 - language_characteristics: 语言特点（列表，3-5个关键词）
 - narration_techniques: 叙事技巧（列表，2-3个要点）
@@ -3838,8 +3945,7 @@ class ContentGenerator:
 - chapter_techniques: 章节技巧（列表）
 - key_principles: 核心原则（列表，3-5条）
 
-### 第二部分：市场分析 (market_analysis)
-请提供以下字段：
+### market_analysis 字段内容：
 - target_platform: 目标平台（如：番茄小说）
 - genre_positioning: 类型定位
 - core_selling_points: 核心卖点（列表，3-5条，必须具体且有吸引力）
@@ -3848,9 +3954,7 @@ class ContentGenerator:
 - market_risks: 市场风险（列表）
 - confidence_score: 信心评分（1-10分）
 
-【创新要求】请提供有深度的分析，避免泛泛而谈，挖掘独特的市场切入点
-
-请以JSON格式返回，包含 writing_style_guide 和 market_analysis 两个顶层字段。
+【重要】必须严格按照上述 JSON 格式返回，包含 writing_style_guide 和 market_analysis 两个顶层字段，否则无法解析。
 """
             
             result = self.api_client.generate_content_with_retry(
@@ -3861,23 +3965,95 @@ class ContentGenerator:
             
             if result and isinstance(result, dict):
                 # 检查结果是否包含两个部分
-                if 'writing_style_guide' in result and 'market_analysis' in result:
+                has_wsg = 'writing_style_guide' in result and isinstance(result['writing_style_guide'], dict)
+                has_ma = 'market_analysis' in result and isinstance(result['market_analysis'], dict)
+                
+                if has_wsg and has_ma:
                     self.logger.info(f"  ✅ 合并基础规划生成成功")
                     return result
                 else:
-                    # 尝试兼容旧格式（字段缺失是正常现象，AI可能把所有内容放在一个对象里）
-                    self.logger.debug(f"  [DEBUG] 返回字段不完整，自动适配: {list(result.keys())}")
-                    return {
-                        'writing_style_guide': result.get('writing_style_guide', result),
-                        'market_analysis': result.get('market_analysis', result)
-                    }
+                    # 🔥 智能修复：尝试将内容分配到正确的字段
+                    self.logger.warning(f"  ⚠️ AI未按格式返回，尝试智能修复。实际字段: {list(result.keys())}")
+                    
+                    # 情况1：AI把内容混在一个对象里返回
+                    if len(result.keys()) > 5 and not has_wsg and not has_ma:
+                        # 可能是把所有字段放在根级别，需要智能分配
+                        style_fields = ['core_style', 'language_characteristics', 'narration_techniques', 
+                                       'dialogue_style', 'chapter_techniques', 'key_principles']
+                        market_fields = ['target_platform', 'genre_positioning', 'core_selling_points',
+                                        'target_audience', 'competitive_advantages', 'market_risks', 'confidence_score']
+                        
+                        writing_style = {}
+                        market_analysis = {}
+                        
+                        for key, value in result.items():
+                            if key in style_fields:
+                                writing_style[key] = value
+                            elif key in market_fields:
+                                market_analysis[key] = value
+                            else:
+                                # 未知字段，根据内容判断
+                                if isinstance(value, str) and ('风格' in value or '叙事' in value):
+                                    writing_style[key] = value
+                                else:
+                                    market_analysis[key] = value
+                        
+                        self.logger.info(f"  ✅ 智能分配完成：风格指南{len(writing_style)}个字段，市场分析{len(market_analysis)}个字段")
+                        return {
+                            'writing_style_guide': writing_style,
+                            'market_analysis': market_analysis
+                        }
+                    
+                    # 情况2：只返回了其中一个字段
+                    elif has_wsg and not has_ma:
+                        self.logger.warning(f"  ⚠️ 缺少 market_analysis，使用空对象")
+                        result['market_analysis'] = self._get_empty_market_analysis(novel_title, category)
+                        return result
+                    
+                    elif has_ma and not has_wsg:
+                        self.logger.warning(f"  ⚠️ 缺少 writing_style_guide，使用空对象")
+                        result['writing_style_guide'] = self._get_empty_writing_style()
+                        return result
+                    
+                    # 情况3：其他未知情况
+                    else:
+                        self.logger.error(f"  ❌ 无法识别的返回格式: {list(result.keys())}")
+                        return {
+                            'writing_style_guide': result.get('writing_style_guide', {}),
+                            'market_analysis': result.get('market_analysis', {})
+                        }
             else:
-                self.logger.error(f"  ❌ 合并基础规划生成失败")
+                self.logger.error(f"  ❌ 合并基础规划生成失败，结果为空")
                 return None
                 
         except Exception as e:
             self.logger.error(f"  ❌ 合并生成基础规划时出错: {e}")
+            import traceback
+            self.logger.error(f"错误堆栈: {traceback.format_exc()}")
             return None
+    
+    def _get_empty_writing_style(self) -> Dict:
+        """返回默认的写作风格指南结构"""
+        return {
+            "core_style": "待补充",
+            "language_characteristics": ["简洁明了", "生动形象"],
+            "narration_techniques": [["第三人称", "多视角切换"]],
+            "dialogue_style": "自然口语化，符合角色性格",
+            "chapter_techniques": ["章末钩子", "节奏把控"],
+            "key_principles": ["保持一致性", "强化代入感"]
+        }
+    
+    def _get_empty_market_analysis(self, novel_title: str, category: str) -> Dict:
+        """返回默认的市场分析结构"""
+        return {
+            "target_platform": "番茄小说",
+            "genre_positioning": category or "网络小说",
+            "core_selling_points": [f"《{novel_title}》独特创意", "精彩剧情", "鲜明人物"],
+            "target_audience": "18-35岁网络小说读者",
+            "competitive_advantages": ["创新题材", "紧凑节奏"],
+            "market_risks": ["需持续更新保持热度"],
+            "confidence_score": 7
+        }
     
     def _get_empty_period_guidance(self, chapter_number: int, event_context: Dict) -> str:
         return "# 🎯 事件执行指导\n\n当前处于事件空窗期，重点推进主线情节和角色发展。"
