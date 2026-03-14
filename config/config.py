@@ -45,11 +45,11 @@ CONFIG = {
                 "max_retries": 3
             },
             {
-                "name": "aiberm",              # 🟡 备用端点：Aiberm API（403错误时使用）
+                "name": "aiberm",              # 🟡 最低优先级备用：Aiberm API（费用最高，仅在其他端点均失败时使用）
                 "api_url": "https://aiberm.com/v1/chat/completions",
                 "api_key": os.getenv('AIBERM_API_KEY', 'sk-dWu7JFD69zTYeSLZiWV8OQYBjQ2IoJlQCmSo3f963ArGEAju'),
-                "model": "google/gemini-3.1-pro",  # Gemini 3.1 Pro
-                "priority": 2,                 # 优先级2（降低）
+                "model": "google/gemini-2.5-pro",  # Gemini 2.5 Pro（更经济）
+                "priority": 3,                  # 优先级3（最低，因为费用最高）
                 "enabled": True,
                 "timeout": 300,
                 "max_retries": 3
@@ -59,7 +59,7 @@ CONFIG = {
                 "api_url": "https://newapi.xiaochuang.cc/v1/chat/completions",
                 "api_key": os.getenv('GEMINI_API_KEY', 'sk-zQHbJRdcVeNKX2ZqR18AMj5qutH4lDCZSmgE7WPP3aBdDdbw'),
                 "model": "gemini-3-pro-preview",  # 小创 API 不需要前缀
-                "priority": 3,                 # 备用优先级
+                "priority": 2,                 # 备用优先级
                 "enabled": True,
                 "timeout": 180,
                 "max_retries": 3

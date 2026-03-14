@@ -1465,6 +1465,38 @@
             height: 18px;
         }
         
+        /* V2 风格按钮 - 世界观设定示例 */
+        .pt-product-card--worldview .pt-product-card__action {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 8px 16px;
+            background: linear-gradient(135deg, #6366f1, #8b5cf6);
+            color: white;
+            font-size: 13px;
+            font-weight: 600;
+            border-radius: 10px;
+            border: none;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            box-shadow: 0 4px 15px rgba(99, 102, 241, 0.3);
+        }
+        
+        .pt-product-card--worldview:hover .pt-product-card__action {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(99, 102, 241, 0.4);
+        }
+        
+        .pt-product-card--worldview .pt-product-card__action::after {
+            content: '→';
+            transition: transform 0.2s ease;
+        }
+        
+        .pt-product-card--worldview:hover .pt-product-card__action::after {
+            transform: translateX(4px);
+        }
+        
+        /* 其他卡片保持原样式（待确认后修改） */
         .pt-product-card__action {
             font-size: 12px;
             font-weight: 500;
