@@ -711,10 +711,16 @@ class APIClient:
                 self.logger.warning(f"{user_str}🔄 尝试切换到 {fallback} 池子作为保底...")
                 return self._call_with_provider(fallback, system_prompt, user_prompt, 
                                                 temperature, purpose, model_name, user_str)
-        else:
-            self.logger.info(f"{user_str}ℹ️ 保底模型已禁用，不再尝试其他 provider")
         
-        return None
+        # 🔥 修复：保底禁用时不直接失败，而是等待后重试
+        self.logger.info(f"{user_str}ℹ️ 保底模型已禁用，等待 10 秒后重试所有端点...")
+        time.sleep(10)
+        
+        # 刷新端点池（将不健康端点恢复为降级状态，允许重试）
+        self.refresh_endpoint_pools()
+        
+        # 递归调用自身进行重试
+        return self.call_api(system_prompt, user_prompt, temperature, purpose, provider, model_name)
     
     def _call_with_provider(self, provider: str, system_prompt: str, user_prompt: str,
                            temperature: Optional[float], purpose: str, 
