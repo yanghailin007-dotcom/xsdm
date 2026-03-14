@@ -39,6 +39,7 @@ CONFIG = {
                 "api_url": "https://new.lemonapi.site/v1/chat/completions",
                 "api_key": os.getenv('LEMON_API_KEY', 'sk-n7M8j3un3p4QBfKNHxYDVmnhZELU4eicBrhBDsZEu23h3uXg'),
                 "model": "[L]gemini-3.1-pro-preview",  # 3.1 模型
+                "model1": "[L]gemini-3-flash-preview", 
                 "priority": 1,                 # ✅ 最高优先级
                 "enabled": True,
                 "timeout": 300,
@@ -48,7 +49,7 @@ CONFIG = {
                 "name": "aiberm",              # 🟡 最低优先级备用：Aiberm API（费用最高，仅在其他端点均失败时使用）
                 "api_url": "https://aiberm.com/v1/chat/completions",
                 "api_key": os.getenv('AIBERM_API_KEY', 'sk-dWu7JFD69zTYeSLZiWV8OQYBjQ2IoJlQCmSo3f963ArGEAju'),
-                "model": "google/gemini-2.5-pro",  # Gemini 2.5 Pro（更经济）
+                "model": "google/gemini-3.1-flash-lite",  # Gemini 2.5 Pro（更经济）
                 "priority": 3,                  # 优先级3（最低，因为费用最高）
                 "enabled": True,
                 "timeout": 300,

@@ -1,6 +1,4 @@
-#!/usr/bin/env python3
-"""使用Playwright截图检查账户设置页面"""
-
+# -*- coding: utf-8 -*-
 import asyncio
 from playwright.async_api import async_playwright
 
@@ -8,52 +6,73 @@ async def capture_account_page():
     async with async_playwright() as p:
         # 启动浏览器
         browser = await p.chromium.launch(headless=True)
-        context = await browser.new_context(viewport={'width': 1920, 'height': 1080})
+        context = await browser.new_context(viewport={'width': 1280, 'height': 900})
         page = await context.new_page()
         
         try:
             # 1. 访问登录页面
             print("访问登录页面...")
-            await page.goto('http://localhost:5000/login', wait_until='networkidle')
-            await page.wait_for_timeout(1000)
+            await page.goto('http://localhost:5000/login', wait_until='networkidle', timeout=60000)
+            await asyncio.sleep(1)
             
-            # 2. 填写登录表单
+            # 2. 填写登录信息 - 使用多种选择器尝试
             print("填写登录信息...")
-            await page.fill('input[name="username"], input#username, input[type="text"]', 'admin')
-            await page.fill('input[name="password"], input#password, input[type="password"]', 'yanghailin')
+            
+            # 尝试多种方式填写用户名
+            try:
+                await page.fill('input#username', 'admin', timeout=5000)
+            except:
+                try:
+                    await page.fill('input[name="username"]', 'admin', timeout=5000)
+                except:
+                    await page.fill('input[type="text"]', 'admin', timeout=5000)
+            
+            # 尝试多种方式填写密码
+            try:
+                await page.fill('input#password', 'yanghailin', timeout=5000)
+            except:
+                try:
+                    await page.fill('input[name="password"]', 'yanghailin', timeout=5000)
+                except:
+                    await page.fill('input[type="password"]', 'yanghailin', timeout=5000)
             
             # 3. 点击登录按钮
             print("点击登录...")
-            await page.click('button[type="submit"], input[type="submit"], button:has-text("登录")')
+            try:
+                await page.click('button[type="submit"]', timeout=5000)
+            except:
+                await page.click('button:has-text("登录")', timeout=5000)
             
-            # 等待登录完成并跳转
-            await page.wait_for_timeout(2000)
+            # 等待登录完成
+            await page.wait_for_load_state('networkidle')
+            await asyncio.sleep(2)
             
             # 4. 导航到账户设置页面
             print("导航到账户设置页面...")
-            await page.goto('http://localhost:5000/account', wait_until='networkidle')
-            await page.wait_for_timeout(1500)
+            await page.goto('http://localhost:5000/account', wait_until='networkidle', timeout=60000)
+            await asyncio.sleep(2)
             
-            # 5. 截图保存
-            screenshot_path = r'C:\Users\yangh\Documents\GitHub\xsdm\screenshot_account_v3.png'
-            print(f"正在截图保存到: {screenshot_path}")
+            # 5. 截图
+            screenshot_path = r'C:\Users\yangh\Documents\GitHub\xsdm\screenshot_account_final.png'
+            print(f"截图保存到: {screenshot_path}")
             await page.screenshot(path=screenshot_path, full_page=True)
-            print("截图成功！")
             
-            # 检查页面元素
-            print("\n=== 页面检查结果 ===")
+            print("截图完成!")
             
-            # 检查基本信息卡片
-            basic_info = await page.locator('.info-card, .basic-info-card, [class*="info"]').count()
-            print(f"- 信息卡片数量: {basic_info}")
+            # 获取页面信息用于验证
+            cards = await page.query_selector_all('.card')
+            card_headers = await page.query_selector_all('.card-header')
+            card_bodies = await page.query_selector_all('.card-body')
             
-            # 检查表单元素
-            form_inputs = await page.locator('input[type="password"]').count()
-            print(f"- 密码输入框数量: {form_inputs}")
+            print(f"\n页面统计信息:")
+            print(f"- 卡片数量 (.card): {len(cards)}")
+            print(f"- 卡片头部数量 (.card-header): {len(card_headers)}")
+            print(f"- 卡片内容数量 (.card-body): {len(card_bodies)}")
             
-            # 检查标题
-            title = await page.title()
-            print(f"- 页面标题: {title}")
+            # 获取页面HTML用于分析
+            html_content = await page.content()
+            has_vertical_layout = 'flex-col' in html_content or 'flex-direction: column' in html_content
+            print(f"- 是否使用垂直布局: {has_vertical_layout}")
             
             return True
             
@@ -61,13 +80,11 @@ async def capture_account_page():
             print(f"错误: {e}")
             # 出错时也截图
             try:
-                screenshot_path = r'C:\Users\yangh\Documents\GitHub\xsdm\screenshot_account_v3.png'
-                await page.screenshot(path=screenshot_path, full_page=True)
-                print(f"已保存错误截图到: {screenshot_path}")
+                await page.screenshot(path=r'C:\Users\yangh\Documents\GitHub\xsdm\screenshot_account_error.png')
+                print("错误截图已保存")
             except:
                 pass
             return False
-            
         finally:
             await browser.close()
 
