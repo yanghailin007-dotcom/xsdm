@@ -701,11 +701,18 @@ class APIClient:
         # 所有端点都失败
         self.logger.error(f"{user_str}💥 {target_provider} 所有端点均失败，已尝试: {tried_endpoints}")
         
-        # 🔄 如果 gemini 池子失败，尝试 deepseek 池子作为保底
-        if target_provider == "gemini" and "deepseek" in self.endpoint_pools:
-            self.logger.warning(f"{user_str}🔄 尝试切换到 deepseek 池子作为保底...")
-            return self._call_with_provider("deepseek", system_prompt, user_prompt, 
-                                            temperature, purpose, model_name, user_str)
+        # 🔄 保底模型逻辑（可配置禁用）
+        fallback_config = self.config.get("fallback", {})
+        if fallback_config.get("enabled", False):  # 默认禁用保底
+            primary = fallback_config.get("primary_provider", "gemini")
+            fallback = fallback_config.get("fallback_provider", "deepseek")
+            
+            if target_provider == primary and fallback in self.endpoint_pools:
+                self.logger.warning(f"{user_str}🔄 尝试切换到 {fallback} 池子作为保底...")
+                return self._call_with_provider(fallback, system_prompt, user_prompt, 
+                                                temperature, purpose, model_name, user_str)
+        else:
+            self.logger.info(f"{user_str}ℹ️ 保底模型已禁用，不再尝试其他 provider")
         
         return None
     

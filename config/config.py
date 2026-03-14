@@ -97,6 +97,12 @@ CONFIG = {
         "yuanbao": "deepseek-reasoner",
         "gemini": "gemini-3-pro-preview"
     },
+    # 🔥 保底模型配置 - 当主模型失败时自动切换
+    "fallback": {
+        "enabled": False,  # 是否启用保底模型（默认禁用）
+        "primary_provider": "gemini",
+        "fallback_provider": "deepseek"
+    },
     # 分层模型配置 - 用于降低成本（保留关键任务用3.0）
     "model_routing": {
         "enabled": True,  # 是否启用分层模型
