@@ -1744,7 +1744,7 @@ function createProductEditDrawer(category, productData) {
     
     document.body.insertAdjacentHTML('beforeend', drawerHtml);
     requestAnimationFrame(() => {
-        const overlay = document.getElementByById('product-edit-drawer');
+        const overlay = document.getElementById('product-edit-drawer');
         if (overlay) overlay.classList.add('active');
     });
     
