@@ -1527,6 +1527,37 @@
             transform: translateX(4px);
         }
         
+        /* V2 风格按钮 - 角色设计 */
+        .pt-product-card--characters .pt-product-card__action {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 8px 16px;
+            background: linear-gradient(135deg, #10b981, #06b6d4);
+            color: white;
+            font-size: 13px;
+            font-weight: 600;
+            border-radius: 10px;
+            border: none;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            box-shadow: 0 4px 15px rgba(16, 185, 129, 0.3);
+        }
+        
+        .pt-product-card--characters:hover .pt-product-card__action {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(16, 185, 129, 0.4);
+        }
+        
+        .pt-product-card--characters .pt-product-card__action::after {
+            content: '→';
+            transition: transform 0.2s ease;
+        }
+        
+        .pt-product-card--characters:hover .pt-product-card__action::after {
+            transform: translateX(4px);
+        }
+        
         /* 其他卡片保持原样式（待确认后修改） */
         .pt-product-card__action {
             font-size: 12px;
@@ -2199,7 +2230,7 @@
                                     <span class="pt-status-dot" id="characters-status-dot"></span>
                                     <span class="pt-status-text" id="characters-status-text">加载中...</span>
                                 </div>
-                                <div class="pt-product-card__action">编辑角色 →</div>
+                                <div class="pt-product-card__action">编辑角色</div>
                             </div>
                             
                             <!-- 5. 成长路线 -->
