@@ -416,6 +416,40 @@ class NovelGenerator:
             # 检查失败时不中断生成，只记录日志
             self.logger.debug(f"停止检查失败: {e}")
     
+    def _call_api_with_stop_check(self, system_prompt: str, user_prompt: str, 
+                                  temperature: float = 0.7, purpose: str = "未知", 
+                                  context: str = "") -> Optional[str]:
+        """🔥 包装API调用，在调用前检查停止标志
+        
+        Args:
+            system_prompt: 系统提示词
+            user_prompt: 用户提示词
+            temperature: 温度参数
+            purpose: API调用目的
+            context: 停止检查上下文描述
+            
+        Returns:
+            API响应内容，如果停止则返回None
+            
+        Raises:
+            InterruptedError: 当停止标志被设置时
+        """
+        # 在API调用前检查停止标志
+        self._check_stop_requested(context or f"API调用({purpose})前")
+        
+        # 执行API调用
+        result = self.api_client.call_api(
+            system_prompt=system_prompt,
+            user_prompt=user_prompt,
+            temperature=temperature,
+            purpose=purpose
+        )
+        
+        # API调用后也检查一次（快速返回的情况）
+        self._check_stop_requested(context or f"API调用({purpose})后")
+        
+        return result
+    
     def _update_step_status(self, step_name: str, step_state: str, message: str = None):
         """🔥 更新单个步骤的状态（用于前端进度显示）
         
@@ -874,19 +908,24 @@ class NovelGenerator:
             if not hasattr(self.api_client, 'call_api'):
                 print("  ❌ API客户端缺少call_api方法，尝试使用generate_content_with_retry")
                 if hasattr(self.api_client, 'generate_content_with_retry'):
+                    # 🔥 在调用前检查停止标志
+                    self._check_stop_requested("创意精炼(API备用路径)前")
                     refined_instruction = self.api_client.generate_content_with_retry(
                         "refine_creative_work_for_ai",
                         refinement_prompt,
                         purpose="创意精炼为AI指令"
                     )
+                    # 🔥 调用后也检查
+                    self._check_stop_requested("创意精炼(API备用路径)后")
                 else:
                     print("  ❌ API客户端没有可用的调用方法")
             else:
-                refined_instruction = self.api_client.call_api(
+                refined_instruction = self._call_api_with_stop_check(
                     "refine_creative_work_for_ai",
                     refinement_prompt,
                     0.7,  # 适度创造性
-                    purpose="创意精炼为AI指令"
+                    purpose="创意精炼为AI指令",
+                    context="创意精炼阶段"
                 )
             
             if not refined_instruction or not isinstance(refined_instruction, str):

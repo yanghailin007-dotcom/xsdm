@@ -63,6 +63,26 @@ class PhaseGenerator:
         self.generator = novel_generator
         self.logger = get_logger("PhaseGenerator")
     
+    def _check_stop_requested(self, context: str = "") -> None:
+        """🔥 检查是否被请求停止生成
+        
+        通过调用 generator 的停止检查回调来检测用户是否请求停止
+        
+        Args:
+            context: 当前上下文描述，用于日志
+            
+        Raises:
+            InterruptedError: 当停止标志被设置时
+        """
+        try:
+            if hasattr(self.generator, '_stop_check_callback'):
+                self.generator._stop_check_callback()
+        except InterruptedError:
+            self.logger.info(f"🛑 PhaseGenerator 生成被用户停止{' - ' + context if context else ''}")
+            raise
+        except Exception as e:
+            self.logger.debug(f"停止检查失败: {e}")
+    
     # ==================== 第一阶段生成方法 ====================
     
     def generate_phase_one_preparations(self) -> bool:
@@ -849,12 +869,16 @@ class PhaseGenerator:
         
         result = None
         try:
+            # 🔥 在API调用前检查停止标志
+            self._check_stop_requested("情绪蓝图与成长规划生成前")
             print("  🚀 正在调用 generate_content_with_retry...")
             result = self.generator.api_client.generate_content_with_retry(
                 "emotional_blueprint_generation",  # 使用正确的content_type
                 prompt,
                 purpose="合并生成情绪蓝图与成长规划"
             )
+            # 🔥 API调用后也检查停止标志
+            self._check_stop_requested("情绪蓝图与成长规划生成后")
             print(f"  ✅ generate_content_with_retry 返回了结果: {result is not None}")
         except Exception as e:
             print(f"  ❌ API调用异常: {e}")
@@ -1121,22 +1145,29 @@ class PhaseGenerator:
                 print("  ⚠️ 批量生成主龙骨失败，将使用逐个生成模式")
                 all_stages_skeletons = {}
             
-            # 🔥 优化：使用线程池并行生成
+            # 🔥 优化：使用线程池分两批并行生成（2+2）
             from concurrent.futures import as_completed, TimeoutError
             from src.utils.thread_pool_manager import ManagedThreadPool
             import threading
+            import time
             
             def generate_single_stage(task):
-                """生成单个阶段的包装函数"""
+                """生成单个阶段的包装函数（带详细日志）"""
                 stage_name = task['stage_name']
                 thread_id = threading.current_thread().name
+                task_start_time = time.time()
+                
                 # 获取预生成的情绪计划和主龙骨
                 pre_generated_emotional_plan = all_stages_emotional_plans.get(stage_name)
                 pre_generated_skeletons = all_stages_skeletons.get(stage_name) if all_stages_skeletons else None
-                if pre_generated_skeletons:
-                    print(f"  🚀 [{stage_name}] [线程:{thread_id}] 使用预生成主龙骨: {len(pre_generated_skeletons)} 个事件")
+                
+                print(f"\n  ┌─ 🔥 子线程启动 [{stage_name}] ──────────────────────")
+                print(f"  │ 线程ID: {thread_id}")
+                print(f"  │ 阶段范围: {task['stage_range']}")
+                print(f"  │ 预生成主龙骨: {len(pre_generated_skeletons) if pre_generated_skeletons else 0} 个事件")
+                print(f"  └─ 开始执行...")
+                
                 try:
-                    print(f"  📋 [{stage_name}] [线程:{thread_id}] 开始生成...")
                     stage_plan = self.generator.stage_plan_manager.generate_stage_writing_plan(
                         stage_name=stage_name,
                         stage_range=task['stage_range'],
@@ -1147,54 +1178,161 @@ class PhaseGenerator:
                         stage_emotional_plan=pre_generated_emotional_plan,
                         pre_generated_skeletons=pre_generated_skeletons
                     )
+                    
+                    duration = time.time() - task_start_time
+                    
                     if stage_plan:
-                        print(f"  ✅ [{stage_name}] [线程:{thread_id}] 生成成功")
+                        print(f"\n  ┌─ ✅ 子线程完成 [{stage_name}] ──────────────────────")
+                        print(f"  │ 线程ID: {thread_id}")
+                        print(f"  │ 总耗时: {duration:.1f}s")
+                        if '_generation_metrics' in stage_plan:
+                            metrics = stage_plan['_generation_metrics']
+                            print(f"  │ API调用耗时: {metrics.get('duration_seconds', 0):.1f}s")
+                        print(f"  └─ 成功返回")
                         return stage_name, stage_plan
                     else:
-                        print(f"  ❌ [{stage_name}] [线程:{thread_id}] 生成失败")
+                        print(f"\n  ┌─ ❌ 子线程失败 [{stage_name}] ──────────────────────")
+                        print(f"  │ 线程ID: {thread_id}")
+                        print(f"  │ 耗时: {duration:.1f}s")
+                        print(f"  │ 原因: 返回空结果")
+                        print(f"  └─ 失败返回")
                         return stage_name, None
+                        
                 except Exception as e:
-                    print(f"  ❌ [{stage_name}] [线程:{thread_id}] 生成异常: {e}")
+                    duration = time.time() - task_start_time
+                    print(f"\n  ┌─ 💥 子线程异常 [{stage_name}] ──────────────────────")
+                    print(f"  │ 线程ID: {thread_id}")
+                    print(f"  │ 耗时: {duration:.1f}s")
+                    print(f"  │ 异常: {str(e)[:100]}")
+                    print(f"  └─ 异常返回")
                     return stage_name, None
             
-            # 使用线程池并行执行（max_workers=4表示最多同时4个线程）
-            with ManagedThreadPool(
-                    max_workers=4, 
-                    thread_name_prefix="StagePlan",
-                    timeout=600,  # 增加总超时到10分钟
-                    task_timeout=120  # 增加每个任务超时到2分钟
-                ) as executor:
-                # 提交所有任务
-                future_to_stage = {
-                    executor.submit(generate_single_stage, task): task['stage_name'] 
-                    for task in stage_tasks
-                }
+            def run_batch(batch_tasks, batch_name, progress_offset):
+                """执行一批任务（2个）"""
+                if not batch_tasks:
+                    return {}
+                    
+                stage_names = [t['stage_name'] for t in batch_tasks]
+                print(f"\n{'='*60}")
+                print(f"🔥 {batch_name}: {', '.join(stage_names)}")
+                print(f"   启动 {len(batch_tasks)} 个子线程并行执行...")
+                print(f"{'='*60}")
                 
-                # 收集结果（按完成顺序）
-                completed_count = 0
-                total_tasks = len(stage_tasks)
-                # 🔥 修复：不设置 as_completed 的超时，让它一直等待，依靠 task_timeout 来控制单个任务
-                for future in as_completed(future_to_stage):
-                    try:
-                        stage_name, stage_plan = future.result(timeout=120)  # 每个任务结果等待2分钟
-                        completed_count += 1
-                        if stage_plan:
-                            self.generator.novel_data["stage_writing_plans"][stage_name] = stage_plan
-                            print(f"  📥 [主线程] 收集到 [{stage_name}] 结果 ({completed_count}/{total_tasks})")
-                        else:
-                            print(f"  ⚠️  [主线程] [{stage_name}] 返回空结果 ({completed_count}/{total_tasks})")
-                        
-                        # 🔥 关键修复：更新进度，让前端看到变化 (76% -> 78%)
-                        if update_step_status and total_tasks > 0:
-                            progress = 76 + int((completed_count / total_tasks) * 2)  # 76% -> 78%
-                            update_step_status('detailed_stage_plans', 'active', progress)
-                    except TimeoutError:
-                        # 单个任务超时，继续处理其他任务
-                        print(f"  ⏱️  [主线程] 任务超时，跳过 ({completed_count}/{total_tasks})")
-                        continue
-                    except Exception as e:
-                        print(f"  ❌ [主线程] 获取结果失败: {e}")
-                        continue
+                batch_start = time.time()
+                batch_results = {}
+                completed_in_batch = 0
+                
+                with ManagedThreadPool(
+                        max_workers=2,  # 每批2个线程
+                        thread_name_prefix=f"StagePlan_{batch_name}",
+                        timeout=300,
+                        task_timeout=180
+                    ) as executor:
+                    # 提交本批任务
+                    future_to_stage = {
+                        executor.submit(generate_single_stage, task): task['stage_name'] 
+                        for task in batch_tasks
+                    }
+                    
+                    print(f"\n📤 [主线程] 已提交 {len(future_to_stage)} 个任务到线程池")
+                    print(f"   等待子线程完成 (超时: 180s)...\n")
+                    
+                    # 收集结果
+                    for future in as_completed(future_to_stage):
+                        stage_name = future_to_stage[future]
+                        try:
+                            result_stage_name, stage_plan = future.result(timeout=180)
+                            completed_in_batch += 1
+                            
+                            if stage_plan:
+                                self.generator.novel_data["stage_writing_plans"][stage_name] = stage_plan
+                                batch_results[stage_name] = stage_plan
+                                print(f"\n📥 [主线程] [{completed_in_batch}/{len(batch_tasks)}] 成功: [{stage_name}]")
+                            else:
+                                print(f"\n⚠️  [主线程] [{completed_in_batch}/{len(batch_tasks)}] 失败: [{stage_name}] 返回空")
+                            
+                            # 更新进度
+                            if update_step_status:
+                                total_completed = len(self.generator.novel_data["stage_writing_plans"])
+                                progress = 76 + int((total_completed / len(stage_tasks)) * 2)
+                                update_step_status('detailed_stage_plans', 'active', progress)
+                                
+                        except Exception as e:
+                            completed_in_batch += 1
+                            print(f"\n💥 [主线程] [{completed_in_batch}/{len(batch_tasks)}] 异常: [{stage_name}] {str(e)[:80]}")
+                            continue
+                
+                batch_duration = time.time() - batch_start
+                print(f"\n{'='*60}")
+                print(f"✅ {batch_name} 完成!")
+                print(f"   成功: {len(batch_results)}/{len(batch_tasks)} 个阶段")
+                print(f"   耗时: {batch_duration:.1f}s")
+                print(f"{'='*60}")
+                return batch_results
+            
+            # 🔥 分两批执行（2+2）
+            parallel_start_time = time.time()
+            stage_timings = {}
+            
+            # 第一批：起承（通常较快）
+            batch1_tasks = [t for t in stage_tasks if t['stage_name'] in ['exposition_stage', 'rising_stage']]
+            batch1_results = run_batch(batch1_tasks, "第一批[起+承]", 0)
+            
+            # 第二批：转合（通常较慢，尤其是合）
+            batch2_tasks = [t for t in stage_tasks if t['stage_name'] in ['climax_stage', 'ending_stage']]
+            batch2_results = run_batch(batch2_tasks, "第二批[转+合]", 0)
+            
+            # 收集所有耗时信息
+            for stage_name, plan in self.generator.novel_data["stage_writing_plans"].items():
+                if isinstance(plan, dict) and '_generation_metrics' in plan:
+                    stage_timings[stage_name] = plan['_generation_metrics'].get('duration_seconds', 0)
+            
+            total_duration = time.time() - parallel_start_time
+            
+            # 🔥 打印性能分析报告
+            print("\n" + "="*70)
+            print("📊 并行生成完整报告 (2+2 分批)")
+            print("="*70)
+            
+            if stage_timings:
+                print(f"\n【批次执行顺序】")
+                print(f"  第一批 [起+承]: exposition_stage + rising_stage")
+                print(f"  第二批 [转+合]: climax_stage + ending_stage")
+                
+                print(f"\n【阶段总耗时排行】")
+                sorted_stages = sorted(stage_timings.items(), key=lambda x: x[1], reverse=True)
+                for i, (stage, duration) in enumerate(sorted_stages, 1):
+                    bar = "█" * int(duration / 3)
+                    print(f"  {i}. {stage:20s} {duration:5.1f}s {bar}")
+                
+                # 子步骤详情
+                print(f"\n【各阶段子步骤详情】")
+                for stage_name, plan in sorted(self.generator.novel_data["stage_writing_plans"].items(), 
+                                               key=lambda x: x[1].get('_generation_metrics', {}).get('duration_seconds', 0), 
+                                               reverse=True):
+                    if isinstance(plan, dict) and '_generation_metrics' in plan:
+                        metrics = plan['_generation_metrics']
+                        print(f"\n  📋 {stage_name} (总耗时: {metrics.get('duration_seconds', 0):.1f}s)")
+                        sub_timings = metrics.get('sub_step_timings', {})
+                        if sub_timings:
+                            for step, duration in sorted(sub_timings.items(), key=lambda x: x[1], reverse=True):
+                                bar = "▓" * int(duration / 2)
+                                print(f"      {step:20s} {duration:5.1f}s {bar}")
+                        print(f"      {'─'*50}")
+                
+                avg_time = sum(stage_timings.values()) / len(stage_timings)
+                max_time = max(stage_timings.values())
+                print(f"\n【汇总统计】")
+                print(f"  阶段平均耗时: {avg_time:.1f}s")
+                print(f"  单阶段最长:   {max_time:.1f}s")
+                print(f"  并行总耗时:   {total_duration:.1f}s")
+                print(f"  理论加速比:   {(sum(stage_timings.values()) / total_duration):.1f}x")
+                
+                if max_time > avg_time * 1.5:
+                    slowest_stage = sorted_stages[0][0]
+                    print(f"\n  ⚠️  提示: {slowest_stage} 耗时明显高于平均，可考虑单独优化")
+                    
+            print("="*70)
             
             success_count = len(self.generator.novel_data["stage_writing_plans"])
             total_count = len(stage_tasks)

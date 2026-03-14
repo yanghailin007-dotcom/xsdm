@@ -74,6 +74,12 @@ def generate_tokens(user_id, username, is_admin=False, extra_data=None):
     access_token = jwt.encode(access_payload, JWT_SECRET_KEY, algorithm='HS256')
     refresh_token = jwt.encode(refresh_payload, JWT_SECRET_KEY, algorithm='HS256')
     
+    # 🔥 修复：Python 3 中 jwt.encode 返回 bytes，需要解码为字符串
+    if isinstance(access_token, bytes):
+        access_token = access_token.decode('utf-8')
+    if isinstance(refresh_token, bytes):
+        refresh_token = refresh_token.decode('utf-8')
+    
     return {
         'access_token': access_token,
         'refresh_token': refresh_token,

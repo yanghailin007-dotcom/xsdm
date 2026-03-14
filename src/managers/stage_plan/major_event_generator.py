@@ -276,7 +276,7 @@ class MajorEventGenerator:
         
         try:
             result = self.api_client.generate_content_with_retry(
-                content_type="batch_stage_major_event_skeletons",
+                content_type="batch_major_event_decomposition",
                 user_prompt=user_prompts,
                 purpose=f"【批量顶层设计注入】一次性生成 {novel_title} 四大阶段主龙骨"
             )

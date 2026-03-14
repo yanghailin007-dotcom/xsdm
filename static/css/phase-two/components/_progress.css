@@ -58,13 +58,16 @@
     transparent
   );
   background-size: 20px 20px;
-  animation: progress-stripes 1s linear infinite;
+  /* 🔥 移除动画，避免视觉干扰 */
+  /* animation: progress-stripes 1s linear infinite; */
 }
 
+/* 🔥 禁用条纹动画
 @keyframes progress-stripes {
   from { background-position: 20px 0; }
   to { background-position: 0 0; }
 }
+*/
 
 /* ==================== 进度环 ==================== */
 .pt-progress-ring {

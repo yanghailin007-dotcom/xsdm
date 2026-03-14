@@ -269,7 +269,15 @@ async function startPhaseOneGenerationWithResume(event) {
             
             const progressMessage = document.getElementById('progress-message');
             if (progressMessage) {
-                progressMessage.textContent = `🔄 恢复生成中... 从 ${currentResumeInfo.current_step} 继续`;
+                // 🔥 修复：只更新文本节点，保留用时显示
+                const msg = `🔄 恢复生成中... 从 ${currentResumeInfo.current_step} 继续`;
+                let textNode = progressMessage.childNodes[0];
+                if (!textNode || textNode.nodeType !== Node.TEXT_NODE) {
+                    textNode = document.createTextNode(msg);
+                    progressMessage.insertBefore(textNode, progressMessage.firstChild);
+                } else {
+                    textNode.textContent = msg;
+                }
             }
             
             const response = await fetch('/api/generation/resume', {
@@ -362,7 +370,11 @@ function updateProgressDisplay(data) {
     const progressPercentage = document.getElementById('progress-percentage');
     
     if (progressMessage) {
-        progressMessage.textContent = `🔄 正在生成... 当前步骤: ${data.current_step || '初始化'}`;
+        const newMessage = `⚙️ 正在生成... 当前步骤: ${data.current_step || '初始化'}`;
+        // 🔥 避免闪烁：只有消息变化时才更新
+        if (progressMessage.textContent !== newMessage) {
+            progressMessage.textContent = newMessage;
+        }
     }
     
     if (progressFill) {
@@ -384,7 +396,15 @@ function handleTaskCompletion(data) {
     
     if (data.status === 'completed') {
         if (progressMessage) {
-            progressMessage.textContent = '✅ 生成完成！';
+            // 🔥 修复：只更新文本节点，保留用时显示
+            const msg = '✅ 生成完成！';
+            let textNode = progressMessage.childNodes[0];
+            if (!textNode || textNode.nodeType !== Node.TEXT_NODE) {
+                textNode = document.createTextNode(msg);
+                progressMessage.insertBefore(textNode, progressMessage.firstChild);
+            } else {
+                textNode.textContent = msg;
+            }
         }
         
         // 显示结果区域
@@ -412,7 +432,15 @@ function handleTaskCompletion(data) {
         
     } else if (data.status === 'failed') {
         if (progressMessage) {
-            progressMessage.textContent = `❌ 生成失败: ${data.error || '未知错误'}`;
+            // 🔥 修复：只更新文本节点，保留用时显示
+            const msg = `❌ 生成失败: ${data.error || '未知错误'}`;
+            let textNode = progressMessage.childNodes[0];
+            if (!textNode || textNode.nodeType !== Node.TEXT_NODE) {
+                textNode = document.createTextNode(msg);
+                progressMessage.insertBefore(textNode, progressMessage.firstChild);
+            } else {
+                textNode.textContent = msg;
+            }
         }
     }
 }

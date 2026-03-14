@@ -1250,7 +1250,8 @@ def get_active_phase_one_tasks():
                         "progress": task.get("progress", 0),
                         "current_step": task.get("current_step", ""),
                         "created_at": task.get("created_at"),
-                        "updated_at": task.get("updated_at")
+                        "updated_at": task.get("updated_at"),
+                        "config": task_config  # 🔥 添加配置信息用于前端恢复
                     })
         
         # 按更新时间排序，最新的在前
@@ -2852,6 +2853,7 @@ def register_additional_routes(app):
             generation_params['user_id'] = user_id
             generation_params['estimated_points'] = remaining_estimate
             generation_params['checkpoint_step'] = current_step
+            generation_params['start_new'] = False  # 🔥 关键：确保恢复模式不从头开始
             
             # 启动生成任务
             task_id = manager.start_generation(generation_params)

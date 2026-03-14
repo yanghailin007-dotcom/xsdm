@@ -1238,15 +1238,24 @@ class PhaseOneSetup {
     }
 
     updateProgressMessage(message) {
+        if (!message) return;
+        
         // 优先使用详细进度消息区域
         const progressMessage = document.getElementById('progress-message');
         if (progressMessage) {
-            progressMessage.textContent = message;
+            // 🔥 修复：只更新文本节点，保留用时显示
+            let textNode = progressMessage.childNodes[0];
+            if (!textNode || textNode.nodeType !== Node.TEXT_NODE) {
+                textNode = document.createTextNode(message);
+                progressMessage.insertBefore(textNode, progressMessage.firstChild);
+            } else if (textNode.textContent !== message) {
+                textNode.textContent = message;
+            }
         }
         
         // 同时更新loading-overlay中的文本（如果存在）
         const loadingText = document.getElementById('loading-text');
-        if (loadingText) {
+        if (loadingText && loadingText.textContent !== message) {
             loadingText.textContent = message;
         }
     }

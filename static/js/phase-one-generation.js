@@ -133,7 +133,14 @@ async function startPhaseOneGeneration(event) {
         // 更新进度消息显示错误
         const progressMessage = document.getElementById('progress-message');
         if (progressMessage) {
-            progressMessage.textContent = `❌ ${error.message}`;
+            // 🔥 修复：只更新文本节点，保留用时显示
+            let textNode = progressMessage.childNodes[0];
+            if (!textNode || textNode.nodeType !== Node.TEXT_NODE) {
+                textNode = document.createTextNode(`❌ ${error.message}`);
+                progressMessage.insertBefore(textNode, progressMessage.firstChild);
+            } else {
+                textNode.textContent = `❌ ${error.message}`;
+            }
             progressMessage.style.color = '#ef4444';
         }
     }
@@ -325,8 +332,19 @@ function updateProgress(percentage, message) {
         console.log(`[DEBUG] 百分比文本已更新: ${percentage}%`);
     }
     if (progressMessage && message) {
-        progressMessage.textContent = message;
-        console.log(`[DEBUG] 进度消息已更新: ${message}`);
+        // 🔥 修复：只更新文本节点，不删除子元素（如用时显示）
+        // 获取第一个文本节点（进度消息）
+        let textNode = progressMessage.childNodes[0];
+        if (!textNode || textNode.nodeType !== Node.TEXT_NODE) {
+            // 如果没有文本节点，创建一个
+            textNode = document.createTextNode(message);
+            progressMessage.insertBefore(textNode, progressMessage.firstChild);
+        }
+        // 只更新文本内容
+        if (textNode.textContent !== message) {
+            textNode.textContent = message;
+            console.log(`[DEBUG] 进度消息已更新: ${message}`);
+        }
     }
 }
 
@@ -699,6 +717,10 @@ async function doStopGeneration() {
         if (result.success) {
             // 清除轮询
             clearInterval(progressInterval);
+            if (window.elapsedInterval) {
+                clearInterval(window.elapsedInterval);
+                window.elapsedInterval = null;
+            }
             currentTaskId = null;
             
             // 显示成功消息
@@ -713,7 +735,15 @@ async function doStopGeneration() {
             const progressPercentage = document.getElementById('progress-percentage');
             
             if (progressMessage) {
-                progressMessage.innerHTML = '<span style="color: var(--v2-accent-orange, #fbbf24);">⏸️ 生成已停止</span> - 进度已保存，可随时恢复';
+                // 🔥 修复：只更新文本节点，保留用时显示
+                let textNode = progressMessage.childNodes[0];
+                const stopMsg = '⏸️ 生成已停止 - 进度已保存，可随时恢复';
+                if (!textNode || textNode.nodeType !== Node.TEXT_NODE) {
+                    textNode = document.createTextNode(stopMsg);
+                    progressMessage.insertBefore(textNode, progressMessage.firstChild);
+                } else {
+                    textNode.textContent = stopMsg;
+                }
             }
             if (progressPercentage) {
                 progressPercentage.style.color = 'var(--v2-accent-orange, #fbbf24)';
@@ -1168,13 +1198,13 @@ async function restoreActiveTaskOnLoad() {
         const response = await fetch('/api/phase-one/active-tasks');
         if (!response.ok) {
             console.warn('[RESTORE] 获取活跃任务失败:', response.status);
-            return;
+            return false; // 返回false表示没有恢复任务
         }
         
         const result = await response.json();
         if (!result.success || !result.tasks || result.tasks.length === 0) {
             console.log('[RESTORE] 没有进行中的生成任务');
-            return;
+            return false; // 返回false表示没有恢复任务
         }
         
         // 获取最新的活跃任务
@@ -1184,8 +1214,83 @@ async function restoreActiveTaskOnLoad() {
         // 恢复任务状态
         currentTaskId = activeTask.task_id;
         
+        // 🔥 恢复创意选择 - 尝试匹配创意库中的创意
+        const config = activeTask.config || {};
+        const creativeSeed = config.creative_seed || {};
+        const novelTitle = activeTask.title || creativeSeed.novelTitle || '';
+        const novelSynopsis = config.synopsis || creativeSeed.novelSynopsis || '';
+        const coreSetting = config.core_setting || creativeSeed.coreSetting || '';
+        
+        // 填充表单字段
+        const titleInput = document.getElementById('novel-title');
+        const synopsisInput = document.getElementById('novel-synopsis');
+        const coreSettingInput = document.getElementById('core-setting');
+        const totalChaptersInput = document.getElementById('total-chapters');
+        const generationModeSelect = document.getElementById('generation-mode');
+        
+        if (titleInput) titleInput.value = novelTitle;
+        if (synopsisInput) synopsisInput.value = novelSynopsis;
+        if (coreSettingInput) coreSettingInput.value = coreSetting;
+        if (totalChaptersInput) totalChaptersInput.value = config.total_chapters || 200;
+        
+        // 🔥 恢复生成模式
+        if (generationModeSelect) {
+            if (config.generation_mode) {
+                generationModeSelect.value = config.generation_mode;
+            } else {
+                generationModeSelect.value = 'phase_one_only';
+            }
+        }
+        
+        // 🔥 尝试匹配并选中创意库中的创意
+        if (creativeSeed.id || novelTitle) {
+            const ideaSelect = document.getElementById('creative-idea-select');
+            if (ideaSelect) {
+                // 先尝试通过ID匹配
+                let matchedOption = null;
+                if (creativeSeed.id) {
+                    matchedOption = Array.from(ideaSelect.options).find(
+                        opt => opt.value === creativeSeed.id
+                    );
+                }
+                // 如果没找到，尝试通过标题匹配
+                if (!matchedOption && novelTitle) {
+                    matchedOption = Array.from(ideaSelect.options).find(
+                        opt => opt.textContent.includes(novelTitle.substring(0, 20))
+                    );
+                }
+                
+                if (matchedOption) {
+                    ideaSelect.value = matchedOption.value;
+                    console.log('[RESTORE] 已选中创意:', matchedOption.textContent);
+                    // 触发change事件以更新相关UI
+                    ideaSelect.dispatchEvent(new Event('change'));
+                } else {
+                    // 🔥 如果没有匹配到创意，创建一个临时选项
+                    console.log('[RESTORE] 未找到匹配的创意，创建临时选项');
+                    const tempOption = document.createElement('option');
+                    tempOption.value = 'restored_task';
+                    tempOption.textContent = `📋 当前任务: ${novelTitle.substring(0, 30)}...`;
+                    tempOption.selected = true;
+                    ideaSelect.insertBefore(tempOption, ideaSelect.firstChild);
+                    
+                    // 显示创意详情区域（如果有）
+                    const creativeDetails = document.getElementById('creative-details');
+                    if (creativeDetails) {
+                        creativeDetails.style.display = 'block';
+                    }
+                }
+            }
+        }
+        
+        // 🔥 恢复开始时间（用于用时计算）
+        if (activeTask.created_at) {
+            generationStartTime = new Date(activeTask.created_at).getTime();
+            console.log('[RESTORE] 恢复开始时间:', new Date(generationStartTime));
+        }
+        
         // 显示恢复提示
-        showStatusMessage(`🔄 检测到进行中的生成任务: ${activeTask.title}`, 'info');
+        showStatusMessage(`🔄 检测到进行中的生成任务: ${novelTitle || '未命名'}`, 'info');
         
         // 切换到进度区域
         switchToStep('generation');
@@ -1193,13 +1298,13 @@ async function restoreActiveTaskOnLoad() {
         // 更新进度显示
         updateProgress(activeTask.progress || 0, `恢复任务: ${activeTask.current_step || '生成中...'}`);
         
-        // 如果有小说标题，填充到表单
-        if (activeTask.title && activeTask.title !== '未知') {
-            const titleInput = document.getElementById('novel-title');
-            if (titleInput && !titleInput.value) {
-                titleInput.value = activeTask.title;
-            }
+        // 🔥 启动用时计时器
+        if (window.elapsedInterval) {
+            clearInterval(window.elapsedInterval);
         }
+        window.elapsedInterval = setInterval(() => {
+            updateElapsedTime();
+        }, 1000);
         
         // 开始轮询进度
         progressInterval = setInterval(() => {
@@ -1210,17 +1315,17 @@ async function restoreActiveTaskOnLoad() {
         await updateProgressStatus(currentTaskId);
         
         console.log('[RESTORE] 任务恢复完成，开始轮询进度');
+        return true; // 返回true表示成功恢复了任务
         
     } catch (error) {
         console.error('[RESTORE] 恢复活跃任务失败:', error);
+        return false; // 返回false表示恢复失败
     }
 }
 
-// 页面加载完成后检查活跃任务
-document.addEventListener('DOMContentLoaded', function() {
-    // 延迟执行，确保其他初始化完成
-    setTimeout(restoreActiveTaskOnLoad, 1000);
-});
+// 🔥 注意：页面加载时的任务恢复现在在 phase-one-setup-new.html 中处理
+// 以确保创意库加载完成后再匹配创意
+// phase-one-setup-new.html 会调用 restoreActiveTaskOnLoad()
 
 // 🔥 更新已用时间（与第二阶段保持一致）
 function updateElapsedTime() {
@@ -1239,21 +1344,10 @@ function updateElapsedTime() {
         timeText = `用时: ${seconds}秒`;
     }
     
-    // 更新页面上的用时显示（在进度消息中添加）
-    const progressMessage = document.getElementById('progress-message');
-    if (progressMessage && !progressMessage.textContent.includes('用时:')) {
-        // 如果还没有用时显示，添加一个
-        const timeEl = document.createElement('span');
-        timeEl.id = 'progress-time-elapsed';
-        timeEl.style.cssText = 'margin-left: 12px; color: #fbbf24; font-weight: 500;';
+    // 更新独立的用时显示元素（不再混合在 progress-message 中）
+    const timeEl = document.getElementById('progress-time-elapsed');
+    if (timeEl) {
         timeEl.textContent = timeText;
-        progressMessage.appendChild(timeEl);
-    } else if (progressMessage) {
-        // 更新已有的用时显示
-        const timeEl = document.getElementById('progress-time-elapsed');
-        if (timeEl) {
-            timeEl.textContent = timeText;
-        }
     }
 }
 

@@ -64,6 +64,20 @@ async function loadCurrentUser() {
                 console.log('[UserInfo] Account already exists in AccountManager:', data.username);
                 // 更新当前账户ID
                 window.accountManager.currentId = existingAccount.id;
+                
+                // 🔥 更新 token（如果有新的 token）
+                if (data.access_token) {
+                    existingAccount.accessToken = data.access_token;
+                }
+                if (data.refresh_token) {
+                    existingAccount.refreshToken = data.refresh_token;
+                }
+                if (data.expires_in) {
+                    existingAccount.expiresAt = Date.now() + (data.expires_in * 1000);
+                }
+                // 清除需要重新登录的标记
+                existingAccount.needsRelogin = false;
+                
                 window.accountManager.save();
             }
         }

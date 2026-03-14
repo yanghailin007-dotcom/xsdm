@@ -393,6 +393,14 @@ class ResumeManager:
             是否成功
         """
         try:
+            # 🔥 检查是否被请求停止
+            if hasattr(self.generator, '_stop_check_callback'):
+                try:
+                    self.generator._stop_check_callback()
+                except InterruptedError:
+                    print(f"🛑 步骤 '{step}' 被用户停止")
+                    raise
+            
             # 根据步骤名称调用对应的方法
             # 注：这些是 PhaseGenerator 中定义的详细步骤
             step_methods = {

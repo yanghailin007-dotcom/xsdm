@@ -56,12 +56,13 @@ class ResumableNovelGenerationManager:
             任务ID
         """
         title = generation_params.get('title')
+        username = generation_params.get('username')
         
         if not title:
             raise ValueError("小说标题不能为空")
         
-        # 创建检查点管理器
-        checkpoint_mgr = GenerationCheckpoint(title, self.workspace_dir)
+        # 创建检查点管理器（传递 username 以使用正确的路径）
+        checkpoint_mgr = GenerationCheckpoint(title, self.workspace_dir, username=username)
         
         # 检查是否可以恢复
         if resume_mode:
@@ -219,6 +220,9 @@ class ResumableNovelGenerationManager:
         generation_params['is_resume_mode'] = True
         generation_params['resume_step'] = current_step
         generation_params['resume_phase'] = phase
+        
+        # 🔥 关键修复：恢复时必须设置 start_new=False，否则会导致从头开始
+        generation_params['start_new'] = False
         
         # 🔥 关键修复：确保 creative_seed 存在
         # 如果 generation_params 中没有 creative_seed，尝试从其他地方获取

@@ -360,7 +360,7 @@
     border-radius: var(--radius-full);
     width: 0%;
     transition: width 0.3s ease;
-    animation: progressPulse 2s ease-in-out infinite;
+    /* 🔥 移除闪烁动画: animation: progressPulse 2s ease-in-out infinite; */
 }
 
 @keyframes progressPulse {

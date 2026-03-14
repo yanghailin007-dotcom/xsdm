@@ -286,7 +286,23 @@ class StagePlanManager:
             return self.stage_writing_plans_cache[cache_key]
         
         import threading
+        import time
         thread_id = threading.current_thread().name
+        stage_start_time = time.time()
+        
+        # 🔥 子步骤时间追踪
+        sub_step_timings = {}
+        def log_sub_step(step_name, action='start'):
+            now = time.time()
+            if action == 'start':
+                sub_step_timings[step_name] = {'start': now}
+                self.logger.info(f"   ⏱️  [{step_name}] 开始...")
+            elif action == 'end':
+                if step_name in sub_step_timings:
+                    duration = now - sub_step_timings[step_name]['start']
+                    sub_step_timings[step_name]['duration'] = duration
+                    self.logger.info(f"   ✅ [{step_name}] 完成 ({duration:.1f}s)")
+        
         self.logger.info(f"🎬 [线程:{thread_id}] 开始为【{stage_name}】生成智能分形写作计划...")
         
         # 存储当前stage_name供API调用使用
@@ -320,6 +336,7 @@ class StagePlanManager:
                 self.logger.debug(f"子步骤进度报告失败: {e}")
         
         # Phase 1: 生成阶段情绪计划（如果未传入预生成的计划）
+        log_sub_step('Phase1_情绪计划', 'start')
         if stage_emotional_plan is None:
             report_sub_step('emotional_plan', 'active', f'生成 {stage_name} 情绪计划')
             emotional_blueprint = self.generator.novel_data.get("emotional_blueprint", {})
@@ -328,8 +345,10 @@ class StagePlanManager:
             )
         else:
             self.logger.info(f"   💖 使用预生成的情绪计划 for {stage_name}")
+        log_sub_step('Phase1_情绪计划', 'end')
         
         # Phase 2: 生成主龙骨（重大事件骨架）
+        log_sub_step('Phase2_主龙骨', 'start')
         report_sub_step('major_event_skeletons', 'active', '生成重大事件骨架')
         
         # 🚀 优化：使用预生成的主龙骨（批量生成）
@@ -348,8 +367,10 @@ class StagePlanManager:
             report_sub_step('major_event_skeletons', 'failed', '主龙骨生成失败')
             return {}
         report_sub_step('major_event_skeletons', 'completed', f'生成 {len(major_event_skeletons)} 个重大事件')
+        log_sub_step('Phase2_主龙骨', 'end')
         
         # Phase 3: 分解重大事件为中型事件（事件解剖）
+        log_sub_step('Phase3_事件解剖', 'start')
         report_sub_step('event_decomposition', 'active', '解剖重大事件，拆分为中型事件')
         self.logger.info("   Phase 2: 逐一'解剖'重大事件，填充中型事件...")
         fleshed_out_major_events = self._decompose_major_events_to_medium_only(
@@ -362,32 +383,42 @@ class StagePlanManager:
             report_sub_step('event_decomposition', 'failed', '事件解剖失败')
             return {}
         report_sub_step('event_decomposition', 'completed', f'解剖完成，共 {len(fleshed_out_major_events)} 个事件')
+        log_sub_step('Phase3_事件解剖', 'end')
         
         # Phase 4: 验证和优化事件层级（连续性评估）
+        log_sub_step('Phase4_连续性评估', 'start')
         report_sub_step('continuity_assessment', 'active', '评估阶段连续性和事件层级')
         self.logger.info("   Phase 3: 验证并优化事件层级和连续性...")
         goal_coherence, continuity_assessment = self._validate_and_optimize_events(
             fleshed_out_major_events, stage_name, stage_range, overall_stage_plan
         )
         report_sub_step('continuity_assessment', 'completed', '连续性评估完成')
+        log_sub_step('Phase4_连续性评估', 'end')
         
         # Phase 5: 组装最终计划
+        log_sub_step('Phase5_组装计划', 'start')
         self.logger.info("   Phase 4: 组装最终的写作计划...")
         final_writing_plan = self.scene_assembler.assemble_final_plan(
             stage_name, stage_range, fleshed_out_major_events, overall_stage_plan,
             novel_title, novel_synopsis, creative_seed
         )
         
+        log_sub_step('Phase5_组装计划', 'end')
+        
         # Phase 6: 推断新角色
+        log_sub_step('Phase6_角色推断', 'start')
         report_sub_step('character_inference', 'active', '推断阶段所需新角色')
         # ... 角色推断逻辑 ...
         report_sub_step('character_inference', 'completed', '角色推断完成')
+        log_sub_step('Phase6_角色推断', 'end')
         
         # Phase 7: 生成阶段补充角色
+        log_sub_step('Phase7_补充角色', 'start')
         # 🚀 已优化：改为在所有阶段计划完成后批量生成（节省 API 调用）
         report_sub_step('supporting_characters', 'active', '等待批量生成')
         self.logger.info("   Phase 4.5: 补充角色将在所有阶段计划完成后批量生成...")
         report_sub_step('supporting_characters', 'completed', '待批量生成')
+        log_sub_step('Phase7_补充角色', 'end')
         
         # 添加评估结果
         if "stage_writing_plan" in final_writing_plan:
@@ -400,14 +431,15 @@ class StagePlanManager:
         if continuity_assessment:
             plan_container["continuity_assessment"] = continuity_assessment
         
-        # Phase 5: 验证和保存
-        self.logger.info("   Phase 5: 进行最终整体验证和保存...")
+        # Phase 8: 验证和保存
+        log_sub_step('Phase8_验证保存', 'start')
+        self.logger.info("   Phase 8: 进行最终整体验证和保存...")
         final_writing_plan = self._validate_and_optimize_writing_plan(
             final_writing_plan, stage_name, stage_range
         )
         
-        # 🆕 Phase 5.5: 生成期待感映射
-        self.logger.info("   Phase 5.5: 为事件生成期待感标签...")
+        # 🆕 Phase 9: 生成期待感映射
+        self.logger.info("   Phase 9: 为事件生成期待感标签...")
         final_writing_plan = self._generate_expectation_mapping(
             final_writing_plan, stage_name
         )
@@ -430,11 +462,30 @@ class StagePlanManager:
                 relative_path = f"plans/{stage_name}_writing_plan.json"
             
             self.generator.novel_data["stage_writing_plans"][stage_name] = {"path": str(relative_path)}
-            self.logger.info(f"  ✅ 【{stage_name}】分形写作计划生成完成！")
+            log_sub_step('Phase8_验证保存', 'end')
+            stage_duration = time.time() - stage_start_time
+            
+            # 🔥 打印子步骤耗时汇总
+            self.logger.info(f"\n   📊 [{stage_name}] 子步骤耗时明细:")
+            for step_name, timing in sorted(sub_step_timings.items(), key=lambda x: x[1].get('duration', 0), reverse=True):
+                if 'duration' in timing:
+                    bar = "█" * int(timing['duration'] / 2)
+                    self.logger.info(f"      {step_name:20s} {timing['duration']:5.1f}s {bar}")
+            
+            self.logger.info(f"\n  ✅ 【{stage_name}】分形写作计划生成完成！总耗时: {stage_duration:.1f}s")
             self._print_fractal_plan_summary(final_writing_plan)
+            
+            # 🔥 关键：记录耗时用于后续分析
+            final_writing_plan['_generation_metrics'] = {
+                'duration_seconds': round(stage_duration, 1),
+                'thread_id': thread_id,
+                'timestamp': time.strftime('%Y-%m-%d %H:%M:%S'),
+                'sub_step_timings': {k: round(v.get('duration', 0), 1) for k, v in sub_step_timings.items()}
+            }
             return final_writing_plan
         else:
-            self.logger.error(f"    🚨 【{stage_name}】写作计划生成失败。")
+            stage_duration = time.time() - stage_start_time
+            self.logger.error(f"    🚨 【{stage_name}】写作计划生成失败。耗时: {stage_duration:.1f}s")
             return {}
     
     def get_stage_writing_plan_by_name(self, stage_name: str) -> Dict:
