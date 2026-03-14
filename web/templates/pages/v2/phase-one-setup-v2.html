@@ -1597,81 +1597,109 @@
         async function checkIncompleteProjects() {
             try {
                 console.log('[V2] 检测未完成项目...');
-                const response = await fetch('/api/projects/with-phase-status');
+                
+                // 🔥 修复：使用 resumable-tasks API 获取可恢复的任务列表
+                // 这个 API 能正确检测到正在进行的生成任务
+                const response = await fetch('/api/resumable-tasks');
                 const result = await response.json();
                 
-                if (!result.success) {
-                    console.log('[V2] 无法获取项目状态');
+                if (!result.success || !result.tasks || result.tasks.length === 0) {
+                    console.log('[V2] 未发现可恢复的任务');
                     return;
                 }
                 
-                // 查找第一阶段已开始但未完成的项目
-                const incompleteProjects = result.projects.filter(p => 
-                    p.phase_one && 
-                    p.phase_one.status === 'not_started' && 
-                    p.status === 'designing'
+                // 过滤出第一阶段的未完成任务
+                // 🔥 修复：检查点存在即表示未完成，通过 completed_steps < total_steps 判断
+                const incompleteTasks = result.tasks.filter(t => 
+                    t.phase === 'phase_one' && 
+                    t.completed_steps < t.total_steps
                 );
                 
-                if (incompleteProjects.length > 0) {
-                    // 取最近的一个项目
-                    const project = incompleteProjects[0];
-                    console.log('[V2] 发现未完成项目:', project.title);
+                if (incompleteTasks.length === 0) {
+                    console.log('[V2] 未发现第一阶段未完成的任务');
+                    return;
+                }
+                
+                // 取最近的一个任务（按时间戳排序）
+                incompleteTasks.sort((a, b) => {
+                    const timeA = a.timestamp ? new Date(a.timestamp).getTime() : 0;
+                    const timeB = b.timestamp ? new Date(b.timestamp).getTime() : 0;
+                    return timeB - timeA; // 降序，最新的在前
+                });
+                
+                const task = incompleteTasks[0];
+                console.log('[V2] 发现未完成任务:', task.novel_title || task.creative_title);
+                
+                // 显示恢复横幅
+                const banner = document.getElementById('resume-banner');
+                const titleEl = document.getElementById('resume-project-title');
+                const progressEl = document.getElementById('resume-progress');
+                const updatedEl = document.getElementById('resume-last-updated');
+                
+                if (banner && titleEl) {
+                    const title = task.novel_title || task.creative_title;
+                    titleEl.textContent = title;
                     
                     // 显示恢复横幅
-                    const banner = document.getElementById('resume-banner');
-                    const titleEl = document.getElementById('resume-project-title');
-                    const progressEl = document.getElementById('resume-progress');
-                    const updatedEl = document.getElementById('resume-last-updated');
+                    banner.style.display = 'block';
                     
-                    if (banner && titleEl) {
-                        titleEl.textContent = project.title;
+                    // 直接显示任务进度
+                    const completed = task.completed_steps || 0;
+                    const total = task.total_steps || 14;
+                    progressEl.textContent = `${completed}/${total} 个步骤`;
+                    
+                    // 显示最后更新时间
+                    const updated = task.timestamp || task.last_updated;
+                    if (updated) {
+                        const date = new Date(updated);
+                        const now = new Date();
+                        const diff = Math.floor((now - date) / 1000 / 60); // 分钟
                         
-                        // 显示恢复横幅（先显示加载状态）
-                        banner.style.display = 'block';
-                        progressEl.textContent = '加载中...';
-                        
-                        // 获取检查点信息以显示步骤进度
-                        fetch(`/api/resumable-tasks/${encodeURIComponent(project.title)}`)
-                            .then(r => r.json())
-                            .then(checkpointResult => {
-                                if (checkpointResult.success && checkpointResult.resume_info) {
-                                    const info = checkpointResult.resume_info;
-                                    const completed = info.completed_steps || 0;
-                                    const total = info.total_steps || 14;
-                                    progressEl.textContent = `${completed}/${total} 个步骤`;
-                                    
-                                    // 显示最后更新时间（使用检查点时间）
-                                    const updated = info.timestamp || project.last_updated || project.created_at;
-                                    if (updated) {
-                                        const date = new Date(updated);
-                                        const now = new Date();
-                                        const diff = Math.floor((now - date) / 1000 / 60); // 分钟
-                                        
-                                        if (diff < 1) {
-                                            updatedEl.textContent = '刚刚';
-                                        } else if (diff < 60) {
-                                            updatedEl.textContent = diff + ' 分钟前';
-                                        } else if (diff < 1440) {
-                                            updatedEl.textContent = Math.floor(diff / 60) + ' 小时前';
-                                        } else {
-                                            updatedEl.textContent = Math.floor(diff / 1440) + ' 天前';
-                                        }
-                                    }
-                                } else {
-                                    // 检查点不可用，隐藏横幅
-                                    banner.style.display = 'none';
-                                }
-                            })
-                            .catch(err => {
-                                console.error('[V2] 获取检查点信息失败:', err);
-                                banner.style.display = 'none';
-                            });
-                        
-                        // 保存项目信息供恢复使用
-                        window.resumeProjectInfo = project;
+                        if (diff < 1) {
+                            updatedEl.textContent = '刚刚';
+                        } else if (diff < 60) {
+                            updatedEl.textContent = diff + ' 分钟前';
+                        } else if (diff < 1440) {
+                            updatedEl.textContent = Math.floor(diff / 60) + ' 小时前';
+                        } else {
+                            updatedEl.textContent = Math.floor(diff / 1440) + ' 天前';
+                        }
+                    } else {
+                        updatedEl.textContent = '未知';
                     }
-                } else {
-                    console.log('[V2] 未发现未完成项目');
+                    
+                    // 保存项目信息供恢复使用
+                    window.resumeProjectInfo = {
+                        title: task.novel_title || task.creative_title,
+                        synopsis: task.synopsis || '',
+                        core_setting: task.core_setting || '',
+                        total_chapters: task.total_chapters || 200
+                    };
+                    
+                    // 🔥 自动填充表单并显示恢复提示
+                    // 注意：不自动开始轮询，因为需要用户确认恢复模式
+                    // 用户点击"继续生成"按钮后会自动恢复
+                    
+                    // 预填充表单数据（如果检查点中有）
+                    if (task.data) {
+                        const data = task.data;
+                        if (data.title) {
+                            const titleInput = document.getElementById('novel-title');
+                            if (titleInput) titleInput.value = data.title;
+                        }
+                        if (data.synopsis) {
+                            const synopsisInput = document.getElementById('novel-synopsis');
+                            if (synopsisInput) synopsisInput.value = data.synopsis;
+                        }
+                        if (data.core_setting) {
+                            const coreSettingInput = document.getElementById('core-setting');
+                            if (coreSettingInput) coreSettingInput.value = data.core_setting;
+                        }
+                        if (data.total_chapters) {
+                            const totalChaptersInput = document.getElementById('total-chapters');
+                            if (totalChaptersInput) totalChaptersInput.value = data.total_chapters;
+                        }
+                    }
                 }
             } catch (error) {
                 console.error('[V2] 检测未完成项目失败:', error);
@@ -1693,18 +1721,32 @@
             const synopsisInput = document.getElementById('novel-synopsis');
             const coreSettingInput = document.getElementById('core-setting');
             const totalChaptersInput = document.getElementById('total-chapters');
+            const modeSelect = document.getElementById('generation-mode');
             
             if (titleInput) titleInput.value = project.title || '';
             if (synopsisInput) synopsisInput.value = project.synopsis || '';
             if (coreSettingInput) coreSettingInput.value = project.core_setting || '';
             if (totalChaptersInput) totalChaptersInput.value = project.total_chapters || 200;
             
+            // 🔥 关键：设置生成模式为恢复模式
+            if (modeSelect) {
+                modeSelect.value = 'resume_mode';
+                console.log('[V2] 已设置生成模式为 resume_mode');
+            }
+            
             // 隐藏恢复横幅
             const banner = document.getElementById('resume-banner');
             if (banner) banner.style.display = 'none';
             
             // 显示提示
-            showResumeNotification(`已加载项目「${project.title}」，请检查设定后点击生成`);
+            showResumeNotification(`已加载项目「${project.title}」，正在恢复生成...`);
+            
+            // 🔥 关键：自动开始生成（使用恢复模式）
+            // 稍微延迟以确保表单已更新
+            setTimeout(() => {
+                console.log('[V2] 自动开始恢复生成');
+                startPhaseOneGenerationWithResume(null);
+            }, 500);
         }
         
         // 🔥 开始新生成

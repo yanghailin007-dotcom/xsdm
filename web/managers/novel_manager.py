@@ -284,7 +284,8 @@ class NovelGenerationManager:
             logger.warning(f"⚠️ 检查点功能未启用: {e}")
         
         logger.info("🔧 NovelGenerationManager 初始化开始")
-        self.load_existing_novels()
+        # 注意：不在初始化时加载项目，改为在首次请求时按需加载
+        # self.load_existing_novels()
         
         # 🔥 加载历史任务（包括进行中的任务）
         self._load_persisted_tasks()
@@ -888,23 +889,22 @@ class NovelGenerationManager:
             quality_data = self.load_quality_data(title, username=username)
             novel_data["quality_data"] = quality_data
 
-            # 🔥 修复：从独立文件加载写作风格指南
+            # 🔥 从独立文件加载写作风格指南
             try:
+                # 严格检查：必须有用户名
+                if not username:
+                    raise ValueError(f"加载项目 {title} 时用户名为空，用户必须登录")
+                
                 writing_style_path = Path(paths.get("writing_style_guide", ""))
+                
                 if writing_style_path.exists():
                     with open(writing_style_path, 'r', encoding='utf-8') as f:
                         writing_style_guide = json.load(f)
                     novel_data["writing_style_guide"] = writing_style_guide
                     logger.info(f"  ✅ 已加载写作风格指南: {len(writing_style_guide)} 个键")
                 else:
-                    # 如果独立文件不存在，尝试从项目信息中获取
-                    if novel_data.get("writing_style_guide"):
-                        logger.info(f"  ✅ 从项目信息中获取写作风格指南")
-                    else:
-                        # 只在非 anonymous 用户时打印警告，避免启动时大量警告
-                        if username and username != 'anonymous':
-                            logger.debug(f"  ⚠️ 写作风格指南文件不存在: {writing_style_path}")
-                        novel_data["writing_style_guide"] = {}
+                    # 文件不存在是正常情况（尚未生成），静默处理
+                    novel_data["writing_style_guide"] = {}
             except Exception as e:
                 logger.warning(f"  ⚠️ 加载写作风格指南失败: {e}")
                 novel_data["writing_style_guide"] = novel_data.get("writing_style_guide", {})
@@ -1342,20 +1342,25 @@ class NovelGenerationManager:
                 standardized_data["global_growth_plan"] = global_growth_plan
                 logger.info("✅ 创建基础 global_growth_plan 结构")
 
-        # 🔥 修复：确保 writing_style_guide 字段存在（动态加载）
+        # 确保 writing_style_guide 字段存在（动态加载）
         if "writing_style_guide" not in standardized_data or not standardized_data.get("writing_style_guide"):
             try:
                 from src.config.path_config import path_config
-                # 🔥 修复：从 novel_data 获取 owner 作为 username
                 username = novel_data.get('owner')
+                
+                # 严格检查：必须有用户名
+                if not username:
+                    raise ValueError(f"标准化项目 {title} 时用户名为空")
+                
                 writing_style_path = Path(path_config.get_project_paths(title, username=username).get("writing_style_guide", ""))
+                
                 if writing_style_path.exists():
                     with open(writing_style_path, 'r', encoding='utf-8') as f:
                         writing_style_guide = json.load(f)
                     standardized_data["writing_style_guide"] = writing_style_guide
                     logger.info(f"✅ 动态加载写作风格指南成功: {len(writing_style_guide)} 个键")
                 else:
-                    logger.warning(f"⚠️ 写作风格指南文件不存在: {writing_style_path}")
+                    # 文件不存在是正常情况（尚未生成），静默处理
                     standardized_data["writing_style_guide"] = {}
             except Exception as e:
                 logger.warning(f"⚠️ 动态加载写作风格指南失败: {e}")

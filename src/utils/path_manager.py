@@ -247,15 +247,18 @@ class PathManager:
         """加载写作风格指南"""
         try:
             paths = self.path_config.get_project_paths(novel_title, username=username)
+            file_path = paths["writing_style_guide"]
             
-            if not os.path.exists(paths["writing_style_guide"]):
-                self.logger.info(f"⚠️ 写作风格指南文件不存在")
+            self.logger.info(f"🔍 尝试加载写作风格指南: {file_path}")
+            
+            if not os.path.exists(file_path):
+                self.logger.info(f"⚠️ 写作风格指南文件不存在: {file_path}")
                 return None
             
-            with open(paths["writing_style_guide"], 'r', encoding='utf-8') as f:
+            with open(file_path, 'r', encoding='utf-8') as f:
                 style_data = json.load(f)
             
-            self.logger.info(f"✅ 写作风格指南已加载: {paths['writing_style_guide']}")
+            self.logger.info(f"✅ 写作风格指南已加载: {file_path}")
             return style_data
         except Exception as e:
             self.logger.error(f"❌ 加载写作风格指南失败: {e}")
