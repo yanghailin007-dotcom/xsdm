@@ -3024,7 +3024,8 @@
             
             // 更新翻页按钮状态
             document.getElementById('book-prev-btn').disabled = bookCurrentPage <= 1;
-            document.getElementById('book-next-btn').disabled = bookCurrentPage + 1 >= bookTotalPages;
+            // 修复：下一页按钮禁用逻辑 - 当当前左页还有下两页时才可用
+            document.getElementById('book-next-btn').disabled = bookCurrentPage + 2 > bookTotalPages;
         }
         
         // 格式化页面内容
