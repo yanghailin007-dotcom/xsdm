@@ -1205,3 +1205,8 @@ document.addEventListener('DOMContentLoaded', function() {
     // 延迟执行，确保其他初始化完成
     setTimeout(restoreActiveTaskOnLoad, 1000);
 });
+// 🔥 兼容函数：phase-one-setup-new.html 使用的生成函数
+// 这是 startPhaseOneGeneration 的别名，用于支持恢复模式
+async function startPhaseOneGenerationWithResume(event) {
+    return startPhaseOneGeneration(event);
+}
