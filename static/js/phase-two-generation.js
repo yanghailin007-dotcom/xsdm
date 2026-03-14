@@ -1698,6 +1698,7 @@ function createProductEditDrawer(category, productData) {
 
     const isWorldview = category === 'worldview';
     const isCharacters = category === 'characters';
+    const isGrowth = category === 'growth';
     
     // 调试信息
     console.log(`[DEBUG] 创建抽屉: ${category}`);
@@ -1713,6 +1714,20 @@ function createProductEditDrawer(category, productData) {
                 : JSON.stringify(currentProject.character_design, null, 2)
         };
         console.log(`[DEBUG] 使用 currentProject 角色数据:`, productData);
+    }
+    
+    // 对于成长路线，优先从 currentProject 获取数据
+    if (isGrowth) {
+        const growthSource = currentProject?.global_growth_plan || currentProject?.growth;
+        if (growthSource) {
+            productData = {
+                title: '成长路线',
+                content: typeof growthSource === 'string' 
+                    ? growthSource 
+                    : JSON.stringify(growthSource, null, 2)
+            };
+            console.log(`[DEBUG] 使用 currentProject 成长路线数据:`, productData);
+        }
     }
     
     const drawerHtml = `
@@ -1742,10 +1757,17 @@ function createProductEditDrawer(category, productData) {
                     <button class="pt-drawer__tab" data-tab="supporting" onclick="switchDrawerTab('supporting')">配角设定</button>
                     <button class="pt-drawer__tab" data-tab="relationships" onclick="switchDrawerTab('relationships')">角色关系</button>
                 </div>
+                ` : isGrowth ? `
+                <div class="pt-drawer__tabs">
+                    <button class="pt-drawer__tab active" data-tab="realm" onclick="switchDrawerTab('realm')">境界体系</button>
+                    <button class="pt-drawer__tab" data-tab="stages" onclick="switchDrawerTab('stages')">成长阶段</button>
+                    <button class="pt-drawer__tab" data-tab="abilities" onclick="switchDrawerTab('abilities')">能力路线</button>
+                    <button class="pt-drawer__tab" data-tab="resources" onclick="switchDrawerTab('resources')">资源获取</button>
+                </div>
                 ` : ''}
                 
                 <div class="pt-drawer__content">
-                    ${isWorldview ? getWorldviewPanels(productData) : isCharacters ? getCharactersPanels(productData) : getGenericPanel(category, categoryNames, productData)}
+                    ${isWorldview ? getWorldviewPanels(productData) : isCharacters ? getCharactersPanels(productData) : isGrowth ? getGrowthPanels(productData) : getGenericPanel(category, categoryNames, productData)}
                 </div>
                 
                 <div class="pt-drawer__footer">
@@ -1968,6 +1990,111 @@ function formatCharacterDetail(character) {
     return lines.join('\n');
 }
 
+// 成长路线面板
+function getGrowthPanels(productData) {
+    // 解析成长路线数据
+    const growthData = parseGrowthData(productData?.content);
+    
+    // 境界体系标签页
+    const realmSystem = growthData.realm_system || growthData.power_system || {};
+    const realms = realmSystem.realms || growthData.realms || [];
+    
+    // 成长阶段标签页
+    const stages = growthData.growth_stages || growthData.stages || [];
+    
+    // 能力路线标签页
+    const abilities = growthData.ability_tree || growthData.abilities || {};
+    
+    // 资源获取标签页
+    const resources = growthData.resource_system || growthData.resources || {};
+    
+    return `
+        <div class="pt-drawer__panel active" data-panel="realm">
+            <div class="pt-form-section">
+                <div class="pt-form-section__title">🏔️ 境界体系</div>
+                <div class="pt-form-field">
+                    <label class="pt-form-field__label">体系名称</label>
+                    <input type="text" class="pt-form-field__input" id="realm-system-name" value="${realmSystem.name || growthData.power_system_name || ''}" placeholder="如：修仙体系、异能等级">
+                </div>
+                <div class="pt-form-field">
+                    <label class="pt-form-field__label">体系概述</label>
+                    <textarea class="pt-form-field__textarea" id="realm-system-overview" rows="4" placeholder="描述整个境界体系的特点...">${realmSystem.overview || realmSystem.description || ''}</textarea>
+                </div>
+                <div class="pt-form-field">
+                    <label class="pt-form-field__label">境界等级（每行一个）</label>
+                    <textarea class="pt-form-field__textarea" id="realm-levels" rows="10" placeholder="炼气期&#10;筑基期&#10;金丹期&#10;元婴期...">${Array.isArray(realms) ? realms.map(r => r.name || r).join('\n') : ''}</textarea>
+                </div>
+            </div>
+        </div>
+        
+        <div class="pt-drawer__panel" data-panel="stages">
+            <div class="pt-form-section">
+                <div class="pt-form-section__title">📈 成长阶段</div>
+                <div class="pt-form-field">
+                    <label class="pt-form-field__label">初期阶段（入门-基础）</label>
+                    <textarea class="pt-form-field__textarea" id="stage-early" rows="6" placeholder="主角初期的成长目标、挑战和突破点...">${growthData.early_stage || (Array.isArray(stages) && stages[0]?.description) || ''}</textarea>
+                </div>
+                <div class="pt-form-field">
+                    <label class="pt-form-field__label">中期阶段（发展-蜕变）</label>
+                    <textarea class="pt-form-field__textarea" id="stage-mid" rows="6" placeholder="主角中期的成长路径、重要转折...">${growthData.mid_stage || (Array.isArray(stages) && stages[1]?.description) || ''}</textarea>
+                </div>
+                <div class="pt-form-field">
+                    <label class="pt-form-field__label">后期阶段（巅峰-超越）</label>
+                    <textarea class="pt-form-field__textarea" id="stage-late" rows="6" placeholder="主角后期的终极目标、最终形态...">${growthData.late_stage || (Array.isArray(stages) && stages[2]?.description) || ''}</textarea>
+                </div>
+            </div>
+        </div>
+        
+        <div class="pt-drawer__panel" data-panel="abilities">
+            <div class="pt-form-section">
+                <div class="pt-form-section__title">⚡ 能力路线</div>
+                <div class="pt-form-field">
+                    <label class="pt-form-field__label">核心能力</label>
+                    <textarea class="pt-form-field__textarea" id="core-abilities" rows="5" placeholder="主角的核心能力类型，如：剑道、法术、肉身...">${abilities.core || growthData.core_abilities || ''}</textarea>
+                </div>
+                <div class="pt-form-field">
+                    <label class="pt-form-field__label">特殊技能/秘术</label>
+                    <textarea class="pt-form-field__textarea" id="special-skills" rows="5" placeholder="主角掌握的特殊技能、独门秘术...">${abilities.special || growthData.special_skills || ''}</textarea>
+                </div>
+                <div class="pt-form-field">
+                    <label class="pt-form-field__label">能力进阶路线</label>
+                    <textarea class="pt-form-field__textarea" id="ability-progression" rows="6" placeholder="能力如何随着境界提升而进化...">${abilities.progression || growthData.ability_progression || ''}</textarea>
+                </div>
+            </div>
+        </div>
+        
+        <div class="pt-drawer__panel" data-panel="resources">
+            <div class="pt-form-section">
+                <div class="pt-form-section__title">💎 资源获取</div>
+                <div class="pt-form-field">
+                    <label class="pt-form-field__label">修炼资源类型</label>
+                    <textarea class="pt-form-field__textarea" id="cultivation-resources" rows="5" placeholder="灵石、丹药、天材地宝等资源...">${resources.cultivation || growthData.cultivation_resources || ''}</textarea>
+                </div>
+                <div class="pt-form-field">
+                    <label class="pt-form-field__label">资源获取途径</label>
+                    <textarea class="pt-form-field__textarea" id="resource-sources" rows="5" placeholder="如何获取资源：探险、任务、交易、战斗...">${resources.sources || growthData.resource_sources || ''}</textarea>
+                </div>
+                <div class="pt-form-field">
+                    <label class="pt-form-field__label">瓶颈突破条件</label>
+                    <textarea class="pt-form-field__textarea" id="breakthrough-conditions" rows="5" placeholder="突破各个境界需要的特殊条件...">${resources.breakthrough || growthData.breakthrough_conditions || ''}</textarea>
+                </div>
+            </div>
+        </div>
+    `;
+}
+
+// 解析成长路线数据
+function parseGrowthData(content) {
+    if (!content) return {};
+    try {
+        if (typeof content === 'object') return content;
+        return JSON.parse(content);
+    } catch (e) {
+        // 如果不是JSON，返回包含原始内容的文本字段
+        return { raw_content: content };
+    }
+}
+
 function getGenericPanel(category, categoryNames, productData) {
     return `
         <div class="pt-form-section">
@@ -2052,6 +2179,47 @@ async function saveProductEdit(category) {
                 supporting_characters: document.getElementById('supporting-chars')?.value || '',
                 relationships: document.getElementById('relationships')?.value || '',
                 character_arcs: document.getElementById('character-arcs')?.value || ''
+            }, null, 2);
+        } else if (category === 'growth') {
+            title = '成长路线';
+            // 解析境界等级文本为数组
+            const realmLevelsText = document.getElementById('realm-levels')?.value || '';
+            const realms = realmLevelsText.split('\n').map(r => r.trim()).filter(r => r);
+            
+            content = JSON.stringify({
+                realm_system: {
+                    name: document.getElementById('realm-system-name')?.value || '',
+                    overview: document.getElementById('realm-system-overview')?.value || '',
+                    realms: realms.map((name, index) => ({
+                        name: name,
+                        level: index + 1,
+                        description: ''
+                    }))
+                },
+                growth_stages: [
+                    { stage: '初期', description: document.getElementById('stage-early')?.value || '' },
+                    { stage: '中期', description: document.getElementById('stage-mid')?.value || '' },
+                    { stage: '后期', description: document.getElementById('stage-late')?.value || '' }
+                ],
+                ability_tree: {
+                    core: document.getElementById('core-abilities')?.value || '',
+                    special: document.getElementById('special-skills')?.value || '',
+                    progression: document.getElementById('ability-progression')?.value || ''
+                },
+                resource_system: {
+                    cultivation: document.getElementById('cultivation-resources')?.value || '',
+                    sources: document.getElementById('resource-sources')?.value || '',
+                    breakthrough: document.getElementById('breakthrough-conditions')?.value || ''
+                },
+                early_stage: document.getElementById('stage-early')?.value || '',
+                mid_stage: document.getElementById('stage-mid')?.value || '',
+                late_stage: document.getElementById('stage-late')?.value || '',
+                core_abilities: document.getElementById('core-abilities')?.value || '',
+                special_skills: document.getElementById('special-skills')?.value || '',
+                ability_progression: document.getElementById('ability-progression')?.value || '',
+                cultivation_resources: document.getElementById('cultivation-resources')?.value || '',
+                resource_sources: document.getElementById('resource-sources')?.value || '',
+                breakthrough_conditions: document.getElementById('breakthrough-conditions')?.value || ''
             }, null, 2);
         } else {
             // 普通单字段模式
