@@ -4,6 +4,7 @@ let progressInterval = null;
 let phaseOneResult = null;
 let estimatedPoints = 0;  // 预估点数
 let pointsCheckInterval = null;  // 点数轮询间隔
+let generationStartTime = null;  // 生成开始时间（用于耗时统计）
 
 // 详细步骤映射（14个步骤）- 对应实际的设定生成流程
 const DETAILED_STEP_ORDER = [
@@ -104,6 +105,7 @@ async function startPhaseOneGeneration(event) {
         if (result.success) {
             currentTaskId = result.task_id;
             estimatedPoints = result.points_spent || 0;  // 保存预估点数
+            generationStartTime = Date.now();  // 记录生成开始时间
             
             // 初始化点数显示
             updatePointsDisplay(0, estimatedPoints);
@@ -112,6 +114,12 @@ async function startPhaseOneGeneration(event) {
             progressInterval = setInterval(() => {
                 updateProgressStatus(currentTaskId);
             }, 2000);
+            
+            // 启动用时计时器（每秒更新）
+            const elapsedInterval = setInterval(() => {
+                updateElapsedTime();
+            }, 1000);
+            window.elapsedInterval = elapsedInterval;
             
             updateStepStatus('generation', true);
         } else {
@@ -178,9 +186,17 @@ async function updateProgressStatus(taskId) {
         // 检查是否完成
         if (taskStatus.status === 'completed') {
             clearInterval(progressInterval);
+            if (window.elapsedInterval) {
+                clearInterval(window.elapsedInterval);
+                window.elapsedInterval = null;
+            }
             handlePhaseOneComplete(taskStatus);
         } else if (taskStatus.status === 'failed') {
             clearInterval(progressInterval);
+            if (window.elapsedInterval) {
+                clearInterval(window.elapsedInterval);
+                window.elapsedInterval = null;
+            }
             handlePhaseOneFailed(taskStatus);
         }
     } catch (error) {
@@ -1205,6 +1221,42 @@ document.addEventListener('DOMContentLoaded', function() {
     // 延迟执行，确保其他初始化完成
     setTimeout(restoreActiveTaskOnLoad, 1000);
 });
+
+// 🔥 更新已用时间（与第二阶段保持一致）
+function updateElapsedTime() {
+    if (!generationStartTime) return;
+    
+    const elapsedMs = Date.now() - generationStartTime;
+    const elapsedSeconds = Math.floor(elapsedMs / 1000);
+    const minutes = Math.floor(elapsedSeconds / 60);
+    const seconds = elapsedSeconds % 60;
+    
+    // 格式化时间显示
+    let timeText;
+    if (minutes > 0) {
+        timeText = `用时: ${minutes}分${seconds.toString().padStart(2, '0')}秒`;
+    } else {
+        timeText = `用时: ${seconds}秒`;
+    }
+    
+    // 更新页面上的用时显示（在进度消息中添加）
+    const progressMessage = document.getElementById('progress-message');
+    if (progressMessage && !progressMessage.textContent.includes('用时:')) {
+        // 如果还没有用时显示，添加一个
+        const timeEl = document.createElement('span');
+        timeEl.id = 'progress-time-elapsed';
+        timeEl.style.cssText = 'margin-left: 12px; color: #fbbf24; font-weight: 500;';
+        timeEl.textContent = timeText;
+        progressMessage.appendChild(timeEl);
+    } else if (progressMessage) {
+        // 更新已有的用时显示
+        const timeEl = document.getElementById('progress-time-elapsed');
+        if (timeEl) {
+            timeEl.textContent = timeText;
+        }
+    }
+}
+
 // 🔥 兼容函数：phase-one-setup-new.html 使用的生成函数
 // 这是 startPhaseOneGeneration 的别名，用于支持恢复模式
 async function startPhaseOneGenerationWithResume(event) {
