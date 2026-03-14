@@ -1329,18 +1329,38 @@ class NovelGenerationManager:
         
         # 🔥 修复：确保 global_growth_plan 字段存在
         if "global_growth_plan" not in standardized_data or not standardized_data.get("global_growth_plan", {}):
-            # 从写作计划中提取成长规划信息
-            quality_data = novel_data.get("quality_data", {})
-            writing_plans = quality_data.get("writing_plans", {})
-            if writing_plans:
-                # 构建基础的全局成长规划
-                global_growth_plan = {
-                    "growth_stages": [],
-                    "power_systems": {},
-                    "world_building": {}
-                }
-                standardized_data["global_growth_plan"] = global_growth_plan
-                logger.info("✅ 创建基础 global_growth_plan 结构")
+            # 首先尝试从成长路线文件加载
+            try:
+                from src.config.path_config import path_config
+                username = novel_data.get('owner')
+                if username:
+                    growth_plan_path = Path(path_config.get_project_paths(title, username=username).get("global_growth_plan", ""))
+                    if growth_plan_path.exists():
+                        with open(growth_plan_path, 'r', encoding='utf-8') as f:
+                            growth_plan_data = json.load(f)
+                        # 检查文件内容是否为空结构
+                        if growth_plan_data and growth_plan_data.get("stage_framework"):
+                            standardized_data["global_growth_plan"] = growth_plan_data
+                            logger.info(f"✅ 从文件加载 global_growth_plan: {growth_plan_path}")
+                        else:
+                            logger.warning(f"⚠️ 成长路线文件内容为空: {growth_plan_path}")
+            except Exception as e:
+                logger.warning(f"⚠️ 从文件加载 global_growth_plan 失败: {e}")
+            
+            # 如果仍然不存在，创建基础结构
+            if "global_growth_plan" not in standardized_data or not standardized_data.get("global_growth_plan", {}):
+                # 从写作计划中提取成长规划信息
+                quality_data = novel_data.get("quality_data", {})
+                writing_plans = quality_data.get("writing_plans", {})
+                if writing_plans:
+                    # 构建基础的全局成长规划
+                    global_growth_plan = {
+                        "growth_stages": [],
+                        "power_systems": {},
+                        "world_building": {}
+                    }
+                    standardized_data["global_growth_plan"] = global_growth_plan
+                    logger.info("✅ 创建基础 global_growth_plan 结构")
 
         # 确保 writing_style_guide 字段存在（动态加载）
         if "writing_style_guide" not in standardized_data or not standardized_data.get("writing_style_guide"):
