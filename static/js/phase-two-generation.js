@@ -1820,61 +1820,152 @@ function getWorldviewPanels(productData) {
 }
 
 function getCharactersPanels(productData) {
-    return `
-        <div class="pt-drawer__panel active" data-panel="main">
-            <div class="pt-form-section">
-                <div class="pt-form-section__title">主角设定</div>
+    // 解析角色数据
+    const charData = parseCharacterData(productData?.content);
+    const protagonist = charData.protagonist || {};
+    const allies = charData.core_allies || [];
+    const antagonists = charData.main_antagonists || [];
+    
+    // 生成主角HTML
+    const protagonistHtml = `
+        <div class="pt-character-card pt-character-card--protagonist">
+            <div class="pt-character-card__header">
+                <div class="pt-character-card__avatar">${protagonist.gender === '女' ? '👩' : '👨'}</div>
+                <div class="pt-character-card__info">
+                    <div class="pt-character-card__name">${protagonist.name || '未命名'}</div>
+                    <div class="pt-character-card__meta">${protagonist.age || ''}岁 · ${protagonist.occupation || protagonist.identity || ''}</div>
+                </div>
+                <div class="pt-character-card__tag">主角</div>
+            </div>
+            <div class="pt-character-card__body">
                 <div class="pt-form-field">
                     <label class="pt-form-field__label">姓名</label>
-                    <input type="text" class="pt-form-field__input" id="main-char-name" placeholder="主角姓名" value="${extractField(productData?.content, 'main_character_name')}">
+                    <input type="text" class="pt-form-field__input" id="main-char-name" value="${protagonist.name || ''}">
+                </div>
+                <div class="pt-form-field">
+                    <label class="pt-form-field__label">性别</label>
+                    <input type="text" class="pt-form-field__input" id="main-char-gender" value="${protagonist.gender || ''}">
+                </div>
+                <div class="pt-form-field">
+                    <label class="pt-form-field__label">年龄</label>
+                    <input type="text" class="pt-form-field__input" id="main-char-age" value="${protagonist.age || ''}">
+                </div>
+                <div class="pt-form-field">
+                    <label class="pt-form-field__label">身份/职业</label>
+                    <input type="text" class="pt-form-field__input" id="main-char-identity" value="${protagonist.occupation || protagonist.identity || ''}">
+                </div>
+                <div class="pt-form-field">
+                    <label class="pt-form-field__label">外貌描写</label>
+                    <textarea class="pt-form-field__textarea" id="main-char-appearance" rows="3">${protagonist.appearance || ''}</textarea>
                 </div>
                 <div class="pt-form-field">
                     <label class="pt-form-field__label">性格特点</label>
-                    <textarea class="pt-form-field__textarea" id="main-char-personality" placeholder="性格、气质、行为特征...">${extractField(productData?.content, 'main_character_personality')}</textarea>
-                </div>
-                <div class="pt-form-field">
-                    <label class="pt-form-field__label">能力/技能</label>
-                    <textarea class="pt-form-field__textarea" id="main-char-abilities" placeholder="特殊能力、技能、优势...">${extractField(productData?.content, 'main_character_abilities')}</textarea>
+                    <textarea class="pt-form-field__textarea" id="main-char-personality" rows="4">${Array.isArray(protagonist.personality) ? protagonist.personality.join('、') : (protagonist.personality || '')}</textarea>
                 </div>
                 <div class="pt-form-field">
                     <label class="pt-form-field__label">背景故事</label>
-                    <textarea class="pt-form-field__textarea" id="main-char-background" placeholder="出身、经历、动机...">${extractField(productData?.content, 'main_character_background')}</textarea>
+                    <textarea class="pt-form-field__textarea" id="main-char-background" rows="5">${protagonist.background || ''}</textarea>
                 </div>
+            </div>
+        </div>
+    `;
+    
+    // 生成盟友列表HTML
+    const alliesHtml = allies.map((ally, index) => `
+        <div class="pt-character-card pt-character-card--ally">
+            <div class="pt-character-card__header">
+                <div class="pt-character-card__avatar">🤝</div>
+                <div class="pt-character-card__info">
+                    <div class="pt-character-card__name">${ally.name || '未命名'}</div>
+                    <div class="pt-character-card__meta">${ally.identity || ally.type || '盟友'}</div>
+                </div>
+                <div class="pt-character-card__tag pt-character-card__tag--ally">盟友</div>
+            </div>
+            <div class="pt-character-card__body">
+                <div class="pt-form-field">
+                    <textarea class="pt-form-field__textarea" id="ally-${index}" rows="6">${formatCharacterDetail(ally)}</textarea>
+                </div>
+            </div>
+        </div>
+    `).join('');
+    
+    // 生成反派列表HTML
+    const antagonistsHtml = antagonists.map((ant, index) => `
+        <div class="pt-character-card pt-character-card--antagonist">
+            <div class="pt-character-card__header">
+                <div class="pt-character-card__avatar">😈</div>
+                <div class="pt-character-card__info">
+                    <div class="pt-character-card__name">${ant.name || '未命名'}</div>
+                    <div class="pt-character-card__meta">${ant.identity || ant.type || '反派'}</div>
+                </div>
+                <div class="pt-character-card__tag pt-character-card__tag--antagonist">反派</div>
+            </div>
+            <div class="pt-character-card__body">
+                <div class="pt-form-field">
+                    <textarea class="pt-form-field__textarea" id="antagonist-${index}" rows="6">${formatCharacterDetail(ant)}</textarea>
+                </div>
+            </div>
+        </div>
+    `).join('');
+    
+    return `
+        <div class="pt-drawer__panel active" data-panel="main">
+            <div class="pt-form-section">
+                <div class="pt-form-section__title">🌟 主角设定</div>
+                ${protagonistHtml}
             </div>
         </div>
         
         <div class="pt-drawer__panel" data-panel="supporting">
             <div class="pt-form-section">
-                <div class="pt-form-section__title">配角设定</div>
-                <div class="pt-form-field">
-                    <label class="pt-form-field__label">反派角色</label>
-                    <textarea class="pt-form-field__textarea" id="antagonist" placeholder="主要反派的性格、目标...">${extractField(productData?.content, 'antagonist')}</textarea>
-                </div>
-                <div class="pt-form-field">
-                    <label class="pt-form-field__label">帮手/师长</label>
-                    <textarea class="pt-form-field__textarea" id="mentor" placeholder="引导主角的关键角色...">${extractField(productData?.content, 'mentor')}</textarea>
-                </div>
-                <div class="pt-form-field">
-                    <label class="pt-form-field__label">配角群体</label>
-                    <textarea class="pt-form-field__textarea" id="supporting-chars" placeholder="其他重要配角...">${extractField(productData?.content, 'supporting_characters')}</textarea>
-                </div>
+                <div class="pt-form-section__title">🤝 核心盟友 (${allies.length})</div>
+                ${alliesHtml || '<p style="color: #888; text-align: center; padding: 40px;">暂无盟友数据</p>'}
+            </div>
+            <div class="pt-form-section" style="margin-top: 24px;">
+                <div class="pt-form-section__title">😈 主要反派 (${antagonists.length})</div>
+                ${antagonistsHtml || '<p style="color: #888; text-align: center; padding: 40px;">暂无反派数据</p>'}
             </div>
         </div>
         
         <div class="pt-drawer__panel" data-panel="relationships">
             <div class="pt-form-section">
-                <div class="pt-form-section__title">角色关系网</div>
+                <div class="pt-form-section__title">🔗 角色关系网</div>
                 <div class="pt-form-field">
-                    <label class="pt-form-field__label">与主角关系</label>
-                    <textarea class="pt-form-field__textarea" id="relationships" placeholder="角色之间的关系、矛盾、羁绊...">${extractField(productData?.content, 'relationships')}</textarea>
-                </div>
-                <div class="pt-form-field">
-                    <label class="pt-form-field__label">角色弧光</label>
-                    <textarea class="pt-form-field__textarea" id="character-arcs" placeholder="各角色的成长轨迹...">${extractField(productData?.content, 'character_arcs')}</textarea>
+                    <label class="pt-form-field__label">完整角色数据 (JSON格式)</label>
+                    <textarea class="pt-form-field__textarea" id="character-json" rows="30">${productData?.content || ''}</textarea>
                 </div>
             </div>
         </div>
     `;
+}
+
+// 解析角色数据
+function parseCharacterData(content) {
+    if (!content) return {};
+    try {
+        if (typeof content === 'object') return content;
+        return JSON.parse(content);
+    } catch (e) {
+        console.warn('解析角色数据失败:', e);
+        return {};
+    }
+}
+
+// 格式化角色详情为文本
+function formatCharacterDetail(character) {
+    if (!character) return '';
+    const lines = [];
+    if (character.appearance) lines.push(`外貌：${character.appearance}`);
+    if (character.personality) {
+        const personality = Array.isArray(character.personality) 
+            ? character.personality.join('、') 
+            : character.personality;
+        lines.push(`性格：${personality}`);
+    }
+    if (character.background) lines.push(`背景：${character.background}`);
+    if (character.role_in_story) lines.push(`剧情作用：${character.role_in_story}`);
+    if (character.abilities) lines.push(`能力：${character.abilities}`);
+    return lines.join('\n');
 }
 
 function getGenericPanel(category, categoryNames, productData) {

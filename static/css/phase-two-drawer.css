@@ -327,6 +327,119 @@
     box-shadow: 0 6px 20px rgba(99, 102, 241, 0.35);
 }
 
+/* ============================================
+   角色卡片样式 - Character Cards
+   ============================================ */
+
+.pt-character-card {
+    background: linear-gradient(135deg, rgba(16, 185, 129, 0.08) 0%, rgba(6, 182, 212, 0.05) 100%);
+    border: 1px solid rgba(16, 185, 129, 0.15);
+    border-radius: 16px;
+    overflow: hidden;
+    margin-bottom: 16px;
+}
+
+.pt-character-card--protagonist {
+    background: linear-gradient(135deg, rgba(245, 158, 11, 0.1) 0%, rgba(249, 115, 22, 0.05) 100%);
+    border-color: rgba(245, 158, 11, 0.25);
+}
+
+.pt-character-card--ally {
+    background: linear-gradient(135deg, rgba(16, 185, 129, 0.08) 0%, rgba(6, 182, 212, 0.05) 100%);
+    border-color: rgba(16, 185, 129, 0.2);
+}
+
+.pt-character-card--antagonist {
+    background: linear-gradient(135deg, rgba(239, 68, 68, 0.08) 0%, rgba(236, 72, 153, 0.05) 100%);
+    border-color: rgba(239, 68, 68, 0.2);
+}
+
+.pt-character-card__header {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    padding: 16px 20px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+    background: rgba(0, 0, 0, 0.2);
+}
+
+.pt-character-card__avatar {
+    width: 48px;
+    height: 48px;
+    background: linear-gradient(135deg, rgba(255, 255, 255, 0.1), rgba(255, 255, 255, 0.05));
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 22px;
+    flex-shrink: 0;
+}
+
+.pt-character-card--protagonist .pt-character-card__avatar {
+    background: linear-gradient(135deg, rgba(245, 158, 11, 0.25), rgba(249, 115, 22, 0.15));
+}
+
+.pt-character-card--ally .pt-character-card__avatar {
+    background: linear-gradient(135deg, rgba(16, 185, 129, 0.25), rgba(6, 182, 212, 0.15));
+}
+
+.pt-character-card--antagonist .pt-character-card__avatar {
+    background: linear-gradient(135deg, rgba(239, 68, 68, 0.25), rgba(236, 72, 153, 0.15));
+}
+
+.pt-character-card__info {
+    flex: 1;
+    min-width: 0;
+}
+
+.pt-character-card__name {
+    font-size: 16px;
+    font-weight: 700;
+    color: #fafafa;
+    margin-bottom: 3px;
+}
+
+.pt-character-card__meta {
+    font-size: 12px;
+    color: #a1a1aa;
+}
+
+.pt-character-card__tag {
+    padding: 5px 12px;
+    background: linear-gradient(135deg, #f59e0b, #f97316);
+    border-radius: 20px;
+    font-size: 11px;
+    font-weight: 600;
+    color: white;
+    flex-shrink: 0;
+}
+
+.pt-character-card__tag--ally {
+    background: linear-gradient(135deg, #10b981, #06b6d4);
+}
+
+.pt-character-card__tag--antagonist {
+    background: linear-gradient(135deg, #ef4444, #ec4899);
+}
+
+.pt-character-card__body {
+    padding: 20px;
+}
+
+.pt-character-card__body .pt-form-field {
+    margin-bottom: 16px;
+}
+
+.pt-character-card__body .pt-form-field:last-child {
+    margin-bottom: 0;
+}
+
+.pt-character-card__body .pt-form-field__input,
+.pt-character-card__body .pt-form-field__textarea {
+    background: rgba(0, 0, 0, 0.25);
+    font-size: 13px;
+}
+
 /* Mobile Responsive */
 @media (max-width: 768px) {
     .pt-drawer {
