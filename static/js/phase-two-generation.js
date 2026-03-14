@@ -1683,6 +1683,7 @@ function viewWorldviewViewer() {
 function createProductEditDrawer(category, productData) {
     const categoryNames = {
         'worldview': '世界观设定',
+        'factions': '势力/阵营系统',
         'characters': '角色设计',
         'growth': '成长路线',
         'writing': '写作计划',
@@ -1692,6 +1693,7 @@ function createProductEditDrawer(category, productData) {
 
     const categoryIcons = {
         'worldview': '🌍',
+        'factions': '⚔️',
         'characters': '👥',
         'growth': '📈',
         'writing': '📝',
