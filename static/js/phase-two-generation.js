@@ -920,6 +920,9 @@ async function loadPhaseOneProducts() {
             // 单独加载势力系统状态
             await checkFactionSystemStatus();
             
+            // 单独加载成长路线数据
+            await checkGrowthSystemStatus();
+            
             updateProductsDisplay();
             console.log('[DEBUG] 第一阶段产物加载完成');
         } else {
@@ -953,6 +956,49 @@ async function checkFactionSystemStatus() {
     } catch (error) {
         console.log('势力系统未生成或加载失败:', error.message);
         // 势力系统不存在是正常情况，不显示错误
+    }
+}
+
+// 加载成长路线数据
+async function checkGrowthSystemStatus() {
+    try {
+        const projectTitle = currentProject.novel_title || currentProject.title;
+        const response = await fetch(`/api/phase-one/products/${encodeURIComponent(projectTitle)}/growth`);
+        
+        if (response.ok) {
+            const result = await response.json();
+            if (result.success && result.product) {
+                // 成长路线存在，添加到产物数据中
+                phaseOneProductsData.growth = {
+                    title: '成长路线',
+                    content: typeof result.product.content === 'string' 
+                        ? result.product.content 
+                        : JSON.stringify(result.product.content, null, 2),
+                    complete: true
+                };
+                console.log('✅ 成长路线已加载:', result.product.content?.substring?.(0, 100) || '有数据');
+            }
+        }
+    } catch (error) {
+        console.log('成长路线未生成或加载失败:', error.message);
+        // 尝试从文件直接读取
+        try {
+            const projectTitle = currentProject.novel_title || currentProject.title;
+            const response = await fetch(`/api/project/${encodeURIComponent(projectTitle)}/file?path=planning/${encodeURIComponent(projectTitle)}_成长路线.json`);
+            if (response.ok) {
+                const data = await response.json();
+                if (data.content) {
+                    phaseOneProductsData.growth = {
+                        title: '成长路线',
+                        content: typeof data.content === 'string' ? data.content : JSON.stringify(data.content, null, 2),
+                        complete: true
+                    };
+                    console.log('✅ 成长路线已从文件加载');
+                }
+            }
+        } catch (e) {
+            console.log('从文件加载成长路线失败:', e.message);
+        }
     }
 }
 
@@ -1716,9 +1762,16 @@ function createProductEditDrawer(category, productData) {
         console.log(`[DEBUG] 使用 currentProject 角色数据:`, productData);
     }
     
-    // 对于成长路线，优先从 currentProject 获取数据
+    // 对于成长路线，优先从 currentProject 获取数据，其次从 phaseOneProductsData
     if (isGrowth) {
-        const growthSource = currentProject?.global_growth_plan || currentProject?.growth;
+        let growthSource = currentProject?.global_growth_plan || currentProject?.growth;
+        
+        // 如果 currentProject 没有，尝试从 phaseOneProductsData 获取
+        if (!growthSource && phaseOneProductsData?.growth?.content) {
+            growthSource = phaseOneProductsData.growth.content;
+            console.log(`[DEBUG] 使用 phaseOneProductsData 成长路线数据`);
+        }
+        
         if (growthSource) {
             productData = {
                 title: '成长路线',
@@ -1726,7 +1779,9 @@ function createProductEditDrawer(category, productData) {
                     ? growthSource 
                     : JSON.stringify(growthSource, null, 2)
             };
-            console.log(`[DEBUG] 使用 currentProject 成长路线数据:`, productData);
+            console.log(`[DEBUG] 成长路线数据已加载，长度:`, productData.content?.length || 0);
+        } else {
+            console.warn(`[DEBUG] 成长路线数据为空`);
         }
     }
     
