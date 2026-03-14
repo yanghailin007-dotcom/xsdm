@@ -2391,7 +2391,7 @@ class PhaseGenerator:
 
     def _assess_writing_plan_quality(self) -> Optional[Dict]:
         """
-        对写作计划进行AI质量评估
+        对写作计划进行整体质量评估（一次性评估所有阶段）
 
         Returns:
             评估结果字典，包含:
@@ -2400,84 +2400,112 @@ class PhaseGenerator:
             - strengths: 优点列表
             - issues: 问题列表
             - summary: 总结
-            - token_saved: 节省的token数
         """
         try:
-            # 导入评估器
-            from src.core.PlanQualityAssessor import PlanQualityAssessor
-            from pathlib import Path
-            import re
-
-            # 获取API密钥
-            api_key = None
-            if hasattr(self.generator, 'api_client'):
-                api_key = getattr(self.generator.api_client, 'api_key', None)
-
             # 检查是否有写作计划
             stage_writing_plans = self.generator.novel_data.get("stage_writing_plans", {})
             if not stage_writing_plans:
                 print("⚠️ 没有写作计划，跳过评估")
                 return None
 
-            # 获取opening_stage的写作计划路径
-            novel_title = self.generator.novel_data.get("novel_title", "")
-            safe_title = re.sub(r'[\\/*?:"<>|]', "_", novel_title)
+            print(f"📊 开始评估写作计划（共 {len(stage_writing_plans)} 个阶段）...")
 
-            # 获取用户隔离基础路径
-            try:
-                from web.utils.path_utils import get_user_novel_dir
-                username = getattr(self.generator, '_username', None)
-                user_base_dir = get_user_novel_dir(username=username, create=False)
-            except Exception:
-                user_base_dir = Path("小说项目")
-
-            # 🔥 修复：使用正确的路径配置系统获取写作计划路径
-            from src.config.path_config import path_config
-            username = getattr(self.generator, '_username', None)
-            paths = path_config.get_project_paths(novel_title, username=username)
+            # 🔥 简化：基于规则的整体评估（不分阶段）
+            # 统计各阶段的关键指标
+            total_major_events = 0
+            total_medium_events = 0
+            total_chapters = 0
+            stage_summaries = []
             
-            # 使用新的统一路径：planning目录下的写作计划文件
-            plan_path = Path(paths["writing_plans_dir"]) / f"{safe_title}_写作计划.json"
+            for stage_name, plan in stage_writing_plans.items():
+                if not isinstance(plan, dict):
+                    continue
+                    
+                # 获取阶段范围
+                chapter_range = plan.get("chapter_range", "")
+                if chapter_range:
+                    try:
+                        parts = chapter_range.replace("章", "").split("-")
+                        if len(parts) == 2:
+                            stage_chapters = int(parts[1]) - int(parts[0]) + 1
+                            total_chapters += stage_chapters
+                    except:
+                        pass
+                
+                # 统计事件数量
+                event_system = plan.get("event_system", {})
+                major_events = event_system.get("major_events", [])
+                total_major_events += len(major_events)
+                
+                for major in major_events:
+                    composition = major.get("composition", {})
+                    for phase, events in composition.items():
+                        if isinstance(events, list):
+                            total_medium_events += len(events)
+                
+                # 阶段摘要
+                stage_overview = plan.get("stage_overview", "")
+                stage_summaries.append(f"{stage_name}: {stage_overview[:50]}...")
             
-            if not plan_path.exists():
-                # 兼容旧路径（plans目录）
-                old_plan_path = user_base_dir / safe_title / "plans" / f"{safe_title}_opening_stage_writing_plan.json"
-                if old_plan_path.exists():
-                    plan_path = old_plan_path
-                else:
-                    print(f"⚠️ 写作计划文件不存在: {plan_path}")
-                    return None
-
-            print(f"📋 评估文件: {plan_path}")
-
-            # 创建评估器
-            assessor = PlanQualityAssessor(api_key=api_key)
-
-            # 进行评估（如果配置了API则使用AI深度分析）
-            use_ai = api_key is not None
-            result = assessor.assess(plan_path, use_deep_analysis=use_ai)
-
-            # 转换为字典格式返回
-            return {
-                "overall_score": result.overall_score,
-                "readiness": result.readiness,
-                "strengths": result.strengths,
-                "issues": [
-                    {
-                        "category": i.category,
-                        "severity": i.severity.value,
-                        "location": i.location,
-                        "description": i.description,
-                        "suggestion": i.suggestion,
-                        "auto_fixable": i.auto_fixable
-                    }
-                    for i in result.issues
-                ],
-                "summary": result.summary,
-                "token_saved": result.token_saved,
-                "plan_file": str(plan_path),
+            # 基于统计指标进行评分
+            score = 70  # 基础分
+            issues = []
+            strengths = []
+            
+            # 评估标准
+            if total_major_events >= 4:
+                score += 10
+                strengths.append(f"重大事件数量充足（{total_major_events}个）")
+            else:
+                score -= 5
+                issues.append({
+                    "category": "structure",
+                    "severity": "medium",
+                    "location": "overall",
+                    "description": f"重大事件数量偏少（{total_major_events}个），建议增加关键剧情节点",
+                    "suggestion": "考虑在关键转折点增加重大事件",
+                    "auto_fixable": False
+                })
+            
+            if total_medium_events >= 10:
+                score += 10
+                strengths.append(f"中型事件覆盖全面（{total_medium_events}个）")
+            else:
+                issues.append({
+                    "category": "pacing",
+                    "severity": "low",
+                    "location": "overall",
+                    "description": f"中型事件数量（{total_medium_events}个）可以进一步优化",
+                    "suggestion": "增加过渡性事件丰富剧情",
+                    "auto_fixable": False
+                })
+            
+            # 准备状态
+            if score >= 80:
+                readiness = "ready"
+            elif score >= 60:
+                readiness = "needs_review"
+            else:
+                readiness = "needs_revision"
+            
+            # 构建评估结果
+            result = {
+                "overall_score": min(100, max(0, score)),
+                "readiness": readiness,
+                "strengths": strengths,
+                "issues": issues,
+                "summary": f"写作计划整体质量良好，包含{len(stage_writing_plans)}个阶段，{total_major_events}个重大事件，{total_medium_events}个中型事件，覆盖{total_chapters}章。",
+                "plan_stats": {
+                    "total_stages": len(stage_writing_plans),
+                    "total_major_events": total_major_events,
+                    "total_medium_events": total_medium_events,
+                    "total_chapters": total_chapters
+                },
                 "assessment_time": datetime.now().isoformat()
             }
+            
+            print(f"✅ 写作计划评估完成: {result['overall_score']}分 ({readiness})")
+            return result
 
         except Exception as e:
             print(f"❌ 写作计划评估失败: {e}")
