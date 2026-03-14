@@ -25,259 +25,282 @@
     <link rel="stylesheet" href="/static/css/character-editor.css">
     <link rel="stylesheet" href="/static/css/character-editor-json-based.css">
     
-    <!-- 🚀 章节队列组件样式 -->
+    <!-- 🚀 章节队列组件样式（大厂设计版）-->
     <style>
-    /* ===== 章节队列容器 ===== */
+    /* ===== 章节队列容器 - 玻璃拟态效果 ===== */
     .chapter-queue-container {
-        background: linear-gradient(145deg, rgba(17, 24, 39, 0.95), rgba(11, 17, 32, 0.98));
-        border: 1px solid rgba(255, 255, 255, 0.08);
-        border-radius: 16px;
-        padding: 20px;
+        background: linear-gradient(135deg, 
+            rgba(30, 41, 59, 0.8) 0%, 
+            rgba(15, 23, 42, 0.9) 100%);
+        border: 1px solid rgba(99, 102, 241, 0.2);
+        border-radius: 20px;
+        padding: 24px;
         margin: 20px 0;
         position: relative;
         overflow: hidden;
+        box-shadow: 
+            0 4px 6px -1px rgba(0, 0, 0, 0.1),
+            0 2px 4px -1px rgba(0, 0, 0, 0.06),
+            inset 0 1px 0 rgba(255, 255, 255, 0.05);
     }
     .chapter-queue-container::before {
         content: '';
         position: absolute;
-        top: 0; left: 0; right: 0; height: 1px;
-        background: linear-gradient(90deg, transparent, rgba(59, 130, 246, 0.5), rgba(16, 185, 129, 0.5), transparent);
+        top: 0; left: 0; right: 0; height: 2px;
+        background: linear-gradient(90deg, 
+            transparent, 
+            rgba(99, 102, 241, 0.8), 
+            rgba(139, 92, 246, 0.8), 
+            transparent);
+        animation: header-glow 3s ease-in-out infinite;
+    }
+    @keyframes header-glow {
+        0%, 100% { opacity: 0.5; }
+        50% { opacity: 1; }
     }
     .chapter-queue__header {
         display: flex;
         align-items: center;
         justify-content: space-between;
-        margin-bottom: 16px;
+        margin-bottom: 20px;
     }
     .chapter-queue__title {
         display: flex;
         align-items: center;
-        gap: 10px;
-        font-size: 15px;
+        gap: 12px;
+        font-size: 16px;
         font-weight: 600;
-        color: #e5e7eb;
+        color: #f1f5f9;
     }
     .chapter-queue__title-icon {
-        width: 28px; height: 28px;
-        background: linear-gradient(135deg, rgba(59, 130, 246, 0.2), rgba(16, 185, 129, 0.2));
-        border-radius: 6px;
+        width: 36px; height: 36px;
+        background: linear-gradient(135deg, rgba(99, 102, 241, 0.2), rgba(139, 92, 246, 0.2));
+        border-radius: 10px;
         display: flex;
         align-items: center;
         justify-content: center;
-        font-size: 14px;
-        border: 1px solid rgba(59, 130, 246, 0.3);
+        font-size: 18px;
+        border: 1px solid rgba(99, 102, 241, 0.3);
+        box-shadow: 0 0 20px rgba(99, 102, 241, 0.2);
     }
     .chapter-queue__stats {
         display: flex;
         align-items: center;
-        gap: 12px;
-        font-size: 12px;
+        gap: 16px;
+        font-size: 13px;
     }
     .chapter-queue__stat {
         display: flex;
         align-items: center;
-        gap: 4px;
-        padding: 3px 8px;
-        background: rgba(255, 255, 255, 0.03);
-        border-radius: 12px;
-        border: 1px solid rgba(255, 255, 255, 0.06);
+        gap: 6px;
+        padding: 6px 12px;
+        background: rgba(0, 0, 0, 0.2);
+        border-radius: 20px;
+        border: 1px solid rgba(255, 255, 255, 0.05);
+        transition: all 0.3s ease;
+    }
+    .chapter-queue__stat:hover {
+        background: rgba(255, 255, 255, 0.05);
     }
     .chapter-queue__stat-dot {
-        width: 5px; height: 5px;
+        width: 8px; height: 8px;
         border-radius: 50%;
     }
-    .chapter-queue__stat-dot--pending { background: #6b7280; }
-    .chapter-queue__stat-dot--generating { background: #3b82f6; animation: pulse-dot 1.5s ease-in-out infinite; }
-    .chapter-queue__stat-dot--completed { background: #10b981; }
+    .chapter-queue__stat-dot--pending { 
+        background: linear-gradient(135deg, #6b7280, #9ca3af);
+        box-shadow: 0 0 8px rgba(107, 114, 128, 0.4);
+    }
+    .chapter-queue__stat-dot--generating { 
+        background: linear-gradient(135deg, #3b82f6, #60a5fa);
+        animation: pulse-dot 1.5s ease-in-out infinite;
+        box-shadow: 0 0 12px rgba(59, 130, 246, 0.6);
+    }
+    .chapter-queue__stat-dot--completed { 
+        background: linear-gradient(135deg, #10b981, #34d399);
+        box-shadow: 0 0 8px rgba(16, 185, 129, 0.4);
+    }
     @keyframes pulse-dot {
         0%, 100% { opacity: 1; transform: scale(1); }
-        50% { opacity: 0.5; transform: scale(1.2); }
+        50% { opacity: 0.6; transform: scale(1.3); }
     }
     .chapter-queue__track {
         display: flex;
         align-items: center;
-        gap: 6px;
-        padding: 12px 4px;
+        gap: 8px;
+        padding: 16px 8px;
         overflow-x: auto;
         overflow-y: hidden;
         scroll-behavior: smooth;
         scrollbar-width: thin;
-        scrollbar-color: rgba(255, 255, 255, 0.1) transparent;
+        scrollbar-color: rgba(99, 102, 241, 0.3) transparent;
     }
-    .chapter-queue__track::-webkit-scrollbar { height: 3px; }
+    .chapter-queue__track::-webkit-scrollbar { height: 4px; }
     .chapter-queue__track::-webkit-scrollbar-track { background: transparent; }
-    .chapter-queue__track::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, 0.1); border-radius: 2px; }
+    .chapter-queue__track::-webkit-scrollbar-thumb { 
+        background: rgba(99, 102, 241, 0.3); 
+        border-radius: 2px;
+    }
+    /* ===== 连接线 - 能量流动效果 ===== */
     .chapter-queue__connector {
-        width: 16px; height: 2px;
-        background: linear-gradient(90deg, var(--from-color, #6b7280), var(--to-color, #6b7280));
+        width: 24px; height: 3px;
+        background: linear-gradient(90deg, var(--from-color, #4b5563), var(--to-color, #4b5563));
         position: relative;
         flex-shrink: 0;
+        border-radius: 2px;
+        transition: all 0.4s ease;
     }
-    .chapter-queue__connector--flowing::before {
-        content: '';
-        position: absolute;
-        inset: 0;
-        background: linear-gradient(90deg, 
-            transparent, 
-            rgba(59, 130, 246, 0.4), 
-            rgba(59, 130, 246, 1), 
-            rgba(16, 185, 129, 1), 
-            rgba(59, 130, 246, 0.4), 
-            transparent
-        );
-        animation: flow-move 0.8s linear infinite;
-        box-shadow: 0 0 8px rgba(59, 130, 246, 0.6);
+    .chapter-queue__connector--flowing {
+        background: linear-gradient(90deg, #3b82f6, #60a5fa, #3b82f6);
+        background-size: 200% 100%;
+        animation: energy-flow 1.5s linear infinite;
+        box-shadow: 0 0 10px rgba(59, 130, 246, 0.5);
     }
-    @keyframes flow-move {
-        0% { transform: translateX(-150%); }
-        100% { transform: translateX(150%); }
+    @keyframes energy-flow {
+        0% { background-position: 200% 0; }
+        100% { background-position: -200% 0; }
     }
-    /* 连接器光点效果 */
-    .chapter-queue__connector--flowing::after {
-        content: '';
-        position: absolute;
-        top: 50%;
-        left: 0;
-        width: 6px;
-        height: 6px;
-        background: #60a5fa;
-        border-radius: 50%;
-        transform: translateY(-50%);
-        box-shadow: 0 0 10px #3b82f6, 0 0 20px #3b82f6;
-        animation: flow-dot 0.8s linear infinite;
-    }
-    @keyframes flow-dot {
-        0% { left: 0; opacity: 0; }
-        10% { opacity: 1; }
-        90% { opacity: 1; }
-        100% { left: 100%; opacity: 0; }
-    }
+    /* ===== 章节卡片 - 现代设计 ===== */
     .chapter-queue__item {
-        width: 52px; height: 68px;
-        border-radius: 10px;
+        width: 64px; height: 80px;
+        border-radius: 14px;
         display: flex;
         flex-direction: column;
         align-items: center;
         justify-content: center;
-        gap: 4px;
+        gap: 6px;
         flex-shrink: 0;
         position: relative;
         transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        cursor: pointer;
     }
+    .chapter-queue__item:hover {
+        transform: translateY(-2px);
+    }
+    /* 等待状态 */
     .chapter-queue__item--pending {
-        background: linear-gradient(145deg, rgba(107, 114, 128, 0.1), rgba(75, 85, 99, 0.15));
+        background: linear-gradient(145deg, rgba(75, 85, 99, 0.4), rgba(55, 65, 81, 0.5));
         border: 2px solid rgba(107, 114, 128, 0.3);
         color: #9ca3af;
     }
+    .chapter-queue__item--pending:hover {
+        border-color: rgba(107, 114, 128, 0.5);
+        background: linear-gradient(145deg, rgba(75, 85, 99, 0.5), rgba(55, 65, 81, 0.6));
+    }
+    /* 生成中状态 - 脉冲光效 */
     .chapter-queue__item--generating {
-        background: linear-gradient(145deg, rgba(59, 130, 246, 0.15), rgba(37, 99, 235, 0.2));
-        border: 2px solid rgba(59, 130, 246, 0.6);
+        background: linear-gradient(145deg, rgba(59, 130, 246, 0.2), rgba(37, 99, 235, 0.3));
+        border: 2px solid rgba(59, 130, 246, 0.8);
         color: #60a5fa;
-        box-shadow: 0 0 16px rgba(59, 130, 246, 0.3);
+        box-shadow: 
+            0 0 30px rgba(59, 130, 246, 0.4),
+            inset 0 1px 0 rgba(255, 255, 255, 0.1);
         animation: generating-pulse 2s ease-in-out infinite;
+        z-index: 10;
     }
     @keyframes generating-pulse {
-        0%, 100% { box-shadow: 0 0 16px rgba(59, 130, 246, 0.3); transform: scale(1); }
-        50% { box-shadow: 0 0 24px rgba(59, 130, 246, 0.5); transform: scale(1.02); }
+        0%, 100% { 
+            box-shadow: 0 0 20px rgba(59, 130, 246, 0.3), inset 0 1px 0 rgba(255, 255, 255, 0.1);
+            transform: scale(1);
+        }
+        50% { 
+            box-shadow: 0 0 40px rgba(59, 130, 246, 0.6), inset 0 1px 0 rgba(255, 255, 255, 0.2);
+            transform: scale(1.03);
+        }
     }
+    /* 完成状态 */
     .chapter-queue__item--completed {
-        background: linear-gradient(145deg, rgba(16, 185, 129, 0.15), rgba(5, 150, 105, 0.2));
-        border: 2px solid rgba(16, 185, 129, 0.6);
+        background: linear-gradient(145deg, rgba(16, 185, 129, 0.2), rgba(5, 150, 105, 0.3));
+        border: 2px solid rgba(16, 185, 129, 0.8);
         color: #34d399;
-        box-shadow: 0 0 12px rgba(16, 185, 129, 0.25);
+        box-shadow: 0 0 20px rgba(16, 185, 129, 0.3);
     }
-    /* 章节刚完成时的闪耀动画 */
+    /* 完成动画 */
     .chapter-queue__item--just-completed {
-        animation: completed-flash 0.8s ease-out;
+        animation: completed-celebrate 0.6s cubic-bezier(0.34, 1.56, 0.64, 1);
     }
-    @keyframes completed-flash {
-        0% { 
-            transform: scale(1);
-            box-shadow: 0 0 12px rgba(16, 185, 129, 0.25);
-        }
-        30% { 
-            transform: scale(1.15);
-            box-shadow: 0 0 30px rgba(16, 185, 129, 0.8), 0 0 60px rgba(16, 185, 129, 0.4);
-            border-color: #34d399;
-        }
-        60% { 
-            transform: scale(1.08);
-            box-shadow: 0 0 20px rgba(16, 185, 129, 0.6);
-        }
-        100% { 
-            transform: scale(1);
-            box-shadow: 0 0 12px rgba(16, 185, 129, 0.25);
-        }
+    @keyframes completed-celebrate {
+        0% { transform: scale(1); }
+        30% { transform: scale(1.15); box-shadow: 0 0 40px rgba(16, 185, 129, 0.8); }
+        60% { transform: scale(1.05); }
+        100% { transform: scale(1); }
+    }
+    /* 当前高亮 */
+    .chapter-queue__item--current {
+        transform: translateY(-4px);
     }
     .chapter-queue__number {
-        font-size: 15px;
+        font-size: 18px;
         font-weight: 700;
         font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+        letter-spacing: -0.5px;
     }
+    /* 图标样式 */
     .chapter-queue__icon {
-        font-size: 18px;
+        font-size: 20px;
         line-height: 1;
         display: flex;
         align-items: center;
         justify-content: center;
+        filter: drop-shadow(0 2px 4px rgba(0,0,0,0.2));
     }
-    /* 等待状态 - 呼吸动画 */
     .chapter-queue__item--pending .chapter-queue__icon {
-        animation: pending-breathe 2s ease-in-out infinite;
         opacity: 0.7;
+        filter: grayscale(0.3);
     }
-    @keyframes pending-breathe {
-        0%, 100% { opacity: 0.5; transform: scale(1); }
-        50% { opacity: 0.8; transform: scale(1.1); }
-    }
-    /* 生成中状态 - 旋转动画 */
-    .chapter-queue__item--generating .chapter-queue__icon {
-        animation: spin 1s linear infinite;
-    }
-    /* 完成状态 - 弹跳动画 */
-    .chapter-queue__item--completed .chapter-queue__icon {
-        animation: check-bounce 0.5s cubic-bezier(0.68, -0.55, 0.265, 1.55);
-    }
-    @keyframes check-bounce {
-        0% { transform: scale(0) rotate(-180deg); }
-        50% { transform: scale(1.2) rotate(0deg); }
-        100% { transform: scale(1) rotate(0deg); }
-    }
+    /* 旋转动画 */
     .chapter-queue__spinner {
-        width: 14px; height: 14px;
-        border: 2px solid rgba(59, 130, 246, 0.3);
-        border-top-color: #3b82f6;
+        width: 18px; height: 18px;
+        border: 2.5px solid rgba(59, 130, 246, 0.2);
+        border-top-color: #60a5fa;
+        border-right-color: #3b82f6;
         border-radius: 50%;
         animation: spin 0.8s linear infinite;
     }
-    @keyframes spin { to { transform: rotate(360deg); } }
+    @keyframes spin { 
+        to { transform: rotate(360deg); } 
+    }
+    /* 完成勾选 */
     .chapter-queue__check {
-        width: 16px; height: 16px;
+        width: 22px; height: 22px;
         background: linear-gradient(135deg, #10b981, #059669);
         border-radius: 50%;
         display: flex;
         align-items: center;
         justify-content: center;
-        font-size: 9px;
-        animation: check-pop 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        font-size: 12px;
+        color: white;
+        animation: check-bounce 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+        box-shadow: 0 2px 8px rgba(16, 185, 129, 0.4);
     }
-    @keyframes check-pop {
-        0% { transform: scale(0); opacity: 0; }
-        100% { transform: scale(1); opacity: 1; }
+    @keyframes check-bounce {
+        0% { transform: scale(0) rotate(-45deg); opacity: 0; }
+        70% { transform: scale(1.2) rotate(0deg); }
+        100% { transform: scale(1) rotate(0deg); opacity: 1; }
     }
+    /* 进度条 */
     .chapter-queue__progress {
         position: absolute;
         bottom: 0; left: 0; right: 0;
-        height: 2px;
-        background: rgba(0, 0, 0, 0.2);
-        border-radius: 0 0 8px 8px;
+        height: 3px;
+        background: rgba(0, 0, 0, 0.3);
+        border-radius: 0 0 12px 12px;
         overflow: hidden;
     }
     .chapter-queue__progress-bar {
         height: 100%;
-        background: linear-gradient(90deg, #3b82f6, #60a5fa);
-        border-radius: 0 0 8px 8px;
+        background: linear-gradient(90deg, #3b82f6, #60a5fa, #a78bfa);
+        background-size: 200% 100%;
+        border-radius: 0 0 12px 12px;
         transition: width 0.3s ease;
+        animation: progress-shimmer 2s linear infinite;
+    }
+    @keyframes progress-shimmer {
+        0% { background-position: 200% 0; }
+        100% { background-position: -200% 0; }
+    }
+    /* 当前高亮 */
+    .chapter-queue__item--current {
+        transform: translateY(-2px);
     }
     </style>
     
@@ -2472,11 +2495,6 @@
                                     第 <span id="current-chapter-number">-</span> / <span id="total-chapters">-</span> 章
                                 </div>
                             </div>
-                        </div>
-                        
-                        <!-- 章节进度网格 -->
-                        <div id="chapter-progress-grid" class="v2-chapter-grid" style="margin-top: 16px; max-height: 300px; overflow-y: auto;">
-                            <!-- 章节卡片动态生成 -->
                         </div>
                         
                         <!-- 操作按钮 -->

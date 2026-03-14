@@ -922,13 +922,31 @@ class PhaseGenerator:
         
         # 存储情绪蓝图
         if emotional_blueprint:
+            # 🔥 修复：同时存储到 novel_data 和 _ctx
             self.generator.novel_data["emotional_blueprint"] = emotional_blueprint
+            if hasattr(self.generator, '_ctx'):
+                self.generator._ctx["emotional_blueprint"] = emotional_blueprint
             print("  ✅ 情绪蓝图提取成功")
             # 保存到文件
             try:
                 safe_title = "".join(c for c in novel_title if c.isalnum() or c in (' ', '_')).strip().replace(' ', '_')
                 import json
-                username = getattr(self.generator, '_username', 'anonymous')
+                # 🔥 修复：优先从 generator 获取用户名，如果没有则尝试从 Flask 上下文获取
+                username = getattr(self.generator, '_username', None)
+                if not username:
+                    try:
+                        from flask import g
+                        username = getattr(g, 'username', None)
+                    except Exception:
+                        pass
+                if not username:
+                    try:
+                        from flask import session
+                        username = session.get('username')
+                    except Exception:
+                        pass
+                if not username:
+                    username = 'anonymous'
                 blueprint_path = f"小说项目/{username}/{novel_title}/{safe_title}_情绪蓝图.json"
                 os.makedirs(os.path.dirname(blueprint_path), exist_ok=True)
                 with open(blueprint_path, 'w', encoding='utf-8') as f:
@@ -938,7 +956,10 @@ class PhaseGenerator:
         
         # 存储成长规划
         if global_growth_plan:
+            # 🔥 关键修复：同时存储到 novel_data 和 _ctx
             self.generator.novel_data["global_growth_plan"] = global_growth_plan
+            if hasattr(self.generator, '_ctx'):
+                self.generator._ctx["global_growth_plan"] = global_growth_plan
             # 同时设置到GlobalGrowthPlanner
             if hasattr(self.generator, 'global_growth_planner'):
                 self.generator.global_growth_planner.global_growth_plan = global_growth_plan
@@ -1275,7 +1296,7 @@ class PhaseGenerator:
             stage_timings = {}
             
             # 第一批：起承（通常较快）
-            batch1_tasks = [t for t in stage_tasks if t['stage_name'] in ['exposition_stage', 'rising_stage']]
+            batch1_tasks = [t for t in stage_tasks if t['stage_name'] in ['opening_stage', 'development_stage']]
             batch1_results = run_batch(batch1_tasks, "第一批[起+承]", 0)
             
             # 第二批：转合（通常较慢，尤其是合）
@@ -1296,7 +1317,7 @@ class PhaseGenerator:
             
             if stage_timings:
                 print(f"\n【批次执行顺序】")
-                print(f"  第一批 [起+承]: exposition_stage + rising_stage")
+                print(f"  第一批 [起+承]: opening_stage + development_stage")
                 print(f"  第二批 [转+合]: climax_stage + ending_stage")
                 
                 print(f"\n【阶段总耗时排行】")
@@ -1539,12 +1560,33 @@ class PhaseGenerator:
             ]
             
             for key, filename in product_mappings:
-                if key in self.generator.novel_data and self.generator.novel_data[key]:
+                data = self.generator.novel_data.get(key)
+                # 🔥 修复：更严格的空值检查
+                is_valid = False
+                if data:
+                    if isinstance(data, dict) and len(data) > 0:
+                        # 检查是否有实质内容（不只是空结构）
+                        has_content = any(
+                            v for v in data.values() 
+                            if v and (not isinstance(v, (dict, list)) or len(v) > 0)
+                        )
+                        if has_content:
+                            is_valid = True
+                        else:
+                            print(f"⚠️ {key} 是空字典结构，跳过保存")
+                    elif isinstance(data, list) and len(data) > 0:
+                        is_valid = True
+                    elif isinstance(data, str) and len(data.strip()) > 0:
+                        is_valid = True
+                
+                if is_valid:
                     file_path = f"{products_dir}/{filename}"
                     with open(file_path, 'w', encoding='utf-8') as f:
-                        json.dump(self.generator.novel_data[key], f, ensure_ascii=False, indent=2)
+                        json.dump(data, f, ensure_ascii=False, indent=2)
                     products_mapping[key] = file_path
                     print(f"✅ {key}已保存: {file_path}")
+                else:
+                    print(f"⚠️ {key} 数据无效或为空，跳过保存")
             
             # 创建第一阶段索引文件（保存到主项目materials目录）
             phase_one_index = {
@@ -2389,13 +2431,20 @@ class PhaseGenerator:
             except Exception:
                 user_base_dir = Path("小说项目")
 
-            # 构建写作计划文件路径（用户隔离路径优先）
-            plan_path = user_base_dir / safe_title / "plans" / f"{safe_title}_opening_stage_writing_plan.json"
+            # 🔥 修复：使用正确的路径配置系统获取写作计划路径
+            from src.config.path_config import path_config
+            username = getattr(self.generator, '_username', None)
+            paths = path_config.get_project_paths(novel_title, username=username)
+            
+            # 使用新的统一路径：planning目录下的写作计划文件
+            plan_path = Path(paths["writing_plans_dir"]) / f"{safe_title}_写作计划.json"
             
             if not plan_path.exists():
-                # 兼容旧路径
-                plan_path = Path(f"小说项目/{safe_title}/plans/{safe_title}_opening_stage_writing_plan.json")
-                if not plan_path.exists():
+                # 兼容旧路径（plans目录）
+                old_plan_path = user_base_dir / safe_title / "plans" / f"{safe_title}_opening_stage_writing_plan.json"
+                if old_plan_path.exists():
+                    plan_path = old_plan_path
+                else:
                     print(f"⚠️ 写作计划文件不存在: {plan_path}")
                     return None
 

@@ -1900,7 +1900,9 @@ class NovelGenerator:
             total_chapters
         )
         
+        # 🔥 修复：同时更新 _ctx 和 novel_data
         self._ctx["overall_stage_plans"] = overall_stage_plans
+        self.novel_data["overall_stage_plans"] = overall_stage_plans
         
         if not overall_stage_plans:
             print("⚠️ 全书阶段计划生成失败，使用默认阶段划分")
@@ -1994,18 +1996,24 @@ class NovelGenerator:
             )
             
             if writing_style:
+                # 🔥 修复：同时更新 _ctx 和 novel_data
                 self._ctx["writing_style_guide"] = writing_style
+                self.novel_data["writing_style_guide"] = writing_style
                 print("✅ 写作风格指南生成完成")
                 self._save_writing_style_to_file(writing_style)
                 return True
             else:
                 print("⚠️ 写作风格指南生成失败，使用默认风格")
-                self._ctx["writing_style_guide"] = self._get_default_writing_style(category)
+                default_style = self._get_default_writing_style(category)
+                self._ctx["writing_style_guide"] = default_style
+                self.novel_data["writing_style_guide"] = default_style
                 return True
                 
         except Exception as e:
             print(f"⚠️ 生成写作风格指南时出错: {e}")
-            self._ctx["writing_style_guide"] = self._get_default_writing_style(category)
+            default_style = self._get_default_writing_style(category)
+            self._ctx["writing_style_guide"] = default_style
+            self.novel_data["writing_style_guide"] = default_style
             return True
 
     def _generate_market_analysis(self) -> bool:
@@ -2071,17 +2079,41 @@ class NovelGenerator:
         print("=== 步骤5: 制定全书成长规划框架 ===")
         
         try:
-            self._ctx["global_growth_plan"] = self.global_growth_planner.generate_global_growth_plan()
+            global_growth_plan = self.global_growth_planner.generate_global_growth_plan()
             
-            if self._ctx["global_growth_plan"]:
+            if global_growth_plan:
+                # 🔥 关键修复：同时更新 _ctx 和 novel_data
+                self._ctx["global_growth_plan"] = global_growth_plan
+                self.novel_data["global_growth_plan"] = global_growth_plan
+                
+                # 同时更新 GlobalGrowthPlanner 中的引用
+                self.global_growth_planner.global_growth_plan = global_growth_plan
+                
                 print("✅ 全书成长规划框架制定完成")
                 return True
             else:
                 print("❌ 全书成长规划生成失败，使用基础框架")
+                # 使用默认规划
+                default_plan = self.global_growth_planner._create_default_global_plan(
+                    self._ctx.get("current_progress", {}).get("total_chapters", 100)
+                )
+                self._ctx["global_growth_plan"] = default_plan
+                self.novel_data["global_growth_plan"] = default_plan
+                self.global_growth_planner.global_growth_plan = default_plan
                 return False
                 
         except Exception as e:
             print(f"⚠️ 全局成长规划器出错: {e}，使用基础框架")
+            # 出错时也使用默认规划
+            try:
+                default_plan = self.global_growth_planner._create_default_global_plan(
+                    self._ctx.get("current_progress", {}).get("total_chapters", 100)
+                )
+                self._ctx["global_growth_plan"] = default_plan
+                self.novel_data["global_growth_plan"] = default_plan
+                self.global_growth_planner.global_growth_plan = default_plan
+            except Exception as e2:
+                print(f"⚠️ 使用默认规划也失败: {e2}")
             return False
 
     def _generate_stage_writing_plans(self, update_step_status=None) -> bool:
@@ -2203,6 +2235,8 @@ class NovelGenerator:
             success_count = len(self._ctx["stage_writing_plans"])
             if success_count > 0:
                 print(f"✅ 阶段详细计划生成完成: {success_count}/{len(stage_plan_dict)} 个阶段")
+                # 🔥 修复：同时更新 novel_data
+                self.novel_data["stage_writing_plans"] = self._ctx["stage_writing_plans"]
                 self._save_material_to_manager("阶段计划", self._ctx["stage_writing_plans"], total_stages=success_count)
                 
                 # 🚀 批量为全书生成补充角色（将 4 次 API 调用合并为 1 次）

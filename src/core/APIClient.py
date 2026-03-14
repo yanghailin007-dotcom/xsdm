@@ -664,39 +664,63 @@ class APIClient:
             tried_endpoints.append(endpoint.name)
             self.logger.info(f"{user_str}   尝试端点: {endpoint.name} (优先级:{endpoint.priority})")
             
-            # 获取端点配置
-            endpoint_config = endpoint.get_config()
+            # 🔥 修复：尝试该端点的所有模型（主模型 + 备用模型）
+            models_to_try = endpoint.models if endpoint.models else [endpoint.model]
+            model_success = False
             
-            # 如果指定了自定义模型名称，覆盖端点配置中的模型
-            if model_name:
-                endpoint_config["model"] = model_name
+            for model_idx, current_model in enumerate(models_to_try):
+                # 如果指定了自定义模型名称，只使用自定义模型
+                if model_name:
+                    current_model = model_name
+                    
+                self.logger.info(f"{user_str}      📡 使用模型: {current_model}")
+                
+                # 获取端点配置并覆盖模型
+                endpoint_config = endpoint.get_config()
+                endpoint_config["model"] = current_model
+                
+                # 获取温度和最大token
+                temp = temperature or self.config.get("defaults", {}).get("temperature", 0.7)
+                max_tokens = self.config.get("defaults", {}).get("max_tokens", 60000)
+                timeout = endpoint.timeout
+                
+                # 尝试调用
+                result = self._call_single_endpoint(
+                    endpoint_config=endpoint_config,
+                    system_prompt=system_prompt,
+                    user_prompt=user_prompt,
+                    temperature=temp,
+                    max_tokens=max_tokens,
+                    timeout=timeout,
+                    purpose=purpose
+                )
+                
+                if result:
+                    # 成功，记录并返回
+                    endpoint.record_success(time.time())
+                    if model_idx > 0:
+                        self.logger.info(f"{user_str}   ✅ 端点 {endpoint.name} + 备用模型 {current_model} 调用成功")
+                    else:
+                        self.logger.info(f"{user_str}   ✅ 端点 {endpoint.name} 调用成功")
+                    self._trigger_api_call_callback(purpose, 1)
+                    return result
+                else:
+                    # 当前模型失败
+                    if model_name:
+                        # 指定了自定义模型，不再尝试其他模型
+                        self.logger.warning(f"{user_str}      ⚠️ 模型 {current_model} 调用失败")
+                        break
+                    elif model_idx < len(models_to_try) - 1:
+                        # 还有备用模型可尝试
+                        self.logger.warning(f"{user_str}      ⚠️ 模型 {current_model} 失败，尝试备用模型...")
+                    else:
+                        # 所有模型都失败
+                        self.logger.warning(f"{user_str}      ⚠️ 端点 {endpoint.name} 所有模型均失败")
             
-            # 获取温度和最大token
-            temp = temperature or self.config.get("defaults", {}).get("temperature", 0.7)
-            max_tokens = self.config.get("defaults", {}).get("max_tokens", 60000)
-            timeout = endpoint.timeout
-            
-            # 尝试调用
-            result = self._call_single_endpoint(
-                endpoint_config=endpoint_config,
-                system_prompt=system_prompt,
-                user_prompt=user_prompt,
-                temperature=temp,
-                max_tokens=max_tokens,
-                timeout=timeout,
-                purpose=purpose
-            )
-            
-            if result:
-                # 成功，记录并返回
-                endpoint.record_success(time.time())  # 简化处理，实际应该在_call_single_endpoint中传递时间
-                self.logger.info(f"{user_str}   ✅ 端点 {endpoint.name} 调用成功")
-                self._trigger_api_call_callback(purpose, 1)
-                return result
-            else:
-                # 失败，记录失败
-                endpoint.record_failure("call_failed")
-                self.logger.warning(f"{user_str}   ⚠️ 端点 {endpoint.name} 调用失败，尝试下一个...")
+            # 该端点所有模型都失败，记录失败
+            if not model_success:
+                endpoint.record_failure("all_models_failed")
+                self.logger.warning(f"{user_str}   ⚠️ 端点 {endpoint.name} 调用失败，尝试下一个端点...")
         
         # 所有端点都失败
         self.logger.error(f"{user_str}💥 {target_provider} 所有端点均失败，已尝试: {tried_endpoints}")

@@ -5,15 +5,22 @@ let currentTaskId = null;
 let progressInterval = null;
 let generationStartTime = null;
 
-// ==================== 🚀 章节队列管理器 ====================
+// ==================== 🚀 章节队列管理器（修复版）====================
 class ChapterQueueManager {
     constructor(containerId = 'chapterQueueTrack') {
         this.container = document.getElementById(containerId);
         this.chapters = new Map();
         this.currentChapter = null;
+        this.isInitialized = false; // 防止重复初始化
     }
 
     initQueue(totalChapters, startFrom = 1) {
+        // 防止重复初始化
+        if (this.isInitialized) {
+            console.log('[ChapterQueue] 队列已初始化，跳过重复初始化');
+            return;
+        }
+        
         this.chapters.clear();
         for (let i = 0; i < totalChapters; i++) {
             const chapterNum = startFrom + i;
@@ -24,63 +31,60 @@ class ChapterQueueManager {
                 title: `第${chapterNum}章`
             });
         }
+        this.isInitialized = true;
         this.render();
         this.updateStats();
+        
         // 显示队列容器
         const container = document.getElementById('chapterQueueContainer');
         if (container) container.style.display = 'block';
         
-        // 添加初始动画效果 - 展示流水线活力
+        // 添加入场动画
         this.playEntryAnimation();
     }
     
-    // 入场动画 - 让用户感受到流水线的活力
+    // 入场动画 - 简洁优雅的渐入效果
     playEntryAnimation() {
         if (!this.container) return;
         const items = this.container.querySelectorAll('.chapter-queue__item');
-        const connectors = this.container.querySelectorAll('.chapter-queue__connector');
         
-        // 逐个显示章节卡片
+        // 简单的渐入动画
         items.forEach((item, index) => {
             item.style.opacity = '0';
-            item.style.transform = 'translateY(20px) scale(0.9)';
+            item.style.transform = 'translateY(10px)';
             setTimeout(() => {
-                item.style.transition = 'all 0.4s cubic-bezier(0.34, 1.56, 0.64, 1)';
+                item.style.transition = 'all 0.3s ease-out';
                 item.style.opacity = '1';
-                item.style.transform = 'translateY(0) scale(1)';
-            }, index * 80);
+                item.style.transform = 'translateY(0)';
+            }, index * 50);
         });
         
-        // 逐个显示连接器并添加流动效果
-        connectors.forEach((connector, index) => {
-            connector.style.opacity = '0';
-            setTimeout(() => {
-                connector.style.transition = 'opacity 0.3s ease';
-                connector.style.opacity = '1';
-                // 添加临时流动效果展示
-                connector.classList.add('chapter-queue__connector--flowing');
-                setTimeout(() => {
-                    connector.classList.remove('chapter-queue__connector--flowing');
-                }, 1500);
-            }, (index + 1) * 80 + 50);
-        });
-        
-        // 全部显示完成后，滚动到第一个
+        // 滚动到第一个项目
         setTimeout(() => {
             const firstItem = items[0];
             if (firstItem) {
                 firstItem.scrollIntoView({ behavior: 'smooth', inline: 'start', block: 'nearest' });
             }
-        }, items.length * 80 + 300);
+        }, items.length * 50 + 200);
     }
 
     updateChapterStatus(chapterNumber, status, progress = 0) {
         const chapter = this.chapters.get(chapterNumber);
         if (!chapter) return;
+        
+        // 状态没有变化时不更新（避免重复动画）
+        if (chapter.status === status && chapter.progress === progress) {
+            return;
+        }
+        
+        const oldStatus = chapter.status;
         chapter.status = status;
         chapter.progress = progress;
-        this.updateChapterElement(chapterNumber);
+        
+        // 使用类切换而不是重新创建元素，避免闪烁
+        this.updateChapterElementClass(chapterNumber, oldStatus, status);
         this.updateStats();
+        
         if (status === 'generating') {
             this.currentChapter = chapterNumber;
             this.scrollToChapter(chapterNumber);
@@ -91,11 +95,13 @@ class ChapterQueueManager {
         if (!this.container) return;
         const chapters = Array.from(this.chapters.values());
         if (chapters.length === 0) return;
+        
         let html = '';
         chapters.forEach((chapter, index) => {
             if (index > 0) {
                 const prevChapter = chapters[index - 1];
-                const connectorClass = (prevChapter.status === 'generating' || prevChapter.status === 'completed') ? 'chapter-queue__connector--flowing' : '';
+                // 只有前一个章节是生成中时才显示流动效果
+                const connectorClass = prevChapter.status === 'generating' ? 'chapter-queue__connector--flowing' : '';
                 const fromColor = this.getStatusColor(prevChapter.status);
                 const toColor = this.getStatusColor(chapter.status);
                 html += `<div class="chapter-queue__connector ${connectorClass}" style="--from-color: ${fromColor}; --to-color: ${toColor}"></div>`;
@@ -108,6 +114,7 @@ class ChapterQueueManager {
     createChapterElement(chapter) {
         const statusClass = `chapter-queue__item--${chapter.status}`;
         const isCurrent = chapter.number === this.currentChapter ? 'chapter-queue__item--current' : '';
+        
         let iconHtml = '';
         switch (chapter.status) {
             case 'pending': iconHtml = '<span class="chapter-queue__icon">⏳</span>'; break;
@@ -115,41 +122,91 @@ class ChapterQueueManager {
             case 'completed': iconHtml = '<div class="chapter-queue__check">✓</div>'; break;
             case 'error': iconHtml = '<span class="chapter-queue__icon">⚠</span>'; break;
         }
+        
+        // 只在生成中时显示进度条
         const progressHtml = chapter.status === 'generating' ? 
             `<div class="chapter-queue__progress"><div class="chapter-queue__progress-bar" style="width: ${chapter.progress}%"></div></div>` : '';
+        
         return `<div class="chapter-queue__item ${statusClass} ${isCurrent}" data-chapter="${chapter.number}"><span class="chapter-queue__number">${chapter.number}</span>${iconHtml}${progressHtml}</div>`;
     }
 
-    updateChapterElement(chapterNumber) {
-        const oldElement = this.container.querySelector(`[data-chapter="${chapterNumber}"]`);
-        if (!oldElement) return;
+    // 使用类切换更新元素，避免重新创建导致的闪烁
+    updateChapterElementClass(chapterNumber, oldStatus, newStatus) {
+        const element = this.container.querySelector(`[data-chapter="${chapterNumber}"]`);
+        if (!element) return;
+        
         const chapter = this.chapters.get(chapterNumber);
         
-        // 检查是否是刚完成的状态变化
-        const wasCompleted = oldElement.classList.contains('chapter-queue__item--completed');
-        const isNowCompleted = chapter.status === 'completed';
-        const justCompleted = !wasCompleted && isNowCompleted;
+        // 移除旧状态类
+        element.classList.remove(`chapter-queue__item--${oldStatus}`);
+        // 添加新状态类
+        element.classList.add(`chapter-queue__item--${newStatus}`);
         
-        const newElementHtml = this.createChapterElement(chapter);
-        const parser = new DOMParser();
-        const doc = parser.parseFromString(newElementHtml, 'text/html');
-        const newElement = doc.body.firstElementChild;
+        // 更新当前高亮状态
+        if (chapterNumber === this.currentChapter) {
+            element.classList.add('chapter-queue__item--current');
+        } else {
+            element.classList.remove('chapter-queue__item--current');
+        }
         
-        // 如果刚完成，添加完成动画类
-        if (justCompleted) {
-            newElement.classList.add('chapter-queue__item--just-completed');
-            // 动画结束后移除该类
+        // 🔥 修复：精细更新图标，不重建整个元素
+        const iconMap = {
+            'pending': '<span class="chapter-queue__icon">⏳</span>',
+            'generating': '<div class="chapter-queue__spinner"></div>',
+            'completed': '<div class="chapter-queue__check">✓</div>',
+            'error': '<span class="chapter-queue__icon">⚠</span>'
+        };
+        
+        // 查找或创建图标元素
+        let iconEl = element.querySelector('.chapter-queue__icon, .chapter-queue__spinner, .chapter-queue__check');
+        const newIconHtml = iconMap[newStatus];
+        
+        if (iconEl) {
+            // 如果图标类型变化了，替换它
+            const isSameType = (
+                (newStatus === 'generating' && iconEl.classList.contains('chapter-queue__spinner')) ||
+                (newStatus === 'completed' && iconEl.classList.contains('chapter-queue__check')) ||
+                ((newStatus === 'pending' || newStatus === 'error') && iconEl.classList.contains('chapter-queue__icon'))
+            );
+            
+            if (!isSameType) {
+                iconEl.outerHTML = newIconHtml;
+            }
+        } else {
+            // 在编号后插入图标
+            const numberSpan = element.querySelector('.chapter-queue__number');
+            if (numberSpan) {
+                numberSpan.insertAdjacentHTML('afterend', newIconHtml);
+            }
+        }
+        
+        // 🔥 修复：精细更新进度条
+        let progressEl = element.querySelector('.chapter-queue__progress');
+        if (newStatus === 'generating') {
+            if (!progressEl) {
+                element.insertAdjacentHTML('beforeend', `<div class="chapter-queue__progress"><div class="chapter-queue__progress-bar" style="width: ${chapter.progress}%"></div></div>`);
+            } else {
+                const bar = progressEl.querySelector('.chapter-queue__progress-bar');
+                if (bar) bar.style.width = `${chapter.progress}%`;
+            }
+        } else if (progressEl) {
+            progressEl.remove();
+        }
+        
+        // 添加完成动画
+        if (oldStatus !== 'completed' && newStatus === 'completed') {
+            element.classList.add('chapter-queue__item--just-completed');
             setTimeout(() => {
                 const el = this.container.querySelector(`[data-chapter="${chapterNumber}"]`);
                 if (el) el.classList.remove('chapter-queue__item--just-completed');
-            }, 800);
+            }, 600);
         }
         
-        oldElement.replaceWith(newElement);
+        // 更新连接线
         this.updateConnectors();
         
-        // 如果是生成中状态，自动滚动到视图中心
-        if (chapter.status === 'generating') {
+        // 如果是生成中状态，自动滚动
+        if (newStatus === 'generating') {
             this.scrollToChapter(chapterNumber);
         }
     }
@@ -157,13 +214,15 @@ class ChapterQueueManager {
     updateConnectors() {
         const connectors = this.container.querySelectorAll('.chapter-queue__connector');
         const chapters = Array.from(this.chapters.values());
+        
         connectors.forEach((connector, index) => {
             const prevChapter = chapters[index];
             const nextChapter = chapters[index + 1];
             if (prevChapter && nextChapter) {
                 connector.style.setProperty('--from-color', this.getStatusColor(prevChapter.status));
                 connector.style.setProperty('--to-color', this.getStatusColor(nextChapter.status));
-                const shouldFlow = prevChapter.status === 'generating' || prevChapter.status === 'completed';
+                // 只有生成中的章节才显示流动效果
+                const shouldFlow = prevChapter.status === 'generating';
                 connector.classList.toggle('chapter-queue__connector--flowing', shouldFlow);
             }
         });
@@ -179,11 +238,6 @@ class ChapterQueueManager {
         const pending = chapters.filter(c => c.status === 'pending').length;
         const generating = chapters.filter(c => c.status === 'generating').length;
         const completed = chapters.filter(c => c.status === 'completed').length;
-        
-        // 🔍 调试日志：检查生成中章节
-        if (generating > 0) {
-            console.log('[ChapterQueue] Generating chapters:', chapters.filter(c => c.status === 'generating').map(c => c.number));
-        }
         
         const pendingEl = document.getElementById('queue-pending-count');
         const generatingEl = document.getElementById('queue-generating-count');
@@ -210,6 +264,7 @@ class ChapterQueueManager {
     clear() {
         this.chapters.clear();
         this.currentChapter = null;
+        this.isInitialized = false; // 重置初始化标志
         if (this.container) this.container.innerHTML = '';
         const container = document.getElementById('chapterQueueContainer');
         if (container) container.style.display = 'none';
@@ -2580,8 +2635,8 @@ async function startPhaseTwoGeneration(event) {
 function startProgressMonitoring() {
     if (!currentTaskId) return;
     
-    // 初始化章节进度卡片
-    initializeChapterProgress();
+    // 🔥 移除：不再初始化下方网格队列，只保留上方流水线队列
+    // initializeChapterProgress();
     
     // 启动用时计时器（每秒更新）
     const elapsedInterval = setInterval(() => {
@@ -2621,6 +2676,8 @@ function startProgressMonitoring() {
     }, 2000); // 每2秒检查一次，更快的更新频率
 }
 
+// 🔥 移除：不再使用下方网格队列，只保留上方流水线队列
+/*
 function initializeChapterProgress() {
     const fromChapterInput = document.getElementById('from-chapter');
     const chaptersToGenerateInput = document.getElementById('chapters-to-generate');
@@ -2701,6 +2758,7 @@ function initializeChapterProgress() {
         }, 3000);
     }, 500);
 }
+*/
 
 /**
  * 触发完成涟漪效果 - 当一个章节完成时，相邻章节会有波纹扩散效果
@@ -2731,128 +2789,44 @@ function updateChapterProgress(taskStatus) {
     // 标记已经开始生成
     window.generationStarted = true;
     
-    // 添加队列流动线效果
-    const grid = document.getElementById('chapter-progress-grid');
-    if (grid) {
-        grid.classList.add('v2-chapter-grid--active');
-    }
+    // 获取所有章节号集合，用于检测哪些章节需要重置为pending
+    const apiChapterNumbers = new Set(taskStatus.chapter_progress.map(ch => ch.chapter_number));
     
-    // 显示队列进度条
-    const queueProgressContainer = document.getElementById('queue-progress-container');
-    if (queueProgressContainer) {
-        queueProgressContainer.style.display = 'block';
-    }
-    
-    // 计算队列进度
-    const totalChapters = taskStatus.chapter_progress.length;
-    const completedChapters = taskStatus.chapter_progress.filter(ch => ch.status === 'completed').length;
-    const progressPercent = Math.round((completedChapters / totalChapters) * 100);
-    
-    // 更新队列进度条
-    const queueProgressFill = document.getElementById('queue-progress-fill');
-    const queueProgressText = document.getElementById('queue-progress-text');
-    if (queueProgressFill) {
-        queueProgressFill.style.width = `${progressPercent}%`;
-    }
-    if (queueProgressText) {
-        queueProgressText.textContent = `${progressPercent}% (${completedChapters}/${totalChapters})`;
-    }
-    
-    // 找出正在生成的章节和下一个排队的章节
+    // 找出正在生成的章节
     const generatingChapters = taskStatus.chapter_progress.filter(ch => ch.status === 'generating');
     console.log('[UpdateProgress] Generating chapters from API:', generatingChapters.map(ch => ch.chapter_number));
     
-    const generatingIndex = taskStatus.chapter_progress.findIndex(ch => ch.status === 'generating');
-    const nextQueuedIndex = generatingIndex >= 0 ? generatingIndex + 1 : -1;
-    
-    // 获取范围
-    const fromChapter = parseInt(document.getElementById('from-chapter').value);
-    
-    taskStatus.chapter_progress.forEach((chapter, index) => {
-        // 🚀 更新章节队列状态
-        if (chapter.status === 'generating') {
-            chapterQueue.updateChapterStatus(chapter.chapter_number, 'generating', chapter.progress || 0);
-        } else if (chapter.status === 'completed') {
-            chapterQueue.updateChapterStatus(chapter.chapter_number, 'completed', 100);
-        } else if (chapter.status === 'failed') {
-            chapterQueue.updateChapterStatus(chapter.chapter_number, 'error', 0);
-        }
+    // 🔥 修复：遍历所有队列中的章节，确保状态同步
+    const allChapters = Array.from(chapterQueue.chapters.keys());
+    allChapters.forEach(chapterNum => {
+        const chapterData = taskStatus.chapter_progress.find(ch => ch.chapter_number === chapterNum);
         
-        const chapterCard = document.getElementById(`chapter-${chapter.chapter_number}`);
-        if (chapterCard) {
-            // 获取之前的状态（用于检测状态变化）
-            const previousStatus = chapterCard.dataset.status || 'pending';
+        if (chapterData) {
+            // API中有这个章节的状态
+            const status = chapterData.status;
+            const progress = chapterData.progress || 0;
             
-            // 确定状态：如果是下一个要生成的，标记为queued
-            let displayStatus = chapter.status;
-            if (chapter.status === 'pending' && index === nextQueuedIndex) {
-                displayStatus = 'queued';
+            if (status === 'generating') {
+                chapterQueue.updateChapterStatus(chapterNum, 'generating', progress);
+            } else if (status === 'completed') {
+                chapterQueue.updateChapterStatus(chapterNum, 'completed', 100);
+            } else if (status === 'failed') {
+                chapterQueue.updateChapterStatus(chapterNum, 'error', 0);
+                addLogEntry('error', `第${chapterNum}章生成失败: ${chapterData.error || '未知错误'}`);
+            } else if (status === 'pending') {
+                chapterQueue.updateChapterStatus(chapterNum, 'pending', 0);
             }
-            
-            // 检测状态变化
-            const statusChanged = previousStatus !== displayStatus;
-            chapterCard.dataset.status = displayStatus;
-            
-            // 更新状态样式
-            const statusClassMap = {
-                'pending': 'v2-chapter-mini--pending',
-                'queued': 'v2-chapter-mini--queued',
-                'generating': 'v2-chapter-mini--generating',
-                'completed': 'v2-chapter-mini--completed',
-                'failed': 'v2-chapter-mini--error'
-            };
-            
-            chapterCard.className = `v2-chapter-mini ${statusClassMap[displayStatus] || 'v2-chapter-mini--pending'}`;
-            
-            // 如果状态变为完成，触发完成动画和涟漪效果
-            if (statusChanged && displayStatus === 'completed') {
-                chapterCard.classList.add('v2-chapter-mini--just-completed');
-                // 动画结束后移除类
-                setTimeout(() => {
-                    chapterCard.classList.remove('v2-chapter-mini--just-completed');
-                }, 1200);
-                
-                // 触发相邻章节的涟漪效果
-                triggerRippleEffect(chapter.chapter_number);
-            }
-            // 如果是生成中状态，添加脉冲效果
-            else if (displayStatus === 'generating') {
-                chapterCard.style.animation = 'pulse-card 1.5s ease-in-out infinite';
-            }
-            // 如果是排队状态，添加呼吸效果
-            else if (displayStatus === 'queued') {
-                chapterCard.style.animation = 'queue-waiting 2s ease-in-out infinite';
-            }
-            else {
-                chapterCard.style.animation = '';
-            }
-            
-            // 更新状态文字
-            const statusElement = chapterCard.querySelector('.v2-chapter-mini__status');
-            if (statusElement) {
-                const statusTextMap = {
-                    'pending': '等待',
-                    'queued': '排队',
-                    'generating': '生成中',
-                    'completed': '完成',
-                    'failed': '失败'
-                };
-                statusElement.textContent = statusTextMap[displayStatus] || '等待';
-            }
-            
-            // 更新tooltip
-            const statusText = getStatusText(chapter.status);
-            const titleText = chapter.chapter_title || `第${chapter.chapter_number}章`;
-            chapterCard.title = `${titleText} - ${statusText}${chapter.word_count ? ` (${chapter.word_count}字)` : ''}`;
-            
-            // 更新日志
-            if (chapter.status === 'completed') {
-                addLogEntry('success', `第${chapter.chapter_number}章生成完成: ${chapter.chapter_title}`);
-            } else if (chapter.status === 'failed') {
-                addLogEntry('error', `第${chapter.chapter_number}章生成失败: ${chapter.error || '未知错误'}`);
+        } else {
+            // API中没有这个章节，说明还未开始，重置为pending
+            const currentStatus = chapterQueue.chapters.get(chapterNum)?.status;
+            if (currentStatus !== 'pending' && currentStatus !== 'completed') {
+                chapterQueue.updateChapterStatus(chapterNum, 'pending', 0);
             }
         }
     });
+    
+    // 🔥 修复：强制更新所有连接线，确保动画同步
+    chapterQueue.updateConnectors();
 }
 
 function updateCurrentChapterInfo(taskStatus) {
@@ -2952,17 +2926,11 @@ function handleGenerationComplete(taskStatus) {
     addLogEntry('success', '章节生成任务完成！');
     showStatusMessage('🎉 章节生成完成！', 'success');
     
-    // 隐藏队列进度条
-    const queueProgressContainer = document.getElementById('queue-progress-container');
-    if (queueProgressContainer) {
-        queueProgressContainer.style.display = 'none';
-    }
-    
-    // 移除队列流动效果
-    const grid = document.getElementById('chapter-progress-grid');
-    if (grid) {
-        grid.classList.remove('v2-chapter-grid--active');
-    }
+    // 🔥 移除：不再操作下方网格队列
+    // const grid = document.getElementById('chapter-progress-grid');
+    // if (grid) {
+    //     grid.classList.remove('v2-chapter-grid--active');
+    // }
     
     // 🚀 清理章节队列（延迟2秒让用户看到完成效果）
     setTimeout(() => {
