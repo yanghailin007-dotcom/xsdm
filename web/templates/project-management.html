@@ -964,7 +964,7 @@
     </style>
 </head>
 <body>
-    {% include 'components/navbar.html' %}
+    {% include 'components/v2/navbar.html' %}
     <!-- 顶部导航 -->
     <!-- 主容器 -->
     <div class="project-management-container">
@@ -1946,6 +1946,7 @@
         }
     </script>
     <script src="/static/js/confirm-dialog.js"></script>
-<script src="/static/js/user-info.js"></script>
+    <script src="/static/js/user-info.js"></script>
+    <script src="{{ url_for('static', filename='js/account-manager.js') }}?v=2"></script>
 </body>
 </html>

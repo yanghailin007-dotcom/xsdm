@@ -1058,45 +1058,35 @@ def start_phase_one_generate():
         if not manager:
             return jsonify({"success": False, "error": "管理器未初始化"}), 500
         
-        # ===== 创造点扣除逻辑 =====
+        # ===== 创造点门槛检查 =====
         from web.models.point_model import point_model
         from flask import session
         
-        # 计算第一阶段消耗（固定消耗）
-        cost_breakdown = point_model.calculate_phase1_cost(total_chapters)
-        total_cost = cost_breakdown['total']
-        
         user_id = session.get('user_id')
-        logger.info(f"💰 [PHASE_ONE] 需要消耗创造点: {total_cost}")
         
-        # 检查余额
+        # 一阶段门槛：75点（不是预扣，只是最低余额要求）
+        MIN_POINTS_THRESHOLD = 75
+        
+        # 检查余额是否满足门槛
         user_points = point_model.get_user_points(user_id)
-        if user_points['balance'] < total_cost:
+        if user_points['balance'] < MIN_POINTS_THRESHOLD:
             return jsonify({
                 "success": False, 
-                "error": f"创造点不足，需要{total_cost}点，当前余额{user_points['balance']}点",
-                "required": total_cost,
+                "error": f"创造点不足，需要至少{MIN_POINTS_THRESHOLD}点才能开始生成，当前余额{user_points['balance']}点",
+                "required": MIN_POINTS_THRESHOLD,
                 "balance": user_points['balance']
             }), 402  # Payment Required
         
-        # 扣除点数
-        spend_result = point_model.spend_points(
-            user_id=user_id,
-            amount=total_cost,
-            source='phase1_generation',
-            description=f'第一阶段生成小说设定: {title}',
-            related_id=title
-        )
+        logger.info(f"✅ [PHASE_ONE] 余额检查通过: {user_points['balance']}点 >= {MIN_POINTS_THRESHOLD}点门槛")
+        # ===== 创造点门槛检查结束 =====
         
-        if not spend_result['success']:
-            logger.error(f"❌ [PHASE_ONE] 扣除创造点失败: {spend_result.get('error')}")
-            return jsonify({
-                "success": False, 
-                "error": f"扣除创造点失败: {spend_result.get('error')}"
-            }), 500
+        # 注：实际点数按API调用实时扣除，与二阶段逻辑一致
         
-        logger.info(f"✅ [PHASE_ONE] 已扣除创造点: {total_cost}，剩余: {spend_result['balance']}")
-        # ===== 创造点扣除结束 =====
+        # 计算预估消耗点数（用于前端显示）
+        estimated_characters = 4  # 默认预企4个角色
+        cost_breakdown = point_model.calculate_phase1_cost(total_chapters, estimated_characters)
+        total_cost = cost_breakdown['total']
+        logger.info(f"💰 [PHASE_ONE] 预估消耗点数: {total_cost}")
         
         # 构建创意种子（如果没有提供的话）
         if not creative_seed:
@@ -1138,11 +1128,10 @@ def start_phase_one_generate():
         return jsonify({
             "success": True,
             "task_id": task_id,
-            "message": f"第一阶段生成任务已启动，已预扣{total_cost}创造点",
+            "message": f"第一阶段生成任务已启动，按API调用实时扣除创造点",
             "status": "initializing",
-            "points_spent": total_cost,
-            "points_estimated": total_cost,  # 预估点数（预扣费金额）
-            "balance_after": spend_result['balance']
+            "points_threshold": MIN_POINTS_THRESHOLD,  # 门槛点数
+            "current_balance": user_points['balance']
         })
         
     except Exception as e:
@@ -1452,7 +1441,9 @@ def continue_to_phase_two(title):
 
 def register_phase_routes(app, manager_instance=None):
     """注册两阶段生成API路由"""
+    logger.info("🔄 register_phase_routes: 开始注册蓝图...")
     app.register_blueprint(phase_api, url_prefix='/api')
+    logger.info("✅ register_phase_routes: 蓝图注册完成")
     
     if manager_instance:
         global manager
@@ -2550,34 +2541,23 @@ def register_additional_routes(app):
             user_id = session.get('user_id')
             logger.info(f"💰 [PHASE_TWO] 需要消耗创造点: {total_cost} (每章{cost_per_chapter}点 × {chapters_to_generate}章)")
             
-            # 检查余额
+            # ===== 创造点门槛检查 =====
+            # 二阶段门槛：至少要有生成一章的点数（1点）
+            MIN_PHASE2_THRESHOLD = 1
+            
             user_points = point_model.get_user_points(user_id)
-            if user_points['balance'] < total_cost:
+            if user_points['balance'] < MIN_PHASE2_THRESHOLD:
                 return jsonify({
                     "success": False, 
-                    "error": f"创造点不足，需要{total_cost}点，当前余额{user_points['balance']}点",
-                    "required": total_cost,
+                    "error": f"创造点不足，需要至少{MIN_PHASE2_THRESHOLD}点才能开始生成，当前余额{user_points['balance']}点",
+                    "required": MIN_PHASE2_THRESHOLD,
                     "balance": user_points['balance']
                 }), 402  # Payment Required
             
-            # 扣除点数
-            spend_result = point_model.spend_points(
-                user_id=user_id,
-                amount=total_cost,
-                source='phase2_generation',
-                description=f'第二阶段生成{chapters_to_generate}章小说内容',
-                related_id=f"{novel_title}_{from_chapter}"
-            )
+            logger.info(f"✅ [PHASE_TWO] 余额检查通过: {user_points['balance']}点 >= {MIN_PHASE2_THRESHOLD}点门槛")
+            # ===== 创造点门槛检查结束 =====
             
-            if not spend_result['success']:
-                logger.error(f"❌ [PHASE_TWO] 扣除创造点失败: {spend_result.get('error')}")
-                return jsonify({
-                    "success": False, 
-                    "error": f"扣除创造点失败: {spend_result.get('error')}"
-                }), 500
-            
-            logger.info(f"✅ [PHASE_TWO] 已扣除创造点: {total_cost}，剩余: {spend_result['balance']}")
-            # ===== 创造点扣除结束 =====
+            # 注：实际点数按API调用实时扣除，与一阶段逻辑一致
             
             # 调用管理器启动第二阶段生成任务
             user_id = session.get('user_id')
@@ -2604,10 +2584,10 @@ def register_additional_routes(app):
                 return jsonify({
                     "success": True,
                     "task_id": task_id,
-                    "message": f"第二阶段生成任务已启动，已消耗{total_cost}创造点",
+                    "message": f"第二阶段生成任务已启动，按API调用实时扣除创造点",
                     "status": "initializing",
-                    "points_spent": total_cost,
-                    "balance_after": spend_result['balance']
+                    "points_threshold": MIN_PHASE2_THRESHOLD,
+                    "current_balance": user_points['balance']
                 })
             except AttributeError as e:
                 # 如果管理器还没有实现该方法，回滚点数并返回错误

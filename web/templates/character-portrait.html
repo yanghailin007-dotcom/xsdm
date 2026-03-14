@@ -15,7 +15,7 @@
     </style>
 </head>
 <body>
-    {% include 'components/navbar.html' %}
+    {% include 'components/v2/navbar.html' %}
     <div class="container">
         <!-- 顶部导航 -->
         <header class="page-header">
@@ -175,5 +175,6 @@
     </div>
 
     <script src="/static/js/character-portrait.js"></script>
+    <script src="{{ url_for('static', filename='js/account-manager.js') }}?v=2"></script>
 </body>
 </html>

@@ -6,11 +6,46 @@
 import json
 import os
 import re
+import atexit
+import signal
+import weakref
 from datetime import datetime
 from pathlib import Path
 from typing import Dict, Optional, Any
-
 from src.utils.logger import get_logger
+
+# 🔑 全局线程池监控（用于强制清理）
+_global_executors = weakref.WeakSet()
+
+def _cleanup_all_executors():
+    """程序退出时清理所有线程池"""
+    import logging
+    logger = logging.getLogger("PhaseGenerator.cleanup")
+    
+    for executor in list(_global_executors):
+        try:
+            if hasattr(executor, 'shutdown'):
+                logger.info(f"🚿 正在关闭线程池...")
+                executor.shutdown(wait=False, cancel_futures=True)
+                logger.info(f"✅ 线程池已关闭")
+        except Exception as e:
+            logger.warning(f"⚠️ 关闭线程池时出错: {e}")
+
+# 注册程序退出时的清理函数
+atexit.register(_cleanup_all_executors)
+
+# 处理信号中断
+if hasattr(signal, 'SIGINT'):
+    def _signal_handler(signum, frame):
+        import logging
+        logger = logging.getLogger("PhaseGenerator.signal")
+        logger.info(f"🔴 收到信号 {signum}，正在清理线程池...")
+        _cleanup_all_executors()
+        # 重新提出信号，让程序正常退出
+        signal.default_int_handler(signum, frame)
+    
+    signal.signal(signal.SIGINT, _signal_handler)
+    signal.signal(signal.SIGTERM, _signal_handler)
 
 
 class PhaseGenerator:
@@ -1050,8 +1085,8 @@ class PhaseGenerator:
             print(f"  ✅ 成功生成 {len(all_stages_emotional_plans)} 个阶段的情绪计划")
             
             # 🔥 优化：使用线程池并行生成
-            from concurrent.futures import ThreadPoolExecutor, as_completed
-            
+            from concurrent.futures import as_completed, TimeoutError
+            from src.utils.thread_pool_manager import ManagedThreadPool
             import threading
             
             def generate_single_stage(task):
@@ -1082,7 +1117,12 @@ class PhaseGenerator:
                     return stage_name, None
             
             # 使用线程池并行执行（max_workers=4表示最多同时4个线程）
-            with ThreadPoolExecutor(max_workers=4) as executor:
+            with ManagedThreadPool(
+                    max_workers=4, 
+                    thread_name_prefix="StagePlan",
+                    timeout=300,
+                    task_timeout=60
+                ) as executor:
                 # 提交所有任务
                 future_to_stage = {
                     executor.submit(generate_single_stage, task): task['stage_name'] 
@@ -1092,8 +1132,8 @@ class PhaseGenerator:
                 # 收集结果（按完成顺序）
                 completed_count = 0
                 total_tasks = len(stage_tasks)
-                for future in as_completed(future_to_stage):
-                    stage_name, stage_plan = future.result()
+                for future in as_completed(future_to_stage, timeout=300):
+                    stage_name, stage_plan = future.result(timeout=60)
                     completed_count += 1
                     if stage_plan:
                         self.generator.novel_data["stage_writing_plans"][stage_name] = stage_plan

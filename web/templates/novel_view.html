@@ -693,7 +693,7 @@
     </style>
 </head>
 <body>
-    {% include 'components/navbar.html' %}
+    {% include 'components/v2/navbar.html' %}
     <!-- 顶部导航 -->
     <!-- 阅读设置面板 -->
     <div class="reading-settings-panel" id="reading-settings-panel" style="display: none;">
@@ -1033,5 +1033,6 @@
         }
     </script>
 <script src="/static/js/user-info.js"></script>
+    <script src="{{ url_for('static', filename='js/account-manager.js') }}?v=2"></script>
 </body>
 </html>

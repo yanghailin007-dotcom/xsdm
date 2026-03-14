@@ -27,7 +27,7 @@ class APIEndpoint:
     provider: str                  # 所属提供商（gemini/deepseek等）
     priority: int = 1              # 优先级（数字越小优先级越高）
     enabled: bool = True           # 是否启用
-    timeout: int = 120             # 超时时间（秒）
+    timeout: int = 500             # 超时时间（秒）- 支持长时间生成任务
     max_retries: int = 3           # 最大重试次数
     
     # 运行时统计

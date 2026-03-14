@@ -378,7 +378,7 @@ class APIClient:
                 break
         if attempt > 0:
             timeout += 30 * attempt
-        return min(timeout, 300)
+        return min(timeout, 500)  # 最大超时 500 秒
     def _process_stream_response(self, response) -> str:
         """处理流式响应并返回完整内容"""
         full_content = ""

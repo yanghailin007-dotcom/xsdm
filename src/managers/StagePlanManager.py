@@ -243,7 +243,8 @@ class StagePlanManager:
     def generate_stage_writing_plan(self, stage_name: str, stage_range: str,
                                    creative_seed: Any, novel_title: str,
                                    novel_synopsis: str, overall_stage_plan: Dict,
-                                   stage_emotional_plan: Dict = None) -> Dict:
+                                   stage_emotional_plan: Dict = None,
+                                   pre_generated_skeletons: List[Dict] = None) -> Dict:
         """
         生成阶段写作计划（重构版 - 使用专职组件）
         
@@ -330,11 +331,17 @@ class StagePlanManager:
         
         # Phase 2: 生成主龙骨（重大事件骨架）
         report_sub_step('major_event_skeletons', 'active', '生成重大事件骨架')
-        self.logger.info("   Phase 1: 规划阶段的'主龙骨' (重大事件框架)...")
-        major_event_skeletons = self._generate_major_event_skeletons_with_retry(
-            stage_name, stage_range, creative_seed, novel_title, novel_synopsis, overall_stage_plan,
-            stage_emotional_plan=stage_emotional_plan
-        )
+        
+        # 🚀 优化：使用预生成的主龙骨（批量生成）
+        if pre_generated_skeletons is not None:
+            self.logger.info(f"   🚀 使用预生成的主龙骨 for {stage_name}: {len(pre_generated_skeletons)} 个事件")
+            major_event_skeletons = pre_generated_skeletons
+        else:
+            self.logger.info("   Phase 1: 规划阶段的'主龙骨' (重大事件框架)...")
+            major_event_skeletons = self._generate_major_event_skeletons_with_retry(
+                stage_name, stage_range, creative_seed, novel_title, novel_synopsis, overall_stage_plan,
+                stage_emotional_plan=stage_emotional_plan
+            )
         
         if not major_event_skeletons:
             self.logger.error(f"    🚨 主龙骨生成失败")
@@ -377,13 +384,10 @@ class StagePlanManager:
         report_sub_step('character_inference', 'completed', '角色推断完成')
         
         # Phase 7: 生成阶段补充角色
-        report_sub_step('supporting_characters', 'active', '生成配角设计')
-        self.logger.info("   Phase 4.5: 为当前阶段生成补充角色...")
-        final_writing_plan = self._generate_supplementary_characters_for_stage(
-            stage_name, stage_range, final_writing_plan, creative_seed,
-            novel_title, novel_synopsis, overall_stage_plan
-        )
-        report_sub_step('supporting_characters', 'completed', '配角设计完成')
+        # 🚀 已优化：改为在所有阶段计划完成后批量生成（节省 API 调用）
+        report_sub_step('supporting_characters', 'active', '等待批量生成')
+        self.logger.info("   Phase 4.5: 补充角色将在所有阶段计划完成后批量生成...")
+        report_sub_step('supporting_characters', 'completed', '待批量生成')
         
         # 添加评估结果
         if "stage_writing_plan" in final_writing_plan:
@@ -1250,32 +1254,146 @@ class StagePlanManager:
             }
         }
     
+    def _load_character_design_from_file(self) -> Dict:
+        """
+        从文件加载角色设计
+        解决内存中尚未加载时的检查问题
+        """
+        # 1. 首先检查内存
+        existing = self.generator.novel_data.get("character_design", {})
+        if existing and existing.get("main_character"):
+            return existing
+        
+        # 2. 尝试从文件加载
+        try:
+            import json
+            from pathlib import Path
+            
+            # 获取项目路径
+            project_dir = Path(self.generator._get_project_dir())
+            character_file = project_dir / "characters" / f"{self.generator._ctx.get('novel_title', '')}_角色设计.json"
+            
+            # 尝试不同命名格式
+            if not character_file.exists():
+                character_file = project_dir / "characters" / "角色设计.json"
+            if not character_file.exists():
+                # 查找任何包含"角色"的json文件
+                char_dir = project_dir / "characters"
+                if char_dir.exists():
+                    for f in char_dir.glob("*角色*.json"):
+                        character_file = f
+                        break
+            
+            if character_file and character_file.exists():
+                with open(character_file, 'r', encoding='utf-8') as f:
+                    character_data = json.load(f)
+                    # 缓存到内存
+                    self.generator.novel_data["character_design"] = character_data
+                    self.logger.info(f"    ✅ 从文件加载角色设计: {character_file.name}")
+                    return character_data
+                    
+        except Exception as e:
+            self.logger.warning(f"    ⚠️ 从文件加载角色设计失败: {e}")
+        
+        return {}
+
     def _generate_supplementary_characters_for_stage(self, stage_name: str, stage_range: str,
                                                      writing_plan: Dict, creative_seed: Dict,
                                                      novel_title: str, novel_synopsis: str,
                                                      overall_stage_plan: Dict) -> Dict:
         """
-        为阶段生成补充角色
+        为阶段生成补充角色（已弃用，使用批量版本）
+        """
+        self.logger.warning(f"    ⚠️ _generate_supplementary_characters_for_stage 已弃用，请使用 _generate_all_supplementary_characters_batch")
+        return writing_plan
+    
+    def _generate_all_supplementary_characters_batch(self, creative_seed: Dict, novel_title: str,
+                                                     novel_synopsis: str, overall_stage_plan: Dict,
+                                                     all_stages_writing_plans: Dict[str, Dict]) -> Dict:
+        """
+        🚀 批量为全书所有阶段生成补充角色 - 将 4 次 API 调用合并为 1 次
         
         Args:
-            stage_name: 阶段名称
-            stage_range: 阶段章节范围
-            writing_plan: 写作计划
             creative_seed: 创意种子
             novel_title: 小说标题
             novel_synopsis: 小说简介
             overall_stage_plan: 整体阶段计划
+            all_stages_writing_plans: 所有阶段的写作计划
             
         Returns:
-            更新后的写作计划（包含补充角色）
+            更新后的角色设计
         """
-        self.logger.info(f"    -> 开始为【{stage_name}】生成补充角色...")
+        self.logger.info("    🚀 开始批量为全书生成补充角色...")
         
-        # 获取已有角色
-        existing_characters = self.generator.novel_data.get("character_design", {})
+        # 加载已有角色
+        existing_characters = self._load_character_design_from_file()
         if not existing_characters or not existing_characters.get("main_character"):
-            self.logger.warning("    ⚠️ 尚未生成主角，跳过补充角色生成")
-            return writing_plan
+            self.logger.warning("    ⚠️ 未找到主角设计，跳过补充角色生成")
+            return existing_characters
+        
+        # 获取势力系统
+        faction_system = self.generator.novel_data.get("faction_system", {})
+        
+        # 准备各阶段信息
+        stages_info = []
+        for stage_name, writing_plan in all_stages_writing_plans.items():
+            stage_info = {
+                "stage_name": stage_name,
+                "stage_overview": writing_plan.get("stage_writing_plan", {}).get("stage_overview", ""),
+                "chapter_range": writing_plan.get("stage_writing_plan", {}).get("chapter_range", ""),
+                "major_events": [
+                    event.get("name", "") 
+                    for event in writing_plan.get("stage_writing_plan", {}).get("major_events", [])
+                ]
+            }
+            stages_info.append(stage_info)
+        
+        try:
+            # 调用 ContentGenerator 批量生成
+            updated_characters = self.generator.content_generator.generate_character_design(
+                novel_title=novel_title,
+                core_worldview=self.generator.novel_data.get("core_worldview", {}),
+                selected_plan=self.generator.novel_data.get("selected_plan", {}),
+                market_analysis=self.generator.novel_data.get("market_analysis", {}),
+                design_level="supplementary_batch",  # 使用批量模式
+                existing_characters=existing_characters,
+                all_stages_info=stages_info,  # 传入所有阶段信息
+                global_growth_plan=self.generator.novel_data.get("global_growth_plan", {}),
+                overall_stage_plans=overall_stage_plan,
+                faction_system=faction_system
+            )
+            
+            if updated_characters and updated_characters != existing_characters:
+                # 更新 novel_data
+                self.generator.novel_data["character_design"] = updated_characters
+                
+                # 保存到文件
+                try:
+                    import json
+                    from pathlib import Path
+                    project_dir = Path(self.generator._get_project_dir())
+                    char_dir = project_dir / "characters"
+                    char_dir.mkdir(parents=True, exist_ok=True)
+                    
+                    char_file = char_dir / f"{novel_title}_角色设计.json"
+                    with open(char_file, 'w', encoding='utf-8') as f:
+                        json.dump(updated_characters, f, ensure_ascii=False, indent=2)
+                    
+                    new_count = len(updated_characters.get("important_characters", [])) - \
+                               len(existing_characters.get("important_characters", []))
+                    self.logger.info(f"    ✅ 批量生成成功: 全书共 {new_count} 个补充角色")
+                except Exception as e:
+                    self.logger.error(f"    ❌ 保存角色设计失败: {e}")
+            else:
+                self.logger.info("    ℹ️ 无需生成额外补充角色")
+                
+            return updated_characters or existing_characters
+            
+        except Exception as e:
+            self.logger.error(f"    ❌ 批量生成补充角色失败: {e}")
+            import traceback
+            traceback.print_exc()
+            return existing_characters
         
         # 获取势力系统信息
         faction_system = self.generator.novel_data.get("faction_system", {})

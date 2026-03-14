@@ -2085,6 +2085,46 @@ class NovelGenerator:
             )
             print(f"  ✅ 成功生成 {len(all_stages_emotional_plans)} 个阶段的情绪计划")
             
+            # 🚀 批量生成所有阶段的主龙骨（将 4 次 API 调用合并为 1 次）
+            print("  🚀 批量生成所有阶段的主龙骨...")
+            stages_config = []
+            for stage_name, stage_info in stage_plan_dict.items():
+                chapter_range_str = stage_info["chapter_range"]
+                import re
+                numbers = re.findall(r'\d+', chapter_range_str)
+                if len(numbers) >= 2:
+                    stage_range = f"{numbers[0]}-{numbers[1]}"
+                else:
+                    stage_range = "1-3"
+                stage_length = max(1, int(numbers[1]) - int(numbers[0]) + 1) if len(numbers) >= 2 else 3
+                
+                # 计算事件密度
+                density = self.stage_plan_manager.event_manager.calculate_optimal_event_density_by_stage(
+                    stage_name, stage_length
+                )
+                
+                stages_config.append({
+                    'stage_name': stage_name,
+                    'stage_range': stage_range,
+                    'density_requirements': density,
+                    'stage_emotional_plan': all_stages_emotional_plans.get(stage_name)
+                })
+            
+            all_stages_skeletons = self.stage_plan_manager.major_event_generator.generate_all_stages_skeletons_batch(
+                stages_config=stages_config,
+                creative_seed=self._ctx["creative_seed"],
+                global_novel_data=self.novel_data,
+                overall_stage_plan=stage_plan_dict,
+                novel_title=self._ctx["novel_title"]
+            )
+            
+            if all_stages_skeletons:
+                total_events = sum(len(events) for events in all_stages_skeletons.values())
+                print(f"  ✅ 批量生成主龙骨成功: {len(all_stages_skeletons)} 个阶段, {total_events} 个重大事件")
+            else:
+                print("  ⚠️ 批量生成主龙骨失败，将使用逐个生成模式")
+                all_stages_skeletons = {}
+            
             for stage_name, stage_info in stage_plan_dict.items():
                 chapter_range_str = stage_info["chapter_range"]
                 
@@ -2095,11 +2135,14 @@ class NovelGenerator:
                 else:
                     stage_range = "1-3"
                 
-                # 获取预生成的情绪计划
+                # 获取预生成的情绪计划和主龙骨
                 pre_generated_emotional_plan = all_stages_emotional_plans.get(stage_name)
+                pre_generated_skeletons = all_stages_skeletons.get(stage_name) if all_stages_skeletons else None
                 
                 print(f"  📋 生成 {stage_name} 的详细写作计划...")
                 print(f"  📋 章节范围: {stage_range}")
+                if pre_generated_skeletons:
+                    print(f"  🚀 使用预生成主龙骨: {len(pre_generated_skeletons)} 个事件")
                 
                 stage_plan = self.stage_plan_manager.generate_stage_writing_plan(
                     stage_name=stage_name,
@@ -2108,7 +2151,8 @@ class NovelGenerator:
                     novel_title=self._ctx["novel_title"],
                     novel_synopsis=self._ctx["novel_synopsis"],
                     overall_stage_plan=stage_plan_dict,
-                    stage_emotional_plan=pre_generated_emotional_plan
+                    stage_emotional_plan=pre_generated_emotional_plan,
+                    pre_generated_skeletons=pre_generated_skeletons
                 )
                 
                 if stage_plan:
@@ -2121,6 +2165,17 @@ class NovelGenerator:
             if success_count > 0:
                 print(f"✅ 阶段详细计划生成完成: {success_count}/{len(stage_plan_dict)} 个阶段")
                 self._save_material_to_manager("阶段计划", self._ctx["stage_writing_plans"], total_stages=success_count)
+                
+                # 🚀 批量为全书生成补充角色（将 4 次 API 调用合并为 1 次）
+                print("  🚀 批量生成全书补充角色...")
+                self.stage_plan_manager._generate_all_supplementary_characters_batch(
+                    creative_seed=self._ctx["creative_seed"],
+                    novel_title=self._ctx["novel_title"],
+                    novel_synopsis=self._ctx["novel_synopsis"],
+                    overall_stage_plan=stage_plan_dict,
+                    all_stages_writing_plans=self._ctx["stage_writing_plans"]
+                )
+                
                 return True
             else:
                 print("❌ 所有阶段详细计划生成失败")

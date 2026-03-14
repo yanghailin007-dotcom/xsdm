@@ -7,11 +7,13 @@
     
     <!-- 全局样式 -->
     <link rel="stylesheet" href="{{ url_for('static', filename='css/common.css') }}">
+    <!-- V2 设计系统样式（导航栏使用） -->
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/v2/design-system.css') }}?v=3">
     {% block extra_css %}{% endblock %}
 </head>
 <body>
     <!-- 导航栏 -->
-    {% include 'components/navbar.html' %}
+    {% include 'components/v2/navbar.html' %}
     
     <!-- 消息提示 -->
     {% with messages = get_flashed_messages(with_categories=true) %}
@@ -39,6 +41,7 @@
     <!-- 全局脚本 -->
     <script src="{{ url_for('static', filename='js/confirm-dialog.js') }}"></script>
     <script src="{{ url_for('static', filename='js/user-info.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/account-manager.js') }}?v=2"></script>
     {% block extra_js %}{% endblock %}
 </body>
 </html>

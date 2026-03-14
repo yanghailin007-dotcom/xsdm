@@ -673,7 +673,7 @@
     </style>
 </head>
 <body>
-    {% include 'components/navbar.html' %}
+    {% include 'components/v2/navbar.html' %}
     <!-- Navigation -->
     <!-- Main Container -->
     <div class="contract-container">
@@ -1321,5 +1321,6 @@
         });
     </script>
     <script src="/static/js/confirm-dialog.js"></script>
+    <script src="{{ url_for('static', filename='js/account-manager.js') }}?v=2"></script>
 </body>
 </html>

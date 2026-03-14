@@ -44,7 +44,7 @@
                 <div class="v2-nav-dropdown__menu v2-nav-dropdown__menu--create">
                     <!-- 新建创作 -->
                     <a href="/phase-one-setup" class="v2-dropdown-item {% if request.endpoint == 'phase_one_setup' %}v2-dropdown-item--active{% endif %}">
-                        <span class="v2-dropdown-item__icon v2-dropdown-item__icon--create">✨</span>
+                        <span class="v2-dropdown-item__icon v2-dropdown-item__icon--create" style="font-size: 16px;">✨</span>
                         <div class="v2-dropdown-item__content">
                             <span class="v2-dropdown-item__title">新建创作</span>
                             <span class="v2-dropdown-item__desc">从零开始，生成世界观和角色设定</span>
@@ -57,7 +57,7 @@
                     <div class="v2-dropdown-divider"></div>
                     <!-- 继续生成 -->
                     <a href="/phase-two-generation" class="v2-dropdown-item">
-                        <span class="v2-dropdown-item__icon v2-dropdown-item__icon--continue">📝</span>
+                        <span class="v2-dropdown-item__icon v2-dropdown-item__icon--continue" style="font-size: 16px;">📝</span>
                         <div class="v2-dropdown-item__content">
                             <span class="v2-dropdown-item__title">继续生成</span>
                             <span class="v2-dropdown-item__desc">选择已有项目，生成小说章节</span>
@@ -93,7 +93,7 @@
         </div>
         {% if session.logged_in %}
             <a href="/phase-one-setup" class="v2-btn v2-btn--primary v2-btn--sm">
-                <span>✨</span>
+                <span style="font-size: 14px; line-height: 1;">✨</span>
                 <span data-i18n="nav.newCreate">新建创作</span>
             </a>
             {% include 'components/v2/user-menu.html' %}
@@ -206,6 +206,39 @@
     align-items: center;
     gap: 12px;
     flex-shrink: 0;
+}
+
+/* 按钮样式 - 确保正确显示（强制覆盖其他样式） */
+.v2-btn {
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    gap: 6px !important;
+    padding: 8px 16px !important;
+    border-radius: 6px !important;
+    font-size: 13px !important;
+    font-weight: 500 !important;
+    text-decoration: none !important;
+    cursor: pointer !important;
+    transition: all 0.2s ease !important;
+    border: none !important;
+    white-space: nowrap !important;
+    line-height: 1.5 !important;
+}
+
+.v2-btn--primary {
+    background: linear-gradient(135deg, #6366f1, #8b5cf6) !important;
+    color: white !important;
+}
+
+.v2-btn--primary:hover {
+    transform: translateY(-1px) !important;
+    box-shadow: 0 4px 12px rgba(99, 102, 241, 0.4) !important;
+}
+
+.v2-btn--sm {
+    padding: 6px 12px !important;
+    font-size: 12px !important;
 }
 
 /* 导航下拉菜单 - 创作触发器 */

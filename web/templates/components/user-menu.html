@@ -75,6 +75,11 @@
                         <span class="icon">📂</span>
                         <span class="text">我的项目</span>
                     </a>
+                    <button class="action-item" id="switch-account-btn" onclick="openAccountSwitcher(); closeUserMenu();" style="display: none;">
+                        <span class="icon">🔄</span>
+                        <span class="text">切换账户</span>
+                        <span class="badge" id="account-count-badge"></span>
+                    </button>
                 </div>
             </div>
             
@@ -588,4 +593,31 @@ window.closeUserMenu = closeUserMenu;
 window.loadUserPoints = loadUserPoints;
 window.checkCheckinStatus = checkCheckinStatus;
 window.logout = logout;
+
+// 打开账户切换器
+function openAccountSwitcher() {
+    if (window.accountSwitcher) {
+        window.accountSwitcher.toggle();
+    }
+}
+window.openAccountSwitcher = openAccountSwitcher;
+
+// 检查是否显示"切换账户"按钮
+function checkMultiAccountStatus() {
+    const switchBtn = document.getElementById('switch-account-btn');
+    const badge = document.getElementById('account-count-badge');
+    if (!switchBtn || !window.accountManager) return;
+    
+    const accounts = window.accountManager.getAllAccounts();
+    if (accounts.length > 1) {
+        switchBtn.style.display = 'flex';
+        badge.textContent = accounts.length;
+    } else {
+        switchBtn.style.display = 'none';
+    }
+}
+
+// 监听账户变化
+window.addEventListener('account:switched', checkMultiAccountStatus);
+window.addEventListener('DOMContentLoaded', checkMultiAccountStatus);
 </script>

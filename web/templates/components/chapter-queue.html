@@ -1,0 +1,680 @@
+<!-- 
+  章节生成队列组件 - 流水线式进度展示
+  参考：GitHub Actions 工作流 + Vercel 部署进度
+-->
+<style>
+/* ===== 章节队列容器 ===== */
+.chapter-queue-container {
+    background: linear-gradient(145deg, rgba(17, 24, 39, 0.95), rgba(11, 17, 32, 0.98));
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 16px;
+    padding: 24px;
+    margin: 20px 0;
+    position: relative;
+    overflow: hidden;
+}
+
+.chapter-queue-container::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 1px;
+    background: linear-gradient(90deg, 
+        transparent, 
+        rgba(59, 130, 246, 0.5), 
+        rgba(16, 185, 129, 0.5),
+        transparent
+    );
+}
+
+/* ===== 标题区域 ===== */
+.chapter-queue__header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 20px;
+}
+
+.chapter-queue__title {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 16px;
+    font-weight: 600;
+    color: #e5e7eb;
+}
+
+.chapter-queue__title-icon {
+    width: 32px;
+    height: 32px;
+    background: linear-gradient(135deg, rgba(59, 130, 246, 0.2), rgba(16, 185, 129, 0.2));
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 16px;
+    border: 1px solid rgba(59, 130, 246, 0.3);
+}
+
+.chapter-queue__stats {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    font-size: 13px;
+}
+
+.chapter-queue__stat {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 4px 10px;
+    background: rgba(255, 255, 255, 0.03);
+    border-radius: 20px;
+    border: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.chapter-queue__stat-dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+}
+
+.chapter-queue__stat-dot--pending { background: #6b7280; }
+.chapter-queue__stat-dot--generating { 
+    background: #3b82f6; 
+    animation: pulse-dot 1.5s ease-in-out infinite;
+}
+.chapter-queue__stat-dot--completed { background: #10b981; }
+
+@keyframes pulse-dot {
+    0%, 100% { opacity: 1; transform: scale(1); }
+    50% { opacity: 0.5; transform: scale(1.2); }
+}
+
+/* ===== 流水线轨道 ===== */
+.chapter-queue__track {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 16px 8px;
+    overflow-x: auto;
+    overflow-y: hidden;
+    scroll-behavior: smooth;
+    scrollbar-width: thin;
+    scrollbar-color: rgba(255, 255, 255, 0.1) transparent;
+}
+
+.chapter-queue__track::-webkit-scrollbar {
+    height: 4px;
+}
+
+.chapter-queue__track::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+.chapter-queue__track::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 2px;
+}
+
+/* ===== 连接线 ===== */
+.chapter-queue__connector {
+    width: 24px;
+    height: 2px;
+    background: linear-gradient(90deg, 
+        var(--from-color, #6b7280), 
+        var(--to-color, #6b7280)
+    );
+    position: relative;
+    flex-shrink: 0;
+}
+
+.chapter-queue__connector::after {
+    content: '';
+    position: absolute;
+    right: -4px;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 0;
+    height: 0;
+    border-top: 4px solid transparent;
+    border-bottom: 4px solid transparent;
+    border-left: 6px solid var(--to-color, #6b7280);
+}
+
+/* 流动动画 */
+.chapter-queue__connector--flowing::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: linear-gradient(90deg, 
+        transparent, 
+        rgba(59, 130, 246, 0.8), 
+        transparent
+    );
+    animation: flow-move 1s linear infinite;
+}
+
+@keyframes flow-move {
+    0% { transform: translateX(-100%); }
+    100% { transform: translateX(100%); }
+}
+
+/* ===== 章节卡片 ===== */
+.chapter-queue__item {
+    width: 64px;
+    height: 80px;
+    border-radius: 12px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    flex-shrink: 0;
+    position: relative;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    cursor: pointer;
+}
+
+/* 状态颜色定义 */
+.chapter-queue__item--pending {
+    background: linear-gradient(145deg, rgba(107, 114, 128, 0.1), rgba(75, 85, 99, 0.15));
+    border: 2px solid rgba(107, 114, 128, 0.3);
+    color: #9ca3af;
+}
+
+.chapter-queue__item--generating {
+    background: linear-gradient(145deg, rgba(59, 130, 246, 0.15), rgba(37, 99, 235, 0.2));
+    border: 2px solid rgba(59, 130, 246, 0.6);
+    color: #60a5fa;
+    box-shadow: 0 0 20px rgba(59, 130, 246, 0.3);
+    animation: generating-pulse 2s ease-in-out infinite;
+}
+
+.chapter-queue__item--completed {
+    background: linear-gradient(145deg, rgba(16, 185, 129, 0.15), rgba(5, 150, 105, 0.2));
+    border: 2px solid rgba(16, 185, 129, 0.6);
+    color: #34d399;
+    box-shadow: 0 0 15px rgba(16, 185, 129, 0.25);
+}
+
+.chapter-queue__item--error {
+    background: linear-gradient(145deg, rgba(239, 68, 68, 0.15), rgba(220, 38, 38, 0.2));
+    border: 2px solid rgba(239, 68, 68, 0.6);
+    color: #f87171;
+    animation: error-shake 0.5s ease-in-out;
+}
+
+/* 动画定义 */
+@keyframes generating-pulse {
+    0%, 100% { 
+        box-shadow: 0 0 20px rgba(59, 130, 246, 0.3);
+        transform: scale(1);
+    }
+    50% { 
+        box-shadow: 0 0 30px rgba(59, 130, 246, 0.5);
+        transform: scale(1.02);
+    }
+}
+
+@keyframes error-shake {
+    0%, 100% { transform: translateX(0); }
+    25% { transform: translateX(-4px); }
+    75% { transform: translateX(4px); }
+}
+
+/* 章节编号 */
+.chapter-queue__number {
+    font-size: 18px;
+    font-weight: 700;
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+}
+
+/* 状态图标 */
+.chapter-queue__icon {
+    width: 20px;
+    height: 20px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 12px;
+}
+
+/* 加载动画 */
+.chapter-queue__spinner {
+    width: 16px;
+    height: 16px;
+    border: 2px solid rgba(59, 130, 246, 0.3);
+    border-top-color: #3b82f6;
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+    to { transform: rotate(360deg); }
+}
+
+/* 完成勾 */
+.chapter-queue__check {
+    width: 18px;
+    height: 18px;
+    background: linear-gradient(135deg, #10b981, #059669);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 10px;
+    animation: check-pop 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+
+@keyframes check-pop {
+    0% { transform: scale(0); opacity: 0; }
+    100% { transform: scale(1); opacity: 1; }
+}
+
+/* 进度条（在卡片内部） */
+.chapter-queue__progress {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    height: 3px;
+    background: rgba(0, 0, 0, 0.2);
+    border-radius: 0 0 10px 10px;
+    overflow: hidden;
+}
+
+.chapter-queue__progress-bar {
+    height: 100%;
+    background: linear-gradient(90deg, #3b82f6, #60a5fa);
+    border-radius: 0 0 10px 10px;
+    transition: width 0.3s ease;
+    position: relative;
+}
+
+.chapter-queue__progress-bar::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    width: 20px;
+    background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.4));
+    animation: shimmer 1s infinite;
+}
+
+@keyframes shimmer {
+    0% { transform: translateX(0); }
+    100% { transform: translateX(20px); }
+}
+
+/* ===== 当前章节高亮 ===== */
+.chapter-queue__item--current {
+    transform: translateY(-4px);
+}
+
+.chapter-queue__item--current::before {
+    content: '当前';
+    position: absolute;
+    top: -20px;
+    font-size: 10px;
+    color: #3b82f6;
+    font-weight: 600;
+    opacity: 0.8;
+}
+
+/* ===== 游标提示 ===== */
+.chapter-queue__tooltip {
+    position: absolute;
+    bottom: 100%;
+    left: 50%;
+    transform: translateX(-50%) translateY(-8px);
+    background: rgba(17, 24, 39, 0.95);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    padding: 8px 12px;
+    border-radius: 8px;
+    font-size: 12px;
+    color: #e5e7eb;
+    white-space: nowrap;
+    opacity: 0;
+    visibility: hidden;
+    transition: all 0.2s ease;
+    z-index: 10;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+}
+
+.chapter-queue__tooltip::after {
+    content: '';
+    position: absolute;
+    top: 100%;
+    left: 50%;
+    transform: translateX(-50%);
+    border: 6px solid transparent;
+    border-top-color: rgba(17, 24, 39, 0.95);
+}
+
+.chapter-queue__item:hover .chapter-queue__tooltip {
+    opacity: 1;
+    visibility: visible;
+}
+
+/* ===== 响应式 ===== */
+@media (max-width: 768px) {
+    .chapter-queue__item {
+        width: 56px;
+        height: 72px;
+    }
+    
+    .chapter-queue__number {
+        font-size: 16px;
+    }
+    
+    .chapter-queue__connector {
+        width: 16px;
+    }
+}
+</style>
+
+<!-- 章节队列组件 HTML -->
+<div class="chapter-queue-container" id="chapterQueueContainer">
+    <div class="chapter-queue__header">
+        <div class="chapter-queue__title">
+            <div class="chapter-queue__title-icon">📖</div>
+            <span>章节生成流水线</span>
+        </div>
+        <div class="chapter-queue__stats">
+            <div class="chapter-queue__stat">
+                <span class="chapter-queue__stat-dot chapter-queue__stat-dot--pending"></span>
+                <span id="queue-pending-count">0 等待</span>
+            </div>
+            <div class="chapter-queue__stat">
+                <span class="chapter-queue__stat-dot chapter-queue__stat-dot--generating"></span>
+                <span id="queue-generating-count">0 生成中</span>
+            </div>
+            <div class="chapter-queue__stat">
+                <span class="chapter-queue__stat-dot chapter-queue__stat-dot--completed"></span>
+                <span id="queue-completed-count">0 完成</span>
+            </div>
+        </div>
+    </div>
+    
+    <!-- 流水线轨道 -->
+    <div class="chapter-queue__track" id="chapterQueueTrack">
+        <!-- 章节项目将动态生成 -->
+    </div>
+</div>
+
+<script>
+/**
+ * 章节队列管理器
+ */
+class ChapterQueueManager {
+    constructor(containerId = 'chapterQueueTrack') {
+        this.container = document.getElementById(containerId);
+        this.chapters = new Map(); // chapterNumber -> chapterData
+        this.currentChapter = null;
+    }
+
+    /**
+     * 初始化队列
+     * @param {number} totalChapters - 总章节数
+     * @param {number} startFrom - 起始章节
+     */
+    initQueue(totalChapters, startFrom = 1) {
+        this.chapters.clear();
+        
+        for (let i = 0; i < totalChapters; i++) {
+            const chapterNum = startFrom + i;
+            this.chapters.set(chapterNum, {
+                number: chapterNum,
+                status: 'pending', // pending, generating, completed, error
+                progress: 0,
+                title: `第${chapterNum}章`
+            });
+        }
+        
+        this.render();
+        this.updateStats();
+    }
+
+    /**
+     * 更新章节状态
+     * @param {number} chapterNumber - 章节编号
+     * @param {string} status - 状态
+     * @param {number} progress - 进度 (0-100)
+     */
+    updateChapterStatus(chapterNumber, status, progress = 0) {
+        const chapter = this.chapters.get(chapterNumber);
+        if (!chapter) return;
+
+        const oldStatus = chapter.status;
+        chapter.status = status;
+        chapter.progress = progress;
+
+        // 更新 DOM
+        this.updateChapterElement(chapterNumber);
+        this.updateStats();
+
+        // 自动滚动到当前章节
+        if (status === 'generating') {
+            this.currentChapter = chapterNumber;
+            this.scrollToChapter(chapterNumber);
+        }
+
+        // 如果是完成状态，播放完成动画
+        if (status === 'completed' && oldStatus !== 'completed') {
+            this.playCompleteAnimation(chapterNumber);
+        }
+    }
+
+    /**
+     * 渲染队列
+     */
+    render() {
+        if (!this.container) return;
+
+        const chapters = Array.from(this.chapters.values());
+        if (chapters.length === 0) return;
+
+        let html = '';
+        
+        chapters.forEach((chapter, index) => {
+            // 添加连接线（第一个之前不需要）
+            if (index > 0) {
+                const prevChapter = chapters[index - 1];
+                const connectorClass = prevChapter.status === 'generating' || 
+                                       prevChapter.status === 'completed' ? 
+                                       'chapter-queue__connector--flowing' : '';
+                const fromColor = this.getStatusColor(prevChapter.status);
+                const toColor = this.getStatusColor(chapter.status);
+                
+                html += `<div class="chapter-queue__connector ${connectorClass}" 
+                              style="--from-color: ${fromColor}; --to-color: ${toColor}"></div>`;
+            }
+
+            html += this.createChapterElement(chapter);
+        });
+
+        this.container.innerHTML = html;
+    }
+
+    /**
+     * 创建章节 DOM 元素
+     */
+    createChapterElement(chapter) {
+        const statusClass = `chapter-queue__item--${chapter.status}`;
+        const isCurrent = chapter.number === this.currentChapter ? 'chapter-queue__item--current' : '';
+        
+        let iconHtml = '';
+        switch (chapter.status) {
+            case 'pending':
+                iconHtml = '<span class="chapter-queue__icon">⏳</span>';
+                break;
+            case 'generating':
+                iconHtml = '<div class="chapter-queue__spinner"></div>';
+                break;
+            case 'completed':
+                iconHtml = '<div class="chapter-queue__check">✓</div>';
+                break;
+            case 'error':
+                iconHtml = '<span class="chapter-queue__icon">⚠</span>';
+                break;
+        }
+
+        const progressHtml = chapter.status === 'generating' ? 
+            `<div class="chapter-queue__progress">
+                <div class="chapter-queue__progress-bar" style="width: ${chapter.progress}%"></div>
+             </div>` : '';
+
+        return `
+            <div class="chapter-queue__item ${statusClass} ${isCurrent}" 
+                 data-chapter="${chapter.number}"
+                 onclick="chapterQueue.onChapterClick(${chapter.number})">
+                <span class="chapter-queue__number">${chapter.number}</span>
+                ${iconHtml}
+                <div class="chapter-queue__tooltip">${chapter.title}</div>
+                ${progressHtml}
+            </div>
+        `;
+    }
+
+    /**
+     * 更新单个章芃元素
+     */
+    updateChapterElement(chapterNumber) {
+        const oldElement = this.container.querySelector(`[data-chapter="${chapterNumber}"]`);
+        if (!oldElement) return;
+
+        const chapter = this.chapters.get(chapterNumber);
+        const newElementHtml = this.createChapterElement(chapter);
+        
+        // 使用解析器创建新元素
+        const parser = new DOMParser();
+        const doc = parser.parseFromString(newElementHtml, 'text/html');
+        const newElement = doc.body.firstElementChild;
+
+        // 替换旧元素
+        oldElement.replaceWith(newElement);
+
+        // 更新连接线颜色
+        this.updateConnectors();
+    }
+
+    /**
+     * 更新连接线样式
+     */
+    updateConnectors() {
+        const connectors = this.container.querySelectorAll('.chapter-queue__connector');
+        const chapters = Array.from(this.chapters.values());
+
+        connectors.forEach((connector, index) => {
+            const prevChapter = chapters[index];
+            const nextChapter = chapters[index + 1];
+            
+            if (prevChapter && nextChapter) {
+                const fromColor = this.getStatusColor(prevChapter.status);
+                const toColor = this.getStatusColor(nextChapter.status);
+                connector.style.setProperty('--from-color', fromColor);
+                connector.style.setProperty('--to-color', toColor);
+
+                // 流动动画
+                const shouldFlow = prevChapter.status === 'generating' || 
+                                   prevChapter.status === 'completed';
+                connector.classList.toggle('chapter-queue__connector--flowing', shouldFlow);
+            }
+        });
+    }
+
+    /**
+     * 获取状态颜色
+     */
+    getStatusColor(status) {
+        const colors = {
+            pending: '#6b7280',
+            generating: '#3b82f6',
+            completed: '#10b981',
+            error: '#ef4444'
+        };
+        return colors[status] || '#6b7280';
+    }
+
+    /**
+     * 更新统计数据
+     */
+    updateStats() {
+        const chapters = Array.from(this.chapters.values());
+        const pending = chapters.filter(c => c.status === 'pending').length;
+        const generating = chapters.filter(c => c.status === 'generating').length;
+        const completed = chapters.filter(c => c.status === 'completed').length;
+
+        const pendingEl = document.getElementById('queue-pending-count');
+        const generatingEl = document.getElementById('queue-generating-count');
+        const completedEl = document.getElementById('queue-completed-count');
+
+        if (pendingEl) pendingEl.textContent = `${pending} 等待`;
+        if (generatingEl) generatingEl.textContent = `${generating} 生成中`;
+        if (completedEl) completedEl.textContent = `${completed} 完成`;
+    }
+
+    /**
+     * 滚动到指定章节
+     */
+    scrollToChapter(chapterNumber) {
+        const element = this.container.querySelector(`[data-chapter="${chapterNumber}"]`);
+        if (element) {
+            element.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' });
+        }
+    }
+
+    /**
+     * 播放完成动画
+     */
+    playCompleteAnimation(chapterNumber) {
+        // 可以在这里添加额外的完成效果，如声音或更多视觉反馈
+        console.log(`🎉 第${chapterNumber}章生成完成`);
+    }
+
+    /**
+     * 章节点击事件
+     */
+    onChapterClick(chapterNumber) {
+        const chapter = this.chapters.get(chapterNumber);
+        if (chapter) {
+            // 触发外部事件，供主页面处理
+            window.dispatchEvent(new CustomEvent('chapterQueue:click', { 
+                detail: { chapterNumber, chapter } 
+            }));
+        }
+    }
+
+    /**
+     * 获取完成进度百分比
+     */
+    getProgressPercentage() {
+        const chapters = Array.from(this.chapters.values());
+        if (chapters.length === 0) return 0;
+        
+        const completed = chapters.filter(c => c.status === 'completed').length;
+        return Math.round((completed / chapters.length) * 100);
+    }
+
+    /**
+     * 清理队列
+     */
+    clear() {
+        this.chapters.clear();
+        this.currentChapter = null;
+        if (this.container) {
+            this.container.innerHTML = '';
+        }
+    }
+}
+
+// 创建全局实例
+const chapterQueue = new ChapterQueueManager();
+</script>

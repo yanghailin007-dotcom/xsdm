@@ -830,6 +830,35 @@ class ContentGenerator:
                 "DESIGN_REQUIREMENTS": json.dumps(design_requirements, ensure_ascii=False, indent=2)
             }
             purpose = f"为《{novel_title}》设计核心角色"
+        elif design_level == "supplementary_batch":
+            # 🚀 批量为全书所有阶段生成补充角色
+            if not existing_characters:
+                self.logger.warning("  ⚠️ 批量补充角色模式缺少'已有角色'，操作已取消。")
+                return existing_characters
+            
+            all_stages_info = kwargs.get("all_stages_info", [])
+            if not all_stages_info:
+                self.logger.warning("  ⚠️ 批量补充角色模式缺少'阶段信息'，操作已取消。")
+                return existing_characters
+            
+            prompt_type = "character_design_supplementary_batch"
+            
+            # 准批量生成的上下文
+            batch_requirements = {
+                "stages": all_stages_info,
+                "existing_characters_summary": {
+                    "main_character": existing_characters.get("main_character", {}).get("name", "未知"),
+                    "important_count": len(existing_characters.get("important_characters", [])),
+                    "supporting_count": len(existing_characters.get("supporting_characters", []))
+                },
+                "faction_system": faction_system
+            }
+            prompt_context = {
+                "EXISTING_CHARACTERS": json.dumps(existing_characters, ensure_ascii=False, indent=2),
+                "ALL_STAGES_REQUIREMENTS": json.dumps(batch_requirements, ensure_ascii=False, indent=2)
+            }
+            purpose = f"【批量生成】为《{novel_title}》全书所有阶段补充配角"
+            
         elif design_level == "supplementary":
             # ▼▼▼ 核心修改区域开始 ▼▼▼
             if not existing_characters or not stage_info:
@@ -904,6 +933,35 @@ class ContentGenerator:
             if main_character_name:
                 result_json = self.ensure_main_character_name(result_json, main_character_name)
             return result_json
+        elif design_level == "supplementary_batch":
+            # 🚀 批量补充模式 - 为全书所有阶段生成补充角色
+            all_new_characters = result_json.get("all_new_characters", [])
+            stage_assignments = result_json.get("stage_assignments", {})
+            
+            if not all_new_characters:
+                self.logger.warning("  ⚠️ 批量补充角色API调用成功，但未返回新角色。")
+                return existing_characters
+            
+            self.logger.info(f"  ✅ 批量生成成功：全书共 {len(all_new_characters)} 个补充角色")
+            if stage_assignments:
+                for stage, chars in stage_assignments.items():
+                    self.logger.info(f"    - {stage}: {len(chars)} 个角色")
+            
+            # 合并到已有角色中
+            updated_characters = copy.deepcopy(existing_characters)
+            if "important_characters" not in updated_characters:
+                updated_characters["important_characters"] = []
+            updated_characters["important_characters"].extend(all_new_characters)
+            
+            # 记录批量生成信息
+            updated_characters["supplementary_batch_info"] = {
+                "total_new": len(all_new_characters),
+                "stage_assignments": stage_assignments,
+                "generated_at": datetime.now().isoformat()
+            }
+            
+            return updated_characters
+            
         elif design_level == "supplementary":
             # 补充模式需要将新角色合并到旧数据中
             new_characters = result_json.get("newly_added_characters", [])

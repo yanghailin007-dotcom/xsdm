@@ -25,7 +25,7 @@
 </head>
 <body>
     <!-- 统一导航栏（包含用户菜单） -->
-    {% include 'components/navbar.html' %}
+    {% include 'components/v2/navbar.html' %}
     
     <!-- Flash 消息 -->
     {% with messages = get_flashed_messages(with_categories=true) %}
@@ -55,6 +55,7 @@
     <!-- 全局脚本 -->
     <script src="{{ url_for('static', filename='js/confirm-dialog.js') }}"></script>
     <script src="{{ url_for('static', filename='js/user-info.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/account-manager.js') }}?v=2"></script>
     {% block extra_js %}{% endblock %}
 </body>
 </html>

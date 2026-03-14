@@ -1,0 +1,422 @@
+<!-- 账号切换器组件 - 需要配合 account-manager.js 使用 -->
+<style>
+.account-switcher {
+    position: relative;
+    display: inline-block;
+    margin-left: 8px;
+}
+
+/* 隐藏状态 - 单账户时隐藏，多账户时显示 */
+.account-switcher.hidden {
+    display: none !important;
+}
+
+.account-switcher__trigger {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 12px;
+    background: rgba(255, 255, 255, 0.1);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    border-radius: 20px;
+    cursor: pointer;
+    transition: all 0.2s;
+    color: #fff;
+}
+
+.account-switcher__trigger:hover {
+    background: rgba(255, 255, 255, 0.15);
+}
+
+.account-switcher__avatar {
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    object-fit: cover;
+    border: 2px solid rgba(251, 191, 36, 0.5);
+}
+
+.account-switcher__info {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    line-height: 1.2;
+}
+
+.account-switcher__name {
+    font-size: 13px;
+    font-weight: 500;
+}
+
+.account-switcher__points {
+    font-size: 11px;
+    color: #fbbf24;
+    display: flex;
+    align-items: center;
+    gap: 2px;
+}
+
+.account-switcher__arrow {
+    font-size: 10px;
+    margin-left: 4px;
+    transition: transform 0.2s;
+}
+
+.account-switcher.open .account-switcher__arrow {
+    transform: rotate(180deg);
+}
+
+/* 下拉面板 */
+.account-switcher__dropdown {
+    position: absolute;
+    top: 100%;
+    right: 0;
+    margin-top: 8px;
+    min-width: 240px;
+    background: linear-gradient(145deg, #1e293b 0%, #0f172a 100%);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 12px;
+    box-shadow: 0 20px 50px rgba(0, 0, 0, 0.5);
+    opacity: 0;
+    visibility: hidden;
+    transform: translateY(-10px);
+    transition: all 0.2s;
+    z-index: 1000;
+}
+
+.account-switcher.open .account-switcher__dropdown {
+    opacity: 1;
+    visibility: visible;
+    transform: translateY(0);
+}
+
+/* 账号列表 */
+.account-switcher__list {
+    max-height: 300px;
+    overflow-y: auto;
+    padding: 8px;
+}
+
+.account-switcher__item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.15s;
+    position: relative;
+}
+
+.account-switcher__item:hover {
+    background: rgba(255, 255, 255, 0.05);
+}
+
+.account-switcher__item.active {
+    background: rgba(251, 191, 36, 0.1);
+    border: 1px solid rgba(251, 191, 36, 0.3);
+}
+
+.account-switcher__item-avatar {
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    object-fit: cover;
+}
+
+.account-switcher__item-info {
+    flex: 1;
+    min-width: 0;
+}
+
+.account-switcher__item-name {
+    font-size: 14px;
+    font-weight: 500;
+    color: #e2e8f0;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.account-switcher__item-points {
+    font-size: 12px;
+    color: #94a3b8;
+}
+
+.account-switcher__item-status {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: #22c55e;
+}
+
+.account-switcher__item-status.warning {
+    background: #ef4444;
+}
+
+.account-switcher__item-check {
+    color: #fbbf24;
+    font-size: 14px;
+}
+
+/* 需要重新登录标记 */
+.account-switcher__relogin-badge {
+    font-size: 10px;
+    padding: 2px 6px;
+    background: rgba(239, 68, 68, 0.2);
+    color: #ef4444;
+    border-radius: 4px;
+}
+
+/* 底部操作 */
+.account-switcher__footer {
+    padding: 12px;
+    border-top: 1px solid rgba(255, 255, 255, 0.1);
+    display: flex;
+    gap: 8px;
+}
+
+.account-switcher__btn {
+    flex: 1;
+    padding: 8px 12px;
+    border-radius: 6px;
+    font-size: 13px;
+    cursor: pointer;
+    transition: all 0.15s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+}
+
+.account-switcher__btn-primary {
+    background: linear-gradient(135deg, #fbbf24 0%, #f59e0b 100%);
+    color: #0f172a;
+    border: none;
+    font-weight: 600;
+}
+
+.account-switcher__btn-primary:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(251, 191, 36, 0.3);
+}
+
+.account-switcher__btn-secondary {
+    background: rgba(255, 255, 255, 0.05);
+    color: #94a3b8;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.account-switcher__btn-secondary:hover {
+    background: rgba(255, 255, 255, 0.1);
+    color: #e2e8f0;
+}
+
+/* 空状态 */
+.account-switcher__empty {
+    padding: 24px;
+    text-align: center;
+    color: #64748b;
+}
+
+/* 遮罩层 */
+.account-switcher__overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 999;
+    display: none;
+}
+
+.account-switcher.open .account-switcher__overlay {
+    display: block;
+}
+</style>
+
+<div class="account-switcher" id="accountSwitcher">
+    <!-- 触发按钮 -->
+    <div class="account-switcher__trigger" onclick="accountSwitcher.toggle()">
+        <img class="account-switcher__avatar" 
+             src="/static/images/avatar-default.png" 
+             alt="avatar"
+             id="switcherAvatar">
+        <div class="account-switcher__info">
+            <span class="account-switcher__name" id="switcherName">加载中...</span>
+            <span class="account-switcher__points">
+                <span>⚡</span>
+                <span id="switcherPoints">--</span>
+            </span>
+        </div>
+        <span class="account-switcher__arrow">▼</span>
+    </div>
+
+    <!-- 下拉面板 -->
+    <div class="account-switcher__overlay" onclick="accountSwitcher.close()"></div>
+    <div class="account-switcher__dropdown">
+        <div class="account-switcher__list" id="accountList">
+            <!-- 动态生成 -->
+        </div>
+        <div class="account-switcher__footer">
+            <button class="account-switcher__btn account-switcher__btn-primary" onclick="accountSwitcher.addAccount()">
+                <span>+</span>
+                <span>添加账号</span>
+            </button>
+            <button class="account-switcher__btn account-switcher__btn-secondary" onclick="accountSwitcher.manageAccounts()">
+                <span>管理</span>
+            </button>
+        </div>
+    </div>
+</div>
+
+<script>
+/**
+ * 账号切换器 UI 控制器
+ */
+class AccountSwitcherUI {
+    constructor() {
+        this.element = document.getElementById('accountSwitcher');
+        this.listElement = document.getElementById('accountList');
+        this.isOpen = false;
+        
+        this.init();
+    }
+
+    init() {
+        // 监听账号变化事件
+        window.addEventListener('account:switched', () => this.updateUI());
+        window.addEventListener('account:points-updated', () => this.updateUI());
+        window.addEventListener('account:need-relogin', (e) => this.showReloginModal(e.detail));
+        
+        // 初始更新
+        this.updateUI();
+        
+        // 定期同步余额
+        setInterval(() => {
+            if (window.accountManager) {
+                window.accountManager.syncCurrentAccountPoints();
+            }
+        }, 60000); // 每分钟同步一次
+    }
+
+    toggle() {
+        this.isOpen = !this.isOpen;
+        this.element.classList.toggle('open', this.isOpen);
+        
+        if (this.isOpen) {
+            this.renderAccountList();
+        }
+    }
+
+    close() {
+        this.isOpen = false;
+        this.element.classList.remove('open');
+    }
+
+    updateUI() {
+        const account = window.accountManager?.getCurrentAccount();
+        const allAccounts = window.accountManager?.getAllAccounts() || [];
+        
+        // 如果没有账户或只有一个账户，隐藏账户切换器（让 user-menu 显示）
+        if (!account || allAccounts.length <= 1) {
+            this.element.classList.add('hidden');
+            return;
+        }
+        
+        // 多账户状态：显示账户切换器
+        this.element.classList.remove('hidden');
+        
+        document.getElementById('switcherName').textContent = account.username;
+        document.getElementById('switcherPoints').textContent = account.points + ' 点';
+        document.getElementById('switcherAvatar').src = account.avatar;
+        
+        // 如果下拉框打开，更新列表
+        if (this.isOpen) {
+            this.renderAccountList();
+        }
+    }
+
+    renderAccountList() {
+        const accounts = window.accountManager?.getAllAccounts() || [];
+        
+        if (accounts.length === 0) {
+            this.listElement.innerHTML = `
+                <div class="account-switcher__empty">
+                    <p>暂无保存的账号</p>
+                </div>
+            `;
+            return;
+        }
+
+        this.listElement.innerHTML = accounts.map(acc => `
+            <div class="account-switcher__item ${acc.isCurrent ? 'active' : ''}" 
+                 onclick="accountSwitcher.switchTo('${acc.id}')">
+                <img class="account-switcher__item-avatar" src="${acc.avatar}" alt="">
+                <div class="account-switcher__item-info">
+                    <div class="account-switcher__item-name">
+                        ${acc.username}
+                        ${acc.needsRelogin ? '<span class="account-switcher__relogin-badge">需登录</span>' : ''}
+                    </div>
+                    <div class="account-switcher__item-points">💰 ${acc.points} 点</div>
+                </div>
+                ${acc.isCurrent ? '<span class="account-switcher__item-check">✓</span>' : ''}
+                <span class="account-switcher__item-status ${acc.needsRelogin ? 'warning' : ''}"></span>
+            </div>
+        `).join('');
+    }
+
+    async switchTo(accountId) {
+        this.close();
+        
+        const success = window.accountManager?.switchAccount(accountId);
+        if (success) {
+            // 刷新页面以应用新账号
+            window.location.reload();
+        }
+    }
+
+    addAccount() {
+        this.close();
+        // 打开登录弹窗（添加账号模式）
+        if (typeof showLoginModal === 'function') {
+            showLoginModal({ mode: 'add-account' });
+        } else {
+            // 跳转到登录页，带参数表示添加账号
+            window.location.href = '/login?mode=add-account&redirect=' + encodeURIComponent(window.location.pathname);
+        }
+    }
+
+    manageAccounts() {
+        this.close();
+        // 跳转到账号管理页
+        window.location.href = '/account/manage';
+    }
+
+    showReloginModal(detail) {
+        // 显示重新登录提示
+        if (typeof showModal === 'function') {
+            showModal({
+                title: '需要重新登录',
+                content: `<p>账号 <strong>${detail.account.username}</strong> 已过期，请重新登录</p>`,
+                buttons: [
+                    { text: '取消', type: 'secondary' },
+                    { 
+                        text: '重新登录', 
+                        type: 'primary',
+                        onClick: () => {
+                            window.accountManager?.removeAccount(detail.account.id);
+                            this.addAccount();
+                        }
+                    }
+                ]
+            });
+        } else {
+            alert(`账号 ${detail.account.username} 需要重新登录`);
+        }
+    }
+}
+
+// 创建全局实例
+window.accountSwitcher = new AccountSwitcherUI();
+</script>

@@ -12,7 +12,7 @@
 </head>
 <body>
     <!-- 导入导航栏组件 -->
-    {% include 'components/navbar.html' %}
+    {% include 'components/v2/navbar.html' %}
 
     <!-- 主容器 -->
     <div class="phase-one-container">
@@ -22,7 +22,7 @@
         <!-- 主要内容区域 -->
         <div class="main-content">
             <!-- 左侧：创意输入和配置 -->
-            <div class="content-section">
+            <div class="content-section" id="form-section">
                 <div class="section-title">
                     <div class="section-icon">✨</div>
                     <span>创意输入与配置</span>
@@ -98,7 +98,7 @@
     <script>
         // ==================== 创造点计算器 ====================
         // 第一阶段设定生成 - API调用统计（基于实际代码分析）
-        // 动态计算（默认75点，200章约75-119点）
+        // 一阶段设定生成固定消耗75点（与章节数无关）
         let PHASE_ONE_BASE_COST = 75;
         let currentPointsCost = PHASE_ONE_BASE_COST;
         let userPointsBalance = 0;
@@ -312,12 +312,23 @@
 
         // 显示进度区域
         function showProgressSection() {
+            // 隐藏表单区域
+            const formSection = document.getElementById('form-section');
+            if (formSection) {
+                formSection.style.display = 'none';
+                console.log('[UI] 表单区域已隐藏');
+            }
+            
+            // 显示进度区域
             const progressSection = document.getElementById('progress-section');
             if (progressSection) {
                 progressSection.style.display = 'block';
                 progressSection.classList.add('active');
                 console.log('[UI] 进度区域已显示');
             }
+            
+            // 滚动到页面顶部
+            window.scrollTo({ top: 0, behavior: 'smooth' });
         }
         
         // 隐藏进度区域
@@ -427,5 +438,6 @@
             }
         });
     </script>
+    <script src="{{ url_for('static', filename='js/account-manager.js') }}?v=2"></script>
 </body>
 </html>

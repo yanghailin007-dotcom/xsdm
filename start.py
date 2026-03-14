@@ -52,6 +52,66 @@ LOGS_DIR = PROJECT_DIR  # 日志直接放在项目根目录，方便查看
 PID_FILE = PROJECT_DIR / ".server.pid"
 PORT = 5000
 
+def kill_zombie_python_processes():
+    """清理僵尸 Python 进程（除当前进程外）"""
+    import subprocess
+    import os
+    
+    current_pid = os.getpid()
+    killed_count = 0
+    
+    try:
+        # Windows: 使用 tasklist 和 taskkill
+        if sys.platform == 'win32':
+            # 获取所有 python.exe 进程
+            result = subprocess.run(
+                ['tasklist', '/FI', 'IMAGENAME eq python.exe', '/FO', 'CSV', '/NH'],
+                capture_output=True, text=True, encoding='utf-8', errors='ignore'
+            )
+            
+            if result.returncode == 0:
+                for line in result.stdout.strip().split('\n'):
+                    if not line.strip():
+                        continue
+                    try:
+                        # 解析 CSV: "python.exe","1234","Console","..."
+                        parts = line.split('","')
+                        if len(parts) >= 2:
+                            pid_str = parts[1].replace('"', '')
+                            pid = int(pid_str)
+                            # 不杀当前进程
+                            if pid != current_pid:
+                                subprocess.run(
+                                    ['taskkill', '/F', '/PID', str(pid)],
+                                    capture_output=True
+                                )
+                                killed_count += 1
+                    except (ValueError, IndexError):
+                        continue
+        else:
+            # Linux/Mac: 使用 pkill
+            result = subprocess.run(
+                ['pgrep', '-f', 'python'],
+                capture_output=True, text=True
+            )
+            if result.returncode == 0:
+                for pid_str in result.stdout.strip().split('\n'):
+                    try:
+                        pid = int(pid_str.strip())
+                        if pid != current_pid:
+                            subprocess.run(['kill', '-9', str(pid)], capture_output=True)
+                            killed_count += 1
+                    except ValueError:
+                        continue
+    except Exception as e:
+        print(f"{Colors.YELLOW}[WARN]{Colors.RESET} 清理僵尸进程时出错: {e}")
+    
+    if killed_count > 0:
+        print(f"{Colors.GREEN}[OK]{Colors.RESET} 已清理 {killed_count} 个僵尸 Python 进程")
+        time.sleep(1)  # 等待进程完全结束
+    
+    return killed_count
+
 def ensure_logs_dir():
     """确保日志目录存在（现在直接放在根目录，无需创建）"""
     pass  # 日志文件直接放在项目根目录，方便查看
@@ -62,10 +122,17 @@ def get_log_file():
     return LOGS_DIR / f"server_{today}.log"  # 直接放在项目根目录
 
 def get_python_executable():
-    """获取 Python 可执行文件路径"""
+    """获取 Python 可执行文件路径 - 优先使用虚拟环境"""
+    # 优先使用虚拟环境的 Python
+    venv_python = PROJECT_DIR / ".venv" / "Scripts" / "python.exe"
+    if venv_python.exists():
+        return str(venv_python)
+    
+    # 回退到当前运行的 Python
     if sys.executable and "python" in sys.executable.lower():
         return sys.executable
     
+    # 最后尝试系统命令
     for cmd in ["python", "py", "python3"]:
         try:
             result = subprocess.run([cmd, "--version"], capture_output=True, text=True)
@@ -75,6 +142,32 @@ def get_python_executable():
             pass
     
     return None
+
+def get_venv_env():
+    """获取虚拟环境的环境变量"""
+    venv_path = PROJECT_DIR / ".venv"
+    if not venv_path.exists():
+        return None
+    
+    # 复制当前环境变量
+    env = os.environ.copy()
+    
+    # 设置虚拟环境路径
+    venv_scripts = venv_path / "Scripts"
+    venv_site_packages = venv_path / "Lib" / "site-packages"
+    
+    # 更新 PATH，确保虚拟环境的 Scripts 在最前面
+    paths = env.get("PATH", "").split(os.pathsep)
+    # 移除旧的虚拟环境路径（如果有）
+    paths = [p for p in paths if ".venv" not in p]
+    # 添加虚拟环境路径到最前面
+    paths.insert(0, str(venv_scripts))
+    env["PATH"] = os.pathsep.join(paths)
+    
+    # 设置 Python 相关环境变量
+    env["VIRTUAL_ENV"] = str(venv_path)
+    
+    return env
 
 def is_service_running(port=PORT):
     """检测服务是否已经在运行"""
@@ -276,6 +369,9 @@ def run_foreground(open_browser_flag=True):
     """前台运行服务"""
     ensure_logs_dir()
     
+    # 🔥 清理僵尸 Python 进程
+    kill_zombie_python_processes()
+    
     # 如果服务已在运行，先停止旧服务
     is_running, is_accessible = check_service_status()
     if is_running:
@@ -407,6 +503,9 @@ def run_daemon():
     """后台运行服务"""
     ensure_logs_dir()
     
+    # 🔥 清理僵尸 Python 进程
+    kill_zombie_python_processes()
+    
     # 如果服务已在运行，先停止旧服务
     is_running, is_accessible = check_service_status()
     if is_running:
@@ -439,10 +538,15 @@ def run_daemon():
     
     os.chdir(PROJECT_DIR)
     
+    # 获取虚拟环境的环境变量
+    env = get_venv_env()
+    if env:
+        print(f"{Colors.BLUE}[INFO]{Colors.RESET} 使用虚拟环境: .venv")
+    
     try:
         if sys.platform == 'win32':
-            # Windows 后台运行
-            # 使用 CREATE_NEW_CONSOLE 创建新窗口，或者使用 CREATE_NO_WINDOW 无窗口
+            # Windows 后台运行 - 使用隐藏窗口模式
+            # pythonw.exe 会导致某些库异常，所以使用 python.exe + CREATE_NO_WINDOW
             startupinfo = subprocess.STARTUPINFO()
             startupinfo.dwFlags |= subprocess.STARTF_USESHOWWINDOW
             startupinfo.wShowWindow = 0  # SW_HIDE
@@ -452,7 +556,8 @@ def run_daemon():
                 stdout=open(log_file, 'a', encoding='utf-8'),
                 stderr=subprocess.STDOUT,
                 startupinfo=startupinfo,
-                creationflags=subprocess.CREATE_NEW_PROCESS_GROUP | subprocess.DETACHED_PROCESS
+                creationflags=subprocess.CREATE_NEW_PROCESS_GROUP | subprocess.CREATE_NEW_CONSOLE,
+                env=env  # 传递虚拟环境变量
             )
         else:
             # Linux/Mac 后台运行
@@ -461,7 +566,8 @@ def run_daemon():
                 stdout=open(log_file, 'a', encoding='utf-8'),
                 stderr=subprocess.STDOUT,
                 start_new_session=True,
-                close_fds=True
+                close_fds=True,
+                env=env  # 传递虚拟环境变量
             )
         
         # 保存 PID

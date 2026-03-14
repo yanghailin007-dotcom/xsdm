@@ -116,7 +116,32 @@ def register_auth_routes(app):
                 # 注：注册奖励改为在用户关闭欢迎弹窗时领取，不再自动发放
 
                 if request.is_json:
-                    return jsonify({'success': True, 'message': '登录成功', 'redirect': '/landing'})
+                    # 🔑 JWT Token 认证 - 生成 Token
+                    from web.jwt_auth import generate_tokens
+                    from web.models.point_model import point_model
+                    
+                    points = point_model.get_user_points(user_id)
+                    tokens = generate_tokens(
+                        user_id=user_id,
+                        username=username,
+                        is_admin=bool(is_admin),
+                        extra_data={
+                            'points_balance': points.get('balance', 0),
+                            'avatar': user.get('avatar', '/static/images/avatar-default.png')
+                        }
+                    )
+                    
+                    return jsonify({
+                        'success': True, 
+                        'message': '登录成功',
+                        'redirect': '/landing',
+                        # 🔑 返回 Token 信息（用于多账号切换）
+                        'user_id': user_id,
+                        'username': username,
+                        'is_admin': bool(is_admin),
+                        'points_balance': points.get('balance', 0),
+                        **tokens
+                    })
                 return redirect('/landing')
             else:
                 logger.info(f"❌ 登录失败: {username}")
@@ -125,8 +150,10 @@ def register_auth_routes(app):
                 return render_template('login.html', error='用户名或密码错误')
 
         # GET 请求 - 显示登录页面
+        # 允许 mode=add-account 参数绕过登录检查（用于添加多账户）
         if 'logged_in' in session and session['logged_in']:
-            return redirect('/landing')
+            if request.args.get('mode') != 'add-account':
+                return redirect('/landing')
         
         # V2 版本切换支持
         ui_version = request.args.get('ui', '').lower()
@@ -141,6 +168,138 @@ def register_auth_routes(app):
         session.clear()
         logger.info(f"👋 用户登出: {username}")
         return redirect(url_for('login'))
+    
+    # ==================== JWT Token API ====================
+    
+    @app.route('/api/auth/refresh', methods=['POST'])
+    def refresh_token():
+        """刷新 Access Token
+        请求: { refresh_token: "xxx" }
+        响应: { access_token: "xxx", refresh_token: "xxx", expires_in: 7200 }
+        """
+        from web.jwt_auth import decode_token, generate_tokens
+        
+        data = request.get_json()
+        if not data or not data.get('refresh_token'):
+            return jsonify({'success': False, 'error': 'Missing refresh_token'}), 400
+        
+        refresh_token = data['refresh_token']
+        
+        # 验证 Refresh Token
+        payload, error = decode_token(refresh_token, 'refresh')
+        
+        if error:
+            return jsonify({
+                'success': False, 
+                'error': error['message'],
+                'code': error['code']
+            }), 401
+        
+        user_id = payload['user_id']
+        username = payload['username']
+        
+        # 从数据库获取最新用户信息
+        from web.models.user_model import user_model
+        from web.models.point_model import point_model
+        
+        user = user_model.get_user_by_username(username)
+        if not user:
+            return jsonify({'success': False, 'error': 'User not found'}), 404
+        
+        points = point_model.get_user_points(user_id)
+        
+        # 生成新的 Token 对
+        tokens = generate_tokens(
+            user_id=user_id,
+            username=username,
+            is_admin=bool(user.get('is_admin', 0)),
+            extra_data={
+                'points_balance': points.get('balance', 0),
+                'avatar': user.get('avatar', '/static/images/avatar-default.png')
+            }
+        )
+        
+        logger.info(f"🔑 Token 刷新: {username} (user_id: {user_id})")
+        
+        return jsonify({
+            'success': True,
+            **tokens
+        })
+    
+    @app.route('/api/auth/verify', methods=['GET'])
+    def verify_token():
+        """验证 Access Token 是否有效"""
+        from web.jwt_auth import decode_token, get_token_from_request
+        
+        token = get_token_from_request()
+        if not token or token == '__session__':
+            # 检查 Session 兼容模式
+            if session.get('logged_in'):
+                return jsonify({
+                    'success': True,
+                    'user_id': session.get('user_id'),
+                    'username': session.get('username'),
+                    'is_admin': session.get('is_admin', False),
+                    'source': 'session'
+                })
+            return jsonify({'success': False, 'error': 'No token provided'}), 401
+        
+        payload, error = decode_token(token, 'access')
+        
+        if error:
+            return jsonify({
+                'success': False,
+                'error': error['message'],
+                'code': error['code']
+            }), 401
+        
+        return jsonify({
+            'success': True,
+            'user_id': payload['user_id'],
+            'username': payload['username'],
+            'is_admin': payload.get('is_admin', False),
+            'extra': payload.get('extra', {})
+        })
+    
+    @app.route('/api/auth/switch-account', methods=['POST'])
+    def switch_account():
+        """切换账户 - 用于多账户管理器
+        请求: { user_id: "xxx" }
+        响应: { success: true, username: "xxx" }
+        """
+        from web.models.user_model import user_model
+        from web.models.point_model import point_model
+        
+        data = request.get_json()
+        if not data or not data.get('user_id'):
+            return jsonify({'success': False, 'error': 'Missing user_id'}), 400
+        
+        target_user_id = data['user_id']
+        
+        # 获取目标用户信息
+        user = user_model.get_user_by_id(target_user_id)
+        if not user:
+            return jsonify({'success': False, 'error': 'User not found'}), 404
+        
+        # 获取用户点数
+        points = point_model.get_user_points(target_user_id)
+        
+        # 更新 session 为新账户
+        session['logged_in'] = True
+        session['username'] = user['username']
+        session['user_id'] = target_user_id
+        session['is_admin'] = bool(user.get('is_admin', 0))
+        session.permanent = True
+        
+        logger.info(f"🔄 账户切换: {user['username']} (user_id: {target_user_id})")
+        
+        return jsonify({
+            'success': True,
+            'user_id': target_user_id,
+            'username': user['username'],
+            'is_admin': bool(user.get('is_admin', 0)),
+            'points_balance': points.get('balance', 0)
+        })
     
     @app.route('/register', methods=['GET'])
     def register():

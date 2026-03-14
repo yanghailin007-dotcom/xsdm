@@ -6,9 +6,9 @@
     <title>第二阶段：章节生成 - 小说生成系统</title>
     
     <!-- V2 设计系统样式 -->
-    <link rel="stylesheet" href="/static/css/v2/design-system.css?v=2">
-    <link rel="stylesheet" href="/static/css/v2/components.css?v=2">
-    <link rel="stylesheet" href="/static/css/v2/layouts.css?v=2">
+    <link rel="stylesheet" href="/static/css/v2/design-system.css?v=3">
+    <link rel="stylesheet" href="/static/css/v2/components.css?v=3">
+    <link rel="stylesheet" href="/static/css/v2/layouts.css?v=3">
     
     <!-- Phase Two 专用样式 -->
     <link rel="stylesheet" href="/static/css/phase-two-generation.css?v=8">
@@ -23,6 +23,262 @@
     <!-- 角色编辑器样式 -->
     <link rel="stylesheet" href="/static/css/character-editor.css">
     <link rel="stylesheet" href="/static/css/character-editor-json-based.css">
+    
+    <!-- 🚀 章节队列组件样式 -->
+    <style>
+    /* ===== 章节队列容器 ===== */
+    .chapter-queue-container {
+        background: linear-gradient(145deg, rgba(17, 24, 39, 0.95), rgba(11, 17, 32, 0.98));
+        border: 1px solid rgba(255, 255, 255, 0.08);
+        border-radius: 16px;
+        padding: 20px;
+        margin: 20px 0;
+        position: relative;
+        overflow: hidden;
+    }
+    .chapter-queue-container::before {
+        content: '';
+        position: absolute;
+        top: 0; left: 0; right: 0; height: 1px;
+        background: linear-gradient(90deg, transparent, rgba(59, 130, 246, 0.5), rgba(16, 185, 129, 0.5), transparent);
+    }
+    .chapter-queue__header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        margin-bottom: 16px;
+    }
+    .chapter-queue__title {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        font-size: 15px;
+        font-weight: 600;
+        color: #e5e7eb;
+    }
+    .chapter-queue__title-icon {
+        width: 28px; height: 28px;
+        background: linear-gradient(135deg, rgba(59, 130, 246, 0.2), rgba(16, 185, 129, 0.2));
+        border-radius: 6px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 14px;
+        border: 1px solid rgba(59, 130, 246, 0.3);
+    }
+    .chapter-queue__stats {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        font-size: 12px;
+    }
+    .chapter-queue__stat {
+        display: flex;
+        align-items: center;
+        gap: 4px;
+        padding: 3px 8px;
+        background: rgba(255, 255, 255, 0.03);
+        border-radius: 12px;
+        border: 1px solid rgba(255, 255, 255, 0.06);
+    }
+    .chapter-queue__stat-dot {
+        width: 5px; height: 5px;
+        border-radius: 50%;
+    }
+    .chapter-queue__stat-dot--pending { background: #6b7280; }
+    .chapter-queue__stat-dot--generating { background: #3b82f6; animation: pulse-dot 1.5s ease-in-out infinite; }
+    .chapter-queue__stat-dot--completed { background: #10b981; }
+    @keyframes pulse-dot {
+        0%, 100% { opacity: 1; transform: scale(1); }
+        50% { opacity: 0.5; transform: scale(1.2); }
+    }
+    .chapter-queue__track {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        padding: 12px 4px;
+        overflow-x: auto;
+        overflow-y: hidden;
+        scroll-behavior: smooth;
+        scrollbar-width: thin;
+        scrollbar-color: rgba(255, 255, 255, 0.1) transparent;
+    }
+    .chapter-queue__track::-webkit-scrollbar { height: 3px; }
+    .chapter-queue__track::-webkit-scrollbar-track { background: transparent; }
+    .chapter-queue__track::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, 0.1); border-radius: 2px; }
+    .chapter-queue__connector {
+        width: 16px; height: 2px;
+        background: linear-gradient(90deg, var(--from-color, #6b7280), var(--to-color, #6b7280));
+        position: relative;
+        flex-shrink: 0;
+    }
+    .chapter-queue__connector--flowing::before {
+        content: '';
+        position: absolute;
+        inset: 0;
+        background: linear-gradient(90deg, 
+            transparent, 
+            rgba(59, 130, 246, 0.4), 
+            rgba(59, 130, 246, 1), 
+            rgba(16, 185, 129, 1), 
+            rgba(59, 130, 246, 0.4), 
+            transparent
+        );
+        animation: flow-move 0.8s linear infinite;
+        box-shadow: 0 0 8px rgba(59, 130, 246, 0.6);
+    }
+    @keyframes flow-move {
+        0% { transform: translateX(-150%); }
+        100% { transform: translateX(150%); }
+    }
+    /* 连接器光点效果 */
+    .chapter-queue__connector--flowing::after {
+        content: '';
+        position: absolute;
+        top: 50%;
+        left: 0;
+        width: 6px;
+        height: 6px;
+        background: #60a5fa;
+        border-radius: 50%;
+        transform: translateY(-50%);
+        box-shadow: 0 0 10px #3b82f6, 0 0 20px #3b82f6;
+        animation: flow-dot 0.8s linear infinite;
+    }
+    @keyframes flow-dot {
+        0% { left: 0; opacity: 0; }
+        10% { opacity: 1; }
+        90% { opacity: 1; }
+        100% { left: 100%; opacity: 0; }
+    }
+    .chapter-queue__item {
+        width: 52px; height: 68px;
+        border-radius: 10px;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 4px;
+        flex-shrink: 0;
+        position: relative;
+        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+    .chapter-queue__item--pending {
+        background: linear-gradient(145deg, rgba(107, 114, 128, 0.1), rgba(75, 85, 99, 0.15));
+        border: 2px solid rgba(107, 114, 128, 0.3);
+        color: #9ca3af;
+    }
+    .chapter-queue__item--generating {
+        background: linear-gradient(145deg, rgba(59, 130, 246, 0.15), rgba(37, 99, 235, 0.2));
+        border: 2px solid rgba(59, 130, 246, 0.6);
+        color: #60a5fa;
+        box-shadow: 0 0 16px rgba(59, 130, 246, 0.3);
+        animation: generating-pulse 2s ease-in-out infinite;
+    }
+    @keyframes generating-pulse {
+        0%, 100% { box-shadow: 0 0 16px rgba(59, 130, 246, 0.3); transform: scale(1); }
+        50% { box-shadow: 0 0 24px rgba(59, 130, 246, 0.5); transform: scale(1.02); }
+    }
+    .chapter-queue__item--completed {
+        background: linear-gradient(145deg, rgba(16, 185, 129, 0.15), rgba(5, 150, 105, 0.2));
+        border: 2px solid rgba(16, 185, 129, 0.6);
+        color: #34d399;
+        box-shadow: 0 0 12px rgba(16, 185, 129, 0.25);
+    }
+    /* 章节刚完成时的闪耀动画 */
+    .chapter-queue__item--just-completed {
+        animation: completed-flash 0.8s ease-out;
+    }
+    @keyframes completed-flash {
+        0% { 
+            transform: scale(1);
+            box-shadow: 0 0 12px rgba(16, 185, 129, 0.25);
+        }
+        30% { 
+            transform: scale(1.15);
+            box-shadow: 0 0 30px rgba(16, 185, 129, 0.8), 0 0 60px rgba(16, 185, 129, 0.4);
+            border-color: #34d399;
+        }
+        60% { 
+            transform: scale(1.08);
+            box-shadow: 0 0 20px rgba(16, 185, 129, 0.6);
+        }
+        100% { 
+            transform: scale(1);
+            box-shadow: 0 0 12px rgba(16, 185, 129, 0.25);
+        }
+    }
+    .chapter-queue__number {
+        font-size: 15px;
+        font-weight: 700;
+        font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+    }
+    .chapter-queue__icon {
+        font-size: 18px;
+        line-height: 1;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+    /* 等待状态 - 呼吸动画 */
+    .chapter-queue__item--pending .chapter-queue__icon {
+        animation: pending-breathe 2s ease-in-out infinite;
+        opacity: 0.7;
+    }
+    @keyframes pending-breathe {
+        0%, 100% { opacity: 0.5; transform: scale(1); }
+        50% { opacity: 0.8; transform: scale(1.1); }
+    }
+    /* 生成中状态 - 旋转动画 */
+    .chapter-queue__item--generating .chapter-queue__icon {
+        animation: spin 1s linear infinite;
+    }
+    /* 完成状态 - 弹跳动画 */
+    .chapter-queue__item--completed .chapter-queue__icon {
+        animation: check-bounce 0.5s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+    }
+    @keyframes check-bounce {
+        0% { transform: scale(0) rotate(-180deg); }
+        50% { transform: scale(1.2) rotate(0deg); }
+        100% { transform: scale(1) rotate(0deg); }
+    }
+    .chapter-queue__spinner {
+        width: 14px; height: 14px;
+        border: 2px solid rgba(59, 130, 246, 0.3);
+        border-top-color: #3b82f6;
+        border-radius: 50%;
+        animation: spin 0.8s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .chapter-queue__check {
+        width: 16px; height: 16px;
+        background: linear-gradient(135deg, #10b981, #059669);
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 9px;
+        animation: check-pop 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    }
+    @keyframes check-pop {
+        0% { transform: scale(0); opacity: 0; }
+        100% { transform: scale(1); opacity: 1; }
+    }
+    .chapter-queue__progress {
+        position: absolute;
+        bottom: 0; left: 0; right: 0;
+        height: 2px;
+        background: rgba(0, 0, 0, 0.2);
+        border-radius: 0 0 8px 8px;
+        overflow: hidden;
+    }
+    .chapter-queue__progress-bar {
+        height: 100%;
+        background: linear-gradient(90deg, #3b82f6, #60a5fa);
+        border-radius: 0 0 8px 8px;
+        transition: width 0.3s ease;
+    }
+    </style>
     
     <style>
         /* V2 Navbar 适配 - 为fixed定位的导航栏留出空间 */
@@ -168,6 +424,200 @@
         #projects-list .creative-idea-card.selected::after {
             display: none !important;
             content: none !important;
+        }
+        
+        /* ===== 项目卡片统一设计 - 现代简约风格 ===== */
+        #projects-list .project-select-card {
+            background: linear-gradient(145deg, rgba(30, 41, 59, 0.6), rgba(15, 23, 42, 0.8));
+            border: 1px solid rgba(148, 163, 184, 0.1);
+            border-radius: 12px;
+            padding: 16px 20px;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            position: relative;
+            overflow: hidden;
+        }
+        
+        #projects-list .project-select-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 3px;
+            height: 100%;
+            background: linear-gradient(180deg, #6366f1, #8b5cf6);
+            opacity: 0;
+            transition: opacity 0.3s ease;
+        }
+        
+        #projects-list .project-select-card:hover {
+            background: linear-gradient(145deg, rgba(30, 41, 59, 0.8), rgba(15, 23, 42, 0.9));
+            border-color: rgba(99, 102, 241, 0.3);
+            transform: translateX(4px);
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+        }
+        
+        #projects-list .project-select-card:hover::before {
+            opacity: 1;
+        }
+        
+        #projects-list .project-select-card.selected {
+            background: linear-gradient(145deg, rgba(99, 102, 241, 0.1), rgba(139, 92, 246, 0.05));
+            border-color: rgba(99, 102, 241, 0.5);
+            box-shadow: 0 0 0 1px rgba(99, 102, 241, 0.3), 0 4px 20px rgba(99, 102, 241, 0.15);
+        }
+        
+        #projects-list .project-select-card.selected::before {
+            opacity: 1;
+            background: linear-gradient(180deg, #6366f1, #8b5cf6);
+        }
+        
+        /* 生成中状态 - 精致脉冲效果 */
+        #projects-list .project-select-card[data-generating="true"] {
+            background: linear-gradient(145deg, rgba(59, 130, 246, 0.08), rgba(37, 99, 235, 0.04));
+            border-color: rgba(59, 130, 246, 0.4);
+            box-shadow: 0 0 0 1px rgba(59, 130, 246, 0.2), 0 0 20px rgba(59, 130, 246, 0.1);
+        }
+        
+        #projects-list .project-select-card[data-generating="true"]::before {
+            opacity: 1;
+            background: linear-gradient(180deg, #3b82f6, #06b6d4);
+            animation: generating-line-pulse 2s ease-in-out infinite;
+        }
+        
+        @keyframes generating-line-pulse {
+            0%, 100% { opacity: 0.6; box-shadow: 0 0 10px #3b82f6; }
+            50% { opacity: 1; box-shadow: 0 0 20px #3b82f6, 0 0 30px #06b6d4; }
+        }
+        
+        /* 项目标题 */
+        #projects-list .project-title {
+            font-size: 15px;
+            font-weight: 600;
+            color: #f1f5f9;
+            line-height: 1.4;
+            margin: 0;
+            letter-spacing: -0.2px;
+        }
+        
+        /* 状态标签统一设计 */
+        #projects-list .status-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            font-size: 11px;
+            font-weight: 500;
+            padding: 4px 10px;
+            border-radius: 20px;
+            text-transform: uppercase;
+            letter-spacing: 0.3px;
+        }
+        
+        #projects-list .status-badge--generating {
+            background: rgba(59, 130, 246, 0.15);
+            color: #60a5fa;
+            border: 1px solid rgba(59, 130, 246, 0.3);
+        }
+        
+        #projects-list .status-badge--completed {
+            background: rgba(16, 185, 129, 0.15);
+            color: #34d399;
+            border: 1px solid rgba(16, 185, 129, 0.3);
+        }
+        
+        #projects-list .status-badge--pending {
+            background: rgba(100, 116, 139, 0.15);
+            color: #94a3b8;
+            border: 1px solid rgba(100, 116, 139, 0.2);
+        }
+        
+        /* 侧边栏标题样式 */
+        .pt-sidebar__title {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-size: 16px;
+            font-weight: 600;
+            color: #f1f5f9;
+            margin-bottom: 16px;
+            padding-bottom: 12px;
+            border-bottom: 1px solid rgba(148, 163, 184, 0.1);
+        }
+        
+        .pt-sidebar__title span:first-child {
+            font-size: 18px;
+        }
+        
+        /* 生成中徽章 - 动态点点 */
+        .generating-indicator {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 11px;
+            font-weight: 600;
+            color: #60a5fa;
+            background: rgba(59, 130, 246, 0.1);
+            padding: 4px 10px;
+            border-radius: 20px;
+            border: 1px solid rgba(59, 130, 246, 0.25);
+        }
+        
+        .generating-indicator::before {
+            content: '';
+            width: 6px;
+            height: 6px;
+            background: #3b82f6;
+            border-radius: 50%;
+            animation: pulse-dot 1.5s ease-in-out infinite;
+            box-shadow: 0 0 8px #3b82f6;
+        }
+        
+        @keyframes pulse-dot {
+            0%, 100% { transform: scale(1); opacity: 1; }
+            50% { transform: scale(0.6); opacity: 0.6; }
+        }
+        
+        /* 进度条统一设计 */
+        #projects-list .project-progress-track {
+            height: 4px;
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 2px;
+            overflow: hidden;
+            margin-top: 12px;
+        }
+        
+        #projects-list .project-progress-fill {
+            height: 100%;
+            border-radius: 2px;
+            transition: width 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        
+        #projects-list .project-progress-fill--generating {
+            background: linear-gradient(90deg, #3b82f6, #06b6d4);
+            box-shadow: 0 0 8px rgba(59, 130, 246, 0.4);
+        }
+        
+        #projects-list .project-progress-fill--normal {
+            background: linear-gradient(90deg, #10b981, #34d399);
+        }
+        
+        /* 统计数据样式 */
+        #projects-list .project-stats {
+            display: flex;
+            gap: 20px;
+            margin-top: 10px;
+        }
+        
+        #projects-list .project-stat {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 12px;
+            color: #64748b;
+        }
+        
+        #projects-list .project-stat-value {
+            font-weight: 600;
+            color: #e2e8f0;
         }
         
         /* ===== 章节生成进度UI - V2大厂设计风格 ===== */
@@ -1444,6 +1894,113 @@
                 grid-template-columns: 1fr;
             }
         }
+        
+        /* ===== 进入章节生成按钮 - 醒目引导 ===== */
+        .pt-next-step-banner {
+            margin-top: 24px;
+            background: linear-gradient(135deg, rgba(59, 130, 246, 0.15), rgba(139, 92, 246, 0.1));
+            border: 2px solid rgba(59, 130, 246, 0.3);
+            border-radius: 16px;
+            padding: 24px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .pt-next-step-banner::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.1), transparent);
+            transition: left 0.5s ease;
+        }
+        
+        .pt-next-step-banner:hover::before {
+            left: 100%;
+        }
+        
+        .pt-next-step-banner:hover {
+            background: linear-gradient(135deg, rgba(59, 130, 246, 0.25), rgba(139, 92, 246, 0.2));
+            border-color: rgba(59, 130, 246, 0.5);
+            transform: translateY(-2px);
+            box-shadow: 0 8px 32px rgba(59, 130, 246, 0.3);
+        }
+        
+        .pt-next-step-banner__content {
+            display: flex;
+            align-items: center;
+            gap: 20px;
+            position: relative;
+            z-index: 1;
+        }
+        
+        .pt-next-step-banner__icon {
+            width: 56px;
+            height: 56px;
+            background: linear-gradient(135deg, #3b82f6, #8b5cf6);
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 28px;
+            flex-shrink: 0;
+            box-shadow: 0 4px 16px rgba(59, 130, 246, 0.4);
+        }
+        
+        .pt-next-step-banner__text {
+            flex: 1;
+        }
+        
+        .pt-next-step-banner__text h4 {
+            font-size: 18px;
+            font-weight: 600;
+            color: #f1f5f9;
+            margin: 0 0 6px 0;
+        }
+        
+        .pt-next-step-banner__text p {
+            font-size: 14px;
+            color: #94a3b8;
+            margin: 0;
+            line-height: 1.5;
+        }
+        
+        .pt-next-step-banner__arrow {
+            width: 48px;
+            height: 48px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 24px;
+            color: #3b82f6;
+            transition: all 0.3s ease;
+        }
+        
+        .pt-next-step-banner:hover .pt-next-step-banner__arrow {
+            background: #3b82f6;
+            color: white;
+            transform: translateX(4px);
+        }
+        
+        @media (max-width: 768px) {
+            .pt-next-step-banner__content {
+                flex-wrap: wrap;
+            }
+            
+            .pt-next-step-banner__text p {
+                display: none;
+            }
+            
+            .pt-next-step-banner__arrow {
+                margin-left: auto;
+            }
+        }
     </style>
 </head>
 <body>
@@ -1645,6 +2202,18 @@
                                 </button>
                             </div>
                         </div>
+                        
+                        <!-- 进入章节生成 -->
+                        <div class="pt-next-step-banner" onclick="switchTab('generate')">
+                            <div class="pt-next-step-banner__content">
+                                <div class="pt-next-step-banner__icon">⚡</div>
+                                <div class="pt-next-step-banner__text">
+                                    <h4>开始章节生成</h4>
+                                    <p>基于设计蓝图生成正文章节，支持批量生成、智能续写、角色十迪化</p>
+                                </div>
+                                <div class="pt-next-step-banner__arrow">→</div>
+                            </div>
+                        </div>
                     </div>
                     
                     <!-- ==================== 标签页 2: 章节生成 ==================== -->
@@ -1747,8 +2316,35 @@
                     
                     <!-- 进度显示区域 - V2设计系统重构 -->
                     <section id="progress-section" class="pt-hidden">
+                        <!-- 🚀 章节生成队列（新增） -->
+                        <div class="chapter-queue-container" id="chapterQueueContainer" style="display: none;">
+                            <div class="chapter-queue__header">
+                                <div class="chapter-queue__title">
+                                    <div class="chapter-queue__title-icon">📖</div>
+                                    <span>章节生成流水线</span>
+                                </div>
+                                <div class="chapter-queue__stats">
+                                    <div class="chapter-queue__stat">
+                                        <span class="chapter-queue__stat-dot chapter-queue__stat-dot--pending"></span>
+                                        <span id="queue-pending-count">0 等待</span>
+                                    </div>
+                                    <div class="chapter-queue__stat">
+                                        <span class="chapter-queue__stat-dot chapter-queue__stat-dot--generating"></span>
+                                        <span id="queue-generating-count">0 生成中</span>
+                                    </div>
+                                    <div class="chapter-queue__stat">
+                                        <span class="chapter-queue__stat-dot chapter-queue__stat-dot--completed"></span>
+                                        <span id="queue-completed-count">0 完成</span>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="chapter-queue__track" id="chapterQueueTrack">
+                                <!-- 章节项目动态生成 -->
+                            </div>
+                        </div>
+                        
                         <!-- 主进度卡片 -->
-                        <div class="v2-progress-card">
+                        <div class="v2-progress-card" style="margin-top: 16px;">
                             <div class="v2-progress-card__header">
                                 <div class="v2-progress-card__title">
                                     <span class="v2-progress-card__icon">⚡</span>
@@ -1769,7 +2365,7 @@
                         </div>
                         
                         <!-- 当前章节信息 - 渐变边卡片 -->
-                        <div class="v2-current-chapter">
+                        <div class="v2-current-chapter" style="margin-top: 16px;">
                             <div class="v2-current-chapter__badge">
                                 <span class="v2-current-chapter__pulse"></span>
                                 <span class="v2-current-chapter__icon">📝</span>
@@ -1779,48 +2375,6 @@
                                 <div class="v2-current-chapter__title" id="current-chapter-title">等待开始...</div>
                                 <div class="v2-current-chapter__meta">
                                     第 <span id="current-chapter-number">-</span> / <span id="total-chapters">-</span> 章
-                                </div>
-                            </div>
-                        </div>
-                        
-                        <!-- 队列进度条 -->
-                        <div class="v2-queue-progress-container" id="queue-progress-container" style="display: none;">
-                            <div class="v2-queue-progress__label">
-                                <span>生成队列进度</span>
-                                <span id="queue-progress-text">0%</span>
-                            </div>
-                            <div class="v2-queue-progress__track">
-                                <div class="v2-queue-progress__fill" id="queue-progress-fill"></div>
-                                <div class="v2-queue-progress__glow" id="queue-progress-glow"></div>
-                            </div>
-                        </div>
-                        
-                        <!-- 章节进度网格 -->
-                        <div class="v2-chapter-section">
-                            <div class="v2-chapter-section__header">
-                                <span class="v2-chapter-section__title">📚 章节进度</span>
-                                <span class="v2-chapter-section__count" id="chapter-progress-count">0 / 0</span>
-                            </div>
-                            <div class="v2-chapter-grid" id="chapter-progress-grid">
-                                <!-- 章节卡片动态生成 -->
-                            </div>
-                            <!-- 状态图例 -->
-                            <div class="v2-chapter-legend">
-                                <div class="v2-legend-item">
-                                    <span class="v2-legend-dot v2-legend-dot--completed"></span>
-                                    <span class="v2-legend-text">已完成</span>
-                                </div>
-                                <div class="v2-legend-item">
-                                    <span class="v2-legend-dot v2-legend-dot--generating"></span>
-                                    <span class="v2-legend-text">生成中</span>
-                                </div>
-                                <div class="v2-legend-item">
-                                    <span class="v2-legend-dot v2-legend-dot--queued"></span>
-                                    <span class="v2-legend-text">排队中</span>
-                                </div>
-                                <div class="v2-legend-item">
-                                    <span class="v2-legend-dot v2-legend-dot--pending"></span>
-                                    <span class="v2-legend-text">等待中</span>
                                 </div>
                             </div>
                         </div>
@@ -2620,6 +3174,7 @@
     </script>
     
     <script src="/static/js/user-info.js"></script>
+    <script src="{{ url_for('static', filename='js/account-manager.js') }}?v=2"></script>
     
     <!-- ==================== 翻页书阅读器 ==================== -->
     <div id="book-reader-container" class="book-reader-container hidden">

@@ -350,7 +350,9 @@ class PhaseOneSetup {
             }
             
             const balanceData = await balanceResponse.json();
-            const balance = balanceData.balance || 0;
+            // 后端返回格式: { success: true, data: { balance: xxx } }
+            // 兼容处理：优先从 data.balance 获取，如果不存在则尝试从 balance 获取
+            const balance = (balanceData.data?.balance ?? balanceData.balance) || 0;
             console.log('💰 [DEBUG] 当前余额:', balance);
             
             // 从后端获取准确的预估消耗

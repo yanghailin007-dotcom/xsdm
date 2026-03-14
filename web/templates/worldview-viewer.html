@@ -107,7 +107,7 @@
     </style>
 </head>
 <body>
-    {% include 'components/navbar.html' %}
+    {% include 'components/v2/navbar.html' %}
     <!-- 导航栏 -->
     <div class="simple-viewer">
         <a href="/project-management" class="back-btn">← 返回项目管理</a>
@@ -161,5 +161,6 @@
 
     <script src="/static/js/worldview-viewer.js"></script>
     <script src="/static/js/faction-system-modal.js"></script>
+    <script src="{{ url_for('static', filename='js/account-manager.js') }}?v=2"></script>
 </body>
 </html>

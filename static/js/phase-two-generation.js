@@ -5,6 +5,219 @@ let currentTaskId = null;
 let progressInterval = null;
 let generationStartTime = null;
 
+// ==================== 🚀 章节队列管理器 ====================
+class ChapterQueueManager {
+    constructor(containerId = 'chapterQueueTrack') {
+        this.container = document.getElementById(containerId);
+        this.chapters = new Map();
+        this.currentChapter = null;
+    }
+
+    initQueue(totalChapters, startFrom = 1) {
+        this.chapters.clear();
+        for (let i = 0; i < totalChapters; i++) {
+            const chapterNum = startFrom + i;
+            this.chapters.set(chapterNum, {
+                number: chapterNum,
+                status: 'pending',
+                progress: 0,
+                title: `第${chapterNum}章`
+            });
+        }
+        this.render();
+        this.updateStats();
+        // 显示队列容器
+        const container = document.getElementById('chapterQueueContainer');
+        if (container) container.style.display = 'block';
+        
+        // 添加初始动画效果 - 展示流水线活力
+        this.playEntryAnimation();
+    }
+    
+    // 入场动画 - 让用户感受到流水线的活力
+    playEntryAnimation() {
+        const items = this.container.querySelectorAll('.chapter-queue__item');
+        const connectors = this.container.querySelectorAll('.chapter-queue__connector');
+        
+        // 逐个显示章节卡片
+        items.forEach((item, index) => {
+            item.style.opacity = '0';
+            item.style.transform = 'translateY(20px) scale(0.9)';
+            setTimeout(() => {
+                item.style.transition = 'all 0.4s cubic-bezier(0.34, 1.56, 0.64, 1)';
+                item.style.opacity = '1';
+                item.style.transform = 'translateY(0) scale(1)';
+            }, index * 80);
+        });
+        
+        // 逐个显示连接器并添加流动效果
+        connectors.forEach((connector, index) => {
+            connector.style.opacity = '0';
+            setTimeout(() => {
+                connector.style.transition = 'opacity 0.3s ease';
+                connector.style.opacity = '1';
+                // 添加临时流动效果展示
+                connector.classList.add('chapter-queue__connector--flowing');
+                setTimeout(() => {
+                    connector.classList.remove('chapter-queue__connector--flowing');
+                }, 1500);
+            }, (index + 1) * 80 + 50);
+        });
+        
+        // 全部显示完成后，滚动到第一个
+        setTimeout(() => {
+            const firstItem = items[0];
+            if (firstItem) {
+                firstItem.scrollIntoView({ behavior: 'smooth', inline: 'start', block: 'nearest' });
+            }
+        }, items.length * 80 + 300);
+    }
+
+    updateChapterStatus(chapterNumber, status, progress = 0) {
+        const chapter = this.chapters.get(chapterNumber);
+        if (!chapter) return;
+        chapter.status = status;
+        chapter.progress = progress;
+        this.updateChapterElement(chapterNumber);
+        this.updateStats();
+        if (status === 'generating') {
+            this.currentChapter = chapterNumber;
+            this.scrollToChapter(chapterNumber);
+        }
+    }
+
+    render() {
+        if (!this.container) return;
+        const chapters = Array.from(this.chapters.values());
+        if (chapters.length === 0) return;
+        let html = '';
+        chapters.forEach((chapter, index) => {
+            if (index > 0) {
+                const prevChapter = chapters[index - 1];
+                const connectorClass = (prevChapter.status === 'generating' || prevChapter.status === 'completed') ? 'chapter-queue__connector--flowing' : '';
+                const fromColor = this.getStatusColor(prevChapter.status);
+                const toColor = this.getStatusColor(chapter.status);
+                html += `<div class="chapter-queue__connector ${connectorClass}" style="--from-color: ${fromColor}; --to-color: ${toColor}"></div>`;
+            }
+            html += this.createChapterElement(chapter);
+        });
+        this.container.innerHTML = html;
+    }
+
+    createChapterElement(chapter) {
+        const statusClass = `chapter-queue__item--${chapter.status}`;
+        const isCurrent = chapter.number === this.currentChapter ? 'chapter-queue__item--current' : '';
+        let iconHtml = '';
+        switch (chapter.status) {
+            case 'pending': iconHtml = '<span class="chapter-queue__icon">⏳</span>'; break;
+            case 'generating': iconHtml = '<div class="chapter-queue__spinner"></div>'; break;
+            case 'completed': iconHtml = '<div class="chapter-queue__check">✓</div>'; break;
+            case 'error': iconHtml = '<span class="chapter-queue__icon">⚠</span>'; break;
+        }
+        const progressHtml = chapter.status === 'generating' ? 
+            `<div class="chapter-queue__progress"><div class="chapter-queue__progress-bar" style="width: ${chapter.progress}%"></div></div>` : '';
+        return `<div class="chapter-queue__item ${statusClass} ${isCurrent}" data-chapter="${chapter.number}"><span class="chapter-queue__number">${chapter.number}</span>${iconHtml}${progressHtml}</div>`;
+    }
+
+    updateChapterElement(chapterNumber) {
+        const oldElement = this.container.querySelector(`[data-chapter="${chapterNumber}"]`);
+        if (!oldElement) return;
+        const chapter = this.chapters.get(chapterNumber);
+        
+        // 检查是否是刚完成的状态变化
+        const wasCompleted = oldElement.classList.contains('chapter-queue__item--completed');
+        const isNowCompleted = chapter.status === 'completed';
+        const justCompleted = !wasCompleted && isNowCompleted;
+        
+        const newElementHtml = this.createChapterElement(chapter);
+        const parser = new DOMParser();
+        const doc = parser.parseFromString(newElementHtml, 'text/html');
+        const newElement = doc.body.firstElementChild;
+        
+        // 如果刚完成，添加完成动画类
+        if (justCompleted) {
+            newElement.classList.add('chapter-queue__item--just-completed');
+            // 动画结束后移除该类
+            setTimeout(() => {
+                const el = this.container.querySelector(`[data-chapter="${chapterNumber}"]`);
+                if (el) el.classList.remove('chapter-queue__item--just-completed');
+            }, 800);
+        }
+        
+        oldElement.replaceWith(newElement);
+        this.updateConnectors();
+        
+        // 如果是生成中状态，自动滚动到视图中心
+        if (chapter.status === 'generating') {
+            this.scrollToChapter(chapterNumber);
+        }
+    }
+
+    updateConnectors() {
+        const connectors = this.container.querySelectorAll('.chapter-queue__connector');
+        const chapters = Array.from(this.chapters.values());
+        connectors.forEach((connector, index) => {
+            const prevChapter = chapters[index];
+            const nextChapter = chapters[index + 1];
+            if (prevChapter && nextChapter) {
+                connector.style.setProperty('--from-color', this.getStatusColor(prevChapter.status));
+                connector.style.setProperty('--to-color', this.getStatusColor(nextChapter.status));
+                const shouldFlow = prevChapter.status === 'generating' || prevChapter.status === 'completed';
+                connector.classList.toggle('chapter-queue__connector--flowing', shouldFlow);
+            }
+        });
+    }
+
+    getStatusColor(status) {
+        const colors = { pending: '#6b7280', generating: '#3b82f6', completed: '#10b981', error: '#ef4444' };
+        return colors[status] || '#6b7280';
+    }
+
+    updateStats() {
+        const chapters = Array.from(this.chapters.values());
+        const pending = chapters.filter(c => c.status === 'pending').length;
+        const generating = chapters.filter(c => c.status === 'generating').length;
+        const completed = chapters.filter(c => c.status === 'completed').length;
+        
+        // 🔍 调试日志：检查生成中章节
+        if (generating > 0) {
+            console.log('[ChapterQueue] Generating chapters:', chapters.filter(c => c.status === 'generating').map(c => c.number));
+        }
+        
+        const pendingEl = document.getElementById('queue-pending-count');
+        const generatingEl = document.getElementById('queue-generating-count');
+        const completedEl = document.getElementById('queue-completed-count');
+        if (pendingEl) pendingEl.textContent = `${pending} 等待`;
+        if (generatingEl) generatingEl.textContent = `${generating} 生成中`;
+        if (completedEl) completedEl.textContent = `${completed} 完成`;
+    }
+
+    scrollToChapter(chapterNumber) {
+        const element = this.container.querySelector(`[data-chapter="${chapterNumber}"]`);
+        if (element) {
+            element.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' });
+        }
+    }
+
+    getProgressPercentage() {
+        const chapters = Array.from(this.chapters.values());
+        if (chapters.length === 0) return 0;
+        const completed = chapters.filter(c => c.status === 'completed').length;
+        return Math.round((completed / chapters.length) * 100);
+    }
+
+    clear() {
+        this.chapters.clear();
+        this.currentChapter = null;
+        if (this.container) this.container.innerHTML = '';
+        const container = document.getElementById('chapterQueueContainer');
+        if (container) container.style.display = 'none';
+    }
+}
+
+// 创建全局实例
+const chapterQueue = new ChapterQueueManager();
+
 // 页面加载完成后执行
 document.addEventListener('DOMContentLoaded', function() {
     checkLoginStatus();
@@ -114,35 +327,68 @@ function displayProjectsList(projects) {
         return;
     }
 
-    let html = '<div class="creative-ideas-grid" style="grid-template-columns: 1fr; gap: 16px; max-height: none; padding: 0;">';
+    // 🔥 排序：1. 章节生成中的项目置顶 2. 按最后更新时间倒序（最近在上）
+    const sortedProjects = [...projects].sort((a, b) => {
+        const aIsGenerating = a.phase_two?.status === 'generating';
+        const bIsGenerating = b.phase_two?.status === 'generating';
+        
+        // 生成中的项目置顶
+        if (aIsGenerating && !bIsGenerating) return -1;
+        if (!aIsGenerating && bIsGenerating) return 1;
+        
+        // 同状态内按最后更新时间倒序
+        const aTime = a.last_updated || a.created_at || '';
+        const bTime = b.last_updated || b.created_at || '';
+        return new Date(bTime) - new Date(aTime);
+    });
+
+    let html = '<div style="display: flex; flex-direction: column; gap: 12px;">';
     
-    projects.forEach(project => {
+    sortedProjects.forEach((project, index) => {
         // 对标题进行HTML转义，避免特殊字符导致的问题
         const escapedTitle = project.title.replace(/'/g, "\\'").replace(/"/g, '\\"');
         const statusText = getProjectStatusText(project);
         const statusClass = getProjectStatusClass(project);
         
-        // 🔥 使用与一阶段创意选择相同的卡片样式
+        // 🔥 检测是否是章节生成中的项目
+        const isGenerating = project.phase_two?.status === 'generating';
+        const progressPercent = Math.round(((project.completed_chapters || 0) / (project.total_chapters || 1)) * 100);
+        
+        // 状态徽章类名
+        let statusBadgeClass = 'status-badge--pending';
+        if (isGenerating) statusBadgeClass = 'status-badge--generating';
+        else if (project.phase_two?.status === 'completed') statusBadgeClass = 'status-badge--completed';
+        
+        // 🔥 新的统一卡片设计
         html += `
-            <div class="creative-idea-card project-select-card"
+            <div class="project-select-card"
                  data-title="${escapedTitle}"
                  data-status="${statusClass.replace('status-', '')}"
-                 onclick="selectProject('${escapedTitle}', this)"
-                 style="cursor: pointer; padding: 20px;">
-                <div class="creative-idea-header" style="margin-bottom: 12px;">
-                    <h4 class="creative-idea-title" style="font-size: 1.1rem;">${project.title}</h4>
-                    <span class="creative-idea-id ${statusClass}" style="font-size: 0.75rem; padding: 4px 10px; border-radius: 6px;">${statusText}</span>
+                 data-generating="${isGenerating}"
+                 onclick="selectProject('${escapedTitle}', this)">
+                <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 8px;">
+                    <h4 class="project-title">${project.title}</h4>
+                    <div style="display: flex; gap: 8px; align-items: center; flex-shrink: 0;">
+                        ${isGenerating ? '<span class="generating-indicator">生成中</span>' : `<span class="status-badge ${statusBadgeClass}">${statusText}</span>`}
+                    </div>
                 </div>
-                <div class="creative-idea-content" style="color: var(--v2-text-secondary);">
-                    <div style="display: flex; gap: 16px; font-size: 0.9rem; margin-bottom: 8px;">
-                        <span style="color: var(--v2-text-secondary);">📚 总章节: <strong style="color: var(--v2-text-primary);">${project.total_chapters || 0}</strong></span>
-                        <span style="color: var(--v2-text-secondary);">✅ 已完成: <strong style="color: var(--v2-text-primary);">${project.completed_chapters || 0} 章</strong></span>
+                <div class="project-stats">
+                    <div class="project-stat">
+                        <span>📚</span>
+                        <span>总章节: <span class="project-stat-value">${project.total_chapters || 0}</span></span>
                     </div>
-                    <div class="project-status-bar" style="margin-top: 12px;">
-                        <div style="height: 6px; background: var(--v2-bg-secondary); border-radius: 3px; overflow: hidden;">
-                            <div style="height: 100%; width: ${((project.completed_chapters || 0) / (project.total_chapters || 1)) * 100}%; background: linear-gradient(90deg, var(--v2-success), #4ade80); border-radius: 3px; transition: width 0.3s;"></div>
-                        </div>
+                    <div class="project-stat">
+                        <span>✅</span>
+                        <span>已完成: <span class="project-stat-value">${project.completed_chapters || 0}</span></span>
                     </div>
+                    <div class="project-stat">
+                        <span>📊</span>
+                        <span>进度: <span class="project-stat-value">${progressPercent}%</span></span>
+                    </div>
+                </div>
+                <div class="project-progress-track">
+                    <div class="project-progress-fill ${isGenerating ? 'project-progress-fill--generating' : 'project-progress-fill--normal'}" 
+                         style="width: ${progressPercent}%"></div>
                 </div>
             </div>
         `;
@@ -216,11 +462,11 @@ async function autoSelectProject(projectTitle) {
     console.log('🔄 [DEBUG] 开始自动选择项目:', projectTitle);
     
     // 查找项目卡片并触发选择
-    const projectCards = document.querySelectorAll('.creative-idea-card');
+    const projectCards = document.querySelectorAll('.project-select-card');
     let foundCard = null;
     
     for (const card of projectCards) {
-        const titleElement = card.querySelector('.creative-idea-title');
+        const titleElement = card.querySelector('.project-title');
         if (titleElement && titleElement.textContent === projectTitle) {
             foundCard = card;
             break;
@@ -252,28 +498,28 @@ async function autoSelectProject(projectTitle) {
 function getProjectStatusText(project) {
     if (project.phase_one && project.phase_one.status === 'completed') {
         if (project.phase_two && project.phase_two.status === 'completed') {
-            return '✓ 全部完成';
+            return '已完成';
         } else if (project.phase_two && project.phase_two.status === 'generating') {
-            return '▶ 章节生成中';
+            return '生成中';
         } else {
-            return '✅ 一阶段完成';
+            return '待生成';
         }
     } else if (project.phase_one && project.phase_one.status === 'generating') {
-        return '⏳ 设计中';
+        return '设计中';
     } else {
-        return '○ 未开始';
+        return '未开始';
     }
 }
 
 async function selectProject(projectTitle, clickedElement = null) {
     try {
         // 取消之前选中的项目
-        document.querySelectorAll('.creative-idea-card').forEach(card => {
+        document.querySelectorAll('.project-select-card').forEach(card => {
             card.classList.remove('selected');
         });
 
         // 选中当前项目 - 使用传入的元素或根据标题查找
-        const clickedCard = clickedElement || document.querySelector(`.creative-idea-card[data-title="${projectTitle}"]`);
+        const clickedCard = clickedElement || document.querySelector(`.project-select-card[data-title="${projectTitle}"]`);
         
         if (clickedCard) {
             clickedCard.classList.add('selected');
@@ -1768,6 +2014,9 @@ async function startPhaseTwoGeneration(event) {
         updateProgress(5, '正在启动第二阶段生成...');
         generationStartTime = Date.now();
         
+        // 🚀 初始化章节队列
+        chapterQueue.initQueue(formData.chapters_to_generate, formData.from_chapter);
+        
         addLogEntry('info', `开始生成章节: 第${formData.from_chapter}章开始，生成${formData.chapters_to_generate}章`);
 
         // 调用第二阶段生成API
@@ -1819,6 +2068,14 @@ function startProgressMonitoring() {
     // 初始化章节进度卡片
     initializeChapterProgress();
     
+    // 启动用时计时器（每秒更新）
+    const elapsedInterval = setInterval(() => {
+        updateElapsedTime();
+    }, 1000);
+    
+    // 将用时计时器ID保存到全局变量，以便清理
+    window.elapsedInterval = elapsedInterval;
+    
     progressInterval = setInterval(async () => {
         try {
             const response = await fetch(`/api/phase-two/task/${currentTaskId}/status`);
@@ -1835,16 +2092,18 @@ function startProgressMonitoring() {
             // 检查是否完成
             if (taskStatus.status === 'completed') {
                 clearInterval(progressInterval);
+                clearInterval(window.elapsedInterval);
                 handleGenerationComplete(taskStatus);
             } else if (taskStatus.status === 'failed' || taskStatus.status === 'paused') {
                 clearInterval(progressInterval);
+                clearInterval(window.elapsedInterval);
                 handleGenerationStopped(taskStatus);
             }
         } catch (error) {
             console.error('获取进度状态失败:', error);
             addLogEntry('error', `获取进度失败: ${error.message}`);
         }
-    }, 5000); // 每5秒检查一次
+    }, 2000); // 每2秒检查一次，更快的更新频率
 }
 
 function initializeChapterProgress() {
@@ -1968,6 +2227,9 @@ function updateChapterProgress(taskStatus) {
     }
     
     // 找出正在生成的章节和下一个排队的章节
+    const generatingChapters = taskStatus.chapter_progress.filter(ch => ch.status === 'generating');
+    console.log('[UpdateProgress] Generating chapters from API:', generatingChapters.map(ch => ch.chapter_number));
+    
     const generatingIndex = taskStatus.chapter_progress.findIndex(ch => ch.status === 'generating');
     const nextQueuedIndex = generatingIndex >= 0 ? generatingIndex + 1 : -1;
     
@@ -1975,6 +2237,15 @@ function updateChapterProgress(taskStatus) {
     const fromChapter = parseInt(document.getElementById('from-chapter').value);
     
     taskStatus.chapter_progress.forEach((chapter, index) => {
+        // 🚀 更新章节队列状态
+        if (chapter.status === 'generating') {
+            chapterQueue.updateChapterStatus(chapter.chapter_number, 'generating', chapter.progress || 0);
+        } else if (chapter.status === 'completed') {
+            chapterQueue.updateChapterStatus(chapter.chapter_number, 'completed', 100);
+        } else if (chapter.status === 'failed') {
+            chapterQueue.updateChapterStatus(chapter.chapter_number, 'error', 0);
+        }
+        
         const chapterCard = document.getElementById(`chapter-${chapter.chapter_number}`);
         if (chapterCard) {
             // 获取之前的状态（用于检测状态变化）
@@ -2060,7 +2331,39 @@ function updateCurrentChapterInfo(taskStatus) {
         infoDiv.style.display = 'block';
         document.getElementById('current-chapter-title').textContent = currentChapter.title || `第${currentChapter.number}章`;
         document.getElementById('current-chapter-number').textContent = currentChapter.number;
-        document.getElementById('total-chapters').textContent = taskStatus.total_chapters || 0;
+    }
+    // 总章节数从表单获取如果 taskStatus 中没有
+    const totalChapters = taskStatus.total_chapters || parseInt(document.getElementById('chapters-to-generate')?.value) || 0;
+    document.getElementById('total-chapters').textContent = totalChapters;
+}
+
+// 更新已用时间
+function updateElapsedTime() {
+    if (!generationStartTime) return;
+    
+    const elapsedMs = Date.now() - generationStartTime;
+    const elapsedSeconds = Math.floor(elapsedMs / 1000);
+    const minutes = Math.floor(elapsedSeconds / 60);
+    const seconds = elapsedSeconds % 60;
+    
+    // 格式化时间显示
+    let timeText;
+    if (minutes > 0) {
+        timeText = `用时: ${minutes}分${seconds.toString().padStart(2, '0')}秒`;
+    } else {
+        timeText = `用时: ${seconds}秒`;
+    }
+    
+    // 更新页面上的用时显示
+    const timeEl = document.getElementById('progress-time-elapsed');
+    if (timeEl) {
+        timeEl.textContent = timeText;
+    }
+    
+    // 同时更新统计卡片中的用时
+    const genTimeEl = document.getElementById('generation-time');
+    if (genTimeEl) {
+        genTimeEl.textContent = minutes > 0 ? `${minutes}分${seconds}秒` : `${seconds}秒`;
     }
 }
 
@@ -2124,9 +2427,24 @@ function handleGenerationComplete(taskStatus) {
     if (grid) {
         grid.classList.remove('v2-chapter-grid--active');
     }
+    
+    // 🚀 清理章节队列（延迟2秒让用户看到完成效果）
+    setTimeout(() => {
+        chapterQueue.clear();
+    }, 3000);
 }
 
 function handleGenerationStopped(taskStatus) {
+    // 清理定时器
+    if (progressInterval) {
+        clearInterval(progressInterval);
+        progressInterval = null;
+    }
+    if (window.elapsedInterval) {
+        clearInterval(window.elapsedInterval);
+        window.elapsedInterval = null;
+    }
+    
     showControlButtons('stopped');
     addLogEntry('warning', `生成已${taskStatus.status === 'paused' ? '暂停' : '停止'}`);
     showStatusMessage(`⚠️ 生成已${taskStatus.status === 'paused' ? '暂停' : '停止'}`, 'info');
@@ -2210,6 +2528,16 @@ async function stopGeneration() {
         if (response.ok) {
             const result = await response.json();
             showStatusMessage('✅ 生成任务已停止', 'success');
+            
+            // 清理定时器
+            if (progressInterval) {
+                clearInterval(progressInterval);
+                progressInterval = null;
+            }
+            if (window.elapsedInterval) {
+                clearInterval(window.elapsedInterval);
+                window.elapsedInterval = null;
+            }
             
             // 重置 UI 状态
             currentTaskId = null;

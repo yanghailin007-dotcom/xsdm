@@ -118,9 +118,16 @@ async function startPhaseOneGeneration(event) {
             throw new Error(result.error || '启动生成失败');
         }
     } catch (error) {
-        hideProgressSection();
+        // 显示错误但不隐藏进度区域，让用户可以看到错误信息
         showStatusMessage(`❌ 错误: ${error.message}`, 'error');
         console.error('第一阶段生成失败:', error);
+        
+        // 更新进度消息显示错误
+        const progressMessage = document.getElementById('progress-message');
+        if (progressMessage) {
+            progressMessage.textContent = `❌ ${error.message}`;
+            progressMessage.style.color = '#ef4444';
+        }
     }
 }
 
@@ -896,15 +903,28 @@ function showProgressSection() {
 }
 
 function hideProgressSection() {
-    const formSection = document.getElementById('form-section');
     const progressSection = document.getElementById('progress-section');
     
     if (progressSection) {
         progressSection.classList.remove('active');
         progressSection.classList.remove('pt-progress-section--active');
+        progressSection.style.display = 'none';
+    }
+}
+
+// 恢复到表单视图（生成失败时使用）
+function showFormSection() {
+    const formSection = document.getElementById('form-section');
+    const progressSection = document.getElementById('progress-section');
+    
+    // 隐藏进度区域
+    if (progressSection) {
+        progressSection.classList.remove('active');
+        progressSection.classList.remove('pt-progress-section--active');
+        progressSection.style.display = 'none';
     }
     
-    // 恢复显示表单区域
+    // 显示表单区域
     if (formSection) {
         formSection.style.display = 'block';
     }

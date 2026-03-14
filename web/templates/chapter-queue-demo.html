@@ -1,0 +1,266 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>章节队列组件演示 - 流水线式进度</title>
+    
+    <!-- V2 设计系统 -->
+    <link rel="stylesheet" href="/static/css/v2/design-system.css?v=2">
+    <link rel="stylesheet" href="/static/css/v2/components.css?v=2">
+    
+    <style>
+        body {
+            padding: 40px 20px;
+            background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
+            min-height: 100vh;
+        }
+        
+        .demo-container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        
+        .demo-title {
+            font-size: 32px;
+            font-weight: 700;
+            text-align: center;
+            margin-bottom: 10px;
+            background: linear-gradient(135deg, #60a5fa, #34d399);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+        
+        .demo-subtitle {
+            text-align: center;
+            color: #94a3b8;
+            margin-bottom: 40px;
+        }
+        
+        .demo-section {
+            background: rgba(30, 41, 59, 0.5);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 16px;
+            padding: 24px;
+            margin-bottom: 24px;
+        }
+        
+        .demo-section__title {
+            font-size: 18px;
+            font-weight: 600;
+            color: #e2e8f0;
+            margin-bottom: 16px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        /* 控制面板 */
+        .demo-controls {
+            display: flex;
+            gap: 12px;
+            flex-wrap: wrap;
+            margin-bottom: 20px;
+        }
+        
+        .demo-btn {
+            padding: 10px 20px;
+            border-radius: 8px;
+            border: none;
+            font-size: 14px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        
+        .demo-btn--primary {
+            background: linear-gradient(135deg, #3b82f6, #2563eb);
+            color: white;
+        }
+        
+        .demo-btn--success {
+            background: linear-gradient(135deg, #10b981, #059669);
+            color: white;
+        }
+        
+        .demo-btn--warning {
+            background: linear-gradient(135deg, #f59e0b, #d97706);
+            color: white;
+        }
+        
+        .demo-btn--error {
+            background: linear-gradient(135deg, #ef4444, #dc2626);
+            color: white;
+        }
+        
+        .demo-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+        }
+        
+        .demo-btn:active {
+            transform: translateY(0);
+        }
+        
+        /* 代码展示区 */
+        .code-block {
+            background: rgba(15, 23, 42, 0.8);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 8px;
+            padding: 16px;
+            font-family: 'Fira Code', 'Consolas', monospace;
+            font-size: 13px;
+            color: #e2e8f0;
+            overflow-x: auto;
+            margin-top: 16px;
+        }
+        
+        .code-comment {
+            color: #6b7280;
+        }
+        
+        .code-keyword {
+            color: #c084fc;
+        }
+        
+        .code-string {
+            color: #4ade80;
+        }
+        
+        .code-function {
+            color: #60a5fa;
+        }
+    </style>
+</head>
+<body>
+    <div class="demo-container">
+        <h1 class="demo-title">章节队列组件</h1>
+        <p class="demo-subtitle">流水线式章节生成进度展示 · 参考 GitHub Actions + Vercel 设计</p>
+        
+        <!-- 控制面板 -->
+        <div class="demo-section">
+            <div class="demo-section__title">🎨 演示控制</div>
+            <div class="demo-controls">
+                <button class="demo-btn demo-btn--primary" onclick="initQueue()">初始化队列 (20章)</button>
+                <button class="demo-btn demo-btn--success" onclick="startSimulation()">开始模拟生成</button>
+                <button class="demo-btn demo-btn--warning" onclick="pauseSimulation()">暂停</button>
+                <button class="demo-btn demo-btn--error" onclick="resetQueue()">重置</button>
+            </div>
+            <div style="font-size: 13px; color: #94a3b8;">
+                提示：点击"开始模拟生成"看效果，章节会从灰色→蓝色→绿色逐渐过渡
+            </div>
+        </div>
+        
+        <!-- 队列组件 -->
+        {% include 'components/chapter-queue.html' %}
+        
+        <!-- 使用说明 -->
+        <div class="demo-section">
+            <div class="demo-section__title">📖 使用方法</div>
+            <div class="code-block">
+<span class="code-comment">// 1. 初始化队列（比如生成20章，从第1章开始）</span>
+<span class="code-function">chapterQueue</span>.<span class="code-function">initQueue</span>(<span class="code-keyword">20</span>, <span class="code-keyword">1</span>);
+
+<span class="code-comment">// 2. 更新章节状态（生成时自动有动画效果）</span>
+<span class="code-comment">// 状态选项: 'pending'(等待) | 'generating'(生成中) | 'completed'(完成) | 'error'(失败)</span>
+<span class="code-function">chapterQueue</span>.<span class="code-function">updateChapterStatus</span>(<span class="code-keyword">1</span>, <span class="code-string">'generating'</span>, <span class="code-keyword">50</span>);  <span class="code-comment">// 第1章生成中，50%</span>
+<span class="code-function">chapterQueue</span>.<span class="code-function">updateChapterStatus</span>(<span class="code-keyword">1</span>, <span class="code-string">'completed'</span>);           <span class="code-comment">// 第1章完成</span>
+<span class="code-function">chapterQueue</span>.<span class="code-function">updateChapterStatus</span>(<span class="code-keyword">2</span>, <span class="code-string">'generating'</span>, <span class="code-keyword">30</span>);  <span class="code-comment">// 第2章开始生成</span>
+
+<span class="code-comment">// 3. 获取总进度</span>
+<span class="code-keyword">const</span> progress = <span class="code-function">chapterQueue</span>.<span class="code-function">getProgressPercentage</span>();
+<span class="code-function">console</span>.<span class="code-function">log</span>(<span class="code-string">`完成进度: ${progress}%`</span>);
+            </div>
+        </div>
+        
+        <!-- 设计特点 -->
+        <div class="demo-section">
+            <div class="demo-section__title">✨ 设计特点</div>
+            <ul style="color: #cbd5e1; line-height: 2; font-size: 14px;">
+                <li><strong>🎨 流水线式布局</strong> - 章节像流水线上的产品一样从左到右移动</li>
+                <li><strong>🎯 颜色状态系统</strong> - 灰色(等待) → 蓝色(生成中) → 绿色(完成)</li>
+                <li><strong>⚡ 动态流光效果</strong> - 生成中的章节有脉冲动画，连接线有流动效果</li>
+                <li><strong>📊 实时统计</strong> - 顶部显示等待/生成中/完成的章节数量</li>
+                <li><strong>🎯 智能滚动</strong> - 自动滚动到当前生成的章节</li>
+                <li><strong>📱 响应式设计</strong> - 适配移动端和桌面端</li>
+            </ul>
+        </div>
+    </div>
+
+    <script>
+        let simulationInterval = null;
+        let currentChapterIndex = 1;
+        
+        // 初始化队列
+        function initQueue() {
+            chapterQueue.initQueue(20, 1);
+            currentChapterIndex = 1;
+        }
+        
+        // 开始模拟生成
+        function startSimulation() {
+            if (chapterQueue.chapters.size === 0) {
+                initQueue();
+            }
+            
+            if (simulationInterval) {
+                clearInterval(simulationInterval);
+            }
+            
+            // 模拟生成过程
+            simulationInterval = setInterval(() => {
+                if (currentChapterIndex > 20) {
+                    clearInterval(simulationInterval);
+                    return;
+                }
+                
+                // 当前章节生成中
+                chapterQueue.updateChapterStatus(currentChapterIndex, 'generating', Math.random() * 100);
+                
+                // 模拟生成完成
+                setTimeout(() => {
+                    chapterQueue.updateChapterStatus(currentChapterIndex, 'completed', 100);
+                    currentChapterIndex++;
+                    
+                    // 开始下一章
+                    if (currentChapterIndex <= 20) {
+                        setTimeout(() => {
+                            chapterQueue.updateChapterStatus(currentChapterIndex, 'generating', 0);
+                        }, 300);
+                    }
+                }, 1500 + Math.random() * 1000);
+                
+            }, 2000);
+        }
+        
+        // 暂停模拟
+        function pauseSimulation() {
+            if (simulationInterval) {
+                clearInterval(simulationInterval);
+                simulationInterval = null;
+            }
+        }
+        
+        // 重置队列
+        function resetQueue() {
+            pauseSimulation();
+            chapterQueue.clear();
+            currentChapterIndex = 1;
+            initQueue();
+        }
+        
+        // 监听章节点击事件
+        window.addEventListener('chapterQueue:click', (e) => {
+            console.log('点击了章节:', e.detail.chapterNumber);
+            // 可以在这里打开章节预览等
+        });
+        
+        // 页面加载完成后初始化
+        document.addEventListener('DOMContentLoaded', () => {
+            initQueue();
+        });
+    </script>
+</body>
+</html>
+</html>

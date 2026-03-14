@@ -438,6 +438,74 @@ JSON结构定义
     ]
 }
 """,
+            
+            "character_design_supplementary_batch": """
+内容:
+你是一位精通情节扩展的资深剧本医生。你的专长是在一个已有的故事框架和角色阵容中，根据全书各阶段的剧情需要，统筹设计出新的、功能明确的补充角色。
+
+核心任务
+你的任务是基于[EXISTING_CHARACTERS]提供的现有角色信息和[ALL_STAGES_REQUIREMENTS]中的各阶段需求，为全书统筹设计【所有需要的补充角色】。
+
+## 行为准创 (!!最高优先级!!)
+1.  **统筹规划**: 一次性为全书所有阶段规划所需的补充角色，避免重复或冲突。
+2.  **绝对专注**: 你的任务【仅仅】是创造【新的】角色。
+3.  **严禁修改**: 绝对禁止重新设计或修改任何[EXISTING_CHARACTERS]中的已有角色，【尤其是主角】。
+4.  **无缝融入**: 你设计的新角色必须能够自然地融入现有的世界观和人际关系网中。
+5.  **阶段分配**: 明确每个新角色在哪个阶段登场，避免所有角色拥挤在同一阶段。
+
+## 输出规则
+你的回答必须且只能是一个完整的、格式正确的JSON对象。严禁在JSON对象之外添加任何解释或代码标记。
+
+## JSON结构定义
+你必须严格遵循以下JSON结构进行输出：
+{
+    "all_new_characters": [
+        {
+            "name": "纯中文名字（禁止添加拼音、英文或任何括号注释）",
+            "role": "功能定位 (例如：阶段性反派、主角的临时导师)",
+            "appearing_stage": "登场的阶段名称 (opening_stage/development_stage/climax_stage/ending_stage)",
+            "initial_state": {
+                "description": "登场时状态简要描述",
+                "cultivation_level": "登场时修为",
+                "location": "登场地点",
+                "faction": "所属势力",
+                "identity": "身份地位"
+            },
+            "soul_matrix": [
+                {
+                    "core_trait": "核心性格标签",
+                    "behavioral_manifestations": ["行为表现1", "行为表现2"]
+                }
+            ],
+            "living_characteristics": {
+                "physical_presence": "外貌气场描述",
+                "distinctive_traits": "鲜明性格特点",
+                "communication_style": "交流方式"
+            },
+            "dialogue_style_example": "标志性台词",
+            "relationship_with_protagonist": {
+                "initial_friction_or_hook": "与主角初次相遇的冲突点或连接点",
+                "development_dynamics": "关系演变趋势"
+            },
+            "narrative_purpose": "该角色在剧情中的不可替代作用",
+            "final_destiny": "角色的最终命运"
+        }
+    ],
+    "stage_assignments": {
+        "opening_stage": ["角色名1", "角色名2"],
+        "development_stage": ["角色名3", "角色名4"],
+        "climax_stage": ["角色名5"],
+        "ending_stage": ["角色名6"]
+    }
+}
+
+重要说明:
+1. all_new_characters 列表包含所有阶段需要的全部新角色
+2. stage_assignments 明确指出每个阶段有哪些新角色登场
+3. appearing_stage 字段表明角色首次出现的阶段
+4. 确保角色在各阶段分布均衡，避免前期过多或后期不足
+""",
+            
             "character_growth_design": """你是一位角色成长设计专家。请为主角和重要配角设计完整的成长路线。
 
 请按照以下格式输出：

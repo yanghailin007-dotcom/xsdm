@@ -28,53 +28,19 @@ import time
 from flask import Flask, request, jsonify
 from datetime import datetime
 
-# 🔥 全局停止标志（用于跨线程通信）
-_global_stop_requested = False
-_global_sigint_count = 0
-_global_sigint_time = 0
+# 🔥 确保项目根目录在 Python 路径中（支持直接运行此文件）
+_current_file = os.path.abspath(__file__)
+_project_root = os.path.dirname(os.path.dirname(_current_file))
+if _project_root not in sys.path:
+    sys.path.insert(0, _project_root)
 
-def global_signal_handler(signum, frame):
-    """全局信号处理器 - 在主线程中设置"""
-    global _global_stop_requested, _global_sigint_count, _global_sigint_time
-    
-    current_time = time.time()
-    
-    # 如果超过 3 秒，重置计数器
-    if current_time - _global_sigint_time > 3:
-        _global_sigint_count = 0
-    
-    _global_sigint_count += 1
-    _global_sigint_time = current_time
-    
-    try:
-        print(f"\n\n{'='*60}")
-        print(f"[WARN] 收到中断信号 (Ctrl+C) - 第 {_global_sigint_count} 次")
-        print(f"{'='*60}")
-        
-        if _global_sigint_count == 1:
-            print("[INFO] 正在请求停止生成...")
-            _global_stop_requested = True
-            print("[OK] 停止标志已设置")
-            print("\n[HINT] 3 秒内再按一次 Ctrl+C 强制退出服务器")
-            print("       不按则等待当前生成完成...\n")
-        else:
-            print("[EXIT] 收到第二次中断信号，强制退出...")
-            sys.exit(0)
-    except:
-        # 忽略任何编码错误
-        _global_stop_requested = True
-        if _global_sigint_count >= 2:
-            sys.exit(0)
-
-def is_stop_requested():
-    """检查是否请求停止"""
-    global _global_stop_requested
-    return _global_stop_requested
-
-def reset_stop_flag():
-    """重置停止标志"""
-    global _global_stop_requested
-    _global_stop_requested = False
+# 🔥 从独立模块导入停止标志功能（避免循环导入）
+from web.stop_flag import (
+    global_signal_handler, 
+    is_stop_requested, 
+    reset_stop_flag,
+    set_stop_flag
+)
 
 # 🔥 在主线程中设置信号处理器
 try:
@@ -166,6 +132,32 @@ def create_app():
     static_folder = os.path.join(BASE_DIR, 'static')
     app = Flask(__name__, static_folder=static_folder)
     app.config.from_object(FlaskConfig)
+    
+    # 🔥 配置服务器端 session（支持多用户同时登录）
+    try:
+        from flask_session import Session
+        # 使用文件系统存储 session（比客户端 cookie 更安全，支持多会话）
+        app.config['SESSION_TYPE'] = 'filesystem'
+        app.config['SESSION_FILE_DIR'] = os.path.join(BASE_DIR, 'flask_session')
+        app.config['SESSION_PERMANENT'] = False
+        app.config['SESSION_USE_SIGNER'] = True
+        app.config['SESSION_KEY_PREFIX'] = 'novel_session:'
+        # 确保 session 目录存在
+        os.makedirs(app.config['SESSION_FILE_DIR'], exist_ok=True)
+        Session(app)
+        logger.info("✅ 服务器端 session 已启用（支持多用户同时登录）")
+    except ImportError as e:
+        logger.warning(f"⚠️ flask-session 未安装或导入失败: {e}，使用默认客户端 session（同一浏览器窗口共享会话）")
+    except Exception as e:
+        logger.error(f"⚠️ 服务器端 session 初始化失败: {e}，使用默认客户端 session")
+
+    # 🔑 初始化 JWT 认证（支持多账号切换）
+    try:
+        from web.jwt_auth import init_jwt
+        init_jwt(app)
+        logger.info("✅ JWT 认证已初始化（支持多账号切换）")
+    except Exception as e:
+        logger.error(f"⚠️ JWT 初始化失败: {e}")
 
     # 🔥 禁用静态文件缓存（开发环境）
     @app.after_request
@@ -183,21 +175,34 @@ def create_app():
     # 同时禁用Flask的请求日志记录器
     logging.getLogger('werkzeug').setLevel(logging.WARNING)
 
+    # 🔥 修复：先创建全局管理器实例，再注册依赖它的蓝图
+    manager = NovelGenerationManager()
+    # 🔥 关键：将manager存入app.config，供admin_api等模块使用
+    app.config['MANAGER'] = manager
+    logger.info(f"✅ 全局管理器已创建并注册: {id(manager)}")
+    import sys
+    sys.stdout.flush()
+    
     # 🔥 注册 phase_api 蓝图（包含质量评估API）
+    logger.info("🔄 开始注册 phase_api 蓝图...")
+    sys.stdout.flush()
     try:
+        logger.info("  正在导入 phase_generation_api...")
         from web.api import phase_generation_api
+        logger.info("  ✅ phase_generation_api 导入成功")
         # 🔥 修复：先设置app，再设置config
+        logger.info("  正在设置 phase_generation_api.app...")
         phase_generation_api.app = app  # 设置app引用
+        logger.info("  正在设置 phase_generation_api.app.config...")
         phase_generation_api.app.config = app.config  # 共享配置
+        logger.info("  正在设置 phase_generation_api.manager...")
         phase_generation_api.manager = manager  # 使用已创建的管理器
         # 注册蓝图中的所有路由
-        for rule in phase_generation_api.phase_api.deferred_functions:
-            rule(phase_generation_api.phase_api)
-        phase_generation_api.phase_api.deferred_functions = []
-        app.register_blueprint(phase_generation_api.phase_api)
-        logger.info("✅ phase_api 蓝图已注册")
+        logger.info("  ✅ phase_api 设置完成，将由 register_phase_routes 注册")
     except Exception as e:
         logger.error(f"⚠️ phase_api 蓝图注册失败: {e}")
+        import traceback
+        logger.error(f"错误堆栈: {traceback.format_exc()}")
 
     # 🔥 修复：在应用创建时初始化contract_api，确保单例
     try:
@@ -208,12 +213,6 @@ def create_app():
     except Exception as e:
         logger.error(f"❌ 签约API初始化失败: {e}")
         app.config['CONTRACT_API'] = None
-    
-    # 创建全局管理器实例
-    manager = NovelGenerationManager()
-    # 🔥 关键：将manager存入app.config，供admin_api等模块使用
-    app.config['MANAGER'] = manager
-    logger.info(f"✅ 全局管理器已创建并注册: {id(manager)}")
     
     # 注册生成的图片访问路由
     @app.route('/generated_images/<path:filename>')
@@ -1268,8 +1267,7 @@ def cleanup_on_exit():
     
     # 🔥 停止所有生成任务和线程
     try:
-        global manager
-        if 'manager' in globals() and manager:
+        if manager:
             logger.info("⏹️ 停止所有生成任务...")
             # 停止所有活跃任务
             for task_id in list(manager.active_tasks.keys()):
@@ -1338,8 +1336,12 @@ def main():
     print_startup_info()
     
     # 注册信号处理器（智能模式）
-    signal.signal(signal.SIGINT, signal_handler)  # Ctrl+C（需要两次才退出）
-    signal.signal(signal.SIGTERM, signal_handler)  # 终止信号（立即退出）
+    # 注意：在Windows后台模式（无控制台）下，信号注册可能会失败
+    try:
+        signal.signal(signal.SIGINT, signal_handler)  # Ctrl+C（需要两次才退出）
+        signal.signal(signal.SIGTERM, signal_handler)  # 终止信号（立即退出）
+    except ValueError as e:
+        logger.warning(f"⚠️ 无法注册信号处理器（可能处于后台模式）: {e}")
     
     # 注册退出清理函数
     atexit.register(cleanup_on_exit)

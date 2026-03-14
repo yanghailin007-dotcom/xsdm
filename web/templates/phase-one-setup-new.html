@@ -714,7 +714,7 @@
                             </div>
                         </div>
                         
-                        <form id="phase-one-form" onsubmit="startPhaseOneGenerationWithResume(event)">
+                        <form id="phase-one-form" onsubmit="handleFormSubmit(event)">
                             <!-- 小说标题 -->
                             <div class="pt-form-group">
                                 <label class="pt-form-group__label">小说标题 *</label>
@@ -773,6 +773,37 @@
                                         <option value="zhihu">💭 知乎盐选</option>
                                     </select>
                                 </div>
+                            </div>
+                            
+                            <!-- 创造点门槛提示 -->
+                            <div style="
+                                background: linear-gradient(135deg, rgba(251, 191, 36, 0.15) 0%, rgba(245, 158, 11, 0.08) 100%);
+                                border: 2px solid rgba(251, 191, 36, 0.4);
+                                border-radius: 0.75rem;
+                                padding: 1rem 1.25rem;
+                                margin: 1.5rem 0;
+                                display: flex;
+                                align-items: center;
+                                justify-content: space-between;
+                                gap: 1rem;
+                                box-shadow: 0 4px 15px rgba(251, 191, 36, 0.15);
+                            ">
+                                <div style="display: flex; align-items: center; gap: 0.5rem;">
+                                    <span style="font-size: 1.5rem;">⚡</span>
+                                    <span style="color: var(--text-secondary); font-size: 0.875rem; font-weight: 500;">最低门槛</span>
+                                </div>
+                                <div style="display: flex; align-items: center; gap: 0.5rem;">
+                                    <span id="points-cost-display" style="
+                                        font-size: 1.5rem;
+                                        font-weight: 800;
+                                        color: #fbbf24;
+                                        text-shadow: 0 0 15px rgba(251, 191, 36, 0.5);
+                                    ">75</span>
+                                    <span style="color: #fbbf24; font-size: 0.875rem; font-weight: 600;">创造点</span>
+                                </div>
+                            </div>
+                            <div style="font-size: 0.75rem; color: var(--text-tertiary); text-align: center; margin-bottom: 1rem;">
+                                💡 余额≥75点可开始生成，实际按API调用实时扣费
                             </div>
                             
                             <!-- 提交按钮 -->
@@ -1025,13 +1056,229 @@
 
     <!-- JavaScript -->
     <script src="/static/js/utils.js"></script>
+    <!-- 🔑 多账号管理系统 -->
+    <script src="/static/js/account-manager.js?v=2"></script>
+    <script src="/static/js/api-client.js?v=1"></script>
     <script src="/static/js/user-info.js"></script>
     <script src="/static/js/creative-library.js?v=4"></script>
-    <script src="/static/js/resume-generation.js?v=2"></script>
+    <script src="/static/js/resume-generation.js?v=3"></script>
     <script src="/static/js/creative-editor.js"></script>
-    <script src="/static/js/phase-one-generation.js?v=21"></script>
+    <script src="/static/js/phase-one-generation.js?v=23"></script>
     
     <script>
+        // ==================== 创造点计算和检查 ====================
+        let PHASE_ONE_BASE_COST = 75;  // 基础消耗（20章）
+        let currentPointsCost = PHASE_ONE_BASE_COST;
+        let userPointsBalance = 0;
+        
+        // 动态计算创造点门槛（一阶段门槛75点，不是预扣）
+        function calculatePointsCost(chapters) {
+            // 一阶段门槛：75点（最低余额要求，不是预扣）
+            // 实际按API调用实时扣除
+            return 75;
+        }
+        
+        // 更新预估点数显示
+        function updateEstimatedPoints() {
+            const chaptersInput = document.getElementById('total-chapters');
+            if (chaptersInput) {
+                const chapters = parseInt(chaptersInput.value) || 20;
+                currentPointsCost = calculatePointsCost(chapters);
+                
+                // 更新显示（如果有显示元素）
+                const pointsDisplay = document.getElementById('points-cost-display');
+                if (pointsDisplay) {
+                    pointsDisplay.textContent = currentPointsCost;
+                }
+            }
+        }
+        
+        // 加载用户创造点余额
+        async function loadUserPointsBalance() {
+            try {
+                console.log('[DEBUG] 开始加载余额...');
+                
+                // 🔑 使用 apiClient 自动处理 Token
+                const result = await window.apiClient.get('/api/points/balance');
+                console.log('[DEBUG] 余额API返回:', result);
+                
+                if (result.success) {
+                    const balance = result.data?.balance ?? 0;
+                    userPointsBalance = balance;
+                    
+                    // 同步到 AccountManager
+                    const currentAccount = window.accountManager?.getCurrentAccount();
+                    if (currentAccount) {
+                        window.accountManager.updateAccountInfo(currentAccount.id, { points: balance });
+                    }
+                    
+                    console.log('[DEBUG] 解析余额成功:', balance);
+                    return userPointsBalance;
+                } else {
+                    console.error('[DEBUG] API返回success=false:', result);
+                }
+            } catch (error) {
+                console.error('[DEBUG] 加载创造点余额失败:', error);
+                
+                // 如果是认证错误，显示登录弹窗
+                if (error.code === 'AUTH_REQUIRED' || error.code === 'TOKEN_EXPIRED') {
+                    showLoginModal({ mode: 'relogin' });
+                }
+            }
+            return 0;
+        }
+        
+        // 检查创造点余额（在提交前调用）
+        async function checkPointsBeforeSubmit(event) {
+            // 更新预估点数
+            updateEstimatedPoints();
+            
+            // 加载余额（强制刷新）
+            const balance = await loadUserPointsBalance();
+            
+            console.log('[DEBUG] 创造点检查:', {
+                userPointsBalance: userPointsBalance,
+                currentPointsCost: currentPointsCost,
+                chapters: document.getElementById('total-chapters')?.value
+            });
+            
+            // 检查余额
+            if (userPointsBalance < currentPointsCost) {
+                const needed = currentPointsCost - userPointsBalance;
+                console.log('[DEBUG] 余额不足，需要:', needed);
+                showInsufficientPointsModal(needed);
+                return false;
+            }
+            
+            console.log('[DEBUG] 余额充足，继续提交');
+            // 余额充足，继续提交
+            return true;
+        }
+        
+        // 显示余额不足模态框
+        function showInsufficientPointsModal(needed) {
+            // 移除已存在的模态框
+            const existingModal = document.getElementById('insufficient-points-modal');
+            if (existingModal) existingModal.remove();
+            
+            const modal = document.createElement('div');
+            modal.id = 'insufficient-points-modal';
+            modal.innerHTML = `
+                <div style="
+                    position: fixed;
+                    top: 0;
+                    left: 0;
+                    right: 0;
+                    bottom: 0;
+                    background: rgba(0, 0, 0, 0.8);
+                    backdrop-filter: blur(8px);
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    z-index: 99999;
+                ">
+                    <div style="
+                        background: linear-gradient(145deg, #1e293b 0%, #0f172a 100%);
+                        border: 2px solid #fbbf24;
+                        border-radius: 1rem;
+                        padding: 2rem;
+                        max-width: 380px;
+                        width: 90%;
+                        text-align: center;
+                        box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.8), 0 0 30px rgba(251, 191, 36, 0.15);
+                    ">
+                        <div style="
+                            width: 70px;
+                            height: 70px;
+                            margin: 0 auto 1.25rem;
+                            background: linear-gradient(135deg, #fbbf24 0%, #f59e0b 100%);
+                            border-radius: 50%;
+                            display: flex;
+                            align-items: center;
+                            justify-content: center;
+                            box-shadow: 0 10px 25px rgba(251, 191, 36, 0.4);
+                        ">
+                            <span style="font-size: 2rem;">⚡</span>
+                        </div>
+                        <h3 style="color: #fbbf24; margin-bottom: 1.25rem; font-size: 1.35rem; font-weight: 700;">
+                            创造点余额不足门槛
+                        </h3>
+                        <div style="
+                            background: rgba(0, 0, 0, 0.4);
+                            border-radius: 0.75rem;
+                            padding: 1rem;
+                            margin-bottom: 1.25rem;
+                            border: 1px solid rgba(255, 255, 255, 0.1);
+                        ">
+                            <div style="display: flex; justify-content: space-between; margin-bottom: 0.5rem; padding-bottom: 0.5rem; border-bottom: 1px solid rgba(255, 255, 255, 0.1);">
+                                <span style="color: #94a3b8; font-size: 0.875rem;">当前余额</span>
+                                <span style="color: #e2e8f0; font-size: 1rem; font-weight: 600;">${userPointsBalance} 点</span>
+                            </div>
+                            <div style="display: flex; justify-content: space-between; margin-bottom: 0.5rem; padding-bottom: 0.5rem; border-bottom: 1px solid rgba(255, 255, 255, 0.1);">
+                                <span style="color: #94a3b8; font-size: 0.875rem;">本次需要</span>
+                                <span style="color: #fbbf24; font-size: 1rem; font-weight: 600;">${currentPointsCost} 点</span>
+                            </div>
+                            <div style="display: flex; justify-content: space-between; padding-top: 0.25rem;">
+                                <span style="color: #f87171; font-size: 0.875rem; font-weight: 500;">⚠️ 还差</span>
+                                <span style="color: #ef4444; font-size: 1.25rem; font-weight: 700; text-shadow: 0 0 10px rgba(239, 68, 68, 0.5);">${needed} 点</span>
+                            </div>
+                        </div>
+                        <div style="display: flex; gap: 0.75rem;">
+                            <button onclick="closeInsufficientPointsModal()" style="flex: 1; padding: 0.875rem 1rem; background: rgba(255, 255, 255, 0.08); border: 1px solid rgba(255, 255, 255, 0.2); border-radius: 0.5rem; color: #94a3b8; cursor: pointer; font-size: 0.875rem; font-weight: 500;">
+                                取消
+                            </button>
+                            <button onclick="goToRecharge()" style="flex: 1.2; padding: 0.875rem 1rem; background: linear-gradient(135deg, #fbbf24 0%, #f59e0b 100%); border: none; border-radius: 0.5rem; color: #0f172a; cursor: pointer; font-size: 0.875rem; font-weight: 700; box-shadow: 0 4px 15px rgba(251, 191, 36, 0.4);">
+                                💎 立即兑换
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            `;
+            document.body.appendChild(modal);
+            document.body.style.overflow = 'hidden';
+        }
+        
+        // 关闭余额不足模态框
+        function closeInsufficientPointsModal() {
+            const modal = document.getElementById('insufficient-points-modal');
+            if (modal) {
+                modal.remove();
+                document.body.style.overflow = '';
+            }
+        }
+        
+        // 跳转到充值页面
+        function goToRecharge() {
+            window.location.href = '/recharge';
+        }
+        
+        // 监听章节数变化，更新预估点数
+        document.addEventListener('DOMContentLoaded', function() {
+            const chaptersInput = document.getElementById('total-chapters');
+            if (chaptersInput) {
+                chaptersInput.addEventListener('change', updateEstimatedPoints);
+                chaptersInput.addEventListener('input', updateEstimatedPoints);
+                // 初始化
+                updateEstimatedPoints();
+            }
+        });
+        
+        // ==================== 表单提交处理 ====================
+        async function handleFormSubmit(event) {
+            event.preventDefault();
+            
+            // 先检查创造点余额
+            const hasEnoughPoints = await checkPointsBeforeSubmit(event);
+            if (!hasEnoughPoints) {
+                console.log('[DEBUG] 余额检查未通过，停止提交');
+                return false;
+            }
+            
+            // 余额充足，调用原始生成函数
+            console.log('[DEBUG] 余额检查通过，开始生成');
+            return startPhaseOneGenerationWithResume(event);
+        }
+        
         // ==================== 右侧面板控制 ====================
         function toggleRightPanel() {
             const panel = document.getElementById('right-panel');
@@ -1093,16 +1340,28 @@
         // 加载用户创造点余额
         async function loadUserPointsBalance() {
             try {
-                const response = await fetch('/api/user/points');
+                console.log('[DEBUG] 开始加载余额...');
+                const response = await fetch('/api/points/balance');
+                console.log('[DEBUG] 余额API响应:', response.status, response.ok);
+                
                 if (response.ok) {
                     const result = await response.json();
-                    if (result.success && result.data) {
-                        console.log(`⚡ 创造点余额: ${result.data.balance}`);
-                        return result.data.balance;
+                    console.log('[DEBUG] 余额API返回:', result);
+                    
+                    if (result.success) {
+                        // 兼容处理：优先从 result.data.balance 获取，如果不存在则尝试 result.balance
+                        const balance = result.data?.balance ?? result.balance ?? 0;
+                        userPointsBalance = balance;
+                        console.log('[DEBUG] 解析余额成功:', balance);
+                        return userPointsBalance;
+                    } else {
+                        console.error('[DEBUG] API返回success=false:', result);
                     }
+                } else {
+                    console.error('[DEBUG] API请求失败:', response.status);
                 }
             } catch (error) {
-                console.error('加载创造点余额失败:', error);
+                console.error('[DEBUG] 加载创造点余额失败:', error);
             }
             return 0;
         }

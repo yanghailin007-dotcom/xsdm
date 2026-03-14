@@ -146,7 +146,7 @@
     <!-- 导航栏 -->
     <nav class="navbar">
         <!-- 使用原有 navbar 组件 -->
-        {% include 'components/navbar.html' %}
+        {% include 'components/v2/navbar.html' %}
     </nav>
     
     <!-- 主容器 -->
@@ -658,5 +658,6 @@
     
     <!-- 引入原有的 JavaScript 文件 -->
     <script src="/static/js/phase-two-generation.js?v=9"></script>
+    <script src="{{ url_for('static', filename='js/account-manager.js') }}?v=2"></script>
 </body>
 </html>

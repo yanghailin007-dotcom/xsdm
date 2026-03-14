@@ -38,6 +38,36 @@ async function loadCurrentUser() {
             GuideSystem.setUser({ username: data.username, id: data.user_id });
         }
         
+        // 自动添加到 AccountManager（如果已登录且 AccountManager 已加载）
+        if (data.success && window.accountManager && data.user_id) {
+            // 检查是否已存在
+            const existingAccounts = window.accountManager.getAllAccounts();
+            const existingAccount = existingAccounts.find(a => a.userId === data.user_id);
+            
+            if (!existingAccount) {
+                // 获取令牌信息（从 cookie 或 localStorage）
+                const loginData = {
+                    user_id: data.user_id,
+                    username: data.username,
+                    access_token: data.access_token || localStorage.getItem('access_token') || 'session-' + Date.now(),
+                    refresh_token: data.refresh_token || localStorage.getItem('refresh_token') || 'session-' + Date.now(),
+                    expires_in: data.expires_in || 3600,
+                    is_admin: data.is_admin || false,
+                    points_balance: data.points_balance || data.points || 0,
+                    avatar: data.avatar_url || data.avatar
+                };
+                
+                // 添加到账户管理器
+                const account = window.accountManager.addAccount(loginData);
+                console.log('[UserInfo] New account added to AccountManager:', account.username);
+            } else {
+                console.log('[UserInfo] Account already exists in AccountManager:', data.username);
+                // 更新当前账户ID
+                window.accountManager.currentId = existingAccount.id;
+                window.accountManager.save();
+            }
+        }
+        
         // 更新所有用户名显示元素
         const usernameElements = document.querySelectorAll('#usernameText, .username-text');
         usernameElements.forEach(el => {

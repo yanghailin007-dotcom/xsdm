@@ -129,3 +129,6 @@ server_*.log  # 根目录下的日志文件
 
 # 运行时进程ID文件
 .server.pid
+
+# Flask session 文件（服务器端 session 存储）
+flask_session/

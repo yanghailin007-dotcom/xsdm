@@ -9,7 +9,7 @@
 </head>
 <body>
     <!-- 导航栏 -->
-    {% include 'components/navbar.html' %}
+    {% include 'components/v2/navbar.html' %}
     
     <div class="storyline-container">
         <!-- 页面头部 -->
@@ -104,5 +104,6 @@
 
     <script src="/static/js/user-info.js"></script>
     <script src="/static/js/storyline.js?v=4.0"></script>
+    <script src="{{ url_for('static', filename='js/account-manager.js') }}?v=2"></script>
 </body>
 </html>

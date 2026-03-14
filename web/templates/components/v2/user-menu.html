@@ -62,10 +62,46 @@
         
         <div class="v2-dropdown__divider"></div>
         
+        <!-- 多账户切换入口 -->
+        <a href="javascript:void(0)" class="v2-dropdown__item" onclick="showAccountSwitcher(event); return false;">
+            <span>🔄</span>
+            <span>切换账户</span>
+            <span id="account-count-badge" class="v2-account-badge" style="display: none;">0</span>
+        </a>
+        
         <a href="/logout" class="v2-dropdown__item v2-dropdown__item--danger">
             <span>🚪</span>
             <span>退出登录</span>
         </a>
+    </div>
+</div>
+
+<!-- 账户切换器弹窗 -->
+<div id="account-switcher-modal" class="v2-account-modal" style="display: none;">
+    <div class="v2-account-modal__overlay" onclick="hideAccountSwitcher()"></div>
+    <div class="v2-account-modal__content">
+        <div class="v2-account-modal__header">
+            <div class="v2-account-modal__title">
+                <span class="v2-account-modal__icon">👥</span>
+                <span>切换账户</span>
+            </div>
+            <button class="v2-account-modal__close" onclick="hideAccountSwitcher()">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <line x1="18" y1="6" x2="6" y2="18"></line>
+                    <line x1="6" y1="6" x2="18" y2="18"></line>
+                </svg>
+            </button>
+        </div>
+        <div class="v2-account-modal__body">
+            <div id="account-switcher-list" class="v2-account-list">
+                <!-- 账户列表动态生成 -->
+            </div>
+            <div class="v2-account-modal__divider"></div>
+            <button type="button" class="v2-account-modal__add-btn" onclick="goToLogin();">
+                <span>+</span>
+                <span>登录新账户</span>
+            </button>
+        </div>
     </div>
 </div>
 
@@ -134,5 +170,578 @@
     } else {
         loadV2UserPoints();
     }
+    
+    // 初始化账户切换器 - 延迟执行确保 AccountManager 已加载
+    if (window.accountManager) {
+        initAccountSwitcher();
+    } else {
+        // 等待 AccountManager 加载
+        const checkInterval = setInterval(() => {
+            if (window.accountManager) {
+                clearInterval(checkInterval);
+                initAccountSwitcher();
+            }
+        }, 100);
+        // 5秒后停止检查
+        setTimeout(() => clearInterval(checkInterval), 5000);
+    }
 })();
+
+// ===== 多账户切换功能 =====
+function initAccountSwitcher() {
+    updateAccountSwitcherUI();
+    // 每5秒更新一次账户数量徽章
+    setInterval(updateAccountSwitcherUI, 5000);
+}
+
+function updateAccountSwitcherUI() {
+    const badge = document.getElementById('account-count-badge');
+    if (!badge || !window.accountManager) return;
+    
+    const accounts = window.accountManager.getAllAccounts();
+    if (accounts.length > 1) {
+        badge.textContent = accounts.length;
+        badge.style.display = 'block';
+    } else {
+        badge.style.display = 'none';
+    }
+}
+
+async function showAccountSwitcher(event) {
+    if (event) {
+        event.preventDefault();
+        event.stopPropagation();
+    }
+    
+    console.log('[AccountSwitcher] Opening account switcher...');
+    
+    // 关闭用户下拉菜单
+    const userMenu = document.getElementById('userMenu');
+    if (userMenu) {
+        userMenu.classList.remove('active');
+    }
+    const v2UserMenu = document.getElementById('v2UserMenu');
+    if (v2UserMenu) {
+        v2UserMenu.classList.remove('active');
+    }
+    
+    const modal = document.getElementById('account-switcher-modal');
+    const list = document.getElementById('account-switcher-list');
+    
+    if (!modal || !list) {
+        console.error('[AccountSwitcher] Modal or list element not found');
+        return;
+    }
+    
+    // AccountManager 未加载
+    if (!window.accountManager) {
+        list.innerHTML = `
+            <div class="v2-account-empty">
+                <div class="v2-account-empty__icon">⚠️</div>
+                <div class="v2-account-empty__title">账户管理器未加载</div>
+                <div class="v2-account-empty__desc">请刷新页面后重试</div>
+            </div>
+        `;
+        modal.style.display = 'flex';
+        return;
+    }
+    
+    // 获取最新余额
+    let currentBalance = 0;
+    try {
+        const response = await fetch('/api/points/balance');
+        if (response.ok) {
+            const result = await response.json();
+            if (result.success) {
+                currentBalance = result.data.balance || 0;
+                // 更新 AccountManager 中当前账户的余额
+                const currentAccount = window.accountManager.getCurrentAccount();
+                if (currentAccount) {
+                    window.accountManager.updateAccountInfo(currentAccount.id, { points: currentBalance });
+                }
+                // 更新导航栏点数显示
+                const v2UserPoints = document.getElementById('v2UserPoints');
+                if (v2UserPoints) {
+                    v2UserPoints.textContent = currentBalance + ' 点';
+                }
+            }
+        }
+    } catch (e) {
+        console.error('[AccountSwitcher] Failed to load balance:', e);
+    }
+    
+    const accounts = window.accountManager.getAllAccounts();
+    const currentId = window.accountManager.currentId;
+    
+    console.log('[AccountSwitcher] Found', accounts.length, 'accounts, current:', currentId);
+    console.log('[AccountSwitcher] Current balance:', currentBalance);
+    
+    // 获取当前页面显示的用户名和点数
+    const usernameEl = document.getElementById('usernameText') || document.querySelector('.username-text');
+    const pointsEl = document.getElementById('dropdownPoints') || document.getElementById('v2UserPoints');
+    const currentUsername = usernameEl ? usernameEl.textContent.trim() : '';
+    const currentPoints = pointsEl ? pointsEl.textContent.replace(/[^0-9]/g, '') : '0';
+    
+    if (accounts.length === 0) {
+        // 显示空状态 - 提示用户添加当前账户
+        list.innerHTML = `
+            <div class="v2-account-empty">
+                <div class="v2-account-empty__icon">👤</div>
+                <div class="v2-account-empty__title">暂无保存的账户</div>
+                <div class="v2-account-empty__desc">
+                    当前登录: <strong>${currentUsername || '未知用户'}</strong><br>
+                    点击下方按钮添加当前账户
+                </div>
+                <button class="v2-account-empty__btn" onclick="addCurrentAccount()">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <line x1="12" y1="5" x2="12" y2="19"></line>
+                        <line x1="5" y1="12" x2="19" y2="12"></line>
+                    </svg>
+                    添加当前账户
+                </button>
+            </div>
+        `;
+    } else {
+        list.innerHTML = accounts.map(acc => {
+            // 当前账户显示最新余额，其他账户显示存储的余额
+            const displayPoints = (acc.id === currentId) ? currentBalance : (acc.points || 0);
+            return `
+            <div class="v2-account-card ${acc.id === currentId ? 'v2-account-card--active' : ''}" 
+                 onclick="switchToAccount('${acc.id}')">
+                <div class="v2-account-card__avatar">
+                    ${acc.username ? acc.username[0].toUpperCase() : '?'}
+                </div>
+                <div class="v2-account-card__info">
+                    <div class="v2-account-card__name">${acc.username || '未知用户'}</div>
+                    <div class="v2-account-card__points">💰 ${displayPoints} 点</div>
+                </div>
+                <div class="v2-account-card__status">
+                    ${acc.id === currentId ? 
+                        '<span class="v2-account-card__badge v2-account-card__badge--active">当前</span>' : 
+                        '<span class="v2-account-card__badge v2-account-card__badge--switch">切换</span>'
+                    }
+                    ${acc.needsRelogin ? '<span class="v2-account-card__badge v2-account-card__badge--warn">需重登</span>' : ''}
+                </div>
+            </div>
+        `}).join('');
+    }
+    
+    modal.style.display = 'flex';
+}
+
+function hideAccountSwitcher() {
+    const modal = document.getElementById('account-switcher-modal');
+    if (modal) modal.style.display = 'none';
+}
+
+async function switchToAccount(accountId) {
+    console.log('[AccountSwitcher] Switching to account:', accountId);
+    
+    if (!window.accountManager) {
+        console.error('[AccountSwitcher] AccountManager not available');
+        alert('账户管理器未加载，请刷新页面重试');
+        return;
+    }
+    
+    // 显示加载状态
+    const card = document.querySelector(`[onclick="switchToAccount('${accountId}')"]`);
+    if (card) {
+        card.style.opacity = '0.5';
+        card.style.pointerEvents = 'none';
+    }
+    
+    const success = await window.accountManager.switchAccount(accountId);
+    console.log('[AccountSwitcher] Switch result:', success);
+    
+    if (success) {
+        hideAccountSwitcher();
+        // 刷新页面以显示新账户信息
+        window.location.reload();
+    } else {
+        alert('切换账户失败，请重试');
+        if (card) {
+            card.style.opacity = '1';
+            card.style.pointerEvents = 'auto';
+        }
+    }
+}
+
+function goToLogin() {
+    console.log('[AccountSwitcher] goToLogin called');
+    // 跳转到登录页，添加账户模式
+    const redirectUrl = encodeURIComponent(window.location.pathname + window.location.search);
+    const loginUrl = '/login?mode=add-account&redirect=' + redirectUrl;
+    console.log('[AccountSwitcher] Navigating to:', loginUrl);
+    window.location.href = loginUrl;
+}
+
+function addNewAccount() {
+    goToLogin();
+}
+
+// 添加当前登录账户到 AccountManager
+async function addCurrentAccount() {
+    try {
+        const response = await fetch('/api/current-user');
+        const data = await response.json();
+        
+        if (!data.success) {
+            alert('获取用户信息失败，请刷新页面重试');
+            return;
+        }
+        
+        // 创建账户数据
+        const loginData = {
+            user_id: data.user_id,
+            username: data.username,
+            access_token: 'session-' + Date.now(),
+            refresh_token: 'session-' + Date.now(),
+            expires_in: 3600,
+            is_admin: data.is_admin || false,
+            points_balance: data.points || 0,
+            avatar: data.avatar_url
+        };
+        
+        // 添加到 AccountManager
+        if (window.accountManager) {
+            window.accountManager.addAccount(loginData);
+            console.log('[AccountSwitcher] Current account added:', data.username);
+            // 刷新列表
+            showAccountSwitcher();
+        }
+    } catch (error) {
+        console.error('[AccountSwitcher] Failed to add current account:', error);
+        alert('添加账户失败，请重试');
+    }
+}
 </script>
+
+<style>
+/* ===== 账户切换器弹窗样式 ===== */
+.v2-account-modal {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 9999;
+    display: flex;
+    align-items: flex-start;
+    justify-content: flex-end;
+    padding: 80px 20px 20px;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+}
+
+.v2-account-modal__overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.6);
+    backdrop-filter: blur(8px);
+    animation: v2-modal-fade-in 0.2s ease;
+}
+
+@keyframes v2-modal-fade-in {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
+
+.v2-account-modal__content {
+    position: relative;
+    z-index: 1;
+    background: linear-gradient(180deg, #1e293b 0%, #0f172a 100%);
+    border: 1px solid rgba(99, 102, 241, 0.15);
+    border-radius: 20px;
+    box-shadow: 
+        0 25px 50px -12px rgba(0, 0, 0, 0.5),
+        0 0 0 1px rgba(255, 255, 255, 0.05) inset;
+    width: 100%;
+    max-width: 360px;
+    overflow: hidden;
+    animation: v2-modal-scale-in 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+    pointer-events: auto;
+}
+
+@keyframes v2-modal-scale-in {
+    from {
+        opacity: 0;
+        transform: scale(0.92) translateY(8px);
+    }
+    to {
+        opacity: 1;
+        transform: scale(1) translateY(0);
+    }
+}
+
+/* Header */
+.v2-account-modal__header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 20px 20px 16px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.v2-account-modal__title {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 16px;
+    font-weight: 600;
+    color: #f8fafc;
+    letter-spacing: -0.01em;
+}
+
+.v2-account-modal__icon {
+    width: 32px;
+    height: 32px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: linear-gradient(135deg, rgba(99, 102, 241, 0.2), rgba(139, 92, 246, 0.2));
+    border-radius: 10px;
+    font-size: 16px;
+}
+
+.v2-account-modal__close {
+    width: 32px;
+    height: 32px;
+    border: none;
+    background: rgba(255, 255, 255, 0.03);
+    border-radius: 10px;
+    color: #94a3b8;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.v2-account-modal__close:hover {
+    background: rgba(255, 255, 255, 0.08);
+    color: #e2e8f0;
+}
+
+/* Body */
+.v2-account-modal__body {
+    padding: 16px 20px 20px;
+}
+
+.v2-account-list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    min-height: 0;
+}
+
+/* Account Card */
+.v2-account-card {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px;
+    background: rgba(255, 255, 255, 0.02);
+    border: 1px solid rgba(255, 255, 255, 0.05);
+    border-radius: 14px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.v2-account-card:hover {
+    background: rgba(99, 102, 241, 0.08);
+    border-color: rgba(99, 102, 241, 0.2);
+    transform: translateY(-1px);
+}
+
+.v2-account-card--active {
+    background: linear-gradient(135deg, rgba(99, 102, 241, 0.12), rgba(139, 92, 246, 0.08));
+    border-color: rgba(99, 102, 241, 0.35);
+    box-shadow: 0 0 20px rgba(99, 102, 241, 0.1);
+}
+
+.v2-account-card--active:hover {
+    background: linear-gradient(135deg, rgba(99, 102, 241, 0.16), rgba(139, 92, 246, 0.12));
+}
+
+.v2-account-card__avatar {
+    width: 40px;
+    height: 40px;
+    border-radius: 12px;
+    background: linear-gradient(135deg, #6366f1, #8b5cf6);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 600;
+    font-size: 15px;
+    color: white;
+    flex-shrink: 0;
+}
+
+.v2-account-card__info {
+    flex: 1;
+    min-width: 0;
+}
+
+.v2-account-card__name {
+    font-weight: 500;
+    font-size: 14px;
+    color: #f1f5f9;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    margin-bottom: 2px;
+}
+
+.v2-account-card__points {
+    font-size: 12px;
+    color: #64748b;
+    font-weight: 500;
+}
+
+.v2-account-card__status {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 4px;
+}
+
+.v2-account-card__badge {
+    font-size: 11px;
+    font-weight: 600;
+    padding: 4px 10px;
+    border-radius: 20px;
+    white-space: nowrap;
+}
+
+.v2-account-card__badge--active {
+    background: rgba(16, 185, 129, 0.15);
+    color: #34d399;
+}
+
+.v2-account-card__badge--switch {
+    background: rgba(99, 102, 241, 0.15);
+    color: #a5b4fc;
+    opacity: 0;
+    transition: opacity 0.2s;
+}
+
+.v2-account-card:hover .v2-account-card__badge--switch {
+    opacity: 1;
+}
+
+.v2-account-card__badge--warn {
+    background: rgba(245, 158, 11, 0.15);
+    color: #fbbf24;
+    font-size: 10px;
+}
+
+/* Empty State */
+.v2-account-empty {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    padding: 32px 20px;
+}
+
+.v2-account-empty__icon {
+    font-size: 48px;
+    margin-bottom: 16px;
+    opacity: 0.8;
+}
+
+.v2-account-empty__title {
+    font-size: 16px;
+    font-weight: 600;
+    color: #f1f5f9;
+    margin-bottom: 8px;
+}
+
+.v2-account-empty__desc {
+    font-size: 13px;
+    color: #64748b;
+    line-height: 1.6;
+    margin-bottom: 20px;
+}
+
+.v2-account-empty__btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    padding: 10px 20px;
+    background: linear-gradient(135deg, #6366f1, #8b5cf6);
+    border: none;
+    border-radius: 10px;
+    color: white;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    box-shadow: 0 4px 12px rgba(99, 102, 241, 0.25);
+}
+
+.v2-account-empty__btn:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 6px 16px rgba(99, 102, 241, 0.35);
+}
+
+/* Divider */
+.v2-account-modal__divider {
+    height: 1px;
+    background: rgba(255, 255, 255, 0.06);
+    margin: 16px 0;
+    flex-shrink: 0;
+}
+
+/* Add Button */
+button.v2-account-modal__add-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    width: 100%;
+    padding: 12px;
+    background: linear-gradient(135deg, rgba(99, 102, 241, 0.2), rgba(139, 92, 246, 0.2));
+    border: 2px solid rgba(99, 102, 241, 0.5);
+    border-radius: 12px;
+    color: #c7d2fe;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    box-sizing: border-box;
+    position: relative;
+    z-index: 10;
+    margin-top: 16px;
+}
+
+button.v2-account-modal__add-btn:hover {
+    background: linear-gradient(135deg, rgba(99, 102, 241, 0.3), rgba(139, 92, 246, 0.25));
+    border-color: rgba(99, 102, 241, 0.7);
+    color: #e0e7ff;
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(99, 102, 241, 0.25);
+}
+
+/* Badge Animation */
+@keyframes v2-badge-pulse {
+    0%, 100% { transform: scale(1); }
+    50% { transform: scale(1.1); }
+}
+
+.v2-account-badge {
+    margin-left: auto;
+    font-size: 11px;
+    font-weight: 600;
+    background: rgba(99, 102, 241, 0.2);
+    color: #a5b4fc;
+    padding: 2px 8px;
+    border-radius: 10px;
+    min-width: 20px;
+    text-align: center;
+    animation: v2-badge-pulse 2s ease-in-out infinite;
+}
+</style>

@@ -214,7 +214,7 @@ def get_novel_generator(config):
                 
                 # 🔥 设置停止检查回调（使用全局停止标志）
                 def stop_check_callback():
-                    from web.web_server_refactored import is_stop_requested
+                    from web.stop_flag import is_stop_requested
                     if is_stop_requested():
                         raise InterruptedError("用户请求停止生成")
                 setattr(_novel_generator_instance, '_stop_check_callback', stop_check_callback)
@@ -404,7 +404,7 @@ class NovelGenerationManager:
         
         # 🔥 检查全局 Ctrl+C 停止标志（双击 Ctrl+C）
         try:
-            from web.web_server_refactored import is_stop_requested
+            from web.stop_flag import is_stop_requested
             if is_stop_requested():
                 logger.info(f"🛑 任务 {task_id}: 检测到 Ctrl+C 停止信号")
                 raise InterruptedError("用户按 Ctrl+C 请求停止")
@@ -1980,7 +1980,7 @@ class NovelGenerationManager:
                 
                 # 🔥 设置停止检查回调（使用全局停止标志）
                 def stop_check_callback():
-                    from web.web_server_refactored import is_stop_requested
+                    from web.stop_flag import is_stop_requested
                     if is_stop_requested():
                         raise InterruptedError("用户请求停止生成")
                 setattr(novel_generator, '_stop_check_callback', stop_check_callback)
@@ -2163,7 +2163,7 @@ class NovelGenerationManager:
             
             # 🔥 设置停止检查回调（使用全局停止标志）
             def stop_check_callback_resume():
-                from web.web_server_refactored import is_stop_requested
+                from web.stop_flag import is_stop_requested
                 if is_stop_requested():
                     raise InterruptedError("用户请求停止生成")
             setattr(novel_generator, '_stop_check_callback', stop_check_callback_resume)

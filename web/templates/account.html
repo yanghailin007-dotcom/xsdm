@@ -418,7 +418,7 @@
     </style>
 </head>
 <body>
-    {% include 'components/navbar.html' %}
+    {% include 'components/v2/navbar.html' %}
     <!-- 导航栏 -->
     <!-- 主内容 -->
     <main class="main-container">
@@ -572,5 +572,6 @@
             }
         }
     </script>
+    <script src="{{ url_for('static', filename='js/account-manager.js') }}?v=2"></script>
 </body>
 </html>

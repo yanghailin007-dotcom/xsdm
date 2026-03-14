@@ -567,13 +567,15 @@ def stop_all_generation_tasks():
 def get_system_status():
     """获取系统运行状态"""
     try:
-        import psutil
         import threading
         
-        # 获取CPU和内存使用率
-        cpu_percent = psutil.cpu_percent(interval=1)
-        memory = psutil.virtual_memory()
-        disk = psutil.disk_usage('/')
+        # 尝试导入 psutil，如果不可用则使用模拟数据
+        try:
+            import psutil
+            has_psutil = True
+        except ImportError:
+            has_psutil = False
+            logger.warning("⚠️ psutil 模块未安装，使用模拟系统状态数据")
         
         # 获取线程信息
         thread_count = threading.active_count()
@@ -589,25 +591,47 @@ def get_system_status():
                                 if t.get('status', '').lower() 
                                 not in ['completed', 'success', 'failed', 'error', 'cancelled'])
         
-        return jsonify({
-            'success': True,
-            'data': {
-                'cpu': {
+        # 如果有 psutil 则获取真实数据，否则使用模拟数据
+        if has_psutil:
+            try:
+                cpu_percent = psutil.cpu_percent(interval=1)
+                memory = psutil.virtual_memory()
+                disk = psutil.disk_usage('/')
+                
+                cpu_data = {
                     'percent': cpu_percent,
                     'cores': psutil.cpu_count()
-                },
-                'memory': {
+                }
+                memory_data = {
                     'total': memory.total,
                     'available': memory.available,
                     'percent': memory.percent,
                     'used': memory.used
-                },
-                'disk': {
+                }
+                disk_data = {
                     'total': disk.total,
                     'used': disk.used,
                     'free': disk.free,
-                    'percent': (disk.used / disk.total) * 100
-                },
+                    'percent': disk.percent
+                }
+            except Exception as e:
+                logger.error(f"获取系统状态失败: {e}")
+                # 使用模拟数据
+                cpu_data = {'percent': 0, 'cores': 0}
+                memory_data = {'total': 0, 'available': 0, 'percent': 0, 'used': 0}
+                disk_data = {'total': 0, 'used': 0, 'free': 0, 'percent': 0}
+        else:
+            # 模拟数据
+            cpu_data = {'percent': 0, 'cores': 0}
+            memory_data = {'total': 0, 'available': 0, 'percent': 0, 'used': 0}
+            disk_data = {'total': 0, 'used': 0, 'free': 0, 'percent': 0}
+        
+        return jsonify({
+            'success': True,
+            'data': {
+                'cpu': cpu_data,
+                'memory': memory_data,
+                'disk': disk_data,
                 'threads': thread_count,
                 'active_generations': active_generations
             }

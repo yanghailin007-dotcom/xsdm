@@ -970,7 +970,7 @@
     </style>
 </head>
 <body>
-    {% include 'components/navbar.html' %}
+    {% include 'components/v2/navbar.html' %}
     <!-- 背景 -->
     <div class="universe">
         <div class="stars"></div>
@@ -1465,5 +1465,6 @@
     </script>
     <script src="/static/js/confirm-dialog.js"></script>
     <script src="/static/js/user-info.js"></script>
+    <script src="{{ url_for('static', filename='js/account-manager.js') }}?v=2"></script>
 </body>
 </html>

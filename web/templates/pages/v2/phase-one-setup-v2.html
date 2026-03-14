@@ -397,8 +397,8 @@
     <script>
         // ==================== 创造点计算器 ====================
         // 第一阶段设定生成 - API调用统计（基于实际代码分析）
-        // 固定显示最大消耗：200章约119点
-        const PHASE_ONE_BASE_COST = 119;
+        // 一阶段设定生成固定消耗75点（与章节数无关）
+        const PHASE_ONE_BASE_COST = 75;  // 一阶段固定消耗，与章节数无关
         let currentPointsCost = PHASE_ONE_BASE_COST;
         let userPointsBalance = 0;
         
@@ -431,7 +431,7 @@
             // 更新API调用详情
             const apiCallsDetail = document.getElementById('api-calls-detail');
             if (apiCallsDetail) {
-                apiCallsDetail.textContent = `200章约${currentPointsCost}创造点，具体消耗视生成复杂度而定`;
+                apiCallsDetail.textContent = `最低门槛${currentPointsCost}点，实际按API调用实时扣费`;
             }
         }
         
