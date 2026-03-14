@@ -1084,6 +1084,43 @@ class PhaseGenerator:
             )
             print(f"  ✅ 成功生成 {len(all_stages_emotional_plans)} 个阶段的情绪计划")
             
+            # 🚀 批量生成所有阶段的主龙骨（将 4 次 API 调用合并为 1 次）
+            print("  🚀 批量生成所有阶段的主龙骨...")
+            stages_config = []
+            for task in stage_tasks:
+                stage_name = task['stage_name']
+                stage_range = task['stage_range']
+                # 计算章节数量
+                numbers = stage_range.split('-')
+                stage_length = max(1, int(numbers[1]) - int(numbers[0]) + 1) if len(numbers) >= 2 else 3
+                
+                # 计算事件密度
+                density = self.generator.stage_plan_manager.event_manager.calculate_optimal_event_density_by_stage(
+                    stage_name, stage_length
+                )
+                
+                stages_config.append({
+                    'stage_name': stage_name,
+                    'stage_range': stage_range,
+                    'density_requirements': density,
+                    'stage_emotional_plan': all_stages_emotional_plans.get(stage_name)
+                })
+            
+            all_stages_skeletons = self.generator.stage_plan_manager.major_event_generator.generate_all_stages_skeletons_batch(
+                stages_config=stages_config,
+                creative_seed=self.generator.novel_data.get("creative_seed", {}),
+                global_novel_data=self.generator.novel_data,
+                overall_stage_plan=stage_plan_dict,
+                novel_title=self.generator.novel_data.get("novel_title", "")
+            )
+            
+            if all_stages_skeletons:
+                total_events = sum(len(events) for events in all_stages_skeletons.values())
+                print(f"  ✅ 批量生成主龙骨成功: {len(all_stages_skeletons)} 个阶段, {total_events} 个重大事件")
+            else:
+                print("  ⚠️ 批量生成主龙骨失败，将使用逐个生成模式")
+                all_stages_skeletons = {}
+            
             # 🔥 优化：使用线程池并行生成
             from concurrent.futures import as_completed, TimeoutError
             from src.utils.thread_pool_manager import ManagedThreadPool
@@ -1093,8 +1130,11 @@ class PhaseGenerator:
                 """生成单个阶段的包装函数"""
                 stage_name = task['stage_name']
                 thread_id = threading.current_thread().name
-                # 获取预生成的情绪计划
+                # 获取预生成的情绪计划和主龙骨
                 pre_generated_emotional_plan = all_stages_emotional_plans.get(stage_name)
+                pre_generated_skeletons = all_stages_skeletons.get(stage_name) if all_stages_skeletons else None
+                if pre_generated_skeletons:
+                    print(f"  🚀 [{stage_name}] [线程:{thread_id}] 使用预生成主龙骨: {len(pre_generated_skeletons)} 个事件")
                 try:
                     print(f"  📋 [{stage_name}] [线程:{thread_id}] 开始生成...")
                     stage_plan = self.generator.stage_plan_manager.generate_stage_writing_plan(
@@ -1104,7 +1144,8 @@ class PhaseGenerator:
                         novel_title=task['novel_title'],
                         novel_synopsis=task['novel_synopsis'],
                         overall_stage_plan=task['overall_stage_plan'],
-                        stage_emotional_plan=pre_generated_emotional_plan
+                        stage_emotional_plan=pre_generated_emotional_plan,
+                        pre_generated_skeletons=pre_generated_skeletons
                     )
                     if stage_plan:
                         print(f"  ✅ [{stage_name}] [线程:{thread_id}] 生成成功")
