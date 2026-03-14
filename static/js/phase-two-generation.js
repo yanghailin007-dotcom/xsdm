@@ -1069,13 +1069,8 @@ function editProductCategory(category) {
 
     const productData = phaseOneProductsData[category];
     
-    // 对于角色，使用友好的角色编辑器
-    if (category === 'characters') {
-        openCharacterEditorFromPhaseTwo();
-    } else {
-        // 其他产物使用抽屉面板编辑
-        createProductEditDrawer(category, productData);
-    }
+    // 所有产物都使用抽屉面板编辑
+    createProductEditDrawer(category, productData);
 }
 
 // 从第二阶段打开角色编辑器
@@ -1702,6 +1697,7 @@ function createProductEditDrawer(category, productData) {
     };
 
     const isWorldview = category === 'worldview';
+    const isCharacters = category === 'characters';
     
     const drawerHtml = `
         <div id="product-edit-drawer" class="pt-drawer-overlay" onclick="closeProductEditDrawer()">
@@ -1724,10 +1720,16 @@ function createProductEditDrawer(category, productData) {
                     <button class="pt-drawer__tab" data-tab="rules" onclick="switchDrawerTab('rules')">核心规则</button>
                     <button class="pt-drawer__tab" data-tab="geo" onclick="switchDrawerTab('geo')">地理历史</button>
                 </div>
+                ` : isCharacters ? `
+                <div class="pt-drawer__tabs">
+                    <button class="pt-drawer__tab active" data-tab="main" onclick="switchDrawerTab('main')">主角色</button>
+                    <button class="pt-drawer__tab" data-tab="supporting" onclick="switchDrawerTab('supporting')">配角设定</button>
+                    <button class="pt-drawer__tab" data-tab="relationships" onclick="switchDrawerTab('relationships')">角色关系</button>
+                </div>
                 ` : ''}
                 
                 <div class="pt-drawer__content">
-                    ${isWorldview ? getWorldviewPanels(productData) : getGenericPanel(category, categoryNames, productData)}
+                    ${isWorldview ? getWorldviewPanels(productData) : isCharacters ? getCharactersPanels(productData) : getGenericPanel(category, categoryNames, productData)}
                 </div>
                 
                 <div class="pt-drawer__footer">
@@ -1801,6 +1803,64 @@ function getWorldviewPanels(productData) {
     `;
 }
 
+function getCharactersPanels(productData) {
+    return `
+        <div class="pt-drawer__panel active" data-panel="main">
+            <div class="pt-form-section">
+                <div class="pt-form-section__title">主角设定</div>
+                <div class="pt-form-field">
+                    <label class="pt-form-field__label">姓名</label>
+                    <input type="text" class="pt-form-field__input" id="main-char-name" placeholder="主角姓名" value="${extractField(productData?.content, 'main_character_name')}">
+                </div>
+                <div class="pt-form-field">
+                    <label class="pt-form-field__label">性格特点</label>
+                    <textarea class="pt-form-field__textarea" id="main-char-personality" placeholder="性格、气质、行为特征...">${extractField(productData?.content, 'main_character_personality')}</textarea>
+                </div>
+                <div class="pt-form-field">
+                    <label class="pt-form-field__label">能力/技能</label>
+                    <textarea class="pt-form-field__textarea" id="main-char-abilities" placeholder="特殊能力、技能、优势...">${extractField(productData?.content, 'main_character_abilities')}</textarea>
+                </div>
+                <div class="pt-form-field">
+                    <label class="pt-form-field__label">背景故事</label>
+                    <textarea class="pt-form-field__textarea" id="main-char-background" placeholder="出身、经历、动机...">${extractField(productData?.content, 'main_character_background')}</textarea>
+                </div>
+            </div>
+        </div>
+        
+        <div class="pt-drawer__panel" data-panel="supporting">
+            <div class="pt-form-section">
+                <div class="pt-form-section__title">配角设定</div>
+                <div class="pt-form-field">
+                    <label class="pt-form-field__label">反派角色</label>
+                    <textarea class="pt-form-field__textarea" id="antagonist" placeholder="主要反派的性格、目标...">${extractField(productData?.content, 'antagonist')}</textarea>
+                </div>
+                <div class="pt-form-field">
+                    <label class="pt-form-field__label">帮手/师长</label>
+                    <textarea class="pt-form-field__textarea" id="mentor" placeholder="引导主角的关键角色...">${extractField(productData?.content, 'mentor')}</textarea>
+                </div>
+                <div class="pt-form-field">
+                    <label class="pt-form-field__label">配角群体</label>
+                    <textarea class="pt-form-field__textarea" id="supporting-chars" placeholder="其他重要配角...">${extractField(productData?.content, 'supporting_characters')}</textarea>
+                </div>
+            </div>
+        </div>
+        
+        <div class="pt-drawer__panel" data-panel="relationships">
+            <div class="pt-form-section">
+                <div class="pt-form-section__title">角色关系网</div>
+                <div class="pt-form-field">
+                    <label class="pt-form-field__label">与主角关系</label>
+                    <textarea class="pt-form-field__textarea" id="relationships" placeholder="角色之间的关系、矛盾、羁绊...">${extractField(productData?.content, 'relationships')}</textarea>
+                </div>
+                <div class="pt-form-field">
+                    <label class="pt-form-field__label">角色弧光</label>
+                    <textarea class="pt-form-field__textarea" id="character-arcs" placeholder="各角色的成长轨迹...">${extractField(productData?.content, 'character_arcs')}</textarea>
+                </div>
+            </div>
+        </div>
+    `;
+}
+
 function getGenericPanel(category, categoryNames, productData) {
     return `
         <div class="pt-form-section">
@@ -1858,15 +1918,39 @@ function closeProductEditDrawer() {
 
 async function saveProductEdit(category) {
     try {
-        const title = document.getElementById('product-title').value.trim();
-        const content = document.getElementById('product-content').value.trim();
-        
-        if (!title || !content) {
-            alert('请填写完整的标题和内容');
-            return;
-        }
-
         showStatusMessage('🔄 正在保存...', 'info');
+        
+        let title, content;
+        
+        // 根据类别获取数据
+        if (category === 'worldview') {
+            title = '世界观设定';
+            content = JSON.stringify({
+                world_overview: document.getElementById('world-overview')?.value || '',
+                unique_features: document.getElementById('unique-features')?.value || '',
+                power_system: document.getElementById('power-system')?.value || '',
+                core_rules: document.getElementById('core-rules')?.value || '',
+                geography: document.getElementById('geography')?.value || '',
+                history_background: document.getElementById('history')?.value || ''
+            }, null, 2);
+        } else if (category === 'characters') {
+            title = '角色设计';
+            content = JSON.stringify({
+                main_character_name: document.getElementById('main-char-name')?.value || '',
+                main_character_personality: document.getElementById('main-char-personality')?.value || '',
+                main_character_abilities: document.getElementById('main-char-abilities')?.value || '',
+                main_character_background: document.getElementById('main-char-background')?.value || '',
+                antagonist: document.getElementById('antagonist')?.value || '',
+                mentor: document.getElementById('mentor')?.value || '',
+                supporting_characters: document.getElementById('supporting-chars')?.value || '',
+                relationships: document.getElementById('relationships')?.value || '',
+                character_arcs: document.getElementById('character-arcs')?.value || ''
+            }, null, 2);
+        } else {
+            // 普通单字段模式
+            title = document.getElementById('product-title')?.value?.trim() || categoryNames[category];
+            content = document.getElementById('product-content')?.value?.trim() || '';
+        }
         
         const response = await fetch(`/api/phase-one/products/${encodeURIComponent(currentProject.novel_title || currentProject.title)}/${category}`, {
             method: 'PUT',
