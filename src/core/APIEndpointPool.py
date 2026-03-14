@@ -19,16 +19,20 @@ class EndpointStatus(Enum):
 
 @dataclass
 class APIEndpoint:
-    """API端点配置"""
+    """API端点配置 - 支持多模型故障转移"""
     name: str                      # 端点名称（如：lemon-api, xiaochuang）
     api_url: str                   # API地址
     api_key: str                   # API密钥
-    model: str                     # 模型名称
+    model: str                     # 主模型名称
     provider: str                  # 所属提供商（gemini/deepseek等）
     priority: int = 1              # 优先级（数字越小优先级越高）
     enabled: bool = True           # 是否启用
     timeout: int = 500             # 超时时间（秒）- 支持长时间生成任务
     max_retries: int = 3           # 最大重试次数
+    
+    # 🔥 新增：多模型支持（备用模型列表）
+    models: List[str] = field(default_factory=list)  # 所有可用模型 [主模型, 备用模型1, 备用模型2...]
+    _current_model_index: int = field(default=0, repr=False)  # 当前使用的模型索引
     
     # 运行时统计
     total_requests: int = field(default=0)
@@ -39,8 +43,44 @@ class APIEndpoint:
     avg_response_time: float = field(default=0.0)
     status: EndpointStatus = field(default=EndpointStatus.HEALTHY)
     
+    # 模型级别的统计
+    model_failures: Dict[str, int] = field(default_factory=dict)  # 每个模型的失败次数
+    
     def __post_init__(self):
         self.logger = get_logger(f"APIEndpoint-{self.name}")
+        # 确保主模型在模型列表中
+        if not self.models and self.model:
+            self.models = [self.model]
+        elif self.model and self.model not in self.models:
+            self.models = [self.model] + self.models
+    
+    @property
+    def current_model(self) -> str:
+        """获取当前使用的模型"""
+        if self._current_model_index < len(self.models):
+            return self.models[self._current_model_index]
+        return self.model  # 回退到主模型
+    
+    def next_model(self) -> Optional[str]:
+        """切换到下一个可用模型，返回下一个模型名称，如果没有则返回None"""
+        self._current_model_index += 1
+        if self._current_model_index < len(self.models):
+            next_model = self.models[self._current_model_index]
+            self.logger.info(f"🔄 端点 {self.name} 切换到备用模型: {next_model}")
+            return next_model
+        else:
+            # 所有模型都尝试过，重置索引
+            self._current_model_index = 0
+            return None
+    
+    def reset_model_index(self):
+        """重置模型索引到主模型"""
+        self._current_model_index = 0
+    
+    @property
+    def has_backup_models(self) -> bool:
+        """是否有备用模型"""
+        return len(self.models) > 1
     
     @property
     def success_rate(self) -> float:
@@ -94,12 +134,17 @@ class APIEndpoint:
             self.status = EndpointStatus.DEGRADED
             self.logger.warning(f"端点 {self.name} 连续失败 {self.consecutive_failures} 次，优先级降低至 {self.dynamic_priority}")
     
-    def get_config(self) -> Dict[str, Any]:
-        """获取端点配置（用于API调用）"""
+    def get_config(self, use_current_model: bool = True) -> Dict[str, Any]:
+        """获取端点配置（用于API调用）
+        
+        Args:
+            use_current_model: 是否使用当前模型（故障转移时），False则使用主模型
+        """
+        model = self.current_model if use_current_model else self.model
         return {
             "api_url": self.api_url,
             "api_key": self.api_key,
-            "model": self.model,
+            "model": model,
             "timeout": self.timeout,
             "name": self.name
         }
@@ -128,6 +173,16 @@ class APIEndpointPool:
         for config in endpoints_config:
             if not config.get("enabled", True):
                 continue
+            
+            # 🔥 收集所有模型（主模型 + model1, model2...备用模型）
+            models = [config["model"]]  # 主模型
+            # 添加备用模型 model1, model2, model3...
+            for i in range(1, 10):  # 支持最多9个备用模型
+                backup_model_key = f"model{i}"
+                if backup_model_key in config and config[backup_model_key]:
+                    models.append(config[backup_model_key])
+                    self.logger.info(f"  发现备用模型 {backup_model_key}: {config[backup_model_key]}")
+            
             endpoint = APIEndpoint(
                 name=config.get("name", f"{provider}-{len(self.endpoints)}"),
                 api_url=config["api_url"],
@@ -137,10 +192,11 @@ class APIEndpointPool:
                 priority=config.get("priority", 99),
                 enabled=config.get("enabled", True),
                 timeout=config.get("timeout", 120),
-                max_retries=config.get("max_retries", 3)
+                max_retries=config.get("max_retries", 3),
+                models=models  # 🔥 传入所有模型
             )
             self.endpoints.append(endpoint)
-            self.logger.info(f"添加端点: {endpoint}")
+            self.logger.info(f"添加端点: {endpoint}，模型列表: {models}")
         
         # 按优先级排序
         self.endpoints.sort(key=lambda e: e.priority)
@@ -178,7 +234,12 @@ class APIEndpointPool:
         purpose: str = "API调用"
     ) -> tuple[Any, Optional[APIEndpoint]]:
         """
-        执行API调用，支持故障转移
+        执行API调用，支持模型级别故障转移和端点级别故障转移
+        
+        优先级：
+        1. 首先尝试端点的主模型
+        2. 如果主模型失败，尝试该端点的备用模型（model1, model2...）
+        3. 如果该端点所有模型都失败，切换到下一个端点
         
         Args:
             call_func: 实际的API调用函数，接收端点配置作为参数
@@ -198,26 +259,50 @@ class APIEndpointPool:
             tried_endpoints.append(endpoint.name)
             self.logger.info(f"尝试使用端点 {endpoint.name} (优先级:{endpoint.priority}) 进行{purpose}")
             
-            config = endpoint.get_config()
-            start_time = time.time()
-            
-            try:
-                result = call_func(config)
-                response_time = time.time() - start_time
+            # 🔥 模型级别故障转移：尝试该端点的所有模型
+            model_attempts = 0
+            while True:
+                config = endpoint.get_config(use_current_model=True)
+                current_model = config["model"]
+                start_time = time.time()
                 
-                if result is not None:
-                    endpoint.record_success(response_time)
-                    self.logger.info(f"端点 {endpoint.name} 调用成功 (耗时:{response_time:.2f}s)")
-                    return result, endpoint
-                else:
-                    # 返回None视为失败
-                    endpoint.record_failure("empty_response")
-                    self.logger.warning(f"端点 {endpoint.name} 返回空结果")
+                try:
+                    self.logger.info(f"  📡 使用模型: {current_model}")
+                    result = call_func(config)
+                    response_time = time.time() - start_time
                     
-            except Exception as e:
-                response_time = time.time() - start_time
-                endpoint.record_failure(type(e).__name__)
-                self.logger.error(f"端点 {endpoint.name} 调用失败: {e}")
+                    if result is not None:
+                        endpoint.record_success(response_time)
+                        self.logger.info(f"✅ 端点 {endpoint.name} + 模型 {current_model} 调用成功 (耗时:{response_time:.2f}s)")
+                        endpoint.reset_model_index()  # 重置模型索引
+                        return result, endpoint
+                    else:
+                        # 返回None视为失败，尝试下一个模型
+                        model_attempts += 1
+                        self.logger.warning(f"  ⚠️ 模型 {current_model} 返回空结果")
+                        next_model = endpoint.next_model()
+                        if next_model is None:
+                            # 该端点所有模型都失败
+                            endpoint.record_failure("all_models_empty")
+                            self.logger.error(f"  ❌ 端点 {endpoint.name} 所有模型均返回空结果")
+                            break
+                            
+                except Exception as e:
+                    response_time = time.time() - start_time
+                    model_attempts += 1
+                    error_msg = str(e)
+                    self.logger.error(f"  ❌ 模型 {current_model} 调用失败: {error_msg[:100]}")
+                    
+                    # 尝试下一个模型
+                    next_model = endpoint.next_model()
+                    if next_model is None:
+                        # 该端点所有模型都失败
+                        endpoint.record_failure(type(e).__name__)
+                        self.logger.error(f"  ❌ 端点 {endpoint.name} 所有模型均失败 (尝试了 {model_attempts} 个模型)")
+                        break
+                        
+            # 重置模型索引，为下次使用做准备
+            endpoint.reset_model_index()
         
         # 所有端点都失败
         self.logger.error(f"所有 {self.provider} 端点均失败，已尝试: {tried_endpoints}")
@@ -239,7 +324,9 @@ class APIEndpointPool:
                     "success_rate": f"{ep.success_rate:.2%}",
                     "total_requests": ep.total_requests,
                     "avg_response_time": f"{ep.avg_response_time:.2f}s",
-                    "consecutive_failures": ep.consecutive_failures
+                    "consecutive_failures": ep.consecutive_failures,
+                    "models": ep.models,  # 🔥 显示所有模型
+                    "has_backup_models": ep.has_backup_models  # 🔥 是否有备用模型
                 }
                 for ep in sorted(self.endpoints, key=lambda e: e.priority)
             ]
