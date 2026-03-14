@@ -466,10 +466,25 @@ body {
   font-weight: 500;
 }
 
+.pt-progress__meta {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
 .pt-progress__percentage {
   color: var(--pt-accent-primary);
   font-size: 14px;
   font-weight: 600;
+}
+
+.pt-progress__time {
+  font-size: 12px;
+  color: var(--pt-text-tertiary);
+  background: var(--pt-bg-tertiary);
+  padding: 2px 8px;
+  border-radius: 12px;
+  font-family: 'Courier New', monospace;
 }
 
 .pt-progress__bar {

@@ -323,10 +323,25 @@ body {
     margin-bottom: 20px;
 }
 
+.progress-meta {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+}
+
 .progress-percentage {
     font-weight: 700;
     font-size: 1.25rem;
     color: var(--primary-hover);
+}
+
+.progress-time {
+    font-size: 0.9rem;
+    color: var(--text-secondary);
+    background: var(--bg-tertiary);
+    padding: 4px 10px;
+    border-radius: 20px;
+    font-family: 'Courier New', monospace;
 }
 
 .progress-bar-container {
@@ -502,14 +517,14 @@ body {
     }
 }
 
-/* ==================== ¸Ä½ø°æ½ø¶ÈÏÔÊ¾ÑùÊ½ ==================== */
+/* ==================== ï¿½Ä½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ê¾ï¿½ï¿½Ê½ ==================== */
 
-/* ´´ÔìµãÏûºÄÏÔÊ¾ - ²¹³äÑùÊ½ */
+/* ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ê¾ - ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ê½ */
 .points-cost-section {
     margin-bottom: 20px;
 }
 
-/* ²½ÖèÁÐ±íÑùÊ½²¹³ä */
+/* ï¿½ï¿½ï¿½ï¿½ï¿½Ð±ï¿½ï¿½ï¿½Ê½ï¿½ï¿½ï¿½ï¿½ */
 .progress-steps-container {
     margin: 20px 0;
 }
@@ -583,7 +598,7 @@ body {
     color: var(--text-secondary);
 }
 
-/* ½øÐÐÖÐµÄ²½ÖèÑùÊ½ */
+/* ï¿½ï¿½ï¿½ï¿½ï¿½ÐµÄ²ï¿½ï¿½ï¿½ï¿½ï¿½Ê½ */
 .progress-step-item[data-status="running"] {
     border-color: var(--primary-color);
     background: rgba(59, 130, 246, 0.1);
@@ -602,7 +617,7 @@ body {
     color: white;
 }
 
-/* ÒÑÍê³ÉµÄ²½ÖèÑùÊ½ */
+/* ï¿½ï¿½ï¿½ï¿½ÉµÄ²ï¿½ï¿½ï¿½ï¿½ï¿½Ê½ */
 .progress-step-item[data-status="completed"] {
     border-color: var(--success-color);
     background: rgba(16, 185, 129, 0.1);
@@ -620,7 +635,7 @@ body {
     color: white;
 }
 
-/* µ±Ç°²½ÖèÏêÇé */
+/* ï¿½ï¿½Ç°ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ */
 .current-step-detail {
     margin-top: 20px;
     padding: 20px;
@@ -655,7 +670,7 @@ body {
     50% { opacity: 0.6; }
 }
 
-/* ÏìÓ¦Ê½µ÷Õû */
+/* ï¿½ï¿½Ó¦Ê½ï¿½ï¿½ï¿½ï¿½ */
 @media (max-width: 768px) {
     .progress-step-item {
         flex-direction: column;
