@@ -1293,7 +1293,7 @@ class NovelGenerationManager:
             
             # 添加前端期望的字段名映射
             "story_synopsis": novel_data.get("novel_synopsis", "") or novel_data.get("synopsis", ""),
-            "core_setting": novel_data.get("creative_seed", {}).get("coreSetting", ""),
+            "core_setting": (novel_data.get("creative_seed") or {}).get("coreSetting", ""),
             # 🔥 新增：添加 core_worldview 字段，用于视频生成
             "core_worldview": core_worldview if core_worldview else {},
         }

@@ -36,6 +36,7 @@ class ChapterQueueManager {
     
     // 入场动画 - 让用户感受到流水线的活力
     playEntryAnimation() {
+        if (!this.container) return;
         const items = this.container.querySelectorAll('.chapter-queue__item');
         const connectors = this.container.querySelectorAll('.chapter-queue__connector');
         
@@ -1531,8 +1532,10 @@ function showFactionDetail(index) {
     
     // 更新头部
     if (modalHeader) {
-        modalHeader.querySelector('.header-text h2').textContent = faction.name;
-        modalHeader.querySelector('.header-text p').textContent = faction.type || '未分类';
+        const h2El = modalHeader.querySelector('.header-text h2');
+        const pEl = modalHeader.querySelector('.header-text p');
+        if (h2El) h2El.textContent = faction.name;
+        if (pEl) pEl.textContent = faction.type || '未分类';
     }
     
     // 获取势力信息
@@ -1667,8 +1670,10 @@ function hideFactionDetail() {
     
     // 恢复头部
     if (modalHeader) {
-        modalHeader.querySelector('.header-text h2').textContent = '势力/阵营系统';
-        modalHeader.querySelector('.header-text p').textContent = '查看和管理世界中的各个势力及其关系';
+        const h2El = modalHeader.querySelector('.header-text h2');
+        const pEl = modalHeader.querySelector('.header-text p');
+        if (h2El) h2El.textContent = '势力/阵营系统';
+        if (pEl) pEl.textContent = '查看和管理世界中的各个势力及其关系';
     }
     
     // 显示列表视图
@@ -2617,9 +2622,22 @@ function startProgressMonitoring() {
 }
 
 function initializeChapterProgress() {
-    const fromChapter = parseInt(document.getElementById('from-chapter').value);
-    const chaptersToGenerate = parseInt(document.getElementById('chapters-to-generate').value);
+    const fromChapterInput = document.getElementById('from-chapter');
+    const chaptersToGenerateInput = document.getElementById('chapters-to-generate');
     const grid = document.getElementById('chapter-progress-grid');
+    
+    if (!fromChapterInput || !chaptersToGenerateInput) {
+        console.error('[initializeChapterProgress] 表单元素不存在');
+        return;
+    }
+    
+    if (!grid) {
+        console.error('[initializeChapterProgress] chapter-progress-grid 元素不存在');
+        return;
+    }
+    
+    const fromChapter = parseInt(fromChapterInput.value) || 1;
+    const chaptersToGenerate = parseInt(chaptersToGenerateInput.value) || 0;
     
     // 标记是否已经开始生成
     window.generationStarted = false;
@@ -2653,12 +2671,14 @@ function initializeChapterProgress() {
         if (firstCard) {
             firstCard.classList.remove('v2-chapter-mini--pending');
             firstCard.classList.add('v2-chapter-mini--generating');
-            firstCard.querySelector('.v2-chapter-mini__status').textContent = '生成中';
+            const statusEl = firstCard.querySelector('.v2-chapter-mini__status');
+            if (statusEl) statusEl.textContent = '生成中';
         }
         if (secondCard) {
             secondCard.classList.remove('v2-chapter-mini--pending');
             secondCard.classList.add('v2-chapter-mini--queued');
-            secondCard.querySelector('.v2-chapter-mini__status').textContent = '排队';
+            const statusEl2 = secondCard.querySelector('.v2-chapter-mini__status');
+            if (statusEl2) statusEl2.textContent = '排队';
         }
         
         // 3秒后恢复等待状态（给用户足够时间看到效果）
@@ -2669,12 +2689,14 @@ function initializeChapterProgress() {
             if (firstCard) {
                 firstCard.classList.remove('v2-chapter-mini--generating');
                 firstCard.classList.add('v2-chapter-mini--pending');
-                firstCard.querySelector('.v2-chapter-mini__status').textContent = '等待';
+                const statusEl = firstCard.querySelector('.v2-chapter-mini__status');
+                if (statusEl) statusEl.textContent = '等待';
             }
             if (secondCard) {
                 secondCard.classList.remove('v2-chapter-mini--queued');
                 secondCard.classList.add('v2-chapter-mini--pending');
-                secondCard.querySelector('.v2-chapter-mini__status').textContent = '等待';
+                const statusEl2 = secondCard.querySelector('.v2-chapter-mini__status');
+                if (statusEl2) statusEl2.textContent = '等待';
             }
         }, 3000);
     }, 500);
@@ -2838,13 +2860,16 @@ function updateCurrentChapterInfo(taskStatus) {
     const currentChapter = taskStatus.current_chapter;
     
     if (currentChapter) {
-        infoDiv.style.display = 'block';
-        document.getElementById('current-chapter-title').textContent = currentChapter.title || `第${currentChapter.number}章`;
-        document.getElementById('current-chapter-number').textContent = currentChapter.number;
+        if (infoDiv) infoDiv.style.display = 'block';
+        const titleEl = document.getElementById('current-chapter-title');
+        const numberEl = document.getElementById('current-chapter-number');
+        if (titleEl) titleEl.textContent = currentChapter.title || `第${currentChapter.number}章`;
+        if (numberEl) numberEl.textContent = currentChapter.number;
     }
     // 总章节数从表单获取如果 taskStatus 中没有
     const totalChapters = taskStatus.total_chapters || parseInt(document.getElementById('chapters-to-generate')?.value) || 0;
-    document.getElementById('total-chapters').textContent = totalChapters;
+    const totalEl = document.getElementById('total-chapters');
+    if (totalEl) totalEl.textContent = totalChapters;
 }
 
 // 更新已用时间
@@ -2882,7 +2907,8 @@ function showChapterDetails(chapterNumber) {
     const chapterCard = document.getElementById(`chapter-${chapterNumber}`);
     if (!chapterCard) return;
     
-    const statusText = chapterCard.querySelector('.v2-chapter-mini__status').textContent;
+    const statusEl = chapterCard.querySelector('.v2-chapter-mini__status');
+    const statusText = statusEl ? statusEl.textContent : '';
     const statusClass = chapterCard.className;
     
     let detailText = '';
@@ -3051,9 +3077,13 @@ async function stopGeneration() {
             
             // 重置 UI 状态
             currentTaskId = null;
-            document.getElementById('stop-btn').style.display = 'none';
-            document.getElementById('start-btn').disabled = false;
-            document.getElementById('start-btn').textContent = '🚀 开始生成章节';
+            const stopBtn = document.getElementById('stop-btn');
+            const startBtn = document.getElementById('start-btn');
+            if (stopBtn) stopBtn.style.display = 'none';
+            if (startBtn) {
+                startBtn.disabled = false;
+                startBtn.textContent = '🚀 开始生成章节';
+            }
         } else {
             const error = await response.json();
             showStatusMessage(`❌ 停止失败: ${error.message || '未知错误'}`, 'error');
@@ -3064,8 +3094,10 @@ async function stopGeneration() {
         
         // 即使没有后端支持，也要重置前端状态
         currentTaskId = null;
-        document.getElementById('stop-btn').style.display = 'none';
-        document.getElementById('start-btn').disabled = false;
+        const stopBtn2 = document.getElementById('stop-btn');
+        const startBtn2 = document.getElementById('start-btn');
+        if (stopBtn2) stopBtn2.style.display = 'none';
+        if (startBtn2) startBtn2.disabled = false;
         showStatusMessage('⏹️ 已重置生成状态', 'info');
     }
 }
@@ -3402,16 +3434,24 @@ function readerNextChapter() {
 // 返回列表
 function readerBackToList() {
     readerCurrentChapter = null;
-    document.getElementById('reader-chapter-title').textContent = '选择章节开始阅读';
-    document.getElementById('reader-chapter-number').textContent = '-';
-    document.getElementById('reader-word-count').textContent = '0字';
-    document.getElementById('reader-quality-score').textContent = '质量分: -';
-    document.getElementById('reader-chapter-text').innerHTML = `
-        <div class="v2-reader-placeholder">
-            <span>📖</span>
-            <p>请从左侧选择章节开始阅读</p>
-        </div>
-    `;
+    const titleEl = document.getElementById('reader-chapter-title');
+    const numberEl = document.getElementById('reader-chapter-number');
+    const wordCountEl = document.getElementById('reader-word-count');
+    const qualityScoreEl = document.getElementById('reader-quality-score');
+    const textEl = document.getElementById('reader-chapter-text');
+    
+    if (titleEl) titleEl.textContent = '选择章节开始阅读';
+    if (numberEl) numberEl.textContent = '-';
+    if (wordCountEl) wordCountEl.textContent = '0字';
+    if (qualityScoreEl) qualityScoreEl.textContent = '质量分: -';
+    if (textEl) {
+        textEl.innerHTML = `
+            <div class="v2-reader-placeholder">
+                <span>📖</span>
+                <p>请从左侧选择章节开始阅读</p>
+            </div>
+        `;
+    }
     
     document.querySelectorAll('.v2-reader-sidebar__item').forEach(item => {
         item.classList.remove('v2-reader-sidebar__item--active');
@@ -3428,8 +3468,10 @@ function readerRegenerateChapter() {
     }
     // 切换到生成标签并开始生成
     switchTab('generate');
-    document.getElementById('from-chapter').value = readerCurrentChapter;
-    document.getElementById('chapters-to-generate').value = 1;
+    const fromChapterInput = document.getElementById('from-chapter');
+    const chaptersToGenerateInput = document.getElementById('chapters-to-generate');
+    if (fromChapterInput) fromChapterInput.value = readerCurrentChapter;
+    if (chaptersToGenerateInput) chaptersToGenerateInput.value = 1;
     showStatusMessage(`已设置重新生成第${readerCurrentChapter}章，请点击"开始生成章节"`, 'info');
 }
 
@@ -3465,11 +3507,16 @@ function readerCopyChapter() {
 
 // 更新导出页面统计数据
 function updateExportStats() {
+    const totalChaptersEl = document.getElementById('export-total-chapters');
+    const totalWordsEl = document.getElementById('export-total-words');
+    const avgScoreEl = document.getElementById('export-avg-score');
+    const avgWordsEl = document.getElementById('export-avg-words');
+    
     if (!currentProject || !currentProject.generated_chapters) {
-        document.getElementById('export-total-chapters').textContent = '0';
-        document.getElementById('export-total-words').textContent = '0';
-        document.getElementById('export-avg-score').textContent = '0';
-        document.getElementById('export-avg-words').textContent = '0';
+        if (totalChaptersEl) totalChaptersEl.textContent = '0';
+        if (totalWordsEl) totalWordsEl.textContent = '0';
+        if (avgScoreEl) avgScoreEl.textContent = '0';
+        if (avgWordsEl) avgWordsEl.textContent = '0';
         return;
     }
     
@@ -3483,10 +3530,10 @@ function updateExportStats() {
     const avgScore = chapters.reduce((sum, ch) => sum + (ch.quality_score || ch.quality?.overall_score || 0), 0) / totalChapters;
     const avgWords = totalWords / totalChapters;
     
-    document.getElementById('export-total-chapters').textContent = totalChapters;
-    document.getElementById('export-total-words').textContent = totalWords.toLocaleString();
-    document.getElementById('export-avg-score').textContent = avgScore.toFixed(1);
-    document.getElementById('export-avg-words').textContent = Math.round(avgWords).toLocaleString();
+    if (totalChaptersEl) totalChaptersEl.textContent = totalChapters;
+    if (totalWordsEl) totalWordsEl.textContent = totalWords.toLocaleString();
+    if (avgScoreEl) avgScoreEl.textContent = avgScore.toFixed(1);
+    if (avgWordsEl) avgWordsEl.textContent = Math.round(avgWords).toLocaleString();
 }
 
 // 导出小说

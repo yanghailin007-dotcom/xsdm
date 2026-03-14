@@ -512,11 +512,12 @@ class ProjectManager:
             # 修复：使用正确的进度信息
             "progress": current_progress,
             # 其他数据...
-            "chapter_index": [
+            # 🔍 先检查并记录缺失 chapter_title 的异常章节
+            "chapter_index": self._build_chapter_index_with_validation(generated_chapters),
                 {
                     "chapter_number": chapter_num,
-                    "chapter_title": chapter_data["chapter_title"],
-                    "filename": f"第{int(chapter_num):03d}章_{_invalid_chars_pattern.sub('_', chapter_data['chapter_title'])}.txt",
+                    "chapter_title": chapter_data.get("chapter_title") or f"第{chapter_num}章",
+                    "filename": f"第{int(chapter_num):03d}章_{_invalid_chars_pattern.sub('_', chapter_data.get('chapter_title') or f'第{chapter_num}章')}.txt",
                     "quality_score": chapter_data.get("quality_assessment", {}).get("overall_score", 0),
                     "word_count": chapter_data.get("word_count", 0)
                 }
@@ -550,6 +551,31 @@ class ProjectManager:
                 self.logger.info(f"❌ 保存项目信息文件失败")
         except Exception as e:
             self.logger.info(f"保存项目信息文件失败: {e}")
+    def _build_chapter_index_with_validation(self, generated_chapters: Dict) -> List[Dict]:
+        """构建章节索引，同时验证并记录缺失 chapter_title 的异常情况"""
+        chapter_index = []
+        for chapter_num, chapter_data in sorted(generated_chapters.items(), key=lambda x: int(x[0])):
+            chapter_title = chapter_data.get("chapter_title")
+            if not chapter_title:
+                # 🔍 记录异常情况，帮助排查问题根源
+                available_keys = list(chapter_data.keys())
+                self.logger.warning(
+                    f"⚠️ 章节 {chapter_num} 缺少 chapter_title 字段！"
+                    f"可用字段: {available_keys}, "
+                    f"content长度: {len(chapter_data.get('content', ''))}, "
+                    f"这可能表明生成过程中断或数据损坏"
+                )
+                chapter_title = f"第{chapter_num}章"
+            
+            chapter_index.append({
+                "chapter_number": chapter_num,
+                "chapter_title": chapter_title,
+                "filename": f"第{int(chapter_num):03d}章_{_invalid_chars_pattern.sub('_', chapter_title)}.txt",
+                "quality_score": chapter_data.get("quality_assessment", {}).get("overall_score", 0),
+                "word_count": chapter_data.get("word_count", 0)
+            })
+        return chapter_index
+
     def calculate_quality_statistics(self, novel_data: Dict) -> Dict:
         """计算质量统计信息"""
         generated_chapters = novel_data.get("generated_chapters", {})
