@@ -3055,7 +3055,7 @@
         
         // 下一页
         function bookNextPage() {
-            if (bookCurrentPage + 1 < bookTotalPages) {
+            if (bookCurrentPage + 2 <= bookTotalPages) {
                 bookCurrentPage = Math.min(bookTotalPages, bookCurrentPage + 2);
                 renderBookPages();
                 updateBookProgress();
