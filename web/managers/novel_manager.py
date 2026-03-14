@@ -809,9 +809,9 @@ class NovelGenerationManager:
             # 🔥 修复：使用owner作为username获取正确的用户隔离路径
             # 如果owner为None，尝试从novel_data获取
             username = owner if owner else novel_data.get('owner')
-            logger.info(f"[DEBUG] 加载项目 {title}, username={username}, owner={owner}")
+            logger.debug(f"[DEBUG] 加载项目 {title}, username={username}, owner={owner}")
             paths = path_config.get_project_paths(title, username=username)
-            logger.info(f"[DEBUG] chapters_dir={paths.get('chapters_dir')}")
+            logger.debug(f"[DEBUG] chapters_dir={paths.get('chapters_dir')}")
             chapter_dirs = [
                 Path(paths["chapters_dir"]),  # 新路径：小说项目/小说名/chapters
                 Path("小说项目") / f"{title}_章节",   # 旧路径：小说项目/小说名_章节
@@ -822,15 +822,15 @@ class NovelGenerationManager:
             actual_chapter_dir = None
 
             # 尝试从多个可能的章节目录加载
-            logger.info(f"[DEBUG] 尝试加载章节，目录列表: {[str(d) for d in chapter_dirs]}")
+            logger.debug(f"[DEBUG] 尝试加载章节，目录列表: {[str(d) for d in chapter_dirs]}")
             for chapter_dir in chapter_dirs:
-                logger.info(f"[DEBUG] 检查目录: {chapter_dir}, exists={chapter_dir.exists()}")
+                logger.debug(f"[DEBUG] 检查目录: {chapter_dir}, exists={chapter_dir.exists()}")
                 if chapter_dir.exists():
                     actual_chapter_dir = chapter_dir
                     
                     # 查找章节文件（支持.txt和.json格式）
                     chapter_files = list(chapter_dir.glob("第*.txt")) + list(chapter_dir.glob("第*.json"))
-                    logger.info(f"[DEBUG] 找到 {len(chapter_files)} 个章节文件")
+                    logger.debug(f"[DEBUG] 找到 {len(chapter_files)} 个章节文件")
                     
                     for chapter_file in chapter_files:
                         # 提取章节号
@@ -903,7 +903,7 @@ class NovelGenerationManager:
                     else:
                         # 只在非 anonymous 用户时打印警告，避免启动时大量警告
                         if username and username != 'anonymous':
-                            logger.warning(f"  ⚠️ 写作风格指南文件不存在: {writing_style_path}")
+                            logger.debug(f"  ⚠️ 写作风格指南文件不存在: {writing_style_path}")
                         novel_data["writing_style_guide"] = {}
             except Exception as e:
                 logger.warning(f"  ⚠️ 加载写作风格指南失败: {e}")
@@ -911,7 +911,7 @@ class NovelGenerationManager:
 
             # 添加到项目集合
             self.novel_projects[title] = novel_data
-            logger.info(f"[DEBUG] 项目 {title} 已加载 {len(generated_chapters)} 章, 实际目录: {actual_chapter_dir}")
+            logger.debug(f"[DEBUG] 项目 {title} 已加载 {len(generated_chapters)} 章")
 
         except Exception as e:
             logger.error(f"❌ 处理项目数据 {title} 失败: {e}")
@@ -1031,7 +1031,7 @@ class NovelGenerationManager:
                     # 🔥 修复：从文件名提取阶段名
                     # 文件名格式：吞噬万界：从一把生锈铁剑开始_opening_stage_writing_plan.json
                     # 🔥 调试：打印文件名
-                    logger.info(f"[PLAN_DEBUG] 处理文件: {plan_file.name}, 路径: {plan_file}")
+                    logger.debug(f"[PLAN_DEBUG] 处理文件: {plan_file.name}")
                     
                     # 🔥 改进：更 robust 的阶段名提取
                     stage_name = None
@@ -1040,7 +1040,7 @@ class NovelGenerationManager:
                     match = re.search(r'_(.+?)_stage_writing_plan\.json$', plan_file.name)
                     if match:
                         stage_name = match.group(1)
-                        logger.info(f"[PLAN_DEBUG] 正则匹配成功: {plan_file.name} -> stage_name={stage_name}")
+                        logger.debug(f"[PLAN_DEBUG] 正则匹配成功: {plan_file.name} -> stage_name={stage_name}")
                     
                     # 方法2：尝试从stem提取（备用）
                     if not stage_name:
@@ -1057,12 +1057,12 @@ class NovelGenerationManager:
                                 # 清理阶段名
                                 stage_name = stage_name.replace('_writing', '').replace('_plan', '')
                                 if stage_name:
-                                    logger.info(f"[PLAN_DEBUG] 从stem提取阶段名: {plan_file.name} -> {stage_name}")
+                                    logger.debug(f"[PLAN_DEBUG] 从stem提取阶段名: {plan_file.name} -> {stage_name}")
                                     break
                     
                     # 方法3：从文件内容提取
                     if not stage_name:
-                        logger.info(f"[PLAN_DEBUG] 尝试从数据中提取: {plan_file.name}")
+                        logger.debug(f"[PLAN_DEBUG] 尝试从数据中提取: {plan_file.name}")
                         if isinstance(plan_data, dict):
                             stage_writing_plan = plan_data.get("stage_writing_plan", {})
                             if isinstance(stage_writing_plan, dict):
@@ -1071,7 +1071,7 @@ class NovelGenerationManager:
                                 # 尝试从其他字段提取
                                 stage_name = plan_data.get("stage_name", "")
                         if stage_name:
-                            logger.info(f"[PLAN_DEBUG] 从数据中提取阶段名: {stage_name}")
+                            logger.debug(f"[PLAN_DEBUG] 从数据中提取阶段名: {stage_name}")
                     
                     # 如果都失败了，使用unknown
                     if not stage_name:
