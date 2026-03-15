@@ -355,11 +355,16 @@ class ProductLoader:
                     self.logger.debug(f"[PRODUCTS] 从quality_data加载写作计划: {len(stage_names)}个阶段")
     
     def _load_from_standard_structure(self, products):
+        self.logger.info(f"[_load_from_standard_structure] 开始加载, characters.complete={products['characters']['complete']}")
+        
         if not products['worldview']['complete']:
             self._load_worldview(products)
         
         if not products['characters']['complete']:
+            self.logger.info(f"[_load_from_standard_structure] 调用 _load_characters")
             self._load_characters(products)
+        else:
+            self.logger.info(f"[_load_from_standard_structure] 跳过 _load_characters，因为已完成")
         
         if not products['growth']['complete']:
             self._load_growth_plan(products)
@@ -394,12 +399,16 @@ class ProductLoader:
     
     def _load_characters(self, products):
         characters_dir = self.project_dir / "characters"
+        self.logger.info(f"[_load_characters] 目录: {characters_dir}, 存在: {characters_dir.exists()}")
         if not characters_dir.exists():
+            self.logger.info(f"[_load_characters] 目录不存在，跳过")
             return
         
         character_files = list(characters_dir.glob("*.json"))
+        self.logger.info(f"[_load_characters] 找到 {len(character_files)} 个JSON文件")
         if character_files:
             try:
+                self.logger.info(f"[_load_characters] 尝试加载: {character_files[0]}")
                 with open(character_files[0], 'r', encoding='utf-8') as f:
                     data = json.load(f)
                 products['characters']['content'] = json.dumps(data, ensure_ascii=False, indent=2)
@@ -408,6 +417,8 @@ class ProductLoader:
                 self.logger.info(f"已加载产物: characters (从 {character_files[0].name})")
             except Exception as e:
                 self.logger.error(f"加载characters失败: {e}")
+        else:
+            self.logger.info(f"[_load_characters] 目录中没有JSON文件")
     
     def _load_writing_plans(self, products):
         # 首先尝试从 plans 目录加载所有阶段的写作计划
@@ -1053,6 +1064,9 @@ def start_phase_one_generate():
         # 🔥 新增：支持 start_new 参数，用户选择"从新开始"时传递
         start_new = data.get('start_new', False)
         
+        # 🔥 新增：支持 is_resume_mode 参数，用于区分恢复模式
+        is_resume_mode = data.get('is_resume_mode', False)
+        
         # 参数验证
         if not title:
             return jsonify({"success": False, "error": "小说标题不能为空"}), 400
@@ -1123,6 +1137,7 @@ def start_phase_one_generate():
             'creative_seed': creative_seed,
             'target_platform': target_platform,  # 🔥 新增：传递目标平台参数
             'start_new': start_new,  # 🔥 新增：传递 start_new 参数
+            'is_resume_mode': is_resume_mode,  # 🔥 新增：传递恢复模式标志
             'user_id': user_id,  # 🔥 新增：传递用户ID用于API调用扣费
             'username': username,  # 🔥 新增：传递用户名用于目录结构
             'estimated_points': total_cost  # 🔥 新增：预估消耗点数
@@ -2537,6 +2552,26 @@ def register_additional_routes(app):
             if from_chapter is None or chapters_to_generate is None:
                 return jsonify({"success": False, "error": "章节参数不完整"}), 400
             
+            # 🔥 新增：章节范围验证
+            # 起始章节不能大于10（但结束章节可以稍微超出，比如9-11）
+            if from_chapter > 10:
+                return jsonify({
+                    "success": False, 
+                    "error": f"起始章节不能超过10章（当前：{from_chapter}章）"
+                }), 400
+            
+            if from_chapter < 1:
+                return jsonify({
+                    "success": False, 
+                    "error": f"起始章节不能小于1（当前：{from_chapter}章）"
+                }), 400
+            
+            if chapters_to_generate < 1:
+                return jsonify({
+                    "success": False, 
+                    "error": f"生成章节数不能小于1（当前：{chapters_to_generate}章）"
+                }), 400
+            
             logger.info(f"🚀 [PHASE_TWO] 开始第二阶段生成: {novel_title}")
             logger.info(f"📋 [PHASE_TWO] 从第{from_chapter}章开始，生成{chapters_to_generate}章")
             
@@ -3236,19 +3271,29 @@ def register_additional_routes(app):
             
             # 构建评估报告路径
             safe_title = re.sub(r'[\\/*?:"<>|]', "_", novel_title)
-            report_path = user_novel_dir / safe_title / "plans" / f"{safe_title}_opening_stage_writing_plan_quality_report.json"
-
-            if not report_path.exists():
-                # 尝试从materials目录查找
-                alt_report_path = user_novel_dir / safe_title / "materials" / "phase_one_products" / f"{safe_title}_quality_assessment.json"
-                if alt_report_path.exists():
-                    report_path = alt_report_path
-                else:
-                    return jsonify({
-                        "success": False,
-                        "error": "评估报告不存在",
-                        "hint": "请先生成第一阶段设定"
-                    }), 404
+            
+            # 🔥 修复：按正确优先级查找质量评估报告
+            possible_paths = [
+                # 1. 项目根目录（最新保存位置）
+                user_novel_dir / safe_title / "quality_assessment.json",
+                # 2. plans 目录（旧位置）
+                user_novel_dir / safe_title / "plans" / f"{safe_title}_opening_stage_writing_plan_quality_report.json",
+                # 3. materials 目录（旧位置）
+                user_novel_dir / safe_title / "materials" / "phase_one_products" / f"{safe_title}_quality_assessment.json",
+            ]
+            
+            report_path = None
+            for path in possible_paths:
+                if path.exists():
+                    report_path = path
+                    break
+            
+            if not report_path:
+                return jsonify({
+                    "success": False,
+                    "error": "评估报告不存在",
+                    "hint": "请先生成第一阶段设定"
+                }), 404
 
             # 读取评估报告
             with open(report_path, 'r', encoding='utf-8') as f:
@@ -3297,8 +3342,10 @@ def register_additional_routes(app):
                     "error": "写作计划文件不存在"
                 }), 404
 
-            # 获取深度分析选项
+            # 获取深度分析选项和压缩选项（默认不压缩）
             use_deep_analysis = request.json.get('deep_analysis', True) if request.json else True
+            # 🔥 默认不压缩，直接传递完整计划
+            skip_compression = request.json.get('skip_compression', True) if request.json else True
 
             # 🔥 使用APIClient进行AI评估（统一使用系统配置的API）
             from src.core.APIClient import APIClient
@@ -3307,7 +3354,7 @@ def register_additional_routes(app):
             
             # 创建评估器并执行评估
             assessor = PlanQualityAssessor(api_client=api_client)
-            result = assessor.assess(plan_path, use_deep_analysis=use_deep_analysis)
+            result = assessor.assess(plan_path, use_deep_analysis=use_deep_analysis, skip_compression=skip_compression)
 
             # 转换为字典格式
             report = {
@@ -3330,6 +3377,15 @@ def register_additional_routes(app):
                 "assessment_time": datetime.now().isoformat()
             }
 
+            # 🔥 修复：保存质量评估报告到项目目录
+            try:
+                report_path = user_novel_dir / safe_title / "quality_assessment.json"
+                with open(report_path, 'w', encoding='utf-8') as f:
+                    json.dump(report, f, ensure_ascii=False, indent=2)
+                logger.info(f"[QUALITY_ASSESSMENT] 评估报告已保存: {report_path}")
+            except Exception as save_error:
+                logger.warning(f"[QUALITY_ASSESSMENT] 保存报告失败: {save_error}")
+            
             logger.info(f"[QUALITY_ASSESSMENT] 评估完成: {report['overall_score']}/100")
 
             return jsonify({

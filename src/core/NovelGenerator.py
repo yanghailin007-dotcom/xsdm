@@ -1386,7 +1386,23 @@ class NovelGenerator:
                            if self._parse_chapter_range(e.get('chapter_range', ''))[0] > 3]
             print(f"   📋 剩余 {len(medium_events)} 个中型事件待处理")
         
+        # 如果没有中型事件但需要生成更多章节，使用逐章生成
+        if not medium_events and end_chapter > 3:
+            print(f"\n⚠️ 没有中型事件信息，但还需生成第4-{end_chapter}章")
+            print(f"   🔄 回退到逐章生成模式...")
+            for ch_num in range(max(4, start_chapter), end_chapter + 1):
+                print(f"\n📖 逐章生成第{ch_num}章...")
+                if not self._generate_single_chapter(ch_num):
+                    print(f"   ❌ 第{ch_num}章生成失败")
+                    return False
+                # 累加计数
+                current_generated = self._ctx['current_progress'].get('chapters_generated', 0)
+                self._ctx['current_progress']['chapters_generated'] = current_generated + 1
+            return True
+        
         # 按中型事件批量生成剩余章节
+        print(f"\n🚀 开始处理剩余 {len(medium_events)} 个中型事件...")
+        generated_chapter_numbers = set()
         for i, medium_event in enumerate(medium_events, 1):
             event_name = medium_event.get('name', f'事件{i}')
             chapter_range = medium_event.get('chapter_range', '')
