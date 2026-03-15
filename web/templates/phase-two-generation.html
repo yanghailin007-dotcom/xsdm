@@ -2730,16 +2730,7 @@
 
     <!-- ==================== JavaScript ==================== -->
     
-    <!-- 主要功能脚本 -->
-    <script src="/static/js/phase-two-generation.js?v=9"></script>
-    <script src="/static/js/creative-editor-phase-two.js"></script>
-    <script src="/static/js/character-editor.js"></script>
-    <script src="/static/js/character-editor-json-based.js"></script>
-    <script src="/static/js/confirm-dialog.js"></script>
-    
-    <!-- 引导系统 -->
-    <script src="/static/js/guide-system.js"></script>
-    <script src="/static/js/guides/phase2-guide.js"></script>
+    <!-- [注意] 外部JS文件已内联到页面中 -->
     
     <script>
         // ==================== 页面交互功能 ====================
@@ -2841,10 +2832,186 @@
             }
         }
         
+        // 产物数据存储
+        let productsData = {};
+        
+        // 🔥 加载第一阶段产物
+        async function loadPhaseOneProducts() {
+            const currentUrl = new URL(window.location.href);
+            const title = currentUrl.searchParams.get('title');
+            
+            if (!title) {
+                console.log('未选择项目，跳过产物加载');
+                return;
+            }
+            
+            try {
+                const response = await fetch(`/api/phase-one/products/${encodeURIComponent(title)}`);
+                const result = await response.json();
+                
+                if (result.success && result.products) {
+                    productsData = result.products;
+                    updateProductCards(result.products);
+                    console.log('产物加载成功:', result.summary);
+                } else {
+                    console.warn('产物加载失败:', result.error);
+                }
+            } catch (e) {
+                console.error('加载产物失败:', e);
+            }
+        }
+        
+        // 🔥 更新产物卡片状态
+        function updateProductCards(products) {
+            const productMap = {
+                'worldview': '世界观设定',
+                'factions': '势力/阵营系统',
+                'characters': '角色设计',
+                'growth': '成长路线',
+                'writing': '写作计划',
+                'storyline': '故事线',
+                'market': '市场分析'
+            };
+            
+            for (const [key, name] of Object.entries(productMap)) {
+                const product = products[key];
+                const dot = document.getElementById(`${key}-status-dot`);
+                const text = document.getElementById(`${key}-status-text`);
+                
+                if (dot && text && product) {
+                    if (product.complete) {
+                        dot.className = 'pt-status-dot pt-status-dot--ready';
+                        text.textContent = '已完成';
+                        text.className = 'pt-status-text pt-status-text--ready';
+                    } else {
+                        dot.className = 'pt-status-dot pt-status-dot--pending';
+                        text.textContent = '未生成';
+                        text.className = 'pt-status-text pt-status-text--pending';
+                    }
+                }
+            }
+        }
+        
+        // 🔥 查看项目可视化
+        function viewProjectViewer() {
+            const currentUrl = new URL(window.location.href);
+            const title = currentUrl.searchParams.get('title');
+            if (title) {
+                window.open('/novel-view?title=' + encodeURIComponent(title), '_blank');
+            } else {
+                showStatusMessage('请先选择一个项目', 'error');
+            }
+        }
+        
+        // 🔥 加载项目列表
+        async function loadProjectsList() {
+            const container = document.getElementById('projects-list');
+            if (!container) return;
+            
+            try {
+                const response = await fetch('/api/projects');
+                const result = await response.json();
+                const projects = Array.isArray(result) ? result : (result.projects || []);
+                
+                if (projects.length > 0) {
+                    renderProjectsList(projects);
+                } else {
+                    container.innerHTML = '<div style="padding: 20px; text-align: center; color: var(--pt-text-tertiary);">暂无项目</div>';
+                }
+            } catch (error) {
+                console.error('加载项目列表失败:', error);
+            }
+        }
+        
+        // 🔥 渲染项目列表
+        function renderProjectsList(projects) {
+            const container = document.getElementById('projects-list');
+            const currentUrl = new URL(window.location.href);
+            const currentTitle = currentUrl.searchParams.get('title');
+            
+            container.innerHTML = projects.map(project => {
+                const title = project.title || project.novel_title || '未命名';
+                const isSelected = title === currentTitle;
+                const status = project.status || 'ready';
+                
+                return `
+                    <div class="creative-idea-card ${isSelected ? 'selected' : ''}" 
+                         data-status="${status}"
+                         onclick="selectProject('${encodeURIComponent(title)}')">
+                        <div class="creative-idea-header">
+                            <span class="creative-idea-id">${status === 'completed' ? '已完成' : status === 'generating' ? '生成中' : '准备中'}</span>
+                        </div>
+                        <div class="creative-idea-content">
+                            <div class="creative-idea-title">${title}</div>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+        
+        // 🔥 选择项目
+        async function selectProject(encodedTitle) {
+            const title = decodeURIComponent(encodedTitle);
+            const newUrl = new URL(window.location.href);
+            newUrl.searchParams.set('title', title);
+            window.history.pushState({}, '', newUrl);
+            
+            localStorage.setItem('currentNovelTitle', title);
+            
+            document.querySelectorAll('#projects-list .creative-idea-card').forEach(card => {
+                card.classList.remove('selected');
+            });
+            if (event && event.currentTarget) {
+                event.currentTarget.classList.add('selected');
+            }
+            
+            await loadPhaseOneProducts();
+            showStatusMessage(`已切换到项目: ${title}`, 'success');
+        }
+        
+        // 🔥 编辑产物类别
+        function editProductCategory(category) {
+            const product = productsData[category];
+            if (!product) {
+                console.log('产物数据不存在:', category);
+                return;
+            }
+            
+            // 更新右侧面板显示产物详情
+            const detailsPanel = document.getElementById('project-details');
+            if (detailsPanel) {
+                let content = product.content ? JSON.parse(product.content) : {};
+                detailsPanel.innerHTML = `
+                    <div style="padding: 20px;">
+                        <h3 style="margin-bottom: 16px; color: var(--pt-primary);">${product.name || category}</h3>
+                        <div style="background: var(--pt-bg-secondary); padding: 16px; border-radius: 8px; max-height: 500px; overflow: auto;">
+                            <pre style="margin: 0; white-space: pre-wrap; font-size: 12px; color: var(--pt-text-secondary);">${JSON.stringify(content, null, 2)}</pre>
+                        </div>
+                        ${product.file_path ? `<p style="margin-top: 12px; font-size: 11px; color: var(--pt-text-tertiary);">文件: ${product.file_path}</p>` : ''}
+                    </div>
+                `;
+            }
+            
+            // 自动打开右侧面板
+            const panel = document.getElementById('right-panel');
+            const toggle = document.getElementById('panel-toggle');
+            if (panel) panel.classList.add('pt-right-panel--open');
+            if (toggle) toggle.classList.add('pt-panel-toggle--active');
+            
+            // 切换到详情标签
+            switchPanelTab('details');
+        }
+        
         // 页面加载时执行
         document.addEventListener('DOMContentLoaded', function() {
             // 加载余额
             loadUserPoints();
+            
+            // 🔥 加载项目列表
+            loadProjectsList();
+            
+            // 🔥 加载产物数据
+            loadPhaseOneProducts();
             
             // 动态加载创意编辑器模态框
             fetch('/templates/components/creative-editor-modal.html')
