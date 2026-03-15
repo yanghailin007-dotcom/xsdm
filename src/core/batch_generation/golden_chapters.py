@@ -266,13 +266,34 @@ class GoldenChaptersGenerator:
         
         return "\n".join(lines)
     
-    def _parse_golden_result(self, result: Dict) -> Dict[int, ChapterContent]:
+    def _parse_golden_result(self, result: Any) -> Dict[int, ChapterContent]:
         """解析黄金三章结果"""
         chapters_data = {}
         
-        chapters_list = result.get("chapters", [])
+        # 🔥 修复：处理API返回可能是列表或字典的情况
+        if isinstance(result, list):
+            # 如果直接返回列表，直接使用
+            chapters_list = result
+        elif isinstance(result, dict):
+            # 如果返回字典，提取 chapters 字段
+            chapters_list = result.get("chapters", [])
+            # 也可能直接是 {"1": {...}, "2": {...}} 格式
+            if not chapters_list and any(str(i) in result for i in [1, 2, 3]):
+                chapters_list = [result.get(str(i)) for i in [1, 2, 3] if result.get(str(i))]
+        else:
+            self.logger.error(f"[GoldenChapters] 未知的结果格式: {type(result)}")
+            return chapters_data
+        
+        if not chapters_list:
+            self.logger.error("[GoldenChapters] 无法提取章节数据")
+            return chapters_data
         
         for ch_data in chapters_list:
+            # 🔥 修复：确保 ch_data 是字典
+            if not isinstance(ch_data, dict):
+                self.logger.warning(f"[GoldenChapters] 跳过非字典章节数据: {type(ch_data)}")
+                continue
+            
             ch_num = ch_data.get("chapter_number")
             if not ch_num or ch_num not in [1, 2, 3]:
                 continue
