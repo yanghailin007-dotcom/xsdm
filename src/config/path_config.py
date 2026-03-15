@@ -26,42 +26,63 @@ class NovelPathConfig:
             username: 可选，指定用户名。如果不提供，将动态获取当前登录用户
         
         Returns:
-            用户隔离的基础目录路径
+            用户隔离的基础目录路径（绝对路径）
         """
-        # 如果提供了用户名，直接使用
-        if username:
-            from web.utils.path_utils import get_user_novel_dir
-            return get_user_novel_dir(username=username, create=True)
-        
-        # 尝试动态获取当前用户
         try:
-            from web.utils.path_utils import get_user_novel_dir, get_current_username
-            current_user = get_current_username()
-            # 如果当前用户与缓存的不同，清除缓存
-            if current_user != self._cached_username:
-                self._cached_username = current_user
-                self._cached_base_dir = None
+            # 如果提供了用户名，直接使用
+            if username:
+                from web.utils.path_utils import get_user_novel_dir
+                base_dir = get_user_novel_dir(username=username, create=True)
+                # 🔥 确保返回绝对路径
+                if not base_dir.is_absolute():
+                    base_dir = base_dir.resolve()
+                return base_dir
             
-            # 使用缓存或重新获取
-            if self._cached_base_dir is None:
-                self._cached_base_dir = get_user_novel_dir(username=current_user, create=True)
-            
-            return self._cached_base_dir
-        except Exception as e:
-            # 没有Flask上下文时使用默认路径（使用绝对路径避免权限问题）
-            # 🔥 修复：使用项目根目录下的绝对路径，而不是相对路径
+            # 尝试动态获取当前用户
             try:
-                # 尝试从当前文件位置推断项目根目录
-                project_root = Path(__file__).parent.parent.parent
-                fallback_dir = project_root / "小说项目"
-                fallback_dir.mkdir(parents=True, exist_ok=True)
-                return fallback_dir
+                from web.utils.path_utils import get_user_novel_dir, get_current_username
+                current_user = get_current_username()
+                # 如果当前用户与缓存的不同，清除缓存
+                if current_user != self._cached_username:
+                    self._cached_username = current_user
+                    self._cached_base_dir = None
+                
+                # 使用缓存或重新获取
+                if self._cached_base_dir is None:
+                    self._cached_base_dir = get_user_novel_dir(username=current_user, create=True)
+                
+                # 🔥 确保返回绝对路径
+                if not self._cached_base_dir.is_absolute():
+                    self._cached_base_dir = self._cached_base_dir.resolve()
+                
+                return self._cached_base_dir
             except Exception:
-                # 最后兜底：使用系统临时目录
-                import tempfile
-                fallback_dir = Path(tempfile.gettempdir()) / "xsdm_novel_projects"
-                fallback_dir.mkdir(parents=True, exist_ok=True)
-                return fallback_dir
+                # 没有Flask上下文时进入兜底逻辑
+                pass
+            
+            # 🔥 兜底：使用项目根目录下的绝对路径
+            # 尝试从当前文件位置推断项目根目录
+            project_root = Path(__file__).parent.parent.parent
+            fallback_dir = project_root / "小说项目"
+            fallback_dir.mkdir(parents=True, exist_ok=True)
+            
+            # 🔥 确保是绝对路径
+            if not fallback_dir.is_absolute():
+                fallback_dir = fallback_dir.resolve()
+            
+            return fallback_dir
+            
+        except Exception:
+            # 最后兜底：使用系统临时目录
+            import tempfile
+            fallback_dir = Path(tempfile.gettempdir()) / "xsdm_novel_projects"
+            fallback_dir.mkdir(parents=True, exist_ok=True)
+            
+            # 🔥 确保是绝对路径
+            if not fallback_dir.is_absolute():
+                fallback_dir = fallback_dir.resolve()
+            
+            return fallback_dir
         
     def get_safe_title(self, title: str) -> str:
         """生成安全的文件名 - 保留文件系统支持的字符（包括中文冒号和逗号）"""
