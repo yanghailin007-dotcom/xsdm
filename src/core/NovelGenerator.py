@@ -2278,15 +2278,8 @@ class NovelGenerator:
                 self.novel_data["stage_writing_plans"] = self._ctx["stage_writing_plans"]
                 self._save_material_to_manager("阶段计划", self._ctx["stage_writing_plans"], total_stages=success_count)
                 
-                # 🚀 批量为全书生成补充角色（将 4 次 API 调用合并为 1 次）
-                print("  🚀 批量生成全书补充角色...")
-                self.stage_plan_manager._generate_all_supplementary_characters_batch(
-                    creative_seed=self._ctx["creative_seed"],
-                    novel_title=self._ctx["novel_title"],
-                    novel_synopsis=self._ctx["novel_synopsis"],
-                    overall_stage_plan=stage_plan_dict,
-                    all_stages_writing_plans=self._ctx["stage_writing_plans"]
-                )
+                # 📝 注意：全书补充角色生成已移至 PhaseGenerator 作为独立步骤
+                # 在 _generate_overall_planning 中的 'supplementary_characters' 步骤执行
                 
                 return True
             else:

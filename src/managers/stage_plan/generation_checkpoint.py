@@ -29,10 +29,11 @@ class GenerationCheckpoint:
                 'emotional_growth_planning', # 7. 情绪蓝图与成长规划
                 'stage_plan',               # 8. 全书阶段计划
                 'detailed_stage_plans',     # 9. 阶段详细计划
-                'expectation_mapping',      # 10. 期待感映射
-                'system_init',              # 11. 系统初始化
-                'saving',                   # 12. 保存设定结果
-                'quality_assessment'        # 13. AI质量评估
+                'supplementary_characters', # 10. 全书补充角色（基于各阶段需求统筹生成）
+                'expectation_mapping',      # 11. 期待感映射
+                'system_init',              # 12. 系统初始化
+                'saving',                   # 13. 保存设定结果
+                'quality_assessment'        # 14. AI质量评估
             ],
             # 🔥 新增：子步骤定义（用于详细UI显示）- 与14个标准步骤对齐
             'sub_steps': {
@@ -76,8 +77,12 @@ class GenerationCheckpoint:
                     ('goal_coherence_assessment', '阶段目标层级一致性评估'),
                     ('continuity_assessment', '阶段事件连续性评估'),
                     ('continuity_optimization', '阶段事件连续性优化'),
-                    ('character_inference', '阶段角色推断'),
-                    ('supporting_characters', '阶段补充配角设计')
+                    ('character_inference', '阶段角色推断')
+                ],
+                'supplementary_characters': [
+                    ('analyze_stage_needs', '分析各阶段角色需求'),
+                    ('batch_generate', '批量生成全书补充角色'),
+                    ('integrate_characters', '整合补充角色到角色库')
                 ],
                 'expectation_mapping': [
                     ('expectation_mapping', '期待感地图生成'),
@@ -121,10 +126,11 @@ class GenerationCheckpoint:
                 'stage_plan': {'calls': 1, 'time_min': 1, 'time_max': 2},
                 # detailed_stage_plans 是动态的，按阶段计算
                 'detailed_stage_plans_per_stage': {
-                    'calls': 9,  # 情绪计划+主龙骨+4-7个事件解剖+2个评估+优化+角色推断+配角
+                    'calls': 8,  # 情绪计划+主龙骨+4-7个事件解剖+2个评估+优化+角色推断（不含补充角色）
                     'time_min': 15, 
                     'time_max': 30
                 },
+                'supplementary_characters': {'calls': 1, 'time_min': 2, 'time_max': 4},  # 一次性批量生成全书补充角色
                 'expectation_mapping': {'calls': 1, 'time_min': 1, 'time_max': 2},
                 'system_init': {'calls': 1, 'time_min': 1, 'time_max': 2},
                 'saving': {'calls': 0, 'time_min': 1, 'time_max': 2},  # 本地操作
@@ -222,19 +228,34 @@ class GenerationCheckpoint:
             with open(temp_file, 'w', encoding='utf-8') as f:
                 json.dump(checkpoint_data, f, ensure_ascii=False, indent=2)
             
-            # 🔥 修复：添加重试机制处理 Windows 文件锁
+            # 🔥 修复：添加重试机制处理 Windows 文件锁和文件不存在问题
             import time
-            max_retries = 3
+            import shutil
+            max_retries = 5
             for attempt in range(max_retries):
                 try:
-                    temp_file.replace(self.checkpoint_file)
+                    # 验证临时文件存在
+                    if not temp_file.exists():
+                        raise FileNotFoundError(f"临时文件不存在: {temp_file}")
+                    
+                    # Windows 上 replace 可能失败，使用 copy + delete 作为备选
+                    if self.checkpoint_file.exists():
+                        self.checkpoint_file.unlink()
+                    
+                    shutil.move(str(temp_file), str(self.checkpoint_file))
                     break
-                except PermissionError as pe:
+                    
+                except (PermissionError, FileNotFoundError) as e:
                     if attempt < max_retries - 1:
-                        self.logger.warning(f"⚠️ 文件被占用，等待重试 ({attempt+1}/{max_retries}): {pe}")
-                        time.sleep(0.1 * (attempt + 1))  # 递增延迟
+                        self.logger.warning(f"⚠️ 文件操作失败，等待重试 ({attempt+1}/{max_retries}): {e}")
+                        time.sleep(0.2 * (attempt + 1))  # 递增延迟
                     else:
-                        raise
+                        # 最后一次尝试直接使用 rename
+                        try:
+                            os.rename(str(temp_file), str(self.checkpoint_file))
+                            break
+                        except Exception:
+                            raise
             
             # 验证文件创建成功
             if not self.checkpoint_file.exists():

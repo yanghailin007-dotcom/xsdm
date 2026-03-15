@@ -425,6 +425,7 @@ class ResumeManager:
                 'growth_plan': lambda: self._step_skip('growth_plan', '成长规划已保存'),
                 'stage_plan': lambda: self._step_stage_plan('stage_plan'),
                 'detailed_stage_plans': lambda: self._step_skip('detailed_stage_plans', '详细阶段计划已保存'),
+                'supplementary_characters': lambda: self._step_skip('supplementary_characters', '补充角色已保存'),
                 'expectation_mapping': lambda: self._step_skip('expectation_mapping', '期待感地图已保存'),
                 'system_init': lambda: self._step_skip('system_init', '系统初始化完成'),
                 # 保存和评估

@@ -129,7 +129,8 @@ class PhaseGenerator:
                     step_progress_map_keys = ['initialization', 'writing_style', 'market_analysis',
                                               'worldview', 'faction_system', 'character_design',
                                               'emotional_growth_planning', 'stage_plan', 'detailed_stage_plans',
-                                              'expectation_mapping', 'system_init', 'saving', 'quality_assessment']
+                                              'supplementary_characters', 'expectation_mapping', 'system_init', 
+                                              'saving', 'quality_assessment']
                     if stage_name in step_progress_map_keys:
                         # 获取小说标题
                         title = None
@@ -150,7 +151,8 @@ class PhaseGenerator:
                             'creative_refinement', 'fanfiction_detection', 'multiple_plans', 'plan_selection',
                             'foundation_planning', 'worldview_with_factions', 'character_design',
                             'emotional_growth_planning', 'stage_plan', 'detailed_stage_plans',
-                            'expectation_mapping', 'system_init', 'saving', 'quality_assessment'
+                            'supplementary_characters', 'expectation_mapping', 'system_init', 
+                            'saving', 'quality_assessment'
                         ]
                         
                         if title and stage_name in MAIN_STEPS:
@@ -245,6 +247,7 @@ class PhaseGenerator:
                 'emotional_growth_planning': 46,
                 'stage_plan': 62,
                 'detailed_stage_plans': 69,
+                'supplementary_characters': 74,  # 新增：全书补充角色生成
                 'expectation_mapping': 77,
                 'system_init': 85,
                 'saving': 92,
@@ -352,6 +355,7 @@ class PhaseGenerator:
                 'emotional_growth_planning': 'completed',  # 合并：情绪蓝图 + 成长规划
                 'stage_plan': 'completed',
                 'detailed_stage_plans': 'completed',
+                'supplementary_characters': 'completed',  # 🆕 全书补充角色生成
                 'expectation_mapping': 'completed',
                 'system_init': 'completed',
                 'saving': 'completed',
@@ -647,7 +651,32 @@ class PhaseGenerator:
             return False
         
         if update_step_status:
-            update_step_status('detailed_stage_plans', 'completed', 78)
+            update_step_status('detailed_stage_plans', 'completed', 72)
+        
+        # 🆕 步骤14.5: 全书补充角色生成（新增独立步骤）
+        print("👥 步骤14.5: 全书补充角色生成")
+        self.generator.novel_data["current_progress"]["stage"] = "全书补充角色生成"
+        if update_step_status:
+            update_step_status('supplementary_characters', 'active', 74)
+        
+        try:
+            creative_seed = self.generator.novel_data.get("creative_seed") or self.generator.novel_data.get("selected_plan", {})
+            overall_stage_plans = self.generator.novel_data.get("overall_stage_plans", {})
+            stage_plan_dict = overall_stage_plans.get("overall_stage_plan", {}) if overall_stage_plans else {}
+            
+            self.generator.stage_plan_manager._generate_all_supplementary_characters_batch(
+                creative_seed=creative_seed,
+                novel_title=self.generator.novel_data.get("novel_title", ""),
+                novel_synopsis=self.generator.novel_data.get("novel_synopsis", ""),
+                overall_stage_plan=stage_plan_dict,
+                all_stages_writing_plans=self.generator.novel_data.get("stage_writing_plans", {})
+            )
+            print("✅ 全书补充角色生成完成")
+        except Exception as e:
+            print(f"⚠️ 全书补充角色生成失败: {e}，继续后续流程")
+        
+        if update_step_status:
+            update_step_status('supplementary_characters', 'completed', 76)
         
         # 元素登场时机已由期待感系统管理 - 步骤15
         print("🎯 步骤15: 期待感映射")
@@ -2588,7 +2617,12 @@ class PhaseGenerator:
             print(f"📊 开始AI质量评估（共 {len(stage_writing_plans)} 个阶段）...")
             for stage_name, plan in stage_writing_plans.items():
                 if isinstance(plan, dict):
-                    event_count = len(plan.get("event_system", {}).get("major_events", []))
+                    # 🔥 修复：处理嵌套结构
+                    if "stage_writing_plan" in plan:
+                        inner_plan = plan["stage_writing_plan"]
+                        event_count = len(inner_plan.get("event_system", {}).get("major_events", []))
+                    else:
+                        event_count = len(plan.get("event_system", {}).get("major_events", []))
                     print(f"  - {stage_name}: {event_count} 个重大事件")
 
             # 🔥 使用 PlanQualityAssessor 进行 AI 评估
@@ -2665,18 +2699,38 @@ class PhaseGenerator:
     
     def _merge_stage_plans_for_assessment(self, stage_writing_plans: Dict) -> Dict:
         """合并所有阶段的计划为一个整体计划用于评估"""
-        # 直接从写作计划文件读取完整数据
+        # 🔥 优先从组装好的写作计划文件读取完整数据
         try:
-            username = self.generator.username
-            novel_title = self.generator.novel_title
-            planning_file = os.path.join(
-                "小说项目", username, novel_title, "planning", 
-                f"{novel_title}_写作计划.json"
-            )
+            # 🔥 修复：使用正确的属性名 _username
+            username = getattr(self.generator, '_username', None)
+            novel_title = self.generator.novel_data.get("novel_title", "未命名")
+            
+            # 🔥 调试日志
+            print(f"🔍 [质量评估] 尝试读取组装好的写作计划文件...")
+            print(f"   - username: {username}")
+            print(f"   - novel_title: {novel_title}")
+            
+            if not username:
+                print(f"⚠️ [质量评估] username 为空，跳过文件读取")
+                raise ValueError("username is None")
+            
+            # 构建安全文件名
+            safe_title = "".join(c for c in novel_title if c.isalnum() or c in (' ', '-', '_')).strip()
+            if not safe_title:
+                safe_title = "未命名"
+            safe_title = safe_title.replace(' ', '_')
+            
+            # 🔥 优先读取组装好的写作计划文件 (planning 目录)
+            planning_file = os.path.join("小说项目", username, safe_title, "planning", f"{safe_title}_写作计划.json")
+            
+            print(f"   - 组装文件路径: {planning_file}")
+            print(f"   - 文件是否存在: {os.path.exists(planning_file)}")
             
             if os.path.exists(planning_file):
                 with open(planning_file, 'r', encoding='utf-8') as f:
                     file_data = json.load(f)
+                
+                print(f"✅ [质量评估] 成功读取组装好的写作计划，包含 {len(file_data)} 个阶段")
                 
                 merged = {
                     "novel_title": novel_title,
@@ -2701,6 +2755,7 @@ class PhaseGenerator:
                     # 提取重大事件
                     event_system = plan.get("event_system", {})
                     major_events = event_system.get("major_events", [])
+                    print(f"   - {stage_name}: 找到 {len(major_events)} 个重大事件")
                     
                     for major in major_events:
                         event_info = {
@@ -2728,11 +2783,102 @@ class PhaseGenerator:
                     
                     merged["stages"].append(stage_info)
                 
+                print(f"✅ [质量评估] 成功解析组装好的写作计划")
                 return merged
+            else:
+                print(f"⚠️ [质量评估] 组装好的写作计划文件不存在，尝试读取分散文件...")
+                
+            # 降级方案：读取分散的 plans 目录文件
+            plans_dir = os.path.join("小说项目", username, safe_title, "plans")
+            
+            if not os.path.exists(plans_dir):
+                print(f"⚠️ [质量评估] plans 目录也不存在，使用内存数据")
+                raise FileNotFoundError(f"plans_dir not found: {plans_dir}")
+            
+            # 列出目录中的文件
+            plan_files = [f for f in os.listdir(plans_dir) if f.endswith('_writing_plan.json')]
+            print(f"   - 找到 {len(plan_files)} 个分散写作计划文件")
+            
+            if not plan_files:
+                raise FileNotFoundError("No writing plan files found")
+            
+            merged = {
+                "novel_title": novel_title,
+                "total_stages": len(plan_files),
+                "stages": []
+            }
+            
+            for plan_file in plan_files:
+                file_path = os.path.join(plans_dir, plan_file)
+                
+                try:
+                    with open(file_path, 'r', encoding='utf-8') as f:
+                        file_data = json.load(f)
+                    
+                    stage_name = plan_file.replace(f"{safe_title}_", "").replace("_writing_plan.json", "")
+                    plan = file_data.get("stage_writing_plan", {})
+                    
+                    stage_info = {
+                        "stage_name": stage_name,
+                        "chapter_range": plan.get("chapter_range", ""),
+                        "stage_overview": plan.get("stage_overview", ""),
+                        "major_events": []
+                    }
+                    
+                    event_system = plan.get("event_system", {})
+                    major_events = event_system.get("major_events", [])
+                    
+                    for major in major_events:
+                        event_info = {
+                            "name": major.get("name", ""),
+                            "main_goal": major.get("main_goal", ""),
+                            "chapter_range": major.get("chapter_range", ""),
+                            "core_conflict": major.get("core_conflict", ""),
+                            "emotional_arc": major.get("emotional_arc_summary", ""),
+                            "medium_events": []
+                        }
+                        
+                        composition = major.get("composition", {})
+                        for phase, events in composition.items():
+                            if isinstance(events, list):
+                                for event in events:
+                                    if isinstance(event, dict):
+                                        event_info["medium_events"].append({
+                                            "name": event.get("name", ""),
+                                            "chapter_range": event.get("chapter_range", ""),
+                                            "role": event.get("role", "")
+                                        })
+                        
+                        stage_info["major_events"].append(event_info)
+                    
+                    merged["stages"].append(stage_info)
+                    
+                except Exception as e:
+                    print(f"     ⚠️ 读取文件失败: {e}")
+                    continue
+            
+            print(f"✅ [质量评估] 成功从分散文件读取 {len(merged['stages'])} 个阶段")
+            return merged
+            
         except Exception as e:
             print(f"⚠️ 从文件读取写作计划失败: {e}，尝试使用内存数据")
         
         # 降级方案：使用传入的内存数据
+        print(f"🔍 [质量评估] 使用内存数据...")
+        print(f"   - stage_writing_plans 阶段数: {len(stage_writing_plans)}")
+        
+        # 🔥 调试：打印第一个阶段的结构
+        if stage_writing_plans:
+            first_stage = list(stage_writing_plans.values())[0]
+            print(f"   - 第一个阶段类型: {type(first_stage)}")
+            if isinstance(first_stage, dict):
+                print(f"   - 第一个阶段键: {list(first_stage.keys())[:10]}")
+                if 'stage_writing_plan' in first_stage:
+                    swp = first_stage['stage_writing_plan']
+                    print(f"   - stage_writing_plan 类型: {type(swp)}")
+                    if isinstance(swp, dict):
+                        print(f"   - stage_writing_plan 键: {list(swp.keys())[:10]}")
+        
         merged = {
             "novel_title": self.generator.novel_data.get("novel_title", "未命名"),
             "total_stages": len(stage_writing_plans),
@@ -2741,7 +2887,13 @@ class PhaseGenerator:
         
         for stage_name, plan in stage_writing_plans.items():
             if not isinstance(plan, dict):
+                print(f"   ⚠️ {stage_name} 不是字典，跳过")
                 continue
+            
+            # 🔥 修复：处理嵌套结构 stage_wrapper["stage_writing_plan"]
+            if "stage_writing_plan" in plan:
+                plan = plan["stage_writing_plan"]
+                print(f"   ✓ {stage_name} 解包嵌套结构")
             
             stage_info = {
                 "stage_name": stage_name,
@@ -2753,6 +2905,7 @@ class PhaseGenerator:
             # 提取重大事件
             event_system = plan.get("event_system", {})
             major_events = event_system.get("major_events", [])
+            print(f"   - {stage_name}: 找到 {len(major_events)} 个重大事件")
             
             for major in major_events:
                 event_info = {
@@ -2796,6 +2949,9 @@ class PhaseGenerator:
             for plan in stage_writing_plans.values():
                 if not isinstance(plan, dict):
                     continue
+                # 🔥 修复：处理嵌套结构
+                if "stage_writing_plan" in plan:
+                    plan = plan["stage_writing_plan"]
                 event_system = plan.get("event_system", {})
                 major_events = event_system.get("major_events", [])
                 total_major_events += len(major_events)
