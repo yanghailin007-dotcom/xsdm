@@ -647,6 +647,44 @@
         .pt-animate-fade-in {
             animation: fadeIn 0.4s cubic-bezier(0.4, 0, 0.2, 1);
         }
+        
+        /* 设定预览样式 */
+        .preview-tab {
+            transition: all 0.2s ease;
+        }
+        .preview-tab:hover {
+            background: rgba(99, 102, 241, 0.1) !important;
+        }
+        .preview-tab.active {
+            background: rgba(99, 102, 241, 0.2) !important;
+            color: var(--v2-text-primary) !important;
+        }
+        
+        .preview-content {
+            animation: fadeIn 0.3s ease;
+        }
+        
+        .preview-loading {
+            text-align: center;
+            padding: 40px;
+            color: var(--v2-text-tertiary);
+        }
+        
+        /* 质量评估详情样式 */
+        #quality-details::-webkit-scrollbar {
+            width: 6px;
+        }
+        #quality-details::-webkit-scrollbar-track {
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 3px;
+        }
+        #quality-details::-webkit-scrollbar-thumb {
+            background: rgba(99, 102, 241, 0.3);
+            border-radius: 3px;
+        }
+        #quality-details::-webkit-scrollbar-thumb:hover {
+            background: rgba(99, 102, 241, 0.5);
+        }
     </style>
 </head>
 <body>
@@ -1090,7 +1128,37 @@
                     </div>
                     
                     <!-- 结果内容将在这里动态生成 -->
-                    <div id="results-content"></div>
+                    <div id="results-content">
+                        <!-- 设定预览卡片 -->
+                        <div id="settings-preview-card" style="margin-bottom: 24px; padding: 20px; background: rgba(255, 255, 255, 0.03); border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 16px; display: none;">
+                            <h4 style="margin: 0 0 16px 0; font-size: 16px; color: var(--v2-text-primary); display: flex; align-items: center; gap: 8px;">
+                                <span>📚</span>
+                                <span>设定预览</span>
+                            </h4>
+                            
+                            <!-- 标签页切换 -->
+                            <div style="display: flex; gap: 8px; margin-bottom: 16px; border-bottom: 1px solid rgba(255, 255, 255, 0.1); padding-bottom: 12px;">
+                                <button class="preview-tab active" data-tab="worldview" onclick="switchPreviewTab('worldview')" style="padding: 8px 16px; background: rgba(99, 102, 241, 0.2); border: none; border-radius: 8px; color: var(--v2-text-primary); cursor: pointer; font-size: 14px;">🌍 世界观</button>
+                                <button class="preview-tab" data-tab="characters" onclick="switchPreviewTab('characters')" style="padding: 8px 16px; background: transparent; border: none; border-radius: 8px; color: var(--v2-text-secondary); cursor: pointer; font-size: 14px;">👥 角色</button>
+                                <button class="preview-tab" data-tab="outline" onclick="switchPreviewTab('outline')" style="padding: 8px 16px; background: transparent; border: none; border-radius: 8px; color: var(--v2-text-secondary); cursor: pointer; font-size: 14px;">📖 大纲</button>
+                                <button class="preview-tab" data-tab="stages" onclick="switchPreviewTab('stages')" style="padding: 8px 16px; background: transparent; border: none; border-radius: 8px; color: var(--v2-text-secondary); cursor: pointer; font-size: 14px;">🎯 阶段</button>
+                            </div>
+                            
+                            <!-- 预览内容区域 -->
+                            <div id="preview-worldview" class="preview-content" style="max-height: 400px; overflow-y: auto;">
+                                <div class="preview-loading">加载中...</div>
+                            </div>
+                            <div id="preview-characters" class="preview-content" style="display: none; max-height: 400px; overflow-y: auto;">
+                                <div class="preview-loading">加载中...</div>
+                            </div>
+                            <div id="preview-outline" class="preview-content" style="display: none; max-height: 400px; overflow-y: auto;">
+                                <div class="preview-loading">加载中...</div>
+                            </div>
+                            <div id="preview-stages" class="preview-content" style="display: none; max-height: 400px; overflow-y: auto;">
+                                <div class="preview-loading">加载中...</div>
+                            </div>
+                        </div>
+                    </div>
                     
                     <!-- 操作按钮 -->
                     <div style="display: flex; gap: 12px; margin-top: 32px;">
@@ -1772,6 +1840,291 @@
             if (title) {
                 window.location.href = '/phase-two-generation?title=' + encodeURIComponent(title);
             }
+        }
+        
+        // ==================== 设定预览与质量评估 ====================
+        
+        // 切换预览标签
+        function switchPreviewTab(tabName) {
+            // 更新标签样式
+            document.querySelectorAll('.preview-tab').forEach(tab => {
+                if (tab.dataset.tab === tabName) {
+                    tab.style.background = 'rgba(99, 102, 241, 0.2)';
+                    tab.style.color = 'var(--v2-text-primary)';
+                    tab.classList.add('active');
+                } else {
+                    tab.style.background = 'transparent';
+                    tab.style.color = 'var(--v2-text-secondary)';
+                    tab.classList.remove('active');
+                }
+            });
+            
+            // 显示对应内容
+            document.querySelectorAll('.preview-content').forEach(content => {
+                content.style.display = 'none';
+            });
+            document.getElementById(`preview-${tabName}`).style.display = 'block';
+        }
+        
+        // 加载设定预览数据
+        async function loadSettingsPreview(title) {
+            try {
+                const encodedTitle = encodeURIComponent(title);
+                const response = await fetch(`/api/project-materials/${encodedTitle}`);
+                if (!response.ok) throw new Error('加载失败');
+                
+                const data = await response.json();
+                if (data.success) {
+                    renderSettingsPreview(data.materials);
+                }
+            } catch (error) {
+                console.error('加载设定预览失败:', error);
+            }
+        }
+        
+        // 渲染设定预览
+        function renderSettingsPreview(materials) {
+            const previewCard = document.getElementById('settings-preview-card');
+            if (previewCard) previewCard.style.display = 'block';
+            
+            // 渲染世界观
+            const worldviewContent = document.getElementById('preview-worldview');
+            if (materials.worldview) {
+                worldviewContent.innerHTML = `
+                    <div style="line-height: 1.8; color: var(--v2-text-secondary);">
+                        <h5 style="color: var(--v2-text-primary); margin-bottom: 12px;">世界观设定</h5>
+                        <div style="white-space: pre-wrap; font-size: 14px;">${escapeHtml(materials.worldview)}</div>
+                    </div>
+                `;
+            } else {
+                worldviewContent.innerHTML = '<div style="color: var(--v2-text-tertiary); text-align: center;">暂无世界观数据</div>';
+            }
+            
+            // 渲染角色
+            const charactersContent = document.getElementById('preview-characters');
+            if (materials.characters && materials.characters.length > 0) {
+                charactersContent.innerHTML = materials.characters.map(char => `
+                    <div style="padding: 12px; margin-bottom: 8px; background: rgba(255,255,255,0.03); border-radius: 8px;">
+                        <div style="font-weight: 600; color: var(--v2-text-primary); margin-bottom: 4px;">${escapeHtml(char.name || '未命名')}</div>
+                        <div style="font-size: 13px; color: var(--v2-text-secondary);">${escapeHtml(char.description || '暂无描述')}</div>
+                    </div>
+                `).join('');
+            } else {
+                charactersContent.innerHTML = '<div style="color: var(--v2-text-tertiary); text-align: center;">暂无角色数据</div>';
+            }
+            
+            // 渲染大纲
+            const outlineContent = document.getElementById('preview-outline');
+            if (materials.outline) {
+                outlineContent.innerHTML = `
+                    <div style="line-height: 1.8; color: var(--v2-text-secondary);">
+                        <div style="white-space: pre-wrap; font-size: 14px;">${escapeHtml(materials.outline)}</div>
+                    </div>
+                `;
+            } else {
+                outlineContent.innerHTML = '<div style="color: var(--v2-text-tertiary); text-align: center;">暂无大纲数据</div>';
+            }
+            
+            // 渲染阶段计划
+            const stagesContent = document.getElementById('preview-stages');
+            if (materials.stage_plans) {
+                stagesContent.innerHTML = Object.entries(materials.stage_plans).map(([stageName, plan]) => `
+                    <div style="padding: 12px; margin-bottom: 8px; background: rgba(255,255,255,0.03); border-radius: 8px;">
+                        <div style="font-weight: 600; color: var(--v2-text-primary); margin-bottom: 4px;">${escapeHtml(stageName)}</div>
+                        <div style="font-size: 13px; color: var(--v2-text-secondary);">${escapeHtml(plan.chapter_range || '')} - ${escapeHtml(plan.stage_overview || '暂无概述')}</div>
+                    </div>
+                `).join('');
+            } else {
+                stagesContent.innerHTML = '<div style="color: var(--v2-text-tertiary); text-align: center;">暂无阶段计划</div>';
+            }
+        }
+        
+        // HTML转义
+        function escapeHtml(text) {
+            if (!text) return '';
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+        
+        // 获取质量评估报告
+        async function loadQualityAssessment(title) {
+            try {
+                const encodedTitle = encodeURIComponent(title);
+                const response = await fetch(`/api/quality-assessment/${encodedTitle}`);
+                
+                if (response.status === 404) {
+                    // 报告不存在，显示评估中状态
+                    updateQualityCard({ status: 'pending' });
+                    return;
+                }
+                
+                if (!response.ok) throw new Error('加载失败');
+                
+                const report = await response.json();
+                updateQualityCard(report);
+            } catch (error) {
+                console.error('加载质量评估失败:', error);
+                updateQualityCard({ status: 'error', message: error.message });
+            }
+        }
+        
+        // 更新质量评估卡片
+        function updateQualityCard(report) {
+            const scoreEl = document.getElementById('quality-score');
+            const readinessEl = document.getElementById('quality-readiness');
+            const issuesEl = document.getElementById('quality-issues');
+            const summaryEl = document.getElementById('quality-summary');
+            const statusBadge = document.getElementById('quality-status-badge');
+            const detailsBtn = document.getElementById('btn-quality-details');
+            
+            if (report.status === 'pending') {
+                if (statusBadge) statusBadge.textContent = '评估中...';
+                return;
+            }
+            
+            if (report.status === 'error') {
+                if (statusBadge) statusBadge.textContent = '加载失败';
+                if (summaryEl) {
+                    summaryEl.style.display = 'block';
+                    summaryEl.textContent = '质量评估报告加载失败，请稍后刷新重试。';
+                }
+                return;
+            }
+            
+            // 更新评分
+            if (scoreEl) scoreEl.textContent = report.overall_score || '--';
+            
+            // 更新状态
+            const readinessMap = {
+                'ready': { text: '可以继续', color: '#10b981' },
+                'needs_review': { text: '建议检查', color: '#f59e0b' },
+                'needs_revision': { text: '需要修改', color: '#ef4444' }
+            };
+            const readiness = readinessMap[report.readiness] || { text: '未知', color: '#6b7280' };
+            if (readinessEl) {
+                readinessEl.textContent = readiness.text;
+                readinessEl.style.color = readiness.color;
+            }
+            if (statusBadge) {
+                statusBadge.textContent = readiness.text;
+                statusBadge.style.background = readiness.color + '30';
+                statusBadge.style.color = readiness.color;
+            }
+            
+            // 更新问题数
+            if (issuesEl) issuesEl.textContent = report.issues?.length || 0;
+            
+            // 更新总结
+            if (summaryEl && report.summary) {
+                summaryEl.style.display = 'block';
+                summaryEl.textContent = report.summary;
+            }
+            
+            // 显示详情按钮
+            if (detailsBtn) detailsBtn.style.display = 'inline-block';
+            
+            // 保存报告数据用于详情展示
+            window.currentQualityReport = report;
+        }
+        
+        // 切换质量评估详情显示
+        function toggleQualityDetails() {
+            const detailsDiv = document.getElementById('quality-details');
+            if (!detailsDiv || !window.currentQualityReport) return;
+            
+            if (detailsDiv.style.display === 'none') {
+                detailsDiv.style.display = 'block';
+                renderQualityDetails(window.currentQualityReport);
+            } else {
+                detailsDiv.style.display = 'none';
+            }
+        }
+        
+        // 渲染质量评估详情
+        function renderQualityDetails(report) {
+            const detailsDiv = document.getElementById('quality-details');
+            if (!detailsDiv) return;
+            
+            let html = '';
+            
+            // 优点列表
+            if (report.strengths && report.strengths.length > 0) {
+                html += `<div style="margin-bottom: 16px;"><h5 style="color: #10b981; margin-bottom: 8px;">✅ 优点</h5>`;
+                report.strengths.forEach(strength => {
+                    html += `<div style="padding: 8px; margin-bottom: 4px; background: rgba(16, 185, 129, 0.1); border-left: 3px solid #10b981; border-radius: 4px; font-size: 13px;">${escapeHtml(strength)}</div>`;
+                });
+                html += `</div>`;
+            }
+            
+            // 问题列表
+            if (report.issues && report.issues.length > 0) {
+                html += `<div style="margin-bottom: 16px;"><h5 style="color: #ef4444; margin-bottom: 8px;">⚠️ 问题 (${report.issues.length})</h5>`;
+                
+                const severityColors = {
+                    'critical': '#ef4444',
+                    'high': '#f97316',
+                    'medium': '#f59e0b',
+                    'low': '#3b82f6',
+                    'info': '#6b7280'
+                };
+                
+                report.issues.forEach(issue => {
+                    const color = severityColors[issue.severity] || '#6b7280';
+                    html += `
+                        <div style="padding: 10px; margin-bottom: 8px; background: rgba(239, 68, 68, 0.05); border-left: 3px solid ${color}; border-radius: 4px; font-size: 13px;">
+                            <div style="font-weight: 600; color: var(--v2-text-primary); margin-bottom: 4px;">[${issue.category}] ${escapeHtml(issue.location)}</div>
+                            <div style="color: var(--v2-text-secondary); margin-bottom: 4px;">${escapeHtml(issue.description)}</div>
+                            <div style="color: var(--v2-text-tertiary); font-size: 12px;">💡 ${escapeHtml(issue.suggestion)}</div>
+                        </div>
+                    `;
+                });
+                html += `</div>`;
+            }
+            
+            detailsDiv.innerHTML = html;
+        }
+        
+        // 刷新质量评估
+        async function refreshQualityAssessment() {
+            const title = document.getElementById('novel-title')?.value;
+            if (!title) {
+                showStatusMessage('请先输入小说标题', 'error');
+                return;
+            }
+            
+            const btn = document.getElementById('btn-quality-refresh');
+            if (btn) btn.disabled = true;
+            
+            try {
+                const encodedTitle = encodeURIComponent(title);
+                const response = await fetch(`/api/quality-assessment/trigger/${encodedTitle}`, { method: 'POST' });
+                
+                if (!response.ok) throw new Error('刷新失败');
+                
+                showStatusMessage('质量评估已刷新', 'success');
+                await loadQualityAssessment(title);
+            } catch (error) {
+                showStatusMessage('刷新失败: ' + error.message, 'error');
+            } finally {
+                if (btn) btn.disabled = false;
+            }
+        }
+        
+        // 显示生成完成后的结果
+        function showGenerationResults(title) {
+            // 显示结果区域
+            const resultsSection = document.getElementById('results-section');
+            if (resultsSection) resultsSection.style.display = 'block';
+            
+            // 加载设定预览
+            loadSettingsPreview(title);
+            
+            // 加载质量评估
+            loadQualityAssessment(title);
+            
+            // 滚动到结果区域
+            resultsSection?.scrollIntoView({ behavior: 'smooth' });
         }
         
         // ==================== 页面初始化 ====================
