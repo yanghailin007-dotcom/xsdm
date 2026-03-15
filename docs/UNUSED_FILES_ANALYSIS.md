@@ -202,13 +202,13 @@ rm src/core/SimplifiedKnowledgeBase.py
 
 ### 阶段二：待确认文件（需要检查引用）
 
-### 阶段二：待确认文件 🔍 分析中
+### 阶段二：待确认文件 ✅ 已完成
 
-#### 2.1 可删除（已确认无引用）
+#### 2.1 可删除（已确认无引用）✅ 已完成
 
-| 文件 | 原因 | 操作 |
+| 文件 | 原因 | 状态 |
 |------|------|------|
-| `src/core/fanfiction/FanfictionDetector.py` | 只有`ImprovedFanfictionDetector`被使用 | 🟢 可删除 |
+| `src/core/fanfiction/FanfictionDetector.py` | 只有`ImprovedFanfictionDetector`被使用 | ✅ 已删除 (-1004行) |
 
 #### 2.2 仍被引用（暂时保留）
 
@@ -216,7 +216,7 @@ rm src/core/SimplifiedKnowledgeBase.py
 |------|-----------|------|
 | `src/managers/EventManager.py` | `StagePlanManager.py` (line 26) | 🟡 保留 |
 | `src/core/generation/PlanGenerator.py` | `NovelGenerator.py` (line 39) | 🟡 保留 |
-| `src/managers/StagePlanManager_refactored.py` | 未确认 | ❓ 需检查 |
+| `src/managers/StagePlanManager_refactored.py` | 无引用 | ✅ 已删除 (-933行) |
 
 #### 2.3 检查命令
 
@@ -245,20 +245,20 @@ grep -r "from.*PlanGenerator" src/ --include="*.py"
 
 ## 6. 清理效果统计
 
-### 阶段一完成 (2026-03-15)
+### 阶段一 + 阶段二完成 (2026-03-15)
 
 | 指标 | 清理前 | 清理后 | 减少 |
 |------|--------|--------|------|
-| 废弃文件数 | 4 | 0 | -4 |
-| 代码行数 | ~50000 | ~46175 | -3825 |
-| Python文件数 | 125 | 121 | -4 |
+| 废弃文件数 | 6 | 0 | -6 |
+| 代码行数 | ~50000 | ~44238 | -5762 |
+| Python文件数 | 125 | 119 | -6 |
 
 ### 整体目标
 
 | 指标 | 初始 | 当前 | 目标 | 进度 |
 |------|------|------|------|------|
-| Python文件数 | 125 | 121 | ~110 | 36% |
-| 重复类 | 12+ | 11 | 4 | 57% |
+| Python文件数 | 125 | 119 | ~110 | 67% |
+| 重复类 | 12+ | 9 | 4 | 67% |
 | 导入复杂度 | 高 | 中高 | 中 | - |
 
 ---
