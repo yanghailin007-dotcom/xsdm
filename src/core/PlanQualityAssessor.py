@@ -70,13 +70,19 @@ class PlanQualityAssessor:
 4. 节奏合理性 - 章节分配是否合理
 5. 逻辑连贯性 - 剧情发展是否有逻辑漏洞
 
+评分标准（0-100分）：
+- 90-100分：优秀，可直接使用
+- 70-89分：良好，有小问题但不影响使用
+- 50-69分：一般，需要修改
+- 0-49分：较差，需要大幅修改
+
 写作计划摘要：
 {plan_summary}
 
-请以JSON格式返回评估结果：
+请以JSON格式返回评估结果（确保使用UTF-8编码）：
 {{
-    "overall_score": 85,  // 0-100分
-    "readiness": "ready",  // ready/needs_review/needs_revision
+    "overall_score": 85,
+    "readiness": "ready",
     "strengths": ["卖点清晰", "节奏紧凑"],
     "issues": [
         {{
@@ -418,6 +424,11 @@ class PlanQualityAssessor:
                 # generate_content_with_retry 已经返回解析后的JSON对象
                 if isinstance(ai_result, dict):
                     self.logger.info(f"✅ AI评估完成，返回字段: {list(ai_result.keys())}")
+                    # 🔥 调试：记录AI返回的分数
+                    score = ai_result.get("overall_score", "N/A")
+                    readiness = ai_result.get("readiness", "N/A")
+                    issue_count = len(ai_result.get("issues", []))
+                    self.logger.info(f"📊 AI评分: {score}/100, 状态: {readiness}, 问题数: {issue_count}")
                 else:
                     self.logger.warning(f"⚠️ AI返回不是字典类型: {type(ai_result)}")
                     return self._rule_based_assess(summary, full_plan)

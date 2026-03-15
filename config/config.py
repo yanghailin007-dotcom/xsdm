@@ -40,7 +40,8 @@ CONFIG = {
                 "api_key": os.getenv('LEMON_API_KEY', 'sk-n7M8j3un3p4QBfKNHxYDVmnhZELU4eicBrhBDsZEu23h3uXg'),
                 "model": "[L]gemini-3.1-pro-preview",  # 3.1 模型
                 "model1": "[L]gemini-3-flash-preview", 
-                "priority": 1,                 # ✅ 最高优先级
+                "assessment": "[L]gemini-2.5-flash",
+                "priority": 3,                 # ✅ 最高优先级
                 "enabled": True,
                 "timeout": 300,
                 "max_retries": 3
@@ -50,7 +51,8 @@ CONFIG = {
                 "api_url": "https://aiberm.com/v1/chat/completions",
                 "api_key": os.getenv('AIBERM_API_KEY', 'sk-dWu7JFD69zTYeSLZiWV8OQYBjQ2IoJlQCmSo3f963ArGEAju'),
                 "model": "google/gemini-3.1-flash-lite",  # Gemini 2.5 Pro（更经济）
-                "priority": 3,                  # 优先级3（最低，因为费用最高）
+                "assessment": "google/gemini-2.5-flash",  # 🔥 质量评估使用轻量级模型
+                "priority": 1,                  # 优先级3（最低，因为费用最高）
                 "enabled": True,
                 "timeout": 300,
                 "max_retries": 3
@@ -60,9 +62,10 @@ CONFIG = {
                 "api_url": "https://newapi.xiaochuang.cc/v1/chat/completions",
                 "api_key": os.getenv('GEMINI_API_KEY', 'sk-zQHbJRdcVeNKX2ZqR18AMj5qutH4lDCZSmgE7WPP3aBdDdbw'),
                 "model": "gemini-3-pro-preview",  # 小创 API 不需要前缀
+                "assessment": "gemini-2.5-flash",  # 🔥 质量评估使用轻量级模型
                 "priority": 2,                 # 备用优先级
                 "enabled": True,
-                "timeout": 180,
+                "timeout": 300,
                 "max_retries": 3
             }
         ],
@@ -114,9 +117,10 @@ CONFIG = {
             # 初始方案评估 - 影响后续所有生成
             "novel_plan_quality_assessment": "gemini-3-pro-preview",
             "market_analysis_quality_assessment": "gemini-3-pro-preview",
+            # 🔥 修改：写作计划质量评估使用强模型（保证评估质量）
             "writing_plan_quality_assessment": "gemini-3-pro-preview",
             
-            # ===== 常规评价任务：使用 2.5-pro（降低成本） =====
+            # ===== 常规评价任务：使用 2.5-pro/flash（降低成本） =====
             # 普通章节质量评估（非黄金三章）
             "chapter_quality_assessment": "gemini-2.5-pro",
             # 新鲜度评估
