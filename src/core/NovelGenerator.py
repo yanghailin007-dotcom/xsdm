@@ -1306,32 +1306,55 @@ class NovelGenerator:
             'max_word_threshold': self._ctx.get('max_word_threshold', 3500)
         }
         
-        # 🔥 修复：检测黄金三章范围（第1-3章），即使事件拆分也要整体生成
+        # 🔥 修复：检测黄金三章范围（第1-3章），合并所有相关事件信息整体生成
         golden_chapters_range = None
+        golden_event = None
         if start_chapter <= 1 and end_chapter >= 3:
-            # 检查是否有覆盖第1-3章的事件
-            has_ch1 = any(self._parse_chapter_range(e.get('chapter_range', ''))[0] == 1 for e in medium_events)
-            has_ch3 = any(self._parse_chapter_range(e.get('chapter_range', ''))[1] >= 3 for e in medium_events)
-            
-            if has_ch1:
-                # 找到第1-3章的所有事件，合并处理
-                golden_events = [e for e in medium_events 
-                               if self._parse_chapter_range(e.get('chapter_range', ''))[0] in [1, 2, 3]]
-                if golden_events:
-                    golden_chapters_range = (1, min(3, end_chapter))
-                    print(f"\n✨ 检测到黄金三章范围，将整体生成第1-{golden_chapters_range[1]}章")
-                    print(f"   涉及事件: {', '.join(e.get('name', 'Unknown') for e in golden_events)}")
+            # 找到第1-3章的所有事件
+            golden_events = [e for e in medium_events 
+                           if self._parse_chapter_range(e.get('chapter_range', ''))[0] in [1, 2, 3]]
+            if golden_events:
+                golden_chapters_range = (1, min(3, end_chapter))
+                print(f"\n✨ 检测到黄金三章范围，将整体生成第1-{golden_chapters_range[1]}章")
+                print(f"   涉及事件: {', '.join(e.get('name', 'Unknown') for e in golden_events)}")
+                
+                # 🔥 关键修复：合并所有黄金三章事件的信息
+                golden_event = {
+                    "name": "开局黄金三章（整体）",
+                    "type": "golden_opening",
+                    "chapter_range": "1-3",
+                    "main_goal": "完整呈现开局阶段：从诡异降临到初步破局",
+                    "description": "合并第1-3章所有事件的整体描述",
+                    "plot_outline": [],
+                    "emotional_arc": "从危机降临→冷静应对→初步破局",
+                    "composition": {}
+                }
+                
+                # 合并所有事件的情节大纲和场景规划
+                for i, event in enumerate(golden_events):
+                    event_name = event.get('name', f'事件{i+1}')
+                    event_range = event.get('chapter_range', '')
+                    print(f"   📦 合并事件: {event_name} ({event_range})")
+                    
+                    # 合并plot_outline
+                    if event.get('plot_outline'):
+                        golden_event['plot_outline'].extend(event['plot_outline'])
+                    
+                    # 合并composition中的场景
+                    if event.get('composition'):
+                        golden_event['composition'].update(event['composition'])
+                    elif event.get('plot_outline'):
+                        # 如果没有composition，用plot_outline构建
+                        phase_key = ['起', '承', '转', '合'][i] if i < 4 else f'第{i+1}部分'
+                        golden_event['composition'][phase_key] = event['plot_outline']
         
         # 如果有黄金三章，先整体生成
-        if golden_chapters_range:
+        if golden_chapters_range and golden_event:
             print(f"\n🎯 [黄金三章] 整体生成第1-{golden_chapters_range[1]}章")
+            print(f"   📋 合并后情节大纲: {len(golden_event.get('plot_outline', []))} 个要点")
             try:
-                # 使用第一个事件作为代表（主要是获取名称等信息）
-                main_event = next(e for e in medium_events 
-                                 if self._parse_chapter_range(e.get('chapter_range', ''))[0] == 1)
-                
                 result = batch_processor.process_medium_event(
-                    medium_event=main_event,
+                    medium_event=golden_event,
                     chapter_range=golden_chapters_range,
                     novel_data=novel_data,
                     skip_assessment=False
