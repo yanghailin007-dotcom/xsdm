@@ -55,6 +55,19 @@ async function startPhaseOneGeneration(event) {
     const modeSelect = document.getElementById('generation-mode');
     const isResumeMode = modeSelect && modeSelect.value === 'resume_mode';
 
+    // 🔥 修复：恢复模式下，从 resumeProjectInfo 获取完整创意种子（包含 completeStoryline）
+    let creativeSeed = null;
+    if (isResumeMode && window.resumeProjectInfo?.creative_seed) {
+        // 恢复模式：使用保存的完整创意种子
+        creativeSeed = window.resumeProjectInfo.creative_seed;
+        console.log('[RESUME] 使用恢复项目中的创意种子:', creativeSeed);
+    } else if (selectedCreativeId) {
+        // 正常模式：从创意库获取
+        const idea = loadedCreativeIdeas.find(i => i.id === selectedCreativeId);
+        creativeSeed = idea?.raw_data;
+        console.log('[GENERATION] 使用创意库中的创意种子:', creativeSeed);
+    }
+
     const formData = {
         title: document.getElementById('novel-title').value,
         synopsis: document.getElementById('novel-synopsis').value,
@@ -63,9 +76,11 @@ async function startPhaseOneGeneration(event) {
         total_chapters: parseInt(document.getElementById('total-chapters').value),
         generation_mode: modeSelect ? modeSelect.value : 'phase_one_only',
         target_platform: document.getElementById('target-platform').value || 'fanqie',
-        creative_seed: selectedCreativeId ? loadedCreativeIdeas.find(i => i.id === selectedCreativeId)?.raw_data : null,
+        creative_seed: creativeSeed,
         // 🔥 关键修复：非恢复模式下，明确告知后端从头开始，不要检查检查点
-        start_new: !isResumeMode
+        start_new: !isResumeMode,
+        // 🔥 新增：明确传递恢复模式标志
+        is_resume_mode: isResumeMode
     };
     
     console.log(`🎯 生成模式: ${formData.generation_mode}, 从头开始: ${formData.start_new}`);
@@ -406,22 +421,6 @@ function handlePhaseOneFailed(taskStatus) {
     updateStepStatus('input', true);
 }
 
-// 显示结果区域
-function showResultsSection(result) {
-    const resultsSection = document.getElementById('results-section');
-    resultsSection.classList.add('pt-results-section--active');
-    
-    // 填充结果数据
-    fillOverviewResult(result);
-    fillWorldviewResult(result);
-    fillCharactersResult(result);
-    fillOutlinesResult(result);
-    fillValidationResult(result);
-    
-    // 🔥 加载质量评估结果
-    loadQualityAssessmentResult(result.novel_title);
-}
-
 // 🔥 加载质量评估结果
 async function loadQualityAssessmentResult(novelTitle) {
     if (!novelTitle) {
@@ -653,14 +652,15 @@ async function refreshQualityAssessment() {
     if (detailsEl) detailsEl.style.display = 'none';
     if (detailsBtn) detailsBtn.style.display = 'none';
     
-    // 触发重新评估
+    // 触发重新评估（默认不压缩，传递完整计划）
     try {
         const response = await fetch(`/api/quality-assessment/trigger/${encodeURIComponent(novelTitle)}`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json'
             },
-            body: JSON.stringify({ deep_analysis: true })
+            // 🔥 默认不压缩，直接传递完整计划
+            body: JSON.stringify({ deep_analysis: true, skip_compression: true })
         });
         
         if (response.ok) {
@@ -1277,8 +1277,10 @@ function switchToStep(step) {
             if (formSection) formSection.style.display = 'none';
             if (progressSection) {
                 progressSection.classList.remove('active', 'pt-progress-section--active');
+                progressSection.style.display = 'none';
             }
             if (resultsSection) {
+                resultsSection.style.display = 'block';
                 resultsSection.classList.add('active', 'pt-results-section--active');
             }
             updateStepStatus('preview', true);
@@ -1306,6 +1308,7 @@ function showFormSection() {
     switchToStep('input');
 }
 
+// 显示结果区域
 function showResultsSection(result) {
     const formSection = document.getElementById('form-section');
     const progressSection = document.getElementById('progress-section');
@@ -1315,6 +1318,7 @@ function showResultsSection(result) {
     if (progressSection) {
         progressSection.classList.remove('active');
         progressSection.classList.remove('pt-progress-section--active');
+        progressSection.style.display = 'none';
     }
     
     // 隐藏表单区域
@@ -1324,8 +1328,21 @@ function showResultsSection(result) {
     
     // 显示结果区域
     if (resultsSection) {
+        resultsSection.style.display = 'block';
         resultsSection.classList.add('active');
         resultsSection.classList.add('pt-results-section--active');
+    }
+    
+    // 填充结果数据
+    if (result) {
+        fillOverviewResult(result);
+        fillWorldviewResult(result);
+        fillCharactersResult(result);
+        fillOutlinesResult(result);
+        fillValidationResult(result);
+        
+        // 🔥 加载质量评估结果
+        loadQualityAssessmentResult(result.novel_title);
     }
     
     updateStepStatus('preview', true);
