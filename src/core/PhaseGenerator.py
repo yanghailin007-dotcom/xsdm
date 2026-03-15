@@ -2517,15 +2517,10 @@ class PhaseGenerator:
 
     def _assess_writing_plan_quality(self) -> Optional[Dict]:
         """
-        对写作计划进行整体质量评估（一次性评估所有阶段）
+        对写作计划进行AI质量评估（一次性评估所有阶段）
 
         Returns:
-            评估结果字典，包含:
-            - overall_score: 总体评分
-            - readiness: 准备状态 (ready/needs_review/needs_revision)
-            - strengths: 优点列表
-            - issues: 问题列表
-            - summary: 总结
+            评估结果字典
         """
         try:
             # 检查是否有写作计划
@@ -2534,51 +2529,152 @@ class PhaseGenerator:
                 print("⚠️ 没有写作计划，跳过评估")
                 return None
 
-            print(f"📊 开始评估写作计划（共 {len(stage_writing_plans)} 个阶段）...")
+            print(f"📊 开始AI质量评估（共 {len(stage_writing_plans)} 个阶段）...")
 
-            # 🔥 简化：基于规则的整体评估（不分阶段）
+            # 🔥 使用 PlanQualityAssessor 进行 AI 评估
+            from src.core.PlanQualityAssessor import PlanQualityAssessor
+            
+            # 获取 APIClient
+            api_client = getattr(self.generator, 'api_client', None)
+            if not api_client:
+                print("⚠️ 未找到APIClient，使用基于规则的评估")
+                return self._assess_writing_plan_quality_rule_based()
+            
+            # 创建评估器
+            assessor = PlanQualityAssessor(api_client=api_client)
+            
+            # 🔥 合并所有阶段的计划为一个整体计划进行评估
+            merged_plan = self._merge_stage_plans_for_assessment(stage_writing_plans)
+            
+            # 使用临时文件进行评估（PlanQualityAssessor需要文件路径）
+            import tempfile
+            import json
+            
+            with tempfile.NamedTemporaryFile(mode='w', suffix='.json', delete=False, encoding='utf-8') as f:
+                json.dump(merged_plan, f, ensure_ascii=False, indent=2)
+                temp_path = f.name
+            
+            try:
+                # 执行AI评估
+                result = assessor.assess(Path(temp_path), use_deep_analysis=False)
+                
+                # 转换为字典格式
+                assessment_dict = {
+                    "overall_score": result.overall_score,
+                    "readiness": result.readiness,
+                    "strengths": result.strengths,
+                    "issues": [
+                        {
+                            "category": issue.category,
+                            "severity": issue.severity.value,
+                            "location": issue.location,
+                            "description": issue.description,
+                            "suggestion": issue.suggestion,
+                            "auto_fixable": issue.auto_fixable
+                        }
+                        for issue in result.issues
+                    ],
+                    "summary": result.summary,
+                    "assessment_time": datetime.now().isoformat(),
+                    "is_ai_assessment": True
+                }
+                
+                print(f"✅ AI质量评估完成: {assessment_dict['overall_score']}分 ({assessment_dict['readiness']})")
+                return assessment_dict
+                
+            finally:
+                # 清理临时文件
+                try:
+                    os.unlink(temp_path)
+                except:
+                    pass
+
+        except Exception as e:
+            print(f"⚠️ AI质量评估失败: {e}，降级到规则评估")
+            import traceback
+            traceback.print_exc()
+            return self._assess_writing_plan_quality_rule_based()
+    
+    def _merge_stage_plans_for_assessment(self, stage_writing_plans: Dict) -> Dict:
+        """合并所有阶段的计划为一个整体计划用于评估"""
+        merged = {
+            "novel_title": self.generator.novel_data.get("novel_title", "未命名"),
+            "total_stages": len(stage_writing_plans),
+            "stages": []
+        }
+        
+        for stage_name, plan in stage_writing_plans.items():
+            if not isinstance(plan, dict):
+                continue
+            
+            stage_info = {
+                "stage_name": stage_name,
+                "chapter_range": plan.get("chapter_range", ""),
+                "stage_overview": plan.get("stage_overview", ""),
+                "major_events": []
+            }
+            
+            # 提取重大事件
+            event_system = plan.get("event_system", {})
+            major_events = event_system.get("major_events", [])
+            
+            for major in major_events:
+                event_info = {
+                    "name": major.get("name", ""),
+                    "main_goal": major.get("main_goal", ""),
+                    "chapter_range": major.get("chapter_range", ""),
+                    "core_conflict": major.get("core_conflict", ""),
+                    "emotional_arc": major.get("emotional_arc_summary", ""),
+                    "medium_events": []
+                }
+                
+                # 提取中级事件
+                composition = major.get("composition", {})
+                for phase, events in composition.items():
+                    if isinstance(events, list):
+                        for event in events:
+                            if isinstance(event, dict):
+                                event_info["medium_events"].append({
+                                    "name": event.get("name", ""),
+                                    "chapter_range": event.get("chapter_range", ""),
+                                    "role": event.get("role", "")
+                                })
+                
+                stage_info["major_events"].append(event_info)
+            
+            merged["stages"].append(stage_info)
+        
+        return merged
+    
+    def _assess_writing_plan_quality_rule_based(self) -> Optional[Dict]:
+        """基于规则的评估（降级方案）"""
+        try:
+            stage_writing_plans = self.generator.novel_data.get("stage_writing_plans", {})
+            if not stage_writing_plans:
+                return None
+
             # 统计各阶段的关键指标
             total_major_events = 0
             total_medium_events = 0
-            total_chapters = 0
-            stage_summaries = []
             
-            for stage_name, plan in stage_writing_plans.items():
+            for plan in stage_writing_plans.values():
                 if not isinstance(plan, dict):
                     continue
-                    
-                # 获取阶段范围
-                chapter_range = plan.get("chapter_range", "")
-                if chapter_range:
-                    try:
-                        parts = chapter_range.replace("章", "").split("-")
-                        if len(parts) == 2:
-                            stage_chapters = int(parts[1]) - int(parts[0]) + 1
-                            total_chapters += stage_chapters
-                    except:
-                        pass
-                
-                # 统计事件数量
                 event_system = plan.get("event_system", {})
                 major_events = event_system.get("major_events", [])
                 total_major_events += len(major_events)
                 
                 for major in major_events:
                     composition = major.get("composition", {})
-                    for phase, events in composition.items():
+                    for events in composition.values():
                         if isinstance(events, list):
                             total_medium_events += len(events)
-                
-                # 阶段摘要
-                stage_overview = plan.get("stage_overview", "")
-                stage_summaries.append(f"{stage_name}: {stage_overview[:50]}...")
             
             # 基于统计指标进行评分
-            score = 70  # 基础分
+            score = 70
             issues = []
             strengths = []
             
-            # 评估标准
             if total_major_events >= 4:
                 score += 10
                 strengths.append(f"重大事件数量充足（{total_major_events}个）")
@@ -2588,25 +2684,10 @@ class PhaseGenerator:
                     "category": "structure",
                     "severity": "medium",
                     "location": "overall",
-                    "description": f"重大事件数量偏少（{total_major_events}个），建议增加关键剧情节点",
-                    "suggestion": "考虑在关键转折点增加重大事件",
-                    "auto_fixable": False
+                    "description": f"重大事件数量偏少（{total_major_events}个）",
+                    "suggestion": "考虑增加关键剧情节点"
                 })
             
-            if total_medium_events >= 10:
-                score += 10
-                strengths.append(f"中型事件覆盖全面（{total_medium_events}个）")
-            else:
-                issues.append({
-                    "category": "pacing",
-                    "severity": "low",
-                    "location": "overall",
-                    "description": f"中型事件数量（{total_medium_events}个）可以进一步优化",
-                    "suggestion": "增加过渡性事件丰富剧情",
-                    "auto_fixable": False
-                })
-            
-            # 准备状态
             if score >= 80:
                 readiness = "ready"
             elif score >= 60:
@@ -2614,27 +2695,18 @@ class PhaseGenerator:
             else:
                 readiness = "needs_revision"
             
-            # 构建评估结果
-            result = {
+            return {
                 "overall_score": min(100, max(0, score)),
                 "readiness": readiness,
                 "strengths": strengths,
                 "issues": issues,
-                "summary": f"写作计划整体质量良好，包含{len(stage_writing_plans)}个阶段，{total_major_events}个重大事件，{total_medium_events}个中型事件，覆盖{total_chapters}章。",
-                "plan_stats": {
-                    "total_stages": len(stage_writing_plans),
-                    "total_major_events": total_major_events,
-                    "total_medium_events": total_medium_events,
-                    "total_chapters": total_chapters
-                },
-                "assessment_time": datetime.now().isoformat()
+                "summary": f"基于规则的评估：包含{len(stage_writing_plans)}个阶段，{total_major_events}个重大事件。",
+                "is_ai_assessment": False
             }
-            
-            print(f"✅ 写作计划评估完成: {result['overall_score']}分 ({readiness})")
-            return result
 
         except Exception as e:
-            print(f"❌ 写作计划评估失败: {e}")
+            print(f"❌ 规则评估失败: {e}")
+            return None
             import traceback
             traceback.print_exc()
             return None

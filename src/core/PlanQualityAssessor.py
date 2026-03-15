@@ -175,7 +175,12 @@ class PlanQualityAssessor:
         支持的结构：
         1. 直接包含 major_events 的结构
         2. stage_writing_plan 嵌套结构
+        3. 多阶段合并结构（包含 stages 数组）
         """
+        # 🔥 处理多阶段合并结构
+        if "stages" in plan:
+            return self._extract_summary_from_merged_plan(plan)
+        
         # 处理嵌套结构
         if "stage_writing_plan" in plan:
             inner_plan = plan["stage_writing_plan"]
@@ -253,6 +258,69 @@ class PlanQualityAssessor:
         if continuity_score:
             summary["continuity_score"] = continuity_score
 
+        return summary
+
+    def _extract_summary_from_merged_plan(self, plan: Dict) -> Dict:
+        """从合并后的多阶段计划中提取摘要"""
+        stages = plan.get("stages", [])
+        novel_title = plan.get("novel_title", "")
+        
+        # 合并所有阶段的重大事件
+        all_major_events = []
+        total_chapters = 0
+        
+        for stage in stages:
+            stage_name = stage.get("stage_name", "unknown")
+            chapter_range = stage.get("chapter_range", "")
+            
+            # 统计章节数
+            if chapter_range:
+                try:
+                    parts = chapter_range.replace("章", "").split("-")
+                    if len(parts) == 2:
+                        stage_chapters = int(parts[1]) - int(parts[0]) + 1
+                        total_chapters += stage_chapters
+                except:
+                    pass
+            
+            # 处理重大事件
+            for me in stage.get("major_events", []):
+                me_summary = {
+                    "id": f"{stage_name}_{me.get('name', '')}",
+                    "name": f"[{stage_name}] {me.get('name', '')}",
+                    "chapter_range": me.get("chapter_range", ""),
+                    "core_conflict": me.get("core_conflict", ""),
+                    "emotional_arc": "",
+                    "expectation_tags": [],
+                    "medium_events": []
+                }
+                
+                # 处理中级事件
+                for idx, med in enumerate(me.get("medium_events", [])):
+                    med_summary = {
+                        "index": idx,
+                        "name": med.get("name", ""),
+                        "chapter_range": med.get("chapter_range", ""),
+                        "role": med.get("role", ""),
+                        "emotional_tone": "",
+                        "key_twists": []
+                    }
+                    me_summary["medium_events"].append(med_summary)
+                
+                all_major_events.append(me_summary)
+        
+        summary = {
+            "meta": {
+                "novel_title": novel_title,
+                "stage": f"全阶段({len(stages)}个)",
+                "chapter_range": f"1-{total_chapters}",
+                "total_chapters": total_chapters,
+                "creation_date": "",
+                "total_stages": len(stages)
+            },
+            "major_events": all_major_events
+        }
+        
         return summary
 
     def _parse_chapter_count(self, chapter_range: str) -> int:
