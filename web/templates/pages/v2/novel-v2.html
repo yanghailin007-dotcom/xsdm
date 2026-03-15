@@ -1335,9 +1335,12 @@ function getNovelTitle() {
     return urlParams.get('title') || '';
 }
 
-// 字体大小调整
-let currentFontSize = 18;
+// 字体大小调整（使用 novel_view.js 中已定义的 currentFontSize）
 function adjustFontSize(delta) {
+    // 使用全局的 currentFontSize 变量（已在 novel_view.js 中定义）
+    if (typeof currentFontSize === 'undefined') {
+        window.currentFontSize = 18;
+    }
     currentFontSize = Math.max(14, Math.min(24, currentFontSize + delta));
     const display = document.getElementById('font-size-display');
     const content = document.getElementById('chapter-content');

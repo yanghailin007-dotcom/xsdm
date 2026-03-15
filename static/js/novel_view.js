@@ -2826,6 +2826,8 @@ function displayCurrentChapterPage() {
     
     if (!currentPageData) return;
     
+    console.log('显示当前页章节:', currentPageData);
+    
     listContainer.innerHTML = currentPageData.map(chapter => `
         <div class="chapter-item ${chapter.chapter_number === currentChapter ? 'active' : ''}"
              onclick="loadChapter('${(currentNovelTitle || '').replace(/'/g, "\\'")}', ${chapter.chapter_number})"
