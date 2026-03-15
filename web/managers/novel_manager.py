@@ -1337,10 +1337,14 @@ class NovelGenerationManager:
             try:
                 from src.config.path_config import path_config
                 username = novel_data.get('owner')
+                logger.info(f"[DEBUG] 加载 global_growth_plan - 用户名: {username}, 小说: {title}")
                 if username:
                     paths = path_config.get_project_paths(title, username=username)
                     growth_plan_path_str = paths.get("global_growth_plan", "")
+                    logger.info(f"[DEBUG] 路径配置: {paths}")
+                    logger.info(f"[DEBUG] global_growth_plan 路径: {growth_plan_path_str}")
                     growth_plan_path = Path(growth_plan_path_str)
+                    logger.info(f"[DEBUG] 是否是绝对路径: {growth_plan_path.is_absolute()}")
                     if growth_plan_path.exists():
                         with open(growth_plan_path, 'r', encoding='utf-8') as f:
                             growth_plan_data = json.load(f)
@@ -1350,6 +1354,8 @@ class NovelGenerationManager:
                             logger.info(f"✅ 从文件加载 global_growth_plan: {growth_plan_path}")
                         else:
                             logger.warning(f"⚠️ 成长路线文件内容为空: {growth_plan_path}")
+                    else:
+                        logger.info(f"[DEBUG] 文件不存在: {growth_plan_path}")
             except Exception as e:
                 logger.warning(f"⚠️ 从文件加载 global_growth_plan 失败: {e}")
                 import traceback
