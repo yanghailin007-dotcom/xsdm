@@ -2598,7 +2598,11 @@ class PhaseGenerator:
             merged_plan = self._merge_stage_plans_for_assessment(stage_writing_plans)
             
             # 🔥 修复：直接使用内存数据评估，不创建临时文件
-            project_dir = Path(self.novel_dir)
+            # 获取项目目录
+            from src.config.path_config import path_config
+            username = getattr(self.generator, '_username', None)
+            paths = path_config.get_project_paths(self.generator.novel_data["novel_title"], username=username)
+            project_dir = Path(paths['project_root'])
             project_dir.mkdir(parents=True, exist_ok=True)
             
             # 设置报告保存路径为项目目录下的标准文件名
