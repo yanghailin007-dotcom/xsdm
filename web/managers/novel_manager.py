@@ -1403,13 +1403,10 @@ class NovelGenerationManager:
             try:
                 from src.config.path_config import path_config
                 username = novel_data.get('owner')
-                logger.info(f"[DEBUG] global_growth_plan: username={username}, title={title}")
                 if username:
                     paths = path_config.get_project_paths(title, username=username)
                     growth_plan_path_str = paths.get("global_growth_plan", "")
-                    logger.info(f"[DEBUG] global_growth_plan path_str={growth_plan_path_str}")
                     growth_plan_path = Path(growth_plan_path_str)
-                    logger.info(f"[DEBUG] global_growth_plan path={growth_plan_path}, exists={growth_plan_path.exists()}")
                     if growth_plan_path.exists():
                         with open(growth_plan_path, 'r', encoding='utf-8') as f:
                             growth_plan_data = json.load(f)
@@ -1425,8 +1422,6 @@ class NovelGenerationManager:
                             logger.warning(f"⚠️ 成长路线文件内容为空: {growth_plan_path}")
             except Exception as e:
                 logger.warning(f"⚠️ 从文件加载 global_growth_plan 失败: {e}")
-                import traceback
-                logger.warning(f"详细错误: {traceback.format_exc()}")
             
             # 如果仍然不存在，创建基础结构
             if "global_growth_plan" not in standardized_data or not standardized_data.get("global_growth_plan", {}):

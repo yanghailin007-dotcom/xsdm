@@ -231,18 +231,13 @@ class ProductLoader:
         
         # 🔥 用户隔离：使用新的路径查找方法
         username = get_current_username()
-        self.logger.info(f"[ProductLoader] 当前用户名: {username}, 项目标题: {title}")
-        
         found_path = find_novel_project(self.original_title, username)
-        self.logger.info(f"[ProductLoader] 查找结果: {found_path}")
         
         if found_path:
             self.project_dir = found_path
         else:
             # 默认使用用户目录下的路径（用于新建项目）
             self.project_dir = get_novel_project_dir(self.original_title, username, create=False)
-        
-        self.logger.info(f"[ProductLoader] 项目目录: {self.project_dir}, 是否存在: {self.project_dir.exists()}")
         
         # 项目目录不存在时的兼容处理
         if not self.project_dir.exists():
@@ -361,10 +356,7 @@ class ProductLoader:
             self._load_worldview(products)
         
         if not products['characters']['complete']:
-            self.logger.info(f"[_load_from_standard_structure] 调用 _load_characters")
             self._load_characters(products)
-        else:
-            self.logger.info(f"[_load_from_standard_structure] 跳过 _load_characters，因为已完成")
         
         if not products['growth']['complete']:
             self._load_growth_plan(products)
@@ -393,32 +385,26 @@ class ProductLoader:
                     products['worldview']['content'] = json.dumps(data, ensure_ascii=False, indent=2)
                     products['worldview']['complete'] = True
                     products['worldview']['file_path'] = str(worldview_files[0])
-                    self.logger.info(f"已加载产物: worldview (从 {worldview_files[0].name})")
+                    self.logger.info(f"已加载产物: worldview")
                 except Exception as e:
                     self.logger.error(f"加载worldview失败: {e}")
     
     def _load_characters(self, products):
         characters_dir = self.project_dir / "characters"
-        self.logger.info(f"[_load_characters] 目录: {characters_dir}, 存在: {characters_dir.exists()}")
         if not characters_dir.exists():
-            self.logger.info(f"[_load_characters] 目录不存在，跳过")
             return
         
         character_files = list(characters_dir.glob("*.json"))
-        self.logger.info(f"[_load_characters] 找到 {len(character_files)} 个JSON文件")
         if character_files:
             try:
-                self.logger.info(f"[_load_characters] 尝试加载: {character_files[0]}")
                 with open(character_files[0], 'r', encoding='utf-8') as f:
                     data = json.load(f)
                 products['characters']['content'] = json.dumps(data, ensure_ascii=False, indent=2)
                 products['characters']['complete'] = True
                 products['characters']['file_path'] = str(character_files[0])
-                self.logger.info(f"已加载产物: characters (从 {character_files[0].name})")
+                self.logger.info(f"已加载产物: characters")
             except Exception as e:
                 self.logger.error(f"加载characters失败: {e}")
-        else:
-            self.logger.info(f"[_load_characters] 目录中没有JSON文件")
     
     def _load_writing_plans(self, products):
         # 首先尝试从 plans 目录加载所有阶段的写作计划
@@ -503,7 +489,7 @@ class ProductLoader:
                         products['writing']['content'] = json.dumps(data, ensure_ascii=False, indent=2)
                         products['writing']['complete'] = True
                         products['writing']['file_path'] = str(matching_files[0])
-                        self.logger.info(f"已加载产物: writing (从 {matching_files[0].name})")
+                        self.logger.info(f"已加载产物: writing")
                         return
                     except Exception as e:
                         self.logger.error(f"加载writing计划失败: {e}")
@@ -518,14 +504,12 @@ class ProductLoader:
                     products['writing']['content'] = json.dumps(data, ensure_ascii=False, indent=2)
                     products['writing']['complete'] = True
                     products['writing']['file_path'] = str(plan_files[0])
-                    self.logger.info(f"已加载产物: writing (从 {plan_files[0].name})")
+                    self.logger.info(f"已加载产物: writing")
                 except Exception as e:
                     self.logger.error(f"加载writing计划失败: {e}")
     
     def _load_growth_plan(self, products):
         """加载成长路线文件"""
-        self.logger.info(f"[_load_growth_plan] 开始加载成长路线，项目目录: {self.project_dir}")
-        
         # 尝试从 planning 或 materials 目录加载成长路线
         growth_dirs = [
             self.project_dir / "planning",
@@ -533,7 +517,6 @@ class ProductLoader:
         ]
         
         for growth_dir in growth_dirs:
-            self.logger.info(f"[_load_growth_plan] 检查目录: {growth_dir}, 存在: {growth_dir.exists()}")
             if not growth_dir.exists():
                 continue
             
@@ -546,7 +529,6 @@ class ProductLoader:
             
             for pattern in patterns:
                 matching_files = list(growth_dir.glob(pattern))
-                self.logger.info(f"[_load_growth_plan] 模式 '{pattern}' 找到 {len(matching_files)} 个文件")
                 if matching_files:
                     try:
                         with open(matching_files[0], 'r', encoding='utf-8') as f:
@@ -554,12 +536,10 @@ class ProductLoader:
                         products['growth']['content'] = json.dumps(data, ensure_ascii=False, indent=2)
                         products['growth']['complete'] = True
                         products['growth']['file_path'] = str(matching_files[0])
-                        self.logger.info(f"已加载产物: growth (从 {matching_files[0].name})")
+                        self.logger.info(f"已加载产物: growth")
                         return
                     except Exception as e:
                         self.logger.error(f"加载growth计划失败: {e}")
-        
-        self.logger.warning(f"[_load_growth_plan] 未找到成长路线文件")
     
     def _load_market_analysis(self, products):
         market_dirs = [
@@ -577,7 +557,7 @@ class ProductLoader:
                         products['market']['content'] = json.dumps(data, ensure_ascii=False, indent=2)
                         products['market']['complete'] = True
                         products['market']['file_path'] = str(market_files[0])
-                        self.logger.info(f"已加载产物: market (从 {market_files[0].name})")
+                        self.logger.info(f"已加载产物: market")
                         return
                     except Exception as e:
                         self.logger.error(f"加载market分析失败: {e}")
@@ -901,7 +881,7 @@ class ProductLoader:
                                         products[category]['content'] = json.dumps(storyline_data, ensure_ascii=False, indent=2)
                                         products[category]['complete'] = True
                                         products[category]['file_path'] = str(plans_dir)
-                                        self.logger.info(f"已加载产物(旧格式): {category} (从 {len(stage_info)} 个阶段提取)")
+                                        # 已加载产物（旧格式）
                                         continue
                                 except Exception as e:
                                     self.logger.info(f"从 plans 目录提取storyline失败: {e}")
@@ -969,7 +949,7 @@ class ProductLoader:
                                         products[category]['content'] = json.dumps(storyline_data, ensure_ascii=False, indent=2)
                                         products[category]['complete'] = True
                                         products[category]['file_path'] = str(writing_file)
-                                        self.logger.info(f"已加载产物(旧格式): {category} (从 {len(stage_info)} 个阶段提取)")
+                                        # 已加载产物（旧格式）
                                         continue
                                 except Exception as e:
                                     self.logger.info(f"从写作计划提取storyline失败: {e}")
@@ -978,12 +958,12 @@ class ProductLoader:
                             products[category]['content'] = json.dumps(content, ensure_ascii=False, indent=2)
                             products[category]['complete'] = True
                             products[category]['file_path'] = str(file_path)
-                            self.logger.info(f"已加载产物(旧格式): {category} (从阶段计划)")
+                            # 已加载产物（旧格式）
                         else:
                             products[category]['content'] = json.dumps(content, ensure_ascii=False, indent=2)
                             products[category]['complete'] = True
                             products[category]['file_path'] = str(file_path)
-                            self.logger.info(f"已加载产物(旧格式): {category}")
+                            # 已加载产物（旧格式）
                     else:
                         products[category]['content'] = json.dumps(content, ensure_ascii=False, indent=2)
                         products[category]['complete'] = True
@@ -1529,12 +1509,7 @@ def register_additional_routes(app):
                 completed_count = sum(1 for p in products.values() if p['complete'])
                 total_count = len(products)
                 
-                logger.info(f"📊 项目 {project_title}: ProductLoader检测到 {completed_count}/{total_count} 个产物已完成")
-                
-                # 详细日志：显示每个产物的状态
-                for category, product in products.items():
-                    status = "✅" if product['complete'] else "❌"
-                    logger.info(f"  {status} {category}")
+                logger.info(f"📊 项目 {project_title}: 产物加载完成 {completed_count}/{total_count}")
                 
                 # 🔥 新的判断标准：使用与前端完全一致的标准
                 # 必须完成所有7个产物（世界观、势力、角色、成长、写作、故事线、市场分析）
@@ -1878,12 +1853,7 @@ def register_additional_routes(app):
             completed_count = sum(1 for p in products.values() if p['complete'])
             total_count = len(products)
             
-            logger.info(f"📊 项目 {title}: ProductLoader检测到 {completed_count}/{total_count} 个产物已完成")
-            
-            # 详细日志：显示每个产物的状态
-            for category, product in products.items():
-                status = "✅" if product['complete'] else "❌"
-                logger.info(f"  {status} {category}")
+            logger.info(f"📊 项目 {title}: 产物加载完成 {completed_count}/{total_count}")
             
             # 🔥 新的判断标准：必须完成所有7个产物
             required_categories = ['worldview', 'factions', 'characters', 'growth', 'writing', 'storyline', 'market']
