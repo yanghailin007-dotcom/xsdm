@@ -506,8 +506,25 @@ class ProjectManager:
             growth_plan_manager.save_stage_writing_plans(novel_title, stage_plans, username=username, project_dir=project_dir)
             self.logger.info(f"✅ 写作计划已保存到独立文件")
         
-        # 获取路径配置（传递用户名）
+        # 获取路径配置（传递用户名）- 🔥 修复：提前导入 path_config
+        from src.config.path_config import path_config
         paths = path_config.get_project_paths(novel_title, username=username)
+        
+        # 🔥 新增：保存质量评估报告到独立文件
+        quality_assessment = novel_data.get("quality_assessment", {})
+        if quality_assessment:
+            try:
+                from pathlib import Path
+                
+                quality_report_path = Path(paths["project_dir"]) / "quality_assessment.json"
+                
+                # 保存质量评估报告
+                with open(quality_report_path, 'w', encoding='utf-8') as f:
+                    json.dump(quality_assessment, f, ensure_ascii=False, indent=2)
+                
+                self.logger.info(f"✅ 质量评估报告已保存到独立文件: {quality_report_path}")
+            except Exception as e:
+                self.logger.warning(f"⚠️ 保存质量评估报告失败: {e}")
         
         # 构建完整的项目数据（不包含成长路线和写作计划,因为已保存到独立文件）
         # 预编译正则表达式避免f-string中的反斜杠问题

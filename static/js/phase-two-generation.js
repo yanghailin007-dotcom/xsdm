@@ -1811,35 +1811,67 @@ function createProductEditDrawer(category, productData) {
     console.log(`[DEBUG] productData:`, productData);
     console.log(`[DEBUG] currentProject.character_design:`, currentProject?.character_design);
     
-    // 对于角色设计，优先从 currentProject 获取数据
-    if (isCharacters && currentProject?.character_design) {
-        productData = {
-            title: '角色设计',
-            content: typeof currentProject.character_design === 'string' 
-                ? currentProject.character_design 
-                : JSON.stringify(currentProject.character_design, null, 2)
+    // 对于角色设计，优先从 currentProject 获取数据，其次从 phaseOneProductsData
+    if (isCharacters) {
+        let characterSource = currentProject?.character_design;
+        let sourceName = 'currentProject.character_design';
+        
+        // 🔥 修复：检查对象是否为空（空对象 {} 也是 truthy）
+        const isEmptyObject = (obj) => {
+            if (!obj) return true;
+            if (typeof obj !== 'object') return false;
+            return Object.keys(obj).length === 0;
         };
-        console.log(`[DEBUG] 使用 currentProject 角色数据:`, productData);
+        
+        // 如果 currentProject 没有有效数据（null, undefined, 或空对象），尝试从 phaseOneProductsData 获取
+        if ((!characterSource || isEmptyObject(characterSource)) && phaseOneProductsData?.characters?.content) {
+            characterSource = phaseOneProductsData.characters.content;
+            sourceName = 'phaseOneProductsData.characters.content';
+            console.log(`[DEBUG] 使用 phaseOneProductsData 角色数据`);
+        }
+        
+        if (characterSource && !isEmptyObject(characterSource)) {
+            const contentStr = typeof characterSource === 'string' 
+                ? characterSource 
+                : JSON.stringify(characterSource, null, 2);
+            productData = {
+                title: '角色设计',
+                content: contentStr
+            };
+            console.log(`[DEBUG] 角色设计数据已加载，来源: ${sourceName}, 长度:`, contentStr.length);
+        } else {
+            console.warn(`[DEBUG] 角色设计数据为空`);
+        }
     }
     
     // 对于成长路线，优先从 currentProject 获取数据，其次从 phaseOneProductsData
     if (isGrowth) {
         let growthSource = currentProject?.global_growth_plan || currentProject?.growth;
+        let growthSourceName = 'currentProject.global_growth_plan/growth';
         
-        // 如果 currentProject 没有，尝试从 phaseOneProductsData 获取
-        if (!growthSource && phaseOneProductsData?.growth?.content) {
+        // 🔥 修复：检查对象是否为空
+        const isEmptyObject = (obj) => {
+            if (!obj) return true;
+            if (typeof obj !== 'object') return false;
+            return Object.keys(obj).length === 0;
+        };
+        
+        // 如果 currentProject 没有有效数据，尝试从 phaseOneProductsData 获取
+        if ((!growthSource || isEmptyObject(growthSource)) && phaseOneProductsData?.growth?.content) {
             growthSource = phaseOneProductsData.growth.content;
+            growthSourceName = 'phaseOneProductsData.growth.content';
             console.log(`[DEBUG] 使用 phaseOneProductsData 成长路线数据`);
         }
         
-        if (growthSource) {
+        if (growthSource && !isEmptyObject(growthSource)) {
+            const contentStr = typeof growthSource === 'string' 
+                ? growthSource 
+                : JSON.stringify(growthSource, null, 2);
             productData = {
                 title: '成长路线',
-                content: typeof growthSource === 'string' 
-                    ? growthSource 
-                    : JSON.stringify(growthSource, null, 2)
+                content: contentStr
             };
-            console.log(`[DEBUG] 成长路线数据已加载，长度:`, productData.content?.length || 0);
+            console.log(`[DEBUG] 成长路线数据已加载，来源: ${growthSourceName}, 长度:`, contentStr.length);
         } else {
             console.warn(`[DEBUG] 成长路线数据为空`);
         }
@@ -2202,8 +2234,27 @@ function getGrowthPanels(productData) {
 function parseGrowthData(content) {
     if (!content) return {};
     try {
-        if (typeof content === 'object') return content;
-        return JSON.parse(content);
+        let data = content;
+        if (typeof content === 'string') {
+            data = JSON.parse(content);
+        }
+        
+        // 🔥 修复：数据格式映射
+        // 后端文件格式 -> 前端期望格式
+        const mapped = {
+            // 境界体系：从 power_system_evolution 映射
+            realm_system: data.realm_system || data.power_system_evolution || {},
+            // 成长阶段：从 stage_framework 映射
+            growth_stages: data.growth_stages || data.stage_framework || [],
+            // 能力树：从 character_growth 映射
+            ability_tree: data.ability_tree || data.character_growth || {},
+            // 资源系统：默认空对象
+            resource_system: data.resource_system || {},
+            // 保留原始数据的所有字段
+            ...data
+        };
+        
+        return mapped;
     } catch (e) {
         // 如果不是JSON，返回包含原始内容的文本字段
         return { raw_content: content };

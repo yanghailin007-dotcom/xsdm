@@ -1,0 +1,83 @@
+<!DOCTYPE html><html lang="zh-CN"><head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+    <meta http-equiv="Pragma" content="no-cache">
+    <meta http-equiv="Expires" content="0">
+    <title>登录 - 大文娱创作平台</title>
+    
+    <!-- V2 设计系统 CSS -->
+    <link rel="stylesheet" href="/static/css/v2/design-system.css?v=3">
+    <link rel="stylesheet" href="/static/css/v2/components.css?v=3">
+    <link rel="stylesheet" href="/static/css/v2/layouts.css?v=3">
+    
+    
+<style>
+/* ==================== V2 登录页 - 与主页一致的设计风格 ==================== */
+
+/* 隐藏导航栏和页脚，实现全屏登录 */
+.v2-navbar,
+.v2-footer,
+.v2-version-switcher {
+    display: none !important;
+}
+
+.v2-main {
+    padding: 0 !important;
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--v2-bg-primary);
+}
+
+/* 登录页面容器 - 与主页Hero区域一致 */
+.v2-login-page {
+    width: 100%;
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: var(--v2-space-6);
+    position: relative;
+    overflow: hidden;
+    background: var(--v2-bg-primary);
+}
+
+/* 背景光晕效果 - 与主页一致 */
+.v2-login-page::before {
+    content: '';
+    position: absolute;
+    top: -50%;
+    left: -50%;
+    width: 200%;
+    height: 200%;
+    background: 
+        radial-gradient(circle at 50% 50%, rgba(99, 102, 241, 0.08) 0%, transparent 40%),
+        radial-gradient(circle at 80% 20%, rgba(139, 92, 246, 0.05) 0%, transparent 30%);
+    pointer-events: none;
+    z-index: 0;
+}
+
+/* 登录容器 */
+.v2-login-container {
+    width: 100%;
+    max-width: 420px;
+    position: relative;
+    z-index: 10;
+    animation: v2-fade-in-up 0.5s ease-out;
+}
+
+@keyframes v2-fade-in-up {
+    from { 
+        opacity: 0;
+        transform: translateY(20px);
+    }
+    to { 
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* 登录卡片 - 与主页卡片一致的风格 */
+.v2-login-card {

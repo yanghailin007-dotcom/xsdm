@@ -80,12 +80,24 @@ class GlobalGrowthPlanner:
 
     def _get_current_stage(self, chapter_number: int) -> Dict:
         """获取当前章节所属的阶段"""
-        if not self.global_growth_plan or "stage_framework" not in self.global_growth_plan:
+        # 兼容新旧字段名: stage_framework (旧) / growth_stages (新)
+        stages_data = None
+        if self.global_growth_plan:
+            if "growth_stages" in self.global_growth_plan:
+                stages_data = self.global_growth_plan["growth_stages"]
+            elif "stage_framework" in self.global_growth_plan:
+                stages_data = self.global_growth_plan["stage_framework"]
+        
+        if not stages_data:
             return {"stage_name": "未知阶段", "chapter_range": "1-100"}
         
-        # [终极修复] stage_framework 是一个字典, 我们需要遍历它的值(values)
-        # 而不是它的键(keys)。
-        for stage in self.global_growth_plan["stage_framework"].values():
+        # 兼容列表或字典格式
+        if isinstance(stages_data, dict):
+            stages_list = list(stages_data.values())
+        else:
+            stages_list = stages_data
+        
+        for stage in stages_list:
             # 经过 .values() 处理后, 'stage' 现在就是我们需要的字典了，
             # 例如: {"stage_name": "起 (开局阶段)", "chapter_range": "1-30章", ...}
             # 因此，不再需要之前的 isinstance 和 json.loads 检查。
@@ -496,8 +508,8 @@ class GlobalGrowthPlanner:
         """打印全局规划摘要"""
         self.logger.info("    📊 全书全局成长规划摘要:")
         
-        # 阶段框架 - 修复：确保返回的是列表，不是None
-        stages = global_plan.get("stage_framework") or []
+        # 阶段框架 - 兼容新旧字段名: stage_framework (旧) / growth_stages (新)
+        stages = global_plan.get("growth_stages") or global_plan.get("stage_framework") or []
         # 如果是字典，转换为列表
         if isinstance(stages, dict):
             stages = list(stages.values())
@@ -566,7 +578,7 @@ class GlobalGrowthPlanner:
 
         return {
             "overview": f"全书{total_chapters}章的“起承转合”四阶段完整成长规划",
-            "stage_framework": [
+            "growth_stages": [
                 {
                     "stage_name": "起 (开局阶段)",
                     "chapter_range": f"1-{b['opening_end']}",
@@ -891,7 +903,14 @@ class GlobalGrowthPlanner:
         if not hasattr(self, 'global_growth_plan') or not self.global_growth_plan:
             return "1-100"
         
-        for stage in self.global_growth_plan.get("stage_framework", []):
+        # 兼容新旧字段名
+        stages_data = self.global_growth_plan.get("growth_stages") or self.global_growth_plan.get("stage_framework", [])
+        if isinstance(stages_data, dict):
+            stages_list = list(stages_data.values())
+        else:
+            stages_list = stages_data
+        
+        for stage in stages_list:
             if stage.get("stage_name") == stage_name:
                 return stage.get("chapter_range", "1-100")
         

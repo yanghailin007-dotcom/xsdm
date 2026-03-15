@@ -99,8 +99,10 @@ def get_resume_info(title):
             # 检查项目目录和文件状态，提供更详细的信息
             from src.managers.stage_plan.generation_checkpoint import GenerationCheckpoint
             from pathlib import Path
-             
-            checkpoint_mgr = GenerationCheckpoint(title, Path.cwd())
+            
+            # 🔥 修复：使用正确的用户名创建检查点管理器
+            username = session.get('username')
+            checkpoint_mgr = GenerationCheckpoint(title, Path.cwd(), username=username)
              
             response_data = {
                 "success": False,

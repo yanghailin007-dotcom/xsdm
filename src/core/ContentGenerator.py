@@ -3968,6 +3968,13 @@ class ContentGenerator:
                 has_wsg = 'writing_style_guide' in result and isinstance(result['writing_style_guide'], dict)
                 has_ma = 'market_analysis' in result and isinstance(result['market_analysis'], dict)
                 
+                # 🔥 修复：处理AI可能使用的替代字段名
+                # 情况0：AI可能用 market_positioning 代替 market_analysis
+                if 'market_positioning' in result and 'market_analysis' not in result:
+                    self.logger.info(f"  🔧 AI使用了 'market_positioning'，将其重命名为 'market_analysis'")
+                    result['market_analysis'] = result.pop('market_positioning')
+                    has_ma = True
+                
                 if has_wsg and has_ma:
                     self.logger.info(f"  ✅ 合并基础规划生成成功")
                     return result

@@ -91,6 +91,7 @@ function renderNewCreativeLibrary(ideas) {
         
         html += `
             <div class="creative-card" 
+                 data-id="${idea.id}"
                  onclick="selectCreativeForNewUI(${idea.id})"
                  style="background: rgba(255,255,255,0.03); 
                         border: 1px solid rgba(255,255,255,0.08); 
@@ -116,7 +117,7 @@ function renderNewCreativeLibrary(ideas) {
 }
 
 // 新版UI选择创意
-function selectCreativeForNewUI(ideaId) {
+function selectCreativeForNewUI(ideaId, cardElement = null) {
     const idea = loadedCreativeIdeas.find(i => i.id === ideaId);
     if (!idea) return;
     
@@ -130,8 +131,13 @@ function selectCreativeForNewUI(ideaId) {
         card.style.borderColor = 'rgba(255,255,255,0.08)';
         card.style.background = 'rgba(255,255,255,0.03)';
     });
-    event.currentTarget.style.borderColor = 'var(--pt-primary, #6366f1)';
-    event.currentTarget.style.background = 'rgba(99,102,241,0.1)';
+    
+    // 🔥 修复：支持传入 cardElement 或使用 event.currentTarget
+    const targetCard = cardElement || (typeof event !== 'undefined' ? event.currentTarget : null);
+    if (targetCard) {
+        targetCard.style.borderColor = 'var(--pt-primary, #6366f1)';
+        targetCard.style.background = 'rgba(99,102,241,0.1)';
+    }
     
     showStatusMessage(`✅ 已选择: ${idea.raw_data?.novelTitle || `创意 #${idea.id}`}`, 'success');
     
@@ -146,6 +152,66 @@ function selectCreativeForNewUI(ideaId) {
             }
         });
     }
+}
+
+// 🔥 新增：程序化选择创意（用于恢复模式）
+function selectCreativeById(ideaId) {
+    console.log('[selectCreativeById] 开始执行, ideaId:', ideaId, '类型:', typeof ideaId);
+    console.log('[selectCreativeById] loadedCreativeIdeas:', loadedCreativeIdeas);
+    
+    if (!loadedCreativeIdeas || loadedCreativeIdeas.length === 0) {
+        console.warn('[selectCreativeById] 创意库未加载');
+        return false;
+    }
+    
+    // 🔥 修复：支持数字和字符串ID比较
+    const idea = loadedCreativeIdeas.find(i => 
+        i.id == ideaId || i.raw_data?.id == ideaId || i.raw_data?.seedId == ideaId
+    );
+    
+    console.log('[selectCreativeById] 查找结果:', idea);
+    
+    if (!idea) {
+        console.warn('[selectCreativeById] 未找到创意:', ideaId);
+        console.warn('[selectCreativeById] 可用创意:', loadedCreativeIdeas.map(i => ({id: i.id, rawId: i.raw_data?.id, title: i.raw_data?.novelTitle})));
+        return false;
+    }
+    
+    selectedCreativeId = idea.id;
+    
+    // 填充表单
+    fillFormFromIdea(idea);
+    
+    // 🔥 修复：使用 data-id 属性查找卡片
+    const selector = `.creative-card[data-id="${idea.id}"]`;
+    console.log('[selectCreativeById] 选择器:', selector);
+    
+    const targetCard = document.querySelector(selector);
+    console.log('[selectCreativeById] 找到的卡片:', targetCard);
+    
+    // 重置所有卡片样式
+    const allCards = document.querySelectorAll('.creative-card');
+    console.log('[selectCreativeById] 总卡片数:', allCards.length);
+    
+    allCards.forEach(card => {
+        card.style.borderColor = 'rgba(255,255,255,0.08)';
+        card.style.background = 'rgba(255,255,255,0.03)';
+    });
+    
+    // 高亮目标卡片
+    if (targetCard) {
+        targetCard.style.borderColor = 'var(--pt-primary, #6366f1)';
+        targetCard.style.background = 'rgba(99,102,241,0.1)';
+        console.log(`[selectCreativeById] ✅ 已高亮卡片: data-id=${idea.id}`);
+    } else {
+        console.warn('[selectCreativeById] ❌ 未找到对应卡片元素:', idea.id);
+        // 列出所有卡片的data-id
+        const allDataIds = Array.from(allCards).map(c => c.getAttribute('data-id'));
+        console.log('[selectCreativeById] 可用data-id:', allDataIds);
+    }
+    
+    console.log(`[selectCreativeById] ✅ 已程序化选中创意: ${idea.raw_data?.novelTitle || `创意 #${idea.id}`}`);
+    return true;
 }
 
 // 从创意填充表单

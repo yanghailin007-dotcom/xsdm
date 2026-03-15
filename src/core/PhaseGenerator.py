@@ -2665,6 +2665,74 @@ class PhaseGenerator:
     
     def _merge_stage_plans_for_assessment(self, stage_writing_plans: Dict) -> Dict:
         """合并所有阶段的计划为一个整体计划用于评估"""
+        # 直接从写作计划文件读取完整数据
+        try:
+            username = self.generator.username
+            novel_title = self.generator.novel_title
+            planning_file = os.path.join(
+                "小说项目", username, novel_title, "planning", 
+                f"{novel_title}_写作计划.json"
+            )
+            
+            if os.path.exists(planning_file):
+                with open(planning_file, 'r', encoding='utf-8') as f:
+                    file_data = json.load(f)
+                
+                merged = {
+                    "novel_title": novel_title,
+                    "total_stages": len(file_data),
+                    "stages": []
+                }
+                
+                for stage_name, stage_wrapper in file_data.items():
+                    if not isinstance(stage_wrapper, dict):
+                        continue
+                    
+                    # 获取 stage_writing_plan 内的实际数据
+                    plan = stage_wrapper.get("stage_writing_plan", {})
+                    
+                    stage_info = {
+                        "stage_name": stage_name,
+                        "chapter_range": plan.get("chapter_range", ""),
+                        "stage_overview": plan.get("stage_overview", ""),
+                        "major_events": []
+                    }
+                    
+                    # 提取重大事件
+                    event_system = plan.get("event_system", {})
+                    major_events = event_system.get("major_events", [])
+                    
+                    for major in major_events:
+                        event_info = {
+                            "name": major.get("name", ""),
+                            "main_goal": major.get("main_goal", ""),
+                            "chapter_range": major.get("chapter_range", ""),
+                            "core_conflict": major.get("core_conflict", ""),
+                            "emotional_arc": major.get("emotional_arc_summary", ""),
+                            "medium_events": []
+                        }
+                        
+                        # 提取中级事件
+                        composition = major.get("composition", {})
+                        for phase, events in composition.items():
+                            if isinstance(events, list):
+                                for event in events:
+                                    if isinstance(event, dict):
+                                        event_info["medium_events"].append({
+                                            "name": event.get("name", ""),
+                                            "chapter_range": event.get("chapter_range", ""),
+                                            "role": event.get("role", "")
+                                        })
+                        
+                        stage_info["major_events"].append(event_info)
+                    
+                    merged["stages"].append(stage_info)
+                
+                return merged
+        except Exception as e:
+            print(f"⚠️ 从文件读取写作计划失败: {e}，尝试使用内存数据")
+        
+        # 降级方案：使用传入的内存数据
         merged = {
             "novel_title": self.generator.novel_data.get("novel_title", "未命名"),
             "total_stages": len(stage_writing_plans),

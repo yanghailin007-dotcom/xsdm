@@ -17,43 +17,46 @@ class GenerationCheckpoint:
     PHASES = {
         'phase_one': {
             'name': '第一阶段设定生成',
-            # 🔥 修复：与 PhaseGenerator 的 step_progress_map 严格对齐（13个步骤）
-            # emotional_blueprint 和 growth_plan 合并为 emotional_growth_planning
+            # 🔥 修复：与 novel_manager 的14个标准步骤严格对齐
             'steps': [
-                'initialization',           # 0% 初始化
-                'writing_style',            # 8% 写作风格指南生成
-                'market_analysis',          # 15% 市场分析
-                'worldview',                # 23% 核心世界观构建
-                'faction_system',           # 31% 势力系统设计
-                'character_design',         # 38% 角色设计
-                'emotional_growth_planning', # 46% 情感蓝图与全局成长规划（合并）
-                'stage_plan',               # 62% 分阶段大纲
-                'detailed_stage_plans',     # 69% 详细阶段计划
-                'expectation_mapping',      # 77% 期待感地图
-                'system_init',              # 85% 系统初始化
-                'saving',                   # 92% 保存结果
-                'quality_assessment'        # 100% 质量评估
+                'creative_refinement',      # 0. 创意精炼
+                'fanfiction_detection',     # 1. 同人检测
+                'multiple_plans',           # 2. 生成多个方案
+                'plan_selection',           # 3. 选择最佳方案
+                'foundation_planning',      # 4. 基础规划（写作风格+市场分析）
+                'worldview_with_factions',  # 5. 世界观与势力系统
+                'character_design',         # 6. 核心角色设计
+                'emotional_growth_planning', # 7. 情绪蓝图与成长规划
+                'stage_plan',               # 8. 全书阶段计划
+                'detailed_stage_plans',     # 9. 阶段详细计划
+                'expectation_mapping',      # 10. 期待感映射
+                'system_init',              # 11. 系统初始化
+                'saving',                   # 12. 保存设定结果
+                'quality_assessment'        # 13. AI质量评估
             ],
-            # 🔥 新增：子步骤定义（用于详细UI显示）- 基于实际日志分析
+            # 🔥 新增：子步骤定义（用于详细UI显示）- 与14个标准步骤对齐
             'sub_steps': {
-                'initialization': [
-                    ('creative_refinement', '创意精炼为AI指令'),
-                    ('fanfiction_detection', '同人小说检测')
+                'creative_refinement': [
+                    ('parse_creative_seed', '解析创意种子'),
+                    ('refine_prompt', '精炼为AI指令')
                 ],
-                'writing_style': [
-                    ('style_guide_generation', '生成写作风格指南')
+                'fanfiction_detection': [
+                    ('detect_fanfiction', '同人小说检测'),
+                    ('originality_check', '原创性检查')
                 ],
-                'market_analysis': [
-                    ('market_analysis', '市场分析与卖点提炼'),
-                    ('market_quality_assessment', '市场分析质量评估'),
-                    ('market_freshness_assessment', '市场分析新鲜度评估')
+                'multiple_plans': [
+                    ('generate_variants', '生成多个创意方案')
                 ],
-                'worldview': [
-                    ('core_worldview', '核心世界观构建'),
-                    ('worldview_quality_assessment', '世界观质量评估'),
-                    ('worldview_freshness_assessment', '世界观新鲜度评估')
+                'plan_selection': [
+                    ('evaluate_plans', '评估方案质量'),
+                    ('select_best', '选择最佳方案')
                 ],
-                'faction_system': [
+                'foundation_planning': [
+                    ('writing_style', '写作风格指南'),
+                    ('market_analysis', '市场分析与卖点提炼')
+                ],
+                'worldview_with_factions': [
+                    ('worldview', '核心世界观构建'),
                     ('faction_system', '势力/阵营系统构建')
                 ],
                 'character_design': [
@@ -212,15 +215,26 @@ class GenerationCheckpoint:
                 except Exception as e:
                     self.logger.warning(f"备份旧检查点失败: {e}")
             
-            # 原子写入新检查点
+            # 原子写入新检查点（带重试机制）
             temp_file = self.checkpoint_file.with_suffix('.tmp')
             self.logger.debug(f"临时文件: {temp_file}")
             
             with open(temp_file, 'w', encoding='utf-8') as f:
                 json.dump(checkpoint_data, f, ensure_ascii=False, indent=2)
             
-            # 原子替换
-            temp_file.replace(self.checkpoint_file)
+            # 🔥 修复：添加重试机制处理 Windows 文件锁
+            import time
+            max_retries = 3
+            for attempt in range(max_retries):
+                try:
+                    temp_file.replace(self.checkpoint_file)
+                    break
+                except PermissionError as pe:
+                    if attempt < max_retries - 1:
+                        self.logger.warning(f"⚠️ 文件被占用，等待重试 ({attempt+1}/{max_retries}): {pe}")
+                        time.sleep(0.1 * (attempt + 1))  # 递增延迟
+                    else:
+                        raise
             
             # 验证文件创建成功
             if not self.checkpoint_file.exists():

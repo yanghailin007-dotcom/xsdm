@@ -104,21 +104,28 @@ class ResumeManager:
             # 恢复novel_data
             saved_data = checkpoint_data.get('data', {})
             if saved_data:
-                # 恢复novel_data中的关键数据
-                for key in ['novel_title', 'novel_synopsis', 'category', 'selected_plan',
-                           'creative_seed', 'core_worldview', 'character_design',
-                           'faction_system', 'market_analysis', 'writing_style_guide',
-                           'global_growth_plan', 'overall_stage_plans', 'stage_writing_plans',
-                           # 元素时机规划已移除，由期待感系统管理
-                           'emotional_blueprint']:
-                    if key in saved_data:
-                        self.generator.novel_data[key] = saved_data[key]
+                # 🔥 修复：优先从新的 novel_data_snapshot 格式恢复完整数据
+                novel_data_snapshot = saved_data.get('novel_data_snapshot')
+                if novel_data_snapshot:
+                    print(f"🔄 从完整数据快照恢复 {len(novel_data_snapshot)} 个数据项")
+                    for key, value in novel_data_snapshot.items():
+                        self.generator.novel_data[key] = value
+                else:
+                    # 兼容旧格式：从检查点直接恢复关键数据
+                    print("🔄 从旧格式检查点恢复数据")
+                    for key in ['novel_title', 'novel_synopsis', 'category', 'selected_plan',
+                               'creative_seed', 'core_worldview', 'character_design',
+                               'faction_system', 'market_analysis', 'writing_style_guide',
+                               'global_growth_plan', 'overall_stage_plans', 'stage_writing_plans',
+                               'emotional_blueprint']:
+                        if key in saved_data:
+                            self.generator.novel_data[key] = saved_data[key]
                 
                 # 恢复current_progress
                 if 'current_progress' in saved_data:
                     self.generator.novel_data.setdefault('current_progress', {}).update(saved_data['current_progress'])
                 
-                print(f"✅ 已从检查点恢复 {len(saved_data)} 个数据项")
+                print(f"✅ 已从检查点恢复数据，当前步骤: {current_step}")
                 
                 # 验证是否有必要的字段来继续
                 # 如果在需要这些字段的步骤，检查它们是否存在

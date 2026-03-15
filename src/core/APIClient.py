@@ -315,6 +315,10 @@ class APIClient:
         if endpoint:
             config = endpoint.get_config()
             model_name = config["model"]
+            # 🔥 新增：质量评估类任务优先使用端点的 assessment 配置
+            if content_type and "assessment" in content_type and "assessment" in config:
+                model_name = config["assessment"]
+                self.logger.info(f"使用端点 assessment 模型: {model_name}")
         else:
             # 检查是否有模型路由
             routed_model = None
@@ -334,6 +338,10 @@ class APIClient:
                 next_endpoint = pool.get_next_endpoint()
                 if next_endpoint:
                     config = next_endpoint.get_config()
+                    # 🔥 新增：质量评估类任务优先使用端点的 assessment 配置
+                    if content_type and "assessment" in content_type and "assessment" in config:
+                        model_name = config["assessment"]
+                        self.logger.info(f"使用端点 assessment 模型: {model_name}")
                 else:
                     # 没有可用端点，使用旧配置
                     config = {
@@ -352,7 +360,7 @@ class APIClient:
         return {
             "api_key": config["api_key"],
             "api_url": config["api_url"],
-            "model": config["model"],
+            "model": model_name,
             "temperature": self.config.get("defaults", {}).get("temperature", 0.7),
             "max_tokens": self.config.get("defaults", {}).get("max_tokens", 60000),
             "endpoint_name": config.get("name", "unknown")
