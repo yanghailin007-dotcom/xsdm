@@ -10,15 +10,24 @@
 {% block extra_css %}
 <style>
 /* 隐藏默认导航栏和页脚，阅读页面使用自己的工具栏 */
+/* 隐藏默认导航栏，但保留页脚 */
 .v2-navbar,
-.v2-footer,
 .v2-version-switcher {
     display: none !important;
 }
 
+/* 保留页脚显示 */
+.v2-footer {
+    display: block !important;
+    position: relative;
+    z-index: 1;
+}
+
+/* 为页脚留出空间 */
 .v2-main {
-    padding: 0;
+    padding: 0 0 60px 0;
     max-width: 100%;
+    min-height: calc(100vh - 60px);
 }
 
 /* ==================== V2 小说阅读页面 - 大厂风格 ==================== */
@@ -944,7 +953,7 @@
             <div class="v2-toolbar-right">
                 <!-- 阅读设置 -->
                 <div style="position: relative;">
-                    <button class="toolbar-btn" onclick="toggleSettings()" id="settings-btn">
+                    <button type="button" class="toolbar-btn" onclick="toggleSettings()" id="settings-btn">
                         ⚙️ 设置
                     </button>
                     <div class="settings-popover" id="settings-panel">
@@ -952,17 +961,17 @@
                         <div class="setting-row">
                             <div class="setting-label">字体大小</div>
                             <div class="font-size-control">
-                                <button class="font-size-btn" onclick="adjustFontSize(-2)">A-</button>
+                                <button type="button" class="font-size-btn" onclick="adjustFontSize(-2)">A-</button>
                                 <span class="font-size-value" id="font-size-display">18px</span>
-                                <button class="font-size-btn" onclick="adjustFontSize(2)">A+</button>
+                                <button type="button" class="font-size-btn" onclick="adjustFontSize(2)">A+</button>
                             </div>
                         </div>
                         <div class="setting-row">
                             <div class="setting-label">背景主题</div>
                             <div class="theme-options">
-                                <button class="theme-option" data-theme="light" onclick="setTheme('light')">☀️ 白天</button>
-                                <button class="theme-option" data-theme="sepia" onclick="setTheme('sepia')">📖 护眼</button>
-                                <button class="theme-option active" data-theme="dark" onclick="setTheme('dark')">🌙 夜间</button>
+                                <button type="button" class="theme-option" data-theme="light" onclick="setTheme('light')">☀️ 白天</button>
+                                <button type="button" class="theme-option" data-theme="sepia" onclick="setTheme('sepia')">📖 护眼</button>
+                                <button type="button" class="theme-option active" data-theme="dark" onclick="setTheme('dark')">🌙 夜间</button>
                             </div>
                         </div>
                     </div>
@@ -970,14 +979,14 @@
                 
                 <!-- 导出 -->
                 <div style="position: relative;">
-                    <button class="toolbar-btn" onclick="toggleExportMenu()">
+                    <button type="button" class="toolbar-btn" onclick="toggleExportMenu()">
                         📥 导出 ▼
                     </button>
                     <div class="export-menu" id="export-menu">
-                        <button class="export-option" onclick="exportNovel('txt')">
+                        <button type="button" class="export-option" onclick="exportNovel('txt')">
                             📝 导出 TXT
                         </button>
-                        <button class="export-option" onclick="exportNovel('zip')">
+                        <button type="button" class="export-option" onclick="exportNovel('zip')">
                             📦 打包 ZIP
                         </button>
                     </div>
@@ -986,7 +995,7 @@
                 <div class="toolbar-divider"></div>
                 
                 <!-- 调试抽屉按钮 -->
-                <button class="toolbar-btn" onclick="openDebugDrawer()">
+                <button type="button" class="toolbar-btn" onclick="openDebugDrawer()">
                     🔍 调试
                 </button>
             </div>
@@ -1024,13 +1033,13 @@
                         </div>
                     </div>
                     <div class="chapters-pagination">
-                        <button class="pagination-btn" id="prev-page-btn" onclick="prevChapterPage()" disabled>
+                        <button type="button" class="pagination-btn" id="prev-page-btn" onclick="prevChapterPage()" disabled>
                             < 上一页
                         </button>
                         <span class="pagination-info">
                             <span id="current-page">1</span> / <span id="total-pages">1</span>
                         </span>
-                        <button class="pagination-btn" id="next-page-btn" onclick="nextChapterPage()" disabled>
+                        <button type="button" class="pagination-btn" id="next-page-btn" onclick="nextChapterPage()" disabled>
                             下一页 >
                         </button>
                     </div>
@@ -1065,13 +1074,13 @@
                     
                     <!-- 章节导航 -->
                     <footer class="chapter-footer">
-                        <button class="nav-btn" id="prev-chapter-btn" onclick="prevChapter()" disabled>
+                        <button type="button" class="nav-btn" id="prev-chapter-btn" onclick="prevChapter()" disabled>
                             < 上一章
                         </button>
-                        <button class="toolbar-btn" onclick="openDebugDrawer()">
+                        <button type="button" class="toolbar-btn" onclick="openDebugDrawer()">
                             🔍 查看调试信息
                         </button>
-                        <button class="nav-btn nav-btn--primary" id="next-chapter-btn" onclick="nextChapter()" disabled>
+                        <button type="button" class="nav-btn nav-btn--primary" id="next-chapter-btn" onclick="nextChapter()" disabled>
                             下一章 >
                         </button>
                     </footer>
@@ -1088,15 +1097,15 @@
 <div class="debug-drawer" id="debug-drawer">
     <div class="debug-drawer-header">
         <h3 class="debug-drawer-title">🔍 调试信息</h3>
-        <button class="debug-drawer-close" onclick="closeDebugDrawer()">×</button>
+        <button type="button" class="debug-drawer-close" onclick="closeDebugDrawer()">×</button>
     </div>
     
     <!-- Tab 导航 -->
     <div class="debug-tabs">
-        <button class="debug-tab active" data-tab="overview" onclick="switchDebugTab('overview')">概览</button>
-        <button class="debug-tab" data-tab="prompts" onclick="switchDebugTab('prompts')">提示词</button>
-        <button class="debug-tab" data-tab="ai-response" onclick="switchDebugTab('ai-response')">AI响应</button>
-        <button class="debug-tab" data-tab="quality" onclick="switchDebugTab('quality')">质量评价</button>
+        <button type="button" class="debug-tab active" data-tab="overview" onclick="switchDebugTab('overview')">概览</button>
+        <button type="button" class="debug-tab" data-tab="prompts" onclick="switchDebugTab('prompts')">提示词</button>
+        <button type="button" class="debug-tab" data-tab="ai-response" onclick="switchDebugTab('ai-response')">AI响应</button>
+        <button type="button" class="debug-tab" data-tab="quality" onclick="switchDebugTab('quality')">质量评价</button>
     </div>
     
     <!-- Tab 内容 -->
@@ -1205,7 +1214,7 @@
     <div style="background: var(--v2-bg-secondary); border-radius: var(--v2-radius-xl); width: 90%; max-width: 800px; max-height: 80vh; display: flex; flex-direction: column;">
         <div style="display: flex; align-items: center; justify-content: space-between; padding: var(--v2-space-4) var(--v2-space-6); border-bottom: 1px solid var(--v2-border-default);">
             <h3 id="json-modal-title">JSON 数据</h3>
-            <button onclick="closeJsonModal()" style="background: none; border: none; font-size: 24px; color: var(--v2-text-secondary); cursor: pointer;">×</button>
+            <button type="button" onclick="closeJsonModal()" style="background: none; border: none; font-size: 24px; color: var(--v2-text-secondary); cursor: pointer;">×</button>
         </div>
         <div style="padding: var(--v2-space-4); overflow: auto;">
             <pre id="json-modal-content" style="background: var(--v2-bg-tertiary); padding: var(--v2-space-4); border-radius: var(--v2-radius-lg); font-family: monospace; font-size: 12px; white-space: pre-wrap; word-break: break-all;"></pre>
@@ -1219,11 +1228,23 @@
 <script>
 // ==================== UI 控制 ====================
 
+// 全局错误处理
+window.addEventListener('error', function(e) {
+    console.error('JavaScript 错误:', e.message, e.filename, e.lineno);
+});
+
 // 调试抽屉
 function openDebugDrawer() {
-    document.getElementById('debug-drawer').classList.add('open');
-    document.getElementById('drawer-overlay').classList.add('open');
-    document.body.style.overflow = 'hidden';
+    console.log('打开调试抽屉');
+    const drawer = document.getElementById('debug-drawer');
+    const overlay = document.getElementById('drawer-overlay');
+    if (drawer && overlay) {
+        drawer.classList.add('open');
+        overlay.classList.add('open');
+        document.body.style.overflow = 'hidden';
+    } else {
+        console.error('找不到抽屉元素');
+    }
 }
 
 function closeDebugDrawer() {
@@ -1257,16 +1278,26 @@ function toggleInfoCard(header) {
 
 // 设置面板
 function toggleSettings() {
+    console.log('切换设置面板');
     const panel = document.getElementById('settings-panel');
-    panel.classList.toggle('open');
+    if (panel) {
+        panel.classList.toggle('open');
+    } else {
+        console.error('找不到设置面板元素');
+    }
 }
 
 // 导出菜单
 let exportMenuOpen = false;
 function toggleExportMenu() {
+    console.log('切换导出菜单');
     const menu = document.getElementById('export-menu');
-    exportMenuOpen = !exportMenuOpen;
-    menu.classList.toggle('open', exportMenuOpen);
+    if (menu) {
+        exportMenuOpen = !exportMenuOpen;
+        menu.classList.toggle('open', exportMenuOpen);
+    } else {
+        console.error('找不到导出菜单元素');
+    }
 }
 
 // 点击外部关闭
@@ -1308,8 +1339,10 @@ function getNovelTitle() {
 let currentFontSize = 18;
 function adjustFontSize(delta) {
     currentFontSize = Math.max(14, Math.min(24, currentFontSize + delta));
-    document.getElementById('font-size-display').textContent = currentFontSize + 'px';
-    document.getElementById('chapter-content').style.fontSize = currentFontSize + 'px';
+    const display = document.getElementById('font-size-display');
+    const content = document.getElementById('chapter-content');
+    if (display) display.textContent = currentFontSize + 'px';
+    if (content) content.style.fontSize = currentFontSize + 'px';
 }
 
 // 主题切换
