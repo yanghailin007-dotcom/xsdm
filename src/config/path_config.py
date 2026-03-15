@@ -162,6 +162,9 @@ class NovelPathConfig:
             
             # 世界状态管理
             "world_state": str(project_dir / "world_state.json"),
+            
+            # 成长路线
+            "global_growth_plan": str(project_dir / "planning" / f"{safe_title}_成长路线.json"),
             "events_dir": str(project_dir / "events"),
             "relationships": str(project_dir / "relationships.json"),
             "mindset_dir": str(project_dir / "mindset"),
