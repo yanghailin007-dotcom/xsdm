@@ -2754,18 +2754,37 @@ class PhaseGenerator:
             else:
                 readiness = "needs_revision"
             
-            return {
+            # 构建评估结果
+            assessment_dict = {
                 "overall_score": min(100, max(0, score)),
                 "readiness": readiness,
                 "strengths": strengths,
                 "issues": issues,
                 "summary": f"基于规则的评估：包含{len(stage_writing_plans)}个阶段，{total_major_events}个重大事件。",
-                "is_ai_assessment": False
+                "is_ai_assessment": False,
+                "assessment_time": datetime.now().isoformat()
             }
+            
+            # 🔥 修复：保存评估报告到项目目录
+            try:
+                from src.config.path_config import path_config
+                username = getattr(self.generator, '_username', None)
+                paths = path_config.get_project_paths(self.generator.novel_data["novel_title"], username=username)
+                project_dir = Path(paths['project_root'])
+                project_dir.mkdir(parents=True, exist_ok=True)
+                
+                assessment_path = project_dir / "quality_assessment.json"
+                with open(assessment_path, 'w', encoding='utf-8') as f:
+                    json.dump(assessment_dict, f, ensure_ascii=False, indent=2)
+                
+                print(f"📄 规则评估报告已保存到: {assessment_path}")
+            except Exception as save_error:
+                print(f"⚠️ 保存规则评估报告失败: {save_error}")
+            
+            return assessment_dict
 
         except Exception as e:
             print(f"❌ 规则评估失败: {e}")
-            return None
             import traceback
             traceback.print_exc()
             return None
