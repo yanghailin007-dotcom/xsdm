@@ -2567,8 +2567,24 @@ class NovelGenerationManager:
                     })
                     logger.info(f"任务 {task_id}: 📖 第{chapter_num}章状态: {chapter_progress_dict[chapter_num]['status']}, 字数: {chapter_progress_dict[chapter_num]['word_count']}")
                 
+                # 🔥 修复：区分"单章完成"和"任务完成"状态
+                # 只有所有章节都完成时，任务状态才设为"completed"
+                task_status = "generating"  # 默认生成中
+                if step == "completed":
+                    # 检查是否所有章节都已完成
+                    completed_count = sum(1 for ch in chapter_progress_dict.values() if ch["status"] == "completed")
+                    if completed_count >= chapters_to_generate:
+                        task_status = "completed"
+                        progress = 100
+                    else:
+                        task_status = "generating"  # 还有章节未完成，保持生成中状态
+                elif step == "failed":
+                    task_status = "failed"
+                elif step == "generating":
+                    task_status = "generating"
+                
                 # 更新进度，包含章节进度列表
-                self._update_task_status(task_id, step, progress)
+                self._update_task_status(task_id, task_status, progress)
                 
                 # 将章节进度同步到 task_progress 中，供前端查询使用
                 if task_id in self.task_progress:
