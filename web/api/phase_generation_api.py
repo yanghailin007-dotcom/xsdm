@@ -231,7 +231,10 @@ class ProductLoader:
         
         # 🔥 用户隔离：使用新的路径查找方法
         username = get_current_username()
+        self.logger.info(f"[ProductLoader] 当前用户名: {username}, 项目标题: {title}")
+        
         found_path = find_novel_project(self.original_title, username)
+        self.logger.info(f"[ProductLoader] 查找结果: {found_path}")
         
         if found_path:
             self.project_dir = found_path
@@ -239,9 +242,11 @@ class ProductLoader:
             # 默认使用用户目录下的路径（用于新建项目）
             self.project_dir = get_novel_project_dir(self.original_title, username, create=False)
         
+        self.logger.info(f"[ProductLoader] 项目目录: {self.project_dir}, 是否存在: {self.project_dir.exists()}")
+        
         # 项目目录不存在时的兼容处理
         if not self.project_dir.exists():
-            self.logger.debug(f"[PATH] 项目目录不存在: {self.project_dir}")
+            self.logger.warning(f"[ProductLoader] 项目目录不存在: {self.project_dir}")
         
         # 兼容旧路径
         self.legacy_phase_one_dir = Path("小说项目") / f"{self.original_title}_第一阶段设定"
@@ -508,6 +513,8 @@ class ProductLoader:
     
     def _load_growth_plan(self, products):
         """加载成长路线文件"""
+        self.logger.info(f"[_load_growth_plan] 开始加载成长路线，项目目录: {self.project_dir}")
+        
         # 尝试从 planning 或 materials 目录加载成长路线
         growth_dirs = [
             self.project_dir / "planning",
@@ -515,6 +522,7 @@ class ProductLoader:
         ]
         
         for growth_dir in growth_dirs:
+            self.logger.info(f"[_load_growth_plan] 检查目录: {growth_dir}, 存在: {growth_dir.exists()}")
             if not growth_dir.exists():
                 continue
             
@@ -527,6 +535,7 @@ class ProductLoader:
             
             for pattern in patterns:
                 matching_files = list(growth_dir.glob(pattern))
+                self.logger.info(f"[_load_growth_plan] 模式 '{pattern}' 找到 {len(matching_files)} 个文件")
                 if matching_files:
                     try:
                         with open(matching_files[0], 'r', encoding='utf-8') as f:
@@ -538,6 +547,8 @@ class ProductLoader:
                         return
                     except Exception as e:
                         self.logger.error(f"加载growth计划失败: {e}")
+        
+        self.logger.warning(f"[_load_growth_plan] 未找到成长路线文件")
     
     def _load_market_analysis(self, products):
         market_dirs = [
