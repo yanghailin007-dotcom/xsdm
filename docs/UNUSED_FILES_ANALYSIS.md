@@ -184,7 +184,7 @@ src/managers/
 
 ## 5. 删除建议清单
 
-### 阶段一：立即删除（安全）
+### 阶段一：立即删除（安全）✅ 已完成
 
 ```bash
 # 备份文件
@@ -196,15 +196,42 @@ rm src/core/KnowledgeBaseManager.py
 rm src/core/SimplifiedKnowledgeBase.py
 ```
 
-### 阶段二：确认后删除
+**状态**: 2026-03-15 已完成删除，共减少 3825 行代码
 
-需要检查是否还有其他引用：
+---
+
+### 阶段二：待确认文件（需要检查引用）
+
+### 阶段二：待确认文件 🔍 分析中
+
+#### 2.1 可删除（已确认无引用）
+
+| 文件 | 原因 | 操作 |
+|------|------|------|
+| `src/core/fanfiction/FanfictionDetector.py` | 只有`ImprovedFanfictionDetector`被使用 | 🟢 可删除 |
+
+#### 2.2 仍被引用（暂时保留）
+
+| 文件 | 被引用位置 | 状态 |
+|------|-----------|------|
+| `src/managers/EventManager.py` | `StagePlanManager.py` (line 26) | 🟡 保留 |
+| `src/core/generation/PlanGenerator.py` | `NovelGenerator.py` (line 39) | 🟡 保留 |
+| `src/managers/StagePlanManager_refactored.py` | 未确认 | ❓ 需检查 |
+
+#### 2.3 检查命令
 
 ```bash
-# 检查这些文件的使用情况
-grep -r "FanfictionDetector" src/ --include="*.py" | grep -v "ImprovedFanfictionDetector"
-grep -r "EventManager" src/ --include="*.py" | grep -v "EventDrivenManager"
-grep -r "generation.PlanGenerator" src/ --include="*.py"
+# 检查FanfictionDetector基础版是否还有引用
+grep -r "from.*FanfictionDetector" src/ --include="*.py" | grep -v "Improved"
+
+# 检查ExpectationManager多版本使用情况
+grep -r "ExpectationManager" src/ --include="*.py" | grep -v "__pycache__"
+
+# 检查StagePlanManager_refactored是否使用
+grep -r "StagePlanManager_refactored" src/ --include="*.py"
+
+# 检查generation.PlanGenerator vs content_generation.plan_generator
+grep -r "from.*PlanGenerator" src/ --include="*.py"
 ```
 
 ### 阶段三：合并重构
@@ -216,14 +243,23 @@ grep -r "generation.PlanGenerator" src/ --include="*.py"
 
 ---
 
-## 6. 清理后预期效果
+## 6. 清理效果统计
 
-| 指标 | 清理前 | 清理后（预估） | 减少 |
-|------|--------|---------------|------|
-| Python文件数 | 125 | ~110 | -15 |
-| 代码行数 | ~50000 | ~45000 | -10% |
-| 重复类 | 12+ | 4 | -67% |
-| 导入复杂度 | 高 | 中 | - |
+### 阶段一完成 (2026-03-15)
+
+| 指标 | 清理前 | 清理后 | 减少 |
+|------|--------|--------|------|
+| 废弃文件数 | 4 | 0 | -4 |
+| 代码行数 | ~50000 | ~46175 | -3825 |
+| Python文件数 | 125 | 121 | -4 |
+
+### 整体目标
+
+| 指标 | 初始 | 当前 | 目标 | 进度 |
+|------|------|------|------|------|
+| Python文件数 | 125 | 121 | ~110 | 36% |
+| 重复类 | 12+ | 11 | 4 | 57% |
+| 导入复杂度 | 高 | 中高 | 中 | - |
 
 ---
 
