@@ -174,8 +174,8 @@ class LayeredQualityAssessor:
    - 是否有明显AI痕迹？
 
 6. **字数合规性** (关键项，不达标直接降级)
-   - 每章字数是否在1800-2500字范围内？
-   - 字数不足（<1800字）或过多（>2500字）都视为严重问题
+   - 每章字数是否在1500-3500字范围内？
+   - 字数不足（<1500字）或过多（>3500字）都视为严重问题
    - 当前各章字数: {json.dumps({ch_num: len(ch.get('content', '')) for ch_num, ch in chapters_content.items()}, ensure_ascii=False)}
 
 【风格指南核心要求】

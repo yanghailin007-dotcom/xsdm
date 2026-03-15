@@ -103,6 +103,7 @@ except ImportError as e:
 # 导入API路由模块
 from web.api.novel_api import register_novel_routes
 from web.api.creative_api import register_creative_routes
+from web.api.creative_workshop_api import register_creative_workshop_routes
 from web.api.cover_api import register_cover_routes
 from web.api.phase_generation_api import register_phase_routes
 from web.api.resume_generation_api import register_resume_routes
@@ -367,6 +368,9 @@ def create_app():
     
     # 3. 创意文件API路由
     register_creative_routes(app, manager)
+    
+    # 3.5 创意工坊API路由（用户隔离的创意管理）
+    register_creative_workshop_routes(app, manager)
     
     # 4. 封面生成API路由
     register_cover_routes(app)

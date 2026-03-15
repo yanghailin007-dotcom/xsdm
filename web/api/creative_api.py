@@ -53,55 +53,92 @@ def register_creative_routes(app, manager: NovelGenerationManager):
             logger.error(f"❌ 加载创意文件失败: {e}")
             return {"error": str(e)}
 
+    def _format_idea(work: dict, idea_id: int, source: str) -> dict:
+        """格式化创意数据
+        
+        Args:
+            work: 原始创意数据
+            idea_id: 创意ID
+            source: 来源 ('system' 或 'user')
+        """
+        formatted = {
+            "id": idea_id,
+            "source": source,  # system 或 user
+            "core_setting": work.get("coreSetting", ""),
+            "core_selling_points": work.get("coreSellingPoints", ""),
+            "storyline": work.get("completeStoryline", {}),
+            "raw_data": work
+        }
+        
+        # 提取故事线阶段名称作为预览
+        storyline = work.get("completeStoryline", {})
+        stages = []
+        for stage_key in ["opening", "development", "conflict", "ending"]:
+            if stage_key in storyline:
+                stage_name = storyline[stage_key].get("stageName", stage_key)
+                stages.append(stage_name)
+        formatted["stages_preview"] = stages
+        
+        return formatted
+
     @app.route('/api/creative-ideas', methods=['GET'])
     def get_creative_ideas():
-        """获取创意文件内容"""
+        """获取创意文件内容 - 区分系统创意和用户创意"""
         try:
-            # 使用创意管理器加载数据
+            # ========== 1. 加载系统创意 ==========
+            system_ideas = []
             if creative_manager:
                 data = creative_manager.load_creative_ideas()
-                creative_works = data.get("creativeWorks", [])
-                storage_format = data.get("format", "unknown")
-                logger.info(f"✅ 使用{storage_format}模式加载创意: {len(creative_works)}个")
+                system_works = data.get("creativeWorks", [])
+                logger.info(f"✅ 系统创意加载: {len(system_works)}个")
+                
+                for i, work in enumerate(system_works):
+                    formatted = _format_idea(work, i + 1, "system")
+                    system_ideas.append(formatted)
             else:
                 # 回退到旧方法
                 creative_data = load_creative_ideas_from_file()
-                if "error" in creative_data:
-                    return jsonify(creative_data), 404
-                creative_works = creative_data.get("creativeWorks", [])
+                if "error" not in creative_data:
+                    system_works = creative_data.get("creativeWorks", [])
+                    for i, work in enumerate(system_works):
+                        formatted = _format_idea(work, i + 1, "system")
+                        system_ideas.append(formatted)
 
-            # 格式化为前端友好的格式
-            formatted_ideas = []
-            for i, work in enumerate(creative_works):
-                formatted_idea = {
-                    "id": i + 1,
-                    "core_setting": work.get("coreSetting", ""),
-                    "core_selling_points": work.get("coreSellingPoints", ""),
-                    "storyline": work.get("completeStoryline", {}),
-                    "raw_data": work  # 保留原始数据以便传递给生成器
-                }
+            # ========== 2. 加载用户创意 ==========
+            user_ideas = []
+            try:
+                from src.managers.CreativeIdeasManager import CreativeIdeasManager
+                from web.utils.path_utils import get_current_username
+                
+                username = get_current_username()
+                if username and username != 'anonymous':
+                    base_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), 'data', 'creative_ideas')
+                    user_dir = os.path.join(base_dir, username)
+                    
+                    if os.path.exists(user_dir):
+                        user_manager = CreativeIdeasManager(user_dir)
+                        user_data = user_manager.load_creative_ideas()
+                        user_works = user_data.get("creativeWorks", [])
+                        logger.info(f"✅ 用户创意加载 ({username}): {len(user_works)}个")
+                        
+                        # 用户创意ID从系统创意之后开始
+                        start_id = len(system_ideas) + 1
+                        for i, work in enumerate(user_works):
+                            formatted = _format_idea(work, start_id + i, "user")
+                            user_ideas.append(formatted)
+            except Exception as e:
+                logger.warning(f"⚠️ 加载用户创意失败: {e}")
 
-                # 提取故事线阶段名称作为预览
-                storyline = work.get("completeStoryline", {})
-                stages = []
-                for stage_key in ["opening", "development", "conflict", "ending"]:
-                    if stage_key in storyline:
-                        stage_name = storyline[stage_key].get("stageName", stage_key)
-                        stages.append(stage_name)
-                formatted_idea["stages_preview"] = stages
-
-                formatted_ideas.append(formatted_idea)
-
-            # 添加存储格式信息
+            # ========== 3. 合并结果 ==========
+            all_ideas = system_ideas + user_ideas
+            
             result = {
                 "success": True,
-                "count": len(formatted_ideas),
-                "creative_ideas": formatted_ideas
+                "count": len(all_ideas),
+                "system_count": len(system_ideas),
+                "user_count": len(user_ideas),
+                "creative_ideas": all_ideas
             }
-            
-            if creative_manager:
-                storage_info = creative_manager.get_storage_info()
-                result["storage_info"] = storage_info
             
             return jsonify(result)
 

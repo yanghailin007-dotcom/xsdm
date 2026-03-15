@@ -47,12 +47,12 @@ CONFIG = {
                 "max_retries": 3
             },
             {
-                "name": "aiberm",              # 🟡 最低优先级备用：Aiberm API（费用最高，仅在其他端点均失败时使用）
+                "name": "aiberm",              # 🟡 备用：Aiberm API
                 "api_url": "https://aiberm.com/v1/chat/completions",
                 "api_key": os.getenv('AIBERM_API_KEY', 'sk-dWu7JFD69zTYeSLZiWV8OQYBjQ2IoJlQCmSo3f963ArGEAju'),
-                "model": "google/gemini-3.1-flash-lite",  # Gemini 2.5 Pro（更经济）
-                "assessment": "google/gemini-2.5-flash",  # 🔥 质量评估使用轻量级模型
-                "priority": 1,                  # 优先级3（最低，因为费用最高）
+                "model": "google/gemini-3-flash",  # 🔥 强力模型，确保字数达标
+                "assessment": "google/gemini-2.5-flash",  # 质量评估使用轻量级模型
+                "priority": 1,                  # 优先级1
                 "enabled": True,
                 "timeout": 300,
                 "max_retries": 3

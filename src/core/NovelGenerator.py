@@ -1293,6 +1293,7 @@ class NovelGenerator:
         # 准备novel_data
         novel_data = {
             'novel_title': self._ctx.get('novel_title', 'Unknown'),
+            'novel_synopsis': self._ctx.get('novel_synopsis', ''),
             'username': getattr(self, '_username', None),
             'creative_seed': self._ctx.get('creative_seed', {}),
             'selected_plan': self._ctx.get('selected_plan', {}),

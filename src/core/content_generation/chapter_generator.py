@@ -326,7 +326,7 @@ class ChapterGenerator:
                 purpose=f"直接从场景事件生成第{chapter_number}章内容"
             )
             
-            if content_result and isinstance(content_result, dict) and len(content_result.get("content", "")) >= 1800:
+            if content_result and isinstance(content_result, dict) and len(content_result.get("content", "")) >= 1500:
                 self.logger.info(f"  ✅ 第{chapter_number}章内容生成成功，字数达标。")
                 return content_result
             else:

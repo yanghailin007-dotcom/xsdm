@@ -82,38 +82,79 @@ function renderNewCreativeLibrary(ideas) {
         return;
     }
 
+    // 分离系统创意和用户创意
+    const systemIdeas = ideas.filter(i => i.source === 'system');
+    const userIdeas = ideas.filter(i => i.source === 'user');
+
     // 构建创意卡片列表
     let html = '<div class="creative-list" style="display: flex; flex-direction: column; gap: 12px;">';
     
-    ideas.forEach(idea => {
-        const title = idea.raw_data?.novelTitle || `创意 #${idea.id}`;
-        const coreSetting = idea.core_setting ? idea.core_setting.substring(0, 60) + '...' : '暂无设定';
-        
+    // ========== 系统创意 ==========
+    if (systemIdeas.length > 0) {
         html += `
-            <div class="creative-card" 
-                 data-id="${idea.id}"
-                 onclick="selectCreativeForNewUI(${idea.id})"
-                 style="background: rgba(255,255,255,0.03); 
-                        border: 1px solid rgba(255,255,255,0.08); 
-                        border-radius: 8px; 
-                        padding: 12px; 
-                        cursor: pointer;
-                        transition: all 0.2s;
-                        hover: background: rgba(255,255,255,0.06);"
-                 onmouseover="this.style.background='rgba(255,255,255,0.06)'"
-                 onmouseout="this.style.background='rgba(255,255,255,0.03)'">
-                <div style="font-weight: 600; font-size: 14px; color: var(--pt-text-primary); margin-bottom: 4px;">
-                    ${title}
-                </div>
-                <div style="font-size: 12px; color: var(--pt-text-secondary); line-height: 1.4;">
-                    ${coreSetting}
-                </div>
+            <div style="padding: 8px 0; border-bottom: 1px solid rgba(255,255,255,0.1); margin-bottom: 4px;">
+                <span style="font-size: 11px; color: var(--pt-text-tertiary); text-transform: uppercase; letter-spacing: 0.5px;">
+                    📚 系统推荐创意 (${systemIdeas.length})
+                </span>
             </div>
         `;
-    });
+        
+        systemIdeas.forEach(idea => {
+            html += _renderIdeaCard(idea);
+        });
+    }
+    
+    // ========== 分割线 ==========
+    if (systemIdeas.length > 0 && userIdeas.length > 0) {
+        html += `
+            <div style="padding: 16px 0 8px 0; border-top: 1px solid rgba(255,255,255,0.1); margin-top: 8px;">
+                <span style="font-size: 11px; color: var(--pt-text-tertiary); text-transform: uppercase; letter-spacing: 0.5px;">
+                    ✨ 我的创意 (${userIdeas.length})
+                </span>
+            </div>
+        `;
+    }
+    
+    // ========== 用户创意 ==========
+    if (userIdeas.length > 0) {
+        userIdeas.forEach(idea => {
+            html += _renderIdeaCard(idea, true);
+        });
+    }
     
     html += '</div>';
     container.innerHTML = html;
+}
+
+// 辅助函数：渲染单个创意卡片
+function _renderIdeaCard(idea, isUser = false) {
+    const title = idea.raw_data?.novelTitle || `创意 #${idea.id}`;
+    const coreSetting = idea.core_setting ? idea.core_setting.substring(0, 60) + '...' : '暂无设定';
+    
+    // 用户创意添加特殊标识
+    const userBadge = isUser ? `<span style="display: inline-block; background: linear-gradient(135deg, #6366f1, #8b5cf6); color: white; font-size: 10px; padding: 2px 6px; border-radius: 4px; margin-left: 6px;">我的</span>` : '';
+    
+    return `
+        <div class="creative-card" 
+             data-id="${idea.id}"
+             data-source="${idea.source}"
+             onclick="selectCreativeForNewUI(${idea.id})"
+             style="background: rgba(255,255,255,0.03); 
+                    border: 1px solid ${isUser ? 'rgba(99,102,241,0.2)' : 'rgba(255,255,255,0.08)'}; 
+                    border-radius: 8px; 
+                    padding: 12px; 
+                    cursor: pointer;
+                    transition: all 0.2s;"
+             onmouseover="this.style.background='rgba(255,255,255,0.06)'"
+             onmouseout="this.style.background='rgba(255,255,255,0.03)'">
+            <div style="font-weight: 600; font-size: 14px; color: var(--pt-text-primary); margin-bottom: 4px; display: flex; align-items: center;">
+                ${title}${userBadge}
+            </div>
+            <div style="font-size: 12px; color: var(--pt-text-secondary); line-height: 1.4;">
+                ${coreSetting}
+            </div>
+        </div>
+    `;
 }
 
 // 新版UI选择创意

@@ -1,0 +1,1385 @@
+{#
+    创意工坊 - 使用V2基础模板
+#}
+{% extends "layouts/base-v2.html" %}
+
+{% block title %}创意工坊 - 创建新创意{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+<style>
+    :root {
+        --cw-primary: #6366f1;
+        --cw-primary-dark: #4f46e5;
+        --cw-primary-light: #818cf8;
+        --cw-bg-primary: #0f172a;
+        --cw-bg-secondary: #1e293b;
+        --cw-bg-card: #334155;
+        --cw-text-primary: #f1f5f9;
+        --cw-text-secondary: #94a3b8;
+        --cw-border-color: #475569;
+        --cw-success: #10b981;
+        --cw-warning: #f59e0b;
+        --cw-error: #ef4444;
+        --cw-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+    }
+
+    /* 创意工坊专用样式 */
+    .cw-main {
+        max-width: 1200px;
+        margin: 0 auto;
+        padding: 2rem;
+        padding-top: calc(60px + 2rem); /* 导航栏高度 + 间距 */
+    }
+
+    /* 页面标题 */
+    .cw-page-header {
+        text-align: center;
+        margin-bottom: 3rem;
+    }
+
+    .cw-page-header h1 {
+        font-size: 2.5rem;
+        font-weight: 800;
+        background: linear-gradient(135deg, var(--cw-text-primary), var(--cw-primary-light));
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        margin-bottom: 0.75rem;
+    }
+
+    .cw-page-header p {
+        color: var(--cw-text-secondary);
+        font-size: 1.125rem;
+    }
+
+    /* 创建方式选择卡片 */
+    .cw-create-methods {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+        gap: 1.5rem;
+        margin-bottom: 2rem;
+    }
+
+    .cw-method-card {
+        background: var(--cw-bg-secondary);
+        border: 2px solid var(--cw-border-color);
+        border-radius: 16px;
+        padding: 2rem;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        position: relative;
+        overflow: hidden;
+    }
+
+    .cw-method-card::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        height: 4px;
+        background: linear-gradient(90deg, var(--cw-primary), var(--cw-primary-light));
+        transform: scaleX(0);
+        transition: transform 0.3s ease;
+    }
+
+    .cw-method-card:hover {
+        border-color: var(--cw-primary);
+        transform: translateY(-4px);
+        box-shadow: var(--cw-shadow);
+    }
+
+    .cw-method-card:hover::before {
+        transform: scaleX(1);
+    }
+
+    .cw-method-card.active {
+        border-color: var(--cw-primary);
+        background: linear-gradient(135deg, var(--cw-bg-secondary), rgba(99, 102, 241, 0.1));
+    }
+
+    .cw-method-card.active::before {
+        transform: scaleX(1);
+    }
+
+    .cw-method-icon {
+        width: 56px;
+        height: 56px;
+        border-radius: 12px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.5rem;
+        margin-bottom: 1rem;
+    }
+
+    .cw-method-card.ai .cw-method-icon {
+        background: linear-gradient(135deg, rgba(99, 102, 241, 0.2), rgba(129, 140, 248, 0.2));
+        color: var(--cw-primary-light);
+    }
+
+    .cw-method-card.form .cw-method-icon {
+        background: linear-gradient(135deg, rgba(16, 185, 129, 0.2), rgba(52, 211, 153, 0.2));
+        color: var(--cw-success);
+    }
+
+    .cw-method-card.upload .cw-method-icon {
+        background: linear-gradient(135deg, rgba(245, 158, 11, 0.2), rgba(251, 191, 36, 0.2));
+        color: var(--cw-warning);
+    }
+
+    .cw-method-title {
+        font-size: 1.25rem;
+        font-weight: 700;
+        margin-bottom: 0.5rem;
+        color: var(--cw-text-primary);
+    }
+
+    .cw-method-desc {
+        color: var(--cw-text-secondary);
+        font-size: 0.875rem;
+        line-height: 1.6;
+    }
+
+    .cw-method-badge {
+        position: absolute;
+        top: 1rem;
+        right: 1rem;
+        background: var(--cw-primary);
+        color: white;
+        font-size: 0.75rem;
+        padding: 0.25rem 0.75rem;
+        border-radius: 20px;
+        font-weight: 600;
+    }
+
+    /* 内容区域 */
+    .cw-content-area {
+        background: var(--cw-bg-secondary);
+        border: 1px solid var(--cw-border-color);
+        border-radius: 16px;
+        padding: 2rem;
+        min-height: 400px;
+    }
+
+    .cw-content-section {
+        display: none;
+    }
+
+    .cw-content-section.active {
+        display: block;
+        animation: cw-fadeIn 0.3s ease;
+    }
+
+    @keyframes cw-fadeIn {
+        from { opacity: 0; transform: translateY(10px); }
+        to { opacity: 1; transform: translateY(0); }
+    }
+
+    /* AI扩展区域 */
+    .cw-ai-input-area {
+        margin-bottom: 2rem;
+    }
+
+    .cw-ai-input-area label {
+        display: block;
+        font-weight: 600;
+        margin-bottom: 0.75rem;
+        color: var(--cw-text-primary);
+    }
+
+    .cw-ai-textarea {
+        width: 100%;
+        min-height: 120px;
+        background: var(--cw-bg-primary);
+        border: 2px solid var(--cw-border-color);
+        border-radius: 12px;
+        padding: 1rem;
+        color: var(--cw-text-primary);
+        font-size: 1rem;
+        resize: vertical;
+        transition: border-color 0.2s;
+        font-family: inherit;
+    }
+
+    .cw-ai-textarea:focus {
+        outline: none;
+        border-color: var(--cw-primary);
+    }
+
+    .cw-ai-textarea::placeholder {
+        color: var(--cw-text-secondary);
+    }
+
+    .cw-ai-examples {
+        margin-top: 1rem;
+    }
+
+    .cw-ai-examples-title {
+        font-size: 0.875rem;
+        color: var(--cw-text-secondary);
+        margin-bottom: 0.75rem;
+    }
+
+    .cw-example-chips {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.5rem;
+    }
+
+    .cw-example-chip {
+        background: var(--cw-bg-card);
+        border: 1px solid var(--cw-border-color);
+        border-radius: 20px;
+        padding: 0.5rem 1rem;
+        font-size: 0.875rem;
+        color: var(--cw-text-secondary);
+        cursor: pointer;
+        transition: all 0.2s;
+    }
+
+    .cw-example-chip:hover {
+        border-color: var(--cw-primary);
+        color: var(--cw-primary-light);
+    }
+
+    /* 表单样式 */
+    .cw-form-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+        gap: 1.5rem;
+    }
+
+    .cw-form-group {
+        margin-bottom: 1rem;
+    }
+
+    .cw-form-group.full-width {
+        grid-column: 1 / -1;
+    }
+
+    .cw-form-group label {
+        display: block;
+        font-weight: 600;
+        margin-bottom: 0.5rem;
+        color: var(--cw-text-primary);
+    }
+
+    .cw-form-group label .cw-required {
+        color: var(--cw-error);
+        margin-left: 0.25rem;
+    }
+
+    .cw-form-input {
+        width: 100%;
+        background: var(--cw-bg-primary);
+        border: 2px solid var(--cw-border-color);
+        border-radius: 10px;
+        padding: 0.875rem 1rem;
+        color: var(--cw-text-primary);
+        font-size: 0.9375rem;
+        transition: border-color 0.2s;
+        font-family: inherit;
+    }
+
+    .cw-form-input:focus {
+        outline: none;
+        border-color: var(--cw-primary);
+    }
+
+    .cw-form-textarea {
+        min-height: 100px;
+        resize: vertical;
+    }
+
+    .cw-form-hint {
+        font-size: 0.8125rem;
+        color: var(--cw-text-secondary);
+        margin-top: 0.375rem;
+    }
+
+    /* 阶段卡片 */
+    .cw-stage-cards {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+        gap: 1rem;
+        margin-top: 1.5rem;
+    }
+
+    .cw-stage-card {
+        background: var(--cw-bg-primary);
+        border: 1px solid var(--cw-border-color);
+        border-radius: 12px;
+        padding: 1.25rem;
+    }
+
+    .cw-stage-header {
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+        margin-bottom: 0.75rem;
+    }
+
+    .cw-stage-number {
+        width: 28px;
+        height: 28px;
+        border-radius: 50%;
+        background: var(--cw-primary);
+        color: white;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 0.875rem;
+        font-weight: 700;
+    }
+
+    .cw-stage-name {
+        font-weight: 600;
+        color: var(--cw-text-primary);
+    }
+
+    /* 上传区域 */
+    .cw-upload-area {
+        border: 2px dashed var(--cw-border-color);
+        border-radius: 16px;
+        padding: 3rem 2rem;
+        text-align: center;
+        background: var(--cw-bg-primary);
+        transition: all 0.2s;
+        cursor: pointer;
+    }
+
+    .cw-upload-area:hover {
+        border-color: var(--cw-primary);
+        background: rgba(99, 102, 241, 0.05);
+    }
+
+    .cw-upload-area.dragover {
+        border-color: var(--cw-primary);
+        background: rgba(99, 102, 241, 0.1);
+    }
+
+    .cw-upload-icon {
+        width: 64px;
+        height: 64px;
+        margin: 0 auto 1.5rem;
+        background: var(--cw-bg-secondary);
+        border-radius: 16px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.75rem;
+        color: var(--cw-primary-light);
+    }
+
+    .cw-upload-title {
+        font-size: 1.125rem;
+        font-weight: 600;
+        margin-bottom: 0.5rem;
+        color: var(--cw-text-primary);
+    }
+
+    .cw-upload-desc {
+        color: var(--cw-text-secondary);
+        font-size: 0.875rem;
+        margin-bottom: 1.5rem;
+    }
+
+    .cw-upload-formats {
+        display: flex;
+        justify-content: center;
+        gap: 1rem;
+        margin-bottom: 1.5rem;
+    }
+
+    .cw-format-badge {
+        background: var(--cw-bg-secondary);
+        border: 1px solid var(--cw-border-color);
+        border-radius: 8px;
+        padding: 0.5rem 1rem;
+        font-size: 0.875rem;
+        color: var(--cw-text-secondary);
+    }
+
+    /* 按钮样式 */
+    .cw-btn {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 0.5rem;
+        padding: 0.875rem 1.5rem;
+        border-radius: 10px;
+        font-size: 0.9375rem;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.2s;
+        border: none;
+        font-family: inherit;
+    }
+
+    .cw-btn-primary {
+        background: linear-gradient(135deg, var(--cw-primary), var(--cw-primary-dark));
+        color: white;
+    }
+
+    .cw-btn-primary:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 10px 25px -5px rgba(99, 102, 241, 0.4);
+    }
+
+    .cw-btn-primary:disabled {
+        opacity: 0.6;
+        cursor: not-allowed;
+        transform: none;
+    }
+
+    .cw-btn-secondary {
+        background: var(--cw-bg-card);
+        color: var(--cw-text-primary);
+        border: 1px solid var(--cw-border-color);
+    }
+
+    .cw-btn-secondary:hover {
+        background: var(--cw-border-color);
+    }
+
+    .cw-btn-large {
+        padding: 1rem 2rem;
+        font-size: 1rem;
+    }
+
+    .cw-btn-group {
+        display: flex;
+        gap: 1rem;
+        justify-content: flex-end;
+        margin-top: 2rem;
+        padding-top: 2rem;
+        border-top: 1px solid var(--cw-border-color);
+    }
+
+    /* 模板下载卡片 */
+    .cw-template-download {
+        background: var(--cw-bg-primary);
+        border: 1px solid var(--cw-border-color);
+        border-radius: 12px;
+        padding: 1.5rem;
+        margin-top: 1.5rem;
+    }
+
+    .cw-template-header {
+        display: flex;
+        align-items: center;
+        gap: 1rem;
+        margin-bottom: 1rem;
+    }
+
+    .cw-template-icon {
+        width: 48px;
+        height: 48px;
+        background: var(--cw-bg-secondary);
+        border-radius: 10px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.25rem;
+    }
+
+    .cw-template-info h4 {
+        font-weight: 600;
+        margin-bottom: 0.25rem;
+        color: var(--cw-text-primary);
+    }
+
+    .cw-template-info p {
+        font-size: 0.875rem;
+        color: var(--cw-text-secondary);
+    }
+
+    /* 加载遮罩 */
+    .cw-loading-overlay {
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: rgba(15, 23, 42, 0.9);
+        backdrop-filter: blur(10px);
+        display: none;
+        align-items: center;
+        justify-content: center;
+        z-index: 1000;
+    }
+
+    .cw-loading-overlay.active {
+        display: flex;
+    }
+
+    .cw-loading-content {
+        text-align: center;
+    }
+
+    .cw-loading-spinner {
+        width: 64px;
+        height: 64px;
+        border: 4px solid var(--cw-border-color);
+        border-top-color: var(--cw-primary);
+        border-radius: 50%;
+        animation: cw-spin 1s linear infinite;
+        margin: 0 auto 1.5rem;
+    }
+
+    @keyframes cw-spin {
+        to { transform: rotate(360deg); }
+    }
+
+    .cw-loading-text {
+        font-size: 1.125rem;
+        font-weight: 600;
+        margin-bottom: 0.5rem;
+        color: var(--cw-text-primary);
+    }
+
+    .cw-loading-subtext {
+        color: var(--cw-text-secondary);
+    }
+
+    /* 进度条 */
+    .cw-progress-bar {
+        width: 300px;
+        height: 6px;
+        background: var(--cw-bg-card);
+        border-radius: 3px;
+        overflow: hidden;
+        margin: 1.5rem auto 0;
+    }
+
+    .cw-progress-fill {
+        height: 100%;
+        background: linear-gradient(90deg, var(--cw-primary), var(--cw-primary-light));
+        border-radius: 3px;
+        transition: width 0.3s ease;
+    }
+
+    /* 结果预览 */
+    .cw-result-preview {
+        background: var(--cw-bg-primary);
+        border: 1px solid var(--cw-border-color);
+        border-radius: 12px;
+        padding: 1.5rem;
+        margin-top: 1.5rem;
+    }
+
+    .cw-result-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 1rem;
+    }
+
+    .cw-result-title {
+        font-weight: 600;
+        color: var(--cw-text-primary);
+    }
+
+    .cw-result-actions {
+        display: flex;
+        gap: 0.5rem;
+    }
+
+    .cw-btn-small {
+        padding: 0.5rem 1rem;
+        font-size: 0.875rem;
+    }
+
+    /* Toast提示 */
+    .cw-toast-container {
+        position: fixed;
+        top: 5rem;
+        right: 2rem;
+        z-index: 1001;
+        display: flex;
+        flex-direction: column;
+        gap: 0.75rem;
+    }
+
+    .cw-toast {
+        background: var(--cw-bg-secondary);
+        border: 1px solid var(--cw-border-color);
+        border-radius: 10px;
+        padding: 1rem 1.25rem;
+        min-width: 300px;
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+        animation: cw-slideIn 0.3s ease;
+        box-shadow: var(--cw-shadow);
+    }
+
+    @keyframes cw-slideIn {
+        from {
+            opacity: 0;
+            transform: translateX(100%);
+        }
+        to {
+            opacity: 1;
+            transform: translateX(0);
+        }
+    }
+
+    .cw-toast.success {
+        border-color: var(--cw-success);
+    }
+
+    .cw-toast.error {
+        border-color: var(--cw-error);
+    }
+
+    .cw-toast.warning {
+        border-color: var(--cw-warning);
+    }
+
+    .cw-toast-icon {
+        font-size: 1.25rem;
+    }
+
+    .cw-toast.success .cw-toast-icon {
+        color: var(--cw-success);
+    }
+
+    .cw-toast.error .cw-toast-icon {
+        color: var(--cw-error);
+    }
+
+    .cw-toast.warning .cw-toast-icon {
+        color: var(--cw-warning);
+    }
+
+    /* 隐藏文件输入 */
+    #cw-file-input {
+        display: none;
+    }
+
+    /* 响应式 */
+    @media (max-width: 768px) {
+        .cw-main {
+            padding: 1rem;
+            padding-top: calc(60px + 1rem);
+        }
+
+        .cw-create-methods {
+            grid-template-columns: 1fr;
+        }
+
+        .cw-form-grid {
+            grid-template-columns: 1fr;
+        }
+
+        .cw-stage-cards {
+            grid-template-columns: 1fr;
+        }
+
+        .cw-btn-group {
+            flex-direction: column;
+        }
+
+        .cw-toast-container {
+            left: 1rem;
+            right: 1rem;
+        }
+
+        .cw-toast {
+            min-width: auto;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="cw-main">
+    <!-- 页面标题 -->
+    <header class="cw-page-header">
+        <h1>🎨 创意工坊</h1>
+        <p>选择最适合你的方式，快速创建小说创意</p>
+    </header>
+
+    <!-- 创建方式选择 -->
+    <div class="cw-create-methods">
+        <div class="cw-method-card ai active" onclick="selectMethod('ai')">
+            <span class="cw-method-badge">推荐</span>
+            <div class="cw-method-icon">
+                <i class="fas fa-magic"></i>
+            </div>
+            <h3 class="cw-method-title">AI 智能扩展</h3>
+            <p class="cw-method-desc">输入一句话核心创意，AI自动扩展成完整的小说创意结构，包含四阶段故事线</p>
+        </div>
+
+        <div class="cw-method-card form" onclick="selectMethod('form')">
+            <div class="cw-method-icon">
+                <i class="fas fa-edit"></i>
+            </div>
+            <h3 class="cw-method-title">表单填写</h3>
+            <p class="cw-method-desc">手动填写完整的创意信息，包括核心设定、卖点和四阶段故事线</p>
+        </div>
+
+        <div class="cw-method-card upload" onclick="selectMethod('upload')">
+            <div class="cw-method-icon">
+                <i class="fas fa-cloud-upload-alt"></i>
+            </div>
+            <h3 class="cw-method-title">文件导入</h3>
+            <p class="cw-method-desc">上传符合模板格式的 JSON 或 Excel 文件，批量导入创意</p>
+        </div>
+    </div>
+
+    <!-- 内容区域 -->
+    <div class="cw-content-area">
+        <!-- AI 扩展方式 -->
+        <div id="cw-ai-section" class="cw-content-section active">
+            <div class="cw-ai-input-area">
+                <label for="cw-core-idea">
+                    <i class="fas fa-sparkles"></i>
+                    输入你的核心创意
+                    <span class="cw-required">*</span>
+                </label>
+                <textarea 
+                    id="cw-core-idea" 
+                    class="cw-ai-textarea" 
+                    placeholder="例如：主角重生成为修仙家族的祖宗牌位，内心吐槽被子孙偷听，误以为是神谕..."
+                ></textarea>
+                <div class="cw-form-hint">用一句话描述你的核心创意，越具体越好，AI会帮你扩展成完整的创意结构</div>
+            </div>
+
+            <div class="cw-ai-examples">
+                <div class="cw-ai-examples-title">💡 试试这些示例（点击填入）：</div>
+                <div class="cw-example-chips">
+                    <span class="cw-example-chip" onclick="fillExample(0)">重生为祖宗牌位，心声被偷听</span>
+                    <span class="cw-example-chip" onclick="fillExample(1)">绑定诡异模拟器，反向恐怖</span>
+                    <span class="cw-example-chip" onclick="fillExample(2)">国运直播，我靠迪化流逆袭</span>
+                    <span class="cw-example-chip" onclick="fillExample(3)">灵气复苏，我是幕后黑手</span>
+                    <span class="cw-example-chip" onclick="fillExample(4)">网游降临现实，我双职业</span>
+                </div>
+            </div>
+
+            <div id="cw-ai-result" style="display: none;">
+                <div class="cw-result-preview">
+                    <div class="cw-result-header">
+                        <span class="cw-result-title">📋 AI 生成的创意预览</span>
+                        <div class="cw-result-actions">
+                            <button class="cw-btn cw-btn-secondary cw-btn-small" onclick="regenerateAI()">
+                                <i class="fas fa-refresh"></i> 重新生成
+                            </button>
+                        </div>
+                    </div>
+                    <div id="cw-ai-result-content"></div>
+                </div>
+            </div>
+
+            <div class="cw-btn-group">
+                <button class="cw-btn cw-btn-secondary" onclick="resetForm()">
+                    <i class="fas fa-trash-alt"></i> 清空
+                </button>
+                <button class="cw-btn cw-btn-primary cw-btn-large" id="cw-ai-generate-btn" onclick="generateWithAI()">
+                    <i class="fas fa-magic"></i> 开始 AI 扩展
+                </button>
+                <button class="cw-btn cw-btn-primary cw-btn-large" id="cw-ai-save-btn" onclick="saveAIIdea()" style="display: none;">
+                    <i class="fas fa-save"></i> 保存创意
+                </button>
+            </div>
+        </div>
+
+        <!-- 表单填写方式 -->
+        <div id="cw-form-section" class="cw-content-section">
+            <div class="cw-form-grid">
+                <div class="cw-form-group">
+                    <label for="cw-form-title">
+                        小说标题
+                        <span class="cw-required">*</span>
+                    </label>
+                    <input type="text" id="cw-form-title" class="cw-form-input" placeholder="给你的小说起个吸引人的名字">
+                </div>
+
+                <div class="cw-form-group">
+                    <label for="cw-form-total-chapters">总章节数</label>
+                    <input type="number" id="cw-form-total-chapters" class="cw-form-input" value="200" min="50" max="1000">
+                    <div class="cw-form-hint">建议 100-300 章</div>
+                </div>
+
+                <div class="cw-form-group full-width">
+                    <label for="cw-form-core-setting">
+                        核心设定
+                        <span class="cw-required">*</span>
+                    </label>
+                    <textarea id="cw-form-core-setting" class="cw-form-input cw-form-textarea" placeholder="一句话概括小说的核心设定..."></textarea>
+                </div>
+
+                <div class="cw-form-group full-width">
+                    <label for="cw-form-selling-points">
+                        核心卖点
+                        <span class="cw-required">*</span>
+                    </label>
+                    <textarea id="cw-form-selling-points" class="cw-form-input cw-form-textarea" placeholder="用+号分隔，例如：迪化流+群像+心声偷听+反派逆袭"></textarea>
+                </div>
+
+                <div class="cw-form-group full-width">
+                    <label for="cw-form-synopsis">简介</label>
+                    <textarea id="cw-form-synopsis" class="cw-form-input cw-form-textarea" placeholder="小说的详细简介..."></textarea>
+                </div>
+            </div>
+
+            <h4 style="margin: 1.5rem 0 1rem; font-weight: 600; color: var(--cw-text-primary);">
+                <i class="fas fa-sitemap"></i> 四阶段故事线
+            </h4>
+
+            <div class="cw-stage-cards">
+                <div class="cw-stage-card">
+                    <div class="cw-stage-header">
+                        <span class="cw-stage-number">1</span>
+                        <span class="cw-stage-name">开篇阶段</span>
+                    </div>
+                    <input type="text" id="cw-stage-opening-name" class="cw-form-input" placeholder="阶段名称" style="margin-bottom: 0.75rem;">
+                    <textarea id="cw-stage-opening-summary" class="cw-form-input cw-form-textarea" placeholder="阶段概述..." style="min-height: 80px;"></textarea>
+                </div>
+
+                <div class="cw-stage-card">
+                    <div class="cw-stage-header">
+                        <span class="cw-stage-number">2</span>
+                        <span class="cw-stage-name">发展阶段</span>
+                    </div>
+                    <input type="text" id="cw-stage-development-name" class="cw-form-input" placeholder="阶段名称" style="margin-bottom: 0.75rem;">
+                    <textarea id="cw-stage-development-summary" class="cw-form-input cw-form-textarea" placeholder="阶段概述..." style="min-height: 80px;"></textarea>
+                </div>
+
+                <div class="cw-stage-card">
+                    <div class="cw-stage-header">
+                        <span class="cw-stage-number">3</span>
+                        <span class="cw-stage-name">冲突阶段</span>
+                    </div>
+                    <input type="text" id="cw-stage-conflict-name" class="cw-form-input" placeholder="阶段名称" style="margin-bottom: 0.75rem;">
+                    <textarea id="cw-stage-conflict-summary" class="cw-form-input cw-form-textarea" placeholder="阶段概述..." style="min-height: 80px;"></textarea>
+                </div>
+
+                <div class="cw-stage-card">
+                    <div class="cw-stage-header">
+                        <span class="cw-stage-number">4</span>
+                        <span class="cw-stage-name">结局阶段</span>
+                    </div>
+                    <input type="text" id="cw-stage-ending-name" class="cw-form-input" placeholder="阶段名称" style="margin-bottom: 0.75rem;">
+                    <textarea id="cw-stage-ending-summary" class="cw-form-input cw-form-textarea" placeholder="阶段概述..." style="min-height: 80px;"></textarea>
+                </div>
+            </div>
+
+            <div class="cw-btn-group">
+                <button class="cw-btn cw-btn-secondary" onclick="resetForm()">
+                    <i class="fas fa-trash-alt"></i> 清空
+                </button>
+                <button class="cw-btn cw-btn-primary cw-btn-large" onclick="saveFormIdea()">
+                    <i class="fas fa-save"></i> 保存创意
+                </button>
+            </div>
+        </div>
+
+        <!-- 文件导入方式 -->
+        <div id="cw-upload-section" class="cw-content-section">
+            <div class="cw-upload-area" id="cw-upload-area" onclick="document.getElementById('cw-file-input').click()">
+                <div class="cw-upload-icon">
+                    <i class="fas fa-cloud-upload-alt"></i>
+                </div>
+                <h3 class="cw-upload-title">点击或拖拽文件到此处</h3>
+                <p class="cw-upload-desc">支持导入 JSON 或 Excel 格式的创意文件</p>
+                <div class="cw-upload-formats">
+                    <span class="cw-format-badge">
+                        <i class="fas fa-file-code"></i> JSON
+                    </span>
+                    <span class="cw-format-badge">
+                        <i class="fas fa-file-excel"></i> Excel
+                    </span>
+                </div>
+                <button class="cw-btn cw-btn-primary">
+                    <i class="fas fa-folder-open"></i> 选择文件
+                </button>
+                <input type="file" id="cw-file-input" accept=".json,.xlsx,.xls" onchange="handleFileSelect(event)">
+            </div>
+
+            <div class="cw-template-download">
+                <div class="cw-template-header">
+                    <div class="cw-template-icon">
+                        <i class="fas fa-download" style="color: var(--cw-success);"></i>
+                    </div>
+                    <div class="cw-template-info">
+                        <h4>下载创意模板</h4>
+                        <p>不知道格式？先下载模板参考</p>
+                    </div>
+                </div>
+                <div style="display: flex; gap: 1rem;">
+                    <button class="cw-btn cw-btn-secondary" onclick="downloadTemplate('json')">
+                        <i class="fas fa-file-code"></i> 下载 JSON 模板
+                    </button>
+                    <button class="cw-btn cw-btn-secondary" onclick="downloadTemplate('excel')">
+                        <i class="fas fa-file-excel"></i> 下载 Excel 模板
+                    </button>
+                </div>
+            </div>
+
+            <div id="cw-upload-preview" style="display: none; margin-top: 1.5rem;">
+                <div class="cw-result-preview">
+                    <div class="cw-result-header">
+                        <span class="cw-result-title">📋 文件预览</span>
+                        <span id="cw-upload-file-name" style="color: var(--cw-text-secondary);"></span>
+                    </div>
+                    <div id="cw-upload-preview-content"></div>
+                    <div class="cw-btn-group" style="margin-top: 1rem;">
+                        <button class="cw-btn cw-btn-secondary" onclick="clearUpload()">
+                            <i class="fas fa-times"></i> 取消
+                        </button>
+                        <button class="cw-btn cw-btn-primary" onclick="saveUploadIdea()">
+                            <i class="fas fa-save"></i> 确认导入
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- 加载遮罩 -->
+<div class="cw-loading-overlay" id="cw-loading-overlay">
+    <div class="cw-loading-content">
+        <div class="cw-loading-spinner"></div>
+        <div class="cw-loading-text" id="cw-loading-text">AI 正在扩展你的创意...</div>
+        <div class="cw-loading-subtext" id="cw-loading-subtext">这可能需要几秒钟</div>
+        <div class="cw-progress-bar">
+            <div class="cw-progress-fill" id="cw-progress-fill" style="width: 0%"></div>
+        </div>
+    </div>
+</div>
+
+<!-- Toast 容器 -->
+<div class="cw-toast-container" id="cw-toast-container"></div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    // 当前选中的方法
+    let currentMethod = 'ai';
+    let aiGeneratedData = null;
+    let uploadedData = null;
+
+    // 示例数据
+    const examples = [
+        "主角重生成为修仙家族林家的祖宗牌位，内心吐槽被子孙偷听，误以为是神谕指引，从此家族在迪化道路上越走越远",
+        "主角绑定诡异人生模拟器，所有恐怖场景对他来说都是提前预演，表现出来却像是预知未来，让诡异都怀疑人生",
+        "国运直播时代，主角被选中进入诡异副本，但他把恐怖副本玩成了迪化现场，全球观众以为他是深不可测的大佬",
+        "灵气复苏时代，主角获得幕后黑手系统，可以投放各种机缘给路人，看着路人一步步成长为强者，享受养成的乐趣",
+        "网游《永恒》降临现实，主角拥有唯一双职业，左手圣骑士右手死灵法师，在光明与黑暗之间反复横跳"
+    ];
+
+    // 选择创建方法
+    function selectMethod(method) {
+        currentMethod = method;
+        
+        // 更新卡片状态
+        document.querySelectorAll('.cw-method-card').forEach(card => {
+            card.classList.remove('active');
+        });
+        document.querySelector(`.cw-method-card.${method}`).classList.add('active');
+        
+        // 切换内容区域
+        document.querySelectorAll('.cw-content-section').forEach(section => {
+            section.classList.remove('active');
+        });
+        document.getElementById(`cw-${method}-section`).classList.add('active');
+    }
+
+    // 填入示例
+    function fillExample(index) {
+        document.getElementById('cw-core-idea').value = examples[index];
+    }
+
+    // 显示加载
+    function showLoading(text, subtext) {
+        document.getElementById('cw-loading-text').textContent = text;
+        document.getElementById('cw-loading-subtext').textContent = subtext || '';
+        document.getElementById('cw-loading-overlay').classList.add('active');
+        updateProgress(0);
+    }
+
+    // 隐藏加载
+    function hideLoading() {
+        document.getElementById('cw-loading-overlay').classList.remove('active');
+    }
+
+    // 更新进度条
+    function updateProgress(percent) {
+        document.getElementById('cw-progress-fill').style.width = `${percent}%`;
+    }
+
+    // 显示 Toast
+    function showToast(message, type = 'success') {
+        const container = document.getElementById('cw-toast-container');
+        const toast = document.createElement('div');
+        toast.className = `cw-toast ${type}`;
+        
+        const icon = type === 'success' ? 'check-circle' : 
+                    type === 'error' ? 'exclamation-circle' : 'info-circle';
+        
+        toast.innerHTML = `
+            <i class="fas fa-${icon} cw-toast-icon"></i>
+            <span>${message}</span>
+        `;
+        
+        container.appendChild(toast);
+        
+        setTimeout(() => {
+            toast.style.opacity = '0';
+            toast.style.transform = 'translateX(100%)';
+            setTimeout(() => toast.remove(), 300);
+        }, 3000);
+    }
+
+    // AI 生成
+    async function generateWithAI() {
+        const coreIdea = document.getElementById('cw-core-idea').value.trim();
+        
+        if (!coreIdea) {
+            showToast('请输入核心创意', 'error');
+            return;
+        }
+
+        showLoading('AI 正在扩展你的创意...', '分析核心设定中');
+        
+        // 模拟进度更新
+        let progress = 0;
+        const progressInterval = setInterval(() => {
+            progress += Math.random() * 15;
+            if (progress > 90) progress = 90;
+            updateProgress(progress);
+        }, 500);
+
+        try {
+            const response = await fetch('/api/creative-ideas/ai-expand', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ core_idea: coreIdea })
+            });
+
+            clearInterval(progressInterval);
+            updateProgress(100);
+
+            if (!response.ok) {
+                throw new Error('生成失败');
+            }
+
+            const data = await response.json();
+            
+            if (data.success) {
+                aiGeneratedData = data.creative_data;
+                displayAIResult(data.creative_data);
+                document.getElementById('cw-ai-generate-btn').style.display = 'none';
+                document.getElementById('cw-ai-save-btn').style.display = 'inline-flex';
+                showToast('创意生成成功！');
+            } else {
+                throw new Error(data.error || '生成失败');
+            }
+        } catch (error) {
+            clearInterval(progressInterval);
+            showToast(error.message, 'error');
+        } finally {
+            setTimeout(hideLoading, 500);
+        }
+    }
+
+    // 显示 AI 生成结果
+    function displayAIResult(data) {
+        const container = document.getElementById('cw-ai-result-content');
+        const storyline = data.completeStoryline || {};
+        
+        container.innerHTML = `
+            <div style="margin-bottom: 1.5rem;">
+                <h5 style="color: var(--cw-text-secondary); margin-bottom: 0.5rem; font-size: 0.875rem;">小说标题</h5>
+                <p style="font-size: 1.125rem; font-weight: 600; color: var(--cw-text-primary);">${data.novelTitle || '未命名'}</p>
+            </div>
+            
+            <div style="margin-bottom: 1.5rem;">
+                <h5 style="color: var(--cw-text-secondary); margin-bottom: 0.5rem; font-size: 0.875rem;">核心设定</h5>
+                <p style="color: var(--cw-text-primary);">${data.coreSetting}</p>
+            </div>
+            
+            <div style="margin-bottom: 1.5rem;">
+                <h5 style="color: var(--cw-text-secondary); margin-bottom: 0.5rem; font-size: 0.875rem;">核心卖点</h5>
+                <p style="color: var(--cw-text-primary);">${data.coreSellingPoints}</p>
+            </div>
+            
+            <div>
+                <h5 style="color: var(--cw-text-secondary); margin-bottom: 0.75rem; font-size: 0.875rem;">故事线</h5>
+                <div class="cw-stage-cards" style="margin-top: 0;">
+                    ${Object.entries(storyline).map(([key, stage], index) => `
+                        <div class="cw-stage-card" style="background: var(--cw-bg-secondary);">
+                            <div class="cw-stage-header">
+                                <span class="cw-stage-number">${index + 1}</span>
+                                <span class="cw-stage-name">${stage.stageName || key}</span>
+                            </div>
+                            <p style="font-size: 0.875rem; color: var(--cw-text-secondary);">${stage.summary || ''}</p>
+                        </div>
+                    `).join('')}
+                </div>
+            </div>
+        `;
+        
+        document.getElementById('cw-ai-result').style.display = 'block';
+    }
+
+    // 重新生成
+    function regenerateAI() {
+        document.getElementById('cw-ai-result').style.display = 'none';
+        document.getElementById('cw-ai-generate-btn').style.display = 'inline-flex';
+        document.getElementById('cw-ai-save-btn').style.display = 'none';
+        aiGeneratedData = null;
+        generateWithAI();
+    }
+
+    // 保存 AI 生成的创意
+    async function saveAIIdea() {
+        if (!aiGeneratedData) {
+            showToast('没有可保存的创意', 'error');
+            return;
+        }
+
+        await saveCreativeIdea(aiGeneratedData);
+    }
+
+    // 保存表单创意
+    async function saveFormIdea() {
+        const data = {
+            novelTitle: document.getElementById('cw-form-title').value.trim(),
+            totalChapters: parseInt(document.getElementById('cw-form-total-chapters').value) || 200,
+            coreSetting: document.getElementById('cw-form-core-setting').value.trim(),
+            coreSellingPoints: document.getElementById('cw-form-selling-points').value.trim(),
+            synopsis: document.getElementById('cw-form-synopsis').value.trim(),
+            completeStoryline: {
+                opening: {
+                    stageName: document.getElementById('cw-stage-opening-name').value.trim() || '开篇',
+                    summary: document.getElementById('cw-stage-opening-summary').value.trim()
+                },
+                development: {
+                    stageName: document.getElementById('cw-stage-development-name').value.trim() || '发展',
+                    summary: document.getElementById('cw-stage-development-summary').value.trim()
+                },
+                conflict: {
+                    stageName: document.getElementById('cw-stage-conflict-name').value.trim() || '冲突',
+                    summary: document.getElementById('cw-stage-conflict-summary').value.trim()
+                },
+                ending: {
+                    stageName: document.getElementById('cw-stage-ending-name').value.trim() || '结局',
+                    summary: document.getElementById('cw-stage-ending-summary').value.trim()
+                }
+            }
+        };
+
+        // 验证必填字段
+        if (!data.novelTitle) {
+            showToast('请填写小说标题', 'error');
+            return;
+        }
+        if (!data.coreSetting) {
+            showToast('请填写核心设定', 'error');
+            return;
+        }
+        if (!data.coreSellingPoints) {
+            showToast('请填写核心卖点', 'error');
+            return;
+        }
+
+        await saveCreativeIdea(data);
+    }
+
+    // 保存上传的创意
+    async function saveUploadIdea() {
+        if (!uploadedData) {
+            showToast('没有可导入的数据', 'error');
+            return;
+        }
+
+        await saveCreativeIdea(uploadedData);
+    }
+
+    // 统一保存创意
+    async function saveCreativeIdea(data) {
+        showLoading('正在保存创意...');
+
+        try {
+            const response = await fetch('/api/creative-ideas', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(data)
+            });
+
+            if (!response.ok) {
+                throw new Error('保存失败');
+            }
+
+            const result = await response.json();
+
+            if (result.success) {
+                showToast('创意保存成功！');
+                setTimeout(() => {
+                    window.location.href = '/phase-one-setup';
+                }, 1500);
+            } else {
+                throw new Error(result.error || '保存失败');
+            }
+        } catch (error) {
+            showToast(error.message, 'error');
+        } finally {
+            hideLoading();
+        }
+    }
+
+    // 下载模板
+    async function downloadTemplate(format) {
+        showLoading('正在准备模板...');
+
+        try {
+            const response = await fetch(`/api/creative-ideas/template?format=${format}`);
+            
+            if (!response.ok) {
+                throw new Error('下载失败');
+            }
+
+            const blob = await response.blob();
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `创意模板.${format}`;
+            document.body.appendChild(a);
+            a.click();
+            window.URL.revokeObjectURL(url);
+            document.body.removeChild(a);
+
+            showToast('模板下载成功！');
+        } catch (error) {
+            showToast(error.message, 'error');
+        } finally {
+            hideLoading();
+        }
+    }
+
+    // 处理文件选择
+    function handleFileSelect(event) {
+        const file = event.target.files[0];
+        if (!file) return;
+
+        showLoading('正在解析文件...');
+
+        const reader = new FileReader();
+        reader.onload = function(e) {
+            try {
+                const content = e.target.result;
+                let data;
+
+                if (file.name.endsWith('.json')) {
+                    data = JSON.parse(content);
+                } else {
+                    showToast('Excel 文件暂不支持，请使用 JSON 格式', 'error');
+                    hideLoading();
+                    return;
+                }
+
+                uploadedData = data;
+                displayUploadPreview(data, file.name);
+                showToast('文件解析成功！');
+            } catch (error) {
+                showToast('文件解析失败：' + error.message, 'error');
+            } finally {
+                hideLoading();
+            }
+        };
+
+        reader.readAsText(file);
+    }
+
+    // 显示上传预览
+    function displayUploadPreview(data, filename) {
+        document.getElementById('cw-upload-file-name').textContent = filename;
+        
+        const container = document.getElementById('cw-upload-preview-content');
+        container.innerHTML = `
+            <div style="display: grid; gap: 1rem;">
+                <div>
+                    <span style="color: var(--cw-text-secondary);">标题：</span>
+                    <span style="font-weight: 600; color: var(--cw-text-primary);">${data.novelTitle || '未命名'}</span>
+                </div>
+                <div>
+                    <span style="color: var(--cw-text-secondary);">核心设定：</span>
+                    <span style="color: var(--cw-text-primary);">${data.coreSetting || ''}</span>
+                </div>
+                <div>
+                    <span style="color: var(--cw-text-secondary);">核心卖点：</span>
+                    <span style="color: var(--cw-text-primary);">${data.coreSellingPoints || ''}</span>
+                </div>
+            </div>
+        `;
+        
+        document.getElementById('cw-upload-preview').style.display = 'block';
+        document.getElementById('cw-upload-area').style.display = 'none';
+    }
+
+    // 清空上传
+    function clearUpload() {
+        uploadedData = null;
+        document.getElementById('cw-upload-preview').style.display = 'none';
+        document.getElementById('cw-upload-area').style.display = 'block';
+        document.getElementById('cw-file-input').value = '';
+    }
+
+    // 清空表单
+    function resetForm() {
+        if (currentMethod === 'ai') {
+            document.getElementById('cw-core-idea').value = '';
+            document.getElementById('cw-ai-result').style.display = 'none';
+            document.getElementById('cw-ai-generate-btn').style.display = 'inline-flex';
+            document.getElementById('cw-ai-save-btn').style.display = 'none';
+            aiGeneratedData = null;
+        } else if (currentMethod === 'form') {
+            document.getElementById('cw-form-title').value = '';
+            document.getElementById('cw-form-core-setting').value = '';
+            document.getElementById('cw-form-selling-points').value = '';
+            document.getElementById('cw-form-synopsis').value = '';
+            document.getElementById('cw-form-total-chapters').value = '200';
+            ['opening', 'development', 'conflict', 'ending'].forEach(stage => {
+                document.getElementById(`cw-stage-${stage}-name`).value = '';
+                document.getElementById(`cw-stage-${stage}-summary`).value = '';
+            });
+        } else if (currentMethod === 'upload') {
+            clearUpload();
+        }
+    }
+
+    // 拖拽上传
+    const uploadArea = document.getElementById('cw-upload-area');
+    
+    if (uploadArea) {
+        uploadArea.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            uploadArea.classList.add('dragover');
+        });
+
+        uploadArea.addEventListener('dragleave', () => {
+            uploadArea.classList.remove('dragover');
+        });
+
+        uploadArea.addEventListener('drop', (e) => {
+            e.preventDefault();
+            uploadArea.classList.remove('dragover');
+            
+            const files = e.dataTransfer.files;
+            if (files.length > 0) {
+                document.getElementById('cw-file-input').files = files;
+                handleFileSelect({ target: { files: files } });
+            }
+        });
+    }
+</script>
+{% endblock %}

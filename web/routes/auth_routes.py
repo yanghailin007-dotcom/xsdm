@@ -483,22 +483,7 @@ def register_page_routes(app):
     @login_required
     def phase_one_setup():
         """第一阶段设定生成页面 - Glassmorphism UI v3.0"""
-        # 检查是否请求旧版本
-        ui_version = request.args.get('ui', '').lower()
-        if ui_version == 'v1':
-            logger.info("📄 Loading phase-one-setup.html (V1 UI)")
-            return render_template('phase-one-setup.html')
-        elif ui_version == 'v2':
-            logger.info("📄 Loading phase-one-setup-v2.html (V2 UI)")
-            return render_template('pages/v2/phase-one-setup-v2.html')
-        
-        logger.info("📄 Loading phase-one-setup-new.html (Glassmorphism UI v3.0 - 默认)")
-        return render_template('phase-one-setup-new.html')
-
-    @app.route('/phase-one-setup-new', methods=['GET'])
-    @login_required
-    def phase_one_setup_new():
-        """第一阶段设定生成页面（新版）"""
+        logger.info("📄 Loading phase-one-setup-new.html (Glassmorphism UI v3.0)")
         return render_template('phase-one-setup-new.html')
 
     @app.route('/phase-two-generation', methods=['GET'])

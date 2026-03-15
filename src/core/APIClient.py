@@ -338,8 +338,12 @@ class APIClient:
                 next_endpoint = pool.get_next_endpoint()
                 if next_endpoint:
                     config = next_endpoint.get_config()
-                    # 🔥 新增：质量评估类任务优先使用端点的 assessment 配置
-                    if content_type and "assessment" in content_type and "assessment" in config:
+                    # 🔥 修复：如果存在路由模型，优先使用路由模型（覆盖端点的默认模型）
+                    if routed_model and provider == "gemini":
+                        model_name = routed_model
+                        self.logger.info(f"模型路由覆盖: 使用路由模型 {model_name} 替代端点默认模型")
+                    # 🔥 质量评估类任务优先使用端点的 assessment 配置
+                    elif content_type and "assessment" in content_type and "assessment" in config:
                         model_name = config["assessment"]
                         self.logger.info(f"使用端点 assessment 模型: {model_name}")
                 else:

@@ -199,17 +199,17 @@ class MultiChapterContentGenerator:
 5. **番茄风格**: 短段落、快节奏、强卡点
 
 ## 字数要求（最高优先级 - 强制执行）
-🎯 目标字数：严格控制在2000字左右（硬性范围：1800-2500字）
+🎯 目标字数：严格控制在2000字左右（硬性范围：1500-3500字）
 
 ⚠️ 字数硬性规定（必须遵守）：
 - 字数统计包含所有汉字和标点符号
-- **绝对不得低于1800字**：字数过少会导致情节单薄，无法通过审核
-- **绝对不得超过2500字**：字数过多会导致节奏拖沓，影响阅读体验
+- **绝对不得低于1500字**：字数过少会导致情节单薄，无法通过审核
+- **绝对不得超过3500字**：字数过多会导致节奏拖沓，影响阅读体验
 - **理想字数：2000±200字**，这是平台推荐的标准章节长度
 
 🔴 字数不达标后果：
-- 如果生成内容少于1800字，将被系统判定为"内容不足"，必须重新生成
-- 如果生成内容多于2500字，将被系统判定为"内容冗长"，必须重新生成
+- 如果生成内容少于1500字，将被系统判定为"内容不足"，必须重新生成
+- 如果生成内容多于3500字，将被系统判定为"内容冗长"，必须重新生成
 - **请确保生成内容严格符合字数要求，否则无法通过质量检查**
 
 💡 字数分配建议（供参考）：
@@ -228,7 +228,7 @@ class MultiChapterContentGenerator:
     {{
       "chapter_number": {start_ch},
       "title": "章节标题（8-14字，绝对不能超过14字）",
-      "content": "正文内容（严格1800-2500字）。注意：段落要短，适合手机阅读。情绪外显，通过动作对话体现。每章结尾要有强力卡点。",
+      "content": "正文内容（严格1500-3500字）。注意：段落要短，适合手机阅读。情绪外显，通过动作对话体现。每章结尾要有强力卡点。",
       "key_events": ["本章关键事件1", "事件2"],
       "character_states": {{"角色名": "本章结束时的状态"}},
       "items_delta": {{"物品名": "变化描述（如'获得'/'使用'/'损坏'）"}},
@@ -242,7 +242,7 @@ class MultiChapterContentGenerator:
 
 重要提示：
 - 总共生成{end_ch - start_ch + 1}章，必须完整返回
-- **每章必须严格控制在1800-2500字范围内，字数不达标将触发重新生成**
+- **每章必须严格控制在1500-3500字范围内，字数不达标将触发重新生成**
 - 章节之间必须连贯，前一章结尾状态 = 后一章起始状态
 - 每章结尾必须有卡点（悬念/情绪/冲突/期待）
 - 严格遵循一致性铁律，不得出现矛盾
@@ -358,10 +358,10 @@ class MultiChapterContentGenerator:
             word_count = len(content_text)
             
             # 字数检查
-            if word_count < 1800:
-                self.logger.warning(f"[MultiChapterGen] 第{ch_num}章字数不足: {word_count}字 (要求≥1800字)")
-            elif word_count > 2500:
-                self.logger.warning(f"[MultiChapterGen] 第{ch_num}章字数过多: {word_count}字 (要求≤2500字)")
+            if word_count < 1500:
+                self.logger.warning(f"[MultiChapterGen] 第{ch_num}章字数不足: {word_count}字 (要求≥1500字)")
+            elif word_count > 3500:
+                self.logger.warning(f"[MultiChapterGen] 第{ch_num}章字数过多: {word_count}字 (要求≤3500字)")
             else:
                 self.logger.info(f"[MultiChapterGen] 第{ch_num}章字数达标: {word_count}字")
             
