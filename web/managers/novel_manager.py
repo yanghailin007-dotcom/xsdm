@@ -1243,7 +1243,7 @@ class NovelGenerationManager:
                         file_chapter_count = len(chapter_files)
                         if file_chapter_count > 0:
                             completed_chapters = file_chapter_count
-                            logger.info(f"[GET_NOVEL_PROJECTS] 项目 {title}: 从文件系统读取到 {file_chapter_count} 个章节文件")
+                            logger.debug(f"[GET_NOVEL_PROJECTS] 项目 {title}: 从文件系统读取到 {file_chapter_count} 个章节文件")
                 except Exception as e:
                     logger.warning(f"[GET_NOVEL_PROJECTS] 从文件系统读取章节失败: {e}")
             
@@ -1305,7 +1305,7 @@ class NovelGenerationManager:
                 "word_count": total_word_count,
                 "average_score": round(average_score, 1),
                 "created_at": data.get("creation_time", datetime.now().isoformat()),
-                "last_updated": data.get("current_progress", {}).get("last_updated", ""),
+                "last_updated": data.get("current_progress", {}).get("last_updated") or data.get("last_updated") or data.get("updated_at") or data.get("creation_time", datetime.now().isoformat()),
                 "status": "completed" if completed_chapters >= target_chapters and target_chapters > 0 else "generating",
                 # 添加前端需要的字段
                 "story_synopsis": synopsis,
@@ -1316,7 +1316,7 @@ class NovelGenerationManager:
                 "is_public": is_public,
                 "is_owner": owner == current_user or is_public
             })
-        return sorted(projects, key=lambda x: x["last_updated"], reverse=True)
+        return sorted(projects, key=lambda x: x["last_updated"] or x["created_at"], reverse=True)
 
     def get_novel_detail(self, title: str) -> Optional[Dict[str, Any]]:
         """获取小说详情，并标准化字段名以兼容前端"""
@@ -1375,7 +1375,7 @@ class NovelGenerationManager:
             writing_plans = quality_data.get("writing_plans", {})
             if writing_plans:
                 standardized_data["stage_writing_plans"] = writing_plans
-                logger.info(f"✅ 从 quality_data.writing_plans 映射到 stage_writing_plans: {len(writing_plans)} 个阶段")
+                logger.debug(f"✅ 从 quality_data.writing_plans 映射到 stage_writing_plans: {len(writing_plans)} 个阶段")
         
         # 🔥 修复：确保 overall_stage_plans 字段存在
         if "overall_stage_plans" not in standardized_data or not standardized_data.get("overall_stage_plans", {}):
@@ -1395,7 +1395,7 @@ class NovelGenerationManager:
                 
                 if overall_stage_plan:
                     standardized_data["overall_stage_plans"] = {"overall_stage_plan": overall_stage_plan}
-                    logger.info(f"✅ 从 writing_plans 构建 overall_stage_plans: {len(overall_stage_plan)} 个阶段")
+                    logger.debug(f"✅ 从 writing_plans 构建 overall_stage_plans: {len(overall_stage_plan)} 个阶段")
         
         # 🔥 修复：确保 global_growth_plan 字段存在
         if "global_growth_plan" not in standardized_data or not standardized_data.get("global_growth_plan", {}):
@@ -1417,7 +1417,7 @@ class NovelGenerationManager:
                         )
                         if has_content:
                             standardized_data["global_growth_plan"] = growth_plan_data
-                            logger.info(f"✅ 从文件加载 global_growth_plan: {growth_plan_path}")
+                            logger.debug(f"✅ 从文件加载 global_growth_plan: {growth_plan_path}")
                         else:
                             logger.warning(f"⚠️ 成长路线文件内容为空: {growth_plan_path}")
             except Exception as e:
@@ -1436,7 +1436,7 @@ class NovelGenerationManager:
                         "world_building": {}
                     }
                     standardized_data["global_growth_plan"] = global_growth_plan
-                    logger.info("✅ 创建基础 global_growth_plan 结构")
+                    logger.debug("✅ 创建基础 global_growth_plan 结构")
 
         # 确保 writing_style_guide 字段存在（动态加载）
         if "writing_style_guide" not in standardized_data or not standardized_data.get("writing_style_guide"):
@@ -1454,7 +1454,7 @@ class NovelGenerationManager:
                     with open(writing_style_path, 'r', encoding='utf-8') as f:
                         writing_style_guide = json.load(f)
                     standardized_data["writing_style_guide"] = writing_style_guide
-                    logger.info(f"✅ 动态加载写作风格指南成功: {len(writing_style_guide)} 个键")
+                    logger.debug(f"✅ 动态加载写作风格指南成功: {len(writing_style_guide)} 个键")
                 else:
                     # 文件不存在是正常情况（尚未生成），静默处理
                     standardized_data["writing_style_guide"] = {}

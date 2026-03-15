@@ -369,8 +369,11 @@ class ProjectManager:
                                 if chapter_num:
                                     # 确保 chapter_num 是字符串以保持键的一致性
                                     chapter_num_key = str(chapter_num)
+                                    chapter_title = chapter_data.get("chapter_title", "")
                                     generated_chapters[chapter_num_key] = {
-                                        "chapter_title": chapter_data.get("chapter_title", ""),
+                                        "chapter_number": chapter_num,
+                                        "chapter_title": chapter_title,
+                                        "title": chapter_title,  # 兼容前端期望的 title 字段
                                         "content": chapter_data.get("content", ""),
                                         "word_count": chapter_data.get("word_count", 0),
                                         "quality_assessment": chapter_data.get("quality_assessment", {}),
@@ -403,13 +406,13 @@ class ProjectManager:
                     novel_data["creative_seed"] = novel_data["novel_info"]["creative_seed"]
             except Exception:
                 pass
-            self.logger.info(f"✓ 项目加载成功: {novel_data['novel_title']}")
-            self.logger.info(f"  - 世界观数据: {len(novel_data['core_worldview'])} 项")
-            self.logger.info(f"  - 角色设定: {len(novel_data['character_design'])} 个角色")
-            self.logger.info(f"  - 写作计划: {len(novel_data['stage_writing_plans'])} 个阶段")
-            self.logger.info(f"  - 已生成章节: {len(novel_data['generated_chapters'])} 章")
-            self.logger.info(f"  - 当前进度: {novel_data['current_progress']['completed_chapters']}/{novel_data['current_progress']['total_chapters']}章")
-            self.logger.info(f"  - 当前阶段: {novel_data['current_progress']['stage']}")
+            self.logger.debug(f"✓ 项目加载成功: {novel_data['novel_title']}")
+            self.logger.debug(f"  - 世界观数据: {len(novel_data['core_worldview'])} 项")
+            self.logger.debug(f"  - 角色设定: {len(novel_data['character_design'])} 个角色")
+            self.logger.debug(f"  - 写作计划: {len(novel_data['stage_writing_plans'])} 个阶段")
+            self.logger.debug(f"  - 已生成章节: {len(novel_data['generated_chapters'])} 章")
+            self.logger.debug(f"  - 当前进度: {novel_data['current_progress']['completed_chapters']}/{novel_data['current_progress']['total_chapters']}章")
+            self.logger.debug(f"  - 当前阶段: {novel_data['current_progress']['stage']}")
             return novel_data
         except Exception as e:
             self.logger.info(f"❌❌ 加载项目失败: {e}")

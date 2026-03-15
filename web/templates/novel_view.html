@@ -1,1038 +1,735 @@
-<!DOCTYPE html>
-<html lang="zh-CN">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>小说生成系统 - 阅读页面</title>
-    <link rel="stylesheet" href="/static/css/style.css">
-    <style>
-        /* ==================== 暗色科技主题 - 最高优先级覆盖 ==================== */
-        
-        /* 定义CSS变量 */
-        :root {
-            --dark-bg-primary: #0f172a;
-            --dark-bg-secondary: #1e293b;
-            --dark-bg-card: rgba(30, 41, 59, 0.9);
-            --dark-bg-hover: rgba(51, 65, 85, 0.6);
-            --dark-text-primary: #f1f5f9;
-            --dark-text-secondary: #94a3b8;
-            --dark-text-tertiary: #64748b;
-            --dark-border: rgba(148, 163, 184, 0.15);
-            --dark-border-hover: rgba(148, 163, 184, 0.25);
-            --dark-accent-blue: #3b82f6;
-            --dark-accent-cyan: #06b6d4;
-            --dark-accent-purple: #8b5cf6;
-        }
-
-        /* 强制全局背景 */
-        html, body {
-            background: var(--dark-bg-primary) !important;
-            color: var(--dark-text-primary) !important;
-        }
-        
-        body::before {
-            background: var(--dark-bg-primary) !important;
-        }
-
-        /* ==================== 导航栏 ==================== */
-        html body .navbar {
-            background: rgba(15, 23, 42, 0.95) !important;
-            border-bottom: 1px solid var(--dark-border) !important;
-            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4) !important;
-        }
-
-        html body .navbar-title {
-            color: var(--dark-text-primary) !important;
-        }
-
-        /* ==================== 按钮样式 ==================== */
-        html body .btn {
-            border-radius: 0.5rem !important;
-            font-weight: 500 !important;
-            transition: all 0.2s !important;
-        }
-
-        html body .btn-primary {
-            background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%) !important;
-            border-color: transparent !important;
-            color: white !important;
-        }
-
-        html body .btn-primary:hover {
-            box-shadow: 0 4px 15px rgba(99, 102, 241, 0.5) !important;
-            transform: translateY(-1px) !important;
-        }
-
-        /* 统一退出按钮样式 */
-        .btn-logout {
-            padding: 8px 16px;
-            background: rgba(239, 68, 68, 0.1);
-            border: 1px solid rgba(239, 68, 68, 0.3);
-            border-radius: 8px;
-            color: #f87171;
-            cursor: pointer;
-            font-size: 14px;
-            font-weight: 500;
-            transition: all 0.2s;
-            display: inline-flex;
-            align-items: center;
-            gap: 6px;
-        }
-        
-        .btn-logout:hover {
-            background: rgba(239, 68, 68, 0.2);
-            color: #fca5a5;
-        }
-
-        html body .btn-secondary {
-            background: rgba(30, 41, 59, 0.8) !important;
-            border: 1px solid var(--dark-border) !important;
-            color: var(--dark-text-secondary) !important;
-        }
-
-        html body .btn-secondary:hover {
-            background: var(--dark-bg-hover) !important;
-            border-color: var(--dark-border-hover) !important;
-            color: var(--dark-text-primary) !important;
-        }
-
-        html body .btn-danger {
-            background: rgba(239, 68, 68, 0.2) !important;
-            border: 1px solid rgba(239, 68, 68, 0.3) !important;
-            color: #f87171 !important;
-        }
-
-        /* 统一返回首页按钮样式 */
-        .btn-back {
-            padding: 8px 16px;
-            background: rgba(255, 255, 255, 0.05);
-            border: 1px solid rgba(255, 255, 255, 0.1);
-            border-radius: 8px;
-            color: var(--dark-text-secondary);
-            cursor: pointer;
-            font-size: 14px;
-            font-weight: 500;
-            transition: all 0.2s;
-            display: inline-flex;
-            align-items: center;
-            gap: 6px;
-        }
-
-        .btn-back:hover {
-            background: rgba(255, 255, 255, 0.1);
-            color: var(--dark-text-primary);
-        }
-
-        /* 统一退出按钮样式 */
-        .btn-logout {
-            padding: 8px 16px;
-            background: rgba(239, 68, 68, 0.1);
-            border: 1px solid rgba(239, 68, 68, 0.3);
-            border-radius: 8px;
-            color: #f87171;
-            cursor: pointer;
-            font-size: 14px;
-            font-weight: 500;
-            transition: all 0.2s;
-            display: inline-flex;
-            align-items: center;
-            gap: 6px;
-        }
-
-        .btn-logout:hover {
-            background: rgba(239, 68, 68, 0.2);
-            color: #fca5a5;
-        }
-
-        /* ==================== 卡片和区块 ==================== */
-        html body .design-section,
-        html body .assessment-card,
-        html body .card {
-            background: var(--dark-bg-card) !important;
-            border: 1px solid var(--dark-border) !important;
-            border-radius: 0.75rem !important;
-            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3) !important;
-        }
-
-        html body .design-section:hover,
-        html body .assessment-card:hover {
-            border-color: var(--dark-border-hover) !important;
-            box-shadow: 0 8px 30px rgba(0, 0, 0, 0.4) !important;
-        }
-
-        html body .design-section-title,
-        html body .assessment-title,
-        html body .card-header {
-            color: var(--dark-accent-cyan) !important;
-            border-bottom: 1px solid var(--dark-border) !important;
-            text-shadow: 0 0 10px rgba(6, 182, 212, 0.3) !important;
-        }
-
-        html body .design-item-label,
-        html body .detail-label {
-            color: var(--dark-text-tertiary) !important;
-        }
-
-        html body .design-item-value,
-        html body .detail-value {
-            color: var(--dark-text-primary) !important;
-        }
-
-        /* ==================== 中间内容区 ==================== */
-        html body .center-content {
-            background: var(--dark-bg-card) !important;
-            border: 1px solid var(--dark-border) !important;
-            border-radius: 0.75rem !important;
-        }
-
-        html body .content-header {
-            border-bottom: 1px solid var(--dark-border) !important;
-        }
-
-        html body .content-header h2 {
-            color: var(--dark-text-primary) !important;
-        }
-
-        html body #chapter-meta {
-            color: var(--dark-text-secondary) !important;
-        }
-
-        html body .content-body {
-            color: var(--dark-text-primary) !important;
-        }
-
-        /* ==================== 分页和章节导航 ==================== */
-        html body .chapter-pagination,
-        html body .page-navigation,
-        html body .chapter-navigation {
-            background: rgba(15, 23, 42, 0.8) !important;
-            border-top: 1px solid var(--dark-border) !important;
-        }
-
-        html body .page-indicator,
-        html body .chapter-indicator {
-            color: var(--dark-text-secondary) !important;
-        }
-
-        /* ==================== 阅读设置面板 ==================== */
-        html body .reading-settings-panel,
-        html body .page-settings-panel {
-            background: var(--dark-bg-secondary) !important;
-            border: 1px solid var(--dark-border) !important;
-            border-radius: 0.75rem !important;
-            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5) !important;
-        }
-
-        html body .reading-settings-panel h4,
-        html body .page-settings-panel h4 {
-            color: var(--dark-text-primary) !important;
-            border-bottom: 1px solid var(--dark-border) !important;
-        }
-
-        html body .setting-item label {
-            color: var(--dark-text-secondary) !important;
-        }
-
-        /* ==================== 主题按钮 ==================== */
-        html body .theme-btn,
-        html body .page-mode-btn {
-            background: rgba(30, 41, 59, 0.8) !important;
-            border: 1px solid var(--dark-border) !important;
-            color: var(--dark-text-secondary) !important;
-            border-radius: 0.5rem !important;
-        }
-
-        html body .theme-btn:hover,
-        html body .page-mode-btn:hover {
-            background: var(--dark-bg-hover) !important;
-            border-color: var(--dark-accent-blue) !important;
-            color: var(--dark-text-primary) !important;
-        }
-
-        html body .theme-btn.active,
-        html body .page-mode-btn.active {
-            background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%) !important;
-            border-color: transparent !important;
-            color: white !important;
-        }
-
-        /* ==================== JSON展开区域 - 关键修复 ==================== */
-        html body .expandable-json-section,
-        html body div.expandable-json-section,
-        html body .design-item-value .expandable-json-section {
-            background: rgba(15, 23, 42, 0.7) !important;
-            border: 1px solid var(--dark-border) !important;
-            border-radius: 0.5rem !important;
-            margin-bottom: 0.75rem !important;
-            overflow: hidden !important;
-            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2) !important;
-        }
-
-        html body .expandable-json-section:hover,
-        html body .design-item-value .expandable-json-section:hover {
-            border-color: rgba(6, 182, 212, 0.4) !important;
-            box-shadow: 0 4px 12px rgba(6, 182, 212, 0.15) !important;
-        }
-
-        html body .json-header,
-        html body div.json-header,
-        html body .design-item-value .json-header {
-            background: linear-gradient(135deg, rgba(6, 182, 212, 0.15) 0%, rgba(59, 130, 246, 0.1) 100%) !important;
-            border-bottom: 1px solid var(--dark-border) !important;
-            padding: 0.75rem 1rem !important;
-            display: flex !important;
-            justify-content: space-between !important;
-            align-items: center !important;
-            cursor: pointer !important;
-        }
-
-        html body .json-header:hover,
-        html body .design-item-value .json-header:hover {
-            background: linear-gradient(135deg, rgba(6, 182, 212, 0.25) 0%, rgba(59, 130, 246, 0.2) 100%) !important;
-        }
-
-        html body .json-title,
-        html body div.json-title,
-        html body .design-item-value .json-title {
-            color: var(--dark-accent-cyan) !important;
-            font-weight: 600 !important;
-            font-size: 0.875rem !important;
-            display: flex !important;
-            align-items: center !important;
-            gap: 0.5rem !important;
-        }
-
-        html body .json-title span {
-            color: inherit !important;
-        }
-
-        /* 大窗口查看按钮 */
-        html body .btn-expand-large {
-            background: rgba(99, 102, 241, 0.2) !important;
-            border: 1px solid rgba(99, 102, 241, 0.4) !important;
-            color: var(--dark-accent-blue) !important;
-            padding: 0.25rem 0.75rem !important;
-            border-radius: 0.375rem !important;
-            font-size: 0.75rem !important;
-            cursor: pointer !important;
-            transition: all 0.2s !important;
-        }
-
-        html body .btn-expand-large:hover {
-            background: rgba(99, 102, 241, 0.3) !important;
-            border-color: var(--dark-accent-blue) !important;
-            color: white !important;
-        }
-
-        /* ==================== 状态标签 ==================== */
-        html body .status-badge {
-            border-radius: 0.375rem !important;
-            font-size: 0.75rem !important;
-            font-weight: 500 !important;
-            padding: 0.25rem 0.75rem !important;
-        }
-
-        html body .status-generating {
-            background: rgba(245, 158, 11, 0.2) !important;
-            color: #fbbf24 !important;
-        }
-
-        html body .status-completed {
-            background: rgba(16, 185, 129, 0.2) !important;
-            color: #4ade80 !important;
-        }
-
-        /* ==================== 加载占位符和提示文本 ==================== */
-        html body .loading-placeholder {
-            color: var(--dark-text-tertiary) !important;
-        }
-
-        /* 修复所有小提示文本的颜色 */
-        html body .assessment-details > div:first-child,
-        html body div[style*="font-size: 11px"] {
-            color: var(--dark-text-tertiary) !important;
-        }
-
-        /* 强制覆盖内联样式 */
-        html body [style*="color: #666"],
-        html body [style*="color:#666"] {
-            color: var(--dark-text-tertiary) !important;
-        }
-
-        html body [style*="color: #999"],
-        html body [style*="color:#999"] {
-            color: var(--dark-text-muted) !important;
-        }
-
-        /* ==================== 评估卡片内容 ==================== */
-        html body .assessment-details {
-            color: var(--dark-text-secondary) !important;
-        }
-
-        /* ==================== 沉浸阅读模式 ==================== */
-        html body .reading-layout {
-            background: var(--dark-bg-primary) !important;
-        }
-
-        html body .reading-toolbar {
-            background: rgba(15, 23, 42, 0.95) !important;
-            border-bottom: 1px solid var(--dark-border) !important;
-        }
-
-        html body .reading-title {
-            color: var(--dark-text-primary) !important;
-        }
-
-        html body .reading-content {
-            background: var(--dark-bg-card) !important;
-            border: 1px solid var(--dark-border) !important;
-            border-radius: 0.75rem !important;
-        }
-
-        html body .reading-chapter-header h1 {
-            color: var(--dark-text-primary) !important;
-        }
-
-        html body .reading-chapter-meta {
-            color: var(--dark-text-secondary) !important;
-        }
-
-        html body .reading-text {
-            color: var(--dark-text-primary) !important;
-        }
-
-        html body .chapter-menu {
-            background: var(--dark-bg-secondary) !important;
-            border-right: 1px solid var(--dark-border) !important;
-            box-shadow: 4px 0 20px rgba(0, 0, 0, 0.4) !important;
-        }
-
-        html body .chapter-menu-header {
-            border-bottom: 1px solid var(--dark-border) !important;
-        }
-
-        html body .chapter-menu-header h3 {
-            color: var(--dark-text-primary) !important;
-        }
-
-        html body .close-btn {
-            color: var(--dark-text-tertiary) !important;
-        }
-
-        html body .close-btn:hover {
-            color: var(--dark-text-primary) !important;
-        }
-
-        html body .reading-navigation {
-            border-top: 1px solid var(--dark-border) !important;
-        }
-
-        html body .reading-nav-btn {
-            background: rgba(30, 41, 59, 0.8) !important;
-            border: 1px solid var(--dark-border) !important;
-            color: var(--dark-text-secondary) !important;
-        }
-
-        html body .reading-nav-btn:hover {
-            background: var(--dark-bg-hover) !important;
-            border-color: var(--dark-accent-blue) !important;
-            color: var(--dark-text-primary) !important;
-        }
-
-        html body .reading-page-navigation {
-            background: rgba(15, 23, 42, 0.8) !important;
-            border-top: 1px solid var(--dark-border) !important;
-            border-bottom: 1px solid var(--dark-border) !important;
-        }
-
-        html body .reading-page-nav-btn {
-            background: rgba(30, 41, 59, 0.8) !important;
-            border: 1px solid var(--dark-border) !important;
-            color: var(--dark-text-secondary) !important;
-        }
-
-        html body .reading-page-indicator {
-            color: var(--dark-text-secondary) !important;
-        }
-
-        /* ==================== 开关控件 ==================== */
-        html body .slider {
-            background-color: var(--dark-bg-hover) !important;
-        }
-
-        html body input:checked + .slider {
-            background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%) !important;
-        }
-
-        /* ==================== 滚动条 ==================== */
-        ::-webkit-scrollbar {
-            width: 8px !important;
-            height: 8px !important;
-        }
-
-        ::-webkit-scrollbar-track {
-            background: var(--dark-bg-primary) !important;
-        }
-
-        ::-webkit-scrollbar-thumb {
-            background: rgba(99, 102, 241, 0.5) !important;
-            border-radius: 4px !important;
-        }
-
-        ::-webkit-scrollbar-thumb:hover {
-            background: rgba(99, 102, 241, 0.7) !important;
-        }
-
-        /* ==================== 布局调整 - 更协调的间距 ==================== */
-        html body .container {
-            max-width: 1600px !important;
-            padding: 1.5rem !important;
-        }
-
-        html body .three-column-layout {
-            gap: 1.5rem !important;
-        }
-
-        /* 左侧边栏宽度优化 */
-        @media (min-width: 1200px) {
-            html body .three-column-layout {
-                grid-template-columns: 300px 1fr 350px !important;
-            }
-        }
-
-        /* 卡片内边距统一 */
-        html body .design-section,
-        html body .assessment-card {
-            padding: 1.25rem !important;
-            margin-bottom: 1rem !important;
-        }
-
-        /* 最后一个卡片不需要底部间距 */
-        html body .design-section:last-child,
-        html body .assessment-card:last-child {
-            margin-bottom: 0 !important;
-        }
-
-        /* ==================== 章节列表样式 ==================== */
-        html body .chapters-list {
-            background: transparent !important;
-        }
-
-        html body .chapter-item {
-            background: rgba(30, 41, 59, 0.5) !important;
-            border: 1px solid var(--dark-border) !important;
-            color: var(--dark-text-secondary) !important;
-            border-radius: 0.5rem !important;
-            margin-bottom: 0.5rem !important;
-            transition: all 0.2s !important;
-        }
-
-        html body .chapter-item:hover {
-            background: var(--dark-bg-hover) !important;
-            border-color: var(--dark-accent-blue) !important;
-            color: var(--dark-text-primary) !important;
-        }
-
-        html body .chapter-item.active {
-            background: rgba(99, 102, 241, 0.2) !important;
-            border-color: var(--dark-accent-blue) !important;
-            color: var(--dark-accent-blue) !important;
-        }
-
-        /* ==================== 强制覆盖所有白色背景 ==================== */
-        
-        /* 针对.design-item-value内的所有元素 */
-        html body .design-item-value,
-        html body .design-item-value div,
-        html body .design-item-value span {
-            background: transparent !important;
-            color: var(--dark-text-primary) !important;
-        }
-        
-        /* 针对.design-item本身 */
-        html body .design-item {
-            background: transparent !important;
-        }
-        
-        /* 针对.expandable-json-section内的所有子元素 */
-        html body .expandable-json-section *,
-        html body .expandable-json-section div,
-        html body .expandable-json-section span {
-            background: transparent !important;
-        }
-        
-        /* 保留.json-header的背景 */
-        html body .expandable-json-section .json-header,
-        html body .expandable-json-section .json-header * {
-            background: linear-gradient(135deg, rgba(6, 182, 212, 0.15) 0%, rgba(59, 130, 246, 0.1) 100%) !important;
-        }
-        
-        /* 保留按钮背景 */
-        html body .expandable-json-section .btn-expand-large {
-            background: rgba(99, 102, 241, 0.2) !important;
-        }
-        
-        /* 针对可能的白底div - 使用属性选择器 */
-        html body div[class*="section"] div,
-        html body div[class*="card"] div,
-        html body .assessment-details div,
-        html body .design-section div {
-            background-color: transparent !important;
-        }
-        
-        /* 保留卡片本身的背景 */
-        html body .design-section,
-        html body .assessment-card,
-        html body .card {
-            background: var(--dark-bg-card) !important;
-        }
-        
-        /* 保留导航栏背景 */
-        html body .navbar {
-            background: rgba(15, 23, 42, 0.95) !important;
-        }
-        
-        /* 保留中间内容区背景 */
-        html body .center-content {
-            background: var(--dark-bg-card) !important;
-        }
-        
-        /* 保留按钮背景 */
-        html body .btn,
-        html body .btn-primary,
-        html body .btn-secondary {
-            background: rgba(30, 41, 59, 0.8) !important;
-        }
-        
-        html body .btn-primary {
-            background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%) !important;
-        }
-        
-        /* 保留分页导航背景 */
-        html body .chapter-pagination,
-        html body .page-navigation,
-        html body .chapter-navigation {
-            background: rgba(15, 23, 42, 0.8) !important;
-        }
-        
-        /* 保留面板背景 */
-        html body .reading-settings-panel,
-        html body .page-settings-panel {
-            background: var(--dark-bg-secondary) !important;
-        }
-        
-        /* 针对任何有白色背景的元素 - 终极覆盖 */
-        html body * {
-            background-color: transparent !important;
-        }
-        
-        /* 重新应用需要的背景 */
-        html body .navbar,
-        html body .design-section,
-        html body .assessment-card,
-        html body .card,
-        html body .center-content,
-        html body .reading-settings-panel,
-        html body .page-settings-panel,
-        html body .chapter-pagination,
-        html body .page-navigation,
-        html body .chapter-navigation,
-        html body .reading-toolbar,
-        html body .reading-content,
-        html body .chapter-menu,
-        html body .reading-page-navigation,
-        html body .expandable-json-section,
-        html body .json-header {
-            background: var(--dark-bg-card) !important;
-        }
-        
-        html body .json-header {
-            background: linear-gradient(135deg, rgba(6, 182, 212, 0.15) 0%, rgba(59, 130, 246, 0.1) 100%) !important;
-        }
-        
-        html body .navbar,
-        html body .reading-toolbar {
-            background: rgba(15, 23, 42, 0.95) !important;
-        }
-        
-        html body .chapter-pagination,
-        html body .page-navigation,
-        html body .chapter-navigation,
-        html body .reading-page-navigation {
-            background: rgba(15, 23, 42, 0.8) !important;
-        }
-        
-        html body .btn-primary {
-            background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%) !important;
-        }
-        
-        html body .btn-secondary {
-            background: rgba(30, 41, 59, 0.8) !important;
-        }
-        
-        /* ==================== 打印样式 ==================== */
-        @media print {
-            html body {
-                background: white !important;
-                color: black !important;
-            }
-            
-            .navbar,
-            .left-sidebar,
-            .right-sidebar {
-                display: none !important;
-            }
-        }
-    </style>
-
-    <style>
-        /* 为导航栏留出空间 */
-        body {
-            padding-top: 64px !important;
-        }
-    </style>
-</head>
-<body>
-    {% include 'components/v2/navbar.html' %}
-    <!-- 顶部导航 -->
-    <!-- 阅读设置面板 -->
-    <div class="reading-settings-panel" id="reading-settings-panel" style="display: none;">
-        <div class="settings-content">
-            <h4>阅读设置</h4>
-            <div class="setting-item">
-                <label>字体大小：</label>
-                <div class="font-size-controls">
-                    <button class="btn btn-secondary btn-small" onclick="adjustFontSize(-2)">A-</button>
-                    <span id="font-size-display">18px</span>
-                    <button class="btn btn-secondary btn-small" onclick="adjustFontSize(2)">A+</button>
+{#
+    小说阅读页面 V2 - 继承基础模板
+    简化布局：左侧章节导航 + 中间阅读区域
+#}
+{% extends "layouts/base-v2.html" %}
+
+{% block title %}小说阅读{% endblock %}
+
+{% block extra_css %}
+<style>
+    /* ==================== 阅读器变量 ==================== */
+    :root {
+        --reader-bg: var(--v2-bg-primary, #0f172a);
+        --reader-card-bg: var(--v2-bg-secondary, #1e293b);
+        --reader-text: var(--v2-text-primary, #f8fafc);
+        --reader-text-secondary: var(--v2-text-secondary, #94a3b8);
+        --reader-border: var(--v2-border-default, rgba(255,255,255,0.1));
+        --reader-accent: var(--v2-primary-500, #6366f1);
+    }
+
+    /* ==================== 主布局 ==================== */
+    .novel-reader {
+        display: grid;
+        grid-template-columns: 280px 1fr 320px;
+        gap: 20px;
+        max-width: 1600px;
+        margin: 0 auto;
+        padding: 20px;
+        padding-top: 80px; /* 导航栏高度 + 间距 */
+        min-height: calc(100vh - 60px);
+    }
+
+    @media (max-width: 1200px) {
+        .novel-reader {
+            grid-template-columns: 260px 1fr;
+        }
+        .novel-reader__right {
+            display: none;
+        }
+    }
+
+    @media (max-width: 768px) {
+        .novel-reader {
+            grid-template-columns: 1fr;
+            padding: 10px;
+            padding-top: 70px;
+        }
+        .novel-reader__left {
+            display: none;
+        }
+    }
+
+    /* ==================== 侧边栏卡片 ==================== */
+    .reader-card {
+        background: var(--reader-card-bg);
+        border: 1px solid var(--reader-border);
+        border-radius: 12px;
+        overflow: hidden;
+        margin-bottom: 16px;
+    }
+
+    .reader-card__header {
+        padding: 14px 16px;
+        border-bottom: 1px solid var(--reader-border);
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        font-weight: 600;
+        font-size: 14px;
+        color: var(--reader-text);
+    }
+
+    .reader-card__body {
+        padding: 16px;
+    }
+
+    /* ==================== 小说信息 ==================== */
+    .novel-meta__item {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 8px 0;
+        border-bottom: 1px solid var(--reader-border);
+        font-size: 13px;
+    }
+
+    .novel-meta__item:last-child {
+        border-bottom: none;
+    }
+
+    .novel-meta__label {
+        color: var(--reader-text-secondary);
+    }
+
+    .novel-meta__value {
+        color: var(--reader-text);
+        font-weight: 500;
+    }
+
+    .status-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+        padding: 4px 10px;
+        border-radius: 20px;
+        font-size: 12px;
+        font-weight: 500;
+    }
+
+    .status-badge--generating {
+        background: rgba(99, 102, 241, 0.15);
+        color: #818cf8;
+    }
+
+    .status-badge--completed {
+        background: rgba(34, 197, 94, 0.15);
+        color: #4ade80;
+    }
+
+    /* ==================== 章节列表 ==================== */
+    .chapters-list {
+        max-height: 400px;
+        overflow-y: auto;
+    }
+
+    .chapter-item {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding: 10px 12px;
+        border-radius: 8px;
+        cursor: pointer;
+        transition: all 0.2s;
+        font-size: 13px;
+        margin-bottom: 4px;
+    }
+
+    .chapter-item:hover {
+        background: rgba(255, 255, 255, 0.05);
+    }
+
+    .chapter-item.active {
+        background: rgba(99, 102, 241, 0.15);
+        border: 1px solid rgba(99, 102, 241, 0.3);
+    }
+
+    .chapter-item__num {
+        width: 28px;
+        height: 28px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: rgba(255, 255, 255, 0.05);
+        border-radius: 6px;
+        font-size: 12px;
+        font-weight: 600;
+        color: var(--reader-text-secondary);
+        flex-shrink: 0;
+    }
+
+    .chapter-item.active .chapter-item__num {
+        background: var(--reader-accent);
+        color: white;
+    }
+
+    .chapter-item__title {
+        flex: 1;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+        color: var(--reader-text);
+    }
+
+    .chapter-item__status {
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+        flex-shrink: 0;
+    }
+
+    .chapter-item__status--completed {
+        background: #22c55e;
+    }
+
+    .chapter-item__status--pending {
+        background: #64748b;
+    }
+
+    /* 章节分页 */
+    .chapters-pagination {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 12px 16px;
+        border-top: 1px solid var(--reader-border);
+        gap: 8px;
+    }
+
+    .chapters-pagination button {
+        padding: 6px 12px;
+        font-size: 12px;
+    }
+
+    .chapters-pagination__info {
+        font-size: 12px;
+        color: var(--reader-text-secondary);
+    }
+
+    /* ==================== 阅读区域 ==================== */
+    .novel-reader__center {
+        display: flex;
+        flex-direction: column;
+        gap: 16px;
+    }
+
+    .reader-content {
+        background: var(--reader-card-bg);
+        border: 1px solid var(--reader-border);
+        border-radius: 12px;
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        min-height: 600px;
+    }
+
+    .reader-content__header {
+        padding: 20px 24px;
+        border-bottom: 1px solid var(--reader-border);
+    }
+
+    .reader-content__title {
+        font-size: 20px;
+        font-weight: 700;
+        color: var(--reader-text);
+        margin-bottom: 8px;
+    }
+
+    .reader-content__meta {
+        font-size: 13px;
+        color: var(--reader-text-secondary);
+    }
+
+    .reader-content__body {
+        flex: 1;
+        padding: 24px;
+        font-size: 16px;
+        line-height: 1.8;
+        color: var(--reader-text);
+        overflow-y: auto;
+        max-height: 600px;
+    }
+
+    .reader-content__body p {
+        margin-bottom: 1em;
+        text-indent: 2em;
+    }
+
+    /* ==================== 章节导航 ==================== */
+    .reader-nav {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 16px 24px;
+        border-top: 1px solid var(--reader-border);
+        gap: 16px;
+    }
+
+    .reader-nav__btn {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        padding: 10px 18px;
+        background: rgba(255, 255, 255, 0.05);
+        border: 1px solid var(--reader-border);
+        border-radius: 8px;
+        color: var(--reader-text);
+        font-size: 14px;
+        font-weight: 500;
+        cursor: pointer;
+        transition: all 0.2s;
+    }
+
+    .reader-nav__btn:hover:not(:disabled) {
+        background: rgba(255, 255, 255, 0.1);
+        border-color: var(--reader-accent);
+    }
+
+    .reader-nav__btn:disabled {
+        opacity: 0.4;
+        cursor: not-allowed;
+    }
+
+    .reader-nav__indicator {
+        font-size: 14px;
+        color: var(--reader-text-secondary);
+        font-weight: 500;
+    }
+
+    /* ==================== 分页导航 ==================== */
+    .page-nav {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 16px;
+        padding: 12px 24px;
+        background: rgba(0, 0, 0, 0.2);
+        border-top: 1px solid var(--reader-border);
+    }
+
+    .page-nav__btn {
+        padding: 8px 16px;
+        font-size: 13px;
+    }
+
+    .page-nav__info {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        font-size: 14px;
+        color: var(--reader-text-secondary);
+    }
+
+    .page-nav__settings {
+        margin-left: auto;
+    }
+
+    /* ==================== 阅读设置面板 ==================== */
+    .settings-panel {
+        position: fixed;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        background: var(--reader-card-bg);
+        border: 1px solid var(--reader-border);
+        border-radius: 16px;
+        padding: 24px;
+        min-width: 320px;
+        box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+        z-index: 1000;
+        display: none;
+    }
+
+    .settings-panel.active {
+        display: block;
+    }
+
+    .settings-panel__header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        margin-bottom: 20px;
+        padding-bottom: 16px;
+        border-bottom: 1px solid var(--reader-border);
+    }
+
+    .settings-panel__title {
+        font-size: 16px;
+        font-weight: 600;
+        color: var(--reader-text);
+    }
+
+    .settings-panel__close {
+        width: 32px;
+        height: 32px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: rgba(255, 255, 255, 0.05);
+        border: 1px solid var(--reader-border);
+        border-radius: 8px;
+        color: var(--reader-text-secondary);
+        cursor: pointer;
+        font-size: 18px;
+    }
+
+    .settings-panel__close:hover {
+        background: rgba(255, 255, 255, 0.1);
+        color: var(--reader-text);
+    }
+
+    .setting-row {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        margin-bottom: 16px;
+    }
+
+    .setting-row__label {
+        font-size: 14px;
+        color: var(--reader-text-secondary);
+    }
+
+    .setting-row__control {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+
+    .setting-row__value {
+        min-width: 50px;
+        text-align: center;
+        font-size: 14px;
+        color: var(--reader-text);
+    }
+
+    /* ==================== 右侧信息面板 ==================== */
+    .info-section {
+        background: var(--reader-card-bg);
+        border: 1px solid var(--reader-border);
+        border-radius: 12px;
+        padding: 16px;
+        margin-bottom: 16px;
+    }
+
+    .info-section__title {
+        font-size: 14px;
+        font-weight: 600;
+        color: var(--reader-text);
+        margin-bottom: 12px;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+
+    .info-section__content {
+        font-size: 13px;
+        color: var(--reader-text-secondary);
+        line-height: 1.6;
+    }
+
+    /* ==================== 遮罩层 ==================== */
+    .overlay {
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: rgba(0, 0, 0, 0.6);
+        backdrop-filter: blur(4px);
+        z-index: 999;
+        display: none;
+    }
+
+    .overlay.active {
+        display: block;
+    }
+
+    /* ==================== 加载状态 ==================== */
+    .loading-state {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        padding: 60px 20px;
+        color: var(--reader-text-secondary);
+    }
+
+    .spinner {
+        width: 40px;
+        height: 40px;
+        border: 3px solid rgba(255, 255, 255, 0.1);
+        border-top-color: var(--reader-accent);
+        border-radius: 50%;
+        animation: spin 1s linear infinite;
+        margin-bottom: 16px;
+    }
+
+    @keyframes spin {
+        to { transform: rotate(360deg); }
+    }
+
+    /* ==================== 按钮样式 ==================== */
+    .v2-btn {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 6px;
+        padding: 8px 16px;
+        border-radius: 8px;
+        font-size: 14px;
+        font-weight: 500;
+        cursor: pointer;
+        transition: all 0.2s;
+        border: none;
+        background: rgba(255, 255, 255, 0.05);
+        color: var(--reader-text);
+        border: 1px solid var(--reader-border);
+    }
+
+    .v2-btn:hover {
+        background: rgba(255, 255, 255, 0.1);
+    }
+
+    .v2-btn--primary {
+        background: linear-gradient(135deg, #6366f1, #8b5cf6);
+        border-color: transparent;
+        color: white;
+    }
+
+    .v2-btn--primary:hover {
+        box-shadow: 0 4px 12px rgba(99, 102, 241, 0.4);
+    }
+
+    .v2-btn--small {
+        padding: 6px 12px;
+        font-size: 12px;
+    }
+
+    /* ==================== 滚动条 ==================== */
+    ::-webkit-scrollbar {
+        width: 6px;
+        height: 6px;
+    }
+
+    ::-webkit-scrollbar-track {
+        background: transparent;
+    }
+
+    ::-webkit-scrollbar-thumb {
+        background: rgba(99, 102, 241, 0.3);
+        border-radius: 3px;
+    }
+
+    ::-webkit-scrollbar-thumb:hover {
+        background: rgba(99, 102, 241, 0.5);
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<!-- 面包屑导航 -->
+<nav class="v2-breadcrumb" style="padding: 8px 20px; background: rgba(255,255,255,0.02); border-bottom: 1px solid var(--reader-border);">
+    <a href="/" class="v2-breadcrumb__link" style="color: var(--reader-text-secondary); text-decoration: none; font-size: 13px;">首页</a>
+    <span class="v2-breadcrumb__separator" style="color: var(--reader-text-secondary); margin: 0 8px;">/</span>
+    <a href="/novels" class="v2-breadcrumb__link" style="color: var(--reader-text-secondary); text-decoration: none; font-size: 13px;">作品</a>
+    <span class="v2-breadcrumb__separator" style="color: var(--reader-text-secondary); margin: 0 8px;">/</span>
+    <span class="v2-breadcrumb__current" id="breadcrumb-title" style="color: var(--reader-text); font-size: 13px;">加载中...</span>
+</nav>
+
+<div class="novel-reader">
+    <!-- 左侧：章节导航 -->
+    <aside class="novel-reader__left">
+        <!-- 小说信息 -->
+        <div class="reader-card">
+            <div class="reader-card__header">
+                <span>📚</span> 小说信息
+            </div>
+            <div class="reader-card__body">
+                <div class="novel-meta__item">
+                    <span class="novel-meta__label">标题</span>
+                    <span class="novel-meta__value" id="novel-title">加载中...</span>
+                </div>
+                <div class="novel-meta__item">
+                    <span class="novel-meta__label">进度</span>
+                    <span class="novel-meta__value" id="novel-progress">0/0</span>
+                </div>
+                <div class="novel-meta__item">
+                    <span class="novel-meta__label">状态</span>
+                    <span class="novel-meta__value">
+                        <span class="status-badge status-badge--generating" id="novel-status-badge">生成中</span>
+                    </span>
                 </div>
             </div>
-            <div class="setting-item">
-                <label>背景主题：</label>
-                <div class="theme-controls">
-                    <button class="theme-btn" data-theme="light" onclick="setReadingTheme('light')">☀️ 白天</button>
-                    <button class="theme-btn" data-theme="sepia" onclick="setReadingTheme('sepia')">📖 护眼</button>
-                    <button class="theme-btn active" data-theme="dark" onclick="setReadingTheme('dark')">🌙 夜间</button>
+        </div>
+
+        <!-- 章节列表 -->
+        <div class="reader-card">
+            <div class="reader-card__header">
+                <span>📄</span> 章节导航
+            </div>
+            <div class="reader-card__body" style="padding: 8px;">
+                <div class="chapters-list" id="chapters-list">
+                    <div class="loading-state" style="padding: 20px;">
+                        <div class="spinner" style="width: 24px; height: 24px;"></div>
+                        <span style="font-size: 12px;">加载章节...</span>
+                    </div>
                 </div>
             </div>
-            <div class="setting-item">
-                <label>行间距：</label>
-                <div class="line-height-controls">
-                    <button class="btn btn-secondary btn-small" onclick="adjustLineHeight(-0.1)">紧密</button>
-                    <span id="line-height-display">1.8</span>
-                    <button class="btn btn-secondary btn-small" onclick="adjustLineHeight(0.1)">宽松</button>
+            <div class="chapters-pagination">
+                <button class="v2-btn v2-btn--small" id="prev-chapter-page-btn" onclick="prevChapterPage()" disabled>
+                    ←
+                </button>
+                <span class="chapters-pagination__info">
+                    <span id="current-chapter-page">1</span> / <span id="total-chapter-pages">1</span>
+                </span>
+                <button class="v2-btn v2-btn--small" id="next-chapter-page-btn" onclick="nextChapterPage()" disabled>
+                    →
+                </button>
+            </div>
+        </div>
+    </aside>
+
+    <!-- 中间：阅读区域 -->
+    <main class="novel-reader__center">
+        <div class="reader-content">
+            <!-- 内容头部 -->
+            <div class="reader-content__header">
+                <h1 class="reader-content__title" id="chapter-title">选择章节阅读</h1>
+                <p class="reader-content__meta" id="chapter-meta">点击左侧章节列表选择要查看的章节</p>
+            </div>
+
+            <!-- 内容主体 -->
+            <div class="reader-content__body" id="chapter-content">
+                <div class="loading-state">
+                    <div class="spinner"></div>
+                    <p>请从左侧选择章节开始阅读</p>
                 </div>
             </div>
+
+            <!-- 章节导航 -->
+            <div class="reader-nav">
+                <button class="reader-nav__btn" id="prev-chapter-btn" onclick="prevChapter()" disabled>
+                    <span>←</span> 上一章
+                </button>
+                <span class="reader-nav__indicator" id="chapter-indicator">第 1 章</span>
+                <button class="reader-nav__btn" id="next-chapter-btn" onclick="nextChapter()" disabled>
+                    下一章 <span>→</span>
+                </button>
+            </div>
+
+            <!-- 分页导航 -->
+            <div class="page-nav">
+                <button class="v2-btn v2-btn--small page-nav__btn" id="prev-page-btn" onclick="prevPage()" disabled>
+                    ← 上一页
+                </button>
+                <div class="page-nav__info">
+                    <span id="current-page">1</span> / <span id="total-pages">1</span>
+                </div>
+                <button class="v2-btn v2-btn--small page-nav__btn" id="next-page-btn" onclick="nextPage()" disabled>
+                    下一页 →
+                </button>
+                <button class="v2-btn v2-btn--small page-nav__settings" onclick="togglePageSettings()">
+                    ⚙️ 设置
+                </button>
+            </div>
+        </div>
+    </main>
+
+    <!-- 右侧：简化的生成信息 -->
+    <aside class="novel-reader__right">
+        <!-- 章节统计 -->
+        <div class="info-section">
+            <div class="info-section__title">
+                <span>📊</span> 本章统计
+            </div>
+            <div class="info-section__content">
+                <div class="novel-meta__item">
+                    <span class="novel-meta__label">字数</span>
+                    <span class="novel-meta__value" id="word-count">-</span>
+                </div>
+                <div class="novel-meta__item">
+                    <span class="novel-meta__label">生成时间</span>
+                    <span class="novel-meta__value" id="generated-time">-</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- 快捷操作 -->
+        <div class="info-section">
+            <div class="info-section__title">
+                <span>⚡</span> 快捷操作
+            </div>
+            <div class="info-section__content" style="display: flex; flex-direction: column; gap: 8px;">
+                <a href="/phase-two-generation" class="v2-btn v2-btn--primary" style="text-decoration: none;">
+                    📝 继续生成
+                </a>
+                <a href="/project-management" class="v2-btn" style="text-decoration: none;">
+                    📁 项目管理
+                </a>
+            </div>
+        </div>
+    </aside>
+</div>
+
+<!-- 设置面板遮罩 -->
+<div class="overlay" id="settings-overlay" onclick="closePageSettings()"></div>
+
+<!-- 分页设置面板 -->
+<div class="settings-panel" id="page-settings-panel">
+    <div class="settings-panel__header">
+        <span class="settings-panel__title">📖 阅读设置</span>
+        <button class="settings-panel__close" onclick="closePageSettings()">&times;</button>
+    </div>
+    
+    <div class="setting-row">
+        <span class="setting-row__label">每页行数</span>
+        <div class="setting-row__control">
+            <button class="v2-btn v2-btn--small" onclick="adjustPageSize(-5)">-</button>
+            <span class="setting-row__value" id="page-size-display">25行</span>
+            <button class="v2-btn v2-btn--small" onclick="adjustPageSize(5)">+</button>
         </div>
     </div>
-
-    <!-- 主容器 -->
-    <div class="container">
-        <!-- 调试模式：三栏布局 -->
-        <div class="three-column-layout" id="debug-layout">
-            <!-- 左侧：设计信息 -->
-            <div class="left-sidebar" id="left-sidebar">
-                <!-- 小说基本信息 -->
-                <div class="design-section">
-                    <div class="design-section-title">📚 小说信息</div>
-                    <div class="design-item">
-                        <div class="design-item-label">标题</div>
-                        <div class="design-item-value" id="novel-title">加载中...</div>
-                    </div>
-                    <div class="design-item">
-                        <div class="design-item-label">进度</div>
-                        <div class="design-item-value" id="novel-progress">0/50</div>
-                    </div>
-                    <div class="design-item">
-                        <div class="design-item-label">状态</div>
-                        <div class="design-item-value" id="novel-status">
-                            <span class="status-badge status-generating">生成中</span>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- 核心设定 -->
-                <div class="design-section">
-                    <div class="design-section-title">⚙️ 核心设定</div>
-                    <div class="design-item">
-                        <div class="design-item-label">核心设定</div>
-                        <div class="design-item-value" id="core-setting">加载中...</div>
-                    </div>
-                    <div class="design-item">
-                        <div class="design-item-label">卖点</div>
-                        <div class="design-item-value" id="core-selling-points">加载中...</div>
-                    </div>
-                </div>
-
-                <!-- 章节导航 -->
-                <div class="design-section">
-                    <div class="design-section-title">📄 章节导航</div>
-                    <div class="chapters-list-container" id="chapters-list-container">
-                        <div class="chapters-list" id="chapters-list">
-                            <div style="text-align: center; color: #999; padding: 20px;">
-                                加载中...
-                            </div>
-                        </div>
-                        <!-- 章节分页导航 -->
-                        <div class="chapter-pagination" id="chapter-pagination">
-                            <button class="btn btn-secondary btn-small" id="prev-chapter-page-btn" onclick="prevChapterPage()" disabled>
-                                ← 上一页
-                            </button>
-                            <div class="chapter-page-indicator">
-                                <span id="current-chapter-page">1</span> / <span id="total-chapter-pages">1</span>
-                            </div>
-                            <button class="btn btn-secondary btn-small" id="next-chapter-page-btn" onclick="nextChapterPage()" disabled>
-                                下一页 →
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <!-- 中间：正文内容 -->
-            <div class="center-content" id="center-content">
-                <div class="content-header">
-                    <h2 id="chapter-title">选择章节阅读</h2>
-                    <p id="chapter-meta">点击左侧章节列表选择要查看的章节</p>
-                </div>
-                <div class="content-body" id="chapter-content">
-                    <div style="text-align: center; color: #999; padding: 40px;">
-                        <div class="spinner" style="margin: 0 auto 20px;"></div>
-                        <p>请从左侧选择章节开始阅读</p>
-                    </div>
-                </div>
-                
-                <!-- 章节导航按钮（在内容容器内） -->
-                <div class="chapter-navigation">
-                    <button class="btn btn-secondary" id="prev-chapter-btn" onclick="prevChapter()">
-                        ← 上一章
-                    </button>
-                    <div class="chapter-indicator" id="chapter-indicator">
-                        第 1 章
-                    </div>
-                    <button class="btn btn-secondary" id="next-chapter-btn" onclick="nextChapter()">
-                        下一章 →
-                    </button>
-                </div>
-
-                <!-- 分页导航按钮 -->
-                <div class="page-navigation" id="page-navigation">
-                    <button class="btn btn-primary btn-small" id="prev-page-btn" onclick="prevPage()" disabled>
-                        ← 上一页
-                    </button>
-                    <div class="page-indicator">
-                        <span id="current-page">1</span> / <span id="total-pages">1</span>
-                    </div>
-                    <button class="btn btn-primary btn-small" id="next-page-btn" onclick="nextPage()" disabled>
-                        下一页 →
-                    </button>
-                    <div class="page-settings">
-                        <button class="btn btn-secondary btn-small" onclick="togglePageSettings()">
-                            ⚙️ 分页设置
-                        </button>
-                    </div>
-                </div>
-
-                <!-- 分页设置面板 -->
-                <div class="page-settings-panel" id="page-settings-panel" style="display: none;">
-                    <div class="settings-content">
-                        <h4>分页设置</h4>
-                        <div class="setting-item">
-                            <label>每页行数：</label>
-                            <div class="page-size-controls">
-                                <button class="btn btn-secondary btn-small" onclick="adjustPageSize(-5)">-</button>
-                                <span id="page-size-display">25行</span>
-                                <button class="btn btn-secondary btn-small" onclick="adjustPageSize(5)">+</button>
-                            </div>
-                        </div>
-                        <div class="setting-item">
-                            <label>自动分页：</label>
-                            <div class="auto-page-controls">
-                                <label class="switch">
-                                    <input type="checkbox" id="auto-page-toggle" checked onchange="toggleAutoPage()">
-                                    <span class="slider"></span>
-                                </label>
-                            </div>
-                        </div>
-                        <div class="setting-item">
-                            <label>分页模式：</label>
-                            <div class="page-mode-controls">
-                                <button class="page-mode-btn" data-mode="line" onclick="setPageMode('line')">按行数</button>
-                                <button class="page-mode-btn active" data-mode="height" onclick="setPageMode('height')">按高度</button>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <!-- 右侧：生成信息分析 -->
-            <div class="right-sidebar" id="right-sidebar">
-                <!-- 输入提示词 -->
-                <div class="assessment-card">
-                    <div class="assessment-title">📝 输入提示词 &amp; 原始数据</div>
-                    <div class="assessment-details">
-                        <div style="font-size: 11px; color: #666; margin-bottom: 8px; text-align: center;">
-                            💡 点击标题展开查看完整的JSON原始数据
-                        </div>
-                        <div id="input-prompts" style="max-height: 300px; overflow-y: auto;">
-                            <div class="loading-placeholder">加载中...</div>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- AI输出响应 -->
-                <div class="assessment-card">
-                    <div class="assessment-title">🤖 AI输出响应 &amp; 生成结果</div>
-                    <div class="assessment-details">
-                        <div style="font-size: 11px; color: #666; margin-bottom: 8px; text-align: center;">
-                            💡 查看AI生成的完整内容和失败记录
-                        </div>
-                        <div id="ai-responses" style="max-height: 300px; overflow-y: auto;">
-                            <div class="loading-placeholder">加载中...</div>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- 质量评价 -->
-                <div class="assessment-card">
-                    <div class="assessment-title">📊 质量评价 &amp; 分析数据</div>
-                    <div class="assessment-details">
-                        <div style="font-size: 11px; color: #666; margin-bottom: 8px; text-align: center;">
-                            💡 查看角色发展、世界观、事件记录等详细分析
-                        </div>
-                        <div id="quality-evaluation" style="max-height: 300px; overflow-y: auto;">
-                            <div class="loading-placeholder">加载中...</div>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- 角色发展信息 -->
-                <div class="assessment-card">
-                    <div class="assessment-title">👥 角色发展</div>
-                    <div class="assessment-details">
-                        <div id="character-development" style="max-height: 400px; overflow-y: auto;">
-                            <div class="loading-placeholder">加载中...</div>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- 生成状态 -->
-                <div class="assessment-card">
-                    <div class="assessment-title">⚡ 生成状态</div>
-                    <div class="assessment-details">
-                        <div id="generation-status" style="max-height: 150px; overflow-y: auto;">
-                            <div class="loading-placeholder">加载中...</div>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- 详情数据 -->
-                <div class="assessment-card">
-                    <div class="assessment-title">📊 详情数据</div>
-                    <div class="assessment-details">
-                        <div class="detail-item">
-                            <div class="detail-label">字数</div>
-                            <div class="detail-value" id="word-count">-</div>
-                        </div>
-                        <div class="detail-item">
-                            <div class="detail-label">生成时间</div>
-                            <div class="detail-value" id="generated-time">-</div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <!-- 沉浸式阅读模式：单栏布局 -->
-        <div class="reading-layout" id="reading-layout" style="display: none;">
-            <!-- 阅读模式顶部工具栏 -->
-            <div class="reading-toolbar" id="reading-toolbar">
-                <div class="toolbar-left">
-                    <button class="btn btn-secondary btn-small" onclick="showChapterMenu()">
-                        📚 目录
-                    </button>
-                    <span class="reading-title" id="reading-title">小说标题</span>
-                </div>
-                <div class="toolbar-right">
-                    <button class="btn btn-secondary btn-small" onclick="prevChapter()">
-                        ← 上一章
-                    </button>
-                    <span class="chapter-indicator" id="reading-chapter-indicator">第 1 章</span>
-                    <button class="btn btn-secondary btn-small" onclick="nextChapter()">
-                        下一章 →
-                    </button>
-                </div>
-            </div>
-
-            <!-- 章节菜单（侧边栏） -->
-            <div class="chapter-menu" id="chapter-menu" style="display: none;">
-                <div class="chapter-menu-header">
-                    <h3>章节目录</h3>
-                    <button class="close-btn" onclick="hideChapterMenu()">×</button>
-                </div>
-                <div class="chapter-menu-content" id="chapter-menu-content">
-                    <!-- 章节列表将在这里动态生成 -->
-                </div>
-            </div>
-
-            <!-- 阅读内容区域 -->
-            <div class="reading-content" id="reading-content">
-                <div class="reading-chapter-header">
-                    <h1 id="reading-chapter-title">章节标题</h1>
-                    <div class="reading-chapter-meta" id="reading-chapter-meta">
-                        章节信息
-                    </div>
-                </div>
-                <div class="reading-text" id="reading-text">
-                    <div class="reading-placeholder">
-                        <div class="spinner"></div>
-                        <p>正在加载章节内容...</p>
-                    </div>
-                </div>
-                <!-- 阅读模式分页导航 - 移到章节导航上方 -->
-                <div class="reading-page-navigation" id="reading-page-navigation">
-                    <button class="reading-page-nav-btn" id="reading-prev-page-btn" onclick="prevPage()" disabled>
-                        ← 上一页
-                    </button>
-                    <div class="reading-page-indicator">
-                        <span id="reading-current-page">1</span> / <span id="reading-total-pages">3</span>
-                    </div>
-                    <button class="reading-page-nav-btn" id="reading-next-page-btn" onclick="nextPage()" disabled>
-                        下一页 →
-                    </button>
-                    <div class="reading-page-settings">
-                        <button class="reading-page-settings-btn" onclick="toggleReadingPageSettings()">
-                            ⚙️
-                        </button>
-                    </div>
-                </div>
-                
-                <!-- 阅读模式章节导航 - 移到分页导航下方 -->
-                <div class="reading-navigation">
-                    <button class="reading-nav-btn" onclick="prevChapter()">
-                        ← 上一章
-                    </button>
-                    <div class="reading-nav-center">
-                        <span id="reading-nav-indicator">第 1 章</span>
-                    </div>
-                    <button class="reading-nav-btn" onclick="nextChapter()">
-                        下一章 →
-                    </button>
-                </div>
-            </div>
+    
+    <div class="setting-row">
+        <span class="setting-row__label">字体大小</span>
+        <div class="setting-row__control">
+            <button class="v2-btn v2-btn--small" onclick="adjustFontSize(-2)">A-</button>
+            <span class="setting-row__value" id="font-size-display">16px</span>
+            <button class="v2-btn v2-btn--small" onclick="adjustFontSize(2)">A+</button>
         </div>
     </div>
+    
+    <div class="setting-row">
+        <span class="setting-row__label">行间距</span>
+        <div class="setting-row__control">
+            <button class="v2-btn v2-btn--small" onclick="adjustLineHeight(-0.1)">-</button>
+            <span class="setting-row__value" id="line-height-display">1.8</span>
+            <button class="v2-btn v2-btn--small" onclick="adjustLineHeight(0.1)">+</button>
+        </div>
+    </div>
+</div>
+{% endblock %}
 
-    <script src="/static/js/novel_view.js?v=10"></script>
-    <script>
-        // 退出登录函数
-        function logout() {
-            if (confirm('确定要退出登录吗？')) {
-                window.location.href = '/logout';
-            }
+{% block extra_js %}
+<script src="/static/js/novel_view.js"></script>
+<script>
+    // 设置面板控制
+    function togglePageSettings() {
+        document.getElementById('settings-overlay').classList.add('active');
+        document.getElementById('page-settings-panel').classList.add('active');
+    }
+
+    function closePageSettings() {
+        document.getElementById('settings-overlay').classList.remove('active');
+        document.getElementById('page-settings-panel').classList.remove('active');
+    }
+
+    // ESC键关闭设置面板
+    document.addEventListener('keydown', function(e) {
+        if (e.key === 'Escape') {
+            closePageSettings();
         }
-    </script>
-<script src="/static/js/user-info.js"></script>
-    <script src="{{ url_for('static', filename='js/account-manager.js') }}?v=2"></script>
-</body>
-</html>
+    });
+</script>
+{% endblock %}

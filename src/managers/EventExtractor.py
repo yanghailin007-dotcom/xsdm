@@ -40,8 +40,8 @@ class EventExtractor:
         quality_data = novel_data.get("quality_data", {})
         writing_plans = quality_data.get("writing_plans", {})
 
-        self.logger.info(f"📊 [EventExtractor] quality_data 存在: {bool(quality_data)}")
-        self.logger.info(f"📊 [EventExtractor] writing_plans 键: {list(writing_plans.keys()) if writing_plans else '无'}")
+        self.logger.debug(f"📊 [EventExtractor] quality_data 存在: {bool(quality_data)}")
+        self.logger.debug(f"📊 [EventExtractor] writing_plans 键: {list(writing_plans.keys()) if writing_plans else '无'}")
 
         if writing_plans:
             # 遍历所有写作计划
@@ -70,8 +70,8 @@ class EventExtractor:
             stage_writing_plans = novel_data.get("stage_writing_plans", {})
 
             if stage_writing_plans:
-                self.logger.info(f"📊 [EventExtractor] 从 stage_writing_plans 提取")
-                self.logger.info(f"📊 [EventExtractor] stage_writing_plans 键: {list(stage_writing_plans.keys()) if stage_writing_plans else '无'}")
+                self.logger.debug(f"📊 [EventExtractor] 从 stage_writing_plans 提取")
+                self.logger.debug(f"📊 [EventExtractor] stage_writing_plans 键: {list(stage_writing_plans.keys()) if stage_writing_plans else '无'}")
 
                 for stage_name, stage_data in stage_writing_plans.items():
                     if not isinstance(stage_data, dict):

@@ -86,12 +86,16 @@ async function loadNovelData(novelTitle) {
         // 更新 UI
         const titleElement = document.getElementById('novel-title');
         const progressElement = document.getElementById('novel-progress');
+        const toolbarTitle = document.getElementById('toolbar-title');
+        
+        const displayTitle = novelData.novel_title || novelData.title || novelTitle;
         
         if (titleElement) {
-            const title = novelData.novel_title ||
-                        novelData.title ||
-                        novelTitle;
-            titleElement.textContent = title;
+            titleElement.textContent = displayTitle;
+        }
+        
+        if (toolbarTitle) {
+            toolbarTitle.textContent = displayTitle;
         }
         
         if (progressElement) {
@@ -102,7 +106,7 @@ async function loadNovelData(novelTitle) {
                                50; // 默认50章
             
             const completedChapters = chaptersData.length || 0;
-            progressElement.textContent = `${completedChapters}/${totalChapters}`;
+            progressElement.textContent = `${completedChapters}/${totalChapters} 章`;
             
             console.log('📊 进度更新:', {
                 completedChapters: completedChapters,
@@ -110,357 +114,9 @@ async function loadNovelData(novelTitle) {
                 progressText: `${completedChapters}/${totalChapters}`
             });
         }
-        // 更新核心设定 - 改为可展开的JSON组件
-        const coreSettingElement = document.getElementById('core-setting');
-        const coreSellingPointsElement = document.getElementById('core-selling-points');
-        
-        if (coreSettingElement) {
-            // 辅助函数：从多个可能路径获取数据
-            function getValueFromPaths(obj, paths) {
-                for (const path of paths) {
-                    const keys = path.split('.');
-                    let current = obj;
-                    let found = true;
-                    
-                    for (const key of keys) {
-                        if (current && typeof current === 'object' && key in current) {
-                            current = current[key];
-                        } else {
-                            found = false;
-                            break;
-                        }
-                    }
-                    
-                    if (found && current) {
-                        return current;
-                    }
-                }
-                return null;
-            }
-            
-            // 构建核心设定数据段
-            const coreSettingSections = [];
-            
-            // 1. 核心设定信息
-            const coreSetting = getValueFromPaths(novelData, [
-                'novel_info.creative_seed.coreSetting',
-                'creative_seed.coreSetting',
-                'novel_metadata.coreSetting',
-                'core_setting',
-                'coreSetting'
-            ]);
-            
-            if (coreSetting) {
-                coreSettingSections.push({
-                    title: `⚙️ 核心设定`,
-                    data: { 核心设定: coreSetting },
-                    options: {
-                        id: 'core-setting-data',
-                        icon: '⚙️',
-                        expanded: false,
-                        maxHeight: 200
-                    }
-                });
-            }
-            
-            // 2. 世界观信息
-            const worldview = getValueFromPaths(novelData, [
-                'novel_info.creative_seed.worldview',
-                'creative_seed.worldview',
-                'worldview'
-            ]);
-            
-            if (worldview) {
-                coreSettingSections.push({
-                    title: `🌍 世界观设定`,
-                    data: { 世界观: worldview },
-                    options: {
-                        id: 'worldview-data',
-                        icon: '🌍',
-                        expanded: false,
-                        maxHeight: 250
-                    }
-                });
-            }
-            
-            // 3. 故事线信息
-            const storyline = getValueFromPaths(novelData, [
-                'novel_info.creative_seed.completeStoryline',
-                'creative_seed.completeStoryline',
-                'completeStoryline'
-            ]);
-            
-            if (storyline && typeof storyline === 'object') {
-                coreSettingSections.push({
-                    title: `📖 完整故事线`,
-                    data: storyline,
-                    options: {
-                        id: 'storyline-data',
-                        icon: '📖',
-                        expanded: false,
-                        maxHeight: 300
-                    }
-                });
-            }
-            
-            // 4. 全书成长规划
-            const growthPlan = getValueFromPaths(novelData, [
-                'creative_seed.growthPlan',
-                'growth_plan',
-                'global_growth_plan'
-            ]);
-            
-            if (growthPlan) {
-                coreSettingSections.push({
-                    title: `📈 成长规划`,
-                    data: growthPlan,
-                    options: {
-                        id: 'growth-plan-data',
-                        icon: '📈',
-                        expanded: false,
-                        maxHeight: 350
-                    }
-                });
-            }
-            
-            // 5. 角色设定
-            const characterSetting = getValueFromPaths(novelData, [
-                'creative_seed.characterSetting',
-                'characterSetting'
-            ]);
-            
-            if (characterSetting) {
-                coreSettingSections.push({
-                    title: `👥 角色设计`,
-                    data: { 角色设定: characterSetting },
-                    options: {
-                        id: 'character-setting-data',
-                        icon: '👥',
-                        expanded: false,
-                        maxHeight: 250
-                    }
-                });
-            }
-            
-            // 6. 情节结构
-            const plotStructure = getValueFromPaths(novelData, [
-                'creative_seed.plotStructure',
-                'plotStructure'
-            ]);
-            
-            if (plotStructure) {
-                coreSettingSections.push({
-                    title: `🎭 情节结构`,
-                    data: { 情节结构: plotStructure },
-                    options: {
-                        id: 'plot-structure-data',
-                        icon: '🎭',
-                        expanded: false,
-                        maxHeight: 200
-                    }
-                });
-            }
-            
-            // 7. 选定方案信息
-            const selectedPlan = getValueFromPaths(novelData, [
-                'novel_info.selected_plan',
-                'selected_plan'
-            ]);
-            
-            if (selectedPlan) {
-                coreSettingSections.push({
-                    title: `📋 市场分析方案`,
-                    data: selectedPlan,
-                    options: {
-                        id: 'selected-plan-data',
-                        icon: '📋',
-                        expanded: false,
-                        maxHeight: 400
-                    }
-                });
-            }
-            
-            // 8. 创意种子完整数据
-            const creativeSeed = getValueFromPaths(novelData, [
-                'novel_info.creative_seed',
-                'creative_seed'
-            ]);
-            
-            if (creativeSeed && typeof creativeSeed === 'object') {
-                coreSettingSections.push({
-                    title: `🎨 创意种子完整数据`,
-                    data: creativeSeed,
-                    options: {
-                        id: 'creative-seed-data',
-                        icon: '🎨',
-                        expanded: false,
-                        maxHeight: 500
-                    }
-                });
-            }
-            
-            // 9. 小说元数据
-            const novelMetadata = getValueFromPaths(novelData, [
-                'novel_metadata',
-                'novel_info'
-            ]);
-            
-            if (novelMetadata && typeof novelMetadata === 'object') {
-                coreSettingSections.push({
-                    title: `📚 小说元数据`,
-                    data: novelMetadata,
-                    options: {
-                        id: 'novel-metadata-data',
-                        icon: '📚',
-                        expanded: false,
-                        maxHeight: 400
-                    }
-                });
-            }
-            
-            // 生成HTML
-            if (coreSettingSections.length > 0) {
-                const html = coreSettingSections.map(section => {
-                    return createExpandableJSON(section.title, section.data, section.options);
-                }).join('');
-                
-                coreSettingElement.innerHTML = html;
-            } else {
-                coreSettingElement.innerHTML = '<div style="color: #999; font-style: italic; padding: 8px; text-align: center;">暂无核心设定信息</div>';
-            }
-        }
-        
-        if (coreSellingPointsElement) {
-            // 使用相同的辅助函数获取卖点信息
-            function getValueFromPaths(obj, paths) {
-                for (const path of paths) {
-                    const keys = path.split('.');
-                    let current = obj;
-                    let found = true;
-                    
-                    for (const key of keys) {
-                        if (current && typeof current === 'object' && key in current) {
-                            current = current[key];
-                        } else {
-                            found = false;
-                            break;
-                        }
-                    }
-                    
-                    if (found && current) {
-                        return current;
-                    }
-                }
-                return null;
-            }
-            
-            // 构建卖点数据段
-            const sellingPointSections = [];
-            
-            const sellingPoints = getValueFromPaths(novelData, [
-                'novel_info.creative_seed.coreSellingPoints',
-                'creative_seed.coreSellingPoints',
-                'novel_metadata.coreSellingPoints',
-                'core_selling_points',
-                'coreSellingPoints',
-                'selected_plan.competitive_advantage'
-            ]);
-            
-            if (sellingPoints) {
-                // 处理不同格式的卖点数据
-                let processedSellingPoints;
-                if (Array.isArray(sellingPoints)) {
-                    processedSellingPoints = {
-                        类型: '数组格式',
-                        卖点列表: sellingPoints,
-                        数量: sellingPoints.length
-                    };
-                } else if (typeof sellingPoints === 'string') {
-                    // 处理用+号分隔的卖点
-                    const points = sellingPoints.split('+').map(p => p.trim()).filter(p => p);
-                    if (points.length > 1) {
-                        processedSellingPoints = {
-                            类型: '分隔符格式',
-                            原始文本: sellingPoints,
-                            解析结果: points,
-                            数量: points.length
-                        };
-                    } else {
-                        processedSellingPoints = {
-                            类型: '文本格式',
-                            卖点描述: sellingPoints
-                        };
-                    }
-                } else {
-                    processedSellingPoints = sellingPoints;
-                }
-                
-                sellingPointSections.push({
-                    title: `💎 核心卖点分析`,
-                    data: processedSellingPoints,
-                    options: {
-                        id: 'core-selling-points-data',
-                        icon: '💎',
-                        expanded: false,
-                        maxHeight: 300
-                    }
-                });
-            }
-            
-            // 添加市场竞争分析数据
-            const marketAnalysis = getValueFromPaths(novelData, [
-                'selected_plan.market_analysis',
-                'market_analysis',
-                'creative_seed.marketAnalysis'
-            ]);
-            
-            if (marketAnalysis) {
-                sellingPointSections.push({
-                    title: `📊 市场竞争分析`,
-                    data: marketAnalysis,
-                    options: {
-                        id: 'market-analysis-data',
-                        icon: '📊',
-                        expanded: false,
-                        maxHeight: 350
-                    }
-                });
-            }
-            
-            // 添加竞争优势数据
-            const competitiveAdvantage = getValueFromPaths(novelData, [
-                'selected_plan.competitive_advantage',
-                'competitive_advantage',
-                'creative_seed.competitiveAdvantage'
-            ]);
-            
-            if (competitiveAdvantage) {
-                sellingPointSections.push({
-                    title: `🏆 竞争优势`,
-                    data: { 竞争优势: competitiveAdvantage },
-                    options: {
-                        id: 'competitive-advantage-data',
-                        icon: '🏆',
-                        expanded: false,
-                        maxHeight: 250
-                    }
-                });
-            }
-            
-            // 生成HTML
-            if (sellingPointSections.length > 0) {
-                const html = sellingPointSections.map(section => {
-                    return createExpandableJSON(section.title, section.data, section.options);
-                }).join('');
-                
-                coreSellingPointsElement.innerHTML = html;
-            } else {
-                coreSellingPointsElement.innerHTML = '<div style="color: #999; font-style: italic; padding: 8px; text-align: center;">暂无卖点信息</div>';
-            }
-        }
 
         // 更新页面标题
-        document.title = `${novelData.novel_title || novelTitle} - 小说阅读页面`;
+        document.title = `${displayTitle} - 大文娱创作平台`;
 
     } catch (error) {
         console.error('加载小说数据失败:', error);
@@ -578,9 +234,11 @@ function updateCenterContent(chapter) {
         : '未知';
 
     // 更新标题和元信息
-    document.getElementById('chapter-title').textContent = title;
-    document.getElementById('chapter-meta').textContent =
-        `${wordCount} 字 • 生成时间: ${generatedTime}`;
+    const titleElement = document.getElementById('chapter-title');
+    const numberElement = document.getElementById('chapter-number');
+    
+    if (titleElement) titleElement.textContent = title;
+    if (numberElement) numberElement.textContent = `第 ${chapter.chapter_number} 章`;
 
     // 保存章节内容到全局变量，供分页系统使用
     if (chapter.content) {
@@ -603,12 +261,25 @@ function updateCenterContent(chapter) {
             postProcessContent(contentBody);
         }
     } else {
-        contentBody.innerHTML = '<div style="text-align: center; color: #999; padding: 40px;">内容加载失败</div>';
+        contentBody.innerHTML = `
+            <div class="empty-state">
+                <div class="empty-icon">⚠️</div>
+                <div class="empty-title">内容加载失败</div>
+                <div class="empty-desc">该章节暂无内容</div>
+            </div>
+        `;
     }
 
-    // 记录字数
-    document.getElementById('word-count').textContent = `${wordCount} 字`;
-    document.getElementById('generated-time').textContent = generatedTime;
+    // 更新元信息
+    const wordCountElement = document.getElementById('word-count');
+    const genTimeElement = document.getElementById('generated-time');
+    
+    if (wordCountElement) wordCountElement.textContent = wordCount.toLocaleString() + ' 字';
+    if (genTimeElement) genTimeElement.textContent = generatedTime;
+    
+    // 更新工具栏标题
+    const toolbarTitle = document.getElementById('toolbar-title');
+    if (toolbarTitle) toolbarTitle.textContent = title;
 }
 
 /**
@@ -694,613 +365,128 @@ function updateAssessmentPanel(chapter) {
 }
 
 /**
- * 更新生成信息面板
+ * 更新生成信息面板（新版抽屉式UI）
  */
 function updateGenerationInfoPanel(chapter, qualityData) {
     console.log('更新生成信息面板...', qualityData);
 
-    // 1. 更新输入提示词
-    updateInputPrompts(chapter, qualityData);
+    // 更新概览Tab
+    updateDebugOverview(chapter, qualityData);
 
-    // 2. 更新AI输出响应
-    updateAIResponses(chapter, qualityData);
+    // 更新提示词Tab
+    updateDebugPrompts(chapter, qualityData);
 
-    // 3. 更新质量评价
-    updateQualityEvaluation(chapter, qualityData);
+    // 更新AI响应Tab
+    updateDebugAIResponse(chapter, qualityData);
 
-    // 4. 更新角色发展信息
-    updateCharacterDevelopment(chapter, qualityData);
-
-    // 5. 更新生成状态
-    updateGenerationStatus(chapter, qualityData);
+    // 更新质量评价Tab
+    updateDebugQuality(chapter, qualityData);
 }
 
-function updateInputPrompts(chapter, qualityData) {
-    const container = document.getElementById('input-prompts');
+/**
+ * 更新调试概览Tab
+ */
+function updateDebugOverview(chapter, qualityData) {
+    // 基本信息
+    const wordCount = chapter.content ? chapter.content.length : 0;
+    const genTime = chapter.generated_at 
+        ? new Date(chapter.generated_at).toLocaleString('zh-CN')
+        : '未知';
     
-    // 构建JSON数据段
-    const jsonSections = [];
+    document.getElementById('debug-chapter-num').textContent = chapter.chapter_number || '-';
+    document.getElementById('debug-word-count').textContent = wordCount.toLocaleString() + ' 字';
+    document.getElementById('debug-gen-time').textContent = genTime;
+    document.getElementById('debug-status').textContent = chapter.content ? '已完成' : '未生成';
+    
+    // 文件路径
+    document.getElementById('debug-file-path').textContent = chapter.file_path || '无';
+}
 
-    // 1. 源文件信息
-    if (chapter.file_path) {
-        const fileInfo = {
-            file_path: chapter.file_path,
-            word_count: chapter.word_count || 0,
+/**
+ * 更新提示词Tab
+ */
+function updateDebugPrompts(chapter, qualityData) {
+    const container = document.getElementById('debug-prompts-content');
+    if (!container) return;
+    
+    const data = {
+        chapter_info: {
             chapter_number: chapter.chapter_number,
             title: chapter.title,
+            word_count: chapter.content ? chapter.content.length : 0,
+            file_path: chapter.file_path,
             generated_at: chapter.generated_at
-        };
-        
-        jsonSections.push({
-            title: `📄 源文件信息 (${chapter.word_count || 0}字)`,
-            data: fileInfo,
-            options: {
-                id: 'source-file-info',
-                icon: '📄',
-                expanded: false,
-                maxHeight: 200
-            }
-        });
-    }
+        },
+        writing_plans: qualityData.writing_plan || {},
+        events: qualityData.events || [],
+        character_relationships: qualityData.character_relationships || {}
+    };
+    
+    container.textContent = JSON.stringify(data, null, 2);
+}
 
-    // 2. 原始章节数据（异步加载）
-    if (chapter.file_path) {
-        jsonSections.push({
-            title: `📋 原始章节JSON数据`,
-            async: true,
-            loadData: async () => {
-                const response = await fetch(`/api/raw-chapter-data?file_path=${encodeURIComponent(chapter.file_path)}`);
-                if (!response.ok) throw new Error('获取章节数据失败');
-                return await response.json();
-            },
-            options: {
-                id: 'raw-chapter-data',
-                icon: '📋',
-                expanded: false,
-                maxHeight: 300,
-                errorMessage: '获取原始章节数据失败',
-                loadingText: '正在加载原始章节数据...'
-            }
-        });
-    }
+/**
+ * 更新AI响应Tab
+ */
+function updateDebugAIResponse(chapter, qualityData) {
+    const container = document.getElementById('debug-ai-content');
+    if (!container) return;
+    
+    const data = {
+        generation_result: {
+            chapter_number: chapter.chapter_number,
+            title: chapter.title,
+            word_count: chapter.content ? chapter.content.length : 0,
+            content_preview: chapter.content ? chapter.content.substring(0, 500) + '...' : '无内容',
+            generated_at: chapter.generated_at
+        },
+        failures: qualityData.chapter_failures || [],
+        generation_context: qualityData.generation_context || {},
+        api_calls: qualityData.api_calls || []
+    };
+    
+    container.textContent = JSON.stringify(data, null, 2);
+}
 
-    // 3. 写作计划数据
-    const writingPlan = qualityData.writing_plan || {};
-    Object.keys(writingPlan).forEach(stageName => {
-        if (writingPlan[stageName] && writingPlan[stageName].stage_writing_plan) {
-            const planData = writingPlan[stageName].stage_writing_plan;
-            const chapterRange = planData.chapter_range || '未知';
-            const timestamp = planData.novel_metadata?.generation_timestamp ?
-                new Date(planData.novel_metadata.generation_timestamp).toLocaleString() : '未知';
-            
-            jsonSections.push({
-                title: `📝 ${stageName}计划 (${chapterRange})`,
-                data: planData,
-                options: {
-                    id: `writing-plan-${stageName}`,
-                    icon: '📝',
-                    expanded: false,
-                    maxHeight: 350
-                }
-            });
+/**
+ * 更新质量评价Tab
+ */
+function updateDebugQuality(chapter, qualityData) {
+    const container = document.getElementById('debug-quality-content');
+    if (!container) return;
+    
+    const data = {
+        assessment: chapter.assessment || {},
+        character_development: qualityData.character_development || {},
+        world_state: qualityData.world_state || {},
+        events: qualityData.events || [],
+        quality_metrics: {
+            章节字数: chapter.content ? chapter.content.length : 0,
+            段落数量: chapter.content ? chapter.content.split(/\n\s*\n/).length : 0,
+            生成时间: chapter.generated_at || '未知',
+            生成状态: '已完成'
         }
-    });
+    };
+    
+    container.textContent = JSON.stringify(data, null, 2);
+}
 
-    // 4. 事件记录
-    const events = qualityData.events || [];
-    if (events.length > 0) {
-        jsonSections.push({
-            title: `📅 事件记录 (${events.length}条)`,
-            data: events.slice(0, 20), // 限制显示数量
-            options: {
-                id: 'events-log',
-                icon: '📅',
-                expanded: false,
-                maxHeight: 400
-            }
-        });
-    }
-
-    // 5. 角色关系数据
-    const relationships = qualityData.character_relationships || {};
-    if (Object.keys(relationships).length > 0) {
-        jsonSections.push({
-            title: `👥 角色关系数据 (${Object.keys(relationships).length}个角色)`,
-            data: relationships,
-            options: {
-                id: 'character-relationships',
-                icon: '👥',
-                expanded: false,
-                maxHeight: 300
-            }
-        });
-    }
-
-    // 生成HTML
-    if (jsonSections.length > 0) {
-        const html = jsonSections.map(section => {
-            if (section.async && section.loadData) {
-                return createAsyncExpandableJSON(section.title, section.loadData, section.options);
-            } else {
-                return createExpandableJSON(section.title, section.data, section.options);
-            }
-        }).join('');
-        
-        // 直接显示HTML内容，不添加批量操作按钮
-        container.innerHTML = html;
-    } else {
-        container.innerHTML = '<div style="text-align: center; color: #999; padding: 20px; font-size: 12px;">暂无输入信息</div>';
-    }
+// 保留旧版函数以兼容（如果有其他地方调用）
+function updateInputPrompts(chapter, qualityData) {
+    // 新版UI已整合到 updateDebugPrompts
+    updateDebugPrompts(chapter, qualityData);
 }
 
 function updateAIResponses(chapter, qualityData) {
-    const container = document.getElementById('ai-responses');
-    
-    // 构建JSON数据段
-    const jsonSections = [];
-
-    // 1. 章节生成结果
-    if (chapter.content) {
-        const generationResult = {
-            chapter_number: chapter.chapter_number,
-            title: chapter.title,
-            word_count: chapter.content.length,
-            content_preview: chapter.content.substring(0, 500) + (chapter.content.length > 500 ? '...' : ''),
-            generated_at: chapter.generated_at,
-            file_path: chapter.file_path
-        };
-        
-        jsonSections.push({
-            title: `🤖 章节生成结果 (${chapter.content.length}字)`,
-            data: generationResult,
-            options: {
-                id: 'generation-result',
-                icon: '🤖',
-                expanded: false,
-                maxHeight: 250
-            }
-        });
-
-        // 2. 完整章节内容
-        jsonSections.push({
-            title: `📝 完整章节内容`,
-            data: {
-                content: chapter.content,
-                metadata: {
-                    word_count: chapter.content.length,
-                    chapter_number: chapter.chapter_number,
-                    title: chapter.title,
-                    generated_at: chapter.generated_at
-                }
-            },
-            options: {
-                id: 'full-chapter-content',
-                icon: '📝',
-                expanded: false,
-                maxHeight: 400
-            }
-        });
-    }
-
-    // 3. 生成失败记录
-    const failures = qualityData.chapter_failures || [];
-    if (failures.length > 0) {
-        const processedFailures = failures.map((failure, index) => ({
-            序号: index + 1,
-            失败时间: failure.failure_time,
-            失败原因: failure.failure_reason,
-            异常信息: failure.failure_details?.exception_message || '无',
-            重试次数: failure.retry_count || 0,
-            章节状态: failure.chapter_status || '未知'
-        }));
-
-        jsonSections.push({
-            title: `❌ 生成失败记录 (${failures.length}次)`,
-            data: processedFailures,
-            options: {
-                id: 'generation-failures',
-                icon: '❌',
-                expanded: false,
-                maxHeight: 300
-            }
-        });
-    }
-
-    // 4. 生成上下文数据
-    if (qualityData.generation_context) {
-        jsonSections.push({
-            title: `🎯 生成上下文`,
-            data: qualityData.generation_context,
-            options: {
-                id: 'generation-context',
-                icon: '🎯',
-                expanded: false,
-                maxHeight: 350
-            }
-        });
-    }
-
-    // 5. API调用记录（如果有的话）
-    if (qualityData.api_calls && qualityData.api_calls.length > 0) {
-        jsonSections.push({
-            title: `🌐 API调用记录 (${qualityData.api_calls.length}次)`,
-            data: qualityData.api_calls.slice(-10), // 只显示最近10次
-            options: {
-                id: 'api-calls-log',
-                icon: '🌐',
-                expanded: false,
-                maxHeight: 400
-            }
-        });
-    }
-
-    // 生成HTML
-    if (jsonSections.length > 0) {
-        const html = jsonSections.map(section => {
-            return createExpandableJSON(section.title, section.data, section.options);
-        }).join('');
-        
-        container.innerHTML = html;
-    } else {
-        container.innerHTML = '<div style="text-align: center; color: #999; padding: 20px; font-size: 12px;">暂无AI响应信息</div>';
-    }
+    // 新版UI已整合到 updateDebugAIResponse
+    updateDebugAIResponse(chapter, qualityData);
 }
 
 function updateQualityEvaluation(chapter, qualityData) {
-    const container = document.getElementById('quality-evaluation');
-    
-    // 构建JSON数据段
-    const jsonSections = [];
-
-    // 1. 角色发展评估
-    const characterDev = qualityData.character_development || {};
-    const characterNames = Object.keys(characterDev);
-    if (characterNames.length > 0) {
-        const processedCharacters = {};
-        characterNames.forEach(name => {
-            const char = characterDev[name];
-            processedCharacters[name] = {
-                角色类型: char.role_type || '未知',
-                重要性: char.importance || '未知',
-                状态: char.status || '未知',
-                属性: char.attributes || {},
-                总出现次数: char.total_appearances || 0,
-                首次登场章节: char.first_appearance_chapter || 0,
-                最后更新章节: char.last_updated_chapter || 0,
-                角色简介: char.description || '无'
-            };
-        });
-
-        jsonSections.push({
-            title: `👥 角色发展评估 (${characterNames.length}个角色)`,
-            data: processedCharacters,
-            options: {
-                id: 'character-development',
-                icon: '👥',
-                expanded: false,
-                maxHeight: 400
-            }
-        });
-    }
-
-    // 2. 世界观状态
-    const worldState = qualityData.world_state || {};
-    if (Object.keys(worldState).length > 0) {
-        const processedWorldState = {
-            世界状态记录: `${Object.keys(worldState).length} 项数据`,
-            最后更新: worldState.last_updated || '未知',
-            详细数据: worldState
-        };
-
-        jsonSections.push({
-            title: `🌍 世界观状态 (${Object.keys(worldState).length}项)`,
-            data: processedWorldState,
-            options: {
-                id: 'world-state',
-                icon: '🌍',
-                expanded: false,
-                maxHeight: 350
-            }
-        });
-    }
-
-    // 3. 质量评估详情（如果有的话）
-    if (chapter.assessment) {
-        const assessment = chapter.assessment;
-        const processedAssessment = {
-            整体评分: assessment.score || assessment.整体评分 || assessment['整体评分'] || '未评分',
-            评级: assessment.rating || assessment.评级 || assessment['评级'] || '未评级',
-            优点: assessment.pros || assessment.优点 || assessment['优点'] || [],
-            改进建议: assessment.cons || assessment.建议 || assessment['改进建议'] || assessment['改进建议'] || [],
-            详细评估: assessment
-        };
-
-        jsonSections.push({
-            title: `📊 章节质量评估`,
-            data: processedAssessment,
-            options: {
-                id: 'quality-assessment',
-                icon: '📊',
-                expanded: false,
-                maxHeight: 300
-            }
-        });
-    }
-
-    // 4. 事件详细记录
-    const events = qualityData.events || [];
-    if (events.length > 0) {
-        const processedEvents = events.map((event, index) => ({
-            序号: index + 1,
-            事件类型: event.event_type || '未知',
-            章节号: event.chapter_number || '未知',
-            事件描述: event.description || event.event_description || '无',
-            发生时间: event.timestamp || event.event_time || '未知',
-            相关角色: event.involved_characters || [],
-            事件影响: event.impact || '无'
-        }));
-
-        jsonSections.push({
-            title: `📅 事件详细记录 (${events.length}个事件)`,
-            data: processedEvents,
-            options: {
-                id: 'detailed-events',
-                icon: '📅',
-                expanded: false,
-                maxHeight: 400
-            }
-        });
-    }
-
-    // 5. 写作质量指标
-    const qualityMetrics = {
-        章节字数: chapter.content ? chapter.content.length : 0,
-        段落数量: chapter.content ? chapter.content.split(/\n\s*\n/).length : 0,
-        生成时间: chapter.generated_at || '未知',
-        文件大小: chapter.word_count || 0,
-        生成状态: '已完成',
-        数据完整性: {
-            有内容: !!chapter.content,
-            有标题: !!chapter.title,
-            有章节号: !!chapter.chapter_number,
-            有生成时间: !!chapter.generated_at,
-            有文件路径: !!chapter.file_path
-        }
-    };
-
-    jsonSections.push({
-        title: `📈 写作质量指标`,
-        data: qualityMetrics,
-        options: {
-            id: 'quality-metrics',
-            icon: '📈',
-            expanded: false,
-            maxHeight: 250
-        }
-    });
-
-    // 生成HTML
-    if (jsonSections.length > 0) {
-        const html = jsonSections.map(section => {
-            return createExpandableJSON(section.title, section.data, section.options);
-        }).join('');
-        
-        container.innerHTML = html;
-    } else {
-        container.innerHTML = '<div style="text-align: center; color: #999; padding: 20px; font-size: 12px;">暂无质量评价信息</div>';
-    }
+    // 新版UI已整合到 updateDebugQuality
+    updateDebugQuality(chapter, qualityData);
 }
 
-function updateCharacterDevelopment(chapter, qualityData) {
-    const container = document.getElementById('character-development');
-    
-    console.log('更新角色发展信息...', qualityData);
-    
-    // 尝试从多个路径获取角色发展数据
-    let characterDev = null;
-    
-    // 路径1: 从质量数据中获取
-    if (qualityData && qualityData.character_development) {
-        characterDev = qualityData.character_development;
-        console.log('从qualityData.character_development获取到角色数据:', characterDev);
-    }
-    
-    // 路径2: 从质量数据的不同字段中获取
-    if (!characterDev && qualityData) {
-        const possiblePaths = [
-            'character_development_data',
-            'character_data',
-            'characters',
-            'role_development'
-        ];
-        
-        for (const path of possiblePaths) {
-            if (qualityData[path] && typeof qualityData[path] === 'object') {
-                characterDev = qualityData[path];
-                console.log(`从qualityData.${path}获取到角色数据:`, characterDev);
-                break;
-            }
-        }
-    }
-    
-    // 路径3: 从章节数据中获取
-    if (!characterDev && chapter) {
-        if (chapter.character_development) {
-            characterDev = chapter.character_development;
-            console.log('从chapter.character_development获取到角色数据:', characterDev);
-        }
-    }
-    
-    // 路径4: 从小说全局数据中获取
-    if (!characterDev && novelData) {
-        const globalPaths = [
-            'novel_info.character_development',
-            'character_development',
-            'characters_data'
-        ];
-        
-        for (const path of globalPaths) {
-            if (novelData[path] && typeof novelData[path] === 'object') {
-                characterDev = novelData[path];
-                console.log(`从novelData.${path}获取到角色数据:`, characterDev);
-                break;
-            }
-        }
-    }
-    
-    // 如果仍然没有数据，显示调试信息
-    if (!characterDev || Object.keys(characterDev).length === 0) {
-        console.log('未找到角色发展数据，显示调试信息');
-        container.innerHTML = `
-            <div style="text-align: center; color: #999; padding: 20px;">
-                <div style="margin-bottom: 10px;">暂无角色发展信息</div>
-                <details style="text-align: left; margin-top: 10px;">
-                    <summary style="cursor: pointer; color: #666;">调试信息</summary>
-                    <pre style="background: #f5f5f5; padding: 10px; border-radius: 4px; font-size: 11px; overflow: auto; max-height: 200px;">
-qualityData: ${JSON.stringify(qualityData, null, 2)}
-chapter: ${JSON.stringify(chapter, null, 2)}
-novelData: ${JSON.stringify(novelData, null, 2)}
-                    </pre>
-                </details>
-            </div>
-        `;
-        return;
-    }
-    
-    const characterNames = Object.keys(characterDev);
-    console.log(`找到 ${characterNames.length} 个角色:`, characterNames);
-
-    // 生成人物卡片HTML
-    let html = '<div class="character-cards-container">';
-    
-    characterNames.slice(0, 6).forEach(name => {
-        const char = characterDev[name];
-        const attributes = char.attributes || char.attribute_data || {};
-        
-        // 确定角色类型和重要性
-        const roleType = char.role_type || char.type || '配角';
-        const importance = char.importance || char.level || '次要';
-        const isActive = char.status === 'active' || char.is_active === true;
-        
-        // 生成角色头像（使用角色名的首字母或默认图标）
-        let avatarText = name.charAt(0).toUpperCase();
-        if (name.includes('韩') || name.includes('主角')) {
-            avatarText = '主';
-        } else if (name.includes('女')) {
-            avatarText = '女';
-        } else if (name.includes('男')) {
-            avatarText = '男';
-        }
-        
-        // 根据重要性确定状态颜色
-        let statusClass = 'status-inactive';
-        if (isActive) {
-            statusClass = 'status-active';
-        } else if (importance === '主要' || importance === '重要') {
-            statusClass = 'status-important';
-        }
-
-        // 获取属性值，支持多种可能的字段名
-        const cultivationLevel = attributes.cultivation_level || attributes.level || attributes.修为 || '未知';
-        const location = attributes.location || attributes.位置 || '未知';
-        const money = attributes.money || attributes.灵石 || attributes.财富 || '0';
-
-        html += `
-            <div class="character-card">
-                <div class="character-status ${statusClass}">${importance}</div>
-                <div class="character-card-header">
-                    <div class="character-avatar">${avatarText}</div>
-                    <div class="character-info">
-                        <div class="character-name">${name}</div>
-                        <div class="character-title">${roleType} • ${importance}</div>
-                    </div>
-                </div>
-                <div class="character-card-body">
-                    <div class="character-attributes">
-                        <div class="character-attribute">
-                            <div class="attribute-label">修为</div>
-                            <div class="attribute-value">${cultivationLevel}</div>
-                        </div>
-                        <div class="character-attribute">
-                            <div class="attribute-label">位置</div>
-                            <div class="attribute-value">${location}</div>
-                        </div>
-                        <div class="character-attribute">
-                            <div class="attribute-label">灵石</div>
-                            <div class="attribute-value">${money}</div>
-                        </div>
-                    </div>
-                    
-                    <div class="character-stats">
-                        <div class="stat-item">
-                            <div class="stat-value">${char.total_appearances || char.appearances || 0}</div>
-                            <div class="stat-label">出现次数</div>
-                        </div>
-                        <div class="stat-item">
-                            <div class="stat-value">${char.first_appearance_chapter || char.first_chapter || 0}</div>
-                            <div class="stat-label">首章</div>
-                        </div>
-                        <div class="stat-item">
-                            <div class="stat-value">${char.last_updated_chapter || char.last_chapter || 0}</div>
-                            <div class="stat-label">终章</div>
-                        </div>
-                    </div>
-                    
-                    <div class="character-description">
-                        ${char.description || char.desc || '暂无描述信息'}
-                    </div>
-                </div>
-            </div>
-        `;
-    });
-
-    if (characterNames.length > 6) {
-        html += `<div style="text-align: center; color: #666; font-size: 12px; margin-top: 16px;">
-            <div style="background: rgba(43, 108, 176, 0.1); padding: 8px 12px; border-radius: 4px; margin: 0 8px;">
-                查看全部 ${characterNames.length} 个角色 →
-            </div>
-            <div style="text-align: center; color: #999; font-size: 11px;">
-                ...还有 ${characterNames.length - 6} 个角色未显示
-            </div>
-        </div>`;
-    }
-
-    html += '</div>';
-    container.innerHTML = html;
-    
-    console.log(`角色发展信息更新完成，显示了 ${Math.min(6, characterNames.length)} 个角色`);
-}
-
-function updateGenerationStatus(chapter, qualityData) {
-    const container = document.getElementById('generation-status');
-    let html = '';
-
-    // 基本生成信息
-    html += `<div style="margin-bottom: 10px;">
-        <h5 style="color: #666; font-size: 12px; margin-bottom: 5px;">生成状态:</h5>
-        <div style="background: #e8f5e8; padding: 8px; border-radius: 4px; font-size: 11px;">
-            <strong>章节:</strong> 第${chapter.chapter_number}章<br>
-            <strong>字数:</strong> ${chapter.content ? chapter.content.length : 0} 字<br>
-            <strong>生成时间:</strong> ${chapter.generated_at ? new Date(chapter.generated_at).toLocaleString('zh-CN') : '未知'}<br>
-            <strong>状态:</strong> <span style="color: #28a745;">✅ 已完成</span>
-        </div>
-    </div>`;
-
-    // 失败状态
-    const failures = qualityData.chapter_failures || [];
-    if (failures.length > 0) {
-        html += `<div>
-            <h5 style="color: #666; font-size: 12px; margin-bottom: 5px;">失败记录:</h5>
-            <div style="background: #f8d7da; padding: 8px; border-radius: 4px; font-size: 11px;">
-                <strong>失败次数:</strong> ${failures.length} 次<br>
-                <strong>最后失败:</strong> ${failures[failures.length - 1]?.failure_time || '未知'}<br>
-                <strong>主要原因:</strong> ${failures[failures.length - 1]?.failure_reason || '未知'}
-            </div>
-        </div>`;
-    }
-
-    container.innerHTML = html;
-}
 
 /**
  * 根据评分计算评级
@@ -1335,15 +521,10 @@ function showError(message) {
     const contentBody = document.getElementById('chapter-content');
     if (contentBody) {
         contentBody.innerHTML = `
-            <div style="text-align: center; color: #dc3545; padding: 40px;">
-                <div style="font-size: 24px; margin-bottom: 16px;">❌</div>
-                <p>${escapeHtml(message)}</p>
-                <div style="margin-top: 20px; font-size: 14px; color: #666;">
-                    <details>
-                        <summary>查看详细错误信息</summary>
-                        <pre style="text-align: left; background: #f8f9fa; padding: 10px; border-radius: 4px; margin-top: 10px;">${escapeHtml(message)}</pre>
-                    </details>
-                </div>
+            <div class="empty-state">
+                <div class="empty-icon">❌</div>
+                <div class="empty-title">加载失败</div>
+                <div class="empty-desc">${escapeHtml(message)}</div>
             </div>
         `;
     } else {
@@ -1424,37 +605,9 @@ function updateNavigationButtons() {
     
     const prevBtn = document.getElementById('prev-chapter-btn');
     const nextBtn = document.getElementById('next-chapter-btn');
-    const indicator = document.getElementById('chapter-indicator');
     
-    // 按钮始终显示，根据状态启用/禁用
-    prevBtn.style.display = 'block';
-    nextBtn.style.display = 'block';
-    
-    // 设置启用/禁用状态和透明度
-    if (hasPrev) {
-        prevBtn.disabled = false;
-        prevBtn.style.opacity = '1';
-        prevBtn.style.cursor = 'pointer';
-    } else {
-        prevBtn.disabled = true;
-        prevBtn.style.opacity = '0.5';
-        prevBtn.style.cursor = 'not-allowed';
-    }
-    
-    if (hasNext) {
-        nextBtn.disabled = false;
-        nextBtn.style.opacity = '1';
-        nextBtn.style.cursor = 'pointer';
-    } else {
-        nextBtn.disabled = true;
-        nextBtn.style.opacity = '0.5';
-        nextBtn.style.cursor = 'not-allowed';
-    }
-    
-    // 更新指示器
-    if (indicator) {
-        indicator.textContent = `第 ${currentChapter} 章`;
-    }
+    if (prevBtn) prevBtn.disabled = !hasPrev;
+    if (nextBtn) nextBtn.disabled = !hasNext;
 }
 
 // 键盘快捷键
@@ -2356,47 +1509,11 @@ document.head.appendChild(style);
 // ==================== 阅读模式功能 ====================
 
 /**
- * 切换阅读模式/调试模式
+ * 切换阅读模式（新版UI：打开调试抽屉）
  */
 function toggleReadingMode() {
-    isReadingMode = !isReadingMode;
-    const debugLayout = document.getElementById('debug-layout');
-    const readingLayout = document.getElementById('reading-layout');
-    const modeToggleBtn = document.getElementById('mode-toggle-btn');
-    const modeText = document.getElementById('mode-text');
-    const readingSettingsBtn = document.getElementById('reading-settings-btn');
-    const exportJsonBtn = document.getElementById('export-json-btn');
-    const printBtn = document.getElementById('print-btn');
-    
-    if (isReadingMode) {
-        // 切换到阅读模式
-        debugLayout.style.display = 'none';
-        readingLayout.style.display = 'block';
-        modeText.textContent = '🔧 调试模式';
-        readingSettingsBtn.style.display = 'inline-block';
-        exportJsonBtn.style.display = 'none';
-        printBtn.style.display = 'none';
-        
-        // 阅读模式下禁用分页功能
-        paginationEnabled = false;
-        
-        // 初始化阅读模式界面
-        initReadingMode();
-    } else {
-        // 切换到调试模式
-        debugLayout.style.display = 'grid';
-        readingLayout.style.display = 'none';
-        modeText.textContent = '📖 沉浸阅读';
-        readingSettingsBtn.style.display = 'none';
-        exportJsonBtn.style.display = 'inline-block';
-        printBtn.style.display = 'inline-block';
-        
-        // 调试模式下恢复分页功能（根据用户设置）
-        loadPaginationSettings();
-        
-        // 隐藏阅读设置面板
-        hideReadingSettings();
-    }
+    // 新版UI使用抽屉而非切换布局
+    openDebugDrawer();
 }
 
 /**
@@ -3627,76 +2744,37 @@ document.addEventListener('click', function(event) {
  * 章节列表分页 - 在固定高度容器中智能分页
  */
 function paginateChaptersList() {
-    if (!chapterPaginationEnabled || chaptersData.length === 0) {
-        displayAllChapters();
-        return;
-    }
-
-    const chaptersContainer = document.getElementById('chapters-list-container');
-    const chaptersList = document.getElementById('chapters-list');
-    
-    if (!chaptersContainer || !chaptersList) return;
-    
-    // 首先渲染所有章节以获取实际高度
+    // 直接渲染所有章节，不再需要动态分页
     displayAllChapters();
     
-    // 等待DOM更新完成后检查是否需要分页
-    setTimeout(() => {
-        const containerHeight = chaptersContainer.clientHeight;
-        const listHeight = chaptersList.scrollHeight;
-        
-        console.log(`章节容器检查: 容器高度${containerHeight}px, 列表高度${listHeight}px, 章节数${chaptersData.length}`);
-        
-        // 如果列表高度超过容器高度，启用分页
-        if (listHeight > containerHeight) {
-            console.log(`章节列表需要分页`);
-            
-            // 计算可用高度（减去分页导航栏和边距）
-            const paginationElement = document.getElementById('chapter-pagination');
-            let paginationHeight = 50; // 分页导航栏的估计高度
-            if (paginationElement) {
-                paginationElement.style.display = 'flex'; // 临时显示以获取高度
-                paginationHeight = paginationElement.offsetHeight || 50;
-            }
-            
-            const availableHeight = containerHeight - paginationHeight - 10; // 减去边距
-            
-            // 创建临时章节项来测量单个章节的实际高度
-            const tempItem = chaptersList.querySelector('.chapter-item');
-            let chapterItemHeight = 80; // 默认估计高度
-            
-            if (tempItem) {
-                chapterItemHeight = tempItem.offsetHeight + parseInt(window.getComputedStyle(tempItem).marginBottom);
-            }
-            
-            // 计算每页可以显示的章节数量
-            const itemsPerPage = Math.max(3, Math.floor(availableHeight / chapterItemHeight));
-            
-            console.log(`分页计算: 可用高度${availableHeight}px, 章节项高度${chapterItemHeight}px, 每页${itemsPerPage}个章节`);
-            
-            // 分页处理
-            chapterPagesData = [];
-            for (let i = 0; i < chaptersData.length; i += itemsPerPage) {
-                chapterPagesData.push(chaptersData.slice(i, i + itemsPerPage));
-            }
-            
-            totalChapterPages = chapterPagesData.length;
-            currentChapterPage = 1;
-            
-            console.log(`章节分页完成: ${totalChapterPages}页, 每页${itemsPerPage}个章节`);
-            
-            // 显示分页内容
-            displayCurrentChapterPage();
-            updateChapterPaginationNavigation();
-        } else {
-            console.log(`章节列表无需分页，可以完全显示`);
-            // 隐藏分页导航
-            const paginationElement = document.getElementById('chapter-pagination');
-            if (paginationElement) {
-                paginationElement.style.display = 'none';
-            }
+    // 如果章节数量很多，启用简单分页（每页15个）
+    const ITEMS_PER_PAGE = 15;
+    
+    if (chaptersData.length > ITEMS_PER_PAGE) {
+        // 分页处理
+        chapterPagesData = [];
+        for (let i = 0; i < chaptersData.length; i += ITEMS_PER_PAGE) {
+            chapterPagesData.push(chaptersData.slice(i, i + ITEMS_PER_PAGE));
         }
-    }, 200); // 增加等待时间确保DOM完全更新
+        
+        totalChapterPages = chapterPagesData.length;
+        currentChapterPage = 1;
+        
+        console.log(`章节分页: ${totalChapterPages}页, 每页${ITEMS_PER_PAGE}个章节`);
+        
+        // 显示分页内容
+        displayCurrentChapterPage();
+        updateChapterPaginationNavigation();
+    } else {
+        // 章节少，全部显示
+        displayAllChapters();
+        
+        // 隐藏分页导航
+        const paginationElement = document.getElementById('chapter-pagination');
+        if (paginationElement) {
+            paginationElement.style.display = 'none';
+        }
+    }
 }
 
 /**
@@ -3705,18 +2783,30 @@ function paginateChaptersList() {
 function displayAllChapters() {
     const listContainer = document.getElementById('chapters-list');
     
+    console.log('显示章节列表，数据:', chaptersData);
+    
+    if (!chaptersData || chaptersData.length === 0) {
+        listContainer.innerHTML = '<div style="text-align: center; padding: 20px; color: var(--v2-text-tertiary);">暂无章节</div>';
+        return;
+    }
+    
     listContainer.innerHTML = chaptersData.map(chapter => `
         <div class="chapter-item ${chapter.chapter_number === currentChapter ? 'active' : ''}"
-             onclick="loadChapter('${currentNovelTitle.replace(/'/g, "\\'")}', ${chapter.chapter_number})"
+             onclick="loadChapter('${(currentNovelTitle || '').replace(/'/g, "\\'")}', ${chapter.chapter_number})"
              data-chapter="${chapter.chapter_number}">
-            <div class="chapter-item-title">
-                第${chapter.chapter_number}章 ${chapter.title}
-            </div>
-            <div class="chapter-item-meta">
-                ${chapter.word_count || 0} 字 • 评分: ${chapter.score || '-'}
+            <div class="chapter-item-number">${chapter.chapter_number}</div>
+            <div class="chapter-item-info">
+                <div class="chapter-item-title">${chapter.title}</div>
+                <div class="chapter-item-meta">${chapter.word_count || 0} 字</div>
             </div>
         </div>
     `).join('');
+    
+    // 更新章节总数
+    const countElement = document.getElementById('chapters-count');
+    if (countElement) {
+        countElement.textContent = chaptersData.length + ' 章';
+    }
     
     // 默认隐藏分页导航，如果需要分页会在paginateChaptersList中显示
     const paginationElement = document.getElementById('chapter-pagination');
@@ -3736,24 +2826,17 @@ function displayCurrentChapterPage() {
     
     if (!currentPageData) return;
     
-    listContainer.innerHTML = `
-        <div class="chapter-page-content">
-            <div class="chapter-page-inner">
-                ${currentPageData.map(chapter => `
-                    <div class="chapter-item ${chapter.chapter_number === currentChapter ? 'active' : ''}"
-                         onclick="loadChapter('${currentNovelTitle.replace(/'/g, "\\'")}', ${chapter.chapter_number})"
-                         data-chapter="${chapter.chapter_number}">
-                        <div class="chapter-item-title">
-                            第${chapter.chapter_number}章 ${chapter.title}
-                        </div>
-                        <div class="chapter-item-meta">
-                            ${chapter.word_count} 字 • 评分: ${chapter.score || '-'}
-                        </div>
-                    </div>
-                `).join('')}
+    listContainer.innerHTML = currentPageData.map(chapter => `
+        <div class="chapter-item ${chapter.chapter_number === currentChapter ? 'active' : ''}"
+             onclick="loadChapter('${(currentNovelTitle || '').replace(/'/g, "\\'")}', ${chapter.chapter_number})"
+             data-chapter="${chapter.chapter_number}">
+            <div class="chapter-item-number">${chapter.chapter_number}</div>
+            <div class="chapter-item-info">
+                <div class="chapter-item-title">${chapter.title}</div>
+                <div class="chapter-item-meta">${chapter.word_count} 字</div>
             </div>
         </div>
-    `;
+    `).join('');
     
     // 显示分页导航
     const paginationElement = document.getElementById('chapter-pagination');
@@ -3766,10 +2849,10 @@ function displayCurrentChapterPage() {
  * 更新章节分页导航
  */
 function updateChapterPaginationNavigation() {
-    const currentPageSpan = document.getElementById('current-chapter-page');
-    const totalPagesSpan = document.getElementById('total-chapter-pages');
-    const prevPageBtn = document.getElementById('prev-chapter-page-btn');
-    const nextPageBtn = document.getElementById('next-chapter-page-btn');
+    const currentPageSpan = document.getElementById('current-page');
+    const totalPagesSpan = document.getElementById('total-pages');
+    const prevPageBtn = document.getElementById('prev-page-btn');
+    const nextPageBtn = document.getElementById('next-page-btn');
     
     if (currentPageSpan) currentPageSpan.textContent = currentChapterPage;
     if (totalPagesSpan) totalPagesSpan.textContent = totalChapterPages;
