@@ -317,7 +317,15 @@ class MultiChapterContentGenerator:
         """解析API返回结果为ChapterContent对象"""
         chapters_data = {}
         
+        # 🔥 修复：处理两种返回格式
+        # 格式1: {"chapters": [...]} 数组格式
+        # 格式2: {"chapter_number": 4, ...} 单章对象格式
         chapters_list = result.get("chapters", [])
+        
+        # 如果没有chapters数组，但有chapter_number字段，说明是单章格式
+        if not chapters_list and result.get("chapter_number"):
+            chapters_list = [result]
+            self.logger.info(f"[MultiChapterGen] 检测到单章返回格式，第{result.get('chapter_number')}章")
         
         for ch_data in chapters_list:
             ch_num = ch_data.get("chapter_number")
