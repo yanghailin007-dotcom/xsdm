@@ -2552,13 +2552,30 @@ def register_additional_routes(app):
             if from_chapter is None or chapters_to_generate is None:
                 return jsonify({"success": False, "error": "章节参数不完整"}), 400
             
-            # 🔥 新增：章节范围验证
-            # 起始章节不能大于10（但结束章节可以稍微超出，比如9-11）
-            if from_chapter > 10:
-                return jsonify({
-                    "success": False, 
-                    "error": f"起始章节不能超过10章（当前：{from_chapter}章）"
-                }), 400
+            # 🔥 章节范围验证
+            # 获取小说实际章节数，验证起始章节是否合理
+            try:
+                novel_info = manager.get_novel_info(novel_title, username=session.get('username'))
+                total_chapters = novel_info.get('total_chapters', 0)
+                generated_count = novel_info.get('generated_chapters', 0)
+                
+                # 起始章节应该是已生成章节数的下一章
+                expected_start = generated_count + 1
+                
+                if from_chapter > total_chapters:
+                    return jsonify({
+                        "success": False, 
+                        "error": f"起始章节{from_chapter}超出小说总章节数{total_chapters}"
+                    }), 400
+                    
+                if from_chapter > expected_start + 5:  # 允许最多跳5章（用于补章）
+                    return jsonify({
+                        "success": False, 
+                        "error": f"起始章节{from_chapter}超出合理范围，建议从第{expected_start}章开始"
+                    }), 400
+                    
+            except Exception as e:
+                logger.warning(f"获取小说信息失败: {e}，跳过章节范围验证")
             
             if from_chapter < 1:
                 return jsonify({
