@@ -361,7 +361,7 @@ class ProjectManager:
             if chapters_dir.exists():
                 generated_chapters = {}
                 for chapter_file in os.listdir(chapters_dir):
-                    if chapter_file.endswith('.txt'):
+                    if chapter_file.endswith('.json') or chapter_file.endswith('.txt'):
                         try:
                             with open(f"{chapters_dir}/{chapter_file}", 'r', encoding='utf-8') as f:
                                 chapter_data = json.load(f)
