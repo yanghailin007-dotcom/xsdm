@@ -577,6 +577,8 @@ class ProjectManager:
             self.logger.info(f"保存项目信息文件失败: {e}")
     def _build_chapter_index_with_validation(self, generated_chapters: Dict) -> List[Dict]:
         """构建章节索引，同时验证并记录缺失 chapter_title 的异常情况"""
+        import re
+        _invalid_chars_pattern = re.compile(r'[\\/*?:"<>|]')
         chapter_index = []
         for chapter_num, chapter_data in sorted(generated_chapters.items(), key=lambda x: int(x[0])):
             chapter_title = chapter_data.get("chapter_title")

@@ -252,6 +252,20 @@ class ChapterGenerator:
                 novel_data=novel_data
             )
             
+            # 🔥 修复：优化后重新检查字数，确保字数偏差标记被正确设置
+            optimized_word_count = len(optimized_data.get("content", ""))
+            min_word_threshold = chapter_params.get('min_word_threshold', 1500)
+            max_word_threshold = chapter_params.get('max_word_threshold', 3500)
+            if not (min_word_threshold <= optimized_word_count <= max_word_threshold):
+                new_assessment['word_count_deviation'] = True
+                new_assessment['word_count'] = optimized_word_count
+                new_assessment['min_word_threshold'] = min_word_threshold
+                new_assessment['max_word_threshold'] = max_word_threshold
+                if optimized_word_count < min_word_threshold:
+                    self.logger.warning(f"  ⚠️ 优化后字数仍不足: {optimized_word_count}字，低于阈值{min_word_threshold}字")
+                else:
+                    self.logger.warning(f"  ⚠️ 优化后字数仍超标: {optimized_word_count}字，高于阈值{max_word_threshold}字")
+            
             original_score = assessment.get("overall_score", 0)
             new_score = new_assessment.get("overall_score", 0)
             self.logger.info(f"  ✓ 优化完成，新评分: {new_score:.1f}分 (提升{new_score - original_score:+.1f}分)")
