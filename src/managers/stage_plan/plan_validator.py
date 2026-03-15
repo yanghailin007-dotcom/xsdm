@@ -473,9 +473,15 @@ class PlanValidator:
         
         composition = fleshed_out_major_event.get("composition", {})
         if composition:
-            for phase_events in composition.values():
-                if isinstance(phase_events, list):
-                    all_sub_events.extend(phase_events)
+            # 🔥 修复：支持黄金三章的数组格式和标准事件的字典格式
+            if isinstance(composition, list):
+                # 黄金三章格式：直接扩展
+                all_sub_events.extend(composition)
+            elif isinstance(composition, dict):
+                # 标准事件格式：遍历字典
+                for phase_events in composition.values():
+                    if isinstance(phase_events, list):
+                        all_sub_events.extend(phase_events)
         
         special_events = fleshed_out_major_event.get("special_emotional_events", [])
         if special_events:
@@ -595,16 +601,26 @@ class PlanValidator:
             description_parts.append(f"- **核心目标**: {major_event.get('main_goal', '未指定')}")
             
             composition = major_event.get("composition", {})
-            medium_events_count = sum(len(events) for events in composition.values() if isinstance(events, list))
-            description_parts.append(f"- **包含 {medium_events_count} 个中型事件**")
             
-            for phase_name, medium_events in composition.items():
-                if not isinstance(medium_events, list):
-                    continue
-                for j, medium_event in enumerate(medium_events, 1):
-                    if not isinstance(medium_event, dict):
+            # 🔥 修复：支持两种composition格式
+            if isinstance(composition, list):
+                # 黄金三章格式
+                medium_events_count = len(composition)
+                description_parts.append(f"- **包含 {medium_events_count} 个中型事件** (黄金三章整体)")
+                for j, medium_event in enumerate(composition, 1):
+                    if isinstance(medium_event, dict):
+                        description_parts.append(f"  #### 📈 中型事件 {j}: {medium_event.get('name', '未命名')}")
+            elif isinstance(composition, dict):
+                # 标准事件格式
+                medium_events_count = sum(len(events) for events in composition.values() if isinstance(events, list))
+                description_parts.append(f"- **包含 {medium_events_count} 个中型事件**")
+                for phase_name, medium_events in composition.items():
+                    if not isinstance(medium_events, list):
                         continue
-                    description_parts.append(f"  #### 📈 中型事件 {j} ({phase_name}): {medium_event.get('name', '未命名')}")
+                    for j, medium_event in enumerate(medium_events, 1):
+                        if not isinstance(medium_event, dict):
+                            continue
+                        description_parts.append(f"  #### 📈 中型事件 {j} ({phase_name}): {medium_event.get('name', '未命名')}")
         
         return "\n".join(description_parts)
     

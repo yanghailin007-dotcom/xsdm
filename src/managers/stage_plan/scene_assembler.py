@@ -65,12 +65,22 @@ class SceneAssembler:
             })
             
             # 2. 遍历重大事件的 'composition'，收集中型事件信息和特殊情感事件
+            # 🔥 修复：支持黄金三章的数组格式和标准事件的字典格式
             composition = major_event.get("composition", {})
             if not composition:
                 self.logger.warning(f"      ⚠️ 警告: 重大事件 '{major_event.get('name')}' 缺少 'composition' 字段。")
                 continue
             
-            for phase_name, phase_events in composition.items():
+            # 统一处理为(phase_name, events)列表
+            composition_items = []
+            if isinstance(composition, list):
+                # 黄金三章格式：composition是数组，虚拟一个phase_name
+                composition_items = [("整体", composition)]
+            elif isinstance(composition, dict):
+                # 标准事件格式：composition是起承转合字典
+                composition_items = composition.items()
+            
+            for phase_name, phase_events in composition_items:
                 if not isinstance(phase_events, list):
                     self.logger.warning(f"      ⚠️ 警告: 重大事件 '{major_event.get('name')}' 的 '{phase_name}' 部分不是一个列表。")
                     continue
@@ -279,13 +289,23 @@ class SceneAssembler:
                 event_context = (f"本章属于重大事件 '{major_event.get('name')}'，"
                                f"其目标是: {major_event.get('main_goal')}")
                 
-                # 进一步查找中型事件
-                for phase_events in major_event.get("composition", {}).values():
-                    for medium_event in phase_events:
+                # 进一步查找中型事件（支持两种composition格式）
+                composition = major_event.get("composition", {})
+                if isinstance(composition, list):
+                    # 黄金三章格式：直接遍历数组
+                    for medium_event in composition:
                         if self._is_chapter_in_range(chapter_number, medium_event.get("chapter_range", "")):
                             event_context += (f"\n更具体地，属于中型事件 '{medium_event.get('name')}'，"
                                            f"其目标是: {medium_event.get('main_goal')}")
                             break
+                elif isinstance(composition, dict):
+                    # 标准事件格式：遍历起承转合字典
+                    for phase_events in composition.values():
+                        for medium_event in phase_events:
+                            if self._is_chapter_in_range(chapter_number, medium_event.get("chapter_range", "")):
+                                event_context += (f"\n更具体地，属于中型事件 '{medium_event.get('name')}'，"
+                                               f"其目标是: {medium_event.get('main_goal')}")
+                                break
                 break
         
         return event_context

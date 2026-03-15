@@ -92,11 +92,19 @@ class EventDecomposer:
         Returns:
             更新后的重大事件
         """
-        # 收集所有中型事件
+        # 收集所有中型事件（支持两种格式）
         all_medium_events = []
         composition = major_event.get("composition", {})
-        for phase_events in composition.values():
-            all_medium_events.extend(phase_events)
+        
+        # 🔥 修复：支持黄金三章的数组格式和标准事件的字典格式
+        if isinstance(composition, list):
+            # 黄金三章格式：composition是数组
+            all_medium_events = composition
+        elif isinstance(composition, dict):
+            # 标准事件格式：composition是起承转合字典
+            for phase_events in composition.values():
+                if isinstance(phase_events, list):
+                    all_medium_events.extend(phase_events)
         
         self.logger.info(f"  📋 开始为 {len(all_medium_events)} 个中型事件进行智能分解（AI自由决策结构）...")
         
@@ -130,21 +138,27 @@ class EventDecomposer:
                 self.logger.warning(f"      ⚠️ 中型事件'{medium_event['name']}'分解失败，保留原始结构")
                 decomposed_medium_events.append(medium_event)
         
-        # 更新重大事件的composition
+        # 更新重大事件的composition（支持两种格式）
         major_event_copy = major_event.copy()
-        major_event_copy["composition"] = {}
-        for phase_name, phase_events in composition.items():
-            major_event_copy["composition"][phase_name] = []
-            for event in phase_events:
-                # 找到对应的分解后中型事件（添加安全检查）
-                event_name = event.get('name')
-                if event_name:
-                    decomposed_event = next((de for de in decomposed_medium_events
-                                           if de.get('name') == event_name), event)
-                else:
-                    # 如果没有name字段，使用原事件
-                    decomposed_event = event
-                major_event_copy["composition"][phase_name].append(decomposed_event)
+        
+        if isinstance(composition, list):
+            # 🔥 黄金三章格式：composition保持为数组
+            major_event_copy["composition"] = decomposed_medium_events
+        else:
+            # 🔥 标准事件格式：composition是起承转合字典
+            major_event_copy["composition"] = {}
+            for phase_name, phase_events in composition.items():
+                major_event_copy["composition"][phase_name] = []
+                for event in phase_events:
+                    # 找到对应的分解后中型事件（添加安全检查）
+                    event_name = event.get('name')
+                    if event_name:
+                        decomposed_event = next((de for de in decomposed_medium_events
+                                               if de.get('name') == event_name), event)
+                    else:
+                        # 如果没有name字段，使用原事件
+                        decomposed_event = event
+                    major_event_copy["composition"][phase_name].append(decomposed_event)
         
         self.logger.info(f"  ✅ 中型事件分解完成：{len(decomposed_medium_events)}/{len(all_medium_events)} 成功")
         return major_event_copy
@@ -325,47 +339,47 @@ class EventDecomposer:
 
 ## 输出格式: 严格遵守规则，返回包含'composition'字段的JSON对象
 
-【🔥 黄金三章(1-3章)特殊输出格式 - 必须遵守】
-当章节范围为1-3时，composition必须只有一个中型事件，且只放在"起"中：
+【🔥 黄金三章(1-3章)特殊输出格式 - 整体式设计】
+当章节范围为1-3时，composition直接是一个包含单个完整事件的数组，**不需要"起承转合"结构**：
 {{
     "name": "{major_event_skeleton.get('name')}",
     "type": "major_event",
-    "role_in_stage_arc": "{major_event_skeleton.get('role_in_stage_arc')}",
-    "main_goal": "{major_event_skeleton.get('main_goal')}",
-    "chapter_range": "{major_event_skeleton.get('chapter_range')}",
-    "composition": {{
-        "起": [
-            {{
-                "name": "黄金开局整体事件",
-                "type": "medium_event",
-                "chapter_range": "1-3",
-                "main_goal": "完整呈现开局：诡异降临→模拟器初现→初步破局",
-                "plot_outline": [
-                    "第1章情节点1...",
-                    "第1章情节点2...",
-                    "...",
-                    "第2章情节点1...",
-                    "...",
-                    "第3章情节点1...",
-                    "..."
-                ],
-                "description": "黄金三章是一个完整的叙事整体，不可拆分",
-                "stage_context": {{...}},
-                "emotional_derivation": {{...}},
-                "alignment_with_stage_arc": {{...}},
-                "contribution_to_major": "完成开局目标",
-                "special_emotional_events": [...]
-            }}
-        ],
-        "承": [],
-        "转": [],
-        "合": []
-    }},
+    "role_in_stage_arc": "起",
+    "main_goal": "完整呈现开局：诡异降临→模拟器初现→初步破局",
+    "chapter_range": "1-3",
+    "composition": [
+        {{
+            "name": "黄金开局整体事件",
+            "type": "medium_event",
+            "chapter_range": "1-3",
+            "main_goal": "完整呈现开局阶段全部内容",
+            "plot_outline": [
+                "第1章情节点1...",
+                "第1章情节点2...",
+                "第1章情节点3...",
+                "第1章情节点4...",
+                "第2章情节点1...",
+                "第2章情节点2...",
+                "第2章情节点3...",
+                "第2章情节点4...",
+                "第3章情节点1...",
+                "第3章情节点2...",
+                "第3章情节点3...",
+                "第3章情节点4..."
+            ],
+            "description": "黄金三章是番茄小说开局特殊设计，不需要内部分解，直接包含12-18个情节点",
+            "stage_context": {{...}},
+            "emotional_derivation": {{...}},
+            "alignment_with_stage_arc": {{"position_in_arc": "起", "contribution_to_stage_emotion": "高能开局，极速入戏"}},
+            "contribution_to_major": "完成开局留存读者的目标",
+            "special_emotional_events": [...]
+        }}
+    ],
     "emotional_arc_summary": "黄金开局：危机降临→冷静应对→破局反击"
 }}
 
 【标准事件(4章及以上)输出格式】
-当章节范围大于3章时，按起承转合分解为多个中型事件：
+当章节范围大于3章时，composition是起承转合字典，分解为多个中型事件：
 {{
     "name": "{major_event_skeleton.get('name')}",
     "type": "major_event",
@@ -381,14 +395,14 @@ class EventDecomposer:
     "emotional_arc_summary": "重大事件整体情绪弧线总结"
 }}
 
+【关键区分】
+- **黄金三章(1-3章)**: composition = [单个完整事件] （数组，不是字典！）
+- **标准事件(4章+)**: composition = {{"起": [...], "承": [...], "转": [...], "合": [...]}} （起承转合字典）
+
 注意：
-1. **🔥 黄金三章(1-3章)必须只生成一个中型事件，composition中只有"起"有内容，"承、转、合"必须是空数组[]**
-2. **🔥 黄金三章不需要内部分解为起承转合，它本身就是一个完整的开局整体**
-3. **🔥 plot_outline 数量强制规则**：必须严格遵守"每章4-6个情节点"的规则
-   - 1章事件=4-6个情节点
-   - 2章事件=8-12个情节点
-   - 3章事件=12-18个情节点（黄金三章必须12-18个）
-   - 检查方法：章节数×4 ≤ 情节点数 ≤ 章节数×6
+1. **🔥 黄金三章(1-3章)的composition是数组，不是起承转合字典**
+2. **🔥 黄金三章是番茄小说特殊开局设计，不需要内部分解，就是一个整体**
+3. **🔥 plot_outline 数量强制规则**：黄金三章必须12-18个情节点（3章 × 每章4-6个）
 4. 每个情节点应该是可以展开为300-500字场景的具体内容
 5. 情节点之间必须有因果关系和时间递进关系
 6. emotional_derivation 和 alignment_with_stage_arc 是新增的必需字段
