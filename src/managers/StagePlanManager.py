@@ -1056,16 +1056,26 @@ class StagePlanManager:
 
         # 🔥 新增：验证每个重大事件内中型事件的章节范围一致性
         medium_events_valid = True
-        for major_event in fleshed_out_major_events:
+        for i, major_event in enumerate(fleshed_out_major_events):
             medium_validation = self.plan_validator.validate_medium_events_range_consistency(
                 major_event
             )
             if not medium_validation.get("is_valid"):
                 medium_events_valid = False
-                # 可以在这里添加自动修正逻辑
+                # 🔥 自动修正中型事件覆盖问题
+                self.logger.info(f"  🔧 尝试修正 '{major_event.get('name', '未命名')}' 的中型事件覆盖...")
+                corrected_event = self.plan_validator.auto_correct_medium_events_coverage(major_event)
+                fleshed_out_major_events[i] = corrected_event
+                
+                # 重新验证
+                revalidation = self.plan_validator.validate_medium_events_range_consistency(corrected_event)
+                if revalidation.get("is_valid"):
+                    self.logger.info(f"    ✅ 修正成功，覆盖完整")
+                else:
+                    self.logger.warning(f"    ⚠️ 修正后仍有问题: {revalidation.get('issues', [])}")
 
         if not medium_events_valid:
-            self.logger.warning(f"  ⚠️ 部分重大事件的中型事件范围存在问题")
+            self.logger.warning(f"  ⚠️ 部分重大事件的中型事件范围存在问题，已尝试自动修正")
 
         # 根据验证结果优化
         try:

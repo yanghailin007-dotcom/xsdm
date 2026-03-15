@@ -1118,6 +1118,107 @@ class PlanValidator:
         # 返回修正后的事件
         return [er["event"] for er in event_ranges]
 
+    def auto_correct_medium_events_coverage(self, major_event: Dict) -> Dict:
+        """
+        自动修正重大事件内中型事件的章节覆盖问题
+        
+        【重要】黄金三章(is_golden_arc=true, 1-3章)不会自动修正：
+        - 黄金三章必须作为一个整体生成，这是硬性要求
+        - 如果黄金三章被拆分，会记录错误但不自动扩展
+        - 需要重新生成来修复这个问题
+        
+        Args:
+            major_event: 重大事件数据（包含composition）
+            
+        Returns:
+            修正后的重大事件数据（黄金三章可能未修正）
+        """
+        major_event_name = major_event.get("name", "未命名")
+        major_range_str = major_event.get("chapter_range", "")
+        is_golden_arc = major_event.get("is_golden_arc", False)
+        
+        # 解析父事件范围
+        try:
+            parent_start, parent_end = parse_chapter_range(major_range_str)
+            parent_chapters = set(range(parent_start, parent_end + 1))
+        except Exception:
+            return major_event
+        
+        # 🔥 黄金三章不自动修正 - 必须重新生成
+        if is_golden_arc and parent_start == 1 and parent_end == 3:
+            self.logger.warning(f"  ⚠️ '{major_event_name}' 是黄金三章，但中型事件覆盖不完整")
+            self.logger.warning(f"     黄金三章必须作为一个整体生成，不会自动扩展")
+            self.logger.warning(f"     如需修复，请重新分解该重大事件")
+            return major_event
+        
+        # 收集所有中型事件
+        all_medium_events = []
+        composition = major_event.get("composition", {})
+        
+        for phase_name, phase_events in composition.items():
+            if isinstance(phase_events, list):
+                for me in phase_events:
+                    all_medium_events.append({
+                        "event": me,
+                        "phase": phase_name,
+                        "name": me.get("name", "未命名"),
+                        "range": me.get("chapter_range", "")
+                    })
+        
+        if not all_medium_events:
+            return major_event
+        
+        # 计算当前覆盖范围
+        all_covered = set()
+        for me_info in all_medium_events:
+            try:
+                me_start, me_end = parse_chapter_range(me_info["range"])
+                all_covered |= set(range(me_start, me_end + 1))
+            except:
+                continue
+        
+        # 检查是否有留白
+        gaps = parent_chapters - all_covered
+        if not gaps:
+            return major_event
+        
+        self.logger.info(f"  🔧 修正 '{major_event_name}' 的中型事件覆盖: 缺失章节 {sorted(list(gaps))}")
+        
+        # 策略：扩展最后一个中型事件来覆盖缺失的章节
+        # 按开始章节排序
+        sorted_events = []
+        for me_info in all_medium_events:
+            try:
+                me_start, me_end = parse_chapter_range(me_info["range"])
+                sorted_events.append({
+                    **me_info,
+                    "start": me_start,
+                    "end": me_end
+                })
+            except:
+                continue
+        
+        sorted_events.sort(key=lambda x: x["start"])
+        
+        if sorted_events:
+            # 扩展最后一个事件到父事件结束
+            last_event = sorted_events[-1]
+            old_range = last_event["range"]
+            
+            # 如果最后一个事件结束早于父事件结束，扩展它
+            if last_event["end"] < parent_end:
+                last_event["event"]["chapter_range"] = f"{last_event['start']}-{parent_end}"
+                self.logger.info(f"    ✅ 扩展 '{last_event['name']}' 范围: {old_range} -> {last_event['start']}-{parent_end}")
+            
+            # 如果第一个事件开始晚于父事件开始，扩展它（处理开头留白）
+            first_event = sorted_events[0]
+            if first_event["start"] > parent_start:
+                old_range = first_event["range"]
+                first_event["event"]["chapter_range"] = f"{parent_start}-{first_event['end']}"
+                self.logger.info(f"    ✅ 扩展 '{first_event['name']}' 范围: {old_range} -> {parent_start}-{first_event['end']}")
+        
+        return major_event
+
     def validate_medium_events_range_consistency(self, major_event: Dict) -> Dict:
         """
         验证单个重大事件内中型事件的章节范围一致性
@@ -1220,6 +1321,33 @@ class PlanValidator:
                 "gap_chapters": sorted(list(gaps)),
                 "message": f"父事件范围内有 {len(gaps)} 个章节未被中型事件覆盖: {sorted(list(gaps))}"
             })
+        
+        # 🔥 黄金三章特殊验证
+        is_golden_arc = major_event.get("is_golden_arc", False)
+        if is_golden_arc and parent_start == 1 and parent_end == 3:
+            # 黄金三章必须只包含一个中型事件
+            normal_medium_events = [me for me in all_medium_events if me["phase"] != "special"]
+            if len(normal_medium_events) != 1:
+                issues.append({
+                    "type": "golden_chapters_violation",
+                    "message": f"黄金三章必须只包含一个中型事件(覆盖1-3章)，但当前有 {len(normal_medium_events)} 个",
+                    "current_count": len(normal_medium_events),
+                    "expected_count": 1
+                })
+            else:
+                # 检查这一个中型事件是否覆盖全部1-3章
+                me = normal_medium_events[0]
+                try:
+                    me_start, me_end = parse_chapter_range(me["range"])
+                    if me_start != 1 or me_end != 3:
+                        issues.append({
+                            "type": "golden_chapters_range_error",
+                            "message": f"黄金三章的中型事件必须覆盖1-3章，但当前覆盖 {me_start}-{me_end}",
+                            "current_range": f"{me_start}-{me_end}",
+                            "expected_range": "1-3"
+                        })
+                except:
+                    pass
 
         # 检查中型事件之间的重叠
         medium_ranges = []
