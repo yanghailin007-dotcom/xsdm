@@ -145,7 +145,15 @@ class PhaseGenerator:
                         elif hasattr(self.generator, 'novel_data') and 'username' in self.generator.novel_data:
                             username = self.generator.novel_data['username']
                         
-                        if title:
+                        # 🔥 修复：只在14个主要步骤更新检查点，避免子线程频繁写入导致文件锁冲突
+                        MAIN_STEPS = [
+                            'creative_refinement', 'fanfiction_detection', 'multiple_plans', 'plan_selection',
+                            'foundation_planning', 'worldview_with_factions', 'character_design',
+                            'emotional_growth_planning', 'stage_plan', 'detailed_stage_plans',
+                            'expectation_mapping', 'system_init', 'saving', 'quality_assessment'
+                        ]
+                        
+                        if title and stage_name in MAIN_STEPS:
                             from src.managers.stage_plan.generation_checkpoint import GenerationCheckpoint
                             checkpoint_mgr = GenerationCheckpoint(title, Path.cwd(), username=username)
                             
@@ -156,17 +164,27 @@ class PhaseGenerator:
                                 if step_status.get(stage_name) in ['completed', 'done']:
                                     step_status_str = 'completed'
                             
-                            checkpoint_mgr.create_checkpoint(
-                                phase='phase_one',
-                                step=stage_name,
-                                data={
+                            try:
+                                # 🔥 修复：保存完整的 novel_data 数据以便恢复
+                                # 根据当前步骤，确定需要保存的关键数据
+                                checkpoint_data = {
                                     'progress': progress,
                                     'message': message,
                                     'points_consumed': points_consumed,
-                                    'step_status': step_status
-                                },
-                                step_status=step_status_str
-                            )
+                                    'step_status': step_status,
+                                    # 保存完整的 novel_data 以便恢复时加载
+                                    'novel_data_snapshot': self._prepare_data_for_checkpoint(self.generator.novel_data)
+                                }
+                                
+                                checkpoint_mgr.create_checkpoint(
+                                    phase='phase_one',
+                                    step=stage_name,
+                                    data=checkpoint_data,
+                                    step_status=step_status_str
+                                )
+                                print(f"✅ 检查点已保存: {stage_name} (包含完整数据)")
+                            except Exception as cp_e:
+                                print(f"⚠️ 检查点保存失败（可能文件被占用）: {cp_e}")
                 except Exception as checkpoint_error:
                     print(f"⚠️ 保存检查点失败: {checkpoint_error}")
                 
@@ -1057,20 +1075,27 @@ class PhaseGenerator:
         ]
     }},
     "global_growth_plan": {{
-        "stage_framework": [
+        "growth_stages": [
             {{"stage_name": "起(开局)", "chapter_range": "string", "core_objective": "string"}},
             {{"stage_name": "承(发展)", "chapter_range": "string", "core_objective": "string"}},
             {{"stage_name": "转(高潮)", "chapter_range": "string", "core_objective": "string"}},
             {{"stage_name": "合(结局)", "chapter_range": "string", "core_objective": "string"}}
         ],
-        "character_growth": {{
+        "ability_tree": {{
             "protagonist_arc": "string (主角成长主线)",
             "key_milestones": ["string", "string"]
         }},
-        "power_system_evolution": {{
-            "early_stage": "string",
-            "mid_stage": "string", 
-            "late_stage": "string"
+        "realm_system": {{
+            "name": "string (境界体系名称)",
+            "overview": "string (体系概述)",
+            "realms": [
+                {{"name": "string (境界名称)", "description": "string (境界描述)"}}
+            ]
+        }},
+        "resource_system": {{
+            "early_resources": "string (初期资源获取方式)",
+            "mid_resources": "string (中期资源获取方式)",
+            "late_resources": "string (后期资源获取方式)"
         }}
     }}
 }}
@@ -1596,6 +1621,30 @@ class PhaseGenerator:
             "chapter_structure": "章节完整，衔接自然",
             "important_notes": ["保持风格一致性", "注意情节逻辑", "强化读者代入感"]
         }
+    
+    def _prepare_data_for_checkpoint(self, data: dict) -> dict:
+        """
+        准备数据以便JSON序列化，处理不可序列化的类型（如 set）
+        从 ResumeManager 复制的辅助方法
+        """
+        serializable_data = {}
+        for key, value in data.items():
+            if isinstance(value, set):
+                # 将 set 转换为 list
+                serializable_data[key] = list(value)
+            elif isinstance(value, dict):
+                # 递归处理字典
+                serializable_data[key] = self._prepare_data_for_checkpoint(value)
+            elif isinstance(value, (list, tuple)):
+                # 处理列表中的元素
+                serializable_data[key] = [
+                    self._prepare_data_for_checkpoint(item) if isinstance(item, dict) else
+                    list(item) if isinstance(item, set) else item
+                    for item in value
+                ]
+            else:
+                serializable_data[key] = value
+        return serializable_data
     
     def _save_phase_one_result(self):
         """保存第一阶段结果到统一路径配置系统"""
@@ -2548,48 +2597,52 @@ class PhaseGenerator:
             # 🔥 合并所有阶段的计划为一个整体计划进行评估
             merged_plan = self._merge_stage_plans_for_assessment(stage_writing_plans)
             
-            # 使用临时文件进行评估（PlanQualityAssessor需要文件路径）
-            import tempfile
-            import json
+            # 🔥 修复：直接使用内存数据评估，不创建临时文件
+            project_dir = Path(self.novel_dir)
+            project_dir.mkdir(parents=True, exist_ok=True)
             
-            with tempfile.NamedTemporaryFile(mode='w', suffix='.json', delete=False, encoding='utf-8') as f:
-                json.dump(merged_plan, f, ensure_ascii=False, indent=2)
-                temp_path = f.name
+            # 设置报告保存路径为项目目录下的标准文件名
+            assessment_path = project_dir / "quality_assessment.json"
             
+            # 执行AI评估 - 🔥 修改：直接使用数据对象，不创建临时文件
+            result = assessor.assess_data(
+                merged_plan, 
+                use_deep_analysis=False, 
+                skip_compression=True,
+                report_save_path=assessment_path  # 指定报告保存路径到项目目录
+            )
+            
+            # 读取保存的评估报告
             try:
-                # 执行AI评估
-                result = assessor.assess(Path(temp_path), use_deep_analysis=False)
-                
-                # 转换为字典格式
-                assessment_dict = {
-                    "overall_score": result.overall_score,
-                    "readiness": result.readiness,
-                    "strengths": result.strengths,
-                    "issues": [
-                        {
-                            "category": issue.category,
-                            "severity": issue.severity.value,
-                            "location": issue.location,
-                            "description": issue.description,
-                            "suggestion": issue.suggestion,
-                            "auto_fixable": issue.auto_fixable
-                        }
-                        for issue in result.issues
-                    ],
-                    "summary": result.summary,
-                    "assessment_time": datetime.now().isoformat(),
-                    "is_ai_assessment": True
-                }
-                
-                print(f"✅ AI质量评估完成: {assessment_dict['overall_score']}分 ({assessment_dict['readiness']})")
-                return assessment_dict
-                
-            finally:
-                # 清理临时文件
-                try:
-                    os.unlink(temp_path)
-                except:
-                    pass
+                with open(assessment_path, 'r', encoding='utf-8') as f:
+                    saved_report = json.load(f)
+            except:
+                saved_report = {}
+            
+            # 转换为字典格式（兼容现有UI）
+            assessment_dict = {
+                "overall_score": getattr(result, 'overall_score', None) or saved_report.get('overall_score', result.score if hasattr(result, 'score') else 0),
+                "readiness": getattr(result, 'readiness', None) or saved_report.get('readiness', result.grade if hasattr(result, 'grade') else 'unknown'),
+                "strengths": getattr(result, 'strengths', None) or saved_report.get('strengths', []),
+                "issues": [
+                    {
+                        "category": issue.category,
+                        "severity": issue.severity.value if hasattr(issue.severity, 'value') else issue.severity,
+                        "location": issue.location,
+                        "description": issue.description,
+                        "suggestion": issue.suggestion,
+                        "auto_fixable": issue.auto_fixable
+                    }
+                    for issue in (getattr(result, 'issues', None) or saved_report.get('issues', []))
+                ] if (getattr(result, 'issues', None) or saved_report.get('issues')) else [],
+                "summary": getattr(result, 'summary', None) or saved_report.get('summary', ''),
+                "assessment_time": datetime.now().isoformat(),
+                "is_ai_assessment": True
+            }
+            
+            print(f"✅ AI质量评估完成: {assessment_dict['overall_score']}分 ({assessment_dict['readiness']})")
+            print(f"📄 评估报告已保存到: {assessment_path}")
+            return assessment_dict
 
         except Exception as e:
             print(f"⚠️ AI质量评估失败: {e}，降级到规则评估")

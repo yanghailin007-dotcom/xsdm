@@ -600,6 +600,62 @@ class NovelGenerationManager:
         log_progress = progress if progress is not None else self.task_results[task_id].get("progress", 0)
         logger.info(f"任务 {task_id}: 进度更新 {log_progress}% - 当前步骤: {current_step}")
         
+        # 🔥 新增：同步更新检查点（确保每个步骤变更都保存到检查点）
+        # 🔥 修复：只在14个主要步骤更新检查点，避免子线程频繁写入
+        MAIN_CHECKPOINT_STEPS = [
+            'creative_refinement', 'fanfiction_detection', 'multiple_plans', 'plan_selection',
+            'foundation_planning', 'worldview_with_factions', 'character_design',
+            'emotional_growth_planning', 'stage_plan', 'detailed_stage_plans',
+            'expectation_mapping', 'system_init', 'saving', 'quality_assessment'
+        ]
+        
+        if self.checkpoint_enabled and current_step and current_step in MAIN_CHECKPOINT_STEPS:
+            try:
+                step_status_dict = self.task_results[task_id].get("step_status", {})
+                
+                # 🔥 修复：使用 MAIN_CHECKPOINT_STEPS 代替未定义的 phase_one_steps
+                # 找到最后一个 completed 的步骤作为检查点步骤
+                last_completed_step = None
+                last_completed_index = -1
+                
+                for i, step in enumerate(MAIN_CHECKPOINT_STEPS):
+                    if step_status_dict.get(step) == "completed":
+                        last_completed_step = step
+                        last_completed_index = i
+                
+                # 如果当前步骤是 completed 状态且比之前记录的更靠后，使用当前步骤
+                current_step_state = step_status_dict.get(current_step, "active")
+                if current_step_state == "completed" and current_step in MAIN_CHECKPOINT_STEPS:
+                    current_index = MAIN_CHECKPOINT_STEPS.index(current_step)
+                    if current_index > last_completed_index:
+                        last_completed_step = current_step
+                        last_completed_index = current_index
+                
+                # 如果没有已完成的步骤，使用第一个步骤
+                if not last_completed_step:
+                    last_completed_step = MAIN_CHECKPOINT_STEPS[0]
+                
+                # 检查点步骤应该是最后完成的步骤，状态为 completed
+                checkpoint_step = last_completed_step
+                checkpoint_status = "completed"
+                
+                # 获取小说标题和用户名
+                title = self.task_results[task_id].get("title") or self.task_results[task_id].get("novel_title")
+                # 🔥 修复：从 task_results 获取用户名，或从 config 中提取
+                username = self.task_results[task_id].get("username") or getattr(self, '_current_username', None)
+                if title:
+                    checkpoint_data = {
+                        "progress": log_progress,
+                        "step_status": step_status_dict,
+                        "current_step": current_step,  # 保留当前步骤信息
+                        "checkpoint_step": checkpoint_step,  # 检查点步骤（最后完成的）
+                        "status": status
+                    }
+                    self._update_checkpoint(title, "phase_one", checkpoint_step, checkpoint_data, step_status=checkpoint_status, username=username)
+                    logger.info(f"[CHECKPOINT] 更新检查点: {checkpoint_step} (状态: {checkpoint_status}), 当前进行: {current_step}, 用户: {username}")
+            except Exception as e:
+                logger.warning(f"⚠️ 同步更新检查点失败: {e}")
+        
         # 🔥 新增：持久化保存任务状态
         try:
             from web.utils.task_persistence import TaskPersistence
@@ -711,8 +767,12 @@ class NovelGenerationManager:
         """获取所有任务"""
         return list(self.task_results.values())
 
-    def load_existing_novels(self):
-        """从文件系统加载已存在的小说项目 - 支持新旧路径结构"""
+    def load_existing_novels(self, username: str = None):
+        """从文件系统加载已存在的小说项目 - 支持新旧路径结构
+        
+        Args:
+            username: 用户名（可选），如果不提供则尝试从 session 获取
+        """
         # 添加线程锁保护，避免并发调用导致文件I/O错误
         import threading
         lock = getattr(self, '_load_lock', None)
@@ -721,15 +781,21 @@ class NovelGenerationManager:
             self._load_lock = lock
         
         with lock:
-            self._load_existing_novels_impl()
+            self._load_existing_novels_impl(username=username)
     
-    def _load_existing_novels_impl(self):
-        """实际加载小说项目的实现 - 支持用户隔离"""
+    def _load_existing_novels_impl(self, username: str = None):
+        """实际加载小说项目的实现 - 支持用户隔离
+        
+        Args:
+            username: 用户名（可选），如果不提供则尝试从 session 获取
+        """
         try:
             # 导入路径配置
             from src.config.path_config import path_config
             
-            username = get_current_username()
+            # 🔥 修复：优先使用传入的用户名，其次从 session 获取
+            if username is None:
+                username = get_current_username()
             logger.info(f"👤 当前用户: {username} (管理员: {is_admin(username)})")
             
             # 获取所有可访问的项目
@@ -1337,15 +1403,22 @@ class NovelGenerationManager:
             try:
                 from src.config.path_config import path_config
                 username = novel_data.get('owner')
+                logger.info(f"[DEBUG] global_growth_plan: username={username}, title={title}")
                 if username:
                     paths = path_config.get_project_paths(title, username=username)
                     growth_plan_path_str = paths.get("global_growth_plan", "")
+                    logger.info(f"[DEBUG] global_growth_plan path_str={growth_plan_path_str}")
                     growth_plan_path = Path(growth_plan_path_str)
+                    logger.info(f"[DEBUG] global_growth_plan path={growth_plan_path}, exists={growth_plan_path.exists()}")
                     if growth_plan_path.exists():
                         with open(growth_plan_path, 'r', encoding='utf-8') as f:
                             growth_plan_data = json.load(f)
-                        # 检查文件内容是否为空结构
-                        if growth_plan_data and growth_plan_data.get("stage_framework"):
+                        # 检查文件内容是否为空结构（支持 growth_stages 或 stage_framework）
+                        has_content = growth_plan_data and (
+                            growth_plan_data.get("growth_stages") or 
+                            growth_plan_data.get("stage_framework")
+                        )
+                        if has_content:
                             standardized_data["global_growth_plan"] = growth_plan_data
                             logger.info(f"✅ 从文件加载 global_growth_plan: {growth_plan_path}")
                         else:
@@ -1562,7 +1635,8 @@ class NovelGenerationManager:
             "title": config.get("title", "未命名小说"),
             "synopsis": config.get("synopsis", ""),
             "total_chapters": config.get("total_chapters", 200),
-            "generation_mode": config.get("generation_mode", "full_auto")
+            "generation_mode": config.get("generation_mode", "full_auto"),
+            "username": config.get("username")  # 🔥 新增：保存用户名用于检查点路径
         }
         
         self.task_progress[task_id] = {
@@ -1641,6 +1715,32 @@ class NovelGenerationManager:
                 logger.info(f"🆕 用户选择从头开始，将删除现有检查点 (用户: {username})")
                 self._delete_existing_checkpoint(title, username)
             
+            # 🔥 新增：恢复模式下，从检查点加载已完成的步骤状态
+            resumed_step = None
+            resumed_progress = 0
+            if is_resume_mode and self.checkpoint_enabled:
+                try:
+                    from src.managers.stage_plan.generation_checkpoint import GenerationCheckpoint
+                    from pathlib import Path
+                    
+                    checkpoint_mgr = GenerationCheckpoint(title, Path.cwd(), username=username)
+                    checkpoint = checkpoint_mgr.load_checkpoint()
+                    
+                    if checkpoint:
+                        resumed_step = checkpoint.get('current_step')
+                        resumed_progress = checkpoint.get('data', {}).get('progress', 0)
+                        logger.info(f"🔄 [RESUME] 从检查点恢复: {resumed_step} ({resumed_progress}%)")
+                        
+                        # 恢复步骤状态到任务
+                        step_status = checkpoint.get('data', {}).get('step_status', {})
+                        if step_status:
+                            self.task_results[task_id]['step_status'] = step_status
+                            logger.info(f"🔄 [RESUME] 恢复步骤状态: {list(step_status.keys())}")
+                    else:
+                        logger.warning(f"⚠️ [RESUME] 未找到检查点，将从头开始")
+                except Exception as e:
+                    logger.error(f"❌ [RESUME] 加载检查点失败: {e}")
+            
             # 创建初始检查点（仅在非恢复模式下）
             if self.checkpoint_enabled and not is_resume_mode:
                 self._create_initial_checkpoint(title, config, task_id, self._current_username)
@@ -1648,7 +1748,11 @@ class NovelGenerationManager:
             # 🔥 修复：当 start_new=True 时，跳过预更新进度，让 phase_one_generation 全权控制
             # 避免进度从 60% 跳回 0% 的奇怪现象
             if not start_new:
-                self._update_task_status(task_id, "generating", 10, current_step="creative_refinement")
+                # 🔥 修复：恢复模式下，从检查点记录的步骤开始
+                if resumed_step:
+                    self._update_task_status(task_id, "generating", resumed_progress, current_step=resumed_step)
+                else:
+                    self._update_task_status(task_id, "generating", 10, current_step="creative_refinement")
             
             # 检查创意种子
             creative_seed = config.get("creative_seed", {})
@@ -1711,24 +1815,29 @@ class NovelGenerationManager:
             
             # 🔥 修复：当 start_new=True 时，跳过预更新进度
             if not start_new:
-                # 更新进度
+                # 🔥 修复：使用正确的14个步骤名称
+                # 步骤1: creative_refinement (创意精炼)
+                self._update_task_status(task_id, "generating", 10, current_step="creative_refinement")
+                
+                # 步骤2: fanfiction_detection (同人检测)
                 self._update_task_status(task_id, "generating", 20, current_step="fanfiction_detection")
                 
-                # 🔥 新增：更新检查点 - 初始化完成
-                if self.checkpoint_enabled:
-                    self._update_checkpoint(title, "phase_one", "initialization", {"status": "generator_initialized"}, step_status="completed")
+                logger.info(f"任务 {task_id}: 📋 生成多个方案 (30%)")
+                # 步骤3: multiple_plans (生成多个方案)
+                self._update_task_status(task_id, "generating", 30, current_step="multiple_plans")
                 
-                logger.info(f"任务 {task_id}: 📋 分析创意种子 (40%)")
-                self._update_task_status(task_id, "generating", 40, current_step="multiple_plans")
+                # 步骤4: plan_selection (选择最佳方案)
+                self._update_task_status(task_id, "generating", 40, current_step="plan_selection")
                 
-                # 更新检查点 - 开始世界观构建
-                if self.checkpoint_enabled:
-                    self._update_checkpoint(title, "phase_one", "worldview", {"status": "analyzing_seed"}, step_status="in_progress")
+                logger.info(f"任务 {task_id}: 📋 基础规划 (50%)")
+                # 步骤5: foundation_planning (基础规划)
+                self._update_task_status(task_id, "generating", 50, current_step="foundation_planning")
+                
+                # 步骤6: worldview_with_factions (世界观与势力)
                 self._update_task_status(task_id, "generating", 60, current_step="worldview_with_factions")
                 
-                # 更新检查点 - 开始角色设计（在实际调用前保存为 in_progress）
-                if self.checkpoint_enabled:
-                    self._update_checkpoint(title, "phase_one", "character_design", {"status": "generating_worldview"}, step_status="in_progress")
+                # 步骤7: character_design (核心角色设计)
+                self._update_task_status(task_id, "generating", 70, current_step="character_design")
             
             try:
                 # 为生成器设置进度回调（使用动态属性设置）
@@ -1769,10 +1878,8 @@ class NovelGenerationManager:
                 logger.info(f"任务 {task_id}: ✅ phase_one_generation 完成，耗时: {elapsed:.2f}秒, 结果: {success}")
                 
                 if success:
-                    # 标记步骤完成 - 质量评估完成
-                    if self.checkpoint_enabled:
-                        self._update_checkpoint(title, "phase_one", "quality_assessment", {"status": "completed"}, step_status="completed")
-                    
+                    # 🔥 修复：更新任务状态为完成，检查点会自动同步更新
+                    # 检查点会记录最后一个 completed 的步骤（quality_assessment）
                     self._update_task_status(task_id, "completed", 100, current_step="quality_assessment")
                     
                     # 保存第一阶段结果到任务结果中
@@ -1793,27 +1900,22 @@ class NovelGenerationManager:
                     
                     # 重新加载项目数据以获取最新状态
                     try:
-                        self.load_existing_novels()
+                        # 🔥 修复：传入用户名以避免后台线程中 session 不可用的问题
+                        self.load_existing_novels(username=self._current_username)
                     except Exception as e:
                         logger.error(f"任务 {task_id}: 重新加载项目数据失败: {e}")
                 
                 else:
                     logger.error(f"任务 {task_id}: 第一阶段设定生成失败")
+                    # 🔥 修复：_update_task_status 会自动同步检查点，无需手动调用
                     self._update_task_status(task_id, "failed", 0, "第一阶段设定生成返回 False")
-                    
-                    # 标记步骤失败，保留检查点以便恢复
-                    if self.checkpoint_enabled:
-                        self._update_checkpoint(title, "phase_one", "character_design", {"status": "failed", "error": "第一阶段设定生成返回 False"}, step_status="failed")
                     
             except Exception as e:
                 logger.error(f"任务 {task_id}: phase_one_generation 执行异常: {e}")
                 import traceback
                 traceback.print_exc()
+                # 🔥 修复：_update_task_status 会自动同步检查点，无需手动调用
                 self._update_task_status(task_id, "failed", 0, f"第一阶段生成过程异常: {str(e)}")
-                
-                # 标记步骤失败
-                if self.checkpoint_enabled:
-                    self._update_checkpoint(title, "phase_one", "character_design", {"status": "failed", "error": str(e)}, step_status="failed")
             
         except Exception as e:
             logger.error(f"任务 {task_id}: 第一阶段生成任务发生未捕获的异常: {e}")
@@ -1864,10 +1966,13 @@ class NovelGenerationManager:
                 checkpoint_data['creative_seed_id'] = creative_seed_id
                 logger.info(f"💾 保存创意ID: {creative_seed_id}")
              
+            # 🔥 修复：使用14个标准步骤中的第一个步骤名称
+            # 初始检查点表示生成即将开始，第一个实际步骤是 creative_refinement
             checkpoint_mgr.create_checkpoint(
                 phase='phase_one',
-                step='initialization',
-                data=checkpoint_data
+                step='creative_refinement',
+                data=checkpoint_data,
+                step_status='pending'  # 初始状态为 pending，表示尚未开始
             )
              
             logger.info(f"✅ 初始检查点已创建: {title}")
@@ -1891,7 +1996,7 @@ class NovelGenerationManager:
         except Exception as e:
             logger.error(f"❌ 删除检查点失败: {e}")
     
-    def _update_checkpoint(self, title: str, phase: str, step: str, data: Dict, step_status: str = "in_progress"):
+    def _update_checkpoint(self, title: str, phase: str, step: str, data: Dict, step_status: str = "in_progress", username: str = None):
         """
         更新检查点
         
@@ -1901,13 +2006,20 @@ class NovelGenerationManager:
             step: 当前步骤
             data: 要保存的数据
             step_status: 步骤状态 (pending/in_progress/completed/failed)
+            username: 用户名（可选，用于确定检查点路径）
         """
         try:
             from src.managers.stage_plan.generation_checkpoint import GenerationCheckpoint
             from pathlib import Path
             
-            username = getattr(self, '_current_username', None)
-            checkpoint_mgr = GenerationCheckpoint(title, Path.cwd(), username=username)
+            # 🔥 修复：优先使用传入的用户名，其次使用实例变量
+            actual_username = username or getattr(self, '_current_username', None)
+            checkpoint_mgr = GenerationCheckpoint(title, Path.cwd(), username=actual_username)
+            
+            # 🔥 新增：记录检查点路径信息以便调试
+            logger.info(f"[CHECKPOINT] 检查点路径: {checkpoint_mgr.checkpoint_dir}")
+            logger.info(f"[CHECKPOINT] 检查点文件: {checkpoint_mgr.checkpoint_file}")
+            logger.info(f"[CHECKPOINT] 用户: {actual_username}")
             
             # 保留原有的生成参数
             existing_checkpoint = checkpoint_mgr.load_checkpoint()
@@ -1940,6 +2052,9 @@ class NovelGenerationManager:
     def _run_generation_task(self, task_id: str, config: Dict[str, Any]):
         """执行完整生成任务（兼容原有逻辑）"""
         try:
+            # 🔥 修复：保存当前用户名供后续使用
+            self._current_username = config.get('username') or 'unknown'
+            
             self._update_task_status(task_id, "generating", 10)
             
             # 检查创意种子
@@ -2025,7 +2140,8 @@ class NovelGenerationManager:
                     
                     # 重新加载项目数据以获取最新状态
                     try:
-                        self.load_existing_novels()
+                        # 🔥 修复：传入用户名以避免后台线程中 session 不可用的问题
+                        self.load_existing_novels(username=self._current_username)
                         # 检查是否真的生成了文件
                         self._check_generated_files(task_id, config)
                     except Exception as e:
@@ -2107,9 +2223,20 @@ class NovelGenerationManager:
             logger.error(f"任务 {task_id}: 检查生成文件时出错: {e}")
             return False
 
-    def _run_resume_task(self, task_id: str, title: str, from_chapter: int, additional_chapters: int):
-        """执行续写任务"""
+    def _run_resume_task(self, task_id: str, title: str, from_chapter: int, additional_chapters: int, username: str = None):
+        """执行续写任务
+        
+        Args:
+            task_id: 任务ID
+            title: 小说标题
+            from_chapter: 开始章节
+            additional_chapters: 续写章节数
+            username: 用户名（可选）
+        """
         try:
+            # 🔥 修复：保存当前用户名供后续使用
+            self._current_username = username or 'unknown'
+            
             logger.info(f"任务 {task_id}: 🚀 开始续写小说: {title}")
             logger.info(f"任务 {task_id}: 从第{from_chapter}章开始，续写{additional_chapters}章")
             
@@ -2217,7 +2344,8 @@ class NovelGenerationManager:
                     
                     # 重新加载项目数据以获取最新状态
                     try:
-                        self.load_existing_novels()
+                        # 🔥 修复：传入用户名以避免后台线程中 session 不可用的问题
+                        self.load_existing_novels(username=self._current_username)
                         logger.info(f"任务 {task_id}: ✅ 项目数据重新加载完成")
                     except Exception as e:
                         logger.info(f"任务 {task_id}: ⚠️ 重新加载项目数据失败: {e}")
@@ -2238,9 +2366,20 @@ class NovelGenerationManager:
             traceback.print_exc()
             self._update_task_status(task_id, "failed", 0, f"未捕获的异常: {str(e)}")
 
-    def start_resume_generation(self, title: str, from_chapter: int, additional_chapters: int) -> str:
-        """启动续写生成任务"""
+    def start_resume_generation(self, title: str, from_chapter: int, additional_chapters: int, username: str = None) -> str:
+        """启动续写生成任务
+        
+        Args:
+            title: 小说标题
+            from_chapter: 开始章节
+            additional_chapters: 续写章节数
+            username: 用户名（可选），如果不提供则尝试从 session 获取
+        """
         task_id = str(uuid.uuid4())
+        
+        # 🔥 修复：获取用户名
+        if username is None:
+            username = get_current_username()
         
         # 初始化续写任务
         resume_task = {
@@ -2249,12 +2388,14 @@ class NovelGenerationManager:
             "progress": 0,
             "created_at": datetime.now().isoformat(),
             "updated_at": datetime.now().isoformat(),
+            "username": username,  # 🔥 修复：保存用户名
             "config": {
                 "title": title,
                 "from_chapter": from_chapter,
                 "additional_chapters": additional_chapters,
                 "total_chapters": from_chapter + additional_chapters,
-                "novel_data": self.get_novel_detail(title)
+                "novel_data": self.get_novel_detail(title),
+                "username": username  # 🔥 修复：保存用户名到 config
             }
         }
         
@@ -2268,7 +2409,8 @@ class NovelGenerationManager:
         # 启动后台续写任务
         def run_resume_generation():
             try:
-                self._run_resume_task(task_id, title, from_chapter, additional_chapters)
+                # 🔥 修复：传递用户名
+                self._run_resume_task(task_id, title, from_chapter, additional_chapters, username=username)
             except Exception as e:
                 logger.error(f"续写任务执行失败: {e}")
                 self._update_task_status(task_id, "failed", 0, str(e))
@@ -2379,6 +2521,9 @@ class NovelGenerationManager:
     def _run_phase_two_task(self, task_id: str, config: Dict[str, Any]):
         """执行第二阶段生成任务"""
         try:
+            # 🔥 修复：保存当前用户名供后续使用
+            self._current_username = config.get('username') or 'unknown'
+            
             novel_title = config.get("novel_title", "未命名小说")
             phase_one_file = config.get("phase_one_file", "")
             from_chapter = config.get("from_chapter", 1)
@@ -2590,7 +2735,8 @@ class NovelGenerationManager:
                     self.task_results[task_id] = task_result
                     
                     try:
-                        self.load_existing_novels()
+                        # 🔥 修复：传入用户名以避免后台线程中 session 不可用的问题
+                        self.load_existing_novels(username=self._current_username)
                     except Exception as e:
                         logger.info(f"任务 {task_id}: 重新加载项目数据失败: {e}")
                 

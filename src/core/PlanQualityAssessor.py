@@ -15,6 +15,7 @@ from pathlib import Path
 from typing import Dict, List, Optional, Tuple
 from dataclasses import dataclass, field
 from enum import Enum
+from datetime import datetime
 
 try:
     from anthropic import Anthropic
@@ -127,12 +128,14 @@ class PlanQualityAssessor:
             self.use_ai = False
             self.logger.warning("⚠️ AI评估未启用，将使用规则式评估")
 
-    def assess(self, plan_path: Path, use_deep_analysis: bool = False) -> AssessmentResult:
-        """评估写作计划
+    def assess(self, plan_path: Path, use_deep_analysis: bool = False, skip_compression: bool = True, report_save_path: Path = None) -> AssessmentResult:
+        """评估写作计划（从文件路径加载）
 
         Args:
             plan_path: 写作计划JSON文件路径
             use_deep_analysis: 是否进行深度分析（消耗更多token）
+            skip_compression: 是否跳过压缩，直接传递完整计划（默认True）
+            report_save_path: 报告保存路径（可选，默认保存到plan_path同级目录）
 
         Returns:
             评估结果
@@ -143,8 +146,45 @@ class PlanQualityAssessor:
         with open(plan_path, 'r', encoding='utf-8') as f:
             plan = json.load(f)
 
+        # 调用数据评估方法
+        return self.assess_data(
+            plan, 
+            use_deep_analysis=use_deep_analysis, 
+            skip_compression=skip_compression,
+            report_save_path=report_save_path,
+            source_path=plan_path
+        )
+
+    def assess_data(self, plan: Dict, use_deep_analysis: bool = False, skip_compression: bool = True, report_save_path: Path = None, source_path: Path = None) -> AssessmentResult:
+        """评估写作计划（直接传入数据对象，不创建临时文件）
+
+        Args:
+            plan: 写作计划数据字典
+            use_deep_analysis: 是否进行深度分析（消耗更多token）
+            skip_compression: 是否跳过压缩，直接传递完整计划（默认True）
+            report_save_path: 报告保存路径（可选）
+            source_path: 源文件路径（仅用于报告中的引用，不影响评估逻辑）
+
+        Returns:
+            评估结果
+        """
+        self.logger.info(f"开始评估写作计划数据 (skip_compression={skip_compression})")
+
         # 计算原始大小
         original_tokens = self._estimate_tokens(json.dumps(plan, ensure_ascii=False))
+
+        # 🔥 新增：支持跳过压缩
+        if skip_compression:
+            self.logger.info(f"跳过压缩，使用完整计划进行评估 (Token数: {original_tokens})")
+            if self.use_ai:
+                result = self._ai_assess(plan, plan, use_deep_analysis)
+            else:
+                result = self._rule_based_assess(plan, plan)
+            result.token_saved = 0
+            # 保存评估报告（如果指定了保存路径）
+            if report_save_path:
+                self._save_report_data(result, report_save_path, source_path=source_path)
+            return result
 
         # 提取摘要
         summary = self._extract_summary(plan)
@@ -159,8 +199,9 @@ class PlanQualityAssessor:
             result = self._rule_based_assess(summary, plan)
             result.token_saved = original_tokens - summary_tokens
 
-        # 保存评估报告
-        self._save_report(plan_path, result)
+        # 保存评估报告（如果指定了保存路径）
+        if report_save_path:
+            self._save_report_data(result, report_save_path, source_path=source_path)
 
         return result
 
@@ -363,29 +404,23 @@ class PlanQualityAssessor:
         try:
             # 优先使用APIClient（统一API调用）
             if self.api_client:
-                self.logger.info("🤖 使用APIClient进行AI评估...")
-                # 🔥 使用 call_api 直接调用，传入 system_prompt 和 user_prompt
-                response_text = self.api_client.call_api(
-                    system_prompt=self.SYSTEM_PROMPT,
+                # 使用 generate_content_with_retry 获取完整日志和JSON解析
+                ai_result = self.api_client.generate_content_with_retry(
+                    content_type="writing_plan_quality_assessment",
                     user_prompt=user_prompt,
                     purpose="写作计划质量评估"
                 )
                 
-                if not response_text:
+                if not ai_result:
                     self.logger.error("❌ API调用返回空结果")
                     return self._rule_based_assess(summary, full_plan)
                 
-                # 提取JSON部分
-                if "```json" in response_text:
-                    json_start = response_text.find("```json") + 7
-                    json_end = response_text.find("```", json_start)
-                    response_text = response_text[json_start:json_end].strip()
-                elif "```" in response_text:
-                    json_start = response_text.find("```") + 3
-                    json_end = response_text.rfind("```")
-                    response_text = response_text[json_start:json_end].strip()
-                
-                ai_result = json.loads(response_text)
+                # generate_content_with_retry 已经返回解析后的JSON对象
+                if isinstance(ai_result, dict):
+                    self.logger.info(f"✅ AI评估完成，返回字段: {list(ai_result.keys())}")
+                else:
+                    self.logger.warning(f"⚠️ AI返回不是字典类型: {type(ai_result)}")
+                    return self._rule_based_assess(summary, full_plan)
             else:
                 # 向后兼容：使用Anthropic
                 self.logger.info("🤖 使用Anthropic进行AI评估...")
@@ -579,13 +614,33 @@ class PlanQualityAssessor:
         """估算token数量（粗略：中文约1.5字符/token）"""
         return len(text) // 2
 
-    def _save_report(self, plan_path: Path, result: AssessmentResult):
-        """保存评估报告"""
-        report_path = plan_path.parent / f"{plan_path.stem}_quality_report.json"
+    def _save_report(self, plan_path: Path, result: AssessmentResult, report_save_path: Path = None):
+        """保存评估报告（从文件路径）
+        
+        Args:
+            plan_path: 写作计划文件路径
+            result: 评估结果
+            report_save_path: 报告保存路径（可选，默认保存到plan_path同级目录）
+        """
+        # 🔥 修复：使用自定义保存路径，或默认保存到plan_path同级目录
+        if report_save_path:
+            report_path = report_save_path
+        else:
+            report_path = plan_path.parent / f"{plan_path.stem}_quality_report.json"
 
+        self._save_report_data(result, report_path, source_path=plan_path)
+
+    def _save_report_data(self, result: AssessmentResult, report_path: Path, source_path: Path = None):
+        """保存评估报告（直接保存，不依赖源文件）
+        
+        Args:
+            result: 评估结果
+            report_path: 报告保存路径
+            source_path: 源文件路径（仅用于记录，可选）
+        """
         report = {
-            "plan_file": str(plan_path),
-            "assessment_time": json.dumps({}).strip(),  # placeholder
+            "plan_file": str(source_path) if source_path else None,
+            "assessment_time": datetime.now().isoformat(),
             "overall_score": result.overall_score,
             "readiness": result.readiness,
             "token_saved": result.token_saved,
