@@ -2574,13 +2574,22 @@ class PhaseGenerator:
             评估结果字典
         """
         try:
-            # 检查是否有写作计划
-            stage_writing_plans = self.generator.novel_data.get("stage_writing_plans", {})
+            # 🔥 修复：优先从 _ctx 获取阶段写作计划（实时数据）
+            stage_writing_plans = self.generator._ctx.get("stage_writing_plans", {})
+            if not stage_writing_plans:
+                # 回退到 novel_data
+                stage_writing_plans = self.generator.novel_data.get("stage_writing_plans", {})
+            
             if not stage_writing_plans:
                 print("⚠️ 没有写作计划，跳过评估")
                 return None
 
+            # 🔥 调试：打印阶段计划数据
             print(f"📊 开始AI质量评估（共 {len(stage_writing_plans)} 个阶段）...")
+            for stage_name, plan in stage_writing_plans.items():
+                if isinstance(plan, dict):
+                    event_count = len(plan.get("event_system", {}).get("major_events", []))
+                    print(f"  - {stage_name}: {event_count} 个重大事件")
 
             # 🔥 使用 PlanQualityAssessor 进行 AI 评估
             from src.core.PlanQualityAssessor import PlanQualityAssessor

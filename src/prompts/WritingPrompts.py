@@ -1035,37 +1035,49 @@ json
 "quality_improvement": "质量提升说明",
 "ai_artifacts_removed": "已消除的AI痕迹列表"
 }}""",
-        "writing_plan_quality_assessment": """你是一位番茄网络小说策划专家。请评估以下写作计划的质量。
-评估维度（满分10分）：
-写作思路清晰度（2分）
+        "writing_plan_quality_assessment": """你是一位资深网文编辑，擅长评估小说写作计划的质量。
 
-章节节奏合理性（2分）
+请对以下写作计划进行评估，重点关注：
+1. 商业吸引力 - 是否有清晰的爽点和卖点
+2. 结构完整性 - 三幕式结构是否完整
+3. 角色一致性 - 角色动机和行为是否自洽
+4. 节奏合理性 - 章节分配是否合理
+5. 逻辑连贯性 - 剧情发展是否有逻辑漏洞
 
-关键情节规划质量（2分）
-
-角色成长路线明确性（2分）
-
-重大事件设计精彩度（2分）
+评分标准（满分100分）：
+- 90-100分：优秀，可直接使用
+- 70-89分：良好，有小问题但不影响使用
+- 50-69分：一般，需要修改
+- 0-49分：较差，需要大幅修改
 
 需要评估的内容：
 {content}
 
 评估要求：
-请严格按照以下JSON格式输出评估结果：
+请严格按照以下JSON格式输出评估结果（使用UTF-8编码）：
 {{
-"overall_score": 总体评分（0-10分）,
-"detailed_scores": {{
-"writing_approach": 写作思路得分,
-"chapter_rhythm": 章节节奏得分,
-"plot_planning": 情节规划得分,
-"character_growth": 角色成长得分,
-"event_design": 事件设计得分
-}},
-"strengths": ["优点1", "优点2"],
-"weaknesses": ["缺点1", "缺点2"],
-"improvement_suggestions": ["改进建议1", "改进建议2"],
-"quality_verdict": "质量判定（优秀/良好/合格/需要优化）"
-}}""",
+    "overall_score": 85,
+    "readiness": "ready",
+    "strengths": ["卖点清晰", "节奏紧凑"],
+    "issues": [
+        {{
+            "category": "character",
+            "severity": "medium",
+            "location": "重大事件2",
+            "description": "角色动机不够充分",
+            "suggestion": "增加心理描写，铺垫其对宗门的不满"
+        }}
+    ],
+    "summary": "整体质量良好，建议..."
+}}
+
+字段说明：
+- overall_score: 总体评分（0-100分整数）
+- readiness: 准备状态（ready可直接使用/needs_review需要检查/needs_revision需要修改）
+- strengths: 优点列表（字符串数组）
+- issues: 问题列表，每个问题包含category(类别)、severity(严重程度high/medium/low)、location(位置)、description(描述)、suggestion(建议)
+- summary: 总体评价摘要
+""",
         "writing_style_guide": """
 内容:
 你是一位顶级的网文编辑和写作教练，专精于为不同类型和题材的小说定制化风格指南。

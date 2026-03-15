@@ -457,16 +457,61 @@ class PlanQualityAssessor:
                 
                 ai_result = json.loads(response_text)
 
-            # 解析结果
+            # 🔥 修复：处理字段映射和格式转换
+            # 分数转换（如果是0-10分制，转换为0-100分制）
+            raw_score = ai_result.get("overall_score", 70)
+            if raw_score <= 10 and raw_score > 0:
+                overall_score = int(raw_score * 10)
+            else:
+                overall_score = int(raw_score)
+            
+            # 处理readiness字段映射
+            readiness_map = {
+                "ready": "ready",
+                "needs_review": "needs_review", 
+                "needs_revision": "needs_revision",
+                "优秀": "ready",
+                "良好": "ready",
+                "合格": "needs_review",
+                "需要优化": "needs_revision",
+                "需要修改": "needs_revision"
+            }
+            raw_readiness = ai_result.get("readiness") or ai_result.get("quality_verdict", "needs_review")
+            readiness = readiness_map.get(raw_readiness, "needs_review")
+            
+            # 构建summary（如果没有，从weaknesses/improvement_suggestions构建）
+            summary = ai_result.get("summary", "")
+            if not summary:
+                parts = []
+                if ai_result.get("quality_verdict"):
+                    parts.append(f"质量判定：{ai_result.get('quality_verdict')}")
+                if ai_result.get("weaknesses"):
+                    parts.append(f"主要问题：{'; '.join(ai_result.get('weaknesses')[:2])}")
+                if ai_result.get("improvement_suggestions"):
+                    parts.append(f"改进建议：{'; '.join(ai_result.get('improvement_suggestions')[:2])}")
+                summary = "；".join(parts) if parts else "评估完成"
+            
             result = AssessmentResult(
-                overall_score=ai_result.get("overall_score", 70),
-                readiness=ai_result.get("readiness", "needs_review"),
+                overall_score=overall_score,
+                readiness=readiness,
                 strengths=ai_result.get("strengths", []),
-                summary=ai_result.get("summary", ""),
+                summary=summary,
             )
 
-            # 转换issues
-            for issue in ai_result.get("issues", []):
+            # 🔥 转换issues（支持issues或weaknesses字段）
+            issues_data = ai_result.get("issues", [])
+            if not issues_data and ai_result.get("weaknesses"):
+                # 从weaknesses构建issues
+                for i, weakness in enumerate(ai_result.get("weaknesses", [])):
+                    issues_data.append({
+                        "category": "general",
+                        "severity": "medium",
+                        "location": f"问题{i+1}",
+                        "description": weakness,
+                        "suggestion": ai_result.get("improvement_suggestions", ["请根据问题改进"])[i] if i < len(ai_result.get("improvement_suggestions", [])) else "请参考改进建议"
+                    })
+            
+            for issue in issues_data:
                 result.issues.append(QualityIssue(
                     category=issue.get("category", "general"),
                     severity=IssueSeverity(issue.get("severity", "medium")),
