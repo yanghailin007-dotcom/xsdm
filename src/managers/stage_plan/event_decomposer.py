@@ -321,6 +321,9 @@ class EventDecomposer:
 4. **提供融合线索**：给出情感基调、关键元素，让第二阶段的场景生成自然融合
 
 ## 输出格式: 严格遵守规则，返回包含'composition'字段的JSON对象
+
+【🔥 黄金三章(1-3章)特殊输出格式 - 必须遵守】
+当章节范围为1-3时，composition必须只有一个中型事件，且只放在"起"中：
 {{
     "name": "{major_event_skeleton.get('name')}",
     "type": "major_event",
@@ -330,81 +333,63 @@ class EventDecomposer:
     "composition": {{
         "起": [
             {{
-                "name": "中型事件名",
+                "name": "黄金开局整体事件",
                 "type": "medium_event",
-                "chapter_range": "string",
-                "main_goal": "目标",
-
-                // 🔥 新增：详细情节大纲（必需！）
-                // ⚠️【强制规则】情节点数量必须严格符合以下标准：
-                // - 1章事件：必须恰好4-6个情节点
-                // - 2章事件：必须恰好8-12个情节点（每章4-6个）
-                // - 3章事件：必须恰好12-18个情节点（每章4-6个）
-                // 规则：每章必须4-6个情节点，多章事件按章节数累加
+                "chapter_range": "1-3",
+                "main_goal": "完整呈现开局：诡异降临→模拟器初现→初步破局",
                 "plot_outline": [
-                    "情节点1：具体发生了什么（场景1内容）",
-                    "情节点2：然后发生了什么（场景2内容）",
-                    "情节点3：转折点是什么",
-                    "情节点4：高潮动作",
-                    "情节点5：结尾状态",
-                    "...必须足够详细，让场景生成器有足够的素材"
+                    "第1章情节点1...",
+                    "第1章情节点2...",
+                    "...",
+                    "第2章情节点1...",
+                    "...",
+                    "第3章情节点1...",
+                    "..."
                 ],
-
-                // 保留description作为简短摘要
-                "description": "一句话概括事件核心",
-
-                // === 阶段上下文（新增，必填）===
-                "stage_context": {{
-                    "stage_name": "{stage_name}",
-                    "stage_goal": "从顶层战略背景中提取的阶段核心目标",
-                    "contribution_to_stage": "本中型事件对阶段目标的贡献"
-                }},
-
-                // === 从事件推导的情绪 ===
-                "emotional_derivation": {{
-                    "trigger_event": "触发这个情绪的具体事件描述",
-                    "emotional_response": "基于事件，主角/读者自然的情绪反应",
-                    "emotional_intensity": "low/medium/high",
-                    "emotional_beats": ["情绪节拍1", "情绪节拍2"]
-                }},
-
-                // === 与阶段情绪弧线对齐 ===
-                "alignment_with_stage_arc": {{
-                    "position_in_arc": "起/承/转/合",
-                    "contribution_to_stage_emotion": "这个事件如何推动阶段情绪发展"
-                }},
-
-                "contribution_to_major": "对重大事件的贡献",
-                "special_emotional_events": [
-                    {{
-                        "name": "情感互动名称",
-                        "target_chapter": 10,
-                        "purpose": "深化角色关系",
-                        "emotional_tone": "温馨/紧张/忧郁等",
-                        "key_elements": ["对话", "眼神交流", "肢体语言"],
-                        "context_hint": "在中型事件的转折点"
-                    }}
-                ]
+                "description": "黄金三章是一个完整的叙事整体，不可拆分",
+                "stage_context": {{...}},
+                "emotional_derivation": {{...}},
+                "alignment_with_stage_arc": {{...}},
+                "contribution_to_major": "完成开局目标",
+                "special_emotional_events": [...]
             }}
         ],
         "承": [],
         "转": [],
         "合": []
     }},
+    "emotional_arc_summary": "黄金开局：危机降临→冷静应对→破局反击"
+}}
+
+【标准事件(4章及以上)输出格式】
+当章节范围大于3章时，按起承转合分解为多个中型事件：
+{{
+    "name": "{major_event_skeleton.get('name')}",
+    "type": "major_event",
+    "role_in_stage_arc": "{major_event_skeleton.get('role_in_stage_arc')}",
+    "main_goal": "{major_event_skeleton.get('main_goal')}",
+    "chapter_range": "{major_event_skeleton.get('chapter_range')}",
+    "composition": {{
+        "起": [{{...中型事件1...}}],
+        "承": [{{...中型事件2...}}],
+        "转": [{{...中型事件3...}}],
+        "合": [{{...中型事件4...}}]
+    }},
     "emotional_arc_summary": "重大事件整体情绪弧线总结"
 }}
 
 注意：
-1. **🔥 plot_outline 数量强制规则**：必须严格遵守"每章4-6个情节点"的规则
+1. **🔥 黄金三章必须只生成一个中型事件，覆盖1-3章全部内容**
+2. **🔥 plot_outline 数量强制规则**：必须严格遵守"每章4-6个情节点"的规则
    - 1章事件=4-6个情节点
    - 2章事件=8-12个情节点
-   - 3章事件=12-18个情节点
+   - 3章事件=12-18个情节点（黄金三章必须12-18个）
    - 检查方法：章节数×4 ≤ 情节点数 ≤ 章节数×6
-2. 每个情节点应该是可以展开为300-500字场景的具体内容
-3. 情节点之间必须有因果关系和时间递进关系
-4. emotional_derivation 和 alignment_with_stage_arc 是新增的必需字段
-5. special_emotional_events 是中型事件的子字段，不是重大事件的顶级字段
-6. 情绪必须从事件中自然推导，不能为了符合目标而强行编造
+3. 每个情节点应该是可以展开为300-500字场景的具体内容
+4. 情节点之间必须有因果关系和时间递进关系
+5. emotional_derivation 和 alignment_with_stage_arc 是新增的必需字段
+6. special_emotional_events 是中型事件的子字段，不是重大事件的顶级字段
+7. 情绪必须从事件中自然推导，不能为了符合目标而强行编造
 """
     
     def _decompose_to_chapter_then_scene(self, medium_event: Dict, major_event: Dict,

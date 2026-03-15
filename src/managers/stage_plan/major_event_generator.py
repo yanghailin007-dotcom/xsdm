@@ -71,11 +71,21 @@ class MajorEventGenerator:
                 purpose=f"【顶层设计注入】生成 {novel_title} 的【{stage_name}】主龙骨"
             )
             
-            if result and "major_event_skeletons" in result:
-                return result["major_event_skeletons"]
-            else:
-                self.logger.error(f"    ❌ 生成主龙骨失败：返回格式不正确")
+            # 🔥 增强错误诊断
+            if not result:
+                self.logger.error(f"    ❌ 生成主龙骨失败：API返回为空")
                 return []
+            
+            if not isinstance(result, dict):
+                self.logger.error(f"    ❌ 生成主龙骨失败：返回类型不正确，期望dict，实际为{type(result)}")
+                return []
+            
+            if "major_event_skeletons" not in result:
+                self.logger.error(f"    ❌ 生成主龙骨失败：缺少'major_event_skeletons'字段")
+                self.logger.error(f"    实际返回的字段: {list(result.keys())}")
+                return []
+            
+            return result["major_event_skeletons"]
                 
         except Exception as e:
             self.logger.error(f"    ❌ 调用API生成主龙骨时出错: {e}")
@@ -133,6 +143,22 @@ class MajorEventGenerator:
         """获取开局阶段的格式示例"""
         return """
 ## 输出格式: 严格返回一个JSON对象，其中包含一个键名为`major_event_skeletons`的列表。
+
+【🔥 开局阶段章节划分铁律 - 必须遵守】
+1. **第1-3章必须作为一个完整的重大事件（黄金开局弧光）**
+   - 章节范围固定为: "1-3"
+   - is_golden_arc: true
+   - 这是不可拆分的叙事整体
+
+2. **第4章及以后的事件从第4章开始计算**
+   - 第二个事件章节范围示例: "4-15" 或 "4-8" 等
+   - 严禁与第1-3章重叠
+
+3. **章节编号必须连续**
+   - 第一个事件结束于第3章
+   - 第二个事件必须从第4章开始
+
+正确示例:
 {
     "major_event_skeletons": [
         {
@@ -140,21 +166,26 @@ class MajorEventGenerator:
             "is_golden_arc": true,
             "role_in_stage_arc": "起 (引爆器)",
             "chapter_range": "1-3",
-            "main_goal": "此事件为特殊容器，后续流程必须【精准演绎】核心创意种子中的开篇商业设计。",
+            "main_goal": "此事件为特殊容器，后续流程必须【精准演绎】核心创意种子中的开篇商业设计。涵盖：诡异降临→模拟器初现→初步破局。",
             "emotional_arc": "高能开局，极速入戏",
-            "description": "这是决定小说生死的黄金三章，必须100%忠于创意种子中的商业化设计。"
+            "description": "这是决定小说生死的黄金三章（第1-3章），必须100%忠于创意种子中的商业化设计。必须作为一个完整的叙事单元，不可拆分。"
         },
         {
             "name": "后续重大事件名称",
             "is_golden_arc": false,
             "role_in_stage_arc": "承",
             "chapter_range": "4-15",
-            "main_goal": "开始应对"黄金开局"结尾留下的短期危机",
-            "emotional_arc": "发展",
-            "description": "描述该事件如何推进核心参考资料中的情节"
+            "main_goal": "开始应对黄金开局结尾留下的短期危机，推进核心参考资料中的情节",
+            "emotional_arc": "发展与探索",
+            "description": "承接黄金三章的结尾，展开后续剧情发展"
         }
     ]
 }
+
+【错误示例 - 严禁】
+❌ 不要将第1-3章拆分为多个事件:
+   - 错误: 事件1(1-2章) + 事件2(3章) + 事件3(4-5章)
+   - 正确: 事件1(1-3章整体) + 事件2(4-15章)
 """
     
     def _get_standard_stage_requirements(self, stage_name: str, density_requirements: Dict) -> str:
@@ -248,8 +279,8 @@ class MajorEventGenerator:
 【各阶段设计要求】
 {chr(10).join(stages_design_requirements)}
 
-【批量输出格式】
-返回一个JSON对象，其中包含四个阶段的主龙骨：
+【批量输出格式 - 必须严格遵守】
+你必须返回一个JSON对象，且必须包含以下顶层字段：
 {{
     "all_stages_skeletons": {{
         "opening_stage": [
@@ -268,10 +299,14 @@ class MajorEventGenerator:
     }}
 }}
 
-重要说明：
-1. 确保四个阶段的事件链条连贯、层层递进
-2. 前一阶段的结尾要为下一阶段埋下伏笔
-3. opening_stage 的第一个事件必须是【黄金开局弧光】，is_golden_arc: true
+【严格约束 - 违者解析失败】
+1. 根级别只能有且仅有 "all_stages_skeletons" 一个字段
+2. 禁止返回 "decomposed_events"、"batch_coherence_analysis" 等其他字段名
+3. "all_stages_skeletons" 内部必须包含 "opening_stage"、"development_stage"、"climax_stage"、"ending_stage" 四个键
+4. 每个阶段对应一个事件对象数组
+5. opening_stage 的第一个事件必须是【黄金开局弧光】，is_golden_arc: true
+6. 确保四个阶段的事件链条连贯、层层递进
+7. 前一阶段的结尾要为下一阶段埋下伏笔
 """
         
         try:
@@ -281,14 +316,44 @@ class MajorEventGenerator:
                 purpose=f"【批量顶层设计注入】一次性生成 {novel_title} 四大阶段主龙骨"
             )
             
-            if result and "all_stages_skeletons" in result:
-                all_skeletons = result["all_stages_skeletons"]
-                total_events = sum(len(events) for events in all_skeletons.values())
-                self.logger.info(f"    ✅ 批量生成成功: {len(all_skeletons)} 个阶段, {total_events} 个重大事件")
-                return all_skeletons
-            else:
-                self.logger.error(f"    ❌ 批量生成主龙骨失败：返回格式不正确")
+            # 🔥 增强错误诊断
+            if not result:
+                self.logger.error(f"    ❌ 批量生成主龙骨失败：API返回为空")
                 return {}
+            
+            if not isinstance(result, dict):
+                self.logger.error(f"    ❌ 批量生成主龙骨失败：返回类型不正确，期望dict，实际为{type(result)}")
+                self.logger.debug(f"    返回内容: {str(result)[:500]}")
+                return {}
+            
+            # 🔥 智能修复：尝试处理AI可能返回的错误字段名
+            if "all_stages_skeletons" not in result:
+                # 情况1：AI可能返回了 "decomposed_events" 字段
+                if "decomposed_events" in result:
+                    self.logger.warning(f"    🔧 AI返回了 'decomposed_events'，尝试转换为 'all_stages_skeletons'")
+                    decomposed = result["decomposed_events"]
+                    if isinstance(decomposed, dict) and len(decomposed) > 0:
+                        result["all_stages_skeletons"] = decomposed
+                    elif isinstance(decomposed, list):
+                        # 如果是列表，包装为 opening_stage
+                        result["all_stages_skeletons"] = {"opening_stage": decomposed}
+                    else:
+                        self.logger.error(f"    ❌ 'decomposed_events' 格式不正确，无法转换")
+                        return {}
+                else:
+                    self.logger.error(f"    ❌ 批量生成主龙骨失败：缺少'all_stages_skeletons'字段")
+                    self.logger.error(f"    实际返回的字段: {list(result.keys())}")
+                    self.logger.debug(f"    返回内容: {json.dumps(result, ensure_ascii=False, indent=2)[:1000]}")
+                    return {}
+            
+            all_skeletons = result["all_stages_skeletons"]
+            if not isinstance(all_skeletons, dict):
+                self.logger.error(f"    ❌ 批量生成主龙骨失败：'all_stages_skeletons'类型不正确，期望dict，实际为{type(all_skeletons)}")
+                return {}
+            
+            total_events = sum(len(events) for events in all_skeletons.values() if isinstance(events, list))
+            self.logger.info(f"    ✅ 批量生成成功: {len(all_skeletons)} 个阶段, {total_events} 个重大事件")
+            return all_skeletons
                 
         except Exception as e:
             self.logger.error(f"    ❌ 批量生成主龙骨时出错: {e}")
