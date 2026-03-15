@@ -431,19 +431,32 @@ async function loadQualityAssessmentResult(novelTitle) {
     
     try {
         console.log(`[质量评估] 正在加载: ${novelTitle}`);
-        const response = await fetch(`/api/quality-assessment/${encodeURIComponent(novelTitle)}`);
+        const encodedTitle = encodeURIComponent(novelTitle);
+        const url = `/api/quality-assessment/${encodedTitle}`;
+        console.log(`[质量评估] 请求URL: ${url}`);
+        
+        const response = await fetch(url);
+        console.log(`[质量评估] API响应状态: ${response.status}`);
         
         if (response.ok) {
             const data = await response.json();
+            console.log('[质量评估] API返回数据:', data);
             if (data.success && data.report) {
                 console.log('[质量评估] 加载成功:', data.report);
                 fillQualityAssessmentResult(data.report);
             } else {
-                console.warn('[质量评估] 报告不存在');
+                console.warn('[质量评估] 报告不存在或success=false:', data);
                 fillQualityAssessmentResult(null);
             }
         } else {
             console.warn('[质量评估] API返回错误:', response.status);
+            // 尝试读取错误信息
+            try {
+                const errorData = await response.json();
+                console.warn('[质量评估] 错误详情:', errorData);
+            } catch (e) {
+                console.warn('[质量评估] 无法解析错误响应');
+            }
             fillQualityAssessmentResult(null);
         }
     } catch (error) {
