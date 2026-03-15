@@ -3212,19 +3212,24 @@ def register_additional_routes(app):
         try:
             from pathlib import Path
             import re
+            from web.utils.path_utils import get_user_novel_dir
 
             # URL解码
             novel_title = re.sub(r'_|\+', ' ', novel_title)
 
             logger.info(f"[QUALITY_ASSESSMENT] 获取质量评估: {novel_title}")
 
+            # 获取当前用户目录
+            username = session.get('username', 'anonymous')
+            user_novel_dir = get_user_novel_dir(username=username, create=False)
+            
             # 构建评估报告路径
             safe_title = re.sub(r'[\\/*?:"<>|]', "_", novel_title)
-            report_path = Path(f"小说项目/{safe_title}/plans/{safe_title}_opening_stage_writing_plan_quality_report.json")
+            report_path = user_novel_dir / safe_title / "plans" / f"{safe_title}_opening_stage_writing_plan_quality_report.json"
 
             if not report_path.exists():
                 # 尝试从materials目录查找
-                alt_report_path = Path(f"小说项目/{safe_title}/materials/phase_one_products/{safe_title}_quality_assessment.json")
+                alt_report_path = user_novel_dir / safe_title / "materials" / "phase_one_products" / f"{safe_title}_quality_assessment.json"
                 if alt_report_path.exists():
                     report_path = alt_report_path
                 else:
@@ -3260,15 +3265,20 @@ def register_additional_routes(app):
             from pathlib import Path
             import re
             from src.core.PlanQualityAssessor import PlanQualityAssessor
+            from web.utils.path_utils import get_user_novel_dir
 
             # URL解码
             novel_title = re.sub(r'_|\+', ' ', novel_title)
 
             logger.info(f"[QUALITY_ASSESSMENT] 触发质量评估: {novel_title}")
 
+            # 获取当前用户目录
+            username = session.get('username', 'anonymous')
+            user_novel_dir = get_user_novel_dir(username=username, create=False)
+            
             # 构建写作计划路径
             safe_title = re.sub(r'[\\/*?:"<>|]', "_", novel_title)
-            plan_path = Path(f"小说项目/{safe_title}/plans/{safe_title}_opening_stage_writing_plan.json")
+            plan_path = user_novel_dir / safe_title / "plans" / f"{safe_title}_opening_stage_writing_plan.json"
 
             if not plan_path.exists():
                 return jsonify({

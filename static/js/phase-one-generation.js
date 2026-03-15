@@ -409,7 +409,7 @@ function handlePhaseOneFailed(taskStatus) {
 // 显示结果区域
 function showResultsSection(result) {
     const resultsSection = document.getElementById('results-section');
-    resultsSection.classList.add('active');
+    resultsSection.classList.add('pt-results-section--active');
     
     // 填充结果数据
     fillOverviewResult(result);
