@@ -687,6 +687,7 @@ class ResumeManager:
                 # 获取预生成的情绪计划
                 pre_generated_emotional_plan = all_stages_emotional_plans.get(stage_name)
                 
+                # 🔥 跳过期待感映射生成（将在所有阶段完成后统一生成）
                 stage_plan = self.generator.stage_plan_manager.generate_stage_writing_plan(
                     stage_name=stage_name,
                     stage_range=stage_range,
@@ -694,7 +695,8 @@ class ResumeManager:
                     novel_title=self.generator.novel_data["novel_title"],
                     novel_synopsis=self.generator.novel_data["novel_synopsis"],
                     overall_stage_plan=stage_plan_dict,
-                    stage_emotional_plan=pre_generated_emotional_plan
+                    stage_emotional_plan=pre_generated_emotional_plan,
+                    skip_expectation_mapping=True
                 )
                 
                 if stage_plan:

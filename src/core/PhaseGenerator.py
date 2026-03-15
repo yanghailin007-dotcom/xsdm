@@ -1189,6 +1189,7 @@ class PhaseGenerator:
                 print(f"  └─ 开始执行...")
                 
                 try:
+                    # 🔥 跳过期待感映射生成（将在所有阶段完成后统一生成）
                     stage_plan = self.generator.stage_plan_manager.generate_stage_writing_plan(
                         stage_name=stage_name,
                         stage_range=task['stage_range'],
@@ -1197,7 +1198,8 @@ class PhaseGenerator:
                         novel_synopsis=task['novel_synopsis'],
                         overall_stage_plan=task['overall_stage_plan'],
                         stage_emotional_plan=pre_generated_emotional_plan,
-                        pre_generated_skeletons=pre_generated_skeletons
+                        pre_generated_skeletons=pre_generated_skeletons,
+                        skip_expectation_mapping=True
                     )
                     
                     duration = time.time() - task_start_time

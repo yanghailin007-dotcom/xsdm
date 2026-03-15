@@ -244,7 +244,8 @@ class StagePlanManager:
                                    creative_seed: Any, novel_title: str,
                                    novel_synopsis: str, overall_stage_plan: Dict,
                                    stage_emotional_plan: Dict = None,
-                                   pre_generated_skeletons: List[Dict] = None) -> Dict:
+                                   pre_generated_skeletons: List[Dict] = None,
+                                   skip_expectation_mapping: bool = False) -> Dict:
         """
         生成阶段写作计划（重构版 - 使用专职组件）
         
@@ -438,11 +439,14 @@ class StagePlanManager:
             final_writing_plan, stage_name, stage_range
         )
         
-        # 🆕 Phase 9: 生成期待感映射
-        self.logger.info("   Phase 9: 为事件生成期待感标签...")
-        final_writing_plan = self._generate_expectation_mapping(
-            final_writing_plan, stage_name
-        )
+        # 🆕 Phase 9: 生成期待感映射（可选，默认生成）
+        if not skip_expectation_mapping:
+            self.logger.info("   Phase 9: 为事件生成期待感标签...")
+            final_writing_plan = self._generate_expectation_mapping(
+                final_writing_plan, stage_name
+            )
+        else:
+            self.logger.info("   Phase 9: 跳过期待感映射生成（将在所有阶段完成后统一生成）")
         
         if final_writing_plan:
             # 保存到文件
