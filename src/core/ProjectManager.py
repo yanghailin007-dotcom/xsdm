@@ -369,13 +369,15 @@ class ProjectManager:
                                 if chapter_num:
                                     # 确保 chapter_num 是字符串以保持键的一致性
                                     chapter_num_key = str(chapter_num)
-                                    # 优先从文件内容获取标题，如果没有则从文件名提取
-                                    chapter_title = chapter_data.get("chapter_title", "")
+                                    # 优先从文件名提取标题（因为文件名编码正确）
+                                    chapter_title = ""
+                                    # 尝试从文件名提取标题: 第XXX章_标题.json
+                                    match = re.match(r'第\d+章_(.+)\.json', chapter_file)
+                                    if match:
+                                        chapter_title = match.group(1)
+                                    # 如果文件名提取失败，再尝试从文件内容获取
                                     if not chapter_title:
-                                        # 从文件名提取标题: 第XXX章_标题.json
-                                        match = re.match(r'第\d+章_(.+)\.json', chapter_file)
-                                        if match:
-                                            chapter_title = match.group(1)
+                                        chapter_title = chapter_data.get("chapter_title", "")
                                     generated_chapters[chapter_num_key] = {
                                         "chapter_number": chapter_num,
                                         "chapter_title": chapter_title,
