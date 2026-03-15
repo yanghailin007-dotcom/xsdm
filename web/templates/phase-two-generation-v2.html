@@ -649,11 +649,37 @@
         function resumeGeneration() { console.log('继续生成'); }
         function stopGeneration() { console.log('停止生成'); }
         
-        // 导航功能（占位）
-        function goToContentReview() { location.href = '/content-review'; }
-        function goToChapterView() { location.href = '/chapter-view'; }
-        function goToNovelView() { location.href = '/novel-view'; }
-        function continueMoreChapters() { console.log('继续生成'); }
+        // 导航功能
+        function goToContentReview() { 
+            const currentUrl = new URL(window.location.href);
+            const title = currentUrl.searchParams.get('title');
+            if (title) {
+                location.href = '/content-review?title=' + encodeURIComponent(title);
+            }
+        }
+        function goToChapterView() { 
+            const currentUrl = new URL(window.location.href);
+            const title = currentUrl.searchParams.get('title');
+            if (title) {
+                window.location.href = '/chapter-view?title=' + encodeURIComponent(title);
+            }
+        }
+        function goToNovelView() { 
+            const currentUrl = new URL(window.location.href);
+            const title = currentUrl.searchParams.get('title');
+            if (title) {
+                window.location.href = '/novel?title=' + encodeURIComponent(title);
+            }
+        }
+        function continueMoreChapters() { 
+            document.getElementById('generation-results').classList.add('pt-hidden');
+            document.getElementById('generation-form').style.display = 'block';
+            window.scrollTo({ top: document.getElementById('generation-form').offsetTop - 100, behavior: 'smooth' });
+        }
+        function resumeGeneration() {
+            // 恢复生成任务
+            continueMoreChapters();
+        }
     </script>
     
     <!-- 引入原有的 JavaScript 文件 -->

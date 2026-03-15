@@ -934,13 +934,13 @@ class NovelGenerationManager:
 
                             generated_chapters[chapter_num] = {
                                 "chapter_number": chapter_num,
-                                "title": chapter_title,
+                                "chapter_title": chapter_title,
                                 "content": chapter_content,
                                 "word_count": chapter_word_count,
                                 "file_path": str(chapter_file),
                                 # 🔥 新增：保存质量分信息
                                 "quality_score": chapter_quality_score,
-                                "quality": chapter_quality_assessment
+                                "quality_assessment": chapter_quality_assessment
                             }
                         except Exception as e:
                             logger.info(f"⚠️ 加载章节 {chapter_file.name} 失败: {e}")
