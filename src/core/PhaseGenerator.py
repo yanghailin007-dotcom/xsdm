@@ -1531,11 +1531,48 @@ class PhaseGenerator:
             success_count = len(self.generator.novel_data["stage_writing_plans"])
             total_count = len(stage_tasks)
             
+            # 🔥 新增：检查并重试失败的阶段
+            failed_stages = [t for t in stage_tasks if t['stage_name'] not in self.generator.novel_data["stage_writing_plans"]]
+            
+            if failed_stages:
+                print(f"\n🔄 发现 {len(failed_stages)} 个失败阶段，开始逐个重试...")
+                for task in failed_stages:
+                    stage_name = task['stage_name']
+                    print(f"\n  🔄 重试生成: {stage_name}")
+                    try:
+                        # 获取预生成的数据
+                        pre_generated_emotional_plan = all_stages_emotional_plans.get(stage_name)
+                        pre_generated_skeletons = all_stages_skeletons.get(stage_name) if all_stages_skeletons else None
+                        
+                        # 逐个生成失败的阶段
+                        stage_plan = self.generator.stage_plan_manager.generate_stage_writing_plan(
+                            stage_name=stage_name,
+                            stage_range=task['stage_range'],
+                            creative_seed=task['creative_seed'],
+                            novel_title=task['novel_title'],
+                            novel_synopsis=task['novel_synopsis'],
+                            overall_stage_plan=task['overall_stage_plan'],
+                            stage_emotional_plan=pre_generated_emotional_plan,
+                            pre_generated_skeletons=pre_generated_skeletons,
+                            skip_expectation_mapping=True
+                        )
+                        
+                        if stage_plan:
+                            self.generator.novel_data["stage_writing_plans"][stage_name] = stage_plan
+                            print(f"  ✅ 重试成功: {stage_name}")
+                        else:
+                            print(f"  ❌ 重试失败: {stage_name} 返回空")
+                    except Exception as e:
+                        print(f"  ❌ 重试异常: {stage_name} - {str(e)[:80]}")
+                
+                # 更新成功计数
+                success_count = len(self.generator.novel_data["stage_writing_plans"])
+            
             if success_count > 0:
                 print(f"\n✅ 阶段详细计划生成完成: {success_count}/{total_count} 个阶段")
                 if success_count < total_count:
-                    failed_stages = [t['stage_name'] for t in stage_tasks if t['stage_name'] not in self.generator.novel_data["stage_writing_plans"]]
-                    print(f"  ⚠️  失败阶段: {', '.join(failed_stages)}")
+                    still_failed = [t['stage_name'] for t in stage_tasks if t['stage_name'] not in self.generator.novel_data["stage_writing_plans"]]
+                    print(f"  ⚠️  仍然失败的阶段: {', '.join(still_failed)}")
                 
                 # 🔥 新增：为每个阶段生成并保存期待感映射
                 self._generate_and_save_expectation_maps()

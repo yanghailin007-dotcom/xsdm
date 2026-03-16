@@ -73,7 +73,9 @@ class EmotionalPlanManager:
         result = {}
         plans_list = all_plans.get("stages_emotional_plans", [])
         for plan in plans_list:
-            stage_name = plan.get("stage_name")
+            raw_stage_name = plan.get("stage_name", "")
+            # 🔥 修复：提取纯净的 stage_name（去掉章节范围后缀）
+            stage_name = raw_stage_name.split(" (")[0].strip() if " (" in raw_stage_name else raw_stage_name
             if stage_name and "emotional_segments" in plan:
                 result[stage_name] = plan
                 self.logger.info(f"   ✅ {stage_name} 情绪计划已提取")
