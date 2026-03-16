@@ -1530,8 +1530,16 @@ def register_additional_routes(app):
                 
                 if has_phase_one_products:
                     phase_one_status = 'completed'
-                    phase_one_completed_at = project.get('created_at', project.get('last_updated'))
-                    logger.info(f"✅ 项目 {project_title} 第一阶段判定为完成")
+                    # 🔥 修复：尝试多个可能的字段名获取创建时间
+                    phase_one_completed_at = (
+                        project.get('timestamp') or 
+                        project.get('creation_time') or 
+                        project.get('created_at') or 
+                        project.get('last_updated') or
+                        (project.get('novel_info', {}).get('timestamp')) or
+                        datetime.now().isoformat()
+                    )
+                    logger.info(f"✅ 项目 {project_title} 第一阶段判定为完成，完成时间: {phase_one_completed_at}")
                 else:
                     logger.info(f"⚠️ 项目 {project_title} 第一阶段未完成，仅完成 {key_products_count}/{completed_required} 个产物")
                 
