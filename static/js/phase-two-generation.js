@@ -400,28 +400,54 @@ function displayProjectsList(projects) {
 
     let html = '<div style="display: flex; flex-direction: column; gap: 12px;">';
     
-    sortedProjects.forEach((project, index) => {
-        // 对标题进行HTML转义，避免特殊字符导致的问题
-        const escapedTitle = project.title.replace(/'/g, "\\'").replace(/"/g, '\\"');
-        const statusText = getProjectStatusText(project);
-        const statusClass = getProjectStatusClass(project);
+    // 🔥 新增：分离生成中项目和其他项目
+    const generatingProjects = sortedProjects.filter(p => p.phase_two?.status === 'generating');
+    const otherProjects = sortedProjects.filter(p => p.phase_two?.status !== 'generating');
+    
+    // 渲染生成中项目
+    if (generatingProjects.length > 0) {
+        generatingProjects.forEach((project, index) => {
+            html += renderProjectCard(project);
+        });
         
-        // 🔥 检测是否是章节生成中的项目
-        const isGenerating = project.phase_two?.status === 'generating';
-        const progressPercent = Math.round(((project.completed_chapters || 0) / (project.total_chapters || 1)) * 100);
-        
-        // 状态徽章类名
-        let statusBadgeClass = 'status-badge--pending';
-        if (isGenerating) statusBadgeClass = 'status-badge--generating';
-        else if (project.phase_two?.status === 'completed') statusBadgeClass = 'status-badge--completed';
-        
-        // 🔥 新的统一卡片设计
-        html += `
-            <div class="project-select-card"
-                 data-title="${escapedTitle}"
-                 data-status="${statusClass.replace('status-', '')}"
-                 data-generating="${isGenerating}"
-                 onclick="selectProject('${escapedTitle}', this)">
+        // 🔥 添加分割线（如果还有其他项目）
+        if (otherProjects.length > 0) {
+            html += '<div class="generating-section-divider"></div>';
+        }
+    }
+    
+    // 渲染其他项目
+    otherProjects.forEach((project, index) => {
+        html += renderProjectCard(project);
+    });
+    
+    html += '</div>';
+    projectsList.innerHTML = html;
+}
+
+// 🔥 新增：渲染单个项目卡片
+function renderProjectCard(project) {
+    // 对标题进行HTML转义，避免特殊字符导致的问题
+    const escapedTitle = project.title.replace(/'/g, "\\'").replace(/"/g, '\\"');
+    const statusText = getProjectStatusText(project);
+    const statusClass = getProjectStatusClass(project);
+    
+    // 检测是否是章节生成中的项目
+    const isGenerating = project.phase_two?.status === 'generating';
+    const progressPercent = Math.round(((project.completed_chapters || 0) / (project.total_chapters || 1)) * 100);
+    
+    // 状态徽章类名
+    let statusBadgeClass = 'status-badge--pending';
+    if (isGenerating) statusBadgeClass = 'status-badge--generating';
+    else if (project.phase_two?.status === 'completed') statusBadgeClass = 'status-badge--completed';
+    
+    // 统一卡片设计
+    return `
+        <div class="project-select-card"
+             data-title="${escapedTitle}"
+             data-status="${statusClass.replace('status-', '')}"
+             data-generating="${isGenerating}"
+             onclick="selectProject('${escapedTitle}', this)">
                 <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 8px;">
                     <h4 class="project-title">${project.title}</h4>
                     <div style="display: flex; gap: 8px; align-items: center; flex-shrink: 0;">
@@ -448,10 +474,7 @@ function displayProjectsList(projects) {
                 </div>
             </div>
         `;
-    });
-    
-    html += '</div>';
-    projectsList.innerHTML = html;
+}
 }
 
 // 🔥 新增：根据项目状态返回对应的样式类

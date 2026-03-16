@@ -484,10 +484,11 @@
             opacity: 1;
         }
         
+        /* 🔥 修复：统一选中效果，只有一个颜色 */
         #projects-list .project-select-card.selected {
-            background: linear-gradient(145deg, rgba(99, 102, 241, 0.1), rgba(139, 92, 246, 0.05));
-            border-color: rgba(99, 102, 241, 0.5);
-            box-shadow: 0 0 0 1px rgba(99, 102, 241, 0.3), 0 4px 20px rgba(99, 102, 241, 0.15);
+            background: linear-gradient(145deg, rgba(99, 102, 241, 0.15), rgba(139, 92, 246, 0.08));
+            border-color: rgba(99, 102, 241, 0.6);
+            box-shadow: 0 0 0 1px rgba(99, 102, 241, 0.3), 0 4px 20px rgba(99, 102, 241, 0.2);
         }
         
         #projects-list .project-select-card.selected::before {
@@ -495,17 +496,32 @@
             background: linear-gradient(180deg, #6366f1, #8b5cf6);
         }
         
-        /* 生成中状态 - 精致脉冲效果 */
-        #projects-list .project-select-card[data-generating="true"] {
-            background: linear-gradient(145deg, rgba(59, 130, 246, 0.08), rgba(37, 99, 235, 0.04));
-            border-color: rgba(59, 130, 246, 0.4);
-            box-shadow: 0 0 0 1px rgba(59, 130, 246, 0.2), 0 0 20px rgba(59, 130, 246, 0.1);
-        }
-        
-        #projects-list .project-select-card[data-generating="true"]::before {
+        /* 🔥 修复：生成中状态不修改背景，只保留左边框脉冲动画 */
+        #projects-list .project-select-card[data-generating="true"]:not(.selected)::before {
             opacity: 1;
             background: linear-gradient(180deg, #3b82f6, #06b6d4);
             animation: generating-line-pulse 2s ease-in-out infinite;
+        }
+        
+        /* 🔥 新增：生成中项目与其他项目的分割线 */
+        .generating-section-divider {
+            height: 1px;
+            background: linear-gradient(90deg, transparent, rgba(59, 130, 246, 0.5), transparent);
+            margin: 12px 0;
+            position: relative;
+        }
+        
+        .generating-section-divider::after {
+            content: '生成中';
+            position: absolute;
+            left: 50%;
+            top: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(15, 23, 42, 0.9);
+            padding: 0 12px;
+            font-size: 11px;
+            color: #60a5fa;
+            white-space: nowrap;
         }
         
         @keyframes generating-line-pulse {
@@ -2696,7 +2712,20 @@
                 </div>
                 
                 <div id="project-details">
-                    <p style="color: var(--pt-text-tertiary); text-align: center;">请选择项目</p>
+                    <!-- 🔥 新增：首次进入提示 -->
+                    <div id="first-time-hint" style="background: linear-gradient(145deg, rgba(99, 102, 241, 0.1), rgba(139, 92, 246, 0.05)); border: 1px dashed rgba(99, 102, 241, 0.3); border-radius: 12px; padding: 20px; text-align: center;">
+                        <div style="font-size: 32px; margin-bottom: 12px;">👈</div>
+                        <h4 style="margin: 0 0 8px 0; color: #a78bfa; font-size: 14px;">从左侧选择项目开始</h4>
+                        <p style="margin: 0; color: rgba(255,255,255,0.6); font-size: 12px; line-height: 1.6;">
+                            点击左侧项目卡片查看详情<br>
+                            包括小说简介、核心设定、生成进度等信息
+                        </p>
+                        <div style="margin-top: 16px; padding-top: 16px; border-top: 1px solid rgba(99, 102, 241, 0.2);">
+                            <p style="margin: 0; color: rgba(255,255,255,0.4); font-size: 11px;">
+                                💡 提示：选中项目后可以查看设计蓝图、生成章节或阅读已生成内容
+                            </p>
+                        </div>
+                    </div>
                 </div>
             </div>
             
