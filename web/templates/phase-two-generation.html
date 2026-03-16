@@ -2119,6 +2119,297 @@
                 margin-left: auto;
             }
         }
+        
+        /* ============================================
+           🎯 UI整改优化 - 按创作阶段分组
+           ============================================ */
+        
+        /* 项目头部进度指示器 */
+        .pt-project-header {
+            background: linear-gradient(135deg, 
+                rgba(30, 41, 59, 0.9) 0%, 
+                rgba(15, 23, 42, 0.95) 100%);
+            border: 1px solid rgba(99, 102, 241, 0.2);
+            border-radius: 16px;
+            padding: 20px 24px;
+            margin-bottom: 24px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 24px;
+            backdrop-filter: blur(10px);
+        }
+        
+        .pt-project-header__info {
+            flex: 1;
+            min-width: 0;
+        }
+        
+        .pt-project-header__title {
+            font-size: 20px;
+            font-weight: 700;
+            color: var(--v2-text-primary);
+            margin-bottom: 12px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        
+        .pt-project-header__progress {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+        
+        .pt-progress-bar {
+            flex: 1;
+            height: 8px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 4px;
+            overflow: hidden;
+            min-width: 200px;
+        }
+        
+        .pt-progress-bar__fill {
+            height: 100%;
+            background: linear-gradient(90deg, #6366f1, #8b5cf6, #a78bfa);
+            border-radius: 4px;
+            transition: width 0.5s ease;
+            box-shadow: 0 0 10px rgba(99, 102, 241, 0.4);
+        }
+        
+        .pt-progress-bar__text {
+            font-size: 13px;
+            color: var(--v2-text-secondary);
+            font-weight: 500;
+            white-space: nowrap;
+        }
+        
+        .pt-project-header__stats {
+            display: flex;
+            gap: 24px;
+        }
+        
+        .pt-project-stat {
+            text-align: center;
+        }
+        
+        .pt-project-stat__value {
+            font-size: 24px;
+            font-weight: 700;
+            color: var(--v2-text-primary);
+            display: block;
+            line-height: 1;
+        }
+        
+        .pt-project-stat__label {
+            font-size: 12px;
+            color: var(--v2-text-tertiary);
+            margin-top: 4px;
+        }
+        
+        /* 创作阶段分组 */
+        .pt-phase-section {
+            margin-bottom: 32px;
+        }
+        
+        .pt-phase-header {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 16px;
+            padding-bottom: 12px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+        }
+        
+        .pt-phase-header__icon {
+            width: 36px;
+            height: 36px;
+            background: linear-gradient(135deg, rgba(99, 102, 241, 0.2), rgba(139, 92, 246, 0.2));
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 18px;
+            border: 1px solid rgba(99, 102, 241, 0.3);
+        }
+        
+        .pt-phase-header__text {
+            flex: 1;
+        }
+        
+        .pt-phase-header__title {
+            font-size: 16px;
+            font-weight: 600;
+            color: var(--v2-text-primary);
+            margin-bottom: 2px;
+        }
+        
+        .pt-phase-header__desc {
+            font-size: 13px;
+            color: var(--v2-text-tertiary);
+        }
+        
+        /* 紧凑型卡片网格 */
+        .pt-product-grid--compact {
+            grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+            gap: 16px;
+        }
+        
+        .pt-product-grid--compact .pt-product-card {
+            padding: 16px;
+        }
+        
+        .pt-product-grid--compact .pt-product-card__icon {
+            font-size: 22px;
+            margin-bottom: 8px;
+        }
+        
+        .pt-product-grid--compact .pt-product-card__title {
+            font-size: 14px;
+        }
+        
+        .pt-product-grid--compact .pt-product-card__desc {
+            font-size: 12px;
+            margin-bottom: 10px;
+            display: -webkit-box;
+            -webkit-line-clamp: 2;
+            -webkit-box-orient: vertical;
+            overflow: hidden;
+        }
+        
+        .pt-product-grid--compact .pt-product-card__action {
+            padding: 6px 12px;
+            font-size: 12px;
+        }
+        
+        /* 响应式调整 */
+        @media (max-width: 1200px) {
+            .pt-project-header {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 16px;
+            }
+            
+            .pt-project-header__stats {
+                width: 100%;
+                justify-content: flex-start;
+            }
+        }
+        
+        @media (max-width: 768px) {
+            .pt-product-grid--compact {
+                grid-template-columns: 1fr;
+            }
+            
+            .pt-project-header__progress {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 8px;
+            }
+            
+            .pt-progress-bar {
+                width: 100%;
+            }
+        }
+        
+        /* 紧凑型项目列表 */
+        .pt-project-item {
+            background: rgba(30, 41, 59, 0.6);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            border-radius: 10px;
+            padding: 12px 14px;
+            margin-bottom: 8px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+        
+        .pt-project-item:hover {
+            background: rgba(51, 65, 85, 0.6);
+            border-color: rgba(99, 102, 241, 0.3);
+            transform: translateX(4px);
+        }
+        
+        .pt-project-item.selected {
+            background: linear-gradient(135deg, rgba(99, 102, 241, 0.2), rgba(139, 92, 246, 0.15));
+            border-color: rgba(99, 102, 241, 0.5);
+            box-shadow: 0 0 20px rgba(99, 102, 241, 0.2);
+        }
+        
+        .pt-project-item__header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 8px;
+        }
+        
+        .pt-project-item__title {
+            font-size: 14px;
+            font-weight: 600;
+            color: var(--v2-text-primary);
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            flex: 1;
+            margin-right: 8px;
+        }
+        
+        .pt-project-item__badge {
+            font-size: 10px;
+            padding: 2px 8px;
+            border-radius: 10px;
+            font-weight: 500;
+            flex-shrink: 0;
+        }
+        
+        .pt-project-item__badge.completed {
+            background: rgba(16, 185, 129, 0.2);
+            color: #34d399;
+        }
+        
+        .pt-project-item__badge.generating {
+            background: rgba(245, 158, 11, 0.2);
+            color: #fbbf24;
+        }
+        
+        .pt-project-item__badge.pending {
+            background: rgba(148, 163, 184, 0.2);
+            color: #94a3b8;
+        }
+        
+        .pt-project-item__progress {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .pt-project-item__progress-bar {
+            flex: 1;
+            height: 4px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 2px;
+            overflow: hidden;
+        }
+        
+        .pt-project-item__progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #6366f1, #8b5cf6);
+            border-radius: 2px;
+            transition: width 0.3s ease;
+        }
+        
+        .pt-project-item__progress-text {
+            font-size: 11px;
+            color: var(--v2-text-tertiary);
+            white-space: nowrap;
+        }
+        
+        .pt-empty-state {
+            text-align: center;
+            padding: 40px 20px;
+            color: var(--v2-text-tertiary);
+            font-size: 14px;
+        }
     </style>
 </head>
 <body>
@@ -2198,110 +2489,158 @@
                     
                     <!-- ==================== 标签页 1: 设计蓝图 ==================== -->
                     <div id="tab-blueprint" class="pt-tab-content pt-tab-content--active">
-                        <div class="pt-section-title">
-                            <div class="pt-section-title__icon">📋</div>
-                            <div class="pt-section-title__text">
-                                <h3>设计蓝图</h3>
-                                <p>查看第一阶段生成的所有设定产物，为章节写作提供参考</p>
+                        <!-- 项目进度指示器 -->
+                        <div class="pt-project-header" id="project-header">
+                            <div class="pt-project-header__info">
+                                <h3 class="pt-project-header__title" id="current-project-title">请选择项目</h3>
+                                <div class="pt-project-header__progress">
+                                    <div class="pt-progress-bar">
+                                        <div class="pt-progress-bar__fill" id="project-progress-fill" style="width: 0%"></div>
+                                    </div>
+                                    <span class="pt-progress-bar__text" id="project-progress-text">0 / 0 章</span>
+                                </div>
+                            </div>
+                            <div class="pt-project-header__stats">
+                                <div class="pt-project-stat">
+                                    <span class="pt-project-stat__value" id="project-stat-chapters">0</span>
+                                    <span class="pt-project-stat__label">已完成</span>
+                                </div>
+                                <div class="pt-project-stat">
+                                    <span class="pt-project-stat__value" id="project-stat-total">0</span>
+                                    <span class="pt-project-stat__label">总章节</span>
+                                </div>
                             </div>
                         </div>
                         
-                        <!-- 8个产物卡片 -->
-                        <div class="pt-product-grid" id="products-grid">
-                            <!-- 1. 项目可视化 -->
-                            <div class="pt-product-card pt-product-card--viewer" onclick="viewProjectViewer()">
-                                <div class="pt-product-card__icon">📊</div>
-                                <h4 class="pt-product-card__title">项目可视化</h4>
-                                <p class="pt-product-card__desc">角色网络、势力关系、故事事件的整合展示</p>
-                                <div class="pt-product-card__status">
-                                    <span class="pt-status-dot" id="viewer-status-dot"></span>
-                                    <span class="pt-status-text" id="viewer-status-text">加载中...</span>
+                        <!-- 阶段一：设定构建 -->
+                        <div class="pt-phase-section">
+                            <div class="pt-phase-header">
+                                <div class="pt-phase-header__icon">📑</div>
+                                <div class="pt-phase-header__text">
+                                    <h4 class="pt-phase-header__title">阶段一：设定构建</h4>
+                                    <p class="pt-phase-header__desc">构建小说的核心设定和基础框架</p>
                                 </div>
-                                <div class="pt-product-card__action">🚀 查看可视化 →</div>
                             </div>
-                            
-                            <!-- 2. 世界观设定 -->
-                            <div class="pt-product-card pt-product-card--worldview" onclick="editProductCategory('worldview')">
-                                <div class="pt-product-card__icon">🌍</div>
-                                <h4 class="pt-product-card__title">世界观设定</h4>
-                                <p class="pt-product-card__desc">世界的背景、规则、势力分布等核心设定</p>
-                                <div class="pt-product-card__status">
-                                    <span class="pt-status-dot" id="worldview-status-dot"></span>
-                                    <span class="pt-status-text" id="worldview-status-text">加载中...</span>
+                            <div class="pt-product-grid pt-product-grid--compact" id="products-grid-phase1">
+                                <!-- 1. 世界观设定 -->
+                                <div class="pt-product-card pt-product-card--worldview" onclick="editProductCategory('worldview')">
+                                    <div class="pt-product-card__icon">🌍</div>
+                                    <h4 class="pt-product-card__title">世界观设定</h4>
+                                    <p class="pt-product-card__desc">世界的背景、规则、势力分布等核心设定</p>
+                                    <div class="pt-product-card__status">
+                                        <span class="pt-status-dot" id="worldview-status-dot"></span>
+                                        <span class="pt-status-text" id="worldview-status-text">加载中...</span>
+                                    </div>
+                                    <div class="pt-product-card__action">编辑设定 →</div>
                                 </div>
-                                <div class="pt-product-card__action">编辑设定 →</div>
+                                
+                                <!-- 2. 角色设计 -->
+                                <div class="pt-product-card pt-product-card--characters" onclick="editProductCategory('characters')">
+                                    <div class="pt-product-card__icon">👥</div>
+                                    <h4 class="pt-product-card__title">角色设计</h4>
+                                    <p class="pt-product-card__desc">主要角色的性格、能力、关系网设计</p>
+                                    <div class="pt-product-card__status">
+                                        <span class="pt-status-dot" id="characters-status-dot"></span>
+                                        <span class="pt-status-text" id="characters-status-text">加载中...</span>
+                                    </div>
+                                    <div class="pt-product-card__action">编辑角色 →</div>
+                                </div>
+                                
+                                <!-- 3. 势力/阵营系统 -->
+                                <div class="pt-product-card pt-product-card--factions" onclick="editProductCategory('factions')">
+                                    <div class="pt-product-card__icon">⚔️</div>
+                                    <h4 class="pt-product-card__title">势力/阵营系统</h4>
+                                    <p class="pt-product-card__desc">主要势力、势力关系、势力冲突等阵营设定</p>
+                                    <div class="pt-product-card__status">
+                                        <span class="pt-status-dot" id="factions-status-dot"></span>
+                                        <span class="pt-status-text" id="factions-status-text">加载中...</span>
+                                    </div>
+                                    <div class="pt-product-card__action">编辑势力 →</div>
+                                </div>
+                                
+                                <!-- 4. 市场分析 -->
+                                <div class="pt-product-card pt-product-card--market" onclick="editProductCategory('market')">
+                                    <div class="pt-product-card__icon">📊</div>
+                                    <h4 class="pt-product-card__title">市场分析</h4>
+                                    <p class="pt-product-card__desc">目标读者、竞品分析、市场定位策略</p>
+                                    <div class="pt-product-card__status">
+                                        <span class="pt-status-dot" id="market-status-dot"></span>
+                                        <span class="pt-status-text" id="market-status-text">加载中...</span>
+                                    </div>
+                                    <div class="pt-product-card__action">编辑分析 →</div>
+                                </div>
                             </div>
-                            
-                            <!-- 3. 势力/阵营系统 -->
-                            <div class="pt-product-card pt-product-card--factions" onclick="editProductCategory('factions')">
-                                <div class="pt-product-card__icon">⚔️</div>
-                                <h4 class="pt-product-card__title">势力/阵营系统</h4>
-                                <p class="pt-product-card__desc">主要势力、势力关系、势力冲突等阵营设定</p>
-                                <div class="pt-product-card__status">
-                                    <span class="pt-status-dot" id="factions-status-dot"></span>
-                                    <span class="pt-status-text" id="factions-status-text">加载中...</span>
+                        </div>
+                        
+                        <!-- 阶段二：规划设计 -->
+                        <div class="pt-phase-section">
+                            <div class="pt-phase-header">
+                                <div class="pt-phase-header__icon">✏️</div>
+                                <div class="pt-phase-header__text">
+                                    <h4 class="pt-phase-header__title">阶段二：规划设计</h4>
+                                    <p class="pt-phase-header__desc">设计故事架构和写作节奏规划</p>
                                 </div>
-                                <div class="pt-product-card__action">编辑势力</div>
                             </div>
-                            
-                            <!-- 4. 角色设计 -->
-                            <div class="pt-product-card pt-product-card--characters" onclick="editProductCategory('characters')">
-                                <div class="pt-product-card__icon">👥</div>
-                                <h4 class="pt-product-card__title">角色设计</h4>
-                                <p class="pt-product-card__desc">主要角色的性格、能力、关系网设计</p>
-                                <div class="pt-product-card__status">
-                                    <span class="pt-status-dot" id="characters-status-dot"></span>
-                                    <span class="pt-status-text" id="characters-status-text">加载中...</span>
+                            <div class="pt-product-grid pt-product-grid--compact" id="products-grid-phase2">
+                                <!-- 5. 成长路线 -->
+                                <div class="pt-product-card pt-product-card--growth" onclick="editProductCategory('growth')">
+                                    <div class="pt-product-card__icon">📈</div>
+                                    <h4 class="pt-product-card__title">成长路线</h4>
+                                    <p class="pt-product-card__desc">主角的成长路径、能力提升路线规划</p>
+                                    <div class="pt-product-card__status">
+                                        <span class="pt-status-dot" id="growth-status-dot"></span>
+                                        <span class="pt-status-text" id="growth-status-text">加载中...</span>
+                                    </div>
+                                    <div class="pt-product-card__action">编辑路线 →</div>
                                 </div>
-                                <div class="pt-product-card__action">编辑角色</div>
+                                
+                                <!-- 6. 写作计划 -->
+                                <div class="pt-product-card pt-product-card--writing" onclick="editProductCategory('writing')">
+                                    <div class="pt-product-card__icon">📝</div>
+                                    <h4 class="pt-product-card__title">写作计划</h4>
+                                    <p class="pt-product-card__desc">章节安排、情节推进、写作节奏规划</p>
+                                    <div class="pt-product-card__status">
+                                        <span class="pt-status-dot" id="writing-status-dot"></span>
+                                        <span class="pt-status-text" id="writing-status-text">加载中...</span>
+                                    </div>
+                                    <div class="pt-product-card__action">编辑计划 →</div>
+                                </div>
+                                
+                                <!-- 7. 故事线 -->
+                                <div class="pt-product-card pt-product-card--storyline" onclick="goToStorylinePage()">
+                                    <div class="pt-product-card__icon">📖</div>
+                                    <h4 class="pt-product-card__title">故事线</h4>
+                                    <p class="pt-product-card__desc">完整的故事架构、重大事件、情节转折</p>
+                                    <div class="pt-product-card__status">
+                                        <span class="pt-status-dot" id="storyline-status-dot"></span>
+                                        <span class="pt-status-text" id="storyline-status-text">加载中...</span>
+                                    </div>
+                                    <div class="pt-product-card__action">查看时间线 →</div>
+                                </div>
                             </div>
-                            
-                            <!-- 5. 成长路线 -->
-                            <div class="pt-product-card pt-product-card--growth" onclick="editProductCategory('growth')">
-                                <div class="pt-product-card__icon">📈</div>
-                                <h4 class="pt-product-card__title">成长路线</h4>
-                                <p class="pt-product-card__desc">主角的成长路径、能力提升路线规划</p>
-                                <div class="pt-product-card__status">
-                                    <span class="pt-status-dot" id="growth-status-dot"></span>
-                                    <span class="pt-status-text" id="growth-status-text">加载中...</span>
+                        </div>
+                        
+                        <!-- 阶段三：整合与可视化 -->
+                        <div class="pt-phase-section">
+                            <div class="pt-phase-header">
+                                <div class="pt-phase-header__icon">👁️</div>
+                                <div class="pt-phase-header__text">
+                                    <h4 class="pt-phase-header__title">阶段三：整合与可视化</h4>
+                                    <p class="pt-phase-header__desc">查看项目整体可视化和综合信息</p>
                                 </div>
-                                <div class="pt-product-card__action">编辑路线 →</div>
                             </div>
-                            
-                            <!-- 6. 写作计划 -->
-                            <div class="pt-product-card pt-product-card--writing" onclick="editProductCategory('writing')">
-                                <div class="pt-product-card__icon">📝</div>
-                                <h4 class="pt-product-card__title">写作计划</h4>
-                                <p class="pt-product-card__desc">章节安排、情节推进、写作节奏规划</p>
-                                <div class="pt-product-card__status">
-                                    <span class="pt-status-dot" id="writing-status-dot"></span>
-                                    <span class="pt-status-text" id="writing-status-text">加载中...</span>
+                            <div class="pt-product-grid pt-product-grid--compact" id="products-grid-phase3">
+                                <!-- 8. 项目可视化 -->
+                                <div class="pt-product-card pt-product-card--viewer" onclick="viewProjectViewer()">
+                                    <div class="pt-product-card__icon">📊</div>
+                                    <h4 class="pt-product-card__title">项目可视化</h4>
+                                    <p class="pt-product-card__desc">角色网络、势力关系、故事事件的整合展示</p>
+                                    <div class="pt-product-card__status">
+                                        <span class="pt-status-dot" id="viewer-status-dot"></span>
+                                        <span class="pt-status-text" id="viewer-status-text">加载中...</span>
+                                    </div>
+                                    <div class="pt-product-card__action">查看可视化 →</div>
                                 </div>
-                                <div class="pt-product-card__action">编辑计划 →</div>
-                            </div>
-                            
-                            <!-- 7. 故事线 -->
-                            <div class="pt-product-card pt-product-card--storyline" onclick="goToStorylinePage()">
-                                <div class="pt-product-card__icon">📖</div>
-                                <h4 class="pt-product-card__title">故事线</h4>
-                                <p class="pt-product-card__desc">完整的故事架构、重大事件、情节转折</p>
-                                <div class="pt-product-card__status">
-                                    <span class="pt-status-dot" id="storyline-status-dot"></span>
-                                    <span class="pt-status-text" id="storyline-status-text">加载中...</span>
-                                </div>
-                                <div class="pt-product-card__action">查看时间线 →</div>
-                            </div>
-                            
-                            <!-- 8. 市场分析 -->
-                            <div class="pt-product-card pt-product-card--market" onclick="editProductCategory('market')">
-                                <div class="pt-product-card__icon">📊</div>
-                                <h4 class="pt-product-card__title">市场分析</h4>
-                                <p class="pt-product-card__desc">目标读者、竞品分析、市场定位策略</p>
-                                <div class="pt-product-card__status">
-                                    <span class="pt-status-dot" id="market-status-dot"></span>
-                                    <span class="pt-status-text" id="market-status-text">加载中...</span>
-                                </div>
-                                <div class="pt-product-card__action">编辑分析 →</div>
                             </div>
                         </div>
                         
@@ -2846,6 +3185,12 @@
             // 加载余额
             loadUserPoints();
             
+            // 加载项目列表
+            loadProjectList();
+            
+            // 加载当前项目进度
+            loadCurrentProjectProgress();
+            
             // 动态加载创意编辑器模态框
             fetch('/templates/components/creative-editor-modal.html')
                 .then(response => response.text())
@@ -2857,6 +3202,117 @@
                     console.error('加载创意编辑器失败:', error);
                 });
         });
+        
+        // 加载项目列表
+        async function loadProjectList() {
+            try {
+                const response = await fetch('/api/novels');
+                const data = await response.json();
+                
+                if (data.success && data.projects) {
+                    renderProjectList(data.projects);
+                }
+            } catch (error) {
+                console.error('加载项目列表失败:', error);
+            }
+        }
+        
+        // 渲染项目列表
+        function renderProjectList(projects) {
+            const container = document.getElementById('projects-list');
+            if (!container) return;
+            
+            // 获取当前URL中的项目标题
+            const urlParams = new URLSearchParams(window.location.search);
+            const currentTitle = urlParams.get('title');
+            
+            if (projects.length === 0) {
+                container.innerHTML = '<div class="pt-empty-state">暂无项目</div>';
+                return;
+            }
+            
+            container.innerHTML = projects.map(project => {
+                const isSelected = project.title === currentTitle;
+                const progress = project.total_chapters > 0 
+                    ? Math.round((project.completed_chapters / project.total_chapters) * 100) 
+                    : 0;
+                
+                return `
+                    <div class="pt-project-item ${isSelected ? 'selected' : ''}" 
+                         onclick="selectProject('${project.title}')"
+                         data-title="${project.title}">
+                        <div class="pt-project-item__header">
+                            <span class="pt-project-item__title">${project.title}</span>
+                            <span class="pt-project-item__badge ${project.status}">${getStatusText(project.status)}</span>
+                        </div>
+                        <div class="pt-project-item__progress">
+                            <div class="pt-project-item__progress-bar">
+                                <div class="pt-project-item__progress-fill" style="width: ${progress}%"></div>
+                            </div>
+                            <span class="pt-project-item__progress-text">${project.completed_chapters}/${project.total_chapters}</span>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+        
+        // 获取状态文本
+        function getStatusText(status) {
+            const statusMap = {
+                'completed': '已完成',
+                'generating': '生成中',
+                'pending': '待开始',
+                'failed': '失败'
+            };
+            return statusMap[status] || status;
+        }
+        
+        // 选择项目
+        function selectProject(title) {
+            window.location.href = `/phase-two-generation?title=${encodeURIComponent(title)}`;
+        }
+        
+        // 加载当前项目进度
+        async function loadCurrentProjectProgress() {
+            const urlParams = new URLSearchParams(window.location.search);
+            const title = urlParams.get('title');
+            
+            if (!title) {
+                document.getElementById('current-project-title').textContent = '请从左侧选择一个项目';
+                return;
+            }
+            
+            try {
+                const response = await fetch(`/api/project/${encodeURIComponent(title)}`);
+                const data = await response.json();
+                
+                if (data.success && data.project) {
+                    updateProjectHeader(data.project);
+                }
+            } catch (error) {
+                console.error('加载项目进度失败:', error);
+            }
+        }
+        
+        // 更新项目头部信息
+        function updateProjectHeader(project) {
+            const titleEl = document.getElementById('current-project-title');
+            const fillEl = document.getElementById('project-progress-fill');
+            const textEl = document.getElementById('project-progress-text');
+            const statChaptersEl = document.getElementById('project-stat-chapters');
+            const statTotalEl = document.getElementById('project-stat-total');
+            
+            if (titleEl) titleEl.textContent = project.title || '未命名项目';
+            
+            const completed = project.completed_chapters || 0;
+            const total = project.total_chapters || 0;
+            const progress = total > 0 ? Math.round((completed / total) * 100) : 0;
+            
+            if (fillEl) fillEl.style.width = `${progress}%`;
+            if (textEl) textEl.textContent = `${completed} / ${total} 章 (${progress}%)`;
+            if (statChaptersEl) statChaptersEl.textContent = completed;
+            if (statTotalEl) statTotalEl.textContent = total;
+        }
         
         // ==================== 导航功能 ====================
         
