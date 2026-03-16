@@ -494,21 +494,21 @@ function getProjectStatusClass(project) {
 }
 
 // 自动选择项目的函数
+// 🔥 修复：只通过 URL 参数自动选择，不通过 localStorage
+// 这样用户首次进入页面时会看到提示，而不是自动选择上次项目
 async function checkAndAutoSelectProject() {
     const urlParams = new URLSearchParams(window.location.search);
     const projectTitleFromUrl = urlParams.get('title');
     
-    // 也检查localStorage
-    const storedProjectTitle = localStorage.getItem('selectedProjectTitle');
-    const targetProjectTitle = projectTitleFromUrl || storedProjectTitle;
-    
-    if (!targetProjectTitle) {
-        console.log('📋 [DEBUG] 没有检测到需要自动选择的项目');
+    // 🔥 修复：不再自动从 localStorage 选择项目
+    // 只通过 URL 参数 ?title=xxx 自动选择
+    if (!projectTitleFromUrl) {
+        console.log('📋 [DEBUG] 没有 URL 参数，不自动选择项目，显示首次提示');
         return;
     }
     
-    const decodedTitle = decodeURIComponent(targetProjectTitle);
-    console.log('📋 [DEBUG] 尝试自动选择项目:', decodedTitle);
+    const decodedTitle = decodeURIComponent(projectTitleFromUrl);
+    console.log('📋 [DEBUG] URL参数指定了项目，尝试自动选择:', decodedTitle);
     
     // 在项目缓存中查找匹配的项目
     const targetProject = projectsCache.find(p => p.title === decodedTitle);
@@ -516,8 +516,6 @@ async function checkAndAutoSelectProject() {
     if (!targetProject) {
         console.warn('⚠️ [DEBUG] 在项目列表中未找到匹配的项目:', decodedTitle);
         showStatusMessage(`⚠️ 未找到项目 "${decodedTitle}"，请手动选择`, 'warning');
-        // 清除localStorage
-        localStorage.removeItem('selectedProjectTitle');
         return;
     }
     
