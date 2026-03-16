@@ -2759,6 +2759,14 @@
 
     <!-- ==================== JavaScript ==================== -->
     
+    <!-- 🔥 注入当前用户信息，用于前端数据隔离 -->
+    <script>
+        window.currentUser = {
+            username: '{{ session.username or "guest" }}',
+            id: '{{ session.user_id or "" }}'
+        };
+    </script>
+    
     <!-- 主要功能脚本 -->
     <script src="/static/js/phase-two-generation.js?v=10"></script>
     <script src="/static/js/creative-editor-phase-two.js"></script>
