@@ -158,19 +158,36 @@ function renderStoryline(storyline) {
         const isMultiStage = storyline.stage_info && Array.isArray(storyline.stage_info) && storyline.stage_info.length > 0;
         
         if (isMultiStage) {
-            // 定义正确的阶段顺序
+            // 定义正确的阶段顺序（支持 long 和 short 两种格式）
             const stageOrder = ['opening_stage', 'development_stage', 'climax_stage', 'ending_stage'];
+            const stageOrderShort = ['opening', 'development', 'climax', 'ending'];
             const stageNameMap = {
+                // long format
                 'opening_stage': '开局',
                 'development_stage': '发展',
                 'climax_stage': '高潮',
-                'ending_stage': '结局'
+                'ending_stage': '结局',
+                // short format
+                'opening': '开局',
+                'development': '发展',
+                'climax': '高潮',
+                'ending': '结局'
             };
             
             // 按正确顺序排序阶段信息
             const sortedStages = [...storyline.stage_info].sort((a, b) => {
-                const indexA = stageOrder.indexOf(a.stage_name);
-                const indexB = stageOrder.indexOf(b.stage_name);
+                // 尝试匹配 long format
+                let indexA = stageOrder.indexOf(a.stage_name);
+                let indexB = stageOrder.indexOf(b.stage_name);
+                
+                // 如果没匹配到，尝试 short format
+                if (indexA === -1) indexA = stageOrderShort.indexOf(a.stage_name);
+                if (indexB === -1) indexB = stageOrderShort.indexOf(b.stage_name);
+                
+                // 如果都没匹配到，保持原顺序
+                if (indexA === -1) indexA = 999;
+                if (indexB === -1) indexB = 999;
+                
                 return indexA - indexB;
             });
             
