@@ -2690,31 +2690,28 @@
         </div>
     </div>
     
-    <!-- 右侧面板开关 -->
-    <button class="pt-panel-toggle" id="panel-toggle" onclick="toggleRightPanel()">
-        <span>📊</span>
-    </button>
-    
-    <!-- 🔥 新增：首次进入引导提示（右侧面板关闭时显示） -->
-    <div id="panel-guide-hint" style="position: fixed; bottom: 100px; right: 20px; background: linear-gradient(145deg, rgba(99, 102, 241, 0.9), rgba(139, 92, 246, 0.9)); border-radius: 12px; padding: 16px 20px; box-shadow: 0 8px 32px rgba(99, 102, 241, 0.4); z-index: 999; max-width: 240px; animation: panel-guide-pulse 2s ease-in-out infinite;">
-        <div style="display: flex; align-items: flex-start; gap: 12px;">
-            <div style="font-size: 24px;">👈</div>
-            <div>
-                <h4 style="margin: 0 0 6px 0; color: #fff; font-size: 14px; font-weight: 600;">点击查看项目详情</h4>
-                <p style="margin: 0; color: rgba(255,255,255,0.9); font-size: 12px; line-height: 1.5;">点击右侧 📊 按钮查看小说简介、核心设定、生成进度等信息</p>
-            </div>
+    <!-- 右侧面板开关（带引导提示） -->
+    <div style="position: fixed; bottom: 20px; right: 20px; z-index: 999;">
+        <!-- 🔥 引导提示气泡（在按钮上方） -->
+        <div id="panel-guide-hint" style="position: absolute; bottom: 60px; right: 0; background: linear-gradient(145deg, rgba(99, 102, 241, 0.95), rgba(139, 92, 246, 0.95)); border-radius: 12px; padding: 12px 16px; box-shadow: 0 8px 32px rgba(99, 102, 241, 0.5); width: 200px; animation: panel-guide-pulse 2s ease-in-out infinite;">
+            <p style="margin: 0; color: #fff; font-size: 13px; line-height: 1.5; text-align: center;">
+                <strong>👈 点击查看项目详情</strong><br>
+                <span style="font-size: 11px; opacity: 0.9;">小说简介、核心设定、生成进度</span>
+            </p>
+            <!-- 小箭头指向按钮 -->
+            <div style="position: absolute; bottom: -8px; right: 20px; width: 0; height: 0; border-left: 8px solid transparent; border-right: 8px solid transparent; border-top: 8px solid rgba(139, 92, 246, 0.95);"></div>
         </div>
-        <!-- 小箭头指向按钮 -->
-        <div style="position: absolute; bottom: -10px; right: 20px; width: 0; height: 0; border-left: 10px solid transparent; border-right: 10px solid transparent; border-top: 10px solid rgba(139, 92, 246, 0.9);"></div>
+        
+        <!-- 面板开关按钮 -->
+        <button class="pt-panel-toggle" id="panel-toggle" onclick="toggleRightPanel()" style="position: relative;">
+            <span>📊</span>
+        </button>
     </div>
     
     <style>
         @keyframes panel-guide-pulse {
-            0%, 100% { transform: translateY(0); box-shadow: 0 8px 32px rgba(99, 102, 241, 0.4); }
-            50% { transform: translateY(-5px); box-shadow: 0 12px 40px rgba(99, 102, 241, 0.6); }
-        }
-        .pt-right-panel--open ~ #panel-guide-hint {
-            display: none !important;
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-5px); }
         }
     </style>
     
@@ -2747,20 +2744,7 @@
                 </div>
                 
                 <div id="project-details">
-                    <!-- 🔥 新增：首次进入提示 -->
-                    <div id="first-time-hint" style="background: linear-gradient(145deg, rgba(99, 102, 241, 0.2), rgba(139, 92, 246, 0.1)); border: 2px dashed rgba(99, 102, 241, 0.5); border-radius: 12px; padding: 24px; text-align: center; animation: pulse-hint 2s ease-in-out infinite;">
-                        <div style="font-size: 40px; margin-bottom: 16px; filter: drop-shadow(0 0 10px rgba(99, 102, 241, 0.5));">👈</div>
-                        <h4 style="margin: 0 0 12px 0; color: #a78bfa; font-size: 16px; font-weight: 600;">从左侧选择项目开始</h4>
-                        <p style="margin: 0; color: rgba(255,255,255,0.8); font-size: 13px; line-height: 1.8;">
-                            在左侧项目列表中点击选择项目<br>
-                            这里将显示小说简介、核心设定、生成进度等详细信息
-                        </p>
-                        <div style="margin-top: 20px; padding-top: 16px; border-top: 1px solid rgba(99, 102, 241, 0.3);">
-                            <p style="margin: 0; color: rgba(167, 139, 250, 0.8); font-size: 12px;">
-                                💡 选中项目后可以查看设计蓝图、生成章节或阅读已生成内容
-                            </p>
-                        </div>
-                    </div>
+                    <!-- 首次进入时的提示（面板关闭时在外部显示） -->
                 </div>
             </div>
             
@@ -2803,7 +2787,7 @@
     </script>
     
     <!-- 主要功能脚本 -->
-    <script src="/static/js/phase-two-generation.js?v=13"></script>
+    <script src="/static/js/phase-two-generation.js?v=14"></script>
     <script src="/static/js/creative-editor-phase-two.js"></script>
     <script src="/static/js/character-editor.js"></script>
     <script src="/static/js/character-editor-json-based.js"></script>
