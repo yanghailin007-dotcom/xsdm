@@ -147,9 +147,42 @@ def find_novel_project(title: str, username: str = None) -> Optional[Path]:
     return None
 
 
+def _has_project_info_file(project_dir: Path) -> bool:
+    """
+    检查项目目录是否包含项目信息文件
+    
+    Args:
+        project_dir: 项目目录路径
+    
+    Returns:
+        是否存在项目信息文件
+    """
+    if not project_dir.is_dir():
+        return False
+    
+    # 检查各种可能的项目信息文件名
+    info_files = [
+        "项目信息.json",
+        f"{project_dir.name}_项目信息.json",
+        "project_info.json"
+    ]
+    
+    for filename in info_files:
+        if (project_dir / filename).exists():
+            return True
+    
+    # 检查 project_info/ 子目录
+    info_dir = project_dir / "project_info"
+    if info_dir.is_dir():
+        if list(info_dir.glob("*_项目信息*.json")):
+            return True
+    
+    return False
+
+
 def list_user_projects(username: str = None, include_public: bool = True) -> List[dict]:
     """
-    列出用户的所有小说项目
+    列出用户的所有小说项目（仅包含有项目信息文件的目录）
     
     Args:
         username: 用户名，默认当前登录用户
@@ -168,7 +201,7 @@ def list_user_projects(username: str = None, include_public: bool = True) -> Lis
     user_dir = get_user_novel_dir(username, create=False)
     if user_dir.exists():
         for project_dir in user_dir.iterdir():
-            if project_dir.is_dir():
+            if project_dir.is_dir() and _has_project_info_file(project_dir):
                 title = _restore_filename(project_dir.name)
                 projects.append({
                     'title': title,
@@ -187,7 +220,7 @@ def list_user_projects(username: str = None, include_public: bool = True) -> Lis
                 
                 owner = user_dir.name
                 for project_dir in user_dir.iterdir():
-                    if project_dir.is_dir():
+                    if project_dir.is_dir() and _has_project_info_file(project_dir):
                         title = _restore_filename(project_dir.name)
                         if title not in seen_titles:
                             projects.append({
@@ -203,7 +236,7 @@ def list_user_projects(username: str = None, include_public: bool = True) -> Lis
         public_dir = get_public_projects_dir(create=False)
         if public_dir.exists():
             for project_dir in public_dir.iterdir():
-                if project_dir.is_dir():
+                if project_dir.is_dir() and _has_project_info_file(project_dir):
                     title = _restore_filename(project_dir.name)
                     if title not in seen_titles:
                         projects.append({
