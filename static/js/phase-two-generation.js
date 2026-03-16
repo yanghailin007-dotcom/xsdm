@@ -616,6 +616,9 @@ async function selectProject(projectTitle, clickedElement = null) {
         showCreativeEnhancement();
         showGenerationForm();
         
+        // 🔥 显示右侧面板引导气泡（首次选择项目时）
+        showPanelGuideHint();
+        
         addLogEntry('info', `选择项目: ${projectTitle}`);
         showStatusMessage(`✅ 已选择项目: ${projectTitle}`, 'success');
     } catch (error) {
@@ -965,6 +968,27 @@ function calculateTotalWords(chapters) {
         }
     }
     return totalWords.toLocaleString();
+}
+
+// 🔥 新增：显示右侧面板引导气泡（用户选择项目后）
+function showPanelGuideHint() {
+    const guideHint = document.getElementById('panel-guide-hint');
+    const rightPanel = document.getElementById('right-panel');
+    
+    // 如果引导提示存在，且右侧面板未打开，则显示引导
+    if (guideHint && rightPanel && !rightPanel.classList.contains('pt-right-panel--open')) {
+        guideHint.style.display = 'block';
+        console.log('[DEBUG] 显示右侧面板引导气泡');
+    }
+}
+
+// 🔥 新增：隐藏右侧面板引导气泡（用户打开面板后）
+function hidePanelGuideHint() {
+    const guideHint = document.getElementById('panel-guide-hint');
+    if (guideHint) {
+        guideHint.style.display = 'none';
+        console.log('[DEBUG] 隐藏右侧面板引导气泡');
+    }
 }
 
 function showCreativeEnhancement() {
