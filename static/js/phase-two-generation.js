@@ -885,12 +885,15 @@ function displayProjectDetails(projectData) {
         }
     }
     
+    // 🔥 修复：使用 white-space: pre-wrap 保留换行格式，与番茄上传格式一致
     let html = `
         <div class="result-item" style="background: rgba(99, 102, 241, 0.05); border: 1px solid rgba(99, 102, 241, 0.2); border-radius: 12px; padding: 16px; margin-bottom: 16px;">
             <h4 style="margin: 0 0 12px 0; color: #a78bfa; font-size: 14px; font-weight: 600;">📋 项目信息</h4>
             <p style="margin: 8px 0; color: #fff; font-size: 13px;"><strong style="color: rgba(255,255,255,0.6);">标题:</strong> ${novelTitle}</p>
-            <p style="margin: 8px 0; color: rgba(255,255,255,0.8); font-size: 13px; line-height: 1.6;"><strong style="color: rgba(255,255,255,0.6);">简介:</strong> ${synopsis}</p>
-            <p style="margin: 8px 0; color: rgba(255,255,255,0.8); font-size: 13px; line-height: 1.6;"><strong style="color: rgba(255,255,255,0.6);">核心设定:</strong> ${setting}</p>
+            <p style="margin: 8px 0; color: rgba(255,255,255,0.8); font-size: 13px; line-height: 1.6;"><strong style="color: rgba(255,255,255,0.6);">简介:</strong></p>
+            <div style="margin: 8px 0; color: rgba(255,255,255,0.8); font-size: 13px; line-height: 1.8; white-space: pre-wrap; word-wrap: break-word; padding: 8px 12px; background: rgba(0,0,0,0.2); border-radius: 6px;">${synopsis}</div>
+            <p style="margin: 8px 0; color: rgba(255,255,255,0.8); font-size: 13px; line-height: 1.6;"><strong style="color: rgba(255,255,255,0.6);">核心设定:</strong></p>
+            <div style="margin: 8px 0; color: rgba(255,255,255,0.8); font-size: 13px; line-height: 1.8; white-space: pre-wrap; word-wrap: break-word; padding: 8px 12px; background: rgba(0,0,0,0.2); border-radius: 6px;">${setting}</div>
         </div>
     `;
     
