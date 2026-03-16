@@ -513,6 +513,13 @@ def register_page_routes(app):
         logger.info("📄 Loading project-management-v2.html (V2 UI - 默认)")
         return render_template('pages/v2/project-management-v2.html')
     
+    @app.route('/model-config', methods=['GET'])
+    @login_required
+    def model_config():
+        """模型配置页面 - V2 UI"""
+        logger.info("📄 Loading model-config-v2.html")
+        return render_template('pages/v2/model-config-v2.html')
+    
     @app.route('/storyline', methods=['GET'])
     @login_required
     def storyline_view():

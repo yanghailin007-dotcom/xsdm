@@ -1,0 +1,643 @@
+{#
+    模型配置页面 V2
+    展示各API端点的模型配置、优先级、折扣率等信息
+#}
+{% extends "layouts/base-v2.html" %}
+
+{% block title %}模型配置 - 大文娱系统{% endblock %}
+
+{% block extra_css %}
+<style>
+    /* 模型配置页面特定样式 */
+    .model-config-container {
+        max-width: 1400px;
+        margin: 0 auto;
+        padding: 80px 24px 40px;
+    }
+    
+    /* 页面头部 */
+    .model-config-header {
+        text-align: center;
+        padding: 40px 0 32px;
+    }
+    
+    .model-config-header__badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        padding: 6px 14px;
+        background: var(--v2-bg-tertiary);
+        border: 1px solid var(--v2-border-default);
+        border-radius: 20px;
+        font-size: 13px;
+        color: var(--v2-text-secondary);
+        margin-bottom: 16px;
+    }
+    
+    .model-config-header__title {
+        font-size: 32px;
+        font-weight: 700;
+        background: linear-gradient(135deg, #fafafa 0%, #a78bfa 50%, #6366f1 100%);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        background-clip: text;
+        margin-bottom: 8px;
+    }
+    
+    .model-config-header__subtitle {
+        font-size: 16px;
+        color: var(--v2-text-secondary);
+    }
+    
+    /* 提供商标签页 */
+    .provider-tabs {
+        display: flex;
+        gap: 8px;
+        margin-bottom: 32px;
+        padding: 4px;
+        background: var(--v2-bg-secondary);
+        border: 1px solid var(--v2-border-subtle);
+        border-radius: 12px;
+        width: fit-content;
+    }
+    
+    .provider-tab {
+        padding: 10px 20px;
+        border-radius: 8px;
+        font-size: 14px;
+        font-weight: 500;
+        color: var(--v2-text-secondary);
+        cursor: pointer;
+        transition: all 0.2s ease;
+        border: none;
+        background: transparent;
+    }
+    
+    .provider-tab:hover {
+        color: var(--v2-text-primary);
+        background: rgba(255, 255, 255, 0.05);
+    }
+    
+    .provider-tab.active {
+        background: linear-gradient(135deg, rgba(99, 102, 241, 0.2), rgba(139, 92, 246, 0.2));
+        color: var(--v2-text-primary);
+        border: 1px solid rgba(99, 102, 241, 0.3);
+    }
+    
+    /* 模型卡片网格 */
+    .model-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(380px, 1fr));
+        gap: 20px;
+    }
+    
+    @media (max-width: 768px) {
+        .model-grid {
+            grid-template-columns: 1fr;
+        }
+    }
+    
+    /* 模型卡片 */
+    .model-card {
+        background: var(--v2-bg-secondary);
+        border: 1px solid var(--v2-border-subtle);
+        border-radius: 16px;
+        padding: 24px;
+        transition: all 0.3s ease;
+        position: relative;
+        overflow: hidden;
+    }
+    
+    .model-card:hover {
+        border-color: var(--v2-border-hover);
+        transform: translateY(-2px);
+        box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+    }
+    
+    .model-card::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        height: 3px;
+        background: linear-gradient(90deg, transparent, var(--card-accent, #6366f1), transparent);
+        opacity: 0;
+        transition: opacity 0.3s ease;
+    }
+    
+    .model-card:hover::before {
+        opacity: 1;
+    }
+    
+    /* 卡片头部 */
+    .model-card__header {
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+        margin-bottom: 16px;
+    }
+    
+    .model-card__title-section {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+    }
+    
+    .model-card__icon {
+        width: 48px;
+        height: 48px;
+        border-radius: 12px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 24px;
+        background: linear-gradient(135deg, var(--card-accent, rgba(99, 102, 241, 0.2)), transparent);
+        border: 1px solid rgba(255, 255, 255, 0.1);
+    }
+    
+    .model-card__name {
+        font-size: 18px;
+        font-weight: 700;
+        color: var(--v2-text-primary);
+        margin-bottom: 4px;
+    }
+    
+    .model-card__provider {
+        font-size: 13px;
+        color: var(--v2-text-tertiary);
+    }
+    
+    /* 折扣标签 */
+    .model-card__discount {
+        padding: 6px 12px;
+        border-radius: 20px;
+        font-size: 13px;
+        font-weight: 600;
+        background: var(--discount-bg, rgba(239, 68, 68, 0.15));
+        color: var(--discount-color, #f87171);
+        border: 1px solid var(--discount-border, rgba(239, 68, 68, 0.3));
+    }
+    
+    .model-card__discount--low {
+        --discount-bg: rgba(16, 185, 129, 0.15);
+        --discount-color: #34d399;
+        --discount-border: rgba(16, 185, 129, 0.3);
+    }
+    
+    .model-card__discount--medium {
+        --discount-bg: rgba(245, 158, 11, 0.15);
+        --discount-color: #fbbf24;
+        --discount-border: rgba(245, 158, 11, 0.3);
+    }
+    
+    .model-card__discount--high {
+        --discount-bg: rgba(239, 68, 68, 0.15);
+        --discount-color: #f87171;
+        --discount-border: rgba(239, 68, 68, 0.3);
+    }
+    
+    /* 模型信息 */
+    .model-card__info {
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+        margin-bottom: 16px;
+        padding: 16px;
+        background: rgba(0, 0, 0, 0.2);
+        border-radius: 12px;
+    }
+    
+    .model-info-row {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        font-size: 13px;
+    }
+    
+    .model-info-label {
+        color: var(--v2-text-tertiary);
+    }
+    
+    .model-info-value {
+        color: var(--v2-text-primary);
+        font-weight: 500;
+        font-family: 'JetBrains Mono', monospace;
+    }
+    
+    /* 优先级指示器 */
+    .priority-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+        padding: 4px 10px;
+        border-radius: 6px;
+        font-size: 12px;
+        font-weight: 600;
+    }
+    
+    .priority-badge--high {
+        background: rgba(16, 185, 129, 0.15);
+        color: #34d399;
+    }
+    
+    .priority-badge--medium {
+        background: rgba(245, 158, 11, 0.15);
+        color: #fbbf24;
+    }
+    
+    .priority-badge--low {
+        background: rgba(99, 102, 241, 0.15);
+        color: #818cf8;
+    }
+    
+    /* 优劣势 */
+    .model-card__features {
+        margin-bottom: 16px;
+    }
+    
+    .feature-section {
+        margin-bottom: 12px;
+    }
+    
+    .feature-section:last-child {
+        margin-bottom: 0;
+    }
+    
+    .feature-title {
+        font-size: 12px;
+        font-weight: 600;
+        color: var(--v2-text-secondary);
+        margin-bottom: 6px;
+        display: flex;
+        align-items: center;
+        gap: 6px;
+    }
+    
+    .feature-title--pro {
+        color: #34d399;
+    }
+    
+    .feature-title--con {
+        color: #f87171;
+    }
+    
+    .feature-list {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px;
+    }
+    
+    .feature-tag {
+        padding: 4px 10px;
+        border-radius: 6px;
+        font-size: 12px;
+        background: rgba(255, 255, 255, 0.05);
+        color: var(--v2-text-secondary);
+        border: 1px solid rgba(255, 255, 255, 0.08);
+    }
+    
+    .feature-tag--pro {
+        background: rgba(16, 185, 129, 0.1);
+        color: #34d399;
+        border-color: rgba(16, 185, 129, 0.2);
+    }
+    
+    .feature-tag--con {
+        background: rgba(239, 68, 68, 0.1);
+        color: #f87171;
+        border-color: rgba(239, 68, 68, 0.2);
+    }
+    
+    /* 状态标签 */
+    .model-card__footer {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding-top: 16px;
+        border-top: 1px solid rgba(255, 255, 255, 0.06);
+    }
+    
+    .status-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        padding: 6px 12px;
+        border-radius: 20px;
+        font-size: 12px;
+        font-weight: 500;
+    }
+    
+    .status-badge--enabled {
+        background: rgba(16, 185, 129, 0.15);
+        color: #34d399;
+    }
+    
+    .status-badge--disabled {
+        background: rgba(100, 116, 139, 0.15);
+        color: #94a3b8;
+    }
+    
+    .status-dot {
+        width: 6px;
+        height: 6px;
+        border-radius: 50%;
+        background: currentColor;
+    }
+    
+    /* 配置提示 */
+    .config-notice {
+        background: linear-gradient(135deg, rgba(99, 102, 241, 0.1), rgba(139, 92, 246, 0.1));
+        border: 1px solid rgba(99, 102, 241, 0.2);
+        border-radius: 12px;
+        padding: 16px 20px;
+        margin-bottom: 24px;
+        display: flex;
+        align-items: center;
+        gap: 12px;
+    }
+    
+    .config-notice__icon {
+        font-size: 20px;
+    }
+    
+    .config-notice__text {
+        font-size: 14px;
+        color: var(--v2-text-secondary);
+    }
+    
+    /* 端点特定颜色 */
+    .model-card[data-endpoint="lemon-api"] { --card-accent: #6366f1; }
+    .model-card[data-endpoint="aiberm"] { --card-accent: #f59e0b; }
+    .model-card[data-endpoint="xiaochuang-backup"] { --card-accent: #10b981; }
+    .model-card[data-endpoint="deepseek-official"] { --card-accent: #3b82f6; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="model-config-container">
+    <!-- 页面头部 -->
+    <div class="model-config-header">
+        <div class="model-config-header__badge">
+            <span>⚙️</span>
+            <span>系统配置</span>
+        </div>
+        <h1 class="model-config-header__title">模型配置</h1>
+        <p class="model-config-header__subtitle">查看各API端点的模型优先级、折扣率及性能特点</p>
+    </div>
+    
+    <!-- 配置提示 -->
+    <div class="config-notice">
+        <span class="config-notice__icon">💡</span>
+        <span class="config-notice__text">折扣率表示API调用消耗倍率，100%为标准消耗，数值越高消耗越多</span>
+    </div>
+    
+    <!-- 提供商标签页 -->
+    <div class="provider-tabs">
+        <button class="provider-tab active" data-provider="gemini">Gemini 系列</button>
+        <button class="provider-tab" data-provider="deepseek">DeepSeek 系列</button>
+    </div>
+    
+    <!-- Gemini 模型卡片 -->
+    <div id="gemini-models" class="model-grid">
+        <!-- Lemon API -->
+        <div class="model-card" data-endpoint="lemon-api">
+            <div class="model-card__header">
+                <div class="model-card__title-section">
+                    <div class="model-card__icon">🍋</div>
+                    <div>
+                        <div class="model-card__name">Lemon API</div>
+                        <div class="model-card__provider">new.lemonapi.site</div>
+                    </div>
+                </div>
+                <div class="model-card__discount model-card__discount--low">800%</div>
+            </div>
+            
+            <div class="model-card__info">
+                <div class="model-info-row">
+                    <span class="model-info-label">主模型</span>
+                    <span class="model-info-value">[L]gemini-3.1-pro-preview</span>
+                </div>
+                <div class="model-info-row">
+                    <span class="model-info-label">评估模型</span>
+                    <span class="model-info-value">[L]gemini-2.5-flash</span>
+                </div>
+                <div class="model-info-row">
+                    <span class="model-info-label">优先级</span>
+                    <span class="priority-badge priority-badge--high">🔥 最高 (3)</span>
+                </div>
+            </div>
+            
+            <div class="model-card__features">
+                <div class="feature-section">
+                    <div class="feature-title feature-title--pro">✅ 优势</div>
+                    <div class="feature-list">
+                        <span class="feature-tag feature-tag--pro">响应快 ~10s</span>
+                        <span class="feature-tag feature-tag--pro">质量稳定</span>
+                        <span class="feature-tag feature-tag--pro">主用推荐</span>
+                    </div>
+                </div>
+                <div class="feature-section">
+                    <div class="feature-title feature-title--con">⚠️ 注意</div>
+                    <div class="feature-list">
+                        <span class="feature-tag feature-tag--con">高消耗 800%</span>
+                        <span class="feature-tag feature-tag--con">需[L]前缀</span>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="model-card__footer">
+                <span class="status-badge status-badge--enabled">
+                    <span class="status-dot"></span>
+                    已启用
+                </span>
+                <span style="font-size: 12px; color: var(--v2-text-tertiary);">超时: 300s</span>
+            </div>
+        </div>
+        
+        <!-- Aiberm API -->
+        <div class="model-card" data-endpoint="aiberm">
+            <div class="model-card__header">
+                <div class="model-card__title-section">
+                    <div class="model-card__icon">🟡</div>
+                    <div>
+                        <div class="model-card__name">Aiberm API</div>
+                        <div class="model-card__provider">aiberm.com</div>
+                    </div>
+                </div>
+                <div class="model-card__discount model-card__discount--medium">150%</div>
+            </div>
+            
+            <div class="model-card__info">
+                <div class="model-info-row">
+                    <span class="model-info-label">主模型</span>
+                    <span class="model-info-value">google/gemini-3-flash</span>
+                </div>
+                <div class="model-info-row">
+                    <span class="model-info-label">评估模型</span>
+                    <span class="model-info-value">google/gemini-2.5-flash</span>
+                </div>
+                <div class="model-info-row">
+                    <span class="model-info-label">优先级</span>
+                    <span class="priority-badge priority-badge--low">低 (1)</span>
+                </div>
+            </div>
+            
+            <div class="model-card__features">
+                <div class="feature-section">
+                    <div class="feature-title feature-title--pro">✅ 优势</div>
+                    <div class="feature-list">
+                        <span class="feature-tag feature-tag--pro">字数达标率高</span>
+                        <span class="feature-tag feature-tag--pro">消耗适中</span>
+                        <span class="feature-tag feature-tag--pro">强力模型</span>
+                    </div>
+                </div>
+                <div class="feature-section">
+                    <div class="feature-title feature-title--con">⚠️ 注意</div>
+                    <div class="feature-list">
+                        <span class="feature-tag feature-tag--con">备用端点</span>
+                        <span class="feature-tag feature-tag--con">可能冷启动</span>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="model-card__footer">
+                <span class="status-badge status-badge--enabled">
+                    <span class="status-dot"></span>
+                    已启用
+                </span>
+                <span style="font-size: 12px; color: var(--v2-text-tertiary);">超时: 300s</span>
+            </div>
+        </div>
+        
+        <!-- 小创 API -->
+        <div class="model-card" data-endpoint="xiaochuang-backup">
+            <div class="model-card__header">
+                <div class="model-card__title-section">
+                    <div class="model-card__icon">✨</div>
+                    <div>
+                        <div class="model-card__name">小创 API</div>
+                        <div class="model-card__provider">newapi.xiaochuang.cc</div>
+                    </div>
+                </div>
+                <div class="model-card__discount model-card__discount--low">100%</div>
+            </div>
+            
+            <div class="model-card__info">
+                <div class="model-info-row">
+                    <span class="model-info-label">主模型</span>
+                    <span class="model-info-value">gemini-3-pro-preview</span>
+                </div>
+                <div class="model-info-row">
+                    <span class="model-info-label">评估模型</span>
+                    <span class="model-info-value">gemini-2.5-flash</span>
+                </div>
+                <div class="model-info-row">
+                    <span class="model-info-label">优先级</span>
+                    <span class="priority-badge priority-badge--medium">中 (2)</span>
+                </div>
+            </div>
+            
+            <div class="model-card__features">
+                <div class="feature-section">
+                    <div class="feature-title feature-title--pro">✅ 优势</div>
+                    <div class="feature-list">
+                        <span class="feature-tag feature-tag--pro">标准消耗 100%</span>
+                        <span class="feature-tag feature-tag--pro">无需前缀</span>
+                        <span class="feature-tag feature-tag--pro">性价比高</span>
+                    </div>
+                </div>
+                <div class="feature-section">
+                    <div class="feature-title feature-title--con">⚠️ 注意</div>
+                    <div class="feature-list">
+                        <span class="feature-tag feature-tag--con">备用端点</span>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="model-card__footer">
+                <span class="status-badge status-badge--enabled">
+                    <span class="status-dot"></span>
+                    已启用
+                </span>
+                <span style="font-size: 12px; color: var(--v2-text-tertiary);">超时: 300s</span>
+            </div>
+        </div>
+    </div>
+    
+    <!-- DeepSeek 模型卡片 (默认隐藏) -->
+    <div id="deepseek-models" class="model-grid" style="display: none;">
+        <!-- DeepSeek Official -->
+        <div class="model-card" data-endpoint="deepseek-official">
+            <div class="model-card__header">
+                <div class="model-card__title-section">
+                    <div class="model-card__icon">🐋</div>
+                    <div>
+                        <div class="model-card__name">DeepSeek Official</div>
+                        <div class="model-card__provider">api.deepseek.com</div>
+                    </div>
+                </div>
+                <div class="model-card__discount model-card__discount--low">100%</div>
+            </div>
+            
+            <div class="model-card__info">
+                <div class="model-info-row">
+                    <span class="model-info-label">主模型</span>
+                    <span class="model-info-value">deepseek-reasoner</span>
+                </div>
+                <div class="model-info-row">
+                    <span class="model-info-label">优先级</span>
+                    <span class="priority-badge priority-badge--high">高 (1)</span>
+                </div>
+            </div>
+            
+            <div class="model-card__features">
+                <div class="feature-section">
+                    <div class="feature-title feature-title--pro">✅ 优势</div>
+                    <div class="feature-list">
+                        <span class="feature-tag feature-tag--pro">推理能力强</span>
+                        <span class="feature-tag feature-tag--pro">官方稳定</span>
+                        <span class="feature-tag feature-tag--pro">标准消耗</span>
+                    </div>
+                </div>
+                <div class="feature-section">
+                    <div class="feature-title feature-title--con">⚠️ 注意</div>
+                    <div class="feature-list">
+                        <span class="feature-tag feature-tag--con">响应较慢</span>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="model-card__footer">
+                <span class="status-badge status-badge--enabled">
+                    <span class="status-dot"></span>
+                    已启用
+                </span>
+                <span style="font-size: 12px; color: var(--v2-text-tertiary);">超时: 120s</span>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    // 标签页切换
+    document.querySelectorAll('.provider-tab').forEach(tab => {
+        tab.addEventListener('click', () => {
+            const provider = tab.dataset.provider;
+            
+            // 更新标签状态
+            document.querySelectorAll('.provider-tab').forEach(t => t.classList.remove('active'));
+            tab.classList.add('active');
+            
+            // 切换显示
+            if (provider === 'gemini') {
+                document.getElementById('gemini-models').style.display = 'grid';
+                document.getElementById('deepseek-models').style.display = 'none';
+            } else {
+                document.getElementById('gemini-models').style.display = 'none';
+                document.getElementById('deepseek-models').style.display = 'grid';
+            }
+        });
+    });
+</script>
+{% endblock %}
