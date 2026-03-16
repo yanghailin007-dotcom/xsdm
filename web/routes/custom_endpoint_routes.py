@@ -168,6 +168,34 @@ def toggle_endpoint(name):
         }), 500
 
 
+@custom_endpoint_bp.route('/<name>/priority', methods=['PUT'])
+@login_required
+def update_custom_endpoint_priority(name):
+    """更新自定义端点优先级"""
+    try:
+        data = request.get_json()
+        priority = data.get('priority')
+        
+        if priority is None:
+            return jsonify({'success': False, 'error': '缺少优先级参数'}), 400
+        
+        # 限制范围 1-5
+        priority = max(1, min(5, int(priority)))
+        
+        success, message = custom_endpoint_manager.update_endpoint(name, {'priority': priority})
+        
+        if success:
+            return jsonify({
+                'success': True, 
+                'message': f'端点 {name} 优先级已设置为 {priority}'
+            })
+        else:
+            return jsonify({'success': False, 'error': message}), 400
+            
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
 def register_custom_endpoint_routes(app):
     """注册自定义端点路由"""
     app.register_blueprint(custom_endpoint_bp)

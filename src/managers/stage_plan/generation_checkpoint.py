@@ -316,19 +316,29 @@ class GenerationCheckpoint:
         
         phase_info = self.PHASES.get(checkpoint['phase'], {})
         steps = phase_info.get('steps', [])
-        current_index = steps.index(checkpoint['current_step']) if checkpoint['current_step'] in steps else 0
+        current_step = checkpoint['current_step']
+        current_index = steps.index(current_step) if current_step in steps else 0
+        
+        # 🔥 修复：计算完成的步骤数
+        # 如果当前步骤状态是 completed，则完成步骤数 = 当前索引 + 1
+        # 否则，完成步骤数 = 当前索引（假设之前的步骤都已完成）
+        step_status = checkpoint.get('step_status', 'unknown')
+        if step_status == 'completed':
+            completed_steps = current_index + 1
+        else:
+            completed_steps = current_index
         
         return {
             'novel_title': checkpoint['novel_title'],
             'phase': checkpoint['phase'],
             'phase_name': phase_info.get('name', checkpoint['phase']),
-            'current_step': checkpoint['current_step'],
+            'current_step': current_step,
             'current_step_index': current_index,
             'total_steps': len(steps),
-            'completed_steps': current_index,
-            'remaining_steps': len(steps) - current_index,
+            'completed_steps': completed_steps,
+            'remaining_steps': len(steps) - completed_steps,
             'timestamp': checkpoint['timestamp'],
-            'progress_percentage': round((current_index / len(steps)) * 100, 1) if steps else 0,
+            'progress_percentage': round((completed_steps / len(steps)) * 100, 1) if steps else 0,
             'data': checkpoint.get('data', {})
         }
     

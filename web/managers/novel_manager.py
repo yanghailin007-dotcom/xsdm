@@ -466,18 +466,20 @@ class NovelGenerationManager:
             self.task_results[task_id]["current_step"] = current_step
             self.task_progress[task_id]["current_step"] = current_step
             
-            # 🔥 基于 14 个标准步骤重新计算进度百分比（支持子步骤细粒度进度）
+            # 🔥 基于 15 个标准步骤重新计算进度百分比（支持子步骤细粒度进度）
+            # 注：与 GenerationCheckpoint.PHASES['phase_one']['steps'] 保持一致
             phase_one_steps = [
-                'creative_refinement',      # 1. 创意精炼
-                'fanfiction_detection',     # 2. 同人检测
-                'multiple_plans',           # 3. 生成多个方案
-                'plan_selection',           # 4. 选择最佳方案
-                'foundation_planning',      # 5. 基础规划（写作风格+市场分析）
-                'worldview_with_factions',  # 6. 世界观与势力系统
-                'character_design',         # 7. 核心角色设计
-                'emotional_growth_planning', # 8. 情绪蓝图与成长规划
-                'stage_plan',               # 9. 全书阶段计划
-                'detailed_stage_plans',     # 10. 阶段详细计划
+                'creative_refinement',      # 0. 创意精炼
+                'fanfiction_detection',     # 1. 同人检测
+                'multiple_plans',           # 2. 生成多个方案
+                'plan_selection',           # 3. 选择最佳方案
+                'foundation_planning',      # 4. 基础规划（写作风格+市场分析）
+                'worldview_with_factions',  # 5. 世界观与势力系统
+                'character_design',         # 6. 核心角色设计
+                'emotional_growth_planning', # 7. 情绪蓝图与成长规划
+                'stage_plan',               # 8. 全书阶段计划
+                'detailed_stage_plans',     # 9. 阶段详细计划
+                'supplementary_characters', # 10. 全书补充角色
                 'expectation_mapping',      # 11. 期待感映射
                 'system_init',              # 12. 系统初始化
                 'saving',                   # 13. 保存设定结果
@@ -600,13 +602,24 @@ class NovelGenerationManager:
         log_progress = progress if progress is not None else self.task_results[task_id].get("progress", 0)
         logger.info(f"任务 {task_id}: 进度更新 {log_progress}% - 当前步骤: {current_step}")
         
+        # 🔥 新增：如果任务已完成，删除检查点
+        if status == "completed" and self.checkpoint_enabled:
+            try:
+                title = self.task_results[task_id].get("title") or self.task_results[task_id].get("novel_title")
+                if title:
+                    self._complete_checkpoint(title)
+                    logger.info(f"[CHECKPOINT] 任务完成，已删除检查点: {title}")
+            except Exception as e:
+                logger.warning(f"⚠️ 任务完成时删除检查点失败: {e}")
+        
         # 🔥 新增：同步更新检查点（确保每个步骤变更都保存到检查点）
-        # 🔥 修复：只在14个主要步骤更新检查点，避免子线程频繁写入
+        # 🔥 修复：只在15个主要步骤更新检查点，避免子线程频繁写入
+        # 注：与 GenerationCheckpoint.PHASES['phase_one']['steps'] 保持一致
         MAIN_CHECKPOINT_STEPS = [
             'creative_refinement', 'fanfiction_detection', 'multiple_plans', 'plan_selection',
             'foundation_planning', 'worldview_with_factions', 'character_design',
             'emotional_growth_planning', 'stage_plan', 'detailed_stage_plans',
-            'expectation_mapping', 'system_init', 'saving', 'quality_assessment'
+            'supplementary_characters', 'expectation_mapping', 'system_init', 'saving', 'quality_assessment'
         ]
         
         if self.checkpoint_enabled and current_step and current_step in MAIN_CHECKPOINT_STEPS:

@@ -46,6 +46,9 @@ class APIEndpoint:
     # 模型级别的统计
     model_failures: Dict[str, int] = field(default_factory=dict)  # 每个模型的失败次数
     
+    # 🔥 新增：折扣率（百分比），默认100%
+    discount_rate: int = 100  # 100 = 标准价格，80 = 8折，50 = 5折
+    
     def __post_init__(self):
         self.logger = get_logger(f"APIEndpoint-{self.name}")
         # 确保主模型在模型列表中
@@ -193,7 +196,8 @@ class APIEndpointPool:
                 enabled=config.get("enabled", True),
                 timeout=config.get("timeout", 120),
                 max_retries=config.get("max_retries", 3),
-                models=models  # 🔥 传入所有模型
+                models=models,  # 🔥 传入所有模型
+                discount_rate=config.get("discount_rate", 100)  # 🔥 折扣率，默认100%
             )
             self.endpoints.append(endpoint)
             self.logger.info(f"添加端点: {endpoint}，模型列表: {models}")

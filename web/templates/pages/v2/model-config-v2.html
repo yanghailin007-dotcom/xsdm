@@ -652,6 +652,47 @@
         margin-bottom: 8px;
     }
     
+    /* 优先级调整控件 */
+    .priority-control {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+    
+    .priority-btn {
+        width: 28px;
+        height: 28px;
+        border: 1px solid var(--v2-border-default);
+        background: rgba(255, 255, 255, 0.05);
+        border-radius: 6px;
+        color: var(--v2-text-secondary);
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 16px;
+        transition: all 0.2s;
+    }
+    
+    .priority-btn:hover {
+        background: rgba(99, 102, 241, 0.2);
+        border-color: rgba(99, 102, 241, 0.5);
+        color: var(--v2-text-primary);
+    }
+    
+    .priority-btn:disabled {
+        opacity: 0.3;
+        cursor: not-allowed;
+    }
+    
+    .priority-value {
+        min-width: 24px;
+        text-align: center;
+        font-weight: 600;
+        font-size: 14px;
+        color: var(--v2-text-primary);
+    }
+    
     /* 标签列表输入 */
     .tag-input {
         display: flex;
@@ -740,7 +781,7 @@
                         <div class="model-card__provider">new.lemonapi.site</div>
                     </div>
                 </div>
-                <div class="model-card__discount model-card__discount--low">800%</div>
+                <div class="model-card__discount model-card__discount--medium">80%</div>
             </div>
             
             <div class="model-card__info">
@@ -754,7 +795,11 @@
                 </div>
                 <div class="model-info-row">
                     <span class="model-info-label">优先级</span>
-                    <span class="priority-badge priority-badge--high">🔥 最高 (3)</span>
+                    <div class="priority-control">
+                        <button class="priority-btn" onclick="adjustPriority('lemon-api', -1)">-</button>
+                        <span class="priority-value" id="priority-lemon-api">3</span>
+                        <button class="priority-btn" onclick="adjustPriority('lemon-api', 1)">+</button>
+                    </div>
                 </div>
             </div>
             
@@ -762,16 +807,16 @@
                 <div class="feature-section">
                     <div class="feature-title feature-title--pro">✅ 优势</div>
                     <div class="feature-list">
-                        <span class="feature-tag feature-tag--pro">响应快 ~10s</span>
+                        <span class="feature-tag feature-tag--pro">模型强力 3.1 Pro</span>
                         <span class="feature-tag feature-tag--pro">质量稳定</span>
-                        <span class="feature-tag feature-tag--pro">主用推荐</span>
                     </div>
                 </div>
                 <div class="feature-section">
                     <div class="feature-title feature-title--con">⚠️ 注意</div>
                     <div class="feature-list">
-                        <span class="feature-tag feature-tag--con">高消耗 800%</span>
+                        <span class="feature-tag feature-tag--con">速度较慢</span>
                         <span class="feature-tag feature-tag--con">需[L]前缀</span>
+                        <span class="feature-tag feature-tag--con">优先级较低</span>
                     </div>
                 </div>
             </div>
@@ -809,7 +854,11 @@
                 </div>
                 <div class="model-info-row">
                     <span class="model-info-label">优先级</span>
-                    <span class="priority-badge priority-badge--low">低 (1)</span>
+                    <div class="priority-control">
+                        <button class="priority-btn" onclick="adjustPriority('aiberm', -1)">-</button>
+                        <span class="priority-value" id="priority-aiberm">1</span>
+                        <button class="priority-btn" onclick="adjustPriority('aiberm', 1)">+</button>
+                    </div>
                 </div>
             </div>
             
@@ -820,12 +869,12 @@
                         <span class="feature-tag feature-tag--pro">字数达标率高</span>
                         <span class="feature-tag feature-tag--pro">消耗适中</span>
                         <span class="feature-tag feature-tag--pro">强力模型</span>
+                        <span class="feature-tag feature-tag--pro">主用推荐</span>
                     </div>
                 </div>
                 <div class="feature-section">
                     <div class="feature-title feature-title--con">⚠️ 注意</div>
                     <div class="feature-list">
-                        <span class="feature-tag feature-tag--con">备用端点</span>
                         <span class="feature-tag feature-tag--con">可能冷启动</span>
                     </div>
                 </div>
@@ -864,7 +913,11 @@
                 </div>
                 <div class="model-info-row">
                     <span class="model-info-label">优先级</span>
-                    <span class="priority-badge priority-badge--medium">中 (2)</span>
+                    <div class="priority-control">
+                        <button class="priority-btn" onclick="adjustPriority('xiaochuang-backup', -1)">-</button>
+                        <span class="priority-value" id="priority-xiaochuang-backup">2</span>
+                        <button class="priority-btn" onclick="adjustPriority('xiaochuang-backup', 1)">+</button>
+                    </div>
                 </div>
             </div>
             
@@ -917,7 +970,11 @@
                 </div>
                 <div class="model-info-row">
                     <span class="model-info-label">优先级</span>
-                    <span class="priority-badge priority-badge--high">高 (1)</span>
+                    <div class="priority-control">
+                        <button class="priority-btn" onclick="adjustPriority('deepseek-official', -1)">-</button>
+                        <span class="priority-value" id="priority-deepseek-official">1</span>
+                        <button class="priority-btn" onclick="adjustPriority('deepseek-official', 1)">+</button>
+                    </div>
                 </div>
             </div>
             
@@ -1154,7 +1211,11 @@
                     </div>
                     <div class="model-info-row">
                         <span class="model-info-label">优先级</span>
-                        <span class="priority-badge priority-badge--medium">中 (${ep.priority || 1})</span>
+                        <div class="priority-control">
+                            <button class="priority-btn" onclick="adjustPriority('${ep.name}', -1)">-</button>
+                            <span class="priority-value" id="priority-${ep.name}">${ep.priority || 1}</span>
+                            <button class="priority-btn" onclick="adjustPriority('${ep.name}', 1)">+</button>
+                        </div>
                     </div>
                 </div>
                 
@@ -1371,6 +1432,106 @@
     }
     
     // Toast提示
+    // 优先级调整（数字越小优先级越高：1=最高，5=最低）
+    const endpointPriorities = {
+        'lemon-api': 3,        // 低优先级
+        'aiberm': 1,           // 最高优先级
+        'xiaochuang-backup': 2, // 中等优先级
+        'deepseek-official': 1  // 最高优先级
+    };
+    
+    function adjustPriority(endpointName, delta) {
+        const currentValue = document.getElementById(`priority-${endpointName}`);
+        if (!currentValue) return;
+        
+        let newPriority = parseInt(currentValue.textContent) + delta;
+        // 限制范围 1-5
+        newPriority = Math.max(1, Math.min(5, newPriority));
+        
+        endpointPriorities[endpointName] = newPriority;
+        currentValue.textContent = newPriority;
+        
+        // 发送到服务器保存
+        savePriority(endpointName, newPriority);
+    }
+    
+    async function savePriority(endpointName, priority) {
+        try {
+            // 判断是内置端点还是自定义端点
+            const isBuiltin = ['lemon-api', 'aiberm', 'xiaochuang-backup', 'deepseek-official'].includes(endpointName);
+            
+            let url, method, body;
+            if (isBuiltin) {
+                // 内置端点使用通用优先级API
+                url = '/api/endpoint-priority';
+                method = 'POST';
+                body = JSON.stringify({ endpoint: endpointName, priority: priority });
+            } else {
+                // 自定义端点使用专用API
+                url = `/api/custom-endpoints/${encodeURIComponent(endpointName)}/priority`;
+                method = 'PUT';
+                body = JSON.stringify({ priority: priority });
+            }
+            
+            const response = await fetch(url, {
+                method: method,
+                headers: { 'Content-Type': 'application/json' },
+                body: body
+            });
+            
+            if (response.ok) {
+                showToast(`优先级已调整为 ${priority}`);
+            } else {
+                showToast('保存失败，刷新后重试', 'error');
+            }
+        } catch (error) {
+            console.error('保存优先级失败:', error);
+            // 本地保存作为后备
+            localStorage.setItem(`priority_${endpointName}`, priority);
+            showToast(`优先级已调整为 ${priority}（本地）`);
+        }
+    }
+    
+    // 加载保存的优先级（仅内置端点使用本地后备）
+    function loadSavedPriorities() {
+        Object.keys(endpointPriorities).forEach(name => {
+            const saved = localStorage.getItem(`priority_${name}`);
+            if (saved) {
+                endpointPriorities[name] = parseInt(saved);
+                const el = document.getElementById(`priority-${name}`);
+                if (el) el.textContent = saved;
+            }
+        });
+    }
+    
+    // 从服务器加载保存的优先级
+    async function loadPrioritiesFromServer() {
+        try {
+            const response = await fetch('/api/endpoint-priority');
+            if (response.ok) {
+                const data = await response.json();
+                if (data.success && data.priorities) {
+                    // 更新内置端点优先级
+                    Object.keys(data.priorities).forEach(name => {
+                        if (endpointPriorities.hasOwnProperty(name)) {
+                            endpointPriorities[name] = data.priorities[name];
+                            const el = document.getElementById(`priority-${name}`);
+                            if (el) el.textContent = data.priorities[name];
+                        }
+                    });
+                }
+            }
+        } catch (error) {
+            console.log('从服务器加载优先级失败，使用本地默认值');
+        }
+    }
+    
+    // 页面加载时还原保存的优先级
+    document.addEventListener('DOMContentLoaded', () => {
+        loadSavedPriorities();
+        loadPrioritiesFromServer();
+    });
+    
     function showToast(message, type = 'success') {
         const toast = document.createElement('div');
         toast.style.cssText = `

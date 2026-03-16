@@ -245,7 +245,7 @@ class CustomEndpointManager:
                 'enabled': True,
                 'timeout': ep.get('timeout', 300),
                 'max_retries': ep.get('max_retries', 3),
-                'discount': ep.get('discount', 50),
+                'discount_rate': ep.get('discount', 50),  # 🔥 使用 discount_rate 字段名
                 'is_custom': True
             })
         return result

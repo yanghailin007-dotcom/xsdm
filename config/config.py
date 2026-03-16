@@ -27,9 +27,10 @@ CONFIG = {
     # 🔥 新的多API端点池配置（推荐）- 支持故障转移和优先级调度
     # ============================================================
     # 测试结果: 2026-03-12
-    # - Lemon API (new.lemonapi.site) 主用 ✅ - 优先级1（最高）
-    # - [L]gemini-3.1-pro-preview: 测试通过，响应时间~10s
-    # - Aiberm API (aiberm.com) 备用 - 优先级2
+    # - 优先级规则：数字越小优先级越高 (1=最高, 5=最低)
+    # - Aiberm API (aiberm.com) 主用 - 优先级1 (最高) ✅
+    # - xiaochuang API 备用 - 优先级2 (中等)
+    # - Lemon API (new.lemonapi.site) 备用 - 优先级3 (较低)
     # - 注意: Lemon API 模型名称需要 [L] 前缀
     # - 建议超时设置: 300秒（5分钟）以应对冷启动
     "api_endpoints": {
@@ -44,7 +45,8 @@ CONFIG = {
                 "priority": 3,                 # ✅ 最高优先级
                 "enabled": True,
                 "timeout": 300,
-                "max_retries": 3
+                "max_retries": 3,
+                "discount_rate": 80          # 🔥 8折优惠
             },
             {
                 "name": "aiberm",              # 🟡 备用：Aiberm API
@@ -55,7 +57,8 @@ CONFIG = {
                 "priority": 1,                  # 优先级1
                 "enabled": True,
                 "timeout": 300,
-                "max_retries": 3
+                "max_retries": 3,
+                "discount_rate": 150          # 🔥 150%消耗（较高成本）
             },
             {
                 "name": "xiaochuang-backup",   # 备用端点：小创 API
@@ -66,7 +69,8 @@ CONFIG = {
                 "priority": 2,                 # 备用优先级
                 "enabled": True,
                 "timeout": 300,
-                "max_retries": 3
+                "max_retries": 3,
+                "discount_rate": 100          # 🔥 标准价格
             }
         ],
         "deepseek": [
@@ -78,7 +82,8 @@ CONFIG = {
                 "priority": 1,
                 "enabled": True,
                 "timeout": 120,
-                "max_retries": 3
+                "max_retries": 3,
+                "discount_rate": 100          # 🔥 标准价格
             }
         ]
     },

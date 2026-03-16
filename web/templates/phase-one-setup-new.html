@@ -1442,6 +1442,224 @@
             }
         }
         
+        // 🔥 V2样式恢复确认弹窗
+        function showResumeConfirmDialog(project) {
+            return new Promise((resolve) => {
+                // 移除已存在的弹窗
+                const existingModal = document.getElementById('resume-confirm-modal');
+                if (existingModal) existingModal.remove();
+                
+                const completedSteps = project.completed_steps || 0;
+                const totalSteps = project.total_steps || 15;
+                const progressPercent = Math.round((completedSteps / totalSteps) * 100);
+                
+                const modal = document.createElement('div');
+                modal.id = 'resume-confirm-modal';
+                modal.innerHTML = `
+                    <div class="v2-dialog-overlay" style="
+                        position: fixed;
+                        top: 0;
+                        left: 0;
+                        right: 0;
+                        bottom: 0;
+                        background: rgba(0, 0, 0, 0.7);
+                        backdrop-filter: blur(12px);
+                        display: flex;
+                        align-items: center;
+                        justify-content: center;
+                        z-index: 99999;
+                        padding: 20px;
+                        animation: fadeIn 0.2s ease;
+                    ">
+                        <div class="v2-dialog-content" style="
+                            background: linear-gradient(145deg, #1e1e2e 0%, #16162a 100%);
+                            border: 1px solid rgba(99, 102, 241, 0.3);
+                            border-radius: 20px;
+                            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.6), 0 0 40px rgba(99, 102, 241, 0.15);
+                            max-width: 440px;
+                            width: 100%;
+                            overflow: hidden;
+                            animation: v2-dialog-in 0.3s ease-out;
+                        ">
+                            <!-- 头部 -->
+                            <div style="
+                                background: linear-gradient(135deg, rgba(99, 102, 241, 0.2) 0%, rgba(139, 92, 246, 0.1) 100%);
+                                padding: 28px 24px;
+                                text-align: center;
+                                border-bottom: 1px solid rgba(99, 102, 241, 0.2);
+                            ">
+                                <div style="
+                                    width: 64px;
+                                    height: 64px;
+                                    margin: 0 auto 16px;
+                                    background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
+                                    border-radius: 50%;
+                                    display: flex;
+                                    align-items: center;
+                                    justify-content: center;
+                                    font-size: 28px;
+                                    box-shadow: 0 10px 30px rgba(99, 102, 241, 0.4);
+                                    animation: pulse 2s ease-in-out infinite;
+                                ">🔄</div>
+                                <h3 style="
+                                    font-size: 20px;
+                                    font-weight: 700;
+                                    color: #fafafa;
+                                    margin: 0 0 8px 0;
+                                    background: linear-gradient(135deg, #fafafa 0%, #a78bfa 100%);
+                                    -webkit-background-clip: text;
+                                    -webkit-text-fill-color: transparent;
+                                ">继续生成项目</h3>
+                                <p style="
+                                    font-size: 15px;
+                                    color: rgba(255, 255, 255, 0.6);
+                                    margin: 0;
+                                    line-height: 1.5;
+                                ">${project.title}</p>
+                            </div>
+                            
+                            <!-- 进度信息 -->
+                            <div style="padding: 24px;">
+                                <div style="
+                                    background: rgba(0, 0, 0, 0.3);
+                                    border-radius: 12px;
+                                    padding: 16px;
+                                    border: 1px solid rgba(255, 255, 255, 0.08);
+                                ">
+                                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+                                        <span style="font-size: 13px; color: rgba(255, 255, 255, 0.5);">当前进度</span>
+                                        <span style="font-size: 14px; font-weight: 600; color: #a78bfa;">${completedSteps}/${totalSteps} 步骤</span>
+                                    </div>
+                                    
+                                    <!-- 进度条 -->
+                                    <div style="
+                                        height: 8px;
+                                        background: rgba(255, 255, 255, 0.08);
+                                        border-radius: 4px;
+                                        overflow: hidden;
+                                        margin-bottom: 8px;
+                                    ">
+                                        <div style="
+                                            height: 100%;
+                                            width: ${progressPercent}%;
+                                            background: linear-gradient(90deg, #6366f1 0%, #8b5cf6 100%);
+                                            border-radius: 4px;
+                                            transition: width 0.5s ease;
+                                        "></div>
+                                    </div>
+                                    
+                                    <div style="text-align: right;">
+                                        <span style="font-size: 12px; color: rgba(255, 255, 255, 0.4);">已完成 ${progressPercent}%</span>
+                                    </div>
+                                </div>
+                                
+                                <div style="
+                                    margin-top: 16px;
+                                    padding: 12px;
+                                    background: rgba(99, 102, 241, 0.08);
+                                    border-left: 3px solid #6366f1;
+                                    border-radius: 0 8px 8px 0;
+                                ">
+                                    <p style="
+                                        font-size: 13px;
+                                        color: rgba(255, 255, 255, 0.6);
+                                        margin: 0;
+                                        line-height: 1.5;
+                                    ">
+                                        <span style="color: #6366f1;">💡</span> 继续生成将从上次中断的位置继续，不会重复已完成的工作。
+                                    </p>
+                                </div>
+                            </div>
+                            
+                            <!-- 按钮 -->
+                            <div style="
+                                padding: 0 24px 24px;
+                                display: flex;
+                                gap: 12px;
+                            ">
+                                <button onclick="closeResumeConfirmDialog(false)" style="
+                                    flex: 1;
+                                    padding: 12px 20px;
+                                    background: rgba(255, 255, 255, 0.06);
+                                    border: 1px solid rgba(255, 255, 255, 0.15);
+                                    border-radius: 10px;
+                                    color: rgba(255, 255, 255, 0.7);
+                                    font-size: 14px;
+                                    font-weight: 500;
+                                    cursor: pointer;
+                                    transition: all 0.2s;
+                                " onmouseover="this.style.background='rgba(255, 255, 255, 0.1)'; this.style.borderColor='rgba(255, 255, 255, 0.25)';" 
+                                   onmouseout="this.style.background='rgba(255, 255, 255, 0.06)'; this.style.borderColor='rgba(255, 255, 255, 0.15)';">
+                                    取消
+                                </button>
+                                <button onclick="closeResumeConfirmDialog(true)" style="
+                                    flex: 1.5;
+                                    padding: 12px 20px;
+                                    background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
+                                    border: none;
+                                    border-radius: 10px;
+                                    color: #fff;
+                                    font-size: 14px;
+                                    font-weight: 600;
+                                    cursor: pointer;
+                                    transition: all 0.2s;
+                                    box-shadow: 0 4px 15px rgba(99, 102, 241, 0.4);
+                                " onmouseover="this.style.transform='translateY(-2px)'; this.style.boxShadow='0 6px 20px rgba(99, 102, 241, 0.5)';" 
+                                   onmouseout="this.style.transform=''; this.style.boxShadow='0 4px 15px rgba(99, 102, 241, 0.4)';">
+                                    ▶️ 继续生成
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <style>
+                        @keyframes fadeIn {
+                            from { opacity: 0; }
+                            to { opacity: 1; }
+                        }
+                        @keyframes v2-dialog-in {
+                            from {
+                                opacity: 0;
+                                transform: scale(0.95) translateY(20px);
+                            }
+                            to {
+                                opacity: 1;
+                                transform: scale(1) translateY(0);
+                            }
+                        }
+                        @keyframes pulse {
+                            0%, 100% { transform: scale(1); box-shadow: 0 10px 30px rgba(99, 102, 241, 0.4); }
+                            50% { transform: scale(1.05); box-shadow: 0 15px 40px rgba(99, 102, 241, 0.6); }
+                        }
+                    </style>
+                `;
+                
+                document.body.appendChild(modal);
+                document.body.style.overflow = 'hidden';
+                
+                // 存储 resolve 函数供按钮调用
+                window.resumeConfirmResolve = resolve;
+            });
+        }
+        
+        // 关闭恢复确认弹窗
+        function closeResumeConfirmDialog(confirmed) {
+            const modal = document.getElementById('resume-confirm-modal');
+            if (modal) {
+                modal.style.opacity = '0';
+                modal.style.transition = 'opacity 0.2s';
+                setTimeout(() => {
+                    modal.remove();
+                    document.body.style.overflow = '';
+                }, 200);
+            }
+            
+            if (window.resumeConfirmResolve) {
+                window.resumeConfirmResolve(confirmed);
+                window.resumeConfirmResolve = null;
+            }
+        }
+        
         // 跳转到充值页面
         function goToRecharge() {
             window.location.href = '/recharge';
@@ -1623,8 +1841,10 @@
                         
                         // 🔥 修复：使用 current_step_index 或 completed_steps
                         // 优先使用 current_step_index，因为它更准确地反映当前进度
-                        const completed = task.current_step_index !== undefined ? task.current_step_index : (task.completed_steps || 0);
-                        const total = task.total_steps || 13;
+                        // 注：第一阶段共15个步骤，索引从0开始，所以完成索引+1=完成步骤数
+                        const currentIndex = task.current_step_index !== undefined ? task.current_step_index : (task.completed_steps || 0);
+                        const total = task.total_steps || 15;
+                        const completed = Math.min(currentIndex + 1, total); // 完成的步骤数 = 当前索引 + 1
                         progressEl.textContent = `${completed}/${total} 个步骤`;
                         
                         // 显示最后更新时间
@@ -1669,6 +1889,10 @@
                             }
                         }
                         
+                        // 🔥 修复：使用之前计算的步骤数
+                        const totalSteps = task.total_steps || 15;
+                        const completedSteps = Math.min(currentIndex + 1, totalSteps);
+                        
                         window.resumeProjectInfo = {
                             title: title,
                             synopsis: creativeSeed.coreSetting || generationParams.synopsis || '',
@@ -1676,7 +1900,11 @@
                             core_selling_points: creativeSeed.coreSellingPoints || '',
                             total_chapters: generationParams.total_chapters || task.data?.total_chapters || 200,
                             creative_seed: creativeSeed,  // 保存完整创意种子以便恢复（包含 completeStoryline）
-                            generation_params: generationParams  // 保存完整生成参数
+                            generation_params: generationParams,  // 保存完整生成参数
+                            // 🔥 新增：保存进度信息用于确认弹窗显示
+                            completed_steps: completedSteps,
+                            total_steps: totalSteps,
+                            current_step: task.current_step || ''
                         };
                     }
                 }
@@ -1693,6 +1921,21 @@
             }
             
             const project = window.resumeProjectInfo;
+            
+            // 🔥 新增：V2样式确认弹窗，让用户确认是否继续生成
+            const confirmed = await showResumeConfirmDialog(project);
+            if (!confirmed) {
+                console.log('[RESUME] 用户取消继续生成');
+                return;
+            }
+            
+            // 继续执行生成逻辑...
+            proceedWithResumeGeneration(project);
+        }
+        
+        // 🔥 继续生成的主逻辑
+        async function proceedWithResumeGeneration(project) {
+            
             console.log('[RESUME] 从横幅继续生成:', project.title, project);
             
             // 🔥 修复：填充表单 - 优先使用完整创意种子数据
@@ -2129,9 +2372,18 @@
         
         // ==================== 页面初始化 ====================
         document.addEventListener('DOMContentLoaded', function() {
-            // 加载创意库
+            console.log('[INIT] DOMContentLoaded 触发');
+            
+            // 加载创意库（由 creative-library.js 提供）
             if (typeof loadCreativeIdeas === 'function') {
-                loadCreativeIdeas();
+                console.log('[INIT] 开始加载创意库...');
+                loadCreativeIdeas().then(() => {
+                    console.log('[INIT] 创意库加载完成');
+                }).catch(err => {
+                    console.error('[INIT] 创意库加载失败:', err);
+                });
+            } else {
+                console.warn('[INIT] loadCreativeIdeas 函数不存在，请检查 creative-library.js 是否正确加载');
             }
             
             // 检查登录状态

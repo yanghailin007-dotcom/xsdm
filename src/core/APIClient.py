@@ -182,13 +182,22 @@ class APIClient:
         username = getattr(self, '_username', None)
         return f"[{username}] " if username else ""
     
-    def _trigger_api_call_callback(self, purpose: str, attempt: int = 1):
-        """触发API调用回调 - 扣除点数"""
+    def _trigger_api_call_callback(self, purpose: str, attempt: int = 1, endpoint_name: str = None, discount_rate: int = 100):
+        """触发API调用回调 - 扣除点数
+        
+        Args:
+            purpose: 调用目的
+            attempt: 尝试次数
+            endpoint_name: 使用的端点名称
+            discount_rate: 折扣率（百分比），默认100%
+        """
         self.api_call_counter += 1
         if self.on_api_call_callback:
             try:
-                self.on_api_call_callback(purpose, attempt)
-                self.logger.info(f"💰 API调用 #{self.api_call_counter} [{purpose}] 点数已扣除")
+                # 🔥 传递端点信息（包括折扣率）
+                self.on_api_call_callback(purpose, attempt, endpoint_name, discount_rate)
+                cost = discount_rate / 100.0
+                self.logger.info(f"💰 API调用 #{self.api_call_counter} [{purpose}] 点数已扣除 (端点:{endpoint_name}, 折扣:{discount_rate}%, 实际消耗:{cost}点)")
             except Exception as e:
                 self.logger.error(f"❌ API调用扣费回调失败: {e}")
     
@@ -735,7 +744,7 @@ class APIClient:
                         self.logger.info(f"{user_str}   ✅ 端点 {endpoint.name} + 备用模型 {current_model} 调用成功")
                     else:
                         self.logger.info(f"{user_str}   ✅ 端点 {endpoint.name} 调用成功")
-                    self._trigger_api_call_callback(purpose, 1)
+                    self._trigger_api_call_callback(purpose, 1, endpoint.name, getattr(endpoint, 'discount_rate', 100))
                     return result
                 else:
                     # 当前模型失败
@@ -817,7 +826,7 @@ class APIClient:
             if result:
                 endpoint.record_success(time.time())
                 self.logger.info(f"{user_str}   ✅ {provider} 端点 {endpoint.name} 调用成功")
-                self._trigger_api_call_callback(purpose, 1)
+                self._trigger_api_call_callback(purpose, 1, endpoint.name, getattr(endpoint, 'discount_rate', 100))
                 return result
             else:
                 endpoint.record_failure("call_failed")

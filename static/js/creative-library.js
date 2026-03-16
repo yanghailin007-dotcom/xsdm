@@ -8,8 +8,10 @@ let originalData = {};
 
 // 加载创意库
 async function loadCreativeIdeas() {
+    console.log('[CREATIVE] 开始加载创意库...');
     try {
         const response = await fetch('/api/creative-ideas');
+        console.log('[CREATIVE] API 响应:', response.status);
         
         if (response.status === 401) {
             showStatusMessage('请先登录才能使用创意库功能', 'error');
@@ -21,30 +23,39 @@ async function loadCreativeIdeas() {
         }
 
         const result = await response.json();
+        console.log('[CREATIVE] API 返回数据:', result);
 
         if (result.success && result.creative_ideas) {
             loadedCreativeIdeas = result.creative_ideas;
+            console.log(`[CREATIVE] 加载了 ${result.creative_ideas.length} 个创意`);
 
             // 检测页面结构并渲染
             const legacyContent = document.getElementById('creative-library-content');
             const legacySelect = document.getElementById('creative-idea-select');
             const newContainer = document.getElementById('creative-library-container');
 
+            console.log('[CREATIVE] 容器检测:', { legacyContent: !!legacyContent, legacySelect: !!legacySelect, newContainer: !!newContainer });
+
             if (legacyContent && legacySelect) {
                 // 旧版页面结构
                 renderLegacyCreativeLibrary(result.creative_ideas);
             } else if (newContainer) {
                 // 新版页面结构 (phase-one-setup-new.html)
+                console.log('[CREATIVE] 使用新版渲染');
                 renderNewCreativeLibrary(result.creative_ideas);
+            } else {
+                console.warn('[CREATIVE] 未找到合适的渲染容器');
             }
 
             showStatusMessage(`✅ 成功加载 ${result.count} 个创意`, 'success');
         } else {
+            console.warn('[CREATIVE] API 返回数据格式不正确:', result);
             throw new Error(result.error || '未找到创意数据');
         }
     } catch (error) {
-        console.error('加载创意库失败:', error);
+        console.error('[CREATIVE] 加载创意库失败:', error);
         showStatusMessage(`❌ 加载创意库失败: ${error.message}`, 'error');
+        throw error;
     }
 }
 
@@ -68,8 +79,12 @@ function renderLegacyCreativeLibrary(ideas) {
 
 // 渲染新版创意库 (V3 玻璃拟态UI)
 function renderNewCreativeLibrary(ideas) {
+    console.log('[CREATIVE] 开始渲染新版创意库, 数量:', ideas?.length);
     const container = document.getElementById('creative-library-container');
-    if (!container) return;
+    if (!container) {
+        console.warn('[CREATIVE] 找不到 creative-library-container 容器');
+        return;
+    }
 
     if (ideas.length === 0) {
         container.innerHTML = `

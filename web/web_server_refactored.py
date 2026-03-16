@@ -436,6 +436,11 @@ def create_app():
     register_custom_endpoint_routes(app)
     logger.info("✅ custom_endpoint 自定义端点已注册")
 
+    # 23.5. 优先级管理 API 路由
+    from web.routes.priority_routes import register_priority_routes
+    register_priority_routes(app)
+    logger.info("✅ priority_routes 优先级管理已注册")
+
     # 24. 管理员 API 路由
     from web.api.admin_api import admin_api
     app.register_blueprint(admin_api)

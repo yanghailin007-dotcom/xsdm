@@ -146,12 +146,13 @@ class PhaseGenerator:
                         elif hasattr(self.generator, 'novel_data') and 'username' in self.generator.novel_data:
                             username = self.generator.novel_data['username']
                         
-                        # 🔥 修复：只在14个主要步骤更新检查点，避免子线程频繁写入导致文件锁冲突
+                        # 🔥 修复：只在15个主要步骤更新检查点，避免子线程频繁写入导致文件锁冲突
+                        # 注：与 GenerationCheckpoint.PHASES['phase_one']['steps'] 保持一致
                         MAIN_STEPS = [
                             'creative_refinement', 'fanfiction_detection', 'multiple_plans', 'plan_selection',
                             'foundation_planning', 'worldview_with_factions', 'character_design',
                             'emotional_growth_planning', 'stage_plan', 'detailed_stage_plans',
-                            'supplementary_characters', 'expectation_mapping', 'system_init', 
+                            'supplementary_characters', 'expectation_mapping', 'system_init',
                             'saving', 'quality_assessment'
                         ]
                         

@@ -247,24 +247,34 @@ class NovelGenerator:
         self.event_bus.subscribe('chapter.assessed', self._on_chapter_assessed)
         self.event_bus.subscribe('error.occurred', self._on_error_occurred)
     
-    def _on_api_call_deduct_points(self, purpose: str, attempt: int):
-        """API调用扣费回调 - 每次成功API调用扣除1点"""
+    def _on_api_call_deduct_points(self, purpose: str, attempt: int, endpoint_name: str = None, discount_rate: int = 100):
+        """API调用扣费回调 - 根据折扣率扣除点数
+        
+        Args:
+            purpose: 调用目的
+            attempt: 尝试次数
+            endpoint_name: 使用的端点名称
+            discount_rate: 折扣率（百分比），默认100%
+        """
         try:
+            # 🔥 计算实际扣除点数（应用折扣率）
+            actual_cost = discount_rate / 100.0
+            
             # 增加内部计数
-            self._api_points_consumed += 1
+            self._api_points_consumed += actual_cost
             
             # 如果设置了用户ID，则实际扣除点数
             if self._user_id:
                 from web.models.point_model import point_model
                 result = point_model.spend_points(
                     user_id=self._user_id,
-                    amount=1,
+                    amount=actual_cost,
                     source='api_call',
-                    description=f'API调用: {purpose}',
+                    description=f'API调用: {purpose} (端点:{endpoint_name}, 折扣:{discount_rate}%)',
                     related_id=self._current_task_id
                 )
                 if result['success']:
-                    self.logger.info(f"💰 API调用扣费成功: {purpose} (-1点, 总计: {self._api_points_consumed})")
+                    self.logger.info(f"💰 API调用扣费成功: {purpose} (端点:{endpoint_name}, 折扣:{discount_rate}%, 实际扣除:{actual_cost}点, 总计:{self._api_points_consumed:.2f})")
                 else:
                     self.logger.error(f"❌ API调用扣费失败: {result.get('error')}")
             
@@ -272,7 +282,10 @@ class NovelGenerator:
             self.event_bus.publish('points.consumed', {
                 'consumed': self._api_points_consumed,
                 'purpose': purpose,
-                'task_id': self._current_task_id
+                'task_id': self._current_task_id,
+                'endpoint': endpoint_name,
+                'discount_rate': discount_rate,
+                'actual_cost': actual_cost
             })
             
         except Exception as e:
@@ -1075,9 +1088,11 @@ class NovelGenerator:
                 else:
                     print(f"    ⚠️ 背景资料可信度验证未通过 (置信度: {verification_result['confidence_score']:.2f})")
                     print(f"    📊 等级: {verification_result['credibility_level']}")
-                    if verification_result["issues_found"]:
-                        print(f"    ❌ 发现问题: {len(verification_result['issues_found'])}个")
-                        for issue in verification_result["issues_found"][:3]:  # 只显示前3个问题
+                    # 🔥 修复：安全检查 issues_found 字段
+                    issues_found = verification_result.get("issues_found", [])
+                    if issues_found:
+                        print(f"    ❌ 发现问题: {len(issues_found)}个")
+                        for issue in issues_found[:3]:  # 只显示前3个问题
                             print(f"       - {issue}")
             
             # 将背景资料添加到创意种子中
