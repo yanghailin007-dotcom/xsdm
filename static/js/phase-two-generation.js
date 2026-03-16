@@ -475,7 +475,6 @@ function renderProjectCard(project) {
             </div>
         `;
 }
-}
 
 // 🔥 新增：根据项目状态返回对应的样式类
 function getProjectStatusClass(project) {
