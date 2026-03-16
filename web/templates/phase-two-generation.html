@@ -27,6 +27,15 @@
     
     <!-- 🚀 章节队列组件样式（大厂设计版）-->
     <style>
+    /* ===== V2 设计系统变量补充 ===== */
+    :root {
+        /* 字间距 */
+        --v2-tracking-tight: -0.025em;
+        --v2-tracking-normal: 0;
+        --v2-tracking-wide: 0.025em;
+        --v2-tracking-wider: 0.05em;
+    }
+    
     /* ===== 章节队列容器 - 玻璃拟态效果 ===== */
     .chapter-queue-container {
         background: linear-gradient(135deg, 
@@ -450,56 +459,125 @@
             content: none !important;
         }
         
-        /* ===== 项目卡片统一设计 - 现代简约风格 ===== */
+        /* ===== 项目卡片 - V2大厂统一风格 ===== */
         #projects-list .project-select-card {
-            background: linear-gradient(145deg, rgba(30, 41, 59, 0.6), rgba(15, 23, 42, 0.8));
-            border: 1px solid rgba(148, 163, 184, 0.1);
-            border-radius: 12px;
-            padding: 16px 20px;
-            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
             position: relative;
+            background: var(--v2-bg-secondary);
+            border: 1px solid var(--v2-border-subtle);
+            border-radius: var(--v2-radius-xl);
+            padding: var(--v2-space-4);
+            transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+            cursor: pointer;
             overflow: hidden;
         }
         
+        /* 渐变边框层 */
         #projects-list .project-select-card::before {
             content: '';
             position: absolute;
-            top: 0;
-            left: 0;
-            width: 3px;
-            height: 100%;
-            background: linear-gradient(180deg, #6366f1, #8b5cf6);
+            inset: 0;
+            border-radius: inherit;
+            padding: 1.5px;
+            background: linear-gradient(
+                135deg,
+                rgba(99, 102, 241, 0) 0%,
+                rgba(99, 102, 241, 0) 100%
+            );
+            -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+            mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+            -webkit-mask-composite: xor;
+            mask-composite: exclude;
             opacity: 0;
-            transition: opacity 0.3s ease;
+            transition: all 0.3s ease;
         }
         
+        /* 外发光层 */
+        #projects-list .project-select-card::after {
+            content: '';
+            position: absolute;
+            inset: -1px;
+            border-radius: calc(var(--v2-radius-xl) + 1px);
+            background: linear-gradient(
+                135deg,
+                rgba(99, 102, 241, 0) 0%,
+                rgba(139, 92, 246, 0) 100%
+            );
+            filter: blur(8px);
+            opacity: 0;
+            z-index: -1;
+            transition: all 0.3s ease;
+        }
+        
+        /* Hover 效果 */
         #projects-list .project-select-card:hover {
-            background: linear-gradient(145deg, rgba(30, 41, 59, 0.8), rgba(15, 23, 42, 0.9));
-            border-color: rgba(99, 102, 241, 0.3);
-            transform: translateX(4px);
-            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+            transform: translateY(-2px);
+            border-color: rgba(99, 102, 241, 0.5);
+            box-shadow: var(--v2-shadow-lg);
         }
         
         #projects-list .project-select-card:hover::before {
             opacity: 1;
+            background: linear-gradient(
+                135deg,
+                rgba(99, 102, 241, 0.8) 0%,
+                rgba(139, 92, 246, 0.4) 30%,
+                transparent 60%,
+                rgba(99, 102, 241, 0.2) 100%
+            );
         }
         
-        /* 🔥 修复：统一选中效果，只有一个颜色 */
+        #projects-list .project-select-card:hover::after {
+            opacity: 0.4;
+            background: linear-gradient(
+                135deg,
+                rgba(99, 102, 241, 0.5) 0%,
+                rgba(139, 92, 246, 0.3) 50%,
+                transparent 80%
+            );
+        }
+        
+        /* 选中状态 */
         #projects-list .project-select-card.selected {
-            background: linear-gradient(145deg, rgba(99, 102, 241, 0.15), rgba(139, 92, 246, 0.08));
-            border-color: rgba(99, 102, 241, 0.6);
-            box-shadow: 0 0 0 1px rgba(99, 102, 241, 0.3), 0 4px 20px rgba(99, 102, 241, 0.2);
+            border-color: rgba(99, 102, 241, 0.7);
+            background: linear-gradient(
+                145deg,
+                rgba(99, 102, 241, 0.08) 0%,
+                var(--v2-bg-secondary) 40%,
+                var(--v2-bg-secondary) 60%,
+                rgba(139, 92, 246, 0.06) 100%
+            );
         }
         
         #projects-list .project-select-card.selected::before {
             opacity: 1;
-            background: linear-gradient(180deg, #6366f1, #8b5cf6);
+            background: linear-gradient(
+                135deg,
+                rgba(99, 102, 241, 1) 0%,
+                rgba(139, 92, 246, 0.6) 25%,
+                transparent 55%,
+                rgba(99, 102, 241, 0.3) 100%
+            );
         }
         
-        /* 🔥 修复：生成中状态不修改背景，只保留左边框脉冲动画 */
+        #projects-list .project-select-card.selected::after {
+            opacity: 0.6;
+            filter: blur(10px);
+        }
+        
+        /* 生成中状态 */
+        #projects-list .project-select-card[data-generating="true"]:not(.selected) {
+            border-color: rgba(59, 130, 246, 0.4);
+        }
+        
         #projects-list .project-select-card[data-generating="true"]:not(.selected)::before {
             opacity: 1;
-            background: linear-gradient(180deg, #3b82f6, #06b6d4);
+            background: linear-gradient(
+                135deg,
+                rgba(59, 130, 246, 0.8) 0%,
+                rgba(6, 182, 212, 0.4) 30%,
+                transparent 60%,
+                rgba(59, 130, 246, 0.2) 100%
+            );
             animation: generating-line-pulse 2s ease-in-out infinite;
         }
         
@@ -541,83 +619,87 @@
             }
         }
         
-        /* 项目标题 */
+        /* ===== 项目卡片内容 - V2 文字样式 ===== */
         #projects-list .project-title {
-            font-size: 15px;
-            font-weight: 600;
-            color: #f1f5f9;
+            font-size: var(--v2-text-base);
+            font-weight: var(--v2-font-semibold);
+            color: var(--v2-text-primary);
             line-height: 1.4;
             margin: 0;
-            letter-spacing: -0.2px;
+            letter-spacing: var(--v2-tracking-tight);
         }
         
-        /* 状态标签统一设计 */
+        #projects-list .project-select-card.selected .project-title {
+            color: #f1f5f9;
+            text-shadow: 0 0 20px rgba(99, 102, 241, 0.3);
+        }
+        
+        /* 状态标签 - V2 风格 */
         #projects-list .status-badge {
             display: inline-flex;
             align-items: center;
-            gap: 4px;
-            font-size: 11px;
-            font-weight: 500;
-            padding: 4px 10px;
-            border-radius: 20px;
-            text-transform: uppercase;
-            letter-spacing: 0.3px;
+            gap: var(--v2-space-1);
+            font-size: var(--v2-text-xs);
+            font-weight: var(--v2-font-medium);
+            padding: var(--v2-space-1) var(--v2-space-3);
+            border-radius: var(--v2-radius-full);
+            letter-spacing: var(--v2-tracking-wide);
         }
         
         #projects-list .status-badge--generating {
-            background: rgba(59, 130, 246, 0.15);
+            background: rgba(59, 130, 246, 0.12);
             color: #60a5fa;
-            border: 1px solid rgba(59, 130, 246, 0.3);
+            border: 1px solid rgba(59, 130, 246, 0.25);
         }
         
         #projects-list .status-badge--completed {
-            background: rgba(16, 185, 129, 0.15);
+            background: rgba(16, 185, 129, 0.12);
             color: #34d399;
-            border: 1px solid rgba(16, 185, 129, 0.3);
+            border: 1px solid rgba(16, 185, 129, 0.25);
         }
         
         #projects-list .status-badge--pending {
-            background: rgba(100, 116, 139, 0.15);
-            color: #94a3b8;
-            border: 1px solid rgba(100, 116, 139, 0.2);
+            background: rgba(148, 163, 184, 0.08);
+            color: var(--v2-text-muted);
+            border: 1px solid var(--v2-border-subtle);
         }
         
-        /* 侧边栏标题样式 */
+        /* 侧边栏标题样式 - V2 */
         .pt-sidebar__title {
             display: flex;
             align-items: center;
-            gap: 10px;
-            font-size: 16px;
-            font-weight: 600;
-            color: #f1f5f9;
-            margin-bottom: 16px;
-            padding-bottom: 12px;
-            border-bottom: 1px solid rgba(148, 163, 184, 0.1);
+            gap: var(--v2-space-3);
+            font-size: var(--v2-text-lg);
+            font-weight: var(--v2-font-semibold);
+            color: var(--v2-text-primary);
+            margin-bottom: var(--v2-space-4);
+            padding-bottom: var(--v2-space-3);
+            border-bottom: 1px solid var(--v2-border-subtle);
         }
         
         .pt-sidebar__title span:first-child {
-            font-size: 18px;
+            font-size: var(--v2-text-xl);
         }
         
-        /* 生成中徽章 - 动态点点 */
+        /* 生成中徽章 - V2 风格 */
         .generating-indicator {
             display: inline-flex;
             align-items: center;
-            gap: 6px;
-            font-size: 11px;
-            font-weight: 600;
+            gap: var(--v2-space-1);
+            font-size: var(--v2-text-xs);
+            font-weight: var(--v2-font-semibold);
             color: #60a5fa;
             background: rgba(59, 130, 246, 0.1);
-            padding: 4px 10px;
-            border-radius: 20px;
-            border: 1px solid rgba(59, 130, 246, 0.25);
+            padding: var(--v2-space-1) var(--v2-space-3);
+            border-radius: var(--v2-radius-full);
+            border: 1px solid rgba(59, 130, 246, 0.2);
         }
         
         .generating-indicator::before {
             content: '';
-            width: 6px;
-            height: 6px;
-            background: #3b82f6;
+            width: 5px;
+            height: 5px;
+            background: linear-gradient(135deg, #3b82f6, #06b6d4);
             border-radius: 50%;
             animation: pulse-dot 1.5s ease-in-out infinite;
             box-shadow: 0 0 8px #3b82f6;
@@ -1487,32 +1569,33 @@
             50% { opacity: 1; transform: scale(1.15); }
         }
         
-        /* 卡片内容 */
+        /* 卡片内容 - V2 风格 */
         .pt-product-card__icon {
-            font-size: 26px;
-            margin-bottom: 12px;
+            font-size: var(--v2-text-2xl);
+            margin-bottom: var(--v2-space-3);
             filter: drop-shadow(0 2px 4px rgba(0,0,0,0.3));
         }
         
         .pt-product-card__title {
-            font-size: 15px;
-            font-weight: 600;
+            font-size: var(--v2-text-base);
+            font-weight: var(--v2-font-semibold);
             color: var(--v2-text-primary);
-            margin-bottom: 6px;
+            margin-bottom: var(--v2-space-1);
+            letter-spacing: var(--v2-tracking-tight);
         }
         
         .pt-product-card__desc {
-            font-size: 13px;
+            font-size: var(--v2-text-sm);
             color: var(--v2-text-secondary);
             line-height: 1.5;
-            margin-bottom: 14px;
+            margin-bottom: var(--v2-space-4);
         }
         
         .pt-product-card__status {
             position: relative;
             display: flex;
             align-items: center;
-            margin-bottom: 10px;
+            margin-bottom: var(--v2-space-3);
             height: 18px;
         }
         
@@ -1609,24 +1692,33 @@
             transform: translateX(4px);
         }
         
-        /* 其他卡片保持原样式（待确认后修改） */
+        /* ===== 其他卡片按钮 - 统一V2风格 ===== */
         .pt-product-card__action {
-            font-size: 12px;
-            font-weight: 500;
-            color: rgba(255, 255, 255, 0.4);
-            display: flex;
+            display: inline-flex;
             align-items: center;
-            gap: 4px;
+            gap: var(--v2-space-2);
+            padding: var(--v2-space-2) var(--v2-space-4);
+            background: linear-gradient(135deg, rgba(99, 102, 241, 0.9), rgba(139, 92, 246, 0.9));
+            color: white;
+            font-size: var(--v2-text-sm);
+            font-weight: var(--v2-font-medium);
+            border-radius: var(--v2-radius-lg);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            cursor: pointer;
             transition: all 0.2s ease;
+            box-shadow: 0 4px 12px rgba(99, 102, 241, 0.2);
         }
         
         .pt-product-card:hover .pt-product-card__action {
-            color: rgba(129, 140, 248, 0.9);
+            transform: translateY(-2px);
+            box-shadow: 0 6px 16px rgba(99, 102, 241, 0.3);
+            background: linear-gradient(135deg, #6366f1, #8b5cf6);
         }
         
         .pt-product-card__action::after {
             content: '→';
             transition: transform 0.2s ease;
+            font-weight: var(--v2-font-semibold);
         }
         
         .pt-product-card:hover .pt-product-card__action::after {
@@ -2738,7 +2830,7 @@
         </div>
         
         <!-- 面板开关按钮 -->
-        <button class="pt-panel-toggle" id="panel-toggle" onclick="toggleRightPanel()" style="position: relative;">
+        <button class="pt-panel-toggle" id="panel-toggle" onclick="toggleRightPanel()" title="查看项目详情">
             <span>📊</span>
         </button>
     </div>
