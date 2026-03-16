@@ -2695,6 +2695,29 @@
         <span>📊</span>
     </button>
     
+    <!-- 🔥 新增：首次进入引导提示（右侧面板关闭时显示） -->
+    <div id="panel-guide-hint" style="position: fixed; bottom: 100px; right: 20px; background: linear-gradient(145deg, rgba(99, 102, 241, 0.9), rgba(139, 92, 246, 0.9)); border-radius: 12px; padding: 16px 20px; box-shadow: 0 8px 32px rgba(99, 102, 241, 0.4); z-index: 999; max-width: 240px; animation: panel-guide-pulse 2s ease-in-out infinite;">
+        <div style="display: flex; align-items: flex-start; gap: 12px;">
+            <div style="font-size: 24px;">👈</div>
+            <div>
+                <h4 style="margin: 0 0 6px 0; color: #fff; font-size: 14px; font-weight: 600;">点击查看项目详情</h4>
+                <p style="margin: 0; color: rgba(255,255,255,0.9); font-size: 12px; line-height: 1.5;">点击右侧 📊 按钮查看小说简介、核心设定、生成进度等信息</p>
+            </div>
+        </div>
+        <!-- 小箭头指向按钮 -->
+        <div style="position: absolute; bottom: -10px; right: 20px; width: 0; height: 0; border-left: 10px solid transparent; border-right: 10px solid transparent; border-top: 10px solid rgba(139, 92, 246, 0.9);"></div>
+    </div>
+    
+    <style>
+        @keyframes panel-guide-pulse {
+            0%, 100% { transform: translateY(0); box-shadow: 0 8px 32px rgba(99, 102, 241, 0.4); }
+            50% { transform: translateY(-5px); box-shadow: 0 12px 40px rgba(99, 102, 241, 0.6); }
+        }
+        .pt-right-panel--open ~ #panel-guide-hint {
+            display: none !important;
+        }
+    </style>
+    
     <!-- 右侧面板 -->
     <div class="pt-right-panel" id="right-panel">
         <div class="pt-panel__header">
@@ -2780,7 +2803,7 @@
     </script>
     
     <!-- 主要功能脚本 -->
-    <script src="/static/js/phase-two-generation.js?v=12"></script>
+    <script src="/static/js/phase-two-generation.js?v=13"></script>
     <script src="/static/js/creative-editor-phase-two.js"></script>
     <script src="/static/js/character-editor.js"></script>
     <script src="/static/js/character-editor-json-based.js"></script>
@@ -2797,8 +2820,15 @@
         function toggleRightPanel() {
             const panel = document.getElementById('right-panel');
             const toggle = document.getElementById('panel-toggle');
+            const guideHint = document.getElementById('panel-guide-hint');
+            
             panel.classList.toggle('pt-right-panel--open');
             toggle.classList.toggle('pt-panel-toggle--active');
+            
+            // 🔥 隐藏引导提示（用户已知道如何打开面板）
+            if (guideHint) {
+                guideHint.style.display = 'none';
+            }
         }
         
         // 面板标签切换
