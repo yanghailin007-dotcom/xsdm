@@ -2681,10 +2681,31 @@ class PhaseGenerator:
             # 🔥 修复：直接使用内存数据评估，不创建临时文件
             # 获取项目目录
             from src.config.path_config import path_config
-            username = getattr(self.generator, '_username', None)
+            
+            # 🔥 关键修复：从多个来源获取用户名，确保用户隔离路径正确
+            username = None
+            if hasattr(self.generator, '_username') and self.generator._username:
+                username = self.generator._username
+                print(f"   [质量评估] 从 self.generator._username 获取: {username}")
+            elif hasattr(self.generator, '_ctx') and self.generator._ctx.get('_username'):
+                username = self.generator._ctx.get('_username')
+                print(f"   [质量评估] 从 self.generator._ctx['_username'] 获取: {username}")
+            elif hasattr(self.generator, '_ctx') and self.generator._ctx.get('username'):
+                username = self.generator._ctx.get('username')
+                print(f"   [质量评估] 从 self.generator._ctx['username'] 获取: {username}")
+            elif hasattr(self.generator, 'novel_data') and self.generator.novel_data.get('username'):
+                username = self.generator.novel_data.get('username')
+                print(f"   [质量评估] 从 self.generator.novel_data['username'] 获取: {username}")
+            else:
+                print(f"   [质量评估] ⚠️ 警告: 无法获取用户名，将使用 anonymous")
+            
+            print(f"   [质量评估] 最终用户名: {username}")
+            print(f"   [质量评估] 小说标题: {self.generator.novel_data.get('novel_title', '未命名')}")
+            
             paths = path_config.get_project_paths(self.generator.novel_data["novel_title"], username=username)
             project_dir = Path(paths['project_root'])
             project_dir.mkdir(parents=True, exist_ok=True)
+            print(f"   [质量评估] 项目目录: {project_dir}")
             
             # 设置报告保存路径为项目目录下的标准文件名
             assessment_path = project_dir / "quality_assessment.json"
@@ -2739,8 +2760,17 @@ class PhaseGenerator:
         """合并所有阶段的计划为一个整体计划用于评估"""
         # 🔥 优先从组装好的写作计划文件读取完整数据
         try:
-            # 🔥 修复：使用正确的属性名 _username
-            username = getattr(self.generator, '_username', None)
+            # 🔥 关键修复：从多个来源获取用户名
+            username = None
+            if hasattr(self.generator, '_username') and self.generator._username:
+                username = self.generator._username
+            elif hasattr(self.generator, '_ctx') and self.generator._ctx.get('_username'):
+                username = self.generator._ctx.get('_username')
+            elif hasattr(self.generator, '_ctx') and self.generator._ctx.get('username'):
+                username = self.generator._ctx.get('username')
+            elif hasattr(self.generator, 'novel_data') and self.generator.novel_data.get('username'):
+                username = self.generator.novel_data.get('username')
+            
             novel_title = self.generator.novel_data.get("novel_title", "未命名")
             
             # 🔥 调试日志
@@ -3039,7 +3069,18 @@ class PhaseGenerator:
             # 🔥 修复：保存评估报告到项目目录
             try:
                 from src.config.path_config import path_config
-                username = getattr(self.generator, '_username', None)
+                
+                # 🔥 关键修复：从多个来源获取用户名，确保用户隔离路径正确
+                username = None
+                if hasattr(self.generator, '_username') and self.generator._username:
+                    username = self.generator._username
+                elif hasattr(self.generator, '_ctx') and self.generator._ctx.get('_username'):
+                    username = self.generator._ctx.get('_username')
+                elif hasattr(self.generator, '_ctx') and self.generator._ctx.get('username'):
+                    username = self.generator._ctx.get('username')
+                elif hasattr(self.generator, 'novel_data') and self.generator.novel_data.get('username'):
+                    username = self.generator.novel_data.get('username')
+                
                 paths = path_config.get_project_paths(self.generator.novel_data["novel_title"], username=username)
                 project_dir = Path(paths['project_root'])
                 project_dir.mkdir(parents=True, exist_ok=True)

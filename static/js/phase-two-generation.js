@@ -852,8 +852,38 @@ function displayProjectDetails(projectData) {
     
     // 关键修复：从多个可能的位置获取数据
     const novelTitle = projectData.novel_title || projectData.title || '未命名';
-    const synopsis = projectData.story_synopsis || projectData.synopsis || projectData.novel_synopsis || '暂无简介';
-    const setting = projectData.core_setting || projectData.core_worldview || projectData.worldview_setting || '暂无设定';
+    
+    // 🔥 修复：优先从 novel_info.synopsis 获取简介（这是上传给番茄的版本）
+    const synopsis = (projectData.novel_info?.synopsis) || 
+                     projectData.story_synopsis || 
+                     projectData.synopsis || 
+                     projectData.novel_synopsis || 
+                     '暂无简介';
+    
+    // 🔥 修复：核心设定可能是对象，需要正确处理
+    let setting = '暂无设定';
+    const coreSetting = projectData.core_setting || 
+                        projectData.novel_info?.creative_seed?.coreSetting ||
+                        projectData.creative_seed?.coreSetting;
+    
+    if (typeof coreSetting === 'string' && coreSetting.trim()) {
+        setting = coreSetting;
+    } else if (typeof coreSetting === 'object' && coreSetting !== null) {
+        // 如果是对象，尝试提取其中的关键字段
+        setting = coreSetting.core_setting || 
+                  coreSetting.setting || 
+                  coreSetting.description ||
+                  coreSetting.worldview ||
+                  JSON.stringify(coreSetting);
+    } else if (projectData.core_worldview) {
+        // 尝试从 core_worldview 获取
+        const cw = projectData.core_worldview;
+        if (typeof cw === 'string') {
+            setting = cw;
+        } else if (typeof cw === 'object') {
+            setting = cw.worldview || cw.setting || cw.description || JSON.stringify(cw);
+        }
+    }
     
     let html = `
         <div class="result-item" style="background: rgba(99, 102, 241, 0.05); border: 1px solid rgba(99, 102, 241, 0.2); border-radius: 12px; padding: 16px; margin-bottom: 16px;">

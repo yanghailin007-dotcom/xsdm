@@ -127,6 +127,7 @@ class NovelGenerator:
         # API调用扣费追踪
         self._api_points_consumed = 0  # API调用实际消耗的点数
         self._user_id = None  # 当前用户ID（用于扣费）
+        self._username = None  # 当前用户名（用于用户隔离路径）
         
         # 信号处理
         self._setup_signal_handlers()
@@ -1188,9 +1189,57 @@ class NovelGenerator:
         if count == 1:
             print("📝 正在保存进度...")
             try:
-                # 🔥 确保用户名被传递到 _ctx
+                # 🔥 关键修复：确保用户名被正确传递到 _ctx
+                # 优先从 self._username 获取，确保后台线程也能正确保存到用户目录
+                actual_username = None
+                
+                # 调试信息：检查所有可能的用户名来源
+                print(f"   [调试] hasattr(self, '_username'): {hasattr(self, '_username')}")
+                if hasattr(self, '_username'):
+                    print(f"   [调试] self._username 值: '{self._username}'")
+                print(f"   [调试] hasattr(self, '_user_id'): {hasattr(self, '_user_id')}")
+                if hasattr(self, '_user_id'):
+                    print(f"   [调试] self._user_id 值: '{self._user_id}'")
+                print(f"   [调试] _ctx 中 _username: '{self._ctx.get('_username', '不存在')}'")
+                print(f"   [调试] _ctx 中 username: '{self._ctx.get('username', '不存在')}'")
+                
                 if hasattr(self, '_username') and self._username:
-                    self._ctx['_username'] = self._username
+                    actual_username = self._username
+                    print(f"   👤 使用已设置的用户名: {actual_username}")
+                elif self._ctx.get('_username'):
+                    actual_username = self._ctx.get('_username')
+                    print(f"   👤 从 _ctx['_username'] 获取用户名: {actual_username}")
+                elif self._ctx.get('username'):
+                    actual_username = self._ctx.get('username')
+                    print(f"   👤 从 _ctx['username'] 获取用户名: {actual_username}")
+                elif hasattr(self, '_user_id') and self._user_id:
+                    # 如果没有 _username，尝试从 _user_id 推断
+                    actual_username = self._user_id
+                    print(f"   👤 从 user_id 推断用户名: {actual_username}")
+                
+                if actual_username:
+                    self._ctx['_username'] = actual_username
+                    self._ctx['username'] = actual_username  # 同时设置两个键，确保兼容性
+                else:
+                    print("   ⚠️ 警告: 无法确定用户名，可能保存到 anonymous 目录")
+                
+                # 🔥 关键修复：确保 novel_title 存在于 _ctx 中
+                # 如果 _ctx 中没有 novel_title，尝试从 self.novel_title 获取
+                if not self._ctx.get("novel_title"):
+                    if hasattr(self, 'novel_title') and self.novel_title:
+                        self._ctx["novel_title"] = self.novel_title
+                        print(f"   ℹ️ 从 self.novel_title 恢复标题: {self.novel_title}")
+                    else:
+                        # 如果都没有，尝试从 _ctx 的其他字段获取
+                        selected_plan = self._ctx.get("selected_plan", {})
+                        if isinstance(selected_plan, dict) and selected_plan.get("title"):
+                            self._ctx["novel_title"] = selected_plan["title"]
+                            print(f"   ℹ️ 从 selected_plan 恢复标题: {selected_plan['title']}")
+                        else:
+                            print("   ⚠️ 警告: 无法确定小说标题，将使用默认路径保存")
+                
+                print(f"   📁 保存路径: {self._ctx.get('novel_title', '未定稿创意')}")
+                print(f"   👤 用户目录: {actual_username or 'anonymous (警告: 用户名未设置)'}")
                 self.project_manager.save_project_progress(self._ctx)
                 print("✅ 进度已保存")
             except Exception as e:

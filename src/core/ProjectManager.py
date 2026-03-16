@@ -470,11 +470,19 @@ class ProjectManager:
         
         # 🔥 获取用户名（优先从 novel_data 获取，否则尝试从 Flask 上下文获取）
         username = novel_data.get("_username") or novel_data.get("username")
+        
+        # 🔥 调试日志：帮助诊断用户名获取问题
+        self.logger.info(f"[SAVE_PROGRESS] novel_data._username: {novel_data.get('_username', '未设置')}")
+        self.logger.info(f"[SAVE_PROGRESS] novel_data.username: {novel_data.get('username', '未设置')}")
+        self.logger.info(f"[SAVE_PROGRESS] 从novel_data获取的username: {username}")
+        
         if not username:
             try:
                 from web.utils.path_utils import get_current_username
                 username = get_current_username()
-            except Exception:
+                self.logger.warning(f"[SAVE_PROGRESS] novel_data中无用户名，从Flask上下文获取: {username}")
+            except Exception as e:
+                self.logger.error(f"[SAVE_PROGRESS] 获取用户名失败: {e}")
                 username = None
         
         # 确保 creative_seed 被保存为 dict（防止字符串持久化）
