@@ -877,6 +877,15 @@ class NovelGenerationManager:
             if owner:
                 novel_data['owner'] = owner
             
+            # 🔥关键修复：从 novel_info.synopsis 提取 novel_synopsis（项目信息保存时在这里）
+            if not novel_data.get("novel_synopsis"):
+                novel_info = novel_data.get("novel_info", {})
+                if isinstance(novel_info, dict):
+                    synopsis = novel_info.get("synopsis", "")
+                    if synopsis:
+                        novel_data["novel_synopsis"] = synopsis
+                        logger.debug(f"[修复] 从 novel_info.synopsis 提取 novel_synopsis: {synopsis[:50]}...")
+            
             # 🔥 修复：使用owner作为username获取正确的用户隔离路径
             # 如果owner为None，尝试从novel_data获取
             username = owner if owner else novel_data.get('owner')
@@ -918,7 +927,15 @@ class NovelGenerationManager:
                             try:
                                 chapter_json = json.loads(file_content)
                                 chapter_content = chapter_json.get("content", file_content)
-                                chapter_title = chapter_json.get("chapter_title", chapter_file.stem.replace("第", "").replace("章", ""))
+                                # 优先使用JSON中的chapter_title，如果为空则从文件名提取
+                                chapter_title = chapter_json.get("chapter_title", "")
+                                if not chapter_title:
+                                    # 从文件名提取标题: 第XXX章_标题.json
+                                    stem = chapter_file.stem  # 不含扩展名
+                                    if "_" in stem:
+                                        chapter_title = stem.split("_", 1)[1]  # 第XXX章_标题 -> 标题
+                                    else:
+                                        chapter_title = stem
                                 chapter_word_count = chapter_json.get("word_count", len(chapter_content))
                                 # 🔥 新增：读取质量分和质量评估
                                 chapter_quality_score = chapter_json.get("quality_score")
@@ -927,7 +944,12 @@ class NovelGenerationManager:
                             except json.JSONDecodeError:
                                 # 如果不是JSON格式，直接使用原始内容
                                 chapter_content = file_content
-                                chapter_title = chapter_file.stem.replace("第", "").replace("章", "")
+                                # 从文件名提取标题: 第XXX章_标题.json
+                                stem = chapter_file.stem
+                                if "_" in stem:
+                                    chapter_title = stem.split("_", 1)[1]
+                                else:
+                                    chapter_title = stem
                                 chapter_word_count = len(chapter_content)
                                 chapter_quality_score = None
                                 chapter_quality_assessment = {}
@@ -935,6 +957,7 @@ class NovelGenerationManager:
                             generated_chapters[chapter_num] = {
                                 "chapter_number": chapter_num,
                                 "chapter_title": chapter_title,
+                                "title": chapter_title,  # 兼容前端期望的 title 字段
                                 "content": chapter_content,
                                 "word_count": chapter_word_count,
                                 "file_path": str(chapter_file),
@@ -2307,7 +2330,21 @@ class NovelGenerationManager:
                 novel_generator.novel_data["current_progress"]["total_chapters"] = from_chapter + additional_chapters
                 novel_generator.novel_data["current_progress"]["stage"] = "续写生成"
                 
-                logger.info(f"任务 {task_id}: ✅ 续写数据准备完成")
+                # 🔥关键修复：同步数据到 _ctx，因为 generate_chapters_batch 使用的是 _ctx
+                novel_generator._ctx = novel_detail
+                novel_generator._ctx["is_resuming"] = True
+                novel_generator._ctx["resume_data"] = {
+                    "from_chapter": from_chapter,
+                    "additional_chapters": additional_chapters,
+                    "total_target_chapters": from_chapter + additional_chapters
+                }
+                # 确保 current_progress 存在
+                if "current_progress" not in novel_generator._ctx:
+                    novel_generator._ctx["current_progress"] = {}
+                novel_generator._ctx["current_progress"]["total_chapters"] = from_chapter + additional_chapters
+                novel_generator._ctx["current_progress"]["stage"] = "续写生成"
+                
+                logger.info(f"任务 {task_id}: ✅ 续写数据准备完成，已同步到 _ctx")
                 
             except Exception as e:
                 logger.error(f"任务 {task_id}: ❌ 准备续写数据失败: {e}")
