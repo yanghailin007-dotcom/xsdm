@@ -102,6 +102,9 @@ class APIClient:
         # 向后兼容：从旧版配置（api_keys, api_urls, models）创建端点池
         else:
             self._migrate_legacy_config()
+        
+        # 🔊 加载用户自定义端点
+        self._load_custom_endpoints()
     
     def _migrate_legacy_config(self):
         """从旧版配置迁移到端点池"""
@@ -121,6 +124,24 @@ class APIClient:
                 }]
                 self.endpoint_pools[provider] = APIEndpointPool(provider, endpoints)
                 self.logger.info(f"⚠️ 使用旧版配置创建 {provider} 端点池")
+    
+    def _load_custom_endpoints(self):
+        """加载用户自定义端点 - 仅50%消耗"""
+        try:
+            from web.managers.custom_endpoint_manager import custom_endpoint_manager
+            
+            custom_endpoints = custom_endpoint_manager.to_api_client_format()
+            
+            if custom_endpoints:
+                # 创建自定义端点池
+                self.endpoint_pools["custom"] = APIEndpointPool("custom", custom_endpoints)
+                self.logger.info(f"🛠️ 加载了 {len(custom_endpoints)} 个自定义端点 (🎉50%折扣)")
+                
+                # 记录自定义端点的折扣信息
+                for ep in custom_endpoints:
+                    self.logger.info(f"   📌 {ep['name']}: {ep.get('discount', 50)}%消耗")
+        except Exception as e:
+            self.logger.warning(f"⚠️ 加载自定义端点失败: {e}")
     
     def _log_endpoint_pool_status(self):
         """打印端点池状态"""

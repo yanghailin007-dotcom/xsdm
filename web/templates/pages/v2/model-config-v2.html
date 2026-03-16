@@ -371,6 +371,336 @@
     .model-card[data-endpoint="aiberm"] { --card-accent: #f59e0b; }
     .model-card[data-endpoint="xiaochuang-backup"] { --card-accent: #10b981; }
     .model-card[data-endpoint="deepseek-official"] { --card-accent: #3b82f6; }
+    .model-card[data-endpoint="custom"] { --card-accent: #ec4899; }
+    
+    /* 自定义端点特殊样式 */
+    .model-card--custom {
+        border: 2px dashed rgba(236, 72, 153, 0.3);
+    }
+    
+    .model-card--custom:hover {
+        border-color: rgba(236, 72, 153, 0.6);
+    }
+    
+    .model-card__discount--custom {
+        --discount-bg: rgba(236, 72, 153, 0.15);
+        --discount-color: #ec4899;
+        --discount-border: rgba(236, 72, 153, 0.3);
+    }
+    
+    /* 添加按钮 */
+    .add-endpoint-card {
+        background: transparent;
+        border: 2px dashed var(--v2-border-default);
+        border-radius: 16px;
+        padding: 24px;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 12px;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        min-height: 280px;
+    }
+    
+    .add-endpoint-card:hover {
+        border-color: rgba(99, 102, 241, 0.5);
+        background: rgba(99, 102, 241, 0.05);
+    }
+    
+    .add-endpoint-card__icon {
+        width: 64px;
+        height: 64px;
+        border-radius: 16px;
+        background: linear-gradient(135deg, rgba(99, 102, 241, 0.2), rgba(139, 92, 246, 0.2));
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 32px;
+    }
+    
+    .add-endpoint-card__text {
+        font-size: 16px;
+        font-weight: 600;
+        color: var(--v2-text-primary);
+    }
+    
+    .add-endpoint-card__desc {
+        font-size: 13px;
+        color: var(--v2-text-tertiary);
+        text-align: center;
+    }
+    
+    /* 模态框样式 */
+    .modal-overlay {
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: rgba(0, 0, 0, 0.7);
+        backdrop-filter: blur(8px);
+        display: none;
+        align-items: center;
+        justify-content: center;
+        z-index: 9999;
+        padding: 20px;
+    }
+    
+    .modal-overlay.active {
+        display: flex;
+    }
+    
+    .modal-content {
+        background: var(--v2-bg-secondary);
+        border: 1px solid var(--v2-border-subtle);
+        border-radius: 20px;
+        width: 100%;
+        max-width: 600px;
+        max-height: 90vh;
+        overflow-y: auto;
+        box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+    }
+    
+    .modal-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 20px 24px;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+    }
+    
+    .modal-title {
+        font-size: 18px;
+        font-weight: 700;
+        color: var(--v2-text-primary);
+    }
+    
+    .modal-close {
+        width: 32px;
+        height: 32px;
+        border: none;
+        background: rgba(255, 255, 255, 0.05);
+        border-radius: 8px;
+        color: var(--v2-text-tertiary);
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        transition: all 0.2s;
+    }
+    
+    .modal-close:hover {
+        background: rgba(255, 255, 255, 0.1);
+        color: var(--v2-text-primary);
+    }
+    
+    .modal-body {
+        padding: 24px;
+    }
+    
+    .form-group {
+        margin-bottom: 20px;
+    }
+    
+    .form-label {
+        display: block;
+        font-size: 13px;
+        font-weight: 600;
+        color: var(--v2-text-secondary);
+        margin-bottom: 8px;
+    }
+    
+    .form-label .required {
+        color: #ef4444;
+        margin-left: 2px;
+    }
+    
+    .form-input,
+    .form-textarea,
+    .form-select {
+        width: 100%;
+        padding: 12px 16px;
+        background: rgba(0, 0, 0, 0.3);
+        border: 1px solid var(--v2-border-default);
+        border-radius: 10px;
+        color: var(--v2-text-primary);
+        font-size: 14px;
+        transition: all 0.2s;
+        box-sizing: border-box;
+    }
+    
+    .form-input:focus,
+    .form-textarea:focus,
+    .form-select:focus {
+        outline: none;
+        border-color: rgba(99, 102, 241, 0.5);
+        box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
+    }
+    
+    .form-textarea {
+        resize: vertical;
+        min-height: 80px;
+    }
+    
+    .form-hint {
+        font-size: 12px;
+        color: var(--v2-text-tertiary);
+        margin-top: 6px;
+    }
+    
+    .form-row {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 16px;
+    }
+    
+    .modal-footer {
+        display: flex;
+        gap: 12px;
+        padding: 20px 24px;
+        border-top: 1px solid rgba(255, 255, 255, 0.06);
+        justify-content: flex-end;
+    }
+    
+    .btn {
+        padding: 10px 20px;
+        border-radius: 10px;
+        font-size: 14px;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.2s;
+        border: none;
+    }
+    
+    .btn-secondary {
+        background: rgba(255, 255, 255, 0.1);
+        color: var(--v2-text-primary);
+    }
+    
+    .btn-secondary:hover {
+        background: rgba(255, 255, 255, 0.15);
+    }
+    
+    .btn-primary {
+        background: linear-gradient(135deg, #6366f1, #8b5cf6);
+        color: white;
+    }
+    
+    .btn-primary:hover {
+        box-shadow: 0 4px 12px rgba(99, 102, 241, 0.4);
+    }
+    
+    /* Demo格式展示 */
+    .demo-section {
+        background: rgba(0, 0, 0, 0.2);
+        border-radius: 12px;
+        padding: 16px;
+        margin-bottom: 20px;
+    }
+    
+    .demo-title {
+        font-size: 12px;
+        font-weight: 600;
+        color: var(--v2-text-tertiary);
+        margin-bottom: 8px;
+        display: flex;
+        align-items: center;
+        gap: 6px;
+    }
+    
+    .demo-code {
+        background: rgba(0, 0, 0, 0.3);
+        border-radius: 8px;
+        padding: 12px;
+        font-family: 'JetBrains Mono', monospace;
+        font-size: 12px;
+        color: var(--v2-text-secondary);
+        overflow-x: auto;
+        white-space: pre-wrap;
+        word-break: break-all;
+    }
+    
+    .demo-actions {
+        display: flex;
+        gap: 8px;
+        margin-top: 12px;
+    }
+    
+    .btn-sm {
+        padding: 6px 12px;
+        font-size: 12px;
+    }
+    
+    /* 空状态 */
+    .empty-state {
+        text-align: center;
+        padding: 60px 20px;
+        color: var(--v2-text-tertiary);
+    }
+    
+    .empty-state__icon {
+        font-size: 48px;
+        margin-bottom: 16px;
+    }
+    
+    .empty-state__title {
+        font-size: 16px;
+        font-weight: 600;
+        color: var(--v2-text-secondary);
+        margin-bottom: 8px;
+    }
+    
+    /* 标签列表输入 */
+    .tag-input {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        padding: 8px;
+        background: rgba(0, 0, 0, 0.3);
+        border: 1px solid var(--v2-border-default);
+        border-radius: 10px;
+        min-height: 46px;
+    }
+    
+    .tag-input:focus-within {
+        border-color: rgba(99, 102, 241, 0.5);
+    }
+    
+    .tag-input__tag {
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+        padding: 4px 10px;
+        background: rgba(99, 102, 241, 0.2);
+        color: #a5b4fc;
+        border-radius: 6px;
+        font-size: 12px;
+    }
+    
+    .tag-input__tag .remove {
+        cursor: pointer;
+        opacity: 0.7;
+    }
+    
+    .tag-input__tag .remove:hover {
+        opacity: 1;
+    }
+    
+    .tag-input__input {
+        flex: 1;
+        min-width: 100px;
+        background: transparent;
+        border: none;
+        color: var(--v2-text-primary);
+        font-size: 14px;
+        padding: 4px;
+    }
+    
+    .tag-input__input:focus {
+        outline: none;
+    }
 </style>
 {% endblock %}
 
@@ -617,6 +947,131 @@
             </div>
         </div>
     </div>
+    
+    <!-- 自定义端点分隔线 -->
+    <div style="margin: 40px 0; border-top: 1px solid rgba(255, 255, 255, 0.08);"></div>
+    
+    <!-- 自定义端点标题 -->
+    <div style="margin-bottom: 24px;">
+        <h3 style="font-size: 20px; font-weight: 700; color: var(--v2-text-primary); margin-bottom: 8px;">🛠️ 自定义端点</h3>
+        <p style="font-size: 14px; color: var(--v2-text-secondary);">添加你自己的API端点，仅收取50%创造点消耗</p>
+    </div>
+    
+    <!-- 自定义端点列表 -->
+    <div id="custom-endpoints" class="model-grid">
+        <!-- 加载中占位符 -->
+        <div class="model-card" style="opacity: 0.6;">
+            <div class="model-card__header">
+                <div class="model-card__title-section">
+                    <div class="model-card__icon" style="background: rgba(255,255,255,0.1);">⏳</div>
+                    <div>
+                        <div class="model-card__name">加载中...</div>
+                        <div class="model-card__provider">正在获取自定义端点</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- 添加端点卡片 -->
+    <div class="model-grid" style="margin-top: 20px;">
+        <div class="add-endpoint-card" onclick="openAddModal()">
+            <div class="add-endpoint-card__icon">+</div>
+            <div class="add-endpoint-card__text">添加自定义端点</div>
+            <div class="add-endpoint-card__desc">支持OpenAI格式的API接口<br>仅收取50%创造点</div>
+        </div>
+    </div>
+</div>
+
+<!-- 添加端点模态框 -->
+<div id="addEndpointModal" class="modal-overlay">
+    <div class="modal-content">
+        <div class="modal-header">
+            <div class="modal-title">🛠️ 添加自定义端点</div>
+            <button class="modal-close" onclick="closeAddModal()">×</button>
+        </div>
+        <div class="modal-body">
+            <!-- Demo格式展示 -->
+            <div class="demo-section">
+                <div class="demo-title">📝 配置示例（点击填充）</div>
+                <div class="demo-code" id="demoCode">{
+  "name": "my-openai-api",
+  "api_url": "https://api.openai.com/v1/chat/completions",
+  "api_key": "sk-your-api-key-here",
+  "model": "gpt-4",
+  "assessment": "gpt-3.5-turbo",
+  "description": "我的OpenAI API"
+}</div>
+                <div class="demo-actions">
+                    <button class="btn btn-sm btn-secondary" onclick="fillDemo()">📋 填充示例</button>
+                    <button class="btn btn-sm btn-secondary" onclick="copyDemo()">📄 复制示例</button>
+                </div>
+            </div>
+            
+            <form id="addEndpointForm">
+                <div class="form-group">
+                    <label class="form-label">端点名称 <span class="required">*</span></label>
+                    <input type="text" class="form-input" name="name" placeholder="例如: my-openai-api" required>
+                    <div class="form-hint">唯一标识，仅允许字母、数字、连字符</div>
+                </div>
+                
+                <div class="form-group">
+                    <label class="form-label">API地址 <span class="required">*</span></label>
+                    <input type="url" class="form-input" name="api_url" placeholder="https://api.example.com/v1/chat/completions" required>
+                    <div class="form-hint">OpenAI兼容格式的API端点</div>
+                </div>
+                
+                <div class="form-group">
+                    <label class="form-label">API密钥 <span class="required">*</span></label>
+                    <input type="password" class="form-input" name="api_key" placeholder="sk-..." required>
+                    <div class="form-hint">您的API密钥将安全存储在服务器</div>
+                </div>
+                
+                <div class="form-row">
+                    <div class="form-group">
+                        <label class="form-label">主模型 <span class="required">*</span></label>
+                        <input type="text" class="form-input" name="model" placeholder="gpt-4" required>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">评估模型</label>
+                        <input type="text" class="form-input" name="assessment" placeholder="gpt-3.5-turbo">
+                        <div class="form-hint">质量评估使用，默认与主模型相同</div>
+                    </div>
+                </div>
+                
+                <div class="form-group">
+                    <label class="form-label">端点描述</label>
+                    <input type="text" class="form-input" name="description" placeholder="我的自定义API端点">
+                </div>
+                
+                <div class="form-group">
+                    <label class="form-label">优势（回车添加多个）</label>
+                    <div class="tag-input" id="prosInput">
+                        <input type="text" class="tag-input__input" placeholder="输入优势后回车..." onkeydown="handleTagInput(event, 'pros')">
+                    </div>
+                </div>
+                
+                <div class="form-group">
+                    <label class="form-label">注意事项（回车添加多个）</label>
+                    <div class="tag-input" id="consInput">
+                        <input type="text" class="tag-input__input" placeholder="输入注意事项后回车..." onkeydown="handleTagInput(event, 'cons')">
+                    </div>
+                </div>
+                
+                <div class="form-group" style="background: rgba(236, 72, 153, 0.1); border-radius: 10px; padding: 16px; border: 1px solid rgba(236, 72, 153, 0.2);">
+                    <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 8px;">
+                        <span style="font-size: 20px;">🎉</span>
+                        <span style="font-weight: 600; color: #ec4899;">自定义端点特惠</span>
+                    </div>
+                    <p style="font-size: 13px; color: var(--v2-text-secondary); margin: 0;">使用自定义端点仅收取 <strong style="color: #ec4899;">50%</strong> 创造点消耗，大幅降低您的使用成本！</p>
+                </div>
+            </form>
+        </div>
+        <div class="modal-footer">
+            <button class="btn btn-secondary" onclick="closeAddModal()">取消</button>
+            <button class="btn btn-primary" onclick="submitEndpoint()">添加端点</button>
+        </div>
+    </div>
 </div>
 
 <script>
@@ -639,5 +1094,323 @@
             }
         });
     });
+    
+    // 自定义端点管理
+    let customEndpoints = [];
+    let currentTags = { pros: [], cons: [] };
+    
+    // 页面加载时获取自定义端点
+    document.addEventListener('DOMContentLoaded', loadCustomEndpoints);
+    
+    async function loadCustomEndpoints() {
+        try {
+            const response = await fetch('/api/custom-endpoints');
+            const result = await response.json();
+            
+            if (result.success) {
+                customEndpoints = result.data;
+                renderCustomEndpoints();
+            }
+        } catch (error) {
+            console.error('加载自定义端点失败:', error);
+        }
+    }
+    
+    function renderCustomEndpoints() {
+        const container = document.getElementById('custom-endpoints');
+        
+        if (customEndpoints.length === 0) {
+            container.innerHTML = `
+                <div class="empty-state">
+                    <div class="empty-state__icon">📭</div>
+                    <div class="empty-state__title">还没有自定义端点</div>
+                    <div style="font-size: 13px; color: var(--v2-text-tertiary);">点击下方"添加自定义端点"开始配置</div>
+                </div>
+            `;
+            return;
+        }
+        
+        container.innerHTML = customEndpoints.map(ep => `
+            <div class="model-card model-card--custom ${!ep.enabled ? 'disabled' : ''}" data-endpoint="${ep.name}">
+                <div class="model-card__header">
+                    <div class="model-card__title-section">
+                        <div class="model-card__icon">🛠️</div>
+                        <div>
+                            <div class="model-card__name">${ep.name}</div>
+                            <div class="model-card__provider">${ep.description || '自定义API'}</div>
+                        </div>
+                    </div>
+                    <div class="model-card__discount model-card__discount--custom">${ep.discount || 50}%</div>
+                </div>
+                
+                <div class="model-card__info">
+                    <div class="model-info-row">
+                        <span class="model-info-label">主模型</span>
+                        <span class="model-info-value">${ep.model}</span>
+                    </div>
+                    <div class="model-info-row">
+                        <span class="model-info-label">API地址</span>
+                        <span class="model-info-value">${ep.api_url.replace(/^https:\/\//, '').substring(0, 25)}...</span>
+                    </div>
+                    <div class="model-info-row">
+                        <span class="model-info-label">优先级</span>
+                        <span class="priority-badge priority-badge--medium">中 (${ep.priority || 1})</span>
+                    </div>
+                </div>
+                
+                <div class="model-card__features">
+                    ${ep.pros && ep.pros.length > 0 ? `
+                    <div class="feature-section">
+                        <div class="feature-title feature-title--pro">✅ 优势</div>
+                        <div class="feature-list">
+                            ${ep.pros.map(p => `<span class="feature-tag feature-tag--pro">${p}</span>`).join('')}
+                        </div>
+                    </div>
+                    ` : ''}
+                    ${ep.cons && ep.cons.length > 0 ? `
+                    <div class="feature-section">
+                        <div class="feature-title feature-title--con">⚠️ 注意</div>
+                        <div class="feature-list">
+                            ${ep.cons.map(c => `<span class="feature-tag feature-tag--con">${c}</span>`).join('')}
+                        </div>
+                    </div>
+                    ` : ''}
+                </div>
+                
+                <div class="model-card__footer">
+                    <span class="status-badge ${ep.enabled ? 'status-badge--enabled' : 'status-badge--disabled'}">
+                        <span class="status-dot"></span>
+                        ${ep.enabled ? '已启用' : '已禁用'}
+                    </span>
+                    <div style="display: flex; gap: 8px;">
+                        <button class="btn btn-sm btn-secondary" onclick="toggleEndpoint('${ep.name}')">
+                            ${ep.enabled ? '禁用' : '启用'}
+                        </button>
+                        <button class="btn btn-sm" style="background: rgba(239, 68, 68, 0.15); color: #f87171;" onclick="deleteEndpoint('${ep.name}')">
+                            删除
+                        </button>
+                    </div>
+                </div>
+            </div>
+        `).join('');
+    }
+    
+    // 模态框操作
+    function openAddModal() {
+        document.getElementById('addEndpointModal').classList.add('active');
+        document.body.style.overflow = 'hidden';
+        // 重置标签
+        currentTags = { pros: [], cons: [] };
+        updateTagDisplay('pros');
+        updateTagDisplay('cons');
+    }
+    
+    function closeAddModal() {
+        document.getElementById('addEndpointModal').classList.remove('active');
+        document.body.style.overflow = '';
+        document.getElementById('addEndpointForm').reset();
+    }
+    
+    // 点击遮罩关闭
+    document.getElementById('addEndpointModal').addEventListener('click', (e) => {
+        if (e.target === e.currentTarget) closeAddModal();
+    });
+    
+    // Demo操作
+    function fillDemo() {
+        const demo = {
+            name: 'my-openai-api',
+            api_url: 'https://api.openai.com/v1/chat/completions',
+            api_key: 'sk-your-api-key-here',
+            model: 'gpt-4',
+            assessment: 'gpt-3.5-turbo',
+            description: '我的OpenAI API'
+        };
+        
+        Object.keys(demo).forEach(key => {
+            const input = document.querySelector(`[name="${key}"]`);
+            if (input) input.value = demo[key];
+        });
+        
+        // 添加示例标签
+        currentTags.pros = ['价格便宜', '响应快'];
+        currentTags.cons = ['稳定性待测试'];
+        updateTagDisplay('pros');
+        updateTagDisplay('cons');
+    }
+    
+    function copyDemo() {
+        const code = document.getElementById('demoCode').textContent;
+        navigator.clipboard.writeText(code).then(() => {
+            showToast('已复制到剪贴板');
+        });
+    }
+    
+    // 标签输入处理
+    function handleTagInput(event, type) {
+        if (event.key === 'Enter') {
+            event.preventDefault();
+            const value = event.target.value.trim();
+            if (value && !currentTags[type].includes(value)) {
+                currentTags[type].push(value);
+                updateTagDisplay(type);
+                event.target.value = '';
+            }
+        }
+    }
+    
+    function updateTagDisplay(type) {
+        const container = document.getElementById(type + 'Input');
+        const input = container.querySelector('.tag-input__input');
+        
+        // 清除旧标签
+        container.querySelectorAll('.tag-input__tag').forEach(tag => tag.remove());
+        
+        // 添加新标签
+        currentTags[type].forEach((tag, index) => {
+            const tagEl = document.createElement('span');
+            tagEl.className = 'tag-input__tag';
+            tagEl.innerHTML = `${tag} <span class="remove" onclick="removeTag('${type}', ${index})">×</span>`;
+            container.insertBefore(tagEl, input);
+        });
+    }
+    
+    function removeTag(type, index) {
+        currentTags[type].splice(index, 1);
+        updateTagDisplay(type);
+    }
+    
+    // 提交端点
+    async function submitEndpoint() {
+        const form = document.getElementById('addEndpointForm');
+        const formData = new FormData(form);
+        
+        const data = {
+            name: formData.get('name'),
+            api_url: formData.get('api_url'),
+            api_key: formData.get('api_key'),
+            model: formData.get('model'),
+            assessment: formData.get('assessment') || formData.get('model'),
+            description: formData.get('description'),
+            pros: currentTags.pros,
+            cons: currentTags.cons,
+            priority: 1,
+            enabled: true,
+            timeout: 300,
+            max_retries: 3,
+            discount: 50  // 固定50%
+        };
+        
+        // 验证
+        if (!data.name || !data.api_url || !data.api_key || !data.model) {
+            showToast('请填写所有必填字段', 'error');
+            return;
+        }
+        
+        try {
+            const response = await fetch('/api/custom-endpoints', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(data)
+            });
+            
+            const result = await response.json();
+            
+            if (result.success) {
+                showToast('添加成功！');
+                closeAddModal();
+                loadCustomEndpoints();
+            } else {
+                showToast(result.error || '添加失败', 'error');
+            }
+        } catch (error) {
+            showToast('网络错误', 'error');
+        }
+    }
+    
+    // 删除端点
+    async function deleteEndpoint(name) {
+        if (!confirm(`确定要删除端点 "${name}" 吗？`)) return;
+        
+        try {
+            const response = await fetch(`/api/custom-endpoints/${name}`, {
+                method: 'DELETE'
+            });
+            
+            const result = await response.json();
+            
+            if (result.success) {
+                showToast('删除成功');
+                loadCustomEndpoints();
+            } else {
+                showToast(result.error || '删除失败', 'error');
+            }
+        } catch (error) {
+            showToast('网络错误', 'error');
+        }
+    }
+    
+    // 切换端点状态
+    async function toggleEndpoint(name) {
+        try {
+            const response = await fetch(`/api/custom-endpoints/${name}/toggle`, {
+                method: 'POST'
+            });
+            
+            const result = await response.json();
+            
+            if (result.success) {
+                showToast(result.message);
+                loadCustomEndpoints();
+            } else {
+                showToast(result.error || '操作失败', 'error');
+            }
+        } catch (error) {
+            showToast('网络错误', 'error');
+        }
+    }
+    
+    // Toast提示
+    function showToast(message, type = 'success') {
+        const toast = document.createElement('div');
+        toast.style.cssText = `
+            position: fixed;
+            top: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            padding: 12px 24px;
+            border-radius: 10px;
+            font-size: 14px;
+            font-weight: 500;
+            z-index: 99999;
+            animation: slideDown 0.3s ease;
+            ${type === 'success' 
+                ? 'background: rgba(16, 185, 129, 0.9); color: white;' 
+                : 'background: rgba(239, 68, 68, 0.9); color: white;'}
+        `;
+        toast.textContent = message;
+        document.body.appendChild(toast);
+        
+        setTimeout(() => {
+            toast.style.animation = 'slideUp 0.3s ease';
+            setTimeout(() => toast.remove(), 300);
+        }, 3000);
+    }
 </script>
+
+<style>
+    @keyframes slideDown {
+        from { transform: translate(-50%, -100%); opacity: 0; }
+        to { transform: translate(-50%, 0); opacity: 1; }
+    }
+    @keyframes slideUp {
+        from { transform: translate(-50%, 0); opacity: 1; }
+        to { transform: translate(-50%, -100%); opacity: 0; }
+    }
+    
+    .model-card.disabled {
+        opacity: 0.6;
+        filter: grayscale(0.5);
+    }
+</style>
 {% endblock %}

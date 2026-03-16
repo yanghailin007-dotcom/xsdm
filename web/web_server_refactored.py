@@ -122,6 +122,7 @@ from web.api.export_api import export_api
 
 # 导入页面路由模块
 from web.routes.auth_routes import register_auth_routes, register_page_routes
+from web.routes.custom_endpoint_routes import register_custom_endpoint_routes
 
 # 导入注册API模块
 from web.api.register_api import register_register_routes
@@ -431,7 +432,11 @@ def create_app():
     app.register_blueprint(export_api)
     logger.info("✅ export_api 导出功能已注册")
 
-    # 23. 管理员 API 路由
+    # 23. 自定义端点 API 路由
+    register_custom_endpoint_routes(app)
+    logger.info("✅ custom_endpoint 自定义端点已注册")
+
+    # 24. 管理员 API 路由
     from web.api.admin_api import admin_api
     app.register_blueprint(admin_api)
     logger.info("✅ admin_api 管理员功能已注册")
