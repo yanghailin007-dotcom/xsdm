@@ -90,6 +90,75 @@
     margin: 0 0 var(--v2-space-6) 0;
 }
 
+/* ==================== Loading 状态 - V2 风格 ==================== */
+.storyline-state--loading .v2-loading {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: var(--v2-space-4);
+}
+
+.storyline-state--loading .v2-loading__spinner {
+    width: 48px;
+    height: 48px;
+    position: relative;
+}
+
+.storyline-state--loading .v2-loading__spinner::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    border-radius: 50%;
+    border: 3px solid transparent;
+    border-top-color: #6366f1;
+    border-right-color: #8b5cf6;
+    animation: storyline-spin 1s linear infinite;
+}
+
+.storyline-state--loading .v2-loading__spinner::after {
+    content: '';
+    position: absolute;
+    inset: 6px;
+    border-radius: 50%;
+    border: 2px solid transparent;
+    border-bottom-color: #6366f1;
+    border-left-color: #8b5cf6;
+    animation: storyline-spin-reverse 1.5s linear infinite;
+}
+
+@keyframes storyline-spin {
+    to { transform: rotate(360deg); }
+}
+
+@keyframes storyline-spin-reverse {
+    to { transform: rotate(-360deg); }
+}
+
+.storyline-state--loading .v2-loading__text {
+    font-size: var(--v2-text-sm);
+    color: var(--v2-text-secondary);
+    margin: 0;
+    display: flex;
+    align-items: center;
+    gap: var(--v2-space-2);
+}
+
+.storyline-state--loading .v2-loading__text::after {
+    content: '';
+    display: inline-block;
+    width: 4px;
+    height: 4px;
+    background: var(--v2-primary-500);
+    border-radius: 50%;
+    animation: storyline-dots 1.5s infinite;
+    box-shadow: 8px 0 0 var(--v2-primary-500), 16px 0 0 var(--v2-primary-500);
+}
+
+@keyframes storyline-dots {
+    0%, 100% { opacity: 0.3; }
+    50% { opacity: 1; }
+}
+
 /* ==================== 信息栏 ==================== */
 .storyline-info-bar {
     display: flex;

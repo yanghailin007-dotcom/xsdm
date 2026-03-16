@@ -158,9 +158,26 @@ function renderStoryline(storyline) {
         const isMultiStage = storyline.stage_info && Array.isArray(storyline.stage_info) && storyline.stage_info.length > 0;
         
         if (isMultiStage) {
-            const stageInfo = storyline.stage_info.map(si =>
-                `${si.stage_name} (${si.chapter_range}, ${si.major_event_count}个事件)`
-            ).join(' → ');
+            // 定义正确的阶段顺序
+            const stageOrder = ['opening_stage', 'development_stage', 'climax_stage', 'ending_stage'];
+            const stageNameMap = {
+                'opening_stage': '开局',
+                'development_stage': '发展',
+                'climax_stage': '高潮',
+                'ending_stage': '结局'
+            };
+            
+            // 按正确顺序排序阶段信息
+            const sortedStages = [...storyline.stage_info].sort((a, b) => {
+                const indexA = stageOrder.indexOf(a.stage_name);
+                const indexB = stageOrder.indexOf(b.stage_name);
+                return indexA - indexB;
+            });
+            
+            const stageInfo = sortedStages.map(si => {
+                const displayName = stageNameMap[si.stage_name] || si.stage_name;
+                return `${displayName} (${si.chapter_range}, ${si.major_event_count}个事件)`;
+            }).join(' → ');
             
             setTextContent('stage-name', `全书故事线 (${storyline.stage_info.length}个阶段)`);
             setTextContent('chapter-range-text', stageInfo);
