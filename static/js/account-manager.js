@@ -1,11 +1,16 @@
 /**
  * 多账号管理器 - Token + LocalStorage 方案
  * 支持多账号切换、Token 自动刷新
+ * 🔥 关键：按用户隔离存储，避免多用户数据混淆
  */
 class MultiAccountManager {
     constructor() {
-        this.STORAGE_KEY = 'xsdm_accounts_v1';
-        this.CURRENT_KEY = 'xsdm_current_account_id';
+        // 🔥 获取当前用户标识，用于隔离存储
+        this.currentUser = this._getCurrentUserIdentifier();
+        
+        // 🔥 按用户隔离存储键名
+        this.STORAGE_KEY = `xsdm_accounts_v1_${this.currentUser}`;
+        this.CURRENT_KEY = `xsdm_current_account_id_${this.currentUser}`;
         
         // 🔥 首先检查并清除损坏的数据（从 v2 迁移到 v3）
         this.migrateFromV2();
@@ -23,13 +28,62 @@ class MultiAccountManager {
         // 🔥 检查是否有需要重新登录的账号
         this.checkNeedsRelogin();
         
-        console.log('[AccountManager] 初始化完成，账号数量:', this.accounts.length);
+        console.log('[AccountManager] 初始化完成，用户:', this.currentUser, '账号数量:', this.accounts.length);
+    }
+    
+    /**
+     * 🔥 获取当前用户标识，用于隔离存储
+     */
+    _getCurrentUserIdentifier() {
+        // 尝试从 window.currentUser 获取
+        if (typeof window !== 'undefined' && window.currentUser) {
+            return window.currentUser.username || window.currentUser.id || 'guest';
+        }
+        // 尝试从页面中的用户数据获取
+        const userMeta = document.querySelector('meta[name="current-user"]');
+        if (userMeta) {
+            return userMeta.content || 'guest';
+        }
+        // 兜底：使用 'guest'，但这样多用户仍会混淆
+        // 建议后端在页面模板中注入当前用户信息
+        return 'guest';
     }
     
     /**
      * 🔥 从 v2 迁移：检测并清除损坏的 token 数据
+     * 🔥 同时处理从旧版（不分用户）到新版（按用户隔离）的迁移
      */
     migrateFromV2() {
+        // 🔥 首先检查是否需要从旧版（不分用户）迁移到新版（按用户隔离）
+        const oldKey = 'xsdm_accounts_v1';
+        const oldCurrentKey = 'xsdm_current_account_id';
+        
+        // 如果当前使用的是新版键名，且旧版数据存在，则进行迁移
+        if (this.STORAGE_KEY !== oldKey) {
+            try {
+                const oldData = localStorage.getItem(oldKey);
+                const oldCurrentId = localStorage.getItem(oldCurrentKey);
+                
+                // 检查新版键名是否已经有数据
+                const newDataExists = localStorage.getItem(this.STORAGE_KEY);
+                
+                if (oldData && !newDataExists) {
+                    console.log('[AccountManager] 检测到旧版数据，开始迁移到用户隔离存储...');
+                    localStorage.setItem(this.STORAGE_KEY, oldData);
+                    if (oldCurrentId) {
+                        localStorage.setItem(this.CURRENT_KEY, oldCurrentId);
+                    }
+                    console.log('[AccountManager] 数据迁移完成，用户:', this.currentUser);
+                    
+                    // 🔥 可选：清理旧数据（如果不希望保留）
+                    // localStorage.removeItem(oldKey);
+                    // localStorage.removeItem(oldCurrentKey);
+                }
+            } catch (e) {
+                console.error('[AccountManager] 迁移旧数据失败:', e);
+            }
+        }
+        
         try {
             const data = localStorage.getItem(this.STORAGE_KEY);
             if (!data) return;
