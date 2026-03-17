@@ -18,13 +18,23 @@ chrome_api = Blueprint('chrome_api', __name__)
 DEBUG_PORT = 9988
 
 
-# 固定的 Chrome 安装目录（相对于项目根目录）
-CHROME_INSTALL_DIR = 'tools/chrome_launcher'
+# 固定的 Chrome 安装目录（在客户电脑上）
+# Windows: D:\大文娱\chrome_launcher\ (优先 D 盘，如果不存在则用系统盘)
+# Mac/Linux: ~/大文娱/chrome_launcher/
+if sys.platform == 'win32':
+    # 优先使用 D 盘，如果不存在则使用 C 盘
+    d_drive = Path('D:\\大文娱\\chrome_launcher')
+    if Path('D:\\').exists():
+        CHROME_INSTALL_DIR = str(d_drive)
+    else:
+        CHROME_INSTALL_DIR = str(Path('C:\\大文娱\\chrome_launcher'))
+else:
+    CHROME_INSTALL_DIR = str(Path.home() / '大文娱' / 'chrome_launcher')
 
 
 def get_chrome_install_dir() -> Path:
-    """获取 Chrome 应该安装的固定目录"""
-    return Path(current_app.root_path).parent / CHROME_INSTALL_DIR
+    """获取 Chrome 应该安装的固定目录（客户电脑上的绝对路径）"""
+    return Path(CHROME_INSTALL_DIR)
 
 
 def find_chrome_in_dir(chrome_dir: Path) -> tuple:
@@ -72,47 +82,54 @@ def find_chrome_in_dir(chrome_dir: Path) -> tuple:
 
 
 def check_chrome_installed() -> dict:
-    """检查 Chrome 是否已安装（仅在固定目录）"""
+    """检查 Chrome 是否已安装（仅在客户电脑的固定目录）"""
     install_dir = get_chrome_install_dir()
     chrome_dir = install_dir / 'chrome'
     
     # 检查 Chrome 是否存在
     chrome_exe, start_script = find_chrome_in_dir(chrome_dir)
     
-    # 获取项目根目录的相对路径显示
-    project_root = Path(current_app.root_path).parent
+    # 根据平台显示不同的安装指引
+    platform = sys.platform
+    if platform == 'win32':
+        setup_steps = [
+            '1. 下载 chrome-launcher.zip 到任意位置（如：桌面）',
+            f'2. 解压后将文件夹重命名为 "chrome_launcher"',
+            f'3. 将整个文件夹移动到: {CHROME_INSTALL_DIR}',
+            f'4. 最终路径应该是: {CHROME_INSTALL_DIR}\\一键启动.bat',
+            '5. 双击运行 一键启动.bat'
+        ]
+        tip = '如果 D: 盘不存在，请使用 C: 盘或其他盘符'
+    elif platform == 'darwin':
+        mac_path = str(Path.home() / '大文娱' / 'chrome_launcher')
+        setup_steps = [
+            '1. 下载 chrome-launcher.zip 到任意位置',
+            f'2. 解压后将文件夹重命名为 "chrome_launcher"',
+            f'3. 将整个文件夹移动到: {mac_path}',
+            f'4. 最终路径应该是: {mac_path}/start_chrome.sh',
+            '5. 运行: chmod +x start_chrome.sh && ./start_chrome.sh'
+        ]
+        tip = None
+    else:  # linux
+        linux_path = str(Path.home() / '大文娱' / 'chrome_launcher')
+        setup_steps = [
+            '1. 下载 chrome-launcher.zip 到任意位置',
+            f'2. 解压后将文件夹重命名为 "chrome_launcher"',
+            f'3. 将整个文件夹移动到: {linux_path}',
+            f'4. 最终路径应该是: {linux_path}/start_chrome.sh',
+            '5. 运行: chmod +x start_chrome.sh && ./start_chrome.sh'
+        ]
+        tip = None
     
     return {
         'installed': chrome_exe is not None,
         'chrome_path': str(chrome_exe) if chrome_exe else None,
         'start_script': str(start_script) if start_script else None,
         'install_dir': str(install_dir),
-        'install_dir_relative': CHROME_INSTALL_DIR,
-        'project_root': str(project_root),
-        'script_name': '一键启动.bat' if sys.platform == 'win32' else 'start_chrome.sh',
-        'setup_instructions': {
-            'windows': [
-                f'1. 下载 chrome-launcher.zip 到任意位置',
-                f'2. 解压并将文件夹重命名为 "chrome_launcher"',
-                f'3. 将整个文件夹移动到: {project_root}\\tools\\',
-                f'4. 最终路径应该是: {install_dir}\\一键启动.bat',
-                f'5. 双击运行 一键启动.bat'
-            ],
-            'macos': [
-                f'1. 下载 chrome-launcher.zip 到任意位置',
-                f'2. 解压并将文件夹重命名为 "chrome_launcher"',
-                f'3. 将整个文件夹移动到: {project_root}/tools/',
-                f'4. 最终路径应该是: {install_dir}/start_chrome.sh',
-                f'5. 运行: chmod +x start_chrome.sh && ./start_chrome.sh'
-            ],
-            'linux': [
-                f'1. 下载 chrome-launcher.zip 到任意位置',
-                f'2. 解压并将文件夹重命名为 "chrome_launcher"',
-                f'3. 将整个文件夹移动到: {project_root}/tools/',
-                f'4. 最终路径应该是: {install_dir}/start_chrome.sh',
-                f'5. 运行: chmod +x start_chrome.sh && ./start_chrome.sh'
-            ]
-        }
+        'script_name': '一键启动.bat' if platform == 'win32' else 'start_chrome.sh',
+        'platform': 'windows' if platform == 'win32' else ('macos' if platform == 'darwin' else 'linux'),
+        'setup_steps': setup_steps,
+        'setup_tip': tip
     }
 
 

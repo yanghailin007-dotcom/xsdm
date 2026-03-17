@@ -1071,7 +1071,7 @@
                                         <div style="width: 40px; height: 40px; background: linear-gradient(135deg, #6366f1, #8b5cf6); border-radius: var(--v2-radius-lg); display: flex; align-items: center; justify-content: center; font-size: 20px;">📦</div>
                                         <div>
                                             <div style="font-weight: 600; color: var(--v2-text-primary);">需要安装 Chrome 环境</div>
-                                            <div style="font-size: 12px; color: var(--v2-text-secondary);">请按以下步骤安装到指定目录</div>
+                                            <div style="font-size: 12px; color: var(--v2-text-secondary);">请按以下步骤安装到您的电脑</div>
                                         </div>
                                     </div>
                                     
@@ -1088,14 +1088,17 @@
                                             </button>
                                         </div>
                                         
-                                        <!-- 步骤2：移动到指定目录 -->
+                                        <!-- 步骤2：解压到指定目录 -->
                                         <div class="step-row" id="step-move" style="opacity: 0.6;">
                                             <div class="step-num">2</div>
                                             <div class="step-content">
-                                                <div class="step-title">移动到指定目录</div>
-                                                <div class="step-desc" id="install-path-hint">解压后重命名为 chrome_launcher，移动到项目 tools/ 目录</div>
-                                                <div style="background: var(--v2-bg-tertiary); border-radius: var(--v2-radius-md); padding: 8px 12px; margin-top: 8px; font-family: monospace; font-size: 11px; color: var(--v2-text-muted); word-break: break-all;" id="install-path-display">
-                                                    {项目目录}/tools/chrome_launcher/
+                                                <div class="step-title">解压到指定目录</div>
+                                                <div class="step-desc">解压后重命名为 "chrome_launcher"</div>
+                                                <div style="background: var(--v2-bg-tertiary); border-radius: var(--v2-radius-md); padding: 8px 12px; margin-top: 8px;">
+                                                    <div style="font-size: 11px; color: var(--v2-text-muted); margin-bottom: 4px;">必须放到这个路径：</div>
+                                                    <div style="font-family: monospace; font-size: 12px; color: var(--v2-text-primary); word-break: break-all;" id="install-path-display">
+                                                        D:\大文娱\chrome_launcher\
+                                                    </div>
                                                 </div>
                                             </div>
                                         </div>
@@ -1120,9 +1123,9 @@
                                     </div>
                                     
                                     <div style="background: rgba(251, 191, 36, 0.1); border: 1px solid rgba(251, 191, 36, 0.3); border-radius: var(--v2-radius-md); padding: var(--v2-space-3);">
-                                        <div style="font-size: 12px; color: var(--v2-text-secondary);">
+                                        <div style="font-size: 12px; color: var(--v2-text-secondary);" id="install-tip">
                                             <span style="color: #fbbf24; font-weight: 600;">💡 提示：</span>
-                                            如果启动器已下载在其他位置，请手动复制到上述目录
+                                            如果 D: 盘不存在，请使用 C: 盘或其他盘符
                                         </div>
                                     </div>
                                 </div>
@@ -1585,11 +1588,16 @@
                     // Chrome 未安装
                     if (installedHint) installedHint.style.display = 'none';
                     if (downloadSteps) downloadSteps.style.display = 'block';
-                    // 显示安装路径
+                    // 显示安装路径和提示
                     if (data.install_info) {
+                        const info = data.install_info;
                         const pathDisplay = document.getElementById('install-path-display');
-                        if (pathDisplay && data.install_info.install_dir) {
-                            pathDisplay.textContent = data.install_info.install_dir + '\\';
+                        if (pathDisplay && info.install_dir) {
+                            pathDisplay.textContent = info.install_dir + '\\';
+                        }
+                        const tipDisplay = document.getElementById('install-tip');
+                        if (tipDisplay && info.setup_tip) {
+                            tipDisplay.innerHTML = `<span style="color: #fbbf24; font-weight: 600;">💡 提示：</span> ${info.setup_tip}`;
                         }
                     }
                 }
