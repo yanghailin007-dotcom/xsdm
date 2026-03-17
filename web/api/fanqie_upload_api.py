@@ -15,7 +15,7 @@ from typing import Optional, Dict, Any
 # 添加上传逻辑到路径
 sys.path.insert(0, str(Path(__file__).parent.parent / 'fanqie_uploader'))
 
-fanqie_upload_api = Blueprint('fanqie_upload_api', __name__, url_prefix='/api/fanqie')
+fanqie_upload_api = Blueprint('fanqie_upload_api', __name__)
 
 DEBUG_PORT = 9988
 
@@ -172,19 +172,67 @@ def start_upload():
 
 def find_novel_file(novel_title: str, user_id: int) -> Optional[str]:
     """查找小说项目文件路径"""
+    from web.utils.path_utils import get_user_novel_dir, find_novel_project, NOVEL_PROJECTS_ROOT
+    from web.database import get_db_connection
+    
+    # 先获取用户名
+    username = None
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        cursor.execute('SELECT username FROM users WHERE id = ?', (user_id,))
+        row = cursor.fetchone()
+        if row:
+            username = row[0]
+        conn.close()
+    except Exception as e:
+        from web.web_config import logger
+        logger.warning(f"[查找小说] 获取用户名失败: {e}")
+    
+    # 使用通用查找函数（优先用户名，后备 user_id）
+    search_names = [n for n in [username, str(user_id)] if n]
+    
+    for name in search_names:
+        project_dir = find_novel_project(novel_title, name)
+        if project_dir and project_dir.exists():
+            # 查找项目信息文件
+            info_file = project_dir / "项目信息.json"
+            if info_file.exists():
+                return str(info_file)
+            # 备选：查找其他 JSON 文件
+            json_files = list(project_dir.glob("*.json"))
+            if json_files:
+                return str(json_files[0])
+    
+    # 兜底：尝试在项目根目录查找（兼容旧路径）
+    safe_title = novel_title.replace('/', '_').replace('\\', '_')
+    legacy_project = NOVEL_PROJECTS_ROOT / safe_title
+    if legacy_project.exists():
+        info_file = legacy_project / "项目信息.json"
+        if info_file.exists():
+            return str(info_file)
+        json_files = list(legacy_project.glob("*.json"))
+        if json_files:
+            return str(json_files[0])
+    
+    return None
+
+
+def find_novel_file_legacy(novel_title: str, user_id: int) -> Optional[str]:
+    """查找小说项目文件路径（旧方法，用于调试）"""
     from web.utils.path_utils import get_user_novel_dir
     
-    user_dir = get_user_novel_dir(user_id)
-    project_dir = user_dir / novel_title
-    
-    # 查找项目信息文件
-    info_file = project_dir / "项目信息.json"
-    if info_file.exists():
-        return str(info_file)
-    
-    # 备选：查找其他 JSON 文件
-    json_files = list(project_dir.glob("*.json"))
-    if json_files:
-        return str(json_files[0])
+    # 尝试用户名或 user_id 作为目录名
+    for username in [str(user_id)]:
+        user_dir = get_user_novel_dir(username)
+        project_dir = user_dir / novel_title
+        
+        if project_dir.exists():
+            info_file = project_dir / "项目信息.json"
+            if info_file.exists():
+                return str(info_file)
+            json_files = list(project_dir.glob("*.json"))
+            if json_files:
+                return str(json_files[0])
     
     return None
