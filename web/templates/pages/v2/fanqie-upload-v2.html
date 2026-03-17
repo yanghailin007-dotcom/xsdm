@@ -1765,9 +1765,31 @@
             });
         }
         
-        // 打开番茄作家专区
-        function openFanqie() {
-            window.open('https://fanqienovel.com/author', '_blank');
+        // 打开番茄作家专区（在已连接的 Chrome 中打开）
+        async function openFanqie() {
+            if (!isChromeConnected) {
+                showNotification('请先启动 Chrome 浏览器', 'error');
+                return;
+            }
+            
+            try {
+                const response = await fetch('/api/chrome/navigate', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ url: 'https://fanqienovel.com/author' })
+                });
+                
+                const result = await response.json();
+                
+                if (result.success) {
+                    showNotification('已在 Chrome 中打开番茄作家专区', 'success');
+                } else {
+                    showNotification(result.message || '打开失败', 'error');
+                }
+            } catch (error) {
+                console.error('导航失败:', error);
+                showNotification('导航失败，请检查 Chrome 连接', 'error');
+            }
         }
         
         // 加载项目列表

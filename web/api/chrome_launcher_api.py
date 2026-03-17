@@ -139,3 +139,70 @@ def connect_chrome():
             'error': str(e),
             'message': '连接 Chrome 失败'
         }), 500
+
+
+@chrome_api.route('/api/chrome/navigate', methods=['POST'])
+def navigate_chrome():
+    """控制 Chrome 浏览器导航到指定 URL"""
+    from playwright.sync_api import sync_playwright
+    
+    status = check_chrome_status()
+    
+    if not status['running']:
+        return jsonify({
+            'success': False,
+            'error': 'Chrome is not running',
+            'message': '请先启动 Chrome 浏览器'
+        }), 400
+    
+    # 获取请求中的 URL
+    from flask import request
+    data = request.get_json()
+    url = data.get('url') if data else None
+    
+    if not url:
+        return jsonify({
+            'success': False,
+            'error': 'Missing URL parameter',
+            'message': '请提供要打开的网址'
+        }), 400
+    
+    try:
+        # 连接到 Chrome
+        playwright = sync_playwright().start()
+        browser = playwright.chromium.connect_over_cdp(
+            f'http://127.0.0.1:{DEBUG_PORT}'
+        )
+        
+        # 获取第一个上下文和页面
+        contexts = browser.contexts
+        if not contexts:
+            # 如果没有上下文，创建新页面
+            context = browser.new_context()
+            page = context.new_page()
+        else:
+            context = contexts[0]
+            pages = context.pages
+            if pages:
+                page = pages[0]  # 使用第一个已有页面
+            else:
+                page = context.new_page()
+        
+        # 导航到指定 URL
+        page.goto(url, wait_until='domcontentloaded')
+        
+        browser.close()
+        playwright.stop()
+        
+        return jsonify({
+            'success': True,
+            'message': f'已打开: {url}',
+            'url': url
+        })
+        
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'error': str(e),
+            'message': f'打开页面失败: {str(e)}'
+        }), 500
