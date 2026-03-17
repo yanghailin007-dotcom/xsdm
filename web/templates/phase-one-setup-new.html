@@ -27,7 +27,7 @@
             min-height: 100vh;
         }
         
-        /* 背景装饰 */
+        /* 背景装饰 - 优化性能 */
         .bg-decoration {
             position: fixed;
             top: 0;
@@ -37,31 +37,59 @@
             pointer-events: none;
             overflow: hidden;
             z-index: -1;
+            /* 优化：让浏览器优化滚动性能 */
+            contain: strict;
         }
         
         .bg-decoration__gradient {
             position: absolute;
             width: 800px;
             height: 800px;
-            background: radial-gradient(circle, rgba(99, 102, 241, 0.12) 0%, transparent 70%);
+            background: radial-gradient(circle, rgba(99, 102, 241, 0.08) 0%, transparent 70%);
             top: -200px;
             right: -200px;
+            /* 优化：使用 will-change 提示浏览器优化 */
+            will-change: transform;
             animation: float 20s ease-in-out infinite;
+            /* 优化：创建独立图层 */
+            transform: translateZ(0);
         }
         
         .bg-decoration__gradient--2 {
             position: absolute;
             width: 600px;
             height: 600px;
-            background: radial-gradient(circle, rgba(34, 211, 238, 0.08) 0%, transparent 70%);
+            background: radial-gradient(circle, rgba(34, 211, 238, 0.06) 0%, transparent 70%);
             bottom: -100px;
             left: -100px;
+            will-change: transform;
             animation: float 15s ease-in-out infinite reverse;
+            transform: translateZ(0);
         }
         
         @keyframes float {
-            0%, 100% { transform: translate(0, 0) scale(1); }
-            50% { transform: translate(30px, -30px) scale(1.1); }
+            0%, 100% { transform: translate3d(0, 0, 0) scale(1); }
+            50% { transform: translate3d(30px, -30px, 0) scale(1.05); }
+        }
+        
+        /* 关闭动画偏好设置 */
+        @media (prefers-reduced-motion: reduce) {
+            .bg-decoration__gradient,
+            .bg-decoration__gradient--2 {
+                animation: none;
+            }
+        }
+        
+        /* 滚动优化 */
+        html {
+            scroll-behavior: smooth;
+        }
+        
+        body {
+            /* 优化：启用硬件加速 */
+            -webkit-overflow-scrolling: touch;
+            /* 优化：避免重绘 */
+            text-rendering: optimizeSpeed;
         }
         
         /* 主容器 */
@@ -69,6 +97,28 @@
             max-width: 1400px;
             margin: 0 auto;
             padding: 0 24px;
+            /* 优化：创建独立渲染层 */
+            contain: layout style;
+        }
+        
+        /* 按钮悬停效果 - 优化性能（使用 CSS 类替代 inline JS） */
+        .btn-hover-lift {
+            transition: transform 0.2s ease, box-shadow 0.2s ease;
+            will-change: transform;
+        }
+        
+        .btn-hover-lift:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 20px rgba(99, 102, 241, 0.4);
+        }
+        
+        .btn-hover-secondary {
+            transition: background 0.2s ease, border-color 0.2s ease;
+        }
+        
+        .btn-hover-secondary:hover {
+            background: rgba(255, 255, 255, 0.1) !important;
+            border-color: rgba(255, 255, 255, 0.25) !important;
         }
         
         /* 页面头部 */
@@ -764,7 +814,7 @@
                     </div>
                 </div>
                 <div style="display: flex; gap: 12px; flex-shrink: 0;">
-                    <button onclick="resumeGenerationFromBanner()" style="
+                    <button onclick="resumeGenerationFromBanner()" class="btn-hover-lift" style="
                         padding: 10px 20px;
                         background: linear-gradient(135deg, #6366f1, #8b5cf6);
                         border: none;
@@ -772,10 +822,8 @@
                         color: white;
                         font-weight: 600;
                         cursor: pointer;
-                        transition: all 0.2s;
                         white-space: nowrap;
-                    " onmouseover="this.style.transform='translateY(-2px)'; this.style.boxShadow='0 8px 20px rgba(99, 102, 241, 0.4)';" 
-                       onmouseout="this.style.transform=''; this.style.boxShadow='';">
+                    ">
                         ▶️ 继续生成
                     </button>
                     <button onclick="startNewGenerationFromBanner()" style="
@@ -829,7 +877,34 @@
                         <div class="pt-form-section__title">
                             <div class="pt-form-section__icon">📝</div>
                             <div class="pt-form-section__text">
-                                <h3>创意输入与配置</h3>
+                                <button onclick="closeResumeConfirmDialog()" class="btn-hover-secondary" style="
+                                    flex: 1;
+                                    padding: 12px 20px;
+                                    background: rgba(255, 255, 255, 0.06);
+                                    border: 1px solid rgba(255, 255, 255, 0.15);
+                                    border-radius: 10px;
+                                    color: var(--v2-text-secondary, #a1a1aa);
+                                    font-size: 14px;
+                                    font-weight: 500;
+                                    cursor: pointer;
+                                    transition: all 0.2s;
+                                ">
+                                    取消
+                                </button>
+                                <button onclick="closeResumeConfirmDialog(true)" class="btn-hover-lift" style="
+                                    flex: 1.5;
+                                    padding: 12px 20px;
+                                    background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
+                                    border: none;
+                                    border-radius: 10px;
+                                    color: #fff;
+                                    font-size: 14px;
+                                    font-weight: 600;
+                                    cursor: pointer;
+                                    box-shadow: 0 4px 15px rgba(99, 102, 241, 0.4);
+                                ">
+                                    ▶️ 继续生成
+                                </button><h3>创意输入与配置</h3>
                                 <p>填写小说基本信息，AI将为您生成完整设定</p>
                             </div>
                         </div>
