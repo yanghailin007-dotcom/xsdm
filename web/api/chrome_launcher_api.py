@@ -19,21 +19,25 @@ DEBUG_PORT = 9988
 
 
 # 固定的 Chrome 安装目录（在客户电脑上）
-# Windows: D:\大文娱\chrome_launcher\ (优先 D 盘，如果不存在则用系统盘)
+# Windows: D:\大文娱\chrome_launcher\ (首选位置，如果不存在可用 C 盘)
 # Mac/Linux: ~/大文娱/chrome_launcher/
 if sys.platform == 'win32':
-    # 优先使用 D 盘，如果不存在则使用 C 盘
-    d_drive = Path('D:\\大文娱\\chrome_launcher')
-    if Path('D:\\').exists():
-        CHROME_INSTALL_DIR = str(d_drive)
-    else:
-        CHROME_INSTALL_DIR = str(Path('C:\\大文娱\\chrome_launcher'))
+    # Windows 首选 D 盘，备选 C 盘
+    CHROME_INSTALL_DIR = 'D:\\大文娱\\chrome_launcher'
+    CHROME_INSTALL_DIR_FALLBACK = 'C:\\大文娱\\chrome_launcher'
 else:
     CHROME_INSTALL_DIR = str(Path.home() / '大文娱' / 'chrome_launcher')
+    CHROME_INSTALL_DIR_FALLBACK = None
 
 
 def get_chrome_install_dir() -> Path:
     """获取 Chrome 应该安装的固定目录（客户电脑上的绝对路径）"""
+    # 如果 D 盘存在就用 D 盘，否则用备选路径
+    if sys.platform == 'win32':
+        if Path('D:\\').exists():
+            return Path(CHROME_INSTALL_DIR)
+        elif CHROME_INSTALL_DIR_FALLBACK and Path('C:\\').exists():
+            return Path(CHROME_INSTALL_DIR_FALLBACK)
     return Path(CHROME_INSTALL_DIR)
 
 
@@ -83,6 +87,7 @@ def find_chrome_in_dir(chrome_dir: Path) -> tuple:
 
 def check_chrome_installed() -> dict:
     """检查 Chrome 是否已安装（仅在客户电脑的固定目录）"""
+    # 获取实际检测路径（用于检查是否已安装）
     install_dir = get_chrome_install_dir()
     chrome_dir = install_dir / 'chrome'
     
@@ -92,14 +97,21 @@ def check_chrome_installed() -> dict:
     # 根据平台显示不同的安装指引
     platform = sys.platform
     if platform == 'win32':
+        # 始终向用户显示首选路径 D: 盘
+        primary_path = 'D:\\大文娱\\chrome_launcher'
+        fallback_path = 'C:\\大文娱\\chrome_launcher'
+        
         setup_steps = [
             '1. 下载 chrome-launcher.zip 到任意位置（如：桌面）',
-            f'2. 解压后将文件夹重命名为 "chrome_launcher"',
-            f'3. 将整个文件夹移动到: {CHROME_INSTALL_DIR}',
-            f'4. 最终路径应该是: {CHROME_INSTALL_DIR}\\一键启动.bat',
+            '2. 解压后将文件夹重命名为 "chrome_launcher"',
+            f'3. 将整个文件夹移动到: {primary_path}',
+            f'4. 最终路径应该是: {primary_path}\\一键启动.bat',
             '5. 双击运行 一键启动.bat'
         ]
-        tip = '如果 D: 盘不存在，请使用 C: 盘或其他盘符'
+        tip = '如果 D: 盘不存在，请使用 C: 盘（即：' + fallback_path + '）'
+        
+        # 返回给前端显示的路径（优先 D 盘）
+        display_dir = primary_path
     elif platform == 'darwin':
         mac_path = str(Path.home() / '大文娱' / 'chrome_launcher')
         setup_steps = [
@@ -110,6 +122,7 @@ def check_chrome_installed() -> dict:
             '5. 运行: chmod +x start_chrome.sh && ./start_chrome.sh'
         ]
         tip = None
+        display_dir = mac_path
     else:  # linux
         linux_path = str(Path.home() / '大文娱' / 'chrome_launcher')
         setup_steps = [
@@ -120,12 +133,13 @@ def check_chrome_installed() -> dict:
             '5. 运行: chmod +x start_chrome.sh && ./start_chrome.sh'
         ]
         tip = None
+        display_dir = linux_path
     
     return {
         'installed': chrome_exe is not None,
         'chrome_path': str(chrome_exe) if chrome_exe else None,
         'start_script': str(start_script) if start_script else None,
-        'install_dir': str(install_dir),
+        'install_dir': display_dir,  # 始终向用户显示首选路径
         'script_name': '一键启动.bat' if platform == 'win32' else 'start_chrome.sh',
         'platform': 'windows' if platform == 'win32' else ('macos' if platform == 'darwin' else 'linux'),
         'setup_steps': setup_steps,
