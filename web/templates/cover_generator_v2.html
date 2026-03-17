@@ -13,84 +13,16 @@
     <style>
         /* 页面特定样式 */
         .cover-page {
-            min-height: 100vh;
-            display: flex;
-            flex-direction: column;
-            background: var(--v2-bg-primary);
-        }
-        
-        /* ===== 页眉 ===== */
-        .v2-header {
-            position: fixed;
-            top: 0;
-            left: 0;
-            right: 0;
-            height: 60px;
-            background: var(--v2-bg-secondary);
-            border-bottom: 1px solid var(--v2-border-subtle);
-            z-index: 1000;
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            padding: 0 var(--v2-space-6);
-        }
-        
-        .v2-header-left {
-            display: flex;
-            align-items: center;
-            gap: var(--v2-space-4);
-        }
-        
-        .v2-header-logo {
-            font-size: var(--v2-text-xl);
-            font-weight: var(--v2-font-bold);
-            background: linear-gradient(135deg, var(--v2-primary), var(--v2-secondary));
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-            background-clip: text;
-        }
-        
-        .v2-header-nav {
-            display: flex;
-            gap: var(--v2-space-1);
-        }
-        
-        .v2-header-nav a {
-            padding: var(--v2-space-2) var(--v2-space-3);
-            border-radius: var(--v2-radius-lg);
-            color: var(--v2-text-secondary);
-            font-size: var(--v2-text-sm);
-            font-weight: var(--v2-font-medium);
-            transition: all 0.2s;
-            text-decoration: none;
-        }
-        
-        .v2-header-nav a:hover {
-            background: var(--v2-bg-tertiary);
-            color: var(--v2-text-primary);
-        }
-        
-        .v2-header-nav a.active {
-            background: rgba(99, 102, 241, 0.1);
-            color: var(--v2-primary);
-        }
-        
-        /* ===== 主内容区 ===== */
-        .cover-main {
-            flex: 1;
-            padding-top: 60px;
-            padding-bottom: 60px;
-        }
-        
-        .cover-container {
-            max-width: 1600px;
+            min-height: calc(100vh - 60px);
+            padding: var(--v2-space-6) var(--v2-space-8);
+            max-width: 1400px;
             margin: 0 auto;
-            padding: var(--v2-space-6);
         }
         
         /* ===== 页面标题 ===== */
         .cover-page-header {
             margin-bottom: var(--v2-space-6);
+            text-align: center;
         }
         
         .cover-page-title {
@@ -99,6 +31,7 @@
             color: var(--v2-text-primary);
             display: flex;
             align-items: center;
+            justify-content: center;
             gap: var(--v2-space-3);
         }
         
@@ -108,18 +41,57 @@
             margin-top: var(--v2-space-2);
         }
         
+        /* ===== 项目选择器 ===== */
+        .project-selector {
+            background: var(--v2-bg-secondary);
+            border: 1px solid var(--v2-border-subtle);
+            border-radius: var(--v2-radius-xl);
+            padding: var(--v2-space-4) var(--v2-space-5);
+            margin-bottom: var(--v2-space-6);
+            display: flex;
+            align-items: center;
+            gap: var(--v2-space-4);
+            flex-wrap: wrap;
+        }
+        
+        .project-selector-label {
+            font-size: var(--v2-text-sm);
+            font-weight: var(--v2-font-medium);
+            color: var(--v2-text-primary);
+            display: flex;
+            align-items: center;
+            gap: var(--v2-space-2);
+        }
+        
+        .project-selector-select {
+            flex: 1;
+            min-width: 200px;
+            max-width: 400px;
+            padding: var(--v2-space-2) var(--v2-space-3);
+            background: var(--v2-bg-tertiary);
+            border: 1px solid var(--v2-border-default);
+            border-radius: var(--v2-radius-lg);
+            color: var(--v2-text-primary);
+            font-size: var(--v2-text-sm);
+            cursor: pointer;
+        }
+        
+        .project-selector-select:focus {
+            outline: none;
+            border-color: var(--v2-primary);
+        }
+        
+        .project-selector-hint {
+            font-size: var(--v2-text-xs);
+            color: var(--v2-text-muted);
+        }
+        
         /* ===== 三栏布局 ===== */
         .cover-layout {
             display: grid;
             grid-template-columns: 320px 1fr 320px;
             gap: var(--v2-space-6);
             align-items: start;
-        }
-        
-        @media (max-width: 1400px) {
-            .cover-layout {
-                grid-template-columns: 280px 1fr 280px;
-            }
         }
         
         @media (max-width: 1200px) {
@@ -199,11 +171,6 @@
             box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
         }
         
-        .v2-input::placeholder,
-        .v2-textarea::placeholder {
-            color: var(--v2-text-muted);
-        }
-        
         .v2-textarea {
             resize: vertical;
             min-height: 80px;
@@ -265,10 +232,6 @@
             font-size: var(--v2-text-xs);
             cursor: pointer;
             transition: all 0.2s;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            gap: var(--v2-space-1);
         }
         
         .template-btn:hover {
@@ -292,21 +255,12 @@
         .preview-placeholder {
             text-align: center;
             color: var(--v2-text-muted);
+            padding: var(--v2-space-6);
         }
         
         .preview-placeholder-icon {
             font-size: 48px;
             margin-bottom: var(--v2-space-3);
-        }
-        
-        .preview-placeholder h3 {
-            font-size: var(--v2-text-lg);
-            font-weight: var(--v2-font-semibold);
-            margin-bottom: var(--v2-space-2);
-        }
-        
-        .preview-placeholder p {
-            font-size: var(--v2-text-sm);
         }
         
         .preview-image {
@@ -334,13 +288,6 @@
             transition: width 0.3s ease;
         }
         
-        .progress-text {
-            text-align: center;
-            margin-top: var(--v2-space-2);
-            font-size: var(--v2-text-sm);
-            color: var(--v2-text-secondary);
-        }
-        
         /* ===== 结果网格 ===== */
         .results-grid {
             display: grid;
@@ -360,28 +307,12 @@
         
         .result-item:hover {
             border-color: var(--v2-primary);
-            transform: scale(1.02);
         }
         
         .result-item img {
             width: 100%;
             height: 100%;
             object-fit: cover;
-        }
-        
-        .result-overlay {
-            position: absolute;
-            bottom: 0;
-            left: 0;
-            right: 0;
-            padding: var(--v2-space-2);
-            background: linear-gradient(transparent, rgba(0,0,0,0.8));
-            opacity: 0;
-            transition: opacity 0.2s;
-        }
-        
-        .result-item:hover .result-overlay {
-            opacity: 1;
         }
         
         /* ===== 技巧卡片 ===== */
@@ -421,20 +352,6 @@
         .tip-content p {
             font-size: var(--v2-text-xs);
             color: var(--v2-text-secondary);
-            line-height: 1.5;
-        }
-        
-        /* ===== 页脚 ===== */
-        .v2-footer {
-            background: var(--v2-bg-secondary);
-            border-top: 1px solid var(--v2-border-subtle);
-            padding: var(--v2-space-4) var(--v2-space-6);
-            text-align: center;
-        }
-        
-        .v2-footer-text {
-            font-size: var(--v2-text-xs);
-            color: var(--v2-text-muted);
         }
         
         /* ===== 模态框 ===== */
@@ -489,12 +406,6 @@
             color: var(--v2-text-secondary);
             font-size: 20px;
             cursor: pointer;
-            transition: all 0.2s;
-        }
-        
-        .v2-modal-close:hover {
-            background: var(--v2-bg-primary);
-            color: var(--v2-text-primary);
         }
         
         .v2-modal-body {
@@ -510,338 +421,283 @@
             justify-content: flex-end;
             gap: var(--v2-space-3);
         }
-        
-        /* ===== 复选框 ===== */
-        .v2-checkbox {
-            display: flex;
-            align-items: center;
-            gap: var(--v2-space-3);
-            cursor: pointer;
-        }
-        
-        .v2-checkbox input {
-            display: none;
-        }
-        
-        .v2-checkmark {
-            width: 20px;
-            height: 20px;
-            border: 2px solid var(--v2-border-default);
-            border-radius: var(--v2-radius-md);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            transition: all 0.2s;
-        }
-        
-        .v2-checkbox input:checked + .v2-checkmark {
-            background: var(--v2-primary);
-            border-color: var(--v2-primary);
-        }
-        
-        .v2-checkmark::after {
-            content: '✓';
-            color: white;
-            font-size: 12px;
-            opacity: 0;
-            transition: opacity 0.2s;
-        }
-        
-        .v2-checkbox input:checked + .v2-checkmark::after {
-            opacity: 1;
-        }
     </style>
 </head>
 <body>
-    <div class="cover-page">
-        <!-- 页眉 -->
-        <header class="v2-header">
-            <div class="v2-header-left">
-                <div class="v2-header-logo">🎨 大文娱</div>
-                <nav class="v2-header-nav">
-                    <a href="/landing">首页</a>
-                    <a href="/novels">作品列表</a>
-                    <a href="/cover-generator" class="active">封面生成</a>
-                    <a href="/pages/v2/fanqie-upload-v2">番茄上传</a>
-                </nav>
-            </div>
-            <div class="v2-header-actions">
-                <button class="v2-btn v2-btn--secondary v2-btn--sm" onclick="showHelp()">❓ 帮助</button>
-                <div class="v2-user-menu">
-                    <div class="v2-avatar" id="userAvatar">
-                        <span>用</span>
+    <!-- 通用导航栏 -->
+    {% include 'components/v2/navbar.html' %}
+
+    <!-- 主内容 -->
+    <main class="cover-page">
+        <!-- 页面标题 -->
+        <div class="cover-page-header">
+            <h1 class="cover-page-title">
+                <span>🎨</span>
+                小说封面生成器
+            </h1>
+            <p class="cover-page-subtitle">AI 智能生成精美小说封面，支持多种风格和配色方案</p>
+        </div>
+
+        <!-- 项目选择器 -->
+        <div class="project-selector">
+            <span class="project-selector-label">📚 选择项目</span>
+            <select class="project-selector-select" id="project-select" onchange="onProjectSelect()">
+                <option value="">-- 请选择小说项目 --</option>
+            </select>
+            <span class="project-selector-hint">选择项目后可自动填充标题和提示词</span>
+        </div>
+
+        <!-- 三栏布局 -->
+        <div class="cover-layout">
+            <!-- 左侧面板：设置 -->
+            <div class="cover-left">
+                <!-- 基础信息 -->
+                <div class="cover-panel">
+                    <div class="cover-panel-header">
+                        <span>📝</span>
+                        <span class="cover-panel-title">基础信息</span>
+                    </div>
+                    <div class="cover-panel-body">
+                        <div class="v2-form-group">
+                            <label class="v2-form-label">小说标题</label>
+                            <input type="text" class="v2-input" id="novel-title" placeholder="请输入小说标题" maxlength="50">
+                            <div class="v2-form-hint">建议 10-30 个字符</div>
+                        </div>
+                        
+                        <div class="v2-form-group">
+                            <label class="v2-form-label">作者名称</label>
+                            <input type="text" class="v2-input" id="author-name" placeholder="请输入作者名称" maxlength="30">
+                        </div>
+                        
+                        <div class="v2-form-group">
+                            <label class="v2-form-label">小说类型</label>
+                            <select class="v2-select" id="novel-genre">
+                                <option value="">请选择类型</option>
+                                <option value="玄幻">玄幻修仙</option>
+                                <option value="都市">都市言情</option>
+                                <option value="历史">历史架空</option>
+                                <option value="科幻">科幻未来</option>
+                                <option value="武侠">武侠江湖</option>
+                                <option value="悬疑">悬疑推理</option>
+                                <option value="游戏">游戏竞技</option>
+                                <option value="军事">军事战争</option>
+                                <option value="校园">校园青春</option>
+                                <option value="职场">职场商战</option>
+                            </select>
+                        </div>
                     </div>
                 </div>
-            </div>
-        </header>
 
-        <!-- 主内容 -->
-        <main class="cover-main">
-            <div class="cover-container">
-                <!-- 页面标题 -->
-                <div class="cover-page-header">
-                    <h1 class="cover-page-title">
+                <!-- 风格设置 -->
+                <div class="cover-panel" style="margin-top: var(--v2-space-4);">
+                    <div class="cover-panel-header">
                         <span>🎨</span>
-                        小说封面生成器
-                    </h1>
-                    <p class="cover-page-subtitle">AI 智能生成精美小说封面，支持多种风格和配色方案</p>
+                        <span class="cover-panel-title">风格设置</span>
+                    </div>
+                    <div class="cover-panel-body">
+                        <div class="v2-form-group">
+                            <label class="v2-form-label">封面风格</label>
+                            <select class="v2-select" id="cover-style">
+                                <option value="现代简约">现代简约</option>
+                                <option value="古典唯美">古典唯美</option>
+                                <option value="科幻未来">科幻未来</option>
+                                <option value="古风仙侠">古风仙侠</option>
+                                <option value="都市时尚">都市时尚</option>
+                                <option value="神秘悬疑">神秘悬疑</option>
+                                <option value="温暖治愈">温暖治愈</option>
+                                <option value="热血激燃">热血激燃</option>
+                            </select>
+                        </div>
+
+                        <div class="v2-form-group">
+                            <label class="v2-form-label">配色方案</label>
+                            <div class="color-scheme-grid">
+                                <div class="color-scheme-item active" data-scheme="blue">
+                                    <div class="color-preview" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);"></div>
+                                    <span>蓝紫</span>
+                                </div>
+                                <div class="color-scheme-item" data-scheme="red">
+                                    <div class="color-preview" style="background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);"></div>
+                                    <span>红粉</span>
+                                </div>
+                                <div class="color-scheme-item" data-scheme="green">
+                                    <div class="color-preview" style="background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);"></div>
+                                    <span>青蓝</span>
+                                </div>
+                                <div class="color-scheme-item" data-scheme="purple">
+                                    <div class="color-preview" style="background: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%);"></div>
+                                    <span>青绿</span>
+                                </div>
+                                <div class="color-scheme-item" data-scheme="gold">
+                                    <div class="color-preview" style="background: linear-gradient(135deg, #fa709a 0%, #fee140 100%);"></div>
+                                    <span>暖金</span>
+                                </div>
+                                <div class="color-scheme-item" data-scheme="dark">
+                                    <div class="color-preview" style="background: linear-gradient(135deg, #30cfd0 0%, #330867 100%);"></div>
+                                    <span>暗色</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="v2-form-group">
+                            <label class="v2-form-label">图片尺寸</label>
+                            <select class="v2-select" id="image-size">
+                                <option value="1K">1K (1024×1024) - 推荐</option>
+                                <option value="2K">2K (2048×2048) - 高清</option>
+                            </select>
+                        </div>
+                    </div>
                 </div>
 
-                <!-- 三栏布局 -->
-                <div class="cover-layout">
-                    <!-- 左侧面板：设置 -->
-                    <div class="cover-left">
-                        <!-- 基础信息 -->
-                        <div class="cover-panel">
-                            <div class="cover-panel-header">
-                                <span>📝</span>
-                                <span class="cover-panel-title">基础信息</span>
-                            </div>
-                            <div class="cover-panel-body">
-                                <div class="v2-form-group">
-                                    <label class="v2-form-label">小说标题</label>
-                                    <input type="text" class="v2-input" id="novel-title" placeholder="请输入小说标题" maxlength="50">
-                                    <div class="v2-form-hint">建议 10-30 个字符</div>
-                                </div>
-                                
-                                <div class="v2-form-group">
-                                    <label class="v2-form-label">作者名称</label>
-                                    <input type="text" class="v2-input" id="author-name" placeholder="请输入作者名称" maxlength="30">
-                                </div>
-                                
-                                <div class="v2-form-group">
-                                    <label class="v2-form-label">小说类型</label>
-                                    <select class="v2-select" id="novel-genre">
-                                        <option value="">请选择类型</option>
-                                        <option value="玄幻">玄幻修仙</option>
-                                        <option value="都市">都市言情</option>
-                                        <option value="历史">历史架空</option>
-                                        <option value="科幻">科幻未来</option>
-                                        <option value="武侠">武侠江湖</option>
-                                        <option value="悬疑">悬疑推理</option>
-                                        <option value="游戏">游戏竞技</option>
-                                        <option value="军事">军事战争</option>
-                                        <option value="校园">校园青春</option>
-                                        <option value="职场">职场商战</option>
-                                    </select>
-                                </div>
+                <!-- 提示词模板 -->
+                <div class="cover-panel" style="margin-top: var(--v2-space-4);">
+                    <div class="cover-panel-header">
+                        <span>📋</span>
+                        <span class="cover-panel-title">提示词模板</span>
+                    </div>
+                    <div class="cover-panel-body">
+                        <div class="template-grid">
+                            <button class="template-btn" onclick="loadTemplate('fantasy')">⚔️ 玄幻</button>
+                            <button class="template-btn" onclick="loadTemplate('urban')">🏙️ 都市</button>
+                            <button class="template-btn" onclick="loadTemplate('historical')">🏛️ 历史</button>
+                            <button class="template-btn" onclick="loadTemplate('scifi')">🚀 科幻</button>
+                            <button class="template-btn" onclick="loadTemplate('martial')">🗡️ 武侠</button>
+                            <button class="template-btn" onclick="loadTemplate('mystery')">🔍 悬疑</button>
+                        </div>
+
+                        <div class="v2-form-group" style="margin-top: var(--v2-space-4);">
+                            <label class="v2-form-label">自定义提示词</label>
+                            <textarea class="v2-textarea" id="custom-prompt" rows="4" placeholder="描述封面场景、人物、风格..."></textarea>
+                        </div>
+
+                        <div class="v2-form-group">
+                            <label class="v2-form-label">负面提示词</label>
+                            <textarea class="v2-textarea" id="negative-prompt" rows="2" placeholder="不希望出现的内容..."></textarea>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 中间面板：预览 -->
+            <div class="cover-center">
+                <div class="cover-panel">
+                    <div class="cover-panel-header">
+                        <span>🖼️</span>
+                        <span class="cover-panel-title">封面预览</span>
+                    </div>
+                    <div class="cover-panel-body">
+                        <div class="preview-container" id="preview-container">
+                            <div class="preview-placeholder">
+                                <div class="preview-placeholder-icon">🎨</div>
+                                <h3>准备生成</h3>
+                                <p>填写信息后点击生成按钮</p>
                             </div>
                         </div>
 
-                        <!-- 风格设置 -->
-                        <div class="cover-panel" style="margin-top: var(--v2-space-4);">
-                            <div class="cover-panel-header">
-                                <span>🎨</span>
-                                <span class="cover-panel-title">风格设置</span>
+                        <div class="progress-container" id="progress-container" style="display: none;">
+                            <div class="progress-bar">
+                                <div class="progress-fill" id="progress-fill" style="width: 0%;"></div>
                             </div>
-                            <div class="cover-panel-body">
-                                <div class="v2-form-group">
-                                    <label class="v2-form-label">封面风格</label>
-                                    <select class="v2-select" id="cover-style">
-                                        <option value="现代简约">现代简约</option>
-                                        <option value="古典唯美">古典唯美</option>
-                                        <option value="科幻未来">科幻未来</option>
-                                        <option value="古风仙侠">古风仙侠</option>
-                                        <option value="都市时尚">都市时尚</option>
-                                        <option value="神秘悬疑">神秘悬疑</option>
-                                        <option value="温暖治愈">温暖治愈</option>
-                                        <option value="热血激燃">热血激燃</option>
-                                    </select>
-                                </div>
-
-                                <div class="v2-form-group">
-                                    <label class="v2-form-label">配色方案</label>
-                                    <div class="color-scheme-grid">
-                                        <div class="color-scheme-item active" data-scheme="blue">
-                                            <div class="color-preview" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);"></div>
-                                            <span>蓝紫</span>
-                                        </div>
-                                        <div class="color-scheme-item" data-scheme="red">
-                                            <div class="color-preview" style="background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);"></div>
-                                            <span>红粉</span>
-                                        </div>
-                                        <div class="color-scheme-item" data-scheme="green">
-                                            <div class="color-preview" style="background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);"></div>
-                                            <span>青蓝</span>
-                                        </div>
-                                        <div class="color-scheme-item" data-scheme="purple">
-                                            <div class="color-preview" style="background: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%);"></div>
-                                            <span>青绿</span>
-                                        </div>
-                                        <div class="color-scheme-item" data-scheme="gold">
-                                            <div class="color-preview" style="background: linear-gradient(135deg, #fa709a 0%, #fee140 100%);"></div>
-                                            <span>暖金</span>
-                                        </div>
-                                        <div class="color-scheme-item" data-scheme="dark">
-                                            <div class="color-preview" style="background: linear-gradient(135deg, #30cfd0 0%, #330867 100%);"></div>
-                                            <span>暗色</span>
-                                        </div>
-                                    </div>
-                                </div>
-
-                                <div class="v2-form-group">
-                                    <label class="v2-form-label">图片尺寸</label>
-                                    <select class="v2-select" id="image-size">
-                                        <option value="1K">1K (1024×1024) - 推荐</option>
-                                        <option value="2K">2K (2048×2048) - 高清</option>
-                                    </select>
-                                </div>
-                            </div>
+                            <div class="progress-text" id="progress-text">正在生成...</div>
                         </div>
 
-                        <!-- 提示词模板 -->
-                        <div class="cover-panel" style="margin-top: var(--v2-space-4);">
-                            <div class="cover-panel-header">
-                                <span>📋</span>
-                                <span class="cover-panel-title">提示词模板</span>
-                            </div>
-                            <div class="cover-panel-body">
-                                <div class="template-grid">
-                                    <button class="template-btn" onclick="loadTemplate('fantasy')">⚔️ 玄幻</button>
-                                    <button class="template-btn" onclick="loadTemplate('urban')">🏙️ 都市</button>
-                                    <button class="template-btn" onclick="loadTemplate('historical')">🏛️ 历史</button>
-                                    <button class="template-btn" onclick="loadTemplate('scifi')">🚀 科幻</button>
-                                    <button class="template-btn" onclick="loadTemplate('martial')">🗡️ 武侠</button>
-                                    <button class="template-btn" onclick="loadTemplate('mystery')">🔍 悬疑</button>
-                                </div>
+                        <div style="margin-top: var(--v2-space-4); text-align: center;">
+                            <button class="v2-btn v2-btn--primary v2-btn--lg" onclick="generateCover()" id="generate-btn" style="min-width: 160px;">
+                                🎨 生成封面
+                            </button>
+                            <button class="v2-btn v2-btn--secondary v2-btn--lg" onclick="regenerateCover()" id="regenerate-btn" style="display: none; margin-left: var(--v2-space-3);">
+                                🔄 重新生成
+                            </button>
+                        </div>
+                    </div>
+                </div>
 
-                                <div class="v2-form-group" style="margin-top: var(--v2-space-4);">
-                                    <label class="v2-form-label">自定义提示词</label>
-                                    <textarea class="v2-textarea" id="custom-prompt" rows="4" placeholder="描述封面场景、人物、风格..."></textarea>
-                                </div>
-
-                                <div class="v2-form-group">
-                                    <label class="v2-form-label">负面提示词</label>
-                                    <textarea class="v2-textarea" id="negative-prompt" rows="2" placeholder="不希望出现的内容..."></textarea>
-                                </div>
+                <!-- 生成历史 -->
+                <div class="cover-panel" style="margin-top: var(--v2-space-4);">
+                    <div class="cover-panel-header">
+                        <span>📚</span>
+                        <span class="cover-panel-title">生成历史</span>
+                        <button class="v2-btn v2-btn--ghost v2-btn--xs" onclick="clearHistory()" style="margin-left: auto;">清空</button>
+                    </div>
+                    <div class="cover-panel-body">
+                        <div class="results-grid" id="history-container">
+                            <div style="text-align: center; color: var(--v2-text-muted); padding: var(--v2-space-8);">
+                                <p>暂无生成历史</p>
                             </div>
                         </div>
                     </div>
+                </div>
+            </div>
 
-                    <!-- 中间面板：预览 -->
-                    <div class="cover-center">
-                        <div class="cover-panel">
-                            <div class="cover-panel-header">
-                                <span>🖼️</span>
-                                <span class="cover-panel-title">封面预览</span>
-                            </div>
-                            <div class="cover-panel-body">
-                                <div class="preview-container" id="preview-container">
-                                    <div class="preview-placeholder">
-                                        <div class="preview-placeholder-icon">🎨</div>
-                                        <h3>准备生成</h3>
-                                        <p>填写信息后点击生成按钮</p>
-                                    </div>
-                                </div>
-
-                                <div class="progress-container" id="progress-container" style="display: none;">
-                                    <div class="progress-bar">
-                                        <div class="progress-fill" id="progress-fill" style="width: 0%;"></div>
-                                    </div>
-                                    <div class="progress-text" id="progress-text">正在生成...</div>
-                                </div>
-
-                                <div style="margin-top: var(--v2-space-4); text-align: center;">
-                                    <button class="v2-btn v2-btn--primary v2-btn--lg" onclick="generateCover()" id="generate-btn" style="min-width: 160px;">
-                                        🎨 生成封面
-                                    </button>
-                                    <button class="v2-btn v2-btn--secondary v2-btn--lg" onclick="regenerateCover()" id="regenerate-btn" style="display: none; margin-left: var(--v2-space-3);">
-                                        🔄 重新生成
-                                    </button>
-                                </div>
+            <!-- 右侧面板：结果和技巧 -->
+            <div class="cover-right">
+                <!-- 生成结果 -->
+                <div class="cover-panel">
+                    <div class="cover-panel-header">
+                        <span>✨</span>
+                        <span class="cover-panel-title">生成结果</span>
+                        <span id="results-count" style="margin-left: auto; font-size: var(--v2-text-xs); color: var(--v2-text-muted);">0 张</span>
+                    </div>
+                    <div class="cover-panel-body">
+                        <div class="results-grid" id="results-grid">
+                            <div style="text-align: center; color: var(--v2-text-muted); padding: var(--v2-space-6);">
+                                <p>生成的封面将显示在这里</p>
                             </div>
                         </div>
 
-                        <!-- 生成历史 -->
-                        <div class="cover-panel" style="margin-top: var(--v2-space-4);">
-                            <div class="cover-panel-header">
-                                <span>📚</span>
-                                <span class="cover-panel-title">生成历史</span>
-                                <button class="v2-btn v2-btn--ghost v2-btn--xs" onclick="clearHistory()" style="margin-left: auto;">清空</button>
-                            </div>
-                            <div class="cover-panel-body">
-                                <div class="results-grid" id="history-container">
-                                    <div style="text-align: center; color: var(--v2-text-muted); padding: var(--v2-space-8);">
-                                        <p>暂无生成历史</p>
-                                    </div>
-                                </div>
-                            </div>
+                        <div id="batch-actions" style="display: none; margin-top: var(--v2-space-4); display: flex; gap: var(--v2-space-2);">
+                            <button class="v2-btn v2-btn--secondary v2-btn--sm" onclick="selectAll()">全选</button>
+                            <button class="v2-btn v2-btn--secondary v2-btn--sm" onclick="deselectAll()">取消</button>
+                            <button class="v2-btn v2-btn--primary v2-btn--sm" onclick="downloadSelected()">下载</button>
                         </div>
                     </div>
+                </div>
 
-                    <!-- 右侧面板：结果和技巧 -->
-                    <div class="cover-right">
-                        <!-- 生成结果 -->
-                        <div class="cover-panel">
-                            <div class="cover-panel-header">
-                                <span>✨</span>
-                                <span class="cover-panel-title">生成结果</span>
-                                <span id="results-count" style="margin-left: auto; font-size: var(--v2-text-xs); color: var(--v2-text-muted);">0 张</span>
-                            </div>
-                            <div class="cover-panel-body">
-                                <div class="results-grid" id="results-grid">
-                                    <div style="text-align: center; color: var(--v2-text-muted); padding: var(--v2-space-6);">
-                                        <p>生成的封面将显示在这里</p>
-                                    </div>
-                                </div>
-
-                                <div id="batch-actions" style="display: none; margin-top: var(--v2-space-4); display: flex; gap: var(--v2-space-2);">
-                                    <button class="v2-btn v2-btn--secondary v2-btn--sm" onclick="selectAll()">全选</button>
-                                    <button class="v2-btn v2-btn--secondary v2-btn--sm" onclick="deselectAll()">取消</button>
-                                    <button class="v2-btn v2-btn--primary v2-btn--sm" onclick="downloadSelected()">下载</button>
+                <!-- 使用技巧 -->
+                <div class="cover-panel" style="margin-top: var(--v2-space-4);">
+                    <div class="cover-panel-header">
+                        <span>💡</span>
+                        <span class="cover-panel-title">使用技巧</span>
+                    </div>
+                    <div class="cover-panel-body">
+                        <div class="tips-list">
+                            <div class="tip-item">
+                                <div class="tip-icon">✨</div>
+                                <div class="tip-content">
+                                    <h4>标题简洁有力</h4>
+                                    <p>封面标题建议控制在 10-30 个字符内，确保清晰可读</p>
                                 </div>
                             </div>
-                        </div>
-
-                        <!-- 使用技巧 -->
-                        <div class="cover-panel" style="margin-top: var(--v2-space-4);">
-                            <div class="cover-panel-header">
-                                <span>💡</span>
-                                <span class="cover-panel-title">使用技巧</span>
+                            <div class="tip-item">
+                                <div class="tip-icon">🎨</div>
+                                <div class="tip-content">
+                                    <h4>风格匹配类型</h4>
+                                    <p>选择与小说类型匹配的封面风格，能更好地吸引目标读者</p>
+                                </div>
                             </div>
-                            <div class="cover-panel-body">
-                                <div class="tips-list">
-                                    <div class="tip-item">
-                                        <div class="tip-icon">✨</div>
-                                        <div class="tip-content">
-                                            <h4>标题简洁有力</h4>
-                                            <p>封面标题建议控制在 10-30 个字符内，确保清晰可读</p>
-                                        </div>
-                                    </div>
-                                    <div class="tip-item">
-                                        <div class="tip-icon">🎨</div>
-                                        <div class="tip-content">
-                                            <h4>风格匹配类型</h4>
-                                            <p>选择与小说类型匹配的封面风格，能更好地吸引目标读者</p>
-                                        </div>
-                                    </div>
-                                    <div class="tip-item">
-                                        <div class="tip-icon">📝</div>
-                                        <div class="tip-content">
-                                            <h4>详细描述效果</h4>
-                                            <p>在自定义提示词中详细描述场景、人物、色调等</p>
-                                        </div>
-                                    </div>
-                                    <div class="tip-item">
-                                        <div class="tip-icon">🔄</div>
-                                        <div class="tip-content">
-                                            <h4>多次尝试优化</h4>
-                                            <p>根据生成结果调整参数，多次生成选择最佳效果</p>
-                                        </div>
-                                    </div>
+                            <div class="tip-item">
+                                <div class="tip-icon">📝</div>
+                                <div class="tip-content">
+                                    <h4>详细描述效果</h4>
+                                    <p>在自定义提示词中详细描述场景、人物、色调等</p>
+                                </div>
+                            </div>
+                            <div class="tip-item">
+                                <div class="tip-icon">🔄</div>
+                                <div class="tip-content">
+                                    <h4>多次尝试优化</h4>
+                                    <p>根据生成结果调整参数，多次生成选择最佳效果</p>
                                 </div>
                             </div>
                         </div>
                     </div>
                 </div>
             </div>
-        </main>
+        </div>
+    </main>
 
-        <!-- 页脚 -->
-        <footer class="v2-footer">
-            <p class="v2-footer-text">© 2025 大文娱创作平台 · AI 驱动的小说创作工具</p>
-        </footer>
-    </div>
+    <!-- 通用页脚 -->
+    {% include 'components/v2/footer.html' %}
 
     <!-- 帮助模态框 -->
     <div class="v2-modal" id="help-modal">
@@ -874,7 +730,7 @@
                 <div>
                     <h4 style="font-size: var(--v2-text-base); font-weight: var(--v2-font-semibold); margin-bottom: var(--v2-space-3); color: var(--v2-text-primary);">⚡ 快速开始</h4>
                     <ol style="padding-left: var(--v2-space-5); color: var(--v2-text-secondary); line-height: 1.8;">
-                        <li>填写小说标题和作者名称</li>
+                        <li>选择已有项目或填写小说标题</li>
                         <li>选择小说类型和封面风格</li>
                         <li>点击模板按钮快速加载提示词</li>
                         <li>点击生成按钮开始制作封面</li>
@@ -921,6 +777,154 @@
 
     <script src="/static/js/cover_generator.js"></script>
     <script>
+        // 项目数据缓存
+        let projectsData = [];
+        
+        // 页面加载时获取项目列表
+        document.addEventListener('DOMContentLoaded', function() {
+            loadProjects();
+        });
+        
+        // 加载项目列表
+        async function loadProjects() {
+            try {
+                const response = await fetch('/api/projects');
+                const data = await response.json();
+                
+                if (data.success && data.projects) {
+                    projectsData = data.projects;
+                    const select = document.getElementById('project-select');
+                    
+                    // 保留默认选项
+                    select.innerHTML = '<option value="">-- 请选择小说项目 --</option>';
+                    
+                    // 添加项目选项
+                    data.projects.forEach(project => {
+                        const option = document.createElement('option');
+                        option.value = project.title;
+                        option.textContent = project.title;
+                        select.appendChild(option);
+                    });
+                }
+            } catch (error) {
+                console.error('加载项目列表失败:', error);
+            }
+        }
+        
+        // 项目选择处理
+        async function onProjectSelect() {
+            const select = document.getElementById('project-select');
+            const selectedTitle = select.value;
+            
+            if (!selectedTitle) return;
+            
+            // 查找选中的项目数据
+            const project = projectsData.find(p => p.title === selectedTitle);
+            if (!project) return;
+            
+            // 填充标题
+            document.getElementById('novel-title').value = project.title || '';
+            
+            // 尝试获取项目详细信息（包括类型和简介）
+            try {
+                const response = await fetch(`/api/projects/${encodeURIComponent(project.title)}/info`);
+                const data = await response.json();
+                
+                if (data.success && data.project) {
+                    const proj = data.project;
+                    
+                    // 填充类型
+                    if (proj.genre || proj.novel_type) {
+                        const genre = proj.genre || proj.novel_type;
+                        const genreSelect = document.getElementById('novel-genre');
+                        // 尝试匹配选项
+                        for (let option of genreSelect.options) {
+                            if (genre.includes(option.value) || option.value.includes(genre)) {
+                                genreSelect.value = option.value;
+                                break;
+                            }
+                        }
+                    }
+                    
+                    // 根据类型生成提示词
+                    const genre = proj.genre || proj.novel_type || '玄幻';
+                    const synopsis = proj.synopsis || proj.description || '';
+                    generatePromptFromProject(project.title, genre, synopsis);
+                }
+            } catch (error) {
+                console.error('获取项目详情失败:', error);
+                // 即使没有详情也尝试生成基础提示词
+                generatePromptFromProject(project.title, '', '');
+            }
+        }
+        
+        // 根据项目信息生成提示词
+        function generatePromptFromProject(title, genre, synopsis) {
+            let prompt = '';
+            let style = '';
+            
+            // 根据类型选择风格和配色
+            const genreMap = {
+                '玄幻': { style: '古风仙侠', scheme: 'purple', prompt: '玄幻修仙小说封面，仙气缭绕的山峰背景，主角御剑飞行或修炼的场景，金色符文点缀，大气磅礴' },
+                '都市': { style: '都市时尚', scheme: 'blue', prompt: '现代都市小说封面，繁华城市夜景或高楼大厦背景，时尚男女主角，霓虹灯光效果，现代感强' },
+                '言情': { style: '温暖治愈', scheme: 'red', prompt: '浪漫言情小说封面，温馨场景如樱花树下、咖啡厅，男女主角浪漫互动，柔和暖色调' },
+                '历史': { style: '古典唯美', scheme: 'gold', prompt: '历史架空小说封面，古代宫殿或战场场景，身着古装的主角，大气庄重，历史感浓厚' },
+                '科幻': { style: '科幻未来', scheme: 'dark', prompt: '科幻未来小说封面，宇宙星空或高科技城市背景， futuristic 飞船或机甲，冷色调蓝光' },
+                '武侠': { style: '古风仙侠', scheme: 'purple', prompt: '武侠江湖小说封面，竹林或古刹背景，侠客持剑而立，水墨风格，意境深远' },
+                '悬疑': { style: '神秘悬疑', scheme: 'dark', prompt: '悬疑推理小说封面，阴暗氛围，神秘元素如迷雾、阴影、线索碎片，紧张感十足' },
+                '游戏': { style: '热血激燃', scheme: 'blue', prompt: '游戏竞技小说封面，虚拟游戏场景，角色装备华丽，技能特效炫目，充满动感' },
+                '军事': { style: '热血激燃', scheme: 'green', prompt: '军事战争小说封面，战场或军事基地背景，军人英姿飒爽，坦克战机等元素，硬核风格' },
+                '校园': { style: '温暖治愈', scheme: 'blue', prompt: '校园青春小说封面，校园场景如教室、操场，青春男女主角，阳光活力，清新风格' }
+            };
+            
+            // 匹配类型
+            let matchedGenre = null;
+            for (let key in genreMap) {
+                if (genre.includes(key) || title.includes(key)) {
+                    matchedGenre = genreMap[key];
+                    break;
+                }
+            }
+            
+            if (matchedGenre) {
+                // 设置风格
+                document.getElementById('cover-style').value = matchedGenre.style;
+                
+                // 设置配色
+                document.querySelectorAll('.color-scheme-item').forEach(item => {
+                    item.classList.remove('active');
+                    if (item.dataset.scheme === matchedGenre.scheme) {
+                        item.classList.add('active');
+                    }
+                });
+                
+                // 生成提示词
+                prompt = matchedGenre.prompt;
+                
+                // 如果有简介，添加一些元素
+                if (synopsis) {
+                    // 提取简介中的关键词（简单处理）
+                    if (synopsis.includes('重生')) prompt += '，重生逆袭主题';
+                    if (synopsis.includes('系统')) prompt += '，系统面板元素';
+                    if (synopsis.includes('穿越')) prompt += '，时空穿越元素';
+                    if (synopsis.includes('甜宠')) prompt += '，甜蜜浪漫氛围';
+                    if (synopsis.includes('虐')) prompt += '，虐恋情深氛围';
+                    if (synopsis.includes('爽')) prompt += '，爽文逆袭氛围';
+                }
+                
+                prompt += '，高质量插画风格，精细刻画，适合小说封面';
+            } else {
+                // 默认提示词
+                prompt = `小说《${title}`}封面设计，精美插画风格，高质量，适合小说封面展示，吸引人眼球的构图，专业书籍封面设计`;
+            }
+            
+            // 填充提示词
+            document.getElementById('custom-prompt').value = prompt;
+            
+            // 填充负面提示词
+            document.getElementById('negative-prompt').value = '低质量，模糊，变形，文字，水印，logo，丑陋，畸形，多余的手指， poorly drawn';
+        }
+        
         // 帮助模态框
         function showHelp() {
             document.getElementById('help-modal').classList.add('active');
@@ -951,6 +955,49 @@
                 this.classList.add('active');
             });
         });
+        
+        // 覆盖原来的 loadTemplate 函数，添加自动填充
+        const originalLoadTemplate = window.loadTemplate;
+        window.loadTemplate = function(type) {
+            // 调用原来的函数
+            if (originalLoadTemplate) {
+                originalLoadTemplate(type);
+            } else {
+                // 默认模板内容
+                const templates = {
+                    'fantasy': '玄幻修仙小说封面，仙气缭绕的山峰背景，主角御剑飞行，金色符文点缀，古风唯美风格，高清精细',
+                    'urban': '现代都市小说封面，繁华城市夜景，霓虹灯光效果，时尚男女主角，现代简约风格',
+                    'historical': '历史架空小说封面，古代宫殿背景，身着古装的主角，大气庄重，古典唯美风格',
+                    'scifi': '科幻未来小说封面，宇宙星空背景， futuristic 飞船，冷色调蓝光，科幻风格',
+                    'martial': '武侠江湖小说封面，竹林背景，侠客持剑而立，水墨风格，意境深远',
+                    'mystery': '悬疑推理小说封面，阴暗氛围，神秘迷雾，紧张感十足，神秘悬疑风格'
+                };
+                
+                if (templates[type]) {
+                    document.getElementById('custom-prompt').value = templates[type];
+                }
+            }
+            
+            // 同步更新类型选择
+            const genreMap = {
+                'fantasy': '玄幻',
+                'urban': '都市',
+                'historical': '历史',
+                'scifi': '科幻',
+                'martial': '武侠',
+                'mystery': '悬疑'
+            };
+            
+            if (genreMap[type]) {
+                const genreSelect = document.getElementById('novel-genre');
+                for (let option of genreSelect.options) {
+                    if (option.value === genreMap[type]) {
+                        genreSelect.value = option.value;
+                        break;
+                    }
+                }
+            }
+        };
     </script>
 </body>
 </html>
