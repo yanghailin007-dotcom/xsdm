@@ -19,12 +19,12 @@ DEBUG_PORT = 9988
 
 
 # 固定的 Chrome 安装目录（在客户电脑上）
-# Windows: D:\大文娱\chrome_launcher\ (首选位置，如果不存在可用 C 盘)
-# Mac/Linux: ~/大文娱/chrome_launcher/
+# Windows: D:\chrome_launcher\ (直接解压到 D: 盘根目录)
+# Mac/Linux: ~/chrome_launcher/ (直接解压到用户目录)
 if sys.platform == 'win32':
     # Windows 首选 D 盘，备选 C 盘
-    CHROME_INSTALL_DIR = 'D:\\大文娱\\chrome_launcher'
-    CHROME_INSTALL_DIR_FALLBACK = 'C:\\大文娱\\chrome_launcher'
+    CHROME_INSTALL_DIR = 'D:\\chrome_launcher'
+    CHROME_INSTALL_DIR_FALLBACK = 'C:\\chrome_launcher'
 else:
     CHROME_INSTALL_DIR = str(Path.home() / 'chrome_launcher')
     CHROME_INSTALL_DIR_FALLBACK = None
@@ -98,17 +98,16 @@ def check_chrome_installed() -> dict:
     platform = sys.platform
     if platform == 'win32':
         # 始终向用户显示首选路径 D: 盘
-        primary_path = 'D:\\大文娱\\chrome_launcher'
-        fallback_path = 'C:\\大文娱\\chrome_launcher'
+        primary_path = 'D:\\chrome_launcher'
+        fallback_path = 'C:\\chrome_launcher'
         
         setup_steps = [
-            '1. 下载 chrome_launcher.zip 到任意位置（如：桌面）',
-            '2. 解压后得到 chrome_launcher 文件夹（无需重命名）',
-            f'3. 将整个文件夹移动到: D:\\大文娱\\ （或 C:\\大文娱\\）',
-            f'4. 最终路径应该是: {primary_path}\\一键启动.bat',
-            '5. 双击运行 一键启动.bat'
+            '1. 下载 chrome_launcher.zip',
+            '2. 直接解压到 D: 盘（或 C: 盘）',
+            '3. 最终得到: D:\\chrome_launcher\\一键启动.bat',
+            '4. 双击运行 一键启动.bat'
         ]
-        tip = '如果 D: 盘不存在，请使用 C: 盘（即：' + fallback_path + '）'
+        tip = '如果 D: 盘不存在，请解压到 C: 盘'
         
         # 返回给前端显示的路径（优先 D 盘）
         display_dir = primary_path
