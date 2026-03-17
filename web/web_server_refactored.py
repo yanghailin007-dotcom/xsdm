@@ -553,55 +553,19 @@ def register_fanqie_routes(app):
             logger.error(f"❌ 验证小说上传失败: {e}")
             return jsonify({"success": False, "error": str(e)}), 500
     
+    # 注：/api/fanqie/upload/start 已迁移到 web/api/fanqie_upload_api.py
+    # 使用新的 Playwright 架构，不再使用旧的 fanqie_uploader
+    # 保留以下旧路由供参考，但已禁用
+    '''
     @app.route('/api/fanqie/upload/start', methods=['POST'])
     def start_fanqie_upload():
-        """启动番茄上传任务"""
-        try:
-            from web.auth import login_required
-            
-            if not fanqie_uploader:
-                return jsonify({"success": False, "error": "番茄上传器不可用"}), 503
-                
-            data = request.json or {}
-            novel_title = data.get('novel_title')
-            
-            logger.info(f"📝 收到上传请求，小说标题: {novel_title}")
-            logger.info(f"📦 请求数据: {data}")
-            
-            if not novel_title:
-                logger.error("❌ 400错误: 缺少小说标题")
-                return jsonify({"success": False, "error": "缺少小说标题"}), 400
-            
-            # 验证小说是否可以上传
-            logger.info(f"🔍 开始验证小说: {novel_title}")
-            validation_result = fanqie_uploader.validate_novel_for_upload(novel_title)
-            # 只打印摘要信息，不打印完整数据
-            if validation_result.get("valid"):
-                logger.info(f"✅ 验证通过，章节数: {validation_result.get('chapter_count', 0)}")
-            else:
-                logger.warning(f"⚠️ 验证失败: {validation_result.get('error', '未知错误')}")
-            
-            if not validation_result["valid"]:
-                error_msg = validation_result.get("error", "验证失败")
-                logger.error(f"❌ 400错误: 小说验证失败 - {error_msg}")
-                return jsonify({
-                    "success": False,
-                    "error": error_msg
-                }), 400
-            
-            # 启动上传任务
-            upload_result = fanqie_uploader.start_upload_task(novel_title, data.get('upload_config', {}))
-            
-            if upload_result["success"]:
-                return jsonify({
-                    "success": True,
-                    "task_id": upload_result["task_id"],
-                    "message": upload_result["message"],
-                    "chapter_count": upload_result["chapter_count"]
-                })
-            else:
-                return jsonify({
-                    "success": False,
+        """启动番茄上传任务（旧版，已废弃）"""
+        return jsonify({
+            "success": False,
+            "error": "请使用新的上传接口",
+            "message": "请刷新页面使用新版上传功能"
+        }), 400
+    '''
                     "error": upload_result["error"]
                 }), 500
                 
