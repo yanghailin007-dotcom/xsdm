@@ -94,8 +94,27 @@
         /* 主内容区 */
         .upload-content {
             display: grid;
-            grid-template-columns: 1fr 380px;
+            grid-template-columns: 1fr 420px;
             gap: var(--v2-space-6);
+            align-items: start;
+        }
+        
+        /* 右侧固定区域 */
+        .status-section {
+            position: sticky;
+            top: 80px; /* 导航栏高度 + 间距 */
+            max-height: calc(100vh - 100px);
+            overflow-y: auto;
+            scrollbar-width: thin;
+        }
+        
+        .status-section::-webkit-scrollbar {
+            width: 4px;
+        }
+        
+        .status-section::-webkit-scrollbar-thumb {
+            background: var(--v2-border-default);
+            border-radius: 2px;
         }
         
         /* 左侧：项目选择 */
@@ -208,10 +227,10 @@
             justify-content: center;
         }
         
-        /* 配置面板样式 */
+        /* 配置面板样式 - 紧凑双列布局 */
         .config-section {
-            margin-bottom: var(--v2-space-4);
-            padding-bottom: var(--v2-space-4);
+            margin-bottom: var(--v2-space-3);
+            padding-bottom: var(--v2-space-3);
             border-bottom: 1px solid var(--v2-border-subtle);
         }
         
@@ -224,8 +243,8 @@
         .config-section-header {
             display: flex;
             align-items: center;
-            gap: var(--v2-space-3);
-            margin-bottom: var(--v2-space-3);
+            gap: var(--v2-space-2);
+            margin-bottom: var(--v2-space-2);
         }
         
         .config-section-title {
@@ -235,41 +254,53 @@
         }
         
         .config-section-content {
-            padding-left: calc(44px + var(--v2-space-3));
+            padding-left: calc(44px + var(--v2-space-2));
+        }
+        
+        /* 双列配置布局 */
+        .config-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: var(--v2-space-2) var(--v2-space-3);
         }
         
         .config-row {
             display: flex;
             flex-direction: column;
-            gap: var(--v2-space-1);
-            margin-bottom: var(--v2-space-3);
+            gap: 2px;
+            margin-bottom: 0;
+        }
+        
+        .config-row--full {
+            grid-column: 1 / -1;
         }
         
         .config-row--checkbox {
             flex-direction: row;
             align-items: center;
+            gap: var(--v2-space-2);
         }
         
         .config-label {
-            font-size: var(--v2-text-xs);
-            color: var(--v2-text-secondary);
+            font-size: 11px;
+            color: var(--v2-text-muted);
             font-weight: var(--v2-font-medium);
         }
         
         .config-input-group {
             display: flex;
             align-items: center;
-            gap: var(--v2-space-2);
+            gap: var(--v2-space-1);
         }
         
         .config-unit {
-            font-size: var(--v2-text-sm);
+            font-size: 11px;
             color: var(--v2-text-muted);
-            min-width: 24px;
+            min-width: 20px;
         }
         
         .config-hint {
-            font-size: var(--v2-text-xs);
+            font-size: 10px;
             color: var(--v2-text-muted);
         }
         
@@ -692,27 +723,28 @@
                             <span class="config-section-title">首次发布</span>
                         </div>
                         <div class="config-section-content" id="first-publish-config">
-                            <div class="config-row">
-                                <label class="config-label">发布章节数</label>
-                                <div class="config-input-group">
-                                    <input type="number" id="config-first-chapters" class="v2-input v2-input--sm" value="3" min="1" max="100">
-                                    <span class="config-unit">章</span>
+                            <div class="config-grid">
+                                <div class="config-row">
+                                    <label class="config-label">章节数</label>
+                                    <div class="config-input-group">
+                                        <input type="number" id="config-first-chapters" class="v2-input v2-input--sm" value="3" min="1" max="100">
+                                        <span class="config-unit">章</span>
+                                    </div>
                                 </div>
-                            </div>
-                            <div class="config-row">
-                                <label class="config-label">字数限制</label>
-                                <div class="config-input-group">
-                                    <input type="number" id="config-first-words" class="v2-input v2-input--sm" value="0" min="0" step="1000">
-                                    <span class="config-unit">字</span>
+                                <div class="config-row">
+                                    <label class="config-label">字数限制</label>
+                                    <div class="config-input-group">
+                                        <input type="number" id="config-first-words" class="v2-input v2-input--sm" value="0" min="0" step="1000">
+                                        <span class="config-unit">字</span>
+                                    </div>
                                 </div>
-                                <small class="config-hint">0 = 不限制</small>
-                            </div>
-                            <div class="config-row">
-                                <label class="config-label">发布方式</label>
-                                <select id="config-first-mode" class="v2-select v2-select--sm">
-                                    <option value="immediate">立即发布</option>
-                                    <option value="scheduled">定时发布</option>
-                                </select>
+                                <div class="config-row config-row--full">
+                                    <label class="config-label">发布方式</label>
+                                    <select id="config-first-mode" class="v2-select v2-select--sm" style="width: 100%;">
+                                        <option value="immediate">立即发布</option>
+                                        <option value="scheduled">定时发布</option>
+                                    </select>
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -727,106 +759,111 @@
                             <span class="config-section-title">每日自动发布</span>
                         </div>
                         <div class="config-section-content" id="daily-publish-config">
-                            <div class="config-row">
-                                <label class="config-label">每天章节数</label>
-                                <div class="config-input-group">
-                                    <input type="number" id="config-daily-chapters" class="v2-input v2-input--sm" value="2" min="0" max="50">
-                                    <span class="config-unit">章</span>
+                            <div class="config-grid">
+                                <div class="config-row">
+                                    <label class="config-label">每天章节</label>
+                                    <div class="config-input-group">
+                                        <input type="number" id="config-daily-chapters" class="v2-input v2-input--sm" value="2" min="0" max="50">
+                                        <span class="config-unit">章</span>
+                                    </div>
                                 </div>
-                            </div>
-                            <div class="config-row">
-                                <label class="config-label">发布时间</label>
-                                <input type="time" id="config-daily-time" class="v2-input v2-input--sm" value="09:00">
-                            </div>
-                            <div class="config-row">
-                                <label class="config-label">章节间隔</label>
-                                <div class="config-input-group">
-                                    <input type="number" id="config-daily-interval" class="v2-input v2-input--sm" value="30" min="0" max="1440">
-                                    <span class="config-unit">分钟</span>
+                                <div class="config-row">
+                                    <label class="config-label">发布时间</label>
+                                    <input type="time" id="config-daily-time" class="v2-input v2-input--sm" value="09:00">
+                                </div>
+                                <div class="config-row">
+                                    <label class="config-label">章节间隔</label>
+                                    <div class="config-input-group">
+                                        <input type="number" id="config-daily-interval" class="v2-input v2-input--sm" value="30" min="0" max="1440">
+                                        <span class="config-unit">分</span>
+                                    </div>
                                 </div>
                             </div>
                         </div>
                     </div>
                     
-                    <!-- 高级配置 -->
-                    <div class="config-section">
-                        <div class="config-section-header" onclick="toggleAdvancedConfig()" style="cursor: pointer;">
-                            <span class="config-section-title">⚙️ 高级配置</span>
-                            <span id="advanced-toggle-icon" style="margin-left: auto; transition: transform 0.2s;">▼</span>
+                    <!-- 高级配置（折叠） -->
+                    <div class="config-section" style="border-bottom: none;">
+                        <div class="config-section-header" onclick="toggleAdvancedConfig()" style="cursor: pointer; padding: var(--v2-space-2) 0;">
+                            <span class="config-section-title" style="font-size: 12px; color: var(--v2-text-muted);">⚙️ 高级配置</span>
+                            <span id="advanced-toggle-icon" style="margin-left: auto; transition: transform 0.2s; font-size: 10px;">▼</span>
                         </div>
                         <div class="config-section-content" id="advanced-config" style="display: none;">
-                            <div class="config-row config-row--checkbox">
-                                <label class="v2-checkbox">
-                                    <input type="checkbox" id="config-auto-create" checked>
-                                    <span class="v2-checkbox__checkmark"></span>
-                                    <span class="v2-checkbox__label">自动创建书籍</span>
-                                </label>
-                            </div>
-                            <div class="config-row config-row--checkbox">
-                                <label class="v2-checkbox">
-                                    <input type="checkbox" id="config-auto-cover" checked>
-                                    <span class="v2-checkbox__checkmark"></span>
-                                    <span class="v2-checkbox__label">自动设置封面</span>
-                                </label>
-                            </div>
-                            <div class="config-row config-row--checkbox">
-                                <label class="v2-checkbox">
-                                    <input type="checkbox" id="config-skip-published" checked>
-                                    <span class="v2-checkbox__checkmark"></span>
-                                    <span class="v2-checkbox__label">跳过已发布章节</span>
-                                </label>
-                            </div>
-                            <div class="config-row">
-                                <label class="config-label">失败重试次数</label>
-                                <input type="number" id="config-retry" class="v2-input v2-input--sm" value="3" min="0" max="10" style="width: 80px;">
+                            <div class="config-grid">
+                                <div class="config-row config-row--checkbox">
+                                    <label class="v2-checkbox">
+                                        <input type="checkbox" id="config-auto-create" checked>
+                                        <span class="v2-checkbox__checkmark"></span>
+                                        <span class="v2-checkbox__label" style="font-size: 12px;">自动创建书籍</span>
+                                    </label>
+                                </div>
+                                <div class="config-row config-row--checkbox">
+                                    <label class="v2-checkbox">
+                                        <input type="checkbox" id="config-auto-cover" checked>
+                                        <span class="v2-checkbox__checkmark"></span>
+                                        <span class="v2-checkbox__label" style="font-size: 12px;">自动设置封面</span>
+                                    </label>
+                                </div>
+                                <div class="config-row config-row--checkbox">
+                                    <label class="v2-checkbox">
+                                        <input type="checkbox" id="config-skip-published" checked>
+                                        <span class="v2-checkbox__checkmark"></span>
+                                        <span class="v2-checkbox__label" style="font-size: 12px;">跳过已发布</span>
+                                    </label>
+                                </div>
+                                <div class="config-row">
+                                    <label class="config-label">重试次数</label>
+                                    <input type="number" id="config-retry" class="v2-input v2-input--sm" value="3" min="0" max="10" style="width: 60px;">
+                                </div>
                             </div>
                         </div>
                     </div>
-                    
-                    <!-- 保存配置按钮 -->
-                    <div class="config-actions" style="margin-top: var(--v2-space-4); padding-top: var(--v2-space-4); border-top: 1px solid var(--v2-border-subtle);">
-                        <button class="v2-btn v2-btn--primary btn-block" onclick="saveConfig()">
-                            <span>💾</span> 保存配置
+                }}
+                
+                <!-- 上传行动区域 - 合并状态和按钮 -->
+                <div class="status-card" id="action-card" style="display: none; background: linear-gradient(145deg, rgba(99, 102, 241, 0.1) 0%, rgba(139, 92, 246, 0.05) 100%); border-color: rgba(99, 102, 241, 0.3);">
+                    <div class="status-card-header" style="border-bottom-color: rgba(99, 102, 241, 0.2);">
+                        <span>🚀</span>
+                        准备上传
+                    </div>
+                    <div id="upload-action-content" style="text-align: center; padding: var(--v2-space-2) 0;">
+                        <div style="font-size: 14px; color: var(--v2-text-secondary); margin-bottom: var(--v2-space-3);">
+                            已选择: <strong id="selected-project-name" style="color: var(--v2-text-primary);">-</strong>
+                        </div>
+                        <button class="v2-btn v2-btn--primary btn-block" onclick="startUploadWithConfig()" style="padding: 14px; font-size: 16px;">
+                            <span>🚀</span> 开始上传
                         </button>
                     </div>
                 </div>
                 
-                <!-- 上传状态 -->
-                <div class="status-card">
+                <!-- 实时上传状态（上传时显示） -->
+                <div class="status-card" id="upload-progress-card" style="display: none;">
                     <div class="status-card-header">
                         <span>📊</span>
-                        上传状态
+                        上传进度
+                        <span id="upload-progress-percent" style="margin-left: auto; font-size: 14px; color: var(--v2-primary-400);">0%</span>
                     </div>
                     <div class="upload-progress" id="upload-progress">
-                        <div class="v2-empty-state">
-                            <div class="v2-empty-state__icon">📋</div>
-                            <p class="v2-empty-state__text">选择项目后开始上传</p>
-                        </div>
+                        <!-- 动态生成进度内容 -->
                     </div>
                 </div>
                 
-                <!-- 付费功能说明 -->
-                <div class="status-card" style="background: linear-gradient(145deg, rgba(245, 158, 11, 0.08) 0%, rgba(249, 115, 22, 0.04) 100%); border-color: rgba(245, 158, 11, 0.2);">
-                    <div class="status-card-header" style="color: #f59e0b;">
-                        <span>👑</span>
-                        Pro 功能
+                <!-- Pro功能精简说明 -->
+                <div class="status-card" style="background: linear-gradient(145deg, rgba(245, 158, 11, 0.05) 0%, rgba(249, 115, 22, 0.02) 100%); border-color: rgba(245, 158, 11, 0.15); padding: var(--v2-space-4);">
+                    <div style="display: flex; align-items: center; gap: var(--v2-space-2); margin-bottom: var(--v2-space-3);">
+                        <span style="font-size: 20px;">👑</span>
+                        <span style="font-size: 14px; font-weight: 600; color: #f59e0b;">Pro 功能</span>
+                        <span style="margin-left: auto; font-size: 11px; color: var(--v2-text-muted);">番茄小说上传</span>
                     </div>
-                    <div style="font-size: var(--v2-text-sm); color: var(--v2-text-secondary); line-height: 1.6;">
-                        <p style="margin-bottom: var(--v2-space-3);">
-                            番茄一键上传是付费功能，包含：
-                        </p>
-                        <ul style="margin: 0; padding-left: var(--v2-space-4);">
-                            <li>自动创建书籍</li>
-                            <li>批量上传章节</li>
-                            <li>自动设置章节信息</li>
-                            <li>发布状态检测</li>
-                        </ul>
-                        <div style="margin-top: var(--v2-space-4); padding-top: var(--v2-space-4); border-top: 1px solid rgba(245, 158, 11, 0.2);">
-                            <button class="v2-btn v2-btn--warning btn-block">
-                                <span>💎</span> 升级 Pro 会员
-                            </button>
-                        </div>
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: var(--v2-space-2); font-size: 12px; color: var(--v2-text-secondary);">
+                        <div style="display: flex; align-items: center; gap: 4px;"><span style="color: #22c55e;">✓</span> 自动创建书籍</div>
+                        <div style="display: flex; align-items: center; gap: 4px;"><span style="color: #22c55e;">✓</span> 批量上传章节</div>
+                        <div style="display: flex; align-items: center; gap: 4px;"><span style="color: #22c55e;">✓</span> 智能设置信息</div>
+                        <div style="display: flex; align-items: center; gap: 4px;"><span style="color: #22c55e;">✓</span> 发布状态检测</div>
                     </div>
+                    <button class="v2-btn v2-btn--warning btn-block" style="margin-top: var(--v2-space-3); padding: 8px; font-size: 13px;">
+                        <span>💎</span> 升级 Pro 会员
+                    </button>
                 </div>
             </div>
         </div>
@@ -993,27 +1030,70 @@
             
             updateStep(4); // 进入步骤4：开始上传
             
-            // 显示配置面板
+            // 显示配置面板和行动区域
             document.getElementById('config-card').style.display = 'block';
+            document.getElementById('action-card').style.display = 'block';
+            
+            // 更新行动区域的项目名
+            document.getElementById('selected-project-name').textContent = title;
             
             // 加载该项目的配置
             await loadProjectConfig(title);
+        }
+        
+        // 使用配置开始上传
+        async function startUploadWithConfig() {
+            if (!currentProject) {
+                showNotification('请先选择项目', 'error');
+                return;
+            }
             
-            // 显示上传准备状态
+            if (!isChromeConnected) {
+                showNotification('请先启动 Chrome 浏览器', 'error');
+                return;
+            }
+            
+            // 先保存配置
+            await saveConfig();
+            
+            // 获取配置
+            const config = getConfigFromUI();
+            
+            // 显示进度卡片，隐藏行动卡片
+            document.getElementById('upload-progress-card').style.display = 'block';
+            document.getElementById('action-card').style.display = 'none';
+            
+            // 更新进度显示
+            const firstChapters = config.first_publish.enabled ? config.first_publish.chapter_count : 0;
+            const dailyInfo = config.daily_publish.enabled ? 
+                `${config.daily_publish.chapter_count}章/天 ${config.daily_publish.publish_time}` : '禁用';
+            
             document.getElementById('upload-progress').innerHTML = `
-                <div style="text-align: center; padding: var(--v2-space-6);">
-                    <div style="font-size: 48px; margin-bottom: var(--v2-space-3);">📤</div>
-                    <p style="color: var(--v2-text-primary); margin-bottom: var(--v2-space-4);">
-                        已选择: <strong>${title}</strong>
-                    </p>
-                    <p style="color: var(--v2-text-secondary); font-size: 14px; margin-bottom: var(--v2-space-4);">
-                        请在右侧配置上传参数，然后点击开始上传
-                    </p>
-                    <button class="v2-btn v2-btn--primary btn-block" onclick="startUpload('${title}')">
-                        <span>🚀</span> 开始上传
-                    </button>
+                <div style="padding: var(--v2-space-3);">
+                    <div style="display: flex; align-items: center; gap: var(--v2-space-2); margin-bottom: var(--v2-space-3);">
+                        <div class="v2-loading__spinner" style="width: 20px; height: 20px; border-width: 2px;"></div>
+                        <span style="font-size: 14px; color: var(--v2-text-primary);">正在上传: ${currentProject}</span>
+                    </div>
+                    <div style="font-size: 12px; color: var(--v2-text-secondary); background: var(--v2-bg-tertiary); padding: var(--v2-space-2) var(--v2-space-3); border-radius: var(--v2-radius-md);">
+                        <div style="display: flex; gap: var(--v2-space-4);">
+                            <span>首次: ${firstChapters}章</span>
+                            <span>每日: ${dailyInfo}</span>
+                        </div>
+                    </div>
                 </div>
             `;
+            
+            showNotification(`开始上传: ${currentProject}`, 'info');
+            
+            // TODO: 调用实际上传API
+            // const response = await fetch('/api/fanqie/upload/start', {
+            //     method: 'POST',
+            //     headers: { 'Content-Type': 'application/json' },
+            //     body: JSON.stringify({ 
+            //         novel_title: currentProject, 
+            //         upload_config: config 
+            //     })
+            // });
         }
         
         // 加载项目配置
