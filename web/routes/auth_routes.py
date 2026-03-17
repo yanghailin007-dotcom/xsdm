@@ -479,6 +479,13 @@ def register_page_routes(app):
         """番茄小说一键上传页面"""
         return render_template('fanqie_upload.html')
     
+    @app.route('/pages/v2/fanqie-upload-v2', methods=['GET'])
+    @login_required
+    def fanqie_upload_v2():
+        """番茄小说一键上传页面 - V2 Pro版本"""
+        logger.info("📄 Loading fanqie-upload-v2.html (V2 Pro Design)")
+        return render_template('pages/v2/fanqie-upload-v2.html')
+    
     @app.route('/phase-one-setup', methods=['GET'])
     @login_required
     def phase_one_setup():

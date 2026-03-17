@@ -446,6 +446,11 @@ def create_app():
     app.register_blueprint(admin_api)
     logger.info("✅ admin_api 管理员功能已注册")
 
+    # 25. Chrome 启动器 API 路由
+    from web.api.chrome_launcher_api import chrome_api
+    app.register_blueprint(chrome_api)
+    logger.info("✅ chrome_api Chrome启动器已注册")
+
     # 🔥 同步预初始化 NovelGenerator（确保服务器启动时完成）
     logger.info("🔄 开始预初始化 NovelGenerator...")
     try:

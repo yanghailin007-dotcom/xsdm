@@ -2667,6 +2667,53 @@
                                 📚 小说阅读
                             </button>
                         </div>
+                        
+                        <!-- 🚀 番茄上传引导卡片（Pro 功能） -->
+                        <div class="fanqie-upload-guide" style="margin-top: 32px; padding: 28px; background: linear-gradient(145deg, rgba(245, 158, 11, 0.08) 0%, rgba(249, 115, 22, 0.04) 100%); border: 1px solid rgba(245, 158, 11, 0.2); border-radius: 16px; position: relative; overflow: hidden;">
+                            <!-- 装饰背景 -->
+                            <div style="position: absolute; top: -20px; right: -20px; width: 100px; height: 100px; background: radial-gradient(circle, rgba(245, 158, 11, 0.15) 0%, transparent 70%); border-radius: 50%;"></div>
+                            
+                            <div style="display: flex; align-items: flex-start; gap: 20px; position: relative; z-index: 1;">
+                                <div style="width: 60px; height: 60px; display: flex; align-items: center; justify-content: center; background: linear-gradient(135deg, #f59e0b 0%, #f97316 100%); border-radius: 16px; font-size: 28px; flex-shrink: 0;">
+                                    📚
+                                </div>
+                                <div style="flex: 1;">
+                                    <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 8px;">
+                                        <h4 style="font-size: 18px; font-weight: 600; color: var(--pt-text-primary); margin: 0;">一键上传到番茄小说</h4>
+                                        <span style="display: inline-flex; align-items: center; gap: 4px; padding: 4px 10px; background: linear-gradient(135deg, #f59e0b 0%, #f97316 100%); color: white; font-size: 11px; font-weight: 700; border-radius: 20px; text-transform: uppercase;">
+                                            <span style="font-size: 10px;">👑</span> Pro
+                                        </span>
+                                    </div>
+                                    <p style="font-size: 14px; color: var(--pt-text-secondary); line-height: 1.6; margin-bottom: 16px;">
+                                        章节生成完成！现在可以直接上传到番茄作家平台。支持自动创建书籍、批量上传章节、智能设置章节信息。
+                                    </p>
+                                    <div style="display: flex; gap: 12px; flex-wrap: wrap;">
+                                        <button class="pt-btn" onclick="goToFanqieUpload()" style="background: linear-gradient(135deg, #f59e0b 0%, #f97316 100%); border: none; color: white; padding: 12px 24px; border-radius: 10px; font-weight: 600; display: inline-flex; align-items: center; gap: 8px; transition: all 0.2s;">
+                                            <span>🚀</span> 立即上传
+                                        </button>
+                                        <button class="pt-btn pt-btn--ghost" onclick="showFanqieGuide()" style="padding: 12px 24px; border-radius: 10px; font-weight: 500; color: var(--pt-text-secondary); border: 1px solid var(--pt-border-default); background: transparent;">
+                                            <span>📖</span> 使用指南
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <!-- 功能列表 -->
+                            <div style="margin-top: 20px; padding-top: 20px; border-top: 1px solid rgba(245, 158, 11, 0.15); display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 12px;">
+                                <div style="display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--pt-text-secondary);">
+                                    <span style="color: #22c55e;">✓</span> 自动创建书籍
+                                </div>
+                                <div style="display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--pt-text-secondary);">
+                                    <span style="color: #22c55e;">✓</span> 批量上传章节
+                                </div>
+                                <div style="display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--pt-text-secondary);">
+                                    <span style="color: #22c55e;">✓</span> 智能设置信息
+                                </div>
+                                <div style="display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--pt-text-secondary);">
+                                    <span style="color: #22c55e;">✓</span> 发布状态检测
+                                </div>
+                            </div>
+                        </div>
                     </section>
                     </div>
                     
@@ -3066,6 +3113,42 @@
             if (title) {
                 window.location.href = '/novel?title=' + encodeURIComponent(title);
             }
+        }
+        
+        // 🚀 跳转到番茄上传页面
+        function goToFanqieUpload() {
+            const currentUrl = new URL(window.location.href);
+            const title = currentUrl.searchParams.get('title');
+            if (title) {
+                window.location.href = '/pages/v2/fanqie-upload-v2?title=' + encodeURIComponent(title);
+            } else {
+                window.location.href = '/pages/v2/fanqie-upload-v2';
+            }
+        }
+        
+        // 📖 显示番茄上传使用指南
+        function showFanqieGuide() {
+            showModal({
+                title: '📚 番茄上传使用指南',
+                content: `
+                    <div style="padding: 20px; line-height: 1.8; color: var(--pt-text-secondary);">
+                        <h4 style="color: var(--pt-text-primary); margin-bottom: 16px;">使用步骤：</h4>
+                        <ol style="padding-left: 20px; margin-bottom: 20px;">
+                            <li style="margin-bottom: 12px;"><strong>下载启动器</strong> - 下载 Chrome 启动器（约 5MB）</li>
+                            <li style="margin-bottom: 12px;"><strong>启动浏览器</strong> - 双击运行 start_browser.exe</li>
+                            <li style="margin-bottom: 12px;"><strong>登录番茄</strong> - 在 Chrome 中登录番茄作家账号</li>
+                            <li style="margin-bottom: 12px;"><strong>开始上传</strong> - 回到本页面点击「立即上传」</li>
+                        </ol>
+                        <div style="background: rgba(99, 102, 241, 0.1); padding: 16px; border-radius: 12px; border-left: 3px solid #6366f1;">
+                            <strong style="color: var(--pt-text-primary);">💡 Pro 会员功能</strong><br>
+                            番茄一键上传是付费功能，支持自动创建书籍、批量上传章节、智能设置章节信息等高级功能。
+                        </div>
+                    </div>
+                `,
+                actions: [
+                    { label: '我知道了', primary: true, onClick: null }
+                ]
+            });
         }
         
         function continueMoreChapters() {

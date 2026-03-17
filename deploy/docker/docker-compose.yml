@@ -1,0 +1,66 @@
+# Docker Compose - 大文娱系统 + Headless Chrome
+version: '3.8'
+
+services:
+  # Flask 应用服务
+  app:
+    build:
+      context: ../..
+      dockerfile: deploy/docker/Dockerfile.app
+    container_name: xsdm_app
+    ports:
+      - "5000:5000"
+    environment:
+      - FLASK_ENV=production
+      - CHROME_WS_ENDPOINT=ws://chrome:3000/
+      - DISPLAY=:99
+    volumes:
+      - ../../小说项目:/app/小说_projects
+      - ../../logs:/app/logs
+    depends_on:
+      - chrome
+    networks:
+      - xsdm_network
+    restart: unless-stopped
+
+  # Headless Chrome 服务 (Browserless)
+  chrome:
+    image: browserless/chrome:latest
+    container_name: xsdm_chrome
+    ports:
+      - "3000:3000"
+    environment:
+      # 并发会话数
+      - MAX_CONCURRENT_SESSIONS=5
+      # 连接超时时间（毫秒）
+      - CONNECTION_TIMEOUT=60000
+      # 最大队列长度
+      - MAX_QUEUE_LENGTH=10
+      # 预启动实例数
+      - PREBOOT_CHROME=true
+      - KEEP_ALIVE=true
+      # 调试日志
+      - DEBUG=browserless:*
+      # 启用功能
+      - ENABLE_API_GET=true
+      - ENABLE_CORS=true
+    volumes:
+      - chrome_data:/tmp/browserless
+    networks:
+      - xsdm_network
+    restart: unless-stopped
+    # 资源限制
+    deploy:
+      resources:
+        limits:
+          memory: 2G
+        reservations:
+          memory: 1G
+
+volumes:
+  chrome_data:
+    driver: local
+
+networks:
+  xsdm_network:
+    driver: bridge

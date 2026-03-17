@@ -1,0 +1,836 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>番茄小说一键上传 - 大文娱创作平台</title>
+    
+    <!-- V2 设计系统 -->
+    <link rel="stylesheet" href="/static/css/v2/design-system.css?v=3">
+    <link rel="stylesheet" href="/static/css/v2/components.css?v=3">
+    <link rel="stylesheet" href="/static/css/v2/layouts.css?v=3">
+    
+    <style>
+        /* 页面特定样式 */
+        .upload-page {
+            min-height: calc(100vh - 60px - 60px);
+            padding: var(--v2-space-6) var(--v2-space-8);
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+        
+        /* 步骤指示器 */
+        .steps-indicator {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: var(--v2-space-2);
+            margin-bottom: var(--v2-space-8);
+        }
+        
+        .step-item {
+            display: flex;
+            align-items: center;
+            gap: var(--v2-space-3);
+            padding: var(--v2-space-3) var(--v2-space-4);
+            border-radius: var(--v2-radius-lg);
+            background: var(--v2-bg-secondary);
+            border: 1px solid var(--v2-border-subtle);
+            transition: all 0.3s ease;
+        }
+        
+        .step-item.active {
+            background: linear-gradient(135deg, rgba(99, 102, 241, 0.15) 0%, rgba(139, 92, 246, 0.1) 100%);
+            border-color: rgba(99, 102, 241, 0.5);
+        }
+        
+        .step-item.completed {
+            background: rgba(34, 197, 94, 0.1);
+            border-color: rgba(34, 197, 94, 0.3);
+        }
+        
+        .step-number {
+            width: 28px;
+            height: 28px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: var(--v2-radius-full);
+            background: var(--v2-bg-tertiary);
+            font-size: var(--v2-text-sm);
+            font-weight: var(--v2-font-semibold);
+            color: var(--v2-text-muted);
+        }
+        
+        .step-item.active .step-number {
+            background: rgba(99, 102, 241, 0.9);
+            color: white;
+        }
+        
+        .step-item.completed .step-number {
+            background: rgba(34, 197, 94, 0.9);
+            color: white;
+        }
+        
+        .step-text {
+            font-size: var(--v2-text-sm);
+            font-weight: var(--v2-font-medium);
+            color: var(--v2-text-secondary);
+        }
+        
+        .step-item.active .step-text {
+            color: var(--v2-text-primary);
+        }
+        
+        .step-item.completed .step-text {
+            color: #22c55e;
+        }
+        
+        .step-arrow {
+            color: var(--v2-text-muted);
+            font-size: var(--v2-text-lg);
+        }
+        
+        /* 主内容区 */
+        .upload-content {
+            display: grid;
+            grid-template-columns: 1fr 380px;
+            gap: var(--v2-space-6);
+        }
+        
+        /* 左侧：项目选择 */
+        .project-section {
+            background: var(--v2-bg-secondary);
+            border: 1px solid var(--v2-border-subtle);
+            border-radius: var(--v2-radius-xl);
+            padding: var(--v2-space-6);
+        }
+        
+        .section-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: var(--v2-space-5);
+        }
+        
+        .section-title {
+            font-size: var(--v2-text-lg);
+            font-weight: var(--v2-font-semibold);
+            color: var(--v2-text-primary);
+            display: flex;
+            align-items: center;
+            gap: var(--v2-space-2);
+        }
+        
+        /* Chrome 状态卡片 */
+        .chrome-status-card {
+            background: linear-gradient(145deg, rgba(99, 102, 241, 0.08) 0%, rgba(139, 92, 246, 0.04) 100%);
+            border: 1px solid rgba(99, 102, 241, 0.2);
+            border-radius: var(--v2-radius-xl);
+            padding: var(--v2-space-6);
+            margin-bottom: var(--v2-space-6);
+        }
+        
+        .chrome-status-card.connected {
+            background: rgba(34, 197, 94, 0.08);
+            border-color: rgba(34, 197, 94, 0.3);
+        }
+        
+        .chrome-status-header {
+            display: flex;
+            align-items: center;
+            gap: var(--v2-space-3);
+            margin-bottom: var(--v2-space-4);
+        }
+        
+        .chrome-status-icon {
+            width: 48px;
+            height: 48px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: var(--v2-radius-lg);
+            background: rgba(99, 102, 241, 0.15);
+            font-size: var(--v2-text-2xl);
+        }
+        
+        .chrome-status-card.connected .chrome-status-icon {
+            background: rgba(34, 197, 94, 0.15);
+        }
+        
+        .chrome-status-title {
+            font-size: var(--v2-text-base);
+            font-weight: var(--v2-font-semibold);
+            color: var(--v2-text-primary);
+        }
+        
+        .chrome-status-text {
+            font-size: var(--v2-text-sm);
+            color: var(--v2-text-secondary);
+        }
+        
+        .chrome-status-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: var(--v2-space-1);
+            padding: var(--v2-space-1) var(--v2-space-3);
+            border-radius: var(--v2-radius-full);
+            font-size: var(--v2-text-xs);
+            font-weight: var(--v2-font-medium);
+            background: rgba(239, 68, 68, 0.15);
+            color: #ef4444;
+            border: 1px solid rgba(239, 68, 68, 0.2);
+        }
+        
+        .chrome-status-badge.connected {
+            background: rgba(34, 197, 94, 0.15);
+            color: #22c55e;
+            border-color: rgba(34, 197, 94, 0.2);
+        }
+        
+        .chrome-status-badge::before {
+            content: '';
+            width: 6px;
+            height: 6px;
+            border-radius: 50%;
+            background: currentColor;
+        }
+        
+        /* 操作按钮组 */
+        .action-buttons {
+            display: flex;
+            flex-direction: column;
+            gap: var(--v2-space-3);
+        }
+        
+        .btn-block {
+            width: 100%;
+            justify-content: center;
+        }
+        
+        /* 项目列表 */
+        .project-list {
+            display: flex;
+            flex-direction: column;
+            gap: var(--v2-space-3);
+            max-height: 400px;
+            overflow-y: auto;
+        }
+        
+        .project-card {
+            position: relative;
+            background: var(--v2-bg-tertiary);
+            border: 1px solid var(--v2-border-subtle);
+            border-radius: var(--v2-radius-lg);
+            padding: var(--v2-space-4);
+            cursor: pointer;
+            transition: all 0.25s ease;
+        }
+        
+        .project-card:hover {
+            border-color: rgba(99, 102, 241, 0.3);
+            transform: translateX(4px);
+        }
+        
+        .project-card.selected {
+            background: linear-gradient(145deg, rgba(99, 102, 241, 0.1) 0%, rgba(139, 92, 246, 0.05) 100%);
+            border-color: rgba(99, 102, 241, 0.5);
+        }
+        
+        .project-card.selected::before {
+            content: '';
+            position: absolute;
+            left: 0;
+            top: 50%;
+            transform: translateY(-50%);
+            width: 3px;
+            height: 60%;
+            background: linear-gradient(180deg, #6366f1, #8b5cf6);
+            border-radius: 0 2px 2px 0;
+        }
+        
+        .project-title {
+            font-size: var(--v2-text-base);
+            font-weight: var(--v2-font-semibold);
+            color: var(--v2-text-primary);
+            margin-bottom: var(--v2-space-1);
+        }
+        
+        .project-meta {
+            display: flex;
+            align-items: center;
+            gap: var(--v2-space-3);
+            font-size: var(--v2-text-xs);
+            color: var(--v2-text-muted);
+        }
+        
+        /* 右侧：上传状态 */
+        .status-section {
+            display: flex;
+            flex-direction: column;
+            gap: var(--v2-space-5);
+        }
+        
+        .status-card {
+            background: var(--v2-bg-secondary);
+            border: 1px solid var(--v2-border-subtle);
+            border-radius: var(--v2-radius-xl);
+            padding: var(--v2-space-5);
+        }
+        
+        .status-card-header {
+            font-size: var(--v2-text-base);
+            font-weight: var(--v2-font-semibold);
+            color: var(--v2-text-primary);
+            margin-bottom: var(--v2-space-4);
+            display: flex;
+            align-items: center;
+            gap: var(--v2-space-2);
+        }
+        
+        /* 上传进度 */
+        .upload-progress {
+            display: flex;
+            flex-direction: column;
+            gap: var(--v2-space-3);
+        }
+        
+        .progress-item {
+            display: flex;
+            align-items: center;
+            gap: var(--v2-space-3);
+            padding: var(--v2-space-3);
+            background: var(--v2-bg-tertiary);
+            border-radius: var(--v2-radius-md);
+        }
+        
+        .progress-status {
+            width: 24px;
+            height: 24px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 50%;
+            font-size: var(--v2-text-xs);
+        }
+        
+        .progress-status.pending {
+            background: var(--v2-bg-secondary);
+            color: var(--v2-text-muted);
+        }
+        
+        .progress-status.processing {
+            background: rgba(99, 102, 241, 0.2);
+            color: #6366f1;
+            animation: pulse 2s infinite;
+        }
+        
+        .progress-status.success {
+            background: rgba(34, 197, 94, 0.2);
+            color: #22c55e;
+        }
+        
+        .progress-status.error {
+            background: rgba(239, 68, 68, 0.2);
+            color: #ef4444;
+        }
+        
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+        
+        .progress-text {
+            flex: 1;
+            font-size: var(--v2-text-sm);
+            color: var(--v2-text-secondary);
+        }
+        
+        /* 付费功能标识 */
+        .premium-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: var(--v2-space-1);
+            padding: var(--v2-space-1) var(--v2-space-2);
+            background: linear-gradient(135deg, #f59e0b 0%, #f97316 100%);
+            color: white;
+            font-size: var(--v2-text-xs);
+            font-weight: var(--v2-font-bold);
+            border-radius: var(--v2-radius-full);
+            text-transform: uppercase;
+        }
+        
+        /* 下载指引 */
+        .download-guide {
+            background: var(--v2-bg-tertiary);
+            border: 1px dashed var(--v2-border-default);
+            border-radius: var(--v2-radius-lg);
+            padding: var(--v2-space-5);
+            text-align: center;
+        }
+        
+        .download-guide-icon {
+            font-size: 48px;
+            margin-bottom: var(--v2-space-3);
+        }
+        
+        .download-guide-text {
+            font-size: var(--v2-text-sm);
+            color: var(--v2-text-secondary);
+            margin-bottom: var(--v2-space-4);
+        }
+        
+        /* 响应式 */
+        @media (max-width: 1024px) {
+            .upload-content {
+                grid-template-columns: 1fr;
+            }
+            
+            .steps-indicator {
+                flex-wrap: wrap;
+            }
+            
+            .step-arrow {
+                display: none;
+            }
+        }
+    </style>
+</head>
+<body class="v2-body">
+    <!-- V2 导航栏 -->
+    {% include 'components/v2/navbar.html' %}
+    
+    <main class="upload-page">
+        <!-- 页面标题 -->
+        <header class="v2-page-header" style="margin-bottom: var(--v2-space-6);">
+            <div class="v2-page-header__content">
+                <h1 class="v2-page-header__title">
+                    <span>📚</span>
+                    番茄小说一键上传
+                    <span class="premium-badge">Pro</span>
+                </h1>
+                <p class="v2-page-header__subtitle">一键将小说章节上传到番茄作家平台</p>
+            </div>
+        </header>
+        
+        <!-- 步骤指示器 -->
+        <div class="steps-indicator">
+            <div class="step-item active" id="step-1">
+                <div class="step-number">1</div>
+                <span class="step-text">启动 Chrome</span>
+            </div>
+            <div class="step-arrow">→</div>
+            <div class="step-item" id="step-2">
+                <div class="step-number">2</div>
+                <span class="step-text">登录番茄</span>
+            </div>
+            <div class="step-arrow">→</div>
+            <div class="step-item" id="step-3">
+                <div class="step-number">3</div>
+                <span class="step-text">选择项目</span>
+            </div>
+            <div class="step-arrow">→</div>
+            <div class="step-item" id="step-4">
+                <div class="step-number">4</div>
+                <span class="step-text">开始上传</span>
+            </div>
+        </div>
+        
+        <!-- 主内容 -->
+        <div class="upload-content">
+            <!-- 左侧 -->
+            <div class="left-section">
+                <!-- Chrome 状态卡片 -->
+                <div class="chrome-status-card" id="chrome-status-card">
+                    <div class="chrome-status-header">
+                        <div class="chrome-status-icon">🌐</div>
+                        <div>
+                            <div class="chrome-status-title">Chrome 浏览器</div>
+                            <div class="chrome-status-text">需要本地浏览器进行自动化上传</div>
+                        </div>
+                        <span class="chrome-status-badge" id="chrome-status-badge">未连接</span>
+                    </div>
+                    
+                    <div class="action-buttons" id="chrome-actions">
+                        <!-- 未连接时显示 -->
+                        <div id="chrome-not-connected">
+                            <div class="download-guide" style="margin-bottom: var(--v2-space-4);">
+                                <div class="download-guide-icon">💻</div>
+                                <p class="download-guide-text">
+                                    首次使用需要下载 Chrome 启动器<br>
+                                    一键启动本地浏览器（约 5MB）
+                                </p>
+                                <button class="v2-btn v2-btn--primary btn-block" onclick="downloadLauncher()">
+                                    <span>⬇️</span> 下载启动器
+                                </button>
+                            </div>
+                            <button class="v2-btn v2-btn--secondary btn-block" onclick="checkChromeStatus()">
+                                <span>🔄</span> 检测连接
+                            </button>
+                        </div>
+                        
+                        <!-- 已连接时显示 -->
+                        <div id="chrome-connected" style="display: none;">
+                            <button class="v2-btn v2-btn--success btn-block" disabled>
+                                <span>✅</span> Chrome 已连接
+                            </button>
+                            <button class="v2-btn v2-btn--secondary btn-block" onclick="openFanqie()">
+                                <span>📝</span> 打开番茄作家专区
+                            </button>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- 项目选择 -->
+                <div class="project-section">
+                    <div class="section-header">
+                        <h2 class="section-title">
+                            <span>📖</span>
+                            选择项目
+                        </h2>
+                        <button class="v2-btn v2-btn--ghost v2-btn--sm" onclick="loadProjects()">
+                            <span>🔄</span> 刷新
+                        </button>
+                    </div>
+                    
+                    <div class="project-list" id="project-list">
+                        <div class="v2-loading" style="padding: var(--v2-space-8);">
+                            <div class="v2-loading__spinner"></div>
+                            <p class="v2-loading__text">加载项目中...</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- 右侧 -->
+            <div class="status-section">
+                <!-- 上传状态 -->
+                <div class="status-card">
+                    <div class="status-card-header">
+                        <span>📊</span>
+                        上传状态
+                    </div>
+                    <div class="upload-progress" id="upload-progress">
+                        <div class="v2-empty-state">
+                            <div class="v2-empty-state__icon">📋</div>
+                            <p class="v2-empty-state__text">选择项目后开始上传</p>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- 付费功能说明 -->
+                <div class="status-card" style="background: linear-gradient(145deg, rgba(245, 158, 11, 0.08) 0%, rgba(249, 115, 22, 0.04) 100%); border-color: rgba(245, 158, 11, 0.2);">
+                    <div class="status-card-header" style="color: #f59e0b;">
+                        <span>👑</span>
+                        Pro 功能
+                    </div>
+                    <div style="font-size: var(--v2-text-sm); color: var(--v2-text-secondary); line-height: 1.6;">
+                        <p style="margin-bottom: var(--v2-space-3);">
+                            番茄一键上传是付费功能，包含：
+                        </p>
+                        <ul style="margin: 0; padding-left: var(--v2-space-4);">
+                            <li>自动创建书籍</li>
+                            <li>批量上传章节</li>
+                            <li>自动设置章节信息</li>
+                            <li>发布状态检测</li>
+                        </ul>
+                        <div style="margin-top: var(--v2-space-4); padding-top: var(--v2-space-4); border-top: 1px solid rgba(245, 158, 11, 0.2);">
+                            <button class="v2-btn v2-btn--warning btn-block">
+                                <span>💎</span> 升级 Pro 会员
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+    
+    <!-- V2 页脚 -->
+    {% include 'components/v2/footer.html' %}
+    
+    <script>
+        // 状态管理
+        let currentProject = null;
+        let isChromeConnected = false;
+        
+        // 初始化
+        document.addEventListener('DOMContentLoaded', function() {
+            checkChromeStatus();
+            loadProjects();
+        });
+        
+        // 检测 Chrome 状态
+        async function checkChromeStatus() {
+            try {
+                const response = await fetch('/api/chrome/status');
+                const data = await response.json();
+                
+                isChromeConnected = data.running;
+                updateChromeUI(data);
+                
+                if (data.running) {
+                    updateStep(2); // 进入步骤2：登录番茄
+                }
+            } catch (error) {
+                console.error('检测 Chrome 状态失败:', error);
+                updateChromeUI({ running: false });
+            }
+        }
+        
+        // 更新 Chrome UI
+        function updateChromeUI(data) {
+            const card = document.getElementById('chrome-status-card');
+            const badge = document.getElementById('chrome-status-badge');
+            const notConnected = document.getElementById('chrome-not-connected');
+            const connected = document.getElementById('chrome-connected');
+            
+            if (data.running) {
+                card.classList.add('connected');
+                badge.classList.add('connected');
+                badge.textContent = '已连接';
+                notConnected.style.display = 'none';
+                connected.style.display = 'block';
+            } else {
+                card.classList.remove('connected');
+                badge.classList.remove('connected');
+                badge.textContent = '未连接';
+                notConnected.style.display = 'block';
+                connected.style.display = 'none';
+            }
+        }
+        
+        // 下载启动器
+        function downloadLauncher() {
+            // 显示指引弹窗
+            showModal({
+                title: '下载 Chrome 启动器',
+                content: `
+                    <div style="text-align: center; padding: 20px;">
+                        <div style="font-size: 64px; margin-bottom: 16px;">💻</div>
+                        <h3 style="margin-bottom: 12px;">下载并运行启动器</h3>
+                        <ol style="text-align: left; line-height: 2; color: var(--v2-text-secondary);">
+                            <li>点击下方按钮下载启动器（约 5MB）</li>
+                            <li>解压到任意目录（如桌面）</li>
+                            <li>双击运行 <code>start_browser.exe</code></li>
+                            <li>等待 Chrome 自动启动</li>
+                            <li>在 Chrome 中登录番茄账号</li>
+                            <li>返回此页面点击「检测连接」</li>
+                        </ol>
+                    </div>
+                `,
+                actions: [
+                    { 
+                        label: '立即下载', 
+                        primary: true, 
+                        onClick: () => {
+                            window.open('/api/chrome/launcher/download', '_blank');
+                        }
+                    },
+                    { label: '我已启动', onClick: () => checkChromeStatus() }
+                ]
+            });
+        }
+        
+        // 打开番茄作家专区
+        function openFanqie() {
+            window.open('https://fanqienovel.com/author', '_blank');
+        }
+        
+        // 加载项目列表
+        async function loadProjects() {
+            const list = document.getElementById('project-list');
+            list.innerHTML = `
+                <div class="v2-loading" style="padding: var(--v2-space-8);">
+                    <div class="v2-loading__spinner"></div>
+                    <p class="v2-loading__text">加载项目中...</p>
+                </div>
+            `;
+            
+            try {
+                const response = await fetch('/api/projects/with-phase-status');
+                const data = await response.json();
+                
+                if (data.projects && data.projects.length > 0) {
+                    renderProjectList(data.projects);
+                } else {
+                    list.innerHTML = `
+                        <div class="v2-empty-state">
+                            <div class="v2-empty-state__icon">📚</div>
+                            <p class="v2-empty-state__text">暂无项目</p>
+                            <button class="v2-btn v2-btn--primary" onclick="window.location.href='/novels'">
+                                去创建项目
+                            </button>
+                        </div>
+                    `;
+                }
+            } catch (error) {
+                console.error('加载项目失败:', error);
+                list.innerHTML = `
+                    <div class="v2-empty-state">
+                        <div class="v2-empty-state__icon">⚠️</div>
+                        <p class="v2-empty-state__text">加载失败</p>
+                        <button class="v2-btn v2-btn--secondary" onclick="loadProjects()">
+                            重试
+                        </button>
+                    </div>
+                `;
+            }
+        }
+        
+        // 渲染项目列表
+        function renderProjectList(projects) {
+            const list = document.getElementById('project-list');
+            
+            list.innerHTML = projects.map(project => `
+                <div class="project-card" data-title="${project.title}" onclick="selectProject('${project.title}')">
+                    <div class="project-title">${project.title}</div>
+                    <div class="project-meta">
+                        <span>📊 ${project.total_chapters || 0} 章</span>
+                        <span>✅ ${project.phase_one_status || 'unknown'}</span>
+                    </div>
+                </div>
+            `).join('');
+        }
+        
+        // 选择项目
+        function selectProject(title) {
+            currentProject = title;
+            
+            // 更新选中状态
+            document.querySelectorAll('.project-card').forEach(card => {
+                card.classList.remove('selected');
+                if (card.dataset.title === title) {
+                    card.classList.add('selected');
+                }
+            });
+            
+            updateStep(4); // 进入步骤4：开始上传
+            
+            // 显示上传准备状态
+            document.getElementById('upload-progress').innerHTML = `
+                <div style="text-align: center; padding: var(--v2-space-6);">
+                    <div style="font-size: 48px; margin-bottom: var(--v2-space-3);">📤</div>
+                    <p style="color: var(--v2-text-primary); margin-bottom: var(--v2-space-4);">
+                        已选择: <strong>${title}</strong>
+                    </p>
+                    <button class="v2-btn v2-btn--primary btn-block" onclick="startUpload('${title}')">
+                        <span>🚀</span> 开始上传
+                    </button>
+                </div>
+            `;
+        }
+        
+        // 更新步骤指示器
+        function updateStep(step) {
+            for (let i = 1; i <= 4; i++) {
+                const stepEl = document.getElementById(`step-${i}`);
+                stepEl.classList.remove('active', 'completed');
+                
+                if (i < step) {
+                    stepEl.classList.add('completed');
+                    stepEl.querySelector('.step-number').textContent = '✓';
+                } else if (i === step) {
+                    stepEl.classList.add('active');
+                    stepEl.querySelector('.step-number').textContent = i;
+                } else {
+                    stepEl.querySelector('.step-number').textContent = i;
+                }
+            }
+        }
+        
+        // 开始上传
+        async function startUpload(title) {
+            if (!isChromeConnected) {
+                showNotification('请先启动 Chrome 浏览器', 'error');
+                return;
+            }
+            
+            showNotification(`开始上传: ${title}`, 'info');
+            // TODO: 调用上传 API
+        }
+        
+        // 简单的弹窗组件
+        function showModal({ title, content, actions }) {
+            // 创建遮罩
+            const overlay = document.createElement('div');
+            overlay.style.cssText = `
+                position: fixed;
+                inset: 0;
+                background: rgba(0, 0, 0, 0.8);
+                z-index: 1000;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                padding: 20px;
+            `;
+            
+            // 创建弹窗
+            const modal = document.createElement('div');
+            modal.style.cssText = `
+                background: var(--v2-bg-secondary);
+                border: 1px solid var(--v2-border-subtle);
+                border-radius: var(--v2-radius-xl);
+                max-width: 500px;
+                width: 100%;
+                max-height: 90vh;
+                overflow: auto;
+            `;
+            
+            // 标题
+            const header = document.createElement('div');
+            header.style.cssText = `
+                padding: var(--v2-space-5);
+                border-bottom: 1px solid var(--v2-border-subtle);
+                font-size: var(--v2-text-lg);
+                font-weight: var(--v2-font-semibold);
+                color: var(--v2-text-primary);
+            `;
+            header.textContent = title;
+            
+            // 内容
+            const body = document.createElement('div');
+            body.innerHTML = content;
+            
+            // 按钮
+            const footer = document.createElement('div');
+            footer.style.cssText = `
+                padding: var(--v2-space-5);
+                border-top: 1px solid var(--v2-border-subtle);
+                display: flex;
+                gap: var(--v2-space-3);
+                justify-content: flex-end;
+            `;
+            
+            actions.forEach(action => {
+                const btn = document.createElement('button');
+                btn.className = `v2-btn ${action.primary ? 'v2-btn--primary' : 'v2-btn--secondary'}`;
+                btn.textContent = action.label;
+                btn.onclick = () => {
+                    document.body.removeChild(overlay);
+                    if (action.onClick) action.onClick();
+                };
+                footer.appendChild(btn);
+            });
+            
+            modal.appendChild(header);
+            modal.appendChild(body);
+            modal.appendChild(footer);
+            overlay.appendChild(modal);
+            document.body.appendChild(overlay);
+            
+            // 点击遮罩关闭
+            overlay.onclick = (e) => {
+                if (e.target === overlay) {
+                    document.body.removeChild(overlay);
+                }
+            };
+        }
+        
+        // 通知
+        function showNotification(message, type = 'info') {
+            // 使用 V2 通知组件或简单实现
+            console.log(`[${type}] ${message}`);
+        }
+    </script>
+</body>
+</html>
