@@ -71,6 +71,52 @@
             <a href="/novels" class="v2-nav-link {% if request.endpoint == 'novels_view' %}v2-nav-link--active{% endif %}">
                 <span data-i18n="nav.works">作品</span>
             </a>
+            <!-- 平台下拉菜单 - 第三方平台上传功能 -->
+            <div class="v2-nav-dropdown {% if request.endpoint in ['fanqie_upload', 'fanqie_upload_v2'] %}v2-nav-dropdown--active{% endif %}">
+                <span class="v2-nav-trigger">
+                    <span>平台</span>
+                    <svg class="v2-nav-trigger__arrow" width="12" height="12" viewBox="0 0 12 12" fill="none">
+                        <path d="M2.5 4.5L6 8L9.5 4.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+                    </svg>
+                </span>
+                <div class="v2-nav-dropdown__menu v2-nav-dropdown__menu--platform">
+                    <!-- 番茄上传 -->
+                    <a href="/pages/v2/fanqie-upload-v2" class="v2-dropdown-item {% if request.endpoint == 'fanqie_upload_v2' %}v2-dropdown-item--active{% endif %}">
+                        <span class="v2-dropdown-item__icon" style="font-size: 16px; background: linear-gradient(135deg, #ff6b6b, #ee5a6f); -webkit-background-clip: text; -webkit-text-fill-color: transparent;">🍅</span>
+                        <div class="v2-dropdown-item__content">
+                            <span class="v2-dropdown-item__title">番茄小说</span>
+                            <span class="v2-dropdown-item__desc">一键上传到番茄作家平台 <span class="premium-badge-inline">Pro</span></span>
+                        </div>
+                        <svg class="v2-dropdown-item__arrow" width="16" height="16" viewBox="0 0 16 16" fill="none">
+                            <path d="M6 12L10 8L6 4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+                        </svg>
+                    </a>
+                    <!-- 分隔线 -->
+                    <div class="v2-dropdown-divider"></div>
+                    <!-- 起点上传（即将上线） -->
+                    <a href="#" class="v2-dropdown-item v2-dropdown-item--disabled" onclick="event.preventDefault(); showComingSoon('起点上传');">
+                        <span class="v2-dropdown-item__icon" style="font-size: 16px; opacity: 0.5;">🔴</span>
+                        <div class="v2-dropdown-item__content">
+                            <span class="v2-dropdown-item__title">起点中文</span>
+                            <span class="v2-dropdown-item__desc">一键上传到起点中文网 <span class="coming-soon-badge">即将上线</span></span>
+                        </div>
+                        <svg class="v2-dropdown-item__arrow" width="16" height="16" viewBox="0 0 16 16" fill="none" style="opacity: 0.3;">
+                            <path d="M6 12L10 8L6 4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+                        </svg>
+                    </a>
+                    <!-- 晋江上传（即将上线） -->
+                    <a href="#" class="v2-dropdown-item v2-dropdown-item--disabled" onclick="event.preventDefault(); showComingSoon('晋江上传');">
+                        <span class="v2-dropdown-item__icon" style="font-size: 16px; opacity: 0.5;">💮</span>
+                        <div class="v2-dropdown-item__content">
+                            <span class="v2-dropdown-item__title">晋江文学</span>
+                            <span class="v2-dropdown-item__desc">一键上传到晋江文学城 <span class="coming-soon-badge">即将上线</span></span>
+                        </div>
+                        <svg class="v2-dropdown-item__arrow" width="16" height="16" viewBox="0 0 16 16" fill="none" style="opacity: 0.3;">
+                            <path d="M6 12L10 8L6 4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+                        </svg>
+                    </a>
+                </div>
+            </div>
         {% else %}
             <a href="/landing" class="v2-nav-link {% if request.endpoint == 'landing' %}v2-nav-link--active{% endif %}">
                 <span data-i18n="nav.home">首页</span>
@@ -430,6 +476,53 @@
     color: var(--v2-text-secondary);
 }
 
+/* 平台菜单特定样式 */
+.v2-nav-dropdown__menu--platform {
+    min-width: 280px;
+}
+
+/* Pro 徽章 - 行内版本 */
+.premium-badge-inline {
+    display: inline-flex;
+    align-items: center;
+    gap: 2px;
+    padding: 1px 6px;
+    background: linear-gradient(135deg, #f59e0b 0%, #f97316 100%);
+    color: white;
+    font-size: 10px;
+    font-weight: 700;
+    border-radius: 10px;
+    text-transform: uppercase;
+    margin-left: 4px;
+    vertical-align: middle;
+}
+
+/* 即将上线徽章 */
+.coming-soon-badge {
+    display: inline-flex;
+    align-items: center;
+    padding: 1px 6px;
+    background: var(--v2-bg-tertiary);
+    color: var(--v2-text-muted);
+    font-size: 10px;
+    font-weight: 500;
+    border-radius: 10px;
+    border: 1px solid var(--v2-border-subtle);
+    margin-left: 4px;
+    vertical-align: middle;
+}
+
+/* 禁用的下拉项 */
+.v2-dropdown-item--disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+    pointer-events: none;
+}
+
+.v2-dropdown-item--disabled:hover {
+    background: transparent;
+}
+
 /* 下拉菜单分隔线 */
 .v2-dropdown-divider {
     height: 1px;
@@ -493,3 +586,68 @@
     }
 }
 </style>
+
+<script>
+/**
+ * 显示"即将上线"提示
+ */
+function showComingSoon(featureName) {
+    // 创建提示弹窗
+    const overlay = document.createElement('div');
+    overlay.style.cssText = `
+        position: fixed;
+        inset: 0;
+        background: rgba(0, 0, 0, 0.7);
+        z-index: 9999;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 20px;
+        backdrop-filter: blur(4px);
+    `;
+    
+    const modal = document.createElement('div');
+    modal.style.cssText = `
+        background: var(--v2-bg-secondary);
+        border: 1px solid var(--v2-border-subtle);
+        border-radius: 16px;
+        padding: 32px;
+        max-width: 360px;
+        width: 100%;
+        text-align: center;
+        box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+    `;
+    
+    modal.innerHTML = `
+        <div style="font-size: 48px; margin-bottom: 16px;">🚧</div>
+        <h3 style="font-size: 18px; font-weight: 600; color: var(--v2-text-primary); margin-bottom: 8px;">${featureName} 即将上线</h3>
+        <p style="font-size: 14px; color: var(--v2-text-secondary); line-height: 1.6; margin-bottom: 24px;">
+            该功能正在紧张开发中，敬请期待！<br>
+            目前仅支持番茄小说平台上传。
+        </p>
+        <button onclick="this.closest('.v2-modal-overlay').remove()" style="
+            padding: 10px 24px;
+            background: linear-gradient(135deg, #6366f1, #8b5cf6);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s;
+        ">知道了</button>
+    `;
+    
+    overlay.className = 'v2-modal-overlay';
+    overlay.appendChild(modal);
+    
+    // 点击遮罩关闭
+    overlay.addEventListener('click', (e) => {
+        if (e.target === overlay) {
+            overlay.remove();
+        }
+    });
+    
+    document.body.appendChild(overlay);
+}
+</script>
