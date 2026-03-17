@@ -8,6 +8,7 @@ Chrome 启动器 API
 import os
 import json
 import requests
+import sys
 from flask import Blueprint, jsonify, send_file, current_app
 from pathlib import Path
 
@@ -15,6 +16,58 @@ chrome_api = Blueprint('chrome_api', __name__)
 
 # Chrome 调试端口
 DEBUG_PORT = 9988
+
+
+def check_chrome_installed() -> dict:
+    """检查 Chrome 是否已安装（在 chrome_launcher 目录中）"""
+    # 获取 chrome_launcher 目录
+    # current_app.root_path 是 web/ 目录，parent 是项目根目录
+    launcher_dir = Path(current_app.root_path).parent / 'tools' / 'chrome_launcher'
+    chrome_dir = launcher_dir / 'chrome'
+    
+    # 检查一键启动脚本是否存在
+    if sys.platform == 'win32':
+        bat_file = launcher_dir / '一键启动.bat'
+        start_script = bat_file if bat_file.exists() else None
+    else:
+        sh_file = launcher_dir / 'start_chrome.sh'
+        start_script = sh_file if sh_file.exists() else None
+    
+    # 检查 Chrome 可执行文件是否存在
+    platform = sys.platform
+    chrome_exe = None
+    
+    if platform == 'win32':
+        possible_paths = [
+            chrome_dir / 'chrome-win64' / 'chrome.exe',
+            chrome_dir / 'chrome' / 'chrome.exe',
+            chrome_dir / 'chrome.exe',
+        ]
+    elif platform == 'darwin':
+        possible_paths = [
+            chrome_dir / 'chrome-mac-x64' / 'Google Chrome for Testing.app' / 'Contents' / 'MacOS' / 'Google Chrome for Testing',
+            chrome_dir / 'Google Chrome.app' / 'Contents' / 'MacOS' / 'Google Chrome',
+        ]
+    else:  # linux
+        possible_paths = [
+            chrome_dir / 'chrome-linux64' / 'chrome',
+            chrome_dir / 'chrome' / 'chrome',
+            chrome_dir / 'chrome',
+        ]
+    
+    for path in possible_paths:
+        if path.exists():
+            chrome_exe = path
+            break
+    
+    # 返回检测结果
+    return {
+        'installed': chrome_exe is not None,
+        'chrome_path': str(chrome_exe) if chrome_exe else None,
+        'start_script': str(start_script) if start_script else None,
+        'launcher_dir': str(launcher_dir),
+        'script_name': '一键启动.bat' if sys.platform == 'win32' else 'start_chrome.sh'
+    }
 
 
 def check_chrome_status() -> dict:
@@ -35,10 +88,15 @@ def check_chrome_status() -> dict:
     except Exception as e:
         pass
     
+    # Chrome 未运行，检查是否已安装
+    install_info = check_chrome_installed()
+    
     return {
         'running': False,
         'version': None,
-        'error': 'Chrome not running or debug port not accessible'
+        'error': 'Chrome not running or debug port not accessible',
+        'installed': install_info['installed'],
+        'install_info': install_info
     }
 
 
