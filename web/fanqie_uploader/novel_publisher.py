@@ -549,7 +549,8 @@ class NovelPublisher:
             
             # 根据HTML结构更新选择器
             # 书名输入框: <input placeholder="请输入作品名称" value="...">
-            title_short = novel_title[-15:] if len(novel_title) >= 15 else novel_title
+            # 🔥 修复：番茄平台限制书名最多15个字符（含中文符号），建议14字留余量
+            title_short = novel_title[:14] if len(novel_title) > 14 else novel_title
             try:
                 title_input = page.locator('input[placeholder="请输入作品名称"]')
                 title_input.fill(title_short)
