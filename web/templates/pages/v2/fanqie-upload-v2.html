@@ -2074,11 +2074,11 @@
         
         // 应用配置到UI
         function applyConfigToUI(config) {
-            // 首次发布配置
+            // 首次发布配置（番茄平台要求：20章 6万字）
             const first = config.first_publish || {};
             document.getElementById('config-first-enabled').checked = first.enabled !== false;
-            document.getElementById('config-first-chapters').value = first.chapter_count || 3;
-            document.getElementById('config-first-words').value = first.word_count || 0;
+            document.getElementById('config-first-chapters').value = first.chapter_count || 20;
+            document.getElementById('config-first-words').value = first.word_count || 60000;
             document.getElementById('config-first-mode').value = first.publish_immediately !== false ? 'immediate' : 'scheduled';
             
             // 每日发布配置
@@ -2101,8 +2101,8 @@
             return {
                 first_publish: {
                     enabled: document.getElementById('config-first-enabled').checked,
-                    chapter_count: parseInt(document.getElementById('config-first-chapters').value) || 3,
-                    word_count: parseInt(document.getElementById('config-first-words').value) || 0,
+                    chapter_count: parseInt(document.getElementById('config-first-chapters').value) || 20,
+                    word_count: parseInt(document.getElementById('config-first-words').value) || 60000,
                     publish_immediately: document.getElementById('config-first-mode').value === 'immediate'
                 },
                 daily_publish: {

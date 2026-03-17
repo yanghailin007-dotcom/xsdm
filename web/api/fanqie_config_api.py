@@ -17,20 +17,20 @@ fanqie_config_api = Blueprint('fanqie_config_api', __name__)
 # 配置文件目录
 CONFIG_DIR = Path("config/fanqie")
 
-# 默认配置
+# 默认配置（符合番茄平台签约要求：20章 6万字）
 DEFAULT_UPLOAD_CONFIG = {
     # 首次发布配置
     "first_publish": {
         "enabled": True,
-        "chapter_count": 3,  # 首次发布章节数
-        "word_count": 6000,   # 首次发布字数（0表示不限制）
+        "chapter_count": 20,   # 首次发布章节数（番茄签约要求：20章）
+        "word_count": 60000,   # 首次发布字数（番茄签约要求：6万字）
         "publish_immediately": True  # 立即发布还是定时发布
     },
     # 每日发布配置
     "daily_publish": {
         "enabled": True,
-        "chapter_count": 2,   # 每天发布章节数
-        "word_count": 4000,   # 每天发布字数（0表示不限制）
+        "chapter_count": 2,    # 每天发布章节数
+        "word_count": 0,       # 每天发布字数（0表示不限制）
         "publish_time": "09:00",  # 发布时间（HH:MM格式）
         "interval_minutes": 30  # 章节间隔（分钟）
     },
