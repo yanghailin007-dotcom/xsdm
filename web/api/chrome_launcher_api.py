@@ -102,9 +102,9 @@ def check_chrome_installed() -> dict:
         fallback_path = 'C:\\大文娱\\chrome_launcher'
         
         setup_steps = [
-            '1. 下载 chrome-launcher.zip 到任意位置（如：桌面）',
-            '2. 解压后将文件夹重命名为 "chrome_launcher"',
-            f'3. 将整个文件夹移动到: {primary_path}',
+            '1. 下载 chrome_launcher.zip 到任意位置（如：桌面）',
+            '2. 解压后得到 chrome_launcher 文件夹（无需重命名）',
+            f'3. 将整个文件夹移动到: D:\\大文娱\\ （或 C:\\大文娱\\）',
             f'4. 最终路径应该是: {primary_path}\\一键启动.bat',
             '5. 双击运行 一键启动.bat'
         ]

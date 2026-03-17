@@ -85,7 +85,9 @@ def create_zip():
     """创建分发包"""
     print("📦 创建分发包...")
     
-    zip_name = f"chrome-launcher-v{VERSION}.zip"
+    # 固定包名：chrome_launcher.zip
+    # 解压后自动得到 chrome_launcher/ 目录，无需重命名
+    zip_name = "chrome_launcher.zip"
     zip_path = DIST_DIR / zip_name
     
     with zipfile.ZipFile(zip_path, 'w', zipfile.ZIP_DEFLATED) as zf:
@@ -94,7 +96,8 @@ def create_zip():
                 # 排除 work 目录
                 if 'work' in str(file_path):
                     continue
-                arcname = file_path.relative_to(BUILD_DIR)
+                # 在 zip 中添加顶层 chrome_launcher/ 目录
+                arcname = Path('chrome_launcher') / file_path.relative_to(BUILD_DIR)
                 zf.write(file_path, arcname)
     
     print(f"✅ 分发包已创建: {zip_path}")
@@ -102,6 +105,7 @@ def create_zip():
     # 显示文件大小
     size_mb = zip_path.stat().st_size / 1024 / 1024
     print(f"   大小: {size_mb:.2f} MB")
+    print(f"   提示: 解压后自动得到 chrome_launcher/ 目录")
 
 def main():
     """主函数"""
