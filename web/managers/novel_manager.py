@@ -1257,8 +1257,12 @@ class NovelGenerationManager:
                 logger.error(f"❌ 动态加载项目失败 {title}: {e}")
                 continue
             
-            # 🔥 确保数据被添加到 self.novel_projects 缓存（如果不存在）
-            if title not in self.novel_projects:
+            # 🔥 确保数据被添加到 self.novel_projects 缓存（更新或新增）
+            # 修复：使用新读取的数据更新缓存，确保简介等字段能正确更新
+            if title in self.novel_projects:
+                # 合并数据：新数据覆盖旧数据，保留旧数据中不存在的字段
+                self.novel_projects[title].update(data)
+            else:
                 self.novel_projects[title] = data
             # 用户隔离：只返回当前用户的项目 + 公开项目
             owner = data.get('owner', 'unknown')
