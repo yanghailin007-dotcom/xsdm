@@ -12,21 +12,16 @@ from datetime import datetime, timedelta
 from typing import List, Dict, Any, Optional, Tuple
 from playwright.sync_api import Page
 
-# 添加父目录到路径，支持相对导入
-_current_dir = os.path.dirname(os.path.abspath(__file__))
-_parent_dir = os.path.dirname(_current_dir)
-if _parent_dir not in sys.path:
-    sys.path.insert(0, _parent_dir)
-
+# 导入同级目录下的工具模块
 try:
-    from fanqie_uploader.utils.config_loader import ConfigLoader
-    from fanqie_uploader.utils.file_handler import FileHandler
-    from fanqie_uploader.utils.ui_helper import UIHelper
+    from config_loader import ConfigLoader
+    from file_handler import FileHandler
+    from ui_helper import UIHelper
 except ImportError:
-    # 回退到相对导入（在包内使用时）
-    from utils.config_loader import ConfigLoader
-    from utils.file_handler import FileHandler
-    from utils.ui_helper import UIHelper
+    # 如果在包内导入失败，尝试完整路径
+    from fanqie_uploader.config_loader import ConfigLoader
+    from fanqie_uploader.file_handler import FileHandler
+    from fanqie_uploader.ui_helper import UIHelper
 
 
 class NovelPublisher:
