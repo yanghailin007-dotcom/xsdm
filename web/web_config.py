@@ -105,7 +105,7 @@ def check_module_availability():
     MODULE_STATUS["contract_api_available"] = False
     MODULE_STATUS["service_monitor_available"] = False
     
-    logger.info("ℹ️ 旧版 Chrome 模块已移除，使用 web/fanqie_uploader/ 新架构"
+    logger.info("ℹ️ 旧版 Chrome 模块已移除，使用 web/fanqie_uploader/ 新架构")
 
 # 初始化模块状态
 check_module_availability()
