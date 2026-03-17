@@ -1007,8 +1007,8 @@
             </div>
         </div>
         
-        <!-- 使用教程入口提示 -->
-        <div style="background: linear-gradient(135deg, rgba(99, 102, 241, 0.08), rgba(139, 92, 246, 0.04)); border: 1px dashed rgba(99, 102, 241, 0.4); border-radius: var(--v2-radius-lg); padding: var(--v2-space-4); margin-bottom: var(--v2-space-6); text-align: center;">
+        <!-- 使用教程入口提示（首次使用显示） -->
+        <div id="first-time-hint" style="background: linear-gradient(135deg, rgba(99, 102, 241, 0.08), rgba(139, 92, 246, 0.04)); border: 1px dashed rgba(99, 102, 241, 0.4); border-radius: var(--v2-radius-lg); padding: var(--v2-space-4); margin-bottom: var(--v2-space-6); text-align: center;">
             <div style="font-size: 24px; margin-bottom: var(--v2-space-2);">👆</div>
             <div style="font-size: 14px; font-weight: 600; color: var(--v2-text-primary); margin-bottom: 4px;">首次使用？</div>
             <div style="font-size: 13px; color: var(--v2-text-secondary); margin-bottom: var(--v2-space-3);">点击下方按钮查看详细图文教程</div>
@@ -1317,6 +1317,7 @@
             loadProjects();
             checkProStatus();
             updateStepDisplay(); // 恢复步骤状态
+            checkFirstTimeHint(); // 检查是否显示首次使用提示
         });
         
         // 检查Pro状态（从数据库）
@@ -1580,6 +1581,26 @@
             }
         }
         
+        // 隐藏首次使用提示并记录状态
+        function dismissFirstTimeHint() {
+            localStorage.setItem('fanqie_tutorial_seen', 'true');
+            const hint = document.getElementById('first-time-hint');
+            if (hint) {
+                hint.style.display = 'none';
+            }
+        }
+        
+        // 检查是否已看过教程
+        function checkFirstTimeHint() {
+            const seen = localStorage.getItem('fanqie_tutorial_seen') === 'true';
+            if (seen) {
+                const hint = document.getElementById('first-time-hint');
+                if (hint) {
+                    hint.style.display = 'none';
+                }
+            }
+        }
+        
         // 显示图文教程弹窗（大图模式）
         function showTutorialModal() {
             showModal({
@@ -1698,7 +1719,7 @@
                     </div>
                 `,
                 actions: [
-                    { label: '我知道了，开始操作', primary: true, onClick: () => {} }
+                    { label: '我知道了，开始操作', primary: true, onClick: () => dismissFirstTimeHint() }
                 ]
             });
         }
