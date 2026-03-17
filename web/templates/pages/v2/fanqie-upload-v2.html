@@ -1042,16 +1042,8 @@
                                         <div style="width: 40px; height: 40px; background: linear-gradient(135deg, #22c55e, #16a34a); border-radius: var(--v2-radius-lg); display: flex; align-items: center; justify-content: center; font-size: 20px;">✅</div>
                                         <div>
                                             <div style="font-weight: 600; color: var(--v2-text-primary);">Chrome 已安装</div>
-                                            <div style="font-size: 12px; color: var(--v2-text-secondary);">检测到本地已有 Chrome，无需重新下载</div>
+                                            <div style="font-size: 12px; color: var(--v2-text-secondary);">环境就绪，可以直接启动</div>
                                         </div>
-                                    </div>
-                                    <div style="background: var(--v2-bg-tertiary); border-radius: var(--v2-radius-md); padding: var(--v2-space-3); margin-bottom: var(--v2-space-3);">
-                                        <div style="font-size: 12px; color: var(--v2-text-muted); margin-bottom: 4px;">检测到 Chrome 位置：</div>
-                                        <div style="font-family: monospace; font-size: 12px; color: var(--v2-text-primary); word-break: break-all;" id="chrome-location-display">未知位置</div>
-                                    </div>
-                                    <div style="background: var(--v2-bg-tertiary); border-radius: var(--v2-radius-md); padding: var(--v2-space-3); margin-bottom: var(--v2-space-3);">
-                                        <div style="font-size: 12px; color: var(--v2-text-muted); margin-bottom: 4px;">请前往以下目录运行：</div>
-                                        <div style="font-family: monospace; font-size: 13px; color: var(--v2-text-primary); word-break: break-all;" id="launcher-path-display">未知目录</div>
                                     </div>
                                     <div class="easy-steps">
                                         <div class="step-row">
@@ -1072,36 +1064,65 @@
                                 </div>
                             </div>
                             
-                            <!-- 未安装：显示下载步骤 -->
+                            <!-- 未安装：显示安装步骤 -->
                             <div id="chrome-download-steps">
-                                <div class="easy-steps" style="margin-bottom: var(--v2-space-4);">
-                                    <!-- 步骤1：下载 -->
-                                    <div class="step-row" id="step-download">
-                                        <div class="step-num">1</div>
-                                        <div class="step-content">
-                                            <div class="step-title">下载启动器</div>
-                                            <div class="step-desc">约 6KB，包含自动安装脚本</div>
-                                        </div>
-                                        <button class="v2-btn v2-btn--primary v2-btn--sm" onclick="downloadLauncher()">
-                                            ⬇️ 下载
-                                        </button>
-                                    </div>
-                                    
-                                    <!-- 步骤2：运行 -->
-                                    <div class="step-row" id="step-run" style="opacity: 0.5;">
-                                        <div class="step-num">2</div>
-                                        <div class="step-content">
-                                            <div class="step-title">解压并运行</div>
-                                            <div class="step-desc">双击"一键启动.bat"，自动下载Chrome</div>
+                                <div style="background: linear-gradient(135deg, rgba(99, 102, 241, 0.1), rgba(139, 92, 246, 0.05)); border: 1px solid rgba(99, 102, 241, 0.3); border-radius: var(--v2-radius-lg); padding: var(--v2-space-4); margin-bottom: var(--v2-space-4);">
+                                    <div style="display: flex; align-items: center; gap: var(--v2-space-3); margin-bottom: var(--v2-space-4);">
+                                        <div style="width: 40px; height: 40px; background: linear-gradient(135deg, #6366f1, #8b5cf6); border-radius: var(--v2-radius-lg); display: flex; align-items: center; justify-content: center; font-size: 20px;">📦</div>
+                                        <div>
+                                            <div style="font-weight: 600; color: var(--v2-text-primary);">需要安装 Chrome 环境</div>
+                                            <div style="font-size: 12px; color: var(--v2-text-secondary);">请按以下步骤安装到指定目录</div>
                                         </div>
                                     </div>
                                     
-                                    <!-- 步骤3：登录 -->
-                                    <div class="step-row" id="step-login" style="opacity: 0.5;">
-                                        <div class="step-num">3</div>
-                                        <div class="step-content">
-                                            <div class="step-title">登录番茄账号</div>
-                                            <div class="step-desc">在打开的Chrome中登录，然后回来点检测</div>
+                                    <div class="easy-steps" style="margin-bottom: var(--v2-space-4);">
+                                        <!-- 步骤1：下载 -->
+                                        <div class="step-row" id="step-download">
+                                            <div class="step-num" style="background: linear-gradient(135deg, #6366f1, #8b5cf6); color: white;">1</div>
+                                            <div class="step-content">
+                                                <div class="step-title">下载启动器</div>
+                                                <div class="step-desc">约 6KB，包含自动安装脚本</div>
+                                            </div>
+                                            <button class="v2-btn v2-btn--primary v2-btn--sm" onclick="downloadLauncher()">
+                                                ⬇️ 下载
+                                            </button>
+                                        </div>
+                                        
+                                        <!-- 步骤2：移动到指定目录 -->
+                                        <div class="step-row" id="step-move" style="opacity: 0.6;">
+                                            <div class="step-num">2</div>
+                                            <div class="step-content">
+                                                <div class="step-title">移动到指定目录</div>
+                                                <div class="step-desc" id="install-path-hint">解压后重命名为 chrome_launcher，移动到项目 tools/ 目录</div>
+                                                <div style="background: var(--v2-bg-tertiary); border-radius: var(--v2-radius-md); padding: 8px 12px; margin-top: 8px; font-family: monospace; font-size: 11px; color: var(--v2-text-muted); word-break: break-all;" id="install-path-display">
+                                                    {项目目录}/tools/chrome_launcher/
+                                                </div>
+                                            </div>
+                                        </div>
+                                        
+                                        <!-- 步骤3：运行 -->
+                                        <div class="step-row" id="step-run" style="opacity: 0.4;">
+                                            <div class="step-num">3</div>
+                                            <div class="step-content">
+                                                <div class="step-title">运行启动器</div>
+                                                <div class="step-desc">双击"一键启动.bat"，首次自动下载 Chrome（约 150MB）</div>
+                                            </div>
+                                        </div>
+                                        
+                                        <!-- 步骤4：登录 -->
+                                        <div class="step-row" id="step-login" style="opacity: 0.4;">
+                                            <div class="step-num">4</div>
+                                            <div class="step-content">
+                                                <div class="step-title">登录番茄账号</div>
+                                                <div class="step-desc">在 Chrome 中登录后回来点击检测</div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    
+                                    <div style="background: rgba(251, 191, 36, 0.1); border: 1px solid rgba(251, 191, 36, 0.3); border-radius: var(--v2-radius-md); padding: var(--v2-space-3);">
+                                        <div style="font-size: 12px; color: var(--v2-text-secondary);">
+                                            <span style="color: #fbbf24; font-weight: 600;">💡 提示：</span>
+                                            如果启动器已下载在其他位置，请手动复制到上述目录
                                         </div>
                                     </div>
                                 </div>
@@ -1554,13 +1575,6 @@
                     if (downloadSteps) downloadSteps.style.display = 'none';
                     if (data.install_info) {
                         const info = data.install_info;
-                        if (launcherPath) {
-                            launcherPath.textContent = info.launcher_dir || '未知目录';
-                        }
-                        const chromeLocation = document.getElementById('chrome-location-display');
-                        if (chromeLocation) {
-                            chromeLocation.textContent = info.chrome_path || '未知位置';
-                        }
                         const runScriptName = document.getElementById('run-script-name');
                         if (runScriptName) {
                             const script = info.script_name || '一键启动.bat';
@@ -1571,6 +1585,13 @@
                     // Chrome 未安装
                     if (installedHint) installedHint.style.display = 'none';
                     if (downloadSteps) downloadSteps.style.display = 'block';
+                    // 显示安装路径
+                    if (data.install_info) {
+                        const pathDisplay = document.getElementById('install-path-display');
+                        if (pathDisplay && data.install_info.install_dir) {
+                            pathDisplay.textContent = data.install_info.install_dir + '\\';
+                        }
+                    }
                 }
             }
         }
