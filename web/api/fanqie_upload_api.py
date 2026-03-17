@@ -89,10 +89,11 @@ def start_upload():
     # 检查 Chrome 连接
     chrome_status = check_chrome_status()
     if not chrome_status['running']:
+        logger.warning(f"[番茄上传] Chrome 未连接，无法上传")
         return jsonify({
             'success': False, 
             'error': 'Chrome 未连接',
-            'message': '请先启动 Chrome 浏览器'
+            'message': '请先启动 Chrome 浏览器，并确保已点击"检测连接"'
         }), 400
     
     try:
