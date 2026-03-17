@@ -15,7 +15,7 @@ from typing import Optional, Dict, Any
 # 添加上传逻辑到路径
 sys.path.insert(0, str(Path(__file__).parent.parent / 'fanqie_uploader'))
 
-fanqie_upload_api = Blueprint('fanqie_upload_api', __name__)
+fanqie_upload_api = Blueprint('fanqie_upload_api', __name__, url_prefix='/api/fanqie')
 
 DEBUG_PORT = 9988
 
