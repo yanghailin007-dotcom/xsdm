@@ -78,6 +78,15 @@ def load_config(novel_title: str) -> Dict[str, Any]:
                 # 合并默认配置和保存的配置
                 config = DEFAULT_UPLOAD_CONFIG.copy()
                 _deep_merge(config, saved_config)
+                
+                # 修复旧配置：如果章节数/字数过低，使用新默认值（番茄签约要求）
+                first = config.get('first_publish', {})
+                if first.get('chapter_count', 0) < 20:
+                    first['chapter_count'] = 20
+                if first.get('word_count', 0) < 60000:
+                    first['word_count'] = 60000
+                config['first_publish'] = first
+                
                 return config
         except Exception as e:
             print(f"[ERROR] 加载配置失败: {e}")
