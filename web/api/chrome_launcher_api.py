@@ -18,55 +18,139 @@ chrome_api = Blueprint('chrome_api', __name__)
 DEBUG_PORT = 9988
 
 
-def check_chrome_installed() -> dict:
-    """检查 Chrome 是否已安装（在 chrome_launcher 目录中）"""
-    # 获取 chrome_launcher 目录
-    # current_app.root_path 是 web/ 目录，parent 是项目根目录
-    launcher_dir = Path(current_app.root_path).parent / 'tools' / 'chrome_launcher'
-    chrome_dir = launcher_dir / 'chrome'
+def get_chrome_search_paths() -> list:
+    """获取 Chrome 搜索路径列表"""
+    paths = []
     
-    # 检查一键启动脚本是否存在
-    if sys.platform == 'win32':
-        bat_file = launcher_dir / '一键启动.bat'
-        start_script = bat_file if bat_file.exists() else None
-    else:
-        sh_file = launcher_dir / 'start_chrome.sh'
-        start_script = sh_file if sh_file.exists() else None
+    # 1. 项目内置路径
+    project_dir = Path(current_app.root_path).parent / 'tools' / 'chrome_launcher'
+    paths.append({
+        'name': '项目目录',
+        'launcher_dir': project_dir,
+        'chrome_dir': project_dir / 'chrome'
+    })
     
-    # 检查 Chrome 可执行文件是否存在
+    # 2. 用户目录下的大文娱文件夹（推荐用户解压到这里）
+    user_home = Path.home()
+    user_dir = user_home / '大文娱' / 'chrome_launcher'
+    paths.append({
+        'name': '用户目录',
+        'launcher_dir': user_dir,
+        'chrome_dir': user_dir / 'chrome'
+    })
+    
+    # 3. 下载目录（常见下载位置）
+    downloads = user_home / 'Downloads'
+    if downloads.exists():
+        # 匹配 chrome-launcher 开头的文件夹
+        for item in downloads.iterdir():
+            if item.is_dir() and 'chrome' in item.name.lower() and 'launcher' in item.name.lower():
+                paths.append({
+                    'name': '下载目录',
+                    'launcher_dir': item,
+                    'chrome_dir': item / 'chrome'
+                })
+    
+    # 4. 桌面
+    desktop = user_home / 'Desktop'
+    if desktop.exists():
+        for item in desktop.iterdir():
+            if item.is_dir() and 'chrome' in item.name.lower() and 'launcher' in item.name.lower():
+                paths.append({
+                    'name': '桌面',
+                    'launcher_dir': item,
+                    'chrome_dir': item / 'chrome'
+                })
+    
+    return paths
+
+
+def find_chrome_in_dir(chrome_dir: Path) -> tuple:
+    """在指定目录查找 Chrome 可执行文件和启动脚本"""
     platform = sys.platform
     chrome_exe = None
+    start_script = None
     
+    # 检查 Chrome 可执行文件
     if platform == 'win32':
         possible_paths = [
             chrome_dir / 'chrome-win64' / 'chrome.exe',
             chrome_dir / 'chrome' / 'chrome.exe',
             chrome_dir / 'chrome.exe',
         ]
+        script_names = ['一键启动.bat', 'start_browser.bat', 'start.bat']
     elif platform == 'darwin':
         possible_paths = [
             chrome_dir / 'chrome-mac-x64' / 'Google Chrome for Testing.app' / 'Contents' / 'MacOS' / 'Google Chrome for Testing',
             chrome_dir / 'Google Chrome.app' / 'Contents' / 'MacOS' / 'Google Chrome',
         ]
+        script_names = ['start_chrome.sh', 'start_browser.sh', 'start.sh']
     else:  # linux
         possible_paths = [
             chrome_dir / 'chrome-linux64' / 'chrome',
             chrome_dir / 'chrome' / 'chrome',
             chrome_dir / 'chrome',
         ]
+        script_names = ['start_chrome.sh', 'start_browser.sh', 'start.sh']
     
     for path in possible_paths:
         if path.exists():
             chrome_exe = path
             break
     
-    # 返回检测结果
+    # 检查启动脚本（在 launcher_dir 中）
+    launcher_dir = chrome_dir.parent
+    for script_name in script_names:
+        script_path = launcher_dir / script_name
+        if script_path.exists():
+            start_script = script_path
+            break
+    
+    return chrome_exe, start_script
+
+
+def check_chrome_installed() -> dict:
+    """检查 Chrome 是否已安装（在多个可能的位置）"""
+    search_paths = get_chrome_search_paths()
+    
+    for location in search_paths:
+        chrome_dir = location['chrome_dir']
+        launcher_dir = location['launcher_dir']
+        
+        if chrome_dir.exists():
+            chrome_exe, start_script = find_chrome_in_dir(chrome_dir)
+            
+            if chrome_exe:
+                return {
+                    'installed': True,
+                    'chrome_path': str(chrome_exe),
+                    'start_script': str(start_script) if start_script else None,
+                    'launcher_dir': str(launcher_dir),
+                    'location_name': location['name'],
+                    'script_name': '一键启动.bat' if sys.platform == 'win32' else 'start_chrome.sh',
+                    'all_search_paths': [
+                        {'name': p['name'], 'path': str(p['launcher_dir']), 'exists': (p['chrome_dir']).exists()}
+                        for p in search_paths
+                    ]
+                }
+    
+    # 未找到，返回所有搜索过的路径供参考
     return {
-        'installed': chrome_exe is not None,
-        'chrome_path': str(chrome_exe) if chrome_exe else None,
-        'start_script': str(start_script) if start_script else None,
-        'launcher_dir': str(launcher_dir),
-        'script_name': '一键启动.bat' if sys.platform == 'win32' else 'start_chrome.sh'
+        'installed': False,
+        'chrome_path': None,
+        'start_script': None,
+        'launcher_dir': None,
+        'location_name': None,
+        'script_name': '一键启动.bat' if sys.platform == 'win32' else 'start_chrome.sh',
+        'all_search_paths': [
+            {'name': p['name'], 'path': str(p['launcher_dir']), 'exists': (p['chrome_dir']).exists()}
+            for p in search_paths
+        ],
+        'suggested_locations': [
+            str(Path.home() / '大文娱' / 'chrome_launcher'),
+            str(Path.home() / 'Downloads' / 'chrome-launcher'),
+            str(Path(current_app.root_path).parent / 'tools' / 'chrome_launcher')
+        ]
     }
 
 

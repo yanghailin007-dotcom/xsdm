@@ -1046,15 +1046,19 @@
                                         </div>
                                     </div>
                                     <div style="background: var(--v2-bg-tertiary); border-radius: var(--v2-radius-md); padding: var(--v2-space-3); margin-bottom: var(--v2-space-3);">
+                                        <div style="font-size: 12px; color: var(--v2-text-muted); margin-bottom: 4px;">检测到 Chrome 位置：</div>
+                                        <div style="font-family: monospace; font-size: 12px; color: var(--v2-text-primary); word-break: break-all;" id="chrome-location-display">未知位置</div>
+                                    </div>
+                                    <div style="background: var(--v2-bg-tertiary); border-radius: var(--v2-radius-md); padding: var(--v2-space-3); margin-bottom: var(--v2-space-3);">
                                         <div style="font-size: 12px; color: var(--v2-text-muted); margin-bottom: 4px;">请前往以下目录运行：</div>
-                                        <div style="font-family: monospace; font-size: 13px; color: var(--v2-text-primary); word-break: break-all;" id="launcher-path-display">tools/chrome_launcher/</div>
+                                        <div style="font-family: monospace; font-size: 13px; color: var(--v2-text-primary); word-break: break-all;" id="launcher-path-display">未知目录</div>
                                     </div>
                                     <div class="easy-steps">
                                         <div class="step-row">
                                             <div class="step-num" style="background: linear-gradient(135deg, #22c55e, #16a34a); color: white;">1</div>
                                             <div class="step-content">
                                                 <div class="step-title">运行启动器</div>
-                                                <div class="step-desc">双击"一键启动.bat"启动 Chrome</div>
+                                                <div class="step-desc" id="run-script-name">双击"一键启动.bat"启动 Chrome</div>
                                             </div>
                                         </div>
                                         <div class="step-row" style="opacity: 0.5;">
@@ -1548,8 +1552,20 @@
                     // Chrome 已安装但未运行
                     if (installedHint) installedHint.style.display = 'block';
                     if (downloadSteps) downloadSteps.style.display = 'none';
-                    if (launcherPath && data.install_info) {
-                        launcherPath.textContent = data.install_info.launcher_dir || 'tools/chrome_launcher/';
+                    if (data.install_info) {
+                        const info = data.install_info;
+                        if (launcherPath) {
+                            launcherPath.textContent = info.launcher_dir || '未知目录';
+                        }
+                        const chromeLocation = document.getElementById('chrome-location-display');
+                        if (chromeLocation) {
+                            chromeLocation.textContent = info.chrome_path || '未知位置';
+                        }
+                        const runScriptName = document.getElementById('run-script-name');
+                        if (runScriptName) {
+                            const script = info.script_name || '一键启动.bat';
+                            runScriptName.textContent = `双击"${script}"启动 Chrome`;
+                        }
                     }
                 } else {
                     // Chrome 未安装
