@@ -1007,87 +1007,14 @@
             </div>
         </div>
         
-        <!-- CSS图文教程 -->
-        <div class="tutorial-section" id="tutorial-section">
-            <div class="tutorial-header">
-                <div class="tutorial-title">
-                    <span>📖</span>
-                    <span>图文教程：3步轻松上手</span>
-                </div>
-                <button class="v2-btn v2-btn--ghost v2-btn--xs" onclick="toggleTutorial()">
-                    <span id="tutorial-toggle-text">收起</span>
-                </button>
-            </div>
-            
-            <div class="tutorial-grid" id="tutorial-content">
-                <!-- 步骤1：下载 -->
-                <div class="tutorial-card">
-                    <div class="tutorial-step-num">1</div>
-                    <div class="mockup-screen">
-                        <div class="mockup-browser">
-                            <div class="mockup-dot red"></div>
-                            <div class="mockup-dot yellow"></div>
-                            <div class="mockup-dot green"></div>
-                        </div>
-                        <div class="mockup-content">
-                            <div class="mockup-icon">⬇️</div>
-                            <div class="mockup-button">下载启动器.zip</div>
-                            <div class="mockup-text">约 6KB</div>
-                        </div>
-                    </div>
-                    <div class="tutorial-card-title">下载启动器</div>
-                    <div class="tutorial-card-desc">点击上方「下载启动器」按钮，获取安装包</div>
-                </div>
-                
-                <!-- 步骤2：解压运行 -->
-                <div class="tutorial-card">
-                    <div class="tutorial-step-num">2</div>
-                    <div class="mockup-screen">
-                        <div class="mockup-content">
-                            <div class="mockup-file">
-                                <span class="mockup-file-icon">📁</span>
-                                <span class="mockup-file-name">chrome-launcher/</span>
-                            </div>
-                            <div class="mockup-file" style="margin-left: 12px;">
-                                <span class="mockup-file-icon">⚡</span>
-                                <span class="mockup-file-name">一键启动.bat</span>
-                            </div>
-                            <div class="mockup-icon" style="font-size: 18px; margin-top: 12px;">👆 双击运行</div>
-                        </div>
-                    </div>
-                    <div class="tutorial-card-title">解压并双击运行</div>
-                    <div class="tutorial-card-desc">解压zip文件，双击「一键启动.bat」</div>
-                </div>
-                
-                <!-- 步骤3：登录上传 -->
-                <div class="tutorial-card">
-                    <div class="tutorial-step-num">3</div>
-                    <div class="mockup-screen">
-                        <div class="mockup-browser">
-                            <div class="mockup-dot red"></div>
-                            <div class="mockup-dot yellow"></div>
-                            <div class="mockup-dot green"></div>
-                            <span style="color: #888; font-size: 10px; margin-left: 8px;">🍅 番茄小说</span>
-                        </div>
-                        <div class="mockup-content">
-                            <div class="mockup-text">1. 登录账号</div>
-                            <div class="mockup-text">2. 进入作家专区</div>
-                            <div class="mockup-button success" style="margin-top: 8px;">✅ 检测连接</div>
-                        </div>
-                    </div>
-                    <div class="tutorial-card-title">登录并检测</div>
-                    <div class="tutorial-card-desc">在Chrome登录番茄账号，回来点「检测连接」</div>
-                </div>
-            </div>
-            
-            <!-- 视频教程占位（可后续添加） -->
-            <div id="video-section" style="display: none; margin-top: var(--v2-space-4); padding-top: var(--v2-space-4); border-top: 1px solid var(--v2-border-subtle);">
-                <div style="text-align: center; padding: var(--v2-space-6); background: var(--v2-bg-tertiary); border-radius: var(--v2-radius-lg);">
-                    <div style="font-size: 48px; margin-bottom: var(--v2-space-3);">🎥</div>
-                    <div style="font-size: 14px; font-weight: 600; color: var(--v2-text-primary); margin-bottom: 8px;">视频教程 coming soon</div>
-                    <div style="font-size: 12px; color: var(--v2-text-muted);">正在制作中，敬请期待...</div>
-                </div>
-            </div>
+        <!-- 使用教程入口提示 -->
+        <div style="background: linear-gradient(135deg, rgba(99, 102, 241, 0.08), rgba(139, 92, 246, 0.04)); border: 1px dashed rgba(99, 102, 241, 0.4); border-radius: var(--v2-radius-lg); padding: var(--v2-space-4); margin-bottom: var(--v2-space-6); text-align: center;">
+            <div style="font-size: 24px; margin-bottom: var(--v2-space-2);">👆</div>
+            <div style="font-size: 14px; font-weight: 600; color: var(--v2-text-primary); margin-bottom: 4px;">首次使用？</div>
+            <div style="font-size: 13px; color: var(--v2-text-secondary); margin-bottom: var(--v2-space-3);">点击下方按钮查看详细图文教程</div>
+            <button class="v2-btn v2-btn--primary" onclick="showTutorialModal()">
+                <span>📖</span> 查看使用教程
+            </button>
         </div>
         
         <!-- 主内容 -->
@@ -1144,10 +1071,13 @@
                                 <span>🔄</span> 我已启动 Chrome，检测连接
                             </button>
                             
-                            <div style="margin-top: var(--v2-space-3); text-align: center;">
-                                <a href="#" onclick="showHelpModal(); return false;" style="font-size: 12px; color: var(--v2-text-muted);">
-                                    ❓ 遇到问题？查看帮助
-                                </a>
+                            <div style="margin-top: var(--v2-space-3); display: flex; gap: var(--v2-space-2); justify-content: center;">
+                                <button class="v2-btn v2-btn--ghost v2-btn--sm" onclick="showTutorialModal()">
+                                    <span>📖</span> 使用教程
+                                </button>
+                                <button class="v2-btn v2-btn--ghost v2-btn--sm" onclick="showHelpModal()">
+                                    <span>❓</span> 常见问题
+                                </button>
                             </div>
                         </div>
                         
@@ -1636,29 +1566,141 @@
             });
         }
         
-        // 更新步骤显示
+        // 更新步骤显示（Chrome卡片中的步骤高亮）
         function updateStepDisplay() {
             const downloaded = localStorage.getItem('chrome_launcher_downloaded') === 'true';
             if (downloaded) {
-                document.getElementById('step-download').classList.add('completed');
-                document.getElementById('step-run').style.opacity = '1';
-                document.getElementById('step-run').classList.add('active');
+                const stepDownload = document.getElementById('step-download');
+                const stepRun = document.getElementById('step-run');
+                if (stepDownload) stepDownload.classList.add('completed');
+                if (stepRun) {
+                    stepRun.style.opacity = '1';
+                    stepRun.classList.add('active');
+                }
             }
         }
         
-        // 显示帮助弹窗
-        // 切换教程显示
-        function toggleTutorial() {
-            const content = document.getElementById('tutorial-content');
-            const toggleText = document.getElementById('tutorial-toggle-text');
-            
-            if (content.style.display === 'none') {
-                content.style.display = 'grid';
-                toggleText.textContent = '收起';
-            } else {
-                content.style.display = 'none';
-                toggleText.textContent = '展开';
-            }
+        // 显示图文教程弹窗（大图模式）
+        function showTutorialModal() {
+            showModal({
+                title: '📖 使用教程：3步轻松上手',
+                content: `
+                    <div style="padding: 10px;">
+                        <!-- 大图教程 -->
+                        <div style="display: flex; flex-direction: column; gap: 24px;">
+                            
+                            <!-- 步骤1：下载 -->
+                            <div style="background: linear-gradient(135deg, rgba(99, 102, 241, 0.08), rgba(139, 92, 246, 0.04)); border: 1px solid rgba(99, 102, 241, 0.2); border-radius: 16px; padding: 24px;">
+                                <div style="display: flex; align-items: center; gap: 16px; margin-bottom: 16px;">
+                                    <div style="width: 40px; height: 40px; background: linear-gradient(135deg, #6366f1, #8b5cf6); color: white; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 18px; font-weight: 700;">1</div>
+                                    <div>
+                                        <div style="font-size: 16px; font-weight: 600; color: var(--v2-text-primary);">下载启动器</div>
+                                        <div style="font-size: 13px; color: var(--v2-text-muted);">点击页面上的下载按钮，获取安装包（约 6KB）</div>
+                                    </div>
+                                </div>
+                                <div style="background: #1a1a2e; border-radius: 12px; padding: 20px; border: 1px solid rgba(255,255,255,0.1);">
+                                    <div style="background: #2d2d44; border-radius: 8px 8px 0 0; padding: 10px; display: flex; align-items: center; gap: 6px; margin: -20px -20px 16px -20px;">
+                                        <div style="width: 10px; height: 10px; border-radius: 50%; background: #ff5f56;"></div>
+                                        <div style="width: 10px; height: 10px; border-radius: 50%; background: #ffbd2e;"></div>
+                                        <div style="width: 10px; height: 10px; border-radius: 50%; background: #27c93f;"></div>
+                                        <span style="color: #888; font-size: 11px; margin-left: 8px;">大文娱创作平台</span>
+                                    </div>
+                                    <div style="text-align: center;">
+                                        <div style="font-size: 48px; margin-bottom: 12px;">⬇️</div>
+                                        <div style="background: linear-gradient(135deg, #6366f1, #8b5cf6); color: white; padding: 12px 24px; border-radius: 8px; font-size: 14px; font-weight: 600; display: inline-block;">⬇️ 下载启动器</div>
+                                        <div style="color: #888; font-size: 12px; margin-top: 8px;">chrome-launcher-v1.1.0.zip (6KB)</div>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <!-- 步骤2：解压运行 -->
+                            <div style="background: linear-gradient(135deg, rgba(99, 102, 241, 0.08), rgba(139, 92, 246, 0.04)); border: 1px solid rgba(99, 102, 241, 0.2); border-radius: 16px; padding: 24px;">
+                                <div style="display: flex; align-items: center; gap: 16px; margin-bottom: 16px;">
+                                    <div style="width: 40px; height: 40px; background: linear-gradient(135deg, #6366f1, #8b5cf6); color: white; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 18px; font-weight: 700;">2</div>
+                                    <div>
+                                        <div style="font-size: 16px; font-weight: 600; color: var(--v2-text-primary);">解压并双击运行</div>
+                                        <div style="font-size: 13px; color: var(--v2-text-muted);">解压zip文件，双击"一键启动.bat"</div>
+                                    </div>
+                                </div>
+                                <div style="background: #1a1a2e; border-radius: 12px; padding: 20px; border: 1px solid rgba(255,255,255,0.1);">
+                                    <div style="display: flex; flex-direction: column; gap: 8px; max-width: 280px; margin: 0 auto;">
+                                        <div style="background: rgba(99, 102, 241, 0.2); border: 1px dashed rgba(99, 102, 241, 0.5); border-radius: 8px; padding: 12px; display: flex; align-items: center; gap: 10px;">
+                                            <span style="font-size: 20px;">📁</span>
+                                            <span style="color: #c0c0d0; font-size: 13px;">chrome-launcher/</span>
+                                        </div>
+                                        <div style="margin-left: 20px; background: rgba(245, 158, 11, 0.2); border: 2px solid #f59e0b; border-radius: 8px; padding: 12px; display: flex; align-items: center; gap: 10px;">
+                                            <span style="font-size: 20px;">⚡</span>
+                                            <span style="color: #fbbf24; font-size: 13px; font-weight: 600;">一键启动.bat</span>
+                                        </div>
+                                        <div style="margin-left: 20px; color: #888; font-size: 12px; padding: 4px 0;">├── start_browser.py</div>
+                                        <div style="margin-left: 20px; color: #888; font-size: 12px; padding: 4px 0;">└── README.txt</div>
+                                    </div>
+                                    <div style="text-align: center; margin-top: 16px;">
+                                        <div style="background: rgba(34, 197, 94, 0.2); border: 1px solid rgba(34, 197, 94, 0.5); color: #4ade80; padding: 10px 16px; border-radius: 8px; font-size: 13px; display: inline-block;">
+                                            ✅ 首次会自动下载 Chrome（约 150MB）
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <!-- 步骤3：登录上传 -->
+                            <div style="background: linear-gradient(135deg, rgba(99, 102, 241, 0.08), rgba(139, 92, 246, 0.04)); border: 1px solid rgba(99, 102, 241, 0.2); border-radius: 16px; padding: 24px;">
+                                <div style="display: flex; align-items: center; gap: 16px; margin-bottom: 16px;">
+                                    <div style="width: 40px; height: 40px; background: linear-gradient(135deg, #6366f1, #8b5cf6); color: white; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 18px; font-weight: 700;">3</div>
+                                    <div>
+                                        <div style="font-size: 16px; font-weight: 600; color: var(--v2-text-primary);">登录并检测</div>
+                                        <div style="font-size: 13px; color: var(--v2-text-muted);">在Chrome登录番茄账号，回来点击"检测连接"</div>
+                                    </div>
+                                </div>
+                                <div style="background: #1a1a2e; border-radius: 12px; padding: 20px; border: 1px solid rgba(255,255,255,0.1);">
+                                    <div style="background: #2d2d44; border-radius: 8px 8px 0 0; padding: 10px; display: flex; align-items: center; gap: 6px; margin: -20px -20px 16px -20px;">
+                                        <div style="width: 10px; height: 10px; border-radius: 50%; background: #ff5f56;"></div>
+                                        <div style="width: 10px; height: 10px; border-radius: 50%; background: #ffbd2e;"></div>
+                                        <div style="width: 10px; height: 10px; border-radius: 50%; background: #27c93f;"></div>
+                                        <span style="color: #f87171; font-size: 11px; margin-left: 8px;">🍅 番茄小说 - 作家专区</span>
+                                    </div>
+                                    <div style="display: flex; gap: 20px; align-items: center; justify-content: center; flex-wrap: wrap;">
+                                        <div style="text-align: center;">
+                                            <div style="font-size: 32px; margin-bottom: 8px;">👤</div>
+                                            <div style="background: rgba(99, 102, 241, 0.3); color: #a5b4fc; padding: 8px 16px; border-radius: 6px; font-size: 12px;">1. 登录账号</div>
+                                        </div>
+                                        <div style="color: #6366f1; font-size: 20px;">→</div>
+                                        <div style="text-align: center;">
+                                            <div style="font-size: 32px; margin-bottom: 8px;">📝</div>
+                                            <div style="background: rgba(99, 102, 241, 0.3); color: #a5b4fc; padding: 8px 16px; border-radius: 6px; font-size: 12px;">2. 进入作家专区</div>
+                                        </div>
+                                        <div style="color: #6366f1; font-size: 20px;">→</div>
+                                        <div style="text-align: center;">
+                                            <div style="font-size: 32px; margin-bottom: 8px;">✅</div>
+                                            <div style="background: linear-gradient(135deg, #22c55e, #16a34a); color: white; padding: 8px 16px; border-radius: 6px; font-size: 12px; font-weight: 600;">3. 检测连接</div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <!-- 提示 -->
+                            <div style="background: rgba(245, 158, 11, 0.1); border: 1px solid rgba(245, 158, 11, 0.3); border-radius: 12px; padding: 16px;">
+                                <div style="display: flex; gap: 12px; align-items: flex-start;">
+                                    <span style="font-size: 20px;">💡</span>
+                                    <div>
+                                        <div style="font-weight: 600; color: #f59e0b; margin-bottom: 8px; font-size: 14px;">小白提示</div>
+                                        <ul style="font-size: 13px; color: var(--v2-text-secondary); margin: 0; padding-left: 16px; line-height: 2;">
+                                            <li>如果没有 Python，脚本会自动帮你安装</li>
+                                            <li>Chrome 启动后可以关闭黑窗口，但不要关闭 Chrome 浏览器</li>
+                                            <li>保持 Chrome 窗口打开，回到网页点击"检测连接"</li>
+                                            <li>点击右下角"常见问题"查看更多帮助</li>
+                                        </ul>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                        </div>
+                    </div>
+                `,
+                actions: [
+                    { label: '我知道了，开始操作', primary: true, onClick: () => {} }
+                ]
+            });
         }
         
         function showHelpModal() {
