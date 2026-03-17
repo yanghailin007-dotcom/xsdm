@@ -208,6 +208,176 @@
             justify-content: center;
         }
         
+        /* 配置面板样式 */
+        .config-section {
+            margin-bottom: var(--v2-space-4);
+            padding-bottom: var(--v2-space-4);
+            border-bottom: 1px solid var(--v2-border-subtle);
+        }
+        
+        .config-section:last-of-type {
+            border-bottom: none;
+            margin-bottom: 0;
+            padding-bottom: 0;
+        }
+        
+        .config-section-header {
+            display: flex;
+            align-items: center;
+            gap: var(--v2-space-3);
+            margin-bottom: var(--v2-space-3);
+        }
+        
+        .config-section-title {
+            font-size: var(--v2-text-sm);
+            font-weight: var(--v2-font-semibold);
+            color: var(--v2-text-primary);
+        }
+        
+        .config-section-content {
+            padding-left: calc(44px + var(--v2-space-3));
+        }
+        
+        .config-row {
+            display: flex;
+            flex-direction: column;
+            gap: var(--v2-space-1);
+            margin-bottom: var(--v2-space-3);
+        }
+        
+        .config-row--checkbox {
+            flex-direction: row;
+            align-items: center;
+        }
+        
+        .config-label {
+            font-size: var(--v2-text-xs);
+            color: var(--v2-text-secondary);
+            font-weight: var(--v2-font-medium);
+        }
+        
+        .config-input-group {
+            display: flex;
+            align-items: center;
+            gap: var(--v2-space-2);
+        }
+        
+        .config-unit {
+            font-size: var(--v2-text-sm);
+            color: var(--v2-text-muted);
+            min-width: 24px;
+        }
+        
+        .config-hint {
+            font-size: var(--v2-text-xs);
+            color: var(--v2-text-muted);
+        }
+        
+        /* Switch 开关 */
+        .v2-switch {
+            position: relative;
+            display: inline-block;
+            width: 44px;
+            height: 24px;
+        }
+        
+        .v2-switch input {
+            opacity: 0;
+            width: 0;
+            height: 0;
+        }
+        
+        .v2-switch__slider {
+            position: absolute;
+            cursor: pointer;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: var(--v2-bg-tertiary);
+            border: 1px solid var(--v2-border-default);
+            transition: .3s;
+            border-radius: 24px;
+        }
+        
+        .v2-switch__slider:before {
+            position: absolute;
+            content: "";
+            height: 18px;
+            width: 18px;
+            left: 2px;
+            bottom: 2px;
+            background-color: white;
+            transition: .3s;
+            border-radius: 50%;
+        }
+        
+        .v2-switch input:checked + .v2-switch__slider {
+            background: linear-gradient(135deg, #6366f1, #8b5cf6);
+            border-color: transparent;
+        }
+        
+        .v2-switch input:checked + .v2-switch__slider:before {
+            transform: translateX(20px);
+        }
+        
+        /* Checkbox */
+        .v2-checkbox {
+            display: flex;
+            align-items: center;
+            gap: var(--v2-space-2);
+            cursor: pointer;
+        }
+        
+        .v2-checkbox input {
+            display: none;
+        }
+        
+        .v2-checkbox__checkmark {
+            width: 18px;
+            height: 18px;
+            border: 2px solid var(--v2-border-default);
+            border-radius: 4px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s;
+        }
+        
+        .v2-checkbox input:checked + .v2-checkbox__checkmark {
+            background: linear-gradient(135deg, #6366f1, #8b5cf6);
+            border-color: transparent;
+        }
+        
+        .v2-checkbox input:checked + .v2-checkbox__checkmark:after {
+            content: '✓';
+            color: white;
+            font-size: 12px;
+            font-weight: bold;
+        }
+        
+        .v2-checkbox__label {
+            font-size: var(--v2-text-sm);
+            color: var(--v2-text-secondary);
+        }
+        
+        /* 小型输入框 */
+        .v2-input--sm {
+            padding: var(--v2-space-2) var(--v2-space-3);
+            font-size: var(--v2-text-sm);
+            width: 100px;
+        }
+        
+        .v2-select--sm {
+            padding: var(--v2-space-2) var(--v2-space-3);
+            font-size: var(--v2-text-sm);
+        }
+        
+        .v2-btn--xs {
+            padding: var(--v2-space-1) var(--v2-space-2);
+            font-size: var(--v2-text-xs);
+        }
+        
         /* 项目列表 */
         .project-list {
             display: flex;
@@ -504,6 +674,123 @@
             
             <!-- 右侧 -->
             <div class="status-section">
+                <!-- 上传配置面板 -->
+                <div class="status-card" id="config-card" style="display: none;">
+                    <div class="status-card-header">
+                        <span>⚙️</span>
+                        上传配置
+                        <button class="v2-btn v2-btn--ghost v2-btn--xs" onclick="resetConfig()" style="margin-left: auto;">重置</button>
+                    </div>
+                    
+                    <!-- 首次发布配置 -->
+                    <div class="config-section">
+                        <div class="config-section-header">
+                            <label class="v2-switch">
+                                <input type="checkbox" id="config-first-enabled" checked>
+                                <span class="v2-switch__slider"></span>
+                            </label>
+                            <span class="config-section-title">首次发布</span>
+                        </div>
+                        <div class="config-section-content" id="first-publish-config">
+                            <div class="config-row">
+                                <label class="config-label">发布章节数</label>
+                                <div class="config-input-group">
+                                    <input type="number" id="config-first-chapters" class="v2-input v2-input--sm" value="3" min="1" max="100">
+                                    <span class="config-unit">章</span>
+                                </div>
+                            </div>
+                            <div class="config-row">
+                                <label class="config-label">字数限制</label>
+                                <div class="config-input-group">
+                                    <input type="number" id="config-first-words" class="v2-input v2-input--sm" value="0" min="0" step="1000">
+                                    <span class="config-unit">字</span>
+                                </div>
+                                <small class="config-hint">0 = 不限制</small>
+                            </div>
+                            <div class="config-row">
+                                <label class="config-label">发布方式</label>
+                                <select id="config-first-mode" class="v2-select v2-select--sm">
+                                    <option value="immediate">立即发布</option>
+                                    <option value="scheduled">定时发布</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- 每日发布配置 -->
+                    <div class="config-section">
+                        <div class="config-section-header">
+                            <label class="v2-switch">
+                                <input type="checkbox" id="config-daily-enabled" checked>
+                                <span class="v2-switch__slider"></span>
+                            </label>
+                            <span class="config-section-title">每日自动发布</span>
+                        </div>
+                        <div class="config-section-content" id="daily-publish-config">
+                            <div class="config-row">
+                                <label class="config-label">每天章节数</label>
+                                <div class="config-input-group">
+                                    <input type="number" id="config-daily-chapters" class="v2-input v2-input--sm" value="2" min="0" max="50">
+                                    <span class="config-unit">章</span>
+                                </div>
+                            </div>
+                            <div class="config-row">
+                                <label class="config-label">发布时间</label>
+                                <input type="time" id="config-daily-time" class="v2-input v2-input--sm" value="09:00">
+                            </div>
+                            <div class="config-row">
+                                <label class="config-label">章节间隔</label>
+                                <div class="config-input-group">
+                                    <input type="number" id="config-daily-interval" class="v2-input v2-input--sm" value="30" min="0" max="1440">
+                                    <span class="config-unit">分钟</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- 高级配置 -->
+                    <div class="config-section">
+                        <div class="config-section-header" onclick="toggleAdvancedConfig()" style="cursor: pointer;">
+                            <span class="config-section-title">⚙️ 高级配置</span>
+                            <span id="advanced-toggle-icon" style="margin-left: auto; transition: transform 0.2s;">▼</span>
+                        </div>
+                        <div class="config-section-content" id="advanced-config" style="display: none;">
+                            <div class="config-row config-row--checkbox">
+                                <label class="v2-checkbox">
+                                    <input type="checkbox" id="config-auto-create" checked>
+                                    <span class="v2-checkbox__checkmark"></span>
+                                    <span class="v2-checkbox__label">自动创建书籍</span>
+                                </label>
+                            </div>
+                            <div class="config-row config-row--checkbox">
+                                <label class="v2-checkbox">
+                                    <input type="checkbox" id="config-auto-cover" checked>
+                                    <span class="v2-checkbox__checkmark"></span>
+                                    <span class="v2-checkbox__label">自动设置封面</span>
+                                </label>
+                            </div>
+                            <div class="config-row config-row--checkbox">
+                                <label class="v2-checkbox">
+                                    <input type="checkbox" id="config-skip-published" checked>
+                                    <span class="v2-checkbox__checkmark"></span>
+                                    <span class="v2-checkbox__label">跳过已发布章节</span>
+                                </label>
+                            </div>
+                            <div class="config-row">
+                                <label class="config-label">失败重试次数</label>
+                                <input type="number" id="config-retry" class="v2-input v2-input--sm" value="3" min="0" max="10" style="width: 80px;">
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- 保存配置按钮 -->
+                    <div class="config-actions" style="margin-top: var(--v2-space-4); padding-top: var(--v2-space-4); border-top: 1px solid var(--v2-border-subtle);">
+                        <button class="v2-btn v2-btn--primary btn-block" onclick="saveConfig()">
+                            <span>💾</span> 保存配置
+                        </button>
+                    </div>
+                </div>
+                
                 <!-- 上传状态 -->
                 <div class="status-card">
                     <div class="status-card-header">
@@ -693,7 +980,7 @@
         }
         
         // 选择项目
-        function selectProject(title) {
+        async function selectProject(title) {
             currentProject = title;
             
             // 更新选中状态
@@ -706,6 +993,12 @@
             
             updateStep(4); // 进入步骤4：开始上传
             
+            // 显示配置面板
+            document.getElementById('config-card').style.display = 'block';
+            
+            // 加载该项目的配置
+            await loadProjectConfig(title);
+            
             // 显示上传准备状态
             document.getElementById('upload-progress').innerHTML = `
                 <div style="text-align: center; padding: var(--v2-space-6);">
@@ -713,12 +1006,168 @@
                     <p style="color: var(--v2-text-primary); margin-bottom: var(--v2-space-4);">
                         已选择: <strong>${title}</strong>
                     </p>
+                    <p style="color: var(--v2-text-secondary); font-size: 14px; margin-bottom: var(--v2-space-4);">
+                        请在右侧配置上传参数，然后点击开始上传
+                    </p>
                     <button class="v2-btn v2-btn--primary btn-block" onclick="startUpload('${title}')">
                         <span>🚀</span> 开始上传
                     </button>
                 </div>
             `;
         }
+        
+        // 加载项目配置
+        async function loadProjectConfig(title) {
+            try {
+                const response = await fetch(`/api/fanqie/config/${encodeURIComponent(title)}`);
+                const data = await response.json();
+                
+                if (data.success && data.config) {
+                    applyConfigToUI(data.config);
+                }
+            } catch (error) {
+                console.error('加载配置失败:', error);
+            }
+        }
+        
+        // 应用配置到UI
+        function applyConfigToUI(config) {
+            // 首次发布配置
+            const first = config.first_publish || {};
+            document.getElementById('config-first-enabled').checked = first.enabled !== false;
+            document.getElementById('config-first-chapters').value = first.chapter_count || 3;
+            document.getElementById('config-first-words').value = first.word_count || 0;
+            document.getElementById('config-first-mode').value = first.publish_immediately !== false ? 'immediate' : 'scheduled';
+            
+            // 每日发布配置
+            const daily = config.daily_publish || {};
+            document.getElementById('config-daily-enabled').checked = daily.enabled !== false;
+            document.getElementById('config-daily-chapters').value = daily.chapter_count || 2;
+            document.getElementById('config-daily-time').value = daily.publish_time || '09:00';
+            document.getElementById('config-daily-interval').value = daily.interval_minutes || 30;
+            
+            // 高级配置
+            const advanced = config.advanced || {};
+            document.getElementById('config-auto-create').checked = advanced.auto_create_book !== false;
+            document.getElementById('config-auto-cover').checked = advanced.auto_set_cover !== false;
+            document.getElementById('config-skip-published').checked = advanced.skip_published !== false;
+            document.getElementById('config-retry').value = advanced.retry_on_failure || 3;
+        }
+        
+        // 从UI获取配置
+        function getConfigFromUI() {
+            return {
+                first_publish: {
+                    enabled: document.getElementById('config-first-enabled').checked,
+                    chapter_count: parseInt(document.getElementById('config-first-chapters').value) || 3,
+                    word_count: parseInt(document.getElementById('config-first-words').value) || 0,
+                    publish_immediately: document.getElementById('config-first-mode').value === 'immediate'
+                },
+                daily_publish: {
+                    enabled: document.getElementById('config-daily-enabled').checked,
+                    chapter_count: parseInt(document.getElementById('config-daily-chapters').value) || 2,
+                    publish_time: document.getElementById('config-daily-time').value || '09:00',
+                    interval_minutes: parseInt(document.getElementById('config-daily-interval').value) || 30
+                },
+                advanced: {
+                    auto_create_book: document.getElementById('config-auto-create').checked,
+                    auto_set_cover: document.getElementById('config-auto-cover').checked,
+                    skip_published: document.getElementById('config-skip-published').checked,
+                    retry_on_failure: parseInt(document.getElementById('config-retry').value) || 3,
+                    publish_mode: document.getElementById('config-first-mode').value
+                }
+            };
+        }
+        
+        // 保存配置
+        async function saveConfig() {
+            if (!currentProject) {
+                showNotification('请先选择项目', 'error');
+                return;
+            }
+            
+            const config = getConfigFromUI();
+            
+            try {
+                const response = await fetch(`/api/fanqie/config/${encodeURIComponent(currentProject)}`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ config })
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    showNotification('配置已保存', 'success');
+                } else {
+                    showNotification(data.error || '保存失败', 'error');
+                }
+            } catch (error) {
+                console.error('保存配置失败:', error);
+                showNotification('保存配置失败', 'error');
+            }
+        }
+        
+        // 重置配置
+        async function resetConfig() {
+            if (!currentProject) {
+                showNotification('请先选择项目', 'error');
+                return;
+            }
+            
+            if (!confirm('确定要重置为默认配置吗？')) {
+                return;
+            }
+            
+            try {
+                const response = await fetch(`/api/fanqie/config/${encodeURIComponent(currentProject)}/reset`, {
+                    method: 'POST'
+                });
+                
+                const data = await response.json();
+                
+                if (data.success && data.config) {
+                    applyConfigToUI(data.config);
+                    showNotification('配置已重置为默认值', 'success');
+                } else {
+                    showNotification(data.error || '重置失败', 'error');
+                }
+            } catch (error) {
+                console.error('重置配置失败:', error);
+                showNotification('重置配置失败', 'error');
+            }
+        }
+        
+        // 切换高级配置显示
+        function toggleAdvancedConfig() {
+            const advancedConfig = document.getElementById('advanced-config');
+            const toggleIcon = document.getElementById('advanced-toggle-icon');
+            
+            if (advancedConfig.style.display === 'none') {
+                advancedConfig.style.display = 'block';
+                toggleIcon.style.transform = 'rotate(180deg)';
+            } else {
+                advancedConfig.style.display = 'none';
+                toggleIcon.style.transform = 'rotate(0deg)';
+            }
+        }
+        
+        // 监听开关变化，禁用/启用对应配置项
+        document.addEventListener('DOMContentLoaded', function() {
+            // 首次发布开关
+            document.getElementById('config-first-enabled').addEventListener('change', function() {
+                const content = document.getElementById('first-publish-config');
+                content.style.opacity = this.checked ? '1' : '0.5';
+                content.style.pointerEvents = this.checked ? 'auto' : 'none';
+            });
+            
+            // 每日发布开关
+            document.getElementById('config-daily-enabled').addEventListener('change', function() {
+                const content = document.getElementById('daily-publish-config');
+                content.style.opacity = this.checked ? '1' : '0.5';
+                content.style.pointerEvents = this.checked ? 'auto' : 'none';
+            });
+        });
         
         // 更新步骤指示器
         function updateStep(step) {
@@ -745,8 +1194,34 @@
                 return;
             }
             
+            // 先保存当前配置
+            await saveConfig();
+            
+            // 获取配置
+            const config = getConfigFromUI();
+            
             showNotification(`开始上传: ${title}`, 'info');
-            // TODO: 调用上传 API
+            
+            // 更新进度显示
+            document.getElementById('upload-progress').innerHTML = `
+                <div style="padding: var(--v2-space-4);">
+                    <div class="progress-item">
+                        <div class="progress-status processing">⏳</div>
+                        <div class="progress-text">正在上传: ${title}</div>
+                    </div>
+                    <div style="margin-top: var(--v2-space-3); padding: var(--v2-space-3); background: var(--v2-bg-tertiary); border-radius: var(--v2-radius-md); font-size: var(--v2-text-xs); color: var(--v2-text-secondary);">
+                        <div>首次发布: ${config.first_publish.chapter_count}章 ${config.first_publish.publish_immediately ? '立即' : '定时'}发布</div>
+                        <div>每日发布: ${config.daily_publish.enabled ? config.daily_publish.chapter_count + '章/' + config.daily_publish.publish_time : '禁用'}</div>
+                    </div>
+                </div>
+            `;
+            
+            // TODO: 调用上传 API，传入配置
+            // const response = await fetch('/api/fanqie/upload/start', {
+            //     method: 'POST',
+            //     headers: { 'Content-Type': 'application/json' },
+            //     body: JSON.stringify({ novel_title: title, upload_config: config })
+            // });
         }
         
         // 简单的弹窗组件
