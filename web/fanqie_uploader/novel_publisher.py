@@ -568,13 +568,15 @@ class NovelPublisher:
                     tags_info = {}
             gender = tags_info.get("target_audience", "男频")
             
-            # 根据HTML: <input type="radio" name="pindao" value="1">男频, value="0">女频
+            # 根据HTML: 点击label来选择男女频（radio本身不可见）
             try:
                 if gender == "女频":
-                    page.locator('input[name="pindao"][value="0"]').click()
+                    # 点击包含"女频"文本的label
+                    page.locator('label:has-text("女频")').click()
                     logger.info("✓ 选择女频")
                 else:
-                    page.locator('input[name="pindao"][value="1"]').click()
+                    # 点击包含"男频"文本的label
+                    page.locator('label:has-text("男频")').click()
                     logger.info("✓ 选择男频")
             except Exception as e:
                 logger.info(f"选择男/女频失败: {e}")
