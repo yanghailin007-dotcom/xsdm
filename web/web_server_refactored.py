@@ -555,23 +555,6 @@ def register_fanqie_routes(app):
     
     # 注：/api/fanqie/upload/start 已迁移到 web/api/fanqie_upload_api.py
     # 使用新的 Playwright 架构，不再使用旧的 fanqie_uploader
-    # 保留以下旧路由供参考，但已禁用
-    '''
-    @app.route('/api/fanqie/upload/start', methods=['POST'])
-    def start_fanqie_upload():
-        """启动番茄上传任务（旧版，已废弃）"""
-        return jsonify({
-            "success": False,
-            "error": "请使用新的上传接口",
-            "message": "请刷新页面使用新版上传功能"
-        }), 400
-    '''
-                    "error": upload_result["error"]
-                }), 500
-                
-        except Exception as e:
-            logger.error(f"❌ 启动番茄上传任务失败: {e}")
-            return jsonify({"success": False, "error": str(e)}), 500
     
     @app.route('/api/fanqie/upload/tasks', methods=['GET'])
     def get_upload_tasks():
