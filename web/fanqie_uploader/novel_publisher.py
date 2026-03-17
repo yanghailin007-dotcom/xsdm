@@ -48,8 +48,17 @@ class NovelPublisher:
             print(f"✗ 无法加载小说项目文件: {json_file}")
             return False
         
-        novel_title = data['novel_info']['title']
-        novel_synopsis = data['novel_info']['synopsis']
+        # 适配两种数据格式：直接字段或嵌套 novel_info
+        if 'novel_info' in data and isinstance(data['novel_info'], dict):
+            novel_title = data['novel_info'].get('title', '')
+            novel_synopsis = data['novel_info'].get('synopsis', '')
+        else:
+            novel_title = data.get('novel_title', '')
+            novel_synopsis = data.get('novel_synopsis', '')
+        
+        if not novel_title:
+            print(f"✗ 小说标题为空，请检查项目文件格式")
+            return False
         
         # 处理主角名 - 优先从selected_plan中获取（创建书本阶段）
         main_character = "未知主角"
@@ -351,8 +360,16 @@ class NovelPublisher:
             title_input = page.locator('xpath=//*[@id="name_input"]/div/span/span/input')
             self.ui_helper.safe_fill(title_input, title_short, "书名")
             
-            # 选择男女频
-            tags_info = novel_data.get("novel_info", {}).get("selected_plan", {}).get("tags", {})
+            # 选择男女频 - 适配两种数据格式
+            if "novel_info" in novel_data and isinstance(novel_data["novel_info"], dict):
+                tags_info = novel_data.get("novel_info", {}).get("selected_plan", {}).get("tags", {})
+            else:
+                # 直接从 selected_plan 获取
+                selected_plan = novel_data.get("selected_plan", {})
+                if isinstance(selected_plan, dict):
+                    tags_info = selected_plan.get("tags", {})
+                else:
+                    tags_info = {}
             gender = tags_info.get("target_audience", "男频")
             
             if gender == "女频":

@@ -29,16 +29,20 @@ class ConfigLoader:
         config_file = self.config_dir / "automation_config.yaml"
         
         if not config_file.exists():
-            raise FileNotFoundError(f"配置文件不存在: {config_file}")
+            print(f"! 配置文件不存在: {config_file}，使用默认配置")
+            self.config = {}
+            return
         
         try:
             with open(config_file, 'r', encoding='utf-8') as f:
-                self.config = yaml.safe_load(f)
+                self.config = yaml.safe_load(f) or {}
             print(f"✓ 配置文件加载成功: {config_file}")
         except yaml.YAMLError as e:
-            raise ValueError(f"配置文件格式错误: {e}")
+            print(f"! 配置文件格式错误: {e}，使用默认配置")
+            self.config = {}
         except Exception as e:
-            raise RuntimeError(f"加载配置文件失败: {e}")
+            print(f"! 加载配置文件失败: {e}，使用默认配置")
+            self.config = {}
     
     def get(self, key_path: str, default: Any = None) -> Any:
         """
