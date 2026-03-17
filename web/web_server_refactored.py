@@ -119,6 +119,7 @@ from web.api.script_quality_check import register_script_quality_routes
 from web.api.tts_api import register_tts_routes
 from web.api.points_api import points_api
 from web.api.export_api import export_api
+from web.api.user_features_api import user_features_api
 
 # 导入页面路由模块
 from web.routes.auth_routes import register_auth_routes, register_page_routes
@@ -427,6 +428,10 @@ def create_app():
     # 21. 支付系统 API 路由
     from web.api.payment_api import payment_api
     app.register_blueprint(payment_api)
+
+    # 21.5. 用户功能订阅 API 路由
+    app.register_blueprint(user_features_api)
+    logger.info("✅ user_features_api 用户功能订阅已注册")
 
     # 22. 导出功能 API 路由
     app.register_blueprint(export_api)

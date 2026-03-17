@@ -19,79 +19,100 @@
             margin: 0 auto;
         }
         
-        /* 步骤指示器 */
+        /* ===== 大厂V2风格步骤指示器 ===== */
         .steps-indicator {
             display: flex;
             align-items: center;
             justify-content: center;
-            gap: var(--v2-space-2);
-            margin-bottom: var(--v2-space-8);
+            gap: var(--v2-space-1);
+            margin-bottom: var(--v2-space-10);
+            padding: var(--v2-space-2);
+            background: var(--v2-bg-secondary);
+            border: 1px solid var(--v2-border-subtle);
+            border-radius: var(--v2-radius-2xl);
+            width: fit-content;
+            margin-left: auto;
+            margin-right: auto;
         }
         
         .step-item {
             display: flex;
             align-items: center;
-            gap: var(--v2-space-3);
-            padding: var(--v2-space-3) var(--v2-space-4);
-            border-radius: var(--v2-radius-lg);
-            background: var(--v2-bg-secondary);
-            border: 1px solid var(--v2-border-subtle);
-            transition: all 0.3s ease;
+            gap: var(--v2-space-2);
+            padding: var(--v2-space-2) var(--v2-space-4);
+            border-radius: var(--v2-radius-xl);
+            background: transparent;
+            border: 1px solid transparent;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            position: relative;
+        }
+        
+        .step-item:hover:not(.active):not(.completed) {
+            background: var(--v2-bg-tertiary);
         }
         
         .step-item.active {
-            background: linear-gradient(135deg, rgba(99, 102, 241, 0.15) 0%, rgba(139, 92, 246, 0.1) 100%);
-            border-color: rgba(99, 102, 241, 0.5);
+            background: linear-gradient(135deg, rgba(99, 102, 241, 0.2) 0%, rgba(139, 92, 246, 0.15) 100%);
+            border-color: rgba(99, 102, 241, 0.4);
+            box-shadow: 0 0 20px rgba(99, 102, 241, 0.15), inset 0 1px 0 rgba(255,255,255,0.05);
         }
         
         .step-item.completed {
-            background: rgba(34, 197, 94, 0.1);
-            border-color: rgba(34, 197, 94, 0.3);
+            background: rgba(34, 197, 94, 0.12);
+            border-color: rgba(34, 197, 94, 0.25);
         }
         
         .step-number {
-            width: 28px;
-            height: 28px;
+            width: 24px;
+            height: 24px;
             display: flex;
             align-items: center;
             justify-content: center;
-            border-radius: var(--v2-radius-full);
+            border-radius: var(--v2-radius-md);
             background: var(--v2-bg-tertiary);
-            font-size: var(--v2-text-sm);
-            font-weight: var(--v2-font-semibold);
+            border: 1px solid var(--v2-border-default);
+            font-size: 12px;
+            font-weight: var(--v2-font-bold);
             color: var(--v2-text-muted);
+            transition: all 0.3s ease;
         }
         
         .step-item.active .step-number {
-            background: rgba(99, 102, 241, 0.9);
+            background: linear-gradient(135deg, #6366f1, #8b5cf6);
+            border-color: transparent;
             color: white;
+            box-shadow: 0 2px 8px rgba(99, 102, 241, 0.4);
         }
         
         .step-item.completed .step-number {
-            background: rgba(34, 197, 94, 0.9);
+            background: linear-gradient(135deg, #22c55e, #16a34a);
+            border-color: transparent;
             color: white;
         }
         
         .step-text {
-            font-size: var(--v2-text-sm);
+            font-size: 13px;
             font-weight: var(--v2-font-medium);
-            color: var(--v2-text-secondary);
+            color: var(--v2-text-muted);
+            letter-spacing: var(--v2-tracking-tight);
         }
         
         .step-item.active .step-text {
             color: var(--v2-text-primary);
+            font-weight: var(--v2-font-semibold);
         }
         
         .step-item.completed .step-text {
-            color: #22c55e;
+            color: #4ade80;
         }
         
         .step-arrow {
-            color: var(--v2-text-muted);
-            font-size: var(--v2-text-lg);
+            color: var(--v2-border-default);
+            font-size: 14px;
+            padding: 0 var(--v2-space-1);
         }
         
-        /* 主内容区 */
+        /* ===== 大厂V2风格主布局 ===== */
         .upload-content {
             display: grid;
             grid-template-columns: 1fr 420px;
@@ -99,13 +120,17 @@
             align-items: start;
         }
         
-        /* 右侧固定区域 */
+        /* ===== 右侧固定区域 - 玻璃拟态 ===== */
         .status-section {
             position: sticky;
-            top: 80px; /* 导航栏高度 + 间距 */
+            top: 80px;
             max-height: calc(100vh - 100px);
             overflow-y: auto;
             scrollbar-width: thin;
+            scrollbar-color: var(--v2-border-default) transparent;
+            display: flex;
+            flex-direction: column;
+            gap: var(--v2-space-5);
         }
         
         .status-section::-webkit-scrollbar {
@@ -117,12 +142,19 @@
             border-radius: 2px;
         }
         
-        /* 左侧：项目选择 */
+        /* ===== 左侧：项目选择卡片 ===== */
         .project-section {
-            background: var(--v2-bg-secondary);
+            background: linear-gradient(145deg, var(--v2-bg-secondary) 0%, rgba(99, 102, 241, 0.03) 100%);
             border: 1px solid var(--v2-border-subtle);
             border-radius: var(--v2-radius-xl);
             padding: var(--v2-space-6);
+            box-shadow: var(--v2-shadow-sm), 0 0 0 1px rgba(255,255,255,0.02) inset;
+            transition: all 0.3s ease;
+        }
+        
+        .project-section:hover {
+            border-color: rgba(99, 102, 241, 0.2);
+            box-shadow: var(--v2-shadow-md), 0 0 30px rgba(99, 102, 241, 0.05);
         }
         
         .section-header {
@@ -130,6 +162,8 @@
             align-items: center;
             justify-content: space-between;
             margin-bottom: var(--v2-space-5);
+            padding-bottom: var(--v2-space-4);
+            border-bottom: 1px solid var(--v2-border-subtle);
         }
         
         .section-title {
@@ -141,18 +175,36 @@
             gap: var(--v2-space-2);
         }
         
-        /* Chrome 状态卡片 */
+        /* ===== Chrome 状态卡片 - 渐变边框效果 ===== */
         .chrome-status-card {
-            background: linear-gradient(145deg, rgba(99, 102, 241, 0.08) 0%, rgba(139, 92, 246, 0.04) 100%);
-            border: 1px solid rgba(99, 102, 241, 0.2);
+            position: relative;
+            background: linear-gradient(145deg, var(--v2-bg-secondary) 0%, rgba(99, 102, 241, 0.05) 100%);
             border-radius: var(--v2-radius-xl);
             padding: var(--v2-space-6);
             margin-bottom: var(--v2-space-6);
+            overflow: hidden;
+        }
+        
+        .chrome-status-card::before {
+            content: '';
+            position: absolute;
+            inset: 0;
+            border-radius: var(--v2-radius-xl);
+            padding: 1px;
+            background: linear-gradient(135deg, rgba(99, 102, 241, 0.4) 0%, rgba(139, 92, 246, 0.2) 50%, transparent 100%);
+            -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+            mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+            -webkit-mask-composite: xor;
+            mask-composite: exclude;
+            pointer-events: none;
         }
         
         .chrome-status-card.connected {
-            background: rgba(34, 197, 94, 0.08);
-            border-color: rgba(34, 197, 94, 0.3);
+            background: linear-gradient(145deg, rgba(34, 197, 94, 0.08) 0%, rgba(34, 197, 94, 0.02) 100%);
+        }
+        
+        .chrome-status-card.connected::before {
+            background: linear-gradient(135deg, rgba(34, 197, 94, 0.4) 0%, rgba(34, 197, 94, 0.2) 50%, transparent 100%);
         }
         
         .chrome-status-header {
@@ -169,12 +221,14 @@
             align-items: center;
             justify-content: center;
             border-radius: var(--v2-radius-lg);
-            background: rgba(99, 102, 241, 0.15);
+            background: linear-gradient(135deg, rgba(99, 102, 241, 0.2) 0%, rgba(139, 92, 246, 0.1) 100%);
             font-size: var(--v2-text-2xl);
+            box-shadow: 0 4px 12px rgba(99, 102, 241, 0.15);
         }
         
         .chrome-status-card.connected .chrome-status-icon {
-            background: rgba(34, 197, 94, 0.15);
+            background: linear-gradient(135deg, rgba(34, 197, 94, 0.2) 0%, rgba(34, 197, 94, 0.1) 100%);
+            box-shadow: 0 4px 12px rgba(34, 197, 94, 0.15);
         }
         
         .chrome-status-title {
@@ -195,16 +249,17 @@
             padding: var(--v2-space-1) var(--v2-space-3);
             border-radius: var(--v2-radius-full);
             font-size: var(--v2-text-xs);
-            font-weight: var(--v2-font-medium);
+            font-weight: var(--v2-font-semibold);
             background: rgba(239, 68, 68, 0.15);
             color: #ef4444;
-            border: 1px solid rgba(239, 68, 68, 0.2);
+            border: 1px solid rgba(239, 68, 68, 0.25);
+            backdrop-filter: blur(4px);
         }
         
         .chrome-status-badge.connected {
             background: rgba(34, 197, 94, 0.15);
             color: #22c55e;
-            border-color: rgba(34, 197, 94, 0.2);
+            border-color: rgba(34, 197, 94, 0.25);
         }
         
         .chrome-status-badge::before {
@@ -213,6 +268,7 @@
             height: 6px;
             border-radius: 50%;
             background: currentColor;
+            box-shadow: 0 0 6px currentColor;
         }
         
         /* 操作按钮组 */
@@ -227,10 +283,10 @@
             justify-content: center;
         }
         
-        /* 配置面板样式 - 紧凑双列布局 */
+        /* ===== 配置面板样式 - 玻璃拟态 ===== */
         .config-section {
-            margin-bottom: var(--v2-space-3);
-            padding-bottom: var(--v2-space-3);
+            margin-bottom: var(--v2-space-4);
+            padding-bottom: var(--v2-space-4);
             border-bottom: 1px solid var(--v2-border-subtle);
         }
         
@@ -243,31 +299,32 @@
         .config-section-header {
             display: flex;
             align-items: center;
-            gap: var(--v2-space-2);
-            margin-bottom: var(--v2-space-2);
+            gap: var(--v2-space-3);
+            margin-bottom: var(--v2-space-3);
         }
         
         .config-section-title {
             font-size: var(--v2-text-sm);
             font-weight: var(--v2-font-semibold);
             color: var(--v2-text-primary);
+            letter-spacing: -0.01em;
         }
         
         .config-section-content {
-            padding-left: calc(44px + var(--v2-space-2));
+            padding-left: calc(44px + var(--v2-space-3));
         }
         
         /* 双列配置布局 */
         .config-grid {
             display: grid;
             grid-template-columns: 1fr 1fr;
-            gap: var(--v2-space-2) var(--v2-space-3);
+            gap: var(--v2-space-3) var(--v2-space-4);
         }
         
         .config-row {
             display: flex;
             flex-direction: column;
-            gap: 2px;
+            gap: 4px;
             margin-bottom: 0;
         }
         
@@ -282,34 +339,36 @@
         }
         
         .config-label {
-            font-size: 11px;
+            font-size: 12px;
             color: var(--v2-text-muted);
             font-weight: var(--v2-font-medium);
+            letter-spacing: 0.02em;
         }
         
         .config-input-group {
             display: flex;
             align-items: center;
-            gap: var(--v2-space-1);
+            gap: var(--v2-space-2);
         }
         
         .config-unit {
-            font-size: 11px;
+            font-size: 12px;
             color: var(--v2-text-muted);
-            min-width: 20px;
+            min-width: 24px;
         }
         
         .config-hint {
-            font-size: 10px;
+            font-size: 11px;
             color: var(--v2-text-muted);
+            margin-top: 2px;
         }
         
-        /* Switch 开关 */
+        /* ===== Switch 开关 - 精致版 ===== */
         .v2-switch {
             position: relative;
             display: inline-block;
-            width: 44px;
-            height: 24px;
+            width: 40px;
+            height: 22px;
         }
         
         .v2-switch input {
@@ -325,34 +384,37 @@
             left: 0;
             right: 0;
             bottom: 0;
-            background-color: var(--v2-bg-tertiary);
+            background: linear-gradient(180deg, var(--v2-bg-tertiary) 0%, rgba(255,255,255,0.02) 100%);
             border: 1px solid var(--v2-border-default);
-            transition: .3s;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
             border-radius: 24px;
         }
         
         .v2-switch__slider:before {
             position: absolute;
             content: "";
-            height: 18px;
-            width: 18px;
+            height: 16px;
+            width: 16px;
             left: 2px;
             bottom: 2px;
-            background-color: white;
-            transition: .3s;
+            background: linear-gradient(180deg, #fff 0%, #e5e7eb 100%);
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
             border-radius: 50%;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.2);
         }
         
         .v2-switch input:checked + .v2-switch__slider {
             background: linear-gradient(135deg, #6366f1, #8b5cf6);
             border-color: transparent;
+            box-shadow: 0 0 12px rgba(99, 102, 241, 0.3);
         }
         
         .v2-switch input:checked + .v2-switch__slider:before {
-            transform: translateX(20px);
+            transform: translateX(18px);
+            background: #fff;
         }
         
-        /* Checkbox */
+        /* ===== Checkbox - 精致版 ===== */
         .v2-checkbox {
             display: flex;
             align-items: center;
@@ -368,23 +430,32 @@
             width: 18px;
             height: 18px;
             border: 2px solid var(--v2-border-default);
-            border-radius: 4px;
+            border-radius: 5px;
             display: flex;
             align-items: center;
             justify-content: center;
-            transition: all 0.2s;
+            transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+            background: var(--v2-bg-tertiary);
+        }
+        
+        .v2-checkbox:hover .v2-checkbox__checkmark {
+            border-color: rgba(99, 102, 241, 0.5);
         }
         
         .v2-checkbox input:checked + .v2-checkbox__checkmark {
             background: linear-gradient(135deg, #6366f1, #8b5cf6);
             border-color: transparent;
+            box-shadow: 0 2px 6px rgba(99, 102, 241, 0.3);
         }
         
         .v2-checkbox input:checked + .v2-checkbox__checkmark:after {
-            content: '✓';
-            color: white;
-            font-size: 12px;
-            font-weight: bold;
+            content: '';
+            width: 5px;
+            height: 8px;
+            border: solid white;
+            border-width: 0 2px 2px 0;
+            transform: rotate(45deg);
+            margin-bottom: 2px;
         }
         
         .v2-checkbox__label {
@@ -394,14 +465,36 @@
         
         /* 小型输入框 */
         .v2-input--sm {
-            padding: var(--v2-space-2) var(--v2-space-3);
-            font-size: var(--v2-text-sm);
-            width: 100px;
+            padding: 6px 10px;
+            font-size: 13px;
+            width: 80px;
+            background: var(--v2-bg-tertiary);
+            border: 1px solid var(--v2-border-default);
+            border-radius: var(--v2-radius-md);
+            color: var(--v2-text-primary);
+            transition: all 0.2s ease;
+        }
+        
+        .v2-input--sm:focus {
+            outline: none;
+            border-color: rgba(99, 102, 241, 0.5);
+            box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
         }
         
         .v2-select--sm {
-            padding: var(--v2-space-2) var(--v2-space-3);
-            font-size: var(--v2-text-sm);
+            padding: 6px 10px;
+            font-size: 13px;
+            background: var(--v2-bg-tertiary);
+            border: 1px solid var(--v2-border-default);
+            border-radius: var(--v2-radius-md);
+            color: var(--v2-text-primary);
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+        
+        .v2-select--sm:focus {
+            outline: none;
+            border-color: rgba(99, 102, 241, 0.5);
         }
         
         .v2-btn--xs {
@@ -409,13 +502,14 @@
             font-size: var(--v2-text-xs);
         }
         
-        /* 项目列表 */
+        /* ===== 项目列表 - 玻璃卡片 ===== */
         .project-list {
             display: flex;
             flex-direction: column;
             gap: var(--v2-space-3);
             max-height: 400px;
             overflow-y: auto;
+            padding-right: var(--v2-space-2);
         }
         
         .project-card {
@@ -425,17 +519,20 @@
             border-radius: var(--v2-radius-lg);
             padding: var(--v2-space-4);
             cursor: pointer;
-            transition: all 0.25s ease;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
         }
         
         .project-card:hover {
-            border-color: rgba(99, 102, 241, 0.3);
+            border-color: rgba(99, 102, 241, 0.4);
             transform: translateX(4px);
+            background: linear-gradient(145deg, var(--v2-bg-tertiary) 0%, rgba(99, 102, 241, 0.05) 100%);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1), 0 0 0 1px rgba(99, 102, 241, 0.1) inset;
         }
         
         .project-card.selected {
-            background: linear-gradient(145deg, rgba(99, 102, 241, 0.1) 0%, rgba(139, 92, 246, 0.05) 100%);
-            border-color: rgba(99, 102, 241, 0.5);
+            background: linear-gradient(145deg, rgba(99, 102, 241, 0.12) 0%, rgba(139, 92, 246, 0.06) 100%);
+            border-color: rgba(99, 102, 241, 0.6);
+            box-shadow: 0 0 20px rgba(99, 102, 241, 0.15), inset 0 1px 0 rgba(255,255,255,0.05);
         }
         
         .project-card.selected::before {
@@ -445,9 +542,29 @@
             top: 50%;
             transform: translateY(-50%);
             width: 3px;
-            height: 60%;
-            background: linear-gradient(180deg, #6366f1, #8b5cf6);
-            border-radius: 0 2px 2px 0;
+            height: 50%;
+            background: linear-gradient(180deg, #6366f1 0%, #8b5cf6 50%, #6366f1 100%);
+            border-radius: 0 3px 3px 0;
+            box-shadow: 0 0 8px rgba(99, 102, 241, 0.5);
+        }
+        
+        .project-card.selected::after {
+            content: '✓';
+            position: absolute;
+            right: 12px;
+            top: 50%;
+            transform: translateY(-50%);
+            width: 20px;
+            height: 20px;
+            background: linear-gradient(135deg, #6366f1, #8b5cf6);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 10px;
+            font-weight: bold;
+            box-shadow: 0 2px 6px rgba(99, 102, 241, 0.4);
         }
         
         .project-title {
@@ -455,28 +572,30 @@
             font-weight: var(--v2-font-semibold);
             color: var(--v2-text-primary);
             margin-bottom: var(--v2-space-1);
+            letter-spacing: -0.01em;
         }
         
         .project-meta {
             display: flex;
             align-items: center;
             gap: var(--v2-space-3);
-            font-size: var(--v2-text-xs);
+            font-size: 12px;
             color: var(--v2-text-muted);
         }
         
-        /* 右侧：上传状态 */
-        .status-section {
-            display: flex;
-            flex-direction: column;
-            gap: var(--v2-space-5);
-        }
-        
+        /* ===== 右侧：上传状态卡片 ===== */
         .status-card {
-            background: var(--v2-bg-secondary);
+            position: relative;
+            background: linear-gradient(145deg, var(--v2-bg-secondary) 0%, rgba(99, 102, 241, 0.02) 100%);
             border: 1px solid var(--v2-border-subtle);
             border-radius: var(--v2-radius-xl);
             padding: var(--v2-space-5);
+            box-shadow: var(--v2-shadow-sm), 0 0 0 1px rgba(255,255,255,0.02) inset;
+            transition: all 0.3s ease;
+        }
+        
+        .status-card:hover {
+            border-color: rgba(99, 102, 241, 0.2);
         }
         
         .status-card-header {
@@ -487,9 +606,11 @@
             display: flex;
             align-items: center;
             gap: var(--v2-space-2);
+            padding-bottom: var(--v2-space-3);
+            border-bottom: 1px solid var(--v2-border-subtle);
         }
         
-        /* 上传进度 */
+        /* ===== 上传进度 - 动态效果 ===== */
         .upload-progress {
             display: flex;
             flex-direction: column;
@@ -503,6 +624,8 @@
             padding: var(--v2-space-3);
             background: var(--v2-bg-tertiary);
             border-radius: var(--v2-radius-md);
+            border: 1px solid var(--v2-border-subtle);
+            transition: all 0.2s ease;
         }
         
         .progress-status {
@@ -513,32 +636,36 @@
             justify-content: center;
             border-radius: 50%;
             font-size: var(--v2-text-xs);
+            transition: all 0.3s ease;
         }
         
         .progress-status.pending {
             background: var(--v2-bg-secondary);
             color: var(--v2-text-muted);
+            border: 1px solid var(--v2-border-default);
         }
         
         .progress-status.processing {
-            background: rgba(99, 102, 241, 0.2);
+            background: linear-gradient(135deg, rgba(99, 102, 241, 0.2) 0%, rgba(139, 92, 246, 0.1) 100%);
             color: #6366f1;
             animation: pulse 2s infinite;
+            box-shadow: 0 0 10px rgba(99, 102, 241, 0.3);
         }
         
         .progress-status.success {
-            background: rgba(34, 197, 94, 0.2);
+            background: linear-gradient(135deg, rgba(34, 197, 94, 0.2) 0%, rgba(34, 197, 94, 0.1) 100%);
             color: #22c55e;
+            box-shadow: 0 0 8px rgba(34, 197, 94, 0.2);
         }
         
         .progress-status.error {
-            background: rgba(239, 68, 68, 0.2);
+            background: linear-gradient(135deg, rgba(239, 68, 68, 0.2) 0%, rgba(239, 68, 68, 0.1) 100%);
             color: #ef4444;
         }
         
         @keyframes pulse {
-            0%, 100% { opacity: 1; }
-            50% { opacity: 0.5; }
+            0%, 100% { opacity: 1; transform: scale(1); }
+            50% { opacity: 0.8; transform: scale(0.95); }
         }
         
         .progress-text {
@@ -547,44 +674,59 @@
             color: var(--v2-text-secondary);
         }
         
-        /* 付费功能标识 */
+        /* ===== 付费功能标识 - 金色渐变 ===== */
         .premium-badge {
             display: inline-flex;
             align-items: center;
             gap: var(--v2-space-1);
             padding: var(--v2-space-1) var(--v2-space-2);
-            background: linear-gradient(135deg, #f59e0b 0%, #f97316 100%);
+            background: linear-gradient(135deg, #fbbf24 0%, #f59e0b 50%, #f97316 100%);
             color: white;
-            font-size: var(--v2-text-xs);
+            font-size: 10px;
             font-weight: var(--v2-font-bold);
             border-radius: var(--v2-radius-full);
             text-transform: uppercase;
+            letter-spacing: 0.05em;
+            box-shadow: 0 2px 6px rgba(245, 158, 11, 0.3);
+            text-shadow: 0 1px 2px rgba(0,0,0,0.2);
         }
         
-        /* 下载指引 */
+        /* ===== 下载指引 - 虚线边框 ===== */
         .download-guide {
-            background: var(--v2-bg-tertiary);
-            border: 1px dashed var(--v2-border-default);
+            background: linear-gradient(145deg, var(--v2-bg-tertiary) 0%, rgba(99, 102, 241, 0.03) 100%);
+            border: 1.5px dashed var(--v2-border-default);
             border-radius: var(--v2-radius-lg);
             padding: var(--v2-space-5);
             text-align: center;
+            transition: all 0.3s ease;
+        }
+        
+        .download-guide:hover {
+            border-color: rgba(99, 102, 241, 0.4);
+            background: linear-gradient(145deg, var(--v2-bg-tertiary) 0%, rgba(99, 102, 241, 0.06) 100%);
         }
         
         .download-guide-icon {
             font-size: 48px;
             margin-bottom: var(--v2-space-3);
+            filter: drop-shadow(0 4px 8px rgba(0,0,0,0.1));
         }
         
         .download-guide-text {
             font-size: var(--v2-text-sm);
             color: var(--v2-text-secondary);
             margin-bottom: var(--v2-space-4);
+            line-height: 1.6;
         }
         
-        /* 响应式 */
+        /* ===== 响应式 ===== */
         @media (max-width: 1024px) {
             .upload-content {
                 grid-template-columns: 1fr;
+            }
+            
+            .status-section {
+                position: static;
             }
             
             .steps-indicator {
@@ -603,14 +745,16 @@
     
     <main class="upload-page">
         <!-- 页面标题 -->
-        <header class="v2-page-header" style="margin-bottom: var(--v2-space-6);">
-            <div class="v2-page-header__content">
-                <h1 class="v2-page-header__title">
-                    <span>📚</span>
-                    番茄小说一键上传
-                    <span class="premium-badge">Pro</span>
-                </h1>
-                <p class="v2-page-header__subtitle">一键将小说章节上传到番茄作家平台</p>
+        <header class="v2-page-header" style="margin-bottom: var(--v2-space-8); text-align: center;">
+            <div class="v2-page-header__content" style="display: inline-flex; flex-direction: column; align-items: center;">
+                <div style="display: inline-flex; align-items: center; gap: 12px; margin-bottom: var(--v2-space-3);">
+                    <span style="font-size: 32px; filter: drop-shadow(0 4px 8px rgba(245, 158, 11, 0.3));">🍅</span>
+                    <h1 class="v2-page-header__title" style="font-size: 28px; letter-spacing: -0.02em;">
+                        番茄小说一键上传
+                    </h1>
+                    <span class="premium-badge" style="font-size: 11px; padding: 4px 10px;">Pro</span>
+                </div>
+                <p class="v2-page-header__subtitle" style="color: var(--v2-text-muted); font-size: 15px;">一键将小说章节上传到番茄作家平台</p>
             </div>
         </header>
         
@@ -727,14 +871,14 @@
                                 <div class="config-row">
                                     <label class="config-label">章节数</label>
                                     <div class="config-input-group">
-                                        <input type="number" id="config-first-chapters" class="v2-input v2-input--sm" value="3" min="1" max="100">
+                                        <input type="number" id="config-first-chapters" class="v2-input v2-input--sm" value="20" min="1" max="100">
                                         <span class="config-unit">章</span>
                                     </div>
                                 </div>
                                 <div class="config-row">
                                     <label class="config-label">字数限制</label>
                                     <div class="config-input-group">
-                                        <input type="number" id="config-first-words" class="v2-input v2-input--sm" value="0" min="0" step="1000">
+                                        <input type="number" id="config-first-words" class="v2-input v2-input--sm" value="60000" min="0" step="1000">
                                         <span class="config-unit">字</span>
                                     </div>
                                 </div>
@@ -818,20 +962,26 @@
                             </div>
                         </div>
                     </div>
-                }}
+                </div>
                 
                 <!-- 上传行动区域 - 合并状态和按钮 -->
-                <div class="status-card" id="action-card" style="display: none; background: linear-gradient(145deg, rgba(99, 102, 241, 0.1) 0%, rgba(139, 92, 246, 0.05) 100%); border-color: rgba(99, 102, 241, 0.3);">
-                    <div class="status-card-header" style="border-bottom-color: rgba(99, 102, 241, 0.2);">
-                        <span>🚀</span>
-                        准备上传
+                <div class="status-card" id="action-card" style="display: none;">
+                    <div class="status-card-header" style="border-bottom: 1px solid var(--v2-border-subtle);">
+                        <span style="font-size: 18px;">🚀</span>
+                        <span>准备上传</span>
                     </div>
-                    <div id="upload-action-content" style="text-align: center; padding: var(--v2-space-2) 0;">
-                        <div style="font-size: 14px; color: var(--v2-text-secondary); margin-bottom: var(--v2-space-3);">
-                            已选择: <strong id="selected-project-name" style="color: var(--v2-text-primary);">-</strong>
+                    <div id="upload-action-content" style="padding: var(--v2-space-3) 0;">
+                        <div style="font-size: 14px; color: var(--v2-text-secondary); margin-bottom: var(--v2-space-4);">
+                            已选择: <strong id="selected-project-name" style="color: var(--v2-text-primary); font-size: 15px;">-</strong>
                         </div>
-                        <button class="v2-btn v2-btn--primary btn-block" onclick="startUploadWithConfig()" style="padding: 14px; font-size: 16px;">
-                            <span>🚀</span> 开始上传
+                        
+                        <!-- Chrome未连接提示 -->
+                        <div id="chrome-not-connected-hint" style="display: none; margin-bottom: var(--v2-space-4); padding: var(--v2-space-3); background: rgba(245, 158, 11, 0.1); border: 1px solid rgba(245, 158, 11, 0.3); border-radius: var(--v2-radius-lg); text-align: center;">
+                            <span style="font-size: 14px; color: #f59e0b;">⚠️ 请先启动并连接 Chrome 浏览器</span>
+                        </div>
+                        
+                        <button id="btn-start-upload" class="v2-btn v2-btn--primary btn-block" onclick="startUploadWithConfig()" style="padding: 14px; font-size: 15px; font-weight: 600; background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%); border: none;" disabled>
+                            <span style="font-size: 16px; margin-right: 6px;">🚀</span> 开始上传
                         </button>
                     </div>
                 </div>
@@ -839,31 +989,45 @@
                 <!-- 实时上传状态（上传时显示） -->
                 <div class="status-card" id="upload-progress-card" style="display: none;">
                     <div class="status-card-header">
-                        <span>📊</span>
+                        <span style="font-size: 18px;">📊</span>
                         上传进度
-                        <span id="upload-progress-percent" style="margin-left: auto; font-size: 14px; color: var(--v2-primary-400);">0%</span>
+                        <span id="upload-progress-percent" style="margin-left: auto; font-size: 16px; font-weight: 700; background: linear-gradient(135deg, #818cf8 0%, #c084fc 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;">0%</span>
                     </div>
                     <div class="upload-progress" id="upload-progress">
                         <!-- 动态生成进度内容 -->
                     </div>
                 </div>
                 
-                <!-- Pro功能精简说明 -->
-                <div class="status-card" style="background: linear-gradient(145deg, rgba(245, 158, 11, 0.05) 0%, rgba(249, 115, 22, 0.02) 100%); border-color: rgba(245, 158, 11, 0.15); padding: var(--v2-space-4);">
+                <!-- Pro功能精简说明（未开通时显示） -->
+                <div class="status-card" id="pro-card" style="position: relative; background: linear-gradient(145deg, rgba(245, 158, 11, 0.08) 0%, rgba(249, 115, 22, 0.03) 100%); border-color: rgba(245, 158, 11, 0.25); padding: var(--v2-space-4);">
+                    <!-- 金色光晕装饰 -->
+                    <div style="position: absolute; top: -1px; right: -1px; width: 60px; height: 60px; background: radial-gradient(circle at top right, rgba(251, 191, 36, 0.3), transparent 70%); border-radius: var(--v2-radius-xl) 0 0 0; pointer-events: none;"></div>
+                    
                     <div style="display: flex; align-items: center; gap: var(--v2-space-2); margin-bottom: var(--v2-space-3);">
-                        <span style="font-size: 20px;">👑</span>
-                        <span style="font-size: 14px; font-weight: 600; color: #f59e0b;">Pro 功能</span>
-                        <span style="margin-left: auto; font-size: 11px; color: var(--v2-text-muted);">番茄小说上传</span>
+                        <span style="font-size: 22px; filter: drop-shadow(0 2px 4px rgba(245, 158, 11, 0.3));">👑</span>
+                        <span style="font-size: 14px; font-weight: 700; background: linear-gradient(135deg, #fbbf24 0%, #f59e0b 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;">Pro 功能</span>
+                        <span style="margin-left: auto; font-size: 13px; font-weight: 700; color: #f59e0b;">88 <span style="font-size: 11px; font-weight: 500; color: var(--v2-text-muted);">创造点/月</span></span>
                     </div>
                     <div style="display: grid; grid-template-columns: 1fr 1fr; gap: var(--v2-space-2); font-size: 12px; color: var(--v2-text-secondary);">
-                        <div style="display: flex; align-items: center; gap: 4px;"><span style="color: #22c55e;">✓</span> 自动创建书籍</div>
-                        <div style="display: flex; align-items: center; gap: 4px;"><span style="color: #22c55e;">✓</span> 批量上传章节</div>
-                        <div style="display: flex; align-items: center; gap: 4px;"><span style="color: #22c55e;">✓</span> 智能设置信息</div>
-                        <div style="display: flex; align-items: center; gap: 4px;"><span style="color: #22c55e;">✓</span> 发布状态检测</div>
+                        <div style="display: flex; align-items: center; gap: 6px; padding: 4px 0;"><span style="width: 14px; height: 14px; background: linear-gradient(135deg, #22c55e, #16a34a); border-radius: 3px; display: flex; align-items: center; justify-content: center; color: white; font-size: 8px; font-weight: bold;">✓</span> 自动创建书籍</div>
+                        <div style="display: flex; align-items: center; gap: 6px; padding: 4px 0;"><span style="width: 14px; height: 14px; background: linear-gradient(135deg, #22c55e, #16a34a); border-radius: 3px; display: flex; align-items: center; justify-content: center; color: white; font-size: 8px; font-weight: bold;">✓</span> 批量上传章节</div>
+                        <div style="display: flex; align-items: center; gap: 6px; padding: 4px 0;"><span style="width: 14px; height: 14px; background: linear-gradient(135deg, #22c55e, #16a34a); border-radius: 3px; display: flex; align-items: center; justify-content: center; color: white; font-size: 8px; font-weight: bold;">✓</span> 智能设置信息</div>
+                        <div style="display: flex; align-items: center; gap: 6px; padding: 4px 0;"><span style="width: 14px; height: 14px; background: linear-gradient(135deg, #22c55e, #16a34a); border-radius: 3px; display: flex; align-items: center; justify-content: center; color: white; font-size: 8px; font-weight: bold;">✓</span> 发布状态检测</div>
                     </div>
-                    <button class="v2-btn v2-btn--warning btn-block" style="margin-top: var(--v2-space-3); padding: 8px; font-size: 13px;">
-                        <span>💎</span> 升级 Pro 会员
+                    <button id="btn-upgrade-pro" class="v2-btn v2-btn--warning btn-block" onclick="upgradePro()" style="margin-top: var(--v2-space-4); padding: 10px; font-size: 13px; background: linear-gradient(135deg, #fbbf24 0%, #f59e0b 50%, #f97316 100%); border: none; box-shadow: 0 4px 12px rgba(245, 158, 11, 0.3);">
+                        <span style="font-size: 14px;">💎</span> 升级 Pro 会员
                     </button>
+                </div>
+                
+                <!-- Pro已激活状态（开通后显示） -->
+                <div class="status-card" id="pro-activated-card" style="display: none; background: linear-gradient(145deg, rgba(34, 197, 94, 0.08) 0%, rgba(34, 197, 94, 0.02) 100%); border-color: rgba(34, 197, 94, 0.25); padding: var(--v2-space-4);">
+                    <div style="display: flex; align-items: center; gap: var(--v2-space-3);">
+                        <span style="font-size: 24px;">✅</span>
+                        <div>
+                            <div style="font-size: 14px; font-weight: 600; color: #22c55e;">Pro 会员已激活</div>
+                            <div style="font-size: 12px; color: var(--v2-text-muted); margin-top: 2px;">番茄小说上传功能已开通</div>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
@@ -876,12 +1040,135 @@
         // 状态管理
         let currentProject = null;
         let isChromeConnected = false;
+        let isProActivated = false;
         
         // 初始化
         document.addEventListener('DOMContentLoaded', function() {
             checkChromeStatus();
             loadProjects();
+            checkProStatus();
         });
+        
+        // 检查Pro状态（从数据库）
+        async function checkProStatus() {
+            try {
+                const response = await fetch('/api/user/features/status/fanqie_upload');
+                const result = await response.json();
+                
+                if (result.success && result.data.is_active) {
+                    isProActivated = true;
+                    showProActivated();
+                } else {
+                    isProActivated = false;
+                }
+            } catch (error) {
+                console.error('获取Pro状态失败:', error);
+                isProActivated = false;
+            }
+        }
+        
+        // 升级Pro
+        async function upgradePro() {
+            // 先检查创造点余额
+            try {
+                const balanceResponse = await fetch('/api/points/balance');
+                const balanceResult = await balanceResponse.json();
+                
+                if (!balanceResult.success) {
+                    showNotification('获取余额失败，请刷新页面重试', 'error');
+                    return;
+                }
+                
+                const currentBalance = balanceResult.data.balance;
+                const requiredPoints = 88;
+                const hasEnough = currentBalance >= requiredPoints;
+                
+                // 显示购买确认弹窗
+                showModal({
+                    title: '升级 Pro 会员',
+                    content: `
+                        <div style="text-align: center; padding: 20px;">
+                            <div style="font-size: 48px; margin-bottom: 16px;">💎</div>
+                            <h3 style="margin-bottom: 8px; font-size: 18px;">番茄小说上传 Pro</h3>
+                            <div style="font-size: 24px; font-weight: 700; color: #f59e0b; margin-bottom: 8px;">88 <span style="font-size: 14px; color: var(--v2-text-muted);">创造点/月</span></div>
+                            <p style="color: var(--v2-text-secondary); font-size: 14px; margin-bottom: 16px;">开通后即可使用一键上传功能</p>
+                            
+                            <div style="background: ${hasEnough ? 'rgba(34, 197, 94, 0.1)' : 'rgba(239, 68, 68, 0.1)'}; border: 1px solid ${hasEnough ? 'rgba(34, 197, 94, 0.3)' : 'rgba(239, 68, 68, 0.3)'}; border-radius: 8px; padding: 12px; margin-bottom: 16px;">
+                                <div style="font-size: 13px; color: var(--v2-text-secondary); margin-bottom: 4px;">当前创造点余额</div>
+                                <div style="font-size: 20px; font-weight: 700; color: ${hasEnough ? '#22c55e' : '#ef4444'};">${currentBalance} 点</div>
+                                ${!hasEnough ? `<div style="font-size: 12px; color: #ef4444; margin-top: 4px;">余额不足，还需 ${requiredPoints - currentBalance} 点</div>` : ''}
+                            </div>
+                            
+                            <div style="background: var(--v2-bg-tertiary); border-radius: 12px; padding: 16px; text-align: left; font-size: 13px; color: var(--v2-text-secondary);">
+                                <div style="margin-bottom: 8px;"><span style="color: #22c55e;">✓</span> 自动创建书籍并设置信息</div>
+                                <div style="margin-bottom: 8px;"><span style="color: #22c55e;">✓</span> 批量上传章节（支持定时发布）</div>
+                                <div style="margin-bottom: 8px;"><span style="color: #22c55e;">✓</span> 智能检测发布状态</div>
+                                <div><span style="color: #22c55e;">✓</span> 每日自动发布设置</div>
+                            </div>
+                        </div>
+                    `,
+                    actions: [
+                        ...(hasEnough ? [{ 
+                            label: '确认支付 88 创造点', 
+                            primary: true, 
+                            onClick: () => {
+                                processProPayment();
+                            }
+                        }] : [{ 
+                            label: '去充值', 
+                            primary: true, 
+                            onClick: () => {
+                                window.location.href = '/recharge';
+                            }
+                        }]),
+                        { label: '取消', onClick: () => {} }
+                    ]
+                });
+            } catch (error) {
+                console.error('获取余额失败:', error);
+                showNotification('获取余额失败，请刷新页面重试', 'error');
+            }
+        }
+        
+        // 处理Pro支付
+        async function processProPayment() {
+            try {
+                const response = await fetch('/api/user/features/subscribe', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ 
+                        feature_key: 'fanqie_upload',
+                        months: 1 
+                    })
+                });
+                
+                const result = await response.json();
+                
+                if (result.success) {
+                    isProActivated = true;
+                    showProActivated();
+                    
+                    // 如果已选择项目，显示上传按钮
+                    if (currentProject) {
+                        document.getElementById('action-card').style.display = 'block';
+                    }
+                    
+                    showNotification(`Pro 会员开通成功！有效期至 ${new Date(result.data.expires_at).toLocaleDateString()}`, 'success');
+                } else {
+                    showNotification(result.error || '支付失败，请重试', 'error');
+                }
+            } catch (error) {
+                console.error('支付失败:', error);
+                showNotification('支付失败，请重试', 'error');
+            }
+        }
+        
+        // 显示Pro已激活状态
+        function showProActivated() {
+            // 隐藏开通卡片，显示已激活卡片
+            document.getElementById('pro-card').style.display = 'none';
+            document.getElementById('pro-activated-card').style.display = 'block';
+        }
         
         // 检测 Chrome 状态
         async function checkChromeStatus() {
@@ -907,6 +1194,8 @@
             const badge = document.getElementById('chrome-status-badge');
             const notConnected = document.getElementById('chrome-not-connected');
             const connected = document.getElementById('chrome-connected');
+            const btnStartUpload = document.getElementById('btn-start-upload');
+            const chromeHint = document.getElementById('chrome-not-connected-hint');
             
             if (data.running) {
                 card.classList.add('connected');
@@ -914,12 +1203,33 @@
                 badge.textContent = '已连接';
                 notConnected.style.display = 'none';
                 connected.style.display = 'block';
+                
+                // 启用上传按钮
+                if (btnStartUpload) {
+                    btnStartUpload.disabled = false;
+                    btnStartUpload.style.opacity = '1';
+                    btnStartUpload.style.cursor = 'pointer';
+                }
+                if (chromeHint) {
+                    chromeHint.style.display = 'none';
+                }
             } else {
                 card.classList.remove('connected');
                 badge.classList.remove('connected');
                 badge.textContent = '未连接';
                 notConnected.style.display = 'block';
                 connected.style.display = 'none';
+                
+                // 禁用上传按钮
+                if (btnStartUpload) {
+                    btnStartUpload.disabled = true;
+                    btnStartUpload.style.opacity = '0.5';
+                    btnStartUpload.style.cursor = 'not-allowed';
+                }
+                // 显示上传区域的Chrome提示
+                if (chromeHint && document.getElementById('action-card').style.display !== 'none') {
+                    chromeHint.style.display = 'block';
+                }
             }
         }
         
@@ -1030,9 +1340,19 @@
             
             updateStep(4); // 进入步骤4：开始上传
             
-            // 显示配置面板和行动区域
+            // 显示配置面板
             document.getElementById('config-card').style.display = 'block';
-            document.getElementById('action-card').style.display = 'block';
+            
+            // 如果已购买Pro，则显示上传区域
+            if (isProActivated) {
+                document.getElementById('action-card').style.display = 'block';
+                
+                // 根据Chrome连接状态显示提示
+                const chromeHint = document.getElementById('chrome-not-connected-hint');
+                if (chromeHint && !isChromeConnected) {
+                    chromeHint.style.display = 'block';
+                }
+            }
             
             // 更新行动区域的项目名
             document.getElementById('selected-project-name').textContent = title;
