@@ -96,12 +96,25 @@ def start_upload():
         }), 400
     
     try:
+        from web.web_config import logger
+        logger.info(f"[番茄上传] 开始上传小说: {novel_title}, 用户: {user_id}")
+        
         # 导入上传核心逻辑
-        from novel_publisher import NovelPublisher
-        from config_loader import ConfigLoader
+        try:
+            from novel_publisher import NovelPublisher
+            from config_loader import ConfigLoader
+            logger.info("[番茄上传] 导入上传模块成功")
+        except Exception as import_err:
+            logger.error(f"[番茄上传] 导入模块失败: {import_err}")
+            return jsonify({
+                'success': False,
+                'error': f'导入上传模块失败: {str(import_err)}'
+            }), 500
+        
         from playwright.sync_api import sync_playwright
         
         # 连接 Chrome
+        logger.info("[番茄上传] 连接 Chrome...")
         playwright = sync_playwright().start()
         browser = playwright.chromium.connect_over_cdp(f'http://127.0.0.1:{DEBUG_PORT}')
         
@@ -109,8 +122,10 @@ def start_upload():
         contexts = browser.contexts
         if contexts and contexts[0].pages:
             page = contexts[0].pages[0]
+            logger.info(f"[番茄上传] 使用现有页面: {page.url}")
         else:
             page = browser.new_page()
+            logger.info("[番茄上传] 创建新页面")
         
         # 创建上传器实例
         config_loader = ConfigLoader()
@@ -119,24 +134,35 @@ def start_upload():
         # 查找小说项目文件
         novel_file = find_novel_file(novel_title, user_id)
         if not novel_file:
+            logger.error(f"[番茄上传] 未找到小说文件: {novel_title}")
+            browser.close()
+            playwright.stop()
             return jsonify({
                 'success': False,
-                'error': '未找到小说项目文件'
+                'error': '未找到小说项目文件',
+                'message': f'在目录中未找到 {novel_title} 的项目文件'
             }), 404
         
-        # 执行上传（在后台线程中运行）
-        # TODO: 使用异步任务队列处理长时间运行的上传
+        logger.info(f"[番茄上传] 找到小说文件: {novel_file}")
+        
+        # 执行上传
+        logger.info("[番茄上传] 开始执行 publish_novel...")
         result = publisher.publish_novel(page, novel_file)
+        logger.info(f"[番茄上传] 上传结果: {result}")
         
         browser.close()
         playwright.stop()
         
         return jsonify({
             'success': result,
-            'message': '上传完成' if result else '上传失败'
+            'message': '上传完成' if result else '上传失败，请检查 Chrome 页面状态'
         })
         
     except Exception as e:
+        import traceback
+        error_trace = traceback.format_exc()
+        from web.web_config import logger
+        logger.error(f"[番茄上传] 上传过程出错: {e}\n{error_trace}")
         return jsonify({
             'success': False,
             'error': str(e),

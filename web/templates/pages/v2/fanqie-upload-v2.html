@@ -1841,8 +1841,8 @@
                 <div class="project-card" data-title="${project.title}" onclick="selectProject('${project.title}')">
                     <div class="project-title">${project.title}</div>
                     <div class="project-meta">
-                        <span>📊 ${project.total_chapters || 0} 章</span>
-                        <span>✅ ${project.phase_one_status || 'unknown'}</span>
+                        <span>📊 共 ${project.total_chapters || 0} 章</span>
+                        <span>✅ 已完成 ${project.completed_chapters || 0} 章</span>
                     </div>
                 </div>
             `).join('');
