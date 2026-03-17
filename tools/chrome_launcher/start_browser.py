@@ -17,7 +17,12 @@ from typing import Optional, Tuple
 
 # 配置
 DEBUG_PORT = 9988
-CHROME_DOWNLOAD_URL = "https://storage.googleapis.com/chromium-browser-snapshots/Win_x64/1097615/chrome-win.zip"
+# Chrome for Testing 稳定版本（官方自动化测试版本）
+CHROME_DOWNLOAD_URLS = {
+    "windows": "https://storage.googleapis.com/chrome-for-testing-public/120.0.6099.109/win64/chrome-win64.zip",
+    "macos": "https://storage.googleapis.com/chrome-for-testing-public/120.0.6099.109/mac-x64/chrome-mac-x64.zip",
+    "linux": "https://storage.googleapis.com/chrome-for-testing-public/120.0.6099.109/linux64/chrome-linux64.zip"
+}
 
 class ChromeLauncher:
     """Chrome 浏览器启动器"""
@@ -41,19 +46,35 @@ class ChromeLauncher:
         """获取 Chrome 可执行文件路径"""
         platform = self.detect_platform()
         
-        if platform == "windows":
-            chrome_exe = self.chrome_dir / "chrome.exe"
-            # 也尝试 chromium
-            if not chrome_exe.exists():
-                chrome_exe = self.chrome_dir / "chrome-win" / "chrome.exe"
-        elif platform == "macos":
-            chrome_exe = self.chrome_dir / "Google Chrome.app" / "Contents" / "MacOS" / "Google Chrome"
-        else:
-            chrome_exe = self.chrome_dir / "chrome"
-            if not chrome_exe.exists():
-                chrome_exe = self.chrome_dir / "chromium"
+        # 尝试多个可能的路径（适配不同版本的Chrome）
+        possible_paths = []
         
-        return chrome_exe.exists(), chrome_exe
+        if platform == "windows":
+            possible_paths = [
+                self.chrome_dir / "chrome-win64" / "chrome.exe",  # Chrome for Testing
+                self.chrome_dir / "chrome" / "chrome.exe",        # 旧版chromium
+                self.chrome_dir / "chrome-win" / "chrome.exe",    # 更旧版本
+                self.chrome_dir / "chrome.exe",                   # 直接放在chrome目录
+            ]
+        elif platform == "macos":
+            possible_paths = [
+                self.chrome_dir / "chrome-mac-x64" / "Google Chrome for Testing.app" / "Contents" / "MacOS" / "Google Chrome for Testing",
+                self.chrome_dir / "Google Chrome.app" / "Contents" / "MacOS" / "Google Chrome",
+            ]
+        else:  # linux
+            possible_paths = [
+                self.chrome_dir / "chrome-linux64" / "chrome",     # Chrome for Testing
+                self.chrome_dir / "chrome" / "chrome",             # 旧版
+                self.chrome_dir / "chrome",
+                self.chrome_dir / "chromium",
+            ]
+        
+        for chrome_exe in possible_paths:
+            if chrome_exe.exists():
+                return True, chrome_exe
+        
+        # 返回第一个路径（虽然不存在，但用于错误提示）
+        return False, possible_paths[0] if possible_paths else self.chrome_dir / "chrome"
     
     def check_chrome_running(self) -> bool:
         """检查 Chrome 是否已在运行（通过调试端口）"""
@@ -65,13 +86,22 @@ class ChromeLauncher:
         except:
             return False
     
+    def get_chrome_download_url(self) -> str:
+        """获取当前平台的Chrome下载地址"""
+        platform = self.detect_platform()
+        return CHROME_DOWNLOAD_URLS.get(platform, CHROME_DOWNLOAD_URLS["windows"])
+    
     def download_chrome(self) -> bool:
         """下载 Chrome 绿色版"""
         import zipfile
         
+        download_url = self.get_chrome_download_url()
+        platform = self.detect_platform()
+        
         print("📥 Chrome 浏览器未找到")
-        print("   正在下载 Chromium 绿色版（约 150MB）...")
-        print(f"   下载地址: {CHROME_DOWNLOAD_URL}")
+        print(f"   系统平台: {platform}")
+        print("   正在下载 Chrome for Testing（约 150MB）...")
+        print(f"   下载地址: {download_url}")
         
         zip_path = self.script_dir / "chrome-download.zip"
         
@@ -82,7 +112,12 @@ class ChromeLauncher:
                 percent = min(100, downloaded * 100 / total_size)
                 print(f"\r   进度: {percent:.1f}% ({downloaded / 1024 / 1024:.1f}MB / {total_size / 1024 / 1024:.1f}MB)", end="", flush=True)
             
-            urllib.request.urlretrieve(CHROME_DOWNLOAD_URL, zip_path, download_progress)
+            # 设置User-Agent避免被拦截
+            opener = urllib.request.build_opener()
+            opener.addheaders = [('User-Agent', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36')]
+            urllib.request.install_opener(opener)
+            
+            urllib.request.urlretrieve(download_url, zip_path, download_progress)
             print("\n✅ 下载完成")
             
             # 解压
@@ -97,7 +132,12 @@ class ChromeLauncher:
             
         except Exception as e:
             print(f"\n❌ 下载失败: {e}")
-            print("   请手动下载 Chrome 并放到 chrome/ 目录")
+            print("\n💡 解决方案:")
+            print("   1. 检查网络连接")
+            print("   2. 如果使用代理，请设置系统代理")
+            print("   3. 手动下载 Chrome:")
+            print(f"      {download_url}")
+            print("   4. 解压后将 chrome.exe 放到 chrome/ 目录")
             return False
     
     def start_chrome(self) -> bool:
