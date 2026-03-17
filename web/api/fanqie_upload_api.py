@@ -106,10 +106,16 @@ def start_upload():
             from config_loader import ConfigLoader
             logger.info("[番茄上传] 导入上传模块成功")
         except Exception as import_err:
+            import traceback
+            error_detail = traceback.format_exc()
             logger.error(f"[番茄上传] 导入模块失败: {import_err}")
+            logger.error(f"[番茄上传] 错误详情: {error_detail}")
+            logger.error(f"[番茄上传] sys.path: {sys.path}")
             return jsonify({
                 'success': False,
-                'error': f'导入上传模块失败: {str(import_err)}'
+                'error': f'导入上传模块失败: {str(import_err)}',
+                'message': f'导入上传模块失败: {str(import_err)}',
+                'detail': str(import_err)
             }), 500
         
         from playwright.sync_api import sync_playwright

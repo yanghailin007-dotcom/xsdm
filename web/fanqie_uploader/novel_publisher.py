@@ -4,15 +4,29 @@
 """
 
 import os
+import sys
 import time
 import json
 import re
 from datetime import datetime, timedelta
 from typing import List, Dict, Any, Optional, Tuple
 from playwright.sync_api import Page
-from ..utils.config_loader import ConfigLoader
-from ..utils.file_handler import FileHandler
-from ..utils.ui_helper import UIHelper
+
+# 添加父目录到路径，支持相对导入
+_current_dir = os.path.dirname(os.path.abspath(__file__))
+_parent_dir = os.path.dirname(_current_dir)
+if _parent_dir not in sys.path:
+    sys.path.insert(0, _parent_dir)
+
+try:
+    from fanqie_uploader.utils.config_loader import ConfigLoader
+    from fanqie_uploader.utils.file_handler import FileHandler
+    from fanqie_uploader.utils.ui_helper import UIHelper
+except ImportError:
+    # 回退到相对导入（在包内使用时）
+    from utils.config_loader import ConfigLoader
+    from utils.file_handler import FileHandler
+    from utils.ui_helper import UIHelper
 
 
 class NovelPublisher:
