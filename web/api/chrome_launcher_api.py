@@ -26,7 +26,7 @@ if sys.platform == 'win32':
     CHROME_INSTALL_DIR = 'D:\\大文娱\\chrome_launcher'
     CHROME_INSTALL_DIR_FALLBACK = 'C:\\大文娱\\chrome_launcher'
 else:
-    CHROME_INSTALL_DIR = str(Path.home() / '大文娱' / 'chrome_launcher')
+    CHROME_INSTALL_DIR = str(Path.home() / 'chrome_launcher')
     CHROME_INSTALL_DIR_FALLBACK = None
 
 
@@ -113,24 +113,22 @@ def check_chrome_installed() -> dict:
         # 返回给前端显示的路径（优先 D 盘）
         display_dir = primary_path
     elif platform == 'darwin':
-        mac_path = str(Path.home() / '大文娱' / 'chrome_launcher')
+        mac_path = str(Path.home() / 'chrome_launcher')
         setup_steps = [
-            '1. 下载 chrome-launcher.zip 到任意位置',
-            f'2. 解压后将文件夹重命名为 "chrome_launcher"',
-            f'3. 将整个文件夹移动到: {mac_path}',
-            f'4. 最终路径应该是: {mac_path}/start_chrome.sh',
-            '5. 运行: chmod +x start_chrome.sh && ./start_chrome.sh'
+            '1. 下载 chrome_launcher.zip',
+            '2. 直接解压到用户目录（桌面即可）',
+            f'3. 最终得到: {mac_path}/start_chrome.sh',
+            '4. 运行: chmod +x start_chrome.sh && ./start_chrome.sh'
         ]
         tip = None
         display_dir = mac_path
     else:  # linux
-        linux_path = str(Path.home() / '大文娱' / 'chrome_launcher')
+        linux_path = str(Path.home() / 'chrome_launcher')
         setup_steps = [
-            '1. 下载 chrome-launcher.zip 到任意位置',
-            f'2. 解压后将文件夹重命名为 "chrome_launcher"',
-            f'3. 将整个文件夹移动到: {linux_path}',
-            f'4. 最终路径应该是: {linux_path}/start_chrome.sh',
-            '5. 运行: chmod +x start_chrome.sh && ./start_chrome.sh'
+            '1. 下载 chrome_launcher.zip',
+            '2. 直接解压到用户目录',
+            f'3. 最终得到: {linux_path}/start_chrome.sh',
+            '4. 运行: chmod +x start_chrome.sh && ./start_chrome.sh'
         ]
         tip = None
         display_dir = linux_path
