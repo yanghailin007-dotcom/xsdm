@@ -207,15 +207,10 @@ def create_app():
         import traceback
         logger.error(f"错误堆栈: {traceback.format_exc()}")
 
-    # 🔥 修复：在应用创建时初始化contract_api，确保单例
-    try:
-        from Chrome.automation.api.contract_api import ContractAPI
-        app.config['CONTRACT_API'] = ContractAPI()
-        logger.info(f"✅ 签约API已初始化: {id(app.config['CONTRACT_API'])}")
-        logger.info(f"✅ 队列ID: task_queue={id(app.config['CONTRACT_API'].client.task_queue)}, result_queue={id(app.config['CONTRACT_API'].client.result_queue)}")
-    except Exception as e:
-        logger.error(f"❌ 签约API初始化失败: {e}")
-        app.config['CONTRACT_API'] = None
+    # 注：旧版 Chrome 架构已移除，contract_api 不再使用
+    # 新上传功能使用 web/fanqie_uploader/ 下的 Playwright 实现
+    app.config['CONTRACT_API'] = None
+    logger.info("ℹ️ 签约API使用新架构 web/fanqie_uploader/")
     
     # 注册生成的图片访问路由
     @app.route('/generated_images/<path:filename>')
@@ -1295,13 +1290,8 @@ def cleanup_on_exit():
     """退出清理函数"""
     logger.info("🧹 正在清理资源...")
     
-    # 停止服务监控
-    try:
-        from Chrome.automation.monitoring.service_monitor import service_monitor
-        if service_monitor.monitoring:
-            service_monitor.stop_monitoring()
-    except:
-        pass
+    # 注：旧版服务监控已移除（Chrome/ 目录已清理）
+    # 新架构使用独立进程，无需在此清理
     
     # 🔥 停止所有生成任务和线程
     try:

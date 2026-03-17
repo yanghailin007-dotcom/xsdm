@@ -98,39 +98,14 @@ def check_module_availability():
     """检查可选模块的可用性"""
     global MODULE_STATUS
     
-    # 检查番茄自动上传模块
-    try:
-        import Chrome.automation.legacy.main_controller as autopush
-        MODULE_STATUS["autopush_available"] = True
-        logger.info("✅ 番茄自动上传模块(main_controller)加载成功")
-    except ImportError as e:
-        logger.warning(f"⚠️ 无法导入番茄自动上传模块(main_controller): {e}")
-        try:
-            # 备用：尝试导入autopush_legacy
-            import Chrome.automation.legacy.autopush_legacy as autopush
-            MODULE_STATUS["autopush_available"] = True
-            logger.info("✅ 番茄自动上传模块(autopush_legacy)加载成功")
-        except ImportError as e2:
-            logger.warning(f"⚠️ 无法导入番茄自动上传模块(autopush_legacy): {e2}")
-            MODULE_STATUS["autopush_available"] = False
-
-    # 检查签约上传API
-    try:
-        from Chrome.automation.api.contract_api import contract_api
-        MODULE_STATUS["contract_api_available"] = True
-        logger.info("✅ 签约上传API加载成功")
-    except ImportError as e:
-        logger.warning(f"⚠️ 无法导入签约上传API: {e}")
-        MODULE_STATUS["contract_api_available"] = False
-
-    # 检查服务监控模块
-    try:
-        from Chrome.automation.monitoring.service_monitor import service_monitor
-        MODULE_STATUS["service_monitor_available"] = True
-        logger.info("✅ 服务监控模块加载成功")
-    except ImportError as e:
-        logger.warning(f"⚠️ 无法导入服务监控模块: {e}")
-        MODULE_STATUS["service_monitor_available"] = False
+    # 注：Chrome/ 目录已移除，相关功能迁移到 web/fanqie_uploader/
+    # 以下旧模块标记为不可用，使用新架构替代
+    
+    MODULE_STATUS["autopush_available"] = False
+    MODULE_STATUS["contract_api_available"] = False
+    MODULE_STATUS["service_monitor_available"] = False
+    
+    logger.info("ℹ️ 旧版 Chrome 模块已移除，使用 web/fanqie_uploader/ 新架构"
 
 # 初始化模块状态
 check_module_availability()
