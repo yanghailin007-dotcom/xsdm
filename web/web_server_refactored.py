@@ -461,6 +461,11 @@ def create_app():
     app.register_blueprint(fanqie_config_api)
     logger.info("✅ fanqie_config_api 番茄上传配置已注册")
 
+    # 26.5. 番茄上传执行 API 路由
+    from web.api.fanqie_upload_api import fanqie_upload_api
+    app.register_blueprint(fanqie_upload_api)
+    logger.info("✅ fanqie_upload_api 番茄上传执行已注册")
+
     # 🔥 同步预初始化 NovelGenerator（确保服务器启动时完成）
     logger.info("🔄 开始预初始化 NovelGenerator...")
     try:

@@ -1927,15 +1927,34 @@
             
             showNotification(`开始上传: ${currentProject}`, 'info');
             
-            // TODO: 调用实际上传API
-            // const response = await fetch('/api/fanqie/upload/start', {
-            //     method: 'POST',
-            //     headers: { 'Content-Type': 'application/json' },
-            //     body: JSON.stringify({ 
-            //         novel_title: currentProject, 
-            //         upload_config: config 
-            //     })
-            // });
+            // 调用实际上传API
+            try {
+                const response = await fetch('/api/fanqie/upload/start', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ 
+                        novel_title: currentProject, 
+                        upload_config: config 
+                    })
+                });
+                
+                const result = await response.json();
+                
+                if (result.success) {
+                    showNotification('上传成功！', 'success');
+                    document.getElementById('upload-progress').innerHTML += `
+                        <div style="margin-top: var(--v2-space-3); padding: var(--v2-space-3); background: rgba(34, 197, 94, 0.1); border: 1px solid rgba(34, 197, 94, 0.3); border-radius: var(--v2-radius-md); color: #22c55e; text-align: center;">✅ 上传完成</div>
+                    `;
+                } else {
+                    showNotification(result.message || '上传失败', 'error');
+                    document.getElementById('upload-progress').innerHTML += `
+                        <div style="margin-top: var(--v2-space-3); padding: var(--v2-space-3); background: rgba(239, 68, 68, 0.1); border: 1px solid rgba(239, 68, 68, 0.3); border-radius: var(--v2-radius-md); color: #ef4444; text-align: center;">❌ ${result.message || '上传失败'}</div>
+                    `;
+                }
+            } catch (error) {
+                console.error('上传请求失败:', error);
+                showNotification('上传请求失败，请检查网络连接', 'error');
+            }
         }
         
         // 加载项目配置
