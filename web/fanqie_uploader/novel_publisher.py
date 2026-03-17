@@ -8,9 +8,17 @@ import sys
 import time
 import json
 import re
+import logging
+from pathlib import Path
 from datetime import datetime, timedelta
 from typing import List, Dict, Any, Optional, Tuple
 from playwright.sync_api import Page
+
+# 使用 web_config 的统一 logger
+try:
+    from web.web_config import logger
+except ImportError:
+    logger = logging.getLogger(__name__)
 
 # 导入同级目录下的工具模块
 try:
@@ -38,6 +46,55 @@ class NovelPublisher:
         self.file_handler = FileHandler(config_loader)
         self.ui_helper = UIHelper(config_loader)
     
+    def _load_legacy_project_info(self, project_dir: Path, data: Dict) -> None:
+        """
+        🔥 兼容旧格式：从 project_info/ 目录加载项目信息
+        
+        Args:
+            project_dir: 项目目录路径
+            data: 已加载的项目数据（会被修改补充）
+        """
+        try:
+            project_info_dir = project_dir / "project_info"
+            if not project_info_dir.exists():
+                return
+            
+            # 查找最新的项目信息文件
+            info_files = list(project_info_dir.glob("*_项目信息_*.json"))
+            if not info_files:
+                return
+            
+            # 按修改时间排序，取最新的
+            info_files.sort(key=lambda x: x.stat().st_mtime, reverse=True)
+            latest_info_file = info_files[0]
+            
+            logger.info(f"[Publisher] 发现旧格式项目信息文件: {latest_info_file.name}")
+            
+            # 加载旧格式数据
+            legacy_data = self.file_handler.load_json_file(str(latest_info_file))
+            if not legacy_data:
+                return
+            
+            # 补充缺失的字段
+            if 'selected_plan' not in data and 'selected_plan' in legacy_data:
+                data['selected_plan'] = legacy_data['selected_plan']
+                logger.info("[Publisher] 从旧格式补充 selected_plan")
+            
+            if 'creative_seed' not in data and 'creative_seed' in legacy_data:
+                data['creative_seed'] = legacy_data['creative_seed']
+                logger.info("[Publisher] 从旧格式补充 creative_seed")
+            
+            if 'novel_title' not in data and 'novel_title' in legacy_data:
+                data['novel_title'] = legacy_data['novel_title']
+                logger.info("[Publisher] 从旧格式补充 novel_title")
+            
+            if 'synopsis' not in data and 'synopsis' in legacy_data:
+                data['synopsis'] = legacy_data['synopsis']
+                logger.info("[Publisher] 从旧格式补充 synopsis")
+                
+        except Exception as e:
+            logger.info(f"[Publisher] 加载旧格式项目信息失败: {e}")
+    
     def publish_novel(self, page: Page, json_file: str) -> bool:
         """
         发布单个小说
@@ -49,65 +106,87 @@ class NovelPublisher:
         Returns:
             是否发布成功
         """
-        print(f"\n处理小说项目: {os.path.basename(json_file)}")
+        logger.info(f"\n[Publisher] 处理小说项目: {os.path.basename(json_file)}")
         
         # 加载小说数据
+        logger.info("[Publisher] 正在加载JSON文件...")
         data = self.file_handler.load_json_file(json_file)
         if not data:
-            print(f"✗ 无法加载小说项目文件: {json_file}")
+            logger.info(f"✗ 无法加载小说项目文件: {json_file}")
             return False
+        
+        logger.info(f"[Publisher] JSON加载成功，数据键: {list(data.keys())}")
+        
+        # 🔥 兼容旧格式：从 project_info/ 目录加载额外数据
+        json_file_path = Path(json_file)
+        project_dir = json_file_path.parent
+        self._load_legacy_project_info(project_dir, data)
         
         # 适配两种数据格式：直接字段或嵌套 novel_info
         if 'novel_info' in data and isinstance(data['novel_info'], dict):
             novel_title = data['novel_info'].get('title', '')
             novel_synopsis = data['novel_info'].get('synopsis', '')
+            selected_plan = data['novel_info'].get('selected_plan', {})
+            logger.info(f"[Publisher] 使用嵌套 novel_info 格式")
         else:
+            # 旧格式：扁平结构
             novel_title = data.get('novel_title', '')
-            novel_synopsis = data.get('novel_synopsis', '')
+            novel_synopsis = data.get('synopsis', '') or data.get('novel_synopsis', '')
+            selected_plan = data.get('selected_plan', {})
+            logger.info(f"[Publisher] 使用直接字段格式（旧格式）")
         
         if not novel_title:
-            print(f"✗ 小说标题为空，请检查项目文件格式")
+            logger.info(f"✗ 小说标题为空，请检查项目文件格式")
             return False
         
-        # 处理主角名 - 优先从selected_plan中获取（创建书本阶段）
+        # 🔥 处理主角名 - 优先从selected_plan中获取（兼容新旧格式）
         main_character = "未知主角"
-        if 'selected_plan' in data and isinstance(data['selected_plan'], dict):
-            suggestions = data['selected_plan'].get('suggestions', {})
+        if selected_plan and isinstance(selected_plan, dict):
+            suggestions = selected_plan.get('suggestions', {})
             if isinstance(suggestions, dict) and 'name' in suggestions:
                 main_character = suggestions['name']
-        elif 'character_design' in data and 'main_character' in data['character_design']:
-            main_character = data['character_design']['main_character'].get('name', '未知主角')
+                logger.info(f"[Publisher] 从 selected_plan 获取主角名: {main_character}")
         
-        print(f"小说名称: {novel_title}")
-        print(f"主角: {main_character}")
+        # 备选：从 character_design 获取
+        if main_character == "未知主角":
+            char_design = data.get('character_design', {})
+            if not char_design and 'novel_info' in data:
+                char_design = data['novel_info'].get('character_design', {})
+            if char_design and 'main_character' in char_design:
+                main_character = char_design['main_character'].get('name', '未知主角')
+                logger.info(f"[Publisher] 从 character_design 获取主角名: {main_character}")
+        
+        logger.info(f"[Publisher] 小说名称: {novel_title}")
+        logger.info(f"[Publisher] 主角: {main_character}")
         
         # 优化简介排版
+        logger.info("[Publisher] 正在格式化简介...")
         formatted_synopsis = self.file_handler.format_synopsis_for_fanqie(novel_synopsis, data)
-        print("优化后的简介:")
-        print(formatted_synopsis)
-        print("-" * 50)
+        logger.info("[Publisher] 优化后的简介:")
+        logger.info(formatted_synopsis[:200] + "..." if len(formatted_synopsis) > 200 else formatted_synopsis)
+        logger.info("-" * 50)
         
         # 加载发布进度
         progress = self._load_publish_progress(novel_title)
         
         # 检查是否需要创建新书
         if not progress.get("book_created", False):
-            print("书籍未创建，开始创建新书...")
+            logger.info("书籍未创建，开始创建新书...")
             if self._create_new_book(page, novel_title, formatted_synopsis, main_character, data):
                 progress["book_created"] = True
                 self._save_publish_progress(novel_title, progress)
-                print(f"✓ 书籍《{novel_title}》创建成功")
+                logger.info(f"✓ 书籍《{novel_title}》创建成功")
             else:
-                print(f"✗ 书籍《{novel_title}》创建失败")
+                logger.info(f"✗ 书籍《{novel_title}》创建失败")
                 return False
         
         # 等待页面完全加载
-        print("等待书籍详情页完全加载...")
+        logger.info("等待书籍详情页完全加载...")
         try:
             page.wait_for_load_state("networkidle")
             time.sleep(2)
         except Exception as e:
-            print(f"等待页面加载时出错: {e}")
+            logger.info(f"等待页面加载时出错: {e}")
         
         # 处理章节发布
         return self._publish_chapters(page, novel_title, json_file, data, progress)
@@ -134,8 +213,8 @@ class NovelPublisher:
         )
         
         if not os.path.exists(chapter_path):
-            print(f"章节目录不存在: {chapter_path}")
-            print("请确保章节文件位于正确的目录中")
+            logger.info(f"章节目录不存在: {chapter_path}")
+            logger.info("请确保章节文件位于正确的目录中")
             return False
         
         # 获取章节文件
@@ -149,21 +228,21 @@ class NovelPublisher:
         chapter_files_sorted = self.file_handler.sort_files_by_chapter(valid_chapter_files)
         
         if not chapter_files_sorted:
-            print("未找到章节文件")
+            logger.info("未找到章节文件")
             return False
         
-        print(f"找到 {len(chapter_files_sorted)} 个章节")
+        logger.info(f"找到 {len(chapter_files_sorted)} 个章节")
         
         # 发布章节
         published_chapters = progress.get("published_chapters", [])
         total_content_len = progress.get("total_content_len", 0)
         
         published_count = len(published_chapters)
-        print(f"检测到已发布 {published_count} 章，将从第 {published_count + 1} 章继续...")
+        logger.info(f"检测到已发布 {published_count} 章，将从第 {published_count + 1} 章继续...")
         
         # 检查小说是否已完成
         if self._check_if_novel_completed(json_file, published_count):
-            print(f"🎉 小说《{novel_title}》已完成所有章节发布!")
+            logger.info(f"🎉 小说《{novel_title}》已完成所有章节发布!")
             if self.file_handler.move_completed_novel_to_published(novel_title, json_file):
                 return True
         
@@ -260,20 +339,20 @@ class NovelPublisher:
             
             # 跳过已发布的章节
             if current_chapter['published']:
-                print(f"跳过已发布章节: {os.path.basename(current_chapter['file'])}")
+                logger.info(f"跳过已发布章节: {os.path.basename(current_chapter['file'])}")
                 current_chapter_index += 1
                 continue
             
             # 检查累计字数是否达到阈值
             if total_content_len < word_threshold:
-                print(f"当前累计字数 {total_content_len} 小于 {word_threshold}，跳过章节 {current_chapter['chap_num']} 的定时发布设置")
+                logger.info(f"当前累计字数 {total_content_len} 小于 {word_threshold}，跳过章节 {current_chapter['chap_num']} 的定时发布设置")
                 
                 # 直接发布章节但不设置定时
                 if not self.ui_helper.check_and_recover_page(page):
-                    print("页面已失效，无法继续发布")
+                    logger.info("页面已失效，无法继续发布")
                     break
                 
-                print(f"\n发布第 {current_chapter['chap_num']} 章: {current_chapter['chap_title']} (字数: {current_chapter['chap_len']}) - 不设置定时")
+                logger.info(f"\n发布第 {current_chapter['chap_num']} 章: {current_chapter['chap_title']} (字数: {current_chapter['chap_len']}) - 不设置定时")
                 
                 # 发布章节（不设置定时）
                 result = self._verify_and_create_chapter(
@@ -285,7 +364,7 @@ class NovelPublisher:
                     total_content_len += current_chapter['chap_len']
                     progress["total_content_len"] = total_content_len
                     self._save_publish_progress(novel_title, progress)
-                    print(f"✓ 发布成功 (累计字数: {total_content_len})")
+                    logger.info(f"✓ 发布成功 (累计字数: {total_content_len})")
                     
                     # 标记为已发布
                     current_chapter['published'] = True
@@ -300,18 +379,18 @@ class NovelPublisher:
                     
                     # 检查是否完成所有章节
                     if self._check_if_novel_completed(json_file, len(published_chapters)):
-                        print(f"🎉 小说《{novel_title}》已完成所有章节发布!")
+                        logger.info(f"🎉 小说《{novel_title}》已完成所有章节发布!")
                         if self.file_handler.move_completed_novel_to_published(novel_title, json_file):
                             return True
                 else:
-                    print("✗ 发布失败")
+                    logger.info("✗ 发布失败")
                     self.ui_helper.wait_for_enter("发布失败，按回车继续下一章...", timeout=10)
                 
                 current_chapter_index += 1
                 continue
             
             # 累计字数达到阈值后，开始设置定时发布
-            print(f"累计字数已达 {total_content_len}，超过阈值 {word_threshold}，开始设置定时发布")
+            logger.info(f"累计字数已达 {total_content_len}，超过阈值 {word_threshold}，开始设置定时发布")
             
             # 定时发布逻辑
             success = self._handle_scheduled_publishing(
@@ -325,7 +404,7 @@ class NovelPublisher:
             else:
                 break
         
-        print(f"\n✓ 小说《{novel_title}》发布完成，共 {len(chapter_files)} 章，总字数 {total_content_len}")
+        logger.info(f"\n✓ 小说《{novel_title}》发布完成，共 {len(chapter_files)} 章，总字数 {total_content_len}")
         return True
     
     def _create_new_book(self, page: Page, novel_title: str, formatted_synopsis: str, 
@@ -343,37 +422,145 @@ class NovelPublisher:
         Returns:
             是否创建成功
         """
-        print("创建新书...")
+        logger.info("[Publisher] 开始创建新书...")
+        import sys
+        sys.stdout.flush()
+        
+        # 调试截图路径
+        debug_dir = os.path.join(os.path.dirname(__file__), '..', '..', 'debug_screenshots')
+        os.makedirs(debug_dir, exist_ok=True)
         
         try:
-            # 点击创建新书
-            create_selectors = [
-                'xpath=//*[@id="app"]/div/div[2]/div[2]/div/div/div[1]/div/div[2]/div/span/div',
-                'text=创建书本',
-                'button:has-text("创建书本")'
-            ]
+            # 等待页面完全加载
+            logger.info("[Publisher] 等待页面加载...")
+            time.sleep(2)
             
-            for selector in create_selectors:
-                if self.ui_helper.safe_click(page.locator(selector).first, "创建新书"):
-                    break
-            else:
-                print("未找到创建新书按钮")
+            # 截图查看当前页面状态
+            try:
+                screenshot_path = os.path.join(debug_dir, f'create_book_{int(time.time())}.png')
+                page.screenshot(path=screenshot_path, full_page=True)
+                logger.info(f"页面截图已保存: {screenshot_path}")
+            except Exception as e:
+                logger.info(f"截图失败: {e}")
+            
+            # 打印当前页面URL和标题用于调试
+            try:
+                logger.info(f"当前页面URL: {page.url}")
+            except:
+                logger.info("无法获取页面URL")
+            
+            try:
+                title = page.title()
+                logger.info(f"当前页面标题: {title}")
+            except:
+                logger.info("无法获取页面标题")
+            
+            # 步骤1: 点击"创建新书"打开下拉菜单
+            menu_opened = False
+            
+            try:
+                # 查找"创建新书"按钮（div.hoverup 或包含 tomato-circle-add 图标）
+                locator = page.locator('div.hoverup:has-text("创建新书"), div.font-4:has-text("创建新书")')
+                if locator.count() > 0:
+                    logger.info("找到创建新书按钮，点击打开下拉菜单...")
+                    locator.first.click(timeout=5000)
+                    menu_opened = True
+                    time.sleep(0.5)  # 等待菜单展开
+            except Exception as e:
+                logger.info(f"点击创建新书按钮失败: {e}")
+            
+            if not menu_opened:
+                logger.info("无法打开创建新书菜单")
                 return False
             
-            time.sleep(0.3)
-            self.ui_helper.safe_click(page.get_by_text("创建书本", exact=False), "创建书本")
-            time.sleep(0.3)
+            # 步骤2: 点击下拉菜单中的"创建书本"选项
+            clicked = False
             
-            # 填写书名
+            # 策略1: 直接查找"创建书本"文本
+            try:
+                locator = page.get_by_text("创建书本", exact=True)
+                if locator.count() > 0:
+                    logger.info("找到'创建书本'选项")
+                    locator.first.click(timeout=5000)
+                    clicked = True
+            except Exception as e:
+                logger.info(f"查找创建书本(精确)失败: {e}")
+            
+            # 策略2: 查找包含"书本信息已准备好"的选项（根据截图中的描述文字）
+            if not clicked:
+                try:
+                    # 先找到包含"书本信息已准备好"的元素，然后找到它的父级或兄弟元素"创建书本"
+                    locator = page.locator('text=书本信息已准备好')
+                    if locator.count() > 0:
+                        logger.info("找到'书本信息已准备好'描述，尝试点击父级'创建书本'...")
+                        # 向上查找包含"创建书本"的父元素
+                        parent = locator.locator('xpath=ancestor::*[contains(., "创建书本")][1]')
+                        if parent.count() > 0:
+                            parent.first.click(timeout=5000)
+                            clicked = True
+                        else:
+                            # 尝试直接查找附近的"创建书本"文本
+                            locator2 = page.locator('text=创建书本:has-text("书本信息已准备好")')
+                            if locator2.count() > 0:
+                                locator2.first.click(timeout=5000)
+                                clicked = True
+                except Exception as e:
+                    logger.info(f"通过描述查找创建书本失败: {e}")
+            
+            # 策略3: 查找所有包含"创建书本"的元素
+            if not clicked:
+                try:
+                    elements = page.locator(':text("创建书本")').all()
+                    logger.info(f"找到 {len(elements)} 个包含'创建书本'的元素")
+                    for i, el in enumerate(elements):
+                        try:
+                            text = el.text_content()
+                            logger.info(f"  元素 {i}: {text[:50] if text else 'N/A'}")
+                            # 点击包含"书本信息已准备好"的那个
+                            if text and "书本信息已准备好" in text:
+                                el.click(timeout=5000)
+                                clicked = True
+                                logger.info(f"  点击元素 {i} 成功")
+                                break
+                            # 或者点击独立的"创建书本"文本
+                            elif text and text.strip() == "创建书本":
+                                el.click(timeout=5000)
+                                clicked = True
+                                logger.info(f"  点击独立'创建书本'成功")
+                                break
+                        except Exception as e2:
+                            logger.info(f"  点击元素 {i} 失败: {e2}")
+                except Exception as e:
+                    logger.info(f"遍历创建书本元素失败: {e}")
+            
+            if not clicked:
+                logger.info("未找到'创建书本'选项")
+                # 截图记录当前状态
+                try:
+                    screenshot_path = os.path.join(debug_dir, f'create_book_menu_{int(time.time())}.png')
+                    page.screenshot(path=screenshot_path, full_page=True)
+                    logger.info(f"菜单截图已保存: {screenshot_path}")
+                except:
+                    pass
+                return False
+            
+            logger.info("✓ 点击'创建书本'选项成功")
+            time.sleep(2)  # 等待页面加载
+            
+            # 根据HTML结构更新选择器
+            # 书名输入框: <input placeholder="请输入作品名称" value="...">
             title_short = novel_title[-15:] if len(novel_title) >= 15 else novel_title
-            title_input = page.locator('xpath=//*[@id="name_input"]/div/span/span/input')
-            self.ui_helper.safe_fill(title_input, title_short, "书名")
+            try:
+                title_input = page.locator('input[placeholder="请输入作品名称"]')
+                title_input.fill(title_short)
+                logger.info(f"✓ 填写书名: {title_short}")
+            except Exception as e:
+                logger.info(f"填写书名失败: {e}")
             
-            # 选择男女频 - 适配两种数据格式
+            # 选择男女频
             if "novel_info" in novel_data and isinstance(novel_data["novel_info"], dict):
                 tags_info = novel_data.get("novel_info", {}).get("selected_plan", {}).get("tags", {})
             else:
-                # 直接从 selected_plan 获取
                 selected_plan = novel_data.get("selected_plan", {})
                 if isinstance(selected_plan, dict):
                     tags_info = selected_plan.get("tags", {})
@@ -381,31 +568,58 @@ class NovelPublisher:
                     tags_info = {}
             gender = tags_info.get("target_audience", "男频")
             
-            if gender == "女频":
-                female_radio = page.locator('xpath=//*[@id="radio"]/div/div/label[2]/span[1]')
-                self.ui_helper.safe_click(female_radio, "女频")
-                print("✓ 选择女频")
-            else:
-                male_radio = page.locator('xpath=//*[@id="radio"]/div/div/label[1]/span[1]')
-                self.ui_helper.safe_click(male_radio, "男频")
-                print("✓ 选择男频")
+            # 根据HTML: <input type="radio" name="pindao" value="1">男频, value="0">女频
+            try:
+                if gender == "女频":
+                    page.locator('input[name="pindao"][value="0"]').click()
+                    logger.info("✓ 选择女频")
+                else:
+                    page.locator('input[name="pindao"][value="1"]').click()
+                    logger.info("✓ 选择男频")
+            except Exception as e:
+                logger.info(f"选择男/女频失败: {e}")
             
-            # 选择作品标签
-            self._select_book_tags(page, tags_info)
-            
-            # 填写主角名和简介
+            # 填写主角名 - HTML: <input placeholder="请输入主角名1">
             character_short = main_character[:5] if len(main_character) >= 5 else main_character
-            character_input = page.locator('xpath=//*[@id="roleList"]/div/div/div[1]/span/span/input')
-            self.ui_helper.safe_fill(character_input, character_short, "主角名")
+            try:
+                character_input = page.locator('input[placeholder="请输入主角名1"]')
+                character_input.fill(character_short)
+                logger.info(f"✓ 填写主角名: {character_short}")
+            except Exception as e:
+                logger.info(f"填写主角名失败: {e}")
             
+            # 填写作品简介 - HTML: <textarea placeholder="请输入50-500字以内的作品简介...">
             synopsis_short = formatted_synopsis[:500] if len(formatted_synopsis) >= 500 else formatted_synopsis
-            synopsis_input = page.locator('xpath=//*[@id="descRow_input"]/div/div/textarea')
-            self.ui_helper.safe_fill(synopsis_input, synopsis_short, "作品简介")
+            try:
+                synopsis_input = page.locator('textarea[placeholder*="作品简介"]')
+                synopsis_input.fill(synopsis_short)
+                logger.info("✓ 填写作品简介")
+            except Exception as e:
+                logger.info(f"填写简介失败: {e}")
             
-            # 立即创建
-            create_button = page.locator('xpath=//*[@id="app"]/div/div[2]/div[2]/div[2]/div[2]/button[2]/span')
-            self.ui_helper.safe_click(create_button, "立即创建")
-            print("✓ 提交创建书籍")
+            # 处理标签弹窗（如果存在）
+            try:
+                # 检查是否有标签选择弹窗
+                modal = page.locator('.category-modal')
+                if modal.count() > 0 and modal.is_visible():
+                    logger.info("检测到标签选择弹窗，需要选择标签...")
+                    # 简化处理：点击取消，手动选择标签
+                    cancel_btn = page.locator('.category-modal button:has-text("取消")')
+                    if cancel_btn.count() > 0:
+                        cancel_btn.click()
+                        logger.info("✓ 关闭标签弹窗（请手动选择标签）")
+                        time.sleep(0.5)
+            except Exception as e:
+                logger.info(f"处理标签弹窗时出错: {e}")
+            
+            # 立即创建按钮 - HTML: <button type="button"><span>立即创建</span></button>
+            try:
+                create_button = page.locator('button:has-text("立即创建")')
+                create_button.click()
+                logger.info("✓ 点击立即创建")
+            except Exception as e:
+                logger.info(f"点击立即创建失败: {e}")
+                return False
             
             # 等待创建完成
             for _ in range(10):
@@ -421,7 +635,7 @@ class NovelPublisher:
             return False
             
         except Exception as e:
-            print(f"创建新书时出错: {e}")
+            logger.info(f"创建新书时出错: {e}")
             return False
     
     def _select_book_tags(self, page: Page, tags_info: Dict[str, Any]) -> None:
@@ -432,7 +646,7 @@ class NovelPublisher:
             page: 页面对象
             tags_info: 标签信息
         """
-        print("选择作品标签...")
+        logger.info("选择作品标签...")
         
         # 点击选择作品标签
         tag_button = page.locator('xpath=//*[@id="selectRow"]/div/div/span/div/span[1]')
@@ -443,7 +657,7 @@ class NovelPublisher:
         main_category = tags_info.get("main_category", "")
         if main_category:
             self.ui_helper.scroll_and_click_enhanced(page, "主分类", main_category)
-            print(f"✓ 选择主分类: {main_category}")
+            logger.info(f"✓ 选择主分类: {main_category}")
         
         # 选择主题
         themes = tags_info.get("themes", [])
@@ -453,7 +667,7 @@ class NovelPublisher:
                 if self.ui_helper.scroll_and_click_enhanced(page, "主题", theme):
                     selected_count += 1
                 time.sleep(0.3)
-            print(f"主题选择完成: {selected_count}/{len(themes)} 个主题被选中")
+            logger.info(f"主题选择完成: {selected_count}/{len(themes)} 个主题被选中")
         
         # 选择角色
         roles = tags_info.get("roles", [])
@@ -463,7 +677,7 @@ class NovelPublisher:
                 if self.ui_helper.scroll_and_click_enhanced(page, "角色", role):
                     selected_count += 1
                 time.sleep(0.3)
-            print(f"角色选择完成: {selected_count}/{len(roles)} 个角色被选中")
+            logger.info(f"角色选择完成: {selected_count}/{len(roles)} 个角色被选中")
         
         # 选择情节
         plots = tags_info.get("plots", [])
@@ -473,15 +687,15 @@ class NovelPublisher:
                 if self.ui_helper.scroll_and_click_enhanced(page, "情节", plot):
                     selected_count += 1
                 time.sleep(0.3)
-            print(f"情节选择完成: {selected_count}/{len(plots)} 个情节被选中")
+            logger.info(f"情节选择完成: {selected_count}/{len(plots)} 个情节被选中")
         
         # 确认标签选择
         confirm_button = page.locator('div.arco-modal-footer button.arco-btn-primary')
         if confirm_button.count() > 0:
             self.ui_helper.safe_click(confirm_button.first, "确认标签")
-            print("✓ 标签选择完成")
+            logger.info("✓ 标签选择完成")
         else:
-            print("⚠ 未找到确认标签按钮")
+            logger.info("⚠ 未找到确认标签按钮")
         
         time.sleep(1)
     
@@ -513,13 +727,13 @@ class NovelPublisher:
             if header_book_name.count() > 0:
                 actual_title = header_book_name.first.text_content().strip()
                 if expected_book_title not in actual_title:
-                    print(f"✗ 创建章节页面书籍不匹配! 期望: {expected_book_title}, 实际: {actual_title}")
+                    logger.info(f"✗ 创建章节页面书籍不匹配! 期望: {expected_book_title}, 实际: {actual_title}")
                     return 2
             
             # 填写章节信息
             input_elements = page.locator('input.serial-input.byte-input.byte-input-size-default')
             if input_elements.count() < 2:
-                print("未找到章节输入框")
+                logger.info("未找到章节输入框")
                 return 1
             
             # 填写章节序号和标题
@@ -561,7 +775,7 @@ class NovelPublisher:
             return self._submit_chapter(page, chap_number, chap_title)
             
         except Exception as e:
-            print(f"发布章节时发生错误: {e}")
+            logger.info(f"发布章节时发生错误: {e}")
             return 1
     
     def _handle_popup_dialogs(self, page: Page) -> None:
@@ -644,7 +858,7 @@ class NovelPublisher:
                 time.sleep(1)
                 
         except Exception as e:
-            print(f"设置定时发布失败: {e}")
+            logger.info(f"设置定时发布失败: {e}")
     
     def _find_target_date(self, page: Page, target_date: str) -> None:
         """
@@ -677,7 +891,7 @@ class NovelPublisher:
         
         # 如果向前翻页没找到，改为向后翻页
         if not date_found:
-            print("向前翻页12次未找到日期，改为向后翻页")
+            logger.info("向前翻页12次未找到日期，改为向后翻页")
             back_count = 0
             max_back_count = 24
             
@@ -699,7 +913,7 @@ class NovelPublisher:
                     time.sleep(1)
         
         if not date_found:
-            print(f"✗ 无法找到目标日期 {target_date}，发布失败，继续下一章")
+            logger.info(f"✗ 无法找到目标日期 {target_date}，发布失败，继续下一章")
     
     def _submit_chapter(self, page: Page, chap_number: str, chap_title: str) -> int:
         """
@@ -757,7 +971,7 @@ class NovelPublisher:
                     element_inner_text = element.inner_text()
                     chap_no = f"""第{chap_number}章"""
                     if chap_title in element_inner_text and chap_no in element_inner_text:
-                        print(f"✓ 本章节 [{chap_no} {chap_title}] 发布成功,已确认! ")
+                        logger.info(f"✓ 本章节 [{chap_no} {chap_title}] 发布成功,已确认! ")
                         return 0
                 
                 return 1
@@ -765,7 +979,7 @@ class NovelPublisher:
             return 1
             
         except Exception as e:
-            print(f"提交章节时出错: {e}")
+            logger.info(f"提交章节时出错: {e}")
             return 1
     
     def _load_publish_progress(self, novel_title: str) -> Dict[str, Any]:
@@ -850,7 +1064,7 @@ class NovelPublisher:
             with open(progress_file, 'w', encoding='utf-8') as f:
                 json.dump(all_progress, f, ensure_ascii=False, indent=2)
         except Exception as e:
-            print(f"保存发布进度时出错: {e}")
+            logger.info(f"保存发布进度时出错: {e}")
     
     def _check_if_novel_completed(self, json_file: str, published_chapters_count: int) -> bool:
         """
@@ -878,7 +1092,7 @@ class NovelPublisher:
             return False
             
         except Exception as e:
-            print(f"检查小说完成状态时出错: {e}")
+            logger.info(f"检查小说完成状态时出错: {e}")
             return False
     
     def _restore_scheduled_publish_state(self, published_chapters: List[Dict[str, Any]], 
@@ -915,7 +1129,7 @@ class NovelPublisher:
                         # 继续使用相同的日期和时间
                         current_date = last_date
                         current_time = datetime.strptime(last_time_str, "%H:%M").time()
-                        print(f"✓ 恢复状态: 继续使用 {current_date} {current_time.strftime('%H:%M')} 的第 {last_slot_index + 1} 个位置")
+                        logger.info(f"✓ 恢复状态: 继续使用 {current_date} {current_time.strftime('%H:%M')} 的第 {last_slot_index + 1} 个位置")
                     else:
                         # 移动到下一个时间点
                         time_index = publish_times.index(last_time_str)
@@ -923,23 +1137,23 @@ class NovelPublisher:
                             next_time_str = publish_times[time_index + 1]
                             current_date = last_date
                             current_time = datetime.strptime(next_time_str, "%H:%M").time()
-                            print(f"✓ 恢复状态: 时间点已满，移动到同一天的下一个时间点 {current_date} {current_time.strftime('%H:%M')}")
+                            logger.info(f"✓ 恢复状态: 时间点已满，移动到同一天的下一个时间点 {current_date} {current_time.strftime('%H:%M')}")
                         else:
                             # 移动到下一天的第一个时间点
                             current_date = last_date + timedelta(days=1)
                             current_time = datetime.strptime(publish_times[0], "%H:%M").time()
-                            print(f"✓ 恢复状态: 当天时间点已满，移动到下一天 {current_date} {current_time.strftime('%H:%M')}")
+                            logger.info(f"✓ 恢复状态: 当天时间点已满，移动到下一天 {current_date} {current_time.strftime('%H:%M')}")
                     
                     # 验证恢复的时间是否有效
                     restored_datetime = datetime.combine(current_date, current_time)
                     if restored_datetime <= now:
-                        print(f"⚠️  恢复的时间 {current_date} {current_time.strftime('%H:%M')} 已过期，使用当前时间")
+                        logger.info(f"⚠️  恢复的时间 {current_date} {current_time.strftime('%H:%M')} 已过期，使用当前时间")
                         return now.date(), now.time()
                     
                     return current_date, current_time
                     
                 except Exception as e:
-                    print(f"恢复定时发布状态时出错: {e}, 将使用当前时间")
+                    logger.info(f"恢复定时发布状态时出错: {e}, 将使用当前时间")
         
         return now.date(), now.time()
     
@@ -1023,7 +1237,7 @@ class NovelPublisher:
                     break
             
             if not found_available_slot:
-                print("✗ 在30天内未找到可用的发布时间点")
+                logger.info("✗ 在30天内未找到可用的发布时间点")
                 break
             
             # 发布当前章节
@@ -1034,7 +1248,7 @@ class NovelPublisher:
             chap_len = current_chapter['chap_len']
             
             if not self.ui_helper.check_and_recover_page(page):
-                print("页面已失效，无法继续发布")
+                logger.info("页面已失效，无法继续发布")
                 return False
             
             target_date_str = target_date.strftime('%Y-%m-%d')
@@ -1044,8 +1258,8 @@ class NovelPublisher:
             current_count = date_time_slot_usage.get(target_date_str, {}).get(target_time_str, 0)
             time_slot_index = current_count + 1
             
-            print(f"\n发布第 {chap_num} 章: {chap_title} (字数: {chap_len})")
-            print(f"定时发布: {target_date_str} {target_time_str} (第 {time_slot_index} 个位置)")
+            logger.info(f"\n发布第 {chap_num} 章: {chap_title} (字数: {chap_len})")
+            logger.info(f"定时发布: {target_date_str} {target_time_str} (第 {time_slot_index} 个位置)")
             
             # 发布章节
             result = self._verify_and_create_chapter(
@@ -1067,7 +1281,7 @@ class NovelPublisher:
                 progress["total_content_len"] = total_content_len
                 self._save_publish_progress(novel_title, progress)
                 
-                print(f"✓ 发布成功 (累计字数: {total_content_len})")
+                logger.info(f"✓ 发布成功 (累计字数: {total_content_len})")
                 
                 # 更新时间点使用计数
                 if target_date_str not in date_time_slot_usage:
@@ -1076,11 +1290,11 @@ class NovelPublisher:
                 
                 # 检查是否完成所有章节
                 if self._check_if_novel_completed(json_file, len(published_chapters)):
-                    print(f"🎉 小说《{novel_title}》已完成所有章节发布!")
+                    logger.info(f"🎉 小说《{novel_title}》已完成所有章节发布!")
                     if self.file_handler.move_completed_novel_to_published(novel_title, json_file):
                         return True
             else:
-                print("✗ 发布失败")
+                logger.info("✗ 发布失败")
                 self.ui_helper.wait_for_enter("发布失败，按回车继续下一章...", timeout=10)
             
             current_chapter_index += 1

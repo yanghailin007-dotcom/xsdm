@@ -180,18 +180,15 @@ def start_upload():
 def find_novel_file(novel_title: str, user_id: int) -> Optional[str]:
     """查找小说项目文件路径"""
     from web.utils.path_utils import get_user_novel_dir, find_novel_project, NOVEL_PROJECTS_ROOT
-    from web.database import get_db_connection
+    from web.models.user_model import UserModel
     
     # 先获取用户名
     username = None
     try:
-        conn = get_db_connection()
-        cursor = conn.cursor()
-        cursor.execute('SELECT username FROM users WHERE id = ?', (user_id,))
-        row = cursor.fetchone()
-        if row:
-            username = row[0]
-        conn.close()
+        user_model = UserModel()
+        user = user_model.get_user_by_id(user_id)
+        if user:
+            username = user.get('username')
     except Exception as e:
         from web.web_config import logger
         logger.warning(f"[查找小说] 获取用户名失败: {e}")
@@ -202,11 +199,18 @@ def find_novel_file(novel_title: str, user_id: int) -> Optional[str]:
     for name in search_names:
         project_dir = find_novel_project(novel_title, name)
         if project_dir and project_dir.exists():
-            # 查找项目信息文件
+            # 🔥 优先查找带书名的项目信息文件，如 "诡异直播_项目信息.json"
+            safe_title = novel_title.replace('/', '_').replace('\\', '_')
+            info_file = project_dir / f"{safe_title}_项目信息.json"
+            if info_file.exists():
+                return str(info_file)
+            
+            # 备选：旧文件名 "项目信息.json"
             info_file = project_dir / "项目信息.json"
             if info_file.exists():
                 return str(info_file)
-            # 备选：查找其他 JSON 文件
+            
+            # 兜底：查找其他 JSON 文件
             json_files = list(project_dir.glob("*.json"))
             if json_files:
                 return str(json_files[0])
@@ -215,9 +219,16 @@ def find_novel_file(novel_title: str, user_id: int) -> Optional[str]:
     safe_title = novel_title.replace('/', '_').replace('\\', '_')
     legacy_project = NOVEL_PROJECTS_ROOT / safe_title
     if legacy_project.exists():
+        # 优先带书名的文件名
+        info_file = legacy_project / f"{safe_title}_项目信息.json"
+        if info_file.exists():
+            return str(info_file)
+        
+        # 备选旧文件名
         info_file = legacy_project / "项目信息.json"
         if info_file.exists():
             return str(info_file)
+            
         json_files = list(legacy_project.glob("*.json"))
         if json_files:
             return str(json_files[0])
@@ -235,9 +246,17 @@ def find_novel_file_legacy(novel_title: str, user_id: int) -> Optional[str]:
         project_dir = user_dir / novel_title
         
         if project_dir.exists():
+            # 优先带书名的文件名
+            safe_title = novel_title.replace('/', '_').replace('\\', '_')
+            info_file = project_dir / f"{safe_title}_项目信息.json"
+            if info_file.exists():
+                return str(info_file)
+            
+            # 备选旧文件名
             info_file = project_dir / "项目信息.json"
             if info_file.exists():
                 return str(info_file)
+                
             json_files = list(project_dir.glob("*.json"))
             if json_files:
                 return str(json_files[0])

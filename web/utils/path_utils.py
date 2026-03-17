@@ -50,6 +50,20 @@ def get_novel_projects_root() -> Path:
     return NOVEL_PROJECTS_ROOT
 
 
+def _restore_filename(filename: str) -> str:
+    """从文件名恢复原始标题"""
+    return filename
+
+
+def _sanitize_filename(filename: str) -> str:
+    """清理文件名，移除非法字符"""
+    import re
+    sanitized = re.sub(r'[\\/*?:"<>|]', '_', filename)
+    sanitized = re.sub(r'_+', '_', sanitized)
+    sanitized = sanitized.strip('_')
+    return sanitized
+
+
 def get_user_novel_dir(username: str = None, create: bool = True) -> Path:
     """
     获取指定用户的小说目录
@@ -316,12 +330,6 @@ def _safe_filename(title: str) -> str:
         result = result[:200]
     
     return result.strip()
-
-
-def _restore_filename(filename: str) -> str:
-    """从文件名恢复原始标题（简单实现）"""
-    # 目前只是原样返回，未来如果需要可以添加编码解码逻辑
-    return filename
 
 
 # 向后兼容的别名函数

@@ -64,10 +64,10 @@ class PathManager:
         try:
             paths = self.path_config.get_project_paths(novel_title, username=username)
             
-            # 🔥 修复：尝试多个可能的路径（新的标准路径优先）
+            # 🔥 尝试多个可能的路径（带书名的文件名优先）
             possible_paths = [
-                paths["project_info"],  # 小说项目/小说名/项目信息.json (新标准)
-                paths.get("project_info_legacy", ""),  # 小说项目/小说名/小说名_项目信息.json (旧版本)
+                paths["project_info"],  # 小说项目/小说名/小说名_项目信息.json (新标准，带书名)
+                paths.get("project_info_legacy", ""),  # 小说项目/小说名/项目信息.json (旧版本，兼容)
                 paths["legacy_project_info"],  # 小说项目/小说名_项目信息.json (旧路径)
             ]
             

@@ -1331,7 +1331,7 @@
             } catch (error) {
                 hideLoadingOverlay();
                 console.error('进入续写模式失败:', error);
-                alert('进入续写模式失败: ' + error.message);
+                showError('进入续写模式失败: ' + error.message);
             }
         }
 
@@ -1436,12 +1436,12 @@
             const additionalChapters = parseInt(document.getElementById('continue-chapters-count').value);
             
             if (isNaN(fromChapter) || fromChapter < 1) {
-                alert('请输入有效的起始章节数');
+                showError('请输入有效的起始章节数');
                 return;
             }
             
             if (isNaN(additionalChapters) || additionalChapters < 1) {
-                alert('请输入有效的续写章节数');
+                showError('请输入有效的续写章节数');
                 return;
             }
             
@@ -1459,7 +1459,7 @@
                 
                 if (response.status === 401) {
                     hideLoadingOverlay();
-                    alert('请先登录后再试');
+                    showError('请先登录后再试');
                     window.location.href = '/login';
                     return;
                 }
@@ -1485,7 +1485,7 @@
                 
             } catch (error) {
                 hideLoadingOverlay();
-                alert(`续写失败: ${error.message}`);
+                showError(`续写失败: ${error.message}`);
                 console.error('续写失败:', error);
             }
         }
@@ -1524,7 +1524,60 @@
         }
 
         function showError(message) {
-            alert(message);
+            // 使用 V2 样式 Toast 替代 alert
+            const existingToast = document.querySelector('.v2-toast');
+            if (existingToast) {
+                existingToast.remove();
+            }
+            
+            const toast = document.createElement('div');
+            toast.className = 'v2-toast';
+            toast.innerHTML = `
+                <span style="margin-right: 8px;">✕</span>
+                <span>${message}</span>
+            `;
+            
+            toast.style.cssText = `
+                position: fixed;
+                top: 20px;
+                right: 20px;
+                background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+                color: white;
+                padding: 16px 24px;
+                border-radius: 12px;
+                box-shadow: 0 10px 40px rgba(239, 68, 68, 0.3);
+                display: flex;
+                align-items: center;
+                z-index: 9999;
+                font-size: 14px;
+                font-weight: 500;
+                animation: v2-slide-in 0.3s ease;
+            `;
+            
+            // 添加动画样式
+            if (!document.getElementById('v2-toast-style')) {
+                const style = document.createElement('style');
+                style.id = 'v2-toast-style';
+                style.textContent = `
+                    @keyframes v2-slide-in {
+                        from { transform: translateX(100%); opacity: 0; }
+                        to { transform: translateX(0); opacity: 1; }
+                    }
+                    @keyframes v2-slide-out {
+                        from { transform: translateX(0); opacity: 1; }
+                        to { transform: translateX(100%); opacity: 0; }
+                    }
+                `;
+                document.head.appendChild(style);
+            }
+            
+            document.body.appendChild(toast);
+            
+            // 3秒后自动消失
+            setTimeout(() => {
+                toast.style.animation = 'v2-slide-out 0.3s ease forwards';
+                setTimeout(() => toast.remove(), 300);
+            }, 3000);
         }
 
         function exportNovel(title) {

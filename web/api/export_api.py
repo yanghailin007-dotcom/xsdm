@@ -186,17 +186,39 @@ def export_novel_zip(title):
     - 写作计划
     """
     try:
-        # 使用 NovelGenerationManager 查找项目路径
-        from web.managers.novel_manager import NovelGenerationManager
-        manager = NovelGenerationManager()
+        from urllib.parse import unquote
+        title = unquote(title)
         
-        # 获取项目详细信息以确定正确路径
-        novel_detail = manager.get_novel_detail(title)
-        if not novel_detail:
-            return jsonify({'success': False, 'error': '小说项目不存在'}), 404
+        # 使用 path_utils 动态查找用户项目（支持 owner/title 结构）
+        from web.utils.path_utils import list_user_projects, is_admin
+        
+        # 获取当前用户（从 session 或请求上下文）
+        from flask import session
+        try:
+            username = session.get('username')
+        except RuntimeError:
+            # 在没有 Flask 请求上下文时
+            username = None
+        
+        # 检查用户是否登录
+        if not username:
+            return jsonify({'success': False, 'error': '请先登录'}), 401
+        
+        # 列出用户的所有项目（管理员可查看所有项目）
+        user_projects = list_user_projects(username, include_public=True)
+        
+        # 查找匹配的项目（只能导出自己的项目，管理员除外）
+        target_project = None
+        for project in user_projects:
+            if project['title'] == title:
+                target_project = project
+                break
+        
+        if not target_project:
+            return jsonify({'success': False, 'error': '小说项目不存在或无权访问'}), 404
         
         # 构建小说项目完整路径 (owner/title 结构)
-        owner = novel_detail.get('owner', 'anonymous')
+        owner = target_project.get('owner', username)
         project_dir = NOVEL_PROJECTS_DIR / owner / title
         if not project_dir.exists():
             # 尝试直接查找（兼容旧结构）

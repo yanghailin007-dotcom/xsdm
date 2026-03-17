@@ -545,16 +545,26 @@ class ProjectManager:
             except Exception as e:
                 self.logger.warning(f"⚠️ 保存质量评估报告失败: {e}")
         
+        # 🔥 修复：从 selected_plan 同步 synopsis 和 creative_seed（如果主字段为空）
+        selected_plan = novel_data.get("selected_plan", {})
+        synopsis = novel_data.get("novel_synopsis", "")
+        if not synopsis and selected_plan.get("synopsis"):
+            synopsis = selected_plan["synopsis"]
+            
+        creative_seed = normalized_creative_seed
+        if not creative_seed and selected_plan.get("creative_seed"):
+            creative_seed = selected_plan["creative_seed"]
+        
         # 构建完整的项目数据（不包含成长路线和写作计划,因为已保存到独立文件）
         # 预编译正则表达式避免f-string中的反斜杠问题
         _invalid_chars_pattern = re.compile(r'[\\/*?:"<>|]')
         data = {
             "novel_info": {
                 "title": novel_data.get("novel_title", "未命名"),
-                "synopsis": novel_data.get("novel_synopsis", ""),
-                "creative_seed": normalized_creative_seed,
-                "selected_plan": novel_data.get("selected_plan", {}),
-                "category": novel_data.get("category", "未分类")
+                "synopsis": synopsis,
+                "creative_seed": creative_seed,
+                "selected_plan": selected_plan,
+                "category": novel_data.get("category", selected_plan.get("tags", {}).get("main_category", "未分类"))
             },
             # 核心数据（不包含 global_growth_plan 和 stage_writing_plans,已保存到独立文件）
             "market_analysis": novel_data.get("market_analysis", {}),

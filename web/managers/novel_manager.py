@@ -856,28 +856,16 @@ class NovelGenerationManager:
             logger.error(f"❌ 错误堆栈: {traceback.format_exc()}")
     
     def _find_project_info_file(self, project_path: Path) -> Optional[Path]:
-        """查找项目信息文件"""
-        # 🔥 修复：优先查找新的标准文件名 "项目信息.json"
-        info_file = project_path / "项目信息.json"
-        if info_file.exists():
-            return info_file
-        
-        # 备选：旧版本的 "小说名_项目信息.json"
+        """查找项目信息文件 - 使用带书名的文件名"""
+        # 🔥 新标准：使用带书名的文件名，如 "诡异直播_项目信息.json"
         info_file = project_path / f"{project_path.name}_项目信息.json"
         if info_file.exists():
             return info_file
         
-        # 备选：project_info.json
-        info_file = project_path / "project_info.json"
+        # 备选：旧版本 "项目信息.json"（兼容迁移期）
+        info_file = project_path / "项目信息.json"
         if info_file.exists():
             return info_file
-        
-        # 备选：project_info/ 子目录
-        info_dir = project_path / "project_info"
-        if info_dir.is_dir():
-            json_files = list(info_dir.glob("*_项目信息*.json"))
-            if json_files:
-                return json_files[0]
         
         return None
 
