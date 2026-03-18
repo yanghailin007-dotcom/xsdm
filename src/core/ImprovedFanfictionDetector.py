@@ -384,21 +384,27 @@ class ImprovedFanfictionDetector:
                 print(f"    开始进行精确的背景资料可信度验证...")
                 verification_result = self.content_verifier.verify_original_work_background(work_name, background_info)
                 
-                # 7. 如果可信度不足且配置了API客户端，尝试精确的字段级修正
-                if not verification_result.is_credible and self.api_client:
-                    print(f"    [WARNING] 背景资料可信度不足，开始精确字段级修正...")
-                    print(f"    置信度: {verification_result.confidence_score:.2f}")
+                # 7. 如果可信度不足且配置了API客户端，进行多轮修正
+                max_correction_rounds = 3  # 最多3轮修正
+                current_round = 0
+                
+                while not verification_result.is_credible and self.api_client and current_round < max_correction_rounds:
+                    current_round += 1
+                    print(f"    [CORRECTION ROUND {current_round}/{max_correction_rounds}] 开始第{current_round}轮字段级修正...")
+                    print(f"    当前置信度: {verification_result.confidence_score:.2f}")
                     print(f"    发现问题: {len(verification_result.field_issues)}个")
                     
                     # 输出具体问题详情
                     if verification_result.field_issues:
-                        print(f"    具体问题:")
-                        for i, issue in enumerate(verification_result.field_issues, 1):
+                        print(f"    待修复问题:")
+                        for i, issue in enumerate(verification_result.field_issues[:5], 1):  # 只显示前5个
                             print(f"      {i}. [{issue.severity.upper()}] {issue.field_path}: {issue.description}")
+                        if len(verification_result.field_issues) > 5:
+                            print(f"      ... 还有 {len(verification_result.field_issues) - 5} 个问题")
                     
                     # 使用修正指导进行精确修正
                     improved_background = self._apply_targeted_corrections(
-                        work_name, creative_work, background_info, verification_result
+                        work_name, creative_work, background_info, verification_result, current_round
                     )
                     
                     if improved_background:
@@ -408,18 +414,22 @@ class ImprovedFanfictionDetector:
                             background_info = self._merge_creative_setting(background_info, creative_work)
                         
                         # 重新验证
-                        print(f"    [REVERIFY] 重新验证修正后的背景资料...")
+                        print(f"    [REVERIFY] 第{current_round}轮修正完成，重新验证...")
                         verification_result = self.content_verifier.verify_original_work_background(work_name, background_info)
                         
                         if verification_result.is_credible:
-                            print(f"    [SUCCESS] 精确修正后验证通过！")
-                            print(f"    修正后置信度: {verification_result.confidence_score:.2f}")
+                            print(f"    [SUCCESS] 第{current_round}轮修正后验证通过！")
+                            print(f"    最终置信度: {verification_result.confidence_score:.2f}")
+                            break  # 通过了，跳出循环
                         else:
-                            print(f"    [WARNING] 精确修正后仍未完全通过验证")
-                            print(f"    当前置信度: {verification_result.confidence_score:.2f}")
-                            print(f"    剩余问题: {len(verification_result.field_issues)}个")
+                            print(f"    [⚠️] 第{current_round}轮修正后仍未通过，置信度: {verification_result.confidence_score:.2f}")
+                            if current_round < max_correction_rounds:
+                                print(f"    [连接] 开始第{current_round + 1}轮修正...")
+                            else:
+                                print(f"    [结束] 已达最大修正轮数({max_correction_rounds}轮)，将使用当前最佳结果继续")
                     else:
-                        print(f"    [FAILED] 精确修正失败")
+                        print(f"    [FAILED] 第{current_round}轮精确修正失败，停止修正")
+                        break
             
             # 8. 添加验证结果到背景资料中
             if verification_result:
@@ -454,7 +464,8 @@ class ImprovedFanfictionDetector:
         return background_info
 
     def _apply_targeted_corrections(self, work_name: str, creative_work: Optional[dict],
-                                  current_background: Dict, verification_result: VerificationResult) -> Optional[Dict]:
+                                  current_background: Dict, verification_result: VerificationResult,
+                                  round_num: int = 1) -> Optional[Dict]:
         """
         应用真正的字段级精准修正
         
@@ -463,6 +474,7 @@ class ImprovedFanfictionDetector:
             creative_work: 用户创意作品
             current_background: 当前背景资料
             verification_result: 验证结果
+            round_num: 当前修正轮次（用于多轮修正策略）
             
         Returns:
             修正后的背景资料
@@ -473,9 +485,9 @@ class ImprovedFanfictionDetector:
         
         correction_guide = verification_result.correction_guide
         
-        # 构建精确修正提示词
+        # 构建精确修正提示词（传入当前轮次）
         correction_prompt = self._build_targeted_correction_prompt(
-            work_name, current_background, correction_guide, creative_work
+            work_name, current_background, correction_guide, creative_work, round_num
         )
         
         if not correction_prompt:
@@ -586,7 +598,8 @@ class ImprovedFanfictionDetector:
             return None
 
     def _build_targeted_correction_prompt(self, work_name: str, current_background: Dict,
-                                         correction_guide: Dict, creative_work: Optional[dict]) -> str:
+                                         correction_guide: Dict, creative_work: Optional[dict],
+                                         round_num: int = 1) -> str:
         """
         构建真正的字段级精准修正提示词
         
@@ -595,10 +608,18 @@ class ImprovedFanfictionDetector:
             current_background: 当前背景资料
             correction_guide: 修正指导
             creative_work: 用户创意作品
+            round_num: 当前修正轮次
             
         Returns:
             修正提示词
         """
+        # 多轮修正策略提示
+        round_hints = {
+            1: "这是第一轮修正，请重点关注最严重的问题（CRITICAL 和 MAJOR）。",
+            2: "这是第二轮修正，请重点处理剩余的关键问题，确保修正完整。",
+            3: "这是最后一轮修正，请尽可能完善所有剩余问题，达到最佳状态。"
+        }
+        round_hint = round_hints.get(round_num, "请认真修正所有问题。")
         # 构建保持不变的字段信息
         preserve_info = ""
         if correction_guide.get("preserve_fields"):
@@ -641,6 +662,9 @@ class ImprovedFanfictionDetector:
         prompt = f"""
 你是一个专业的背景资料修正专家。请对《{work_name}》的背景资料进行真正的字段级精准修正。
 
+【修正轮次】第{round_num}轮修正
+{round_hint}
+
 【当前完整背景资料】
 ```json
 {json.dumps(current_background, ensure_ascii=False, indent=2)}
@@ -660,6 +684,7 @@ class ImprovedFanfictionDetector:
 3. 【保持结构】保持原有的JSON结构和字段顺序不变
 4. 【基于事实】修正必须基于提供的修正建议，确保符合原著设定
 5. 【最小改动】只修改必要的部分，避免不必要的文字调整
+6. 【深度修正】这是第{round_num}轮修正，请确保本次修正后问题得到实质性解决，不要重复之前的错误
 
 【输出格式】
 请只返回需要修改的字段的JSON补丁，格式如下：

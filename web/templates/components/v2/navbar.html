@@ -589,6 +589,31 @@
 
 <script>
 /**
+ * 切换语言
+ */
+function switchLanguage(lang) {
+    if (typeof I18N !== 'undefined' && I18N.setLanguage) {
+        I18N.setLanguage(lang);
+        // 保存语言设置
+        const settings = JSON.parse(localStorage.getItem('userSettings') || '{}');
+        settings.language = lang;
+        localStorage.setItem('userSettings', JSON.stringify(settings));
+    }
+}
+
+/**
+ * 同步语言选择器状态
+ */
+document.addEventListener('DOMContentLoaded', function() {
+    const settings = JSON.parse(localStorage.getItem('userSettings') || '{}');
+    if (settings.language) {
+        document.querySelectorAll('#language-switcher').forEach(el => {
+            if (el) el.value = settings.language;
+        });
+    }
+});
+
+/**
  * 显示"即将上线"提示
  */
 function showComingSoon(featureName) {

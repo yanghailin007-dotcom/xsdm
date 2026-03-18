@@ -610,13 +610,30 @@ class PhaseOneConversationManager:
             if isinstance(config, dict):
                 model_name = config.get('models', {}).get('kimi')
             
+            # 如果没有获取到 model_name，尝试从全局 CONFIG 获取
+            if not model_name:
+                from config.config import CONFIG
+                model_name = CONFIG.get('models', {}).get('kimi')
+            
             self.session = PhaseOneConversationSession(
                 api_client=self.generator.api_client,
                 novel_data=self.generator.novel_data,
                 provider="kimi",
                 model_name=model_name
             )
-            self.logger.info(f"[PhaseOne] Session started with model: {model_name or 'default'}")
+            # 检查端点配置的默认模型
+            endpoint_model = None
+            try:
+                pool = self.generator.api_client.endpoint_pools.get('kimi')
+                if pool:
+                    available = pool.get_available_endpoints()
+                    if available:
+                        endpoint_model = available[0].get_config().get('model')
+            except:
+                pass
+            
+            actual_model = model_name or endpoint_model or 'default'
+            self.logger.info(f"[PhaseOne] Session started | Config model: {model_name or 'None'} | Endpoint model: {endpoint_model or 'None'} | Using: {actual_model}")
             return self.session
         except Exception as e:
             self.logger.error(f"[PhaseOne] Failed to start session: {e}")

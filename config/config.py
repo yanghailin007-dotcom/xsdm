@@ -120,7 +120,7 @@ CONFIG = {
         "deepseek": "deepseek-reasoner",
         "yuanbao": "deepseek-reasoner",
         "gemini": "gemini-3-pro-preview",
-        "kimi": "kimi-k2-0905-preview"
+        "kimi": "kimi-k2.5"  # 修正：与端点配置保持一致
     },
 
     # ============================================================
@@ -129,7 +129,7 @@ CONFIG = {
     
     # 🔥 Provider 优先级配置（跨模型故障转移）
     # 按优先级排序，当高优先级模型的所有端点都失败时，自动切换到低优先级模型
-    "provider_priority": ["gemini", "kimi", "deepseek"],
+    "provider_priority": ["kimi", "gemini", "deepseek"],
     
     # 🔥 Provider 故障转移配置
     "provider_failover": {
@@ -148,37 +148,6 @@ CONFIG = {
     
     # 多轮对话优化（仅 Kimi 支持）
     "use_conversation_mode_for_kimi": True,
-    
-    # 模型路由配置
-    "model_routing": {
-        "enabled": True,
-        "routes": {
-            "chapter_quality_assessment_golden": "gemini-3-pro-preview",
-            "novel_plan_quality_assessment": "gemini-3-pro-preview",
-            "market_analysis_quality_assessment": "gemini-3-pro-preview",
-            "writing_plan_quality_assessment": "gemini-3-pro-preview",
-            "chapter_quality_assessment": "gemini-2.5-pro",
-            "freshness_assessment": "gemini-2.5-pro",
-            "core_worldview_quality_assessment": "gemini-2.5-pro",
-            "character_design_quality_assessment": "gemini-2.5-pro",
-            "chapter_content_generation": "gemini-3-pro-preview",
-            "chapter_optimization": "gemini-3-pro-preview",
-            "market_analysis_optimization": "gemini-3-pro-preview",
-            "writing_plan_optimization": "gemini-3-pro-preview",
-            "core_worldview_optimization": "gemini-3-pro-preview",
-            "character_design_optimization": "gemini-3-pro-preview",
-            "novel_plan_optimization": "gemini-3-pro-preview"
-        },
-        "default_model": "gemini-3-pro-preview",
-        "assessment_model": "gemini-2.5-pro"
-    },
-    
-    # 频率限制
-    "rate_limit": {
-        "enabled": False,
-        "interval": 1,
-        "max_requests": 1
-    },
     
     # 默认生成参数
     "defaults": {
