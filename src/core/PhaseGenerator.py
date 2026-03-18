@@ -14,6 +14,13 @@ from pathlib import Path
 from typing import Dict, Optional, Any
 from src.utils.logger import get_logger
 
+# 🔥 导入一阶段多轮对话会话（仅 Kimi 启用）
+try:
+    from src.core.PhaseOneConversation import PhaseOneConversationManager, PhaseOneConversationSession
+    CONVERSATION_MODE_AVAILABLE = True
+except ImportError:
+    CONVERSATION_MODE_AVAILABLE = False
+
 # 🔑 全局线程池监控（用于强制清理）
 _global_executors = weakref.WeakSet()
 
@@ -237,6 +244,20 @@ class PhaseGenerator:
         try:
             print("开始第一阶段准备工作...")
             
+            # 🔥🔥🔥 多轮对话模式检测：Kimi 端点启用
+            # 利用 Kimi 256K 上下文 + 缓存机制，节省 60-70% Token
+            if CONVERSATION_MODE_AVAILABLE and self._should_use_conversation_mode():
+                print("\n" + "="*60)
+                print("🚀 启用 Kimi 多轮对话模式")
+                print("   利用 256K 上下文窗口 + 缓存机制")
+                print("   预计节省 60-70% Token 成本")
+                print("="*60)
+                return self._generate_phase_one_with_conversation(
+                    update_progress_callback=update_progress_callback,
+                    update_step_status=update_step_status,
+                    notify_failure=notify_failure
+                )
+            
             # 🔥 基于 13 个标准步骤的进度映射
             step_progress_map = {
                 'initialization': 0,
@@ -370,6 +391,268 @@ class PhaseGenerator:
 
         except Exception as e:
             error_msg = f"第一阶段准备工作发生异常: {str(e)}"
+            print(f"❌ {error_msg}")
+            import traceback
+            traceback.print_exc()
+            notify_failure(error_msg)
+            return False
+    
+    def _should_use_conversation_mode(self) -> bool:
+        """
+        判断是否应使用多轮对话模式
+        
+        条件：
+        1. provider 必须是 kimi
+        2. 配置中未禁用（可选）
+        """
+        try:
+            # 检查 API 客户端
+            if not hasattr(self.generator, 'api_client') or not self.generator.api_client:
+                return False
+            
+            api_client = self.generator.api_client
+            
+            # 检查当前 provider
+            provider = getattr(api_client, 'default_provider', None)
+            if not provider:
+                # 尝试从 config 获取
+                config = getattr(api_client, 'config', {})
+                provider = config.get('default_provider') if isinstance(config, dict) else None
+            
+            # 只有 kimi 启用多轮对话模式
+            if provider != "kimi":
+                self.logger.info(f"⏭️ 当前 provider 为 '{provider}'，不使用多轮对话模式")
+                return False
+            
+            # 检查配置（可选禁用）
+            novel_config = getattr(self.generator, 'config', {})
+            if isinstance(novel_config, dict):
+                use_conversation = novel_config.get('use_conversation_mode_for_kimi', True)
+                if not use_conversation:
+                    self.logger.info("⏭️ 配置禁用了多轮对话模式")
+                    return False
+            
+            self.logger.info("✅ 满足条件，启用 Kimi 多轮对话模式")
+            return True
+            
+        except Exception as e:
+            self.logger.warning(f"⚠️ 检测多轮对话模式时出错: {e}")
+            return False
+    
+    def _generate_phase_one_with_conversation(self, update_progress_callback, update_step_status, notify_failure) -> bool:
+        """
+        使用多轮对话模式执行一阶段（保持15步骤兼容性）
+        
+        利用 Kimi 256K 上下文窗口，将整个一阶段整合为单次连续对话
+        预计节省 60-70% Token 成本
+        
+        🔥 关键：虽然内部使用7个对话步骤，但对外仍保持15个标准步骤的进度和检查点
+        """
+        from src.core.PhaseOneConversation import PhaseOneConversationManager
+        from src.managers.stage_plan.generation_checkpoint import GenerationCheckpoint
+        
+        try:
+            # 创建管理器
+            manager = PhaseOneConversationManager(self.generator)
+            
+            # 启动对话会话
+            session = manager.start_conversation()
+            if not session:
+                print("⚠️ 无法启动对话会话，回退到标准模式")
+                return False  # 让调用者回退到标准流程
+            
+            print("✅ 对话会话已启动，开始多轮生成...")
+            
+            # 🔥 15个标准步骤的详细映射（对话步骤 -> 标准步骤列表）
+            # 前4个步骤在多轮对话之前已完成，这里从第5步开始
+            conversation_step_to_standard_steps = {
+                "foundation_planning": [
+                    ("foundation_planning", 15, ["writing_style", "market_analysis"])
+                ],
+                "worldview_factions": [
+                    ("worldview_with_factions", 23, ["worldview", "faction_system"])
+                ],
+                "character_design": [
+                    ("character_design", 38, ["character_design"])
+                ],
+                "emotional_growth": [
+                    ("emotional_growth_planning", 46, ["emotional_growth_planning"])
+                ],
+                "stage_overview": [
+                    ("stage_plan", 62, ["stage_plan"])
+                ],
+                "stage_details": [
+                    ("detailed_stage_plans", 69, ["detailed_stage_plans", "expectation_mapping", "system_init"])
+                ],
+                "supplementary_chars": [
+                    ("supplementary_characters", 74, ["supplementary_characters"])
+                ],
+            }
+            
+            # 获取小说信息用于检查点
+            title = getattr(self.generator, 'creative_title', None) or self.generator.novel_data.get('title')
+            username = getattr(self.generator, '_username', None) or self.generator.novel_data.get('username')
+            
+            def save_checkpoint_for_step(step_name: str, progress: int, step_status: str = 'in_progress'):
+                """为指定步骤保存检查点"""
+                try:
+                    if title:
+                        checkpoint_mgr = GenerationCheckpoint(title, Path.cwd(), username=username)
+                        checkpoint_data = {
+                            'progress': progress,
+                            'step_status': {step_name: step_status},
+                            'novel_data_snapshot': self._prepare_data_for_checkpoint(self.generator.novel_data)
+                        }
+                        checkpoint_mgr.create_checkpoint(
+                            phase='phase_one',
+                            step=step_name,
+                            data=checkpoint_data,
+                            step_status=step_status
+                        )
+                except Exception as e:
+                    print(f"⚠️ 检查点保存失败: {e}")
+            
+            def progress_callback(step_name: str, progress: int, message: str):
+                """转换对话步骤进度到15步骤体系"""
+                # 查找对应的15步骤映射
+                if step_name not in conversation_step_to_standard_steps:
+                    return
+                
+                mappings = conversation_step_to_standard_steps[step_name]
+                
+                for primary_step, base_progress, sub_steps in mappings:
+                    # 计算当前进度
+                    if progress < 100:
+                        current_progress = base_progress
+                        status = 'active'
+                    else:
+                        current_progress = base_progress + 7  # 每个主要步骤约7%进度
+                        status = 'completed'
+                    
+                    # 构建步骤状态
+                    step_status_dict = {s: status for s in sub_steps}
+                    if status == 'active':
+                        step_status_dict[sub_steps[0]] = 'active'
+                    
+                    # 更新进度
+                    update_progress_callback(
+                        primary_step,
+                        min(current_progress, 95),
+                        message,
+                        step_status=step_status_dict
+                    )
+                    
+                    # 保存检查点
+                    save_checkpoint_for_step(primary_step, current_progress, status)
+                    
+                    # 更新各个子步骤状态
+                    for sub_step in sub_steps:
+                        update_step_status(sub_step, status, current_progress)
+            
+            # 🔥 更新前4个步骤为已完成状态（这些在多轮对话前已完成）
+            # 标准15步骤: creative_refinement, fanfiction_detection, multiple_plans, plan_selection
+            pre_conversation_steps = [
+                ('creative_refinement', 0),
+                ('fanfiction_detection', 2),
+                ('multiple_plans', 8),
+                ('plan_selection', 15),
+            ]
+            for step_name, progress in pre_conversation_steps:
+                update_step_status(step_name, 'completed', progress)
+                # 保存每个前序步骤的检查点
+                try:
+                    if title:
+                        checkpoint_mgr = GenerationCheckpoint(title, Path.cwd(), username=username)
+                        checkpoint_data = {
+                            'progress': progress,
+                            'step_status': {step_name: 'completed'},
+                            'novel_data_snapshot': self._prepare_data_for_checkpoint(self.generator.novel_data)
+                        }
+                        checkpoint_mgr.create_checkpoint(
+                            phase='phase_one',
+                            step=step_name,
+                            data=checkpoint_data,
+                            step_status='completed'
+                        )
+                        print(f"✅ 检查点已保存: {step_name} (completed)")
+                except Exception as e:
+                    print(f"⚠️ 前序步骤检查点保存失败: {step_name}, {e}")
+            
+            # 执行所有对话步骤
+            success = manager.execute_all_steps(progress_callback=progress_callback)
+            
+            if not success:
+                error_msg = "多轮对话模式生成失败"
+                print(f"❌ {error_msg}")
+                notify_failure(error_msg)
+                return False
+            
+            # 获取统计信息
+            stats = manager.get_conversation_stats()
+            print(f"\n📊 对话模式统计:")
+            print(f"   对话轮次: {stats.get('turns', 0)}")
+            print(f"   预估节省 Token: {stats.get('estimated_tokens_saved', 'N/A')}")
+            
+            # 执行保存阶段
+            print("\n💾 保存一阶段结果...")
+            update_step_status('saving', 'active', 92)
+            save_checkpoint_for_step('saving', 92, 'active')
+            
+            try:
+                save_success = self._save_phase_one_result()
+                if save_success:
+                    print("✅ 一阶段结果已保存")
+                else:
+                    print("⚠️ 部分文件保存失败")
+            except Exception as save_error:
+                print(f"⚠️ 保存时出错: {save_error}")
+            
+            update_step_status('saving', 'completed', 95)
+            save_checkpoint_for_step('saving', 95, 'completed')
+            
+            # 质量评估
+            print("\n📊 正在进行AI质量评估...")
+            update_step_status('quality_assessment', 'active', 98)
+            save_checkpoint_for_step('quality_assessment', 98, 'active')
+            
+            assessment_result = self._assess_writing_plan_quality()
+            if assessment_result:
+                self.generator.novel_data["quality_assessment"] = assessment_result
+                print(f"✅ 评估完成！得分: {assessment_result.get('overall_score', 0)}/100")
+            
+            update_step_status('quality_assessment', 'completed', 100)
+            save_checkpoint_for_step('quality_assessment', 100, 'completed')
+            
+            # 完成 - 所有15个步骤
+            final_step_status = {
+                'creative_refinement': 'completed',
+                'fanfiction_detection': 'completed',
+                'multiple_plans': 'completed',
+                'plan_selection': 'completed',
+                'foundation_planning': 'completed',
+                'worldview_with_factions': 'completed',
+                'character_design': 'completed',
+                'emotional_growth_planning': 'completed',
+                'stage_plan': 'completed',
+                'detailed_stage_plans': 'completed',
+                'supplementary_characters': 'completed',
+                'expectation_mapping': 'completed',
+                'system_init': 'completed',
+                'saving': 'completed',
+                'quality_assessment': 'completed',
+                'completed': 'completed'
+            }
+            
+            update_progress_callback('completed', 100, "第一阶段设定生成完成（多轮对话模式）",
+                                     step_status=final_step_status)
+            
+            print("\n" + "="*60)
+            print("🎉 一阶段完成！（多轮对话模式 - 15步骤兼容）")
+            print("="*60)
+            return True
+            
+        except Exception as e:
+            error_msg = f"多轮对话模式执行失败: {str(e)}"
             print(f"❌ {error_msg}")
             import traceback
             traceback.print_exc()

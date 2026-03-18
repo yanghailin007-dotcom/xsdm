@@ -644,10 +644,10 @@
             min-height: calc(1.6em * 3);
         }
 
-        /* 空简介时的占位样式 */
+        /* 空简介时的占位样式 - 使用JS动态设置 */
         .novel-description:empty::before,
         .novel-description[data-empty="true"]::before {
-            content: '暂无简介';
+            content: attr(data-placeholder);
             color: var(--text-muted);
             font-style: italic;
         }
@@ -1159,6 +1159,11 @@
             emptyState.style.display = 'none';
 
             grid.innerHTML = filteredNovels.map(novel => createNovelCard(novel)).join('');
+            
+            // 应用国际化翻译到动态生成的内容
+            if (typeof I18N !== 'undefined' && I18N.applyToPage) {
+                I18N.applyToPage();
+            }
         }
 
         function createNovelCard(novel) {
@@ -1171,36 +1176,40 @@
             // 🔥 改进：判断是否为"可续写"状态（第一阶段完成但第二阶段未完成）
             const canResume = novel.status === 'paused' && novel.completed_chapters === 0 && novel.total_chapters > 0;
             const statusClass = canResume ? 'status-resumable' : getStatusClass(novel.status);
-            const statusText = canResume ? '可续写' : getStatusText(novel.status);
+            const statusText = canResume ? (I18N.t ? I18N.t('novels.card.status.resumable') : '可续写') : getStatusText(novel.status);
 
             // 🔥 改进：根据状态显示不同的操作按钮
+            const readText = I18N.t ? I18N.t('novels.card.read') : '阅读';
             let actionButtons = `
                 <button class="novel-btn novel-btn-primary" onclick="viewNovel('${escapeHtml(novel.title)}')">
-                    📖 阅读
+                    📖 ${readText}
                 </button>
             `;
             
             if (!novel.is_public) {
                 if (canResume) {
                     // 可续写状态：显示醒目的"继续生成"按钮
+                    const continueText = I18N.t ? I18N.t('novels.card.continue') : '继续生成';
                     actionButtons += `
                         <button class="novel-btn" style="background: linear-gradient(135deg, #10b981, #34d399); color: white; border: none;" onclick="continueNovel('${escapeHtml(novel.title)}')">
-                            ▶️ 继续生成
+                            ▶️ ${continueText}
                         </button>
                     `;
                 } else if (novel.status !== 'completed') {
                     // 其他未完成状态：显示"续写"按钮
+                    const continueShortText = I18N.t ? I18N.t('novels.card.continueShort') : '续写';
                     actionButtons += `
                         <button class="novel-btn novel-btn-secondary" onclick="continueNovel('${escapeHtml(novel.title)}')">
-                            ➕ 续写
+                            ➕ ${continueShortText}
                         </button>
                     `;
                 }
             }
             
+            const exportText = I18N.t ? I18N.t('novels.card.export') : '导出';
             actionButtons += `
                 <button class="novel-btn novel-btn-secondary" onclick="exportNovel('${escapeHtml(novel.title)}')">
-                    📥 导出
+                    📥 ${exportText}
                 </button>
             `;
 
@@ -1217,7 +1226,7 @@
                             </div>
                             <div class="novel-meta-item">
                                 <span>📖</span>
-                                <span>${novel.completed_chapters}/${novel.total_chapters}章</span>
+                                <span>${novel.completed_chapters}/${novel.total_chapters}${I18N.t ? I18N.t('novels.card.chapters') : '章'}</span>
                             </div>
                             <div class="novel-meta-item">
                                 <span>⭐</span>
@@ -1225,19 +1234,19 @@
                             </div>
                             <div class="novel-meta-item">
                                 <span>📝</span>
-                                <span>${formatNumber(novel.word_count || 0)}字</span>
+                                <span>${formatNumber(novel.word_count || 0)}${I18N.t ? I18N.t('novels.card.words') : '字'}</span>
                             </div>
                         </div>
                     </div>
                     
                     <div class="novel-body">
-                        <p class="novel-description">
-                            ${escapeHtml(novel.synopsis || novel.core_setting || '暂无简介')}
+                        <p class="novel-description" data-placeholder="${I18N.t ? I18N.t('novels.card.noSynopsis') : '暂无简介'}">
+                            ${escapeHtml(novel.synopsis || novel.core_setting || '')}
                         </p>
                         
                         <div class="novel-progress">
                             <div class="progress-info">
-                                <span class="progress-label">完成进度</span>
+                                <span class="progress-label" data-i18n="novels.card.progress">完成进度</span>
                                 <span class="progress-value">${progress}%</span>
                             </div>
                             <div class="progress-bar">
@@ -1264,11 +1273,11 @@
 
         function getStatusText(status) {
             const statusMap = {
-                'completed': '已完成',
-                'generating': '生成中',
-                'paused': '已暂停'
+                'completed': I18N.t ? I18N.t('novels.card.status.completed') : '已完成',
+                'generating': I18N.t ? I18N.t('novels.card.status.generating') : '生成中',
+                'paused': I18N.t ? I18N.t('novels.card.status.paused') : '已暂停'
             };
-            return statusMap[status] || '未知';
+            return statusMap[status] || (I18N.t ? I18N.t('novels.card.status.unknown') : '未知');
         }
 
         function setFilter(filter) {
@@ -1312,7 +1321,8 @@
         async function continueNovel(title) {
             // 跳转到二阶段续写界面
             try {
-                showLoadingOverlay('正在准备续写环境...');
+                const loadingText = I18N.t ? I18N.t('novels.continue.loading') : '正在启动续写任务...';
+            showLoadingOverlay(loadingText);
                 
                 // 调用 API 准备进入第二阶段
                 const response = await fetch(`/api/phase-one/continue-to-phase-two/${encodeURIComponent(title)}`, {
@@ -1323,7 +1333,8 @@
                 const result = await response.json();
                 
                 if (!result.success) {
-                    throw new Error(result.error || '进入续写模式失败');
+                    const continueFailedText = I18N.t ? I18N.t('novels.continue.error.failed') : '续写失败';
+                    throw new Error(result.error || continueFailedText);
                 }
                 
                 // 跳转到二阶段生成界面
@@ -1331,7 +1342,8 @@
             } catch (error) {
                 hideLoadingOverlay();
                 console.error('进入续写模式失败:', error);
-                showError('进入续写模式失败: ' + error.message);
+                const enterContinueFailedText = I18N.t ? I18N.t('novels.continue.error.failed') : '续写失败';
+                showError(enterContinueFailedText + ': ' + error.message);
             }
         }
 
@@ -1340,36 +1352,36 @@
                 <div id="continue-dialog" class="dialog-overlay" onclick="if(event.target === this) closeContinueDialog()">
                     <div class="dialog-content">
                         <div class="dialog-header">
-                            <h3>📝 续写小说</h3>
-                            <p>继续生成小说《${escapeHtml(title)}》</p>
+                            <h3>📝 ${I18N.t ? I18N.t('novels.continue.title') : '续写小说'}</h3>
+                            <p>${I18N.t ? I18N.t('novels.continue.subtitle').replace('{title}', escapeHtml(title)) : '继续生成小说《'+escapeHtml(title)+'》'}</p>
                         </div>
                         
                         <div class="dialog-body">
                             <div class="form-group">
-                                <label>小说标题</label>
+                                <label>${I18N.t ? I18N.t('novel.title') : '小说标题'}</label>
                                 <input type="text" id="continue-title" value="${escapeHtml(title)}" readonly>
                             </div>
                             
                             <div class="form-group">
-                                <label>从第几章开始续写</label>
+                                <label>${I18N.t ? I18N.t('novels.continue.startChapter') : '从第几章开始续写'}</label>
                                 <input type="number" id="continue-from-chapter" value="1" min="1">
-                                <div class="form-hint">可以从任何章节开始，包括重新生成已有章节</div>
+                                <div class="form-hint">${I18N.t ? I18N.t('novels.continue.startChapter.hint') : '可以从任何章节开始，包括重新生成已有章节'}</div>
                             </div>
                             
                             <div class="form-group">
                                 <label>续写章节数</label>
                                 <select id="continue-chapters-count">
-                                    <option value="5">5章</option>
-                                    <option value="10" selected>10章</option>
-                                    <option value="20">20章</option>
-                                    <option value="50">50章</option>
+                                    <option value="5">5${I18N.t ? I18N.t('novels.continue.chapters') : '章'}</option>
+                                    <option value="10" selected>10${I18N.t ? I18N.t('novels.continue.chapters') : '章'}</option>
+                                    <option value="20">20${I18N.t ? I18N.t('novels.continue.chapters') : '章'}</option>
+                                    <option value="50">50${I18N.t ? I18N.t('novels.continue.chapters') : '章'}</option>
                                 </select>
                             </div>
                         </div>
                         
                         <div class="dialog-actions">
-                            <button class="dialog-btn secondary" onclick="closeContinueDialog()">取消</button>
-                            <button class="dialog-btn primary" onclick="startContinueGeneration()">🚀 开始续写</button>
+                            <button class="dialog-btn secondary" onclick="closeContinueDialog()">${I18N.t ? I18N.t('cancel') : '取消'}</button>
+                            <button class="dialog-btn primary" onclick="startContinueGeneration()">${I18N.t ? I18N.t('novels.continue.startBtn') : '🚀 开始续写'}</button>
                         </div>
                     </div>
                 </div>
@@ -1407,9 +1419,9 @@
                     const progressInfo = document.createElement('div');
                     progressInfo.style.cssText = 'background: rgba(99, 102, 241, 0.1); border: 1px solid rgba(99, 102, 241, 0.3); border-radius: 0.5rem; padding: 0.75rem; margin-bottom: 1rem; font-size: 0.8rem; color: var(--primary-400);';
                     progressInfo.innerHTML = `
-                        <div style="font-weight: 600; margin-bottom: 0.25rem;">📊 当前进度</div>
-                        <div>已生成: ${chapterNumbers.length} 章 | 建议从第 ${nextChapter} 章开始续写</div>
-                        <div style="margin-top: 0.25rem; color: var(--accent-400);">💡 提示：可以从任何章节开始，包括重新生成已有章节</div>
+                        <div style="font-weight: 600; margin-bottom: 0.25rem;">📊 ${I18N.t ? I18N.t('novels.card.progress') : '完成进度'}</div>
+                        <div>${I18N.t ? I18N.t('novels.continue.generated').replace('{generated}', chapterNumbers.length).replace('{next}', nextChapter) : `已生成: ${chapterNumbers.length} 章 | 建议从第 ${nextChapter} 章开始续写`}</div>
+                        <div style="margin-top: 0.25rem; color: var(--accent-400);">💡 ${I18N.t ? I18N.t('novels.continue.tip') : '提示：可以从任何章节开始，包括重新生成已有章节'}</div>
                     `;
                     
                     const fromChapterContainer = document.getElementById('continue-from-chapter').parentElement;
@@ -1436,17 +1448,20 @@
             const additionalChapters = parseInt(document.getElementById('continue-chapters-count').value);
             
             if (isNaN(fromChapter) || fromChapter < 1) {
-                showError('请输入有效的起始章节数');
+                const invalidStartText = I18N.t ? I18N.t('novels.continue.error.invalidStart') : '请输入有效的起始章节数';
+            showError(invalidStartText);
                 return;
             }
             
             if (isNaN(additionalChapters) || additionalChapters < 1) {
-                showError('请输入有效的续写章节数');
+                const invalidCountText = I18N.t ? I18N.t('novels.continue.error.invalidCount') : '请输入有效的续写章节数';
+            showError(invalidCountText);
                 return;
             }
             
             try {
-                showLoadingOverlay('正在启动续写任务...');
+                const startingText = I18N.t ? I18N.t('novels.continue.loading') : '正在启动续写任务...';
+            showLoadingOverlay(startingText);
                 
                 const response = await fetch(`/api/project/${encodeURIComponent(title)}/resume-generation`, {
                     method: 'POST',
@@ -1474,18 +1489,21 @@
                 if (result.success) {
                     closeContinueDialog();
                     hideLoadingOverlay();
-                    showSuccessMessage(`续写任务已启动！任务ID: ${result.task_id}`);
+                    const successText = I18N.t ? I18N.t('novels.continue.success').replace('{taskId}', result.task_id) : `续写任务已启动！任务ID: ${result.task_id}`;
+            showSuccessMessage(successText);
                     
                     setTimeout(() => {
                         window.location.href = '/';
                     }, 2000);
                 } else {
-                    throw new Error(result.error || '启动续写任务失败');
+                    const startFailedText = I18N.t ? I18N.t('novels.continue.error.failed') : '启动续写任务失败';
+                    throw new Error(result.error || startFailedText);
                 }
                 
             } catch (error) {
                 hideLoadingOverlay();
-                showError(`续写失败: ${error.message}`);
+                const continueErrorText = I18N.t ? I18N.t('novels.continue.error.failed') : '续写失败';
+                showError(`${continueErrorText}: ${error.message}`);
                 console.error('续写失败:', error);
             }
         }

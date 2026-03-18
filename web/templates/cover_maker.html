@@ -1015,8 +1015,8 @@
     <main class="main-content">
         <!-- 页面标题 -->
         <div class="page-header">
-            <h1>🎨 AI小说封面制作</h1>
-            <p>为您的小说作品生成精美的封面设计</p>
+            <h1>🎨 <span data-i18n="coverMaker.title">AI小说封面制作</span></h1>
+            <p data-i18n="coverMaker.subtitle">为您的小说作品生成精美的封面设计</p>
         </div>
 
         <!-- 主要内容区域 -->
@@ -1024,12 +1024,12 @@
             <!-- 小说选择区域 -->
             <div class="glass-card">
                 <h2 class="section-title">
-                    📚 选择小说
+                    📚 <span data-i18n="coverMaker.selectNovel.title">选择小说</span>
                 </h2>
                 
                 <div id="novel-loading" class="loading-state">
                     <div class="spinner" style="width: 32px; height: 32px;"></div>
-                    <p>加载小说列表中...</p>
+                    <p data-i18n="coverMaker.selectNovel.loading">加载小说列表中...</p>
                 </div>
 
                 <div id="novel-grid" class="novel-grid" style="display: none;">
@@ -1037,10 +1037,10 @@
                 </div>
 
                 <div id="novel-empty" class="empty-state" style="display: none;">
-                    <div class="empty-icon">📝</div>
-                    <div class="empty-title">暂无小说作品</div>
-                    <div class="empty-description">您还没有完成的小说作品，无法制作封面</div>
-                    <button class="nav-btn" onclick="location.href='/landing'" style="margin-top: 1rem;">
+                    <div class="empty-icon" data-i18n="coverMaker.selectNovel.empty.icon">📝</div>
+                    <div class="empty-title" data-i18n="coverMaker.selectNovel.empty.title">暂无小说作品</div>
+                    <div class="empty-description" data-i18n="coverMaker.selectNovel.empty.desc">您还没有完成的小说作品，无法制作封面</div>
+                    <button class="nav-btn" onclick="location.href='/landing'" style="margin-top: 1rem;" data-i18n="coverMaker.selectNovel.empty.action">
                         🚀 开始创作
                     </button>
                 </div>
@@ -1049,21 +1049,21 @@
             <!-- 封面配置区域 -->
             <div class="glass-card">
                 <h2 class="section-title">
-                    ⚙️ 封面设置
+                    ⚙️ <span data-i18n="coverMaker.settings.title">封面设置</span>
                 </h2>
 
                 <form id="cover-form">
                     <!-- 小说信息 -->
                     <div class="form-group">
-                        <label class="form-label">小说标题</label>
-                        <input type="text" id="novel-title" class="form-input" placeholder="请先选择一本小说" readonly>
+                        <label class="form-label" data-i18n="coverMaker.settings.novelTitle">小说标题</label>
+                        <input type="text" id="novel-title" class="form-input" placeholder="请先选择一本小说" readonly data-i18n-attr="placeholder" data-i18n="coverMaker.settings.novelTitle.placeholder">
                     </div>
 
                     <!-- 小说类型 -->
                     <div class="form-group">
-                        <label class="form-label">小说类型</label>
+                        <label class="form-label" data-i18n="coverMaker.settings.genre">小说类型</label>
                         <select id="genre" class="form-select">
-                            <option value="">请选择类型</option>
+                            <option value="" data-i18n="coverMaker.settings.genre.placeholder">请选择类型</option>
                             <option value="玄幻">玄幻</option>
                             <option value="都市">都市</option>
                             <option value="历史">历史</option>
@@ -1077,30 +1077,30 @@
 
                     <!-- 配色方案 -->
                     <div class="form-group">
-                        <label class="form-label">配色方案</label>
+                        <label class="form-label" data-i18n="coverMaker.settings.colorScheme">配色方案</label>
                         <div class="color-options">
-                            <div class="color-option selected" data-color="blue" style="background: linear-gradient(135deg, #6366f1, #8b5cf6);" title="蓝紫调"></div>
-                            <div class="color-option" data-color="red" style="background: linear-gradient(135deg, #f43f5e, #ec4899);" title="粉色调"></div>
-                            <div class="color-option" data-color="green" style="background: linear-gradient(135deg, #10b981, #06b6d4);" title="青绿色调"></div>
-                            <div class="color-option" data-color="purple" style="background: linear-gradient(135deg, #a855f7, #6366f1);" title="紫色调"></div>
-                            <div class="color-option" data-color="gold" style="background: linear-gradient(135deg, #f59e0b, #f97316);" title="金橙色调"></div>
+                            <div class="color-option selected" data-color="blue" style="background: linear-gradient(135deg, #6366f1, #8b5cf6);" title="蓝紫调" data-i18n="coverMaker.color.blue" data-i18n-attr="title"></div>
+                            <div class="color-option" data-color="red" style="background: linear-gradient(135deg, #f43f5e, #ec4899);" title="粉色调" data-i18n="coverMaker.color.red" data-i18n-attr="title"></div>
+                            <div class="color-option" data-color="green" style="background: linear-gradient(135deg, #10b981, #06b6d4);" title="青绿色调" data-i18n="coverMaker.color.green" data-i18n-attr="title"></div>
+                            <div class="color-option" data-color="purple" style="background: linear-gradient(135deg, #a855f7, #6366f1);" title="紫色调" data-i18n="coverMaker.color.purple" data-i18n-attr="title"></div>
+                            <div class="color-option" data-color="gold" style="background: linear-gradient(135deg, #f59e0b, #f97316);" title="金橙色调" data-i18n="coverMaker.color.gold" data-i18n-attr="title"></div>
                         </div>
                     </div>
 
                     <!-- 提示词标签页 -->
                     <div class="form-group">
-                        <label class="form-label">封面提示词</label>
+                        <label class="form-label" data-i18n="coverMaker.settings.prompt.title">封面提示词</label>
                         
                         <!-- 标签页切换 -->
                         <div class="prompt-tabs">
-                            <button type="button" class="prompt-tab active" id="default-tab" onclick="switchPromptTab('default')">默认提示词</button>
-                            <button type="button" class="prompt-tab" id="custom-tab" onclick="switchPromptTab('custom')">自定义</button>
+                            <button type="button" class="prompt-tab active" id="default-tab" onclick="switchPromptTab('default')" data-i18n="coverMaker.settings.prompt.default">默认提示词</button>
+                            <button type="button" class="prompt-tab" id="custom-tab" onclick="switchPromptTab('custom')" data-i18n="coverMaker.settings.prompt.custom">自定义</button>
                         </div>
                         
                         <!-- 默认提示词区域 -->
                         <div id="default-prompt-section" class="prompt-content">
                             <div class="preset-group">
-                                <label>小说类型选择</label>
+                                <label data-i18n="coverMaker.settings.prompt.genreSelect">小说类型选择</label>
                                 <select id="default-style-type" onchange="updateDefaultPrompt()" class="form-select" style="width: 100%;">
                                     <option value="fantasy">玄幻修仙</option>
                                     <option value="urban">都市言情</option>
@@ -1149,13 +1149,13 @@
                             
                             <!-- 生成的默认提示词显示区域 -->
                             <div class="preset-group" style="margin-top: 1.5rem;">
-                                <label>生成的专业提示词</label>
+                                <label data-i18n="coverMaker.settings.prompt.generated">生成的专业提示词</label>
                                 <textarea id="generated-default-prompt" class="prompt-display-area" readonly placeholder="请选择小说类型来生成完整的默认提示词..."></textarea>
                                 <div class="prompt-actions">
-                                    <div class="help-text">
+                                    <div class="help-text" data-i18n="coverMaker.settings.prompt.generated.help">
                                         💡 这是基于NovelGenerator.py中的完整模板生成的专业级提示词，包含所有必要的配置和约束条件，确保生成高质量的封面设计
                                     </div>
-                                    <button type="button" class="copy-button" onclick="copyToCustom()">
+                                    <button type="button" class="copy-button" onclick="copyToCustom()" data-i18n="coverMaker.settings.prompt.copy">
                                         📋 复制到自定义
                                     </button>
                                 </div>
@@ -1166,57 +1166,52 @@
                     <!-- 自定义提示词区域 -->
                     <div id="custom-prompt-section" class="prompt-content" style="display: none;">
                         <div class="preset-group">
-                            <label>快速预设:</label>
+                            <label data-i18n="coverMaker.settings.prompt.presets.title">快速预设:</label>
                             <div class="prompt-presets">
-                                <button type="button" class="preset-btn" onclick="applyCustomPreset('epic')">史诗感</button>
-                                <button type="button" class="preset-btn" onclick="applyCustomPreset('romantic')">浪漫感</button>
-                                <button type="button" class="preset-btn" onclick="applyCustomPreset('mysterious')">神秘感</button>
-                                <button type="button" class="preset-btn" onclick="applyCustomPreset('action')">动作感</button>
-                                <button type="button" class="preset-btn" onclick="applyCustomPreset('elegant')">优雅感</button>
-                                <button type="button" class="preset-btn" onclick="applyCustomPreset('dark')">暗黑风格</button>
+                                <button type="button" class="preset-btn" onclick="applyCustomPreset('epic')" data-i18n="coverMaker.settings.prompt.presets.epic">史诗感</button>
+                                <button type="button" class="preset-btn" onclick="applyCustomPreset('romantic')" data-i18n="coverMaker.settings.prompt.presets.romantic">浪漫感</button>
+                                <button type="button" class="preset-btn" onclick="applyCustomPreset('mysterious')" data-i18n="coverMaker.settings.prompt.presets.mysterious">神秘感</button>
+                                <button type="button" class="preset-btn" onclick="applyCustomPreset('action')" data-i18n="coverMaker.settings.prompt.presets.action">动作感</button>
+                                <button type="button" class="preset-btn" onclick="applyCustomPreset('elegant')" data-i18n="coverMaker.settings.prompt.presets.elegant">优雅感</button>
+                                <button type="button" class="preset-btn" onclick="applyCustomPreset('dark')" data-i18n="coverMaker.settings.prompt.presets.dark">暗黑风格</button>
                             </div>
                         </div>
                         <div class="preset-group">
-                            <label>自定义提示词:</label>
-                            <textarea id="custom-prompt" class="prompt-display-area" placeholder="请输入自定义的封面设计要求，比如场景、元素、氛围等...
-
-例如：
-- 古风玄幻风格，主角站在山巅，背景是云海和宫殿
-- 现代都市言情，男女主角在咖啡厅相遇，温馨浪漫
-- 科幻未来感，太空飞船，星空背景，科技感十足"></textarea>
-                            <div class="form-help">💡 提示：详细描述您想要的封面效果，AI将根据您的要求生成定制化封面。可以基于默认提示词进行修改。</div>
+                            <label data-i18n="coverMaker.settings.prompt.title">自定义提示词:</label>
+                            <textarea id="custom-prompt" class="prompt-display-area" placeholder="请输入自定义的封面设计要求，比如场景、元素、氛围等..."></textarea>
+                            <div class="form-help" data-i18n="coverMaker.settings.prompt.help">💡 提示：详细描述您想要的封面效果，AI将根据您的要求生成定制化封面。可以基于默认提示词进行修改。</div>
                         </div>
                     </div>
 
                     <!-- 生成设置 -->
                     <div class="form-group">
-                        <label class="form-label">生成数量</label>
+                        <label class="form-label" data-i18n="coverMaker.settings.count.title">生成数量</label>
                         <select id="generation-count" class="form-select">
-                            <option value="1" selected>生成1张封面</option>
-                            <option value="2">生成2张封面</option>
-                            <option value="3">生成3张封面</option>
-                            <option value="4">生成4张封面</option>
+                            <option value="1" selected data-i18n="coverMaker.settings.count.1">生成1张封面</option>
+                            <option value="2" data-i18n="coverMaker.settings.count.2">生成2张封面</option>
+                            <option value="3" data-i18n="coverMaker.settings.count.3">生成3张封面</option>
+                            <option value="4" data-i18n="coverMaker.settings.count.4">生成4张封面</option>
                         </select>
                     </div>
 
                     <div class="form-group">
-                        <label class="form-label">图片尺寸</label>
+                        <label class="form-label" data-i18n="coverMaker.settings.size.title">图片尺寸</label>
                         <select id="image-size" class="form-select">
-                            <option value="1K" selected>1K (1024x1024)</option>
-                            <option value="2K">2K (2048x2048)</option>
+                            <option value="1K" selected data-i18n="coverMaker.settings.size.1K">1K (1024x1024)</option>
+                            <option value="2K" data-i18n="coverMaker.settings.size.2K">2K (2048x2048)</option>
                         </select>
                     </div>
 
                     <div class="form-group">
                         <label style="display: flex; align-items: center; gap: 0.5rem; cursor: pointer;">
                             <input type="checkbox" id="add-watermark">
-                            <span class="form-label" style="margin: 0;">添加水印</span>
+                            <span class="form-label" style="margin: 0;" data-i18n="coverMaker.settings.watermark">添加水印</span>
                         </label>
                     </div>
 
                     <!-- 生成按钮 -->
                     <div class="generate-section">
-                        <button type="submit" id="generate-btn" class="generate-btn" disabled>
+                        <button type="submit" id="generate-btn" class="generate-btn" disabled data-i18n="coverMaker.generate.btn">
                             🎨 开始生成封面
                         </button>
                     </div>
@@ -1228,9 +1223,9 @@
         <div class="cover-gallery glass-card">
             <div class="gallery-header">
                 <h2 class="section-title" style="margin: 0;">
-                    🖼️ 封面图库
+                    🖼️ <span data-i18n="coverMaker.gallery.title">封面图库</span>
                     <span style="font-size: 0.875rem; font-weight: normal; color: var(--text-tertiary); margin-left: 0.5rem;">
-                        (<span id="cover-count">0</span>个封面)
+                        (<span id="cover-count">0</span><span data-i18n="coverMaker.gallery.count" data-i18n-format="{count}个封面">个封面</span>)
                     </span>
                 </h2>
             </div>
@@ -1238,19 +1233,19 @@
             <!-- 选中操作栏 -->
             <div id="selection-actions" class="selection-actions" style="display: none;">
                 <div class="selection-info">
-                    <span>已选择 <span id="selected-count">0</span> 个封面</span>
+                    <span><span data-i18n="coverMaker.selection.count" data-i18n-format="已选择 {count} 个封面">已选择</span> <span id="selected-count">0</span> <span data-i18n="coverMaker.gallery.count" data-i18n-format="{count}个封面">个封面</span></span>
                 </div>
                 <div class="selection-buttons">
-                    <button class="btn-small btn-secondary" onclick="selectAllCovers()">
+                    <button class="btn-small btn-secondary" onclick="selectAllCovers()" data-i18n="coverMaker.selection.selectAll">
                         全选
                     </button>
-                    <button class="btn-small btn-secondary" onclick="deselectAllCovers()">
+                    <button class="btn-small btn-secondary" onclick="deselectAllCovers()" data-i18n="coverMaker.selection.deselectAll">
                         取消全选
                     </button>
-                    <button class="btn-small btn-primary" onclick="useSelectedCovers()">
+                    <button class="btn-small btn-primary" onclick="useSelectedCovers()" data-i18n="coverMaker.selection.use">
                         使用选中的封面
                     </button>
-                    <button class="btn-small btn-success" onclick="copySelectedCoversToNovels()">
+                    <button class="btn-small btn-success" onclick="copySelectedCoversToNovels()" data-i18n="coverMaker.selection.copy">
                         📋 拷贝封面到小说目录
                     </button>
                 </div>
@@ -1261,9 +1256,9 @@
             </div>
 
             <div id="gallery-empty" class="empty-state">
-                <div class="empty-icon">🎨</div>
-                <div class="empty-title">还没有封面作品</div>
-                <div class="empty-description">选择小说并配置封面设置后，点击"开始生成封面"来创建您的第一个封面作品</div>
+                <div class="empty-icon" data-i18n="coverMaker.gallery.empty.icon">🎨</div>
+                <div class="empty-title" data-i18n="coverMaker.gallery.empty.title">还没有封面作品</div>
+                <div class="empty-description" data-i18n="coverMaker.gallery.empty.desc">选择小说并配置封面设置后，点击"开始生成封面"来创建您的第一个封面作品</div>
             </div>
         </div>
     </main>
@@ -1549,9 +1544,9 @@
                 // 切换到自定义标签页
                 switchPromptTab('custom');
                 // 显示成功消息
-                showSuccessMessage('已将默认提示词复制到自定义编辑器，您现在可以进行修改');
+                showSuccessMessage(I18N.t('coverMaker.success.copied') || '已将默认提示词复制到自定义编辑器，您现在可以进行修改');
             } else {
-                alert('请先生成默认提示词');
+                alert(I18N.t('coverMaker.alert.generateFirst') || '请先生成默认提示词');
             }
         }
 
@@ -1587,7 +1582,7 @@
             event.preventDefault();
 
             if (!selectedNovel) {
-                alert('请先选择一本小说');
+                alert(I18N.t('coverMaker.alert.selectNovel') || '请先选择一本小说');
                 return;
             }
 
@@ -1616,7 +1611,7 @@
             };
 
             try {
-                showLoadingOverlay('正在生成封面，请稍候...');
+                showLoadingOverlay(I18N.t('coverMaker.generate.loading') || '正在生成封面，请稍候...');
 
                 const response = await fetch('/api/generate-cover', {
                     method: 'POST',
@@ -1648,14 +1643,15 @@
                     renderGallery();
 
                     hideLoadingOverlay();
-                    showSuccessMessage(`成功生成 ${result.images.length} 张封面！`);
+                    const successMsg = (I18N.t('coverMaker.success.generated') || '成功生成 {count} 张封面！').replace('{count}', result.images.length);
+                    showSuccessMessage(successMsg);
                 } else {
                     throw new Error(result.error || '生成失败');
                 }
 
             } catch (error) {
                 hideLoadingOverlay();
-                alert('生成封面失败: ' + error.message);
+                alert((I18N.t('coverMaker.error.generateFailed') || '生成封面失败') + ': ' + error.message);
                 console.error('生成封面失败:', error);
             }
         }
@@ -1687,10 +1683,11 @@
                     
                     // 如果找到封面，显示提示信息
                     if (generatedCovers.length > 0) {
-                        showSuccessMessage(`找到 ${generatedCovers.length} 个已有封面`);
+                        const foundMsg = (I18N.t('coverMaker.success.foundCovers') || '找到 {count} 个已有封面').replace('{count}', generatedCovers.length);
+                        showSuccessMessage(foundMsg);
                     }
                 } else {
-                    throw new Error(result.error || '加载失败');
+                    throw new Error(result.error || (I18N.t('coverMaker.error.loadFailed') || '加载失败'));
                 }
                 
             } catch (error) {
@@ -1787,8 +1784,8 @@
                     <img src="${encodedUrl}" alt="${escapeHtml(cover.novel_title)}" style="max-width: 100%; max-height: 70vh; object-fit: contain; display: block;">
                     <div style="padding: 24px; text-align: center;">
                         <h3 style="margin: 0 0 8px 0; color: var(--text-primary); font-size: 1.25rem;">${escapeHtml(cover.novel_title)}</h3>
-                        <p style="margin: 0; color: var(--text-secondary);">作者：${escapeHtml(cover.author_name)}</p>
-                        <p style="margin: 8px 0 0 0; color: var(--text-tertiary); font-size: 0.875rem;">生成时间：${new Date(cover.timestamp).toLocaleString()}</p>
+                        <p style="margin: 0; color: var(--text-secondary);">${I18N.t('coverMaker.view.author') || '作者'}：${escapeHtml(cover.author_name)}</p>
+                        <p style="margin: 8px 0 0 0; color: var(--text-tertiary); font-size: 0.875rem;">${I18N.t('coverMaker.view.generatedAt') || '生成时间'}：${new Date(cover.timestamp).toLocaleString()}</p>
                     </div>
                 </div>
             `;
@@ -2430,5 +2427,14 @@
     <script src="{{ url_for('static', filename='js/confirm-dialog.js') }}"></script>
     <script src="/static/js/user-info.js"></script>
     <script src="{{ url_for('static', filename='js/account-manager.js') }}?v=2"></script>
+    <script src="{{ url_for('static', filename='js/i18n.js') }}"></script>
+    <script>
+        // 初始化国际化
+        document.addEventListener('DOMContentLoaded', function() {
+            if (typeof I18N !== 'undefined') {
+                I18N.init();
+            }
+        });
+    </script>
 </body>
 </html>

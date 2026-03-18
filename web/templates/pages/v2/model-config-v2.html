@@ -371,6 +371,7 @@
     .model-card[data-endpoint="aiberm"] { --card-accent: #f59e0b; }
     .model-card[data-endpoint="xiaochuang-backup"] { --card-accent: #10b981; }
     .model-card[data-endpoint="deepseek-official"] { --card-accent: #3b82f6; }
+    .model-card[data-endpoint="kimi-k2.5-primary"] { --card-accent: #8b5cf6; }
     .model-card[data-endpoint="custom"] { --card-accent: #ec4899; }
     
     /* 自定义端点特殊样式 */
@@ -764,41 +765,54 @@
     </div>
     
     <!-- 提供商标签页 -->
-    <div class="provider-tabs">
-        <button class="provider-tab active" data-provider="gemini">Gemini 系列</button>
-        <button class="provider-tab" data-provider="deepseek">DeepSeek 系列</button>
+    <!-- Provider 优先级说明 -->
+    <div class="config-notice" style="background: linear-gradient(135deg, rgba(139, 92, 246, 0.1), rgba(99, 102, 241, 0.1)); border-color: rgba(139, 92, 246, 0.3);">
+        <span class="config-notice__icon">🔥</span>
+        <span class="config-notice__text">
+            <strong>Provider 优先级（故障转移）:</strong> 
+            <span style="color: #8b5cf6; font-weight: 600;">Kimi (P1)</span> → 
+            <span style="color: #6366f1; font-weight: 600;">Gemini (P2)</span> → 
+            <span style="color: #3b82f6; font-weight: 600;">DeepSeek (P3)</span>
+            <span style="color: var(--v2-text-tertiary); margin-left: 8px;">| 失败3次自动切换</span>
+        </span>
     </div>
     
-    <!-- Gemini 模型卡片 -->
-    <div id="gemini-models" class="model-grid">
-        <!-- Lemon API -->
-        <div class="model-card" data-endpoint="lemon-api">
+    <div class="provider-tabs">
+        <button class="provider-tab active" data-provider="kimi">🌙 Kimi (P1)</button>
+        <button class="provider-tab" data-provider="gemini">♊ Gemini (P2)</button>
+        <button class="provider-tab" data-provider="deepseek">🐋 DeepSeek (P3)</button>
+    </div>
+    
+    <!-- Kimi 模型卡片 (P1 - 默认显示) -->
+    <div id="kimi-models" class="model-grid">
+        <!-- Kimi k2.5 - P1 最高优先级 -->
+        <div class="model-card" data-endpoint="kimi-k2.5-primary">
             <div class="model-card__header">
                 <div class="model-card__title-section">
-                    <div class="model-card__icon">🍋</div>
+                    <div class="model-card__icon">🌙</div>
                     <div>
-                        <div class="model-card__name">Lemon API</div>
-                        <div class="model-card__provider">new.lemonapi.site</div>
+                        <div class="model-card__name">Kimi k2.5</div>
+                        <div class="model-card__provider">api.moonshot.cn</div>
                     </div>
                 </div>
-                <div class="model-card__discount model-card__discount--medium">80%</div>
+                <div class="model-card__discount model-card__discount--low">85%</div>
             </div>
             
             <div class="model-card__info">
                 <div class="model-info-row">
                     <span class="model-info-label">主模型</span>
-                    <span class="model-info-value">[L]gemini-3.1-pro-preview</span>
+                    <span class="model-info-value">kimi-k2-0905-preview</span>
                 </div>
                 <div class="model-info-row">
-                    <span class="model-info-label">评估模型</span>
-                    <span class="model-info-value">[L]gemini-2.5-flash</span>
+                    <span class="model-info-label">上下文</span>
+                    <span class="model-info-value">256K tokens</span>
                 </div>
                 <div class="model-info-row">
                     <span class="model-info-label">优先级</span>
                     <div class="priority-control">
-                        <button class="priority-btn" onclick="adjustPriority('lemon-api', -1)">-</button>
-                        <span class="priority-value" id="priority-lemon-api">3</span>
-                        <button class="priority-btn" onclick="adjustPriority('lemon-api', 1)">+</button>
+                        <button class="priority-btn" onclick="adjustPriority('kimi-k2.5-primary', -1)">-</button>
+                        <span class="priority-value" id="priority-kimi-k2.5-primary">1</span>
+                        <button class="priority-btn" onclick="adjustPriority('kimi-k2.5-primary', 1)">+</button>
                     </div>
                 </div>
             </div>
@@ -807,16 +821,17 @@
                 <div class="feature-section">
                     <div class="feature-title feature-title--pro">✅ 优势</div>
                     <div class="feature-list">
-                        <span class="feature-tag feature-tag--pro">模型强力 3.1 Pro</span>
-                        <span class="feature-tag feature-tag--pro">质量稳定</span>
+                        <span class="feature-tag feature-tag--pro">256K超长上下文</span>
+                        <span class="feature-tag feature-tag--pro">缓存机制省60%</span>
+                        <span class="feature-tag feature-tag--pro">多轮对话优化</span>
+                        <span class="feature-tag feature-tag--pro">中文理解强</span>
+                        <span class="feature-tag feature-tag--pro">🔥 Provider P1</span>
                     </div>
                 </div>
                 <div class="feature-section">
                     <div class="feature-title feature-title--con">⚠️ 注意</div>
                     <div class="feature-list">
-                        <span class="feature-tag feature-tag--con">速度较慢</span>
-                        <span class="feature-tag feature-tag--con">需[L]前缀</span>
-                        <span class="feature-tag feature-tag--con">优先级较低</span>
+                        <span class="feature-tag feature-tag--con">temperature固定为1.0</span>
                     </div>
                 </div>
             </div>
@@ -826,11 +841,14 @@
                     <span class="status-dot"></span>
                     已启用
                 </span>
-                <span style="font-size: 12px; color: var(--v2-text-tertiary);">超时: 300s</span>
+                <span style="font-size: 12px; color: var(--v2-text-tertiary);">超时: 120s</span>
             </div>
         </div>
-        
-        <!-- Aiberm API -->
+    </div>
+    
+    <!-- Gemini 模型卡片 (P2) -->
+    <div id="gemini-models" class="model-grid" style="display: none;">
+        <!-- Aiberm API - 优先级1 (最高) -->
         <div class="model-card" data-endpoint="aiberm">
             <div class="model-card__header">
                 <div class="model-card__title-section">
@@ -889,7 +907,7 @@
             </div>
         </div>
         
-        <!-- 小创 API -->
+        <!-- 小创 API - 优先级2 (中等) -->
         <div class="model-card" data-endpoint="xiaochuang-backup">
             <div class="model-card__header">
                 <div class="model-card__title-section">
@@ -934,6 +952,65 @@
                     <div class="feature-title feature-title--con">⚠️ 注意</div>
                     <div class="feature-list">
                         <span class="feature-tag feature-tag--con">备用端点</span>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="model-card__footer">
+                <span class="status-badge status-badge--enabled">
+                    <span class="status-dot"></span>
+                    已启用
+                </span>
+                <span style="font-size: 12px; color: var(--v2-text-tertiary);">超时: 300s</span>
+            </div>
+        </div>
+        
+        <!-- Lemon API - 优先级3 (低) -->
+        <div class="model-card" data-endpoint="lemon-api">
+            <div class="model-card__header">
+                <div class="model-card__title-section">
+                    <div class="model-card__icon">🍋</div>
+                    <div>
+                        <div class="model-card__name">Lemon API</div>
+                        <div class="model-card__provider">new.lemonapi.site</div>
+                    </div>
+                </div>
+                <div class="model-card__discount model-card__discount--medium">80%</div>
+            </div>
+            
+            <div class="model-card__info">
+                <div class="model-info-row">
+                    <span class="model-info-label">主模型</span>
+                    <span class="model-info-value">[L]gemini-3.1-pro-preview</span>
+                </div>
+                <div class="model-info-row">
+                    <span class="model-info-label">评估模型</span>
+                    <span class="model-info-value">[L]gemini-2.5-flash</span>
+                </div>
+                <div class="model-info-row">
+                    <span class="model-info-label">优先级</span>
+                    <div class="priority-control">
+                        <button class="priority-btn" onclick="adjustPriority('lemon-api', -1)">-</button>
+                        <span class="priority-value" id="priority-lemon-api">3</span>
+                        <button class="priority-btn" onclick="adjustPriority('lemon-api', 1)">+</button>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="model-card__features">
+                <div class="feature-section">
+                    <div class="feature-title feature-title--pro">✅ 优势</div>
+                    <div class="feature-list">
+                        <span class="feature-tag feature-tag--pro">模型强力 3.1 Pro</span>
+                        <span class="feature-tag feature-tag--pro">质量稳定</span>
+                    </div>
+                </div>
+                <div class="feature-section">
+                    <div class="feature-title feature-title--con">⚠️ 注意</div>
+                    <div class="feature-list">
+                        <span class="feature-tag feature-tag--con">速度较慢</span>
+                        <span class="feature-tag feature-tag--con">需[L]前缀</span>
+                        <span class="feature-tag feature-tag--con">优先级较低</span>
                     </div>
                 </div>
             </div>
@@ -1142,10 +1219,16 @@
             tab.classList.add('active');
             
             // 切换显示
-            if (provider === 'gemini') {
+            if (provider === 'kimi') {
+                document.getElementById('kimi-models').style.display = 'grid';
+                document.getElementById('gemini-models').style.display = 'none';
+                document.getElementById('deepseek-models').style.display = 'none';
+            } else if (provider === 'gemini') {
+                document.getElementById('kimi-models').style.display = 'none';
                 document.getElementById('gemini-models').style.display = 'grid';
                 document.getElementById('deepseek-models').style.display = 'none';
-            } else {
+            } else if (provider === 'deepseek') {
+                document.getElementById('kimi-models').style.display = 'none';
                 document.getElementById('gemini-models').style.display = 'none';
                 document.getElementById('deepseek-models').style.display = 'grid';
             }
@@ -1175,6 +1258,9 @@
     
     function renderCustomEndpoints() {
         const container = document.getElementById('custom-endpoints');
+        
+        // 按优先级排序（数字小的在前）
+        customEndpoints.sort((a, b) => (a.priority || 1) - (b.priority || 1));
         
         if (customEndpoints.length === 0) {
             container.innerHTML = `
@@ -1434,10 +1520,11 @@
     // Toast提示
     // 优先级调整（数字越小优先级越高：1=最高，5=最低）
     const endpointPriorities = {
-        'lemon-api': 3,        // 低优先级
-        'aiberm': 1,           // 最高优先级
-        'xiaochuang-backup': 2, // 中等优先级
-        'deepseek-official': 1  // 最高优先级
+        'lemon-api': 3,           // 低优先级
+        'aiberm': 1,              // 最高优先级
+        'xiaochuang-backup': 2,   // 中等优先级
+        'deepseek-official': 1,   // 最高优先级
+        'kimi-k2.5-primary': 1    // 最高优先级
     };
     
     function adjustPriority(endpointName, delta) {
@@ -1458,7 +1545,7 @@
     async function savePriority(endpointName, priority) {
         try {
             // 判断是内置端点还是自定义端点
-            const isBuiltin = ['lemon-api', 'aiberm', 'xiaochuang-backup', 'deepseek-official'].includes(endpointName);
+            const isBuiltin = ['lemon-api', 'aiberm', 'xiaochuang-backup', 'deepseek-official', 'kimi-k2.5-primary'].includes(endpointName);
             
             let url, method, body;
             if (isBuiltin) {

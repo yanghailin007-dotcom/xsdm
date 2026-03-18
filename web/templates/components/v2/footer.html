@@ -6,37 +6,37 @@
             <div class="v2-footer__brand">
                 <div class="v2-footer__logo">
                     <span class="v2-footer__logo-icon">✨</span>
-                    <span class="v2-footer__logo-text">大文娱</span>
+                    <span class="v2-footer__logo-text" data-i18n="app.name.short">大文娱</span>
                 </div>
-                <p class="v2-footer__desc">AI驱动的全能娱乐创作平台，让创作更简单、更高效。</p>
+                <p class="v2-footer__desc" data-i18n="app.tagline">AI驱动的全能娱乐创作平台，让创作更简单、更高效。</p>
             </div>
             
             <!-- 链接分组 -->
             <div class="v2-footer__links">
                 <div class="v2-footer__group">
-                    <h4 class="v2-footer__group-title">产品</h4>
+                    <h4 class="v2-footer__group-title" data-i18n="footer.group.product">产品</h4>
                     <ul class="v2-footer__group-list">
-                        <li><a href="/novels" class="v2-footer__link">小说创作</a></li>
-                        <li><a href="/cover-generator" class="v2-footer__link">封面生成</a></li>
-                        <li><a href="/video-generation" class="v2-footer__link">视频创作</a></li>
+                        <li><a href="/novels" class="v2-footer__link" data-i18n="footer.link.novel">小说创作</a></li>
+                        <li><a href="/cover-generator" class="v2-footer__link" data-i18n="footer.link.cover">封面生成</a></li>
+                        <li><a href="/video-generation" class="v2-footer__link" data-i18n="footer.link.video">视频创作</a></li>
                     </ul>
                 </div>
                 
                 <div class="v2-footer__group">
-                    <h4 class="v2-footer__group-title">平台</h4>
+                    <h4 class="v2-footer__group-title" data-i18n="footer.group.platform">平台</h4>
                     <ul class="v2-footer__group-list">
-                        <li><a href="/pages/v2/fanqie-upload-v2" class="v2-footer__link">番茄上传</a></li>
-                        <li><a href="#" class="v2-footer__link">起点上传</a></li>
-                        <li><a href="#" class="v2-footer__link">晋江上传</a></li>
+                        <li><a href="/pages/v2/fanqie-upload-v2" class="v2-footer__link" data-i18n="footer.link.fanqie">番茄上传</a></li>
+                        <li><span class="v2-footer__link v2-footer__link--disabled" title="功能开发中，敬请期待"><span data-i18n="footer.link.qidian">起点上传</span> <small data-i18n="footer.link.comingSoon">(开发中)</small></span></li>
+                        <li><span class="v2-footer__link v2-footer__link--disabled" title="功能开发中，敬请期待"><span data-i18n="footer.link.jjwxc">晋江上传</span> <small data-i18n="footer.link.comingSoon">(开发中)</small></span></li>
                     </ul>
                 </div>
                 
                 <div class="v2-footer__group">
-                    <h4 class="v2-footer__group-title">支持</h4>
+                    <h4 class="v2-footer__group-title" data-i18n="footer.group.support">支持</h4>
                     <ul class="v2-footer__group-list">
-                        <li><a href="#" class="v2-footer__link">使用文档</a></li>
-                        <li><a href="#" class="v2-footer__link">常见问题</a></li>
-                        <li><a href="#" class="v2-footer__link">联系客服</a></li>
+                        <li><a href="/help" class="v2-footer__link" data-i18n="footer.link.docs">使用文档</a></li>
+                        <li><a href="/help#faq" class="v2-footer__link" data-i18n="footer.link.faq">常见问题</a></li>
+                        <li><a href="/contact" class="v2-footer__link" data-i18n="footer.link.customerService">联系客服</a></li>
                     </ul>
                 </div>
             </div>
@@ -44,15 +44,15 @@
         
         <!-- 底部版权 -->
         <div class="v2-footer__bottom">
-            <p class="v2-footer__copyright">
+            <p class="v2-footer__copyright" data-i18n="footer.copyright">
                 © 2026 大文娱创作平台. All rights reserved.
             </p>
             <div class="v2-footer__legal">
-                <a href="#" class="v2-footer__legal-link">隐私政策</a>
+                <a href="/privacy" class="v2-footer__legal-link" data-i18n="footer.privacy">隐私政策</a>
                 <span class="v2-footer__divider">·</span>
-                <a href="#" class="v2-footer__legal-link">服务条款</a>
+                <a href="/terms" class="v2-footer__legal-link" data-i18n="footer.terms">服务条款</a>
                 <span class="v2-footer__divider">·</span>
-                <a href="#" class="v2-footer__legal-link">Pro 会员</a>
+                <a href="/recharge" class="v2-footer__legal-link" data-i18n="footer.link.pro">Pro 会员</a>
             </div>
         </div>
     </div>
@@ -144,6 +144,23 @@
 
 .v2-footer__link:hover {
     color: var(--v2-text-primary);
+}
+
+/* 禁用状态的链接 */
+.v2-footer__link--disabled {
+    color: var(--v2-text-muted);
+    cursor: not-allowed;
+    opacity: 0.6;
+}
+
+.v2-footer__link--disabled small {
+    font-size: 0.75em;
+    color: var(--v2-text-tertiary);
+    margin-left: 4px;
+}
+
+.v2-footer__link--disabled:hover {
+    color: var(--v2-text-muted);
 }
 
 /* 底部版权 */

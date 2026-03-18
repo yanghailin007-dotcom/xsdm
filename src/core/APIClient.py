@@ -19,6 +19,194 @@ from src.utils.logger import get_logger
 from src.prompts.Prompts import Prompts
 from src.core.APIEndpointPool import APIEndpointPool, APIEndpoint
 
+
+class ConversationSession:
+    """
+    多轮对话会话类 - 优化 Token 使用和上下文连贯性
+    
+    特点:
+    1. 只在初始化时发送 system_prompt，后续调用不重复传递
+    2. 自动维护对话历史上下文
+    3. 支持流式输出（可选）
+    
+    使用示例:
+        session = api_client.create_conversation(
+            system_prompt="你是专业小说作家...",
+            provider="kimi"
+        )
+        
+        # 第一章 - 包含 system prompt
+        chapter1 = session.send_message("生成第1章...")
+        
+        # 第二章 - 利用上下文，不重复 system prompt
+        chapter2 = session.send_message("继续生成第2章...")
+    """
+    
+    def __init__(self, api_client: 'APIClient', system_prompt: str, 
+                 provider: Optional[str] = None, model_name: Optional[str] = None,
+                 temperature: float = 0.8, purpose_prefix: str = ""):
+        """
+        初始化对话会话
+        
+        Args:
+            api_client: APIClient 实例
+            system_prompt: 系统提示词（只在第一次调用时发送）
+            provider: 模型提供商，None则使用默认
+            model_name: 模型名称，None则使用默认
+            temperature: 温度参数
+            purpose_prefix: 用途前缀（用于日志和扣费）
+        """
+        self.api_client = api_client
+        self.system_prompt = system_prompt
+        self.provider = provider or api_client.default_provider
+        self.model_name = model_name
+        self.temperature = temperature
+        self.purpose_prefix = purpose_prefix
+        
+        # 🔥 初始化消息历史（按照 Kimi 官方文档要求维护 messages 列表）
+        self.messages: List[Dict[str, str]] = [
+            {"role": "system", "content": system_prompt}
+        ]
+        self.turn_count = 0  # 对话轮数
+        self.total_tokens_sent = 0  # 累计发送 token（估算）
+        self.total_tokens_received = 0  # 累计接收 token（估算）
+        
+        # 🔥 消息历史控制：防止超过上下文窗口（默认保留最近 20 条对话）
+        self.max_history = 20
+        
+        self.logger = api_client.logger
+        self.logger.info(f"[对话会话] 创建成功 | 提供商: {self.provider} | 模型: {model_name or '默认'} | 历史限制: {self.max_history}")
+    
+    def send_message(self, user_prompt: str, temperature: Optional[float] = None,
+                     max_tokens: Optional[int] = None, purpose: Optional[str] = None) -> Optional[str]:
+        """
+        发送消息并获取响应
+        
+        Args:
+            user_prompt: 用户提示词
+            temperature: 温度参数（覆盖默认值）
+            max_tokens: 最大生成 token 数
+            purpose: 用途标识（用于日志和扣费）
+            
+        Returns:
+            模型响应内容
+        """
+        self.turn_count += 1
+        temp = temperature if temperature is not None else self.temperature
+        purpose_str = f"{self.purpose_prefix}_{purpose or f'轮次{self.turn_count}'}"
+        
+        # 添加用户消息到历史
+        self.messages.append({"role": "user", "content": user_prompt})
+        
+        self.logger.info(f"[对话会话] 第 {self.turn_count} 轮 | 历史消息数: {len(self.messages)} | 用途: {purpose_str}")
+        
+        # 调用 API（使用完整的 messages 数组）
+        response = self.api_client._call_with_messages(
+            messages=self.messages,
+            provider=self.provider,
+            model_name=self.model_name,
+            temperature=temp,
+            max_tokens=max_tokens,
+            purpose=purpose_str
+        )
+        
+        if response:
+            # 添加助手响应到历史（按照 Kimi 官方文档要求）
+            self.messages.append({"role": "assistant", "content": response})
+            
+            # 🔥 控制消息历史长度，防止超过上下文窗口（保留 system + 最近 max_history 条）
+            # system message 始终在索引 0，需要保留
+            if len(self.messages) > self.max_history + 1:  # +1 是 system message
+                # 保留 system message 和最近的 max_history 条
+                self.messages = [self.messages[0]] + self.messages[-self.max_history:]
+                self.logger.info(f"[对话会话] 历史消息已裁剪，保留最新 {self.max_history} 条")
+            
+            # 简单估算 token（中文约 2 token/字英文约 0.5 token/字）
+            sent_chars = sum(len(m["content"]) for m in self.messages[:-1])
+            received_chars = len(response)
+            self.total_tokens_sent += int(sent_chars * 1.5)
+            self.total_tokens_received += int(received_chars * 1.5)
+            
+            self.logger.info(f"[对话会话] 响应成功 | 长度: {len(response)} 字符 | 历史消息数: {len(self.messages)}")
+        else:
+            # 失败时移除用户消息，保持历史干净
+            self.messages.pop()
+            self.logger.warning(f"[对话会话] 响应失败 | 未添加到历史")
+        
+        return response
+    
+    def send_message_stream(self, user_prompt: str, temperature: Optional[float] = None,
+                           max_tokens: Optional[int] = None) -> Iterator[str]:
+        """
+        流式发送消息
+        
+        Args:
+            user_prompt: 用户提示词
+            temperature: 温度参数
+            max_tokens: 最大生成 token 数
+            
+        Yields:
+            响应流片段
+        """
+        self.turn_count += 1
+        temp = temperature if temperature is not None else self.temperature
+        
+        self.messages.append({"role": "user", "content": user_prompt})
+        
+        full_response = ""
+        for chunk in self.api_client._call_with_messages_stream(
+            messages=self.messages,
+            provider=self.provider,
+            model_name=self.model_name,
+            temperature=temp,
+            max_tokens=max_tokens
+        ):
+            full_response += chunk
+            yield chunk
+        
+        # 流结束后添加完整响应到历史（按照 Kimi 官方文档要求）
+        if full_response:
+            self.messages.append({"role": "assistant", "content": full_response})
+            
+            # 🔥 控制消息历史长度（保留 system + 最近 max_history 条）
+            if len(self.messages) > self.max_history + 1:
+                self.messages = [self.messages[0]] + self.messages[-self.max_history:]
+    
+    def clear_history(self, keep_system: bool = True):
+        """
+        清空对话历史
+        
+        Args:
+            keep_system: 是否保留 system 消息
+        """
+        if keep_system and self.messages and self.messages[0]["role"] == "system":
+            self.messages = [self.messages[0]]
+        else:
+            self.messages = []
+        self.turn_count = 0
+        self.logger.info(f"[对话会话] 历史已清空 | 保留 system: {keep_system}")
+    
+    def get_stats(self) -> Dict[str, Any]:
+        """获取会话统计信息"""
+        return {
+            "turn_count": self.turn_count,
+            "message_count": len(self.messages),
+            "total_tokens_sent": self.total_tokens_sent,
+            "total_tokens_received": self.total_tokens_received,
+            "provider": self.provider,
+            "model_name": self.model_name
+        }
+    
+    def __enter__(self):
+        """上下文管理器入口"""
+        return self
+    
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        """上下文管理器出口 - 自动记录统计"""
+        stats = self.get_stats()
+        self.logger.info(f"[对话会话] 结束 | 轮次: {stats['turn_count']} | "
+                        f"累计Token估算: {stats['total_tokens_sent'] + stats['total_tokens_received']}")
+
 class APIClient:
     def __init__(self, config):
         self.logger = get_logger("APIClient")
@@ -51,6 +239,20 @@ class APIClient:
         self.default_routed_model = self.config.get("model_routing", {}).get("default_model", None)
         if self.model_routing_enabled:
             self.logger.info(f"🔄 模型路由: 已启用 (配置了 {len(self.model_routes)} 个路由)")
+        
+        # 🔥 初始化 Provider 故障转移跟踪
+        self.provider_failover_config = self.config.get("provider_failover", {})
+        self.provider_failover_enabled = self.provider_failover_config.get("enabled", False)
+        self.provider_priority = self.config.get("provider_priority", [])
+        self._provider_failure_counts: Dict[str, list] = {}  # provider -> [timestamp, ...]
+        self._provider_last_used: Dict[str, float] = {}      # provider -> last used timestamp
+        self._provider_cooldown_until: Dict[str, float] = {} # provider -> cooldown end timestamp
+        if self.provider_failover_enabled:
+            priority_str = " > ".join(self.provider_priority) if self.provider_priority else "未配置"
+            self.logger.info(f"🔥 Provider 故障转移: 已启用")
+            self.logger.info(f"   优先级: {priority_str}")
+            self.logger.info(f"   最大失败: {self.provider_failover_config.get('max_failures', 3)}次")
+        
         # 验证默认提供商是否可用
         if self.default_provider not in self.available_providers:
             if self.available_providers:
@@ -112,7 +314,7 @@ class APIClient:
         api_urls = self.config.get("api_urls", {})
         models = self.config.get("models", {})
         
-        for provider in ["gemini", "deepseek", "yuanbao"]:
+        for provider in ["gemini", "deepseek", "yuanbao", "kimi"]:
             if api_keys.get(provider) and api_urls.get(provider):
                 endpoints = [{
                     "name": f"{provider}-legacy",
@@ -282,6 +484,147 @@ class APIClient:
             self.logger.info(f"💾 优化提示词已保存到: {optimized_file}")
         except Exception as e:
             self.logger.info(f"❌ 保存优化提示词失败: {e}")
+    
+    # ==================== Provider 故障转移方法 ====================
+    
+    def _record_provider_failure(self, provider: str):
+        """记录 provider 失败"""
+        if not self.provider_failover_enabled:
+            return
+        
+        now = time.time()
+        if provider not in self._provider_failure_counts:
+            self._provider_failure_counts[provider] = []
+        
+        # 添加失败时间戳
+        self._provider_failure_counts[provider].append(now)
+        
+        # 清理过期的失败记录
+        window = self.provider_failover_config.get("failure_window", 300)
+        self._provider_failure_counts[provider] = [
+            t for t in self._provider_failure_counts[provider] if now - t < window
+        ]
+        
+        failures = len(self._provider_failure_counts[provider])
+        max_failures = self.provider_failover_config.get("max_failures", 3)
+        
+        self.logger.warning(f"🔴 Provider '{provider}' 失败记录: {failures}/{max_failures} (窗口: {window}s)")
+    
+    def _get_provider_failure_count(self, provider: str) -> int:
+        """获取 provider 在时间窗口内的失败次数"""
+        if not self.provider_failover_enabled or provider not in self._provider_failure_counts:
+            return 0
+        
+        now = time.time()
+        window = self.provider_failover_config.get("failure_window", 300)
+        
+        # 清理过期记录并计数
+        self._provider_failure_counts[provider] = [
+            t for t in self._provider_failure_counts[provider] if now - t < window
+        ]
+        
+        return len(self._provider_failure_counts[provider])
+    
+    def _is_provider_in_cooldown(self, provider: str) -> bool:
+        """检查 provider 是否处于冷却期"""
+        if provider not in self._provider_cooldown_until:
+            return False
+        
+        now = time.time()
+        if now < self._provider_cooldown_until[provider]:
+            remaining = self._provider_cooldown_until[provider] - now
+            self.logger.info(f"⏰ Provider '{provider}' 冷却中，剩余 {remaining:.0f}s")
+            return True
+        return False
+    
+    def _set_provider_cooldown(self, provider: str):
+        """设置 provider 冷却期"""
+        cooldown = self.provider_failover_config.get("cooldown", 60)
+        self._provider_cooldown_until[provider] = time.time() + cooldown
+        self.logger.warning(f"🚫 Provider '{provider}' 进入冷却期: {cooldown}s")
+    
+    def _should_failover_provider(self, provider: str) -> bool:
+        """判断是否需要从当前 provider 故障转移"""
+        if not self.provider_failover_enabled:
+            return False
+        
+        failures = self._get_provider_failure_count(provider)
+        max_failures = self.provider_failover_config.get("max_failures", 3)
+        
+        return failures >= max_failures
+    
+    def _get_next_available_provider(self, current_provider: str) -> Optional[str]:
+        """获取下一个可用的 provider（按优先级顺序）"""
+        if not self.provider_priority:
+            return None
+        
+        try:
+            current_index = self.provider_priority.index(current_provider)
+        except ValueError:
+            current_index = -1
+        
+        # 从当前 provider 之后开始查找
+        for i in range(current_index + 1, len(self.provider_priority)):
+            next_provider = self.provider_priority[i]
+            
+            # 检查该 provider 是否有配置的端点池
+            if next_provider not in self.endpoint_pools:
+                continue
+            
+            # 检查是否处于冷却期
+            if self._is_provider_in_cooldown(next_provider):
+                self.logger.info(f"⏭️ Provider '{next_provider}' 处于冷却期，跳过")
+                continue
+            
+            # 检查端点池是否有可用端点
+            pool = self.endpoint_pools[next_provider]
+            if pool.get_available_endpoints():
+                return next_provider
+        
+        return None
+    
+    def _get_provider_for_call(self, preferred_provider: Optional[str] = None) -> str:
+        """根据优先级和故障状态获取用于调用的 provider"""
+        if not self.provider_failover_enabled:
+            return preferred_provider or self.default_provider
+        
+        # 如果指定了 provider，检查其状态
+        if preferred_provider:
+            # 如果需要故障转移
+            if self._should_failover_provider(preferred_provider):
+                next_provider = self._get_next_available_provider(preferred_provider)
+                if next_provider:
+                    self.logger.warning(f"🔄 Provider '{preferred_provider}' 失败过多，切换到 '{next_provider}'")
+                    self._set_provider_cooldown(preferred_provider)
+                    return next_provider
+                else:
+                    self.logger.error(f"❌ Provider '{preferred_provider}' 失败过多，且无可用备用 provider")
+            
+            # 检查是否处于冷却期
+            if self._is_provider_in_cooldown(preferred_provider):
+                next_provider = self._get_next_available_provider(preferred_provider)
+                if next_provider:
+                    self.logger.warning(f"🔄 Provider '{preferred_provider}' 冷却中，使用 '{next_provider}'")
+                    return next_provider
+            
+            return preferred_provider
+        
+        # 未指定 provider，按优先级选择第一个可用的
+        for provider in self.provider_priority:
+            if provider not in self.endpoint_pools:
+                continue
+            if self._is_provider_in_cooldown(provider):
+                continue
+            if self._should_failover_provider(provider):
+                continue
+            
+            pool = self.endpoint_pools[provider]
+            if pool.get_available_endpoints():
+                return provider
+        
+        # 所有高优先级 provider 都不可用，使用默认
+        return self.default_provider
+    
     def _get_available_providers(self) -> List[str]:
         """获取配置中启用的AI服务提供商（基于端点池）"""
         available = []
@@ -504,6 +847,60 @@ class APIClient:
                     self.logger.warning(f"      (无法解析为JSON)")
         
         return full_content
+
+    def _parse_stream_response(self, response, user_str: str, thread_id: str) -> str:
+        """
+        解析流式API响应
+        
+        Args:
+            response: requests Response对象 (stream=True)
+            user_str: 用户信息字符串（用于日志）
+            thread_id: 线程ID（用于日志）
+            
+        Returns:
+            完整的响应内容
+        """
+        full_content = ""
+        chunk_count = 0
+        last_log_time = time.time()
+        
+        for line in response.iter_lines():
+            if not line:
+                continue
+                
+            line = line.decode('utf-8')
+            
+            # SSE格式: data: {...}
+            if line.startswith('data: '):
+                data = line[6:]  # 去掉 'data: ' 前缀
+                
+                if data == '[DONE]':
+                    break
+                    
+                try:
+                    chunk = json.loads(data)
+                    if 'choices' in chunk and len(chunk['choices']) > 0:
+                        delta = chunk['choices'][0].get('delta', {})
+                        content_piece = delta.get('content', '')
+                        if content_piece:
+                            full_content += content_piece
+                            chunk_count += 1
+                            
+                        # 每5秒记录一次进度
+                        current_time = time.time()
+                        if current_time - last_log_time > 5:
+                            self.logger.info(f"{user_str}     - [{thread_id}] 流式接收中... {chunk_count} chunks, {len(full_content)} chars")
+                            last_log_time = current_time
+                            
+                except json.JSONDecodeError:
+                    continue
+                except Exception as e:
+                    self.logger.warning(f"{user_str}     - 解析流式数据块出错: {e}")
+                    continue
+        
+        self.logger.info(f"{user_str}     - [{thread_id}] 流式接收完成: {chunk_count} chunks, {len(full_content)} chars")
+        return full_content
+
     def _save_api_call_debug(self, system_prompt: str, user_prompt: str, response: str,
                            purpose: str, provider: str, model: str, attempt: int = 1):
         """保存完整的API调用调试信息，包括输入和回复"""
@@ -564,10 +961,17 @@ class APIClient:
         model_name = endpoint_config["model"]
         endpoint_name = endpoint_config.get("name", "unknown")
         
+        # 🔥 Kimi k2.5 模型强制使用 temperature=1.0（兜底保护）
+        if "k2.5" in model_name:
+            temperature = 1.0
+        
         headers = {
             "Authorization": f"Bearer {api_key}",
             "Content-Type": "application/json"
         }
+        # 🔥 从端点配置读取流传输设置（默认False）
+        use_stream = endpoint_config.get("stream", False)
+        
         payload = {
             "model": model_name,
             "messages": [
@@ -576,7 +980,7 @@ class APIClient:
             ],
             "temperature": temperature,
             "max_tokens": max_tokens,
-            "stream": False
+            "stream": use_stream
         }
         
         import threading
@@ -590,7 +994,15 @@ class APIClient:
             self.logger.info(f"{user_str}     - 模型: {model_name}")
             self.logger.info(f"{user_str}     - 超时: {timeout}秒")
             
-            response = requests.post(api_url, headers=headers, json=payload, timeout=timeout, stream=False)
+            # 🔥 流传输模式下使用分离的连接/读取超时，避免长生成被中断
+            if use_stream:
+                self.logger.info(f"{user_str}     - 流传输: ✓ (避免长生成超时)")
+                # 连接超时30秒，读取使用配置的timeout
+                request_timeout = (30, timeout)
+            else:
+                request_timeout = timeout
+            
+            response = requests.post(api_url, headers=headers, json=payload, timeout=request_timeout, stream=use_stream)
             
             elapsed = time.time() - start_time
             self.logger.info(f"{user_str}     - [{thread_id}] 响应状态: {response.status_code} (耗时:{elapsed:.2f}s)")
@@ -598,6 +1010,12 @@ class APIClient:
             # 检查HTTP状态码
             if response.status_code != 200:
                 self.logger.error(f"{user_str}  ❌ HTTP错误: 状态码 {response.status_code}")
+                # 🔥 记录错误响应内容以便诊断
+                try:
+                    error_content = response.text[:500]
+                    self.logger.error(f"{user_str}  📄 错误响应: {error_content}")
+                except:
+                    pass
                 
                 # 特殊处理429错误
                 if response.status_code == 429:
@@ -606,7 +1024,7 @@ class APIClient:
                         self.logger.warning(f"{user_str}  ⏰ 429错误，等待 {wait_time:.1f}s 后重试...")
                         time.sleep(wait_time)
                         # 重新尝试一次
-                        response = requests.post(api_url, headers=headers, json=payload, timeout=timeout, stream=False)
+                        response = requests.post(api_url, headers=headers, json=payload, timeout=request_timeout, stream=use_stream)
                         if response.status_code == 200:
                             pass  # 成功继续处理
                         else:
@@ -619,10 +1037,15 @@ class APIClient:
             # 更新频率限制计数器
             self._update_rate_limit()
             
-            # 处理非流式响应
+            # 处理响应（流式或非流式）
             try:
-                result = response.json()
-                content = result['choices'][0]['message']['content']
+                if use_stream:
+                    # 🔥 流式响应处理
+                    content = self._parse_stream_response(response, user_str, thread_id)
+                else:
+                    # 非流式响应
+                    result = response.json()
+                    content = result['choices'][0]['message']['content']
             except (KeyError, json.JSONDecodeError) as e:
                 self.logger.error(f"{user_str}  ❌ 解析响应失败: {e}")
                 return None
@@ -656,16 +1079,22 @@ class APIClient:
                 temperature: Optional[float] = None, purpose: str = "未知",
                 provider: Optional[str] = None, model_name: Optional[str] = None) -> Optional[str]:
         """
-        API调用 - 支持多端点故障转移
+        API调用 - 支持多端点故障转移和跨 Provider 故障转移
         
-        优先使用端点池中的高优先级端点，失败时自动切换到备用端点
+        1. 优先使用端点池中的高优先级端点，失败时自动切换到备用端点
+        2. 当所有端点都失败时，根据 provider_priority 切换到下一个 provider
         """
         # 最高优先级：在发送给AI之前，将网站风格适配文本添加到system_prompt的最前面
         if self.website_style_enabled and self.website_style_text:
             system_prompt = self.website_style_text + "\n\n" + system_prompt
         
-        target_provider = provider if provider else self.default_provider
+        # 🔥 获取目标 provider（考虑故障转移）
+        original_provider = provider if provider else self.default_provider
+        target_provider = self._get_provider_for_call(original_provider)
         user_str = self._get_username_str()
+        
+        if target_provider != original_provider:
+            self.logger.info(f"{user_str}🔄 使用备用 Provider: {original_provider} -> {target_provider}")
         
         # 检查频率限制
         self._check_rate_limit()
@@ -723,6 +1152,12 @@ class APIClient:
                 
                 # 获取温度和最大token
                 temp = temperature or self.config.get("defaults", {}).get("temperature", 0.7)
+                
+                # 🔥 Kimi k2.5 模型强制使用 temperature=1.0
+                if "k2.5" in current_model:
+                    temp = 1.0
+                    self.logger.info(f"{user_str}      🌙 Kimi k2.5 强制使用 temperature=1.0")
+                
                 max_tokens = self.config.get("defaults", {}).get("max_tokens", 60000)
                 timeout = endpoint.timeout
                 
@@ -740,6 +1175,10 @@ class APIClient:
                 if result:
                     # 成功，记录并返回
                     endpoint.record_success(time.time())
+                    # 🔥 记录 provider 成功，重置失败计数
+                    if target_provider in self._provider_failure_counts:
+                        del self._provider_failure_counts[target_provider]
+                        self.logger.info(f"{user_str}✅ Provider '{target_provider}' 成功，重置失败计数")
                     if model_idx > 0:
                         self.logger.info(f"{user_str}   ✅ 端点 {endpoint.name} + 备用模型 {current_model} 调用成功")
                     else:
@@ -767,9 +1206,23 @@ class APIClient:
         # 所有端点都失败
         self.logger.error(f"{user_str}💥 {target_provider} 所有端点均失败，已尝试: {tried_endpoints}")
         
-        # 🔄 保底模型逻辑（可配置禁用）
+        # 🔥 记录 provider 失败
+        self._record_provider_failure(target_provider)
+        
+        # 🔥 跨 Provider 故障转移
+        if self.provider_failover_enabled:
+            next_provider = self._get_next_available_provider(target_provider)
+            if next_provider:
+                self.logger.warning(f"{user_str}🔄 跨 Provider 故障转移: {target_provider} -> {next_provider}")
+                self._set_provider_cooldown(target_provider)
+                # 递归调用，使用下一个 provider
+                return self.call_api(system_prompt, user_prompt, temperature, purpose, next_provider, model_name)
+            else:
+                self.logger.error(f"{user_str}❌ 无可用备用 Provider")
+        
+        # 🔄 保底模型逻辑（向后兼容）
         fallback_config = self.config.get("fallback", {})
-        if fallback_config.get("enabled", False):  # 默认禁用保底
+        if fallback_config.get("enabled", False):
             primary = fallback_config.get("primary_provider", "gemini")
             fallback = fallback_config.get("fallback_provider", "deepseek")
             
@@ -779,7 +1232,7 @@ class APIClient:
                                                 temperature, purpose, model_name, user_str)
         
         # 🔥 修复：保底禁用时不直接失败，而是等待后重试
-        self.logger.info(f"{user_str}ℹ️ 保底模型已禁用，等待 10 秒后重试所有端点...")
+        self.logger.info(f"{user_str}ℹ️ 等待 10 秒后重试...")
         time.sleep(10)
         
         # 刷新端点池（将不健康端点恢复为降级状态，允许重试）
@@ -806,10 +1259,18 @@ class APIClient:
             self.logger.info(f"{user_str}   尝试端点: {endpoint.name}")
             
             endpoint_config = endpoint.get_config()
+            current_model = endpoint_config.get("model", "")
             if model_name:
                 endpoint_config["model"] = model_name
+                current_model = model_name
             
             temp = temperature or self.config.get("defaults", {}).get("temperature", 0.7)
+            
+            # 🔥 Kimi k2.5 模型强制使用 temperature=1.0
+            if "kimi-k2" in current_model:
+                temp = 1.0
+                self.logger.info(f"{user_str}      🌙 Kimi k2.5 强制使用 temperature=1.0")
+            
             max_tokens = self.config.get("defaults", {}).get("max_tokens", 60000)
             timeout = endpoint.timeout
             
@@ -834,6 +1295,200 @@ class APIClient:
         
         self.logger.error(f"{user_str}💥 {provider} 所有端点均失败")
         return None
+    
+    def _call_with_messages(self, messages: List[Dict[str, str]], 
+                           provider: Optional[str] = None,
+                           model_name: Optional[str] = None,
+                           temperature: float = 0.8,
+                           max_tokens: Optional[int] = None,
+                           purpose: str = "conversation") -> Optional[str]:
+        """
+        使用已构建的 messages 数组调用 API（支持多轮对话）
+        
+        Args:
+            messages: 消息历史数组，格式: [{"role": "system"/"user"/"assistant", "content": "..."}, ...]
+            provider: 提供商名称，None 则使用默认
+            model_name: 模型名称，None 则使用默认
+            temperature: 温度参数
+            max_tokens: 最大生成 token 数
+            purpose: 用途标识
+            
+        Returns:
+            API 响应内容
+        """
+        target_provider = provider if provider else self.default_provider
+        user_str = self._get_username_str()
+        
+        self.logger.info(f"{user_str}💬 [多轮对话] 调用 | 提供商: {target_provider} | 消息数: {len(messages)}")
+        
+        # 获取端点池
+        pool = self.endpoint_pools.get(target_provider)
+        if not pool:
+            self.logger.error(f"{user_str}❌ 未找到 {target_provider} 的端点池")
+            return None
+        
+        available_endpoints = pool.get_available_endpoints()
+        if not available_endpoints:
+            self.logger.error(f"{user_str}❌ {target_provider} 没有可用端点")
+            return None
+        
+        # 使用配置的默认值
+        if max_tokens is None:
+            max_tokens = self.config.get("defaults", {}).get("max_tokens", 60000)
+        
+        # 尝试每个端点
+        for endpoint in available_endpoints:
+            endpoint_config = endpoint.get_config()
+            if model_name:
+                endpoint_config["model"] = model_name
+            
+            try:
+                result = self._call_single_endpoint_with_messages(
+                    endpoint_config=endpoint_config,
+                    messages=messages,
+                    temperature=temperature,
+                    max_tokens=max_tokens,
+                    timeout=endpoint.timeout,
+                    purpose=purpose
+                )
+                
+                if result:
+                    endpoint.record_success(time.time())
+                    self.logger.info(f"{user_str}✅ 端点 {endpoint.name} 调用成功")
+                    self._trigger_api_call_callback(purpose, 1, endpoint.name, 
+                                                   getattr(endpoint, 'discount_rate', 100))
+                    return result
+                else:
+                    endpoint.record_failure("empty_response")
+                    self.logger.warning(f"{user_str}⚠️ 端点 {endpoint.name} 返回空响应")
+                    
+            except Exception as e:
+                endpoint.record_failure(str(e))
+                self.logger.error(f"{user_str}❌ 端点 {endpoint.name} 调用异常: {e}")
+        
+        self.logger.error(f"{user_str}💥 所有端点均失败")
+        return None
+    
+    def _call_single_endpoint_with_messages(self, endpoint_config: Dict[str, Any],
+                                           messages: List[Dict[str, str]],
+                                           temperature: float,
+                                           max_tokens: int,
+                                           timeout: int,
+                                           purpose: str) -> Optional[str]:
+        """
+        调用单个端点（使用 messages 数组）
+        """
+        api_url = endpoint_config["api_url"]
+        api_key = endpoint_config["api_key"]
+        model_name = endpoint_config["model"]
+        endpoint_name = endpoint_config.get("name", "unknown")
+        
+        # 🔥 Kimi k2.5 模型强制使用 temperature=1.0
+        if "k2.5" in model_name:
+            temperature = 1.0
+            self.logger.info(f"  🌙 Kimi k2.5 强制使用 temperature=1.0")
+        
+        headers = {
+            "Authorization": f"Bearer {api_key}",
+            "Content-Type": "application/json"
+        }
+        
+        payload = {
+            "model": model_name,
+            "messages": messages,
+            "temperature": temperature,
+            "max_tokens": max_tokens,
+            "stream": False
+        }
+        
+        start_time = time.time()
+        
+        # 🔥 提取 system_prompt 和 user_prompt 用于调试保存
+        system_prompt = ""
+        user_prompt = ""
+        for msg in messages:
+            if msg.get("role") == "system":
+                system_prompt = msg.get("content", "")
+            elif msg.get("role") == "user":
+                # 取最后一条 user message
+                user_prompt = msg.get("content", "")
+        
+        try:
+            response = requests.post(api_url, headers=headers, json=payload, 
+                                    timeout=timeout, stream=False)
+            elapsed = time.time() - start_time
+            
+            if response.status_code == 200:
+                data = response.json()
+                if "choices" in data and len(data["choices"]) > 0:
+                    content = data["choices"][0].get("message", {}).get("content", "")
+                    self.logger.info(f"  ✅ 端点 {endpoint_name} 响应成功 | 耗时: {elapsed:.2f}s | 长度: {len(content)} 字符")
+                    # 🔥 保存调试信息
+                    self._save_api_call_debug(system_prompt, user_prompt, content, 
+                                             purpose, endpoint_name, model_name, 1)
+                    return content
+                else:
+                    self.logger.warning(f"  ⚠️ 端点 {endpoint_name} 响应格式异常: {data.keys()}")
+                    return None
+            else:
+                error_text = response.text[:500]
+                self.logger.error(f"  ❌ 端点 {endpoint_name} HTTP {response.status_code}: {error_text}")
+                # 🔥 保存错误响应调调信息
+                self._save_api_call_debug(system_prompt, user_prompt, f"HTTP {response.status_code}: {error_text}", 
+                                         purpose, endpoint_name, model_name, 1)
+                return None
+                
+        except requests.exceptions.Timeout:
+            self.logger.error(f"  ⏰ 端点 {endpoint_name} 超时 ({timeout}s)")
+            # 🔥 保存超时调试信息
+            self._save_api_call_debug(system_prompt, user_prompt, f"Timeout ({timeout}s)", 
+                                     purpose, endpoint_name, model_name, 1)
+            return None
+        except Exception as e:
+            self.logger.error(f"  ❌ 端点 {endpoint_name} 请求异常: {e}")
+            # 🔥 保存异常调试信息
+            self._save_api_call_debug(system_prompt, user_prompt, f"Exception: {str(e)}", 
+                                     purpose, endpoint_name, model_name, 1)
+            return None
+    
+    def create_conversation(self, system_prompt: str, 
+                           provider: Optional[str] = None,
+                           model_name: Optional[str] = None,
+                           temperature: float = 0.8,
+                           purpose_prefix: str = "") -> 'ConversationSession':
+        """
+        创建一个新的多轮对话会话
+        
+        Args:
+            system_prompt: 系统提示词
+            provider: 模型提供商
+            model_name: 模型名称
+            temperature: 温度参数
+            purpose_prefix: 用途前缀
+            
+        Returns:
+            ConversationSession 实例
+            
+        使用示例:
+            session = api_client.create_conversation(
+                system_prompt="你是专业小说作家...",
+                provider="kimi"
+            )
+            
+            # 第一章
+            chapter1 = session.send_message("生成第1章...")
+            
+            # 第二章（保持上下文）
+            chapter2 = session.send_message("继续生成第2章...")
+        """
+        return ConversationSession(
+            api_client=self,
+            system_prompt=system_prompt,
+            provider=provider,
+            model_name=model_name,
+            temperature=temperature,
+            purpose_prefix=purpose_prefix
+        )
     
     def _extract_retry_after_from_error(self, response, user_str: str = "") -> Optional[float]:
         """从错误响应中提取重试等待时间"""
@@ -874,7 +1529,15 @@ class APIClient:
             else:
                 self.logger.info(f"{user_str}  ⚠️ 错误响应中没有找到 'error.message' 字段")
                 self.logger.info(f"{user_str}  📋 错误响应结构: {list(error_data.keys()) if isinstance(error_data, dict) else type(error_data)}")
-                
+            
+            # 🔥 处理 Kimi 引擎过载错误（没有具体时间，但有错误类型）
+            if 'error' in error_data and 'type' in error_data['error']:
+                error_type = error_data['error']['type']
+                if error_type == 'engine_overloaded_error':
+                    default_wait = 10.0  # 引擎过载默认等待10秒
+                    self.logger.info(f"{user_str}  ⏰ Kimi 引擎过载，使用默认等待时间: {default_wait}s")
+                    return default_wait
+            
             # 检查Retry-After头部
             if 'Retry-After' in response.headers:
                 retry_after = response.headers['Retry-After']

@@ -9,6 +9,20 @@
 
 {% block title %}大文娱系统 - AI 创作平台{% endblock %}
 
+{% block extra_js %}
+<script>
+    // 更新页面标题
+    document.addEventListener('DOMContentLoaded', function() {
+        if (typeof I18N !== 'undefined') {
+            const title = I18N.t('app.title');
+            if (title) {
+                document.title = title;
+            }
+        }
+    });
+</script>
+{% endblock %}
+
 {% block content %}
 <!-- Hero 区域 -->
 <section class="v2-hero">
@@ -65,12 +79,23 @@
         
         <!-- CTA 按钮 -->
         <div class="v2-hero__actions">
-            <a href="javascript:void(0)" onclick="handleStartCreating()" class="v2-btn v2-btn--primary v2-btn--lg">
-                <span data-i18n="landing.cta.start">🚀 开始创作</span>
-            </a>
-            <a href="#features" class="v2-btn v2-btn--secondary v2-btn--lg">
-                <span data-i18n="landing.cta.learnMore">📖 了解更多</span>
-            </a>
+            {% if session.logged_in %}
+                <!-- 已登录：显示创作入口 -->
+                <a href="/novels" class="v2-btn v2-btn--primary v2-btn--lg">
+                    <span data-i18n="landing.novel.btn">📖 小说创作</span>
+                </a>
+                <a href="/video-generation" class="v2-btn v2-btn--secondary v2-btn--lg">
+                    <span data-i18n="landing.video.btn">🎬 视频制作</span>
+                </a>
+            {% else %}
+                <!-- 未登录：显示登录/注册 -->
+                <a href="/login" class="v2-btn v2-btn--primary v2-btn--lg">
+                    <span data-i18n="landing.cta.login">🚀 立即登录</span>
+                </a>
+                <a href="/register" class="v2-btn v2-btn--secondary v2-btn--lg">
+                    <span data-i18n="landing.cta.register">✨ 免费注册</span>
+                </a>
+            {% endif %}
         </div>
         
         <!-- 统计数据 -->
@@ -100,7 +125,11 @@
     
     <div class="v2-features__grid v2-features__grid--2col">
         <!-- 小说创作 -->
-        <a href="/" class="v2-card v2-card--gradient">
+        {% if session.logged_in %}
+        <a href="/novels" class="v2-card v2-card--gradient">
+        {% else %}
+        <a href="javascript:void(0)" onclick="showLoginRequired('novel')" class="v2-card v2-card--gradient">
+        {% endif %}
             <div class="v2-card__icon v2-card__icon--purple">📖</div>
             <h3 class="v2-card__title" data-i18n="landing.novel.title">小说创作</h3>
             <p class="v2-card__desc" data-i18n="landing.novel.desc">
@@ -109,13 +138,17 @@
             <div class="v2-card__footer">
                 <span style="color: var(--v2-text-tertiary);" data-i18n="landing.novel.features">两阶段生成 · 智能世界观</span>
                 <span class="v2-card__link" data-i18n="landing.novel.enter">
-                    进入 →
+                    {% if session.logged_in %}进入 →{% else %}登录后使用 →{% endif %}
                 </span>
             </div>
         </a>
         
         <!-- 视频制作 -->
-        <a href="/video" class="v2-card v2-card--gradient">
+        {% if session.logged_in %}
+        <a href="/video-generation" class="v2-card v2-card--gradient">
+        {% else %}
+        <a href="javascript:void(0)" onclick="showLoginRequired('video')" class="v2-card v2-card--gradient">
+        {% endif %}
             <div class="v2-card__icon v2-card__icon--pink">🎬</div>
             <h3 class="v2-card__title" data-i18n="landing.video.title">视频制作</h3>
             <p class="v2-card__desc" data-i18n="landing.video.desc">
@@ -124,7 +157,7 @@
             <div class="v2-card__footer">
                 <span style="color: var(--v2-text-tertiary);" data-i18n="landing.video.features">多模式生成 · 自动剪辑</span>
                 <span class="v2-card__link" data-i18n="landing.video.enter">
-                    进入 →
+                    {% if session.logged_in %}进入 →{% else %}登录后使用 →{% endif %}
                 </span>
             </div>
         </a>
@@ -162,7 +195,7 @@
 
 <!-- 首次登录欢迎弹窗 - V2 设计系统 -->
 {% if show_welcome %}
-<div class="v2-modal-overlay" id="welcomeModal" role="dialog" aria-modal="true">
+<div class="v2-modal-overlay" id="welcomeModal" role="dialog" aria-modal="true" style="display: none; opacity: 0; transition: opacity 0.5s ease;">
     <div class="v2-modal-backdrop" onclick="closeWelcomeModal()"></div>
     
     <div class="v2-modal-container">
@@ -367,7 +400,7 @@
 .v2-welcome-emoji {
     font-size: 52px;
     z-index: 1;
-    animation: emojiFloat 3s ease-in-out infinite, emojiRotate 0.6s cubic-bezier(0.34, 1.56, 0.64, 1) 0.2s backwards;
+    animation: emojiFloat 3s ease-in-out infinite;
     display: block;
 }
 
@@ -656,6 +689,20 @@
         }, 3000);
     }
     
+    // 🔥 延迟 3 秒显示欢迎弹窗，避免一闪而过的感觉
+    (function initWelcomeModal() {
+        const modal = document.getElementById('welcomeModal');
+        if (!modal) return;
+        
+        // 3 秒后显示弹窗
+        setTimeout(() => {
+            modal.style.display = 'flex';
+            // 强制重绘以确保过渡动画生效
+            modal.offsetHeight;
+            modal.style.opacity = '1';
+        }, 3000);
+    })();
+    
     async function closeWelcomeModal() {
         const modal = document.getElementById('welcomeModal');
         if (!modal) return;
@@ -755,28 +802,92 @@
 (function() {
     'use strict';
     
-    // 🔥 首页"开始创作"按钮：根据登录状态智能跳转
-    async function handleStartCreating() {
-        try {
-            const response = await fetch('/api/current-user');
-            const data = await response.json();
-            
-            if (data.success && data.logged_in) {
-                // 已登录：跳转到工作台
-                window.location.href = '/project-management';
-            } else {
-                // 未登录：跳转到登录页
-                window.location.href = '/login';
+    // 🔥 未登录提示功能
+    function showLoginRequired(featureType) {
+        // 获取翻译
+        const featureName = featureType === 'novel' 
+            ? (I18N.t('landing.novel.title') || '小说创作')
+            : (I18N.t('landing.video.title') || '视频制作');
+        const title = I18N.t('landing.loginRequired.title') || '需要登录';
+        const desc = (I18N.t('landing.loginRequired.desc') || '{feature}功能需要登录后才能使用').replace('{feature}', featureName);
+        const hint = I18N.t('landing.loginRequired.hint') || '立即登录，开含 AI 创作之旅';
+        const loginBtn = I18N.t('landing.loginRequired.loginBtn') || '立即登录';
+        const laterBtn = I18N.t('landing.loginRequired.laterBtn') || '稍后再说';
+        
+        // 创建提示弹窗
+        const modal = document.createElement('div');
+        modal.style.cssText = `
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.8);
+            backdrop-filter: blur(8px);
+            z-index: 99999;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 24px;
+            animation: fadeIn 0.3s ease;
+        `;
+        
+        modal.innerHTML = `
+            <div style="
+                background: linear-gradient(145deg, #1e293b 0%, #0f172a 100%);
+                border: 1px solid rgba(99, 102, 241, 0.3);
+                border-radius: 20px;
+                padding: 40px;
+                max-width: 400px;
+                width: 90%;
+                text-align: center;
+                box-shadow: 0 25px 50px rgba(0, 0, 0, 0.5);
+                animation: slideUp 0.4s ease;
+            ">
+                <div style="font-size: 48px; margin-bottom: 16px;">🔐</div>
+                <h3 style="font-size: 20px; font-weight: 600; margin-bottom: 12px; color: #f8fafc;">${title}</h3>
+                <p style="color: #94a3b8; margin-bottom: 24px; line-height: 1.6;">
+                    ${desc}<br>
+                    ${hint}
+                </p>
+                <div style="display: flex; gap: 12px; justify-content: center;">
+                    <button onclick="this.closest('.modal').remove(); window.location.href='/login';" style="
+                        padding: 12px 24px;
+                        background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
+                        border: none;
+                        border-radius: 9999px;
+                        color: white;
+                        font-weight: 600;
+                        cursor: pointer;
+                        transition: all 0.3s;
+                    ">${loginBtn}</button>
+                    <button onclick="this.closest('.modal').remove();" style="
+                        padding: 12px 24px;
+                        background: transparent;
+                        border: 1px solid rgba(255, 255, 255, 0.2);
+                        border-radius: 9999px;
+                        color: #94a3b8;
+                        font-weight: 600;
+                        cursor: pointer;
+                        transition: all 0.3s;
+                    ">${laterBtn}</button>
+                </div>
+            </div>
+        `;
+        
+        modal.className = 'modal';
+        document.body.appendChild(modal);
+        
+        // 点击背景关闭
+        modal.addEventListener('click', function(e) {
+            if (e.target === modal) {
+                modal.remove();
             }
-        } catch (error) {
-            console.error('检查登录状态失败:', error);
-            // 出错时默认跳转到登录页
-            window.location.href = '/login';
-        }
+        });
     }
     
     // 暴露到全局
-    window.handleStartCreating = handleStartCreating;
+    window.showLoginRequired = showLoginRequired;
 })();
 </script>
 {% endblock %}

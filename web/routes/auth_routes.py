@@ -392,17 +392,9 @@ def register_page_routes(app):
         return render_template('landing-v2-test.html')
     
     @app.route('/', methods=['GET'])
-    @login_required
     def index():
-        """小说创意生成入口 - 默认 V2 UI"""
-        # 检查是否请求 V1 版本（V2 为默认）
-        ui_version = request.args.get('ui', '').lower()
-        if ui_version == 'v1':
-            logger.info("📄 Loading index.html (V1 UI)")
-            return render_template('index.html')
-        
-        logger.info("📄 Loading index-v2.html (V2 UI - 默认)")
-        return render_template('pages/v2/index-v2.html')
+        """首页 - 不需要登录，直接显示 landing 页面"""
+        return redirect('/landing')
     
     @app.route('/home', methods=['GET'])
     def home():

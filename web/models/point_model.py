@@ -12,6 +12,9 @@ from web.web_config import logger, BASE_DIR
 class PointModel:
     """点数系统模型"""
     
+    # 最小余额单位
+    MIN_DECIMAL_PLACES = 2  # 精确到0.01
+    
     # 默认配置
     DEFAULT_CONFIG = {
         # 点数获取
@@ -48,6 +51,19 @@ class PointModel:
         self._init_db()
         self._init_default_config()
     
+    @staticmethod
+    def round_amount(amount: float) -> float:
+        """
+        四舍五入金额到最小单位（0.01）
+        
+        Args:
+            amount: 原始金额
+            
+        Returns:
+            四舍五入后的金额
+        """
+        return round(amount, PointModel.MIN_DECIMAL_PLACES)
+    
     def _get_connection(self) -> sqlite3.Connection:
         """获取数据库连接"""
         conn = sqlite3.connect(self.db_path)
@@ -57,14 +73,14 @@ class PointModel:
     def _init_db(self):
         """初始化数据库表"""
         with self._get_connection() as conn:
-            # 用户点数表
+            # 用户点数表 - 使用 REAL 支持小数（最小0.01）
             conn.execute("""
                 CREATE TABLE IF NOT EXISTS user_points (
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
                     user_id INTEGER NOT NULL UNIQUE,
-                    balance INTEGER DEFAULT 0,
-                    total_earned INTEGER DEFAULT 0,
-                    total_spent INTEGER DEFAULT 0,
+                    balance REAL DEFAULT 0,
+                    total_earned REAL DEFAULT 0,
+                    total_spent REAL DEFAULT 0,
                     last_checkin_date TEXT,
                     checkin_streak INTEGER DEFAULT 0,
                     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
@@ -73,14 +89,14 @@ class PointModel:
                 )
             """)
             
-            # 点数交易记录表
+            # 点数交易记录表 - 使用 REAL 支持小数（最小0.01）
             conn.execute("""
                 CREATE TABLE IF NOT EXISTS point_transactions (
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
                     user_id INTEGER NOT NULL,
                     type TEXT NOT NULL CHECK(type IN ('earn', 'spend', 'rollback')),
-                    amount INTEGER NOT NULL,
-                    balance_after INTEGER NOT NULL,
+                    amount REAL NOT NULL,
+                    balance_after REAL NOT NULL,
                     source TEXT NOT NULL,
                     description TEXT,
                     related_id TEXT,
@@ -162,14 +178,17 @@ class PointModel:
                 'checkin_streak': 0
             }
     
-    def add_points(self, user_id: int, amount: int, source: str, 
+    def add_points(self, user_id: int, amount: float, source: str, 
                    description: str = "", related_id: str = None) -> Dict[str, Any]:
         """
-        给用户增加点数
+        给用户增加点数（自动四舍五入到0.01）
         
         Returns:
             {success, balance, message}
         """
+        # 四舍五入金额
+        amount = self.round_amount(amount)
+        
         try:
             with self._get_connection() as conn:
                 # 获取当前余额
@@ -188,8 +207,8 @@ class PointModel:
                     new_balance = amount
                     new_total = amount
                 else:
-                    new_balance = current['balance'] + amount
-                    new_total = current['total_earned'] + amount
+                    new_balance = self.round_amount(current['balance'] + amount)
+                    new_total = self.round_amount(current['total_earned'] + amount)
                     
                     conn.execute(
                         """UPDATE user_points 
@@ -220,14 +239,17 @@ class PointModel:
             logger.error(f"❌ 增加点数失败: {e}")
             return {'success': False, 'error': str(e)}
     
-    def spend_points(self, user_id: int, amount: int, source: str,
+    def spend_points(self, user_id: int, amount: float, source: str,
                      description: str = "", related_id: str = None) -> Dict[str, Any]:
         """
-        扣除用户点数
+        扣除用户点数（自动四舍五入到0.01）
         
         Returns:
             {success, balance, transaction_id, error}
         """
+        # 四舍五入金额
+        amount = self.round_amount(amount)
+        
         try:
             with self._get_connection() as conn:
                 # 检查余额
@@ -239,16 +261,19 @@ class PointModel:
                 if not current:
                     return {'success': False, 'error': '用户不存在'}
                 
-                if current['balance'] < amount:
+                # 四舍五入当前余额进行比较
+                current_balance = self.round_amount(current['balance'])
+                
+                if current_balance < amount:
                     return {
                         'success': False, 
                         'error': '点数不足',
                         'required': amount,
-                        'current': current['balance']
+                        'current': current_balance
                     }
                 
-                new_balance = current['balance'] - amount
-                new_total_spent = current['total_spent'] + amount
+                new_balance = self.round_amount(current_balance - amount)
+                new_total_spent = self.round_amount(current['total_spent'] + amount)
                 
                 # 更新余额
                 conn.execute(
@@ -308,7 +333,7 @@ class PointModel:
                 if existing_rollback:
                     return {'success': False, 'error': '已经回滚过了'}
                 
-                amount = transaction['amount']
+                amount = self.round_amount(transaction['amount'])
                 
                 # 获取当前余额
                 current = conn.execute(
@@ -316,7 +341,7 @@ class PointModel:
                     (user_id,)
                 ).fetchone()
                 
-                new_balance = current['balance'] + amount
+                new_balance = self.round_amount(current['balance'] + amount)
                 
                 # 更新余额
                 conn.execute(

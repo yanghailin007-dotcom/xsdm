@@ -19,23 +19,23 @@
         
         <a href="/dashboard" class="v2-dropdown__item">
             <span>📊</span>
-            <span>仪表板</span>
+            <span data-i18n="userMenu.dashboard">仪表板</span>
         </a>
         
         <a href="/account" class="v2-dropdown__item">
             <span>👤</span>
-            <span>账户设置</span>
+            <span data-i18n="userMenu.accountSettings">账户设置</span>
         </a>
         
         <a href="/points" class="v2-dropdown__item">
             <span>💰</span>
-            <span>余额管理</span>
-            <span id="v2UserPoints" style="margin-left: auto; color: var(--v2-primary-500); font-weight: 600;">--</span>
+            <span data-i18n="userMenu.balance">余额管理</span>
+            <span id="v2UserPoints" style="margin-left: auto; color: var(--v2-primary-500); font-weight: 600;">-- <span data-i18n="userMenu.points">点</span></span>
         </a>
         
         <a href="/recharge" class="v2-dropdown__item" style="color: var(--v2-accent-green);">
             <span>💎</span>
-            <span>立即充值</span>
+            <span data-i18n="userMenu.recharge">立即充值</span>
         </a>
         
         {% if session.is_admin %}
@@ -43,8 +43,8 @@
         
         <a href="/admin/users" class="v2-dropdown__item" style="color: var(--v2-accent-purple);">
             <span>👑</span>
-            <span>用户管理</span>
-            <span style="margin-left: auto; font-size: 11px; background: linear-gradient(135deg, #a78bfa 0%, #8b5cf6 100%); color: white; padding: 2px 8px; border-radius: 10px;">ADMIN</span>
+            <span data-i18n="userMenu.userManagement">用户管理</span>
+            <span style="margin-left: auto; font-size: 11px; background: linear-gradient(135deg, #a78bfa 0%, #8b5cf6 100%); color: white; padding: 2px 8px; border-radius: 10px;" data-i18n="userMenu.admin">ADMIN</span>
         </a>
         {% endif %}
         
@@ -52,17 +52,17 @@
         
         <a href="/help" class="v2-dropdown__item">
             <span>📚</span>
-            <span>使用教程</span>
+            <span data-i18n="userMenu.tutorial">使用教程</span>
         </a>
         
         <a href="/model-config" class="v2-dropdown__item">
             <span>🤖</span>
-            <span>模型配置</span>
+            <span data-i18n="userMenu.modelConfig">模型配置</span>
         </a>
         
         <a href="/settings" class="v2-dropdown__item">
             <span>⚙️</span>
-            <span>偏好设置</span>
+            <span data-i18n="userMenu.preferences">偏好设置</span>
         </a>
         
         <div class="v2-dropdown__divider"></div>
@@ -70,13 +70,13 @@
         <!-- 多账户切换入口 -->
         <a href="javascript:void(0)" class="v2-dropdown__item" onclick="showAccountSwitcher(event); return false;">
             <span>🔄</span>
-            <span>切换账户</span>
+            <span data-i18n="userMenu.switchAccount">切换账户</span>
             <span id="account-count-badge" class="v2-account-badge" style="display: none;">0</span>
         </a>
         
         <a href="/logout" class="v2-dropdown__item v2-dropdown__item--danger">
             <span>🚪</span>
-            <span>退出登录</span>
+            <span data-i18n="userMenu.logout">退出登录</span>
         </a>
     </div>
 </div>
@@ -88,7 +88,7 @@
         <div class="v2-account-modal__header">
             <div class="v2-account-modal__title">
                 <span class="v2-account-modal__icon">👥</span>
-                <span>切换账户</span>
+                <span data-i18n="accountSwitcher.title">切换账户</span>
             </div>
             <button class="v2-account-modal__close" onclick="hideAccountSwitcher()">
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -104,7 +104,7 @@
             <div class="v2-account-modal__divider"></div>
             <button type="button" class="v2-account-modal__add-btn" onclick="goToLogin();">
                 <span>+</span>
-                <span>登录新账户</span>
+                <span data-i18n="accountSwitcher.loginNew">登录新账户</span>
             </button>
         </div>
     </div>
@@ -152,7 +152,8 @@
                 if (result.success) {
                     const pointsEl = document.getElementById('v2UserPoints');
                     if (pointsEl) {
-                        pointsEl.textContent = result.data.balance + ' 点';
+                        const pointsLabel = (typeof I18N !== 'undefined' && I18N.t('userMenu.points')) || '点';
+                        pointsEl.textContent = result.data.balance + ' ' + pointsLabel;
                     }
                 }
             }
@@ -165,7 +166,8 @@
     window.addEventListener('balanceUpdated', function(event) {
         const pointsEl = document.getElementById('v2UserPoints');
         if (pointsEl && event.detail && event.detail.balance !== undefined) {
-            pointsEl.textContent = event.detail.balance + ' 点';
+            const pointsLabel = (typeof I18N !== 'undefined' && I18N.t('userMenu.points')) || '点';
+            pointsEl.textContent = event.detail.balance + ' ' + pointsLabel;
         }
     });
     
@@ -267,7 +269,8 @@ async function showAccountSwitcher(event) {
                 // 更新导航栏点数显示
                 const v2UserPoints = document.getElementById('v2UserPoints');
                 if (v2UserPoints) {
-                    v2UserPoints.textContent = currentBalance + ' 点';
+                    const pointsLabel = (typeof I18N !== 'undefined' && I18N.t('userMenu.points')) || '点';
+                    v2UserPoints.textContent = currentBalance + ' ' + pointsLabel;
                 }
             }
         }
@@ -289,24 +292,34 @@ async function showAccountSwitcher(event) {
     
     if (accounts.length === 0) {
         // 显示空状态 - 提示用户添加当前账户
+        const noAccounts = (typeof I18N !== 'undefined' && I18N.t('accountSwitcher.noAccounts')) || '暂无保存的账户';
+        const currentLogin = (typeof I18N !== 'undefined' && I18N.t('accountSwitcher.currentLogin')) || '当前登录';
+        const unknownUser = (typeof I18N !== 'undefined' && I18N.t('accountSwitcher.unknownUser')) || '未知用户';
+        const addCurrent = (typeof I18N !== 'undefined' && I18N.t('accountSwitcher.addCurrent')) || '添加当前账户';
         list.innerHTML = `
             <div class="v2-account-empty">
                 <div class="v2-account-empty__icon">👤</div>
-                <div class="v2-account-empty__title">暂无保存的账户</div>
+                <div class="v2-account-empty__title">${noAccounts}</div>
                 <div class="v2-account-empty__desc">
-                    当前登录: <strong>${currentUsername || '未知用户'}</strong><br>
-                    点击下方按钮添加当前账户
+                    ${currentLogin}: <strong>${currentUsername || unknownUser}</strong><br>
+                    ${addCurrent}
                 </div>
                 <button class="v2-account-empty__btn" onclick="addCurrentAccount()">
                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                         <line x1="12" y1="5" x2="12" y2="19"></line>
                         <line x1="5" y1="12" x2="19" y2="12"></line>
                     </svg>
-                    添加当前账户
+                    ${addCurrent}
                 </button>
             </div>
         `;
     } else {
+        const unknownUser = (typeof I18N !== 'undefined' && I18N.t('accountSwitcher.unknownUser')) || '未知用户';
+        const pointsLabel = (typeof I18N !== 'undefined' && I18N.t('userMenu.points')) || '点';
+        const currentLabel = (typeof I18N !== 'undefined' && I18N.t('accountSwitcher.current')) || '当前';
+        const switchLabel = (typeof I18N !== 'undefined' && I18N.t('accountSwitcher.switch')) || '切换';
+        const reloginLabel = (typeof I18N !== 'undefined' && I18N.t('accountSwitcher.reloginRequired')) || '需重登';
+        
         list.innerHTML = accounts.map(acc => {
             // 当前账户显示最新余额，其他账户显示存储的余额
             const displayPoints = (acc.id === currentId) ? currentBalance : (acc.points || 0);
@@ -317,15 +330,15 @@ async function showAccountSwitcher(event) {
                     ${acc.username ? acc.username[0].toUpperCase() : '?'}
                 </div>
                 <div class="v2-account-card__info">
-                    <div class="v2-account-card__name">${acc.username || '未知用户'}</div>
-                    <div class="v2-account-card__points">💰 ${displayPoints} 点</div>
+                    <div class="v2-account-card__name">${acc.username || unknownUser}</div>
+                    <div class="v2-account-card__points">💰 ${displayPoints} ${pointsLabel}</div>
                 </div>
                 <div class="v2-account-card__status">
                     ${acc.id === currentId ? 
-                        '<span class="v2-account-card__badge v2-account-card__badge--active">当前</span>' : 
-                        '<span class="v2-account-card__badge v2-account-card__badge--switch">切换</span>'
+                        `<span class="v2-account-card__badge v2-account-card__badge--active">${currentLabel}</span>` : 
+                        `<span class="v2-account-card__badge v2-account-card__badge--switch">${switchLabel}</span>`
                     }
-                    ${acc.needsRelogin ? '<span class="v2-account-card__badge v2-account-card__badge--warn">需重登</span>' : ''}
+                    ${acc.needsRelogin ? `<span class="v2-account-card__badge v2-account-card__badge--warn">${reloginLabel}</span>` : ''}
                 </div>
             </div>
         `}).join('');
@@ -344,7 +357,8 @@ async function switchToAccount(accountId) {
     
     if (!window.accountManager) {
         console.error('[AccountSwitcher] AccountManager not available');
-        alert('账户管理器未加载，请刷新页面重试');
+        const managerNotLoaded = (typeof I18N !== 'undefined' && I18N.t('accountSwitcher.managerNotLoaded')) || '账户管理器未加载，请刷新页面重试';
+        alert(managerNotLoaded);
         return;
     }
     
@@ -363,7 +377,8 @@ async function switchToAccount(accountId) {
         // 刷新页面以显示新账户信息
         window.location.reload();
     } else {
-        alert('切换账户失败，请重试');
+        const switchFailed = (typeof I18N !== 'undefined' && I18N.t('accountSwitcher.switchFailed')) || '切换账户失败，请重试';
+        alert(switchFailed);
         if (card) {
             card.style.opacity = '1';
             card.style.pointerEvents = 'auto';
@@ -391,7 +406,8 @@ async function addCurrentAccount() {
         const data = await response.json();
         
         if (!data.success) {
-            alert('获取用户信息失败，请刷新页面重试');
+            const loadUserFailed = (typeof I18N !== 'undefined' && I18N.t('accountSwitcher.loadUserFailed')) || '获取用户信息失败，请刷新页面重试';
+        alert(loadUserFailed);
             return;
         }
         
@@ -416,7 +432,8 @@ async function addCurrentAccount() {
         }
     } catch (error) {
         console.error('[AccountSwitcher] Failed to add current account:', error);
-        alert('添加账户失败，请重试');
+        const addAccountFailed = (typeof I18N !== 'undefined' && I18N.t('accountSwitcher.addAccountFailed')) || '添加账户失败，请重试';
+        alert(addAccountFailed);
     }
 }
 </script>

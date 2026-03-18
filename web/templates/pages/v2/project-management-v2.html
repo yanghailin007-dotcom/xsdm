@@ -386,24 +386,24 @@
     <div class="v2-filter-bar">
         <div class="v2-filter-controls">
             <select class="v2-filter-select" id="status-filter" onchange="filterProjects()">
-                <option value="">所有状态</option>
-                <option value="phase-one-only">仅第一阶段完成</option>
-                <option value="phase-two-in-progress">第二阶段进行中</option>
-                <option value="completed">已完成</option>
-                <option value="failed">失败</option>
+                <option value="" data-i18n="projectMgmt.filter.allStatus">所有状态</option>
+                <option value="phase-one-only" data-i18n="projectMgmt.filter.phaseOneOnly">仅第一阶段完成</option>
+                <option value="phase-two-in-progress" data-i18n="projectMgmt.filter.phaseTwoInProgress">第二阶段进行中</option>
+                <option value="completed" data-i18n="projectMgmt.filter.completed">已完成</option>
+                <option value="failed" data-i18n="projectMgmt.filter.failed">失败</option>
             </select>
             <select class="v2-filter-select" id="phase-filter" onchange="filterProjectsByPhase()">
-                <option value="all">所有阶段</option>
-                <option value="phase_one_completed">第一阶段完成</option>
-                <option value="phase_two_in_progress">第二阶段进行中</option>
-                <option value="designing">设计阶段</option>
-                <option value="completed">全部完成</option>
+                <option value="all" data-i18n="projectMgmt.filter.allPhases">所有阶段</option>
+                <option value="phase_one_completed" data-i18n="projectMgmt.filter.phaseOneCompleted">第一阶段完成</option>
+                <option value="phase_two_in_progress" data-i18n="projectMgmt.filter.phaseTwoInProgress">第二阶段进行中</option>
+                <option value="designing" data-i18n="projectMgmt.filter.designing">设计阶段</option>
+                <option value="completed" data-i18n="projectMgmt.filter.completed">全部完成</option>
             </select>
             <select class="v2-filter-select" id="sort-filter" onchange="filterProjects()">
-                <option value="last_updated">最近更新</option>
-                <option value="created_date">创建时间</option>
-                <option value="title">标题排序</option>
-                <option value="progress">进度排序</option>
+                <option value="last_updated" data-i18n="projectMgmt.filter.sortLastUpdated">最近更新</option>
+                <option value="created_date" data-i18n="projectMgmt.filter.sortCreated">创建时间</option>
+                <option value="title" data-i18n="projectMgmt.filter.sortTitle">标题排序</option>
+                <option value="progress" data-i18n="projectMgmt.filter.sortProgress">进度排序</option>
             </select>
             <input type="text" class="v2-filter-input" id="search-filter" data-i18n-placeholder="projectMgmt.searchPlaceholder" placeholder="搜索项目..." oninput="filterProjects()">
         </div>
@@ -443,6 +443,11 @@
         document.addEventListener('DOMContentLoaded', function() {
             checkLoginStatus();
             loadProjects();
+            
+            // 应用国际化翻译
+            if (typeof I18N !== 'undefined') {
+                I18N.applyToPage();
+            }
         });
 
         // 检查登录状态
@@ -450,22 +455,22 @@
             try {
                 const response = await fetch('/api/health');
                 if (!response.ok) {
-                    showStatusMessage('⚠️ 请先登录后再使用项目管理功能', 'error');
+                    showStatusMessage('⚠️ ' + (typeof I18N !== 'undefined' ? I18N.t('projectMgmt.status.loginRequired') : '请先登录后再使用项目管理功能'), 'error');
                 }
             } catch (error) {
-                showStatusMessage('⚠️ 请先登录后再使用项目管理功能', 'error');
+                showStatusMessage('⚠️ ' + (typeof I18N !== 'undefined' ? I18N.t('projectMgmt.status.loginRequired') : '请先登录后再使用项目管理功能'), 'error');
             }
         }
 
         // ==================== 项目加载功能 ====================
         async function loadProjects() {
             try {
-                showStatusMessage('🔄 正在加载项目列表...', 'info');
+                showStatusMessage('🔄 ' + (typeof I18N !== 'undefined' ? I18N.t('projectMgmt.status.loading') : '正在加载项目列表...'), 'info');
                 
                 const response = await fetch('/api/projects/with-phase-status');
                 
                 if (response.status === 401) {
-                    showStatusMessage('请先登录才能加载项目', 'error');
+                    showStatusMessage(typeof I18N !== 'undefined' ? I18N.t('projectMgmt.status.loginToLoad') : '请先登录才能加载项目', 'error');
                     return;
                 }
                 
@@ -492,10 +497,16 @@
                 
                 updateStatsOverview();
                 displayProjects(projectsData);
-                showStatusMessage(`✅ 成功加载 ${projectsData.length} 个项目`, 'success');
+                const successMsg = typeof I18N !== 'undefined' 
+                    ? I18N.t('projectMgmt.status.loadSuccess').replace('{count}', projectsData.length)
+                    : `成功加载 ${projectsData.length} 个项目`;
+                showStatusMessage('✅ ' + successMsg, 'success');
             } catch (error) {
                 console.error('❌ 加载项目失败:', error);
-                showStatusMessage(`❌ 加载项目失败: ${error.message}`, 'error');
+                const errorMsg = typeof I18N !== 'undefined'
+                    ? I18N.t('projectMgmt.status.loadFailed').replace('{error}', error.message)
+                    : `加载项目失败: ${error.message}`;
+                showStatusMessage('❌ ' + errorMsg, 'error');
             }
         }
 
@@ -504,13 +515,16 @@
             const container = document.getElementById('projects-container');
             
             if (projects.length === 0) {
+                const emptyTitle = typeof I18N !== 'undefined' ? I18N.t('projectMgmt.empty.title') : '暂无项目';
+                const emptyDesc = typeof I18N !== 'undefined' ? I18N.t('projectMgmt.empty.desc') : '您还没有创建任何项目，开始您的第一个两阶段小说项目吧！';
+                const createBtn = typeof I18N !== 'undefined' ? I18N.t('projectMgmt.empty.createBtn') : '🎨 创建第一个项目';
                 container.innerHTML = `
                     <div class="v2-empty-state">
                         <div class="v2-empty-state__icon">📂</div>
-                        <h2 class="v2-empty-state__title">暂无项目</h2>
-                        <p class="v2-empty-state__desc">您还没有创建任何项目，开始您的第一个两阶段小说项目吧！</p>
+                        <h2 class="v2-empty-state__title">${emptyTitle}</h2>
+                        <p class="v2-empty-state__desc">${emptyDesc}</p>
                         <button class="v2-btn v2-btn--primary" onclick="location.href='/phase-one-setup'">
-                            🎨 创建第一个项目
+                            ${createBtn}
                         </button>
                     </div>
                 `;
@@ -527,6 +541,11 @@
 
             container.innerHTML = '';
             container.appendChild(projectsList);
+            
+            // 应用国际化翻译到动态生成的内容
+            if (typeof I18N !== 'undefined') {
+                I18N.applyToPage();
+            }
         }
 
         function createProjectCard(project) {
@@ -536,12 +555,17 @@
             const statusInfo = getStatusInfo(project);
             const progressPercent = calculateProgress(project);
             
+            const createdLabel = typeof I18N !== 'undefined' ? I18N.t('projectMgmt.card.created') : '创建';
+            const updatedLabel = typeof I18N !== 'undefined' ? I18N.t('projectMgmt.card.updated') : '更新';
+            const progressLabel = typeof I18N !== 'undefined' ? I18N.t('projectMgmt.card.progress') : '生成进度';
+            const chaptersLabel = typeof I18N !== 'undefined' ? I18N.t('projectMgmt.card.chapters') : '章节';
+            
             card.innerHTML = `
                 <div class="v2-project-card__header">
                     <div>
                         <h3 class="v2-project-card__title">${escapeJs(project.title)}</h3>
                         <div class="v2-project-card__meta">
-                            📅 创建: ${formatDate(project.created_at)} · 🔄 更新: ${formatDate(project.last_updated)}
+                            📅 ${createdLabel}: ${formatDate(project.created_at)} · 🔄 ${updatedLabel}: ${formatDate(project.last_updated)}
                         </div>
                     </div>
                     <span class="v2-project-card__status v2-status--${statusInfo.class}">
@@ -551,14 +575,14 @@
                 
                 <div class="v2-project-card__progress">
                     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
-                        <span style="font-size: 13px; color: var(--v2-text-secondary);">生成进度</span>
+                        <span style="font-size: 13px; color: var(--v2-text-secondary);">${progressLabel}</span>
                         <span style="font-size: 13px; font-weight: 600; color: var(--v2-text-primary);">${progressPercent}%</span>
                     </div>
                     <div class="v2-progress-bar">
                         <div class="v2-progress-bar__fill" style="width: ${progressPercent}%"></div>
                     </div>
                     <div class="v2-progress-text">
-                        ${project.completed_chapters || 0} / ${project.total_chapters || 0} 章节
+                        ${project.completed_chapters || 0} / ${project.total_chapters || 0} ${chaptersLabel}
                     </div>
                 </div>
                 
@@ -572,15 +596,15 @@
 
         function getStatusInfo(project) {
             if (project.status === 'completed') {
-                return { class: 'completed', icon: '✅', text: '已完成' };
+                return { class: 'completed', icon: '✅', text: typeof I18N !== 'undefined' ? I18N.t('projectMgmt.status.completed') : '已完成' };
             } else if (project.phase_two && project.phase_two.status === 'generating') {
-                return { class: 'progress', icon: '🔄', text: '第二阶段进行中' };
+                return { class: 'progress', icon: '🔄', text: typeof I18N !== 'undefined' ? I18N.t('projectMgmt.status.phaseTwoProgress') : '第二阶段进行中' };
             } else if (project.phase_one && project.phase_one.status === 'completed') {
-                return { class: 'phase1', icon: '✨', text: '第一阶段完成' };
+                return { class: 'phase1', icon: '✨', text: typeof I18N !== 'undefined' ? I18N.t('projectMgmt.status.phaseOneCompleted') : '第一阶段完成' };
             } else if (project.status === 'failed') {
-                return { class: 'failed', icon: '❌', text: '失败' };
+                return { class: 'failed', icon: '❌', text: typeof I18N !== 'undefined' ? I18N.t('projectMgmt.status.failed') : '失败' };
             }
-            return { class: 'progress', icon: '⏳', text: '设计阶段' };
+            return { class: 'progress', icon: '⏳', text: typeof I18N !== 'undefined' ? I18N.t('projectMgmt.status.designing') : '设计阶段' };
         }
 
         function calculateProgress(project) {
@@ -592,32 +616,43 @@
         function createActionButtons(project) {
             let buttons = '';
             
+            // 获取翻译文本
+            const tViewContent = typeof I18N !== 'undefined' ? I18N.t('projectMgmt.action.viewContent') : '📖 查看内容';
+            const tContinue = typeof I18N !== 'undefined' ? I18N.t('projectMgmt.action.continue') : '📝 继续生成';
+            const tViewSettings = typeof I18N !== 'undefined' ? I18N.t('projectMgmt.action.viewSettings') : '👁️ 查看设定';
+            const tQuality = typeof I18N !== 'undefined' ? I18N.t('projectMgmt.action.quality') : '🎯 质量评估';
+            const tVideo = typeof I18N !== 'undefined' ? I18N.t('projectMgmt.action.video') : '🎬 视频生成';
+            const tVisualize = typeof I18N !== 'undefined' ? I18N.t('projectMgmt.action.visualize') : '📊 可视化';
+            const tContinueDesign = typeof I18N !== 'undefined' ? I18N.t('projectMgmt.action.continueDesign') : '⚙️ 继续设计';
+            const tExport = typeof I18N !== 'undefined' ? I18N.t('projectMgmt.action.export') : '📥 导出';
+            const tDelete = typeof I18N !== 'undefined' ? I18N.t('projectMgmt.action.delete') : '🗑️ 删除';
+            
             // 主要操作按钮
             if (project.phase_one && project.phase_one.status === 'completed') {
                 if (project.phase_two && project.phase_two.status === 'completed') {
                     buttons += `
-                        <button class="v2-btn v2-btn--primary" onclick="viewProject('${escapeJs(project.title)}')">📖 查看内容</button>
+                        <button class="v2-btn v2-btn--primary" onclick="viewProject('${escapeJs(project.title)}')">${tViewContent}</button>
                     `;
                 } else {
                     buttons += `
-                        <button class="v2-btn v2-btn--primary" onclick="continueToPhaseTwo('${escapeJs(project.title)}')">📝 继续生成</button>
-                        <button class="v2-btn v2-btn--secondary" onclick="viewPhaseOneResult('${escapeJs(project.title)}')">👁️ 查看设定</button>
-                        <button class="v2-btn v2-btn--secondary" onclick="viewQualityAssessment('${escapeJs(project.title)}')">🎯 质量评估</button>
-                        <button class="v2-btn v2-btn--secondary" onclick="goToVideoGeneration('${escapeJs(project.title)}')">🎬 视频生成</button>
-                        <button class="v2-btn v2-btn--secondary" onclick="viewProjectViewer('${escapeJs(project.title)}')">📊 可视化</button>
+                        <button class="v2-btn v2-btn--primary" onclick="continueToPhaseTwo('${escapeJs(project.title)}')">${tContinue}</button>
+                        <button class="v2-btn v2-btn--secondary" onclick="viewPhaseOneResult('${escapeJs(project.title)}')">${tViewSettings}</button>
+                        <button class="v2-btn v2-btn--secondary" onclick="viewQualityAssessment('${escapeJs(project.title)}')">${tQuality}</button>
+                        <button class="v2-btn v2-btn--secondary" onclick="goToVideoGeneration('${escapeJs(project.title)}')">${tVideo}</button>
+                        <button class="v2-btn v2-btn--secondary" onclick="viewProjectViewer('${escapeJs(project.title)}')">${tVisualize}</button>
                     `;
                 }
             } else {
                 buttons += `
-                    <button class="v2-btn v2-btn--primary" onclick="continuePhaseOne('${escapeJs(project.title)}')">⚙️ 继续设计</button>
+                    <button class="v2-btn v2-btn--primary" onclick="continuePhaseOne('${escapeJs(project.title)}')">${tContinueDesign}</button>
                 `;
             }
             
             // 🔥 导出按钮放在最右边（倒数第二）
-            buttons += `<button class="v2-btn v2-btn--secondary" onclick="exportNovelZip('${escapeJs(project.title)}')">📥 导出</button>`;
+            buttons += `<button class="v2-btn v2-btn--secondary" onclick="exportNovelZip('${escapeJs(project.title)}')">${tExport}</button>`;
             
             // 删除按钮放在最后（最右边）
-            buttons += `<button class="v2-btn v2-btn--danger" onclick="deleteProject('${escapeJs(project.title)}')">🗑️ 删除</button>`;
+            buttons += `<button class="v2-btn v2-btn--danger" onclick="deleteProject('${escapeJs(project.title)}')">${tDelete}</button>`;
             
             return buttons;
         }
@@ -851,7 +886,10 @@
         }
 
         async function deleteProject(projectTitle) {
-            if (!confirm(`确定要删除项目 "${projectTitle}" 吗？此操作不可撤销，所有相关数据将被永久删除。`)) {
+            const confirmMsg = typeof I18N !== 'undefined' 
+                ? `Confirm delete project "${projectTitle}"? This cannot be undone.`
+                : `确定要删除项目 "${projectTitle}" 吗？此操作不可撤销，所有相关数据将被永久删除。`;
+            if (!confirm(confirmMsg)) {
                 return;
             }
 
@@ -896,7 +934,7 @@
         }
 
         function refreshProjects() {
-            showStatusMessage('🔄 正在刷新项目列表...', 'info');
+            showStatusMessage('🔄 ' + (typeof I18N !== 'undefined' ? I18N.t('projectMgmt.status.loading') : '正在加载项目列表...'), 'info');
             loadProjects();
         }
 
@@ -907,7 +945,10 @@
 
         // ==================== 工具函数 ====================
         function formatDate(dateString) {
-            if (!dateString) return '未知时间';
+            const unknownTime = typeof I18N !== 'undefined' ? I18N.t('common.unknownTime') || '未知时间' : '未知时间';
+            const timeError = typeof I18N !== 'undefined' ? I18N.t('common.timeFormatError') || '时间格式错误' : '时间格式错误';
+            
+            if (!dateString) return unknownTime;
             
             try {
                 const date = new Date(dateString);
@@ -919,7 +960,7 @@
                     minute: '2-digit'
                 });
             } catch (error) {
-                return '时间格式错误';
+                return timeError;
             }
         }
 
@@ -954,7 +995,8 @@
         }
 
         function logout() {
-            if (confirm('确定要退出登录吗？')) {
+            const logoutConfirm = typeof I18N !== 'undefined' ? I18N.t('common.logoutConfirm') : '确定要退出登录吗？';
+            if (confirm(logoutConfirm)) {
                 window.location.href = '/logout';
             }
         }
@@ -988,6 +1030,7 @@
                 align-items: center;
             `;
 
+            const loadingText = typeof I18N !== 'undefined' ? I18N.t('common.loading') : '加载中...';
             modal.innerHTML = `
                 <div style="background: var(--v2-bg-secondary); border: 1px solid var(--v2-border-default); border-radius: 16px; width: 90%; max-width: 800px; max-height: 90vh; overflow: hidden; display: flex; flex-direction: column; color: var(--v2-text-primary);">
                     <div style="padding: 20px 24px; border-bottom: 1px solid var(--v2-border-default); display: flex; justify-content: space-between; align-items: center;">
@@ -995,7 +1038,7 @@
                         <button onclick="closeQualityAssessmentModal()" style="background: none; border: none; font-size: 24px; cursor: pointer; color: var(--v2-text-secondary);">&times;</button>
                     </div>
                     <div id="quality-assessment-content" style="padding: 24px; overflow-y: auto; flex: 1;">
-                        <p style="text-align: center; color: var(--v2-text-secondary);">正在加载评估报告...</p>
+                        <p style="text-align: center; color: var(--v2-text-secondary);">${loadingText}</p>
                     </div>
                 </div>
             `;
