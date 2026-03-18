@@ -206,21 +206,45 @@ class NovelPublisher:
         Returns:
             是否发布成功
         """
-        # 查找章节文件
-        chapter_path = os.path.join(
-            self.config_loader.get_novel_path() if self.config_loader else "小说项目",
-            f"{novel_title}_章节"
-        )
+        # 查找章节文件 - 从 json_file 所在目录查找
+        json_file_path = Path(json_file)
+        project_dir = json_file_path.parent
         
-        if not os.path.exists(chapter_path):
-            logger.info(f"章节目录不存在: {chapter_path}")
-            logger.info("请确保章节文件位于正确的目录中")
+        # 支持的章节目录名（按优先级排序）
+        possible_chapter_dirs = [
+            os.path.join(project_dir, "chapters"),  # 优先检查 chapters 目录
+            os.path.join(project_dir, f"{novel_title}_章节"),  # 兼容旧命名
+        ]
+        
+        chapter_path = None
+        for path in possible_chapter_dirs:
+            if os.path.exists(path):
+                chapter_path = path
+                logger.info(f"[Publisher] 找到章节目录: {path}")
+                break
+        
+        # 如果项目目录下没找到，回退到旧路径逻辑（兼容旧路径）
+        if not chapter_path and self.config_loader:
+            legacy_path = os.path.join(
+                self.config_loader.get_novel_path(),
+                f"{novel_title}_章节"
+            )
+            if os.path.exists(legacy_path):
+                chapter_path = legacy_path
+                logger.info(f"[Publisher] 使用旧路径章节目录: {chapter_path}")
+        
+        if not chapter_path:
+            logger.info(f"章节目录不存在，已尝试以下路径:")
+            for path in possible_chapter_dirs:
+                logger.info(f"  - {path}")
+            logger.info(f"项目目录: {project_dir}")
+            logger.info("请确保章节文件位于 'chapters' 或 '{小说名}_章节' 目录中")
             return False
         
-        # 获取章节文件
+        # 获取章节文件（支持 .txt 和 .json 格式）
         chapter_files = []
         for filename in os.listdir(chapter_path):
-            if filename.endswith('.txt'):
+            if filename.endswith('.txt') or filename.endswith('.json'):
                 chapter_files.append(os.path.join(chapter_path, filename))
         
         # 验证并修复章节文件

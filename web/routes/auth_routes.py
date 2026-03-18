@@ -464,20 +464,14 @@ def register_page_routes(app):
     @app.route('/cover-generator', methods=['GET'])
     @login_required
     def cover_generator():
-        """小说封面生成器页面 (V2 版本)"""
-        return render_template('cover_generator_v2.html')
+        """小说封面生成器页面"""
+        return render_template('cover_generator.html')
 
     @app.route('/cover-maker', methods=['GET'])
     @login_required
     def cover_maker():
         """小说封面制作页面"""
         return render_template('cover_maker.html')
-    
-    @app.route('/cover-generator-v1', methods=['GET'])
-    @login_required
-    def cover_generator_v1():
-        """小说封面生成器页面 (V1 旧版本)"""
-        return render_template('cover_generator.html')
 
     @app.route('/fanqie-upload', methods=['GET'])
     @login_required

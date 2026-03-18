@@ -42,11 +42,20 @@ class CoverService:
             novel_title = data.get('novel_title', '').strip()
             safe_title = re.sub(r'[\\/*?:"<>|]', "_", novel_title)
             
-            logger.info(f"🎨 开始生成封面: {novel_title}")
+            # 获取当前用户名（按用户隔离）
+            username = data.get('username', 'anonymous')
+            if not username or username == 'anonymous':
+                try:
+                    from web.utils.path_utils import get_current_username
+                    username = get_current_username()
+                except Exception:
+                    username = 'anonymous'
+            
+            logger.info(f"🎨 开始生成封面: {novel_title}, 用户: {username}")
             logger.info(f"📝 提示词长度: {len(final_prompt)} 字符")
             
-            # 创建小说专用目录
-            novel_cover_dir = os.path.join(BASE_DIR, 'generated_images', safe_title)
+            # 创建用户隔离的小说专用目录: generated_images/username/safe_title
+            novel_cover_dir = os.path.join(BASE_DIR, 'generated_images', username, safe_title)
             os.makedirs(novel_cover_dir, exist_ok=True)
             
             # 批量生成图片
@@ -210,12 +219,20 @@ class CoverService:
         
         return base_prompt.strip()
 
-    def get_novel_covers(self, title: str) -> Dict[str, Any]:
+    def get_novel_covers(self, title: str, username: str = None) -> Dict[str, Any]:
         """获取指定小说的封面列表"""
         try:
             # URL解码标题
             novel_title = unquote(title)
             safe_title = re.sub(r'[\\/*?:"<>|]', "_", novel_title)
+            
+            # 获取当前用户名（按用户隔离）
+            if not username:
+                try:
+                    from web.utils.path_utils import get_current_username
+                    username = get_current_username()
+                except Exception:
+                    username = 'anonymous'
             
             # 搜索generated_images目录中与小说相关的图片
             generated_images_dir = os.path.join(BASE_DIR, 'generated_images')
@@ -227,21 +244,23 @@ class CoverService:
                     "count": 0
                 }
             
-            # 优先查找小说专用子目录
-            novel_cover_dir = os.path.join(generated_images_dir, safe_title)
+            # 优先查找用户隔离的小说子目录: generated_images/username/safe_title
+            novel_cover_dir = os.path.join(generated_images_dir, username, safe_title)
             image_files = []
             
             if os.path.exists(novel_cover_dir):
                 # 查找小说子目录中的所有jpg文件
                 pattern = os.path.join(novel_cover_dir, "*.jpg")
                 image_files = glob.glob(pattern)
-                logger.info(f"在小说子目录中找到 {len(image_files)} 个封面文件: {novel_cover_dir}")
+                logger.info(f"在用户目录中找到 {len(image_files)} 个封面文件: {novel_cover_dir}")
             else:
-                # 兼容性：查找根目录中包含小说标题的图片文件
-                pattern = os.path.join(generated_images_dir, f"*{safe_title}*.jpg")
-                image_files = glob.glob(pattern)
-                if image_files:
-                    logger.info(f"在根目录中找到 {len(image_files)} 个包含小说名的封面文件")
+                # 兼容性：查找旧路径（不带用户隔离）
+                old_cover_dir = os.path.join(generated_images_dir, safe_title)
+                if os.path.exists(old_cover_dir):
+                    pattern = os.path.join(old_cover_dir, "*.jpg")
+                    image_files = glob.glob(pattern)
+                    if image_files:
+                        logger.info(f"在旧路径找到 {len(image_files)} 个封面文件: {old_cover_dir}")
             
             covers = []
             for image_file in image_files:

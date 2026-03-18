@@ -20,6 +20,15 @@ def register_cover_routes(app):
         """生成小说封面"""
         try:
             data = request.json or {}
+            
+            # 获取当前用户名并传入数据
+            try:
+                from web.utils.path_utils import get_current_username
+                username = get_current_username()
+                data['username'] = username
+            except Exception:
+                data['username'] = 'anonymous'
+            
             result = cover_service.generate_cover(data)
             
             if result["success"]:
@@ -36,7 +45,14 @@ def register_cover_routes(app):
     def get_novel_covers(title):
         """获取指定小说的封面列表"""
         try:
-            result = cover_service.get_novel_covers(title)
+            # 获取当前用户名
+            try:
+                from web.utils.path_utils import get_current_username
+                username = get_current_username()
+            except Exception:
+                username = 'anonymous'
+            
+            result = cover_service.get_novel_covers(title, username)
             
             if result["success"]:
                 return jsonify(result)

@@ -32,7 +32,33 @@ PUBLIC_PROJECTS_DIR = NOVEL_PROJECTS_ROOT / "_public"
 def get_current_username() -> str:
     """获取当前登录用户名"""
     try:
-        return session.get('username', 'anonymous')
+        # 优先从 Flask g 对象获取（JWT认证）
+        from flask import g
+        if hasattr(g, 'current_user') and g.current_user:
+            username = g.current_user.get('username')
+            if username:
+                return username
+        
+        # 其次从 session 获取（Session认证）
+        username = session.get('username')
+        if username:
+            return username
+        
+        # 尝试从 user_id 获取用户名
+        user_id = session.get('user_id')
+        if user_id:
+            # 尝试从数据库查询用户名
+            try:
+                from web.models.user_model import UserModel
+                user_model = UserModel()
+                user = user_model.get_user_by_id(user_id)
+                if user and user.get('username'):
+                    return user['username']
+            except Exception:
+                pass
+            return str(user_id)
+        
+        return 'anonymous'
     except RuntimeError:
         # 在没有 Flask 请求上下文时（如服务器启动时）
         return 'anonymous'
