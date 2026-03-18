@@ -742,30 +742,30 @@
     <div class="pt-container">
         <!-- 页面头部 -->
         <header class="pt-page-header">
-            <h1 class="pt-page-header__title">✨ 第一阶段：设定生成</h1>
-            <p class="pt-page-header__subtitle">生成完整的世界观、角色设计和故事大纲，为后续章节创作奠定基础</p>
+            <h1 class="pt-page-header__title" data-i18n="phase1.title">✨ 第一阶段：设定生成</h1>
+            <p class="pt-page-header__subtitle" data-i18n="phase1.subtitle">生成完整的世界观、角色设计和故事大纲，为后续章节创作奠定基础</p>
         </header>
         
         <!-- 进度步骤 -->
         <div class="pt-steps">
             <div class="pt-step pt-step--active" id="step-input" onclick="switchToStep('input')">
                 <span>✨</span>
-                <span>创意输入</span>
+                <span data-i18n="phase1.step.input">创意输入</span>
             </div>
             <div class="pt-step-connector" id="connector-input"></div>
             <div class="pt-step pt-step--pending" id="step-generation" onclick="switchToStep('generation')">
                 <span>⚙️</span>
-                <span>设定生成</span>
+                <span data-i18n="phase1.step.generation">设定生成</span>
             </div>
             <div class="pt-step-connector" id="connector-generation"></div>
             <div class="pt-step pt-step--pending" id="step-preview" onclick="switchToStep('preview')">
                 <span>📋</span>
-                <span>结果预览</span>
+                <span data-i18n="phase1.step.preview">结果预览</span>
             </div>
             <div class="pt-step-connector" id="connector-preview"></div>
             <div class="pt-step pt-step--pending" id="step-complete" onclick="switchToStep('phase-two')">
                 <span>📝</span>
-                <span>进入第二阶段</span>
+                <span data-i18n="phase1.step.complete">进入第二阶段</span>
             </div>
         </div>
         
@@ -796,11 +796,11 @@
                     ">🔄</div>
                     <div>
                         <h3 style="font-size: 16px; font-weight: 600; margin-bottom: 4px; color: var(--v2-text-primary);">
-                            继续生成 <span id="resume-project-title">项目</span>
+                            <span data-i18n="phase1.resume.title">继续生成</span> <span id="resume-project-title">项目</span>
                         </h3>
                         <p style="font-size: 14px; color: var(--v2-text-secondary); margin: 0;">
-                            您有未完成的设定生成任务，已生成 <span id="resume-progress" style="color: var(--v2-primary-400); font-weight: 600;">-</span> 
-                            · 最后更新 <span id="resume-last-updated">-</span>
+                            <span data-i18n="phase1.resume.desc">您有未完成的设定生成任务</span>，<span data-i18n="phase1.resume.progress">已生成</span> <span id="resume-progress" style="color: var(--v2-primary-400); font-weight: 600;">-</span> 
+                            · <span data-i18n="phase1.resume.updated">最后更新</span> <span id="resume-last-updated">-</span>
                         </p>
                     </div>
                 </div>
@@ -814,7 +814,7 @@
                         font-weight: 600;
                         cursor: pointer;
                         white-space: nowrap;
-                    ">
+                    " data-i18n="phase1.resume.continue">
                         ▶️ 继续生成
                     </button>
                     <button onclick="startNewGenerationFromBanner()" style="
@@ -828,7 +828,7 @@
                         transition: all 0.2s;
                         white-space: nowrap;
                     " onmouseover="this.style.borderColor='rgba(255, 255, 255, 0.4)'; this.style.color='var(--v2-text-primary)';" 
-                       onmouseout="this.style.borderColor='rgba(255, 255, 255, 0.2)'; this.style.color='var(--v2-text-secondary)';">
+                       onmouseout="this.style.borderColor='rgba(255, 255, 255, 0.2)'; this.style.color='var(--v2-text-secondary)';" data-i18n="phase1.resume.new">
                         🆕 开始新创作
                     </button>
                 </div>
@@ -842,7 +842,7 @@
                 <div class="pt-sidebar__inner">
                     <div class="pt-sidebar__title">
                         <span>💡</span>
-                        <span>创意灵感</span>
+                        <span data-i18n="phase1.sidebar.title">创意灵感</span>
                     </div>
                     
                     <!-- 创意库内容 -->
@@ -854,7 +854,7 @@
                         </div>
                     </div>
                     
-                    <button class="pt-btn pt-btn--secondary pt-btn--block" style="margin-top: 16px;" onclick="window.location.href='/creative-workshop'">
+                    <button class="pt-btn pt-btn--secondary pt-btn--block" style="margin-top: 16px;" onclick="window.location.href='/creative-workshop'" data-i18n="phase1.sidebar.create">
                         ➕ 创建新创意
                     </button>
                 </div>
@@ -868,46 +868,46 @@
                         <div class="pt-form-section__title">
                             <div class="pt-form-section__icon">📝</div>
                             <div class="pt-form-section__text">
-                                <h3>创意输入与配置</h3>
-                                <p>填写小说基本信息，AI将为您生成完整设定</p>
+                                <h3 data-i18n="phase1.form.title">创意输入与配置</h3>
+                                <p data-i18n="phase1.form.desc">填写小说基本信息，AI将为您生成完整设定</p>
                             </div>
                         </div>
                         
                         <form id="phase-one-form" onsubmit="handleFormSubmit(event)">
                             <!-- 小说标题 -->
                             <div class="pt-form-group">
-                                <label class="pt-form-group__label">小说标题 *</label>
+                                <label class="pt-form-group__label" data-i18n="phase1.field.title">小说标题 *</label>
                                 <input type="text" id="novel-title" name="title" class="pt-form-group__input" 
-                                       placeholder="请输入小说标题" required>
+                                       placeholder="请输入小说标题" data-i18n-placeholder="phase1.field.title.placeholder" required>
                             </div>
                             
                             <!-- 简介和核心设定 -->
                             <div class="pt-form-grid">
                                 <div class="pt-form-group">
-                                    <label class="pt-form-group__label">小说简介 *</label>
+                                    <label class="pt-form-group__label" data-i18n="phase1.field.synopsis">小说简介 *</label>
                                     <textarea id="novel-synopsis" name="synopsis" class="pt-form-group__textarea" 
-                                              placeholder="简要描述故事主线..." required></textarea>
-                                    <span class="pt-form-group__hint">建议50-200字，概括故事核心冲突</span>
+                                              placeholder="简要描述故事主线..." data-i18n-placeholder="phase1.field.synopsis.placeholder" required></textarea>
+                                    <span class="pt-form-group__hint" data-i18n="phase1.field.synopsis.hint">建议50-200字，概括故事核心冲突</span>
                                 </div>
                                 
                                 <div class="pt-form-group">
-                                    <label class="pt-form-group__label">核心设定 *</label>
+                                    <label class="pt-form-group__label" data-i18n="phase1.field.coreSetting">核心设定 *</label>
                                     <textarea id="core-setting" name="core_setting" class="pt-form-group__textarea" 
-                                              placeholder="描述世界背景、特殊规则、主角金手指等..." required></textarea>
-                                    <span class="pt-form-group__hint">建议300字以上，越详细生成效果越好</span>
+                                              placeholder="描述世界背景、特殊规则、主角金手指等..." data-i18n-placeholder="phase1.field.coreSetting.placeholder" required></textarea>
+                                    <span class="pt-form-group__hint" data-i18n="phase1.field.coreSetting.hint">建议300字以上，越详细生成效果越好</span>
                                 </div>
                             </div>
                             
                             <!-- 卖点和章节数 -->
                             <div class="pt-form-grid">
                                 <div class="pt-form-group">
-                                    <label class="pt-form-group__label">核心卖点</label>
+                                    <label class="pt-form-group__label" data-i18n="phase1.field.sellingPoints">核心卖点</label>
                                     <input type="text" id="core-selling-points" name="core_selling_points" 
-                                           class="pt-form-group__input" placeholder="例如：无敌流、系统流、复仇爽文...">
+                                           class="pt-form-group__input" placeholder="例如：无敌流、系统流、复仇爽文..." data-i18n-placeholder="phase1.field.sellingPoints.placeholder">
                                 </div>
                                 
                                 <div class="pt-form-group">
-                                    <label class="pt-form-group__label">总章节数</label>
+                                    <label class="pt-form-group__label" data-i18n="phase1.field.chapters">总章节数</label>
                                     <input type="number" id="total-chapters" name="total_chapters" 
                                            class="pt-form-group__input" value="200" min="20" max="1000">
                                 </div>
@@ -916,20 +916,20 @@
                             <!-- 生成模式和平台 -->
                             <div class="pt-form-grid">
                                 <div class="pt-form-group">
-                                    <label class="pt-form-group__label">生成模式</label>
+                                    <label class="pt-form-group__label" data-i18n="phase1.field.mode">生成模式</label>
                                     <select id="generation-mode" name="generation_mode" class="pt-form-group__select">
-                                        <option value="phase_one_only">✨ 仅第一阶段（生成设定）</option>
-                                        <option value="full_two_phase">🚀 完整两阶段（设定+章节）</option>
+                                        <option value="phase_one_only" data-i18n="phase1.field.mode.phaseOneOnly">✨ 仅第一阶段（生成设定）</option>
+                                        <option value="full_two_phase" data-i18n="phase1.field.mode.fullTwoPhase">🚀 完整两阶段（设定+章节）</option>
                                         <option value="resume_mode" id="resume-mode-option" style="display: none;">🔄 恢复模式</option>
                                     </select>
                                 </div>
                                 
                                 <div class="pt-form-group">
-                                    <label class="pt-form-group__label">目标平台</label>
+                                    <label class="pt-form-group__label" data-i18n="phase1.field.platform">目标平台</label>
                                     <select id="target-platform" name="target_platform" class="pt-form-group__select">
-                                        <option value="fanqie">🍅 番茄小说</option>
-                                        <option value="qidian">📚 起点中文网</option>
-                                        <option value="zhihu">💭 知乎盐选</option>
+                                        <option value="fanqie" data-i18n="phase1.field.platform.fanqie">🍅 番茄小说</option>
+                                        <option value="qidian" data-i18n="phase1.field.platform.qidian">📚 起点中文网</option>
+                                        <option value="zhihu" data-i18n="phase1.field.platform.zhihu">💭 知乎盐选</option>
                                     </select>
                                 </div>
                             </div>
@@ -949,7 +949,7 @@
                             ">
                                 <div style="display: flex; align-items: center; gap: 0.5rem;">
                                     <span style="font-size: 1.5rem;">⚡</span>
-                                    <span style="color: var(--text-secondary); font-size: 0.875rem; font-weight: 500;">最低门槛</span>
+                                    <span style="color: var(--text-secondary); font-size: 0.875rem; font-weight: 500;" data-i18n="phase1.points.min">最低门槛</span>
                                 </div>
                                 <div style="display: flex; align-items: center; gap: 0.5rem;">
                                     <span id="points-cost-display" style="
@@ -958,19 +958,19 @@
                                         color: #fbbf24;
                                         text-shadow: 0 0 15px rgba(251, 191, 36, 0.5);
                                     ">75</span>
-                                    <span style="color: #fbbf24; font-size: 0.875rem; font-weight: 600;">创造点</span>
+                                    <span style="color: #fbbf24; font-size: 0.875rem; font-weight: 600;" data-i18n="phase1.points">创造点</span>
                                 </div>
                             </div>
-                            <div style="font-size: 0.75rem; color: var(--text-tertiary); text-align: center; margin-bottom: 1rem;">
+                            <div style="font-size: 0.75rem; color: var(--text-tertiary); text-align: center; margin-bottom: 1rem;" data-i18n="phase1.points.hint">
                                 💡 余额≥75点可开始生成，实际按API调用实时扣费
                             </div>
                             
                             <!-- 提交按钮 -->
                             <div style="display: flex; gap: 12px; margin-top: 32px;">
-                                <button type="button" class="pt-btn pt-btn--secondary" onclick="resetForm()">
+                                <button type="button" class="pt-btn pt-btn--secondary" onclick="resetForm()" data-i18n="phase1.btn.reset">
                                     🔄 重置
                                 </button>
-                                <button type="submit" class="pt-btn pt-btn--primary pt-btn--lg" style="flex: 1;">
+                                <button type="submit" class="pt-btn pt-btn--primary pt-btn--lg" style="flex: 1;" data-i18n="phase1.btn.start">
                                     🚀 开始生成设定
                                 </button>
                             </div>
@@ -1233,7 +1233,7 @@
             <div class="pt-info-card">
                 <div class="pt-info-card__title">
                     <span>🎯</span>
-                    <span>第一阶段目标</span>
+                    <span data-i18n="phase1.guide.goal.title">第一阶段目标</span>
                 </div>
                 <div class="pt-info-card__content">
                     <p>生成完整的世界观设定、角色设计和详细的故事大纲，为后续章节内容生成提供高质量的基础框架。</p>
@@ -1244,7 +1244,7 @@
             <div class="pt-info-card">
                 <div class="pt-info-card__title">
                     <span>⚙️</span>
-                    <span>生成内容</span>
+                    <span data-i18n="phase1.guide.content.title">生成内容</span>
                 </div>
                 <div class="pt-info-card__content">
                     <p>• 世界观设定和背景故事</p>
@@ -1259,7 +1259,7 @@
             <div class="pt-info-card">
                 <div class="pt-info-card__title">
                     <span>💡</span>
-                    <span>最佳实践</span>
+                    <span data-i18n="phase1.guide.bestPractice.title">最佳实践</span>
                 </div>
                 <div class="pt-info-card__content">
                     <p>• 核心设定描述尽量详细（建议300字以上）</p>
@@ -1273,7 +1273,7 @@
             <div class="pt-info-card">
                 <div class="pt-info-card__title">
                     <span>🔄</span>
-                    <span>后续操作</span>
+                    <span data-i18n="phase1.guide.nextSteps.title">后续操作</span>
                 </div>
                 <div class="pt-info-card__content">
                     <p>• 立即继续第二阶段章节生成</p>
