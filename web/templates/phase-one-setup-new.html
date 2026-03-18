@@ -1,15 +1,8 @@
-<!DOCTYPE html>
-<html lang="zh-CN">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>第一阶段：设定生成 - 小说生成系统</title>
-    
-    <!-- V2 设计系统样式 -->
-    <link rel="stylesheet" href="/static/css/v2/design-system.css?v=3">
-    <link rel="stylesheet" href="/static/css/v2/components.css?v=3">
-    <link rel="stylesheet" href="/static/css/v2/layouts.css?v=3">
-    
+{% extends "layouts/base-v2.html" %}
+
+{% block title %}第一阶段：设定生成 - 小说生成系统{% endblock %}
+
+{% block extra_css %}
     <!-- Phase One 专用样式 -->
     <link rel="stylesheet" href="/static/css/phase-one-setup.css?v=4">
     
@@ -305,7 +298,7 @@
             font-family: inherit;
         }
         
-        /* 🔥 修复：下拉框特殊样式，去除浏览器默认样式 */
+        /* 修复：下拉框特殊样式，去除浏览器默认样式 */
         .pt-form-group__select {
             -webkit-appearance: none;
             -moz-appearance: none;
@@ -436,7 +429,7 @@
             color: var(--v2-text-primary, #fafafa);
         }
         
-        /* 🔥 修复：添加 V2 风格的危险按钮样式 */
+        /* 修复：添加 V2 风格的危险按钮样式 */
         .pt-btn--danger {
             background: rgba(239, 68, 68, 0.1);
             color: #ef4444;
@@ -736,17 +729,15 @@
             background: rgba(99, 102, 241, 0.5);
         }
     </style>
-</head>
-<body>
+{% endblock %}
+
+{% block content %}
     <!-- 背景装饰 -->
     <div class="bg-decoration">
         <div class="bg-decoration__gradient"></div>
         <div class="bg-decoration__gradient--2"></div>
     </div>
 
-    <!-- V2 导航栏 -->
-    {% include 'components/v2/navbar.html' %}
-    
     <!-- 主容器 -->
     <div class="pt-container">
         <!-- 页面头部 -->
@@ -778,7 +769,7 @@
             </div>
         </div>
         
-        <!-- 🔥 恢复提示横幅 - 检测是否有未完成的生成任务 -->
+        <!-- 恢复提示横幅 - 检测是否有未完成的生成任务 -->
         <div id="resume-banner" style="display: none; margin-bottom: 24px;">
             <div style="
                 background: linear-gradient(135deg, rgba(99, 102, 241, 0.15), rgba(139, 92, 246, 0.1));
@@ -1135,7 +1126,7 @@
                         </div>
                     </div>
                     
-                    <!-- 🔥 AI质量评估卡片 -->
+                    <!-- AI质量评估卡片 -->
                     <div id="quality-assessment-card" style="margin-bottom: 24px; padding: 20px; background: linear-gradient(135deg, rgba(99, 102, 241, 0.08), rgba(139, 92, 246, 0.05)); border: 1px solid rgba(99, 102, 241, 0.2); border-radius: 16px;">
                         <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px;">
                             <h4 style="margin: 0; font-size: 16px; color: var(--v2-text-primary); display: flex; align-items: center; gap: 8px;">
@@ -1293,13 +1284,11 @@
             </div>
         </div>
     </div>
-    
-    <!-- V2 页脚 -->
-    {% include 'components/v2/footer.html' %}
+{% endblock %}
 
-    <!-- JavaScript -->
+{% block extra_js %}
     <script src="/static/js/utils.js"></script>
-    <!-- 🔑 多账号管理系统 -->
+    <!-- 多账号管理系统 -->
     <script src="/static/js/account-manager.js?v=3"></script>
     <script src="/static/js/api-client.js?v=1"></script>
     <script src="/static/js/user-info.js"></script>
@@ -1341,7 +1330,7 @@
             try {
                 console.log('[DEBUG] 开始加载余额...');
                 
-                // 🔑 使用 apiClient 自动处理 Token
+                // 使用 apiClient 自动处理 Token
                 const result = await window.apiClient.get('/api/points/balance');
                 console.log('[DEBUG] 余额API返回:', result);
                 
@@ -1490,7 +1479,7 @@
             }
         }
         
-        // 🔥 V2样式恢复确认弹窗
+        // V2样式恢复确认弹窗
         function showResumeConfirmDialog(project) {
             return new Promise((resolve) => {
                 // 移除已存在的弹窗
@@ -1738,7 +1727,7 @@
             // 余额充足，调用原始生成函数
             console.log('[DEBUG] 余额检查通过，开始生成');
             
-            // 🔥 修复：开始生成时隐藏恢复横幅
+            // 修复：开始生成时隐藏恢复横幅
             const banner = document.getElementById('resume-banner');
             if (banner) {
                 banner.style.display = 'none';
@@ -1777,7 +1766,7 @@
         // 注意：updatePointsDisplay 函数已在 phase-one-generation.js 中定义
         
         // 扩展更新创造点显示，添加状态标签更新
-        // 🔥 修复：确保 updatePointsDisplay 存在时才尝试覆盖
+        // 修复：确保 updatePointsDisplay 存在时才尝试覆盖
         if (typeof updatePointsDisplay === 'function') {
             const originalUpdatePointsDisplay = updatePointsDisplay;
             updatePointsDisplay = function(consumed, estimated) {
@@ -1839,11 +1828,11 @@
         // 存储恢复项目信息
         window.resumeProjectInfo = null;
         
-        // 🔥 检测未完成项目并显示恢复横幅
+        // 检测未完成项目并显示恢复横幅
         async function checkIncompleteProjects() {
             console.log('[RESUME] 检测未完成项目...');
             try {
-                // 🔥 修复：使用 /api/resumable-tasks 而不是 /api/projects
+                // 修复：使用 /api/resumable-tasks 而不是 /api/projects
                 // 这个 API 能正确检测到检查点
                 const response = await fetch('/api/resumable-tasks');
                 if (!response.ok) {
@@ -1857,7 +1846,7 @@
                     return;
                 }
                 
-                // 🔥 修复：过滤出第一阶段的未完成任务
+                // 修复：过滤出第一阶段的未完成任务
                 const incompleteTasks = result.tasks.filter(t => 
                     t.phase === 'phase_one' && 
                     t.completed_steps < t.total_steps
@@ -1866,7 +1855,7 @@
                 console.log(`[RESUME] 发现 ${incompleteTasks.length} 个可恢复的第一阶段任务`);
                 
                 if (incompleteTasks.length > 0) {
-                    // 🔥 修复：按时间戳排序，取最近更新的任务
+                    // 修复：按时间戳排序，取最近更新的任务
                     incompleteTasks.sort((a, b) => {
                         const timeA = a.timestamp ? new Date(a.timestamp).getTime() : 0;
                         const timeB = b.timestamp ? new Date(b.timestamp).getTime() : 0;
@@ -1887,7 +1876,7 @@
                         titleEl.textContent = title;
                         banner.style.display = 'block';
                         
-                        // 🔥 修复：使用 current_step_index 或 completed_steps
+                        // 修复：使用 current_step_index 或 completed_steps
                         // 优先使用 current_step_index，因为它更准确地反映当前进度
                         // 注：第一阶段共15个步骤，索引从0开始，所以完成索引+1=完成步骤数
                         const currentIndex = task.current_step_index !== undefined ? task.current_step_index : (task.completed_steps || 0);
@@ -1916,17 +1905,17 @@
                         }
                         
                         // 保存项目信息供恢复使用
-                        // 🔥 修复：从 generation_params 中读取创意种子信息
+                        // 修复：从 generation_params 中读取创意种子信息
                         const generationParams = task.data?.generation_params || {};
                         let creativeSeed = generationParams.creative_seed || {};
                         
-                        // 🔥 修复：同时支持从检查点数据根级别获取 creative_seed_id
+                        // 修复：同时支持从检查点数据根级别获取 creative_seed_id
                         const checkpointSeedId = task.data?.creative_seed_id;
                         if (checkpointSeedId && !creativeSeed.id && !creativeSeed.seedId) {
                             creativeSeed.id = checkpointSeedId;
                         }
                         
-                        // 🔥 新增：尝试从创意库获取完整的创意种子（包含 completeStoryline）
+                        // 新增：尝试从创意库获取完整的创意种子（包含 completeStoryline）
                         if (creativeSeed.id && typeof loadedCreativeIdeas !== 'undefined') {
                             const fullIdea = loadedCreativeIdeas.find(i => 
                                 i.id == creativeSeed.id || i.raw_data?.id == creativeSeed.id
@@ -1937,7 +1926,7 @@
                             }
                         }
                         
-                        // 🔥 修复：使用之前计算的步骤数
+                        // 修复：使用之前计算的步骤数
                         const totalSteps = task.total_steps || 15;
                         const completedSteps = Math.min(currentIndex + 1, totalSteps);
                         
@@ -1949,7 +1938,7 @@
                             total_chapters: generationParams.total_chapters || task.data?.total_chapters || 200,
                             creative_seed: creativeSeed,  // 保存完整创意种子以便恢复（包含 completeStoryline）
                             generation_params: generationParams,  // 保存完整生成参数
-                            // 🔥 新增：保存进度信息用于确认弹窗显示
+                            // 新增：保存进度信息用于确认弹窗显示
                             completed_steps: completedSteps,
                             total_steps: totalSteps,
                             current_step: task.current_step || ''
@@ -1961,7 +1950,7 @@
             }
         }
         
-        // 🔥 从横幅继续生成
+        // 从横幅继续生成
         async function resumeGenerationFromBanner() {
             if (!window.resumeProjectInfo) {
                 showStatusMessage('未找到项目信息', 'error');
@@ -1970,7 +1959,7 @@
             
             const project = window.resumeProjectInfo;
             
-            // 🔥 新增：V2样式确认弹窗，让用户确认是否继续生成
+            // 新增：V2样式确认弹窗，让用户确认是否继续生成
             const confirmed = await showResumeConfirmDialog(project);
             if (!confirmed) {
                 console.log('[RESUME] 用户取消继续生成');
@@ -1981,12 +1970,12 @@
             proceedWithResumeGeneration(project);
         }
         
-        // 🔥 继续生成的主逻辑
+        // 继续生成的主逻辑
         async function proceedWithResumeGeneration(project) {
             
             console.log('[RESUME] 从横幅继续生成:', project.title, project);
             
-            // 🔥 修复：填充表单 - 优先使用完整创意种子数据
+            // 修复：填充表单 - 优先使用完整创意种子数据
             const titleInput = document.getElementById('novel-title');
             const synopsisInput = document.getElementById('novel-synopsis');
             const coreSettingInput = document.getElementById('core-setting');
@@ -2002,7 +1991,7 @@
             if (coreSellingPointsInput) coreSellingPointsInput.value = creativeSeed.coreSellingPoints || project.core_selling_points || '';
             if (totalChaptersInput) totalChaptersInput.value = project.total_chapters || 200;
             
-            // 🔥 修复：如果存在创意ID，选中左侧创意库的对应项目
+            // 修复：如果存在创意ID，选中左侧创意库的对应项目
             // 支持多种ID格式：id, seedId, 或从 generation_params 中提取
             const creativeSeedId = creativeSeed.id || creativeSeed.seedId || project.generation_params?.creative_seed_id;
             if (creativeSeedId) {
@@ -2010,7 +1999,7 @@
                 console.log('[RESUME] 创意库加载状态:', typeof loadedCreativeIdeas, loadedCreativeIdeas?.length);
                 console.log('[RESUME] 可用卡片数:', document.querySelectorAll('.creative-card').length);
                 
-                // 🔥 修复：使用递归检查确保创意库已加载
+                // 修复：使用递归检查确保创意库已加载
                 function trySelectCreative(attempt = 1) {
                     console.log(`[RESUME] 尝试选中 (第${attempt}次)`);
                     
@@ -2051,7 +2040,7 @@
             const banner = document.getElementById('resume-banner');
             if (banner) banner.style.display = 'none';
             
-            // 🔥 修复：显示恢复模式选项并设置为恢复模式
+            // 修复：显示恢复模式选项并设置为恢复模式
             const modeSelect = document.getElementById('generation-mode');
             const resumeModeOption = document.getElementById('resume-mode-option');
             if (resumeModeOption) {
@@ -2061,13 +2050,13 @@
                 modeSelect.value = 'resume_mode';
             }
             
-            // 🔥 修复：设置全局恢复模式标志
+            // 修复：设置全局恢复模式标志
             window.isResumeMode = true;
             
             // 显示提示
             showStatusMessage(`✅ 已加载项目「${project.title}」，正在恢复生成...`, 'success');
             
-            // 🔥 修复：滚动到进度区域并自动开始生成
+            // 修复：滚动到进度区域并自动开始生成
             document.getElementById('progress-section')?.scrollIntoView({ behavior: 'smooth' });
             
             // 自动触发开始生成（创建一个模拟事件）
@@ -2082,7 +2071,7 @@
             }, 500);
         }
         
-        // 🔥 从横幅开始新创作
+        // 从横幅开始新创作
         function startNewGenerationFromBanner() {
             // 清空表单
             const titleInput = document.getElementById('novel-title');
@@ -2099,7 +2088,7 @@
             
             // 清空恢复信息
             window.resumeProjectInfo = null;
-            window.isResumeMode = false;  // 🔥 修复：清除恢复模式标志
+            window.isResumeMode = false;  // 修复：清除恢复模式标志
             
             // 确保模式是仅第一阶段，并隐藏恢复模式选项
             const modeSelect = document.getElementById('generation-mode');
@@ -2111,7 +2100,7 @@
                 resumeModeOption.style.display = 'none';
             }
             
-            // 🔥 修复：滚动到表单区域
+            // 修复：滚动到表单区域
             document.getElementById('form-section')?.scrollIntoView({ behavior: 'smooth' });
             
             showStatusMessage('🆕 已清空表单，请输入新的创作想法', 'info');
@@ -2442,12 +2431,12 @@
             // 加载用户创造点余额
             loadUserPointsBalance();
             
-            // 🔥 新增：检测未完成项目并显示恢复横幅
+            // 新增：检测未完成项目并显示恢复横幅
             setTimeout(() => {
                 checkIncompleteProjects();
             }, 500);
             
-            // 🔥 新增：页面加载时检查是否有可恢复的检查点（用于下拉框）
+            // 新增：页面加载时检查是否有可恢复的检查点（用于下拉框）
             setTimeout(() => {
                 const titleInput = document.getElementById('novel-title');
                 if (titleInput && titleInput.value && typeof checkTaskResumeStatus === 'function') {
@@ -2464,5 +2453,4 @@
             console.log('第一阶段设定页面已加载');
         });
     </script>
-</body>
-</html>
+{% endblock %}
