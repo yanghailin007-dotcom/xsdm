@@ -542,6 +542,7 @@ class ImprovedContentVerifier:
         if score >= 0.75 and critical_issues <= 2 and major_issues <= 3:
             return CredibilityLevel.HIGH
         elif score >= 0.6 and critical_issues <= 3 and major_issues <= 5:
+            return CredibilityLevel.MEDIUM
         elif score >= 0.4:
             return CredibilityLevel.LOW
         else:
