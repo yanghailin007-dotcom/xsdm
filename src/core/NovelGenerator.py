@@ -1355,23 +1355,12 @@ class NovelGenerator:
         print(f"📋 找到 {len(medium_events)} 个中型事件")
         
         # 准备novel_data
-        # 🔥 修复：确保关键字段是字典而不是列表（JSON反序列化可能产生列表）
-        creative_seed = self._ctx.get('creative_seed', {})
-        if isinstance(creative_seed, list):
-            print(f"⚠️ creative_seed 是列表而非字典，修复为空字典")
-            creative_seed = {}
-        
-        selected_plan = self._ctx.get('selected_plan', {})
-        if isinstance(selected_plan, list):
-            print(f"⚠️ selected_plan 是列表而非字典，修复为空字典")
-            selected_plan = {}
-        
         novel_data = {
             'novel_title': self._ctx.get('novel_title', 'Unknown'),
             'novel_synopsis': self._ctx.get('novel_synopsis', ''),
             'username': getattr(self, '_username', None),
-            'creative_seed': creative_seed,
-            'selected_plan': selected_plan,
+            'creative_seed': self._ctx.get('creative_seed', {}),
+            'selected_plan': self._ctx.get('selected_plan', {}),
             'stage_writing_plans': self._ctx.get('stage_writing_plans', {}),
             'overall_stage_plans': self._ctx.get('overall_stage_plans', {}),
             'core_worldview': self._ctx.get('core_worldview', {}),

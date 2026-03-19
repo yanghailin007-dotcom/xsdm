@@ -318,12 +318,18 @@ class ProjectManager:
             )
             
             # 🔥 修复：构建完整的novel_data结构，确保current_progress正确初始化
+            # 先获取 selected_plan，并修复可能的类型错误（JSON反序列化可能产生列表）
+            selected_plan = project_data.get("selected_plan") or project_data["novel_info"].get("selected_plan", {})
+            if isinstance(selected_plan, list):
+                self.logger.warning(f"⚠️ 加载项目时发现 selected_plan 是列表而非字典，可能是数据损坏，将使用空字典")
+                selected_plan = {}
+            
             novel_data = {
                 # 基本信息
                 "novel_title": project_data.get("novel_title") or project_data["novel_info"]["title"],
                 "novel_synopsis": project_data.get("novel_synopsis") or project_data["novel_info"]["synopsis"],
                 "creative_seed": ensure_seed_dict(project_data.get("creative_seed") or project_data["novel_info"].get("creative_seed", {})),
-                "selected_plan": project_data.get("selected_plan") or project_data["novel_info"]["selected_plan"],
+                "selected_plan": selected_plan,
                 "category": project_data.get("category", project_data["novel_info"].get("category", "未分类")),
                 # 新增：添加novel_info键以保持兼容性
                 "novel_info": project_data.get("novel_info", {}),
@@ -547,6 +553,11 @@ class ProjectManager:
         
         # 🔥 修复：从 selected_plan 同步 synopsis 和 creative_seed（如果主字段为空）
         selected_plan = novel_data.get("selected_plan", {})
+        # 检查 selected_plan 类型，防止列表类型导致后续错误
+        if isinstance(selected_plan, list):
+            self.logger.warning(f"⚠️ 保存时发现 selected_plan 是列表而非字典，将使用空字典")
+            selected_plan = {}
+        
         synopsis = novel_data.get("novel_synopsis", "")
         if not synopsis and selected_plan.get("synopsis"):
             synopsis = selected_plan["synopsis"]
