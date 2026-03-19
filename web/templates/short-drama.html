@@ -1,6 +1,6 @@
 {% extends "layouts/base-v2.html" %}
 
-{% block title %}{{ _('shortDrama.title') }} - {{ _('common.platformName') }}{% endblock %}
+{% block title %}{{ '短剧工坊' }} - {{ '大文娱创作平台' }}{% endblock %}
 
 {% block extra_css %}
 <style>
@@ -547,25 +547,25 @@
 <div class="short-drama-wrapper">
     <!-- 页面标题 -->
     <div style="text-align: center; margin-bottom: 2rem;">
-        <h1 style="font-size: 2rem; margin-bottom: 0.5rem;" data-i18n="shortDrama.pageTitle">🎭 {{ _('shortDrama.title') }}</h1>
-        <p style="color: var(--sd-text-secondary);" data-i18n="shortDrama.pageSubtitle">{{ _('shortDrama.subtitle') }}</p>
+        <h1 style="font-size: 2rem; margin-bottom: 0.5rem;" data-i18n="shortDrama.pageTitle">🎭 {{ '短剧工坊' }}</h1>
+        <p style="color: var(--sd-text-secondary);" data-i18n="shortDrama.pageSubtitle">{{ 'AI驱动的短剧创作工作台' }}</p>
     </div>
 
     <!-- 步骤指示器 -->
     <div class="steps-header">
         <div class="step-item active" data-step="1">
             <div class="step-circle">1</div>
-            <div class="step-label">{{ _('shortDrama.step.upload') }}</div>
+            <div class="step-label">{{ '上传剧本' }}</div>
         </div>
         <div class="step-line"></div>
         <div class="step-item" data-step="2">
             <div class="step-circle">2</div>
-            <div class="step-label">{{ _('shortDrama.step.selectStyle') }}</div>
+            <div class="step-label">{{ '选择风格' }}</div>
         </div>
         <div class="step-line"></div>
         <div class="step-item" data-step="3">
             <div class="step-circle">3</div>
-            <div class="step-label">{{ _('shortDrama.step.generate') }}</div>
+            <div class="step-label">{{ '生成视频' }}</div>
         </div>
     </div>
 
@@ -686,7 +686,7 @@
             <div class="action-area">
                 <button id="step3BackBtn" class="sd-btn sd-btn-secondary">← <span data-i18n="common.prev">上一步</span></button>
                 <button id="step3ConfirmBtn" class="sd-btn sd-btn-primary sd-btn-large" disabled>
-                    {{ _('shortDrama.btn.start') }} →
+                    {{ '开始创作' }} →
                 </button>
             </div>
         </div>

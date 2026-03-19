@@ -19,30 +19,30 @@
                 </defs>
             </svg>
         </div>
-        <span class="v2-navbar__brand-text" data-i18n="videoCenter.pageTitle">视频制作中心</span>
+        <span class="v2-navbar__brand-text">视频制作中心</span>
     </a>
 
     <!-- 中间：视频创作导航链接 -->
     <div class="v2-navbar__center">
         <!-- 返回小说创作 -->
         <a href="/" class="v2-nav-link">
-            <span data-i18n="nav.backToNovel">← 返回小说创作</span>
+            <span>← 返回小说创作</span>
         </a>
         
         <!-- 视频项目 -->
         <a href="/video/project" class="v2-nav-link {% if request.endpoint == 'video_project_center' or request.endpoint == 'video_project_detail' %}v2-nav-link--active{% endif %}">
-            <span data-i18n="videoCenter.workshop.project">📖 项目管理器</span>
+            <span>📖 项目管理器</span>
         </a>
         
         <!-- 剧照工作台 -->
         <a href="/video/portrait" class="v2-nav-link {% if request.endpoint == 'video_portrait' %}v2-nav-link--active{% endif %}">
-            <span data-i18n="videoCenter.workshop.portrait">🎨 剧照工作台</span>
+            <span>🎨 剧照工作台</span>
         </a>
         
         <!-- 视频生成下拉菜单 -->
         <div class="v2-nav-dropdown {% if request.endpoint in ['video_studio_new', 'video_generation', 'video_studio'] %}v2-nav-dropdown--active{% endif %}">
             <span class="v2-nav-trigger">
-                <span data-i18n="videoCenter.workshop.studio">🎬 视频生成</span>
+                <span>🎬 视频生成</span>
                 <svg class="v2-nav-trigger__arrow" width="12" height="12" viewBox="0 0 12 12" fill="none">
                     <path d="M2.5 4.5L6 8L9.5 4.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
                 </svg>
@@ -52,8 +52,8 @@
                 <a href="/video/studio" class="v2-dropdown-item {% if request.endpoint == 'video_studio_new' %}v2-dropdown-item--active{% endif %}">
                     <span class="v2-dropdown-item__icon" style="font-size: 16px;">🎬</span>
                     <div class="v2-dropdown-item__content">
-                        <span class="v2-dropdown-item__title" data-i18n="videoCenter.workshop.studio">视频工作台</span>
-                        <span class="v2-dropdown-item__desc" data-i18n="videoCenter.workshop.studio.desc">分镜编辑、视频渲染、时间线管理</span>
+                        <span class="v2-dropdown-item__title">视频工作台</span>
+                        <span class="v2-dropdown-item__desc">分镜编辑、视频渲染、时间线管理</span>
                     </div>
                     <svg class="v2-dropdown-item__arrow" width="16" height="16" viewBox="0 0 16 16" fill="none">
                         <path d="M6 12L10 8L6 4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
@@ -65,8 +65,8 @@
                 <a href="/video-generation" class="v2-dropdown-item {% if request.endpoint == 'video_generation' %}v2-dropdown-item--active{% endif %}">
                     <span class="v2-dropdown-item__icon" style="font-size: 16px;">🎥</span>
                     <div class="v2-dropdown-item__content">
-                        <span class="v2-dropdown-item__title" data-i18n="videoGen.title">传统视频生成</span>
-                        <span class="v2-dropdown-item__desc" data-i18n="videoGen.subtitle">将小说内容转换为视频</span>
+                        <span class="v2-dropdown-item__title">传统视频生成</span>
+                        <span class="v2-dropdown-item__desc">将小说内容转换为视频</span>
                     </div>
                     <svg class="v2-dropdown-item__arrow" width="16" height="16" viewBox="0 0 16 16" fill="none">
                         <path d="M6 12L10 8L6 4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
@@ -77,7 +77,7 @@
         
         <!-- 流程控制器 -->
         <a href="/video/workflow" class="v2-nav-link {% if request.endpoint == 'video_workflow' %}v2-nav-link--active{% endif %}">
-            <span data-i18n="videoCenter.workshop.workflow">🎯 流程控制器</span>
+            <span>🎯 流程控制器</span>
         </a>
     </div>
     
@@ -100,17 +100,47 @@
         {% if session.logged_in %}
             <a href="/video/project" class="v2-btn v2-btn--primary v2-btn--sm v2-btn--video">
                 <span style="font-size: 14px; line-height: 1;">🎬</span>
-                <span data-i18n="videoProject.btn.newProject">新建视频项目</span>
+                <span>新建视频项目</span>
             </a>
             {% include 'components/v2/user-menu.html' %}
         {% else %}
-            <a href="/login" class="v2-btn v2-btn--ghost v2-btn--sm" data-i18n="nav.login">登录</a>
-            <a href="/register" class="v2-btn v2-btn--primary v2-btn--sm" data-i18n="nav.register">注册</a>
+            <a href="/login" class="v2-btn v2-btn--ghost v2-btn--sm">登录</a>
+            <a href="/register" class="v2-btn v2-btn--primary v2-btn--sm">注册</a>
         {% endif %}
     </div>
 </nav>
 
 <style>
+/* 基础导航栏样式 */
+.v2-navbar__brand {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    text-decoration: none;
+    flex-shrink: 0;
+}
+
+.v2-navbar__logo {
+    width: 32px;
+    height: 32px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+}
+
+.v2-navbar__logo-svg {
+    width: 32px;
+    height: 32px;
+}
+
+.v2-navbar__brand-text {
+    font-size: 16px;
+    font-weight: 600;
+    color: var(--v2-text-primary);
+    letter-spacing: -0.3px;
+}
+
 /* 视频创作导航栏特殊样式 */
 .v2-navbar--video {
     background: linear-gradient(135deg, rgba(245, 158, 11, 0.1) 0%, rgba(239, 68, 68, 0.05) 100%);

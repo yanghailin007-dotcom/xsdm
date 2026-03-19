@@ -1,6 +1,6 @@
 {% extends "layouts/base-v2.html" %}
 
-{% block title %}{{ _('videoGen.title', '视频生成系统') }} - {{ _('common.platformName', '大文娱创作平台') }}{% endblock %}
+{% block title %}{{ '视频生成系统' }} - {{ '大文娱创作平台' }}{% endblock %}
 
 {% block extra_css %}
 <link rel="stylesheet" href="/static/css/confirm-dialog.css">
@@ -925,48 +925,48 @@
         <!-- 小说列表视图 -->
         <div id="novelListView" class="sidebar-view">
             <div class="sidebar-header">
-                <h2>📚 {{ _('videoGen.section.novels', '我的小说') }}</h2>
-                <button id="refreshNovelsBtn" class="btn-icon" title="{{ _('common.refresh', '刷新列表') }}">🔄</button>
+                <h2>📚 {{ '我的小说' }}</h2>
+                <button id="refreshNovelsBtn" class="btn-icon" title="{{ '刷新列表' }}">🔄</button>
             </div>
             <div id="novelList" class="novel-list">
-                <div class="loading">{{ _('common.loading', '加载中...') }}</div>
+                <div class="loading">{{ '加载中...' }}</div>
             </div>
         </div>
 
         <!-- 事件和角色选择视图 -->
         <div id="eventCharacterView" class="sidebar-view" style="display: none;">
             <div class="sidebar-header">
-                <h2 id="sidebarTitle">🎬 {{ _('videoGen.section.selectContent', '选择内容') }}</h2>
-                <button id="refreshContentBtn" class="btn-icon" title="{{ _('common.refresh', '刷新列表') }}">🔄</button>
+                <h2 id="sidebarTitle">🎬 {{ '选择内容' }}</h2>
+                <button id="refreshContentBtn" class="btn-icon" title="{{ '刷新列表' }}">🔄</button>
             </div>
             
             <div class="tab-switcher">
-                <button id="eventsTabBtn" class="tab-btn active" data-tab="events">📊 {{ _('videoGen.tab.events', '事件') }}</button>
-                <button id="charactersTabBtn" class="tab-btn" data-tab="characters">👥 {{ _('videoGen.tab.characters', '角色') }}</button>
+                <button id="eventsTabBtn" class="tab-btn active" data-tab="events">📊 {{ '事件' }}</button>
+                <button id="charactersTabBtn" class="tab-btn" data-tab="characters">👥 {{ '角色' }}</button>
             </div>
 
             <div id="eventsTab" class="tab-content active">
                 <div class="selection-summary">
-                    <span id="selectedEventsCount">{{ _('videoGen.selected.events', '已选: 0个事件') }}</span>
+                    <span id="selectedEventsCount">{{ '已选: 0个事件' }}</span>
                 </div>
                 <div id="eventsList" class="content-list">
-                    <div class="loading">{{ _('common.loading', '加载中...') }}</div>
+                    <div class="loading">{{ '加载中...' }}</div>
                 </div>
             </div>
 
             <div id="charactersTab" class="tab-content">
                 <div class="selection-summary">
-                    <span id="selectedCharactersCount">{{ _('videoGen.selected.characters', '已选: 0个角色') }}</span>
+                    <span id="selectedCharactersCount">{{ '已选: 0个角色' }}</span>
                 </div>
                 <div id="charactersList" class="content-list">
-                    <div class="loading">{{ _('common.loading', '加载中...') }}</div>
+                    <div class="loading">{{ '加载中...' }}</div>
                 </div>
             </div>
 
             <div class="sidebar-actions">
-                <button id="selectAllEventsBtn" class="btn-sm">{{ _('videoGen.btn.selectAllEvents', '全选事件') }}</button>
-                <button id="selectAllCharactersBtn" class="btn-sm">{{ _('videoGen.btn.selectAllCharacters', '全选角色') }}</button>
-                <button id="clearSelectionBtn" class="btn-sm">{{ _('videoGen.btn.clearSelection', '清空选择') }}</button>
+                <button id="selectAllEventsBtn" class="btn-sm">{{ '全选事件' }}</button>
+                <button id="selectAllCharactersBtn" class="btn-sm">{{ '全选角色' }}</button>
+                <button id="clearSelectionBtn" class="btn-sm">{{ '清空选择' }}</button>
             </div>
         </div>
     </aside>
@@ -976,70 +976,70 @@
         <!-- 模式选择屏幕 -->
         <div id="modeSelectionScreen" class="mode-selection-screen">
             <div class="mode-selection-content">
-                <h1>🎬 {{ _('videoGen.title', '视频生成系统') }}</h1>
-                <p>{{ _('videoGen.subtitle', '将小说内容转换为视频') }}</p>
+                <h1>🎬 {{ '视频生成系统' }}</h1>
+                <p>{{ '将小说内容转换为视频' }}</p>
                 
                 <div id="modeSelector" class="mode-selector">
                     <div class="mode-card custom-mode" data-mode="custom">
-                        <div class="mode-badge">{{ _('common.recommended', '推荐') }}</div>
+                        <div class="mode-badge">{{ '推荐' }}</div>
                         <div class="mode-icon">✨</div>
-                        <h3>{{ _('videoGen.mode.custom', '自定义模式') }}</h3>
-                        <p class="mode-desc">{{ _('videoGen.mode.custom.desc', '完全自由控制，使用自定义提示词生成视频') }}</p>
+                        <h3>{{ '自定义模式' }}</h3>
+                        <p class="mode-desc">{{ '完全自由控制，使用自定义提示词生成视频' }}</p>
                         <ul class="mode-features">
-                            <li>🎯 {{ _('videoGen.feature.custom.prompt', '直接输入提示词，灵活创作') }}</li>
-                            <li>🎨 {{ _('videoGen.feature.custom.style', '支持任意风格和主题') }}</li>
-                            <li>⚡ {{ _('videoGen.feature.custom.fast', '快速生成，无需依赖小说') }}</li>
-                            <li>🔧 {{ _('videoGen.feature.custom.control', '完全自定义控制') }}</li>
+                            <li>🎯 {{ '直接输入提示词，灵活创作' }}</li>
+                            <li>🎨 {{ '支持任意风格和主题' }}</li>
+                            <li>⚡ {{ '快速生成，无需依赖小说' }}</li>
+                            <li>🔧 {{ '完全自定义控制' }}</li>
                         </ul>
                     </div>
                     
                     <div class="mode-card novel-mode" data-mode="novel">
                         <div class="mode-icon">📚</div>
-                        <h3>{{ _('videoGen.mode.novel', '我的小说') }}</h3>
-                        <p class="mode-desc">{{ _('videoGen.mode.novel.desc', '基于已生成的小说项目自动生成分镜头脚本') }}</p>
+                        <h3>{{ '我的小说' }}</h3>
+                        <p class="mode-desc">{{ '基于已生成的小说项目自动生成分镜头脚本' }}</p>
                         <ul class="mode-features">
-                            <li>📖 {{ _('videoGen.feature.novel.auto', '从小说项目自动生成') }}</li>
-                            <li>🎬 {{ _('videoGen.feature.novel.extract', '智能提取关键情节') }}</li>
-                            <li>📋 {{ _('videoGen.feature.novel.script', '自动生成详细脚本') }}</li>
-                            <li>🎨 {{ _('videoGen.feature.novel.style', '保持小说风格一致') }}</li>
+                            <li>📖 {{ '从小说项目自动生成' }}</li>
+                            <li>🎬 {{ '智能提取关键情节' }}</li>
+                            <li>📋 {{ '自动生成详细脚本' }}</li>
+                            <li>🎨 {{ '保持小说风格一致' }}</li>
                         </ul>
                     </div>
                     
                     <div class="mode-card portrait-mode" data-mode="portrait">
                         <div class="mode-icon">🎨</div>
-                        <h3>{{ _('videoGen.mode.portrait', '人物剧照生成') }}</h3>
-                        <p class="mode-desc">{{ _('videoGen.mode.portrait.desc', '生成高质量的角色剧照，支持参考图像和自定义提示词') }}</p>
+                        <h3>{{ '人物剧照生成' }}</h3>
+                        <p class="mode-desc">{{ '生成高质量的角色剧照，支持参考图像和自定义提示词' }}</p>
                         <ul class="mode-features">
-                            <li>👤 {{ _('videoGen.feature.portrait.character', '支持小说角色和自定义') }}</li>
-                            <li>🖼️ {{ _('videoGen.feature.portrait.reference', '可上传参考图像') }}</li>
-                            <li>✨ {{ _('videoGen.feature.portrait.quality', '多种比例和质量') }}</li>
-                            <li>🎨 {{ _('videoGen.feature.portrait.prompt', '自动生成角色提示词') }}</li>
+                            <li>👤 {{ '支持小说角色和自定义' }}</li>
+                            <li>🖼️ {{ '可上传参考图像' }}</li>
+                            <li>✨ {{ '多种比例和质量' }}</li>
+                            <li>🎨 {{ '自动生成角色提示词' }}</li>
                         </ul>
                     </div>
                     
                     <div class="mode-card video-workspace-mode" data-mode="video-workspace">
-                        <div class="mode-badge">{{ _('common.newFeature', '新功能') }}</div>
+                        <div class="mode-badge">{{ '新功能' }}</div>
                         <div class="mode-icon">🎬</div>
-                        <h3>{{ _('videoGen.mode.workspace', '视频工作台') }}</h3>
-                        <p class="mode-desc">{{ _('videoGen.mode.workspace.desc', '专业的视频制作工作台，支持实时预览和播放控制') }}</p>
+                        <h3>{{ '视频工作台' }}</h3>
+                        <p class="mode-desc">{{ '专业的视频制作工作台，支持实时预览和播放控制' }}</p>
                         <ul class="mode-features">
-                            <li>🎥 {{ _('videoGen.feature.workspace.preview', '大屏视频预览窗口') }}</li>
-                            <li>▶️ {{ _('videoGen.feature.workspace.playback', '完整的播放控制功能') }}</li>
-                            <li>🔧 {{ _('videoGen.feature.workspace.api', 'OpenAI API 集成') }}</li>
-                            <li>✨ {{ _('videoGen.feature.workspace.quality', '高质量视频输出') }}</li>
+                            <li>🎥 {{ '大屏视频预览窗口' }}</li>
+                            <li>▶️ {{ '完整的播放控制功能' }}</li>
+                            <li>🔧 {{ 'OpenAI API 集成' }}</li>
+                            <li>✨ {{ '高质量视频输出' }}</li>
                         </ul>
                     </div>
 
                     <a href="/short-drama-studio" class="mode-card short-drama-mode">
-                        <div class="mode-badge" style="background: linear-gradient(135deg, #ec4899, #f43f5e);">{{ _('common.recommended', '推荐') }}</div>
+                        <div class="mode-badge" style="background: linear-gradient(135deg, #ec4899, #f43f5e);">{{ '推荐' }}</div>
                         <div class="mode-icon">🎬</div>
-                        <h3>{{ _('videoGen.mode.shortDrama', '短剧工作台') }}</h3>
-                        <p class="mode-desc">{{ _('videoGen.mode.shortDrama.desc', '选集 → 角色剧照 → 分镜头 → 视频生成，一站式短剧制作') }}</p>
+                        <h3>{{ '短剧工作台' }}</h3>
+                        <p class="mode-desc">{{ '选集 → 角色剧照 → 分镜头 → 视频生成，一站式短剧制作' }}</p>
                         <ul class="mode-features">
-                            <li>📺 {{ _('videoGen.feature.shortDrama.episodes', '选择要制作的集数') }}</li>
-                            <li>👥 {{ _('videoGen.feature.shortDrama.portraits', '角色剧照管理') }}</li>
-                            <li>🎬 {{ _('videoGen.feature.shortDrama.storyboard', '分镜头脚本') }}</li>
-                            <li>🎥 {{ _('videoGen.feature.shortDrama.batch', '批量视频生成') }}</li>
+                            <li>📺 {{ '选择要制作的集数' }}</li>
+                            <li>👥 {{ '角色剧照管理' }}</li>
+                            <li>🎬 {{ '分镜头脚本' }}</li>
+                            <li>🎥 {{ '批量视频生成' }}</li>
                         </ul>
                     </a>
                 </div>
@@ -1049,11 +1049,11 @@
         <!-- 其他屏幕容器 -->
         <div id="welcomeScreen" style="display: none;">
             <div class="screen-header">
-                <button id="backToModeFromWelcomeBtn" class="btn-secondary">← {{ _('videoGen.btn.backToMode', '返回模式选择') }}</button>
-                <h2>🎬 {{ _('videoGen.convert.title', '将小说转换为视频') }}</h2>
+                <button id="backToModeFromWelcomeBtn" class="btn-secondary">← {{ '返回模式选择' }}</button>
+                <h2>🎬 {{ '将小说转换为视频' }}</h2>
             </div>
             <div style="padding: 2rem;">
-                <p style="color: var(--text-tertiary);">{{ _('videoGen.convert.desc', '支持三种视频模式，满足不同创作需求') }}</p>
+                <p style="color: var(--text-tertiary);">{{ '支持三种视频模式，满足不同创作需求' }}</p>
                 <div id="videoTypeSelector" style="margin-top: 1.5rem;"></div>
             </div>
         </div>
@@ -1064,50 +1064,50 @@
     <!-- 右侧：已生成的分镜头列表 -->
     <aside class="right-sidebar" id="rightSidebar">
         <div class="right-sidebar-header">
-            <h3>🎬 {{ _('videoGen.section.generatedShots', '已生成的分镜头') }}</h3>
+            <h3>🎬 {{ '已生成的分镜头' }}</h3>
             <span id="generatedShotsCount" class="count-badge">0</span>
         </div>
         
         <div style="background: rgba(30, 41, 59, 0.6); backdrop-filter: blur(20px); border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 1rem; padding: 1rem; flex: 1;">
             <div id="generatedShotsList" class="generated-shots-list">
                 <div class="empty-state">
-                    <p>🎬 {{ _('videoGen.empty.noShots', '还没有生成分镜头') }}</p>
-                    <p class="hint">{{ _('videoGen.empty.selectContent', '选择事件和角色后开始生成') }}</p>
+                    <p>🎬 {{ '还没有生成分镜头' }}</p>
+                    <p class="hint">{{ '选择事件和角色后开始生成' }}</p>
                 </div>
             </div>
         </div>
 
         <div class="quick-actions" id="quickActions" style="display: none;">
-            <button id="exportGeneratedBtn" class="btn-sm">📥 {{ _('videoGen.btn.export', '导出') }}</button>
-            <button id="clearGeneratedBtn" class="btn-sm">🗑️ {{ _('videoGen.btn.clear', '清空') }}</button>
+            <button id="exportGeneratedBtn" class="btn-sm">📥 {{ '导出' }}</button>
+            <button id="clearGeneratedBtn" class="btn-sm">🗑️ {{ '清空' }}</button>
         </div>
     </aside>
 
     <!-- 右侧：帮助信息 -->
     <aside class="help-sidebar" id="helpSidebar">
         <div class="help-card">
-            <h3>💡 {{ _('videoGen.help.workflow', '使用流程') }}</h3>
+            <h3>💡 {{ '使用流程' }}</h3>
             <ol id="workflowSteps">
-                <li class="active">{{ _('videoGen.step.selectMode', '选择模式') }}</li>
-                <li>{{ _('videoGen.step.selectNovel', '选择小说和视频类型') }}</li>
-                <li>{{ _('videoGen.step.selectContent', '选择事件和角色') }}</li>
-                <li>{{ _('videoGen.step.viewPrompt', '查看提示词') }}</li>
-                <li>{{ _('videoGen.step.generateStoryboard', '生成分镜头脚本') }}</li>
-                <li>{{ _('videoGen.step.generateVideo', '逐个或批量生成视频') }}</li>
+                <li class="active">{{ '选择模式' }}</li>
+                <li>{{ '选择小说和视频类型' }}</li>
+                <li>{{ '选择事件和角色' }}</li>
+                <li>{{ '查看提示词' }}</li>
+                <li>{{ '生成分镜头脚本' }}</li>
+                <li>{{ '逐个或批量生成视频' }}</li>
             </ol>
         </div>
 
         <div class="help-card">
-            <h3>📊 {{ _('videoGen.help.status', '当前状态') }}</h3>
+            <h3>📊 {{ '当前状态' }}</h3>
             <div id="currentStatus" class="current-status">
-                <p>{{ _('videoGen.status.selectMode', '请选择生成模式') }}</p>
+                <p>{{ '请选择生成模式' }}</p>
             </div>
         </div>
 
         <div class="help-card">
-            <h3>📖 {{ _('videoGen.help.typeDesc', '视频类型说明') }}</h3>
+            <h3>📖 {{ '视频类型说明' }}</h3>
             <div id="typeDescriptions" class="type-descriptions">
-                <p style="font-size: 0.8rem; color: var(--text-tertiary);">{{ _('videoGen.hint.selectMode', '选择模式后查看详细说明') }}</p>
+                <p style="font-size: 0.8rem; color: var(--text-tertiary);">{{ '选择模式后查看详细说明' }}</p>
             </div>
         </div>
     </aside>
@@ -1120,15 +1120,15 @@
 <div id="promptEditModal" class="modal" style="display: none;">
     <div class="modal-content">
         <div class="modal-header">
-            <h3>{{ _('videoGen.modal.editPrompt', '编辑生成提示词') }}</h3>
+            <h3>{{ '编辑生成提示词' }}</h3>
             <button id="closePromptModalBtn" class="btn-close">✕</button>
         </div>
         <div class="modal-body">
             <textarea id="promptEditTextarea" class="prompt-edit-textarea"></textarea>
         </div>
         <div class="modal-footer">
-            <button id="cancelPromptEditBtn" class="btn-secondary">{{ _('common.cancel', '取消') }}</button>
-            <button id="savePromptEditBtn" class="btn-primary">{{ _('common.save', '保存') }}</button>
+            <button id="cancelPromptEditBtn" class="btn-secondary">{{ '取消' }}</button>
+            <button id="savePromptEditBtn" class="btn-primary">{{ '保存' }}</button>
         </div>
     </div>
 </div>
@@ -1138,10 +1138,10 @@
     <div class="portrait-modal-overlay" onclick="closePortraitModal()"></div>
     <button class="portrait-modal-close" onclick="closePortraitModal()">✕</button>
     <div class="portrait-modal-content">
-        <img id="portraitModalImage" src="" alt="{{ _('videoGen.portrait.preview', '剧照预览') }}">
+        <img id="portraitModalImage" src="" alt="{{ '剧照预览' }}">
         <div class="portrait-modal-info">
-            <h3 id="portraitModalName">{{ _('videoGen.portrait.name', '角色名') }}</h3>
-            <p id="portraitModalRole">{{ _('videoGen.portrait.role', '角色') }}</p>
+            <h3 id="portraitModalName">{{ '角色名' }}</h3>
+            <p id="portraitModalRole">{{ '角色' }}</p>
         </div>
     </div>
 </div>
