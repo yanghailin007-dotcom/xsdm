@@ -66,7 +66,7 @@ class MultiChapterContentGenerator:
             {chapter_num: ChapterContent} 生成的章节内容
         """
         # 调试：检查参数类型
-        self.logger.info(f"[MultiChapterGen] 参数类型检查: medium_event={type(medium_event)}, scenes={type(scenes_by_chapter)}")
+        self.logger.error(f"[DEBUG] MultiChapterGen 参数 - medium_event: {type(medium_event)}, scenes: {type(scenes_by_chapter)}")
         if not isinstance(medium_event, dict):
             self.logger.error(f"[MultiChapterGen] medium_event 类型错误: {type(medium_event)}, 值={medium_event}")
             raise TypeError(f"medium_event 必须是字典，而不是 {type(medium_event)}")

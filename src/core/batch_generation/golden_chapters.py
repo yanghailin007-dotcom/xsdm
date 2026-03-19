@@ -65,6 +65,9 @@ class GoldenChaptersGenerator:
             self.logger.error(f"[GoldenChapters] novel_data 类型错误: {type(novel_data)}，使用空字典")
             novel_data = {}
         
+        # 🔥 调试：打印所有参数类型
+        self.logger.error(f"[DEBUG] generate() 参数 - novel_data: {type(novel_data)}, creative_seed: {type(creative_seed)}, selected_plan: {type(selected_plan)}")
+        
         novel_title = novel_data.get("novel_title", "Unknown")
         
         self.logger.info(
@@ -123,15 +126,15 @@ class GoldenChaptersGenerator:
         
         # 🔥 修复：确保 creative_seed 是字典
         if not isinstance(creative_seed, dict):
-            self.logger.warning(f"[GoldenChapters] creative_seed 类型错误: {type(creative_seed)}，使用空字典")
+            self.logger.error(f"[DEBUG] creative_seed 类型错误: {type(creative_seed)}，值: {creative_seed}")
             creative_seed = {}
         
         # 🔥 修复：确保 selected_plan 是字典而不是列表
         if isinstance(selected_plan, list):
-            self.logger.warning(f"[GoldenChapters] selected_plan 是列表而非字典，使用空字典替代")
+            self.logger.error(f"[DEBUG] selected_plan 是列表，值: {selected_plan}")
             selected_plan = {}
         elif not isinstance(selected_plan, dict):
-            self.logger.warning(f"[GoldenChapters] selected_plan 类型错误: {type(selected_plan)}，使用空字典替代")
+            self.logger.error(f"[DEBUG] selected_plan 类型错误: {type(selected_plan)}，值: {selected_plan}")
             selected_plan = {}
         
         # 提取核心设定
