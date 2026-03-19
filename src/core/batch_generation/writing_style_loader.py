@@ -68,6 +68,14 @@ class WritingStyleGuideLoader:
         # 格式化为Prompt片段
         formatted = cls._format_to_prompt(style_guide)
         
+        # 🔥 调试：检查 formatted 类型
+        if not isinstance(formatted, FormattedStyleGuide):
+            logger.error(f"[DEBUG] formatted 类型错误: {type(formatted)}, 值: {formatted}")
+            # 如果缓存中有错误的数据，清除缓存
+            if cache_key in cls._cache:
+                logger.error(f"[DEBUG] 清除缓存中错误的数据: {cache_key}")
+                del cls._cache[cache_key]
+        
         # 缓存
         if use_cache:
             cls._cache[cache_key] = formatted
