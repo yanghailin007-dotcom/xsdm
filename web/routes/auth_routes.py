@@ -327,9 +327,9 @@ def register_page_routes(app):
         from flask import Response
         return Response(status=204)
     
-    @app.route('/landing', methods=['GET'])
-    def landing():
-        """大文娱系统首页 - V2 UI"""
+    @app.route('/', methods=['GET'])
+    def index():
+        """首页 - 大文娱系统入口，显示 landing 页面"""
         # 检查是否需要显示欢迎弹窗（未领取注册奖励的用户）
         show_welcome = False
         welcome_bonus = 0
@@ -367,20 +367,15 @@ def register_page_routes(app):
             except Exception as e:
                 logger.error(f"❌ 检查欢迎弹窗状态失败: {e}")
         
-        logger.info(f"📄 Loading landing-v2.html (V2 UI), show_welcome={show_welcome}")
+        logger.info(f"📄 Loading landing-v2.html (V2 UI - 首页), show_welcome={show_welcome}")
         return render_template('pages/v2/landing-v2.html', 
                                show_welcome=show_welcome, 
                                welcome_bonus=welcome_bonus)
     
-    @app.route('/landing-v2-test', methods=['GET'])
-    def landing_v2_test():
-        """V2 UI 测试页面"""
-        return render_template('landing-v2-test.html')
-    
-    @app.route('/', methods=['GET'])
-    def index():
-        """首页 - 不需要登录，直接显示 landing 页面"""
-        return redirect('/landing')
+    @app.route('/landing', methods=['GET'])
+    def landing():
+        """Landing 页面 - 兼容旧链接，重定向到首页"""
+        return redirect('/', code=301)
     
     @app.route('/home', methods=['GET'])
     def home():

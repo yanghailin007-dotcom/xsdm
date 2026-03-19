@@ -4,7 +4,7 @@
 #}
 <nav class="v2-navbar">
     <!-- 左侧：Logo + 品牌 -->
-    <a href="/landing" class="v2-navbar__brand">
+    <a href="/" class="v2-navbar__brand">
         <div class="v2-navbar__logo">
             <svg class="v2-navbar__logo-svg" viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
                 <path d="M50 5 L55 40 L95 50 L55 60 L50 95 L45 60 L5 50 L45 40 Z" fill="white"/>
@@ -118,7 +118,7 @@
                 </div>
             </div>
         {% else %}
-            <a href="/landing" class="v2-nav-link {% if request.endpoint == 'landing' %}v2-nav-link--active{% endif %}">
+            <a href="/" class="v2-nav-link {% if request.endpoint == 'index' %}v2-nav-link--active{% endif %}">
                 <span data-i18n="nav.home">首页</span>
             </a>
             <a href="#features" class="v2-nav-link" onclick="document.getElementById('features')?.scrollIntoView({behavior: 'smooth'}); return false;">
