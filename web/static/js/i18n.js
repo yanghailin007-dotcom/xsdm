@@ -683,7 +683,16 @@ const I18N = (function() {
             'projectViewer.view.worldview': '世界观',
             'projectViewer.action.editMode': '编辑模式',
             'projectViewer.action.save': '保存',
-        },
+        
+            // videoNav - 视频导航栏专用
+            'nav.backToNovel': '← 返回小说创作',
+            'nav.videoCenter': '视频制作中心',
+            'nav.videoProject': '📖 项目管理器',
+            'nav.videoPortrait': '🎨 剧照工作台',
+            'nav.videoStudio': '🎬 视频生成',
+            'nav.videoWorkflow': '🎯 流程控制器',
+            'nav.newVideoProject': '新建视频项目',
+},
         'zh-TW': {
             // Phase 2 頁面翻譯
             'phase2.title': '第二階段：章節生成',
@@ -1622,6 +1631,15 @@ const I18N = (function() {
             'shortDrama.step1.subtitle': '選擇要製作的小說',
             'shortDrama.step2.subtitle': '選擇轉換風格',
             'shortDrama.step3.subtitle': '選擇製作模式',
+
+            // videoNav - 视频导航栏专用
+            'nav.backToNovel': '← 返回小說創作',
+            'nav.videoCenter': '視頻製作中心',
+            'nav.videoProject': '📖 項目管理器',
+            'nav.videoPortrait': '🎨 劇照工作台',
+            'nav.videoStudio': '🎬 視頻生成',
+            'nav.videoWorkflow': '🎯 流程控制器',
+            'nav.newVideoProject': '新建視頻項目',
 },
         'en': {
             // Phase 2 Page Translations
@@ -2288,7 +2306,16 @@ const I18N = (function() {
             'dashboard.section.quick': 'Quick Access',
             'dashboard.btn.newProject': 'New Project',
             'dashboard.btn.continue': 'Continue',
-        }
+        
+            // videoNav - Video Navigation
+            'nav.backToNovel': '← Back to Novel',
+            'nav.videoCenter': 'Video Production Center',
+            'nav.videoProject': '📖 Project Manager',
+            'nav.videoPortrait': '🎨 Portrait Studio',
+            'nav.videoStudio': '🎬 Video Generation',
+            'nav.videoWorkflow': '🎯 Workflow Controller',
+            'nav.newVideoProject': 'New Video Project',
+}
     
         'ja': {
             // characterPortrait
@@ -2949,7 +2976,16 @@ const I18N = (function() {
             'worldviewViewer.subtitle': '查看和管理小说世界观',
             'worldviewViewer.title': '世界观查看器',
 
-        },
+        
+            // videoNav - 動画ナビゲーション
+            'nav.backToNovel': '← 小説作成に戻る',
+            'nav.videoCenter': '動画制作センター',
+            'nav.videoProject': '📖 プロジェクト管理',
+            'nav.videoPortrait': '🎨 ポートレートスタジオ',
+            'nav.videoStudio': '🎬 動画生成',
+            'nav.videoWorkflow': '🎯 ワークフロー制御',
+            'nav.newVideoProject': '新規動画プロジェクト',
+},
         'ko': {
             // characterPortrait
             'characterPortrait.btn.generate': '开始生成',
@@ -3609,7 +3645,16 @@ const I18N = (function() {
             'worldviewViewer.subtitle': '查看和管理小说世界观',
             'worldviewViewer.title': '世界观查看器',
 
-        },
+        
+            // videoNav - 비디오 낱게이션
+            'nav.backToNovel': '← 소설 창작으로 돌아가기',
+            'nav.videoCenter': '비디오 제작 센터',
+            'nav.videoProject': '📖 프로젝트 관리자',
+            'nav.videoPortrait': '🎨 포트레이트 스튜디오',
+            'nav.videoStudio': '🎬 비디오 생성',
+            'nav.videoWorkflow': '🎯 워크플로우 컨트롤러',
+            'nav.newVideoProject': '새 비디오 프로젝트',
+},
         'es': {
             // characterPortrait
             'characterPortrait.btn.generate': '开始生成',
@@ -4269,7 +4314,16 @@ const I18N = (function() {
             'worldviewViewer.subtitle': '查看和管理小说世界观',
             'worldviewViewer.title': '世界观查看器',
 
-        },
+        
+            // videoNav - Navegación de Video
+            'nav.backToNovel': '← Volver a Novelas',
+            'nav.videoCenter': 'Centro de Producción de Video',
+            'nav.videoProject': '📖 Gestor de Proyectos',
+            'nav.videoPortrait': '🎨 Estudio de Retratos',
+            'nav.videoStudio': '🎬 Generación de Video',
+            'nav.videoWorkflow': '🎯 Controlador de Flujo',
+            'nav.newVideoProject': 'Nuevo Proyecto de Video',
+},
         'fr': {
             // characterPortrait
             'characterPortrait.btn.generate': '开始生成',
@@ -4929,7 +4983,16 @@ const I18N = (function() {
             'worldviewViewer.subtitle': '查看和管理小说世界观',
             'worldviewViewer.title': '世界观查看器',
 
-        },
+        
+            // videoNav - Navigation Vidéo
+            'nav.backToNovel': '← Retour aux Romans',
+            'nav.videoCenter': 'Centre de Production Vidéo',
+            'nav.videoProject': '📖 Gestionnaire de Projets',
+            'nav.videoPortrait': '🎨 Studio de Portraits',
+            'nav.videoStudio': '🎬 Génération Vidéo',
+            'nav.videoWorkflow': '🎯 Contrôleur de Flux',
+            'nav.newVideoProject': 'Nouveau Projet Vidéo',
+},
         'de': {
             // characterPortrait
             'characterPortrait.btn.generate': '开始生成',
@@ -5703,4 +5766,13 @@ const I18N = (function() {
 // DOM 加载完成后自动初始化
 document.addEventListener('DOMContentLoaded', function() {
     I18N.init();
+
+            // videoNav - Video-Navigation
+            'nav.backToNovel': '← Zurück zu Romanen',
+            'nav.videoCenter': 'Video-Produktionszentrum',
+            'nav.videoProject': '📖 Projektmanager',
+            'nav.videoPortrait': '🎨 Portrait-Studio',
+            'nav.videoStudio': '🎬 Video-Generierung',
+            'nav.videoWorkflow': '🎯 Workflow-Controller',
+            'nav.newVideoProject': 'Neues Video-Projekt',
 });

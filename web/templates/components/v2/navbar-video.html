@@ -1,0 +1,165 @@
+{#
+    视频创作导航栏组件 V2
+    专门为视频创作模块设计的导航栏
+#}
+<nav class="v2-navbar v2-navbar--video">
+    <!-- 左侧：Logo + 品牌 -->
+    <a href="/video" class="v2-navbar__brand">
+        <div class="v2-navbar__logo">
+            <svg class="v2-navbar__logo-svg" viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <!-- 视频创作Logo：播放按钮风格 -->
+                <circle cx="50" cy="50" r="45" fill="url(#navVideoGradient)" opacity="0.2"/>
+                <circle cx="50" cy="50" r="35" fill="url(#navVideoGradient)" opacity="0.4"/>
+                <path d="M40 35 L70 50 L40 65 Z" fill="white"/>
+                <defs>
+                    <linearGradient id="navVideoGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+                        <stop offset="0%" style="stop-color:#f59e0b"/>
+                        <stop offset="100%" style="stop-color:#ef4444"/>
+                    </linearGradient>
+                </defs>
+            </svg>
+        </div>
+        <span class="v2-navbar__brand-text" data-i18n="videoCenter.pageTitle">视频制作中心</span>
+    </a>
+
+    <!-- 中间：视频创作导航链接 -->
+    <div class="v2-navbar__center">
+        <!-- 返回小说创作 -->
+        <a href="/" class="v2-nav-link">
+            <span data-i18n="nav.backToNovel">← 返回小说创作</span>
+        </a>
+        
+        <!-- 视频项目 -->
+        <a href="/video/project" class="v2-nav-link {% if request.endpoint == 'video_project_center' or request.endpoint == 'video_project_detail' %}v2-nav-link--active{% endif %}">
+            <span data-i18n="videoCenter.workshop.project">📖 项目管理器</span>
+        </a>
+        
+        <!-- 剧照工作台 -->
+        <a href="/video/portrait" class="v2-nav-link {% if request.endpoint == 'video_portrait' %}v2-nav-link--active{% endif %}">
+            <span data-i18n="videoCenter.workshop.portrait">🎨 剧照工作台</span>
+        </a>
+        
+        <!-- 视频生成下拉菜单 -->
+        <div class="v2-nav-dropdown {% if request.endpoint in ['video_studio_new', 'video_generation', 'video_studio'] %}v2-nav-dropdown--active{% endif %}">
+            <span class="v2-nav-trigger">
+                <span data-i18n="videoCenter.workshop.studio">🎬 视频生成</span>
+                <svg class="v2-nav-trigger__arrow" width="12" height="12" viewBox="0 0 12 12" fill="none">
+                    <path d="M2.5 4.5L6 8L9.5 4.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
+            </span>
+            <div class="v2-nav-dropdown__menu v2-nav-dropdown__menu--video">
+                <!-- 视频工作台 -->
+                <a href="/video/studio" class="v2-dropdown-item {% if request.endpoint == 'video_studio_new' %}v2-dropdown-item--active{% endif %}">
+                    <span class="v2-dropdown-item__icon" style="font-size: 16px;">🎬</span>
+                    <div class="v2-dropdown-item__content">
+                        <span class="v2-dropdown-item__title" data-i18n="videoCenter.workshop.studio">视频工作台</span>
+                        <span class="v2-dropdown-item__desc" data-i18n="videoCenter.workshop.studio.desc">分镜编辑、视频渲染、时间线管理</span>
+                    </div>
+                    <svg class="v2-dropdown-item__arrow" width="16" height="16" viewBox="0 0 16 16" fill="none">
+                        <path d="M6 12L10 8L6 4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+                    </svg>
+                </a>
+                <!-- 分隔线 -->
+                <div class="v2-dropdown-divider"></div>
+                <!-- 传统视频生成 -->
+                <a href="/video-generation" class="v2-dropdown-item {% if request.endpoint == 'video_generation' %}v2-dropdown-item--active{% endif %}">
+                    <span class="v2-dropdown-item__icon" style="font-size: 16px;">🎥</span>
+                    <div class="v2-dropdown-item__content">
+                        <span class="v2-dropdown-item__title" data-i18n="videoGen.title">传统视频生成</span>
+                        <span class="v2-dropdown-item__desc" data-i18n="videoGen.subtitle">将小说内容转换为视频</span>
+                    </div>
+                    <svg class="v2-dropdown-item__arrow" width="16" height="16" viewBox="0 0 16 16" fill="none">
+                        <path d="M6 12L10 8L6 4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+                    </svg>
+                </a>
+            </div>
+        </div>
+        
+        <!-- 流程控制器 -->
+        <a href="/video/workflow" class="v2-nav-link {% if request.endpoint == 'video_workflow' %}v2-nav-link--active{% endif %}">
+            <span data-i18n="videoCenter.workshop.workflow">🎯 流程控制器</span>
+        </a>
+    </div>
+    
+    <!-- 右侧：操作区域 -->
+    <div class="v2-navbar__right">
+        <!-- 语言切换器 -->
+        <div class="v2-navbar__lang">
+            <select id="language-switcher" class="v2-lang-select" onchange="switchLanguage(this.value)">
+                <option value="zh-CN">简体中文</option>
+                <option value="zh-TW">繁體中文</option>
+                <option value="en">English</option>
+                <option value="ja">日本語</option>
+                <option value="ko">한국어</option>
+                <option value="es">Español</option>
+                <option value="fr">Français</option>
+                <option value="de">Deutsch</option>
+            </select>
+        </div>
+        
+        {% if session.logged_in %}
+            <a href="/video/project" class="v2-btn v2-btn--primary v2-btn--sm v2-btn--video">
+                <span style="font-size: 14px; line-height: 1;">🎬</span>
+                <span data-i18n="videoProject.btn.newProject">新建视频项目</span>
+            </a>
+            {% include 'components/v2/user-menu.html' %}
+        {% else %}
+            <a href="/login" class="v2-btn v2-btn--ghost v2-btn--sm" data-i18n="nav.login">登录</a>
+            <a href="/register" class="v2-btn v2-btn--primary v2-btn--sm" data-i18n="nav.register">注册</a>
+        {% endif %}
+    </div>
+</nav>
+
+<style>
+/* 视频创作导航栏特殊样式 */
+.v2-navbar--video {
+    background: linear-gradient(135deg, rgba(245, 158, 11, 0.1) 0%, rgba(239, 68, 68, 0.05) 100%);
+    border-bottom: 1px solid rgba(245, 158, 11, 0.2);
+}
+
+.v2-navbar--video .v2-nav-link--active {
+    background: linear-gradient(135deg, rgba(245, 158, 11, 0.2) 0%, rgba(239, 68, 68, 0.1) 100%);
+    box-shadow: inset 0 0 0 1px rgba(245, 158, 11, 0.3);
+}
+
+.v2-navbar--video .v2-nav-link:hover:not(.v2-nav-link--active) {
+    background: rgba(245, 158, 11, 0.1);
+}
+
+.v2-navbar--video .v2-btn--video {
+    background: linear-gradient(135deg, #f59e0b 0%, #ef4444 100%);
+    border: none;
+}
+
+.v2-navbar--video .v2-btn--video:hover {
+    background: linear-gradient(135deg, #d97706 0%, #dc2626 100%);
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(245, 158, 11, 0.4);
+}
+
+/* 视频生成下拉菜单 */
+.v2-nav-dropdown__menu--video {
+    min-width: 280px;
+}
+</style>
+
+<script>
+// 视频创作导航栏语言切换
+function switchLanguage(lang) {
+    if (typeof I18N !== 'undefined' && I18N.setLanguage) {
+        I18N.setLanguage(lang);
+        const settings = JSON.parse(localStorage.getItem('userSettings') || '{}');
+        settings.language = lang;
+        localStorage.setItem('userSettings', JSON.stringify(settings));
+    }
+}
+
+document.addEventListener('DOMContentLoaded', function() {
+    const settings = JSON.parse(localStorage.getItem('userSettings') || '{}');
+    if (settings.language) {
+        document.querySelectorAll('#language-switcher').forEach(el => {
+            if (el) el.value = settings.language;
+        });
+    }
+});
+</script>

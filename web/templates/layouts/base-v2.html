@@ -20,8 +20,18 @@
 </head>
 <body class="v2-body">
     
-    <!-- 导航栏 -->
-    {% include 'components/v2/navbar.html' %}
+    <!-- 导航栏 - 根据页面智能选择 -->
+    {% set video_endpoints = ['video_center', 'video_project_center', 'video_project_detail', 
+                               'video_portrait', 'video_studio_new', 'video_generation', 
+                               'video_workflow', 'short_drama', 'short_drama_studio',
+                               'video_studio', 'video_task_manager'] %}
+    {% if request.endpoint in video_endpoints %}
+        <!-- 视频创作导航栏 -->
+        {% include 'components/v2/navbar-video.html' %}
+    {% else %}
+        <!-- 小说创作导航栏（默认） -->
+        {% include 'components/v2/navbar.html' %}
+    {% endif %}
     
     <!-- Flash 消息 -->
     {% with messages = get_flashed_messages(with_categories=true) %}
@@ -42,8 +52,14 @@
         {% block content %}{% endblock %}
     </main>
     
-    <!-- 页脚 -->
-    {% include 'components/v2/footer.html' %}
+    <!-- 页脚 - 根据页面智能选择 -->
+    {% if request.endpoint in video_endpoints %}
+        <!-- 视频创作页脚 -->
+        {% include 'components/v2/footer-video.html' %}
+    {% else %}
+        <!-- 小说创作页脚（默认） -->
+        {% include 'components/v2/footer.html' %}
+    {% endif %}
     
     <!-- UI版本切换器 -->
     <div class="v2-version-switcher" title="切换UI版本">
