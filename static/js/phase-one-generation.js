@@ -1297,6 +1297,13 @@ function switchToStep(step) {
                 resultsSection.classList.add('active', 'pt-results-section--active');
             }
             updateStepStatus('preview', true);
+            
+            // 🔥 修复：点击结果预览时加载质量评估报告
+            const previewTitle = document.getElementById('novel-title')?.value;
+            if (previewTitle && typeof loadQualityAssessment === 'function') {
+                console.log(`[switchToStep] 加载质量评估: ${previewTitle}`);
+                loadQualityAssessment(previewTitle);
+            }
             break;
             
         case 'phase-two':
