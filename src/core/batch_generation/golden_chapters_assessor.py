@@ -118,6 +118,14 @@ class GoldenChaptersAssessor:
             GoldenChaptersAssessment: 专用评估结果
         """
         novel_title = novel_data.get("novel_title", "Unknown")
+        
+        # 🔥 修复：确保 selected_plan 是字典
+        if isinstance(selected_plan, list):
+            self.logger.warning(f"[GoldenAssessor] selected_plan 是列表，转换为空字典")
+            selected_plan = {}
+        elif not isinstance(selected_plan, dict):
+            selected_plan = {}
+        
         category = selected_plan.get("category", "未分类")
         
         self.logger.info(f"[GoldenAssessor] 开始评估黄金三章: {novel_title}")

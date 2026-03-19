@@ -508,11 +508,17 @@ class MediumEventBatchProcessor:
         self.logger.info(f"[BatchProcessor] 开始黄金三章专用评估: {novel_title}")
         
         try:
+            # 🔥 修复：确保 selected_plan 是字典
+            selected_plan = novel_data.get("selected_plan", {})
+            if isinstance(selected_plan, list):
+                self.logger.warning(f"[BatchProcessor] 评估时 selected_plan 是列表，转换为空字典")
+                selected_plan = {}
+            
             assessment = self.golden_assessor.assess(
                 chapters_content=chapters_content,
                 novel_data=novel_data,
                 creative_seed=novel_data.get("creative_seed", {}),
-                selected_plan=novel_data.get("selected_plan", {})
+                selected_plan=selected_plan
             )
             
             self.logger.info(
