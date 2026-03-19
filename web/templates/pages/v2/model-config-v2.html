@@ -760,16 +760,16 @@
     <div class="model-config-header">
         <div class="model-config-header__badge">
             <span>⚙️</span>
-            <span>系统配置</span>
+            <span data-i18n="modelConfig.badge">系统配置</span>
         </div>
-        <h1 class="model-config-header__title">模型配置</h1>
-        <p class="model-config-header__subtitle">查看各API端点的模型优先级、折扣率及性能特点</p>
+        <h1 class="model-config-header__title" data-i18n="modelConfig.title">模型配置</h1>
+        <p class="model-config-header__subtitle" data-i18n="modelConfig.subtitle">查看各API端点的模型优先级、折扣率及性能特点</p>
     </div>
     
     <!-- 配置提示 -->
     <div class="config-notice">
         <span class="config-notice__icon">💡</span>
-        <span class="config-notice__text">折扣率表示API调用消耗倍率，100%为标准消耗，数值越高消耗越多</span>
+        <span class="config-notice__text" data-i18n="modelConfig.notice.discount">折扣率表示API调用消耗倍率，100%为标准消耗，数值越高消耗越多</span>
     </div>
     
     <!-- 提供商标签页 -->
@@ -777,16 +777,16 @@
     <div class="config-notice" style="background: linear-gradient(135deg, rgba(139, 92, 246, 0.1), rgba(99, 102, 241, 0.1)); border-color: rgba(139, 92, 246, 0.3);">
         <span class="config-notice__icon">🔥</span>
         <span class="config-notice__text" id="priority-notice">
-            <strong>Provider 优先级（故障转移）:</strong> 
-            <span id="priority-chain" style="color: var(--v2-text-tertiary);">加载中...</span>
+            <strong data-i18n="modelConfig.notice.priority">Provider 优先级（故障转移）:</strong> 
+            <span id="priority-chain" style="color: var(--v2-text-tertiary);" data-i18n="common.loading">加载中...</span>
         </span>
     </div>
     
     <div class="provider-tabs" id="provider-tabs">
         <!-- 由 JavaScript 根据后端配置自动显示/隐藏 -->
-        <button class="provider-tab" data-provider="kimi" id="tab-kimi" style="display: none;">🌙 Kimi</button>
-        <button class="provider-tab active" data-provider="gemini" id="tab-gemini">♊ Gemini</button>
-        <button class="provider-tab" data-provider="deepseek" id="tab-deepseek">🐋 DeepSeek</button>
+        <button class="provider-tab" data-provider="kimi" id="tab-kimi" style="display: none;">🌙 <span data-i18n="modelConfig.tab.kimi">Kimi</span></button>
+        <button class="provider-tab active" data-provider="gemini" id="tab-gemini">♊ <span data-i18n="modelConfig.tab.gemini">Gemini</span></button>
+        <button class="provider-tab" data-provider="deepseek" id="tab-deepseek">🐋 <span data-i18n="modelConfig.tab.deepseek">DeepSeek</span></button>
     </div>
     
     <!-- Kimi 模型卡片 -->
@@ -805,15 +805,15 @@
             
             <div class="model-card__info">
                 <div class="model-info-row">
-                    <span class="model-info-label">主模型</span>
+                    <span class="model-info-label" data-i18n="modelConfig.label.primaryModel">主模型</span>
                     <span class="model-info-value">kimi-k2.5</span>
                 </div>
                 <div class="model-info-row">
-                    <span class="model-info-label">上下文</span>
+                    <span class="model-info-label" data-i18n="modelConfig.label.context">上下文</span>
                     <span class="model-info-value">256K tokens</span>
                 </div>
                 <div class="model-info-row">
-                    <span class="model-info-label">优先级</span>
+                    <span class="model-info-label" data-i18n="modelConfig.label.priority">优先级</span>
                     <div class="priority-control">
                         <button class="priority-btn" onclick="adjustPriority('kimi-k2.5-primary', -1)">-</button>
                         <span class="priority-value" id="priority-kimi-k2.5-primary">1</span>
@@ -824,7 +824,7 @@
             
             <div class="model-card__features">
                 <div class="feature-section">
-                    <div class="feature-title feature-title--pro">✅ 优势</div>
+                    <div class="feature-title feature-title--pro">✅ <span data-i18n="modelConfig.pros.title">优势</span></div>
                     <div class="feature-list">
                         <span class="feature-tag feature-tag--pro">256K超长上下文</span>
                         <span class="feature-tag feature-tag--pro">缓存机制省60%</span>
@@ -836,9 +836,9 @@
             <div class="model-card__footer">
                 <span class="status-badge" id="status-kimi-k2.5-primary">
                     <span class="status-dot"></span>
-                    <span class="status-text">检查中...</span>
+                    <span class="status-text" data-i18n="modelConfig.status.checking">检查中...</span>
                 </span>
-                <span style="font-size: 12px; color: var(--v2-text-tertiary);">超时: 300s</span>
+                <span style="font-size: 12px; color: var(--v2-text-tertiary);"><span data-i18n="modelConfig.timeout">超时</span>: 300s</span>
             </div>
         </div>
     </div>
@@ -860,15 +860,15 @@
             
             <div class="model-card__info">
                 <div class="model-info-row">
-                    <span class="model-info-label">主模型</span>
+                    <span class="model-info-label" data-i18n="modelConfig.label.primaryModel">主模型</span>
                     <span class="model-info-value">google/gemini-3-flash</span>
                 </div>
                 <div class="model-info-row">
-                    <span class="model-info-label">评估模型</span>
+                    <span class="model-info-label" data-i18n="modelConfig.label.evalModel">评估模型</span>
                     <span class="model-info-value">google/gemini-2.5-flash</span>
                 </div>
                 <div class="model-info-row">
-                    <span class="model-info-label">优先级</span>
+                    <span class="model-info-label" data-i18n="modelConfig.label.priority">优先级</span>
                     <div class="priority-control">
                         <button class="priority-btn" onclick="adjustPriority('aiberm', -1)">-</button>
                         <span class="priority-value" id="priority-aiberm">1</span>
@@ -879,7 +879,7 @@
             
             <div class="model-card__features">
                 <div class="feature-section">
-                    <div class="feature-title feature-title--pro">✅ 优势</div>
+                    <div class="feature-title feature-title--pro">✅ <span data-i18n="modelConfig.pros.title">优势</span></div>
                     <div class="feature-list">
                         <span class="feature-tag feature-tag--pro">字数达标率高</span>
                         <span class="feature-tag feature-tag--pro">消耗适中</span>
@@ -888,7 +888,7 @@
                     </div>
                 </div>
                 <div class="feature-section">
-                    <div class="feature-title feature-title--con">⚠️ 注意</div>
+                    <div class="feature-title feature-title--con">⚠️ <span data-i18n="modelConfig.cons.title">注意</span></div>
                     <div class="feature-list">
                         <span class="feature-tag feature-tag--con">可能冷启动</span>
                     </div>
@@ -900,7 +900,7 @@
                     <span class="status-dot"></span>
                     已启用
                 </span>
-                <span style="font-size: 12px; color: var(--v2-text-tertiary);">超时: 300s</span>
+                <span style="font-size: 12px; color: var(--v2-text-tertiary);"><span data-i18n="modelConfig.timeout">超时</span>: 300s</span>
             </div>
         </div>
         
@@ -919,15 +919,15 @@
             
             <div class="model-card__info">
                 <div class="model-info-row">
-                    <span class="model-info-label">主模型</span>
+                    <span class="model-info-label" data-i18n="modelConfig.label.primaryModel">主模型</span>
                     <span class="model-info-value">gemini-3-pro-preview</span>
                 </div>
                 <div class="model-info-row">
-                    <span class="model-info-label">评估模型</span>
+                    <span class="model-info-label" data-i18n="modelConfig.label.evalModel">评估模型</span>
                     <span class="model-info-value">gemini-2.5-flash</span>
                 </div>
                 <div class="model-info-row">
-                    <span class="model-info-label">优先级</span>
+                    <span class="model-info-label" data-i18n="modelConfig.label.priority">优先级</span>
                     <div class="priority-control">
                         <button class="priority-btn" onclick="adjustPriority('xiaochuang-backup', -1)">-</button>
                         <span class="priority-value" id="priority-xiaochuang-backup">2</span>
@@ -938,7 +938,7 @@
             
             <div class="model-card__features">
                 <div class="feature-section">
-                    <div class="feature-title feature-title--pro">✅ 优势</div>
+                    <div class="feature-title feature-title--pro">✅ <span data-i18n="modelConfig.pros.title">优势</span></div>
                     <div class="feature-list">
                         <span class="feature-tag feature-tag--pro">标准消耗 100%</span>
                         <span class="feature-tag feature-tag--pro">无需前缀</span>
@@ -946,7 +946,7 @@
                     </div>
                 </div>
                 <div class="feature-section">
-                    <div class="feature-title feature-title--con">⚠️ 注意</div>
+                    <div class="feature-title feature-title--con">⚠️ <span data-i18n="modelConfig.cons.title">注意</span></div>
                     <div class="feature-list">
                         <span class="feature-tag feature-tag--con">备用端点</span>
                     </div>
@@ -958,7 +958,7 @@
                     <span class="status-dot"></span>
                     已启用
                 </span>
-                <span style="font-size: 12px; color: var(--v2-text-tertiary);">超时: 300s</span>
+                <span style="font-size: 12px; color: var(--v2-text-tertiary);"><span data-i18n="modelConfig.timeout">超时</span>: 300s</span>
             </div>
         </div>
         
@@ -977,15 +977,15 @@
             
             <div class="model-card__info">
                 <div class="model-info-row">
-                    <span class="model-info-label">主模型</span>
+                    <span class="model-info-label" data-i18n="modelConfig.label.primaryModel">主模型</span>
                     <span class="model-info-value">[L]gemini-3.1-pro-preview</span>
                 </div>
                 <div class="model-info-row">
-                    <span class="model-info-label">评估模型</span>
+                    <span class="model-info-label" data-i18n="modelConfig.label.evalModel">评估模型</span>
                     <span class="model-info-value">[L]gemini-2.5-flash</span>
                 </div>
                 <div class="model-info-row">
-                    <span class="model-info-label">优先级</span>
+                    <span class="model-info-label" data-i18n="modelConfig.label.priority">优先级</span>
                     <div class="priority-control">
                         <button class="priority-btn" onclick="adjustPriority('lemon-api', -1)">-</button>
                         <span class="priority-value" id="priority-lemon-api">3</span>
@@ -996,14 +996,14 @@
             
             <div class="model-card__features">
                 <div class="feature-section">
-                    <div class="feature-title feature-title--pro">✅ 优势</div>
+                    <div class="feature-title feature-title--pro">✅ <span data-i18n="modelConfig.pros.title">优势</span></div>
                     <div class="feature-list">
                         <span class="feature-tag feature-tag--pro">模型强力 3.1 Pro</span>
                         <span class="feature-tag feature-tag--pro">质量稳定</span>
                     </div>
                 </div>
                 <div class="feature-section">
-                    <div class="feature-title feature-title--con">⚠️ 注意</div>
+                    <div class="feature-title feature-title--con">⚠️ <span data-i18n="modelConfig.cons.title">注意</span></div>
                     <div class="feature-list">
                         <span class="feature-tag feature-tag--con">速度较慢</span>
                         <span class="feature-tag feature-tag--con">需[L]前缀</span>
@@ -1017,7 +1017,7 @@
                     <span class="status-dot"></span>
                     已启用
                 </span>
-                <span style="font-size: 12px; color: var(--v2-text-tertiary);">超时: 300s</span>
+                <span style="font-size: 12px; color: var(--v2-text-tertiary);"><span data-i18n="modelConfig.timeout">超时</span>: 300s</span>
             </div>
         </div>
     </div>
@@ -1039,11 +1039,11 @@
             
             <div class="model-card__info">
                 <div class="model-info-row">
-                    <span class="model-info-label">主模型</span>
+                    <span class="model-info-label" data-i18n="modelConfig.label.primaryModel">主模型</span>
                     <span class="model-info-value">deepseek-reasoner</span>
                 </div>
                 <div class="model-info-row">
-                    <span class="model-info-label">优先级</span>
+                    <span class="model-info-label" data-i18n="modelConfig.label.priority">优先级</span>
                     <div class="priority-control">
                         <button class="priority-btn" onclick="adjustPriority('deepseek-official', -1)">-</button>
                         <span class="priority-value" id="priority-deepseek-official">1</span>
@@ -1054,7 +1054,7 @@
             
             <div class="model-card__features">
                 <div class="feature-section">
-                    <div class="feature-title feature-title--pro">✅ 优势</div>
+                    <div class="feature-title feature-title--pro">✅ <span data-i18n="modelConfig.pros.title">优势</span></div>
                     <div class="feature-list">
                         <span class="feature-tag feature-tag--pro">推理能力强</span>
                         <span class="feature-tag feature-tag--pro">官方稳定</span>
@@ -1062,7 +1062,7 @@
                     </div>
                 </div>
                 <div class="feature-section">
-                    <div class="feature-title feature-title--con">⚠️ 注意</div>
+                    <div class="feature-title feature-title--con">⚠️ <span data-i18n="modelConfig.cons.title">注意</span></div>
                     <div class="feature-list">
                         <span class="feature-tag feature-tag--con">响应较慢</span>
                     </div>
@@ -1074,7 +1074,7 @@
                     <span class="status-dot"></span>
                     已启用
                 </span>
-                <span style="font-size: 12px; color: var(--v2-text-tertiary);">超时: 120s</span>
+                <span style="font-size: 12px; color: var(--v2-text-tertiary);"><span data-i18n="modelConfig.timeout">超时</span>: 120s</span>
             </div>
         </div>
     </div>
@@ -1084,8 +1084,8 @@
     
     <!-- 自定义端点标题 -->
     <div style="margin-bottom: 24px;">
-        <h3 style="font-size: 20px; font-weight: 700; color: var(--v2-text-primary); margin-bottom: 8px;">🛠️ 自定义端点</h3>
-        <p style="font-size: 14px; color: var(--v2-text-secondary);">添加你自己的API端点，仅收取50%创造点消耗</p>
+        <h3 style="font-size: 20px; font-weight: 700; color: var(--v2-text-primary); margin-bottom: 8px;">🛠️ <span data-i18n="modelConfig.custom.title">自定义端点</span></h3>
+        <p style="font-size: 14px; color: var(--v2-text-secondary);" data-i18n="modelConfig.custom.desc">添加你自己的API端点，仅收取50%创造点消耗</p>
     </div>
     
     <!-- 自定义端点列表 -->
@@ -1096,8 +1096,8 @@
                 <div class="model-card__title-section">
                     <div class="model-card__icon" style="background: rgba(255,255,255,0.1);">⏳</div>
                     <div>
-                        <div class="model-card__name">加载中...</div>
-                        <div class="model-card__provider">正在获取自定义端点</div>
+                        <div class="model-card__name" data-i18n="common.loading">加载中...</div>
+                        <div class="model-card__provider" data-i18n="modelConfig.custom.loading">正在获取自定义端点</div>
                     </div>
                 </div>
             </div>
@@ -1108,8 +1108,8 @@
     <div class="model-grid" style="margin-top: 20px;">
         <div class="add-endpoint-card" onclick="openAddModal()">
             <div class="add-endpoint-card__icon">+</div>
-            <div class="add-endpoint-card__text">添加自定义端点</div>
-            <div class="add-endpoint-card__desc">支持OpenAI格式的API接口<br>仅收取50%创造点</div>
+            <div class="add-endpoint-card__text" data-i18n="modelConfig.custom.add">添加自定义端点</div>
+            <div class="add-endpoint-card__desc" data-i18n="modelConfig.custom.addDesc">支持OpenAI格式的API接口<br>仅收取50%创造点</div>
         </div>
     </div>
 </div>
@@ -1214,6 +1214,16 @@
     document.addEventListener('DOMContentLoaded', async function() {
         await loadEnabledEndpoints();
         loadCustomEndpoints();
+        
+        // 监听语言切换事件
+        document.addEventListener('languageChanged', function(e) {
+            console.log('[i18n] Model config language changed to:', e.detail.language);
+            // 重新应用翻译到动态内容
+            updateEndpointStatus();
+            if (typeof I18N !== 'undefined') {
+                I18N.applyToPage();
+            }
+        });
     });
     
     // 从后端获取启用的端点配置
@@ -1272,7 +1282,8 @@
                 const label = p.charAt(0).toUpperCase() + p.slice(1);
                 return `<span style="color: ${color}; font-weight: 600;">${label} (P${i+1})</span>`;
             }).join(' → ');
-            chain.innerHTML = html + ' <span style="color: var(--v2-text-tertiary); margin-left: 8px;">| 失败3次自动切换</span>';
+            const tPriorityDesc = typeof I18N !== 'undefined' ? I18N.t('modelConfig.notice.priority.desc') : '失败3次自动切换';
+            chain.innerHTML = html + ` <span style="color: var(--v2-text-tertiary); margin-left: 8px;">| ${tPriorityDesc}</span>`;
         }
     }
     
@@ -1282,12 +1293,14 @@
             endpoints.forEach(ep => {
                 const statusBadge = document.querySelector(`#status-${ep.name}`);
                 if (statusBadge) {
+                    const tEnabled = typeof I18N !== 'undefined' ? I18N.t('modelConfig.status.enabled') : '已启用';
+                    const tDisabled = typeof I18N !== 'undefined' ? I18N.t('modelConfig.status.disabled') : '已禁用';
                     if (ep.enabled) {
                         statusBadge.className = 'status-badge status-badge--enabled';
-                        statusBadge.innerHTML = '<span class="status-dot"></span><span class="status-text">已启用</span>';
+                        statusBadge.innerHTML = `<span class="status-dot"></span><span class="status-text">${tEnabled}</span>`;
                     } else {
                         statusBadge.className = 'status-badge status-badge--disabled';
-                        statusBadge.innerHTML = '<span class="status-dot" style="background: #ef4444;"></span><span class="status-text">已禁用</span>';
+                        statusBadge.innerHTML = `<span class="status-dot" style="background: #ef4444;"></span><span class="status-text">${tDisabled}</span>`;
                     }
                 }
             });
@@ -1343,8 +1356,8 @@
             container.innerHTML = `
                 <div class="empty-state">
                     <div class="empty-state__icon">📭</div>
-                    <div class="empty-state__title">还没有自定义端点</div>
-                    <div style="font-size: 13px; color: var(--v2-text-tertiary);">点击下方"添加自定义端点"开始配置</div>
+                    <div class="empty-state__title" data-i18n="modelConfig.custom.empty">还没有自定义端点</div>
+                    <div style="font-size: 13px; color: var(--v2-text-tertiary);" data-i18n="modelConfig.custom.emptyHint">点击下方"添加自定义端点"开始配置</div>
                 </div>
             `;
             return;
@@ -1365,7 +1378,7 @@
                 
                 <div class="model-card__info">
                     <div class="model-info-row">
-                        <span class="model-info-label">主模型</span>
+                        <span class="model-info-label" data-i18n="modelConfig.label.primaryModel">主模型</span>
                         <span class="model-info-value">${ep.model}</span>
                     </div>
                     <div class="model-info-row">
@@ -1373,7 +1386,7 @@
                         <span class="model-info-value">${ep.api_url.replace(/^https:\/\//, '').substring(0, 25)}...</span>
                     </div>
                     <div class="model-info-row">
-                        <span class="model-info-label">优先级</span>
+                        <span class="model-info-label" data-i18n="modelConfig.label.priority">优先级</span>
                         <div class="priority-control">
                             <button class="priority-btn" onclick="adjustPriority('${ep.name}', -1)">-</button>
                             <span class="priority-value" id="priority-${ep.name}">${ep.priority || 1}</span>
@@ -1385,7 +1398,7 @@
                 <div class="model-card__features">
                     ${ep.pros && ep.pros.length > 0 ? `
                     <div class="feature-section">
-                        <div class="feature-title feature-title--pro">✅ 优势</div>
+                        <div class="feature-title feature-title--pro">✅ <span data-i18n="modelConfig.pros.title">优势</span></div>
                         <div class="feature-list">
                             ${ep.pros.map(p => `<span class="feature-tag feature-tag--pro">${p}</span>`).join('')}
                         </div>
@@ -1393,7 +1406,7 @@
                     ` : ''}
                     ${ep.cons && ep.cons.length > 0 ? `
                     <div class="feature-section">
-                        <div class="feature-title feature-title--con">⚠️ 注意</div>
+                        <div class="feature-title feature-title--con">⚠️ <span data-i18n="modelConfig.cons.title">注意</span></div>
                         <div class="feature-list">
                             ${ep.cons.map(c => `<span class="feature-tag feature-tag--con">${c}</span>`).join('')}
                         </div>
