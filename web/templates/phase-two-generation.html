@@ -2832,7 +2832,7 @@
     <!-- 右侧面板开关（带引导提示） -->
     <div style="position: fixed; bottom: 20px; right: 20px; z-index: 999;">
         <!-- 🔥 引导提示气泡（选中项目后显示，V2大厂风格） -->
-        <div id="panel-guide-hint" style="display: none; position: absolute; bottom: 70px; right: 0; width: 260px;">
+        <div id="panel-guide-hint" style="display: none; position: absolute; bottom: 70px; right: 50%; transform: translateX(50%); width: 260px;">
             <!-- 气泡主体 -->
             <div style="background: var(--v2-bg-secondary); border: 1px solid var(--v2-border-default); border-radius: var(--v2-radius-xl); padding: var(--v2-space-4); box-shadow: var(--v2-shadow-xl), 0 0 0 1px rgba(99, 102, 241, 0.1); position: relative;">
                 <!-- 顶部装饰线 -->
@@ -2872,7 +2872,7 @@
             
             <!-- 小箭头指向按钮 -->
             <div style="position: absolute; bottom: -10px; right: 20px; width: 20px; height: 10px; overflow: hidden;">
-                <div style="width: 14px; height: 14px; background: var(--v2-bg-secondary); border-right: 1px solid var(--v2-border-default); border-bottom: 1px solid var(--v2-border-default); transform: rotate(45deg); transform-origin: center; margin: -7px 0 0 3px; box-shadow: 2px 2px 4px rgba(0,0,0,0.1);"></div>
+                <div style="width: 14px; height: 14px; background: var(--v2-bg-secondary); border-right: 1px solid var(--v2-border-default); border-bottom: 1px solid var(--v2-border-default); transform: rotate(45deg); transform-origin: center; margin: -7px auto 0; box-shadow: 2px 2px 4px rgba(0,0,0,0.1);"></div>
             </div>
         </div>
         
