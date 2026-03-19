@@ -331,6 +331,16 @@ const I18N = {
             // 应用标题
             'app.title': '大文娱系统 - AI 创作平台',
             
+            // 短剧工作台
+            'shortDramaStudio.title': '短剧工作台',
+            'shortDramaStudio.subtitle': '一站式短剧创作平台',
+            'shortDramaStudio.section.scripts': '剧本管理',
+            'shortDramaStudio.section.storyboard': '分镜管理',
+            'shortDramaStudio.section.shots': '镜头库',
+            'shortDramaStudio.btn.newScript': '新建剧本',
+            'shortDramaStudio.btn.storyboard': '生成分镜',
+            'shortDramaStudio.btn.preview': '预览',
+            
             // Landing 页面
             'landing.title': '大文娱系统 - AI 创作平台',
             'landing.subtitle': '用 AI 将创意变成作品',
