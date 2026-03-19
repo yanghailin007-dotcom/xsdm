@@ -1323,7 +1323,12 @@ class NovelGenerationManager:
             # 获取核心设定和简介
             creative_seed = data.get("creative_seed", {})
             core_setting = creative_seed.get("coreSetting", "") if isinstance(creative_seed, dict) else str(creative_seed)[:200]
-            synopsis = data.get("novel_synopsis", "") or data.get("synopsis", "")
+            # 🔥 修复：从多个可能的字段读取简介
+            synopsis = (
+                data.get("novel_synopsis", "") or 
+                data.get("synopsis", "") or 
+                data.get("novel_info", {}).get("synopsis", "")
+            )
             
             projects.append({
                 "title": title,
