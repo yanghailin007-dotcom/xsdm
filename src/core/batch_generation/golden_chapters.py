@@ -68,14 +68,26 @@ class GoldenChaptersGenerator:
         # 🔥 调试：打印所有参数类型
         self.logger.error(f"[DEBUG] generate() 参数 - novel_data: {type(novel_data)}, creative_seed: {type(creative_seed)}, selected_plan: {type(selected_plan)}")
         
-        novel_title = novel_data.get("novel_title", "Unknown")
+        # 🔥 调试：尝试获取 novel_title
+        try:
+            novel_title = novel_data.get("novel_title", "Unknown")
+            self.logger.error(f"[DEBUG] novel_title 获取成功: {novel_title}")
+        except Exception as e:
+            self.logger.error(f"[DEBUG] novel_title 获取失败: {e}, novel_data: {novel_data}")
+            novel_title = "Unknown"
         
         self.logger.info(
             f"[GoldenChapters] 开始整体生成黄金三章: {novel_title}"
         )
         
         # 1. 加载风格指南
-        style_guide = WritingStyleGuideLoader.load_and_format(novel_title, username)
+        try:
+            self.logger.error(f"[DEBUG] 开始加载风格指南: {novel_title}")
+            style_guide = WritingStyleGuideLoader.load_and_format(novel_title, username)
+            self.logger.error(f"[DEBUG] 风格指南加载完成: {type(style_guide)}")
+        except Exception as e:
+            self.logger.error(f"[DEBUG] 风格指南加载失败: {e}")
+            raise
         
         # 2. 构建黄金三章专用Prompt
         prompt = self._build_golden_prompt(

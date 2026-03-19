@@ -77,8 +77,17 @@ class MultiChapterContentGenerator:
         self.logger.info(f"[MultiChapterGen] 开始批量生成: {novel_title} 第{start_ch}-{end_ch}章, 跨度={span}")
         
         # 1. 加载写作风格指南
-        style_guide = WritingStyleGuideLoader.load_and_format(novel_title, username)
-        self.logger.info(f"[MultiChapterGen] 已加载风格指南: {style_guide.core_style[:50]}...")
+        try:
+            self.logger.error(f"[DEBUG] MultiChapterGen 开始加载风格指南: {novel_title}")
+            style_guide = WritingStyleGuideLoader.load_and_format(novel_title, username)
+            self.logger.error(f"[DEBUG] MultiChapterGen 风格指南加载完成: {type(style_guide)}")
+            if not hasattr(style_guide, 'core_style'):
+                self.logger.error(f"[DEBUG] MultiChapterGen style_guide 没有 core_style!")
+                raise AttributeError("style_guide 没有 core_style 属性")
+            self.logger.info(f"[MultiChapterGen] 已加载风格指南: {style_guide.core_style[:50]}...")
+        except Exception as e:
+            self.logger.error(f"[DEBUG] MultiChapterGen 风格指南加载失败: {e}")
+            raise
         
         # 2. 构建Prompt
         prompt = self._build_prompt(
