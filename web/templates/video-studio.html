@@ -1,423 +1,1230 @@
-<!DOCTYPE html>
-<html lang="zh-CN">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>视频工作室</title>
-    <link rel="stylesheet" href="/static/css/video-studio.css">
-    <link rel="stylesheet" href="/static/css/confirm-dialog.css">
-    <style>
-        /* ==================== 用户头像下拉菜单 ==================== */
-        .user-menu {
-            position: relative;
-            display: inline-flex;
-            align-items: center;
-        }
-        .user-avatar {
-            width: 36px;
-            height: 36px;
-            border-radius: 50%;
-            background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            cursor: pointer;
-            transition: all 0.2s ease;
-            border: 2px solid rgba(255, 255, 255, 0.1);
-            overflow: hidden;
-        }
-        .user-avatar:hover {
-            transform: scale(1.05);
-            border-color: rgba(255, 255, 255, 0.3);
-            box-shadow: 0 0 20px rgba(99, 102, 241, 0.4);
-        }
-        .user-avatar .avatar-text {
-            font-size: 16px;
-            font-weight: 600;
-            color: white;
-            text-transform: uppercase;
-        }
-        .user-dropdown {
-            position: absolute;
-            top: calc(100% + 8px);
-            right: 0;
-            min-width: 180px;
-            background: rgba(30, 41, 59, 0.98);
-            border: 1px solid rgba(148, 163, 184, 0.2);
-            border-radius: 12px;
-            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.4);
-            opacity: 0;
-            visibility: hidden;
-            transform: translateY(-10px);
-            transition: all 0.2s ease;
-            z-index: 1000;
-            backdrop-filter: blur(10px);
-        }
-        .user-dropdown.active {
-            opacity: 1;
-            visibility: visible;
-            transform: translateY(0);
-        }
-        .dropdown-header {
-            padding: 12px 16px;
-            border-bottom: 1px solid rgba(148, 163, 184, 0.1);
-        }
-        .dropdown-header span {
-            color: #f1f5f9;
-            font-weight: 600;
-            font-size: 14px;
-            display: block;
-            overflow: hidden;
-            text-overflow: ellipsis;
-            white-space: nowrap;
-        }
-        .dropdown-divider {
-            height: 1px;
-            background: rgba(148, 163, 184, 0.1);
-            margin: 4px 0;
-        }
-        .dropdown-item {
-            display: flex;
-            align-items: center;
-            gap: 10px;
-            padding: 10px 16px;
-            color: #94a3b8;
-            text-decoration: none;
-            font-size: 14px;
-            transition: all 0.15s ease;
-            cursor: pointer;
-        }
-        .dropdown-item:hover {
-            background: rgba(99, 102, 241, 0.1);
-            color: #f1f5f9;
-        }
-    </style>
-</head>
-<body>
-    <div id="app">
-        <!-- 导航栏 -->
-        <nav class="navbar">
-            <div class="nav-container">
-                <button class="btn-back" onclick="window.location.href='/landing'">🏠 返回首页</button>
-                <h1 class="nav-title">🎬 视频工作室</h1>
-                <div class="nav-links">
-                    <a href="#" id="workspaceTab" class="nav-link active" data-page="workspace">🎬 创作工作台</a>
-                    <a href="#" id="libraryTab" class="nav-link" data-page="library">📁 素材库</a>
-                    <a href="/novels" class="nav-link">📚 小说项目</a>
-                    <a href="/portrait-studio" class="nav-link">🎨 剧照工作室</a>
-                    <!-- 用户头像下拉菜单 -->
-                    <div class="user-menu">
-                        <div class="user-avatar" onclick="toggleUserMenu(event)">
-                            <span class="avatar-text" id="avatarText">用</span>
-                        </div>
-                        <div class="user-dropdown" id="userDropdown">
-                            <div class="dropdown-header">
-                                <span id="dropdownUsername">加载中...</span>
-                            </div>
-                            <div class="dropdown-divider"></div>
-                            <a href="/account" class="dropdown-item">⚙️ 管理账户</a>
-                            <a href="#" class="dropdown-item" onclick="logout(); return false;">🚪 退出登录</a>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </nav>
+{% extends "layouts/base-v2.html" %}
 
-        <div class="main-container">
-            <!-- 主页：视频创作工作台 -->
-            <div id="workspacePage" class="page active">
-                <div class="page-header">
-                    <h2>🎬 视频创作工作台</h2>
-                    <p class="page-subtitle">输入提示词并配置参数，生成高质量视频</p>
+{% block title %}视频工作室 - 大文娱系统{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="/static/css/video-studio.css">
+<link rel="stylesheet" href="/static/css/confirm-dialog.css">
+<style>
+    /* ==================== 页面特定样式 ==================== */
+    .video-studio-container {
+        padding: 24px;
+        max-width: 1400px;
+        margin: 0 auto;
+    }
+
+    /* 页面头部 */
+    .page-header {
+        margin-bottom: 32px;
+    }
+
+    .page-header h2 {
+        font-size: 28px;
+        font-weight: 700;
+        color: var(--v2-text-primary);
+        margin-bottom: 8px;
+        display: flex;
+        align-items: center;
+        gap: 12px;
+    }
+
+    .page-subtitle {
+        font-size: 15px;
+        color: var(--v2-text-secondary);
+    }
+
+    /* 标签页导航 */
+    .studio-tabs {
+        display: flex;
+        gap: 4px;
+        margin-bottom: 24px;
+        padding: 4px;
+        background: var(--v2-bg-secondary);
+        border-radius: 12px;
+        border: 1px solid var(--v2-border-default);
+        width: fit-content;
+    }
+
+    .studio-tab {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 10px 20px;
+        border-radius: 8px;
+        font-size: 14px;
+        font-weight: 500;
+        color: var(--v2-text-secondary);
+        text-decoration: none;
+        transition: all 0.2s ease;
+        cursor: pointer;
+        border: none;
+        background: transparent;
+    }
+
+    .studio-tab:hover {
+        color: var(--v2-text-primary);
+        background: var(--v2-bg-tertiary);
+    }
+
+    .studio-tab.active {
+        color: var(--v2-text-primary);
+        background: var(--v2-bg-tertiary);
+        box-shadow: inset 0 0 0 1px var(--v2-border-hover);
+    }
+
+    /* 页面内容 */
+    .page {
+        display: none;
+    }
+
+    .page.active {
+        display: block;
+    }
+
+    /* 工作区布局 */
+    .workspace-layout {
+        display: grid;
+        grid-template-columns: 1fr 400px;
+        gap: 24px;
+    }
+
+    @media (max-width: 1024px) {
+        .workspace-layout {
+            grid-template-columns: 1fr;
+        }
+    }
+
+    /* 提示词编辑器区域 */
+    .prompt-section {
+        display: flex;
+        flex-direction: column;
+        gap: 20px;
+    }
+
+    .section-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        margin-bottom: 12px;
+    }
+
+    .section-header h3 {
+        font-size: 16px;
+        font-weight: 600;
+        color: var(--v2-text-primary);
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+
+    .prompt-editor {
+        width: 100%;
+        min-height: 160px;
+        padding: 16px;
+        background: var(--v2-bg-secondary);
+        border: 1px solid var(--v2-border-default);
+        border-radius: 12px;
+        color: var(--v2-text-primary);
+        font-size: 14px;
+        line-height: 1.6;
+        resize: vertical;
+        transition: all 0.2s ease;
+    }
+
+    .prompt-editor:focus {
+        outline: none;
+        border-color: var(--v2-primary-500);
+        box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
+    }
+
+    .prompt-editor::placeholder {
+        color: var(--v2-text-muted);
+    }
+
+    /* 图片上传区域 */
+    .image-upload-section {
+        background: var(--v2-bg-secondary);
+        border: 1px solid var(--v2-border-default);
+        border-radius: 12px;
+        padding: 20px;
+    }
+
+    .upload-mode-selector {
+        display: flex;
+        gap: 8px;
+    }
+
+    .mode-btn {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        padding: 8px 16px;
+        border-radius: 8px;
+        font-size: 13px;
+        font-weight: 500;
+        color: var(--v2-text-secondary);
+        background: var(--v2-bg-tertiary);
+        border: 1px solid var(--v2-border-default);
+        cursor: pointer;
+        transition: all 0.2s ease;
+    }
+
+    .mode-btn:hover {
+        color: var(--v2-text-primary);
+        border-color: var(--v2-border-hover);
+    }
+
+    .mode-btn.active {
+        color: var(--v2-text-primary);
+        background: rgba(99, 102, 241, 0.15);
+        border-color: var(--v2-primary-500);
+    }
+
+    .mode-icon {
+        font-size: 14px;
+    }
+
+    .upload-mode-content {
+        display: none;
+        margin-top: 16px;
+    }
+
+    .upload-mode-content.active {
+        display: block;
+    }
+
+    .upload-area {
+        border: 2px dashed var(--v2-border-default);
+        border-radius: 12px;
+        padding: 32px;
+        text-align: center;
+        cursor: pointer;
+        transition: all 0.2s ease;
+        position: relative;
+        overflow: hidden;
+    }
+
+    .upload-area:hover {
+        border-color: var(--v2-border-hover);
+        background: var(--v2-bg-tertiary);
+    }
+
+    .upload-placeholder {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 8px;
+    }
+
+    .upload-icon {
+        font-size: 32px;
+        opacity: 0.7;
+    }
+
+    .upload-placeholder p {
+        font-size: 14px;
+        color: var(--v2-text-secondary);
+        margin: 0;
+    }
+
+    .upload-hint {
+        font-size: 12px;
+        color: var(--v2-text-muted);
+    }
+
+    .uploaded-image {
+        position: relative;
+        width: 100%;
+    }
+
+    .uploaded-image img {
+        width: 100%;
+        max-height: 300px;
+        object-fit: contain;
+        border-radius: 8px;
+    }
+
+    .remove-image-btn {
+        position: absolute;
+        top: 8px;
+        right: 8px;
+        width: 28px;
+        height: 28px;
+        border-radius: 50%;
+        background: rgba(239, 68, 68, 0.9);
+        color: white;
+        border: none;
+        cursor: pointer;
+        font-size: 14px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        transition: all 0.2s ease;
+    }
+
+    .remove-image-btn:hover {
+        background: rgba(239, 68, 68, 1);
+        transform: scale(1.1);
+    }
+
+    .frame-label {
+        position: absolute;
+        bottom: 8px;
+        left: 8px;
+        padding: 4px 10px;
+        background: rgba(0, 0, 0, 0.7);
+        color: white;
+        font-size: 12px;
+        border-radius: 4px;
+    }
+
+    .frame-upload-container {
+        display: grid;
+        grid-template-columns: 1fr auto 1fr;
+        gap: 16px;
+        align-items: center;
+    }
+
+    .frame-arrow {
+        font-size: 24px;
+        color: var(--v2-text-muted);
+    }
+
+    .upload-description {
+        margin-top: 12px;
+        font-size: 13px;
+        color: var(--v2-text-secondary);
+        text-align: center;
+    }
+
+    /* 快速模板 */
+    .prompt-templates {
+        background: var(--v2-bg-secondary);
+        border: 1px solid var(--v2-border-default);
+        border-radius: 12px;
+        padding: 16px;
+    }
+
+    .prompt-templates .hint {
+        font-size: 13px;
+        color: var(--v2-text-secondary);
+        margin-bottom: 12px;
+    }
+
+    .template-buttons {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+    }
+
+    .template-btn {
+        padding: 8px 16px;
+        border-radius: 20px;
+        font-size: 13px;
+        font-weight: 500;
+        color: var(--v2-text-secondary);
+        background: var(--v2-bg-tertiary);
+        border: 1px solid var(--v2-border-default);
+        cursor: pointer;
+        transition: all 0.2s ease;
+    }
+
+    .template-btn:hover {
+        color: var(--v2-text-primary);
+        border-color: var(--v2-border-hover);
+        background: var(--v2-bg-hover);
+    }
+
+    /* 提示技巧 */
+    .prompt-tips {
+        background: linear-gradient(135deg, rgba(99, 102, 241, 0.1), rgba(139, 92, 246, 0.05));
+        border: 1px solid rgba(99, 102, 241, 0.2);
+        border-radius: 12px;
+        padding: 16px;
+    }
+
+    .prompt-tips p {
+        font-size: 14px;
+        color: var(--v2-text-primary);
+        margin-bottom: 8px;
+    }
+
+    .prompt-tips ul {
+        list-style: none;
+        padding: 0;
+        margin: 0;
+    }
+
+    .prompt-tips li {
+        font-size: 13px;
+        color: var(--v2-text-secondary);
+        padding: 4px 0;
+        padding-left: 16px;
+        position: relative;
+    }
+
+    .prompt-tips li::before {
+        content: '•';
+        position: absolute;
+        left: 0;
+        color: var(--v2-primary-500);
+    }
+
+    /* 配置区域 */
+    .config-section {
+        display: flex;
+        flex-direction: column;
+        gap: 20px;
+    }
+
+    .settings-card {
+        background: var(--v2-bg-secondary);
+        border: 1px solid var(--v2-border-default);
+        border-radius: 12px;
+        padding: 20px;
+    }
+
+    .settings-card h3 {
+        font-size: 16px;
+        font-weight: 600;
+        color: var(--v2-text-primary);
+        margin-bottom: 16px;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+
+    .setting-row {
+        margin-bottom: 16px;
+    }
+
+    .setting-row:last-child {
+        margin-bottom: 0;
+    }
+
+    .setting-row label {
+        display: block;
+        font-size: 13px;
+        font-weight: 500;
+        color: var(--v2-text-secondary);
+        margin-bottom: 8px;
+    }
+
+    .form-control {
+        width: 100%;
+        padding: 10px 14px;
+        background: var(--v2-bg-tertiary);
+        border: 1px solid var(--v2-border-default);
+        border-radius: 8px;
+        color: var(--v2-text-primary);
+        font-size: 14px;
+        transition: all 0.2s ease;
+    }
+
+    .form-control:focus {
+        outline: none;
+        border-color: var(--v2-primary-500);
+        box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
+    }
+
+    .ratio-buttons {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 8px;
+    }
+
+    .ratio-btn {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 4px;
+        padding: 12px 8px;
+        border-radius: 8px;
+        background: var(--v2-bg-tertiary);
+        border: 1px solid var(--v2-border-default);
+        cursor: pointer;
+        transition: all 0.2s ease;
+    }
+
+    .ratio-btn:hover {
+        border-color: var(--v2-border-hover);
+    }
+
+    .ratio-btn.active {
+        background: rgba(99, 102, 241, 0.15);
+        border-color: var(--v2-primary-500);
+    }
+
+    .ratio-icon {
+        font-size: 20px;
+    }
+
+    .ratio-name {
+        font-size: 12px;
+        font-weight: 500;
+        color: var(--v2-text-primary);
+    }
+
+    .ratio-detail {
+        font-size: 11px;
+        color: var(--v2-text-muted);
+    }
+
+    /* 生成按钮 */
+    .btn-generate {
+        width: 100%;
+        padding: 16px 24px;
+        background: linear-gradient(135deg, #6366f1, #8b5cf6);
+        color: white;
+        border: none;
+        border-radius: 12px;
+        font-size: 16px;
+        font-weight: 600;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 10px;
+        transition: all 0.2s ease;
+    }
+
+    .btn-generate:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 8px 24px rgba(99, 102, 241, 0.4);
+    }
+
+    .btn-generate:disabled {
+        opacity: 0.6;
+        cursor: not-allowed;
+        transform: none;
+        box-shadow: none;
+    }
+
+    /* 进度卡片 */
+    .progress-card {
+        background: var(--v2-bg-secondary);
+        border: 1px solid var(--v2-border-default);
+        border-radius: 12px;
+        padding: 20px;
+    }
+
+    .progress-text {
+        font-size: 14px;
+        color: var(--v2-text-primary);
+        margin-bottom: 12px;
+    }
+
+    .progress-bar {
+        height: 8px;
+        background: var(--v2-bg-tertiary);
+        border-radius: 4px;
+        overflow: hidden;
+        margin-bottom: 12px;
+    }
+
+    .progress-fill {
+        height: 100%;
+        background: linear-gradient(90deg, #6366f1, #8b5cf6);
+        border-radius: 4px;
+        transition: width 0.3s ease;
+    }
+
+    .progress-fill.animate {
+        animation: progressPulse 2s ease-in-out infinite;
+    }
+
+    @keyframes progressPulse {
+        0%, 100% { opacity: 1; }
+        50% { opacity: 0.7; }
+    }
+
+    .progress-stats {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+
+    .progress-percent {
+        font-size: 18px;
+        font-weight: 700;
+        color: var(--v2-primary-500);
+    }
+
+    .progress-detail {
+        font-size: 13px;
+        color: var(--v2-text-secondary);
+    }
+
+    /* 结果卡片 */
+    .result-card {
+        background: var(--v2-bg-secondary);
+        border: 1px solid var(--v2-border-default);
+        border-radius: 12px;
+        padding: 20px;
+    }
+
+    .result-card h3 {
+        font-size: 16px;
+        font-weight: 600;
+        color: var(--v2-text-primary);
+        margin-bottom: 16px;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+
+    .video-wrapper {
+        position: relative;
+        border-radius: 12px;
+        overflow: hidden;
+        background: #000;
+    }
+
+    .result-video {
+        width: 100%;
+        display: block;
+    }
+
+    .fullscreen-btn {
+        position: absolute;
+        bottom: 12px;
+        right: 12px;
+        width: 40px;
+        height: 40px;
+        border-radius: 8px;
+        background: rgba(0, 0, 0, 0.7);
+        color: white;
+        border: none;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 18px;
+        transition: all 0.2s ease;
+    }
+
+    .fullscreen-btn:hover {
+        background: rgba(0, 0, 0, 0.9);
+        transform: scale(1.05);
+    }
+
+    .result-actions {
+        display: flex;
+        gap: 12px;
+        margin-top: 16px;
+    }
+
+    .btn-action {
+        flex: 1;
+        padding: 12px 16px;
+        border-radius: 8px;
+        font-size: 14px;
+        font-weight: 500;
+        cursor: pointer;
+        transition: all 0.2s ease;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+    }
+
+    .btn-action:first-child {
+        background: linear-gradient(135deg, #6366f1, #8b5cf6);
+        color: white;
+        border: none;
+    }
+
+    .btn-action:last-child {
+        background: var(--v2-bg-tertiary);
+        color: var(--v2-text-primary);
+        border: 1px solid var(--v2-border-default);
+    }
+
+    .btn-action:hover {
+        transform: translateY(-2px);
+    }
+
+    /* 全屏播放器 */
+    .fullscreen-player {
+        position: fixed;
+        inset: 0;
+        background: rgba(0, 0, 0, 0.95);
+        z-index: 10000;
+        display: flex;
+        flex-direction: column;
+    }
+
+    .fullscreen-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 16px 24px;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    }
+
+    .fullscreen-title {
+        font-size: 16px;
+        font-weight: 600;
+        color: white;
+    }
+
+    .close-fullscreen-btn {
+        width: 36px;
+        height: 36px;
+        border-radius: 8px;
+        background: rgba(255, 255, 255, 0.1);
+        color: white;
+        border: none;
+        cursor: pointer;
+        font-size: 18px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        transition: all 0.2s ease;
+    }
+
+    .close-fullscreen-btn:hover {
+        background: rgba(255, 255, 255, 0.2);
+    }
+
+    .fullscreen-video-wrapper {
+        flex: 1;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 24px;
+    }
+
+    .fullscreen-video {
+        max-width: 100%;
+        max-height: 100%;
+        border-radius: 8px;
+    }
+
+    /* 素材库页面 */
+    .library-controls {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 24px;
+        flex-wrap: wrap;
+        gap: 16px;
+    }
+
+    .filter-group, .search-group {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+    }
+
+    .filter-group label {
+        font-size: 14px;
+        color: var(--v2-text-secondary);
+    }
+
+    .form-control-sm {
+        padding: 8px 12px;
+        background: var(--v2-bg-secondary);
+        border: 1px solid var(--v2-border-default);
+        border-radius: 8px;
+        color: var(--v2-text-primary);
+        font-size: 14px;
+    }
+
+    .btn-sm {
+        padding: 8px 16px;
+        border-radius: 8px;
+        font-size: 13px;
+        font-weight: 500;
+        color: var(--v2-text-primary);
+        background: var(--v2-bg-tertiary);
+        border: 1px solid var(--v2-border-default);
+        cursor: pointer;
+        transition: all 0.2s ease;
+    }
+
+    .btn-sm:hover {
+        border-color: var(--v2-border-hover);
+        background: var(--v2-bg-hover);
+    }
+
+    /* 视频库网格 */
+    .video-library {
+        min-height: 300px;
+    }
+
+    .library-loading {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        padding: 60px;
+        gap: 16px;
+    }
+
+    .loading-spinner {
+        width: 40px;
+        height: 40px;
+        border: 3px solid var(--v2-border-default);
+        border-top-color: var(--v2-primary-500);
+        border-radius: 50%;
+        animation: spin 1s linear infinite;
+    }
+
+    @keyframes spin {
+        to { transform: rotate(360deg); }
+    }
+
+    .library-empty {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        padding: 60px;
+        text-align: center;
+    }
+
+    .empty-icon {
+        font-size: 48px;
+        margin-bottom: 16px;
+        opacity: 0.5;
+    }
+
+    .library-empty p {
+        font-size: 16px;
+        color: var(--v2-text-secondary);
+        margin-bottom: 8px;
+    }
+
+    .empty-hint {
+        font-size: 14px;
+        color: var(--v2-text-muted);
+    }
+
+    .video-list {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+        gap: 20px;
+    }
+
+    .video-card {
+        background: var(--v2-bg-secondary);
+        border: 1px solid var(--v2-border-default);
+        border-radius: 12px;
+        overflow: hidden;
+        transition: all 0.2s ease;
+    }
+
+    .video-card:hover {
+        transform: translateY(-4px);
+        box-shadow: 0 12px 24px rgba(0, 0, 0, 0.3);
+        border-color: var(--v2-border-hover);
+    }
+
+    .video-thumbnail {
+        aspect-ratio: 16/9;
+        background: #000;
+        position: relative;
+    }
+
+    .video-thumbnail video,
+    .video-thumbnail img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+    }
+
+    .video-duration {
+        position: absolute;
+        bottom: 8px;
+        right: 8px;
+        padding: 4px 8px;
+        background: rgba(0, 0, 0, 0.8);
+        color: white;
+        font-size: 12px;
+        border-radius: 4px;
+    }
+
+    .video-info {
+        padding: 16px;
+    }
+
+    .video-prompt {
+        font-size: 14px;
+        color: var(--v2-text-primary);
+        margin-bottom: 8px;
+        display: -webkit-box;
+        -webkit-line-clamp: 2;
+        -webkit-box-orient: vertical;
+        overflow: hidden;
+    }
+
+    .video-meta {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        font-size: 12px;
+        color: var(--v2-text-muted);
+    }
+
+    .video-status {
+        padding: 2px 8px;
+        border-radius: 10px;
+        font-size: 11px;
+        font-weight: 500;
+    }
+
+    .video-status.completed {
+        background: rgba(34, 197, 94, 0.2);
+        color: #22c55e;
+    }
+
+    .video-status.processing {
+        background: rgba(99, 102, 241, 0.2);
+        color: #6366f1;
+    }
+
+    .video-status.failed {
+        background: rgba(239, 68, 68, 0.2);
+        color: #ef4444;
+    }
+
+    /* Toast 通知 */
+    .toast {
+        position: fixed;
+        bottom: 24px;
+        left: 50%;
+        transform: translateX(-50%) translateY(100px);
+        padding: 14px 24px;
+        background: var(--v2-bg-secondary);
+        border: 1px solid var(--v2-border-default);
+        border-radius: 10px;
+        font-size: 14px;
+        color: var(--v2-text-primary);
+        z-index: 10001;
+        opacity: 0;
+        transition: all 0.3s ease;
+        box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
+    }
+
+    .toast.show {
+        transform: translateX(-50%) translateY(0);
+        opacity: 1;
+    }
+
+    .toast.success {
+        border-color: rgba(34, 197, 94, 0.3);
+        background: rgba(34, 197, 94, 0.1);
+    }
+
+    .toast.error {
+        border-color: rgba(239, 68, 68, 0.3);
+        background: rgba(239, 68, 68, 0.1);
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="video-studio-container">
+    <!-- 页面头部 -->
+    <div class="page-header">
+        <h2>
+            <span>🎬</span>
+            <span data-i18n="videoStudio.title">视频工作室</span>
+        </h2>
+        <p class="page-subtitle" data-i18n="videoStudio.subtitle">管理和编辑您的视频项目</p>
+    </div>
+
+    <!-- 标签页导航 -->
+    <div class="studio-tabs">
+        <button class="studio-tab active" data-page="workspace">
+            <span>🎬</span>
+            <span data-i18n="videoStudio.section.editor">视频编辑器</span>
+        </button>
+        <button class="studio-tab" data-page="library">
+            <span>📁</span>
+            <span data-i18n="videoStudio.section.projects">项目列表</span>
+        </button>
+    </div>
+
+    <!-- 创作工作台页面 -->
+    <div id="workspacePage" class="page active">
+        <div class="workspace-layout">
+            <!-- 左侧：提示词编辑器 -->
+            <div class="prompt-section">
+                <div class="section-header">
+                    <h3>📝 生成提示词</h3>
+                    <div class="prompt-actions">
+                        <button class="btn-sm" id="copyPromptBtn">📋 复制</button>
+                    </div>
                 </div>
                 
-                <div class="workspace-layout">
-                    <!-- 左侧：提示词编辑器 -->
-                    <div class="prompt-section">
-                        <div class="section-header">
-                            <h3>📝 生成提示词</h3>
-                            <div class="prompt-actions">
-                                <button class="btn-sm" id="copyPromptBtn">📋 复制</button>
-                            </div>
-                        </div>
-                        
-                        <textarea id="promptEditor" class="prompt-editor" placeholder="描述您想要生成的视频内容、场景、动作、风格等...
+                <textarea id="promptEditor" class="prompt-editor" placeholder="描述您想要生成的视频内容、场景、动作、风格等...
 
 例如：一位剑仙在云端修行的场景，使用水墨画风，背景是壮观的云海和山峦，仙气缭绕..."></textarea>
-                        
-                        <!-- 图片上传区域 -->
-                        <div class="image-upload-section">
-                            <div class="section-header">
-                                <h3>🖼️ 图片输入</h3>
-                                <div class="upload-mode-selector">
-                                    <button class="mode-btn active" data-mode="reference">
-                                        <span class="mode-icon">📷</span>
-                                        <span class="mode-name">参考图</span>
-                                    </button>
-                                    <button class="mode-btn" data-mode="frame">
-                                        <span class="mode-icon">🎬</span>
-                                        <span class="mode-name">首尾帧</span>
-                                    </button>
-                                </div>
-                            </div>
-                            
-                            <!-- 参考图模式 -->
-                            <div id="referenceMode" class="upload-mode-content active">
-                                <div class="upload-area" id="referenceUploadArea">
-                                    <input type="file" id="referenceImageInput" accept="image/*" hidden>
-                                    <div class="upload-placeholder" id="referencePlaceholder">
-                                        <span class="upload-icon">📷</span>
-                                        <p>点击或拖拽上传参考图</p>
-                                        <span class="upload-hint">支持 JPG、PNG 格式</span>
-                                    </div>
-                                    <div class="uploaded-image" id="referencePreview" style="display: none;">
-                                        <img src="" alt="参考图预览" id="referencePreviewImg">
-                                        <button class="remove-image-btn" id="removeReferenceBtn">✕</button>
-                                    </div>
-                                </div>
-                                <p class="upload-description">💡 使用参考图生成视频，AI将根据图片内容和您的提示词创建视频</p>
-                            </div>
-                            
-                            <!-- 首尾帧模式 -->
-                            <div id="frameMode" class="upload-mode-content">
-                                <div class="frame-upload-container">
-                                    <div class="upload-area frame-upload" id="firstFrameUploadArea">
-                                        <input type="file" id="firstFrameInput" accept="image/*" hidden>
-                                        <div class="upload-placeholder" id="firstFramePlaceholder">
-                                            <span class="upload-icon">🎬</span>
-                                            <p>首帧</p>
-                                            <span class="upload-hint">上传起始画面</span>
-                                        </div>
-                                        <div class="uploaded-image" id="firstFramePreview" style="display: none;">
-                                            <img src="" alt="首帧预览" id="firstFramePreviewImg">
-                                            <button class="remove-image-btn" data-type="first">✕</button>
-                                            <span class="frame-label">首帧</span>
-                                        </div>
-                                    </div>
-                                    
-                                    <div class="frame-arrow">→</div>
-                                    
-                                    <div class="upload-area frame-upload" id="lastFrameUploadArea">
-                                        <input type="file" id="lastFrameInput" accept="image/*" hidden>
-                                        <div class="upload-placeholder" id="lastFramePlaceholder">
-                                            <span class="upload-icon">🎬</span>
-                                            <p>尾帧</p>
-                                            <span class="upload-hint">上传结束画面</span>
-                                        </div>
-                                        <div class="uploaded-image" id="lastFramePreview" style="display: none;">
-                                            <img src="" alt="尾帧预览" id="lastFramePreviewImg">
-                                            <button class="remove-image-btn" data-type="last">✕</button>
-                                            <span class="frame-label">尾帧</span>
-                                        </div>
-                                    </div>
-                                </div>
-                                <p class="upload-description">💡 提供首尾帧，AI将生成从起始画面过渡到结束画面的视频</p>
-                            </div>
-                        </div>
-                        
-                        <!-- 快速模板 -->
-                        <div class="prompt-templates">
-                            <p class="hint">💡 快速模板：</p>
-                            <div class="template-buttons">
-                                <button class="template-btn" data-template="xianxia">仙侠修真</button>
-                                <button class="template-btn" data-template="modern">现代都市</button>
-                                <button class="template-btn" data-template="scifi">科幻未来</button>
-                                <button class="template-btn" data-template="fantasy">奇幻魔法</button>
-                                <button class="template-btn" data-template="nature">自然风光</button>
-                            </div>
-                        </div>
-                        
-                        <div class="prompt-tips">
-                            <p>💡 <strong>提示技巧：</strong></p>
-                            <ul>
-                                <li>描述场景的主要内容和动作</li>
-                                <li>指定视觉风格（写实、动画、电影等）</li>
-                                <li>添加氛围和情绪描述</li>
-                                <li>描述镜头运动和角度</li>
-                            </ul>
+                
+                <!-- 图片上传区域 -->
+                <div class="image-upload-section">
+                    <div class="section-header">
+                        <h3>🖼️ 图片输入</h3>
+                        <div class="upload-mode-selector">
+                            <button class="mode-btn active" data-mode="reference">
+                                <span class="mode-icon">📷</span>
+                                <span class="mode-name">参考图</span>
+                            </button>
+                            <button class="mode-btn" data-mode="frame">
+                                <span class="mode-icon">🎬</span>
+                                <span class="mode-name">首尾帧</span>
+                            </button>
                         </div>
                     </div>
-
-                    <!-- 右侧：配置和预览 -->
-                    <div class="config-section">
-                        <!-- 视频配置 -->
-                        <div class="settings-card">
-                            <h3>⚙️ 视频配置</h3>
-                            
-                            <div class="setting-row">
-                                <label>视频时长：</label>
-                                <select id="durationSelect" class="form-control">
-                                    <option value="10" selected>10秒</option>
-                                </select>
+                    
+                    <!-- 参考图模式 -->
+                    <div id="referenceMode" class="upload-mode-content active">
+                        <div class="upload-area" id="referenceUploadArea">
+                            <input type="file" id="referenceImageInput" accept="image/*" hidden>
+                            <div class="upload-placeholder" id="referencePlaceholder">
+                                <span class="upload-icon">📷</span>
+                                <p>点击或拖拽上传参考图</p>
+                                <span class="upload-hint">支持 JPG、PNG 格式</span>
                             </div>
-                            
-                            <div class="setting-row">
-                                <label>分辨率：</label>
-                                <select id="resolutionSelect" class="form-control">
-                                    <option value="720p">720p (HD)</option>
-                                    <option value="1080p" selected>1080p (Full HD)</option>
-                                    <option value="4K">4K (Ultra HD)</option>
-                                </select>
-                            </div>
-                            
-                            <div class="setting-row">
-                                <label>视频比例：</label>
-                                <div class="ratio-buttons">
-                                    <button class="ratio-btn active" data-ratio="16:9">
-                                        <span class="ratio-icon">🖼️</span>
-                                        <span class="ratio-name">横屏</span>
-                                        <span class="ratio-detail">16:9</span>
-                                    </button>
-                                    <button class="ratio-btn" data-ratio="9:16">
-                                        <span class="ratio-icon">📱</span>
-                                        <span class="ratio-name">竖屏</span>
-                                        <span class="ratio-detail">9:16</span>
-                                    </button>
-                                    <button class="ratio-btn" data-ratio="1:1">
-                                        <span class="ratio-icon">⬜</span>
-                                        <span class="ratio-name">方形</span>
-                                        <span class="ratio-detail">1:1</span>
-                                    </button>
-                                </div>
-                            </div>
-                            
-                            <div class="setting-row">
-                                <label>帧率：</label>
-                                <select id="fpsSelect" class="form-control">
-                                    <option value="24">24 fps (电影)</option>
-                                    <option value="30">30 fps (标准)</option>
-                                    <option value="60" selected>60 fps (流畅)</option>
-                                </select>
-                            </div>
-                            
-                            <div class="setting-row">
-                                <label>视频风格：</label>
-                                <select id="styleSelect" class="form-control">
-                                    <option value="cinematic" selected>电影风格</option>
-                                    <option value="anime">动漫风格</option>
-                                    <option value="realistic">写实风格</option>
-                                    <option value="artistic">艺术风格</option>
-                                </select>
+                            <div class="uploaded-image" id="referencePreview" style="display: none;">
+                                <img src="" alt="参考图预览" id="referencePreviewImg">
+                                <button class="remove-image-btn" id="removeReferenceBtn">✕</button>
                             </div>
                         </div>
-
-                        <!-- 生成按钮 -->
-                        <button id="generateBtn" class="btn-generate">
-                            <span class="btn-icon">🎬</span>
-                            <span class="btn-text">生成视频</span>
-                        </button>
-
-                        <!-- 生成进度 -->
-                        <div id="progressCard" class="progress-card" style="display: none;">
-                            <div class="progress-info">
-                                <p class="progress-text">⏳ 正在生成视频，请稍候...</p>
-                                <div class="progress-bar">
-                                    <div class="progress-fill animate" id="progressFill"></div>
-                                </div>
-                                <div class="progress-stats">
-                                    <p id="progressPercent" class="progress-percent">0%</p>
-                                    <p id="progressDetail" class="progress-detail">准备中...</p>
-                                </div>
-                            </div>
-                        </div>
-
-                        <!-- 生成结果 -->
-                        <div id="resultCard" class="result-card" style="display: none;">
-                            <h3>✨ 生成结果</h3>
-                            <div class="result-video-container">
-                                <div class="video-wrapper">
-                                    <video id="resultVideo" controls preload="metadata" class="result-video">
-                                        <source src="" type="video/mp4">
-                                        您的浏览器不支持视频播放。
-                                    </video>
-                                    <button id="fullscreenBtn" class="fullscreen-btn" title="全屏播放">
-                                        <span class="fullscreen-icon">⛶</span>
-                                    </button>
-                                </div>
-                            </div>
-                            <div class="result-actions">
-                                <button class="btn-action" id="downloadResultBtn">
-                                    <span>📥</span> 下载视频
-                                </button>
-                                <button class="btn-action" id="regenerateBtn">
-                                    <span>🔄</span> 重新生成
-                                </button>
-                            </div>
-                        </div>
-
-                        <!-- 全屏视频播放器 -->
-                        <div id="fullscreenPlayer" class="fullscreen-player" style="display: none;">
-                            <div class="fullscreen-header">
-                                <span class="fullscreen-title">🎬 视频播放</span>
-                                <button id="closeFullscreenBtn" class="close-fullscreen-btn" title="关闭全屏">✕</button>
-                            </div>
-                            <div class="fullscreen-video-wrapper">
-                                <video id="fullscreenVideo" controls preload="metadata" class="fullscreen-video">
-                                    <source src="" type="video/mp4">
-                                    您的浏览器不支持视频播放。
-                                </video>
-                            </div>
-                        </div>
+                        <p class="upload-description">💡 使用参考图生成视频，AI将根据图片内容和您的提示词创建视频</p>
                     </div>
+                    
+                    <!-- 首尾帧模式 -->
+                    <div id="frameMode" class="upload-mode-content">
+                        <div class="frame-upload-container">
+                            <div class="upload-area frame-upload" id="firstFrameUploadArea">
+                                <input type="file" id="firstFrameInput" accept="image/*" hidden>
+                                <div class="upload-placeholder" id="firstFramePlaceholder">
+                                    <span class="upload-icon">🎬</span>
+                                    <p>首帧</p>
+                                    <span class="upload-hint">上传起始画面</span>
+                                </div>
+                                <div class="uploaded-image" id="firstFramePreview" style="display: none;">
+                                    <img src="" alt="首帧预览" id="firstFramePreviewImg">
+                                    <button class="remove-image-btn" data-type="first">✕</button>
+                                    <span class="frame-label">首帧</span>
+                                </div>
+                            </div>
+                            
+                            <div class="frame-arrow">→</div>
+                            
+                            <div class="upload-area frame-upload" id="lastFrameUploadArea">
+                                <input type="file" id="lastFrameInput" accept="image/*" hidden>
+                                <div class="upload-placeholder" id="lastFramePlaceholder">
+                                    <span class="upload-icon">🎬</span>
+                                    <p>尾帧</p>
+                                    <span class="upload-hint">上传结束画面</span>
+                                </div>
+                                <div class="uploaded-image" id="lastFramePreview" style="display: none;">
+                                    <img src="" alt="尾帧预览" id="lastFramePreviewImg">
+                                    <button class="remove-image-btn" data-type="last">✕</button>
+                                    <span class="frame-label">尾帧</span>
+                                </div>
+                            </div>
+                        </div>
+                        <p class="upload-description">💡 提供首尾帧，AI将生成从起始画面过渡到结束画面的视频</p>
+                    </div>
+                </div>
+                
+                <!-- 快速模板 -->
+                <div class="prompt-templates">
+                    <p class="hint">💡 快速模板：</p>
+                    <div class="template-buttons">
+                        <button class="template-btn" data-template="xianxia">仙侠修真</button>
+                        <button class="template-btn" data-template="modern">现代都市</button>
+                        <button class="template-btn" data-template="scifi">科幻未来</button>
+                        <button class="template-btn" data-template="fantasy">奇幻魔法</button>
+                        <button class="template-btn" data-template="nature">自然风光</button>
+                    </div>
+                </div>
+                
+                <div class="prompt-tips">
+                    <p>💡 <strong>提示技巧：</strong></p>
+                    <ul>
+                        <li>描述场景的主要内容和动作</li>
+                        <li>指定视觉风格（写实、动画、电影等）</li>
+                        <li>添加氛围和情绪描述</li>
+                        <li>描述镜头运动和角度</li>
+                    </ul>
                 </div>
             </div>
 
-            <!-- 素材库页面 -->
-            <div id="libraryPage" class="page">
-                <div class="page-header">
-                    <h2>📁 视频素材库</h2>
-                    <p class="page-subtitle">查看和管理您生成的所有视频</p>
-                </div>
-
-                <!-- 筛选和搜索 -->
-                <div class="library-controls">
-                    <div class="filter-group">
-                        <label>状态筛选：</label>
-                        <select id="statusFilter" class="form-control-sm">
-                            <option value="all">全部</option>
-                            <option value="completed">已完成</option>
-                            <option value="processing">生成中</option>
-                            <option value="failed">失败</option>
+            <!-- 右侧：配置和预览 -->
+            <div class="config-section">
+                <!-- 视频配置 -->
+                <div class="settings-card">
+                    <h3>⚙️ 视频配置</h3>
+                    
+                    <div class="setting-row">
+                        <label>视频时长：</label>
+                        <select id="durationSelect" class="form-control">
+                            <option value="10" selected>10秒</option>
                         </select>
                     </div>
-                    <div class="search-group">
-                        <input type="text" id="searchInput" class="form-control-sm" placeholder="搜索提示词...">
-                        <button class="btn-sm" id="refreshBtn">🔄 刷新</button>
+                    
+                    <div class="setting-row">
+                        <label>分辨率：</label>
+                        <select id="resolutionSelect" class="form-control">
+                            <option value="720p">720p (HD)</option>
+                            <option value="1080p" selected>1080p (Full HD)</option>
+                            <option value="4K">4K (Ultra HD)</option>
+                        </select>
+                    </div>
+                    
+                    <div class="setting-row">
+                        <label>视频比例：</label>
+                        <div class="ratio-buttons">
+                            <button class="ratio-btn active" data-ratio="16:9">
+                                <span class="ratio-icon">🖼️</span>
+                                <span class="ratio-name">横屏</span>
+                                <span class="ratio-detail">16:9</span>
+                            </button>
+                            <button class="ratio-btn" data-ratio="9:16">
+                                <span class="ratio-icon">📱</span>
+                                <span class="ratio-name">竖屏</span>
+                                <span class="ratio-detail">9:16</span>
+                            </button>
+                            <button class="ratio-btn" data-ratio="1:1">
+                                <span class="ratio-icon">⬜</span>
+                                <span class="ratio-name">方形</span>
+                                <span class="ratio-detail">1:1</span>
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <div class="setting-row">
+                        <label>帧率：</label>
+                        <select id="fpsSelect" class="form-control">
+                            <option value="24">24 fps (电影)</option>
+                            <option value="30">30 fps (标准)</option>
+                            <option value="60" selected>60 fps (流畅)</option>
+                        </select>
+                    </div>
+                    
+                    <div class="setting-row">
+                        <label>视频风格：</label>
+                        <select id="styleSelect" class="form-control">
+                            <option value="cinematic" selected>电影风格</option>
+                            <option value="anime">动漫风格</option>
+                            <option value="realistic">写实风格</option>
+                            <option value="artistic">艺术风格</option>
+                        </select>
                     </div>
                 </div>
 
-                <!-- 视频列表 -->
-                <div id="videoLibrary" class="video-library">
-                    <div class="library-loading" id="libraryLoading" style="display: none;">
-                        <div class="loading-spinner"></div>
-                        <p>加载中...</p>
+                <!-- 生成按钮 -->
+                <button id="generateBtn" class="btn-generate">
+                    <span class="btn-icon">🎬</span>
+                    <span class="btn-text">生成视频</span>
+                </button>
+
+                <!-- 生成进度 -->
+                <div id="progressCard" class="progress-card" style="display: none;">
+                    <div class="progress-info">
+                        <p class="progress-text">⏳ 正在生成视频，请稍候...</p>
+                        <div class="progress-bar">
+                            <div class="progress-fill animate" id="progressFill"></div>
+                        </div>
+                        <div class="progress-stats">
+                            <p id="progressPercent" class="progress-percent">0%</p>
+                            <p id="progressDetail" class="progress-detail">准备中...</p>
+                        </div>
                     </div>
-                    <div class="library-empty" id="libraryEmpty" style="display: none;">
-                        <span class="empty-icon">📁</span>
-                        <p>暂无视频素材</p>
-                        <p class="empty-hint">前往创作工作台生成您的第一个视频</p>
+                </div>
+
+                <!-- 生成结果 -->
+                <div id="resultCard" class="result-card" style="display: none;">
+                    <h3>✨ 生成结果</h3>
+                    <div class="result-video-container">
+                        <div class="video-wrapper">
+                            <video id="resultVideo" controls preload="metadata" class="result-video">
+                                <source src="" type="video/mp4">
+                                您的浏览器不支持视频播放。
+                            </video>
+                            <button id="fullscreenBtn" class="fullscreen-btn" title="全屏播放">
+                                <span class="fullscreen-icon">⛶</span>
+                            </button>
+                        </div>
                     </div>
-                    <div id="videoList" class="video-list"></div>
+                    <div class="result-actions">
+                        <button class="btn-action" id="downloadResultBtn">
+                            <span>📥</span> 下载视频
+                        </button>
+                        <button class="btn-action" id="regenerateBtn">
+                            <span>🔄</span> 重新生成
+                        </button>
+                    </div>
+                </div>
+
+                <!-- 全屏视频播放器 -->
+                <div id="fullscreenPlayer" class="fullscreen-player" style="display: none;">
+                    <div class="fullscreen-header">
+                        <span class="fullscreen-title">🎬 视频播放</span>
+                        <button id="closeFullscreenBtn" class="close-fullscreen-btn" title="关闭全屏">✕</button>
+                    </div>
+                    <div class="fullscreen-video-wrapper">
+                        <video id="fullscreenVideo" controls preload="metadata" class="fullscreen-video">
+                            <source src="" type="video/mp4">
+                            您的浏览器不支持视频播放。
+                        </video>
+                    </div>
                 </div>
             </div>
         </div>
     </div>
 
-    <!-- Toast 通知 -->
-    <div id="toast" class="toast"></div>
+    <!-- 素材库页面 -->
+    <div id="libraryPage" class="page">
+        <div class="page-header">
+            <h2>📁 视频素材库</h2>
+            <p class="page-subtitle" data-i18n="videoStudio.section.tasks">查看和管理您生成的所有视频</p>
+        </div>
 
-    <script src="/static/js/confirm-dialog.js"></script>
-    <script src="/static/js/video-studio.js?v=3"></script>
-    <script>
-        // 替换原有的logout函数，使用新的确认对话框
-        function logout() {
-            confirmLogout().then(confirmed => {
-                if (confirmed) {
-                    window.location.href = '/logout';
-                }
-            });
-        }
-    </script>
-    <script src="/static/js/user-info.js"></script>
-</body>
-</html>
+        <!-- 筛选和搜索 -->
+        <div class="library-controls">
+            <div class="filter-group">
+                <label>状态筛选：</label>
+                <select id="statusFilter" class="form-control-sm">
+                    <option value="all">全部</option>
+                    <option value="completed">已完成</option>
+                    <option value="processing">生成中</option>
+                    <option value="failed">失败</option>
+                </select>
+            </div>
+            <div class="search-group">
+                <input type="text" id="searchInput" class="form-control-sm" placeholder="搜索提示词...">
+                <button class="btn-sm" id="refreshBtn">🔄 刷新</button>
+            </div>
+        </div>
+
+        <!-- 视频列表 -->
+        <div id="videoLibrary" class="video-library">
+            <div class="library-loading" id="libraryLoading" style="display: none;">
+                <div class="loading-spinner"></div>
+                <p>加载中...</p>
+            </div>
+            <div class="library-empty" id="libraryEmpty" style="display: none;">
+                <span class="empty-icon">📁</span>
+                <p data-i18n="videoStudio.empty.noProjects">暂无项目</p>
+                <p class="empty-hint">前往创作工作台生成您的第一个视频</p>
+            </div>
+            <div id="videoList" class="video-list"></div>
+        </div>
+    </div>
+</div>
+
+<!-- Toast 通知 -->
+<div id="toast" class="toast"></div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="/static/js/confirm-dialog.js"></script>
+<script src="/static/js/video-studio.js?v=3"></script>
+{% endblock %}

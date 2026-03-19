@@ -240,6 +240,17 @@ const I18N = (function() {
             'portraitStudio.empty.noCharacters': '暂无角色',
             'portraitStudio.empty.addCharacter': '添加角色',
             
+            // 视频工作室
+            'videoStudio.title': '视频工作室',
+            'videoStudio.subtitle': '管理和编辑您的视频项目',
+            'videoStudio.section.projects': '项目列表',
+            'videoStudio.section.tasks': '任务列表',
+            'videoStudio.section.editor': '视频编辑器',
+            'videoStudio.btn.newProject': '新建项目',
+            'videoStudio.btn.import': '导入素材',
+            'videoStudio.btn.export': '导出视频',
+            'videoStudio.empty.noProjects': '暂无项目',
+            
             // 图像素材库
             'imageLibrary.title': '图像素材库',
             'imageLibrary.subtitle': '管理和使用您的图像素材',
@@ -484,6 +495,17 @@ const I18N = (function() {
             'portraitStudio.empty.noCharacters': '暫無角色',
             'portraitStudio.empty.addCharacter': '添加角色',
             
+            // 视频工作室
+            'videoStudio.title': '视频工作室',
+            'videoStudio.subtitle': '管理和編輯您的视頻項目',
+            'videoStudio.section.projects': '項目列表',
+            'videoStudio.section.tasks': '任務列表',
+            'videoStudio.section.editor': '视頻編輯器',
+            'videoStudio.btn.newProject': '新建項目',
+            'videoStudio.btn.import': '導入素材',
+            'videoStudio.btn.export': '導出视頻',
+            'videoStudio.empty.noProjects': '暫無項目',
+            
             // 圖像素材庫
             'imageLibrary.title': '圖像素材庫',
             'imageLibrary.subtitle': '管理和使用您的圖像素材',
@@ -727,6 +749,17 @@ const I18N = (function() {
             'portraitStudio.btn.batch': 'Batch Generate',
             'portraitStudio.empty.noCharacters': 'No characters yet',
             'portraitStudio.empty.addCharacter': 'Add Character',
+            
+            // Video Studio
+            'videoStudio.title': 'Video Studio',
+            'videoStudio.subtitle': 'Manage and edit your video projects',
+            'videoStudio.section.projects': 'Projects',
+            'videoStudio.section.tasks': 'Tasks',
+            'videoStudio.section.editor': 'Video Editor',
+            'videoStudio.btn.newProject': 'New Project',
+            'videoStudio.btn.import': 'Import Media',
+            'videoStudio.btn.export': 'Export Video',
+            'videoStudio.empty.noProjects': 'No projects yet',
             
             // Image Library
             'imageLibrary.title': 'Image Library',
