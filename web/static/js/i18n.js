@@ -181,6 +181,53 @@ const I18N = (function() {
             'common.newFeature': '新功能',
             'common.refresh': '刷新列表',
             'common.platformName': '大文娱创作平台',
+            
+            // 人物剧照生成页翻译
+            'characterPortrait.title': '人物剧照生成',
+            'characterPortrait.subtitle': '支持参考图像 + 自定义提示词，生成高质量角色剧照',
+            'characterPortrait.step.select': '选择小说',
+            'characterPortrait.step.config': '配置角色',
+            'characterPortrait.step.generate': '生成剧照',
+            'characterPortrait.form.character': '选择角色',
+            'characterPortrait.form.prompt': '提示词',
+            'characterPortrait.form.reference': '参考图像',
+            'characterPortrait.btn.generate': '开始生成',
+            
+            // 项目可视化页面
+            'projectViewer.title': '项目可视化',
+            'projectViewer.subtitle': '可视化展示项目结构',
+            'projectViewer.view.overview': '概览',
+            'projectViewer.view.characters': '角色',
+            'projectViewer.view.timeline': '时间线',
+            'projectViewer.view.worldview': '世界观',
+            'projectViewer.action.editMode': '编辑模式',
+            'projectViewer.action.save': '保存',
+            
+            // 世界观查看器
+            'worldviewViewer.title': '世界观查看器',
+            'worldviewViewer.subtitle': '查看和管理小说世界观',
+            'worldviewViewer.section.overview': '概览',
+            'worldviewViewer.section.settings': '详细设定',
+            'worldviewViewer.section.characters': '角色关系',
+            'worldviewViewer.section.factions': '势力信息',
+            'worldviewViewer.section.locations': '重要地点',
+            'worldviewViewer.section.powerSystem': '修炼体系',
+            'worldviewViewer.section.magicSystem': '法术系统',
+            'worldviewViewer.section.socialSystem': '社会制度',
+            'worldviewViewer.action.edit': '编辑',
+            'worldviewViewer.action.save': '保存',
+            'worldviewViewer.action.export': '导出',
+            
+            // 人物剧照工作室
+            'portraitStudio.title': '人物剧照工作室',
+            'portraitStudio.subtitle': '生成和管理角色剧照',
+            'portraitStudio.section.characters': '角色列表',
+            'portraitStudio.section.gallery': '剧照画廊',
+            'portraitStudio.btn.generate': '生成剧照',
+            'portraitStudio.btn.upload': '上传参考图',
+            'portraitStudio.btn.batch': '批量生成',
+            'portraitStudio.empty.noCharacters': '暂无角色',
+            'portraitStudio.empty.addCharacter': '添加角色',
         },
         'zh-TW': {
             // Phase 2 頁面翻譯
@@ -355,6 +402,43 @@ const I18N = (function() {
             'common.newFeature': '新功能',
             'common.refresh': '重新整理列表',
             'common.platformName': '大文娛創作平台',
+            
+            // 人物劇照生成頁翻譯
+            'characterPortrait.title': '人物劇照生成',
+            'characterPortrait.subtitle': '支援參考圖像 + 自訂提示詞，生成高質量角色劇照',
+            'characterPortrait.step.select': '選擇小說',
+            'characterPortrait.step.config': '配置角色',
+            'characterPortrait.step.generate': '生成劇照',
+            'characterPortrait.form.character': '選擇角色',
+            'characterPortrait.form.prompt': '提示詞',
+            'characterPortrait.form.reference': '參考圖像',
+            'characterPortrait.btn.generate': '開始生成',
+            
+            // 世界觀查看器
+            'worldviewViewer.title': '世界觀查看器',
+            'worldviewViewer.subtitle': '查看和管理小說世界觀',
+            'worldviewViewer.section.overview': '概覽',
+            'worldviewViewer.section.settings': '詳細設定',
+            'worldviewViewer.section.characters': '角色關係',
+            'worldviewViewer.section.factions': '勢力信息',
+            'worldviewViewer.section.locations': '重要地點',
+            'worldviewViewer.section.powerSystem': '修煉體系',
+            'worldviewViewer.section.magicSystem': '法術系統',
+            'worldviewViewer.section.socialSystem': '社會制度',
+            'worldviewViewer.action.edit': '編輯',
+            'worldviewViewer.action.save': '儲存',
+            'worldviewViewer.action.export': '匯出',
+            
+            // 人物劇照工作室
+            'portraitStudio.title': '人物劇照工作室',
+            'portraitStudio.subtitle': '生成和管理角色劇照',
+            'portraitStudio.section.characters': '角色列表',
+            'portraitStudio.section.gallery': '劇照畫廊',
+            'portraitStudio.btn.generate': '生成劇照',
+            'portraitStudio.btn.upload': '上傳參考圖',
+            'portraitStudio.btn.batch': '批量生成',
+            'portraitStudio.empty.noCharacters': '暫無角色',
+            'portraitStudio.empty.addCharacter': '添加角色',
         },
         'en': {
             // Phase 2 Page Translations
@@ -519,6 +603,53 @@ const I18N = (function() {
             'common.newFeature': 'New',
             'common.refresh': 'Refresh List',
             'common.platformName': 'Entertainment Creation Platform',
+            
+            // Character Portrait Page Translations
+            'characterPortrait.title': 'Character Portrait',
+            'characterPortrait.subtitle': 'Generate high-quality character portraits with reference images and custom prompts',
+            'characterPortrait.step.select': 'Select Novel',
+            'characterPortrait.step.config': 'Configure Character',
+            'characterPortrait.step.generate': 'Generate Portrait',
+            'characterPortrait.form.character': 'Select Character',
+            'characterPortrait.form.prompt': 'Prompt',
+            'characterPortrait.form.reference': 'Reference Image',
+            'characterPortrait.btn.generate': 'Start Generation',
+            
+            // Project Viewer Page
+            'projectViewer.title': 'Project Viewer',
+            'projectViewer.subtitle': 'Visualize project structure',
+            'projectViewer.view.overview': 'Overview',
+            'projectViewer.view.characters': 'Characters',
+            'projectViewer.view.timeline': 'Timeline',
+            'projectViewer.view.worldview': 'Worldview',
+            'projectViewer.action.editMode': 'Edit Mode',
+            'projectViewer.action.save': 'Save',
+            
+            // Worldview Viewer
+            'worldviewViewer.title': 'Worldview Viewer',
+            'worldviewViewer.subtitle': 'View and manage novel worldview',
+            'worldviewViewer.section.overview': 'Overview',
+            'worldviewViewer.section.settings': 'Detailed Settings',
+            'worldviewViewer.section.characters': 'Character Relations',
+            'worldviewViewer.section.factions': 'Factions',
+            'worldviewViewer.section.locations': 'Key Locations',
+            'worldviewViewer.section.powerSystem': 'Power System',
+            'worldviewViewer.section.magicSystem': 'Magic System',
+            'worldviewViewer.section.socialSystem': 'Social System',
+            'worldviewViewer.action.edit': 'Edit',
+            'worldviewViewer.action.save': 'Save',
+            'worldviewViewer.action.export': 'Export',
+            
+            // Portrait Studio
+            'portraitStudio.title': 'Character Portrait Studio',
+            'portraitStudio.subtitle': 'Generate and manage character portraits',
+            'portraitStudio.section.characters': 'Character List',
+            'portraitStudio.section.gallery': 'Portrait Gallery',
+            'portraitStudio.btn.generate': 'Generate Portrait',
+            'portraitStudio.btn.upload': 'Upload Reference',
+            'portraitStudio.btn.batch': 'Batch Generate',
+            'portraitStudio.empty.noCharacters': 'No characters yet',
+            'portraitStudio.empty.addCharacter': 'Add Character',
         }
     };
 
