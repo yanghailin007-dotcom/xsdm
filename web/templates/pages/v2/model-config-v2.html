@@ -87,8 +87,14 @@
     /* 模型卡片网格 */
     .model-grid {
         display: grid;
-        grid-template-columns: repeat(auto-fill, minmax(380px, 1fr));
+        grid-template-columns: repeat(3, 1fr);
         gap: 20px;
+    }
+    
+    @media (max-width: 1200px) {
+        .model-grid {
+            grid-template-columns: repeat(2, 1fr);
+        }
     }
     
     @media (max-width: 768px) {
@@ -314,8 +320,10 @@
         display: flex;
         align-items: center;
         justify-content: space-between;
-        padding-top: 16px;
+        padding: 16px;
+        padding-bottom: 0;
         border-top: 1px solid rgba(255, 255, 255, 0.06);
+        margin: 0 -24px;
     }
     
     .status-badge {
@@ -831,14 +839,6 @@
                     <span class="status-text">检查中...</span>
                 </span>
                 <span style="font-size: 12px; color: var(--v2-text-tertiary);">超时: 300s</span>
-            </div>
-        </div>
-    </div>
-                <span class="status-badge status-badge--enabled">
-                    <span class="status-dot"></span>
-                    已启用
-                </span>
-                <span style="font-size: 12px; color: var(--v2-text-tertiary);">超时: 120s</span>
             </div>
         </div>
     </div>

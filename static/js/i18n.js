@@ -3956,9 +3956,13 @@ const I18N = {
             document.documentElement.lang = lang;
             
             // 触发自定义事件
-            window.dispatchEvent(new CustomEvent('languageChanged', { 
-                detail: { language: lang } 
-            }));
+            const event = new CustomEvent('languageChanged', { 
+                detail: { language: lang },
+                bubbles: true,
+                cancelable: true
+            });
+            window.dispatchEvent(event);
+            document.dispatchEvent(event);
         }
     },
     
@@ -4064,6 +4068,14 @@ const I18N = {
                 element.textContent = this.t(key);
             }
         }
+    },
+    
+    /**
+     * 获取当前语言
+     * @returns {string} 当前语言代码
+     */
+    getCurrentLanguage() {
+        return this.currentLang;
     }
 };
 

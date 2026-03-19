@@ -448,6 +448,14 @@
             if (typeof I18N !== 'undefined') {
                 I18N.applyToPage();
             }
+            
+            // 监听语言切换事件，重新渲染项目列表
+            document.addEventListener('languageChanged', function(e) {
+                // 重新渲染项目列表以应用新语言
+                if (typeof displayProjects === 'function') {
+                    displayProjects(filteredProjects);
+                }
+            });
         });
 
         // 检查登录状态
