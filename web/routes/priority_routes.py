@@ -5,6 +5,17 @@ from flask import Blueprint, request, jsonify, session
 from functools import wraps
 from pathlib import Path
 import json
+import sys
+from pathlib import Path
+
+# 添加项目根目录到路径
+sys.path.insert(0, str(Path(__file__).parent.parent.parent))
+from src.utils.endpoint_utils import (
+    get_enabled_endpoints, 
+    get_enabled_providers,
+    get_enabled_provider_priority,
+    get_default_provider
+)
 
 priority_api = Blueprint('priority_api', __name__)
 
@@ -87,7 +98,8 @@ def get_endpoint_priorities():
             'lemon-api': 3,        # 低优先级
             'aiberm': 1,           # 最高优先级
             'xiaochuang-backup': 2, # 中等优先级
-            'deepseek-official': 1  # 最高优先级
+            'deepseek-official': 1,  # 最高优先级
+            'kimi-k2.5-primary': 1   # 最高优先级（但受 enabled 字段控制）
         }
         
         # 合并默认值和用户设置
@@ -96,6 +108,28 @@ def get_endpoint_priorities():
                 priorities[ep] = default_priority
         
         return jsonify({'success': True, 'priorities': priorities})
+        
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@priority_api.route('/api/endpoints/enabled', methods=['GET'])
+def get_enabled_endpoints_api():
+    """获取启用的端点配置（供前端 UI 使用）"""
+    try:
+        # 获取启用的端点
+        endpoints = get_enabled_endpoints()
+        providers = get_enabled_providers()
+        priority = get_enabled_provider_priority()
+        default_provider = get_default_provider()
+        
+        return jsonify({
+            'success': True,
+            'endpoints': endpoints,
+            'providers': providers,
+            'provider_priority': priority,
+            'default_provider': default_provider
+        })
         
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)}), 500

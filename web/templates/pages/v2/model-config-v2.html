@@ -768,24 +768,21 @@
     <!-- Provider 优先级说明 -->
     <div class="config-notice" style="background: linear-gradient(135deg, rgba(139, 92, 246, 0.1), rgba(99, 102, 241, 0.1)); border-color: rgba(139, 92, 246, 0.3);">
         <span class="config-notice__icon">🔥</span>
-        <span class="config-notice__text">
+        <span class="config-notice__text" id="priority-notice">
             <strong>Provider 优先级（故障转移）:</strong> 
-            <span style="color: #6366f1; font-weight: 600;">Gemini (P1)</span> → 
-            <span style="color: #3b82f6; font-weight: 600;">DeepSeek (P2)</span>
-            <span style="color: var(--v2-text-tertiary); margin-left: 8px;">| 失败3次自动切换</span>
+            <span id="priority-chain" style="color: var(--v2-text-tertiary);">加载中...</span>
         </span>
     </div>
     
-    <div class="provider-tabs">
-        <!-- Kimi 已禁用 -->
-        <!-- <button class="provider-tab" data-provider="kimi">🌙 Kimi</button> -->
-        <button class="provider-tab active" data-provider="gemini">♊ Gemini (P1)</button>
-        <button class="provider-tab" data-provider="deepseek">🐋 DeepSeek (P2)</button>
+    <div class="provider-tabs" id="provider-tabs">
+        <!-- 由 JavaScript 根据后端配置自动显示/隐藏 -->
+        <button class="provider-tab" data-provider="kimi" id="tab-kimi" style="display: none;">🌙 Kimi</button>
+        <button class="provider-tab active" data-provider="gemini" id="tab-gemini">♊ Gemini</button>
+        <button class="provider-tab" data-provider="deepseek" id="tab-deepseek">🐋 DeepSeek</button>
     </div>
     
-    <!-- Kimi 模型卡片 - 已禁用 -->
+    <!-- Kimi 模型卡片 -->
     <div id="kimi-models" class="model-grid" style="display: none;">
-        <!-- Kimi k2.5 - P1 最高优先级 -->
         <div class="model-card" data-endpoint="kimi-k2.5-primary">
             <div class="model-card__header">
                 <div class="model-card__title-section">
@@ -801,7 +798,7 @@
             <div class="model-card__info">
                 <div class="model-info-row">
                     <span class="model-info-label">主模型</span>
-                    <span class="model-info-value">kimi-k2-0905-preview</span>
+                    <span class="model-info-value">kimi-k2.5</span>
                 </div>
                 <div class="model-info-row">
                     <span class="model-info-label">上下文</span>
@@ -823,20 +820,20 @@
                     <div class="feature-list">
                         <span class="feature-tag feature-tag--pro">256K超长上下文</span>
                         <span class="feature-tag feature-tag--pro">缓存机制省60%</span>
-                        <span class="feature-tag feature-tag--pro">多轮对话优化</span>
                         <span class="feature-tag feature-tag--pro">中文理解强</span>
-                        <span class="feature-tag feature-tag--pro">🔥 Provider P1</span>
-                    </div>
-                </div>
-                <div class="feature-section">
-                    <div class="feature-title feature-title--con">⚠️ 注意</div>
-                    <div class="feature-list">
-                        <span class="feature-tag feature-tag--con">temperature固定为1.0</span>
                     </div>
                 </div>
             </div>
             
             <div class="model-card__footer">
+                <span class="status-badge" id="status-kimi-k2.5-primary">
+                    <span class="status-dot"></span>
+                    <span class="status-text">检查中...</span>
+                </span>
+                <span style="font-size: 12px; color: var(--v2-text-tertiary);">超时: 300s</span>
+            </div>
+        </div>
+    </div>
                 <span class="status-badge status-badge--enabled">
                     <span class="status-dot"></span>
                     已启用
@@ -1209,6 +1206,94 @@
 </div>
 
 <script>
+    // 启用的端点配置
+    let enabledEndpoints = {};
+    let enabledProviders = [];
+    
+    // 页面加载时获取启用的端点配置
+    document.addEventListener('DOMContentLoaded', async function() {
+        await loadEnabledEndpoints();
+        loadCustomEndpoints();
+    });
+    
+    // 从后端获取启用的端点配置
+    async function loadEnabledEndpoints() {
+        try {
+            const response = await fetch('/api/endpoints/enabled');
+            const result = await response.json();
+            
+            if (result.success) {
+                enabledEndpoints = result.endpoints;
+                enabledProviders = result.providers;
+                
+                // 更新 UI
+                updateProviderTabs();
+                updatePriorityNotice(result.provider_priority);
+                updateEndpointStatus();
+            }
+        } catch (error) {
+            console.error('加载端点配置失败:', error);
+        }
+    }
+    
+    // 更新 Provider 标签页显示
+    function updateProviderTabs() {
+        const allProviders = ['kimi', 'gemini', 'deepseek'];
+        
+        allProviders.forEach(provider => {
+            const tab = document.getElementById(`tab-${provider}`);
+            const models = document.getElementById(`${provider}-models`);
+            
+            if (enabledProviders.includes(provider)) {
+                // 启用 - 显示
+                tab.style.display = 'block';
+                if (models) models.style.display = 'grid';
+            } else {
+                // 禁用 - 隐藏
+                tab.style.display = 'none';
+                if (models) models.style.display = 'none';
+            }
+        });
+        
+        // 确保至少有一个标签是激活的
+        const visibleTabs = document.querySelectorAll('.provider-tab[style*="block"], .provider-tab:not([style*="none"])');
+        if (visibleTabs.length > 0 && !document.querySelector('.provider-tab.active')) {
+            visibleTabs[0].classList.add('active');
+        }
+    }
+    
+    // 更新优先级提示
+    function updatePriorityNotice(priority) {
+        const chain = document.getElementById('priority-chain');
+        if (priority && priority.length > 0) {
+            const colors = ['#6366f1', '#3b82f6', '#8b5cf6', '#ec4899'];
+            const html = priority.map((p, i) => {
+                const color = colors[i % colors.length];
+                const label = p.charAt(0).toUpperCase() + p.slice(1);
+                return `<span style="color: ${color}; font-weight: 600;">${label} (P${i+1})</span>`;
+            }).join(' → ');
+            chain.innerHTML = html + ' <span style="color: var(--v2-text-tertiary); margin-left: 8px;">| 失败3次自动切换</span>';
+        }
+    }
+    
+    // 更新端点状态显示
+    function updateEndpointStatus() {
+        for (const [provider, endpoints] of Object.entries(enabledEndpoints)) {
+            endpoints.forEach(ep => {
+                const statusBadge = document.querySelector(`#status-${ep.name}`);
+                if (statusBadge) {
+                    if (ep.enabled) {
+                        statusBadge.className = 'status-badge status-badge--enabled';
+                        statusBadge.innerHTML = '<span class="status-dot"></span><span class="status-text">已启用</span>';
+                    } else {
+                        statusBadge.className = 'status-badge status-badge--disabled';
+                        statusBadge.innerHTML = '<span class="status-dot" style="background: #ef4444;"></span><span class="status-text">已禁用</span>';
+                    }
+                }
+            });
+        }
+    }
+    
     // 标签页切换
     document.querySelectorAll('.provider-tab').forEach(tab => {
         tab.addEventListener('click', () => {
@@ -1218,14 +1303,12 @@
             document.querySelectorAll('.provider-tab').forEach(t => t.classList.remove('active'));
             tab.classList.add('active');
             
-            // 切换显示 (Kimi 已禁用)
-            if (provider === 'gemini') {
-                document.getElementById('gemini-models').style.display = 'grid';
-                document.getElementById('deepseek-models').style.display = 'none';
-            } else if (provider === 'deepseek') {
-                document.getElementById('gemini-models').style.display = 'none';
-                document.getElementById('deepseek-models').style.display = 'grid';
-            }
+            // 切换显示
+            document.querySelectorAll('.model-grid').forEach(grid => {
+                grid.style.display = 'none';
+            });
+            const targetGrid = document.getElementById(`${provider}-models`);
+            if (targetGrid) targetGrid.style.display = 'grid';
         });
     });
     
@@ -1517,8 +1600,8 @@
         'lemon-api': 3,           // 低优先级
         'aiberm': 1,              // 最高优先级
         'xiaochuang-backup': 2,   // 中等优先级
-        'deepseek-official': 1    // 最高优先级
-        // 'kimi-k2.5-primary': 1    // 已禁用
+        'deepseek-official': 1,   // 最高优先级
+        'kimi-k2.5-primary': 1    // 最高优先级（受后端 enabled 字段控制）
     };
     
     function adjustPriority(endpointName, delta) {
@@ -1539,7 +1622,7 @@
     async function savePriority(endpointName, priority) {
         try {
             // 判断是内置端点还是自定义端点
-            const isBuiltin = ['lemon-api', 'aiberm', 'xiaochuang-backup', 'deepseek-official'].includes(endpointName);  // kimi-k2.5-primary 已禁用
+            const isBuiltin = ['lemon-api', 'aiberm', 'xiaochuang-backup', 'deepseek-official', 'kimi-k2.5-primary'].includes(endpointName);
             
             let url, method, body;
             if (isBuiltin) {
