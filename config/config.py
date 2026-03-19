@@ -92,7 +92,7 @@ CONFIG = {
                 "api_key": os.getenv('KIMI_API_KEY', ''),
                 "model": "kimi-k2.5",
                 "priority": 1,
-                "enabled": True,  # 🔥 设置为 False 禁用此端点
+                "enabled": False,  # 🔥 设置为 False 禁用此端点
                 "timeout": 300,
                 "max_retries": 3,
                 "discount_rate": 85,

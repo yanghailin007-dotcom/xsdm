@@ -975,10 +975,22 @@ function showPanelGuideHint() {
     const guideHint = document.getElementById('panel-guide-hint');
     const rightPanel = document.getElementById('right-panel');
     
+    // 🔥 修复：检查用户是否已经看过引导提示（使用 localStorage）
+    const hasSeenGuide = localStorage.getItem('phase2_panel_guide_seen');
+    if (hasSeenGuide === 'true') {
+        console.log('[DEBUG] 用户已看过引导提示，不再显示');
+        return;
+    }
+    
     // 如果引导提示存在，且右侧面板未打开，则显示引导
     if (guideHint && rightPanel && !rightPanel.classList.contains('pt-right-panel--open')) {
         guideHint.style.display = 'block';
         console.log('[DEBUG] 显示右侧面板引导气泡');
+        
+        // 🔥 修复：5秒后自动隐藏，避免一直显示
+        setTimeout(() => {
+            hidePanelGuideHint();
+        }, 5000);
     }
 }
 
@@ -989,6 +1001,9 @@ function hidePanelGuideHint() {
         guideHint.style.display = 'none';
         console.log('[DEBUG] 隐藏右侧面板引导气泡');
     }
+    
+    // 🔥 修复：记住用户已看过引导提示
+    localStorage.setItem('phase2_panel_guide_seen', 'true');
 }
 
 function showCreativeEnhancement() {
