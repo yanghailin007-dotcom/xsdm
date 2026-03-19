@@ -127,10 +127,20 @@ class StagePlanPersistence:
         novel_project_dir = self.plans_dir / safe_title
         plans_dir = novel_project_dir / "plans"
         
-        # 尝试两种命名格式：{stage_name}_writing_plan.json 和 {stage_name}_stage_writing_plan.json
+        # 🔥 修复：如果 stage_name 不包含 '_stage'，尝试添加 '_stage' 后缀
+        # 因为实际保存的文件名可能是 '{title}_opening_stage_writing_plan.json'
+        # 但传入的 stage_name 可能是 'opening'
+        if not stage_name.endswith("_stage"):
+            stage_name_with_suffix = f"{stage_name}_stage"
+        else:
+            stage_name_with_suffix = stage_name
+        
+        # 尝试多种命名格式
         possible_filenames = [
             f"{safe_title}_{stage_name}_writing_plan.json",
-            f"{safe_title}_{stage_name}_stage_writing_plan.json"
+            f"{safe_title}_{stage_name}_stage_writing_plan.json",
+            f"{safe_title}_{stage_name_with_suffix}_writing_plan.json",
+            f"{safe_title}_{stage_name_with_suffix}_stage_writing_plan.json"
         ]
         
         for filename in possible_filenames:
