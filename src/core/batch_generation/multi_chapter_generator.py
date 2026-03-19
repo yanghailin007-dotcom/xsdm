@@ -66,7 +66,7 @@ class MultiChapterContentGenerator:
             {chapter_num: ChapterContent} 生成的章节内容
         """
         # 调试：检查参数类型
-        self.logger.error(f"[DEBUG] MultiChapterGen 参数 - medium_event: {type(medium_event)}, scenes: {type(scenes_by_chapter)}")
+        self.logger.info(f"[MultiChapterGen] 参数类型检查: medium_event={type(medium_event)}, scenes={type(scenes_by_chapter)}")
         if not isinstance(medium_event, dict):
             self.logger.error(f"[MultiChapterGen] medium_event 类型错误: {type(medium_event)}, 值={medium_event}")
             raise TypeError(f"medium_event 必须是字典，而不是 {type(medium_event)}")
@@ -77,17 +77,8 @@ class MultiChapterContentGenerator:
         self.logger.info(f"[MultiChapterGen] 开始批量生成: {novel_title} 第{start_ch}-{end_ch}章, 跨度={span}")
         
         # 1. 加载写作风格指南
-        try:
-            self.logger.error(f"[DEBUG] MultiChapterGen 开始加载风格指南: {novel_title}")
-            style_guide = WritingStyleGuideLoader.load_and_format(novel_title, username)
-            self.logger.error(f"[DEBUG] MultiChapterGen 风格指南加载完成: {type(style_guide)}")
-            if not hasattr(style_guide, 'core_style'):
-                self.logger.error(f"[DEBUG] MultiChapterGen style_guide 没有 core_style!")
-                raise AttributeError("style_guide 没有 core_style 属性")
-            self.logger.info(f"[MultiChapterGen] 已加载风格指南: {style_guide.core_style[:50]}...")
-        except Exception as e:
-            self.logger.error(f"[DEBUG] MultiChapterGen 风格指南加载失败: {e}")
-            raise
+        style_guide = WritingStyleGuideLoader.load_and_format(novel_title, username)
+        self.logger.info(f"[MultiChapterGen] 已加载风格指南: {style_guide.core_style[:50]}...")
         
         # 2. 构建Prompt
         prompt = self._build_prompt(

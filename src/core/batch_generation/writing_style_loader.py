@@ -56,9 +56,9 @@ class WritingStyleGuideLoader:
         # 检查缓存
         if use_cache and cache_key in cls._cache:
             cached = cls._cache[cache_key]
-            # 🔥 检查缓存数据类型
+            # 检查缓存数据类型
             if not isinstance(cached, FormattedStyleGuide):
-                logger.error(f"[DEBUG] 缓存数据类型错误: {type(cached)}, 清除缓存")
+                logger.warning(f"[WritingStyleGuideLoader] 缓存数据类型错误，清除缓存")
                 del cls._cache[cache_key]
             else:
                 logger.info(f"[WritingStyleGuideLoader] 使用缓存的风格指南: {novel_title}")
@@ -73,14 +73,6 @@ class WritingStyleGuideLoader:
         
         # 格式化为Prompt片段
         formatted = cls._format_to_prompt(style_guide)
-        
-        # 🔥 调试：检查 formatted 类型
-        if not isinstance(formatted, FormattedStyleGuide):
-            logger.error(f"[DEBUG] formatted 类型错误: {type(formatted)}, 值: {formatted}")
-            # 如果缓存中有错误的数据，清除缓存
-            if cache_key in cls._cache:
-                logger.error(f"[DEBUG] 清除缓存中错误的数据: {cache_key}")
-                del cls._cache[cache_key]
         
         # 缓存
         if use_cache:
@@ -111,10 +103,7 @@ class WritingStyleGuideLoader:
             if style_data:
                 # 有些版本包装在writing_style_guide键内
                 if "writing_style_guide" in style_data:
-                    result = style_data["writing_style_guide"]
-                    logger.error(f"[DEBUG] 提取 writing_style_guide 后类型: {type(result)}")
-                    return result
-                logger.error(f"[DEBUG] 直接返回 style_data，类型: {type(style_data)}")
+                    return style_data["writing_style_guide"]
                 return style_data
                 
         except Exception as e:
@@ -125,11 +114,9 @@ class WritingStyleGuideLoader:
     @classmethod
     def _format_to_prompt(cls, style_guide: Dict) -> FormattedStyleGuide:
         """将风格指南格式化为Prompt片段"""
-        # 🔥 调试：检查 style_guide 类型
-        logger.error(f"[DEBUG] _format_to_prompt style_guide 类型: {type(style_guide)}")
+        # 如果 style_guide 不是字典，使用默认风格
         if not isinstance(style_guide, dict):
-            logger.error(f"[DEBUG] style_guide 不是字典! 值: {style_guide}")
-            # 使用默认风格
+            logger.warning(f"[WritingStyleGuideLoader] style_guide 不是字典，使用默认风格")
             style_guide = cls._get_fanqie_default_style()
         
         return FormattedStyleGuide(

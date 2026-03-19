@@ -65,29 +65,14 @@ class GoldenChaptersGenerator:
             self.logger.error(f"[GoldenChapters] novel_data 类型错误: {type(novel_data)}，使用空字典")
             novel_data = {}
         
-        # 🔥 调试：打印所有参数类型
-        self.logger.error(f"[DEBUG] generate() 参数 - novel_data: {type(novel_data)}, creative_seed: {type(creative_seed)}, selected_plan: {type(selected_plan)}")
-        
-        # 🔥 调试：尝试获取 novel_title
-        try:
-            novel_title = novel_data.get("novel_title", "Unknown")
-            self.logger.error(f"[DEBUG] novel_title 获取成功: {novel_title}")
-        except Exception as e:
-            self.logger.error(f"[DEBUG] novel_title 获取失败: {e}, novel_data: {novel_data}")
-            novel_title = "Unknown"
+        novel_title = novel_data.get("novel_title", "Unknown")
         
         self.logger.info(
             f"[GoldenChapters] 开始整体生成黄金三章: {novel_title}"
         )
         
         # 1. 加载风格指南
-        try:
-            self.logger.error(f"[DEBUG] 开始加载风格指南: {novel_title}")
-            style_guide = WritingStyleGuideLoader.load_and_format(novel_title, username)
-            self.logger.error(f"[DEBUG] 风格指南加载完成: {type(style_guide)}")
-        except Exception as e:
-            self.logger.error(f"[DEBUG] 风格指南加载失败: {e}")
-            raise
+        style_guide = WritingStyleGuideLoader.load_and_format(novel_title, username)
         
         # 2. 构建黄金三章专用Prompt
         prompt = self._build_golden_prompt(
@@ -138,15 +123,15 @@ class GoldenChaptersGenerator:
         
         # 🔥 修复：确保 creative_seed 是字典
         if not isinstance(creative_seed, dict):
-            self.logger.error(f"[DEBUG] creative_seed 类型错误: {type(creative_seed)}，值: {creative_seed}")
+            self.logger.warning(f"[GoldenChapters] creative_seed 类型错误: {type(creative_seed)}，使用空字典")
             creative_seed = {}
         
         # 🔥 修复：确保 selected_plan 是字典而不是列表
         if isinstance(selected_plan, list):
-            self.logger.error(f"[DEBUG] selected_plan 是列表，值: {selected_plan}")
+            self.logger.warning(f"[GoldenChapters] selected_plan 是列表，使用空字典")
             selected_plan = {}
         elif not isinstance(selected_plan, dict):
-            self.logger.error(f"[DEBUG] selected_plan 类型错误: {type(selected_plan)}，值: {selected_plan}")
+            self.logger.warning(f"[GoldenChapters] selected_plan 类型错误: {type(selected_plan)}，使用空字典")
             selected_plan = {}
         
         # 提取核心设定
@@ -158,22 +143,7 @@ class GoldenChaptersGenerator:
         core_selling_points = core_settings.get("core_selling_points", [])
         protagonist_position = story_development.get("protagonist_position", "")
         
-        # 🔥 调试：检查 style_guide 和 scenes_by_chapter
-        self.logger.error(f"[DEBUG] style_guide 类型: {type(style_guide)}")
-        if not hasattr(style_guide, 'core_style'):
-            self.logger.error(f"[DEBUG] style_guide 没有 core_style 属性!")
-            self.logger.error(f"[DEBUG] style_guide 值: {style_guide}")
-            # 紧急修复：使用默认风格
-            from src.core.batch_generation.writing_style_loader import FormattedStyleGuide
-            style_guide = FormattedStyleGuide(
-                core_style="专业番茄网络小说作家",
-                key_principles="",
-                language_characteristics="",
-                narration_techniques="",
-                chapter_techniques="",
-                dialogue_style="",
-                interaction_design=""
-            )
+
         
         # 格式化场景
         scenes_formatted = self._format_scenes(scenes_by_chapter)
@@ -310,15 +280,8 @@ class GoldenChaptersGenerator:
             if ch_num > 3:
                 continue
             scenes = scenes_by_chapter[ch_num]
-            # 🔥 调试：检查 scenes 类型
-            if not isinstance(scenes, list):
-                self.logger.error(f"[DEBUG] scenes 类型错误: {type(scenes)}, ch_num: {ch_num}, 值: {scenes}")
-                continue
-            lines.append(f"\n第{ch_num}章场景:")
+                lines.append(f"\n第{ch_num}章场景:")
             for i, scene in enumerate(scenes, 1):
-                if not isinstance(scene, dict):
-                    self.logger.error(f"[DEBUG] scene 类型错误: {type(scene)}, 值: {scene}")
-                    continue
                 lines.append(f"  {i}. {scene.get('name', f'场景{i}')} - {scene.get('purpose', '')}")
         
         return "\n".join(lines)
