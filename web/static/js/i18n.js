@@ -193,6 +193,17 @@ const I18N = (function() {
             'characterPortrait.form.reference': '参考图像',
             'characterPortrait.btn.generate': '开始生成',
             
+            // 短剧风格改造页翻译
+            'shortDrama.title': '短剧风格改造',
+            'shortDrama.subtitle': '将普通视频转换为短剧风格',
+            'shortDrama.step.upload': '选择小说',
+            'shortDrama.step.selectStyle': '风格转换',
+            'shortDrama.step.generate': '制作模式',
+            'shortDrama.style.modern': '现代都市',
+            'shortDrama.style.historical': '古风穿越',
+            'shortDrama.style.suspense': '悬疑惊悚',
+            'shortDrama.btn.start': '开始制作',
+            
             // 项目可视化页面
             'projectViewer.title': '项目可视化',
             'projectViewer.subtitle': '可视化展示项目结构',
@@ -436,6 +447,17 @@ const I18N = (function() {
             'characterPortrait.form.reference': '參考圖像',
             'characterPortrait.btn.generate': '開始生成',
             
+            // 短劇風格改造頁翻譯
+            'shortDrama.title': '短劇風格改造',
+            'shortDrama.subtitle': '將普通視頻轉換為短劇風格',
+            'shortDrama.step.upload': '選擇小說',
+            'shortDrama.step.selectStyle': '風格轉換',
+            'shortDrama.step.generate': '製作模式',
+            'shortDrama.style.modern': '現代都市',
+            'shortDrama.style.historical': '古風穿越',
+            'shortDrama.style.suspense': '懸疑驚悚',
+            'shortDrama.btn.start': '開始製作',
+            
             // 世界觀查看器
             'worldviewViewer.title': '世界觀查看器',
             'worldviewViewer.subtitle': '查看和管理小說世界觀',
@@ -658,6 +680,17 @@ const I18N = (function() {
             'characterPortrait.form.prompt': 'Prompt',
             'characterPortrait.form.reference': 'Reference Image',
             'characterPortrait.btn.generate': 'Start Generation',
+            
+            // Short Drama Page Translations
+            'shortDrama.title': 'Short Drama Style Transformation',
+            'shortDrama.subtitle': 'Transform regular videos into short drama style',
+            'shortDrama.step.upload': 'Select Novel',
+            'shortDrama.step.selectStyle': 'Style Conversion',
+            'shortDrama.step.generate': 'Production Mode',
+            'shortDrama.style.modern': 'Modern Urban',
+            'shortDrama.style.historical': 'Historical Time Travel',
+            'shortDrama.style.suspense': 'Suspense Thriller',
+            'shortDrama.btn.start': 'Start Production',
             
             // Project Viewer Page
             'projectViewer.title': 'Project Viewer',
