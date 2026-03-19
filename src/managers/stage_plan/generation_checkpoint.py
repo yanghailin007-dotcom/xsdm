@@ -285,14 +285,13 @@ class GenerationCheckpoint:
                         except Exception as e2:
                             self.logger.error(f"最终尝试失败: {e2}")
                             raise
-            
-            # 清理临时文件
-            finally:
-                try:
-                    if temp_file.exists():
-                        temp_file.unlink(missing_ok=True)
-                except Exception as e:
-                    self.logger.debug(f"清理临时文件失败: {e}")
+                finally:
+                    # 清理临时文件
+                    try:
+                        if temp_file.exists():
+                            temp_file.unlink(missing_ok=True)
+                    except Exception as e:
+                        self.logger.debug(f"清理临时文件失败: {e}")
             
             # 验证文件创建成功
             if not self.checkpoint_file.exists():
