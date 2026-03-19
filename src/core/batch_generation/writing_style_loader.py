@@ -105,10 +105,16 @@ class WritingStyleGuideLoader:
             
             style_data = path_manager.load_writing_style_guide(novel_title, username)
             
+            # 🔥 调试：检查返回的数据类型
+            logger.error(f"[DEBUG] _load_from_file style_data 类型: {type(style_data)}")
+            
             if style_data:
                 # 有些版本包装在writing_style_guide键内
                 if "writing_style_guide" in style_data:
-                    return style_data["writing_style_guide"]
+                    result = style_data["writing_style_guide"]
+                    logger.error(f"[DEBUG] 提取 writing_style_guide 后类型: {type(result)}")
+                    return result
+                logger.error(f"[DEBUG] 直接返回 style_data，类型: {type(style_data)}")
                 return style_data
                 
         except Exception as e:
@@ -119,6 +125,13 @@ class WritingStyleGuideLoader:
     @classmethod
     def _format_to_prompt(cls, style_guide: Dict) -> FormattedStyleGuide:
         """将风格指南格式化为Prompt片段"""
+        # 🔥 调试：检查 style_guide 类型
+        logger.error(f"[DEBUG] _format_to_prompt style_guide 类型: {type(style_guide)}")
+        if not isinstance(style_guide, dict):
+            logger.error(f"[DEBUG] style_guide 不是字典! 值: {style_guide}")
+            # 使用默认风格
+            style_guide = cls._get_fanqie_default_style()
+        
         return FormattedStyleGuide(
             core_style=cls._format_core_style(style_guide.get("core_style", "")),
             key_principles=cls._format_key_principles(style_guide.get("key_principles", [])),
