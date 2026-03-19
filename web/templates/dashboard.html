@@ -1,1081 +1,797 @@
-<!DOCTYPE html>
-<html lang="zh-CN">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>小说生成系统 - 仪表板</title>
-    <style>
-        /* ==================== 基础变量 ==================== */
-        :root {
-            --primary-500: #6366f1;
-            --primary-600: #4f46e5;
-            --primary-400: #818cf8;
-            --accent-500: #06b6d4;
-            --accent-400: #22d3ee;
-            --purple-500: #a855f7;
-            
-            --bg-primary: #0f172a;
-            --bg-secondary: #1e293b;
-            --bg-tertiary: #334155;
-            
-            --text-primary: #f8fafc;
-            --text-secondary: #cbd5e1;
-            --text-tertiary: #94a3b8;
-            --text-muted: #64748b;
-            
-            --success: #22c55e;
-            --warning: #f59e0b;
-            --danger: #ef4444;
-            
-            --gradient-primary: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
-            --gradient-success: linear-gradient(135deg, #22c55e 0%, #16a34a 100%);
-            --gradient-warning: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
-        }
+{% extends "layouts/base-v2.html" %}
 
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
+{% block title %}{{ t('dashboard.title', '创作仪表板') }} - 大文娱系统{% endblock %}
 
-        body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif;
-            background: var(--bg-primary);
-            min-height: 100vh;
-            color: var(--text-primary);
-            overflow-x: hidden;
-        }
-
-        /* ==================== 背景动画 ==================== */
-        .universe {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            overflow: hidden;
-            z-index: 0;
-            background: radial-gradient(ellipse at bottom, #1b2735 0%, #090a0f 100%);
-        }
-
-        .stars {
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background-image: 
-                radial-gradient(2px 2px at 20px 30px, rgba(255,255,255,0.8), transparent),
-                radial-gradient(2px 2px at 40px 70px, rgba(255,255,255,0.6), transparent),
-                radial-gradient(1px 1px at 90px 40px, rgba(255,255,255,0.9), transparent),
-                radial-gradient(2px 2px at 130px 80px, rgba(255,255,255,0.7), transparent);
-            background-repeat: repeat;
-            background-size: 200px 200px;
-            animation: twinkle 8s infinite linear;
-            opacity: 0.8;
-        }
-
-        @keyframes twinkle {
-            0%, 100% { opacity: 0.8; }
-            50% { opacity: 0.4; }
-        }
-
-        /* ==================== 顶部导航 ==================== */
-        .top-nav {
-            position: fixed;
-            top: 0;
-            left: 0;
-            right: 0;
-            padding: 1rem 2rem;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            z-index: 100;
-            background: rgba(15, 23, 42, 0.8);
-            backdrop-filter: blur(20px);
-            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
-        }
-
-        .nav-title {
-            font-size: 1.25rem;
-            font-weight: 700;
-            display: flex;
-            align-items: center;
-            gap: 0.75rem;
-        }
-
-        .nav-title a {
-            color: var(--text-secondary);
-            text-decoration: none;
-            transition: color 0.3s;
-        }
-
-        .nav-title a:hover {
-            color: var(--primary-400);
-        }
-
-        /* 统一返回首页按钮样式 */
-        .btn-back {
-            padding: 0.5rem 1rem;
-            background: rgba(255, 255, 255, 0.05);
-            border: 1px solid rgba(255, 255, 255, 0.1);
-            border-radius: 0.5rem;
-            color: var(--text-secondary);
-            cursor: pointer;
-            font-size: 0.875rem;
-            font-weight: 500;
-            transition: all 0.3s;
-            display: inline-flex;
-            align-items: center;
-            gap: 0.5rem;
-            line-height: 1.5;
-        }
-
-        .btn-back:hover {
-            background: rgba(255, 255, 255, 0.1);
-            color: var(--text-primary);
-        }
-
-        .nav-actions {
-            display: flex;
-            gap: 0.75rem;
-            flex-wrap: wrap;
-        }
-
-        .nav-btn {
-            padding: 0.5rem 1rem;
-            background: rgba(255, 255, 255, 0.05);
-            border: 1px solid rgba(255, 255, 255, 0.1);
-            border-radius: 0.5rem;
-            color: var(--text-secondary);
-            font-size: 0.875rem;
-            font-weight: 500;
-            cursor: pointer;
-            transition: all 0.3s;
-            text-decoration: none;
-            display: inline-flex;
-            align-items: center;
-            gap: 0.5rem;
-        }
-
-        .nav-btn:hover {
-            background: rgba(99, 102, 241, 0.2);
-            border-color: rgba(99, 102, 241, 0.4);
-            color: var(--primary-400);
-            transform: translateY(-2px);
-        }
-
-        .nav-btn.primary {
-            background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
-            color: white;
-            border-color: transparent;
-        }
-
-        .nav-btn.primary:hover {
-            box-shadow: 0 4px 20px rgba(99, 102, 241, 0.4);
-        }
-
-        .nav-btn.danger {
-            color: var(--danger);
-            border-color: rgba(239, 68, 68, 0.3);
-        }
-
-        .nav-btn.danger:hover {
-            background: rgba(239, 68, 68, 0.2);
-            border-color: rgba(239, 68, 68, 0.5);
-        }
-
-        /* 统一退出按钮样式 */
-        .btn-logout {
-            padding: 0.5rem 1rem;
-            background: rgba(239, 68, 68, 0.1);
-            border: 1px solid rgba(239, 68, 68, 0.3);
-            border-radius: 0.5rem;
-            color: #f87171;
-            cursor: pointer;
-            font-size: 0.875rem;
-            font-weight: 500;
-            transition: all 0.3s;
-            display: inline-flex;
-            align-items: center;
-            gap: 0.5rem;
-            line-height: 1.5;
-        }
+{% block extra_css %}
+<style>
+    /* ==================== 页面变量 ==================== */
+    :root {
+        --dashboard-primary: #6366f1;
+        --dashboard-accent: #06b6d4;
+        --dashboard-purple: #a855f7;
+        --dashboard-success: #22c55e;
+        --dashboard-warning: #f59e0b;
+        --dashboard-danger: #ef4444;
         
-        .btn-logout:hover {
-            background: rgba(239, 68, 68, 0.2);
-            color: #fca5a5;
-        }
+        --gradient-primary: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
+        --gradient-success: linear-gradient(135deg, #22c55e 0%, #16a34a 100%);
+        --gradient-warning: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+    }
 
-        /* ==================== 用户头像下拉菜单 ==================== */
-        .user-menu {
-            position: relative;
-            display: inline-flex;
-            align-items: center;
-        }
+    /* ==================== 背景动画 ==================== */
+    .universe {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        overflow: hidden;
+        z-index: 0;
+        background: radial-gradient(ellipse at bottom, #1b2735 0%, #090a0f 100%);
+        pointer-events: none;
+    }
 
-        .user-avatar {
-            width: 36px;
-            height: 36px;
-            border-radius: 50%;
-            background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            cursor: pointer;
-            transition: all 0.2s ease;
-            border: 2px solid rgba(255, 255, 255, 0.1);
-            overflow: hidden;
-        }
+    .stars {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background-image: 
+            radial-gradient(2px 2px at 20px 30px, rgba(255,255,255,0.8), transparent),
+            radial-gradient(2px 2px at 40px 70px, rgba(255,255,255,0.6), transparent),
+            radial-gradient(1px 1px at 90px 40px, rgba(255,255,255,0.9), transparent),
+            radial-gradient(2px 2px at 130px 80px, rgba(255,255,255,0.7), transparent);
+        background-repeat: repeat;
+        background-size: 200px 200px;
+        animation: twinkle 8s infinite linear;
+        opacity: 0.8;
+    }
 
-        .user-avatar:hover {
-            transform: scale(1.05);
-            border-color: rgba(255, 255, 255, 0.3);
-            box-shadow: 0 0 20px rgba(99, 102, 241, 0.4);
-        }
+    @keyframes twinkle {
+        0%, 100% { opacity: 0.8; }
+        50% { opacity: 0.4; }
+    }
 
-        .user-avatar img {
-            width: 100%;
-            height: 100%;
-            object-fit: cover;
-        }
+    /* ==================== 主内容区 ==================== */
+    .main-content {
+        position: relative;
+        z-index: 10;
+        padding: 2rem;
+        max-width: 1400px;
+        margin: 0 auto;
+    }
 
-        .user-avatar .avatar-text {
-            font-size: 16px;
-            font-weight: 600;
-            color: white;
-            text-transform: uppercase;
-        }
+    /* 页面标题 */
+    .page-header {
+        text-align: center;
+        margin-bottom: 2.5rem;
+        animation: fadeInDown 0.8s ease-out;
+    }
 
-        .user-dropdown {
-            position: absolute;
-            top: calc(100% + 8px);
-            right: 0;
-            min-width: 180px;
-            background: rgba(30, 41, 59, 0.98);
-            border: 1px solid rgba(148, 163, 184, 0.2);
-            border-radius: 12px;
-            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.4);
-            opacity: 0;
-            visibility: hidden;
-            transform: translateY(-10px);
-            transition: all 0.2s ease;
-            z-index: 1000;
-            backdrop-filter: blur(10px);
-        }
+    .page-header h1 {
+        font-size: clamp(2rem, 4vw, 2.5rem);
+        margin-bottom: 0.75rem;
+        font-weight: 800;
+        background: linear-gradient(135deg, #6366f1 0%, #06b6d4 50%, #8b5cf6 100%);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        background-clip: text;
+    }
 
-        .user-dropdown.active {
-            opacity: 1;
-            visibility: visible;
-            transform: translateY(0);
-        }
+    .page-header p {
+        font-size: 1.125rem;
+        color: var(--v2-text-secondary);
+    }
 
-        .dropdown-header {
-            padding: 12px 16px;
-            border-bottom: 1px solid rgba(148, 163, 184, 0.1);
-        }
+    @keyframes fadeInDown {
+        from { opacity: 0; transform: translateY(-20px); }
+        to { opacity: 1; transform: translateY(0); }
+    }
 
-        .dropdown-header span {
-            color: #f1f5f9;
-            font-weight: 600;
-            font-size: 14px;
-            display: block;
-            overflow: hidden;
-            text-overflow: ellipsis;
-            white-space: nowrap;
-        }
+    /* 指标卡网格 */
+    .dashboard-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+        gap: 1.5rem;
+        margin-bottom: 2.5rem;
+    }
 
-        .dropdown-divider {
-            height: 1px;
-            background: rgba(148, 163, 184, 0.1);
-            margin: 4px 0;
-        }
+    /* 玻璃卡片 */
+    .glass-card {
+        background: rgba(30, 41, 59, 0.6);
+        backdrop-filter: blur(20px);
+        padding: 1.5rem;
+        border-radius: 1rem;
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        transition: all 0.3s;
+        position: relative;
+        overflow: hidden;
+    }
 
-        .dropdown-item {
-            display: flex;
-            align-items: center;
-            gap: 10px;
-            padding: 10px 16px;
-            color: #94a3b8;
-            text-decoration: none;
-            font-size: 14px;
-            transition: all 0.15s ease;
-            cursor: pointer;
-        }
+    .glass-card::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        height: 3px;
+        background: var(--gradient-primary);
+        opacity: 0;
+        transition: opacity 0.3s;
+    }
 
-        .dropdown-item:hover {
-            background: rgba(99, 102, 241, 0.1);
-            color: #f1f5f9;
-        }
+    .glass-card:hover {
+        transform: translateY(-4px);
+        border-color: rgba(99, 102, 241, 0.3);
+        box-shadow: 0 20px 60px rgba(99, 102, 241, 0.15);
+    }
 
-        /* ==================== 主内容区 ==================== */
+    .glass-card:hover::before {
+        opacity: 1;
+    }
+
+    /* 指标卡片 */
+    .metric-card {
+        text-align: center;
+    }
+
+    .metric-icon {
+        width: 56px;
+        height: 56px;
+        margin: 0 auto 1rem;
+        background: var(--gradient-primary);
+        border-radius: 1rem;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.5rem;
+        box-shadow: 0 8px 25px rgba(99, 102, 241, 0.3);
+    }
+
+    .metric-value {
+        font-size: 2.5rem;
+        font-weight: 800;
+        background: linear-gradient(135deg, #6366f1 0%, #06b6d4 100%);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        background-clip: text;
+        margin: 0.5rem 0;
+    }
+
+    .metric-label {
+        color: var(--v2-text-tertiary);
+        font-size: 0.875rem;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        font-weight: 600;
+    }
+
+    .metric-trend {
+        margin-top: 0.75rem;
+        font-size: 0.75rem;
+        color: var(--v2-text-muted);
+    }
+
+    .metric-trend.positive {
+        color: #4ade80;
+    }
+
+    /* 进度条容器 */
+    .progress-section {
+        margin-bottom: 0;
+    }
+
+    .section-title {
+        font-size: 1.125rem;
+        font-weight: 700;
+        color: var(--v2-text-primary);
+        margin-bottom: 1rem;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+
+    .progress-container {
+        background: rgba(15, 23, 42, 0.5);
+        height: 40px;
+        border-radius: 9999px;
+        overflow: hidden;
+        border: 1px solid rgba(255, 255, 255, 0.1);
+    }
+
+    .progress-fill {
+        height: 100%;
+        background: var(--gradient-primary);
+        transition: width 0.5s ease;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: white;
+        font-size: 0.875rem;
+        font-weight: 700;
+        position: relative;
+        overflow: hidden;
+    }
+
+    .progress-fill::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: -100%;
+        width: 100%;
+        height: 100%;
+        background: linear-gradient(90deg, transparent, rgba(255,255,255,0.3), transparent);
+        animation: shimmer 2s infinite;
+    }
+
+    @keyframes shimmer {
+        0% { left: -100%; }
+        100% { left: 100%; }
+    }
+
+    /* 章节表格 */
+    .table-container {
+        overflow-x: auto;
+        margin-bottom: 0;
+    }
+
+    .chapters-table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 0.875rem;
+    }
+
+    .chapters-table thead {
+        background: rgba(99, 102, 241, 0.2);
+    }
+
+    .chapters-table th {
+        padding: 1rem;
+        text-align: left;
+        font-weight: 600;
+        color: var(--v2-text-primary);
+        border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    }
+
+    .chapters-table td {
+        padding: 1rem;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+        color: var(--v2-text-secondary);
+    }
+
+    .chapters-table tbody tr {
+        transition: all 0.3s;
+    }
+
+    .chapters-table tbody tr:hover {
+        background: rgba(99, 102, 241, 0.1);
+    }
+
+    /* 徽章 */
+    .badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.25rem;
+        padding: 0.375rem 0.75rem;
+        border-radius: 9999px;
+        font-size: 0.75rem;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+    }
+
+    .badge-success {
+        background: rgba(34, 197, 94, 0.15);
+        color: #4ade80;
+        border: 1px solid rgba(34, 197, 94, 0.3);
+    }
+
+    .badge-warning {
+        background: rgba(245, 158, 11, 0.15);
+        color: #fbbf24;
+        border: 1px solid rgba(245, 158, 11, 0.3);
+    }
+
+    .badge-danger {
+        background: rgba(239, 68, 68, 0.15);
+        color: #f87171;
+        border: 1px solid rgba(239, 68, 68, 0.3);
+    }
+
+    /* 图表区域 */
+    .chart-section {
+        margin-bottom: 0;
+    }
+
+    .simple-bar-chart {
+        display: flex;
+        flex-direction: column;
+        gap: 1rem;
+    }
+
+    .bar-item {
+        display: flex;
+        align-items: center;
+        gap: 1rem;
+    }
+
+    .bar-label {
+        width: 80px;
+        font-size: 0.875rem;
+        font-weight: 600;
+        color: var(--v2-text-tertiary);
+        flex-shrink: 0;
+    }
+
+    .bar-container {
+        flex: 1;
+        height: 32px;
+        background: rgba(15, 23, 42, 0.5);
+        border-radius: 0.5rem;
+        overflow: hidden;
+        border: 1px solid rgba(255, 255, 255, 0.1);
+    }
+
+    .bar {
+        height: 100%;
+        border-radius: 0.5rem;
+        display: flex;
+        align-items: center;
+        padding: 0 1rem;
+        font-size: 0.875rem;
+        font-weight: 600;
+        transition: width 0.5s ease;
+        position: relative;
+    }
+
+    .bar-score {
+        position: absolute;
+        right: 1rem;
+        font-weight: 700;
+    }
+
+    .bar.low {
+        background: var(--gradient-warning);
+    }
+
+    .bar.medium {
+        background: var(--gradient-primary);
+    }
+
+    .bar.high {
+        background: var(--gradient-success);
+    }
+
+    /* 统计网格 */
+    .stats-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 1.5rem;
+    }
+
+    .stat-card {
+        text-align: center;
+    }
+
+    .stat-card .stat-label {
+        color: var(--v2-text-tertiary);
+        font-size: 0.875rem;
+        margin-bottom: 0.5rem;
+        font-weight: 500;
+    }
+
+    .stat-card .stat-value {
+        font-size: 2rem;
+        font-weight: 800;
+        color: var(--dashboard-primary);
+    }
+
+    .stat-card .stat-value.success {
+        color: #4ade80;
+    }
+
+    .stat-card .stat-value.warning {
+        color: #fbbf24;
+    }
+
+    /* 按钮 */
+    .btn {
+        padding: 0.5rem 1rem;
+        background: rgba(255, 255, 255, 0.05);
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        border-radius: 0.5rem;
+        color: var(--v2-text-secondary);
+        font-size: 0.875rem;
+        font-weight: 500;
+        cursor: pointer;
+        transition: all 0.3s;
+    }
+
+    .btn:hover {
+        background: rgba(99, 102, 241, 0.2);
+        border-color: rgba(99, 102, 241, 0.4);
+        color: #818cf8;
+    }
+
+    /* 加载动画 */
+    .spinner {
+        width: 40px;
+        height: 40px;
+        border: 4px solid rgba(255, 255, 255, 0.1);
+        border-top-color: var(--dashboard-primary);
+        border-radius: 50%;
+        animation: spin 1s linear infinite;
+        margin: 0 auto;
+    }
+
+    @keyframes spin {
+        to { transform: rotate(360deg); }
+    }
+
+    /* 空状态 */
+    .empty-state {
+        text-align: center;
+        padding: 3rem;
+        color: var(--v2-text-tertiary);
+    }
+
+    /* 响应式 */
+    @media (max-width: 768px) {
         .main-content {
-            position: relative;
-            z-index: 10;
-            padding: 6rem 2rem 3rem;
-            max-width: 1400px;
-            margin: 0 auto;
+            padding: 1rem;
         }
 
-        /* 页面标题 */
-        .page-header {
-            text-align: center;
-            margin-bottom: 2.5rem;
-            animation: fadeInDown 0.8s ease-out;
-        }
-
-        .page-header h1 {
-            font-size: clamp(2rem, 4vw, 2.5rem);
-            margin-bottom: 0.75rem;
-            font-weight: 800;
-            background: linear-gradient(135deg, #6366f1 0%, #06b6d4 50%, #8b5cf6 100%);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-            background-clip: text;
-        }
-
-        .page-header p {
-            font-size: 1.125rem;
-            color: var(--text-secondary);
-        }
-
-        @keyframes fadeInDown {
-            from { opacity: 0; transform: translateY(-20px); }
-            to { opacity: 1; transform: translateY(0); }
-        }
-
-        /* 指标卡网格 */
         .dashboard-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
-            gap: 1.5rem;
-            margin-bottom: 2.5rem;
-        }
-
-        /* 玻璃卡片 */
-        .glass-card {
-            background: rgba(30, 41, 59, 0.6);
-            backdrop-filter: blur(20px);
-            padding: 1.5rem;
-            border-radius: 1rem;
-            border: 1px solid rgba(255, 255, 255, 0.1);
-            transition: all 0.3s;
-            position: relative;
-            overflow: hidden;
-        }
-
-        .glass-card::before {
-            content: '';
-            position: absolute;
-            top: 0;
-            left: 0;
-            right: 0;
-            height: 3px;
-            background: var(--gradient-primary);
-            opacity: 0;
-            transition: opacity 0.3s;
-        }
-
-        .glass-card:hover {
-            transform: translateY(-4px);
-            border-color: rgba(99, 102, 241, 0.3);
-            box-shadow: 0 20px 60px rgba(99, 102, 241, 0.15);
-        }
-
-        .glass-card:hover::before {
-            opacity: 1;
-        }
-
-        /* 指标卡片 */
-        .metric-card {
-            text-align: center;
-        }
-
-        .metric-icon {
-            width: 56px;
-            height: 56px;
-            margin: 0 auto 1rem;
-            background: var(--gradient-primary);
-            border-radius: 1rem;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 1.5rem;
-            box-shadow: 0 8px 25px rgba(99, 102, 241, 0.3);
+            grid-template-columns: repeat(2, 1fr);
         }
 
         .metric-value {
-            font-size: 2.5rem;
-            font-weight: 800;
-            background: linear-gradient(135deg, #6366f1 0%, #06b6d4 100%);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-            background-clip: text;
-            margin: 0.5rem 0;
-        }
-
-        .metric-label {
-            color: var(--text-tertiary);
-            font-size: 0.875rem;
-            text-transform: uppercase;
-            letter-spacing: 0.05em;
-            font-weight: 600;
-        }
-
-        .metric-trend {
-            margin-top: 0.75rem;
-            font-size: 0.75rem;
-            color: var(--text-muted);
-        }
-
-        .metric-trend.positive {
-            color: #4ade80;
-        }
-
-        /* 进度条容器 */
-        .progress-section {
-            margin-bottom: 2.5rem;
-        }
-
-        .section-title {
-            font-size: 1.125rem;
-            font-weight: 700;
-            color: var(--text-primary);
-            margin-bottom: 1rem;
-            display: flex;
-            align-items: center;
-            gap: 0.5rem;
-        }
-
-        .progress-container {
-            background: rgba(15, 23, 42, 0.5);
-            height: 40px;
-            border-radius: 9999px;
-            overflow: hidden;
-            border: 1px solid rgba(255, 255, 255, 0.1);
-        }
-
-        .progress-fill {
-            height: 100%;
-            background: var(--gradient-primary);
-            transition: width 0.5s ease;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            color: white;
-            font-size: 0.875rem;
-            font-weight: 700;
-            position: relative;
-            overflow: hidden;
-        }
-
-        .progress-fill::before {
-            content: '';
-            position: absolute;
-            top: 0;
-            left: -100%;
-            width: 100%;
-            height: 100%;
-            background: linear-gradient(90deg, transparent, rgba(255,255,255,0.3), transparent);
-            animation: shimmer 2s infinite;
-        }
-
-        @keyframes shimmer {
-            0% { left: -100%; }
-            100% { left: 100%; }
-        }
-
-        /* 章节表格 */
-        .table-container {
-            overflow-x: auto;
-            margin-bottom: 2.5rem;
-        }
-
-        .chapters-table {
-            width: 100%;
-            border-collapse: collapse;
-            font-size: 0.875rem;
-        }
-
-        .chapters-table thead {
-            background: rgba(99, 102, 241, 0.2);
-        }
-
-        .chapters-table th {
-            padding: 1rem;
-            text-align: left;
-            font-weight: 600;
-            color: var(--text-primary);
-            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
-        }
-
-        .chapters-table td {
-            padding: 1rem;
-            border-bottom: 1px solid rgba(255, 255, 255, 0.05);
-            color: var(--text-secondary);
-        }
-
-        .chapters-table tbody tr {
-            transition: all 0.3s;
-        }
-
-        .chapters-table tbody tr:hover {
-            background: rgba(99, 102, 241, 0.1);
-        }
-
-        /* 徽章 */
-        .badge {
-            display: inline-flex;
-            align-items: center;
-            gap: 0.25rem;
-            padding: 0.375rem 0.75rem;
-            border-radius: 9999px;
-            font-size: 0.75rem;
-            font-weight: 600;
-            text-transform: uppercase;
-            letter-spacing: 0.05em;
-        }
-
-        .badge-success {
-            background: rgba(34, 197, 94, 0.15);
-            color: #4ade80;
-            border: 1px solid rgba(34, 197, 94, 0.3);
-        }
-
-        .badge-warning {
-            background: rgba(245, 158, 11, 0.15);
-            color: #fbbf24;
-            border: 1px solid rgba(245, 158, 11, 0.3);
-        }
-
-        .badge-danger {
-            background: rgba(239, 68, 68, 0.15);
-            color: #f87171;
-            border: 1px solid rgba(239, 68, 68, 0.3);
-        }
-
-        /* 图表区域 */
-        .chart-section {
-            margin-bottom: 2.5rem;
-        }
-
-        .simple-bar-chart {
-            display: flex;
-            flex-direction: column;
-            gap: 1rem;
-        }
-
-        .bar-item {
-            display: flex;
-            align-items: center;
-            gap: 1rem;
+            font-size: 1.75rem;
         }
 
         .bar-label {
-            width: 80px;
-            font-size: 0.875rem;
-            font-weight: 600;
-            color: var(--text-tertiary);
-            flex-shrink: 0;
+            width: 60px;
+            font-size: 0.75rem;
         }
 
-        .bar-container {
-            flex: 1;
-            height: 32px;
-            background: rgba(15, 23, 42, 0.5);
-            border-radius: 0.5rem;
-            overflow: hidden;
-            border: 1px solid rgba(255, 255, 255, 0.1);
+        .chapters-table {
+            font-size: 0.75rem;
         }
 
-        .bar {
-            height: 100%;
-            border-radius: 0.5rem;
-            display: flex;
-            align-items: center;
-            padding: 0 1rem;
-            font-size: 0.875rem;
-            font-weight: 600;
-            transition: width 0.5s ease;
-            position: relative;
+        .chapters-table th,
+        .chapters-table td {
+            padding: 0.75rem 0.5rem;
         }
+    }
+</style>
+<link rel="stylesheet" href="/static/css/confirm-dialog.css">
+{% endblock %}
 
-        .bar-score {
-            position: absolute;
-            right: 1rem;
-            font-weight: 700;
-        }
+{% block content %}
+<!-- 背景 -->
+<div class="universe">
+    <div class="stars"></div>
+</div>
 
-        .bar.low {
-            background: var(--gradient-warning);
-        }
-
-        .bar.medium {
-            background: var(--gradient-primary);
-        }
-
-        .bar.high {
-            background: var(--gradient-success);
-        }
-
-        /* 统计网格 */
-        .stats-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-            gap: 1.5rem;
-        }
-
-        .stat-card {
-            text-align: center;
-        }
-
-        .stat-card .stat-label {
-            color: var(--text-tertiary);
-            font-size: 0.875rem;
-            margin-bottom: 0.5rem;
-            font-weight: 500;
-        }
-
-        .stat-card .stat-value {
-            font-size: 2rem;
-            font-weight: 800;
-            color: var(--primary-400);
-        }
-
-        .stat-card .stat-value.success {
-            color: #4ade80;
-        }
-
-        .stat-card .stat-value.warning {
-            color: #fbbf24;
-        }
-
-        /* 按钮 */
-        .btn {
-            padding: 0.5rem 1rem;
-            background: rgba(255, 255, 255, 0.05);
-            border: 1px solid rgba(255, 255, 255, 0.1);
-            border-radius: 0.5rem;
-            color: var(--text-secondary);
-            font-size: 0.875rem;
-            font-weight: 500;
-            cursor: pointer;
-            transition: all 0.3s;
-        }
-
-        .btn:hover {
-            background: rgba(99, 102, 241, 0.2);
-            border-color: rgba(99, 102, 241, 0.4);
-            color: var(--primary-400);
-        }
-
-        /* 加载动画 */
-        .spinner {
-            width: 40px;
-            height: 40px;
-            border: 4px solid rgba(255, 255, 255, 0.1);
-            border-top-color: var(--primary-500);
-            border-radius: 50%;
-            animation: spin 1s linear infinite;
-            margin: 0 auto;
-        }
-
-        @keyframes spin {
-            to { transform: rotate(360deg); }
-        }
-
-        /* 空状态 */
-        .empty-state {
-            text-align: center;
-            padding: 3rem;
-            color: var(--text-tertiary);
-        }
-
-        /* 响应式 */
-        @media (max-width: 768px) {
-            .main-content {
-                padding: 5rem 1rem 2rem;
-            }
-
-            .top-nav {
-                padding: 0.75rem 1rem;
-            }
-
-            .nav-actions {
-                gap: 0.5rem;
-            }
-
-            .nav-btn span {
-                display: none;
-            }
-
-            .dashboard-grid {
-                grid-template-columns: repeat(2, 1fr);
-            }
-
-            .metric-value {
-                font-size: 1.75rem;
-            }
-
-            .bar-label {
-                width: 60px;
-                font-size: 0.75rem;
-            }
-
-            .chapters-table {
-                font-size: 0.75rem;
-            }
-
-            .chapters-table th,
-            .chapters-table td {
-                padding: 0.75rem 0.5rem;
-            }
-        }
-    </style>
-    <link rel="stylesheet" href="/static/css/confirm-dialog.css">
-
-    <style>
-        /* 为导航栏留出空间 */
-        body {
-            padding-top: 64px !important;
-        }
-    </style>
-</head>
-<body>
-    {% include 'components/v2/navbar.html' %}
-    <!-- 背景 -->
-    <div class="universe">
-        <div class="stars"></div>
+<!-- 主内容 -->
+<main class="main-content">
+    <!-- 页面标题 -->
+    <div class="page-header">
+        <h1 data-i18n="dashboard.title">📊 创作仪表板</h1>
+        <p>实时监控您的AI小说创作进度和质量</p>
     </div>
 
-    <!-- 顶部导航 -->
-    <!-- 主内容 -->
-    <main class="main-content">
-        <!-- 页面标题 -->
-        <div class="page-header">
-            <h1>📊 创作仪表板</h1>
-            <p>实时监控您的AI小说创作进度和质量</p>
+    <!-- 指标卡 -->
+    <div class="dashboard-grid">
+        <div class="glass-card metric-card">
+            <div class="metric-icon">📚</div>
+            <div class="metric-label" data-i18n="dashboard.stat.chapters">生成章节数</div>
+            <div class="metric-value" id="metric-chapters">0</div>
+            <div class="metric-trend positive">↑ 本次生成</div>
         </div>
 
-        <!-- 指标卡 -->
-        <div class="dashboard-grid">
-            <div class="glass-card metric-card">
-                <div class="metric-icon">📚</div>
-                <div class="metric-label">生成章节数</div>
-                <div class="metric-value" id="metric-chapters">0</div>
-                <div class="metric-trend positive">↑ 本次生成</div>
-            </div>
-
-            <div class="glass-card metric-card">
-                <div class="metric-icon">📝</div>
-                <div class="metric-label">总字数</div>
-                <div class="metric-value" id="metric-words">0</div>
-                <div class="metric-trend">文字统计</div>
-            </div>
-
-            <div class="glass-card metric-card">
-                <div class="metric-icon">⭐</div>
-                <div class="metric-label">平均评分</div>
-                <div class="metric-value" id="metric-score">-</div>
-                <div class="metric-trend">质量评估</div>
-            </div>
-
-            <div class="glass-card metric-card">
-                <div class="metric-icon">📈</div>
-                <div class="metric-label">生成进度</div>
-                <div class="metric-value" id="metric-progress">0%</div>
-                <div class="metric-trend">完成度</div>
-            </div>
+        <div class="glass-card metric-card">
+            <div class="metric-icon">📝</div>
+            <div class="metric-label" data-i18n="dashboard.stat.words">总字数</div>
+            <div class="metric-value" id="metric-words">0</div>
+            <div class="metric-trend">文字统计</div>
         </div>
 
-        <!-- 进度条 -->
-        <div class="glass-card progress-section">
-            <div class="section-title">📈 生成进度</div>
-            <div class="progress-container">
-                <div class="progress-fill" id="main-progress" style="width: 0%">0%</div>
-            </div>
+        <div class="glass-card metric-card">
+            <div class="metric-icon">⭐</div>
+            <div class="metric-label">平均评分</div>
+            <div class="metric-value" id="metric-score">-</div>
+            <div class="metric-trend">质量评估</div>
         </div>
 
-        <!-- 章节详情表 -->
-        <div class="glass-card">
-            <div class="section-title">📚 章节详情</div>
-            <div class="table-container">
-                <table class="chapters-table">
-                    <thead>
-                        <tr>
-                            <th>章节</th>
-                            <th>标题</th>
-                            <th>字数</th>
-                            <th>评分</th>
-                            <th>状态</th>
-                            <th>操作</th>
-                        </tr>
-                    </thead>
-                    <tbody id="chapters-tbody">
-                        <tr>
-                            <td colspan="6" class="empty-state">
-                                <div class="spinner" style="margin-bottom: 1rem;"></div>
-                                加载中...
-                            </td>
-                        </tr>
-                    </tbody>
-                </table>
-            </div>
+        <div class="glass-card metric-card">
+            <div class="metric-icon">📈</div>
+            <div class="metric-label">生成进度</div>
+            <div class="metric-value" id="metric-progress">0%</div>
+            <div class="metric-trend">完成度</div>
         </div>
+    </div>
 
-        <!-- 评分分布 -->
-        <div class="glass-card chart-section">
-            <div class="section-title">⭐ 评分分布</div>
-            <div class="simple-bar-chart" id="score-distribution">
-                <div class="bar-item">
-                    <div class="bar-label">加载中...</div>
-                    <div class="bar-container">
-                        <div class="bar medium" style="width: 20%;">
-                            <span class="bar-score">0.0</span>
-                        </div>
-                    </div>
-                </div>
-            </div>
+    <!-- 进度条 -->
+    <div class="glass-card progress-section">
+        <div class="section-title">📈 生成进度</div>
+        <div class="progress-container">
+            <div class="progress-fill" id="main-progress" style="width: 0%">0%</div>
         </div>
+    </div>
 
-        <!-- 统计信息 -->
-        <div class="glass-card">
-            <div class="section-title">📊 统计信息</div>
-            <div class="stats-grid">
-                <div class="glass-card stat-card">
-                    <div class="stat-label">最高评分</div>
-                    <div class="stat-value success" id="max-score">-</div>
-                </div>
-                <div class="glass-card stat-card">
-                    <div class="stat-label">最低评分</div>
-                    <div class="stat-value warning" id="min-score">-</div>
-                </div>
-                <div class="glass-card stat-card">
-                    <div class="stat-label">平均字数</div>
-                    <div class="stat-value" id="avg-words">-</div>
-                </div>
-                <div class="glass-card stat-card">
-                    <div class="stat-label">生成时间</div>
-                    <div class="stat-value" id="generation-time" style="font-size: 1.25rem;">-</div>
-                </div>
-            </div>
-        </div>
-    </main>
-
-    <script>
-        // 初始化
-        document.addEventListener('DOMContentLoaded', () => {
-            refreshData();
-            setInterval(refreshData, 5000);
-        });
-
-        async function refreshData() {
-            try {
-                const projectsResponse = await fetch('/api/projects');
-                const projects = await projectsResponse.json();
-
-                if (projects.length === 0) {
-                    showEmptyState();
-                    return;
-                }
-
-                const latestProject = projects[0];
-                const detailResponse = await fetch(`/api/project/${encodeURIComponent(latestProject.title)}`);
-                const novelDetail = await detailResponse.json();
-
-                updateMetrics(latestProject, novelDetail);
-                updateChaptersTable(novelDetail);
-                updateCharts(novelDetail);
-            } catch (error) {
-                console.error('刷新失败:', error);
-                showError('加载失败: ' + error.message);
-            }
-        }
-
-        function showEmptyState() {
-            document.getElementById('metric-chapters').textContent = '0';
-            document.getElementById('metric-words').textContent = '0';
-            document.getElementById('metric-score').textContent = '-';
-            document.getElementById('metric-progress').textContent = '0%';
-            
-            const progressBar = document.getElementById('main-progress');
-            if (progressBar) {
-                progressBar.style.width = '0%';
-                progressBar.textContent = '0%';
-            }
-
-            document.getElementById('chapters-tbody').innerHTML =
-                '<tr><td colspan="6" class="empty-state">暂无项目数据</td></tr>';
-            
-            document.getElementById('score-distribution').innerHTML =
-                '<div class="empty-state">暂无数据</div>';
-        }
-
-        function showError(message) {
-            console.error(message);
-        }
-
-        function updateMetrics(project, novelDetail) {
-            const generatedChapters = novelDetail.generated_chapters || {};
-            const chapterArray = Object.values(generatedChapters);
-            
-            document.getElementById('metric-chapters').textContent = chapterArray.length;
-
-            const totalWords = chapterArray.reduce((sum, ch) => sum + (ch.word_count || 0), 0);
-            document.getElementById('metric-words').textContent = totalWords.toLocaleString();
-
-            const scores = chapterArray.map(ch => {
-                const qa = ch.quality_assessment;
-                return qa && qa.overall_score ? qa.overall_score : 0;
-            }).filter(score => score > 0);
-            
-            const avgScore = scores.length > 0
-                ? (scores.reduce((sum, score) => sum + score, 0) / scores.length).toFixed(1)
-                : '-';
-            document.getElementById('metric-score').textContent = avgScore;
-
-            const progress = project.total_chapters > 0 ?
-                Math.round((chapterArray.length / project.total_chapters) * 100) : 0;
-            document.getElementById('metric-progress').textContent = progress + '%';
-
-            const progressBar = document.getElementById('main-progress');
-            if (progressBar) {
-                progressBar.style.width = progress + '%';
-                progressBar.textContent = progress + '%';
-            }
-        }
-
-        function updateChaptersTable(novelDetail) {
-            const tbody = document.getElementById('chapters-tbody');
-            const generatedChapters = novelDetail.generated_chapters || {};
-            const chapterArray = Object.entries(generatedChapters)
-                .map(([num, data]) => ({
-                    chapter_number: parseInt(num),
-                    ...data
-                }))
-                .sort((a, b) => a.chapter_number - b.chapter_number);
-
-            if (chapterArray.length === 0) {
-                tbody.innerHTML = '<tr><td colspan="6" class="empty-state">暂无章节数据</td></tr>';
-                return;
-            }
-
-            tbody.innerHTML = chapterArray.map(ch => {
-                const qa = ch.quality_assessment;
-                const score = qa && qa.overall_score ? qa.overall_score : 0;
-                
-                return `
+    <!-- 章节详情表 -->
+    <div class="glass-card">
+        <div class="section-title">📚 章节详情</div>
+        <div class="table-container">
+            <table class="chapters-table">
+                <thead>
                     <tr>
-                        <td><strong>第${ch.chapter_number}章</strong></td>
-                        <td>${escapeHtml(ch.chapter_title || ch.title || '未命名')}</td>
-                        <td>${(ch.word_count || 0).toLocaleString()}</td>
-                        <td>
-                            ${score > 0 ? `<span style="font-weight: 600; color: var(--primary-400);">${score.toFixed(1)}</span>` : '-'}
-                        </td>
-                        <td>
-                            <span class="badge badge-success">已完成</span>
-                        </td>
-                        <td>
-                            <button class="btn" onclick="viewChapter('${novelDetail.novel_title || novelDetail.title}', ${ch.chapter_number})">
-                                查看
-                            </button>
+                        <th>章节</th>
+                        <th>标题</th>
+                        <th>字数</th>
+                        <th>评分</th>
+                        <th>状态</th>
+                        <th>操作</th>
+                    </tr>
+                </thead>
+                <tbody id="chapters-tbody">
+                    <tr>
+                        <td colspan="6" class="empty-state">
+                            <div class="spinner" style="margin-bottom: 1rem;"></div>
+                            加载中...
                         </td>
                     </tr>
-                `;
-            }).join('');
-        }
+                </tbody>
+            </table>
+        </div>
+    </div>
 
-        function updateCharts(novelDetail) {
-            const scoreDistribution = document.getElementById('score-distribution');
-            const generatedChapters = novelDetail.generated_chapters || {};
-            const chapterArray = Object.entries(generatedChapters)
-                .map(([num, data]) => ({
-                    chapter_number: parseInt(num),
-                    ...data
-                }))
-                .sort((a, b) => a.chapter_number - b.chapter_number);
+    <!-- 评分分布 -->
+    <div class="glass-card chart-section">
+        <div class="section-title">⭐ 评分分布</div>
+        <div class="simple-bar-chart" id="score-distribution">
+            <div class="bar-item">
+                <div class="bar-label">加载中...</div>
+                <div class="bar-container">
+                    <div class="bar medium" style="width: 20%;">
+                        <span class="bar-score">0.0</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
 
-            if (chapterArray.length === 0) {
-                scoreDistribution.innerHTML = '<div class="empty-state">暂无数据</div>';
+    <!-- 统计信息 -->
+    <div class="glass-card">
+        <div class="section-title">📊 统计信息</div>
+        <div class="stats-grid">
+            <div class="glass-card stat-card">
+                <div class="stat-label">最高评分</div>
+                <div class="stat-value success" id="max-score">-</div>
+            </div>
+            <div class="glass-card stat-card">
+                <div class="stat-label">最低评分</div>
+                <div class="stat-value warning" id="min-score">-</div>
+            </div>
+            <div class="glass-card stat-card">
+                <div class="stat-label">平均字数</div>
+                <div class="stat-value" id="avg-words">-</div>
+            </div>
+            <div class="glass-card stat-card">
+                <div class="stat-label">生成时间</div>
+                <div class="stat-value" id="generation-time" style="font-size: 1.25rem;">-</div>
+            </div>
+        </div>
+    </div>
+</main>
+{% endblock %}
+
+{% block extra_js %}
+<script src="/static/js/confirm-dialog.js"></script>
+<script>
+    // 初始化
+    document.addEventListener('DOMContentLoaded', () => {
+        refreshData();
+        setInterval(refreshData, 5000);
+    });
+
+    async function refreshData() {
+        try {
+            const projectsResponse = await fetch('/api/projects');
+            const projects = await projectsResponse.json();
+
+            if (projects.length === 0) {
+                showEmptyState();
                 return;
             }
 
-            scoreDistribution.innerHTML = chapterArray.map(ch => {
-                const qa = ch.quality_assessment;
-                const score = qa && qa.overall_score ? qa.overall_score : 0;
-                const width = (score / 10) * 100;
-                const intensity = score >= 9.5 ? 'high' : score >= 8 ? 'medium' : 'low';
+            const latestProject = projects[0];
+            const detailResponse = await fetch(`/api/project/${encodeURIComponent(latestProject.title)}`);
+            const novelDetail = await detailResponse.json();
 
-                return `
-                    <div class="bar-item">
-                        <div class="bar-label">第${ch.chapter_number}章</div>
-                        <div class="bar-container">
-                            <div class="bar ${intensity}" style="width: ${width}%">
-                                <span class="bar-score">${score.toFixed(1)}</span>
-                            </div>
+            updateMetrics(latestProject, novelDetail);
+            updateChaptersTable(novelDetail);
+            updateCharts(novelDetail);
+        } catch (error) {
+            console.error('刷新失败:', error);
+            showError('加载失败: ' + error.message);
+        }
+    }
+
+    function showEmptyState() {
+        document.getElementById('metric-chapters').textContent = '0';
+        document.getElementById('metric-words').textContent = '0';
+        document.getElementById('metric-score').textContent = '-';
+        document.getElementById('metric-progress').textContent = '0%';
+        
+        const progressBar = document.getElementById('main-progress');
+        if (progressBar) {
+            progressBar.style.width = '0%';
+            progressBar.textContent = '0%';
+        }
+
+        document.getElementById('chapters-tbody').innerHTML =
+            '<tr><td colspan="6" class="empty-state">暂无项目数据</td></tr>';
+        
+        document.getElementById('score-distribution').innerHTML =
+            '<div class="empty-state">暂无数据</div>';
+    }
+
+    function showError(message) {
+        console.error(message);
+    }
+
+    function updateMetrics(project, novelDetail) {
+        const generatedChapters = novelDetail.generated_chapters || {};
+        const chapterArray = Object.values(generatedChapters);
+        
+        document.getElementById('metric-chapters').textContent = chapterArray.length;
+
+        const totalWords = chapterArray.reduce((sum, ch) => sum + (ch.word_count || 0), 0);
+        document.getElementById('metric-words').textContent = totalWords.toLocaleString();
+
+        const scores = chapterArray.map(ch => {
+            const qa = ch.quality_assessment;
+            return qa && qa.overall_score ? qa.overall_score : 0;
+        }).filter(score => score > 0);
+        
+        const avgScore = scores.length > 0
+            ? (scores.reduce((sum, score) => sum + score, 0) / scores.length).toFixed(1)
+            : '-';
+        document.getElementById('metric-score').textContent = avgScore;
+
+        const progress = project.total_chapters > 0 ?
+            Math.round((chapterArray.length / project.total_chapters) * 100) : 0;
+        document.getElementById('metric-progress').textContent = progress + '%';
+
+        const progressBar = document.getElementById('main-progress');
+        if (progressBar) {
+            progressBar.style.width = progress + '%';
+            progressBar.textContent = progress + '%';
+        }
+    }
+
+    function updateChaptersTable(novelDetail) {
+        const tbody = document.getElementById('chapters-tbody');
+        const generatedChapters = novelDetail.generated_chapters || {};
+        const chapterArray = Object.entries(generatedChapters)
+            .map(([num, data]) => ({
+                chapter_number: parseInt(num),
+                ...data
+            }))
+            .sort((a, b) => a.chapter_number - b.chapter_number);
+
+        if (chapterArray.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="6" class="empty-state">暂无章节数据</td></tr>';
+            return;
+        }
+
+        tbody.innerHTML = chapterArray.map(ch => {
+            const qa = ch.quality_assessment;
+            const score = qa && qa.overall_score ? qa.overall_score : 0;
+            
+            return `
+                <tr>
+                    <td><strong>第${ch.chapter_number}章</strong></td>
+                    <td>${escapeHtml(ch.chapter_title || ch.title || '未命名')}</td>
+                    <td>${(ch.word_count || 0).toLocaleString()}</td>
+                    <td>
+                        ${score > 0 ? `<span style="font-weight: 600; color: var(--dashboard-primary);">${score.toFixed(1)}</span>` : '-'}
+                    </td>
+                    <td>
+                        <span class="badge badge-success">已完成</span>
+                    </td>
+                    <td>
+                        <button class="btn" onclick="viewChapter('${novelDetail.novel_title || novelDetail.title}', ${ch.chapter_number})">
+                            查看
+                        </button>
+                    </td>
+                </tr>
+            `;
+        }).join('');
+    }
+
+    function updateCharts(novelDetail) {
+        const scoreDistribution = document.getElementById('score-distribution');
+        const generatedChapters = novelDetail.generated_chapters || {};
+        const chapterArray = Object.entries(generatedChapters)
+            .map(([num, data]) => ({
+                chapter_number: parseInt(num),
+                ...data
+            }))
+            .sort((a, b) => a.chapter_number - b.chapter_number);
+
+        if (chapterArray.length === 0) {
+            scoreDistribution.innerHTML = '<div class="empty-state">暂无数据</div>';
+            return;
+        }
+
+        scoreDistribution.innerHTML = chapterArray.map(ch => {
+            const qa = ch.quality_assessment;
+            const score = qa && qa.overall_score ? qa.overall_score : 0;
+            const width = (score / 10) * 100;
+            const intensity = score >= 9.5 ? 'high' : score >= 8 ? 'medium' : 'low';
+
+            return `
+                <div class="bar-item">
+                    <div class="bar-label">第${ch.chapter_number}章</div>
+                    <div class="bar-container">
+                        <div class="bar ${intensity}" style="width: ${width}%">
+                            <span class="bar-score">${score.toFixed(1)}</span>
                         </div>
                     </div>
-                `;
-            }).join('');
+                </div>
+            `;
+        }).join('');
 
-            const scores = chapterArray.map(ch => {
-                const qa = ch.quality_assessment;
-                return qa && qa.overall_score ? qa.overall_score : 0;
-            }).filter(score => score > 0);
+        const scores = chapterArray.map(ch => {
+            const qa = ch.quality_assessment;
+            return qa && qa.overall_score ? qa.overall_score : 0;
+        }).filter(score => score > 0);
+        
+        const words = chapterArray.map(ch => ch.word_count || 0);
+
+        document.getElementById('max-score').textContent =
+            scores.length > 0 ? Math.max(...scores).toFixed(1) : '-';
+        document.getElementById('min-score').textContent =
+            scores.length > 0 ? Math.min(...scores).toFixed(1) : '-';
+        document.getElementById('avg-words').textContent =
+            words.length > 0 ? Math.round(words.reduce((a, b) => a + b) / words.length).toLocaleString() : '-';
             
-            const words = chapterArray.map(ch => ch.word_count || 0);
-
-            document.getElementById('max-score').textContent =
-                scores.length > 0 ? Math.max(...scores).toFixed(1) : '-';
-            document.getElementById('min-score').textContent =
-                scores.length > 0 ? Math.min(...scores).toFixed(1) : '-';
-            document.getElementById('avg-words').textContent =
-                words.length > 0 ? Math.round(words.reduce((a, b) => a + b) / words.length).toLocaleString() : '-';
-                
-            const genTimes = chapterArray.map(ch => ch.generation_time).filter(time => time);
-            if (genTimes.length > 0) {
-                const firstTime = new Date(genTimes[0]);
-                const lastTime = new Date(genTimes[genTimes.length - 1]);
-                const duration = lastTime - firstTime;
-                const hours = Math.floor(duration / (1000 * 60 * 60));
-                const minutes = Math.floor((duration % (1000 * 60 * 60)) / (1000 * 60));
-                
-                let timeText = '';
-                if (hours > 0) {
-                    timeText = `${hours}小时${minutes}分钟`;
-                } else {
-                    timeText = `${minutes}分钟`;
-                }
-                
-                document.getElementById('generation-time').textContent = timeText;
+        const genTimes = chapterArray.map(ch => ch.generation_time).filter(time => time);
+        if (genTimes.length > 0) {
+            const firstTime = new Date(genTimes[0]);
+            const lastTime = new Date(genTimes[genTimes.length - 1]);
+            const duration = lastTime - firstTime;
+            const hours = Math.floor(duration / (1000 * 60 * 60));
+            const minutes = Math.floor((duration % (1000 * 60 * 60)) / (1000 * 60));
+            
+            let timeText = '';
+            if (hours > 0) {
+                timeText = `${hours}小时${minutes}分钟`;
+            } else {
+                timeText = `${minutes}分钟`;
             }
+            
+            document.getElementById('generation-time').textContent = timeText;
         }
+    }
 
-        function viewChapter(title, chapterNumber) {
-            window.open(`/novel?title=${encodeURIComponent(title)}&chapter=${chapterNumber}`, '_blank');
-        }
+    function viewChapter(title, chapterNumber) {
+        window.open(`/novel?title=${encodeURIComponent(title)}&chapter=${chapterNumber}`, '_blank');
+    }
 
-        function escapeHtml(text) {
-            const map = {
-                '&': '&amp;',
-                '<': '&lt;',
-                '>': '&gt;',
-                '"': '&quot;',
-                "'": '&#039;'
-            };
-            return String(text).replace(/[&<>"']/g, m => map[m]);
-        }
-
-        function logout() {
-            confirmLogout().then(confirmed => {
-                if (confirmed) {
-                    window.location.href = '/logout';
-                }
-            });
-        }
-    </script>
-    <script src="/static/js/confirm-dialog.js"></script>
-<script src="/static/js/user-info.js"></script>
-    <script src="{{ url_for('static', filename='js/account-manager.js') }}?v=2"></script>
-</body>
-</html>
+    function escapeHtml(text) {
+        const map = {
+            '&': '&amp;',
+            '<': '&lt;',
+            '>': '&gt;',
+            '"': '&quot;',
+            "'": '&#039;'
+        };
+        return String(text).replace(/[&<>"']/g, m => map[m]);
+    }
+</script>
+{% endblock %}

@@ -47,6 +47,31 @@ const I18N = (function() {
             'common.error': '错误',
             'common.warning': '警告',
             'common.info': '信息',
+            
+            // 小说列表页翻译
+            'novels.title': '我的作品',
+            'novels.subtitle': '管理和浏览您的AI小说创作',
+            'novels.filter.all': '全部',
+            'novels.filter.completed': '已完成',
+            'novels.filter.generating': '生成中',
+            'novels.card.chapters': '章',
+            'novels.card.words': '字',
+            'novels.btn.read': '阅读',
+            'novels.btn.continue': '继续生成',
+            'novels.btn.export': '导出',
+            'novels.empty.title': '还没有创作作品',
+            'novels.empty.desc': '开始您的第一个AI小说创作之旅吧！',
+            'novels.empty.start': '开始创作',
+            
+            // 仪表板翻译
+            'dashboard.title': '创作仪表板',
+            'dashboard.stat.projects': '创作项目',
+            'dashboard.stat.chapters': '生成章节',
+            'dashboard.stat.words': '总字数',
+            'dashboard.section.recent': '最近项目',
+            'dashboard.section.quick': '快速入口',
+            'dashboard.btn.newProject': '新建项目',
+            'dashboard.btn.continue': '继续创作',
         },
         'zh-TW': {
             // Phase 2 頁面翻譯
@@ -87,6 +112,31 @@ const I18N = (function() {
             'common.error': '錯誤',
             'common.warning': '警告',
             'common.info': '資訊',
+            
+            // 小說列表頁翻譯
+            'novels.title': '我的作品',
+            'novels.subtitle': '管理和瀏覽您的AI小說創作',
+            'novels.filter.all': '全部',
+            'novels.filter.completed': '已完成',
+            'novels.filter.generating': '生成中',
+            'novels.card.chapters': '章',
+            'novels.card.words': '字',
+            'novels.btn.read': '閱讀',
+            'novels.btn.continue': '繼續生成',
+            'novels.btn.export': '匯出',
+            'novels.empty.title': '還沒有創作作品',
+            'novels.empty.desc': '開始您的第一個AI小說創作之旅吧！',
+            'novels.empty.start': '開始創作',
+            
+            // 儀表板翻譯
+            'dashboard.title': '創作儀表板',
+            'dashboard.stat.projects': '創作項目',
+            'dashboard.stat.chapters': '生成章節',
+            'dashboard.stat.words': '總字數',
+            'dashboard.section.recent': '最近項目',
+            'dashboard.section.quick': '快速入口',
+            'dashboard.btn.newProject': '新建項目',
+            'dashboard.btn.continue': '繼續創作',
         },
         'en': {
             // Phase 2 Page Translations
@@ -127,6 +177,21 @@ const I18N = (function() {
             'common.error': 'Error',
             'common.warning': 'Warning',
             'common.info': 'Info',
+            
+            // Novels List Page Translations
+            'novels.title': 'My Works',
+            'novels.subtitle': 'Manage and browse your AI novel creations',
+            'novels.filter.all': 'All',
+            'novels.filter.completed': 'Completed',
+            'novels.filter.generating': 'Generating',
+            'novels.card.chapters': 'chapters',
+            'novels.card.words': 'words',
+            'novels.btn.read': 'Read',
+            'novels.btn.continue': 'Continue',
+            'novels.btn.export': 'Export',
+            'novels.empty.title': 'No works yet',
+            'novels.empty.desc': 'Start your first AI novel creation journey!',
+            'novels.empty.start': 'Start Creating',
         }
     };
 
