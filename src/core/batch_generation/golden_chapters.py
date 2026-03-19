@@ -60,6 +60,11 @@ class GoldenChaptersGenerator:
         Returns:
             {1: ch1, 2: ch2, 3: ch3} 三章内容
         """
+        # 🔥 修复：确保 novel_data 是字典
+        if not isinstance(novel_data, dict):
+            self.logger.error(f"[GoldenChapters] novel_data 类型错误: {type(novel_data)}，使用空字典")
+            novel_data = {}
+        
         novel_title = novel_data.get("novel_title", "Unknown")
         
         self.logger.info(
@@ -115,6 +120,11 @@ class GoldenChaptersGenerator:
         scenes_by_chapter: Optional[Dict[int, List[Dict]]]
     ) -> str:
         """构建黄金三章专用Prompt"""
+        
+        # 🔥 修复：确保 creative_seed 是字典
+        if not isinstance(creative_seed, dict):
+            self.logger.warning(f"[GoldenChapters] creative_seed 类型错误: {type(creative_seed)}，使用空字典")
+            creative_seed = {}
         
         # 🔥 修复：确保 selected_plan 是字典而不是列表
         if isinstance(selected_plan, list):
