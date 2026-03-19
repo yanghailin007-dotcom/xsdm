@@ -228,6 +228,17 @@ const I18N = (function() {
             'portraitStudio.btn.batch': '批量生成',
             'portraitStudio.empty.noCharacters': '暂无角色',
             'portraitStudio.empty.addCharacter': '添加角色',
+            
+            // 视频任务管理
+            'videoTaskMgr.title': '视频任务管理',
+            'videoTaskMgr.subtitle': '管理所有视频生成任务',
+            'videoTaskMgr.status.pending': '待处理',
+            'videoTaskMgr.status.processing': '处理中',
+            'videoTaskMgr.status.completed': '已完成',
+            'videoTaskMgr.status.failed': '失败',
+            'videoTaskMgr.action.newTask': '新建任务',
+            'videoTaskMgr.action.batchDelete': '批量删除',
+            'videoTaskMgr.action.retry': '重试',
         },
         'zh-TW': {
             // Phase 2 頁面翻譯
@@ -439,6 +450,17 @@ const I18N = (function() {
             'portraitStudio.btn.batch': '批量生成',
             'portraitStudio.empty.noCharacters': '暫無角色',
             'portraitStudio.empty.addCharacter': '添加角色',
+            
+            // 视频任务管理
+            'videoTaskMgr.title': '影片任務管理',
+            'videoTaskMgr.subtitle': '管理所有影片生成任務',
+            'videoTaskMgr.status.pending': '待處理',
+            'videoTaskMgr.status.processing': '處理中',
+            'videoTaskMgr.status.completed': '已完成',
+            'videoTaskMgr.status.failed': '失敗',
+            'videoTaskMgr.action.newTask': '新任務',
+            'videoTaskMgr.action.batchDelete': '批量刪除',
+            'videoTaskMgr.action.retry': '重試',
         },
         'en': {
             // Phase 2 Page Translations
@@ -650,6 +672,17 @@ const I18N = (function() {
             'portraitStudio.btn.batch': 'Batch Generate',
             'portraitStudio.empty.noCharacters': 'No characters yet',
             'portraitStudio.empty.addCharacter': 'Add Character',
+            
+            // Video Task Manager
+            'videoTaskMgr.title': 'Video Task Manager',
+            'videoTaskMgr.subtitle': 'Manage all video generation tasks',
+            'videoTaskMgr.status.pending': 'Pending',
+            'videoTaskMgr.status.processing': 'Processing',
+            'videoTaskMgr.status.completed': 'Completed',
+            'videoTaskMgr.status.failed': 'Failed',
+            'videoTaskMgr.action.newTask': 'New Task',
+            'videoTaskMgr.action.batchDelete': 'Batch Delete',
+            'videoTaskMgr.action.retry': 'Retry',
         }
     };
 

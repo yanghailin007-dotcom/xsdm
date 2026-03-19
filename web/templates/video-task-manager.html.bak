@@ -1,0 +1,250 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>视频任务管理系统</title>
+    <link rel="stylesheet" href="/static/css/video-task-manager.css">
+</head>
+<body>
+    <div id="app">
+        <!-- 导航栏 -->
+        <nav class="navbar">
+            <div class="nav-container">
+                <button class="btn-back" onclick="window.location.href='/landing'">🏠 返回首页</button>
+                <h1 class="nav-title">🎬 视频任务管理系统</h1>
+                <div class="nav-links">
+                    <a href="/video-generation" class="nav-link">🎬 视频生成</a>
+                    <a href="/dashboard" class="nav-link">🏠 控制台</a>
+                </div>
+            </div>
+        </nav>
+
+        <div class="main-container">
+            <!-- 左侧：任务输入区 -->
+            <aside class="input-sidebar">
+                <div class="sidebar-header">
+                    <h2>📝 任务配置</h2>
+                    <button id="newTaskBtn" class="btn-primary">+ 新建任务</button>
+                </div>
+
+                <!-- 任务类型选择 -->
+                <div class="input-section">
+                    <h3>任务类型</h3>
+                    <div class="type-selector">
+                        <button class="type-btn active" data-type="single">
+                            🎬 单个镜头
+                        </button>
+                        <button class="type-btn" data-type="batch">
+                            📦 批量生成
+                        </button>
+                        <button class="type-btn" data-type="project">
+                            📁 项目导入
+                        </button>
+                    </div>
+                </div>
+
+                <!-- 提示词输入 -->
+                <div class="input-section">
+                    <h3>提示词</h3>
+                    <textarea id="promptInput" class="prompt-textarea" placeholder="输入视频生成提示词..."></textarea>
+                    
+                    <!-- 快速模板 -->
+                    <div class="preset-templates">
+                        <h4>快速模板</h4>
+                        <div class="template-buttons">
+                            <button class="template-btn" data-template="scifi">🚀 科幻场景</button>
+                            <button class="template-btn" data-template="nature">🌿 自然风光</button>
+                            <button class="template-btn" data-template="urban">🏙️ 都市夜景</button>
+                            <button class="template-btn" data-template="fantasy">✨ 奇幻魔法</button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 参数设置 -->
+                <div class="input-section">
+                    <h3>参数设置</h3>
+                    <div class="parameter-group">
+                        <label>视频类型</label>
+                        <select id="videoType" class="form-select">
+                            <option value="short_film">短片/动画电影</option>
+                            <option value="long_series">长篇剧集</option>
+                            <option value="short_video">短视频系列</option>
+                        </select>
+                    </div>
+
+                    <div class="parameter-group">
+                        <label>景别</label>
+                        <select id="shotType" class="form-select">
+                            <option value="大远景">大远景</option>
+                            <option value="全景">全景</option>
+                            <option value="中景" selected>中景</option>
+                            <option value="近景">近景</option>
+                            <option value="特写">特写</option>
+                            <option value="大特写">大特写</option>
+                        </select>
+                    </div>
+
+                    <div class="parameter-group">
+                        <label>运镜方式</label>
+                        <select id="cameraMovement" class="form-select">
+                            <option value="固定" selected>固定</option>
+                            <option value="缓慢推近">缓慢推近</option>
+                            <option value="缓慢拉远">缓慢拉远</option>
+                            <option value="平移">平移</option>
+                            <option value="跟随">跟随</option>
+                            <option value="环绕">环绕</option>
+                        </select>
+                    </div>
+
+                    <div class="parameter-group">
+                        <label>时长（秒）</label>
+                        <input type="number" id="duration" class="form-input" value="10" min="1" max="60">
+                    </div>
+
+                    <div class="parameter-group">
+                        <label>并发数</label>
+                        <input type="number" id="maxConcurrent" class="form-input" value="3" min="1" max="10">
+                    </div>
+                </div>
+
+                <!-- 首尾帧上传 -->
+                <div class="input-section">
+                    <h3>首尾帧（可选）</h3>
+                    <div class="upload-group">
+                        <div class="upload-item">
+                            <label>首帧</label>
+                            <input type="file" id="firstFrameInput" accept="image/*" class="file-input">
+                            <div class="preview-area" id="firstFramePreview"></div>
+                        </div>
+                        <div class="upload-item">
+                            <label>尾帧</label>
+                            <input type="file" id="lastFrameInput" accept="image/*" class="file-input">
+                            <div class="preview-area" id="lastFramePreview"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 提交按钮 -->
+                <div class="action-buttons">
+                    <button id="addShotBtn" class="btn-primary">
+                        ➕ 添加镜头
+                    </button>
+                    <button id="createTaskBtn" class="btn-success" style="display: none;">
+                        🚀 创建任务
+                    </button>
+                </div>
+            </aside>
+
+            <!-- 中间：任务监控区 -->
+            <main class="main-content">
+                <!-- 当前任务信息 -->
+                <div class="task-info-card">
+                    <div class="info-header">
+                        <h2>当前任务</h2>
+                        <span id="currentTaskId" class="task-id">无</span>
+                    </div>
+                    <div class="info-body">
+                        <div class="info-item">
+                            <span class="label">状态:</span>
+                            <span id="taskStatus" class="value">-</span>
+                        </div>
+                        <div class="info-item">
+                            <span class="label">进度:</span>
+                            <div class="progress-container">
+                                <div class="progress-bar">
+                                    <div id="taskProgressBar" class="progress-fill" style="width: 0%"></div>
+                                </div>
+                                <span id="taskProgressText" class="progress-text">0%</span>
+                            </div>
+                        </div>
+                        <div class="info-item">
+                            <span class="label">镜头数:</span>
+                            <span id="shotCount" class="value">0/0</span>
+                        </div>
+                        <div class="info-item">
+                            <span class="label">耗时:</span>
+                            <span id="taskTime" class="value">-</span>
+                        </div>
+                    </div>
+                    <div class="info-actions">
+                        <button id="startTaskBtn" class="btn-success" disabled>▶️ 启动</button>
+                        <button id="pauseTaskBtn" class="btn-warning" disabled>⏸️ 暂停</button>
+                        <button id="resumeTaskBtn" class="btn-info" disabled>▶️ 继续</button>
+                        <button id="cancelTaskBtn" class="btn-danger" disabled>✖️ 取消</button>
+                    </div>
+                </div>
+
+                <!-- 镜头列表 -->
+                <div class="shots-container">
+                    <div class="shots-header">
+                        <h3>镜头列表</h3>
+                        <div class="shots-actions">
+                            <button id="selectAllShotsBtn" class="btn-sm">全选</button>
+                            <button id="clearShotsBtn" class="btn-sm">清空</button>
+                        </div>
+                    </div>
+                    <div id="shotsList" class="shots-list">
+                        <div class="empty-state">
+                            <p>🎬 还没有添加镜头</p>
+                            <p class="hint">在左侧配置并添加镜头</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 生成结果 -->
+                <div class="results-container">
+                    <div class="results-header">
+                        <h3>生成结果</h3>
+                        <button id="exportAllBtn" class="btn-primary" style="display: none;">📥 导出全部</button>
+                    </div>
+                    <div id="resultsGrid" class="results-grid">
+                        <div class="empty-state">
+                            <p>🎬 生成完成后视频将显示在这里</p>
+                        </div>
+                    </div>
+                </div>
+            </main>
+
+            <!-- 右侧：任务历史 -->
+            <aside class="history-sidebar">
+                <div class="sidebar-header">
+                    <h3>📋 任务历史</h3>
+                    <button id="refreshHistoryBtn" class="btn-icon">🔄</button>
+                </div>
+                <div id="taskHistoryList" class="history-list">
+                    <div class="loading">加载中...</div>
+                </div>
+            </aside>
+        </div>
+    </div>
+
+    <!-- Toast 通知 -->
+    <div id="toast" class="toast"></div>
+
+    <!-- 镜头预览模态框 -->
+    <div id="shotModal" class="modal" style="display: none;">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>镜头预览</h3>
+                <button id="closeShotModalBtn" class="btn-close">✕</button>
+            </div>
+            <div class="modal-body">
+                <div class="shot-preview">
+                    <div id="shotVideoPreview"></div>
+                    <div class="shot-details">
+                        <p><strong>描述:</strong> <span id="modalShotDescription"></span></p>
+                        <p><strong>提示词:</strong> <span id="modalShotPrompt"></span></p>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button id="downloadShotBtn" class="btn-primary">📥 下载</button>
+                <button id="regenerateShotBtn" class="btn-secondary">🔄 重新生成</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="/static/js/video-task-manager.js"></script>
+</body>
+</html>
