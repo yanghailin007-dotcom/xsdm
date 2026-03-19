@@ -812,6 +812,12 @@
     document.addEventListener('DOMContentLoaded', function() {
         loadNovels();
         loadStats();
+        
+        // 监听语言切换事件
+        document.addEventListener('languageChanged', function(e) {
+            console.log('🌐 Language changed to:', e.detail.language);
+            renderNovels();
+        });
     });
 
     async function loadNovels() {
@@ -880,6 +886,11 @@
         emptyState.style.display = 'none';
 
         grid.innerHTML = filteredNovels.map(novel => createNovelCard(novel)).join('');
+        
+        // 应用翻译到动态生成的内容
+        if (typeof I18N !== 'undefined' && I18N.applyTranslations) {
+            I18N.applyTranslations();
+        }
     }
 
     function createNovelCard(novel) {

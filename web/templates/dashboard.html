@@ -595,6 +595,12 @@
     document.addEventListener('DOMContentLoaded', () => {
         refreshData();
         setInterval(refreshData, 5000);
+        
+        // 监听语言切换事件
+        document.addEventListener('languageChanged', function(e) {
+            console.log('🌐 Language changed to:', e.detail.language);
+            refreshData();
+        });
     });
 
     async function refreshData() {
@@ -701,16 +707,21 @@
                         ${score > 0 ? `<span style="font-weight: 600; color: var(--dashboard-primary);">${score.toFixed(1)}</span>` : '-'}
                     </td>
                     <td>
-                        <span class="badge badge-success">已完成</span>
+                        <span class="badge badge-success" data-i18n="novels.status.completed">已完成</span>
                     </td>
                     <td>
-                        <button class="btn" onclick="viewChapter('${novelDetail.novel_title || novelDetail.title}', ${ch.chapter_number})">
+                        <button class="btn" onclick="viewChapter('${novelDetail.novel_title || novelDetail.title}', ${ch.chapter_number})" data-i18n="common.view">
                             查看
                         </button>
                     </td>
                 </tr>
             `;
         }).join('');
+        
+        // 应用翻译到动态生成的内容
+        if (typeof I18N !== 'undefined' && I18N.applyTranslations) {
+            I18N.applyTranslations();
+        }
     }
 
     function updateCharts(novelDetail) {

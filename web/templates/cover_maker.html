@@ -1102,6 +1102,13 @@
         initializeEventListeners();
         // 初始化默认提示词
         updateDefaultPrompt();
+        
+        // 监听语言切换事件
+        document.addEventListener('languageChanged', function(e) {
+            console.log('🌐 Language changed to:', e.detail.language);
+            renderNovelGrid();
+            renderGallery();
+        });
     });
 
     // 初始化事件监听器
@@ -1581,6 +1588,11 @@
                 </div>
             </div>
         `).join('');
+        
+        // 应用翻译到动态生成的内容
+        if (typeof I18N !== 'undefined' && I18N.applyTranslations) {
+            I18N.applyTranslations();
+        }
 
         // 更新选中操作栏显示状态
         updateSelectionActions();

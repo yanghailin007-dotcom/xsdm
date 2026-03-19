@@ -701,6 +701,9 @@ const I18N = (function() {
             'projectMgmt.status.generating': '生成中...',
             'projectMgmt.status.pending': '等待中',
             'projectMgmt.status.failed': '失败',
+
+            // common 补充
+            'common.view': '查看',
 },
         'zh-TW': {
             // Phase 2 頁面翻譯
@@ -1658,6 +1661,9 @@ const I18N = (function() {
             'projectMgmt.status.generating': '生成中...',
             'projectMgmt.status.pending': '等待中',
             'projectMgmt.status.failed': '失敗',
+
+            // common 补充
+            'common.view': '查看',
 },
         'en': {
             // Phase 2 Page Translations
@@ -2342,6 +2348,9 @@ const I18N = (function() {
             'projectMgmt.status.generating': 'Generating...',
             'projectMgmt.status.pending': 'Pending',
             'projectMgmt.status.failed': 'Failed',
+
+            // common supplement
+            'common.view': 'View',
 }
     
         'ja': {
@@ -3021,6 +3030,9 @@ const I18N = (function() {
             'projectMgmt.status.generating': '生成中...',
             'projectMgmt.status.pending': '待機中',
             'projectMgmt.status.failed': '失敗',
+
+            // common 补充
+            'common.view': '表示',
 },
         'ko': {
             // characterPortrait
@@ -3699,6 +3711,9 @@ const I18N = (function() {
             'projectMgmt.status.generating': '생성 중...',
             'projectMgmt.status.pending': '대기 중',
             'projectMgmt.status.failed': '실패',
+
+            // common 补充
+            'common.view': '보기',
 },
         'es': {
             // characterPortrait
@@ -4377,6 +4392,9 @@ const I18N = (function() {
             'projectMgmt.status.generating': 'Generando...',
             'projectMgmt.status.pending': 'Pendiente',
             'projectMgmt.status.failed': 'Fallido',
+
+            // common supplement
+            'common.view': 'Ver',
 },
         'fr': {
             // characterPortrait
@@ -5055,6 +5073,9 @@ const I18N = (function() {
             'projectMgmt.status.generating': 'Génération en cours...',
             'projectMgmt.status.pending': 'En Attente',
             'projectMgmt.status.failed': 'Échoué',
+
+            // common supplement
+            'common.view': 'Voir',
 },
         'de': {
             // characterPortrait
@@ -5724,6 +5745,9 @@ const I18N = (function() {
             'projectMgmt.status.generating': 'Wird Generiert...',
             'projectMgmt.status.pending': 'Ausstehend',
             'projectMgmt.status.failed': 'Fehlgeschlagen',
+
+            // common supplement
+            'common.view': 'Ansehen',
 },
 };
 
