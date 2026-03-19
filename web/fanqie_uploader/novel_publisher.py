@@ -755,25 +755,10 @@ def test_create_book():
 
 if __name__ == "__main__":
     test_create_book()
-            是否已完成
-        """
-        try:
-            data = self.file_handler.load_json_file(json_file)
-            if not data:
-                return False
-            
-            if "progress" in data:
-                progress = data["progress"]
-                total_chapters = progress.get("total_chapters", 0)
-                
-                if total_chapters > 0 and published_chapters_count >= total_chapters:
-                    return True
-            
-            return False
-            
-        except Exception as e:
-            logger.info(f"检查小说完成状态时出错: {e}")
-            return False
+
+
+class NovelPublisherV2(NovelPublisher):
+    """增强版小说发布器，支持更多功能"""
     
     def _restore_scheduled_publish_state(self, published_chapters: List[Dict[str, Any]], 
                                       publish_times: List[str], chapters_per_slot: int,
