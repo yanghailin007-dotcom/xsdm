@@ -55,8 +55,14 @@ class WritingStyleGuideLoader:
         
         # 检查缓存
         if use_cache and cache_key in cls._cache:
-            logger.info(f"[WritingStyleGuideLoader] 使用缓存的风格指南: {novel_title}")
-            return cls._cache[cache_key]
+            cached = cls._cache[cache_key]
+            # 🔥 检查缓存数据类型
+            if not isinstance(cached, FormattedStyleGuide):
+                logger.error(f"[DEBUG] 缓存数据类型错误: {type(cached)}, 清除缓存")
+                del cls._cache[cache_key]
+            else:
+                logger.info(f"[WritingStyleGuideLoader] 使用缓存的风格指南: {novel_title}")
+                return cached
         
         # 从文件加载
         style_guide = cls._load_from_file(novel_title, username)

@@ -147,11 +147,21 @@ class GoldenChaptersGenerator:
         protagonist_position = story_development.get("protagonist_position", "")
         
         # 🔥 调试：检查 style_guide 和 scenes_by_chapter
-        self.logger.error(f"[DEBUG] style_guide 类型: {type(style_guide)}, scenes_by_chapter 类型: {type(scenes_by_chapter)}")
-        if hasattr(style_guide, 'core_style'):
-            self.logger.error(f"[DEBUG] style_guide.core_style 存在")
-        else:
-            self.logger.error(f"[DEBUG] style_guide 没有 core_style 属性，值: {style_guide}")
+        self.logger.error(f"[DEBUG] style_guide 类型: {type(style_guide)}")
+        if not hasattr(style_guide, 'core_style'):
+            self.logger.error(f"[DEBUG] style_guide 没有 core_style 属性!")
+            self.logger.error(f"[DEBUG] style_guide 值: {style_guide}")
+            # 紧急修复：使用默认风格
+            from src.core.batch_generation.writing_style_loader import FormattedStyleGuide
+            style_guide = FormattedStyleGuide(
+                core_style="专业番茄网络小说作家",
+                key_principles="",
+                language_characteristics="",
+                narration_techniques="",
+                chapter_techniques="",
+                dialogue_style="",
+                interaction_design=""
+            )
         
         # 格式化场景
         scenes_formatted = self._format_scenes(scenes_by_chapter)
