@@ -222,27 +222,48 @@ class GenerationCheckpoint:
                     self.logger.warning(f"备份旧检查点失败: {e}")
             
             # 原子写入新检查点（带重试机制）
-            temp_file = self.checkpoint_file.with_suffix('.tmp')
-            self.logger.debug(f"临时文件: {temp_file}")
-            
-            with open(temp_file, 'w', encoding='utf-8') as f:
-                json.dump(checkpoint_data, f, ensure_ascii=False, indent=2)
-            
-            # 🔥 修复：添加重试机制处理 Windows 文件锁和文件不存在问题
+            # 🔥 修复：使用唯一的临时文件名避免多线程冲突
             import time
             import shutil
+            import threading
+            temp_file = self.checkpoint_file.with_suffix(f'.tmp_{threading.current_thread().ident}_{int(time.time()*1000)}')
+            self.logger.debug(f"临时文件: {temp_file}")
+            
+            try:
+                with open(temp_file, 'w', encoding='utf-8') as f:
+                    json.dump(checkpoint_data, f, ensure_ascii=False, indent=2)
+                    f.flush()  # 确保数据写入磁盘
+                    os.fsync(f.fileno())  # 强制同步到磁盘
+            except Exception as e:
+                self.logger.error(f"写入临时文件失败: {e}")
+                raise
+            
+            # 🔥 修复：添加重试机制处理 Windows 文件锁和文件不存在问题
             max_retries = 5
+            move_success = False
             for attempt in range(max_retries):
                 try:
                     # 验证临时文件存在
                     if not temp_file.exists():
-                        raise FileNotFoundError(f"临时文件不存在: {temp_file}")
+                        # 🔥 修复：如果临时文件不存在，重新创建它
+                        self.logger.warning(f"临时文件不存在，重新创建: {temp_file}")
+                        with open(temp_file, 'w', encoding='utf-8') as f:
+                            json.dump(checkpoint_data, f, ensure_ascii=False, indent=2)
+                            f.flush()
+                            os.fsync(f.fileno())
                     
                     # Windows 上 replace 可能失败，使用 copy + delete 作为备选
                     if self.checkpoint_file.exists():
-                        self.checkpoint_file.unlink()
+                        try:
+                            self.checkpoint_file.unlink()
+                        except PermissionError:
+                            # 如果文件被占用，尝试重命名后删除
+                            old_file = self.checkpoint_file.with_suffix('.old')
+                            os.rename(str(self.checkpoint_file), str(old_file))
+                            old_file.unlink(missing_ok=True)
                     
                     shutil.move(str(temp_file), str(self.checkpoint_file))
+                    move_success = True
                     break
                     
                 except (PermissionError, FileNotFoundError) as e:
@@ -252,10 +273,26 @@ class GenerationCheckpoint:
                     else:
                         # 最后一次尝试直接使用 rename
                         try:
-                            os.rename(str(temp_file), str(self.checkpoint_file))
+                            if temp_file.exists():
+                                os.rename(str(temp_file), str(self.checkpoint_file))
+                                move_success = True
+                            else:
+                                # 最终回退：直接写入目标文件
+                                with open(self.checkpoint_file, 'w', encoding='utf-8') as f:
+                                    json.dump(checkpoint_data, f, ensure_ascii=False, indent=2)
+                                move_success = True
                             break
-                        except Exception:
+                        except Exception as e2:
+                            self.logger.error(f"最终尝试失败: {e2}")
                             raise
+            
+            # 清理临时文件
+            finally:
+                try:
+                    if temp_file.exists():
+                        temp_file.unlink(missing_ok=True)
+                except Exception as e:
+                    self.logger.debug(f"清理临时文件失败: {e}")
             
             # 验证文件创建成功
             if not self.checkpoint_file.exists():

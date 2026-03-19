@@ -92,7 +92,7 @@ CONFIG = {
                 "api_key": os.getenv('KIMI_API_KEY', ''),
                 "model": "kimi-k2.5",
                 "priority": 1,
-                "enabled": False,  # 🔥 设置为 False 禁用此端点
+                "enabled": True,  # 🔥 设置为 False 禁用此端点
                 "timeout": 300,
                 "max_retries": 3,
                 "discount_rate": 85,
@@ -129,7 +129,7 @@ CONFIG = {
     
     # 🔥 Provider 优先级配置（跨模型故障转移）
     # 按优先级排序，当高优先级模型的所有端点都失败时，自动切换到低优先级模型
-    "provider_priority": ["gemini", "deepseek", "kimi"],  # 自动过滤 enabled=False 的端点
+    "provider_priority": ["kimi", "gemini", "deepseek"],  # 自动过滤 enabled=False 的端点
     
     # 🔥 Provider 故障转移配置
     "provider_failover": {
