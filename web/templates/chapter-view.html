@@ -1,117 +1,625 @@
-<!DOCTYPE html>
-<html lang="zh-CN">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>章节内容查看 - 小说生成系统</title>
-    <link rel="stylesheet" href="/static/css/style.css">
-    <link rel="stylesheet" href="/static/css/chapter-view.css">
+{% extends "layouts/base-v2.html" %}
 
-    <style>
-        /* 为导航栏留出空间 */
-        body {
-            padding-top: 64px !important;
+{% block title %}章节内容查看 - 小说生成系统{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="/static/css/chapter-view.css">
+
+<style>
+    /* 章节查看页面样式 */
+    .chapter-view-container {
+        display: flex;
+        height: calc(100vh - 64px);
+        overflow: hidden;
+    }
+
+    /* 左侧章节列表 */
+    .chapter-sidebar {
+        width: 280px;
+        min-width: 280px;
+        background: var(--color-surface, #ffffff);
+        border-right: 1px solid var(--color-border, #e5e7eb);
+        display: flex;
+        flex-direction: column;
+        overflow: hidden;
+    }
+
+    .sidebar-header {
+        padding: 16px;
+        border-bottom: 1px solid var(--color-border, #e5e7eb);
+        background: linear-gradient(135deg, var(--color-primary-light, #e0e7ff) 0%, var(--color-surface, #ffffff) 100%);
+    }
+
+    .sidebar-header h3 {
+        margin: 0 0 8px 0;
+        font-size: 16px;
+        font-weight: 600;
+        color: var(--color-text-primary, #111827);
+    }
+
+    .chapter-stats {
+        font-size: 13px;
+        color: var(--color-text-secondary, #6b7280);
+        display: flex;
+        gap: 12px;
+    }
+
+    .chapter-stats span {
+        font-weight: 600;
+        color: var(--color-primary, #4f46e5);
+    }
+
+    .chapter-list {
+        flex: 1;
+        overflow-y: auto;
+        padding: 8px;
+    }
+
+    .chapter-item {
+        padding: 10px 12px;
+        margin-bottom: 4px;
+        border-radius: 8px;
+        cursor: pointer;
+        transition: all 0.2s;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+
+    .chapter-item:hover {
+        background: var(--color-surface-hover, #f3f4f6);
+    }
+
+    .chapter-item.active {
+        background: var(--color-primary-light, #e0e7ff);
+        color: var(--color-primary, #4f46e5);
+    }
+
+    .chapter-item-info {
+        display: flex;
+        flex-direction: column;
+        flex: 1;
+        min-width: 0;
+    }
+
+    .chapter-item-number {
+        font-size: 12px;
+        font-weight: 600;
+        margin-bottom: 2px;
+    }
+
+    .chapter-item-title {
+        font-size: 13px;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+
+    .chapter-item-words {
+        font-size: 11px;
+        color: var(--color-text-tertiary, #9ca3af);
+        margin-left: 8px;
+    }
+
+    /* 中间阅读区域 */
+    .reading-area {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        background: var(--color-background, #f9fafb);
+        overflow: hidden;
+    }
+
+    .chapter-content {
+        flex: 1;
+        overflow-y: auto;
+        padding: 32px 48px;
+        background: var(--color-surface, #ffffff);
+        margin: 16px;
+        border-radius: 12px;
+        box-shadow: var(--shadow-sm, 0 1px 2px 0 rgba(0, 0, 0, 0.05));
+    }
+
+    .chapter-content h1 {
+        font-size: 24px;
+        font-weight: 700;
+        margin-bottom: 24px;
+        color: var(--color-text-primary, #111827);
+        text-align: center;
+    }
+
+    .chapter-content h2 {
+        font-size: 20px;
+        font-weight: 600;
+        margin: 32px 0 16px;
+        color: var(--color-text-primary, #111827);
+    }
+
+    .chapter-content p {
+        font-size: 16px;
+        line-height: 1.8;
+        margin-bottom: 16px;
+        color: var(--color-text-secondary, #374151);
+        text-indent: 2em;
+    }
+
+    /* 章节导航 */
+    .chapter-navigation {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 16px;
+        background: var(--color-surface, #ffffff);
+        border-top: 1px solid var(--color-border, #e5e7eb);
+        margin: 0 16px 16px;
+        border-radius: 12px;
+        box-shadow: var(--shadow-sm, 0 1px 2px 0 rgba(0, 0, 0, 0.05));
+    }
+
+    .nav-btn {
+        padding: 10px 20px;
+        border: 1px solid var(--color-border, #e5e7eb);
+        border-radius: 8px;
+        background: var(--color-surface, #ffffff);
+        color: var(--color-text-primary, #111827);
+        font-size: 14px;
+        cursor: pointer;
+        transition: all 0.2s;
+        display: flex;
+        align-items: center;
+        gap: 6px;
+    }
+
+    .nav-btn:hover:not(:disabled) {
+        background: var(--color-surface-hover, #f3f4f6);
+        border-color: var(--color-primary, #4f46e5);
+        color: var(--color-primary, #4f46e5);
+    }
+
+    .nav-btn:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+    }
+
+    .nav-info {
+        font-size: 14px;
+        color: var(--color-text-secondary, #6b7280);
+        font-weight: 500;
+    }
+
+    /* 右侧文件信息 */
+    .files-sidebar {
+        width: 260px;
+        min-width: 260px;
+        background: var(--color-surface, #ffffff);
+        border-left: 1px solid var(--color-border, #e5e7eb);
+        display: flex;
+        flex-direction: column;
+        overflow: hidden;
+    }
+
+    .file-categories {
+        flex: 1;
+        overflow-y: auto;
+        padding: 12px;
+    }
+
+    .file-category {
+        margin-bottom: 16px;
+    }
+
+    .file-category-title {
+        font-size: 13px;
+        font-weight: 600;
+        color: var(--color-text-secondary, #6b7280);
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        margin-bottom: 8px;
+        padding-left: 4px;
+    }
+
+    .file-list {
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+    }
+
+    .file-item {
+        padding: 8px 12px;
+        border-radius: 6px;
+        cursor: pointer;
+        font-size: 13px;
+        color: var(--color-text-secondary, #374151);
+        transition: all 0.2s;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+
+    .file-item:hover {
+        background: var(--color-surface-hover, #f3f4f6);
+        color: var(--color-primary, #4f46e5);
+    }
+
+    .file-item-icon {
+        font-size: 14px;
+    }
+
+    /* 加载动画 */
+    .loading-spinner {
+        width: 32px;
+        height: 32px;
+        border: 3px solid var(--color-border, #e5e7eb);
+        border-top-color: var(--color-primary, #4f46e5);
+        border-radius: 50%;
+        animation: spin 1s linear infinite;
+        margin: 0 auto;
+    }
+
+    @keyframes spin {
+        to { transform: rotate(360deg); }
+    }
+
+    /* 模态框样式 */
+    .modal {
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: rgba(0, 0, 0, 0.5);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        z-index: 1000;
+        padding: 20px;
+    }
+
+    .modal-content {
+        background: var(--color-surface, #ffffff);
+        border-radius: 16px;
+        max-width: 900px;
+        width: 100%;
+        max-height: 85vh;
+        display: flex;
+        flex-direction: column;
+        box-shadow: var(--shadow-xl, 0 20px 25px -5px rgba(0, 0, 0, 0.1));
+    }
+
+    .modal-content.raw-file-modal {
+        max-width: 1000px;
+    }
+
+    .modal-content.chapter-modal {
+        max-width: 800px;
+    }
+
+    .modal-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 16px 20px;
+        border-bottom: 1px solid var(--color-border, #e5e7eb);
+    }
+
+    .modal-title {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+    }
+
+    .modal-icon {
+        font-size: 24px;
+    }
+
+    .modal-title h3 {
+        margin: 0;
+        font-size: 18px;
+        font-weight: 600;
+        color: var(--color-text-primary, #111827);
+    }
+
+    .modal-actions {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+    }
+
+    .close-btn {
+        background: none;
+        border: none;
+        font-size: 24px;
+        color: var(--color-text-tertiary, #9ca3af);
+        cursor: pointer;
+        padding: 4px;
+        line-height: 1;
+        transition: color 0.2s;
+    }
+
+    .close-btn:hover {
+        color: var(--color-text-primary, #111827);
+    }
+
+    .modal-body {
+        flex: 1;
+        overflow: hidden;
+        display: flex;
+        flex-direction: column;
+    }
+
+    .chapter-modal-body {
+        overflow-y: auto;
+        padding: 20px;
+    }
+
+    /* 文件标签 */
+    .file-tabs {
+        display: flex;
+        gap: 4px;
+        padding: 12px 16px;
+        background: var(--color-background, #f9fafb);
+        border-bottom: 1px solid var(--color-border, #e5e7eb);
+        overflow-x: auto;
+    }
+
+    .file-tab {
+        padding: 6px 12px;
+        border-radius: 6px;
+        font-size: 13px;
+        cursor: pointer;
+        white-space: nowrap;
+        transition: all 0.2s;
+        background: transparent;
+        color: var(--color-text-secondary, #6b7280);
+    }
+
+    .file-tab:hover {
+        background: var(--color-surface-hover, #f3f4f6);
+    }
+
+    .file-tab.active {
+        background: var(--color-primary, #4f46e5);
+        color: white;
+    }
+
+    /* 文件内容显示 */
+    .file-content-wrapper {
+        flex: 1;
+        overflow: auto;
+        padding: 16px;
+        background: var(--color-background, #f9fafb);
+    }
+
+    .file-content-display {
+        margin: 0;
+        padding: 16px;
+        background: var(--color-surface, #ffffff);
+        border-radius: 8px;
+        font-size: 13px;
+        line-height: 1.6;
+        white-space: pre-wrap;
+        word-wrap: break-word;
+        font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+        color: var(--color-text-secondary, #374151);
+        max-height: 60vh;
+        overflow-y: auto;
+    }
+
+    /* 章节文本内容 */
+    .chapter-text-content {
+        font-size: 15px;
+        line-height: 1.8;
+        color: var(--color-text-secondary, #374151);
+    }
+
+    .chapter-text-content p {
+        margin-bottom: 16px;
+        text-indent: 2em;
+    }
+
+    /* 按钮样式 */
+    .btn {
+        padding: 8px 16px;
+        border-radius: 6px;
+        font-size: 14px;
+        font-weight: 500;
+        cursor: pointer;
+        transition: all 0.2s;
+        border: none;
+    }
+
+    .btn-secondary {
+        background: var(--color-surface-hover, #f3f4f6);
+        color: var(--color-text-secondary, #374151);
+        border: 1px solid var(--color-border, #e5e7eb);
+    }
+
+    .btn-secondary:hover {
+        background: var(--color-border, #e5e7eb);
+    }
+
+    .btn-small {
+        padding: 6px 12px;
+        font-size: 13px;
+    }
+
+    /* 空状态 */
+    .empty-state {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        height: 100%;
+        color: var(--color-text-tertiary, #9ca3af);
+        text-align: center;
+        padding: 40px;
+    }
+
+    .empty-state-icon {
+        font-size: 64px;
+        margin-bottom: 16px;
+    }
+
+    .empty-state-text {
+        font-size: 18px;
+    }
+
+    /* 响应式 */
+    @media (max-width: 1200px) {
+        .files-sidebar {
+            display: none;
         }
-    </style>
-</head>
-<body>
-    {% include 'components/v2/navbar.html' %}
-    <!-- 顶部导航 -->
-    <!-- 主容器 -->
-    <div class="chapter-view-container">
-        <!-- 左侧章节列表 -->
-        <aside class="chapter-sidebar">
-            <div class="sidebar-header">
-                <h3>📚 章节列表</h3>
-                <div class="chapter-stats">
-                    <span id="total-chapters-count">0</span> 章
-                    <span id="total-words-count">0</span> 字
-                </div>
-            </div>
-            <div id="chapter-list" class="chapter-list">
-                <div class="loading-spinner"></div>
-                <p style="text-align: center; color: #6b7280; margin-top: 12px;">加载章节列表...</p>
-            </div>
-        </aside>
+    }
 
-        <!-- 中间阅读区域 -->
-        <main class="reading-area">
-            <div id="chapter-content" class="chapter-content">
-                <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100%; color: #9ca3af;">
-                    <div style="font-size: 64px; margin-bottom: 16px;">📖</div>
-                    <p style="font-size: 18px;">请从左侧选择要阅读的章节</p>
-                </div>
-            </div>
+    @media (max-width: 768px) {
+        .chapter-sidebar {
+            width: 240px;
+            min-width: 240px;
+        }
 
-            <!-- 章节导航 -->
-            <div class="chapter-navigation" id="chapter-navigation" style="display: none;">
-                <button class="nav-btn prev-btn" onclick="navigateChapter(-1)" id="prev-chapter-btn" disabled>
-                    ← 上一章
-                </button>
-                <div class="nav-info">
-                    <span id="nav-current-chapter">-</span>
-                </div>
-                <button class="nav-btn next-btn" onclick="navigateChapter(1)" id="next-chapter-btn" disabled>
-                    下一章 →
-                </button>
-            </div>
-        </main>
+        .chapter-content {
+            padding: 20px 24px;
+            margin: 12px;
+        }
 
-        <!-- 右侧文件信息 -->
-        <aside class="files-sidebar">
-            <div class="sidebar-header">
-                <h3>📄 章节文件</h3>
-            </div>
-            <div id="file-categories" class="file-categories">
-                <!-- 文件分类将在这里动态生成 -->
-            </div>
-        </aside>
-    </div>
+        .chapter-content h1 {
+            font-size: 20px;
+        }
 
-    <!-- 原始文件查看器模态框 -->
-    <div id="raw-file-viewer-modal" class="modal" style="display: none;">
-        <div class="modal-content raw-file-modal">
-            <div class="modal-header">
-                <div class="modal-title">
-                    <span class="modal-icon">📁</span>
-                    <div>
-                        <h3 id="raw-file-title">原始文件查看</h3>
-                        <p id="raw-file-path" style="font-size: 13px; color: #9ca3af; margin-top: 4px;"></p>
-                    </div>
-                </div>
-                <button class="close-btn" onclick="closeRawFileViewer()">×</button>
+        .chapter-content p {
+            font-size: 15px;
+        }
+
+        .chapter-navigation {
+            margin: 0 12px 12px;
+            padding: 12px;
+        }
+
+        .nav-btn {
+            padding: 8px 14px;
+            font-size: 13px;
+        }
+    }
+
+    @media (max-width: 640px) {
+        .chapter-sidebar {
+            position: fixed;
+            left: 0;
+            top: 64px;
+            bottom: 0;
+            z-index: 100;
+            transform: translateX(-100%);
+            transition: transform 0.3s;
+        }
+
+        .chapter-sidebar.open {
+            transform: translateX(0);
+        }
+
+        .chapter-content {
+            margin: 8px;
+            padding: 16px;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<!-- 主容器 -->
+<div class="chapter-view-container">
+    <!-- 左侧章节列表 -->
+    <aside class="chapter-sidebar">
+        <div class="sidebar-header">
+            <h3 data-i18n="chapterView.sidebar.chapters">📚 章节列表</h3>
+            <div class="chapter-stats">
+                <span id="total-chapters-count">0</span> <span data-i18n="novels.card.chapter">章</span>
+                <span id="total-words-count">0</span> <span data-i18n="chapterView.sidebar.words">字</span>
             </div>
-            <div class="modal-body">
-                <div class="file-tabs" id="file-tabs">
-                    <!-- 文件标签将在这里动态生成 -->
+        </div>
+        <div id="chapter-list" class="chapter-list">
+            <div class="loading-spinner"></div>
+            <p style="text-align: center; color: #6b7280; margin-top: 12px;" data-i18n="common.loading">加载章节列表...</p>
+        </div>
+    </aside>
+
+    <!-- 中间阅读区域 -->
+    <main class="reading-area">
+        <div id="chapter-content" class="chapter-content">
+            <div class="empty-state">
+                <div class="empty-state-icon">📖</div>
+                <p class="empty-state-text" data-i18n="chapterView.empty.selectChapter">请从左侧选择要阅读的章节</p>
+            </div>
+        </div>
+
+        <!-- 章节导航 -->
+        <div class="chapter-navigation" id="chapter-navigation" style="display: none;">
+            <button class="nav-btn prev-btn" onclick="navigateChapter(-1)" id="prev-chapter-btn" disabled>
+                ← <span data-i18n="chapterView.action.prev">上一章</span>
+            </button>
+            <div class="nav-info">
+                <span id="nav-current-chapter">-</span>
+            </div>
+            <button class="nav-btn next-btn" onclick="navigateChapter(1)" id="next-chapter-btn" disabled>
+                <span data-i18n="chapterView.action.next">下一章</span> →
+            </button>
+        </div>
+    </main>
+
+    <!-- 右侧文件信息 -->
+    <aside class="files-sidebar">
+        <div class="sidebar-header">
+            <h3>📄 章节文件</h3>
+        </div>
+        <div id="file-categories" class="file-categories">
+            <!-- 文件分类将在这里动态生成 -->
+        </div>
+    </aside>
+</div>
+
+<!-- 原始文件查看器模态框 -->
+<div id="raw-file-viewer-modal" class="modal" style="display: none;">
+    <div class="modal-content raw-file-modal">
+        <div class="modal-header">
+            <div class="modal-title">
+                <span class="modal-icon">📁</span>
+                <div>
+                    <h3 id="raw-file-title">原始文件查看</h3>
+                    <p id="raw-file-path" style="font-size: 13px; color: #9ca3af; margin-top: 4px;"></p>
                 </div>
-                <div class="file-content-wrapper">
-                    <pre id="file-content-display" class="file-content-display"></pre>
-                </div>
+            </div>
+            <button class="close-btn" onclick="closeRawFileViewer()">×</button>
+        </div>
+        <div class="modal-body">
+            <div class="file-tabs" id="file-tabs">
+                <!-- 文件标签将在这里动态生成 -->
+            </div>
+            <div class="file-content-wrapper">
+                <pre id="file-content-display" class="file-content-display"></pre>
             </div>
         </div>
     </div>
+</div>
 
-    <!-- 章节阅读模态框（用于快速查看） -->
-    <div id="quick-chapter-modal" class="modal" style="display: none;">
-        <div class="modal-content chapter-modal">
-            <div class="modal-header">
-                <div class="modal-title">
-                    <span class="modal-icon">📖</span>
-                    <h3 id="quick-chapter-title">章节内容</h3>
-                </div>
-                <div class="modal-actions">
-                    <button class="btn btn-secondary btn-small" onclick="copyChapterContent()">📋 复制</button>
-                    <button class="close-btn" onclick="closeQuickChapterModal()">×</button>
-                </div>
+<!-- 章节阅读模态框（用于快速查看） -->
+<div id="quick-chapter-modal" class="modal" style="display: none;">
+    <div class="modal-content chapter-modal">
+        <div class="modal-header">
+            <div class="modal-title">
+                <span class="modal-icon">📖</span>
+                <h3 id="quick-chapter-title">章节内容</h3>
             </div>
-            <div class="modal-body chapter-modal-body">
-                <div id="quick-chapter-content" class="chapter-text-content"></div>
+            <div class="modal-actions">
+                <button class="btn btn-secondary btn-small" onclick="copyChapterContent()">📋 <span data-i18n="novel.copy">复制</span></button>
+                <button class="close-btn" onclick="closeQuickChapterModal()">×</button>
             </div>
         </div>
+        <div class="modal-body chapter-modal-body">
+            <div id="quick-chapter-content" class="chapter-text-content"></div>
+        </div>
     </div>
+</div>
+{% endblock %}
 
-    <script src="/static/js/chapter-view.js"></script>
-    <script src="{{ url_for('static', filename='js/account-manager.js') }}?v=2"></script>
-</body>
-</html>
+{% block extra_js %}
+<script src="/static/js/chapter-view.js"></script>
+{% endblock %}

@@ -924,6 +924,16 @@ const I18N = {
             'coverGenerator.modal.generatedAt': '生成时间',
             'coverGenerator.modal.prompt': '提示词',
             'coverGenerator.modal.size': '尺寸',
+            
+            // 章节查看页面
+            'chapterView.title': '章节内容',
+            'chapterView.sidebar.chapters': '📚 章节列表',
+            'chapterView.sidebar.words': '字',
+            'chapterView.action.prev': '上一章',
+            'chapterView.action.next': '下一章',
+            'chapterView.action.back': '返回',
+            'chapterView.empty.title': '暂无内容',
+            'chapterView.empty.selectChapter': '请选择章节查看',
         },
         
         'zh-TW': {
@@ -1635,6 +1645,16 @@ const I18N = {
             'coverGenerator.modal.generatedAt': '生成時間',
             'coverGenerator.modal.prompt': '提示詞',
             'coverGenerator.modal.size': '尺寸',
+            
+            // 章節查看頁面
+            'chapterView.title': '章節內容',
+            'chapterView.sidebar.chapters': '📚 章節列表',
+            'chapterView.sidebar.words': '字',
+            'chapterView.action.prev': '上一章',
+            'chapterView.action.next': '下一章',
+            'chapterView.action.back': '返回',
+            'chapterView.empty.title': '暫無內容',
+            'chapterView.empty.selectChapter': '請選擇章節查看',
         },
         
         'en': {
@@ -2442,6 +2462,16 @@ const I18N = {
             'settings.lang.de': 'Deutsch',
             'settings.lang.ja': '日本語',
             'settings.lang.ko': '한국어',
+            
+            // Chapter View Page
+            'chapterView.title': 'Chapter Content',
+            'chapterView.sidebar.chapters': '📚 Chapter List',
+            'chapterView.sidebar.words': 'words',
+            'chapterView.action.prev': 'Previous',
+            'chapterView.action.next': 'Next',
+            'chapterView.action.back': 'Back',
+            'chapterView.empty.title': 'No Content',
+            'chapterView.empty.selectChapter': 'Please select a chapter to view',
         },
         
         // 西班牙语
