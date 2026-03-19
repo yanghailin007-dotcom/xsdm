@@ -1,12 +1,11 @@
-<!DOCTYPE html>
-<html lang="zh-CN">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>人物剧照工作室</title>
-    <link rel="stylesheet" href="/static/css/portrait-studio.css">
-    <link rel="stylesheet" href="/static/css/confirm-dialog.css">
-    <style>
+{% extends "layouts/base-v2.html" %}
+
+{% block title %}{{ translate('portraitStudio.title') }}{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="/static/css/portrait-studio.css">
+<link rel="stylesheet" href="/static/css/confirm-dialog.css">
+<style>
 /* ==================== 用户头像下拉菜单 ==================== */
 .user-menu {
     position: relative;
@@ -91,211 +90,213 @@
     background: rgba(99, 102, 241, 0.1);
     color: #f1f5f9;
 }
-    </style>
-</head>
-<body>
-    <div id="app">
-        <!-- 导航栏 -->
-        <nav class="navbar">
-            <div class="nav-container">
-                <button class="btn-back" id="btnBack">🏠 返回</button>
-                <h1 class="nav-title">🎨 人物剧照工作室</h1>
-                <div class="nav-links">
-                    <a href="/novels" class="nav-link">📚 小说项目</a>
-                    <a href="/video-generation" class="nav-link">🎬 视频生成</a>
-                    <!-- 用户头像下拉菜单 -->
-                    <div class="user-menu">
-                        <div class="user-avatar" onclick="toggleUserMenu(event)">
-                            <span class="avatar-text" id="avatarText">用</span>
+</style>
+{% endblock %}
+
+{% block content %}
+<div id="app">
+    <!-- 导航栏 - V2 框架已包含，此处保留页面特定返回按钮 -->
+    <nav class="navbar">
+        <div class="nav-container">
+            <button class="btn-back" id="btnBack">🏠 返回</button>
+            <h1 class="nav-title">🎨 {{ translate('portraitStudio.title') }}</h1>
+            <div class="nav-links">
+                <a href="/novels" class="nav-link">📚 小说项目</a>
+                <a href="/video-generation" class="nav-link">🎬 视频生成</a>
+                <!-- 用户头像下拉菜单 -->
+                <div class="user-menu">
+                    <div class="user-avatar" onclick="toggleUserMenu(event)">
+                        <span class="avatar-text" id="avatarText">用</span>
+                    </div>
+                    <div class="user-dropdown" id="userDropdown">
+                        <div class="dropdown-header">
+                            <span id="dropdownUsername">加载中...</span>
                         </div>
-                        <div class="user-dropdown" id="userDropdown">
-                            <div class="dropdown-header">
-                                <span id="dropdownUsername">加载中...</span>
-                            </div>
-                            <div class="dropdown-divider"></div>
-                            <a href="/account" class="dropdown-item">⚙️ 管理账户</a>
-                            <a href="#" class="dropdown-item" onclick="logout(); return false;">🚪 退出登录</a>
-                        </div>
+                        <div class="dropdown-divider"></div>
+                        <a href="/account" class="dropdown-item">⚙️ 管理账户</a>
+                        <a href="#" class="dropdown-item" onclick="logout(); return false;">🚪 退出登录</a>
                     </div>
                 </div>
             </div>
-        </nav>
+        </div>
+    </nav>
 
-        <div class="main-container">
-            <!-- 主页：创作工作台 -->
-            <div id="workbenchPage" class="page active">
-                <div class="page-header">
-                    <h2>🎨 人物剧照创作工作台</h2>
-                    <p class="page-subtitle">上传参考图并编辑提示词，生成高质量角色剧照</p>
+    <div class="main-container">
+        <!-- 主页：创作工作台 -->
+        <div id="workbenchPage" class="page active">
+            <div class="page-header">
+                <h2>🎨 {{ translate('portraitStudio.subtitle') }}</h2>
+                <p class="page-subtitle">{{ translate('portraitStudio.subtitle') }}</p>
+            </div>
+            
+            <div class="workbench-layout">
+                <!-- 左侧：提示词编辑器 -->
+                <div class="prompt-section">
+                    <div class="section-header">
+                        <h3>📝 生成提示词</h3>
+                        <div class="prompt-actions">
+                            <button class="btn-sm" id="copyPromptBtn">📋 复制</button>
+                            <a href="/still-image-library" class="btn-sm">🖼️ 素材库</a>
+                        </div>
+                    </div>
+                    
+                    <textarea id="promptEditor" class="prompt-editor" placeholder="描述角色的外貌特征、服装、动作、场景等...&#10;&#10;例如：一位白发如雪的剑仙，身穿白色仙袍，手持发光的长剑，站在云端之上，仙气缭绕..."></textarea>
+                    
+                    <!-- 快速模板 -->
+                    <div class="prompt-templates">
+                        <p class="hint">💡 快速模板：</p>
+                        <div class="template-buttons">
+                            <button class="template-btn" data-template="xianxia">仙侠剑仙</button>
+                            <button class="template-btn" data-template="modern">现代都市</button>
+                            <button class="template-btn" data-template="fantasy">奇幻魔法</button>
+                            <button class="template-btn" data-template="sci">科幻未来</button>
+                            <button class="template-btn" data-template="romance">浪漫风格</button>
+                        </div>
+                    </div>
+                    
+                    <div class="prompt-tips">
+                        <p>💡 <strong>提示技巧：</strong></p>
+                        <ul>
+                            <li>描述角色的外貌特征（发色、眼睛、服装）</li>
+                            <li>添加动作和表情（微笑、凝视、战斗姿态）</li>
+                            <li>指定场景和背景（森林、宫殿、战场）</li>
+                            <li>描述艺术风格（水墨风、赛博朋克、写实）</li>
+                        </ul>
+                    </div>
                 </div>
-                
-                <div class="workbench-layout">
-                    <!-- 左侧：提示词编辑器 -->
-                    <div class="prompt-section">
-                        <div class="section-header">
-                            <h3>📝 生成提示词</h3>
-                            <div class="prompt-actions">
-                                <button class="btn-sm" id="copyPromptBtn">📋 复制</button>
-                                <a href="/still-image-library" class="btn-sm">🖼️ 素材库</a>
+
+                <!-- 右侧：参考图和设置 -->
+                <div class="reference-section">
+                    <!-- 参考图上传 -->
+                        <div class="ref-upload-card">
+                            <h3>🖼️ 参考图像（可选，支持多张）</h3>
+                            <div class="upload-zone" id="refUploadZone">
+                                <input type="file" id="refFileInput" accept="image/*" multiple hidden>
+                                <div class="upload-placeholder">
+                                    <svg width="64" height="64" viewBox="0 0 64 64" fill="none">
+                                        <path d="M32 8C18.745 8 8 18.745 8 32C8 45.255 18.745 56 32 56C45.255 56 56 45.255 56 32C56 18.745 45.255 8 32 8ZM32 12C36.418 12 40.437 13.391 43.682 15.734L42.266 17.15C39.558 15.196 36.188 14 32.5 14C25.044 14 18.887 18.588 16.324 25.066L14.514 24.242C17.429 17.083 24.399 12 32.5 12ZM47.266 19.15L45.85 20.566C48.317 23.758 49.771 27.708 49.771 32C49.771 36.292 48.317 40.242 45.85 43.434L47.266 44.85C50.056 41.197 51.771 36.302 51.771 31C51.771 25.698 50.056 20.803 47.266 17.15V19.15ZM32 16C37.739 16 42.771 19.066 45.276 23.727L43.466 22.902C41.334 19.157 37.199 16.5 32.5 16.5C27.801 16.5 23.666 19.157 21.534 22.902L19.724 23.727C22.229 19.066 27.261 16 33 16H32ZM43.434 19.724L42.566 20.592C43.648 22.392 44.271 24.518 44.271 26.818C44.271 29.118 43.648 31.244 42.566 33.044L43.434 33.912C44.764 31.902 45.521 29.478 45.521 26.818C45.521 24.158 44.764 21.734 43.434 19.724ZM32 18.5C35.95 18.5 39.377 20.626 41.176 23.776L39.366 22.951C38.052 20.694 35.463 19.182 32.5 19.182C29.537 19.182 26.948 20.694 25.634 22.951L23.824 23.776C25.623 20.626 29.05 18.5 33 18.5H32ZM39.724 23.724L38.856 24.592C39.494 25.864 39.861 27.3 39.861 28.818C39.861 30.336 39.494 31.772 38.856 33.044L39.724 33.912C40.588 32.416 41.111 30.682 41.111 28.818C41.111 26.954 40.588 25.22 39.724 23.724ZM32 21.318C34.705 21.318 37.045 22.872 38.099 25.156L36.289 24.331C35.66 23.428 34.653 22.818 33.5 22.818C32.347 22.818 31.34 23.428 30.711 24.331L28.901 25.156C29.955 22.872 32.295 21.318 35 21.318H32ZM36.724 26.724L35.856 27.592C36.152 28.294 36.32 29.062 36.32 29.868C36.32 30.674 36.152 31.442 35.856 32.144L36.724 33.012C37.218 32.132 37.52 31.052 37.52 29.868C37.52 28.684 37.218 27.604 36.724 26.724Z" fill="currentColor"/>
+                                    </svg>
+                                    <p>拖拽图片或点击上传（支持多张）</p>
+                                    <small>支持 PNG, JPG, WEBP，最多5张</small>
+                                </div>
+                                <div class="upload-preview-container" id="refPreviewContainer" style="display: none;">
+                                    <!-- 动态生成的预览图将在这里 -->
+                                </div>
+                            </div>
+                            <div class="ref-count-info" id="refCountInfo" style="display: none;">
+                                已选择 <span id="refCount">0</span> 张参考图
+                            </div>
+                        </div>
+
+                    <!-- 生成设置 -->
+                    <div class="settings-card">
+                        <h3>⚙️ 生成设置</h3>
+                        
+                        <div class="setting-row">
+                            <label>图片比例：</label>
+                            <div class="ratio-buttons">
+                                <button class="ratio-btn active" data-ratio="9:16">
+                                    <span class="ratio-icon">📱</span>
+                                    <span class="ratio-name">竖屏</span>
+                                    <span class="ratio-detail">9:16</span>
+                                </button>
+                                <button class="ratio-btn" data-ratio="16:9">
+                                    <span class="ratio-icon">🖼️</span>
+                                    <span class="ratio-name">横屏</span>
+                                    <span class="ratio-detail">16:9</span>
+                                </button>
+                                <button class="ratio-btn" data-ratio="1:1">
+                                    <span class="ratio-icon">⬜</span>
+                                    <span class="ratio-name">方形</span>
+                                    <span class="ratio-detail">1:1</span>
+                                </button>
+                                <button class="ratio-btn" data-ratio="4:3">
+                                    <span class="ratio-icon">📺</span>
+                                    <span class="ratio-name">标准</span>
+                                    <span class="ratio-detail">4:3</span>
+                                </button>
                             </div>
                         </div>
                         
-                        <textarea id="promptEditor" class="prompt-editor" placeholder="描述角色的外貌特征、服装、动作、场景等...&#10;&#10;例如：一位白发如雪的剑仙，身穿白色仙袍，手持发光的长剑，站在云端之上，仙气缭绕..."></textarea>
-                        
-                        <!-- 快速模板 -->
-                        <div class="prompt-templates">
-                            <p class="hint">💡 快速模板：</p>
-                            <div class="template-buttons">
-                                <button class="template-btn" data-template="xianxia">仙侠剑仙</button>
-                                <button class="template-btn" data-template="modern">现代都市</button>
-                                <button class="template-btn" data-template="fantasy">奇幻魔法</button>
-                                <button class="template-btn" data-template="sci">科幻未来</button>
-                                <button class="template-btn" data-template="romance">浪漫风格</button>
-                            </div>
+                        <div class="setting-row">
+                            <label>图片质量：</label>
+                            <select id="qualitySelect" class="form-control">
+                                <option value="4K">4K (超高清) - 4096x4096</option>
+                                <option value="2K">2K (高清) - 2048x2048</option>
+                                <option value="1K" selected>1K (标清) - 1024x1024</option>
+                            </select>
                         </div>
                         
-                        <div class="prompt-tips">
-                            <p>💡 <strong>提示技巧：</strong></p>
-                            <ul>
-                                <li>描述角色的外貌特征（发色、眼睛、服装）</li>
-                                <li>添加动作和表情（微笑、凝视、战斗姿态）</li>
-                                <li>指定场景和背景（森林、宫殿、战场）</li>
-                                <li>描述艺术风格（水墨风、赛博朋克、写实）</li>
-                            </ul>
+                        <div class="setting-row">
+                            <label>艺术风格（可选）：</label>
+                            <select id="styleSelect" class="form-control">
+                                <option value="">自动选择</option>
+                                <option value="写实风格">写实风格</option>
+                                <option value="动漫风格">动漫风格</option>
+                                <option value="水墨风">水墨风</option>
+                                <option value="赛博朋克">赛博朋克</option>
+                                <option value="古风">古风</option>
+                                <option value="油画风格">油画风格</option>
+                                <option value="水彩风">水彩风</option>
+                            </select>
                         </div>
                     </div>
 
-                    <!-- 右侧：参考图和设置 -->
-                    <div class="reference-section">
-                        <!-- 参考图上传 -->
-                            <div class="ref-upload-card">
-                                <h3>🖼️ 参考图像（可选，支持多张）</h3>
-                                <div class="upload-zone" id="refUploadZone">
-                                    <input type="file" id="refFileInput" accept="image/*" multiple hidden>
-                                    <div class="upload-placeholder">
-                                        <svg width="64" height="64" viewBox="0 0 64 64" fill="none">
-                                            <path d="M32 8C18.745 8 8 18.745 8 32C8 45.255 18.745 56 32 56C45.255 56 56 45.255 56 32C56 18.745 45.255 8 32 8ZM32 12C36.418 12 40.437 13.391 43.682 15.734L42.266 17.15C39.558 15.196 36.188 14 32.5 14C25.044 14 18.887 18.588 16.324 25.066L14.514 24.242C17.429 17.083 24.399 12 32.5 12ZM47.266 19.15L45.85 20.566C48.317 23.758 49.771 27.708 49.771 32C49.771 36.292 48.317 40.242 45.85 43.434L47.266 44.85C50.056 41.197 51.771 36.302 51.771 31C51.771 25.698 50.056 20.803 47.266 17.15V19.15ZM32 16C37.739 16 42.771 19.066 45.276 23.727L43.466 22.902C41.334 19.157 37.199 16.5 32.5 16.5C27.801 16.5 23.666 19.157 21.534 22.902L19.724 23.727C22.229 19.066 27.261 16 33 16H32ZM43.434 19.724L42.566 20.592C43.648 22.392 44.271 24.518 44.271 26.818C44.271 29.118 43.648 31.244 42.566 33.044L43.434 33.912C44.764 31.902 45.521 29.478 45.521 26.818C45.521 24.158 44.764 21.734 43.434 19.724ZM32 18.5C35.95 18.5 39.377 20.626 41.176 23.776L39.366 22.951C38.052 20.694 35.463 19.182 32.5 19.182C29.537 19.182 26.948 20.694 25.634 22.951L23.824 23.776C25.623 20.626 29.05 18.5 33 18.5H32ZM39.724 23.724L38.856 24.592C39.494 25.864 39.861 27.3 39.861 28.818C39.861 30.336 39.494 31.772 38.856 33.044L39.724 33.912C40.588 32.416 41.111 30.682 41.111 28.818C41.111 26.954 40.588 25.22 39.724 23.724ZM32 21.318C34.705 21.318 37.045 22.872 38.099 25.156L36.289 24.331C35.66 23.428 34.653 22.818 33.5 22.818C32.347 22.818 31.34 23.428 30.711 24.331L28.901 25.156C29.955 22.872 32.295 21.318 35 21.318H32ZM36.724 26.724L35.856 27.592C36.152 28.294 36.32 29.062 36.32 29.868C36.32 30.674 36.152 31.442 35.856 32.144L36.724 33.012C37.218 32.132 37.52 31.052 37.52 29.868C37.52 28.684 37.218 27.604 36.724 26.724Z" fill="currentColor"/>
-                                        </svg>
-                                        <p>拖拽图片或点击上传（支持多张）</p>
-                                        <small>支持 PNG, JPG, WEBP，最多5张</small>
-                                    </div>
-                                    <div class="upload-preview-container" id="refPreviewContainer" style="display: none;">
-                                        <!-- 动态生成的预览图将在这里 -->
-                                    </div>
-                                </div>
-                                <div class="ref-count-info" id="refCountInfo" style="display: none;">
-                                    已选择 <span id="refCount">0</span> 张参考图
-                                </div>
-                            </div>
+                    <!-- 生成按钮 -->
+                    <button id="generateBtn" class="btn-generate">
+                        <span class="btn-icon">🎨</span>
+                        <span class="btn-text">{{ translate('portraitStudio.btn.generate') }}</span>
+                    </button>
 
-                        <!-- 生成设置 -->
-                        <div class="settings-card">
-                            <h3>⚙️ 生成设置</h3>
-                            
-                            <div class="setting-row">
-                                <label>图片比例：</label>
-                                <div class="ratio-buttons">
-                                    <button class="ratio-btn active" data-ratio="9:16">
-                                        <span class="ratio-icon">📱</span>
-                                        <span class="ratio-name">竖屏</span>
-                                        <span class="ratio-detail">9:16</span>
-                                    </button>
-                                    <button class="ratio-btn" data-ratio="16:9">
-                                        <span class="ratio-icon">🖼️</span>
-                                        <span class="ratio-name">横屏</span>
-                                        <span class="ratio-detail">16:9</span>
-                                    </button>
-                                    <button class="ratio-btn" data-ratio="1:1">
-                                        <span class="ratio-icon">⬜</span>
-                                        <span class="ratio-name">方形</span>
-                                        <span class="ratio-detail">1:1</span>
-                                    </button>
-                                    <button class="ratio-btn" data-ratio="4:3">
-                                        <span class="ratio-icon">📺</span>
-                                        <span class="ratio-name">标准</span>
-                                        <span class="ratio-detail">4:3</span>
-                                    </button>
-                                </div>
-                            </div>
-                            
-                            <div class="setting-row">
-                                <label>图片质量：</label>
-                                <select id="qualitySelect" class="form-control">
-                                    <option value="4K">4K (超高清) - 4096x4096</option>
-                                    <option value="2K">2K (高清) - 2048x2048</option>
-                                    <option value="1K" selected>1K (标清) - 1024x1024</option>
-                                </select>
-                            </div>
-                            
-                            <div class="setting-row">
-                                <label>艺术风格（可选）：</label>
-                                <select id="styleSelect" class="form-control">
-                                    <option value="">自动选择</option>
-                                    <option value="写实风格">写实风格</option>
-                                    <option value="动漫风格">动漫风格</option>
-                                    <option value="水墨风">水墨风</option>
-                                    <option value="赛博朋克">赛博朋克</option>
-                                    <option value="古风">古风</option>
-                                    <option value="油画风格">油画风格</option>
-                                    <option value="水彩风">水彩风</option>
-                                </select>
+                    <!-- 生成进度 -->
+                    <div id="progressCard" class="progress-card" style="display: none;">
+                        <div class="progress-info">
+                            <p class="progress-text">⏳ 正在生成剧照，请稍候...</p>
+                            <div class="progress-bar">
+                                <div class="progress-fill animate"></div>
                             </div>
                         </div>
+                    </div>
 
-                        <!-- 生成按钮 -->
-                        <button id="generateBtn" class="btn-generate">
-                            <span class="btn-icon">🎨</span>
-                            <span class="btn-text">生成剧照</span>
-                        </button>
-
-                        <!-- 生成进度 -->
-                        <div id="progressCard" class="progress-card" style="display: none;">
-                            <div class="progress-info">
-                                <p class="progress-text">⏳ 正在生成剧照，请稍候...</p>
-                                <div class="progress-bar">
-                                    <div class="progress-fill animate"></div>
-                                </div>
-                            </div>
+                    <!-- 生成结果 -->
+                    <div id="resultCard" class="result-card" style="display: none;">
+                        <h3>✨ 生成结果</h3>
+                        <div class="result-image-container">
+                            <img id="resultImage" src="" alt="生成的剧照">
                         </div>
-
-                        <!-- 生成结果 -->
-                        <div id="resultCard" class="result-card" style="display: none;">
-                            <h3>✨ 生成结果</h3>
-                            <div class="result-image-container">
-                                <img id="resultImage" src="" alt="生成的剧照">
-                            </div>
-                            <div class="result-actions">
-                                <button class="btn-action" id="downloadResultBtn">
-                                    <span>📥</span> 下载剧照
-                                </button>
-                                <button class="btn-action" id="useAsRefBtn">
-                                    <span>🔄</span> 用作参考图
-                                </button>
-                                <button class="btn-action" id="regenerateBtn">
-                                    <span>🔄</span> 重新生成
-                                </button>
-                            </div>
+                        <div class="result-actions">
+                            <button class="btn-action" id="downloadResultBtn">
+                                <span>📥</span> 下载剧照
+                            </button>
+                            <button class="btn-action" id="useAsRefBtn">
+                                <span>🔄</span> 用作参考图
+                            </button>
+                            <button class="btn-action" id="regenerateBtn">
+                                <span>🔄</span> 重新生成
+                            </button>
                         </div>
                     </div>
                 </div>
             </div>
         </div>
     </div>
+</div>
 
-    <!-- Toast 通知 -->
-    <div id="toast" class="toast"></div>
+<!-- Toast 通知 -->
+<div id="toast" class="toast"></div>
+{% endblock %}
 
-    <script src="/static/js/portrait-studio.js"></script>
-    <script src="/static/js/confirm-dialog.js"></script>
-    <script>
-        function logout() {
-            confirmLogout().then(confirmed => {
-                if (confirmed) {
-                    window.location.href = '/logout';
-                }
-            });
-        }
-    </script>
-    <script src="/static/js/user-info.js"></script>
-</body>
-</html>
+{% block extra_js %}
+<script src="/static/js/portrait-studio.js"></script>
+<script src="/static/js/confirm-dialog.js"></script>
+<script>
+    function logout() {
+        confirmLogout().then(confirmed => {
+            if (confirmed) {
+                window.location.href = '/logout';
+            }
+        });
+    }
+</script>
+<script src="/static/js/user-info.js"></script>
+{% endblock %}

@@ -1,180 +1,174 @@
-<!DOCTYPE html>
-<html lang="zh-CN">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>人物剧照生成 - 小说AI创作系统</title>
-    <link rel="stylesheet" href="/static/css/style.css">
-    <link rel="stylesheet" href="/static/css/character-portrait.css">
+{% extends "layouts/base-v2.html" %}
 
-    <style>
-        /* 为导航栏留出空间 */
-        body {
-            padding-top: 64px !important;
-        }
-    </style>
-</head>
-<body>
-    {% include 'components/v2/navbar.html' %}
-    <div class="container">
-        <!-- 顶部导航 -->
-        <header class="page-header">
-            <h1>🎨 人物剧照生成</h1>
-            <p class="subtitle">支持参考图像 + 自定义提示词，生成高质量角色剧照</p>
-        </header>
+{% block title %}{{ translate('characterPortrait.title') }} - 小说AI创作系统{% endblock %}
 
-        <!-- 主内容区 -->
-        <div class="main-content">
-            <!-- 左侧：配置区 -->
-            <div class="config-panel">
-                <!-- 步骤1：选择小说 -->
-                <div class="step-section" id="step1">
-                    <div class="step-header">
-                        <span class="step-number">1</span>
-                        <h3>选择小说</h3>
-                    </div>
-                    <div class="step-content">
-                        <div class="form-group">
-                            <label for="novel-select">小说项目</label>
-                            <select id="novel-select" class="form-control">
-                                <option value="">请选择小说...</option>
-                            </select>
-                        </div>
+{% block extra_css %}
+<link rel="stylesheet" href="/static/css/character-portrait.css">
+{% endblock %}
+
+{% block content %}
+<div class="container">
+    <!-- 顶部导航 -->
+    <header class="page-header">
+        <h1 data-i18n="characterPortrait.title">🎨 人物剧照生成</h1>
+        <p class="subtitle" data-i18n="characterPortrait.subtitle">支持参考图像 + 自定义提示词，生成高质量角色剧照</p>
+    </header>
+
+    <!-- 主内容区 -->
+    <div class="main-content">
+        <!-- 左侧：配置区 -->
+        <div class="config-panel">
+            <!-- 步骤1：选择小说 -->
+            <div class="step-section" id="step1">
+                <div class="step-header">
+                    <span class="step-number">1</span>
+                    <h3 data-i18n="characterPortrait.step.select">选择小说</h3>
+                </div>
+                <div class="step-content">
+                    <div class="form-group">
+                        <label for="novel-select">小说项目</label>
+                        <select id="novel-select" class="form-control">
+                            <option value="">请选择小说...</option>
+                        </select>
                     </div>
                 </div>
+            </div>
 
-                <!-- 步骤2：选择角色 -->
-                <div class="step-section" id="step2">
-                    <div class="step-header">
-                        <span class="step-number">2</span>
-                        <h3>选择角色</h3>
-                    </div>
-                    <div class="step-content">
-                        <div class="character-grid" id="character-grid">
-                            <div class="loading-message">请先选择小说</div>
-                        </div>
+            <!-- 步骤2：选择角色 -->
+            <div class="step-section" id="step2">
+                <div class="step-header">
+                    <span class="step-number">2</span>
+                    <h3 data-i18n="characterPortrait.step.config">配置角色</h3>
+                </div>
+                <div class="step-content">
+                    <div class="form-group">
+                        <label for="character-select" data-i18n="characterPortrait.form.character">选择角色</label>
+                        <select id="character-select" class="form-control">
+                            <option value="">请选择角色...</option>
+                        </select>
                     </div>
                 </div>
+            </div>
 
-                <!-- 步骤3：配置生成参数 -->
-                <div class="step-section" id="step3">
-                    <div class="step-header">
-                        <span class="step-number">3</span>
-                        <h3>配置生成参数</h3>
-                    </div>
-                    <div class="step-content">
-                        <!-- 参考图像上传 -->
-                        <div class="form-group">
-                            <label>
-                                <input type="checkbox" id="use-reference-image">
-                                使用参考图像（可选，最多5张）
-                            </label>
-                            <div id="reference-image-section" class="hidden">
-                                <div class="file-upload-area" id="reference-upload-area">
-                                    <input type="file" id="reference-image-input" accept="image/*" multiple class="hidden">
-                                    <div class="upload-placeholder">
-                                        <svg width="48" height="48" viewBox="0 0 48 48" fill="none">
-                                            <path d="M38 16H34V12H38V16ZM42 8H32V18H42V8ZM38 22H34V26H38V22ZM42 28H32V38H42V28ZM24 8H10V12H24V8ZM24 16H10V20H24V16ZM24 24H10V28H24V24ZM24 32H10V36H24V32ZM8 4H40V44H8V4ZM12 8V40H36V8H12Z" fill="#666"/>
-                                        </svg>
-                                        <p>点击或拖拽上传参考图像</p>
-                                        <p class="upload-hint">支持 JPG、PNG 格式，建议 500x500 以上，最多5张</p>
-                                    </div>
+            <!-- 步骤3：配置生成参数 -->
+            <div class="step-section" id="step3">
+                <div class="step-header">
+                    <span class="step-number">3</span>
+                    <h3 data-i18n="characterPortrait.step.generate">生成剧照</h3>
+                </div>
+                <div class="step-content">
+                    <!-- 参考图像上传 -->
+                    <div class="form-group">
+                        <label>
+                            <input type="checkbox" id="use-reference-image">
+                            <span data-i18n="characterPortrait.form.reference">参考图像</span>（可选，最多5张）
+                        </label>
+                        <div id="reference-image-section" class="hidden">
+                            <div class="file-upload-area" id="reference-upload-area">
+                                <input type="file" id="reference-image-input" accept="image/*" multiple class="hidden">
+                                <div class="upload-placeholder">
+                                    <svg width="48" height="48" viewBox="0 0 48 48" fill="none">
+                                        <path d="M38 16H34V12H38V16ZM42 8H32V18H42V8ZM38 22H34V26H38V22ZM42 28H32V38H42V28ZM24 8H10V12H24V8ZM24 16H10V20H24V16ZM24 24H10V28H24V24ZM24 32H10V36H24V32ZM8 4H40V44H8V4ZM12 8V40H36V8H12Z" fill="#666"/>
+                                    </svg>
+                                    <p>点击或拖拽上传参考图像</p>
+                                    <p class="upload-hint">支持 JPG、PNG 格式，建议 500x500 以上，最多5张</p>
                                 </div>
-                                <div class="reference-thumbnails" id="reference-thumbnails"></div>
-                                <p class="help-text">💡 上传参考图像后，AI会基于该图像的风格和特征生成新图像</p>
                             </div>
+                            <div class="reference-thumbnails" id="reference-thumbnails"></div>
+                            <p class="help-text">💡 上传参考图像后，AI会基于该图像的风格和特征生成新图像</p>
                         </div>
-
-                        <!-- 图片比例 -->
-                        <div class="form-group">
-                            <label for="aspect-ratio">图片比例</label>
-                            <select id="aspect-ratio" class="form-control">
-                                <option value="9:16" selected>9:16 (竖屏，适合角色展示)</option>
-                                <option value="16:9">16:9 (横屏，适合场景)</option>
-                                <option value="1:1">1:1 (正方形)</option>
-                                <option value="4:3">4:3 (标准)</option>
-                            </select>
-                        </div>
-
-                        <!-- 图片质量 -->
-                        <div class="form-group">
-                            <label for="image-size">图片质量</label>
-                            <select id="image-size" class="form-control">
-                                <option value="4K" selected>4K (最高质量)</option>
-                                <option value="2K">2K (高质量)</option>
-                                <option value="1K">1K (标准)</option>
-                            </select>
-                        </div>
-
-                        <!-- 自定义提示词 -->
-                        <div class="form-group">
-                            <label for="custom-prompt">自定义提示词（可选）</label>
-                            <textarea id="custom-prompt" class="form-control" rows="4" 
-                                placeholder="可以添加额外的描述来调整生成效果，例如：&#10;- 添加具体的表情、动作&#10;- 指定背景环境&#10;- 描述光影效果"></textarea>
-                            <p class="help-text">💡 如果不填写，将使用角色设计自动生成的提示词</p>
-                        </div>
-
-                        <!-- 生成按钮 -->
-                        <button id="generate-btn" class="btn btn-primary btn-block" disabled>
-                            <span class="btn-icon">🎨</span>
-                            生成剧照
-                        </button>
                     </div>
+
+                    <!-- 图片比例 -->
+                    <div class="form-group">
+                        <label for="aspect-ratio">图片比例</label>
+                        <select id="aspect-ratio" class="form-control">
+                            <option value="9:16" selected>9:16 (竖屏，适合角色展示)</option>
+                            <option value="16:9">16:9 (横屏，适合场景)</option>
+                            <option value="1:1">1:1 (正方形)</option>
+                            <option value="4:3">4:3 (标准)</option>
+                        </select>
+                    </div>
+
+                    <!-- 图片质量 -->
+                    <div class="form-group">
+                        <label for="image-size">图片质量</label>
+                        <select id="image-size" class="form-control">
+                            <option value="4K" selected>4K (最高质量)</option>
+                            <option value="2K">2K (高质量)</option>
+                            <option value="1K">1K (标准)</option>
+                        </select>
+                    </div>
+
+                    <!-- 自定义提示词 -->
+                    <div class="form-group">
+                        <label for="custom-prompt" data-i18n="characterPortrait.form.prompt">提示词</label>
+                        <textarea id="custom-prompt" class="form-control" rows="4" 
+                            placeholder="可以添加额外的描述来调整生成效果，例如：&#10;- 添加具体的表情、动作&#10;- 指定背景环境&#10;- 描述光影效果"></textarea>
+                        <p class="help-text">💡 如果不填写，将使用角色设计自动生成的提示词</p>
+                    </div>
+
+                    <!-- 生成按钮 -->
+                    <button id="generate-btn" class="btn btn-primary btn-block" disabled>
+                        <span class="btn-icon">🎨</span>
+                        <span data-i18n="characterPortrait.btn.generate">开始生成</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- 右侧：预览和结果区 -->
+        <div class="result-panel">
+            <!-- 当前选择的角色信息 -->
+            <div class="character-info-card" id="character-info-card">
+                <div class="no-selection">
+                    <svg width="64" height="64" viewBox="0 0 64 64" fill="none">
+                        <circle cx="32" cy="32" r="28" stroke="#ddd" stroke-width="2"/>
+                        <path d="M32 28C35.3137 28 38 25.3137 38 22C38 18.6863 35.3137 16 32 16C28.6863 16 26 18.6863 26 22C26 25.3137 28.6863 28 32 28Z" fill="#ddd"/>
+                        <path d="M20 48C20 40 24 36 32 36C40 36 44 40 44 48" stroke="#ddd" stroke-width="2" stroke-linecap="round"/>
+                    </svg>
+                    <p>请选择一个角色开始生成</p>
                 </div>
             </div>
 
-            <!-- 右侧：预览和结果区 -->
-            <div class="result-panel">
-                <!-- 当前选择的角色信息 -->
-                <div class="character-info-card" id="character-info-card">
-                    <div class="no-selection">
-                        <svg width="64" height="64" viewBox="0 0 64 64" fill="none">
-                            <circle cx="32" cy="32" r="28" stroke="#ddd" stroke-width="2"/>
-                            <path d="M32 28C35.3137 28 38 25.3137 38 22C38 18.6863 35.3137 16 32 16C28.6863 16 26 18.6863 26 22C26 25.3137 28.6863 28 32 28Z" fill="#ddd"/>
-                            <path d="M20 48C20 40 24 36 32 36C40 36 44 40 44 48" stroke="#ddd" stroke-width="2" stroke-linecap="round"/>
-                        </svg>
-                        <p>请选择一个角色开始生成</p>
-                    </div>
+            <!-- 生成结果 -->
+            <div class="generation-result" id="generation-result">
+                <div class="result-placeholder">
+                    <svg width="80" height="80" viewBox="0 0 80 80" fill="none">
+                        <rect x="8" y="8" width="64" height="64" rx="8" stroke="#ddd" stroke-width="2" stroke-dasharray="4 4"/>
+                        <path d="M32 32L48 48M48 32L32 48" stroke="#ddd" stroke-width="2" stroke-linecap="round"/>
+                    </svg>
+                    <p>生成的剧照将在这里显示</p>
                 </div>
+            </div>
 
-                <!-- 生成结果 -->
-                <div class="generation-result" id="generation-result">
-                    <div class="result-placeholder">
-                        <svg width="80" height="80" viewBox="0 0 80 80" fill="none">
-                            <rect x="8" y="8" width="64" height="64" rx="8" stroke="#ddd" stroke-width="2" stroke-dasharray="4 4"/>
-                            <path d="M32 32L48 48M48 32L32 48" stroke="#ddd" stroke-width="2" stroke-linecap="round"/>
-                        </svg>
-                        <p>生成的剧照将在这里显示</p>
-                    </div>
-                </div>
-
-                <!-- 历史记录 -->
-                <div class="history-section" id="history-section">
-                    <h4>生成历史</h4>
-                    <div class="history-grid" id="history-grid">
-                        <div class="no-history">暂无生成历史</div>
-                    </div>
+            <!-- 历史记录 -->
+            <div class="history-section" id="history-section">
+                <h4>生成历史</h4>
+                <div class="history-grid" id="history-grid">
+                    <div class="no-history">暂无生成历史</div>
                 </div>
             </div>
         </div>
     </div>
+</div>
 
-    <!-- 加载遮罩 -->
-    <div class="loading-overlay hidden" id="loading-overlay">
-        <div class="loading-content">
-            <div class="spinner"></div>
-            <p id="loading-message">正在生成剧照，请稍候...</p>
-            <p class="loading-hint">这可能需要 30-60 秒</p>
-        </div>
+<!-- 加载遮罩 -->
+<div class="loading-overlay hidden" id="loading-overlay">
+    <div class="loading-content">
+        <div class="spinner"></div>
+        <p id="loading-message">正在生成剧照，请稍候...</p>
+        <p class="loading-hint">这可能需要 30-60 秒</p>
     </div>
+</div>
 
-    <!-- Toast 提示 -->
-    <div class="toast hidden" id="toast">
-        <span class="toast-icon"></span>
-        <span class="toast-message"></span>
-    </div>
+<!-- Toast 提示 -->
+<div class="toast hidden" id="toast">
+    <span class="toast-icon"></span>
+    <span class="toast-message"></span>
+</div>
+{% endblock %}
 
-    <script src="/static/js/character-portrait.js"></script>
-    <script src="{{ url_for('static', filename='js/account-manager.js') }}?v=2"></script>
-</body>
-</html>
+{% block extra_js %}
+<script src="/static/js/character-portrait.js"></script>
+{% endblock %}
