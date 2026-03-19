@@ -1371,8 +1371,8 @@ class NovelGenerator:
             'max_word_threshold': self._ctx.get('max_word_threshold', 3500)
         }
         
-        # 🔥 调试：确认 novel_data 类型
-        print(f"[DEBUG] 构造的 novel_data 类型: {type(novel_data)}")
+        # 🔥 调试：确认 novel_data 类型（使用 print 确保输出）
+        print(f"[DEBUG] 构造的 novel_data 类型: {type(novel_data)}", flush=True)
         
         # 🔥 修复：检测黄金三章范围（第1-3章），合并所有相关事件信息整体生成
         golden_chapters_range = None

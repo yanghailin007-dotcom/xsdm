@@ -119,7 +119,7 @@ class MediumEventBatchProcessor:
         
         # 调试：记录 medium_event 和 novel_data 的内容
         self.logger.info(f"[BatchProcessor] medium_event 内容: {medium_event}")
-        self.logger.info(f"[BatchProcessor] novel_data 类型: {type(novel_data)}")
+        self.logger.error(f"[DEBUG] novel_data 类型: {type(novel_data)}")
         if not isinstance(novel_data, dict):
             self.logger.error(f"[BatchProcessor] novel_data 不是字典! 类型: {type(novel_data)}")
             # 尝试修复
@@ -418,7 +418,7 @@ class MediumEventBatchProcessor:
         第1-3章一次性生成，确保开篇连贯性
         """
         # 🔥 调试：检查 novel_data 类型
-        self.logger.info(f"[_process_golden_chapters] novel_data 类型: {type(novel_data)}")
+        self.logger.error(f"[DEBUG] _process_golden_chapters novel_data 类型: {type(novel_data)}")
         if not isinstance(novel_data, dict):
             self.logger.error(f"[_process_golden_chapters] novel_data 不是字典! 类型: {type(novel_data)}, 值: {novel_data}")
             novel_data = {}
