@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>项目管理器 - 视频制作中心</title>
+    <title data-i18n="videoProject.pageTitle">项目管理器 - 视频制作中心</title>
 
     <link rel="stylesheet" href="/static/css/video/variables.css">
     <link rel="stylesheet" href="/static/css/video/base.css">
@@ -15,13 +15,13 @@
         <!-- 导航栏 -->
         <nav class="navbar">
             <a href="/video" class="navbar-brand">
-                ← 返回中心
+                ← <span data-i18n="videoProject.nav.back">返回中心</span>
             </a>
-            <h1 class="nav-title">📖 项目管理器</h1>
+            <h1 class="nav-title" data-i18n="videoProject.pageTitle">📖 项目管理器</h1>
             <nav class="navbar-nav">
-                <a href="/video/portrait" class="nav-link">🎨 剧照工作台</a>
-                <a href="/video/studio" class="nav-link">🎬 视频工作台</a>
-                <a href="/video/workflow" class="nav-link">🎬 流程控制器</a>
+                <a href="/video/portrait" class="nav-link" data-i18n="videoProject.nav.portrait">🎨 剧照工作台</a>
+                <a href="/video/studio" class="nav-link" data-i18n="videoProject.nav.studio">🎬 视频工作台</a>
+                <a href="/video/workflow" class="nav-link" data-i18n="videoProject.nav.workflow">🎬 流程控制器</a>
             </nav>
         </nav>
 
@@ -30,12 +30,12 @@
             <!-- 顶部操作栏 -->
             <div class="toolbar">
                 <div class="toolbar-left">
-                    <h2 class="page-title">我的项目</h2>
+                    <h2 class="page-title" data-i18n="videoProject.toolbar.title">我的项目</h2>
                 </div>
                 <div class="toolbar-right">
                     <button class="btn btn-primary" onclick="showCreateProjectModal()">
                         <span>+</span>
-                        <span>新建项目</span>
+                        <span data-i18n="videoProject.btn.newProject">新建项目</span>
                     </button>
                 </div>
             </div>
@@ -48,11 +48,11 @@
             <!-- 空状态 -->
             <div class="empty-state" id="emptyState" style="display: none;">
                 <div class="empty-icon">📁</div>
-                <h3>还没有项目</h3>
-                <p>从小说项目开始你的视频创作之旅</p>
+                <h3 data-i18n="videoProject.empty.title">还没有项目</h3>
+                <p data-i18n="videoProject.empty.desc">从小说项目开始你的视频创作之旅</p>
                 <button class="btn btn-primary btn-lg" onclick="showCreateProjectModal()">
                     <span>📖</span>
-                    <span>从小说创建项目</span>
+                    <span data-i18n="videoProject.empty.createBtn">从小说创建项目</span>
                 </button>
             </div>
         </main>
@@ -62,78 +62,80 @@
     <div class="modal-overlay" id="createProjectModal">
         <div class="modal">
             <div class="modal-header">
-                <h3 class="modal-title">创建新项目</h3>
+                <h3 class="modal-title" data-i18n="videoProject.modal.title">创建新项目</h3>
                 <button class="modal-close" onclick="closeModal('createProjectModal')">×</button>
             </div>
             <div class="modal-body">
                 <form id="createProjectForm" onsubmit="handleCreateProject(event)">
                     <!-- 小说选择 -->
                     <div class="form-group">
-                        <label class="form-label">选择小说项目 <span class="required">*</span></label>
+                        <label class="form-label" data-i18n="videoProject.form.novelLabel">选择小说项目 <span class="required">*</span></label>
                         <select id="novelSelect" class="input" required>
-                            <option value="">请选择小说...</option>
+                            <option value="" data-i18n="videoProject.form.novelPlaceholder">请选择小说...</option>
                         </select>
-                        <p class="form-hint">选择要改编成视频的小说项目</p>
+                        <p class="form-hint" data-i18n="videoProject.form.novelHint">选择要改编成视频的小说项目</p>
                     </div>
 
                     <!-- 项目名称 -->
                     <div class="form-group">
-                        <label class="form-label">项目名称 <span class="required">*</span></label>
+                        <label class="form-label" data-i18n="videoProject.form.nameLabel">项目名称 <span class="required">*</span></label>
                         <input type="text" id="projectName" class="input"
+                               data-i18n-placeholder="videoProject.form.namePlaceholder"
                                placeholder="例如：心声泄露视频制作" required>
-                        <p class="form-hint">给这个视频制作项目起个名字</p>
+                        <p class="form-hint" data-i18n="videoProject.form.nameHint">给这个视频制作项目起个名字</p>
                     </div>
 
                     <!-- 项目描述 -->
                     <div class="form-group">
-                        <label class="form-label">项目描述</label>
+                        <label class="form-label" data-i18n="videoProject.form.descLabel">项目描述</label>
                         <textarea id="projectDesc" class="input" rows="3"
+                                  data-i18n-placeholder="videoProject.form.descPlaceholder"
                                   placeholder="简单描述这个项目的创作目标..."></textarea>
                     </div>
 
                     <!-- 视频类型 -->
                     <div class="form-group">
-                        <label class="form-label">视频类型</label>
+                        <label class="form-label" data-i18n="videoProject.form.typeLabel">视频类型</label>
                         <div class="radio-group">
                             <label class="radio-card">
                                 <input type="radio" name="videoType" value="short_film" checked>
                                 <span class="radio-icon">🎬</span>
-                                <span class="radio-title">短片/动画电影</span>
-                                <span class="radio-desc">3-10分钟</span>
+                                <span class="radio-title" data-i18n="videoProject.videoType.shortFilm">短片/动画电影</span>
+                                <span class="radio-desc" data-i18n="videoProject.videoType.shortFilm.duration">3-10分钟</span>
                             </label>
                             <label class="radio-card">
                                 <input type="radio" name="videoType" value="long_series">
                                 <span class="radio-icon">📺</span>
-                                <span class="radio-title">长篇剧集</span>
-                                <span class="radio-desc">1-5分钟/集</span>
+                                <span class="radio-title" data-i18n="videoProject.videoType.longSeries">长篇剧集</span>
+                                <span class="radio-desc" data-i18n="videoProject.videoType.longSeries.duration">1-5分钟/集</span>
                             </label>
                             <label class="radio-card">
                                 <input type="radio" name="videoType" value="short_video">
                                 <span class="radio-icon">📱</span>
-                                <span class="radio-title">短视频</span>
-                                <span class="radio-desc">30秒-1分钟</span>
+                                <span class="radio-title" data-i18n="videoProject.videoType.shortVideo">短视频</span>
+                                <span class="radio-desc" data-i18n="videoProject.videoType.shortVideo.duration">30秒-1分钟</span>
                             </label>
                         </div>
                     </div>
 
                     <!-- 集数规划 -->
                     <div class="form-group">
-                        <label class="form-label">集数规划</label>
+                        <label class="form-label" data-i18n="videoProject.form.planLabel">集数规划</label>
                         <div class="episode-planning">
                             <label class="checkbox-item">
                                 <input type="checkbox" id="autoPlanEpisodes" checked>
-                                <span>根据章节自动规划集数</span>
+                                <span data-i18n="videoProject.form.autoPlan">根据章节自动规划集数</span>
                             </label>
                             <div class="planning-details" id="planningDetails">
-                                <span class="planning-info">系统将根据小说章节结构自动创建集数</span>
+                                <span class="planning-info" data-i18n="videoProject.form.planInfo">系统将根据小说章节结构自动创建集数</span>
                             </div>
                         </div>
                     </div>
                 </form>
             </div>
             <div class="modal-footer">
-                <button class="btn btn-ghost" onclick="closeModal('createProjectModal')">取消</button>
-                <button type="submit" form="createProjectForm" class="btn btn-primary">创建项目</button>
+                <button class="btn btn-ghost" onclick="closeModal('createProjectModal')" data-i18n="videoProject.btn.cancel">取消</button>
+                <button type="submit" form="createProjectForm" class="btn btn-primary" data-i18n="videoProject.btn.create">创建项目</button>
             </div>
         </div>
     </div>
