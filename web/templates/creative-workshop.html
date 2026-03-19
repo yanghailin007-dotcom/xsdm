@@ -3,7 +3,7 @@
 #}
 {% extends "layouts/base-v2.html" %}
 
-{% block title %}创意工坊 - 创建新创意{% endblock %}
+{% block title %}{{ _('creativeWorkshop.title') }} - {{ _('common.platformName') }}{% endblock %}
 
 {% block extra_css %}
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
@@ -698,35 +698,35 @@
 <div class="cw-main">
     <!-- 页面标题 -->
     <header class="cw-page-header">
-        <h1>🎨 创意工坊</h1>
-        <p>选择最适合你的方式，快速创建小说创意</p>
+        <h1 data-i18n="creativeWorkshop.pageTitle">🎨 创意工坊</h1>
+        <p data-i18n="creativeWorkshop.pageSubtitle">选择最适合你的方式，快速创建小说创意</p>
     </header>
 
     <!-- 创建方式选择 -->
     <div class="cw-create-methods">
         <div class="cw-method-card ai active" onclick="selectMethod('ai')">
-            <span class="cw-method-badge">推荐</span>
+            <span class="cw-method-badge" data-i18n="common.recommended">推荐</span>
             <div class="cw-method-icon">
                 <i class="fas fa-magic"></i>
             </div>
-            <h3 class="cw-method-title">AI 智能扩展</h3>
-            <p class="cw-method-desc">输入一句话核心创意，AI自动扩展成完整的小说创意结构，包含四阶段故事线</p>
+            <h3 class="cw-method-title" data-i18n="creativeWorkshop.method.ai">AI 智能扩展</h3>
+            <p class="cw-method-desc" data-i18n="creativeWorkshop.method.ai.desc">输入一句话核心创意，AI自动扩展成完整的小说创意结构，包含四阶段故事线</p>
         </div>
 
         <div class="cw-method-card form" onclick="selectMethod('form')">
             <div class="cw-method-icon">
                 <i class="fas fa-edit"></i>
             </div>
-            <h3 class="cw-method-title">表单填写</h3>
-            <p class="cw-method-desc">手动填写完整的创意信息，包括核心设定、卖点和四阶段故事线</p>
+            <h3 class="cw-method-title" data-i18n="creativeWorkshop.method.form">表单填写</h3>
+            <p class="cw-method-desc" data-i18n="creativeWorkshop.method.form.desc">手动填写完整的创意信息，包括核心设定、卖点和四阶段故事线</p>
         </div>
 
         <div class="cw-method-card upload" onclick="selectMethod('upload')">
             <div class="cw-method-icon">
                 <i class="fas fa-cloud-upload-alt"></i>
             </div>
-            <h3 class="cw-method-title">文件导入</h3>
-            <p class="cw-method-desc">上传符合模板格式的 JSON 或 Excel 文件，批量导入创意</p>
+            <h3 class="cw-method-title" data-i18n="creativeWorkshop.method.upload">文件导入</h3>
+            <p class="cw-method-desc" data-i18n="creativeWorkshop.method.upload.desc">上传符合模板格式的 JSON 或 Excel 文件，批量导入创意</p>
         </div>
     </div>
 
@@ -737,7 +737,7 @@
             <div class="cw-ai-input-area">
                 <label for="cw-core-idea">
                     <i class="fas fa-sparkles"></i>
-                    输入你的核心创意
+                    <span data-i18n="creativeWorkshop.label.coreIdea">输入你的核心创意</span>
                     <span class="cw-required">*</span>
                 </label>
                 <textarea 
@@ -745,11 +745,11 @@
                     class="cw-ai-textarea" 
                     placeholder="例如：主角重生成为修仙家族的祖宗牌位，内心吐槽被子孙偷听，误以为是神谕..."
                 ></textarea>
-                <div class="cw-form-hint">用一句话描述你的核心创意，越具体越好，AI会帮你扩展成完整的创意结构</div>
+                <div class="cw-form-hint" data-i18n="creativeWorkshop.hint.coreIdea">用一句话描述你的核心创意，越具体越好，AI会帮你扩展成完整的创意结构</div>
             </div>
 
             <div class="cw-ai-examples">
-                <div class="cw-ai-examples-title">💡 试试这些示例（点击填入）：</div>
+                <div class="cw-ai-examples-title" data-i18n="creativeWorkshop.examples.title">💡 试试这些示例（点击填入）：</div>
                 <div class="cw-example-chips">
                     <span class="cw-example-chip" onclick="fillExample(0)">重生为祖宗牌位，心声被偷听</span>
                     <span class="cw-example-chip" onclick="fillExample(1)">绑定诡异模拟器，反向恐怖</span>
@@ -762,10 +762,10 @@
             <div id="cw-ai-result" style="display: none;">
                 <div class="cw-result-preview">
                     <div class="cw-result-header">
-                        <span class="cw-result-title">📋 AI 生成的创意预览</span>
+                        <span class="cw-result-title" data-i18n="creativeWorkshop.preview.title">📋 AI 生成的创意预览</span>
                         <div class="cw-result-actions">
                             <button class="cw-btn cw-btn-secondary cw-btn-small" onclick="regenerateAI()">
-                                <i class="fas fa-refresh"></i> 重新生成
+                                <i class="fas fa-refresh"></i> <span data-i18n="common.regenerate">重新生成</span>
                             </button>
                         </div>
                     </div>
@@ -775,13 +775,13 @@
 
             <div class="cw-btn-group">
                 <button class="cw-btn cw-btn-secondary" onclick="resetForm()">
-                    <i class="fas fa-trash-alt"></i> 清空
+                    <i class="fas fa-trash-alt"></i> <span data-i18n="common.clear">清空</span>
                 </button>
                 <button class="cw-btn cw-btn-primary cw-btn-large" id="cw-ai-generate-btn" onclick="generateWithAI()">
-                    <i class="fas fa-magic"></i> 开始 AI 扩展
+                    <i class="fas fa-magic"></i> <span data-i18n="creativeWorkshop.btn.startAI">开始 AI 扩展</span>
                 </button>
                 <button class="cw-btn cw-btn-primary cw-btn-large" id="cw-ai-save-btn" onclick="saveAIIdea()" style="display: none;">
-                    <i class="fas fa-save"></i> 保存创意
+                    <i class="fas fa-save"></i> <span data-i18n="common.save">保存创意</span>
                 </button>
             </div>
         </div>
@@ -791,88 +791,88 @@
             <div class="cw-form-grid">
                 <div class="cw-form-group">
                     <label for="cw-form-title">
-                        小说标题
+                        <span data-i18n="creativeWorkshop.label.novelTitle">小说标题</span>
                         <span class="cw-required">*</span>
                     </label>
-                    <input type="text" id="cw-form-title" class="cw-form-input" placeholder="给你的小说起个吸引人的名字">
+                    <input type="text" id="cw-form-title" class="cw-form-input" data-i18n-placeholder="creativeWorkshop.placeholder.novelTitle" placeholder="给你的小说起个吸引人的名字">
                 </div>
 
                 <div class="cw-form-group">
-                    <label for="cw-form-total-chapters">总章节数</label>
+                    <label for="cw-form-total-chapters" data-i18n="creativeWorkshop.label.totalChapters">总章节数</label>
                     <input type="number" id="cw-form-total-chapters" class="cw-form-input" value="200" min="50" max="1000">
-                    <div class="cw-form-hint">建议 100-300 章</div>
+                    <div class="cw-form-hint" data-i18n="creativeWorkshop.hint.totalChapters">建议 100-300 章</div>
                 </div>
 
                 <div class="cw-form-group full-width">
                     <label for="cw-form-core-setting">
-                        核心设定
+                        <span data-i18n="creativeWorkshop.label.coreSetting">核心设定</span>
                         <span class="cw-required">*</span>
                     </label>
-                    <textarea id="cw-form-core-setting" class="cw-form-input cw-form-textarea" placeholder="一句话概括小说的核心设定..."></textarea>
+                    <textarea id="cw-form-core-setting" class="cw-form-input cw-form-textarea" data-i18n-placeholder="creativeWorkshop.placeholder.coreSetting" placeholder="一句话概括小说的核心设定..."></textarea>
                 </div>
 
                 <div class="cw-form-group full-width">
                     <label for="cw-form-selling-points">
-                        核心卖点
+                        <span data-i18n="creativeWorkshop.label.sellingPoints">核心卖点</span>
                         <span class="cw-required">*</span>
                     </label>
-                    <textarea id="cw-form-selling-points" class="cw-form-input cw-form-textarea" placeholder="用+号分隔，例如：迪化流+群像+心声偷听+反派逆袭"></textarea>
+                    <textarea id="cw-form-selling-points" class="cw-form-input cw-form-textarea" data-i18n-placeholder="creativeWorkshop.placeholder.sellingPoints" placeholder="用+号分隔，例如：迪化流+群像+心声偷听+反派逆袭"></textarea>
                 </div>
 
                 <div class="cw-form-group full-width">
-                    <label for="cw-form-synopsis">简介</label>
-                    <textarea id="cw-form-synopsis" class="cw-form-input cw-form-textarea" placeholder="小说的详细简介..."></textarea>
+                    <label for="cw-form-synopsis" data-i18n="creativeWorkshop.label.synopsis">简介</label>
+                    <textarea id="cw-form-synopsis" class="cw-form-input cw-form-textarea" data-i18n-placeholder="creativeWorkshop.placeholder.synopsis" placeholder="小说的详细简介..."></textarea>
                 </div>
             </div>
 
             <h4 style="margin: 1.5rem 0 1rem; font-weight: 600; color: var(--cw-text-primary);">
-                <i class="fas fa-sitemap"></i> 四阶段故事线
+                <i class="fas fa-sitemap"></i> <span data-i18n="creativeWorkshop.storyline.title">四阶段故事线</span>
             </h4>
 
             <div class="cw-stage-cards">
                 <div class="cw-stage-card">
                     <div class="cw-stage-header">
                         <span class="cw-stage-number">1</span>
-                        <span class="cw-stage-name">开篇阶段</span>
+                        <span class="cw-stage-name" data-i18n="creativeWorkshop.storyline.opening">开篇阶段</span>
                     </div>
-                    <input type="text" id="cw-stage-opening-name" class="cw-form-input" placeholder="阶段名称" style="margin-bottom: 0.75rem;">
-                    <textarea id="cw-stage-opening-summary" class="cw-form-input cw-form-textarea" placeholder="阶段概述..." style="min-height: 80px;"></textarea>
+                    <input type="text" id="cw-stage-opening-name" class="cw-form-input" data-i18n-placeholder="creativeWorkshop.placeholder.stageName" placeholder="阶段名称" style="margin-bottom: 0.75rem;">
+                    <textarea id="cw-stage-opening-summary" class="cw-form-input cw-form-textarea" data-i18n-placeholder="creativeWorkshop.placeholder.stageSummary" placeholder="阶段概述..." style="min-height: 80px;"></textarea>
                 </div>
 
                 <div class="cw-stage-card">
                     <div class="cw-stage-header">
                         <span class="cw-stage-number">2</span>
-                        <span class="cw-stage-name">发展阶段</span>
+                        <span class="cw-stage-name" data-i18n="creativeWorkshop.storyline.development">发展阶段</span>
                     </div>
-                    <input type="text" id="cw-stage-development-name" class="cw-form-input" placeholder="阶段名称" style="margin-bottom: 0.75rem;">
-                    <textarea id="cw-stage-development-summary" class="cw-form-input cw-form-textarea" placeholder="阶段概述..." style="min-height: 80px;"></textarea>
+                    <input type="text" id="cw-stage-development-name" class="cw-form-input" data-i18n-placeholder="creativeWorkshop.placeholder.stageName" placeholder="阶段名称" style="margin-bottom: 0.75rem;">
+                    <textarea id="cw-stage-development-summary" class="cw-form-input cw-form-textarea" data-i18n-placeholder="creativeWorkshop.placeholder.stageSummary" placeholder="阶段概述..." style="min-height: 80px;"></textarea>
                 </div>
 
                 <div class="cw-stage-card">
                     <div class="cw-stage-header">
                         <span class="cw-stage-number">3</span>
-                        <span class="cw-stage-name">冲突阶段</span>
+                        <span class="cw-stage-name" data-i18n="creativeWorkshop.storyline.conflict">冲突阶段</span>
                     </div>
-                    <input type="text" id="cw-stage-conflict-name" class="cw-form-input" placeholder="阶段名称" style="margin-bottom: 0.75rem;">
-                    <textarea id="cw-stage-conflict-summary" class="cw-form-input cw-form-textarea" placeholder="阶段概述..." style="min-height: 80px;"></textarea>
+                    <input type="text" id="cw-stage-conflict-name" class="cw-form-input" data-i18n-placeholder="creativeWorkshop.placeholder.stageName" placeholder="阶段名称" style="margin-bottom: 0.75rem;">
+                    <textarea id="cw-stage-conflict-summary" class="cw-form-input cw-form-textarea" data-i18n-placeholder="creativeWorkshop.placeholder.stageSummary" placeholder="阶段概述..." style="min-height: 80px;"></textarea>
                 </div>
 
                 <div class="cw-stage-card">
                     <div class="cw-stage-header">
                         <span class="cw-stage-number">4</span>
-                        <span class="cw-stage-name">结局阶段</span>
+                        <span class="cw-stage-name" data-i18n="creativeWorkshop.storyline.ending">结局阶段</span>
                     </div>
-                    <input type="text" id="cw-stage-ending-name" class="cw-form-input" placeholder="阶段名称" style="margin-bottom: 0.75rem;">
-                    <textarea id="cw-stage-ending-summary" class="cw-form-input cw-form-textarea" placeholder="阶段概述..." style="min-height: 80px;"></textarea>
+                    <input type="text" id="cw-stage-ending-name" class="cw-form-input" data-i18n-placeholder="creativeWorkshop.placeholder.stageName" placeholder="阶段名称" style="margin-bottom: 0.75rem;">
+                    <textarea id="cw-stage-ending-summary" class="cw-form-input cw-form-textarea" data-i18n-placeholder="creativeWorkshop.placeholder.stageSummary" placeholder="阶段概述..." style="min-height: 80px;"></textarea>
                 </div>
             </div>
 
             <div class="cw-btn-group">
                 <button class="cw-btn cw-btn-secondary" onclick="resetForm()">
-                    <i class="fas fa-trash-alt"></i> 清空
+                    <i class="fas fa-trash-alt"></i> <span data-i18n="common.clear">清空</span>
                 </button>
                 <button class="cw-btn cw-btn-primary cw-btn-large" onclick="saveFormIdea()">
-                    <i class="fas fa-save"></i> 保存创意
+                    <i class="fas fa-save"></i> <span data-i18n="common.save">保存创意</span>
                 </button>
             </div>
         </div>
@@ -883,8 +883,8 @@
                 <div class="cw-upload-icon">
                     <i class="fas fa-cloud-upload-alt"></i>
                 </div>
-                <h3 class="cw-upload-title">点击或拖拽文件到此处</h3>
-                <p class="cw-upload-desc">支持导入 JSON 或 Excel 格式的创意文件</p>
+                <h3 class="cw-upload-title" data-i18n="creativeWorkshop.upload.title">点击或拖拽文件到此处</h3>
+                <p class="cw-upload-desc" data-i18n="creativeWorkshop.upload.desc">支持导入 JSON 或 Excel 格式的创意文件</p>
                 <div class="cw-upload-formats">
                     <span class="cw-format-badge">
                         <i class="fas fa-file-code"></i> JSON
@@ -894,7 +894,7 @@
                     </span>
                 </div>
                 <button class="cw-btn cw-btn-primary">
-                    <i class="fas fa-folder-open"></i> 选择文件
+                    <i class="fas fa-folder-open"></i> <span data-i18n="creativeWorkshop.btn.selectFile">选择文件</span>
                 </button>
                 <input type="file" id="cw-file-input" accept=".json,.xlsx,.xls" onchange="handleFileSelect(event)">
             </div>
@@ -905,16 +905,16 @@
                         <i class="fas fa-download" style="color: var(--cw-success);"></i>
                     </div>
                     <div class="cw-template-info">
-                        <h4>下载创意模板</h4>
-                        <p>不知道格式？先下载模板参考</p>
+                        <h4 data-i18n="creativeWorkshop.template.title">下载创意模板</h4>
+                        <p data-i18n="creativeWorkshop.template.desc">不知道格式？先下载模板参考</p>
                     </div>
                 </div>
                 <div style="display: flex; gap: 1rem;">
                     <button class="cw-btn cw-btn-secondary" onclick="downloadTemplate('json')">
-                        <i class="fas fa-file-code"></i> 下载 JSON 模板
+                        <i class="fas fa-file-code"></i> <span data-i18n="creativeWorkshop.btn.downloadJson">下载 JSON 模板</span>
                     </button>
                     <button class="cw-btn cw-btn-secondary" onclick="downloadTemplate('excel')">
-                        <i class="fas fa-file-excel"></i> 下载 Excel 模板
+                        <i class="fas fa-file-excel"></i> <span data-i18n="creativeWorkshop.btn.downloadExcel">下载 Excel 模板</span>
                     </button>
                 </div>
             </div>
@@ -922,16 +922,16 @@
             <div id="cw-upload-preview" style="display: none; margin-top: 1.5rem;">
                 <div class="cw-result-preview">
                     <div class="cw-result-header">
-                        <span class="cw-result-title">📋 文件预览</span>
+                        <span class="cw-result-title" data-i18n="creativeWorkshop.preview.fileTitle">📋 文件预览</span>
                         <span id="cw-upload-file-name" style="color: var(--cw-text-secondary);"></span>
                     </div>
                     <div id="cw-upload-preview-content"></div>
                     <div class="cw-btn-group" style="margin-top: 1rem;">
                         <button class="cw-btn cw-btn-secondary" onclick="clearUpload()">
-                            <i class="fas fa-times"></i> 取消
+                            <i class="fas fa-times"></i> <span data-i18n="common.cancel">取消</span>
                         </button>
                         <button class="cw-btn cw-btn-primary" onclick="saveUploadIdea()">
-                            <i class="fas fa-save"></i> 确认导入
+                            <i class="fas fa-save"></i> <span data-i18n="creativeWorkshop.btn.confirmImport">确认导入</span>
                         </button>
                     </div>
                 </div>
@@ -944,8 +944,8 @@
 <div class="cw-loading-overlay" id="cw-loading-overlay">
     <div class="cw-loading-content">
         <div class="cw-loading-spinner"></div>
-        <div class="cw-loading-text" id="cw-loading-text">AI 正在扩展你的创意...</div>
-        <div class="cw-loading-subtext" id="cw-loading-subtext">这可能需要几秒钟</div>
+        <div class="cw-loading-text" id="cw-loading-text" data-i18n="creativeWorkshop.loading.expanding">AI 正在扩展你的创意...</div>
+        <div class="cw-loading-subtext" id="cw-loading-subtext" data-i18n="creativeWorkshop.loading.wait">这可能需要几秒钟</div>
         <div class="cw-progress-bar">
             <div class="cw-progress-fill" id="cw-progress-fill" style="width: 0%"></div>
         </div>

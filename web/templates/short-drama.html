@@ -547,8 +547,8 @@
 <div class="short-drama-wrapper">
     <!-- 页面标题 -->
     <div style="text-align: center; margin-bottom: 2rem;">
-        <h1 style="font-size: 2rem; margin-bottom: 0.5rem;">🎭 {{ _('shortDrama.title') }}</h1>
-        <p style="color: var(--sd-text-secondary);">{{ _('shortDrama.subtitle') }}</p>
+        <h1 style="font-size: 2rem; margin-bottom: 0.5rem;" data-i18n="shortDrama.pageTitle">🎭 {{ _('shortDrama.title') }}</h1>
+        <p style="color: var(--sd-text-secondary);" data-i18n="shortDrama.pageSubtitle">{{ _('shortDrama.subtitle') }}</p>
     </div>
 
     <!-- 步骤指示器 -->
@@ -574,15 +574,15 @@
         <!-- 步骤1: 选择小说 -->
         <div class="step-content active" id="step1">
             <div style="text-align: center; margin-bottom: 2rem;">
-                <h2 style="font-size: 1.8rem; margin-bottom: 0.5rem;">📚 选择小说项目</h2>
-                <p style="color: var(--sd-text-secondary);">请选择要转换为短剧风格的小说</p>
+                <h2 style="font-size: 1.8rem; margin-bottom: 0.5rem;" data-i18n="shortDrama.step1.title">📚 选择小说项目</h2>
+                <p style="color: var(--sd-text-secondary);" data-i18n="shortDrama.step1.subtitle">请选择要转换为短剧风格的小说</p>
             </div>
             <div id="novelList" class="novel-grid">
-                <div class="loading-skeleton">加载中...</div>
+                <div class="loading-skeleton" data-i18n="common.loading">加载中...</div>
             </div>
             <div class="action-area">
                 <button id="step1NextBtn" class="sd-btn sd-btn-primary sd-btn-large" disabled>
-                    下一步：风格转换 →
+                    <span data-i18n="shortDrama.btn.nextStyle">下一步：风格转换</span> →
                 </button>
             </div>
         </div>
@@ -590,22 +590,22 @@
         <!-- 步骤2: 风格转换 -->
         <div class="step-content" id="step2">
             <div style="text-align: center; margin-bottom: 2rem;">
-                <h2 style="font-size: 1.8rem; margin-bottom: 0.5rem;">✨ 小说风格转换</h2>
-                <p style="color: var(--sd-text-secondary);">将小说内容转换为短剧风格</p>
+                <h2 style="font-size: 1.8rem; margin-bottom: 0.5rem;" data-i18n="shortDrama.step2.title">✨ 小说风格转换</h2>
+                <p style="color: var(--sd-text-secondary);" data-i18n="shortDrama.step2.subtitle">将小说内容转换为短剧风格</p>
             </div>
 
             <div class="conversion-container">
                 <div class="conversion-header">
-                    <span class="conversion-title" id="selectedNovelTitle">未选择小说</span>
-                    <span class="conversion-badge">短剧风格改造</span>
+                    <span class="conversion-title" id="selectedNovelTitle" data-i18n="shortDrama.noNovelSelected">未选择小说</span>
+                    <span class="conversion-badge" data-i18n="shortDrama.badge.conversion">短剧风格改造</span>
                 </div>
 
                 <div class="conversion-body">
                     <!-- 初始状态 -->
                     <div id="convertInitialState" style="text-align: center; padding: 3rem;">
                         <div style="font-size: 4rem; margin-bottom: 1rem;">🎬</div>
-                        <h3 style="margin-bottom: 0.5rem;">准备转换</h3>
-                        <p style="color: var(--sd-text-secondary); max-width: 400px; margin: 0 auto;">
+                        <h3 style="margin-bottom: 0.5rem;" data-i18n="shortDrama.ready.title">准备转换</h3>
+                        <p style="color: var(--sd-text-secondary); max-width: 400px; margin: 0 auto;" data-i18n="shortDrama.ready.desc">
                             点击下方按钮，将小说内容转换为短剧风格，添加钩子、悬念等短剧元素
                         </p>
                     </div>
@@ -613,21 +613,21 @@
                     <!-- 转换进度 -->
                     <div id="convertProgress" class="progress-container hidden">
                         <div class="progress-spinner"></div>
-                        <p class="progress-text" id="progressText">正在分析小说结构...</p>
-                        <p class="progress-subtext" id="progressSubtext">请稍候</p>
+                        <p class="progress-text" id="progressText" data-i18n="shortDrama.progress.analyzing">正在分析小说结构...</p>
+                        <p class="progress-subtext" id="progressSubtext" data-i18n="shortDrama.progress.wait">请稍候</p>
                     </div>
 
                     <!-- 转换结果 -->
                     <div id="convertResult" class="hidden">
                         <div class="comparison-grid">
                             <div class="comparison-panel">
-                                <div class="comparison-header">
+                                <div class="comparison-header" data-i18n="shortDrama.compare.original">
                                     📖 原始内容
                                 </div>
                                 <div class="comparison-content" id="originalContent"></div>
                             </div>
                             <div class="comparison-panel">
-                                <div class="comparison-header">
+                                <div class="comparison-header" data-i18n="shortDrama.compare.converted">
                                     ✨ 短剧风格
                                 </div>
                                 <div class="comparison-content highlight" id="convertedContent"></div>
@@ -638,12 +638,12 @@
             </div>
 
             <div class="action-area">
-                <button id="step2BackBtn" class="sd-btn sd-btn-secondary">← 上一步</button>
+                <button id="step2BackBtn" class="sd-btn sd-btn-secondary">← <span data-i18n="common.prev">上一步</span></button>
                 <button id="step2ConvertBtn" class="sd-btn sd-btn-primary sd-btn-large">
-                    🎬 开始转换
+                    🎬 <span data-i18n="shortDrama.btn.startConvert">开始转换</span>
                 </button>
                 <button id="step2NextBtn" class="sd-btn sd-btn-success sd-btn-large hidden">
-                    下一步：选择模式 →
+                    <span data-i18n="shortDrama.btn.nextMode">下一步：选择模式</span> →
                 </button>
             </div>
         </div>
@@ -651,40 +651,40 @@
         <!-- 步骤3: 选择制作模式 -->
         <div class="step-content" id="step3">
             <div style="text-align: center; margin-bottom: 2rem;">
-                <h2 style="font-size: 1.8rem; margin-bottom: 0.5rem;">🎯 选择制作模式</h2>
-                <p style="color: var(--sd-text-secondary);">风格转换完成！请选择制作方式</p>
+                <h2 style="font-size: 1.8rem; margin-bottom: 0.5rem;" data-i18n="shortDrama.step3.title">🎯 选择制作模式</h2>
+                <p style="color: var(--sd-text-secondary);" data-i18n="shortDrama.step3.subtitle">风格转换完成！请选择制作方式</p>
             </div>
 
             <div class="mode-grid">
                 <div class="mode-card" data-mode="episode">
                     <div class="selected-mark"></div>
                     <div class="mode-icon">📺</div>
-                    <h3 class="mode-title">分集制作</h3>
-                    <p class="mode-desc">按集逐步制作，精细控制</p>
+                    <h3 class="mode-title" data-i18n="shortDrama.mode.episode">分集制作</h3>
+                    <p class="mode-desc" data-i18n="shortDrama.mode.episode.desc">按集逐步制作，精细控制</p>
                     <ul class="mode-features">
-                        <li>选择重大事件和中级事件</li>
-                        <li>为每集准备角色剧照</li>
-                        <li>逐集生成分镜头脚本</li>
-                        <li>精细控制每集视频生成</li>
+                        <li data-i18n="shortDrama.mode.episode.f1">选择重大事件和中级事件</li>
+                        <li data-i18n="shortDrama.mode.episode.f2">为每集准备角色剧照</li>
+                        <li data-i18n="shortDrama.mode.episode.f3">逐集生成分镜头脚本</li>
+                        <li data-i18n="shortDrama.mode.episode.f4">精细控制每集视频生成</li>
                     </ul>
                 </div>
 
                 <div class="mode-card" data-mode="workflow">
                     <div class="selected-mark"></div>
                     <div class="mode-icon">🚀</div>
-                    <h3 class="mode-title">统一工作流</h3>
-                    <p class="mode-desc">一键式工作流，自动化完成</p>
+                    <h3 class="mode-title" data-i18n="shortDrama.mode.workflow">统一工作流</h3>
+                    <p class="mode-desc" data-i18n="shortDrama.mode.workflow.desc">一键式工作流，自动化完成</p>
                     <ul class="mode-features">
-                        <li>自动选择事件和角色</li>
-                        <li>智能生成分镜头脚本</li>
-                        <li>批量生成视频内容</li>
-                        <li>实时进度跟踪</li>
+                        <li data-i18n="shortDrama.mode.workflow.f1">自动选择事件和角色</li>
+                        <li data-i18n="shortDrama.mode.workflow.f2">智能生成分镜头脚本</li>
+                        <li data-i18n="shortDrama.mode.workflow.f3">批量生成视频内容</li>
+                        <li data-i18n="shortDrama.mode.workflow.f4">实时进度跟踪</li>
                     </ul>
                 </div>
             </div>
 
             <div class="action-area">
-                <button id="step3BackBtn" class="sd-btn sd-btn-secondary">← 上一步</button>
+                <button id="step3BackBtn" class="sd-btn sd-btn-secondary">← <span data-i18n="common.prev">上一步</span></button>
                 <button id="step3ConfirmBtn" class="sd-btn sd-btn-primary sd-btn-large" disabled>
                     {{ _('shortDrama.btn.start') }} →
                 </button>

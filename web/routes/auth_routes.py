@@ -155,10 +155,6 @@ def register_auth_routes(app):
             if request.args.get('mode') != 'add-account':
                 return redirect('/landing')
         
-        # V2 版本切换支持
-        ui_version = request.args.get('ui', '').lower()
-        if ui_version == 'v1':
-            return render_template('login.html')
         return render_template('pages/v2/login-v2.html')
 
     @app.route('/logout', methods=['GET', 'POST'])
@@ -313,10 +309,6 @@ def register_auth_routes(app):
         if 'logged_in' in session and session['logged_in']:
             return redirect('/')
         
-        # V2 版本切换支持
-        ui_version = request.args.get('ui', '').lower()
-        if ui_version == 'v1':
-            return render_template('register.html')
         return render_template('pages/v2/register-v2.html')
 
 
@@ -337,13 +329,7 @@ def register_page_routes(app):
     
     @app.route('/landing', methods=['GET'])
     def landing():
-        """大文娱系统首页 - 默认 V2 UI，支持切换回 V1"""
-        # 检查是否请求 V1 版本（V2 为默认）
-        ui_version = request.args.get('ui', '').lower()
-        if ui_version == 'v1':
-            logger.info("📄 Loading landing.html (V1 UI)")
-            return render_template('landing.html')
-        
+        """大文娱系统首页 - V2 UI"""
         # 检查是否需要显示欢迎弹窗（未领取注册奖励的用户）
         show_welcome = False
         welcome_bonus = 0
@@ -381,7 +367,7 @@ def register_page_routes(app):
             except Exception as e:
                 logger.error(f"❌ 检查欢迎弹窗状态失败: {e}")
         
-        logger.info(f"📄 Loading landing-v2.html (V2 UI - 默认), show_welcome={show_welcome}")
+        logger.info(f"📄 Loading landing-v2.html (V2 UI), show_welcome={show_welcome}")
         return render_template('pages/v2/landing-v2.html', 
                                show_welcome=show_welcome, 
                                welcome_bonus=welcome_bonus)
@@ -398,15 +384,9 @@ def register_page_routes(app):
     
     @app.route('/home', methods=['GET'])
     def home():
-        """首页 - 默认 V2 UI，支持切换回 V1"""
+        """首页 - V2 UI"""
         if session.get('logged_in'):
-            # 检查是否请求 V1 版本（V2 为默认）
-            ui_version = request.args.get('ui', '').lower()
-            if ui_version == 'v1':
-                logger.info("📄 Loading index.html (V1 UI)")
-                return render_template('index.html')
-            
-            logger.info("📄 Loading index-v2.html (V2 UI - 默认)")
+            logger.info("📄 Loading index-v2.html (V2 UI)")
             return render_template('pages/v2/index-v2.html')
         else:
             logger.info("📄 User not logged in, redirecting to login")
@@ -415,28 +395,19 @@ def register_page_routes(app):
     @app.route('/novels', methods=['GET'])
     @login_required
     def novels_view():
-        """作品列表页面 - 默认 V2 UI"""
-        ui_version = request.args.get('ui', '').lower()
-        if ui_version == 'v1':
-            return render_template('novels.html')
+        """作品列表页面 - V2 UI"""
         return render_template('pages/v2/novels-v2.html')
 
     @app.route('/novel', methods=['GET'])
     @login_required
     def novel_view():
-        """小说阅读页面 - 默认 V2 UI"""
-        ui_version = request.args.get('ui', '').lower()
-        if ui_version == 'v1':
-            return render_template('novel_view.html')
+        """小说阅读页面 - V2 UI"""
         return render_template('pages/v2/novel-v2.html')
 
     @app.route('/dashboard', methods=['GET'])
     @login_required
     def dashboard():
-        """仪表板"""
-        ui_version = request.args.get('ui', '').lower()
-        if ui_version == 'v1':
-            return render_template('dashboard.html')
+        """仪表板 - V2 UI"""
         return render_template('pages/v2/dashboard-v2.html')
 
     @app.route('/test_layout_improvements.html', methods=['GET'])
@@ -502,14 +473,8 @@ def register_page_routes(app):
     @app.route('/project-management', methods=['GET'])
     @login_required
     def project_management():
-        """项目管理页面 - 默认 V2 UI"""
-        # 检查是否请求 V1 版本（V2 为默认）
-        ui_version = request.args.get('ui', '').lower()
-        if ui_version == 'v1':
-            logger.info("📄 Loading project-management.html (V1 UI)")
-            return render_template('project-management.html')
-        
-        logger.info("📄 Loading project-management-v2.html (V2 UI - 默认)")
+        """项目管理页面 - V2 UI"""
+        logger.info("📄 Loading project-management-v2.html (V2 UI)")
         return render_template('pages/v2/project-management-v2.html')
     
     @app.route('/model-config', methods=['GET'])
@@ -654,79 +619,52 @@ def register_page_routes(app):
 
     @app.route('/help', methods=['GET'])
     def help_center():
-        """帮助中心页面"""
-        ui_version = request.args.get('ui', '').lower()
-        if ui_version == 'v1':
-            return render_template('help.html')
+        """帮助中心页面 - V2 UI"""
         return render_template('pages/v2/help-v2.html')
 
     @app.route('/terms', methods=['GET'])
     def terms():
-        """使用条款页面"""
-        ui_version = request.args.get('ui', '').lower()
-        if ui_version == 'v1':
-            return render_template('terms.html')
+        """使用条款页面 - V2 UI"""
         return render_template('pages/v2/terms-v2.html')
 
     @app.route('/privacy', methods=['GET'])
     def privacy():
-        """隐私政策页面"""
-        ui_version = request.args.get('ui', '').lower()
-        if ui_version == 'v1':
-            return render_template('privacy.html')
+        """隐私政策页面 - V2 UI"""
         return render_template('pages/v2/privacy-v2.html')
 
     @app.route('/contact', methods=['GET'])
     def contact():
-        """联系我们页面"""
-        ui_version = request.args.get('ui', '').lower()
-        if ui_version == 'v1':
-            return render_template('contact.html')
+        """联系我们页面 - V2 UI"""
         return render_template('pages/v2/contact-v2.html')
 
     @app.route('/recharge', methods=['GET'])
     @login_required
     def recharge():
-        """充值页面"""
-        ui_version = request.args.get('ui', '').lower()
-        if ui_version == 'v1':
-            return render_template('recharge.html')
+        """充值页面 - V2 UI"""
         return render_template('pages/v2/recharge-v2.html')
 
     @app.route('/points', methods=['GET'])
     @login_required
     def points():
-        """余额管理页面"""
-        ui_version = request.args.get('ui', '').lower()
-        if ui_version == 'v1':
-            return render_template('recharge.html')
+        """余额管理页面 - V2 UI"""
         return render_template('pages/v2/recharge-v2.html')
 
     @app.route('/payment/success', methods=['GET'])
     @login_required
     def payment_success():
-        """支付成功页面"""
-        ui_version = request.args.get('ui', '').lower()
-        if ui_version == 'v1':
-            return render_template('payment-success.html')
+        """支付成功页面 - V2 UI"""
         return render_template('pages/v2/payment-success-v2.html')
 
     @app.route('/settings', methods=['GET'])
     @login_required
     def settings():
-        """偏好设置页面"""
-        ui_version = request.args.get('ui', '').lower()
-        if ui_version == 'v1':
-            return render_template('settings.html')
+        """偏好设置页面 - V2 UI"""
         return render_template('pages/v2/settings-v2.html')
 
     @app.route('/account', methods=['GET'])
     @login_required
     def account():
-        """账户管理页面"""
-        ui_version = request.args.get('ui', '').lower()
-        if ui_version == 'v1':
-            return render_template('account.html')
+        """账户管理页面 - V2 UI"""
         return render_template('pages/v2/account-v2.html')
 
     @app.route('/api/current-user', methods=['GET'])

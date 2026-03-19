@@ -4,7 +4,7 @@
 #}
 {% extends "layouts/base-v2.html" %}
 
-{% block title %}小说阅读{% endblock %}
+{% block title %}{{ _('novelView.title') }} - {{ _('common.platformName') }}{% endblock %}
 
 {% block extra_css %}
 <style>
@@ -530,11 +530,11 @@
 {% block content %}
 <!-- 面包屑导航 -->
 <nav class="v2-breadcrumb" style="padding: 8px 20px; background: rgba(255,255,255,0.02); border-bottom: 1px solid var(--reader-border);">
-    <a href="/" class="v2-breadcrumb__link" style="color: var(--reader-text-secondary); text-decoration: none; font-size: 13px;">首页</a>
+    <a href="/" class="v2-breadcrumb__link" style="color: var(--reader-text-secondary); text-decoration: none; font-size: 13px;" data-i18n="common.home">首页</a>
     <span class="v2-breadcrumb__separator" style="color: var(--reader-text-secondary); margin: 0 8px;">/</span>
-    <a href="/novels" class="v2-breadcrumb__link" style="color: var(--reader-text-secondary); text-decoration: none; font-size: 13px;">作品</a>
+    <a href="/novels" class="v2-breadcrumb__link" style="color: var(--reader-text-secondary); text-decoration: none; font-size: 13px;" data-i18n="common.works">作品</a>
     <span class="v2-breadcrumb__separator" style="color: var(--reader-text-secondary); margin: 0 8px;">/</span>
-    <span class="v2-breadcrumb__current" id="breadcrumb-title" style="color: var(--reader-text); font-size: 13px;">加载中...</span>
+    <span class="v2-breadcrumb__current" id="breadcrumb-title" style="color: var(--reader-text); font-size: 13px;" data-i18n="common.loading">加载中...</span>
 </nav>
 
 <div class="novel-reader">
@@ -543,21 +543,21 @@
         <!-- 小说信息 -->
         <div class="reader-card">
             <div class="reader-card__header">
-                <span>📚</span> 小说信息
+                <span>📚</span> <span data-i18n="novelView.novelInfo">小说信息</span>
             </div>
             <div class="reader-card__body">
                 <div class="novel-meta__item">
-                    <span class="novel-meta__label">标题</span>
-                    <span class="novel-meta__value" id="novel-title">加载中...</span>
+                    <span class="novel-meta__label" data-i18n="novelView.label.title">标题</span>
+                    <span class="novel-meta__value" id="novel-title" data-i18n="common.loading">加载中...</span>
                 </div>
                 <div class="novel-meta__item">
-                    <span class="novel-meta__label">进度</span>
+                    <span class="novel-meta__label" data-i18n="novelView.label.progress">进度</span>
                     <span class="novel-meta__value" id="novel-progress">0/0</span>
                 </div>
                 <div class="novel-meta__item">
-                    <span class="novel-meta__label">状态</span>
+                    <span class="novel-meta__label" data-i18n="novelView.label.status">状态</span>
                     <span class="novel-meta__value">
-                        <span class="status-badge status-badge--generating" id="novel-status-badge">生成中</span>
+                        <span class="status-badge status-badge--generating" id="novel-status-badge" data-i18n="novelView.status.generating">生成中</span>
                     </span>
                 </div>
             </div>
@@ -566,13 +566,13 @@
         <!-- 章节列表 -->
         <div class="reader-card">
             <div class="reader-card__header">
-                <span>📄</span> 章节导航
+                <span>📄</span> <span data-i18n="novelView.chapterNav">章节导航</span>
             </div>
             <div class="reader-card__body" style="padding: 8px;">
                 <div class="chapters-list" id="chapters-list">
                     <div class="loading-state" style="padding: 20px;">
                         <div class="spinner" style="width: 24px; height: 24px;"></div>
-                        <span style="font-size: 12px;">加载章节...</span>
+                        <span style="font-size: 12px;" data-i18n="novelView.loadingChapters">加载章节...</span>
                     </div>
                 </div>
             </div>
@@ -595,42 +595,42 @@
         <div class="reader-content">
             <!-- 内容头部 -->
             <div class="reader-content__header">
-                <h1 class="reader-content__title" id="chapter-title">选择章节阅读</h1>
-                <p class="reader-content__meta" id="chapter-meta">点击左侧章节列表选择要查看的章节</p>
+                <h1 class="reader-content__title" id="chapter-title" data-i18n="novelView.selectChapter">选择章节阅读</h1>
+                <p class="reader-content__meta" id="chapter-meta" data-i18n="novelView.selectChapterHint">点击左侧章节列表选择要查看的章节</p>
             </div>
 
             <!-- 内容主体 -->
             <div class="reader-content__body" id="chapter-content">
                 <div class="loading-state">
                     <div class="spinner"></div>
-                    <p>请从左侧选择章节开始阅读</p>
+                    <p data-i18n="novelView.selectToRead">请从左侧选择章节开始阅读</p>
                 </div>
             </div>
 
             <!-- 章节导航 -->
             <div class="reader-nav">
                 <button class="reader-nav__btn" id="prev-chapter-btn" onclick="prevChapter()" disabled>
-                    <span>←</span> 上一章
+                    <span>←</span> <span data-i18n="novelView.prevChapter">上一章</span>
                 </button>
-                <span class="reader-nav__indicator" id="chapter-indicator">第 1 章</span>
+                <span class="reader-nav__indicator" id="chapter-indicator" data-i18n="novelView.chapterIndicator" data-i18n-attr="data-chapter-format">第 1 章</span>
                 <button class="reader-nav__btn" id="next-chapter-btn" onclick="nextChapter()" disabled>
-                    下一章 <span>→</span>
+                    <span data-i18n="novelView.nextChapter">下一章</span> <span>→</span>
                 </button>
             </div>
 
             <!-- 分页导航 -->
             <div class="page-nav">
                 <button class="v2-btn v2-btn--small page-nav__btn" id="prev-page-btn" onclick="prevPage()" disabled>
-                    ← 上一页
+                    ← <span data-i18n="novelView.prevPage">上一页</span>
                 </button>
                 <div class="page-nav__info">
                     <span id="current-page">1</span> / <span id="total-pages">1</span>
                 </div>
                 <button class="v2-btn v2-btn--small page-nav__btn" id="next-page-btn" onclick="nextPage()" disabled>
-                    下一页 →
+                    <span data-i18n="novelView.nextPage">下一页</span> →
                 </button>
                 <button class="v2-btn v2-btn--small page-nav__settings" onclick="togglePageSettings()">
-                    ⚙️ 设置
+                    ⚙️ <span data-i18n="common.settings">设置</span>
                 </button>
             </div>
         </div>
@@ -641,15 +641,15 @@
         <!-- 章节统计 -->
         <div class="info-section">
             <div class="info-section__title">
-                <span>📊</span> 本章统计
+                <span>📊</span> <span data-i18n="novelView.chapterStats">本章统计</span>
             </div>
             <div class="info-section__content">
                 <div class="novel-meta__item">
-                    <span class="novel-meta__label">字数</span>
+                    <span class="novel-meta__label" data-i18n="novelView.label.wordCount">字数</span>
                     <span class="novel-meta__value" id="word-count">-</span>
                 </div>
                 <div class="novel-meta__item">
-                    <span class="novel-meta__label">生成时间</span>
+                    <span class="novel-meta__label" data-i18n="novelView.label.genTime">生成时间</span>
                     <span class="novel-meta__value" id="generated-time">-</span>
                 </div>
             </div>
@@ -658,14 +658,14 @@
         <!-- 快捷操作 -->
         <div class="info-section">
             <div class="info-section__title">
-                <span>⚡</span> 快捷操作
+                <span>⚡</span> <span data-i18n="novelView.quickActions">快捷操作</span>
             </div>
             <div class="info-section__content" style="display: flex; flex-direction: column; gap: 8px;">
                 <a href="/phase-two-generation" class="v2-btn v2-btn--primary" style="text-decoration: none;">
-                    📝 继续生成
+                    📝 <span data-i18n="novelView.btn.continueGen">继续生成</span>
                 </a>
                 <a href="/project-management" class="v2-btn" style="text-decoration: none;">
-                    📁 项目管理
+                    📁 <span data-i18n="novelView.btn.projectMgmt">项目管理</span>
                 </a>
             </div>
         </div>
@@ -678,21 +678,21 @@
 <!-- 分页设置面板 -->
 <div class="settings-panel" id="page-settings-panel">
     <div class="settings-panel__header">
-        <span class="settings-panel__title">📖 阅读设置</span>
+        <span class="settings-panel__title">📖 <span data-i18n="novelView.readingSettings">阅读设置</span></span>
         <button class="settings-panel__close" onclick="closePageSettings()">&times;</button>
     </div>
     
     <div class="setting-row">
-        <span class="setting-row__label">每页行数</span>
+        <span class="setting-row__label" data-i18n="novelView.setting.linesPerPage">每页行数</span>
         <div class="setting-row__control">
             <button class="v2-btn v2-btn--small" onclick="adjustPageSize(-5)">-</button>
-            <span class="setting-row__value" id="page-size-display">25行</span>
+            <span class="setting-row__value" id="page-size-display" data-i18n="novelView.setting.lines" data-i18n-attr="data-lines-format">25行</span>
             <button class="v2-btn v2-btn--small" onclick="adjustPageSize(5)">+</button>
         </div>
     </div>
     
     <div class="setting-row">
-        <span class="setting-row__label">字体大小</span>
+        <span class="setting-row__label" data-i18n="novelView.setting.fontSize">字体大小</span>
         <div class="setting-row__control">
             <button class="v2-btn v2-btn--small" onclick="adjustFontSize(-2)">A-</button>
             <span class="setting-row__value" id="font-size-display">16px</span>
@@ -701,7 +701,7 @@
     </div>
     
     <div class="setting-row">
-        <span class="setting-row__label">行间距</span>
+        <span class="setting-row__label" data-i18n="novelView.setting.lineHeight">行间距</span>
         <div class="setting-row__control">
             <button class="v2-btn v2-btn--small" onclick="adjustLineHeight(-0.1)">-</button>
             <span class="setting-row__value" id="line-height-display">1.8</span>
