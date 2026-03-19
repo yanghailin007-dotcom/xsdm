@@ -116,9 +116,17 @@ class GoldenChaptersGenerator:
     ) -> str:
         """构建黄金三章专用Prompt"""
         
+        # 🔥 修复：确保 selected_plan 是字典而不是列表
+        if isinstance(selected_plan, list):
+            self.logger.warning(f"[GoldenChapters] selected_plan 是列表而非字典，使用空字典替代")
+            selected_plan = {}
+        elif not isinstance(selected_plan, dict):
+            self.logger.warning(f"[GoldenChapters] selected_plan 类型错误: {type(selected_plan)}，使用空字典替代")
+            selected_plan = {}
+        
         # 提取核心设定
-        core_settings = selected_plan.get("core_settings", {})
-        story_development = selected_plan.get("story_development", {})
+        core_settings = selected_plan.get("core_settings", {}) if isinstance(selected_plan, dict) else {}
+        story_development = selected_plan.get("story_development", {}) if isinstance(selected_plan, dict) else {}
         
         world_background = core_settings.get("world_background", "")
         golden_finger = core_settings.get("golden_finger", "")

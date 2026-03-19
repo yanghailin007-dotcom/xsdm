@@ -420,10 +420,16 @@ class MediumEventBatchProcessor:
         
         try:
             # 使用黄金三章专用生成器
+            # 🔥 修复：确保 selected_plan 是字典
+            selected_plan = novel_data.get("selected_plan", {})
+            if isinstance(selected_plan, list):
+                self.logger.warning(f"[BatchProcessor] selected_plan 是列表，转换为空字典")
+                selected_plan = {}
+            
             chapters_content = self.golden_generator.generate(
                 novel_data=novel_data,
                 creative_seed=novel_data.get("creative_seed", {}),
-                selected_plan=novel_data.get("selected_plan", {}),
+                selected_plan=selected_plan,
                 scenes_by_chapter=scenes_by_chapter,
                 username=username
             )
