@@ -92,6 +92,16 @@ const I18N = (function() {
             'projectMgmt.action.export': '导出',
             'projectMgmt.empty.title': '暂无项目',
             'projectMgmt.empty.createBtn': '创建第一个项目',
+            
+            // 故事线时间线
+            'storyline.title': '故事线时间线',
+            'storyline.subtitle': '查看和管理所有重大事件及其细分',
+            'storyline.timeline.title': '时间线',
+            'storyline.event.major': '重大事件',
+            'storyline.event.minor': '细分事件',
+            'storyline.action.add': '添加事件',
+            'storyline.action.edit': '编辑',
+            'storyline.action.delete': '删除',
         },
         'zh-TW': {
             // Phase 2 頁面翻譯
@@ -177,6 +187,16 @@ const I18N = (function() {
             'projectMgmt.action.export': '匯出',
             'projectMgmt.empty.title': '暫無項目',
             'projectMgmt.empty.createBtn': '創建第一個項目',
+            
+            // 故事線時間線
+            'storyline.title': '故事線時間線',
+            'storyline.subtitle': '查看和管理所有重大事件及其細分',
+            'storyline.timeline.title': '時間線',
+            'storyline.event.major': '重大事件',
+            'storyline.event.minor': '細分事件',
+            'storyline.action.add': '添加事件',
+            'storyline.action.edit': '編輯',
+            'storyline.action.delete': '刪除',
         },
         'en': {
             // Phase 2 Page Translations
@@ -252,6 +272,16 @@ const I18N = (function() {
             'projectMgmt.action.export': 'Export',
             'projectMgmt.empty.title': 'No Projects',
             'projectMgmt.empty.createBtn': 'Create First Project',
+            
+            // Storyline Timeline
+            'storyline.title': 'Storyline Timeline',
+            'storyline.subtitle': 'View and manage all major events and their subdivisions',
+            'storyline.timeline.title': 'Timeline',
+            'storyline.event.major': 'Major Events',
+            'storyline.event.minor': 'Sub Events',
+            'storyline.action.add': 'Add Event',
+            'storyline.action.edit': 'Edit',
+            'storyline.action.delete': 'Delete',
         }
     };
 
