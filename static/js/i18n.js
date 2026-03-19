@@ -783,6 +783,21 @@ const I18N = {
             'coverMaker.settings.size.1K': '1K (1024x1024)',
             'coverMaker.settings.size.2K': '2K (2048x2048)',
             'coverMaker.settings.watermark': '添加水印',
+            
+            // 新增翻译键 - 步骤
+            'coverMaker.step.template': '选择模板',
+            'coverMaker.step.customize': '自定义设计',
+            'coverMaker.step.download': '下载封面',
+            
+            // 新增翻译键 - 表单
+            'coverMaker.form.title': '小说标题',
+            'coverMaker.form.author': '作者名称',
+            'coverMaker.form.style': '封面风格',
+            
+            // 新增翻译键 - 按钮
+            'coverMaker.btn.generate': '生成封面',
+            'coverMaker.btn.download': '下载封面',
+            
             'coverMaker.generate.btn': '🎨 开始生成封面',
             'coverMaker.generate.loading': '正在生成封面，请稍候...',
             'coverMaker.gallery.title': '封面图库',
@@ -1435,6 +1450,21 @@ const I18N = {
             'coverMaker.settings.size.1K': '1K (1024x1024)',
             'coverMaker.settings.size.2K': '2K (2048x2048)',
             'coverMaker.settings.watermark': '添加水印',
+            
+            // 新增翻譯鍵 - 步驟
+            'coverMaker.step.template': '選擇模板',
+            'coverMaker.step.customize': '自定義設計',
+            'coverMaker.step.download': '下載封面',
+            
+            // 新增翻譯鍵 - 表單
+            'coverMaker.form.title': '小說標題',
+            'coverMaker.form.author': '作者名稱',
+            'coverMaker.form.style': '封面風格',
+            
+            // 新增翻譯鍵 - 按鈕
+            'coverMaker.btn.generate': '生成封面',
+            'coverMaker.btn.download': '下載封面',
+            
             'coverMaker.generate.btn': '🎨 開始生成封面',
             'coverMaker.generate.loading': '正在生成封面，請稍候...',
             'coverMaker.gallery.title': '封面圖庫',
@@ -2353,6 +2383,21 @@ const I18N = {
             'coverMaker.settings.size.1K': '1K (1024x1024)',
             'coverMaker.settings.size.2K': '2K (2048x2048)',
             'coverMaker.settings.watermark': 'Add Watermark',
+            
+            // New translation keys - Steps
+            'coverMaker.step.template': 'Select Template',
+            'coverMaker.step.customize': 'Customize Design',
+            'coverMaker.step.download': 'Download Cover',
+            
+            // New translation keys - Form
+            'coverMaker.form.title': 'Novel Title',
+            'coverMaker.form.author': 'Author Name',
+            'coverMaker.form.style': 'Cover Style',
+            
+            // New translation keys - Buttons
+            'coverMaker.btn.generate': 'Generate Cover',
+            'coverMaker.btn.download': 'Download Cover',
+            
             'coverMaker.generate.btn': '🎨 Start Generating',
             'coverMaker.generate.loading': 'Generating cover, please wait...',
             'coverMaker.gallery.title': 'Cover Gallery',
