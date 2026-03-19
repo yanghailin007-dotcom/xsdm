@@ -48,7 +48,8 @@ class MultiChapterContentGenerator:
         consistency_guidance: str,
         novel_title: str,
         previous_state: Optional[Dict] = None,
-        username: str = None
+        username: str = None,
+        protagonist_name: str = None
     ) -> Dict[int, ChapterContent]:
         """
         批量生成多章正文
@@ -80,6 +81,21 @@ class MultiChapterContentGenerator:
         style_guide = WritingStyleGuideLoader.load_and_format(novel_title, username)
         self.logger.info(f"[MultiChapterGen] 已加载风格指南: {style_guide.core_style[:50]}...")
         
+        # 🔥 新增：如果未提供主角名字，尝试从 medium_event 或 consistency_guidance 提取
+        if not protagonist_name:
+            # 尝试从 medium_event 的 character_design 中提取
+            if isinstance(medium_event, dict):
+                char_design = medium_event.get("character_design", {})
+                if isinstance(char_design, dict):
+                    main_char = char_design.get("main_character", {})
+                    if isinstance(main_char, dict) and main_char.get("name"):
+                        protagonist_name = main_char["name"]
+        
+        if not protagonist_name:
+            protagonist_name = "主角"
+        
+        self.logger.info(f"[MultiChapterGen] 锁定主角姓名: {protagonist_name}")
+        
         # 2. 构建Prompt
         prompt = self._build_prompt(
             medium_event=medium_event,
@@ -88,7 +104,8 @@ class MultiChapterContentGenerator:
             consistency_guidance=consistency_guidance,
             style_guide=style_guide,
             previous_state=previous_state,
-            novel_title=novel_title
+            novel_title=novel_title,
+            protagonist_name=protagonist_name
         )
         
         # 3. 调用API生成（1次API调用=1创造点，无论生成多少章）
@@ -137,7 +154,8 @@ class MultiChapterContentGenerator:
         consistency_guidance: str,
         style_guide: FormattedStyleGuide,
         previous_state: Optional[Dict],
-        novel_title: str
+        novel_title: str,
+        protagonist_name: str = "主角"
     ) -> str:
         """构建多章生成Prompt"""
         # 直接检查 medium_event 类型
@@ -155,7 +173,29 @@ class MultiChapterContentGenerator:
         # 前一事件状态
         previous_state_str = json.dumps(previous_state, ensure_ascii=False, indent=2) if previous_state else "无"
         
-        prompt = f"""# 角色: {style_guide.core_style}
+        prompt = f"""【一致性绝对铁律 - 违者内容作废】
+以下内容在整个生成过程中绝对锁定，禁止更改：
+
+1. 主角姓名绝对锁定为：{protagonist_name}
+   - 必须使用"{protagonist_name}"作为主角唯一姓名，全程禁止使用任何其他名字
+   - 禁止使用的错误名字示例：顾锋、顾风、古锋、苏明、苏铭（变体）等
+   - 完成生成后必须全文自检：搜索确认主角姓名始终为"{protagonist_name}"
+
+2. 核心设定锁定：
+   - 系统/金手指：与上文保持一致
+   - 当前修为：根据章节进度保持一致
+   - 当前地点：根据情节发展保持一致
+
+3. 硬性自检指令（返回前必须执行）：
+   - [ ] 全文搜索"{protagonist_name}"，确认出现次数 > 0
+   - [ ] 确认文中没有其他主角名字出现
+   - [ ] 确认系统名称一致
+   - [ ] 确认角色修为与世界观一致
+   - [ ] 如违反以上任何一条，必须修正后重新返回
+
+---
+
+# 角色: {style_guide.core_style}
 
 你正在创作小说《{novel_title}》。请基于提供的场景规划，一次性为连续的多章创作正文。
 

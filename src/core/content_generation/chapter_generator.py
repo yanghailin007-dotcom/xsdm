@@ -480,8 +480,48 @@ class ChapterGenerator:
         # 获取上一章结尾状态，构建衔接要求
         previous_end_state = chapter_params.get("previous_end_state")
         transition_requirement = self._build_transition_requirement(previous_end_state, chapter_number)
+        
+        # 🔥 新增：获取主角名字
+        protagonist_name = "主角"
+        character_design = chapter_params.get("character_design", {})
+        if isinstance(character_design, dict):
+            main_char = character_design.get("main_character", {})
+            if isinstance(main_char, dict) and main_char.get("name"):
+                protagonist_name = main_char["name"]
+        # 如果还没有，尝试从 novel_data 获取
+        if protagonist_name == "主角":
+            novel_data = chapter_params.get("novel_data", {})
+            if isinstance(novel_data, dict):
+                char_design = novel_data.get("character_design", {})
+                if isinstance(char_design, dict):
+                    main_char = char_design.get("main_character", {})
+                    if isinstance(main_char, dict) and main_char.get("name"):
+                        protagonist_name = main_char["name"]
+        
+        self.logger.info(f"[ChapterGenerator] 第{chapter_number}章锁定主角姓名: {protagonist_name}")
 
-        return f"""
+        return f"""【一致性绝对铁律 - 违者内容作废】
+以下内容在整个生成过程中绝对锁定，禁止更改：
+
+1. 主角姓名绝对锁定为：{protagonist_name}
+   - 必须使用"{protagonist_name}"作为主角唯一姓名，全程禁止使用任何其他名字
+   - 禁止使用的错误名字示例：顾锋、顾风、古锋、苏明、苏铭（变体）等
+   - 完成生成后必须全文自检：搜索确认主角姓名始终为"{protagonist_name}"
+
+2. 核心设定锁定：
+   - 系统/金手指：与上文保持一致
+   - 当前修为：根据章节进度保持一致
+   - 当前地点：根据情节发展保持一致
+
+3. 硬性自检指令（返回前必须执行）：
+   - [ ] 全文搜索"{protagonist_name}"，确认出现次数 > 0
+   - [ ] 确认文中没有其他主角名字出现
+   - [ ] 确认系统名称一致
+   - [ ] 确认角色修为与世界观一致
+   - [ ] 如违反以上任何一条，必须修正后重新返回
+
+---
+
 ## 章节创作指令 ##
 为《{chapter_params.get('novel_title', '')}》创作第{chapter_number}章。
 

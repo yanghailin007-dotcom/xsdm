@@ -143,12 +143,46 @@ class GoldenChaptersGenerator:
         core_selling_points = core_settings.get("core_selling_points", [])
         protagonist_position = story_development.get("protagonist_position", "")
         
-
+        # 🔥 新增：从 creative_seed 中提取主角名字
+        protagonist_name = "主角"
+        if isinstance(creative_seed, dict):
+            # 尝试从多个可能的位置获取主角名字
+            if "main_character" in creative_seed and isinstance(creative_seed["main_character"], dict):
+                protagonist_name = creative_seed["main_character"].get("name", "主角")
+            elif "protagonist_name" in creative_seed:
+                protagonist_name = creative_seed["protagonist_name"]
+            elif "character_design" in creative_seed and isinstance(creative_seed["character_design"], dict):
+                main_char = creative_seed["character_design"].get("main_character", {})
+                if isinstance(main_char, dict):
+                    protagonist_name = main_char.get("name", "主角")
+        
+        self.logger.info(f"[GoldenChapters] 锁定主角姓名: {protagonist_name}")
         
         # 格式化场景
         scenes_formatted = self._format_scenes(scenes_by_chapter)
         
-        prompt = f"""# 角色: {style_guide.core_style}
+        prompt = f"""【一致性绝对铁律 - 违者内容作废】
+以下内容在整个生成过程中绝对锁定，禁止更改：
+
+1. 主角姓名绝对锁定为：{protagonist_name}
+   - 必须使用"{protagonist_name}"作为主角唯一姓名，全程禁止使用任何其他名字
+   - 禁止使用的错误名字示例：顾锋、顾风、古锋、苏明、苏铭（变体）等
+   - 完成生成后必须全文自检：搜索确认主角姓名始终为"{protagonist_name}"
+
+2. 核心设定锁定：
+   - 系统/金手指：{golden_finger[:50] if golden_finger else "待设定"}...
+   - 当前修为：初始状态（凡人/低阶）
+   - 初始地点：根据世界观设定
+
+3. 硬性自检指令（返回前必须执行）：
+   - [ ] 全文搜索"{protagonist_name}"，确认出现次数 > 0
+   - [ ] 确认文中没有其他主角名字出现
+   - [ ] 确认系统名称一致
+   - [ ] 如违反以上任何一条，必须修正后重新返回
+
+---
+
+# 角色: {style_guide.core_style}
 
 你正在创作小说《{novel_title}》的开篇黄金三章。这是小说最重要的部分，必须一次性整体生成，确保三章连贯、节奏紧凑、吸引力强。
 
@@ -228,7 +262,7 @@ class GoldenChaptersGenerator:
       "title": "第1章标题（10-15字，强吸引力）",
       "content": "第1章正文（2500-3000字）。注意：开篇强力，快速进入冲突，激活金手指，结尾卡点。",
       "key_events": ["事件1", "事件2"],
-      "character_states": {{"主角名": "获得金手指"}},
+      "character_states": {{"{protagonist_name}": "获得金手指"}},
       "items_delta": {{"金手指名": "激活"}},
       "time_progression": "时间推进",
       "hook_type": "悬念型/情绪型/冲突型/期待型",
@@ -239,7 +273,7 @@ class GoldenChaptersGenerator:
       "title": "第2章标题",
       "content": "第2章正文（2500-3000字）。承接第1章，测试金手指，周围反应，结尾卡点。",
       "key_events": ["事件1", "事件2"],
-      "character_states": {{"主角名": "初步掌握金手指"}},
+      "character_states": {{"{protagonist_name}": "初步掌握金手指"}},
       "items_delta": {{}},
       "time_progression": "时间推进",
       "hook_type": "期待型",
@@ -250,7 +284,7 @@ class GoldenChaptersGenerator:
       "title": "第3章标题",
       "content": "第3章正文（2500-3000字）。冲突爆发，打脸/反转，爽点释放，强钩子结尾。",
       "key_events": ["事件1", "事件2", "事件3"],
-      "character_states": {{"主角名": "第一次成功"}},
+      "character_states": {{"{protagonist_name}": "第一次成功"}},
       "items_delta": {{}},
       "time_progression": "时间推进",
       "hook_type": "悬念型",
@@ -280,7 +314,7 @@ class GoldenChaptersGenerator:
             if ch_num > 3:
                 continue
             scenes = scenes_by_chapter[ch_num]
-                lines.append(f"\n第{ch_num}章场景:")
+            lines.append(f"\n第{ch_num}章场景:")
             for i, scene in enumerate(scenes, 1):
                 lines.append(f"  {i}. {scene.get('name', f'场景{i}')} - {scene.get('purpose', '')}")
         

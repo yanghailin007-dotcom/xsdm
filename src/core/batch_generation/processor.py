@@ -160,6 +160,10 @@ class MediumEventBatchProcessor:
             novel_data, start_ch
         )
         
+        # 🔥 新增：提取主角名字
+        protagonist_name = self._extract_protagonist_name(novel_data)
+        self.logger.info(f"[BatchProcessor] 提取主角姓名: {protagonist_name}")
+        
         # 3. 批量生成正文（核心优化）
         try:
             chapters_content = self.content_generator.generate(
@@ -169,7 +173,8 @@ class MediumEventBatchProcessor:
                 consistency_guidance=consistency_guidance,
                 novel_title=novel_title,
                 previous_state=self._get_previous_state(novel_data, start_ch),
-                username=username
+                username=username,
+                protagonist_name=protagonist_name
             )
             
             # 计算实际API调用次数（通过计数器差值）
@@ -341,6 +346,43 @@ class MediumEventBatchProcessor:
         # 这里简化处理，实际应从stage_plan_manager获取
         # 返回空，让上层处理场景生成
         return {}
+    
+    def _extract_protagonist_name(self, novel_data: Dict) -> str:
+        """从 novel_data 中提取主角名字"""
+        if not isinstance(novel_data, dict):
+            return "主角"
+        
+        # 尝试多个可能的位置
+        # 1. 从 character_design.main_character.name 获取
+        char_design = novel_data.get("character_design", {})
+        if isinstance(char_design, dict):
+            main_char = char_design.get("main_character", {})
+            if isinstance(main_char, dict) and main_char.get("name"):
+                return main_char["name"]
+        
+        # 2. 从 creative_seed.character_design.main_character.name 获取
+        creative_seed = novel_data.get("creative_seed", {})
+        if isinstance(creative_seed, dict):
+            char_design = creative_seed.get("character_design", {})
+            if isinstance(char_design, dict):
+                main_char = char_design.get("main_character", {})
+                if isinstance(main_char, dict) and main_char.get("name"):
+                    return main_char["name"]
+            # 3. 从 creative_seed.main_character.name 获取
+            main_char = creative_seed.get("main_character", {})
+            if isinstance(main_char, dict) and main_char.get("name"):
+                return main_char["name"]
+        
+        # 4. 从 selected_plan 获取
+        selected_plan = novel_data.get("selected_plan", {})
+        if isinstance(selected_plan, dict):
+            char_design = selected_plan.get("character_design", {})
+            if isinstance(char_design, dict):
+                main_char = char_design.get("main_character", {})
+                if isinstance(main_char, dict) and main_char.get("name"):
+                    return main_char["name"]
+        
+        return "主角"
     
     def _build_consistency_guidance(self, novel_data: Dict, start_chapter: int) -> str:
         """构建一致性指导"""
