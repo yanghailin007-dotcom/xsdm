@@ -146,6 +146,13 @@ class GoldenChaptersGenerator:
         core_selling_points = core_settings.get("core_selling_points", [])
         protagonist_position = story_development.get("protagonist_position", "")
         
+        # 🔥 调试：检查 style_guide 和 scenes_by_chapter
+        self.logger.error(f"[DEBUG] style_guide 类型: {type(style_guide)}, scenes_by_chapter 类型: {type(scenes_by_chapter)}")
+        if hasattr(style_guide, 'core_style'):
+            self.logger.error(f"[DEBUG] style_guide.core_style 存在")
+        else:
+            self.logger.error(f"[DEBUG] style_guide 没有 core_style 属性，值: {style_guide}")
+        
         # 格式化场景
         scenes_formatted = self._format_scenes(scenes_by_chapter)
         
@@ -281,8 +288,15 @@ class GoldenChaptersGenerator:
             if ch_num > 3:
                 continue
             scenes = scenes_by_chapter[ch_num]
+            # 🔥 调试：检查 scenes 类型
+            if not isinstance(scenes, list):
+                self.logger.error(f"[DEBUG] scenes 类型错误: {type(scenes)}, ch_num: {ch_num}, 值: {scenes}")
+                continue
             lines.append(f"\n第{ch_num}章场景:")
             for i, scene in enumerate(scenes, 1):
+                if not isinstance(scene, dict):
+                    self.logger.error(f"[DEBUG] scene 类型错误: {type(scene)}, 值: {scene}")
+                    continue
                 lines.append(f"  {i}. {scene.get('name', f'场景{i}')} - {scene.get('purpose', '')}")
         
         return "\n".join(lines)
