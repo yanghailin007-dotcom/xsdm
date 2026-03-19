@@ -922,6 +922,15 @@ class PhaseOneSetup {
         // 填充结果内容
         this.populateResultContent(result);
         
+        // 🔥 修复：加载质量评估报告
+        const titleInput = document.getElementById('novel-title');
+        if (titleInput && titleInput.value) {
+            console.log('[showResults] 加载质量评估:', titleInput.value);
+            if (typeof loadQualityAssessment === 'function') {
+                loadQualityAssessment(titleInput.value);
+            }
+        }
+        
         // 滚动到结果区域
         resultsSection.scrollIntoView({ behavior: 'smooth' });
     }

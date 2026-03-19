@@ -2450,6 +2450,15 @@
                 }
             }, 800);
             
+            // 🔥 修复：页面加载时加载质量评估报告（如果存在）
+            setTimeout(() => {
+                const titleInput = document.getElementById('novel-title');
+                if (titleInput && titleInput.value && typeof loadQualityAssessment === 'function') {
+                    console.log(`[INIT] 页面加载时加载质量评估: ${titleInput.value}`);
+                    loadQualityAssessment(titleInput.value);
+                }
+            }, 1000);
+            
             console.log('第一阶段设定页面已加载');
         });
     </script>
