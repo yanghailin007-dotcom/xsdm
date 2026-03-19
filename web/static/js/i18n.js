@@ -692,6 +692,15 @@ const I18N = (function() {
             'nav.videoStudio': '🎬 视频生成',
             'nav.videoWorkflow': '🎯 流程控制器',
             'nav.newVideoProject': '新建视频项目',
+
+            // projectMgmt 补充
+            'projectMgmt.empty.desc': '您还没有创建任何项目，开始您的第一个两阶段小说项目吧！',
+            'projectMgmt.phase.one': '第一阶段：设定生成',
+            'projectMgmt.phase.two': '第二阶段：章节生成',
+            'projectMgmt.status.notStarted': '未开始',
+            'projectMgmt.status.generating': '生成中...',
+            'projectMgmt.status.pending': '等待中',
+            'projectMgmt.status.failed': '失败',
 },
         'zh-TW': {
             // Phase 2 頁面翻譯
@@ -1640,6 +1649,15 @@ const I18N = (function() {
             'nav.videoStudio': '🎬 視頻生成',
             'nav.videoWorkflow': '🎯 流程控制器',
             'nav.newVideoProject': '新建視頻項目',
+
+            // projectMgmt 补充
+            'projectMgmt.empty.desc': '您還沒有創建任何項目，開始您的第一個兩階段小說項目吧！',
+            'projectMgmt.phase.one': '第一階段：設定生成',
+            'projectMgmt.phase.two': '第二階段：章節生成',
+            'projectMgmt.status.notStarted': '未開始',
+            'projectMgmt.status.generating': '生成中...',
+            'projectMgmt.status.pending': '等待中',
+            'projectMgmt.status.failed': '失敗',
 },
         'en': {
             // Phase 2 Page Translations
@@ -2315,6 +2333,15 @@ const I18N = (function() {
             'nav.videoStudio': '🎬 Video Generation',
             'nav.videoWorkflow': '🎯 Workflow Controller',
             'nav.newVideoProject': 'New Video Project',
+
+            // projectMgmt supplement
+            'projectMgmt.empty.desc': 'You haven't created any projects yet. Start your first two-phase novel project!',
+            'projectMgmt.phase.one': 'Phase 1: Setting Generation',
+            'projectMgmt.phase.two': 'Phase 2: Chapter Generation',
+            'projectMgmt.status.notStarted': 'Not Started',
+            'projectMgmt.status.generating': 'Generating...',
+            'projectMgmt.status.pending': 'Pending',
+            'projectMgmt.status.failed': 'Failed',
 }
     
         'ja': {
@@ -2985,6 +3012,15 @@ const I18N = (function() {
             'nav.videoStudio': '🎬 動画生成',
             'nav.videoWorkflow': '🎯 ワークフロー制御',
             'nav.newVideoProject': '新規動画プロジェクト',
+
+            // projectMgmt 补充
+            'projectMgmt.empty.desc': 'まだプロジェクトを作成していません。最初の2段階小説プロジェクトを始めましょう！',
+            'projectMgmt.phase.one': '第一段階：設定生成',
+            'projectMgmt.phase.two': '第二段階：章生成',
+            'projectMgmt.status.notStarted': '未開始',
+            'projectMgmt.status.generating': '生成中...',
+            'projectMgmt.status.pending': '待機中',
+            'projectMgmt.status.failed': '失敗',
 },
         'ko': {
             // characterPortrait
@@ -3654,6 +3690,15 @@ const I18N = (function() {
             'nav.videoStudio': '🎬 비디오 생성',
             'nav.videoWorkflow': '🎯 워크플로우 컨트롤러',
             'nav.newVideoProject': '새 비디오 프로젝트',
+
+            // projectMgmt 补充
+            'projectMgmt.empty.desc': '아직 프로젝트를 생성하지 않았습니다. 첫 번째 2단계 소설 프로젝트를 시작하세요!',
+            'projectMgmt.phase.one': '1단계: 설정 생성',
+            'projectMgmt.phase.two': '2단계: 장 생성',
+            'projectMgmt.status.notStarted': '미시작',
+            'projectMgmt.status.generating': '생성 중...',
+            'projectMgmt.status.pending': '대기 중',
+            'projectMgmt.status.failed': '실패',
 },
         'es': {
             // characterPortrait
@@ -4323,6 +4368,15 @@ const I18N = (function() {
             'nav.videoStudio': '🎬 Generación de Video',
             'nav.videoWorkflow': '🎯 Controlador de Flujo',
             'nav.newVideoProject': 'Nuevo Proyecto de Video',
+
+            // projectMgmt supplement
+            'projectMgmt.empty.desc': 'Aún no has creado ningún proyecto. ¡Comienza tu primer proyecto de novela de dos fases!',
+            'projectMgmt.phase.one': 'Fase 1: Generación de Configuración',
+            'projectMgmt.phase.two': 'Fase 2: Generación de Capítulos',
+            'projectMgmt.status.notStarted': 'No Iniciado',
+            'projectMgmt.status.generating': 'Generando...',
+            'projectMgmt.status.pending': 'Pendiente',
+            'projectMgmt.status.failed': 'Fallido',
 },
         'fr': {
             // characterPortrait
@@ -4992,6 +5046,15 @@ const I18N = (function() {
             'nav.videoStudio': '🎬 Génération Vidéo',
             'nav.videoWorkflow': '🎯 Contrôleur de Flux',
             'nav.newVideoProject': 'Nouveau Projet Vidéo',
+
+            // projectMgmt supplement
+            'projectMgmt.empty.desc': 'Vous n'avez encore créé aucun projet. Commencez votre premier projet de roman en deux phases !',
+            'projectMgmt.phase.one': 'Phase 1 : Génération des Paramètres',
+            'projectMgmt.phase.two': 'Phase 2 : Génération des Chapitres',
+            'projectMgmt.status.notStarted': 'Non Commencé',
+            'projectMgmt.status.generating': 'Génération en cours...',
+            'projectMgmt.status.pending': 'En Attente',
+            'projectMgmt.status.failed': 'Échoué',
 },
         'de': {
             // characterPortrait
@@ -5652,7 +5715,16 @@ const I18N = (function() {
             'worldviewViewer.subtitle': '查看和管理小说世界观',
             'worldviewViewer.title': '世界观查看器',
 
-        },
+        
+            // projectMgmt supplement
+            'projectMgmt.empty.desc': 'Sie haben noch keine Projekte erstellt. Starten Sie Ihr erstes Zwei-Phasen-Romanprojekt!',
+            'projectMgmt.phase.one': 'Phase 1: Einstellungsgenerierung',
+            'projectMgmt.phase.two': 'Phase 2: Kapitelgenerierung',
+            'projectMgmt.status.notStarted': 'Nicht Gestartet',
+            'projectMgmt.status.generating': 'Wird Generiert...',
+            'projectMgmt.status.pending': 'Ausstehend',
+            'projectMgmt.status.failed': 'Fehlgeschlagen',
+},
 };
 
     // 当前语言

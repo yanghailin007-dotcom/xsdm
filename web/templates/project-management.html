@@ -1045,6 +1045,13 @@
     document.addEventListener('DOMContentLoaded', function() {
         checkLoginStatus();
         loadProjects();
+        
+        // 监听语言切换事件，重新应用翻译
+        document.addEventListener('languageChanged', function(e) {
+            console.log('🌐 Language changed to:', e.detail.language);
+            // 重新渲染项目列表以应用新语言
+            displayProjects(filteredProjects.length > 0 ? filteredProjects : projectsData);
+        });
     });
 
     // 检查登录状态
@@ -1110,12 +1117,16 @@
                 <div class="empty-state">
                     <div class="empty-icon">📂</div>
                     <h2 class="empty-title" data-i18n="projectMgmt.empty.title">暂无项目</h2>
-                    <p class="empty-description">您还没有创建任何项目，开始您的第一个两阶段小说项目吧！</p>
+                    <p class="empty-description" data-i18n="projectMgmt.empty.desc">您还没有创建任何项目，开始您的第一个两阶段小说项目吧！</p>
                     <button class="btn btn-primary" onclick="location.href='/phase-one-setup'" data-i18n="projectMgmt.empty.createBtn">
                         🎨 创建第一个项目
                     </button>
                 </div>
             `;
+            // 应用翻译
+            if (typeof I18N !== 'undefined' && I18N.applyTranslations) {
+                I18N.applyTranslations();
+            }
             return;
         }
 
@@ -1129,6 +1140,11 @@
 
         container.innerHTML = '';
         container.appendChild(projectsGrid);
+        
+        // 应用翻译到动态生成的内容
+        if (typeof I18N !== 'undefined' && I18N.applyTranslations) {
+            I18N.applyTranslations();
+        }
     }
 
     function createProjectCard(project) {
@@ -1219,8 +1235,8 @@
             <div class="phase-info">
                 <span class="phase-indicator ${phaseOneStatus.indicator}"></span>
                 <div>
-                    <div class="phase-name">第一阶段：设定生成</div>
-                    <div class="phase-time">${phaseOneStatus.text}</div>
+                    <div class="phase-name" data-i18n="projectMgmt.phase.one">第一阶段：设定生成</div>
+                    <div class="phase-time" data-i18n="${phaseOneStatus.i18nKey}">${phaseOneStatus.text}</div>
                 </div>
             </div>
         `;
@@ -1231,8 +1247,8 @@
             <div class="phase-info">
                 <span class="phase-indicator ${phaseTwoStatus.indicator}"></span>
                 <div>
-                    <div class="phase-name">第二阶段：章节生成</div>
-                    <div class="phase-time">${phaseTwoStatus.text}</div>
+                    <div class="phase-name" data-i18n="projectMgmt.phase.two">第二阶段：章节生成</div>
+                    <div class="phase-time" data-i18n="${phaseTwoStatus.i18nKey}">${phaseTwoStatus.text}</div>
                 </div>
             </div>
         `;
