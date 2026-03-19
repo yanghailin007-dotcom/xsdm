@@ -23,7 +23,7 @@ CONFIG = {
     # ============================================================
     # 默认提供商配置
     # ============================================================
-    "default_provider": "kimi",  # 默认使用 Kimi (P1 最高优先级)
+    "default_provider": "gemini",  # 默认使用 Gemini (Kimi 已禁用)
 
     # ============================================================
     # 🔥 API 端点池配置（支持故障转移和优先级调度）
@@ -85,20 +85,20 @@ CONFIG = {
                 "stream": False
             }
         ],
-        "kimi": [
-            {
-                "name": "kimi-k2.5-primary",
-                "api_url": "https://api.moonshot.cn/v1/chat/completions",
-                "api_key": os.getenv('KIMI_API_KEY', 'sk-yUqNmQOfaZyVtGwBbc2HNJqJhNWeXEs1BynVucwuc7PW2x66'),
-                "model": "kimi-k2.5",
-                "priority": 1,
-                "enabled": True,
-                "timeout": 300,  # 🔥 长内容生成需要更长时间
-                "max_retries": 3,
-                "discount_rate": 85,
-                "stream": True   # 🔥 流传输避免长生成超时
-            }
-        ]
+        # "kimi": [
+        #     {
+        #         "name": "kimi-k2.5-primary",
+        #         "api_url": "https://api.moonshot.cn/v1/chat/completions",
+        #         "api_key": os.getenv('KIMI_API_KEY', ''),
+        #         "model": "kimi-k2.5",
+        #         "priority": 1,
+        #         "enabled": False,
+        #         "timeout": 300,
+        #         "max_retries": 3,
+        #         "discount_rate": 85,
+        #         "stream": True
+        #     }
+        # ]
     },
 
     # ============================================================
@@ -108,19 +108,19 @@ CONFIG = {
         "deepseek": os.getenv('DEEPSEEK_API_KEY', 'sk-1342f04c85c5452ab46c673aa1a12c0b'),
         "yuanbao": os.getenv('DEEPSEEK_API_KEY', 'sk-1342f04c85c5452ab46c673aa1a12c0b'),
         "gemini": os.getenv('GEMINI_API_KEY', 'sk-zQHbJRdcVeNKX2ZqR18AMj5qutH4lDCZSmgE7WPP3aBdDdbw'),
-        "kimi": os.getenv('KIMI_API_KEY', 'sk-yUqNmQOfaZyVtGwBbc2HNJqJhNWeXEs1BynVucwuc7PW2x66')
+        # "kimi": os.getenv('KIMI_API_KEY', '')
     },
     "api_urls": {
         "deepseek": "https://api.deepseek.com/v1/chat/completions",
         "yuanbao": "https://api.deepseek.com/v1/chat/completions",
         "gemini": "https://newapi.xiaochuang.cc/v1/chat/completions",
-        "kimi": "https://api.moonshot.cn/v1/chat/completions"
+        # "kimi": "https://api.moonshot.cn/v1/chat/completions"
     },
     "models": {
         "deepseek": "deepseek-reasoner",
         "yuanbao": "deepseek-reasoner",
         "gemini": "gemini-3-pro-preview",
-        "kimi": "kimi-k2.5"  # 修正：与端点配置保持一致
+        # "kimi": "kimi-k2.5"  # 已禁用
     },
 
     # ============================================================
@@ -129,7 +129,7 @@ CONFIG = {
     
     # 🔥 Provider 优先级配置（跨模型故障转移）
     # 按优先级排序，当高优先级模型的所有端点都失败时，自动切换到低优先级模型
-    "provider_priority": ["kimi", "gemini", "deepseek"],
+    "provider_priority": ["gemini", "deepseek"]  # kimi 已禁用,
     
     # 🔥 Provider 故障转移配置
     "provider_failover": {

@@ -770,21 +770,21 @@
         <span class="config-notice__icon">🔥</span>
         <span class="config-notice__text">
             <strong>Provider 优先级（故障转移）:</strong> 
-            <span style="color: #8b5cf6; font-weight: 600;">Kimi (P1)</span> → 
-            <span style="color: #6366f1; font-weight: 600;">Gemini (P2)</span> → 
-            <span style="color: #3b82f6; font-weight: 600;">DeepSeek (P3)</span>
+            <span style="color: #6366f1; font-weight: 600;">Gemini (P1)</span> → 
+            <span style="color: #3b82f6; font-weight: 600;">DeepSeek (P2)</span>
             <span style="color: var(--v2-text-tertiary); margin-left: 8px;">| 失败3次自动切换</span>
         </span>
     </div>
     
     <div class="provider-tabs">
-        <button class="provider-tab active" data-provider="kimi">🌙 Kimi (P1)</button>
-        <button class="provider-tab" data-provider="gemini">♊ Gemini (P2)</button>
-        <button class="provider-tab" data-provider="deepseek">🐋 DeepSeek (P3)</button>
+        <!-- Kimi 已禁用 -->
+        <!-- <button class="provider-tab" data-provider="kimi">🌙 Kimi</button> -->
+        <button class="provider-tab active" data-provider="gemini">♊ Gemini (P1)</button>
+        <button class="provider-tab" data-provider="deepseek">🐋 DeepSeek (P2)</button>
     </div>
     
-    <!-- Kimi 模型卡片 (P1 - 默认显示) -->
-    <div id="kimi-models" class="model-grid">
+    <!-- Kimi 模型卡片 - 已禁用 -->
+    <div id="kimi-models" class="model-grid" style="display: none;">
         <!-- Kimi k2.5 - P1 最高优先级 -->
         <div class="model-card" data-endpoint="kimi-k2.5-primary">
             <div class="model-card__header">
@@ -1218,17 +1218,11 @@
             document.querySelectorAll('.provider-tab').forEach(t => t.classList.remove('active'));
             tab.classList.add('active');
             
-            // 切换显示
-            if (provider === 'kimi') {
-                document.getElementById('kimi-models').style.display = 'grid';
-                document.getElementById('gemini-models').style.display = 'none';
-                document.getElementById('deepseek-models').style.display = 'none';
-            } else if (provider === 'gemini') {
-                document.getElementById('kimi-models').style.display = 'none';
+            // 切换显示 (Kimi 已禁用)
+            if (provider === 'gemini') {
                 document.getElementById('gemini-models').style.display = 'grid';
                 document.getElementById('deepseek-models').style.display = 'none';
             } else if (provider === 'deepseek') {
-                document.getElementById('kimi-models').style.display = 'none';
                 document.getElementById('gemini-models').style.display = 'none';
                 document.getElementById('deepseek-models').style.display = 'grid';
             }
@@ -1523,8 +1517,8 @@
         'lemon-api': 3,           // 低优先级
         'aiberm': 1,              // 最高优先级
         'xiaochuang-backup': 2,   // 中等优先级
-        'deepseek-official': 1,   // 最高优先级
-        'kimi-k2.5-primary': 1    // 最高优先级
+        'deepseek-official': 1    // 最高优先级
+        // 'kimi-k2.5-primary': 1    // 已禁用
     };
     
     function adjustPriority(endpointName, delta) {
@@ -1545,7 +1539,7 @@
     async function savePriority(endpointName, priority) {
         try {
             // 判断是内置端点还是自定义端点
-            const isBuiltin = ['lemon-api', 'aiberm', 'xiaochuang-backup', 'deepseek-official', 'kimi-k2.5-primary'].includes(endpointName);
+            const isBuiltin = ['lemon-api', 'aiberm', 'xiaochuang-backup', 'deepseek-official'].includes(endpointName);  // kimi-k2.5-primary 已禁用
             
             let url, method, body;
             if (isBuiltin) {
