@@ -72,6 +72,26 @@ const I18N = (function() {
             'dashboard.section.quick': '快速入口',
             'dashboard.btn.newProject': '新建项目',
             'dashboard.btn.continue': '继续创作',
+            
+            // 项目管理翻译
+            'projectMgmt.badge': '项目管理中心',
+            'projectMgmt.title': '管理您的小说项目',
+            'projectMgmt.subtitle': '统一管理两阶段生成的小说项目',
+            'projectMgmt.stat.totalProjects': '总项目数',
+            'projectMgmt.stat.completed': '已完成',
+            'projectMgmt.stat.inProgress': '进行中',
+            'projectMgmt.filter.allStatus': '所有状态',
+            'projectMgmt.filter.phaseOneOnly': '仅第一阶段完成',
+            'projectMgmt.filter.phaseTwoInProgress': '第二阶段进行中',
+            'projectMgmt.card.progress': '生成进度',
+            'projectMgmt.card.chapters': '章节',
+            'projectMgmt.status.completed': '已完成',
+            'projectMgmt.status.phaseOneCompleted': '一阶段已完成',
+            'projectMgmt.action.continue': '继续生成',
+            'projectMgmt.action.viewSettings': '查看设定',
+            'projectMgmt.action.export': '导出',
+            'projectMgmt.empty.title': '暂无项目',
+            'projectMgmt.empty.createBtn': '创建第一个项目',
         },
         'zh-TW': {
             // Phase 2 頁面翻譯
@@ -137,6 +157,26 @@ const I18N = (function() {
             'dashboard.section.quick': '快速入口',
             'dashboard.btn.newProject': '新建項目',
             'dashboard.btn.continue': '繼續創作',
+            
+            // 項目管理翻譯
+            'projectMgmt.badge': '項目管理中心',
+            'projectMgmt.title': '管理您的小說項目',
+            'projectMgmt.subtitle': '統一管理兩階段生成的小說項目',
+            'projectMgmt.stat.totalProjects': '總項目數',
+            'projectMgmt.stat.completed': '已完成',
+            'projectMgmt.stat.inProgress': '進行中',
+            'projectMgmt.filter.allStatus': '所有狀態',
+            'projectMgmt.filter.phaseOneOnly': '僅第一階段完成',
+            'projectMgmt.filter.phaseTwoInProgress': '第二階段進行中',
+            'projectMgmt.card.progress': '生成進度',
+            'projectMgmt.card.chapters': '章節',
+            'projectMgmt.status.completed': '已完成',
+            'projectMgmt.status.phaseOneCompleted': '一階段已完成',
+            'projectMgmt.action.continue': '繼續生成',
+            'projectMgmt.action.viewSettings': '查看設定',
+            'projectMgmt.action.export': '匯出',
+            'projectMgmt.empty.title': '暫無項目',
+            'projectMgmt.empty.createBtn': '創建第一個項目',
         },
         'en': {
             // Phase 2 Page Translations
@@ -192,6 +232,26 @@ const I18N = (function() {
             'novels.empty.title': 'No works yet',
             'novels.empty.desc': 'Start your first AI novel creation journey!',
             'novels.empty.start': 'Start Creating',
+            
+            // Project Management Translations
+            'projectMgmt.badge': 'Project Management',
+            'projectMgmt.title': 'Manage Your Novel Projects',
+            'projectMgmt.subtitle': 'Manage your two-phase novel generation projects',
+            'projectMgmt.stat.totalProjects': 'Total Projects',
+            'projectMgmt.stat.completed': 'Completed',
+            'projectMgmt.stat.inProgress': 'In Progress',
+            'projectMgmt.filter.allStatus': 'All Status',
+            'projectMgmt.filter.phaseOneOnly': 'Phase One Only',
+            'projectMgmt.filter.phaseTwoInProgress': 'Phase Two In Progress',
+            'projectMgmt.card.progress': 'Progress',
+            'projectMgmt.card.chapters': 'Chapters',
+            'projectMgmt.status.completed': 'Completed',
+            'projectMgmt.status.phaseOneCompleted': 'Phase One Completed',
+            'projectMgmt.action.continue': 'Continue',
+            'projectMgmt.action.viewSettings': 'View Settings',
+            'projectMgmt.action.export': 'Export',
+            'projectMgmt.empty.title': 'No Projects',
+            'projectMgmt.empty.createBtn': 'Create First Project',
         }
     };
 
