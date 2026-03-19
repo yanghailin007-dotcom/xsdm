@@ -4242,14 +4242,35 @@ const I18N = {
      * @returns {string} 翻译后的文本
      */
     t(key, params = {}) {
-        const translation = this.translations[this.currentLang]?.[key] 
-            || this.translations['zh-CN']?.[key] 
-            || key;
+        // 优先使用当前语言的翻译
+        if (this.translations[this.currentLang]?.[key]) {
+            const translation = this.translations[this.currentLang][key];
+            return translation.replace(/\{\{(\w+)\}\}/g, (match, paramKey) => {
+                return params[paramKey] !== undefined ? params[paramKey] : match;
+            });
+        }
         
-        // 替换参数
-        return translation.replace(/\{\{(\w+)\}\}/g, (match, paramKey) => {
-            return params[paramKey] !== undefined ? params[paramKey] : match;
-        });
+        // 如果当前语言是中文(简体/繁体)，fallback 到英文
+        if (this.currentLang.startsWith('zh')) {
+            const enTranslation = this.translations['en']?.[key];
+            if (enTranslation) {
+                return enTranslation.replace(/\{\{(\w+)\}\}/g, (match, paramKey) => {
+                    return params[paramKey] !== undefined ? params[paramKey] : match;
+                });
+            }
+        }
+        // 如果当前语言是非中文，fallback 到英文（如果当前不是英文）
+        else if (this.currentLang !== 'en') {
+            const enTranslation = this.translations['en']?.[key];
+            if (enTranslation) {
+                return enTranslation.replace(/\{\{(\w+)\}\}/g, (match, paramKey) => {
+                    return params[paramKey] !== undefined ? params[paramKey] : match;
+                });
+            }
+        }
+        
+        // 最后返回键名本身（让用户知道哪个键缺失）
+        return key;
     },
     
     /**
