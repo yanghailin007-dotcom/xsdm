@@ -1,0 +1,1050 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>短剧风格改造 - 视频生成系统</title>
+    <link rel="stylesheet" href="/static/css/video-generation.css?v=21">
+    <style>
+        :root {
+            --primary: #6366f1;
+            --primary-dark: #4f46e5;
+            --secondary: #8b5cf6;
+            --success: #10b981;
+            --bg-dark: #0f172a;
+            --bg-card: #1e293b;
+            --bg-card-hover: #334155;
+            --text-primary: #f1f5f9;
+            --text-secondary: #94a3b8;
+            --border: #334155;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            background: var(--bg-dark);
+            color: var(--text-primary);
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            min-height: 100vh;
+        }
+
+        /* 导航栏 */
+        .navbar {
+            background: rgba(30, 41, 59, 0.8);
+            backdrop-filter: blur(10px);
+            border-bottom: 1px solid var(--border);
+            padding: 1rem 2rem;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+
+        .nav-container {
+            max-width: 1400px;
+            margin: 0 auto;
+            display: flex;
+            align-items: center;
+            gap: 2rem;
+        }
+
+        .btn-back {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            color: var(--text-primary);
+            padding: 0.5rem 1rem;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .btn-back:hover {
+            background: var(--bg-card-hover);
+        }
+
+        .nav-title {
+            font-size: 1.25rem;
+            font-weight: 600;
+        }
+
+        /* 主容器 */
+        .short-drama-wrapper {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 2rem;
+        }
+
+        /* 步骤指示器 */
+        .steps-header {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-bottom: 3rem;
+            gap: 0;
+        }
+
+        .step-item {
+            display: flex;
+            align-items: center;
+            position: relative;
+        }
+
+        .step-circle {
+            width: 48px;
+            height: 48px;
+            border-radius: 50%;
+            background: var(--bg-card);
+            border: 2px solid var(--border);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 600;
+            font-size: 1.1rem;
+            transition: all 0.3s;
+            z-index: 2;
+        }
+
+        .step-item.active .step-circle {
+            background: linear-gradient(135deg, var(--primary), var(--secondary));
+            border-color: transparent;
+            box-shadow: 0 0 20px rgba(99, 102, 241, 0.4);
+        }
+
+        .step-item.completed .step-circle {
+            background: var(--success);
+            border-color: transparent;
+        }
+
+        .step-line {
+            width: 80px;
+            height: 2px;
+            background: var(--border);
+            transition: all 0.3s;
+        }
+
+        .step-item.completed + .step-item .step-line,
+        .step-item.completed .step-line {
+            background: var(--success);
+        }
+
+        .step-label {
+            position: absolute;
+            top: 100%;
+            left: 50%;
+            transform: translateX(-50%);
+            margin-top: 0.5rem;
+            font-size: 0.8rem;
+            color: var(--text-secondary);
+            white-space: nowrap;
+        }
+
+        .step-item.active .step-label {
+            color: var(--primary);
+        }
+
+        /* 内容区域 */
+        .content-area {
+            min-height: 500px;
+        }
+
+        .step-content {
+            display: none;
+            animation: fadeIn 0.4s ease;
+        }
+
+        .step-content.active {
+            display: block;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        /* 小说卡片网格 */
+        .novel-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+            gap: 1.5rem;
+        }
+
+        .novel-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 16px;
+            padding: 1.5rem;
+            cursor: pointer;
+            transition: all 0.3s;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .novel-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 3px;
+            background: linear-gradient(90deg, var(--primary), var(--secondary));
+            opacity: 0;
+            transition: opacity 0.3s;
+        }
+
+        .novel-card:hover {
+            border-color: var(--primary);
+            transform: translateY(-4px);
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3);
+        }
+
+        .novel-card:hover::before {
+            opacity: 1;
+        }
+
+        .novel-card.selected {
+            border-color: var(--primary);
+            background: linear-gradient(135deg, rgba(99, 102, 241, 0.1), rgba(139, 92, 246, 0.1));
+        }
+
+        .novel-card.selected::before {
+            opacity: 1;
+        }
+
+        .novel-card-title {
+            font-size: 1.1rem;
+            font-weight: 600;
+            margin-bottom: 1rem;
+            padding-right: 2rem;
+        }
+
+        .novel-card-check {
+            position: absolute;
+            top: 1rem;
+            right: 1rem;
+            width: 24px;
+            height: 24px;
+            border-radius: 50%;
+            border: 2px solid var(--border);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.3s;
+        }
+
+        .novel-card.selected .novel-card-check {
+            background: var(--success);
+            border-color: var(--success);
+        }
+
+        .novel-card-check::after {
+            content: '✓';
+            color: white;
+            font-size: 0.8rem;
+            opacity: 0;
+            transform: scale(0);
+            transition: all 0.2s;
+        }
+
+        .novel-card.selected .novel-card-check::after {
+            opacity: 1;
+            transform: scale(1);
+        }
+
+        .novel-stats {
+            display: flex;
+            gap: 1rem;
+            flex-wrap: wrap;
+        }
+
+        .novel-stat {
+            background: var(--bg-dark);
+            padding: 0.4rem 0.8rem;
+            border-radius: 6px;
+            font-size: 0.85rem;
+            color: var(--text-secondary);
+        }
+
+        /* 转换区域 */
+        .conversion-container {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 20px;
+            overflow: hidden;
+        }
+
+        .conversion-header {
+            padding: 1.5rem 2rem;
+            background: var(--bg-dark);
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .conversion-title {
+            font-size: 1.2rem;
+            font-weight: 600;
+        }
+
+        .conversion-badge {
+            background: linear-gradient(135deg, var(--primary), var(--secondary));
+            padding: 0.4rem 1rem;
+            border-radius: 20px;
+            font-size: 0.85rem;
+            font-weight: 500;
+        }
+
+        .conversion-body {
+            padding: 2rem;
+        }
+
+        /* 对比区域 */
+        .comparison-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 2rem;
+        }
+
+        .comparison-panel {
+            background: var(--bg-dark);
+            border-radius: 12px;
+            overflow: hidden;
+        }
+
+        .comparison-header {
+            padding: 1rem 1.5rem;
+            background: rgba(99, 102, 241, 0.1);
+            border-bottom: 1px solid var(--border);
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .comparison-content {
+            padding: 1.5rem;
+            min-height: 250px;
+            max-height: 350px;
+            overflow-y: auto;
+            line-height: 1.8;
+            color: var(--text-secondary);
+        }
+
+        .comparison-content.highlight {
+            background: linear-gradient(135deg, rgba(16, 185, 129, 0.05), rgba(99, 102, 241, 0.05));
+            color: var(--text-primary);
+        }
+
+        .comparison-content::-webkit-scrollbar {
+            width: 6px;
+        }
+
+        .comparison-content::-webkit-scrollbar-track {
+            background: var(--bg-dark);
+        }
+
+        .comparison-content::-webkit-scrollbar-thumb {
+            background: var(--border);
+            border-radius: 3px;
+        }
+
+        /* 进度动画 */
+        .progress-container {
+            text-align: center;
+            padding: 4rem 2rem;
+        }
+
+        .progress-spinner {
+            width: 64px;
+            height: 64px;
+            margin: 0 auto 1.5rem;
+            position: relative;
+        }
+
+        .progress-spinner::before {
+            content: '';
+            position: absolute;
+            inset: 0;
+            border: 3px solid var(--border);
+            border-radius: 50%;
+        }
+
+        .progress-spinner::after {
+            content: '';
+            position: absolute;
+            inset: 0;
+            border: 3px solid transparent;
+            border-top-color: var(--primary);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        .progress-text {
+            font-size: 1.1rem;
+            color: var(--text-secondary);
+        }
+
+        .progress-subtext {
+            font-size: 0.9rem;
+            color: var(--text-secondary);
+            margin-top: 0.5rem;
+            opacity: 0.7;
+        }
+
+        /* 模式选择 */
+        .mode-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 2rem;
+            max-width: 900px;
+            margin: 0 auto;
+        }
+
+        .mode-card {
+            background: var(--bg-card);
+            border: 2px solid var(--border);
+            border-radius: 20px;
+            padding: 2.5rem 2rem;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .mode-card:hover {
+            border-color: var(--primary);
+            transform: translateY(-4px);
+            box-shadow: 0 20px 40px rgba(99, 102, 241, 0.2);
+        }
+
+        .mode-card.selected {
+            border-color: var(--primary);
+            background: linear-gradient(135deg, rgba(99, 102, 241, 0.15), rgba(139, 92, 246, 0.15));
+            box-shadow: 0 0 40px rgba(99, 102, 241, 0.3);
+        }
+
+        .mode-icon {
+            font-size: 4rem;
+            margin-bottom: 1rem;
+        }
+
+        .mode-title {
+            font-size: 1.4rem;
+            font-weight: 600;
+            margin-bottom: 0.5rem;
+        }
+
+        .mode-desc {
+            color: var(--text-secondary);
+            margin-bottom: 1.5rem;
+        }
+
+        .mode-features {
+            text-align: left;
+            list-style: none;
+            padding: 0;
+        }
+
+        .mode-features li {
+            padding: 0.5rem 0;
+            color: var(--text-secondary);
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .mode-features li::before {
+            content: '✓';
+            color: var(--success);
+            font-weight: bold;
+        }
+
+        /* 按钮样式 */
+        .btn {
+            padding: 0.75rem 1.5rem;
+            border-radius: 10px;
+            font-size: 1rem;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.3s;
+            border: none;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, var(--primary), var(--secondary));
+            color: white;
+        }
+
+        .btn-primary:hover:not(:disabled) {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px rgba(99, 102, 241, 0.3);
+        }
+
+        .btn-secondary {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            color: var(--text-primary);
+        }
+
+        .btn-secondary:hover {
+            background: var(--bg-card-hover);
+        }
+
+        .btn-success {
+            background: var(--success);
+            color: white;
+        }
+
+        .btn-large {
+            padding: 1rem 2.5rem;
+            font-size: 1.1rem;
+        }
+
+        /* 按钮区域 */
+        .action-area {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 1rem;
+            margin-top: 2rem;
+            padding-top: 2rem;
+            border-top: 1px solid var(--border);
+        }
+
+        /* 加载状态 */
+        .loading-skeleton {
+            background: linear-gradient(90deg, var(--bg-card) 25%, var(--bg-card-hover) 50%, var(--bg-card) 75%);
+            background-size: 200% 100%;
+            animation: shimmer 1.5s infinite;
+            border-radius: 8px;
+            padding: 1.5rem;
+            text-align: center;
+            grid-column: 1/-1;
+        }
+
+        @keyframes shimmer {
+            0% { background-position: 200% 0; }
+            100% { background-position: -200% 0; }
+        }
+
+        /* 响应式 */
+        @media (max-width: 768px) {
+            .comparison-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .mode-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .steps-header {
+                flex-wrap: wrap;
+            }
+
+            .step-line {
+                width: 40px;
+            }
+        }
+
+        /* 隐藏类 */
+        .hidden {
+            display: none !important;
+        }
+
+        /* 选中标记 */
+        .selected-mark {
+            position: absolute;
+            top: 1rem;
+            right: 1rem;
+            width: 28px;
+            height: 28px;
+            background: var(--success);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            opacity: 0;
+            transform: scale(0);
+            transition: all 0.3s;
+        }
+
+        .novel-card.selected .selected-mark,
+        .mode-card.selected .selected-mark {
+            opacity: 1;
+            transform: scale(1);
+        }
+
+        .selected-mark::after {
+            content: '✓';
+            color: white;
+            font-size: 0.9rem;
+        }
+    </style>
+</head>
+<body>
+    <!-- 导航栏 -->
+    <nav class="navbar">
+        <div class="nav-container">
+            <button class="btn-back" onclick="window.location.href='/video-generation'">← 返回</button>
+            <h1 class="nav-title">🎭 短剧风格改造</h1>
+        </div>
+    </nav>
+
+    <!-- 主容器 -->
+    <div class="short-drama-wrapper">
+        <!-- 步骤指示器 -->
+        <div class="steps-header">
+            <div class="step-item active" data-step="1">
+                <div class="step-circle">1</div>
+                <div class="step-label">选择小说</div>
+            </div>
+            <div class="step-line"></div>
+            <div class="step-item" data-step="2">
+                <div class="step-circle">2</div>
+                <div class="step-label">风格转换</div>
+            </div>
+            <div class="step-line"></div>
+            <div class="step-item" data-step="3">
+                <div class="step-circle">3</div>
+                <div class="step-label">制作模式</div>
+            </div>
+        </div>
+
+        <!-- 内容区域 -->
+        <div class="content-area">
+            <!-- 步骤1: 选择小说 -->
+            <div class="step-content active" id="step1">
+                <div style="text-align: center; margin-bottom: 2rem;">
+                    <h2 style="font-size: 1.8rem; margin-bottom: 0.5rem;">📚 选择小说项目</h2>
+                    <p style="color: var(--text-secondary);">请选择要转换为短剧风格的小说</p>
+                </div>
+                <div id="novelList" class="novel-grid">
+                    <div class="loading-skeleton">加载中...</div>
+                </div>
+                <div class="action-area">
+                    <button id="step1NextBtn" class="btn btn-primary btn-large" disabled>
+                        下一步：风格转换 →
+                    </button>
+                </div>
+            </div>
+
+            <!-- 步骤2: 风格转换 -->
+            <div class="step-content" id="step2">
+                <div style="text-align: center; margin-bottom: 2rem;">
+                    <h2 style="font-size: 1.8rem; margin-bottom: 0.5rem;">✨ 小说风格转换</h2>
+                    <p style="color: var(--text-secondary);">将小说内容转换为短剧风格</p>
+                </div>
+
+                <div class="conversion-container">
+                    <div class="conversion-header">
+                        <span class="conversion-title" id="selectedNovelTitle">未选择小说</span>
+                        <span class="conversion-badge">短剧风格改造</span>
+                    </div>
+
+                    <div class="conversion-body">
+                        <!-- 初始状态 -->
+                        <div id="convertInitialState" style="text-align: center; padding: 3rem;">
+                            <div style="font-size: 4rem; margin-bottom: 1rem;">🎬</div>
+                            <h3 style="margin-bottom: 0.5rem;">准备转换</h3>
+                            <p style="color: var(--text-secondary); max-width: 400px; margin: 0 auto;">
+                                点击下方按钮，将小说内容转换为短剧风格，添加钩子、悬念等短剧元素
+                            </p>
+                        </div>
+
+                        <!-- 转换进度 -->
+                        <div id="convertProgress" class="progress-container hidden">
+                            <div class="progress-spinner"></div>
+                            <p class="progress-text" id="progressText">正在分析小说结构...</p>
+                            <p class="progress-subtext" id="progressSubtext">请稍候</p>
+                        </div>
+
+                        <!-- 转换结果 -->
+                        <div id="convertResult" class="hidden">
+                            <div class="comparison-grid">
+                                <div class="comparison-panel">
+                                    <div class="comparison-header">
+                                        📖 原始内容
+                                    </div>
+                                    <div class="comparison-content" id="originalContent"></div>
+                                </div>
+                                <div class="comparison-panel">
+                                    <div class="comparison-header">
+                                        ✨ 短剧风格
+                                    </div>
+                                    <div class="comparison-content highlight" id="convertedContent"></div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="action-area">
+                    <button id="step2BackBtn" class="btn btn-secondary">← 上一步</button>
+                    <button id="step2ConvertBtn" class="btn btn-primary btn-large">
+                        🎬 开始转换
+                    </button>
+                    <button id="step2NextBtn" class="btn btn-success btn-large hidden">
+                        下一步：选择模式 →
+                    </button>
+                </div>
+            </div>
+
+            <!-- 步骤3: 选择制作模式 -->
+            <div class="step-content" id="step3">
+                <div style="text-align: center; margin-bottom: 2rem;">
+                    <h2 style="font-size: 1.8rem; margin-bottom: 0.5rem;">🎯 选择制作模式</h2>
+                    <p style="color: var(--text-secondary);">风格转换完成！请选择制作方式</p>
+                </div>
+
+                <div class="mode-grid">
+                    <div class="mode-card" data-mode="episode">
+                        <div class="selected-mark"></div>
+                        <div class="mode-icon">📺</div>
+                        <h3 class="mode-title">分集制作</h3>
+                        <p class="mode-desc">按集逐步制作，精细控制</p>
+                        <ul class="mode-features">
+                            <li>选择重大事件和中级事件</li>
+                            <li>为每集准备角色剧照</li>
+                            <li>逐集生成分镜头脚本</li>
+                            <li>精细控制每集视频生成</li>
+                        </ul>
+                    </div>
+
+                    <div class="mode-card" data-mode="workflow">
+                        <div class="selected-mark"></div>
+                        <div class="mode-icon">🚀</div>
+                        <h3 class="mode-title">统一工作流</h3>
+                        <p class="mode-desc">一键式工作流，自动化完成</p>
+                        <ul class="mode-features">
+                            <li>自动选择事件和角色</li>
+                            <li>智能生成分镜头脚本</li>
+                            <li>批量生成视频内容</li>
+                            <li>实时进度跟踪</li>
+                        </ul>
+                    </div>
+                </div>
+
+                <div class="action-area">
+                    <button id="step3BackBtn" class="btn btn-secondary">← 上一步</button>
+                    <button id="step3ConfirmBtn" class="btn btn-primary btn-large" disabled>
+                        开始制作 →
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // 短剧流程控制器
+        const ShortDramaFlow = {
+            selectedNovel: null,
+            convertedData: null,
+            selectedMode: null,
+            novelsData: [],
+
+            init() {
+                console.log('初始化短剧流程...');
+                this.loadNovels();
+                // 延迟绑定事件，确保DOM完全加载
+                setTimeout(() => this.bindEvents(), 100);
+            },
+
+            bindEvents() {
+                console.log('绑定事件...');
+                // 步骤1
+                const step1NextBtn = document.getElementById('step1NextBtn');
+                if (step1NextBtn) {
+                    step1NextBtn.onclick = () => {
+                        console.log('点击步骤1下一步');
+                        this.goToStep(2);
+                    };
+                }
+
+                // 步骤2
+                const step2BackBtn = document.getElementById('step2BackBtn');
+                if (step2BackBtn) {
+                    step2BackBtn.onclick = () => {
+                        console.log('点击步骤2上一步');
+                        this.goToStep(1);
+                    };
+                }
+
+                const step2ConvertBtn = document.getElementById('step2ConvertBtn');
+                if (step2ConvertBtn) {
+                    step2ConvertBtn.onclick = () => {
+                        console.log('点击开始转换');
+                        this.startConversion();
+                    };
+                }
+
+                const step2NextBtn = document.getElementById('step2NextBtn');
+                if (step2NextBtn) {
+                    step2NextBtn.onclick = () => {
+                        console.log('点击步骤2下一步');
+                        this.goToStep(3);
+                    };
+                }
+
+                // 步骤3
+                const step3BackBtn = document.getElementById('step3BackBtn');
+                if (step3BackBtn) {
+                    step3BackBtn.onclick = () => {
+                        console.log('点击步骤3上一步');
+                        this.goToStep(2);
+                    };
+                }
+
+                document.querySelectorAll('.mode-card').forEach(card => {
+                    card.onclick = () => {
+                        console.log('选择模式:', card.dataset.mode);
+                        document.querySelectorAll('.mode-card').forEach(c => c.classList.remove('selected'));
+                        card.classList.add('selected');
+                        this.selectedMode = card.dataset.mode;
+                        document.getElementById('step3ConfirmBtn').disabled = false;
+                    };
+                });
+
+                const step3ConfirmBtn = document.getElementById('step3ConfirmBtn');
+                if (step3ConfirmBtn) {
+                    step3ConfirmBtn.onclick = () => {
+                        console.log('点击开始制作');
+                        this.startProduction();
+                    };
+                }
+
+                console.log('事件绑定完成');
+            },
+
+            async loadNovels() {
+                try {
+                    const response = await fetch('/api/video/novels');
+                    const data = await response.json();
+
+                    if (data.success && data.novels && data.novels.length > 0) {
+                        this.novelsData = data.novels;
+                        this.renderNovelList(data.novels);
+                    } else {
+                        document.getElementById('novelList').innerHTML = `
+                            <div style="grid-column: 1/-1; text-align: center; padding: 3rem; color: var(--text-secondary);">
+                                <div style="font-size: 3rem; margin-bottom: 1rem;">📭</div>
+                                <p>暂无可用小说</p>
+                                <p style="font-size: 0.9rem;">请先完成第一阶段设定生成</p>
+                            </div>
+                        `;
+                    }
+                } catch (error) {
+                    console.error('加载小说列表失败:', error);
+                    document.getElementById('novelList').innerHTML = `
+                        <div style="grid-column: 1/-1; text-align: center; padding: 3rem; color: var(--text-secondary);">
+                            <div style="font-size: 3rem; margin-bottom: 1rem;">⚠️</div>
+                            <p>加载失败: ${error.message}</p>
+                        </div>
+                    `;
+                }
+            },
+
+            renderNovelList(novels) {
+                const container = document.getElementById('novelList');
+                container.innerHTML = novels.map(novel => `
+                    <div class="novel-card" data-title="${this.escapeHtml(novel.title || novel.novel_title)}">
+                        <div class="novel-card-check"></div>
+                        <h4 class="novel-card-title">${this.escapeHtml(novel.title || novel.novel_title)}</h4>
+                        <div class="novel-stats">
+                            <span class="novel-stat">📊 中级事件 ${novel.total_medium_events || 0}个</span>
+                            <span class="novel-stat">🎬 预计 ${novel.estimated_episodes || 0}集</span>
+                        </div>
+                    </div>
+                `).join('');
+
+                container.querySelectorAll('.novel-card').forEach(card => {
+                    card.onclick = () => {
+                        container.querySelectorAll('.novel-card').forEach(c => c.classList.remove('selected'));
+                        card.classList.add('selected');
+                        this.selectedNovel = card.dataset.title;
+                        document.getElementById('step1NextBtn').disabled = false;
+                        console.log('选择小说:', this.selectedNovel);
+                    };
+                });
+            },
+
+            escapeHtml(text) {
+                const div = document.createElement('div');
+                div.textContent = text;
+                return div.innerHTML;
+            },
+
+            goToStep(step) {
+                console.log('跳转到步骤:', step);
+                // 更新步骤指示器
+                document.querySelectorAll('.step-item').forEach((item, index) => {
+                    item.classList.remove('active', 'completed');
+                    if (index + 1 < step) {
+                        item.classList.add('completed');
+                    } else if (index + 1 === step) {
+                        item.classList.add('active');
+                    }
+                });
+
+                // 更新内容
+                document.querySelectorAll('.step-content').forEach(content => {
+                    content.classList.remove('active');
+                });
+                const targetStep = document.getElementById('step' + step);
+                if (targetStep) {
+                    targetStep.classList.add('active');
+                }
+
+                // 如果进入步骤2，更新标题
+                if (step === 2 && this.selectedNovel) {
+                    const titleEl = document.getElementById('selectedNovelTitle');
+                    if (titleEl) {
+                        titleEl.textContent = this.selectedNovel;
+                    }
+                }
+            },
+
+            async startConversion() {
+                console.log('=== 开始转换 ===');
+                console.log('选中的小说:', this.selectedNovel);
+
+                const initialState = document.getElementById('convertInitialState');
+                const progressEl = document.getElementById('convertProgress');
+                const resultEl = document.getElementById('convertResult');
+                const progressText = document.getElementById('progressText');
+                const progressSubtext = document.getElementById('progressSubtext');
+                const convertBtn = document.getElementById('step2ConvertBtn');
+
+                // 隐藏初始状态，显示进度
+                initialState.classList.add('hidden');
+                resultEl.classList.add('hidden');
+                progressEl.classList.remove('hidden');
+                convertBtn.disabled = true;
+
+                try {
+                    // 模拟进度更新
+                    const progressSteps = [
+                        { text: '正在分析小说结构...', sub: '解析事件和角色信息' },
+                        { text: '正在提取关键情节...', sub: '识别剧情高潮点' },
+                        { text: '正在生成短剧脚本...', sub: '添加钩子和悬念元素' },
+                        { text: '正在优化节奏...', sub: '调整快慢镜头分布' }
+                    ];
+
+                    let stepIndex = 0;
+                    const progressInterval = setInterval(() => {
+                        if (stepIndex < progressSteps.length) {
+                            progressText.textContent = progressSteps[stepIndex].text;
+                            progressSubtext.textContent = progressSteps[stepIndex].sub;
+                            stepIndex++;
+                        }
+                    }, 800);
+
+                    // 发起转换请求
+                    const requestData = { novel_title: this.selectedNovel };
+                    console.log('发送请求:', requestData);
+
+                    const response = await fetch('/api/video/convert-to-short-drama', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(requestData)
+                    });
+
+                    clearInterval(progressInterval);
+                    console.log('响应状态:', response.status);
+
+                    const data = await response.json();
+                    console.log('响应数据:', data);
+
+                    if (data.success) {
+                        this.convertedData = data;
+                        this.displayConversionResult(data);
+
+                        progressEl.classList.add('hidden');
+                        resultEl.classList.remove('hidden');
+                        convertBtn.classList.add('hidden');
+                        document.getElementById('step2NextBtn').classList.remove('hidden');
+                    } else {
+                        throw new Error(data.error || '转换失败');
+                    }
+                } catch (error) {
+                    console.error('转换失败:', error);
+                    progressText.textContent = '转换失败';
+                    progressSubtext.textContent = error.message;
+
+                    setTimeout(() => {
+                        progressEl.classList.add('hidden');
+                        initialState.classList.remove('hidden');
+                        convertBtn.disabled = false;
+                    }, 2000);
+                }
+            },
+
+            displayConversionResult(data) {
+                const originalEl = document.getElementById('originalContent');
+                const convertedEl = document.getElementById('convertedContent');
+
+                // 显示原始内容（格式化）
+                let originalText = data.sample_original || '暂无预览';
+                originalText = originalText
+                    .replace(/\n/g, '<br>')
+                    .replace(/【([^】]+)】/g, '<strong style="color: var(--primary);">【$1】</strong>');
+
+                // 显示转换后的内容（格式化）
+                let convertedText = data.sample_converted || '暂无预览';
+                convertedText = convertedText
+                    .replace(/\n/g, '<br>')
+                    .replace(/🎬/g, '<span style="font-size: 1.2rem;">🎬</span>')
+                    .replace(/【([^】]+)】/g, '<strong style="color: var(--success);">【$1】</strong>')
+                    .replace(/\(([^)]+)\)/g, '<em style="color: var(--text-secondary);">($1)</em>');
+
+                originalEl.innerHTML = originalText;
+                convertedEl.innerHTML = convertedText;
+            },
+
+            startProduction() {
+                if (!this.selectedMode) return;
+
+                console.log('开始制作:', this.selectedMode, this.selectedNovel);
+
+                // 保存选择到 localStorage
+                localStorage.setItem('shortDrama_selection', JSON.stringify({
+                    novel: this.selectedNovel,
+                    mode: this.selectedMode,
+                    convertedData: this.convertedData
+                }));
+
+                // 跳转到相应页面
+                if (this.selectedMode === 'episode') {
+                    window.location.href = `/video-generation?mode=episode-workflow&novel=${encodeURIComponent(this.selectedNovel)}`;
+                } else {
+                    window.location.href = `/video-generation?mode=unified-workflow&novel=${encodeURIComponent(this.selectedNovel)}`;
+                }
+            }
+        };
+
+        // 页面加载完成后初始化
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', () => {
+                console.log('DOM加载完成，初始化短剧流程');
+                ShortDramaFlow.init();
+            });
+        } else {
+            console.log('DOM已就绪，直接初始化短剧流程');
+            ShortDramaFlow.init();
+        }
+    </script>
+</body>
+</html>

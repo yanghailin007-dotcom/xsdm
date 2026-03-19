@@ -1,271 +1,272 @@
-<!DOCTYPE html>
-<html lang="zh-CN">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>图像素材库</title>
-    <link rel="stylesheet" href="/static/css/still-image-library.css">
-    <link rel="stylesheet" href="/static/css/confirm-dialog.css">
-    <style>
-        /* ==================== 用户头像下拉菜单 ==================== */
-        .user-menu {
-            position: relative;
-            display: inline-flex;
-            align-items: center;
-        }
-        .user-avatar {
-            width: 36px;
-            height: 36px;
-            border-radius: 50%;
-            background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            cursor: pointer;
-            transition: all 0.2s ease;
-            border: 2px solid rgba(255, 255, 255, 0.1);
-            overflow: hidden;
-        }
-        .user-avatar:hover {
-            transform: scale(1.05);
-            border-color: rgba(255, 255, 255, 0.3);
-            box-shadow: 0 0 20px rgba(99, 102, 241, 0.4);
-        }
-        .user-avatar .avatar-text {
-            font-size: 16px;
-            font-weight: 600;
-            color: white;
-            text-transform: uppercase;
-        }
-        .user-dropdown {
-            position: absolute;
-            top: calc(100% + 8px);
-            right: 0;
-            min-width: 180px;
-            background: rgba(30, 41, 59, 0.98);
-            border: 1px solid rgba(148, 163, 184, 0.2);
-            border-radius: 12px;
-            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.4);
-            opacity: 0;
-            visibility: hidden;
-            transform: translateY(-10px);
-            transition: all 0.2s ease;
-            z-index: 1000;
-            backdrop-filter: blur(10px);
-        }
-        .user-dropdown.active {
-            opacity: 1;
-            visibility: visible;
-            transform: translateY(0);
-        }
-        .dropdown-header {
-            padding: 12px 16px;
-            border-bottom: 1px solid rgba(148, 163, 184, 0.1);
-        }
-        .dropdown-header span {
-            color: #f1f5f9;
-            font-weight: 600;
-            font-size: 14px;
-            display: block;
-            overflow: hidden;
-            text-overflow: ellipsis;
-            white-space: nowrap;
-        }
-        .dropdown-divider {
-            height: 1px;
-            background: rgba(148, 163, 184, 0.1);
-            margin: 4px 0;
-        }
-        .dropdown-item {
-            display: flex;
-            align-items: center;
-            gap: 10px;
-            padding: 10px 16px;
-            color: #94a3b8;
-            text-decoration: none;
-            font-size: 14px;
-            transition: all 0.15s ease;
-            cursor: pointer;
-        }
-        .dropdown-item:hover {
-            background: rgba(99, 102, 241, 0.1);
-            color: #f1f5f9;
-        }
-    </style>
-</head>
-<body>
-    <div id="app">
-        <!-- 导航栏 -->
-        <nav class="navbar">
-            <div class="nav-container">
-                <button class="btn-back" onclick="window.location.href='/landing'">🏠 返回首页</button>
-                <h1 class="nav-title">📸 剧照图片素材库</h1>
-                <div class="nav-links">
-                    <a href="/novels" class="nav-link">📚 小说项目</a>
-                    <a href="/portrait-studio" class="nav-link">🎨 剧照工作台</a>
-                    <a href="/video-generation" class="nav-link">🎬 视频生成</a>
-                    <!-- 用户头像下拉菜单 -->
-                    <div class="user-menu">
-                        <div class="user-avatar" onclick="toggleUserMenu(event)">
-                            <span class="avatar-text" id="avatarText">用</span>
+{% extends "layouts/base-v2.html" %}
+
+{% block title %}图像素材库{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="/static/css/still-image-library.css">
+<link rel="stylesheet" href="/static/css/confirm-dialog.css">
+<style>
+    /* ==================== 用户头像下拉菜单 ==================== */
+    .user-menu {
+        position: relative;
+        display: inline-flex;
+        align-items: center;
+    }
+    .user-avatar {
+        width: 36px;
+        height: 36px;
+        border-radius: 50%;
+        background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+        transition: all 0.2s ease;
+        border: 2px solid rgba(255, 255, 255, 0.1);
+        overflow: hidden;
+    }
+    .user-avatar:hover {
+        transform: scale(1.05);
+        border-color: rgba(255, 255, 255, 0.3);
+        box-shadow: 0 0 20px rgba(99, 102, 241, 0.4);
+    }
+    .user-avatar .avatar-text {
+        font-size: 16px;
+        font-weight: 600;
+        color: white;
+        text-transform: uppercase;
+    }
+    .user-dropdown {
+        position: absolute;
+        top: calc(100% + 8px);
+        right: 0;
+        min-width: 180px;
+        background: rgba(30, 41, 59, 0.98);
+        border: 1px solid rgba(148, 163, 184, 0.2);
+        border-radius: 12px;
+        box-shadow: 0 20px 40px rgba(0, 0, 0, 0.4);
+        opacity: 0;
+        visibility: hidden;
+        transform: translateY(-10px);
+        transition: all 0.2s ease;
+        z-index: 1000;
+        backdrop-filter: blur(10px);
+    }
+    .user-dropdown.active {
+        opacity: 1;
+        visibility: visible;
+        transform: translateY(0);
+    }
+    .dropdown-header {
+        padding: 12px 16px;
+        border-bottom: 1px solid rgba(148, 163, 184, 0.1);
+    }
+    .dropdown-header span {
+        color: #f1f5f9;
+        font-weight: 600;
+        font-size: 14px;
+        display: block;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+    .dropdown-divider {
+        height: 1px;
+        background: rgba(148, 163, 184, 0.1);
+        margin: 4px 0;
+    }
+    .dropdown-item {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding: 10px 16px;
+        color: #94a3b8;
+        text-decoration: none;
+        font-size: 14px;
+        transition: all 0.15s ease;
+        cursor: pointer;
+    }
+    .dropdown-item:hover {
+        background: rgba(99, 102, 241, 0.1);
+        color: #f1f5f9;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div id="app">
+    <!-- 导航栏 -->
+    <nav class="navbar">
+        <div class="nav-container">
+            <button class="btn-back" onclick="window.location.href='/landing'">🏠 返回首页</button>
+            <h1 class="nav-title" data-i18n="imageLibrary.title">📸 图像素材库</h1>
+            <div class="nav-links">
+                <a href="/novels" class="nav-link">📚 小说项目</a>
+                <a href="/portrait-studio" class="nav-link">🎨 剧照工作台</a>
+                <a href="/video-generation" class="nav-link">🎬 视频生成</a>
+                <!-- 用户头像下拉菜单 -->
+                <div class="user-menu">
+                    <div class="user-avatar" onclick="toggleUserMenu(event)">
+                        <span class="avatar-text" id="avatarText">用</span>
+                    </div>
+                    <div class="user-dropdown" id="userDropdown">
+                        <div class="dropdown-header">
+                            <span id="dropdownUsername">加载中...</span>
                         </div>
-                        <div class="user-dropdown" id="userDropdown">
-                            <div class="dropdown-header">
-                                <span id="dropdownUsername">加载中...</span>
-                            </div>
-                            <div class="dropdown-divider"></div>
-                            <a href="/account" class="dropdown-item">⚙️ 管理账户</a>
-                            <a href="#" class="dropdown-item" onclick="logout(); return false;">🚪 退出登录</a>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </nav>
-
-        <div class="container">
-            <!-- 页面头部 -->
-            <header class="page-header">
-                <h2>剧照图片素材库</h2>
-                <p class="page-subtitle">管理和查看您生成的所有剧照图片</p>
-            </header>
-
-            <!-- 统计信息 -->
-            <div class="stats-bar">
-                <div class="stat-item">
-                    <span class="stat-icon">📊</span>
-                    <span class="stat-label">总数量:</span>
-                    <span class="stat-value" id="totalCount">0</span>
-                </div>
-                <div class="stat-item">
-                    <span class="stat-icon">👤</span>
-                    <span class="stat-label">角色剧照:</span>
-                    <span class="stat-value" id="characterCount">0</span>
-                </div>
-                <div class="stat-item">
-                    <span class="stat-icon">🎬</span>
-                    <span class="stat-label">场景剧照:</span>
-                    <span class="stat-value" id="sceneCount">0</span>
-                </div>
-                <div class="stat-item">
-                    <span class="stat-icon">🎨</span>
-                    <span class="stat-label">自定义剧照:</span>
-                    <span class="stat-value" id="customCount">0</span>
-                </div>
-                <div class="stat-item">
-                    <span class="stat-icon">💾</span>
-                    <span class="stat-label">总大小:</span>
-                    <span class="stat-value" id="totalSize">0 MB</span>
-                </div>
-            </div>
-
-            <!-- 过滤器 -->
-            <div class="filters">
-                <div class="filter-group">
-                    <label>类型:</label>
-                    <select id="typeFilter">
-                        <option value="">全部</option>
-                        <option value="character">角色剧照</option>
-                        <option value="scene">场景剧照</option>
-                        <option value="custom">自定义剧照</option>
-                    </select>
-                </div>
-                <div class="filter-group">
-                    <label>小说:</label>
-                    <select id="novelFilter">
-                        <option value="">全部</option>
-                    </select>
-                </div>
-                <div class="filter-group">
-                    <label>状态:</label>
-                    <select id="statusFilter">
-                        <option value="">全部</option>
-                        <option value="completed">已完成</option>
-                        <option value="pending">生成中</option>
-                        <option value="failed">失败</option>
-                    </select>
-                </div>
-                <div class="filter-group">
-                    <button id="refreshBtn" class="btn btn-secondary">🔄 刷新</button>
-                    <button id="exportBtn" class="btn btn-secondary">📤 导出元数据</button>
-                </div>
-            </div>
-
-            <!-- 图像网格 -->
-            <div id="imageGrid" class="image-grid">
-                <!-- 图像卡片将在这里动态加载 -->
-            </div>
-
-            <!-- 空状态 -->
-            <div id="emptyState" class="empty-state" style="display: none;">
-                <div class="empty-icon">📷</div>
-                <p>暂无图像素材</p>
-                <p class="empty-hint">前往角色或场景生成页面创建您的第一张图像</p>
-                <div class="empty-actions">
-                    <a href="/character-portrait" class="btn btn-primary">生成角色剧照</a>
-                    <a href="/video-studio" class="btn btn-secondary">生成场景剧照</a>
-                </div>
-            </div>
-
-            <!-- 加载状态 -->
-            <div id="loadingState" class="loading-state" style="display: none;">
-                <div class="spinner"></div>
-                <p>正在加载剧照图片...</p>
-            </div>
-        </div>
-    </div>
-
-    <!-- 图片详情模态框 -->
-    <div id="imageModal" class="modal">
-        <div class="modal-content">
-            <span class="close">&times;</span>
-            <div class="modal-body">
-                <img id="modalImage" src="" alt="剧照图片" class="modal-image">
-                <div class="modal-info">
-                    <h3 id="modalTitle">剧照详情</h3>
-                    <div class="info-row">
-                        <span class="info-label">类型:</span>
-                        <span class="info-value" id="modalType">-</span>
-                    </div>
-                    <div class="info-row">
-                        <span class="info-label">小说:</span>
-                        <span class="info-value" id="modalNovel">-</span>
-                    </div>
-                    <div class="info-row">
-                        <span class="info-label">角色/事件:</span>
-                        <span class="info-value" id="modalCharacter">-</span>
-                    </div>
-                    <div class="info-row">
-                        <span class="info-label">生成时间:</span>
-                        <span class="info-value" id="modalDate">-</span>
-                    </div>
-                    <div class="info-row">
-                        <span class="info-label">文件大小:</span>
-                        <span class="info-value" id="modalSize">-</span>
-                    </div>
-                    <div class="info-row">
-                        <span class="info-label">提示词:</span>
-                        <span class="info-value" id="modalPrompt">-</span>
-                    </div>
-                    <div class="modal-actions">
-                        <button id="downloadBtn" class="btn btn-primary">💾 下载</button>
-                        <button id="deleteBtn" class="btn btn-danger">🗑️ 删除</button>
+                        <div class="dropdown-divider"></div>
+                        <a href="/account" class="dropdown-item">⚙️ 管理账户</a>
+                        <a href="#" class="dropdown-item" onclick="logout(); return false;">🚪 退出登录</a>
                     </div>
                 </div>
             </div>
         </div>
-    </div>
+    </nav>
 
-    <script src="/static/js/still-image-library.js"></script>
-    <script src="/static/js/confirm-dialog.js"></script>
-    <script>
-        function logout() {
-            confirmLogout().then(confirmed => {
-                if (confirmed) {
-                    window.location.href = '/logout';
-                }
-            });
-        }
-    </script>
-    <script src="/static/js/user-info.js"></script>
-</body>
-</html>
+    <div class="container">
+        <!-- 页面头部 -->
+        <header class="page-header">
+            <h2 data-i18n="imageLibrary.title">图像素材库</h2>
+            <p class="page-subtitle" data-i18n="imageLibrary.subtitle">管理和使用您的图像素材</p>
+        </header>
+
+        <!-- 统计信息 -->
+        <div class="stats-bar">
+            <div class="stat-item">
+                <span class="stat-icon">📊</span>
+                <span class="stat-label" data-i18n="imageLibrary.section.all">总数量:</span>
+                <span class="stat-value" id="totalCount">0</span>
+            </div>
+            <div class="stat-item">
+                <span class="stat-icon">👤</span>
+                <span class="stat-label" data-i18n="imageLibrary.section.characters">角色剧照:</span>
+                <span class="stat-value" id="characterCount">0</span>
+            </div>
+            <div class="stat-item">
+                <span class="stat-icon">🎬</span>
+                <span class="stat-label" data-i18n="imageLibrary.section.scenes">场景剧照:</span>
+                <span class="stat-value" id="sceneCount">0</span>
+            </div>
+            <div class="stat-item">
+                <span class="stat-icon">🎨</span>
+                <span class="stat-label" data-i18n="imageLibrary.section.items">自定义剧照:</span>
+                <span class="stat-value" id="customCount">0</span>
+            </div>
+            <div class="stat-item">
+                <span class="stat-icon">💾</span>
+                <span class="stat-label">总大小:</span>
+                <span class="stat-value" id="totalSize">0 MB</span>
+            </div>
+        </div>
+
+        <!-- 过滤器 -->
+        <div class="filters">
+            <div class="filter-group">
+                <label data-i18n="imageLibrary.action.filter">类型:</label>
+                <select id="typeFilter">
+                    <option value="" data-i18n="imageLibrary.section.all">全部</option>
+                    <option value="character" data-i18n="imageLibrary.section.characters">角色剧照</option>
+                    <option value="scene" data-i18n="imageLibrary.section.scenes">场景剧照</option>
+                    <option value="custom" data-i18n="imageLibrary.section.items">自定义剧照</option>
+                </select>
+            </div>
+            <div class="filter-group">
+                <label>小说:</label>
+                <select id="novelFilter">
+                    <option value="">全部</option>
+                </select>
+            </div>
+            <div class="filter-group">
+                <label>状态:</label>
+                <select id="statusFilter">
+                    <option value="">全部</option>
+                    <option value="completed">已完成</option>
+                    <option value="pending">生成中</option>
+                    <option value="failed">失败</option>
+                </select>
+            </div>
+            <div class="filter-group">
+                <button id="refreshBtn" class="btn btn-secondary" data-i18n="common.refresh">🔄 刷新</button>
+                <button id="exportBtn" class="btn btn-secondary">📤 导出元数据</button>
+            </div>
+        </div>
+
+        <!-- 图像网格 -->
+        <div id="imageGrid" class="image-grid">
+            <!-- 图像卡片将在这里动态加载 -->
+        </div>
+
+        <!-- 空状态 -->
+        <div id="emptyState" class="empty-state" style="display: none;">
+            <div class="empty-icon">📷</div>
+            <p>暂无图像素材</p>
+            <p class="empty-hint">前往角色或场景生成页面创建您的第一张图像</p>
+            <div class="empty-actions">
+                <a href="/character-portrait" class="btn btn-primary">生成角色剧照</a>
+                <a href="/video-studio" class="btn btn-secondary">生成场景剧照</a>
+            </div>
+        </div>
+
+        <!-- 加载状态 -->
+        <div id="loadingState" class="loading-state" style="display: none;">
+            <div class="spinner"></div>
+            <p>正在加载剧照图片...</p>
+        </div>
+    </div>
+</div>
+
+<!-- 图片详情模态框 -->
+<div id="imageModal" class="modal">
+    <div class="modal-content">
+        <span class="close">&times;</span>
+        <div class="modal-body">
+            <img id="modalImage" src="" alt="剧照图片" class="modal-image">
+            <div class="modal-info">
+                <h3 id="modalTitle">剧照详情</h3>
+                <div class="info-row">
+                    <span class="info-label">类型:</span>
+                    <span class="info-value" id="modalType">-</span>
+                </div>
+                <div class="info-row">
+                    <span class="info-label">小说:</span>
+                    <span class="info-value" id="modalNovel">-</span>
+                </div>
+                <div class="info-row">
+                    <span class="info-label">角色/事件:</span>
+                    <span class="info-value" id="modalCharacter">-</span>
+                </div>
+                <div class="info-row">
+                    <span class="info-label">生成时间:</span>
+                    <span class="info-value" id="modalDate">-</span>
+                </div>
+                <div class="info-row">
+                    <span class="info-label">文件大小:</span>
+                    <span class="info-value" id="modalSize">-</span>
+                </div>
+                <div class="info-row">
+                    <span class="info-label">提示词:</span>
+                    <span class="info-value" id="modalPrompt">-</span>
+                </div>
+                <div class="modal-actions">
+                    <button id="downloadBtn" class="btn btn-primary">💾 下载</button>
+                    <button id="deleteBtn" class="btn btn-danger">🗑️ 删除</button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="/static/js/still-image-library.js"></script>
+<script src="/static/js/confirm-dialog.js"></script>
+<script>
+    function logout() {
+        confirmLogout().then(confirmed => {
+            if (confirmed) {
+                window.location.href = '/logout';
+            }
+        });
+    }
+</script>
+<script src="/static/js/user-info.js"></script>
+{% endblock %}

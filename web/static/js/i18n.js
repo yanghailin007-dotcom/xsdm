@@ -229,6 +229,17 @@ const I18N = (function() {
             'portraitStudio.empty.noCharacters': '暂无角色',
             'portraitStudio.empty.addCharacter': '添加角色',
             
+            // 图像素材库
+            'imageLibrary.title': '图像素材库',
+            'imageLibrary.subtitle': '管理和使用您的图像素材',
+            'imageLibrary.section.all': '全部素材',
+            'imageLibrary.section.characters': '角色',
+            'imageLibrary.section.scenes': '场景',
+            'imageLibrary.section.items': '道具',
+            'imageLibrary.action.upload': '上传',
+            'imageLibrary.action.search': '搜索',
+            'imageLibrary.action.filter': '筛选',
+            
             // 视频任务管理
             'videoTaskMgr.title': '视频任务管理',
             'videoTaskMgr.subtitle': '管理所有视频生成任务',
@@ -451,6 +462,17 @@ const I18N = (function() {
             'portraitStudio.empty.noCharacters': '暫無角色',
             'portraitStudio.empty.addCharacter': '添加角色',
             
+            // 圖像素材庫
+            'imageLibrary.title': '圖像素材庫',
+            'imageLibrary.subtitle': '管理和使用您的圖像素材',
+            'imageLibrary.section.all': '全部素材',
+            'imageLibrary.section.characters': '角色',
+            'imageLibrary.section.scenes': '場景',
+            'imageLibrary.section.items': '道具',
+            'imageLibrary.action.upload': '上傳',
+            'imageLibrary.action.search': '搜尋',
+            'imageLibrary.action.filter': '篩選',
+            
             // 视频任务管理
             'videoTaskMgr.title': '影片任務管理',
             'videoTaskMgr.subtitle': '管理所有影片生成任務',
@@ -672,6 +694,17 @@ const I18N = (function() {
             'portraitStudio.btn.batch': 'Batch Generate',
             'portraitStudio.empty.noCharacters': 'No characters yet',
             'portraitStudio.empty.addCharacter': 'Add Character',
+            
+            // Image Library
+            'imageLibrary.title': 'Image Library',
+            'imageLibrary.subtitle': 'Manage and use your image assets',
+            'imageLibrary.section.all': 'All Assets',
+            'imageLibrary.section.characters': 'Characters',
+            'imageLibrary.section.scenes': 'Scenes',
+            'imageLibrary.section.items': 'Items',
+            'imageLibrary.action.upload': 'Upload',
+            'imageLibrary.action.search': 'Search',
+            'imageLibrary.action.filter': 'Filter',
             
             // Video Task Manager
             'videoTaskMgr.title': 'Video Task Manager',
