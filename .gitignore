@@ -132,3 +132,8 @@ server_*.log  # 根目录下的日志文件
 
 # Flask session 文件（服务器端 session 存储）
 flask_session/
+
+# 调试截图和临时文件
+debug_screenshots/
+screenshots/page_audit_*/
+fix_indent.py
