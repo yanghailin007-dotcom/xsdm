@@ -167,14 +167,23 @@ class NovelPublisher:
         
         # 检查是否需要创建新书
         if not progress.get("book_created", False):
-            logger.info("书籍未创建，开始创建新书...")
-            if self._create_new_book(page, novel_title, formatted_synopsis, main_character, data, project_dir):
+            # 🔍 先检查番茄平台上是否已有该书
+            logger.info("[Publisher] 检查番茄平台上是否已有该书...")
+            existing_book_url = self._check_book_exists_on_fanqie(page, novel_title)
+            if existing_book_url:
+                logger.info(f"[Publisher] ✓ 书籍已在番茄平台存在: {existing_book_url}")
                 progress["book_created"] = True
+                progress["book_url"] = existing_book_url
                 self._save_publish_progress(novel_title, progress)
-                logger.info(f"✓ 书籍《{novel_title}》创建成功")
             else:
-                logger.info(f"✗ 书籍《{novel_title}》创建失败")
-                return False
+                logger.info("书籍未创建，开始创建新书...")
+                if self._create_new_book(page, novel_title, formatted_synopsis, main_character, data, project_dir):
+                    progress["book_created"] = True
+                    self._save_publish_progress(novel_title, progress)
+                    logger.info(f"✓ 书籍《{novel_title}》创建成功")
+                else:
+                    logger.info(f"✗ 书籍《{novel_title}》创建失败")
+                    return False
         
         # 等待页面完全加载
         logger.info("等待书籍详情页完全加载...")
@@ -382,6 +391,74 @@ class NovelPublisher:
         
         logger.info("✗ 等待超时，无法确认创建是否成功")
         return False
+    
+    def _check_book_exists_on_fanqie(self, page: Page, novel_title: str) -> Optional[str]:
+        """
+        检查番茄平台上是否已有该书
+        
+        Args:
+            page: 页面对象
+            novel_title: 小说标题
+            
+        Returns:
+            书籍URL或None
+        """
+        try:
+            # 访问作家后台首页
+            page.goto("https://fanqienovel.com/main/writer/")
+            time.sleep(2)
+            
+            # 在页面中搜索书名
+            # 策略1: 检查页面中是否包含书名链接
+            try:
+                # 查找包含书名的元素
+                book_link = page.locator(f'text={novel_title[:10]}').first
+                if book_link.count() > 0:
+                    # 获取父链接
+                    parent = book_link.locator('xpath=ancestor::a').first
+                    if parent.count() > 0:
+                        href = parent.get_attribute('href')
+                        if href and ('/book/' in href or '/chapter-manage/' in href):
+                            return f"https://fanqienovel.com{href}" if href.startswith('/') else href
+            except:
+                pass
+            
+            # 策略2: 检查URL是否已在书籍详情页
+            current_url = page.url
+            if "/main/writer/book/" in current_url or "/main/writer/chapter-manage/" in current_url:
+                # 检查页面标题是否匹配
+                try:
+                    page_title = page.title()
+                    if novel_title[:8] in page_title:
+                        return current_url
+                except:
+                    pass
+            
+            # 策略3: 查找书籍ID链接
+            try:
+                # 查找所有包含 long-article-table-item 的元素
+                book_items = page.locator('.long-article-table-item').all()
+                for item in book_items:
+                    try:
+                        title_el = item.locator('.info-content-title, .book-title').first
+                        if title_el.count() > 0:
+                            title_text = title_el.text_content() or ""
+                            if novel_title[:8] in title_text or title_text in novel_title:
+                                # 找到书籍，获取链接
+                                link_el = item.locator('a[href*="/chapter-manage/"], a[href*="/book/"]').first
+                                if link_el.count() > 0:
+                                    href = link_el.get_attribute('href')
+                                    if href:
+                                        return f"https://fanqienovel.com{href}" if href.startswith('/') else href
+                    except:
+                        continue
+            except:
+                pass
+            
+            return None
+        except Exception as e:
+            logger.info(f"[Publisher] 检查书籍存在性时出错: {e}")
+            return None
     
     def _select_book_tags_v2(self, page: Page, tags_info: Dict[str, Any]) -> bool:
         """
