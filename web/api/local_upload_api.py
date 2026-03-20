@@ -214,16 +214,65 @@ def get_retry_chapters(task_id: str):
         return jsonify({'success': False, 'error': str(e)}), 500
 
 
-@local_upload_api.route('/generate-script', methods=['POST'])
-def generate_upload_script():
+@local_upload_api.route('/detect-environment', methods=['GET'])
+def detect_environment():
+    """检测用户环境状态，推荐合适的包类型"""
+    try:
+        user_id = session.get('user_id')
+        if not user_id:
+            return jsonify({'success': False, 'error': '未登录'}), 401
+        
+        from web.services.upload_package_manager import UploadPackageManager
+        
+        manager = UploadPackageManager(api_base_url=request.host_url.rstrip('/'))
+        env_status = manager.detect_user_environment(user_id)
+        
+        # 根据环境状态推荐包类型
+        if not env_status['has_chrome_launcher'] or not env_status['has_python']:
+            recommended = 'first_time'
+            message = '首次使用，建议下载完整环境包'
+        elif not env_status['has_uploaded_before']:
+            recommended = 'script'
+            message = '环境已就绪，下载上传脚本包即可'
+        else:
+            recommended = 'script'
+            message = '欢迎回来，下载新的上传脚本'
+        
+        return jsonify({
+            'success': True,
+            'environment': env_status,
+            'recommended_package': recommended,
+            'message': message,
+            'package_configs': {
+                'first_time': {
+                    'name': '完整环境包',
+                    'description': '包含Chrome浏览器、Python环境、上传脚本（首次使用下载）',
+                    'size': '约 200MB'
+                },
+                'script': {
+                    'name': '上传脚本包',
+                    'description': '包含上传脚本和小说数据（已安装环境后使用）',
+                    'size': '约 500KB'
+                }
+            }
+        })
+        
+    except Exception as e:
+        print(f"[LocalUploadAPI] 检测环境错误: {e}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@local_upload_api.route('/generate-package', methods=['POST'])
+def generate_package():
     """
-    生成上传脚本包
-    返回包含脚本和小说数据的打包下载
+    生成上传包（支持不同类型）
     """
     try:
         data = request.get_json()
         
         novel_title = data.get('novel_title')
+        package_type = data.get('package_type', 'script')  # first_time 或 script
+        
         if not novel_title:
             return jsonify({'success': False, 'error': '小说标题不能为空'}), 400
         
@@ -231,7 +280,7 @@ def generate_upload_script():
         if not user_id:
             return jsonify({'success': False, 'error': '未登录'}), 401
         
-        # 获取小说章节数据（这里简化，实际应从数据库或文件读取）
+        # 获取章节数据
         chapters = data.get('chapters', [])
         if not chapters:
             return jsonify({'success': False, 'error': '没有章节数据'}), 400
@@ -248,58 +297,79 @@ def generate_upload_script():
             total_chapters=len(chapters),
             platform=data.get('platform', 'fanqie')
         )
-        
-        # 创建章节记录
         model.create_chapters(task_id, chapters)
         
-        # 生成脚本包
-        from web.services.script_generator import ScriptGenerator
-        
-        # 获取用户token（这里简化处理，实际应生成临时token）
+        # 获取用户token
         from web.jwt_auth import generate_token
         user_token = generate_token({'user_id': user_id}, token_type='upload')
         
-        generator = ScriptGenerator(api_base_url=request.host_url.rstrip('/'))
+        # 生成包
+        from web.services.upload_package_manager import UploadPackageManager
+        
+        manager = UploadPackageManager(api_base_url=request.host_url.rstrip('/'))
         
         novel_info = {
             'title': novel_title,
             'id': data.get('novel_id', '')
         }
         
-        result = generator.create_upload_package(
-            task_id=task_id,
-            user_token=user_token,
-            novel_info=novel_info,
-            chapters=chapters,
-            platform=data.get('platform', 'fanqie')
-        )
+        if package_type == 'first_time':
+            result = manager.create_first_time_package(
+                task_id=task_id,
+                user_token=user_token,
+                novel_info=novel_info,
+                chapters=chapters
+            )
+        else:
+            result = manager.create_script_package(
+                task_id=task_id,
+                user_token=user_token,
+                novel_info=novel_info,
+                chapters=chapters
+            )
         
         if not result['success']:
             return jsonify({'success': False, 'error': result.get('error', '生成失败')}), 500
         
-        # 返回下载链接（临时文件，需要定期清理）
+        # 保存包路径到任务记录（用于下载）
+        # TODO: 将 package_path 保存到数据库
+        
         return jsonify({
             'success': True,
             'task_id': task_id,
-            'message': '脚本生成成功',
-            'download_url': f'/api/local-upload/download-script/{task_id}'
+            'package_type': result['package_type'],
+            'file_name': result['file_name'],
+            'size_estimate': result['size_estimate'],
+            'message': '包生成成功',
+            'download_url': f'/api/local-upload/download-package/{task_id}'
         })
         
     except Exception as e:
-        print(f"[LocalUploadAPI] 生成脚本错误: {e}")
+        print(f"[LocalUploadAPI] 生成包错误: {e}")
         import traceback
         traceback.print_exc()
         return jsonify({'success': False, 'error': str(e)}), 500
 
 
-@local_upload_api.route('/download-script/<task_id>', methods=['GET'])
-def download_script(task_id: str):
-    """下载上传脚本包"""
+@local_upload_api.route('/download-package/<task_id>', methods=['GET'])
+def download_package(task_id: str):
+    """下载上传包"""
     try:
-        # 查找生成的包（这里简化，实际应从存储中获取）
-        # TODO: 实现安全的文件下载
-        return jsonify({'success': False, 'error': '开发中'}), 501
+        from flask import send_file
+        from web.services.upload_package_manager import PACKAGES_DIR
+        
+        # 查找包文件（支持不同类型）
+        for prefix in ['first_time_', 'script_']:
+            package_path = PACKAGES_DIR / f'{prefix}{task_id}.zip'
+            if package_path.exists():
+                return send_file(
+                    package_path,
+                    as_attachment=True,
+                    download_name=package_path.name
+                )
+        
+        return jsonify({'success': False, 'error': '包文件不存在或已过期'}), 404
         
     except Exception as e:
-        print(f"[LocalUploadAPI] 下载脚本错误: {e}")
+        print(f"[LocalUploadAPI] 下载包错误: {e}")
         return jsonify({'success': False, 'error': str(e)}), 500

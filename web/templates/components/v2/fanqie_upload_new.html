@@ -1,0 +1,641 @@
+{#
+    番茄小说上传组件 V2
+    支持首次下载、脚本下载、上传进度跟踪
+#}
+<div class="fanqie-upload-container" id="fanqieUploadContainer">
+    
+    <!-- 步骤指示器 -->
+    <div class="upload-steps" id="uploadSteps">
+        <div class="step-item active" data-step="1">
+            <div class="step-number">1</div>
+            <div class="step-label">环境检测</div>
+        </div>
+        <div class="step-arrow">→</div>
+        <div class="step-item" data-step="2">
+            <div class="step-number">2</div>
+            <div class="step-label">下载脚本</div>
+        </div>
+        <div class="step-arrow">→</div>
+        <div class="step-item" data-step="3">
+            <div class="step-number">3</div>
+            <div class="step-label">运行上传</div>
+        </div>
+        <div class="step-arrow">→</div>
+        <div class="step-item" data-step="4">
+            <div class="step-number">4</div>
+            <div class="step-label">查看进度</div>
+        </div>
+    </div>
+
+    <!-- 步骤1: 环境检测 -->
+    <div class="upload-step-content active" id="step1">
+        <div class="step-header">
+            <h3>🔍 环境检测</h3>
+            <p>检测您的本地环境，推荐合适的上传方案</p>
+        </div>
+        
+        <div class="env-checking" id="envChecking">
+            <div class="spinner"></div>
+            <p>正在检测环境...</p>
+        </div>
+        
+        <div class="env-result" id="envResult" style="display: none;">
+            <!-- 动态填充检测结果 -->
+        </div>
+    </div>
+
+    <!-- 步骤2: 下载脚本 -->
+    <div class="upload-step-content" id="step2">
+        <div class="step-header">
+            <h3>📦 下载上传包</h3>
+            <p>根据您的环境选择合适的包下载</p>
+        </div>
+        
+        <div class="package-options" id="packageOptions">
+            <!-- 动态填充包选项 -->
+        </div>
+        
+        <div class="package-downloading" id="packageDownloading" style="display: none;">
+            <div class="spinner"></div>
+            <p>正在生成上传包...</p>
+            <p class="text-muted">请稍候，根据包大小可能需要几秒到几分钟</p>
+        </div>
+    </div>
+
+    <!-- 步骤3: 运行上传 -->
+    <div class="upload-step-content" id="step3">
+        <div class="step-header">
+            <h3>🚀 运行上传脚本</h3>
+            <p>按照以下步骤在本地运行上传脚本</p>
+        </div>
+        
+        <div class="upload-guide" id="uploadGuide">
+            <div class="guide-section">
+                <h4>📋 前置检查</h4>
+                <ul class="check-list">
+                    <li id="checkChrome">
+                        <span class="check-icon">⏳</span>
+                        <span>Chrome 浏览器已启动（运行一键启动.bat）</span>
+                    </li>
+                    <li id="checkLogin">
+                        <span class="check-icon">⏳</span>
+                        <span>已在 Chrome 中登录番茄小说作者账号</span>
+                    </li>
+                    <li id="checkScript">
+                        <span class="check-icon">⏳</span>
+                        <span>已下载并解压上传脚本包</span>
+                    </li>
+                </ul>
+            </div>
+            
+            <div class="guide-section">
+                <h4>▶️ 开始上传</h4>
+                <ol class="step-list">
+                    <li>打开下载的脚本包文件夹</li>
+                    <li>双击运行 <code>upload_script.py</code> 或 <code>开始上传_xxxxx.bat</code></li>
+                    <li>脚本会自动连接 Chrome 并开始上传</li>
+                    <li>上传进度会自动同步到本页面</li>
+                </ol>
+            </div>
+            
+            <div class="guide-alert alert-info">
+                <strong>💡 提示：</strong>运行脚本后，页面会自动跳转到上传进度界面
+            </div>
+        </div>
+        
+        <div class="action-buttons">
+            <button class="v2-btn v2-btn--secondary" onclick="goToStep(2)">
+                <span>←</span> 返回上一步
+            </button>
+            <button class="v2-btn v2-btn--primary" onclick="startUploadMonitoring()">
+                <span>🚀</span> 我已运行脚本，查看进度
+            </button>
+        </div>
+    </div>
+
+    <!-- 步骤4: 上传进度 -->
+    <div class="upload-step-content" id="step4">
+        <div class="step-header">
+            <h3>📊 上传进度</h3>
+            <p>实时跟踪本地脚本上传状态</p>
+        </div>
+        
+        <!-- 包含本地上传状态组件 -->
+        <div id="uploadStatusContainer">
+            {% include 'components/local_upload_status.html' %}
+        </div>
+        
+        <div class="action-buttons">
+            <button class="v2-btn v2-btn--secondary" onclick="goToStep(3)">
+                <span>←</span> 返回指南
+            </button>
+            <button class="v2-btn v2-btn--primary" onclick="refreshUploadStatus()">
+                <span>🔄</span> 刷新状态
+            </button>
+        </div>
+    </div>
+
+</div>
+
+<style>
+.fanqie-upload-container {
+    max-width: 800px;
+    margin: 0 auto;
+}
+
+/* 步骤指示器 */
+.upload-steps {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    margin-bottom: 32px;
+    padding: 20px;
+    background: rgba(99, 102, 241, 0.05);
+    border-radius: 12px;
+}
+
+.step-item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 6px;
+    padding: 8px 16px;
+    border-radius: 8px;
+    opacity: 0.5;
+    transition: all 0.3s ease;
+}
+
+.step-item.active {
+    opacity: 1;
+    background: rgba(99, 102, 241, 0.1);
+}
+
+.step-item.completed {
+    opacity: 1;
+}
+
+.step-item.completed .step-number {
+    background: linear-gradient(135deg, #22c55e, #16a34a);
+}
+
+.step-number {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, #6366f1, #8b5cf6);
+    color: white;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 14px;
+    font-weight: 600;
+}
+
+.step-label {
+    font-size: 12px;
+    color: var(--v2-text-secondary);
+}
+
+.step-item.active .step-label {
+    color: var(--v2-primary-500);
+    font-weight: 500;
+}
+
+.step-arrow {
+    color: var(--v2-text-muted);
+    font-size: 14px;
+}
+
+/* 步骤内容 */
+.upload-step-content {
+    display: none;
+    animation: fadeIn 0.3s ease;
+}
+
+.upload-step-content.active {
+    display: block;
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+.step-header {
+    text-align: center;
+    margin-bottom: 24px;
+}
+
+.step-header h3 {
+    font-size: 20px;
+    font-weight: 600;
+    color: var(--v2-text-primary);
+    margin-bottom: 8px;
+}
+
+.step-header p {
+    color: var(--v2-text-secondary);
+    font-size: 14px;
+}
+
+/* 环境检测 */
+.env-checking {
+    text-align: center;
+    padding: 40px;
+}
+
+.spinner {
+    width: 40px;
+    height: 40px;
+    border: 3px solid rgba(99, 102, 241, 0.2);
+    border-top-color: #6366f1;
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+    margin: 0 auto 16px;
+}
+
+@keyframes spin {
+    to { transform: rotate(360deg); }
+}
+
+/* 包选项 */
+.package-options {
+    display: grid;
+    gap: 16px;
+}
+
+.package-card {
+    background: rgba(255, 255, 255, 0.05);
+    border: 2px solid rgba(99, 102, 241, 0.2);
+    border-radius: 12px;
+    padding: 20px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+.package-card:hover {
+    border-color: rgba(99, 102, 241, 0.5);
+    transform: translateY(-2px);
+}
+
+.package-card.recommended {
+    border-color: #6366f1;
+    background: rgba(99, 102, 241, 0.08);
+}
+
+.package-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 12px;
+}
+
+.package-name {
+    font-size: 16px;
+    font-weight: 600;
+    color: var(--v2-text-primary);
+}
+
+.package-badge {
+    padding: 4px 12px;
+    border-radius: 20px;
+    font-size: 11px;
+    font-weight: 500;
+}
+
+.package-badge.recommended {
+    background: rgba(99, 102, 241, 0.2);
+    color: #6366f1;
+}
+
+.package-description {
+    color: var(--v2-text-secondary);
+    font-size: 13px;
+    margin-bottom: 12px;
+}
+
+.package-meta {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.package-size {
+    font-size: 12px;
+    color: var(--v2-text-muted);
+}
+
+/* 指南 */
+.guide-section {
+    background: rgba(255, 255, 255, 0.03);
+    border-radius: 12px;
+    padding: 20px;
+    margin-bottom: 16px;
+}
+
+.guide-section h4 {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--v2-text-primary);
+    margin-bottom: 12px;
+}
+
+.check-list, .step-list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+}
+
+.check-list li {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 10px 0;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.check-list li:last-child {
+    border-bottom: none;
+}
+
+.check-icon {
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    background: rgba(245, 158, 11, 0.2);
+    color: #f59e0b;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 12px;
+}
+
+.check-icon.success {
+    background: rgba(34, 197, 94, 0.2);
+    color: #22c55e;
+}
+
+.step-list {
+    counter-reset: step;
+}
+
+.step-list li {
+    position: relative;
+    padding-left: 32px;
+    padding-bottom: 16px;
+    color: var(--v2-text-secondary);
+    font-size: 13px;
+}
+
+.step-list li::before {
+    counter-increment: step;
+    content: counter(step);
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 20px;
+    height: 20px;
+    background: rgba(99, 102, 241, 0.2);
+    color: #6366f1;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 11px;
+    font-weight: 600;
+}
+
+.guide-alert {
+    padding: 12px 16px;
+    border-radius: 8px;
+    margin-top: 16px;
+    font-size: 13px;
+}
+
+.alert-info {
+    background: rgba(99, 102, 241, 0.1);
+    border-left: 3px solid #6366f1;
+    color: var(--v2-text-secondary);
+}
+
+/* 按钮 */
+.action-buttons {
+    display: flex;
+    gap: 12px;
+    justify-content: center;
+    margin-top: 24px;
+}
+</style>
+
+<script>
+// 全局状态
+let currentStep = 1;
+let currentTaskId = null;
+let selectedPackageType = null;
+let envStatus = null;
+
+/**
+ * 初始化上传流程
+ */
+async function initUploadFlow() {
+    await detectEnvironment();
+}
+
+/**
+ * 步骤1: 环境检测
+ */
+async function detectEnvironment() {
+    showStep(1);
+    
+    try {
+        const response = await fetch('/api/local-upload/detect-environment');
+        const data = await response.json();
+        
+        if (data.success) {
+            envStatus = data.environment;
+            selectedPackageType = data.recommended_package;
+            
+            // 显示检测结果
+            document.getElementById('envChecking').style.display = 'none';
+            document.getElementById('envResult').style.display = 'block';
+            document.getElementById('envResult').innerHTML = `
+                <div class="env-status-card">
+                    <div class="status-icon">${envStatus.has_chrome_launcher ? '✅' : '⚠️'}</div>
+                    <div class="status-text">
+                        <h4>${data.message}</h4>
+                        <p>推荐方案: ${data.package_configs[selectedPackageType].name}</p>
+                    </div>
+                </div>
+                <button class="v2-btn v2-btn--primary btn-block" onclick="goToStep(2)">
+                    下一步: 下载 ${data.package_configs[selectedPackageType].name}
+                </button>
+            `;
+            
+            // 标记步骤1完成
+            markStepCompleted(1);
+        } else {
+            showError('环境检测失败: ' + data.error);
+        }
+    } catch (error) {
+        showError('请求失败: ' + error.message);
+    }
+}
+
+/**
+ * 步骤2: 显示包选项
+ */
+function showPackageOptions() {
+    const container = document.getElementById('packageOptions');
+    
+    container.innerHTML = `
+        <div class="package-card ${selectedPackageType === 'first_time' ? 'recommended' : ''}" 
+             onclick="selectPackage('first_time')">
+            <div class="package-header">
+                <span class="package-name">完整环境包</span>
+                ${selectedPackageType === 'first_time' ? '<span class="package-badge recommended">推荐</span>' : ''}
+            </div>
+            <p class="package-description">包含Chrome浏览器、Python环境、上传脚本（首次使用下载）</p>
+            <div class="package-meta">
+                <span class="package-size">约 200MB</span>
+                <span class="text-muted">首次使用</span>
+            </div>
+        </div>
+        
+        <div class="package-card ${selectedPackageType === 'script' ? 'recommended' : ''}"
+             onclick="selectPackage('script')">
+            <div class="package-header">
+                <span class="package-name">上传脚本包</span>
+                ${selectedPackageType === 'script' ? '<span class="package-badge recommended">推荐</span>' : ''}
+            </div>
+            <p class="package-description">包含上传脚本和小说数据（已安装环境后使用）</p>
+            <div class="package-meta">
+                <span class="package-size">约 500KB</span>
+                <span class="text-muted">快速下载</span>
+            </div>
+        </div>
+    `;
+}
+
+function selectPackage(type) {
+    selectedPackageType = type;
+    generatePackage();
+}
+
+/**
+ * 生成并下载包
+ */
+async function generatePackage() {
+    const novelTitle = document.getElementById('selectedNovelTitle')?.value;
+    const chapters = window.selectedChapters || []; // 从页面获取章节数据
+    
+    if (!novelTitle || chapters.length === 0) {
+        alert('请先选择小说和章节');
+        return;
+    }
+    
+    document.getElementById('packageOptions').style.display = 'none';
+    document.getElementById('packageDownloading').style.display = 'block';
+    
+    try {
+        const response = await fetch('/api/local-upload/generate-package', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                novel_title: novelTitle,
+                package_type: selectedPackageType,
+                chapters: chapters,
+                platform: 'fanqie'
+            })
+        });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+            currentTaskId = data.task_id;
+            
+            // 触发下载
+            window.location.href = data.download_url;
+            
+            // 显示下一步
+            markStepCompleted(2);
+            goToStep(3);
+        } else {
+            alert('生成包失败: ' + data.error);
+            document.getElementById('packageOptions').style.display = 'grid';
+            document.getElementById('packageDownloading').style.display = 'none';
+        }
+    } catch (error) {
+        alert('请求失败: ' + error.message);
+        document.getElementById('packageOptions').style.display = 'grid';
+        document.getElementById('packageDownloading').style.display = 'none';
+    }
+}
+
+/**
+ * 步骤3: 开始上传监控
+ */
+function startUploadMonitoring() {
+    if (!currentTaskId) {
+        alert('请先下载上传包');
+        return;
+    }
+    
+    markStepCompleted(3);
+    goToStep(4);
+    
+    // 加载上传状态
+    if (typeof loadUploadStatus === 'function') {
+        loadUploadStatus(currentTaskId);
+        startAutoRefresh(currentTaskId, 3000);
+    }
+}
+
+/**
+ * 切换步骤
+ */
+function goToStep(step) {
+    // 隐藏所有步骤
+    document.querySelectorAll('.upload-step-content').forEach(el => {
+        el.classList.remove('active');
+    });
+    
+    // 显示目标步骤
+    document.getElementById('step' + step).classList.add('active');
+    
+    // 更新步骤指示器
+    document.querySelectorAll('.step-item').forEach((el, index) => {
+        el.classList.remove('active');
+        if (index + 1 === step) {
+            el.classList.add('active');
+        }
+    });
+    
+    currentStep = step;
+    
+    // 步骤特定的初始化
+    if (step === 2) {
+        showPackageOptions();
+    }
+}
+
+function showStep(step) {
+    goToStep(step);
+}
+
+function markStepCompleted(step) {
+    const stepItem = document.querySelector(`.step-item[data-step="${step}"]`);
+    if (stepItem) {
+        stepItem.classList.add('completed');
+        stepItem.querySelector('.step-number').textContent = '✓';
+    }
+}
+
+function showError(message) {
+    // 简单的错误显示
+    alert(message);
+}
+
+// 页面加载时初始化
+document.addEventListener('DOMContentLoaded', initUploadFlow);
+</script>
