@@ -466,6 +466,11 @@ def create_app():
     app.register_blueprint(cover_check_api)
     logger.info("✅ cover_check_api 封面检查已注册")
 
+    # 27. 本地上传任务 API 路由
+    from web.api.local_upload_api import local_upload_api
+    app.register_blueprint(local_upload_api)
+    logger.info("✅ local_upload_api 本地上传任务已注册")
+
     # 🔥 同步预初始化 NovelGenerator（确保服务器启动时完成）
     logger.info("🔄 开始预初始化 NovelGenerator...")
     try:
