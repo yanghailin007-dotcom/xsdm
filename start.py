@@ -1,12 +1,12 @@
 #!/usr/bin/env python3
 """
 =================================================================
-大文娱系统 - 启动脚本 (默认后台运行，支持日志查看)
+大文娱系统 - 启动脚本 (默认前台运行，实时显示日志)
 =================================================================
 
 使用方法:
-    后台运行:   python start.py              (默认推荐)
-    前台运行:   python start.py --foreground (实时显示日志)
+    前台运行:   python start.py              (默认，实时显示日志)
+    后台运行:   python start.py --daemon     (后台服务)
     停止服务:   python start.py --stop
     查看状态:   python start.py --status
     查看日志:   python start.py --logs
@@ -297,8 +297,7 @@ def show_status():
         print(f"  {Colors.RED}● 服务未运行{Colors.RESET}")
     
     print(f"\n  {Colors.CYAN}访问地址:{Colors.RESET}")
-    print(f"    • 首页: http://localhost:{PORT}/landing")
-    print(f"    • 创作: http://localhost:{PORT}/")
+    print(f"    • 首页: http://localhost:{PORT}/")
     
     print(f"\n  {Colors.CYAN}日志文件:{Colors.RESET}")
     print(f"    {log_file}")
@@ -399,7 +398,7 @@ def run_foreground(open_browser_flag=True):
     log_file = get_log_file()
     print(f"{Colors.GREEN}{'='*60}{Colors.RESET}")
     print(f"  {Colors.BOLD}启动 Web 服务 (前台运行){Colors.RESET}")
-    print(f"  {Colors.CYAN}• 首页:{Colors.RESET} http://localhost:{PORT}/landing")
+    print(f"  {Colors.CYAN}• 首页:{Colors.RESET} http://localhost:{PORT}/")
     print(f"  {Colors.CYAN}• 日志:{Colors.RESET} {log_file}")
     print(f"{Colors.GREEN}{'='*60}{Colors.RESET}\n")
     
@@ -408,7 +407,7 @@ def run_foreground(open_browser_flag=True):
         def open_browser():
             time.sleep(3)
             try:
-                webbrowser.open(f'http://localhost:{PORT}/landing')
+                webbrowser.open(f'http://localhost:{PORT}/')
                 print(f"\n{Colors.GREEN}[OK]{Colors.RESET} 浏览器已自动打开首页")
             except:
                 pass
@@ -579,7 +578,7 @@ def run_daemon():
         print(f"  {Colors.BOLD}服务已在后台启动{Colors.RESET}")
         print(f"{Colors.GREEN}{'='*60}{Colors.RESET}\n")
         print(f"  {Colors.GREEN}● PID:{Colors.RESET} {process.pid}")
-        print(f"  {Colors.CYAN}• 首页:{Colors.RESET} http://localhost:{PORT}/landing")
+        print(f"  {Colors.CYAN}• 首页:{Colors.RESET} http://localhost:{PORT}/")
         print(f"  {Colors.CYAN}• 日志:{Colors.RESET} {log_file}")
         print(f"\n  {Colors.YELLOW}命令:{Colors.RESET}")
         print(f"    查看状态: python start.py --status")
@@ -606,8 +605,8 @@ def main():
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog='''
 示例:
-    python start.py              # 后台运行（默认，推荐）
-    python start.py --foreground # 前台运行（带实时日志）
+    python start.py              # 前台运行（默认，带实时日志）
+    python start.py --daemon     # 后台运行（服务守护）
     python start.py --stop       # 停止服务
     python start.py --status     # 查看状态
     python start.py --logs       # 查看日志（最后50行）
@@ -616,10 +615,8 @@ def main():
         '''
     )
     
-    parser.add_argument('--foreground', '-f', action='store_true', 
-                       help='前台运行服务（实时显示日志，默认后台运行）')
     parser.add_argument('--daemon', '-d', action='store_true', 
-                       help='后台运行服务（已默认，无需指定）')
+                       help='后台运行服务（默认前台运行）')
     parser.add_argument('--stop', '-s', action='store_true', 
                        help='停止服务')
     parser.add_argument('--status', action='store_true', 
@@ -675,12 +672,12 @@ def main():
     elif args.follow:
         # 单独使用 --follow 也显示日志
         show_logs(lines=args.lines, follow=True)
-    elif args.foreground:
-        # 显式指定前台运行
-        run_foreground(open_browser_flag=not args.no_browser)
-    else:
-        # 默认后台运行（推荐）
+    elif args.daemon:
+        # 后台运行
         run_daemon()
+    else:
+        # 默认前台运行
+        run_foreground(open_browser_flag=not args.no_browser)
 
 if __name__ == '__main__':
     try:

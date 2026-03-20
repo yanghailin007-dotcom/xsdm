@@ -394,7 +394,8 @@ class NovelPublisher:
     
     def _check_book_exists_on_fanqie(self, page: Page, novel_title: str) -> Optional[str]:
         """
-        检查番茄平台上是否已有该书（简化版，在当前页面检查）
+        检查番茄平台上是否已有该书
+        需要导航到作者后台书籍管理页面进行检查
         
         Args:
             page: 页面对象
@@ -422,10 +423,26 @@ class NovelPublisher:
                     logger.info(f"[Publisher] 当前在书籍详情页，书籍已存在: {book_id}")
                     return f"https://fanqienovel.com/main/writer/chapter-manage/{book_id}"
             
-            # 在当前页面检查是否包含书名
+            # 如果不在作者后台页面，导航到书籍管理页面
+            if "/main/writer" not in current_url:
+                logger.info("[Publisher] 当前不在作者后台，导航到书籍管理页面...")
+                try:
+                    page.goto("https://fanqienovel.com/main/writer/book-manage", 
+                             wait_until="networkidle", timeout=15000)
+                    time.sleep(3)
+                    logger.info(f"[Publisher] 已导航到: {page.url}")
+                except Exception as e:
+                    logger.info(f"[Publisher] 导航到书籍管理页面失败: {e}")
+                    return None
+            
+            # 在作者后台页面检查是否包含书名
             try:
                 title_short = novel_title[:10]
-                logger.info(f"[Publisher] 在当前页面查找书名: {title_short}...")
+                logger.info(f"[Publisher] 在书籍管理页面查找书名: {title_short}...")
+                
+                # 等待页面内容加载
+                page.wait_for_load_state("networkidle")
+                time.sleep(2)
                 
                 # 检查页面内容
                 page_text = page.content()
@@ -434,6 +451,19 @@ class NovelPublisher:
                     import re
                     book_ids = re.findall(r'long-article-table-item-(\d+)', page_text)
                     if book_ids:
+                        # 尝试找到匹配的书籍ID
+                        for book_id in book_ids:
+                            # 检查该书籍条目的标题
+                            book_elem = page.locator(f'#long-article-table-item-{book_id}')
+                            if book_elem.count() > 0:
+                                title_elem = book_elem.locator('.info-content-title').first
+                                if title_elem.count() > 0:
+                                    title_text = title_elem.text_content().strip()
+                                    if novel_title[:10] in title_text or title_text[:10] in novel_title:
+                                        url = f"https://fanqienovel.com/main/writer/chapter-manage/{book_id}"
+                                        logger.info(f"[Publisher] 找到匹配书籍: {title_text} -> {url}")
+                                        return url
+                        # 如果没找到匹配的，返回第一个
                         book_id = book_ids[0]
                         url = f"https://fanqienovel.com/main/writer/chapter-manage/{book_id}"
                         logger.info(f"[Publisher] 找到书籍链接: {url}")
@@ -897,6 +927,15 @@ class NovelPublisher:
         published_chapters = progress.get("published_chapters", [])
         base_chapter_num = progress.get("base_chapter_num", 0)
         
+        # 从 book_url 提取 book_id
+        book_id = None
+        book_url = progress.get("book_url", "")
+        if book_url:
+            book_id_match = re.search(r'/chapter-manage/(\d+)', book_url)
+            if book_id_match:
+                book_id = book_id_match.group(1)
+                logger.info(f"[Publisher] 从进度中提取书籍ID: {book_id}")
+        
         # 获取配置
         word_threshold = self.config_loader.get_min_words_for_scheduled_publish() if self.config_loader else 60000
         publish_times = self.config_loader.get_publish_times() if self.config_loader else ["05:25", "11:25", "17:25", "23:25"]
@@ -985,7 +1024,7 @@ class NovelPublisher:
                 # 发布章节（不设置定时）
                 result = self._verify_and_create_chapter(
                     page, novel_title, current_chapter['chap_num'], current_chapter['chap_title'],
-                    current_chapter['chap_content'], None, None
+                    current_chapter['chap_content'], None, None, book_id
                 )
                 
                 if result == 0:  # 成功
@@ -1024,7 +1063,7 @@ class NovelPublisher:
             success = self._handle_scheduled_publishing(
                 page, novel_title, chapter_publish_info, current_chapter_index,
                 published_chapters, total_content_len, json_file, progress,
-                now, current_date, current_time, publish_times, chapters_per_slot
+                now, current_date, current_time, publish_times, chapters_per_slot, book_id
             )
             
             if success:
@@ -1037,7 +1076,7 @@ class NovelPublisher:
 
     def _verify_and_create_chapter(self, page: Page, expected_book_title: str, chap_number: str,
                                 chap_title: str, chap_content: str, target_date: Optional[str] = None,
-                                target_time: Optional[str] = None) -> int:
+                                target_time: Optional[str] = None, book_id: Optional[str] = None) -> int:
         """
         验证当前页面并创建章节
         
@@ -1049,51 +1088,184 @@ class NovelPublisher:
             chap_content: 章节内容
             target_date: 目标日期
             target_time: 目标时间
+            book_id: 书籍ID（用于点击创建章节按钮）
             
         Returns:
             0-成功, 1-失败, 2-需要重新导航
         """
         try:
+            # 检查是否在创建章节页面
+            current_url = page.url
+            if "/publish/" not in current_url:
+                logger.info("当前不在创建章节页面，尝试点击'创建章节'按钮...")
+                
+                # 尝试从当前页面提取book_id
+                if not book_id:
+                    book_id_match = re.search(r'/chapter-manage/(\d+)', current_url)
+                    if book_id_match:
+                        book_id = book_id_match.group(1)
+                
+                if not book_id:
+                    # 从页面内容中查找书籍ID
+                    page_content = page.content()
+                    book_ids = re.findall(r'long-article-table-item-(\d+)', page_content)
+                    if book_ids:
+                        # 查找匹配书籍标题的ID
+                        for bid in book_ids:
+                            book_elem = page.locator(f'#long-article-table-item-{bid}')
+                            if book_elem.count() > 0:
+                                title_elem = book_elem.locator('.info-content-title').first
+                                if title_elem.count() > 0:
+                                    title_text = title_elem.text_content().strip()
+                                    if expected_book_title[:10] in title_text:
+                                        book_id = bid
+                                        logger.info(f"找到匹配的书籍ID: {book_id}")
+                                        break
+                        if not book_id:
+                            book_id = book_ids[0]  # 使用第一个
+                
+                if book_id:
+                    # 先悬停到书籍条目上，让按钮显示
+                    book_item = page.locator(f'#long-article-table-item-{book_id}')
+                    if book_item.count() > 0:
+                        logger.info(f"悬停到书籍条目: {book_id}")
+                        book_item.first.hover()
+                        time.sleep(1)
+                    
+                    # 查找并点击"创建章节"按钮
+                    # 按钮可能在当前书籍条目内
+                    create_btn = page.locator(f'#long-article-table-item-{book_id} a[href*="/publish/"] button, #long-article-table-item-{book_id} button:has-text("创建章节")').first
+                    if create_btn.count() == 0:
+                        # 尝试更通用的选择器
+                        create_btn = page.locator('a[href*="/publish/"] button:has-text("创建章节"), button:has-text("创建章节")').first
+                    
+                    new_page = None
+                    
+                    if create_btn.count() > 0 and create_btn.is_visible():
+                        logger.info("点击'创建章节'按钮...")
+                        # 处理可能的新标签页（target="_blank"）
+                        try:
+                            with page.expect_popup(timeout=10000) as popup_info:
+                                create_btn.click()
+                            new_page = popup_info.value
+                            logger.info("检测到新标签页打开")
+                        except:
+                            # 没有新标签页，在当前页打开
+                            logger.info("在当前页打开")
+                            time.sleep(5)
+                    else:
+                        # 尝试点击链接
+                        create_link = page.locator(f'#long-article-table-item-{book_id} a[href*="/publish/"]').first
+                        if create_link.count() == 0:
+                            create_link = page.locator('a[href*="/publish/"]').first
+                        if create_link.count() > 0:
+                            logger.info("点击'创建章节'链接...")
+                            try:
+                                with page.expect_popup(timeout=10000) as popup_info:
+                                    create_link.click()
+                                new_page = popup_info.value
+                                logger.info("检测到新标签页打开")
+                            except:
+                                logger.info("在当前页打开")
+                                time.sleep(5)
+                        else:
+                            logger.info("未找到'创建章节'按钮或链接")
+                            return 2
+                    
+                    # 如果打开了新标签页，切换到新页面
+                    if new_page:
+                        logger.info("切换到新标签页...")
+                        page = new_page
+                        time.sleep(3)
+                    
+                    # 处理可能的安全验证弹窗
+                    logger.info("检查并处理安全验证弹窗...")
+                    self._handle_security_verification(page)
+                    
+                else:
+                    logger.info("无法获取书籍ID，无法点击创建章节")
+                    return 2
+            
             # 等待页面加载
             page.wait_for_load_state("networkidle")
             time.sleep(2)
             
-            # 验证书名
+            # 验证书名（支持部分匹配，因为番茄可能截断显示）
             header_book_name = page.locator('.publish-header-book-name')
             if header_book_name.count() > 0:
                 actual_title = header_book_name.first.text_content().strip()
-                if expected_book_title not in actual_title:
+                # 双向部分匹配：期望包含实际 或 实际包含期望（取前15字比较）
+                expected_short = expected_book_title[:15]
+                actual_short = actual_title[:15]
+                if expected_short not in actual_title and actual_short not in expected_book_title:
                     logger.info(f"✗ 创建章节页面书籍不匹配! 期望: {expected_book_title}, 实际: {actual_title}")
                     return 2
+                logger.info(f"✓ 书名匹配: {actual_title}")
             
-            # 检查是否在创建章节页面，如果没有则点击"创建章节"按钮
-            input_elements = page.locator('input.serial-input.byte-input.byte-input-size-default')
-            if input_elements.count() < 2:
-                logger.info("未找到章节输入框，尝试点击'创建章节'按钮...")
-                
-                # 尝试点击"创建章节"按钮
+            # 检查是否找到了章节输入框
+            # 根据实际HTML：第一个输入框是章节号，第二个是标题
+            input_selectors = [
+                '.serial-editor-title-left input.serial-input',  # 章节号
+                '.serial-editor-title-right input.serial-input',  # 标题
+                'input[placeholder="请输入标题"]',
+                '.serial-editor-container input.serial-input',
+                'input.serial-input.byte-input.byte-input-size-default'
+            ]
+            
+            # 查找章节号输入框
+            chapter_num_input = None
+            for selector in input_selectors[:2]:  # 优先使用精确选择器
                 try:
-                    create_btn = page.locator('button:has-text("创建章节"), a:has-text("创建章节")').first
-                    if create_btn.count() > 0:
-                        create_btn.click()
-                        time.sleep(3)
-                        
-                        # 重新查找输入框
-                        input_elements = page.locator('input.serial-input.byte-input.byte-input-size-default')
-                        if input_elements.count() < 2:
-                            logger.info("点击后仍未找到章节输入框")
-                            return 1
-                    else:
-                        logger.info("未找到'创建章节'按钮")
-                        return 1
+                    elem = page.locator(selector).first
+                    if elem.count() > 0 and elem.is_visible():
+                        chapter_num_input = elem
+                        logger.info(f"找到章节号输入框: {selector}")
+                        break
                 except Exception as e:
-                    logger.info(f"点击'创建章节'按钮失败: {e}")
-                    return 1
+                    logger.debug(f"选择器 '{selector}' 出错: {e}")
+            
+            # 查找标题输入框
+            chapter_title_input = None
+            for selector in [input_selectors[1], input_selectors[2]]:  # 标题选择器
+                try:
+                    elem = page.locator(selector).first
+                    if elem.count() > 0 and elem.is_visible():
+                        chapter_title_input = elem
+                        logger.info(f"找到标题输入框: {selector}")
+                        break
+                except Exception as e:
+                    logger.debug(f"选择器 '{selector}' 出错: {e}")
+            
+            # 如果没找到，尝试通用选择器
+            if not chapter_num_input or not chapter_title_input:
+                logger.info("精确选择器未找到，尝试通用选择器...")
+                all_inputs = page.locator('input.serial-input')
+                count = all_inputs.count()
+                logger.info(f"通用选择器找到 {count} 个输入框")
+                
+                if count >= 2:
+                    chapter_num_input = all_inputs.nth(0)
+                    chapter_title_input = all_inputs.nth(1)
+            
+            if not chapter_num_input or not chapter_title_input:
+                logger.info("未找到章节输入框，等待页面完全加载...")
+                time.sleep(5)
+                
+                # 再次尝试通用选择器
+                all_inputs = page.locator('input.serial-input')
+                if all_inputs.count() >= 2:
+                    chapter_num_input = all_inputs.nth(0)
+                    chapter_title_input = all_inputs.nth(1)
+                
+                if not chapter_num_input or not chapter_title_input:
+                    logger.info("等待后仍未找到章节输入框")
+                    logger.info(f"当前页面URL: {page.url}")
+                    return 2
             
             # 填写章节序号和标题
-            if not self.ui_helper.safe_fill(input_elements.nth(0), chap_number, "章节序号"):
+            if not self.ui_helper.safe_fill(chapter_num_input, chap_number, "章节序号"):
                 return 1
-            if not self.ui_helper.safe_fill(input_elements.nth(1), chap_title, "章节标题"):
+            if not self.ui_helper.safe_fill(chapter_title_input, chap_title, "章节标题"):
                 return 1
             
             # 处理并填写内容
@@ -1152,6 +1324,55 @@ class NovelPublisher:
                     time.sleep(0.3)
                 except:
                     pass
+    
+    def _handle_security_verification(self, page: Page) -> None:
+        """
+        处理安全验证弹窗（如滑块验证、人机检测等）
+        
+        Args:
+            page: 页面对象
+        """
+        try:
+            # 等待一段时间，看看是否有安全验证弹窗
+            time.sleep(3)
+            
+            # 检查是否有验证弹窗（常见的验证弹窗特征）
+            # 1. 检查是否有包含"验证"文字的弹窗
+            verification_modal = page.locator('.arco-modal-content:has-text("验证"), .verify-modal, [class*="verify"]').first
+            if verification_modal.count() > 0 and verification_modal.is_visible():
+                logger.info("⚠️ 检测到安全验证弹窗，请手动完成验证...")
+                # 等待用户完成验证（较长时间）
+                time.sleep(15)
+            
+            # 2. 检查是否有滑块验证
+            slider = page.locator('.slider-verify, .captcha-slider, [class*="slider"]').first
+            if slider.count() > 0 and slider.is_visible():
+                logger.info("⚠️ 检测到滑块验证，请手动完成...")
+                time.sleep(15)
+            
+            # 3. 检查是否有覆盖层遮挡
+            overlay = page.locator('div[style*="pointer-events: none"][style*="z-index: 99999"]').first
+            if overlay.count() > 0:
+                logger.info("⚠️ 检测到安全检测覆盖层，等待自动消失...")
+                # 尝试点击覆盖层中央，有时会触发验证
+                try:
+                    page.mouse.click(page.viewport_size['width'] // 2, page.viewport_size['height'] // 2)
+                    time.sleep(3)
+                except:
+                    pass
+            
+            # 4. 尝试关闭可能的弹窗
+            close_buttons = page.locator('.arco-modal-close-btn, .arco-icon-close, button:has-text("关闭"), button:has-text("取消")').all()
+            for btn in close_buttons:
+                try:
+                    if btn.is_visible():
+                        btn.click()
+                        time.sleep(0.5)
+                except:
+                    pass
+                    
+        except Exception as e:
+            logger.debug(f"处理安全验证时出错: {e}")
 
     def _set_scheduled_publish(self, page: Page, target_date: Optional[str], target_time: Optional[str]) -> None:
         """
@@ -1531,7 +1752,7 @@ class NovelPublisherV2(NovelPublisher):
                                    current_chapter_index: int, published_chapters: List[Dict[str, Any]],
                                    total_content_len: int, json_file: str, progress: Dict[str, Any],
                                    now: datetime, current_date: datetime.date, current_time: datetime.time,
-                                   publish_times: List[str], chapters_per_slot: int) -> bool:
+                                   publish_times: List[str], chapters_per_slot: int, book_id: Optional[str] = None) -> bool:
         """
         处理定时发布逻辑
         
@@ -1633,7 +1854,7 @@ class NovelPublisherV2(NovelPublisher):
             # 发布章节
             result = self._verify_and_create_chapter(
                 page, novel_title, chap_num, chap_title, chap_content,
-                target_date_str, target_time_str
+                target_date_str, target_time_str, book_id
             )
             
             if result == 0:
