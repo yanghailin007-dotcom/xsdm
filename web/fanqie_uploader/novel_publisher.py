@@ -355,13 +355,17 @@ class NovelPublisher:
         logger.info("[Publisher] 等待创建完成...")
         time.sleep(3)
         
-        # 检查是否有错误提示
+        # 检查是否有错误提示（排除成功消息）
         try:
             error_msg = page.locator('.arco-message-content, .error-message, [class*="error"]').first
             if error_msg.count() > 0 and error_msg.is_visible():
-                error_text = error_msg.text_content()
-                logger.info(f"✗ 创建失败，错误信息: {error_text}")
-                return False
+                error_text = error_msg.text_content() or ""
+                # 排除成功消息
+                if "成功" in error_text or "success" in error_text.lower():
+                    logger.info(f"✓ 操作成功提示: {error_text}")
+                else:
+                    logger.info(f"✗ 创建失败，错误信息: {error_text}")
+                    return False
         except:
             pass
         
