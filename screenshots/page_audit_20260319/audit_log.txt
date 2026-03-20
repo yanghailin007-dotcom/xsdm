@@ -1,0 +1,4 @@
+﻿  File "C:\Users\yangh\Documents\GitHub\xsdm\page_audit_script.py", line 137
+    print(f"\n[FILES] ʹ���� data-i18n ��ģ���ļ� ({len(templates_with_i18n)} ��):"))
+                                                                           ^
+SyntaxError: unmatched ')'
