@@ -1594,6 +1594,26 @@ def register_additional_routes(app):
                 elif phase_one_status == 'completed':
                     overall_status = 'phase_one_completed'
                 
+                # 🔥 检查封面是否存在
+                has_cover = False
+                try:
+                    project_info = project_path_map.get(project_title, {})
+                    project_path_str = project_info.get('path', '')
+                    if project_path_str:
+                        project_path = Path(project_path_str)
+                        cover_paths = [
+                            project_path / 'cover.png',
+                            project_path / 'cover.jpg',
+                            project_path / 'images' / 'cover.png',
+                            project_path / 'images' / 'cover.jpg',
+                        ]
+                        for cover_path in cover_paths:
+                            if cover_path.exists():
+                                has_cover = True
+                                break
+                except Exception as cover_err:
+                    logger.warning(f"⚠️ 检查封面失败 {project_title}: {cover_err}")
+                
                 project_with_status = {
                     **project,
                     'phase_one': {
@@ -1606,7 +1626,8 @@ def register_additional_routes(app):
                     },
                     'status': overall_status,
                     'total_chapters': total_chapters if total_chapters and total_chapters > 0 else 50,  # 只有当total_chapters为0或None时才使用默认值50
-                    'completed_chapters': completed_chapters
+                    'completed_chapters': completed_chapters,
+                    'has_cover': has_cover  # 🔥 添加封面状态
                 }
                 
                 projects_with_status.append(project_with_status)

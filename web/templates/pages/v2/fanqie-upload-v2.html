@@ -965,7 +965,6 @@
     <header class="v2-page-header" style="margin-bottom: var(--v2-space-8); text-align: center;">
         <div class="v2-page-header__content" style="display: inline-flex; flex-direction: column; align-items: center;">
             <div style="display: inline-flex; align-items: center; gap: 12px; margin-bottom: var(--v2-space-3);">
-                <span style="font-size: 32px; filter: drop-shadow(0 4px 8px rgba(245, 158, 11, 0.3));">🍅</span>
                 <h1 class="v2-page-header__title" style="font-size: 28px; letter-spacing: -0.02em;" data-i18n="fanqie.title">
                     番茄小说一键上传
                 </h1>
@@ -1981,6 +1980,28 @@
             return;
         }
         
+        // 🔥 检查封面是否存在
+        const coverResult = await checkProjectCover(currentProject);
+        if (!coverResult.has_cover) {
+            showFanqieCoverMissingDialog(currentProject);
+            return;
+        }
+        
+        // 如果有多张封面，显示选择对话框
+        if (coverResult.cover_count > 1) {
+            showCoverSelectionDialog(currentProject, coverResult.all_covers, coverResult.cover_path);
+            return;
+        }
+        
+        // 只有一张封面，直接使用
+        window.selectedCoverPath = coverResult.cover_path;
+        
+        // 继续上传
+        await startUploadWithConfigContinue();
+    }
+    
+    // 继续上传流程（封面已确定后）
+    async function startUploadWithConfigContinue() {
         // 先保存配置
         await saveConfig();
         
@@ -2020,7 +2041,315 @@
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ 
                     novel_title: currentProject, 
-                    upload_config: config 
+                    upload_config: config,
+                    cover_path: window.selectedCoverPath || null
+                })
+            });
+            
+            const result = await response.json();
+            
+            if (result.success) {
+                showNotification('上传成功！', 'success');
+                document.getElementById('upload-progress').innerHTML += `
+                    <div style="margin-top: var(--v2-space-3); padding: var(--v2-space-3); background: rgba(34, 197, 94, 0.1); border: 1px solid rgba(34, 197, 94, 0.3); border-radius: var(--v2-radius-md); color: #22c55e; text-align: center;">✅ 上传完成</div>
+                `;
+            } else {
+                const errorMsg = result.message || result.error || '上传失败';
+                showNotification(errorMsg, 'error');
+                document.getElementById('upload-progress').innerHTML += `
+                    <div style="margin-top: var(--v2-space-3); padding: var(--v2-space-3); background: rgba(239, 68, 68, 0.1); border: 1px solid rgba(239, 68, 68, 0.3); border-radius: var(--v2-radius-md); color: #ef4444; text-align: center;">❌ ${errorMsg}</div>
+                `;
+            }
+        } catch (error) {
+            console.error('上传请求失败:', error);
+            showNotification('上传请求失败，请检查网络连接', 'error');
+        }
+    }
+    
+    // ==================== 封面检查功能 ====================
+    
+    // 获取翻译文本（优先使用 I18N，否则使用默认值）
+    function getFanqieText(key, defaultText) {
+        if (typeof I18N !== 'undefined' && I18N.t) {
+            const translated = I18N.t(key);
+            if (translated !== key) return translated;
+        }
+        return defaultText;
+    }
+    
+    // 检查项目封面是否存在
+    async function checkProjectCover(title) {
+        try {
+            const response = await fetch(`/api/project/${encodeURIComponent(title)}/check-cover`);
+            if (response.ok) {
+                const result = await response.json();
+                return result;
+            }
+        } catch (error) {
+            console.error('检查封面失败:', error);
+        }
+        return { has_cover: false };
+    }
+    
+    // 显示封面选择对话框（当有多张封面时）
+    function showCoverSelectionDialog(projectTitle, covers, defaultCover) {
+        const dialogId = 'fanqie-cover-selection-dialog';
+        
+        // 移除已存在的对话框
+        const existingDialog = document.getElementById(dialogId);
+        if (existingDialog) {
+            existingDialog.remove();
+        }
+        
+        const dialog = document.createElement('div');
+        dialog.id = dialogId;
+        dialog.style.cssText = `
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.8);
+            z-index: 10000;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+            backdrop-filter: blur(4px);
+        `;
+        
+        const tTitle = getFanqieText('fanqie.coverSelect.title', '选择封面');
+        const tMessage = getFanqieText('fanqie.coverSelect.message', '检测到 {count} 张封面，请选择要使用的封面：').replace('{count}', covers.length);
+        const tConfirm = getFanqieText('fanqie.coverSelect.confirm', '确认使用');
+        const tCancel = getFanqieText('fanqie.coverSelect.cancel', '取消');
+        
+        // 生成封面选项HTML
+        const coversHtml = covers.map((cover, index) => `
+            <div class="cover-option" data-cover="${cover}" style="
+                cursor: pointer;
+                border-radius: 8px;
+                overflow: hidden;
+                border: 3px solid ${index === 0 ? '#6366f1' : 'transparent'};
+                transition: all 0.2s;
+                position: relative;
+            " onclick="selectCoverOption(this, '${cover}')">
+                <img src="/${cover}" style="width: 100%; height: 120px; object-fit: cover;" alt="封面${index + 1}">
+                ${index === 0 ? '<div style="position: absolute; top: 4px; right: 4px; background: #6366f1; color: white; font-size: 10px; padding: 2px 6px; border-radius: 4px;">默认</div>' : ''}
+            </div>
+        `).join('');
+        
+        dialog.innerHTML = `
+            <div style="
+                background: var(--v2-bg-secondary, #1a1a2e);
+                border: 1px solid var(--v2-border-default, #333);
+                border-radius: 16px;
+                padding: 24px;
+                max-width: 600px;
+                width: 100%;
+                max-height: 80vh;
+                overflow-y: auto;
+                box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+            ">
+                <div style="font-size: 32px; margin-bottom: 12px; text-align: center;">🖼️</div>
+                <h3 style="font-size: 18px; font-weight: 600; color: var(--v2-text-primary, #fff); margin-bottom: 8px; text-align: center;">${tTitle}</h3>
+                <p style="font-size: 13px; color: var(--v2-text-secondary, #888); line-height: 1.5; margin-bottom: 16px; text-align: center;">${tMessage}</p>
+                
+                <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 12px; margin-bottom: 20px;">
+                    ${coversHtml}
+                </div>
+                
+                <div style="display: flex; gap: 12px;">
+                    <button onclick="confirmCoverSelection('${dialogId}')" style="
+                        flex: 1;
+                        padding: 12px 24px;
+                        background: linear-gradient(135deg, #6366f1, #8b5cf6);
+                        color: white;
+                        border: none;
+                        border-radius: 8px;
+                        font-size: 14px;
+                        font-weight: 500;
+                        cursor: pointer;
+                    ">${tConfirm}</button>
+                    <button onclick="document.getElementById('${dialogId}').remove();" style="
+                        padding: 12px 24px;
+                        background: transparent;
+                        color: var(--v2-text-secondary, #888);
+                        border: 1px solid var(--v2-border-default, #333);
+                        border-radius: 8px;
+                        font-size: 14px;
+                        cursor: pointer;
+                    ">${tCancel}</button>
+                </div>
+            </div>
+        `;
+        
+        document.body.appendChild(dialog);
+        
+        // 存储选中的封面和默认封面
+        dialog.selectedCover = defaultCover;
+        dialog.covers = covers;
+    }
+    
+    // 选择封面选项
+    window.selectCoverOption = function(element, cover) {
+        // 移除其他选项的选中状态
+        element.parentElement.querySelectorAll('.cover-option').forEach(el => {
+            el.style.border = '3px solid transparent';
+        });
+        // 添加当前选项的选中状态
+        element.style.border = '3px solid #6366f1';
+        
+        // 更新选中的封面
+        const dialog = document.getElementById('fanqie-cover-selection-dialog');
+        if (dialog) {
+            dialog.selectedCover = cover;
+        }
+    };
+    
+    // 确认封面选择
+    window.confirmCoverSelection = function(dialogId) {
+        const dialog = document.getElementById(dialogId);
+        if (dialog && dialog.selectedCover) {
+            // 存储选中的封面路径供上传使用
+            window.selectedCoverPath = dialog.selectedCover;
+            dialog.remove();
+            
+            // 继续上传流程
+            startUploadWithConfigContinue();
+        }
+    };
+    
+    // 显示封面缺失提示对话框（番茄上传专用）
+    function showFanqieCoverMissingDialog(projectTitle) {
+        const dialogId = 'fanqie-cover-missing-dialog';
+        
+        // 移除已存在的对话框
+        const existingDialog = document.getElementById(dialogId);
+        if (existingDialog) {
+            existingDialog.remove();
+        }
+        
+        const dialog = document.createElement('div');
+        dialog.id = dialogId;
+        dialog.style.cssText = `
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.8);
+            z-index: 10000;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+            backdrop-filter: blur(4px);
+        `;
+        
+        const tTitle = getFanqieText('fanqie.coverDialog.title', '缺少封面');
+        const tMessage = getFanqieText('fanqie.coverDialog.message', '小说《{title}》需要封面才能上传。').replace('{title}', projectTitle);
+        const tCreateCover = getFanqieText('fanqie.coverDialog.createCover', '🎨 去制作封面');
+        const tContinueAnyway = getFanqieText('fanqie.coverDialog.continueAnyway', '继续上传（不推荐）');
+        const tCancel = getFanqieText('fanqie.coverDialog.cancel', '取消');
+        
+        dialog.innerHTML = `
+            <div style="
+                background: var(--v2-bg-secondary, #1a1a2e);
+                border: 1px solid var(--v2-border-default, #333);
+                border-radius: 16px;
+                padding: 32px;
+                max-width: 480px;
+                width: 100%;
+                text-align: center;
+                box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+            ">
+                <div style="font-size: 48px; margin-bottom: 16px;">🖼️</div>
+                <h3 style="font-size: 20px; font-weight: 600; color: var(--v2-text-primary, #fff); margin-bottom: 12px;">${tTitle}</h3>
+                <p style="font-size: 14px; color: var(--v2-text-secondary, #888); line-height: 1.6; margin-bottom: 24px;">
+                    ${tMessage}
+                </p>
+                <div style="display: flex; flex-direction: column; gap: 12px;">
+                    <button onclick="window.open('/cover-maker?title=${encodeURIComponent(projectTitle)}', '_blank'); document.getElementById('${dialogId}').remove();" style="
+                        padding: 12px 24px;
+                        background: linear-gradient(135deg, #6366f1, #8b5cf6);
+                        color: white;
+                        border: none;
+                        border-radius: 8px;
+                        font-size: 14px;
+                        font-weight: 500;
+                        cursor: pointer;
+                        transition: all 0.2s;
+                    ">${tCreateCover}</button>
+                    <button onclick="document.getElementById('${dialogId}').remove(); startUploadWithConfigSkipCoverCheck();" style="
+                        padding: 12px 24px;
+                        background: transparent;
+                        color: var(--v2-text-secondary, #888);
+                        border: 1px solid var(--v2-border-default, #333);
+                        border-radius: 8px;
+                        font-size: 14px;
+                        cursor: pointer;
+                        transition: all 0.2s;
+                    ">${tContinueAnyway}</button>
+                    <button onclick="document.getElementById('${dialogId}').remove();" style="
+                        padding: 12px 24px;
+                        background: transparent;
+                        color: var(--v2-text-muted, #666);
+                        border: none;
+                        border-radius: 8px;
+                        font-size: 14px;
+                        cursor: pointer;
+                    ">${tCancel}</button>
+                </div>
+            </div>
+        `;
+        
+        // 点击背景关闭
+        dialog.addEventListener('click', (e) => {
+            if (e.target === dialog) {
+                dialog.remove();
+            }
+        });
+        
+        document.body.appendChild(dialog);
+    }
+    
+    // 跳过封面检查继续上传
+    async function startUploadWithConfigSkipCoverCheck() {
+        // 先保存配置
+        await saveConfig();
+        
+        // 获取配置
+        const config = getConfigFromUI();
+        
+        // 显示进度卡片，隐藏行动卡片
+        document.getElementById('upload-progress-card').style.display = 'block';
+        document.getElementById('action-card').style.display = 'none';
+        
+        // 更新进度显示
+        const firstChapters = config.first_publish.enabled ? config.first_publish.chapter_count : 0;
+        const dailyInfo = config.daily_publish.enabled ? 
+            `${config.daily_publish.chapter_count}章/天 ${config.daily_publish.publish_time}` : '禁用';
+        
+        document.getElementById('upload-progress').innerHTML = `
+            <div style="padding: var(--v2-space-3);">
+                <div style="display: flex; align-items: center; gap: var(--v2-space-2); margin-bottom: var(--v2-space-3);">
+                    <div class="v2-loading__spinner" style="width: 20px; height: 20px; border-width: 2px;"></div>
+                    <span style="font-size: 14px; color: var(--v2-text-primary);">正在上传: ${currentProject}</span>
+                </div>
+                <div style="font-size: 12px; color: var(--v2-text-secondary); background: var(--v2-bg-tertiary); padding: var(--v2-space-2) var(--v2-space-3); border-radius: var(--v2-radius-md);">
+                    <div style="display: flex; gap: var(--v2-space-4);">
+                        <span>首次: ${firstChapters}章</span>
+                        <span>每日: ${dailyInfo}</span>
+                    </div>
+                </div>
+            </div>
+        `;
+        
+        showNotification(`开始上传: ${currentProject}`, 'info');
+        
+        // 调用实际上传API
+        try {
+            const response = await fetch('/api/fanqie/upload/start', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ 
+                    novel_title: currentProject, 
+                    upload_config: config,
+                    cover_path: window.selectedCoverPath || null
                 })
             });
             

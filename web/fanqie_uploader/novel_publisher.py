@@ -209,11 +209,51 @@ class NovelPublisher:
         debug_dir = os.path.join(os.path.dirname(__file__), '..', '..', 'debug_screenshots')
         os.makedirs(debug_dir, exist_ok=True)
         
+        # 检查页面是否仍然有效
         try:
-            # 直接访问创建页面
-            logger.info("[Publisher] 访问创建作品页面...")
-            page.goto("https://fanqienovel.com/main/writer/create?enter_from=home")
-            time.sleep(3)
+            page_url = page.url
+            logger.info(f"[Publisher] 当前页面URL: {page_url}")
+            # 尝试一个简单的JS执行来验证页面确实活着
+            page.evaluate("() => document.readyState")
+        except Exception as e:
+            logger.info(f"[Publisher] ⚠️ 页面可能已断开: {e}")
+            logger.info("[Publisher] 可能原因: 1.Chrome被手动关闭 2.Chrome崩溃 3.页面被刷新")
+            logger.info("[Publisher] 建议: 1.检查Chrome是否还在运行 2.刷新页面后重新上传")
+            return False
+        
+        # 重试机制
+        max_retries = 3
+        for attempt in range(max_retries):
+            try:
+                logger.info(f"[Publisher] 访问创建作品页面... (尝试 {attempt + 1}/{max_retries})")
+                
+                # 先检查网络状态
+                try:
+                    page.evaluate("() => navigator.onLine")
+                except:
+                    logger.info("[Publisher] ⚠️ 页面上下文已丢失")
+                    return False
+                
+                page.goto("https://fanqienovel.com/main/writer/create?enter_from=home", timeout=30000, wait_until="domcontentloaded")
+                
+                # 等待页面稳定
+                time.sleep(2)
+                
+                # 验证页面是否成功加载
+                current_url = page.url
+                if "fanqienovel.com" not in current_url:
+                    logger.info(f"[Publisher] ⚠️ 页面可能未正确加载，当前URL: {current_url}")
+                    if attempt < max_retries - 1:
+                        continue
+                
+                break  # 成功则跳出循环
+            except Exception as e:
+                logger.info(f"[Publisher] ⚠️ 导航失败 (尝试 {attempt + 1}): {str(e)[:200]}")
+                if attempt == max_retries - 1:
+                    logger.info("[Publisher] ✗ 所有重试都失败")
+                    logger.info("[Publisher] 可能原因: Chrome调试端口被占用、网络问题、番茄网站访问受限")
+                    return False
+                time.sleep(3)  # 等待后重试
             
             logger.info(f"当前URL: {page.url}")
             
@@ -377,9 +417,9 @@ class NovelPublisher:
             
             logger.info(f"[Tags] 需要选择的标签: 主分类={main_category}, 主题={themes}, 角色={roles}, 情节={plots}")
             
-            # 选择主分类
+            # 选择主分类（标签页名称为"主分类"）
             if main_category:
-                if self._click_tag_in_modal(page, "分类", main_category):
+                if self._click_tag_in_modal(page, "主分类", main_category):
                     logger.info(f"[Tags] ✓ 选择主分类: {main_category}")
                 else:
                     logger.info(f"[Tags] ⚠ 未找到主分类: {main_category}")
@@ -452,40 +492,99 @@ class NovelPublisher:
             是否点击成功
         """
         try:
-            # 首先点击分类标签页
-            tab = page.locator(f'.arco-tabs-header-title:has-text("{category}"), [role="tab"]:has-text("{category}")').first
-            if tab.count() > 0:
-                tab.click()
-                time.sleep(0.5)
+            # 首先点击分类标签页（尝试多种选择器）
+            tab_selectors = [
+                f'.arco-tabs-header-title:has-text("{category}")',
+                f'[role="tab"]:has-text("{category}")',
+                f'text="{category}" >> xpath=ancestor::*[@role="tab" or contains(@class, "arco-tabs-header-title")]',
+            ]
+            
+            for selector in tab_selectors:
+                try:
+                    tab = page.locator(selector).first
+                    if tab.count() > 0 and tab.is_visible():
+                        tab.click()
+                        time.sleep(0.5)
+                        break
+                except Exception:
+                    continue
             
             # 在当前标签页中查找标签
-            # 策略1: 直接查找标签文本
-            tag = page.locator(f'.category-choose-item:has-text("{tag_name}"), .tag-item:has-text("{tag_name}"), text={tag_name}').first
-            if tag.count() > 0:
-                tag.click()
-                return True
+            # 策略1: 直接查找标签文本（尝试多种选择器）
+            selectors = [
+                f'.category-choose-item:has-text("{tag_name}")',
+                f'.tag-item:has-text("{tag_name}")',
+                f'text="{tag_name}"',
+                f'[role="tabpanel"] >> text="{tag_name}"',
+            ]
+            
+            for selector in selectors:
+                try:
+                    tag = page.locator(selector).first
+                    if tag.count() > 0 and tag.is_visible():
+                        tag.click()
+                        time.sleep(0.3)
+                        return True
+                except Exception:
+                    continue
             
             # 策略2: 滚动查找
             scroll_container = page.locator('.category-choose-scroll-parent, .arco-tabs-content-item-active').first
             if scroll_container.count() > 0:
                 for _ in range(10):  # 最多滚动10次
-                    tag = scroll_container.locator(f'.category-choose-item:has-text("{tag_name}")').first
-                    if tag.count() > 0 and tag.is_visible():
-                        tag.click()
-                        return True
+                    try:
+                        tag = scroll_container.locator(f'.category-choose-item:has-text("{tag_name}")').first
+                        if tag.count() > 0 and tag.is_visible():
+                            tag.click()
+                            time.sleep(0.3)
+                            return True
+                    except Exception:
+                        pass
                     # 滚动
                     scroll_container.evaluate('el => el.scrollTop += 200')
                     time.sleep(0.3)
             
-            # 策略3: 使用JavaScript查找
+            # 策略3: 使用JavaScript查找（最可靠的方式）
             clicked = page.evaluate(f'''(tagName) => {{
-                const elements = document.querySelectorAll('.category-choose-item, .tag-item');
-                for (const el of elements) {{
-                    if (el.textContent.trim() === tagName) {{
-                        el.click();
+                // 方法1: 直接匹配 category-choose-item-title
+                const titles = document.querySelectorAll('.category-choose-item-title');
+                for (const title of titles) {{
+                    if (title.textContent.trim() === tagName) {{
+                        const item = title.closest('.category-choose-item');
+                        if (item) {{
+                            item.click();
+                            return true;
+                        }}
+                    }}
+                }}
+                
+                // 方法2: 匹配整个 item 的 textContent
+                const items = document.querySelectorAll('.category-choose-item, .tag-item');
+                for (const item of items) {{
+                    const titleEl = item.querySelector('.category-choose-item-title');
+                    if (titleEl && titleEl.textContent.trim() === tagName) {{
+                        item.click();
+                        return true;
+                    }}
+                    // 也尝试直接匹配整个元素的文本
+                    if (item.textContent.trim().startsWith(tagName)) {{
+                        item.click();
                         return true;
                     }}
                 }}
+                
+                // 方法3: 使用 XPath
+                const xpath = `//div[contains(@class, 'category-choose-item-title') and text()='${{tagName}}']`;
+                const result = document.evaluate(xpath, document, null, XPathResult.FIRST_ORDERED_NODE_TYPE, null);
+                const node = result.singleNodeValue;
+                if (node) {{
+                    const item = node.closest('.category-choose-item');
+                    if (item) {{
+                        item.click();
+                        return true;
+                    }}
+                }}
+                
                 return false;
             }}''', tag_name)
             

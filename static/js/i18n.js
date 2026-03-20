@@ -568,6 +568,12 @@ const I18N = {
             'projectMgmt.action.continueDesign': '鈿欙笍 缁х画璁捐',
             'projectMgmt.action.export': '馃摜 瀵煎嚭',
             'projectMgmt.action.delete': '馃棏锔?鍒犻櫎',
+            // 封面检查对话框
+            'projectMgmt.coverDialog.title': '缺少封面',
+            'projectMgmt.coverDialog.message': '小说《{title}》需要封面才能继续。',
+            'projectMgmt.coverDialog.createCover': '🎨 去制作封面',
+            'projectMgmt.coverDialog.continueAnyway': '继续（不推荐）',
+            'projectMgmt.coverDialog.cancel': '取消',
             
             // 浣滃搧椤甸潰 (novels)
             'novels.title': '馃摎 鎴戠殑鍒涗綔浣滃搧',
@@ -1609,6 +1615,12 @@ const I18N = {
             'projectMgmt.action.continueDesign': '鈿欙笍 绻肩簩瑷▓',
             'projectMgmt.action.export': '馃摜 灏庡嚭',
             'projectMgmt.action.delete': '馃棏锔?鍒櫎',
+            // 封面检查对话框
+            'projectMgmt.coverDialog.title': '缺少封面',
+            'projectMgmt.coverDialog.message': '小說《{title}》需要封面才能繼續。',
+            'projectMgmt.coverDialog.createCover': '🎨 去製作封面',
+            'projectMgmt.coverDialog.continueAnyway': '繼續（不推薦）',
+            'projectMgmt.coverDialog.cancel': '取消',
             
             // 灏侀潰鐢熸垚鍣ㄩ爜闈?(cover_generator)
             'coverGenerator.title': '灏忚灏侀潰鐢熸垚鍣?,
@@ -2520,6 +2532,12 @@ const I18N = {
             'projectMgmt.action.continueDesign': '鈿欙笍 Continue Design',
             'projectMgmt.action.export': '馃摜 Export',
             'projectMgmt.action.delete': '馃棏锔?Delete',
+            // Cover check dialog
+            'projectMgmt.coverDialog.title': 'Missing Cover',
+            'projectMgmt.coverDialog.message': 'Novel "{title}" requires a cover to continue.',
+            'projectMgmt.coverDialog.createCover': '🎨 Create Cover',
+            'projectMgmt.coverDialog.continueAnyway': 'Continue (Not Recommended)',
+            'projectMgmt.coverDialog.cancel': 'Cancel',
             
             // Novels Page
             'novels.title': '馃摎 My Works',
@@ -3199,6 +3217,12 @@ const I18N = {
             'projectMgmt.action.continueDesign': '鈿欙笍 Continuar Dise帽o',
             'projectMgmt.action.export': '馃摜 Exportar',
             'projectMgmt.action.delete': '馃棏锔?Eliminar',
+            // Cover check dialog
+            'projectMgmt.coverDialog.title': 'Portada Faltante',
+            'projectMgmt.coverDialog.message': 'La novela "{title}" requiere una portada para continuar.',
+            'projectMgmt.coverDialog.createCover': '🎨 Crear Portada',
+            'projectMgmt.coverDialog.continueAnyway': 'Continuar (No Recomendado)',
+            'projectMgmt.coverDialog.cancel': 'Cancelar',
         
             // Pagina de Configuracion de Modelo
             'modelConfig.title': 'Configuracion de Modelo',
@@ -4117,6 +4141,12 @@ const I18N = {
             'projectMgmt.action.continueDesign': '鈿欙笍 Continuer Conception',
             'projectMgmt.action.export': '馃摜 Exporter',
             'projectMgmt.action.delete': '馃棏锔?Supprimer',
+            // Cover check dialog
+            'projectMgmt.coverDialog.title': 'Couverture Manquante',
+            'projectMgmt.coverDialog.message': 'Le roman "{title}" nécessite une couverture pour continuer.',
+            'projectMgmt.coverDialog.createCover': '🎨 Créer Couverture',
+            'projectMgmt.coverDialog.continueAnyway': 'Continuer (Non Recommandé)',
+            'projectMgmt.coverDialog.cancel': 'Annuler',
         
             // Page de Configuration du Modele
             'modelConfig.title': 'Configuration du Modele',
@@ -5035,6 +5065,12 @@ const I18N = {
             'projectMgmt.action.continueDesign': '鈿欙笍 Design Fortsetzen',
             'projectMgmt.action.export': '馃摜 Exportieren',
             'projectMgmt.action.delete': '馃棏锔?L枚schen',
+            // Cover check dialog
+            'projectMgmt.coverDialog.title': 'Fehlendes Cover',
+            'projectMgmt.coverDialog.message': 'Der Roman "{title}" benötigt ein Cover zum Fortfahren.',
+            'projectMgmt.coverDialog.createCover': '🎨 Cover Erstellen',
+            'projectMgmt.coverDialog.continueAnyway': 'Fortfahren (Nicht Empfohlen)',
+            'projectMgmt.coverDialog.cancel': 'Abbrechen',
         
             // Modellkonfigurationsseite
             'modelConfig.title': 'Modellkonfiguration',
@@ -5953,6 +5989,12 @@ const I18N = {
             'projectMgmt.action.continueDesign': '鈿欙笍 瑷▓銈掔稓銇戙倠',
             'projectMgmt.action.export': '馃摜 銈ㄣ偗銈广儩銉笺儓',
             'projectMgmt.action.delete': '馃棏锔?鍓婇櫎',
+            // 表紙チェックダイアログ
+            'projectMgmt.coverDialog.title': '表紙がありません',
+            'projectMgmt.coverDialog.message': '小說「{title}」を続けるには表紙が必要です。',
+            'projectMgmt.coverDialog.createCover': '🎨 表紙を作成',
+            'projectMgmt.coverDialog.continueAnyway': '続ける（非推奨）',
+            'projectMgmt.coverDialog.cancel': 'キャンセル',
         
             // 銉儑銉ō瀹氥儦銉笺偢
             'modelConfig.title': '銉儑銉ō瀹?,
@@ -6869,6 +6911,12 @@ const I18N = {
             'projectMgmt.action.continueDesign': '鈿欙笍 靹り硠 瓿勳啀',
             'projectMgmt.action.export': '馃摜 雮措炒雮搓赴',
             'projectMgmt.action.delete': '馃棏锔?靷牅',
+            // 표지 확인 대화상자
+            'projectMgmt.coverDialog.title': '표지 없음',
+            'projectMgmt.coverDialog.message': '소설 《{title}》을(를) 계속하려면 표지가 필요합니다.',
+            'projectMgmt.coverDialog.createCover': '🎨 표지 만들기',
+            'projectMgmt.coverDialog.continueAnyway': '계속하기 (권장하지 않음)',
+            'projectMgmt.coverDialog.cancel': '취소',
             
             // 氇嵏 靹れ爼 韼橃澊歆€
             'modelConfig.title': '氇嵏 靹れ爼',

@@ -419,12 +419,6 @@ def register_page_routes(app):
         from web.web_config import BASE_DIR
         return send_from_directory(str(BASE_DIR), 'test_large_modal_fix.html')
 
-    @app.route('/cover-generator', methods=['GET'])
-    @login_required
-    def cover_generator():
-        """小说封面生成器页面"""
-        return render_template('cover_generator.html')
-
     @app.route('/cover-maker', methods=['GET'])
     @login_required
     def cover_maker():

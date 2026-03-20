@@ -123,16 +123,50 @@ def start_upload():
         # 连接 Chrome
         logger.info("[番茄上传] 连接 Chrome...")
         playwright = sync_playwright().start()
-        browser = playwright.chromium.connect_over_cdp(f'http://127.0.0.1:{DEBUG_PORT}')
+        
+        try:
+            browser = playwright.chromium.connect_over_cdp(f'http://127.0.0.1:{DEBUG_PORT}')
+        except Exception as e:
+            logger.error(f"[番茄上传] 连接 Chrome 失败: {e}")
+            playwright.stop()
+            return jsonify({
+                'success': False,
+                'error': '连接 Chrome 失败',
+                'message': f'无法连接到 Chrome 调试端口 (9988)，请确保 Chrome 已启动。错误: {str(e)[:100]}'
+            }), 500
+        
+        # 验证浏览器连接
+        try:
+            contexts = browser.contexts
+            logger.info(f"[番茄上传] Chrome 连接成功，contexts: {len(contexts)}")
+        except Exception as e:
+            logger.error(f"[番茄上传] Chrome 连接已断开: {e}")
+            browser.close()
+            playwright.stop()
+            return jsonify({
+                'success': False,
+                'error': 'Chrome 连接异常',
+                'message': 'Chrome 浏览器连接不稳定，请刷新页面重试'
+            }), 500
         
         # 获取页面
-        contexts = browser.contexts
-        if contexts and contexts[0].pages:
-            page = contexts[0].pages[0]
-            logger.info(f"[番茄上传] 使用现有页面: {page.url}")
-        else:
-            page = browser.new_page()
-            logger.info("[番茄上传] 创建新页面")
+        try:
+            if contexts and contexts[0].pages:
+                page = contexts[0].pages[0]
+                page_url = page.url
+                logger.info(f"[番茄上传] 使用现有页面: {page_url}")
+            else:
+                page = browser.new_page()
+                logger.info("[番茄上传] 创建新页面")
+        except Exception as e:
+            logger.error(f"[番茄上传] 获取页面失败: {e}")
+            browser.close()
+            playwright.stop()
+            return jsonify({
+                'success': False,
+                'error': '获取页面失败',
+                'message': 'Chrome 页面访问异常，请刷新页面重试'
+            }), 500
         
         # 创建上传器实例
         config_loader = ConfigLoader()
@@ -154,15 +188,39 @@ def start_upload():
         
         # 执行上传
         logger.info("[番茄上传] 开始执行 publish_novel...")
-        result = publisher.publish_novel(page, novel_file)
-        logger.info(f"[番茄上传] 上传结果: {result}")
+        result = False
+        error_msg = None
         
-        browser.close()
-        playwright.stop()
+        try:
+            result = publisher.publish_novel(page, novel_file)
+            logger.info(f"[番茄上传] 上传结果: {result}")
+        except Exception as publish_err:
+            error_msg = str(publish_err)
+            logger.error(f"[番茄上传] publish_novel 执行出错: {error_msg}")
+        finally:
+            # 确保浏览器被正确关闭
+            try:
+                browser.close()
+                logger.info("[番茄上传] 浏览器已关闭")
+            except Exception as close_err:
+                logger.warning(f"[番茄上传] 关闭浏览器时出错: {close_err}")
+            
+            try:
+                playwright.stop()
+                logger.info("[番茄上传] Playwright 已停止")
+            except Exception as stop_err:
+                logger.warning(f"[番茄上传] 停止 Playwright 时出错: {stop_err}")
+        
+        if error_msg and "TargetClosedError" in error_msg or "has been closed" in error_msg:
+            return jsonify({
+                'success': False,
+                'error': 'Chrome 连接已断开',
+                'message': 'Chrome 浏览器在操作过程中断开连接，可能原因：1.Chrome崩溃 2.页面被关闭 3.网络问题。请刷新页面重新启动 Chrome 后重试。'
+            }), 500
         
         return jsonify({
             'success': result,
-            'message': '上传完成' if result else '上传失败，请检查 Chrome 页面状态'
+            'message': '上传完成' if result else f'上传失败: {error_msg or "请检查 Chrome 页面状态"}'
         })
         
     except Exception as e:

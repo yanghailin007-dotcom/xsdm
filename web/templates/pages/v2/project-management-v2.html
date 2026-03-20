@@ -635,15 +635,19 @@
             const tExport = typeof I18N !== 'undefined' ? I18N.t('projectMgmt.action.export') : '📥 导出';
             const tDelete = typeof I18N !== 'undefined' ? I18N.t('projectMgmt.action.delete') : '🗑️ 删除';
             
+            // 检查封面是否存在（用于显示警告图标）
+            const hasCover = project.has_cover || false;
+            const coverWarningIcon = !hasCover ? '<span title="缺少封面" style="color: #f59e0b; margin-right: 4px;">⚠️</span>' : '';
+            
             // 主要操作按钮
             if (project.phase_one && project.phase_one.status === 'completed') {
                 if (project.phase_two && project.phase_two.status === 'completed') {
                     buttons += `
-                        <button class="v2-btn v2-btn--primary" onclick="viewProject('${escapeJs(project.title)}')">${tViewContent}</button>
+                        <button class="v2-btn v2-btn--primary" onclick="viewProjectWithCoverCheck('${escapeJs(project.title)}', ${hasCover})">${coverWarningIcon}${tViewContent}</button>
                     `;
                 } else {
                     buttons += `
-                        <button class="v2-btn v2-btn--primary" onclick="continueToPhaseTwo('${escapeJs(project.title)}')">${tContinue}</button>
+                        <button class="v2-btn v2-btn--primary" onclick="continueToPhaseTwoWithCoverCheck('${escapeJs(project.title)}', ${hasCover})">${coverWarningIcon}${tContinue}</button>
                         <button class="v2-btn v2-btn--secondary" onclick="viewPhaseOneResult('${escapeJs(project.title)}')">${tViewSettings}</button>
                         <button class="v2-btn v2-btn--secondary" onclick="viewQualityAssessment('${escapeJs(project.title)}')">${tQuality}</button>
                         <button class="v2-btn v2-btn--secondary" onclick="goToVideoGeneration('${escapeJs(project.title)}')">${tVideo}</button>
@@ -799,6 +803,135 @@
             }
         }
 
+        // ==================== 带封面检查的操作函数 ====================
+        
+        async function checkCoverExists(projectTitle) {
+            """检查项目封面是否存在"""
+            try {
+                const response = await fetch(`/api/project/${encodeURIComponent(projectTitle)}/check-cover`);
+                if (response.ok) {
+                    const result = await response.json();
+                    return result.has_cover;
+                }
+            } catch (error) {
+                console.error('检查封面失败:', error);
+            }
+            return false;
+        }
+        
+        function showCoverMissingDialog(projectTitle, onContinue) {
+            """显示封面缺失提示对话框"""
+            const dialogId = 'cover-missing-dialog';
+            
+            // 移除已存在的对话框
+            const existingDialog = document.getElementById(dialogId);
+            if (existingDialog) {
+                existingDialog.remove();
+            }
+            
+            const dialog = document.createElement('div');
+            dialog.id = dialogId;
+            dialog.style.cssText = `
+                position: fixed;
+                inset: 0;
+                background: rgba(0, 0, 0, 0.8);
+                z-index: 10000;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                padding: 20px;
+                backdrop-filter: blur(4px);
+            `;
+            
+            const tTitle = typeof I18N !== 'undefined' ? I18N.t('projectMgmt.coverDialog.title') : '缺少封面';
+            const tMessage = typeof I18N !== 'undefined' ? I18N.t('projectMgmt.coverDialog.message') : '小说《{title}》需要封面才能继续。';
+            const tCreateCover = typeof I18N !== 'undefined' ? I18N.t('projectMgmt.coverDialog.createCover') : '🎨 去制作封面';
+            const tContinueAnyway = typeof I18N !== 'undefined' ? I18N.t('projectMgmt.coverDialog.continueAnyway') : '继续（不推荐）';
+            const tCancel = typeof I18N !== 'undefined' ? I18N.t('projectMgmt.coverDialog.cancel') : '取消';
+            
+            dialog.innerHTML = `
+                <div style="
+                    background: var(--v2-bg-secondary, #1a1a2e);
+                    border: 1px solid var(--v2-border-default, #333);
+                    border-radius: 16px;
+                    padding: 32px;
+                    max-width: 480px;
+                    width: 100%;
+                    text-align: center;
+                    box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+                ">
+                    <div style="font-size: 48px; margin-bottom: 16px;">🖼️</div>
+                    <h3 style="font-size: 20px; font-weight: 600; color: var(--v2-text-primary, #fff); margin-bottom: 12px;">${tTitle}</h3>
+                    <p style="font-size: 14px; color: var(--v2-text-secondary, #888); line-height: 1.6; margin-bottom: 24px;">
+                        ${tMessage.replace('{title}', projectTitle)}
+                    </p>
+                    <div style="display: flex; flex-direction: column; gap: 12px;">
+                        <button onclick="window.open('/cover-maker?title=${encodeURIComponent(projectTitle)}', '_blank'); document.getElementById('${dialogId}').remove();" style="
+                            padding: 12px 24px;
+                            background: linear-gradient(135deg, #6366f1, #8b5cf6);
+                            color: white;
+                            border: none;
+                            border-radius: 8px;
+                            font-size: 14px;
+                            font-weight: 500;
+                            cursor: pointer;
+                            transition: all 0.2s;
+                        ">${tCreateCover}</button>
+                        <button onclick="document.getElementById('${dialogId}').remove(); ${onContinue}();" style="
+                            padding: 12px 24px;
+                            background: transparent;
+                            color: var(--v2-text-secondary, #888);
+                            border: 1px solid var(--v2-border-default, #333);
+                            border-radius: 8px;
+                            font-size: 14px;
+                            cursor: pointer;
+                            transition: all 0.2s;
+                        ">${tContinueAnyway}</button>
+                        <button onclick="document.getElementById('${dialogId}').remove();" style="
+                            padding: 12px 24px;
+                            background: transparent;
+                            color: var(--v2-text-muted, #666);
+                            border: none;
+                            border-radius: 8px;
+                            font-size: 14px;
+                            cursor: pointer;
+                        ">${tCancel}</button>
+                    </div>
+                </div>
+            `;
+            
+            // 点击背景关闭
+            dialog.addEventListener('click', (e) => {
+                if (e.target === dialog) {
+                    dialog.remove();
+                }
+            });
+            
+            document.body.appendChild(dialog);
+        }
+        
+        async function viewProjectWithCoverCheck(projectTitle, hasCover) {
+            """查看项目内容（带封面检查）"""
+            if (!hasCover) {
+                showCoverMissingDialog(projectTitle, () => {
+                    window.location.href = `/novel?title=${encodeURIComponent(projectTitle)}`;
+                });
+            } else {
+                window.location.href = `/novel?title=${encodeURIComponent(projectTitle)}`;
+            }
+        }
+        
+        async function continueToPhaseTwoWithCoverCheck(projectTitle, hasCover) {
+            """继续到第二阶段（带封面检查）"""
+            if (!hasCover) {
+                showCoverMissingDialog(projectTitle, () => {
+                    continueToPhaseTwo(projectTitle);
+                });
+            } else {
+                continueToPhaseTwo(projectTitle);
+            }
+        }
+        
         function viewProject(projectTitle) {
             window.location.href = `/novel?title=${encodeURIComponent(projectTitle)}`;
         }

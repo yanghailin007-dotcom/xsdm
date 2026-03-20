@@ -461,6 +461,11 @@ def create_app():
     app.register_blueprint(fanqie_upload_api)
     logger.info("✅ fanqie_upload_api 番茄上传执行已注册")
 
+    # 26.6. 封面检查 API 路由
+    from web.api.cover_check_api import cover_check_api
+    app.register_blueprint(cover_check_api)
+    logger.info("✅ cover_check_api 封面检查已注册")
+
     # 🔥 同步预初始化 NovelGenerator（确保服务器启动时完成）
     logger.info("🔄 开始预初始化 NovelGenerator...")
     try:

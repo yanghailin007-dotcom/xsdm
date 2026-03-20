@@ -1,6 +1,6 @@
 {% extends "layouts/base-v2.html" %}
 
-{% block title %}{{ t('coverMaker.title') }} - 大文娱系统{% endblock %}
+{% block title %}<span data-i18n="coverMaker.title">封面制作</span> - 大文娱系统{% endblock %}
 
 {% block extra_css %}
 <style>
@@ -836,8 +836,8 @@
 <main class="main-content">
     <!-- 页面标题 -->
     <div class="page-header">
-        <h1>🎨 <span data-i18n="coverMaker.title">{{ t('coverMaker.title') }}</span></h1>
-        <p data-i18n="coverMaker.subtitle">{{ t('coverMaker.subtitle') }}</p>
+        <h1>🎨 <span data-i18n="coverMaker.title">封面制作</span></h1>
+        <p data-i18n="coverMaker.subtitle">为你的小说创建精美封面</p>
     </div>
 
     <!-- 主要内容区域 -->
@@ -876,13 +876,13 @@
             <form id="cover-form">
                 <!-- 小说信息 -->
                 <div class="form-group">
-                    <label class="form-label" data-i18n="coverMaker.form.title">{{ t('coverMaker.form.title') }}</label>
+                    <label class="form-label" data-i18n="coverMaker.form.title">书名</label>
                     <input type="text" id="novel-title" class="form-input" placeholder="请先选择一本小说" readonly data-i18n-attr="placeholder" data-i18n="coverMaker.settings.novelTitle.placeholder">
                 </div>
 
                 <!-- 小说类型 -->
                 <div class="form-group">
-                    <label class="form-label" data-i18n="coverMaker.form.style">{{ t('coverMaker.form.style') }}</label>
+                    <label class="form-label" data-i18n="coverMaker.form.style">风格</label>
                     <select id="genre" class="form-select">
                         <option value="" data-i18n="coverMaker.settings.genre.placeholder">请选择类型</option>
                         <option value="玄幻">玄幻</option>
@@ -1033,7 +1033,7 @@
                 <!-- 生成按钮 -->
                 <div class="generate-section">
                     <button type="submit" id="generate-btn" class="generate-btn" disabled data-i18n="coverMaker.btn.generate">
-                        {{ t('coverMaker.btn.generate') }}
+                        开始生成
                     </button>
                 </div>
             </form>
@@ -1097,7 +1097,14 @@
 
     // 页面加载完成后执行
     document.addEventListener('DOMContentLoaded', function() {
-        loadNovels();
+        loadNovels().then(() => {
+            // 检查 URL 参数，如果有 title 则自动选择对应小说
+            const urlParams = new URLSearchParams(window.location.search);
+            const titleParam = urlParams.get('title');
+            if (titleParam) {
+                autoSelectNovel(titleParam);
+            }
+        });
         loadGeneratedCovers();
         initializeEventListeners();
         // 初始化默认提示词
@@ -1187,6 +1194,35 @@
         loadNovelCovers(title);
 
         console.log('已选择小说:', selectedNovel);
+    }
+
+    // 根据 URL 参数自动选择小说
+    function autoSelectNovel(title) {
+        // 等待小说列表加载完成
+        const trySelect = () => {
+            const novel = novels.find(n => n.title === title);
+            if (novel) {
+                selectNovel(title);
+                console.log('自动选择小说:', title);
+                return true;
+            }
+            return false;
+        };
+        
+        // 立即尝试一次
+        if (trySelect()) return;
+        
+        // 如果没找到，等待 500ms 后重试（最多重试 10 次）
+        let retries = 0;
+        const interval = setInterval(() => {
+            if (trySelect() || retries >= 10) {
+                clearInterval(interval);
+                if (retries >= 10) {
+                    console.warn('未找到小说:', title);
+                }
+            }
+            retries++;
+        }, 500);
     }
 
     // 切换提示词标签页
