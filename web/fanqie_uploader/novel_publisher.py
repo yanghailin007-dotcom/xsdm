@@ -394,7 +394,7 @@ class NovelPublisher:
     
     def _check_book_exists_on_fanqie(self, page: Page, novel_title: str) -> Optional[str]:
         """
-        检查番茄平台上是否已有该书
+        检查番茄平台上是否已有该书（简化版，在当前页面检查）
         
         Args:
             page: 页面对象
@@ -404,69 +404,47 @@ class NovelPublisher:
             书籍URL或None
         """
         try:
-            # 访问书籍管理页面
-            logger.info("[Publisher] 访问书籍管理页面...")
-            page.goto("https://fanqienovel.com/main/writer/book-manage")
-            time.sleep(3)
+            # 检查当前URL
+            current_url = page.url
+            logger.info(f"[Publisher] 当前页面URL: {current_url}")
             
-            # 截图调试
-            try:
-                debug_dir = Path(__file__).parent.parent.parent / "debug_screenshots"
-                debug_dir.mkdir(exist_ok=True)
-                screenshot_path = debug_dir / f'book_manage_check_{int(time.time())}.png'
-                page.screenshot(path=str(screenshot_path), full_page=True)
-                logger.info(f"[Publisher] 书籍管理页面截图: {screenshot_path}")
-            except:
-                pass
+            # 如果已经在章节管理页面，说明书籍已存在
+            if "/chapter-manage/" in current_url:
+                book_id = current_url.split("/chapter-manage/")[-1].split("/")[0]
+                if book_id and book_id.isdigit():
+                    logger.info(f"[Publisher] 当前在章节管理页面，书籍已存在: {book_id}")
+                    return current_url
             
-            # 策略1: 查找包含书名的元素（前10个字符）
+            # 如果已经在书籍详情页
+            if "/book-info/" in current_url:
+                book_id = current_url.split("/book-info/")[-1].split("/")[0]
+                if book_id and book_id.isdigit():
+                    logger.info(f"[Publisher] 当前在书籍详情页，书籍已存在: {book_id}")
+                    return f"https://fanqienovel.com/main/writer/chapter-manage/{book_id}"
+            
+            # 在当前页面检查是否包含书名
             try:
                 title_short = novel_title[:10]
-                logger.info(f"[Publisher] 查找书名: {title_short}...")
+                logger.info(f"[Publisher] 在当前页面查找书名: {title_short}...")
                 
-                # 使用更精确的选择器
-                book_elements = page.locator('.info-content-title, .book-title, .hoverup').all()
-                for el in book_elements:
-                    try:
-                        text = el.text_content() or ""
-                        if title_short in text or novel_title[:8] in text:
-                            logger.info(f"[Publisher] 找到匹配书名: {text}")
-                            # 查找父级链接
-                            parent = el.locator('xpath=ancestor::a').first
-                            if parent.count() > 0:
-                                href = parent.get_attribute('href')
-                                if href:
-                                    full_url = f"https://fanqienovel.com{href}" if href.startswith('/') else href
-                                    logger.info(f"[Publisher] 找到书籍链接: {full_url}")
-                                    return full_url
-                    except:
-                        continue
-            except Exception as e:
-                logger.info(f"[Publisher] 策略1查找失败: {e}")
-            
-            # 策略2: 直接检查页面HTML内容
-            try:
-                page_content = page.content()
-                if novel_title[:10] in page_content or novel_title[:8] in page_content:
-                    logger.info("[Publisher] 页面内容包含书名")
-                    # 尝试提取书籍ID
+                # 检查页面内容
+                page_text = page.content()
+                if title_short in page_text or novel_title[:8] in page_text:
+                    logger.info("[Publisher] 页面内容包含书名，尝试提取书籍ID")
                     import re
-                    # 匹配长数字ID（book ID）
-                    book_ids = re.findall(r'long-article-table-item-(\d+)', page_content)
+                    book_ids = re.findall(r'long-article-table-item-(\d+)', page_text)
                     if book_ids:
                         book_id = book_ids[0]
                         url = f"https://fanqienovel.com/main/writer/chapter-manage/{book_id}"
-                        logger.info(f"[Publisher] 推测书籍链接: {url}")
+                        logger.info(f"[Publisher] 找到书籍链接: {url}")
                         return url
             except Exception as e:
-                logger.info(f"[Publisher] 策略2查找失败: {e}")
+                logger.info(f"[Publisher] 页面检查失败: {e}")
             
-            logger.info("[Publisher] 未在书籍管理页面找到该书")
+            logger.info("[Publisher] 未找到已存在的书籍")
             return None
         except Exception as e:
             logger.info(f"[Publisher] 检查书籍存在性时出错: {e}")
-            import traceback
-            logger.info(traceback.format_exc())
             return None
     
     def _select_book_tags_v2(self, page: Page, tags_info: Dict[str, Any]) -> bool:
