@@ -1,19 +1,21 @@
 #!/usr/bin/env python3
 """
 =================================================================
-大文娱系统 - 启动脚本 (支持后台运行和日志输出)
+大文娱系统 - 启动脚本 (默认后台运行，支持日志查看)
 =================================================================
 
 使用方法:
-    前台运行:   python start.py
-    后台运行:   python start.py --daemon
+    后台运行:   python start.py              (默认推荐)
+    前台运行:   python start.py --foreground (实时显示日志)
     停止服务:   python start.py --stop
     查看状态:   python start.py --status
     查看日志:   python start.py --logs
+    实时跟踪:   python start.py --logs -f
     查看帮助:   python start.py --help
 
 日志文件位置:
     logs/server_YYYY-MM-DD.log
+    实时跟踪日志: python start.py --logs -f
 =================================================================
 """
 
@@ -604,8 +606,8 @@ def main():
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog='''
 示例:
-    python start.py              # 前台运行（带日志）
-    python start.py --daemon     # 后台运行
+    python start.py              # 后台运行（默认，推荐）
+    python start.py --foreground # 前台运行（带实时日志）
     python start.py --stop       # 停止服务
     python start.py --status     # 查看状态
     python start.py --logs       # 查看日志（最后50行）
@@ -614,8 +616,10 @@ def main():
         '''
     )
     
+    parser.add_argument('--foreground', '-f', action='store_true', 
+                       help='前台运行服务（实时显示日志，默认后台运行）')
     parser.add_argument('--daemon', '-d', action='store_true', 
-                       help='后台运行服务')
+                       help='后台运行服务（已默认，无需指定）')
     parser.add_argument('--stop', '-s', action='store_true', 
                        help='停止服务')
     parser.add_argument('--status', action='store_true', 
@@ -624,7 +628,7 @@ def main():
                        help='查看日志')
     parser.add_argument('-n', '--lines', type=int, default=50, 
                        help='查看日志的行数（默认50）')
-    parser.add_argument('-f', '--follow', action='store_true', 
+    parser.add_argument('--follow', action='store_true', 
                        help='实时跟踪日志输出')
     parser.add_argument('--no-browser', action='store_true', 
                        help='前台运行时不自动打开浏览器')
@@ -669,13 +673,14 @@ def main():
     elif args.logs:
         show_logs(lines=args.lines, follow=args.follow)
     elif args.follow:
-        # 单独使用 -f 也显示日志
+        # 单独使用 --follow 也显示日志
         show_logs(lines=args.lines, follow=True)
-    elif args.daemon:
-        run_daemon()
-    else:
-        # 默认前台运行
+    elif args.foreground:
+        # 显式指定前台运行
         run_foreground(open_browser_flag=not args.no_browser)
+    else:
+        # 默认后台运行（推荐）
+        run_daemon()
 
 if __name__ == '__main__':
     try:
