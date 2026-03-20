@@ -255,129 +255,129 @@ class NovelPublisher:
                     return False
                 time.sleep(3)  # 等待后重试
             
-            logger.info(f"当前URL: {page.url}")
-            
-            # 截图记录
-            try:
-                screenshot_path = os.path.join(debug_dir, f'create_book_form_{int(time.time())}.png')
-                page.screenshot(path=screenshot_path, full_page=True)
-                logger.info(f"页面截图已保存: {screenshot_path}")
-            except Exception as e:
-                logger.info(f"截图失败: {e}")
-            
-            # ===== 1. 填写书名 =====
-            title_short = novel_title[:14] if len(novel_title) > 14 else novel_title
-            try:
-                title_input = page.locator('input[placeholder="请输入作品名称"]').first
-                title_input.wait_for(state='visible', timeout=5000)
-                title_input.fill(title_short)
-                logger.info(f"✓ 填写书名: {title_short}")
-            except Exception as e:
-                logger.info(f"✗ 填写书名失败: {e}")
-                return False
-            
-            # ===== 2. 选择男女频 =====
-            if "novel_info" in novel_data and isinstance(novel_data["novel_info"], dict):
-                tags_info = novel_data.get("novel_info", {}).get("selected_plan", {}).get("tags", {})
-            else:
-                selected_plan = novel_data.get("selected_plan", {})
-                if isinstance(selected_plan, dict):
-                    tags_info = selected_plan.get("tags", {})
-                else:
-                    tags_info = {}
-            gender = tags_info.get("target_audience", "男频")
-            
-            try:
-                if gender == "女频":
-                    page.locator('label:has-text("女频")').first.click()
-                    logger.info("✓ 选择女频")
-                else:
-                    page.locator('label:has-text("男频")').first.click()
-                    logger.info("✓ 选择男频")
-                time.sleep(0.5)
-            except Exception as e:
-                logger.info(f"⚠ 选择男/女频失败: {e}")
-            
-            # ===== 3. 选择作品标签 =====
-            logger.info("[Publisher] 准备选择作品标签...")
-            try:
-                self._select_book_tags_v2(page, tags_info)
-            except Exception as e:
-                logger.info(f"⚠ 选择作品标签失败: {e}")
-            
-            # ===== 4. 处理封面 =====
-            logger.info("[Publisher] 准备处理封面...")
-            try:
-                cover_result = self._handle_cover_upload(page, novel_title, project_dir)
-                if not cover_result:
-                    logger.info("⚠ 封面处理未完成，继续创建...")
-            except Exception as e:
-                logger.info(f"⚠ 封面上传失败: {e}")
-            
-            # ===== 5. 填写主角名 =====
-            character_short = main_character[:5] if len(main_character) >= 5 else main_character
-            try:
-                character_input = page.locator('input[placeholder="请输入主角名1"]').first
-                character_input.fill(character_short)
-                logger.info(f"✓ 填写主角名: {character_short}")
-            except Exception as e:
-                logger.info(f"⚠ 填写主角名失败: {e}")
-            
-            # ===== 6. 填写作品简介 =====
-            synopsis_short = formatted_synopsis[:500] if len(formatted_synopsis) >= 500 else formatted_synopsis
-            try:
-                synopsis_input = page.locator('textarea').first
-                synopsis_input.fill(synopsis_short)
-                logger.info("✓ 填写作品简介")
-            except Exception as e:
-                logger.info(f"⚠ 填写简介失败: {e}")
-            
-            # 截图记录填写结果
-            try:
-                screenshot_path = os.path.join(debug_dir, f'create_book_filled_{int(time.time())}.png')
-                page.screenshot(path=screenshot_path, full_page=True)
-                logger.info(f"填写后截图: {screenshot_path}")
-            except:
-                pass
-            
-            # ===== 7. 点击立即创建 =====
-            logger.info("[Publisher] 点击立即创建...")
-            try:
-                create_button = page.locator('button:has-text("立即创建")').first
-                create_button.wait_for(state='visible', timeout=5000)
-                create_button.click()
-                logger.info("✓ 点击立即创建")
-            except Exception as e:
-                logger.info(f"✗ 点击立即创建失败: {e}")
-                return False
-            
-            # 等待创建完成
-            logger.info("[Publisher] 等待创建完成...")
-            time.sleep(3)
-            
-            # 检查是否有错误提示
-            try:
-                error_msg = page.locator('.arco-message-content, .error-message, [class*="error"]').first
-                if error_msg.count() > 0 and error_msg.is_visible():
-                    error_text = error_msg.text_content()
-                    logger.info(f"✗ 创建失败，错误信息: {error_text}")
-                    return False
-            except:
-                pass
-            
-            # 等待跳转到书籍详情页
-            for i in range(10):
-                time.sleep(1)
-                current_url = page.url
-                if "/main/writer/book/" in current_url or "/main/writer/novel/" in current_url:
-                    logger.info(f"✓ 书籍创建成功，已跳转到详情页: {current_url}")
-                    return True
-                # 检查是否还在创建页面
-                if "/main/writer/create" in current_url:
-                    logger.info(f"仍在创建页面，等待中... ({i+1}/10)")
-            
-            logger.info("✗ 等待超时，无法确认创建是否成功")
+        logger.info(f"当前URL: {page.url}")
+        
+        # 截图记录
+        try:
+            screenshot_path = os.path.join(debug_dir, f'create_book_form_{int(time.time())}.png')
+            page.screenshot(path=screenshot_path, full_page=True)
+            logger.info(f"页面截图已保存: {screenshot_path}")
+        except Exception as e:
+            logger.info(f"截图失败: {e}")
+        
+        # ===== 1. 填写书名 =====
+        title_short = novel_title[:14] if len(novel_title) > 14 else novel_title
+        try:
+            title_input = page.locator('input[placeholder="请输入作品名称"]').first
+            title_input.wait_for(state='visible', timeout=5000)
+            title_input.fill(title_short)
+            logger.info(f"✓ 填写书名: {title_short}")
+        except Exception as e:
+            logger.info(f"✗ 填写书名失败: {e}")
             return False
+        
+        # ===== 2. 选择男女频 =====
+        if "novel_info" in novel_data and isinstance(novel_data["novel_info"], dict):
+            tags_info = novel_data.get("novel_info", {}).get("selected_plan", {}).get("tags", {})
+        else:
+            selected_plan = novel_data.get("selected_plan", {})
+            if isinstance(selected_plan, dict):
+                tags_info = selected_plan.get("tags", {})
+            else:
+                tags_info = {}
+        gender = tags_info.get("target_audience", "男频")
+        
+        try:
+            if gender == "女频":
+                page.locator('label:has-text("女频")').first.click()
+                logger.info("✓ 选择女频")
+            else:
+                page.locator('label:has-text("男频")').first.click()
+                logger.info("✓ 选择男频")
+            time.sleep(0.5)
+        except Exception as e:
+            logger.info(f"⚠ 选择男/女频失败: {e}")
+        
+        # ===== 3. 选择作品标签 =====
+        logger.info("[Publisher] 准备选择作品标签...")
+        try:
+            self._select_book_tags_v2(page, tags_info)
+        except Exception as e:
+            logger.info(f"⚠ 选择作品标签失败: {e}")
+        
+        # ===== 4. 处理封面 =====
+        logger.info("[Publisher] 准备处理封面...")
+        try:
+            cover_result = self._handle_cover_upload(page, novel_title, project_dir)
+            if not cover_result:
+                logger.info("⚠ 封面处理未完成，继续创建...")
+        except Exception as e:
+            logger.info(f"⚠ 封面上传失败: {e}")
+        
+        # ===== 5. 填写主角名 =====
+        character_short = main_character[:5] if len(main_character) >= 5 else main_character
+        try:
+            character_input = page.locator('input[placeholder="请输入主角名1"]').first
+            character_input.fill(character_short)
+            logger.info(f"✓ 填写主角名: {character_short}")
+        except Exception as e:
+            logger.info(f"⚠ 填写主角名失败: {e}")
+        
+        # ===== 6. 填写作品简介 =====
+        synopsis_short = formatted_synopsis[:500] if len(formatted_synopsis) >= 500 else formatted_synopsis
+        try:
+            synopsis_input = page.locator('textarea').first
+            synopsis_input.fill(synopsis_short)
+            logger.info("✓ 填写作品简介")
+        except Exception as e:
+            logger.info(f"⚠ 填写简介失败: {e}")
+        
+        # 截图记录填写结果
+        try:
+            screenshot_path = os.path.join(debug_dir, f'create_book_filled_{int(time.time())}.png')
+            page.screenshot(path=screenshot_path, full_page=True)
+            logger.info(f"填写后截图: {screenshot_path}")
+        except:
+            pass
+        
+        # ===== 7. 点击立即创建 =====
+        logger.info("[Publisher] 点击立即创建...")
+        try:
+            create_button = page.locator('button:has-text("立即创建")').first
+            create_button.wait_for(state='visible', timeout=5000)
+            create_button.click()
+            logger.info("✓ 点击立即创建")
+        except Exception as e:
+            logger.info(f"✗ 点击立即创建失败: {e}")
+            return False
+        
+        # 等待创建完成
+        logger.info("[Publisher] 等待创建完成...")
+        time.sleep(3)
+        
+        # 检查是否有错误提示
+        try:
+            error_msg = page.locator('.arco-message-content, .error-message, [class*="error"]').first
+            if error_msg.count() > 0 and error_msg.is_visible():
+                error_text = error_msg.text_content()
+                logger.info(f"✗ 创建失败，错误信息: {error_text}")
+                return False
+        except:
+            pass
+        
+        # 等待跳转到书籍详情页
+        for i in range(10):
+            time.sleep(1)
+            current_url = page.url
+            if "/main/writer/book/" in current_url or "/main/writer/novel/" in current_url:
+                logger.info(f"✓ 书籍创建成功，已跳转到详情页: {current_url}")
+                return True
+            # 检查是否还在创建页面
+            if "/main/writer/create" in current_url:
+                logger.info(f"仍在创建页面，等待中... ({i+1}/10)")
+        
+        logger.info("✗ 等待超时，无法确认创建是否成功")
+        return False
     
     def _select_book_tags_v2(self, page: Page, tags_info: Dict[str, Any]) -> bool:
         """
