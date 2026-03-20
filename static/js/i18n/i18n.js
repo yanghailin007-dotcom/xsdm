@@ -174,9 +174,9 @@ const I18N = {
             translation = this.translations['en']?.[key];
         }
         
-        // 如果还没有，返回键名本身
+        // 如果还没有，返回空字符串（避免显示键名）
         if (!translation) {
-            return key;
+            return '';
         }
         
         // 替换参数

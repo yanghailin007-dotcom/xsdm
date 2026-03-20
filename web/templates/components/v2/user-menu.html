@@ -152,7 +152,7 @@
                 if (result.success) {
                     const pointsEl = document.getElementById('v2UserPoints');
                     if (pointsEl) {
-                        const pointsLabel = (typeof I18N !== 'undefined' && I18N.t('userMenu.points')) || '点';
+                        const pointsLabel = (typeof I18N !== 'undefined' && I18N.translations[I18N.currentLang]?.['userMenu.points']) || '点';
                         pointsEl.textContent = result.data.balance + ' ' + pointsLabel;
                     }
                 }
@@ -166,7 +166,7 @@
     window.addEventListener('balanceUpdated', function(event) {
         const pointsEl = document.getElementById('v2UserPoints');
         if (pointsEl && event.detail && event.detail.balance !== undefined) {
-            const pointsLabel = (typeof I18N !== 'undefined' && I18N.t('userMenu.points')) || '点';
+            const pointsLabel = (typeof I18N !== 'undefined' && I18N.translations[I18N.currentLang]?.['userMenu.points']) || '点';
             pointsEl.textContent = event.detail.balance + ' ' + pointsLabel;
         }
     });
@@ -269,7 +269,7 @@ async function showAccountSwitcher(event) {
                 // 更新导航栏点数显示
                 const v2UserPoints = document.getElementById('v2UserPoints');
                 if (v2UserPoints) {
-                    const pointsLabel = (typeof I18N !== 'undefined' && I18N.t('userMenu.points')) || '点';
+                    const pointsLabel = (typeof I18N !== 'undefined' && I18N.translations[I18N.currentLang]?.['userMenu.points']) || '点';
                     v2UserPoints.textContent = currentBalance + ' ' + pointsLabel;
                 }
             }
@@ -315,7 +315,7 @@ async function showAccountSwitcher(event) {
         `;
     } else {
         const unknownUser = (typeof I18N !== 'undefined' && I18N.t('accountSwitcher.unknownUser')) || '未知用户';
-        const pointsLabel = (typeof I18N !== 'undefined' && I18N.t('userMenu.points')) || '点';
+        const pointsLabel = (typeof I18N !== 'undefined' && I18N.translations[I18N.currentLang]?.['userMenu.points']) || '点';
         const currentLabel = (typeof I18N !== 'undefined' && I18N.t('accountSwitcher.current')) || '当前';
         const switchLabel = (typeof I18N !== 'undefined' && I18N.t('accountSwitcher.switch')) || '切换';
         const reloginLabel = (typeof I18N !== 'undefined' && I18N.t('accountSwitcher.reloginRequired')) || '需重登';
