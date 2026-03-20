@@ -69,8 +69,8 @@ def register_auth_routes(app):
                 logger.info(f"✅ 测试用户登录成功: {username} (ID: {user_id}, 记住我: {remember})")
 
                 if request.is_json:
-                    return jsonify({'success': True, 'message': '测试用户登录成功', 'redirect': '/landing'})
-                return redirect('/landing')
+                    return jsonify({'success': True, 'message': '测试用户登录成功', 'redirect': '/'})
+                return redirect('/')
 
             # 正常验证流程
             logger.info(f"🔍 开始验证用户: '{username}'")
@@ -134,7 +134,7 @@ def register_auth_routes(app):
                     return jsonify({
                         'success': True, 
                         'message': '登录成功',
-                        'redirect': '/landing',
+                        'redirect': '/',
                         # 🔑 返回 Token 信息（用于多账号切换）
                         'user_id': user_id,
                         'username': username,
@@ -142,7 +142,7 @@ def register_auth_routes(app):
                         'points_balance': points.get('balance', 0),
                         **tokens
                     })
-                return redirect('/landing')
+                return redirect('/')
             else:
                 logger.info(f"❌ 登录失败: {username}")
                 if request.is_json:
@@ -153,7 +153,7 @@ def register_auth_routes(app):
         # 允许 mode=add-account 参数绕过登录检查（用于添加多账户）
         if 'logged_in' in session and session['logged_in']:
             if request.args.get('mode') != 'add-account':
-                return redirect('/landing')
+                return redirect('/')
         
         return render_template('pages/v2/login-v2.html')
 
@@ -371,11 +371,6 @@ def register_page_routes(app):
         return render_template('pages/v2/landing-v2.html', 
                                show_welcome=show_welcome, 
                                welcome_bonus=welcome_bonus)
-    
-    @app.route('/landing', methods=['GET'])
-    def landing():
-        """Landing 页面 - 兼容旧链接，重定向到首页"""
-        return redirect('/', code=301)
     
     @app.route('/home', methods=['GET'])
     def home():

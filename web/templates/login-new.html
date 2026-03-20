@@ -467,7 +467,7 @@
                     loginBtn.style.background = 'var(--gradient-success)';
                     
                     setTimeout(() => {
-                        window.location.href = data.redirect || '/landing';
+                        window.location.href = data.redirect || '/';
                     }, 500);
                 } else {
                     const data = await response.json();
