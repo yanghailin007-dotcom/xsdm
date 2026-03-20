@@ -1088,11 +1088,29 @@ class NovelPublisher:
                     logger.info(f"✗ 创建章节页面书籍不匹配! 期望: {expected_book_title}, 实际: {actual_title}")
                     return 2
             
-            # 填写章节信息
+            # 检查是否在创建章节页面，如果没有则点击"创建章节"按钮
             input_elements = page.locator('input.serial-input.byte-input.byte-input-size-default')
             if input_elements.count() < 2:
-                logger.info("未找到章节输入框")
-                return 1
+                logger.info("未找到章节输入框，尝试点击'创建章节'按钮...")
+                
+                # 尝试点击"创建章节"按钮
+                try:
+                    create_btn = page.locator('button:has-text("创建章节"), a:has-text("创建章节")').first
+                    if create_btn.count() > 0:
+                        create_btn.click()
+                        time.sleep(3)
+                        
+                        # 重新查找输入框
+                        input_elements = page.locator('input.serial-input.byte-input.byte-input-size-default')
+                        if input_elements.count() < 2:
+                            logger.info("点击后仍未找到章节输入框")
+                            return 1
+                    else:
+                        logger.info("未找到'创建章节'按钮")
+                        return 1
+                except Exception as e:
+                    logger.info(f"点击'创建章节'按钮失败: {e}")
+                    return 1
             
             # 填写章节序号和标题
             if not self.ui_helper.safe_fill(input_elements.nth(0), chap_number, "章节序号"):
