@@ -211,7 +211,8 @@ def start_upload():
             except Exception as stop_err:
                 logger.warning(f"[番茄上传] 停止 Playwright 时出错: {stop_err}")
         
-        if error_msg and "TargetClosedError" in error_msg or "has been closed" in error_msg:
+        # 检查是否是 Chrome 断开连接的错误
+        if error_msg and ("TargetClosedError" in error_msg or "has been closed" in error_msg):
             return jsonify({
                 'success': False,
                 'error': 'Chrome 连接已断开',
