@@ -602,7 +602,7 @@ class NovelPublisher:
         """
         logger.info("[Cover] 开始处理封面...")
         
-        # 查找封面文件
+        # 查找封面文件（项目目录）
         cover_paths = [
             project_dir / "cover.png",
             project_dir / "cover.jpg",
@@ -619,11 +619,50 @@ class NovelPublisher:
                 cover_file = path
                 break
         
+        # 如果在项目目录没找到，检查 generated_images 目录
+        if not cover_file:
+            logger.info("[Cover] 在项目目录未找到封面，检查 generated_images 目录...")
+            
+            # 获取用户名
+            username = ""
+            try:
+                # 从 project_dir 提取用户名
+                # project_dir 格式: .../小说项目/{username}/{novel_title}
+                parts = project_dir.parts
+                if "小说项目" in parts or "novel_projects" in parts:
+                    for i, part in enumerate(parts):
+                        if part in ["小说项目", "novel_projects"] and i + 1 < len(parts):
+                            username = parts[i + 1]
+                            break
+            except:
+                pass
+            
+            # 构建 generated_images 路径
+            base_dir = project_dir.parent.parent.parent  # 项目根目录
+            generated_images_dir = base_dir / "generated_images" / username / novel_title
+            
+            logger.info(f"[Cover] 检查目录: {generated_images_dir}")
+            
+            if generated_images_dir.exists():
+                # 查找图片文件
+                image_extensions = ['.png', '.jpg', '.jpeg', '.webp']
+                cover_files = []
+                
+                for ext in image_extensions:
+                    cover_files.extend(generated_images_dir.glob(f'*{ext}'))
+                
+                if cover_files:
+                    # 按修改时间排序，取最新的
+                    cover_files.sort(key=lambda x: x.stat().st_mtime, reverse=True)
+                    cover_file = cover_files[0]
+                    logger.info(f"[Cover] 在 generated_images 找到封面: {cover_file.name}")
+        
         if not cover_file:
             logger.info("[Cover] ⚠ 未找到封面文件")
             logger.info("[Cover] 请先在项目中创建封面，保存为以下路径之一:")
             for path in cover_paths:
                 logger.info(f"  - {path}")
+            logger.info(f"  - generated_images/{{username}}/{novel_title}/")
             
             # 提示用户
             print("\n" + "="*60)
@@ -633,7 +672,7 @@ class NovelPublisher:
             print("请使用封面制作工具生成封面，并保存到:")
             print(f"  {project_dir / 'cover.png'}")
             print("或")
-            print(f"  {project_dir / 'images' / 'cover.png'}")
+            print(f"  {base_dir / 'generated_images' / '{username}' / novel_title}")
             print("\n按回车继续（不创建封面）...")
             try:
                 input()
