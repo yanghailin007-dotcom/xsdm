@@ -86,7 +86,9 @@ const I18N = {
         this.isLoading = true;
         
         try {
-            const response = await fetch(`/static/js/i18n/${lang}.json`);
+            // 从 body 的 data-static-url 获取静态文件基础路径（支持部署到子路径）
+            const staticUrl = document.body.dataset.staticUrl || '/static/';
+            const response = await fetch(`${staticUrl}js/i18n/${lang}.json`);
             if (!response.ok) {
                 throw new Error(`Failed to load ${lang}.json: ${response.status}`);
             }

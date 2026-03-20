@@ -18,7 +18,7 @@
     
     {% block extra_css %}{% endblock %}
 </head>
-<body class="v2-body">
+<body class="v2-body" data-static-url="{{ url_for('static', filename='') }}">
     
     <!-- 导航栏 - 根据页面智能选择 -->
     {% set video_endpoints = ['video_center', 'video_project_center', 'video_project_detail', 
