@@ -378,12 +378,6 @@ class NovelPublisher:
             
             logger.info("✗ 等待超时，无法确认创建是否成功")
             return False
-            
-        except Exception as e:
-            logger.info(f"创建新书时出错: {e}")
-            import traceback
-            logger.info(traceback.format_exc())
-            return False
     
     def _select_book_tags_v2(self, page: Page, tags_info: Dict[str, Any]) -> bool:
         """
