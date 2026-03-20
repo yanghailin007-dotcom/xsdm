@@ -658,26 +658,10 @@ class NovelPublisher:
                     logger.info(f"[Cover] 在 generated_images 找到封面: {cover_file.name}")
         
         if not cover_file:
-            logger.info("[Cover] ⚠ 未找到封面文件")
-            logger.info("[Cover] 请先在项目中创建封面，保存为以下路径之一:")
-            for path in cover_paths:
-                logger.info(f"  - {path}")
-            logger.info(f"  - generated_images/{{username}}/{novel_title}/")
-            
-            # 提示用户
-            print("\n" + "="*60)
-            print("【封面创建提示】")
-            print("="*60)
-            print(f"小说《{novel_title}》需要封面才能创建")
-            print("请使用封面制作工具生成封面，并保存到:")
-            print(f"  {project_dir / 'cover.png'}")
-            print("或")
-            print(f"  {base_dir / 'generated_images' / '{username}' / novel_title}")
-            print("\n按回车继续（不创建封面）...")
-            try:
-                input()
-            except:
-                pass
+            logger.info("[Cover] ⚠ 未找到封面文件，跳过封面上传")
+            logger.info("[Cover] 建议路径:")
+            logger.info(f"  - {project_dir / 'cover.png'}")
+            logger.info(f"  - {base_dir / 'generated_images' / '{username}' / novel_title}")
             return False
         
         logger.info(f"[Cover] 找到封面文件: {cover_file}")
