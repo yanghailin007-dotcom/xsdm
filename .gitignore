@@ -6,6 +6,9 @@ __pycache__/
 *.json
 # *.md  # 注释掉这个规则，因为我们需要跟踪某些md文件
 
+# 但保留多语言文件
+!static/js/i18n/*.json
+
 # C extensions
 *.so
 
