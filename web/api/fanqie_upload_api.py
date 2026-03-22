@@ -54,6 +54,205 @@ def login_required_api(f):
     return decorated_function
 
 
+@fanqie_upload_api.route('/upload/novels', methods=['GET'])
+@login_required_api
+def get_user_novels():
+    """获取用户可上传的小说列表（使用与作品页面相同的逻辑）"""
+    try:
+        user_id = request.user_info.get('user_id') if hasattr(request, 'user_info') else session.get('user_id')
+        
+        # 获取用户名
+        from web.models.user_model import UserModel
+        user_model = UserModel()
+        user = user_model.get_user_by_id(user_id)
+        username = user.get('username', str(user_id)) if user else str(user_id)
+        
+        # 使用与作品页面相同的逻辑：list_user_projects
+        from web.utils.path_utils import list_user_projects
+        user_projects = list_user_projects(username, include_public=True)
+        
+        result = []
+        for project_info in user_projects:
+            try:
+                title = project_info['title']
+                project_path = Path(project_info['path'])
+                
+                # 读取项目信息文件（与作品页面相同逻辑）
+                project_data = _load_project_info(project_path)
+                
+                # 从 generated_chapters 获取章节数据
+                generated_chapters = project_data.get('generated_chapters', {})
+                completed_chapters = len(generated_chapters)
+                
+                # 计算字数（从 generated_chapters）
+                word_count = 0
+                for chapter_num, chapter_data in generated_chapters.items():
+                    if isinstance(chapter_data, dict):
+                        word_count += chapter_data.get('word_count', 0)
+                    else:
+                        word_count += len(str(chapter_data))
+                
+                # 🔥 关键修复：如果内存中没有章节数据，从文件系统读取（与作品页面相同）
+                if completed_chapters == 0:
+                    chapters_dir = project_path / 'chapters'
+                    if chapters_dir.exists():
+                        # 支持 .json 和 .txt 格式的章节文件
+                        chapter_files = list(chapters_dir.glob('第*.json')) + list(chapters_dir.glob('第*.txt'))
+                        completed_chapters = len(chapter_files)
+                        
+                        # 从文件读取字数
+                        for f in chapter_files:
+                            try:
+                                content = f.read_text(encoding='utf-8')
+                                word_count += len(content)
+                            except:
+                                pass
+                
+                # 获取最后更新时间
+                updated_at = project_data.get('last_updated') or project_data.get('updated_at') or project_data.get('creation_time')
+                
+                result.append({
+                    'id': title,
+                    'title': title,
+                    'chapters': completed_chapters,
+                    'words': word_count,
+                    'status': 'completed' if completed_chapters > 0 else 'draft',
+                    'updated_at': updated_at
+                })
+            except Exception as e:
+                print(f"[FanqieUpload] 加载项目失败 {project_info.get('title', 'unknown')}: {e}")
+                continue
+        
+        # 按更新时间排序
+        result.sort(key=lambda x: x['updated_at'] or '', reverse=True)
+        
+        return jsonify({
+            'success': True,
+            'projects': result
+        })
+        
+    except Exception as e:
+        print(f"[FanqieUpload] 获取小说列表失败: {e}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({
+            'success': False,
+            'error': str(e),
+            'projects': []
+        }), 500
+
+
+def _load_project_info(project_path: Path) -> dict:
+    """加载项目信息文件（与作品页面相同逻辑）"""
+    import json
+    
+    # 尝试多种可能的项目信息文件名
+    info_files = [
+        "项目信息.json",
+        f"{project_path.name}_项目信息.json",
+        "project_info.json"
+    ]
+    
+    for filename in info_files:
+        info_path = project_path / filename
+        if info_path.exists():
+            try:
+                with open(info_path, 'r', encoding='utf-8-sig') as f:
+                    return json.load(f)
+            except Exception as e:
+                print(f"[FanqieUpload] 读取项目信息失败 {info_path}: {e}")
+    
+    # 如果没有找到项目信息文件，返回空数据结构
+    return {'generated_chapters': {}}
+
+
+@fanqie_upload_api.route('/upload/novel-chapters', methods=['GET'])
+@login_required_api
+def get_novel_chapters():
+    """获取小说的章节列表"""
+    try:
+        novel_title = request.args.get('title')
+        if not novel_title:
+            return jsonify({'success': False, 'error': '缺少小说标题'}), 400
+        
+        user_id = request.user_info.get('user_id') if hasattr(request, 'user_info') else session.get('user_id')
+        
+        # 查找小说文件
+        from web.utils.path_utils import find_novel_project
+        
+        # 尝试查找小说项目
+        project_dir = find_novel_project(novel_title, str(user_id))
+        if not project_dir:
+            # 尝试用用户名查找
+            from web.models.user_model import UserModel
+            user_model = UserModel()
+            user = user_model.get_user_by_id(user_id)
+            if user:
+                project_dir = find_novel_project(novel_title, user.get('username'))
+        
+        if not project_dir:
+            return jsonify({'success': False, 'error': '未找到小说项目'}), 404
+        
+        # 读取章节文件（支持 .txt 和 .json 格式）
+        chapters = []
+        chapters_dir = project_dir / 'chapters'
+        if chapters_dir.exists():
+            # 获取所有章节文件（.txt 和 .json）
+            chapter_files = sorted(chapters_dir.glob('第*.txt')) + sorted(chapters_dir.glob('第*.json'))
+            
+            for i, file_path in enumerate(chapter_files, 1):
+                try:
+                    content = ''
+                    title = f'第{i}章'
+                    
+                    if file_path.suffix == '.json':
+                        # 读取 JSON 格式的章节
+                        import json
+                        with open(file_path, 'r', encoding='utf-8') as f:
+                            chapter_data = json.load(f)
+                        
+                        # 从 JSON 中提取内容
+                        if isinstance(chapter_data, dict):
+                            content = chapter_data.get('content', '')
+                            title = chapter_data.get('title', title)
+                        else:
+                            content = str(chapter_data)
+                    else:
+                        # 读取 TXT 格式的章节
+                        with open(file_path, 'r', encoding='utf-8') as f:
+                            content = f.read()
+                        
+                        # 解析章节标题（第一行）
+                        lines = content.split('\n')
+                        if lines and lines[0].strip():
+                            title = lines[0].strip()[:50]
+                    
+                    chapters.append({
+                        'number': i,
+                        'title': title,
+                        'content': content,
+                        'word_count': len(content),
+                        'file_name': file_path.name
+                    })
+                except Exception as e:
+                    print(f"读取章节文件失败 {file_path}: {e}")
+        
+        return jsonify({
+            'success': True,
+            'chapters': chapters,
+            'total': len(chapters)
+        })
+        
+    except Exception as e:
+        print(f"[FanqieUpload] 获取章节列表失败: {e}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+
 def check_chrome_status() -> dict:
     """检查本地 Chrome 状态"""
     import requests

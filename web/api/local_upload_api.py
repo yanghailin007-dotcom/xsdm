@@ -7,7 +7,7 @@ import sys
 import uuid
 import json
 from flask import Blueprint, request, jsonify, session
-from datetime import datetime
+from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Dict, Any
 
@@ -300,8 +300,17 @@ def generate_package():
         model.create_chapters(task_id, chapters)
         
         # 获取用户token
-        from web.jwt_auth import generate_token
-        user_token = generate_token({'user_id': user_id}, token_type='upload')
+        import jwt
+        from web.jwt_auth import JWT_SECRET_KEY
+        
+        # 生成上传专用token
+        upload_payload = {
+            'user_id': user_id,
+            'type': 'upload',
+            'task_id': task_id,
+            'exp': datetime.utcnow() + timedelta(hours=24)
+        }
+        user_token = jwt.encode(upload_payload, JWT_SECRET_KEY or 'dev-secret-key', algorithm='HS256')
         
         # 生成包
         from web.services.upload_package_manager import UploadPackageManager
