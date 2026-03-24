@@ -471,6 +471,21 @@ def create_app():
     app.register_blueprint(local_upload_api)
     logger.info("✅ local_upload_api 本地上传任务已注册")
 
+    # 28. 第一阶段优化 API 路由
+    from web.api.phase_one_optimization_api import phase_one_api
+    app.register_blueprint(phase_one_api)
+    logger.info("✅ phase_one_api 第一阶段优化已注册")
+
+    # 28.1. 第一阶段优化+质量评估组合 API 路由
+    from web.api.phase_one_optimize_assess_api import phase_one_optimize_assess_api
+    app.register_blueprint(phase_one_optimize_assess_api)
+    logger.info("✅ phase_one_optimize_assess_api 优化+评估组合已注册")
+
+    # 28.2. 市场导向生成 API 路由
+    from web.api.market_driven_api import market_driven_api
+    app.register_blueprint(market_driven_api)
+    logger.info("✅ market_driven_api 市场导向生成已注册")
+
     # 🔥 同步预初始化 NovelGenerator（确保服务器启动时完成）
     logger.info("🔄 开始预初始化 NovelGenerator...")
     try:
@@ -820,6 +835,38 @@ def register_contract_routes(app):
         except Exception as e:
             logger.error(f"❌ 加载测试页面失败: {e}")
             return f"测试页面加载失败: {str(e)}", 500
+
+    @app.route('/market-driven-create')
+    def market_driven_create_page():
+        """市场导向创作页面"""
+        try:
+            from flask import render_template
+            return render_template('pages/v2/market-driven-create.html')
+        except Exception as e:
+            logger.error(f"❌ 加载市场导向创作页面失败: {e}")
+            return f"页面加载失败: {str(e)}", 500
+
+    @app.route('/market-driven-analysis')
+    def market_driven_analysis_page():
+        """市场导向分析页面"""
+        try:
+            from flask import render_template, request
+            genre = request.args.get('genre', '')
+            return render_template('pages/v2/market-driven-analysis.html', genre=genre)
+        except Exception as e:
+            logger.error(f"❌ 加载市场导向分析页面失败: {e}")
+            return f"页面加载失败: {str(e)}", 500
+
+    @app.route('/market-driven-plan')
+    def market_driven_plan_page():
+        """市场导向创作方案页面"""
+        try:
+            from flask import render_template, request
+            genre = request.args.get('genre', '')
+            return render_template('pages/v2/market-driven-plan.html', genre=genre)
+        except Exception as e:
+            logger.error(f"❌ 加载市场导向方案页面失败: {e}")
+            return f"页面加载失败: {str(e)}", 500
 
     @app.route('/admin/users')
     def admin_users_page():

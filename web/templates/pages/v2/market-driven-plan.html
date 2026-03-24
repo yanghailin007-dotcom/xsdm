@@ -1,0 +1,487 @@
+﻿{% extends "layouts/base-v2.html" %}
+
+{% block title %}生成创作方案 - 市场导向创作{% endblock %}
+
+{% block extra_css %}
+<!-- Material Icons -->
+<link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+<style>
+/* ===== 变量 ===== */
+:root {
+  --primary-gold: #f59e0b;
+  --primary-gold-light: #fbbf24;
+  --success: #22c55e;
+  --radius-lg: 16px;
+  --radius-xl: 24px;
+  --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+  --shadow-xl: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+}
+
+/* ===== Header ===== */
+.plan-header {
+  padding: 40px 0 32px;
+  text-align: center;
+}
+
+.plan-header__back {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--v2-text-secondary);
+  text-decoration: none;
+  font-size: 14px;
+  margin-bottom: 24px;
+  transition: color 0.2s;
+}
+
+.plan-header__back:hover {
+  color: var(--primary-gold);
+}
+
+.plan-header__title {
+  font-size: 32px;
+  font-weight: 800;
+  background: linear-gradient(135deg, #ffffff 0%, #fbbf24 50%, #f59e0b 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  margin-bottom: 12px;
+}
+
+.plan-header__subtitle {
+  font-size: 16px;
+  color: var(--v2-text-secondary);
+}
+
+/* ===== 表单区域 ===== */
+.plan-form {
+  max-width: 800px;
+  margin: 0 auto 32px;
+}
+
+.form-section {
+  background: var(--v2-bg-secondary);
+  border: 1px solid var(--v2-border-subtle);
+  border-radius: var(--radius-lg);
+  padding: 28px;
+  margin-bottom: 24px;
+}
+
+.form-section__title {
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--v2-text-primary);
+  margin-bottom: 20px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.form-section__title .material-icons {
+  color: var(--primary-gold);
+  font-family: 'Material Icons';
+  font-size: 22px;
+}
+
+.form-group {
+  margin-bottom: 20px;
+}
+
+.form-group:last-child {
+  margin-bottom: 0;
+}
+
+.form-label {
+  display: block;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--v2-text-primary);
+  margin-bottom: 8px;
+}
+
+.form-input,
+.form-textarea,
+.form-select {
+  width: 100%;
+  padding: 12px 16px;
+  background: var(--v2-bg-tertiary);
+  border: 1px solid var(--v2-border-subtle);
+  border-radius: 10px;
+  font-size: 15px;
+  color: var(--v2-text-primary);
+  transition: all 0.2s;
+  box-sizing: border-box;
+}
+
+.form-input:focus,
+.form-textarea:focus,
+.form-select:focus {
+  outline: none;
+  border-color: var(--primary-gold);
+  box-shadow: 0 0 0 3px rgba(245, 158, 11, 0.1);
+}
+
+.form-textarea {
+  min-height: 120px;
+  resize: vertical;
+  font-family: inherit;
+  line-height: 1.6;
+}
+
+.form-hint {
+  font-size: 13px;
+  color: var(--v2-text-muted);
+  margin-top: 6px;
+}
+
+.form-row {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 20px;
+}
+
+/* ===== 生成按钮区域 ===== */
+.generate-section {
+  position: sticky;
+  bottom: 24px;
+  padding: 24px 32px;
+  background: rgba(30, 41, 59, 0.95);
+  backdrop-filter: blur(20px);
+  border: 1px solid rgba(245, 158, 11, 0.2);
+  border-radius: var(--radius-xl);
+  box-shadow: 0 20px 50px -10px rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+  max-width: 800px;
+  margin: 0 auto;
+}
+
+.generate-section__info {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.generate-section__icon {
+  width: 48px;
+  height: 48px;
+  background: linear-gradient(135deg, var(--primary-gold), var(--primary-gold-light));
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #0f172a;
+}
+
+.generate-section__icon .material-icons {
+  font-family: 'Material Icons';
+  font-size: 24px;
+}
+
+.generate-section__text {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.generate-section__label {
+  font-size: 13px;
+  color: var(--v2-text-muted);
+}
+
+.generate-section__value {
+  font-size: 18px;
+  font-weight: 700;
+  color: #ffffff;
+}
+
+.generate-btn {
+  background: linear-gradient(135deg, var(--primary-gold), var(--primary-gold-light));
+  color: #0f172a;
+  font-weight: 700;
+  font-size: 16px;
+  padding: 14px 32px;
+  border: none;
+  border-radius: 12px;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  transition: all 0.2s;
+  box-shadow: 0 4px 14px 0 rgba(245, 158, 11, 0.4);
+}
+
+.generate-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 25px rgba(245, 158, 11, 0.5);
+}
+
+.generate-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.generate-btn .material-icons {
+  font-family: 'Material Icons';
+  font-size: 20px;
+}
+
+/* ===== 响应式 ===== */
+@media (max-width: 768px) {
+  .form-row {
+    grid-template-columns: 1fr;
+  }
+  
+  .generate-section {
+    flex-direction: column;
+    padding: 20px;
+    margin: 16px;
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    border-radius: 16px 16px 0 0;
+    max-width: none;
+  }
+  
+  .generate-btn {
+    width: 100%;
+    justify-content: center;
+  }
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="v2-project-container">
+  
+  <!-- Header -->
+  <div class="plan-header">
+    <a href="/market-driven-analysis?genre={{ genre }}" class="plan-header__back">
+      <span class="material-icons">arrow_back</span>
+      返回分析结果
+    </a>
+    <h1 class="plan-header__title">生成创作方案</h1>
+    <p class="plan-header__subtitle">基于市场规律，生成符合爆款公式的小说创作方案</p>
+  </div>
+
+  <!-- 表单 -->
+  <div class="plan-form">
+    
+    <!-- 基本信息 -->
+    <div class="form-section">
+      <h2 class="form-section__title">
+        <span class="material-icons">info</span>
+        基本信息
+      </h2>
+      
+      <div class="form-group">
+        <label class="form-label">小说标题</label>
+        <input type="text" class="form-input" id="novel-title" placeholder="输入小说标题（6-14字最佳）">
+        <div class="form-hint">建议包含数字或强烈对比，如《开局物价贬值百万倍》</div>
+      </div>
+      
+      <div class="form-group">
+        <label class="form-label">核心卖点</label>
+        <textarea class="form-textarea" id="novel-sellpoint" placeholder="一句话概括核心卖点，吸引读者点击阅读"></textarea>
+        <div class="form-hint">这是小说最吸引人的地方，将在简介中突出展示</div>
+      </div>
+      
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">目标字数</label>
+          <select class="form-select" id="novel-wordcount">
+            <option value="100">100万字（中篇）</option>
+            <option value="200" selected>200万字（标准长篇）</option>
+            <option value="300">300万字（超长篇）</option>
+            <option value="500">500万字（超长篇+）</option>
+          </select>
+        </div>
+        
+        <div class="form-group">
+          <label class="form-label">预计章节</label>
+          <select class="form-select" id="novel-chapters">
+            <option value="300">300章</option>
+            <option value="500" selected>500章</option>
+            <option value="800">800章</option>
+            <option value="1000">1000章+</option>
+          </select>
+        </div>
+      </div>
+    </div>
+
+    <!-- 主角设定 -->
+    <div class="form-section">
+      <h2 class="form-section__title">
+        <span class="material-icons">person</span>
+        主角设定
+      </h2>
+      
+      <div class="form-group">
+        <label class="form-label">主角身份背景</label>
+        <input type="text" class="form-input" id="protagonist-bg" placeholder="如：外卖员、保安、穷学生、被裁员的社畜">
+        <div class="form-hint">必须是普通人，让读者有代入感</div>
+      </div>
+      
+      <div class="form-group">
+        <label class="form-label">金手指类型</label>
+        <select class="form-select" id="golden-finger-type">
+          <option value="system">系统流（花钱返利、签到奖励）</option>
+          <option value="rebirth">重生流（回到过去、先知优势）</option>
+          <option value="inheritance">传承流（获得秘籍、神秘传承）</option>
+          <option value="special">特殊能力（透视、读心、异能）</option>
+        </select>
+      </div>
+      
+      <div class="form-group">
+        <label class="form-label">金手指具体描述</label>
+        <textarea class="form-textarea" id="golden-finger-desc" placeholder="详细描述金手指的功能、限制和升级方式"></textarea>
+        <div class="form-hint">参考市场分析中的金手指设计规则</div>
+      </div>
+    </div>
+
+    <!-- 剧情方向 -->
+    <div class="form-section">
+      <h2 class="form-section__title">
+        <span class="material-icons">route</span>
+        剧情方向
+      </h2>
+      
+      <div class="form-group">
+        <label class="form-label">主线剧情</label>
+        <textarea class="form-textarea" id="main-plot" placeholder="描述小说的主线剧情发展"></textarea>
+        <div class="form-hint">初期→中期→后期的发展脉络</div>
+      </div>
+      
+      <div class="form-group">
+        <label class="form-label">第一个大高潮（前30章）</label>
+        <input type="text" class="form-input" id="first-climax" placeholder="如：拍卖会打脸富二代、全国直播曝光身份">
+        <div class="form-hint">这是吸引读者继续阅读的关键事件</div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- 生成按钮 -->
+  <div class="generate-section">
+    <div class="generate-section__info">
+      <div class="generate-section__icon">
+        <span class="material-icons">auto_fix_high</span>
+      </div>
+      <div class="generate-section__text">
+        <span class="generate-section__label">准备生成</span>
+        <span class="generate-section__value">完整创作方案 + 前30章大纲</span>
+      </div>
+    </div>
+    <button class="generate-btn" id="generate-btn" onclick="startGeneration()">
+      <span class="material-icons">rocket_launch</span>
+      开始生成
+    </button>
+  </div>
+
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// 从 URL 获取题材参数
+const urlParams = new URLSearchParams(window.location.search);
+const genreId = urlParams.get('genre') || '';
+
+// 自动填充基于题材的默认值
+const genreDefaults = {
+  'god-tier-spending': {
+    title: '开局物价贬值百万倍',
+    sellpoint: '一觉醒来，全球物价贬值百万倍，唯独我的钱不变！',
+    bg: '被裁员的穷社畜',
+    finger: '花钱返利系统：消费1元返还10元，等级越高返利越多',
+    plot: '初期：在超市、餐厅小试牛刀；中期：收购公司、投资地产；后期：建立商业帝国，影响全球经济',
+    climax: '拍卖会一掷千金，全场震惊，身份曝光'
+  },
+  'god-tier-checkin': {
+    title: '每日签到：从百亿开始',
+    sellpoint: '签到第一天奖励100亿，第二天奖励千亿集团！',
+    bg: '普通大学生',
+    finger: '每日签到系统：每天签到获得随机奖励，连续签到奖励翻倍',
+    plot: '初期：签到获得豪车豪宅；中期：签到获得顶级技能；后期：签到获得超凡能力',
+    climax: '校庆日签到获得整座学校，惊呆全校师生'
+  },
+  'nation-live': {
+    title: '国运：我代表龙国参战',
+    sellpoint: '国运战场开启，我代表龙国出战，全国直播！',
+    bg: '退役特种兵',
+    finger: '国运绑定：全国人民的气运加持，龙国越强我越强',
+    plot: '初期：个人竞技崭露头角；中期：带领团队征战；后期：决战八国联军',
+    climax: '以一敌百，震惊全球，龙国国运暴涨'
+  }
+};
+
+// 页面加载时填充默认值
+document.addEventListener('DOMContentLoaded', function() {
+  const defaults = genreDefaults[genreId] || genreDefaults['god-tier-spending'];
+  
+  document.getElementById('novel-title').placeholder = defaults.title;
+  document.getElementById('novel-sellpoint').placeholder = defaults.sellpoint;
+  document.getElementById('protagonist-bg').placeholder = defaults.bg;
+  document.getElementById('golden-finger-desc').placeholder = defaults.finger;
+  document.getElementById('main-plot').placeholder = defaults.plot;
+  document.getElementById('first-climax').placeholder = defaults.climax;
+});
+
+async function startGeneration() {
+  const btn = document.getElementById('generate-btn');
+  btn.disabled = true;
+  btn.innerHTML = '<span class="material-icons">hourglass_top</span>生成中...';
+  
+  // 收集表单数据
+  const formData = {
+    genre: genreId,
+    title: document.getElementById('novel-title').value,
+    sellpoint: document.getElementById('novel-sellpoint').value,
+    wordcount: document.getElementById('novel-wordcount').value,
+    chapters: document.getElementById('novel-chapters').value,
+    protagonist_bg: document.getElementById('protagonist-bg').value,
+    golden_finger_type: document.getElementById('golden-finger-type').value,
+    golden_finger_desc: document.getElementById('golden-finger-desc').value,
+    main_plot: document.getElementById('main-plot').value,
+    first_climax: document.getElementById('first-climax').value
+  };
+  
+  // 验证必填项
+  if (!formData.title) {
+    alert('请输入小说标题');
+    btn.disabled = false;
+    btn.innerHTML = '<span class="material-icons">rocket_launch</span>开始生成';
+    return;
+  }
+  
+  try {
+    // 调用生成API
+    const response = await fetch('/api/market-driven/generate', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(formData)
+    });
+    
+    if (response.ok) {
+      const result = await response.json();
+      // 跳转到任务状态页面
+      window.location.href = `/market-driven-status?task=${result.task_id}`;
+    } else {
+      const error = await response.json();
+      alert('生成失败: ' + (error.error || '未知错误'));
+      btn.disabled = false;
+      btn.innerHTML = '<span class="material-icons">rocket_launch</span>开始生成';
+    }
+  } catch (error) {
+    console.error('生成失败:', error);
+    alert('生成失败，请稍后重试');
+    btn.disabled = false;
+    btn.innerHTML = '<span class="material-icons">rocket_launch</span>开始生成';
+  }
+}
+</script>
+{% endblock %}

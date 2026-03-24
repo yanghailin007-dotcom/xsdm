@@ -16,6 +16,8 @@
     <link rel="stylesheet" href="/static/css/v2/components.css?v=3">
     <link rel="stylesheet" href="/static/css/v2/layouts.css?v=3">
     
+    
+    
     {% block extra_css %}{% endblock %}
 </head>
 <body class="v2-body" data-static-url="{{ url_for('static', filename='') }}">
@@ -52,6 +54,8 @@
         {% block content %}{% endblock %}
     </main>
     
+
+    
     <!-- 页脚 - 根据页面智能选择 -->
     {% if request.endpoint in video_endpoints %}
         <!-- 视频创作页脚 -->
@@ -69,6 +73,7 @@
     
     <!-- i18n 国际化 -->
     <script src="/static/js/i18n/i18n.js"></script>
+    
     <script>
         // 检测浏览器语言
         function detectBrowserLanguage() {

@@ -5,6 +5,7 @@
 {% block extra_css %}
 <link rel="stylesheet" href="/static/css/worldview-viewer.css">
 <link rel="stylesheet" href="/static/css/character-editor.css">
+<link rel="stylesheet" href="/static/css/v2/optimizer.css">
 <style>
 /* 项目可视化页面特定样式 */
 .project-viewer-container {
@@ -425,6 +426,31 @@
     display: flex;
     gap: 12px;
 }
+
+/* 优化按钮 */
+.v2-optimize-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 8px 16px;
+    background: linear-gradient(135deg, #6366f1, #8b5cf6);
+    color: white;
+    border: none;
+    border-radius: 6px;
+    font-size: 13px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.v2-optimize-btn:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(99, 102, 241, 0.4);
+}
+
+.v2-optimize-btn .material-icons {
+    font-size: 16px;
+}
 </style>
 {% endblock %}
 
@@ -432,15 +458,13 @@
 <div class="viewer-toolbar">
     <div class="viewer-title" data-i18n="projectViewer.title">📊 项目可视化</div>
     <div class="viewer-actions">
-        <button class="v2-btn v2-btn--secondary" onclick="goBack()">
-            <span data-i18n="common.back">返回</span>
+        <button class="v2-btn v2-btn--secondary" onclick="goBack()">返回</button>
+        <button class="v2-optimize-btn" onclick="openOptimizerModal()">
+            <span class="material-icons">auto_fix_high</span>
+            智能优化
         </button>
-        <button class="v2-btn v2-btn--secondary" onclick="toggleEditMode()">
-            <span data-i18n="projectViewer.action.editMode">编辑模式</span>
-        </button>
-        <button class="v2-btn v2-btn--primary" onclick="saveWorldview()">
-            <span data-i18n="projectViewer.action.save">保存</span>
-        </button>
+        <button class="v2-btn v2-btn--secondary" onclick="toggleEditMode()">编辑模式</button>
+        <button class="v2-btn v2-btn--primary" onclick="saveWorldview()">保存</button>
     </div>
 </div>
 
@@ -722,9 +746,14 @@
     console.log('当前页面URL:', window.location.href);
     console.log('标题参数:', new URLSearchParams(window.location.search).get('title'));
 </script>
+
+<!-- 优化器对话框 -->
+{% include 'components/v2/optimizer-modal.html' %}
+
 {% endblock %}
 
 {% block extra_js %}
 <script src="/static/js/project-viewer.js"></script>
 <script src="/static/js/character-editor.js"></script>
+<script src="/static/js/phase-one-optimizer.js"></script>
 {% endblock %}

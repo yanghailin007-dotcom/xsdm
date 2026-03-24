@@ -1,0 +1,789 @@
+{% extends "layouts/base-v2.html" %}
+
+{% block title %}三轮优化适配 - {{ project_title }}{% endblock %}
+
+{% block extra_css %}
+<style>
+    .adaptive-optimization-container {
+        max-width: 1200px;
+        margin: 0 auto;
+        padding: 24px;
+    }
+    
+    .optimization-header {
+        text-align: center;
+        margin-bottom: 32px;
+    }
+    
+    .optimization-header h1 {
+        font-size: 28px;
+        background: linear-gradient(135deg, #6366f1, #8b5cf6);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        margin-bottom: 8px;
+    }
+    
+    .optimization-header p {
+        color: var(--v2-text-secondary);
+    }
+    
+    /* 进度指示器 */
+    .round-indicator {
+        display: flex;
+        justify-content: center;
+        gap: 16px;
+        margin-bottom: 32px;
+    }
+    
+    .round-step {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 8px;
+        opacity: 0.5;
+    }
+    
+    .round-step.active {
+        opacity: 1;
+    }
+    
+    .round-step.completed {
+        opacity: 1;
+    }
+    
+    .round-step.completed .step-number {
+        background: linear-gradient(135deg, #22c55e, #16a34a);
+    }
+    
+    .step-number {
+        width: 40px;
+        height: 40px;
+        border-radius: 50%;
+        background: var(--v2-bg-tertiary);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-weight: 600;
+        color: white;
+    }
+    
+    .round-step.active .step-number {
+        background: linear-gradient(135deg, #6366f1, #8b5cf6);
+        box-shadow: 0 0 20px rgba(99, 102, 241, 0.5);
+    }
+    
+    .step-label {
+        font-size: 12px;
+        color: var(--v2-text-secondary);
+    }
+    
+    .round-step.active .step-label {
+        color: var(--v2-primary-400);
+    }
+    
+    /* 对话区域 */
+    .dialogue-container {
+        background: var(--v2-bg-secondary);
+        border-radius: 16px;
+        overflow: hidden;
+        margin-bottom: 24px;
+    }
+    
+    .dialogue-messages {
+        height: 400px;
+        overflow-y: auto;
+        padding: 24px;
+    }
+    
+    .message {
+        margin-bottom: 20px;
+        display: flex;
+        gap: 12px;
+    }
+    
+    .message.ai {
+        flex-direction: row;
+    }
+    
+    .message.user {
+        flex-direction: row-reverse;
+    }
+    
+    .message-avatar {
+        width: 40px;
+        height: 40px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        flex-shrink: 0;
+    }
+    
+    .message.ai .message-avatar {
+        background: linear-gradient(135deg, #6366f1, #8b5cf6);
+    }
+    
+    .message.user .message-avatar {
+        background: var(--v2-bg-tertiary);
+    }
+    
+    .message-content {
+        max-width: 70%;
+        padding: 16px;
+        border-radius: 12px;
+        line-height: 1.6;
+    }
+    
+    .message.ai .message-content {
+        background: var(--v2-bg-tertiary);
+        border-top-left-radius: 4px;
+    }
+    
+    .message.user .message-content {
+        background: linear-gradient(135deg, #6366f1, #8b5cf6);
+        color: white;
+        border-top-right-radius: 4px;
+    }
+    
+    .message-content h3 {
+        margin-bottom: 12px;
+        color: var(--v2-primary-400);
+    }
+    
+    .message-content h4 {
+        margin: 16px 0 8px 0;
+        color: var(--v2-text-primary);
+    }
+    
+    .message-content ul, .message-content ol {
+        margin-left: 20px;
+        margin-bottom: 12px;
+    }
+    
+    .message-content li {
+        margin-bottom: 6px;
+    }
+    
+    /* 评分卡片 */
+    .score-cards {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 12px;
+        margin: 16px 0;
+    }
+    
+    .score-card {
+        background: rgba(0, 0, 0, 0.2);
+        padding: 12px;
+        border-radius: 8px;
+    }
+    
+    .score-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 8px;
+    }
+    
+    .score-title {
+        font-size: 14px;
+        color: var(--v2-text-secondary);
+    }
+    
+    .score-value {
+        font-size: 18px;
+        font-weight: 600;
+        color: var(--v2-primary-400);
+    }
+    
+    .score-bar {
+        height: 6px;
+        background: var(--v2-bg-primary);
+        border-radius: 3px;
+        overflow: hidden;
+    }
+    
+    .score-bar-fill {
+        height: 100%;
+        background: linear-gradient(90deg, #6366f1, #8b5cf6);
+        border-radius: 3px;
+        transition: width 0.5s ease;
+    }
+    
+    /* 输入区域 */
+    .dialogue-input {
+        padding: 16px 24px;
+        background: var(--v2-bg-tertiary);
+        border-top: 1px solid var(--v2-border-default);
+    }
+    
+    .input-container {
+        display: flex;
+        gap: 12px;
+    }
+    
+    .input-container textarea {
+        flex: 1;
+        padding: 12px 16px;
+        background: var(--v2-bg-primary);
+        border: 1px solid var(--v2-border-default);
+        border-radius: 8px;
+        color: var(--v2-text-primary);
+        resize: none;
+        min-height: 60px;
+        font-family: inherit;
+    }
+    
+    .input-container textarea:focus {
+        outline: none;
+        border-color: var(--v2-primary-500);
+    }
+    
+    .send-btn {
+        padding: 12px 24px;
+        background: linear-gradient(135deg, #6366f1, #8b5cf6);
+        border: none;
+        border-radius: 8px;
+        color: white;
+        font-weight: 500;
+        cursor: pointer;
+        transition: transform 0.2s;
+    }
+    
+    .send-btn:hover {
+        transform: translateY(-2px);
+    }
+    
+    .send-btn:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+        transform: none;
+    }
+    
+    /* 开始界面 */
+    .start-screen {
+        text-align: center;
+        padding: 60px 24px;
+    }
+    
+    .start-screen h2 {
+        font-size: 24px;
+        margin-bottom: 16px;
+    }
+    
+    .start-screen p {
+        color: var(--v2-text-secondary);
+        margin-bottom: 32px;
+        max-width: 600px;
+        margin-left: auto;
+        margin-right: auto;
+    }
+    
+    .rounds-preview {
+        display: flex;
+        justify-content: center;
+        gap: 24px;
+        margin-bottom: 32px;
+    }
+    
+    .round-preview-card {
+        width: 200px;
+        padding: 24px;
+        background: var(--v2-bg-secondary);
+        border-radius: 12px;
+        text-align: left;
+    }
+    
+    .round-preview-card .round-number {
+        width: 32px;
+        height: 32px;
+        border-radius: 50%;
+        background: linear-gradient(135deg, #6366f1, #8b5cf6);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-weight: 600;
+        margin-bottom: 12px;
+    }
+    
+    .round-preview-card h4 {
+        margin-bottom: 8px;
+    }
+    
+    .round-preview-card p {
+        font-size: 13px;
+        color: var(--v2-text-secondary);
+        margin: 0;
+    }
+    
+    .start-btn {
+        padding: 16px 48px;
+        background: linear-gradient(135deg, #6366f1, #8b5cf6);
+        border: none;
+        border-radius: 8px;
+        color: white;
+        font-size: 16px;
+        font-weight: 500;
+        cursor: pointer;
+        transition: transform 0.2s;
+    }
+    
+    .start-btn:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 8px 20px rgba(99, 102, 241, 0.4);
+    }
+    
+    /* 最终结果 */
+    .final-result {
+        background: var(--v2-bg-secondary);
+        border-radius: 16px;
+        padding: 32px;
+    }
+    
+    .final-result h2 {
+        text-align: center;
+        margin-bottom: 32px;
+    }
+    
+    .optimization-plan {
+        margin-bottom: 24px;
+    }
+    
+    .plan-section {
+        margin-bottom: 20px;
+        padding: 16px;
+        background: var(--v2-bg-tertiary);
+        border-radius: 8px;
+    }
+    
+    .plan-section h4 {
+        color: var(--v2-primary-400);
+        margin-bottom: 12px;
+    }
+    
+    .plan-section ul {
+        margin-left: 20px;
+    }
+    
+    .plan-section li {
+        margin-bottom: 8px;
+        color: var(--v2-text-secondary);
+    }
+    
+    .action-buttons {
+        display: flex;
+        justify-content: center;
+        gap: 16px;
+        margin-top: 32px;
+    }
+    
+    .action-btn {
+        padding: 12px 32px;
+        border-radius: 8px;
+        font-weight: 500;
+        cursor: pointer;
+        transition: transform 0.2s;
+    }
+    
+    .action-btn.primary {
+        background: linear-gradient(135deg, #6366f1, #8b5cf6);
+        border: none;
+        color: white;
+    }
+    
+    .action-btn.secondary {
+        background: var(--v2-bg-tertiary);
+        border: 1px solid var(--v2-border-default);
+        color: var(--v2-text-primary);
+    }
+    
+    .action-btn:hover {
+        transform: translateY(-2px);
+    }
+    
+    /* 加载动画 */
+    .loading-indicator {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+        padding: 40px;
+        color: var(--v2-text-secondary);
+    }
+    
+    .loading-indicator .spinner {
+        width: 20px;
+        height: 20px;
+        border: 2px solid var(--v2-border-default);
+        border-top-color: var(--v2-primary-500);
+        border-radius: 50%;
+        animation: spin 1s linear infinite;
+    }
+    
+    @keyframes spin {
+        to { transform: rotate(360deg); }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="adaptive-optimization-container">
+    <div class="optimization-header">
+        <h1>🎯 三轮优化适配</h1>
+        <p>通过三轮专业分析，优化您的小说设定，提升平台适配性和市场竞争力</p>
+    </div>
+    
+    <!-- 进度指示器 -->
+    <div class="round-indicator" id="roundIndicator" style="display: none;">
+        <div class="round-step" data-round="1">
+            <div class="step-number">1</div>
+            <div class="step-label">平台风格适配</div>
+        </div>
+        <div class="round-step" data-round="2">
+            <div class="step-number">2</div>
+            <div class="step-label">数据匹配优化</div>
+        </div>
+        <div class="round-step" data-round="3">
+            <div class="step-number">3</div>
+            <div class="step-label">内容完整性</div>
+        </div>
+    </div>
+    
+    <!-- 开始界面 -->
+    <div class="start-screen" id="startScreen">
+        <h2>准备开始三轮优化</h2>
+        <p>系统将基于您的一阶段产物（世界观、角色、写作计划等），进行三轮深度分析和优化建议。每轮分析后，您可以与AI对话，调整优化方向。</p>
+        
+        <div class="rounds-preview">
+            <div class="round-preview-card">
+                <div class="round-number">1</div>
+                <h4>平台风格适配</h4>
+                <p>检查核心设定、卖点、人设是否符合目标平台读者喜好</p>
+            </div>
+            <div class="round-preview-card">
+                <div class="round-number">2</div>
+                <h4>数据匹配优化</h4>
+                <p>分析是否符合市场流行套路，同时具备创意点</p>
+            </div>
+            <div class="round-preview-card">
+                <div class="round-number">3</div>
+                <h4>内容完整性</h4>
+                <p>检查是否有重大脱节问题，确保设定自洽</p>
+            </div>
+        </div>
+        
+        <button class="start-btn" onclick="startOptimization()">开始优化</button>
+    </div>
+    
+    <!-- 对话界面 -->
+    <div class="dialogue-container" id="dialogueContainer" style="display: none;">
+        <div class="dialogue-messages" id="dialogueMessages">
+            <!-- 消息将动态添加 -->
+        </div>
+        
+        <div class="dialogue-input">
+            <div class="input-container">
+                <textarea id="userInput" placeholder="请输入您的反馈或问题..." rows="3"></textarea>
+                <button class="send-btn" id="sendBtn" onclick="submitFeedback()">发送</button>
+            </div>
+        </div>
+    </div>
+    
+    <!-- 最终结果 -->
+    <div class="final-result" id="finalResult" style="display: none;">
+        <h2>✅ 优化方案已生成</h2>
+        <div class="optimization-plan" id="optimizationPlan">
+            <!-- 优化方案将动态添加 -->
+        </div>
+        <div class="action-buttons">
+            <button class="action-btn primary" onclick="exportPlan()">导出优化方案</button>
+            <button class="action-btn secondary" onclick="viewProject()">查看项目</button>
+        </div>
+    </div>
+</div>
+
+<script>
+    const projectTitle = '{{ project_title }}';
+    let currentSession = null;
+    let currentRound = 0;
+    let isProcessing = false;
+    
+    // 开始优化
+    async function startOptimization() {
+        document.getElementById('startScreen').style.display = 'none';
+        document.getElementById('roundIndicator').style.display = 'flex';
+        document.getElementById('dialogueContainer').style.display = 'block';
+        
+        addLoadingMessage();
+        
+        try {
+            const response = await fetch('/api/adaptive-optimization/start', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    title: projectTitle,
+                    platform: '番茄小说'
+                })
+            });
+            
+            const data = await response.json();
+            
+            if (data.error) {
+                throw new Error(data.error);
+            }
+            
+            currentSession = data.session_id;
+            currentRound = data.current_round;
+            
+            removeLoadingMessage();
+            updateRoundIndicator();
+            addAIMessage(data.dialogue_prompt, data.analysis);
+            
+        } catch (error) {
+            removeLoadingMessage();
+            addAIMessage(`❌ 启动失败: ${error.message}`);
+        }
+    }
+    
+    // 提交反馈
+    async function submitFeedback() {
+        if (isProcessing) return;
+        
+        const input = document.getElementById('userInput');
+        const feedback = input.value.trim();
+        
+        if (!feedback) return;
+        
+        isProcessing = true;
+        document.getElementById('sendBtn').disabled = true;
+        
+        // 添加用户消息
+        addUserMessage(feedback);
+        input.value = '';
+        
+        // 添加加载动画
+        addLoadingMessage();
+        
+        try {
+            const response = await fetch('/api/adaptive-optimization/feedback', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    session_id: currentSession,
+                    round: currentRound,
+                    feedback: feedback
+                })
+            });
+            
+            const data = await response.json();
+            
+            removeLoadingMessage();
+            
+            if (data.status === 'completed') {
+                // 三轮完成
+                document.getElementById('dialogueContainer').style.display = 'none';
+                document.getElementById('roundIndicator').style.display = 'none';
+                document.getElementById('finalResult').style.display = 'block';
+                displayFinalPlan(data.final_plan);
+            } else {
+                // 进入下一轮
+                currentRound = data.next_round;
+                updateRoundIndicator();
+                addAIMessage(data.dialogue_prompt, data.analysis);
+            }
+            
+        } catch (error) {
+            removeLoadingMessage();
+            addAIMessage(`❌ 提交失败: ${error.message}`);
+        } finally {
+            isProcessing = false;
+            document.getElementById('sendBtn').disabled = false;
+        }
+    }
+    
+    // 更新进度指示器
+    function updateRoundIndicator() {
+        document.querySelectorAll('.round-step').forEach((step, index) => {
+            const roundNum = index + 1;
+            step.classList.remove('active', 'completed');
+            
+            if (roundNum < currentRound) {
+                step.classList.add('completed');
+            } else if (roundNum === currentRound) {
+                step.classList.add('active');
+            }
+        });
+    }
+    
+    // 添加AI消息
+    function addAIMessage(content, analysis = null) {
+        const messagesDiv = document.getElementById('dialogueMessages');
+        const messageDiv = document.createElement('div');
+        messageDiv.className = 'message ai';
+        
+        let html = `
+            <div class="message-avatar">🤖</div>
+            <div class="message-content">
+                ${formatMarkdown(content)}
+        `;
+        
+        // 如果有分析数据，添加评分卡片
+        if (analysis && analysis.overall_score) {
+            html += '<div class="score-cards">';
+            for (const [key, value] of Object.entries(analysis)) {
+                if (typeof value === 'object' && value.score) {
+                    html += `
+                        <div class="score-card">
+                            <div class="score-header">
+                                <span class="score-title">${formatKey(key)}</span>
+                                <span class="score-value">${value.score}</span>
+                            </div>
+                            <div class="score-bar">
+                                <div class="score-bar-fill" style="width: ${value.score}%"></div>
+                            </div>
+                        </div>
+                    `;
+                }
+            }
+            html += '</div>';
+        }
+        
+        html += '</div>';
+        messageDiv.innerHTML = html;
+        messagesDiv.appendChild(messageDiv);
+        messagesDiv.scrollTop = messagesDiv.scrollHeight;
+    }
+    
+    // 添加用户消息
+    function addUserMessage(content) {
+        const messagesDiv = document.getElementById('dialogueMessages');
+        const messageDiv = document.createElement('div');
+        messageDiv.className = 'message user';
+        messageDiv.innerHTML = `
+            <div class="message-avatar">👤</div>
+            <div class="message-content">${escapeHtml(content)}</div>
+        `;
+        messagesDiv.appendChild(messageDiv);
+        messagesDiv.scrollTop = messagesDiv.scrollHeight;
+    }
+    
+    // 添加加载消息
+    function addLoadingMessage() {
+        const messagesDiv = document.getElementById('dialogueMessages');
+        const loadingDiv = document.createElement('div');
+        loadingDiv.className = 'loading-indicator';
+        loadingDiv.id = 'loadingMessage';
+        loadingDiv.innerHTML = '<div class="spinner"></div> AI正在分析中...';
+        messagesDiv.appendChild(loadingDiv);
+        messagesDiv.scrollTop = messagesDiv.scrollHeight;
+    }
+    
+    // 移除加载消息
+    function removeLoadingMessage() {
+        const loading = document.getElementById('loadingMessage');
+        if (loading) loading.remove();
+    }
+    
+    // 显示最终方案
+    function displayFinalPlan(plan) {
+        const planDiv = document.getElementById('optimizationPlan');
+        
+        let html = `
+            <div class="plan-section">
+                <h4>📋 优化摘要</h4>
+                <p>${plan.summary}</p>
+                <p><strong>${plan.estimated_improvement}</strong></p>
+            </div>
+        `;
+        
+        for (const [category, items] of Object.entries(plan.categorized_plan)) {
+            if (items.length > 0) {
+                html += `
+                    <div class="plan-section">
+                        <h4>${formatCategory(category)}</h4>
+                        <ul>
+                            ${items.map(item => `<li>${escapeHtml(item)}</li>`).join('')}
+                        </ul>
+                    </div>
+                `;
+            }
+        }
+        
+        if (plan.priority_actions && plan.priority_actions.length > 0) {
+            html += `
+                <div class="plan-section">
+                    <h4>🎯 优先执行项</h4>
+                    <ol>
+                        ${plan.priority_actions.map(action => `<li>${escapeHtml(action)}</li>`).join('')}
+                    </ol>
+                </div>
+            `;
+        }
+        
+        planDiv.innerHTML = html;
+    }
+    
+    // 格式化辅助函数
+    function formatMarkdown(text) {
+        // 简单的markdown格式化
+        return text
+            .replace(/## (.*)/g, '<h3>$1</h3>')
+            .replace(/### (.*)/g, '<h4>$1</h4>')
+            .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+            .replace(/\n/g, '<br>');
+    }
+    
+    function formatKey(key) {
+        const map = {
+            'platform_fit': '平台适配',
+            'character_design': '角色设计',
+            'selling_points': '卖点提炼',
+            'opening_hook': '开篇钩子',
+            'market_trend': '市场趋势',
+            'innovation': '创新性',
+            'pacing': '节奏设计',
+            'retention_prediction': '留存预测',
+            'consistency': '设定自洽',
+            'motivation': '动机一致性',
+            'plot_logic': '剧情逻辑',
+            'foreshadowing': '伏笔设计'
+        };
+        return map[key] || key;
+    }
+    
+    function formatCategory(category) {
+        const map = {
+            'immediate_fixes': '🔥 立即修复',
+            'character_enhancements': '👤 角色增强',
+            'plot_improvements': '📖 剧情改进',
+            'worldbuilding_extensions': '🌍 世界观扩展',
+            'long_term_planning': '📅 长期规划'
+        };
+        return map[category] || category;
+    }
+    
+    function escapeHtml(text) {
+        const div = document.createElement('div');
+        div.textContent = text;
+        return div.innerHTML;
+    }
+    
+    // 导出方案
+    function exportPlan() {
+        alert('优化方案已导出到项目目录：adaptive_optimization/');
+    }
+    
+    // 查看项目
+    function viewProject() {
+        window.location.href = `/project-viewer/${encodeURIComponent(projectTitle)}`;
+    }
+    
+    // 回车发送
+    document.getElementById('userInput')?.addEventListener('keydown', function(e) {
+        if (e.key === 'Enter' && !e.shiftKey) {
+            e.preventDefault();
+            submitFeedback();
+        }
+    });
+</script>
+{% endblock %}

@@ -1,0 +1,741 @@
+﻿{% extends "layouts/base-v2.html" %}
+
+{% block title %}市场导向创作 - AI小说生成{% endblock %}
+
+{% block extra_css %}
+<!-- Material Icons -->
+<link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+<style>
+/* ===== 大厂设计规范变量 ===== */
+:root {
+  --primary-gold: #f59e0b;
+  --primary-gold-light: #fbbf24;
+  --primary-gold-dark: #d97706;
+  --bg-warm: rgba(245, 158, 11, 0.03);
+  --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+  --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+  --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+  --shadow-xl: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-lg: 16px;
+  --radius-xl: 24px;
+  --transition-fast: 150ms cubic-bezier(0.4, 0, 0.2, 1);
+  --transition-normal: 250ms cubic-bezier(0.4, 0, 0.2, 1);
+  --transition-slow: 350ms cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* ===== Hero 区域 - Apple 风格大字体 + 留白 ===== */
+.market-hero {
+  text-align: center;
+  padding: 80px 24px 64px;
+  background: 
+    radial-gradient(ellipse 80% 50% at 50% -20%, rgba(245, 158, 11, 0.15), transparent),
+    linear-gradient(180deg, var(--bg-warm) 0%, transparent 60%);
+  border-radius: var(--radius-xl);
+  margin-bottom: 16px;
+  position: relative;
+  overflow: hidden;
+}
+
+.market-hero::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23f59e0b' fill-opacity='0.03'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E");
+  opacity: 0.5;
+  pointer-events: none;
+}
+
+.market-hero__eyebrow {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 20px;
+  background: rgba(245, 158, 11, 0.1);
+  backdrop-filter: blur(8px);
+  border: 1px solid rgba(245, 158, 11, 0.2);
+  border-radius: 100px;
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--primary-gold);
+  margin-bottom: 28px;
+  position: relative;
+}
+
+.market-hero__eyebrow .material-icons {
+  font-size: 18px;
+  font-family: 'Material Icons';
+  font-weight: normal;
+  font-style: normal;
+  line-height: 1;
+}
+
+.market-hero__title {
+  font-size: clamp(40px, 6vw, 56px);
+  font-weight: 800;
+  line-height: 1.1;
+  letter-spacing: -0.02em;
+  background: linear-gradient(135deg, #ffffff 0%, #fbbf24 50%, #f59e0b 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  margin-bottom: 20px;
+  position: relative;
+}
+
+.market-hero__subtitle {
+  font-size: 18px;
+  line-height: 1.7;
+  color: var(--v2-text-secondary);
+  max-width: 560px;
+  margin: 0 auto;
+  font-weight: 400;
+}
+
+/* ===== 区块标题 - 清晰的信息层级 ===== */
+.section-wrapper {
+  padding: 48px 0;
+}
+
+.section-header {
+  margin-bottom: 32px;
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 16px;
+}
+
+.section-header__main {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.section-header__icon {
+  width: 48px;
+  height: 48px;
+  background: linear-gradient(135deg, rgba(245, 158, 11, 0.15), rgba(251, 191, 36, 0.1));
+  border-radius: var(--radius-md);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--primary-gold);
+  flex-shrink: 0;
+}
+
+.section-header__icon .material-icons {
+  font-family: 'Material Icons';
+  font-size: 24px;
+  font-weight: normal;
+  font-style: normal;
+  line-height: 1;
+}
+
+.section-header__content {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.section-header__title {
+  font-size: 24px;
+  font-weight: 700;
+  color: var(--v2-text-primary);
+  line-height: 1.3;
+}
+
+.section-header__desc {
+  font-size: 15px;
+  color: var(--v2-text-secondary);
+  line-height: 1.5;
+}
+
+.section-header__meta {
+  font-size: 13px;
+  color: var(--v2-text-muted);
+  background: var(--v2-bg-tertiary);
+  padding: 8px 16px;
+  border-radius: 100px;
+  font-weight: 500;
+}
+
+/* ===== 卡片网格 - Google Material 风格 ===== */
+.genre-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: 20px;
+}
+
+.genre-card {
+  background: var(--v2-bg-secondary);
+  border: 1px solid var(--v2-border-subtle);
+  border-radius: var(--radius-lg);
+  padding: 28px;
+  cursor: pointer;
+  transition: all var(--transition-normal);
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.genre-card:hover {
+  border-color: rgba(245, 158, 11, 0.3);
+  transform: translateY(-4px);
+  box-shadow: var(--shadow-xl);
+}
+
+.genre-card--selected {
+  border-color: var(--primary-gold);
+  background: linear-gradient(135deg, rgba(245, 158, 11, 0.08), rgba(251, 191, 36, 0.04));
+  box-shadow: 0 0 0 3px rgba(245, 158, 11, 0.1), var(--shadow-lg);
+}
+
+.genre-card--selected::after {
+  content: "check_circle";
+  font-family: "Material Icons";
+  position: absolute;
+  top: 20px;
+  right: 20px;
+  color: var(--primary-gold);
+  font-size: 28px;
+  background: var(--v2-bg-secondary);
+  border-radius: 50%;
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: var(--shadow-md);
+}
+
+.genre-card__header {
+  display: flex;
+  align-items: flex-start;
+  gap: 16px;
+}
+
+.genre-card__icon-wrapper {
+  width: 56px;
+  height: 56px;
+  background: linear-gradient(135deg, rgba(245, 158, 11, 0.12), rgba(251, 191, 36, 0.08));
+  border-radius: var(--radius-md);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--primary-gold);
+  flex-shrink: 0;
+  transition: transform var(--transition-fast);
+}
+
+.genre-card__icon-wrapper .material-icons {
+  font-size: 28px;
+  font-family: 'Material Icons';
+  font-weight: normal;
+  font-style: normal;
+  line-height: 1;
+  letter-spacing: normal;
+  text-transform: none;
+  display: inline-block;
+  white-space: nowrap;
+  word-wrap: normal;
+  direction: ltr;
+  -webkit-font-feature-settings: 'liga';
+  -webkit-font-smoothing: antialiased;
+}
+
+.genre-card:hover .genre-card__icon-wrapper {
+  transform: scale(1.05);
+}
+
+.genre-card__title-group {
+  flex: 1;
+  min-width: 0;
+}
+
+.genre-card__name {
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--v2-text-primary);
+  margin-bottom: 6px;
+  line-height: 1.3;
+}
+
+.genre-card__badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 10px;
+  border-radius: 100px;
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+}
+
+.genre-card__badge--hot {
+  background: linear-gradient(135deg, #fef2f2, #fee2e2);
+  color: #dc2626;
+  border: 1px solid #fecaca;
+}
+
+.genre-card__badge--rising {
+  background: linear-gradient(135deg, #f0fdf4, #dcfce7);
+  color: #16a34a;
+  border: 1px solid #bbf7d0;
+}
+
+.genre-card__badge .material-icons {
+  font-family: 'Material Icons';
+  font-size: 12px;
+  font-weight: normal;
+  font-style: normal;
+  line-height: 1;
+}
+
+.genre-card__desc {
+  font-size: 14px;
+  color: var(--v2-text-secondary);
+  line-height: 1.6;
+  margin-top: 4px;
+}
+
+.genre-card__meta {
+  display: flex;
+  gap: 16px;
+  padding-top: 16px;
+  border-top: 1px solid var(--v2-border-subtle);
+  font-size: 13px;
+  color: var(--v2-text-muted);
+}
+
+.genre-card__meta-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.genre-card__meta-item .material-icons {
+  font-size: 16px;
+  color: var(--primary-gold);
+  font-family: 'Material Icons';
+  font-weight: normal;
+  font-style: normal;
+  line-height: 1;
+}
+
+/* ===== 骨架屏 ===== */
+.genre-skeleton {
+  background: var(--v2-bg-secondary);
+  border-radius: var(--radius-lg);
+  height: 180px;
+  border: 1px solid var(--v2-border-subtle);
+  position: relative;
+  overflow: hidden;
+}
+
+.genre-skeleton::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    rgba(255, 255, 255, 0.03) 50%,
+    transparent 100%
+  );
+  animation: shimmer 2s infinite;
+}
+
+@keyframes shimmer {
+  0% { transform: translateX(-100%); }
+  100% { transform: translateX(100%); }
+}
+
+/* ===== 底部操作区域 - 悬浮卡片风格 ===== */
+.action-panel {
+  position: sticky;
+  bottom: 24px;
+  margin-top: 48px;
+  padding: 24px 32px;
+  background: rgba(30, 41, 59, 0.95);
+  backdrop-filter: blur(20px);
+  border: 1px solid rgba(245, 158, 11, 0.2);
+  border-radius: var(--radius-xl);
+  box-shadow: 
+    0 0 0 1px rgba(0, 0, 0, 0.1),
+    0 20px 50px -10px rgba(0, 0, 0, 0.5),
+    0 0 0 1px rgba(245, 158, 11, 0.1) inset;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+  flex-wrap: wrap;
+  z-index: 100;
+  opacity: 0;
+  transform: translateY(20px);
+  pointer-events: none;
+  transition: all var(--transition-slow);
+}
+
+.action-panel--visible {
+  opacity: 1;
+  transform: translateY(0);
+  pointer-events: all;
+}
+
+.action-panel__info {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  flex: 1;
+  min-width: 200px;
+}
+
+.action-panel__icon {
+  width: 48px;
+  height: 48px;
+  background: linear-gradient(135deg, var(--primary-gold), var(--primary-gold-light));
+  border-radius: var(--radius-md);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #0f172a;
+  flex-shrink: 0;
+}
+
+.action-panel__icon .material-icons {
+  font-family: 'Material Icons';
+  font-size: 24px;
+  font-weight: normal;
+  font-style: normal;
+  line-height: 1;
+}
+
+.action-panel__text {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.action-panel__label {
+  font-size: 13px;
+  color: var(--v2-text-muted);
+  font-weight: 500;
+}
+
+.action-panel__value {
+  font-size: 18px;
+  font-weight: 700;
+  color: #ffffff;
+}
+
+.action-panel__btn {
+  background: linear-gradient(135deg, var(--primary-gold) 0%, var(--primary-gold-light) 100%);
+  color: #0f172a;
+  font-weight: 700;
+  font-size: 16px;
+  padding: 14px 32px;
+  border: none;
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  transition: all var(--transition-fast);
+  box-shadow: 0 4px 14px 0 rgba(245, 158, 11, 0.4);
+  flex-shrink: 0;
+}
+
+.action-panel__btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 25px rgba(245, 158, 11, 0.5);
+}
+
+.action-panel__btn:active {
+  transform: translateY(0);
+}
+
+.action-panel__btn .material-icons {
+  font-family: 'Material Icons';
+  font-size: 20px;
+  font-weight: normal;
+  font-style: normal;
+  line-height: 1;
+}
+
+/* ===== 空状态 ===== */
+.empty-state {
+  text-align: center;
+  padding: 80px 24px;
+  color: var(--v2-text-secondary);
+}
+
+.empty-state__icon {
+  font-size: 64px;
+  color: var(--v2-text-muted);
+  margin-bottom: 20px;
+  opacity: 0.5;
+}
+
+.empty-state__title {
+  font-size: 20px;
+  font-weight: 600;
+  color: var(--v2-text-primary);
+  margin-bottom: 8px;
+}
+
+/* ===== 响应式 ===== */
+@media (max-width: 768px) {
+  .market-hero {
+    padding: 56px 20px 48px;
+  }
+  
+  .market-hero__title {
+    font-size: 36px;
+  }
+  
+  .section-header {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+  
+  .genre-grid {
+    grid-template-columns: 1fr;
+  }
+  
+  .action-panel {
+    flex-direction: column;
+    align-items: stretch;
+    padding: 20px;
+    margin: 32px 16px 16px;
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+  }
+  
+  .action-panel__btn {
+    width: 100%;
+    justify-content: center;
+  }
+}
+
+/* ===== 选中动画 ===== */
+@keyframes selectPulse {
+  0% { box-shadow: 0 0 0 0 rgba(245, 158, 11, 0.4); }
+  70% { box-shadow: 0 0 0 12px rgba(245, 158, 11, 0); }
+  100% { box-shadow: 0 0 0 0 rgba(245, 158, 11, 0); }
+}
+
+.genre-card--selected {
+  animation: selectPulse 0.6s ease-out;
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="v2-project-container">
+  
+  <!-- Hero 区域 -->
+  <section class="market-hero">
+    <div class="market-hero__eyebrow">
+      <span class="material-icons">trending_up</span>
+      基于番茄小说 Top20 畅销书深度分析
+    </div>
+    <h1 class="market-hero__title">市场导向创作</h1>
+    <p class="market-hero__subtitle">
+      不写我想写的，只写市场需要的<br>
+      选择经过验证的热门题材，AI 自动提取爆款公式
+    </p>
+  </section>
+
+  <!-- 题材选择区域 -->
+  <section class="section-wrapper">
+    <div class="section-header">
+      <div class="section-header__main">
+        <div class="section-header__icon">
+          <span class="material-icons">category</span>
+        </div>
+        <div class="section-header__content">
+          <h2 class="section-header__title">选择题材类型</h2>
+          <p class="section-header__desc">以下 12 种题材均经过市场验证，系统会分析该品类的爆款规律</p>
+        </div>
+      </div>
+      <div class="section-header__meta">共 12 个品类</div>
+    </div>
+
+    <div class="genre-grid" id="genre-grid">
+      <div class="genre-skeleton"></div>
+      <div class="genre-skeleton"></div>
+      <div class="genre-skeleton"></div>
+      <div class="genre-skeleton"></div>
+      <div class="genre-skeleton"></div>
+      <div class="genre-skeleton"></div>
+    </div>
+  </section>
+
+  <!-- 悬浮操作面板 -->
+  <div class="action-panel" id="action-panel">
+    <div class="action-panel__info">
+      <div class="action-panel__icon">
+        <span class="material-icons">auto_fix_high</span>
+      </div>
+      <div class="action-panel__text">
+        <span class="action-panel__label">已选择题材</span>
+        <span class="action-panel__value" id="selected-genre-name">--</span>
+      </div>
+    </div>
+    <button class="action-panel__btn" onclick="startAnalysis()">
+      <span class="material-icons">psychology</span>
+      开始分析市场规律
+    </button>
+  </div>
+
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+let selectedGenre = null;
+
+const icons = {
+  "神豪文-花钱返利类": "payments",
+  "神豪文-签到奖励类": "card_giftcard",
+  "国运文-直播类": "live_tv",
+  "国运文-禁地探险类": "terrain",
+  "签到文-日常签到类": "check_circle",
+  "奶爸文-萌宝类": "child_care",
+  "奶爸文-修炼类": "sports_martial_arts",
+  "神选文-神明选拔类": "emoji_events",
+  "模拟器文-人生模拟类": "videogame_asset",
+  "灵气复苏-觉醒类": "bolt",
+  "末日求生-囤货类": "inventory_2",
+  "四合院-日常类": "home"
+};
+
+const metaInfo = {
+  "神豪文-花钱返利类": { readers: "120万+", completion: "92%" },
+  "神豪文-签到奖励类": { readers: "98万+", completion: "89%" },
+  "国运文-直播类": { readers: "150万+", completion: "94%" },
+  "国运文-禁地探险类": { readers: "85万+", completion: "87%" },
+  "签到文-日常签到类": { readers: "76万+", completion: "85%" },
+  "奶爸文-萌宝类": { readers: "110万+", completion: "91%" },
+  "奶爸文-修炼类": { readers: "68万+", completion: "83%" },
+  "神选文-神明选拔类": { readers: "95万+", completion: "88%" },
+  "模拟器文-人生模拟类": { readers: "82万+", completion: "86%" },
+  "灵气复苏-觉醒类": { readers: "135万+", completion: "93%" },
+  "末日求生-囤货类": { readers: "105万+", completion: "90%" },
+  "四合院-日常类": { readers: "72万+", completion: "84%" }
+};
+
+async function loadGenres() {
+  try {
+    const response = await fetch("/api/market-driven/genres");
+    const data = await response.json();
+    if (data.genres) {
+      renderGenres(data.genres);
+    }
+  } catch (error) {
+    console.error("加载题材失败:", error);
+    document.getElementById("genre-grid").innerHTML = `
+      <div class="empty-state" style="grid-column: 1/-1;">
+        <div class="empty-state__icon">
+          <span class="material-icons">error_outline</span>
+        </div>
+        <div class="empty-state__title">加载失败</div>
+        <p>请刷新页面重试</p>
+      </div>
+    `;
+  }
+}
+
+function renderGenres(genres) {
+  const grid = document.getElementById("genre-grid");
+  grid.innerHTML = genres.map(genre => {
+    const icon = icons[genre.name] || "auto_stories";
+    const meta = metaInfo[genre.name] || { readers: "--", completion: "--" };
+    
+    let badge = "";
+    if (genre.market_status === "热门") {
+      badge = `<span class="genre-card__badge genre-card__badge--hot">
+        <span class="material-icons" style="font-size:12px">local_fire_department</span> 热门
+      </span>`;
+    } else if (genre.market_status === "上升期") {
+      badge = `<span class="genre-card__badge genre-card__badge--rising">
+        <span class="material-icons" style="font-size:12px">trending_up</span> 上升期
+      </span>`;
+    }
+    
+    return `
+      <div class="genre-card" onclick="selectGenre('${genre.id}', this)" data-id="${genre.id}">
+        <div class="genre-card__header">
+          <div class="genre-card__icon-wrapper">
+            <span class="material-icons">${icon}</span>
+          </div>
+          <div class="genre-card__title-group">
+            <div class="genre-card__name">${genre.name}</div>
+            ${badge}
+          </div>
+        </div>
+        <div class="genre-card__desc">${genre.description}</div>
+        <div class="genre-card__meta">
+          <div class="genre-card__meta-item">
+            <span class="material-icons">people</span>
+            <span>${meta.readers} 在读</span>
+          </div>
+          <div class="genre-card__meta-item">
+            <span class="material-icons">menu_book</span>
+            <span>${meta.completion} 完读率</span>
+          </div>
+        </div>
+      </div>
+    `;
+  }).join("");
+}
+
+function selectGenre(id, element) {
+  // 移除其他选中状态
+  document.querySelectorAll(".genre-card").forEach(card => {
+    card.classList.remove("genre-card--selected");
+  });
+  
+  // 添加选中状态
+  element.classList.add("genre-card--selected");
+  selectedGenre = id;
+  
+  // 获取题材名称
+  const genreName = element.querySelector(".genre-card__name").textContent;
+  document.getElementById("selected-genre-name").textContent = genreName;
+  
+  // 显示操作面板
+  const panel = document.getElementById("action-panel");
+  panel.classList.add("action-panel--visible");
+  
+  // 平滑滚动到面板
+  setTimeout(() => {
+    panel.scrollIntoView({ behavior: "smooth", block: "nearest" });
+  }, 100);
+}
+
+function startAnalysis() {
+  if (!selectedGenre) {
+    alert("请先选择一个题材类型");
+    return;
+  }
+  window.location.href = `/market-driven-analysis?genre=${encodeURIComponent(selectedGenre)}`;
+}
+
+// 加载题材列表
+document.addEventListener("DOMContentLoaded", loadGenres);
+</script>
+{% endblock %}

@@ -232,6 +232,57 @@ Workflow
 
 确保所有内容，特别是标题和简介，都为吸引目标读者进行了极致优化。
 """,
+            
+            # 新增：市场导向套路分析
+            "trope_analysis": """# Persona
+你是一位资深的网络文学市场分析师，专注于分析番茄小说平台各类题材的爆款规律。
+
+# Task
+分析以下题材的Top20畅销书，提取其核心套路公式、开篇结构、金手指设计规则、节奏模板、冲突设计和装逼打脸时机。
+
+# Output Format
+必须以JSON格式输出，不要包含任何其他文本：
+{
+    "core_formula": "一句话概括核心套路公式",
+    "opening_pattern": {
+        "chapter_1": "第1章必须发生的情节",
+        "chapter_2": "第2章必须发生的情节",
+        "chapter_3": "第3章必须发生的情节",
+        "taboos": ["开局禁忌1", "开局禁忌2", "开局禁忌3"]
+    },
+    "golden_finger": {
+        "type": "金手指类型",
+        "activation": "激活方式",
+        "limitation": "限制条件",
+        "upgrade": "升级方式"
+    },
+    "pacing": {
+        "system_appearance": "系统出现时机",
+        "first_money": "首次使用时机",
+        "first_face_slap": "首次打脸时机",
+        "climax_interval": "爽点间隔"
+    },
+    "antagonist": {
+        "early": "早期敌人",
+        "mid": "中期敌人",
+        "late": "后期敌人",
+        "pattern": "敌人出现模式"
+    },
+    "must_have": ["必须有1", "必须有2", "必须有3", "必须有4"],
+    "must_not_have": ["不能有1", "不能有2", "不能有3"],
+    "emotion_curve": {
+        "pattern": "情绪曲线模式"
+    },
+    "platform_tips": {
+        "writing_style": "写作风格建议"
+    },
+    "success_factors": [
+        "爆款原因1：为什么这种题材受欢迎",
+        "爆款原因2：读者爽点在哪里",
+        "爆款原因3：与传统题材相比的优势",
+        "爆款原因4：番茄平台的推荐机制如何助推"
+    ]
+}""",
         }
     
     def get_prompt(self, key: str, platform: str = "fanqie") -> str:

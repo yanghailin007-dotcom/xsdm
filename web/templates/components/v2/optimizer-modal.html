@@ -1,0 +1,433 @@
+{# Phase One Optimizer Modal Component #}
+{# 第一阶段产品优化对话框组件 #}
+
+<!-- 优化按钮 - 添加到工具栏 -->
+<template id="optimizer-btn-template">
+    <button class="v2-optimize-btn" id="btn-phase-one-optimize" data-i18n="optimize_phase_one">
+        <span class="material-icons">auto_fix_high</span>
+        <span data-i18n="optimize">智能优化</span>
+    </button>
+</template>
+
+<!-- 优化对话框 -->
+<div class="v2-optimizer-modal" id="optimizer-modal" style="display: none;">
+    <div class="v2-optimizer-modal__content">
+        <!-- 头部 -->
+        <div class="v2-optimizer-modal__header">
+            <h3 data-i18n="optimizer_title">第一阶段产品智能优化</h3>
+            <button class="v2-optimizer-modal__close" id="optimizer-modal-close">
+                <span class="material-icons">close</span>
+            </button>
+        </div>
+
+        <!-- 内容区 -->
+        <div class="v2-optimizer-modal__body" id="optimizer-modal-body">
+            <!-- 步骤1: 确认对话框 -->
+            <div class="v2-optimizer-confirm" id="optimizer-step-confirm">
+                <div class="v2-optimizer-confirm__icon">
+                    <span class="material-icons" style="font-size: 48px;">psychology</span>
+                </div>
+                <h4 data-i18n="optimizer_confirm_title">开始智能优化</h4>
+                <p data-i18n="optimizer_confirm_desc">
+                    将对以下产品进行三轮深度优化分析：平台风格适配、数据匹配验证、内容连贯性检查。
+                    <br>此过程可能需要 1-2 分钟。
+                </p>
+                
+                <div class="v2-optimizer-confirm__products">
+                    <h5 data-i18n="optimizer_target_products">待优化产品</h5>
+                    <ul>
+                        <li><span class="material-icons">check_circle</span> 世界观 & 修炼体系</li>
+                        <li><span class="material-icons">check_circle</span> 核心角色设计</li>
+                        <li><span class="material-icons">check_circle</span> 势力设定</li>
+                        <li><span class="material-icons">check_circle</span> 升级路线</li>
+                        <li><span class="material-icons">check_circle</span> 写作风格</li>
+                        <li><span class="material-icons">check_circle</span> 故事线规划</li>
+                        <li><span class="material-icons">check_circle</span> 市场分析报告</li>
+                    </ul>
+                </div>
+
+                <div class="v2-optimizer-confirm__platform">
+                    <h5 data-i18n="optimizer_select_platform">选择目标平台</h5>
+                    <div class="v2-platform-selector">
+                        <div class="v2-platform-option v2-platform-option--selected" data-platform="fanqie">
+                            <span class="v2-platform-option__icon">🍅</span>
+                            <span class="v2-platform-option__name">番茄小说</span>
+                        </div>
+                        <div class="v2-platform-option" data-platform="qidian">
+                            <span class="v2-platform-option__icon">📖</span>
+                            <span class="v2-platform-option__name">起点中文网</span>
+                        </div>
+                        <div class="v2-platform-option" data-platform="general">
+                            <span class="v2-platform-option__icon">🌐</span>
+                            <span class="v2-platform-option__name">通用优化</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 步骤2: 三轮优化进度 -->
+            <div class="v2-optimizer-rounds" id="optimizer-step-progress" style="display: none;">
+                <!-- 第一轮：平台风格适配 -->
+                <div class="v2-optimizer-round" id="round-1" data-round="platform_adaptation">
+                    <div class="v2-optimizer-round__header">
+                        <div class="v2-optimizer-round__title">
+                            <span class="v2-optimizer-round__number">1</span>
+                            <span class="v2-optimizer-round__name" data-i18n="round_1_name">平台风格适配</span>
+                        </div>
+                        <div class="v2-optimizer-round__status">
+                            <span class="material-icons">schedule</span>
+                            <span data-i18n="status_waiting">等待中</span>
+                        </div>
+                    </div>
+                    <div class="v2-optimizer-round__content">
+                        <p class="v2-optimizer-round__description" data-i18n="round_1_desc">
+                            检查核心设定、卖点设计、角色人设是否符合目标平台读者偏好
+                        </p>
+                        <div class="v2-optimizer-loading" style="display: none;">
+                            <div class="v2-optimizer-loading__dots">
+                                <span></span>
+                                <span></span>
+                                <span></span>
+                            </div>
+                            <span data-i18n="optimizing">优化分析中...</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 第二轮：数据匹配 -->
+                <div class="v2-optimizer-round" id="round-2" data-round="data_matching">
+                    <div class="v2-optimizer-round__header">
+                        <div class="v2-optimizer-round__title">
+                            <span class="v2-optimizer-round__number">2</span>
+                            <span class="v2-optimizer-round__name" data-i18n="round_2_name">数据匹配</span>
+                        </div>
+                        <div class="v2-optimizer-round__status">
+                            <span class="material-icons">schedule</span>
+                            <span data-i18n="status_waiting">等待中</span>
+                        </div>
+                    </div>
+                    <div class="v2-optimizer-round__content">
+                        <p class="v2-optimizer-round__description" data-i18n="round_2_desc">
+                            验证写作计划是否符合当下市场趋势，同时确保创意性
+                        </p>
+                        <div class="v2-optimizer-loading" style="display: none;">
+                            <div class="v2-optimizer-loading__dots">
+                                <span></span>
+                                <span></span>
+                                <span></span>
+                            </div>
+                            <span data-i18n="optimizing">优化分析中...</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 第三轮：内容连贯性 -->
+                <div class="v2-optimizer-round" id="round-3" data-round="coherence_check">
+                    <div class="v2-optimizer-round__header">
+                        <div class="v2-optimizer-round__title">
+                            <span class="v2-optimizer-round__number">3</span>
+                            <span class="v2-optimizer-round__name" data-i18n="round_3_name">内容连贯性检查</span>
+                        </div>
+                        <div class="v2-optimizer-round__status">
+                            <span class="material-icons">schedule</span>
+                            <span data-i18n="status_waiting">等待中</span>
+                        </div>
+                    </div>
+                    <div class="v2-optimizer-round__content">
+                        <p class="v2-optimizer-round__description" data-i18n="round_3_desc">
+                            检查小说内容是否存在严重的断档、脱节问题
+                        </p>
+                        <div class="v2-optimizer-loading" style="display: none;">
+                            <div class="v2-optimizer-loading__dots">
+                                <span></span>
+                                <span></span>
+                                <span></span>
+                            </div>
+                            <span data-i18n="optimizing">优化分析中...</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 进度条 -->
+                <div id="optimizer-progress-container"></div>
+            </div>
+
+            <!-- 步骤3: 结果展示 -->
+            <div id="optimizer-step-result" style="display: none;">
+                <div id="optimizer-result-container"></div>
+            </div>
+        </div>
+
+        <!-- 底部按钮 -->
+        <div class="v2-optimizer-modal__footer" id="optimizer-modal-footer">
+            <button class="v2-btn v2-btn--secondary" id="optimizer-btn-cancel" data-i18n="cancel">取消</button>
+            <button class="v2-btn v2-btn--primary" id="optimizer-btn-start" data-i18n="start_optimize">开始优化</button>
+            <button class="v2-btn v2-btn--primary" id="optimizer-btn-apply" style="display: none;" data-i18n="apply_changes">应用修改</button>
+            <button class="v2-btn v2-btn--secondary" id="optimizer-btn-close" style="display: none;" data-i18n="close">关闭</button>
+        </div>
+    </div>
+</div>
+
+<script>
+/**
+ * Phase One Optimizer UI Controller
+ */
+(function() {
+    'use strict';
+
+    // 状态管理
+    const state = {
+        isRunning: false,
+        currentStep: 'confirm', // confirm, progress, result
+        selectedPlatform: 'fanqie',
+        optimizer: null
+    };
+
+    // DOM 元素
+    const elements = {
+        modal: document.getElementById('optimizer-modal'),
+        modalBody: document.getElementById('optimizer-modal-body'),
+        modalFooter: document.getElementById('optimizer-modal-footer'),
+        closeBtn: document.getElementById('optimizer-modal-close'),
+        cancelBtn: document.getElementById('optimizer-btn-cancel'),
+        startBtn: document.getElementById('optimizer-btn-start'),
+        applyBtn: document.getElementById('optimizer-btn-apply'),
+        closeResultBtn: document.getElementById('optimizer-btn-close'),
+        stepConfirm: document.getElementById('optimizer-step-confirm'),
+        stepProgress: document.getElementById('optimizer-step-progress'),
+        stepResult: document.getElementById('optimizer-step-result'),
+        progressContainer: document.getElementById('optimizer-progress-container'),
+        resultContainer: document.getElementById('optimizer-result-container'),
+        platformOptions: document.querySelectorAll('.v2-platform-option'),
+        rounds: {
+            1: document.getElementById('round-1'),
+            2: document.getElementById('round-2'),
+            3: document.getElementById('round-3')
+        }
+    };
+
+    // 平台选择
+    elements.platformOptions.forEach(option => {
+        option.addEventListener('click', () => {
+            elements.platformOptions.forEach(o => o.classList.remove('v2-platform-option--selected'));
+            option.classList.add('v2-platform-option--selected');
+            state.selectedPlatform = option.dataset.platform;
+        });
+    });
+
+    // 关闭对话框
+    function closeModal() {
+        elements.modal.style.display = 'none';
+        if (state.optimizer) {
+            state.optimizer.cancel();
+        }
+        resetUI();
+    }
+
+    // 重置UI
+    function resetUI() {
+        state.currentStep = 'confirm';
+        state.isRunning = false;
+        
+        elements.stepConfirm.style.display = 'block';
+        elements.stepProgress.style.display = 'none';
+        elements.stepResult.style.display = 'none';
+        
+        elements.cancelBtn.style.display = 'inline-flex';
+        elements.startBtn.style.display = 'inline-flex';
+        elements.applyBtn.style.display = 'none';
+        elements.closeResultBtn.style.display = 'none';
+        
+        // 重置轮次状态
+        Object.values(elements.rounds).forEach(round => {
+            round.classList.remove('v2-optimizer-round--active', 'v2-optimizer-round--completed');
+            round.querySelector('.v2-optimizer-loading').style.display = 'none';
+            round.querySelector('.v2-optimizer-round__status').innerHTML = `
+                <span class="material-icons">schedule</span>
+                <span>等待中</span>
+            `;
+        });
+        
+        elements.progressContainer.innerHTML = '';
+    }
+
+    // 开始优化
+    async function startOptimization() {
+        state.isRunning = true;
+        state.currentStep = 'progress';
+        
+        // 切换界面
+        elements.stepConfirm.style.display = 'none';
+        elements.stepProgress.style.display = 'flex';
+        elements.cancelBtn.style.display = 'none';
+        elements.startBtn.style.display = 'none';
+        
+        // 获取当前项目标题
+        const title = window.currentProjectTitle || document.querySelector('[data-project-title]')?.dataset.projectTitle;
+        
+        if (!title) {
+            alert('无法获取项目标题');
+            closeModal();
+            return;
+        }
+
+        // 初始化优化器
+        state.optimizer = new PhaseOneOptimizer({
+            title: title,
+            platform: state.selectedPlatform,
+            onProgress: handleProgress,
+            onComplete: handleComplete,
+            onError: handleError
+        });
+
+        try {
+            await state.optimizer.start();
+        } catch (error) {
+            handleError(error);
+        }
+    }
+
+    // 处理进度更新
+    function handleProgress(data) {
+        const roundMap = {
+            'platform_adaptation': 1,
+            'data_matching': 2,
+            'coherence_check': 3
+        };
+        
+        const roundNum = roundMap[data.current_round];
+        
+        // 更新当前轮次UI
+        if (roundNum) {
+            // 标记之前的轮次为完成
+            for (let i = 1; i < roundNum; i++) {
+                elements.rounds[i].classList.add('v2-optimizer-round--completed');
+                elements.rounds[i].classList.remove('v2-optimizer-round--active');
+                elements.rounds[i].querySelector('.v2-optimizer-loading').style.display = 'none';
+                elements.rounds[i].querySelector('.v2-optimizer-round__status').innerHTML = `
+                    <span class="material-icons" style="color: #22c55e;">check_circle</span>
+                    <span style="color: #22c55e;">完成</span>
+                `;
+            }
+            
+            // 标记当前轮次为进行中
+            elements.rounds[roundNum].classList.add('v2-optimizer-round--active');
+            elements.rounds[roundNum].querySelector('.v2-optimizer-loading').style.display = 'flex';
+            elements.rounds[roundNum].querySelector('.v2-optimizer-round__status').innerHTML = `
+                <span class="material-icons" style="color: #6366f1;">sync</span>
+                <span style="color: #6366f1;">进行中</span>
+            `;
+        }
+        
+        // 更新进度条
+        elements.progressContainer.innerHTML = `
+            <div class="v2-optimization-progress">
+                <div class="v2-optimization-progress__info">
+                    <span class="v2-optimization-progress__round">${getRoundName(data.current_round)}</span>
+                    <span class="v2-optimization-progress__percent">${data.progress}%</span>
+                </div>
+                <div class="v2-optimization-progress__bar">
+                    <div class="v2-optimization-progress__fill" style="width: ${data.progress}%"></div>
+                </div>
+                ${data.message ? `<p class="v2-optimization-progress__message">${data.message}</p>` : ''}
+            </div>
+        `;
+    }
+
+    // 获取轮次名称
+    function getRoundName(round) {
+        const names = {
+            'platform_adaptation': '平台风格适配',
+            'data_matching': '数据匹配',
+            'coherence_check': '内容连贯性检查',
+            'synthesis': '综合分析'
+        };
+        return names[round] || '优化中';
+    }
+
+    // 处理完成
+    function handleComplete(result) {
+        state.isRunning = false;
+        state.currentStep = 'result';
+        
+        // 标记所有轮次为完成
+        Object.values(elements.rounds).forEach(round => {
+            round.classList.add('v2-optimizer-round--completed');
+            round.classList.remove('v2-optimizer-round--active');
+            round.querySelector('.v2-optimizer-loading').style.display = 'none';
+            round.querySelector('.v2-optimizer-round__status').innerHTML = `
+                <span class="material-icons" style="color: #22c55e;">check_circle</span>
+                <span style="color: #22c55e;">完成</span>
+            `;
+        });
+        
+        // 显示结果
+        elements.stepProgress.style.display = 'none';
+        elements.stepResult.style.display = 'block';
+        
+        // 更新按钮
+        elements.cancelBtn.style.display = 'none';
+        elements.startBtn.style.display = 'none';
+        elements.applyBtn.style.display = 'inline-flex';
+        elements.closeResultBtn.style.display = 'inline-flex';
+        
+        // 渲染结果
+        renderResult(result);
+    }
+
+    // 渲染结果
+    function renderResult(result) {
+        const renderer = new OptimizationResultRenderer('optimizer-result-container');
+        renderer.render(result);
+    }
+
+    // 处理错误
+    function handleError(error) {
+        console.error('Optimization error:', error);
+        state.isRunning = false;
+        
+        elements.progressContainer.innerHTML = `
+            <div style="text-align: center; padding: 20px; color: #ef4444;">
+                <span class="material-icons" style="font-size: 48px; margin-bottom: 10px;">error_outline</span>
+                <p>优化失败: ${error.message || '未知错误'}</p>
+            </div>
+        `;
+        
+        // 恢复按钮
+        elements.cancelBtn.style.display = 'inline-flex';
+        elements.startBtn.style.display = 'inline-flex';
+    }
+
+    // 应用优化
+    async function applyOptimization() {
+        // TODO: 实现应用优化建议的逻辑
+        alert('优化建议已应用！');
+        closeModal();
+    }
+
+    // 事件监听
+    elements.closeBtn.addEventListener('click', closeModal);
+    elements.cancelBtn.addEventListener('click', closeModal);
+    elements.startBtn.addEventListener('click', startOptimization);
+    elements.applyBtn.addEventListener('click', applyOptimization);
+    elements.closeResultBtn.addEventListener('click', closeModal);
+
+    // 点击背景关闭
+    elements.modal.addEventListener('click', (e) => {
+        if (e.target === elements.modal && !state.isRunning) {
+            closeModal();
+        }
+    });
+
+    // 暴露全局函数
+    window.openOptimizerModal = function() {
+        resetUI();
+        elements.modal.style.display = 'flex';
+    };
+
+    window.applyOptimization = applyOptimization;
+    window.exportReport = function() {
+        alert('导出功能开发中...');
+    };
+})();
+</script>

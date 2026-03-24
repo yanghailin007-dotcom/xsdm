@@ -344,13 +344,24 @@ class PhaseGenerator:
             print("✅ 已完成：基础规划、世界观构建、角色设计、全书规划")
             print("📝 下一步：可以继续第二阶段的章节内容生成")
 
-            # 🔥 新增：自动进行质量评估 (100%)
-            update_step_status('quality_assessment', 'active', 100)
-            update_progress_callback('quality_assessment', 100, "正在进行AI质量评估...",
+            # 🔥 新增：先执行三轮智能优化，再进行质量评估 (100%)
+            update_step_status('quality_assessment', 'active', 95)
+            update_progress_callback('quality_assessment', 95, "正在进行三轮智能优化...",
                                      step_status={'quality_assessment': 'active'})
             print("\n" + "="*60)
-            print("📊 正在进行写作计划AI质量评估...")
+            print("✨ 正在进行三轮智能优化 + 质量评估...")
             print("="*60)
+            
+            # 步骤1: 三轮智能优化
+            optimization_result = self._run_phase_one_optimization()
+            if optimization_result:
+                self.generator.novel_data["phase_one_optimization"] = optimization_result
+                print(f"✅ 三轮优化完成！综合评分: {optimization_result.get('overall_score', 0)}/100")
+            else:
+                print("⚠️ 优化过程出现问题，继续执行质量评估...")
+            
+            # 步骤2: 质量评估
+            print("\n📊 正在进行质量评估...")
             assessment_result = self._assess_writing_plan_quality()
             if assessment_result:
                 self.generator.novel_data["quality_assessment"] = assessment_result
@@ -610,8 +621,17 @@ class PhaseGenerator:
             update_step_status('saving', 'completed', 95)
             save_checkpoint_for_step('saving', 95, 'completed')
             
-            # 质量评估
-            print("\n📊 正在进行AI质量评估...")
+            # 智能优化 + 质量评估
+            print("\n✨ 正在进行三轮智能优化...")
+            update_step_status('quality_assessment', 'active', 96)
+            save_checkpoint_for_step('quality_assessment', 96, 'active')
+            
+            optimization_result = self._run_phase_one_optimization()
+            if optimization_result:
+                self.generator.novel_data["phase_one_optimization"] = optimization_result
+                print(f"✅ 三轮优化完成！综合评分: {optimization_result.get('overall_score', 0)}/100")
+            
+            print("\n📊 正在进行质量评估...")
             update_step_status('quality_assessment', 'active', 98)
             save_checkpoint_for_step('quality_assessment', 98, 'active')
             
@@ -2913,6 +2933,165 @@ class PhaseGenerator:
             return True
         else:
             return False
+
+    # ==================== 智能优化方法 ====================
+
+    def _run_phase_one_optimization(self) -> Optional[Dict]:
+        """
+        执行第一阶段三轮智能优化
+        
+        流程:
+        1. 加载第一阶段所有产品
+        2. 执行三轮智能优化 (平台风格适配 → 数据匹配 → 连贯性检查)
+        3. 保存优化结果
+        
+        Returns:
+            优化结果字典
+        """
+        try:
+            print("\n" + "-"*50)
+            print("🚀 启动第一阶段三轮智能优化")
+            print("-"*50)
+            
+            # 导入优化服务
+            try:
+                from web.services.phase_one_optimizer import PhaseOneOptimizer
+            except ImportError:
+                print("⚠️ 优化服务不可用，跳过优化步骤")
+                return None
+            
+            # 获取小说标题
+            novel_title = self.generator.novel_data.get("novel_title", "")
+            if not novel_title:
+                print("⚠️ 无法获取小说标题，跳过优化")
+                return None
+            
+            # 加载第一阶段产品
+            print(f"\n📦 正在加载第一阶段产品数据...")
+            products = self._load_phase_one_products(novel_title)
+            
+            if not products:
+                print("⚠️ 未找到有效的产品数据，跳过优化")
+                return None
+            
+            print(f"✅ 已加载 {len(products)} 个产品: {', '.join(products.keys())}")
+            
+            # 获取平台设置（默认为fanqie）
+            platform = self.generator.novel_data.get("platform", "fanqie")
+            if not platform:
+                platform = "fanqie"
+            
+            print(f"\n🎯 目标平台: {platform}")
+            
+            # 创建优化器并执行优化
+            optimizer = PhaseOneOptimizer(api_client=self.generator.api_client)
+            
+            print("\n🔄 开始三轮优化...")
+            print("   第1轮: 平台风格适配")
+            print("   第2轮: 数据匹配")
+            print("   第3轮: 内容连贯性检查")
+            
+            optimization_result = optimizer.optimize(products, platform)
+            
+            # 保存优化结果
+            self._save_optimization_result(novel_title, optimization_result)
+            
+            # 打印优化摘要
+            print("\n📊 三轮优化完成!")
+            print(f"   总体评分: {optimization_result.get('overall_score', 0)}/100")
+            print(f"   平台适配: {optimization_result.get('rounds', {}).get('platform_adaptation', {}).get('score', 0)}分")
+            print(f"   数据匹配: {optimization_result.get('rounds', {}).get('data_matching', {}).get('score', 0)}分")
+            print(f"   连贯性检查: {optimization_result.get('rounds', {}).get('coherence_check', {}).get('score', 0)}分")
+            
+            priority_actions = optimization_result.get('priority_actions', {})
+            high_priority = priority_actions.get('high', [])
+            if high_priority:
+                print(f"   ⚠️ 高优先级改进项: {len(high_priority)}个")
+            
+            print("-"*50)
+            
+            return optimization_result
+            
+        except Exception as e:
+            print(f"⚠️ 三轮优化过程出错: {e}")
+            import traceback
+            traceback.print_exc()
+            return None
+    
+    def _load_phase_one_products(self, novel_title: str) -> Dict[str, Any]:
+        """加载第一阶段产品数据"""
+        products = {}
+        
+        # 从novel_data中获取产品数据
+        product_mapping = {
+            'worldview': 'worldview',
+            'characters': 'character_design',
+            'factions': 'faction_system',
+            'growth': 'growth_plan',
+            'writing': 'writing_style',
+            'storyline': 'stage_plan',
+            'market_analysis': 'market_analysis'
+        }
+        
+        for key, data_key in product_mapping.items():
+            data = self.generator.novel_data.get(data_key)
+            if data:
+                products[key] = data
+        
+        # 如果从novel_data中没有获取到完整数据，尝试从文件加载
+        if len(products) < 4:  # 如果产品数量少于4个，尝试从文件加载
+            try:
+                import os
+                from pathlib import Path
+                
+                # 构建项目路径
+                username = getattr(self.generator, '_username', None)
+                base_path = Path("小说项目") / (username or "") / novel_title
+                
+                product_files = {
+                    'worldview': '世界观设定.json',
+                    'characters': '核心角色.json',
+                    'factions': '势力设定.json',
+                    'growth': '升级路线.json',
+                    'writing': '写作风格.json',
+                    'storyline': '故事线.json',
+                    'market_analysis': '市场分析.json'
+                }
+                
+                for key, filename in product_files.items():
+                    if key not in products:  # 只加载缺失的产品
+                        file_path = base_path / filename
+                        if file_path.exists():
+                            try:
+                                with open(file_path, 'r', encoding='utf-8') as f:
+                                    products[key] = json.load(f)
+                            except Exception as e:
+                                print(f"   ⚠️ 加载 {filename} 失败: {e}")
+                
+            except Exception as e:
+                print(f"   ⚠️ 从文件加载产品数据失败: {e}")
+        
+        return products
+    
+    def _save_optimization_result(self, novel_title: str, result: Dict):
+        """保存优化结果到项目目录"""
+        try:
+            import os
+            from pathlib import Path
+            
+            username = getattr(self.generator, '_username', None)
+            base_path = Path("小说项目") / (username or "") / novel_title
+            base_path.mkdir(parents=True, exist_ok=True)
+            
+            report_path = base_path / "phase_one_optimization.json"
+            
+            with open(report_path, 'w', encoding='utf-8') as f:
+                json.dump(result, f, ensure_ascii=False, indent=2)
+            
+            print(f"✅ 优化结果已保存: {report_path}")
+            
+        except Exception as e:
+            print(f"⚠️ 保存优化结果失败: {e}")
 
     # ==================== 质量评估方法 ====================
 

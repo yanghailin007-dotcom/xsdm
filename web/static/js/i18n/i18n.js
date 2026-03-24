@@ -26,10 +26,35 @@ const I18N = {
             if (response.ok) {
                 this.translations = await response.json();
                 console.log(`[I18N] Loaded ${lang}.json: ${Object.keys(this.translations).length} keys`);
+                this.applyTranslations();
             }
         } catch (error) {
             console.warn(`[I18N] Failed to load ${lang}.json:`, error);
         }
+    }
+    
+    applyTranslations() {
+        // 应用翻译到所有 data-i18n 元素
+        document.querySelectorAll('[data-i18n]').forEach(el => {
+            const key = el.getAttribute('data-i18n');
+            const fallback = el.textContent;
+            const translation = this.t(key, fallback);
+            if (translation) {
+                el.textContent = translation;
+            }
+        });
+        
+        // 应用翻译到所有 data-i18n-placeholder 元素
+        document.querySelectorAll('[data-i18n-placeholder]').forEach(el => {
+            const key = el.getAttribute('data-i18n-placeholder');
+            const fallback = el.getAttribute('placeholder');
+            const translation = this.t(key, fallback);
+            if (translation) {
+                el.setAttribute('placeholder', translation);
+            }
+        });
+        
+        console.log('[I18N] Translations applied');
     },
     
     t(key, fallback = null) {

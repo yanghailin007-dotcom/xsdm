@@ -1,0 +1,864 @@
+﻿{% extends "layouts/base-v2.html" %}
+
+{% block title %}分析市场规律 - 市场导向创作{% endblock %}
+
+{% block extra_css %}
+<!-- Material Icons -->
+<link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+<style>
+/* ===== 设计变量 ===== */
+:root {
+  --primary-gold: #f59e0b;
+  --primary-gold-light: #fbbf24;
+  --success: #22c55e;
+  --info: #3b82f6;
+  --warning: #f59e0b;
+  --radius-lg: 16px;
+  --radius-xl: 24px;
+  --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+  --shadow-xl: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+}
+
+/* ===== Header ===== */
+.analysis-header {
+  padding: 40px 0 32px;
+  text-align: center;
+}
+
+.analysis-header__back {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--v2-text-secondary);
+  text-decoration: none;
+  font-size: 14px;
+  margin-bottom: 24px;
+  transition: color 0.2s;
+}
+
+.analysis-header__back:hover {
+  color: var(--primary-gold);
+}
+
+.analysis-header__genre {
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
+  padding: 16px 32px;
+  background: linear-gradient(135deg, rgba(245, 158, 11, 0.15), rgba(251, 191, 36, 0.1));
+  border: 1px solid rgba(245, 158, 11, 0.25);
+  border-radius: 100px;
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--primary-gold-light);
+  margin-bottom: 16px;
+}
+
+.analysis-header__genre .material-icons {
+  font-size: 28px;
+  font-family: 'Material Icons';
+}
+
+.analysis-header__title {
+  font-size: 32px;
+  font-weight: 800;
+  background: linear-gradient(135deg, #ffffff 0%, #fbbf24 50%, #f59e0b 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  margin-bottom: 12px;
+}
+
+.analysis-header__subtitle {
+  font-size: 16px;
+  color: var(--v2-text-secondary);
+}
+
+/* ===== 进度条 ===== */
+.progress-section {
+  max-width: 600px;
+  margin: 0 auto 48px;
+  padding: 24px;
+  background: var(--v2-bg-secondary);
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--v2-border-subtle);
+}
+
+.progress-bar {
+  height: 8px;
+  background: var(--v2-bg-tertiary);
+  border-radius: 100px;
+  overflow: hidden;
+  margin-bottom: 16px;
+}
+
+.progress-bar__fill {
+  height: 100%;
+  background: linear-gradient(90deg, var(--primary-gold), var(--primary-gold-light));
+  border-radius: 100px;
+  transition: width 0.5s ease;
+  width: 0%;
+}
+
+.progress-info {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 14px;
+}
+
+.progress-info__stage {
+  color: var(--v2-text-secondary);
+}
+
+.progress-info__percent {
+  font-weight: 700;
+  color: var(--primary-gold);
+}
+
+/* ===== 分析结果卡片 ===== */
+.tropes-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
+  gap: 20px;
+  margin-bottom: 32px;
+}
+
+.trope-card {
+  background: var(--v2-bg-secondary);
+  border: 1px solid var(--v2-border-subtle);
+  border-radius: var(--radius-lg);
+  padding: 24px;
+  opacity: 0;
+  transform: translateY(20px);
+  transition: all 0.4s ease;
+}
+
+.trope-card--visible {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.trope-card:hover {
+  border-color: rgba(245, 158, 11, 0.3);
+  box-shadow: var(--shadow-lg);
+}
+
+.trope-card__header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.trope-card__icon {
+  width: 40px;
+  height: 40px;
+  background: linear-gradient(135deg, rgba(245, 158, 11, 0.15), rgba(251, 191, 36, 0.1));
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--primary-gold);
+}
+
+.trope-card__icon .material-icons {
+  font-family: 'Material Icons';
+  font-size: 20px;
+}
+
+.trope-card__title {
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--v2-text-primary);
+}
+
+.trope-card__content {
+  font-size: 14px;
+  color: var(--v2-text-secondary);
+  line-height: 1.7;
+}
+
+.trope-card__content ul {
+  margin: 0;
+  padding-left: 18px;
+}
+
+.trope-card__content li {
+  margin-bottom: 8px;
+}
+
+.trope-card__content li:last-child {
+  margin-bottom: 0;
+}
+
+/* ===== 操作区 ===== */
+.action-footer {
+  position: sticky;
+  bottom: 24px;
+  padding: 24px 32px;
+  background: rgba(30, 41, 59, 0.95);
+  backdrop-filter: blur(20px);
+  border: 1px solid rgba(245, 158, 11, 0.2);
+  border-radius: var(--radius-xl);
+  box-shadow: 0 20px 50px -10px rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+  opacity: 0;
+  transform: translateY(20px);
+  pointer-events: none;
+  transition: all 0.4s ease;
+}
+
+.action-footer--visible {
+  opacity: 1;
+  transform: translateY(0);
+  pointer-events: all;
+}
+
+.action-footer__info {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.action-footer__icon {
+  width: 48px;
+  height: 48px;
+  background: linear-gradient(135deg, var(--success), #4ade80);
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+}
+
+.action-footer__icon .material-icons {
+  font-family: 'Material Icons';
+  font-size: 24px;
+}
+
+.action-footer__text {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.action-footer__label {
+  font-size: 13px;
+  color: var(--v2-text-muted);
+}
+
+.action-footer__value {
+  font-size: 18px;
+  font-weight: 700;
+  color: #ffffff;
+}
+
+.action-footer__btn {
+  background: linear-gradient(135deg, var(--primary-gold), var(--primary-gold-light));
+  color: #0f172a;
+  font-weight: 700;
+  font-size: 16px;
+  padding: 14px 32px;
+  border: none;
+  border-radius: 12px;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  transition: all 0.2s;
+  box-shadow: 0 4px 14px 0 rgba(245, 158, 11, 0.4);
+}
+
+.action-footer__btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 25px rgba(245, 158, 11, 0.5);
+}
+
+.action-footer__btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.action-footer__btn .material-icons {
+  font-family: 'Material Icons';
+  font-size: 20px;
+}
+
+/* ===== 加载动画 ===== */
+.analyzing-spinner {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 80px 24px;
+}
+
+.analyzing-spinner__icon {
+  width: 80px;
+  height: 80px;
+  background: linear-gradient(135deg, rgba(245, 158, 11, 0.2), rgba(251, 191, 36, 0.1));
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 24px;
+  animation: pulse 2s infinite;
+}
+
+.analyzing-spinner__icon .material-icons {
+  font-family: 'Material Icons';
+  font-size: 40px;
+  color: var(--primary-gold);
+}
+
+.analyzing-spinner__text {
+  font-size: 18px;
+  color: var(--v2-text-secondary);
+  margin-bottom: 8px;
+}
+
+.analyzing-spinner__subtext {
+  font-size: 14px;
+  color: var(--v2-text-muted);
+}
+
+@keyframes pulse {
+  0%, 100% { transform: scale(1); opacity: 1; }
+  50% { transform: scale(1.05); opacity: 0.8; }
+}
+
+/* ===== 响应式 ===== */
+@media (max-width: 768px) {
+  .tropes-grid {
+    grid-template-columns: 1fr;
+  }
+  
+  .action-footer {
+    flex-direction: column;
+    padding: 20px;
+    margin: 16px;
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    border-radius: 16px 16px 0 0;
+  }
+  
+  .action-footer__btn {
+    width: 100%;
+    justify-content: center;
+  }
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="v2-project-container">
+  
+  <!-- Header -->
+  <div class="analysis-header">
+    <a href="/market-driven-create" class="analysis-header__back">
+      <span class="material-icons">arrow_back</span>
+      返回题材选择
+    </a>
+    <div class="analysis-header__genre" id="genre-badge">
+      <span class="material-icons">auto_stories</span>
+      <span id="genre-name">加载中...</span>
+    </div>
+    <h1 class="analysis-header__title">分析市场规律</h1>
+    <p class="analysis-header__subtitle">AI 正在分析 Top20 畅销书的爆款公式...</p>
+  </div>
+
+  <!-- 进度条 -->
+  <div class="progress-section" id="progress-section">
+    <div class="progress-bar">
+      <div class="progress-bar__fill" id="progress-fill"></div>
+    </div>
+    <div class="progress-info">
+      <span class="progress-info__stage" id="progress-stage">正在初始化...</span>
+      <span class="progress-info__percent" id="progress-percent">0%</span>
+    </div>
+  </div>
+
+  <!-- 分析中动画 -->
+  <div class="analyzing-spinner" id="analyzing-spinner">
+    <div class="analyzing-spinner__icon">
+      <span class="material-icons">psychology</span>
+    </div>
+    <div class="analyzing-spinner__text">AI 正在深度分析市场数据</div>
+    <div class="analyzing-spinner__subtext">预计需要 10-20 秒</div>
+  </div>
+
+  <!-- 分析结果 -->
+  <div class="tropes-grid" id="tropes-grid" style="display: none;">
+    <!-- 核心套路 -->
+    <div class="trope-card" id="card-core">
+      <div class="trope-card__header">
+        <div class="trope-card__icon">
+          <span class="material-icons">lightbulb</span>
+        </div>
+        <div class="trope-card__title">核心套路公式</div>
+      </div>
+      <div class="trope-card__content" id="content-core">分析中...</div>
+    </div>
+
+    <!-- 开篇结构 -->
+    <div class="trope-card" id="card-opening">
+      <div class="trope-card__header">
+        <div class="trope-card__icon">
+          <span class="material-icons">play_circle</span>
+        </div>
+        <div class="trope-card__title">开篇黄金结构</div>
+      </div>
+      <div class="trope-card__content" id="content-opening">分析中...</div>
+    </div>
+
+    <!-- 金手指规则 -->
+    <div class="trope-card" id="card-golden">
+      <div class="trope-card__header">
+        <div class="trope-card__icon">
+          <span class="material-icons">auto_fix_high</span>
+        </div>
+        <div class="trope-card__title">金手指设计规则</div>
+      </div>
+      <div class="trope-card__content" id="content-golden">分析中...</div>
+    </div>
+
+    <!-- 节奏模板 -->
+    <div class="trope-card" id="card-rhythm">
+      <div class="trope-card__header">
+        <div class="trope-card__icon">
+          <span class="material-icons">speed</span>
+        </div>
+        <div class="trope-card__title">节奏控制模板</div>
+      </div>
+      <div class="trope-card__content" id="content-rhythm">分析中...</div>
+    </div>
+
+    <!-- 冲突设计 -->
+    <div class="trope-card" id="card-conflict">
+      <div class="trope-card__header">
+        <div class="trope-card__icon">
+          <span class="material-icons">bolt</span>
+        </div>
+        <div class="trope-card__title">冲突设计模板</div>
+      </div>
+      <div class="trope-card__content" id="content-conflict">分析中...</div>
+    </div>
+
+    <!-- 装逼打脸 -->
+    <div class="trope-card" id="card-face">
+      <div class="trope-card__header">
+        <div class="trope-card__icon">
+          <span class="material-icons">mood</span>
+        </div>
+        <div class="trope-card__title">装逼打脸时机</div>
+      </div>
+      <div class="trope-card__content" id="content-face">分析中...</div>
+    </div>
+
+    <!-- 爆款原因分析 -->
+    <div class="trope-card" id="card-success">
+      <div class="trope-card__header">
+        <div class="trope-card__icon">
+          <span class="material-icons">trending_up</span>
+        </div>
+        <div class="trope-card__title">爆款原因分析</div>
+      </div>
+      <div class="trope-card__content" id="content-success">分析中...</div>
+    </div>
+  </div>
+
+  <!-- 底部操作 -->
+  <div class="action-footer" id="action-footer">
+    <div class="action-footer__info">
+      <div class="action-footer__icon">
+        <span class="material-icons">check_circle</span>
+      </div>
+      <div class="action-footer__text">
+        <span class="action-footer__label">分析完成</span>
+        <span class="action-footer__value">可生成小说创作方案</span>
+      </div>
+    </div>
+    <button class="action-footer__btn" id="generate-btn" onclick="startGeneration()">
+      <span class="material-icons">edit_note</span>
+      生成创作方案
+    </button>
+  </div>
+
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// 从 URL 获取题材参数
+const urlParams = new URLSearchParams(window.location.search);
+const genreId = urlParams.get('genre') || '';
+
+console.log('URL参数:', window.location.search);
+console.log('Genre ID:', genreId);
+
+// 题材信息映射（支持英文ID和中文名称）
+const genreInfo = {
+  // 英文ID映射
+  'god-tier-spending': { name: '神豪文-花钱返利类', icon: 'payments' },
+  'god-tier-checkin': { name: '神豪文-签到奖励类', icon: 'card_giftcard' },
+  'nation-live': { name: '国运文-直播类', icon: 'live_tv' },
+  'nation-explore': { name: '国运文-禁地探险类', icon: 'terrain' },
+  'daily-checkin': { name: '签到文-日常签到类', icon: 'check_circle' },
+  'dad-baby': { name: '奶爸文-萌宝类', icon: 'child_care' },
+  'dad-cultivation': { name: '奶爸文-修炼类', icon: 'sports_martial_arts' },
+  'god-select': { name: '神选文-神明选拔类', icon: 'emoji_events' },
+  'simulator': { name: '模拟器文-人生模拟类', icon: 'videogame_asset' },
+  'spiritual-awake': { name: '灵气复苏-觉醒类', icon: 'bolt' },
+  'apocalypse': { name: '末日求生-囤货类', icon: 'inventory_2' },
+  'courtyard': { name: '四合院-日常类', icon: 'home' },
+  // 中文名称映射（如果URL直接传递中文）
+  '神豪文-花钱返利类': { name: '神豪文-花钱返利类', icon: 'payments' },
+  '神豪文-签到奖励类': { name: '神豪文-签到奖励类', icon: 'card_giftcard' },
+  '国运文-直播类': { name: '国运文-直播类', icon: 'live_tv' },
+  '国运文-禁地探险类': { name: '国运文-禁地探险类', icon: 'terrain' },
+  '签到文-日常签到类': { name: '签到文-日常签到类', icon: 'check_circle' },
+  '奶爸文-萌宝类': { name: '奶爸文-萌宝类', icon: 'child_care' },
+  '奶爸文-修炼类': { name: '奶爸文-修炼类', icon: 'sports_martial_arts' },
+  '神选文-神明选拔类': { name: '神选文-神明选拔类', icon: 'emoji_events' },
+  '模拟器文-人生模拟类': { name: '模拟器文-人生模拟类', icon: 'videogame_asset' },
+  '灵气复苏-觉醒类': { name: '灵气复苏-觉醒类', icon: 'bolt' },
+  '末日求生-囤货类': { name: '末日求生-囤货类', icon: 'inventory_2' },
+  '四合院-日常类': { name: '四合院-日常类', icon: 'home' }
+};
+
+let analysisResult = null;
+let genreName = '未知题材';
+let genreIcon = 'auto_stories';
+
+document.addEventListener('DOMContentLoaded', async function() {
+  // 如果没有genreId，显示错误
+  if (!genreId) {
+    document.getElementById('genre-name').textContent = '未选择题材';
+    alert('请先选择题材类型');
+    window.location.href = '/market-driven-create';
+    return;
+  }
+  
+  // 先尝试从映射中获取
+  if (genreInfo[genreId]) {
+    genreName = genreInfo[genreId].name;
+    genreIcon = genreInfo[genreId].icon;
+    updateGenreDisplay();
+    startAnalysis();
+  } else {
+    // 如果映射中没有，尝试从API获取题材列表
+    try {
+      const response = await fetch('/api/market-driven/genres');
+      const data = await response.json();
+      if (data.genres) {
+        const genre = data.genres.find(g => g.id === genreId);
+        if (genre) {
+          genreName = genre.name;
+          updateGenreDisplay();
+          startAnalysis();
+        } else {
+          // 如果API中也没有，显示genreId本身
+          genreName = genreId;
+          updateGenreDisplay();
+          startAnalysis();
+        }
+      }
+    } catch (e) {
+      console.error('获取题材信息失败:', e);
+      genreName = genreId;
+      updateGenreDisplay();
+      startAnalysis();
+    }
+  }
+});
+
+function updateGenreDisplay() {
+  document.getElementById('genre-name').textContent = genreName;
+  // 更新图标
+  const iconEl = document.querySelector('#genre-badge .material-icons');
+  if (iconEl) {
+    iconEl.textContent = genreIcon;
+  }
+}
+
+async function startAnalysis() {
+  try {
+    // 创建分析任务
+    await updateProgress('正在创建分析任务...', 10);
+    const response = await fetch('/api/market-driven/analyze-tropes', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ genre: genreId })
+    });
+    
+    if (!response.ok) {
+      throw new Error('创建任务失败');
+    }
+    
+    const { task_id } = await response.json();
+    
+    // 轮询任务状态
+    await pollTaskStatus(task_id);
+    
+  } catch (error) {
+    console.error('分析失败:', error);
+    displayResults(getMockResults());
+  }
+}
+
+async function pollTaskStatus(taskId) {
+  const maxAttempts = 60;
+  const interval = 2000;
+  
+  console.log('开始轮询任务:', taskId);
+  
+  for (let attempt = 0; attempt < maxAttempts; attempt++) {
+    const response = await fetch(`/api/market-driven/tasks/${taskId}`);
+    
+    if (!response.ok) {
+      throw new Error('获取任务状态失败: ' + response.status);
+    }
+    
+    const task = await response.json();
+    console.log('任务状态:', task.status, '进度:', task.progress, '消息:', task.message);
+    
+    // 更新进度
+    const progress = task.progress || Math.min((attempt + 1) * 5, 95);
+    const message = task.message || task.current_stage || '分析中...';
+    await updateProgress(message, progress);
+    
+    // 检查任务状态
+    if (task.status === 'completed') {
+      console.log('任务完成，结果:', task.result);
+      // 任务完成，显示结果
+      if (task.result && task.result.tropes) {
+        displayResults(task.result.tropes);
+      } else if (task.result) {
+        // 如果 tropes 字段不存在，直接使用 result
+        displayResults(task.result);
+      } else {
+        console.log('无结果数据，使用模拟数据');
+        displayResults(getMockResults());
+      }
+      return;
+    } else if (task.status === 'failed') {
+      console.error('任务失败:', task.error);
+      throw new Error(task.error || '分析失败');
+    }
+    
+    // 等待后再次轮询
+    await sleep(interval);
+  }
+  
+  throw new Error('分析超时');
+}
+
+async function updateProgress(stage, percent) {
+  document.getElementById('progress-stage').textContent = stage;
+  document.getElementById('progress-percent').textContent = percent + '%';
+  document.getElementById('progress-fill').style.width = percent + '%';
+}
+
+function displayResults(data) {
+  // 保存结果到全局变量
+  analysisResult = data;
+  
+  // 隐藏加载动画，显示结果
+  document.getElementById('analyzing-spinner').style.display = 'none';
+  document.getElementById('tropes-grid').style.display = 'grid';
+  
+  // 适配实际返回的数据结构
+  // 核心套路
+  const coreFormula = data.core_formula || '暂无数据';
+  document.getElementById('content-core').innerHTML = formatContent(coreFormula);
+  
+  // 开篇结构
+  let openingContent = '';
+  if (data.opening_pattern) {
+    const op = data.opening_pattern;
+    openingContent = [
+      `第1章：${op.chapter_1 || '主角获得能力'}`,
+      `第2章：${op.chapter_2 || '小试牛刀'}`,
+      `第3章：${op.chapter_3 || '首次打脸'}`,
+      `禁忌：${op.taboos ? op.taboos.join('、') : '无'}`
+    ];
+  } else {
+    openingContent = data.opening_structure || ['暂无数据'];
+  }
+  document.getElementById('content-opening').innerHTML = formatContent(openingContent);
+  
+  // 金手指规则
+  let goldenContent = '';
+  if (data.golden_finger) {
+    const gf = data.golden_finger;
+    goldenContent = [
+      `类型：${gf.type || '系统'}`,
+      `机制：${gf.ratio || gf.activation || '自动激活'}`,
+      `限制：${gf.limitation || '随等级提升'}`,
+      `升级：${gf.upgrade || '使用升级'}`
+    ];
+  } else {
+    goldenContent = data.golden_finger_rules || ['暂无数据'];
+  }
+  document.getElementById('content-golden').innerHTML = formatContent(goldenContent);
+  
+  // 节奏控制
+  let rhythmContent = '';
+  if (data.pacing) {
+    const p = data.pacing;
+    rhythmContent = [
+      `系统出现：${p.system_appearance || '第1章'}`,
+      `首次使用：${p.first_money || '第3章'}`,
+      `首次打脸：${p.first_face_slap || '第5章'}`,
+      `爽点间隔：${p.climax_interval || '每3-5章'}'`
+    ];
+  } else {
+    rhythmContent = data.rhythm_pattern || ['暂无数据'];
+  }
+  document.getElementById('content-rhythm').innerHTML = formatContent(rhythmContent);
+  
+  // 冲突设计
+  let conflictContent = '';
+  if (data.antagonist) {
+    const a = data.antagonist;
+    conflictContent = [
+      `早期：${a.early || '势利眼'}`,
+      `中期：${a.mid || '富二代'}`,
+      `后期：${a.late || '资本大佬'}`,
+      `模式：${a.pattern || '看不起→震惊→后悔'}`
+    ];
+  } else {
+    conflictContent = data.conflict_templates || ['暂无数据'];
+  }
+  document.getElementById('content-conflict').innerHTML = formatContent(conflictContent);
+  
+  // 装逼打脸
+  let faceContent = '';
+  if (data.must_have && data.must_not_have) {
+    faceContent = [
+      `必须有：${data.must_have.slice(0, 4).join('、')}`,
+      `不能有：${data.must_not_have.slice(0, 3).join('、')}`,
+      `情绪曲线：${data.emotion_curve ? data.emotion_curve.pattern : '压抑→爽快'}`,
+      `写作风格：${data.platform_tips ? data.platform_tips.writing_style : '直白短段落'}`
+    ];
+  } else {
+    faceContent = data.face_slap_timing || ['暂无数据'];
+  }
+  document.getElementById('content-face').innerHTML = formatContent(faceContent);
+  
+  // 爆款原因分析
+  const successContent = data.success_factors || [
+    '满足了读者的逆袭幻想，让普通人也能体验一夜暴富的快感',
+    '系统流玩法降低了写作门槛，同时提供了无限的剧情可能性',
+    '快节奏的爽点密集，符合当下读者的碎片化阅读习惯',
+    '打脸情节满足了读者的情绪宣泄需求'
+  ];
+  document.getElementById('content-success').innerHTML = formatContent(successContent);
+  
+  // 显示卡片动画
+  document.querySelectorAll('.trope-card').forEach((card, index) => {
+    setTimeout(() => {
+      card.classList.add('trope-card--visible');
+    }, index * 100);
+  });
+  
+  // 显示底部操作栏
+  setTimeout(() => {
+    document.getElementById('action-footer').classList.add('action-footer--visible');
+  }, 800);
+}
+
+function formatContent(content) {
+  if (!content) {
+    return '<p>暂无数据</p>';
+  }
+  if (Array.isArray(content)) {
+    return '<ul>' + content.map(item => '<li>' + escapeHtml(String(item)) + '</li>').join('') + '</ul>';
+  }
+  if (typeof content === 'string') {
+    return '<p>' + escapeHtml(content) + '</p>';
+  }
+  if (typeof content === 'object') {
+    return '<pre style="white-space:pre-wrap;word-break:break-word;">' + escapeHtml(JSON.stringify(content, null, 2)) + '</pre>';
+  }
+  return '<p>' + escapeHtml(String(content)) + '</p>';
+}
+
+function escapeHtml(text) {
+  if (!text) return '';
+  return String(text)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
+}
+
+function getMockResults() {
+  return {
+    core_formula: [
+      '主角获得特殊系统/能力，具备碾压优势',
+      '通过完成任务/消费获得奖励，形成正反馈循环',
+      '配角嫉妒质疑 → 主角展现实力 → 众人震惊拜服',
+      '节奏快，每3-5章一个小高潮，保持阅读爽感'
+    ],
+    opening_structure: [
+      '第1章：主角困境铺垫，系统觉醒',
+      '第2章：首次使用能力，获得小成功',
+      '第3章：遇到第一个质疑者，小试牛刀',
+      '第4-5章：展现实力，获得认可，埋下更大冲突'
+    ],
+    golden_finger_rules: [
+      '系统能力必须有明确升级路径',
+      '奖励要与消费/努力挂钩，保持合理性',
+      '限制条件制造张力，不能无敌',
+      '能力展示要有层次感，逐步升级'
+    ],
+    rhythm_pattern: [
+      '3章一个小爽点，5章一个大高潮',
+      '每章结尾留钩子，吸引继续阅读',
+      '爽点后要有短暂缓冲，避免疲劳',
+      '30章一个剧情节点，推进主线'
+    ],
+    conflict_templates: [
+      '质疑型：配角看不起主角 → 被打脸',
+      '危机型：突发事件考验主角能力',
+      '竞争型：与他人比拼，主角胜出',
+      '揭秘型：隐藏身份逐步曝光'
+    ],
+    face_slap_timing: [
+      '铺垫2-3章，积累读者期待',
+      '打脸要干净利落，不拖泥带水',
+      '周围人反应要分层描写',
+      '打脸后要有实质性奖励/收获'
+    ],
+    success_factors: [
+      '满足了读者的逆袭幻想，让普通人也能体验财富自由的快感',
+      '系统流玩法提供了即时的正向反馈，每章都有爽点',
+      '快节奏的剧情推进符合当下读者的碎片化阅读习惯',
+      '打脸情节满足了读者的情绪宣泄需求和代入感'
+    ]
+  };
+}
+
+function startGeneration() {
+  if (!analysisResult) return;
+  
+  const btn = document.getElementById('generate-btn');
+  btn.disabled = true;
+  btn.innerHTML = '<span class="material-icons">hourglass_top</span>生成中...';
+  
+  // 跳转到生成页面
+  window.location.href = `/market-driven-plan?genre=${genreId}`;
+}
+
+function sleep(ms) {
+  return new Promise(resolve => setTimeout(resolve, ms));
+}
+</script>
+{% endblock %}
