@@ -847,14 +847,26 @@ function getMockResults() {
 }
 
 function startGeneration() {
-  if (!analysisResult) return;
+  if (!analysisResult) {
+    alert('请等待分析完成');
+    return;
+  }
   
   const btn = document.getElementById('generate-btn');
   btn.disabled = true;
-  btn.innerHTML = '<span class="material-icons">hourglass_top</span>生成中...';
+  btn.innerHTML = '<span class="material-icons">hourglass_top</span>准备中...';
+  
+  // 将分析结果和题材信息存入 localStorage
+  const contextData = {
+    genreId: genreId,
+    genreName: genreName,
+    analysisResult: analysisResult,
+    timestamp: Date.now()
+  };
+  localStorage.setItem('marketDrivenContext', JSON.stringify(contextData));
   
   // 跳转到生成页面
-  window.location.href = `/market-driven-plan?genre=${genreId}`;
+  window.location.href = `/market-driven-plan?genre=${encodeURIComponent(genreId)}`;
 }
 
 function sleep(ms) {

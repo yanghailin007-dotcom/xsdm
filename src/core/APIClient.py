@@ -2070,3 +2070,114 @@ User Prompt: {len(original_user)} â†’ {len(optimized_data.get('optimized_user_pr
         with open(filename, "w", encoding="utf-8") as f:
             f.write(content)
         self.logger.info(f"  ğŸ’¾ JSONä¿®å¤è®°å½•å·²ä¿å­˜: {filename}")
+    # ==================== APIClient V2 ½Ó¿Ú ====================
+    
+    def single_call(self, system_prompt: str, user_prompt: str,
+                   temperature: Optional[float] = None,
+                   max_tokens: Optional[int] = None,
+                   purpose: str = "single_call",
+                   provider: Optional[str] = None,
+                   model_name: Optional[str] = None) -> Optional[str]:
+        \"\"\"
+        µ¥´Îµ÷ÓÃÄ£Ê½ - ÎŞ×´Ì¬£¬Ã¿´Îµ÷ÓÃ¶ÀÁ¢
+        
+        ÊÊÓÃÓÚ:
+        - ¶ÀÁ¢ÈÎÎñ£¨Èçµ¥ÕÂÉú³É¡¢µ¥Ìõ·ÖÎö£©
+        - ÅúÁ¿´¦Àí£¨ÎŞĞèÉÏÏÂÎÄµÄ²¢ĞĞÈÎÎñ£©
+        - ¼òµ¥²éÑ¯£¨Ò»´ÎĞÔÎÊ´ğ£©
+        
+        Args:
+            system_prompt: ÏµÍ³ÌáÊ¾´Ê
+            user_prompt: ÓÃ»§ÌáÊ¾´Ê
+            temperature: ÎÂ¶È²ÎÊı
+            max_tokens: ×î´ótokenÊı
+            purpose: ÓÃÍ¾±êÊ¶£¨ÓÃÓÚÈÕÖ¾£©
+            provider: Ö¸¶¨Ìá¹©ÉÌ£¨NoneÊ¹ÓÃÄ¬ÈÏ£©
+            model_name: Ö¸¶¨Ä£ĞÍÃû
+            
+        Returns:
+            ÏìÓ¦ÎÄ±¾»òNone
+            
+        Ê¹ÓÃÊ¾Àı:
+            result = client.single_call(
+                system_prompt="ÄãÊÇ×÷¼Ò",
+                user_prompt="Ğ´µÚÒ»ÕÂ",
+                purpose="chapter_gen"
+            )
+        \"\"\"
+        return self.call_api(
+            system_prompt=system_prompt,
+            user_prompt=user_prompt,
+            temperature=temperature,
+            purpose=purpose,
+            provider=provider
+        )
+    
+    def create_session(self, session_id: str,
+                      system_prompt: str,
+                      provider: Optional[str] = None,
+                      model_name: Optional[str] = None,
+                      temperature: float = 0.8,
+                      max_history: int = 20,
+                      **kwargs) -> 'ConversationSession':
+        \"\"\"
+        ´´½¨»á»°Ä£Ê½ - Î¬»¤¶àÂÖ¶Ô»°ÉÏÏÂÎÄ
+        
+        ¸ù¾İÌá¹©ÉÌ×Ô¶¯Ñ¡ÔñÊµÏÖ·½Ê½:
+        - Kimi: Ô­ÉúÖ§³Ö messages Êı×é
+        - Gemini/DeepseekµÈ: Í¨¹ı prompt Æ´½ÓÄ£Äâ»á»°
+        
+        ÊÊÓÃÓÚ:
+        - Á¬¹á´´×÷£¨ÕÂ½Ú¼äĞèÒª±£³ÖÒ»ÖÂĞÔ£©
+        - ¶àÂÖÓÅ»¯£¨»ùÓÚÇ°ÎÄ²»¶Ï¸Ä½ø£©
+        - ¸´ÔÓÈÎÎñ£¨ĞèÒªÉÏÏÂÎÄµÄ¶Ô»°£©
+        
+        Args:
+            session_id: »á»°Î¨Ò»±êÊ¶
+            system_prompt: ÏµÍ³ÌáÊ¾´Ê£¨»á»°¿ªÊ¼Ê±ÉèÖÃ£©
+            provider: Ìá¹©ÉÌ£¨NoneÊ¹ÓÃÄ¬ÈÏ£©
+            model_name: Ä£ĞÍÃû
+            temperature: ÎÂ¶È²ÎÊı
+            max_history: ×î´óÀúÊ·ÂÖÊı
+            **kwargs: ¶îÍâ²ÎÊı
+            
+        Returns:
+            ConversationSession ÊµÀı
+            
+        Ê¹ÓÃÊ¾Àı:
+            session = client.create_session(
+                session_id="novel_001",
+                system_prompt="ÄãÊÇ×÷¼Ò",
+                provider="kimi"
+            )
+            
+            # ¶àÂÖ¶Ô»°£¬×Ô¶¯Î¬»¤ÉÏÏÂÎÄ
+            ch1 = session.send_message("Ğ´µÚÒ»ÕÂ")
+            ch2 = session.send_message("¼ÌĞøµÚ¶şÕÂ")  # ×Ô¶¯´øµÚÒ»ÕÂÉÏÏÂÎÄ
+        \"\"\"
+        # ¸ù¾İÌá¹©ÉÌ´´½¨ºÏÊÊµÄ»á»°ÊµÀı
+        provider = provider or self.default_provider
+        
+        # Ä¿Ç°Ê¹ÓÃÏÖÓĞµÄ ConversationSession
+        # ºóĞø¿ÉÒÔ¸ù¾İ provider Çø·ÖÊµÏÖ
+        return ConversationSession(
+            api_client=self,
+            system_prompt=system_prompt,
+            provider=provider,
+            model_name=model_name,
+            temperature=temperature,
+            purpose_prefix=session_id
+        )
+    
+    def get_session_type(self, provider: str) -> str:
+        \"\"\"
+        »ñÈ¡Ìá¹©ÉÌÖ§³ÖµÄ»á»°ÀàĞÍ
+        
+        Returns:
+            \"native\" - Ô­ÉúÖ§³Ö¶àÂÖ¶Ô»°
+            \"simulated\" - Í¨¹ıÆ´½ÓÄ£Äâ
+        \"\"\"
+        native_providers = [\"kimi\", \"openai\", \"claude\"]
+        if provider.lower() in native_providers:
+            return \"native\"
+        return \"simulated\"

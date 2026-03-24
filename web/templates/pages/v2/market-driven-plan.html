@@ -391,6 +391,25 @@
 const urlParams = new URLSearchParams(window.location.search);
 const genreId = urlParams.get('genre') || '';
 
+// 读取 localStorage 中的分析结果
+let analysisContext = null;
+try {
+  const stored = localStorage.getItem('marketDrivenContext');
+  if (stored) {
+    const contextData = JSON.parse(stored);
+    // 检查是否是当前题材的数据（5分钟内有效）
+    if (contextData.genreId === genreId && (Date.now() - contextData.timestamp) < 5 * 60 * 1000) {
+      analysisContext = contextData.analysisResult;
+      console.log('已加载分析结果上下文:', analysisContext);
+    } else {
+      console.log('分析结果已过期或题材不匹配');
+      localStorage.removeItem('marketDrivenContext');
+    }
+  }
+} catch (e) {
+  console.error('读取分析结果失败:', e);
+}
+
 // 自动填充基于题材的默认值
 const genreDefaults = {
   'god-tier-spending': {
@@ -447,7 +466,9 @@ async function startGeneration() {
     golden_finger_type: document.getElementById('golden-finger-type').value,
     golden_finger_desc: document.getElementById('golden-finger-desc').value,
     main_plot: document.getElementById('main-plot').value,
-    first_climax: document.getElementById('first-climax').value
+    first_climax: document.getElementById('first-climax').value,
+    // 传递分析结果上下文给AI
+    analysis_context: analysisContext
   };
   
   // 验证必填项

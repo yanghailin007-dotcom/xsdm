@@ -351,8 +351,8 @@ def start_market_driven_generation():
                 except Exception as e:
                     logger.warning(f"APIClient初始化失败，将使用模拟模式: {e}")
                 
-                # 第1阶段：套路分析
-                _run_trope_analysis(task_id, genre, api_client)
+                # 第1阶段：套路分析（传递user_choices以检查是否有前端缓存的分析结果）
+                _run_trope_analysis(task_id, genre, api_client, user_choices)
                 
                 # 第2阶段：生成方案（如果不跳过）
                 if not options.get('skip_phase_one', False):
@@ -398,7 +398,7 @@ def start_market_driven_generation():
         return jsonify({"error": str(e)}), 500
 
 
-def _run_trope_analysis(task_id: str, genre: str, api_client=None):
+def _run_trope_analysis(task_id: str, genre: str, api_client=None, user_choices: Dict = None):
     """执行套路分析"""
     task_manager.update_task(
         task_id,
@@ -409,12 +409,18 @@ def _run_trope_analysis(task_id: str, genre: str, api_client=None):
     )
     
     try:
-        # 初始化分析器
-        analyzer = TropeAnalyzer(api_client=api_client)
-        
-        # 执行分析
-        task_manager.update_task(task_id, progress=10)
-        tropes = analyzer.analyze_genre(genre)
+        # 检查是否有前端传递的分析上下文
+        if user_choices and user_choices.get('analysis_context'):
+            logger.info(f"[Task {task_id}] 使用前端传递的分析上下文，跳过AI分析")
+            tropes = user_choices.get('analysis_context')
+            task_manager.update_task(task_id, progress=15)
+        else:
+            # 初始化分析器
+            analyzer = TropeAnalyzer(api_client=api_client)
+            
+            # 执行分析
+            task_manager.update_task(task_id, progress=10)
+            tropes = analyzer.analyze_genre(genre)
         
         # 更新任务结果
         task_manager.update_task(
@@ -449,14 +455,30 @@ def _run_plan_generation(task_id: str, genre: str, user_choices: Dict, api_clien
         task = task_manager.get_task(task_id)
         tropes = task.get("result", {}).get("tropes", {})
         
+        # 检查前端是否传递了分析上下文（复用之前的分析结果）
+        analysis_context = user_choices.get('analysis_context')
+        if not tropes and analysis_context:
+            logger.info(f"[Task {task_id}] 使用前端传递的分析上下文")
+            tropes = analysis_context
+            # 保存到任务结果中
+            task_manager.update_task(
+                task_id,
+                result={"tropes": tropes}
+            )
+        
         if not tropes:
             # 如果没有缓存的套路，重新分析
             analyzer = TropeAnalyzer(api_client=api_client)
             tropes = analyzer.analyze_genre(genre)
         
-        # 生成方案
+        # 生成方案（传递完整上下文给AI）
         generator = MarketDrivenPlanGenerator(api_client=api_client)
-        plan = generator.generate_plan(genre, tropes, user_choices)
+        # 将分析上下文注入到用户选择中，供AI参考
+        enriched_user_choices = {
+            **user_choices,
+            "trope_analysis": tropes  # 确保AI能访问分析结果
+        }
+        plan = generator.generate_plan(genre, tropes, enriched_user_choices)
         
         # 更新任务结果
         current_result = task.get("result", {})
