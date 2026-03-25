@@ -1,12 +1,62 @@
 """
 对话模式章节生成器
 在一个连续对话中批量生成多章，保持上下文连贯
+
+v2.0更新：使用优化后的提示词系统
 """
 
 import json
 import logging
 from typing import Dict, List, Optional
 from datetime import datetime
+
+# 导入优化的提示词构建器
+try:
+    from .chapter_prompt_optimizer import ChapterPromptOptimizer
+    HAS_OPTIMIZER = True
+except ImportError:
+    HAS_OPTIMIZER = False
+    logging.warning("[ChapterConversationGenerator] 提示词优化器未加载，使用传统模式")
+    
+# 定义备用的优化器（简化版）
+class SimpleOptimizer:
+    """简化版优化器（备用）"""
+    def __init__(self, novel_data):
+        self.novel_data = novel_data
+    
+    def build_system_prompt(self):
+        title = self.novel_data.get('title', '未命名')
+        return f"""# 角色：顶级网络小说作家
+
+你正在为小说《{title}》生成章节。
+
+## 写作规范
+1. **番茄风格**：快节奏、强爽点、章章有钩子
+2. **每章2000-2500字**
+3. **第三人称上帝视角**
+4. **短段落**：每段不超过3行
+5. **多对话**：对话占比≥40%
+6. **情绪精准**：严格按照每章指定的情绪类型写作
+
+## 重要规则
+1. **保持人设一致**：主角性格、能力必须前后一致
+2. **承上启下**：每章结尾必须留下钩子
+3. **不跳剧情**：严格按照剧情路线推进
+"""
+    
+    def build_chapter_prompt(self, chapter_num, blueprint, prev_summary):
+        parts = [
+            f"请生成第{chapter_num}章。",
+            "",
+            "## 写作要求",
+            "1. 字数2000-2500字",
+            "2. 承接前文",
+            "3. 本章必须有爽点或钩子",
+            "4. 章尾留悬念",
+            "",
+            "直接输出章节正文。"
+        ]
+        return "\n".join(parts)
 
 logger = logging.getLogger(__name__)
 
@@ -27,14 +77,23 @@ class ChapterConversationGenerator:
         self.tropes = tropes
         self.session = None
         
-        # 生成会话ID
-        import uuid
-        self.session_id = f"CCG-{uuid.uuid4().hex[:8].upper()}"
-        
         # 提取小说基本信息
         self.novel_title = novel_data.get('title', '未命名')
+        
+        # 生成会话ID（包含书名前缀，便于识别）
+        import uuid
+        # 书名处理：取前10个字符，去除特殊字符
+        title_prefix = self._sanitize_title(self.novel_title)[:10]
+        self.session_id = f"CCG-{title_prefix}-{uuid.uuid4().hex[:8].upper()}"
+    
+    def _sanitize_title(self, title: str) -> str:
+        """清理书名，去除特殊字符，用于文件名"""
+        import re
+        # 保留中文、英文、数字
+        return re.sub(r'[^\u4e00-\u9fa5a-zA-Z0-9]', '', title)
         self.protagonist_name = self._get_protagonist_name()
         
+    
     def _get_protagonist_name(self) -> str:
         """获取主角姓名"""
         char_design = self.novel_data.get('character_design', {})
@@ -55,7 +114,7 @@ class ChapterConversationGenerator:
             api_client=self.api_client,
             system_prompt=system_prompt,
             provider="kimi",
-            purpose_prefix=f"CCG-{self.session_id}"
+            purpose_prefix=f"{self.session_id}"
         )
         # 设置历史限制
         session.max_history = 50  # 保留更多历史，支持多章连贯
@@ -64,63 +123,20 @@ class ChapterConversationGenerator:
         return session
     
     def _build_system_prompt(self, start_chapter: int) -> str:
-        """构建系统提示词"""
-        # 获取世界观
-        worldview = self.novel_data.get('core_worldview', {})
-        faction_system = self.novel_data.get('faction_system', {})
+        """构建系统提示词（使用优化后的v2.0版本）"""
+        # 使用优化器构建精简的System Prompt
+        if HAS_OPTIMIZER:
+            try:
+                optimizer = ChapterPromptOptimizer(self.novel_data)
+                system_prompt = optimizer.build_system_prompt()
+                logger.info(f"[章节对话 {self.session_id}] 使用优化的System Prompt v2.0（约1500字）")
+                return system_prompt
+            except Exception as e:
+                logger.warning(f"[章节对话 {self.session_id}] 优化器失败，使用备用模式: {e}")
         
-        # 获取角色设计
-        char_design = self.novel_data.get('character_design', {})
-        
-        # 获取成长路线
-        growth_plan = self.novel_data.get('global_growth_plan', {})
-        
-        # 获取情绪曲线
-        emotion_curve = self.novel_data.get('emotion_curve', [])
-        
-        return f"""# 角色：顶级网络小说作家
-
-你正在为小说《{self.novel_title}》连续生成章节。这是一个多轮对话过程，你将基于前文上下文连续生成多章内容。
-
-## 小说基础设定
-
-### 世界观
-```json
-{json.dumps(worldview, ensure_ascii=False, indent=2)}
-```
-
-### 势力系统
-```json
-{json.dumps(faction_system, ensure_ascii=False, indent=2)}
-```
-
-### 角色设计
-```json
-{json.dumps(char_design, ensure_ascii=False, indent=2)}
-```
-
-### 成长路线
-```json
-{json.dumps(growth_plan, ensure_ascii=False, indent=2)}
-```
-
-## 写作规范
-1. **番茄风格**：快节奏、强爽点、章章有钩子
-2. **每章2000-2500字**：不要过长或过短
-3. **第一人称**：主角视角，强代入感
-4. **短段落**：每段不超过3行，适合手机阅读
-5. **多对话**：对话推动剧情，少用旁白
-6. **情绪连贯**：每章情绪必须符合情绪曲线设计
-
-## 重要规则
-1. **必须记住前文**：后续章节必须基于前文情节发展
-2. **保持人设一致**：主角性格、能力必须前后一致
-3. **承上启下**：每章结尾必须留下钩子，与下一章衔接
-4. **不跳剧情**：严格按照剧情路线推进，不要跳过大事件
-
-## 当前任务
-从第{start_chapter}章开始连续生成。等待第1章指令...
-"""
+        # 使用简化版优化器（备用）
+        optimizer = SimpleOptimizer(self.novel_data)
+        return optimizer.build_system_prompt()
     
     def generate_chapters(self, start_chapter: int, end_chapter: int, 
                          blueprint: Dict, progress_callback=None) -> List[Dict]:
@@ -247,41 +263,18 @@ class ChapterConversationGenerator:
     
     def _build_chapter_prompt(self, chapter_num: int, chapter_plan: Dict,
                              emotion_beat: Dict, prev_summary: str) -> str:
-        """构建章节生成提示词"""
-        parts = [
-            f"请生成第{chapter_num}章。",
-            "",
-            "## 本章规划",
-            f"- 章节标题: {chapter_plan.get('title', f'第{chapter_num}章')}",
-            f"- 高潮类型: {chapter_plan.get('climax_type', '推进')}",
-            f"- 必须要素: {', '.join(chapter_plan.get('required_elements', []))}",
-            "",
-            "## 情绪设计",
-            f"- 情绪类型: {emotion_beat.get('emotion', '期待')}",
-            f"- 强度: {emotion_beat.get('intensity', 6)}/10",
-            f"- 目的: {emotion_beat.get('purpose', '剧情推进')}",
-            ""
-        ]
+        """构建章节生成提示词（使用优化后的详细版本）"""
+        # 使用优化器构建详细的章节提示词
+        if HAS_OPTIMIZER:
+            try:
+                optimizer = ChapterPromptOptimizer(self.novel_data)
+                return optimizer.build_chapter_prompt(chapter_num, chapter_plan, prev_summary)
+            except Exception as e:
+                logger.warning(f"[章节对话 {self.session_id}] 优化器失败，使用备用模式: {e}")
         
-        if prev_summary:
-            parts.extend([
-                "## 前文摘要（必须承接）",
-                prev_summary,
-                ""
-            ])
-        
-        parts.extend([
-            "## 写作要求",
-            "1. 字数2000-2500字",
-            "2. 承接前文，不要重复前文已发生的事",
-            "3. 本章必须有明确的爽点或钩子",
-            "4. 章尾必须留下悬念，让读者想看下一章",
-            "5. 严格遵循情绪设计，不要偏离",
-            "",
-            "直接输出章节正文，不要解释。"
-        ])
-        
-        return "\n".join(parts)
+        # 使用简化版优化器（备用）
+        optimizer = SimpleOptimizer(self.novel_data)
+        return optimizer.build_chapter_prompt(chapter_num, chapter_plan, prev_summary)
     
     def _parse_response(self, response) -> str:
         """解析响应"""

@@ -81,7 +81,9 @@ class UnifiedProjectManager:
                 "global_growth_plan": "phase_one_products/升级路线.json",
                 "stage_writing_plans": "phase_one_products/阶段计划.json",
                 "emotional_blueprint": "phase_one_products/情绪蓝图.json",
-                "expectation_mapping": "phase_one_products/期待感映射.json"
+                "expectation_mapping": "phase_one_products/期待感映射.json",
+                "plan": "phase_one_products/完整方案.json",
+                "emotion_curve": "phase_one_products/情绪曲线.json"
             },
             
             # ========== 章节索引 ==========
@@ -317,7 +319,9 @@ class ProjectDirectoryManager:
             "global_growth_plan": "phase_one_products/升级路线.json",
             "stage_writing_plans": "phase_one_products/阶段计划.json",
             "emotional_blueprint": "phase_one_products/情绪蓝图.json",
-            "expectation_mapping": "phase_one_products/期待感映射.json"
+            "expectation_mapping": "phase_one_products/期待感映射.json",
+            "plan": "phase_one_products/完整方案.json",
+            "emotion_curve": "phase_one_products/情绪曲线.json"
         }
         
         relative_path = product_files.get(product_name, f"phase_one_products/{product_name}.json")

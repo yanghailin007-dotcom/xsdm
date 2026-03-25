@@ -1126,16 +1126,25 @@ function displayResults(data) {
   
   // 冲突设计
   let conflictContent = '';
-  if (data.antagonist) {
-    const a = data.antagonist;
+  // 支持多种数据结构：扁平化 antagonist 或嵌套 character_formula.antagonists
+  let antagonists = data.antagonist;
+  if (!antagonists && data.character_formula && data.character_formula.antagonists) {
+    antagonists = data.character_formula.antagonists;
+  }
+  
+  if (antagonists) {
+    const a = antagonists;
     conflictContent = [
-      `早期：${a.early || '势利眼'}`,
-      `中期：${a.mid || '富二代'}`,
-      `后期：${a.late || '资本大佬'}`,
-      `模式：${a.pattern || '看不起→震惊→后悔'}`
-    ];
+      `【早期反派】${a.early || '势利眼小人物（销售、保安、前女友）'}`,
+      `【中期反派】${a.mid || '富二代、地方势力、企业高管'}`,
+      `【后期反派】${a.late || '国际势力、上古世家、隐藏大佬'}`,
+      a.pattern ? `【打脸模式】${a.pattern}` : '',
+      a.early_stage && Array.isArray(a.early_stage) ? `\n前期具体反派：${a.early_stage.slice(0, 2).map(e => e.name || e).join('、')}` : ''
+    ].filter(Boolean);
+  } else if (data.conflict_templates) {
+    conflictContent = data.conflict_templates;
   } else {
-    conflictContent = data.conflict_templates || ['暂无数据'];
+    conflictContent = ['暂无数据'];
   }
   document.getElementById('content-conflict').innerHTML = formatContent(conflictContent);
   

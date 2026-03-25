@@ -811,7 +811,9 @@ def save_phase_one_products(novel_title: str, products: Dict, task_id: str,
     for product_name in products:
         if product_name in ["writing_style_guide", "market_analysis", "core_worldview",
                            "faction_system", "character_design", "global_growth_plan",
-                           "stage_writing_plans", "emotional_blueprint", "expectation_mapping"]:
+                           "stage_writing_plans", "emotional_blueprint", "expectation_mapping",
+                           "plan",           # 完整方案（标题确认、开局设计、金手指细化、主角人设、前30章大纲）
+                           "emotion_curve"]: # 详细情绪曲线（每章设计）
             file_path = ProjectDirectoryManager.get_product_path(project_path, product_name)
             file_path.parent.mkdir(parents=True, exist_ok=True)
             with open(file_path, 'w', encoding='utf-8') as f:

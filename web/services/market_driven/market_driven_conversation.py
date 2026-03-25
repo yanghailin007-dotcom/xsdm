@@ -2,6 +2,8 @@
 市场导向对话生成器
 在一个连续对话中完成套路分析 → 方案生成 → 一阶段产物生成
 利用Kimi的256K上下文窗口和缓存机制
+
+v2.0更新：基于爆款反向工程分析生成Prompt
 """
 
 import json
@@ -10,194 +12,61 @@ from typing import Dict, List, Optional, Any
 from datetime import datetime
 from pathlib import Path
 
+# 导入新的分析器和模板生成器
+try:
+    from web.services.market_driven.bestseller_analyzer import BestsellerAnalyzer
+    from web.services.market_driven.prompt_templates import PromptTemplateGenerator
+    HAS_BESTSELLER_ANALYSIS = True
+except ImportError:
+    HAS_BESTSELLER_ANALYSIS = False
+    logging.warning("[MarketDrivenConversation] 爆款分析模块未加载，将使用传统Prompt")
+
 logger = logging.getLogger(__name__)
 
 
 class ConversationLogger:
-    """对话生成日志记录器 - 保存为易读的Markdown格式"""
+    """对话生成日志记录器 - 保存为极简格式"""
     
     def __init__(self, session_id: str, log_dir: str = "logs/ai_interactions"):
         self.session_id = session_id
         self.log_dir = Path(log_dir)
         self.log_dir.mkdir(parents=True, exist_ok=True)
-        self.messages = []  # 记录所有消息（包括累积历史）
         self.start_time = datetime.now()
-        self.current_history = []  # 当前累积的对话历史
+        self.round_count = 0
         
-    def log_message(self, role: str, content: str, step: str = "", history: List[Dict] = None):
-        """记录一条消息，同时保存当前累积的历史"""
-        self.messages.append({
-            "timestamp": datetime.now(),
-            "role": role,
-            "step": step,
-            "content": content,
-            "content_length": len(content),
-            "history_snapshot": history.copy() if history else []  # 保存历史快照
-        })
+    def log_round(self, step: str, messages: List[Dict], response: str):
+        """
+        记录一轮对话（极简格式）
+        每个轮次单独一个文件
+        """
+        self.round_count += 1
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        log_file = self.log_dir / f"{self.session_id}_round{self.round_count:02d}_{step}_{timestamp}.md"
         
-    def update_history(self, role: str, content: str):
-        """更新累积的对话历史"""
-        self.current_history.append({"role": role, "content": content})
-    
-    def save(self, final_result: Dict = None):
-        """保存为Markdown格式 - 显示完整的累积对话历史"""
-        timestamp = self.start_time.strftime("%Y%m%d_%H%M%S")
-        log_file = self.log_dir / f"conversation_{self.session_id}_{timestamp}.md"
-        
-        # 构建Markdown内容
-        lines = []
-        
-        # 标题
-        lines.append(f"# 🤖 AI对话记录 - {self.session_id}")
-        lines.append("")
-        lines.append(f"**开始时间**: {self.start_time.strftime('%Y-%m-%d %H:%M:%S')}")
-        lines.append(f"**结束时间**: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
-        lines.append(f"**总轮次**: {len([m for m in self.messages if m['role'] == 'user'])}")
-        lines.append("")
-        lines.append("---")
-        lines.append("")
-        
-        # 系统提示词（折叠）
-        system_prompt = ""
-        for msg in self.messages:
-            if msg["role"] == "system_prompt":
-                system_prompt = msg["content"]
-                break
-        
-        if system_prompt:
-            lines.append("## 📋 系统提示词（System）")
-            lines.append("")
-            lines.append("<details>")
-            lines.append("<summary>点击展开查看完整的系统提示词</summary>")
-            lines.append("")
-            lines.append("```")
-            lines.append(system_prompt[:2000] + "..." if len(system_prompt) > 2000 else system_prompt)
-            lines.append("```")
-            lines.append("")
-            lines.append("</details>")
-            lines.append("")
-            lines.append("---")
-            lines.append("")
-        
-        # 🔥 按轮次组织，每轮显示完整的历史累积
-        lines.append("## 💬 完整对话历史（按轮次展开）")
-        lines.append("")
-        lines.append("每轮对话包含之前所有轮次的累积历史 + 当前轮次的新消息")
-        lines.append("")
-        
-        # 按轮次分组
-        rounds = []
-        current_round = {"step": "", "user": None, "assistant": None, "history": []}
-        
-        for msg in self.messages:
-            if msg["role"] == "system_prompt":
-                continue
-            elif msg["role"] == "system":
-                continue
-            elif msg["role"] == "user":
-                if current_round["user"] is not None:
-                    # 保存上一round
-                    rounds.append(current_round)
-                    current_round = {"step": msg["step"], "user": msg, "assistant": None, 
-                                   "history": msg.get("history_snapshot", [])}
-                else:
-                    current_round["step"] = msg["step"]
-                    current_round["user"] = msg
-                    current_round["history"] = msg.get("history_snapshot", [])
-            elif msg["role"] == "assistant":
-                current_round["assistant"] = msg
-        
-        # 添加最后一轮
-        if current_round["user"] is not None:
-            rounds.append(current_round)
-        
-        # 渲染每轮
-        step_names = {
-            "generate_plan": "步骤1：生成完整方案",
-            "generate_worldview": "步骤2：生成世界观",
-            "generate_characters": "步骤3：生成角色设计",
-            "generate_growth_plan": "步骤4：生成成长路线",
-            "generate_emotion_curve": "步骤5：生成情绪曲线"
-        }
-        
-        for i, round_data in enumerate(rounds, 1):
-            step = round_data["step"]
-            user_msg = round_data["user"]
-            assistant_msg = round_data["assistant"]
-            history = round_data["history"]
-            
-            step_name = step_names.get(step, f"轮次{i}")
-            
-            lines.append(f"### {step_name}")
-            lines.append("")
-            lines.append(f"**发送时间**: {user_msg['timestamp'].strftime('%H:%M:%S')}")
-            lines.append(f"**历史消息数**: {len(history)} 条（System + {len(history)-1} 轮对话）")
-            lines.append("")
-            
-            # 🔥 显示当前轮次的历史快照（累积的对话）
-            lines.append("<details>")
-            lines.append(f"<summary>📜 点击查看第{i}轮时的完整历史（{len(history)}条消息）</summary>")
-            lines.append("")
-            
-            for idx, hist_msg in enumerate(history):
-                role_emoji = {"system": "📋", "user": "👤", "assistant": "🤖"}.get(hist_msg["role"], "📝")
-                lines.append(f"{role_emoji} **{hist_msg['role'].upper()}** (历史#{idx})")
-                lines.append("")
-                content = hist_msg.get("content", "")
-                if len(content) > 200:
-                    lines.append("```")
-                    lines.append(content[:200] + f"... [{len(content)-200}字符省略]")
-                    lines.append("```")
-                else:
-                    lines.append("```")
-                    lines.append(content)
-                    lines.append("```")
-                lines.append("")
-            
-            lines.append("</details>")
-            lines.append("")
-            
-            # 显示当前轮次的新消息
-            if assistant_msg:
-                lines.append(f"**🤖 AI响应** ({assistant_msg['timestamp'].strftime('%H:%M:%S')})")
-                lines.append("")
-                content = assistant_msg["content"]
-                try:
-                    if content.strip().startswith('{'):
-                        json_obj = json.loads(content)
-                        lines.append("```json")
-                        lines.append(json.dumps(json_obj, ensure_ascii=False, indent=2))
-                        lines.append("```")
-                    else:
-                        lines.append("```")
-                        lines.append(content)
-                        lines.append("```")
-                except:
-                    lines.append("```")
-                    lines.append(content)
-                    lines.append("```")
-                lines.append("")
-            
-            lines.append("---")
-            lines.append("")
-        
-        # 最终结果
-        if final_result:
-            lines.append("## ✅ 最终结果汇总")
-            lines.append("")
-            lines.append("```json")
-            lines.append(json.dumps(final_result, ensure_ascii=False, indent=2)[:3000])
-            lines.append("```")
-            lines.append("")
+        lines = [
+            f"# Round {self.round_count} - {step}",
+            f"**Time**: {datetime.now().strftime('%H:%M:%S')}",
+            f"**Messages**: {len(messages)}",
+            "",
+            "## Messages sent to AI",
+            "",
+            "```json",
+            json.dumps(messages, ensure_ascii=False, indent=2),
+            "```",
+            "",
+            "## AI Response",
+            "",
+            "```",
+            response[:2000] + "..." if len(response) > 2000 else response,
+            "```"
+        ]
         
         try:
             with open(log_file, 'w', encoding='utf-8') as f:
                 f.write('\n'.join(lines))
-            logger.info(f"[对话日志] 已保存: {log_file}")
-            return str(log_file)
+            logger.info(f"[对话日志] Round {self.round_count} 已保存: {log_file}")
         except Exception as e:
             logger.error(f"[对话日志] 保存失败: {e}")
-            return ""
 
 
 class MarketDrivenConversationSession:
@@ -247,14 +116,32 @@ class MarketDrivenConversationSession:
         import uuid
         self.session_id = f"MDC-{uuid.uuid4().hex[:8].upper()}"
         
+        # 🔥 基于爆款反向工程分析，生成高质量Prompt模板
+        self._prompt_generator = None
+        if HAS_BESTSELLER_ANALYSIS and api_client:
+            try:
+                logger.info(f"[对话模式 {self.session_id}] 启动爆款反向工程分析...")
+                analyzer = BestsellerAnalyzer(api_client=api_client)
+                bestseller_analysis = analyzer.analyze_genre(genre, use_cache=True)
+                
+                # 验证分析结果是否有效
+                if bestseller_analysis and isinstance(bestseller_analysis, dict):
+                    if not bestseller_analysis.get("parse_error") and "genre_formula" in bestseller_analysis:
+                        self._prompt_generator = PromptTemplateGenerator(bestseller_analysis)
+                        logger.info(f"[对话模式 {self.session_id}] ✅ 爆款分析完成，已加载高质量Prompt模板")
+                    else:
+                        logger.warning(f"[对话模式 {self.session_id}] ⚠️ 爆款分析结果无效，使用默认模板")
+                else:
+                    logger.warning(f"[对话模式 {self.session_id}] ⚠️ 爆款分析返回空结果，使用默认模板")
+            except Exception as e:
+                logger.warning(f"[对话模式 {self.session_id}] ⚠️ 爆款分析失败，将使用传统Prompt: {e}")
+        
         # 创建对话会话
         from src.core.APIClient import ConversationSession
         system_prompt = self._build_system_prompt()
         
-        # 🔥 创建对话日志记录器（记录完整的系统提示词和所有对话）
+        # 🔥 创建对话日志记录器
         self._logger = ConversationLogger(self.session_id)
-        self._logger.log_message("system", f"题材: {genre}, 标题: {user_choices.get('title', 'Unknown')}", "session_init")
-        self._logger.log_message("system_prompt", system_prompt, "system_prompt")  # 记录完整系统提示词
         
         self.session = ConversationSession(
             api_client=api_client,
@@ -265,7 +152,7 @@ class MarketDrivenConversationSession:
         # 设置历史限制（直接修改属性）
         self.session.max_history = 20
         
-        logger.info(f"[对话模式 {self.session_id}] 会话创建 | 题材: {genre} | 标题: {user_choices.get('title', 'Unknown')}")
+        logger.info(f"[对话模式 {self.session_id}] 会话创建 | 题材: {genre} | 标题: {user_choices.get('title', 'Unknown')} | 使用高质量Prompt: {self._prompt_generator is not None}")
     
     def _filter_tropes_for_prompt(self) -> Dict:
         """
@@ -478,56 +365,62 @@ class MarketDrivenConversationSession:
         results["emotional_blueprint"] = self._generate_emotional_blueprint()
         
         logger.info(f"[对话模式 {self.session_id}] ✅ 所有步骤完成 | 总轮次: {self.session.turn_count}")
-        
-        # 🔥 保存完整对话日志
-        self._logger.save(results)
-        
         return results
     
     def _generate_plan(self) -> Dict:
-        """生成完整方案"""
+        """生成完整方案（使用基于爆款的Prompt模板）"""
         title = self.user_choices.get('title', '未命名')
         protagonist_name = self.user_choices.get('protagonist_name', '主角')
+        selected_plot = self.user_choices.get('selected_plot', {})
         
-        # 使用字符串拼接而不是f-string，避免嵌套问题
-        prompt_parts = [
-            "请执行【步骤1：生成完整方案】\n",
-            "基于系统提示词中的【用户最终选择】和【完整的套路分析结果】，生成完整的小说方案。\n",
-            "## 重要提醒",
-            f'1. **书名**：必须使用用户确定的「{title}」',
-            f'2. **主角名**：必须使用用户确定的「{protagonist_name}」',
-            "3. **剧情路线**：必须遵循用户选择的剧情路线详情中的节奏（第1/3/10/20/30章节点）",
-            "4. **参考套路**：参考系统提示词中的完整套路分析结果\n",
-            "## 你需要生成",
-            "1. **标题确认** - 确认使用用户确定的标题（≤15字）",
-            "2. **开局设计** - 第1-3章详细剧本，具体到场景和对话",
-            "3. **金手指细化** - 基于用户描述，细化具体数值和成长曲线",
-            "4. **主角人设** - 生成完整人设",
-            '5. **前30章大纲** - 严格遵循"3-10-20-30"节奏\n',
-            "## 输出格式",
-            "返回JSON格式，包含: title, opening_design, golden_finger, protagonist, outline_first_30\n",
-            "只返回JSON，不要其他说明。"
-        ]
-        prompt = "\n".join(prompt_parts)
+        # 🔥 使用基于爆款分析的Prompt模板（如果可用）
+        if self._prompt_generator:
+            logger.info(f"[对话模式 {self.session_id}] 使用基于爆款的Prompt模板（步骤1）")
+            prompt = self._prompt_generator.generate_step1_plan_prompt(
+                title=title,
+                protagonist_name=protagonist_name,
+                selected_plot=selected_plot,
+                tropes=self.tropes
+            )
+        else:
+            # 传统Prompt（备用）
+            prompt_parts = [
+                "请执行【步骤1：生成完整方案】\n",
+                "基于系统提示词中的【用户最终选择】和【完整的套路分析结果】，生成完整的小说方案。\n",
+                "## 重要提醒",
+                f'1. **书名**：必须使用用户确定的「{title}」',
+                f'2. **主角名**：必须使用用户确定的「{protagonist_name}」',
+                "3. **剧情路线**：必须遵循用户选择的剧情路线详情中的节奏（第1/3/10/20/30章节点）",
+                "4. **参考套路**：参考系统提示词中的完整套路分析结果\n",
+                "## 你需要生成",
+                "1. **标题确认** - 确认使用用户确定的标题（≤15字）",
+                "2. **开局设计** - 第1-3章详细剧本，具体到场景和对话",
+                "3. **金手指细化** - 基于用户描述，细化具体数值和成长曲线",
+                "4. **主角人设** - 生成完整人设",
+                '5. **前30章大纲** - 严格遵循"3-10-20-30"节奏\n',
+                "## 输出格式",
+                "返回JSON格式，包含: title, opening_design, golden_finger, protagonist, outline_first_30\n",
+                "只返回JSON，不要其他说明。"
+            ]
+            prompt = "\n".join(prompt_parts)
         
         logger.info(f"[对话模式 {self.session_id}] 发送步骤1提示词 | 当前消息历史: {len(self.session.messages)}条")
-        self._logger.log_message("user", prompt, "generate_plan", self.session.messages)
         response = self.session.send_message(prompt, temperature=0.7)
-        self._logger.log_message("assistant", response if isinstance(response, str) else json.dumps(response), "generate_plan", self.session.messages)
+        self._logger.log_round("generate_plan", self.session.messages.copy(), response if isinstance(response, str) else json.dumps(response))
         logger.info(f"[对话模式 {self.session_id}] 步骤1响应接收 | 总对话轮次: {self.session.turn_count}")
         return self._parse_json_response(response, "plan")
     
     def _generate_worldview(self) -> Dict:
-        """生成世界观"""
-        prompt = """请执行【步骤2：生成世界观】
+        """生成世界观（使用基于爆款的Prompt模板）"""
+        # 🔥 使用基于爆款分析的Prompt模板
+        if self._prompt_generator:
+            logger.info(f"[对话模式 {self.session_id}] 使用基于爆款的Prompt模板（步骤2）")
+            prompt = self._prompt_generator.generate_step2_worldview_prompt()
+        else:
+            # 传统Prompt
+            prompt = """请执行【步骤2：生成世界观】
 
 基于系统提示词中的【完整的套路分析结果】和已确定的题材、主角设定，生成完整的世界观。
-
-## 关键参考（在系统提示词中）
-- must_have: 必须包含的元素
-- must_not_have: 绝对不能有的元素
-- faction_system: 势力系统参考
-- world_rules: 世界规则
 
 ## 关键要求
 1. 世界观必须支持主角的金手指和成长路线
@@ -540,38 +433,48 @@ class MarketDrivenConversationSession:
 只返回JSON。"""
         
         logger.info(f"[对话模式 {self.session_id}] 发送步骤2提示词 | 当前消息历史: {len(self.session.messages)}条")
-        self._logger.log_message("user", prompt, "generate_worldview", self.session.messages)
         response = self.session.send_message(prompt, temperature=0.7)
-        self._logger.log_message("assistant", response if isinstance(response, str) else json.dumps(response), "generate_worldview", self.session.messages)
+        self._logger.log_round("generate_worldview", self.session.messages.copy(), response if isinstance(response, str) else json.dumps(response))
         logger.info(f"[对话模式 {self.session_id}] 步骤2响应接收 | 总对话轮次: {self.session.turn_count}")
         return self._parse_json_response(response, "worldview")
     
     def _generate_characters(self) -> Dict:
-        """生成角色设计"""
+        """生成角色设计（使用基于爆款的Prompt模板）"""
         protagonist_name = self.user_choices.get('protagonist_name', '主角')
         
-        prompt_parts = [
-            "请执行【步骤3：生成角色设计】\n",
-            "基于系统提示词中的【完整的套路分析结果】和已确定的主角人设、世界观，设计完整的角色阵容。\n",
-            "## 重要提醒",
-            f'- **主角姓名**：必须使用用户确定的「{protagonist_name}」',
-            "- **参考模板**：系统提示词中的 protagonist（主角模板）和 antagonist（反派设计套路）\n",
-            "## 输出格式",
-            "返回JSON格式，包含: protagonist, core_allies, main_antagonists, supporting_roles\n",
-            "只返回JSON。"
-        ]
-        prompt = "\n".join(prompt_parts)
+        # 🔥 使用基于爆款分析的Prompt模板
+        if self._prompt_generator:
+            logger.info(f"[对话模式 {self.session_id}] 使用基于爆款的Prompt模板（步骤3）")
+            prompt = self._prompt_generator.generate_step3_characters_prompt(protagonist_name)
+        else:
+            # 传统Prompt
+            prompt_parts = [
+                "请执行【步骤3：生成角色设计】\n",
+                "基于系统提示词中的【完整的套路分析结果】和已确定的主角人设、世界观，设计完整的角色阵容。\n",
+                "## 重要提醒",
+                f'- **主角姓名**：必须使用用户确定的「{protagonist_name}」',
+                "- **参考模板**：系统提示词中的 protagonist（主角模板）和 antagonist（反派设计套路）\n",
+                "## 输出格式",
+                "返回JSON格式，包含: protagonist, core_allies, main_antagonists, supporting_roles\n",
+                "只返回JSON。"
+            ]
+            prompt = "\n".join(prompt_parts)
         
         logger.info(f"[对话模式 {self.session_id}] 发送步骤3提示词 | 当前消息历史: {len(self.session.messages)}条")
-        self._logger.log_message("user", prompt, "generate_characters", self.session.messages)
         response = self.session.send_message(prompt, temperature=0.7)
-        self._logger.log_message("assistant", response if isinstance(response, str) else json.dumps(response), "generate_characters", self.session.messages)
+        self._logger.log_round("generate_characters", self.session.messages.copy(), response if isinstance(response, str) else json.dumps(response))
         logger.info(f"[对话模式 {self.session_id}] 步骤3响应接收 | 总对话轮次: {self.session.turn_count}")
         return self._parse_json_response(response, "characters")
     
     def _generate_growth_plan(self) -> Dict:
-        """生成成长路线"""
-        prompt = """请执行【步骤4：生成成长路线】
+        """生成成长路线（使用基于爆款的Prompt模板）"""
+        # 🔥 使用基于爆款分析的Prompt模板
+        if self._prompt_generator:
+            logger.info(f"[对话模式 {self.session_id}] 使用基于爆款的Prompt模板（步骤4）")
+            prompt = self._prompt_generator.generate_step4_growth_prompt()
+        else:
+            # 传统Prompt
+            prompt = """请执行【步骤4：生成成长路线】
 
 基于前30章大纲和主角人设，规划详细的成长里程碑。
 
@@ -581,39 +484,39 @@ class MarketDrivenConversationSession:
 只返回JSON。"""
         
         logger.info(f"[对话模式 {self.session_id}] 发送步骤4提示词 | 当前消息历史: {len(self.session.messages)}条")
-        self._logger.log_message("user", prompt, "generate_growth_plan", self.session.messages)
         response = self.session.send_message(prompt, temperature=0.7)
-        self._logger.log_message("assistant", response if isinstance(response, str) else json.dumps(response), "generate_growth_plan", self.session.messages)
+        self._logger.log_round("generate_growth_plan", self.session.messages.copy(), response if isinstance(response, str) else json.dumps(response))
         logger.info(f"[对话模式 {self.session_id}] 步骤4响应接收 | 总对话轮次: {self.session.turn_count}")
         return self._parse_json_response(response, "growth_plan")
     
     def _generate_emotion_curve(self) -> List[Dict]:
-        """生成情绪曲线"""
+        """生成情绪曲线（使用基于爆款的Prompt模板）"""
         total_chapters = self.user_choices.get('chapters', 100)
         
-        prompt_parts = [
-            "请执行【步骤5：生成情绪曲线】\n",
-            f"基于系统提示词中的【完整的套路分析结果】和前30章大纲，设计{total_chapters}章的情绪曲线。\n",
-            "## 关键参考（在系统提示词中）",
-            "- emotion_curve: 情绪曲线模式",
-            "- first_climax_design: 第一个大高潮设计（关键节点）",
-            "- pacing: 节奏控制\n",
-            "## 节奏要求（必须严格遵循）",
-            "- 每3章一个小高潮（强度7-8）",
-            "- 每10章一个中高潮（强度8-9）",
-            "- 每30章一个大高潮（强度9-10）",
-            "- 大高潮后必须有1-2章缓冲（强度5-6）\n",
-            "## 情绪类型",
-            "震惊、期待、小爽快、大爽快、紧张、愤怒、满足\n",
-            "## 输出格式",
-            "返回JSON格式，包含curve数组，每个元素有: ch, emotion, intensity, beat_type, event, purpose"
-        ]
-        prompt = "\n".join(prompt_parts)
+        # 🔥 使用基于爆款分析的Prompt模板
+        if self._prompt_generator:
+            logger.info(f"[对话模式 {self.session_id}] 使用基于爆款的Prompt模板（步骤5）")
+            prompt = self._prompt_generator.generate_step5_emotion_prompt(total_chapters)
+        else:
+            # 传统Prompt
+            prompt_parts = [
+                "请执行【步骤5：生成情绪曲线】\n",
+                f"基于系统提示词中的【完整的套路分析结果】和前30章大纲，设计{total_chapters}章的情绪曲线。\n",
+                "## 节奏要求（必须严格遵循）",
+                "- 每3章一个小高潮（强度7-8）",
+                "- 每10章一个中高潮（强度8-9）",
+                "- 每30章一个大高潮（强度9-10）",
+                "- 大高潮后必须有1-2章缓冲（强度5-6）\n",
+                "## 情绪类型",
+                "震惊、期待、小爽快、大爽快、紧张、愤怒、满足\n",
+                "## 输出格式",
+                "返回JSON格式，包含curve数组，每个元素有: ch, emotion, intensity, beat_type, event, purpose"
+            ]
+            prompt = "\n".join(prompt_parts)
         
         logger.info(f"[对话模式 {self.session_id}] 发送步骤5提示词 | 当前消息历史: {len(self.session.messages)}条")
-        self._logger.log_message("user", prompt, "generate_emotion_curve", self.session.messages)
         response = self.session.send_message(prompt, temperature=0.7)
-        self._logger.log_message("assistant", response if isinstance(response, str) else json.dumps(response), "generate_emotion_curve", self.session.messages)
+        self._logger.log_round("generate_emotion_curve", self.session.messages.copy(), response if isinstance(response, str) else json.dumps(response))
         logger.info(f"[对话模式 {self.session_id}] 步骤5响应接收 | 总对话轮次: {self.session.turn_count}")
         result = self._parse_json_response(response, "emotion_curve")
         return result.get("curve", [])

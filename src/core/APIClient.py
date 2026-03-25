@@ -784,16 +784,18 @@ class APIClient:
     def _calculate_timeout(self, purpose: str, attempt: int) -> int:
         """根据目的和尝试次数计算超时时间"""
         base_timeouts = {
-            "章节生成": 180,      # 3分钟
-            "内容生成": 120,      # 2分钟
-            "质量评估": 60,
-            "快速质量评估": 60,
-            "提示词优化": 60,
-            "对话": 300,          # 5分钟（对话生成需要更长时间）
-            "conversation": 300,  # 5分钟
-            "轮次": 300           # 5分钟（对话轮次）
+            "章节生成": 500,      # 5分钟
+            "内容生成": 500,      # 5分钟
+            "质量评估": 300,
+            "快速质量评估": 300,
+            "提示词优化": 300,
+            "对话": 500,          # 默认500秒
+            "conversation": 500,  # 默认500秒
+            "轮次": 500,          # 默认500秒
+            "第": 500,            # 匹配第X章
+            "章": 500             # 匹配章节
         }
-        timeout = 60  # 默认超时60秒
+        timeout = 500  # 默认超时500秒
         for key, value in base_timeouts.items():
             if key in purpose:
                 timeout = value
