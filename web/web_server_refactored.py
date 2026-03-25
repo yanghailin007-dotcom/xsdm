@@ -486,6 +486,14 @@ def create_app():
     app.register_blueprint(market_driven_api)
     logger.info("✅ market_driven_api 市场导向生成已注册")
 
+    # 28.3. 初始化题材自动更新调度器
+    try:
+        from web.services.market_driven.genre_scheduler import init_genre_scheduler
+        init_genre_scheduler(app)
+        logger.info("✅ GenreScheduler 题材自动更新调度器已启动")
+    except Exception as e:
+        logger.error(f"❌ GenreScheduler 启动失败: {e}")
+
     # 🔥 同步预初始化 NovelGenerator（确保服务器启动时完成）
     logger.info("🔄 开始预初始化 NovelGenerator...")
     try:
@@ -866,6 +874,17 @@ def register_contract_routes(app):
             return render_template('pages/v2/market-driven-plan.html', genre=genre)
         except Exception as e:
             logger.error(f"❌ 加载市场导向方案页面失败: {e}")
+            return f"页面加载失败: {str(e)}", 500
+
+    @app.route('/market-driven-status')
+    def market_driven_status_page():
+        """市场导向任务状态页面"""
+        try:
+            from flask import render_template, request
+            task_id = request.args.get('task', '')
+            return render_template('pages/v2/market-driven-status.html', task_id=task_id)
+        except Exception as e:
+            logger.error(f"❌ 加载市场导向状态页面失败: {e}")
             return f"页面加载失败: {str(e)}", 500
 
     @app.route('/admin/users')

@@ -223,9 +223,6 @@ class APIClient:
         self.rate_limit_max_requests = rate_limit_config.get("max_requests", 1)
         self.last_request_time = 0  # 上次请求时间戳
         self.request_count = 0      # 当前间隔内的请求计数
-        # 从配置中获取默认提供商
-        self.default_provider = self.config.get("default_provider", "gemini")
-        
         # 🔥 初始化API端点池（新的多API支持）
         self.endpoint_pools: Dict[str, APIEndpointPool] = {}
         self._initialize_endpoint_pools()
@@ -253,14 +250,28 @@ class APIClient:
             self.logger.info(f"   优先级: {priority_str}")
             self.logger.info(f"   最大失败: {self.provider_failover_config.get('max_failures', 3)}次")
         
-        # 验证默认提供商是否可用
-        if self.default_provider not in self.available_providers:
-            if self.available_providers:
-                self.default_provider = self.available_providers[0]
-                self.logger.info(f"⚠️ 配置的默认提供商不可用，已切换到: {self.default_provider}")
+        # 从配置中获取默认提供商
+        raw_default = self.config.get("default_provider")
+        
+        # 🔥 新增: 如果 default_provider 为 None，按优先级自动选择
+        if raw_default is None:
+            self.default_provider = self._get_highest_priority_available_provider()
+            if self.default_provider:
+                self.logger.info(f"✓ 默认使用: {self.default_provider.upper()} (按优先级自动选择)")
             else:
                 self.logger.info("❌ 没有可用的AI服务提供商")
-        self.logger.info(f"✓ 默认使用: {self.default_provider.upper()}") 
+        elif raw_default in self.available_providers:
+            self.default_provider = raw_default
+            self.logger.info(f"✓ 默认使用: {self.default_provider.upper()} (固定配置)")
+        else:
+            # 配置的 provider 不可用，回退到第一个可用的
+            if self.available_providers:
+                self.default_provider = self.available_providers[0]
+                self.logger.info(f"⚠️ 配置的默认提供商 '{raw_default}' 不可用，已切换到: {self.default_provider}")
+            else:
+                self.default_provider = raw_default
+                self.logger.info(f"❌ 配置的提供商 '{raw_default}' 不可用，且没有可用替代")
+        
         self.logger.info(f"✓ 可用提供商: {self.available_providers}")
         
         # 打印端点池状态
@@ -625,6 +636,29 @@ class APIClient:
         # 所有高优先级 provider 都不可用，使用默认
         return self.default_provider
     
+    def _get_highest_priority_available_provider(self) -> Optional[str]:
+        """
+        获取优先级最高且可用的 provider
+        
+        按照 provider_priority 列表顺序，返回第一个有可用端点的 provider
+        
+        Returns:
+            优先级最高的可用 provider，如果没有则返回 None
+        """
+        for provider in self.provider_priority:
+            if provider not in self.endpoint_pools:
+                continue
+            pool = self.endpoint_pools[provider]
+            if pool.get_available_endpoints():
+                return provider
+        
+        # 优先级列表中没有可用的，返回任意一个可用的
+        for provider, pool in self.endpoint_pools.items():
+            if pool.get_available_endpoints():
+                return provider
+        
+        return None
+    
     def _get_available_providers(self) -> List[str]:
         """获取配置中启用的AI服务提供商（基于端点池）"""
         available = []
@@ -750,11 +784,14 @@ class APIClient:
     def _calculate_timeout(self, purpose: str, attempt: int) -> int:
         """根据目的和尝试次数计算超时时间"""
         base_timeouts = {
-            "章节生成": 120,
-            "内容生成": 90,
+            "章节生成": 180,      # 3分钟
+            "内容生成": 120,      # 2分钟
             "质量评估": 60,
             "快速质量评估": 60,
-            "提示词优化": 60
+            "提示词优化": 60,
+            "对话": 300,          # 5分钟（对话生成需要更长时间）
+            "conversation": 300,  # 5分钟
+            "轮次": 300           # 5分钟（对话轮次）
         }
         timeout = 60  # 默认超时60秒
         for key, value in base_timeouts.items():
@@ -762,8 +799,8 @@ class APIClient:
                 timeout = value
                 break
         if attempt > 0:
-            timeout += 30 * attempt
-        return min(timeout, 500)  # 最大超时 500 秒
+            timeout += 60 * attempt  # 每次重试增加60秒
+        return min(timeout, 600)  # 最大超时 600 秒（10分钟）
     def _process_stream_response(self, response) -> str:
         """处理流式响应并返回完整内容"""
         full_content = ""
@@ -940,6 +977,102 @@ class APIClient:
         with open(filename, "w", encoding="utf-8") as f:
             f.write(content)
         self.logger.info(f"  💾 {stage}响应已保存到: {filename}")
+    
+    def _call_with_openai_sdk(
+        self,
+        api_url: str,
+        api_key: str,
+        model_name: str,
+        system_prompt: str,
+        user_prompt: str,
+        temperature: float,
+        max_tokens: int,
+        timeout: int,
+        endpoint_name: str,
+        user_str: str,
+        thread_id: str
+    ) -> Optional[str]:
+        """
+        使用OpenAI SDK调用API（专门用于Kimi等OpenAI兼容API）
+        
+        避免requests库的编码问题
+        """
+        # 🔥 关键：确保字符串是UTF-8编码，避免Windows编码问题
+        def ensure_str(s):
+            if isinstance(s, bytes):
+                return s.decode('utf-8')
+            return s
+        
+        # 🔥 安全日志函数（避免Windows编码错误）
+        def safe_log(msg, level='info'):
+            try:
+                # 移除或替换可能导致编码问题的字符
+                safe_msg = msg.encode('ascii', 'replace').decode('ascii')
+                if level == 'info':
+                    self.logger.info(safe_msg)
+                elif level == 'error':
+                    self.logger.error(safe_msg)
+                elif level == 'warning':
+                    self.logger.warning(safe_msg)
+            except:
+                pass
+        
+        try:
+            from openai import OpenAI
+            import httpx
+            
+            # 确保所有字符串都是正确的UTF-8
+            api_key_safe = ensure_str(api_key)
+            base_url_safe = ensure_str(api_url.replace('/chat/completions', ''))
+            model_safe = ensure_str(model_name)
+            system_safe = ensure_str(system_prompt)
+            user_safe = ensure_str(user_prompt)
+            
+            # 创建客户端，使用自定义 transport 避免编码问题
+            client = OpenAI(
+                api_key=api_key_safe,
+                base_url=base_url_safe,
+                timeout=timeout,
+                http_client=httpx.Client(
+                    timeout=timeout,
+                    follow_redirects=True
+                )
+            )
+            
+            safe_log(f"{user_str}     - Using OpenAI SDK for {endpoint_name}")
+            
+            # 构建消息 - 确保内容正确编码
+            messages = [
+                {"role": "system", "content": system_safe},
+                {"role": "user", "content": user_safe}
+            ]
+            
+            # 调用API
+            start_time = time.time()
+            completion = client.chat.completions.create(
+                model=model_safe,
+                messages=messages,
+                temperature=temperature,
+                max_tokens=max_tokens
+            )
+            elapsed = time.time() - start_time
+            
+            # 获取结果
+            content = completion.choices[0].message.content
+            
+            safe_log(f"{user_str}  [OK] Endpoint {endpoint_name} success | Time: {elapsed:.2f}s | Len: {len(content)}")
+            
+            return content
+            
+        except ImportError as e:
+            safe_log(f"{user_str}  [ERROR] Import failed: {e}", 'error')
+            raise
+        except Exception as e:
+            # 🔥 关键：安全地记录错误，避免编码问题
+            error_msg = str(e)
+            safe_log(f"{user_str}  [ERROR] OpenAI SDK call failed: {error_msg}", 'error')
+            raise
+    
     def _call_single_endpoint(
         self, 
         endpoint_config: Dict[str, Any],
@@ -965,12 +1098,34 @@ class APIClient:
         if "k2.5" in model_name:
             temperature = 1.0
         
+        # 🔥 从端点配置读取流传输设置（默认False）
+        use_stream = endpoint_config.get("stream", False)
+        
+        import threading
+        thread_id = threading.current_thread().name
+        user_str = self._get_username_str()
+        start_time = time.time()
+        
+        self.logger.info(f"{user_str}  📡 [{thread_id}] 发起API请求 [端点: {endpoint_name}]:")
+        self.logger.info(f"{user_str}     - 目的: {purpose}")
+        self.logger.info(f"{user_str}     - 模型: {model_name}")
+        self.logger.info(f"{user_str}     - 超时: {timeout}秒")
+        
+        # 🔥 针对Kimi API使用openai库（避免requests编码问题）
+        if "moonshot" in api_url.lower() or "kimi" in model_name.lower():
+            try:
+                return self._call_with_openai_sdk(api_url, api_key, model_name, 
+                                                   system_prompt, user_prompt, 
+                                                   temperature, max_tokens, timeout,
+                                                   endpoint_name, user_str, thread_id)
+            except Exception as e:
+                self.logger.warning(f"{user_str}  OpenAI SDK调用失败，回退到requests: {e}")
+        
+        # 标准requests调用（用于Gemini、DeepSeek等）
         headers = {
             "Authorization": f"Bearer {api_key}",
             "Content-Type": "application/json"
         }
-        # 🔥 从端点配置读取流传输设置（默认False）
-        use_stream = endpoint_config.get("stream", False)
         
         payload = {
             "model": model_name,
@@ -983,17 +1138,7 @@ class APIClient:
             "stream": use_stream
         }
         
-        import threading
-        thread_id = threading.current_thread().name
-        user_str = self._get_username_str()
-        start_time = time.time()
-        
         try:
-            self.logger.info(f"{user_str}  📡 [{thread_id}] 发起API请求 [端点: {endpoint_name}]:")
-            self.logger.info(f"{user_str}     - 目的: {purpose}")
-            self.logger.info(f"{user_str}     - 模型: {model_name}")
-            self.logger.info(f"{user_str}     - 超时: {timeout}秒")
-            
             # 🔥 流传输模式下使用分离的连接/读取超时，避免长生成被中断
             if use_stream:
                 self.logger.info(f"{user_str}     - 流传输: ✓ (避免长生成超时)")
@@ -1336,35 +1481,56 @@ class APIClient:
         if max_tokens is None:
             max_tokens = self.config.get("defaults", {}).get("max_tokens", 60000)
         
-        # 尝试每个端点
+        # 尝试每个端点（带超时重试）
         for endpoint in available_endpoints:
             endpoint_config = endpoint.get_config()
             if model_name:
                 endpoint_config["model"] = model_name
             
-            try:
-                result = self._call_single_endpoint_with_messages(
-                    endpoint_config=endpoint_config,
-                    messages=messages,
-                    temperature=temperature,
-                    max_tokens=max_tokens,
-                    timeout=endpoint.timeout,
-                    purpose=purpose
-                )
-                
-                if result:
-                    endpoint.record_success(time.time())
-                    self.logger.info(f"{user_str}✅ 端点 {endpoint.name} 调用成功")
-                    self._trigger_api_call_callback(purpose, 1, endpoint.name, 
-                                                   getattr(endpoint, 'discount_rate', 100))
-                    return result
-                else:
-                    endpoint.record_failure("empty_response")
-                    self.logger.warning(f"{user_str}⚠️ 端点 {endpoint.name} 返回空响应")
+            # 🔥 对单个端点进行最多3次重试
+            max_retries = 3
+            for attempt in range(max_retries):
+                try:
+                    # 计算超时时间（每次重试增加）
+                    timeout = self._calculate_timeout(purpose, attempt)
                     
-            except Exception as e:
-                endpoint.record_failure(str(e))
-                self.logger.error(f"{user_str}❌ 端点 {endpoint.name} 调用异常: {e}")
+                    self.logger.info(f"{user_str}🔄 端点 {endpoint.name} 第{attempt+1}/{max_retries}次尝试 | 超时: {timeout}s")
+                    
+                    result = self._call_single_endpoint_with_messages(
+                        endpoint_config=endpoint_config,
+                        messages=messages,
+                        temperature=temperature,
+                        max_tokens=max_tokens,
+                        timeout=timeout,
+                        purpose=purpose
+                    )
+                    
+                    if result:
+                        endpoint.record_success(time.time())
+                        self.logger.info(f"{user_str}✅ 端点 {endpoint.name} 第{attempt+1}次尝试成功")
+                        self._trigger_api_call_callback(purpose, 1, endpoint.name, 
+                                                       getattr(endpoint, 'discount_rate', 100))
+                        return result
+                    else:
+                        endpoint.record_failure("empty_response")
+                        self.logger.warning(f"{user_str}⚠️ 端点 {endpoint.name} 返回空响应")
+                        break  # 空响应不重试，尝试下一个端点
+                        
+                except requests.exceptions.Timeout:
+                    endpoint.record_failure(f"timeout_attempt_{attempt+1}")
+                    self.logger.warning(f"{user_str}⏰ 端点 {endpoint.name} 第{attempt+1}次尝试超时")
+                    
+                    if attempt < max_retries - 1:
+                        wait_time = 2 ** attempt  # 指数退避：1s, 2s, 4s
+                        self.logger.info(f"{user_str}⏳ 等待 {wait_time}s 后重试...")
+                        time.sleep(wait_time)
+                    else:
+                        self.logger.error(f"{user_str}❌ 端点 {endpoint.name} 所有重试均超时")
+                        
+                except Exception as e:
+                    endpoint.record_failure(str(e))
+                    self.logger.error(f"{user_str}❌ 端点 {endpoint.name} 调用异常: {e}")
+                    break  # 其他异常不重试，尝试下一个端点
         
         self.logger.error(f"{user_str}💥 所有端点均失败")
         return None
@@ -1390,12 +1556,22 @@ class APIClient:
         
         headers = {
             "Authorization": f"Bearer {api_key}",
-            "Content-Type": "application/json"
+            "Content-Type": "application/json; charset=utf-8"
         }
+        
+        # 🔥 确保所有消息内容都是UTF-8编码（修复Kimi等API的编码问题）
+        def ensure_utf8(obj):
+            if isinstance(obj, str):
+                return obj.encode('utf-8').decode('utf-8')
+            elif isinstance(obj, list):
+                return [ensure_utf8(item) for item in obj]
+            elif isinstance(obj, dict):
+                return {key: ensure_utf8(value) for key, value in obj.items()}
+            return obj
         
         payload = {
             "model": model_name,
-            "messages": messages,
+            "messages": ensure_utf8(messages),
             "temperature": temperature,
             "max_tokens": max_tokens,
             "stream": False
@@ -1733,21 +1909,39 @@ class APIClient:
     def generate_content_with_retry(self, content_type: str, user_prompt: str,
                                   temperature: Optional[float] = None, purpose: str = "内容生成",
                                   provider: Optional[str] = None, enable_prompt_optimization: bool = False,
-                                  chapter_number: Optional[int] = None) -> Optional[Any]:
-        """带重试机制的内容生成 - 增强JSON格式要求版本，支持模型路由"""
+                                  chapter_number: Optional[int] = None,
+                                  system_prompt: Optional[str] = None) -> Optional[Any]:
+        """带重试机制的内容生成 - 增强JSON格式要求版本，支持模型路由
+        
+        Args:
+            content_type: 内容类型标识
+            user_prompt: 用户提示词
+            temperature: 温度参数
+            purpose: 用途标识
+            provider: 指定提供商
+            enable_prompt_optimization: 是否启用提示词优化
+            chapter_number: 章节号（用于模型路由）
+            system_prompt: 可选，直接传入系统提示词（覆盖Prompts中的定义）
+        """
         import threading
         thread_id = threading.current_thread().name
         user_str = self._get_username_str()
         
-        # 验证内容类型是否支持
-        if content_type not in self.Prompts:
-            self.logger.info(f"{user_str}❌ 不支持的内容类型: {content_type}")
-            self.logger.info(f"{user_str}💡 支持的内容类型: {list(self.Prompts.prompts.keys())}")
-            return None
-        
         # 获取基础系统提示词
         try:
-            base_system_prompt = self.Prompts[content_type]
+            if system_prompt is not None:
+                # 优先使用传入的system_prompt
+                base_system_prompt = system_prompt
+                self.logger.debug(f"{user_str}使用传入的system_prompt")
+            elif content_type in self.Prompts:
+                base_system_prompt = self.Prompts[content_type]
+                self.logger.debug(f"{user_str}使用预定义内容类型: {content_type}")
+            else:
+                # 未定义的内容类型，使用通用处理
+                self.logger.info(f"{user_str}⚠️ 未定义的内容类型: {content_type}，使用通用处理")
+                # 对于未定义的类型，直接使用用户prompt作为system prompt
+                base_system_prompt = "你是一个专业的AI助手。请根据用户的要求提供高质量的回复。"
+                
             if not base_system_prompt:
                 self.logger.info(f"{user_str}❌ 内容类型 {content_type} 的提示词为空")
                 return None
@@ -2070,114 +2264,3 @@ User Prompt: {len(original_user)} → {len(optimized_data.get('optimized_user_pr
         with open(filename, "w", encoding="utf-8") as f:
             f.write(content)
         self.logger.info(f"  💾 JSON修复记录已保存: {filename}")
-    # ==================== APIClient V2 �ӿ� ====================
-    
-    def single_call(self, system_prompt: str, user_prompt: str,
-                   temperature: Optional[float] = None,
-                   max_tokens: Optional[int] = None,
-                   purpose: str = "single_call",
-                   provider: Optional[str] = None,
-                   model_name: Optional[str] = None) -> Optional[str]:
-        \"\"\"
-        ���ε���ģʽ - ��״̬��ÿ�ε��ö���
-        
-        ������:
-        - ���������絥�����ɡ�����������
-        - �������������������ĵĲ�������
-        - �򵥲�ѯ��һ�����ʴ�
-        
-        Args:
-            system_prompt: ϵͳ��ʾ��
-            user_prompt: �û���ʾ��
-            temperature: �¶Ȳ���
-            max_tokens: ���token��
-            purpose: ��;��ʶ��������־��
-            provider: ָ���ṩ�̣�Noneʹ��Ĭ�ϣ�
-            model_name: ָ��ģ����
-            
-        Returns:
-            ��Ӧ�ı���None
-            
-        ʹ��ʾ��:
-            result = client.single_call(
-                system_prompt="��������",
-                user_prompt="д��һ��",
-                purpose="chapter_gen"
-            )
-        \"\"\"
-        return self.call_api(
-            system_prompt=system_prompt,
-            user_prompt=user_prompt,
-            temperature=temperature,
-            purpose=purpose,
-            provider=provider
-        )
-    
-    def create_session(self, session_id: str,
-                      system_prompt: str,
-                      provider: Optional[str] = None,
-                      model_name: Optional[str] = None,
-                      temperature: float = 0.8,
-                      max_history: int = 20,
-                      **kwargs) -> 'ConversationSession':
-        \"\"\"
-        �����Ựģʽ - ά�����ֶԻ�������
-        
-        �����ṩ���Զ�ѡ��ʵ�ַ�ʽ:
-        - Kimi: ԭ��֧�� messages ����
-        - Gemini/Deepseek��: ͨ�� prompt ƴ��ģ��Ự
-        
-        ������:
-        - ���ᴴ�����½ڼ���Ҫ����һ���ԣ�
-        - �����Ż�������ǰ�Ĳ��ϸĽ���
-        - ����������Ҫ�����ĵĶԻ���
-        
-        Args:
-            session_id: �ỰΨһ��ʶ
-            system_prompt: ϵͳ��ʾ�ʣ��Ự��ʼʱ���ã�
-            provider: �ṩ�̣�Noneʹ��Ĭ�ϣ�
-            model_name: ģ����
-            temperature: �¶Ȳ���
-            max_history: �����ʷ����
-            **kwargs: �������
-            
-        Returns:
-            ConversationSession ʵ��
-            
-        ʹ��ʾ��:
-            session = client.create_session(
-                session_id="novel_001",
-                system_prompt="��������",
-                provider="kimi"
-            )
-            
-            # ���ֶԻ����Զ�ά��������
-            ch1 = session.send_message("д��һ��")
-            ch2 = session.send_message("�����ڶ���")  # �Զ�����һ��������
-        \"\"\"
-        # �����ṩ�̴������ʵĻỰʵ��
-        provider = provider or self.default_provider
-        
-        # Ŀǰʹ�����е� ConversationSession
-        # �������Ը��� provider ����ʵ��
-        return ConversationSession(
-            api_client=self,
-            system_prompt=system_prompt,
-            provider=provider,
-            model_name=model_name,
-            temperature=temperature,
-            purpose_prefix=session_id
-        )
-    
-    def get_session_type(self, provider: str) -> str:
-        \"\"\"
-        ��ȡ�ṩ��֧�ֵĻỰ����
-        
-        Returns:
-            \"native\" - ԭ��֧�ֶ��ֶԻ�
-            \"simulated\" - ͨ��ƴ��ģ��
-        \"\"\"
-        native_providers = [\"kimi\", \"openai\", \"claude\"]
-        if provider.lower() in native_providers:
-            return \"native\"
-        return \"simulated\"

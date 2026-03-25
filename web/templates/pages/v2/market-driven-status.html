@@ -1,0 +1,588 @@
+{% extends "layouts/base-v2.html" %}
+
+{% block title %}生成进度 - 市场导向创作{% endblock %}
+
+{% block extra_css %}
+<link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+<style>
+.status-container {
+  max-width: 800px;
+  margin: 0 auto;
+  padding: 40px 20px;
+}
+
+.status-header {
+  text-align: center;
+  margin-bottom: 40px;
+}
+
+.status-header__title {
+  font-size: 32px;
+  font-weight: 800;
+  background: linear-gradient(135deg, #ffffff 0%, #fbbf24 50%, #f59e0b 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  margin-bottom: 12px;
+}
+
+.status-header__subtitle {
+  font-size: 16px;
+  color: var(--v2-text-secondary);
+}
+
+/* 进度卡片 */
+.progress-card {
+  background: var(--v2-bg-secondary);
+  border: 1px solid var(--v2-border-subtle);
+  border-radius: 16px;
+  padding: 32px;
+  margin-bottom: 24px;
+}
+
+.progress-card__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 24px;
+}
+
+.progress-card__title {
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--v2-text-primary);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.progress-card__title .material-icons {
+  color: var(--primary-gold);
+}
+
+.progress-card__status {
+  padding: 6px 14px;
+  border-radius: 100px;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.progress-card__status--running {
+  background: rgba(245, 158, 11, 0.15);
+  color: #fbbf24;
+}
+
+.progress-card__status--completed {
+  background: rgba(34, 197, 94, 0.15);
+  color: #4ade80;
+}
+
+.progress-card__status--failed {
+  background: rgba(239, 68, 68, 0.15);
+  color: #f87171;
+}
+
+/* 进度条 */
+.progress-bar {
+  height: 8px;
+  background: var(--v2-bg-tertiary);
+  border-radius: 4px;
+  overflow: hidden;
+  margin-bottom: 16px;
+}
+
+.progress-bar__fill {
+  height: 100%;
+  background: linear-gradient(90deg, var(--primary-gold), var(--primary-gold-light));
+  border-radius: 4px;
+  transition: width 0.3s ease-out;
+  width: 0%; /* 确保初始宽度为0 */
+}
+
+.progress-info {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.progress-info__percent {
+  font-size: 24px;
+  font-weight: 700;
+  color: var(--primary-gold);
+}
+
+.progress-info__stage {
+  font-size: 14px;
+  color: var(--v2-text-secondary);
+}
+
+/* 阶段列表 */
+.stage-list {
+  margin-top: 24px;
+}
+
+.stage-item {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 16px;
+  border-radius: 12px;
+  margin-bottom: 8px;
+  transition: all 0.3s;
+}
+
+.stage-item--pending {
+  opacity: 0.5;
+}
+
+.stage-item--active {
+  background: rgba(245, 158, 11, 0.1);
+  border: 1px solid rgba(245, 158, 11, 0.2);
+}
+
+.stage-item--completed {
+  opacity: 1;
+}
+
+.stage-item__icon {
+  width: 40px;
+  height: 40px;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.stage-item--pending .stage-item__icon {
+  background: var(--v2-bg-tertiary);
+  color: var(--v2-text-muted);
+}
+
+.stage-item--active .stage-item__icon {
+  background: rgba(245, 158, 11, 0.2);
+  color: var(--primary-gold);
+  animation: pulse 2s infinite;
+}
+
+.stage-item--completed .stage-item__icon {
+  background: rgba(34, 197, 94, 0.2);
+  color: #4ade80;
+}
+
+.stage-item__content {
+  flex: 1;
+}
+
+.stage-item__name {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--v2-text-primary);
+  margin-bottom: 4px;
+}
+
+.stage-item__desc {
+  font-size: 13px;
+  color: var(--v2-text-muted);
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
+}
+
+/* 操作按钮 */
+.action-section {
+  display: flex;
+  gap: 16px;
+  justify-content: center;
+  margin-top: 32px;
+}
+
+.btn {
+  padding: 14px 28px;
+  border-radius: 12px;
+  font-size: 15px;
+  font-weight: 600;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  transition: all 0.2s;
+  border: none;
+}
+
+.btn-primary {
+  background: linear-gradient(135deg, var(--primary-gold), var(--primary-gold-light));
+  color: #0f172a;
+}
+
+.btn-primary:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 25px rgba(245, 158, 11, 0.3);
+}
+
+.btn-secondary {
+  background: var(--v2-bg-tertiary);
+  color: var(--v2-text-primary);
+  border: 1px solid var(--v2-border-subtle);
+}
+
+.btn-secondary:hover {
+  background: var(--v2-bg-secondary);
+}
+
+/* 结果展示 */
+.result-section {
+  background: var(--v2-bg-secondary);
+  border: 1px solid var(--v2-border-subtle);
+  border-radius: 16px;
+  padding: 32px;
+  margin-top: 24px;
+}
+
+.result-section__title {
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--v2-text-primary);
+  margin-bottom: 20px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.result-section__title .material-icons {
+  color: #4ade80;
+}
+
+.result-stats {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 16px;
+  margin-bottom: 24px;
+}
+
+.result-stat {
+  background: var(--v2-bg-tertiary);
+  padding: 20px;
+  border-radius: 12px;
+  text-align: center;
+}
+
+.result-stat__value {
+  font-size: 28px;
+  font-weight: 700;
+  color: var(--primary-gold);
+  margin-bottom: 4px;
+}
+
+.result-stat__label {
+  font-size: 13px;
+  color: var(--v2-text-muted);
+}
+
+/* 错误提示 */
+.error-section {
+  background: rgba(239, 68, 68, 0.1);
+  border: 1px solid rgba(239, 68, 68, 0.3);
+  border-radius: 16px;
+  padding: 32px;
+  text-align: center;
+}
+
+.error-section__icon {
+  font-size: 48px;
+  color: #f87171;
+  margin-bottom: 16px;
+}
+
+.error-section__title {
+  font-size: 18px;
+  font-weight: 700;
+  color: #f87171;
+  margin-bottom: 8px;
+}
+
+.error-section__message {
+  font-size: 14px;
+  color: var(--v2-text-secondary);
+  margin-bottom: 20px;
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="v2-project-container">
+  <div class="status-container">
+    
+    <!-- Header -->
+    <div class="status-header">
+      <h1 class="status-header__title">生成进度</h1>
+      <p class="status-header__subtitle">AI正在为您生成创作方案和章节内容</p>
+    </div>
+    
+    <!-- 进度卡片 -->
+    <div class="progress-card">
+      <div class="progress-card__header">
+        <div class="progress-card__title">
+          <span class="material-icons">precision_manufacturing</span>
+          任务状态
+        </div>
+        <div class="progress-card__status progress-card__status--running" id="task-status">
+          进行中
+        </div>
+      </div>
+      
+      <div class="progress-bar">
+        <div class="progress-bar__fill" id="progress-fill" style="width: 0%"></div>
+      </div>
+      
+      <div class="progress-info">
+        <span class="progress-info__percent" id="progress-percent">0%</span>
+        <span class="progress-info__stage" id="current-stage">准备中...</span>
+      </div>
+      
+      <!-- 阶段列表 -->
+      <div class="stage-list" id="stage-list">
+        <div class="stage-item stage-item--active" data-stage="analyzing">
+          <div class="stage-item__icon">
+            <span class="material-icons">psychology</span>
+          </div>
+          <div class="stage-item__content">
+            <div class="stage-item__name">套路分析</div>
+            <div class="stage-item__desc">分析题材爆款规律</div>
+          </div>
+        </div>
+        
+        <div class="stage-item stage-item--pending" data-stage="planning">
+          <div class="stage-item__icon">
+            <span class="material-icons">edit_note</span>
+          </div>
+          <div class="stage-item__content">
+            <div class="stage-item__name">方案生成</div>
+            <div class="stage-item__desc">生成创作方案</div>
+          </div>
+        </div>
+        
+        <div class="stage-item stage-item--pending" data-stage="worldview">
+          <div class="stage-item__icon">
+            <span class="material-icons">public</span>
+          </div>
+          <div class="stage-item__content">
+            <div class="stage-item__name">世界观构建</div>
+            <div class="stage-item__desc">创建世界观、角色等设定</div>
+          </div>
+        </div>
+        
+        <div class="stage-item stage-item--pending" data-stage="chapters">
+          <div class="stage-item__icon">
+            <span class="material-icons">menu_book</span>
+          </div>
+          <div class="stage-item__content">
+            <div class="stage-item__name">章节生成</div>
+            <div class="stage-item__desc">批量生成小说章节</div>
+          </div>
+        </div>
+      </div>
+    </div>
+    
+    <!-- 操作按钮 -->
+    <div class="action-section" id="action-section">
+      <button class="btn btn-secondary" onclick="goBack()">
+        <span class="material-icons">arrow_back</span>
+        返回
+      </button>
+      <button class="btn btn-primary" id="view-result-btn" style="display: none;" onclick="viewResult()">
+        <span class="material-icons">visibility</span>
+        查看结果
+      </button>
+    </div>
+    
+    <!-- 结果区域（完成时显示） -->
+    <div class="result-section" id="result-section" style="display: none;">
+      <div class="result-section__title">
+        <span class="material-icons">check_circle</span>
+        生成完成
+      </div>
+      <div class="result-stats" id="result-stats">
+        <!-- 动态填充 -->
+      </div>
+    </div>
+    
+    <!-- 错误区域（失败时显示） -->
+    <div class="error-section" id="error-section" style="display: none;">
+      <div class="error-section__icon">
+        <span class="material-icons">error_outline</span>
+      </div>
+      <div class="error-section__title">生成失败</div>
+      <div class="error-section__message" id="error-message">请稍后重试</div>
+      <button class="btn btn-primary" onclick="retryTask()">
+        <span class="material-icons">refresh</span>
+        重试
+      </button>
+    </div>
+    
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// 从URL获取任务ID
+const urlParams = new URLSearchParams(window.location.search);
+const taskId = urlParams.get('task');
+
+if (!taskId) {
+  alert('任务ID不存在');
+  window.location.href = '/market-driven-create';
+}
+
+let pollInterval = null;
+
+// 开始轮询任务状态
+function startPolling() {
+  pollInterval = setInterval(pollTaskStatus, 2000);
+  pollTaskStatus(); // 立即执行一次
+}
+
+// 轮询任务状态
+async function pollTaskStatus() {
+  try {
+    const response = await fetch(`/api/market-driven/tasks/${taskId}`);
+    
+    if (!response.ok) {
+      throw new Error('获取任务状态失败');
+    }
+    
+    const task = await response.json();
+    updateUI(task);
+    
+    // 任务完成或失败，停止轮询
+    if (task.status === 'completed' || task.status === 'failed') {
+      clearInterval(pollInterval);
+    }
+  } catch (error) {
+    console.error('轮询失败:', error);
+  }
+}
+
+// 更新UI
+function updateUI(task) {
+  const progress = task.progress || 0;
+  const stage = task.current_stage || '准备中';
+  const message = task.message || '';
+  
+  // 🔍 调试日志
+  console.log('[进度更新]', { progress, stage, message, status: task.status });
+  
+  // 更新进度条
+  const fillEl = document.getElementById('progress-fill');
+  const percentEl = document.getElementById('progress-percent');
+  const stageEl = document.getElementById('current-stage');
+  
+  // 直接设置宽度
+  fillEl.style.width = progress + '%';
+  
+  percentEl.textContent = `${progress}%`;
+  stageEl.textContent = message || stage;
+  
+  // 更新状态标签
+  const statusEl = document.getElementById('task-status');
+  if (task.status === 'completed') {
+    statusEl.textContent = '已完成';
+    statusEl.className = 'progress-card__status progress-card__status--completed';
+    showResult(task);
+  } else if (task.status === 'failed') {
+    statusEl.textContent = '失败';
+    statusEl.className = 'progress-card__status progress-card__status--failed';
+    showError(task.error);
+  }
+  
+  // 更新阶段列表
+  updateStageList(stage);
+}
+
+// 更新阶段列表
+function updateStageList(currentStage) {
+  const stages = ['analyzing', 'planning', 'worldview', 'chapters'];
+  let currentFound = false;
+  
+  stages.forEach(stage => {
+    const item = document.querySelector(`[data-stage="${stage}"]`);
+    if (!item) return;
+    
+    // 移除所有状态类
+    item.classList.remove('stage-item--pending', 'stage-item--active', 'stage-item--completed');
+    
+    if (stage === currentStage) {
+      item.classList.add('stage-item--active');
+      currentFound = true;
+    } else if (!currentFound) {
+      item.classList.add('stage-item--completed');
+    } else {
+      item.classList.add('stage-item--pending');
+    }
+  });
+}
+
+// 显示结果
+function showResult(task) {
+  document.getElementById('view-result-btn').style.display = 'inline-flex';
+  
+  const result = task.result || {};
+  const stats = document.getElementById('result-stats');
+  
+  // 构建统计信息
+  let statsHTML = '';
+  
+  if (result.chapter_generation) {
+    const cg = result.chapter_generation;
+    statsHTML += `
+      <div class="result-stat">
+        <div class="result-stat__value">${cg.total_chapters || 0}</div>
+        <div class="result-stat__label">生成章节</div>
+      </div>
+      <div class="result-stat">
+        <div class="result-stat__value">${(cg.total_words || 0).toLocaleString()}</div>
+        <div class="result-stat__label">总字数</div>
+      </div>
+      <div class="result-stat">
+        <div class="result-stat__value">${cg.avg_quality?.toFixed(1) || '0.0'}</div>
+        <div class="result-stat__label">平均质量</div>
+      </div>
+    `;
+  }
+  
+  if (statsHTML) {
+    stats.innerHTML = statsHTML;
+    document.getElementById('result-section').style.display = 'block';
+  }
+}
+
+// 显示错误
+function showError(error) {
+  document.getElementById('error-message').textContent = error || '生成失败，请重试';
+  document.getElementById('error-section').style.display = 'block';
+  document.getElementById('action-section').style.display = 'none';
+}
+
+// 返回
+function goBack() {
+  window.history.back();
+}
+
+// 查看结果
+function viewResult() {
+  // 跳转到项目管理页面或其他结果展示页面
+  alert('功能开发中：将跳转到结果展示页面');
+}
+
+// 重试
+function retryTask() {
+  location.reload();
+}
+
+// 启动轮询
+document.addEventListener('DOMContentLoaded', startPolling);
+</script>
+{% endblock %}

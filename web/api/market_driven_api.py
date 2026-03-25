@@ -30,6 +30,10 @@ try:
     from web.services.market_driven.trope_analyzer import TropeAnalyzer, TropeCache
     from web.services.market_driven.plan_generator import MarketDrivenPlanGenerator
     from web.services.market_driven.phase_one_generator import MarketDrivenPhaseOneGenerator
+    from web.services.market_driven.market_driven_conversation import (
+        MarketDrivenConversationSession, MarketDrivenConversationManager,
+        generate_with_conversation
+    )
     from web.services.market_driven.batch_chapter_generator import (
         BatchChapterGenerator, ChapterBluePrintGenerator, generate_300k_words
     )
@@ -102,7 +106,10 @@ task_manager = MarketGenerationTaskManager()
 @market_driven_api.route('/genres', methods=['GET'])
 def get_available_genres():
     """
-    获取可选择的题材列表
+    获取可选择的题材列表（支持自动更新）
+    
+    Query参数:
+        - refresh: 是否强制刷新（传入任意值触发）
     
     响应：
     {
@@ -115,14 +122,37 @@ def get_available_genres():
                 "competition": "激烈",
                 "market_status": "稳定"
             }
-        ]
+        ],
+        "total": 20,
+        "update_status": {
+            "last_update": "2026-03-21T10:00:00",
+            "days_since_update": 3,
+            "next_update_due": false
+        }
     }
     """
     try:
         if TropeAnalyzer is None:
             return jsonify({"error": "服务暂不可用"}), 503
         
-        genres = TropeAnalyzer.get_available_genres()
+        # 检查是否强制刷新
+        force_refresh = request.args.get('refresh') is not None
+        
+        # 初始化API客户端（用于自动更新）
+        api_client = None
+        try:
+            from src.core.APIClient import APIClient
+            from config.config import CONFIG
+            api_client = APIClient(CONFIG)
+        except Exception as e:
+            logger.warning(f"APIClient初始化失败，将使用缓存: {e}")
+        
+        # 获取GenreManager
+        from web.services.market_driven.genre_manager import get_genre_manager
+        genre_manager = get_genre_manager(api_client=api_client)
+        
+        # 获取类型列表（支持自动更新）
+        genres = genre_manager.get_genres(force_refresh=force_refresh)
         
         # 格式化输出
         genre_list = []
@@ -133,13 +163,65 @@ def get_available_genres():
                 **info
             })
         
+        # 获取更新状态
+        update_status = genre_manager.get_update_status()
+        
         return jsonify({
             "genres": genre_list,
-            "total": len(genre_list)
+            "total": len(genre_list),
+            "update_status": {
+                "last_update": update_status.get("last_update"),
+                "days_since_update": update_status.get("days_since_update"),
+                "next_update_due": update_status.get("next_update_due"),
+                "base_genres": update_status.get("base_genres"),
+                "ai_genres": update_status.get("ai_genres")
+            }
         }), 200
         
     except Exception as e:
         logger.error(f"获取题材列表失败: {e}", exc_info=True)
+        return jsonify({"error": str(e)}), 500
+
+
+@market_driven_api.route('/genres/refresh', methods=['POST'])
+def refresh_genres():
+    """
+    手动刷新类型列表（通过AI生成新类型）
+    
+    响应：
+    {
+        "success": true,
+        "message": "类型列表已刷新",
+        "total_genres": 23,
+        "new_genres": 3
+    }
+    """
+    try:
+        from web.services.market_driven.genre_manager import get_genre_manager
+        from src.core.APIClient import APIClient
+        from config.config import CONFIG
+        
+        # 初始化API客户端
+        api_client = APIClient(CONFIG)
+        genre_manager = get_genre_manager(api_client=api_client)
+        
+        # 记录刷新前的数量
+        before_count = len(genre_manager.get_genres())
+        
+        # 强制刷新
+        genres = genre_manager.get_genres(force_refresh=True)
+        after_count = len(genres)
+        
+        return jsonify({
+            "success": True,
+            "message": "类型列表已刷新",
+            "total_genres": after_count,
+            "new_genres": after_count - before_count,
+            "genres_added": list(genres.keys())[before_count:] if after_count > before_count else []
+        }), 200
+        
+    except Exception as e:
+        logger.error(f"刷新类型列表失败: {e}", exc_info=True)
         return jsonify({"error": str(e)}), 500
 
 
@@ -354,10 +436,9 @@ def start_market_driven_generation():
                 # 第1阶段：套路分析（传递user_choices以检查是否有前端缓存的分析结果）
                 _run_trope_analysis(task_id, genre, api_client, user_choices)
                 
-                # 第2阶段：生成方案（如果不跳过）
+                # 第2阶段：方案 + 一阶段产物生成（对话模式）
                 if not options.get('skip_phase_one', False):
-                    _run_plan_generation(task_id, genre, user_choices, api_client)
-                    _run_phase_one_products(task_id, genre, api_client)
+                    _run_plan_and_products_conversation(task_id, genre, user_choices, api_client)
                 
                 # 第3阶段：生成章节
                 if options.get('generate_chapters', True):
@@ -441,13 +522,16 @@ def _run_trope_analysis(task_id: str, genre: str, api_client=None, user_choices:
 
 
 def _run_plan_generation(task_id: str, genre: str, user_choices: Dict, api_client=None):
-    """生成方案"""
+    """
+    准备方案生成参数
+    注意：实际方案生成将在对话模式中与一阶段产物一起完成
+    """
     task_manager.update_task(
         task_id,
-        status="generating_plan",
+        status="preparing_plan",
         progress=20,
-        current_stage="generating_plan",
-        message="正在基于套路生成方案..."
+        current_stage="preparing_plan",
+        message="正在准备生成参数..."
     )
     
     try:
@@ -455,12 +539,11 @@ def _run_plan_generation(task_id: str, genre: str, user_choices: Dict, api_clien
         task = task_manager.get_task(task_id)
         tropes = task.get("result", {}).get("tropes", {})
         
-        # 检查前端是否传递了分析上下文（复用之前的分析结果）
+        # 检查前端是否传递了分析上下文
         analysis_context = user_choices.get('analysis_context')
         if not tropes and analysis_context:
             logger.info(f"[Task {task_id}] 使用前端传递的分析上下文")
             tropes = analysis_context
-            # 保存到任务结果中
             task_manager.update_task(
                 task_id,
                 result={"tropes": tropes}
@@ -470,58 +553,168 @@ def _run_plan_generation(task_id: str, genre: str, user_choices: Dict, api_clien
             # 如果没有缓存的套路，重新分析
             analyzer = TropeAnalyzer(api_client=api_client)
             tropes = analyzer.analyze_genre(genre)
+            task_manager.update_task(
+                task_id,
+                result={"tropes": tropes}
+            )
         
-        # 生成方案（传递完整上下文给AI）
-        generator = MarketDrivenPlanGenerator(api_client=api_client)
-        # 将分析上下文注入到用户选择中，供AI参考
+        # 🔥 保存用户选择到任务，供后续对话模式使用
+        task_manager.update_task(
+            task_id,
+            user_choices=user_choices,  # 保存用户选择
+            progress=30,
+            message="准备完成，即将进入对话生成模式..."
+        )
+        
+        logger.info(f"[Task {task_id}] 方案生成参数准备完成，将在对话模式中生成")
+        
+    except Exception as e:
+        logger.error(f"[Task {task_id}] 方案准备失败: {e}")
+        raise
+
+
+def _run_plan_and_products_conversation(task_id: str, genre: str, user_choices: Dict, api_client=None):
+    """
+    使用对话模式生成方案 + 一阶段产物
+    在一个连续对话中完成所有生成，保持上下文连贯
+    """
+    task_manager.update_task(
+        task_id,
+        status="conversation_mode",
+        progress=20,
+        current_stage="conversation_mode",
+        message="启动AI对话模式，准备生成..."
+    )
+    
+    try:
+        # 获取任务数据
+        task = task_manager.get_task(task_id)
+        tropes = task.get("result", {}).get("tropes", {})
+        
+        # 更新用户选择（添加套路信息）
         enriched_user_choices = {
             **user_choices,
-            "trope_analysis": tropes  # 确保AI能访问分析结果
+            "trope_analysis": tropes
         }
-        plan = generator.generate_plan(genre, tropes, enriched_user_choices)
+        
+        logger.info(f"[Task {task_id}] 🚀 启动对话模式生成")
+        
+        # 进度回调
+        def progress_callback(step_name, progress):
+            step_messages = {
+                "generate_plan": "正在生成完整方案（对话模式）...",
+                "generate_worldview": "正在生成世界观...",
+                "generate_characters": "正在生成角色设计...",
+                "generate_growth_plan": "正在生成成长路线...",
+                "generate_emotion_curve": "正在生成情绪曲线..."
+            }
+            task_manager.update_task(
+                task_id,
+                progress=progress,
+                current_stage=step_name,
+                message=step_messages.get(step_name, f"正在执行: {step_name}...")
+            )
+        
+        # 使用对话会话生成所有产物
+        products = generate_with_conversation(
+            api_client=api_client,
+            genre=genre,
+            user_choices=enriched_user_choices,
+            tropes=tropes,
+            progress_callback=progress_callback
+        )
+        
+        # 提取方案信息
+        plan = products.get("plan", {})
+        
+        # 保存产物到项目目录
+        novel_title = plan.get("title", f"未命名_{task_id[:8]}")
+        save_path = save_phase_one_products(novel_title, products, task_id, genre, plan, user_choices)
         
         # 更新任务结果
         current_result = task.get("result", {})
         current_result["plan"] = plan
+        current_result["products"] = products
+        current_result["save_path"] = str(save_path)
         
         task_manager.update_task(
             task_id,
-            progress=30,
+            progress=50,
             result=current_result,
-            message="方案生成完成"
+            message="对话模式生成完成"
         )
         
-        logger.info(f"[Task {task_id}] 方案生成完成")
+        logger.info(f"[Task {task_id}] ✅ 对话模式生成完成，保存到: {save_path}")
         
     except Exception as e:
-        logger.error(f"[Task {task_id}] 方案生成失败: {e}")
-        raise
+        logger.error(f"[Task {task_id}] ❌ 对话模式生成失败: {e}")
+        logger.info(f"[Task {task_id}] 🔄 回退到传统模式...")
+        
+        # 回退到传统模式
+        _run_plan_generation(task_id, genre, user_choices, api_client)
+        _run_phase_one_products(task_id, genre, api_client)
 
 
 def _run_phase_one_products(task_id: str, genre: str, api_client=None):
-    """生成第一阶段产物"""
+    """
+    生成第一阶段产物
+    使用对话模式，在一个会话中完成所有生成，保持上下文连贯
+    """
     task_manager.update_task(
         task_id,
         status="generating_products",
         progress=35,
         current_stage="generating_products",
-        message="正在生成世界观、角色等设定..."
+        message="正在创建AI对话会话..."
     )
     
     try:
-        # 获取套路和方案
+        # 获取套路、方案和用户选择
         task = task_manager.get_task(task_id)
         tropes = task.get("result", {}).get("tropes", {})
         plan = task.get("result", {}).get("plan", {})
+        user_choices = task.get("user_choices", {})
         
-        # 生成第一阶段产物
-        generator = MarketDrivenPhaseOneGenerator(api_client=api_client)
+        # 🔥 使用对话模式生成
+        logger.info(f"[Task {task_id}] 启动对话模式生成...")
         
-        products = generator.generate_all_products(genre, tropes, plan)
+        def progress_callback(step_name, progress):
+            """进度回调 - 与UI阶段对应"""
+            # 后端步骤 -> 前端UI阶段 映射
+            step_to_stage = {
+                "generate_plan": "planning",        # 方案生成 -> planning
+                "generate_worldview": "worldview",  # 世界观 -> worldview
+                "generate_characters": "worldview", # 角色设计 -> worldview（同属世界观阶段）
+                "generate_growth_plan": "worldview",# 成长路线 -> worldview
+                "generate_emotion_curve": "chapters" # 情绪曲线 -> chapters（准备生成章节）
+            }
+            step_messages = {
+                "generate_plan": "正在生成创作方案...",
+                "generate_worldview": "正在生成世界观设定...",
+                "generate_characters": "正在生成角色设计...",
+                "generate_growth_plan": "正在生成成长路线...",
+                "generate_emotion_curve": "正在设计情绪曲线..."
+            }
+            task_manager.update_task(
+                task_id,
+                progress=progress,
+                current_stage=step_to_stage.get(step_name, "planning"),
+                message=step_messages.get(step_name, f"正在执行: {step_name}...")
+            )
+        
+        # 使用对话会话生成所有产物
+        products = generate_with_conversation(
+            api_client=api_client,
+            genre=genre,
+            user_choices=user_choices,
+            tropes=tropes,
+            progress_callback=progress_callback
+        )
         
         # 保存产物到项目目录
         novel_title = plan.get("recommended_title", f"未命名_{task_id[:8]}")
-        save_path = save_phase_one_products(novel_title, products, task_id, genre, plan)
+        user_choices = task.get("user_choices", {})
+        save_path = save_phase_one_products(novel_title, products, task_id, genre, plan, user_choices)
         
         # 更新任务结果
         current_result = task.get("result", {})
@@ -532,18 +725,47 @@ def _run_phase_one_products(task_id: str, genre: str, api_client=None):
             task_id,
             progress=50,
             result=current_result,
-            message="第一阶段产物生成完成"
+            message="第一阶段产物生成完成（对话模式）"
         )
         
-        logger.info(f"[Task {task_id}] 第一阶段产物生成完成，保存到: {save_path}")
+        logger.info(f"[Task {task_id}] 对话模式生成完成，保存到: {save_path}")
         
     except Exception as e:
-        logger.error(f"[Task {task_id}] 第一阶段产物生成失败: {e}")
-        raise
+        logger.error(f"[Task {task_id}] 对话模式生成失败: {e}")
+        logger.info(f"[Task {task_id}] 回退到模板模式...")
+        
+        # 回退到原来的模板模式
+        try:
+            tropes = task.get("result", {}).get("tropes", {})
+            plan = task.get("result", {}).get("plan", {})
+            
+            generator = MarketDrivenPhaseOneGenerator(api_client=api_client)
+            products = generator.generate_all_products(genre, tropes, plan)
+            
+            novel_title = plan.get("recommended_title", f"未命名_{task_id[:8]}")
+            user_choices = task.get("user_choices", {})
+            save_path = save_phase_one_products(novel_title, products, task_id, genre, plan, user_choices)
+            
+            current_result = task.get("result", {})
+            current_result["products"] = products
+            current_result["save_path"] = str(save_path)
+            
+            task_manager.update_task(
+                task_id,
+                progress=50,
+                result=current_result,
+                message="第一阶段产物生成完成（模板模式）"
+            )
+            
+            logger.info(f"[Task {task_id}] 模板模式生成完成")
+            
+        except Exception as e2:
+            logger.error(f"[Task {task_id}] 模板模式也失败: {e2}")
+            raise
 
 
 def save_phase_one_products(novel_title: str, products: Dict, task_id: str, 
-                            genre: str = "", plan: Dict = None) -> Path:
+                            genre: str = "", plan: Dict = None, user_choices: Dict = None) -> Path:
     """保存第一阶段产物到项目目录（使用统一的项目信息管理）"""
     
     # 使用统一的项目管理创建项目
@@ -560,15 +782,29 @@ def save_phase_one_products(novel_title: str, products: Dict, task_id: str,
     project_info["novel_synopsis"] = plan.get("core_selling_points", [{}])[0].get("point", "") if plan else ""
     project_info["genre"] = genre
     
-    # 设置模式特定信息
+    # 设置模式特定信息（包含用户选择）
+    mode_info = {
+        "task_id": task_id,
+        "tropes_analysis": products.get("based_on_tropes", {}),
+        "plan": plan
+    }
+    
+    # 🔥 保存用户选择（包括剧情路线）
+    if user_choices:
+        mode_info["user_choices"] = {
+            "title": user_choices.get("title"),
+            "protagonist_name": user_choices.get("protagonist_name"),
+            "protagonist_identity": user_choices.get("protagonist_identity"),
+            "selected_plot": user_choices.get("selected_plot"),  # 用户选择的剧情路线
+            "golden_finger_desc": user_choices.get("golden_finger_desc"),
+            "main_plot": user_choices.get("main_plot"),
+            "first_climax": user_choices.get("first_climax")
+        }
+    
     UnifiedProjectManager.set_mode_specific_info(
         project_info,
         "market_driven",
-        {
-            "task_id": task_id,
-            "tropes_analysis": products.get("based_on_tropes", {}),
-            "plan": plan
-        }
+        mode_info
     )
     
     # 保存产物
@@ -737,6 +973,162 @@ def prepare_upload(novel_title: str):
         
     except Exception as e:
         logger.error(f"准备上传数据失败: {e}", exc_info=True)
+        return jsonify({"error": str(e)}), 500
+
+
+@market_driven_api.route('/admin/genres/status', methods=['GET'])
+def get_genre_scheduler_status():
+    """
+    获取题材自动更新调度器状态（管理员接口）
+    
+    响应：
+    {
+        "scheduler_active": true,
+        "is_running": false,
+        "total_genres": 20,
+        "base_genres": 20,
+        "ai_genres": 0,
+        "last_update": "2026-03-21T10:00:00",
+        "days_since_update": 3,
+        "next_scheduled_update": "2026-03-28T02:00:00"
+    }
+    """
+    try:
+        # 始终返回GenreManager的基本状态
+        from web.services.market_driven.genre_manager import get_genre_manager
+        genre_manager = get_genre_manager()
+        status = genre_manager.get_update_status()
+        
+        # 尝试获取调度器状态
+        try:
+            from web.services.market_driven.genre_scheduler import get_genre_scheduler
+            scheduler = get_genre_scheduler()
+            if scheduler:
+                scheduler_status = scheduler.get_status()
+                return jsonify(scheduler_status), 200
+        except:
+            pass
+        
+        # 调度器未初始化，返回基本状态
+        return jsonify({
+            "scheduler_active": False,
+            "scheduler_note": "调度器将在服务器启动时初始化",
+            **status
+        }), 200
+        
+    except Exception as e:
+        logger.error(f"获取调度器状态失败: {e}", exc_info=True)
+        return jsonify({"error": str(e)}), 500
+
+
+@market_driven_api.route('/admin/genres/trigger-update', methods=['POST'])
+def trigger_genre_update():
+    """
+    手动触发题材更新（管理员接口）
+    
+    响应：
+    {
+        "success": true,
+        "message": "题材更新完成",
+        "status": "completed"
+    }
+    """
+    try:
+        from web.services.market_driven.genre_scheduler import get_genre_scheduler
+        
+        scheduler = get_genre_scheduler()
+        if scheduler is None:
+            return jsonify({
+                "success": False,
+                "error": "调度器未初始化"
+            }), 503
+        
+        # 在后台线程执行更新，避免阻塞请求
+        import threading
+        
+        result_container = {}
+        
+        def do_update():
+            result_container['result'] = scheduler.trigger_manual_update()
+        
+        thread = threading.Thread(target=do_update)
+        thread.start()
+        thread.join(timeout=60)  # 最多等待60秒
+        
+        if thread.is_alive():
+            return jsonify({
+                "success": True,
+                "message": "更新任务已启动，将在后台执行",
+                "status": "started"
+            }), 202
+        
+        result = result_container.get('result', {
+            "success": False,
+            "message": "更新未返回结果"
+        })
+        
+        status_code = 200 if result.get('success') else 500
+        return jsonify(result), status_code
+        
+    except Exception as e:
+        logger.error(f"手动触发更新失败: {e}", exc_info=True)
+        return jsonify({"error": str(e)}), 500
+
+
+@market_driven_api.route('/admin/genres/logs', methods=['GET'])
+def get_genre_update_logs():
+    """
+    获取题材更新历史日志（管理员接口）
+    
+    Query参数:
+        - month: 月份 (格式: YYYYMM, 默认当前月)
+        - limit: 返回条数 (默认50)
+    
+    响应：
+    {
+        "logs": [
+            {
+                "timestamp": "2026-03-21T10:00:00",
+                "old_count": 20,
+                "new_count": 23,
+                "added": 3,
+                "new_genres": ["类型A", "类型B", "类型C"]
+            }
+        ]
+    }
+    """
+    try:
+        from pathlib import Path
+        import json
+        from datetime import datetime
+        
+        month = request.args.get('month', datetime.now().strftime('%Y%m'))
+        limit = request.args.get('limit', 50, type=int)
+        
+        log_file = Path(f"logs/genre_updates/update_{month}.jsonl")
+        
+        logs = []
+        if log_file.exists():
+            with open(log_file, 'r', encoding='utf-8') as f:
+                for line in f:
+                    line = line.strip()
+                    if line:
+                        try:
+                            logs.append(json.loads(line))
+                        except:
+                            pass
+        
+        # 按时间倒序，限制条数
+        logs = list(reversed(logs))[:limit]
+        
+        return jsonify({
+            "logs": logs,
+            "total": len(logs),
+            "month": month
+        }), 200
+        
+    except Exception as e:
+        logger.error(f"获取更新日志失败: {e}", exc_info=True)
         return jsonify({"error": str(e)}), 500
 
 

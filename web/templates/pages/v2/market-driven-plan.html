@@ -279,7 +279,10 @@
       </h2>
       
       <div class="form-group">
-        <label class="form-label">小说标题</label>
+        <label class="form-label">小说标题 <span style="color: var(--primary-gold);">（支持从模板选择）</span></label>
+        <select class="form-select" id="title-select" style="margin-bottom: 12px;">
+          <option value="">-- 选择爆款标题模板 --</option>
+        </select>
         <input type="text" class="form-input" id="novel-title" placeholder="输入小说标题（6-14字最佳）">
         <div class="form-hint">建议包含数字或强烈对比，如《开局物价贬值百万倍》</div>
       </div>
@@ -320,10 +323,18 @@
         主角设定
       </h2>
       
-      <div class="form-group">
-        <label class="form-label">主角身份背景</label>
-        <input type="text" class="form-input" id="protagonist-bg" placeholder="如：外卖员、保安、穷学生、被裁员的社畜">
-        <div class="form-hint">必须是普通人，让读者有代入感</div>
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">主角姓名</label>
+          <input type="text" class="form-input" id="protagonist-name" placeholder="如：李明、夏天、张浩">
+          <div class="form-hint">简洁好记的名字，符合题材风格</div>
+        </div>
+        
+        <div class="form-group">
+          <label class="form-label">主角身份背景</label>
+          <input type="text" class="form-input" id="protagonist-bg" placeholder="如：外卖员、保安、穷学生、被裁员的社畜">
+          <div class="form-hint">必须是普通人，让读者有代入感</div>
+        </div>
       </div>
       
       <div class="form-group">
@@ -351,9 +362,12 @@
       </h2>
       
       <div class="form-group">
-        <label class="form-label">主线剧情</label>
-        <textarea class="form-textarea" id="main-plot" placeholder="描述小说的主线剧情发展"></textarea>
-        <div class="form-hint">初期→中期→后期的发展脉络</div>
+        <label class="form-label">主线剧情 <span style="color: var(--primary-gold);">（支持多路线选择）</span></label>
+        <select class="form-select" id="plot-select" style="margin-bottom: 12px;">
+          <option value="">-- 选择剧情路线 --</option>
+        </select>
+        <textarea class="form-textarea" id="main-plot" placeholder="描述小说的主线剧情发展" style="min-height: 180px;"></textarea>
+        <div class="form-hint">上方选择剧情路线，或手动编辑详情</div>
       </div>
       
       <div class="form-group">
@@ -413,6 +427,7 @@ try {
 // 自动填充基于题材的默认值
 const genreDefaults = {
   'god-tier-spending': {
+    name: '李明',
     title: '开局物价贬值百万倍',
     sellpoint: '一觉醒来，全球物价贬值百万倍，唯独我的钱不变！',
     bg: '被裁员的穷社畜',
@@ -421,6 +436,7 @@ const genreDefaults = {
     climax: '拍卖会一掷千金，全场震惊，身份曝光'
   },
   'god-tier-checkin': {
+    name: '张浩',
     title: '每日签到：从百亿开始',
     sellpoint: '签到第一天奖励100亿，第二天奖励千亿集团！',
     bg: '普通大学生',
@@ -429,6 +445,7 @@ const genreDefaults = {
     climax: '校庆日签到获得整座学校，惊呆全校师生'
   },
   'nation-live': {
+    name: '夏天',
     title: '国运：我代表龙国参战',
     sellpoint: '国运战场开启，我代表龙国出战，全国直播！',
     bg: '退役特种兵',
@@ -438,46 +455,357 @@ const genreDefaults = {
   }
 };
 
-// 页面加载时填充默认值
+// 🔥 智能填充表单
 document.addEventListener('DOMContentLoaded', function() {
-  const defaults = genreDefaults[genreId] || genreDefaults['god-tier-spending'];
-  
-  document.getElementById('novel-title').placeholder = defaults.title;
-  document.getElementById('novel-sellpoint').placeholder = defaults.sellpoint;
-  document.getElementById('protagonist-bg').placeholder = defaults.bg;
-  document.getElementById('golden-finger-desc').placeholder = defaults.finger;
-  document.getElementById('main-plot').placeholder = defaults.plot;
-  document.getElementById('first-climax').placeholder = defaults.climax;
+  // 从分析结果中提取信息自动填充
+  if (analysisContext) {
+    console.log('根据分析结果填充表单:', analysisContext);
+    
+    // 1. 填充标题下拉框和默认标题
+    const titleSelect = document.getElementById('title-select');
+    const titleInput = document.getElementById('novel-title');
+    
+    // 填充标题下拉选项
+    if (analysisContext.title_templates && analysisContext.title_templates.length > 0) {
+      titleSelect.innerHTML = '<option value="">-- 选择爆款标题模板 --</option>';
+      analysisContext.title_templates.forEach((title, idx) => {
+        const option = document.createElement('option');
+        option.value = title;
+        option.textContent = title;
+        titleSelect.appendChild(option);
+      });
+      // 默认选择第一个
+      titleInput.value = analysisContext.title_templates[0];
+      
+      // 添加标题选择事件
+      titleSelect.addEventListener('change', function() {
+        if (this.value) {
+          document.getElementById('novel-title').value = this.value;
+        }
+      });
+    } else if (analysisContext.core_formula) {
+      const formula = analysisContext.core_formula;
+      let suggestedTitle = '';
+      if (formula.includes('国运')) {
+        suggestedTitle = '国运：开局扮演财神，全球直播我无敌';
+      } else if (formula.includes('神豪') || formula.includes('花钱')) {
+        suggestedTitle = '开局物价贬值百万倍';
+      } else if (formula.includes('签到')) {
+        suggestedTitle = '每日签到：从百亿开始';
+      } else if (formula.includes('奶爸')) {
+        suggestedTitle = '奶爸：萌宝助攻我无敌';
+      } else if (formula.includes('诡异') || formula.includes('规则')) {
+        suggestedTitle = '诡异复苏：我能看到规则';
+      } else {
+        suggestedTitle = formula.split('→')[0]?.trim() || '爆款小说标题';
+        if (suggestedTitle.length > 15) {
+          suggestedTitle = suggestedTitle.substring(0, 15);
+        }
+      }
+      titleInput.value = suggestedTitle;
+    }
+    
+    // 2. 填充核心卖点（限制在50字以内）
+    if (analysisContext.core_formula) {
+      let sellpoint = analysisContext.core_formula;
+      if (sellpoint.length > 50) {
+        sellpoint = sellpoint.substring(0, 47) + '...';
+      }
+      document.getElementById('novel-sellpoint').value = sellpoint;
+    }
+    
+    // 3. 填充主角姓名和背景
+    if (analysisContext.protagonist) {
+      const p = analysisContext.protagonist;
+      // 填充主角姓名
+      if (p.name) {
+        document.getElementById('protagonist-name').value = p.name;
+      }
+      // 填充主角背景
+      let bg = p.background || p.identity || p.bg || '';
+      if (p.predicament || p.difficulty) {
+        bg += (bg ? '，' : '') + (p.predicament || p.difficulty);
+      }
+      if (bg) {
+        document.getElementById('protagonist-bg').value = bg;
+      }
+    }
+    
+    // 4. 填充金手指描述（使用详细数值设计）
+    if (analysisContext.golden_finger) {
+      const gf = analysisContext.golden_finger;
+      let fingerDesc = '';
+      
+      // 优先使用数值设计格式
+      if (gf.initial_reward) {
+        fingerDesc = `【初始奖励】${gf.initial_reward}\n`;
+        if (gf.first_upgrade || gf.level_10_requirement) {
+          fingerDesc += `【首次升级】${gf.first_upgrade || gf.level_10_requirement}\n`;
+        }
+        if (gf.growth_curve || gf.upgrade_curve) {
+          fingerDesc += `【成长曲线】${gf.growth_curve || gf.upgrade_curve}\n`;
+        }
+        if (gf.restrictions || gf.limitation) {
+          fingerDesc += `【限制条件】${gf.restrictions || gf.limitation}\n`;
+        }
+        if (gf.upgrade_method || gf.upgrade) {
+          fingerDesc += `【升级方式】${gf.upgrade_method || gf.upgrade}`;
+        }
+      } else {
+        // 旧格式兼容
+        if (gf.type) fingerDesc += `类型：${gf.type}\n`;
+        if (gf.mechanism) fingerDesc += `机制：${gf.mechanism}\n`;
+        if (gf.activation) fingerDesc += `激活：${gf.activation}\n`;
+        if (gf.limitation) fingerDesc += `限制：${gf.limitation}\n`;
+        if (gf.upgrade) fingerDesc += `升级：${gf.upgrade}`;
+      }
+      
+      if (fingerDesc) {
+        document.getElementById('golden-finger-desc').value = fingerDesc.trim();
+      }
+    }
+    
+    // 5. 填充主线剧情（使用详细分阶段描述）
+    // 🔥 先初始化剧情线选择器
+    const plotSelect = document.getElementById('plot-select');
+    let plotOptions = [];
+    
+    // 🔍 调试日志
+    console.log('[剧情路线] analysisContext:', analysisContext);
+    console.log('[剧情路线] plot_templates:', analysisContext.plot_templates);
+    
+    // 从 analysisContext 获取剧情线选项
+    if (analysisContext.plot_templates && Array.isArray(analysisContext.plot_templates)) {
+      plotOptions = analysisContext.plot_templates;
+      console.log(`[剧情路线] 从plot_templates加载了 ${plotOptions.length} 条路线`);
+      plotOptions.forEach((p, i) => console.log(`[剧情路线] 路线${i+1}: ${p.name}`));
+    } else if (analysisContext.plot_options && Array.isArray(analysisContext.plot_options)) {
+      plotOptions = analysisContext.plot_options;
+    } else if (analysisContext.plot_routes && Array.isArray(analysisContext.plot_routes)) {
+      plotOptions = analysisContext.plot_routes;
+    } else {
+      console.warn('[剧情路线] 未找到plot_templates字段！');
+    }
+    
+    // 如果从分析页面选择了剧情线，优先使用
+    const storedContext = localStorage.getItem('marketDrivenContext');
+    let selectedPlotFromAnalysis = null;
+    if (storedContext) {
+      try {
+        const ctx = JSON.parse(storedContext);
+        if (ctx.selectedPlot) {
+          selectedPlotFromAnalysis = ctx.selectedPlot;
+        }
+      } catch (e) {}
+    }
+    
+    // 填充剧情线选择器
+    if (plotOptions.length > 0) {
+      plotSelect.innerHTML = '<option value="">-- 选择剧情路线 --</option>' + 
+        plotOptions.map((plot, idx) => {
+          const name = plot.name || `剧情线${idx + 1}`;
+          const desc = plot.desc || '';
+          return `<option value="${idx}">${name}${desc ? ' - ' + desc : ''}</option>`;
+        }).join('');
+      
+      // 如果有从分析页面选择的剧情线，自动选中
+      if (selectedPlotFromAnalysis) {
+        const idx = plotOptions.findIndex(p => 
+          (p.name || '') === (selectedPlotFromAnalysis.name || '')
+        );
+        if (idx >= 0) {
+          plotSelect.value = idx;
+        }
+      }
+      
+      // 全局变量保存用户选择的剧情路线
+    window.selectedPlotRoute = null;
+    
+    // 添加选择事件
+    plotSelect.addEventListener('change', function() {
+      const idx = parseInt(this.value);
+      if (!isNaN(idx) && plotOptions[idx]) {
+        const plot = plotOptions[idx];
+        window.selectedPlotRoute = plot;  // 保存选择
+        const detail = plot.detail || plot.content || '';
+        if (detail) {
+          document.getElementById('main-plot').value = detail;
+        }
+      }
+    });
+    } else {
+      plotSelect.innerHTML = '<option value="">-- 无预设剧情线，请手动填写 --</option>';
+    }
+    
+    let plotText = '';
+    
+    // 优先使用从分析页面选择的剧情线
+    if (selectedPlotFromAnalysis && selectedPlotFromAnalysis.detail) {
+      plotText = selectedPlotFromAnalysis.detail;
+    }
+    // 其次使用详细剧情结构
+    else if (analysisContext.plot_structure || analysisContext.main_plot_structure) {
+      const plot = analysisContext.plot_structure || analysisContext.main_plot_structure;
+      if (typeof plot === 'object') {
+        if (plot.early_stage || plot.initial) plotText += `【初期】\n${plot.early_stage || plot.initial}\n\n`;
+        if (plot.middle_stage || plot.middle) plotText += `【中期】\n${plot.middle_stage || plot.middle}\n\n`;
+        if (plot.late_stage || plot.late) plotText += `【后期】\n${plot.late_stage || plot.late}`;
+      } else {
+        plotText = plot;
+      }
+    } 
+    // 使用节奏安排数据
+    else if (analysisContext.pacing || analysisContext.rhythm) {
+      const p = analysisContext.pacing || analysisContext.rhythm;
+      if (typeof p === 'object') {
+        if (p.system_appearance || p.chapter_1) plotText += `【第1章】${p.system_appearance || p.chapter_1 || '系统觉醒'}\n`;
+        if (p.first_climax || p.chapter_3) plotText += `【第3章】${p.first_climax || p.chapter_3 || '首次打脸'}\n`;
+        if (p.climax_interval) plotText += `【节奏】${p.climax_interval}\n`;
+        if (p.upgrade_milestones) {
+          plotText += `【升级节点】\n`;
+          Object.entries(p.upgrade_milestones).forEach(([ch, desc]) => {
+            plotText += `  第${ch}章：${desc}\n`;
+          });
+        }
+      }
+    }
+    // 使用开篇3章+核心套路组合
+    else if (analysisContext.opening_pattern && analysisContext.core_formula) {
+      const op = analysisContext.opening_pattern;
+      const formula = analysisContext.core_formula;
+      
+      plotText += `【第1章：绝望开局】\n${op.chapter_1 || '主角陷入困境'}\n\n`;
+      plotText += `【第2章：系统觉醒】\n${op.chapter_2 || '获得金手指'}\n\n`;
+      plotText += `【第3章：初试锋芒】\n${op.chapter_3 || '第一次打脸'}\n\n`;
+      
+      // 解析核心公式后续阶段
+      const stages = formula.split('→').map(s => s.trim()).filter(s => s);
+      if (stages.length > 3) {
+        plotText += `【中期发展】\n${stages.slice(2, 4).join('→')}\n\n`;
+        plotText += `【后期高潮】\n${stages.slice(-2).join('→')}`;
+      }
+    }
+    // 最后使用核心套路
+    else if (analysisContext.core_formula) {
+      const formula = analysisContext.core_formula;
+      const stages = formula.split('→').map(s => s.trim()).filter(s => s);
+      if (stages.length >= 3) {
+        plotText = `【初期】${stages[0]}，${stages[1]}\n\n`;
+        plotText += `【中期】${stages[2] || '逐步升级'}\n\n`;
+        plotText += `【后期】${stages[stages.length-1]}`;
+      } else {
+        plotText = formula;
+      }
+    }
+    
+    if (plotText) {
+      document.getElementById('main-plot').value = plotText.trim();
+    }
+    
+    // 6. 填充第一个高潮（使用详细高潮设计）
+    if (analysisContext.first_climax_design || analysisContext.climax_design) {
+      const climax = analysisContext.first_climax_design || analysisContext.climax_design;
+      if (typeof climax === 'object') {
+        let climaxText = '';
+        if (climax.scene || climax.trigger_scene) climaxText += `场景：${climax.scene || climax.trigger_scene}\n`;
+        if (climax.conflict || climax.opponent) climaxText += `冲突：${climax.conflict || climax.opponent}\n`;
+        if (climax.reward || climax.result) climaxText += `奖励：${climax.reward || climax.result}\n`;
+        if (climax.reaction || climax.public_reaction) climaxText += `反应：${climax.reaction || climax.public_reaction}`;
+        document.getElementById('first-climax').value = climaxText.trim();
+      } else {
+        document.getElementById('first-climax').value = climax;
+      }
+    } else if (analysisContext.opening_pattern) {
+      const op = analysisContext.opening_pattern;
+      let climax = op.chapter_3 || op.chapter_2 || op.first_climax || '';
+      if (climax) {
+        document.getElementById('first-climax').value = climax;
+      }
+    }
+    
+    // 显示提示
+    showAutoFillNotice();
+  } else {
+    // 没有分析结果，使用默认 placeholder
+    const defaults = genreDefaults[genreId] || genreDefaults['god-tier-spending'];
+    document.getElementById('novel-title').placeholder = defaults.title;
+    document.getElementById('novel-sellpoint').placeholder = defaults.sellpoint;
+    document.getElementById('protagonist-name').placeholder = defaults.name;
+    document.getElementById('protagonist-bg').placeholder = defaults.bg;
+    document.getElementById('golden-finger-desc').placeholder = defaults.finger;
+    document.getElementById('main-plot').placeholder = defaults.plot;
+    document.getElementById('first-climax').placeholder = defaults.climax;
+  }
 });
+
+// 显示自动填充提示
+function showAutoFillNotice() {
+  const notice = document.createElement('div');
+  notice.className = 'auto-fill-notice';
+  notice.innerHTML = `
+    <span class="material-icons" style="color: #f59e0b;">auto_fix_high</span>
+    <span>已根据市场分析结果自动填充表单</span>
+  `;
+  notice.style.cssText = 'background: rgba(245, 158, 11, 0.1); border: 1px solid rgba(245, 158, 11, 0.3); padding: 12px 20px; border-radius: 8px; margin-bottom: 24px; display: flex; align-items: center; gap: 12px; color: #fbbf24;';
+  
+  const form = document.querySelector('.plan-form');
+  if (form) {
+    form.insertBefore(notice, form.firstChild);
+  }
+}
 
 async function startGeneration() {
   const btn = document.getElementById('generate-btn');
   btn.disabled = true;
   btn.innerHTML = '<span class="material-icons">hourglass_top</span>生成中...';
   
-  // 收集表单数据
-  const formData = {
-    genre: genreId,
-    title: document.getElementById('novel-title').value,
-    sellpoint: document.getElementById('novel-sellpoint').value,
-    wordcount: document.getElementById('novel-wordcount').value,
-    chapters: document.getElementById('novel-chapters').value,
-    protagonist_bg: document.getElementById('protagonist-bg').value,
-    golden_finger_type: document.getElementById('golden-finger-type').value,
-    golden_finger_desc: document.getElementById('golden-finger-desc').value,
-    main_plot: document.getElementById('main-plot').value,
-    first_climax: document.getElementById('first-climax').value,
-    // 传递分析结果上下文给AI
-    analysis_context: analysisContext
-  };
+  // 获取表单值
+  const title = document.getElementById('novel-title').value;
+  const sellpoint = document.getElementById('novel-sellpoint').value;
+  const wordcount = parseInt(document.getElementById('novel-wordcount').value) * 10000; // 万字转字数
+  const chapters = parseInt(document.getElementById('novel-chapters').value);
+  const protagonistName = document.getElementById('protagonist-name').value;
+  const protagonistBg = document.getElementById('protagonist-bg').value;
+  const goldenFingerType = document.getElementById('golden-finger-type').value;
+  const goldenFingerDesc = document.getElementById('golden-finger-desc').value;
+  const mainPlot = document.getElementById('main-plot').value;
+  const firstClimax = document.getElementById('first-climax').value;
   
   // 验证必填项
-  if (!formData.title) {
+  if (!title) {
     alert('请输入小说标题');
     btn.disabled = false;
     btn.innerHTML = '<span class="material-icons">rocket_launch</span>开始生成';
     return;
   }
+  
+  // 获取用户选择的剧情路线
+  const selectedPlot = window.selectedPlotRoute || selectedPlotFromAnalysis || null;
+  
+  // 构建符合后端API的参数结构
+  const formData = {
+    genre: genreId,
+    user_choices: {
+      title: title,
+      sellpoint: sellpoint,
+      chapters: chapters,
+      protagonist_name: protagonistName,
+      protagonist_bg: protagonistBg,
+      golden_finger_type: goldenFingerType,
+      golden_finger_desc: goldenFingerDesc,
+      main_plot: mainPlot,
+      first_climax: firstClimax,
+      // 🔥 传递用户选择的剧情路线（非常重要！）
+      selected_plot: selectedPlot,
+      // 传递分析结果上下文给AI
+      analysis_context: analysisContext
+    },
+    target_words: wordcount,
+    options: {
+      skip_phase_one: false,
+      generate_chapters: true
+    }
+  };
   
   try {
     // 调用生成API

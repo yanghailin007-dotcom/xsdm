@@ -80,6 +80,10 @@ class MarketDrivenPhaseOneGenerator:
         logger.info("生成期待感映射...")
         products["expectation_mapping"] = self._generate_expectation_mapping(tropes, plan)
         
+        # 10. 情绪曲线（AI生成，个性化）
+        logger.info("生成个性化情绪曲线...")
+        products["emotion_curve"] = self._generate_emotion_curve(genre, tropes, plan)
+        
         logger.info(f"[PhaseOneGenerator] 第一阶段产物生成完成")
         return products
     
@@ -596,6 +600,84 @@ class MarketDrivenPhaseOneGenerator:
                 {"chapter": 100, "payoff": "击败资本大佬"}
             ]
         }
+    
+    def _generate_emotion_curve(self, genre: str, tropes: Dict, plan: Dict) -> List[Dict]:
+        """
+        生成情绪曲线（AI个性化生成）
+        """
+        total_chapters = plan.get('total_chapters', 100)
+        
+        # 尝试使用AI生成
+        if self.api_client:
+            try:
+                from web.services.market_driven.emotion_curve_generator import (
+                    EmotionCurveGenerator, generate_emotion_curve_for_novel
+                )
+                
+                novel_title = plan.get('title', 'unknown')
+                curve = generate_emotion_curve_for_novel(
+                    api_client=self.api_client,
+                    genre=genre,
+                    tropes=tropes,
+                    plan=plan,
+                    total_chapters=total_chapters,
+                    novel_title=novel_title
+                )
+                
+                # 转换为字典列表
+                return [
+                    {
+                        "ch": b.ch,
+                        "emotion": b.emotion,
+                        "intensity": b.intensity,
+                        "beat_type": b.beat_type,
+                        "event": b.event,
+                        "purpose": b.purpose
+                    }
+                    for b in curve
+                ]
+            except Exception as e:
+                logger.error(f"AI生成情绪曲线失败: {e}，使用默认模板")
+        
+        # 备用：使用默认模板
+        return self._get_default_emotion_curve(total_chapters)
+    
+    def _get_default_emotion_curve(self, total_chapters: int) -> List[Dict]:
+        """默认情绪曲线（备用）"""
+        curve = []
+        
+        # 前30章固定模板
+        base_beats = [
+            {"ch": 1, "emotion": "压抑", "intensity": 9, "beat_type": "钩子", "event": "被羞辱，绝望开局", "purpose": "让读者代入"},
+            {"ch": 2, "emotion": "希望", "intensity": 6, "beat_type": "转折", "event": "系统觉醒", "purpose": "点燃希望"},
+            {"ch": 3, "emotion": "爽快", "intensity": 6, "beat_type": "爽点", "event": "第一次打脸", "purpose": "验证系统"},
+            {"ch": 5, "emotion": "爽快", "intensity": 7, "beat_type": "爽点", "event": "第一次大打脸", "purpose": "建立信心"},
+            {"ch": 8, "emotion": "震惊", "intensity": 8, "beat_type": "震惊", "event": "身份小曝光", "purpose": "初步震惊"},
+            {"ch": 10, "emotion": "大爽快", "intensity": 8, "beat_type": "高潮", "event": "阶段性高潮", "purpose": "满足+期待"},
+            {"ch": 15, "emotion": "震惊", "intensity": 9, "beat_type": "高潮", "event": "拍卖会大场面", "purpose": "大高潮"},
+            {"ch": 20, "emotion": "大爽快", "intensity": 9, "beat_type": "高潮", "event": "身份中曝光", "purpose": "中期高潮"},
+            {"ch": 28, "emotion": "震惊", "intensity": 9, "beat_type": "高潮", "event": "第一阶段大高潮", "purpose": "阶段总结"},
+            {"ch": 30, "emotion": "满足", "intensity": 8, "beat_type": "转折", "event": "新目标开启", "purpose": "承上启下"},
+        ]
+        
+        for beat in base_beats:
+            if beat["ch"] <= total_chapters:
+                curve.append(beat)
+        
+        # 填充剩余章节（简单循环）
+        for ch in range(31, total_chapters + 1):
+            cycle_pos = (ch - 31) % 5
+            if cycle_pos == 0:
+                beat = {"ch": ch, "emotion": "期待", "intensity": 5, "beat_type": "铺垫", "event": "", "purpose": "铺垫"}
+            elif cycle_pos == 2:
+                beat = {"ch": ch, "emotion": "爽快", "intensity": 7, "beat_type": "爽点", "event": "", "purpose": "爽点"}
+            elif cycle_pos == 4:
+                beat = {"ch": ch, "emotion": "震惊", "intensity": 8, "beat_type": "震惊", "event": "", "purpose": "震惊"}
+            else:
+                beat = {"ch": ch, "emotion": "期待", "intensity": 6, "beat_type": "推进", "event": "", "purpose": "推进"}
+            curve.append(beat)
+        
+        return curve
 
 
 # 便捷函数

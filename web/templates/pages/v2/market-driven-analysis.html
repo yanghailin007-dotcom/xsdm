@@ -98,6 +98,29 @@
   border-radius: 100px;
   transition: width 0.5s ease;
   width: 0%;
+  position: relative;
+  overflow: hidden;
+}
+
+.progress-bar__fill::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    rgba(255, 255, 255, 0.3),
+    transparent
+  );
+  animation: shimmer 2s infinite;
+}
+
+@keyframes shimmer {
+  0% { transform: translateX(-100%); }
+  100% { transform: translateX(100%); }
 }
 
 .progress-info {
@@ -119,9 +142,10 @@
 /* ===== 分析结果卡片 ===== */
 .tropes-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
+  grid-template-columns: repeat(2, 1fr);
   gap: 20px;
   margin-bottom: 32px;
+  align-items: start;
 }
 
 .trope-card {
@@ -132,6 +156,18 @@
   opacity: 0;
   transform: translateY(20px);
   transition: all 0.4s ease;
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
+.trope-card__content {
+  flex: 1;
+  font-size: 14px;
+  color: var(--v2-text-secondary);
+  line-height: 1.7;
+  word-wrap: break-word;
+  overflow-wrap: break-word;
 }
 
 .trope-card--visible {
@@ -177,6 +213,8 @@
   font-size: 14px;
   color: var(--v2-text-secondary);
   line-height: 1.7;
+  word-wrap: break-word;
+  overflow-wrap: break-word;
 }
 
 .trope-card__content ul {
@@ -189,6 +227,25 @@
 }
 
 .trope-card__content li:last-child {
+  margin-bottom: 0;
+}
+
+.trope-card__content pre {
+  background: rgba(0, 0, 0, 0.2);
+  padding: 12px;
+  border-radius: 8px;
+  font-size: 13px;
+  line-height: 1.5;
+  overflow-x: auto;
+  max-height: 300px;
+  overflow-y: auto;
+}
+
+.trope-card__content p {
+  margin: 0 0 8px 0;
+}
+
+.trope-card__content p:last-child {
   margin-bottom: 0;
 }
 
@@ -331,7 +388,88 @@
   50% { transform: scale(1.05); opacity: 0.8; }
 }
 
+/* ===== 阶段性节奏表样式 ===== */
+.stage-rhythm-visual {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.stage-rhythm-header {
+  background: linear-gradient(135deg, rgba(245, 158, 11, 0.1), rgba(251, 191, 36, 0.05));
+  border: 1px solid rgba(245, 158, 11, 0.2);
+  border-radius: 10px;
+  padding: 12px 16px;
+  margin-bottom: 4px;
+}
+
+.stage-rhythm-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--primary-gold);
+  margin-bottom: 4px;
+}
+
+.stage-rhythm-desc {
+  font-size: 12px;
+  color: var(--v2-text-secondary);
+}
+
+.stage-climax-bar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  background: rgba(0, 0, 0, 0.15);
+  border-radius: 8px;
+  padding: 10px 12px;
+}
+
+.stage-climax-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.stage-climax-dot--small { background: #3b82f6; }
+.stage-climax-dot--medium { background: #8b5cf6; }
+.stage-climax-dot--large { background: #f59e0b; }
+.stage-climax-dot--stage { background: #ef4444; }
+
+.stage-climax-info {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.stage-climax-chapter {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--v2-text-primary);
+}
+
+.stage-climax-type {
+  font-size: 12px;
+  color: var(--v2-text-secondary);
+}
+
+.stage-climax-label {
+  font-size: 11px;
+  padding: 3px 8px;
+  border-radius: 4px;
+  background: rgba(245, 158, 11, 0.15);
+  color: var(--primary-gold);
+  font-weight: 500;
+}
+
 /* ===== 响应式 ===== */
+@media (max-width: 1024px) {
+  .tropes-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
 @media (max-width: 768px) {
   .tropes-grid {
     grid-template-columns: 1fr;
@@ -390,7 +528,7 @@
       <span class="material-icons">psychology</span>
     </div>
     <div class="analyzing-spinner__text">AI 正在深度分析市场数据</div>
-    <div class="analyzing-spinner__subtext">预计需要 10-20 秒</div>
+    <div class="analyzing-spinner__subtext" id="progress-time">预计需要 30-60 秒（AI深度分析中）</div>
   </div>
 
   <!-- 分析结果 -->
@@ -459,6 +597,17 @@
         <div class="trope-card__title">装逼打脸时机</div>
       </div>
       <div class="trope-card__content" id="content-face">分析中...</div>
+    </div>
+
+    <!-- 阶段性节奏 -->
+    <div class="trope-card" id="card-stage-rhythm">
+      <div class="trope-card__header">
+        <div class="trope-card__icon">
+          <span class="material-icons">view_timeline</span>
+        </div>
+        <div class="trope-card__title">阶段性节奏表</div>
+      </div>
+      <div class="trope-card__content" id="content-stage-rhythm">分析中...</div>
     </div>
 
     <!-- 爆款原因分析 -->
@@ -545,12 +694,11 @@ document.addEventListener('DOMContentLoaded', async function() {
     return;
   }
   
-  // 先尝试从映射中获取
+  // 先尝试从映射中获取题材信息
   if (genreInfo[genreId]) {
     genreName = genreInfo[genreId].name;
     genreIcon = genreInfo[genreId].icon;
     updateGenreDisplay();
-    startAnalysis();
   } else {
     // 如果映射中没有，尝试从API获取题材列表
     try {
@@ -560,23 +708,74 @@ document.addEventListener('DOMContentLoaded', async function() {
         const genre = data.genres.find(g => g.id === genreId);
         if (genre) {
           genreName = genre.name;
-          updateGenreDisplay();
-          startAnalysis();
         } else {
-          // 如果API中也没有，显示genreId本身
           genreName = genreId;
-          updateGenreDisplay();
-          startAnalysis();
         }
       }
     } catch (e) {
       console.error('获取题材信息失败:', e);
       genreName = genreId;
-      updateGenreDisplay();
-      startAnalysis();
     }
+    updateGenreDisplay();
+  }
+  
+  // 🔥 检查 localStorage 中是否有缓存的分析结果（10分钟内有效）
+  const cachedResult = loadCachedAnalysis(genreId);
+  if (cachedResult) {
+    console.log('使用缓存的分析结果:', cachedResult);
+    analysisResult = cachedResult;
+    displayResults(cachedResult);
+    
+    // 显示提示
+    showCacheNotice();
+  } else {
+    // 没有缓存，开始新分析
+    startAnalysis();
   }
 });
+
+// 从 localStorage 加载缓存的分析结果
+function loadCachedAnalysis(genre) {
+  try {
+    const stored = localStorage.getItem('marketDrivenAnalysis');
+    if (!stored) return null;
+    
+    const data = JSON.parse(stored);
+    // 检查是否是当前题材且未过期（10分钟）
+    if (data.genre === genre && (Date.now() - data.timestamp) < 10 * 60 * 1000) {
+      return data.tropes;
+    }
+    return null;
+  } catch (e) {
+    console.error('读取缓存失败:', e);
+    return null;
+  }
+}
+
+// 显示缓存提示
+function showCacheNotice() {
+  const notice = document.createElement('div');
+  notice.className = 'cache-notice';
+  notice.innerHTML = `
+    <span class="material-icons">history</span>
+    <span>已恢复之前的分析结果</span>
+    <button onclick="refreshAnalysis()">重新分析</button>
+  `;
+  notice.style.cssText = 'background: rgba(34, 197, 94, 0.1); border: 1px solid rgba(34, 197, 94, 0.3); padding: 12px 20px; border-radius: 8px; margin: 16px 0; display: flex; align-items: center; gap: 12px; color: #4ade80;';
+  
+  const container = document.querySelector('.analysis-header');
+  if (container) {
+    container.appendChild(notice);
+  }
+}
+
+// 强制刷新分析
+function refreshAnalysis() {
+  // 清除缓存
+  localStorage.removeItem('marketDrivenAnalysis');
+  // 重新开始分析
+  startAnalysis();
+}
 
 function updateGenreDisplay() {
   document.getElementById('genre-name').textContent = genreName;
@@ -608,12 +807,14 @@ async function startAnalysis() {
     
   } catch (error) {
     console.error('分析失败:', error);
-    displayResults(getMockResults());
+    // 显示错误状态
+    updateProgress('分析失败: ' + error.message, 0);
+    alert('分析失败: ' + error.message);
   }
 }
 
 async function pollTaskStatus(taskId) {
-  const maxAttempts = 60;
+  const maxAttempts = 150;  // 增加到150次（5分钟）
   const interval = 2000;
   
   console.log('开始轮询任务:', taskId);
@@ -636,20 +837,28 @@ async function pollTaskStatus(taskId) {
     // 检查任务状态
     if (task.status === 'completed') {
       console.log('任务完成，结果:', task.result);
-      // 任务完成，显示结果
-      if (task.result && task.result.tropes) {
-        displayResults(task.result.tropes);
-      } else if (task.result) {
-        // 如果 tropes 字段不存在，直接使用 result
-        displayResults(task.result);
-      } else {
-        console.log('无结果数据，使用模拟数据');
-        displayResults(getMockResults());
+      try {
+        // 任务完成，显示结果
+        if (task.result && task.result.tropes) {
+          displayResults(task.result.tropes);
+        } else if (task.result) {
+          // 如果 tropes 字段不存在，直接使用 result
+          displayResults(task.result);
+        } else {
+          console.log('无结果数据，使用模拟数据');
+          displayResults(getMockResults());
+        }
+      } catch (e) {
+        console.error('显示结果时出错:', e);
+        alert('显示分析结果时出错: ' + e.message);
       }
       return;
     } else if (task.status === 'failed') {
       console.error('任务失败:', task.error);
-      throw new Error(task.error || '分析失败');
+      // 显示错误状态
+      updateProgress('分析失败', 0);
+      alert('分析失败: ' + (task.error || '未知错误'));
+      return;
     }
     
     // 等待后再次轮询
@@ -663,46 +872,124 @@ async function updateProgress(stage, percent) {
   document.getElementById('progress-stage').textContent = stage;
   document.getElementById('progress-percent').textContent = percent + '%';
   document.getElementById('progress-fill').style.width = percent + '%';
+  
+  // 根据进度更新提示文本
+  const timeText = document.getElementById('progress-time');
+  if (timeText) {
+    if (percent < 30) {
+      timeText.textContent = 'AI正在分析市场数据，请稍候...';
+    } else if (percent < 60) {
+      timeText.textContent = '正在提取爆款公式，即将完成...';
+    } else if (percent < 90) {
+      timeText.textContent = '正在整理分析结果...';
+    } else {
+      timeText.textContent = '分析完成，准备显示结果...';
+    }
+  }
 }
 
 function displayResults(data) {
-  // 保存结果到全局变量
-  analysisResult = data;
+  console.log('displayResults called with:', data);
   
-  // 隐藏加载动画，显示结果
-  document.getElementById('analyzing-spinner').style.display = 'none';
-  document.getElementById('tropes-grid').style.display = 'grid';
+  try {
+    // 保存结果到全局变量
+    analysisResult = data;
+    
+    // 检查数据有效性
+    if (!data || typeof data !== 'object') {
+      console.error('Invalid data format:', data);
+      alert('分析结果格式错误');
+      return;
+    }
+    
+    // 隐藏加载动画，显示结果
+    const spinner = document.getElementById('analyzing-spinner');
+    const grid = document.getElementById('tropes-grid');
+    
+    if (spinner) spinner.style.display = 'none';
+    if (grid) grid.style.display = 'grid';
+    
+    console.log('UI updated, processing data...');
   
   // 适配实际返回的数据结构
-  // 核心套路
+  
+  // 1. 核心套路
   const coreFormula = data.core_formula || '暂无数据';
   document.getElementById('content-core').innerHTML = formatContent(coreFormula);
   
-  // 开篇结构
+  // 3. 开篇结构（支持新格式）
   let openingContent = '';
   if (data.opening_pattern) {
     const op = data.opening_pattern;
-    openingContent = [
-      `第1章：${op.chapter_1 || '主角获得能力'}`,
-      `第2章：${op.chapter_2 || '小试牛刀'}`,
-      `第3章：${op.chapter_3 || '首次打脸'}`,
-      `禁忌：${op.taboos ? op.taboos.join('、') : '无'}`
-    ];
+    if (typeof op === 'object') {
+      // 新格式：详细的开篇3章
+      if (op.chapter_1 || op.chapter_2 || op.chapter_3) {
+        openingContent = [
+          `【第1章：绝望开局+系统觉醒】`,
+          op.chapter_1 || '主角获得能力',
+          '',
+          `【第2章：初试锋芒+小爽点】`,
+          op.chapter_2 || '小试牛刀',
+          '',
+          `【第3章：第一次正式打脸】`,
+          op.chapter_3 || '首次打脸',
+          '',
+          `【开局禁忌】`,
+          op.taboos ? op.taboos.join('、') : '无'
+        ];
+      } else {
+        // 旧格式兼容
+        openingContent = Object.entries(op).map(([k, v]) => `${k}: ${v}`);
+      }
+    } else {
+      openingContent = [op];
+    }
   } else {
     openingContent = data.opening_structure || ['暂无数据'];
   }
   document.getElementById('content-opening').innerHTML = formatContent(openingContent);
   
-  // 金手指规则
+  // 4. 金手指规则（支持数值设计）
   let goldenContent = '';
   if (data.golden_finger) {
     const gf = data.golden_finger;
-    goldenContent = [
-      `类型：${gf.type || '系统'}`,
-      `机制：${gf.ratio || gf.activation || '自动激活'}`,
-      `限制：${gf.limitation || '随等级提升'}`,
-      `升级：${gf.upgrade || '使用升级'}`
-    ];
+    
+    // 处理成长曲线（可能是对象或字符串）
+    let growthCurve = '随等级提升';
+    if (gf.growth_curve) {
+      if (typeof gf.growth_curve === 'object') {
+        // 对象转字符串
+        growthCurve = Object.entries(gf.growth_curve)
+          .map(([k, v]) => `${k}:${v}`)
+          .join('，');
+      } else {
+        growthCurve = gf.growth_curve;
+      }
+    } else if (gf.upgrade_curve) {
+      growthCurve = gf.upgrade_curve;
+    }
+    
+    // 检查是否有数值设计
+    if (gf.initial_reward || gf.level_10_requirement || typeof gf.growth_curve === 'object') {
+      // 新格式：详细数值设计
+      goldenContent = [
+        `【类型】${gf.type || '系统'}`,
+        `【初始奖励】${gf.initial_reward || '待定'}`,
+        `【首次升级】${gf.level_10_requirement || gf.first_upgrade || '待定'}`,
+        `【成长曲线】${growthCurve}`,
+        `【限制条件】${gf.limitation || gf.restrictions || '无'}`,
+        `【升级方式】${gf.upgrade || '使用升级'}`,
+        gf.notes || ''
+      ].filter(Boolean);
+    } else {
+      // 旧格式兼容
+      goldenContent = [
+        `类型：${gf.type || '系统'}`,
+        `机制：${gf.ratio || gf.activation || gf.mechanism || '自动激活'}`,
+        `限制：${gf.limitation || '随等级提升'}`,
+        `升级：${gf.upgrade || '使用升级'}`
+      ];
+    }
   } else {
     goldenContent = data.golden_finger_rules || ['暂无数据'];
   }
@@ -723,6 +1010,120 @@ function displayResults(data) {
   }
   document.getElementById('content-rhythm').innerHTML = formatContent(rhythmContent);
   
+  // 阶段性节奏表（stage_rhythm）
+  let stageRhythmContent = '';
+  if (data.stage_rhythm) {
+    const sr = data.stage_rhythm;
+    const smallInterval = sr.small_climax_interval || 3;
+    const mediumInterval = sr.medium_climax_interval || 10;
+    const largeInterval = sr.large_climax_interval || 20;
+    const stageInterval = sr.stage_climax_interval || 30;
+    
+    stageRhythmContent = '<div class="stage-rhythm-visual">';
+    
+    // 节奏描述头部
+    stageRhythmContent += `
+      <div class="stage-rhythm-header">
+        <div class="stage-rhythm-title">📊 阶段性高潮规律</div>
+        <div class="stage-rhythm-desc">${sr.description || '每' + stageInterval + '章一个完整周期'}</div>
+      </div>
+    `;
+    
+    // 小高潮
+    stageRhythmContent += `
+      <div class="stage-climax-bar">
+        <div class="stage-climax-dot stage-climax-dot--small"></div>
+        <div class="stage-climax-info">
+          <span class="stage-climax-chapter">每${smallInterval}章</span>
+          <span class="stage-climax-type">小高潮（打脸/收获）</span>
+        </div>
+        <span class="stage-climax-label">小爽点</span>
+      </div>
+    `;
+    
+    // 中高潮
+    stageRhythmContent += `
+      <div class="stage-climax-bar">
+        <div class="stage-climax-dot stage-climax-dot--medium"></div>
+        <div class="stage-climax-info">
+          <span class="stage-climax-chapter">每${mediumInterval}章</span>
+          <span class="stage-climax-type">中高潮（资源/身份升级）</span>
+        </div>
+        <span class="stage-climax-label">中爽点</span>
+      </div>
+    `;
+    
+    // 大高潮
+    stageRhythmContent += `
+      <div class="stage-climax-bar">
+        <div class="stage-climax-dot stage-climax-dot--large"></div>
+        <div class="stage-climax-info">
+          <span class="stage-climax-chapter">每${largeInterval}章</span>
+          <span class="stage-climax-type">大高潮（重大转折/升级）</span>
+        </div>
+        <span class="stage-climax-label">大爽点</span>
+      </div>
+    `;
+    
+    // 阶段性高潮
+    const stageChapters = sr.stage_climax_chapters || [30, 60, 90, 120];
+    const stageTypes = sr.stage_climax_types || ['第一阶段性总结', '第二阶段性总结', '第三阶段性总结', '最终大高潮'];
+    stageRhythmContent += `
+      <div class="stage-climax-bar">
+        <div class="stage-climax-dot stage-climax-dot--stage"></div>
+        <div class="stage-climax-info">
+          <span class="stage-climax-chapter">第${stageChapters.join('、')}章</span>
+          <span class="stage-climax-type">阶段性总结高潮</span>
+        </div>
+        <span class="stage-climax-label">周期高潮</span>
+      </div>
+    `;
+    
+    stageRhythmContent += '</div>';
+  } else {
+    // 默认展示
+    stageRhythmContent = '<div class="stage-rhythm-visual">';
+    stageRhythmContent += `
+      <div class="stage-rhythm-header">
+        <div class="stage-rhythm-title">📊 默认阶段性节奏</div>
+        <div class="stage-rhythm-desc">每30章一个完整周期</div>
+      </div>
+      <div class="stage-climax-bar">
+        <div class="stage-climax-dot stage-climax-dot--small"></div>
+        <div class="stage-climax-info">
+          <span class="stage-climax-chapter">每3章</span>
+          <span class="stage-climax-type">小高潮（打脸/收获）</span>
+        </div>
+        <span class="stage-climax-label">小爽点</span>
+      </div>
+      <div class="stage-climax-bar">
+        <div class="stage-climax-dot stage-climax-dot--medium"></div>
+        <div class="stage-climax-info">
+          <span class="stage-climax-chapter">每10章</span>
+          <span class="stage-climax-type">中高潮（资源/身份升级）</span>
+        </div>
+        <span class="stage-climax-label">中爽点</span>
+      </div>
+      <div class="stage-climax-bar">
+        <div class="stage-climax-dot stage-climax-dot--large"></div>
+        <div class="stage-climax-info">
+          <span class="stage-climax-chapter">每20章</span>
+          <span class="stage-climax-type">大高潮（重大转折/升级）</span>
+        </div>
+        <span class="stage-climax-label">大爽点</span>
+      </div>
+      <div class="stage-climax-bar">
+        <div class="stage-climax-dot stage-climax-dot--stage"></div>
+        <div class="stage-climax-info">
+          <span class="stage-climax-chapter">第30、60、90章</span>
+          <span class="stage-climax-type">阶段性总结高潮</span>
+        </div>
+        <span class="stage-climax-label">周期高潮</span>
+      </div>
+    </div>`;
+  }
+  document.getElementById('content-stage-rhythm').innerHTML = stageRhythmContent;
+  
   // 冲突设计
   let conflictContent = '';
   if (data.antagonist) {
@@ -741,11 +1142,35 @@ function displayResults(data) {
   // 装逼打脸
   let faceContent = '';
   if (data.must_have && data.must_not_have) {
+    // 提取写作风格，多层fallback
+    let writingStyle = '直白短段落、快节奏、爽点密集';
+    if (data.platform_tips && data.platform_tips.writing_style) {
+      writingStyle = data.platform_tips.writing_style;
+    } else if (data.writing_style) {
+      writingStyle = data.writing_style;
+    }
+    
+    // 提取情绪曲线
+    let emotionPattern = '压抑→爽快';
+    if (data.emotion_curve && data.emotion_curve.pattern) {
+      emotionPattern = data.emotion_curve.pattern;
+    } else if (data.emotion_rhythm) {
+      emotionPattern = data.emotion_rhythm;
+    }
+    
     faceContent = [
       `必须有：${data.must_have.slice(0, 4).join('、')}`,
       `不能有：${data.must_not_have.slice(0, 3).join('、')}`,
-      `情绪曲线：${data.emotion_curve ? data.emotion_curve.pattern : '压抑→爽快'}`,
-      `写作风格：${data.platform_tips ? data.platform_tips.writing_style : '直白短段落'}`
+      `情绪曲线：${emotionPattern}`,
+      `写作风格：${writingStyle}`
+    ];
+  } else if (data.platform_tips) {
+    // 只有platform_tips的情况
+    const pt = data.platform_tips;
+    faceContent = [
+      `写作风格：${pt.writing_style || '直白短段落、快节奏'}`,
+      `章节结尾：${pt.chapter_ending || '章章有钩子'}`,
+      `标题风格：${pt.title_style || '简洁有力'}`
     ];
   } else {
     faceContent = data.face_slap_timing || ['暂无数据'];
@@ -761,31 +1186,63 @@ function displayResults(data) {
   ];
   document.getElementById('content-success').innerHTML = formatContent(successContent);
   
-  // 显示卡片动画
-  document.querySelectorAll('.trope-card').forEach((card, index) => {
+    // 显示卡片动画
+    document.querySelectorAll('.trope-card').forEach((card, index) => {
+      setTimeout(() => {
+        card.classList.add('trope-card--visible');
+      }, index * 100);
+    });
+    
+    // 显示底部操作栏
     setTimeout(() => {
-      card.classList.add('trope-card--visible');
-    }, index * 100);
+      const footer = document.getElementById('action-footer');
+      if (footer) footer.classList.add('action-footer--visible');
+    }, 800);
+    
+    console.log('displayResults completed successfully');
+  } catch (error) {
+    console.error('Error in displayResults:', error);
+    alert('显示分析结果时出错: ' + error.message);
+  }
+}
+
+function copyText(text) {
+  navigator.clipboard.writeText(text).then(() => {
+    // 简单的复制成功提示
+    const btn = event.target;
+    const originalText = btn.textContent;
+    btn.textContent = '已复制!';
+    btn.style.color = '#22c55e';
+    setTimeout(() => {
+      btn.textContent = originalText;
+      btn.style.color = '';
+    }, 1500);
   });
-  
-  // 显示底部操作栏
-  setTimeout(() => {
-    document.getElementById('action-footer').classList.add('action-footer--visible');
-  }, 800);
 }
 
 function formatContent(content) {
   if (!content) {
-    return '<p>暂无数据</p>';
+    return '<p style="color: var(--v2-text-muted);">暂无数据</p>';
   }
   if (Array.isArray(content)) {
-    return '<ul>' + content.map(item => '<li>' + escapeHtml(String(item)) + '</li>').join('') + '</ul>';
+    // 过滤掉空字符串
+    const filtered = content.filter(item => item && String(item).trim());
+    if (filtered.length === 0) {
+      return '<p style="color: var(--v2-text-muted);">暂无数据</p>';
+    }
+    return '<ul>' + filtered.map(item => '<li>' + escapeHtml(String(item)) + '</li>').join('') + '</ul>';
   }
   if (typeof content === 'string') {
-    return '<p>' + escapeHtml(content) + '</p>';
+    // 处理换行
+    const lines = content.split('\n').filter(line => line.trim());
+    if (lines.length === 1) {
+      return '<p>' + escapeHtml(content) + '</p>';
+    }
+    return '<ul>' + lines.map(line => '<li>' + escapeHtml(line) + '</li>').join('') + '</ul>';
   }
   if (typeof content === 'object') {
-    return '<pre style="white-space:pre-wrap;word-break:break-word;">' + escapeHtml(JSON.stringify(content, null, 2)) + '</pre>';
+    // 美化对象显示
+    return '<pre>' + escapeHtml(JSON.stringify(content, null, 2)) + '</pre>';
   }
   return '<p>' + escapeHtml(String(content)) + '</p>';
 }
@@ -856,7 +1313,7 @@ function startGeneration() {
   btn.disabled = true;
   btn.innerHTML = '<span class="material-icons">hourglass_top</span>准备中...';
   
-  // 将分析结果和题材信息存入 localStorage
+  // 🔥 保存到 localStorage（供方案页面使用）
   const contextData = {
     genreId: genreId,
     genreName: genreName,
@@ -864,6 +1321,14 @@ function startGeneration() {
     timestamp: Date.now()
   };
   localStorage.setItem('marketDrivenContext', JSON.stringify(contextData));
+  
+  // 🔥 同时保存分析结果缓存（用于返回时恢复）
+  const analysisCache = {
+    genre: genreId,
+    tropes: analysisResult,
+    timestamp: Date.now()
+  };
+  localStorage.setItem('marketDrivenAnalysis', JSON.stringify(analysisCache));
   
   // 跳转到生成页面
   window.location.href = `/market-driven-plan?genre=${encodeURIComponent(genreId)}`;

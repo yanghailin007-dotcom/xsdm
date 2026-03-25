@@ -164,24 +164,24 @@
   font-weight: 500;
 }
 
-/* ===== 卡片网格 - Google Material 风格 ===== */
+/* ===== 卡片网格 - Google Material 风格（紧凑版） ===== */
 .genre-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
-  gap: 20px;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: 16px;
 }
 
 .genre-card {
   background: var(--v2-bg-secondary);
   border: 1px solid var(--v2-border-subtle);
-  border-radius: var(--radius-lg);
-  padding: 28px;
+  border-radius: var(--radius-md);
+  padding: 20px;
   cursor: pointer;
   transition: all var(--transition-normal);
   position: relative;
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: 12px;
 }
 
 .genre-card:hover {
@@ -221,10 +221,10 @@
 }
 
 .genre-card__icon-wrapper {
-  width: 56px;
-  height: 56px;
+  width: 44px;
+  height: 44px;
   background: linear-gradient(135deg, rgba(245, 158, 11, 0.12), rgba(251, 191, 36, 0.08));
-  border-radius: var(--radius-md);
+  border-radius: var(--radius-sm);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -234,7 +234,7 @@
 }
 
 .genre-card__icon-wrapper .material-icons {
-  font-size: 28px;
+  font-size: 22px;
   font-family: 'Material Icons';
   font-weight: normal;
   font-style: normal;
@@ -259,10 +259,10 @@
 }
 
 .genre-card__name {
-  font-size: 18px;
+  font-size: 15px;
   font-weight: 600;
   color: var(--v2-text-primary);
-  margin-bottom: 6px;
+  margin-bottom: 4px;
   line-height: 1.3;
 }
 
@@ -299,18 +299,22 @@
 }
 
 .genre-card__desc {
-  font-size: 14px;
+  font-size: 13px;
   color: var(--v2-text-secondary);
-  line-height: 1.6;
-  margin-top: 4px;
+  line-height: 1.5;
+  margin-top: 2px;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
 }
 
 .genre-card__meta {
   display: flex;
-  gap: 16px;
-  padding-top: 16px;
+  gap: 12px;
+  padding-top: 12px;
   border-top: 1px solid var(--v2-border-subtle);
-  font-size: 13px;
+  font-size: 12px;
   color: var(--v2-text-muted);
 }
 
@@ -332,8 +336,8 @@
 /* ===== 骨架屏 ===== */
 .genre-skeleton {
   background: var(--v2-bg-secondary);
-  border-radius: var(--radius-lg);
-  height: 180px;
+  border-radius: var(--radius-md);
+  height: 140px;
   border: 1px solid var(--v2-border-subtle);
   position: relative;
   overflow: hidden;
@@ -494,6 +498,12 @@
 }
 
 /* ===== 响应式 ===== */
+@media (max-width: 1200px) {
+  .genre-grid {
+    grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  }
+}
+
 @media (max-width: 768px) {
   .market-hero {
     padding: 56px 20px 48px;
@@ -509,7 +519,12 @@
   }
   
   .genre-grid {
-    grid-template-columns: 1fr;
+    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+    gap: 12px;
+  }
+  
+  .genre-card {
+    padding: 16px;
   }
   
   .action-panel {
@@ -568,13 +583,17 @@
         </div>
         <div class="section-header__content">
           <h2 class="section-header__title">选择题材类型</h2>
-          <p class="section-header__desc">以下 12 种题材均经过市场验证，系统会分析该品类的爆款规律</p>
+          <p class="section-header__desc">以下 20 种题材均经过市场验证，系统会分析该品类的爆款规律</p>
         </div>
       </div>
-      <div class="section-header__meta">共 12 个品类</div>
+      <div class="section-header__meta">共 20 个品类</div>
     </div>
 
     <div class="genre-grid" id="genre-grid">
+      <div class="genre-skeleton"></div>
+      <div class="genre-skeleton"></div>
+      <div class="genre-skeleton"></div>
+      <div class="genre-skeleton"></div>
       <div class="genre-skeleton"></div>
       <div class="genre-skeleton"></div>
       <div class="genre-skeleton"></div>
@@ -620,7 +639,16 @@ const icons = {
   "模拟器文-人生模拟类": "videogame_asset",
   "灵气复苏-觉醒类": "bolt",
   "末日求生-囤货类": "inventory_2",
-  "四合院-日常类": "home"
+  "四合院-日常类": "home",
+  // 新增8个类型
+  "诡异复苏-规则怪谈类": "warning",
+  "游戏异界-虚拟现实类": "sports_esports",
+  "美食文-系统烹饪类": "restaurant",
+  "宠物文-御兽进化类": "pets",
+  "历史架空-权谋争霸类": "account_balance",
+  "文娱文-文抄公类": "movie",
+  "盗墓文-探险寻宝类": "search",
+  "综漫文-无限流类": "all_inclusive"
 };
 
 const metaInfo = {
@@ -635,7 +663,16 @@ const metaInfo = {
   "模拟器文-人生模拟类": { readers: "82万+", completion: "86%" },
   "灵气复苏-觉醒类": { readers: "135万+", completion: "93%" },
   "末日求生-囤货类": { readers: "105万+", completion: "90%" },
-  "四合院-日常类": { readers: "72万+", completion: "84%" }
+  "四合院-日常类": { readers: "72万+", completion: "84%" },
+  // 新增8个类型
+  "诡异复苏-规则怪谈类": { readers: "88万+", completion: "89%" },
+  "游戏异界-虚拟现实类": { readers: "92万+", completion: "87%" },
+  "美食文-系统烹饪类": { readers: "65万+", completion: "85%" },
+  "宠物文-御兽进化类": { readers: "78万+", completion: "88%" },
+  "历史架空-权谋争霸类": { readers: "95万+", completion: "91%" },
+  "文娱文-文抄公类": { readers: "82万+", completion: "86%" },
+  "盗墓文-探险寻宝类": { readers: "90万+", completion: "88%" },
+  "综漫文-无限流类": { readers: "75万+", completion: "85%" }
 };
 
 async function loadGenres() {

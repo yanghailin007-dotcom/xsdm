@@ -15,6 +15,15 @@ from pathlib import Path
 
 logger = logging.getLogger(__name__)
 
+# 导入状态管理器和情绪管理器
+try:
+    from web.services.market_driven.burst_state_manager import BurstStateManager
+    from web.services.market_driven.emotion_flow import EmotionFlow, create_emotion_flow
+    HAS_STATE_MANAGER = True
+except ImportError as e:
+    HAS_STATE_MANAGER = False
+    logger.warning(f"状态管理器导入失败: {e}，使用旧模式")
+
 
 class BatchChapterGenerator:
     """
@@ -22,13 +31,17 @@ class BatchChapterGenerator:
     基于BluePrint和套路，连续生成大量章节
     """
     
-    def __init__(self, api_client=None):
+    def __init__(self, api_client=None, state_manager: Optional['BurstStateManager'] = None,
+                 emotion_flow: Optional['EmotionFlow'] = None):
         self.api_client = api_client
         self.generated_chapters = []
         self.failed_chapters = []
+        self.state_manager = state_manager  # 状态管理器
+        self.emotion_flow = emotion_flow  # 情绪流
     
     def generate_batch(self, novel_title: str, start_chapter: int, end_chapter: int,
-                       blueprint: Dict, tropes: Dict, novel_data: Dict) -> Dict:
+                       blueprint: Dict, tropes: Dict, novel_data: Dict,
+                       use_conversation: bool = True) -> Dict:
         """
         批量生成一批章节
         
@@ -39,17 +52,102 @@ class BatchChapterGenerator:
             blueprint: 章节规划
             tropes: 套路分析
             novel_data: 小说数据（包含世界观、角色等）
+            use_conversation: 是否使用对话模式（默认启用）
             
         Returns:
             批量生成结果
         """
-        logger.info(f"[BatchGenerator] 开始生成第{start_chapter}-{end_chapter}章")
+        logger.info(f"[BatchGenerator] 开始生成第{start_chapter}-{end_chapter}章 | 对话模式: {use_conversation}")
+        
+        # 🔥 使用对话模式生成
+        if use_conversation and self.api_client:
+            try:
+                return self._generate_batch_conversation(
+                    novel_title, start_chapter, end_chapter, 
+                    blueprint, tropes, novel_data
+                )
+            except Exception as e:
+                logger.error(f"[BatchGenerator] 对话模式失败: {e}，回退到独立模式")
+        
+        # 传统模式：每章独立调用
+        return self._generate_batch_individual(
+            novel_title, start_chapter, end_chapter,
+            blueprint, tropes, novel_data
+        )
+    
+    def _generate_batch_conversation(self, novel_title: str, start_chapter: int, end_chapter: int,
+                                     blueprint: Dict, tropes: Dict, novel_data: Dict) -> Dict:
+        """使用对话模式批量生成"""
+        from web.services.market_driven.chapter_conversation_generator import (
+            ChapterConversationGenerator
+        )
+        
+        logger.info(f"[BatchGenerator] 🚀 使用对话模式生成第{start_chapter}-{end_chapter}章")
+        
+        # 创建对话生成器
+        generator = ChapterConversationGenerator(
+            api_client=self.api_client,
+            novel_data=novel_data,
+            tropes=tropes
+        )
+        
+        # 生成章节
+        chapters = generator.generate_chapters(
+            start_chapter=start_chapter,
+            end_chapter=end_chapter,
+            blueprint=blueprint
+        )
+        
+        # 处理结果
+        results = {
+            "generated": [],
+            "failed": [],
+            "total_words": 0,
+            "avg_quality": 0,
+            "generation_mode": "conversation"
+        }
+        
+        for chapter in chapters:
+            chapter_num = chapter.get("chapter_number")
+            word_count = chapter.get("word_count", 0)
+            
+            if word_count > 0:
+                # 保存
+                self._save_chapter(novel_title, chapter)
+                
+                results["generated"].append({
+                    "chapter": chapter_num,
+                    "title": chapter["title"],
+                    "word_count": word_count,
+                    "quality_score": chapter.get("quality_score", 8.0)
+                })
+                results["total_words"] += word_count
+            else:
+                results["failed"].append({
+                    "chapter": chapter_num,
+                    "error": chapter.get("error", "生成失败")
+                })
+        
+        # 计算平均质量
+        if results["generated"]:
+            results["avg_quality"] = sum(
+                c["quality_score"] for c in results["generated"]
+            ) / len(results["generated"])
+        
+        logger.info(f"[BatchGenerator] 对话模式完成: 成功{len(results['generated'])}章, 失败{len(results['failed'])}章")
+        return results
+    
+    def _generate_batch_individual(self, novel_title: str, start_chapter: int, end_chapter: int,
+                                   blueprint: Dict, tropes: Dict, novel_data: Dict) -> Dict:
+        """传统模式：每章独立生成"""
+        logger.info(f"[BatchGenerator] 使用独立模式生成第{start_chapter}-{end_chapter}章")
         
         results = {
             "generated": [],
             "failed": [],
             "total_words": 0,
-            "avg_quality": 0
+            "avg_quality": 0,
+            "generation_mode": "individual"
         }
         
         for chapter_num in range(start_chapter, end_chapter + 1):
@@ -97,7 +195,7 @@ class BatchChapterGenerator:
                 c["quality_score"] for c in results["generated"]
             ) / len(results["generated"])
         
-        logger.info(f"[BatchGenerator] 批量生成完成: 成功{len(results['generated'])}章, 失败{len(results['failed'])}章")
+        logger.info(f"[BatchGenerator] 独立模式完成: 成功{len(results['generated'])}章, 失败{len(results['failed'])}章")
         return results
     
     def _generate_single_chapter(self, chapter_num: int, novel_title: str,
@@ -137,11 +235,14 @@ class BatchChapterGenerator:
             content = self._optimize_chapter(content, chapter_plan, tropes)
             quality_score = self._assess_chapter_quality(content, chapter_plan, tropes)
         
+        # 确保 content 是字符串后再计算字数
+        content_str = content if isinstance(content, str) else str(content) if content else ""
+        
         return {
             "chapter_number": chapter_num,
-            "title": self._extract_title(content, chapter_plan),
-            "content": content,
-            "word_count": len(content),
+            "title": self._extract_title(content_str, chapter_plan),
+            "content": content_str,
+            "word_count": len(content_str),
             "quality_score": quality_score,
             "chapter_plan": chapter_plan,
             "generated_at": datetime.now().isoformat()
@@ -327,6 +428,14 @@ class BatchChapterGenerator:
             return response
         elif isinstance(response, dict):
             return response.get("content", str(response))
+        elif isinstance(response, list):
+            # 如果是列表，尝试提取内容或拼接
+            if len(response) > 0:
+                if isinstance(response[0], dict):
+                    return response[0].get("content", str(response))
+                elif isinstance(response[0], str):
+                    return "\n\n".join(response)
+            return str(response)
         else:
             return str(response)
     
@@ -346,8 +455,12 @@ class BatchChapterGenerator:
 结尾留下悬念，让读者想看下一章...
 """
     
-    def _assess_chapter_quality(self, content: str, chapter_plan: Dict, tropes: Dict) -> float:
+    def _assess_chapter_quality(self, content, chapter_plan: Dict, tropes: Dict) -> float:
         """评估章节质量"""
+        # 确保 content 是字符串
+        if not isinstance(content, str):
+            content = str(content) if content else ""
+        
         # 基础检查
         score = 8.0  # 基础分
         
@@ -385,8 +498,12 @@ class BatchChapterGenerator:
             return int(match.group(1))
         return None
     
-    def _optimize_chapter(self, content: str, chapter_plan: Dict, tropes: Dict) -> str:
+    def _optimize_chapter(self, content, chapter_plan: Dict, tropes: Dict) -> str:
         """优化章节"""
+        # 确保 content 是字符串
+        if not isinstance(content, str):
+            content = str(content) if content else ""
+        
         # 简化版：添加必要要素
         optimized = content
         
@@ -396,9 +513,12 @@ class BatchChapterGenerator:
         
         return optimized
     
-    def _extract_title(self, content: str, chapter_plan: Dict) -> str:
+    def _extract_title(self, content, chapter_plan: Dict) -> str:
         """提取标题"""
         import re
+        # 确保 content 是字符串
+        if not isinstance(content, str):
+            content = str(content) if content else ""
         # 尝试从内容中提取
         match = re.search(r'第\d+章\s*([^\n]+)', content)
         if match:
@@ -429,6 +549,191 @@ class BatchChapterGenerator:
                 return json.load(f)
         except:
             return None
+    
+    def generate_with_state_manager(self, novel_title: str, start_chapter: int, 
+                                     end_chapter: int, blueprint: Dict, 
+                                     tropes: Dict, plan: Dict) -> Dict:
+        """
+        使用状态管理器和情绪流批量生成章节
+        保持核心设定一致，管理动态状态和情绪心电图
+        """
+        if not HAS_STATE_MANAGER:
+            logger.warning("StateManager不可用，回退到旧模式")
+            return self.generate_batch(novel_title, start_chapter, end_chapter, 
+                                      blueprint, tropes, plan)
+        
+        # 初始化状态管理器
+        if self.state_manager is None:
+            self.state_manager = BurstStateManager(novel_title)
+        
+        # 如果核心设定未初始化，从plan初始化
+        if self.state_manager.core_identity is None:
+            logger.info(f"从plan初始化核心设定...")
+            self.state_manager.init_from_plan(plan, tropes)
+        
+        # 初始化情绪流
+        if self.emotion_flow is None:
+            total_chapters = plan.get('total_chapters', 100)
+            genre = plan.get('genre', '神豪文-花钱返利类')
+            
+            # 尝试从一阶段产物获取AI生成的情绪曲线
+            phase_one_products = plan.get('phase_one_products') or {}
+            
+            self.emotion_flow = create_emotion_flow(
+                novel_title=novel_title,
+                genre=genre,
+                total_chapters=total_chapters,
+                phase_one_products=phase_one_products
+            )
+            
+            if phase_one_products.get('emotion_curve'):
+                logger.info(f"已加载AI生成的个性化情绪曲线: {total_chapters}章")
+            else:
+                logger.info(f"使用固定模板情绪曲线: {total_chapters}章")
+            
+            logger.info("\n" + self.emotion_flow.get_curve_visualization())
+        
+        # 检查连续低强度章节
+        low_chapters = self.emotion_flow.check_continuous_low(window=3)
+        if low_chapters:
+            logger.warning(f"情绪流警告: 第{low_chapters}章开始连续低强度!")
+        
+        results = {
+            "generated": [],
+            "failed": [],
+            "total_words": 0,
+            "avg_quality": 0
+        }
+        
+        for chapter_num in range(start_chapter, end_chapter + 1):
+            try:
+                logger.info(f"  生成第{chapter_num}章（使用状态管理+情绪流）...")
+                
+                # 获取本章情绪节拍
+                beat = self.emotion_flow.get_beat(chapter_num)
+                if beat:
+                    logger.info(f"    情绪节拍: {beat.emotion}(强度{beat.intensity}) | {beat.beat_type} | {beat.purpose}")
+                
+                # 构建情绪节拍字典
+                beat_dict = {
+                    "emotion": beat.emotion,
+                    "intensity": beat.intensity,
+                    "beat_type": beat.beat_type,
+                    "event": beat.event,
+                    "purpose": beat.purpose
+                } if beat else None
+                
+                # 使用状态管理器构建system prompt（传入情绪节拍）
+                system_prompt = self.state_manager.build_system_prompt(chapter_num, beat_dict)
+                
+                # 调用AI生成
+                chapter_data = self._call_ai_with_state(system_prompt, chapter_num)
+                
+                if chapter_data:
+                    # 记录实际情绪
+                    actual_emotion = chapter_data.get('emotion_result', {})
+                    self.emotion_flow.record_actual(
+                        ch=chapter_num,
+                        emotion=actual_emotion.get('actual_emotion', '未知'),
+                        intensity=actual_emotion.get('intensity', 5),
+                        note=actual_emotion.get('hook', '')
+                    )
+                    
+                    # 更新状态
+                    self.state_manager.update_after_chapter(chapter_num, chapter_data)
+                    
+                    # 保存章节
+                    self._save_chapter(novel_title, {
+                        "chapter_number": chapter_num,
+                        "title": chapter_data.get("chapter_title", f"第{chapter_num}章"),
+                        "content": chapter_data.get("content", ""),
+                        "word_count": len(chapter_data.get("content", "")),
+                        "quality_score": actual_emotion.get("intensity", 5),
+                        "emotion_beat": {
+                            "planned": {"emotion": beat.emotion, "intensity": beat.intensity, "type": beat.beat_type} if beat else None,
+                            "actual": actual_emotion
+                        },
+                        "state_snapshot": self.state_manager.get_state_for_session_switch(),
+                        "generated_at": datetime.now().isoformat()
+                    })
+                    
+                    results["generated"].append({
+                        "chapter": chapter_num,
+                        "title": chapter_data.get("chapter_title", f"第{chapter_num}章"),
+                        "word_count": len(chapter_data.get("content", "")),
+                        "quality_score": chapter_data.get("emotion_result", {}).get("intensity", 5)
+                    })
+                    
+                    logger.info(f"  ✅ 第{chapter_num}章完成 ({len(chapter_data.get('content', ''))}字)")
+                else:
+                    raise ValueError("生成返回空数据")
+                
+                time.sleep(0.5)
+                
+            except Exception as e:
+                logger.error(f"  ❌ 第{chapter_num}章失败: {e}")
+                results["failed"].append({
+                    "chapter": chapter_num,
+                    "error": str(e)
+                })
+                continue
+        
+        # 计算平均质量
+        if results["generated"]:
+            results["avg_quality"] = sum(
+                c["quality_score"] for c in results["generated"]
+            ) / len(results["generated"])
+        
+        # 输出情绪流摘要
+        if self.emotion_flow:
+            logger.info("\n" + self.emotion_flow.get_curve_visualization())
+            low_chapters = self.emotion_flow.check_continuous_low(window=3)
+            if low_chapters:
+                logger.warning(f"[情绪流警告] 第{low_chapters}章开始连续低强度，建议调整!")
+        
+        logger.info(f"[BatchGenerator] 批量生成完成: 成功{len(results['generated'])}章")
+        return results
+    
+    def _call_ai_with_state(self, system_prompt: str, chapter_num: int) -> Optional[Dict]:
+        """使用状态管理器的prompt调用AI"""
+        if not self.api_client:
+            return None
+        
+        response = self.api_client.generate_content_with_retry(
+            content_type="chapter_content_structured",
+            system_prompt=system_prompt,
+            user_prompt=f"请生成第{chapter_num}章内容，严格按照系统提示中的格式要求返回JSON。",
+            temperature=0.7,
+            purpose=f"生成第{chapter_num}章（结构化）"
+        )
+        
+        # 解析JSON响应
+        if isinstance(response, dict):
+            return response
+        elif isinstance(response, str):
+            try:
+                return json.loads(response)
+            except json.JSONDecodeError:
+                # 尝试从文本中提取JSON
+                import re
+                json_match = re.search(r'\{.*\}', response, re.DOTALL)
+                if json_match:
+                    try:
+                        return json.loads(json_match.group(0))
+                    except:
+                        pass
+                # 如果提取失败，包装成简单格式
+                return {
+                    "chapter_title": f"第{chapter_num}章",
+                    "content": response,
+                    "state_updates": {},
+                    "emotion_result": {"actual_emotion": "未知", "intensity": 5, "hook": "待续"}
+                }
+        elif isinstance(response, list) and len(response) > 0:
+            if isinstance(response[0], dict):
+                return response[0]
+        
+        return None
 
 
 class ChapterBluePrintGenerator:
