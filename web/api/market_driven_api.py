@@ -851,9 +851,12 @@ def _run_chapter_generation(task_id: str, genre: str, target_words: int, api_cli
         
         # 准备novel_data
         novel_data = {
+            "title": novel_title,
             "core_worldview": products.get("core_worldview", {}),
             "character_design": products.get("character_design", {}),
-            "faction_system": products.get("faction_system", {})
+            "faction_system": products.get("faction_system", {}),
+            "plan": products.get("plan", {}),
+            "emotion_curve": products.get("emotion_curve", {})
         }
         
         # 批量生成
