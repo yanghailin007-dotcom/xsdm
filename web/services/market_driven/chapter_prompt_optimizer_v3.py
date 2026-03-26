@@ -828,22 +828,35 @@ class ChapterPromptOptimizerV3:
         if chapter_num <= 3:
             return self._detect_golden_chapter_type(chapter_num)
         
-        # 从blueprint获取情绪设计
-        emotion_beat = self._get_emotion_beat(chapter_num)
-        if emotion_beat:
-            beat_type = emotion_beat.get('beat_type', '').lower()
+        # 从emotion_curve获取情绪设计（直接访问原始数据）
+        emotion_curve = self.emotion_curve
+        if emotion_curve:
+            # 查找各阶段的详细曲线
+            phases = ['phase_1_early_domination', 'phase_2_rising_power', 
+                      'phase_3_global_dominance', 'phase_4_cosmic_conquest']
             
-            # 根据节拍类型判断
-            if beat_type in ['压抑', '铺垫', 'setup']:
-                return 'SETUP'
-            elif beat_type in ['爽点', '打脸', '高潮', 'climax']:
-                return 'FACE_SLAP'
-            elif beat_type in ['收获', 'reward', '升级']:
-                return 'REWARD'
-            elif beat_type in ['揭秘', '曝光', 'reveal']:
-                return 'REVEAL'
-            elif beat_type in ['危机', '危机', 'crisis']:
-                return 'CRISIS'
+            for phase_key in phases:
+                phase = emotion_curve.get(phase_key, {})
+                if not phase:
+                    continue
+                
+                curve = phase.get('curve', [])
+                for beat in curve:
+                    if beat.get('ch') == chapter_num:
+                        beat_type = beat.get('beat_type', '').lower()
+                        
+                        # 根据节拍类型判断
+                        if beat_type in ['压抑', '铺垫', 'setup']:
+                            return 'SETUP'
+                        elif beat_type in ['爽点', '打脸', '高潮', 'climax']:
+                            return 'FACE_SLAP'
+                        elif beat_type in ['收获', 'reward', '升级']:
+                            return 'REWARD'
+                        elif beat_type in ['揭秘', '曝光', 'reveal']:
+                            return 'REVEAL'
+                        elif beat_type in ['危机', 'crisis']:
+                            return 'CRISIS'
+                        break
         
         # 根据章节号规律判断
         chapter_in_cycle = (chapter_num - 1) % 10  # 10章一个周期
