@@ -850,8 +850,17 @@ def _run_chapter_generation(task_id: str, genre: str, target_words: int, api_cli
         blueprint = blueprint_gen.generate_blueprint(target_words, tropes, plan)
         
         # 准备novel_data
+        # 🔥 从Flask session获取用户名
+        try:
+            from flask import session
+            username = session.get('user', 'anonymous')
+        except:
+            username = 'anonymous'
+        
         novel_data = {
             "title": novel_title,
+            "username": username,
+            "_username": username,
             "core_worldview": products.get("core_worldview", {}),
             "character_design": products.get("character_design", {}),
             "faction_system": products.get("faction_system", {}),
