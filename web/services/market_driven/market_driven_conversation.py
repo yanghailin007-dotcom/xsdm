@@ -27,12 +27,21 @@ logger = logging.getLogger(__name__)
 class ConversationLogger:
     """对话生成日志记录器 - 保存为极简格式"""
     
-    def __init__(self, session_id: str, log_dir: str = "logs/ai_interactions"):
+    def __init__(self, session_id: str, log_dir: str = "logs/ai_interactions", novel_title: str = ""):
         self.session_id = session_id
+        self.novel_title = novel_title
         self.log_dir = Path(log_dir)
         self.log_dir.mkdir(parents=True, exist_ok=True)
         self.start_time = datetime.now()
         self.round_count = 0
+        
+    def _sanitize_filename(self, text: str) -> str:
+        """清理文件名，去除特殊字符"""
+        import re
+        # 保留中文、英文、数字，替换其他字符为下划线
+        sanitized = re.sub(r'[^\u4e00-\u9fa5a-zA-Z0-9]', '_', text)
+        # 限制长度
+        return sanitized[:20] if sanitized else "未命名"
         
     def log_round(self, step: str, messages: List[Dict], response: str):
         """
@@ -41,7 +50,13 @@ class ConversationLogger:
         """
         self.round_count += 1
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-        log_file = self.log_dir / f"{self.session_id}_round{self.round_count:02d}_{step}_{timestamp}.md"
+        
+        # 🔥 构建文件名：包含书名前缀（如果有）
+        if self.novel_title:
+            title_prefix = self._sanitize_filename(self.novel_title)
+            log_file = self.log_dir / f"{self.session_id}_{title_prefix}_round{self.round_count:02d}_{step}_{timestamp}.md"
+        else:
+            log_file = self.log_dir / f"{self.session_id}_round{self.round_count:02d}_{step}_{timestamp}.md"
         
         lines = [
             f"# Round {self.round_count} - {step}",
@@ -140,8 +155,10 @@ class MarketDrivenConversationSession:
         from src.core.APIClient import ConversationSession
         system_prompt = self._build_system_prompt()
         
-        # 🔥 创建对话日志记录器
-        self._logger = ConversationLogger(self.session_id)
+        # 🔥 创建对话日志记录器（传入书名，用于文件名）
+        novel_title = self.user_choices.get('title', '')
+        self._logger = ConversationLogger(self.session_id, novel_title=novel_title)
+        logger.info(f"[对话模式 {self.session_id}] 日志记录器已启动，书名: {novel_title or '未命名'}")
         
         self.session = ConversationSession(
             api_client=api_client,
