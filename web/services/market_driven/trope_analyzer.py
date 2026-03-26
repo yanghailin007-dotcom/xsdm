@@ -480,6 +480,16 @@ class TropeAnalyzer:
     "reward": "结果奖励",
     "reaction": "全网反应"
   }},
+  "antagonist": {{
+    "early": "初期反派身份（如：势利眼销售、前女友、同事）",
+    "mid": "中期反派身份（如：富二代、地方势力）",
+    "late": "后期反派身份（如：国际势力、终极BOSS）",
+    "pattern": "打脸模式（如：看不起→嘲讽→震惊→后悔→跪舔）",
+    "early_stage": [
+      {{"name": "反派1名称", "scene": "出现场景", "pattern": "打脸模式"}},
+      {{"name": "反派2名称", "scene": "出现场景", "pattern": "打脸模式"}}
+    ]
+  }},
   "platform_tips": {{
     "title_style": "15字以内，有冲击力，包含数字或强烈对比",
     "writing_style": "直白、短段落、多对话、少用形容词",
