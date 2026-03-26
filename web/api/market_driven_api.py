@@ -782,6 +782,20 @@ def save_phase_one_products(novel_title: str, products: Dict, task_id: str,
     project_info["novel_synopsis"] = plan.get("core_selling_points", [{}])[0].get("point", "") if plan else ""
     project_info["genre"] = genre
     
+    # 🔥 兼容旧版上传代码：添加 selected_plan 字段（包含 tags）
+    # novel_publisher.py 期望从 selected_plan.tags 读取标签信息
+    if plan:
+        project_info["selected_plan"] = {
+            "title": plan.get("recommended_title", novel_title),
+            "synopsis": plan.get("core_selling_points", [{}])[0].get("point", "") if plan.get("core_selling_points") else "",
+            "tags": plan.get("tags", {}),  # 🔥 关键：番茄上传标签
+            "suggestions": {
+                "name": plan.get("protagonist", {}).get("basic_info", {}).get("name", "主角") if plan.get("protagonist") else "主角",
+                "genre": genre
+            }
+        }
+        logger.info(f"[SaveProducts] 已添加 selected_plan 字段，包含 tags: {plan.get('tags', {})}")
+    
     # 设置模式特定信息（包含用户选择）
     mode_info = {
         "task_id": task_id,

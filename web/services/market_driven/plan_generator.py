@@ -20,6 +20,146 @@ class MarketDrivenPlanGenerator:
     基于AI分析的套路，生成符合爆款公式的小说方案
     """
     
+    # 番茄小说标签映射（包含男女频差异）
+    FANQIE_TAG_MAPPINGS = {
+        # === 男频标签 ===
+        "male": {
+            "神豪文-花钱返利类": {
+                "main_category": "都市",
+                "themes": ["神豪", "赚钱", "逆袭"],
+                "roles": ["屌丝", "神豪", "美女"],
+                "plots": ["系统流", "打脸", "逆袭"]
+            },
+            "国运文-直播类": {
+                "main_category": "都市",
+                "themes": ["国运", "直播", "无敌流"],
+                "roles": ["主播", "选手", "观众"],
+                "plots": ["直播流", "国运流", "召唤流"]
+            },
+            "国运文-扮演类": {
+                "main_category": "都市",
+                "themes": ["国运", "扮演", "无敌流"],
+                "roles": ["扮演者", "选手", "历史人物"],
+                "plots": ["扮演流", "国运流", "召唤流"]
+            },
+            "奶爸文-萌宝类": {
+                "main_category": "都市",
+                "themes": ["奶爸", "萌宝", "温馨"],
+                "roles": ["奶爸", "萌娃", "宝妈"],
+                "plots": ["带娃流", "温馨流", "日常流"]
+            },
+            "签到文-系统类": {
+                "main_category": "都市",
+                "themes": ["签到", "系统", "无敌流"],
+                "roles": ["普通人", "强者", "美女"],
+                "plots": ["签到流", "系统流", "无敌流"]
+            },
+            "末日求生-囤货类": {
+                "main_category": "科幻",
+                "themes": ["末日", "囤货", "求生"],
+                "roles": ["求生者", "幸存者", "异能者"],
+                "plots": ["末日流", "囤货流", "求生流"]
+            },
+            "灵气复苏-修炼类": {
+                "main_category": "都市",
+                "themes": ["灵气复苏", "修炼", "无敌流"],
+                "roles": ["修炼者", "强者", "校花"],
+                "plots": ["灵气复苏流", "修炼流", "无敌流"]
+            },
+            "四合院-年代类": {
+                "main_category": "都市",
+                "themes": ["四合院", "年代", "日常"],
+                "roles": ["普通工人", "贤妻", "反派"],
+                "plots": ["年代流", "日常流", "怼禽流"]
+            },
+            "玄幻-东方玄幻": {
+                "main_category": "玄幻",
+                "themes": ["东方玄幻", "热血", "冒险"],
+                "roles": ["少年", "强者", "美女"],
+                "plots": ["废柴流", "逆袭流", "升级流"]
+            },
+            "修仙-凡人流": {
+                "main_category": "仙侠",
+                "themes": ["修仙", "凡人流", "长生"],
+                "roles": ["散修", "天才", "仙子"],
+                "plots": ["凡人流", "升级流", "夺宝流"]
+            },
+            "同人-动漫同人": {
+                "main_category": "轻小说",
+                "themes": ["同人", "动漫", "穿越"],
+                "roles": ["穿越者", "原着角色", "改变者"],
+                "plots": ["同人流", "改变剧情", "收女流"]
+            },
+            "同人-影视同人": {
+                "main_category": "轻小说",
+                "themes": ["同人", "影视", "穿越"],
+                "roles": ["穿越者", "原着角色", "改变者"],
+                "plots": ["同人流", "改变剧情", "收女流"]
+            },
+            "同人-小说同人": {
+                "main_category": "轻小说",
+                "themes": ["同人", "小说", "穿越"],
+                "roles": ["穿越者", "原着角色", "改变者"],
+                "plots": ["同人流", "改变剧情", "掠夺机缘"]
+            }
+        },
+        # === 女频标签 ===
+        "female": {
+            "甜宠文-总裁类": {
+                "main_category": "现代言情",
+                "themes": ["甜宠", "总裁", "豪门"],
+                "roles": ["女主", "总裁", "情敌"],
+                "plots": ["先婚后爱", "追妻火葬场", "甜宠"]
+            },
+            "重生文-复仇类": {
+                "main_category": "古代言情",
+                "themes": ["重生", "复仇", "宅斗"],
+                "roles": ["重生女主", "王爷", "白莲花"],
+                "plots": ["重生复仇", "宅斗", "打脸"]
+            },
+            "穿越文-种田类": {
+                "main_category": "古代言情",
+                "themes": ["穿越", "种田", "发家致富"],
+                "roles": ["穿越女", "猎户", "极品亲戚"],
+                "plots": ["种田流", "发家致富", "经商"]
+            },
+            "快穿文-攻略类": {
+                "main_category": "科幻空间",
+                "themes": ["快穿", "攻略", "虐渣"],
+                "roles": ["快穿女主", "男主", "炮灰"],
+                "plots": ["快穿", "攻略男主", "虐渣打脸"]
+            },
+            "娱乐圈-逆袭类": {
+                "main_category": "现代言情",
+                "themes": ["娱乐圈", "逆袭", "系统"],
+                "roles": ["女明星", "影帝", "经纪人"],
+                "plots": ["逆袭", "系统", "打脸"]
+            },
+            "玄幻言情-修仙类": {
+                "main_category": "仙侠奇缘",
+                "themes": ["修仙", "师徒", "逆袭"],
+                "roles": ["女修", "师尊", "魔尊"],
+                "plots": ["师徒恋", "逆袭", "虐渣"]
+            }
+        }
+    }
+    
+    # 默认标签（当题材未找到映射时使用）
+    DEFAULT_TAGS = {
+        "male": {
+            "main_category": "都市",
+            "themes": ["系统", "爽文", "无敌流"],
+            "roles": ["男主", "美女", "反派"],
+            "plots": ["系统流", "打脸", "逆袭"]
+        },
+        "female": {
+            "main_category": "现代言情",
+            "themes": ["甜宠", "爽文", "豪门"],
+            "roles": ["女主", "男主", "女配"],
+            "plots": ["甜宠", "打脸", "逆袭"]
+        }
+    }
+    
     def __init__(self, api_client=None):
         self.api_client = api_client
     
@@ -55,6 +195,9 @@ class MarketDrivenPlanGenerator:
         # 6. 生成核心卖点
         selling_points = self._generate_selling_points(tropes)
         
+        # 7. 生成番茄上传标签（关键！用于自动上传）
+        tags = self._generate_fanqie_tags(genre, tropes, user_choices)
+        
         plan = {
             "genre": genre,
             "generated_at": datetime.now().isoformat(),
@@ -79,6 +222,9 @@ class MarketDrivenPlanGenerator:
             # 核心卖点
             "core_selling_points": selling_points,
             
+            # 番茄上传标签（关键字段！novel_publisher.py 依赖此字段）
+            "tags": tags,
+            
             # 用户选择记录
             "user_choices": user_choices,
             
@@ -91,6 +237,7 @@ class MarketDrivenPlanGenerator:
         }
         
         logger.info(f"[PlanGenerator] 方案生成完成: {genre}")
+        logger.info(f"[PlanGenerator] 番茄标签: 主分类={tags['main_category']}, 受众={tags['target_audience']}")
         return plan
     
     def _generate_titles(self, genre: str, tropes: Dict, user_choices: Dict) -> List[str]:
@@ -471,6 +618,69 @@ class MarketDrivenPlanGenerator:
                 "platform_fit": "增加读者粘性"
             }
         ]
+    
+    def _generate_fanqie_tags(self, genre: str, tropes: Dict, user_choices: Dict) -> Dict:
+        """
+        生成番茄小说上传所需的标签信息
+        
+        关键字段（novel_publisher.py 依赖）：
+        - main_category: 主分类（番茄界面：主分类标签页）
+        - themes: 主题标签列表（番茄界面：主题标签页）
+        - roles: 角色标签列表（番茄界面：角色标签页）
+        - plots: 情节标签列表（番茄界面：情节标签页）
+        - target_audience: 受众（男频/女频）
+        
+        Args:
+            genre: 题材
+            tropes: 套路分析
+            user_choices: 用户选择
+            
+        Returns:
+            符合番茄上传格式的标签字典
+        """
+        # 1. 确定男女频
+        # 优先从用户选择中获取，否则根据题材判断
+        target_audience = user_choices.get("target_audience", "")
+        if not target_audience:
+            # 根据题材判断男女频
+            female_genres = ["甜宠", "重生", "穿越", "快穿", "娱乐圈", "古代言情", "现代言情", "仙侠奇缘"]
+            if any(fg in genre for fg in female_genres):
+                target_audience = "女频"
+            else:
+                target_audience = "男频"
+        
+        # 2. 选择对应的标签映射表
+        gender_key = "female" if target_audience == "女频" else "male"
+        tag_mappings = self.FANQIE_TAG_MAPPINGS.get(gender_key, self.FANQIE_TAG_MAPPINGS["male"])
+        
+        # 3. 查找题材对应的标签
+        # 先尝试精确匹配
+        tags = tag_mappings.get(genre)
+        
+        # 如果没有精确匹配，尝试模糊匹配
+        if not tags:
+            for mapped_genre, mapped_tags in tag_mappings.items():
+                # 检查题材是否包含映射中的关键词
+                if any(keyword in genre for keyword in mapped_genre.split("-")):
+                    tags = mapped_tags
+                    break
+        
+        # 如果仍然没有匹配，使用默认标签
+        if not tags:
+            tags = self.DEFAULT_TAGS.get(gender_key, self.DEFAULT_TAGS["male"])
+            logger.warning(f"[PlanGenerator] 题材 '{genre}' 未找到标签映射，使用默认标签")
+        
+        # 4. 构建完整的标签字典
+        result = {
+            "main_category": tags["main_category"],
+            "themes": tags["themes"][:3],  # 最多3个主题
+            "roles": tags["roles"][:3],    # 最多3个角色
+            "plots": tags["plots"][:3],    # 最多3个情节
+            "target_audience": target_audience
+        }
+        
+        logger.info(f"[PlanGenerator] 生成番茄标签: {result}")
+        return result
 
 
 # 便捷函数
