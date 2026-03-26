@@ -34,7 +34,7 @@
                 <span data-i18n="nav.projects">项目</span>
             </a>
             <!-- 创作下拉菜单 - 仅作为菜单触发器，不直接跳转 -->
-            <div class="v2-nav-dropdown {% if request.endpoint in ['phase_one_setup', 'phase_two_generation'] %}v2-nav-dropdown--active{% endif %}">
+            <div class="v2-nav-dropdown {% if request.endpoint in ['phase_one_setup', 'phase_two_generation', 'market_driven_create_page', 'market_driven_analysis_page', 'market_driven_plan_page', 'market_driven_status_page'] %}v2-nav-dropdown--active{% endif %}">
                 <span class="v2-nav-trigger">
                     <span data-i18n="nav.create">创作</span>
                     <svg class="v2-nav-trigger__arrow" width="12" height="12" viewBox="0 0 12 12" fill="none">
@@ -54,7 +54,7 @@
                         </svg>
                     </a>
                     <!-- 市场导向创作 -->
-                    <a href="/market-driven-create" class="v2-dropdown-item">
+                    <a href="/market-driven-create" class="v2-dropdown-item {% if request.endpoint in ['market_driven_create_page', 'market_driven_analysis_page', 'market_driven_plan_page', 'market_driven_status_page'] %}v2-dropdown-item--active{% endif %}">
                         <span class="v2-dropdown-item__icon" style="font-size: 16px;">🎯</span>
                         <div class="v2-dropdown-item__content">
                             <span class="v2-dropdown-item__title">市场导向创作 <span style="color: #f59e0b; font-size: 11px;">推荐</span></span>
