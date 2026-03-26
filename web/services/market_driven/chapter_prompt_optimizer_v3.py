@@ -179,7 +179,12 @@ class ChapterPromptOptimizerV3:
         return '通用'
     
     def _get_protagonist_name(self) -> str:
-        """获取主角姓名"""
+        """获取主角姓名（优先使用用户填写的）"""
+        # 🔥 优先从 user_choices 获取用户填写的主角名
+        user_choices = self.novel_data.get('user_choices', {})
+        if user_choices and user_choices.get('protagonist_name'):
+            return user_choices['protagonist_name']
+        
         char_design = self.char_design
         if char_design:
             protagonist = char_design.get('protagonist', {})

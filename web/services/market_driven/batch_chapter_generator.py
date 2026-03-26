@@ -864,15 +864,26 @@ def generate_300k_words(novel_title: str, genre: str, tropes: Dict, plan: Dict,
     except:
         username = 'anonymous'
     
+    # 🔥 获取用户选择的主角名（优先使用用户填写的，覆盖AI生成的）
+    character_design = products.get("character_design", {})
+    user_choices = products.get("user_choices", {})
+    user_protagonist_name = user_choices.get("protagonist_name")
+    
+    # 如果用户填写了主角名，覆盖AI生成的角色设计中的名字
+    if user_protagonist_name and character_design.get("protagonist"):
+        character_design["protagonist"]["name"] = user_protagonist_name
+        logger.info(f"[章节生成] 使用用户填写的主角名: {user_protagonist_name}")
+    
     novel_data = {
         "title": novel_title,
         "username": username,
         "_username": username,
         "core_worldview": products.get("core_worldview", {}),
-        "character_design": products.get("character_design", {}),
+        "character_design": character_design,
         "faction_system": products.get("faction_system", {}),
         "plan": products.get("plan", {}),
-        "emotion_curve": products.get("emotion_curve", {})
+        "emotion_curve": products.get("emotion_curve", {}),
+        "user_choices": user_choices  # 🔥 保存用户选择，供后续使用
     }
     
     # 批量生成
