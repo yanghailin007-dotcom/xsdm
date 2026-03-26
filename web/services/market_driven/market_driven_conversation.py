@@ -252,8 +252,10 @@ class MarketDrivenConversationSession:
 ### ✅ 最终确定的书名（必须使用）
 **{title}**
 
-### ✅ 最终确定的主角姓名（必须使用）
+### ✅ 最终确定的主角姓名（必须使用，禁止更改）
 **{protagonist_name}**
+
+⚠️ **强制要求**： protagonist.name 必须是 "{protagonist_name}"，禁止起任何其他名字或别名！
 
 ### ✅ 最终确定的金手指（必须使用）
 **{golden_finger}**
@@ -468,11 +470,17 @@ class MarketDrivenConversationSession:
             prompt_parts = [
                 "请执行【步骤3：生成角色设计】\n",
                 "基于系统提示词中的【完整的套路分析结果】和已确定的主角人设、世界观，设计完整的角色阵容。\n",
+                "## ⚠️ 强制要求（违反将视为失败）",
+                f'- **主角姓名**：**必须使用**用户确定的「{protagonist_name}」',
+                f'- **禁止**：给主角起其他名字、别名、或任何变体',
+                f'- ** protagonist.name 必须是** "{protagonist_name}"**',
+                "- 如果主角名不符合要求，整个生成将被视为失败\n",
                 "## 重要提醒",
                 f'- **主角姓名**：必须使用用户确定的「{protagonist_name}」',
                 "- **参考模板**：系统提示词中的 protagonist（主角模板）和 antagonist（反派设计套路）\n",
                 "## 输出格式",
                 "返回JSON格式，包含: protagonist, core_allies, main_antagonists, supporting_roles\n",
+                f'** protagonist.name 必须是 "{protagonist_name}" **',
                 "只返回JSON。"
             ]
             prompt = "\n".join(prompt_parts)
@@ -481,7 +489,17 @@ class MarketDrivenConversationSession:
         response = self.session.send_message(prompt, temperature=0.7)
         self._logger.log_round("generate_characters", self.session.messages.copy(), response if isinstance(response, str) else json.dumps(response))
         logger.info(f"[对话模式 {self.session_id}] 步骤3响应接收 | 总对话轮次: {self.session.turn_count}")
-        return self._parse_json_response(response, "characters")
+        
+        result = self._parse_json_response(response, "characters")
+        
+        # 🔥 验证并强制修正主角名
+        if result and result.get("protagonist"):
+            actual_name = result["protagonist"].get("name", "")
+            if actual_name != protagonist_name:
+                logger.warning(f"[对话模式 {self.session_id}] AI生成的角色名 '{actual_name}' 与用户指定 '{protagonist_name}' 不符，强制修正！")
+                result["protagonist"]["name"] = protagonist_name
+        
+        return result
     
     def _generate_growth_plan(self) -> Dict:
         """生成成长路线（使用基于爆款的Prompt模板）"""

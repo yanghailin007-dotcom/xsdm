@@ -171,10 +171,14 @@ JSON格式，包含：world_overview, power_system, social_structure, factions, 
 
 基于已确定的世界观和主角人设，设计完整角色阵容。
 
-## 👤 主角人设公式（必须严格遵循）
-{json.dumps(char_formula.get("protagonist", {}), ensure_ascii=False)}
+## ⚠️ 强制要求（违反将导致生成失败）
+1. **主角姓名必须使用用户指定的**：{protagonist_name}
+2. **禁止**给主角起其他名字或别名
+3. **禁止**在 protagonist.name 中使用其他值
+4. 如果违反以上任何一条，生成将被视为失败
 
-主角姓名：{protagonist_name}（必须使用）
+## 👤 主角人设公式（仅作为人设参考，姓名必须用上面指定的）
+{json.dumps(char_formula.get("protagonist", {}), ensure_ascii=False)}
 
 ## 👥 配角功能定位公式
 {chr(10).join(["- " + s for s in char_formula.get("supporting", [])])}
@@ -187,6 +191,8 @@ JSON格式，包含：world_overview, power_system, social_structure, factions, 
 
 ## ✅ 输出格式
 JSON格式：protagonist, core_allies(3-5人), main_antagonists(早期/中期/后期各2-3人), supporting_roles
+
+** protagonist.name 必须是 "{protagonist_name}"，否则无效！**
 """
     
     def generate_step4_growth_prompt(self) -> str:
