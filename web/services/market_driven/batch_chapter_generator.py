@@ -84,9 +84,12 @@ class BatchChapterGenerator:
         
         logger.info(f"[BatchGenerator] 🚀 使用对话模式生成第{start_chapter}-{end_chapter}章")
         
-        # 确保 novel_data 中包含书名
-        if novel_title and not novel_data.get('title'):
-            novel_data['title'] = novel_title
+        # 确保 novel_data 中包含书名（处理 None、空字符串、"未命名" 等情况）
+        if novel_title:
+            current_title = novel_data.get('title')
+            if not current_title or current_title == '未命名' or current_title.strip() == '':
+                novel_data['title'] = novel_title
+                logger.info(f"[BatchGenerator] 设置书名为: {novel_title}")
         
         # 创建对话生成器
         generator = ChapterConversationGenerator(
