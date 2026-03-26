@@ -1134,12 +1134,27 @@ function displayResults(data) {
   
   if (antagonists) {
     const a = antagonists;
+    // 辅助函数：将值转换为字符串（处理对象和字符串）
+    const toString = (val) => {
+      if (!val) return '';
+      if (typeof val === 'string') return val;
+      if (typeof val === 'object') {
+        // 如果是对象，尝试提取常见字段
+        if (val.name) return val.name;
+        if (val.description) return val.description;
+        if (val.type) return val.type;
+        // 否则返回 JSON 字符串
+        return JSON.stringify(val);
+      }
+      return String(val);
+    };
+    
     conflictContent = [
-      `【早期反派】${a.early || '势利眼小人物（销售、保安、前女友）'}`,
-      `【中期反派】${a.mid || '富二代、地方势力、企业高管'}`,
-      `【后期反派】${a.late || '国际势力、上古世家、隐藏大佬'}`,
-      a.pattern ? `【打脸模式】${a.pattern}` : '',
-      a.early_stage && Array.isArray(a.early_stage) ? `\n前期具体反派：${a.early_stage.slice(0, 2).map(e => e.name || e).join('、')}` : ''
+      `【早期反派】${toString(a.early) || '势利眼小人物（销售、保安、前女友）'}`,
+      `【中期反派】${toString(a.mid) || '富二代、地方势力、企业高管'}`,
+      `【后期反派】${toString(a.late) || '国际势力、上古世家、隐藏大佬'}`,
+      a.pattern ? `【打脸模式】${toString(a.pattern)}` : '',
+      a.early_stage && Array.isArray(a.early_stage) ? `\n前期具体反派：${a.early_stage.slice(0, 2).map(e => e.name || toString(e)).join('、')}` : ''
     ].filter(Boolean);
   } else if (data.conflict_templates) {
     conflictContent = data.conflict_templates;
