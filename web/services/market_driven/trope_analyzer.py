@@ -522,11 +522,20 @@ class TropeAnalyzer:
         if isinstance(response, dict):
             result = response
         elif isinstance(response, str):
+            # 尝试直接解析
             try:
                 result = json.loads(response)
-            except json.JSONDecodeError:
-                logger.error("AI返回的不是有效JSON，尝试提取")
-                result = self._extract_json_from_text(response)
+            except json.JSONDecodeError as e:
+                logger.warning(f"AI返回的JSON解析失败: {e}")
+                # 尝试修复双花括号后解析
+                try:
+                    fixed_response = response.replace('{{', '{').replace('}}', '}')
+                    result = json.loads(fixed_response)
+                    logger.info("通过修复双花括号成功解析JSON")
+                except json.JSONDecodeError:
+                    # 使用提取方法
+                    logger.error("AI返回的不是有效JSON，尝试提取")
+                    result = self._extract_json_from_text(response)
         else:
             raise ValueError(f"AI返回格式错误: {type(response)}")
         
@@ -543,27 +552,76 @@ class TropeAnalyzer:
     
     def _extract_json_from_text(self, text: str) -> Dict:
         """
-        从文本中提取JSON
+        从文本中提取JSON - 增强版，处理各种格式问题
         """
         import re
+        
+        # 清理文本：移除可能的BOM和特殊字符
+        text = text.strip()
+        if text.startswith('\ufeff'):
+            text = text[1:]
+        
         # 尝试提取JSON块
         json_match = re.search(r'```json\s*(.*?)\s*```', text, re.DOTALL)
         if json_match:
+            json_str = json_match.group(1).strip()
+            # 尝试直接解析
             try:
-                return json.loads(json_match.group(1))
-            except:
-                pass
+                return json.loads(json_str)
+            except json.JSONDecodeError as e:
+                logger.warning(f"JSON块解析失败: {e}")
+                # 尝试修复双花括号
+                try:
+                    fixed = json_str.replace('{{', '{').replace('}}', '}')
+                    return json.loads(fixed)
+                except:
+                    pass
         
-        # 尝试提取花括号内容
+        # 尝试直接找到最外层的花括号（处理嵌套）
+        # 使用计数方法找到匹配的括号
+        start = text.find('{')
+        if start != -1:
+            count = 0
+            end = start
+            for i, char in enumerate(text[start:]):
+                if char == '{':
+                    count += 1
+                elif char == '}':
+                    count -= 1
+                    if count == 0:
+                        end = start + i + 1
+                        break
+            
+            if end > start:
+                json_str = text[start:end]
+                try:
+                    return json.loads(json_str)
+                except json.JSONDecodeError as e:
+                    logger.warning(f"提取的JSON解析失败: {e}")
+                    # 尝试修复双花括号
+                    try:
+                        fixed = json_str.replace('{{', '{').replace('}}', '}')
+                        return json.loads(fixed)
+                    except:
+                        pass
+        
+        # 尝试提取花括号内容（简单模式，最后一个）
         brace_match = re.search(r'\{.*\}', text, re.DOTALL)
         if brace_match:
+            json_str = brace_match.group(0)
             try:
-                return json.loads(brace_match.group(0))
+                return json.loads(json_str)
             except:
-                pass
+                # 尝试修复双花括号
+                try:
+                    fixed = json_str.replace('{{', '{').replace('}}', '}')
+                    return json.loads(fixed)
+                except:
+                    pass
         
         # 返回默认结构
-        return {"raw_text": text, "parse_error": True}
+        logger.error("无法从文本中提取有效JSON")
+        return {"raw_text": text[:500] + "...", "parse_error": True}
 
     def _get_mock_tropes(self, genre: str) -> Dict:
         """
