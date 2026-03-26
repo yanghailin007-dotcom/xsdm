@@ -11,13 +11,22 @@ from typing import Dict, List, Optional
 from datetime import datetime
 from pathlib import Path
 
-# 导入优化的提示词构建器
+# 导入优化的提示词构建器（优先使用v3.0）
 try:
-    from .chapter_prompt_optimizer import ChapterPromptOptimizer
+    from .chapter_prompt_optimizer_v3 import ChapterPromptOptimizerV3 as ChapterPromptOptimizer
     HAS_OPTIMIZER = True
+    OPTIMIZER_VERSION = "3.0"
+    logging.info("[ChapterConversationGenerator] 已加载提示词优化器 v3.0（番茄爆款版）")
 except ImportError:
-    HAS_OPTIMIZER = False
-    logging.warning("[ChapterConversationGenerator] 提示词优化器未加载，使用传统模式")
+    try:
+        from .chapter_prompt_optimizer import ChapterPromptOptimizer
+        HAS_OPTIMIZER = True
+        OPTIMIZER_VERSION = "2.0"
+        logging.info("[ChapterConversationGenerator] 已加载提示词优化器 v2.0")
+    except ImportError:
+        HAS_OPTIMIZER = False
+        OPTIMIZER_VERSION = None
+        logging.warning("[ChapterConversationGenerator] 提示词优化器未加载，使用传统模式")
 
 # 导入对话日志记录器
 try:
