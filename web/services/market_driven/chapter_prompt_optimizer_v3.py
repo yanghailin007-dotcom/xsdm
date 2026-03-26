@@ -184,14 +184,23 @@ class ChapterPromptOptimizerV3:
         if char_design:
             protagonist = char_design.get('protagonist', {})
             if isinstance(protagonist, dict):
+                # 尝试多种可能的数据结构
+                # 结构1: protagonist.name (AI直接返回)
+                if 'name' in protagonist:
+                    return protagonist['name']
+                # 结构2: protagonist.basic_info.name (旧格式)
                 basic_info = protagonist.get('basic_info', {})
-                return basic_info.get('name', '主角')
+                if basic_info and 'name' in basic_info:
+                    return basic_info['name']
         
         # 从plan中获取
         plan_protagonist = self.plan.get('protagonist', {})
         if isinstance(plan_protagonist, dict):
+            if 'name' in plan_protagonist:
+                return plan_protagonist['name']
             basic_info = plan_protagonist.get('basic_info', {})
-            return basic_info.get('name', '主角')
+            if basic_info and 'name' in basic_info:
+                return basic_info['name']
         
         return '主角'
     
@@ -291,10 +300,16 @@ class ChapterPromptOptimizerV3:
         
         parts = []
         
-        # 基本信息
-        basic = protagonist.get('basic_info', {})
-        name = basic.get('name', self.protagonist_name)
-        age = basic.get('age', '')
+        # 基本信息 - 适配两种数据结构
+        # 结构1: protagonist.name (AI直接返回)
+        if 'name' in protagonist:
+            name = protagonist['name']
+            age = protagonist.get('age', '')
+        else:
+            # 结构2: protagonist.basic_info.name (旧格式)
+            basic = protagonist.get('basic_info', {})
+            name = basic.get('name', self.protagonist_name)
+            age = basic.get('age', '')
         
         parts.append(f"【主角：{name}】" + (f"，{age}岁" if age else ""))
         
@@ -327,7 +342,7 @@ class ChapterPromptOptimizerV3:
             if actions:
                 parts.append(f"标志性动作：{actions[0][:80]}")
         
-        return "## 【主角人设】（严格遵循）\n\n" + "\n".join(parts) if len(parts) > 1 else ""
+        return "## 【主角人设】（严格遵循）\n\n" + "\n".join(parts) if parts else ""
     
     def _build_golden_three_chapters(self) -> str:
         """构建黄金三章指南"""
