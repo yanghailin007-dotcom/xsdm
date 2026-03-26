@@ -518,24 +518,29 @@ class TropeAnalyzer:
             purpose=f"分析题材套路"
         )
         
-        # 解析JSON响应
+        # 解析JSON响应（严格要求标准格式）
         if isinstance(response, dict):
             result = response
         elif isinstance(response, str):
-            # 尝试直接解析
+            # 清理响应
+            response = response.strip()
+            if response.startswith('\ufeff'):
+                response = response[1:]
+            
+            # 尝试直接解析标准JSON
             try:
                 result = json.loads(response)
             except json.JSONDecodeError as e:
-                logger.warning(f"AI返回的JSON解析失败: {e}")
-                # 尝试修复双花括号后解析
-                try:
-                    fixed_response = response.replace('{{', '{').replace('}}', '}')
-                    result = json.loads(fixed_response)
-                    logger.info("通过修复双花括号成功解析JSON")
-                except json.JSONDecodeError:
-                    # 使用提取方法
-                    logger.error("AI返回的不是有效JSON，尝试提取")
-                    result = self._extract_json_from_text(response)
+                # 尝试从markdown代码块提取
+                import re
+                json_match = re.search(r'```json\s*(.*?)\s*```', response, re.DOTALL)
+                if json_match:
+                    try:
+                        result = json.loads(json_match.group(1).strip())
+                    except json.JSONDecodeError:
+                        raise ValueError(f"AI返回的JSON格式错误（代码块内）: {e}")
+                else:
+                    raise ValueError(f"AI返回的不是有效JSON格式: {e}")
         else:
             raise ValueError(f"AI返回格式错误: {type(response)}")
         
