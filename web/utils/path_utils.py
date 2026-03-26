@@ -40,7 +40,8 @@ def get_current_username() -> str:
                 return username
         
         # 其次从 session 获取（Session认证）
-        username = session.get('username')
+        # 兼容 'username' 和 'user' 两种键名
+        username = session.get('username') or session.get('user')
         if username:
             return username
         
