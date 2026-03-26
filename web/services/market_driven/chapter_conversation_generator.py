@@ -2,7 +2,9 @@
 对话模式章节生成器
 在一个连续对话中批量生成多章，保持上下文连贯
 
-v2.0更新：使用优化后的提示词系统
+v3.0更新：
+1. 使用优化后的提示词系统
+2. 集成AI质检系统，生成前自动检查质量
 """
 
 import json
@@ -35,6 +37,15 @@ try:
 except ImportError:
     HAS_CONVERSATION_LOGGER = False
     logging.warning("[ChapterConversationGenerator] 对话日志记录器未加载")
+
+# 导入质量检查器
+try:
+    from .chapter_quality_checker import ChapterQualityChecker, format_quality_report
+    HAS_QUALITY_CHECKER = True
+    logging.info("[ChapterConversationGenerator] 已加载质量检查器")
+except ImportError:
+    HAS_QUALITY_CHECKER = False
+    logging.warning("[ChapterConversationGenerator] 质量检查器未加载")
     
 # 定义备用的优化器（简化版）
 class SimpleOptimizer:
@@ -87,14 +98,31 @@ class ChapterConversationGenerator:
     1. 创建一个长对话会话
     2. 连续生成多章，每章都基于前文上下文
     3. 利用 Kimi 256K 上下文窗口，可连续生成 10-20 章
+    4. 集成AI质检系统，生成前自动检查质量
     """
     
-    def __init__(self, api_client, novel_data: Dict, tropes: Dict):
+    # 质检配置
+    QUALITY_CHECK_CONFIG = {
+        "enabled": True,           # 是否启用质检
+        "min_score": 70,           # 最低通过分数
+        "auto_fix": True,          # 是否自动修复问题
+        "stop_on_critical": True,  # 遇到严重问题是否停止
+        "log_level": "info",       # 日志级别：debug/info/warning
+    }
+    
+    def __init__(self, api_client, novel_data: Dict, tropes: Dict, 
+                 quality_config: Dict = None):
         self.api_client = api_client
         self.novel_data = novel_data
         self.tropes = tropes
         self.session = None
         self.logger = None  # 对话日志记录器
+        self.quality_checker = None  # 质量检查器
+        self.quality_reports = []  # 质检报告列表
+        
+        # 质检配置
+        if quality_config:
+            self.QUALITY_CHECK_CONFIG.update(quality_config)
         
         # 提取小说基本信息
         self.novel_title = novel_data.get('title', '未命名')
@@ -112,14 +140,24 @@ class ChapterConversationGenerator:
                 logging.info(f"[章节对话 {self.session_id}] 对话日志记录器已启动")
             except Exception as e:
                 logging.warning(f"[章节对话 {self.session_id}] 日志记录器初始化失败: {e}")
+        
+        # 初始化质量检查器
+        if HAS_QUALITY_CHECKER and HAS_OPTIMIZER and self.QUALITY_CHECK_CONFIG["enabled"]:
+            try:
+                optimizer = ChapterPromptOptimizer(novel_data)
+                self.quality_checker = ChapterQualityChecker(novel_data, optimizer)
+                logging.info(f"[章节对话 {self.session_id}] 质量检查器已启动")
+            except Exception as e:
+                logging.warning(f"[章节对话 {self.session_id}] 质量检查器初始化失败: {e}")
+        
+        # 初始化主角名称
+        self.protagonist_name = self._get_protagonist_name()
     
     def _sanitize_title(self, title: str) -> str:
         """清理书名，去除特殊字符，用于文件名"""
         import re
         # 保留中文、英文、数字
         return re.sub(r'[^\u4e00-\u9fa5a-zA-Z0-9]', '', title)
-        self.protagonist_name = self._get_protagonist_name()
-        
     
     def _get_protagonist_name(self) -> str:
         """获取主角姓名"""
@@ -228,7 +266,7 @@ class ChapterConversationGenerator:
     def _generate_single_chapter_in_session(self, chapter_num: int, 
                                             blueprint: Dict,
                                             prev_summary: str) -> Dict:
-        """在会话中生成单章"""
+        """在会话中生成单章（集成质检）"""
         # 获取本章规划
         chapter_plan = self._get_chapter_plan(chapter_num, blueprint)
         
@@ -242,6 +280,63 @@ class ChapterConversationGenerator:
             emotion_beat=emotion_beat,
             prev_summary=prev_summary
         )
+        
+        # ===== 质检环节（v3.0新增）=====
+        if self.quality_checker and self.QUALITY_CHECK_CONFIG["enabled"]:
+            try:
+                logger.info(f"[章节对话 {self.session_id}] 第{chapter_num}章开始质检...")
+                quality_report = self.quality_checker.check_chapter(
+                    chapter_num=chapter_num,
+                    prompt=prompt,
+                    blueprint=blueprint
+                )
+                
+                # 保存质检报告
+                self.quality_reports.append(quality_report)
+                
+                # 记录质检结果
+                if self.QUALITY_CHECK_CONFIG["log_level"] in ["debug", "info"]:
+                    report_text = format_quality_report(quality_report)
+                    logger.info(f"[章节对话 {self.session_id}] 质检报告:\n{report_text}")
+                
+                # 检查是否可以通过
+                if not quality_report.can_generate:
+                    critical_issues = quality_report.get_critical_issues()
+                    error_issues = quality_report.get_errors()
+                    logger.error(
+                        f"[章节对话 {self.session_id}] 第{chapter_num}章质检未通过! "
+                        f"严重问题: {len(critical_issues)}, 错误: {len(error_issues)}"
+                    )
+                    
+                    if self.QUALITY_CHECK_CONFIG["stop_on_critical"]:
+                        raise Exception(
+                            f"第{chapter_num}章提示词质量不达标（分数: {quality_report.score}），"
+                            f"严重问题: {len(critical_issues)}个"
+                        )
+                
+                # 检查分数
+                if quality_report.score < self.QUALITY_CHECK_CONFIG["min_score"]:
+                    logger.warning(
+                        f"[章节对话 {self.session_id}] 第{chapter_num}章分数较低({quality_report.score})，"
+                        f"但仍继续生成"
+                    )
+                
+                # 自动修复
+                if self.QUALITY_CHECK_CONFIG["auto_fix"] and quality_report.optimized_prompt:
+                    original_score = quality_report.score
+                    optimized_prompt = quality_report.optimized_prompt
+                    
+                    # 简单判断：如果优化后的提示词明显更长，可能添加了修复内容
+                    if len(optimized_prompt) > len(prompt) * 1.1:
+                        logger.info(
+                            f"[章节对话 {self.session_id}] 第{chapter_num}章已自动优化提示词 "
+                            f"({len(prompt)} → {len(optimized_prompt)} 字符)"
+                        )
+                        prompt = optimized_prompt
+                        
+            except Exception as e:
+                logger.warning(f"[章节对话 {self.session_id}] 质检过程出错: {e}")
+                # 质检出错不阻断生成，继续执行
         
         # 在会话中发送消息
         logger.info(f"[章节对话 {self.session_id}] 发送第{chapter_num}章提示词 | 当前历史: {len(self.session.messages)}条")
@@ -345,23 +440,87 @@ class ChapterConversationGenerator:
         # 简化：提取前200字作为摘要
         content = chapter.get('content', '')
         return content[:200] + "..." if len(content) > 200 else content
+    
+    def get_quality_summary(self) -> Dict:
+        """
+        获取质检汇总报告
+        
+        Returns:
+            质检汇总信息
+        """
+        if not self.quality_reports:
+            return {"status": "未启用质检或没有报告"}
+        
+        total = len(self.quality_reports)
+        passed = len([r for r in self.quality_reports if r.can_generate])
+        failed = total - passed
+        avg_score = sum(r.score for r in self.quality_reports) / total if total > 0 else 0
+        
+        # 统计问题
+        total_issues = sum(len(r.issues) for r in self.quality_reports)
+        critical_issues = sum(
+            len([i for i in r.issues if i.severity.name == "CRITICAL"])
+            for r in self.quality_reports
+        )
+        
+        return {
+            "total_chapters": total,
+            "passed": passed,
+            "failed": failed,
+            "avg_score": round(avg_score, 1),
+            "total_issues": total_issues,
+            "critical_issues": critical_issues,
+            "pass_rate": f"{passed/total*100:.1f}%" if total > 0 else "0%",
+            "status": "质检完成" if total > 0 else "未开始"
+        }
 
 
 # 便捷函数
 def generate_chapters_with_conversation(api_client, novel_data: Dict, 
                                        blueprint: Dict, tropes: Dict,
                                        start_chapter: int, end_chapter: int,
-                                       progress_callback=None) -> List[Dict]:
+                                       progress_callback=None,
+                                       quality_config: Dict = None) -> List[Dict]:
     """
-    使用对话模式生成章节
+    使用对话模式生成章节（支持质检配置）
+    
+    Args:
+        api_client: API客户端
+        novel_data: 小说数据
+        blueprint: 章节规划
+        tropes: 套路数据
+        start_chapter: 起始章节
+        end_chapter: 结束章节
+        progress_callback: 进度回调
+        quality_config: 质检配置（可选）
+            {
+                "enabled": True,          # 是否启用质检
+                "min_score": 70,          # 最低通过分数
+                "auto_fix": True,         # 是否自动修复
+                "stop_on_critical": True  # 严重问题是否停止
+            }
     
     Returns:
         生成的章节列表
     """
-    generator = ChapterConversationGenerator(api_client, novel_data, tropes)
-    return generator.generate_chapters(
+    generator = ChapterConversationGenerator(
+        api_client, novel_data, tropes, quality_config
+    )
+    chapters = generator.generate_chapters(
         start_chapter=start_chapter,
         end_chapter=end_chapter,
         blueprint=blueprint,
         progress_callback=progress_callback
     )
+    
+    # 输出质检汇总
+    quality_summary = generator.get_quality_summary()
+    if quality_summary.get("status") == "质检完成":
+        logger.info(
+            f"[章节生成完成] 质检汇总: "
+            f"通过率 {quality_summary['pass_rate']}, "
+            f"平均分 {quality_summary['avg_score']}, "
+            f"严重问题 {quality_summary['critical_issues']}个"
+        )
+    
+    return chapters
