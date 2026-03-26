@@ -9,6 +9,7 @@ import json
 import logging
 from typing import Dict, List, Optional
 from datetime import datetime
+from pathlib import Path
 
 # 导入优化的提示词构建器
 try:
@@ -17,6 +18,14 @@ try:
 except ImportError:
     HAS_OPTIMIZER = False
     logging.warning("[ChapterConversationGenerator] 提示词优化器未加载，使用传统模式")
+
+# 导入对话日志记录器
+try:
+    from .market_driven_conversation import ConversationLogger
+    HAS_CONVERSATION_LOGGER = True
+except ImportError:
+    HAS_CONVERSATION_LOGGER = False
+    logging.warning("[ChapterConversationGenerator] 对话日志记录器未加载")
     
 # 定义备用的优化器（简化版）
 class SimpleOptimizer:
@@ -76,6 +85,7 @@ class ChapterConversationGenerator:
         self.novel_data = novel_data
         self.tropes = tropes
         self.session = None
+        self.logger = None  # 对话日志记录器
         
         # 提取小说基本信息
         self.novel_title = novel_data.get('title', '未命名')
@@ -85,6 +95,14 @@ class ChapterConversationGenerator:
         # 书名处理：取前10个字符，去除特殊字符
         title_prefix = self._sanitize_title(self.novel_title)[:10]
         self.session_id = f"CCG-{title_prefix}-{uuid.uuid4().hex[:8].upper()}"
+        
+        # 初始化对话日志记录器
+        if HAS_CONVERSATION_LOGGER:
+            try:
+                self.logger = ConversationLogger(self.session_id)
+                logging.info(f"[章节对话 {self.session_id}] 对话日志记录器已启动")
+            except Exception as e:
+                logging.warning(f"[章节对话 {self.session_id}] 日志记录器初始化失败: {e}")
     
     def _sanitize_title(self, title: str) -> str:
         """清理书名，去除特殊字符，用于文件名"""
@@ -224,6 +242,25 @@ class ChapterConversationGenerator:
             purpose=f"第{chapter_num}章"
         )
         logger.info(f"[章节对话 {self.session_id}] 接收第{chapter_num}章响应 | 总轮次: {self.session.turn_count}")
+        
+        # 记录对话日志（如果日志记录器可用）
+        if self.logger and HAS_CONVERSATION_LOGGER:
+            try:
+                # 构建消息列表用于日志记录
+                messages_for_log = []
+                if hasattr(self.session, 'messages') and self.session.messages:
+                    for msg in self.session.messages[-2:]:  # 记录最后两条（user + assistant）
+                        messages_for_log.append({
+                            "role": msg.get("role", "unknown"),
+                            "content": msg.get("content", "")[:500] + "..." if len(msg.get("content", "")) > 500 else msg.get("content", "")
+                        })
+                self.logger.log_round(
+                    step=f"第{chapter_num}章",
+                    messages=messages_for_log,
+                    response=response[:2000] if len(response) > 2000 else response
+                )
+            except Exception as e:
+                logger.warning(f"[章节对话 {self.session_id}] 记录对话日志失败: {e}")
         
         # 解析内容
         content = self._parse_response(response)
