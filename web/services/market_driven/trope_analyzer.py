@@ -728,16 +728,6 @@ class TropeAnalyzer:
                 "pattern": "压抑→爽快→期待→更爽快",
                 "description": "每3-5章一个爽点"
             },
-            "antagonist": {
-                "early": "势利眼小人物（销售、保安、同事、前女友）",
-                "mid": "富二代、地方势力、企业高管",
-                "late": "国际势力、隐藏大佬、终极BOSS",
-                "pattern": "看不起→羞辱→主角反击→震惊→后悔→跪舔→更大的敌人",
-                "early_stage": [
-                    {"name": "势利眼销售", "scene": "4S店/高档商场", "pattern": "看不起主角→被打脸"},
-                    {"name": "富二代", "scene": "高档餐厅/夜店", "pattern": "炫耀财富→被主角碾压"}
-                ]
-            },
             "analyzed_at": datetime.now().isoformat(),
             "is_default": True
         }
