@@ -59,9 +59,25 @@ class ChapterInfoExtractor:
             import re
             json_match = re.search(r'\{[\s\S]*\}', result_text)
             if json_match:
-                data = json.loads(json_match.group())
-                logger.info(f"[InfoExtractor] 第{chapter_num}章信息提取完成")
-                return data
+                json_str = json_match.group()
+                try:
+                    data = json.loads(json_str)
+                    logger.info(f"[InfoExtractor] 第{chapter_num}章信息提取完成")
+                    return data
+                except json.JSONDecodeError as e:
+                    logger.warning(f"[InfoExtractor] 第{chapter_num}章JSON解析失败: {e}")
+                    # 尝试清理JSON字符串
+                    try:
+                        # 移除可能的UTF-8 BOM和其他非标准字符
+                        json_str_cleaned = json_str.strip().lstrip('\ufeff').lstrip('\u3000')
+                        # 尝试替换单引号
+                        json_str_cleaned = json_str_cleaned.replace("'", '"')
+                        data = json.loads(json_str_cleaned)
+                        logger.info(f"[InfoExtractor] 第{chapter_num}章信息提取完成（清理后）")
+                        return data
+                    except Exception as e2:
+                        logger.error(f"[InfoExtractor] 第{chapter_num}章JSON清理后仍失败: {e2}")
+                        return self._empty_extraction(chapter)
             else:
                 logger.warning(f"[InfoExtractor] 第{chapter_num}章未返回有效JSON")
                 return self._empty_extraction(chapter)

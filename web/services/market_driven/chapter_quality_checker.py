@@ -92,6 +92,13 @@ class ChapterQualityChecker:
             novel_data: 小说数据
             optimizer_v3: v3.0优化器实例（可选）
         """
+        # 确保 novel_data 是字典类型
+        if isinstance(novel_data, list):
+            logger.warning(f"[QualityChecker] novel_data 是列表类型，转换为字典")
+            novel_data = novel_data[0] if novel_data else {}
+        if not isinstance(novel_data, dict):
+            logger.warning(f"[QualityChecker] novel_data 类型异常: {type(novel_data)}，使用空字典")
+            novel_data = {}
         self.novel_data = novel_data
         self.optimizer = optimizer_v3
         

@@ -21,6 +21,15 @@ class ChapterPromptOptimizer:
     """
     
     def __init__(self, novel_data: Dict):
+        # 确保 novel_data 是字典类型
+        if isinstance(novel_data, list):
+            import logging
+            logging.warning(f"[PromptOptimizer] novel_data 是列表类型，转换为字典")
+            novel_data = novel_data[0] if novel_data else {}
+        if not isinstance(novel_data, dict):
+            import logging
+            logging.warning(f"[PromptOptimizer] novel_data 类型异常: {type(novel_data)}，使用空字典")
+            novel_data = {}
         self.novel_data = novel_data
         self.plan = novel_data.get('plan', {})
         self.emotion_curve = novel_data.get('emotion_curve', {})
