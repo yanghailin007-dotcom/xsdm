@@ -243,9 +243,16 @@ class MarketDrivenPlanGenerator:
     def _generate_titles(self, genre: str, tropes: Dict, user_choices: Dict) -> List[str]:
         """
         生成符合套路的标题选项
+        确保每次生成的标题都是唯一的，避免重复
         """
+        import random
+        import time
+        
         # 从套路中提取标题风格
         title_tips = tropes.get("platform_tips", {}).get("title_examples", [])
+        
+        # 生成唯一种子，确保每次调用AI都生成不同结果
+        unique_seed = int(time.time() * 1000) % 10000
         
         if self.api_client:
             # 使用AI生成标题
@@ -255,16 +262,19 @@ class MarketDrivenPlanGenerator:
             该题材的爆款标题风格：
             {json.dumps(title_tips, ensure_ascii=False)}
             
+            用户选择的开局：{user_choices.get('opening_scenario', '送外卖')}
+            金手指：{tropes.get('golden_finger', {}).get('type', '系统')}
+            
             标题要求：
             - 15字以内
             - 有冲击力，一眼抓住读者
             - 包含核心爽点（系统、神豪、返利等）
             - 符合番茄风格
+            - 必须与之前生成的标题不同，勿重复常见套路标题
             
-            用户选择的开局：{user_choices.get('opening_scenario', '送外卖')}
-            金手指：{tropes.get('golden_finger', {}).get('type', '系统')}
+            唯一标识（确保生成唯一性）：{unique_seed}
             
-            请生成5个标题选项，按推荐程度排序。
+            请生成5个创意独特、从未见过的标题选项，按推荐程度排序。
             只返回标题列表，不要解释。
             
             格式：["标题1", "标题2", "标题3", "标题4", "标题5"]
@@ -274,56 +284,87 @@ class MarketDrivenPlanGenerator:
                 response = self.api_client.generate_content_with_retry(
                     content_type="title_generation",
                     user_prompt=prompt,
-                    temperature=0.7
+                    temperature=0.9  # 提高temperature增加多样性
                 )
                 
+                titles = []
                 if isinstance(response, list):
-                    return response[:5]
+                    titles = response[:5]
                 elif isinstance(response, str):
                     try:
-                        return json.loads(response)[:5]
+                        titles = json.loads(response)[:5]
                     except:
                         pass
+                
+                # 确保标题不为空
+                if titles and len(titles) > 0:
+                    logger.info(f"[PlanGenerator] AI生成标题: {titles}")
+                    return titles
             except Exception as e:
                 logger.warning(f"AI生成标题失败: {e}")
         
-        # 默认标题模板
-        return self._get_default_titles(genre, user_choices)
+        # 使用默认模板，但添加随机元素确保唯一性
+        return self._get_unique_default_titles(genre, user_choices)
     
     def _get_default_titles(self, genre: str, user_choices: Dict) -> List[str]:
-        """获取默认标题"""
+        """
+        获取唯一的默认标题
+        通过扩展标题库并随机选择，确保每次生成的标题不同
+        """
+        import random
+        import time
+        
+        # 初始化随机种子
+        random.seed(int(time.time() * 1000))
+        
         opening = user_choices.get('opening_scenario', '送外卖')
         
+        # 扩展标题库（每个题材至少12个选项，确保随机性）
         title_templates = {
             "神豪文-花钱返利类": [
-                "开局物价贬值百万倍",
-                "我有九千万亿舔狗金",
-                "神豪：从被校花拒绝开始",
-                "花钱就十倍返利，我成了世界首富",
-                "开局送外卖，我获得了花钱系统"
+                "开局物价贬值百万倍", "我有九千万亿舔狗金", "神豪：从被校花拒绝开始",
+                "花钱就十倍返利，我成了世界首富", "开局送外卖，我获得了花钱系统",
+                "突然成为世界首富", "我的钱包有亿万", "消费十倍返利系统", "从外卖员到全球首富",
+                "物价贬值后我无敌了", "开局一亿亿，花完还能赚", "神豪：花钱就能变强"
             ],
             "国运文-直播类": [
-                "国运：开局扮演白起，我杀疯了",
-                "直播国运：我为龙国开天门",
-                "国运之战：开局召唤千古一帝",
-                "绑定国运：开局扮演剑仙",
-                "国运直播：我能召唤历史名将"
+                "国运：开局扮演白起，我杀疯了", "直播国运：我为龙国开天门", "国运之战：开局召唤千古一帝",
+                "绑定国运：开局扮演剑仙", "国运直播：我能召唤历史名将", "国运：我觉醒了神级天赋",
+                "全球国运：我升级了龙国气运", "国运竞技：我代表龙国战斗", "国运觉醒：十万英雄降临"
+            ],
+            "国运文-扮演类": [
+                "国运：开局扮演白起，我杀疯了", "绑定国运：开局扮演剑仙", "国运：我觉醒了神级天赋",
+                "扮演雷神的我在国运战场无敌", "国运扮演：开局召唤千古一帝", "国运之战：我扮演项羽",
+                "开局扮演孙悟空，我在国运战场无敌", "绑定国运：我扮演的是秦始皇"
             ],
             "奶爸文-萌宝类": [
-                "奶爸：开局女儿堵门，震惊全网",
-                "神级奶爸：萌娃助攻，妈妈找上门",
-                "开局五个萌宝，我成了国民奶爸",
-                "奶爸：从带娃开始火爆全网",
-                "签到：开局获得神级奶爸系统"
+                "奶爸：开局女儿堵门，震惊全网", "神级奶爸：萌娃助攻，妈妈找上门", "开局五个萌宝，我成了国民奶爸",
+                "奶爸：从带娃开始火爆全网", "签到：开局获得神级奶爸系统", "萌娃：爸爸你是大明星",
+                "神级奶爸在都市", "我家萌娃是天才", "奶爸开挂：娃娃助攻追妈妈"
             ]
         }
         
-        return title_templates.get(genre, [
-            f"开局{opening}，我获得了系统",
-            "获得系统后，我成了最强者",
-            "从普通人到最强，我只用了系统"
-        ])
-    
+        # 获取该题材的标题库
+        titles = title_templates.get(genre, [])
+        if not titles:
+            # 通用标题模板
+            titles = [
+                f"开局{opening}，我获得了系统",
+                "获得系统后，我成了最强者",
+                "从普通人到最强，我只用了系统",
+                f"开局被羞辱，我觉醒了神级能力",
+                f"从{opening}开始，我人生开挂",
+                "突然觉醒，我成了万人迷",
+                "获得神级能力，我无敌了",
+                "开局逆天，我改写了命运"
+            ]
+        
+        # 随机选择5个不同的标题
+        selected = random.sample(titles, min(5, len(titles)))
+        
+        logger.info(f"[PlanGenerator] 生成唯一默认标题: {selected}")
+        return selected[:5]
+
     def _generate_opening(self, genre: str, tropes: Dict, user_choices: Dict) -> Dict:
         """
         生成开局设计（前3章）
