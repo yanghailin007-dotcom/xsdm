@@ -94,6 +94,12 @@ class ChapterQualityChecker:
         """
         self.novel_data = novel_data
         self.optimizer = optimizer_v3
+        
+        # 确保plan是字典类型
+        plan = novel_data.get('plan', {})
+        if not isinstance(plan, dict):
+            novel_data['plan'] = {}
+        
         self.genre_type = self._detect_genre_type()
         
         logger.info(f"[QualityChecker] 初始化 | 书名: {novel_data.get('title', '未命名')} | 题材: {self.genre_type}")

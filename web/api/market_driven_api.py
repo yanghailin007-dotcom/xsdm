@@ -269,6 +269,11 @@ def analyze_tropes():
         # 创建任务
         task_id = task_manager.create_task(genre, {})
         
+        # 🔥 获取当前用户名并保存到任务中（后台线程无法访问session）
+        username = _get_current_username()
+        task_manager.update_task(task_id, username=username)
+        logger.info(f"[Task {task_id}] 创建分析任务，用户名: {username}")
+        
         # 在后台执行分析
         def run_analysis():
             try:
@@ -390,7 +395,7 @@ def start_market_driven_generation():
             "first_face_slap": "4S店买车",
             "protagonist_name": "夏天"
         },
-        "target_words": 300000,
+        "target_words": 500000,  // 默认50万字（200章）
         "options": {
             "skip_phase_one": false,
             "generate_chapters": true
@@ -412,7 +417,9 @@ def start_market_driven_generation():
         
         genre = data.get('genre')
         user_choices = data.get('user_choices', {})
-        target_words = data.get('target_words', 300000)
+        # 使用配置默认值50万字，如果用户指定则使用用户值
+        from web.services.market_driven.config import get_target_words
+        target_words = data.get('target_words') or get_target_words(genre)
         options = data.get('options', {})
         
         if not genre:
@@ -420,6 +427,11 @@ def start_market_driven_generation():
         
         # 创建任务
         task_id = task_manager.create_task(genre, user_choices)
+        
+        # 🔥 获取当前用户名并保存到任务中（后台线程无法访问session）
+        username = _get_current_username()
+        task_manager.update_task(task_id, username=username)
+        logger.info(f"[Task {task_id}] 创建任务，用户名: {username}")
         
         # 在后台执行完整生成流程
         def run_full_generation():
@@ -591,6 +603,12 @@ def _run_plan_and_products_conversation(task_id: str, genre: str, user_choices: 
         task = task_manager.get_task(task_id)
         tropes = task.get("result", {}).get("tropes", {})
         
+        # 🔥 从任务中获取用户名（后台线程无法访问Flask session）
+        username = task.get('username') if task else 'anonymous'
+        if not username:
+            username = 'anonymous'
+        logger.info(f"[Task {task_id}] 使用用户名: {username}")
+        
         # 更新用户选择（添加套路信息）
         enriched_user_choices = {
             **user_choices,
@@ -627,9 +645,10 @@ def _run_plan_and_products_conversation(task_id: str, genre: str, user_choices: 
         # 提取方案信息
         plan = products.get("plan", {})
         
-        # 保存产物到项目目录
-        novel_title = plan.get("title", f"未命名_{task_id[:8]}")
-        save_path = save_phase_one_products(novel_title, products, task_id, genre, plan, user_choices)
+        # 保存产物到项目目录（优先使用用户填写的书名）
+        user_choices = task.get("user_choices", {})
+        novel_title = user_choices.get("title") or plan.get("title") or f"未命名_{task_id[:8]}"
+        save_path = save_phase_one_products(novel_title, products, task_id, genre, plan, user_choices, username)
         
         # 更新任务结果
         current_result = task.get("result", {})
@@ -675,6 +694,12 @@ def _run_phase_one_products(task_id: str, genre: str, api_client=None):
         plan = task.get("result", {}).get("plan", {})
         user_choices = task.get("user_choices", {})
         
+        # 🔥 从任务中获取用户名（后台线程无法访问Flask session）
+        username = task.get('username') if task else 'anonymous'
+        if not username:
+            username = 'anonymous'
+        logger.info(f"[Task {task_id}] 使用用户名: {username}")
+        
         # 🔥 使用对话模式生成
         logger.info(f"[Task {task_id}] 启动对话模式生成...")
         
@@ -711,10 +736,10 @@ def _run_phase_one_products(task_id: str, genre: str, api_client=None):
             progress_callback=progress_callback
         )
         
-        # 保存产物到项目目录
-        novel_title = plan.get("recommended_title", f"未命名_{task_id[:8]}")
+        # 保存产物到项目目录（优先使用用户填写的书名）
         user_choices = task.get("user_choices", {})
-        save_path = save_phase_one_products(novel_title, products, task_id, genre, plan, user_choices)
+        novel_title = user_choices.get("title") or plan.get("recommended_title") or f"未命名_{task_id[:8]}"
+        save_path = save_phase_one_products(novel_title, products, task_id, genre, plan, user_choices, username)
         
         # 更新任务结果
         current_result = task.get("result", {})
@@ -742,9 +767,10 @@ def _run_phase_one_products(task_id: str, genre: str, api_client=None):
             generator = MarketDrivenPhaseOneGenerator(api_client=api_client)
             products = generator.generate_all_products(genre, tropes, plan)
             
-            novel_title = plan.get("recommended_title", f"未命名_{task_id[:8]}")
+            # 优先使用用户填写的书名
             user_choices = task.get("user_choices", {})
-            save_path = save_phase_one_products(novel_title, products, task_id, genre, plan, user_choices)
+            novel_title = user_choices.get("title") or plan.get("recommended_title") or f"未命名_{task_id[:8]}"
+            save_path = save_phase_one_products(novel_title, products, task_id, genre, plan, user_choices, username)
             
             current_result = task.get("result", {})
             current_result["products"] = products
@@ -765,14 +791,21 @@ def _run_phase_one_products(task_id: str, genre: str, api_client=None):
 
 
 def save_phase_one_products(novel_title: str, products: Dict, task_id: str, 
-                            genre: str = "", plan: Dict = None, user_choices: Dict = None) -> Path:
+                            genre: str = "", plan: Dict = None, user_choices: Dict = None,
+                            username: str = None) -> Path:
     """保存第一阶段产物到项目目录（使用统一的项目信息管理）"""
+    
+    # 🔥 获取用户名（优先使用传入的参数，否则从session获取）
+    if not username:
+        username = _get_current_username()
+    logger.info(f"[SaveProducts] 创建项目使用用户名: {username}")
     
     # 使用统一的项目管理创建项目
     project_path = create_unified_project(
         novel_title=novel_title,
         generation_mode="market_driven",
-        genre=genre
+        genre=genre,
+        username=username
     )
     
     # 更新项目信息
@@ -839,38 +872,137 @@ def save_phase_one_products(novel_title: str, products: Dict, task_id: str,
     return project_path
 
 
+def _find_project_path(novel_title: str, username: str = None) -> Optional[Path]:
+    """
+    查找项目路径（支持用户子目录）
+    
+    Args:
+        novel_title: 小说标题
+        username: 用户名（如果提供，优先在该用户目录下查找）
+    
+    搜索顺序：
+    1. 指定用户目录下: 小说项目/{username}/{novel_title}
+    2. 当前session用户目录下: 小说项目/{session_user}/{novel_title}
+    3. 根目录下: 小说项目/{novel_title}
+    4. 所有用户目录下（遍历）
+    
+    Returns:
+        项目路径，如果未找到则返回 None
+    """
+    base_dir = Path("小说项目")
+    
+    # 1. 如果提供了username，优先尝试该用户目录
+    if username and username != 'anonymous':
+        user_project_path = base_dir / username / novel_title
+        if user_project_path.exists():
+            return user_project_path
+    
+    # 2. 尝试当前session用户目录（如果在主线程中）
+    try:
+        from flask import session
+        session_username = session.get('user') or session.get('username') or 'anonymous'
+        if session_username != 'anonymous':
+            user_project_path = base_dir / session_username / novel_title
+            if user_project_path.exists():
+                return user_project_path
+    except:
+        pass
+    
+    # 3. 尝试根目录（兼容旧版）
+    root_project_path = base_dir / novel_title
+    if root_project_path.exists():
+        return root_project_path
+    
+    # 4. 遍历所有用户目录
+    if base_dir.exists():
+        for user_dir in base_dir.iterdir():
+            if user_dir.is_dir() and not user_dir.name.startswith('.'):
+                project_path = user_dir / novel_title
+                if project_path.exists():
+                    return project_path
+    
+    return None
+
+
+def _get_current_username() -> str:
+    """获取当前用户名"""
+    try:
+        from flask import session
+        return session.get('user') or session.get('username') or 'anonymous'
+    except:
+        return 'anonymous'
+
+
 def _run_chapter_generation(task_id: str, genre: str, target_words: int, api_client=None):
-    """生成章节"""
-    total_chapters = target_words // 2500
+    """生成章节（使用分层规划架构）"""
+    # 使用新的配置
+    from web.services.market_driven.config import get_config, calculate_batches
+    config = get_config(genre)
+    
+    total_chapters = target_words // config["words_per_chapter"]
+    chapters_per_batch = config["chapters_per_batch"]
+    batches = calculate_batches(total_chapters, chapters_per_batch, genre)
     
     task_manager.update_task(
         task_id,
         status="generating_chapters",
         progress=55,
         current_stage="generating_chapters",
-        message=f"开始生成章节，目标{total_chapters}章约{target_words}字..."
+        message=f"开始生成章节，目标{total_chapters}章约{target_words}字，分{batches}批..."
     )
     
     try:
         # 获取任务数据
         task = task_manager.get_task(task_id)
-        novel_title = task.get("result", {}).get("plan", {}).get("recommended_title", f"未命名_{task_id[:8]}")
+        user_choices = task.get("user_choices", {})
+        novel_title = user_choices.get("title") or task.get("result", {}).get("plan", {}).get("recommended_title") or f"未命名_{task_id[:8]}"
         tropes = task.get("result", {}).get("tropes", {})
         plan = task.get("result", {}).get("plan", {})
         products = task.get("result", {}).get("products", {})
         
-        # 生成BluePrint
-        blueprint_gen = ChapterBluePrintGenerator()
-        blueprint = blueprint_gen.generate_blueprint(target_words, tropes, plan)
+        # 🔥 获取用户名
+        username = task.get('username') or 'anonymous'
+        logger.info(f"[ChapterGen] 使用用户名: {username}")
+        
+        # 🔥 初始化分层规划器
+        from web.services.market_driven.hierarchical_planner import HierarchicalPlanner
+        
+        # 获取项目路径
+        save_path = task.get("result", {}).get("save_path")
+        if save_path:
+            project_path = Path(save_path)
+            logger.info(f"[ChapterGen] 从任务结果获取项目路径: {project_path}")
+        else:
+            project_path = _find_project_path(novel_title, username)
+            logger.info(f"[ChapterGen] 通过查找获取项目路径: {project_path}")
+        
+        # 🔥 如果项目路径不存在，创建它
+        if not project_path:
+            logger.warning(f"[ChapterGen] 项目路径不存在，尝试创建...")
+            from web.services.market_driven.project_manager import create_unified_project
+            project_path = create_unified_project(
+                novel_title=novel_title,
+                generation_mode="market_driven",
+                genre=genre,
+                username=username
+            )
+            logger.info(f"[ChapterGen] 创建新项目路径: {project_path}")
+        
+        # 创建规划器并初始化战略框架
+        planner = HierarchicalPlanner(
+            genre=genre,
+            novel_title=novel_title,
+            protagonist_name=user_choices.get('protagonist_name', '主角'),
+            api_client=api_client,
+            project_path=project_path,
+            total_chapters=total_chapters,
+            target_words=target_words
+        )
+        planner.initialize()
+        
+        logger.info(f"[ChapterGen] 分层规划器初始化完成，战略框架已创建，项目路径: {project_path}")
         
         # 准备novel_data
-        # 🔥 从Flask session获取用户名
-        try:
-            from flask import session
-            username = session.get('user', 'anonymous')
-        except:
-            username = 'anonymous'
-        
         novel_data = {
             "title": novel_title,
             "username": username,
@@ -879,34 +1011,63 @@ def _run_chapter_generation(task_id: str, genre: str, target_words: int, api_cli
             "character_design": products.get("character_design", {}),
             "faction_system": products.get("faction_system", {}),
             "plan": products.get("plan", {}),
-            "emotion_curve": products.get("emotion_curve", {})
+            "emotion_curve": products.get("emotion_curve", {}),
+            "user_choices": user_choices
         }
         
-        # 批量生成
-        batch_gen = BatchChapterGenerator(api_client=api_client)
-        batches = (total_chapters + 9) // 10  # 每批10章
+        # 创建批次生成器
+        logger.info(f"[ChapterGen] 创建BatchChapterGenerator，project_path: {project_path}")
+        batch_gen = BatchChapterGenerator(
+            api_client=api_client,
+            project_path=str(project_path) if project_path else None
+        )
         
         all_results = []
         
         for batch_num in range(1, batches + 1):
-            start = (batch_num - 1) * 10 + 1
-            end = min(batch_num * 10, total_chapters)
+            # 🔥 使用分层规划获取当前批次的战术规划
+            tactical_plan, strategic_context = planner.get_next_batch_plan(chapters_per_batch)
+            
+            start = (batch_num - 1) * chapters_per_batch + 1
+            end = min(batch_num * chapters_per_batch, total_chapters)
+            
+            # 获取当前阶段信息
+            current_stage = strategic_context.get("current_stage", {})
+            next_milestone = strategic_context.get("next_milestone", {})
+            
+            progress_msg = f"正在生成第{batch_num}/{batches}批（第{start}-{end}章）"
+            if current_stage:
+                progress_msg += f" - {current_stage.get('title', '')}"
+            if next_milestone:
+                progress_msg += f"，距离下一个里程碑（第{next_milestone.get('chapter')}章）还有{next_milestone.get('chapter', 0) - end}章"
             
             task_manager.update_task(
                 task_id,
                 progress=int(55 + (batch_num / batches) * 35),
-                message=f"正在生成第{batch_num}/{batches}批章节（第{start}-{end}章）..."
+                message=progress_msg
             )
+            
+            logger.info(f"[Task {task_id}] 第{batch_num}批战术规划: {tactical_plan['batch_info']}")
+            
+            # 🔥 将战术规划合并到novel_data中
+            novel_data_with_plan = {
+                **novel_data,
+                "tactical_plan": tactical_plan,  # 当前批次的详细规划
+                "strategic_context": strategic_context  # 战略上下文
+            }
             
             # 生成本批
             result = batch_gen.generate_batch(
                 novel_title=novel_title,
                 start_chapter=start,
                 end_chapter=end,
-                blueprint=blueprint,
+                blueprint=tactical_plan,  # 使用战术规划替代旧blueprint
                 tropes=tropes,
-                novel_data=novel_data
+                novel_data=novel_data_with_plan
             )
+            
+            # 🔥 更新规划器进度
+            planner.update_progress(result.get("generated", []))
             
             all_results.append(result)
             
@@ -957,12 +1118,15 @@ def prepare_upload(novel_title: str):
         if UnifiedProjectManager is None:
             return jsonify({"error": "服务暂不可用"}), 503
         
-        # 加载项目
-        base_path = Path("小说项目") / novel_title
+        # 🔥 加载项目（支持用户子目录）
+        base_path = _find_project_path(novel_title)
+        if not base_path:
+            return jsonify({"error": "项目不存在"}), 404
+        
         project_info = UnifiedProjectManager.load_project_info(base_path)
         
         if not project_info:
-            return jsonify({"error": "项目不存在"}), 404
+            return jsonify({"error": "项目信息损坏"}), 404
         
         # 准备上传数据
         upload_data = UnifiedProjectManager.get_upload_data(project_info)

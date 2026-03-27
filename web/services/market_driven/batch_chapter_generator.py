@@ -32,12 +32,34 @@ class BatchChapterGenerator:
     """
     
     def __init__(self, api_client=None, state_manager: Optional['BurstStateManager'] = None,
-                 emotion_flow: Optional['EmotionFlow'] = None):
+                 emotion_flow: Optional['EmotionFlow'] = None,
+                 project_path: str = None):
         self.api_client = api_client
         self.generated_chapters = []
         self.failed_chapters = []
-        self.state_manager = state_manager  # 状态管理器
+        self.state_manager = state_manager  # 状态管理器（情绪/剧情）
         self.emotion_flow = emotion_flow  # 情绪流
+        
+        # 🔥 项目路径处理
+        if project_path:
+            self.project_path = Path(project_path)
+            logger.info(f"[BatchGenerator] 初始化，项目路径: {self.project_path}")
+        else:
+            self.project_path = None
+            logger.warning(f"[BatchGenerator] 初始化，项目路径为空！")
+        
+        # 🔥 角色状态管理器（跨批次保持角色设定）
+        self.character_state_manager = None
+        self.world_state_manager = None  # 世界状态管理器
+        
+        if self.project_path:
+            from .character_state_manager import CharacterStateManager
+            from .world_state_manager import WorldStateManager
+            
+            self.character_state_manager = CharacterStateManager(str(self.project_path))
+            self.world_state_manager = WorldStateManager(str(self.project_path))
+            
+            logger.info(f"[BatchGenerator] 状态管理器已启用: {self.project_path}")
     
     def generate_batch(self, novel_title: str, start_chapter: int, end_chapter: int,
                        blueprint: Dict, tropes: Dict, novel_data: Dict,
@@ -91,11 +113,22 @@ class BatchChapterGenerator:
                 novel_data['title'] = novel_title
                 logger.info(f"[BatchGenerator] 设置书名为: {novel_title}")
         
+        # 🔥 校验并修正 novel_data 中的角色设定（跨批次一致性）
+        if self.character_state_manager:
+            novel_data = self.character_state_manager.validate_novel_data(novel_data)
+            logger.info(f"[BatchGenerator] {self.character_state_manager.get_summary()}")
+        
+        # 🔥 初始化世界状态管理器（如果是第一批）
+        if self.world_state_manager and start_chapter <= 1:
+            self.world_state_manager.initialize_from_novel_data(novel_data)
+            logger.info(f"[BatchGenerator] {self.world_state_manager.get_summary()}")
+        
         # 创建对话生成器
         generator = ChapterConversationGenerator(
             api_client=self.api_client,
             novel_data=novel_data,
-            tropes=tropes
+            tropes=tropes,
+            world_state_manager=self.world_state_manager  # 🔥 传递世界状态管理器
         )
         
         # 生成章节
@@ -118,8 +151,11 @@ class BatchChapterGenerator:
             chapter_num = chapter.get("chapter_number")
             word_count = chapter.get("word_count", 0)
             
+            logger.info(f"[BatchGenerator] 处理第{chapter_num}章，字数: {word_count}")
+            
             if word_count > 0:
                 # 保存
+                logger.info(f"[BatchGenerator] 准备保存第{chapter_num}章...")
                 self._save_chapter(novel_title, chapter)
                 
                 results["generated"].append({
@@ -130,6 +166,7 @@ class BatchChapterGenerator:
                 })
                 results["total_words"] += word_count
             else:
+                logger.error(f"[BatchGenerator] 第{chapter_num}章字数为0，标记为失败")
                 results["failed"].append({
                     "chapter": chapter_num,
                     "error": chapter.get("error", "生成失败")
@@ -536,17 +573,46 @@ class BatchChapterGenerator:
     
     def _save_chapter(self, novel_title: str, chapter: Dict):
         """保存章节"""
-        base_path = Path("小说项目") / novel_title / "chapters"
-        base_path.mkdir(parents=True, exist_ok=True)
-        
-        file_path = base_path / f"chapter_{chapter['chapter_number']:03d}.json"
-        
-        with open(file_path, 'w', encoding='utf-8') as f:
-            json.dump(chapter, f, ensure_ascii=False, indent=2)
+        try:
+            # 🔥 使用项目路径（支持用户子目录）
+            if self.project_path:
+                base_path = Path(self.project_path) / "chapters"
+                logger.info(f"[BatchGenerator] 使用项目路径保存: {base_path}")
+            else:
+                # 兼容旧版：直接放在根目录
+                base_path = Path("小说项目") / novel_title / "chapters"
+                logger.warning(f"[BatchGenerator] project_path为空，使用兼容路径: {base_path}")
+            
+            # 确保目录存在
+            base_path.mkdir(parents=True, exist_ok=True)
+            logger.info(f"[BatchGenerator] 目录确保存在: {base_path}")
+            
+            chapter_num = chapter.get('chapter_number', 0)
+            file_path = base_path / f"chapter_{chapter_num:03d}.json"
+            
+            logger.info(f"[BatchGenerator] 准备保存到: {file_path}")
+            
+            with open(file_path, 'w', encoding='utf-8') as f:
+                json.dump(chapter, f, ensure_ascii=False, indent=2)
+            
+            # 验证文件是否真正写入
+            if file_path.exists():
+                file_size = file_path.stat().st_size
+                logger.info(f"[BatchGenerator] ✅ 章节已保存: {file_path} | 大小: {file_size}字节 | 字数: {chapter.get('word_count', 0)}")
+            else:
+                logger.error(f"[BatchGenerator] ❌ 文件保存后不存在: {file_path}")
+                
+        except Exception as e:
+            logger.error(f"[BatchGenerator] ❌ 保存章节失败: {e} | chapter_number: {chapter.get('chapter_number')}", exc_info=True)
     
     def _load_chapter_data(self, novel_title: str, chapter_num: int) -> Optional[Dict]:
         """加载章节数据"""
-        file_path = Path("小说项目") / novel_title / "chapters" / f"chapter_{chapter_num:03d}.json"
+        # 🔥 使用项目路径（支持用户子目录）
+        if self.project_path:
+            file_path = self.project_path / "chapters" / f"chapter_{chapter_num:03d}.json"
+        else:
+            # 兼容旧版
+            file_path = Path("小说项目") / novel_title / "chapters" / f"chapter_{chapter_num:03d}.json"
         
         if not file_path.exists():
             return None
@@ -848,19 +914,31 @@ class ChapterBluePrintGenerator:
 
 # 便捷函数
 def generate_300k_words(novel_title: str, genre: str, tropes: Dict, plan: Dict, 
-                       products: Dict, api_client=None) -> Dict:
+                       products: Dict, api_client=None, project_path: str = None) -> Dict:
     """
     便捷函数：生成30万字
+    
+    Args:
+        novel_title: 小说标题
+        genre: 题材
+        tropes: 套路
+        plan: 计划
+        products: 产物
+        api_client: API客户端
+        project_path: 项目路径（如果提供，章节将保存在此路径下）
     """
     # 生成BluePrint
     blueprint_gen = ChapterBluePrintGenerator()
-    blueprint = blueprint_gen.generate_blueprint(300000, tropes, plan)
+    # 使用配置默认50万字
+    from web.services.market_driven.config import get_target_words
+    target_words = get_target_words()
+    blueprint = blueprint_gen.generate_blueprint(target_words, tropes, plan)
     
     # 准备novel_data
-    # 🔥 从Flask session获取用户名
+    # 🔥 从Flask session获取用户名（优先使用'user'，回退到'username'）
     try:
         from flask import session
-        username = session.get('user', 'anonymous')
+        username = session.get('user') or session.get('username') or 'anonymous'
     except:
         username = 'anonymous'
     
@@ -887,14 +965,16 @@ def generate_300k_words(novel_title: str, genre: str, tropes: Dict, plan: Dict,
     }
     
     # 批量生成
-    batch_gen = BatchChapterGenerator(api_client=api_client)
+    batch_gen = BatchChapterGenerator(api_client=api_client, project_path=project_path)
     
     all_results = []
-    batches = 12  # 120章 / 10章每批
+    chapters_per_batch = 6  # 🔥 每批6章，避免token限制
+    total_chapters = 120
+    batches = (total_chapters + chapters_per_batch - 1) // chapters_per_batch
     
     for batch_num in range(1, batches + 1):
-        start = (batch_num - 1) * 10 + 1
-        end = batch_num * 10
+        start = (batch_num - 1) * chapters_per_batch + 1
+        end = min(batch_num * chapters_per_batch, total_chapters)
         
         logger.info(f"生成第{batch_num}/{batches}批: 第{start}-{end}章")
         

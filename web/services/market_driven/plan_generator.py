@@ -536,54 +536,56 @@ class MarketDrivenPlanGenerator:
     
     def _generate_outline(self, tropes: Dict, user_choices: Dict) -> List[Dict]:
         """
-        生成前30章大纲
-        严格遵循节奏套路
+        生成前30章情绪蓝图（不再生成固定情节，只定义情绪约束）
         """
-        pacing = tropes.get("pacing", {})
-        
+        # 🔥 使用情绪蓝图替代固定大纲
         outline = []
         
-        # 第1-10章：开局激活
-        outline.extend([
-            {"chapter": 1, "title": "开局被羞辱，获得系统", "event": "系统激活", "climax": "转折", "emotion": "愤怒→希望"},
-            {"chapter": 2, "title": "第一次花钱，震惊众人", "event": "第一次消费", "climax": "小爽点", "emotion": "紧张→爽快"},
-            {"chapter": 3, "title": "打脸势利眼，初显神豪", "event": "第一次打脸", "climax": "爽点", "emotion": "压抑→爆发"},
-            {"chapter": 4, "title": "返利到账，实力提升", "event": "资金到账", "climax": "小爽点", "emotion": "期待→满足"},
-            {"chapter": 5, "title": "前女友后悔，跪求复合", "event": "前女友打脸", "climax": "爽点", "emotion": "爽"},
-            {"chapter": 6, "title": "购买豪车，身份升级", "event": "买豪车", "climax": "爽点", "emotion": "爽"},
-            {"chapter": 7, "title": "遇到新女主，英雄救美", "event": "女主登场", "climax": "小爽点", "emotion": "紧张→心动"},
-            {"chapter": 8, "title": "富二代挑衅，主角隐忍", "event": "新冲突", "climax": "压抑", "emotion": "愤怒→隐忍"},
-            {"chapter": 9, "title": "系统升级，能力增强", "event": "系统升级", "climax": "小爽点", "emotion": "期待→满足"},
-            {"chapter": 10, "title": "当众打脸富二代", "event": "第一个大高潮", "climax": "大爽点", "emotion": "爆发→爽快"}
-        ])
+        # 第1-3章：开局钩子（黄金三章）
+        for ch in range(1, 4):
+            outline.append({
+                "chapter": ch,
+                "phase": "开局钩子",
+                "emotion_arc": "压抑→震惊→希望" if ch == 1 else "成长→收获",
+                "intensity": 8 if ch == 1 else 7,
+                "climax_type": "钩子章" if ch == 1 else "小爽点",
+                "creative_hint": "AI自由设计具体情节"
+            })
         
-        # 第11-20章：小有名气
-        outline.extend([
-            {"chapter": 11, "title": "豪掷千金，拍下宝物", "event": "拍卖会", "climax": "爽点", "emotion": "爽"},
-            {"chapter": 12, "title": "身份曝光，众人震惊", "event": "身份揭示", "climax": "爽点", "emotion": "震惊→爽"},
-            {"chapter": 13, "title": "家族邀请，暗藏杀机", "event": "进入新圈子", "climax": "转折", "emotion": "期待→警惕"},
-            {"chapter": 14, "title": "赌石大胜，日进斗金", "event": "赌石", "climax": "爽点", "emotion": "紧张→爽"},
-            {"chapter": 15, "title": "系统任务，投资未来", "event": "长期布局", "climax": "期待", "emotion": "期待"},
-            {"chapter": 16, "title": "旧敌卷土重来", "event": "新冲突", "climax": "压抑", "emotion": "愤怒"},
-            {"chapter": 17, "title": "实力碾压，再次打脸", "event": "打脸", "climax": "爽点", "emotion": "爽"},
-            {"chapter": 18, "title": "女主倾心，感情升温", "event": "感情线", "climax": "温馨", "emotion": "甜"},
-            {"chapter": 19, "title": "更大势力注意到主角", "event": "升级冲突", "climax": "转折", "emotion": "警惕"},
-            {"chapter": 20, "title": "阶段性高潮：击败地方势力", "event": "大高潮", "climax": "大爽点", "emotion": "爆发→爽"}
-        ])
+        # 第4-10章：小高潮密集期
+        for ch in range(4, 11):
+            outline.append({
+                "chapter": ch,
+                "phase": "小高潮密集",
+                "emotion_arc": "积累→爆发→满足",
+                "intensity": 7 if ch < 10 else 9,  # 第10章强度更高
+                "climax_type": "小爽点" if ch < 10 else "中高潮",
+                "creative_hint": "AI自由设计打脸/收获/震惊情节"
+            })
         
-        # 第21-30章：进军更高层次
-        outline.extend([
-            {"chapter": 21, "title": "进入省城，新的舞台", "event": "地图切换", "climax": "期待", "emotion": "期待"},
-            {"chapter": 22, "title": "省城富二代挑衅", "event": "新反派", "climax": "压抑", "emotion": "愤怒→隐忍"},
-            {"chapter": 23, "title": "结识新朋友，建立人脉", "event": "人脉扩展", "climax": "温馨", "emotion": "欣慰"},
-            {"chapter": 24, "title": "商业投资，眼光独到", "event": "商业线", "climax": "爽点", "emotion": "爽"},
-            {"chapter": 25, "title": "敌人设局，主角中计", "event": "危机", "climax": "紧张", "emotion": "紧张→愤怒"},
-            {"chapter": 26, "title": "绝处逢生，系统助力", "event": "化解危机", "climax": "爽点", "emotion": "绝望→希望→爽"},
-            {"chapter": 27, "title": "反击开始，布局反击", "event": "准备反击", "climax": "期待", "emotion": "期待"},
-            {"chapter": 28, "title": "收服对手，扩大势力", "event": "势力扩张", "climax": "爽点", "emotion": "爽"},
-            {"chapter": 29, "title": "敌人联合，更大危机", "event": "升级冲突", "climax": "紧张", "emotion": "紧张"},
-            {"chapter": 30, "title": "第一大高潮：省城称王", "event": "阶段性胜利", "climax": "大爽点", "emotion": "爆发→爽→期待"}
-        ])
+        # 第11-20章：中期积累
+        for ch in range(11, 21):
+            outline.append({
+                "chapter": ch,
+                "phase": "中期积累",
+                "emotion_arc": "平静→危机→突破",
+                "intensity": 6 if ch < 18 else 8,  # 第18-20章逐渐升高
+                "climax_type": "铺垫+小爽点" if ch < 18 else "中高潮",
+                "creative_hint": "AI自由设计新地图/新敌人/队友成长"
+            })
+        
+        # 第21-30章：大高潮期（AI自由创作）
+        for ch in range(21, 31):
+            is_climax = ch >= 28  # 最后3章是大高潮
+            outline.append({
+                "chapter": ch,
+                "phase": "第一阶段大高潮",
+                "emotion_arc": "绝望→逆转→炸裂→余波" if is_climax else "紧张→期待",
+                "intensity": 10 if is_climax else 7,
+                "climax_type": "大高潮" if is_climax else "铺垫",
+                "must_have": ["绝境(<10%生存率)", "国际联盟(3国+)", "濒死突破", "国运级奖励"] if is_climax else [],
+                "creative_hint": "AI自由创作：BOSS类型/敌人组合/战斗方式/具现奖励"
+            })
         
         return outline
     

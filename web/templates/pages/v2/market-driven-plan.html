@@ -297,20 +297,20 @@
         <div class="form-group">
           <label class="form-label">目标字数</label>
           <select class="form-select" id="novel-wordcount">
-            <option value="100">100万字（中篇）</option>
-            <option value="200" selected>200万字（标准长篇）</option>
-            <option value="300">300万字（超长篇）</option>
-            <option value="500">500万字（超长篇+）</option>
+            <option value="50" selected>50万字（精品中篇）</option>
+            <option value="100">100万字（标准长篇）</option>
+            <option value="200">200万字（超长篇）</option>
+            <option value="300">300万字（超长篇+）</option>
           </select>
         </div>
         
         <div class="form-group">
           <label class="form-label">预计章节</label>
           <select class="form-select" id="novel-chapters">
+            <option value="200" selected>200章（标准）</option>
             <option value="300">300章</option>
-            <option value="500" selected>500章</option>
-            <option value="800">800章</option>
-            <option value="1000">1000章+</option>
+            <option value="500">500章</option>
+            <option value="800">800章+</option>
           </select>
         </div>
       </div>
@@ -370,10 +370,9 @@
         <div class="form-hint">上方选择剧情路线，或手动编辑详情</div>
       </div>
       
-      <div class="form-group">
-        <label class="form-label">第一个大高潮（前30章）</label>
-        <input type="text" class="form-input" id="first-climax" placeholder="如：拍卖会打脸富二代、全国直播曝光身份">
-        <div class="form-hint">这是吸引读者继续阅读的关键事件</div>
+      <!-- 🔥 已移除固定大高潮输入，改为AI自由创作 -->
+      <div class="form-group" style="display:none;">
+        <input type="hidden" id="first-climax" value="">
       </div>
     </div>
 

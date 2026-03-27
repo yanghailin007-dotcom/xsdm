@@ -25,11 +25,23 @@ class BestsellerAnalyzer:
     5. 爽点设计模板（打脸、收获、装逼的具体写法）
     """
     
+    # 缓存有效期（天）
+    CACHE_TTL_DAYS = 7
+    
     def __init__(self, api_client=None, log_dir: str = "logs/bestseller_analysis"):
         self.api_client = api_client
         self.log_dir = Path(log_dir)
         self.log_dir.mkdir(parents=True, exist_ok=True)
+        
+        # 🔥 持久化缓存目录
+        self._cache_dir = Path("data/bestseller_cache")
+        self._cache_dir.mkdir(parents=True, exist_ok=True)
+        
+        # 内存缓存
         self._cache = {}
+        
+        # 加载持久化缓存
+        self._load_persistent_cache()
     
     def analyze_genre(self, genre: str, use_cache: bool = True) -> Dict:
         """
@@ -58,10 +70,13 @@ class BestsellerAnalyzer:
             result["analyzed_at"] = datetime.now().isoformat()
             result["analysis_version"] = "2.0"
             
-            # 保存分析日志
+            # 保存分析日志（Markdown格式，给人看）
             self._save_analysis_log(genre, analysis_prompt, result)
             
-            # 缓存结果
+            # 🔥 持久化缓存（JSON格式，给程序用）
+            self._save_persistent_cache(genre, result)
+            
+            # 内存缓存
             self._cache[genre] = result
             
             logger.info(f"[BestsellerAnalyzer] 分析完成: {genre}")
@@ -224,17 +239,29 @@ class BestsellerAnalyzer:
 
 ## Output Format Requirements
 
-1. Return valid JSON only. Do not add any text outside JSON.
-2. Ensure all quotes, brackets, and commas match correctly.
-3. Ensure no unescaped newlines or quotes in strings.
-4. Ensure JSON is complete and not truncated.
+### ⚠️ 极其重要 - 必须遵守
 
-### Checklist
-- Start with {{ and end with }}
-- All quotes must be paired
-- All brackets must be paired
-- No trailing commas in arrays/objects
-- No unescaped newlines in strings
+1. **只返回一个完整的 JSON 对象** - 不要返回多个 JSON 对象拼接
+2. **不要分段返回** - 必须一次性返回包含所有字段的完整 JSON
+3. **确保所有字段在一个 JSON 中** - genre_formula, opening_3_chapters, golden_finger_formula, character_formula, emotion_formula, climax_formula 都必须在同一个 {{}} 内
+4. **以 {{ 开始，以 }} 结束** - 中间不要有任何断开
+
+### JSON 格式检查清单
+- [ ] 整个响应只有一个根对象 {{...}}
+- [ ] 所有引号成对出现
+- [ ] 所有括号成对出现
+- [ ] 数组/对象末尾没有多余的逗号
+- [ ] 字符串中没有未转义的换行符
+
+### ❌ 错误示例（不要这样做）
+```
+{{"field1": "value1"}}, {{"field2": "value2"}}  // 错误：两个JSON拼接
+```
+
+### ✅ 正确示例（必须这样做）
+```
+{{"field1": "value1", "field2": "value2"}}  // 正确：一个完整JSON
+```
 
 Note: All content must be specific and actionable, not vague."""
     
@@ -276,8 +303,18 @@ Note: All content must be specific and actionable, not vague."""
             return self._get_mock_analysis(genre)
     
     def _extract_json_from_text(self, text: str) -> Dict:
-        """从文本中提取JSON"""
+        """从文本中提取JSON，支持处理多个JSON拼接的情况"""
         import re
+        
+        # 清理文本
+        text = text.strip()
+        
+        # 尝试直接解析
+        try:
+            return json.loads(text)
+        except:
+            pass
+        
         # 尝试提取JSON块
         json_match = re.search(r'```json\s*(.*?)\s*```', text, re.DOTALL)
         if json_match:
@@ -286,7 +323,33 @@ Note: All content must be specific and actionable, not vague."""
             except:
                 pass
         
-        # 尝试提取花括号内容
+        # 🔥 关键改进：处理多个JSON对象拼接的情况
+        # 查找第一个完整的JSON对象
+        first_json = self._extract_first_json_object(text)
+        if first_json:
+            try:
+                result = json.loads(first_json)
+                logger.info(f"[BestsellerAnalyzer] 成功提取第一个JSON对象 ({len(first_json)} 字符)")
+                
+                # 检查后面是否还有更多JSON对象，尝试合并
+                remaining = text[len(first_json):].strip()
+                if remaining and remaining.startswith(','):
+                    remaining = remaining[1:].strip()
+                    second_json = self._extract_first_json_object(remaining)
+                    if second_json:
+                        try:
+                            second_result = json.loads(second_json)
+                            # 合并两个字典
+                            result.update(second_result)
+                            logger.info(f"[BestsellerAnalyzer] 检测到并合并了第二个JSON对象")
+                        except:
+                            pass
+                
+                return result
+            except Exception as e:
+                logger.warning(f"提取第一个JSON失败: {e}")
+        
+        # 回退：尝试提取任意花括号内容
         brace_match = re.search(r'\{.*\}', text, re.DOTALL)
         if brace_match:
             try:
@@ -294,7 +357,141 @@ Note: All content must be specific and actionable, not vague."""
             except:
                 pass
         
-        return {"raw_text": text, "parse_error": True}
+        return {"raw_text": text[:500], "parse_error": True}
+    
+    def _extract_first_json_object(self, text: str) -> Optional[str]:
+        """
+        从文本中提取第一个完整的JSON对象
+        
+        Args:
+            text: 包含JSON的文本
+            
+        Returns:
+            第一个JSON对象的字符串，如果没有则返回None
+        """
+        text = text.strip()
+        if not text.startswith('{'):
+            return None
+        
+        brace_count = 0
+        in_string = False
+        escape_next = False
+        
+        for i, char in enumerate(text):
+            if escape_next:
+                escape_next = False
+                continue
+            if char == '\\':
+                escape_next = True
+                continue
+            if char == '"' and not escape_next:
+                in_string = not in_string
+                continue
+            if not in_string:
+                if char == '{':
+                    brace_count += 1
+                elif char == '}':
+                    brace_count -= 1
+                    if brace_count == 0:
+                        return text[:i+1]
+        
+        return None
+    
+    def _load_persistent_cache(self):
+        """从磁盘加载持久化缓存"""
+        try:
+            cache_file = self._cache_dir / "bestseller_cache.json"
+            if cache_file.exists():
+                with open(cache_file, 'r', encoding='utf-8') as f:
+                    data = json.load(f)
+                
+                # 检查缓存是否过期
+                now = datetime.now()
+                valid_cache = {}
+                for genre, item in data.items():
+                    cached_at = item.get('cached_at', '')
+                    if cached_at:
+                        try:
+                            cache_time = datetime.fromisoformat(cached_at)
+                            age_days = (now - cache_time).days
+                            if age_days < self.CACHE_TTL_DAYS:
+                                valid_cache[genre] = item.get('data', {})
+                                logger.info(f"[BestsellerAnalyzer] 加载缓存: {genre} ({age_days}天前)")
+                            else:
+                                logger.info(f"[BestsellerAnalyzer] 缓存过期: {genre} ({age_days}天前)")
+                        except:
+                            pass
+                
+                self._cache = valid_cache
+                logger.info(f"[BestsellerAnalyzer] 持久化缓存加载完成: {len(valid_cache)} 个类型")
+        except Exception as e:
+            logger.warning(f"[BestsellerAnalyzer] 加载持久化缓存失败: {e}")
+            self._cache = {}
+    
+    def _save_persistent_cache(self, genre: str, result: Dict):
+        """保存分析结果到持久化缓存"""
+        try:
+            cache_file = self._cache_dir / "bestseller_cache.json"
+            
+            # 读取现有缓存
+            existing = {}
+            if cache_file.exists():
+                with open(cache_file, 'r', encoding='utf-8') as f:
+                    existing = json.load(f)
+            
+            # 更新缓存
+            existing[genre] = {
+                'cached_at': datetime.now().isoformat(),
+                'data': result
+            }
+            
+            # 保存
+            with open(cache_file, 'w', encoding='utf-8') as f:
+                json.dump(existing, f, ensure_ascii=False, indent=2)
+            
+            logger.info(f"[BestsellerAnalyzer] 缓存已持久化: {genre}")
+        except Exception as e:
+            logger.warning(f"[BestsellerAnalyzer] 持久化缓存保存失败: {e}")
+    
+    def get_cached_genres(self) -> List[str]:
+        """获取当前已缓存的所有类型"""
+        return list(self._cache.keys())
+    
+    def clear_expired_cache(self):
+        """清理过期缓存"""
+        try:
+            cache_file = self._cache_dir / "bestseller_cache.json"
+            if not cache_file.exists():
+                return
+            
+            with open(cache_file, 'r', encoding='utf-8') as f:
+                data = json.load(f)
+            
+            now = datetime.now()
+            valid_data = {}
+            removed_count = 0
+            
+            for genre, item in data.items():
+                cached_at = item.get('cached_at', '')
+                if cached_at:
+                    try:
+                        cache_time = datetime.fromisoformat(cached_at)
+                        age_days = (now - cache_time).days
+                        if age_days < self.CACHE_TTL_DAYS:
+                            valid_data[genre] = item
+                        else:
+                            removed_count += 1
+                    except:
+                        valid_data[genre] = item
+                else:
+                    valid_data[genre] = item
+            
+            with open(cache_file, 'w', encoding='utf-8') as f:
+                json.dump(valid_data, f, ensure_ascii=False, indent=2)
+            
+            logger.info(f"[BestsellerAnalyzer] 清理过期缓存完成，移除 {removed_count} 个")
+        except Exception as e:
+            logger.warning(f"[BestsellerAnalyzer] 清理过期缓存失败: {e}")
     
     def _save_analysis_log(self, genre: str, prompt: str, result: Dict):
         """保存分析日志"""

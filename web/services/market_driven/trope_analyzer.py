@@ -518,7 +518,7 @@ class TropeAnalyzer:
             purpose=f"分析题材套路"
         )
         
-        # 解析JSON响应（严格要求标准格式）
+        # 解析JSON响应（兼容多种格式）
         if isinstance(response, dict):
             result = response
         elif isinstance(response, str):
@@ -527,20 +527,31 @@ class TropeAnalyzer:
             if response.startswith('\ufeff'):
                 response = response[1:]
             
-            # 尝试直接解析标准JSON
+            # 尝试直接解析
             try:
                 result = json.loads(response)
-            except json.JSONDecodeError as e:
-                # 尝试从markdown代码块提取
-                import re
-                json_match = re.search(r'```json\s*(.*?)\s*```', response, re.DOTALL)
-                if json_match:
-                    try:
-                        result = json.loads(json_match.group(1).strip())
-                    except json.JSONDecodeError:
-                        raise ValueError(f"AI返回的JSON格式错误（代码块内）: {e}")
-                else:
-                    raise ValueError(f"AI返回的不是有效JSON格式: {e}")
+            except json.JSONDecodeError:
+                # 尝试修复双花括号后解析
+                try:
+                    fixed = response.replace('{{', '{').replace('}}', '}')
+                    result = json.loads(fixed)
+                    logger.debug("通过修复双花括号成功解析JSON")
+                except json.JSONDecodeError:
+                    # 尝试从markdown代码块提取
+                    import re
+                    json_match = re.search(r'```json\s*(.*?)\s*```', response, re.DOTALL)
+                    if json_match:
+                        try:
+                            result = json.loads(json_match.group(1).strip())
+                        except json.JSONDecodeError:
+                            # 提取后也尝试修复双花括号
+                            try:
+                                fixed = json_match.group(1).strip().replace('{{', '{').replace('}}', '}')
+                                result = json.loads(fixed)
+                            except:
+                                raise ValueError("AI返回的JSON格式错误")
+                    else:
+                        raise ValueError("AI返回的不是有效JSON格式")
         else:
             raise ValueError(f"AI返回格式错误: {type(response)}")
         

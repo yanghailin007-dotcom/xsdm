@@ -596,6 +596,36 @@
             font-size: 0.75rem;
             font-weight: 600;
         }
+        
+        /* 🔥 新增：项目类型徽章 */
+        .novel-type-badge {
+            position: absolute;
+            top: 1.25rem;
+            left: 1.25rem;
+            padding: 0.25rem 0.75rem;
+            border-radius: 9999px;
+            font-size: 0.7rem;
+            font-weight: 600;
+            z-index: 2;
+        }
+        
+        .badge-market {
+            background: linear-gradient(135deg, rgba(99, 102, 241, 0.2), rgba(139, 92, 246, 0.2));
+            color: #818cf8;
+            border: 1px solid rgba(99, 102, 241, 0.3);
+        }
+        
+        .badge-phase {
+            background: linear-gradient(135deg, rgba(6, 182, 212, 0.2), rgba(8, 145, 178, 0.2));
+            color: #22d3ee;
+            border: 1px solid rgba(6, 182, 212, 0.3);
+        }
+        
+        .badge-legacy {
+            background: rgba(148, 163, 184, 0.15);
+            color: #94a3b8;
+            border: 1px solid rgba(148, 163, 184, 0.3);
+        }
 
         .status-completed {
             background: rgba(34, 197, 94, 0.15);
@@ -1177,8 +1207,18 @@
             const canResume = novel.status === 'paused' && novel.completed_chapters === 0 && novel.total_chapters > 0;
             const statusClass = canResume ? 'status-resumable' : getStatusClass(novel.status);
             const statusText = canResume ? (I18N.t ? I18N.t('novels.card.status.resumable') : '可续写') : getStatusText(novel.status);
+            
+            // 🔥 新增：检测项目类型
+            const projectType = novel.project_type || 'unknown';
+            const typeDisplay = novel.type_display || '未知';
+            const isMarketDriven = projectType === 'market_driven';
+            const isPhaseOne = projectType === 'phase_one';
+            
+            // 根据项目类型显示不同的类型徽章
+            const typeBadgeClass = isMarketDriven ? 'badge-market' : (isPhaseOne ? 'badge-phase' : 'badge-legacy');
+            const typeBadgeText = typeDisplay;
 
-            // 🔥 改进：根据状态显示不同的操作按钮
+            // 🔥 改进：根据项目类型和状态显示不同的操作按钮
             const readText = I18N.t ? I18N.t('novels.card.read') : '阅读';
             let actionButtons = `
                 <button class="novel-btn novel-btn-primary" onclick="viewNovel('${escapeHtml(novel.title)}')">
@@ -1187,7 +1227,19 @@
             `;
             
             if (!novel.is_public) {
-                if (canResume) {
+                if (isMarketDriven) {
+                    // 市场导向模式：显示"规划"和"续写"按钮
+                    const planText = '规划';
+                    const continueText = I18N.t ? I18N.t('novels.card.continueShort') : '续写';
+                    actionButtons += `
+                        <button class="novel-btn novel-btn-secondary" onclick="planNovel('${escapeHtml(novel.title)}')">
+                            📋 ${planText}
+                        </button>
+                        <button class="novel-btn" style="background: linear-gradient(135deg, #6366f1, #8b5cf6); color: white; border: none;" onclick="continueNovel('${escapeHtml(novel.title)}')">
+                            ➕ ${continueText}
+                        </button>
+                    `;
+                } else if (canResume) {
                     // 可续写状态：显示醒目的"继续生成"按钮
                     const continueText = I18N.t ? I18N.t('novels.card.continue') : '继续生成';
                     actionButtons += `
@@ -1214,8 +1266,9 @@
             `;
 
             return `
-                <div class="novel-card">
+                <div class="novel-card" data-project-type="${projectType}">
                     <div class="novel-status ${statusClass}">${statusText}</div>
+                    <div class="novel-type-badge ${typeBadgeClass}">${typeBadgeText}</div>
                     
                     <div class="novel-header">
                         <h3 class="novel-title">${escapeHtml(novel.title)}</h3>
@@ -1319,32 +1372,57 @@
         }
 
         async function continueNovel(title) {
-            // 跳转到二阶段续写界面
+            // 🔥 改进：先检测项目类型，然后跳转到不同的续写界面
             try {
-                const loadingText = I18N.t ? I18N.t('novels.continue.loading') : '正在启动续写任务...';
-            showLoadingOverlay(loadingText);
+                const loadingText = I18N.t ? I18N.t('novels.continue.loading') : '正在检测项目类型...';
+                showLoadingOverlay(loadingText);
                 
-                // 调用 API 准备进入第二阶段
-                const response = await fetch(`/api/phase-one/continue-to-phase-two/${encodeURIComponent(title)}`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' }
-                });
+                // 调用 API 检测项目类型
+                const detectResponse = await fetch(`/api/novel/${encodeURIComponent(title)}/detect-type`);
+                const detectResult = await detectResponse.json();
                 
-                const result = await response.json();
-                
-                if (!result.success) {
-                    const continueFailedText = I18N.t ? I18N.t('novels.continue.error.failed') : '续写失败';
-                    throw new Error(result.error || continueFailedText);
+                if (!detectResult.success) {
+                    throw new Error(detectResult.error || '检测项目类型失败');
                 }
                 
-                // 跳转到二阶段生成界面
-                window.location.href = `/phase-two-generation?title=${encodeURIComponent(title)}`;
+                const projectType = detectResult.type;
+                
+                hideLoadingOverlay();
+                
+                if (projectType === 'market_driven') {
+                    // 市场导向模式：跳转到市场导向续写界面
+                    window.location.href = `/pages/v2/market-driven-plan.html?title=${encodeURIComponent(title)}&mode=continue`;
+                } else {
+                    // 两阶段模式：调用原有逻辑
+                    const loadingText2 = I18N.t ? I18N.t('novels.continue.loading') : '正在启动续写任务...';
+                    showLoadingOverlay(loadingText2);
+                    
+                    const response = await fetch(`/api/phase-one/continue-to-phase-two/${encodeURIComponent(title)}`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' }
+                    });
+                    
+                    const result = await response.json();
+                    
+                    if (!result.success) {
+                        const continueFailedText = I18N.t ? I18N.t('novels.continue.error.failed') : '续写失败';
+                        throw new Error(result.error || continueFailedText);
+                    }
+                    
+                    // 跳转到二阶段生成界面
+                    window.location.href = `/phase-two-generation?title=${encodeURIComponent(title)}`;
+                }
             } catch (error) {
                 hideLoadingOverlay();
                 console.error('进入续写模式失败:', error);
                 const enterContinueFailedText = I18N.t ? I18N.t('novels.continue.error.failed') : '续写失败';
                 showError(enterContinueFailedText + ': ' + error.message);
             }
+        }
+        
+        // 🔥 新增：跳转到市场导向规划页面
+        function planNovel(title) {
+            window.location.href = `/pages/v2/market-driven-plan.html?title=${encodeURIComponent(title)}`;
         }
 
         function showContinueDialog(title) {

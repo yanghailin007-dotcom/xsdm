@@ -46,6 +46,24 @@ try:
 except ImportError:
     HAS_QUALITY_CHECKER = False
     logging.warning("[ChapterConversationGenerator] 质量检查器未加载")
+
+# 导入TropePromptBuilder（分层System Prompt支持）
+try:
+    from .trope_prompt_builder import TropePromptBuilder
+    HAS_TROPE_PROMPT_BUILDER = True
+    logging.info("[ChapterConversationGenerator] 已加载TropePromptBuilder")
+except ImportError:
+    HAS_TROPE_PROMPT_BUILDER = False
+    logging.warning("[ChapterConversationGenerator] TropePromptBuilder未加载")
+
+# 导入章节信息提取器（AI自动提取）
+try:
+    from .chapter_info_extractor import ChapterInfoExtractor
+    HAS_INFO_EXTRACTOR = True
+    logging.info("[ChapterConversationGenerator] 已加载信息提取器")
+except ImportError:
+    HAS_INFO_EXTRACTOR = False
+    logging.warning("[ChapterConversationGenerator] 信息提取器未加载")
     
 # 定义备用的优化器（简化版）
 class SimpleOptimizer:
@@ -111,7 +129,8 @@ class ChapterConversationGenerator:
     }
     
     def __init__(self, api_client, novel_data: Dict, tropes: Dict, 
-                 quality_config: Dict = None):
+                 quality_config: Dict = None,
+                 world_state_manager=None):  # 🔥 世界状态管理器
         self.api_client = api_client
         self.novel_data = novel_data
         self.tropes = tropes
@@ -119,6 +138,7 @@ class ChapterConversationGenerator:
         self.logger = None  # 对话日志记录器
         self.quality_checker = None  # 质量检查器
         self.quality_reports = []  # 质检报告列表
+        self.world_state_manager = world_state_manager  # 🔥 世界状态管理器
         
         # 质检配置
         if quality_config:
@@ -149,6 +169,15 @@ class ChapterConversationGenerator:
                 logging.info(f"[章节对话 {self.session_id}] 质量检查器已启动")
             except Exception as e:
                 logging.warning(f"[章节对话 {self.session_id}] 质量检查器初始化失败: {e}")
+        
+        # 初始化信息提取器（AI自动提取章节信息）
+        self.info_extractor = None
+        if HAS_INFO_EXTRACTOR:
+            try:
+                self.info_extractor = ChapterInfoExtractor(api_client)
+                logging.info(f"[章节对话 {self.session_id}] 信息提取器已启动")
+            except Exception as e:
+                logging.warning(f"[章节对话 {self.session_id}] 信息提取器初始化失败: {e}")
         
         # 初始化主角名称
         self.protagonist_name = self._get_protagonist_name()
@@ -187,15 +216,87 @@ class ChapterConversationGenerator:
         logger.info(f"[章节对话 {self.session_id}] 会话创建 | 小说: {self.novel_title} | 起始章: {start_chapter}")
         return session
     
+    def _get_enforced_protagonist_name(self) -> str:
+        """获取强制主角名（多层回退，确保有值）"""
+        # 第一层：user_choices（用户填写的）
+        user_choices = self.novel_data.get('user_choices', {})
+        name = user_choices.get('protagonist_name', '')
+        if name:
+            return name
+        
+        # 第二层：character_design.protagonist.name
+        char_design = self.novel_data.get('character_design', {})
+        protagonist = char_design.get('protagonist', {})
+        if isinstance(protagonist, dict):
+            name = protagonist.get('name', '')
+            if name:
+                return name
+            basic_info = protagonist.get('basic_info', {})
+            name = basic_info.get('name', '')
+            if name:
+                return name
+        
+        # 第三层：plan.protagonist
+        plan = self.novel_data.get('plan', {})
+        plan_protagonist = plan.get('protagonist', {})
+        if isinstance(plan_protagonist, dict):
+            name = plan_protagonist.get('name', '')
+            if name:
+                return name
+        
+        # 最后回退
+        logger.warning(f"[章节对话 {self.session_id}] 警告：未能找到主角名！")
+        return '主角'
+    
     def _build_system_prompt(self, start_chapter: int) -> str:
-        """构建系统提示词（使用优化后的v2.0版本）"""
-        # 使用优化器构建精简的System Prompt
+        """构建系统提示词（使用TropePromptBuilder分层架构）"""
+        # 获取强制主角名
+        protagonist_name = self._get_enforced_protagonist_name()
+        
+        # 使用TropePromptBuilder构建System Prompt（分层架构）
+        if HAS_TROPE_PROMPT_BUILDER:
+            try:
+                builder = TropePromptBuilder(self.tropes)
+                system_prompt = builder.build_chapter_system_prompt(
+                    novel_title=self.novel_title,
+                    chapter_num=start_chapter,
+                    protagonist_name=protagonist_name,
+                    emotion_arc=None  # 可以在调用时传入具体情绪弧线
+                )
+                logger.info(f"[章节对话 {self.session_id}] 使用TropePromptBuilder System Prompt | 主角: {protagonist_name}")
+                
+                # 添加角色设定强制执行
+                enforcement = f"""
+【角色设定 - 绝对不可更改】
+主角姓名：{protagonist_name}
+约束：
+1. 必须使用此名字，禁止编造其他名字（如林枫、林霄等）
+2. 每章正文必须多次出现主角名字，不能用"他"代替
+3. 如果前文有错误名字，本章必须纠正回来
+4. 违反此设定视为严重错误
+"""
+                return system_prompt + enforcement
+                
+            except Exception as e:
+                logger.warning(f"[章节对话 {self.session_id}] TropePromptBuilder失败，回退到优化器: {e}")
+        
+        # 回退到原有优化器
         if HAS_OPTIMIZER:
             try:
                 optimizer = ChapterPromptOptimizer(self.novel_data)
                 system_prompt = optimizer.build_system_prompt()
-                logger.info(f"[章节对话 {self.session_id}] 使用优化的System Prompt v2.0（约1500字）")
-                return system_prompt
+                logger.info(f"[章节对话 {self.session_id}] 使用优化的System Prompt v2.0 | 主角: {protagonist_name}")
+                
+                enforcement = f"""【角色设定 - 绝对不可更改】
+主角姓名：{protagonist_name}
+约束：
+1. 必须使用此名字，禁止编造其他名字（如林枫、林霄等）
+2. 每章正文必须多次出现主角名字，不能用"他"代替
+3. 如果前文有错误名字，本章必须纠正回来
+4. 违反此设定视为严重错误
+
+"""
+                return enforcement + system_prompt
             except Exception as e:
                 logger.warning(f"[章节对话 {self.session_id}] 优化器失败，使用备用模式: {e}")
         
@@ -261,7 +362,61 @@ class ChapterConversationGenerator:
                 })
         
         logger.info(f"[章节对话 {self.session_id}] 生成完成 | 成功: {len([c for c in chapters if c.get('word_count', 0) > 0])}/{total}章 | 总轮次: {self.session.turn_count}")
+        
+        # 🔥 批量保存提取的信息到世界状态文件
+        self._save_extracted_info(chapters)
+        
         return chapters
+    
+    def _save_extracted_info(self, chapters: List[Dict]):
+        """
+        保存提取的信息到设定文件
+        """
+        if not self.info_extractor:
+            return
+        
+        try:
+            # 收集所有章节的提取信息
+            extractions = []
+            for ch in chapters:
+                if 'extracted_info' in ch:
+                    extractions.append(ch['extracted_info'])
+            
+            if not extractions:
+                logger.warning(f"[章节对话 {self.session_id}] 无提取信息可保存")
+                return
+            
+            # 合并到世界状态
+            # 先尝试读取现有状态
+            import os
+            project_path = os.environ.get('NOVEL_PROJECT_PATH', '.')
+            world_state_path = Path(project_path) / ".world_state.json"
+            
+            current_state = None
+            if world_state_path.exists():
+                try:
+                    with open(world_state_path, 'r', encoding='utf-8') as f:
+                        current_state = json.load(f)
+                except:
+                    pass
+            
+            merged_state = self.info_extractor.merge_to_world_state(extractions, current_state)
+            
+            # 保存到文件
+            with open(world_state_path, 'w', encoding='utf-8') as f:
+                json.dump(merged_state, f, ensure_ascii=False, indent=2)
+            
+            logger.info(f"[章节对话 {self.session_id}] 世界状态已更新: {world_state_path}")
+            
+            # 同时保存详细的提取信息
+            extraction_path = Path(project_path) / ".chapter_extractions.json"
+            with open(extraction_path, 'w', encoding='utf-8') as f:
+                json.dump(extractions, f, ensure_ascii=False, indent=2)
+            
+            logger.info(f"[章节对话 {self.session_id}] 章节提取信息已保存: {extraction_path}")
+            
+        except Exception as e:
+            logger.error(f"[章节对话 {self.session_id}] 保存提取信息失败: {e}")
     
     def _generate_single_chapter_in_session(self, chapter_num: int, 
                                             blueprint: Dict,
@@ -369,15 +524,211 @@ class ChapterConversationGenerator:
         # 解析内容
         content = self._parse_response(response)
         
-        return {
+        # 🔥 校验1：检查是否只返回了自检报告而没有正文
+        if self._is_only_self_check_report(content):
+            logger.error(f"[章节对话 {self.session_id}] 第{chapter_num}章只返回了自检报告，没有正文！可能是token限制或上下文过长。")
+            # 尝试重试一次
+            logger.info(f"[章节对话 {self.session_id}] 第{chapter_num}章尝试重试...")
+            
+            # 简化提示词重试
+            retry_prompt = f"请生成第{chapter_num}章正文，约2000-2500字。要求：快节奏爽文，强情绪流，章章有钩子。直接输出正文，不需要自检报告。"
+            retry_response = self.session.send_message(
+                user_prompt=retry_prompt,
+                temperature=0.7,
+                purpose=f"第{chapter_num}章(重试)"
+            )
+            content = self._parse_response(retry_response)
+            
+            # 再次校验
+            if self._is_only_self_check_report(content):
+                raise Exception(f"第{chapter_num}章重试后仍只返回自检报告，请检查token限制或减少每批章节数")
+        
+        # 🔥 校验2：检查和修复主角名
+        content = self._validate_and_fix_protagonist_name(content, chapter_num)
+        
+        # 🔥 校验3：使用 WorldStateManager 校验剧情连贯性
+        if self.world_state_manager:
+            issues = self.world_state_manager.validate_chapter(chapter_num, content)
+            if issues:
+                logger.warning(f"[章节对话 {self.session_id}] 第{chapter_num}章剧情校验发现问题:")
+                for issue in issues:
+                    logger.warning(f"  - {issue}")
+            
+            # 更新世界状态（用于下一章）
+            self.world_state_manager.update_after_chapter(chapter_num, content)
+        
+        # 🔥 后处理：提取正文部分（根据分隔符）
+        content = self._extract_main_content(content, chapter_num)
+        
+        # 🔥 字数强制检查（更严格）
+        word_count = len(content)
+        
+        if word_count < 2000:
+            # 低于2000字：必须扩写到2200+
+            logger.warning(f"[章节对话 {self.session_id}] 第{chapter_num}章字数严重不足({word_count}<2000)，强制扩写...")
+            content = self._expand_chapter(content, chapter_num, 2200 - word_count)
+            word_count = len(content)
+        elif word_count < 2200:
+            # 2000-2200字：建议扩写
+            logger.info(f"[章节对话 {self.session_id}] 第{chapter_num}章字数略低({word_count})，建议扩写到2200+...")
+            content = self._expand_chapter(content, chapter_num, 2200 - word_count)
+            word_count = len(content)
+        
+        # 🔥 AI信息提取：自动提取角色、钩子、世界设定等信息
+        chapter_data = {
             "chapter_number": chapter_num,
             "title": self._extract_title(content, chapter_plan),
             "content": content,
-            "word_count": len(content),
-            "quality_score": 8.0,  # 简化为固定分数，可后续评估
+            "word_count": word_count,
+            "quality_score": 8.0,
             "chapter_plan": chapter_plan,
             "generated_at": datetime.now().isoformat()
         }
+        
+        if self.info_extractor:
+            try:
+                extracted_info = self.info_extractor.extract_from_chapter(chapter_data)
+                chapter_data["extracted_info"] = extracted_info
+                logger.info(f"[章节对话 {self.session_id}] 第{chapter_num}章信息提取完成: {len(extracted_info.get('new_characters', []))}新角色, {len(extracted_info.get('new_hooks', []))}新钩子")
+            except Exception as e:
+                logger.warning(f"[章节对话 {self.session_id}] 第{chapter_num}章信息提取失败: {e}")
+        
+        return chapter_data
+    
+    def _extract_main_content(self, content: str, chapter_num: int) -> str:
+        """
+        根据分隔符提取正文部分
+        格式：正文内容 + ---正文结束--- + 自检报告
+        """
+        # 尝试找到分隔符
+        separators = [
+            '---正文结束---',
+            '【AI自检报告】',
+            '自检报告：',
+            '【自检报告】'
+        ]
+        
+        for sep in separators:
+            if sep in content:
+                # 找到分隔符，提取前面的内容
+                main_content = content.split(sep)[0].strip()
+                logger.info(f"[章节对话 {self.session_id}] 第{chapter_num}章使用分隔符'{sep}'提取正文: {len(main_content)}字")
+                return main_content
+        
+        # 没有找到分隔符，尝试其他方式
+        # 如果包含"自检报告"字样，尝试提取前面部分
+        if '自检' in content or '字数：' in content:
+            # 找到最后一章标题的位置，之后通常是自检报告
+            lines = content.split('\n')
+            main_lines = []
+            for line in lines:
+                if '自检' in line or '字数：' in line or '番茄算法' in line:
+                    break
+                main_lines.append(line)
+            if main_lines:
+                main_content = '\n'.join(main_lines).strip()
+                logger.info(f"[章节对话 {self.session_id}] 第{chapter_num}章通过关键词提取正文: {len(main_content)}字")
+                return main_content
+        
+        # 没有找到任何标记，返回原内容
+        return content.strip()
+    
+    def _expand_chapter(self, content: str, chapter_num: int, need_words: int) -> str:
+        """
+        强制扩写 - 确保字数达标
+        """
+        if need_words <= 0:
+            return content
+            
+        try:
+            logger.info(f"[章节对话 {self.session_id}] 第{chapter_num}章开始扩写，需要+{need_words}字")
+            
+            prompt = f"""请基于以下已有章节内容，**必须**补充{need_words}字以上。
+
+**当前字数：{len(content)}字，需要扩写到{len(content) + need_words}字以上**
+
+**扩写策略（按优先级）：**
+1. **弹幕反应链**（推荐，+200-400字）
+   - 现场围观者反应（表情、惊呼）
+   - 直播间弹幕（5-8条具体弹幕内容）
+   - 社交媒体发酵（热搜、朋友圈、论坛）
+
+2. **震惊层级递进**（推荐，+200-400字）
+   - 第一层：现场人物反应（反派/配角）
+   - 第二层：暗处观战者反应（强者感应）
+   - 第三层：大范围影响（全城/全网震动）
+
+3. **数字可视化**（国运文适用，+100-200字）
+   - 国运值变化的天空异象
+   - 战力数值的气场表现
+   - 奖励获得的具体展示
+
+4. **情绪渲染链**（+100-200字）
+   - 主角：微表情、小动作（非内心独白）
+   - 配角：从质疑到震惊到跪服的转变
+   - 反派：从嚣张到恐惧到绝望的过程
+
+**扩写要求：**
+- 必须增加{need_words}字以上
+- 必须是有内容的扩写，不能水字数
+- 优先使用弹幕和震惊层级（效果最明显）
+
+**禁止（这些会被删除）：**
+- 环境描写（天气、景色）
+- 心理独白（超过1行的内心戏）
+- 重复对话
+
+已有内容（最后800字，请在此区域前/中插入扩写）：
+...{content[-800:]}
+
+请直接输出**完整章节**（原文+扩写内容合并），确保总字数达到{len(content) + need_words}字以上："""
+
+            response = self.session.send_message(
+                user_prompt=prompt,
+                temperature=0.8,
+                purpose=f"第{chapter_num}章强制扩写"
+            )
+            
+            full_content = self._parse_response(response)
+            
+            # 验证扩写后字数
+            final_count = len(full_content)
+            if final_count < len(content) + need_words * 0.8:  # 允许20%误差
+                logger.warning(f"[章节对话 {self.session_id}] 扩写后字数({final_count})仍不足，原始{len(content)}，需要+{need_words}")
+                # 如果还不够，在末尾追加扩写标记提示
+                return full_content + f"\n\n【注：当前{final_count}字，仍需扩写】"
+            
+            logger.info(f"[章节对话 {self.session_id}] 第{chapter_num}章扩写完成: {final_count}字 (原{len(content)}字)")
+            return full_content
+            
+        except Exception as e:
+            logger.warning(f"[章节对话 {self.session_id}] 扩写失败: {e}")
+            return content
+    
+    def _insert_expansion(self, original: str, expansion: str) -> str:
+        """
+        将扩写内容智能插入到原文中
+        优先插入到高潮/爽点段落，而不是末尾
+        """
+        # 查找高潮标记词位置
+        climax_markers = ['"轰！"', '"砰！"', '"轰隆！"', '炸裂', '爆发', '震惊']
+        
+        best_pos = len(original)  # 默认插入到末尾
+        
+        for marker in climax_markers:
+            # 找到最后一个高潮标记
+            pos = original.rfind(marker)
+            if pos > 0:
+                # 在高潮后插入扩写
+                best_pos = pos + len(marker)
+                break
+        
+        # 插入扩写内容
+        before = original[:best_pos]
+        after = original[best_pos:]
+        
+        combined = before + "\n\n" + expansion + "\n\n" + after
+        return combined.strip()
     
     def _get_chapter_plan(self, chapter_num: int, blueprint: Dict) -> Dict:
         """获取本章规划"""
@@ -402,20 +753,134 @@ class ChapterConversationGenerator:
                 return beat
         return {"emotion": "期待", "intensity": 6}
     
+    def _is_only_self_check_report(self, content: str) -> bool:
+        """检查内容是否只包含自检报告而没有正文"""
+        if not content:
+            return True
+        
+        content = content.strip()
+        
+        # 如果只包含自检报告标记，没有正文
+        if content.startswith("【AI自检报告") and "第" not in content[:50]:
+            return True
+        
+        # 如果字数太少（少于300字），认为没有正文
+        if len(content) < 300:
+            return True
+        
+        # 检查是否只有自检报告部分
+        lines = content.split('\n')
+        report_lines = [l for l in lines if l.startswith("【AI自检报告") or l.startswith("总字数：") or l.startswith("番茄算法：")]
+        if len(report_lines) >= 3 and len(content) < 500:
+            return True
+        
+        return False
+    
+    def _validate_and_fix_protagonist_name(self, content: str, chapter_num: int) -> str:
+        """校验并修复主角名"""
+        protagonist_name = self._get_enforced_protagonist_name()
+        
+        # 常见错误名字映射（根据实际问题定制）
+        wrong_names_map = {
+            '林枫': protagonist_name,
+            '林霄': protagonist_name,
+            '林雷': protagonist_name,
+            '陆风': protagonist_name,
+        }
+        
+        fixes = []
+        for wrong_name, correct_name in wrong_names_map.items():
+            if wrong_name in content:
+                count = content.count(wrong_name)
+                content = content.replace(wrong_name, correct_name)
+                fixes.append(f"{wrong_name}→{correct_name}({count}处)")
+        
+        if fixes:
+            logger.warning(f"[章节对话 {self.session_id}] 第{chapter_num}章自动修复角色名: {', '.join(fixes)}")
+        
+        # 检查正文是否完全没有主角名（可能只用了"他"）
+        if protagonist_name not in content:
+            logger.error(f"[章节对话 {self.session_id}] 第{chapter_num}章警告：正文可能缺少主角名'{protagonist_name}'")
+            # 不抛出异常，因为可能是正文还没展开
+        
+        return content
+    
+    def _build_protagonist_reminder(self) -> str:
+        """构建主角设定提醒（防止AI忘记主角名）"""
+        char_design = self.novel_data.get('character_design', {})
+        if not char_design:
+            return ""
+        
+        protagonist = char_design.get('protagonist', {})
+        if not protagonist:
+            return ""
+        
+        parts = []
+        
+        # 获取主角名（优先使用user_choices中的）
+        user_choices = self.novel_data.get('user_choices', {})
+        protagonist_name = user_choices.get('protagonist_name', '')
+        
+        if not protagonist_name:
+            # 从character_design获取
+            if 'name' in protagonist:
+                protagonist_name = protagonist['name']
+            else:
+                basic_info = protagonist.get('basic_info', {})
+                protagonist_name = basic_info.get('name', '')
+        
+        if protagonist_name:
+            parts.append(f"【主角名】{protagonist_name}（必须严格使用此名字，禁止用其他名字）")
+        
+        # 获取核心特质
+        traits = protagonist.get('traits', [])
+        if traits:
+            parts.append(f"【核心特质】{', '.join(traits[:3])}")
+        
+        # 获取标志性细节
+        sig = protagonist.get('signature_details', {})
+        if isinstance(sig, dict):
+            catchphrases = sig.get('catchphrase', [])
+            if catchphrases:
+                parts.append(f"【口头禅】{catchphrases[0]}")
+            actions = sig.get('action', [])
+            if actions:
+                parts.append(f"【标志性动作】{actions[0]}")
+        
+        if parts:
+            return "\n【角色设定提醒】\n" + "\n".join(parts) + "\n"
+        return ""
+    
     def _build_chapter_prompt(self, chapter_num: int, chapter_plan: Dict,
                              emotion_beat: Dict, prev_summary: str) -> str:
         """构建章节生成提示词（使用优化后的详细版本）"""
+        # 构建主角设定提醒
+        protagonist_reminder = self._build_protagonist_reminder()
+        
+        # 🔥 构建世界状态约束提示词
+        world_state_constraint = ""
+        if self.world_state_manager:
+            world_state_constraint = self.world_state_manager.build_constraint_prompt(chapter_num)
+            logger.info(f"[章节对话 {self.session_id}] 第{chapter_num}章已添加世界状态约束")
+        
+        # 记录主角设定提醒
+        if protagonist_reminder:
+            logger.info(f"[章节对话 {self.session_id}] 第{chapter_num}章已添加主角设定提醒")
+        
         # 使用优化器构建详细的章节提示词
         if HAS_OPTIMIZER:
             try:
                 optimizer = ChapterPromptOptimizer(self.novel_data)
-                return optimizer.build_chapter_prompt(chapter_num, chapter_plan, prev_summary)
+                chapter_prompt = optimizer.build_chapter_prompt(chapter_num, chapter_plan, prev_summary)
+                # 在章节提示词前添加主角设定提醒和世界状态约束
+                return protagonist_reminder + world_state_constraint + chapter_prompt
             except Exception as e:
                 logger.warning(f"[章节对话 {self.session_id}] 优化器失败，使用备用模式: {e}")
         
         # 使用简化版优化器（备用）
         optimizer = SimpleOptimizer(self.novel_data)
-        return optimizer.build_chapter_prompt(chapter_num, chapter_plan, prev_summary)
+        chapter_prompt = optimizer.build_chapter_prompt(chapter_num, chapter_plan, prev_summary)
+        return protagonist_reminder + chapter_prompt
     
     def _parse_response(self, response) -> str:
         """解析响应"""

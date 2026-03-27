@@ -167,6 +167,14 @@ JSON格式，包含：world_overview, power_system, social_structure, factions, 
         """生成步骤3（角色设计）的Prompt"""
         char_formula = self.analysis.get("character_formula", {})
         
+        # 安全获取配角列表
+        supporting_roles = char_formula.get("supporting", [])
+        supporting_text = "\n".join([f"- {s}" for s in supporting_roles]) if supporting_roles else "- 捧哏型队友\n- 女主/感情线\n- 传声筒型军官\n- 对比转变型小弟"
+        
+        # 安全获取主角人设
+        protagonist_template = char_formula.get("protagonist", {})
+        protagonist_json = json.dumps(protagonist_template, ensure_ascii=False) if protagonist_template else '{"archetype": "隐忍型爱国青年", "traits": ["杀伐果断", "极度护短", "低调装逼"]}'
+        
         return f"""# 角色：角色设计师（基于爆款人设公式）
 
 基于已确定的世界观和主角人设，设计完整角色阵容。
@@ -178,10 +186,10 @@ JSON格式，包含：world_overview, power_system, social_structure, factions, 
 4. 如果违反以上任何一条，生成将被视为失败
 
 ## 👤 主角人设公式（仅作为人设参考，姓名必须用上面指定的）
-{json.dumps(char_formula.get("protagonist", {}), ensure_ascii=False)}
+{protagonist_json}
 
 ## 👥 配角功能定位公式
-{chr(10).join(["- " + s for s in char_formula.get("supporting", [])])}
+{supporting_text}
 
 ## 😈 反派设计公式
 每个反派必须：
@@ -190,9 +198,16 @@ JSON格式，包含：world_overview, power_system, social_structure, factions, 
 3. **打脸爽快**：被打脸时的反应要有层次（不屑→震惊→后悔→恐惧）
 
 ## ✅ 输出格式
-JSON格式：protagonist, core_allies(3-5人), main_antagonists(早期/中期/后期各2-3人), supporting_roles
+返回JSON格式，必须包含以下字段：
+{{
+  "protagonist": {{"name": "{protagonist_name}", "age": 25, "traits": [...], ...}},
+  "core_allies": [{{"name": "...", "role": "..."}}],
+  "main_antagonists": {{"early_stage": [...], "mid_stage": [...], "late_stage": [...]}},
+  "supporting_roles": [...]
+}}
 
-** protagonist.name 必须是 "{protagonist_name}"，否则无效！**
+** 重要：protagonist.name 必须是 "{protagonist_name}"，禁止用其他名字！**
+** 不要返回null，必须返回有效的JSON对象！**
 """
     
     def generate_step4_growth_prompt(self) -> str:

@@ -1468,7 +1468,7 @@ XXX搂着前女友，当众嘲讽：
 {emotion_beat if emotion_beat else "情绪类型：根据章节位置调整 | 强度：7-9/10"}
 
 ## 【前文摘要】（必须承接）
-{prev_summary or "承接上一章剧情，保持连贯性"}
+{self._format_prev_summary(prev_summary, chapter_num, blueprint)}
 
 {genre_elements}
 
@@ -1479,26 +1479,74 @@ XXX搂着前女友，当众嘲讽：
 - 对话占比≥50%
 - 每段不超过3行
 
+## 【字数强制要求】⚠️
+**目标字数：2200-2500字**
+**最低红线：2000字（绝对不能低于）**
+
+**字数分配指导：**
+- 开篇钩子：200-300字（必须有冲突）
+- 剧情发展：600-800字（对话推动）
+- 高潮/冲突：800-1000字（详细描写）
+- 震惊反应：300-400字（弹幕/旁观者）
+- 章尾钩子：100-150字（悬念）
+
+**如果初稿不足2200字，必须扩写：**
+- 增加弹幕三层反应（现场→直播→全网）
+- 增加震惊层级（围观者→强者→官方）
+- 增加数字可视化（国运值变化的具体表现）
+- 增加配角反应链（从质疑到震惊到跪服）
+
+**禁止通过以下方式水字数：**
+- 无意义的环境描写
+- 冗长的心理独白
+- 重复的对话
+
+## 【连贯性强制检查】
+生成前确认：
+1. 上一章的对手/反派是否已明确结局（击败/死亡/撤退）？
+2. 本章新出场的角色是否有合理的引入铺垫（预警/通讯/气息）？
+3. 上一章的系统提示/伏笔是否被处理或延续？
+4. 主角当前状态（伤势/能力/位置）是否与上一章一致？
+
 ## 【输出格式】
 ```
 第{chapter_num}章 【章节标题】
 
-[正文内容...]
+[正文内容...2200-2500字...]
 
-（字数：2000-2500字）
+---正文结束---
+
+【AI自检报告】
+- 实际字数：____字（目标：2200-2500）
+- 字数检查：通过/需扩写
+- 番茄算法：前300字冲突（是/否），每1000字爽点（是/否），章尾钩子（是/否）
+- 连贯性检查：上一章承接（是/否），新角色铺垫（是/否）
 ```
+
+**必须包含 `---正文结束---` 分隔符！**
 
 ## 【重要：生成后必须自检】
 
-生成完本章正文后，按以下步骤自检：
+生成完本章正文后，**必须**按以下步骤自检，**不通过则重写**：
 
-**Step 1: 基础指标**
-- 字数：2000-2500字？
+**Step 1: 字数检查（最严格）** ⚠️
+- [ ] 计算字数（不含标题和标记）：____字
+- [ ] 如果 < 2000字：**必须扩写**，禁止提交
+- [ ] 如果 2000-2200字：**建议扩写**到2200以上
+- [ ] 如果 ≥ 2200字：✅ 通过
+
+**扩写检查清单（字数不足时）：**
+- [ ] 增加了弹幕三层反应？
+- [ ] 增加了震惊层级递进？
+- [ ] 增加了数字可视化？
+- [ ] 增加了配角反应链？
+
+**Step 2: 基础指标**
 - 对话占比：≥50%？
 - 每段：1-3行？
 - 视角：第三人称上帝视角？
 
-**Step 2: 番茄算法**
+**Step 3: 番茄算法**
 - 前300字：冲突/悬念？
 - 每1000字：小爽点？
 - 章尾50字：钩子？
@@ -1875,6 +1923,44 @@ XXX搂着前女友，当众嘲讽：
         }
         
         return checklists.get(chapter_type, checklists.get("FACE_SLAP", ""))
+    
+    def _format_prev_summary(self, prev_summary: str, chapter_num: int, blueprint: Dict) -> str:
+        """
+        格式化前文摘要（修复BUG：空字符串时使用默认值的问题）
+        
+        简单修复：如果prev_summary为空，从blueprint提取关键信息
+        """
+        # 如果有有效的prev_summary，直接使用
+        if prev_summary and len(prev_summary.strip()) > 30:
+            return prev_summary
+        
+        # 否则从blueprint提取关键事件
+        lines = [f"第{chapter_num-1}章关键信息："]
+        
+        # 尝试从blueprint获取上一章信息
+        if blueprint:
+            # 获取情绪曲线
+            emotion_curve = blueprint.get('emotion_curve', [])
+            if len(emotion_curve) >= chapter_num - 1:
+                prev_emotion = emotion_curve[chapter_num - 2]
+                lines.append(f"- 情绪：{prev_emotion.get('emotion', '未知')} (强度{prev_emotion.get('intensity', '?')})")
+            
+            # 获取章节大纲
+            chapters = blueprint.get('chapters', {})
+            prev_key = f"chapter_{chapter_num-1:03d}"
+            if prev_key in chapters:
+                prev_plan = chapters[prev_key]
+                if prev_plan.get('key_event'):
+                    lines.append(f"- 事件：{prev_plan['key_event']}")
+                if prev_plan.get('villain') or prev_plan.get('antagonist'):
+                    name = prev_plan.get('villain') or prev_plan.get('antagonist')
+                    lines.append(f"- 对手：{name}")
+        
+        # 如果没有任何信息，返回默认文本
+        if len(lines) == 1:
+            return "承接上一章剧情，保持连贯性"
+        
+        return "\n".join(lines)
 
 
 # ==================== 便捷函数 ====================

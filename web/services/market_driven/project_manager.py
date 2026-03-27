@@ -284,14 +284,26 @@ class ProjectDirectoryManager:
     """
     
     @staticmethod
-    def create_project_structure(base_path: Path, novel_title: str) -> Path:
+    def create_project_structure(base_path: Path, novel_title: str, username: str = None) -> Path:
         """
         创建统一的项目目录结构
+        
+        Args:
+            base_path: 基础路径（如"小说项目"）
+            novel_title: 小说标题
+            username: 用户名（如果提供，则创建在用户子目录下）
         
         Returns:
             项目根目录路径
         """
-        project_path = base_path / novel_title
+        # 🔥 如果提供了用户名，创建用户子目录
+        if username:
+            user_path = base_path / username
+            user_path.mkdir(parents=True, exist_ok=True)
+            project_path = user_path / novel_title
+        else:
+            # 兼容旧版：直接放在根目录
+            project_path = base_path / novel_title
         
         # 创建目录
         (project_path / "phase_one_products").mkdir(parents=True, exist_ok=True)
@@ -299,7 +311,7 @@ class ProjectDirectoryManager:
         (project_path / "uploads").mkdir(exist_ok=True)
         (project_path / "assets").mkdir(exist_ok=True)
         
-        logger.info(f"项目目录已创建: {project_path}")
+        logger.info(f"项目目录已创建: {project_path} (用户: {username or '根目录'})")
         return project_path
     
     @staticmethod
@@ -329,7 +341,7 @@ class ProjectDirectoryManager:
 
 
 # 便捷函数
-def create_unified_project(novel_title: str, generation_mode: str, genre: str = "") -> Path:
+def create_unified_project(novel_title: str, generation_mode: str, genre: str = "", username: str = None) -> Path:
     """
     便捷函数：创建统一项目
     
@@ -337,16 +349,28 @@ def create_unified_project(novel_title: str, generation_mode: str, genre: str = 
         novel_title: 小说标题
         generation_mode: 生成模式
         genre: 题材（用于自动填充分类标签）
+        username: 用户名（如果提供，项目会创建在用户子目录下）
         
     Returns:
         项目路径
     """
+    # 🔥 如果没有提供用户名，尝试从Flask session获取
+    if username is None:
+        try:
+            from flask import session
+            username = session.get('user') or session.get('username') or 'anonymous'
+        except:
+            username = 'anonymous'
+    
     # 创建目录
     base_path = Path("小说项目")
-    project_path = ProjectDirectoryManager.create_project_structure(base_path, novel_title)
+    project_path = ProjectDirectoryManager.create_project_structure(base_path, novel_title, username)
     
     # 创建项目信息
     project_info = UnifiedProjectManager.create_project_info(novel_title, generation_mode)
+    
+    # 🔥 记录创建者
+    project_info["created_by"] = username
     
     # 自动填充分类标签
     if genre:
@@ -356,6 +380,7 @@ def create_unified_project(novel_title: str, generation_mode: str, genre: str = 
     # 保存
     UnifiedProjectManager.save_project_info(project_path, project_info)
     
+    logger.info(f"统一项目已创建: {project_path} (创建者: {username})")
     return project_path
 
 

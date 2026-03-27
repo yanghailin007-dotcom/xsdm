@@ -21,6 +21,15 @@ except ImportError:
     HAS_BESTSELLER_ANALYSIS = False
     logging.warning("[MarketDrivenConversation] 爆款分析模块未加载，将使用传统Prompt")
 
+# 导入TropePromptBuilder（分层System Prompt支持）
+try:
+    from web.services.market_driven.trope_prompt_builder import TropePromptBuilder
+    HAS_TROPE_PROMPT_BUILDER = True
+    logging.info("[MarketDrivenConversation] TropePromptBuilder已加载")
+except ImportError:
+    HAS_TROPE_PROMPT_BUILDER = False
+    logging.warning("[MarketDrivenConversation] TropePromptBuilder未加载")
+
 logger = logging.getLogger(__name__)
 
 
@@ -225,7 +234,7 @@ class MarketDrivenConversationSession:
         return filtered
     
     def _build_system_prompt(self) -> str:
-        """构建系统提示词 - 只包含用户选择的内容，移除干扰选项"""
+        """构建系统提示词 - 使用TropePromptBuilder分层架构"""
         # 用户选择的信息（必须明确标注）
         title = self.user_choices.get('title', '未命名')
         protagonist_name = self.user_choices.get('protagonist_name', '主角')
@@ -237,14 +246,24 @@ class MarketDrivenConversationSession:
         plot_name = selected_plot.get('name', '默认路线') if selected_plot else '默认路线'
         plot_detail = selected_plot.get('detail', '') if selected_plot else ''
         
-        # 🔥 清理套路分析结果，只保留必要信息，移除干扰选项
+        # 🔥 使用TropePromptBuilder构建基础System Prompt（仿写头部作品框架）
+        if HAS_TROPE_PROMPT_BUILDER:
+            try:
+                builder = TropePromptBuilder(self.tropes)
+                base_prompt = builder.build_setting_system_prompt(title)
+                logging.info(f"[对话模式 {self.session_id}] 使用TropePromptBuilder构建System Prompt")
+            except Exception as e:
+                logging.warning(f"[对话模式 {self.session_id}] TropePromptBuilder失败，使用默认框架: {e}")
+                base_prompt = self._build_default_setting_prompt(title)
+        else:
+            base_prompt = self._build_default_setting_prompt(title)
+        
+        # 🔥 清理套路分析结果，只保留必要信息
         filtered_tropes = self._filter_tropes_for_prompt()
         tropes_json = json.dumps(filtered_tropes, ensure_ascii=False, indent=2)
         
-        return f"""# 角色：顶级网文策划专家
-
-你正在为一部网络小说进行【市场导向创作】。这是一个基于爆款套路的连续创作过程，你将通过多轮对话逐步完成所有设定。
-
+        # 构建用户约束部分
+        user_constraints = f"""
 ---
 
 ## 🎯 【用户最终选择 - 必须严格遵循】
@@ -260,15 +279,14 @@ class MarketDrivenConversationSession:
 ### ✅ 最终确定的金手指（必须使用）
 **{golden_finger}**
 
-### ✅ 最终选择的剧情路线名称
+### ✅ 参考剧情路线（仅作参考，非强制）
 **{plot_name}**
 
-### ✅ 最终选择的剧情路线详情（必须遵循此节奏）
 ```
 {plot_detail}
 ```
 
-### ✅ 最终确定的主线剧情
+### ✅ 主线剧情方向
 ```
 {main_plot}
 ```
@@ -277,7 +295,7 @@ class MarketDrivenConversationSession:
 
 ## 📊 【套路分析结果 - 参考依据】
 
-以下是对该题材Top10爆款的分析结果（已过滤，只保留与用户选择相关的信息）。请基于此进行创作，但**必须服从上面的【用户最终选择】**。
+以下是对该题材Top10爆款的分析结果，**仅供参考，用于启发创作**。AI应基于这些套路自由创作，不必严格遵循固定情节。
 
 ```json
 {tropes_json}
@@ -285,13 +303,12 @@ class MarketDrivenConversationSession:
 
 ---
 
-## ⚠️ 重要规则
-
-1. **用户选择优先**：上面的【用户最终选择】是用户已经确定的，必须严格遵循，不能改动
-2. **套路作为参考**：下面的【套路分析结果】是参考依据，用于指导创作方向
-3. **剧情路线必须遵循**：用户选择的剧情路线详情中的节奏（第1/3/10/20/30章节点）必须严格执行
-4. **标题必须使用**：用户确定的书名必须直接使用，不要修改
-5. **主角名必须使用**：用户确定的主角姓名必须直接使用
+## 🔥 AI自由创作提示
+- 你可以自由设计BOSS类型（神话生物/机械/外星/克苏鲁等）
+- 你可以自由设计敌人组合（任意国家/组织/联盟）
+- 你可以自由设计战斗过程（任意战术/能力组合/场景）
+- 你可以自由设计具现奖励（能源/科技/军事/民生等任意类型）
+- 唯一约束：必须符合情绪蓝图的节奏要求！
 
 ## 你的工作流程
 你将按照以下顺序完成创作，每轮对话我会指示你进行下一步：
@@ -303,10 +320,11 @@ class MarketDrivenConversationSession:
 5. **生成情绪曲线** - 基于剧情节奏，设计每章的情绪节拍
 
 ## 核心规则
-1. **严格遵循套路** - 所有设计必须符合提供的爆款公式
-2. **保持一致性** - 后续步骤必须参考前面步骤的设定
-3. **具体可执行** - 所有设计必须是可落地的，不能泛泛而谈
-4. **番茄风格** - 快节奏、强爽点、章章有钩子
+1. **固定元素必须遵循**：书名、主角名、题材类型、系统类型（如果有）必须严格遵循用户选择
+2. **自由创作**：具体情节、BOSS设计、敌人组合、奖励类型等由AI自由发挥，不必遵循固定大纲
+3. **情绪蓝图约束**：必须遵循情绪节奏（每章强度、爽点类型、钩子设计），但具体情节自由
+4. **不可预测性**：避免套路化，让读者猜不到下一章会发生什么
+5. **番茄风格**：快节奏、强爽点、章章有钩子
 
 ## 输出规范
 - 所有输出必须是合法的 JSON 格式
@@ -316,6 +334,39 @@ class MarketDrivenConversationSession:
 
 ## 当前状态
 等待第 1 步指令：生成完整方案...
+"""
+        
+        return base_prompt + user_constraints
+    
+    def _build_default_setting_prompt(self, title: str) -> str:
+        """构建默认的设定阶段System Prompt（当TropePromptBuilder不可用时使用）"""
+        return f"""# 🎯 角色：顶级网文策划专家
+
+你正在为一部网络小说进行【市场导向创作】。这是一个基于爆款套路的连续创作过程，你将通过多轮对话逐步完成所有设定。
+
+目标作品：《{title}"
+
+## 🎨 创作指导原则
+
+### ✅ 必须做到的
+1. **结构对标**：遵循成功模式的叙事结构
+2. **数值精确**：所有数据必须具体（如"欠费24000元"而非"欠很多钱"）
+3. **节奏精准**：情绪曲线必须符合类型规范
+4. **创新内容**：在成功结构的框架下创造全新具体内容
+
+### ❌ 严禁事项
+1. **直接抄袭**：不要复制对标作品的具体情节、人物名字
+2. **套路堆砌**：不要为了爽而爽，忽视逻辑
+3. **数值模糊**：禁止"很多"、"很快"等模糊描述
+4. **节奏混乱**：禁止情绪回退（爽点后突然压抑）
+
+## ⚠️ 重要规则
+
+1. **固定元素必须遵循**：书名、主角名、题材类型、系统类型（如果有）必须严格遵循用户选择
+2. **自由创作**：具体情节、BOSS设计、敌人组合、奖励类型等由AI自由发挥，不必遵循固定大纲
+3. **情绪蓝图约束**：必须遵循情绪节奏（每章强度、爽点类型、钩子设计），但具体情节自由
+4. **不可预测性**：避免套路化，让读者猜不到下一章会发生什么
+5. **番茄风格**：快节奏、强爽点、章章有钩子
 """
     
     def generate_all(self, progress_callback=None) -> Dict:
@@ -409,16 +460,16 @@ class MarketDrivenConversationSession:
                 "## 重要提醒",
                 f'1. **书名**：必须使用用户确定的「{title}」',
                 f'2. **主角名**：必须使用用户确定的「{protagonist_name}」',
-                "3. **剧情路线**：必须遵循用户选择的剧情路线详情中的节奏（第1/3/10/20/30章节点）",
-                "4. **参考套路**：参考系统提示词中的完整套路分析结果\n",
+                "3. **剧情路线**：参考用户选择的剧情路线，但具体情节由AI自由创作",
+                "4. **情绪蓝图约束**：遵循情绪节奏（第1-3章钩子、第4-10章小高潮密集、第21-30章大高潮），但具体情节自由\n",
                 "## 你需要生成",
                 "1. **标题确认** - 确认使用用户确定的标题（≤15字）",
-                "2. **开局设计** - 第1-3章详细剧本，具体到场景和对话",
+                "2. **开局设计** - 第1-3章详细剧本（情绪弧：压抑→震惊→希望）",
                 "3. **金手指细化** - 基于用户描述，细化具体数值和成长曲线",
                 "4. **主角人设** - 生成完整人设",
-                '5. **前30章大纲** - 严格遵循"3-10-20-30"节奏\n',
+                "5. **前30章情绪蓝图** - 只定义每章情绪类型和强度，不定义具体情节\n",
                 "## 输出格式",
-                "返回JSON格式，包含: title, opening_design, golden_finger, protagonist, outline_first_30\n",
+                "返回JSON格式，包含: title, opening_design, golden_finger, protagonist, emotion_blueprint\n",
                 "只返回JSON，不要其他说明。"
             ]
             prompt = "\n".join(prompt_parts)
@@ -458,30 +509,42 @@ class MarketDrivenConversationSession:
         return self._parse_json_response(response, "worldview")
     
     def _generate_characters(self) -> Dict:
-        """生成角色设计（使用基于爆款的Prompt模板）"""
+        """生成角色设计（使用基于爆款的Prompt模板 + TropePromptBuilder人物设定约束）"""
         protagonist_name = self.user_choices.get('protagonist_name', '主角')
+        
+        # 🔥 更新System Prompt为人物设定阶段（让AI知道在仿写头部作品的人设）
+        if HAS_TROPE_PROMPT_BUILDER:
+            try:
+                builder = TropePromptBuilder(self.tropes)
+                character_system_prompt = builder.build_character_system_prompt(protagonist_name)
+                # 更新session的system message
+                if self.session.messages and self.session.messages[0].get("role") == "system":
+                    self.session.messages[0]["content"] = character_system_prompt
+                    logger.info(f"[对话模式 {self.session_id}] 已更新System Prompt为人物设定阶段")
+            except Exception as e:
+                logger.warning(f"[对话模式 {self.session_id}] 更新人物设定System Prompt失败: {e}")
         
         # 🔥 使用基于爆款分析的Prompt模板
         if self._prompt_generator:
             logger.info(f"[对话模式 {self.session_id}] 使用基于爆款的Prompt模板（步骤3）")
             prompt = self._prompt_generator.generate_step3_characters_prompt(protagonist_name)
         else:
-            # 传统Prompt
+            prompt = None
+        
+        # 如果模板生成失败，使用传统Prompt
+        if not prompt:
+            logger.warning(f"[对话模式 {self.session_id}] 模板生成失败，使用传统Prompt")
             prompt_parts = [
                 "请执行【步骤3：生成角色设计】\n",
-                "基于系统提示词中的【完整的套路分析结果】和已确定的主角人设、世界观，设计完整的角色阵容。\n",
-                "## ⚠️ 强制要求（违反将视为失败）",
-                f'- **主角姓名**：**必须使用**用户确定的「{protagonist_name}」',
-                f'- **禁止**：给主角起其他名字、别名、或任何变体',
-                f'- ** protagonist.name 必须是** "{protagonist_name}"**',
-                "- 如果主角名不符合要求，整个生成将被视为失败\n",
-                "## 重要提醒",
-                f'- **主角姓名**：必须使用用户确定的「{protagonist_name}」',
-                "- **参考模板**：系统提示词中的 protagonist（主角模板）和 antagonist（反派设计套路）\n",
+                "基于已确定的世界观，设计完整的角色阵容。\n",
+                "## ⚠️ 强制要求",
+                f'- **主角姓名**：**必须使用** "{protagonist_name}"',
+                f'- **禁止**：给主角起其他名字或别名',
+                "- 如果违反，生成将被视为失败\n",
                 "## 输出格式",
-                "返回JSON格式，包含: protagonist, core_allies, main_antagonists, supporting_roles\n",
+                "返回JSON格式：{protagonist: {...}, core_allies: [...], main_antagonists: {...}, supporting_roles: [...]}\n",
                 f'** protagonist.name 必须是 "{protagonist_name}" **',
-                "只返回JSON。"
+                "只返回JSON，不要其他内容。"
             ]
             prompt = "\n".join(prompt_parts)
         
@@ -492,14 +555,70 @@ class MarketDrivenConversationSession:
         
         result = self._parse_json_response(response, "characters")
         
+        # 🔥 如果返回空或null，使用简化提示词重试
+        if not result:
+            logger.warning(f"[对话模式 {self.session_id}] 步骤3返回空，使用简化提示词重试...")
+            retry_prompt = f"""请生成角色设计JSON。
+
+必须包含：
+1. protagonist: {{"name": "{protagonist_name}", "age": 25, "identity": "前外卖员", "traits": ["杀伐果断", "护短"]}}
+2. core_allies: 3-5个队友
+3. main_antagonists: {{"early_stage": [...], "mid_stage": [...], "late_stage": [...]}}
+4. supporting_roles: 其他配角
+
+ protagonist.name 必须是 "{protagonist_name}"！
+只返回JSON，禁止返回null。"""
+            
+            response = self.session.send_message(retry_prompt, temperature=0.7)
+            result = self._parse_json_response(response, "characters_retry")
+        
         # 🔥 验证并强制修正主角名
         if result and result.get("protagonist"):
             actual_name = result["protagonist"].get("name", "")
             if actual_name != protagonist_name:
                 logger.warning(f"[对话模式 {self.session_id}] AI生成的角色名 '{actual_name}' 与用户指定 '{protagonist_name}' 不符，强制修正！")
                 result["protagonist"]["name"] = protagonist_name
+        else:
+            # 如果仍然失败，返回默认角色设计
+            logger.error(f"[对话模式 {self.session_id}] 步骤3重试后仍失败，使用默认角色设计")
+            result = self._get_default_characters(protagonist_name)
         
         return result
+    
+    def _get_default_characters(self, protagonist_name: str) -> Dict:
+        """获取默认角色设计（当AI生成失败时使用）"""
+        return {
+            "protagonist": {
+                "name": protagonist_name,
+                "age": 25,
+                "identity": "前外卖员，国运选手",
+                "traits": ["杀伐果断", "极度护短", "低调装逼", "不圣母"],
+                "background": "父亲早逝，母亲重病，送外卖三年攒下20万被骗"
+            },
+            "core_allies": [
+                {"name": "白月魁", "role": "女主/战斗搭档", "template": "《灵笼》女主，冷艳刀姬"},
+                {"name": "胖子", "role": "捧哏/解说", "template": "主角死党，网吧网管"},
+                {"name": "苏明月", "role": "传声筒/美女军官", "template": "龙国特派员，负责联络"}
+            ],
+            "main_antagonists": {
+                "early_stage": [
+                    {"name": "麦克", "nationality": "漂亮国", "identity": "基因战士", "hate_points": "歧视龙国"},
+                    {"name": "佐佐木", "nationality": "樱花国", "identity": "忍者", "hate_points": "阴险偷袭"}
+                ],
+                "mid_stage": [
+                    {"name": "马克", "nationality": "漂亮国", "identity": "国防部长之子", "hate_points": "动用现实力量暗杀"},
+                    {"name": "慕容云海", "nationality": "龙国（叛徒）", "identity": "古武世家", "hate_points": "出卖龙国"}
+                ],
+                "late_stage": [
+                    {"name": "八岐大蛇", "origin": "樱花国神话", "identity": "SS级凶兽", "hate_points": "吞噬人类"},
+                    {"name": "观察者", "origin": "高维文明", "identity": "禁地创造者", "hate_points": "视人类为实验品"}
+                ]
+            },
+            "supporting_roles": [
+                {"name": "张婷", "role": "势利眼前女友", "function": "让读者恨，然后爽"},
+                {"name": "母亲", "role": "主角软肋", "function": "情感支柱"}
+            ]
+        }
     
     def _generate_growth_plan(self) -> Dict:
         """生成成长路线（使用基于爆款的Prompt模板）"""

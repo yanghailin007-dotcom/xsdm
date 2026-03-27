@@ -243,6 +243,37 @@
             color: #ef4444;
         }
         
+        /* 项目类型徽章 */
+        .v2-project-type-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            padding: 3px 10px;
+            border-radius: 12px;
+            font-size: 11px;
+            font-weight: 600;
+            margin-left: 8px;
+            vertical-align: middle;
+        }
+        
+        .v2-type--market {
+            background: linear-gradient(135deg, rgba(99, 102, 241, 0.2), rgba(139, 92, 246, 0.2));
+            color: #818cf8;
+            border: 1px solid rgba(99, 102, 241, 0.3);
+        }
+        
+        .v2-type--phase {
+            background: linear-gradient(135deg, rgba(6, 182, 212, 0.2), rgba(8, 145, 178, 0.2));
+            color: #22d3ee;
+            border: 1px solid rgba(6, 182, 212, 0.3);
+        }
+        
+        .v2-type--legacy {
+            background: rgba(148, 163, 184, 0.15);
+            color: #94a3b8;
+            border: 1px solid rgba(148, 163, 184, 0.3);
+        }
+        
         .v2-project-card__progress {
             margin-bottom: 16px;
         }
@@ -563,15 +594,28 @@
             const statusInfo = getStatusInfo(project);
             const progressPercent = calculateProgress(project);
             
+            // 🔥 新增：检测项目类型
+            const projectType = project.project_type || 'unknown';
+            const typeDisplay = project.type_display || '未知';
+            const isMarketDriven = projectType === 'market_driven';
+            
             const createdLabel = typeof I18N !== 'undefined' ? I18N.t('projectMgmt.card.created') : '创建';
             const updatedLabel = typeof I18N !== 'undefined' ? I18N.t('projectMgmt.card.updated') : '更新';
             const progressLabel = typeof I18N !== 'undefined' ? I18N.t('projectMgmt.card.progress') : '生成进度';
             const chaptersLabel = typeof I18N !== 'undefined' ? I18N.t('projectMgmt.card.chapters') : '章节';
             
+            // 🔥 新增：项目类型徽章样式
+            let typeBadgeClass = 'v2-type--legacy';
+            if (projectType === 'market_driven') typeBadgeClass = 'v2-type--market';
+            else if (projectType === 'phase_one') typeBadgeClass = 'v2-type--phase';
+            
             card.innerHTML = `
                 <div class="v2-project-card__header">
                     <div>
-                        <h3 class="v2-project-card__title">${escapeJs(project.title)}</h3>
+                        <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 4px;">
+                            <span class="v2-project-type-badge ${typeBadgeClass}">${typeDisplay}</span>
+                            <h3 class="v2-project-card__title">${escapeJs(project.title)}</h3>
+                        </div>
                         <div class="v2-project-card__meta">
                             📅 ${createdLabel}: ${formatDate(project.created_at)} · 🔄 ${updatedLabel}: ${formatDate(project.last_updated)}
                         </div>
@@ -624,6 +668,10 @@
         function createActionButtons(project) {
             let buttons = '';
             
+            // 🔥 新增：检测项目类型
+            const projectType = project.project_type || 'unknown';
+            const isMarketDriven = projectType === 'market_driven';
+            
             // 获取翻译文本
             const tViewContent = typeof I18N !== 'undefined' ? I18N.t('projectMgmt.action.viewContent') : '📖 查看内容';
             const tContinue = typeof I18N !== 'undefined' ? I18N.t('projectMgmt.action.continue') : '📝 继续生成';
@@ -634,12 +682,24 @@
             const tContinueDesign = typeof I18N !== 'undefined' ? I18N.t('projectMgmt.action.continueDesign') : '⚙️ 继续设计';
             const tExport = typeof I18N !== 'undefined' ? I18N.t('projectMgmt.action.export') : '📥 导出';
             const tDelete = typeof I18N !== 'undefined' ? I18N.t('projectMgmt.action.delete') : '🗑️ 删除';
+            const tPlan = '规划'; // 🔥 新增
             
             // 检查封面是否存在（用于显示警告图标）
             const hasCover = project.has_cover || false;
             const coverWarningIcon = !hasCover ? '<span title="缺少封面" style="color: #f59e0b; margin-right: 4px;">⚠️</span>' : '';
             
-            // 主要操作按钮
+            // 🔥 新增：市场导向模式按钮
+            if (isMarketDriven) {
+                buttons += `
+                    <button class="v2-btn v2-btn--primary" onclick="goToMarketDrivenWithCoverCheck('${escapeJs(project.title)}', ${hasCover})">${coverWarningIcon}${tPlan}</button>
+                    <button class="v2-btn v2-btn--secondary" onclick="continueMarketDrivenWithCoverCheck('${escapeJs(project.title)}', ${hasCover})">${tContinue}</button>
+                    <button class="v2-btn v2-btn--secondary" onclick="viewQualityAssessment('${escapeJs(project.title)}')">${tQuality}</button>
+                    <button class="v2-btn v2-btn--secondary" onclick="goToVideoGeneration('${escapeJs(project.title)}')">${tVideo}</button>
+                `;
+                return buttons;
+            }
+            
+            // 主要操作按钮（原有逻辑）
             if (project.phase_one && project.phase_one.status === 'completed') {
                 if (project.phase_two && project.phase_two.status === 'completed') {
                     buttons += `
@@ -932,6 +992,17 @@
             }
         }
         
+        async function continueMarketDrivenWithCoverCheck(projectTitle, hasCover) {
+            /* 市场导向模式续写（带封面检查） */
+            if (!hasCover) {
+                showCoverMissingDialog(projectTitle, () => {
+                    window.location.href = `/pages/v2/market-driven-plan.html?title=${encodeURIComponent(projectTitle)}&mode=continue`;
+                });
+            } else {
+                window.location.href = `/pages/v2/market-driven-plan.html?title=${encodeURIComponent(projectTitle)}&mode=continue`;
+            }
+        }
+        
         function viewProject(projectTitle) {
             window.location.href = `/novel?title=${encodeURIComponent(projectTitle)}`;
         }
@@ -1012,6 +1083,36 @@
 
         function continuePhaseOne(projectTitle) {
             window.location.href = `/phase-one-setup?continue=${encodeURIComponent(projectTitle)}`;
+        }
+
+        // 🔥 新增：市场导向模式跳转函数
+        function goToMarketDriven(projectTitle) {
+            window.location.href = `/pages/v2/market-driven-plan.html?title=${encodeURIComponent(projectTitle)}`;
+        }
+        
+        function continueMarketDriven(projectTitle) {
+            window.location.href = `/pages/v2/market-driven-plan.html?title=${encodeURIComponent(projectTitle)}&mode=continue`;
+        }
+        
+        // 🔥 新增：带封面检查的市场导向模式跳转函数
+        async function goToMarketDrivenWithCoverCheck(projectTitle, hasCover) {
+            if (!hasCover) {
+                showCoverMissingDialog(projectTitle, () => {
+                    goToMarketDriven(projectTitle);
+                });
+            } else {
+                goToMarketDriven(projectTitle);
+            }
+        }
+        
+        async function continueMarketDrivenWithCoverCheck(projectTitle, hasCover) {
+            if (!hasCover) {
+                showCoverMissingDialog(projectTitle, () => {
+                    continueMarketDriven(projectTitle);
+                });
+            } else {
+                continueMarketDriven(projectTitle);
+            }
         }
 
         function viewProjectViewer(projectTitle) {
