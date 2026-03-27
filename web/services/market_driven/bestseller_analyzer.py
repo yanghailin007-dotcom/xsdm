@@ -60,10 +60,10 @@ class BestsellerAnalyzer:
         analysis_prompt = self._build_reverse_engineering_prompt(genre)
         
         try:
-            if self.api_client:
-                result = self._call_ai_analysis(analysis_prompt, genre)
-            else:
-                result = self._get_mock_analysis(genre)
+            if not self.api_client:
+                raise ValueError("爆款分析需要API客户端，请检查API配置")
+            
+            result = self._call_ai_analysis(analysis_prompt, genre)
             
             # 添加元数据
             result["genre"] = genre
@@ -293,10 +293,10 @@ Note: All content must be specific and actionable, not vague."""
                         return extracted
                     else:
                         logger.error(f"[BestsellerAnalyzer] JSON提取也失败，使用默认模板")
-                        return self._get_mock_analysis(genre)
+                        return self._get_default_analysis(genre)
             else:
                 logger.error(f"[BestsellerAnalyzer] AI返回格式错误: {type(response)}")
-                return self._get_mock_analysis(genre)
+                return self._get_default_analysis(genre)
                 
         except Exception as e:
             logger.error(f"[BestsellerAnalyzer] AI调用异常: {e}")
@@ -523,109 +523,18 @@ Note: All content must be specific and actionable, not vague."""
         except Exception as e:
             logger.error(f"保存分析日志失败: {e}")
     
-    def _get_mock_analysis(self, genre: str) -> Dict:
-        """模拟分析结果（用于测试）"""
-        return {
-            "genre_formula": "底层困境→系统觉醒→快速逆袭→装逼打脸→身份升级",
-            "opening_3_chapters": {
-                "chapter_1": {
-                    "scene": "深夜11点，暴雨街头，主角送外卖被撞",
-                    "protagonist_situation": "负债35万，女友分手，被房东赶出门，送外卖维持生计",
-                    "system_trigger": "被撞后绝望之际，脑海中响起系统激活声音",
-                    "hook": "系统激活倒计时，神秘提示音响起",
-                    "emotion_curve": "压抑(60%)→绝望(20%)→希望(20%)",
-                    "word_count": "2500-2800"
-                },
-                "chapter_2": {
-                    "scene": "医院/街头，第一次使用系统能力",
-                    "system_usage": "获得新手大礼包，能力初次展现",
-                    "reactions": "路人惊讶→反派不屑→被打脸后震惊",
-                    "reward": "获得10万元/能力提升10%",
-                    "hook": "远处传来警笛声/神秘人物出现",
-                    "word_count": "2500-2800"
-                },
-                "chapter_3": {
-                    "scene": "4S店/高档餐厅/同学会",
-                    "antagonist": "势利眼销售/前女友/宝马男",
-                    "plot": "被嘲讽→展示实力→反派后悔→众人震惊",
-                    "reward": "打脸后获得实质性奖励（现金/物品/地位）",
-                    "hook": "更大的人物出现/新的冲突埋下",
-                    "word_count": "2800-3000"
-                }
-            },
-            "golden_finger_formula": {
-                "initial_reward": "初始奖励等效价值100万，战斗力相当于特种兵王",
-                "growth_curve": "前期快(1-30级每级100点)，中期慢(31-80级每级500点)，后期极慢(81-100级每级2000点)",
-                "limitations": "每天使用3次，每次冷却24小时，过度使用会虚弱"
-            },
-            "character_formula": {
-                "protagonist": {
-                    "archetype": "隐忍型逆袭者",
-                    "traits": ["隐忍", "护短", "不圣母"],
-                    "growth_arc": "底层小人物→地方名人→全国闻名→全球霸主"
-                },
-                "antagonists": {
-                    "early": "势利眼小人物（销售、保安、前女友）",
-                    "mid": "富二代、地方势力、企业高管",
-                    "late": "国际势力、上古世家、隐藏大佬"
-                },
-                "supporting": [
-                    "捧哏型： constantly惊叹主角牛逼，传播主角事迹",
-                    "传声筒型：负责把主角的消息传播给更高层",
-                    "对比组：不断作死反衬主角英明"
-                ]
-            },
-            "emotion_formula": {
-                "cycle": "压抑2章→爆发1章→巩固1章→期待1章",
-                "hook_types": ["悬念型", "爽点型", "期待型", "震惊型"],
-                "intensity_control": "小爽点强度7，中爽点强度8-9，大爽点强度10"
-            },
-            "climax_formula": {
-                "small_climax": {
-                    "interval": 3,
-                    "types": ["收获型", "打脸型", "装逼型"],
-                    "design_principles": "每3章必须有让读者感到'爽'的情节"
-                },
-                "medium_climax": {
-                    "interval": 10,
-                    "types": ["升级型", "身份曝光型", "资源获取型"],
-                    "design_principles": "每10章必须有让读者感到'大爽'的情节，周围人分3层写震惊"
-                },
-                "large_climax": {
-                    "interval": 30,
-                    "types": ["阶段性总结", "身份全网曝光", "开启新地图"],
-                    "design_principles": "每30章必须有让读者感到'爆爽'的情节，同时为下一阶段铺垫"
-                }
-            },
-            "writing_techniques": [
-                "短段落：每段不超过2行，适合手机阅读",
-                "多对话：对话占比60%以上，推动剧情",
-                "快节奏：不要描写，直接行动",
-                "强对比：主角前后对比，反派前后对比",
-                "留钩子：每章结尾必须留悬念"
-            ],
-            "taboos": [
-                "主角开局不能太有钱",
-                "主角不能圣母心泛滥",
-                "不能有大段景物/心理描写",
-                "打脸不能拖泥带水",
-                "系统不能太无敌，必须有平衡"
-            ]
-        }
-    
     def _get_default_analysis(self, genre: str) -> Dict:
-        """默认分析（失败时使用）"""
-        return self._get_mock_analysis(genre)
-
-
-# 便捷函数
-def analyze_bestseller_formula(genre: str, api_client=None) -> Dict:
-    """分析指定题材的爆款公式"""
-    analyzer = BestsellerAnalyzer(api_client)
-    return analyzer.analyze_genre(genre)
-
-
-if __name__ == "__main__":
-    # 测试
-    result = analyze_bestseller_formula("神豪文-花钱返利类")
-    print(json.dumps(result, ensure_ascii=False, indent=2))
+        """默认分析（当API调用失败时返回基本结构）"""
+        return {
+            "genre_formula": "底层逆袭套路：困境→觉醒→成长→逆袭",
+            "opening_3_chapters": {
+                "chapter_1": {"scene": "待AI分析", "hook": "等待分析"},
+                "chapter_2": {"scene": "待AI分析", "hook": "等待分析"},
+                "chapter_3": {"scene": "待AI分析", "hook": "等待分析"}
+            },
+            "golden_finger_formula": {"initial_reward": "待分析", "growth_curve": "待分析"},
+            "character_formula": {"protagonist": {"archetype": "待分析"}},
+            "emotion_formula": {"cycle": "待分析"},
+            "climax_formula": {"small_climax": {"interval": 3}},
+            "note": "API调用失败，返回默认结构，请检查API配置"
+        }

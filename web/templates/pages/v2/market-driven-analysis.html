@@ -845,8 +845,9 @@ async function pollTaskStatus(taskId) {
           // 如果 tropes 字段不存在，直接使用 result
           displayResults(task.result);
         } else {
-          console.log('无结果数据，使用模拟数据');
-          displayResults(getMockResults());
+          console.error('无结果数据');
+          alert('分析失败：未能获取有效结果，请检查API配置或重试');
+          return;
         }
       } catch (e) {
         console.error('显示结果时出错:', e);
@@ -1278,53 +1279,6 @@ function escapeHtml(text) {
     .replace(/</g, '&lt;')
     .replace(/>/g, '&gt;')
     .replace(/"/g, '&quot;');
-}
-
-function getMockResults() {
-  return {
-    core_formula: [
-      '主角获得特殊系统/能力，具备碾压优势',
-      '通过完成任务/消费获得奖励，形成正反馈循环',
-      '配角嫉妒质疑 → 主角展现实力 → 众人震惊拜服',
-      '节奏快，每3-5章一个小高潮，保持阅读爽感'
-    ],
-    opening_structure: [
-      '第1章：主角困境铺垫，系统觉醒',
-      '第2章：首次使用能力，获得小成功',
-      '第3章：遇到第一个质疑者，小试牛刀',
-      '第4-5章：展现实力，获得认可，埋下更大冲突'
-    ],
-    golden_finger_rules: [
-      '系统能力必须有明确升级路径',
-      '奖励要与消费/努力挂钩，保持合理性',
-      '限制条件制造张力，不能无敌',
-      '能力展示要有层次感，逐步升级'
-    ],
-    rhythm_pattern: [
-      '3章一个小爽点，5章一个大高潮',
-      '每章结尾留钩子，吸引继续阅读',
-      '爽点后要有短暂缓冲，避免疲劳',
-      '30章一个剧情节点，推进主线'
-    ],
-    conflict_templates: [
-      '质疑型：配角看不起主角 → 被打脸',
-      '危机型：突发事件考验主角能力',
-      '竞争型：与他人比拼，主角胜出',
-      '揭秘型：隐藏身份逐步曝光'
-    ],
-    face_slap_timing: [
-      '铺垫2-3章，积累读者期待',
-      '打脸要干净利落，不拖泥带水',
-      '周围人反应要分层描写',
-      '打脸后要有实质性奖励/收获'
-    ],
-    success_factors: [
-      '满足了读者的逆袭幻想，让普通人也能体验财富自由的快感',
-      '系统流玩法提供了即时的正向反馈，每章都有爽点',
-      '快节奏的剧情推进符合当下读者的碎片化阅读习惯',
-      '打脸情节满足了读者的情绪宣泄需求和代入感'
-    ]
-  };
 }
 
 function startGeneration() {

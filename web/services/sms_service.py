@@ -116,21 +116,6 @@ class TencentSMSProvider(SMSProvider):
         return {"success": True, "message": "模拟发送成功", "provider": "tencent_mock"}
 
 
-class MockSMSProvider(SMSProvider):
-    """模拟短信服务（开发测试用）"""
-    
-    def send_sms(self, phone: str, code: str, template_params: Dict = None) -> Dict[str, Any]:
-        """模拟发送短信，实际打印到日志"""
-        logger.info(f"📱 [模拟短信] 发送至 {phone}: 验证码 {code}")
-        logger.info(f"💡 开发模式：验证码为 {code}")
-        return {
-            "success": True, 
-            "message": "模拟发送成功",
-            "code": code,  # 开发模式下返回验证码
-            "provider": "mock"
-        }
-
-
 class SMSService:
     """短信服务管理类"""
     
@@ -138,13 +123,15 @@ class SMSService:
         """初始化短信服务"""
         self.providers = {
             "aliyun": AliyunSMSProvider({}),
-            "tencent": TencentSMSProvider({}),
-            "mock": MockSMSProvider({})
+            "tencent": TencentSMSProvider({})
         }
         sms_config = CONFIG.get("sms", {})
-        self.default_provider = sms_config.get("provider", "mock")
+        self.default_provider = sms_config.get("provider", "")
         
-        logger.info(f"📱 短信服务初始化完成，默认提供商: {self.default_provider}")
+        if not self.default_provider:
+            logger.warning("📱 短信服务未配置，请在配置文件中设置 sms.provider")
+        else:
+            logger.info(f"📱 短信服务初始化完成，默认提供商: {self.default_provider}")
     
     def send_verification_code(self, phone: str, code: str, provider: Optional[str] = None) -> Dict[str, Any]:
         """
