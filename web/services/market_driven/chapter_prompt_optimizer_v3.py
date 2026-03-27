@@ -127,6 +127,13 @@ class ChapterPromptOptimizerV3:
         Args:
             novel_data: 小说数据，包含title, plan, emotion_curve等
         """
+        # 确保 novel_data 是字典类型
+        if isinstance(novel_data, list):
+            logger.warning(f"[PromptV3] novel_data 是列表类型，转换为字典")
+            novel_data = novel_data[0] if novel_data else {}
+        if not isinstance(novel_data, dict):
+            logger.warning(f"[PromptV3] novel_data 类型异常: {type(novel_data)}，使用空字典")
+            novel_data = {}
         self.novel_data = novel_data
         self.title = novel_data.get('title', '未命名')
         self.plan = novel_data.get('plan', {})

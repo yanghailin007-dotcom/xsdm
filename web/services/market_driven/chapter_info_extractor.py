@@ -46,12 +46,14 @@ class ChapterInfoExtractor:
             # 构建提取prompt
             prompt = self._build_extraction_prompt(content, chapter_num)
             
-            response = self.api_client.generate(messages=[
-                {"role": "system", "content": "你是一个专业的小说信息提取助手。请从章节内容中提取结构化信息，输出JSON格式。"},
-                {"role": "user", "content": prompt}
-            ])
+            response = self.api_client.generate_content_with_retry(
+                content_type="chapter_info_extraction",
+                user_prompt=prompt,
+                system_prompt="你是一个专业的小说信息提取助手。请从章节内容中提取结构化信息，输出JSON格式。",
+                purpose=f"第{chapter_num}章信息提取"
+            )
             
-            result_text = response.get("content", "")
+            result_text = response if isinstance(response, str) else str(response)
             
             # 提取JSON
             import re

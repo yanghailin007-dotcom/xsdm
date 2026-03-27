@@ -69,6 +69,11 @@ except ImportError:
 class SimpleOptimizer:
     """简化版优化器（备用）"""
     def __init__(self, novel_data):
+        # 确保 novel_data 是字典类型
+        if isinstance(novel_data, list):
+            novel_data = novel_data[0] if novel_data else {}
+        if not isinstance(novel_data, dict):
+            novel_data = {}
         self.novel_data = novel_data
     
     def build_system_prompt(self):
@@ -132,6 +137,13 @@ class ChapterConversationGenerator:
                  quality_config: Dict = None,
                  world_state_manager=None):  # 🔥 世界状态管理器
         self.api_client = api_client
+        # 确保 novel_data 是字典类型
+        if isinstance(novel_data, list):
+            logger.warning(f"[ChapterConversationGenerator] novel_data 是列表类型，转换为字典")
+            novel_data = novel_data[0] if novel_data else {}
+        if not isinstance(novel_data, dict):
+            logger.warning(f"[ChapterConversationGenerator] novel_data 类型异常: {type(novel_data)}，使用空字典")
+            novel_data = {}
         self.novel_data = novel_data
         self.tropes = tropes
         self.session = None
