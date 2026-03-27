@@ -468,7 +468,11 @@ async function pollTaskStatus() {
 
 // 更新UI
 function updateUI(task) {
-  const progress = task.progress || 0;
+  // 确保 progress 是数字类型
+  let progress = parseInt(task.progress) || 0;
+  if (progress < 0) progress = 0;
+  if (progress > 100) progress = 100;
+  
   const stage = task.current_stage || '准备中';
   const message = task.message || '';
   
@@ -480,8 +484,10 @@ function updateUI(task) {
   const percentEl = document.getElementById('progress-percent');
   const stageEl = document.getElementById('current-stage');
   
-  // 直接设置宽度
-  fillEl.style.width = progress + '%';
+  // 使用 requestAnimationFrame 确保 DOM 更新
+  requestAnimationFrame(() => {
+    fillEl.style.width = progress + '%';
+  });
   
   percentEl.textContent = `${progress}%`;
   stageEl.textContent = message || stage;
@@ -499,12 +505,48 @@ function updateUI(task) {
   }
   
   // 更新阶段列表
-  updateStageList(stage);
+  updateStageList(stage, progress);
 }
 
 // 更新阶段列表
-function updateStageList(currentStage) {
+function updateStageList(currentStage, progress = 0) {
   const stages = ['analyzing', 'planning', 'worldview', 'chapters'];
+  
+  // 阶段映射：将后端返回的阶段映射到前端阶段
+  const stageMapping = {
+    // 套路分析阶段
+    'analyzing_tropes': 'analyzing',
+    'trope_analysis': 'analyzing',
+    'analyzing': 'analyzing',
+    'analysis_completed': 'analyzing',
+    // 方案生成阶段
+    'preparing_plan': 'planning',
+    'plan_generation': 'planning',
+    'planning': 'planning',
+    'conversation_mode': 'planning',
+    // 世界观构建阶段
+    'generating_products': 'worldview',
+    'worldview': 'worldview',
+    'worldview_building': 'worldview',
+    'character_design': 'worldview',
+    // 章节生成阶段
+    'generating_chapters': 'chapters',
+    'chapters': 'chapters',
+    'chapter_generation': 'chapters',
+    'generation_completed': 'chapters'
+  };
+  
+  // 根据进度确定当前阶段
+  let effectiveStage = stageMapping[currentStage] || currentStage;
+  
+  // 如果没有匹配的阶段，根据进度推断
+  if (!stages.includes(effectiveStage)) {
+    if (progress < 25) effectiveStage = 'analyzing';
+    else if (progress < 50) effectiveStage = 'planning';
+    else if (progress < 75) effectiveStage = 'worldview';
+    else effectiveStage = 'chapters';
+  }
+  
   let currentFound = false;
   
   stages.forEach(stage => {
@@ -514,7 +556,7 @@ function updateStageList(currentStage) {
     // 移除所有状态类
     item.classList.remove('stage-item--pending', 'stage-item--active', 'stage-item--completed');
     
-    if (stage === currentStage) {
+    if (stage === effectiveStage) {
       item.classList.add('stage-item--active');
       currentFound = true;
     } else if (!currentFound) {
@@ -523,6 +565,11 @@ function updateStageList(currentStage) {
       item.classList.add('stage-item--pending');
     }
   });
+  
+  console.log('[阶段更新]', { currentStage, effectiveStage, progress, stages: stages.map((s, i) => ({
+    stage: s,
+    status: s === effectiveStage ? 'active' : stages.indexOf(s) < stages.indexOf(effectiveStage) ? 'completed' : 'pending'
+  }))});
 }
 
 // 显示结果
