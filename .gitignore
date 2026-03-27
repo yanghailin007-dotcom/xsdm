@@ -140,3 +140,10 @@ flask_session/
 debug_screenshots/
 screenshots/page_audit_*/
 fix_indent.py
+
+# AI交互日志和分析报告（临时文件，不提交）
+logs/ai_interactions/
+logs/bestseller_analysis/
+logs/genre_updates/
+logs/conversations/
+logs/*.md
