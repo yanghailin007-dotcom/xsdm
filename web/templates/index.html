@@ -1097,8 +1097,10 @@
 
         // ==================== 生成处理 ====================
         async function handleGeneration() {
+            // 自动去除书名号《》
+            const title = document.getElementById('title').value.replace(/[《》]/g, '').trim();
             const formData = {
-                title: document.getElementById('title').value,
+                title: title,
                 summary: document.getElementById('summary').value,
                 settings: document.getElementById('settings').value,
                 total_chapters: parseInt(document.getElementById('form-total-chapters').value),

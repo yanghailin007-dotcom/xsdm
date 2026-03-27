@@ -1150,8 +1150,10 @@
 
     // 保存表单创意
     async function saveFormIdea() {
+        // 自动去除书名号《》
+        const title = document.getElementById('cw-form-title').value.replace(/[《》]/g, '').trim();
         const data = {
-            novelTitle: document.getElementById('cw-form-title').value.trim(),
+            novelTitle: title,
             totalChapters: parseInt(document.getElementById('cw-form-total-chapters').value) || 200,
             coreSetting: document.getElementById('cw-form-core-setting').value.trim(),
             coreSellingPoints: document.getElementById('cw-form-selling-points').value.trim(),

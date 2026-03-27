@@ -33,6 +33,9 @@ class UnifiedProjectManager:
         Returns:
             项目信息字典
         """
+        # 自动去除书名号《》
+        novel_title = novel_title.replace('《', '').replace('》', '').strip()
+        
         return {
             # ========== 基础信息（两种模式都有）==========
             "novel_title": novel_title,
@@ -296,6 +299,9 @@ class ProjectDirectoryManager:
         Returns:
             项目根目录路径
         """
+        # 自动去除书名号《》
+        novel_title = novel_title.replace('《', '').replace('》', '').strip()
+        
         # 🔥 如果提供了用户名，创建用户子目录
         if username:
             user_path = base_path / username

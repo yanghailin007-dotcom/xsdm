@@ -759,7 +759,9 @@ async function startGeneration() {
   btn.innerHTML = '<span class="material-icons">hourglass_top</span>生成中...';
   
   // 获取表单值
-  const title = document.getElementById('novel-title').value;
+  let title = document.getElementById('novel-title').value;
+  // 自动去除书名号《》
+  title = title.replace(/[《》]/g, '').trim();
   const sellpoint = document.getElementById('novel-sellpoint').value;
   const wordcount = parseInt(document.getElementById('novel-wordcount').value) * 10000; // 万字转字数
   const chapters = parseInt(document.getElementById('novel-chapters').value);
