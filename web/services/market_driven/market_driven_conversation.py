@@ -867,7 +867,11 @@ class MarketDrivenConversationSession:
         self._logger.log_round("generate_emotion_curve", self.session.messages.copy(), response if isinstance(response, str) else json.dumps(response))
         logger.info(f"[对话模式 {self.session_id}] 步骤5响应接收 | 总对话轮次: {self.session.turn_count}")
         result = self._parse_json_response(response, "emotion_curve")
-        return result.get("curve", [])
+        if isinstance(result, dict):
+            return result.get("curve", [])
+        elif isinstance(result, list):
+            return result
+        return []
     
     def _extract_faction_system(self, worldview: Dict) -> Dict:
         """从世界观提取势力系统"""
@@ -1010,7 +1014,8 @@ class MarketDrivenConversationSession:
         total_chapters = len(previous_results.get('emotion_curve', []))
         
         if result and isinstance(result, dict) and "stage_goals" in result:
-            return result["stage_goals"]
+            sg = result["stage_goals"]
+            return sg if isinstance(sg, list) else [sg]
         elif result and isinstance(result, list):
             return result
         else:
@@ -1529,13 +1534,13 @@ class MarketDrivenConversationSession:
         prompt_parts.append("\n## 当前设计（需优化）\n")
         
         emotion_curve = previous_results.get('emotion_curve', [])
-        if emotion_curve:
+        if isinstance(emotion_curve, list) and emotion_curve:
             prompt_parts.append("\n### 情绪曲线（前10章）")
             for point in emotion_curve[:10]:
                 prompt_parts.append(f"- 第{point.get('chapter', '?')}章: {point.get('emotion', '?')} (强度{point.get('intensity', '?')})")
         
         stage_goals = previous_results.get('stage_goals', [])
-        if stage_goals:
+        if isinstance(stage_goals, list) and stage_goals:
             prompt_parts.append("\n### 阶段目标")
             for goal in stage_goals[:3]:
                 prompt_parts.append(f"- {goal.get('goal_id', '?')}: {goal.get('description', '?')[:50]}")

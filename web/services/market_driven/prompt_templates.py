@@ -134,8 +134,10 @@ class PromptTemplateGenerator:
 
 只返回JSON，不要其他说明。"""
     
-    def generate_step2_worldview_prompt(self, existing_worldview: Dict = None) -> str:
+    def generate_step2_worldview_prompt(self, existing_worldview: Dict = None, total_chapters: int = 100) -> str:
         """生成步骤2（世界观）的Prompt"""
+        early_end = max(10, total_chapters // 3)
+        mid_end = max(early_end + 10, total_chapters * 2 // 3)
         return f"""# 角色：世界观架构师（基于爆款公式）
 
 基于步骤1确定的题材、主角、金手指，生成完整的世界观。
@@ -145,9 +147,9 @@ class PromptTemplateGenerator:
 
 ## 🎯 势力系统设计公式
 必须包含3个对立势力：
-1. **早期敌对势力**（1-30章）：{self.analysis.get("character_formula", {}).get("antagonists", {}).get("early", "势利眼小人物")}
-2. **中期敌对势力**（31-100章）：{self.analysis.get("character_formula", {}).get("antagonists", {}).get("mid", "富二代、地方势力")}
-3. **后期敌对势力**（100章+）：{self.analysis.get("character_formula", {}).get("antagonists", {}).get("late", "国际势力、隐藏大佬")}
+1. **早期敌对势力**（1-{early_end}章）：{self.analysis.get("character_formula", {}).get("antagonists", {}).get("early", "势利眼小人物")}
+2. **中期敌对势力**（{early_end + 1}-{mid_end}章）：{self.analysis.get("character_formula", {}).get("antagonists", {}).get("mid", "富二代、地方势力")}
+3. **后期敌对势力**（{mid_end + 1}章+）：{self.analysis.get("character_formula", {}).get("antagonists", {}).get("late", "国际势力、隐藏大佬")}
 
 ## 🏛️ 社会规则设计（必须有利于装逼打脸）
 - 阶层划分：如何体现等级差异？
@@ -155,9 +157,9 @@ class PromptTemplateGenerator:
 - 认可机制：如何获得社会地位？
 
 ## 🗺️ 地图升级规划
-- 第一地图（1-30章）：本地场景
-- 第二地图（31-100章）：省城/区域
-- 第三地图（100章+）：全国/全球
+- 第一地图（1-{early_end}章）：本地场景
+- 第二地图（{early_end + 1}-{mid_end}章）：省城/区域
+- 第三地图（{mid_end + 1}章+）：全国/全球
 
 ## ✅ 输出格式
 JSON格式，包含：world_overview, power_system, social_structure, factions, world_rules, key_locations
@@ -210,8 +212,12 @@ JSON格式，包含：world_overview, power_system, social_structure, factions, 
 ** 不要返回null，必须返回有效的JSON对象！**
 """
     
-    def generate_step4_growth_prompt(self) -> str:
+    def generate_step4_growth_prompt(self, total_chapters: int = 100) -> str:
         """生成步骤4（成长路线）的Prompt"""
+        m1 = max(5, total_chapters // 10)
+        m2 = max(15, total_chapters // 3)
+        m3 = max(25, total_chapters // 2)
+        m4 = max(50, total_chapters * 3 // 4)
         return f"""# 角色：成长路线规划师（基于爆款升级公式）
 
 基于前30章大纲，规划主角成长里程碑。
@@ -225,10 +231,10 @@ JSON格式，包含：world_overview, power_system, social_structure, factions, 
 3. **关系成长**：从被看不起到被巴结
 
 ## 📊 里程碑设计
-- 第10章：第一次身份跃迁
-- 第30章：阶段性身份曝光
-- 第50章：进入更高圈子
-- 第100章：成为一方霸主
+- 第{m1}章：第一次身份跃迁
+- 第{m2}章：阶段性身份曝光
+- 第{m3}章：进入更高圈子
+- 第{m4}章：成为一方霸主
 
 ## ✅ 输出格式
 JSON格式：protagonist_growth, ability_system_progression, key_relationships_development
