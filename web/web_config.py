@@ -68,10 +68,34 @@ except ImportError as e:
 # Flask应用配置
 import secrets
 
+def _get_or_create_flask_secret():
+    """获取持久化的 Flask Secret Key，避免服务器重启后会话失效"""
+    secret = os.environ.get('FLASK_SECRET_KEY')
+    if secret:
+        return secret
+    
+    secret_file = os.path.join(BASE_DIR, '.flask_secret')
+    if os.path.exists(secret_file):
+        try:
+            with open(secret_file, 'r', encoding='utf-8') as f:
+                secret = f.read().strip()
+            if secret:
+                return secret
+        except Exception:
+            pass
+    
+    secret = secrets.token_hex(32)
+    try:
+        with open(secret_file, 'w', encoding='utf-8') as f:
+            f.write(secret)
+    except Exception:
+        pass
+    return secret
+
 class FlaskConfig:
     """Flask应用配置"""
-    # 优先从环境变量读取，否则生成随机密钥（每次重启会失效会话）
-    SECRET_KEY = os.environ.get('FLASK_SECRET_KEY') or secrets.token_hex(32)
+    # 🔥 修复：使用持久化密钥，避免服务器重启后会话和JWT全部失效
+    SECRET_KEY = _get_or_create_flask_secret()
     DEBUG = os.environ.get('FLASK_DEBUG', 'False').lower() == 'true'
     HOST = '0.0.0.0'
     PORT = 5000  #

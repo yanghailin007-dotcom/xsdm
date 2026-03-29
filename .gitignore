@@ -53,6 +53,8 @@ coverage.xml
 
 # Environments
 .env
+.flask_secret
+.jwt_secret
 .venv
 env/
 venv/

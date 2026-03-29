@@ -90,8 +90,29 @@ class UserModel:
                 )
             """)
             
+            # 🔥 数据库迁移：添加缺失的字段
+            self._migrate_db(conn)
+            
             conn.commit()
             logger.info(f"✅ 数据库初始化完成: {self.db_path}")
+    
+    def _migrate_db(self, conn: sqlite3.Connection):
+        """执行数据库迁移（添加新字段等）"""
+        # 检查 users 表是否已有 welcome_shown_at 字段
+        try:
+            cursor = conn.execute("PRAGMA table_info(users)")
+            columns = [row['name'] for row in cursor.fetchall()]
+            
+            if 'welcome_shown_at' not in columns:
+                logger.info("[DB Migrate] 添加 welcome_shown_at 字段到 users 表")
+                conn.execute("ALTER TABLE users ADD COLUMN welcome_shown_at TIMESTAMP")
+            
+            if 'avatar' not in columns:
+                logger.info("[DB Migrate] 添加 avatar 字段到 users 表")
+                conn.execute("ALTER TABLE users ADD COLUMN avatar TEXT")
+                
+        except Exception as e:
+            logger.error(f"❌ 数据库迁移失败: {e}")
     
     def _hash_password(self, password: str) -> str:
         """哈希密码 - 优先使用bcrypt，降级到SHA256（用于兼容旧数据）"""

@@ -3,6 +3,7 @@ JWT 认证模块 - 支持多账号切换
 基于 Token 的无状态认证
 """
 import jwt
+import os
 import secrets
 from datetime import datetime, timedelta
 from functools import wraps
@@ -14,10 +15,49 @@ JWT_ACCESS_TOKEN_EXPIRES = timedelta(hours=2)      # Access Token 2小时过期
 JWT_REFRESH_TOKEN_EXPIRES = timedelta(days=30)     # Refresh Token 30天过期
 
 
+def _get_or_create_jwt_secret():
+    """
+    获取持久化的 JWT 密钥。
+    优先顺序：
+    1. 环境变量 JWT_SECRET_KEY
+    2. 环境变量 FLASK_SECRET_KEY
+    3. 项目根目录 .jwt_secret 文件
+    4. 生成新密钥并保存到 .jwt_secret 文件
+    """
+    # 1. 环境变量
+    secret = os.environ.get('JWT_SECRET_KEY') or os.environ.get('FLASK_SECRET_KEY')
+    if secret:
+        return secret
+    
+    # 2. 持久化文件
+    project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    secret_file = os.path.join(project_root, '.jwt_secret')
+    
+    if os.path.exists(secret_file):
+        try:
+            with open(secret_file, 'r', encoding='utf-8') as f:
+                secret = f.read().strip()
+            if secret:
+                return secret
+        except Exception:
+            pass
+    
+    # 3. 生成并保存
+    secret = secrets.token_hex(32)
+    try:
+        with open(secret_file, 'w', encoding='utf-8') as f:
+            f.write(secret)
+    except Exception:
+        pass
+    
+    return secret
+
+
 def init_jwt(app):
     """初始化 JWT 配置"""
     global JWT_SECRET_KEY
-    JWT_SECRET_KEY = app.config.get('SECRET_KEY') or secrets.token_hex(32)
+    # 🔥 修复：使用持久化密钥，避免服务器重启后所有 refresh token 失效
+    JWT_SECRET_KEY = app.config.get('SECRET_KEY') or _get_or_create_jwt_secret()
     
     # 从配置读取过期时间
     global JWT_ACCESS_TOKEN_EXPIRES, JWT_REFRESH_TOKEN_EXPIRES
