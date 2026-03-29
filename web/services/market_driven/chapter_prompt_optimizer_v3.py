@@ -126,20 +126,55 @@ class ChapterPromptOptimizerV3:
         
         Args:
             novel_data: 小说数据，包含title, plan, emotion_curve等
+            
+        Raises:
+            TypeError: 当novel_data格式不正确时
         """
-        # 确保 novel_data 是字典类型
-        if isinstance(novel_data, list):
-            logger.warning(f"[PromptV3] novel_data 是列表类型，转换为字典")
-            novel_data = novel_data[0] if novel_data else {}
+        # 严格检查 novel_data 类型 - 不自动转换，直接报错
         if not isinstance(novel_data, dict):
-            logger.warning(f"[PromptV3] novel_data 类型异常: {type(novel_data)}，使用空字典")
-            novel_data = {}
+            raise TypeError(
+                f"[PromptV3] novel_data 必须是字典类型，但传入的是 {type(novel_data)}。"
+                f"请检查数据格式，确保在调用前将数据转换为正确的字典格式。"
+            )
         self.novel_data = novel_data
+        
+        # 严格获取字段 - 如果字段类型错误，直接报错
         self.title = novel_data.get('title', '未命名')
-        self.plan = novel_data.get('plan', {})
-        self.emotion_curve = novel_data.get('emotion_curve', {})
-        self.char_design = novel_data.get('character_design', {})
-        self.worldview = novel_data.get('core_worldview', {})
+        
+        # 检查 plan 字段
+        plan = novel_data.get('plan')
+        if plan is not None and not isinstance(plan, dict):
+            raise TypeError(f"[PromptV3] novel_data['plan'] 必须是字典或None，但传入的是 {type(plan)}")
+        self.plan = plan or {}
+        
+        # 检查 emotion_curve 字段
+        emotion_curve = novel_data.get('emotion_curve')
+        if emotion_curve is not None and not isinstance(emotion_curve, dict):
+            if isinstance(emotion_curve, list):
+                # 🔥 修复：支持旧版列表格式，转换为新版字典格式
+                logger.info(f"[PromptV3] emotion_curve 是列表类型（旧格式），包含{len(emotion_curve)}条记录，转换为字典格式")
+                # 将列表格式转换为字典格式（包装为 phase_1 阶段）
+                emotion_curve = {
+                    'phase_1_early_domination': {
+                        'curve': emotion_curve,
+                        'key_milestones': []
+                    }
+                }
+            else:
+                raise TypeError(f"[PromptV3] novel_data['emotion_curve'] 必须是字典或列表或None，但传入的是 {type(emotion_curve)}")
+        self.emotion_curve = emotion_curve or {}
+        
+        # 检查 character_design 字段
+        char_design = novel_data.get('character_design')
+        if char_design is not None and not isinstance(char_design, dict):
+            raise TypeError(f"[PromptV3] novel_data['character_design'] 必须是字典或None，但传入的是 {type(char_design)}")
+        self.char_design = char_design or {}
+        
+        # 检查 core_worldview 字段
+        worldview = novel_data.get('core_worldview')
+        if worldview is not None and not isinstance(worldview, dict):
+            raise TypeError(f"[PromptV3] novel_data['core_worldview'] 必须是字典或None，但传入的是 {type(worldview)}")
+        self.worldview = worldview or {}
         
         # 检测题材类型
         self.genre_type = self._detect_genre_type()
@@ -152,6 +187,13 @@ class ChapterPromptOptimizerV3:
     def _detect_genre_type(self) -> str:
         """检测题材类型"""
         genre = self.novel_data.get('genre', '')
+        
+        # 防御性检查：确保 genre 是字符串
+        if isinstance(genre, list):
+            genre = ' '.join(str(g) for g in genre)
+        elif not isinstance(genre, str):
+            genre = str(genre)
+        
         plan = self.novel_data.get('plan', {})
         
         # 从genre字段判断
@@ -176,6 +218,12 @@ class ChapterPromptOptimizerV3:
         golden_finger = plan.get('golden_finger', {})
         gf_type = golden_finger.get('type', '')
         
+        # 防御性检查：确保 gf_type 是字符串
+        if isinstance(gf_type, list):
+            gf_type = ' '.join(str(g) for g in gf_type)
+        elif not isinstance(gf_type, str):
+            gf_type = str(gf_type)
+        
         if '国运' in gf_type:
             return '国运文'
         elif '神豪' in gf_type or '花钱' in gf_type:
@@ -190,7 +238,11 @@ class ChapterPromptOptimizerV3:
         # 🔥 优先从 user_choices 获取用户填写的主角名
         user_choices = self.novel_data.get('user_choices', {})
         if user_choices and user_choices.get('protagonist_name'):
-            return user_choices['protagonist_name']
+            name = user_choices['protagonist_name']
+            # 🔥 清理主角名：去掉括号及后面的描述
+            import re
+            name = re.split(r'[（(]', name)[0].strip()
+            return name
         
         char_design = self.char_design
         if char_design:
@@ -912,8 +964,13 @@ class ChapterPromptOptimizerV3:
     
     # ==================== 单章提示词构建（核心）====================
     
-    def build_chapter_prompt(self, chapter_num: int, blueprint: Dict = None, 
-                            prev_summary: str = "") -> str:
+    def build_chapter_prompt(
+        self, 
+        chapter_num: int, 
+        blueprint: Dict = None, 
+        prev_summary: str = "",
+        stage_goal: Dict = None  # ← 新增：阶段目标
+    ) -> str:
         """
         构建单章生成提示词（v3.0终极版）
         
@@ -921,6 +978,7 @@ class ChapterPromptOptimizerV3:
             chapter_num: 章节号
             blueprint: 章节规划
             prev_summary: 前文摘要
+            stage_goal: 阶段目标（与战术目标对齐）
             
         Returns:
             完整的单章提示词
@@ -930,13 +988,35 @@ class ChapterPromptOptimizerV3:
         
         logger.info(f"[PromptV3] 构建第{chapter_num}章提示词 | 类型: {chapter_type}")
         
+        # 构建阶段目标对齐提示
+        goal_alignment = ""
+        if stage_goal:
+            goal_alignment = f"""
+## 【阶段目标对齐 - 必须遵守】
+当前阶段目标: {stage_goal.get('description', '无')}
+成功标准: {stage_goal.get('success_criteria', '无')}
+关键交付物: {', '.join(stage_goal.get('key_deliverables', []))}
+
+本章必须服务于阶段目标，推进关键交付物的完成。
+"""
+        
         # 根据类型选择模板
         if chapter_type.startswith('GOLDEN_'):
-            return self._build_golden_chapter_prompt(chapter_num, chapter_type, 
-                                                      blueprint, prev_summary)
-        else:
-            return self._build_standard_chapter_prompt(chapter_num, chapter_type,
+            prompt = self._build_golden_chapter_prompt(chapter_num, chapter_type, 
                                                         blueprint, prev_summary)
+        else:
+            prompt = self._build_standard_chapter_prompt(chapter_num, chapter_type,
+                                                          blueprint, prev_summary)
+        
+        # 在标准提示词后插入阶段目标对齐（黄金三章除外，它们有特殊结构）
+        if not chapter_type.startswith('GOLDEN_'):
+            # 在字数要求之前插入阶段目标对齐
+            prompt = prompt.replace(
+                "## 【字数强制要求】",
+                f"{goal_alignment}\n## 【字数强制要求】"
+            )
+        
+        return prompt
     
     def _build_golden_chapter_prompt(self, chapter_num: int, chapter_type: str,
                                       blueprint: Dict, prev_summary: str) -> str:
@@ -1474,6 +1554,9 @@ XXX搂着前女友，当众嘲讽：
 ## 【情绪设计】
 {emotion_beat if emotion_beat else "情绪类型：根据章节位置调整 | 强度：7-9/10"}
 
+## 【战术规划 - 必须严格遵守】
+{self._build_tactical_plan_section(chapter_num, blueprint)}
+
 ## 【前文摘要】（必须承接）
 {self._format_prev_summary(prev_summary, chapter_num, blueprint)}
 
@@ -1841,10 +1924,12 @@ XXX搂着前女友，当众嘲讽：
         if not plan:
             return f"第{chapter_num}章"
         
-        # 获取前30章大纲
+        # 🔥 弃用：outline_first_30 不再在一阶段生成
+        # 详细章节规划现由 TacticalPlanner 动态生成
+        # 保留此代码仅用于向后兼容，实际返回回退值
         outline = plan.get('outline_first_30', [])
         
-        # 查找该章
+        # 查找该章（legacy，通常为空列表）
         for item in outline:
             if isinstance(item, dict):
                 ch = item.get('chapter', item.get('ch', 0))
@@ -1931,43 +2016,81 @@ XXX搂着前女友，当众嘲讽：
         
         return checklists.get(chapter_type, checklists.get("FACE_SLAP", ""))
     
-    def _format_prev_summary(self, prev_summary: str, chapter_num: int, blueprint: Dict) -> str:
+    def _build_tactical_plan_section(self, chapter_num: int, blueprint: Dict) -> str:
         """
-        格式化前文摘要（修复BUG：空字符串时使用默认值的问题）
+        构建战术规划部分 - 从blueprint提取本章的详细规划
         
-        简单修复：如果prev_summary为空，从blueprint提取关键信息
+        修复：确保 tactical_plan 中的 event、beat_type、purpose 等被正确传递给AI
         """
-        # 如果有有效的prev_summary，直接使用
-        if prev_summary and len(prev_summary.strip()) > 30:
-            return prev_summary
+        if not blueprint:
+            return "战术规划：无（请自由发挥，但需符合章节类型）"
         
-        # 否则从blueprint提取关键事件
-        lines = [f"第{chapter_num-1}章关键信息："]
+        chapters = blueprint.get('chapters', [])
+        chapter_plan = None
         
-        # 尝试从blueprint获取上一章信息
-        if blueprint:
-            # 获取情绪曲线
-            emotion_curve = blueprint.get('emotion_curve', [])
-            if len(emotion_curve) >= chapter_num - 1:
-                prev_emotion = emotion_curve[chapter_num - 2]
-                lines.append(f"- 情绪：{prev_emotion.get('emotion', '未知')} (强度{prev_emotion.get('intensity', '?')})")
-            
-            # 获取章节大纲
-            chapters = blueprint.get('chapters', {})
-            prev_key = f"chapter_{chapter_num-1:03d}"
-            if prev_key in chapters:
-                prev_plan = chapters[prev_key]
-                if prev_plan.get('key_event'):
-                    lines.append(f"- 事件：{prev_plan['key_event']}")
-                if prev_plan.get('villain') or prev_plan.get('antagonist'):
-                    name = prev_plan.get('villain') or prev_plan.get('antagonist')
-                    lines.append(f"- 对手：{name}")
+        # 在列表中查找本章规划
+        if isinstance(chapters, list):
+            for ch in chapters:
+                if isinstance(ch, dict) and ch.get('chapter_number') == chapter_num:
+                    chapter_plan = ch
+                    break
+        elif isinstance(chapters, dict):
+            # 兼容旧格式
+            chapter_plan = chapters.get(f"chapter_{chapter_num:03d}")
         
-        # 如果没有任何信息，返回默认文本
-        if len(lines) == 1:
-            return "承接上一章剧情，保持连贯性"
+        if not chapter_plan:
+            return f"战术规划：第{chapter_num}章无详细规划（请根据章节类型自由发挥）"
+        
+        # 构建详细的战术规划提示
+        lines = []
+        
+        if chapter_plan.get('emotion'):
+            lines.append(f"情绪类型：{chapter_plan['emotion']}")
+        if chapter_plan.get('intensity'):
+            lines.append(f"情绪强度：{chapter_plan['intensity']}/10")
+        if chapter_plan.get('beat_type'):
+            lines.append(f"节拍类型：{chapter_plan['beat_type']}")
+        if chapter_plan.get('event'):
+            lines.append(f"关键事件：{chapter_plan['event']}")
+        if chapter_plan.get('purpose'):
+            lines.append(f"章节目的：{chapter_plan['purpose']}")
+        if chapter_plan.get('hook_type'):
+            lines.append(f"钩子类型：{chapter_plan['hook_type']}")
+        if chapter_plan.get('hook_content'):
+            lines.append(f"钩子内容：{chapter_plan['hook_content']}")
+        if chapter_plan.get('stage_goal_alignment'):
+            lines.append(f"阶段目标对齐：{chapter_plan['stage_goal_alignment']}")
+        
+        if not lines:
+            return "战术规划：有规划但缺少详细信息"
         
         return "\n".join(lines)
+    
+    def _format_prev_summary(self, prev_summary: str, chapter_num: int, blueprint: Dict) -> str:
+        """
+        格式化前文摘要（增强版）
+        
+        优化：使用 _build_tactical_plan_section 获取更完整的前一章战术规划
+        """
+        result_lines = []
+        
+        # 优先使用传入的摘要（如果有效）
+        if prev_summary and len(prev_summary.strip()) > 50:
+            result_lines.append(f"第{chapter_num-1}章内容摘要：{prev_summary[:400]}")
+        
+        # 使用 _build_tactical_plan_section 获取前一章战术规划
+        if blueprint and chapter_num > 1:
+            prev_tactical = self._build_tactical_plan_section(chapter_num - 1, blueprint)
+            if prev_tactical and not prev_tactical.startswith("战术规划：无"):
+                result_lines.append(f"第{chapter_num-1}章战术规划：")
+                for line in prev_tactical.split('\n'):
+                    result_lines.append(f"  {line}")
+        
+        if result_lines:
+            return "\n".join(result_lines)
+        
+        return f"继续第{chapter_num-1}章剧情，保持连贯性"
+
 
 
 # ==================== 便捷函数 ====================

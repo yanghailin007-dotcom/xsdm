@@ -189,13 +189,14 @@ class MarketDrivenPlanGenerator:
         # 4. 生成主角人设
         protagonist = self._generate_protagonist(tropes, user_choices)
         
-        # 5. 生成前30章大纲
-        outline = self._generate_outline(tropes, user_choices)
+        # 🔥 移除：不再生成前30章固定大纲（outline_first_30）
+        # 详细章节规划改由 TacticalPlanner 动态生成
+        # outline = self._generate_outline(tropes, user_choices)
         
-        # 6. 生成核心卖点
+        # 5. 生成核心卖点
         selling_points = self._generate_selling_points(tropes)
         
-        # 7. 生成番茄上传标签（关键！用于自动上传）
+        # 6. 生成番茄上传标签（关键！用于自动上传）
         tags = self._generate_fanqie_tags(genre, tropes, user_choices)
         
         plan = {
@@ -216,8 +217,9 @@ class MarketDrivenPlanGenerator:
             # 主角人设
             "protagonist": protagonist,
             
-            # 前30章大纲
-            "outline_first_30": outline,
+            # 🔥 移除：outline_first_30 不再在一阶段生成
+            # 章节详细规划由 TacticalPlanner 在生成阶段动态提供
+            # "outline_first_30": outline,
             
             # 核心卖点
             "core_selling_points": selling_points,
@@ -571,9 +573,9 @@ class MarketDrivenPlanGenerator:
     
     def _get_default_name(self) -> str:
         """获取默认主角名"""
-        import random
-        names = ["夏天", "叶辰", "林凡", "萧战", "秦风", "杨明", "张浩", "李强"]
-        return random.choice(names)
+        # 不再随机选择，使用统一的默认名
+        # 注意：实际项目中应该从user_choices获取 protagonist_name
+        return "苏辰"
     
     def _generate_outline(self, tropes: Dict, user_choices: Dict) -> List[Dict]:
         """

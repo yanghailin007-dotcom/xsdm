@@ -115,7 +115,7 @@ class MarketDrivenConversationSession:
     ]
     
     def __init__(self, api_client, genre: str, user_choices: Dict, 
-                 tropes: Optional[Dict] = None, provider: str = "kimi"):
+                 tropes: Optional[Dict] = None, provider: str = None):
         """
         初始化市场导向对话会话
         
@@ -124,10 +124,12 @@ class MarketDrivenConversationSession:
             genre: 题材
             user_choices: 用户选择（包含标题、剧情路线、主角等）
             tropes: 套路分析结果（可选，作为参考）
-            provider: 提供商，默认kimi
+            provider: 提供商，None则使用APIClient默认提供商
         """
-        if provider != "kimi":
-            raise ValueError(f"仅支持kimi provider, 当前: {provider}")
+        # 🔥 修复：支持任意提供商，不再硬编码kimi
+        if provider is None:
+            provider = getattr(api_client, 'default_provider', 'kimi')
+            logger.info(f"[对话模式] 使用APIClient默认提供商: {provider}")
         
         self.api_client = api_client
         self.genre = genre
@@ -146,7 +148,8 @@ class MarketDrivenConversationSession:
             try:
                 logger.info(f"[对话模式 {self.session_id}] 启动爆款反向工程分析...")
                 analyzer = BestsellerAnalyzer(api_client=api_client)
-                bestseller_analysis = analyzer.analyze_genre(genre, use_cache=True)
+                # 🔥 修复：禁用缓存，确保每次生成都是新鲜的分析结果
+                bestseller_analysis = analyzer.analyze_genre(genre, use_cache=False)
                 
                 # 验证分析结果是否有效
                 if bestseller_analysis and isinstance(bestseller_analysis, dict):
@@ -388,7 +391,7 @@ class MarketDrivenConversationSession:
         logger.info(f"[对话模式 {self.session_id}] 开始5步对话生成流程...")
         
         # 步骤1: 生成方案 (20%) -> UI阶段: planning
-        logger.info(f"[对话模式 {self.session_id}] [UI:planning] 步骤1/5: 生成完整方案")
+        logger.info(f"[对话模式 {self.session_id}] [UI:planning] 步骤1/6: 生成完整方案")
         if progress_callback:
             progress_callback("generate_plan", 20)
         plan = self._generate_plan()
@@ -396,8 +399,20 @@ class MarketDrivenConversationSession:
         results["title"] = plan.get("title", "")
         logger.info(f"[对话模式 {self.session_id}] [UI:planning] 步骤1完成 | 标题: {plan.get('title', 'N/A')}")
         
+        # 🔥 步骤1B: 生成番茄上传数据（书名、简介、标签）
+        logger.info(f"[对话模式 {self.session_id}] [UI:planning] 步骤1B/6: 生成番茄上传数据")
+        if progress_callback:
+            progress_callback("generate_fanqie_data", 28)
+        fanqie_data = self._generate_fanqie_upload_data(plan)
+        results["fanqie_upload_data"] = fanqie_data
+        # 同步到 plan 以便后续使用
+        plan["recommended_title"] = fanqie_data["title"]
+        plan["core_selling_points"] = [{"point": fanqie_data["synopsis"]}]
+        plan["tags"] = fanqie_data["tags"]
+        logger.info(f"[对话模式 {self.session_id}] [UI:planning] 步骤1B完成 | 书名: {fanqie_data['title']}")
+        
         # 步骤2: 生成世界观 (35%) -> UI阶段: worldview
-        logger.info(f"[对话模式 {self.session_id}] [UI:worldview] 步骤2/5: 生成世界观")
+        logger.info(f"[对话模式 {self.session_id}] [UI:worldview] 步骤2/7: 生成世界观")
         if progress_callback:
             progress_callback("generate_worldview", 35)
         worldview = self._generate_worldview()
@@ -406,7 +421,7 @@ class MarketDrivenConversationSession:
         logger.info(f"[对话模式 {self.session_id}] [UI:worldview] 步骤2完成")
         
         # 步骤3: 生成角色 (50%) -> UI阶段: worldview
-        logger.info(f"[对话模式 {self.session_id}] [UI:worldview] 步骤3/5: 生成角色设计")
+        logger.info(f"[对话模式 {self.session_id}] [UI:worldview] 步骤3/7: 生成角色设计")
         if progress_callback:
             progress_callback("generate_characters", 50)
         characters = self._generate_characters()
@@ -414,27 +429,45 @@ class MarketDrivenConversationSession:
         logger.info(f"[对话模式 {self.session_id}] [UI:worldview] 步骤3完成")
         
         # 步骤4: 生成成长路线 (65%) -> UI阶段: worldview
-        logger.info(f"[对话模式 {self.session_id}] [UI:worldview] 步骤4/5: 生成成长路线")
+        logger.info(f"[对话模式 {self.session_id}] [UI:worldview] 步骤4/7: 生成成长路线")
         if progress_callback:
             progress_callback("generate_growth_plan", 65)
         growth_plan = self._generate_growth_plan()
         results["global_growth_plan"] = growth_plan
         logger.info(f"[对话模式 {self.session_id}] [UI:worldview] 步骤4完成")
         
-        # 步骤5: 生成情绪曲线 (80%) -> UI阶段: chapters
-        logger.info(f"[对话模式 {self.session_id}] [UI:chapters] 步骤5/5: 生成情绪曲线")
+        # 步骤5: 生成情绪曲线和阶段目标 (80%) -> UI阶段: chapters
+        # 🔥 修正：阶段目标（stage_goals）在一阶段确定，战术规划（tactical_plan）留在生成阶段动态生成
+        logger.info(f"[对话模式 {self.session_id}] [UI:chapters] 步骤5/7: 生成情绪曲线和阶段目标")
         if progress_callback:
             progress_callback("generate_emotion_curve", 80)
         emotion_curve = self._generate_emotion_curve()
         results["emotion_curve"] = emotion_curve
-        logger.info(f"[对话模式 {self.session_id}] [UI:chapters] 步骤5完成")
+        
+        # 🔥 阶段目标在世界观步骤后生成（基于完整设定）
+        stage_goals = self._generate_stage_goals(results)
+        results["stage_goals"] = stage_goals
+        logger.info(f"[对话模式 {self.session_id}] [UI:chapters] 步骤5完成 | 阶段目标数: {len(stage_goals)}")
+        
+        # 🔥 步骤6: 爆款对齐检查与优化 (90%) -> UI阶段: final_check
+        logger.info(f"[对话模式 {self.session_id}] [UI:final_check] 步骤6/7: 爆款对齐检查与优化")
+        if progress_callback:
+            progress_callback("bestseller_alignment", 90)
+        aligned_results = self._bestseller_alignment_check(results)
+        results.update(aligned_results)
+        logger.info(f"[对话模式 {self.session_id}] [UI:final_check] 步骤6完成 | 对齐优化完成")
+        
+        # 步骤7: 生成附加产物 (100%) -> UI阶段: complete
+        logger.info(f"[对话模式 {self.session_id}] [UI:complete] 步骤7/7: 生成附加产物")
+        if progress_callback:
+            progress_callback("generate_supplementary", 100)
         
         # 补充产物
         results["writing_style_guide"] = self._generate_writing_style_guide()
         results["market_analysis"] = self._generate_market_analysis()
         results["emotional_blueprint"] = self._generate_emotional_blueprint()
         
-        logger.info(f"[对话模式 {self.session_id}] ✅ 所有步骤完成 | 总轮次: {self.session.turn_count}")
+        logger.info(f"[对话模式 {self.session_id}] ✅ 所有7个步骤完成 | 总轮次: {self.session.turn_count}")
         return results
     
     def _generate_plan(self) -> Dict:
@@ -475,17 +508,176 @@ class MarketDrivenConversationSession:
             prompt = "\n".join(prompt_parts)
         
         logger.info(f"[对话模式 {self.session_id}] 发送步骤1提示词 | 当前消息历史: {len(self.session.messages)}条")
-        response = self.session.send_message(prompt, temperature=0.7)
+        # 🔥 提高 temperature 增加多样性，使用随机种子
+        response = self.session.send_message(prompt, temperature=0.85, purpose="步骤1-生成方案")
         self._logger.log_round("generate_plan", self.session.messages.copy(), response if isinstance(response, str) else json.dumps(response))
         logger.info(f"[对话模式 {self.session_id}] 步骤1响应接收 | 总对话轮次: {self.session.turn_count}")
         return self._parse_json_response(response, "plan")
     
+    # 🔥 番茄小说标签预制映射（参考 plan_generator.py）
+    FANQIE_TAG_MAPPINGS = {
+        "male": {
+            "神豪文-花钱返利类": {"main_category": "都市", "themes": ["神豪", "赚钱", "逆袭"], "roles": ["屌丝", "神豪", "美女"], "plots": ["系统流", "打脸", "逆袭"]},
+            "国运文-直播类": {"main_category": "都市", "themes": ["国运", "直播", "无敌流"], "roles": ["主播", "选手", "观众"], "plots": ["直播流", "国运流", "召唤流"]},
+            "国运文-扮演类": {"main_category": "都市", "themes": ["国运", "扮演", "无敌流"], "roles": ["扮演者", "选手", "历史人物"], "plots": ["扮演流", "国运流", "召唤流"]},
+            "奶爸文-萌宝类": {"main_category": "都市", "themes": ["奶爸", "萌宝", "温馨"], "roles": ["奶爸", "萌娃", "宝妈"], "plots": ["带娃流", "温馨流", "日常流"]},
+            "签到文-系统类": {"main_category": "都市", "themes": ["签到", "系统", "无敌流"], "roles": ["普通人", "强者", "美女"], "plots": ["签到流", "系统流", "无敌流"]},
+            "末日求生-囤货类": {"main_category": "科幻", "themes": ["末日", "囤货", "求生"], "roles": ["求生者", "幸存者", "异能者"], "plots": ["末日流", "囤货流", "求生流"]},
+            "灵气复苏-修炼类": {"main_category": "都市", "themes": ["灵气复苏", "修炼", "无敌流"], "roles": ["修炼者", "强者", "校花"], "plots": ["灵气复苏流", "修炼流", "无敌流"]},
+        },
+        "female": {
+            "甜宠文-总裁类": {"main_category": "现代言情", "themes": ["甜宠", "总裁", "豪门"], "roles": ["女主", "总裁", "情敌"], "plots": ["先婚后爱", "追妻火葬场", "甜宠"]},
+            "重生文-复仇类": {"main_category": "古代言情", "themes": ["重生", "复仇", "宅斗"], "roles": ["重生女主", "王爷", "白莲花"], "plots": ["重生复仇", "宅斗", "打脸"]},
+        }
+    }
+    
+    DEFAULT_TAGS = {
+        "male": {"main_category": "都市", "themes": ["系统", "爽文", "无敌流"], "roles": ["男主", "美女", "反派"], "plots": ["系统流", "打脸", "逆袭"]},
+        "female": {"main_category": "现代言情", "themes": ["甜宠", "爽文", "豪门"], "roles": ["女主", "男主", "女配"], "plots": ["甜宠", "打脸", "逆袭"]}
+    }
+    
+    def _generate_fanqie_upload_data(self, plan: Dict) -> Dict:
+        """
+        生成番茄上传所需的专业数据（书名、简介、标签）
+        
+        🔥 参考 plan_generator.py 的专业实现：
+        - 标签使用预制映射（FANQIE_TAG_MAPPINGS）
+        - 简介使用番茄爆款公式生成
+        """
+        title = self.user_choices.get('title', '未命名')
+        protagonist_name = self.user_choices.get('protagonist_name', '主角')
+        genre = self.genre
+        
+        # 1. 书名优化（基于用户确定的标题）
+        optimized_title = self._optimize_title_for_fanqie(title, genre)
+        
+        # 2. 生成专业简介（使用番茄爆款公式）
+        synopsis = self._generate_synopsis_by_formula(plan, protagonist_name, genre)
+        
+        # 3. 获取预制标签（参考 plan_generator.py）
+        tags = self._get_fanqie_tags(genre)
+        
+        return {
+            "title": optimized_title,
+            "synopsis": synopsis,
+            "tags": tags
+        }
+    
+    def _optimize_title_for_fanqie(self, title: str, genre: str) -> str:
+        """优化书名符合番茄爆款公式"""
+        # 去除书名号
+        title = title.replace('《', '').replace('》', '').strip()
+        
+        # 确保≤15字
+        if len(title) > 15:
+            title = title[:15]
+        
+        return title
+    
+    def _generate_synopsis_by_formula(self, plan: Dict, protagonist_name: str, genre: str) -> str:
+        """
+        使用番茄爆款简介公式生成简介
+        
+        爆款简介公式（3段式）：
+        第1段：主角身份/困境（引发共鸣）
+        第2段：获得金手指（期待感）
+        第3段：将要做什么（爽点预告）
+        """
+        # 从 plan 提取关键信息
+        gf = plan.get("golden_finger", {})
+        protagonist = plan.get("protagonist", {})
+        
+        # 提取金手指描述
+        gf_desc = gf.get("initial", "") if isinstance(gf, dict) else ""
+        if not gf_desc and gf.get("concept"):
+            gf_desc = gf.get("concept", "")
+        
+        # 提取主角特质
+        traits = protagonist.get("traits", []) if isinstance(protagonist, dict) else []
+        trait_str = traits[0] if traits else "普通"
+        
+        # 提取背景
+        background = protagonist.get("background", "") if isinstance(protagonist, dict) else ""
+        
+        # 🔥 使用爆款公式构建简介
+        # 第1段：主角困境
+        if "国运" in genre:
+            part1 = f"{protagonist_name}代表龙国参赛，全国直播，万众瞩目。"
+        elif "神豪" in genre:
+            part1 = f"{protagonist_name}原本是个穷屌丝，被所有人看不起。"
+        elif "末日" in genre:
+            part1 = f"末日降临，{protagonist_name}在危机中求生。"
+        else:
+            part1 = f"{protagonist_name}，一个{trait_str}的{background if background else '普通人'}。"
+        
+        # 第2段：获得金手指
+        if gf_desc:
+            part2 = f"意外获得{gf_desc}，从此人生逆转。"
+        else:
+            part2 = "意外获得神秘系统，开启逆袭之路。"
+        
+        # 第3段：爽点预告
+        if "国运" in genre:
+            part3 = "为国争光，震惊世界，让全世界见证龙国崛起！"
+        elif "神豪" in genre:
+            part3 = "花钱如流水，越花越有钱，装逼打脸停不下来！"
+        elif "末日" in genre:
+            part3 = "囤货求生，建立避难所，成为末日霸主！"
+        elif "奶爸" in genre:
+            part3 = "带娃护家，萌宝助攻，温馨搞笑每一天！"
+        else:
+            part3 = "一路逆袭，打脸反派，成就无上传奇！"
+        
+        # 组合简介（50-200字）
+        synopsis = f"{part1}{part2}{part3}"
+        
+        return synopsis
+    
+    def _get_fanqie_tags(self, genre: str) -> Dict:
+        """
+        获取番茄上传标签（参考 plan_generator.py 的预制映射）
+        """
+        # 判断男女频
+        female_keywords = ["奶爸", "萌宝", "甜宠", "重生", "穿越", "快穿", "言情", "娱乐圈"]
+        is_female = any(kw in genre for kw in female_keywords)
+        gender_key = "female" if is_female else "male"
+        
+        # 查找预制标签
+        tag_mappings = self.FANQIE_TAG_MAPPINGS.get(gender_key, self.FANQIE_TAG_MAPPINGS["male"])
+        tags = tag_mappings.get(genre)
+        
+        # 如果没有精确匹配，尝试模糊匹配
+        if not tags:
+            for mapped_genre, mapped_tags in tag_mappings.items():
+                if any(keyword in genre for keyword in mapped_genre.split("-")):
+                    tags = mapped_tags
+                    break
+        
+        # 如果仍然没有匹配，使用默认标签
+        if not tags:
+            tags = self.DEFAULT_TAGS.get(gender_key, self.DEFAULT_TAGS["male"])
+        
+        # 构建完整标签字典
+        return {
+            "target_audience": "女频" if is_female else "男频",
+            "main_category": tags["main_category"],
+            "themes": tags["themes"][:3],
+            "roles": tags["roles"][:3],
+            "plots": tags["plots"][:3]
+        }
+    
+    def _generate_fallback_fanqie_data(self, plan: Dict, title: str, genre: str) -> Dict:
+        """备用方案：使用同样的专业方法生成"""
+        return self._generate_fanqie_upload_data(plan)
+    
     def _generate_worldview(self) -> Dict:
         """生成世界观（使用基于爆款的Prompt模板）"""
+        total_chapters = self.user_choices.get('chapters', 100)
+        
         # 🔥 使用基于爆款分析的Prompt模板
         if self._prompt_generator:
             logger.info(f"[对话模式 {self.session_id}] 使用基于爆款的Prompt模板（步骤2）")
-            prompt = self._prompt_generator.generate_step2_worldview_prompt()
+            prompt = self._prompt_generator.generate_step2_worldview_prompt(total_chapters=total_chapters)
         else:
             # 传统Prompt
             prompt = """请执行【步骤2：生成世界观】
@@ -503,7 +695,7 @@ class MarketDrivenConversationSession:
 只返回JSON。"""
         
         logger.info(f"[对话模式 {self.session_id}] 发送步骤2提示词 | 当前消息历史: {len(self.session.messages)}条")
-        response = self.session.send_message(prompt, temperature=0.7)
+        response = self.session.send_message(prompt, temperature=0.85, purpose="步骤2-生成世界观")
         self._logger.log_round("generate_worldview", self.session.messages.copy(), response if isinstance(response, str) else json.dumps(response))
         logger.info(f"[对话模式 {self.session_id}] 步骤2响应接收 | 总对话轮次: {self.session.turn_count}")
         return self._parse_json_response(response, "worldview")
@@ -549,7 +741,7 @@ class MarketDrivenConversationSession:
             prompt = "\n".join(prompt_parts)
         
         logger.info(f"[对话模式 {self.session_id}] 发送步骤3提示词 | 当前消息历史: {len(self.session.messages)}条")
-        response = self.session.send_message(prompt, temperature=0.7)
+        response = self.session.send_message(prompt, temperature=0.85, purpose="步骤3-生成角色")
         self._logger.log_round("generate_characters", self.session.messages.copy(), response if isinstance(response, str) else json.dumps(response))
         logger.info(f"[对话模式 {self.session_id}] 步骤3响应接收 | 总对话轮次: {self.session.turn_count}")
         
@@ -622,10 +814,12 @@ class MarketDrivenConversationSession:
     
     def _generate_growth_plan(self) -> Dict:
         """生成成长路线（使用基于爆款的Prompt模板）"""
+        total_chapters = self.user_choices.get('chapters', 100)
+        
         # 🔥 使用基于爆款分析的Prompt模板
         if self._prompt_generator:
             logger.info(f"[对话模式 {self.session_id}] 使用基于爆款的Prompt模板（步骤4）")
-            prompt = self._prompt_generator.generate_step4_growth_prompt()
+            prompt = self._prompt_generator.generate_step4_growth_prompt(total_chapters=total_chapters)
         else:
             # 传统Prompt
             prompt = """请执行【步骤4：生成成长路线】
@@ -638,7 +832,7 @@ class MarketDrivenConversationSession:
 只返回JSON。"""
         
         logger.info(f"[对话模式 {self.session_id}] 发送步骤4提示词 | 当前消息历史: {len(self.session.messages)}条")
-        response = self.session.send_message(prompt, temperature=0.7)
+        response = self.session.send_message(prompt, temperature=0.85, purpose="步骤4-生成成长路线")
         self._logger.log_round("generate_growth_plan", self.session.messages.copy(), response if isinstance(response, str) else json.dumps(response))
         logger.info(f"[对话模式 {self.session_id}] 步骤4响应接收 | 总对话轮次: {self.session.turn_count}")
         return self._parse_json_response(response, "growth_plan")
@@ -669,7 +863,7 @@ class MarketDrivenConversationSession:
             prompt = "\n".join(prompt_parts)
         
         logger.info(f"[对话模式 {self.session_id}] 发送步骤5提示词 | 当前消息历史: {len(self.session.messages)}条")
-        response = self.session.send_message(prompt, temperature=0.7)
+        response = self.session.send_message(prompt, temperature=0.85, purpose="步骤5-生成情绪曲线")
         self._logger.log_round("generate_emotion_curve", self.session.messages.copy(), response if isinstance(response, str) else json.dumps(response))
         logger.info(f"[对话模式 {self.session_id}] 步骤5响应接收 | 总对话轮次: {self.session.turn_count}")
         result = self._parse_json_response(response, "emotion_curve")
@@ -711,6 +905,213 @@ class MarketDrivenConversationSession:
             "climax_moments": ["第3章", "第10章", "第20章", "第30章"]
         }
     
+    def _generate_stage_goals(self, previous_results: Dict) -> List[Dict]:
+        """
+        生成阶段目标（步骤5的一部分）
+        
+        🔥 修正：只生成阶段目标（stage_goals），不生成战术规划（tactical_plan）
+        战术规划由 TacticalPlanner 在生成阶段动态生成，避免与阶段目标冲突
+        
+        阶段目标特点：
+        - 不绑定具体章数（柔性目标）
+        - 定义关键交付物和成功标准
+        - 系统根据实际进度自动推进
+        """
+        title = self.user_choices.get('title', '未命名')
+        protagonist_name = self.user_choices.get('protagonist_name', '主角')
+        total_chapters = len(previous_results.get('emotion_curve', []))
+        
+        # 构建基于前4步产物的提示词
+        prompt = f"""请执行【步骤5B：生成阶段目标】
+
+基于前面步骤已生成的完整设定，现在创建阶段目标（stage_goals）。
+
+## 已完成的设定（上下文中的产物）
+
+### 1. 核心方案
+书名：{title}
+主角：{protagonist_name}
+金手指：{json.dumps(previous_results.get('plan', {}).get('golden_finger', {}), ensure_ascii=False)[:500]}
+
+### 2. 世界观概要
+{previous_results.get('core_worldview', {}).get('world_overview', '国运禁地求生')}
+
+### 3. 成长路线里程碑
+{json.dumps(previous_results.get('global_growth_plan', {}).get('milestones', [])[:3], ensure_ascii=False)}
+
+### 4. 总章数
+总章数为 {total_chapters} 章
+
+## 你需要生成
+
+### 阶段目标（stage_goals）
+根据总章数 {total_chapters}，定义3-5个阶段目标，每个目标包含：
+- goal_id: 目标ID（如G1, G2, G3）
+- description: 目标描述（清晰说明这一阶段要达成什么）
+- expected_chapters: 预估章数范围（如"10-20章"，仅参考，非强制）
+- key_deliverables: 关键交付物列表（必须完成的具体事项）
+- success_criteria: 完成标准（可衡量的指标）
+
+**重要原则**：
+1. 阶段目标不绑定具体章数！如果第3章就完成了G1的目标，就直接进入G2
+2. 每个阶段目标必须有明确的成功标准（如"扮演度≥30%"）
+3. 阶段目标之间要有递进关系，不能重复
+4. **必须根据总章数 {total_chapters} 来划分阶段范围**！
+
+**阶段数量与划分指导**（根据总章数动态调整）：
+- 如果 ≥500章：6个阶段，每个阶段约80-100章
+- 如果 300-499章：5个阶段 (1-40, 41-100, 101-180, 181-250, 251-总章数)
+- 如果 200-299章：5个阶段 (1-30, 31-70, 71-120, 121-170, 171-总章数)
+- 如果 150-199章：4个阶段 (1-25, 26-55, 56-100, 101-总章数)
+- 如果 80-149章：3个阶段，均匀划分
+- 如果 <80章：2-3个阶段，根据篇幅调整
+
+**关键原则**：
+- 阶段数量 = 3-6个，根据总章数决定
+- 每个阶段跨度不要太短（至少20章以上）
+- 每个阶段必须有明确的扮演度目标和剧情里程碑
+
+## 输出格式
+
+```json
+{{
+  "stage_goals": [
+    {{
+      "goal_id": "G1",
+      "description": "建立主角形象，首次展现实力",
+      "expected_chapters": "1-X章",
+      "key_deliverables": ["扮演度达到30%", "获得第一个强力技能", "震惊全场"],
+      "success_criteria": "扮演度≥30%，至少1次全场震惊"
+    }},
+    {{
+      "goal_id": "G2",
+      "description": "快速成长，建立盟友",
+      "expected_chapters": "X-Y章",
+      "key_deliverables": ["扮演度达到50%", "收服第一个盟友", "首次击败强敌"],
+      "success_criteria": "扮演度≥50%，盟友数量≥1"
+    }}
+  ]
+}}
+```
+
+**警告**：必须按照总章数 {total_chapters} 调整阶段范围，不要生成固定的100章划分！
+
+只返回JSON，不要其他说明。"""
+
+        logger.info(f"[对话模式 {self.session_id}] 发送步骤5B提示词（阶段目标）| 当前消息历史: {len(self.session.messages)}条")
+        response = self.session.send_message(prompt, temperature=0.85, purpose="步骤5B-生成阶段目标")
+        self._logger.log_round("generate_stage_goals", self.session.messages.copy(), response if isinstance(response, str) else json.dumps(response))
+        logger.info(f"[对话模式 {self.session_id}] 步骤5B响应接收 | 总对话轮次: {self.session.turn_count}")
+        
+        result = self._parse_json_response(response, "stage_goals")
+        
+        # 确保返回格式正确
+        # 获取总章数用于默认目标
+        total_chapters = len(previous_results.get('emotion_curve', []))
+        
+        if result and isinstance(result, dict) and "stage_goals" in result:
+            return result["stage_goals"]
+        elif result and isinstance(result, list):
+            return result
+        else:
+            logger.warning(f"[对话模式 {self.session_id}] 步骤5B返回空或无效，使用默认阶段目标")
+            return self._get_default_stage_goals(total_chapters)
+    
+    def _get_default_stage_goals(self, total_chapters: int = 100) -> List[Dict]:
+        """获取默认阶段目标（当AI生成失败时使用）
+        
+        Args:
+            total_chapters: 总章数，根据此值动态计算阶段数量和范围
+        """
+        # 根据总章数决定阶段数量和每个阶段的范围
+        if total_chapters >= 500:
+            # 超长篇：6个阶段
+            num_stages = 6
+            stage_size = total_chapters // 6
+            ranges = [(i * stage_size + 1, (i + 1) * stage_size if i < 5 else total_chapters) 
+                     for i in range(6)]
+        elif total_chapters >= 300:
+            # 长篇：5个阶段
+            num_stages = 5
+            ranges = [(1, 40), (41, 100), (101, 180), (181, 250), (251, total_chapters)]
+        elif total_chapters >= 200:
+            # 中长篇：4-5个阶段
+            num_stages = 5
+            ranges = [(1, 30), (31, 70), (71, 120), (121, 170), (171, total_chapters)]
+        elif total_chapters >= 150:
+            # 中篇：4个阶段
+            num_stages = 4
+            ranges = [(1, 25), (26, 55), (56, 100), (101, total_chapters)]
+        elif total_chapters >= 80:
+            # 中短篇：3个阶段
+            num_stages = 3
+            mid = total_chapters // 3
+            ranges = [(1, mid), (mid + 1, mid * 2), (mid * 2 + 1, total_chapters)]
+        else:
+            # 短篇：2-3个阶段
+            num_stages = 3 if total_chapters >= 50 else 2
+            if num_stages == 3:
+                mid = total_chapters // 3
+                ranges = [(1, mid), (mid + 1, mid * 2), (mid * 2 + 1, total_chapters)]
+            else:
+                mid = total_chapters // 2
+                ranges = [(1, mid), (mid + 1, total_chapters)]
+        
+        # 阶段定义模板
+        stage_templates = [
+            {
+                "description": "建立主角形象，首次展现实力",
+                "deliverables": ["扮演度达到20%", "获得第一个强力技能", "震惊全场"],
+                "criteria": "扮演度≥20%，至少1次全场震惊",
+                "power": "S级"
+            },
+            {
+                "description": "快速成长，建立盟友",
+                "deliverables": ["扮演度达到40%", "收服第一个盟友", "首次击败强敌"],
+                "criteria": "扮演度≥40%，盟友数量≥1",
+                "power": "SS级"
+            },
+            {
+                "description": "国运争霸，区域崛起",
+                "deliverables": ["扮演度达到60%", "龙国区域第一", "击败区域强敌"],
+                "criteria": "扮演度≥60%，区域排名No.1",
+                "power": "SSS级"
+            },
+            {
+                "description": "全球争霸，登顶巅峰",
+                "deliverables": ["扮演度达到80%", "成为全球第一", "击败多国联盟"],
+                "criteria": "扮演度≥80%，全球排名No.1",
+                "power": "SSS+级"
+            },
+            {
+                "description": "文明跃迁，星际接触" if total_chapters >= 300 else "终极对决，守护龙国",
+                "deliverables": ["扮演度达到90%", "接触更高维度" if total_chapters >= 300 else "击败终极BOSS", "开启新篇章"],
+                "criteria": "扮演度≥90%，掌控全局",
+                "power": "神级"
+            },
+            {
+                "description": "主宰万界，圆满结局",
+                "deliverables": ["扮演度达到100%", "成为禁地主宰", "龙国永世长存"],
+                "criteria": "扮演度≥95%，圆满结局",
+                "power": "超神级"
+            }
+        ]
+        
+        # 生成阶段目标
+        goals = []
+        for i in range(num_stages):
+            template = stage_templates[i]
+            start, end = ranges[i]
+            goals.append({
+                "goal_id": f"G{i+1}",
+                "description": template["description"],
+                "expected_chapters": f"{start}-{end}章",
+                "key_deliverables": template["deliverables"],
+                "success_criteria": template["criteria"]
+            })
+        
+        return goals
+    
     def _parse_json_response(self, response: str, step_name: str) -> Any:
         """解析JSON响应"""
         if not response:
@@ -740,6 +1141,469 @@ class MarketDrivenConversationSession:
         
         logger.error(f"无法解析步骤 {step_name} 的响应")
         return {}
+    
+    # ==================== 步骤6: 爆款对齐检查与优化 ====================
+    
+    def _bestseller_alignment_check(self, previous_results: Dict) -> Dict:
+        """
+        步骤6: 爆款对齐检查与优化
+        
+        对比一阶段产物与爆款公式，识别偏差并优化
+        返回优化后的结果和优化报告
+        """
+        logger.info(f"[对话模式 {self.session_id}] 开始爆款对齐检查...")
+        
+        # 如果没有爆款分析数据，跳过检查
+        if not self._prompt_generator:
+            logger.warning(f"[对话模式 {self.session_id}] 无Prompt生成器，跳过爆款对齐检查")
+            return {"alignment_report": {"skipped": True, "reason": "无爆款分析数据"}}
+        
+        # 获取爆款分析数据
+        bestseller_analysis = self._prompt_generator.analysis
+        
+        # 1. 检查情绪曲线是否符合爆款节奏
+        emotion_curve = previous_results.get('emotion_curve', [])
+        emotion_issues = self._check_emotion_curve_bestseller_gap(
+            emotion_curve, 
+            bestseller_analysis
+        )
+        
+        # 2. 检查阶段目标是否符合爆款结构
+        stage_goals = previous_results.get('stage_goals', [])
+        stage_goal_issues = self._check_stage_goals_bestseller_gap(
+            stage_goals,
+            bestseller_analysis
+        )
+        
+        # 3. 检查金手指设计是否爆款化
+        golden_finger = previous_results.get('plan', {}).get('golden_finger', {})
+        gf_issues = self._check_golden_finger_bestseller_gap(
+            golden_finger,
+            bestseller_analysis
+        )
+        
+        # 4. 生成对齐报告
+        alignment_report = {
+            "checked_at": datetime.now().isoformat(),
+            "total_issues": len(emotion_issues) + len(stage_goal_issues) + len(gf_issues),
+            "emotion_issues": emotion_issues,
+            "stage_goal_issues": stage_goal_issues,
+            "golden_finger_issues": gf_issues,
+            "skipped": False
+        }
+        
+        # 5. 如果有偏差，进行优化
+        if emotion_issues or stage_goal_issues or gf_issues:
+            logger.info(f"[对话模式 {self.session_id}] 对齐检查发现 {alignment_report['total_issues']} 个问题，开始优化...")
+            optimized = self._optimize_for_bestseller(
+                previous_results,
+                emotion_issues,
+                stage_goal_issues,
+                gf_issues,
+                bestseller_analysis
+            )
+            optimized["alignment_report"] = alignment_report
+            logger.info(f"[对话模式 {self.session_id}] 爆款对齐优化完成")
+            return optimized
+        
+        logger.info(f"[对话模式 {self.session_id}] 对齐检查通过，无需优化")
+        return {"alignment_report": alignment_report}
+    
+    def _check_emotion_curve_bestseller_gap(self, emotion_curve: List[Dict], 
+                                             bestseller_analysis: Dict) -> List[Dict]:
+        """检查情绪曲线与爆款的差距"""
+        issues = []
+        
+        if not emotion_curve:
+            issues.append({
+                "type": "missing_emotion_curve",
+                "description": "情绪曲线为空",
+                "severity": "high"
+            })
+            return issues
+        
+        # 获取爆款情绪节奏模板
+        bs_emotion_template = bestseller_analysis.get('emotion_curve', {})
+        
+        # 检查前30章（黄金期）的情绪节奏
+        for i, point in enumerate(emotion_curve[:30]):
+            ch_num = point.get('chapter', i+1)
+            emotion = point.get('emotion', '')
+            intensity = point.get('intensity', 0)
+            
+            # 获取期望的爆款情绪（如果存在）
+            bs_point = bs_emotion_template.get(str(ch_num), {})
+            if not bs_point and isinstance(bs_emotion_template, list) and i < len(bs_emotion_template):
+                bs_point = bs_emotion_template[i]
+            
+            bs_emotion = bs_point.get('emotion', '') if isinstance(bs_point, dict) else ''
+            bs_intensity = bs_point.get('intensity', 0) if isinstance(bs_point, dict) else 0
+            
+            # 检查情绪类型偏差（仅前10章严格检查）
+            if ch_num <= 10 and bs_emotion and emotion != bs_emotion:
+                # 允许类似情绪的替换（如"压抑"和"紧张"算同类）
+                similar_emotions = [['压抑', '紧张', '绝望'], ['兴奋', '爽快', '振奋'], ['震惊', '震撼']]
+                is_similar = any(emotion in group and bs_emotion in group for group in similar_emotions)
+                if not is_similar:
+                    issues.append({
+                        "type": "emotion_mismatch",
+                        "chapter": ch_num,
+                        "current": emotion,
+                        "expected": bs_emotion,
+                        "severity": "high"
+                    })
+            
+            # 检查情绪强度偏差
+            if bs_intensity and abs(intensity - bs_intensity) > 2:
+                issues.append({
+                    "type": "intensity_mismatch",
+                    "chapter": ch_num,
+                    "current": intensity,
+                    "expected": bs_intensity,
+                    "severity": "medium" if ch_num > 10 else "high"
+                })
+        
+        # 检查5章循环节奏（压抑→紧张→反转→震惊→期待）
+        cycle_issues = self._check_5_chapter_cycle(emotion_curve[:30])
+        issues.extend(cycle_issues)
+        
+        # 检查爽点密度（每章至少1个高潮）
+        climax_count = sum(1 for p in emotion_curve if p.get('intensity', 0) >= 7)
+        total_chapters = len(emotion_curve)
+        climax_ratio = climax_count / total_chapters if total_chapters > 0 else 0
+        
+        if climax_ratio < 0.5:  # 至少50%的章有高情绪
+            issues.append({
+                "type": "low_climax_density",
+                "current_ratio": f"{climax_ratio:.1%}",
+                "expected_ratio": ">=50%",
+                "current_count": f"{climax_count}/{total_chapters}",
+                "severity": "high"
+            })
+        
+        return issues
+    
+    def _check_5_chapter_cycle(self, emotion_curve: List[Dict]) -> List[Dict]:
+        """检查5章情绪循环节奏"""
+        issues = []
+        
+        if len(emotion_curve) < 5:
+            return issues
+        
+        # 期望的5章循环：压抑(7) → 紧张/嘲讽(8) → 反转/爆发(9) → 震惊(8) → 期待(6)
+        expected_cycle = [
+            {'emotion': '压抑', 'min_intensity': 6, 'max_intensity': 8},
+            {'emotion': '紧张', 'min_intensity': 7, 'max_intensity': 9},  # 或嘲讽
+            {'emotion': '反转', 'min_intensity': 8, 'max_intensity': 10}, # 或爆发
+            {'emotion': '震惊', 'min_intensity': 7, 'max_intensity': 9},
+            {'emotion': '期待', 'min_intensity': 5, 'max_intensity': 7}
+        ]
+        
+        # 检查前20章的循环
+        for start in range(0, min(20, len(emotion_curve)), 5):
+            cycle = emotion_curve[start:start+5]
+            if len(cycle) < 5:
+                break
+            
+            for i, (point, expected) in enumerate(zip(cycle, expected_cycle)):
+                ch_num = point.get('chapter', start + i + 1)
+                emotion = point.get('emotion', '')
+                intensity = point.get('intensity', 0)
+                
+                # 检查情绪类型（前3章严格检查）
+                if i < 3:
+                    expected_emotions = [expected['emotion']]
+                    if expected['emotion'] == '紧张':
+                        expected_emotions.extend(['嘲讽', '质疑', '挑衅'])
+                    elif expected['emotion'] == '反转':
+                        expected_emotions.extend(['爆发', '反击', '打脸'])
+                    
+                    if emotion not in expected_emotions:
+                        issues.append({
+                            "type": "cycle_emotion_mismatch",
+                            "chapter": ch_num,
+                            "position_in_cycle": i + 1,
+                            "current_emotion": emotion,
+                            "expected_emotions": expected_emotions,
+                            "severity": "medium"
+                        })
+                
+                # 检查强度范围
+                if intensity < expected['min_intensity'] or intensity > expected['max_intensity']:
+                    issues.append({
+                        "type": "cycle_intensity_out_of_range",
+                        "chapter": ch_num,
+                        "current_intensity": intensity,
+                        "expected_range": f"{expected['min_intensity']}-{expected['max_intensity']}",
+                        "severity": "low"
+                    })
+        
+        return issues
+    
+    def _check_stage_goals_bestseller_gap(self, stage_goals: List[Dict],
+                                           bestseller_analysis: Dict) -> List[Dict]:
+        """检查阶段目标与爆款的差距"""
+        issues = []
+        
+        if not stage_goals:
+            issues.append({
+                "type": "missing_stage_goals",
+                "description": "阶段目标为空",
+                "severity": "high"
+            })
+            return issues
+        
+        # 获取爆款的阶段性节奏
+        bs_stages = bestseller_analysis.get('stage_goals', [])
+        
+        # 检查阶段数量
+        if len(stage_goals) < 3:
+            issues.append({
+                "type": "insufficient_stages",
+                "current_count": len(stage_goals),
+                "expected_count": "3-6",
+                "severity": "medium"
+            })
+        
+        # 检查每个阶段的关键交付物是否爆款化
+        climax_keywords = ['震惊', '震撼', '全场', '吊打', '碾压', '曝光', ' reveal', '反转', '爆发']
+        
+        for i, goal in enumerate(stage_goals):
+            goal_id = goal.get('goal_id', f'G{i+1}')
+            description = goal.get('description', '')
+            deliverables = goal.get('key_deliverables', [])
+            
+            # 检查描述中是否有爽点关键词
+            has_climax_in_desc = any(k in description for k in climax_keywords)
+            
+            # 检查交付物中是否有爽点
+            has_climax_in_deliverables = any(
+                any(k in d for k in climax_keywords) 
+                for d in deliverables
+            )
+            
+            if not has_climax_in_desc and not has_climax_in_deliverables:
+                issues.append({
+                    "type": "missing_climax_in_stage",
+                    "stage": goal_id,
+                    "description": description[:50],
+                    "suggestion": f"阶段{goal_id}缺少明确的爽点/高潮交付物，建议添加如'震惊全场'、'首次展现实力'等",
+                    "severity": "high"
+                })
+            
+            # 检查是否有具体的成功标准
+            success_criteria = goal.get('success_criteria', '')
+            if not success_criteria or len(success_criteria) < 10:
+                issues.append({
+                    "type": "weak_success_criteria",
+                    "stage": goal_id,
+                    "current": success_criteria,
+                    "suggestion": "添加可衡量的成功标准，如'扮演度≥30%'、'获得X个技能'等",
+                    "severity": "medium"
+                })
+        
+        return issues
+    
+    def _check_golden_finger_bestseller_gap(self, golden_finger: Dict,
+                                             bestseller_analysis: Dict) -> List[Dict]:
+        """检查金手指设计是否爆款化"""
+        issues = []
+        
+        if not golden_finger:
+            issues.append({
+                "type": "missing_golden_finger",
+                "description": "金手指设计为空",
+                "severity": "high"
+            })
+            return issues
+        
+        # 获取爆款金手指公式
+        bs_gf_formula = bestseller_analysis.get('golden_finger_formula', '')
+        
+        # 检查金手指名称/概念
+        gf_name = golden_finger.get('name', '') or golden_finger.get('concept', '')
+        if not gf_name or len(gf_name) < 3:
+            issues.append({
+                "type": "weak_gf_name",
+                "issue": "金手指名称/概念不够具体",
+                "suggestion": "给金手指一个具体、有记忆点的名称",
+                "severity": "medium"
+            })
+        
+        # 检查金手指是否有层次感（成长空间）
+        growth_curve = golden_finger.get('growth_curve', [])
+        stages = golden_finger.get('stages', [])
+        
+        if len(growth_curve) < 3 and len(stages) < 3:
+            issues.append({
+                "type": "insufficient_gf_depth",
+                "issue": "金手指缺乏层次感和成长空间",
+                "current_stages": max(len(growth_curve), len(stages)),
+                "suggestion": "建议设计3-5个成长阶段，如'解锁→熟练→精通→大师→传说'",
+                "severity": "high"
+            })
+        
+        # 检查是否有具体的数值体系
+        numeric_system = golden_finger.get('numeric_system', {})
+        if not numeric_system:
+            # 检查是否有其他形式的数值
+            has_numeric = any(k in str(golden_finger) for k in ['数值', '等级', '经验', '积分', '点数'])
+            if not has_numeric:
+                issues.append({
+                    "type": "missing_numeric_system",
+                    "issue": "金手指缺乏具体数值体系，不够直观",
+                    "suggestion": "添加数值化指标，如'熟练度0-100'、'等级Lv.1-10'等",
+                    "severity": "medium"
+                })
+        
+        # 检查是否有独特的触发机制
+        trigger = golden_finger.get('trigger_mechanism', '')
+        if not trigger or trigger in ['自动触发', '被动触发', '随时可用']:
+            issues.append({
+                "type": "weak_trigger",
+                "issue": "金手指触发机制缺乏创意或限制",
+                "current_trigger": trigger,
+                "suggestion": "设计有创意的触发条件，如'醉酒状态下触发'、'每日限时触发'等",
+                "severity": "medium"
+            })
+        
+        # 检查是否有独特的副作用或限制（增加戏剧性）
+        limitations = golden_finger.get('limitations', []) or golden_finger.get('side_effects', [])
+        if not limitations:
+            issues.append({
+                "type": "missing_limitations",
+                "issue": "金手指没有副作用或限制，缺乏戏剧性",
+                "suggestion": "添加限制条件，如'每日使用次数限制'、'使用后虚弱'、'暴露身份风险'等",
+                "severity": "low"
+            })
+        
+        return issues
+    
+    def _optimize_for_bestseller(self, previous_results: Dict,
+                                  emotion_issues: List[Dict],
+                                  stage_goal_issues: List[Dict],
+                                  gf_issues: List[Dict],
+                                  bestseller_analysis: Dict) -> Dict:
+        """基于爆款数据优化一阶段产物"""
+        
+        results = previous_results.copy()
+        
+        # 构建优化提示词
+        prompt_parts = ["# 爆款对齐优化专家\n"]
+        prompt_parts.append("你是一名专业的爆款小说优化专家。请基于爆款分析数据，优化以下设计。\n")
+        
+        # 添加发现的偏差
+        all_issues = emotion_issues + stage_goal_issues + gf_issues
+        prompt_parts.append(f"\n## 发现的偏差（共{len(all_issues)}个）\n")
+        
+        if emotion_issues:
+            prompt_parts.append("\n### 情绪曲线偏差")
+            for issue in emotion_issues[:5]:  # 最多显示5个
+                prompt_parts.append(f"- [{issue['type']}] 第{issue.get('chapter', 'N')}章: {issue.get('description', issue.get('current', '未知'))}")
+        
+        if stage_goal_issues:
+            prompt_parts.append("\n### 阶段目标偏差")
+            for issue in stage_goal_issues[:3]:  # 最多显示3个
+                prompt_parts.append(f"- [{issue['type']}] {issue.get('stage', '')}: {issue.get('suggestion', issue.get('description', ''))}")
+        
+        if gf_issues:
+            prompt_parts.append("\n### 金手指偏差")
+            for issue in gf_issues[:3]:  # 最多显示3个
+                prompt_parts.append(f"- [{issue['type']}] {issue.get('suggestion', issue.get('issue', ''))}")
+        
+        # 添加爆款参考数据
+        prompt_parts.append("\n## 爆款参考数据\n")
+        
+        bs_emotion = bestseller_analysis.get('emotion_curve', {})
+        if bs_emotion:
+            prompt_parts.append("\n### 爆款情绪节奏要点")
+            prompt_parts.append("- 严格5章循环：压抑(7)→紧张/嘲讽(8)→反转/爆发(9)→震惊(8)→期待(6)")
+            prompt_parts.append("- 每章至少1个爽点（强度≥7）")
+            prompt_parts.append("- 前10章必须有3个以上高情绪高潮")
+        
+        bs_gf_formula = bestseller_analysis.get('golden_finger_formula', '')
+        if bs_gf_formula:
+            prompt_parts.append(f"\n### 爆款金手指公式\n{bs_gf_formula[:500]}")
+        
+        # 添加当前设计
+        prompt_parts.append("\n## 当前设计（需优化）\n")
+        
+        emotion_curve = previous_results.get('emotion_curve', [])
+        if emotion_curve:
+            prompt_parts.append("\n### 情绪曲线（前10章）")
+            for point in emotion_curve[:10]:
+                prompt_parts.append(f"- 第{point.get('chapter', '?')}章: {point.get('emotion', '?')} (强度{point.get('intensity', '?')})")
+        
+        stage_goals = previous_results.get('stage_goals', [])
+        if stage_goals:
+            prompt_parts.append("\n### 阶段目标")
+            for goal in stage_goals[:3]:
+                prompt_parts.append(f"- {goal.get('goal_id', '?')}: {goal.get('description', '?')[:50]}")
+                prompt_parts.append(f"  交付物: {', '.join(goal.get('key_deliverables', []))}")
+        
+        golden_finger = previous_results.get('plan', {}).get('golden_finger', {})
+        if golden_finger:
+            prompt_parts.append(f"\n### 金手指\n{json.dumps(golden_finger, ensure_ascii=False, indent=2)[:800]}")
+        
+        # 添加优化要求
+        prompt_parts.append("\n## 优化要求\n")
+        prompt_parts.append("1. **情绪曲线**：严格遵循爆款的5章循环节奏（压抑→嘲讽→反转→震惊→期待）")
+        prompt_parts.append("2. **阶段目标**：每个阶段必须有明确的'爽点交付物'，如'震惊全场'、'首次展现实力'")
+        prompt_parts.append("3. **金手指**：增加层次感和具体数值体系，设计3-5个成长阶段")
+        prompt_parts.append("4. **保持原有设定**：优化时不要改变书名、主角名、世界观等核心设定")
+        
+        # 添加输出格式
+        prompt_parts.append("\n## 输出格式\n")
+        prompt_parts.append("返回优化后的完整JSON（只返回有优化的部分，其他可省略）：")
+        prompt_parts.append("""
+{
+  "emotion_curve": [...],  // 优化后的完整情绪曲线（如果需优化）
+  "stage_goals": [...],    // 优化后的阶段目标（如果需优化）
+  "plan": {
+    "golden_finger": {...} // 优化后的金手指（如果需优化）
+  }
+}
+""")
+        prompt_parts.append("\n只返回JSON，不要其他说明。")
+        
+        prompt = "\n".join(prompt_parts)
+        
+        # 调用AI进行优化
+        try:
+            logger.info(f"[对话模式 {self.session_id}] 发送爆款对齐优化请求...")
+            response = self.session.send_message(
+                prompt,
+                temperature=0.7,
+                purpose="步骤6-爆款对齐优化"
+            )
+            self._logger.log_round("bestseller_alignment", self.session.messages.copy(), 
+                                   response if isinstance(response, str) else json.dumps(response))
+            
+            # 解析优化结果
+            optimized = self._parse_json_response(response, "bestseller_optimization")
+            
+            if optimized:
+                # 合并优化结果
+                if 'emotion_curve' in optimized and optimized['emotion_curve']:
+                    results['emotion_curve'] = optimized['emotion_curve']
+                    logger.info(f"[对话模式 {self.session_id}] 情绪曲线已优化")
+                
+                if 'stage_goals' in optimized and optimized['stage_goals']:
+                    results['stage_goals'] = optimized['stage_goals']
+                    logger.info(f"[对话模式 {self.session_id}] 阶段目标已优化")
+                
+                if 'plan' in optimized and 'golden_finger' in optimized['plan']:
+                    if 'plan' not in results:
+                        results['plan'] = {}
+                    results['plan']['golden_finger'] = optimized['plan']['golden_finger']
+                    logger.info(f"[对话模式 {self.session_id}] 金手指已优化")
+            else:
+                logger.warning(f"[对话模式 {self.session_id}] 优化响应解析失败，使用原始结果")
+            
+        except Exception as e:
+            logger.error(f"[对话模式 {self.session_id}] 爆款对齐优化失败: {e}")
+        
+        return results
 
 
 class MarketDrivenConversationManager:
@@ -750,14 +1614,22 @@ class MarketDrivenConversationManager:
         self.active_sessions: Dict[str, MarketDrivenConversationSession] = {}
     
     def start_conversation(self, genre: str, user_choices: Dict, 
-                          tropes: Optional[Dict] = None) -> MarketDrivenConversationSession:
-        """开始新的对话会话"""
+                          tropes: Optional[Dict] = None, provider: str = None) -> MarketDrivenConversationSession:
+        """开始新的对话会话
+        
+        Args:
+            genre: 题材
+            user_choices: 用户选择
+            tropes: 套路分析结果
+            provider: 提供商，None则使用APIClient默认提供商
+        """
+        # 🔥 修复：传递provider参数，不再硬编码kimi
         session = MarketDrivenConversationSession(
             api_client=self.api_client,
             genre=genre,
             user_choices=user_choices,
             tropes=tropes,
-            provider="kimi"
+            provider=provider  # 允许传入None，让内部自动选择
         )
         
         session_id = f"{genre}_{datetime.now().strftime('%Y%m%d_%H%M%S')}"

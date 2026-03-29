@@ -815,19 +815,85 @@ def save_phase_one_products(novel_title: str, products: Dict, task_id: str,
     project_info["novel_synopsis"] = plan.get("core_selling_points", [{}])[0].get("point", "") if plan else ""
     project_info["genre"] = genre
     
-    # 🔥 兼容旧版上传代码：添加 selected_plan 字段（包含 tags）
+    # 🔥 兼容旧版上传代码：添加 selected_plan 字段（包含完整的 tags）
     # novel_publisher.py 期望从 selected_plan.tags 读取标签信息
-    if plan:
+    # tags 需要包含: target_audience, main_category, themes, roles, plots
+    
+    # 从 genre 提取基础类型（如 "国运文-直播类" -> "国运文"）
+    base_genre = genre.split("-")[0] if "-" in genre else genre
+    
+    # 从 CATEGORY_MAPPING 获取分类信息
+    from web.services.market_driven.project_manager import FanqieUploadAdapter
+    category_mapping = FanqieUploadAdapter.CATEGORY_MAPPING.get(base_genre, {
+        "main": "都市",
+        "sub": "都市生活", 
+        "tags": ["爽文", "系统"]
+    })
+    
+    # 构建完整的 tags 信息（符合 novel_publisher.py 期望）
+    tags_info = {
+        "target_audience": "男频",  # 默认男频，可根据 genre 调整
+        "main_category": category_mapping["main"],
+        "sub_category": category_mapping["sub"],
+        "themes": category_mapping["tags"][:3] if len(category_mapping["tags"]) >= 3 else category_mapping["tags"] + ["爽文", "系统"],
+        "roles": ["主角", "反派", "队友"],  # 默认角色标签
+        "plots": ["装逼", "打脸", "升级"]  # 默认情节标签
+    }
+    
+    # 根据 genre 调整受众和标签
+    if "奶爸" in genre or "萌宝" in genre:
+        tags_info["target_audience"] = "女频"
+        tags_info["roles"] = ["奶爸", "萌宝", "妈妈"]
+        tags_info["plots"] = ["温馨", "搞笑", "日常"]
+    elif "国运" in genre:
+        tags_info["plots"] = ["国运", "直播", "震惊", "装逼"]
+    elif "神豪" in genre:
+        tags_info["plots"] = ["神豪", "花钱", "装逼", "打脸"]
+    elif "末日" in genre or "求生" in genre:
+        tags_info["plots"] = ["末日", "囤货", "求生", "爽文"]
+    
+    # 🔥 优先使用AI生成的专业上传数据（步骤1B生成）
+    fanqie_data = products.get("fanqie_upload_data", {})
+    
+    if fanqie_data and fanqie_data.get("title"):
+        # 使用AI生成的专业数据
         project_info["selected_plan"] = {
-            "title": plan.get("recommended_title", novel_title),
-            "synopsis": plan.get("core_selling_points", [{}])[0].get("point", "") if plan.get("core_selling_points") else "",
-            "tags": plan.get("tags", {}),  # 🔥 关键：番茄上传标签
+            "title": fanqie_data["title"],
+            "synopsis": fanqie_data["synopsis"],
+            "tags": fanqie_data["tags"],
             "suggestions": {
-                "name": plan.get("protagonist", {}).get("basic_info", {}).get("name", "主角") if plan.get("protagonist") else "主角",
+                "name": user_choices.get("protagonist_name", "主角") if user_choices else "主角",
                 "genre": genre
             }
         }
-        logger.info(f"[SaveProducts] 已添加 selected_plan 字段，包含 tags: {plan.get('tags', {})}")
+        logger.info(f"[SaveProducts] 使用AI生成的专业上传数据: {fanqie_data['title']}")
+    else:
+        # 备用方案：从 plan 提取 + 使用默认标签
+        plan_title = plan.get("title", novel_title) if plan else novel_title
+        
+        # 生成简介
+        if plan:
+            synopsis_parts = []
+            gf = plan.get("golden_finger", {})
+            if gf.get("initial"):
+                synopsis_parts.append(f"金手指：{gf['initial']}")
+            protagonist = plan.get("protagonist", {})
+            if protagonist.get("traits"):
+                synopsis_parts.append(f"主角：{', '.join(protagonist['traits'][:3])}")
+            synopsis = "；".join(synopsis_parts) if synopsis_parts else f"一本精彩的{genre}小说"
+        else:
+            synopsis = ""
+        
+        project_info["selected_plan"] = {
+            "title": plan_title,
+            "synopsis": synopsis,
+            "tags": tags_info,
+            "suggestions": {
+                "name": user_choices.get("protagonist_name", "主角") if user_choices else "主角",
+                "genre": genre
+            }
+        }
+        logger.info(f"[SaveProducts] 使用备用方案: {plan_title}")
     
     # 设置模式特定信息（包含用户选择）
     mode_info = {
@@ -988,7 +1054,11 @@ def _run_chapter_generation(task_id: str, genre: str, target_words: int, api_cli
             )
             logger.info(f"[ChapterGen] 创建新项目路径: {project_path}")
         
-        # 创建规划器并初始化战略框架
+        # 🔥 创建规划器并初始化战略框架
+        # 传递一阶段产物（情绪曲线和爆款分析），确保二阶段战术规划符合爆款设计
+        emotion_curve = products.get("emotion_curve", [])
+        bestseller_analysis = products.get("bestseller_analysis", {}) or task.get("result", {}).get("bestseller_analysis", {})
+        
         planner = HierarchicalPlanner(
             genre=genre,
             novel_title=novel_title,
@@ -996,9 +1066,35 @@ def _run_chapter_generation(task_id: str, genre: str, target_words: int, api_cli
             api_client=api_client,
             project_path=project_path,
             total_chapters=total_chapters,
-            target_words=target_words
+            target_words=target_words,
+            emotion_curve=emotion_curve,           # 传入一阶段情绪曲线
+            bestseller_analysis=bestseller_analysis # 传入爆款分析数据
         )
-        planner.initialize()
+        
+        # 🔥 修复：构造已有的一阶段产物，避免重复调用 WorldBuilder
+        # 对话模式已经生成了世界观和阶段目标，直接传入使用
+        existing_world_setting = {
+            "genre": genre,
+            "novel_title": novel_title,
+            "protagonist_name": user_choices.get('protagonist_name', '主角'),
+            "total_chapters": total_chapters,
+            "target_words": target_words,
+            "world_setting": products.get("core_worldview", {}),
+            "characters": products.get("character_design", {}),
+            "stage_goals": products.get("stage_goals", []),
+            # 其他一阶段产物也包含进来
+            "emotion_curve": products.get("emotion_curve", {}),
+            "plan": products.get("plan", {}),
+        }
+        
+        # 如果有阶段目标，直接使用；否则才调用 WorldBuilder
+        if existing_world_setting["stage_goals"]:
+            logger.info(f"[ChapterGen] 检测到一阶段产物已有 {len(existing_world_setting['stage_goals'])} 个阶段目标，跳过 WorldBuilder 调用")
+        else:
+            logger.info(f"[ChapterGen] 一阶段产物无阶段目标，将调用 WorldBuilder 生成")
+            existing_world_setting = None  # 让 initialize() 调用 WorldBuilder
+        
+        planner.initialize(existing_world_setting=existing_world_setting)
         
         logger.info(f"[ChapterGen] 分层规划器初始化完成，战略框架已创建，项目路径: {project_path}")
         
@@ -1085,8 +1181,7 @@ def _run_chapter_generation(task_id: str, genre: str, target_words: int, api_cli
             "total_chapters": total_generated,
             "total_words": total_words,
             "failed_chapters": total_failed,
-            "avg_quality": avg_quality,
-            "blueprint": blueprint
+            "avg_quality": avg_quality
         }
         
         task_manager.update_task(
