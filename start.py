@@ -50,7 +50,7 @@ class Colors:
 
 # 配置
 PROJECT_DIR = Path(__file__).parent
-LOGS_DIR = PROJECT_DIR  # 日志直接放在项目根目录，方便查看
+LOGS_DIR = PROJECT_DIR / "logs"  # 日志保存在 logs 目录下
 PID_FILE = PROJECT_DIR / ".server.pid"
 PORT = 5000
 
@@ -115,8 +115,8 @@ def kill_zombie_python_processes():
     return killed_count
 
 def ensure_logs_dir():
-    """确保日志目录存在（现在直接放在根目录，无需创建）"""
-    pass  # 日志文件直接放在项目根目录，方便查看
+    """确保日志目录存在"""
+    LOGS_DIR.mkdir(parents=True, exist_ok=True)  # 日志文件直接放在项目根目录，方便查看
 
 def get_log_file():
     """获取今天的日志文件路径"""

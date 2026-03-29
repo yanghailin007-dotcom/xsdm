@@ -261,7 +261,7 @@ class ChapterQualityChecker:
         elif chapter_num == 2:
             return ["验证", "爽点", "冲突"]
         else:  # chapter_num == 3
-            return [["打脸"], "收获", "震惊"]
+            return ["打脸", "收获", "震惊"]
     
     def _check_tomato_algorithm(self, chapter_num: int, prompt: str) -> List[QualityIssue]:
         """检查番茄算法指标"""

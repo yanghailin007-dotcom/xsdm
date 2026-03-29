@@ -1119,33 +1119,96 @@ class MarketDrivenConversationSession:
     
     def _parse_json_response(self, response: str, step_name: str) -> Any:
         """解析JSON响应"""
+        # 🔥 修复：如果API已经返回了解析后的对象，直接使用
+        if isinstance(response, dict):
+            return response
+        if isinstance(response, list):
+            return response
+        
         if not response:
             logger.error(f"步骤 {step_name} 返回空")
             return {}
         
+        import re
+        
+        # 尝试直接解析
         try:
-            # 尝试直接解析
             return json.loads(response)
         except json.JSONDecodeError:
-            # 尝试提取JSON块
-            import re
-            json_match = re.search(r'```json\s*(.*?)\s*```', response, re.DOTALL)
-            if json_match:
-                try:
-                    return json.loads(json_match.group(1))
-                except:
-                    pass
+            pass
+        
+        # 尝试提取JSON块
+        json_match = re.search(r'```json\s*(.*?)\s*```', response, re.DOTALL)
+        candidate = json_match.group(1) if json_match else None
+        
+        # 如果没有代码块，尝试提取花括号内容
+        if not candidate:
+            brace_match = re.search(r'\{[\s\S]*\}', response, re.DOTALL)
+            candidate = brace_match.group(0) if brace_match else None
+        
+        if candidate:
+            # 先尝试直接解析提取的内容
+            try:
+                return json.loads(candidate)
+            except json.JSONDecodeError:
+                pass
             
-            # 尝试提取花括号内容
-            brace_match = re.search(r'\{.*\}', response, re.DOTALL)
-            if brace_match:
-                try:
-                    return json.loads(brace_match.group(0))
-                except:
-                    pass
+            # 🔥 智能修复常见的AI JSON错误
+            fixed = self._fix_json_string(candidate)
+            try:
+                result = json.loads(fixed)
+                logger.info(f"[对话模式 {self.session_id}] 步骤 {step_name} JSON智能修复后解析成功")
+                return result
+            except json.JSONDecodeError:
+                pass
         
         logger.error(f"无法解析步骤 {step_name} 的响应")
         return {}
+    
+    def _fix_json_string(self, json_str: str) -> str:
+        """智能修复AI返回的常见JSON格式错误"""
+        import re
+        
+        s = json_str.strip().lstrip('\ufeff').lstrip('\u3000')
+        
+        # 1. 修复中文标点
+        s = s.replace('，', ',').replace('。', '.').replace('：', ':')
+        s = s.replace('"', '"').replace('"', '"').replace(''', "'").replace(''', "'")
+        
+        # 2. 修复尾部逗号（对象和数组）
+        s = re.sub(r',(\s*[}\]])', r'\1', s)
+        
+        # 3. 修复未加引号的字符串值
+        # 匹配模式: "key": 中文字符串,  或 "key": 中文字符串}
+        # 排除 true/false/null/数字/已引号字符串/对象/数组开头
+        def quote_unquoted_values(match):
+            prefix = match.group(1)  # "key": 
+            value = match.group(2)   # 未引号的值
+            suffix = match.group(3)  # , 或 } 或 ]
+            # 排除已经是合法JSON值的情况
+            value_stripped = value.strip()
+            if value_stripped.lower() in ('true', 'false', 'null'):
+                return match.group(0)
+            if re.match(r'^-?\d+(\.\d+)?$', value_stripped):
+                return match.group(0)
+            if value_stripped.startswith('"') or value_stripped.startswith('[') or value_stripped.startswith('{'):
+                return match.group(0)
+            # 给值加上引号，但保留内部的引号（转义它们）
+            escaped = value.replace('"', '\\"')
+            return f'{prefix}"{escaped}"{suffix}'
+        
+        # 这个正则会匹配 "key": 后面跟着非标准JSON值的情况
+        s = re.sub(
+            r'("[^"]+"\s*:\s*)([^"\d\[{\]\}\s][^,\]\}]*?)(\s*[,\]\}])',
+            quote_unquoted_values,
+            s
+        )
+        
+        # 4. 最后尝试替换单引号为双引号（仅针对键和简单值）
+        # 注意：这个操作有风险，所以放在最后
+        s = s.replace("'", '"')
+        
+        return s
     
     # ==================== 步骤6: 爆款对齐检查与优化 ====================
     

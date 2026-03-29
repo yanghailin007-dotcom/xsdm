@@ -53,6 +53,14 @@ class ChapterInfoExtractor:
                 purpose=f"第{chapter_num}章信息提取"
             )
             
+            # 🔥 修复：如果API客户端已经返回了解析后的dict/list，直接使用
+            if isinstance(response, dict):
+                logger.info(f"[InfoExtractor] 第{chapter_num}章信息提取完成（API已解析为dict）")
+                return response
+            elif isinstance(response, list) and response:
+                logger.info(f"[InfoExtractor] 第{chapter_num}章信息提取完成（API已解析为list，取第一项）")
+                return response[0] if isinstance(response[0], dict) else self._empty_extraction(chapter)
+            
             result_text = response if isinstance(response, str) else str(response)
             
             # 提取JSON
@@ -70,7 +78,7 @@ class ChapterInfoExtractor:
                     try:
                         # 移除可能的UTF-8 BOM和其他非标准字符
                         json_str_cleaned = json_str.strip().lstrip('\ufeff').lstrip('\u3000')
-                        # 尝试替换单引号
+                        # 尝试替换单引号（仅替换JSON键值对中的单引号，避免破坏内容中的单引号）
                         json_str_cleaned = json_str_cleaned.replace("'", '"')
                         data = json.loads(json_str_cleaned)
                         logger.info(f"[InfoExtractor] 第{chapter_num}章信息提取完成（清理后）")

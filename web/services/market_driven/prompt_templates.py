@@ -119,7 +119,7 @@ class PromptTemplateGenerator:
 {chr(10).join(["- " + taboo for taboo in self.analysis.get("taboos", [])])}
 
 ## ✅ 输出格式
-返回JSON：
+返回严格合法的JSON（所有字符串值必须用英文双引号 `"` 包裹，禁止单引号，禁止任何字段值不加引号）：
 {{
   "title": "书名",
   "opening_design": {{
@@ -128,11 +128,14 @@ class PromptTemplateGenerator:
     "chapter_3": {{"scene": "", "action": "", "dialogue": [], "hook": ""}}
   }},
   "golden_finger": {{"initial": "", "upgrade_formula": "", "limitations": ""}},
-  "protagonist": {{"name": "", "traits": [], "growth_arc": ""}},
-  "outline_first_30": [{{"ch": 1, "type": "", "emotion": "", "event": ""}}]
+  "protagonist": {{"name": "", "traits": [], "growth_arc": ""}}
 }}
 
-只返回JSON，不要其他说明。"""
+**警告**：
+1. 不要返回 `outline_first_30` 字段
+2. 所有字符串值必须加英文双引号 `"`
+3. 禁止在JSON末尾或数组/对象最后一个元素后加逗号
+4. 只返回JSON，不要其他说明。"""
     
     def generate_step2_worldview_prompt(self, existing_worldview: Dict = None, total_chapters: int = 100) -> str:
         """生成步骤2（世界观）的Prompt"""
