@@ -433,8 +433,51 @@ class MarketDrivenConversationSession:
             
             logger.info(f"[对话模式 {self.session_id}] 步骤 [{step_name}] 结果已保存到: {info_path}")
             
+            # 🔥 同时保存独立的产物文件到 phase_one_products/ 目录
+            self._save_phase_one_product(step_name, results, base_path)
+            
         except Exception as e:
             logger.error(f"[对话模式 {self.session_id}] 保存步骤结果失败: {e}")
+    
+    def _save_phase_one_product(self, step_name: str, results: Dict, base_path: Path):
+        """保存第一阶段产物到独立文件
+        
+        Args:
+            step_name: 步骤名称
+            results: 当前所有结果
+            base_path: 项目基础路径
+        """
+        try:
+            import json
+            
+            # 步骤名称到产物文件名的映射
+            product_mapping = {
+                "plan": ("完整方案.json", "plan"),
+                "fanqie_data": ("番茄上传数据.json", "fanqie_upload_data"),
+                "worldview": ("世界观设定.json", "core_worldview"),
+                "characters": ("角色设计.json", "character_design"),
+                "growth_plan": ("升级路线.json", "global_growth_plan"),
+                "stage_goals": ("阶段目标.json", "stage_goals"),
+                "emotion_curve": ("情绪曲线.json", "emotion_curve"),
+                "tactical_plan": ("战术规划.json", "tactical_plan"),
+            }
+            
+            if step_name not in product_mapping:
+                return
+            
+            filename, result_key = product_mapping[step_name]
+            product_path = base_path / "phase_one_products" / filename
+            product_path.parent.mkdir(parents=True, exist_ok=True)
+            
+            # 获取对应的数据
+            if result_key in results:
+                data = results[result_key]
+                with open(product_path, 'w', encoding='utf-8') as f:
+                    json.dump(data, f, ensure_ascii=False, indent=2)
+                logger.info(f"[对话模式 {self.session_id}] 产物 [{step_name}] 已保存到: {product_path}")
+            
+        except Exception as e:
+            logger.error(f"[对话模式 {self.session_id}] 保存产物文件失败 [{step_name}]: {e}")
     
     def generate_all(self, progress_callback=None, project_path: str = None) -> Dict:
         """
