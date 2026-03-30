@@ -9,6 +9,7 @@ import logging
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple
 from dataclasses import dataclass, field
+from collections import defaultdict
 
 logger = logging.getLogger(__name__)
 
@@ -204,6 +205,257 @@ class StageReviewOptimizer:
     def should_trigger(self, end_chapter: int) -> bool:
         """检查是否达到阶段节点"""
         return end_chapter in self.STAGE_MILESTONES
+    
+    def run_review(self, start_chapter: int = None, end_chapter: int = None) -> Dict:
+        """
+        运行阶段性复盘分析（滑动窗口版）
+        
+        仅进行分析并生成报告，不修改章节内容。
+        适用于生成过程中每10章触发的轻量级复盘。
+        
+        Args:
+            start_chapter: 复盘起始章节（默认1）
+            end_chapter: 复盘结束章节（默认最新生成的章节）
+            
+        Returns:
+            复盘报告字典
+        """
+        if start_chapter is None:
+            start_chapter = 1
+        if end_chapter is None:
+            # 尝试从项目目录找出最新章节
+            end_chapter = self._find_latest_chapter()
+        
+        logger.info(f"[StageOptimizer] 启动阶段性复盘: 第{start_chapter}-{end_chapter}章")
+        
+        # 加载章节内容
+        chapters = self._load_chapters_from_disk(start_chapter, end_chapter)
+        if not chapters:
+            logger.warning(f"[StageOptimizer] 未找到第{start_chapter}-{end_chapter}章内容")
+            return {"status": "error", "message": "未找到章节内容"}
+        
+        logger.info(f"[StageOptimizer] 已加载 {len(chapters)} 章内容")
+        
+        # 使用滑动窗口识别问题（不修复）
+        issues = self._identify_issues_sliding_window(chapters, end_chapter)
+        
+        # 生成报告
+        self._generate_report(chapters, end_chapter)
+        
+        # 构建返回结果
+        report = {
+            "status": "success",
+            "review_range": f"{start_chapter}-{end_chapter}",
+            "chapters_analyzed": len(chapters),
+            "issues_found": len(issues),
+            "issues": [
+                {
+                    "chapter": i.chapter,
+                    "type": i.type,
+                    "severity": i.severity,
+                    "description": i.description
+                }
+                for i in issues
+            ],
+            "fixes_applied": [],  # 复盘模式不修复，所以为空
+            "report_path": str(self.project_path / f"optimization_report_stage_{end_chapter}.md")
+        }
+        
+        logger.info(f"[StageOptimizer] 阶段性复盘完成: 发现 {len(issues)} 个问题")
+        return report
+    
+    def _find_latest_chapter(self) -> int:
+        """从项目目录找出最新章节号"""
+        chapters_dir = self.project_path / "chapters"
+        if not chapters_dir.exists():
+            return 10  # 默认返回10
+        
+        max_ch = 0
+        for f in chapters_dir.glob("chapter_*.txt"):
+            try:
+                ch_num = int(f.stem.split("_")[1])
+                max_ch = max(max_ch, ch_num)
+            except (IndexError, ValueError):
+                continue
+        
+        return max_ch if max_ch > 0 else 10
+    
+    def _load_chapters_from_disk(self, start: int, end: int) -> List[Dict]:
+        """从磁盘加载章节内容"""
+        chapters = []
+        chapters_dir = self.project_path / "chapters"
+        
+        if not chapters_dir.exists():
+            return chapters
+        
+        for ch_num in range(start, end + 1):
+            # 尝试多种文件命名格式
+            possible_paths = [
+                chapters_dir / f"chapter_{ch_num:03d}.txt",
+                chapters_dir / f"chapter_{ch_num}.txt",
+                chapters_dir / f"{ch_num:03d}.txt",
+                chapters_dir / f"{ch_num}.txt",
+            ]
+            
+            content = None
+            for path in possible_paths:
+                if path.exists():
+                    try:
+                        content = path.read_text(encoding='utf-8')
+                        break
+                    except Exception as e:
+                        logger.warning(f"[StageOptimizer] 读取章节文件失败 {path}: {e}")
+                        continue
+            
+            if content:
+                chapters.append({
+                    "chapter_number": ch_num,
+                    "content": content,
+                    "word_count": len(content)
+                })
+            else:
+                logger.warning(f"[StageOptimizer] 未找到第{ch_num}章内容")
+        
+        return chapters
+    
+    def optimize_window(self, window_start: int, window_end: int) -> Dict:
+        """
+        优化单个滑动窗口（10章）
+        
+        流程：
+        1. 从磁盘加载窗口内的章节
+        2. 识别问题
+        3. 修复问题（如果需要）
+        4. 生成窗口优化报告
+        
+        Args:
+            window_start: 窗口起始章节号
+            window_end: 窗口结束章节号
+            
+        Returns:
+            优化报告字典
+        """
+        logger.info(f"[StageOptimizer] 🔄 开始优化窗口 {window_start}-{window_end}")
+        
+        # 1. 加载章节内容
+        window_chapters = self._load_chapters_from_disk(window_start, window_end)
+        if not window_chapters:
+            logger.warning(f"[StageOptimizer] 未找到窗口 {window_start}-{window_end} 的章节内容")
+            return {"status": "error", "message": "未找到章节内容"}
+        
+        logger.info(f"[StageOptimizer] 已加载窗口章节: {len(window_chapters)} 章")
+        
+        # 2. 识别问题（使用对话式优化）
+        window_issues, fixed_chapters = self._optimize_window_conversational(
+            window_chapters, 
+            window_idx=1,  # 单个窗口，索引为1
+            max_rounds=1   # 单个窗口只进行1轮优化
+        )
+        
+        # 3. 生成窗口专属报告
+        report_path = self.project_path / f"window_review_{window_start}_{window_end}.md"
+        self._generate_window_report(
+            window_chapters, fixed_chapters, window_issues, 
+            window_start, window_end, report_path
+        )
+        
+        # 4. 构建返回结果
+        report = {
+            "status": "success",
+            "window": f"{window_start}-{window_end}",
+            "chapters_analyzed": len(window_chapters),
+            "issues_found": len(window_issues),
+            "issues": [
+                {
+                    "chapter": i.chapter,
+                    "type": i.type,
+                    "severity": i.severity,
+                    "description": i.description
+                }
+                for i in window_issues
+            ],
+            "fixes_applied": [
+                {
+                    "chapter": ch.get('chapter_number'),
+                    "optimized": ch.get('optimized', False),
+                    "word_count": ch.get('word_count', 0)
+                }
+                for ch in fixed_chapters if ch.get('optimized')
+            ],
+            "report_path": str(report_path)
+        }
+        
+        logger.info(f"[StageOptimizer] ✅ 窗口 {window_start}-{window_end} 优化完成 | 问题: {len(window_issues)} | 修复: {len(report['fixes_applied'])}")
+        return report
+    
+    def _generate_window_report(self, original_chapters: List[Dict], 
+                                fixed_chapters: List[Dict],
+                                issues: List[Issue],
+                                window_start: int, window_end: int,
+                                report_path: Path):
+        """生成单个窗口的优化报告"""
+        
+        # 计算修复统计
+        fixed_count = len([c for c in fixed_chapters if c.get('optimized')])
+        
+        report = f"""# 滑动窗口优化报告
+
+## 窗口范围：第{window_start}-{window_end}章
+
+## 优化统计
+- 分析章节数：{len(original_chapters)}
+- 发现问题数：{len(issues)}
+- 严重问题数：{len([i for i in issues if i.severity == 'high'])}
+- 修复章节数：{fixed_count}
+
+## 问题详情
+"""
+        
+        # 按类型分组问题
+        from collections import defaultdict
+        issues_by_type = defaultdict(list)
+        for issue in issues:
+            issues_by_type[issue.type].append(issue)
+        
+        # 输出各类问题
+        issue_type_names = {
+            'plot': '剧情连续性',
+            'character': '角色一致性', 
+            'world': '设定一致性',
+            'bestseller': '爆款标准差距',
+            'emotion': '情绪节奏',
+            'hook': '钩子设计'
+        }
+        
+        for type_name, type_issues in issues_by_type.items():
+            type_display = issue_type_names.get(type_name, type_name)
+            report += f"\n### {type_display} ({len(type_issues)}个)\n"
+            for issue in type_issues[:10]:  # 最多显示10个
+                report += f"- **第{issue.chapter}章** [{issue.severity}] {issue.description}\n"
+            if len(type_issues) > 10:
+                report += f"- ... 还有 {len(type_issues) - 10} 个问题\n"
+        
+        # 章节质量对比
+        report += f"\n## 章节质量对比\n"
+        report += "| 章节 | 原字数 | 优化后 | 状态 |\n"
+        report += "|------|--------|--------|------|\n"
+        
+        fixed_dict = {c.get('chapter_number'): c for c in fixed_chapters}
+        for ch in original_chapters:
+            ch_num = ch.get('chapter_number', 0)
+            orig_words = ch.get('word_count', 0)
+            fixed_ch = fixed_dict.get(ch_num)
+            if fixed_ch and fixed_ch.get('optimized'):
+                new_words = fixed_ch.get('word_count', orig_words)
+                report += f"| {ch_num} | {orig_words} | {new_words} | ✅ 已优化 |\n"
+            else:
+                report += f"| {ch_num} | {orig_words} | - | ➖ 未修改 |\n"
+        
+        report += f"\n---\n生成时间：{self._get_timestamp()}\n"
+        
+        # 保存报告
+        report_path.write_text(report, encoding='utf-8')
+        logger.info(f"[StageOptimizer] 窗口报告已保存: {report_path}")
     
     def optimize_stage(self, chapters: List[Dict], stage_end: int, 
                        use_conversational: bool = True,

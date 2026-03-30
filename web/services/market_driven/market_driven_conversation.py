@@ -521,6 +521,9 @@ class MarketDrivenConversationSession:
                 "stage_goals": ("阶段目标.json", "stage_goals"),
                 "emotion_curve": ("情绪曲线.json", "emotion_curve"),
                 "tactical_plan": ("战术规划.json", "tactical_plan"),
+                "writing_style_guide": ("写作风格指南.json", "writing_style_guide"),
+                "market_analysis": ("市场分析.json", "market_analysis"),
+                "emotional_blueprint": ("情绪蓝图.json", "emotional_blueprint"),
             }
             
             if step_name not in product_mapping:
@@ -664,6 +667,13 @@ class MarketDrivenConversationSession:
         results["writing_style_guide"] = self._generate_writing_style_guide()
         results["market_analysis"] = self._generate_market_analysis()
         results["emotional_blueprint"] = self._generate_emotional_blueprint()
+        
+        # 🔥 保存补充产物
+        if project_path:
+            self._save_phase_one_product("writing_style_guide", results, Path(project_path))
+            self._save_phase_one_product("market_analysis", results, Path(project_path))
+            self._save_phase_one_product("emotional_blueprint", results, Path(project_path))
+            logger.info(f"[对话模式 {self.session_id}] 补充产物已保存到 phase_one_products/")
         
         # 🔥 最终保存
         self._save_step_result("complete", results, project_path)
@@ -1333,20 +1343,49 @@ class MarketDrivenConversationSession:
             标准化后的情绪曲线数组
         """
         if len(curve) == target_length:
+            # 确保所有章节都有新字段
+            for i, item in enumerate(curve):
+                if "climax_type" not in item:
+                    item["climax_type"] = ""
+                if "climax_subtype" not in item:
+                    item["climax_subtype"] = ""
+                # 统一章节号字段
+                if "chapter" in item and "ch" not in item:
+                    item["ch"] = item.pop("chapter")
             return curve
         
         if len(curve) < target_length:
             # 需要补全 - 复制最后一个元素
-            last_item = curve[-1] if curve else {"chapter": 1, "emotion": "期待", "intensity": 5}
+            last_item = curve[-1] if curve else {
+                "ch": 1, "emotion": "期待", "intensity": 5,
+                "beat_type": "铺垫", "climax_type": "", "climax_subtype": "",
+                "event": "", "purpose": ""
+            }
             for i in range(len(curve), target_length):
                 new_item = last_item.copy()
-                new_item["chapter"] = i + 1
+                new_item["ch"] = i + 1
                 curve.append(new_item)
             logger.info(f"[对话模式 {self.session_id}] emotion_curve 已补全至 {target_length} 章")
         else:
             # 需要截断
             curve = curve[:target_length]
             logger.info(f"[对话模式 {self.session_id}] emotion_curve 已截断至 {target_length} 章")
+        
+        # 确保所有章节都有新字段
+        for item in curve:
+            if "climax_type" not in item:
+                item["climax_type"] = ""
+            if "climax_subtype" not in item:
+                item["climax_subtype"] = ""
+            if "beat_type" not in item:
+                item["beat_type"] = "铺垫"
+            if "event" not in item:
+                item["event"] = ""
+            if "purpose" not in item:
+                item["purpose"] = ""
+            # 统一章节号字段
+            if "chapter" in item and "ch" not in item:
+                item["ch"] = item.pop("chapter")
         
         return curve
     

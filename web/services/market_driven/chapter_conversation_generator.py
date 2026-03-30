@@ -9,7 +9,7 @@ v3.0更新：
 
 import json
 import logging
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, Tuple
 from datetime import datetime
 from pathlib import Path
 
@@ -64,6 +64,15 @@ try:
 except ImportError:
     HAS_INFO_EXTRACTOR = False
     logging.warning("[ChapterConversationGenerator] 信息提取器未加载")
+
+# 导入阶段性复盘优化器（滑动窗口版）
+try:
+    from .stage_review_optimizer import StageReviewOptimizer
+    HAS_STAGE_REVIEW_OPTIMIZER = True
+    logging.info("[ChapterConversationGenerator] 已加载阶段性复盘优化器")
+except ImportError:
+    HAS_STAGE_REVIEW_OPTIMIZER = False
+    logging.warning("[ChapterConversationGenerator] 阶段性复盘优化器未加载")
     
 # 定义备用的优化器（简化版）
 class SimpleOptimizer:
@@ -192,6 +201,16 @@ class ChapterConversationGenerator:
                 logging.info(f"[章节对话 {self.session_id}] 信息提取器已启动")
             except Exception as e:
                 logging.warning(f"[章节对话 {self.session_id}] 信息提取器初始化失败: {e}")
+        
+        # 🔥 阶段性复盘优化器跟踪（滑动窗口10章复盘）
+        self.stage_review_triggered = set()  # 已触发的复盘里程碑（10, 20, 30...）
+        self.stage_review_optimizer = None
+        if HAS_STAGE_REVIEW_OPTIMIZER and project_path:
+            try:
+                self.stage_review_optimizer = StageReviewOptimizer(project_path, api_client)
+                logging.info(f"[章节对话 {self.session_id}] 阶段性复盘优化器已启动")
+            except Exception as e:
+                logging.warning(f"[章节对话 {self.session_id}] 阶段性复盘优化器初始化失败: {e}")
         
         # 初始化主角名称
         self.protagonist_name = self._get_protagonist_name()
@@ -362,6 +381,10 @@ class ChapterConversationGenerator:
                     progress_callback(chapter_num, total)
                 
                 logger.info(f"[章节对话 {self.session_id}] 第{chapter_num}章完成 | 字数: {chapter.get('word_count', 0)}")
+                
+                # 🔥 检查是否需要触发阶段性复盘（每10章触发一次滑动窗口复盘）
+                if chapter_num % 10 == 0 and chapter_num not in self.stage_review_triggered:
+                    self._trigger_stage_review(chapter_num, chapters)
                 
             except Exception as e:
                 logger.error(f"[章节对话 {self.session_id}] 第{chapter_num}章失败: {e}")
@@ -951,6 +974,120 @@ class ChapterConversationGenerator:
             "pass_rate": f"{passed/total*100:.1f}%" if total > 0 else "0%",
             "status": "质检完成" if total > 0 else "未开始"
         }
+    
+    def _trigger_stage_review(self, chapter_num: int, chapters: List[Dict]):
+        """
+        🔥 触发滑动窗口阶段性复盘
+        
+        每生成一批章节后，检查哪些滑动窗口已完整（10章），逐个窗口优化。
+        
+        滑动窗口配置：
+        - 窗口大小：10章
+        - 重叠：2章（保证连贯性）
+        - 步长：8章
+        
+        窗口序列示例：
+        - 窗口1: 第1-10章（第10章生成后可用）
+        - 窗口2: 第8-17章（第17章生成后可用，重叠8-9章）
+        - 窗口3: 第16-25章（第25章生成后可用，重叠16-17章）
+        
+        示例：
+        - 生成1-6章 → 无完整窗口
+        - 生成7-14章 → 第10章已完成，触发窗口1(1-10)优化
+        - 生成15-22章 → 第17章已完成，触发窗口2(8-17)优化
+        """
+        if not self.stage_review_optimizer or not self.project_path:
+            return
+        
+        logger.info(f"[章节对话 {self.session_id}] 🔍 检查滑动窗口优化条件（当前第{chapter_num}章）")
+        
+        try:
+            # 计算哪些滑动窗口已完整且未优化过
+            windows_to_optimize = self._calculate_ready_windows(chapter_num)
+            
+            if not windows_to_optimize:
+                logger.info(f"[章节对话 {self.session_id}] 暂无完整的滑动窗口需要优化")
+                return
+            
+            logger.info(f"[章节对话 {self.session_id}] 🔥🔥🔥 发现 {len(windows_to_optimize)} 个窗口待优化 🔥🔥🔥")
+            
+            # 逐个窗口进行优化
+            for window_start, window_end in windows_to_optimize:
+                self._optimize_single_window(window_start, window_end)
+                
+        except Exception as e:
+            logger.error(f"[章节对话 {self.session_id}] 滑动窗口优化失败: {e}")
+            # 复盘失败不应中断生成流程
+    
+    def _calculate_ready_windows(self, current_chapter: int) -> List[Tuple[int, int]]:
+        """
+        计算哪些滑动窗口已完整且未优化过
+        
+        Returns:
+            列表 of (window_start, window_end)
+        """
+        window_size = 10  # 默认窗口大小
+        overlap = 2       # 默认重叠
+        step = window_size - overlap  # 8
+        
+        ready_windows = []
+        
+        # 计算所有可能的窗口
+        window_idx = 0
+        while True:
+            window_start = 1 + window_idx * step
+            window_end = window_start + window_size - 1
+            
+            # 如果窗口结束超出当前章节，停止
+            if window_end > current_chapter:
+                break
+            
+            # 检查这个窗口是否已经优化过
+            window_key = f"{window_start}_{window_end}"
+            if window_key not in self.stage_review_triggered:
+                ready_windows.append((window_start, window_end))
+            
+            window_idx += 1
+        
+        return ready_windows
+    
+    def _optimize_single_window(self, window_start: int, window_end: int):
+        """
+        优化单个滑动窗口
+        
+        Args:
+            window_start: 窗口起始章节
+            window_end: 窗口结束章节
+        """
+        window_key = f"{window_start}_{window_end}"
+        self.stage_review_triggered.add(window_key)
+        
+        logger.info(f"[章节对话 {self.session_id}] 🔄 开始优化窗口 {window_start}-{window_end}")
+        
+        try:
+            # 调用优化器优化单个窗口
+            report = self.stage_review_optimizer.optimize_window(window_start, window_end)
+            
+            # 记录优化结果
+            issues_found = len(report.get('issues', []))
+            fixes_applied = len(report.get('fixes_applied', []))
+            
+            logger.info(f"[章节对话 {self.session_id}] ✅ 窗口 {window_start}-{window_end} 优化完成 | 问题: {issues_found} | 修复: {fixes_applied}")
+            
+            # 如果有严重问题，记录警告
+            if issues_found > 0:
+                high_priority = [i for i in report.get('issues', []) if i.get('severity') == 'high']
+                if high_priority:
+                    logger.warning(f"[章节对话 {self.session_id}] ⚠️ 窗口 {window_start}-{window_end} 发现 {len(high_priority)} 个高优先级问题")
+            
+            # 保存窗口优化报告
+            report_path = Path(self.project_path) / f"window_review_{window_start}_{window_end}.json"
+            with open(report_path, 'w', encoding='utf-8') as f:
+                json.dump(report, f, ensure_ascii=False, indent=2)
+            logger.info(f"[章节对话 {self.session_id}] 📝 窗口优化报告已保存: {report_path}")
+            
+        except Exception as e:
+            logger.error(f"[章节对话 {self.session_id}] ❌ 窗口 {window_start}-{window_end} 优化失败: {e}")
 
 
 # 便捷函数

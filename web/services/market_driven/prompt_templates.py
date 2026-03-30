@@ -253,10 +253,24 @@ JSON格式：protagonist_growth, ability_system_progression, key_relationships_d
     def generate_step5_emotion_prompt(self, total_chapters: int) -> str:
         """生成步骤5（情绪曲线）的Prompt"""
         emotion = self.analysis.get("emotion_formula", {})
+        climax = self.analysis.get("climax_formula", {})
         
         # 🔥 安全构建钩子列表，避免f-string嵌套问题
         hook_types = emotion.get("hook_types", ["悬念型", "爽点型", "期待型", "震惊型"])
         hook_list_str = "\n".join([f"{i+1}. {hook_type}" for i, hook_type in enumerate(hook_types)])
+        
+        # 🔥 从爆款分析获取爽点类型
+        small_types = climax.get("small_climax", {}).get("types", 
+            ["打脸", "收获", "装逼", "震惊", "情感满足"])
+        medium_types = climax.get("medium_climax", {}).get("types",
+            ["升级", "身份曝光", "资源获取", "势力扩张"])
+        large_types = climax.get("large_climax", {}).get("types",
+            ["阶段性胜利", "全网曝光", "新地图开启", "终极反转"])
+        
+        # 🔥 构建爽点类型字符串
+        small_types_str = ", ".join(small_types)
+        medium_types_str = ", ".join(medium_types)
+        large_types_str = ", ".join(large_types)
         
         return f"""# 角色：情绪曲线设计师（基于爆款节奏公式）
 
@@ -268,21 +282,53 @@ JSON格式：protagonist_growth, ability_system_progression, key_relationships_d
 ## 🪝 章尾钩子轮替
 {hook_list_str}
 
-## 📈 强度控制
-- 小爽点（每3章）：强度7
-- 中爽点（每10章）：强度8-9
-- 大爽点（每30章）：强度10
-- 缓冲章（爽点后1-2章）：强度5-6
+## 📈 强度与爽点类型控制
+
+**重要原则**：爽点类型必须多样化，避免连续使用同类型！
+
+### 小爽点（每3章，强度7）
+可选类型：{small_types_str}
+- 必须轮替使用，不能连续两章同类型
+- 铺垫1-2章，爽点1章的节奏
+
+### 中爽点（每10章，强度8-9）
+可选类型：{medium_types_str}
+- 必须有分层震惊（路人→朋友→敌人→高层）
+- 爽点后必须埋下新的期待
+
+### 大爽点（每30章，强度10）
+可选类型：{large_types_str}
+- 必须是阶段性总结
+- 必须有后续铺垫（新地图/新敌人/新目标）
+
+### 缓冲章（爽点后1-2章，强度5-6）
+- 用于消化爽点，建立新期待
+- 可以推进支线或埋下伏笔
 
 ## 🎨 情绪类型库
 震惊、期待、小爽快、大爽快、紧张、愤怒、满足
 
-## ✅ 输出格式
-**严格要求**：
-1. 必须返回**完整的{total_chapters}章**，每章都要有数据！
-2. 不能只返回里程碑章节（如1, 10, 20...），必须每章都有
-3. curve数组长度必须等于总章数
-4. 每个元素包含：ch(章节号), emotion(情绪类型), intensity(1-10), beat_type(节奏类型), event(事件), purpose(目的)
+## ✅ 输出格式（严格要求）
+
+**每个章节必须包含以下字段**：
+```json
+{{
+  "ch": 1,                          // 章节号（必须连续）
+  "emotion": "压抑",                // 情绪类型
+  "intensity": 9,                   // 强度 1-10
+  "beat_type": "钩子",              // 节奏类型：钩子/爽点/震惊/转折/铺垫/缓冲
+  "climax_type": "",                // 🔥 爽点类型：打脸/收获/升级/装逼/震惊（非爽点章留空）
+  "climax_subtype": "",             // 🔥 具体场景：如"前女友打脸"/"系统升级"（非爽点章留空）
+  "event": "主角被羞辱",            // 关键事件描述
+  "purpose": "让读者代入主角处境"   // 这章的作用
+}}
+```
+
+**爽点类型使用规则**：
+1. 小爽点章（每3章）：必须从 {small_types_str} 中选择，轮替使用
+2. 中爽点章（每10章）：必须从 {medium_types_str} 中选择
+3. 大爽点章（每30章）：必须从 {large_types_str} 中选择
+4. 非爽点章：climax_type 和 climax_subtype 留空字符串
 
 **错误示例（会被拒绝）**：
 ```json
@@ -291,8 +337,15 @@ JSON格式：protagonist_growth, ability_system_progression, key_relationships_d
 
 **正确示例**：
 ```json
-{{"curve": [{{"ch":1,...}}, {{"ch":2,...}}, {{"ch":3,...}}, ...]}}  // 完整的{total_chapters}章
+{{"curve": [
+  {{"ch":1, "emotion":"压抑", "intensity":9, "beat_type":"钩子", "climax_type":"", "climax_subtype":"", "event":"被羞辱", "purpose":"让读者代入"}},
+  {{"ch":2, "emotion":"期待", "intensity":6, "beat_type":"转折", "climax_type":"", "climax_subtype":"", "event":"系统觉醒", "purpose":"点燃希望"}},
+  {{"ch":3, "emotion":"小爽快", "intensity":7, "beat_type":"爽点", "climax_type":"打脸", "climax_subtype":"前女友被打脸", "event":"当众打脸", "purpose":"初步验证系统"}},
+  ...  // 完整的{total_chapters}章，每章都有全部字段
+]}}
 ```
+
+**必须返回完整的{total_chapters}章，每章都要有全部7个字段！**
 """
     
     def get_writing_style_guide(self) -> str:
