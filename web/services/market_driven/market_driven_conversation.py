@@ -1647,11 +1647,14 @@ class MarketDrivenConversationSession:
                     return result
                 except json.JSONDecodeError as e:
                     last_error = e
-                    if attempt == 0:
+                    # 只有在不是Markdown格式时才记录为警告
+                    if '```' not in response and attempt == 0:
                         logger.warning(f"[DEBUG][{step_name}] JSON直接解析失败: {e}")
                 
                 # 尝试提取JSON块
                 json_match = re.search(r'```json\s*(.*?)\s*```', response, re.DOTALL)
+                if not json_match:
+                    json_match = re.search(r'```\s*(.*?)\s*```', response, re.DOTALL)
                 candidate = json_match.group(1) if json_match else None
                 
                 # 如果没有代码块，尝试提取花括号内容
@@ -1663,7 +1666,8 @@ class MarketDrivenConversationSession:
                     # 先尝试直接解析提取的内容
                     try:
                         result = json.loads(candidate)
-                        logger.info(f"[DEBUG][{step_name}] 从代码块/花括号解析成功，返回类型: {type(result)}")
+                        extraction_source = "Markdown代码块" if json_match else "花括号"
+                        logger.info(f"[DEBUG][{step_name}] 从{extraction_source}提取并解析成功，返回类型: {type(result)}")
                         self._log_response_data(step_name, result)
                         return result
                     except json.JSONDecodeError as e:
