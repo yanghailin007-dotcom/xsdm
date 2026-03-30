@@ -28,6 +28,36 @@ class PromptPackageManager:
         # 确保目录存在
         self.default_packages_path.mkdir(parents=True, exist_ok=True)
         self.user_packages_path.mkdir(parents=True, exist_ok=True)
+        
+        # 初始化默认提示词包
+        self._init_default_packages()
+    
+    def _init_default_packages(self):
+        """初始化默认提示词包（如果不存在则创建）"""
+        try:
+            # 检查 market_driven 默认包是否存在
+            market_driven_path = self.default_packages_path / "market_driven"
+            if market_driven_path.exists() and (market_driven_path / "package_info.json").exists():
+                return  # 已存在，跳过
+            
+            logger.info("[PromptPackageManager] 初始化默认提示词包...")
+            
+            # 创建目录结构
+            market_driven_path.mkdir(parents=True, exist_ok=True)
+            
+            # 复制 JSON 文件
+            import shutil
+            template_dir = Path(__file__).parent.parent.parent.parent / "prompt_packages" / "default" / "market_driven"
+            
+            if template_dir.exists():
+                for json_file in template_dir.glob("*.json"):
+                    shutil.copy2(json_file, market_driven_path / json_file.name)
+                logger.info("[PromptPackageManager] 默认提示词包初始化完成")
+            else:
+                logger.warning(f"[PromptPackageManager] 模板目录不存在: {template_dir}")
+                
+        except Exception as e:
+            logger.error(f"[PromptPackageManager] 初始化默认包失败: {e}")
     
     def list_packages(self, user_id: Optional[str] = None, mode: Optional[str] = None) -> List[Dict]:
         """

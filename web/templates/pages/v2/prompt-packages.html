@@ -436,10 +436,126 @@
 }
 
 .form-textarea {
-    min-height: 400px;
+    min-height: 200px;
     resize: vertical;
     font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
     line-height: 1.6;
+}
+
+/* 分段编辑器 */
+.sections-editor {
+    border: 1px solid var(--v2-border-subtle);
+    border-radius: var(--v2-radius-lg);
+    overflow: hidden;
+}
+
+.section-item {
+    border-bottom: 1px solid var(--v2-border-subtle);
+    background: var(--v2-bg-primary);
+}
+
+.section-item:last-child {
+    border-bottom: none;
+}
+
+.section-header {
+    padding: var(--v2-space-3) var(--v2-space-4);
+    background: var(--v2-bg-tertiary);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    cursor: pointer;
+}
+
+.section-header:hover {
+    background: var(--v2-bg-secondary);
+}
+
+.section-info {
+    display: flex;
+    align-items: center;
+    gap: var(--v2-space-3);
+}
+
+.section-type-badge {
+    font-size: 10px;
+    padding: 2px 8px;
+    border-radius: var(--v2-radius-sm);
+    background: rgba(99, 102, 241, 0.1);
+    color: #6366f1;
+    text-transform: uppercase;
+}
+
+.section-type-badge.static {
+    background: rgba(16, 185, 129, 0.1);
+    color: #10b981;
+}
+
+.section-type-badge.dynamic {
+    background: rgba(245, 158, 11, 0.1);
+    color: #f59e0b;
+}
+
+.section-name {
+    font-size: var(--v2-text-sm);
+    font-weight: var(--v2-font-medium);
+    color: var(--v2-text-primary);
+}
+
+.section-desc {
+    font-size: var(--v2-text-xs);
+    color: var(--v2-text-tertiary);
+}
+
+.section-actions {
+    display: flex;
+    gap: var(--v2-space-2);
+}
+
+.section-toggle {
+    width: 28px;
+    height: 28px;
+    border-radius: var(--v2-radius-md);
+    border: none;
+    background: transparent;
+    color: var(--v2-text-secondary);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: transform 0.2s;
+}
+
+.section-toggle.expanded {
+    transform: rotate(180deg);
+}
+
+.section-content {
+    padding: var(--v2-space-4);
+    display: none;
+}
+
+.section-content.expanded {
+    display: block;
+}
+
+.section-textarea {
+    width: 100%;
+    min-height: 300px;
+    padding: var(--v2-space-3);
+    font-size: var(--v2-text-sm);
+    color: var(--v2-text-primary);
+    background: var(--v2-bg-secondary);
+    border: 1px solid var(--v2-border-subtle);
+    border-radius: var(--v2-radius-lg);
+    resize: vertical;
+    font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+    line-height: 1.6;
+}
+
+.section-textarea:focus {
+    outline: none;
+    border-color: #6366f1;
 }
 
 /* 变量标签 */
@@ -451,6 +567,13 @@
     background: var(--v2-bg-tertiary);
     border-radius: var(--v2-radius-lg);
     margin-bottom: var(--v2-space-3);
+}
+
+.variables-bar-title {
+    font-size: var(--v2-text-xs);
+    color: var(--v2-text-tertiary);
+    width: 100%;
+    margin-bottom: var(--v2-space-2);
 }
 
 .variable-tag {
@@ -520,6 +643,67 @@
 
 .v2-btn--danger:hover {
     background: rgba(239, 68, 68, 0.2);
+}
+
+.v2-btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+/* 测试面板 */
+.test-panel {
+    border: 1px solid var(--v2-border-subtle);
+    border-radius: var(--v2-radius-lg);
+    margin-top: var(--v2-space-6);
+    overflow: hidden;
+}
+
+.test-panel-header {
+    padding: var(--v2-space-3) var(--v2-space-4);
+    background: linear-gradient(135deg, rgba(99, 102, 241, 0.1), rgba(139, 92, 246, 0.1));
+    border-bottom: 1px solid var(--v2-border-subtle);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.test-panel-title {
+    font-size: var(--v2-text-base);
+    font-weight: var(--v2-font-semibold);
+    color: var(--v2-text-primary);
+    display: flex;
+    align-items: center;
+    gap: var(--v2-space-2);
+}
+
+.test-panel-body {
+    padding: var(--v2-space-4);
+}
+
+.test-variables-form {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: var(--v2-space-3);
+    margin-bottom: var(--v2-space-4);
+}
+
+.test-result {
+    background: var(--v2-bg-primary);
+    border: 1px solid var(--v2-border-subtle);
+    border-radius: var(--v2-radius-lg);
+    padding: var(--v2-space-4);
+    margin-top: var(--v2-space-4);
+    max-height: 400px;
+    overflow-y: auto;
+}
+
+.test-result pre {
+    margin: 0;
+    font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+    font-size: var(--v2-text-sm);
+    line-height: 1.6;
+    color: var(--v2-text-secondary);
+    white-space: pre-wrap;
 }
 
 /* 模态框 */
@@ -634,6 +818,10 @@
     .packages-sidebar {
         max-height: 300px;
     }
+    
+    .test-variables-form {
+        grid-template-columns: 1fr;
+    }
 }
 </style>
 {% endblock %}
@@ -664,7 +852,6 @@
                 </div>
             </div>
             <div class="packages-list" id="packagesList">
-                <!-- 动态加载 -->
                 <div class="content-empty" style="padding: var(--v2-space-6);">
                     <p>加载中...</p>
                 </div>
@@ -692,7 +879,7 @@
         </div>
         <div class="modal-body">
             <div class="form-group">
-                <label class="form-label">提示词包名称</label>
+                <label class="form-label">提示词包名称 *</label>
                 <input type="text" class="form-input" id="newPackageName" placeholder="例如：我的国运文优化版">
             </div>
             <div class="form-group">
@@ -715,6 +902,30 @@
         <div class="modal-footer">
             <button class="v2-btn v2-btn--secondary" onclick="hideModal('createModal')">取消</button>
             <button class="v2-btn v2-btn--primary" onclick="createPackage()">创建</button>
+        </div>
+    </div>
+</div>
+
+<!-- 导入模态框 -->
+<div class="modal-overlay" id="importModal">
+    <div class="modal">
+        <div class="modal-header">
+            <h3 class="modal-title">导入提示词包</h3>
+            <button class="modal-close" onclick="hideModal('importModal')">&times;</button>
+        </div>
+        <div class="modal-body">
+            <div class="form-group">
+                <label class="form-label">选择ZIP文件</label>
+                <input type="file" class="form-input" id="importFile" accept=".zip">
+            </div>
+            <div class="form-group">
+                <label class="form-label">新名称（可选，留空使用原名称）</label>
+                <input type="text" class="form-input" id="importName" placeholder="提示词包名称">
+            </div>
+        </div>
+        <div class="modal-footer">
+            <button class="v2-btn v2-btn--secondary" onclick="hideModal('importModal')">取消</button>
+            <button class="v2-btn v2-btn--primary" onclick="importPackage()">导入</button>
         </div>
     </div>
 </div>
@@ -751,6 +962,7 @@
 let currentPackages = [];
 let currentPackage = null;
 let currentStep = null;
+let currentSections = [];
 let deleteTargetId = null;
 
 // ==================== API 调用 ====================
@@ -766,10 +978,12 @@ async function apiCall(url, method = 'GET', data = null) {
     }
     
     const response = await fetch(url, options);
+    const result = await response.json();
+    
     if (!response.ok) {
-        throw new Error(`API错误: ${response.status}`);
+        throw new Error(result.error || `API错误: ${response.status}`);
     }
-    return await response.json();
+    return result;
 }
 
 // ==================== 加载包列表 ====================
@@ -787,13 +1001,11 @@ async function loadPackages() {
 function renderPackagesList() {
     const container = document.getElementById('packagesList');
     
-    // 分组
     const systemPackages = currentPackages.filter(p => p.is_default);
     const userPackages = currentPackages.filter(p => !p.is_default);
     
     let html = '';
     
-    // 系统默认包
     if (systemPackages.length > 0) {
         html += `
             <div class="package-category">
@@ -815,7 +1027,6 @@ function renderPackagesList() {
         `;
     }
     
-    // 用户自定义包
     if (userPackages.length > 0) {
         html += `
             <div class="package-category">
@@ -856,7 +1067,7 @@ async function selectPackage(packageId) {
         const data = await apiCall(`/api/v2/prompt-packages/${packageId}`);
         currentPackage = data.package;
         renderPackageDetail();
-        renderPackagesList(); // 更新选中状态
+        renderPackagesList();
     } catch (error) {
         showToast('加载失败: ' + error.message, 'error');
     }
@@ -868,7 +1079,6 @@ function renderPackageDetail() {
     const pkg = currentPackage;
     
     container.innerHTML = `
-        <!-- 包头部信息 -->
         <div class="package-header">
             <div class="package-info">
                 <h2>${pkg.name}</h2>
@@ -902,13 +1112,11 @@ function renderPackageDetail() {
             </div>
         </div>
         
-        <!-- 标签页 -->
         <div class="content-tabs">
             <button class="tab-btn active" onclick="showTab('steps')">步骤配置</button>
             <button class="tab-btn" onclick="showTab('settings')">基本设置</button>
         </div>
         
-        <!-- 步骤列表 -->
         <div class="steps-list" id="stepsTab">
             ${(pkg.steps || []).map(step => `
                 <div class="step-item" onclick="editStep('${step.step_id}')">
@@ -927,7 +1135,6 @@ function renderPackageDetail() {
             `).join('')}
         </div>
         
-        <!-- 设置面板 -->
         <div class="steps-list" id="settingsTab" style="display: none;">
             <div class="editor-section">
                 <h4 class="editor-section-title">基本信息</h4>
@@ -939,25 +1146,30 @@ function renderPackageDetail() {
                     <label class="form-label">描述</label>
                     <input type="text" class="form-input" id="settingDesc" value="${pkg.description || ''}">
                 </div>
+                <div class="form-group">
+                    <label class="form-label">标签（逗号分隔）</label>
+                    <input type="text" class="form-input" id="settingTags" value="${(pkg.tags || []).join(', ')}">
+                </div>
             </div>
-            <div class="editor-footer" style="position: relative;">
+            <div class="editor-footer" style="position: relative; border: none;">
                 <button class="v2-btn v2-btn--primary" onclick="savePackageSettings()">保存设置</button>
             </div>
         </div>
     `;
 }
 
-// ==================== 编辑步骤 ====================
+// ==================== 编辑步骤（分段编辑器） ====================
 async function editStep(stepId) {
     try {
         const step = currentPackage.steps.find(s => s.step_id === stepId);
         if (!step) return;
         
         currentStep = step;
+        currentSections = step.prompt_template?.context_sections || [];
+        
         const container = document.getElementById('contentArea');
         
         container.innerHTML = `
-            <!-- 编辑器头部 -->
             <div class="package-header">
                 <div class="package-info">
                     <h2>编辑步骤: ${step.step_name}</h2>
@@ -971,8 +1183,8 @@ async function editStep(stepId) {
                 </div>
             </div>
             
-            <!-- 编辑器 -->
             <div class="editor-container">
+                <!-- 基本信息 -->
                 <div class="editor-section">
                     <h4 class="editor-section-title">步骤名称</h4>
                     <input type="text" class="form-input" id="stepName" value="${step.step_name}">
@@ -991,35 +1203,101 @@ async function editStep(stepId) {
                     </label>
                 </div>
                 
+                <!-- 变量栏 -->
                 <div class="editor-section">
-                    <h4 class="editor-section-title">提示词模板</h4>
-                    <p style="font-size: var(--v2-text-xs); color: var(--v2-text-tertiary); margin-bottom: var(--v2-space-2);">
-                        点击变量标签可插入到光标位置
-                    </p>
-                    <div class="variables-bar" id="variablesBar">
+                    <h4 class="editor-section-title">可用变量（点击插入）</h4>
+                    <div class="variables-bar">
+                        <span class="variables-bar-title">变量列表：</span>
                         ${(step.prompt_template?.variables || []).map(v => `
-                            <span class="variable-tag" onclick="insertVariable('{${v.name}}')">{${v.name}}</span>
+                            <span class="variable-tag" onclick="insertVariableToActive('{${v.name}}')" title="${v.description || ''}">{${v.name}}</span>
                         `).join('')}
                     </div>
-                    <textarea class="form-textarea" id="stepPrompt" placeholder="输入提示词模板...">${getPromptPreview(step)}</textarea>
                 </div>
                 
+                <!-- 分段编辑器 -->
+                <div class="editor-section">
+                    <h4 class="editor-section-title">提示词分段编辑</h4>
+                    <div class="sections-editor" id="sectionsEditor">
+                        ${currentSections.map((section, index) => `
+                            <div class="section-item" data-index="${index}">
+                                <div class="section-header" onclick="toggleSection(${index})">
+                                    <div class="section-info">
+                                        <span class="section-type-badge ${section.type}">${section.type}</span>
+                                        <span class="section-name">${section.name}</span>
+                                    </div>
+                                    <button class="section-toggle" id="toggle-${index}">▼</button>
+                                </div>
+                                <div class="section-content" id="section-${index}">
+                                    ${section.type === 'dynamic' ? `
+                                        <div class="form-group">
+                                            <label class="form-label">模板内容</label>
+                                            <textarea class="section-textarea" id="section-template-${index}" 
+                                                placeholder="输入模板内容，使用 {变量名} 格式">${section.template || ''}</textarea>
+                                        </div>
+                                    ` : `
+                                        <div class="form-group">
+                                            <label class="form-label">静态内容</label>
+                                            <textarea class="section-textarea" id="section-content-${index}" 
+                                                placeholder="输入静态内容">${section.content || ''}</textarea>
+                                        </div>
+                                    `}
+                                </div>
+                            </div>
+                        `).join('')}
+                    </div>
+                </div>
+                
+                <!-- 参数设置 -->
                 <div class="editor-section">
                     <h4 class="editor-section-title">参数设置</h4>
-                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: var(--v2-space-4);">
+                    <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: var(--v2-space-4);">
                         <div class="form-group">
                             <label class="form-label">Temperature</label>
-                            <input type="number" class="form-input" id="stepTemp" value="${step.parameters?.temperature || 0.8}" step="0.1" min="0" max="2">
+                            <input type="number" class="form-input" id="stepTemp" 
+                                value="${step.parameters?.temperature || 0.8}" step="0.1" min="0" max="2">
                         </div>
                         <div class="form-group">
                             <label class="form-label">Max Tokens</label>
-                            <input type="number" class="form-input" id="stepTokens" value="${step.parameters?.max_tokens || 4000}" step="1000" min="1000" max="8000">
+                            <input type="number" class="form-input" id="stepTokens" 
+                                value="${step.parameters?.max_tokens || 4000}" step="1000" min="1000" max="8000">
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">首选模型</label>
+                            <select class="form-input" id="stepModel">
+                                <option value="gemini" ${step.parameters?.model_preference === 'gemini' ? 'selected' : ''}>Gemini</option>
+                                <option value="kimi" ${step.parameters?.model_preference === 'kimi' ? 'selected' : ''}>Kimi</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- 测试面板 -->
+                <div class="test-panel">
+                    <div class="test-panel-header">
+                        <span class="test-panel-title">🧪 测试渲染</span>
+                        <button class="v2-btn v2-btn--secondary" onclick="testRender()">运行测试</button>
+                    </div>
+                    <div class="test-panel-body">
+                        <p style="font-size: var(--v2-text-xs); color: var(--v2-text-tertiary); margin-bottom: var(--v2-space-3);">
+                            输入测试变量值，预览提示词渲染效果
+                        </p>
+                        <div class="test-variables-form" id="testVariablesForm">
+                            ${(step.prompt_template?.variables || []).slice(0, 6).map(v => `
+                                <div class="form-group">
+                                    <label class="form-label">${v.name}</label>
+                                    <input type="text" class="form-input test-var-input" 
+                                        data-var="${v.name}" placeholder="${v.description || ''}">
+                                </div>
+                            `).join('')}
+                        </div>
+                        <div class="test-result" id="testResult" style="display: none;">
+                            <h5 style="margin: 0 0 var(--v2-space-3) 0; color: var(--v2-text-secondary);">渲染结果：</h5>
+                            <pre id="testResultContent"></pre>
                         </div>
                     </div>
                 </div>
             </div>
             
-            <!-- 底部操作 -->
             <div class="editor-footer">
                 <button class="v2-btn v2-btn--secondary" onclick="renderPackageDetail()">取消</button>
                 <button class="v2-btn v2-btn--primary" onclick="saveStep()">保存步骤</button>
@@ -1030,41 +1308,104 @@ async function editStep(stepId) {
     }
 }
 
-// 获取提示词预览（简化版）
-function getPromptPreview(step) {
-    const sections = step.prompt_template?.context_sections || [];
-    return sections.map(s => {
-        if (s.type === 'static') return s.content;
-        if (s.type === 'dynamic') return s.template;
-        return '';
-    }).join('\n\n');
+// ==================== 分段编辑器功能 ====================
+function toggleSection(index) {
+    const content = document.getElementById(`section-${index}`);
+    const toggle = document.getElementById(`toggle-${index}`);
+    
+    content.classList.toggle('expanded');
+    toggle.classList.toggle('expanded');
 }
 
-// 插入变量
-function insertVariable(variable) {
-    const textarea = document.getElementById('stepPrompt');
-    const start = textarea.selectionStart;
-    const end = textarea.selectionEnd;
-    const text = textarea.value;
-    textarea.value = text.substring(0, start) + variable + text.substring(end);
-    textarea.focus();
-    textarea.selectionStart = textarea.selectionEnd = start + variable.length;
+let activeTextarea = null;
+
+function insertVariableToActive(variable) {
+    // 找到最后聚焦的textarea或第一个textarea
+    const textareas = document.querySelectorAll('.section-textarea');
+    let target = activeTextarea;
+    
+    if (!target && textareas.length > 0) {
+        target = textareas[0];
+    }
+    
+    if (target) {
+        const start = target.selectionStart;
+        const end = target.selectionEnd;
+        const text = target.value;
+        target.value = text.substring(0, start) + variable + text.substring(end);
+        target.focus();
+        target.selectionStart = target.selectionEnd = start + variable.length;
+    }
+}
+
+// 监听textarea聚焦
+document.addEventListener('focusin', (e) => {
+    if (e.target.classList.contains('section-textarea')) {
+        activeTextarea = e.target;
+    }
+});
+
+// ==================== 测试渲染 ====================
+function testRender() {
+    const variables = {};
+    document.querySelectorAll('.test-var-input').forEach(input => {
+        variables[input.dataset.var] = input.value || `{${input.dataset.var}}`;
+    });
+    
+    // 收集所有section的内容
+    let result = [];
+    currentSections.forEach((section, index) => {
+        if (section.type === 'dynamic') {
+            const template = document.getElementById(`section-template-${index}`)?.value || '';
+            // 简单替换变量
+            let rendered = template;
+            Object.keys(variables).forEach(key => {
+                rendered = rendered.replace(new RegExp(`{${key}}`, 'g'), variables[key]);
+            });
+            result.push(`## ${section.name}\n${rendered}`);
+        } else {
+            const content = document.getElementById(`section-content-${index}`)?.value || '';
+            result.push(`## ${section.name}\n${content}`);
+        }
+    });
+    
+    const resultDiv = document.getElementById('testResult');
+    const resultContent = document.getElementById('testResultContent');
+    
+    resultContent.textContent = result.join('\n\n');
+    resultDiv.style.display = 'block';
 }
 
 // ==================== 保存步骤 ====================
 async function saveStep() {
     try {
+        // 收集所有section的内容
+        const sections = currentSections.map((section, index) => {
+            if (section.type === 'dynamic') {
+                return {
+                    ...section,
+                    template: document.getElementById(`section-template-${index}`)?.value || ''
+                };
+            } else {
+                return {
+                    ...section,
+                    content: document.getElementById(`section-content-${index}`)?.value || ''
+                };
+            }
+        });
+        
         const stepData = {
             step_name: document.getElementById('stepName').value,
             description: document.getElementById('stepDesc').value,
             enabled: document.getElementById('stepEnabled').checked,
             prompt_template: {
                 ...currentStep.prompt_template,
-                // 简化处理：直接保存完整文本
+                context_sections: sections
             },
             parameters: {
                 temperature: parseFloat(document.getElementById('stepTemp').value),
-                max_tokens: parseInt(document.getElementById('stepTokens').value)
+                max_tokens: parseInt(document.getElementById('stepTokens').value),
+                model_preference: document.getElementById('stepModel').value
             }
         };
         
@@ -1075,7 +1416,7 @@ async function saveStep() {
         );
         
         showToast('保存成功', 'success');
-        await selectPackage(currentPackage.id); // 刷新
+        await selectPackage(currentPackage.id);
     } catch (error) {
         showToast('保存失败: ' + error.message, 'error');
     }
@@ -1095,8 +1436,8 @@ function showCreateModal() {
 
 async function createPackage() {
     try {
-        const name = document.getElementById('newPackageName').value;
-        const description = document.getElementById('newPackageDesc').value;
+        const name = document.getElementById('newPackageName').value.trim();
+        const description = document.getElementById('newPackageDesc').value.trim();
         const basePackageId = document.getElementById('basePackageSelect').value;
         const mode = document.getElementById('packageMode').value;
         
@@ -1172,6 +1513,75 @@ async function duplicatePackage(packageId) {
 // ==================== 导出包 ====================
 function exportPackage(packageId) {
     window.open(`/api/v2/prompt-packages/${packageId}/export`, '_blank');
+}
+
+// ==================== 导入包 ====================
+function showImportModal() {
+    document.getElementById('importModal').classList.add('active');
+}
+
+async function importPackage() {
+    try {
+        const fileInput = document.getElementById('importFile');
+        const nameInput = document.getElementById('importName');
+        
+        if (!fileInput.files || fileInput.files.length === 0) {
+            showToast('请选择文件', 'error');
+            return;
+        }
+        
+        const formData = new FormData();
+        formData.append('file', fileInput.files[0]);
+        if (nameInput.value.trim()) {
+            formData.append('name', nameInput.value.trim());
+        }
+        
+        const response = await fetch('/api/v2/prompt-packages/import', {
+            method: 'POST',
+            body: formData
+        });
+        
+        if (!response.ok) {
+            const error = await response.json();
+            throw new Error(error.error || '导入失败');
+        }
+        
+        hideModal('importModal');
+        showToast('导入成功', 'success');
+        await loadPackages();
+        
+        // 清空表单
+        fileInput.value = '';
+        nameInput.value = '';
+    } catch (error) {
+        showToast('导入失败: ' + error.message, 'error');
+    }
+}
+
+// ==================== 保存包设置 ====================
+async function savePackageSettings() {
+    try {
+        const name = document.getElementById('settingName').value.trim();
+        const description = document.getElementById('settingDesc').value.trim();
+        const tagsStr = document.getElementById('settingTags').value;
+        const tags = tagsStr.split(',').map(t => t.trim()).filter(t => t);
+        
+        if (!name) {
+            showToast('名称不能为空', 'error');
+            return;
+        }
+        
+        await apiCall(`/api/v2/prompt-packages/${currentPackage.id}`, 'PUT', {
+            name,
+            description,
+            tags
+        });
+        
+        showToast('保存成功', 'success');
+        await selectPackage(currentPackage.id);
+    } catch (error) {
+        showToast('保存失败: ' + error.message, 'error');
+    }
 }
 
 // ==================== 标签切换 ====================
