@@ -4,6 +4,7 @@
 利用Kimi的256K上下文窗口和缓存机制
 
 v2.0更新：基于爆款反向工程分析生成Prompt
+v3.0更新：支持提示词包（PromptPackage）动态加载
 """
 
 import json
@@ -29,6 +30,15 @@ try:
 except ImportError:
     HAS_TROPE_PROMPT_BUILDER = False
     logging.warning("[MarketDrivenConversation] TropePromptBuilder未加载")
+
+# 🔥 导入提示词包支持
+try:
+    from web.services.prompt_package import PromptPackage, PromptPackageManager
+    HAS_PROMPT_PACKAGE = True
+    logging.info("[MarketDrivenConversation] PromptPackage支持已加载")
+except ImportError as e:
+    HAS_PROMPT_PACKAGE = False
+    logging.warning(f"[MarketDrivenConversation] PromptPackage未加载: {e}")
 
 logger = logging.getLogger(__name__)
 
@@ -115,7 +125,9 @@ class MarketDrivenConversationSession:
     ]
     
     def __init__(self, api_client, genre: str, user_choices: Dict, 
-                 tropes: Optional[Dict] = None, provider: str = None):
+                 tropes: Optional[Dict] = None, provider: str = None,
+                 prompt_package: Optional['PromptPackage'] = None,
+                 user_id: Optional[str] = None):
         """
         初始化市场导向对话会话
         
@@ -125,6 +137,8 @@ class MarketDrivenConversationSession:
             user_choices: 用户选择（包含标题、剧情路线、主角等）
             tropes: 套路分析结果（可选，作为参考）
             provider: 提供商，None则使用APIClient默认提供商
+            prompt_package: 提示词包（可选，用于自定义提示词）
+            user_id: 用户ID（用于加载用户的提示词包）
         """
         # 🔥 修复：支持任意提供商，不再硬编码kimi
         if provider is None:
@@ -153,6 +167,24 @@ class MarketDrivenConversationSession:
         # 🔥 生成唯一会话ID，用于日志追踪
         import uuid
         self.session_id = f"MDC-{uuid.uuid4().hex[:8].upper()}"
+        
+        # 🔥 加载提示词包
+        self._prompt_package = None
+        if HAS_PROMPT_PACKAGE:
+            if prompt_package:
+                self._prompt_package = prompt_package
+                logger.info(f"[对话模式 {self.session_id}] 使用指定的提示词包: {prompt_package.name}")
+            elif user_id:
+                # 从管理器加载用户的提示词包
+                try:
+                    pkg_manager = PromptPackageManager()
+                    self._prompt_package = pkg_manager.get_package_for_generation(
+                        user_id=user_id,
+                        mode="market_driven"
+                    )
+                    logger.info(f"[对话模式 {self.session_id}] 已加载用户提示词包: {self._prompt_package.name}")
+                except Exception as e:
+                    logger.warning(f"[对话模式 {self.session_id}] 加载提示词包失败: {e}，将使用默认方式")
         
         # 🔥 基于爆款反向工程分析，生成高质量Prompt模板
         self._prompt_generator = None
@@ -384,6 +416,35 @@ class MarketDrivenConversationSession:
 5. **番茄风格**：快节奏、强爽点、章章有钩子
 """
     
+    def _get_step_prompt_from_package(self, step_id: str, variables: Dict) -> Optional[str]:
+        """
+        从提示词包获取步骤提示词
+        
+        Args:
+            step_id: 步骤ID（如 step_1_plan）
+            variables: 变量字典
+            
+        Returns:
+            渲染后的提示词，如果提示词包不可用则返回None
+        """
+        if not self._prompt_package:
+            return None
+        
+        try:
+            step_config = self._prompt_package.get_step(step_id)
+            if not step_config:
+                logger.warning(f"[对话模式 {self.session_id}] 提示词包中未找到步骤: {step_id}")
+                return None
+            
+            # 渲染提示词
+            prompt = step_config.render_prompt(variables)
+            logger.info(f"[对话模式 {self.session_id}] 已从提示词包加载步骤 [{step_id}]")
+            return prompt
+            
+        except Exception as e:
+            logger.error(f"[对话模式 {self.session_id}] 从提示词包加载步骤失败 [{step_id}]: {e}")
+            return None
+    
     def _save_step_result(self, step_name: str, results: Dict, project_path: str = None):
         """保存步骤结果到项目目录
         
@@ -610,13 +671,61 @@ class MarketDrivenConversationSession:
         return results
     
     def _generate_plan(self) -> Dict:
-        """生成完整方案（使用基于爆款的Prompt模板）"""
+        """生成完整方案（使用基于爆款的Prompt模板或提示词包）"""
         title = self.user_choices.get('title', '未命名')
         protagonist_name = self.user_choices.get('protagonist_name', '主角')
         selected_plot = self.user_choices.get('selected_plot', {})
         
-        # 🔥 使用基于爆款分析的Prompt模板（如果可用）
-        if self._prompt_generator:
+        # 🔥 首先尝试从提示词包加载
+        if self._prompt_package:
+            # 准备变量
+            variables = {
+                "genre": self.genre,
+                "title": title,
+                "protagonist_name": protagonist_name,
+                "plot_detail": selected_plot.get("detail", "") if selected_plot else "",
+            }
+            
+            # 如果爆款分析可用，添加相关变量
+            if self._prompt_generator:
+                analysis = self._prompt_generator.analysis
+                variables.update({
+                    "genre_formula": analysis.get("genre_formula", ""),
+                    "ch1_scene": analysis.get("opening_3_chapters", {}).get("chapter_1", {}).get("scene", ""),
+                    "ch1_protagonist_situation": analysis.get("opening_3_chapters", {}).get("chapter_1", {}).get("protagonist_situation", ""),
+                    "ch1_system_trigger": analysis.get("opening_3_chapters", {}).get("chapter_1", {}).get("system_trigger", ""),
+                    "ch1_hook": analysis.get("opening_3_chapters", {}).get("chapter_1", {}).get("hook", ""),
+                    "ch1_emotion_curve": analysis.get("opening_3_chapters", {}).get("chapter_1", {}).get("emotion_curve", ""),
+                    "ch1_word_count": analysis.get("opening_3_chapters", {}).get("chapter_1", {}).get("word_count", "2500-2800"),
+                    "ch2_scene": analysis.get("opening_3_chapters", {}).get("chapter_2", {}).get("scene", ""),
+                    "ch2_reward": analysis.get("opening_3_chapters", {}).get("chapter_2", {}).get("reward", ""),
+                    "ch2_reactions": analysis.get("opening_3_chapters", {}).get("chapter_2", {}).get("reactions", ""),
+                    "ch2_hook": analysis.get("opening_3_chapters", {}).get("chapter_2", {}).get("hook", ""),
+                    "ch2_word_count": analysis.get("opening_3_chapters", {}).get("chapter_2", {}).get("word_count", "2500-2800"),
+                    "ch3_scene": analysis.get("opening_3_chapters", {}).get("chapter_3", {}).get("scene", ""),
+                    "ch3_antagonist": analysis.get("opening_3_chapters", {}).get("chapter_3", {}).get("antagonist", ""),
+                    "ch3_plot": analysis.get("opening_3_chapters", {}).get("chapter_3", {}).get("plot", ""),
+                    "ch3_hook": analysis.get("opening_3_chapters", {}).get("chapter_3", {}).get("hook", ""),
+                    "ch3_word_count": analysis.get("opening_3_chapters", {}).get("chapter_3", {}).get("word_count", "2800-3000"),
+                    "gf_initial_reward": analysis.get("golden_finger_formula", {}).get("initial_reward", ""),
+                    "gf_growth_curve": analysis.get("golden_finger_formula", {}).get("growth_curve", ""),
+                    "gf_limitations": analysis.get("golden_finger_formula", {}).get("limitations", ""),
+                    "character_formula": analysis.get("character_formula", {}),
+                    "taboo_list": "\n".join([f"- {t}" for t in analysis.get("taboos", [])]),
+                })
+            
+            # 从提示词包获取提示词
+            package_prompt = self._get_step_prompt_from_package("step_1_plan", variables)
+            if package_prompt:
+                prompt = package_prompt
+                logger.info(f"[对话模式 {self.session_id}] 使用提示词包的步骤1提示词")
+            else:
+                prompt = None
+        else:
+            prompt = None
+        
+        # 🔥 如果没有从提示词包获取到，使用基于爆款分析的Prompt模板
+        if prompt is None and self._prompt_generator:
             logger.info(f"[对话模式 {self.session_id}] 使用基于爆款的Prompt模板（步骤1）")
             prompt = self._prompt_generator.generate_step1_plan_prompt(
                 title=title,
@@ -624,7 +733,7 @@ class MarketDrivenConversationSession:
                 selected_plot=selected_plot,
                 tropes=self.tropes
             )
-        else:
+        elif prompt is None:
             # 传统Prompt（备用）
             prompt_parts = [
                 "请执行【步骤1：生成完整方案】\n",
