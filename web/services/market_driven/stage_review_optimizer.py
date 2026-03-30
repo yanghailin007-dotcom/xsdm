@@ -139,11 +139,18 @@ class StageReviewOptimizer:
                     # 尝试加载阶段计划
                     stage_plans = info.get('generation_metadata', {}).get('mode_specific', {}).get('info', {}).get('stage_plans', [])
                     if stage_plans:
-                        return stage_plans
+                        # 确保返回列表类型
+                        if isinstance(stage_plans, dict):
+                            return [stage_plans]
+                        return stage_plans if isinstance(stage_plans, list) else []
                     # 备选路径
                     plan = info.get('generation_metadata', {}).get('mode_specific', {}).get('info', {}).get('plan', {})
                     if plan and 'stage_goals' in plan:
-                        return plan.get('stage_goals', [])
+                        stage_goals = plan.get('stage_goals', [])
+                        # 确保返回列表类型
+                        if isinstance(stage_goals, dict):
+                            return [stage_goals]
+                        return stage_goals if isinstance(stage_goals, list) else []
             return []
         except Exception as e:
             logger.error(f"[StageOptimizer] 加载阶段目标失败: {e}")
@@ -427,7 +434,7 @@ class StageReviewOptimizer:
 ## 3. 战术规划一致性（重点检查）
 - **事件一致性**: 章节实际发生的事件是否与【战术规划】中定义的"关键事件"一致
 - **情绪一致性**: 实际情绪曲线是否与规划的"情绪+强度"匹配
-- **节拍一致性**: 实际节拍类型是否与规划一致(Setup/Confrontation/Reversal/Rendering/Foreshadowing)
+- **节拍一致性**: 实际节拍类型是否与规划一致(铺垫/冲突/反转/渲染/伏笔)
 - **钩子落实**: 章尾钩子是否与规划的"钩子内容"一致
 
 ## 4. 世界设定一致性
@@ -539,10 +546,13 @@ class StageReviewOptimizer:
         
         # 构建阶段目标信息
         stage_goals_text = ""
-        if self.stage_goals:
+        # 确保 stage_goals 是列表类型
+        stage_goals_list = self.stage_goals if isinstance(self.stage_goals, list) else []
+        if stage_goals_list:
             stage_goals_text = "\n【阶段目标】\n"
-            for goal in self.stage_goals[:3]:  # 最多显示3个阶段目标
-                stage_goals_text += f"- 第{goal.get('chapter_range', 'N/A')}章: {goal.get('goal', '无')}\n"
+            for goal in stage_goals_list[:3]:  # 最多显示3个阶段目标
+                if isinstance(goal, dict):
+                    stage_goals_text += f"- 第{goal.get('chapter_range', 'N/A')}章: {goal.get('goal', '无')}\n"
         
         # 构建情绪计划信息
         emotion_text = ""

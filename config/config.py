@@ -98,7 +98,7 @@ CONFIG = {
     # 🔥 Provider 优先级配置（自动选择 + 故障转移）
     # 1. 当 default_provider=None 时，按此列表自动选择第一个可用的 provider
     # 2. 当高优先级 provider 的所有端点都失败时，自动切换到低优先级
-    "provider_priority": ["kimi", "gemini", "deepseek"],  # 优先级: kimi > gemini > deepseek
+    "provider_priority": ["gemini", "kimi", "deepseek"],  # 优先级: kimi > gemini > deepseek
     
     # 🔥 Provider 故障转移配置
     "provider_failover": {
@@ -120,7 +120,7 @@ CONFIG = {
     
     # 默认生成参数
     "defaults": {
-        "temperature": 0.7,
+        "temperature": 0.9,  # 提高温度以增加内容多样性
         "max_tokens": 60000,
         "total_chapters": 200,
         "max_retries": 3,

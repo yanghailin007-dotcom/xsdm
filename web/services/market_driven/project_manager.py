@@ -362,10 +362,17 @@ def create_unified_project(novel_title: str, generation_mode: str, genre: str = 
     """
     # 🔥 如果没有提供用户名，尝试从Flask session获取
     if username is None:
+        logger.warning("[create_unified_project] 未提供username参数，尝试从Flask session获取...")
         try:
             from flask import session
-            username = session.get('user') or session.get('username') or 'anonymous'
-        except:
+            username = session.get('user') or session.get('username')
+            if username:
+                logger.info(f"[create_unified_project] 从session获取用户名: {username}")
+            else:
+                logger.error("[create_unified_project] 无法从session获取用户名，将使用'anonymous'")
+                username = 'anonymous'
+        except Exception as e:
+            logger.error(f"[create_unified_project] 访问session失败: {e}，将使用'anonymous'")
             username = 'anonymous'
     
     # 创建目录

@@ -255,7 +255,7 @@ JSON格式，包含chapters数组，每个元素:
   "chapter_number": 章节号,
   "emotion": "情绪类型(压抑/紧张/小爽快/大爽快/震惊/期待)",
   "intensity": 强度(1-10),
-  "beat_type": "节拍类型(Setup/Confrontation/Reversal/Rendering/Foreshadowing)",
+  "beat_type": "节拍类型(铺垫/冲突/反转/渲染/伏笔)",
   "event": "主要事件简述",
   "purpose": "本章目的（如何服务于阶段目标）",
   "hook_type": "钩子类型",
@@ -307,29 +307,29 @@ JSON格式，包含chapters数组，每个元素:
                 if cycle_pos == 0:
                     emotion = "压抑"
                     intensity = 7
-                    beat_type = "Setup"
+                    beat_type = "铺垫"
                 elif cycle_pos == 1:
                     emotion = "紧张"
                     intensity = 8
-                    beat_type = "Confrontation"
+                    beat_type = "冲突"
                 elif cycle_pos == 2:
                     emotion = "小爽快"
                     intensity = 8
-                    beat_type = "Reversal"
+                    beat_type = "反转"
                 elif cycle_pos == 3:
                     emotion = "震惊"
                     intensity = 7
-                    beat_type = "Rendering"
+                    beat_type = "渲染"
                 else:
                     emotion = "期待"
                     intensity = 6
-                    beat_type = "Foreshadowing"
+                    beat_type = "伏笔"
             
             # 根据阶段目标调整事件（传入主角名确保一致性）
             event = self._generate_event_for_goal(ch_num, goal_id, i, protagonist_name)
             
             # 确定钩子类型（如果是期待情绪，用悬念型；其他用爽点型）
-            hook_type = "悬念型" if emotion in ["期待", " Foreshadowing"] else "爽点型"
+            hook_type = "悬念型" if emotion in ["期待", " 伏笔"] else "爽点型"
             
             chapters.append({
                 "chapter_number": ch_num,
@@ -401,20 +401,20 @@ JSON格式，包含chapters数组，每个元素:
     def _emotion_to_beat_type(self, emotion: str) -> str:
         """根据情绪类型推断节拍类型"""
         emotion_beat_map = {
-            "压抑": "Setup",
-            "紧张": "Confrontation",
-            "嘲讽": "Confrontation",
-            "质疑": "Confrontation",
-            "小爽快": "Reversal",
-            "反转": "Reversal",
-            "爆发": "Reversal",
-            "反击": "Reversal",
-            "震惊": "Rendering",
-            "震撼": "Rendering",
-            "期待": "Foreshadowing",
-            "铺垫": "Foreshadowing",
-            "绝望": "Crisis",
-            "危机": "Crisis"
+            "压抑": "铺垫",
+            "紧张": "冲突",
+            "嘲讽": "冲突",
+            "质疑": "冲突",
+            "小爽快": "反转",
+            "反转": "反转",
+            "爆发": "反转",
+            "反击": "反转",
+            "震惊": "渲染",
+            "震撼": "渲染",
+            "期待": "伏笔",
+            "铺垫": "伏笔",
+            "绝望": "危机",
+            "危机": "危机"
         }
         return emotion_beat_map.get(emotion, "Transition")
 

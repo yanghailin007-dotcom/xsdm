@@ -752,3 +752,22 @@ class TropeCache:
 
 # 全局分析器实例
 trope_analyzer = TropeAnalyzer()
+
+
+def clear_trope_cache():
+    """清除 trope_analyzer 的内存缓存和文件缓存"""
+    global trope_analyzer
+    # 清空内存缓存
+    if hasattr(trope_analyzer, '_cache'):
+        trope_analyzer._cache.clear()
+        logger.info("[TropeAnalyzer] 内存缓存已清空")
+    
+    # 清空文件缓存
+    cache_dir = Path("cache/tropes")
+    if cache_dir.exists():
+        for cache_file in cache_dir.glob("*.json"):
+            try:
+                cache_file.unlink()
+                logger.info(f"[TropeAnalyzer] 已删除缓存文件: {cache_file}")
+            except Exception as e:
+                logger.error(f"[TropeAnalyzer] 删除缓存文件失败: {e}")

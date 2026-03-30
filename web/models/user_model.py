@@ -48,7 +48,7 @@ class UserModel:
             # 用户表
             conn.execute("""
                 CREATE TABLE IF NOT EXISTS users (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    id INTEGER PRIMARY KEY,
                     username TEXT UNIQUE NOT NULL,
                     password_hash TEXT NOT NULL,
                     phone TEXT UNIQUE,
@@ -132,10 +132,40 @@ class UserModel:
             # 兼容旧版 SHA256
             return hashlib.sha256(password.encode()).hexdigest() == hashed
     
+    def _generate_user_id(self) -> int:
+        """生成新的用户ID（时间+序号格式，作为整数）
+        
+        格式：YYYYMMDD + 3位序号 = 11位整数
+        例如：20260329001, 20260329002
+        旧用户ID（1,2,3...）保持不变，新用户使用此格式
+        """
+        from datetime import datetime
+        
+        today = datetime.now().strftime('%Y%m%d')
+        
+        with self._get_connection() as conn:
+            cursor = conn.cursor()
+            # 查找今天生成的最大ID（ID >= 20260301000 表示新格式）
+            today_prefix = int(today) * 1000  # 例如：20260329000
+            cursor.execute(
+                "SELECT id FROM users WHERE id >= ? ORDER BY id DESC LIMIT 1",
+                (today_prefix,)
+            )
+            result = cursor.fetchone()
+            
+            if result:
+                # 今天已有新格式ID，序号+1
+                new_id = result[0] + 1
+            else:
+                # 今天的第一个新用户
+                new_id = today_prefix + 1
+            
+            return new_id
+    
     def create_user(self, username: str, password: str, phone: Optional[str] = None, 
                     email: Optional[str] = None, is_admin: bool = False) -> Dict[str, Any]:
         """
-        创建新用户
+        创建新用户（使用新的ID格式）
         
         Args:
             username: 用户名
@@ -179,6 +209,9 @@ class UserModel:
                     if existing_phone:
                         return {"success": False, "error": "该手机号已注册"}
                 
+                # 🔥 生成新的用户ID（时间+序号格式）
+                user_id = self._generate_user_id()
+                
                 # 创建用户（phone 为 None 时使用唯一占位符避免 NOT NULL + UNIQUE 冲突）
                 import time
                 actual_phone = phone if phone else f'NULL_{username}_{int(time.time())}'
@@ -186,12 +219,11 @@ class UserModel:
                 is_admin_int = 1 if is_admin else 0
                 cursor = conn.execute(
                     """
-                    INSERT INTO users (username, password_hash, phone, email, is_admin)
-                    VALUES (?, ?, ?, ?, ?)
+                    INSERT INTO users (id, username, password_hash, phone, email, is_admin)
+                    VALUES (?, ?, ?, ?, ?, ?)
                     """,
-                    (username, password_hash, actual_phone, email, is_admin_int)
+                    (user_id, username, password_hash, actual_phone, email, is_admin_int)
                 )
-                user_id = cursor.lastrowid
                 conn.commit()
                 
                 logger.info(f"✅ 创建用户成功: {username} (ID: {user_id})")

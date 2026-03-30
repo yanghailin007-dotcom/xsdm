@@ -396,6 +396,183 @@
   </div>
 
 </div>
+
+<!-- 余额不足提示Modal - V2风格 -->
+<div id="insufficientPointsModal" class="v2-modal-overlay" style="display: none;">
+  <div class="v2-modal v2-modal--warning">
+    <div class="v2-modal__header">
+      <div class="v2-modal__icon">
+        <span class="material-icons" style="font-size: 48px; color: #f59e0b;">account_balance_wallet</span>
+      </div>
+      <h3 class="v2-modal__title">创造点不足</h3>
+      <p class="v2-modal__subtitle" id="insufficientPointsMessage">需要至少75点才能开始生成</p>
+    </div>
+    <div class="v2-modal__content">
+      <div class="points-info">
+        <div class="points-info__item">
+          <span class="points-info__label">当前余额</span>
+          <span class="points-info__value points-info__value--current" id="currentBalance">0 点</span>
+        </div>
+        <div class="points-info__divider">
+          <span class="material-icons">arrow_forward</span>
+        </div>
+        <div class="points-info__item">
+          <span class="points-info__label">需要点数</span>
+          <span class="points-info__value points-info__value--required">75 点</span>
+        </div>
+      </div>
+      <div class="points-info__hint">
+        <span class="material-icons" style="font-size: 16px; color: var(--v2-text-secondary);">info</span>
+        <span>充值后可立即开始生成创作方案</span>
+      </div>
+    </div>
+    <div class="v2-modal__actions">
+      <button onclick="closeInsufficientModal()" class="v2-btn v2-btn--secondary">稍后再说</button>
+      <button onclick="goToRecharge()" class="v2-btn v2-btn--primary">
+        <span class="material-icons" style="font-size: 18px;">diamond</span>
+        立即充值
+      </button>
+    </div>
+  </div>
+</div>
+
+<style>
+/* V2 Modal 样式 - 余额不足提示 */
+.v2-modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.6);
+  backdrop-filter: blur(8px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  padding: 20px;
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity 0.3s ease, visibility 0.3s ease;
+}
+
+.v2-modal-overlay--open {
+  opacity: 1;
+  visibility: visible;
+}
+
+.v2-modal {
+  background: linear-gradient(135deg, rgba(30, 30, 35, 0.98), rgba(25, 25, 30, 0.98));
+  border: 1px solid rgba(245, 158, 11, 0.2);
+  border-radius: 24px;
+  padding: 40px;
+  max-width: 480px;
+  width: 100%;
+  box-shadow: 
+    0 25px 50px -12px rgba(0, 0, 0, 0.5),
+    0 0 0 1px rgba(245, 158, 11, 0.1),
+    0 0 60px rgba(245, 158, 11, 0.1);
+  transform: scale(0.9) translateY(20px);
+  transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.v2-modal-overlay--open .v2-modal {
+  transform: scale(1) translateY(0);
+}
+
+.v2-modal--warning {
+  border-color: rgba(245, 158, 11, 0.3);
+}
+
+.v2-modal__header {
+  text-align: center;
+  margin-bottom: 32px;
+}
+
+.v2-modal__icon {
+  margin-bottom: 16px;
+}
+
+.v2-modal__title {
+  font-size: 24px;
+  font-weight: 700;
+  color: #ffffff;
+  margin: 0 0 8px 0;
+}
+
+.v2-modal__subtitle {
+  font-size: 15px;
+  color: var(--v2-text-secondary);
+  margin: 0;
+}
+
+.v2-modal__content {
+  margin-bottom: 32px;
+}
+
+.points-info {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 24px;
+  padding: 24px;
+  background: rgba(0, 0, 0, 0.3);
+  border-radius: 16px;
+  margin-bottom: 16px;
+}
+
+.points-info__item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+}
+
+.points-info__label {
+  font-size: 13px;
+  color: var(--v2-text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.points-info__value {
+  font-size: 28px;
+  font-weight: 700;
+}
+
+.points-info__value--current {
+  color: #ef4444;
+}
+
+.points-info__value--required {
+  color: #22c55e;
+}
+
+.points-info__divider {
+  color: var(--v2-text-secondary);
+  opacity: 0.5;
+}
+
+.points-info__hint {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  font-size: 14px;
+  color: var(--v2-text-secondary);
+}
+
+.v2-modal__actions {
+  display: flex;
+  gap: 12px;
+}
+
+.v2-modal__actions .v2-btn {
+  flex: 1;
+  justify-content: center;
+}
+</style>
+
 {% endblock %}
 
 {% block extra_js %}
@@ -822,7 +999,15 @@ async function startGeneration() {
       window.location.href = `/market-driven-status?task=${result.task_id}`;
     } else {
       const error = await response.json();
-      alert('生成失败: ' + (error.error || '未知错误'));
+      
+      // 🔥 V2风格Modal提示余额不足
+      if (error.error && error.error.includes('创造点不足')) {
+        showInsufficientPointsModal(error.error, error.current_balance);
+      } else {
+        // 其他错误使用简单的alert
+        alert('生成失败: ' + (error.error || '未知错误'));
+      }
+      
       btn.disabled = false;
       btn.innerHTML = '<span class="material-icons">rocket_launch</span>开始生成';
     }
@@ -832,6 +1017,35 @@ async function startGeneration() {
     btn.disabled = false;
     btn.innerHTML = '<span class="material-icons">rocket_launch</span>开始生成';
   }
+}
+
+// 显示余额不足Modal
+function showInsufficientPointsModal(message, currentBalance) {
+  const modal = document.getElementById('insufficientPointsModal');
+  const messageEl = document.getElementById('insufficientPointsMessage');
+  const balanceEl = document.getElementById('currentBalance');
+  
+  // 设置内容
+  messageEl.textContent = message || '需要至少75点才能开始生成';
+  balanceEl.textContent = (currentBalance || 0) + ' 点';
+  
+  // 显示Modal
+  modal.style.display = 'flex';
+  modal.classList.add('v2-modal-overlay--open');
+}
+
+// 关闭余额不足Modal
+function closeInsufficientModal() {
+  const modal = document.getElementById('insufficientPointsModal');
+  modal.classList.remove('v2-modal-overlay--open');
+  setTimeout(() => {
+    modal.style.display = 'none';
+  }, 300);
+}
+
+// 跳转到充值页面
+function goToRecharge() {
+  window.open('/recharge', '_blank');
 }
 </script>
 {% endblock %}

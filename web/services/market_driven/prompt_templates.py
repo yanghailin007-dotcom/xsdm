@@ -42,6 +42,10 @@ class PromptTemplateGenerator:
         
         plot_detail = selected_plot.get("detail", "") if selected_plot else ""
         
+        # 🔥 安全构建禁忌列表，避免f-string嵌套问题
+        taboos = self.analysis.get("taboos", [])
+        taboo_list_str = "\n".join(["- " + taboo for taboo in taboos])
+        
         return f"""# 角色：顶级网文策划专家（基于市场爆款公式创作）
 
 你正在为一部"{self.genre}"题材的网络小说创作方案。
@@ -116,7 +120,7 @@ class PromptTemplateGenerator:
 - 大爽点：每30章一个（{self.analysis.get("climax_formula", {}).get("large_climax", {}).get("types", ["总结", "新地图"])}）
 
 ## ⚠️ 写作禁忌（绝对不能犯）
-{chr(10).join(["- " + taboo for taboo in self.analysis.get("taboos", [])])}
+{taboo_list_str}
 
 ## ✅ 输出格式
 返回严格合法的JSON（所有字符串值必须用英文双引号 `"` 包裹，禁止单引号，禁止任何字段值不加引号）：
@@ -247,6 +251,10 @@ JSON格式：protagonist_growth, ability_system_progression, key_relationships_d
         """生成步骤5（情绪曲线）的Prompt"""
         emotion = self.analysis.get("emotion_formula", {})
         
+        # 🔥 安全构建钩子列表，避免f-string嵌套问题
+        hook_types = emotion.get("hook_types", ["悬念型", "爽点型", "期待型", "震惊型"])
+        hook_list_str = "\n".join([f"{i+1}. {hook_type}" for i, hook_type in enumerate(hook_types)])
+        
         return f"""# 角色：情绪曲线设计师（基于爆款节奏公式）
 
 设计{total_chapters}章的情绪曲线，严格遵循爆款情绪公式。
@@ -255,7 +263,7 @@ JSON格式：protagonist_growth, ability_system_progression, key_relationships_d
 {emotion.get("cycle", "压抑2章→爆发1章→巩固1章→期待1章")}
 
 ## 🪝 章尾钩子轮替
-{chr(10).join([f"{i+1}. {hook_type}" for i, hook_type in enumerate(emotion.get("hook_types", ["悬念型", "爽点型", "期待型", "震惊型"]))])}
+{hook_list_str}
 
 ## 📈 强度控制
 - 小爽点（每3章）：强度7
@@ -267,16 +275,36 @@ JSON格式：protagonist_growth, ability_system_progression, key_relationships_d
 震惊、期待、小爽快、大爽快、紧张、愤怒、满足
 
 ## ✅ 输出格式
-JSON格式，curve数组，每个元素：ch, emotion, intensity(1-10), beat_type, event, purpose
+**严格要求**：
+1. 必须返回**完整的{total_chapters}章**，每章都要有数据！
+2. 不能只返回里程碑章节（如1, 10, 20...），必须每章都有
+3. curve数组长度必须等于总章数
+4. 每个元素包含：ch(章节号), emotion(情绪类型), intensity(1-10), beat_type(节奏类型), event(事件), purpose(目的)
+
+**错误示例（会被拒绝）**：
+```json
+{{"curve": [{{"ch":1,...}}, {{"ch":10,...}}, {{"ch":20,...}}]}}  // 只返回了3章
+```
+
+**正确示例**：
+```json
+{{"curve": [{{"ch":1,...}}, {{"ch":2,...}}, {{"ch":3,...}}, ...]}}  // 完整的{total_chapters}章
+```
 """
     
     def get_writing_style_guide(self) -> str:
         """获取写作风格指南"""
         techniques = self.analysis.get("writing_techniques", [])
+        # 🔥 安全构建技巧列表，避免f-string嵌套问题
+        tech_list_str = "\n".join([f"{i+1}. {tech}" for i, tech in enumerate(techniques)])
+        
+        taboos = self.analysis.get("taboos", [])
+        taboo_list_str = "\n".join([f"- {taboo}" for taboo in taboos])
+        
         return f"""# 📝 写作风格指南（基于Top10爆款）
 
 ## 写作技巧
-{chr(10).join([f"{i+1}. {tech}" for i, tech in enumerate(techniques)])}
+{tech_list_str}
 
 ## 节奏控制
 - 短段落：每段不超过2行
@@ -285,7 +313,7 @@ JSON格式，curve数组，每个元素：ch, emotion, intensity(1-10), beat_typ
 - 强对比：突出主角前后变化
 
 ## 禁忌
-{chr(10).join([f"- {taboo}" for taboo in self.analysis.get("taboos", [])])}
+{taboo_list_str}
 """
 
 

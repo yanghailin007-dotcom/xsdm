@@ -128,7 +128,8 @@ class BatchChapterGenerator:
             api_client=self.api_client,
             novel_data=novel_data,
             tropes=tropes,
-            world_state_manager=self.world_state_manager  # 🔥 传递世界状态管理器
+            world_state_manager=self.world_state_manager,  # 🔥 传递世界状态管理器
+            project_path=str(self.project_path) if self.project_path else None  # 🔥 传递项目路径
         )
         
         # 生成章节
@@ -914,7 +915,8 @@ class ChapterBluePrintGenerator:
 
 # 便捷函数
 def generate_300k_words(novel_title: str, genre: str, tropes: Dict, plan: Dict, 
-                       products: Dict, api_client=None, project_path: str = None) -> Dict:
+                       products: Dict, api_client=None, project_path: str = None,
+                       username: str = None) -> Dict:
     """
     便捷函数：生成30万字
     
@@ -926,6 +928,7 @@ def generate_300k_words(novel_title: str, genre: str, tropes: Dict, plan: Dict,
         products: 产物
         api_client: API客户端
         project_path: 项目路径（如果提供，章节将保存在此路径下）
+        username: 用户名（如果不提供，尝试从project_path推断）
     """
     # 生成BluePrint
     blueprint_gen = ChapterBluePrintGenerator()
@@ -935,11 +938,15 @@ def generate_300k_words(novel_title: str, genre: str, tropes: Dict, plan: Dict,
     blueprint = blueprint_gen.generate_blueprint(target_words, tropes, plan)
     
     # 准备novel_data
-    # 🔥 从Flask session获取用户名（优先使用'user'，回退到'username'）
-    try:
-        from flask import session
-        username = session.get('user') or session.get('username') or 'anonymous'
-    except:
+    # 🔥 优先使用传入的username，如果没有则从project_path推断
+    if not username and project_path:
+        # 从lixiaoshuo项目/{username}/{title} 或 小说项目/{title} 推断
+        path_parts = Path(project_path).parts
+        if len(path_parts) >= 2 and path_parts[-2] != "小说项目":
+            username = path_parts[-2]
+        else:
+            username = 'anonymous'
+    elif not username:
         username = 'anonymous'
     
     # 🔥 获取用户选择的主角名（优先使用用户填写的，覆盖AI生成的）

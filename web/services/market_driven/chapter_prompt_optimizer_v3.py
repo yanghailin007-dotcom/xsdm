@@ -233,6 +233,62 @@ class ChapterPromptOptimizerV3:
         
         return '通用'
     
+    def _build_forbidden_list(self) -> str:
+        """
+        根据题材类型动态生成禁止清单
+        
+        不同题材有不同的禁忌和必须要素
+        """
+        genre_type = self.genre_type
+        
+        # 基础禁止清单（所有题材通用）
+        forbidden_items = [
+            "严禁情绪偏离大纲要求",
+            "严禁违背战术企图",
+            "严禁偏离核心事件",
+        ]
+        
+        # 根据题材添加专项禁止
+        if genre_type == '国运文':
+            forbidden_items.extend([
+                "严禁使用校园场景（如：教务处、奖学金、江城大学等）",
+                "严禁使用\"人生模拟器\"系统（除非大纲明确指定）",
+                "严禁改变世界观设定（如：将国运禁地改为都市校园）",
+                "严禁缺少全球直播、弹幕、国运相关元素",
+            ])
+        elif genre_type == '校园文':
+            forbidden_items.extend([
+                "严禁使用国运禁地、全球直播等场景",
+                "严禁出现国家层面的战斗或政治元素",
+                "严禁缺少校园生活、同学互动等日常元素",
+            ])
+        elif genre_type == '神豪文':
+            forbidden_items.extend([
+                "严禁金额模糊（如：很多钱、天价），必须精确到元",
+                "严禁反派不讨论价格或心算价格",
+                "严禁缺少消费反馈、返利提示音",
+            ])
+        elif genre_type == '模拟器文':
+            forbidden_items.extend([
+                "严禁缺少模拟过程描写（必须有\"第X次模拟\"格式）",
+                "严禁模拟结果过于简单（必须有具体死亡原因或收获）",
+                "严禁缺少\"剪辑\"感，必须有节奏变化",
+            ])
+        elif genre_type == '修仙文':
+            forbidden_items.extend([
+                "严禁缺少境界名称和境界压制描写",
+                "严禁突破过于简单（必须有天地异象、雷劫等）",
+                "严禁缺少灵根、灵气等修仙元素",
+            ])
+        else:
+            # 通用禁止
+            forbidden_items.extend([
+                "严禁改变大纲规定的世界观设定",
+                "严禁添加与大纲无关的全新场景",
+            ])
+        
+        return "\n- ".join([""] + forbidden_items)
+    
     def _get_protagonist_name(self) -> str:
         """获取主角姓名（优先使用用户填写的）"""
         # 🔥 优先从 user_choices 获取用户填写的主角名
@@ -1033,11 +1089,112 @@ class ChapterPromptOptimizerV3:
         # 获取开局设计
         opening = self.plan.get('opening_design', {}).get('chapter_1', {}) if self.plan else {}
         
+        # 🔥🔥🔥 关键修复：从蓝图（战术大纲）获取场景、事件、钩子
+        scene = blueprint.get('scene', '') if blueprint else ''
+        event = blueprint.get('event', '') if blueprint else ''
+        hook_content = blueprint.get('hook_content', '') if blueprint else ''
+        emotion = blueprint.get('emotion', '') if blueprint else ''
+        
+        # 如果有蓝图内容，使用蓝图；否则使用默认模板
+        has_blueprint = bool(scene or event or hook_content)
+        
         # 题材专项元素
         genre_elements = self._get_genre_elements_for_chapter(1)
         
-        # 微创新专项提示
-        micro_innov_section = self._get_micro_innov_for_chapter_1()
+        # 微创新专项提示（仅当没有蓝图时使用）
+        micro_innov_section = self._get_micro_innov_for_chapter_1() if not has_blueprint else ""
+        
+        # 🔥🔥🔥 构建大纲约束部分（强制要求AI遵守）
+        blueprint_constraint = ""
+        
+        # 提取purpose（战术企图）和beat_type（节拍类型）
+        purpose = blueprint.get('purpose', '') if blueprint else ''
+        beat_type = blueprint.get('beat_type', '') if blueprint else ''
+        
+        if has_blueprint:
+            # 构建战术企图描述
+            purpose_section = ""
+            if purpose:
+                purpose_section = f"""
+### 🎯 战术企图（必须达成的目标）
+**{purpose}**
+
+本章的核心任务是完成上述战术企图，所有情节设计必须围绕此目标展开。
+禁止写与战术企图无关的内容。
+"""
+
+            # 构建节拍类型描述
+            beat_type_section = ""
+            if beat_type:
+                beat_type_section = f"""
+### 🎺 节拍类型（决定章节结构）
+**节拍类型：{beat_type}**
+"""
+                if beat_type == "铺垫":
+                    beat_type_section += """
+- 本章要积蓄情绪，为高潮做准备
+- 不要让主角太早得意，要压抑
+- 要埋下伏笔和悬念
+"""
+                elif beat_type == "冲突":
+                    beat_type_section += """
+- 本章要制造对抗，让矛盾白热化
+- 要让读者感到紧张和压力
+- 反派要强势，让主角陷入困境
+"""
+                elif beat_type == "反转":
+                    beat_type_section += """
+- 本章要完成刷新认知的反转
+- 主角要从被动转为主动
+- 要让读者感到大爽或震惊
+"""
+                elif beat_type == "渲染":
+                    beat_type_section += """
+- 本章要放大已有情绪或震惊效果
+- 要通过多角度、多层次描写震惊
+- 要让读者完全代入情绪
+"""
+                elif beat_type == "伏笔":
+                    beat_type_section += """
+- 本章要埋下伏笔，为后文做铺垫
+- 要抛出新的悬念和线索
+- 不要急于收线，要留空间
+"""
+
+            blueprint_constraint = f"""
+## 【⚠️ 战术大纲强制约束 - 必须严格遵守】
+
+**本章必须按照以下大纲内容创作，严禁偏离！**
+
+{beat_type_section}
+{purpose_section}
+### 🎨 情绪基调（必须严格执行）
+**本章情绪：{emotion if emotion else '根据事件判断'}**
+情绪是本章的核心！整章必须统一在此情绪基调下，禁止情绪乱跳或偏离！
+- 如果是"压抑"：整章要让读者感到绝望、无力、心痛
+- 如果是"大爽快"：整章要让读者感到痛快、解气、通体舒泰
+- 如果是"紧张"：整章要让读者紧张得缩起脚趾
+- 如果是"震惊"：要通过多层次震惊描写让读者感叹
+
+### 🏛️ 场景设定（必须严格遵循）
+- 场景：{scene if scene else '详见事件描述'}
+- 必须保持世界观一致性，禁止出现校园场景
+
+### 📜 核心事件（必须完整呈现）
+{event if event else '无具体事件描述'}
+
+### 🎭 章尾钩子（必须在最后50字呈现）
+{hook_content if hook_content else '根据情节自然留白'}
+
+### ❌ 禁止出现的元素{self._build_forbidden_list()}
+
+### ✅ 必须出现的元素
+- 严格按照大纲指定的节拍类型进行创作
+- 严格按照大纲指定的战术企图完成章节目标
+- 严格按照大纲指定的情绪基调进行创作
+- 严格按照大纲指定的场景和事件
+- 主角行为必须符合题材设定
+"""
         
         prompt = f"""# 第1章生成指令【黄金三章 - 钩子章】
 
@@ -1048,22 +1205,24 @@ class ChapterPromptOptimizerV3:
 功能：极端困境开局 + 系统觉醒 + 悬念钩子
 目标：让读者3句话内同情主角，章尾必须点下一章
 
+{blueprint_constraint}
+
 ## 【结构要求】（严格按字数分配）
 
 ### 第一部分：极端困境（0-500字）
 **必须完成的任务：**
 - 时间：选择有反差感的时刻（参考微创新原则）
-- 地点：具体接地气的底层环境
+- 地点：{scene if scene else '具体接地气的底层环境'}
 - 困境：多重打击交织（新仇+旧恨+经济压力）
 - 羞辱：反派要有智商和目的（不只是嚣张）
 
-**微创新写法（推荐）：**
+**写法示例：**
 ```
-凌晨5:30，天刚蒙蒙亮。
+{event[:150] + '...' if event and len(event) > 150 else event if event else '''凌晨5:30，天刚蒙蒙亮。
 教务处门口，主角刚站了整整一夜等榜单。
 特等奖学金（母亲医药费）被富二代抢走，
 对方不仅嘲讽，还要拍照发朋友圈羞辱，
-更威胁要取消主角的贫困生补助...
+更威胁要取消主角的贫困生补助...'''}
 ```
 
 **禁止：**
@@ -1071,6 +1230,7 @@ class ChapterPromptOptimizerV3:
 - 主角内心独白（控制在100字内）
 - 平淡的日常铺垫
 - "深夜23:47暴雨"的老套路时间
+- 严禁偏离大纲指定的场景和世界观
 
 {micro_innov_section}
 
@@ -1250,7 +1410,94 @@ class ChapterPromptOptimizerV3:
     
     def _build_golden_chapter_2(self, blueprint: Dict, prev_summary: str) -> str:
         """构建第2章（验证章）提示词"""
+        # 🔥🔥🔥 关键修复：从蓝图（战术大纲）获取场景、事件、钩子
+        scene = blueprint.get('scene', '') if blueprint else ''
+        event = blueprint.get('event', '') if blueprint else ''
+        hook_content = blueprint.get('hook_content', '') if blueprint else ''
+        emotion = blueprint.get('emotion', '') if blueprint else ''
+        
+        has_blueprint = bool(scene or event or hook_content)
+        
         genre_elements = self._get_genre_elements_for_chapter(2)
+        
+        # 🔥🔥🔥 构建大纲约束部分
+        blueprint_constraint = ""
+        
+        # 提取purpose（战术企图）和beat_type（节拍类型）
+        purpose = blueprint.get('purpose', '') if blueprint else ''
+        beat_type = blueprint.get('beat_type', '') if blueprint else ''
+        
+        if has_blueprint:
+            # 构建战术企图描述
+            purpose_section = ""
+            if purpose:
+                purpose_section = f"""
+### 🎯 战术企图（必须达成的目标）
+**{purpose}**
+
+本章的核心任务是完成上述战术企图，所有情节设计必须围绕此目标展开。
+"""
+
+            # 构建节拍类型描述
+            beat_type_section = ""
+            if beat_type:
+                beat_type_section = f"""
+### 🎺 节拍类型（决定章节结构）
+**节拍类型：{beat_type}**
+"""
+                if beat_type == "铺垫":
+                    beat_type_section += """
+- 本章要积蓄情绪，为高潮做准备
+- 不要让主角太早得意，要压抑
+"""
+                elif beat_type == "冲突":
+                    beat_type_section += """
+- 本章要制造对抗，让矛盾白热化
+- 要让读者感到紧张和压力
+"""
+                elif beat_type == "反转":
+                    beat_type_section += """
+- 本章要完成刷新认知的反转
+- 主角要从被动转为主动
+"""
+                elif beat_type == "渲染":
+                    beat_type_section += """
+- 本章要放大已有情绪或震惊效果
+- 要通过多角度、多层次描写震惊
+"""
+                elif beat_type == "伏笔":
+                    beat_type_section += """
+- 本章要埋下伏笔，为后文做铺垫
+- 要抛出新的悬念和线索
+"""
+
+            blueprint_constraint = f"""
+## 【⚠️ 战术大纲强制约束 - 必须严格遵守】
+
+**本章必须按照以下大纲内容创作，严禁偏离！**
+
+{beat_type_section}
+{purpose_section}
+### 🎨 情绪基调（必须严格执行）
+**本章情绪：{emotion if emotion else '根据事件判断'}**
+情绪是本章的核心！整章必须统一在此情绪基调下，禁止情绪乱跳或偏离！
+- 如果是"压抑"：整章要让读者感到绝望、无力、心痛
+- 如果是"大爽快"：整章要让读者感到痛快、解气、通体舒泰
+- 如果是"紧张"：整章要让读者紧张得缩起脚趾
+- 如果是"震惊"：要通过多层次震惊描写让读者感叹
+
+### 🏛️ 场景设定
+- 场景：{scene if scene else '承接第1章'}
+- 必须保持世界观一致性，禁止出现校园场景
+
+### 📜 核心事件（必须完整呈现）
+{event if event else '承接第1章结尾，验证金手指'}
+
+### 🎭 章尾钩子
+{hook_content if hook_content else '根据情节自然留白'}
+
+### ❌ 禁止出现的元素{self._build_forbidden_list()}
+"""
         
         prompt = f"""# 🔥 第2章生成指令【黄金三章 - 验证章】
 
@@ -1260,6 +1507,8 @@ class ChapterPromptOptimizerV3:
 类型：验证章
 功能：系统验证 + 小规模爽点 + 新冲突
 目标：让读者相信金手指有效，期待更大的爽点
+
+{blueprint_constraint}
 
 ## 【承接要求】
 前文摘要：{prev_summary or "第1章结尾，主角刚获得系统/金手指"}
@@ -1373,7 +1622,94 @@ class ChapterPromptOptimizerV3:
     
     def _build_golden_chapter_3(self, blueprint: Dict, prev_summary: str) -> str:
         """构建第3章（打脸章）提示词"""
+        # 🔥🔥🔥 关键修复：从蓝图（战术大纲）获取场景、事件、钩子
+        scene = blueprint.get('scene', '') if blueprint else ''
+        event = blueprint.get('event', '') if blueprint else ''
+        hook_content = blueprint.get('hook_content', '') if blueprint else ''
+        emotion = blueprint.get('emotion', '') if blueprint else ''
+        
+        has_blueprint = bool(scene or event or hook_content)
+        
         genre_elements = self._get_genre_elements_for_chapter(3)
+        
+        # 🔥🔥🔥 构建大纲约束部分
+        blueprint_constraint = ""
+        
+        # 提取purpose（战术企图）和beat_type（节拍类型）
+        purpose = blueprint.get('purpose', '') if blueprint else ''
+        beat_type = blueprint.get('beat_type', '') if blueprint else ''
+        
+        if has_blueprint:
+            # 构建战术企图描述
+            purpose_section = ""
+            if purpose:
+                purpose_section = f"""
+### 🎯 战术企图（必须达成的目标）
+**{purpose}**
+
+本章的核心任务是完成上述战术企图，所有情节设计必须围绕此目标展开。
+"""
+
+            # 构建节拍类型描述
+            beat_type_section = ""
+            if beat_type:
+                beat_type_section = f"""
+### 🎺 节拍类型（决定章节结构）
+**节拍类型：{beat_type}**
+"""
+                if beat_type == "铺垫":
+                    beat_type_section += """
+- 本章要积蓄情绪，为高潮做准备
+- 不要让主角太早得意，要压抑
+"""
+                elif beat_type == "冲突":
+                    beat_type_section += """
+- 本章要制造对抗，让矛盾白热化
+- 要让读者感到紧张和压力
+"""
+                elif beat_type == "反转":
+                    beat_type_section += """
+- 本章要完成刷新认知的反转
+- 主角要从被动转为主动
+"""
+                elif beat_type == "渲染":
+                    beat_type_section += """
+- 本章要放大已有情绪或震惊效果
+- 要通过多角度、多层次描写震惊
+"""
+                elif beat_type == "伏笔":
+                    beat_type_section += """
+- 本章要埋下伏笔，为后文做铺垫
+- 要抛出新的悬念和线索
+"""
+
+            blueprint_constraint = f"""
+## 【⚠️ 战术大纲强制约束 - 必须严格遵守】
+
+**本章必须按照以下大纲内容创作，严禁偏离！**
+
+{beat_type_section}
+{purpose_section}
+### 🎨 情绪基调（必须严格执行）
+**本章情绪：{emotion if emotion else '根据事件判断'}**
+情绪是本章的核心！整章必须统一在此情绪基调下，禁止情绪乱跳或偏离！
+- 如果是"压抑"：整章要让读者感到绝望、无力、心痛
+- 如果是"大爽快"：整章要让读者感到痛快、解气、通体舒泰
+- 如果是"紧张"：整章要让读者紧张得缩起脚趾
+- 如果是"震惊"：要通过多层次震惊描写让读者感叹
+
+### 🏛️ 场景设定
+- 场景：{scene if scene else '承接第2章'}
+- 必须保持世界观一致性，禁止出现校园场景
+
+### 📜 核心事件（必须完整呈现）
+{event if event else '承接第2章，完成打脸'}
+
+### 🎭 章尾钩子
+{hook_content if hook_content else '根据情节自然留白'}
+
+### ❌ 禁止出现的元素{self._build_forbidden_list()}
+"""
         
         prompt = f"""# 🔥 第3章生成指令【黄金三章 - 打脸章】
 
@@ -1383,6 +1719,8 @@ class ChapterPromptOptimizerV3:
 类型：打脸章
 功能：当众打脸 + 收获展示 + 震惊传播
 目标：让读者感到痛快，产生追更动力
+
+{blueprint_constraint}
 
 ## 【承接要求】
 前文摘要：{prev_summary or "第2章结尾，主角被反派压制，准备反击"}
@@ -2018,9 +2356,9 @@ XXX搂着前女友，当众嘲讽：
     
     def _build_tactical_plan_section(self, chapter_num: int, blueprint: Dict) -> str:
         """
-        构建战术规划部分 - 从blueprint提取本章的详细规划
+        构建战术规划部分 - 从blueprint提取本章的详细规划（增强版）
         
-        修复：确保 tactical_plan 中的 event、beat_type、purpose 等被正确传递给AI
+        修复：添加强制约束，确保AI严格遵守大纲
         """
         if not blueprint:
             return "战术规划：无（请自由发挥，但需符合章节类型）"
@@ -2041,30 +2379,123 @@ XXX搂着前女友，当众嘲讽：
         if not chapter_plan:
             return f"战术规划：第{chapter_num}章无详细规划（请根据章节类型自由发挥）"
         
-        # 构建详细的战术规划提示
-        lines = []
+        # 🔥🔥🔥 提取关键字段
+        emotion = chapter_plan.get('emotion', '')
+        intensity = chapter_plan.get('intensity', '')
+        beat_type = chapter_plan.get('beat_type', '')
+        event = chapter_plan.get('event', '')
+        purpose = chapter_plan.get('purpose', '')
+        hook_type = chapter_plan.get('hook_type', '')
+        hook_content = chapter_plan.get('hook_content', '')
+        stage_goal = chapter_plan.get('stage_goal_alignment', '')
         
-        if chapter_plan.get('emotion'):
-            lines.append(f"情绪类型：{chapter_plan['emotion']}")
-        if chapter_plan.get('intensity'):
-            lines.append(f"情绪强度：{chapter_plan['intensity']}/10")
-        if chapter_plan.get('beat_type'):
-            lines.append(f"节拍类型：{chapter_plan['beat_type']}")
-        if chapter_plan.get('event'):
-            lines.append(f"关键事件：{chapter_plan['event']}")
-        if chapter_plan.get('purpose'):
-            lines.append(f"章节目的：{chapter_plan['purpose']}")
-        if chapter_plan.get('hook_type'):
-            lines.append(f"钩子类型：{chapter_plan['hook_type']}")
-        if chapter_plan.get('hook_content'):
-            lines.append(f"钩子内容：{chapter_plan['hook_content']}")
-        if chapter_plan.get('stage_goal_alignment'):
-            lines.append(f"阶段目标对齐：{chapter_plan['stage_goal_alignment']}")
+        # 构建节拍类型说明
+        beat_type_guide = ""
+        if beat_type:
+            beat_descriptions = {
+                "铺垫": "铺垫：积蓄情绪，为高潮做准备，不要让主角太早得意",
+                "冲突": "冲突：制造对抗，让矛盾白热化，让读者紧张",
+                "反转": "反转：完成刷新认知的反转，主角从被动转为主动",
+                "渲染": "渲染：放大已有情绪或震惊效果，多角度描写",
+                "伏笔": "埋笔：埋下伏笔，为后文做铺垫，抛出新线索",
+            }
+            beat_guide = beat_descriptions.get(beat_type, "按节拍类型自行把握")
+            beat_type_guide = f"""
+### 🎺 节拍类型（决定章节结构）
+**节拍类型：{beat_type}**
+- {beat_guide}
+"""
         
-        if not lines:
-            return "战术规划：有规划但缺少详细信息"
+        # 构建战术企图说明
+        purpose_section = ""
+        if purpose:
+            purpose_section = f"""
+### 🎯 战术企图（必须达成的目标）
+**{purpose}**
+
+本章的核心任务是完成上述战术企图，所有情节设计必须围绕此目标展开。
+禁止写与战术企图无关的内容。
+"""
         
-        return "\n".join(lines)
+        # 构建情绪说明
+        emotion_guide = ""
+        if emotion:
+            emotion_descriptions = {
+                "压抑": "整章要让读者感到绝望、无力、心痛，主角处于被动",
+                "大爽快": "整章要让读者感到痛快、解气、通体舒泰，主角完美反杀",
+                "紧张": "整章要让读者紧张得缩起脚趾，不知道结果如何",
+                "震惊": "要通过多层次震惊描写让读者感叹，三层反应必须到位",
+                "期待": "要让读者对未来充满好奇和期待，抛出新线索",
+            }
+            em_guide = emotion_descriptions.get(emotion, "根据情绪类型自行把握")
+            emotion_guide = f"""
+### 🎨 情绪基调（必须严格执行）
+**本章情绪：{emotion}**强度：{intensity}/10
+
+{em_guide}
+
+情绪是本章的核心！整章必须统一在此情绪基调下，禁止情绪乱跳或偏离！
+"""
+        
+        # 构建核心事件
+        event_section = ""
+        if event:
+            event_section = f"""
+### 📜 核心事件（必须完整呈现）
+{event}
+
+**严禁偏离上述事件！** 如需扩写，必须在不改变核心剧情的前提下进行。
+"""
+        
+        # 构建钩子
+        hook_section = ""
+        if hook_content:
+            hook_section = f"""
+### 🎭 章尾钩子（必须在最后50字呈现）
+{hook_content}
+
+**钩子类型：{hook_type if hook_type else '根据内容自行判断'}**
+"""
+        
+        # 构建阶段目标
+        stage_section = ""
+        if stage_goal:
+            stage_section = f"""
+### 🎯 阶段目标对齐
+{stage_goal}
+
+本章必须服务于上述阶段目标，推进关键交付物的完成。
+"""
+        
+        # 构建禁止清单（根据题材动态生成）
+        forbidden_list = self._build_forbidden_list()
+        forbidden_section = f"""
+### ❌ 禁止出现的元素{forbidden_list}
+"""
+        
+        # 构建必须清单
+        required_section = """
+### ✅ 必须出现的元素
+- 严格按照大纲指定的节拍类型进行创作
+- 严格按照大纲指定的战术企图完成章节目标
+- 严格按照大纲指定的情绪基调进行创作
+- 严格按照大纲指定的场景和事件
+- 主角行为必须符合题材设定
+"""
+        
+        # 组合最终输出
+        result_parts = [
+            beat_type_guide,
+            purpose_section,
+            emotion_guide,
+            event_section,
+            hook_section,
+            stage_section,
+            forbidden_section,
+            required_section,
+        ]
+        
+        return "\n".join([p for p in result_parts if p])
     
     def _format_prev_summary(self, prev_summary: str, chapter_num: int, blueprint: Dict) -> str:
         """

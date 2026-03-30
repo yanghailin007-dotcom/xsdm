@@ -308,6 +308,48 @@
   color: var(--v2-text-secondary);
   margin-bottom: 20px;
 }
+
+/* 暂停提示 - 点数不足 */
+.paused-section {
+  background: rgba(245, 158, 11, 0.1);
+  border: 1px solid rgba(245, 158, 11, 0.3);
+  border-radius: 16px;
+  padding: 32px;
+  text-align: center;
+}
+
+.paused-section__icon {
+  font-size: 48px;
+  color: #fbbf24;
+  margin-bottom: 16px;
+}
+
+.paused-section__title {
+  font-size: 18px;
+  font-weight: 700;
+  color: #fbbf24;
+  margin-bottom: 8px;
+}
+
+.paused-section__message {
+  font-size: 14px;
+  color: var(--v2-text-secondary);
+  margin-bottom: 12px;
+}
+
+.paused-section__balance {
+  font-size: 24px;
+  font-weight: 700;
+  color: var(--primary-gold);
+  margin-bottom: 20px;
+}
+
+.paused-section__actions {
+  display: flex;
+  gap: 12px;
+  justify-content: center;
+  flex-wrap: wrap;
+}
 </style>
 {% endblock %}
 
@@ -409,6 +451,26 @@
       </div>
     </div>
     
+    <!-- 暂停区域（点数不足时显示） -->
+    <div class="paused-section" id="paused-section" style="display: none;">
+      <div class="paused-section__icon">
+        <span class="material-icons">pause_circle</span>
+      </div>
+      <div class="paused-section__title">⏸️ 生成已暂停</div>
+      <div class="paused-section__message" id="paused-message">创造点不足，无法继续生成</div>
+      <div class="paused-section__balance" id="paused-balance">当前余额: 0 点</div>
+      <div class="paused-section__actions">
+        <button class="btn btn-primary" onclick="goToRecharge()">
+          <span class="material-icons">diamond</span>
+          立即充值
+        </button>
+        <button class="btn btn-secondary" onclick="checkBalanceAndResume()">
+          <span class="material-icons">play_arrow</span>
+          检查余额并继续
+        </button>
+      </div>
+    </div>
+    
     <!-- 错误区域（失败时显示） -->
     <div class="error-section" id="error-section" style="display: none;">
       <div class="error-section__icon">
@@ -457,9 +519,15 @@ async function pollTaskStatus() {
     const task = await response.json();
     updateUI(task);
     
-    // 任务完成或失败，停止轮询
-    if (task.status === 'completed' || task.status === 'failed') {
+    // 任务完成、失败或暂停，停止轮询
+    if (task.status === 'completed' || task.status === 'failed' || task.status === 'paused_insufficient_points') {
       clearInterval(pollInterval);
+    }
+    
+    // 处理暂停状态（点数不足）
+    if (task.status === 'paused_insufficient_points') {
+      showPaused(task.message, task.current_balance);
+      return;
     }
   } catch (error) {
     console.error('轮询失败:', error);
@@ -611,6 +679,71 @@ function showError(error) {
   document.getElementById('error-message').textContent = error || '生成失败，请重试';
   document.getElementById('error-section').style.display = 'block';
   document.getElementById('action-section').style.display = 'none';
+}
+
+// 显示暂停（点数不足）
+function showPaused(message, balance) {
+  document.getElementById('paused-message').textContent = message || '创造点不足，无法继续生成';
+  document.getElementById('paused-balance').textContent = `当前余额: ${balance || 0} 点`;
+  document.getElementById('paused-section').style.display = 'block';
+  document.getElementById('action-section').style.display = 'none';
+  
+  // 更新状态标签
+  const statusEl = document.getElementById('task-status');
+  statusEl.textContent = '已暂停';
+  statusEl.className = 'progress-card__status progress-card__status--paused';
+  statusEl.style.cssText = 'background: rgba(245, 158, 11, 0.15); color: #fbbf24;';
+}
+
+// 跳转到充值页面
+function goToRecharge() {
+  window.open('/recharge', '_blank');
+}
+
+// 检查余额并尝试继续
+async function checkBalanceAndResume() {
+  try {
+    const btn = document.querySelector('#paused-section .btn-secondary');
+    btn.disabled = true;
+    btn.innerHTML = '<span class="material-icons">hourglass_empty</span> 检查中...';
+    
+    // 查询最新余额
+    const response = await fetch('/api/points/balance');
+    const data = await response.json();
+    
+    if (data.success && data.data) {
+      const balance = data.data.balance;
+      document.getElementById('paused-balance').textContent = `当前余额: ${balance} 点`;
+      
+      // 获取任务信息，检查是否需要继续
+      const taskResponse = await fetch(`/api/market-driven/tasks/${taskId}`);
+      const task = await taskResponse.json();
+      
+      // 如果余额足够且任务处于暂停状态，可以恢复
+      if (balance >= 10 && task.status === 'paused_insufficient_points') {
+        // 隐藏暂停提示
+        document.getElementById('paused-section').style.display = 'none';
+        document.getElementById('action-section').style.display = 'flex';
+        
+        // 恢复轮询
+        startPolling();
+        
+        // 刷新页面以重新开始
+        location.reload();
+      } else if (balance < 10) {
+        alert(`余额仍不足，当前余额: ${balance} 点\n建议充值后再继续生成`);
+      }
+    }
+  } catch (error) {
+    console.error('检查余额失败:', error);
+    alert('检查余额失败，请刷新页面重试');
+  } finally {
+    const btn = document.querySelector('#paused-section .btn-secondary');
+    if (btn) {
+      btn.disabled = false;
+      btn.innerHTML = '<span class="material-icons">play_arrow</span> 检查余额并继续';
+    }
+  }
 }
 
 // 返回

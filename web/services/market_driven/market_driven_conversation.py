@@ -133,6 +133,18 @@ class MarketDrivenConversationSession:
         
         self.api_client = api_client
         self.genre = genre
+        
+        # 🔥 修复章节数：根据字数重新计算正确的章节数
+        from .config import get_config, get_target_words
+        target_words = user_choices.get('target_words') or get_target_words(genre)
+        correct_chapters = target_words // get_config(genre)["words_per_chapter"]
+        user_chapters = user_choices.get('chapters', 0)
+        if user_chapters and user_chapters != correct_chapters:
+            logger.error(f"[🔥章节数修正] {user_chapters} -> {correct_chapters} (基于{target_words}字)")
+            user_choices = {**user_choices, "chapters": correct_chapters}
+        else:
+            logger.info(f"[章节数检查] 使用原始值: {user_chapters} 章, 目标字数: {target_words}")
+        
         self.user_choices = user_choices
         self.tropes = tropes or {}
         self.provider = provider
@@ -372,16 +384,72 @@ class MarketDrivenConversationSession:
 5. **番茄风格**：快节奏、强爽点、章章有钩子
 """
     
-    def generate_all(self, progress_callback=None) -> Dict:
+    def _save_step_result(self, step_name: str, results: Dict, project_path: str = None):
+        """保存步骤结果到项目目录
+        
+        Args:
+            step_name: 步骤名称
+            results: 当前所有结果
+            project_path: 项目路径（可选）
+        """
+        if not project_path:
+            return
+            
+        try:
+            from pathlib import Path
+            import json
+            
+            base_path = Path(project_path)
+            base_path.mkdir(parents=True, exist_ok=True)
+            
+            # 保存到 project_info.json 的 generation_metadata 中
+            info_path = base_path / "project_info.json"
+            
+            # 读取现有内容
+            project_info = {}
+            if info_path.exists():
+                with open(info_path, 'r', encoding='utf-8') as f:
+                    project_info = json.load(f)
+            
+            # 初始化 generation_metadata
+            if "generation_metadata" not in project_info:
+                project_info["generation_metadata"] = {}
+            
+            # 保存当前步骤结果
+            if "mode_specific" not in project_info["generation_metadata"]:
+                project_info["generation_metadata"]["mode_specific"] = {}
+            
+            if "info" not in project_info["generation_metadata"]["mode_specific"]:
+                project_info["generation_metadata"]["mode_specific"]["info"] = {}
+            
+            # 更新结果
+            project_info["generation_metadata"]["mode_specific"]["info"].update(results)
+            project_info["generation_metadata"]["step_completed"] = step_name
+            project_info["generation_metadata"]["updated_at"] = datetime.now().isoformat()
+            
+            # 写入文件
+            with open(info_path, 'w', encoding='utf-8') as f:
+                json.dump(project_info, f, ensure_ascii=False, indent=2)
+            
+            logger.info(f"[对话模式 {self.session_id}] 步骤 [{step_name}] 结果已保存到: {info_path}")
+            
+        except Exception as e:
+            logger.error(f"[对话模式 {self.session_id}] 保存步骤结果失败: {e}")
+    
+    def generate_all(self, progress_callback=None, project_path: str = None) -> Dict:
         """
         执行所有生成步骤
         
         Args:
             progress_callback: 进度回调函数(step_name, progress_percent)
+            project_path: 项目路径，用于每步保存中间结果
         
         Returns:
             所有产物字典
         """
+        # 🔥 版本标记，确保代码已更新
+        logger.info(f"[对话模式 {self.session_id}] ===== CODE VERSION: DEBUG_v2_with_logging =====")
+        
         results = {
             "generation_mode": "market_driven_conversation",
             "generated_at": datetime.now().isoformat(),
@@ -397,6 +465,7 @@ class MarketDrivenConversationSession:
         plan = self._generate_plan()
         results["plan"] = plan
         results["title"] = plan.get("title", "")
+        self._save_step_result("plan", results, project_path)
         logger.info(f"[对话模式 {self.session_id}] [UI:planning] 步骤1完成 | 标题: {plan.get('title', 'N/A')}")
         
         # 🔥 步骤1B: 生成番茄上传数据（书名、简介、标签）
@@ -409,6 +478,7 @@ class MarketDrivenConversationSession:
         plan["recommended_title"] = fanqie_data["title"]
         plan["core_selling_points"] = [{"point": fanqie_data["synopsis"]}]
         plan["tags"] = fanqie_data["tags"]
+        self._save_step_result("fanqie_data", results, project_path)
         logger.info(f"[对话模式 {self.session_id}] [UI:planning] 步骤1B完成 | 书名: {fanqie_data['title']}")
         
         # 步骤2: 生成世界观 (35%) -> UI阶段: worldview
@@ -418,7 +488,8 @@ class MarketDrivenConversationSession:
         worldview = self._generate_worldview()
         results["core_worldview"] = worldview
         results["faction_system"] = self._extract_faction_system(worldview)
-        logger.info(f"[对话模式 {self.session_id}] [UI:worldview] 步骤2完成")
+        self._save_step_result("worldview", results, project_path)
+        logger.info(f"[对话模式 {self.session_id}] [UI:worldview] 步骤2完成 | 世界观已保存")
         
         # 步骤3: 生成角色 (50%) -> UI阶段: worldview
         logger.info(f"[对话模式 {self.session_id}] [UI:worldview] 步骤3/7: 生成角色设计")
@@ -426,28 +497,50 @@ class MarketDrivenConversationSession:
             progress_callback("generate_characters", 50)
         characters = self._generate_characters()
         results["character_design"] = characters
-        logger.info(f"[对话模式 {self.session_id}] [UI:worldview] 步骤3完成")
+        self._save_step_result("characters", results, project_path)
+        logger.info(f"[对话模式 {self.session_id}] [UI:worldview] 步骤3完成 | 角色设计已保存")
         
         # 步骤4: 生成成长路线 (65%) -> UI阶段: worldview
         logger.info(f"[对话模式 {self.session_id}] [UI:worldview] 步骤4/7: 生成成长路线")
         if progress_callback:
             progress_callback("generate_growth_plan", 65)
-        growth_plan = self._generate_growth_plan()
-        results["global_growth_plan"] = growth_plan
-        logger.info(f"[对话模式 {self.session_id}] [UI:worldview] 步骤4完成")
+        try:
+            growth_plan = self._generate_growth_plan()
+            results["global_growth_plan"] = growth_plan
+            self._save_step_result("growth_plan", results, project_path)
+            logger.info(f"[对话模式 {self.session_id}] [UI:worldview] 步骤4完成 | 成长路线已保存")
+        except Exception as e:
+            logger.error(f"[对话模式 {self.session_id}] 步骤4失败: {e}")
+            import traceback
+            logger.error(traceback.format_exc())
+            raise
         
         # 步骤5: 生成情绪曲线和阶段目标 (80%) -> UI阶段: chapters
         # 🔥 修正：阶段目标（stage_goals）在一阶段确定，战术规划（tactical_plan）留在生成阶段动态生成
         logger.info(f"[对话模式 {self.session_id}] [UI:chapters] 步骤5/7: 生成情绪曲线和阶段目标")
         if progress_callback:
             progress_callback("generate_emotion_curve", 80)
-        emotion_curve = self._generate_emotion_curve()
-        results["emotion_curve"] = emotion_curve
+        try:
+            emotion_curve = self._generate_emotion_curve()
+            results["emotion_curve"] = emotion_curve
+            logger.info(f"[对话模式 {self.session_id}] 步骤5A情绪曲线完成，长度: {len(emotion_curve) if isinstance(emotion_curve, list) else 'N/A'}")
+        except Exception as e:
+            logger.error(f"[对话模式 {self.session_id}] 步骤5A失败: {e}")
+            import traceback
+            logger.error(traceback.format_exc())
+            raise
         
         # 🔥 阶段目标在世界观步骤后生成（基于完整设定）
-        stage_goals = self._generate_stage_goals(results)
-        results["stage_goals"] = stage_goals
-        logger.info(f"[对话模式 {self.session_id}] [UI:chapters] 步骤5完成 | 阶段目标数: {len(stage_goals)}")
+        try:
+            stage_goals = self._generate_stage_goals(results)
+            results["stage_goals"] = stage_goals
+            self._save_step_result("stage_goals", results, project_path)
+            logger.info(f"[对话模式 {self.session_id}] [UI:chapters] 步骤5完成 | 阶段目标数: {len(stage_goals)} 已保存")
+        except Exception as e:
+            logger.error(f"[对话模式 {self.session_id}] 步骤5B失败: {e}")
+            import traceback
+            logger.error(traceback.format_exc())
+            raise
         
         # 🔥 步骤6: 爆款对齐检查与优化 (90%) -> UI阶段: final_check
         logger.info(f"[对话模式 {self.session_id}] [UI:final_check] 步骤6/7: 爆款对齐检查与优化")
@@ -455,7 +548,8 @@ class MarketDrivenConversationSession:
             progress_callback("bestseller_alignment", 90)
         aligned_results = self._bestseller_alignment_check(results)
         results.update(aligned_results)
-        logger.info(f"[对话模式 {self.session_id}] [UI:final_check] 步骤6完成 | 对齐优化完成")
+        self._save_step_result("alignment", results, project_path)
+        logger.info(f"[对话模式 {self.session_id}] [UI:final_check] 步骤6完成 | 对齐优化已保存")
         
         # 步骤7: 生成附加产物 (100%) -> UI阶段: complete
         logger.info(f"[对话模式 {self.session_id}] [UI:complete] 步骤7/7: 生成附加产物")
@@ -467,7 +561,9 @@ class MarketDrivenConversationSession:
         results["market_analysis"] = self._generate_market_analysis()
         results["emotional_blueprint"] = self._generate_emotional_blueprint()
         
-        logger.info(f"[对话模式 {self.session_id}] ✅ 所有7个步骤完成 | 总轮次: {self.session.turn_count}")
+        # 🔥 最终保存
+        self._save_step_result("complete", results, project_path)
+        logger.info(f"[对话模式 {self.session_id}] ✅ 所有7个步骤完成 | 总轮次: {self.session.turn_count} | 全部结果已保存")
         return results
     
     def _generate_plan(self) -> Dict:
@@ -501,8 +597,9 @@ class MarketDrivenConversationSession:
                 "3. **金手指细化** - 基于用户描述，细化具体数值和成长曲线",
                 "4. **主角人设** - 生成完整人设",
                 "5. **前30章情绪蓝图** - 只定义每章情绪类型和强度，不定义具体情节\n",
-                "## 输出格式",
-                "返回JSON格式，包含: title, opening_design, golden_finger, protagonist, emotion_blueprint\n",
+                "## 输出格式（严格JSON）",
+                "返回标准JSON格式，包含: title, opening_design, golden_finger, protagonist, emotion_blueprint\n",
+                "**严格要求**：字符串值内部的双引号必须转义为 \\\"，不要返回Markdown代码块\n",
                 "只返回JSON，不要其他说明。"
             ]
             prompt = "\n".join(prompt_parts)
@@ -512,7 +609,18 @@ class MarketDrivenConversationSession:
         response = self.session.send_message(prompt, temperature=0.85, purpose="步骤1-生成方案")
         self._logger.log_round("generate_plan", self.session.messages.copy(), response if isinstance(response, str) else json.dumps(response))
         logger.info(f"[对话模式 {self.session_id}] 步骤1响应接收 | 总对话轮次: {self.session.turn_count}")
-        return self._parse_json_response(response, "plan")
+        
+        try:
+            result = self._parse_json_response(response, "plan")
+            # 验证必要字段
+            required_fields = ["protagonist", "golden_finger", "core_conflict", "worldview", "recommended_title"]
+            missing = [f for f in required_fields if f not in result]
+            if missing:
+                raise ValueError(f"plan 缺少必要字段: {missing}")
+            return result
+        except (json.JSONDecodeError, ValueError) as e:
+            logger.error(f"[对话模式 {self.session_id}] 生成 plan 失败: {e}")
+            raise RuntimeError(f"生成方案失败: {e}") from e
     
     # 🔥 番茄小说标签预制映射（参考 plan_generator.py）
     FANQIE_TAG_MAPPINGS = {
@@ -657,13 +765,32 @@ class MarketDrivenConversationSession:
         if not tags:
             tags = self.DEFAULT_TAGS.get(gender_key, self.DEFAULT_TAGS["male"])
         
+        # 🔥 防御性类型处理：确保标签值是列表（严格类型检查）
+        themes = tags.get("themes", [])
+        if isinstance(themes, dict):
+            themes = list(themes.keys())
+        elif not isinstance(themes, list):
+            themes = [themes] if themes else []
+        
+        roles = tags.get("roles", [])
+        if isinstance(roles, dict):
+            roles = list(roles.keys())
+        elif not isinstance(roles, list):
+            roles = [roles] if roles else []
+        
+        plots = tags.get("plots", [])
+        if isinstance(plots, dict):
+            plots = list(plots.keys())
+        elif not isinstance(plots, list):
+            plots = [plots] if plots else []
+        
         # 构建完整标签字典
         return {
             "target_audience": "女频" if is_female else "男频",
             "main_category": tags["main_category"],
-            "themes": tags["themes"][:3],
-            "roles": tags["roles"][:3],
-            "plots": tags["plots"][:3]
+            "themes": themes[:3],
+            "roles": roles[:3],
+            "plots": plots[:3]
         }
     
     def _generate_fallback_fanqie_data(self, plan: Dict, title: str, genre: str) -> Dict:
@@ -698,7 +825,18 @@ class MarketDrivenConversationSession:
         response = self.session.send_message(prompt, temperature=0.85, purpose="步骤2-生成世界观")
         self._logger.log_round("generate_worldview", self.session.messages.copy(), response if isinstance(response, str) else json.dumps(response))
         logger.info(f"[对话模式 {self.session_id}] 步骤2响应接收 | 总对话轮次: {self.session.turn_count}")
-        return self._parse_json_response(response, "worldview")
+        
+        try:
+            result = self._parse_json_response(response, "worldview")
+            # 验证必要字段
+            required_fields = ["world_overview", "power_system", "social_structure"]
+            missing = [f for f in required_fields if f not in result]
+            if missing:
+                raise ValueError(f"worldview 缺少必要字段: {missing}")
+            return result
+        except (json.JSONDecodeError, ValueError) as e:
+            logger.error(f"[对话模式 {self.session_id}] 生成 worldview 失败: {e}")
+            raise RuntimeError(f"生成世界观失败: {e}") from e
     
     def _generate_characters(self) -> Dict:
         """生成角色设计（使用基于爆款的Prompt模板 + TropePromptBuilder人物设定约束）"""
@@ -733,10 +871,13 @@ class MarketDrivenConversationSession:
                 f'- **主角姓名**：**必须使用** "{protagonist_name}"',
                 f'- **禁止**：给主角起其他名字或别名',
                 "- 如果违反，生成将被视为失败\n",
-                "## 输出格式",
-                "返回JSON格式：{protagonist: {...}, core_allies: [...], main_antagonists: {...}, supporting_roles: [...]}\n",
-                f'** protagonist.name 必须是 "{protagonist_name}" **',
-                "只返回JSON，不要其他内容。"
+                "## 输出格式（严格JSON）",
+                "返回标准JSON格式：{protagonist: {...}, core_allies: [...], main_antagonists: {...}, supporting_roles: [...]}\n",
+                "**严格要求**：",
+                "1. 字符串值内部的双引号必须转义为 \\\"",
+                f'2. protagonist.name 必须是 "{protagonist_name}"',
+                "3. 不要添加注释，不要返回Markdown代码块",
+                "4. 确保JSON可以通过标准解析器验证",
             ]
             prompt = "\n".join(prompt_parts)
         
@@ -751,6 +892,11 @@ class MarketDrivenConversationSession:
         if not result:
             logger.warning(f"[对话模式 {self.session_id}] 步骤3返回空，使用简化提示词重试...")
             retry_prompt = f"""请生成角色设计JSON。
+
+**严格JSON格式要求**：
+- 字符串值内部的双引号必须转义为 \\"
+- 例如："description": "主角说\\"你好\\"" （正确）
+- 错误示例："description": "主角说"你好"" （会导致解析失败）
 
 必须包含：
 1. protagonist: {{"name": "{protagonist_name}", "age": 25, "identity": "前外卖员", "traits": ["杀伐果断", "护短"]}}
@@ -826,19 +972,62 @@ class MarketDrivenConversationSession:
 
 基于前30章大纲和主角人设，规划详细的成长里程碑。
 
-## 输出格式
-返回JSON格式，包含: protagonist_growth, ability_system_progression, key_relationships_development
+## 输出格式（严格JSON）
+返回标准JSON格式，包含: protagonist_growth, ability_system_progression, key_relationships_development
+**严格要求**：字符串值内部的双引号必须转义为 \\"
 
-只返回JSON。"""
+只返回JSON，不要其他内容。"""
         
         logger.info(f"[对话模式 {self.session_id}] 发送步骤4提示词 | 当前消息历史: {len(self.session.messages)}条")
         response = self.session.send_message(prompt, temperature=0.85, purpose="步骤4-生成成长路线")
         self._logger.log_round("generate_growth_plan", self.session.messages.copy(), response if isinstance(response, str) else json.dumps(response))
         logger.info(f"[对话模式 {self.session_id}] 步骤4响应接收 | 总对话轮次: {self.session.turn_count}")
-        return self._parse_json_response(response, "growth_plan")
+        
+        try:
+            result = self._parse_json_response(response, "growth_plan")
+            # 验证必要字段
+            required_fields = ["protagonist_growth", "ability_system_progression"]
+            missing = [f for f in required_fields if f not in result]
+            if missing:
+                raise ValueError(f"growth_plan 缺少必要字段: {missing}")
+            return result
+        except (json.JSONDecodeError, ValueError) as e:
+            logger.error(f"[对话模式 {self.session_id}] 生成 growth_plan 失败: {e}")
+            raise RuntimeError(f"生成成长路线失败: {e}") from e
     
     def _generate_emotion_curve(self) -> List[Dict]:
         """生成情绪曲线（使用基于爆款的Prompt模板）"""
+        # 🔥 强制修正：根据字数计算正确的章节数（防止前端传错值）
+        from .config import get_config, get_target_words
+        target_words = self.user_choices.get('target_words') or get_target_words(self.genre)
+        # 确保 target_words 是整数
+        if isinstance(target_words, str):
+            try:
+                target_words = int(target_words)
+            except (ValueError, TypeError):
+                target_words = get_target_words(self.genre)
+        elif not isinstance(target_words, int):
+            target_words = int(target_words) if target_words else get_target_words(self.genre)
+        
+        correct_chapters = target_words // get_config(self.genre)["words_per_chapter"]
+        # 确保 correct_chapters 是整数
+        if not isinstance(correct_chapters, int):
+            correct_chapters = int(correct_chapters)
+        
+        user_chapters = self.user_choices.get('chapters', 0)
+        # 确保 user_chapters 是整数
+        if isinstance(user_chapters, str):
+            try:
+                user_chapters = int(user_chapters)
+            except (ValueError, TypeError):
+                user_chapters = 0
+        elif not isinstance(user_chapters, int):
+            user_chapters = int(user_chapters) if user_chapters else 0
+        
+        if user_chapters and user_chapters != correct_chapters:
+            logger.error(f"[🔥步骤5强制修正] {user_chapters} -> {correct_chapters} (基于{target_words}字)")
+            self.user_choices['chapters'] = correct_chapters
+        
         total_chapters = self.user_choices.get('chapters', 100)
         
         # 🔥 使用基于爆款分析的Prompt模板
@@ -857,8 +1046,24 @@ class MarketDrivenConversationSession:
                 "- 大高潮后必须有1-2章缓冲（强度5-6）\n",
                 "## 情绪类型",
                 "震惊、期待、小爽快、大爽快、紧张、愤怒、满足\n",
-                "## 输出格式",
-                "返回JSON格式，包含curve数组，每个元素有: ch, emotion, intensity, beat_type, event, purpose"
+                "## 输出格式（严格JSON数组）",
+                f"**极其重要**：",
+                f"1. 必须返回**完整的{total_chapters}章情绪曲线**，每章都要有数据！",
+                f"2. curve数组长度必须等于总章数（{total_chapters}章）",
+                f"3. 不能只返回里程碑（如1, 10, 20章），必须每章都有：1, 2, 3...一直到{total_chapters}",
+                f"4. 返回格式：{{\"curve\": [{{\"chapter\": 1, ...}}, ...]}}",
+                f"",
+                f"**错误示例（会被拒绝）**：",
+                f"- 只返回12个里程碑：{{\"curve\": [{{\"chapter\":1}}, {{\"chapter\":10}}, ...]}}",
+                f"- 返回字典：{{\"curve\": {{\"chapter\": 1}}}}",
+                f"",
+                f"**正确示例**：",
+                f"- 完整的{total_chapters}章：{{\"curve\": [{{\"chapter\":1}}, {{\"chapter\":2}}, ..., {{\"chapter\":{total_chapters}}}]}}",
+                f"",
+                f"严格要求：",
+                "1. curve 必须是数组（[]），不能是字典（{}）",
+                f"2. 数组长度必须等于{total_chapters}章",
+                "3. 字符串值内部的双引号必须转义为 \\\""
             ]
             prompt = "\n".join(prompt_parts)
         
@@ -866,12 +1071,66 @@ class MarketDrivenConversationSession:
         response = self.session.send_message(prompt, temperature=0.85, purpose="步骤5-生成情绪曲线")
         self._logger.log_round("generate_emotion_curve", self.session.messages.copy(), response if isinstance(response, str) else json.dumps(response))
         logger.info(f"[对话模式 {self.session_id}] 步骤5响应接收 | 总对话轮次: {self.session.turn_count}")
-        result = self._parse_json_response(response, "emotion_curve")
-        if isinstance(result, dict):
-            return result.get("curve", [])
-        elif isinstance(result, list):
-            return result
-        return []
+        
+        try:
+            result = self._parse_json_response(response, "emotion_curve")
+            
+            # 数据验证
+            curve_data = None
+            if isinstance(result, dict):
+                curve_data = result.get("curve", [])
+            elif isinstance(result, list):
+                curve_data = result
+            else:
+                raise ValueError(f"emotion_curve 返回类型错误: {type(result)}")
+            
+            # 验证数组长度
+            if not isinstance(curve_data, list):
+                raise ValueError(f"emotion_curve 必须是数组，当前类型: {type(curve_data)}")
+            
+            if len(curve_data) == 0:
+                raise ValueError("emotion_curve 数组为空")
+            
+            if len(curve_data) != total_chapters:
+                logger.warning(f"[对话模式 {self.session_id}] emotion_curve长度({len(curve_data)})与目标章节数({total_chapters})不一致，尝试补全...")
+                # 尝试补全或截断
+                curve_data = self._normalize_emotion_curve(curve_data, total_chapters)
+            
+            logger.info(f"[对话模式 {self.session_id}] emotion_curve 生成成功: {len(curve_data)} 章")
+            return curve_data
+            
+        except (json.JSONDecodeError, ValueError) as e:
+            logger.error(f"[对话模式 {self.session_id}] 生成 emotion_curve 失败: {e}")
+            raise RuntimeError(f"生成情绪曲线失败: {e}") from e
+    
+    def _normalize_emotion_curve(self, curve: list, target_length: int) -> list:
+        """
+        标准化情绪曲线长度，使其符合目标章节数
+        
+        Args:
+            curve: 原始情绪曲线数组
+            target_length: 目标章节数
+            
+        Returns:
+            标准化后的情绪曲线数组
+        """
+        if len(curve) == target_length:
+            return curve
+        
+        if len(curve) < target_length:
+            # 需要补全 - 复制最后一个元素
+            last_item = curve[-1] if curve else {"chapter": 1, "emotion": "期待", "intensity": 5}
+            for i in range(len(curve), target_length):
+                new_item = last_item.copy()
+                new_item["chapter"] = i + 1
+                curve.append(new_item)
+            logger.info(f"[对话模式 {self.session_id}] emotion_curve 已补全至 {target_length} 章")
+        else:
+            # 需要截断
+            curve = curve[:target_length]
+            logger.info(f"[对话模式 {self.session_id}] emotion_curve 已截断至 {target_length} 章")
+        
+        return curve
     
     def _extract_faction_system(self, worldview: Dict) -> Dict:
         """从世界观提取势力系统"""
@@ -923,7 +1182,68 @@ class MarketDrivenConversationSession:
         """
         title = self.user_choices.get('title', '未命名')
         protagonist_name = self.user_choices.get('protagonist_name', '主角')
-        total_chapters = len(previous_results.get('emotion_curve', []))
+        
+        # 🔥 强制修正：确保章节数正确（双重保险）
+        from .config import get_config, get_target_words
+        target_words = self.user_choices.get('target_words') or get_target_words(self.genre)
+        # 确保 target_words 是整数
+        if isinstance(target_words, str):
+            try:
+                target_words = int(target_words)
+            except (ValueError, TypeError):
+                target_words = get_target_words(self.genre)
+        elif not isinstance(target_words, int):
+            target_words = int(target_words) if target_words else get_target_words(self.genre)
+        
+        correct_chapters = target_words // get_config(self.genre)["words_per_chapter"]
+        # 确保 correct_chapters 是整数
+        if not isinstance(correct_chapters, int):
+            correct_chapters = int(correct_chapters)
+        
+        user_chapters = self.user_choices.get('chapters', 0)
+        # 确保 user_chapters 是整数
+        if isinstance(user_chapters, str):
+            try:
+                user_chapters = int(user_chapters)
+            except (ValueError, TypeError):
+                user_chapters = 0
+        elif not isinstance(user_chapters, int):
+            user_chapters = int(user_chapters) if user_chapters else 0
+        
+        if user_chapters and user_chapters != correct_chapters:
+            logger.error(f"[🔥步骤5B强制修正] {user_chapters} -> {correct_chapters} (基于{target_words}字)")
+            self.user_choices['chapters'] = correct_chapters
+        
+        # 🔥 使用 user_choices 中的章节数
+        total_chapters = self.user_choices.get('chapters', 200)
+        # 确保 total_chapters 是整数
+        if isinstance(total_chapters, str):
+            try:
+                total_chapters = int(total_chapters)
+            except (ValueError, TypeError):
+                total_chapters = 200
+        elif not isinstance(total_chapters, int):
+            total_chapters = int(total_chapters) if total_chapters else 200
+        emotion_curve_count = len(previous_results.get('emotion_curve', []))
+        if emotion_curve_count != total_chapters:
+            logger.warning(f"[步骤5B] emotion_curve长度({emotion_curve_count})与目标章节数({total_chapters})不一致，使用目标章节数")
+        
+        # 🔥 安全获取里程碑（处理字典/列表类型问题）
+        # 支持两种字段名：milestones 或 protagonist_growth
+        growth_plan = previous_results.get('global_growth_plan', {})
+        milestones = growth_plan.get('milestones') or growth_plan.get('protagonist_growth', [])
+        
+        # 严格类型检查：确保 milestones 是列表
+        if isinstance(milestones, dict):
+            logger.warning(f"[对话模式 {self.session_id}] milestones 是字典而非列表，转换为单元素列表")
+            milestones = [milestones]
+        elif not isinstance(milestones, list):
+            milestones = []
+        
+        if milestones:
+            _milestones_text = json.dumps(milestones[:3], ensure_ascii=False)
+        else:
+            _milestones_text = "[]"
         
         # 构建基于前4步产物的提示词
         prompt = f"""请执行【步骤5B：生成阶段目标】
@@ -941,7 +1261,7 @@ class MarketDrivenConversationSession:
 {previous_results.get('core_worldview', {}).get('world_overview', '国运禁地求生')}
 
 ### 3. 成长路线里程碑
-{json.dumps(previous_results.get('global_growth_plan', {}).get('milestones', [])[:3], ensure_ascii=False)}
+{_milestones_text}
 
 ### 4. 总章数
 总章数为 {total_chapters} 章
@@ -975,8 +1295,9 @@ class MarketDrivenConversationSession:
 - 每个阶段跨度不要太短（至少20章以上）
 - 每个阶段必须有明确的扮演度目标和剧情里程碑
 
-## 输出格式
+## 输出格式（严格JSON数组）
 
+**必须返回JSON数组格式**：
 ```json
 {{
   "stage_goals": [
@@ -998,7 +1319,12 @@ class MarketDrivenConversationSession:
 }}
 ```
 
-**警告**：必须按照总章数 {total_chapters} 调整阶段范围，不要生成固定的100章划分！
+**严格警告**：
+1. **stage_goals 必须是数组（方括号）不是字典（花括号）！**
+2. 错误示例（会被拒绝）：stage_goals后面跟花括号包裹的对象
+3. 正确示例（必须）：stage_goals后面跟方括号包裹的数组
+4. 必须按照总章数 {total_chapters} 调整阶段范围，不要生成固定的100章划分！
+5. 字符串值内部的双引号必须转义为 \\"
 
 只返回JSON，不要其他说明。"""
 
@@ -1007,19 +1333,30 @@ class MarketDrivenConversationSession:
         self._logger.log_round("generate_stage_goals", self.session.messages.copy(), response if isinstance(response, str) else json.dumps(response))
         logger.info(f"[对话模式 {self.session_id}] 步骤5B响应接收 | 总对话轮次: {self.session.turn_count}")
         
-        result = self._parse_json_response(response, "stage_goals")
-        
-        # 确保返回格式正确
-        # 获取总章数用于默认目标
-        total_chapters = len(previous_results.get('emotion_curve', []))
-        
-        if result and isinstance(result, dict) and "stage_goals" in result:
-            sg = result["stage_goals"]
-            return sg if isinstance(sg, list) else [sg]
-        elif result and isinstance(result, list):
-            return result
-        else:
-            logger.warning(f"[对话模式 {self.session_id}] 步骤5B返回空或无效，使用默认阶段目标")
+        try:
+            result = self._parse_json_response(response, "stage_goals")
+            
+            # 解析返回格式
+            stage_goals = None
+            if isinstance(result, dict) and "stage_goals" in result:
+                sg = result["stage_goals"]
+                stage_goals = sg if isinstance(sg, list) else [sg]
+            elif isinstance(result, list):
+                stage_goals = result
+            else:
+                raise ValueError(f"stage_goals 返回格式错误: {type(result)}")
+            
+            # 验证数组长度
+            if len(stage_goals) == 0:
+                raise ValueError("stage_goals 数组为空")
+            
+            logger.info(f"[对话模式 {self.session_id}] 生成 stage_goals 成功: {len(stage_goals)} 个阶段")
+            return stage_goals
+            
+        except (json.JSONDecodeError, ValueError) as e:
+            # 获取总章数用于默认目标
+            total_chapters = len(previous_results.get('emotion_curve', []))
+            logger.error(f"[对话模式 {self.session_id}] 生成 stage_goals 失败: {e}，使用默认值")
             return self._get_default_stage_goals(total_chapters)
     
     def _get_default_stage_goals(self, total_chapters: int = 100) -> List[Dict]:
@@ -1117,101 +1454,145 @@ class MarketDrivenConversationSession:
         
         return goals
     
-    def _parse_json_response(self, response: str, step_name: str) -> Any:
-        """解析JSON响应"""
+    def _parse_json_response(self, response: str, step_name: str, max_retries: int = 3) -> Any:
+        """
+        解析JSON响应，带重试机制
+        
+        Args:
+            response: API返回的响应
+            step_name: 步骤名称（用于日志）
+            max_retries: 最大重试次数
+            
+        Returns:
+            解析后的JSON对象
+            
+        Raises:
+            JSONDecodeError: 解析失败且重试次数用尽
+        """
         # 🔥 修复：如果API已经返回了解析后的对象，直接使用
         if isinstance(response, dict):
+            logger.info(f"[DEBUG][{step_name}] API返回已是dict，直接使用")
+            self._log_response_data(step_name, response)
             return response
         if isinstance(response, list):
+            logger.info(f"[DEBUG][{step_name}] API返回已是list，直接使用")
             return response
         
         if not response:
-            logger.error(f"步骤 {step_name} 返回空")
-            return {}
+            raise json.JSONDecodeError(f"步骤 {step_name} 返回空响应", "", 0)
         
         import re
         
-        # 尝试直接解析
+        last_error = None
+        
+        for attempt in range(max_retries):
+            try:
+                # 尝试直接解析
+                try:
+                    result = json.loads(response)
+                    logger.info(f"[DEBUG][{step_name}] JSON直接解析成功（尝试{attempt+1}/{max_retries}），返回类型: {type(result)}")
+                    self._log_response_data(step_name, result)
+                    return result
+                except json.JSONDecodeError as e:
+                    last_error = e
+                    if attempt == 0:
+                        logger.warning(f"[DEBUG][{step_name}] JSON直接解析失败: {e}")
+                
+                # 尝试提取JSON块
+                json_match = re.search(r'```json\s*(.*?)\s*```', response, re.DOTALL)
+                candidate = json_match.group(1) if json_match else None
+                
+                # 如果没有代码块，尝试提取花括号内容
+                if not candidate:
+                    brace_match = re.search(r'\{[\s\S]*\}', response, re.DOTALL)
+                    candidate = brace_match.group(0) if brace_match else None
+                
+                if candidate:
+                    # 先尝试直接解析提取的内容
+                    try:
+                        result = json.loads(candidate)
+                        logger.info(f"[DEBUG][{step_name}] 从代码块/花括号解析成功，返回类型: {type(result)}")
+                        self._log_response_data(step_name, result)
+                        return result
+                    except json.JSONDecodeError as e:
+                        last_error = e
+                    
+                    # 🔥 智能修复常见的AI JSON错误
+                    fixed = self._fix_json_string(candidate)
+                    try:
+                        result = json.loads(fixed)
+                        logger.info(f"[DEBUG][{step_name}] JSON智能修复后解析成功，返回类型: {type(result)}")
+                        self._log_response_data(step_name, result)
+                        return result
+                    except json.JSONDecodeError as e:
+                        last_error = e
+                
+                # 解析失败，如果还有重试机会，请求AI重新生成
+                if attempt < max_retries - 1:
+                    logger.warning(f"[DEBUG][{step_name}] 解析失败，笮{attempt+2}次重试...")
+                    retry_prompt = f"""之前的响应格式错误，无法解析为JSON。
+错误信息: {str(last_error)}
+
+请重新返回符合JSON格式的数据，要求：
+1. 必须是标准JSON格式
+2. 不要有多余的前后文本
+3. 字符串中的引号必须正确转义
+
+请直接返回JSON，不要用```json包裹。"""
+                    
+                    response = self.session.send_message(
+                        retry_prompt, 
+                        temperature=0.7, 
+                        purpose=f"{step_name}-重试{attempt+2}"
+                    )
+                    self._logger.log_round(f"{step_name}_retry_{attempt+2}", self.session.messages.copy(), response if isinstance(response, str) else json.dumps(response))
+                
+            except Exception as e:
+                last_error = e
+                logger.error(f"[DEBUG][{step_name}] 第{attempt+1}次尝试异常: {e}")
+        
+        # 所有重试都失败
+        error_msg = f"无法解析步骤 {step_name} 的响应，已重试{max_retries}次. 最后错误: {last_error}"
+        logger.error(error_msg)
+        raise json.JSONDecodeError(error_msg, response[:500] if response else "", 0)
+    
+    def _log_response_data(self, step_name: str, data: Any):
+        """记录响应数据的关键字段类型（用于debug）"""
         try:
-            return json.loads(response)
-        except json.JSONDecodeError:
-            pass
-        
-        # 尝试提取JSON块
-        json_match = re.search(r'```json\s*(.*?)\s*```', response, re.DOTALL)
-        candidate = json_match.group(1) if json_match else None
-        
-        # 如果没有代码块，尝试提取花括号内容
-        if not candidate:
-            brace_match = re.search(r'\{[\s\S]*\}', response, re.DOTALL)
-            candidate = brace_match.group(0) if brace_match else None
-        
-        if candidate:
-            # 先尝试直接解析提取的内容
-            try:
-                return json.loads(candidate)
-            except json.JSONDecodeError:
-                pass
-            
-            # 🔥 智能修复常见的AI JSON错误
-            fixed = self._fix_json_string(candidate)
-            try:
-                result = json.loads(fixed)
-                logger.info(f"[对话模式 {self.session_id}] 步骤 {step_name} JSON智能修复后解析成功")
-                return result
-            except json.JSONDecodeError:
-                pass
-        
-        logger.error(f"无法解析步骤 {step_name} 的响应")
-        return {}
+            if isinstance(data, dict):
+                # 记录关键字段的类型
+                type_info = {}
+                for key in ['stage_goals', 'emotion_curve', 'stage_goal_issues', 
+                           'emotion_issues', 'gf_issues', 'milestones']:
+                    if key in data:
+                        val = data[key]
+                        type_info[key] = type(val).__name__
+                        if isinstance(val, list):
+                            type_info[f"{key}_len"] = len(val)
+                        elif isinstance(val, dict):
+                            type_info[f"{key}_keys"] = list(val.keys())[:3]
+                
+                if type_info:
+                    logger.info(f"[DEBUG][{step_name}] 数据字段类型: {type_info}")
+        except Exception as e:
+            logger.warning(f"[DEBUG] 记录数据类型时出错: {e}")
     
     def _fix_json_string(self, json_str: str) -> str:
-        """智能修复AI返回的常见JSON格式错误"""
+        """智能修复AI返回的常见JSON格式错误 - 仅基本修复"""
         import re
-        
+
         s = json_str.strip().lstrip('\ufeff').lstrip('\u3000')
-        
-        # 1. 修复中文标点
+
+        # 1. 修复中文标点（AI经常混淆中英文标点）
         s = s.replace('，', ',').replace('。', '.').replace('：', ':')
-        s = s.replace('"', '"').replace('"', '"').replace(''', "'").replace(''', "'")
-        
+        s = s.replace('"', '"').replace('"', '"')
+
         # 2. 修复尾部逗号（对象和数组）
         s = re.sub(r',(\s*[}\]])', r'\1', s)
-        
-        # 3. 修复未加引号的字符串值
-        # 匹配模式: "key": 中文字符串,  或 "key": 中文字符串}
-        # 排除 true/false/null/数字/已引号字符串/对象/数组开头
-        def quote_unquoted_values(match):
-            prefix = match.group(1)  # "key": 
-            value = match.group(2)   # 未引号的值
-            suffix = match.group(3)  # , 或 } 或 ]
-            # 排除已经是合法JSON值的情况
-            value_stripped = value.strip()
-            if value_stripped.lower() in ('true', 'false', 'null'):
-                return match.group(0)
-            if re.match(r'^-?\d+(\.\d+)?$', value_stripped):
-                return match.group(0)
-            if value_stripped.startswith('"') or value_stripped.startswith('[') or value_stripped.startswith('{'):
-                return match.group(0)
-            # 给值加上引号，但保留内部的引号（转义它们）
-            escaped = value.replace('"', '\\"')
-            return f'{prefix}"{escaped}"{suffix}'
-        
-        # 这个正则会匹配 "key": 后面跟着非标准JSON值的情况
-        s = re.sub(
-            r'("[^"]+"\s*:\s*)([^"\d\[{\]\}\s][^,\]\}]*?)(\s*[,\]\}])',
-            quote_unquoted_values,
-            s
-        )
-        
-        # 4. 最后尝试替换单引号为双引号（仅针对键和简单值）
-        # 注意：这个操作有风险，所以放在最后
-        s = s.replace("'", '"')
-        
+
+        # 注意：不修复内部引号问题，让AI通过重试学习正确格式
         return s
-    
-    # ==================== 步骤6: 爆款对齐检查与优化 ====================
-    
+
     def _bestseller_alignment_check(self, previous_results: Dict) -> Dict:
         """
         步骤6: 爆款对齐检查与优化
@@ -1220,6 +1601,16 @@ class MarketDrivenConversationSession:
         返回优化后的结果和优化报告
         """
         logger.info(f"[对话模式 {self.session_id}] 开始爆款对齐检查...")
+        
+        # 🔥 DEBUG: 记录previous_results中关键字段的类型
+        debug_info = {}
+        for key in ['stage_goals', 'emotion_curve']:
+            if key in previous_results:
+                val = previous_results[key]
+                debug_info[key] = type(val).__name__
+                if isinstance(val, list):
+                    debug_info[f"{key}_len"] = len(val)
+        logger.info(f"[DEBUG][_bestseller_alignment_check] previous_results类型: {debug_info}")
         
         # 如果没有爆款分析数据，跳过检查
         if not self._prompt_generator:
@@ -1231,6 +1622,12 @@ class MarketDrivenConversationSession:
         
         # 1. 检查情绪曲线是否符合爆款节奏
         emotion_curve = previous_results.get('emotion_curve', [])
+        # 🔥 DEBUG: 检查 emotion_curve 类型
+        logger.info(f"[DEBUG] emotion_curve 类型: {type(emotion_curve).__name__}, "
+                   f"长度: {len(emotion_curve) if isinstance(emotion_curve, (list, dict)) else 'N/A'}")
+        if not isinstance(emotion_curve, list):
+            logger.error(f"[DEBUG] emotion_curve 不是列表！实际内容: {emotion_curve}")
+            emotion_curve = []
         emotion_issues = self._check_emotion_curve_bestseller_gap(
             emotion_curve, 
             bestseller_analysis
@@ -1249,6 +1646,11 @@ class MarketDrivenConversationSession:
             golden_finger,
             bestseller_analysis
         )
+        
+        # 🔥 DEBUG: 记录issues的类型
+        logger.info(f"[DEBUG] issues类型 - emotion_issues: {type(emotion_issues).__name__}, "
+                   f"stage_goal_issues: {type(stage_goal_issues).__name__}, "
+                   f"gf_issues: {type(gf_issues).__name__}")
         
         # 4. 生成对齐报告
         alignment_report = {
@@ -1281,6 +1683,10 @@ class MarketDrivenConversationSession:
                                              bestseller_analysis: Dict) -> List[Dict]:
         """检查情绪曲线与爆款的差距"""
         issues = []
+        
+        # 严格类型检查：必须是列表
+        if not isinstance(emotion_curve, list):
+            raise TypeError(f"emotion_curve 必须是列表，实际类型: {type(emotion_curve).__name__}")
         
         if not emotion_curve:
             issues.append({
@@ -1336,18 +1742,21 @@ class MarketDrivenConversationSession:
         issues.extend(cycle_issues)
         
         # 检查爽点密度（每章至少1个高潮）
-        climax_count = sum(1 for p in emotion_curve if p.get('intensity', 0) >= 7)
-        total_chapters = len(emotion_curve)
-        climax_ratio = climax_count / total_chapters if total_chapters > 0 else 0
-        
-        if climax_ratio < 0.5:  # 至少50%的章有高情绪
-            issues.append({
-                "type": "low_climax_density",
-                "current_ratio": f"{climax_ratio:.1%}",
-                "expected_ratio": ">=50%",
-                "current_count": f"{climax_count}/{total_chapters}",
-                "severity": "high"
-            })
+        try:
+            climax_count = sum(1 for p in emotion_curve if isinstance(p, dict) and p.get('intensity', 0) >= 7)
+            total_chapters = len(emotion_curve) if isinstance(emotion_curve, (list, tuple)) else 0
+            climax_ratio = (climax_count / total_chapters) if total_chapters > 0 else 0.0
+            
+            if climax_ratio < 0.5:  # 至少50%的章有高情绪
+                issues.append({
+                    "type": "low_climax_density",
+                    "current_ratio": f"{climax_ratio:.1%}",
+                    "expected_ratio": ">=50%",
+                    "current_count": f"{climax_count}/{total_chapters}",
+                    "severity": "high"
+                })
+        except Exception as e:
+            logger.warning(f"[对话模式 {self.session_id}] 检查爽点密度时出错: {e}")
         
         return issues
     
@@ -1413,6 +1822,19 @@ class MarketDrivenConversationSession:
         """检查阶段目标与爆款的差距"""
         issues = []
         
+        # 🔥 安全处理：确保 stage_goals 是列表
+        if isinstance(stage_goals, dict):
+            # 如果AI返回的是字典（如 {"stage_goals": [...]}），尝试提取列表
+            if 'stage_goals' in stage_goals:
+                stage_goals = stage_goals['stage_goals']
+            else:
+                # 将整个字典作为单元素列表
+                stage_goals = [stage_goals]
+            logger.warning(f"[对话模式 {self.session_id}] stage_goals 是字典，已转换为列表")
+        elif not isinstance(stage_goals, list):
+            logger.error(f"[对话模式 {self.session_id}] stage_goals 类型异常: {type(stage_goals).__name__}，返回空issues")
+            return issues
+        
         if not stage_goals:
             issues.append({
                 "type": "missing_stage_goals",
@@ -1437,6 +1859,10 @@ class MarketDrivenConversationSession:
         climax_keywords = ['震惊', '震撼', '全场', '吊打', '碾压', '曝光', ' reveal', '反转', '爆发']
         
         for i, goal in enumerate(stage_goals):
+            # 🔥 防御性类型处理：确保 goal 是字典
+            if not isinstance(goal, dict):
+                logger.warning(f"[对话模式 {self.session_id}] stage_goals[{i}] 不是字典，类型: {type(goal)}，跳过")
+                continue
             goal_id = goal.get('goal_id', f'G{i+1}')
             description = goal.get('description', '')
             deliverables = goal.get('key_deliverables', [])
@@ -1554,6 +1980,14 @@ class MarketDrivenConversationSession:
                                   bestseller_analysis: Dict) -> Dict:
         """基于爆款数据优化一阶段产物"""
         
+        # 🔥 严格类型检查：确保所有 issues 都是列表，否则报错
+        if not isinstance(emotion_issues, list):
+            raise TypeError(f"emotion_issues 必须是列表，实际类型: {type(emotion_issues).__name__}, 内容: {emotion_issues}")
+        if not isinstance(stage_goal_issues, list):
+            raise TypeError(f"stage_goal_issues 必须是列表，实际类型: {type(stage_goal_issues).__name__}, 内容: {stage_goal_issues}")
+        if not isinstance(gf_issues, list):
+            raise TypeError(f"gf_issues 必须是列表，实际类型: {type(gf_issues).__name__}, 内容: {gf_issues}")
+        
         results = previous_results.copy()
         
         # 构建优化提示词
@@ -1590,8 +2024,26 @@ class MarketDrivenConversationSession:
             prompt_parts.append("- 前10章必须有3个以上高情绪高潮")
         
         bs_gf_formula = bestseller_analysis.get('golden_finger_formula', '')
-        if bs_gf_formula:
-            prompt_parts.append(f"\n### 爆款金手指公式\n{bs_gf_formula[:500]}")
+        # 🔥 安全处理：确保可以正确转换为字符串和切片
+        try:
+            # 无论什么类型，先转字符串
+            if bs_gf_formula is None:
+                formula_str = ''
+            elif isinstance(bs_gf_formula, str):
+                formula_str = bs_gf_formula
+            else:
+                # dict/list 等类型转JSON字符串
+                formula_str = json.dumps(bs_gf_formula, ensure_ascii=False)
+            
+            # 安全切片
+            if formula_str and formula_str not in ['None', 'null', '', '{}']:
+                if len(formula_str) > 500:
+                    formula_text = formula_str[:500] + "..."
+                else:
+                    formula_text = formula_str
+                prompt_parts.append("\n### 爆款金手指公式\n" + formula_text)
+        except Exception as e:
+            logger.warning(f"[对话模式 {self.session_id}] golden_finger_formula 处理失败: {e}，跳过")
         
         # 添加当前设计
         prompt_parts.append("\n## 当前设计（需优化）\n")
@@ -1603,11 +2055,20 @@ class MarketDrivenConversationSession:
                 prompt_parts.append(f"- 第{point.get('chapter', '?')}章: {point.get('emotion', '?')} (强度{point.get('intensity', '?')})")
         
         stage_goals = previous_results.get('stage_goals', [])
-        if isinstance(stage_goals, list) and stage_goals:
+        # 🔥 DEBUG: 记录 stage_goals 的详细信息
+        logger.info(f"[DEBUG] previous_results.get('stage_goals') 类型: {type(stage_goals).__name__}")
+        if isinstance(stage_goals, dict):
+            logger.error(f"[DEBUG] stage_goals 是字典！内容: {stage_goals}")
+            stage_goals = [stage_goals]
+        elif not isinstance(stage_goals, list):
+            logger.error(f"[DEBUG] stage_goals 类型异常: {type(stage_goals)}, 内容: {stage_goals}")
+            stage_goals = []
+        if stage_goals:
             prompt_parts.append("\n### 阶段目标")
             for goal in stage_goals[:3]:
-                prompt_parts.append(f"- {goal.get('goal_id', '?')}: {goal.get('description', '?')[:50]}")
-                prompt_parts.append(f"  交付物: {', '.join(goal.get('key_deliverables', []))}")
+                if isinstance(goal, dict):
+                    prompt_parts.append(f"- {goal.get('goal_id', '?')}: {goal.get('description', '?')[:50]}")
+                    prompt_parts.append(f"  交付物: {', '.join(goal.get('key_deliverables', []))}")
         
         golden_finger = previous_results.get('plan', {}).get('golden_finger', {})
         if golden_finger:
@@ -1631,6 +2092,8 @@ class MarketDrivenConversationSession:
     "golden_finger": {...} // 优化后的金手指（如果需优化）
   }
 }
+
+严格要求：字符串值内部的双引号必须转义为 \\"
 """)
         prompt_parts.append("\n只返回JSON，不要其他说明。")
         
@@ -1651,13 +2114,19 @@ class MarketDrivenConversationSession:
             optimized = self._parse_json_response(response, "bestseller_optimization")
             
             if optimized:
-                # 合并优化结果
+                # 合并优化结果（严格验证格式，发现问题立即报错）
                 if 'emotion_curve' in optimized and optimized['emotion_curve']:
-                    results['emotion_curve'] = optimized['emotion_curve']
+                    ec = optimized['emotion_curve']
+                    if not isinstance(ec, list):
+                        raise ValueError(f"步骤6优化返回的 emotion_curve 必须是列表，实际类型: {type(ec).__name__}")
+                    results['emotion_curve'] = ec
                     logger.info(f"[对话模式 {self.session_id}] 情绪曲线已优化")
                 
                 if 'stage_goals' in optimized and optimized['stage_goals']:
-                    results['stage_goals'] = optimized['stage_goals']
+                    sg = optimized['stage_goals']
+                    if not isinstance(sg, list):
+                        raise ValueError(f"步骤6优化返回的 stage_goals 必须是列表，实际类型: {type(sg).__name__}。请检查AI响应格式")
+                    results['stage_goals'] = sg
                     logger.info(f"[对话模式 {self.session_id}] 阶段目标已优化")
                 
                 if 'plan' in optimized and 'golden_finger' in optimized['plan']:
@@ -1716,7 +2185,8 @@ class MarketDrivenConversationManager:
 # 便捷函数
 def generate_with_conversation(api_client, genre: str, user_choices: Dict, 
                                tropes: Optional[Dict] = None,
-                               progress_callback=None) -> Dict:
+                               progress_callback=None,
+                               project_path: str = None) -> Dict:
     """
     使用对话模式生成市场导向产物
     
@@ -1726,10 +2196,11 @@ def generate_with_conversation(api_client, genre: str, user_choices: Dict,
         user_choices: 用户选择
         tropes: 套路分析结果（可选）
         progress_callback: 进度回调
+        project_path: 项目路径，用于每步保存中间结果
     
     Returns:
         所有产物字典
     """
     manager = MarketDrivenConversationManager(api_client)
     session = manager.start_conversation(genre, user_choices, tropes)
-    return session.generate_all(progress_callback)
+    return session.generate_all(progress_callback, project_path)

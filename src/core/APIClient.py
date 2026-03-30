@@ -44,7 +44,7 @@ class ConversationSession:
     
     def __init__(self, api_client: 'APIClient', system_prompt: str, 
                  provider: Optional[str] = None, model_name: Optional[str] = None,
-                 temperature: float = 0.8, purpose_prefix: str = ""):
+                 temperature: float = 0.9, purpose_prefix: str = ""):
         """
         初始化对话会话
         
@@ -1446,7 +1446,7 @@ class APIClient:
     def _call_with_messages(self, messages: List[Dict[str, str]], 
                            provider: Optional[str] = None,
                            model_name: Optional[str] = None,
-                           temperature: float = 0.8,
+                           temperature: float = 0.9,
                            max_tokens: Optional[int] = None,
                            purpose: str = "conversation") -> Optional[str]:
         """
@@ -1632,7 +1632,7 @@ class APIClient:
     def create_conversation(self, system_prompt: str, 
                            provider: Optional[str] = None,
                            model_name: Optional[str] = None,
-                           temperature: float = 0.8,
+                           temperature: float = 0.9,
                            purpose_prefix: str = "") -> 'ConversationSession':
         """
         创建一个新的多轮对话会话

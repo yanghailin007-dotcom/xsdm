@@ -192,22 +192,36 @@ class ChapterInfoExtractor:
         Returns:
             更新后的世界状态
         """
+        # 🔥 确保 current_state 包含所有必需字段
+        default_state = {
+            "total_chapters": 0,
+            "characters": {},
+            "power_system": {},
+            "factions": {},
+            "timeline": [],
+            "pending_hooks": [],
+            "resolved_hooks": []
+        }
         if current_state is None:
-            current_state = {
-                "total_chapters": 0,
-                "characters": {},
-                "power_system": {},
-                "factions": {},
-                "timeline": [],
-                "pending_hooks": [],
-                "resolved_hooks": []
-            }
+            current_state = default_state.copy()
+        else:
+            # 确保所有必需字段都存在
+            for key, default_value in default_state.items():
+                if key not in current_state:
+                    current_state[key] = default_value
         
         for extraction in extractions:
             ch_num = extraction.get('chapter_number')
             
+            # 🔥 修复：确保所有列表字段都是列表类型（不是None）
+            new_characters = extraction.get('new_characters') or []
+            character_changes = extraction.get('character_changes') or []
+            new_hooks = extraction.get('new_hooks') or []
+            resolved_hooks = extraction.get('resolved_hooks') or []
+            world_changes = extraction.get('world_changes') or []
+            
             # 合并新角色
-            for char in extraction.get('new_characters', []):
+            for char in new_characters:
                 char_name = char.get('name')
                 if char_name and char_name not in current_state['characters']:
                     current_state['characters'][char_name] = {
@@ -216,7 +230,7 @@ class ChapterInfoExtractor:
                     }
             
             # 合并角色变化
-            for change in extraction.get('character_changes', []):
+            for change in character_changes:
                 char_name = change.get('name')
                 if char_name in current_state['characters']:
                     if 'changes' not in current_state['characters'][char_name]:
@@ -227,7 +241,7 @@ class ChapterInfoExtractor:
                     })
             
             # 合并新钩子
-            for hook in extraction.get('new_hooks', []):
+            for hook in new_hooks:
                 current_state['pending_hooks'].append({
                     **hook,
                     "introduced_chapter": ch_num,
@@ -235,7 +249,7 @@ class ChapterInfoExtractor:
                 })
             
             # 移出已解决的钩子
-            for resolved in extraction.get('resolved_hooks', []):
+            for resolved in resolved_hooks:
                 # 在pending中查找并标记为已解决
                 for pending in current_state['pending_hooks']:
                     if pending.get('content') == resolved.get('content'):
@@ -257,7 +271,7 @@ class ChapterInfoExtractor:
                 })
             
             # 合并世界变化
-            for change in extraction.get('world_changes', []):
+            for change in world_changes:
                 current_state.setdefault('world_changes', []).append({
                     **change,
                     "chapter": ch_num

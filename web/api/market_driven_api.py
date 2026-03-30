@@ -425,13 +425,52 @@ def start_market_driven_generation():
         if not genre:
             return jsonify({"error": "缺少必要参数: genre"}), 400
         
+        # 🔥 获取当前用户ID和用户名
+        from flask import session
+        user_id = session.get('user_id')
+        username = _get_current_username()
+        
+        # 🔥 创造点预估和余额检查
+        from web.models.point_model import point_model
+        from web.services.market_driven.config import get_config, calculate_batches
+        
+        total_chapters = target_words // get_config(genre)["words_per_chapter"]
+        chapters_per_batch = get_config(genre)["chapters_per_batch"]
+        batches = calculate_batches(total_chapters, chapters_per_batch, genre)
+        
+        # 一阶段固定消耗 + 二阶段按批次消耗
+        phase1_cost = point_model.calculate_phase1_cost(total_chapters, 4)['total']
+        phase2_cost = batches * point_model.get_config('phase2_chapter_batch', 1)
+        estimated_points = phase1_cost + phase2_cost
+        
+        # 门槛检查：至少要有75点才能开始
+        MIN_POINTS_THRESHOLD = 75
+        if user_id:
+            user_points = point_model.get_user_points(user_id)
+            if user_points['balance'] < MIN_POINTS_THRESHOLD:
+                return jsonify({
+                    "success": False,
+                    "error": f"创造点不足，需要至少{MIN_POINTS_THRESHOLD}点才能开始生成，当前余额{user_points['balance']}点",
+                    "required": MIN_POINTS_THRESHOLD,
+                    "balance": user_points['balance']
+                }), 402
+            logger.info(f"✅ [MarketDriven] 余额检查通过: {user_points['balance']}点 >= {MIN_POINTS_THRESHOLD}点门槛")
+        
+        logger.info(f"💰 [MarketDriven] 预估消耗点数: {estimated_points} (一阶段:{phase1_cost}, 二阶段:{phase2_cost})")
+        
         # 创建任务
         task_id = task_manager.create_task(genre, user_choices)
         
-        # 🔥 获取当前用户名并保存到任务中（后台线程无法访问session）
-        username = _get_current_username()
-        task_manager.update_task(task_id, username=username)
-        logger.info(f"[Task {task_id}] 创建任务，用户名: {username}")
+        # 🔥 保存用户ID、用户名、预估点数和目标字数到任务中（后台线程无法访问session）
+        task_manager.update_task(
+            task_id,
+            username=username,
+            user_id=user_id,
+            estimated_points=estimated_points,
+            points_consumed=0,
+            target_words=target_words
+        )
+        logger.info(f"[Task {task_id}] 创建任务，用户名: {username}, user_id: {user_id}")
         
         # 在后台执行完整生成流程
         def run_full_generation():
@@ -442,6 +481,79 @@ def start_market_driven_generation():
                     from src.core.APIClient import APIClient
                     from config.config import CONFIG
                     api_client = APIClient(CONFIG)
+                    api_client.set_username(username)
+                    
+                    # 🔥 设置API调用扣费回调
+                    if user_id:
+                        def _on_api_call_deduct_points(purpose: str, attempt: int, endpoint_name: str = None, discount_rate: int = 100):
+                            try:
+                                actual_cost = discount_rate / 100.0
+                                
+                                # 先检查余额是否足够
+                                user_points = point_model.get_user_points(user_id)
+                                # 🔥 确保 balance 是数字类型
+                                balance = user_points.get('balance', 0)
+                                if isinstance(balance, str):
+                                    try:
+                                        balance = float(balance)
+                                    except (ValueError, TypeError):
+                                        balance = 0
+                                elif not isinstance(balance, (int, float)):
+                                    balance = 0
+                                if balance < actual_cost:
+                                    # 点数不足，暂停任务
+                                    logger.warning(f"⏸️ [Task {task_id}] 点数不足，暂停生成。当前余额: {balance}, 需要: {actual_cost}")
+                                    task_manager.update_task(
+                                        task_id,
+                                        status="paused_insufficient_points",
+                                        current_stage="paused",
+                                        message=f"创造点不足，生成已暂停。当前余额: {balance:.1f}点",
+                                        error="创造点不足，请充值后继续",
+                                        points_needed=actual_cost,
+                                        current_balance=balance
+                                    )
+                                    # 抛出异常中断生成
+                                    raise Exception(f"创造点不足: 当前余额 {balance:.1f} 点，需要 {actual_cost} 点")
+                                
+                                result = point_model.spend_points(
+                                    user_id=user_id,
+                                    amount=actual_cost,
+                                    source='api_call',
+                                    description=f'API调用: {purpose} (端点:{endpoint_name}, 折扣:{discount_rate}%)',
+                                    related_id=task_id
+                                )
+                                if result['success']:
+                                    task = task_manager.get_task(task_id)
+                                    current_consumed = task.get('points_consumed', 0) if task else 0
+                                    if isinstance(current_consumed, str):
+                                        try:
+                                            current_consumed = float(current_consumed)
+                                        except (ValueError, TypeError):
+                                            current_consumed = 0
+                                    elif not isinstance(current_consumed, (int, float)):
+                                        current_consumed = 0
+                                    task_manager.update_task(
+                                        task_id,
+                                        points_consumed=current_consumed + actual_cost
+                                    )
+                                    logger.info(f"💰 [Task {task_id}] API调用扣费成功: {purpose} (消耗:{actual_cost}点, 总计:{current_consumed + actual_cost:.2f})")
+                                else:
+                                    logger.error(f"❌ [Task {task_id}] API调用扣费失败: {result.get('error')}")
+                                    # 扣费失败也暂停
+                                    task_manager.update_task(
+                                        task_id,
+                                        status="paused_insufficient_points",
+                                        current_stage="paused",
+                                        message=f"扣费失败: {result.get('error')}",
+                                        error=result.get('error', '扣费失败')
+                                    )
+                                    raise Exception(f"扣费失败: {result.get('error')}")
+                            except Exception as e:
+                                if "创造点不足" in str(e) or "扣费失败" in str(e):
+                                    raise  # 重新抛出以便上层捕获
+                                logger.error(f"❌ [Task {task_id}] API调用扣费回调出错: {e}")
+                        
+                        api_client.set_api_call_callback(_on_api_call_deduct_points)
                 except Exception as e:
                     logger.warning(f"APIClient初始化失败，将使用模拟模式: {e}")
                 
@@ -483,7 +595,8 @@ def start_market_driven_generation():
             "task_id": task_id,
             "status": "pending",
             "message": "市场导向生成任务已创建并开始运行",
-            "estimated_time": "30-60分钟（取决于字数）"
+            "estimated_time": "30-60分钟（取决于字数）",
+            "estimated_points": estimated_points
         }), 202
         
     except Exception as e:
@@ -609,11 +722,35 @@ def _run_plan_and_products_conversation(task_id: str, genre: str, user_choices: 
             username = 'anonymous'
         logger.info(f"[Task {task_id}] 使用用户名: {username}")
         
-        # 更新用户选择（添加套路信息）
+        # 🔥 根据字数重新计算正确的章节数（覆盖用户可能错误选择的章节数）
+        from web.services.market_driven.config import get_config, get_target_words
+        target_words = task.get('target_words') or get_target_words(genre)
+        correct_chapters = target_words // get_config(genre)["words_per_chapter"]
+        # 确保 correct_chapters 是整数
+        if not isinstance(correct_chapters, int):
+            correct_chapters = int(correct_chapters)
+        
+        # 更新用户选择（添加套路信息，并强制使用正确计算的章节数）
+        user_chapters = user_choices.get('chapters', 0)
+        # 确保 user_chapters 是整数
+        if isinstance(user_chapters, str):
+            try:
+                user_chapters = int(user_chapters)
+            except (ValueError, TypeError):
+                user_chapters = 0
+        elif not isinstance(user_chapters, int):
+            user_chapters = int(user_chapters) if user_chapters else 0
+        
         enriched_user_choices = {
             **user_choices,
+            "chapters": correct_chapters,  # 🔥 强制使用正确计算的章节数
+            "target_words": target_words,   # 🔥 添加目标字数
             "trope_analysis": tropes
         }
+        if user_chapters != correct_chapters:
+            logger.info(f"[Task {task_id}] 章节数已修正: {user_chapters} -> {correct_chapters} (基于{target_words}字)")
+        else:
+            logger.info(f"[Task {task_id}] 章节数检查: {correct_chapters} 章 (基于{target_words}字)")
         
         logger.info(f"[Task {task_id}] 🚀 启动对话模式生成")
         
@@ -633,28 +770,30 @@ def _run_plan_and_products_conversation(task_id: str, genre: str, user_choices: 
                 message=step_messages.get(step_name, f"正在执行: {step_name}...")
             )
         
-        # 使用对话会话生成所有产物
+        # 🔥 创建项目目录（提前创建，用于保存每步结果）
+        novel_title = enriched_user_choices.get("title") or f"未命名_{task_id[:8]}"
+        project_path = create_unified_project(novel_title, "market_driven", genre, username)
+        logger.info(f"[Task {task_id}] 项目目录已创建: {project_path}")
+        
+        # 使用对话会话生成所有产物（每步自动保存）
         products = generate_with_conversation(
             api_client=api_client,
             genre=genre,
             user_choices=enriched_user_choices,
             tropes=tropes,
-            progress_callback=progress_callback
+            progress_callback=progress_callback,
+            project_path=str(project_path)
         )
         
         # 提取方案信息
         plan = products.get("plan", {})
         
-        # 保存产物到项目目录（优先使用用户填写的书名）
-        user_choices = task.get("user_choices", {})
-        novel_title = user_choices.get("title") or plan.get("title") or f"未命名_{task_id[:8]}"
-        save_path = save_phase_one_products(novel_title, products, task_id, genre, plan, user_choices, username)
-        
-        # 更新任务结果
+        # 🔥 结果已在每步生成时自动保存到 project_path
+        # 这里只需要更新任务结果
         current_result = task.get("result", {})
         current_result["plan"] = plan
         current_result["products"] = products
-        current_result["save_path"] = str(save_path)
+        current_result["save_path"] = str(project_path)
         
         task_manager.update_task(
             task_id,
@@ -663,10 +802,12 @@ def _run_plan_and_products_conversation(task_id: str, genre: str, user_choices: 
             message="对话模式生成完成"
         )
         
-        logger.info(f"[Task {task_id}] ✅ 对话模式生成完成，保存到: {save_path}")
+        logger.info(f"[Task {task_id}] ✅ 对话模式生成完成，保存到: {project_path}")
         
     except Exception as e:
         logger.error(f"[Task {task_id}] ❌ 对话模式生成失败: {e}")
+        import traceback
+        logger.error(f"[Task {task_id}] 错误堆栈:\n{traceback.format_exc()}")
         logger.info(f"[Task {task_id}] 🔄 回退到传统模式...")
         
         # 回退到传统模式
@@ -727,24 +868,26 @@ def _run_phase_one_products(task_id: str, genre: str, api_client=None):
                 message=step_messages.get(step_name, f"正在执行: {step_name}...")
             )
         
-        # 使用对话会话生成所有产物
+        # 🔥 创建项目目录（提前创建，用于保存每步结果）
+        novel_title = user_choices.get("title") or plan.get("recommended_title") or f"未命名_{task_id[:8]}"
+        project_path = create_unified_project(novel_title, "market_driven", genre, username)
+        logger.info(f"[Task {task_id}] 项目目录已创建: {project_path}")
+        
+        # 使用对话会话生成所有产物（每步自动保存）
         products = generate_with_conversation(
             api_client=api_client,
             genre=genre,
             user_choices=user_choices,
             tropes=tropes,
-            progress_callback=progress_callback
+            progress_callback=progress_callback,
+            project_path=str(project_path)
         )
         
-        # 保存产物到项目目录（优先使用用户填写的书名）
-        user_choices = task.get("user_choices", {})
-        novel_title = user_choices.get("title") or plan.get("recommended_title") or f"未命名_{task_id[:8]}"
-        save_path = save_phase_one_products(novel_title, products, task_id, genre, plan, user_choices, username)
-        
-        # 更新任务结果
+        # 🔥 结果已在每步生成时自动保存到 project_path
+        # 这里只需要更新任务结果
         current_result = task.get("result", {})
         current_result["products"] = products
-        current_result["save_path"] = str(save_path)
+        current_result["save_path"] = str(project_path)
         
         task_manager.update_task(
             task_id,
@@ -753,7 +896,7 @@ def _run_phase_one_products(task_id: str, genre: str, api_client=None):
             message="第一阶段产物生成完成（对话模式）"
         )
         
-        logger.info(f"[Task {task_id}] 对话模式生成完成，保存到: {save_path}")
+        logger.info(f"[Task {task_id}] 对话模式生成完成，保存到: {project_path}")
         
     except Exception as e:
         logger.error(f"[Task {task_id}] 对话模式生成失败: {e}")
@@ -1173,7 +1316,17 @@ def _run_chapter_generation(task_id: str, genre: str, target_words: int, api_cli
         total_generated = sum(len(r["generated"]) for r in all_results)
         total_words = sum(r["total_words"] for r in all_results)
         total_failed = sum(len(r["failed"]) for r in all_results)
-        avg_quality = sum(r["avg_quality"] for r in all_results) / len(all_results) if all_results else 0
+        # 🔥 确保 avg_quality 是数字
+        def _to_float(val, default=0.0):
+            if isinstance(val, (int, float)):
+                return float(val)
+            if isinstance(val, str):
+                try:
+                    return float(val)
+                except (ValueError, TypeError):
+                    return default
+            return default
+        avg_quality = sum(_to_float(r.get("avg_quality", 0)) for r in all_results) / len(all_results) if all_results else 0
         
         # 更新任务结果
         current_result = task.get("result", {})

@@ -135,7 +135,8 @@ class ChapterConversationGenerator:
     
     def __init__(self, api_client, novel_data: Dict, tropes: Dict, 
                  quality_config: Dict = None,
-                 world_state_manager=None):  # 🔥 世界状态管理器
+                 world_state_manager=None,  # 🔥 世界状态管理器
+                 project_path: str = None):  # 🔥 项目路径
         self.api_client = api_client
         # 确保 novel_data 是字典类型
         if isinstance(novel_data, list):
@@ -151,6 +152,7 @@ class ChapterConversationGenerator:
         self.quality_checker = None  # 质量检查器
         self.quality_reports = []  # 质检报告列表
         self.world_state_manager = world_state_manager  # 🔥 世界状态管理器
+        self.project_path = project_path  # 🔥 项目路径
         
         # 质检配置
         if quality_config:
@@ -400,8 +402,7 @@ class ChapterConversationGenerator:
             
             # 合并到世界状态
             # 先尝试读取现有状态
-            import os
-            project_path = os.environ.get('NOVEL_PROJECT_PATH', '.')
+            project_path = self.project_path or '.'
             world_state_path = Path(project_path) / ".world_state.json"
             
             current_state = None
@@ -572,19 +573,19 @@ class ChapterConversationGenerator:
         # 🔥 后处理：提取正文部分（根据分隔符）
         content = self._extract_main_content(content, chapter_num)
         
-        # 🔥 字数强制检查（更严格）
+        # 🔥 字数检查（仅记录，完全不在单章扩写）
+        # 字数优化统一在 stage_review_optimizer 阶段处理，避免单章重复扩写
         word_count = len(content)
         
-        if word_count < 2000:
-            # 低于2000字：必须扩写到2200+
-            logger.warning(f"[章节对话 {self.session_id}] 第{chapter_num}章字数严重不足({word_count}<2000)，强制扩写...")
-            content = self._expand_chapter(content, chapter_num, 2200 - word_count)
-            word_count = len(content)
+        if word_count < 1800:
+            # 严重低于阈值：记录警告，留给后续阶段统一优化
+            logger.warning(f"[章节对话 {self.session_id}] 第{chapter_num}章字数严重不足({word_count}<1800)，将在阶段审核时统一优化")
+        elif word_count < 2000:
+            # 低于2000字：记录警告，留给后续阶段统一优化
+            logger.warning(f"[章节对话 {self.session_id}] 第{chapter_num}章字数不足({word_count}<2000)，将在阶段审核时统一优化")
         elif word_count < 2200:
-            # 2000-2200字：建议扩写
-            logger.info(f"[章节对话 {self.session_id}] 第{chapter_num}章字数略低({word_count})，建议扩写到2200+...")
-            content = self._expand_chapter(content, chapter_num, 2200 - word_count)
-            word_count = len(content)
+            # 2000-2200字：记录信息，接受当前字数
+            logger.info(f"[章节对话 {self.session_id}] 第{chapter_num}章字数略低({word_count})，接受当前字数，后续统一优化")
         
         # 🔥 AI信息提取：自动提取角色、钩子、世界设定等信息
         chapter_data = {
