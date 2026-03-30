@@ -838,58 +838,124 @@ class MarketDrivenConversationSession:
         """
         使用番茄爆款简介公式生成简介
         
-        爆款简介公式（3段式）：
-        第1段：主角身份/困境（引发共鸣）
-        第2段：获得金手指（期待感）
-        第3段：将要做什么（爽点预告）
+        🔥 爆款简介公式（5段式，必须有情绪爆点）：
+        第1段：【极端反差】主角表面身份 vs 实际能力（制造悬念）
+        第2段：【困境铺垫】被嘲讽/被看不起的场景（引发共鸣）
+        第3段：【金手指揭秘】核心能力+独特设定（期待感）
+        第4段：【爽点预告】具体会做什么（打脸/震惊/收获）
+        第5段：【情绪钩子】书名号/别名（增加传播性）
         """
         # 从 plan 提取关键信息
         gf = plan.get("golden_finger", {})
         protagonist = plan.get("protagonist", {})
+        opening = plan.get("opening_design", {})
         
-        # 提取金手指描述
+        # 提取金手指核心词（简化描述）
         gf_desc = gf.get("initial", "") if isinstance(gf, dict) else ""
-        if not gf_desc and gf.get("concept"):
-            gf_desc = gf.get("concept", "")
+        # 提取关键能力词
+        gf_keywords = []
+        if "扮演" in gf_desc or "模板" in gf_desc:
+            gf_keywords.append("扮演系统")
+        if "剑" in gf_desc or "剑仙" in gf_desc:
+            gf_keywords.append("酒剑仙")
+        if "雷神" in gf_desc:
+            gf_keywords.append("雷神")
+        if "签到" in gf_desc:
+            gf_keywords.append("签到")
         
-        # 提取主角特质
-        traits = protagonist.get("traits", []) if isinstance(protagonist, dict) else []
-        trait_str = traits[0] if traits else "普通"
+        gf_core = gf_keywords[0] if gf_keywords else "神秘系统"
         
-        # 提取背景
-        background = protagonist.get("background", "") if isinstance(protagonist, dict) else ""
+        # 提取主角表面身份（从开局第1章）
+        ch1 = opening.get("chapter_1", {}) if isinstance(opening, dict) else {}
+        scene = ch1.get("scene", "")
+        surface_identity = "普通人"
+        if "保安" in scene or "保安" in str(protagonist):
+            surface_identity = "醉酒保安"
+        elif "外卖" in scene:
+            surface_identity = "外卖小哥"
+        elif "废柴" in scene or "落魄" in scene:
+            surface_identity = "废柴"
+        elif "屌丝" in scene:
+            surface_identity = "穷屌丝"
         
-        # 🔥 使用爆款公式构建简介
-        # 第1段：主角困境
+        # 提取核心爽点动作
+        cool_action = "装逼打脸"
         if "国运" in genre:
-            part1 = f"{protagonist_name}代表龙国参赛，全国直播，万众瞩目。"
+            cool_action = "一剑秒杀凶兽，百倍具现资源"
         elif "神豪" in genre:
-            part1 = f"{protagonist_name}原本是个穷屌丝，被所有人看不起。"
+            cool_action = "花钱返利，越花越有钱"
         elif "末日" in genre:
-            part1 = f"末日降临，{protagonist_name}在危机中求生。"
-        else:
-            part1 = f"{protagonist_name}，一个{trait_str}的{background if background else '普通人'}。"
+            cool_action = "囤货求生，建立末世帝国"
         
-        # 第2段：获得金手指
-        if gf_desc:
-            part2 = f"意外获得{gf_desc}，从此人生逆转。"
-        else:
-            part2 = "意外获得神秘系统，开启逆袭之路。"
-        
-        # 第3段：爽点预告
+        # 🔥 构建爆款简介（必须包含情绪词和具体数字/场景）
         if "国运" in genre:
-            part3 = "为国争光，震惊世界，让全世界见证龙国崛起！"
+            synopsis = f"""【国运禁地，全球直播】
+当其他国家派出特种兵、基因战士时，龙国选中的竟是一个{surface_identity}。
+全网谩骂："龙国完了！"
+直到{protagonist_name}拔出腰间铁剑，一剑斩断S级凶兽...
+全球震惊："这特么是{surface_identity}？"
+
+【{gf_core}，越醉越强】
+别人求生，他求醉；别人逃跑，他御剑飞行。
+当{protagonist_name}{cool_action}时，
+全球选手集体破防："这还玩个屁！"
+
+本书又名：《{surface_identity}，一剑开天门》《我在国运禁地当{gf_core.replace('系统', '')}》"""
+        
         elif "神豪" in genre:
-            part3 = "花钱如流水，越花越有钱，装逼打脸停不下来！"
+            synopsis = f"""【花钱百倍返利，越花越有钱】
+{protagonist_name}原本是个被前女友甩、被亲戚嘲的穷屌丝。
+直到绑定{gf_core}，花钱就能获得百倍返利！
+
+"劳斯莱斯幻影？买！"
+"市中心豪宅？买！"
+"看不起我的前女友？跪舔也没用，滚！"
+
+当{protagonist_name}用钞票砸翻一切时，
+全世界才发现：有钱，真的可以为所欲为！
+
+本书又名：《神豪：从外卖员到全球首富》《我花钱就能变强》"""
+        
         elif "末日" in genre:
-            part3 = "囤货求生，建立避难所，成为末日霸主！"
+            synopsis = f"""【末日降临，囤货百亿】
+丧尸病毒爆发，世界陷入混乱。
+{protagonist_name}却提前觉醒{gf_core}，疯狂囤货百亿物资！
+
+当别人为了一块面包互相残杀时，
+他在别墅里吃着牛排喝着红酒；
+当别人被丧尸追得满山跑时，
+他的安全固若金汤。
+
+【杀伐果断，建立末世帝国】
+背叛者，杀！掠夺者，杀！丧尸，杀！
+{protagonist_name}要成为这末世唯一的王！
+
+本书又名：《末日：我有无限囤货空间》《我在末世当霸主》"""
+        
         elif "奶爸" in genre:
-            part3 = "带娃护家，萌宝助攻，温馨搞笑每一天！"
-        else:
-            part3 = "一路逆袭，打脸反派，成就无上传奇！"
+            synopsis = f"""【神级奶爸，萌宝无敌】
+{protagonist_name}突然多了一个软萌女儿，还绑定了{gf_core}！
+
+"爸爸，那个坏叔叔欺负我~"
+下一秒，反派直接被萌宝的守护灵拍飞。
+"爸爸，我想坐大飞机~"
+第二天，私人飞机停在楼顶。
+
+【宠娃狂魔，护短到底】
+谁敢动我女儿一根头发，我就让他全家后悔来到这个世上！
+
+本书又名：《奶爸：我的女儿有守护灵》《萌宝助攻，奶爸无敌》"""
         
-        # 组合简介（50-200字）
-        synopsis = f"{part1}{part2}{part3}"
+        else:
+            # 通用模板
+            synopsis = f"""【{gf_core}，逆袭人生】
+{protagonist_name}原本是个被人看不起的{surface_identity}。
+直到意外获得{gf_core}，从此人生逆转！
+
+{cool_action}，一路逆袭，震惊全场！
+曾经看不起他的人，现在跪舔都来不及。
+
+本书又名：《从{surface_identity}到无敌强者》《我有{gf_core}》"""
         
         return synopsis
     
