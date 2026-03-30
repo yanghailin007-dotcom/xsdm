@@ -179,8 +179,55 @@ class BatchChapterGenerator:
                 c["quality_score"] for c in results["generated"]
             ) / len(results["generated"])
         
+        # 🔥 批次总结：更新角色状态
+        if self.character_state_manager and chapters:
+            try:
+                # 收集批次信息
+                batch_info = self._collect_batch_info(start_chapter, end_chapter, chapters)
+                self.character_state_manager.update_after_batch(batch_info)
+                self.character_state_manager.sync_to_world_state()
+                logger.info(f"[BatchGenerator] 角色状态已更新并同步到 world_state")
+            except Exception as e:
+                logger.error(f"[BatchGenerator] 批次总结失败: {e}")
+        
         logger.info(f"[BatchGenerator] 对话模式完成: 成功{len(results['generated'])}章, 失败{len(results['failed'])}章")
         return results
+    
+    def _collect_batch_info(self, start_chapter: int, end_chapter: int, chapters: List[Dict]) -> Dict:
+        """
+        收集批次信息用于角色状态更新
+        
+        Args:
+            start_chapter: 起始章节
+            end_chapter: 结束章节
+            chapters: 生成的章节列表
+            
+        Returns:
+            批次信息字典
+        """
+        batch_info = {
+            "chapter_start": start_chapter,
+            "chapter_end": end_chapter,
+            "new_characters": [],
+            "character_changes": []
+        }
+        
+        # 从章节提取信息
+        for chapter in chapters:
+            extracted = chapter.get('extracted_info', {})
+            
+            # 收集新角色
+            new_chars = extracted.get('new_characters', [])
+            for char in new_chars:
+                if char not in batch_info["new_characters"]:
+                    batch_info["new_characters"].append(char)
+            
+            # 收集角色变化
+            changes = extracted.get('character_changes', [])
+            for change in changes:
+                batch_info["character_changes"].append(change)
+        
+        return batch_info
     
     def _generate_batch_individual(self, novel_title: str, start_chapter: int, end_chapter: int,
                                    blueprint: Dict, tropes: Dict, novel_data: Dict) -> Dict:
@@ -239,6 +286,21 @@ class BatchChapterGenerator:
             results["avg_quality"] = sum(
                 c["quality_score"] for c in results["generated"]
             ) / len(results["generated"])
+        
+        # 🔥 批次总结：更新角色状态（独立模式暂无提取信息）
+        if self.character_state_manager:
+            try:
+                # 独立模式下没有 extracted_info，只更新章节统计
+                batch_info = {
+                    "chapter_start": start_chapter,
+                    "chapter_end": end_chapter,
+                    "new_characters": [],
+                    "character_changes": []
+                }
+                self.character_state_manager.update_after_batch(batch_info)
+                logger.info(f"[BatchGenerator] 角色状态已更新（独立模式）")
+            except Exception as e:
+                logger.error(f"[BatchGenerator] 批次总结失败: {e}")
         
         logger.info(f"[BatchGenerator] 独立模式完成: 成功{len(results['generated'])}章, 失败{len(results['failed'])}章")
         return results
