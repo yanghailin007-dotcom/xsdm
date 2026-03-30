@@ -82,6 +82,10 @@
             <a href="/novels" class="v2-nav-link {% if request.endpoint == 'novels_view' %}v2-nav-link--active{% endif %}">
                 <span data-i18n="nav.works">作品</span>
             </a>
+            <!-- 提示词包管理 -->
+            <a href="/pages/v2/prompt-packages" class="v2-nav-link {% if request.endpoint == 'prompt_packages' %}v2-nav-link--active{% endif %}">
+                <span>📦 提示词包</span>
+            </a>
             <!-- 平台下拉菜单 - 第三方平台上传功能 -->
             <div class="v2-nav-dropdown {% if request.endpoint in ['fanqie_upload', 'fanqie_upload_v2'] %}v2-nav-dropdown--active{% endif %}">
                 <span class="v2-nav-trigger">

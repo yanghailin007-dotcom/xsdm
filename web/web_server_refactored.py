@@ -486,7 +486,15 @@ def create_app():
     app.register_blueprint(market_driven_api)
     logger.info("✅ market_driven_api 市场导向生成已注册")
 
-    # 28.3. 初始化题材自动更新调度器
+    # 28.3. 提示词包管理 API 路由
+    try:
+        from web.api.prompt_package_api import prompt_package_api
+        app.register_blueprint(prompt_package_api)
+        logger.info("✅ prompt_package_api 提示词包管理已注册")
+    except Exception as e:
+        logger.warning(f"⚠️ prompt_package_api 注册失败: {e}")
+
+    # 28.4. 初始化题材自动更新调度器
     try:
         from web.services.market_driven.genre_scheduler import init_genre_scheduler
         init_genre_scheduler(app)
@@ -885,6 +893,16 @@ def register_contract_routes(app):
             return render_template('pages/v2/market-driven-status.html', task_id=task_id)
         except Exception as e:
             logger.error(f"❌ 加载市场导向状态页面失败: {e}")
+            return f"页面加载失败: {str(e)}", 500
+
+    @app.route('/pages/v2/prompt-packages')
+    def prompt_packages_page():
+        """提示词包管理页面"""
+        try:
+            from flask import render_template
+            return render_template('pages/v2/prompt-packages.html')
+        except Exception as e:
+            logger.error(f"❌ 加载提示词包管理页面失败: {e}")
             return f"页面加载失败: {str(e)}", 500
 
     @app.route('/admin/users')

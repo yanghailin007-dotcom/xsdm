@@ -1,0 +1,1205 @@
+{#
+    提示词包管理页面 V2
+    用户可以查看、创建、编辑提示词包
+#}
+{% extends "layouts/base-v2.html" %}
+
+{% block title %}提示词包管理 - 大文娱创作平台{% endblock %}
+
+{% block extra_css %}
+<style>
+/* ==================== 提示词包管理页面 ==================== */
+
+.prompt-packages-page {
+    min-height: calc(100vh - 64px);
+    padding: var(--v2-space-8) var(--v2-space-6);
+    background: var(--v2-bg-primary);
+}
+
+/* 页面标题 */
+.v2-page-header {
+    max-width: 1400px;
+    margin: 0 auto var(--v2-space-8);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.v2-page-title {
+    font-size: var(--v2-text-2xl);
+    font-weight: var(--v2-font-bold);
+    color: var(--v2-text-primary);
+    margin-bottom: var(--v2-space-2);
+}
+
+.v2-page-subtitle {
+    font-size: var(--v2-text-base);
+    color: var(--v2-text-tertiary);
+}
+
+/* 主布局 */
+.packages-container {
+    max-width: 1400px;
+    margin: 0 auto;
+    display: grid;
+    grid-template-columns: 320px 1fr;
+    gap: var(--v2-space-6);
+    height: calc(100vh - 200px);
+}
+
+/* 左侧边栏 */
+.packages-sidebar {
+    background: var(--v2-bg-secondary);
+    border-radius: var(--v2-radius-xl);
+    border: 1px solid var(--v2-border-subtle);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+
+.sidebar-header {
+    padding: var(--v2-space-4);
+    border-bottom: 1px solid var(--v2-border-subtle);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.sidebar-title {
+    font-size: var(--v2-text-lg);
+    font-weight: var(--v2-font-semibold);
+    color: var(--v2-text-primary);
+}
+
+.sidebar-actions {
+    display: flex;
+    gap: var(--v2-space-2);
+}
+
+.icon-btn {
+    width: 32px;
+    height: 32px;
+    border-radius: var(--v2-radius-md);
+    border: 1px solid var(--v2-border-subtle);
+    background: transparent;
+    color: var(--v2-text-secondary);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all var(--v2-transition-fast);
+}
+
+.icon-btn:hover {
+    background: var(--v2-bg-tertiary);
+    color: var(--v2-text-primary);
+    border-color: var(--v2-border-hover);
+}
+
+/* 包列表 */
+.packages-list {
+    flex: 1;
+    overflow-y: auto;
+    padding: var(--v2-space-2);
+}
+
+.package-category {
+    margin-bottom: var(--v2-space-4);
+}
+
+.category-label {
+    font-size: var(--v2-text-xs);
+    font-weight: var(--v2-font-semibold);
+    color: var(--v2-text-tertiary);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    padding: var(--v2-space-2) var(--v2-space-3);
+    display: flex;
+    align-items: center;
+    gap: var(--v2-space-2);
+}
+
+.package-item {
+    padding: var(--v2-space-3);
+    margin-bottom: var(--v2-space-1);
+    border-radius: var(--v2-radius-lg);
+    cursor: pointer;
+    transition: all var(--v2-transition-fast);
+    border: 1px solid transparent;
+}
+
+.package-item:hover {
+    background: var(--v2-bg-tertiary);
+}
+
+.package-item.active {
+    background: rgba(99, 102, 241, 0.1);
+    border-color: rgba(99, 102, 241, 0.3);
+}
+
+.package-item.system {
+    border-left: 3px solid #f59e0b;
+}
+
+.package-item.user {
+    border-left: 3px solid #6366f1;
+}
+
+.package-name {
+    font-size: var(--v2-text-sm);
+    font-weight: var(--v2-font-medium);
+    color: var(--v2-text-primary);
+    margin-bottom: var(--v2-space-1);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.package-meta {
+    font-size: var(--v2-text-xs);
+    color: var(--v2-text-tertiary);
+    display: flex;
+    gap: var(--v2-space-2);
+    align-items: center;
+}
+
+.package-badge {
+    font-size: 10px;
+    padding: 2px 6px;
+    border-radius: var(--v2-radius-sm);
+    background: var(--v2-bg-tertiary);
+    color: var(--v2-text-tertiary);
+}
+
+.package-badge.system {
+    background: rgba(245, 158, 11, 0.1);
+    color: #f59e0b;
+}
+
+.package-badge.user {
+    background: rgba(99, 102, 241, 0.1);
+    color: #6366f1;
+}
+
+/* 右侧内容区 */
+.packages-content {
+    background: var(--v2-bg-secondary);
+    border-radius: var(--v2-radius-xl);
+    border: 1px solid var(--v2-border-subtle);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+
+.content-empty {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    color: var(--v2-text-tertiary);
+    padding: var(--v2-space-12);
+}
+
+.empty-icon {
+    font-size: 64px;
+    margin-bottom: var(--v2-space-4);
+    opacity: 0.5;
+}
+
+.empty-title {
+    font-size: var(--v2-text-xl);
+    font-weight: var(--v2-font-semibold);
+    color: var(--v2-text-secondary);
+    margin-bottom: var(--v2-space-2);
+}
+
+.empty-desc {
+    font-size: var(--v2-text-base);
+    text-align: center;
+    max-width: 400px;
+}
+
+/* 包详情头部 */
+.package-header {
+    padding: var(--v2-space-6);
+    border-bottom: 1px solid var(--v2-border-subtle);
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+}
+
+.package-info h2 {
+    font-size: var(--v2-text-xl);
+    font-weight: var(--v2-font-bold);
+    color: var(--v2-text-primary);
+    margin-bottom: var(--v2-space-2);
+}
+
+.package-description {
+    font-size: var(--v2-text-sm);
+    color: var(--v2-text-secondary);
+    max-width: 600px;
+    line-height: 1.6;
+}
+
+.package-tags {
+    display: flex;
+    gap: var(--v2-space-2);
+    margin-top: var(--v2-space-3);
+    flex-wrap: wrap;
+}
+
+.tag {
+    font-size: var(--v2-text-xs);
+    padding: var(--v2-space-1) var(--v2-space-2);
+    border-radius: var(--v2-radius-md);
+    background: var(--v2-bg-tertiary);
+    color: var(--v2-text-secondary);
+}
+
+.package-actions {
+    display: flex;
+    gap: var(--v2-space-2);
+}
+
+/* 标签页 */
+.content-tabs {
+    display: flex;
+    gap: var(--v2-space-1);
+    padding: var(--v2-space-2) var(--v2-space-6);
+    border-bottom: 1px solid var(--v2-border-subtle);
+    background: var(--v2-bg-primary);
+}
+
+.tab-btn {
+    padding: var(--v2-space-2) var(--v2-space-4);
+    font-size: var(--v2-text-sm);
+    font-weight: var(--v2-font-medium);
+    color: var(--v2-text-secondary);
+    background: transparent;
+    border: none;
+    border-radius: var(--v2-radius-md);
+    cursor: pointer;
+    transition: all var(--v2-transition-fast);
+}
+
+.tab-btn:hover {
+    color: var(--v2-text-primary);
+    background: var(--v2-bg-tertiary);
+}
+
+.tab-btn.active {
+    color: var(--v2-text-primary);
+    background: var(--v2-bg-secondary);
+    box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+}
+
+/* 步骤列表 */
+.steps-list {
+    flex: 1;
+    overflow-y: auto;
+    padding: var(--v2-space-4);
+}
+
+.step-item {
+    background: var(--v2-bg-primary);
+    border: 1px solid var(--v2-border-subtle);
+    border-radius: var(--v2-radius-lg);
+    padding: var(--v2-space-4);
+    margin-bottom: var(--v2-space-3);
+    cursor: pointer;
+    transition: all var(--v2-transition-fast);
+    display: flex;
+    align-items: center;
+    gap: var(--v2-space-4);
+}
+
+.step-item:hover {
+    border-color: var(--v2-border-hover);
+    transform: translateX(4px);
+}
+
+.step-number {
+    width: 36px;
+    height: 36px;
+    border-radius: var(--v2-radius-md);
+    background: linear-gradient(135deg, #6366f1, #8b5cf6);
+    color: white;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: var(--v2-font-bold);
+    font-size: var(--v2-text-sm);
+    flex-shrink: 0;
+}
+
+.step-info {
+    flex: 1;
+}
+
+.step-name {
+    font-size: var(--v2-text-base);
+    font-weight: var(--v2-font-semibold);
+    color: var(--v2-text-primary);
+    margin-bottom: var(--v2-space-1);
+}
+
+.step-desc {
+    font-size: var(--v2-text-sm);
+    color: var(--v2-text-secondary);
+}
+
+.step-status {
+    padding: var(--v2-space-1) var(--v2-space-3);
+    border-radius: var(--v2-radius-md);
+    font-size: var(--v2-text-xs);
+    font-weight: var(--v2-font-medium);
+}
+
+.step-status.enabled {
+    background: rgba(16, 185, 129, 0.1);
+    color: #10b981;
+}
+
+.step-status.disabled {
+    background: var(--v2-bg-tertiary);
+    color: var(--v2-text-tertiary);
+}
+
+.step-edit-btn {
+    padding: var(--v2-space-2) var(--v2-space-3);
+    font-size: var(--v2-text-sm);
+    color: var(--v2-text-secondary);
+    background: transparent;
+    border: 1px solid var(--v2-border-subtle);
+    border-radius: var(--v2-radius-md);
+    cursor: pointer;
+    transition: all var(--v2-transition-fast);
+}
+
+.step-edit-btn:hover {
+    background: var(--v2-bg-tertiary);
+    color: var(--v2-text-primary);
+}
+
+/* 编辑器 */
+.editor-container {
+    flex: 1;
+    overflow-y: auto;
+    padding: var(--v2-space-6);
+}
+
+.editor-section {
+    margin-bottom: var(--v2-space-6);
+}
+
+.editor-section-title {
+    font-size: var(--v2-text-sm);
+    font-weight: var(--v2-font-semibold);
+    color: var(--v2-text-primary);
+    margin-bottom: var(--v2-space-3);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.form-group {
+    margin-bottom: var(--v2-space-4);
+}
+
+.form-label {
+    display: block;
+    font-size: var(--v2-text-sm);
+    font-weight: var(--v2-font-medium);
+    color: var(--v2-text-secondary);
+    margin-bottom: var(--v2-space-2);
+}
+
+.form-input,
+.form-textarea {
+    width: 100%;
+    padding: var(--v2-space-3);
+    font-size: var(--v2-text-sm);
+    color: var(--v2-text-primary);
+    background: var(--v2-bg-primary);
+    border: 1px solid var(--v2-border-subtle);
+    border-radius: var(--v2-radius-lg);
+    transition: all var(--v2-transition-fast);
+    font-family: inherit;
+}
+
+.form-input:focus,
+.form-textarea:focus {
+    outline: none;
+    border-color: #6366f1;
+    box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
+}
+
+.form-textarea {
+    min-height: 400px;
+    resize: vertical;
+    font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+    line-height: 1.6;
+}
+
+/* 变量标签 */
+.variables-bar {
+    display: flex;
+    gap: var(--v2-space-2);
+    flex-wrap: wrap;
+    padding: var(--v2-space-3);
+    background: var(--v2-bg-tertiary);
+    border-radius: var(--v2-radius-lg);
+    margin-bottom: var(--v2-space-3);
+}
+
+.variable-tag {
+    font-size: var(--v2-text-xs);
+    padding: var(--v2-space-1) var(--v2-space-2);
+    background: var(--v2-bg-secondary);
+    border: 1px solid var(--v2-border-subtle);
+    border-radius: var(--v2-radius-md);
+    color: #6366f1;
+    cursor: pointer;
+    transition: all var(--v2-transition-fast);
+}
+
+.variable-tag:hover {
+    background: #6366f1;
+    color: white;
+}
+
+/* 底部操作栏 */
+.editor-footer {
+    padding: var(--v2-space-4) var(--v2-space-6);
+    border-top: 1px solid var(--v2-border-subtle);
+    background: var(--v2-bg-primary);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+/* 按钮 */
+.v2-btn {
+    padding: var(--v2-space-2) var(--v2-space-4);
+    font-size: var(--v2-text-sm);
+    font-weight: var(--v2-font-medium);
+    border-radius: var(--v2-radius-lg);
+    cursor: pointer;
+    transition: all var(--v2-transition-fast);
+    border: none;
+    display: inline-flex;
+    align-items: center;
+    gap: var(--v2-space-2);
+}
+
+.v2-btn--primary {
+    background: linear-gradient(135deg, #6366f1, #8b5cf6);
+    color: white;
+}
+
+.v2-btn--primary:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(99, 102, 241, 0.3);
+}
+
+.v2-btn--secondary {
+    background: var(--v2-bg-tertiary);
+    color: var(--v2-text-primary);
+    border: 1px solid var(--v2-border-subtle);
+}
+
+.v2-btn--secondary:hover {
+    background: var(--v2-bg-secondary);
+}
+
+.v2-btn--danger {
+    background: rgba(239, 68, 68, 0.1);
+    color: #ef4444;
+}
+
+.v2-btn--danger:hover {
+    background: rgba(239, 68, 68, 0.2);
+}
+
+/* 模态框 */
+.modal-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.5);
+    backdrop-filter: blur(4px);
+    display: none;
+    align-items: center;
+    justify-content: center;
+    z-index: 1000;
+}
+
+.modal-overlay.active {
+    display: flex;
+}
+
+.modal {
+    background: var(--v2-bg-secondary);
+    border-radius: var(--v2-radius-xl);
+    border: 1px solid var(--v2-border-subtle);
+    width: 90%;
+    max-width: 500px;
+    max-height: 90vh;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+}
+
+.modal-header {
+    padding: var(--v2-space-4) var(--v2-space-6);
+    border-bottom: 1px solid var(--v2-border-subtle);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.modal-title {
+    font-size: var(--v2-text-lg);
+    font-weight: var(--v2-font-bold);
+    color: var(--v2-text-primary);
+}
+
+.modal-close {
+    width: 32px;
+    height: 32px;
+    border-radius: var(--v2-radius-md);
+    border: none;
+    background: transparent;
+    color: var(--v2-text-tertiary);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 20px;
+}
+
+.modal-close:hover {
+    background: var(--v2-bg-tertiary);
+    color: var(--v2-text-primary);
+}
+
+.modal-body {
+    padding: var(--v2-space-6);
+    overflow-y: auto;
+}
+
+.modal-footer {
+    padding: var(--v2-space-4) var(--v2-space-6);
+    border-top: 1px solid var(--v2-border-subtle);
+    display: flex;
+    justify-content: flex-end;
+    gap: var(--v2-space-3);
+}
+
+/* 提示信息 */
+.toast {
+    position: fixed;
+    bottom: 24px;
+    right: 24px;
+    padding: var(--v2-space-4) var(--v2-space-6);
+    background: var(--v2-bg-secondary);
+    border: 1px solid var(--v2-border-subtle);
+    border-radius: var(--v2-radius-lg);
+    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+    display: none;
+    align-items: center;
+    gap: var(--v2-space-3);
+    z-index: 1001;
+}
+
+.toast.active {
+    display: flex;
+}
+
+.toast.success {
+    border-left: 4px solid #10b981;
+}
+
+.toast.error {
+    border-left: 4px solid #ef4444;
+}
+
+/* 响应式 */
+@media (max-width: 1024px) {
+    .packages-container {
+        grid-template-columns: 1fr;
+        grid-template-rows: auto 1fr;
+    }
+    
+    .packages-sidebar {
+        max-height: 300px;
+    }
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="prompt-packages-page">
+    <!-- 页面标题 -->
+    <div class="v2-page-header">
+        <div>
+            <h1 class="v2-page-title">📦 提示词包管理</h1>
+            <p class="v2-page-subtitle">自定义AI创作提示词，打造专属创作风格</p>
+        </div>
+        <button class="v2-btn v2-btn--primary" onclick="showCreateModal()">
+            <span>+</span>
+            <span>新建提示词包</span>
+        </button>
+    </div>
+
+    <!-- 主内容区 -->
+    <div class="packages-container">
+        <!-- 左侧边栏 - 包列表 -->
+        <div class="packages-sidebar">
+            <div class="sidebar-header">
+                <span class="sidebar-title">我的提示词包</span>
+                <div class="sidebar-actions">
+                    <button class="icon-btn" title="刷新" onclick="loadPackages()">🔄</button>
+                    <button class="icon-btn" title="导入" onclick="showImportModal()">📥</button>
+                </div>
+            </div>
+            <div class="packages-list" id="packagesList">
+                <!-- 动态加载 -->
+                <div class="content-empty" style="padding: var(--v2-space-6);">
+                    <p>加载中...</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- 右侧内容区 -->
+        <div class="packages-content" id="contentArea">
+            <!-- 空状态 -->
+            <div class="content-empty">
+                <div class="empty-icon">📦</div>
+                <h3 class="empty-title">选择一个提示词包</h3>
+                <p class="empty-desc">从左侧列表选择一个提示词包查看详情，或创建新的提示词包</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- 创建包模态框 -->
+<div class="modal-overlay" id="createModal">
+    <div class="modal">
+        <div class="modal-header">
+            <h3 class="modal-title">新建提示词包</h3>
+            <button class="modal-close" onclick="hideModal('createModal')">&times;</button>
+        </div>
+        <div class="modal-body">
+            <div class="form-group">
+                <label class="form-label">提示词包名称</label>
+                <input type="text" class="form-input" id="newPackageName" placeholder="例如：我的国运文优化版">
+            </div>
+            <div class="form-group">
+                <label class="form-label">描述</label>
+                <input type="text" class="form-input" id="newPackageDesc" placeholder="描述这个提示词包的用途和特点">
+            </div>
+            <div class="form-group">
+                <label class="form-label">基于模板</label>
+                <select class="form-input" id="basePackageSelect">
+                    <option value="">空白模板</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label class="form-label">生成模式</label>
+                <select class="form-input" id="packageMode">
+                    <option value="market_driven">市场导向</option>
+                </select>
+            </div>
+        </div>
+        <div class="modal-footer">
+            <button class="v2-btn v2-btn--secondary" onclick="hideModal('createModal')">取消</button>
+            <button class="v2-btn v2-btn--primary" onclick="createPackage()">创建</button>
+        </div>
+    </div>
+</div>
+
+<!-- 删除确认模态框 -->
+<div class="modal-overlay" id="deleteModal">
+    <div class="modal">
+        <div class="modal-header">
+            <h3 class="modal-title">删除提示词包</h3>
+            <button class="modal-close" onclick="hideModal('deleteModal')">&times;</button>
+        </div>
+        <div class="modal-body">
+            <p>确定要删除提示词包 <strong id="deletePackageName"></strong> 吗？</p>
+            <p style="color: var(--v2-text-tertiary); font-size: var(--v2-text-sm); margin-top: var(--v2-space-3);">
+                此操作不可撤销。
+            </p>
+        </div>
+        <div class="modal-footer">
+            <button class="v2-btn v2-btn--secondary" onclick="hideModal('deleteModal')">取消</button>
+            <button class="v2-btn v2-btn--danger" onclick="confirmDelete()">删除</button>
+        </div>
+    </div>
+</div>
+
+<!-- Toast 提示 -->
+<div class="toast" id="toast">
+    <span id="toastMessage"></span>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// ==================== 全局状态 ====================
+let currentPackages = [];
+let currentPackage = null;
+let currentStep = null;
+let deleteTargetId = null;
+
+// ==================== API 调用 ====================
+async function apiCall(url, method = 'GET', data = null) {
+    const options = {
+        method,
+        headers: {
+            'Content-Type': 'application/json',
+        }
+    };
+    if (data) {
+        options.body = JSON.stringify(data);
+    }
+    
+    const response = await fetch(url, options);
+    if (!response.ok) {
+        throw new Error(`API错误: ${response.status}`);
+    }
+    return await response.json();
+}
+
+// ==================== 加载包列表 ====================
+async function loadPackages() {
+    try {
+        const data = await apiCall('/api/v2/prompt-packages');
+        currentPackages = data.packages || [];
+        renderPackagesList();
+    } catch (error) {
+        showToast('加载失败: ' + error.message, 'error');
+    }
+}
+
+// ==================== 渲染包列表 ====================
+function renderPackagesList() {
+    const container = document.getElementById('packagesList');
+    
+    // 分组
+    const systemPackages = currentPackages.filter(p => p.is_default);
+    const userPackages = currentPackages.filter(p => !p.is_default);
+    
+    let html = '';
+    
+    // 系统默认包
+    if (systemPackages.length > 0) {
+        html += `
+            <div class="package-category">
+                <div class="category-label">
+                    <span>⭐</span>
+                    <span>系统默认</span>
+                </div>
+                ${systemPackages.map(pkg => `
+                    <div class="package-item system ${currentPackage?.id === pkg.id ? 'active' : ''}" 
+                         onclick="selectPackage('${pkg.id}')">
+                        <div class="package-name">${pkg.name}</div>
+                        <div class="package-meta">
+                            <span class="package-badge system">系统</span>
+                            <span>${pkg.total_steps}个步骤</span>
+                        </div>
+                    </div>
+                `).join('')}
+            </div>
+        `;
+    }
+    
+    // 用户自定义包
+    if (userPackages.length > 0) {
+        html += `
+            <div class="package-category">
+                <div class="category-label">
+                    <span>📝</span>
+                    <span>我的自定义</span>
+                </div>
+                ${userPackages.map(pkg => `
+                    <div class="package-item user ${currentPackage?.id === pkg.id ? 'active' : ''}" 
+                         onclick="selectPackage('${pkg.id}')">
+                        <div class="package-name">${pkg.name}</div>
+                        <div class="package-meta">
+                            <span class="package-badge user">自定义</span>
+                            <span>${pkg.total_steps}个步骤</span>
+                        </div>
+                    </div>
+                `).join('')}
+            </div>
+        `;
+    }
+    
+    if (html === '') {
+        html = `
+            <div class="content-empty" style="padding: var(--v2-space-6);">
+                <p style="font-size: var(--v2-text-sm); color: var(--v2-text-tertiary);">
+                    暂无提示词包
+                </p>
+            </div>
+        `;
+    }
+    
+    container.innerHTML = html;
+}
+
+// ==================== 选择包 ====================
+async function selectPackage(packageId) {
+    try {
+        const data = await apiCall(`/api/v2/prompt-packages/${packageId}`);
+        currentPackage = data.package;
+        renderPackageDetail();
+        renderPackagesList(); // 更新选中状态
+    } catch (error) {
+        showToast('加载失败: ' + error.message, 'error');
+    }
+}
+
+// ==================== 渲染包详情 ====================
+function renderPackageDetail() {
+    const container = document.getElementById('contentArea');
+    const pkg = currentPackage;
+    
+    container.innerHTML = `
+        <!-- 包头部信息 -->
+        <div class="package-header">
+            <div class="package-info">
+                <h2>${pkg.name}</h2>
+                <p class="package-description">${pkg.description || '暂无描述'}</p>
+                <div class="package-tags">
+                    <span class="tag">${pkg.mode}</span>
+                    ${(pkg.tags || []).map(tag => `<span class="tag">${tag}</span>`).join('')}
+                    <span class="tag">v${pkg.version}</span>
+                </div>
+            </div>
+            <div class="package-actions">
+                ${!pkg.is_default ? `
+                    <button class="v2-btn v2-btn--secondary" onclick="exportPackage('${pkg.id}')">
+                        <span>📤</span>
+                        <span>导出</span>
+                    </button>
+                    <button class="v2-btn v2-btn--secondary" onclick="duplicatePackage('${pkg.id}')">
+                        <span>📋</span>
+                        <span>复制</span>
+                    </button>
+                    <button class="v2-btn v2-btn--danger" onclick="showDeleteModal('${pkg.id}')">
+                        <span>🗑️</span>
+                        <span>删除</span>
+                    </button>
+                ` : `
+                    <button class="v2-btn v2-btn--secondary" onclick="duplicatePackage('${pkg.id}')">
+                        <span>📋</span>
+                        <span>复制并编辑</span>
+                    </button>
+                `}
+            </div>
+        </div>
+        
+        <!-- 标签页 -->
+        <div class="content-tabs">
+            <button class="tab-btn active" onclick="showTab('steps')">步骤配置</button>
+            <button class="tab-btn" onclick="showTab('settings')">基本设置</button>
+        </div>
+        
+        <!-- 步骤列表 -->
+        <div class="steps-list" id="stepsTab">
+            ${(pkg.steps || []).map(step => `
+                <div class="step-item" onclick="editStep('${step.step_id}')">
+                    <div class="step-number">${step.step_order}</div>
+                    <div class="step-info">
+                        <div class="step-name">${step.step_name}</div>
+                        <div class="step-desc">${step.description || ''}</div>
+                    </div>
+                    <span class="step-status ${step.enabled ? 'enabled' : 'disabled'}">
+                        ${step.enabled ? '已启用' : '已禁用'}
+                    </span>
+                    <button class="step-edit-btn" onclick="event.stopPropagation(); editStep('${step.step_id}')">
+                        编辑
+                    </button>
+                </div>
+            `).join('')}
+        </div>
+        
+        <!-- 设置面板 -->
+        <div class="steps-list" id="settingsTab" style="display: none;">
+            <div class="editor-section">
+                <h4 class="editor-section-title">基本信息</h4>
+                <div class="form-group">
+                    <label class="form-label">名称</label>
+                    <input type="text" class="form-input" id="settingName" value="${pkg.name}">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">描述</label>
+                    <input type="text" class="form-input" id="settingDesc" value="${pkg.description || ''}">
+                </div>
+            </div>
+            <div class="editor-footer" style="position: relative;">
+                <button class="v2-btn v2-btn--primary" onclick="savePackageSettings()">保存设置</button>
+            </div>
+        </div>
+    `;
+}
+
+// ==================== 编辑步骤 ====================
+async function editStep(stepId) {
+    try {
+        const step = currentPackage.steps.find(s => s.step_id === stepId);
+        if (!step) return;
+        
+        currentStep = step;
+        const container = document.getElementById('contentArea');
+        
+        container.innerHTML = `
+            <!-- 编辑器头部 -->
+            <div class="package-header">
+                <div class="package-info">
+                    <h2>编辑步骤: ${step.step_name}</h2>
+                    <p class="package-description">${step.description || ''}</p>
+                </div>
+                <div class="package-actions">
+                    <button class="v2-btn v2-btn--secondary" onclick="renderPackageDetail()">
+                        <span>←</span>
+                        <span>返回</span>
+                    </button>
+                </div>
+            </div>
+            
+            <!-- 编辑器 -->
+            <div class="editor-container">
+                <div class="editor-section">
+                    <h4 class="editor-section-title">步骤名称</h4>
+                    <input type="text" class="form-input" id="stepName" value="${step.step_name}">
+                </div>
+                
+                <div class="editor-section">
+                    <h4 class="editor-section-title">描述</h4>
+                    <input type="text" class="form-input" id="stepDesc" value="${step.description || ''}">
+                </div>
+                
+                <div class="editor-section">
+                    <h4 class="editor-section-title">启用状态</h4>
+                    <label style="display: flex; align-items: center; gap: var(--v2-space-2);">
+                        <input type="checkbox" id="stepEnabled" ${step.enabled ? 'checked' : ''}>
+                        <span style="color: var(--v2-text-secondary);">启用此步骤</span>
+                    </label>
+                </div>
+                
+                <div class="editor-section">
+                    <h4 class="editor-section-title">提示词模板</h4>
+                    <p style="font-size: var(--v2-text-xs); color: var(--v2-text-tertiary); margin-bottom: var(--v2-space-2);">
+                        点击变量标签可插入到光标位置
+                    </p>
+                    <div class="variables-bar" id="variablesBar">
+                        ${(step.prompt_template?.variables || []).map(v => `
+                            <span class="variable-tag" onclick="insertVariable('{${v.name}}')">{${v.name}}</span>
+                        `).join('')}
+                    </div>
+                    <textarea class="form-textarea" id="stepPrompt" placeholder="输入提示词模板...">${getPromptPreview(step)}</textarea>
+                </div>
+                
+                <div class="editor-section">
+                    <h4 class="editor-section-title">参数设置</h4>
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: var(--v2-space-4);">
+                        <div class="form-group">
+                            <label class="form-label">Temperature</label>
+                            <input type="number" class="form-input" id="stepTemp" value="${step.parameters?.temperature || 0.8}" step="0.1" min="0" max="2">
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Max Tokens</label>
+                            <input type="number" class="form-input" id="stepTokens" value="${step.parameters?.max_tokens || 4000}" step="1000" min="1000" max="8000">
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- 底部操作 -->
+            <div class="editor-footer">
+                <button class="v2-btn v2-btn--secondary" onclick="renderPackageDetail()">取消</button>
+                <button class="v2-btn v2-btn--primary" onclick="saveStep()">保存步骤</button>
+            </div>
+        `;
+    } catch (error) {
+        showToast('加载失败: ' + error.message, 'error');
+    }
+}
+
+// 获取提示词预览（简化版）
+function getPromptPreview(step) {
+    const sections = step.prompt_template?.context_sections || [];
+    return sections.map(s => {
+        if (s.type === 'static') return s.content;
+        if (s.type === 'dynamic') return s.template;
+        return '';
+    }).join('\n\n');
+}
+
+// 插入变量
+function insertVariable(variable) {
+    const textarea = document.getElementById('stepPrompt');
+    const start = textarea.selectionStart;
+    const end = textarea.selectionEnd;
+    const text = textarea.value;
+    textarea.value = text.substring(0, start) + variable + text.substring(end);
+    textarea.focus();
+    textarea.selectionStart = textarea.selectionEnd = start + variable.length;
+}
+
+// ==================== 保存步骤 ====================
+async function saveStep() {
+    try {
+        const stepData = {
+            step_name: document.getElementById('stepName').value,
+            description: document.getElementById('stepDesc').value,
+            enabled: document.getElementById('stepEnabled').checked,
+            prompt_template: {
+                ...currentStep.prompt_template,
+                // 简化处理：直接保存完整文本
+            },
+            parameters: {
+                temperature: parseFloat(document.getElementById('stepTemp').value),
+                max_tokens: parseInt(document.getElementById('stepTokens').value)
+            }
+        };
+        
+        await apiCall(
+            `/api/v2/prompt-packages/${currentPackage.id}/steps/${currentStep.step_id}`,
+            'PUT',
+            stepData
+        );
+        
+        showToast('保存成功', 'success');
+        await selectPackage(currentPackage.id); // 刷新
+    } catch (error) {
+        showToast('保存失败: ' + error.message, 'error');
+    }
+}
+
+// ==================== 创建包 ====================
+function showCreateModal() {
+    const select = document.getElementById('basePackageSelect');
+    select.innerHTML = `
+        <option value="">空白模板</option>
+        ${currentPackages.filter(p => p.is_default).map(p => `
+            <option value="${p.id}">${p.name}</option>
+        `).join('')}
+    `;
+    document.getElementById('createModal').classList.add('active');
+}
+
+async function createPackage() {
+    try {
+        const name = document.getElementById('newPackageName').value;
+        const description = document.getElementById('newPackageDesc').value;
+        const basePackageId = document.getElementById('basePackageSelect').value;
+        const mode = document.getElementById('packageMode').value;
+        
+        if (!name) {
+            showToast('请输入名称', 'error');
+            return;
+        }
+        
+        await apiCall('/api/v2/prompt-packages', 'POST', {
+            name,
+            description,
+            base_package_id: basePackageId || null,
+            mode
+        });
+        
+        hideModal('createModal');
+        showToast('创建成功', 'success');
+        await loadPackages();
+        
+        // 清空表单
+        document.getElementById('newPackageName').value = '';
+        document.getElementById('newPackageDesc').value = '';
+    } catch (error) {
+        showToast('创建失败: ' + error.message, 'error');
+    }
+}
+
+// ==================== 删除包 ====================
+function showDeleteModal(packageId) {
+    deleteTargetId = packageId;
+    const pkg = currentPackages.find(p => p.id === packageId);
+    document.getElementById('deletePackageName').textContent = pkg?.name || '';
+    document.getElementById('deleteModal').classList.add('active');
+}
+
+async function confirmDelete() {
+    if (!deleteTargetId) return;
+    
+    try {
+        await apiCall(`/api/v2/prompt-packages/${deleteTargetId}`, 'DELETE');
+        hideModal('deleteModal');
+        showToast('删除成功', 'success');
+        
+        if (currentPackage?.id === deleteTargetId) {
+            currentPackage = null;
+            document.getElementById('contentArea').innerHTML = `
+                <div class="content-empty">
+                    <div class="empty-icon">📦</div>
+                    <h3 class="empty-title">选择一个提示词包</h3>
+                    <p class="empty-desc">从左侧列表选择一个提示词包查看详情，或创建新的提示词包</p>
+                </div>
+            `;
+        }
+        
+        await loadPackages();
+    } catch (error) {
+        showToast('删除失败: ' + error.message, 'error');
+    }
+    deleteTargetId = null;
+}
+
+// ==================== 复制包 ====================
+async function duplicatePackage(packageId) {
+    try {
+        await apiCall(`/api/v2/prompt-packages/${packageId}/duplicate`, 'POST');
+        showToast('复制成功', 'success');
+        await loadPackages();
+    } catch (error) {
+        showToast('复制失败: ' + error.message, 'error');
+    }
+}
+
+// ==================== 导出包 ====================
+function exportPackage(packageId) {
+    window.open(`/api/v2/prompt-packages/${packageId}/export`, '_blank');
+}
+
+// ==================== 标签切换 ====================
+function showTab(tab) {
+    document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
+    event.target.classList.add('active');
+    
+    document.getElementById('stepsTab').style.display = tab === 'steps' ? 'block' : 'none';
+    document.getElementById('settingsTab').style.display = tab === 'settings' ? 'block' : 'none';
+}
+
+// ==================== 工具函数 ====================
+function hideModal(modalId) {
+    document.getElementById(modalId).classList.remove('active');
+}
+
+function showToast(message, type = 'success') {
+    const toast = document.getElementById('toast');
+    document.getElementById('toastMessage').textContent = message;
+    toast.className = `toast ${type} active`;
+    setTimeout(() => {
+        toast.classList.remove('active');
+    }, 3000);
+}
+
+// ==================== 初始化 ====================
+document.addEventListener('DOMContentLoaded', () => {
+    loadPackages();
+});
+</script>
+{% endblock %}
