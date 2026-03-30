@@ -126,6 +126,9 @@ class PromptTemplateGenerator:
 返回严格合法的JSON（所有字符串值必须用英文双引号 `"` 包裹，禁止单引号，禁止任何字段值不加引号）：
 {{
   "title": "书名",
+  "recommended_title": "推荐书名（如果原标题合适则与title相同）",
+  "core_conflict": "核心冲突描述（主角面临的主要矛盾和挑战）",
+  "worldview": "世界观概述（世界背景、规则、力量体系）",
   "opening_design": {{
     "chapter_1": {{"scene": "", "action": "", "dialogue": [], "hook": ""}},
     "chapter_2": {{"scene": "", "action": "", "dialogue": [], "hook": ""}},
