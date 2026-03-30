@@ -185,6 +185,15 @@ class ChapterInfoExtractor:
         """
         将提取的信息合并到世界状态
         
+        兼容 WorldStateManager 使用的格式:
+        - protagonist: 主角状态
+        - allies: 盟友字典
+        - enemies: 敌人字典
+        - plot_threads: 剧情线索
+        - system_rules: 系统规则
+        - important_items: 重要物品
+        - global_events: 全局事件
+        
         Args:
             extractions: 多个章节的提取结果
             current_state: 当前世界状态（可选）
@@ -192,16 +201,35 @@ class ChapterInfoExtractor:
         Returns:
             更新后的世界状态
         """
-        # 🔥 确保 current_state 包含所有必需字段
+        # 🔥 确保 current_state 包含所有必需字段（WorldStateManager 格式）
         default_state = {
             "total_chapters": 0,
-            "characters": {},
-            "power_system": {},
-            "factions": {},
+            "protagonist": {
+                "name": "主角",
+                "health": "健康",
+                "injuries": [],
+                "abilities_unlocked": [],
+                "current_location": "",
+                "relationships": {}
+            },
+            "allies": {},
+            "enemies": {},
+            "plot_threads": {},
+            "system_rules": {
+                "current_playing_degree": 0.0,
+                "max_playing_degree": 0.0,
+                "cooldown_end_chapter": 0,
+                "special_states": [],
+                "unlocked_skills": []
+            },
+            "important_items": [],
+            "global_events": [],
+            # 额外字段用于章节提取信息
             "timeline": [],
             "pending_hooks": [],
             "resolved_hooks": []
         }
+        
         if current_state is None:
             current_state = default_state.copy()
         else:
@@ -220,33 +248,86 @@ class ChapterInfoExtractor:
             resolved_hooks = extraction.get('resolved_hooks') or []
             world_changes = extraction.get('world_changes') or []
             
-            # 合并新角色
+            # 合并新角色到 allies/enemies
             for char in new_characters:
                 char_name = char.get('name')
-                if char_name and char_name not in current_state['characters']:
-                    current_state['characters'][char_name] = {
-                        **char,
-                        "introduced_chapter": ch_num
-                    }
+                if not char_name:
+                    continue
+                    
+                role = char.get('role', '')
+                char_data = {
+                    "name": char_name,
+                    "health": "健康",
+                    "injuries": [],
+                    "abilities_unlocked": [],
+                    "current_location": char.get('current_location', ''),
+                    "relationships": {},
+                    "description": char.get('description', ''),
+                    "power_level": char.get('power_level', ''),
+                    "introduced_chapter": ch_num
+                }
+                
+                # 根据角色类型放入不同字典
+                if '敌' in role or '反' in role or ' villain' in role.lower():
+                    current_state['enemies'][char_name] = char_data
+                else:
+                    current_state['allies'][char_name] = char_data
             
             # 合并角色变化
             for change in character_changes:
                 char_name = change.get('name')
-                if char_name in current_state['characters']:
-                    if 'changes' not in current_state['characters'][char_name]:
-                        current_state['characters'][char_name]['changes'] = []
-                    current_state['characters'][char_name]['changes'].append({
+                if not char_name:
+                    continue
+                
+                # 查找角色位置
+                char_dict = None
+                if char_name == current_state['protagonist'].get('name'):
+                    char_dict = current_state['protagonist']
+                elif char_name in current_state['allies']:
+                    char_dict = current_state['allies'][char_name]
+                elif char_name in current_state['enemies']:
+                    char_dict = current_state['enemies'][char_name]
+                
+                if char_dict:
+                    if 'changes' not in char_dict:
+                        char_dict['changes'] = []
+                    char_dict['changes'].append({
                         **change,
                         "chapter": ch_num
                     })
+                    
+                    # 更新健康状态
+                    change_desc = change.get('change', '')
+                    if '重伤' in change_desc or '濒死' in change_desc:
+                        char_dict['health'] = '重伤'
+                    elif '轻伤' in change_desc:
+                        char_dict['health'] = '轻伤'
+                    elif '治愈' in change_desc or '恢复' in change_desc:
+                        char_dict['health'] = '健康'
+                        char_dict['injuries'] = []
             
-            # 合并新钩子
+            # 合并新钩子到 pending_hooks
             for hook in new_hooks:
                 current_state['pending_hooks'].append({
                     **hook,
                     "introduced_chapter": ch_num,
                     "status": "pending"
                 })
+                
+                # 同时创建 plot_thread（如果是重大线索）
+                if hook.get('priority') == 'high':
+                    hook_content = hook.get('content', '')[:20]  # 取前20字作为ID
+                    thread_id = f"线索_{hook_content}"
+                    if thread_id not in current_state['plot_threads']:
+                        current_state['plot_threads'][thread_id] = {
+                            "name": hook_content,
+                            "status": "active",
+                            "introduced_chapter": ch_num,
+                            "last_mentioned": ch_num,
+                            "priority": 8,
+                            "description": hook.get('content', ''),
+                            "next_trigger": "待触发"
+                        }
             
             # 移出已解决的钩子
             for resolved in resolved_hooks:
@@ -269,13 +350,42 @@ class ChapterInfoExtractor:
                     **key_event,
                     "chapter": ch_num
                 })
+                # 同时添加到 global_events
+                current_state['global_events'].append({
+                    "chapter": ch_num,
+                    "title": key_event.get('title', ''),
+                    "description": key_event.get('description', ''),
+                    "impact": key_event.get('impact', 'medium')
+                })
             
             # 合并世界变化
             for change in world_changes:
+                change_type = change.get('type', '')
+                if change_type == '道具':
+                    # 添加到重要物品
+                    item_desc = change.get('description', '')
+                    if item_desc and item_desc not in current_state['important_items']:
+                        current_state['important_items'].append(item_desc)
+                elif change_type == '力量体系':
+                    # 更新系统规则中的技能
+                    if 'new_abilities' in change:
+                        for ability in change['new_abilities']:
+                            if ability not in current_state['system_rules']['unlocked_skills']:
+                                current_state['system_rules']['unlocked_skills'].append(ability)
+                
                 current_state.setdefault('world_changes', []).append({
                     **change,
                     "chapter": ch_num
                 })
+            
+            # 更新扮演度
+            power_progression = extraction.get('power_progression', {})
+            if power_progression:
+                playing_degree = power_progression.get('playing_degree')
+                if playing_degree:
+                    current_state['system_rules']['current_playing_degree'] = playing_degree
+                    if playing_degree > current_state['system_rules'].get('max_playing_degree', 0):
+                        current_state['system_rules']['max_playing_degree'] = playing_degree
         
         # 更新总章节数
         if extractions:
