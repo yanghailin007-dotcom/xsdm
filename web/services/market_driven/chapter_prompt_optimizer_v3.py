@@ -2381,6 +2381,11 @@ XXX搂着前女友，当众嘲讽：
         格式化前文摘要（增强版）
         
         优化：使用 _build_tactical_plan_section 获取更完整的前一章战术规划
+        
+        Args:
+            prev_summary: 前一章内容摘要
+            chapter_num: 当前章节号
+            blueprint: 可以是完整蓝图或单章规划
         """
         result_lines = []
         
@@ -2388,8 +2393,9 @@ XXX搂着前女友，当众嘲讽：
         if prev_summary and len(prev_summary.strip()) > 50:
             result_lines.append(f"第{chapter_num-1}章内容摘要：{prev_summary[:400]}")
         
-        # 使用 _build_tactical_plan_section 获取前一章战术规划
-        if blueprint and chapter_num > 1:
+        # 🔥 只有当blueprint包含chapters列表（完整蓝图）时，才尝试获取前一章战术规划
+        # 如果blueprint是单章规划，无法获取前一章信息
+        if blueprint and chapter_num > 1 and 'chapters' in blueprint:
             prev_tactical = self._build_tactical_plan_section(chapter_num - 1, blueprint)
             if prev_tactical and not prev_tactical.startswith("战术规划：无"):
                 result_lines.append(f"第{chapter_num-1}章战术规划：")
