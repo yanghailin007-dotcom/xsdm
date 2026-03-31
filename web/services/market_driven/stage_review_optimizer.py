@@ -387,13 +387,26 @@ class StageReviewOptimizer:
         
         for chapter in window_chapters:
             ch_num = chapter.get('chapter_number', 0)
+            content = chapter.get('content', '')
+            word_count = len(content)
             score = self._calculate_chapter_quality_score(chapter)
             chapter['quality_score'] = score
             self._update_chapter_quality_score(ch_num, score)
             scored_chapters.append(chapter)
             
+            # 🔥 强制标记字数不足的章节（<1800字）
+            if word_count < 1800:
+                quality_issues.append(Issue(
+                    type="bestseller",
+                    chapter=ch_num,
+                    description=f"字数严重不足({word_count}字)，低于1800字最低标准",
+                    suggestion=f"扩充内容至2000-2500字，当前仅{word_count}字",
+                    priority="p1",
+                    severity="high"
+                ))
+                logger.warning(f"[StageOptimizer] 第{ch_num}章字数仅{word_count}字，强制标记为待修复")
             # 🔥 自动标记低分章节为需要修复
-            if score < 7.0:
+            elif score < 7.0:
                 quality_issues.append(Issue(
                     type="bestseller",
                     chapter=ch_num,
@@ -1082,10 +1095,10 @@ class StageReviewOptimizer:
 **关键约束（必须遵守）：**
 1. 主角名必须保持一致：'{protagonist_name}' - 禁止改为其他名字
 2. 世界观保持一致 - 不要引入新的力量体系
-3. **字数要求：修改后的内容必须至少2000字。原章{original_word_count}字，尽量接近但不要低于2000字**
+3. **字数要求：严格控制在2000-2500字之间（硬性要求：不少于2000字，不超过3000字）**
 4. 只修改有问题的部分，保留其他内容原样
 5. 保持原有的写作风格和语气
-6. **字数检查：输出前统计字数，确保≥2000字**
+6. **字数检查：输出前统计字数，必须在2000-3000字范围内**
 
 **需要修复的所有问题：**
 {issues_text}
@@ -1130,8 +1143,9 @@ class StageReviewOptimizer:
                 original_word_count = fixed_chapters[ch_idx].get("word_count", 0)
                 new_word_count = len(new_content) if new_content else 0
                 
-                # 字数检查：硬性要求 ≥ 2000字，并且尽量接近原文（80%-120%）
+                # 字数检查：硬性要求 2000-3000字
                 MIN_ABSOLUTE = 2000  # 硬性下限
+                MAX_ABSOLUTE = 3000  # 🔥 新增：硬性上限
                 min_percent = original_word_count * 0.8
                 max_percent = original_word_count * 1.2
                 
@@ -1141,10 +1155,18 @@ class StageReviewOptimizer:
                     retry_count += 1
                     continue
                 
-                # 检查2：百分比范围（宽松警告，不强制重试）
+                # 🔥 检查2：硬性上限3000字（新增）
+                if new_word_count > MAX_ABSOLUTE:
+                    logger.warning(f"[StageOptimizer] 第{ch_num}章字数({new_word_count})超过硬性上限3000字，将重试")
+                    retry_count += 1
+                    # 🔥 在重试时强调上限
+                    fix_prompt += f"\n\n**警告：字数超过上限。你必须控制在2000-2500字之间（严格不超过3000字）。当前{new_word_count}字，请删减冗余内容。**"
+                    continue
+                
+                # 检查3：百分比范围（宽松警告，不强制重试）
                 if new_word_count < min_percent or new_word_count > max_percent:
                     deviation = abs(new_word_count - original_word_count) / original_word_count * 100
-                    logger.info(f"[StageOptimizer] 第{ch_num}章字数偏离原文{deviation:.1f}%（范围80%-120%），但满足2000字要求，接受修改")
+                    logger.info(f"[StageOptimizer] 第{ch_num}章字数偏离原文{deviation:.1f}%（范围80%-120%），但满足2000-3000字要求，接受修改")
                 
                 # 字数符合要求，接受修改
                 is_accepted = True
