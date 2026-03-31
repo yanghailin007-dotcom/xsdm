@@ -1,0 +1,31 @@
+{
+  "component_id": "core_rules",
+  "name": "核心规则约束",
+  "description": "定义创作的核心规则和禁忌",
+  "version": "2.0.0",
+  "editable": true,
+  "ui_config": {
+    "type": "textarea",
+    "rows": 15,
+    "label": "核心规则"
+  },
+  "template": "## ✅ 必须做到的\n{{#must_do}}\n{{#items}}\n{{index}}. **{{title}}**：{{description}}\n{{/items}}\n{{/must_do}}\n\n## ❌ 严禁事项\n{{#forbidden}}\n{{#items}}\n{{index}}. **{{title}}**：{{description}}\n{{/items}}\n{{/forbidden}}",
+  "data": {
+    "must_do": {
+      "items": [
+        {"index": 1, "title": "结构对标", "description": "遵循成功模式的叙事结构"},
+        {"index": 2, "title": "数值精确", "description": "所有数据必须具体（如'欠费24000元'而非'欠很多钱'）"},
+        {"index": 3, "title": "节奏精准", "description": "情绪曲线必须符合类型规范"},
+        {"index": 4, "title": "创新内容", "description": "在成功结构的框架下创造全新具体内容"}
+      ]
+    },
+    "forbidden": {
+      "items": [
+        {"index": 1, "title": "直接抄袭", "description": "不要复制对标作品的具体情节、人物名字"},
+        {"index": 2, "title": "套路堆砌", "description": "不要为了爽而爽，忽视逻辑"},
+        {"index": 3, "title": "数值模糊", "description": "禁止'很多'、'很快'等模糊描述"},
+        {"index": 4, "title": "节奏混乱", "description": "禁止情绪回退（爽点后突然压抑）"}
+      ]
+    }
+  }
+}

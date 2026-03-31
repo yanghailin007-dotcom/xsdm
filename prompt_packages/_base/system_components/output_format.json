@@ -1,0 +1,17 @@
+{
+  "component_id": "output_format",
+  "name": "输出格式规范",
+  "description": "定义JSON输出的格式要求",
+  "version": "2.0.0",
+  "editable": true,
+  "ui_config": {
+    "type": "textarea",
+    "rows": 12,
+    "label": "输出格式"
+  },
+  "template": "## 📝 输出格式要求\n\n### 格式规范\n- 返回严格合法的JSON（所有字符串值必须用英文双引号，禁止单引号）\n- 不要在JSON末尾或数组/对象最后一个元素后加逗号\n- 字符串值内部的双引号必须转义为 \\\"\n\n### 必需字段\n{{#required_fields}}\n- **{{name}}**：{{description}}\n{{/required_fields}}\n\n### 可选字段\n{{#optional_fields}}\n- **{{name}}**：{{description}}\n{{/optional_fields}}\n\n### 错误示例（会被拒绝）\n- 返回文本描述而非JSON\n- 返回字典而非数组\n- JSON末尾有多余逗号\n\n### 正确示例\n```json\n{{example}}\n```",
+  "variables": ["required_fields", "optional_fields", "example"],
+  "default_values": {
+    "example": "{\\\"title\\\": \\\"示例标题\\\", \\\"content\\\": \\\"示例内容\\\"}"
+  }
+}

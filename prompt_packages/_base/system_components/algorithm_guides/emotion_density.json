@@ -1,0 +1,27 @@
+{
+  "component_id": "emotion_density_guide",
+  "name": "情绪密度指南",
+  "description": "番茄算法情绪密度要求",
+  "version": "2.0.0",
+  "editable": true,
+  "ui_config": {
+    "type": "textarea",
+    "rows": 15,
+    "label": "情绪密度指南"
+  },
+  "template": "## 📊 情绪密度要求（番茄算法指标）\n\n### 核心指标\n- **目标密度**：≥{{target_density}}个/千字\n- **最低数量**：每章至少{{min_count}}个强烈情绪词\n- **分布要求**：每{{distribution_range}}字至少1个强烈情绪词\n\n### 情绪词分类\n{{#emotion_categories}}\n**{{name}}**（强度{{intensity}}）：{{examples}}\n{{/emotion_categories}}\n\n### 使用技巧\n1. **前300字**：必须有强烈情绪冲突\n2. **章尾50字**：必须是悬念/期待情绪\n3. **避免重复**：同一情绪不要连续使用超过3次\n4. **递进升级**：情绪强度要逐步提升",
+  "variables": ["target_density", "min_count", "distribution_range", "emotion_categories"],
+  "default_values": {
+    "target_density": "2.0",
+    "min_count": "10",
+    "distribution_range": "500"
+  },
+  "data": {
+    "emotion_categories": [
+      {"name": "压抑类", "intensity": "7-9", "examples": "绝望、窒息、屈辱、愤怒、不甘"},
+      {"name": "反转类", "intensity": "8-10", "examples": "震惊、骇然、不可思议、目瞪口呆"},
+      {"name": "爽快类", "intensity": "8-10", "examples": "畅快、扬眉吐气、酣畅淋漓、大快人心"},
+      {"name": "期待类", "intensity": "6-8", "examples": "期待、好奇、迫不及待、心痒难耐"}
+    ]
+  }
+}

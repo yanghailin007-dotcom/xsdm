@@ -1,10 +1,12 @@
 """
 提示词加载器 - 从 prompt_packages JSON 配置文件加载提示词
+支持组件化加载和动态组合
 """
 import json
 import os
+import re
 from pathlib import Path
-from typing import Dict, Optional, Any
+from typing import Dict, Optional, Any, List
 import logging
 
 logger = logging.getLogger(__name__)
@@ -13,10 +15,15 @@ logger = logging.getLogger(__name__)
 class PromptLoader:
     """
     提示词加载器 - 支持从 JSON 配置文件加载和管理提示词
+    支持组件化加载和动态组合
     
     使用方式:
         loader = PromptLoader(package_name="default")
         chapter_prompts = loader.get_chapter_generation_prompts()
+        
+        # 组件化加载
+        component = loader.get_component("header")
+        system_prompt = loader.build_system_prompt("phase_two/system_prompt", variables={...})
     """
     
     def __init__(self, package_name: str = "default", mode: str = "market_driven"):
@@ -30,6 +37,7 @@ class PromptLoader:
         self.package_name = package_name
         self.mode = mode
         self.base_path = self._get_base_path()
+        self._base_components_path = self._get_base_components_path()
         self._cache: Dict[str, Any] = {}
         
     def _get_base_path(self) -> Path:
@@ -38,6 +46,12 @@ class PromptLoader:
         current_file = Path(__file__).resolve()
         project_root = current_file.parent.parent.parent.parent
         return project_root / "prompt_packages" / self.package_name / self.mode
+    
+    def _get_base_components_path(self) -> Path:
+        """获取基础组件路径"""
+        current_file = Path(__file__).resolve()
+        project_root = current_file.parent.parent.parent.parent
+        return project_root / "prompt_packages" / "_base" / "system_components"
     
     def load_json(self, filename: str) -> Optional[Dict]:
         """
@@ -188,6 +202,164 @@ class PromptLoader:
         """清除缓存，强制重新加载"""
         self._cache.clear()
         logger.info("[PromptLoader] 缓存已清除")
+    
+    # ==================== 组件化加载新方法 ====================
+    
+    def get_component(self, component_id: str) -> Optional[Dict]:
+        """
+        加载单个组件配置
+        
+        Args:
+            component_id: 组件ID，如 "header"、"emotion_density_guide"、
+                         "_base/core_rules"、"market_driven/components/golden_chapter_guide"
+            
+        Returns:
+            组件配置字典
+        """
+        # 检查缓存
+        cache_key = f"component:{component_id}"
+        if cache_key in self._cache:
+            return self._cache[cache_key]
+        
+        # 解析组件路径
+        if component_id.startswith("_base/"):
+            # 基础组件
+            file_path = self._base_components_path / f"{component_id[6:]}.json"
+        elif "/" in component_id:
+            # 带路径的组件
+            parts = component_id.split("/")
+            if parts[0] == self.mode or parts[0] == "components":
+                file_path = self.base_path / f"{component_id}.json"
+            else:
+                file_path = self.base_path / "components" / f"{component_id}.json"
+        else:
+            # 默认查找模式组件，如果不存在则查找基础组件
+            file_path = self.base_path / "components" / f"{component_id}.json"
+            if not file_path.exists():
+                file_path = self._base_components_path / f"{component_id}.json"
+        
+        if not file_path.exists():
+            logger.warning(f"[PromptLoader] 组件不存在: {file_path}")
+            return None
+        
+        try:
+            with open(file_path, 'r', encoding='utf-8') as f:
+                data = json.load(f)
+                self._cache[cache_key] = data
+                logger.info(f"[PromptLoader] 成功加载组件: {component_id}")
+                return data
+        except Exception as e:
+            logger.error(f"[PromptLoader] 加载组件失败 {component_id}: {e}")
+            return None
+    
+    def render_template(self, template: str, variables: Dict[str, Any]) -> str:
+        """
+        渲染模板字符串，替换变量
+        
+        Args:
+            template: 模板字符串，使用 {{variable}} 语法
+            variables: 变量字典
+            
+        Returns:
+            渲染后的字符串
+        """
+        if not template:
+            return ""
+        
+        result = template
+        for key, value in variables.items():
+            placeholder = f"{{{{{key}}}}}"
+            if placeholder in result:
+                result = result.replace(placeholder, str(value) if value is not None else "")
+        
+        return result
+    
+    def build_system_prompt(self, config_path: str, variables: Dict[str, Any] = None) -> str:
+        """
+        构建完整的System Prompt
+        
+        Args:
+            config_path: 配置文件路径，如 "phase_two/system_prompt"
+            variables: 模板变量字典
+            
+        Returns:
+            完整的System Prompt字符串
+        """
+        config = self.load_json(f"{config_path}.json")
+        if not config:
+            logger.error(f"[PromptLoader] 无法加载System Prompt配置: {config_path}")
+            return ""
+        
+        variables = variables or {}
+        sections = []
+        
+        # 获取section顺序
+        section_order = config.get("section_order", [])
+        system_prompt_template = config.get("system_prompt_template", {})
+        
+        for section_id in section_order:
+            section_config = system_prompt_template.get(section_id)
+            if not section_config:
+                continue
+            
+            section_content = self._build_section(section_id, section_config, variables)
+            if section_content:
+                sections.append(section_content)
+        
+        return "\n\n".join(sections)
+    
+    def _build_section(self, section_id: str, section_config: Dict, variables: Dict) -> str:
+        """
+        构建单个Section
+        
+        Args:
+            section_id: section ID
+            section_config: section配置
+            variables: 变量字典
+            
+        Returns:
+            section内容字符串
+        """
+        # 如果配置是引用其他组件
+        if "ref" in section_config:
+            ref_path = section_config["ref"]
+            component = self.get_component(ref_path)
+            if component:
+                template = component.get("template", "")
+                # 合并组件默认变量和用户变量
+                merged_vars = {**(component.get("default_values") or {}), **variables}
+                return self.render_template(template, merged_vars)
+            return ""
+        
+        # 如果配置是内联模板
+        if "template" in section_config:
+            template = section_config["template"]
+            # 获取该section需要的变量
+            section_vars = {k: v for k, v in variables.items() if k in section_config.get("variables", [])}
+            return self.render_template(template, section_vars)
+        
+        return ""
+    
+    def get_step_config(self, step_id: str) -> Optional[Dict]:
+        """
+        获取步骤配置
+        
+        Args:
+            step_id: 步骤ID，如 "step_1_plan"
+            
+        Returns:
+            步骤配置字典
+        """
+        return self.load_json(f"steps/{step_id}.json")
+    
+    def get_mode_config(self) -> Optional[Dict]:
+        """
+        获取模式配置
+        
+        Returns:
+            模式配置字典
+        """
+        return self.load_json("mode_config.json")
 
 
 # 全局单例实例

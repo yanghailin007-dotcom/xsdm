@@ -1,21 +1,30 @@
 {
   "id": "market_driven",
   "name": "市场导向-爆款公式版",
-  "description": "基于番茄爆款反向工程分析，自动生成符合市场规律的小说。包含完整的7步生成流程：方案、世界观、角色、成长路线、情绪曲线、爆款对齐、战术规划。",
-  "version": "2.0.0",
+  "description": "基于番茄爆款反向工程分析，自动生成符合市场规律的小说。包含完整的6步生成流程：方案、世界观、角色、成长路线、爆款对齐、战术规划+章节生成。",
+  "version": "2.1.0",
   "author": "system",
   "mode": "market_driven",
   "created_at": "2026-03-30",
-  "updated_at": "2026-03-30",
+  "updated_at": "2026-03-31",
   "tags": ["国运文", "神豪文", "爽文", "直播流", "番茄风格"],
   "is_default": true,
-  "is_editable": false,
-  "total_steps": 7,
+  "is_editable": true,
+  "total_steps": 6,
   "supported_features": [
     "bestseller_analysis",
     "emotion_curve",
     "stage_goals",
     "tactical_planning",
-    "chapter_generation"
-  ]
+    "chapter_generation",
+    "prompt_configuration"
+  ],
+  "configuration": {
+    "base_components": "_base/system_components/",
+    "step_configs": "steps/",
+    "phase_two_configs": "phase_two/",
+    "chapter_components": "components/",
+    "writing_styles": "styles/",
+    "templates": "templates/"
+  }
 }

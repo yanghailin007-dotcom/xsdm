@@ -5,12 +5,15 @@ Trope Prompt Builder
 
 将 tropes 分析结果转换为不同阶段的 System Prompts
 实现分层传递成功模式，让 AI 知道自己在仿写头部作品
+
+v2.0 - 支持从JSON配置加载
 """
 
 import json
 import logging
 from typing import Dict, List, Optional
 from datetime import datetime
+from .prompt_loader import get_prompt_loader
 
 logger = logging.getLogger(__name__)
 
@@ -29,16 +32,26 @@ class TropePromptBuilder:
     PLOT_WEIGHT = 0.6         # 大纲阶段：需要节奏蓝图
     CHAPTER_WEIGHT = 0.4      # 正文阶段：只需要节奏约束，保留创作自由
     
-    def __init__(self, tropes: Optional[Dict] = None):
+    def __init__(self, tropes: Optional[Dict] = None, use_json_config: bool = True):
         """
         初始化
         
         Args:
             tropes: TropeAnalyzer 分析结果
+            use_json_config: 是否使用JSON配置（向后兼容）
         """
         self.tropes = tropes or {}
         self.genre = self.tropes.get('genre', '国运文-直播类')
         self.core_formula = self.tropes.get('core_formula', '')
+        self.use_json_config = use_json_config
+        self._prompt_loader = None
+        
+        if use_json_config:
+            try:
+                self._prompt_loader = get_prompt_loader()
+            except Exception as e:
+                logger.warning(f"[TropePromptBuilder] 无法加载PromptLoader: {e}")
+                self.use_json_config = False
         
     def build_setting_system_prompt(self, novel_title: str = "未命名") -> str:
         """
@@ -53,6 +66,14 @@ class TropePromptBuilder:
         Returns:
             System Prompt 字符串
         """
+        # 优先使用JSON配置
+        if self.use_json_config and self._prompt_loader:
+            try:
+                return self._build_setting_from_config(novel_title)
+            except Exception as e:
+                logger.warning(f"[TropePromptBuilder] JSON配置加载失败，使用硬编码: {e}")
+        
+        # 硬编码fallback
         key_constraints = self._extract_setting_constraints()
         
         prompt = f"""# 🎯 角色：顶级网文编辑 + 爆款类型专家
@@ -88,6 +109,25 @@ class TropePromptBuilder:
 """
         return prompt
     
+    def _build_setting_from_config(self, novel_title: str) -> str:
+        """从JSON配置构建设定阶段System Prompt"""
+        # 加载基础组件
+        component = self._prompt_loader.get_component("setting_stage")
+        if not component:
+            raise ValueError("无法加载setting_stage组件")
+        
+        template = component.get("template", "")
+        key_constraints = self._extract_setting_constraints()
+        
+        variables = {
+            "novel_title": novel_title,
+            "core_formula": self.core_formula or component.get("default_values", {}).get("core_formula", "番茄头部作品的高爽感快节奏模式"),
+            "key_constraints": key_constraints,
+            "min_words": component.get("default_values", {}).get("min_words", "300")
+        }
+        
+        return self._prompt_loader.render_template(template, variables)
+    
     def build_character_system_prompt(self, protagonist_name: str = "主角") -> str:
         """
         构建人物设定阶段的 System Prompt
@@ -100,6 +140,14 @@ class TropePromptBuilder:
         Returns:
             System Prompt 字符串
         """
+        # 优先使用JSON配置
+        if self.use_json_config and self._prompt_loader:
+            try:
+                return self._build_character_from_config(protagonist_name)
+            except Exception as e:
+                logger.warning(f"[TropePromptBuilder] JSON配置加载失败，使用硬编码: {e}")
+        
+        # 硬编码fallback
         character_tropes = self._extract_character_tropes()
         
         prompt = f"""# 🎭 角色：人物设定专家
@@ -133,6 +181,22 @@ class TropePromptBuilder:
 - 人物性格必须前后一致
 """
         return prompt
+    
+    def _build_character_from_config(self, protagonist_name: str) -> str:
+        """从JSON配置构建人物设定阶段System Prompt"""
+        component = self._prompt_loader.get_component("character_stage")
+        if not component:
+            raise ValueError("无法加载character_stage组件")
+        
+        template = component.get("template", "")
+        character_tropes = self._extract_character_tropes()
+        
+        variables = {
+            "protagonist_name": protagonist_name,
+            "character_tropes": character_tropes
+        }
+        
+        return self._prompt_loader.render_template(template, variables)
     
     def build_plot_system_prompt(self, emotion_blueprint: Optional[Dict] = None) -> str:
         """

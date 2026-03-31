@@ -1,0 +1,27 @@
+{
+  "component_id": "appeal_density_guide",
+  "name": "爽点密度指南",
+  "description": "番茄算法爽点密度要求",
+  "version": "2.0.0",
+  "editable": true,
+  "ui_config": {
+    "type": "textarea",
+    "rows": 15,
+    "label": "爽点密度指南"
+  },
+  "template": "## 🎯 爽点密度要求（番茄算法指标）\n\n### 核心指标\n- **目标密度**：≥{{target_density}}个/千字\n- **最低数量**：每章至少{{min_count}}个爽点时刻\n- **反应链**：{{reaction_chain}}\n\n### 爽点类型\n{{#appeal_types}}\n**{{name}}**：{{description}}\n{{/appeal_types}}\n\n### 震惊反应链（必须完整）\n1. **现场层**：当事人直接反应（生理/心理）\n2. **围观层**：旁观者/弹幕/直播反应\n3. **传播层**：社交媒体/新闻发酵\n4. **权威层**：专家/官方/高层反应\n\n### 数字爽点要求\n- 所有收益必须有具体数字\n- 对比要量化（如'是常人的100倍'）\n- 排名要具体（如'全球第3'）",
+  "variables": ["target_density", "min_count", "reaction_chain", "appeal_types"],
+  "default_values": {
+    "target_density": "1.5",
+    "min_count": "3",
+    "reaction_chain": "现场→围观者→传播→权威"
+  },
+  "data": {
+    "appeal_types": [
+      {"name": "打脸爽", "description": "当众打脸反派，让读者感到解气"},
+      {"name": "收获爽", "description": "获得奖励/升级/认可，具体数字展示"},
+      {"name": "震惊爽", "description": "展现隐藏实力，引发多层震惊"},
+      {"name": "揭秘爽", "description": "揭露隐藏身份/秘密，引发连锁反应"}
+    ]
+  }
+}

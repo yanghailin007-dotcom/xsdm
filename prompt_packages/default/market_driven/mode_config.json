@@ -1,0 +1,122 @@
+{
+  "mode_id": "market_driven",
+  
+  "flow": {
+    "type": "integrated",
+    "description": "集成式流水线：对话式规划 → 战术规划 → 章节生成",
+    
+    "phases": [
+      {
+        "phase_id": "phase_one",
+        "name": "第一阶段 - 对话式规划",
+        "order": 1,
+        "type": "conversation",
+        "description": "通过对话方式生成世界观、角色、成长路线等设定产物",
+        "estimated_time": "30-45分钟",
+        "steps": [
+          {
+            "step_id": "step_1_plan",
+            "name": "生成完整方案",
+            "order": 1,
+            "description": "基于爆款公式生成小说方案",
+            "config_file": "steps/step_1_plan.json"
+          },
+          {
+            "step_id": "step_2_worldview",
+            "name": "生成世界观",
+            "order": 2,
+            "description": "生成世界观设定",
+            "config_file": "steps/step_2_worldview.json"
+          },
+          {
+            "step_id": "step_3_characters",
+            "name": "生成角色设计",
+            "order": 3,
+            "description": "生成角色设定",
+            "config_file": "steps/step_3_characters.json"
+          },
+          {
+            "step_id": "step_4_growth",
+            "name": "生成成长路线",
+            "order": 4,
+            "description": "生成成长路线规划",
+            "config_file": "steps/step_4_growth.json"
+          },
+          {
+            "step_id": "step_5_alignment",
+            "name": "爆款对齐检查",
+            "order": 5,
+            "description": "检查内容是否符合爆款公式",
+            "config_file": "steps/step_5_alignment.json"
+          }
+        ]
+      },
+      {
+        "phase_id": "phase_two",
+        "name": "第二阶段 - 章节生成",
+        "order": 2,
+        "type": "chapter_generation",
+        "description": "基于战术规划批量生成章节",
+        "estimated_time": "60-90分钟",
+        "depends_on": "phase_one",
+        "components": {
+          "system_prompt": "phase_two/system_prompt.json",
+          "chapter_prompt": "phase_two/chapter_prompt.json",
+          "quality_check": "phase_two/quality_check.json"
+        }
+      }
+    ]
+  },
+  
+  "features": {
+    "supports_resume": true,
+    "supports_edit": true,
+    "supports_quality_check": true,
+    "auto_save": true,
+    "parallel_generation": false,
+    "editable_products": true,
+    "prompt_configuration": true
+  },
+  
+  "inherits": {
+    "base_components": ["_base/system_components/"],
+    "writing_styles": ["shock_flow", "face_slap", "reward", "reveal", "crisis", "setup", "transition"],
+    "common_rules": true
+  },
+  
+  "ui_config": {
+    "show_progress_bar": true,
+    "show_estimated_time": true,
+    "allow_phase_skip": false,
+    "allow_back_navigation": true,
+    "show_product_preview": true,
+    "allow_product_edit": true,
+    "allow_prompt_edit": true
+  },
+  
+  "prompt_configuration": {
+    "editable_components": [
+      "system_prompt",
+      "chapter_prompt",
+      "quality_check",
+      "golden_chapter_guide",
+      "tomato_algorithm_guide",
+      "micro_innovation_guide",
+      "emotion_control_guide",
+      "format_rules",
+      "ai_self_check_guide"
+    ],
+    "component_schema": {
+      "type": "object",
+      "properties": {
+        "component_id": {"type": "string"},
+        "name": {"type": "string"},
+        "description": {"type": "string"},
+        "version": {"type": "string"},
+        "editable": {"type": "boolean"},
+        "template": {"type": "string"},
+        "variables": {"type": "array", "items": {"type": "string"}}
+      }
+    }
+  }
+}
