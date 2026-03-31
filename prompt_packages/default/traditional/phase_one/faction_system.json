@@ -1,0 +1,26 @@
+{
+  "product_id": "faction_system",
+  "product_name": "势力系统",
+  "phase": "phase_one",
+  "order": 4,
+  "description": "各方势力及其关系",
+  "prompt_template": {
+    "system_role": "专业网文势力系统设计专家",
+    "context_sections": [
+      {
+        "name": "输入信息",
+        "type": "dynamic",
+        "template": "基于已有设定继续生成"
+      }
+    ],
+    "variables": []
+  },
+  "response_format": {
+    "type": "json"
+  },
+  "ai_settings": {
+    "model": "kimi",
+    "temperature": 0.8,
+    "max_tokens": 4000
+  }
+}

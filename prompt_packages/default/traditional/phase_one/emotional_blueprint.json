@@ -1,0 +1,26 @@
+{
+  "product_id": "emotional_blueprint",
+  "product_name": "情绪蓝图",
+  "phase": "phase_one",
+  "order": 8,
+  "description": "整体情绪节奏规划",
+  "prompt_template": {
+    "system_role": "专业网文情绪蓝图设计专家",
+    "context_sections": [
+      {
+        "name": "输入信息",
+        "type": "dynamic",
+        "template": "基于已有设定继续生成"
+      }
+    ],
+    "variables": []
+  },
+  "response_format": {
+    "type": "json"
+  },
+  "ai_settings": {
+    "model": "kimi",
+    "temperature": 0.8,
+    "max_tokens": 4000
+  }
+}

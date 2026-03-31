@@ -1,0 +1,51 @@
+{
+  "id": "traditional",
+  "name": "传统分阶段生成",
+  "version": "1.0.0",
+  "description": "经典的两阶段生成流程：第一阶段生成完整设定产物，第二阶段生成章节。流程清晰，产物可编辑。",
+  "author": "System",
+  "tags": ["classic", "structured", "editable_products"],
+  "min_app_version": "2.0.0",
+  
+  "compatibility": {
+    "genres": ["all"],
+    "platforms": ["all"]
+  },
+  
+  "entry_point": {
+    "module": "web.services.traditional.traditional_generator",
+    "class": "TraditionalGenerator"
+  },
+  
+  "features": {
+    "phase_count": 2,
+    "phase_one_products": 10,
+    "supports_resume": true,
+    "supports_edit": true,
+    "estimated_time": "2-3小时"
+  },
+  
+  "phases": {
+    "phase_one": {
+      "name": "第一阶段 - 设定产物生成",
+      "description": "生成世界观、角色、情绪曲线等完整设定",
+      "products": [
+        "writing_style_guide",
+        "market_analysis",
+        "core_worldview",
+        "faction_system",
+        "character_design",
+        "global_growth_plan",
+        "stage_writing_plans",
+        "emotional_blueprint",
+        "expectation_mapping",
+        "emotion_curve"
+      ]
+    },
+    "phase_two": {
+      "name": "第二阶段 - 章节生成",
+      "description": "基于第一阶段产物生成具体章节",
+      "depends_on": "phase_one"
+    }
+  }
+}

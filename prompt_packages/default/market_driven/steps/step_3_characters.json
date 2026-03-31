@@ -1,0 +1,53 @@
+{
+  "step_id": "step_3_characters",
+  "step_name": "生成角色设计",
+  "step_order": 3,
+  "enabled": true,
+  "description": "基于世界观和方案，生成完整的主角、配角、反派角色设定",
+  "prompt_template": {
+    "system_role": "角色设计专家（基于爆款人设公式）",
+    "context_sections": [
+      {
+        "name": "人设公式",
+        "type": "dynamic",
+        "template": "{character_formula}",
+        "description": "从爆款分析自动填充的人设公式"
+      },
+      {
+        "name": "主角信息",
+        "type": "dynamic",
+        "template": "主角名：{protagonist_name}",
+        "description": "用户确定的主角名称"
+      },
+      {
+        "name": "输出要求",
+        "type": "static",
+        "content": "## 📝 你需要生成\\n\\n### 1. 主角详细人设\\n- 基本信息（姓名、年龄、身份）\\n- 核心特质（3-5个关键词）\\n- 成长弧线（从什么状态到什么状态）\\n- 隐藏身份/秘密\\n- 标志性动作或口头禅\\n\\n### 2. 核心盟友（2-3个）\\n每个盟友包含：角色定位、功能作用、与主角关系\\n\\n### 3. 主要反派（3个层级）\\n- 早期反派：小人物、势利眼\\n- 中期反派：有背景的敌人\\n- 后期反派：终极BOSS\\n\\n### 4. 女性角色（如适用）\\n- 女主/重要女配的定位和特点",
+        "editable": true,
+        "description": "需要生成的角色内容"
+      },
+      {
+        "name": "输出格式",
+        "type": "static",
+        "content": "## ✅ 输出格式\\nJSON格式：\\n{\\n  \"protagonist\": {\\n    \"name\": \"\", \"age\": 0, \"identity\": \"\",\\n    \"traits\": [], \"growth_arc\": \"\", \"secret\": \"\"\\n  },\\n  \"core_allies\": [{\\n    \"name\": \"\", \"role\": \"\", \"function\": \"\", \"relationship\": \"\"\\n  }],\\n  \"main_antagonists\": {\\n    \"early\": {}, \"mid\": {}, \"late\": {}\\n  }\\n}",
+        "editable": true,
+        "description": "角色输出格式"
+      }
+    ],
+    "variables": [
+      {"name": "character_formula", "type": "object", "required": false, "description": "人设公式"},
+      {"name": "protagonist_name", "type": "string", "required": true, "description": "主角名"}
+    ]
+  },
+  "parameters": {
+    "temperature": 0.8,
+    "max_tokens": 4000,
+    "model_preference": "gemini",
+    "timeout": 300
+  },
+  "output_schema": {
+    "format": "json",
+    "required_fields": ["protagonist", "core_allies", "main_antagonists"],
+    "optional_fields": ["female_characters"]
+  }
+}

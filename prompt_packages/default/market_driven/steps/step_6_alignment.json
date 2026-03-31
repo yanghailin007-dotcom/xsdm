@@ -1,0 +1,49 @@
+{
+  "step_id": "step_6_alignment",
+  "step_name": "爆款对齐检查",
+  "step_order": 6,
+  "enabled": true,
+  "description": "检查前面生成的内容是否符合爆款公式，进行优化调整",
+  "prompt_template": {
+    "system_role": "爆款对齐专家",
+    "context_sections": [
+      {
+        "name": "爆款公式检查清单",
+        "type": "static",
+        "content": "## ✅ 爆款对齐检查清单\\n\\n### 开局检查\\n- [ ] 第1章是否有强钩子？\\n- [ ] 主角困境是否足够惨？\\n- [ ] 系统触发是否自然且有冲击力？\\n- [ ] 三章内是否完成首次装逼？\\n\\n### 人设检查\\n- [ ] 主角是否有明确的核心特质？\\n- [ ] 金手指是否有清晰的数值体系？\\n- [ ] 反派是否分层次（小/中/大）？\\n\\n### 节奏检查\\n- [ ] 情绪曲线是否符合'压抑-爆发-震惊'循环？\\n- [ ] 每3章是否有小爽点？\\n- [ ] 每10章是否有中爽点？\\n- [ ] 每30章是否有大爽点？\\n\\n### 世界观检查\\n- [ ] 社会规则是否有利于装逼打脸？\\n- [ ] 地图升级是否有明确规划？\\n- [ ] 势力系统是否清晰？",
+        "description": "爆款公式检查清单"
+      },
+      {
+        "name": "优化要求",
+        "type": "static",
+        "content": "## 🔧 优化要求\\n\\n对于不符合爆款公式的地方：\\n1. 指出具体问题\\n2. 说明为什么这是个问题\\n3. 提供具体的修改建议\\n\\n修改原则：\\n- 保持用户选择不变（书名、主角名、题材）\\n- 调整具体情节和数值设计\\n- 强化爽点，弱化拖沓内容",
+        "description": "优化的原则和方法"
+      },
+      {
+        "name": "输出要求",
+        "type": "static",
+        "content": "## 📝 你需要生成\\n\\n### 1. 对齐报告\\n- 检查项总数\\n- 通过项数\\n- 需要优化项\\n\\n### 2. 优化建议\\n每个需要优化的点：\\n- 问题描述\\n- 问题严重程度（高/中/低）\\n- 具体修改建议\\n\\n### 3. 优化后的完整方案（如有必要）",
+        "editable": true,
+        "description": "对齐检查和优化输出"
+      }
+    ],
+    "variables": [
+      {"name": "plan", "type": "object", "required": true, "description": "步骤1生成的方案"},
+      {"name": "worldview", "type": "object", "required": true, "description": "步骤2生成的世界观"},
+      {"name": "characters", "type": "object", "required": true, "description": "步骤3生成的角色"},
+      {"name": "growth_plan", "type": "object", "required": true, "description": "步骤4生成的成长路线"},
+      {"name": "emotion_curve", "type": "object", "required": true, "description": "步骤5生成的情绪曲线"}
+    ]
+  },
+  "parameters": {
+    "temperature": 0.7,
+    "max_tokens": 6000,
+    "model_preference": "gemini",
+    "timeout": 300
+  },
+  "output_schema": {
+    "format": "json",
+    "required_fields": ["alignment_report", "optimization_suggestions"],
+    "optional_fields": ["optimized_plan"]
+  }
+}

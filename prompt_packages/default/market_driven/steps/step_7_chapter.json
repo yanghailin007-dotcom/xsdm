@@ -1,0 +1,68 @@
+{
+  "step_id": "step_7_chapter",
+  "step_name": "生成章节",
+  "step_order": 7,
+  "enabled": true,
+  "description": "基于前面所有设定，生成具体的小说章节内容",
+  "prompt_template": {
+    "system_role": "专业网络小说作家（番茄风格）",
+    "context_sections": [
+      {
+        "name": "创作准则",
+        "type": "static",
+        "content": "## 🎯 创作准则\n\n1. **固定元素必须遵循**：书名、主角名、题材类型、系统类型必须严格遵循用户选择\n2. **自由创作**：具体情节、BOSS设计、敌人组合、爽点类型等由AI自由发挥，不必遵循固定大纲\n3. **情绪蓝图约束**：必须遵循情绪节奏（每章强度、爽点类型、钩子设计），但具体情节自由\n4. **不可预测性**：避免套路化，让读者猜不到下一章会发生什么\n5. **番茄风格**：快节奏、强爽点、章节有钩子\n\n## 🍅 番茄小说风格要求\n\n### 叙事节奏\n- 短段落：每段不超过2行\n- 快节奏：快速推进剧情，少废话\n- 强代入：用动作、对话推动剧情，少用旁白\n\n### 对话设计\n- 简短有力：每句对话不超过20字\n- 口语化：符合人物身份，不要文绉绉\n- 推动剧情：每句对话都要有信息量\n\n### 爽点设计\n- 打脸要狠：反派嘲讽→主角反击→反派崩溃，三步到位\n- 震惊要大：多视角描写，路人和观众的反应很重要\n- 节奏要快：三章一小爽，五章一大爽",
+        "description": "章节创作的核心准则"
+      },
+      {
+        "name": "战术大纲约束",
+        "type": "dynamic",
+        "template": "## 【🔥 战术大纲强制约束 - 必须严格遵守】\n\n**本章必须按照以下大纲内容创作，严禁偏离！**\n\n### 🎬 节拍类型（决定章节结构）\n**节拍类型：{beat_type}**\n{beat_type_description}\n\n### 🎯 战术企图（必须完成）\n{purpose}\n\n### 🎭 情绪基调（必须严格执行）\n**本章情绪：{emotion}**\n情绪是本章的核心！整章必须统一在此情绪基调下，禁止情绪乱跳或偏离！\n\n### ✨ 核心事件（必须呈现）\n{event}\n\n### 🪝 章尾钩子（必须留下）\n{hook_content}",
+        "description": "战术大纲的强制约束"
+      },
+      {
+        "name": "人设保持约束",
+        "type": "dynamic",
+        "template": "## 【🔥 人设保持约束】\n\n### 主角：{protagonist_name}\n- 性格：{protagonist_traits}\n- 当前实力：{current_power}\n- 当前状态：{current_status}\n\n**禁止行为**：{forbidden_actions}",
+        "description": "保持人设一致性"
+      },
+      {
+        "name": "输出格式",
+        "type": "static",
+        "content": "## ✅ 输出格式\n\n直接返回章节正文，格式：\n\n正文内容...（2500-3000字）\n\n**重要要求**：\n- ❌ 正文开头不要写'第X章'或章节标题\n- ❌ 不要返回JSON\n- ❌ 不要返回Markdown代码块标记\n- ✅ 只返回纯文本正文内容\n- ✅ 直接从场景开始写，比如'上午10:00，国运广场。'",
+        "editable": true,
+        "description": "章节输出格式"
+      }
+    ],
+    "variables": [
+      {"name": "chapter_number", "type": "number", "required": true, "description": "章节号"},
+      {"name": "beat_type", "type": "string", "required": true, "description": "节拍类型"},
+      {"name": "beat_type_description", "type": "string", "required": true, "description": "节拍类型说明"},
+      {"name": "emotion", "type": "string", "required": true, "description": "情绪类型"},
+      {"name": "intensity", "type": "number", "required": true, "description": "情绪强度1-10"},
+      {"name": "climax_type", "type": "string", "required": false, "description": "爽点类型：打脸/收获/升级/装逼/震惊/留空"},
+      {"name": "climax_subtype", "type": "string", "required": false, "description": "具体场景：如'前女友打脸'/'系统升级'/留空"},
+      {"name": "event", "type": "string", "required": true, "description": "核心事件"},
+      {"name": "purpose", "type": "string", "required": true, "description": "战术企图"},
+      {"name": "hook_content", "type": "string", "required": true, "description": "钩子内容"},
+      {"name": "protagonist_name", "type": "string", "required": true, "description": "主角名"},
+      {"name": "protagonist_traits", "type": "string", "required": true, "description": "主角性格特质"},
+      {"name": "current_power", "type": "string", "required": true, "description": "当前实力"},
+      {"name": "current_status", "type": "string", "required": true, "description": "当前状态"},
+      {"name": "forbidden_actions", "type": "string", "required": false, "description": "禁止行为"}
+    ]
+  },
+  "parameters": {
+    "temperature": 0.9,
+    "max_tokens": 8000,
+    "model_preference": "kimi",
+    "timeout": 300
+  },
+  "output_schema": {
+    "format": "text",
+    "word_count": {
+      "min": 2000,
+      "max": 3500,
+      "target": 2500
+    }
+  }
+}

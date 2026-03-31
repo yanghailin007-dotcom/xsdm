@@ -1,0 +1,103 @@
+{
+  "step_id": "step_5_emotion",
+  "step_name": "生成情绪曲线",
+  "step_type": "conversation",
+  "description": "基于战术规划生成详细的情绪曲线",
+  "order": 5,
+  "input_steps": ["step_4_tactical"],
+  "output_key": "emotion_curve",
+  "prompt_template": {
+    "system_prompt": "你是一位精通网文节奏的爽点设计大师。你的任务是基于战术规划，生成详细的情绪曲线。\n\n你需要设计：\n1. 每章的情绪、节拍类型、强度\n2. 爽点类型（打脸/收获/升级/装逼/震惊）和具体场景\n3. 钩子类型和内容\n4. 与阶段目标的对齐\n\n## 节奏设计要求\n- 情绪曲线必须有起伏，避免平铺直叙\n- 每3-5章一个小高潮，每10章一个大高潮\n- 爽点要多样化，避免重复\n- 钩子要吸引人，让读者欲罢不能",
+    "context_sections": [
+      {
+        "name": "剧情设定",
+        "type": "dynamic",
+        "template": "{plot_settings}",
+        "description": "完整剧情设定信息"
+      },
+      {
+        "name": "战术大纲",
+        "type": "dynamic",
+        "template": "{tactical_plan}",
+        "description": "战术大纲内容"
+      },
+      {
+        "name": "阶段目标",
+        "type": "dynamic", 
+        "template": "{phase_goals}",
+        "description": "当前阶段的具体目标"
+      },
+      {
+        "name": "输出要求",
+        "type": "static",
+        "content": "## 📝 你需要生成\n\n### 1. 情绪曲线\n每章包含：\n- chapter_number：章节号\n- emotion：情绪类型\n- intensity：强度（1-10）\n- beat_type：节拍类型（铺垫/冲突/反转/渲染/伏笔）\n- climax_type：爽点类型（打脸/收获/升级/装逼/震惊，非爽点章留空）\n- climax_subtype：具体场景（如'前女友打脸'，非爽点章留空）\n- event：主要事件简述\n- purpose：本章目的\n- hook_type：钩子类型\n- hook_content：钩子内容\n- stage_goal_alignment：与阶段目标的对齐\n\n### 2. 阶段目标详情\n每个阶段包含：\n- goal_id：目标ID（如G1）\n- chapter_range：章节范围\n- description：目标描述\n- deliverables：可交付成果列表\n- milestones：关键里程碑",
+        "editable": true,
+        "description": "情绪曲线和阶段目标输出要求"
+      },
+      {
+        "name": "输出格式",
+        "type": "static",
+        "content": "## ✅ 输出格式\nJSON格式，包含chapters数组和stage_goals对象",
+        "editable": true,
+        "description": "输出格式"
+      }
+    ],
+    "variables": [
+      {"name": "climax_formula", "type": "object", "required": false, "description": "高潮公式"},
+      {"name": "total_chapters", "type": "number", "required": false, "default": 30, "description": "生成的章节数"}
+    ]
+  },
+  "response_format": {
+    "type": "json",
+    "schema": {
+      "type": "object",
+      "properties": {
+        "chapters": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "chapter_number": {"type": "integer"},
+              "emotion": {"type": "string"},
+              "intensity": {"type": "integer", "minimum": 1, "maximum": 10},
+              "beat_type": {"type": "string"},
+              "climax_type": {"type": "string"},
+              "climax_subtype": {"type": "string"},
+              "event": {"type": "string"},
+              "purpose": {"type": "string"},
+              "hook_type": {"type": "string"},
+              "hook_content": {"type": "string"},
+              "stage_goal_alignment": {"type": "string"}
+            },
+            "required": ["chapter_number", "emotion", "intensity", "beat_type", "event", "purpose", "hook_type", "hook_content", "stage_goal_alignment"]
+          }
+        },
+        "stage_goals": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "goal_id": {"type": "string"},
+              "chapter_range": {"type": "string"},
+              "description": {"type": "string"},
+              "deliverables": {"type": "array", "items": {"type": "string"}},
+              "milestones": {"type": "array", "items": {"type": "string"}}
+            },
+            "required": ["goal_id", "chapter_range", "description", "deliverables", "milestones"]
+          }
+        }
+      },
+      "required": ["chapters", "stage_goals"]
+    }
+  },
+  "ai_settings": {
+    "model": "claude-sonnet-4-20250514",
+    "temperature": 0.7,
+    "max_tokens": 8000
+  },
+  "fallback_enabled": true,
+  "retry_policy": {
+    "max_retries": 3,
+    "retry_delay": 2
+  }
+}

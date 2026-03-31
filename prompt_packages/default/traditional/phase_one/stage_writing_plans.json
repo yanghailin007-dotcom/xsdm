@@ -1,0 +1,26 @@
+{
+  "product_id": "stage_writing_plans",
+  "product_name": "阶段写作计划",
+  "phase": "phase_one",
+  "order": 7,
+  "description": "分阶段写作重点",
+  "prompt_template": {
+    "system_role": "专业网文阶段写作计划设计专家",
+    "context_sections": [
+      {
+        "name": "输入信息",
+        "type": "dynamic",
+        "template": "基于已有设定继续生成"
+      }
+    ],
+    "variables": []
+  },
+  "response_format": {
+    "type": "json"
+  },
+  "ai_settings": {
+    "model": "kimi",
+    "temperature": 0.8,
+    "max_tokens": 4000
+  }
+}

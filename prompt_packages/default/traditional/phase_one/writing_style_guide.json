@@ -1,0 +1,59 @@
+{
+  "product_id": "writing_style_guide",
+  "product_name": "写作风格指南",
+  "phase": "phase_one",
+  "order": 1,
+  
+  "description": "基于题材和套路的写作风格指南，包含叙事节奏、对话风格、描写技巧等",
+  
+  "prompt_template": {
+    "system_role": "你是一位专业的网文写作指导专家，擅长根据题材制定写作风格指南。",
+    
+    "context_sections": [
+      {
+        "name": "题材信息",
+        "type": "dynamic",
+        "template": "题材：{genre}"
+      },
+      {
+        "name": "输出要求",
+        "type": "static",
+        "content": "请生成该题材的写作风格指南，包含：\n1. 整体风格定位\n2. 叙事节奏要求\n3. 对话风格特点\n4. 场景描写风格\n5. 爽点设计原则\n6. 禁忌和注意事项"
+      }
+    ],
+    
+    "variables": [
+      {"name": "genre", "type": "string", "required": true, "description": "题材类型"}
+    ]
+  },
+  
+  "response_format": {
+    "type": "json",
+    "schema": {
+      "overall_style": "string",
+      "pacing": {
+        "paragraph_length": "string",
+        "chapter_structure": "string",
+        "climax_frequency": "string"
+      },
+      "dialogue": {
+        "style": "string",
+        "length": "string",
+        "ratio": "string"
+      },
+      "description": {
+        "scene": "string",
+        "character": "string",
+        "action": "string"
+      },
+      "climax_design": ["string"],
+      "taboos": ["string"]
+    }
+  },
+  
+  "ai_settings": {
+    "model": "kimi",
+    "temperature": 0.7,
+    "max_tokens": 3000
+  }
+}

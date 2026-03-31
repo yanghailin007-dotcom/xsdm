@@ -1,0 +1,62 @@
+{
+  "step_id": "step_2_worldview",
+  "step_name": "生成世界观",
+  "step_order": 2,
+  "enabled": true,
+  "description": "基于步骤1的方案，生成完整的世界观设定，包含势力系统、地图规划、社会规则",
+  "prompt_template": {
+    "system_role": "世界观架构师（基于爆款公式）",
+    "context_sections": [
+      {
+        "name": "题材敌对势力公式",
+        "type": "dynamic",
+        "template": "{antagonist_formula}",
+        "description": "从爆款分析自动填充的敌对势力公式"
+      },
+      {
+        "name": "势力系统设计",
+        "type": "static",
+        "content": "## 🏛️ 势力系统设计公式\\n必须包含3个对立势力：\\n1. **早期敌对势力**（1-{early_end}章）：势利眼小人物\\n2. **中期敌对势力**（{mid_start}-{mid_end}章）：富二代、地方势力\\n3. **后期敌对势力**（{late_start}章+）：国际势力、隐藏大佬",
+        "description": "势力系统的三阶段设计"
+      },
+      {
+        "name": "社会规则设计",
+        "type": "static",
+        "content": "## 🏛️ 社会规则设计（必须有利于装逼打脸）\\n- 阶层划分：如何体现等级差异？\\n- 资源分布：稀有资源如何获取？\\n- 认可机制：如何获得社会地位？",
+        "description": "社会规则要服务于爽文套路"
+      },
+      {
+        "name": "地图升级规划",
+        "type": "static",
+        "content": "## 🗺️ 地图升级规划\\n- 第一地图（1-{early_end}章）：本地场景\\n- 第二地图（{mid_start}-{mid_end}章）：省城/区域\\n- 第三地图（{late_start}章+）：全国/全球",
+        "description": "地图随剧情推进升级"
+      },
+      {
+        "name": "输出格式",
+        "type": "static",
+        "content": "## ✅ 输出格式\\nJSON格式，包含：world_overview, power_system, social_structure, factions, world_rules, key_locations",
+        "editable": true,
+        "description": "输出格式要求"
+      }
+    ],
+    "variables": [
+      {"name": "antagonist_formula", "type": "object", "required": false, "description": "敌对势力公式"},
+      {"name": "early_end", "type": "number", "required": true, "default": 33, "description": "早期阶段结束章节"},
+      {"name": "mid_start", "type": "number", "required": true, "default": 34, "description": "中期阶段开始章节"},
+      {"name": "mid_end", "type": "number", "required": true, "default": 66, "description": "中期阶段结束章节"},
+      {"name": "late_start", "type": "number", "required": true, "default": 67, "description": "后期阶段开始章节"},
+      {"name": "total_chapters", "type": "number", "required": false, "default": 100, "description": "总章节数"}
+    ]
+  },
+  "parameters": {
+    "temperature": 0.8,
+    "max_tokens": 4000,
+    "model_preference": "gemini",
+    "timeout": 300
+  },
+  "output_schema": {
+    "format": "json",
+    "required_fields": ["world_overview", "power_system", "social_structure", "factions", "world_rules", "key_locations"],
+    "optional_fields": []
+  }
+}

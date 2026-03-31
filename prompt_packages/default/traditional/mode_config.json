@@ -1,0 +1,118 @@
+{
+  "mode_id": "traditional",
+  
+  "flow": {
+    "type": "phased",
+    "description": "两阶段流水线：第一阶段生成设定产物 → 第二阶段生成章节",
+    
+    "phases": [
+      {
+        "phase_id": "phase_one",
+        "name": "第一阶段 - 设定产物",
+        "order": 1,
+        "type": "product_generation",
+        "description": "生成世界观、角色、情绪曲线等10个设定产物",
+        "estimated_time": "60-90分钟",
+        "products": [
+          {
+            "product_id": "writing_style_guide",
+            "name": "写作风格指南",
+            "description": "基于题材和套路的写作风格",
+            "order": 1
+          },
+          {
+            "product_id": "market_analysis",
+            "name": "市场分析",
+            "description": "目标读者、竞品分析",
+            "order": 2
+          },
+          {
+            "product_id": "core_worldview",
+            "name": "核心世界观",
+            "description": "世界设定、力量体系、规则",
+            "order": 3
+          },
+          {
+            "product_id": "faction_system",
+            "name": "势力系统",
+            "description": "各方势力及其关系",
+            "order": 4
+          },
+          {
+            "product_id": "character_design",
+            "name": "角色设计",
+            "description": "主角、配角、反派详细设定",
+            "order": 5
+          },
+          {
+            "product_id": "global_growth_plan",
+            "name": "全局成长计划",
+            "description": "主角成长路线规划",
+            "order": 6
+          },
+          {
+            "product_id": "stage_writing_plans",
+            "name": "阶段写作计划",
+            "description": "分阶段写作重点",
+            "order": 7
+          },
+          {
+            "product_id": "emotional_blueprint",
+            "name": "情绪蓝图",
+            "description": "整体情绪节奏规划",
+            "order": 8
+          },
+          {
+            "product_id": "expectation_mapping",
+            "name": "期待感映射",
+            "description": "爽点和期待感设计",
+            "order": 9
+          },
+          {
+            "product_id": "emotion_curve",
+            "name": "情绪曲线",
+            "description": "每章情绪详细规划",
+            "order": 10
+          }
+        ]
+      },
+      {
+        "phase_id": "phase_two",
+        "name": "第二阶段 - 章节生成",
+        "order": 2,
+        "type": "chapter_generation",
+        "description": "基于第一阶段产物生成章节",
+        "estimated_time": "60-90分钟",
+        "depends_on": "phase_one"
+      }
+    ]
+  },
+  
+  "features": {
+    "supports_resume": true,
+    "supports_edit": true,
+    "supports_quality_check": true,
+    "auto_save": true,
+    "parallel_generation": false,
+    "editable_products": true
+  },
+  
+  "templates": {
+    "chapter_types": ["standard"],
+    "default_chapter_type": "standard"
+  },
+  
+  "inherits": {
+    "writing_styles": ["shock_flow", "face_slap"],
+    "common_rules": true
+  },
+  
+  "ui_config": {
+    "show_progress_bar": true,
+    "show_estimated_time": true,
+    "allow_phase_skip": false,
+    "allow_back_navigation": true,
+    "show_product_preview": true,
+    "allow_product_edit": true
+  }
+}

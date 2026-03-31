@@ -1,0 +1,26 @@
+{
+  "product_id": "character_design",
+  "product_name": "角色设计",
+  "phase": "phase_one",
+  "order": 5,
+  "description": "主角、配角、反派详细设定",
+  "prompt_template": {
+    "system_role": "专业网文角色设计设计专家",
+    "context_sections": [
+      {
+        "name": "输入信息",
+        "type": "dynamic",
+        "template": "基于已有设定继续生成"
+      }
+    ],
+    "variables": []
+  },
+  "response_format": {
+    "type": "json"
+  },
+  "ai_settings": {
+    "model": "kimi",
+    "temperature": 0.8,
+    "max_tokens": 4000
+  }
+}

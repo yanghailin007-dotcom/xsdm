@@ -1,0 +1,74 @@
+{
+  "template_id": "standard_chapter",
+  "template_name": "标准章节模板",
+  "description": "适用于大多数网文章节的标准模板",
+  
+  "structure": {
+    "sections": [
+      {
+        "name": "开篇",
+        "word_count": "200-300",
+        "description": "快速进入场景，建立冲突或悬念",
+        "requirements": ["前300字必须有冲突/悬念", "禁止平淡开场"]
+      },
+      {
+        "name": "发展",
+        "word_count": "800-1000",
+        "description": "剧情推进，对话为主",
+        "requirements": ["对话占比≥50%", "每1000字一个小爽点"]
+      },
+      {
+        "name": "高潮",
+        "word_count": "600-800",
+        "description": "爽点释放或关键转折",
+        "requirements": ["具体数字展示", "震惊反应描写"]
+      },
+      {
+        "name": "结尾",
+        "word_count": "100-150",
+        "description": "章尾钩子",
+        "requirements": ["最后50字必须是钩子", "让读者期待下一章"]
+      }
+    ]
+  },
+  
+  "writing_guidelines": {
+    "paragraph": {
+      "max_length": 80,
+      "avg_length": "30-50字"
+    },
+    "dialogue": {
+      "ratio": "≥50%",
+      "max_length_per_line": 30
+    },
+    "pacing": {
+      "conflict_first_300": true,
+      "mini_climax_every_1000": true,
+      "hook_last_50": true
+    }
+  },
+  
+  "required_elements": [
+    "具体数字（金额/数值/属性）",
+    "多层震惊反应（现场→传播→权威，自然叙事）",
+    "章尾钩子"
+  ],
+  
+  "forbidden_elements": [
+    "\"第X章\"标题",
+    "\"第一层/第二层\"标签",
+    "无意义的环境描写",
+    "冗长的心理独白",
+    "套路重复"
+  ],
+  
+  "checklist": [
+    "字数2000-2500？",
+    "前300字有冲突？",
+    "每1000字有爽点？",
+    "章尾有钩子？",
+    "有具体数字？",
+    "有震惊反应？",
+    "无标签式写法？"
+  ]
+}

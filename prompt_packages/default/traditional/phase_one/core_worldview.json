@@ -1,0 +1,58 @@
+{
+  "product_id": "core_worldview",
+  "product_name": "核心世界观",
+  "phase": "phase_one",
+  "order": 3,
+  
+  "description": "世界设定、力量体系、基本规则",
+  
+  "prompt_template": {
+    "system_role": "你是一位专业的世界观设计师，擅长构建独特而有吸引力的虚构世界。",
+    
+    "context_sections": [
+      {
+        "name": "题材",
+        "type": "dynamic",
+        "template": "题材：{genre}"
+      },
+      {
+        "name": "设计要求",
+        "type": "static",
+        "content": "请设计详细的世界观，包含：\n1. 世界概述\n2. 力量体系/经济体系\n3. 世界规则（物理/魔法/社会）\n4. 主要势力分布\n5. 历史背景"
+      }
+    ],
+    
+    "variables": [
+      {"name": "genre", "type": "string", "required": true}
+    ]
+  },
+  
+  "response_format": {
+    "type": "json",
+    "schema": {
+      "overview": "string",
+      "power_system": {
+        "name": "string",
+        "levels": ["string"],
+        "rules": ["string"]
+      },
+      "world_rules": {
+        "physical": ["string"],
+        "social": ["string"],
+        "limitations": ["string"]
+      },
+      "factions": [{
+        "name": "string",
+        "territory": "string",
+        "strength": "string"
+      }],
+      "history": "string"
+    }
+  },
+  
+  "ai_settings": {
+    "model": "kimi",
+    "temperature": 0.8,
+    "max_tokens": 5000
+  }
+}

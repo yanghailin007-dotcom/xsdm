@@ -1,0 +1,60 @@
+{
+  "product_id": "chapter_generation",
+  "product_name": "章节生成",
+  "phase": "phase_two",
+  "order": 1,
+  
+  "description": "基于第一阶段的10个设定产物生成具体章节内容",
+  
+  "prompt_template": {
+    "system_role": "你是一位专业的网络小说作家，擅长根据完整设定生成高质量章节。",
+    
+    "context_sections": [
+      {
+        "name": "第一阶段产物",
+        "type": "dynamic",
+        "template": "写作风格指南：{writing_style_guide}\n世界观：{core_worldview}\n角色设定：{character_design}\n情绪曲线：{emotion_curve}\n阶段计划：{stage_writing_plans}"
+      },
+      {
+        "name": "章节要求",
+        "type": "dynamic",
+        "template": "生成第{chapter_number}章，情绪要求：{emotion}（强度{intensity}）"
+      },
+      {
+        "name": "写作规范",
+        "type": "static",
+        "content": "## 写作规范\n\n### 基础要求\n- 字数：2000-2500字\n- 段落：每段不超过3行\n- 对话：占比≥50%\n- 视角：第三人称上帝视角\n\n### 节奏要求\n- 前300字必须有冲突/悬念\n- 每1000字至少一个小爽点\n- 章尾最后50字必须是钩子\n\n### 禁止事项\n- ❌ 不要写\"第X章\"标题\n- ❌ 不要写\"第一层/第二层\"标签\n- ❌ 不要套路重复"
+      }
+    ],
+    
+    "variables": [
+      {"name": "chapter_number", "type": "number", "required": true},
+      {"name": "emotion", "type": "string", "required": true},
+      {"name": "intensity", "type": "number", "required": true},
+      {"name": "writing_style_guide", "type": "object", "required": true},
+      {"name": "core_worldview", "type": "object", "required": true},
+      {"name": "character_design", "type": "object", "required": true},
+      {"name": "emotion_curve", "type": "object", "required": true},
+      {"name": "stage_writing_plans", "type": "object", "required": true}
+    ]
+  },
+  
+  "response_format": {
+    "type": "text",
+    "structure": "直接输出正文内容"
+  },
+  
+  "ai_settings": {
+    "model": "kimi",
+    "temperature": 0.9,
+    "max_tokens": 8000
+  },
+  
+  "depends_on": [
+    "writing_style_guide",
+    "core_worldview",
+    "character_design",
+    "emotion_curve",
+    "stage_writing_plans"
+  ]
+}

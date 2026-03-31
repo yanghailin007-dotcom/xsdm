@@ -1,0 +1,59 @@
+{
+  "step_id": "step_4_growth",
+  "step_name": "生成成长路线",
+  "step_order": 4,
+  "enabled": true,
+  "description": "基于金手指设定，生成主角完整的成长路线和能力升级规划",
+  "prompt_template": {
+    "system_role": "成长路线规划师",
+    "context_sections": [
+      {
+        "name": "金手指信息",
+        "type": "dynamic",
+        "template": "## 💰 金手指设定\\n{golden_finger}",
+        "description": "步骤1生成的金手指设定"
+      },
+      {
+        "name": "成长阶段划分",
+        "type": "static",
+        "content": "## 📈 成长阶段划分（基于{total_chapters}章）\\n\\n### 阶段1：初露锋芒（1-{stage1_end}章）\\n- 目标：建立初期优势，完成首次装逼\\n- 关键节点：系统激活、首次战斗胜利、获得第一桶金\\n\\n### 阶段2：声名鹊起（{stage2_start}-{stage2_end}章）\\n- 目标：在小范围内建立名声\\n- 关键节点：击败早期BOSS、获得重要资源、结识核心盟友\\n\\n### 阶段3：区域称雄（{stage3_start}-{stage3_end}章）\\n- 目标：成为区域级强者\\n- 关键节点：击败中期BOSS、解锁新地图、能力大幅升级\\n\\n### 阶段4：全国/全球格局（{stage4_start}章+）\\n- 目标：参与最高层次的博弈\\n- 关键节点：揭露世界真相、对抗终极BOSS、达成终极目标",
+        "description": "四阶段成长路线"
+      },
+      {
+        "name": "输出要求",
+        "type": "static",
+        "content": "## 📝 你需要生成\\n\\n### 1. 阶段里程碑\\n每个阶段包含：\\n- 章节范围\\n- 核心目标\\n- 关键事件（3-5个）\\n- 能力变化\\n- 地位变化\\n\\n### 2. 重要战斗规划\\n每30章安排一场重要战斗/冲突\\n\\n### 3. 资源获取路线\\n主角如何获得关键资源、装备、技能",
+        "editable": true,
+        "description": "成长路线内容要求"
+      },
+      {
+        "name": "输出格式",
+        "type": "static",
+        "content": "## ✅ 输出格式\\nJSON格式，包含阶段数组和重要事件",
+        "editable": true,
+        "description": "输出格式"
+      }
+    ],
+    "variables": [
+      {"name": "golden_finger", "type": "object", "required": true, "description": "金手指设定"},
+      {"name": "total_chapters", "type": "number", "required": false, "default": 300, "description": "总章节数"},
+      {"name": "stage1_end", "type": "number", "required": true, "default": 30, "description": "阶段1结束"},
+      {"name": "stage2_start", "type": "number", "required": true, "default": 31, "description": "阶段2开始"},
+      {"name": "stage2_end", "type": "number", "required": true, "default": 100, "description": "阶段2结束"},
+      {"name": "stage3_start", "type": "number", "required": true, "default": 101, "description": "阶段3开始"},
+      {"name": "stage3_end", "type": "number", "required": true, "default": 200, "description": "阶段3结束"},
+      {"name": "stage4_start", "type": "number", "required": true, "default": 201, "description": "阶段4开始"}
+    ]
+  },
+  "parameters": {
+    "temperature": 0.8,
+    "max_tokens": 4000,
+    "model_preference": "gemini",
+    "timeout": 300
+  },
+  "output_schema": {
+    "format": "json",
+    "required_fields": ["stages", "milestones"],
+    "optional_fields": ["key_battles", "resource_acquisition"]
+  }
+}

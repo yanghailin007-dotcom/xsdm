@@ -1,0 +1,61 @@
+{
+  "product_id": "market_analysis",
+  "product_name": "市场分析",
+  "phase": "phase_one",
+  "order": 2,
+  
+  "description": "目标读者分析、竞品分析、平台适配性分析",
+  
+  "prompt_template": {
+    "system_role": "你是一位资深的网文市场分析师，擅长分析作品的市场竞争力。",
+    
+    "context_sections": [
+      {
+        "name": "作品信息",
+        "type": "dynamic",
+        "template": "题材：{genre}\n书名候选：{title_candidates}"
+      },
+      {
+        "name": "分析要求",
+        "type": "static",
+        "content": "请进行全面的市场分析，包含：\n1. 目标读者画像\n2. 竞品对比分析\n3. 平台适配性评估\n4. 核心卖点提炼\n5. 潜在风险提示"
+      }
+    ],
+    
+    "variables": [
+      {"name": "genre", "type": "string", "required": true},
+      {"name": "title_candidates", "type": "array", "required": false}
+    ]
+  },
+  
+  "response_format": {
+    "type": "json",
+    "schema": {
+      "target_readers": {
+        "age_range": "string",
+        "gender_preference": "string",
+        "reading_habits": ["string"],
+        "pain_points": ["string"]
+      },
+      "competitor_analysis": [{
+        "book_name": "string",
+        "similarities": "string",
+        "differences": "string",
+        "lessons": "string"
+      }],
+      "platform_fit": {
+        "fanqie": "string",
+        "qidian": "string",
+        "others": "string"
+      },
+      "selling_points": ["string"],
+      "risks": ["string"]
+    }
+  },
+  
+  "ai_settings": {
+    "model": "kimi",
+    "temperature": 0.7,
+    "max_tokens": 4000
+  }
+}
