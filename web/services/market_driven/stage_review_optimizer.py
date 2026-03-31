@@ -1092,13 +1092,23 @@ class StageReviewOptimizer:
 **原文字数：**{original_word_count}字
 **问题统计：**P0={p0_count}个, P1={p1_count}个, P2={p2_count}个
 
-**关键约束（必须遵守）：**
+## 🚨 字数约束（硬性要求，违反会导致重试）
+**目标字数：2000-2500字**
+**硬性下限：2000字（绝对不能低于）**
+**硬性上限：3000字（绝对不能超过）**
+
+**字数控制策略：**
+- 如果原文字数在2000-2500字：保持相近字数（±10%）
+- 如果原文字数<2000字：扩充到2000-2200字
+- 如果原文字数>3000字：删减到2500-2800字
+
+**⚠️ 警告：超过3000字的内容将被强制拒绝，必须重试！**
+
+## 其他关键约束
 1. 主角名必须保持一致：'{protagonist_name}' - 禁止改为其他名字
 2. 世界观保持一致 - 不要引入新的力量体系
-3. **字数要求：严格控制在2000-2500字之间（硬性要求：不少于2000字，不超过3000字）**
-4. 只修改有问题的部分，保留其他内容原样
-5. 保持原有的写作风格和语气
-6. **字数检查：输出前统计字数，必须在2000-3000字范围内**
+3. 只修改有问题的部分，保留其他内容原样
+4. 保持原有的写作风格和语气
 
 **需要修复的所有问题：**
 {issues_text}
@@ -1106,21 +1116,33 @@ class StageReviewOptimizer:
 **原文内容（前800字供参考）：**
 {original_content[:800]}...
 
-**输出JSON格式：**
+## 输出格式
+**JSON格式：**
 {{"chapter_number": {ch_num}, "content": "完整的修改后章节内容"}}
 
-**重要：输出必须至少2000字。原章{original_word_count}字，目标字数{original_word_count}字左右（最低2000字）。输出前请统计字数。**"""
+## 🔥 强制自检清单（输出前必须完成）
+- [ ] 统计content字段字数（使用len()精确计算）
+- [ ] 字数是否≥2000字？（低于则必须扩充）
+- [ ] 字数是否≤3000字？（高于则必须删减）
+- [ ] 理想范围：2000-2500字
+
+**如果字数不在2000-3000范围内，必须调整后再输出！**
+"""
             
             # 尝试修复（带重试机制）
             max_retries = 2
             retry_count = 0
             is_accepted = False
+            last_word_count = 0  # 🔥 记录上次字数用于重试提示
             
             while retry_count <= max_retries and not is_accepted:
                 if retry_count > 0:
                     logger.info(f"[StageOptimizer] 第{ch_num}章第{retry_count}次重试...")
-                    # 在重试时强调硬性下限2000字
-                    fix_prompt += f"\n\n**警告：上次输出字数不足。你必须输出至少2000字。原章{original_word_count}字，目标字数{original_word_count}字左右（最低2000字）。输出前请统计字数。**"
+                    # 🔥 根据上次问题动态调整提示词
+                    if last_word_count > 3000:
+                        fix_prompt += f"\n\n**🚨 紧急警告：上次输出字数{last_word_count}字超过硬性上限3000字！**\n**你必须删除冗余内容，严格控制字数在2000-2500字之间（绝对不能超过3000字）。**\n**删减建议：减少震惊描写的层次、简化配角反应、压缩环境描写。**"
+                    else:
+                        fix_prompt += f"\n\n**警告：上次输出字数{last_word_count}字不足。你必须输出至少2000字。原章{original_word_count}字，目标字数{original_word_count}字左右（最低2000字）。输出前请统计字数。**"
                 
                 logger.info(f"[StageOptimizer] 修复第{ch_num}章的所有问题 (P0={p0_count}, P1={p1_count}, P2={p2_count}, 尝试{retry_count+1}/{max_retries+1})")
                 fix_response = session.send_message(fix_prompt, purpose=f"w{window_idx}-fix-ch{ch_num}-try{retry_count}")
@@ -1142,6 +1164,7 @@ class StageReviewOptimizer:
                 ch_idx = chapter_map[ch_num]
                 original_word_count = fixed_chapters[ch_idx].get("word_count", 0)
                 new_word_count = len(new_content) if new_content else 0
+                last_word_count = new_word_count  # 🔥 记录本次字数用于下次重试提示
                 
                 # 字数检查：硬性要求 2000-3000字
                 MIN_ABSOLUTE = 2000  # 硬性下限
@@ -1159,8 +1182,6 @@ class StageReviewOptimizer:
                 if new_word_count > MAX_ABSOLUTE:
                     logger.warning(f"[StageOptimizer] 第{ch_num}章字数({new_word_count})超过硬性上限3000字，将重试")
                     retry_count += 1
-                    # 🔥 在重试时强调上限
-                    fix_prompt += f"\n\n**警告：字数超过上限。你必须控制在2000-2500字之间（严格不超过3000字）。当前{new_word_count}字，请删减冗余内容。**"
                     continue
                 
                 # 检查3：百分比范围（宽松警告，不强制重试）
