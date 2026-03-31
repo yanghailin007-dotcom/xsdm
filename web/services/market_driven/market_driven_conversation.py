@@ -524,6 +524,7 @@ class MarketDrivenConversationSession:
                 "writing_style_guide": ("写作风格指南.json", "writing_style_guide"),
                 "market_analysis": ("市场分析.json", "market_analysis"),
                 "emotional_blueprint": ("情绪蓝图.json", "emotional_blueprint"),
+                "alignment": ("爆款对齐报告.json", "alignment_report"),
             }
             
             if step_name not in product_mapping:
@@ -1914,18 +1915,48 @@ class MarketDrivenConversationSession:
                    f"gf_issues: {type(gf_issues).__name__}")
         
         # 4. 生成对齐报告
+        total_issues = len(emotion_issues) + len(stage_goal_issues) + len(gf_issues)
         alignment_report = {
             "checked_at": datetime.now().isoformat(),
-            "total_issues": len(emotion_issues) + len(stage_goal_issues) + len(gf_issues),
+            "total_issues": total_issues,
+            "emotion_issues_count": len(emotion_issues),
+            "stage_goal_issues_count": len(stage_goal_issues),
+            "golden_finger_issues_count": len(gf_issues),
             "emotion_issues": emotion_issues,
             "stage_goal_issues": stage_goal_issues,
             "golden_finger_issues": gf_issues,
             "skipped": False
         }
         
+        # 🔥 输出检查摘要（让用户清楚看到检查结果）
+        logger.info(f"[对话模式 {self.session_id}] ═══════════════════════════════════════")
+        logger.info(f"[对话模式 {self.session_id}] 【步骤6 爆款对齐检查摘要】")
+        logger.info(f"[对话模式 {self.session_id}]   情绪曲线检查: {len(emotion_issues)} 个问题")
+        logger.info(f"[对话模式 {self.session_id}]   阶段目标检查: {len(stage_goal_issues)} 个问题")
+        logger.info(f"[对话模式 {self.session_id}]   金手指检查:   {len(gf_issues)} 个问题")
+        logger.info(f"[对话模式 {self.session_id}]   总计: {total_issues} 个问题")
+        
+        # 输出详细问题（前3个）
+        if emotion_issues:
+            for i, issue in enumerate(emotion_issues[:3], 1):
+                ch = issue.get('chapter', 'N/A')
+                issue_type = issue.get('type', 'unknown')
+                severity = issue.get('severity', 'medium')
+                logger.info(f"[对话模式 {self.session_id}]   ⚠️  情绪问题{i}: 第{ch}章 [{issue_type}] (严重度:{severity})")
+        if stage_goal_issues:
+            for i, issue in enumerate(stage_goal_issues[:3], 1):
+                stage = issue.get('stage', 'N/A')
+                issue_type = issue.get('type', 'unknown')
+                logger.info(f"[对话模式 {self.session_id}]   ⚠️  阶段问题{i}: {stage} [{issue_type}]")
+        if gf_issues:
+            for i, issue in enumerate(gf_issues[:3], 1):
+                issue_type = issue.get('type', 'unknown')
+                logger.info(f"[对话模式 {self.session_id}]   ⚠️  金手指问题{i}: [{issue_type}]")
+        logger.info(f"[对话模式 {self.session_id}] ═══════════════════════════════════════")
+        
         # 5. 如果有偏差，进行优化
         if emotion_issues or stage_goal_issues or gf_issues:
-            logger.info(f"[对话模式 {self.session_id}] 对齐检查发现 {alignment_report['total_issues']} 个问题，开始优化...")
+            logger.info(f"[对话模式 {self.session_id}] 对齐检查发现 {total_issues} 个问题，开始AI优化...")
             optimized = self._optimize_for_bestseller(
                 previous_results,
                 emotion_issues,
@@ -1934,10 +1965,20 @@ class MarketDrivenConversationSession:
                 bestseller_analysis
             )
             optimized["alignment_report"] = alignment_report
-            logger.info(f"[对话模式 {self.session_id}] 爆款对齐优化完成")
+            
+            # 输出优化结果摘要
+            logger.info(f"[对话模式 {self.session_id}] ═══════════════════════════════════════")
+            logger.info(f"[对话模式 {self.session_id}] 【步骤6 爆款对齐优化完成】")
+            if 'emotion_curve' in optimized:
+                logger.info(f"[对话模式 {self.session_id}]   ✅ 情绪曲线已优化")
+            if 'stage_goals' in optimized:
+                logger.info(f"[对话模式 {self.session_id}]   ✅ 阶段目标已优化")
+            if 'plan' in optimized and 'golden_finger' in optimized.get('plan', {}):
+                logger.info(f"[对话模式 {self.session_id}]   ✅ 金手指已优化")
+            logger.info(f"[对话模式 {self.session_id}] ═══════════════════════════════════════")
             return optimized
         
-        logger.info(f"[对话模式 {self.session_id}] 对齐检查通过，无需优化")
+        logger.info(f"[对话模式 {self.session_id}] ✅ 对齐检查通过，无需优化（所有指标符合爆款公式）")
         return {"alignment_report": alignment_report}
     
     def _check_emotion_curve_bestseller_gap(self, emotion_curve: List[Dict], 
