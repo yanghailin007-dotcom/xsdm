@@ -340,7 +340,74 @@ class HierarchicalPlanner:
         # 更新战术规划器的记录
         self.tactical_planner.update_generated_chapters(generated_chapters)
         
+        # 🔥 保存批次总结报告到文件
+        self._save_batch_summary(generated_chapters)
+        
         logger.info(f"[HierarchicalPlanner] 进度更新: {self.generated_chapters_count}/{self.total_chapters}章")
+    
+    def _save_batch_summary(self, generated_chapters: List[Dict]):
+        """
+        保存批次总结报告到文件
+        
+        Args:
+            generated_chapters: 本次生成的章节列表
+        """
+        if not self.project_path or not generated_chapters:
+            return
+        
+        try:
+            import json
+            from datetime import datetime
+            
+            # 计算批次信息
+            batch_chapters = [c.get('chapter_number', 0) for c in generated_chapters]
+            start_ch = min(batch_chapters) if batch_chapters else 0
+            end_ch = max(batch_chapters) if batch_chapters else 0
+            
+            # 构建总结报告
+            summary_report = {
+                "batch_info": {
+                    "start_chapter": start_ch,
+                    "end_chapter": end_ch,
+                    "chapter_count": len(generated_chapters),
+                    "generated_at": datetime.now().isoformat()
+                },
+                "summary": self.current_batch_summary,
+                "chapters": [
+                    {
+                        "chapter_number": c.get('chapter_number'),
+                        "title": c.get('title', ''),
+                        "word_count": c.get('word_count', 0),
+                        "quality_score": c.get('quality_score', 0)
+                    }
+                    for c in generated_chapters
+                ],
+                "statistics": {
+                    "total_generated": self.generated_chapters_count,
+                    "total_target": self.total_chapters,
+                    "progress_percent": round(self.generated_chapters_count / self.total_chapters * 100, 1)
+                }
+            }
+            
+            # 保存到文件
+            summary_dir = self.project_path / "batch_summaries"
+            summary_dir.mkdir(exist_ok=True)
+            
+            filename = f"batch_summary_{start_ch:03d}_{end_ch:03d}.json"
+            filepath = summary_dir / filename
+            
+            with open(filepath, 'w', encoding='utf-8') as f:
+                json.dump(summary_report, f, ensure_ascii=False, indent=2)
+            
+            # 同时保存最新总结（方便读取）
+            latest_path = self.project_path / "batch_summary_latest.json"
+            with open(latest_path, 'w', encoding='utf-8') as f:
+                json.dump(summary_report, f, ensure_ascii=False, indent=2)
+            
+            logger.info(f"[HierarchicalPlanner] 批次总结已保存: {filepath}")
+            
+        except Exception as e:
+            logger.error(f"[HierarchicalPlanner] 保存批次总结失败: {e}")
     
     def _check_stage_completion(self):
         """检查当前阶段目标是否完成"""
