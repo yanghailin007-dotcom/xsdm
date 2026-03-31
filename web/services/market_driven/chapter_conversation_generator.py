@@ -1005,14 +1005,58 @@ class ChapterConversationGenerator:
         return str(response)
     
     def _extract_title(self, content: str, chapter_plan: Dict) -> str:
-        """提取标题"""
-        # 尝试从内容第一行提取
+        """
+        提取或生成章节标题
+        
+        策略：
+        1. 优先从chapter_plan获取（战术规划中定义的标题）
+        2. 其次从chapter_plan的event/purpose字段生成
+        3. 最后从内容分析提取
+        """
+        # 1. 优先从chapter_plan获取标题
+        if chapter_plan:
+            # 直接标题字段
+            title = chapter_plan.get('title', '').strip()
+            if title and title != '章节' and '第' not in title:
+                return title
+            
+            # 从event字段生成（事件描述通常是核心剧情）
+            event = chapter_plan.get('event', '').strip()
+            if event and len(event) <= 30:
+                # 如果event较短，直接作为标题
+                return event
+            elif event:
+                # 如果event较长，提取前20字
+                return event[:20] + ('...' if len(event) > 20 else '')
+            
+            # 从purpose字段生成（战术企图）
+            purpose = chapter_plan.get('purpose', '').strip()
+            if purpose and len(purpose) <= 30:
+                return purpose
+            elif purpose:
+                return purpose[:20] + ('...' if len(purpose) > 20 else '')
+            
+            # 从hook_content获取（钩子内容往往有吸引力）
+            hook = chapter_plan.get('hook_content', '').strip()
+            if hook and len(hook) <= 30:
+                return hook
+            elif hook:
+                return hook[:20] + ('...' if len(hook) > 20 else '')
+        
+        # 2. 从内容分析提取（备用方案）
+        # 查找内容中的关键事件描述
         lines = content.strip().split('\n')
-        if lines:
-            first_line = lines[0].strip()
-            if '第' in first_line and '章' in first_line:
-                return first_line
-        return chapter_plan.get('title', '章节')
+        for line in lines[:10]:  # 只检查前10行
+            line = line.strip()
+            # 跳过"第X章"格式的行
+            if line.startswith('第') and '章' in line[:10]:
+                continue
+            # 如果行长度适中且有意义，可能是一个小标题
+            if 10 <= len(line) <= 30 and not line.startswith('【') and not line.startswith('（'):
+                return line
+        
+        # 3. 默认返回
+        return '剧情推进'
     
     def _summarize_chapter(self, chapter: Dict) -> str:
         """

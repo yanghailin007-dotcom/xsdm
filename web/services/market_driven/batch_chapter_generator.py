@@ -720,18 +720,58 @@ class BatchChapterGenerator:
         return optimized
     
     def _extract_title(self, content, chapter_plan: Dict) -> str:
-        """提取标题"""
+        """
+        提取或生成章节标题
+        
+        策略：
+        1. 优先从chapter_plan获取（战术规划中定义的标题）
+        2. 其次从chapter_plan的event/purpose字段生成
+        3. 最后从内容分析提取
+        """
         import re
+        
         # 确保 content 是字符串
         if not isinstance(content, str):
             content = str(content) if content else ""
-        # 尝试从内容中提取
+        
+        # 1. 优先从chapter_plan获取标题
+        if chapter_plan:
+            # 直接标题字段
+            title = chapter_plan.get('title', '').strip()
+            if title and title != '章节' and not title.startswith('第'):
+                return title
+            
+            # 从event字段生成（事件描述通常是核心剧情）
+            event = chapter_plan.get('event', '').strip()
+            if event and len(event) <= 30:
+                return event
+            elif event:
+                return event[:20] + ('...' if len(event) > 20 else '')
+            
+            # 从purpose字段生成（战术企图）
+            purpose = chapter_plan.get('purpose', '').strip()
+            if purpose and len(purpose) <= 30:
+                return purpose
+            elif purpose:
+                return purpose[:20] + ('...' if len(purpose) > 20 else '')
+            
+            # 从hook_content获取（钩子内容往往有吸引力）
+            hook = chapter_plan.get('hook_content', '').strip()
+            if hook and len(hook) <= 30:
+                return hook
+            elif hook:
+                return hook[:20] + ('...' if len(hook) > 20 else '')
+        
+        # 2. 尝试从内容中提取（备用方案）
         match = re.search(r'第\d+章\s*([^\n]+)', content)
         if match:
-            return match.group(1).strip()
+            extracted = match.group(1).strip()
+            if extracted and not extracted.startswith('【'):
+                return extracted
         
-        # 默认标题
-        return chapter_plan.get('title', f'第{chapter_plan.get("chapter_number", 0)}章')
+        # 3. 默认标题
+        chapter_num = chapter_plan.get('chapter_number', 0) if chapter_plan else 0
+        return f'第{chapter_num}章'
     
     def _save_chapter(self, novel_title: str, chapter: Dict):
         """保存章节"""

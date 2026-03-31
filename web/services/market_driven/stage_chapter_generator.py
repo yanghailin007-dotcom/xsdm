@@ -699,13 +699,37 @@ class StageChapterGenerator:
         return "\n".join(parts)
     
     def _extract_title(self, content: str, outline: Dict) -> str:
-        """提取标题"""
-        lines = content.strip().split('\n')
-        if lines:
-            first = lines[0].strip()
-            if '第' in first and '章' in first:
-                return first
-        return f"第{outline.get('chapter', 0)}章"
+        """
+        提取或生成章节标题
+        
+        策略：
+        1. 优先从outline获取（战术规划中定义的标题）
+        2. 其次从outline的event/purpose字段生成
+        """
+        # 1. 优先从outline获取标题
+        if outline:
+            # 直接标题字段
+            title = outline.get('title', '').strip()
+            if title and title != '章节' and not title.startswith('第'):
+                return title
+            
+            # 从event字段生成（事件描述通常是核心剧情）
+            event = outline.get('event', '').strip()
+            if event and len(event) <= 30:
+                return event
+            elif event:
+                return event[:20] + ('...' if len(event) > 20 else '')
+            
+            # 从purpose字段生成（战术企图）
+            purpose = outline.get('purpose', '').strip()
+            if purpose and len(purpose) <= 30:
+                return purpose
+            elif purpose:
+                return purpose[:20] + ('...' if len(purpose) > 20 else '')
+        
+        # 2. 默认标题
+        chapter_num = outline.get('chapter', 0) if outline else 0
+        return f"第{chapter_num}章"
     
     def _summarize_chapter(self, chapter: Dict) -> str:
         """章节摘要"""
