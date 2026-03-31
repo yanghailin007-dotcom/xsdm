@@ -596,6 +596,12 @@ class ChapterConversationGenerator:
         # 🔥 后处理：提取正文部分（根据分隔符）
         content = self._extract_main_content(content, chapter_num)
         
+        # 🔥 校验4：检查内容完整性（是否被截断）
+        completeness_check = self._check_content_completeness(content, chapter_num)
+        if not completeness_check['is_complete']:
+            logger.warning(f"[章节对话 {self.session_id}] 第{chapter_num}章内容不完整: {completeness_check['reason']}")
+            # 记录问题，后续阶段会统一修复
+        
         # 🔥 字数检查（仅记录，完全不在单章扩写）
         # 字数优化统一在 stage_review_optimizer 阶段处理，避免单章重复扩写
         word_count = len(content)
@@ -690,9 +696,10 @@ class ChapterConversationGenerator:
    - 社交媒体发酵（热搜、朋友圈、论坛）
 
 2. **震惊层级递进**（推荐，+200-400字）
-   - 第一层：现场人物反应（反派/配角）
-   - 第二层：暗处观战者反应（强者感应）
-   - 第三层：大范围影响（全城/全网震动）
+   - 先写现场人物反应（反派/配角）
+   - 再写暗处观战者反应（强者感应）
+   - 最后写大范围影响（全城/全网震动）
+   - **用自然叙事过渡，不要写"第一层/第二层"标签**
 
 3. **数字可视化**（国运文适用，+100-200字）
    - 国运值变化的天空异象
@@ -811,6 +818,64 @@ class ChapterConversationGenerator:
             return True
         
         return False
+    
+    def _check_content_completeness(self, content: str, chapter_num: int) -> dict:
+        """
+        检查章节内容是否完整（未被截断）
+        
+        Returns:
+            {
+                'is_complete': bool,
+                'reason': str,
+                'issues': list
+            }
+        """
+        issues = []
+        
+        # 1. 检查是否以完整句子结尾（不以标点符号结尾可能是截断）
+        content_stripped = content.strip()
+        last_char = content_stripped[-1] if content_stripped else ''
+        
+        # 中文标点 + 英文标点
+        sentence_endings = ['。', '！', '？', '」', '"', "'", '…', '.', '!', '?']
+        
+        if last_char not in sentence_endings:
+            issues.append(f"章节未以完整句子结尾（最后字符：'{last_char}'），可能已被截断")
+        
+        # 2. 检查是否有明显的"未完待续"标记
+        incomplete_markers = ['第一个。', '第二个。', '第三个。', '刚要', '正要', '即将', '突然——']
+        last_200_chars = content_stripped[-200:] if len(content_stripped) > 200 else content_stripped
+        
+        for marker in incomplete_markers:
+            if marker in last_200_chars and last_char in ['。', '！']:
+                # 检查后面是否有后续内容
+                marker_pos = last_200_chars.rfind(marker)
+                if marker_pos > len(last_200_chars) - 50:  # 标记在最后50字内
+                    issues.append(f"章节以'{marker}'结尾，爽点/情节可能未释放完全")
+        
+        # 3. 检查是否有章尾钩子（最后100字内是否有悬念或期待感）
+        last_100_chars = content_stripped[-100:] if len(content_stripped) > 100 else content_stripped
+        hook_keywords = ['然而', '突然', '就在这时', '与此同时', '远处', '系统提示', '警告', '通知']
+        has_hook = any(kw in last_100_chars for kw in hook_keywords)
+        
+        if not has_hook and len(content_stripped) > 1500:
+            issues.append("章尾可能缺少钩子（最后100字内无明显悬念标记）")
+        
+        # 4. 检查字数是否严重不足
+        word_count = len(content_stripped)
+        if word_count < 1800:
+            issues.append(f"字数严重不足（{word_count}字），内容可能不完整")
+        elif word_count < 2000:
+            issues.append(f"字数不足（{word_count}字），可能缺少部分内容")
+        
+        # 返回结果
+        is_complete = len(issues) == 0 or (len(issues) == 1 and '钩子' in issues[0])
+        
+        return {
+            'is_complete': is_complete,
+            'reason': '; '.join(issues) if issues else '内容完整',
+            'issues': issues
+        }
     
     def _validate_and_fix_protagonist_name(self, content: str, chapter_num: int) -> str:
         """校验并修复主角名"""

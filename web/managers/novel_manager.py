@@ -1234,8 +1234,17 @@ class NovelGenerationManager:
                 
                 if project_info_path and project_info_path.exists():
                     # 🔥 使用 utf-8-sig 编码来处理带 BOM 的 UTF-8 文件
-                    with open(project_info_path, 'r', encoding='utf-8-sig') as f:
-                        data = json.load(f)
+                    try:
+                        with open(project_info_path, 'r', encoding='utf-8-sig') as f:
+                            data = json.load(f)
+                    except (json.JSONDecodeError, UnicodeDecodeError) as e:
+                        logger.warning(f"⚠️ 项目 {title} 的 project_info.json 解析失败: {e}，尝试使用其他编码...")
+                        try:
+                            with open(project_info_path, 'r', encoding='gbk') as f:
+                                data = json.load(f)
+                        except Exception:
+                            # 如果所有编码都失败，使用空数据结构
+                            data = {}
                     # 添加 owner 信息
                     data['owner'] = owner
                 else:
@@ -1267,6 +1276,11 @@ class NovelGenerationManager:
             generated_chapters = data.get("generated_chapters", {})
             completed_chapters = len(generated_chapters)
             
+            # 🔥 初始化字数和评分统计变量（在文件系统读取之前）
+            total_word_count = 0
+            total_score = 0
+            scored_chapters = 0
+            
             # 🔥 关键修复：如果内存中没有章节数据，直接从文件系统读取
             if completed_chapters == 0:
                 try:
@@ -1287,26 +1301,47 @@ class NovelGenerationManager:
                         if file_chapter_count > 0:
                             completed_chapters = file_chapter_count
                             logger.info(f"[GET_NOVEL_PROJECTS] 项目 {title}: 从文件系统读取到 {file_chapter_count} 个章节文件")
+                            
+                            # 🔥 从章节文件读取字数和评分（当内存中没有数据时）
+                            if not generated_chapters:
+                                try:
+                                    for ch_file in unique_files:
+                                        ch_path = chapters_dir / ch_file
+                                        if ch_path.exists():
+                                            try:
+                                                with open(ch_path, 'r', encoding='utf-8-sig') as f:
+                                                    ch_data = json.load(f)
+                                                # 累加字数
+                                                total_word_count += ch_data.get("word_count", 0)
+                                                # 累加评分
+                                                quality_score = ch_data.get("quality_score", 0)
+                                                if quality_score > 0:
+                                                    total_score += quality_score
+                                                    scored_chapters += 1
+                                            except Exception:
+                                                # 如果读取失败，跳过
+                                                continue
+                                except Exception as e:
+                                    logger.warning(f"[GET_NOVEL_PROJECTS] 读取章节详情失败: {e}")
                 except Exception as e:
                     logger.warning(f"[GET_NOVEL_PROJECTS] 从文件系统读取章节失败: {e}")
             
-            # 计算总字数
-            total_word_count = 0
-            for chapter_num, chapter_data in generated_chapters.items():
-                if isinstance(chapter_data, dict):
-                    total_word_count += chapter_data.get("word_count", 0)
-                else:
-                    total_word_count += len(str(chapter_data))
+            # 计算总字数（仅当内存中有章节数据且未从文件系统读取时）
+            if generated_chapters and total_word_count == 0:
+                for chapter_num, chapter_data in generated_chapters.items():
+                    if isinstance(chapter_data, dict):
+                        total_word_count += chapter_data.get("word_count", 0)
+                    else:
+                        total_word_count += len(str(chapter_data))
             
-            # 计算平均评分
-            total_score = 0
-            scored_chapters = 0
-            for chapter_num, chapter_data in generated_chapters.items():
-                if isinstance(chapter_data, dict):
-                    quality_assessment = chapter_data.get("quality_assessment", {})
-                    if quality_assessment and "overall_score" in quality_assessment:
-                        total_score += quality_assessment["overall_score"]
-                        scored_chapters += 1
+            # 计算平均评分（仅当内存中有章节数据且未从文件系统读取时）
+            if generated_chapters and total_score == 0:
+                for chapter_num, chapter_data in generated_chapters.items():
+                    if isinstance(chapter_data, dict):
+                        quality_assessment = chapter_data.get("quality_assessment", {})
+                        if quality_assessment and "overall_score" in quality_assessment:
+                            total_score += quality_assessment["overall_score"]
+                            scored_chapters += 1
             
             average_score = total_score / scored_chapters if scored_chapters > 0 else 0
             
@@ -1510,14 +1545,85 @@ class NovelGenerationManager:
                 logger.warning(f"⚠️ 动态加载写作风格指南失败: {e}")
                 standardized_data["writing_style_guide"] = {}
 
+        # 🔥 关键修复：如果 generated_chapters 为空，从文件系统读取章节列表
+        generated_chapters = standardized_data.get("generated_chapters", {})
+        if not generated_chapters or len(generated_chapters) == 0:
+            try:
+                from src.config.path_config import path_config
+                username = novel_data.get('owner')
+                if username:
+                    paths = path_config.get_project_paths(title, username=username)
+                    chapters_dir = Path(paths.get("chapters_dir", ""))
+                    if chapters_dir.exists():
+                        # 读取所有章节文件
+                        chapter_files = (
+                            list(chapters_dir.glob('chapter_*.json')) + 
+                            list(chapters_dir.glob('第*.json'))
+                        )
+                        
+                        file_chapters = {}
+                        for ch_file in chapter_files:
+                            try:
+                                with open(ch_file, 'r', encoding='utf-8-sig') as f:
+                                    ch_data = json.load(f)
+                                
+                                chapter_num = ch_data.get("chapter_number", 0)
+                                if chapter_num > 0:
+                                    file_chapters[chapter_num] = ch_data
+                            except Exception as e:
+                                logger.warning(f"⚠️ 读取章节文件失败 {ch_file}: {e}")
+                                continue
+                        
+                        if file_chapters:
+                            standardized_data["generated_chapters"] = file_chapters
+                            logger.info(f"✅ 从文件系统加载 {len(file_chapters)} 个章节到 generated_chapters")
+            except Exception as e:
+                logger.warning(f"⚠️ 从文件系统加载章节列表失败: {e}")
+
         return standardized_data
 
     def get_chapter_detail(self, title: str, chapter_num: int) -> Optional[Dict[str, Any]]:
-        """获取章节详情"""
+        """获取章节详情，优先从内存读取，如果不存在则从文件系统读取"""
         novel_data = self.novel_projects.get(title)
         if not novel_data:
             return None
-        return novel_data.get("generated_chapters", {}).get(chapter_num)
+        
+        # 首先尝试从内存缓存读取
+        generated_chapters = novel_data.get("generated_chapters", {})
+        chapter = generated_chapters.get(chapter_num)
+        if chapter:
+            return chapter
+        
+        # 🔥 如果内存中没有，从文件系统读取
+        try:
+            from src.config.path_config import path_config
+            username = novel_data.get('owner')
+            if username:
+                paths = path_config.get_project_paths(title, username=username)
+                chapters_dir = Path(paths.get("chapters_dir", ""))
+                if chapters_dir.exists():
+                    # 尝试多种文件命名格式
+                    possible_files = [
+                        chapters_dir / f"chapter_{chapter_num:03d}.json",
+                        chapters_dir / f"chapter_{chapter_num}.json",
+                        chapters_dir / f"第{chapter_num}章.json",
+                        chapters_dir / f"第{chapter_num:03d}章.json",
+                    ]
+                    
+                    for ch_file in possible_files:
+                        if ch_file.exists():
+                            try:
+                                with open(ch_file, 'r', encoding='utf-8-sig') as f:
+                                    ch_data = json.load(f)
+                                logger.debug(f"✅ 从文件系统读取章节 {chapter_num}: {ch_file.name}")
+                                return ch_data
+                            except Exception as e:
+                                logger.warning(f"⚠️ 读取章节文件失败 {ch_file}: {e}")
+                                continue
+        except Exception as e:
+            logger.warning(f"⚠️ 从文件系统读取章节 {chapter_num} 失败: {e}")
+        
+        return None
 
     def get_chapter_quality_data(self, title: str, chapter_num: int) -> Dict[str, Any]:
         """获取章节质量数据"""

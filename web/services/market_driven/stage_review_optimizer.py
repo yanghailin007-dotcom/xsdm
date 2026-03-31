@@ -357,9 +357,11 @@ class StageReviewOptimizer:
         
         流程：
         1. 从磁盘加载窗口内的章节
-        2. 识别问题
-        3. 修复问题（如果需要）
-        4. 生成窗口优化报告
+        2. 🔥 计算并更新章节质量评分
+        3. 🔥 低分章节（<7.0）自动创建质量问题并修复
+        4. 识别其他问题（AI分析）
+        5. 修复问题（如果需要）
+        6. 生成窗口优化报告
         
         Args:
             window_start: 窗口起始章节号
@@ -378,25 +380,77 @@ class StageReviewOptimizer:
         
         logger.info(f"[StageOptimizer] 已加载窗口章节: {len(window_chapters)} 章")
         
-        # 2. 识别问题（使用对话式优化）
+        # 🔥 2. 计算并更新质量评分（新增）
+        logger.info(f"[StageOptimizer] 🔍 开始计算章节质量评分...")
+        scored_chapters = []
+        quality_issues = []  # 质量评分发现的低分章节
+        
+        for chapter in window_chapters:
+            ch_num = chapter.get('chapter_number', 0)
+            score = self._calculate_chapter_quality_score(chapter)
+            chapter['quality_score'] = score
+            self._update_chapter_quality_score(ch_num, score)
+            scored_chapters.append(chapter)
+            
+            # 🔥 自动标记低分章节为需要修复
+            if score < 7.0:
+                quality_issues.append(Issue(
+                    type="bestseller",
+                    chapter=ch_num,
+                    description=f"质量评分过低({score}分)，字数或爽点密度不足",
+                    suggestion="扩充内容至2000字以上，增加爽点或反转",
+                    priority="p1",
+                    severity="medium"
+                ))
+                logger.warning(f"[StageOptimizer] 第{ch_num}章质量评分{score}，标记为待修复")
+            elif score < 8.0:
+                # 7.0-8.0分的章节，如果是关键章节（如高潮章），也建议优化
+                content = chapter.get('content', '')
+                # 检测是否应该是高潮章
+                if any(kw in content for kw in ['高潮', '爆发', '决战', '终极']):
+                    quality_issues.append(Issue(
+                        type="bestseller",
+                        chapter=ch_num,
+                        description=f"高潮章节质量一般({score}分)，建议强化爽点",
+                        suggestion="增加震惊层次，强化打脸效果",
+                        priority="p2",
+                        severity="low"
+                    ))
+        
+        avg_score = sum(c.get('quality_score', 8.0) for c in scored_chapters) / len(scored_chapters)
+        low_score_count = len([c for c in scored_chapters if c.get('quality_score', 8.0) < 7.0])
+        logger.info(f"[StageOptimizer] ✅ 窗口质量评分完成 | 平均分: {avg_score:.2f} | 低分章节: {low_score_count}章")
+        
+        # 3. 识别问题（使用对话式优化，传入质量发现的Issue）
         window_issues, fixed_chapters = self._optimize_window_conversational(
             window_chapters, 
-            window_idx=1,  # 单个窗口，索引为1
-            max_rounds=1   # 单个窗口只进行1轮优化
+            window_idx=1,
+            max_rounds=1,
+            pre_identified_issues=quality_issues  # 🔥 传入质量评分发现的问题
         )
         
-        # 3. 生成窗口专属报告
+        # 3. 生成窗口专属报告（使用已评分的章节）
         report_path = self.project_path / f"window_review_{window_start}_{window_end}.md"
         self._generate_window_report(
-            window_chapters, fixed_chapters, window_issues, 
+            scored_chapters, fixed_chapters, window_issues, 
             window_start, window_end, report_path
         )
         
-        # 4. 构建返回结果
+        # 4. 构建返回结果（包含质量评分统计）
+        scores = [c.get('quality_score', 8.0) for c in scored_chapters]
         report = {
             "status": "success",
             "window": f"{window_start}-{window_end}",
             "chapters_analyzed": len(window_chapters),
+            "avg_quality_score": round(sum(scores) / len(scores), 1) if scores else 8.0,
+            "max_quality_score": max(scores) if scores else 8.0,
+            "min_quality_score": min(scores) if scores else 8.0,
+            "score_distribution": {
+                "excellent(9.0+)": len([s for s in scores if s >= 9.0]),
+                "good(8.0-8.9)": len([s for s in scores if 8.0 <= s < 9.0]),
+                "average(7.0-7.9)": len([s for s in scores if 7.0 <= s < 8.0]),
+                "below_avg(<7.0)": len([s for s in scores if s < 7.0])
+            },
             "issues_found": len(window_issues),
             "issues": [
                 {
@@ -468,21 +522,77 @@ class StageReviewOptimizer:
             if len(type_issues) > 10:
                 report += f"- ... 还有 {len(type_issues) - 10} 个问题\n"
         
-        # 章节质量对比
-        report += f"\n## 章节质量对比\n"
-        report += "| 章节 | 原字数 | 优化后 | 状态 |\n"
-        report += "|------|--------|--------|------|\n"
+        # 🔥 章节质量评分统计（新增）
+        report += f"\n## 章节质量评分统计\n"
+        scores = [ch.get('quality_score', 8.0) for ch in original_chapters]
+        avg_score = sum(scores) / len(scores) if scores else 8.0
+        max_score = max(scores) if scores else 8.0
+        min_score = min(scores) if scores else 8.0
+        
+        report += f"- **窗口平均分**: {avg_score:.1f}/10.0\n"
+        report += f"- **最高评分**: {max_score:.1f}/10.0\n"
+        report += f"- **最低评分**: {min_score:.1f}/10.0\n"
+        report += f"- **评分分布**: \n"
+        
+        # 统计各分数段
+        excellent = len([s for s in scores if s >= 9.0])  # 9.0+
+        good = len([s for s in scores if 8.0 <= s < 9.0])  # 8.0-8.9
+        average = len([s for s in scores if 7.0 <= s < 8.0])  # 7.0-7.9
+        below_avg = len([s for s in scores if s < 7.0])  # <7.0
+        
+        report += f"  - 🌟 优秀(9.0+): {excellent}章\n"
+        report += f"  - ✅ 良好(8.0-8.9): {good}章\n"
+        report += f"  - ⚠️ 一般(7.0-7.9): {average}章\n"
+        report += f"  - 🔴 待改进(<7.0): {below_avg}章\n"
+        
+        # 详细评分表
+        report += f"\n### 各章节详细评分\n"
+        report += "| 章节 | 字数 | 质量评分 | 评价 |\n"
+        report += "|------|------|----------|------|\n"
+        
+        for ch in original_chapters:
+            ch_num = ch.get('chapter_number', 0)
+            word_count = ch.get('word_count', 0)
+            score = ch.get('quality_score', 8.0)
+            
+            # 评价标签
+            if score >= 9.0:
+                label = "🌟 优秀"
+            elif score >= 8.0:
+                label = "✅ 良好"
+            elif score >= 7.0:
+                label = "⚠️ 一般"
+            else:
+                label = "🔴 待改进"
+            
+            report += f"| {ch_num} | {word_count} | {score:.1f}/10.0 | {label} |\n"
+        
+        # 🔥 章节质量对比（修复前后的评分对比）
+        report += f"\n## 章节质量优化对比\n"
+        report += "| 章节 | 原评分 | 修复后 | 字数变化 | 状态 |\n"
+        report += "|------|--------|--------|----------|------|\n"
         
         fixed_dict = {c.get('chapter_number'): c for c in fixed_chapters}
         for ch in original_chapters:
             ch_num = ch.get('chapter_number', 0)
+            orig_score = ch.get('quality_score', 8.0)
             orig_words = ch.get('word_count', 0)
             fixed_ch = fixed_dict.get(ch_num)
             if fixed_ch and fixed_ch.get('optimized'):
+                new_score = fixed_ch.get('quality_score', orig_score)
                 new_words = fixed_ch.get('word_count', orig_words)
-                report += f"| {ch_num} | {orig_words} | {new_words} | ✅ 已优化 |\n"
+                word_change = f"{orig_words}→{new_words}"
+                score_change = f"{orig_score:.1f}→{new_score:.1f}"
+                # 显示评分提升
+                if new_score > orig_score:
+                    score_display = f"{score_change} 📈"
+                elif new_score < orig_score:
+                    score_display = f"{score_change} 📉"
+                else:
+                    score_display = f"{score_change} ➡️"
+                report += f"| {ch_num} | {orig_score:.1f} | {score_display} | {word_change} | ✅ 已优化 |\n"
             else:
-                report += f"| {ch_num} | {orig_words} | - | ➖ 未修改 |\n"
+                report += f"| {ch_num} | {orig_score:.1f} | - | {orig_words} | ➖ 未修改 |\n"
         
         report += f"\n---\n生成时间：{self._get_timestamp()}\n"
         
@@ -801,11 +911,20 @@ class StageReviewOptimizer:
     
     def _optimize_window_conversational(self, window_chapters: List[Dict], 
                                         window_idx: int,
-                                        max_rounds: int = 2) -> Tuple[List[Issue], List[Dict]]:
+                                        max_rounds: int = 2,
+                                        pre_identified_issues: List[Issue] = None) -> Tuple[List[Issue], List[Dict]]:
         """
         对话式循环优化单个窗口
         
-        流程：识别P0->修复P0->识别P1->修复P1->识别P2->修复P2
+        流程：
+        1. 合并预识别的问题（如质量评分发现的低分章节）
+        2. 识别P0->修复P0->识别P1->修复P1->识别P2->修复P2
+        
+        Args:
+            window_chapters: 窗口内的章节
+            window_idx: 窗口索引
+            max_rounds: 最大优化轮次
+            pre_identified_issues: 预识别的问题（如质量评分发现的低分章节）
         """
         first_ch = window_chapters[0].get('chapter_number', '?')
         last_ch = window_chapters[-1].get('chapter_number', '?')
@@ -898,9 +1017,24 @@ class StageReviewOptimizer:
         if not data:
             return [], window_chapters
         
-        all_issues = [Issue(**item) for item in data.get("issues", [])]
-        summary = data.get("summary", {})
-        logger.info(f"[StageOptimizer] w{window_idx} identified: P0={summary.get('p0_count',0)}, P1={summary.get('p1_count',0)}, P2={summary.get('p2_count',0)}")
+        ai_issues = [Issue(**item) for item in data.get("issues", [])]
+        
+        # 🔥 合并预识别的问题（质量评分发现的低分章节）
+        all_issues = ai_issues.copy()
+        if pre_identified_issues:
+            # 避免重复：如果同一章节同一类型的问题已存在，优先使用pre_identified（更具体）
+            existing_keys = {(i.chapter, i.type) for i in ai_issues}
+            for pre_issue in pre_identified_issues:
+                key = (pre_issue.chapter, pre_issue.type)
+                if key not in existing_keys:
+                    all_issues.append(pre_issue)
+                    logger.info(f"[StageOptimizer] 添加质量评分发现的问题: 第{pre_issue.chapter}章 - {pre_issue.description[:30]}...")
+        
+        # 重新统计
+        p0_count = sum(1 for i in all_issues if i.priority == 'p0')
+        p1_count = sum(1 for i in all_issues if i.priority == 'p1')
+        p2_count = sum(1 for i in all_issues if i.priority == 'p2')
+        logger.info(f"[StageOptimizer] w{window_idx} 总问题: P0={p0_count}, P1={p1_count}, P2={p2_count} (AI发现{len(ai_issues)}个, 质量评分发现{len(pre_identified_issues) if pre_identified_issues else 0}个)")
         
         # Step 3: Fix by chapter - 逐章一次性修复所有问题
         fixed_chapters = [ch.copy() for ch in window_chapters]
@@ -1022,6 +1156,16 @@ class StageReviewOptimizer:
             
             if not is_accepted:
                 logger.error(f"[StageOptimizer] 第{ch_num}章经过{max_retries+1}次尝试仍无法达到字数要求，放弃修改")
+        
+        # 🔥 重新计算修复后章节的质量评分
+        logger.info(f"[StageOptimizer] 重新计算修复后章节的质量评分...")
+        for ch in fixed_chapters:
+            if ch.get('optimized'):
+                ch_num = ch.get('chapter_number', 0)
+                new_score = self._calculate_chapter_quality_score(ch)
+                ch['quality_score'] = new_score
+                self._update_chapter_quality_score(ch_num, new_score)
+                logger.info(f"[StageOptimizer] 第{ch_num}章修复后评分: {new_score}")
         
         return all_issues, fixed_chapters
     
@@ -1472,6 +1616,133 @@ class StageReviewOptimizer:
             note = "已优化" if ch.get('optimized') else ""
             lines.append(f"| {ch_num} | {word_count} | {score} | {note} |")
         return "\n".join(lines)
+    
+    def _calculate_chapter_quality_score(self, chapter: Dict) -> float:
+        """
+        🔥 计算章节质量评分（基于规则）
+        
+        评分维度：
+        1. 字数达标度 (0-2分)
+        2. 情绪强度执行 (0-2分)
+        3. 爽点/反转密度 (0-2分)
+        4. 结构完整性 (0-2分)
+        5. 创新性 (0-2分)
+        
+        总分：0-10分，保留1位小数
+        """
+        import re
+        
+        content = chapter.get('content', '')
+        word_count = len(content)
+        score = 6.0  # 基础分6分
+        
+        # 1. 字数评分 (0-2分)
+        if word_count >= 3000:
+            score += 2.0
+        elif word_count >= 2500:
+            score += 1.5
+        elif word_count >= 2000:
+            score += 1.0
+        elif word_count >= 1800:
+            score += 0.5
+        else:
+            score -= 1.0  # 字数不足扣分
+        
+        # 2. 情绪强度检测 (0-2分)
+        emotion_indicators = {
+            'high': ['震惊', '震撼', '恐怖', '绝望', '狂喜', '暴怒'],
+            'medium': ['紧张', '兴奋', '愤怒', '悲伤', '期待']
+        }
+        high_count = sum(1 for w in emotion_indicators['high'] if w in content)
+        med_count = sum(1 for w in emotion_indicators['medium'] if w in content)
+        
+        if high_count >= 5:
+            score += 2.0
+        elif high_count >= 3 or med_count >= 5:
+            score += 1.0
+        elif high_count >= 1 or med_count >= 3:
+            score += 0.5
+        
+        # 3. 爽点/反转密度 (0-2分)
+        climax_indicators = ['反转', '爆发', '秒杀', '震惊全场', '全网哗然', 
+                            '打脸', '求饶', '不可置信', '怎么可能']
+        climax_count = sum(1 for w in climax_indicators if w in content)
+        
+        if climax_count >= 5:
+            score += 2.0
+        elif climax_count >= 3:
+            score += 1.0
+        elif climax_count >= 1:
+            score += 0.5
+        
+        # 4. 结构完整性 (0-2分)
+        structure_score = 0.0
+        # 检查多层震惊结构（通过关键词判断，不依赖标签）
+        # 现场反应关键词
+        if any(w in content for w in ['弹幕', '直播间', '围观', '现场']):
+            structure_score += 0.5
+        # 传播扩散关键词
+        if any(w in content for w in ['全网', '热搜', '朋友圈', '社交媒体', '疯传']):
+            structure_score += 0.5
+        # 权威反应关键词
+        if any(w in content for w in ['高层', '元帅', '将军', '指挥部', '官方', '紧急会议']):
+            structure_score += 0.5
+        # 检查钩子
+        if any(w in content for w in ['钩子', '悬念', '伏笔']):
+            structure_score += 0.5
+        score += structure_score
+        
+        # 5. 创新性检测 (0-2分) - 检测是否有新的能力/角色/设定
+        if any(w in content for w in ['解锁', '新技能', '觉醒', '突破']):
+            score += 1.0
+        if any(w in content for w in ['新角色登场', '神秘人', '幕后黑手']):
+            score += 0.5
+        if any(w in content for w in ['隐藏设定', '世界观展开', '真相']):
+            score += 0.5
+        
+        # 限制在6.0-10.0之间（避免过低或过高）
+        return round(max(6.0, min(10.0, score)), 1)
+    
+    def _update_chapter_quality_score(self, chapter_num: int, score: float):
+        """
+        🔥 将质量评分写回章节文件
+        
+        Args:
+            chapter_num: 章节号
+            score: 质量评分 (6.0-10.0)
+        """
+        chapters_dir = self.project_path / "chapters"
+        
+        # 尝试多种可能的文件路径
+        possible_paths = [
+            chapters_dir / f"chapter_{chapter_num:03d}.json",
+            chapters_dir / f"chapter_{chapter_num}.json",
+            chapters_dir / f"{chapter_num:03d}.json",
+            chapters_dir / f"{chapter_num}.json",
+        ]
+        
+        for path in possible_paths:
+            if path.exists():
+                try:
+                    with open(path, 'r', encoding='utf-8') as f:
+                        chapter_data = json.load(f)
+                    
+                    # 更新评分
+                    chapter_data['quality_score'] = score
+                    
+                    # 写回文件
+                    with open(path, 'w', encoding='utf-8') as f:
+                        json.dump(chapter_data, f, ensure_ascii=False, indent=2)
+                    
+                    logger.debug(f"[StageOptimizer] 已更新第{chapter_num}章质量评分: {score}")
+                    return True
+                    
+                except Exception as e:
+                    logger.warning(f"[StageOptimizer] 更新第{chapter_num}章评分失败: {e}")
+                    continue
+        
+        logger.warning(f"[StageOptimizer] 未找到第{chapter_num}章文件以更新评分")
+        return False
     
     def _save_json(self, filename: str, data: Dict):
         """保存JSON文件"""
