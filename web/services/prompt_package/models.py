@@ -142,12 +142,46 @@ class PromptPackage:
             with open(info_path, 'r', encoding='utf-8') as f:
                 self.info = json.load(f)
         
-        # 加载所有步骤配置
-        for step_file in self.package_path.glob("step_*.json"):
+        # 1. 首先尝试从 steps/ 子目录加载步骤（Market Driven 模式）
+        steps_dir = self.package_path / "steps"
+        if steps_dir.exists():
+            for step_file in steps_dir.glob("step_*.json"):
+                self._load_step_file(step_file)
+        
+        # 2. 如果没有找到步骤，尝试从根目录加载
+        if not self.steps:
+            for step_file in self.package_path.glob("step_*.json"):
+                self._load_step_file(step_file)
+        
+        # 3. 如果是 Traditional 模式（有 phase_one/products 目录结构）
+        phase_one_dir = self.package_path / "phase_one"
+        if phase_one_dir.exists() and not self.steps:
+            self._load_traditional_phases()
+    
+    def _load_step_file(self, step_file: Path):
+        """加载单个步骤文件"""
+        try:
             with open(step_file, 'r', encoding='utf-8') as f:
                 step_data = json.load(f)
+            
+            # 支持两种格式：直接格式和嵌套在 content 中的格式
+            if "content" in step_data and isinstance(step_data["content"], dict):
+                # 新的包装格式
+                content = step_data.get("content", {})
                 step_config = StepConfig(
-                    step_id=step_data.get("step_id", ""),
+                    step_id=content.get("step_id", step_data.get("step_id", step_file.stem)),
+                    step_name=content.get("step_name", step_data.get("step_name", "")),
+                    step_order=content.get("step_order", step_data.get("step_order", 0)),
+                    enabled=content.get("enabled", step_data.get("enabled", True)),
+                    description=content.get("description", step_data.get("description", "")),
+                    prompt_template=content.get("prompt_template", step_data.get("prompt_template", {})),
+                    parameters=content.get("parameters", step_data.get("parameters", {})),
+                    output_schema=content.get("output_schema", step_data.get("output_schema", {}))
+                )
+            else:
+                # 直接格式
+                step_config = StepConfig(
+                    step_id=step_data.get("step_id", step_file.stem),
                     step_name=step_data.get("step_name", ""),
                     step_order=step_data.get("step_order", 0),
                     enabled=step_data.get("enabled", True),
@@ -156,7 +190,49 @@ class PromptPackage:
                     parameters=step_data.get("parameters", {}),
                     output_schema=step_data.get("output_schema", {})
                 )
-                self.steps[step_config.step_id] = step_config
+            self.steps[step_config.step_id] = step_config
+        except Exception as e:
+            print(f"加载步骤文件失败 {step_file}: {e}")
+    
+    def _load_traditional_phases(self):
+        """加载 Traditional 模式的阶段（转换为虚拟步骤）"""
+        # Phase One: 10 个产物
+        phase_one_products = [
+            ("writing_style_guide", "写作风格指南", 1),
+            ("market_analysis", "市场分析", 2),
+            ("core_worldview", "核心世界观", 3),
+            ("faction_system", "势力系统", 4),
+            ("character_design", "角色设计", 5),
+            ("global_growth_plan", "全局成长计划", 6),
+            ("stage_writing_plans", "阶段写作计划", 7),
+            ("emotional_blueprint", "情绪蓝图", 8),
+            ("expectation_mapping", "期待感映射", 9),
+            ("emotion_curve", "情绪曲线", 10),
+        ]
+        
+        for product_id, name, order in phase_one_products:
+            self.steps[product_id] = StepConfig(
+                step_id=product_id,
+                step_name=f"Phase 1: {name}",
+                step_order=order,
+                enabled=True,
+                description=f"第一阶段设定产物: {name}",
+                prompt_template={},
+                parameters={},
+                output_schema={}
+            )
+        
+        # Phase Two: 章节生成
+        self.steps["phase_two_chapter"] = StepConfig(
+            step_id="phase_two_chapter",
+            step_name="Phase 2: 章节生成",
+            step_order=11,
+            enabled=True,
+            description="第二阶段：基于设定产物生成章节",
+            prompt_template={},
+            parameters={},
+            output_schema={}
+        )
     
     @property
     def id(self) -> str:
