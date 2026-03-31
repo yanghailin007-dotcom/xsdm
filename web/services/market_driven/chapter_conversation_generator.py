@@ -968,6 +968,19 @@ class ChapterConversationGenerator:
         if protagonist_reminder:
             logger.info(f"[章节对话 {self.session_id}] 第{chapter_num}章已添加主角设定提醒")
         
+        # 🔥 检查是否有跨批次传递的钩子信息（第2批及以后的第1章）
+        cross_batch_hook = chapter_plan.get('hook_from_previous_batch', '')
+        cross_batch_summary = chapter_plan.get('prev_chapter_summary', '')
+        if cross_batch_hook or cross_batch_summary:
+            logger.info(f"[章节对话 {self.session_id}] 第{chapter_num}章检测到跨批次钩子信息")
+            # 将跨批次钩子信息添加到prev_summary中
+            enhanced_summary = prev_summary or ""
+            if cross_batch_summary:
+                enhanced_summary = f"【前章结尾内容】{cross_batch_summary}\n\n{enhanced_summary}"
+            if cross_batch_hook:
+                enhanced_summary = f"【必须承接的钩子】{cross_batch_hook}\n\n{enhanced_summary}"
+            prev_summary = enhanced_summary
+        
         # 使用优化器构建详细的章节提示词
         if HAS_OPTIMIZER:
             try:
@@ -1002,10 +1015,41 @@ class ChapterConversationGenerator:
         return chapter_plan.get('title', '章节')
     
     def _summarize_chapter(self, chapter: Dict) -> str:
-        """生成章节摘要（用于上下文）"""
-        # 简化：提取前200字作为摘要
+        """
+        生成章节摘要（用于上下文衔接）
+        
+        修复：提取章尾钩子和关键结果，而不是开头内容
+        这样才能保证前后章节衔接连贯
+        """
         content = chapter.get('content', '')
-        return content[:200] + "..." if len(content) > 200 else content
+        if not content:
+            return ""
+        
+        # 提取最后300字（章尾内容，包含钩子和悬念）
+        ending = content[-300:] if len(content) > 300 else content
+        
+        # 尝试提取最后一段（通常是钩子）
+        paragraphs = content.strip().split('\n')
+        last_paragraph = paragraphs[-1] if paragraphs else ""
+        
+        # 构建摘要：最后一段 + 结尾上下文
+        summary_parts = []
+        
+        # 如果有标题，包含标题
+        title = chapter.get('title', '')
+        if title:
+            summary_parts.append(f"章标题：{title}")
+        
+        # 包含最后一段（钩子）
+        if last_paragraph and len(last_paragraph) > 10:
+            summary_parts.append(f"章尾钩子：{last_paragraph[:150]}")
+        
+        # 包含结尾上下文
+        if len(ending) > len(last_paragraph):
+            summary_parts.append(f"结尾上下文：{ending[:200]}")
+        
+        summary = " | ".join(summary_parts)
+        return summary if summary else ending[:200]
     
     def get_quality_summary(self) -> Dict:
         """

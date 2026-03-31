@@ -1263,12 +1263,27 @@ def _run_chapter_generation(task_id: str, genre: str, target_words: int, api_cli
         
         all_results = []
         
+        # 🔥 跨批次状态：保存前一章的摘要/钩子，确保批次间衔接
+        prev_chapter_summary = ""
+        last_chapter_hook = ""
+        
         for batch_num in range(1, batches + 1):
             # 🔥 使用分层规划获取当前批次的战术规划
             tactical_plan, strategic_context = planner.get_next_batch_plan(chapters_per_batch)
             
             start = (batch_num - 1) * chapters_per_batch + 1
             end = min(batch_num * chapters_per_batch, total_chapters)
+            
+            # 🔥 如果是第2批及以后，将前一章的摘要/钩子注入到第一章的规划中
+            if batch_num > 1 and (prev_chapter_summary or last_chapter_hook):
+                chapters_plan = tactical_plan.get('chapters', [])
+                if chapters_plan and len(chapters_plan) > 0:
+                    first_chapter_plan = chapters_plan[0]
+                    if prev_chapter_summary:
+                        first_chapter_plan['prev_chapter_summary'] = prev_chapter_summary
+                    if last_chapter_hook:
+                        first_chapter_plan['hook_from_previous_batch'] = last_chapter_hook
+                    logger.info(f"[Task {task_id}] 第{batch_num}批第1章已注入前一批次钩子: {last_chapter_hook[:100]}...")
             
             # 获取当前阶段信息
             current_stage = strategic_context.get("current_stage", {})
@@ -1307,6 +1322,19 @@ def _run_chapter_generation(task_id: str, genre: str, target_words: int, api_cli
             
             # 🔥 更新规划器进度
             planner.update_progress(result.get("generated", []))
+            
+            # 🔥 提取本批次最后一章的摘要和钩子，用于下一批次衔接
+            generated_chapters = result.get('generated', [])
+            if generated_chapters:
+                last_chapter = generated_chapters[-1]
+                # 获取最后300字作为摘要
+                content = last_chapter.get('content', '')
+                if content:
+                    prev_chapter_summary = content[-300:] if len(content) > 300 else content
+                    # 提取最后一段作为钩子
+                    paragraphs = content.strip().split('\n')
+                    last_chapter_hook = paragraphs[-1] if paragraphs else ""
+                    logger.info(f"[Task {task_id}] 第{batch_num}批最后一章（第{last_chapter.get('chapter')}章）钩子已提取: {last_chapter_hook[:100]}...")
             
             all_results.append(result)
             
