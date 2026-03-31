@@ -202,6 +202,10 @@ class ChapterConversationGenerator:
             except Exception as e:
                 logging.warning(f"[章节对话 {self.session_id}] 信息提取器初始化失败: {e}")
         
+        # 🔥 章节标题历史记录（用于唯一性检查）
+        self._chapter_titles = set()
+        logging.info(f"[章节对话 {self.session_id}] 标题唯一性检查器已初始化")
+        
         # 🔥 阶段性复盘优化器跟踪（滑动窗口10章复盘）
         self.stage_review_triggered = set()  # 已触发的复盘里程碑（10, 20, 30...）
         self.stage_review_optimizer = None
@@ -557,8 +561,10 @@ class ChapterConversationGenerator:
             except Exception as e:
                 logger.warning(f"[章节对话 {self.session_id}] 记录对话日志失败: {e}")
         
-        # 解析内容
-        content = self._parse_response(response)
+        # 解析内容（现在返回字典，包含 title 和 content）
+        parsed_response = self._parse_response(response)
+        ai_title = parsed_response.get('title', '')
+        content = parsed_response.get('content', '')
         
         # 🔥 校验1：检查是否只返回了自检报告而没有正文
         if self._is_only_self_check_report(content):
@@ -573,7 +579,9 @@ class ChapterConversationGenerator:
                 temperature=0.7,
                 purpose=f"第{chapter_num}章(重试)"
             )
-            content = self._parse_response(retry_response)
+            parsed_retry = self._parse_response(retry_response)
+            ai_title = parsed_retry.get('title', '')
+            content = parsed_retry.get('content', '')
             
             # 再次校验
             if self._is_only_self_check_report(content):
@@ -619,7 +627,7 @@ class ChapterConversationGenerator:
         # 🔥 AI信息提取：自动提取角色、钩子、世界设定等信息
         chapter_data = {
             "chapter_number": chapter_num,
-            "title": self._extract_title(content, chapter_plan),
+            "title": self._extract_title(content, chapter_plan, ai_title),
             "content": content,
             "word_count": word_count,
             "quality_score": 8.0,
@@ -996,67 +1004,128 @@ class ChapterConversationGenerator:
         chapter_prompt = optimizer.build_chapter_prompt(chapter_num, chapter_plan, prev_summary)
         return protagonist_reminder + chapter_prompt
     
-    def _parse_response(self, response) -> str:
-        """解析响应"""
-        if isinstance(response, str):
-            return response
-        elif isinstance(response, dict):
-            return response.get("content", str(response))
-        return str(response)
+    def _parse_response(self, response) -> Dict:
+        """
+        解析响应
+        
+        返回包含 title 和 content 的字典
+        """
+        if isinstance(response, dict):
+            return {
+                'title': response.get('title', ''),
+                'content': response.get('content', str(response))
+            }
+        elif isinstance(response, str):
+            # 尝试解析 JSON
+            try:
+                import json
+                parsed = json.loads(response)
+                if isinstance(parsed, dict):
+                    return {
+                        'title': parsed.get('title', ''),
+                        'content': parsed.get('content', response)
+                    }
+            except:
+                pass
+            # 如果不是 JSON，返回字符串作为 content
+            return {'title': '', 'content': response}
+        return {'title': '', 'content': str(response)}
     
-    def _extract_title(self, content: str, chapter_plan: Dict) -> str:
+    def _extract_title(self, content: str, chapter_plan: Dict, 
+                        ai_title: str = '') -> str:
         """
         提取或生成章节标题
         
-        策略：
-        1. 优先从chapter_plan获取（战术规划中定义的标题）
-        2. 其次从chapter_plan的event/purpose字段生成
-        3. 最后从内容分析提取
-        """
-        # 1. 优先从chapter_plan获取标题
-        if chapter_plan:
-            # 直接标题字段
-            title = chapter_plan.get('title', '').strip()
-            if title and title != '章节' and '第' not in title:
-                return title
-            
-            # 从event字段生成（事件描述通常是核心剧情）
-            event = chapter_plan.get('event', '').strip()
-            if event and len(event) <= 30:
-                # 如果event较短，直接作为标题
-                return event
-            elif event:
-                # 如果event较长，提取前20字
-                return event[:20] + ('...' if len(event) > 20 else '')
-            
-            # 从purpose字段生成（战术企图）
-            purpose = chapter_plan.get('purpose', '').strip()
-            if purpose and len(purpose) <= 30:
-                return purpose
-            elif purpose:
-                return purpose[:20] + ('...' if len(purpose) > 20 else '')
-            
-            # 从hook_content获取（钩子内容往往有吸引力）
-            hook = chapter_plan.get('hook_content', '').strip()
-            if hook and len(hook) <= 30:
-                return hook
-            elif hook:
-                return hook[:20] + ('...' if len(hook) > 20 else '')
+        策略（按优先级）：
+        1. 优先从AI返回的JSON中提取（ai_title参数）
+        2. 从chapter_plan获取
+        3. 从chapter_plan的event/purpose字段生成
+        4. 最后使用默认标题
         
-        # 2. 从内容分析提取（备用方案）
-        # 查找内容中的关键事件描述
+        标题规范（番茄爆款标准）：
+        - 字数：8-14字（不含"第X章"）
+        - 风格：简洁有力，概括核心爽点
+        """
+        import re
+        
+        # 1. 从AI返回的JSON中提取（最高优先级）
+        if ai_title:
+            title = ai_title.strip()
+            # 清理可能存在的"第X章"前缀
+            title = re.sub(r'^第[一二三四五六七八九十百千万零\d]+章\s*', '', title)
+            # 验证长度（番茄标准：8-14字）
+            if len(title) > 14:
+                title = title[:14]
+            if len(title) >= 4:
+                return self._ensure_unique_title(title)
+        
+        # 2. 从chapter_plan获取标题
+        if chapter_plan:
+            title = chapter_plan.get('title', '').strip()
+            if title and title != '章节' and len(title) >= 4:
+                # 清理"第X章"前缀
+                title = re.sub(r'^第[一二三四五六七八九十百千万零\d]+章\s*', '', title)
+                if len(title) > 14:
+                    title = title[:14]
+                return self._ensure_unique_title(title)
+            
+            # 从event字段生成
+            event = chapter_plan.get('event', '').strip()
+            if event and len(event) >= 4:
+                if len(event) > 14:
+                    event = event[:14]
+                return self._ensure_unique_title(event)
+            
+            # 从purpose字段生成
+            purpose = chapter_plan.get('purpose', '').strip()
+            if purpose and len(purpose) >= 4:
+                if len(purpose) > 14:
+                    purpose = purpose[:14]
+                return self._ensure_unique_title(purpose)
+            
+            # 从hook_content获取
+            hook = chapter_plan.get('hook_content', '').strip()
+            if hook and len(hook) >= 4:
+                if len(hook) > 14:
+                    hook = hook[:14]
+                return self._ensure_unique_title(hook)
+        
+        # 3. 从内容前10行分析提取（备用方案）
         lines = content.strip().split('\n')
-        for line in lines[:10]:  # 只检查前10行
+        for line in lines[:10]:
             line = line.strip()
-            # 跳过"第X章"格式的行
             if line.startswith('第') and '章' in line[:10]:
                 continue
-            # 如果行长度适中且有意义，可能是一个小标题
-            if 10 <= len(line) <= 30 and not line.startswith('【') and not line.startswith('（'):
-                return line
+            if 8 <= len(line) <= 20 and not line.startswith('【') and not line.startswith('（'):
+                return self._ensure_unique_title(line)
         
-        # 3. 默认返回
-        return '剧情推进'
+        # 4. 默认返回
+        return self._ensure_unique_title('剧情推进')
+    
+    def _ensure_unique_title(self, title: str) -> str:
+        """
+        确保标题唯一性
+        如果标题已存在，则添加 (1), (2) 等序号
+        """
+        if not title:
+            title = '剧情推进'
+        
+        # 清理标题中的"第X章"前缀
+        import re
+        clean_title = re.sub(r'^第[一二三四五六七八九十百千万零\d]+章\s*', '', title)
+        if not clean_title:
+            clean_title = '剧情推进'
+        
+        # 检查是否已存在
+        original_title = clean_title
+        counter = 1
+        
+        while clean_title in self._chapter_titles:
+            clean_title = f"{original_title} ({counter})"
+            counter += 1
+        
+        self._chapter_titles.add(clean_title)
+        return clean_title
     
     def _summarize_chapter(self, chapter: Dict) -> str:
         """
