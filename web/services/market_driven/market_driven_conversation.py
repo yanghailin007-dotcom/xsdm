@@ -121,7 +121,7 @@ class MarketDrivenConversationSession:
         "generate_worldview",      # 生成世界观
         "generate_characters",     # 生成角色设计
         "generate_growth_plan",    # 生成成长路线
-        "generate_emotion_curve",  # 生成情绪曲线
+        # 🔥 移除：generate_emotion_curve - 情绪曲线改在战术规划中分批生成
     ]
     
     def __init__(self, api_client, genre: str, user_choices: Dict, 
@@ -364,7 +364,7 @@ class MarketDrivenConversationSession:
 2. **生成世界观** - 基于题材套路，创建世界观框架和势力系统
 3. **生成角色设计** - 基于主角人设和剧情路线，设计完整的角色阵容
 4. **生成成长路线** - 基于前30章大纲，规划主角成长里程碑
-5. **生成情绪曲线** - 基于剧情节奏，设计每章的情绪节拍
+5. **阶段目标** - 基于成长路线，划分阶段目标（情绪曲线改在战术规划中分批生成）
 
 ## 核心规则
 1. **固定元素必须遵循**：书名、主角名、题材类型、系统类型（如果有）必须严格遵循用户选择
@@ -623,35 +623,27 @@ class MarketDrivenConversationSession:
             logger.error(traceback.format_exc())
             raise
         
-        # 步骤5: 生成情绪曲线和阶段目标 (80%) -> UI阶段: chapters
-        # 🔥 修正：阶段目标（stage_goals）在一阶段确定，战术规划（tactical_plan）留在生成阶段动态生成
-        logger.info(f"[对话模式 {self.session_id}] [UI:chapters] 步骤5/7: 生成情绪曲线和阶段目标")
+        # 步骤5: 生成阶段目标 (80%) -> UI阶段: chapters
+        # 🔥 优化：情绪曲线改在战术规划中分批生成（每30章），避免一次性生成200章导致超时
+        logger.info(f"[对话模式 {self.session_id}] [UI:chapters] 步骤5/6: 生成阶段目标")
         if progress_callback:
-            progress_callback("generate_emotion_curve", 80)
-        try:
-            emotion_curve = self._generate_emotion_curve()
-            results["emotion_curve"] = emotion_curve
-            logger.info(f"[对话模式 {self.session_id}] 步骤5A情绪曲线完成，长度: {len(emotion_curve) if isinstance(emotion_curve, list) else 'N/A'}")
-        except Exception as e:
-            logger.error(f"[对话模式 {self.session_id}] 步骤5A失败: {e}")
-            import traceback
-            logger.error(traceback.format_exc())
-            raise
+            progress_callback("generate_stage_goals", 80)
         
-        # 🔥 阶段目标在世界观步骤后生成（基于完整设定）
         try:
             stage_goals = self._generate_stage_goals(results)
             results["stage_goals"] = stage_goals
+            # 🔥 使用默认情绪曲线模板（战术规划时会细化每30章的情绪设计）
+            results["emotion_curve"] = self._get_default_emotion_curve()
             self._save_step_result("stage_goals", results, project_path)
             logger.info(f"[对话模式 {self.session_id}] [UI:chapters] 步骤5完成 | 阶段目标数: {len(stage_goals)} 已保存")
         except Exception as e:
-            logger.error(f"[对话模式 {self.session_id}] 步骤5B失败: {e}")
+            logger.error(f"[对话模式 {self.session_id}] 步骤5失败: {e}")
             import traceback
             logger.error(traceback.format_exc())
             raise
         
         # 🔥 步骤6: 爆款对齐检查与优化 (90%) -> UI阶段: final_check
-        logger.info(f"[对话模式 {self.session_id}] [UI:final_check] 步骤6/7: 爆款对齐检查与优化")
+        logger.info(f"[对话模式 {self.session_id}] [UI:final_check] 步骤6/6: 爆款对齐检查与优化")
         if progress_callback:
             progress_callback("bestseller_alignment", 90)
         aligned_results = self._bestseller_alignment_check(results)
@@ -659,8 +651,8 @@ class MarketDrivenConversationSession:
         self._save_step_result("alignment", results, project_path)
         logger.info(f"[对话模式 {self.session_id}] [UI:final_check] 步骤6完成 | 对齐优化已保存")
         
-        # 步骤7: 生成附加产物 (100%) -> UI阶段: complete
-        logger.info(f"[对话模式 {self.session_id}] [UI:complete] 步骤7/7: 生成附加产物")
+        # 步骤6B: 生成附加产物 (100%) -> UI阶段: complete
+        logger.info(f"[对话模式 {self.session_id}] [UI:complete] 步骤6B/6: 生成附加产物")
         if progress_callback:
             progress_callback("generate_supplementary", 100)
         
@@ -678,7 +670,7 @@ class MarketDrivenConversationSession:
         
         # 🔥 最终保存
         self._save_step_result("complete", results, project_path)
-        logger.info(f"[对话模式 {self.session_id}] ✅ 所有7个步骤完成 | 总轮次: {self.session.turn_count} | 全部结果已保存")
+        logger.info(f"[对话模式 {self.session_id}] ✅ 所有6个步骤完成 | 总轮次: {self.session.turn_count} | 全部结果已保存")
         return results
     
     def _generate_plan(self) -> Dict:
@@ -1331,6 +1323,36 @@ class MarketDrivenConversationSession:
         except (json.JSONDecodeError, ValueError) as e:
             logger.error(f"[对话模式 {self.session_id}] 生成 emotion_curve 失败: {e}")
             raise RuntimeError(f"生成情绪曲线失败: {e}") from e
+    
+    def _get_default_emotion_curve(self) -> List[Dict]:
+        """
+        获取默认情绪曲线模板（简化版）
+        
+        🔥 优化：不再一次性生成200章详细情绪曲线
+        详细情绪设计改在战术规划中分批生成（每30章）
+        
+        Returns:
+            基础情绪曲线模板（仅里程碑章节）
+        """
+        from .config import get_config
+        total_chapters = self.user_choices.get('chapters', 200)
+        
+        # 只生成关键里程碑的情绪标记
+        milestones = [
+            {"ch": 1, "emotion": "压抑", "intensity": 9, "beat_type": "钩子", "event": "绝望开局+系统觉醒"},
+            {"ch": 3, "emotion": "爽快", "intensity": 7, "beat_type": "爽点", "event": "第一次打脸"},
+            {"ch": 10, "emotion": "震惊", "intensity": 8, "beat_type": "震惊", "event": "身份小曝光"},
+            {"ch": 15, "emotion": "大爽快", "intensity": 9, "beat_type": "高潮", "event": "阶段性大高潮"},
+            {"ch": 30, "emotion": "满足", "intensity": 8, "beat_type": "高潮", "event": "第一幕大高潮"},
+            {"ch": 60, "emotion": "满足", "intensity": 9, "beat_type": "高潮", "event": "中期大高潮"},
+            {"ch": 100, "emotion": "满足", "intensity": 10, "beat_type": "高潮", "event": "全书大高潮"},
+        ]
+        
+        # 过滤超出总章节数的里程碑
+        milestones = [m for m in milestones if m["ch"] <= total_chapters]
+        
+        logger.info(f"[对话模式 {self.session_id}] 使用默认情绪曲线模板: {len(milestones)}个里程碑")
+        return milestones
     
     def _normalize_emotion_curve(self, curve: list, target_length: int) -> list:
         """

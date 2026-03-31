@@ -80,9 +80,10 @@ class MarketDrivenPhaseOneGenerator:
         logger.info("生成期待感映射...")
         products["expectation_mapping"] = self._generate_expectation_mapping(tropes, plan)
         
-        # 10. 情绪曲线（AI生成，个性化）
-        logger.info("生成个性化情绪曲线...")
-        products["emotion_curve"] = self._generate_emotion_curve(genre, tropes, plan)
+        # 🔥 优化：情绪曲线改在战术规划中分批生成（每30章），避免一次性生成200章导致超时
+        # 这里只提供基础情绪里程碑作为参考
+        logger.info("生成情绪曲线模板（详细设计将在战术规划中分批生成）...")
+        products["emotion_curve"] = self._get_default_emotion_curve(plan)
         
         logger.info(f"[PhaseOneGenerator] 第一阶段产物生成完成")
         return products
@@ -601,48 +602,20 @@ class MarketDrivenPhaseOneGenerator:
             ]
         }
     
-    def _generate_emotion_curve(self, genre: str, tropes: Dict, plan: Dict) -> List[Dict]:
+    def _get_default_emotion_curve(self, plan: Dict) -> List[Dict]:
         """
-        生成情绪曲线（AI个性化生成）
+        获取默认情绪曲线模板（简化版）
+        
+        🔥 优化：不再一次性生成200章详细情绪曲线
+        详细情绪设计改在战术规划中分批生成（每30章）
+        
+        Args:
+            plan: 方案字典
+            
+        Returns:
+            基础情绪曲线模板（仅关键里程碑章节）
         """
-        total_chapters = plan.get('total_chapters', 100)
-        
-        # 尝试使用AI生成
-        if self.api_client:
-            try:
-                from web.services.market_driven.emotion_curve_generator import (
-                    EmotionCurveGenerator, generate_emotion_curve_for_novel
-                )
-                
-                novel_title = plan.get('title', 'unknown')
-                curve = generate_emotion_curve_for_novel(
-                    api_client=self.api_client,
-                    genre=genre,
-                    tropes=tropes,
-                    plan=plan,
-                    total_chapters=total_chapters,
-                    novel_title=novel_title
-                )
-                
-                # 转换为字典列表
-                return [
-                    {
-                        "ch": b.ch,
-                        "emotion": b.emotion,
-                        "intensity": b.intensity,
-                        "beat_type": b.beat_type,
-                        "event": b.event,
-                        "purpose": b.purpose
-                    }
-                    for b in curve
-                ]
-            except Exception as e:
-                logger.error(f"AI生成情绪曲线失败: {e}，使用默认模板")
-        
-        # 备用：使用默认模板
-        return self._get_default_emotion_curve(total_chapters)
-    
-    def _get_default_emotion_curve(self, total_chapters: int) -> List[Dict]:
+        total_chapters = plan.get('total_chapters', 200)
         """默认情绪曲线（备用）"""
         curve = []
         
