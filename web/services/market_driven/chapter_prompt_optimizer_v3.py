@@ -2224,22 +2224,36 @@ XXX搂着前女友，当众嘲讽：
         构建战术规划部分 - 从blueprint提取本章的详细规划（增强版）
         
         修复：添加强制约束，确保AI严格遵守大纲
+        
+        Args:
+            chapter_num: 章节号
+            blueprint: 可以是完整蓝图（含chapters列表）或单章规划（chapter_plan）
         """
         if not blueprint:
             return "战术规划：无（请自由发挥，但需符合章节类型）"
         
-        chapters = blueprint.get('chapters', [])
+        # 🔥 修复：处理两种传入情况
+        # 情况1：完整蓝图，包含 chapters 列表
+        # 情况2：单章规划，直接就是当前章节的规划
         chapter_plan = None
         
-        # 在列表中查找本章规划
-        if isinstance(chapters, list):
-            for ch in chapters:
-                if isinstance(ch, dict) and ch.get('chapter_number') == chapter_num:
-                    chapter_plan = ch
-                    break
-        elif isinstance(chapters, dict):
-            # 兼容旧格式
-            chapter_plan = chapters.get(f"chapter_{chapter_num:03d}")
+        if 'chapters' in blueprint:
+            # 情况1：从 chapters 列表中查找
+            chapters = blueprint.get('chapters', [])
+            if isinstance(chapters, list):
+                for ch in chapters:
+                    if isinstance(ch, dict) and ch.get('chapter_number') == chapter_num:
+                        chapter_plan = ch
+                        break
+            elif isinstance(chapters, dict):
+                # 兼容旧格式
+                chapter_plan = chapters.get(f"chapter_{chapter_num:03d}")
+        else:
+            # 情况2：blueprint本身就是单章规划
+            # 验证章节号是否匹配（如果规划中有chapter_number）
+            plan_ch_num = blueprint.get('chapter_number')
+            if plan_ch_num is None or plan_ch_num == chapter_num:
+                chapter_plan = blueprint
         
         if not chapter_plan:
             return f"战术规划：第{chapter_num}章无详细规划（请根据章节类型自由发挥）"
