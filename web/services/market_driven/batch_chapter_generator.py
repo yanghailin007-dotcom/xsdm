@@ -24,6 +24,14 @@ except ImportError as e:
     HAS_STATE_MANAGER = False
     logger.warning(f"状态管理器导入失败: {e}，使用旧模式")
 
+# 🔥 导入滑动窗口优化器
+try:
+    from web.services.market_driven.stage_review_optimizer import StageReviewOptimizer
+    HAS_STAGE_OPTIMIZER = True
+except ImportError as e:
+    HAS_STAGE_OPTIMIZER = False
+    logger.warning(f"滑动窗口优化器导入失败: {e}，禁用该功能")
+
 
 class BatchChapterGenerator:
     """
@@ -51,6 +59,8 @@ class BatchChapterGenerator:
         # 🔥 角色状态管理器（跨批次保持角色设定）
         self.character_state_manager = None
         self.world_state_manager = None  # 世界状态管理器
+        self.stage_review_optimizer = None  # 滑动窗口优化器
+        self.optimized_windows = set()  # 已优化的窗口，避免重复优化
         
         if self.project_path:
             from .character_state_manager import CharacterStateManager
@@ -58,6 +68,14 @@ class BatchChapterGenerator:
             
             self.character_state_manager = CharacterStateManager(str(self.project_path))
             self.world_state_manager = WorldStateManager(str(self.project_path))
+            
+            # 🔥 初始化滑动窗口优化器
+            if HAS_STAGE_OPTIMIZER and api_client:
+                self.stage_review_optimizer = StageReviewOptimizer(
+                    project_path=str(self.project_path),
+                    api_client=api_client
+                )
+                logger.info(f"[BatchGenerator] 滑动窗口优化器已启用")
             
             logger.info(f"[BatchGenerator] 状态管理器已启用: {self.project_path}")
     
@@ -195,6 +213,9 @@ class BatchChapterGenerator:
             except Exception as e:
                 logger.error(f"[BatchGenerator] 批次总结失败: {e}")
         
+        # 🔥 触发滑动窗口优化（批次完成后，章节已保存到磁盘）
+        self._trigger_sliding_window_review(start_chapter, end_chapter)
+        
         logger.info(f"[BatchGenerator] 对话模式完成: 成功{len(results['generated'])}章, 失败{len(results['failed'])}章")
         return results
     
@@ -233,6 +254,79 @@ class BatchChapterGenerator:
                 batch_info["character_changes"].append(change)
         
         return batch_info
+    
+    def _trigger_sliding_window_review(self, start_chapter: int, end_chapter: int):
+        """
+        🔥 触发滑动窗口阶段性复盘（批次完成后）
+        
+        滑动窗口配置：
+        - 窗口大小：10章
+        - 重叠：2章（保证连贯性）
+        - 步长：8章
+        
+        触发时机：
+        - 窗口1: 第1-10章（第10章生成后触发）
+        - 窗口2: 第8-17章（第17章生成后触发）
+        - 窗口3: 第16-25章（第25章生成后触发）
+        
+        与原来的区别：
+        - 原来：在生成过程中触发（章节还没保存）
+        - 现在：批次完成后触发（章节已保存到磁盘）
+        """
+        if not self.stage_review_optimizer or not self.project_path:
+            return
+        
+        try:
+            # 计算哪些滑动窗口已完整且未优化过
+            # 窗口大小10章，重叠2章
+            window_size = 10
+            overlap = 2
+            
+            # 找到当前批次可能覆盖的所有窗口
+            for window_end in range(end_chapter, start_chapter - 1, -1):
+                if window_end % (window_size - overlap) != 0 and window_end != end_chapter:
+                    continue
+                    
+                window_start = max(1, window_end - window_size + 1)
+                
+                # 检查窗口是否已优化过
+                window_key = f"{window_start}-{window_end}"
+                if window_key in self.optimized_windows:
+                    continue
+                
+                # 检查窗口是否完整（所有章节都已保存）
+                chapters_dir = self.project_path / "chapters"
+                all_exist = True
+                for ch_num in range(window_start, window_end + 1):
+                    json_path = chapters_dir / f"chapter_{ch_num:03d}.json"
+                    if not json_path.exists():
+                        all_exist = False
+                        break
+                
+                if not all_exist:
+                    logger.info(f"[BatchGenerator] 窗口 {window_start}-{window_end} 不完整，跳过优化")
+                    continue
+                
+                # 触发滑动窗口优化
+                logger.info(f"[BatchGenerator] 🔥🔥🔥 触发滑动窗口优化: {window_start}-{window_end} 🔥🔥🔥")
+                
+                try:
+                    report = self.stage_review_optimizer.optimize_window(window_start, window_end)
+                    
+                    issues_found = len(report.get('issues', []))
+                    fixes_applied = len(report.get('fixes_applied', []))
+                    
+                    logger.info(f"[BatchGenerator] ✅ 窗口 {window_start}-{window_end} 优化完成 | 问题: {issues_found} | 修复: {fixes_applied}")
+                    
+                    # 标记为已优化
+                    self.optimized_windows.add(window_key)
+                    
+                except Exception as e:
+                    logger.error(f"[BatchGenerator] ❌ 窗口 {window_start}-{window_end} 优化失败: {e}")
+                    # 失败不重试，下次批次可能再次尝试
+                    
+        except Exception as e:
+            logger.error(f"[BatchGenerator] 滑动窗口优化触发失败: {e}")
     
     def _generate_batch_individual(self, novel_title: str, start_chapter: int, end_chapter: int,
                                    blueprint: Dict, tropes: Dict, novel_data: Dict) -> Dict:

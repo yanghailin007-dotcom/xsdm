@@ -382,9 +382,9 @@ class ChapterConversationGenerator:
                 
                 logger.info(f"[章节对话 {self.session_id}] 第{chapter_num}章完成 | 字数: {chapter.get('word_count', 0)}")
                 
-                # 🔥 检查是否需要触发阶段性复盘（每10章触发一次滑动窗口复盘）
-                if chapter_num % 10 == 0 and chapter_num not in self.stage_review_triggered:
-                    self._trigger_stage_review(chapter_num, chapters)
+                # 🔥 注意：滑动窗口优化已移到 batch_chapter_generator.py 中批次完成后触发
+                # 原因：生成过程中章节还未保存到磁盘，优化器无法加载
+                # 原代码：if chapter_num % 10 == 0: self._trigger_stage_review(...)
                 
             except Exception as e:
                 logger.error(f"[章节对话 {self.session_id}] 第{chapter_num}章失败: {e}")
