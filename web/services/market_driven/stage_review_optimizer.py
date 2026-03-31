@@ -281,31 +281,62 @@ class StageReviewOptimizer:
         return max_ch if max_ch > 0 else 10
     
     def _load_chapters_from_disk(self, start: int, end: int) -> List[Dict]:
-        """从磁盘加载章节内容"""
+        """从磁盘加载章节内容（支持.txt和.json格式）"""
         chapters = []
         chapters_dir = self.project_path / "chapters"
         
         if not chapters_dir.exists():
+            logger.warning(f"[StageOptimizer] 章节目录不存在: {chapters_dir}")
             return chapters
         
         for ch_num in range(start, end + 1):
-            # 尝试多种文件命名格式
-            possible_paths = [
-                chapters_dir / f"chapter_{ch_num:03d}.txt",
-                chapters_dir / f"chapter_{ch_num}.txt",
-                chapters_dir / f"{ch_num:03d}.txt",
-                chapters_dir / f"{ch_num}.txt",
+            content = None
+            file_path = None
+            
+            # 🔥 首先尝试JSON格式（新的存储格式）
+            json_paths = [
+                chapters_dir / f"chapter_{ch_num:03d}.json",
+                chapters_dir / f"chapter_{ch_num}.json",
+                chapters_dir / f"{ch_num:03d}.json",
+                chapters_dir / f"{ch_num}.json",
             ]
             
-            content = None
-            for path in possible_paths:
+            for path in json_paths:
                 if path.exists():
                     try:
-                        content = path.read_text(encoding='utf-8')
+                        import json
+                        with open(path, 'r', encoding='utf-8') as f:
+                            chapter_data = json.load(f)
+                        # 从JSON中提取内容字段
+                        if isinstance(chapter_data, dict):
+                            content = chapter_data.get('content', '')
+                            if not content:
+                                # 尝试其他可能的字段名
+                                content = chapter_data.get('chapter_content', '')
+                        file_path = path
                         break
                     except Exception as e:
-                        logger.warning(f"[StageOptimizer] 读取章节文件失败 {path}: {e}")
+                        logger.warning(f"[StageOptimizer] 读取JSON章节文件失败 {path}: {e}")
                         continue
+            
+            # 如果JSON没找到，尝试TXT格式（旧格式兼容）
+            if not content:
+                txt_paths = [
+                    chapters_dir / f"chapter_{ch_num:03d}.txt",
+                    chapters_dir / f"chapter_{ch_num}.txt",
+                    chapters_dir / f"{ch_num:03d}.txt",
+                    chapters_dir / f"{ch_num}.txt",
+                ]
+                
+                for path in txt_paths:
+                    if path.exists():
+                        try:
+                            content = path.read_text(encoding='utf-8')
+                            file_path = path
+                            break
+                        except Exception as e:
+                            logger.warning(f"[StageOptimizer] 读取TXT章节文件失败 {path}: {e}")
+                            continue
             
             if content:
                 chapters.append({
@@ -313,9 +344,11 @@ class StageReviewOptimizer:
                     "content": content,
                     "word_count": len(content)
                 })
+                logger.debug(f"[StageOptimizer] 已加载第{ch_num}章: {file_path}")
             else:
                 logger.warning(f"[StageOptimizer] 未找到第{ch_num}章内容")
         
+        logger.info(f"[StageOptimizer] 从磁盘加载: 第{start}-{end}章，成功{len(chapters)}章")
         return chapters
     
     def optimize_window(self, window_start: int, window_end: int) -> Dict:
