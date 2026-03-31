@@ -8,6 +8,7 @@ Hierarchical Planner
 - BatchSummarizer: 每轮生成后总结（用于下一轮规划）
 """
 
+import json
 import logging
 from typing import Dict, List, Optional, Tuple
 from pathlib import Path
@@ -92,6 +93,51 @@ class HierarchicalPlanner:
             logger.info(f"[HierarchicalPlanner] 已加载一阶段情绪曲线: {len(emotion_curve)}章")
         if bestseller_analysis:
             logger.info(f"[HierarchicalPlanner] 已加载爆款分析数据")
+        
+        # 🔥 尝试加载上次的批次总结
+        self._load_last_batch_summary()
+    
+    def _load_last_batch_summary(self):
+        """从文件加载上次的批次总结"""
+        if not self.project_path:
+            return
+        
+        try:
+            # 尝试加载最新总结
+            latest_path = self.project_path / "batch_summary_latest.json"
+            if latest_path.exists():
+                with open(latest_path, 'r', encoding='utf-8') as f:
+                    summary_data = json.load(f)
+                
+                self.current_batch_summary = summary_data.get('summary', {})
+                stats = summary_data.get('statistics', {})
+                self.generated_chapters_count = stats.get('total_generated', 0)
+                
+                logger.info(f"[HierarchicalPlanner] 已加载上次总结: "
+                           f"第{self.current_batch_summary.get('batch_range', '未知')}章, "
+                           f"已生成{self.generated_chapters_count}章")
+                return
+            
+            # 如果没有 latest，尝试找到最新的 batch_summary_xxx.json
+            summary_dir = self.project_path / "batch_summaries"
+            if summary_dir.exists():
+                summary_files = sorted(summary_dir.glob("batch_summary_*.json"))
+                if summary_files:
+                    latest_file = summary_files[-1]  # 最新的文件
+                    with open(latest_file, 'r', encoding='utf-8') as f:
+                        summary_data = json.load(f)
+                    
+                    self.current_batch_summary = summary_data.get('summary', {})
+                    stats = summary_data.get('statistics', {})
+                    self.generated_chapters_count = stats.get('total_generated', 0)
+                    
+                    logger.info(f"[HierarchicalPlanner] 已加载历史总结: {latest_file.name}")
+                    return
+            
+            logger.info("[HierarchicalPlanner] 没有找到历史总结，将从头开始")
+            
+        except Exception as e:
+            logger.error(f"[HierarchicalPlanner] 加载历史总结失败: {e}")
     
     def initialize(self, existing_world_setting: Dict = None):
         """

@@ -33,7 +33,12 @@ class BatchSummarizer:
         previous_summary: Dict = None
     ) -> Dict:
         """
-        总结批次内容
+        总结批次内容（AI增强版）
+        
+        使用AI分析章节内容，生成深度总结，用于：
+        1. 传递给下一批次的 TacticalPlanner
+        2. 保持跨会话的剧情连贯性
+        3. 追踪阶段目标完成度
         
         Args:
             chapters: 章节数据列表
@@ -50,7 +55,7 @@ class BatchSummarizer:
         start_ch = min(chapter_nums)
         end_ch = max(chapter_nums)
         
-        # 统计信息
+        # 基础统计
         total_words = sum(c.get('word_count', 0) for c in chapters)
         avg_quality = sum(c.get('quality_score', 0) for c in chapters) / len(chapters) if chapters else 0
         
@@ -85,6 +90,12 @@ class BatchSummarizer:
                     "chapter": ch.get('chapter_number')
                 })
         
+        # 🔥 AI 深度分析
+        ai_analysis = self._ai_analyze_batch(
+            chapters, stage_goal, previous_summary,
+            all_new_chars, all_char_changes, key_events
+        )
+        
         # 计算阶段目标进度
         goal_id = stage_goal.get('goal_id', 'G1') if stage_goal else 'G1'
         goal_name = stage_goal.get('name', '未知目标') if stage_goal else '未知'
@@ -117,11 +128,19 @@ class BatchSummarizer:
                 "key_events_count": len(key_events)
             },
             
+            # 🔥 AI 分析结果
+            "ai_analysis": ai_analysis,
+            
             # 角色状态快照
-            "character_state": self._extract_character_state(chapters),
+            "character_state": ai_analysis.get('character_states', {}) or self._extract_character_state(chapters),
+            
+            # 用于传递的关键信息
+            "completed_events": ai_analysis.get('completed_events', []),
+            "pending_hooks": ai_analysis.get('pending_hooks', all_hooks[:5]),
+            "plot_direction": ai_analysis.get('plot_direction', ''),
             
             # 备注
-            "notes": f"第{start_ch}-{end_ch}章批次总结完成"
+            "notes": ai_analysis.get('summary_text', f"第{start_ch}-{end_ch}章批次总结完成")
         }
         
         logger.info(f"[BatchSummarizer] 批次总结完成: 第{start_ch}-{end_ch}章, "
@@ -129,6 +148,109 @@ class BatchSummarizer:
                    f"目标进度{progress}%")
         
         return summary
+    
+    def _ai_analyze_batch(
+        self,
+        chapters: List[Dict],
+        stage_goal: Dict,
+        previous_summary: Dict,
+        new_chars: List[Dict],
+        char_changes: List[Dict],
+        key_events: List[Dict]
+    ) -> Dict:
+        """
+        使用AI深度分析批次内容
+        
+        生成用于下批次规划的关键信息。
+        """
+        if not self.api_client:
+            return {
+                "summary_text": "无API客户端，使用基础统计",
+                "character_states": {},
+                "completed_events": [],
+                "pending_hooks": [],
+                "plot_direction": ""
+            }
+        
+        # 构建分析提示词
+        start_ch = min(c.get('chapter_number', 0) for c in chapters)
+        end_ch = max(c.get('chapter_number', 0) for c in chapters)
+        
+        # 提取关键内容（每章前500字）
+        chapter_snippets = []
+        for ch in chapters:
+            content = ch.get('content', '')[:500]
+            ch_num = ch.get('chapter_number', 0)
+            chapter_snippets.append(f"第{ch_num}章摘要: {content}...")
+        
+        goal_desc = stage_goal.get('description', '完成当前阶段目标') if stage_goal else '推进剧情'
+        
+        prompt = f"""【批次分析报告生成】
+
+请分析第{start_ch}-{end_ch}章的剧情进展，生成供下一批次使用的总结报告。
+
+【当前阶段目标】
+{goal_desc}
+
+【章节内容摘要】
+{chr(10).join(chapter_snippets)}
+
+【统计信息】
+- 新角色: {len(new_chars)}人 ({', '.join(c.get('name', '') for c in new_chars[:3])}...)
+- 角色变化: {len(char_changes)}次
+- 关键事件: {len(key_events)}个
+
+【请输出JSON格式分析结果】
+{{
+  "summary_text": "一句话总结这批章节的核心进展",
+  "completed_events": [
+    {{"chapter": 章节号, "event": "完成的事件", "significance": "重要性(high/medium/low)"}}
+  ],
+  "character_states": {{
+    "protagonist": {{"name": "主角名", "status": "当前状态", "扮演度": "35%", "新技能": ["技能1"]}},
+    "ally": {{"name": "主要盟友", "态度": "友好/怀疑", "状态": "健康/受伤"}},
+    "enemy": {{"name": "主要敌人", "状态": "活跃/被击败", "威胁等级": "S级"}}
+  }},
+  "pending_hooks": [
+    {{"chapter": 埋下章节, "content": "钩子内容", "priority": "high/medium/low", "expected_resolution": "预期解决章节"}}
+  ],
+  "plot_direction": "下一批应该推进的方向建议（50字以内）",
+  "stage_progress_assessment": "阶段目标完成度评估(0-100)及原因"
+}}
+
+只输出JSON，不要其他内容。"""
+        
+        try:
+            response = self.api_client.generate_content_with_retry(
+                content_type="batch_summary_analysis",
+                user_prompt=prompt,
+                temperature=0.7,
+                purpose=f"批次分析-{start_ch}-{end_ch}"
+            )
+            
+            # 解析JSON响应
+            import re
+            if isinstance(response, dict):
+                return response
+            elif isinstance(response, str):
+                json_match = re.search(r'\{[\s\S]*\}', response)
+                if json_match:
+                    return json.loads(json_match.group())
+            
+            logger.warning("[BatchSummarizer] AI分析返回格式异常，使用基础数据")
+            
+        except Exception as e:
+            logger.error(f"[BatchSummarizer] AI分析失败: {e}")
+        
+        # 返回默认结构
+        return {
+            "summary_text": f"第{start_ch}-{end_ch}章剧情推进完成",
+            "character_states": {},
+            "completed_events": key_events[:3],
+            "pending_hooks": [],
+            "plot_direction": "继续推进当前阶段目标",
+            "stage_progress_assessment": "阶段进行中"
+        }
     
     def _empty_summary(self) -> Dict:
         """返回空总结"""
