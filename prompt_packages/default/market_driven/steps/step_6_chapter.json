@@ -1,7 +1,7 @@
 {
-  "step_id": "step_7_chapter",
+  "step_id": "step_6_chapter",
   "step_name": "生成章节",
-  "step_order": 7,
+  "step_order": 6,
   "enabled": true,
   "description": "基于前面所有设定，生成具体的小说章节内容",
   "prompt_template": {

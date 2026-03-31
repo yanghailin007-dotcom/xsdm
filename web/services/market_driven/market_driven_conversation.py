@@ -476,6 +476,14 @@ class MarketDrivenConversationSession:
             if "generation_metadata" not in project_info:
                 project_info["generation_metadata"] = {}
             
+            # 🔥 保存目标章节数到 generation_metadata，用于前端进度计算
+            total_chapters = self.user_choices.get('chapters')
+            if total_chapters:
+                try:
+                    project_info["generation_metadata"]["target_chapters"] = int(total_chapters)
+                except (ValueError, TypeError):
+                    pass
+            
             # 保存当前步骤结果
             if "mode_specific" not in project_info["generation_metadata"]:
                 project_info["generation_metadata"]["mode_specific"] = {}

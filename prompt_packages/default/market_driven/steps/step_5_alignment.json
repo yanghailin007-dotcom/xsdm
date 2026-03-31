@@ -1,7 +1,7 @@
 {
-  "step_id": "step_6_alignment",
+  "step_id": "step_5_alignment",
   "step_name": "爆款对齐检查",
-  "step_order": 6,
+  "step_order": 5,
   "enabled": true,
   "description": "检查前面生成的内容是否符合爆款公式，进行优化调整",
   "prompt_template": {
@@ -32,7 +32,6 @@
       {"name": "worldview", "type": "object", "required": true, "description": "步骤2生成的世界观"},
       {"name": "characters", "type": "object", "required": true, "description": "步骤3生成的角色"},
       {"name": "growth_plan", "type": "object", "required": true, "description": "步骤4生成的成长路线"},
-      {"name": "emotion_curve", "type": "object", "required": true, "description": "步骤5生成的情绪曲线"}
     ]
   },
   "parameters": {
