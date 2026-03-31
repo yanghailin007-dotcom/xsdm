@@ -1,0 +1,294 @@
+{
+  "version": "2.0.0",
+  "description": "战术规划提示词配置 - 每30章详细规划",
+  
+  "batch_structure": {
+    "window_size": 30,
+    "overlap": 5,
+    "emotion_cycles": 6
+  },
+  
+  "output_schema": {
+    "batch_info": {
+      "start_chapter": "integer",
+      "end_chapter": "integer", 
+      "stage_goal_id": "string",
+      "stage_goal_description": "string",
+      "emotion_arc": "string (本批次整体情绪弧线)"
+    },
+    "chapters": [
+      {
+        "chapter_number": "integer",
+        "emotion": "string (情绪类型)",
+        "intensity": "integer (1-10)",
+        "beat_type": "string (节拍类型)",
+        "event": "string (主要事件)",
+        "purpose": "string (本章目的)",
+        "hook_type": "string (钩子类型)",
+        "hook_content": "string (钩子内容)",
+        "stage_goal_alignment": "string (如何推进阶段目标)",
+        "micro_innovation": "string (微创新要求)",
+        "algorithm_requirements": {
+          "emotion_density_target": "≥2.0/千字",
+          "emotion_words_min": 10,
+          "appeal_density_target": "≥1.5/千字",
+          "appeal_moments_min": 3,
+          "hook_required": true,
+          "hook_position": "最后50字"
+        },
+        "self_check_items": ["string array"]
+      }
+    ]
+  },
+  
+  "emotion_cycle_template": {
+    "name": "5章情绪循环",
+    "description": "严格5章一个情绪循环",
+    "cycles": [
+      {
+        "position": 1,
+        "emotion": "压抑",
+        "intensity_range": "7-8",
+        "beat_type": "铺垫",
+        "function": "积蓄情绪，让读者同情主角",
+        "key_requirements": [
+          "主角被质疑/遇到强大敌人",
+          "反派要有智商，不只是嚣张",
+          "通过具体细节让读者感到压抑"
+        ],
+        "algorithm_focus": "情绪词密度≥2.0/千字，前300字必须有冲突"
+      },
+      {
+        "position": 2,
+        "emotion": "紧张/嘲讽",
+        "intensity_range": "8-9",
+        "beat_type": "冲突",
+        "function": "矛盾升级，制造紧张感",
+        "key_requirements": [
+          "反派嚣张/弹幕全网黑",
+          "主角陷入困境",
+          "读者感到紧张和压力"
+        ],
+        "algorithm_focus": "情绪强度8以上，每500字情绪词"
+      },
+      {
+        "position": 3,
+        "emotion": "反转/爆发",
+        "intensity_range": "8-9",
+        "beat_type": "反转",
+        "function": "主角反击，刷新认知",
+        "key_requirements": [
+          "主角展现实力，开始反击",
+          "从被动转为主动",
+          "让读者感到大爽或震惊"
+        ],
+        "algorithm_focus": "爽点密度≥1.5/千字，震惊反应链完整"
+      },
+      {
+        "position": 4,
+        "emotion": "震惊/渲染",
+        "intensity_range": "7-8",
+        "beat_type": "渲染",
+        "function": "放大震惊效果，多层次铺展",
+        "key_requirements": [
+          "全网刷屏/反派跪地",
+          "多角度、多层次描写震惊",
+          "震惊反应链：现场→弹幕→权威"
+        ],
+        "algorithm_focus": "震惊词密度，三层震惊铺展"
+      },
+      {
+        "position": 5,
+        "emotion": "期待/伏笔",
+        "intensity_range": "6-7",
+        "beat_type": "伏笔",
+        "function": "埋下伏笔，为下一循环做准备",
+        "key_requirements": [
+          "新地图/新能力线索",
+          "具体的时间锁/信息差",
+          "必须让人想点下一章"
+        ],
+        "algorithm_focus": "最后50字必须是钩子，钩子类型明确"
+      }
+    ]
+  },
+  
+  "algorithm_requirements": {
+    "emotion_density": {
+      "target": "≥2.0个/千字",
+      "min_count_per_chapter": 10,
+      "distribution": "每500字至少1个强烈情绪词",
+      "vocabulary": {
+        "anger": ["暴怒", "狂怒", "目眦尽裂", "杀意滔天", "怒火中烧", "恨意滔天"],
+        "shock": ["震撼", "骇然", "惊恐", "目瞪口呆", "头皮发麻", "倒吸凉气"],
+        "satisfaction": ["狂喜", "激动", "兴奋", "畅快", "扬眉吐气", "通体舒泰"],
+        "oppression": ["绝望", "无力", "屈辱", "悲愤", "心如刀割", "窒息"],
+        "twist": ["错愕", "懵然", "难以置信", "怀疑人生", "惊骇欲绝"]
+      }
+    },
+    "appeal_density": {
+      "target": "≥1.5个/千字",
+      "min_moments_per_chapter": 3,
+      "reaction_chain": "主角行动→具体数字→围观者震惊→弹幕扩散→权威反应→主角内心爽感",
+      "vocabulary": {
+        "crush": ["碾压", "横扫", "瞬杀", "一招秒杀", "摧枯拉朽"],
+        "shock": ["全场死寂", "骇然失色", "难以置信", "怀疑人生"],
+        "harvest": ["暴涨", "飙升", "翻倍", "突破", "觉醒", "进化"],
+        "face_slap": ["打脸", "反转", "跪服", "求饶", "后悔莫及"]
+      }
+    },
+    "hook_requirements": {
+      "required": true,
+      "position": "最后50字",
+      "compliance_rate": "100%",
+      "types": [
+        {
+          "type": "时间锁",
+          "description": "具体倒计时",
+          "example": "71小时59分后，死局降临"
+        },
+        {
+          "type": "信息差",
+          "description": "主角知道读者知道但反派不知道",
+          "example": "他嘴角微扬，那畜生不知道的是..."
+        },
+        {
+          "type": "危机预警",
+          "description": "更大危机逼近",
+          "example": "远处，S级凶兽睁开了眼..."
+        },
+        {
+          "type": "身份揭露",
+          "description": "神秘人物登场",
+          "example": "电话那头，竟是已死的父亲..."
+        },
+        {
+          "type": "反派出招",
+          "description": "反派放大招",
+          "example": "你以为这就完了？真正的游戏刚开始"
+        }
+      ]
+    },
+    "basic": [
+      "前300字必须出现冲突/悬念",
+      "对话占比≥50%",
+      "每段1-3行，多用换行",
+      "最后50字必须是钩子"
+    ]
+  },
+  
+  "micro_innovation_requirements": {
+    "time_scene": {
+      "forbidden": ["深夜23:47暴雨"],
+      "recommended": ["凌晨5:30刚下班", "早高峰地铁", "正午烈日下的工地"]
+    },
+    "system_activation": {
+      "forbidden": ["天降金光", "额头流血触发", "被雷劈"],
+      "recommended": [
+        "手机收到【人生模拟器】内测邀请短信，发件人是自己手机号",
+        "微信突然多了一个'模拟器助手'好友",
+        "电脑屏幕突然弹出无法关闭的窗口"
+      ]
+    },
+    "villain_humiliation": {
+      "forbidden": ["纯嚣张'穷鬼就该有穷鬼的觉悟'", "让主角跪下"],
+      "recommended": [
+        "网络暴力式：拿出手机'来，对着镜头说'我穷我有理'，让网友评评理'",
+        "规则打压式：'我能让你连贫困生补助都拿不到，你信吗？'",
+        "利益威胁式：'这奖学金我买定了，你尽管去告，看有没有人理你'"
+      ]
+    },
+    "supporting_roles": [
+      {"type": "支持者", "description": "偷偷塞给主角钱的室友/同事"},
+      {"type": "观望者", "description": "暂时中立，看形势站队的人"},
+      {"type": "记录者", "description": "拍照发朋友圈/直播的人"}
+    ]
+  },
+  
+  "self_check_template": {
+    "steps": [
+      {
+        "name": "基础指标",
+        "items": [
+          "字数：2200-2500字？",
+          "段落：每段1-3行？",
+          "对话：占比≥50%？",
+          "视角：第三人称上帝视角？"
+        ]
+      },
+      {
+        "name": "番茄算法",
+        "items": [
+          "前300字：冲突/悬念？",
+          "每1000字：小爽点？",
+          "最后50字：必须是钩子！"
+        ]
+      },
+      {
+        "name": "情绪密度",
+        "items": [
+          "情绪词总数：≥10个？",
+          "情绪密度：≥2.0/千字？",
+          "分布：每500字有情绪词？",
+          "强度：使用强烈情绪词？"
+        ]
+      },
+      {
+        "name": "爽点密度",
+        "items": [
+          "爽点时刻：≥3个？",
+          "爽点密度：≥1.5/千字？",
+          "反应链：现场→弹幕→权威？",
+          "数字强化：有具体数字？"
+        ]
+      },
+      {
+        "name": "章尾钩子",
+        "items": [
+          "最后50字是钩子？",
+          "钩子类型：时间锁/信息差/危机/身份揭露？",
+          "让人想点下一章？"
+        ]
+      }
+    ],
+    "report_template": """
+【AI自检报告 - 第{chapter_num}章】
+总字数：XXXX字
+
+🚨【三大问题修复检查】
+情绪密度：X个/千字（目标≥2.0）| 情绪词：XXX、XXX、XXX...
+章尾钩子：有/无 | 钩子类型：XXX | 最后50字："..."
+爽点密度：X个/千字（目标≥1.5）| 爽点时刻：X个
+
+番茄算法：前300字冲突（是/否），每1000字爽点（是/否）
+情绪曲线：X次转变
+自检结论：【通过/需优化】
+问题与优化：列出发现的问题
+"""
+  },
+  
+  "ai_prompt_template": {
+    "role": "战术规划师",
+    "task": "为小说规划详细战术",
+    "input_sections": [
+      "基本信息（书名、主角名）",
+      "爆款设计参考（情绪曲线、题材公式、钩子公式、爽点模式）",
+      "阶段目标（目标ID、描述、成功标准、关键交付物）",
+      "前序总结（已发生事件、角色状态、待回收伏笔、阶段完成度）"
+    ],
+    "planning_requirements": [
+      "严格5章情绪循环",
+      "每章必须有明确节拍类型",
+      "章章有钩子",
+      "与阶段目标对齐",
+      "回收前序伏笔"
+    ],
+    "output_requirements": [
+      "JSON格式",
+      "每章包含完整字段",
+      "情绪强度1-10",
+      "节拍类型明确",
+      "钩子内容具体"
+    ]
+  }
+}
