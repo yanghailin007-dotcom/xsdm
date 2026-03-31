@@ -457,13 +457,19 @@ class HierarchicalPlanner:
                 json.dump(summary_report, f, ensure_ascii=False, indent=2)
             
             # 🔥 保存Markdown格式（供人工阅读）
-            md_content = self._generate_batch_summary_md(start_ch, end_ch, generated_chapters)
-            md_filename = f"batch_summary_{start_ch:03d}_{end_ch:03d}.md"
-            md_filepath = summary_dir / md_filename
-            with open(md_filepath, 'w', encoding='utf-8') as f:
-                f.write(md_content)
+            try:
+                md_content = self._generate_batch_summary_md(start_ch, end_ch, generated_chapters)
+                md_filename = f"batch_summary_{start_ch:03d}_{end_ch:03d}.md"
+                md_filepath = summary_dir / md_filename
+                with open(md_filepath, 'w', encoding='utf-8') as f:
+                    f.write(md_content)
+                    logger.info(f"[HierarchicalPlanner] Markdown批次总结已保存: {md_filepath}")
+            except Exception as md_e:
+                logger.error(f"[HierarchicalPlanner] Markdown生成失败: {md_e}")
+                import traceback
+                logger.error(traceback.format_exc())
             
-            logger.info(f"[HierarchicalPlanner] 批次总结已保存: {filepath} + {md_filepath}")
+            logger.info(f"[HierarchicalPlanner] 批次总结已保存: {filepath}")
             
         except Exception as e:
             logger.error(f"[HierarchicalPlanner] 保存批次总结失败: {e}")
@@ -576,6 +582,13 @@ class HierarchicalPlanner:
                 lines.append("")
                 lines.append(notes)
                 lines.append("")
+        
+        # 🔥 添加生成提示
+        if not self.current_batch_summary:
+            lines.append("## ⚠️ 提示")
+            lines.append("")
+            lines.append("> 批次总结数据暂未生成，此报告仅包含基础统计信息。")
+            lines.append("")
         
         return "\n".join(lines)
     
