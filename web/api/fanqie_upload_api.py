@@ -96,9 +96,16 @@ def get_user_novels():
                 if completed_chapters == 0:
                     chapters_dir = project_path / 'chapters'
                     if chapters_dir.exists():
-                        # 支持 .json 和 .txt 格式的章节文件
-                        chapter_files = list(chapters_dir.glob('第*.json')) + list(chapters_dir.glob('第*.txt'))
-                        completed_chapters = len(chapter_files)
+                        # 支持多种命名格式的章节文件
+                        chapter_files = (
+                            list(chapters_dir.glob('第*.json')) + 
+                            list(chapters_dir.glob('第*.txt')) +
+                            list(chapters_dir.glob('chapter_*.json')) +
+                            list(chapters_dir.glob('chapter_*.txt'))
+                        )
+                        # 去重
+                        unique_files = set(f.name for f in chapter_files)
+                        completed_chapters = len(unique_files)
                         
                         # 从文件读取字数
                         for f in chapter_files:
@@ -193,12 +200,19 @@ def get_novel_chapters():
         if not project_dir:
             return jsonify({'success': False, 'error': '未找到小说项目'}), 404
         
-        # 读取章节文件（支持 .txt 和 .json 格式）
+        # 读取章节文件（支持多种命名格式）
         chapters = []
         chapters_dir = project_dir / 'chapters'
         if chapters_dir.exists():
-            # 获取所有章节文件（.txt 和 .json）
-            chapter_files = sorted(chapters_dir.glob('第*.txt')) + sorted(chapters_dir.glob('第*.json'))
+            # 获取所有章节文件（支持多种命名格式）
+            all_files = (
+                list(chapters_dir.glob('第*.txt')) + 
+                list(chapters_dir.glob('第*.json')) +
+                list(chapters_dir.glob('chapter_*.txt')) +
+                list(chapters_dir.glob('chapter_*.json'))
+            )
+            # 按文件名排序
+            chapter_files = sorted(all_files, key=lambda x: x.name)
             
             for i, file_path in enumerate(chapter_files, 1):
                 try:

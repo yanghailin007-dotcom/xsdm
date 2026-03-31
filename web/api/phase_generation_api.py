@@ -1877,11 +1877,18 @@ def register_additional_routes(app):
                         if project_path_str:
                             project_path = Path(project_path_str)
                             if project_path.exists():
-                                # 尝试从章节目录统计
+                                # 尝试从章节目录统计（支持多种命名格式）
                                 chapters_dir = project_path / "chapters"
                                 if chapters_dir.exists():
-                                    chapter_files = list(chapters_dir.glob('第*.json')) + list(chapters_dir.glob('第*.txt'))
-                                    file_chapter_count = len(chapter_files)
+                                    all_files = (
+                                        list(chapters_dir.glob('第*.json')) + 
+                                        list(chapters_dir.glob('第*.txt')) +
+                                        list(chapters_dir.glob('chapter_*.json')) +
+                                        list(chapters_dir.glob('chapter_*.txt'))
+                                    )
+                                    # 去重
+                                    unique_files = set(f.name for f in all_files)
+                                    file_chapter_count = len(unique_files)
                                     if file_chapter_count > 0:
                                         completed_chapters = file_chapter_count
                                         logger.info(f"[WITH_PHASE_STATUS] 项目 {project_title}: 从文件系统读取到 {file_chapter_count} 个章节文件")
@@ -2176,9 +2183,16 @@ def register_additional_routes(app):
                     if chapter_dir:
                         chapter_path = Path(chapter_dir)
                         if chapter_path.exists():
-                            # 统计章节文件数量
-                            chapter_files = list(chapter_path.glob('第*.json')) + list(chapter_path.glob('第*.txt'))
-                            file_chapter_count = len(chapter_files)
+                            # 统计章节文件数量（支持多种命名格式）
+                            all_files = (
+                                list(chapter_path.glob('第*.json')) + 
+                                list(chapter_path.glob('第*.txt')) +
+                                list(chapter_path.glob('chapter_*.json')) +
+                                list(chapter_path.glob('chapter_*.txt'))
+                            )
+                            # 去重
+                            unique_files = set(f.name for f in all_files)
+                            file_chapter_count = len(unique_files)
                             if file_chapter_count > 0:
                                 completed_chapters = file_chapter_count
                                 logger.info(f"[PROJECT_INFO] 从文件系统读取到 {file_chapter_count} 个章节文件")

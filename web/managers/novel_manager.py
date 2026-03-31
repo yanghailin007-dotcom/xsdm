@@ -909,8 +909,13 @@ class NovelGenerationManager:
                 if chapter_dir.exists():
                     actual_chapter_dir = chapter_dir
                     
-                    # 查找章节文件（支持.txt和.json格式）
-                    chapter_files = list(chapter_dir.glob("第*.txt")) + list(chapter_dir.glob("第*.json"))
+                    # 查找章节文件（支持多种命名格式）
+                    chapter_files = (
+                        list(chapter_dir.glob("第*.txt")) + 
+                        list(chapter_dir.glob("第*.json")) +
+                        list(chapter_dir.glob("chapter_*.txt")) +
+                        list(chapter_dir.glob("chapter_*.json"))
+                    )
                     logger.debug(f"[DEBUG] 找到 {len(chapter_files)} 个章节文件")
                     
                     for chapter_file in chapter_files:
@@ -1267,11 +1272,21 @@ class NovelGenerationManager:
                 try:
                     chapters_dir = project_path / "chapters"
                     if chapters_dir.exists():
-                        chapter_files = list(chapters_dir.glob('第*.json')) + list(chapters_dir.glob('第*.txt'))
-                        file_chapter_count = len(chapter_files)
+                        # 🔥 支持多种文件命名格式
+                        chapter_files = (
+                            list(chapters_dir.glob('第*.json')) + 
+                            list(chapters_dir.glob('第*.txt')) +
+                            list(chapters_dir.glob('chapter_*.json')) +  # 新格式
+                            list(chapters_dir.glob('chapter_*.txt')) +
+                            list(chapters_dir.glob('*.json')) +
+                            list(chapters_dir.glob('*.txt'))
+                        )
+                        # 去重（避免同一文件匹配多个模式）
+                        unique_files = set(f.name for f in chapter_files)
+                        file_chapter_count = len(unique_files)
                         if file_chapter_count > 0:
                             completed_chapters = file_chapter_count
-                            logger.debug(f"[GET_NOVEL_PROJECTS] 项目 {title}: 从文件系统读取到 {file_chapter_count} 个章节文件")
+                            logger.info(f"[GET_NOVEL_PROJECTS] 项目 {title}: 从文件系统读取到 {file_chapter_count} 个章节文件")
                 except Exception as e:
                     logger.warning(f"[GET_NOVEL_PROJECTS] 从文件系统读取章节失败: {e}")
             
