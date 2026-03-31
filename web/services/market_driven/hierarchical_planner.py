@@ -393,7 +393,7 @@ class HierarchicalPlanner:
     
     def _save_batch_summary(self, generated_chapters: List[Dict]):
         """
-        保存批次总结报告到文件
+        保存批次总结报告到文件（JSON + Markdown双格式）
         
         Args:
             generated_chapters: 本次生成的章节列表
@@ -444,6 +444,7 @@ class HierarchicalPlanner:
             summary_dir = self.project_path / "batch_summaries"
             summary_dir.mkdir(exist_ok=True)
             
+            # 保存JSON格式（供程序读取）
             filename = f"batch_summary_{start_ch:03d}_{end_ch:03d}.json"
             filepath = summary_dir / filename
             
@@ -455,10 +456,128 @@ class HierarchicalPlanner:
             with open(latest_path, 'w', encoding='utf-8') as f:
                 json.dump(summary_report, f, ensure_ascii=False, indent=2)
             
-            logger.info(f"[HierarchicalPlanner] 批次总结已保存: {filepath}")
+            # 🔥 保存Markdown格式（供人工阅读）
+            md_content = self._generate_batch_summary_md(start_ch, end_ch, generated_chapters)
+            md_filename = f"batch_summary_{start_ch:03d}_{end_ch:03d}.md"
+            md_filepath = summary_dir / md_filename
+            with open(md_filepath, 'w', encoding='utf-8') as f:
+                f.write(md_content)
+            
+            logger.info(f"[HierarchicalPlanner] 批次总结已保存: {filepath} + {md_filepath}")
             
         except Exception as e:
             logger.error(f"[HierarchicalPlanner] 保存批次总结失败: {e}")
+    
+    def _generate_batch_summary_md(self, start_ch: int, end_ch: int, chapters: List[Dict]) -> str:
+        """生成批次总结的Markdown格式（人工可读）"""
+        lines = []
+        
+        # 标题
+        lines.append(f"# 📦 批次总结报告：第{start_ch}-{end_ch}章")
+        lines.append("")
+        lines.append(f"**生成时间**: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
+        lines.append("")
+        
+        # 基本信息
+        lines.append("## 📊 基本信息")
+        lines.append("")
+        total_words = sum(c.get('word_count', 0) for c in chapters)
+        avg_quality = sum(c.get('quality_score', 0) for c in chapters) / len(chapters) if chapters else 0
+        lines.append(f"- **章节范围**: 第{start_ch}章 ~ 第{end_ch}章")
+        lines.append(f"- **章节数量**: {len(chapters)} 章")
+        lines.append(f"- **总字数**: {total_words:,} 字")
+        lines.append(f"- **平均质量**: {avg_quality:.1f}/10")
+        lines.append(f"- **整体进度**: {self.generated_chapters_count}/{self.total_chapters} 章 ({round(self.generated_chapters_count / self.total_chapters * 100, 1)}%)")
+        lines.append("")
+        
+        # 阶段目标进度
+        if self.current_batch_summary:
+            current_goal = self.current_batch_summary.get('current_goal', {})
+            if current_goal:
+                lines.append("## 🎯 当前阶段目标")
+                lines.append("")
+                lines.append(f"- **目标ID**: {current_goal.get('goal_id', 'N/A')}")
+                lines.append(f"- **目标名称**: {current_goal.get('goal_name', '未知')}")
+                lines.append(f"- **完成进度**: {current_goal.get('progress_percent', 0)}%")
+                lines.append("")
+            
+            # AI分析摘要
+            ai_analysis = self.current_batch_summary.get('ai_analysis', {})
+            if ai_analysis and ai_analysis.get('summary_text'):
+                lines.append("## 🤖 AI分析摘要")
+                lines.append("")
+                lines.append(f"> {ai_analysis.get('summary_text', '')}")
+                lines.append("")
+            
+            # 关键事件
+            completed_events = self.current_batch_summary.get('completed_events', [])
+            if completed_events:
+                lines.append("## ⚡ 关键事件")
+                lines.append("")
+                for event in completed_events[:5]:  # 最多显示5个
+                    ch = event.get('chapter', 'N/A')
+                    desc = event.get('event', event.get('description', '未知事件'))
+                    significance = event.get('significance', 'medium')
+                    emoji = {"high": "🔴", "medium": "🟡", "low": "🟢"}.get(significance, "⚪")
+                    lines.append(f"{emoji} **第{ch}章**: {desc}")
+                lines.append("")
+            
+            # 待解决钩子
+            pending_hooks = self.current_batch_summary.get('pending_hooks', [])
+            if pending_hooks:
+                lines.append("## 🪝 待解决钩子")
+                lines.append("")
+                for hook in pending_hooks[:5]:
+                    ch = hook.get('chapter', 'N/A')
+                    content = hook.get('content', hook.get('hook', '未知钩子'))
+                    priority = hook.get('priority', 'medium')
+                    emoji = {"high": "🔴", "medium": "🟡", "low": "🟢"}.get(priority, "⚪")
+                    lines.append(f"{emoji} **第{ch}章**: {content[:100]}{'...' if len(content) > 100 else ''}")
+                lines.append("")
+            
+            # 角色状态
+            char_state = self.current_batch_summary.get('character_state', {})
+            if char_state:
+                lines.append("## 👤 角色状态")
+                lines.append("")
+                for role, state in char_state.items():
+                    if isinstance(state, dict):
+                        name = state.get('name', role)
+                        status = state.get('status', state.get('state', '未知'))
+                        lines.append(f"- **{name}** ({role}): {status}")
+                lines.append("")
+            
+            # 剧情方向
+            plot_direction = self.current_batch_summary.get('plot_direction', '')
+            if plot_direction:
+                lines.append("## 🧭 后续剧情方向")
+                lines.append("")
+                lines.append(f"> {plot_direction}")
+                lines.append("")
+        
+        # 章节详情表
+        lines.append("## 📖 章节详情")
+        lines.append("")
+        lines.append("| 章节 | 标题 | 字数 | 质量分 |")
+        lines.append("|------|------|------|--------|")
+        for ch in chapters:
+            ch_num = ch.get('chapter_number') or ch.get('chapter') or '?'
+            title = ch.get('title', '未命名')[:20]  # 限制长度
+            words = ch.get('word_count', 0)
+            quality = ch.get('quality_score', 0)
+            lines.append(f"| 第{ch_num}章 | {title} | {words:,} | {quality:.1f} |")
+        lines.append("")
+        
+        # 备注
+        if self.current_batch_summary:
+            notes = self.current_batch_summary.get('notes', '')
+            if notes:
+                lines.append("## 📝 备注")
+                lines.append("")
+                lines.append(notes)
+                lines.append("")
+        
+        return "\n".join(lines)
     
     def _check_stage_completion(self):
         """检查当前阶段目标是否完成"""
