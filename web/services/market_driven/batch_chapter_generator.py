@@ -159,17 +159,22 @@ class BatchChapterGenerator:
                 logger.info(f"[BatchGenerator] 准备保存第{chapter_num}章...")
                 self._save_chapter(novel_title, chapter)
                 
+                # 🔥 修复：包含完整的章节数据，包括 content 和 extracted_info 用于批次总结
                 results["generated"].append({
-                    "chapter": chapter_num,
-                    "title": chapter["title"],
+                    "chapter_number": chapter_num,
+                    "chapter": chapter_num,  # 保持向后兼容
+                    "title": chapter.get("title", ""),
                     "word_count": word_count,
-                    "quality_score": chapter.get("quality_score", 8.0)
+                    "quality_score": chapter.get("quality_score", 8.0),
+                    "content": chapter.get("content", ""),  # 用于批次总结分析
+                    "extracted_info": chapter.get("extracted_info", {})  # 用于批次总结分析
                 })
                 results["total_words"] += word_count
             else:
                 logger.error(f"[BatchGenerator] 第{chapter_num}章字数为0，标记为失败")
                 results["failed"].append({
-                    "chapter": chapter_num,
+                    "chapter_number": chapter_num,
+                    "chapter": chapter_num,  # 保持向后兼容
                     "error": chapter.get("error", "生成失败")
                 })
         

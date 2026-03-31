@@ -51,9 +51,15 @@ class BatchSummarizer:
         if not chapters:
             return self._empty_summary()
         
-        chapter_nums = [c.get('chapter_number', 0) for c in chapters]
-        start_ch = min(chapter_nums)
-        end_ch = max(chapter_nums)
+        # 🔥 修复：兼容两种字段名（chapter_number 和 chapter）
+        chapter_nums = []
+        for c in chapters:
+            ch_num = c.get('chapter_number') or c.get('chapter') or 0
+            if ch_num:
+                chapter_nums.append(ch_num)
+        
+        start_ch = min(chapter_nums) if chapter_nums else 0
+        end_ch = max(chapter_nums) if chapter_nums else 0
         
         # 基础统计
         total_words = sum(c.get('word_count', 0) for c in chapters)

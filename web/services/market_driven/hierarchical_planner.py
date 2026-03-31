@@ -405,8 +405,13 @@ class HierarchicalPlanner:
             import json
             from datetime import datetime
             
-            # 计算批次信息
-            batch_chapters = [c.get('chapter_number', 0) for c in generated_chapters]
+            # 计算批次信息（兼容两种字段名）
+            batch_chapters = []
+            for c in generated_chapters:
+                ch_num = c.get('chapter_number') or c.get('chapter') or 0
+                if ch_num:
+                    batch_chapters.append(ch_num)
+            
             start_ch = min(batch_chapters) if batch_chapters else 0
             end_ch = max(batch_chapters) if batch_chapters else 0
             
@@ -421,7 +426,7 @@ class HierarchicalPlanner:
                 "summary": self.current_batch_summary,
                 "chapters": [
                     {
-                        "chapter_number": c.get('chapter_number'),
+                        "chapter_number": c.get('chapter_number') or c.get('chapter'),
                         "title": c.get('title', ''),
                         "word_count": c.get('word_count', 0),
                         "quality_score": c.get('quality_score', 0)
