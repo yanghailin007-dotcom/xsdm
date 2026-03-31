@@ -81,6 +81,15 @@ class PromptLoader:
         """
         return self.load_json("chapter_generation_prompts.json")
     
+    def get_golden_chapter_prompts(self) -> Optional[Dict]:
+        """
+        获取黄金三章提示词配置
+        
+        Returns:
+            黄金三章提示词配置字典
+        """
+        return self.load_json("golden_chapter_prompts.json")
+    
     def get_chapter_templates(self) -> Optional[Dict]:
         """
         获取章节模板配置

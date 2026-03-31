@@ -24,6 +24,7 @@ from datetime import datetime
 
 # 导入风格加载器
 from .style_loader import StyleLoader, get_style_guide
+from .prompt_loader import get_prompt_loader
 
 logger = logging.getLogger(__name__)
 
@@ -191,6 +192,10 @@ class ChapterPromptOptimizerV3:
         # 初始化风格加载器
         self._style_loader = StyleLoader()
         
+        # 初始化提示词加载器（用于加载 JSON 配置的提示词）
+        self._prompt_loader = get_prompt_loader()
+        self._golden_chapter_prompts = self._load_golden_chapter_prompts()
+        
         logger.info(f"[PromptV3] 初始化完成 | 书名: {self.title} | 题材: {self.genre_type}")
     
     def _load_chapter_templates(self) -> Dict:
@@ -209,6 +214,20 @@ class ChapterPromptOptimizerV3:
                 return {}
         except Exception as e:
             logger.error(f"[PromptV3] 加载章节模板配置失败: {e}")
+            return {}
+    
+    def _load_golden_chapter_prompts(self) -> Dict:
+        """从 JSON 加载黄金三章提示词配置"""
+        try:
+            prompts = self._prompt_loader.get_golden_chapter_prompts()
+            if prompts:
+                logger.info(f"[PromptV3] 加载黄金三章提示词配置成功")
+                return prompts.get('golden_chapters', {})
+            else:
+                logger.warning(f"[PromptV3] 黄金三章提示词配置加载失败，将使用硬编码")
+                return {}
+        except Exception as e:
+            logger.error(f"[PromptV3] 加载黄金三章提示词配置失败: {e}")
             return {}
     
     def _render_template(self, template_type: str) -> str:
@@ -1098,6 +1117,13 @@ class ChapterPromptOptimizerV3:
     
     def _build_golden_chapter_1(self, blueprint: Dict, prev_summary: str) -> str:
         """构建第1章（钩子章）提示词"""
+        # 🔥 优先使用 JSON 配置渲染提示词
+        if self._golden_chapter_prompts and 'chapter_1' in self._golden_chapter_prompts:
+            try:
+                return self._render_golden_chapter_1_from_config(blueprint)
+            except Exception as e:
+                logger.warning(f"[PromptV3] 从配置渲染第1章提示词失败: {e}，使用硬编码")
+        
         # 获取开局设计
         opening = self.plan.get('opening_design', {}).get('chapter_1', {}) if self.plan else {}
         
@@ -1541,6 +1567,335 @@ class ChapterPromptOptimizerV3:
 - 信息差：主角知道反派不知道的秘密
 - 蝴蝶效应：系统警告"当前轨迹下你会错过购买时间"
 - 多重可能：展示3种未来，主角必须选择
+"""
+    
+    def _render_golden_chapter_1_from_config(self, blueprint: Dict) -> str:
+        """
+        从 JSON 配置渲染第1章提示词
+        
+        Args:
+            blueprint: 战术大纲
+            
+        Returns:
+            渲染后的提示词字符串
+        """
+        config = self._golden_chapter_prompts.get('chapter_1', {})
+        common = self._golden_chapter_prompts.get('common_elements', {})
+        
+        # 提取蓝图变量
+        scene = blueprint.get('scene', '')
+        event = blueprint.get('event', '')
+        hook_content = blueprint.get('hook_content', '')
+        emotion = blueprint.get('emotion', '')
+        purpose = blueprint.get('purpose', '')
+        beat_type = blueprint.get('beat_type', '')
+        has_blueprint = bool(scene or event or hook_content)
+        
+        # 获取题材元素
+        genre_elements = self._get_genre_elements_for_chapter(1)
+        
+        # 构建大纲约束
+        blueprint_constraint = self._build_blueprint_constraint(
+            beat_type, purpose, emotion, scene, event, hook_content, has_blueprint
+        )
+        
+        # 获取结构配置
+        structure = config.get('structure', {})
+        part_1 = structure.get('part_1', {})
+        part_2 = structure.get('part_2', {})
+        part_3 = structure.get('part_3', {})
+        
+        # 获取算法要求
+        algo = common.get('algorithm_requirements', {})
+        
+        # 渲染提示词
+        prompt = f"""# 第1章生成指令【黄金三章 - 钩子章】
+
+**这是全书最重要的章节！决定读者是否继续阅读！**
+
+## 【章节定位】
+类型：钩子章（生死线）
+功能：{config.get('function', '极端困境开局 + 系统觉醒 + 悬念钩子')}
+目标：{config.get('goal', '让读者3句话内同情主角，章尾必须点下一章')}
+
+{blueprint_constraint}
+
+## 【结构要求】（严格按字数分配）
+
+### 第一部分：{part_1.get('name', '极端困境')}（{part_1.get('range', '0-500字')}）
+**必须完成的任务：**
+{chr(10).join(['- ' + r for r in part_1.get('requirements', [])])}
+
+**写法示例：**
+```
+{event[:150] + '...' if event and len(event) > 150 else event if event else part_1.get('example', '')}
+```
+
+**禁止：**
+{chr(10).join(['- ' + f for f in part_1.get('forbidden', [])])}
+
+{self._get_micro_innov_for_chapter_1() if not has_blueprint else ""}
+
+---
+
+### 第二部分：{part_2.get('name', '系统觉醒')}（{part_2.get('range', '500-2000字')}）
+**必须完成的任务：**
+{chr(10).join(['- ' + r for r in part_2.get('requirements', [])])}
+
+**微创新激活方式（推荐尝试）：**
+{chr(10).join([f"- **{m.get('type', '')}**：{m.get('description', '')}" for m in part_2.get('micro_innovations', [])])}
+
+**参考写法：**
+```
+{part_2.get('example', '')}
+```
+
+{genre_elements}
+
+---
+
+### 第三部分：{part_3.get('name', '悬念钩子')}（{part_3.get('range', '2000-2500字')}）
+**必须完成的任务：**
+{chr(10).join(['- ' + r for r in part_3.get('requirements', [])])}
+
+**微创新钩子（推荐）：**
+{chr(10).join([f"- **{h.get('type', '')}**：{h.get('example', '')}" for h in part_3.get('hook_types', [])])}
+
+**主角情绪层次：**
+{chr(10).join([f"{i+1}. {e}" for i, e in enumerate(part_3.get('protagonist_emotion_layers', []))])}
+
+**配角反应设计：**
+{chr(10).join([f"- {r.get('type', '')}：{r.get('description', '')}" for r in part_3.get('supporting_roles', [])])}
+
+**禁止：**
+{chr(10).join(['- ' + f for f in part_3.get('forbidden', [])])}
+
+{self._render_algorithm_requirements_from_config(algo)}
+
+{self._render_self_check_from_config(config.get('self_check_steps', []))}
+
+{self._render_output_format_from_config(common.get('output_format', {}))}
+
+---
+【AI自检报告 - 第1章】
+总字数：XXXX字
+
+🚨【三大问题修复检查】
+情绪密度：X个/千字（目标≥2.0）| 情绪词列表：XXX、XXX、XXX...
+章尾钩子：有/无 | 钩子类型：XXX | 最后50字："..."
+爽点密度：X个/千字（目标≥1.5）| 爽点时刻：X个
+
+番茄算法：前300字冲突（是/否），500字系统（是/否）
+微创新检查：时间（创新/套路），系统激活（创新/套路），反派（有智商/脸谱化）
+情绪曲线：X次转变（列出）
+自检结论：【通过/需优化】
+问题与优化：列出发现的问题
+---
+"""
+        return prompt
+    
+    def _render_algorithm_requirements_from_config(self, algo: Dict) -> str:
+        """从配置渲染算法要求"""
+        if not algo:
+            return ""
+        
+        emotion = algo.get('emotion_density', {})
+        hook = algo.get('hook_presence', {})
+        appeal = algo.get('appeal_density', {})
+        basic = algo.get('basic', [])
+        
+        return f"""## 【番茄算法强制指标 - 必须严格达标】
+
+### 🔥 情绪密度指标（严重缺失，必须修复！）
+**目标：{emotion.get('target', '≥2.0个/千字')}**（当前0.59，差距-70%！）
+
+**强制要求：**
+- 每500字必须出现≥{emotion.get('min_count', 10) // 4}个强烈情绪词
+- 每章至少{emotion.get('min_count', 10)}个不同情绪词
+- 情绪词必须分布在全文，禁止集中在某一段
+
+**情绪词库（必须使用）：**
+- 愤怒类：暴怒、狂怒、目眦尽裂、杀意滔天、怒火中烧、恨意滔天
+- 震惊类：震撼、骇然、惊恐、目瞪口呆、头皮发麻、倒吸凉气
+- 爽快类：狂喜、激动、兴奋、畅快、扬眉吐气、通体舒泰
+- 压抑类：绝望、无力、屈辱、悲愤、心如刀割、窒息
+- 反转类：错愕、懵然、难以置信、怀疑人生、惊骇欲绝
+
+---
+
+### 🎣 章尾钩子指标（83%缺失，必须修复！）
+**目标：{hook.get('compliance_rate', '100%')}章节必须有钩子**（当前仅17%！）
+
+**强制要求：**
+- 最后50字**必须是悬念/钩子**，绝对禁止平淡结尾
+- 钩子类型（必须选一种）：
+  1. **时间锁**：具体倒计时（"71小时59分后，死局降临"）
+  2. **信息差**：主角知道读者知道但反派不知道（"他嘴角微扬，那畜生不知道的是..."）
+  3. **危机预警**：更大危机逼近（"远处，S级凶兽睁开了眼..."）
+  4. **身份揭露**：神秘人物登场（"电话那头，竟是已死的父亲..."）
+  5. **反派出招**：反派放大招（"你以为这就完了？真正的游戏刚开始"）
+
+---
+
+### ⚡ 爽点密度指标（断档严重，必须修复！）
+**目标：{appeal.get('target', '≥1.5个/千字')}**（当前0.67，差距-55%！）
+
+**强制要求：**
+- 每章至少{appeal.get('min_moments', 3)}-5个爽点时刻
+- 爽点必须有"震惊反应链"（现场→围观者→传播→权威）
+- 必须有具体数字/数值强化爽感
+
+**爽点词库（必须使用）：**
+- 碾压类：碾压、横扫、瞬杀、一招秒杀、摧枯拉朽
+- 震惊类：全场死寂、骇然失色、难以置信、怀疑人生
+- 收获类：暴涨、飙升、翻倍、突破、觉醒、进化
+- 打脸类：打脸、反转、跪服、求饶、后悔莫及
+
+---
+
+### 📊 基础指标
+{chr(10).join(['- ' + b for b in basic])}
+
+## 【🚨 三大问题修复检查清单】
+**以下指标严重不达标，必须重点检查！**
+
+### 1. 情绪密度检查（目标：{emotion.get('target', '≥2.0/千字')}）
+- [ ] 统计本章情绪词数量（不少于{emotion.get('min_count', 10)}个）
+- [ ] 情绪词分布是否均匀（每500字至少1个）
+- [ ] 情绪词强度是否足够（用"暴怒"而非"生气"）
+
+### 2. 章尾钩子检查（目标：{hook.get('compliance_rate', '100%')}有钩子）
+- [ ] 最后50字必须是钩子，禁止平淡结尾
+- [ ] 钩子类型是否明确（时间锁/信息差/危机/身份揭露）
+- [ ] 是否让人产生"必须点下一章"的冲动
+
+### 3. 爽点密度检查（目标：{appeal.get('target', '≥1.5/千字')}）
+- [ ] 本章爽点时刻数量（不少于{appeal.get('min_moments', 3)}个）
+- [ ] 每个爽点是否有震惊反应链
+- [ ] 是否有具体数字强化爽感
+"""
+    
+    def _render_self_check_from_config(self, steps: List[Dict]) -> str:
+        """从配置渲染自检清单"""
+        if not steps:
+            return ""
+        
+        sections = []
+        for step in steps:
+            name = step.get('name', '')
+            items = step.get('items', [])
+            sections.append(f"**Step {len(sections)+1}: {name}**\n" + chr(10).join([f"- {item}" for item in items]))
+        
+        return f"""## 【重要：生成后必须自检】
+
+生成完第1章正文后，你必须按照以下步骤自检：
+
+{chr(10).join(sections)}
+
+如果自检不通过，请重新优化后再次输出。
+"""
+    
+    def _render_output_format_from_config(self, output_format: Dict) -> str:
+        """从配置渲染输出格式"""
+        if not output_format:
+            return ""
+        
+        schema = output_format.get('schema', {})
+        rules = output_format.get('rules', [])
+        
+        return f"""## 【标题要求】
+**标题必须单独设计，格式规范：**
+
+**标题规范（番茄爆款标准）：**
+- 字数：8-14字（**不含**"第X章"前缀）
+- 内容：概括本章核心爽点/悬念
+- 风格：简洁有力，有冲击力
+
+**重要：** 标题会单独提取用于目录展示，正文**绝对不要**包含标题行！
+
+## 【输出格式 - JSON】
+你必须且只能返回一个符合以下结构的JSON对象：
+
+```json
+{{
+  "title": "{schema.get('title', '章节标题')}",
+  "content": "{schema.get('content', '章节正文内容')}"
+}}
+```
+
+**⚠️ 重要提醒：**
+{chr(10).join(['- ' + r for r in rules])}
+"""
+    
+    def _build_blueprint_constraint(self, beat_type: str, purpose: str, 
+                                    emotion: str, scene: str, event: str, 
+                                    hook_content: str, has_blueprint: bool) -> str:
+        """构建大纲约束部分"""
+        if not has_blueprint:
+            return ""
+        
+        # 构建节拍类型描述
+        beat_type_desc = ""
+        if beat_type:
+            beat_type_map = {
+                "铺垫": """- 本章要积蓄情绪，为高潮做准备
+- 不要让主角太早得意，要压抑
+- 要埋下伏笔和悬念""",
+                "冲突": """- 本章要制造对抗，让矛盾白热化
+- 要让读者感到紧张和压力
+- 反派要强势，让主角陷入困境""",
+                "反转": """- 本章要完成刷新认知的反转
+- 主角要从被动转为主动
+- 要让读者感到大爽或震惊""",
+                "渲染": """- 本章要放大已有情绪或震惊效果
+- 要通过多角度、多层次描写震惊
+- 要让读者完全代入情绪""",
+                "伏笔": """- 本章要埋下伏笔，为后文做铺垫
+- 要抛出新的悬念和线索
+- 不要急于收线，要留空间"""
+            }
+            beat_type_desc = beat_type_map.get(beat_type, "")
+        
+        return f"""## 【⚠️ 战术大纲强制约束 - 必须严格遵守】
+
+**本章必须按照以下大纲内容创作，严禁偏离！**
+
+### 🎺 节拍类型（决定章节结构）
+**节拍类型：{beat_type}**
+{beat_type_desc}
+
+### 🎯 战术企图（必须达成的目标）
+**{purpose}**
+
+本章的核心任务是完成上述战术企图，所有情节设计必须围绕此目标展开。
+禁止写与战术企图无关的内容。
+
+### 🎨 情绪基调（必须严格执行）
+**本章情绪：{emotion if emotion else '根据事件判断'}**
+情绪是本章的核心！整章必须统一在此情绪基调下，禁止情绪乱跳或偏离！
+- 如果是"压抑"：整章要让读者感到绝望、无力、心痛
+- 如果是"大爽快"：整章要让读者感到痛快、解气、通体舒泰
+- 如果是"紧张"：整章要让读者紧张得缩起脚趾
+- 如果是"震惊"：要通过多层次震惊描写让读者感叹
+
+### 🏛️ 场景设定（必须严格遵循）
+- 场景：{scene if scene else '详见事件描述'}
+- 必须保持世界观一致性，禁止出现校园场景
+
+### 📜 核心事件（必须完整呈现）
+{event if event else '无具体事件描述'}
+
+### 🎭 章尾钩子（必须在最后50字呈现）
+{hook_content if hook_content else '根据情节自然留白'}
+
+### ❌ 禁止出现的元素{self._build_forbidden_list()}
+
+### ✅ 必须出现的元素
+- 严格按照大纲指定的节拍类型进行创作
+- 严格按照大纲指定的战术企图完成章节目标
+- 严格按照大纲指定的情绪基调进行创作
+- 严格按照大纲指定的场景和事件
+- 主角行为必须符合题材设定
 """
     
     def _build_golden_chapter_2(self, blueprint: Dict, prev_summary: str) -> str:
