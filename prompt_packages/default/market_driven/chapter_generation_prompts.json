@@ -1,0 +1,195 @@
+{
+  "version": "2.0.0",
+  "description": "市场化导向章节生成提示词配置 - 支持JSON格式输出",
+  
+  "output_format": {
+    "type": "json",
+    "schema": {
+      "title": "string (8-14字，不含'第X章'前缀)",
+      "content": "string (2000-2500字，正文开头不要写标题)"
+    },
+    "rules": [
+      "title字段只放标题文本，不要加'第X章'前缀",
+      "content字段只放正文，绝对禁止在正文开头写'第X章 XXX'这样的标题行",
+      "系统会自动将title和content组合展示"
+    ]
+  },
+  
+  "chapter_prompts": {
+    "chapter_1": {
+      "name": "第1章 - 开局+系统觉醒",
+      "core_task": "建立极端困境+金手指觉醒",
+      "word_count": "2000-2500字",
+      "structure": {
+        "opening": {"range": "0-300字", "requirement": "极端困境开局，让读者立即同情主角"},
+        "system_trigger": {"range": "300-800字", "requirement": "现代方式触发系统（手机APP/短信/微信）"},
+        "first_attempt": {"range": "800-1500字", "requirement": "金手指首次使用，展示功能"},
+        "hook": {"range": "2000-2500字", "requirement": "强烈悬念钩子，必须让人想点下一章"}
+      },
+      "algorithm_requirements": {
+        "emotion_density": {"target": "≥2.0个/千字", "min_count": 10, "distribution": "每500字至少1个强烈情绪词"},
+        "hook_presence": {"required": true, "position": "最后50字", "compliance_rate": "100%"},
+        "appeal_density": {"target": "≥1.5个/千字", "min_moments": 3, "reaction_chain": "现场→围观者→传播→权威"},
+        "basic": [
+          "前300字必须出现冲突/羞辱场景",
+          "500字处必须出现系统触发",
+          "对话占比≥50%",
+          "每段1-3行，多用换行",
+          "最后50字必须是钩子"
+        ]
+      },
+      "micro_innovation": {
+        "time": "避开'深夜暴雨'套路，尝试：凌晨刚下班、早高峰地铁、正午烈日工地",
+        "system_activation": "避开'天降金光/被雷劈'，尝试：手机内测邀请短信、微信突然多好友、电脑弹窗",
+        "villain_humiliation": "避开纯嚣张，尝试：网络暴力式、规则打压式、利益威胁式"
+      },
+      "self_check_items": [
+        "字数：2000-2500字？",
+        "段落：每段1-3行？",
+        "对话：占比≥50%？",
+        "前300字：有冲突/羞辱？",
+        "500字处：系统触发？",
+        "最后50字：是钩子？",
+        "情绪密度：≥2.0/千字？",
+        "爽点密度：≥1.5/千字？"
+      ]
+    },
+    
+    "chapter_2": {
+      "name": "第2章 - 金手指使用+小爽点",
+      "core_task": "金手指成功应用，第一次小爽点",
+      "word_count": "2000-2500字",
+      "structure": {
+        "recap": {"range": "0-300字", "requirement": "简洁承接第一章，回顾系统"},
+        "first_use": {"range": "800字处", "requirement": "金手指首次正式使用"},
+        "first_success": {"range": "1500字处", "requirement": "第一次成功，具体数字收益"},
+        "new_conflict": {"range": "章尾", "requirement": "新反派登场，更大危机"}
+      },
+      "emotion_curve": ["犹豫", "期待", "满足", "紧张"],
+      "algorithm_requirements": {
+        "emotion_density": {"target": "≥2.0个/千字", "chapter_specific": "犹豫→期待→满足→紧张"},
+        "hook_presence": {"required": true, "recommended_types": ["新反派登场", "危机预警", "时间锁"]},
+        "appeal_density": {"target": "≥1.5个/千字", "key_moment": "金手指首次成功必须有震惊反应链"}
+      },
+      "self_check_items": [
+        "金手指使用过程是否清晰？",
+        "首次成功是否有具体数字？",
+        "新反派是否让读者恨？",
+        "是否为第3章打脸做好了铺垫？",
+        "最后50字必须是钩子！"
+      ]
+    },
+    
+    "chapter_3": {
+      "name": "第3章 - 第一次正式打脸",
+      "core_task": "铺垫→压抑→爆发→震惊流",
+      "word_count": "2000-2500字",
+      "structure": {
+        "recap": {"range": "0-200字", "requirement": "回顾上一章结尾，简洁过渡"},
+        "villain_ramp_up": {"range": "500字处", "requirement": "反派极致羞辱（情绪强度8/10）"},
+        "turning_point": {"range": "800-1200字", "requirement": "主角反击开始，反派出招"},
+        "climax": {"range": "1500字处", "requirement": "打脸高潮，碾压式反击（情绪10/10）"},
+        "harvest": {"range": "2000字处", "requirement": "系统提示+具体数字收益"},
+        "hook": {"range": "章尾", "requirement": "更大反派/新目标"}
+      },
+      "emotion_intensity": "8→10→9→7",
+      "algorithm_requirements": {
+        "emotion_density": {
+          "target": "≥2.0个/千字", 
+          "required_emotions": ["愤怒(暴怒/狂怒/目眦尽裂)", "震惊(骇然/目瞪口呆)", "爽快(畅快/扬眉吐气)"]
+        },
+        "hook_presence": {"required": true, "recommended_types": ["更大反派登场", "危机预警", "新机遇"]},
+        "appeal_density": {
+          "target": "≥1.5个/千字",
+          "moments": ["主角开始反击", "碾压反派", "收获展示"],
+          "reaction_chain": "现场→弹幕→传播→权威",
+          "number_emphasis": "必须有具体数字强化爽感"
+        },
+        "shock_flow": {
+          "layers": ["现场围观者", "弹幕/传播扩散", "权威人物反应"],
+          "villain_turn": "180度态度转变",
+          "satisfaction": "具体收益数字"
+        }
+      },
+      "self_check_items": [
+        "500字处压抑到位（让读者恨反派）？",
+        "1500字处爆发够爽（让读者痛快）？",
+        "震惊流：3层结构完整？",
+        "围观者反应具体（表情+语言+动作）？",
+        "反派态度180度转变？",
+        "最后50字必须是钩子！"
+      ]
+    },
+    
+    "chapter_standard": {
+      "name": "通用章节模板",
+      "core_task": "根据战术规划执行本章叙事任务",
+      "word_count": "2200-2500字",
+      "structure": {
+        "opening": {"range": "0-300字", "requirement": "冲突/悬念，承接上文"},
+        "development": {"range": "300-1500字", "requirement": "情节推进，每1000字一个小爽点"},
+        "climax": {"range": "1500-2000字", "requirement": "本章高潮，情绪爆发"},
+        "hook": {"range": "2000-2500字", "requirement": "强烈悬念钩子"}
+      },
+      "algorithm_requirements": {
+        "emotion_density": {"target": "≥2.0个/千字", "min_count": 10},
+        "hook_presence": {"required": true, "position": "最后50字"},
+        "appeal_density": {"target": "≥1.5个/千字", "min_moments": 3},
+        "basic": [
+          "前300字必须出现冲突/悬念",
+          "每1000字必须有一个小爽点",
+          "章尾最后50字必须是钩子",
+          "对话占比≥50%",
+          "每段不超过3行"
+        ]
+      },
+      "hook_types": [
+        {"type": "时间锁", "example": "71小时59分后，死局降临"},
+        {"type": "信息差", "example": "他嘴角微扬，那畜生不知道的是..."},
+        {"type": "危机预警", "example": "远处，S级凶兽睁开了眼..."},
+        {"type": "身份揭露", "example": "电话那头，竟是已死的父亲..."},
+        {"type": "反派出招", "example": "你以为这就完了？真正的游戏刚开始"}
+      ],
+      "self_check_items": [
+        "字数：2200-2500字？",
+        "前300字：冲突/悬念？",
+        "每1000字：小爽点？",
+        "最后50字：必须是钩子！",
+        "情绪密度：≥2.0/千字？",
+        "爽点密度：≥1.5/千字？"
+      ]
+    }
+  },
+  
+  "emotion_vocabulary": {
+    "anger": ["暴怒", "狂怒", "目眦尽裂", "杀意滔天", "怒火中烧", "恨意滔天"],
+    "shock": ["震撼", "骇然", "惊恐", "目瞪口呆", "头皮发麻", "倒吸凉气"],
+    "satisfaction": ["狂喜", "激动", "兴奋", "畅快", "扬眉吐气", "通体舒泰"],
+    "oppression": ["绝望", "无力", "屈辱", "悲愤", "心如刀割", "窒息"],
+    "twist": ["错愕", "懵然", "难以置信", "怀疑人生", "惊骇欲绝"]
+  },
+  
+  "appeal_vocabulary": {
+    "crush": ["碾压", "横扫", "瞬杀", "一招秒杀", "摧枯拉朽"],
+    "shock": ["全场死寂", "骇然失色", "难以置信", "怀疑人生"],
+    "harvest": ["暴涨", "飙升", "翻倍", "突破", "觉醒", "进化"],
+    "face_slap": ["打脸", "反转", "跪服", "求饶", "后悔莫及"]
+  },
+  
+  "title_rules": {
+    "length": {"min": 8, "max": 14, "note": "不含'第X章'前缀"},
+    "content": "概括本章核心爽点/悬念",
+    "style": "简洁有力，有冲击力",
+    "examples": {
+      "good": [
+        "开局被退婚，觉醒SSS级天赋",
+        "一拳击碎测试石，全场死寂",
+        "拒绝圣女求婚，全场震惊"
+      ],
+      "bad": [
+        "开局（太短无信息）",
+        "苏辰的故事开始了（太平淡）"
+      ]
+    }
+  }
+}

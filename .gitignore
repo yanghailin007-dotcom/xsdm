@@ -9,6 +9,9 @@ __pycache__/
 # 但保留多语言文件
 !static/js/i18n/*.json
 
+# 保留提示词包JSON配置文件
+!prompt_packages/**/*.json
+
 # C extensions
 *.so
 
