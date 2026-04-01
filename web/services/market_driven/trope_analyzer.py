@@ -182,7 +182,7 @@ class TropeAnalyzer:
     
     def _load_config(self) -> Dict:
         """从JSON加载提示词配置"""
-        config_path = Path("prompt_packages/default/market_driven/components/trope_analysis_prompts.json")
+        config_path = Path(__file__).parent.parent.parent.parent / "prompt_packages" / "default" / "market_driven" / "components" / "trope_analysis_prompts.json"
         if config_path.exists():
             try:
                 with open(config_path, 'r', encoding='utf-8') as f:

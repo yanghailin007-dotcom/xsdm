@@ -124,7 +124,7 @@ class StageReviewOptimizer:
                     return prompts
             
             # 直接加载JSON文件
-            config_path = Path("prompt_packages/default/market_driven/components/stage_review_prompts.json")
+            config_path = Path(__file__).parent.parent.parent.parent / "prompt_packages" / "default" / "market_driven" / "components" / "stage_review_prompts.json"
             if config_path.exists():
                 with open(config_path, 'r', encoding='utf-8') as f:
                     return json.load(f)

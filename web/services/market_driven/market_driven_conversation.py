@@ -242,7 +242,7 @@ class MarketDrivenConversationSession:
         try:
             from pathlib import Path
             import json
-            config_path = Path("prompt_packages/default/market_driven/components/conversation/conversation_step_prompts.json")
+            config_path = Path(__file__).parent.parent.parent.parent / "prompt_packages" / "default" / "market_driven" / "components" / "conversation" / "conversation_step_prompts.json"
             if config_path.exists():
                 with open(config_path, 'r', encoding='utf-8') as f:
                     return json.load(f)
