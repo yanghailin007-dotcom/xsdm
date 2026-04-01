@@ -11,6 +11,8 @@ from typing import Dict, List, Optional, Tuple
 from dataclasses import dataclass, field
 from collections import defaultdict
 
+from .prompt_loader import get_prompt_loader
+
 logger = logging.getLogger(__name__)
 
 
@@ -108,6 +110,131 @@ class StageReviewOptimizer:
         self.protagonist_name = self._load_protagonist_name()
         self.stage_goals = self._load_stage_goals()
         self.emotion_plan = self._load_emotion_plan()
+        # 🔥 加载提示词配置
+        self._prompt_loader = get_prompt_loader()
+        self._review_prompts = self._load_review_prompts()
+    
+    def _load_review_prompts(self) -> Dict:
+        """从JSON加载复盘提示词配置"""
+        try:
+            # 尝试从prompt_loader加载
+            if self._prompt_loader:
+                prompts = self._prompt_loader.load_json("stage_review_prompts")
+                if prompts:
+                    return prompts
+            
+            # 直接加载JSON文件
+            config_path = Path("prompt_packages/default/market_driven/stage_review_prompts.json")
+            if config_path.exists():
+                with open(config_path, 'r', encoding='utf-8') as f:
+                    return json.load(f)
+            
+            logger.warning("[StageOptimizer] 无法加载stage_review_prompts.json，使用硬编码默认值")
+            return {}
+        except Exception as e:
+            logger.error(f"[StageOptimizer] 加载复盘提示词配置失败: {e}")
+            return {}
+    
+    def _render_fix_prompt(self, variables: Dict) -> str:
+        """渲染修复提示词模板"""
+        templates = self._review_prompts.get("templates", {})
+        
+        # 获取各个部分
+        word_count_template = templates.get("word_count_constraints", {}).get("template", "")
+        self_check_template = templates.get("self_check_list", {}).get("template", "")
+        main_template = templates.get("fix_prompt", {}).get("template", "")
+        
+        # 如果没有配置，使用硬编码
+        if not main_template:
+            return self._get_default_fix_prompt(variables)
+        
+        # 渲染字数约束
+        word_count_constraints = word_count_template or self._get_default_word_count_constraints()
+        self_check_list = self_check_template or self._get_default_self_check_list()
+        
+        # 准备变量
+        render_vars = {
+            **variables,
+            "word_count_constraints": word_count_constraints,
+            "self_check_list": self_check_list
+        }
+        
+        # 渲染主模板
+        try:
+            return main_template.format(**render_vars)
+        except KeyError as e:
+            logger.warning(f"[StageOptimizer] 模板渲染失败，使用默认提示词: {e}")
+            return self._get_default_fix_prompt(variables)
+    
+    def _get_default_fix_prompt(self, variables: Dict) -> str:
+        """获取默认修复提示词（硬编码回退）"""
+        return f"""修复第{variables.get('chapter_num')}章的所有问题。基于原文修改，不要重写。
+
+**第{variables.get('chapter_num')}章：{variables.get('chapter_title', '')}**
+**原文字数：**{variables.get('original_word_count')}字
+**问题统计：**P0={variables.get('p0_count')}个, P1={variables.get('p1_count')}个, P2={variables.get('p2_count')}个
+
+{self._get_default_word_count_constraints()}
+
+## 其他关键约束
+1. 主角名必须保持一致：'{variables.get('protagonist_name', '')}' - 禁止改为其他名字
+2. 世界观保持一致 - 不要引入新的力量体系
+3. 只修改有问题的部分，保留其他内容原样
+4. 保持原有的写作风格和语气
+
+**需要修复的所有问题：**
+{variables.get('issues_text', '')}
+
+**原文内容（前800字供参考）：**
+{variables.get('original_content_preview', '')}...
+
+## 输出格式
+**JSON格式：**
+{{{{\"chapter_number\": {variables.get('chapter_num')}, \"content\": \"完整的修改后章节内容\"}}}}
+
+{self._get_default_self_check_list()}"""
+    
+    def _get_default_word_count_constraints(self) -> str:
+        """获取默认字数约束（硬编码回退）"""
+        return """## 🚨 字数约束（硬性要求，违反会导致重试）
+**目标字数：2000-2500字**
+**硬性下限：2000字（绝对不能低于）**
+**硬性上限：2500字（绝对不能超过）**
+
+**字数控制策略：**
+- **硬性上限：修复后的字数绝对不能超过2500字！**
+- 如果原文字数<2000字：扩充到2000-2200字
+- 如果原文字数在2000-2500字：允许小幅增加爽点，但绝对不要超过2500字
+- 如果原文字数>2500字：删减到2200-2400字
+- **可以增爽点，但必须在2500字以内完成！**
+
+**⚠️ 警告：超过2500字的内容将被强制拒绝，必须重试！**"""
+    
+    def _get_default_self_check_list(self) -> str:
+        """获取默认自检清单（硬编码回退）"""
+        return """## 🔥 强制自检清单（输出前必须完成）
+- [ ] 统计content字段字数（使用len()精确计算）
+- [ ] 字数是否≥2000字？（低于则必须扩充）
+- [ ] 字数是否≤2500字？（绝对不能超过硬性上限！）
+- [ ] 理想范围：2000-2500字
+
+**🚨 硬性上限：绝对不能超过2500字！**
+**可以增爽点，但必须在2500字以内完成！**"""
+    
+    def _get_retry_warning(self, last_word_count: int, over_limit: bool = True) -> str:
+        """获取重试警告提示"""
+        templates = self._review_prompts.get("templates", {})
+        
+        if over_limit:
+            template = templates.get("retry_warning_over_limit", {}).get("template", "")
+            if template:
+                return template.format(last_word_count=last_word_count)
+            return f"**🚨 紧急警告：上次输出字数{last_word_count}字超过了硬性上限2500字！**\n**你可以增爽点，但必须在2500字以内完成！**\n**删减建议：精简震惊描写（只保留现场+权威两层）、删除冗余弹幕反应、压缩环境描写。**"
+        else:
+            template = templates.get("retry_warning_under_limit", {}).get("template", "")
+            if template:
+                return template.format(last_word_count=last_word_count)
+            return f"**警告：上次输出字数{last_word_count}字不足2000字。你必须输出至少2000字，但绝对不能超过2500字。输出前请统计字数。**"
         
     def _load_protagonist_name(self) -> str:
         """从project_info.json加载主角名"""
@@ -947,9 +1074,10 @@ class StageReviewOptimizer:
         if not self.api_client:
             return [], window_chapters
         
-        # Create conversation session using src.core.APIClient.ConversationSession
-        system_prompt = """你是专业的小说编辑。分析并修复质量问题。
-工作流程：1) 识别P0/P1/P2问题 2) 逐章修复 3) 验证。只输出JSON格式。"""
+        # 🔥 从JSON配置加载system prompt
+        templates = self._review_prompts.get("templates", {})
+        system_prompt = templates.get("editor_system_prompt", """你是专业的小说编辑。分析并修复质量问题。
+工作流程：1) 识别P0/P1/P2问题 2) 逐章修复 3) 验证。只输出JSON格式。""")
         
         session = ConversationSession(
             api_client=self.api_client,
@@ -1086,51 +1214,23 @@ class StageReviewOptimizer:
             original_content = ch.get('content', '')
             original_word_count = ch.get('word_count', len(original_content))
             
-            fix_prompt = f"""修复第{ch_num}章的所有问题。基于原文修改，不要重写。
-
-**第{ch_num}章：{ch_title}**
-**原文字数：**{original_word_count}字
-**问题统计：**P0={p0_count}个, P1={p1_count}个, P2={p2_count}个
-
-## 🚨 字数约束（硬性要求，违反会导致重试）
-**目标字数：2000-2500字**
-**硬性下限：2000字（绝对不能低于）**
-**硬性上限：3000字（绝对不能超过）**
-
-**字数控制策略：**
-- 如果原文字数在2000-2500字：保持相近字数（±10%）
-- 如果原文字数<2000字：扩充到2000-2200字
-- 如果原文字数>3000字：删减到2500-2800字
-
-**⚠️ 警告：超过3000字的内容将被强制拒绝，必须重试！**
-
-## 其他关键约束
-1. 主角名必须保持一致：'{protagonist_name}' - 禁止改为其他名字
-2. 世界观保持一致 - 不要引入新的力量体系
-3. 只修改有问题的部分，保留其他内容原样
-4. 保持原有的写作风格和语气
-
-**需要修复的所有问题：**
-{issues_text}
-
-**原文内容（前800字供参考）：**
-{original_content[:800]}...
-
-## 输出格式
-**JSON格式：**
-{{"chapter_number": {ch_num}, "content": "完整的修改后章节内容"}}
-
-## 🔥 强制自检清单（输出前必须完成）
-- [ ] 统计content字段字数（使用len()精确计算）
-- [ ] 字数是否≥2000字？（低于则必须扩充）
-- [ ] 字数是否≤3000字？（高于则必须删减）
-- [ ] 理想范围：2000-2500字
-
-**如果字数不在2000-3000范围内，必须调整后再输出！**
-"""
+            # 🔥 使用JSON配置渲染修复提示词
+            fix_prompt_vars = {
+                "chapter_num": ch_num,
+                "chapter_title": ch_title,
+                "original_word_count": original_word_count,
+                "p0_count": p0_count,
+                "p1_count": p1_count,
+                "p2_count": p2_count,
+                "protagonist_name": protagonist_name,
+                "issues_text": issues_text,
+                "original_content_preview": original_content[:800]
+            }
+            fix_prompt = self._render_fix_prompt(fix_prompt_vars)
             
             # 尝试修复（带重试机制）
-            max_retries = 2
+            retry_config = self._review_prompts.get("retry", {})
+            max_retries = retry_config.get("max_retries", 2)
             retry_count = 0
             is_accepted = False
             last_word_count = 0  # 🔥 记录上次字数用于重试提示
@@ -1138,11 +1238,11 @@ class StageReviewOptimizer:
             while retry_count <= max_retries and not is_accepted:
                 if retry_count > 0:
                     logger.info(f"[StageOptimizer] 第{ch_num}章第{retry_count}次重试...")
-                    # 🔥 根据上次问题动态调整提示词
-                    if last_word_count > 3000:
-                        fix_prompt += f"\n\n**🚨 紧急警告：上次输出字数{last_word_count}字超过硬性上限3000字！**\n**你必须删除冗余内容，严格控制字数在2000-2500字之间（绝对不能超过3000字）。**\n**删减建议：减少震惊描写的层次、简化配角反应、压缩环境描写。**"
-                    else:
-                        fix_prompt += f"\n\n**警告：上次输出字数{last_word_count}字不足。你必须输出至少2000字。原章{original_word_count}字，目标字数{original_word_count}字左右（最低2000字）。输出前请统计字数。**"
+                    # 🔥 根据上次问题动态调整提示词（从JSON配置加载）
+                    if last_word_count > 2500:
+                        fix_prompt += f"\n\n{self._get_retry_warning(last_word_count, over_limit=True)}"
+                    elif last_word_count < 2000:
+                        fix_prompt += f"\n\n{self._get_retry_warning(last_word_count, over_limit=False)}"
                 
                 logger.info(f"[StageOptimizer] 修复第{ch_num}章的所有问题 (P0={p0_count}, P1={p1_count}, P2={p2_count}, 尝试{retry_count+1}/{max_retries+1})")
                 fix_response = session.send_message(fix_prompt, purpose=f"w{window_idx}-fix-ch{ch_num}-try{retry_count}")
@@ -1166,28 +1266,32 @@ class StageReviewOptimizer:
                 new_word_count = len(new_content) if new_content else 0
                 last_word_count = new_word_count  # 🔥 记录本次字数用于下次重试提示
                 
-                # 字数检查：硬性要求 2000-3000字
-                MIN_ABSOLUTE = 2000  # 硬性下限
-                MAX_ABSOLUTE = 3000  # 🔥 新增：硬性上限
-                min_percent = original_word_count * 0.8
-                max_percent = original_word_count * 1.2
+                # 🔥 字数检查：从JSON配置读取
+                word_count_config = self._review_prompts.get("word_count", {})
+                MIN_ABSOLUTE = word_count_config.get("min_absolute", 2000)  # 硬性下限
+                MAX_ABSOLUTE = word_count_config.get("max_absolute", 2500)  # 硬性上限
+                MIN_PERCENT = word_count_config.get("min_percent", 0.8)
+                MAX_PERCENT = word_count_config.get("max_percent", 1.1)
                 
-                # 检查1：硬性下限2000字
+                # 检查1：硬性下限
                 if new_word_count < MIN_ABSOLUTE:
-                    logger.warning(f"[StageOptimizer] 第{ch_num}章字数({new_word_count})低于硬性下限2000字，将重试")
+                    logger.warning(f"[StageOptimizer] 第{ch_num}章字数({new_word_count})低于硬性下限{MIN_ABSOLUTE}字，将重试")
                     retry_count += 1
                     continue
                 
-                # 🔥 检查2：硬性上限3000字（新增）
+                # 检查2：硬性上限（绝对不能超过）
                 if new_word_count > MAX_ABSOLUTE:
-                    logger.warning(f"[StageOptimizer] 第{ch_num}章字数({new_word_count})超过硬性上限3000字，将重试")
+                    logger.warning(f"[StageOptimizer] 第{ch_num}章字数({new_word_count})超过硬性上限{MAX_ABSOLUTE}字，将重试")
                     retry_count += 1
                     continue
                 
                 # 检查3：百分比范围（宽松警告，不强制重试）
+                min_percent = original_word_count * MIN_PERCENT
+                max_percent = original_word_count * MAX_PERCENT
                 if new_word_count < min_percent or new_word_count > max_percent:
                     deviation = abs(new_word_count - original_word_count) / original_word_count * 100
-                    logger.info(f"[StageOptimizer] 第{ch_num}章字数偏离原文{deviation:.1f}%（范围80%-120%），但满足2000-3000字要求，接受修改")
+                    direction = "增加" if new_word_count > original_word_count else "减少"
+                    logger.info(f"[StageOptimizer] 第{ch_num}章字数较原文{direction}{deviation:.1f}%，但在{MIN_ABSOLUTE}-{MAX_ABSOLUTE}字范围内，接受修改")
                 
                 # 字数符合要求，接受修改
                 is_accepted = True
@@ -1198,7 +1302,32 @@ class StageReviewOptimizer:
                 logger.info(f"[StageOptimizer] 第{ch_num}章已优化: {original_word_count} -> {new_word_count}字 ({change_pct:+.1f}%)")
             
             if not is_accepted:
-                logger.error(f"[StageOptimizer] 第{ch_num}章经过{max_retries+1}次尝试仍无法达到字数要求，放弃修改")
+                # 🔥 最终处理：从JSON配置读取截断设置
+                retry_config = self._review_prompts.get("retry", {})
+                truncate_on_failure = retry_config.get("truncate_on_failure", True)
+                truncate_to = retry_config.get("truncate_to", 2500)
+                truncate_min = retry_config.get("truncate_min", 2300)
+                
+                if truncate_on_failure and last_word_count > truncate_to:
+                    logger.warning(f"[StageOptimizer] 第{ch_num}章经过{max_retries+1}次尝试仍超过{truncate_to}字({last_word_count})，执行强制截断")
+                    
+                    # 强制截断策略：保留到truncate_to字，找到最近的段落结尾
+                    truncated_content = new_content[:truncate_to]
+                    # 找到最后一个换行符，避免截断在句子中间
+                    last_newline = truncated_content.rfind('\n')
+                    if last_newline > truncate_min:  # 确保至少保留truncate_min字
+                        truncated_content = truncated_content[:last_newline]
+                    
+                    # 添加截断标记
+                    truncated_content += "\n\n【系统自动优化：此处删减冗余内容以保持最佳阅读节奏】"
+                    
+                    fixed_chapters[ch_idx]["content"] = truncated_content
+                    fixed_chapters[ch_idx]["word_count"] = len(truncated_content)
+                    fixed_chapters[ch_idx]["optimized"] = True
+                    fixed_chapters[ch_idx]["truncated"] = True  # 标记为截断
+                    logger.info(f"[StageOptimizer] 第{ch_num}章已强制截断: {last_word_count} -> {len(truncated_content)}字")
+                else:
+                    logger.error(f"[StageOptimizer] 第{ch_num}章经过{max_retries+1}次尝试仍无法达到字数要求({last_word_count}字<2000)，放弃修改")
         
         # 🔥 重新计算修复后章节的质量评分
         logger.info(f"[StageOptimizer] 重新计算修复后章节的质量评分...")
@@ -2078,9 +2207,10 @@ class StageReviewOptimizer:
         if not self.api_client:
             return [], window_chapters
         
-        # Create conversation session using src.core.APIClient.ConversationSession
-        system_prompt = """You are a professional novel editor. Analyze and fix quality issues at scene level.
-Workflow: 1) Identify issues 2) Fix specific scenes 3) Preserve unchanged content. Output JSON only."""
+        # 🔥 从JSON配置加载system prompt
+        templates = self._review_prompts.get("templates", {})
+        system_prompt = templates.get("scene_editor_system_prompt", """You are a professional novel editor. Analyze and fix quality issues at scene level.
+Workflow: 1) Identify issues 2) Fix specific scenes 3) Preserve unchanged content. Output JSON only.""")
         
         session = ConversationSession(
             api_client=self.api_client,

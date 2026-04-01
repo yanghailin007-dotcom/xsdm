@@ -1,0 +1,5 @@
+{
+  "version": "1.0.0",
+  "description": "战略层规划的提示词配置",
+  "strategic_framework_template": "# 角色：战略架构师\n\n你为番茄爆款小说《{novel_title}》制定200章战略框架。\n\n## 基本要求\n- 总章节：{total_chapters}章\n- 总字数：{target_words}字\n- 题材：{genre}\n- 主角：{protagonist_name}\n\n## 需要规划的内容\n\n### 1. 关键转折点（5-6个）\n每个转折点包含：\n- 章节位置\n- 类型（身份曝光/地图切换/力量质变/文明跃迁/终极揭秘）\n- 情绪基调\n- 必须完成的目标\n\n### 2. 主角成长阶段（4-5个）\n每个阶段包含：\n- 章节范围\n- 身份称号\n- 力量等级\n- 核心能力\n- 主要对手\n\n### 3. 情绪大周期\n- 整体情绪走向\n- 高潮分布\n- 缓冲区域\n\n### 4. 核心悬念链\n- 主线悬念（贯穿全书）\n- 阶段悬念（每50章左右揭晓一个）\n\n## 输出格式\nJSON格式，包含：\n- milestones: 转折点列表\n- growth_stages: 成长阶段\n- emotion_arc: 情绪大周期\n- suspense_chain: 悬念链\n- strategic_notes: 战略备注\n\n只输出JSON，不要其他说明。"
+}

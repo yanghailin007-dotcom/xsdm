@@ -58,7 +58,7 @@ class PromptLoader:
         加载 JSON 配置文件
         
         Args:
-            filename: JSON 文件名
+            filename: JSON 文件名（可带或不带 .json 后缀）
             
         Returns:
             解析后的字典，失败返回 None
@@ -66,6 +66,10 @@ class PromptLoader:
         # 检查缓存
         if filename in self._cache:
             return self._cache[filename]
+        
+        # 自动添加 .json 后缀（如果没有）
+        if not filename.endswith('.json'):
+            filename = filename + '.json'
         
         file_path = self.base_path / filename
         

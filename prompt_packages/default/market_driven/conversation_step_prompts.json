@@ -1,0 +1,24 @@
+{
+  "version": "1.0.0",
+  "description": "对话模式的步骤提示词配置",
+  "steps": {
+    "step2_worldview": {
+      "fallback_template": "请执行【步骤2：生成世界观】\n\n基于系统提示词中的【完整的套路分析结果】和已确定的题材、主角设定，生成完整的世界观。\n\n## 关键要求\n1. 世界观必须支持主角的金手指和成长路线\n2. 势力系统必须提供足够的冲突来源\n3. 社会规则必须有利于'装逼打脸'情节\n\n## 输出格式\n返回JSON格式，包含: world_overview, power_system, social_structure, factions, world_rules, key_locations\n\n只返回JSON。"
+    },
+    "step3_characters": {
+      "fallback_template": "请执行【步骤3：生成角色设计】\n\n基于已确定的世界观，设计完整的角色阵容。\n\n## ⚠️ 强制要求\n- **主角姓名**：**必须使用** \"{protagonist_name}\"\n- **禁止**：给主角起其他名字或别名\n- 如果违反，生成将被视为失败\n\n## 输出格式（严格JSON）\n返回标准JSON格式：{protagonist: {...}, core_allies: [...], main_antagonists: {...}, supporting_roles: [...]}\n\n**严格要求**：\n1. 字符串值内部的双引号必须转义为 \\\"\n2. protagonist.name 必须是 \"{protagonist_name}\"\n3. 不要添加注释，不要返回Markdown代码块\n4. 确保JSON可以通过标准解析器验证",
+      "retry_template": "请生成角色设计JSON。\n\n**严格JSON格式要求**：\n- 字符串值内部的双引号必须转义为 \\\"\n- 例如：\"description\": \"主角说\\\"你好\\\"\" （正确）\n- 错误示例：\"description\": \"主角说\"你好\"\" （会导致解析失败）\n\n必须包含：\n1. protagonist: {\"name\": \"{protagonist_name}\", \"age\": 25, \"identity\": \"前外卖员\", \"traits\": [\"杀伐果断\", \"护短\"]}\n2. core_allies: 3-5个队友\n3. main_antagonists: {\"early_stage\": [...], \"mid_stage\": [...], \"late_stage\": [...]}\n4. supporting_roles: 其他配角\n\n protagonist.name 必须是 \"{protagonist_name}\"！\n只返回JSON，禁止返回null。"
+    },
+    "step4_growth": {
+      "fallback_template": "请执行【步骤4：生成成长路线】\n\n基于角色设计和世界观，设计主角的完整成长路线。\n\n## 输出格式\n返回JSON格式，包含: cultivation_system, power_levels, growth_stages, key_milestones\n\n只返回JSON。"
+    },
+    "step5_emotion": {
+      "fallback_template": "请执行【步骤5：生成情绪曲线】\n\n基于系统提示词中的【完整的套路分析结果】和前30章大纲，设计{total_chapters}章的情绪曲线。\n\n## 节奏要求（必须严格遵循）\n- 每3章一个小高潮（强度7-8）\n- 每10章一个中高潮（强度8-9）\n- 每30章一个大高潮（强度9-10）\n- 大高潮后必须有1-2章缓冲（强度5-6）\n\n## 情绪类型\n震惊、期待、小爽快、大爽快、紧张、愤怒、满足\n\n## 输出格式（严格JSON数组）\n**极其重要**：\n1. 必须返回**完整的{total_chapters}章情绪曲线**，每章都要有数据！\n2. curve数组长度必须等于总章数（{total_chapters}章）\n3. 不能只返回里程碑（如1, 10, 20章），必须每章都有：1, 2, 3...一直到{total_chapters}\n4. 返回格式：{\"curve\": [{\"chapter\": 1, ...}, ...]}\n\n**错误示例（会被拒绝）**：\n- 只返回12个里程碑\n- 返回字典而不是数组\n\n严格要求：\n1. curve 必须是数组（[]），不能是字典（{}）\n2. 数组长度必须等于{total_chapters}章\n3. 字符串值内部的双引号必须转义为 \\\""
+    },
+    "step5b_stage_goals": {
+      "fallback_template": "请执行【步骤5B：生成阶段目标】\n\n基于已确定的总章数 {total_chapters} 章，设计各阶段目标。\n\n## 输出格式\n返回JSON格式，包含: stage_goals 数组\n\n只返回JSON。"
+    },
+    "retry_parse_error": "之前的响应格式错误，无法解析为JSON。\n\n请重新生成，**必须**是合法的JSON格式。\n\n常见错误：\n- 使用了中文引号\"...\"而不是英文引号\"...\"\n- JSON内部有多余的注释或说明文字\n- JSON不完整，缺少闭合括号\n\n请确保返回的是可以被标准JSON解析器解析的内容。",
+    "optimize_expert": "你是一名专业的爆款小说优化专家。请基于爆款分析数据，优化以下设计。\n"
+  }
+}

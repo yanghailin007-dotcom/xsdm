@@ -35,6 +35,9 @@ class FanqieRankingCrawler:
         "rise": "https://fanqienovel.com/api/rank/rise",           # 飙升榜
     }
     
+    # 配置路径
+    CONFIG_PATH = "prompt_packages/default/market_driven/ranking_analysis_prompts.json"
+    
     # 分类ID映射（需要根据实际API调整）
     CATEGORY_MAP = {
         "全部": 0,
@@ -64,9 +67,23 @@ class FanqieRankingCrawler:
             cache_dir: 榜单数据缓存目录
         """
         import os
+        from pathlib import Path
         self.cache_dir = cache_dir
         os.makedirs(cache_dir, exist_ok=True)
         self.session = None
+        self._config = self._load_config()
+    
+    def _load_config(self) -> Dict:
+        """加载提示词配置"""
+        try:
+            config_path = Path(self.CONFIG_PATH)
+            if config_path.exists():
+                with open(config_path, 'r', encoding='utf-8') as f:
+                    return json.load(f)
+            return {}
+        except Exception as e:
+            logger.warning(f"[FanqieRankingCrawler] 无法加载配置: {e}")
+            return {}
         
     def _get_session(self):
         """获取HTTP会话"""
@@ -283,29 +300,19 @@ class FanqieRankingCrawler:
     def _ai_analyze_trends(self, genre_stats: Dict, api_client) -> List[Dict]:
         """使用AI分析趋势"""
         
-        prompt = f"""你是一位资深网文市场分析师。
+        # 🔥 从JSON配置加载模板
+        template = self._config.get("trend_analysis_template", "")
+        
+        if not template:
+            logger.error("""
+❌ 错误：榜单分析提示词配置缺失！
 
-以下是番茄小说近期榜单的题材分布数据：
-
-{json.dumps(genre_stats, ensure_ascii=False, indent=2)}
-
-请分析这些数据，找出：
-1. 当前最热门的题材是什么？
-2. 哪些题材正在快速上升？
-3. 蓝海题材（竞争小但有潜力）有哪些？
-4. 基于趋势，推荐3-5个新的类型细分方向
-
-请用JSON格式输出新类型建议：
-[
-    {{
-        "genre_name": "类型名称-细分",
-        "description": "类型描述",
-        "trend": "上升/稳定/新兴",
-        "potential": "高/中/低",
-        "competition": "激烈/中等/低"
-    }}
-]
-"""
+请检查以下配置文件是否存在：
+- prompt_packages/default/market_driven/ranking_analysis_prompts.json
+""")
+            return []
+        
+        prompt = template.format(genre_stats=json.dumps(genre_stats, ensure_ascii=False, indent=2))
         
         try:
             response = api_client.generate_content_with_retry(

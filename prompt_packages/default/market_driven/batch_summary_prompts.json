@@ -1,0 +1,8 @@
+{
+  "version": "1.0.0",
+  "description": "批次总结的提示词配置",
+  "summary_template": {
+    "template": "【批次分析报告生成】\n\n请分析第{start_ch}-{end_ch}章的剧情进展，生成供下一批次使用的总结报告。\n\n【当前阶段目标】\n{goal_desc}\n\n【章节内容摘要】\n{chapter_snippets}\n\n【统计信息】\n- 新角色: {new_chars_count}人 ({new_chars_list}...)\n- 角色变化: {char_changes_count}次\n- 关键事件: {key_events_count}个\n\n【请输出JSON格式分析结果】\n{{\n  \"summary_text\": \"一句话总结这批章节的核心进展\",\n  \"completed_events\": [\n    {{\"chapter\": 章节号, \"event\": \"完成的事件\", \"significance\": \"重要性(high/medium/low)\"}}\n  ],\n  \"character_states\": {{\n    \"protagonist\": {{\"name\": \"主角名\", \"status\": \"当前状态\", \"扮演度\": \"35%\", \"新技能\": [\"技能1\"]}},\n    \"ally\": {{\"name\": \"主要盟友\", \"态度\": \"友好/怀疑\", \"状态\": \"健康/受伤\"}},\n    \"enemy\": {{\"name\": \"主要敌人\", \"状态\": \"活跃/被击败\", \"威胁等级\": \"S级\"}}\n  }},\n  \"pending_hooks\": [\n    {{\"chapter\": 埋下章节, \"content\": \"钩子内容\", \"priority\": \"high/medium/low\", \"expected_resolution\": \"预期解决章节\"}}\n  ],\n  \"plot_direction\": \"下一批应该推进的方向建议（50字以内）\",\n  \"stage_progress_assessment\": \"阶段目标完成度评估(0-100)及原因\"\n}}\n\n只输出JSON，不要其他内容。",
+    "variables": ["start_ch", "end_ch", "goal_desc", "chapter_snippets", "new_chars_count", "new_chars_list", "char_changes_count", "key_events_count"]
+  }
+}

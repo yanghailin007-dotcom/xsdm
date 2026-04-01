@@ -73,9 +73,12 @@ class AIInteractionLogger:
         else:
             # 核心套路公式
             if "core_formula" in response:
+                core_formula = response['core_formula']
+                if not isinstance(core_formula, str):
+                    core_formula = str(core_formula)
                 lines.append(f"### 🎯 核心套路公式")
                 lines.append("")
-                lines.append(f"> {response['core_formula']}")
+                lines.append(f"> {core_formula}")
                 lines.append("")
             
             # 剧情路线
@@ -84,9 +87,9 @@ class AIInteractionLogger:
                 lines.append(f"### 🎭 剧情路线 ({len(plot_templates)}条)")
                 lines.append("")
                 for i, plot in enumerate(plot_templates, 1):
-                    name = plot.get("name", f"路线{i}")
-                    desc = plot.get("desc", "")
-                    detail = plot.get("detail", "")
+                    name = plot.get("name", f"路线{i}") if isinstance(plot.get("name"), str) else f"路线{i}"
+                    desc = plot.get("desc", "") if isinstance(plot.get("desc"), str) else ""
+                    detail = plot.get("detail", "") if isinstance(plot.get("detail"), str) else str(plot.get("detail", ""))
                     lines.append(f"#### {i}. {name}")
                     if desc:
                         lines.append(f"*{desc}*")
@@ -102,13 +105,22 @@ class AIInteractionLogger:
                 sr = response["stage_rhythm"]
                 lines.append("### ⏱️ 阶段性节奏")
                 lines.append("")
-                lines.append(f"- **描述**: {sr.get('description', 'N/A')}")
-                lines.append(f"- **小高潮间隔**: {sr.get('small_climax_interval', 'N/A')}章")
-                lines.append(f"- **中高潮间隔**: {sr.get('medium_climax_interval', 'N/A')}章")
-                lines.append(f"- **大高潮间隔**: {sr.get('large_climax_interval', 'N/A')}章")
-                lines.append(f"- **阶段间隔**: {sr.get('stage_climax_interval', 'N/A')}章")
+                desc = sr.get('description', 'N/A')
+                small = sr.get('small_climax_interval', 'N/A')
+                medium = sr.get('medium_climax_interval', 'N/A')
+                large = sr.get('large_climax_interval', 'N/A')
+                stage = sr.get('stage_climax_interval', 'N/A')
+                lines.append(f"- **描述**: {desc if isinstance(desc, str) else str(desc)}")
+                lines.append(f"- **小高潮间隔**: {small if isinstance(small, str) else str(small)}章")
+                lines.append(f"- **中高潮间隔**: {medium if isinstance(medium, str) else str(medium)}章")
+                lines.append(f"- **大高潮间隔**: {large if isinstance(large, str) else str(large)}章")
+                lines.append(f"- **阶段间隔**: {stage if isinstance(stage, str) else str(stage)}章")
                 if "stage_climax_chapters" in sr:
-                    lines.append(f"- **阶段高潮章节**: {', '.join(map(str, sr['stage_climax_chapters']))}")
+                    chapters = sr['stage_climax_chapters']
+                    if isinstance(chapters, list):
+                        lines.append(f"- **阶段高潮章节**: {', '.join(map(str, chapters))}")
+                    else:
+                        lines.append(f"- **阶段高潮章节**: {str(chapters)}")
                 lines.append("")
             
             # 完整JSON（折叠）
@@ -164,6 +176,20 @@ class TropeAnalyzer:
         
         # AI交互日志记录器
         self._interaction_logger = AIInteractionLogger() if log_ai_interactions else None
+        
+        # 加载提示词配置
+        self._config = self._load_config()
+    
+    def _load_config(self) -> Dict:
+        """从JSON加载提示词配置"""
+        config_path = Path("prompt_packages/default/market_driven/trope_analysis_prompts.json")
+        if config_path.exists():
+            try:
+                with open(config_path, 'r', encoding='utf-8') as f:
+                    return json.load(f)
+            except Exception as e:
+                logger.error(f"[TropeAnalyzer] 加载配置失败: {e}")
+        return {}
     
     @classmethod
     def get_available_genres(cls, api_client=None) -> Dict[str, Dict]:
@@ -258,251 +284,22 @@ class TropeAnalyzer:
     
     def _build_analysis_prompt(self, genre: str) -> str:
         """
-        构建套路分析Prompt - 让AI根据题材自由设计节奏
+        构建套路分析Prompt - 从JSON配置加载
         """
-        return f"""你是一位资深的番茄小说爆款分析师，深谙"{genre}"题材的头部作品套路。
+        # 从JSON配置加载模板
+        template = self._config.get("analysis_template", "")
+        
+        if not template:
+            error_msg = """
+❌ 错误：套路分析提示词配置缺失！
 
-请深入分析该题材Top10爆款小说（均订10万+），提取其**真实的节奏规律**，生成可直接用于创作的执行级分析数据。
-
-## 1. 核心套路公式
-- 用一句话概括爆款公式（15字以内）
-- 示例：穷屌丝→花钱返利系统→越花越有钱→装逼打脸→身份升级
-
-## 2. 多路线剧情设计（plot_templates）
-**必须提供3-5条真正不同的剧情路线供用户选择**，每条路线必须：
-- 基于该题材Top10爆款的真实剧情走向
-- **节奏节奏必须与该题材爆款高度一致**（不要套用固定模板）
-- 每条路线的高潮分布可以不同
-
-每条路线包含：
-- **name**: 路线名称（体现该题材特色，如："稳健发育流"、"高调直播流"、"幕后投资流"）
-- **desc**: 一句话描述该路线特点
-- **detail**: 详细剧情走向，**必须基于该题材真实爆款节奏**：
-  - 【第1章】开局触发（必须具体到场景和行为）
-  - 后续高潮节点：**根据该题材真实节奏分布**，标记关键章节（如：【第3章】【第8章】【第15章】等）
-  - 【第X章】阶段性总结高潮（根据题材确定X，可能是30/50/80/100章等）
-
-**重要**：不要强行套用3-10-20-30节奏！请根据"{genre}"题材的真实爆款节奏来设计。
-
-## 3. 开局3章详细剧本（必须具体到场景）
-- **第1章：绝望开局+系统觉醒**
-  - 主角具体身份（如：被裁员的外卖员/负债保安/穷学生）
-  - 当前困境（具体到数字：欠多少钱、被谁羞辱）
-  - 获得系统的触发场景（如：送外卖被撞、被房东赶出门）
-  - 章尾钩子：系统激活，即将逆袭
-  
-- **第2章：初试锋芒+小爽点**
-  - 第一次使用系统的场景（具体到地点和行为）
-  - 周围人的反应（震惊/嘲讽→被打脸）
-  - 获得的第一笔奖励/能力提升
-  - 章尾钩子：引出第一个反派
-  
-- **第3章：第一次正式打脸**
-  - 冲突场景（如：4S店买车、高档餐厅、同学会）
-  - 反派身份（势利眼前女友/宝马男/势利眼销售）
-  - 打脸过程（反转爽点）
-  - 章尾钩子：更大的舞台/身份曝光/系统升级
-
-## 4. 爆款标题公式库（5个可直接用的标题）
-**严格要求**：每个标题≤15个字（不含书名号《》），必须包含数字或强烈对比
-- 格式示例：
-  1. 《物价贬值百万倍》（8字）
-  2. 《开局激活百倍奖励》（8字）
-  3. 《国运：我被选中》（7字）
-  4. 《扮演雷神，全网跪了》（9字）
-  5. 《具现石油，龙国暴富》（9字）
-
-## 5. 金手指数值设计（具体到数字）
-- **类型**：国运专属系统（具体类型：扮演类/召唤类/选择类/签到类）
-- **初始奖励**：
-  - 数值：XXX点（国运值/能量点/信仰值）
-  - 等效价值：相当于XX万人民币/稀有资源
-- **首次升级所需**：XX点
-- **成长曲线**：用简洁的文字描述成长曲线（如："前期快(1-30级每级100点)，中期慢(31-80级每级500点)，后期极慢(81-100级每级2000点)")
-- **限制条件**：具体冷却时间/使用次数/地点限制
-- **升级方式**：具体行为（如：击杀1只禁地生物=10点）
-
-## 6. 主角人设执行手册
-- **主角姓名**：起一个简洁好记、符合题材风格的名字（2-3个字，避免生僻字）
-- **开局身份**：具体到职业+困境（如：被裁员外卖员，负债50万，女友分手）
-- **外貌特征**：让读者有代入感的描述
-- **性格标签**：3个核心标签（如：隐忍/护短/不圣母）
-- **绝对禁忌**：会导致读者弃书的人设（圣母/优柔寡断/主动惹事）
-
-## 7. 阶段性大节奏设计（基于真实爆款分析）
-深入分析该题材Top10爆款的**真实阶段性节奏规律**：
-
-**该题材特有的大高潮间隔**（不要套用固定值，根据真实爆款分析）：
-- 前期（开局-第一次阶段性高潮）：每X章一个大高潮（该题材真实间隔，可能是20/30/50章）
-- 中期：每X章一个大高潮（该题材真实间隔）
-- 后期：每X章一个大高潮（该题材真实间隔）
-
-**具体的阶段性高潮节点**（根据该题材Top10爆款的真实分布）：
-- 第一次阶段性高潮：第X章（类型：XXX，根据题材实际分析）
-- 第二次阶段性高潮：第X章（类型：XXX）
-- 第三次阶段性高潮：第X章（类型：XXX）
-- 第四次阶段性高潮：第X章（类型：XXX）
-- ...
-
-**节奏数值定义**（必须基于真实爆款数据）：
-- small_climax_interval: X章（该题材真实的小高潮间隔，可能是3/5/8章）
-- medium_climax_interval: X章（该题材真实的中高潮间隔，可能是8/10/15章）
-- large_climax_interval: X章（该题材真实的大高潮间隔，可能是15/20/30章）
-- stage_climax_interval: X章（该题材真实的阶段性大高潮间隔，可能是30/50/80/100章）
-- stage_climax_chapters: [X, X, X]（具体的阶段性高潮章节列表）
-- stage_climax_types: ["高潮1类型", "高潮2类型", ...]
-
-**节奏描述**：用一句话描述该题材的节奏特点（如："国运文采用30章周期，每30章一个地图升级"）
-
-## 8. 情绪节奏表（前30章）
-基于该题材真实爆款的**实际情绪曲线**：
-- **压抑→爆发周期**：每X章一个循环（根据题材实际）
-- **具体高潮分布**（根据题材实际分析）：
-  - 第X章：第一次小高潮（根据真实爆款分布）
-  - 第X章：第一次中高潮（根据真实爆款分布）
-  - 第X章：第一个大高潮（根据真实爆款分布）
-  - 第X章：阶段性总结高潮（根据真实爆款分布）
-- **章尾钩子类型**：根据该题材真实爆款，列出常用的钩子类型
-
-## 8. 第一个大高潮（前30章）详细设计
-- **触发场景**：具体到地点（如：禁地第一层BOSS战）
-- **冲突对象**：具体身份（如：漂亮国选手挑衅）
-- **金手指使用**：具体能力展示
-- **结果/奖励**：具现到龙国的具体资源（如：百亿吨石油）
-- **全网反应**：从嘲讽到跪舔的反转过程
-- **高层反应**：龙国高层紧急会议，主角进入国家视野
-
-## 9. 反派设计套路
-- **初期反派（1-30章）**：
-  - 身份：势利眼（前女友/同学/同事）
-  - 打脸模式：看不起→嘲讽→震惊→后悔→跪舔
-- **中期反派（30-100章）**：
-  - 身份：其他国家选手/资本大佬
-  - 打脸模式：阴谋诡计→主角反杀→国家层面胜利
-- **后期反派（100章+）**：
-  - 身份：神秘势力/终极BOSS
-
-## 10. 世界观关键场景（必须出现）
-- 列出5-8个该题材必须有的场景（如：直播间、禁地入口、国运指挥部）
-- 每个场景的作用和爽点设计
-
-## 11. 番茄平台爆款 checklist
-- 标题必备元素：
-- 简介必备元素：
-- 前3章必须出现：
-- 章节结尾技巧：
-- 写作风格：直白、短段落、多对话、少用形容词
-
-## 输出要求
-1. 所有内容必须**具体可执行**，不能泛泛而谈
-2. 数字必须**具体**（如：负债50万，不是"负债累累"）
-3. 场景必须**具体到地点和行为**
-4. 用JSON格式输出，确保可以被程序解析
-5. 标题库必须提供5个可直接复制使用的标题
-
-## JSON输出格式示例
-```json
-{{
-  "core_formula": "核心套路公式",
-  "title_templates": ["标题1", "标题2", "标题3", "标题4", "标题5"],
-  "plot_templates": [
-    {{
-      "name": "路线名称（如：稳健发育流）",
-      "desc": "一句话描述该路线特点",
-      "detail": "【第1章】第1章末尾，被选中的瞬间\n【第3章】第一次小高潮：打脸势利眼同事，展示金手指\n【第10章】第一次中高潮：具现首件国家级资源，地方震动\n【第20章】第一个大高潮：国家层面认可，主角进入高层视野\n【第30章】阶段性总结高潮：身份全网曝光，开启新地图\n\n【节奏】每3章一个小高潮（打脸反派），每10章一个中高潮（具现国家级资源），每30章一个大高潮（国家层面认可与身份曝光）"
-    }},
-    {{
-      "name": "路线2名称（如：高调打脸流）",
-      "desc": "一句话描述",
-      "detail": "同上格式，包含完整的第1/3/10/20/30章节点描述"
-    }},
-    {{
-      "name": "路线3名称（如：幕后布局流）",
-      "desc": "一句话描述",
-      "detail": "同上格式"
-    }}
-  ],
-  "opening_pattern": {{
-    "chapter_1": "第1章内容...",
-    "chapter_2": "第2章内容...",
-    "chapter_3": "第3章内容..."
-  }},
-  "golden_finger": {{
-    "type": "系统类型",
-    "initial_reward": "初始奖励描述（如：扮演度10%，等效价值100万）",
-    "growth_curve": "用简洁文字描述成长曲线（如：前期每级100点，中期每级500点）",
-    "limitation": "限制条件",
-    "upgrade": "升级方式"
-  }},
-  "protagonist": {{
-    "name": "主角姓名",
-    "background": "主角背景",
-    "personality": "性格标签"
-  }},
-  "pacing": {{
-    "chapter_1": "第1章节奏",
-    "chapter_3": "第3章节奏",
-    "climax_interval": "高潮间隔"
-  }},
-  "stage_rhythm": {{
-    "description": "该题材的阶段性大节奏描述",
-    "small_climax_interval": 3,
-    "medium_climax_interval": 10,
-    "stage_climax_interval": 30,
-    "stage_climax_chapters": [30, 60, 90, 120],
-    "stage_climax_types": [
-      "第一次阶段性高潮：本地称王",
-      "第二次阶段性高潮：省城登顶",
-      "第三次阶段性高潮：全国闻名",
-      "第四次阶段性高潮：全球至尊"
-    ],
-    "early_stage": {{
-      "range": "1-30章",
-      "rhythm": "快节奏，密集爽点",
-      "climax_interval": 30
-    }},
-    "mid_stage": {{
-      "range": "31-100章",
-      "rhythm": "中节奏，铺垫与爆发交替",
-      "climax_interval": 30
-    }},
-    "late_stage": {{
-      "range": "100章+",
-      "rhythm": "慢节奏，大场面",
-      "climax_interval": 30
-    }}
-  }},
-  "first_climax_design": {{
-    "scene": "触发场景",
-    "conflict": "冲突对象",
-    "reward": "结果奖励",
-    "reaction": "全网反应"
-  }},
-  "antagonist": {{
-    "early": "初期反派身份（如：势利眼销售、前女友、同事）",
-    "mid": "中期反派身份（如：富二代、地方势力）",
-    "late": "后期反派身份（如：国际势力、终极BOSS）",
-    "pattern": "打脸模式（如：看不起→嘲讽→震惊→后悔→跪舔）",
-    "early_stage": [
-      {{"name": "反派1名称", "scene": "出现场景", "pattern": "打脸模式"}},
-      {{"name": "反派2名称", "scene": "出现场景", "pattern": "打脸模式"}}
-    ]
-  }},
-  "platform_tips": {{
-    "title_style": "15字以内，有冲击力，包含数字或强烈对比",
-    "writing_style": "直白、短段落、多对话、少用形容词",
-    "chapter_ending": "每章结尾必须有钩子，让读者想看下一章"
-  }},
-  "must_have": ["全球直播弹幕互动", "国运具现奖励", "各国选手对比"],
-  "must_not_have": ["主角开局太强", "圣母心泛滥", "缺少直播互动"],
-  "emotion_curve": {{
-    "pattern": "3章一小爽，10章一中爽，30章一大爽",
-    "description": "全程无尿点，章章有钩子"
-  }}
-}}
-```
-
-请用严格的JSON格式输出。"""
+请检查以下配置文件是否存在：
+- prompt_packages/default/market_driven/trope_analysis_prompts.json
+"""
+            logger.error(error_msg)
+            raise RuntimeError(error_msg)
+        
+        return template.format(genre=genre)
 
     def _call_ai_analysis(self, prompt: str) -> Dict:
         """
@@ -556,9 +353,17 @@ class TropeAnalyzer:
         # 🔍 调试日志：检查plot_templates
         if "plot_templates" in result:
             templates = result["plot_templates"]
+            # 🔥 清理数据：确保 name 和 desc 是字符串
+            for t in templates:
+                if "name" in t and not isinstance(t["name"], str):
+                    t["name"] = str(t["name"])
+                if "desc" in t and not isinstance(t["desc"], str):
+                    t["desc"] = str(t["desc"])
+                if "detail" in t and not isinstance(t["detail"], str):
+                    t["detail"] = str(t["detail"])
             logger.info(f"[TropeAnalyzer] AI返回了 {len(templates)} 条剧情路线")
             for i, t in enumerate(templates[:3]):
-                logger.info(f"[TropeAnalyzer] 路线{i+1}: {t.get('name', 'N/A')} - {t.get('desc', 'N/A')[:30]}...")
+                logger.info(f"[TropeAnalyzer] 路线{i+1}: {t.get('name', 'N/A')} - {str(t.get('desc', 'N/A'))[:30]}...")
         else:
             logger.warning("[TropeAnalyzer] AI返回的数据缺少plot_templates字段！")
         

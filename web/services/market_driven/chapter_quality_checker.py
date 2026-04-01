@@ -144,40 +144,41 @@ class ChapterQualityChecker:
             return self._get_default_optimization_config()
     
     def _get_default_rules_config(self) -> Dict:
-        """获取默认规则配置（硬编码回退）"""
+        """配置缺失时的警告提示"""
+        logger.error("""
+❌ 错误：质量检查规则配置缺失！
+
+请检查以下配置文件是否存在：
+- prompt_packages/default/market_driven/components/quality_check_rules.json
+
+或使用API创建配置：
+POST /api/v2/prompt-config/component/quality_check_rules
+
+详细信息请查看文档：docs/prompt_configuration.md
+""")
         return {
             "version": "1.0.0",
-            "check_categories": ["structure", "tomato_algo", "genre", "emotion", "micro_innov", "completeness"],
-            "rules": {
-                "tomato_algo": {
-                    "checks": [
-                        {
-                            "id": "first_300_conflict",
-                            "severity": "error",
-                            "message": "缺少'前300字必须出现冲突'的要求",
-                            "suggestion": "在提示词中明确添加：'前300字必须出现冲突或羞辱场景'"
-                        },
-                        {
-                            "id": "chapter_hook",
-                            "severity": "error",
-                            "message": "提示词缺少钩子要求",
-                            "suggestion": "添加'章尾最后50字必须是钩子'的要求"
-                        }
-                    ]
-                }
-            }
+            "check_categories": [],
+            "rules": {},
+            "_warning": "配置缺失，请检查quality_check_rules.json"
         }
     
     def _get_default_optimization_config(self) -> Dict:
-        """获取默认优化配置（硬编码回退）"""
+        """配置缺失时的警告提示"""
+        logger.error("""
+❌ 错误：优化提示词配置缺失！
+
+请检查以下配置文件是否存在：
+- prompt_packages/default/market_driven/components/optimization_hints.json
+
+或使用API创建配置：
+POST /api/v2/prompt-config/component/optimization_hints
+
+详细信息请查看文档：docs/prompt_configuration.md
+""")
         return {
-            "sections": {
-                "tomato_algorithm": {
-                    "marker": "## 【番茄算法强制指标】",
-                    "content": "\n## 【番茄算法强制指标】\n- 前300字必须出现冲突/羞辱\n- 对话占比≥50%\n- 每段1-3行，多用换行\n- 章尾最后50字必须是钩子\n",
-                    "position": "prepend"
-                }
-            }
+            "sections": {},
+            "_warning": "配置缺失，请检查optimization_hints.json"
         }
     
     def reload_config(self):

@@ -524,17 +524,23 @@ Note: All content must be specific and actionable, not vague."""
             logger.error(f"保存分析日志失败: {e}")
     
     def _get_default_analysis(self, genre: str) -> Dict:
-        """默认分析（当API调用失败时返回基本结构）"""
-        return {
-            "genre_formula": "底层逆袭套路：困境→觉醒→成长→逆袭",
-            "opening_3_chapters": {
-                "chapter_1": {"scene": "待AI分析", "hook": "等待分析"},
-                "chapter_2": {"scene": "待AI分析", "hook": "等待分析"},
-                "chapter_3": {"scene": "待AI分析", "hook": "等待分析"}
-            },
-            "golden_finger_formula": {"initial_reward": "待分析", "growth_curve": "待分析"},
-            "character_formula": {"protagonist": {"archetype": "待分析"}},
-            "emotion_formula": {"cycle": "待分析"},
-            "climax_formula": {"small_climax": {"interval": 3}},
-            "note": "API调用失败，返回默认结构，请检查API配置"
-        }
+        """API调用失败时的警告"""
+        logger.error(f"""
+❌ 错误：爆款分析API调用失败！
+
+题材：{genre}
+
+可能原因：
+1. API密钥配置错误
+2. 网络连接问题
+3. API服务不可用
+
+请检查：
+- .env文件中的API配置
+- 网络连接状态
+- API服务商状态页面
+
+或使用本地配置：
+- prompt_packages/default/market_driven/trope_analysis_{genre}.json
+""")
+        raise RuntimeError(f"爆款分析API调用失败，请检查API配置或提供本地配置文件")

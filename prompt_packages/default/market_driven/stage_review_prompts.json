@@ -1,0 +1,48 @@
+{
+  "version": "1.0.0",
+  "description": "阶段性复盘优化器的提示词配置",
+  "templates": {
+    "fix_prompt": {
+      "template": "修复第{chapter_num}章的所有问题。基于原文修改，不要重写。\n\n**第{chapter_num}章：{chapter_title}**\n**原文字数：**{original_word_count}字\n**问题统计：**P0={p0_count}个, P1={p1_count}个, P2={p2_count}个\n\n{word_count_constraints}\n\n## 其他关键约束\n1. 主角名必须保持一致：'{protagonist_name}' - 禁止改为其他名字\n2. 世界观保持一致 - 不要引入新的力量体系\n3. 只修改有问题的部分，保留其他内容原样\n4. 保持原有的写作风格和语气\n\n**需要修复的所有问题：**\n{issues_text}\n\n**原文内容（前800字供参考）：**\n{original_content_preview}...\n\n## 输出格式\n**JSON格式：**\n{{\"chapter_number\": {chapter_num}, \"content\": \"完整的修改后章节内容\"}}\n\n{self_check_list}",
+      "variables": [
+        "chapter_num",
+        "chapter_title",
+        "original_word_count",
+        "p0_count",
+        "p1_count",
+        "p2_count",
+        "protagonist_name",
+        "issues_text",
+        "original_content_preview",
+        "word_count_constraints",
+        "self_check_list"
+      ]
+    },
+    "word_count_constraints": {
+      "template": "## 🚨 字数约束（硬性要求，违反会导致重试）\n**目标字数：2000-2500字**\n**硬性下限：2000字（绝对不能低于）**\n**硬性上限：2500字（绝对不能超过）**\n\n**字数控制策略：**\n- **硬性上限：修复后的字数绝对不能超过2500字！**\n- 如果原文字数<2000字：扩充到2000-2200字\n- 如果原文字数在2000-2500字：允许小幅增加爽点，但绝对不要超过2500字\n- 如果原文字数>2500字：删减到2200-2400字\n- **可以增爽点，但必须在2500字以内完成！**\n\n**⚠️ 警告：超过2500字的内容将被强制拒绝，必须重试！"
+    },
+    "self_check_list": {
+      "template": "## 🔥 强制自检清单（输出前必须完成）\n- [ ] 统计content字段字数（使用len()精确计算）\n- [ ] 字数是否≥2000字？（低于则必须扩充）\n- [ ] 字数是否≤2500字？（绝对不能超过硬性上限！）\n- [ ] 理想范围：2000-2500字\n\n**🚨 硬性上限：绝对不能超过2500字！**\n**可以增爽点，但必须在2500字以内完成！**"
+    },
+    "retry_warning_over_limit": {
+      "template": "**🚨 紧急警告：上次输出字数{last_word_count}字超过了硬性上限2500字！**\n**你可以增爽点，但必须在2500字以内完成！**\n**删减建议：精简震惊描写（只保留现场+权威两层）、删除冗余弹幕反应、压缩环境描写。**"
+    },
+    "retry_warning_under_limit": {
+      "template": "**警告：上次输出字数{last_word_count}字不足2000字。你必须输出至少2000字，但绝对不能超过2500字。输出前请统计字数。**"
+    },
+    "editor_system_prompt": "你是专业的小说编辑。分析并修复质量问题。\n工作流程：1) 识别P0/P1/P2问题 2) 逐章修复 3) 验证。只输出JSON格式。",
+    "scene_editor_system_prompt": "You are a professional novel editor. Analyze and fix quality issues at scene level.\nWorkflow: 1) Identify issues 2) Fix specific scenes 3) Preserve unchanged content. Output JSON only."
+  },
+  "word_count": {
+    "min_absolute": 2000,
+    "max_absolute": 2500,
+    "min_percent": 0.8,
+    "max_percent": 1.1
+  },
+  "retry": {
+    "max_retries": 2,
+    "truncate_on_failure": true,
+    "truncate_to": 2500,
+    "truncate_min": 2300
+  }
+}

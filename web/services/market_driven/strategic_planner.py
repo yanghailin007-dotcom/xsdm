@@ -26,8 +26,25 @@ class StrategicPlanner:
     4. 确保200章不崩
     """
     
+    # 配置路径
+    CONFIG_PATH = "prompt_packages/default/market_driven/strategic_planning_prompts.json"
+    
     def __init__(self, api_client=None):
         self.api_client = api_client
+        self._config = self._load_config()
+    
+    def _load_config(self) -> Dict:
+        """加载提示词配置"""
+        try:
+            from pathlib import Path
+            config_path = Path(self.CONFIG_PATH)
+            if config_path.exists():
+                with open(config_path, 'r', encoding='utf-8') as f:
+                    return json.load(f)
+            return {}
+        except Exception as e:
+            logger.warning(f"[StrategicPlanner] 无法加载配置: {e}")
+            return {}
         
     def create_strategic_framework(
         self, 
@@ -70,51 +87,26 @@ class StrategicPlanner:
     ) -> Dict:
         """使用AI生成战略框架"""
         
-        prompt = f"""# 角色：战略架构师
+        # 🔥 从JSON配置加载模板
+        template = self._config.get("strategic_framework_template", "")
+        
+        if not template:
+            error_msg = """
+❌ 错误：战略规划提示词配置缺失！
 
-你为番茄爆款小说《{novel_title}》制定200章战略框架。
-
-## 基本要求
-- 总章节：{total_chapters}章
-- 总字数：{target_words}字
-- 题材：{genre}
-- 主角：{protagonist_name}
-
-## 需要规划的内容
-
-### 1. 关键转折点（5-6个）
-每个转折点包含：
-- 章节位置
-- 类型（身份曝光/地图切换/力量质变/文明跃迁/终极揭秘）
-- 情绪基调
-- 必须完成的目标
-
-### 2. 主角成长阶段（4-5个）
-每个阶段包含：
-- 章节范围
-- 身份称号
-- 力量等级
-- 核心能力
-- 主要对手
-
-### 3. 情绪大周期
-- 整体情绪走向
-- 高潮分布
-- 缓冲区域
-
-### 4. 核心悬念链
-- 主线悬念（贯穿全书）
-- 阶段悬念（每50章左右揭晓一个）
-
-## 输出格式
-JSON格式，包含：
-- milestones: 转折点列表
-- growth_stages: 成长阶段
-- emotion_arc: 情绪大周期
-- suspense_chain: 悬念链
-- strategic_notes: 战略备注
-
-只输出JSON，不要其他说明。"""
+请检查以下配置文件是否存在：
+- prompt_packages/default/market_driven/strategic_planning_prompts.json
+"""
+            logger.error(error_msg)
+            raise RuntimeError(error_msg)
+        
+        prompt = template.format(
+            novel_title=novel_title,
+            total_chapters=total_chapters,
+            target_words=target_words,
+            genre=genre,
+            protagonist_name=protagonist_name
+        )
 
         try:
             response = self.api_client.generate_content(
@@ -139,9 +131,34 @@ JSON格式，包含：
         self, genre: str, novel_title: str, protagonist_name: str,
         total_chapters: int, target_words: int
     ) -> Dict:
-        """从模板生成战略框架（国运文专用）"""
+        """API不可用时返回空结构"""
         
+        logger.error("""
+❌ 错误：无法生成战略框架！
+
+原因：
+1. API客户端不可用
+2. 战略规划模板配置缺失
+
+请检查：
+- API配置是否正确
+- prompt_packages/default/market_driven/strategic_planning_prompts.json 是否存在
+""")
+        
+        # 返回空结构，不生成硬编码内容
         return {
+            "novel_title": novel_title,
+            "protagonist_name": protagonist_name,
+            "total_chapters": total_chapters,
+            "target_words": target_words,
+            "genre": genre,
+            "milestones": [],
+            "growth_stages": [],
+            "emotion_arc": {},
+            "suspense_chain": {},
+            "strategic_notes": [],
+            "_error": "API不可用且配置缺失，请检查配置"
+        }
             "novel_title": novel_title,
             "protagonist_name": protagonist_name,
             "total_chapters": total_chapters,

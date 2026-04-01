@@ -103,7 +103,23 @@ class PromptTemplateGenerator:
             except Exception as e:
                 logger.warning(f"[PromptTemplateGenerator] 步骤1 JSON配置渲染失败: {e}")
         
-        # 硬编码fallback
+        # 🔥 配置缺失时抛出错误
+        error_msg = """
+❌ 错误：步骤1提示词模板配置缺失！
+
+请检查以下配置文件是否存在：
+- prompt_packages/default/market_driven/steps/step_templates.json
+
+或使用API创建配置：
+POST /api/v2/prompt-config/step_1_plan
+
+详细信息请查看文档：docs/prompt_configuration.md
+"""
+        logger.error(error_msg)
+        raise RuntimeError(error_msg)
+    
+    def _old_generate_step1_hardcoded(self, title: str, protagonist_name: str, selected_plot: Dict) -> str:
+        """旧的硬编码fallback（保留用于参考）"""
         formula = self.analysis.get("genre_formula", "")
         opening = self.analysis.get("opening_3_chapters", {})
         ch1 = opening.get("chapter_1", {})
@@ -273,35 +289,18 @@ class PromptTemplateGenerator:
             except Exception as e:
                 logger.warning(f"[PromptTemplateGenerator] 步骤2 JSON配置渲染失败: {e}")
         
-        # 硬编码fallback
-        early_end = max(10, total_chapters // 3)
-        mid_end = max(early_end + 10, total_chapters * 2 // 3)
-        return f"""# 角色：世界观架构师（基于爆款公式）
+        # 🔥 配置缺失时抛出错误
+        error_msg = """
+❌ 错误：步骤2提示词模板配置缺失！
 
-基于步骤1确定的题材、主角、金手指，生成完整的世界观。
+请检查以下配置文件是否存在：
+- prompt_packages/default/market_driven/steps/step_templates.json
 
-## 🌍 该题材的世界观公式
-{json.dumps(self.analysis.get("character_formula", {}).get("antagonists", {}), ensure_ascii=False)}
-
-## 🎯 势力系统设计公式
-必须包含3个对立势力：
-1. **早期敌对势力**（1-{early_end}章）：{self.analysis.get("character_formula", {}).get("antagonists", {}).get("early", "势利眼小人物")}
-2. **中期敌对势力**（{early_end + 1}-{mid_end}章）：{self.analysis.get("character_formula", {}).get("antagonists", {}).get("mid", "富二代、地方势力")}
-3. **后期敌对势力**（{mid_end + 1}章+）：{self.analysis.get("character_formula", {}).get("antagonists", {}).get("late", "国际势力、隐藏大佬")}
-
-## 🏛️ 社会规则设计（必须有利于装逼打脸）
-- 阶层划分：如何体现等级差异？
-- 资源分布：稀有资源如何获取？
-- 认可机制：如何获得社会地位？
-
-## 🗺️ 地图升级规划
-- 第一地图（1-{early_end}章）：本地场景
-- 第二地图（{early_end + 1}-{mid_end}章）：省城/区域
-- 第三地图（{mid_end + 1}章+）：全国/全球
-
-## ✅ 输出格式
-JSON格式，包含：world_overview, power_system, social_structure, factions, world_rules, key_locations
+或使用API创建配置：
+POST /api/v2/prompt-config/step_2_worldview
 """
+        logger.error(error_msg)
+        raise RuntimeError(error_msg)
     
     def _generate_step2_from_config(self, total_chapters: int = 100) -> Optional[str]:
         """从JSON配置生成步骤2 Prompt"""
@@ -332,51 +331,18 @@ JSON格式，包含：world_overview, power_system, social_structure, factions, 
             except Exception as e:
                 logger.warning(f"[PromptTemplateGenerator] 步骤3 JSON配置渲染失败: {e}")
         
-        # 硬编码fallback
-        char_formula = self.analysis.get("character_formula", {})
-        
-        # 安全获取配角列表
-        supporting_roles = char_formula.get("supporting", [])
-        supporting_text = "\n".join([f"- {s}" for s in supporting_roles]) if supporting_roles else "- 捧哏型队友\n- 女主/感情线\n- 传声筒型军官\n- 对比转变型小弟"
-        
-        # 安全获取主角人设
-        protagonist_template = char_formula.get("protagonist", {})
-        protagonist_json = json.dumps(protagonist_template, ensure_ascii=False) if protagonist_template else '{"archetype": "隐忍型爱国青年", "traits": ["杀伐果断", "极度护短", "低调装逼"]}'
-        
-        return f"""# 角色：角色设计师（基于爆款人设公式）
+        # 🔥 配置缺失时抛出错误
+        error_msg = """
+❌ 错误：步骤3提示词模板配置缺失！
 
-基于已确定的世界观和主角人设，设计完整角色阵容。
+请检查以下配置文件是否存在：
+- prompt_packages/default/market_driven/steps/step_templates.json
 
-## ⚠️ 强制要求（违反将导致生成失败）
-1. **主角姓名必须使用用户指定的**：{protagonist_name}
-2. **禁止**给主角起其他名字或别名
-3. **禁止**在 protagonist.name 中使用其他值
-4. 如果违反以上任何一条，生成将被视为失败
-
-## 👤 主角人设公式（仅作为人设参考，姓名必须用上面指定的）
-{protagonist_json}
-
-## 👥 配角功能定位公式
-{supporting_text}
-
-## 😈 反派设计公式
-每个反派必须：
-1. **让读者恨**：通过什么行为让读者恨得牙痒痒？
-2. **有层次感**：不是单纯坏，而是有动机
-3. **打脸爽快**：被打脸时的反应要有层次（不屑→震惊→后悔→恐惧）
-
-## ✅ 输出格式
-返回JSON格式，必须包含以下字段：
-{{
-  "protagonist": {{"name": "{protagonist_name}", "age": 25, "traits": [...], ...}},
-  "core_allies": [{{"name": "...", "role": "..."}}],
-  "main_antagonists": {{"early_stage": [...], "mid_stage": [...], "late_stage": [...]}},
-  "supporting_roles": [...]
-}}
-
-** 重要：protagonist.name 必须是 "{protagonist_name}"，禁止用其他名字！**
-** 不要返回null，必须返回有效的JSON对象！**
+或使用API创建配置：
+POST /api/v2/prompt-config/step_3_characters
 """
+        logger.error(error_msg)
+        raise RuntimeError(error_msg)
     
     def _generate_step3_from_config(self, protagonist_name: str) -> Optional[str]:
         """从JSON配置生成步骤3 Prompt"""
@@ -407,32 +373,17 @@ JSON格式，包含：world_overview, power_system, social_structure, factions, 
             except Exception as e:
                 logger.warning(f"[PromptTemplateGenerator] 步骤4 JSON配置渲染失败: {e}")
         
-        # 硬编码fallback
-        m1 = max(5, total_chapters // 10)
-        m2 = max(15, total_chapters // 3)
-        m3 = max(25, total_chapters // 2)
-        m4 = max(50, total_chapters * 3 // 4)
-        return f"""# 角色：成长路线规划师（基于爆款升级公式）
+        error_msg = """
+❌ 错误：步骤4提示词模板配置缺失！
 
-基于前30章大纲，规划主角成长里程碑。
+请检查以下配置文件是否存在：
+- prompt_packages/default/market_driven/steps/step_templates.json
 
-## 📈 成长公式
-{self.analysis.get("golden_finger_formula", {}).get("growth_curve", "")}
-
-## 🎯 成长维度
-1. **能力成长**：数值提升、新技能解锁
-2. **身份成长**：社会地位、财富等级
-3. **关系成长**：从被看不起到被巴结
-
-## 📊 里程碑设计
-- 第{m1}章：第一次身份跃迁
-- 第{m2}章：阶段性身份曝光
-- 第{m3}章：进入更高圈子
-- 第{m4}章：成为一方霸主
-
-## ✅ 输出格式
-JSON格式：protagonist_growth, ability_system_progression, key_relationships_development
+或使用API创建配置：
+POST /api/v2/prompt-config/step_4_growth
 """
+        logger.error(error_msg)
+        raise RuntimeError(error_msg)
     
     def _generate_step4_from_config(self, total_chapters: int = 100) -> Optional[str]:
         """从JSON配置生成步骤4 Prompt"""
@@ -453,26 +404,6 @@ JSON格式：protagonist_growth, ability_system_progression, key_relationships_d
     
     def generate_step5_emotion_prompt(self, total_chapters: int) -> str:
         """生成步骤5（情绪曲线）的Prompt"""
-        emotion = self.analysis.get("emotion_formula", {})
-        climax = self.analysis.get("climax_formula", {})
-        
-        # 🔥 安全构建钩子列表，避免f-string嵌套问题
-        hook_types = emotion.get("hook_types", ["悬念型", "爽点型", "期待型", "震惊型"])
-        hook_list_str = "\n".join([f"{i+1}. {hook_type}" for i, hook_type in enumerate(hook_types)])
-        
-        # 🔥 从爆款分析获取爽点类型
-        small_types = climax.get("small_climax", {}).get("types", 
-            ["打脸", "收获", "装逼", "震惊", "情感满足"])
-        medium_types = climax.get("medium_climax", {}).get("types",
-            ["升级", "身份曝光", "资源获取", "势力扩张"])
-        large_types = climax.get("large_climax", {}).get("types",
-            ["阶段性胜利", "全网曝光", "新地图开启", "终极反转"])
-        
-        # 🔥 构建爽点类型字符串
-        small_types_str = ", ".join(small_types)
-        medium_types_str = ", ".join(medium_types)
-        large_types_str = ", ".join(large_types)
-        
         # 🔥 优先使用JSON配置
         if self.use_json_config and self._step_templates:
             try:
@@ -482,82 +413,17 @@ JSON格式：protagonist_growth, ability_system_progression, key_relationships_d
             except Exception as e:
                 logger.warning(f"[PromptTemplateGenerator] 步骤5 JSON配置渲染失败: {e}")
         
-        # 硬编码fallback
-        return f"""# 角色：情绪曲线设计师（基于爆款节奏公式）
+        error_msg = """
+❌ 错误：步骤5提示词模板配置缺失！
 
-设计{total_chapters}章的情绪曲线，严格遵循爆款情绪公式。
+请检查以下配置文件是否存在：
+- prompt_packages/default/market_driven/steps/step_templates.json
 
-## 🎭 情绪循环公式
-{emotion.get("cycle", "压抑2章→爆发1章→巩固1章→期待1章")}
-
-## 🪝 章尾钩子轮替
-{hook_list_str}
-
-## 📈 强度与爽点类型控制
-
-**重要原则**：爽点类型必须多样化，避免连续使用同类型！
-
-### 小爽点（每3章，强度7）
-可选类型：{small_types_str}
-- 必须轮替使用，不能连续两章同类型
-- 铺垫1-2章，爽点1章的节奏
-
-### 中爽点（每10章，强度8-9）
-可选类型：{medium_types_str}
-- 必须有分层震惊（路人→朋友→敌人→高层）
-- 爽点后必须埋下新的期待
-
-### 大爽点（每30章，强度10）
-可选类型：{large_types_str}
-- 必须是阶段性总结
-- 必须有后续铺垫（新地图/新敌人/新目标）
-
-### 缓冲章（爽点后1-2章，强度5-6）
-- 用于消化爽点，建立新期待
-- 可以推进支线或埋下伏笔
-
-## 🎨 情绪类型库
-震惊、期待、小爽快、大爽快、紧张、愤怒、满足
-
-## ✅ 输出格式（严格要求）
-
-**每个章节必须包含以下字段**：
-```json
-{{
-  "ch": 1,                          // 章节号（必须连续）
-  "emotion": "压抑",                // 情绪类型
-  "intensity": 9,                   // 强度 1-10
-  "beat_type": "钩子",              // 节奏类型：钩子/爽点/震惊/转折/铺垫/缓冲
-  "climax_type": "",                // 🔥 爽点类型：打脸/收获/升级/装逼/震惊（非爽点章留空）
-  "climax_subtype": "",             // 🔥 具体场景：如"前女友打脸"/"系统升级"（非爽点章留空）
-  "event": "主角被羞辱",            // 关键事件描述
-  "purpose": "让读者代入主角处境"   // 这章的作用
-}}
-```
-
-**爽点类型使用规则**：
-1. 小爽点章（每3章）：必须从 {small_types_str} 中选择，轮替使用
-2. 中爽点章（每10章）：必须从 {medium_types_str} 中选择
-3. 大爽点章（每30章）：必须从 {large_types_str} 中选择
-4. 非爽点章：climax_type 和 climax_subtype 留空字符串
-
-**错误示例（会被拒绝）**：
-```json
-{{"curve": [{{"ch":1,...}}, {{"ch":10,...}}, {{"ch":20,...}}]}}  // 只返回了3章
-```
-
-**正确示例**：
-```json
-{{"curve": [
-  {{"ch":1, "emotion":"压抑", "intensity":9, "beat_type":"钩子", "climax_type":"", "climax_subtype":"", "event":"被羞辱", "purpose":"让读者代入"}},
-  {{"ch":2, "emotion":"期待", "intensity":6, "beat_type":"转折", "climax_type":"", "climax_subtype":"", "event":"系统觉醒", "purpose":"点燃希望"}},
-  {{"ch":3, "emotion":"小爽快", "intensity":7, "beat_type":"爽点", "climax_type":"打脸", "climax_subtype":"前女友被打脸", "event":"当众打脸", "purpose":"初步验证系统"}},
-  ...  // 完整的{total_chapters}章，每章都有全部字段
-]}}
-```
-
-**必须返回完整的{total_chapters}章，每章都要有全部7个字段！**
+或使用API创建配置：
+POST /api/v2/prompt-config/step_5_emotion
 """
+        logger.error(error_msg)
+        raise RuntimeError(error_msg)
     
     def _generate_step5_from_config(self, total_chapters: int) -> Optional[str]:
         """从JSON配置生成步骤5 Prompt"""

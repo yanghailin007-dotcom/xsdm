@@ -779,16 +779,28 @@ document.addEventListener('DOMContentLoaded', function() {
     if (plotOptions.length > 0) {
       plotSelect.innerHTML = '<option value="">-- 选择剧情路线 --</option>' + 
         plotOptions.map((plot, idx) => {
-          const name = plot.name || `剧情线${idx + 1}`;
-          const desc = plot.desc || '';
+          // 🔥 确保 name 和 desc 是字符串
+          let name = plot.name || `剧情线${idx + 1}`;
+          let desc = plot.desc || '';
+          // 如果 name 是对象，转换为字符串
+          if (typeof name === 'object') {
+            name = JSON.stringify(name);
+          }
+          if (typeof desc === 'object') {
+            desc = JSON.stringify(desc);
+          }
           return `<option value="${idx}">${name}${desc ? ' - ' + desc : ''}</option>`;
         }).join('');
       
       // 如果有从分析页面选择的剧情线，自动选中
       if (selectedPlotFromAnalysis) {
-        const idx = plotOptions.findIndex(p => 
-          (p.name || '') === (selectedPlotFromAnalysis.name || '')
-        );
+        const selectedName = typeof selectedPlotFromAnalysis.name === 'object' 
+          ? JSON.stringify(selectedPlotFromAnalysis.name) 
+          : (selectedPlotFromAnalysis.name || '');
+        const idx = plotOptions.findIndex(p => {
+          const pName = typeof p.name === 'object' ? JSON.stringify(p.name) : (p.name || '');
+          return pName === selectedName;
+        });
         if (idx >= 0) {
           plotSelect.value = idx;
         }
@@ -942,7 +954,12 @@ async function startGeneration() {
   const sellpoint = document.getElementById('novel-sellpoint').value;
   const wordcount = parseInt(document.getElementById('novel-wordcount').value) * 10000; // 万字转字数
   const chapters = parseInt(document.getElementById('novel-chapters').value);
-  const protagonistName = document.getElementById('protagonist-name').value;
+  let protagonistName = document.getElementById('protagonist-name').value.trim();
+  // 🔥 如果用户输入了多个候选名（用/分隔），只取第一个
+  if (protagonistName.includes('/')) {
+    protagonistName = protagonistName.split('/')[0].trim();
+    console.log(`[主角名] 多个候选名 detected，使用第一个: ${protagonistName}`);
+  }
   const protagonistBg = document.getElementById('protagonist-bg').value;
   const goldenFingerType = document.getElementById('golden-finger-type').value;
   const goldenFingerDesc = document.getElementById('golden-finger-desc').value;

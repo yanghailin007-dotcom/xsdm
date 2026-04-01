@@ -23,8 +23,25 @@ class BatchSummarizer:
     4. 支持多批次总结合并
     """
     
+    # 配置路径
+    CONFIG_PATH = "prompt_packages/default/market_driven/batch_summary_prompts.json"
+    
     def __init__(self, api_client=None):
         self.api_client = api_client
+        self._config = self._load_config()
+    
+    def _load_config(self) -> Dict:
+        """加载提示词配置"""
+        try:
+            from pathlib import Path
+            config_path = Path(self.CONFIG_PATH)
+            if config_path.exists():
+                with open(config_path, 'r', encoding='utf-8') as f:
+                    return json.load(f)
+            return {}
+        except Exception as e:
+            logger.warning(f"[BatchSummarizer] 无法加载配置: {e}")
+            return {}
     
     def summarize_batch(
         self,
@@ -191,40 +208,30 @@ class BatchSummarizer:
         
         goal_desc = stage_goal.get('description', '完成当前阶段目标') if stage_goal else '推进剧情'
         
-        prompt = f"""【批次分析报告生成】
+        # 🔥 从JSON配置加载模板
+        template_config = self._config.get("summary_template", {})
+        template = template_config.get("template", "")
+        
+        if not template:
+            error_msg = """
+❌ 错误：批次总结提示词配置缺失！
 
-请分析第{start_ch}-{end_ch}章的剧情进展，生成供下一批次使用的总结报告。
-
-【当前阶段目标】
-{goal_desc}
-
-【章节内容摘要】
-{chr(10).join(chapter_snippets)}
-
-【统计信息】
-- 新角色: {len(new_chars)}人 ({', '.join(c.get('name', '') for c in new_chars[:3])}...)
-- 角色变化: {len(char_changes)}次
-- 关键事件: {len(key_events)}个
-
-【请输出JSON格式分析结果】
-{{
-  "summary_text": "一句话总结这批章节的核心进展",
-  "completed_events": [
-    {{"chapter": 章节号, "event": "完成的事件", "significance": "重要性(high/medium/low)"}}
-  ],
-  "character_states": {{
-    "protagonist": {{"name": "主角名", "status": "当前状态", "扮演度": "35%", "新技能": ["技能1"]}},
-    "ally": {{"name": "主要盟友", "态度": "友好/怀疑", "状态": "健康/受伤"}},
-    "enemy": {{"name": "主要敌人", "状态": "活跃/被击败", "威胁等级": "S级"}}
-  }},
-  "pending_hooks": [
-    {{"chapter": 埋下章节, "content": "钩子内容", "priority": "high/medium/low", "expected_resolution": "预期解决章节"}}
-  ],
-  "plot_direction": "下一批应该推进的方向建议（50字以内）",
-  "stage_progress_assessment": "阶段目标完成度评估(0-100)及原因"
-}}
-
-只输出JSON，不要其他内容。"""
+请检查以下配置文件是否存在：
+- prompt_packages/default/market_driven/batch_summary_prompts.json
+"""
+            logger.error(error_msg)
+            raise RuntimeError(error_msg)
+        
+        prompt = template.format(
+            start_ch=start_ch,
+            end_ch=end_ch,
+            goal_desc=goal_desc,
+            chapter_snippets=chr(10).join(chapter_snippets),
+            new_chars_count=len(new_chars),
+            new_chars_list=', '.join(c.get('name', '') for c in new_chars[:3]),
+            char_changes_count=len(char_changes),
+            key_events_count=len(key_events)
+        )
         
         try:
             response = self.api_client.generate_content_with_retry(

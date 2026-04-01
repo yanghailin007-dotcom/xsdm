@@ -38,6 +38,27 @@ class WordCountEnforcer:
     禁止：无意义的环境描写、心理独白、水字数对话
     """
     
+    # 配置路径
+    CONFIG_PATH = "prompt_packages/default/market_driven/word_count_enforcement_prompts.json"
+    
+    def __init__(self, api_client=None):
+        self.api_client = api_client
+        self._config = self._load_config()
+    
+    def _load_config(self) -> Dict:
+        """加载提示词配置"""
+        try:
+            import json
+            from pathlib import Path
+            config_path = Path(self.CONFIG_PATH)
+            if config_path.exists():
+                with open(config_path, 'r', encoding='utf-8') as f:
+                    return json.load(f)
+            return {}
+        except Exception as e:
+            logger.warning(f"[WordEnforcer] 无法加载配置: {e}")
+            return {}
+    
     # 字数标准
     TARGET_WORD_COUNT = 2200  # 目标字数
     MIN_WORD_COUNT = 1800     # 最低红线
@@ -143,63 +164,53 @@ class WordCountEnforcer:
     def _build_expansion_prompt(self, content: str, expansion_type: str, needed: int) -> str:
         """构建扩写提示词"""
         
-        base_prompt = f"""请对以下小说章节进行扩写，增加约{needed}字。
-
-【原始内容】
-{content[:500]}...（省略中间内容）...{content[-200:]}
-
-【扩写要求】
-当前字数：{len(content)}字
-目标增加：{needed}字
-禁止扩写内容：环境描写、心理独白、无意义对话
-必须扩写内容："""
+        # 🔥 从JSON配置加载模板
+        templates = self._config.get("expansion_templates", {})
+        base_template = templates.get("base", "")
+        type_templates = templates.get("type_specific", {})
         
-        type_specific = {
-            "barrage": """
-- **弹幕反应链**（用自然叙事，不要贴标签）：
-  * 先写现场观众的实时反应（震惊/嘲讽/反转）
-  * 再写直播间弹幕爆炸（具体弹幕内容，至少10条）
-  * 最后写社交媒体发酵（热搜、论坛、朋友圈）
-- 弹幕要有具体ID和内容，不能只是"666"
-- 弹幕情绪要有变化（质疑→震惊→跪服）""",
-            
-            "shock": """
-- **震惊三层递进**（自然叙事，不要写"第X层"）：
-  * 先写现场人物（反派/配角）的震惊反应
-  * 再写远处/暗处观战者的震惊（新角色登场）
-  * 最后写全网/全城/全国范围的震惊传播
-- 每个层级要有具体的人物反应和对话
-- 震惊要配合具体数据（战力评估、历史记录等）""",
-            
-            "numbers": """
-- **数字可视化**：
-  * 国运值变化的具体表现（天空异象、龙气变化、民众感应）
-  * 战力数值的可视化（气息颜色、威压范围、天地异象）
-  * 资源获得的具体展示（空间变化、系统界面、实物描述）
-- 数字要有递进感（+100→+1000→+10000）
-- 配合民众/配角的感应和反应""",
-            
-            "emotion": """
-- **情绪渲染链**：
-  * 主角的情绪细节（微表情、小动作、内心活动<100字）
-  * 关键配角的反应（白月魁的担忧、敌人的恐惧）
-  * 环境对情绪的映射（群众反应、天气变化等）
-- 情绪要有层次（平静→紧张→爆发）
-- 通过对话和动作展示情绪，而非直接描述"""
-        }
+        if not base_template:
+            error_msg = """
+❌ 错误：字数扩写提示词配置缺失！
+
+请检查以下配置文件是否存在：
+- prompt_packages/default/market_driven/word_count_enforcement_prompts.json
+"""
+            logger.error(error_msg)
+            raise RuntimeError(error_msg)
         
-        return base_prompt + type_specific.get(expansion_type, type_specific["emotion"])
+        base_prompt = base_template.format(
+            needed=needed,
+            content_preview=f"{content[:500]}...（省略中间内容）...{content[-200:]}",
+            current_words=len(content)
+        )
+        
+        type_specific = type_templates.get(expansion_type, type_templates.get("emotion", ""))
+        
+        return base_prompt + type_specific
     
     def _call_expansion_api(self, content: str, prompt: str) -> str:
         """调用API扩写"""
         if not self.api_client:
             raise ValueError("API client not available")
         
+        # 🔥 从JSON配置加载system prompt
+        system_prompt = self._config.get("system_prompt", "")
+        if not system_prompt:
+            error_msg = """
+❌ 错误：字数扩写系统提示词配置缺失！
+
+请检查以下配置文件是否存在：
+- prompt_packages/default/market_driven/word_count_enforcement_prompts.json
+"""
+            logger.error(error_msg)
+            raise RuntimeError(error_msg)
+        
         # 构建完整消息
         messages = [
             {
                 "role": "system",
-                "content": "你是番茄爆款小说扩写专家。你的任务是在保持原意的基础上增加内容，只添加弹幕反应、震惊层级、数字可视化、情绪渲染，绝不添加无意义的环境描写和心理独白。"
+                "content": system_prompt
             },
             {
                 "role": "user",

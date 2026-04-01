@@ -1,0 +1,9 @@
+{
+  "version": "1.0.0",
+  "description": "章节信息提取的提示词配置",
+  "system_prompt": "你是一个专业的小说信息提取助手。请从章节内容中提取结构化信息，输出JSON格式。",
+  "extraction_template": {
+    "template": "请分析第{chapter_num}章的内容，提取以下结构化信息：\n\n章节内容：\n{content_sample}\n\n请提取以下信息，输出JSON格式：\n\n{{\n    \"new_characters\": [\n        {{\n            \"name\": \"角色名\",\n            \"role\": \"角色定位（主角/配角/反派/盟友）\",\n            \"description\": \"简要描述\",\n            \"power_level\": \"实力等级（如有）\"\n        }}\n    ],\n    \"character_changes\": [\n        {{\n            \"name\": \"角色名\",\n            \"change\": \"变化描述（如：能力突破、立场转变、受伤等）\",\n            \"details\": \"具体细节\"\n        }}\n    ],\n    \"new_hooks\": [\n        {{\n            \"type\": \"钩子类型（悬念/震惊/期待/系统提示）\",\n            \"content\": \"钩子内容摘要\",\n            \"priority\": \"优先级（high/medium/low）\"\n        }}\n    ],\n    \"resolved_hooks\": [\n        {{\n            \"content\": \"被回收的钩子内容\",\n            \"resolution\": \"如何解决\"\n        }}\n    ],\n    \"world_changes\": [\n        {{\n            \"type\": \"变化类型（力量体系/势力/道具/规则）\",\n            \"description\": \"具体变化描述\"\n        }}\n    ],\n    \"key_event\": {{\n        \"title\": \"本章核心事件（20字以内）\",\n        \"description\": \"事件描述\",\n        \"impact\": \"影响程度（high/medium/low）\"\n    }},\n    \"power_progression\": {{\n        \"protagonist_new_abilities\": [\"主角新获得的能力\"],\n        \"power_level_change\": \"主角实力变化描述\"\n    }}\n}}\n\n注意：\n1. 如果没有某类信息，返回空数组或null\n2. 只提取明确出现的信息，不要推测\n3. 对于\"系统提示\"类内容，请准确提取【】中的信息",
+    "variables": ["chapter_num", "content_sample"]
+  }
+}

@@ -71,10 +71,22 @@ class TropePromptBuilder:
             try:
                 return self._build_setting_from_config(novel_title)
             except Exception as e:
-                logger.warning(f"[TropePromptBuilder] JSON配置加载失败，使用硬编码: {e}")
+                logger.error(f"[TropePromptBuilder] JSON配置加载失败: {e}")
         
-        # 硬编码fallback
-        key_constraints = self._extract_setting_constraints()
+        # 🔥 配置缺失时抛出错误
+        error_msg = """
+❌ 错误：设定阶段System Prompt配置缺失！
+
+请检查以下配置文件是否存在：
+- prompt_packages/_base/system_components/setting_stage.json
+
+或使用API创建配置：
+POST /api/v2/prompt-config/component/setting_stage
+
+详细信息请查看文档：docs/prompt_configuration.md
+"""
+        logger.error(error_msg)
+        raise RuntimeError(error_msg)
         
         prompt = f"""# 🎯 角色：顶级网文编辑 + 爆款类型专家
 
@@ -145,10 +157,22 @@ class TropePromptBuilder:
             try:
                 return self._build_character_from_config(protagonist_name)
             except Exception as e:
-                logger.warning(f"[TropePromptBuilder] JSON配置加载失败，使用硬编码: {e}")
+                logger.error(f"[TropePromptBuilder] JSON配置加载失败: {e}")
         
-        # 硬编码fallback
-        character_tropes = self._extract_character_tropes()
+        # 🔥 配置缺失时抛出错误
+        error_msg = """
+❌ 错误：人物设定阶段System Prompt配置缺失！
+
+请检查以下配置文件是否存在：
+- prompt_packages/_base/system_components/character_stage.json
+
+或使用API创建配置：
+POST /api/v2/prompt-config/component/character_stage
+
+详细信息请查看文档：docs/prompt_configuration.md
+"""
+        logger.error(error_msg)
+        raise RuntimeError(error_msg)
         
         prompt = f"""# 🎭 角色：人物设定专家
 
@@ -215,10 +239,22 @@ class TropePromptBuilder:
             try:
                 return self._build_plot_from_config(emotion_blueprint)
             except Exception as e:
-                logger.warning(f"[TropePromptBuilder] JSON配置加载失败，使用硬编码: {e}")
+                logger.error(f"[TropePromptBuilder] JSON配置加载失败: {e}")
         
-        # 硬编码fallback
-        rhythm_tropes = self._extract_rhythm_tropes()
+        # 🔥 配置缺失时抛出错误
+        error_msg = """
+❌ 错误：大纲阶段System Prompt配置缺失！
+
+请检查以下配置文件是否存在：
+- prompt_packages/_base/system_components/plot_stage.json
+
+或使用API创建配置：
+POST /api/v2/prompt-config/component/plot_stage
+
+详细信息请查看文档：docs/prompt_configuration.md
+"""
+        logger.error(error_msg)
+        raise RuntimeError(error_msg)
         
         prompt = f"""# 📚 角色：剧情架构大师
 
@@ -318,10 +354,22 @@ class TropePromptBuilder:
             try:
                 return self._build_chapter_from_config(novel_title, chapter_num, protagonist_name, emotion_arc)
             except Exception as e:
-                logger.warning(f"[TropePromptBuilder] JSON配置加载失败，使用硬编码: {e}")
+                logger.error(f"[TropePromptBuilder] JSON配置加载失败: {e}")
         
-        # 硬编码fallback
-        rhythm_rules = self._extract_chapter_rhythm_rules()
+        # 🔥 配置缺失时抛出错误
+        error_msg = """
+❌ 错误：章节生成阶段System Prompt配置缺失！
+
+请检查以下配置文件是否存在：
+- prompt_packages/_base/system_components/chapter_stage.json
+
+或使用API创建配置：
+POST /api/v2/prompt-config/component/chapter_stage
+
+详细信息请查看文档：docs/prompt_configuration.md
+"""
+        logger.error(error_msg)
+        raise RuntimeError(error_msg)
         
         emotion_hint = ""
         if emotion_arc:

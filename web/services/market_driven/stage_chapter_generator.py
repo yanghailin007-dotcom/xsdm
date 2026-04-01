@@ -514,15 +514,25 @@ class StageChapterGenerator:
         2. 本阶段详细规划（本阶段大纲、高潮设计）
         
         注意：使用从套路分析中提取的题材特定节奏参数
-        
-        向后兼容：如果JSON配置加载失败，使用内置模板
         """
         # 如果成功加载了JSON配置，使用模板渲染
         if self._stage_system_prompt_config and self._stage_system_prompt_config.get('template'):
             return self._build_stage_system_prompt_from_template(stage)
         
-        # 否则使用内置硬编码模板（向后兼容）
-        return self._build_stage_system_prompt_builtin(stage)
+        # 🔥 配置缺失时抛出错误，强制用户配置
+        error_msg = """
+❌ 错误：阶段系统提示词配置缺失！
+
+请检查以下配置文件是否存在：
+- prompt_packages/default/market_driven/phase_two/stage_system_prompt.json
+
+或使用API创建配置：
+POST /api/v2/prompt-config/component/stage_system_prompt
+
+详细信息请查看文档：docs/prompt_configuration.md
+"""
+        logger.error(error_msg)
+        raise RuntimeError(error_msg)
     
     def _build_stage_system_prompt_from_template(self, stage: Dict) -> str:
         """使用JSON模板构建阶段系统提示词"""

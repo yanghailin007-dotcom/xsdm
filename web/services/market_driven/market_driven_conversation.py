@@ -161,6 +161,13 @@ class MarketDrivenConversationSession:
         
         self.user_choices = user_choices
         self.tropes = tropes or {}
+        
+        # 🔥 处理主角名：如果包含多个候选名（如 "苏辰/叶枫/秦天"），只取第一个
+        protagonist_name = self.user_choices.get('protagonist_name', '')
+        if protagonist_name and '/' in str(protagonist_name):
+            first_name = str(protagonist_name).split('/')[0].strip()
+            self.user_choices['protagonist_name'] = first_name
+            logger.info(f"[对话模式 {self.session_id}] 多个主角候选名 detected，使用第一个: {first_name}")
         self.provider = provider
         self.results = {}
         
@@ -185,6 +192,9 @@ class MarketDrivenConversationSession:
                     logger.info(f"[对话模式 {self.session_id}] 已加载用户提示词包: {self._prompt_package.name}")
                 except Exception as e:
                     logger.warning(f"[对话模式 {self.session_id}] 加载提示词包失败: {e}，将使用默认方式")
+        
+        # 🔥 加载步骤提示词配置
+        self._step_prompts_config = self._load_step_prompts_config()
         
         # 🔥 基于爆款反向工程分析，生成高质量Prompt模板
         self._prompt_generator = None
@@ -227,6 +237,44 @@ class MarketDrivenConversationSession:
         
         logger.info(f"[对话模式 {self.session_id}] 会话创建 | 题材: {genre} | 标题: {user_choices.get('title', 'Unknown')} | 使用高质量Prompt: {self._prompt_generator is not None}")
     
+    def _load_step_prompts_config(self) -> Dict:
+        """加载步骤提示词配置"""
+        try:
+            from pathlib import Path
+            import json
+            config_path = Path("prompt_packages/default/market_driven/conversation_step_prompts.json")
+            if config_path.exists():
+                with open(config_path, 'r', encoding='utf-8') as f:
+                    return json.load(f)
+            return {}
+        except Exception as e:
+            logger.warning(f"[对话模式 {self.session_id}] 无法加载步骤提示词配置: {e}")
+            return {}
+    
+    def _get_step_prompt(self, step_name: str, **kwargs) -> str:
+        """获取步骤提示词"""
+        step_config = self._step_prompts_config.get("steps", {}).get(step_name, {})
+        template = step_config.get("fallback_template", "")
+        
+        if not template:
+            error_msg = f"""
+❌ 错误：步骤 '{step_name}' 的提示词配置缺失！
+
+请检查以下配置文件是否存在：
+- prompt_packages/default/market_driven/conversation_step_prompts.json
+
+或使用API创建配置：
+POST /api/v2/prompt-config/component/{step_name}
+"""
+            logger.error(error_msg)
+            raise RuntimeError(error_msg)
+        
+        try:
+            return template.format(**kwargs)
+        except KeyError as e:
+            logger.warning(f"[对话模式 {self.session_id}] 提示词模板变量缺失: {e}，使用原始模板")
+            return template
+    
     def _filter_tropes_for_prompt(self) -> Dict:
         """
         过滤套路分析结果，只保留必要信息，移除干扰选项
@@ -256,6 +304,9 @@ class MarketDrivenConversationSession:
         # 获取用户选择的剧情路线名称
         selected_plot = self.user_choices.get('selected_plot', {})
         selected_plot_name = selected_plot.get('name', '') if selected_plot else ''
+        # 🔥 确保是字符串
+        if not isinstance(selected_plot_name, str):
+            selected_plot_name = str(selected_plot_name)
         
         # 1. 移除所有备选标题（用户已确定标题，不需要其他选项）
         if 'title_templates' in filtered:
@@ -267,7 +318,11 @@ class MarketDrivenConversationSession:
             # 查找用户选择的那条路线
             selected_plot_template = None
             for plot in original_plots:
-                if plot.get('name') == selected_plot_name:
+                plot_name = plot.get('name', '')
+                # 🔥 确保是字符串
+                if not isinstance(plot_name, str):
+                    plot_name = str(plot_name)
+                if plot_name == selected_plot_name:
                     selected_plot_template = plot
                     break
             
@@ -292,6 +347,12 @@ class MarketDrivenConversationSession:
         selected_plot = self.user_choices.get('selected_plot', {})
         plot_name = selected_plot.get('name', '默认路线') if selected_plot else '默认路线'
         plot_detail = selected_plot.get('detail', '') if selected_plot else ''
+        
+        # 🔥 确保是字符串
+        if not isinstance(plot_name, str):
+            plot_name = str(plot_name)
+        if not isinstance(plot_detail, str):
+            plot_detail = str(plot_detail)
         
         # 🔥 使用TropePromptBuilder构建基础System Prompt（仿写头部作品框架）
         if HAS_TROPE_PROMPT_BUILDER:
@@ -1035,20 +1096,8 @@ class MarketDrivenConversationSession:
             logger.info(f"[对话模式 {self.session_id}] 使用基于爆款的Prompt模板（步骤2）")
             prompt = self._prompt_generator.generate_step2_worldview_prompt(total_chapters=total_chapters)
         else:
-            # 传统Prompt
-            prompt = """请执行【步骤2：生成世界观】
-
-基于系统提示词中的【完整的套路分析结果】和已确定的题材、主角设定，生成完整的世界观。
-
-## 关键要求
-1. 世界观必须支持主角的金手指和成长路线
-2. 势力系统必须提供足够的冲突来源
-3. 社会规则必须有利于"装逼打脸"情节
-
-## 输出格式
-返回JSON格式，包含: world_overview, power_system, social_structure, factions, world_rules, key_locations
-
-只返回JSON。"""
+            # 从JSON配置加载提示词
+            prompt = self._get_step_prompt("step2_worldview")
         
         logger.info(f"[对话模式 {self.session_id}] 发送步骤2提示词 | 当前消息历史: {len(self.session.messages)}条")
         response = self.session.send_message(prompt, temperature=0.85, purpose="步骤2-生成世界观")
@@ -1092,23 +1141,8 @@ class MarketDrivenConversationSession:
         
         # 如果模板生成失败，使用传统Prompt
         if not prompt:
-            logger.warning(f"[对话模式 {self.session_id}] 模板生成失败，使用传统Prompt")
-            prompt_parts = [
-                "请执行【步骤3：生成角色设计】\n",
-                "基于已确定的世界观，设计完整的角色阵容。\n",
-                "## ⚠️ 强制要求",
-                f'- **主角姓名**：**必须使用** "{protagonist_name}"',
-                f'- **禁止**：给主角起其他名字或别名',
-                "- 如果违反，生成将被视为失败\n",
-                "## 输出格式（严格JSON）",
-                "返回标准JSON格式：{protagonist: {...}, core_allies: [...], main_antagonists: {...}, supporting_roles: [...]}\n",
-                "**严格要求**：",
-                "1. 字符串值内部的双引号必须转义为 \\\"",
-                f'2. protagonist.name 必须是 "{protagonist_name}"',
-                "3. 不要添加注释，不要返回Markdown代码块",
-                "4. 确保JSON可以通过标准解析器验证",
-            ]
-            prompt = "\n".join(prompt_parts)
+            logger.warning(f"[对话模式 {self.session_id}] 模板生成失败，使用配置提示词")
+            prompt = self._get_step_prompt("step3_characters", protagonist_name=protagonist_name)
         
         logger.info(f"[对话模式 {self.session_id}] 发送步骤3提示词 | 当前消息历史: {len(self.session.messages)}条")
         response = self.session.send_message(prompt, temperature=0.85, purpose="步骤3-生成角色")
@@ -1120,21 +1154,7 @@ class MarketDrivenConversationSession:
         # 🔥 如果返回空或null，使用简化提示词重试
         if not result:
             logger.warning(f"[对话模式 {self.session_id}] 步骤3返回空，使用简化提示词重试...")
-            retry_prompt = f"""请生成角色设计JSON。
-
-**严格JSON格式要求**：
-- 字符串值内部的双引号必须转义为 \\"
-- 例如："description": "主角说\\"你好\\"" （正确）
-- 错误示例："description": "主角说"你好"" （会导致解析失败）
-
-必须包含：
-1. protagonist: {{"name": "{protagonist_name}", "age": 25, "identity": "前外卖员", "traits": ["杀伐果断", "护短"]}}
-2. core_allies: 3-5个队友
-3. main_antagonists: {{"early_stage": [...], "mid_stage": [...], "late_stage": [...]}}
-4. supporting_roles: 其他配角
-
- protagonist.name 必须是 "{protagonist_name}"！
-只返回JSON，禁止返回null。"""
+            retry_prompt = self._get_step_prompt("step3_characters_retry", protagonist_name=protagonist_name)
             
             response = self.session.send_message(retry_prompt, temperature=0.7)
             result = self._parse_json_response(response, "characters_retry")
@@ -1196,16 +1216,8 @@ class MarketDrivenConversationSession:
             logger.info(f"[对话模式 {self.session_id}] 使用基于爆款的Prompt模板（步骤4）")
             prompt = self._prompt_generator.generate_step4_growth_prompt(total_chapters=total_chapters)
         else:
-            # 传统Prompt
-            prompt = """请执行【步骤4：生成成长路线】
-
-基于前30章大纲和主角人设，规划详细的成长里程碑。
-
-## 输出格式（严格JSON）
-返回标准JSON格式，包含: protagonist_growth, ability_system_progression, key_relationships_development
-**严格要求**：字符串值内部的双引号必须转义为 \\"
-
-只返回JSON，不要其他内容。"""
+            # 从JSON配置加载提示词
+            prompt = self._get_step_prompt("step4_growth")
         
         logger.info(f"[对话模式 {self.session_id}] 发送步骤4提示词 | 当前消息历史: {len(self.session.messages)}条")
         response = self.session.send_message(prompt, temperature=0.85, purpose="步骤4-生成成长路线")

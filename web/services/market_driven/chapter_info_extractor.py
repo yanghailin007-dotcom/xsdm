@@ -22,8 +22,45 @@ class ChapterInfoExtractor:
     用于自动更新world_state.json等设定文件
     """
     
+    # 配置路径
+    CONFIG_PATH = "prompt_packages/default/market_driven/chapter_info_extraction_prompts.json"
+    
     def __init__(self, api_client=None):
         self.api_client = api_client
+        self._config = self._load_config()
+    
+    def _load_config(self) -> Dict:
+        """加载提示词配置"""
+        try:
+            import json
+            from pathlib import Path
+            config_path = Path(self.CONFIG_PATH)
+            if config_path.exists():
+                with open(config_path, 'r', encoding='utf-8') as f:
+                    return json.load(f)
+            return {}
+        except Exception as e:
+            logger.warning(f"[InfoExtractor] 无法加载配置: {e}")
+            return {}
+    
+    def _load_system_prompt(self) -> str:
+        """加载system prompt"""
+        system_prompt = self._config.get("system_prompt", "")
+        if system_prompt:
+            return system_prompt
+        
+        # 🔥 配置缺失时抛出错误
+        error_msg = """
+❌ 错误：章节信息提取配置缺失！
+
+请检查以下配置文件是否存在：
+- prompt_packages/default/market_driven/chapter_info_extraction_prompts.json
+
+或使用API创建配置：
+POST /api/v2/prompt-config/component/chapter_info_extraction
+"""
+        logger.error(error_msg)
+        raise RuntimeError(error_msg)
     
     def extract_from_chapter(self, chapter: Dict) -> Dict:
         """
@@ -46,10 +83,13 @@ class ChapterInfoExtractor:
             # 构建提取prompt
             prompt = self._build_extraction_prompt(content, chapter_num)
             
+            # 🔥 从配置加载system_prompt
+            system_prompt = self._load_system_prompt()
+            
             response = self.api_client.generate_content_with_retry(
                 content_type="chapter_info_extraction",
                 user_prompt=prompt,
-                system_prompt="你是一个专业的小说信息提取助手。请从章节内容中提取结构化信息，输出JSON格式。",
+                system_prompt=system_prompt,
                 purpose=f"第{chapter_num}章信息提取"
             )
             
@@ -99,65 +139,27 @@ class ChapterInfoExtractor:
         
         # 只取前2000字作为分析（控制token）
         content_sample = content[:2000] if len(content) > 2000 else content
+        truncation_notice = '' if len(content) <= 2000 else '...(内容截断，仅分析前2000字)...'
         
-        return f"""请分析第{chapter_num}章的内容，提取以下结构化信息：
+        # 🔥 从JSON配置加载模板
+        template_config = self._config.get("extraction_template", {})
+        template = template_config.get("template", "")
+        
+        if not template:
+            # 配置缺失时抛出错误
+            error_msg = """
+❌ 错误：章节信息提取模板配置缺失！
 
-章节内容：
-{content_sample}
-{'' if len(content) <= 2000 else '...(内容截断，仅分析前2000字)...'}
-
-请提取以下信息，输出JSON格式：
-
-{{
-    "new_characters": [
-        {{
-            "name": "角色名",
-            "role": "角色定位（主角/配角/反派/盟友）",
-            "description": "简要描述",
-            "power_level": "实力等级（如有）"
-        }}
-    ],
-    "character_changes": [
-        {{
-            "name": "角色名",
-            "change": "变化描述（如：能力突破、立场转变、受伤等）",
-            "details": "具体细节"
-        }}
-    ],
-    "new_hooks": [
-        {{
-            "type": "钩子类型（悬念/震惊/期待/系统提示）",
-            "content": "钩子内容摘要",
-            "priority": "优先级（high/medium/low）"
-        }}
-    ],
-    "resolved_hooks": [
-        {{
-            "content": "被回收的钩子内容",
-            "resolution": "如何解决"
-        }}
-    ],
-    "world_changes": [
-        {{
-            "type": "变化类型（力量体系/势力/道具/规则）",
-            "description": "具体变化描述"
-        }}
-    ],
-    "key_event": {{
-        "title": "本章核心事件（20字以内）",
-        "description": "事件描述",
-        "impact": "影响程度（high/medium/low）"
-    }},
-    "power_progression": {{
-        "protagonist_new_abilities": ["主角新获得的能力"],
-        "power_level_change": "主角实力变化描述"
-    }}
-}}
-
-注意：
-1. 如果没有某类信息，返回空数组或null
-2. 只提取明确出现的信息，不要推测
-3. 对于"系统提示"类内容，请准确提取【】中的信息"""
+请检查以下配置文件是否存在：
+- prompt_packages/default/market_driven/chapter_info_extraction_prompts.json
+"""
+            logger.error(error_msg)
+            raise RuntimeError(error_msg)
+        
+        return template.format(
+            chapter_num=chapter_num,
+            content_sample=content_sample + truncation_notice
+        )
     
     def _empty_extraction(self, chapter: Dict) -> Dict:
         """返回空提取结果"""

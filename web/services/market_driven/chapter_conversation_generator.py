@@ -142,6 +142,9 @@ class ChapterConversationGenerator:
         "log_level": "info",       # 日志级别：debug/info/warning
     }
     
+    # 配置路径
+    CONFIG_PATH = "prompt_packages/default/market_driven/chapter_expansion_prompts.json"
+    
     def __init__(self, api_client, novel_data: Dict, tropes: Dict, 
                  quality_config: Dict = None,
                  world_state_manager=None,  # 🔥 世界状态管理器
@@ -162,6 +165,9 @@ class ChapterConversationGenerator:
         self.quality_reports = []  # 质检报告列表
         self.world_state_manager = world_state_manager  # 🔥 世界状态管理器
         self.project_path = project_path  # 🔥 项目路径
+        
+        # 🔥 加载扩写提示词配置
+        self._expansion_config = self._load_expansion_config()
         
         # 质检配置
         if quality_config:
@@ -218,6 +224,17 @@ class ChapterConversationGenerator:
         
         # 初始化主角名称
         self.protagonist_name = self._get_protagonist_name()
+    
+    def _load_expansion_config(self) -> Dict:
+        """加载章节扩写提示词配置"""
+        config_path = Path("prompt_packages/default/market_driven/chapter_expansion_prompts.json")
+        if config_path.exists():
+            try:
+                with open(config_path, 'r', encoding='utf-8') as f:
+                    return json.load(f)
+            except Exception as e:
+                logging.warning(f"[ChapterConversationGenerator] 加载扩写配置失败: {e}")
+        return {}
     
     def _sanitize_title(self, title: str) -> str:
         """清理书名，去除特殊字符，用于文件名"""
