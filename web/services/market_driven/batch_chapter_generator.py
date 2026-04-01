@@ -32,6 +32,14 @@ except ImportError as e:
     HAS_STAGE_OPTIMIZER = False
     logger.warning(f"滑动窗口优化器导入失败: {e}，禁用该功能")
 
+# 🔥 导入批次总结器
+try:
+    from web.services.market_driven.batch_summarizer import BatchSummarizer
+    HAS_BATCH_SUMMARIZER = True
+except ImportError as e:
+    HAS_BATCH_SUMMARIZER = False
+    logger.warning(f"批次总结器导入失败: {e}，禁用该功能")
+
 
 class BatchChapterGenerator:
     """
@@ -60,7 +68,9 @@ class BatchChapterGenerator:
         self.character_state_manager = None
         self.world_state_manager = None  # 世界状态管理器
         self.stage_review_optimizer = None  # 滑动窗口优化器
+        self.batch_summarizer = None  # 批次总结器
         self.optimized_windows = set()  # 已优化的窗口，避免重复优化
+        self.current_batch_summary = None  # 当前批次总结
         
         if self.project_path:
             from .character_state_manager import CharacterStateManager
@@ -76,6 +86,11 @@ class BatchChapterGenerator:
                     api_client=api_client
                 )
                 logger.info(f"[BatchGenerator] 滑动窗口优化器已启用")
+            
+            # 🔥 初始化批次总结器
+            if HAS_BATCH_SUMMARIZER and api_client:
+                self.batch_summarizer = BatchSummarizer(api_client)
+                logger.info(f"[BatchGenerator] 批次总结器已启用")
             
             logger.info(f"[BatchGenerator] 状态管理器已启用: {self.project_path}")
     
@@ -213,6 +228,13 @@ class BatchChapterGenerator:
             except Exception as e:
                 logger.error(f"[BatchGenerator] 批次总结失败: {e}")
         
+        # 🔥 生成批次总结报告（JSON + MD）
+        if self.batch_summarizer and chapters:
+            try:
+                self._generate_batch_summary(start_chapter, end_chapter, chapters)
+            except Exception as e:
+                logger.error(f"[BatchGenerator] 生成批次总结报告失败: {e}")
+        
         # 🔥 触发滑动窗口优化（批次完成后，章节已保存到磁盘）
         self._trigger_sliding_window_review(start_chapter, end_chapter)
         
@@ -254,6 +276,134 @@ class BatchChapterGenerator:
                 batch_info["character_changes"].append(change)
         
         return batch_info
+    
+    def _generate_batch_summary(self, start_chapter: int, end_chapter: int, chapters: List[Dict]):
+        """
+        🔥 生成批次总结报告（JSON + Markdown双格式）
+        
+        Args:
+            start_chapter: 起始章节
+            end_chapter: 结束章节
+            chapters: 生成的章节列表
+        """
+        if not self.batch_summarizer or not self.project_path:
+            return
+        
+        try:
+            logger.info(f"[BatchGenerator] 生成批次总结: 第{start_chapter}-{end_chapter}章")
+            
+            # 调用批次总结器
+            new_summary = self.batch_summarizer.summarize_batch(
+                chapters=chapters,
+                stage_goal=None,  # 可以从blueprint获取
+                previous_summary=self.current_batch_summary
+            )
+            
+            # 合并总结（累积多批次信息）
+            if self.current_batch_summary:
+                self.current_batch_summary = self.batch_summarizer.merge_summaries(
+                    self.current_batch_summary,
+                    new_summary
+                )
+            else:
+                self.current_batch_summary = new_summary
+            
+            # 保存到文件
+            import json
+            from datetime import datetime
+            
+            summary_dir = self.project_path / "batch_summaries"
+            summary_dir.mkdir(exist_ok=True)
+            
+            # JSON格式
+            summary_report = {
+                "batch_info": {
+                    "start_chapter": start_chapter,
+                    "end_chapter": end_chapter,
+                    "chapter_count": len(chapters),
+                    "generated_at": datetime.now().isoformat()
+                },
+                "summary": self.current_batch_summary,
+                "chapters": [
+                    {
+                        "chapter_number": c.get('chapter_number') or c.get('chapter'),
+                        "title": c.get('title', ''),
+                        "word_count": c.get('word_count', 0),
+                        "quality_score": c.get('quality_score', 0)
+                    }
+                    for c in chapters
+                ]
+            }
+            
+            json_path = summary_dir / f"batch_summary_{start_chapter:03d}_{end_chapter:03d}.json"
+            with open(json_path, 'w', encoding='utf-8') as f:
+                json.dump(summary_report, f, ensure_ascii=False, indent=2)
+            
+            # Markdown格式（人工可读）
+            md_lines = [
+                f"# 📦 批次总结报告：第{start_chapter}-{end_chapter}章",
+                "",
+                f"**生成时间**: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}",
+                f"**章节数**: {len(chapters)}章",
+                "",
+                "## 📊 章节统计",
+                "",
+                "| 章节 | 标题 | 字数 | 质量分 |",
+                "|------|------|------|--------|"
+            ]
+            
+            for c in chapters:
+                ch_num = c.get('chapter_number') or c.get('chapter', 0)
+                title = c.get('title', '')[:30]
+                word_count = c.get('word_count', 0)
+                quality = c.get('quality_score', 0)
+                md_lines.append(f"| {ch_num} | {title} | {word_count} | {quality} |")
+            
+            md_lines.extend([
+                "",
+                "## 📝 AI分析总结",
+                ""
+            ])
+            
+            if self.current_batch_summary:
+                ai_analysis = self.current_batch_summary.get('ai_analysis', {})
+                if ai_analysis:
+                    md_lines.append(f"**核心事件**: {ai_analysis.get('core_events', '无')}")
+                    md_lines.append("")
+                    md_lines.append(f"**角色发展**: {ai_analysis.get('character_development', '无')}")
+                    md_lines.append("")
+                    md_lines.append(f"**下章预告**: {ai_analysis.get('next_chapter_preview', '无')}")
+                    md_lines.append("")
+                
+                # 新增钩子
+                new_hooks = self.current_batch_summary.get('new_hooks', [])
+                if new_hooks:
+                    md_lines.append("### 🪝 新增钩子")
+                    for hook in new_hooks:
+                        md_lines.append(f"- {hook}")
+                    md_lines.append("")
+                
+                # 待解决钩子
+                pending_hooks = self.current_batch_summary.get('pending_hooks', [])
+                if pending_hooks:
+                    md_lines.append("### ⏳ 待解决钩子")
+                    for hook in pending_hooks:
+                        md_lines.append(f"- {hook}")
+                    md_lines.append("")
+            
+            md_path = summary_dir / f"batch_summary_{start_chapter:03d}_{end_chapter:03d}.md"
+            with open(md_path, 'w', encoding='utf-8') as f:
+                f.write('\n'.join(md_lines))
+            
+            # 同时保存最新版本（用于传递给下一个会话）
+            latest_json = self.project_path / "batch_summary_latest.json"
+            with open(latest_json, 'w', encoding='utf-8') as f:
+                json.dump(summary_report, f, ensure_ascii=False, indent=2)
+            
+            logger.info(f"[BatchGenerator] 批次总结已保存: {json_path} 和 {md_path}")
+            
+        except Exception as e:
+            logger.error(f"[BatchGenerator] 生成批次总结失败: {e}")
     
     def _trigger_sliding_window_review(self, start_chapter: int, end_chapter: int):
         """
