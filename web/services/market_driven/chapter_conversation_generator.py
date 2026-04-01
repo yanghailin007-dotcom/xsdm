@@ -646,11 +646,11 @@ class ChapterConversationGenerator:
         word_count = len(content)
         
         if word_count < 1800:
-            # 严重低于阈值：记录警告，留给后续阶段统一优化
-            logger.warning(f"[章节对话 {self.session_id}] 第{chapter_num}章字数严重不足({word_count}<1800)，将在阶段审核时统一优化")
+            # 严重低于阈值：记录debug信息，留给后续阶段统一优化（不显示warning避免干扰）
+            logger.debug(f"[章节对话 {self.session_id}] 第{chapter_num}章字数({word_count})，将在阶段审核时统一优化")
         elif word_count < 2000:
-            # 低于2000字：记录警告，留给后续阶段统一优化
-            logger.warning(f"[章节对话 {self.session_id}] 第{chapter_num}章字数不足({word_count}<2000)，将在阶段审核时统一优化")
+            # 低于2000字：记录debug信息，留给后续阶段统一优化（不显示warning避免干扰）
+            logger.debug(f"[章节对话 {self.session_id}] 第{chapter_num}章字数({word_count})，将在阶段审核时统一优化")
         elif word_count < 2200:
             # 2000-2200字：记录信息，接受当前字数
             logger.info(f"[章节对话 {self.session_id}] 第{chapter_num}章字数略低({word_count})，接受当前字数，后续统一优化")
@@ -1291,14 +1291,30 @@ class ChapterConversationGenerator:
             window_start = 1 + window_idx * step
             window_end = window_start + window_size - 1
             
+            logger.debug(f"[章节对话 {self.session_id}] 检查窗口: {window_start}-{window_end} (当前章节: {current_chapter})")
+            
             # 如果窗口结束超出当前章节，停止
             if window_end > current_chapter:
+                logger.debug(f"[章节对话 {self.session_id}] 窗口 {window_start}-{window_end} 超出当前章节 {current_chapter}，停止")
                 break
             
             # 检查这个窗口是否已经优化过
             window_key = f"{window_start}_{window_end}"
             if window_key not in self.stage_review_triggered:
-                ready_windows.append((window_start, window_end))
+                # 额外检查：窗口内所有章节是否都存在
+                chapters_exist = True
+                for ch_num in range(window_start, window_end + 1):
+                    chapter_file = self.project_path / "chapters" / f"chapter_{ch_num:03d}.json"
+                    if not chapter_file.exists():
+                        chapters_exist = False
+                        logger.warning(f"[章节对话 {self.session_id}] 窗口 {window_start}-{window_end} 缺少第{ch_num}章，跳过")
+                        break
+                
+                if chapters_exist:
+                    ready_windows.append((window_start, window_end))
+                    logger.info(f"[章节对话 {self.session_id}] 窗口 {window_start}-{window_end} 已就绪（当前第{current_chapter}章）")
+            else:
+                logger.debug(f"[章节对话 {self.session_id}] 窗口 {window_start}-{window_end} 已优化过")
             
             window_idx += 1
         
