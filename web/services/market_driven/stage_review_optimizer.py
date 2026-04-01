@@ -298,6 +298,29 @@ class StageReviewOptimizer:
             logger.error(f"[StageOptimizer] 加载情绪计划失败: {e}")
             return {}
     
+    def _get_novel_title(self) -> str:
+        """从project_info.json加载小说标题"""
+        try:
+            project_info_path = self.project_path / 'project_info.json'
+            if project_info_path.exists():
+                with open(project_info_path, 'r', encoding='utf-8') as f:
+                    info = json.load(f)
+                    # 尝试多个可能的路径
+                    title = info.get('title')
+                    if title:
+                        return title
+                    title = info.get('generation_metadata', {}).get('mode_specific', {}).get('info', {}).get('plan', {}).get('title')
+                    if title:
+                        return title
+                    title = info.get('selected_plan', {}).get('user_choices', {}).get('title')
+                    if title:
+                        return title
+            # 尝试从目录名获取
+            return self.project_path.name
+        except Exception as e:
+            logger.error(f"[StageOptimizer] 加载小说标题失败: {e}")
+            return self.project_path.name
+    
     def _load_tactical_plan(self, start_chapter: int) -> Dict:
         """从文件加载战术规划"""
         try:
@@ -570,6 +593,30 @@ class StageReviewOptimizer:
             scored_chapters, fixed_chapters, window_issues, 
             window_start, window_end, report_path
         )
+        
+        # 🔥 4. 生成质量分析报告（番茄标准对标）
+        try:
+            from ..report_generator import BatchReportGenerator
+            report_gen = BatchReportGenerator(str(self.project_path), self._get_novel_title())
+            
+            # 计算窗口编号：窗口起始章 / 步长 + 1（步长=8）
+            # 窗口序列: 1-10(1), 8-17(2), 16-25(3)...
+            window_num = (window_start - 1) // 8 + 1 if window_start > 1 else 1
+            total_windows = 25  # 200章 / 8章步长 = 25个窗口
+            
+            quality_report = report_gen.generate_batch_report(
+                window_start, window_end, 
+                window_num=window_num, 
+                total_windows=total_windows
+            )
+            if quality_report:
+                logger.info(f"[StageOptimizer] ✅ 质量分析报告已生成: {quality_report['report_path']}")
+                # 将报告路径添加到返回结果中
+                report['quality_report_path'] = quality_report['report_path']
+                report['quality_charts'] = quality_report['chart_paths']
+                report['window_num'] = window_num
+        except Exception as e:
+            logger.warning(f"[StageOptimizer] 质量分析报告生成失败: {e}")
         
         # 4. 构建返回结果（包含质量评分统计）
         scores = [c.get('quality_score', 8.0) for c in scored_chapters]
