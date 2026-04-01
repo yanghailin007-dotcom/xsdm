@@ -1,0 +1,269 @@
+{
+  "version": "1.0.0",
+  "description": "章节质量检查规则配置",
+  "check_categories": ["structure", "tomato_algo", "genre", "emotion", "micro_innov", "completeness"],
+  "severity_levels": {
+    "info": "建议性",
+    "warning": "警告，建议修复",
+    "error": "错误，必须修复",
+    "critical": "严重，阻止生成"
+  },
+  "rules": {
+    "structure": {
+      "description": "章节结构检查（黄金三章合规性）",
+      "golden_chapters": {
+        "enabled": true,
+        "chapters": [1, 2, 3],
+        "required_beats": {
+          "1": ["困境", "系统", "钩子"],
+          "2": ["验证", "爽点", "冲突"],
+          "3": ["打脸", "收获", "震惊"]
+        }
+      },
+      "checks": [
+        {
+          "id": "word_count_allocation",
+          "name": "字数分配检查",
+          "enabled_for_chapters": [1, 2, 3],
+          "condition": {
+            "missing_patterns": ["0-500字", "500字"]
+          },
+          "severity": "error",
+          "message": "第{chapter_num}章缺少字数分配结构",
+          "suggestion": "添加'0-500字困境+500-2000字系统+2000-2500字钩子'的结构说明"
+        },
+        {
+          "id": "required_beats",
+          "name": "必要节拍检查",
+          "enabled_for_chapters": [1, 2, 3],
+          "severity": "warning",
+          "message": "可能缺少必要节拍: {beat}",
+          "suggestion": "在提示词中明确包含'{beat}'的要求"
+        },
+        {
+          "id": "section_markers",
+          "name": "章节标记检查",
+          "enabled_for_chapters": "all",
+          "condition": {
+            "missing_patterns": ["【", "】"]
+          },
+          "severity": "warning",
+          "message": "提示词缺少清晰的章节标记（【】）",
+          "suggestion": "使用【】标记各部分，提高可读性"
+        }
+      ]
+    },
+    "tomato_algo": {
+      "description": "番茄算法指标检查",
+      "checks": [
+        {
+          "id": "first_300_conflict",
+          "name": "前300字冲突检查",
+          "enabled_for_chapters": "all",
+          "condition": {
+            "missing_patterns": ["前300字", "300字"]
+          },
+          "severity": "error",
+          "message": "缺少'前300字必须出现冲突'的要求",
+          "suggestion": "在提示词中明确添加：'前300字必须出现冲突或羞辱场景'"
+        },
+        {
+          "id": "dialogue_ratio",
+          "name": "对话占比检查",
+          "enabled_for_chapters": "all",
+          "condition": {
+            "missing_keywords": ["对话"],
+            "missing_patterns": ["40%", "50%"]
+          },
+          "severity": "warning",
+          "message": "未明确对话占比要求",
+          "suggestion": "添加'对话占比≥50%'的要求"
+        },
+        {
+          "id": "paragraph_length",
+          "name": "段落长度检查",
+          "enabled_for_chapters": "all",
+          "condition": {
+            "missing_patterns": ["每段", "3行"]
+          },
+          "severity": "warning",
+          "message": "未明确段落长度限制",
+          "suggestion": "添加'每段1-3行，多用换行'的要求"
+        },
+        {
+          "id": "chapter_hook",
+          "name": "章尾钩子检查",
+          "enabled_for_chapters": "all",
+          "condition": {
+            "missing_keywords": ["钩子"]
+          },
+          "severity": "error",
+          "message": "提示词缺少钩子要求",
+          "suggestion": "添加'章尾最后50字必须是钩子'的要求"
+        }
+      ]
+    },
+    "genre": {
+      "description": "题材专项检查",
+      "genre_types": {
+        "国运文": {
+          "checks": [
+            {
+              "id": "danmu_requirement",
+              "name": "弹幕设计要求",
+              "condition": {
+                "missing_keywords": ["弹幕"]
+              },
+              "severity": "warning",
+              "message": "国运文缺少弹幕设计要求",
+              "suggestion": "添加'每章至少3-5条弹幕'的要求"
+            }
+          ]
+        },
+        "神豪文": {
+          "checks": [
+            {
+              "id": "number_precision",
+              "name": "数字精确度要求",
+              "condition": {
+                "missing_keywords": ["精确", "小数"]
+              },
+              "severity": "warning",
+              "message": "神豪文缺少数字精确度要求",
+              "suggestion": "添加'金额精确到小数点后2位'的要求"
+            }
+          ]
+        },
+        "模拟器文": {
+          "checks": [
+            {
+              "id": "simulation_style",
+              "name": "模拟过程写法要求",
+              "condition": {
+                "missing_keywords": ["模拟", "剪辑"]
+              },
+              "severity": "warning",
+              "message": "模拟器文缺少模拟过程写法要求",
+              "suggestion": "添加'快速剪辑感的模拟过程写法'要求"
+            }
+          ]
+        }
+      }
+    },
+    "emotion": {
+      "description": "情绪曲线设计检查",
+      "checks": [
+        {
+          "id": "emotion_requirement",
+          "name": "情绪设计要求",
+          "enabled_for_chapters": "all",
+          "condition": {
+            "missing_keywords": ["情绪"]
+          },
+          "severity": "warning",
+          "message": "提示词缺少情绪设计要求",
+          "suggestion": "添加'严格按照指定情绪类型写作'的要求"
+        },
+        {
+          "id": "emotion_transition",
+          "name": "情绪转变要求",
+          "enabled_for_chapters": "all",
+          "condition": {
+            "missing_keywords": ["转变", "曲线"]
+          },
+          "severity": "info",
+          "message": "未明确要求情绪转变次数",
+          "suggestion": "添加'一章内至少3次情绪转变'的要求"
+        }
+      ]
+    },
+    "micro_innov": {
+      "description": "微创新原则检查",
+      "chapter_1_special": {
+        "enabled": true,
+        "checks": [
+          {
+            "id": "innovation_requirement",
+            "name": "微创新要求",
+            "condition": {
+              "missing_keywords": ["微创新", "创新"]
+            },
+            "severity": "warning",
+            "message": "第1章缺少微创新要求",
+            "suggestion": "添加微创新要求：'避开深夜暴雨套路，尝试凌晨下班'等"
+          },
+          {
+            "id": "villain_depth",
+            "name": "反派深度检查",
+            "condition": {
+              "has_keywords": ["反派"],
+              "missing_keywords": ["智商", "目的"]
+            },
+            "severity": "info",
+            "message": "反派塑造可能过于脸谱化",
+            "suggestion": "添加'反派要有智商，不只是嚣张，要有自己的目的'"
+          },
+          {
+            "id": "system_activation",
+            "name": "系统激活方式检查",
+            "condition": {
+              "has_keywords": ["系统", "激活"],
+              "has_keywords_negative": ["金光", "天降"]
+            },
+            "severity": "warning",
+            "message": "系统激活方式过于老套（天降金光）",
+            "suggestion": "尝试现代激活方式：手机APP、短信邀请、延迟确认等"
+          },
+          {
+            "id": "supporting_roles",
+            "name": "配角在线检查",
+            "condition": {
+              "missing_keywords": ["配角", "围观"]
+            },
+            "severity": "info",
+            "message": "未要求配角在线",
+            "suggestion": "添加'至少2-3个配角各有反应和立场'的要求"
+          }
+        ]
+      }
+    },
+    "completeness": {
+      "description": "提示词完整性检查",
+      "checks": [
+        {
+          "id": "word_count_requirement",
+          "name": "字数要求检查",
+          "enabled_for_chapters": "all",
+          "condition": {
+            "missing_keywords": ["字数", "2000"]
+          },
+          "severity": "error",
+          "message": "缺少字数要求",
+          "suggestion": "添加'2000-2500字'的字数要求"
+        },
+        {
+          "id": "pov_requirement",
+          "name": "视角要求检查",
+          "enabled_for_chapters": "all",
+          "condition": {
+            "missing_keywords": ["第三人称", "上帝视角"]
+          },
+          "severity": "warning",
+          "message": "未明确视角要求",
+          "suggestion": "添加'第三人称上帝视角'的要求"
+        },
+        {
+          "id": "output_format",
+          "name": "输出格式检查",
+          "enabled_for_chapters": "all",
+          "condition": {
+            "missing_keywords": ["输出格式", "格式"]
+          },
+          "severity": "info",
+          "message": "缺少输出格式说明",
+          "suggestion": "添加明确的输出格式要求"
+        }
+      ]
+    }
+  }
+}

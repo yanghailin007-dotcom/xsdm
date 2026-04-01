@@ -438,6 +438,292 @@ def import_package():
         return jsonify({"error": str(e)}), 500
 
 
+# ==================== 配置编辑 API (前端配置编辑器使用) ====================
+
+# 配置路径定义
+CONFIG_BASE_PATH = Path("prompt_packages")
+COMPONENTS_PATHS = [
+    CONFIG_BASE_PATH / "default" / "market_driven" / "components",
+    CONFIG_BASE_PATH / "_base" / "system_components"
+]
+STEPS_PATH = CONFIG_BASE_PATH / "default" / "market_driven" / "steps"
+BACKUP_PATH = Path("config/backups")
+
+
+def _get_all_components():
+    """获取所有可用组件"""
+    components = []
+    for components_path in COMPONENTS_PATHS:
+        if not components_path.exists():
+            continue
+        for json_file in components_path.glob("*.json"):
+            try:
+                with open(json_file, 'r', encoding='utf-8') as f:
+                    data = json.load(f)
+                    component_id = data.get('component_id') or json_file.stem
+                    components.append({
+                        "id": component_id,
+                        "name": data.get('name', component_id),
+                        "description": data.get('description', ''),
+                        "version": data.get('version', '1.0.0'),
+                        "editable": data.get('editable', True),
+                        "source": str(json_file.relative_to(CONFIG_BASE_PATH)),
+                        "file_path": str(json_file)
+                    })
+            except Exception as e:
+                logger.warning(f"[PromptConfigAPI] 读取组件失败 {json_file}: {e}")
+    return components
+
+
+def _find_component_file(component_id):
+    """查找组件文件路径"""
+    for components_path in COMPONENTS_PATHS:
+        if not components_path.exists():
+            continue
+        for json_file in components_path.glob("*.json"):
+            try:
+                with open(json_file, 'r', encoding='utf-8') as f:
+                    data = json.load(f)
+                    file_component_id = data.get('component_id') or json_file.stem
+                    if file_component_id == component_id:
+                        return json_file, data
+            except Exception:
+                continue
+    return None, None
+
+
+def _backup_file(file_path):
+    """备份配置文件"""
+    try:
+        if not BACKUP_PATH.exists():
+            BACKUP_PATH.mkdir(parents=True, exist_ok=True)
+        
+        from datetime import datetime
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        backup_filename = f"{file_path.stem}_{timestamp}.json"
+        backup_file = BACKUP_PATH / backup_filename
+        
+        import shutil
+        shutil.copy2(file_path, backup_file)
+        logger.info(f"[PromptConfigAPI] 已备份配置: {backup_file}")
+        return str(backup_file)
+    except Exception as e:
+        logger.error(f"[PromptConfigAPI] 备份失败: {e}")
+        return None
+
+
+def _get_all_steps():
+    """获取所有步骤配置"""
+    steps = []
+    if not STEPS_PATH.exists():
+        return steps
+    
+    for json_file in sorted(STEPS_PATH.glob("step_*.json")):
+        try:
+            with open(json_file, 'r', encoding='utf-8') as f:
+                data = json.load(f)
+                steps.append({
+                    "step_id": data.get('step_id', json_file.stem),
+                    "step_name": data.get('step_name', ''),
+                    "step_order": data.get('step_order', 0),
+                    "enabled": data.get('enabled', True),
+                    "description": data.get('description', ''),
+                    "file_path": str(json_file)
+                })
+        except Exception as e:
+            logger.warning(f"[PromptConfigAPI] 读取步骤失败 {json_file}: {e}")
+    
+    # 按 step_order 排序
+    steps.sort(key=lambda x: x['step_order'])
+    return steps
+
+
+@prompt_package_api.route('/prompt-config/components', methods=['GET'])
+@require_login
+def list_components():
+    """
+    列出所有可用组件
+    
+    Returns:
+        {
+            "components": [
+                {
+                    "id": "组件ID",
+                    "name": "组件名称",
+                    "description": "描述",
+                    "version": "版本",
+                    "editable": true/false,
+                    "source": "文件路径"
+                }
+            ]
+        }
+    """
+    try:
+        components = _get_all_components()
+        return jsonify({"components": components})
+    except Exception as e:
+        logger.error(f"[PromptConfigAPI] 列出组件失败: {e}")
+        return jsonify({"error": f"获取组件列表失败: {str(e)}"}), 500
+
+
+@prompt_package_api.route('/prompt-config/component/<component_id>', methods=['GET'])
+@require_login
+def get_component(component_id):
+    """
+    获取组件详情
+    
+    Args:
+        component_id: 组件ID
+    
+    Returns:
+        {
+            "component": {组件完整数据}
+        }
+    """
+    try:
+        file_path, data = _find_component_file(component_id)
+        if not file_path:
+            return jsonify({"error": f"组件 '{component_id}' 不存在"}), 404
+        
+        return jsonify({"component": data})
+    except Exception as e:
+        logger.error(f"[PromptConfigAPI] 获取组件失败: {e}")
+        return jsonify({"error": f"获取组件失败: {str(e)}"}), 500
+
+
+@prompt_package_api.route('/prompt-config/component/<component_id>', methods=['POST'])
+@require_login
+def update_component(component_id):
+    """
+    更新组件配置
+    
+    Request Body:
+        完整的组件JSON数据
+    
+    Returns:
+        {
+            "message": "更新成功",
+            "backup_path": "备份文件路径"
+        }
+    """
+    try:
+        file_path, existing_data = _find_component_file(component_id)
+        if not file_path:
+            return jsonify({"error": f"组件 '{component_id}' 不存在"}), 404
+        
+        # 检查组件是否可编辑
+        if existing_data.get('editable') is False:
+            return jsonify({"error": "该组件为系统组件，不允许编辑"}), 403
+        
+        # 获取请求数据
+        data = request.get_json()
+        if data is None:
+            return jsonify({"error": "请求体必须是有效的JSON格式"}), 400
+        
+        # 验证JSON数据
+        if not isinstance(data, dict):
+            return jsonify({"error": "组件数据必须是JSON对象"}), 400
+        
+        # 确保组件ID一致
+        if 'component_id' in data and data['component_id'] != component_id:
+            return jsonify({"error": "组件ID不匹配"}), 400
+        
+        # 备份原始配置
+        backup_path = _backup_file(file_path)
+        if not backup_path:
+            return jsonify({"error": "备份原始配置失败，取消更新"}), 500
+        
+        # 写入新配置
+        with open(file_path, 'w', encoding='utf-8') as f:
+            json.dump(data, f, ensure_ascii=False, indent=2)
+        
+        return jsonify({
+            "message": "组件更新成功",
+            "backup_path": backup_path
+        })
+        
+    except json.JSONDecodeError as e:
+        logger.error(f"[PromptConfigAPI] JSON解析失败: {e}")
+        return jsonify({"error": f"JSON格式错误: {str(e)}"}), 400
+    except PermissionError as e:
+        logger.error(f"[PromptConfigAPI] 权限错误: {e}")
+        return jsonify({"error": f"无权限写入文件: {str(e)}"}), 403
+    except Exception as e:
+        logger.error(f"[PromptConfigAPI] 更新组件失败: {e}")
+        return jsonify({"error": f"更新组件失败: {str(e)}"}), 500
+
+
+@prompt_package_api.route('/prompt-config/steps', methods=['GET'])
+@require_login
+def list_steps():
+    """
+    列出所有步骤配置
+    
+    Returns:
+        {
+            "steps": [
+                {
+                    "step_id": "步骤ID",
+                    "step_name": "步骤名称",
+                    "step_order": 1,
+                    "enabled": true,
+                    "description": "描述"
+                }
+            ]
+        }
+    """
+    try:
+        steps = _get_all_steps()
+        return jsonify({"steps": steps})
+    except Exception as e:
+        logger.error(f"[PromptConfigAPI] 列出步骤失败: {e}")
+        return jsonify({"error": f"获取步骤列表失败: {str(e)}"}), 500
+
+
+@prompt_package_api.route('/prompt-config/reload', methods=['POST'])
+@require_login
+def reload_config():
+    """
+    重新加载配置
+    
+    这会清除缓存并重新加载所有配置
+    
+    Returns:
+        {
+            "message": "配置已重新加载",
+            "stats": {
+                "components_count": 10,
+                "steps_count": 6
+            }
+        }
+    """
+    try:
+        # 重新加载组件和步骤
+        components = _get_all_components()
+        steps = _get_all_steps()
+        
+        # 尝试重新加载 PromptPackageManager 缓存
+        try:
+            manager = get_manager()
+            # 如果管理器有缓存刷新方法，调用它
+            if hasattr(manager, 'refresh_cache'):
+                manager.refresh_cache()
+        except Exception as e:
+            logger.warning(f"[PromptConfigAPI] 刷新管理器缓存失败: {e}")
+        
+        return jsonify({
+            "message": "配置已重新加载",
+            "stats": {
+                "components_count": len(components),
+                "steps_count": len(steps)
+            }
+        })
+        
+    except Exception as e:
+        logger.error(f"[PromptConfigAPI] 重新加载配置失败: {e}")
+        return jsonify({"error": f"重新加载配置失败: {str(e)}"}), 500
+
+
 # ==================== 注册蓝图 ====================
 
 def init_app(app):

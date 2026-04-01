@@ -1,0 +1,77 @@
+{
+  "version": "1.0.0",
+  "description": "提示词优化片段配置",
+  "sections": {
+    "tomato_algorithm": {
+      "id": "tomato_algorithm_section",
+      "name": "番茄算法强制指标",
+      "marker": "## 【番茄算法强制指标】",
+      "content": "\n## 【番茄算法强制指标】\n- 前300字必须出现冲突/羞辱\n- 对话占比≥50%\n- 每段1-3行，多用换行\n- 章尾最后50字必须是钩子\n",
+      "position": "prepend",
+      "applies_to_issues": {
+        "category": "tomato_algo",
+        "severity": ["error", "critical"]
+      }
+    },
+    "micro_innovation": {
+      "id": "micro_innovation_section",
+      "name": "微创新原则",
+      "marker": "## 【微创新原则】",
+      "content": "\n\n## 【微创新原则】\n1. 时间选择：避开\"深夜23:47暴雨\"，尝试\"凌晨5:30刚下班\"\n2. 系统激活：尝试\"手机APP式\"、\"延迟确认式\"\n3. 反派塑造：要有智商，不只是嚣张，要有自己的目的\n4. 配角在线：至少2-3个配角各有反应和立场\n",
+      "position": "append",
+      "applies_to_issues": {
+        "category": "micro_innov"
+      }
+    },
+    "structure_golden": {
+      "id": "structure_golden_section",
+      "name": "黄金三章结构要求",
+      "marker": "## 【结构要求】",
+      "content": "\n\n## 【结构要求】（严格按字数分配）\n### 第一部分（0-500字）：极端困境\n### 第二部分（500-2000字）：系统觉醒/金手指使用\n### 第三部分（2000-2500字）：悬念钩子\n",
+      "position": "append",
+      "applies_to_issues": {
+        "category": "structure",
+        "message_contains": "字数分配"
+      }
+    }
+  },
+  "issue_specific_fixes": {
+    "structure": {
+      "word_count_allocation": {
+        "template": "【结构要求】（严格按字数分配）\n- 第一部分（0-500字）：{content_1}\n- 第二部分（500-2000字）：{content_2}\n- 第三部分（2000-2500字）：{content_3}"
+      }
+    },
+    "tomato_algo": {
+      "first_300_conflict": {
+        "instruction": "在提示词开头明确添加前300字冲突要求"
+      },
+      "dialogue_ratio": {
+        "instruction": "添加对话占比≥50%的具体要求"
+      },
+      "paragraph_length": {
+        "instruction": "添加段落长度限制：每段1-3行"
+      },
+      "chapter_hook": {
+        "instruction": "在提示词结尾添加章尾钩子要求"
+      }
+    }
+  },
+  "suggestion_templates": {
+    "structure": {
+      "golden_chapter_1": "0-500字困境+500-2000字系统+2000-2500字钩子",
+      "golden_chapter_2": "0-500字验证+500-2000字爽点+2000-2500字冲突",
+      "golden_chapter_3": "0-500字打脸+500-2000字收获+2000-2500字震惊"
+    },
+    "format": {
+      "section_markers": "使用【】标记各部分，提高可读性",
+      "word_count": "添加'2000-2500字'的字数要求",
+      "pov": "添加'第三人称上帝视角'的要求"
+    },
+    "micro_innov": {
+      "time_choice": "避开'深夜23:47暴雨'，尝试'凌晨5:30刚下班'",
+      "system_activation": "尝试现代激活方式：手机APP、短信邀请、延迟确认等",
+      "villain_design": "反派要有智商，不只是嚣张，要有自己的目的",
+      "supporting_roles": "至少2-3个配角各有反应和立场"
+    }
+  }
+}

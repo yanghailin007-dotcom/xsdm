@@ -12,6 +12,7 @@
 
 import json
 import logging
+import os
 from typing import Dict, List, Optional, Tuple
 from datetime import datetime
 
@@ -38,7 +39,11 @@ class StageChapterGenerator:
     - 阶段4：第91-100章 - 结局收尾
     """
     
-    def __init__(self, api_client, novel_data: Dict, tropes: Dict):
+    # JSON配置文件路径
+    DEFAULT_PROMPT_PACKAGE = "default"
+    PROMPT_BASE_DIR = "prompt_packages"
+    
+    def __init__(self, api_client, novel_data: Dict, tropes: Dict, prompt_package: Optional[str] = None):
         self.api_client = api_client
         # 确保 novel_data 是字典类型
         if isinstance(novel_data, list):
@@ -52,6 +57,13 @@ class StageChapterGenerator:
         self.novel_data = novel_data
         self.tropes = tropes
         
+        # 使用的prompt包名称
+        self.prompt_package = prompt_package or self.DEFAULT_PROMPT_PACKAGE
+        
+        # 加载prompt配置（支持从JSON加载，失败则使用内置模板）
+        self._stage_system_prompt_config = self._load_prompt_config("stage_system_prompt.json")
+        self._chapter_prompt_config = self._load_prompt_config("chapter_prompt_template.json")
+        
         # 提取基本信息
         self.novel_title = novel_data.get('title', '未命名')
         self.total_chapters = novel_data.get('chapters', 100)
@@ -63,6 +75,70 @@ class StageChapterGenerator:
         # 当前会话
         self.current_session = None
         self.current_stage = None
+    
+    def _get_prompt_config_path(self, filename: str) -> str:
+        """获取prompt配置文件路径"""
+        return os.path.join(
+            self.PROMPT_BASE_DIR,
+            self.prompt_package,
+            "market_driven",
+            "phase_two",
+            filename
+        )
+    
+    def _load_prompt_config(self, filename: str) -> Optional[Dict]:
+        """
+        从JSON文件加载prompt配置
+        
+        Returns:
+            配置字典，如果加载失败则返回None（使用内置模板）
+        """
+        config_path = self._get_prompt_config_path(filename)
+        
+        try:
+            if os.path.exists(config_path):
+                with open(config_path, 'r', encoding='utf-8') as f:
+                    config = json.load(f)
+                logger.info(f"[StageChapterGenerator] 成功加载prompt配置: {config_path}")
+                return config
+            else:
+                logger.warning(f"[StageChapterGenerator] Prompt配置文件不存在: {config_path}，将使用内置模板")
+                return None
+        except Exception as e:
+            logger.warning(f"[StageChapterGenerator] 加载prompt配置失败: {e}，将使用内置模板")
+            return None
+    
+    def _render_template(self, template: str, variables: Dict, defaults: Optional[Dict] = None) -> str:
+        """
+        渲染模板字符串，替换变量
+        
+        Args:
+            template: 模板字符串
+            variables: 变量字典
+            defaults: 默认值字典
+        
+        Returns:
+            渲染后的字符串
+        """
+        result = template
+        
+        # 合并默认值和实际值
+        merged = {}
+        if defaults:
+            merged.update(defaults)
+        merged.update(variables)
+        
+        # 替换变量
+        for key, value in merged.items():
+            placeholder = f"{{{{{key}}}}}"
+            if placeholder in result:
+                # 处理不同类型的值
+                if isinstance(value, (dict, list)):
+                    result = result.replace(placeholder, json.dumps(value, ensure_ascii=False, indent=2))
+                else:
+                    result = result.replace(placeholder, str(value))
+        
+        return result
         
     def calculate_stages(self) -> List[Dict]:
         """
@@ -438,7 +514,78 @@ class StageChapterGenerator:
         2. 本阶段详细规划（本阶段大纲、高潮设计）
         
         注意：使用从套路分析中提取的题材特定节奏参数
+        
+        向后兼容：如果JSON配置加载失败，使用内置模板
         """
+        # 如果成功加载了JSON配置，使用模板渲染
+        if self._stage_system_prompt_config and self._stage_system_prompt_config.get('template'):
+            return self._build_stage_system_prompt_from_template(stage)
+        
+        # 否则使用内置硬编码模板（向后兼容）
+        return self._build_stage_system_prompt_builtin(stage)
+    
+    def _build_stage_system_prompt_from_template(self, stage: Dict) -> str:
+        """使用JSON模板构建阶段系统提示词"""
+        config = self._stage_system_prompt_config
+        template = config['template']
+        defaults = config.get('defaults', {})
+        
+        # 一阶段完整设定
+        worldview = self.novel_data.get('core_worldview', {})
+        faction_system = self.novel_data.get('faction_system', {})
+        char_design = self.novel_data.get('character_design', {})
+        growth_plan = self.novel_data.get('global_growth_plan', {})
+        emotion_curve = self.novel_data.get('emotion_curve', [])
+        
+        # 本阶段规划
+        stage_outline = stage.get('outline', [])
+        
+        # 获取主角当前阶段能力
+        protagonist_current = self._get_protagonist_stage_status(stage)
+        
+        # 从套路分析中获取节奏参数
+        stage_rhythm = self.tropes.get('stage_rhythm', {})
+        small_interval = stage_rhythm.get('small_climax_interval', defaults.get('small_interval', 3))
+        medium_interval = stage_rhythm.get('medium_climax_interval', defaults.get('medium_interval', 10))
+        large_interval = stage_rhythm.get('large_climax_interval', defaults.get('large_interval', 20))
+        rhythm_description = stage_rhythm.get('description', defaults.get('rhythm_description', '每30章一个完整周期'))
+        
+        # 计算节奏节点
+        small_climax = stage['start_chapter'] + small_interval - 1
+        medium_climax = stage['start_chapter'] + medium_interval - 1
+        large_climax = stage['start_chapter'] + large_interval - 1
+        stage_climax = stage['end_chapter']
+        
+        # 构建变量字典
+        variables = {
+            'novel_title': self.novel_title,
+            'stage_name': stage['name'],
+            'stage_number': stage['stage_number'],
+            'start_chapter': stage['start_chapter'],
+            'end_chapter': stage['end_chapter'],
+            'worldview': worldview,
+            'faction_system': faction_system,
+            'char_design': char_design,
+            'growth_plan': growth_plan,
+            'stage_theme': stage['theme'],
+            'climax_chapter': stage['climax_chapter'],
+            'climax_type': stage['climax_type'],
+            'rhythm_description': rhythm_description,
+            'small_interval': small_interval,
+            'medium_interval': medium_interval,
+            'large_interval': large_interval,
+            'protagonist_status': protagonist_current,
+            'stage_outline': stage_outline,
+            'small_climax': small_climax,
+            'medium_climax': medium_climax,
+            'large_climax': large_climax,
+            'stage_climax': stage_climax
+        }
+        
+        return self._render_template(template, variables, defaults)
+    
+    def _build_stage_system_prompt_builtin(self, stage: Dict) -> str:
+        """使用内置硬编码模板构建阶段系统提示词（向后兼容）"""
         # 一阶段完整设定
         worldview = self.novel_data.get('core_worldview', {})
         faction_system = self.novel_data.get('faction_system', {})
@@ -634,8 +781,108 @@ class StageChapterGenerator:
         return {"chapter": chapter_num, "type": "推进", "emotion": "期待"}
     
     def _build_chapter_prompt(self, chapter_num: int, stage: Dict, outline: Dict, prev_summary: str) -> str:
-        """构建章节提示词"""
-        relative_ch = chapter_num - stage['start_chapter'] + 1  # 周期内章节号
+        """
+        构建章节提示词
+        
+        向后兼容：如果JSON配置加载失败，使用内置模板
+        """
+        # 如果成功加载了JSON配置，使用模板渲染
+        if self._chapter_prompt_config and self._chapter_prompt_config.get('template_parts'):
+            return self._build_chapter_prompt_from_template(chapter_num, stage, outline, prev_summary)
+        
+        # 否则使用内置硬编码模板（向后兼容）
+        return self._build_chapter_prompt_builtin(chapter_num, stage, outline, prev_summary)
+    
+    def _build_chapter_prompt_from_template(self, chapter_num: int, stage: Dict, outline: Dict, prev_summary: str) -> str:
+        """使用JSON模板构建章节提示词"""
+        config = self._chapter_prompt_config
+        parts = config['template_parts']
+        defaults = config.get('defaults', {})
+        climax_rules = config.get('climax_rules', {})
+        
+        relative_ch = chapter_num - stage['start_chapter'] + 1
+        climax_ch = stage['end_chapter']
+        chapters_to_climax = climax_ch - chapter_num
+        
+        # 获取本章类型和情绪（使用默认值）
+        chapter_type = outline.get('type', defaults.get('chapter_type', '推进'))
+        emotion = outline.get('emotion', defaults.get('emotion', '期待'))
+        rhythm = outline.get('rhythm', defaults.get('rhythm', ''))
+        event = outline.get('event', defaults.get('event', ''))
+        
+        # 构建基础变量
+        variables = {
+            'chapter_num': chapter_num,
+            'stage_number': stage['stage_number'],
+            'relative_ch': relative_ch,
+            'stage_name': stage['name'],
+            'chapter_type': chapter_type,
+            'emotion': emotion,
+            'rhythm': rhythm,
+            'event': event,
+            'climax_type': stage.get('climax_type', ''),
+            'chapters_to_climax': chapters_to_climax,
+            'prev_summary': (prev_summary[:300] + "...") if prev_summary else "",
+            'climax_ch': climax_ch
+        }
+        
+        # 渲染各部分
+        result_parts = []
+        
+        # Header
+        result_parts.append(self._render_template(parts['header'], variables, defaults))
+        
+        # 本章定位
+        positioning_lines = parts['chapter_positioning']
+        for line in positioning_lines:
+            result_parts.append(self._render_template(line, variables, defaults))
+        
+        # 节奏节点（如果有）
+        if rhythm:
+            result_parts.append(self._render_template(parts['rhythm_info'], variables, defaults))
+        
+        # 核心事件（如果有）
+        if event:
+            result_parts.append(self._render_template(parts['event_info'], variables, defaults))
+        
+        # 高潮提示
+        climax_indicators = parts['climax_indicators']
+        
+        # 根据条件添加高潮提示
+        if chapter_num == climax_ch:
+            # 周期高潮
+            for line in climax_indicators['final_climax']:
+                result_parts.append(self._render_template(line, variables, defaults))
+        elif chapters_to_climax == 5:
+            for line in climax_indicators['countdown_5']:
+                result_parts.append(self._render_template(line, variables, defaults))
+        elif chapters_to_climax == 10:
+            for line in climax_indicators['countdown_10']:
+                result_parts.append(self._render_template(line, variables, defaults))
+        elif chapter_type == '小高潮':
+            for line in climax_indicators['small_climax']:
+                result_parts.append(self._render_template(line, variables, defaults))
+        elif chapter_type == '中高潮':
+            for line in climax_indicators['medium_climax']:
+                result_parts.append(self._render_template(line, variables, defaults))
+        elif chapter_type == '大高潮':
+            for line in climax_indicators['large_climax']:
+                result_parts.append(self._render_template(line, variables, defaults))
+        
+        # 前文摘要
+        if prev_summary:
+            for line in parts['previous_summary']:
+                result_parts.append(self._render_template(line, variables, defaults))
+        
+        # 写作要求
+        for line in parts['writing_requirements']:
+            result_parts.append(self._render_template(line, variables, defaults))
+        
+        return "\n".join(result_parts)
+    
+    def _build_chapter_prompt_builtin(self, chapter_num: int, stage: Dict, outline: Dict, prev_summary: str) -> str:
+        """使用内置硬编码模板构建章节提示词（向后兼容）"""
+        relative_ch = chapter_num - stage['start_chapter'] + 1
         
         parts = [
             f"请生成第{chapter_num}章（第{stage['stage_number']}周期 第{relative_ch}章）。",
@@ -748,15 +995,22 @@ class StageChapterGenerator:
 
 
 # 便捷函数
-def generate_by_stages(api_client, novel_data: Dict, tropes: Dict,
+def generate_by_stages(api_client, novel_data: Dict, tropes: Dict, prompt_package: Optional[str] = None,
                        progress_callback=None) -> Dict[int, List[Dict]]:
     """
     按阶段生成所有章节
     
+    Args:
+        api_client: API客户端
+        novel_data: 小说数据
+        tropes: 套路分析数据
+        prompt_package: 使用的prompt包名称（默认"default"）
+        progress_callback: 进度回调
+    
     Returns:
         Dict[阶段号, 章节列表]
     """
-    generator = StageChapterGenerator(api_client, novel_data, tropes)
+    generator = StageChapterGenerator(api_client, novel_data, tropes, prompt_package)
     
     # 计算阶段
     stages = generator.calculate_stages()

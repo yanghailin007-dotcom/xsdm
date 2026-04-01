@@ -11,12 +11,13 @@
 4. 题材专项检查
 5. 自动修复建议
 
-版本：1.0.0
-日期：2026-03-26
+版本：2.0.0 (JSON配置化)
+日期：2026-03-31
 """
 
 import json
 import logging
+import os
 from typing import Dict, List, Optional, Tuple
 from dataclasses import dataclass
 from enum import Enum
@@ -74,23 +75,19 @@ class ChapterQualityChecker:
     在生成前对提示词进行全面检查，确保符合v3.0标准
     """
     
-    # 检查类别
-    CHECK_CATEGORIES = [
-        "structure",      # 结构检查
-        "tomato_algo",    # 番茄算法
-        "genre",          # 题材专项
-        "emotion",        # 情绪曲线
-        "micro_innov",    # 微创新
-        "completeness",   # 完整性
-    ]
+    # 默认配置路径
+    DEFAULT_CONFIG_DIR = os.path.join("prompt_packages", "default", "market_driven", "components")
+    RULES_FILE = "quality_check_rules.json"
+    OPTIMIZATION_FILE = "optimization_hints.json"
     
-    def __init__(self, novel_data: Dict, optimizer_v3=None):
+    def __init__(self, novel_data: Dict, optimizer_v3=None, config_dir: str = None):
         """
         初始化质检器
         
         Args:
             novel_data: 小说数据
             optimizer_v3: v3.0优化器实例（可选）
+            config_dir: 配置文件目录（可选，默认使用DEFAULT_CONFIG_DIR）
         """
         # 确保 novel_data 是字典类型
         if isinstance(novel_data, list):
@@ -109,7 +106,85 @@ class ChapterQualityChecker:
         
         self.genre_type = self._detect_genre_type()
         
+        # 加载配置
+        self.config_dir = config_dir or self.DEFAULT_CONFIG_DIR
+        self.rules_config = self._load_rules_config()
+        self.optimization_config = self._load_optimization_config()
+        
         logger.info(f"[QualityChecker] 初始化 | 书名: {novel_data.get('title', '未命名')} | 题材: {self.genre_type}")
+    
+    def _load_rules_config(self) -> Dict:
+        """加载检查规则配置"""
+        config_path = os.path.join(self.config_dir, self.RULES_FILE)
+        try:
+            with open(config_path, 'r', encoding='utf-8') as f:
+                config = json.load(f)
+            logger.debug(f"[QualityChecker] 成功加载规则配置: {config_path}")
+            return config
+        except FileNotFoundError:
+            logger.warning(f"[QualityChecker] 规则配置文件未找到: {config_path}，使用默认规则")
+            return self._get_default_rules_config()
+        except json.JSONDecodeError as e:
+            logger.error(f"[QualityChecker] 规则配置文件解析错误: {e}，使用默认规则")
+            return self._get_default_rules_config()
+    
+    def _load_optimization_config(self) -> Dict:
+        """加载优化提示词配置"""
+        config_path = os.path.join(self.config_dir, self.OPTIMIZATION_FILE)
+        try:
+            with open(config_path, 'r', encoding='utf-8') as f:
+                config = json.load(f)
+            logger.debug(f"[QualityChecker] 成功加载优化配置: {config_path}")
+            return config
+        except FileNotFoundError:
+            logger.warning(f"[QualityChecker] 优化配置文件未找到: {config_path}，使用默认优化")
+            return self._get_default_optimization_config()
+        except json.JSONDecodeError as e:
+            logger.error(f"[QualityChecker] 优化配置文件解析错误: {e}，使用默认优化")
+            return self._get_default_optimization_config()
+    
+    def _get_default_rules_config(self) -> Dict:
+        """获取默认规则配置（硬编码回退）"""
+        return {
+            "version": "1.0.0",
+            "check_categories": ["structure", "tomato_algo", "genre", "emotion", "micro_innov", "completeness"],
+            "rules": {
+                "tomato_algo": {
+                    "checks": [
+                        {
+                            "id": "first_300_conflict",
+                            "severity": "error",
+                            "message": "缺少'前300字必须出现冲突'的要求",
+                            "suggestion": "在提示词中明确添加：'前300字必须出现冲突或羞辱场景'"
+                        },
+                        {
+                            "id": "chapter_hook",
+                            "severity": "error",
+                            "message": "提示词缺少钩子要求",
+                            "suggestion": "添加'章尾最后50字必须是钩子'的要求"
+                        }
+                    ]
+                }
+            }
+        }
+    
+    def _get_default_optimization_config(self) -> Dict:
+        """获取默认优化配置（硬编码回退）"""
+        return {
+            "sections": {
+                "tomato_algorithm": {
+                    "marker": "## 【番茄算法强制指标】",
+                    "content": "\n## 【番茄算法强制指标】\n- 前300字必须出现冲突/羞辱\n- 对话占比≥50%\n- 每段1-3行，多用换行\n- 章尾最后50字必须是钩子\n",
+                    "position": "prepend"
+                }
+            }
+        }
+    
+    def reload_config(self):
+        """重新加载配置文件"""
+        self.rules_config = self._load_rules_config()
+        self.optimization_config = self._load_optimization_config()
+        logger.info("[QualityChecker] 配置已重新加载")
     
     def _detect_genre_type(self) -> str:
         """检测题材类型"""
@@ -162,33 +237,41 @@ class ChapterQualityChecker:
         logger.info(f"[QualityChecker] 开始检查第{chapter_num}章")
         
         issues = []
+        rules = self.rules_config.get("rules", {})
         
         # 1. 结构检查（黄金三章）
-        structure_issues = self._check_structure(chapter_num, prompt, blueprint)
-        issues.extend(structure_issues)
+        if "structure" in rules:
+            structure_issues = self._check_structure(chapter_num, prompt, blueprint, rules["structure"])
+            issues.extend(structure_issues)
         
         # 2. 番茄算法检查
-        algo_issues = self._check_tomato_algorithm(chapter_num, prompt)
-        issues.extend(algo_issues)
+        if "tomato_algo" in rules:
+            algo_issues = self._check_tomato_algorithm(chapter_num, prompt, rules["tomato_algo"])
+            issues.extend(algo_issues)
         
         # 3. 题材专项检查
-        genre_issues = self._check_genre_specific(chapter_num, prompt)
-        issues.extend(genre_issues)
+        if "genre" in rules:
+            genre_issues = self._check_genre_specific(chapter_num, prompt, rules["genre"])
+            issues.extend(genre_issues)
         
         # 4. 情绪曲线检查
-        emotion_issues = self._check_emotion_curve(chapter_num, prompt, blueprint)
-        issues.extend(emotion_issues)
+        if "emotion" in rules:
+            emotion_issues = self._check_emotion_curve(chapter_num, prompt, blueprint, rules["emotion"])
+            issues.extend(emotion_issues)
         
         # 5. 微创新检查
-        innov_issues = self._check_micro_innovation(chapter_num, prompt)
-        issues.extend(innov_issues)
+        if "micro_innov" in rules:
+            innov_issues = self._check_micro_innovation(chapter_num, prompt, rules["micro_innov"])
+            issues.extend(innov_issues)
         
         # 6. 完整性检查
-        completeness_issues = self._check_completeness(chapter_num, prompt)
-        issues.extend(completeness_issues)
+        if "completeness" in rules:
+            completeness_issues = self._check_completeness(chapter_num, prompt, rules["completeness"])
+            issues.extend(completeness_issues)
         
         # 计算分数
-        total_checks = len(self.CHECK_CATEGORIES) * 3  # 每个类别约3个检查点
+        categories = self.rules_config.get("check_categories", self.CHECK_CATEGORIES)
+        total_checks = len(categories) * 3  # 每个类别约3个检查点
         error_count = len([i for i in issues if i.severity == CheckSeverity.ERROR])
         critical_count = len([i for i in issues if i.severity == CheckSeverity.CRITICAL])
         warning_count = len([i for i in issues if i.severity == CheckSeverity.WARNING])
@@ -217,45 +300,84 @@ class ChapterQualityChecker:
         return report
     
     def _check_structure(self, chapter_num: int, prompt: str, 
-                        blueprint: Dict) -> List[QualityIssue]:
+                        blueprint: Dict, config: Dict) -> List[QualityIssue]:
         """检查章节结构（黄金三章合规性）"""
         issues = []
         
         # 黄金三章特殊检查
-        if chapter_num <= 3:
+        golden_config = config.get("golden_chapters", {})
+        if golden_config.get("enabled", False) and chapter_num in golden_config.get("chapters", [1, 2, 3]):
             # 检查是否有结构分配
-            if "0-500字" not in prompt and "500字" not in prompt:
-                issues.append(QualityIssue(
-                    category="structure",
-                    severity=CheckSeverity.ERROR,
-                    message=f"第{chapter_num}章缺少字数分配结构",
-                    suggestion="添加'0-500字困境+500-2000字系统+2000-2500字钩子'的结构说明"
-                ))
+            word_count_check = None
+            for check in config.get("checks", []):
+                if check.get("id") == "word_count_allocation":
+                    word_count_check = check
+                    break
             
-            # 检查是否包含必要的节拍
-            required_beats = self._get_required_beats_for_golden_chapter(chapter_num)
-            for beat in required_beats:
-                if beat not in prompt.lower():
+            if word_count_check:
+                condition = word_count_check.get("condition", {})
+                missing_patterns = condition.get("missing_patterns", [])
+                if all(pattern not in prompt for pattern in missing_patterns):
+                    message_template = word_count_check.get("message", "第{chapter_num}章缺少字数分配结构")
+                    try:
+                        message = message_template.format(chapter_num=chapter_num)
+                    except KeyError:
+                        message = message_template.replace("{chapter_num}", str(chapter_num))
                     issues.append(QualityIssue(
                         category="structure",
-                        severity=CheckSeverity.WARNING,
-                        message=f"可能缺少必要节拍: {beat}",
-                        suggestion=f"在提示词中明确包含'{beat}'的要求"
+                        severity=CheckSeverity(word_count_check.get("severity", "warning")),
+                        message=message,
+                        suggestion=word_count_check.get("suggestion", "")
                     ))
+            
+            # 检查是否包含必要的节拍
+            required_beats = self._get_required_beats_for_golden_chapter(chapter_num, config)
+            for beat in required_beats:
+                if beat not in prompt.lower():
+                    beat_check = None
+                    for check in config.get("checks", []):
+                        if check.get("id") == "required_beats":
+                            beat_check = check
+                            break
+                    if beat_check:
+                        message_template = beat_check.get("message", "可能缺少必要节拍: {beat}")
+                        suggestion_template = beat_check.get("suggestion", "在提示词中明确包含'{beat}'的要求")
+                        try:
+                            message = message_template.format(beat=beat)
+                            suggestion = suggestion_template.format(beat=beat)
+                        except KeyError:
+                            message = message_template.replace("{beat}", beat)
+                            suggestion = suggestion_template.replace("{beat}", beat)
+                        issues.append(QualityIssue(
+                            category="structure",
+                            severity=CheckSeverity(beat_check.get("severity", "warning")),
+                            message=message,
+                            suggestion=suggestion
+                        ))
         
         # 通用结构检查
-        if "【" not in prompt or "】" not in prompt:
-            issues.append(QualityIssue(
-                category="structure",
-                severity=CheckSeverity.WARNING,
-                message="提示词缺少清晰的章节标记（【】）",
-                suggestion="使用【】标记各部分，提高可读性"
-            ))
+        for check in config.get("checks", []):
+            if check.get("id") == "section_markers":
+                condition = check.get("condition", {})
+                missing_patterns = condition.get("missing_patterns", [])
+                if all(pattern not in prompt for pattern in missing_patterns):
+                    issues.append(QualityIssue(
+                        category="structure",
+                        severity=CheckSeverity(check.get("severity", "warning")),
+                        message=check.get("message", ""),
+                        suggestion=check.get("suggestion", "")
+                    ))
+                break
         
         return issues
     
-    def _get_required_beats_for_golden_chapter(self, chapter_num: int) -> List[str]:
+    def _get_required_beats_for_golden_chapter(self, chapter_num: int, config: Dict = None) -> List[str]:
         """获取黄金三章的必要节拍"""
+        if config:
+            golden_config = config.get("golden_chapters", {})
+            required_beats = golden_config.get("required_beats", {})
+            return required_beats.get(str(chapter_num), [])
+        # 默认回退
         if chapter_num == 1:
             return ["困境", "系统", "钩子"]
         elif chapter_num == 2:
@@ -263,184 +385,135 @@ class ChapterQualityChecker:
         else:  # chapter_num == 3
             return ["打脸", "收获", "震惊"]
     
-    def _check_tomato_algorithm(self, chapter_num: int, prompt: str) -> List[QualityIssue]:
+    def _check_tomato_algorithm(self, chapter_num: int, prompt: str, config: Dict) -> List[QualityIssue]:
         """检查番茄算法指标"""
         issues = []
         
-        # 检查前300字冲突要求
-        if "前300字" not in prompt and "300字" not in prompt:
-            issues.append(QualityIssue(
-                category="tomato_algo",
-                severity=CheckSeverity.ERROR,
-                message="缺少'前300字必须出现冲突'的要求",
-                suggestion="在提示词中明确添加：'前300字必须出现冲突或羞辱场景'"
-            ))
-        
-        # 检查对话占比
-        if "对话" not in prompt or ("40%" not in prompt and "50%" not in prompt):
-            issues.append(QualityIssue(
-                category="tomato_algo",
-                severity=CheckSeverity.WARNING,
-                message="未明确对话占比要求",
-                suggestion="添加'对话占比≥50%'的要求"
-            ))
-        
-        # 检查段落长度
-        if "每段" not in prompt and "3行" not in prompt:
-            issues.append(QualityIssue(
-                category="tomato_algo",
-                severity=CheckSeverity.WARNING,
-                message="未明确段落长度限制",
-                suggestion="添加'每段1-3行，多用换行'的要求"
-            ))
-        
-        # 检查章尾钩子
-        if "钩子" not in prompt:
-            issues.append(QualityIssue(
-                category="tomato_algo",
-                severity=CheckSeverity.ERROR,
-                message="提示词缺少钩子要求",
-                suggestion="添加'章尾最后50字必须是钩子'的要求"
-            ))
+        for check in config.get("checks", []):
+            check_id = check.get("id", "")
+            condition = check.get("condition", {})
+            missing_patterns = condition.get("missing_patterns", [])
+            missing_keywords = condition.get("missing_keywords", [])
+            
+            should_add = False
+            
+            # 检查pattern条件
+            if missing_patterns and all(pattern not in prompt for pattern in missing_patterns):
+                should_add = True
+            
+            # 检查keywords条件
+            if missing_keywords and all(keyword not in prompt for keyword in missing_keywords):
+                should_add = True
+            
+            if should_add:
+                issues.append(QualityIssue(
+                    category="tomato_algo",
+                    severity=CheckSeverity(check.get("severity", "warning")),
+                    message=check.get("message", ""),
+                    suggestion=check.get("suggestion", "")
+                ))
         
         return issues
     
-    def _check_genre_specific(self, chapter_num: int, prompt: str) -> List[QualityIssue]:
+    def _check_genre_specific(self, chapter_num: int, prompt: str, config: Dict) -> List[QualityIssue]:
         """检查题材专项要求"""
         issues = []
         
-        if self.genre_type == "国运文":
-            # 检查是否有弹幕要求
-            if "弹幕" not in prompt:
-                issues.append(QualityIssue(
-                    category="genre",
-                    severity=CheckSeverity.WARNING,
-                    message="国运文缺少弹幕设计要求",
-                    suggestion="添加'每章至少3-5条弹幕'的要求"
-                ))
+        genre_types = config.get("genre_types", {})
+        genre_config = genre_types.get(self.genre_type)
         
-        elif self.genre_type == "神豪文":
-            # 检查是否有精确数字要求
-            if "精确" not in prompt and "小数" not in prompt:
-                issues.append(QualityIssue(
-                    category="genre",
-                    severity=CheckSeverity.WARNING,
-                    message="神豪文缺少数字精确度要求",
-                    suggestion="添加'金额精确到小数点后2位'的要求"
-                ))
-        
-        elif self.genre_type == "模拟器文":
-            # 检查是否有模拟过程要求
-            if "模拟" not in prompt or "剪辑" not in prompt:
-                issues.append(QualityIssue(
-                    category="genre",
-                    severity=CheckSeverity.WARNING,
-                    message="模拟器文缺少模拟过程写法要求",
-                    suggestion="添加'快速剪辑感的模拟过程写法'要求"
-                ))
+        if genre_config:
+            for check in genre_config.get("checks", []):
+                condition = check.get("condition", {})
+                missing_keywords = condition.get("missing_keywords", [])
+                
+                if missing_keywords and all(keyword not in prompt for keyword in missing_keywords):
+                    issues.append(QualityIssue(
+                        category="genre",
+                        severity=CheckSeverity(check.get("severity", "warning")),
+                        message=check.get("message", ""),
+                        suggestion=check.get("suggestion", "")
+                    ))
         
         return issues
     
     def _check_emotion_curve(self, chapter_num: int, prompt: str, 
-                             blueprint: Dict) -> List[QualityIssue]:
+                             blueprint: Dict, config: Dict) -> List[QualityIssue]:
         """检查情绪曲线设计"""
         issues = []
         
-        # 检查是否有情绪要求
-        if "情绪" not in prompt:
-            issues.append(QualityIssue(
-                category="emotion",
-                severity=CheckSeverity.WARNING,
-                message="提示词缺少情绪设计要求",
-                suggestion="添加'严格按照指定情绪类型写作'的要求"
-            ))
-        
-        # 检查是否有情绪转变要求
-        if "转变" not in prompt and "曲线" not in prompt:
-            issues.append(QualityIssue(
-                category="emotion",
-                severity=CheckSeverity.INFO,
-                message="未明确要求情绪转变次数",
-                suggestion="添加'一章内至少3次情绪转变'的要求"
-            ))
+        for check in config.get("checks", []):
+            condition = check.get("condition", {})
+            missing_keywords = condition.get("missing_keywords", [])
+            
+            if missing_keywords and all(keyword not in prompt for keyword in missing_keywords):
+                issues.append(QualityIssue(
+                    category="emotion",
+                    severity=CheckSeverity(check.get("severity", "warning")),
+                    message=check.get("message", ""),
+                    suggestion=check.get("suggestion", "")
+                ))
         
         return issues
     
-    def _check_micro_innovation(self, chapter_num: int, prompt: str) -> List[QualityIssue]:
+    def _check_micro_innovation(self, chapter_num: int, prompt: str, config: Dict) -> List[QualityIssue]:
         """检查微创新原则"""
         issues = []
         
         # 第1章特殊检查：避免老套路
-        if chapter_num == 1:
-            # 检查是否有微创新要求
-            if "微创新" not in prompt and "创新" not in prompt:
-                issues.append(QualityIssue(
-                    category="micro_innov",
-                    severity=CheckSeverity.WARNING,
-                    message="第1章缺少微创新要求",
-                    suggestion="添加微创新要求：'避开深夜暴雨套路，尝试凌晨下班'等"
-                ))
-            
-            # 检查反派塑造
-            if "反派" in prompt and "智商" not in prompt and "目的" not in prompt:
-                issues.append(QualityIssue(
-                    category="micro_innov",
-                    severity=CheckSeverity.INFO,
-                    message="反派塑造可能过于脸谱化",
-                    suggestion="添加'反派要有智商，不只是嚣张，要有自己的目的'"
-                ))
-            
-            # 检查系统激活方式
-            if "系统" in prompt and "激活" in prompt:
-                if "金光" in prompt or "天降" in prompt:
+        chapter_1_config = config.get("chapter_1_special", {})
+        if chapter_1_config.get("enabled", False) and chapter_num == 1:
+            for check in chapter_1_config.get("checks", []):
+                condition = check.get("condition", {})
+                missing_keywords = condition.get("missing_keywords", [])
+                has_keywords = condition.get("has_keywords", [])
+                has_keywords_negative = condition.get("has_keywords_negative", [])
+                
+                should_add = False
+                
+                # 简单关键词缺失检查
+                if missing_keywords and all(keyword not in prompt for keyword in missing_keywords):
+                    should_add = True
+                
+                # 包含某些关键词但缺少其他关键词
+                if has_keywords and missing_keywords:
+                    has_all_required = all(keyword in prompt for keyword in has_keywords)
+                    missing_all = all(keyword not in prompt for keyword in missing_keywords)
+                    if has_all_required and missing_all:
+                        should_add = True
+                
+                # 检查负面关键词（如"金光"、"天降"）
+                if has_keywords_negative:
+                    has_negative = any(keyword in prompt for keyword in has_keywords_negative)
+                    has_all_required = all(keyword in prompt for keyword in has_keywords) if has_keywords else True
+                    if has_all_required and has_negative:
+                        should_add = True
+                
+                if should_add:
                     issues.append(QualityIssue(
                         category="micro_innov",
-                        severity=CheckSeverity.WARNING,
-                        message="系统激活方式过于老套（天降金光）",
-                        suggestion="尝试现代激活方式：手机APP、短信邀请、延迟确认等"
+                        severity=CheckSeverity(check.get("severity", "warning")),
+                        message=check.get("message", ""),
+                        suggestion=check.get("suggestion", "")
                     ))
-            
-            # 检查配角要求
-            if "配角" not in prompt and "围观" not in prompt:
-                issues.append(QualityIssue(
-                    category="micro_innov",
-                    severity=CheckSeverity.INFO,
-                    message="未要求配角在线",
-                    suggestion="添加'至少2-3个配角各有反应和立场'的要求"
-                ))
         
         return issues
     
-    def _check_completeness(self, chapter_num: int, prompt: str) -> List[QualityIssue]:
+    def _check_completeness(self, chapter_num: int, prompt: str, config: Dict) -> List[QualityIssue]:
         """检查提示词完整性"""
         issues = []
         
-        # 检查字数要求
-        if "字数" not in prompt and "2000" not in prompt:
-            issues.append(QualityIssue(
-                category="completeness",
-                severity=CheckSeverity.ERROR,
-                message="缺少字数要求",
-                suggestion="添加'2000-2500字'的字数要求"
-            ))
-        
-        # 检查视角要求
-        if "第三人称" not in prompt and "上帝视角" not in prompt:
-            issues.append(QualityIssue(
-                category="completeness",
-                severity=CheckSeverity.WARNING,
-                message="未明确视角要求",
-                suggestion="添加'第三人称上帝视角'的要求"
-            ))
-        
-        # 检查输出格式
-        if "输出格式" not in prompt and "格式" not in prompt:
-            issues.append(QualityIssue(
-                category="completeness",
-                severity=CheckSeverity.INFO,
-                message="缺少输出格式说明",
-                suggestion="添加明确的输出格式要求"
-            ))
+        for check in config.get("checks", []):
+            condition = check.get("condition", {})
+            missing_keywords = condition.get("missing_keywords", [])
+            
+            if missing_keywords and all(keyword not in prompt for keyword in missing_keywords):
+                issues.append(QualityIssue(
+                    category="completeness",
+                    severity=CheckSeverity(check.get("severity", "warning")),
+                    message=check.get("message", ""),
+                    suggestion=check.get("suggestion", "")
+                ))
         
         return issues
     
@@ -456,27 +529,52 @@ class ChapterQualityChecker:
             优化后的提示词
         """
         optimized = original_prompt
+        sections = self.optimization_config.get("sections", {})
         
-        # 修复番茄算法问题
-        algo_errors = [i for i in issues if i.category == "tomato_algo" and i.severity in [CheckSeverity.ERROR, CheckSeverity.CRITICAL]]
-        if algo_errors:
-            # 在提示词开头添加番茄算法要求
-            tomato_section = """\n\n## 【番茄算法强制指标】\n- 前300字必须出现冲突/羞辱\n- 对话占比≥50%\n- 每段1-3行，多用换行\n- 章尾最后50字必须是钩子\n"""
-            if "## 【番茄算法" not in optimized:
-                optimized = tomato_section + "\n\n" + optimized
+        # 按类别分组问题
+        issues_by_category = {}
+        for issue in issues:
+            cat = issue.category
+            if cat not in issues_by_category:
+                issues_by_category[cat] = []
+            issues_by_category[cat].append(issue)
         
-        # 修复微创新问题
-        innov_warnings = [i for i in issues if i.category == "micro_innov"]
-        if innov_warnings and "【微创新原则" not in optimized:
-            innov_section = """\n\n## 【微创新原则】\n1. 时间选择：避开"深夜23:47暴雨"，尝试"凌晨5:30刚下班"\n2. 系统激活：尝试"手机APP式"、"延迟确认式"\n3. 反派塑造：要有智商，不只是嚣张，要有自己的目的\n4. 配角在线：至少2-3个配角各有反应和立场\n"""
-            optimized = optimized + innov_section
+        # 应用番茄算法优化
+        if "tomato_algo" in issues_by_category and "tomato_algorithm" in sections:
+            section_config = sections["tomato_algorithm"]
+            marker = section_config.get("marker", "")
+            if marker not in optimized:
+                content = section_config.get("content", "")
+                position = section_config.get("position", "append")
+                if position == "prepend":
+                    optimized = content + "\n\n" + optimized
+                else:
+                    optimized = optimized + content
         
-        # 修复结构问题（黄金三章）
-        structure_errors = [i for i in issues if i.category == "structure"]
-        if structure_errors and any("字数分配" in i.message for i in structure_errors):
-            if "【结构要求" not in optimized:
-                structure_section = """\n\n## 【结构要求】（严格按字数分配）\n### 第一部分（0-500字）：极端困境\n### 第二部分（500-2000字）：系统觉醒/金手指使用\n### 第三部分（2000-2500字）：悬念钩子\n"""
-                optimized = optimized + structure_section
+        # 应用微创新优化
+        if "micro_innov" in issues_by_category and "micro_innovation" in sections:
+            section_config = sections["micro_innovation"]
+            marker = section_config.get("marker", "")
+            if marker not in optimized:
+                content = section_config.get("content", "")
+                position = section_config.get("position", "append")
+                if position == "prepend":
+                    optimized = content + "\n\n" + optimized
+                else:
+                    optimized = optimized + content
+        
+        # 应用结构优化（黄金三章）
+        if "structure" in issues_by_category and "structure_golden" in sections:
+            structure_issues = issues_by_category["structure"]
+            section_config = sections["structure_golden"]
+            marker = section_config.get("marker", "")
+            if marker not in optimized and any("字数分配" in i.message for i in structure_issues):
+                content = section_config.get("content", "")
+                position = section_config.get("position", "append")
+                if position == "prepend":
+                    optimized = content + "\n\n" + optimized
+                else:
+                    optimized = optimized + content
         
         return optimized
     
@@ -493,12 +591,22 @@ class ChapterQualityChecker:
         """
         report = self.check_chapter(chapter_num, prompt)
         return report.can_generate, report.score
+    
+    # 检查类别（保留兼容性）
+    CHECK_CATEGORIES = [
+        "structure",      # 结构检查
+        "tomato_algo",    # 番茄算法
+        "genre",          # 题材专项
+        "emotion",        # 情绪曲线
+        "micro_innov",    # 微创新
+        "completeness",   # 完整性
+    ]
 
 
 # 便捷函数
 def check_chapter_quality(novel_data: Dict, chapter_num: int, 
                          prompt: str, blueprint: Dict = None,
-                         optimizer_v3=None) -> QualityReport:
+                         optimizer_v3=None, config_dir: str = None) -> QualityReport:
     """
     检查章节质量的便捷函数
     
@@ -508,11 +616,12 @@ def check_chapter_quality(novel_data: Dict, chapter_num: int,
         prompt: 提示词
         blueprint: 章节规划
         optimizer_v3: v3.0优化器
+        config_dir: 配置目录（可选）
         
     Returns:
         质检报告
     """
-    checker = ChapterQualityChecker(novel_data, optimizer_v3)
+    checker = ChapterQualityChecker(novel_data, optimizer_v3, config_dir)
     return checker.check_chapter(chapter_num, prompt, blueprint)
 
 
