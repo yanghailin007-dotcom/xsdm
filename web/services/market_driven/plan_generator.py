@@ -20,6 +20,48 @@ class MarketDrivenPlanGenerator:
     基于AI分析的套路，生成符合爆款公式的小说方案
     """
     
+    # 金手指默认模板配置（延迟加载）
+    _gf_templates = None
+    
+    @classmethod
+    def _load_gf_templates(cls) -> Dict:
+        """从JSON加载金手指默认模板"""
+        if cls._gf_templates is not None:
+            return cls._gf_templates
+        
+        try:
+            from pathlib import Path
+            config_path = Path(__file__).parent.parent.parent.parent / \
+                "prompt_packages" / "default" / "market_driven" / "components" / "golden_finger_templates.json"
+            
+            if config_path.exists():
+                with open(config_path, 'r', encoding='utf-8') as f:
+                    cls._gf_templates = json.load(f)
+                logger.info("[PlanGenerator] 已加载金手指模板配置")
+            else:
+                logger.warning(f"[PlanGenerator] 金手指模板配置不存在: {config_path}")
+                cls._gf_templates = {}
+        except Exception as e:
+            logger.error(f"[PlanGenerator] 加载金手指模板失败: {e}")
+            cls._gf_templates = {}
+        
+        return cls._gf_templates
+    
+    @classmethod
+    def _get_gf_template_for_genre(cls, genre: str) -> Dict:
+        """根据题材获取对应的金手指模板"""
+        templates = cls._load_gf_templates().get('templates', {})
+        
+        # 题材映射
+        if '神豪' in genre:
+            return templates.get('神豪', templates.get('通用', {}))
+        elif '国运' in genre or '禁地' in genre:
+            return templates.get('国运', templates.get('通用', {}))
+        elif '修仙' in genre or '修真' in genre:
+            return templates.get('修仙', templates.get('通用', {}))
+        else:
+            return templates.get('通用', {})
+    
     # 番茄小说标签映射（包含男女频差异）
     FANQIE_TAG_MAPPINGS = {
         # === 男频标签 ===
@@ -448,89 +490,57 @@ class MarketDrivenPlanGenerator:
     def _generate_golden_finger(self, tropes: Dict, user_choices: Dict) -> Dict:
         """
         生成金手指设计 - 强制包含所有爆款对齐要求的字段
+        从JSON加载默认模板，支持按题材自动匹配
         """
         gf_tropes = tropes.get("golden_finger", {})
-        
-        # 判断题材类型，选择默认模板
         genre = tropes.get("genre", "")
-        if "神豪" in genre:
-            default_name = "神级花钱系统"
-            default_concept = "消费越多返利越多，花钱就能变强"
-            default_stages = [
-                {"name": "初级神豪", "range": "0-20%", "features": "10倍返利，日限额1万"},
-                {"name": "中级神豪", "range": "21-40%", "features": "15倍返利，解锁透视眼"},
-                {"name": "高级神豪", "range": "41-60%", "features": "20倍返利，解锁格斗术"},
-                {"name": "顶级神豪", "range": "61-80%", "features": "50倍返利，全球资产"},
-                {"name": "财神降世", "range": "81-100%", "features": "无限返利，掌控全球经济"}
-            ]
-            default_numeric = {"返利倍数": "10-100倍", "消费额度": "日限额1万-无限", "资产等级": "Lv.1-Lv.10"}
-            default_trigger = "被羞辱后激活，每次消费触发返利"
-            default_limitations = ["日消费限额", "不能恶意套现", "必须在正常消费场景使用"]
-        elif "国运" in genre or "禁地" in genre:
-            default_name = "神级扮演系统"
-            default_concept = "扮演诸天强者，继承模板能力"
-            default_stages = [
-                {"name": "初窥门径", "range": "0-20%", "features": "基础能力觉醒，身体素质×10"},
-                {"name": "略有小成", "range": "21-40%", "features": "核心技能解锁，剑气外放"},
-                {"name": "炉火纯青", "range": "41-60%", "features": "领域能力觉醒，雷神领域"},
-                {"name": "登峰造极", "range": "61-80%", "features": "大招完全体，万剑归宗"},
-                {"name": "剑道通神", "range": "81-100%", "features": "位面主宰，一剑开天门"}
-            ]
-            default_numeric = {"扮演度": "0-100%", "剑意等级": "Lv.1-Lv.10", "醉酒值": "0-100（爆发加成）"}
-            default_trigger = "执行符合角色性格的行为（饮酒诗百篇、仗剑行侠）或击杀禁地生物"
-            default_limitations = ["觉醒大招每日限用1次", "超负荷输出导致扮演度倒退2%", "使用后进入1小时虚弱期"]
-        else:
-            default_name = "超级逆袭系统"
-            default_concept = "通过完成任务获得奖励，不断变强"
-            default_stages = [
-                {"name": "新手菜鸟", "range": "0-20%", "features": "基础属性提升"},
-                {"name": "初级高手", "range": "21-40%", "features": "解锁核心技能"},
-                {"name": "中级强者", "range": "41-60%", "features": "属性翻倍"},
-                {"name": "高级霸主", "range": "61-80%", "features": "领域觉醒"},
-                {"name": "巅峰至尊", "range": "81-100%", "features": "天下无敌"}
-            ]
-            default_numeric = {"等级": "Lv.1-Lv.10", "经验值": "0-10000", "战力": "100-1000000"}
-            default_trigger = "完成任务、击败敌人、达成成就"
-            default_limitations = ["每日任务次数限制", "技能冷却时间", "能量消耗限制"]
         
-        # 从 tropes 提取或生成各字段
-        name = gf_tropes.get('name', '') or default_name
-        concept = gf_tropes.get('concept', '') or gf_tropes.get('description', '') or default_concept
+        # 从JSON加载对应题材的默认模板
+        template = self._get_gf_template_for_genre(genre)
         
-        # 成长阶段 - 优先使用 tropes 中的，否则用默认
+        # 从 tropes 提取或生成各字段（优先使用 tropes，为空时用模板默认值）
+        name = gf_tropes.get('name', '') or template.get('name', '超级逆袭系统')
+        concept = gf_tropes.get('concept', '') or gf_tropes.get('description', '') or template.get('concept', '通过系统不断变强')
+        
+        # 成长阶段 - 优先使用 tropes 中的，否则用模板
         stages = gf_tropes.get('stages', [])
         if not stages:
-            stages = default_stages
+            stages = template.get('stages', [])
         
-        # 成长曲线 - 从 stages 提取
+        # 成长曲线 - 从 stages 提取，或从模板获取
         growth_curve = gf_tropes.get('growth_curve', [])
+        if not growth_curve and stages:
+            growth_curve = [s.get("range", "") for s in stages if isinstance(s, dict)]
         if not growth_curve:
-            growth_curve = [s["range"] for s in stages]
+            growth_curve = template.get('growth_curve', [])
         
         # 数值体系
         numeric_system = gf_tropes.get('numeric_system', {})
         if not numeric_system:
-            numeric_system = default_numeric
+            numeric_system = template.get('numeric_system', {})
         
         # 触发机制
         trigger = gf_tropes.get('trigger_mechanism', '')
         if not trigger:
-            trigger = gf_tropes.get('activation', '') or default_trigger
+            trigger = gf_tropes.get('activation', '') or template.get('trigger_mechanism', '完成任务获得奖励')
         
         # 限制条件
         limitations = gf_tropes.get('limitations', []) or gf_tropes.get('side_effects', [])
         if not limitations:
-            limitations = default_limitations
+            limitations = template.get('limitations', [])
         
         # 初始能力
         initial = gf_tropes.get('initial', '')
+        if not initial and stages:
+            first_stage = stages[0] if isinstance(stages[0], dict) else {}
+            initial = f"{name}激活，{first_stage.get('features', '获得基础能力')}"
         if not initial:
-            initial = f"{name}激活，{stages[0]['features']}"
+            initial = f"{name}激活，获得系统基础能力"
         
         # 升级公式
         upgrade = gf_tropes.get('upgrade_formula', '')
         if not upgrade:
-            upgrade = f"扮演度每提升1%，全属性增加50%。通过{trigger}提升扮演度"
+            upgrade = f"通过{trigger}不断提升，解锁更强能力"
         
         return {
             "name": name,
