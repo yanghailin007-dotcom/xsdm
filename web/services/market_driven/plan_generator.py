@@ -447,59 +447,101 @@ class MarketDrivenPlanGenerator:
     
     def _generate_golden_finger(self, tropes: Dict, user_choices: Dict) -> Dict:
         """
-        生成金手指设计
-        严格遵循套路规律
+        生成金手指设计 - 强制包含所有爆款对齐要求的字段
         """
         gf_tropes = tropes.get("golden_finger", {})
         
-        return {
-            "name": "神豪花钱系统" if "神豪" in tropes.get("genre", "") else "超级系统",
-            "type": gf_tropes.get("type", "系统"),
-            "core_mechanism": gf_tropes.get("ratio", "10倍返利"),
-            "activation_condition": gf_tropes.get("activation", "被羞辱后激活"),
-            "initial_limitation": gf_tropes.get("limitation", "初期每天限额1万元"),
-            "upgrade_method": gf_tropes.get("upgrade", "消费达标后升级"),
-            
-            "level_system": [
-                {
-                    "level": 1,
-                    "name": "初级神豪",
-                    "unlock_condition": "激活系统",
-                    "daily_limit": "1万元",
-                    "rebate_ratio": "10倍",
-                    "special_ability": "无"
-                },
-                {
-                    "level": 2,
-                    "name": "中级神豪",
-                    "unlock_condition": "累计消费10万元",
-                    "daily_limit": "10万元",
-                    "rebate_ratio": "15倍",
-                    "special_ability": "获得透视眼（用于赌石）"
-                },
-                {
-                    "level": 3,
-                    "name": "高级神豪",
-                    "unlock_condition": "累计消费100万元",
-                    "daily_limit": "100万元",
-                    "rebate_ratio": "20倍",
-                    "special_ability": "获得格斗术（用于防身）"
-                }
-            ],
-            
-            "usage_rules": [
-                "必须在正常消费场景使用",
-                "不能恶意套现",
-                "完成任务有额外奖励",
-                "升级后解锁新功能"
-            ],
-            
-            "narrative_function": [
-                "提供资金来源",
-                "制造装逼机会",
-                "推动主角成长",
-                "创造爽点"
+        # 判断题材类型，选择默认模板
+        genre = tropes.get("genre", "")
+        if "神豪" in genre:
+            default_name = "神级花钱系统"
+            default_concept = "消费越多返利越多，花钱就能变强"
+            default_stages = [
+                {"name": "初级神豪", "range": "0-20%", "features": "10倍返利，日限额1万"},
+                {"name": "中级神豪", "range": "21-40%", "features": "15倍返利，解锁透视眼"},
+                {"name": "高级神豪", "range": "41-60%", "features": "20倍返利，解锁格斗术"},
+                {"name": "顶级神豪", "range": "61-80%", "features": "50倍返利，全球资产"},
+                {"name": "财神降世", "range": "81-100%", "features": "无限返利，掌控全球经济"}
             ]
+            default_numeric = {"返利倍数": "10-100倍", "消费额度": "日限额1万-无限", "资产等级": "Lv.1-Lv.10"}
+            default_trigger = "被羞辱后激活，每次消费触发返利"
+            default_limitations = ["日消费限额", "不能恶意套现", "必须在正常消费场景使用"]
+        elif "国运" in genre or "禁地" in genre:
+            default_name = "神级扮演系统"
+            default_concept = "扮演诸天强者，继承模板能力"
+            default_stages = [
+                {"name": "初窥门径", "range": "0-20%", "features": "基础能力觉醒，身体素质×10"},
+                {"name": "略有小成", "range": "21-40%", "features": "核心技能解锁，剑气外放"},
+                {"name": "炉火纯青", "range": "41-60%", "features": "领域能力觉醒，雷神领域"},
+                {"name": "登峰造极", "range": "61-80%", "features": "大招完全体，万剑归宗"},
+                {"name": "剑道通神", "range": "81-100%", "features": "位面主宰，一剑开天门"}
+            ]
+            default_numeric = {"扮演度": "0-100%", "剑意等级": "Lv.1-Lv.10", "醉酒值": "0-100（爆发加成）"}
+            default_trigger = "执行符合角色性格的行为（饮酒诗百篇、仗剑行侠）或击杀禁地生物"
+            default_limitations = ["觉醒大招每日限用1次", "超负荷输出导致扮演度倒退2%", "使用后进入1小时虚弱期"]
+        else:
+            default_name = "超级逆袭系统"
+            default_concept = "通过完成任务获得奖励，不断变强"
+            default_stages = [
+                {"name": "新手菜鸟", "range": "0-20%", "features": "基础属性提升"},
+                {"name": "初级高手", "range": "21-40%", "features": "解锁核心技能"},
+                {"name": "中级强者", "range": "41-60%", "features": "属性翻倍"},
+                {"name": "高级霸主", "range": "61-80%", "features": "领域觉醒"},
+                {"name": "巅峰至尊", "range": "81-100%", "features": "天下无敌"}
+            ]
+            default_numeric = {"等级": "Lv.1-Lv.10", "经验值": "0-10000", "战力": "100-1000000"}
+            default_trigger = "完成任务、击败敌人、达成成就"
+            default_limitations = ["每日任务次数限制", "技能冷却时间", "能量消耗限制"]
+        
+        # 从 tropes 提取或生成各字段
+        name = gf_tropes.get('name', '') or default_name
+        concept = gf_tropes.get('concept', '') or gf_tropes.get('description', '') or default_concept
+        
+        # 成长阶段 - 优先使用 tropes 中的，否则用默认
+        stages = gf_tropes.get('stages', [])
+        if not stages:
+            stages = default_stages
+        
+        # 成长曲线 - 从 stages 提取
+        growth_curve = gf_tropes.get('growth_curve', [])
+        if not growth_curve:
+            growth_curve = [s["range"] for s in stages]
+        
+        # 数值体系
+        numeric_system = gf_tropes.get('numeric_system', {})
+        if not numeric_system:
+            numeric_system = default_numeric
+        
+        # 触发机制
+        trigger = gf_tropes.get('trigger_mechanism', '')
+        if not trigger:
+            trigger = gf_tropes.get('activation', '') or default_trigger
+        
+        # 限制条件
+        limitations = gf_tropes.get('limitations', []) or gf_tropes.get('side_effects', [])
+        if not limitations:
+            limitations = default_limitations
+        
+        # 初始能力
+        initial = gf_tropes.get('initial', '')
+        if not initial:
+            initial = f"{name}激活，{stages[0]['features']}"
+        
+        # 升级公式
+        upgrade = gf_tropes.get('upgrade_formula', '')
+        if not upgrade:
+            upgrade = f"扮演度每提升1%，全属性增加50%。通过{trigger}提升扮演度"
+        
+        return {
+            "name": name,
+            "concept": concept,
+            "initial": initial,
+            "stages": stages,
+            "growth_curve": growth_curve,
+            "numeric_system": numeric_system,
+            "trigger_mechanism": trigger,
+            "limitations": limitations,
+            "upgrade_formula": upgrade
         }
     
     def _generate_protagonist(self, tropes: Dict, user_choices: Dict) -> Dict:

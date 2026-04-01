@@ -2243,14 +2243,38 @@ POST /api/v2/prompt-config/component/{step_name}
             issues.append({
                 "type": "missing_golden_finger",
                 "description": "金手指设计为空",
-                "severity": "high"
+                "severity": "critical",
+                "stage": "generation"
             })
             return issues
+        
+        # 🔥 新增：检查必需字段是否存在（生成阶段就应该有）
+        required_fields = {
+            'name': '金手指名称',
+            'concept': '概念描述',
+            'initial': '初始能力',
+            'stages': '成长阶段',
+            'growth_curve': '成长曲线',
+            'numeric_system': '数值体系',
+            'trigger_mechanism': '触发机制',
+            'limitations': '限制条件',
+            'upgrade_formula': '升级公式'
+        }
+        
+        for field, desc in required_fields.items():
+            if field not in golden_finger or not golden_finger[field]:
+                issues.append({
+                    "type": f"missing_required_field_{field}",
+                    "issue": f"金手指缺少必需字段: {desc}({field})",
+                    "suggestion": f"在生成阶段必须填充{desc}字段，使用默认值模板",
+                    "severity": "critical",
+                    "stage": "generation"
+                })
         
         # 获取爆款金手指公式
         bs_gf_formula = bestseller_analysis.get('golden_finger_formula', '')
         
-        # 检查金手指名称/概念
+        # 检查金手指名称/概念（已有字段的情况下检查质量）
         gf_name = golden_finger.get('name', '') or golden_finger.get('concept', '')
         if not gf_name or len(gf_name) < 3:
             issues.append({
