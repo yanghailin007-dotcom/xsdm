@@ -84,26 +84,40 @@ class SimpleOptimizer:
         if not isinstance(novel_data, dict):
             novel_data = {}
         self.novel_data = novel_data
+        self._prompt_config = self._load_prompt_config()
+    
+    def _load_prompt_config(self) -> Dict:
+        """从JSON加载提示词配置"""
+        try:
+            base_dir = Path(__file__).parent.parent.parent.parent
+            config_file = base_dir / "prompt_packages" / "default" / "market_driven" / "conversation_step_prompts.json"
+            
+            if config_file.exists():
+                with open(config_file, 'r', encoding='utf-8') as f:
+                    config = json.load(f)
+                logging.info("[SimpleOptimizer] 加载对话提示词配置成功")
+                return config
+            else:
+                logging.warning(f"[SimpleOptimizer] 提示词配置不存在: {config_file}")
+                return {}
+        except Exception as e:
+            logging.error(f"[SimpleOptimizer] 加载提示词配置失败: {e}")
+            return {}
     
     def build_system_prompt(self):
+        """构建System Prompt - 从JSON配置加载"""
         title = self.novel_data.get('title', '未命名')
-        return f"""# 角色：顶级网络小说作家
-
-你正在为小说《{title}》生成章节。
-
-## 写作规范
-1. **番茄风格**：快节奏、强爽点、章章有钩子
-2. **每章2000-2500字**
-3. **第三人称上帝视角**
-4. **短段落**：每段不超过3行
-5. **多对话**：对话占比≥40%
-6. **情绪精准**：严格按照每章指定的情绪类型写作
-
-## 重要规则
-1. **保持人设一致**：主角性格、能力必须前后一致
-2. **承上启下**：每章结尾必须留下钩子
-3. **不跳剧情**：严格按照剧情路线推进
-"""
+        
+        # 从配置加载模板
+        config = self._prompt_config.get("system_prompt", {})
+        template = config.get("template", "")
+        
+        if template:
+            return template.replace("{title}", title)
+        
+        # 降级：硬编码
+        logging.warning("[SimpleOptimizer] system_prompt 配置未找到，使用硬编码")
+        return f"# 角色：顶级网络小说作家\n\n你正在为小说《{title}》生成章节。"
     
     def build_chapter_prompt(self, chapter_num, blueprint, prev_summary):
         parts = [

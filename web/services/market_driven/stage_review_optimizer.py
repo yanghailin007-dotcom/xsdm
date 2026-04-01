@@ -195,31 +195,26 @@ class StageReviewOptimizer:
 {self._get_default_self_check_list()}"""
     
     def _get_default_word_count_constraints(self) -> str:
-        """获取默认字数约束（硬编码回退）"""
-        return """## 🚨 字数约束（硬性要求，违反会导致重试）
-**目标字数：2000-2500字**
-**硬性下限：2000字（绝对不能低于）**
-**硬性上限：2500字（绝对不能超过）**
-
-**字数控制策略：**
-- **硬性上限：修复后的字数绝对不能超过2500字！**
-- 如果原文字数<2000字：扩充到2000-2200字
-- 如果原文字数在2000-2500字：允许小幅增加爽点，但绝对不要超过2500字
-- 如果原文字数>2500字：删减到2200-2400字
-- **可以增爽点，但必须在2500字以内完成！**
-
-**⚠️ 警告：超过2500字的内容将被强制拒绝，必须重试！**"""
+        """获取默认字数约束（从JSON配置加载）"""
+        templates = self._review_prompts.get("templates", {})
+        template = templates.get("word_count_constraints", {}).get("template", "")
+        if template:
+            return template
+        
+        # 降级：硬编码
+        logger.warning("[StageOptimizer] word_count_constraints 模板未找到，使用硬编码")
+        return "## 字数约束：2000-2500字"
     
     def _get_default_self_check_list(self) -> str:
-        """获取默认自检清单（硬编码回退）"""
-        return """## 🔥 强制自检清单（输出前必须完成）
-- [ ] 统计content字段字数（使用len()精确计算）
-- [ ] 字数是否≥2000字？（低于则必须扩充）
-- [ ] 字数是否≤2500字？（绝对不能超过硬性上限！）
-- [ ] 理想范围：2000-2500字
-
-**🚨 硬性上限：绝对不能超过2500字！**
-**可以增爽点，但必须在2500字以内完成！**"""
+        """获取默认自检清单（从JSON配置加载）"""
+        templates = self._review_prompts.get("templates", {})
+        template = templates.get("self_check_list", {}).get("template", "")
+        if template:
+            return template
+        
+        # 降级：硬编码
+        logger.warning("[StageOptimizer] self_check_list 模板未找到，使用硬编码")
+        return "## 自检清单：字数 2000-2500字"
     
     def _get_retry_warning(self, last_word_count: int, over_limit: bool = True) -> str:
         """获取重试警告提示"""
