@@ -1,0 +1,57 @@
+{
+  "version": "2.0.0",
+  "description": "步骤Prompt模板配置 - 用于PromptTemplateGenerator",
+  
+  "step_1_plan": {
+    "name": "生成完整方案",
+    "template_type": "f_string",
+    "template": "# 角色：顶级网文策划专家（基于市场爆款公式创作）\n\n你正在为一部\"{genre}\"题材的网络小说创作方案。\n\n## 🎯 该题材的爆款公式\n{formula}\n\n## 📖 基于Top10爆款的开局公式\n\n### 第1章公式（必须严格遵循）\n- **开篇场景**：{ch1_scene}\n- **主角困境**：{ch1_protagonist_situation}\n- **系统触发**：{ch1_system_trigger}\n- **章尾钩子**：{ch1_hook}\n- **情绪曲线**：{ch1_emotion_curve}\n- **字数**：{ch1_word_count}字\n\n### 第2章公式\n- **场景**：{ch2_scene}\n- **第一次收获**：{ch2_reward}\n- **周围人反应**：{ch2_reactions}\n- **章尾钩子**：{ch2_hook}\n- **字数**：{ch2_word_count}字\n\n### 第3章公式\n- **打脸场景**：{ch3_scene}\n- **反派类型**：{ch3_antagonist}\n- **反转设计**：{ch3_plot}\n- **章尾钩子**：{ch3_hook}\n- **字数**：{ch3_word_count}字\n\n## 💰 金手指数值公式\n- **初始奖励**：{gf_initial_reward}\n- **成长曲线**：{gf_growth_curve}\n- **限制条件**：{gf_limitations}\n\n## 🎯 用户最终选择（必须严格遵循）\n- **书名**：{title}\n- **主角名**：{protagonist_name}\n- **剧情路线**：\n```{plot_detail}\n```\n\n## 📝 你需要生成\n\n### 1. 标题确认\n确认使用用户确定的书名（验证是否符合15字以内、有冲击力）\n\n### 2. 开局3章详细剧本（必须严格遵循上述公式）\n每章必须包含：\n- **场景设定**：具体到时间、地点、环境\n- **人物动作**：主角做了什么？说了什么？\n- **对话设计**：短对话推动剧情，每句不超过20字\n- **心理描写**：最多1-2句，体现情绪变化\n- **系统交互**：金手指如何触发、如何表现\n- **章尾钩子**：必须让读者想看下一章\n\n### 3. 金手指细化（基于公式）\n- **初始数值**：具体数字\n- **升级公式**：每级需要XX点，提升XX%\n- **限制设计**：冷却/次数/副作用\n\n### 4. 主角人设\n基于爆款人设公式：\n{character_formula}\n\n### 5. 前30章大纲（遵循节奏公式）\n基于：\n- 小爽点：每3章一个（{small_climax_types}）\n- 中爽点：每10章一个（{medium_climax_types}）\n- 大爽点：每30章一个（{large_climax_types}）\n\n## ⚠️ 写作禁忌（绝对不能犯）\n{taboo_list}\n\n## ✅ 输出格式\n返回严格合法的JSON（所有字符串值必须用英文双引号包裹，禁止单引号）：\n{{\n  \"title\": \"书名\",\n  \"recommended_title\": \"推荐书名\",\n  \"core_conflict\": \"核心冲突描述\",\n  \"worldview\": \"世界观概述\",\n  \"opening_design\": {{\n    \"chapter_1\": {{\"scene\": \"\", \"action\": \"\", \"dialogue\": [], \"hook\": \"\"}},\n    \"chapter_2\": {{\"scene\": \"\", \"action\": \"\", \"dialogue\": [], \"hook\": \"\"}},\n    \"chapter_3\": {{\"scene\": \"\", \"action\": \"\", \"dialogue\": [], \"hook\": \"\"}}\n  }},\n  \"golden_finger\": {{\"initial\": \"\", \"upgrade_formula\": \"\", \"limitations\": \"\"}},\n  \"protagonist\": {{\"name\": \"\", \"traits\": [], \"growth_arc\": \"\"}}\n}}\n\n**警告**：\n1. 不要返回 outline_first_30 字段\n2. 所有字符串值必须加英文双引号\n3. 禁止在JSON末尾或数组/对象最后一个元素后加逗号\n4. 只返回JSON，不要其他说明。",
+    
+    "variables": [
+      "genre", "formula", "ch1_scene", "ch1_protagonist_situation", "ch1_system_trigger",
+      "ch1_hook", "ch1_emotion_curve", "ch1_word_count", "ch2_scene", "ch2_reward",
+      "ch2_reactions", "ch2_hook", "ch2_word_count", "ch3_scene", "ch3_antagonist",
+      "ch3_plot", "ch3_hook", "ch3_word_count", "gf_initial_reward", "gf_growth_curve",
+      "gf_limitations", "title", "protagonist_name", "plot_detail", "character_formula",
+      "small_climax_types", "medium_climax_types", "large_climax_types", "taboo_list"
+    ]
+  },
+  
+  "step_2_worldview": {
+    "name": "生成世界观",
+    "template_type": "f_string",
+    "template": "# 角色：世界观架构师（基于爆款公式）\n\n基于步骤1确定的题材、主角、金手指，生成完整的世界观。\n\n## 🌍 该题材的世界观公式\n{antagonist_formula}\n\n## 🎯 势力系统设计公式\n必须包含3个对立势力：\n1. **早期敌对势力**（1-{early_end}章）：{early_antagonist}\n2. **中期敌对势力**（{mid_start}-{mid_end}章）：{mid_antagonist}\n3. **后期敌对势力**（{late_start}章+）：{late_antagonist}\n\n## 🏛️ 社会规则设计（必须有利于装逼打脸）\n- 阶层划分：如何体现等级差异？\n- 资源分布：稀有资源如何获取？\n- 认可机制：如何获得社会地位？\n\n## 🗺️ 地图升级规划\n- 第一地图（1-{early_end}章）：本地场景\n- 第二地图（{mid_start}-{mid_end}章）：省城/区域\n- 第三地图（{late_start}章+）：全国/全球\n\n## ✅ 输出格式\nJSON格式，包含：world_overview, power_system, social_structure, factions, world_rules, key_locations",
+    
+    "variables": [
+      "antagonist_formula", "early_end", "early_antagonist", "mid_start", "mid_end",
+      "mid_antagonist", "late_start", "late_antagonist"
+    ]
+  },
+  
+  "step_3_characters": {
+    "name": "生成角色设计",
+    "template_type": "f_string",
+    "template": "# 角色：角色设计师（基于爆款人设公式）\n\n基于已确定的世界观和主角人设，设计完整角色阵容。\n\n## ⚠️ 强制要求（违反将导致生成失败）\n1. **主角姓名必须使用用户指定的**：{protagonist_name}\n2. **禁止**给主角起其他名字或别名\n3. **禁止**在 protagonist.name 中使用其他值\n4. 如果违反以上任何一条，生成将被视为失败\n\n## 👤 主角人设公式（仅作为人设参考，姓名必须用上面指定的）\n{protagonist_template}\n\n## 👥 配角功能定位公式\n{supporting_roles}\n\n## 😈 反派设计公式\n每个反派必须：\n1. **让读者恨**：通过什么行为让读者恨得牙痒痒？\n2. **有层次感**：不是单纯坏，而是有动机\n3. **打脸爽快**：被打脸时的反应要有层次（不屑→震惊→后悔→恐惧）\n\n## ✅ 输出格式\n返回JSON格式，必须包含以下字段：\n{{\n  \"protagonist\": {{\"name\": \"{protagonist_name}\", \"age\": 25, \"traits\": [...], ...}},\n  \"core_allies\": [{{\"name\": \"...\", \"role\": \"...\"}}],\n  \"main_antagonists\": {{\"early_stage\": [...], \"mid_stage\": [...], \"late_stage\": [...]}},\n  \"supporting_roles\": [...]\n}}\n\n**重要：protagonist.name 必须是 \"{protagonist_name}\"，禁止用其他名字！**\n**不要返回null，必须返回有效的JSON对象！**",
+    
+    "variables": ["protagonist_name", "protagonist_template", "supporting_roles"]
+  },
+  
+  "step_4_growth": {
+    "name": "生成成长路线",
+    "template_type": "f_string",
+    "template": "# 角色：成长路线规划师（基于爆款升级公式）\n\n基于前30章大纲，规划主角成长里程碑。\n\n## 📈 成长公式\n{growth_curve}\n\n## 🎯 成长维度\n1. **能力成长**：数值提升、新技能解锁\n2. **身份成长**：社会地位、财富等级\n3. **关系成长**：从被看不起到被巴结\n\n## 📊 里程碑设计\n- 第{m1}章：第一次身份跃迁\n- 第{m2}章：阶段性身份曝光\n- 第{m3}章：进入更高圈子\n- 第{m4}章：成为一方霸主\n\n## ✅ 输出格式\nJSON格式：protagonist_growth, ability_system_progression, key_relationships_development",
+    
+    "variables": ["growth_curve", "m1", "m2", "m3", "m4"]
+  },
+  
+  "step_5_emotion": {
+    "name": "生成情绪曲线",
+    "template_type": "f_string",
+    "template": "# 角色：情绪曲线设计师（基于爆款节奏公式）\n\n设计{total_chapters}章的情绪曲线，严格遵循爆款情绪公式。\n\n## 🎭 情绪循环公式\n{emotion_cycle}\n\n## 🪝 章尾钩子轮替\n{hook_types}\n\n## 📈 强度与爽点类型控制\n\n**重要原则**：爽点类型必须多样化，避免连续使用同类型！\n\n### 小爽点（每3章，强度7）\n可选类型：{small_types}\n- 必须轮替使用，不能连续两章同类型\n- 铺垫1-2章，爽点1章的节奏\n\n### 中爽点（每10章，强度8-9）\n可选类型：{medium_types}\n- 必须有分层震惊（路人→朋友→敌人→高层）\n- 爽点后必须埋下新的期待\n\n### 大爽点（每30章，强度10）\n可选类型：{large_types}\n- 必须是阶段性总结+新突破\n- 爽点之后开启新地图或新目标\n\n## ⚠️ 重要约束\n1. **总章数{total_chapters}章**，必须生成完整曲线\n2. **不能连续3章同情绪**\n3. **大爽点之间必须有小爽点过渡**\n4. **每章必须有钩子**\n\n## ✅ 输出格式\nJSON数组，每章包含：chapter, emotion, intensity, beat_type, appeal_type, hook_type",
+    
+    "variables": [
+      "total_chapters", "emotion_cycle", "hook_types", "small_types",
+      "medium_types", "large_types"
+    ]
+  }
+}
