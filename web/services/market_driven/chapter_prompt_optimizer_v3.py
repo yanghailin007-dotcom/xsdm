@@ -407,13 +407,24 @@ class ChapterPromptOptimizerV3:
     
     # ==================== 核心方法：构建System Prompt ====================
     
-    def build_system_prompt(self) -> str:
+    def build_system_prompt(self, use_json_config: bool = True) -> str:
         """
         构建番茄爆款System Prompt（约2500字）
         
+        Args:
+            use_json_config: 是否使用JSON配置组件
+            
         Returns:
             完整的System Prompt字符串
         """
+        # 🔥 优先使用JSON配置构建
+        if use_json_config and self._prompt_loader:
+            try:
+                return self._build_system_prompt_from_config()
+            except Exception as e:
+                logger.warning(f"[PromptV3] JSON配置构建System Prompt失败: {e}，使用硬编码")
+        
+        # 硬编码fallback
         sections = [
             self._build_header(),
             self._build_core_setting(),
@@ -426,11 +437,127 @@ class ChapterPromptOptimizerV3:
             self._build_shock_techniques(),
             self._build_emotion_control(),
             self._build_format_rules(),
-            self._build_ai_self_check_guide(),  # 添加AI自检指南
+            self._build_ai_self_check_guide(),
             self._build_footer(),
         ]
         
         return "\n\n".join(filter(None, sections))
+    
+    def _build_system_prompt_from_config(self) -> str:
+        """从JSON配置构建System Prompt"""
+        # 加载System Prompt配置
+        config_path = "phase_two/system_prompt"
+        
+        # 构建各个section
+        sections = []
+        
+        # 1. Header
+        header = self._render_component("header", {"title": self.title})
+        if header:
+            sections.append(header)
+        else:
+            sections.append(self._build_header())
+        
+        # 2. Core Setting
+        core_setting = self._render_component("core_rules", {})
+        if core_setting:
+            sections.append(core_setting)
+        else:
+            sections.append(self._build_core_setting())
+        
+        # 3. Worldview Section
+        sections.append(self._build_worldview_section())
+        
+        # 4. Protagonist Section
+        sections.append(self._build_protagonist_section())
+        
+        # 5. Golden Three Chapters
+        golden = self._render_component("golden_chapter_guide", {})
+        if golden:
+            sections.append(golden)
+        else:
+            sections.append(self._build_golden_three_chapters())
+        
+        # 6. Tomato Algorithm
+        algo = self._render_component("tomato_algorithm_guide", {})
+        if algo:
+            sections.append(algo)
+        else:
+            sections.append(self._build_tomato_algorithm_guide())
+        
+        # 7. Micro Innovation
+        micro = self._render_component("micro_innovation_guide", {})
+        if micro:
+            sections.append(micro)
+        else:
+            sections.append(self._build_micro_innovation_guide())
+        
+        # 8. Genre Specific
+        sections.append(self._build_genre_specific_guide())
+        
+        # 9. Shock Techniques
+        sections.append(self._build_shock_techniques())
+        
+        # 10. Emotion Control
+        emotion = self._render_component("emotion_control_guide", {})
+        if emotion:
+            sections.append(emotion)
+        else:
+            sections.append(self._build_emotion_control())
+        
+        # 11. Format Rules
+        fmt = self._render_component("format_rules", {})
+        if fmt:
+            sections.append(fmt)
+        else:
+            sections.append(self._build_format_rules())
+        
+        # 12. AI Self Check
+        check = self._render_component("ai_self_check_guide", {})
+        if check:
+            sections.append(check)
+        else:
+            sections.append(self._build_ai_self_check_guide())
+        
+        # 13. Footer
+        sections.append(self._build_footer())
+        
+        return "\n\n".join(filter(None, sections))
+    
+    def _render_component(self, component_id: str, variables: Dict) -> Optional[str]:
+        """
+        渲染组件
+        
+        Args:
+            component_id: 组件ID
+            variables: 变量字典
+            
+        Returns:
+            组件内容，失败返回None
+        """
+        if not self._prompt_loader:
+            return None
+        
+        try:
+            component = self._prompt_loader.get_component(f"market_driven/components/{component_id}")
+            if not component:
+                return None
+            
+            template = component.get("template", "")
+            if not template:
+                return None
+            
+            # 变量替换
+            result = template
+            for key, value in variables.items():
+                placeholder = f"{{{{{key}}}}}"
+                if placeholder in result:
+                    result = result.replace(placeholder, str(value) if value is not None else "")
+            
+            return result
+        except Exception as e:
+            logger.debug(f"[PromptV3] 渲染组件 {component_id} 失败: {e}")
+            return None
     
     def _build_header(self) -> str:
         """构建头部"""
