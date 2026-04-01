@@ -1264,10 +1264,10 @@ class ChapterPromptOptimizerV3:
 ### 章尾钩子（{structure.get('hook', {}).get('range', '章尾')}）
 {structure.get('hook', {}).get('requirement', '更大反派/新目标')}
 
-## 【震惊流写法】（必须三层结构）
-{shock_flow.get('description', '现场→传播→权威')}
+## 【震惊铺展顺序】（自然叙事，禁止写'第X层'标签）
+{shock_flow.get('description', '先写现场→再写直播→最后权威，用场景切换过渡')}
 
-**铺展层次：**
+**铺展顺序（用场景切换，禁止层级标签）：**
 {layers_str}
 
 **反派转变：{shock_flow.get('villain_turn', '180度态度转变')}**
