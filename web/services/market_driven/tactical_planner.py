@@ -251,59 +251,33 @@ class TacticalPlanner:
             bestseller_parts.append("⚠️ **重要**: 以上爆款设计优先于固定模板，如果与下面的'情绪循环公式'冲突，以这里的设计为准！")
             bestseller_ref = "\n".join(bestseller_parts)
         
-        return f"""# 角色：战术规划师
-
-为小说《{novel_title}》规划第{start_chapter}-{end_chapter}章详细战术。
-
-## 基本信息（必须遵守）
-- 书名: {novel_title}
-- 主角名: {protagonist_name} ⚠️ 所有事件必须围绕此主角名展开，绝对禁止更换主角名
-
-{bestseller_ref}
-
-## 阶段目标（核心约束）
-目标ID: {stage_goal.get('goal_id', 'G1')}
-目标描述: {stage_goal.get('description', '')}
-成功标准: {stage_goal.get('success_criteria', '')}
-关键交付物: {', '.join(stage_goal.get('key_deliverables', []))}
-
-{summary_text}
-
-## 规划要求
-
-### 情绪循环公式（严格5章循环）
-**注意**: 如果上面的"爆款设计参考"中定义了不同的情绪设计，以爆款设计为准！
-
-第1章: 压抑(强度7-8) - {protagonist_name}被质疑/遇到强大敌人
-第2章: 嘲讽升级(强度8-9) - 反派嚣张/弹幕全网黑
-第3章: 反转爆发(强度8-9) - {protagonist_name}展现实力，开始反击
-第4章: 震惊渲染(强度7-8) - 全网刷屏/反派跪地
-第5章: 期待铺垫(强度6-7) - 新地图/新能力线索
-
-### 阶段目标对齐（重要！）
-- 本批次所有章节必须服务于阶段目标
-- 不要提前消耗后续阶段的关键交付物
-- 如果阶段目标要求"首次展现实力"，本批次必须包含这个事件
-- 如果阶段目标要求"解锁技能"，本批次必须铺垫并最终解锁
-
-### 伏笔回收
-优先回收前序总结中的"待回收伏笔"，按优先级处理。
-
-## 输出格式
-JSON格式，包含chapters数组，每个元素:
-{{
-  "chapter_number": 章节号,
-  "emotion": "情绪类型(压抑/紧张/小爽快/大爽快/震惊/期待)",
-  "intensity": 强度(1-10),
-  "beat_type": "节拍类型(铺垫/冲突/反转/渲染/伏笔)",
-  "event": "主要事件简述",
-  "purpose": "本章目的（如何服务于阶段目标）",
-  "hook_type": "钩子类型",
-  "hook_content": "章尾钩子内容",
-  "stage_goal_alignment": "如何推进阶段目标"
-}}
-
-只输出JSON，不要其他说明。"""
+        # 从JSON配置加载模板
+        template_config = self._planning_config.get("system_prompt_template", {})
+        template = template_config.get("template", "")
+        
+        if template:
+            # 使用JSON模板
+            variables = {
+                "novel_title": novel_title,
+                "start_chapter": start_chapter,
+                "end_chapter": end_chapter,
+                "protagonist_name": protagonist_name,
+                "bestseller_ref": bestseller_ref,
+                "goal_id": stage_goal.get('goal_id', 'G1'),
+                "goal_description": stage_goal.get('description', ''),
+                "success_criteria": stage_goal.get('success_criteria', ''),
+                "key_deliverables": ', '.join(stage_goal.get('key_deliverables', [])),
+                "summary_text": summary_text
+            }
+            
+            result = template
+            for key, value in variables.items():
+                result = result.replace(f"{{{key}}}", str(value))
+            return result
+        
+        # 降级：硬编码
+        logger.warning("[TacticalPlanner] system_prompt_template 未找到，使用硬编码")
+        return f"# 角色：战术规划师\n\n为小说《{novel_title}》规划第{start_chapter}-{end_chapter}章详细战术。\n\n## 阶段目标\n目标: {stage_goal.get('description', '')}"
     
     def _generate_from_template(
         self,

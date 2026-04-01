@@ -277,5 +277,14 @@
       "节拍类型明确",
       "钩子内容具体"
     ]
+  },
+  
+  "system_prompt_template": {
+    "template": "# 角色：战术规划师\n\n为小说《{novel_title}》规划第{start_chapter}-{end_chapter}章详细战术。\n\n## 基本信息（必须遵守）\n- 书名: {novel_title}\n- 主角名: {protagonist_name} ⚠️ 所有事件必须围绕此主角名展开，绝对禁止更换主角名\n\n{bestseller_ref}\n\n## 阶段目标（核心约束）\n目标ID: {goal_id}\n目标描述: {goal_description}\n成功标准: {success_criteria}\n关键交付物: {key_deliverables}\n\n{summary_text}\n\n## 规划要求\n\n### 情绪循环公式（严格5章循环）\n**注意**: 如果上面的\"爆款设计参考\"中定义了不同的情绪设计，以爆款设计为准！\n\n第1章: 压抑(强度7-8) - {protagonist_name}被质疑/遇到强大敌人\n第2章: 嘲讽升级(强度8-9) - 反派嚣张/弹幕全网黑\n第3章: 反转爆发(强度8-9) - {protagonist_name}展现实力，开始反击\n第4章: 震惊渲染(强度7-8) - 全网刷屏/反派跪地\n第5章: 期待铺垫(强度6-7) - 新地图/新能力线索\n\n### 阶段目标对齐（重要！）\n- 本批次所有章节必须服务于阶段目标\n- 不要提前消耗后续阶段的关键交付物\n- 如果阶段目标要求\"首次展现实力\"，本批次必须包含这个事件\n- 如果阶段目标要求\"解锁技能\"，本批次必须铺垫并最终解锁\n\n### 伏笔回收\n优先回收前序总结中的\"待回收伏笔\"，按优先级处理。\n\n## 输出格式\nJSON格式，包含chapters数组，每个元素:\n{{\n  \"chapter_number\": 章节号,\n  \"emotion\": \"情绪类型(压抑/紧张/小爽快/大爽快/震惊/期待)\",\n  \"intensity\": 强度(1-10),\n  \"beat_type\": \"节拍类型(铺垫/冲突/反转/渲染/伏笔)\",\n  \"event\": \"主要事件简述\",\n  \"purpose\": \"本章目的（如何服务于阶段目标）\",\n  \"hook_type\": \"钩子类型\",\n  \"hook_content\": \"章尾钩子内容\",\n  \"stage_goal_alignment\": \"如何推进阶段目标\"\n}}\n\n只输出JSON，不要其他说明。",
+    "variables": [
+      "novel_title", "start_chapter", "end_chapter", "protagonist_name",
+      "bestseller_ref", "goal_id", "goal_description", "success_criteria",
+      "key_deliverables", "summary_text"
+    ]
   }
 }
