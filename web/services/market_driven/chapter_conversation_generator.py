@@ -183,6 +183,9 @@ class ChapterConversationGenerator:
         # 🔥 加载扩写提示词配置
         self._expansion_config = self._load_expansion_config()
         
+        # 🔥 加载番茄爆款结尾模板
+        self._ending_template = self._load_ending_template()
+        
         # 质检配置
         if quality_config:
             self.QUALITY_CHECK_CONFIG.update(quality_config)
@@ -249,6 +252,34 @@ class ChapterConversationGenerator:
             except Exception as e:
                 logging.warning(f"[ChapterConversationGenerator] 加载扩写配置失败: {e}")
         return {}
+    
+    def _load_ending_template(self) -> str:
+        """加载番茄爆款结尾模板"""
+        config_path = Path(__file__).parent.parent.parent.parent / "prompt_packages" / "default" / "market_driven" / "components" / "chapters" / "standard_chapter_prompts.json"
+        if config_path.exists():
+            try:
+                with open(config_path, 'r', encoding='utf-8') as f:
+                    config = json.load(f)
+                    # 从 tomato_bestseller_ending_templates 中获取 prompt_template
+                    ending_config = config.get("standard_chapter", {}).get("tomato_bestseller_ending_templates", {})
+                    prompt_template = ending_config.get("prompt_template", "")
+                    if prompt_template:
+                        logger.info(f"[ChapterConversationGenerator] 已加载番茄爆款结尾模板")
+                        return prompt_template
+            except Exception as e:
+                logging.warning(f"[ChapterConversationGenerator] 加载结尾模板失败: {e}")
+        
+        # 返回默认模板（硬编码作为后备）
+        return """
+【番茄爆款结尾模板 - 必须遵循】
+章节最后100-150字必须是强力钩子，从以下5种模板中选择1种：
+模板1-危机降临型（推荐）：主角刚成功→突然→新危机出现→悬念截止
+模板2-身份揭露型：关键时刻→有人即将发现真相→揭露前截止
+模板3-系统提示型：完成某事→系统提示→出乎意料的奖励/惩罚
+模板4-时间锁型：倒计时开始→时间紧迫→截止
+模板5-对峙爆发型：正面对峙→剑拔弩张→动手前一秒截止
+【结尾禁忌】禁止以"完"/"结束"/"休息"/"晚安"等词结尾！最后50字必须是悬念！
+"""
     
     def _sanitize_title(self, title: str) -> str:
         """清理书名，去除特殊字符，用于文件名"""
@@ -1053,29 +1084,8 @@ class ChapterConversationGenerator:
                 enhanced_summary = f"【必须承接的钩子】{cross_batch_hook}\n\n{enhanced_summary}"
             prev_summary = enhanced_summary
         
-        # 🔥 番茄爆款结尾模板提示
-        ending_template_prompt = """
-
-【番茄爆款结尾模板 - 必须遵循】
-章节最后100-150字必须是强力钩子，从以下5种模板中选择1种：
-
-模板1-危机降临型（推荐）：主角刚成功→突然→新危机出现→悬念截止
-  示例：苏白刚收好战利品，突然——【全球通告】警告！检测到SS级凶兽正在接近！白月魁脸色骤变："快走！那是..."
-
-模板2-身份揭露型：关键时刻→有人即将发现真相→揭露前截止
-  示例："等等！"白月魁突然盯着苏白，"你刚才用的那招...根本不是盲人的战斗方式！"苏白心中一凛...
-
-模板3-系统提示型：完成某事→系统提示→出乎意料的奖励/惩罚
-  示例：【叮！恭喜宿主完成隐藏任务！】【奖励：扮演度+20%】但紧接着——【警告：您已被标记为SS级目标！】
-
-模板4-时间锁型：倒计时开始→时间紧迫→截止
-  示例：【系统提示】禁地第二区域即将开启，倒计时：23小时59分。【警告】第二区域难度提升100%！
-
-模板5-对峙爆发型：正面对峙→剑拔弩张→动手前一秒截止
-  示例：约翰带着人堵住洞口："终于找到你了，龙国的瞎子。"苏白站起身，嘴角勾起冷笑："你确定要在这里动手？"
-
-【结尾禁忌】禁止以"完"/"结束"/"休息"/"晚安"等词结尾！最后50字必须是悬念！
-"""
+        # 🔥 使用从JSON加载的番茄爆款结尾模板
+        ending_template_prompt = self._ending_template
         
         # 使用优化器构建详细的章节提示词
         if HAS_OPTIMIZER:
