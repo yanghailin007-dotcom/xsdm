@@ -1,0 +1,14 @@
+{
+  "version": "1.0.0",
+  "description": "报告生成模板配置",
+  
+  "window_optimization_report": {
+    "template": "# 滑动窗口优化报告\n\n## 窗口范围：第{window_start}-{window_end}章\n\n## 优化统计\n- 分析章节数：{chapter_count}\n- 发现问题数：{issue_count}\n- 严重问题数：{high_severity_count}\n- 修复章节数：{fixed_count}\n\n## 问题详情\n{issues_by_type}\n\n## 修复详情\n{fix_details}\n\n---\n生成时间：{timestamp}",
+    "variables": ["window_start", "window_end", "chapter_count", "issue_count", "high_severity_count", "fixed_count", "issues_by_type", "fix_details", "timestamp"]
+  },
+  
+  "stage_optimization_report": {
+    "template": "# 阶段性复盘优化报告\n\n## 阶段：第1-{stage_end}章\n\n## 优化统计\n- 总章节数：{chapter_count}\n- 发现问题数：{issue_count}\n- 严重问题数：{high_severity_count}\n\n## 问题分布\n### 剧情连续性\n{plot_issues}\n\n### 角色一致性\n{character_issues}\n\n### 设定一致性\n{world_issues}\n\n### 爆款标准差距\n{bestseller_issues}\n\n## 修复措施\n{fix_plans}\n\n## 章节质量评分\n| 章节 | 字数 | 评分 | 备注 |\n|------|------|------|------|\n{chapter_scores}\n\n---\n生成时间：{timestamp}",
+    "variables": ["stage_end", "chapter_count", "issue_count", "high_severity_count", "plot_issues", "character_issues", "world_issues", "bestseller_issues", "fix_plans", "chapter_scores", "timestamp"]
+  }
+}
