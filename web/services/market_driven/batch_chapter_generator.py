@@ -283,11 +283,26 @@ class BatchChapterGenerator:
             overlap = 2
             
             # 找到当前批次可能覆盖的所有窗口
+            # 正确的窗口结束点应该是: 10, 18, 26, 34... (步长8)，以及最后的200
+            step = window_size - overlap  # 8
+            
             for window_end in range(end_chapter, start_chapter - 1, -1):
-                if window_end % (window_size - overlap) != 0 and window_end != end_chapter:
+                # 检查是否是有效的窗口结束点
+                # 窗口序列: 1-10, 8-17, 16-25, 24-33... 结束于 10, 18, 26, 34... 194, 200
+                # 规律1: (window_end - 10) % 8 == 0  → 10, 18, 26, ... 194
+                # 规律2: window_end == 200 (最后一个特殊窗口)
+                is_standard_window = (window_end >= 10) and ((window_end - 10) % step == 0)
+                is_final_window = (window_end == 200)
+                
+                if not (is_standard_window or is_final_window):
                     continue
                     
-                window_start = max(1, window_end - window_size + 1)
+                # 计算窗口起始点
+                if is_final_window:
+                    window_start = 192  # 最后一个窗口特殊处理: 192-200
+                else:
+                    window_index = (window_end - 10) // step
+                    window_start = 1 + window_index * step
                 
                 # 检查窗口是否已优化过
                 window_key = f"{window_start}-{window_end}"
