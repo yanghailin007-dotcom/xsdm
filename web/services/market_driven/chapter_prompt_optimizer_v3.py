@@ -230,6 +230,44 @@ class ChapterPromptOptimizerV3:
             logger.error(f"[PromptV3] 加载黄金三章提示词配置失败: {e}")
             return {}
     
+    def _load_common_components(self) -> Dict:
+        """从 JSON 加载通用提示词组件"""
+        try:
+            base_dir = Path(__file__).parent.parent.parent.parent
+            components_file = base_dir / "prompt_packages" / "default" / "market_driven" / "common_prompt_components.json"
+            
+            if components_file.exists():
+                with open(components_file, 'r', encoding='utf-8') as f:
+                    components = json.load(f)
+                logger.info(f"[PromptV3] 加载通用提示词组件成功")
+                return components
+            else:
+                logger.warning(f"[PromptV3] 通用提示词组件文件不存在: {components_file}")
+                return {}
+        except Exception as e:
+            logger.error(f"[PromptV3] 加载通用提示词组件失败: {e}")
+            return {}
+    
+    def _get_common_component(self, component_name: str, **kwargs) -> str:
+        """获取通用提示词组件"""
+        components = self._load_common_components()
+        component = components.get(component_name, {})
+        
+        if not component:
+            logger.warning(f"[PromptV3] 未找到通用组件: {component_name}")
+            return ""
+        
+        template = component.get('template', '')
+        variables = component.get('variables', [])
+        
+        # 替换变量
+        if variables:
+            for var in variables:
+                if var in kwargs:
+                    template = template.replace(f'{{{var}}}', str(kwargs[var]))
+        
+        return template
+    
     def _render_template(self, template_type: str) -> str:
         """渲染章节类型模板"""
         template_config = self._chapter_templates.get(template_type, {})
@@ -560,30 +598,12 @@ class ChapterPromptOptimizerV3:
             return None
     
     def _build_header(self) -> str:
-        """构建头部"""
-        return f"""# 🏆 番茄爆款小说生成专家 v3.0
-
-你正在为小说《{self.title}》生成章节内容。
-这是番茄小说平台的爆款作品，必须严格遵循以下所有规则。
-
-【你的任务】
-写出让读者欲罢不能、一章接一章追读的网文！"""
+        """构建头部 - 从 JSON 配置加载"""
+        return self._get_common_component('header', title=self.title)
     
     def _build_core_setting(self) -> str:
-        """构建核心设定"""
-        return """## 【身份设定】
-
-你是番茄小说平台的顶级签约作家，擅长：
-- 快节奏爽文，3章一个小高潮
-- 强情绪流，让读者情绪波动剧烈
-- 震惊流写法，层层递进引发震撼
-- 短段落排版，完美适配手机阅读
-
-【成功标准】
-1. 读者看完一章必须点下一章
-2. 每章都有明确的爽点或钩子
-3. 情绪曲线陡峭，压抑→爆发→满足
-4. 章尾钩子让人心痒难耐"""
+        """构建核心设定 - 从 JSON 配置加载"""
+        return self._get_common_component('core_setting')
     
     def _build_worldview_section(self) -> str:
         """构建世界观章节"""
@@ -673,7 +693,12 @@ class ChapterPromptOptimizerV3:
         return "## 【主角人设】（严格遵循）\n\n" + "\n".join(parts) if parts else ""
     
     def _build_golden_three_chapters(self) -> str:
-        """构建黄金三章指南"""
+        """构建黄金三章指南 - 从 JSON 配置加载"""
+        guide = self._get_common_component('golden_three_chapters')
+        if guide:
+            return guide
+        
+        # 降级：使用硬编码（保留作为降级方案）
         return """## 🏆 黄金三章法则（生死线）
 
 ### 第1章【钩子章】- 必须完成的任务：
@@ -733,7 +758,12 @@ class ChapterPromptOptimizerV3:
 - 禁止没有具体数字的虚写"""
     
     def _build_tomato_algorithm_guide(self) -> str:
-        """构建番茄算法指南"""
+        """构建番茄算法指南 - 从 JSON 配置加载"""
+        guide = self._get_common_component('tomato_algorithm_guide')
+        if guide:
+            return guide
+        
+        # 降级：使用硬编码
         return """## 📊 番茄算法友好指标（必须达成）
 
 ### 段落结构指标
@@ -761,7 +791,12 @@ class ChapterPromptOptimizerV3:
 - **章尾位置**：确保章尾在屏幕可见区域"""
 
     def _build_micro_innovation_guide(self) -> str:
-        """构建微创新原则指南"""
+        """构建微创新原则指南 - 从 JSON 配置加载"""
+        guide = self._get_common_component('micro_innovation_guide')
+        if guide:
+            return guide
+        
+        # 降级：使用硬编码
         return """## 微创新原则（避开老套路）
 
 ### 时间场景微创新
@@ -905,7 +940,12 @@ class ChapterPromptOptimizerV3:
 
     
     def _build_emotion_control(self) -> str:
-        """构建情绪控制指南"""
+        """构建情绪控制指南 - 从 JSON 配置加载"""
+        guide = self._get_common_component('emotion_control')
+        if guide:
+            return guide
+        
+        # 降级：使用硬编码
         return """## 🎭 情绪节奏精确控制
 
 ### 标准情绪曲线模板（按字数分配）
@@ -971,7 +1011,12 @@ class ChapterPromptOptimizerV3:
 - 有点意思..."""
     
     def _build_format_rules(self) -> str:
-        """构建格式规则"""
+        """构建格式规则 - 从 JSON 配置加载"""
+        guide = self._get_common_component('format_rules')
+        if guide:
+            return guide
+        
+        # 降级：使用硬编码
         return """## 📐 格式铁律（必须遵守）
 
 ### 排版规范
@@ -1024,7 +1069,12 @@ class ChapterPromptOptimizerV3:
 5. **危机型**：新的危机突然出现"""
     
     def _build_ai_self_check_guide(self) -> str:
-        """构建AI自检指南（生成后自检）"""
+        """构建AI自检指南（生成后自检）- 从 JSON 配置加载"""
+        guide = self._get_common_component('ai_self_check')
+        if guide:
+            return guide
+        
+        # 降级：使用硬编码
         return """## AI自检指南（生成后必须执行）
 
 重要：生成完章节后，你必须进行自我检查，确保质量达标。
