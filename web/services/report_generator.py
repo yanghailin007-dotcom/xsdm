@@ -6,6 +6,16 @@ import json
 import os
 import matplotlib
 matplotlib.use('Agg')  # 无GUI环境
+
+# 设置中文字体（避免警告和方块字）
+try:
+    # 尝试使用系统自带的中文字体
+    import matplotlib.pyplot as plt
+    plt.rcParams['font.sans-serif'] = ['SimHei', 'Arial Unicode MS', 'DejaVu Sans']
+    plt.rcParams['axes.unicode_minus'] = False  # 解决负号显示问题
+except:
+    pass
+
 import matplotlib.pyplot as plt
 import numpy as np
 from pathlib import Path
