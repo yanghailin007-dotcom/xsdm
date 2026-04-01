@@ -36,7 +36,7 @@ class FanqieRankingCrawler:
     }
     
     # 配置路径
-    CONFIG_PATH = "prompt_packages/default/market_driven/ranking_analysis_prompts.json"
+    CONFIG_PATH = "prompt_packages/default/market_driven/components/ranking_analysis_prompts.json"
     
     # 分类ID映射（需要根据实际API调整）
     CATEGORY_MAP = {
@@ -308,7 +308,7 @@ class FanqieRankingCrawler:
 ❌ 错误：榜单分析提示词配置缺失！
 
 请检查以下配置文件是否存在：
-- prompt_packages/default/market_driven/ranking_analysis_prompts.json
+- prompt_packages/default/market_driven/components/ranking_analysis_prompts.json
 """)
             return []
         

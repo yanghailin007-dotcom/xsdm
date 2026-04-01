@@ -157,7 +157,7 @@ class ChapterConversationGenerator:
     }
     
     # 配置路径
-    CONFIG_PATH = "prompt_packages/default/market_driven/chapter_expansion_prompts.json"
+    CONFIG_PATH = "prompt_packages/default/market_driven/components/chapter_expansion_prompts.json"
     
     def __init__(self, api_client, novel_data: Dict, tropes: Dict, 
                  quality_config: Dict = None,
@@ -241,7 +241,7 @@ class ChapterConversationGenerator:
     
     def _load_expansion_config(self) -> Dict:
         """加载章节扩写提示词配置"""
-        config_path = Path("prompt_packages/default/market_driven/chapter_expansion_prompts.json")
+        config_path = Path("prompt_packages/default/market_driven/components/chapter_expansion_prompts.json")
         if config_path.exists():
             try:
                 with open(config_path, 'r', encoding='utf-8') as f:

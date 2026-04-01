@@ -39,7 +39,7 @@ class WordCountEnforcer:
     """
     
     # 配置路径
-    CONFIG_PATH = "prompt_packages/default/market_driven/word_count_enforcement_prompts.json"
+    CONFIG_PATH = "prompt_packages/default/market_driven/components/word_count_enforcement_prompts.json"
     
     def __init__(self, api_client=None):
         self.api_client = api_client
@@ -174,7 +174,7 @@ class WordCountEnforcer:
 ❌ 错误：字数扩写提示词配置缺失！
 
 请检查以下配置文件是否存在：
-- prompt_packages/default/market_driven/word_count_enforcement_prompts.json
+- prompt_packages/default/market_driven/components/word_count_enforcement_prompts.json
 """
             logger.error(error_msg)
             raise RuntimeError(error_msg)
@@ -201,7 +201,7 @@ class WordCountEnforcer:
 ❌ 错误：字数扩写系统提示词配置缺失！
 
 请检查以下配置文件是否存在：
-- prompt_packages/default/market_driven/word_count_enforcement_prompts.json
+- prompt_packages/default/market_driven/components/word_count_enforcement_prompts.json
 """
             logger.error(error_msg)
             raise RuntimeError(error_msg)

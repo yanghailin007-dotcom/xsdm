@@ -3,8 +3,8 @@
 Strategic Planner
 战略层规划器
 
-一次性规划整部小说的战略框架（200章/50万字）
-只定骨架，不定血肉
+一次性规划整部小说的战略框架�?00�?50万字�?
+只定骨架，不定血�?
 """
 
 import json
@@ -19,11 +19,11 @@ class StrategicPlanner:
     """
     战略层规划器
     
-    职责：
+    职责�?
     1. 规划关键转折点（里程碑）
     2. 确定主角成长路线
     3. 定义情绪节奏的大周期
-    4. 确保200章不崩
+    4. 确保200章不�?
     """
     
     # 配置路径
@@ -34,7 +34,7 @@ class StrategicPlanner:
         self._config = self._load_config()
     
     def _load_config(self) -> Dict:
-        """加载提示词配置"""
+        """加载提示词配�?""
         try:
             from pathlib import Path
             config_path = Path(self.CONFIG_PATH)
@@ -60,16 +60,16 @@ class StrategicPlanner:
         Args:
             genre: 题材
             novel_title: 书名
-            protagonist_name: 主角名
+            protagonist_name: 主角�?
             total_chapters: 总章节数
             target_words: 目标字数
             
         Returns:
             战略框架字典
         """
-        logger.info(f"[StrategicPlanner] 创建战略框架: {novel_title} ({total_chapters}章)")
+        logger.info(f"[StrategicPlanner] 创建战略框架: {novel_title} ({total_chapters}�?")
         
-        # 如果API可用，使用AI生成；否则使用模板
+        # 如果API可用，使用AI生成；否则使用模�?
         if self.api_client:
             return self._generate_with_ai(
                 genre, novel_title, protagonist_name, 
@@ -92,7 +92,7 @@ class StrategicPlanner:
         
         if not template:
             error_msg = """
-❌ 错误：战略规划提示词配置缺失！
+�?错误：战略规划提示词配置缺失�?
 
 请检查以下配置文件是否存在：
 - prompt_packages/default/market_driven/components/planning/strategic_planning_prompts.json
@@ -120,7 +120,7 @@ class StrategicPlanner:
             elif isinstance(response, str):
                 return json.loads(response)
         except Exception as e:
-            logger.warning(f"AI战略框架生成失败: {e}，使用模板")
+            logger.warning(f"AI战略框架生成失败: {e}，使用模�?)
         
         return self._generate_from_template(
             genre, novel_title, protagonist_name,
@@ -131,12 +131,12 @@ class StrategicPlanner:
         self, genre: str, novel_title: str, protagonist_name: str,
         total_chapters: int, target_words: int
     ) -> Dict:
-        """API不可用时返回空结构"""
+        """API不可用时返回空结�?""
         
         logger.error("""
-❌ 错误：无法生成战略框架！
+�?错误：无法生成战略框架！
 
-原因：
+原因�?
 1. API客户端不可用
 2. 战略规划模板配置缺失
 
@@ -157,98 +157,5 @@ class StrategicPlanner:
             "emotion_arc": {},
             "suspense_chain": {},
             "strategic_notes": [],
-            "_error": "API不可用且配置缺失，请检查配置"
+            "_error": "API不可用且配置缺失，请检查配�?
         }
-
-    def validate_tactical_plan(
-        self, 
-        strategic_framework: Dict,
-        tactical_plan: Dict,
-        start_chapter: int,
-        end_chapter: int
-    ) -> List[str]:
-        """
-        验证战术规划是否符合战略框架
-        
-        Args:
-            strategic_framework: 战略框架
-            tactical_plan: 战术规划（30章详细规划）
-            start_chapter: 起始章节
-            end_chapter: 结束章节
-            
-        Returns:
-            问题列表，如果为空则表示符合
-        """
-        issues = []
-        
-        # 1. 检查是否覆盖了关键的里程碑
-        milestones = strategic_framework.get("milestones", [])
-        for ms in milestones:
-            ms_ch = ms["chapter"]
-            if start_chapter <= ms_ch <= end_chapter:
-                # 检查战术规划中是否有对应安排
-                if not self._has_milestone_coverage(tactical_plan, ms_ch):
-                    issues.append(f"第{ms_ch}章是关键转折点'{ms['type']}'，但战术规划未充分体现")
-        
-        # 2. 检查情绪强度是否符合战略
-        expected_intensity = self._get_expected_intensity(
-            strategic_framework, start_chapter, end_chapter
-        )
-        actual_intensity = self._calculate_avg_intensity(tactical_plan)
-        
-        if abs(actual_intensity - expected_intensity) > 1.5:
-            issues.append(f"情绪强度偏差过大：期望{expected_intensity}，实际{actual_intensity}")
-        
-        return issues
-    
-    def _has_milestone_coverage(self, tactical_plan: Dict, chapter: int) -> bool:
-        """检查战术规划是否覆盖了指定章节的关键事件"""
-        chapters = tactical_plan.get("chapters", [])
-        for ch in chapters:
-            if ch.get("chapter_number") == chapter:
-                return ch.get("is_key_event", False) or ch.get("intensity", 0) >= 9
-        return False
-    
-    def _get_expected_intensity(
-        self, framework: Dict, start: int, end: int
-    ) -> float:
-        """获取指定章节范围的期望情绪强度"""
-        stages = framework.get("growth_stages", [])
-        for stage in stages:
-            range_str = stage["range"]
-            s, e = map(int, range_str.replace("章", "").split("-"))
-            if s <= start <= e or s <= end <= e:
-                # 根据阶段返回期望强度
-                if "崛起" in stage["title"]:
-                    return 7.5
-                elif "扩张" in stage["title"]:
-                    return 8.0
-                elif "称霸" in stage["title"]:
-                    return 8.5
-                elif "星际" in stage["title"]:
-                    return 9.0
-                elif "主宰" in stage["title"]:
-                    return 9.5
-        return 7.0
-    
-    def _calculate_avg_intensity(self, tactical_plan: Dict) -> float:
-        """计算战术规划的平均情绪强度"""
-        chapters = tactical_plan.get("chapters", [])
-        if not chapters:
-            return 0.0
-        return sum(ch.get("intensity", 5) for ch in chapters) / len(chapters)
-
-
-# 便捷函数
-def create_strategic_framework(
-    genre: str,
-    novel_title: str,
-    protagonist_name: str,
-    api_client=None,
-    total_chapters: int = 200
-) -> Dict:
-    """便捷函数：创建战略框架"""
-    planner = StrategicPlanner(api_client)
-    return planner.create_strategic_framework(
-        genre, novel_title, protagonist_name, total_chapters
-    )

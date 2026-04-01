@@ -23,7 +23,7 @@ class ChapterInfoExtractor:
     """
     
     # 配置路径
-    CONFIG_PATH = "prompt_packages/default/market_driven/chapter_info_extraction_prompts.json"
+    CONFIG_PATH = "prompt_packages/default/market_driven/components/chapter_info_extraction_prompts.json"
     
     def __init__(self, api_client=None):
         self.api_client = api_client
@@ -54,7 +54,7 @@ class ChapterInfoExtractor:
 ❌ 错误：章节信息提取配置缺失！
 
 请检查以下配置文件是否存在：
-- prompt_packages/default/market_driven/chapter_info_extraction_prompts.json
+- prompt_packages/default/market_driven/components/chapter_info_extraction_prompts.json
 
 或使用API创建配置：
 POST /api/v2/prompt-config/component/chapter_info_extraction
@@ -151,7 +151,7 @@ POST /api/v2/prompt-config/component/chapter_info_extraction
 ❌ 错误：章节信息提取模板配置缺失！
 
 请检查以下配置文件是否存在：
-- prompt_packages/default/market_driven/chapter_info_extraction_prompts.json
+- prompt_packages/default/market_driven/components/chapter_info_extraction_prompts.json
 """
             logger.error(error_msg)
             raise RuntimeError(error_msg)

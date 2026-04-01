@@ -24,7 +24,7 @@ class BatchSummarizer:
     """
     
     # 配置路径
-    CONFIG_PATH = "prompt_packages/default/market_driven/batch_summary_prompts.json"
+    CONFIG_PATH = "prompt_packages/default/market_driven/components/batch_summary_prompts.json"
     
     def __init__(self, api_client=None):
         self.api_client = api_client
@@ -217,7 +217,7 @@ class BatchSummarizer:
 ❌ 错误：批次总结提示词配置缺失！
 
 请检查以下配置文件是否存在：
-- prompt_packages/default/market_driven/batch_summary_prompts.json
+- prompt_packages/default/market_driven/components/batch_summary_prompts.json
 """
             logger.error(error_msg)
             raise RuntimeError(error_msg)
