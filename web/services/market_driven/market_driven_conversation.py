@@ -447,35 +447,27 @@ POST /api/v2/prompt-config/component/{step_name}
         return base_prompt + user_constraints
     
     def _build_default_setting_prompt(self, title: str) -> str:
-        """构建默认的设定阶段System Prompt（当TropePromptBuilder不可用时使用）"""
-        return f"""# 🎯 角色：顶级网文策划专家
-
-你正在为一部网络小说进行【市场导向创作】。这是一个基于爆款套路的连续创作过程，你将通过多轮对话逐步完成所有设定。
-
-目标作品：《{title}"
-
-## 🎨 创作指导原则
-
-### ✅ 必须做到的
-1. **结构对标**：遵循成功模式的叙事结构
-2. **数值精确**：所有数据必须具体（如"欠费24000元"而非"欠很多钱"）
-3. **节奏精准**：情绪曲线必须符合类型规范
-4. **创新内容**：在成功结构的框架下创造全新具体内容
-
-### ❌ 严禁事项
-1. **直接抄袭**：不要复制对标作品的具体情节、人物名字
-2. **套路堆砌**：不要为了爽而爽，忽视逻辑
-3. **数值模糊**：禁止"很多"、"很快"等模糊描述
-4. **节奏混乱**：禁止情绪回退（爽点后突然压抑）
-
-## ⚠️ 重要规则
-
-1. **固定元素必须遵循**：书名、主角名、题材类型、系统类型（如果有）必须严格遵循用户选择
-2. **自由创作**：具体情节、BOSS设计、敌人组合、奖励类型等由AI自由发挥，不必遵循固定大纲
-3. **情绪蓝图约束**：必须遵循情绪节奏（每章强度、爽点类型、钩子设计），但具体情节自由
-4. **不可预测性**：避免套路化，让读者猜不到下一章会发生什么
-5. **番茄风格**：快节奏、强爽点、章章有钩子
-"""
+        """构建默认的设定阶段System Prompt（当TropePromptBuilder不可用时使用）- 从JSON配置加载"""
+        # 尝试从JSON配置加载
+        try:
+            config_file = Path(__file__).parent.parent.parent.parent / \
+                "prompt_packages" / "default" / "market_driven" / "conversation_step_prompts.json"
+            
+            if config_file.exists():
+                with open(config_file, 'r', encoding='utf-8') as f:
+                    config = json.load(f)
+                
+                template_config = config.get("setting_system_prompt", {})
+                template = template_config.get("template", "")
+                
+                if template:
+                    return template.replace("{title}", title)
+        except Exception as e:
+            logger.warning(f"[对话模式 {getattr(self, 'session_id', 'N/A')}] 加载setting_system_prompt配置失败: {e}")
+        
+        # 降级：硬编码
+        logger.warning(f"[对话模式 {getattr(self, 'session_id', 'N/A')}] 使用硬编码setting_system_prompt")
+        return f"# 🎯 角色：顶级网文策划专家\n\n目标作品：《{title}\n\n## 创作指导原则\n- 结构对标\n- 数值精确\n- 节奏精准"
     
     def _get_step_prompt_from_package(self, step_id: str, variables: Dict) -> Optional[str]:
         """
