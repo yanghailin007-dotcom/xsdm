@@ -28,6 +28,14 @@ from .prompt_loader import get_prompt_loader
 
 logger = logging.getLogger(__name__)
 
+class ConfigError(Exception):
+    """配置错误异常"""
+    def __init__(self, message: str, config_file: str = None):
+        self.message = message
+        self.config_file = config_file
+        super().__init__(f"[{config_file}] {message}" if config_file else message)
+
+
 
 class ChapterPromptOptimizerV3:
     """
@@ -1466,6 +1474,168 @@ class ChapterPromptOptimizerV3:
 """
         return prompt
     
+    def _render_golden_chapter_2_from_config(self, blueprint: Dict, prev_summary: str) -> str:
+        """从 JSON 配置渲染第2章提示词"""
+        config = self._golden_chapter_prompts.get('chapter_2', {})
+        common = self._golden_chapter_prompts.get('common_elements', {})
+        
+        structure = config.get('structure', {})
+        emotion_vocab = config.get('emotion_vocabulary', {})
+        algo_req = common.get('algorithm_requirements', {})
+        
+        emotion_curve = config.get('emotion_curve', ['犹豫', '期待', '满足', '紧张'])
+        emotion_curve_str = ' → '.join(emotion_curve)
+        
+        prompt = f"""# 第2章生成指令【黄金三章 - 收益验证章】
+
+**功能：{config.get('function', '金手指成功应用 + 第一次小爽点')}**
+**目标：{config.get('goal', '让读者对金手指有信心，期待后续')}**
+
+## 【情绪曲线】（必须严格遵循）
+{emotion_curve_str}
+
+## 【结构要求】（按字数节拍创作）
+
+### 承接回顾（{structure.get('recap', {}).get('range', '0-300字')}）
+{structure.get('recap', {}).get('requirement', '简洁承接第一章，回顾系统')}
+
+### 首次使用（{structure.get('first_use', {}).get('range', '800字处')}）
+{structure.get('first_use', {}).get('requirement', '金手指首次正式使用')}
+
+### 首次成功（{structure.get('first_success', {}).get('range', '1500字处')}）
+{structure.get('first_success', {}).get('requirement', '第一次成功，具体数字收益')}
+
+### 新冲突（{structure.get('new_conflict', {}).get('range', '章尾')}）
+{structure.get('new_conflict', {}).get('requirement', '新反派登场，更大危机')}
+
+## 【情绪词汇表】（必须选用）
+- 犹豫：{', '.join(emotion_vocab.get('hesitation', ['迟疑', '纠结', '忐忑']))}
+- 期待：{', '.join(emotion_vocab.get('anticipation', ['心跳加速', '呼吸急促']))}
+- 满足：{', '.join(emotion_vocab.get('satisfaction', ['狂喜', '畅快', '扬眉吐气']))}
+- 紧张：{', '.join(emotion_vocab.get('tension', ['瞳孔收缩', '后背发凉']))}
+
+{self._render_algorithm_requirements_from_config(algo_req)}
+
+{self._render_self_check_from_config(config.get('self_check_steps', []))}
+
+{self._render_output_format_from_config(common.get('output_format', {}))}
+"""
+        return prompt
+
+    def _render_golden_chapter_3_from_config(self, blueprint: Dict, prev_summary: str) -> str:
+        """从 JSON 配置渲染第3章提示词"""
+        config = self._golden_chapter_prompts.get('chapter_3', {})
+        common = self._golden_chapter_prompts.get('common_elements', {})
+        
+        structure = config.get('structure', {})
+        shock_flow = config.get('shock_flow', {})
+        algo_req = common.get('algorithm_requirements', {})
+        
+        layers = shock_flow.get('layers', [])
+        layers_str = '\n'.join([f"- {layer}" for layer in layers])
+        
+        prompt = f"""# 第3章生成指令【黄金三章 - 打脸章】
+
+**功能：{config.get('function', '铺垫→压抑→爆发→震惊流')}**
+**目标：{config.get('goal', '让读者彻底痛快，建立追读信心')}**
+**情绪强度：{config.get('emotion_intensity', '8→10→9→7')}**
+
+## 【结构要求】（严格按节拍分配）
+
+### 承接回顾（{structure.get('recap', {}).get('range', '0-200字')}）
+{structure.get('recap', {}).get('requirement', '回顾上一章结尾，简洁过渡')}
+
+### 反派极致羞辱（{structure.get('villain_ramp_up', {}).get('range', '500字处')}）
+**情绪强度：8/10**
+{structure.get('villain_ramp_up', {}).get('requirement', '反派极致羞辱')}
+
+### 转折点（{structure.get('turning_point', {}).get('range', '800-1200字')}）
+{structure.get('turning_point', {}).get('requirement', '主角反击开始，反派出招')}
+
+### 打脸高潮（{structure.get('climax', {}).get('range', '1500字处')}）
+**情绪强度：10/10（本章最高潮）**
+{structure.get('climax', {}).get('requirement', '打脸高潮，碾压式反击')}
+
+### 收益展示（{structure.get('harvest', {}).get('range', '2000字处')}）
+{structure.get('harvest', {}).get('requirement', '系统提示+具体数字收益')}
+
+### 章尾钩子（{structure.get('hook', {}).get('range', '章尾')}）
+{structure.get('hook', {}).get('requirement', '更大反派/新目标')}
+
+## 【震惊流写法】（必须三层结构）
+{shock_flow.get('description', '现场→传播→权威')}
+
+**铺展层次：**
+{layers_str}
+
+**反派转变：{shock_flow.get('villain_turn', '180度态度转变')}**
+
+{self._render_algorithm_requirements_from_config(algo_req)}
+
+{self._render_self_check_from_config(config.get('self_check_steps', []))}
+
+{self._render_output_format_from_config(common.get('output_format', {}))}
+"""
+        return prompt
+
+    def _render_standard_chapter_from_config(
+        self, chapter_num: int, chapter_type: str, 
+        blueprint: Dict, prev_summary: str
+    ) -> str:
+        """从 JSON 配置渲染标准章节提示词"""
+        if not self._standard_chapter_prompts:
+            raise ConfigError("标准章节提示词配置未加载", "standard_chapter_prompts.json")
+        
+        config = self._standard_chapter_prompts
+        
+        # 提取蓝图变量
+        scene = blueprint.get('scene', '')
+        event = blueprint.get('event', '')
+        emotion = blueprint.get('emotion', '')
+        purpose = blueprint.get('purpose', '')
+        beat_type = blueprint.get('beat_type', '')
+        
+        # 构建策略列表
+        strategies = config.get('expansion_strategies', [])
+        strategies_str = '\n'.join([f"- {s}" for s in strategies])
+        
+        # 构建连贯性检查列表
+        coherence = config.get('coherence_checks', [])
+        coherence_str = '\n'.join([f"- {c}" for c in coherence])
+        
+        # 构建提示词
+        prompt = f"""# 第{chapter_num}章生成指令
+
+## 【章节定位】
+类型：{chapter_type}
+情绪：{emotion if emotion else '根据章节功能判断'}
+
+## 【战术大纲约束】
+**场景：{scene}**
+**事件：{event}**
+**战术企图：{purpose}**
+**节拍类型：{beat_type}**
+
+## 【字数要求】
+{config.get('word_count', {}).get('target', '2200-2500字')}
+绝对下限：{config.get('word_count', {}).get('min_absolute', '2000字')}，绝对上限：{config.get('word_count', {}).get('max_absolute', '2500字')}
+
+## 【算法要求】
+{self._render_algorithm_requirements_from_config(config.get('algorithm_requirements', {}))}
+
+## 【展开策略】
+{strategies_str}
+
+## 【连贯性检查】
+{coherence_str}
+
+## 【自检清单】
+{self._render_self_check_from_config(config.get('self_check_steps', []))}
+
+{self._render_output_format_from_config(config.get('output_format', {}))}
+"""
+        return prompt
+
     def _render_algorithm_requirements_from_config(self, algo: Dict) -> str:
         """从配置渲染算法要求"""
         if not algo:
