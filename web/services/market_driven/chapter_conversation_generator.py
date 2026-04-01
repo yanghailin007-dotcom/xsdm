@@ -542,9 +542,18 @@ class ChapterConversationGenerator:
                 
                 # 检查分数
                 if quality_report.score < self.QUALITY_CHECK_CONFIG["min_score"]:
+                    # 收集扣分项详情
+                    issues_detail = []
+                    for issue in quality_report.issues:
+                        severity_icon = "🔴" if issue.severity.value == "critical" else "🟠" if issue.severity.value == "error" else "🟡"
+                        issues_detail.append(f"{severity_icon} [{issue.category}] {issue.message}")
+                    
+                    issues_str = "\n    ".join(issues_detail) if issues_detail else "无详细扣分项"
+                    
                     logger.warning(
                         f"[章节对话 {self.session_id}] 第{chapter_num}章分数较低({quality_report.score})，"
-                        f"但仍继续生成"
+                        f"但仍继续生成\n"
+                        f"    扣分详情 ({len(quality_report.issues)}项):\n    {issues_str}"
                     )
                 
                 # 自动修复
