@@ -870,6 +870,7 @@ class ChapterConversationGenerator:
     def _check_content_completeness(self, content: str, chapter_num: int) -> dict:
         """
         检查章节内容是否完整（未被截断）
+        番茄爆款结尾标准：最后50字必须是悬念/钩子
         
         Returns:
             {
@@ -884,43 +885,66 @@ class ChapterConversationGenerator:
         content_stripped = content.strip()
         last_char = content_stripped[-1] if content_stripped else ''
         
-        # 中文标点 + 英文标点
-        sentence_endings = ['。', '！', '？', '」', '"', "'", '…', '.', '!', '?']
+        # 中文标点 + 英文标点 + 省略号
+        sentence_endings = ['。', '！', '？', '」', '"', "'", '…', '.', '!', '?', '——', '—']
         
         if last_char not in sentence_endings:
             issues.append(f"章节未以完整句子结尾（最后字符：'{last_char}'），可能已被截断")
         
-        # 2. 检查是否有明显的"未完待续"标记
-        incomplete_markers = ['第一个。', '第二个。', '第三个。', '刚要', '正要', '即将', '突然——']
-        last_200_chars = content_stripped[-200:] if len(content_stripped) > 200 else content_stripped
+        # 2. 【番茄爆款标准】检查章尾钩子质量（最后150字内）
+        last_150_chars = content_stripped[-150:] if len(content_stripped) > 150 else content_stripped
         
-        for marker in incomplete_markers:
-            if marker in last_200_chars and last_char in ['。', '！']:
-                # 检查后面是否有后续内容
-                marker_pos = last_200_chars.rfind(marker)
-                if marker_pos > len(last_200_chars) - 50:  # 标记在最后50字内
-                    issues.append(f"章节以'{marker}'结尾，爽点/情节可能未释放完全")
+        # 钩子关键词库（扩展版 - 番茄爆款常用）
+        hook_keywords_crisis = ['突然', '就在这时', '与此同时', '远处', '警告', '紧急', '危险', '致命']
+        hook_keywords_system = ['系统提示', '系统警告', '叮', '公告', '通知', '任务发布']
+        hook_keywords_reveal = ['原来', '难道', '终于发现', '真相', '秘密', '身份']
+        hook_keywords_confront = ['冷笑', '对峙', '剑拔弩张', '一触即发', '大战', '动手']
+        hook_keywords_time = ['倒计时', '时间到', '即将', '马上', '刻不容缓']
+        hook_keywords_emotion = ['震惊', '骇然', '惊恐', '狂喜', '绝望', '不敢置信']
         
-        # 3. 检查是否有章尾钩子（最后100字内是否有悬念或期待感）
-        last_100_chars = content_stripped[-100:] if len(content_stripped) > 100 else content_stripped
-        hook_keywords = ['然而', '突然', '就在这时', '与此同时', '远处', '系统提示', '警告', '通知']
-        has_hook = any(kw in last_100_chars for kw in hook_keywords)
+        all_hook_keywords = (
+            hook_keywords_crisis + hook_keywords_system + hook_keywords_reveal + 
+            hook_keywords_confront + hook_keywords_time + hook_keywords_emotion
+        )
+        
+        found_hooks = [kw for kw in all_hook_keywords if kw in last_150_chars]
+        has_hook = len(found_hooks) > 0
+        
+        # 检查最后50字是否以悬念结尾（不能有完结感）
+        last_50_chars = content_stripped[-50:] if len(content_stripped) > 50 else content_stripped
+        forbidden_endings = ['完', '结束', '落幕', '安息', '休息', '睡觉', '晚安']
+        has_forbidden_ending = any(fe in last_50_chars for fe in forbidden_endings)
         
         if not has_hook and len(content_stripped) > 1500:
-            issues.append("章尾可能缺少钩子（最后100字内无明显悬念标记）")
+            issues.append(f"章尾可能缺少钩子（最后150字内无明显悬念标记）。建议模板：危机降临/系统提示/身份揭露/对峙爆发")
+        elif has_forbidden_ending:
+            issues.append("章尾有完结感词汇（完/结束/休息等），违反番茄爆款'章章有钩子'原则")
         
-        # 4. 检查字数是否严重不足
+        # 3. 【优化】对"未完待续"标记的检测 - 放宽标准
+        # 番茄爆款允许"突然"、"正要"等悬念词结尾
+        incomplete_markers_strict = ['第一个。', '第二个。', '第三个。']
+        last_100_chars = content_stripped[-100:] if len(content_stripped) > 100 else content_stripped
+        
+        for marker in incomplete_markers_strict:
+            if marker in last_100_chars:
+                marker_pos = last_100_chars.rfind(marker)
+                if marker_pos > len(last_100_chars) - 30:  # 只在最后30字内才算问题
+                    issues.append(f"章节以列表标记'{marker}'结尾，建议改为悬念钩子")
+        
+        # 4. 检查字数
         word_count = len(content_stripped)
         if word_count < 1800:
             issues.append(f"字数严重不足（{word_count}字），内容可能不完整")
         elif word_count < 2000:
             issues.append(f"字数不足（{word_count}字），可能缺少部分内容")
         
-        # 返回结果
-        is_complete = len(issues) == 0 or (len(issues) == 1 and '钩子' in issues[0])
+        # 返回结果 - 只有字数问题才算严重，钩子问题只提醒
+        is_complete = word_count >= 1800
         
         return {
             'is_complete': is_complete,
+            'has_strong_hook': has_hook and len(found_hooks) >= 2,
+            'hook_keywords_found': found_hooks,
             'reason': '; '.join(issues) if issues else '内容完整',
             'issues': issues
         }
@@ -1029,20 +1053,44 @@ class ChapterConversationGenerator:
                 enhanced_summary = f"【必须承接的钩子】{cross_batch_hook}\n\n{enhanced_summary}"
             prev_summary = enhanced_summary
         
+        # 🔥 番茄爆款结尾模板提示
+        ending_template_prompt = """
+
+【番茄爆款结尾模板 - 必须遵循】
+章节最后100-150字必须是强力钩子，从以下5种模板中选择1种：
+
+模板1-危机降临型（推荐）：主角刚成功→突然→新危机出现→悬念截止
+  示例：苏白刚收好战利品，突然——【全球通告】警告！检测到SS级凶兽正在接近！白月魁脸色骤变："快走！那是..."
+
+模板2-身份揭露型：关键时刻→有人即将发现真相→揭露前截止
+  示例："等等！"白月魁突然盯着苏白，"你刚才用的那招...根本不是盲人的战斗方式！"苏白心中一凛...
+
+模板3-系统提示型：完成某事→系统提示→出乎意料的奖励/惩罚
+  示例：【叮！恭喜宿主完成隐藏任务！】【奖励：扮演度+20%】但紧接着——【警告：您已被标记为SS级目标！】
+
+模板4-时间锁型：倒计时开始→时间紧迫→截止
+  示例：【系统提示】禁地第二区域即将开启，倒计时：23小时59分。【警告】第二区域难度提升100%！
+
+模板5-对峙爆发型：正面对峙→剑拔弩张→动手前一秒截止
+  示例：约翰带着人堵住洞口："终于找到你了，龙国的瞎子。"苏白站起身，嘴角勾起冷笑："你确定要在这里动手？"
+
+【结尾禁忌】禁止以"完"/"结束"/"休息"/"晚安"等词结尾！最后50字必须是悬念！
+"""
+        
         # 使用优化器构建详细的章节提示词
         if HAS_OPTIMIZER:
             try:
                 optimizer = ChapterPromptOptimizer(self.novel_data)
                 chapter_prompt = optimizer.build_chapter_prompt(chapter_num, chapter_plan, prev_summary)
-                # 在章节提示词前添加主角设定提醒和世界状态约束
-                return protagonist_reminder + world_state_constraint + chapter_prompt
+                # 在章节提示词前添加主角设定提醒和世界状态约束，后加结尾模板
+                return protagonist_reminder + world_state_constraint + chapter_prompt + ending_template_prompt
             except Exception as e:
                 logger.warning(f"[章节对话 {self.session_id}] 优化器失败，使用备用模式: {e}")
         
         # 使用简化版优化器（备用）
         optimizer = SimpleOptimizer(self.novel_data)
         chapter_prompt = optimizer.build_chapter_prompt(chapter_num, chapter_plan, prev_summary)
-        return protagonist_reminder + chapter_prompt
+        return protagonist_reminder + chapter_prompt + ending_template_prompt
     
     def _parse_response(self, response) -> Dict:
         """
