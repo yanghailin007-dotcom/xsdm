@@ -40,19 +40,6 @@ CONFIG = {
                 "stream": False
             },
             {
-                "name": "aiberm",
-                "api_url": "https://aiberm.com/v1/chat/completions",
-                "api_key": os.getenv('AIBERM_API_KEY', 'sk-dWu7JFD69zTYeSLZiWV8OQYBjQ2IoJlQCmSo3f963ArGEAju'),
-                "model": "google/gemini-3-flash",
-                "assessment": "google/gemini-2.5-flash",
-                "priority": 1,
-                "enabled": True,
-                "timeout": 300,
-                "max_retries": 3,
-                "discount_rate": 150,
-                "stream": True
-            },
-            {
                 "name": "aiapi-world",
                 "api_url": "https://aiapi.world/v1/chat/completions",
                 "api_key": os.getenv('AIAPI_WORLD_KEY', 'sk-h0obXbJ7NRUmu9ic9mgOYuFiK7vmTSENhDEGk3mJIPHlLm0L'),
@@ -64,6 +51,19 @@ CONFIG = {
                 "max_retries": 3,
                 "discount_rate": 100,
                 "stream": False
+            },
+            {
+                "name": "aiberm",
+                "api_url": "https://aiberm.com/v1/chat/completions",
+                "api_key": os.getenv('AIBERM_API_KEY', 'sk-dWu7JFD69zTYeSLZiWV8OQYBjQ2IoJlQCmSo3f963ArGEAju'),
+                "model": "google/gemini-3-flash",
+                "assessment": "google/gemini-2.5-flash",
+                "priority": 1,
+                "enabled": True,
+                "timeout": 300,
+                "max_retries": 3,
+                "discount_rate": 150,
+                "stream": True
             },
             {
                 "name": "xiaochuang-backup",
