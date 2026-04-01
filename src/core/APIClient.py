@@ -75,7 +75,9 @@ class ConversationSession:
         self.max_history = 20
         
         self.logger = api_client.logger
-        self.logger.info(f"[对话会话] 创建成功 | 提供商: {self.provider} | 模型: {model_name or '默认'} | 历史限制: {self.max_history}")
+        # 🔥 显示提供商池和实际默认模型信息
+        actual_provider = self.provider or api_client.default_provider
+        self.logger.info(f"[对话会话] 创建成功 | 提供商池: {actual_provider} | 模型: {model_name or '默认'} | 历史限制: {self.max_history}")
     
     def send_message(self, user_prompt: str, temperature: Optional[float] = None,
                      max_tokens: Optional[int] = None, purpose: Optional[str] = None) -> Optional[str]:
@@ -1259,7 +1261,7 @@ class APIClient:
         all_stats = pool.get_pool_stats()
         total_eps = all_stats["total_endpoints"]
         available_eps = all_stats["available_endpoints"]
-        self.logger.info(f"{user_str}🚀 开始API调用 [提供商:{target_provider}] 目的:{purpose}")
+        self.logger.info(f"{user_str}🚀 开始API调用 [提供商池:{target_provider}] 目的:{purpose}")
         self.logger.info(f"{user_str}   端点状态: {available_eps}/{total_eps} 个可用")
         for ep in all_stats["endpoints"]:
             status_icon = "🟢" if ep["status"] == "healthy" else "🟡" if ep["status"] == "degraded" else "🔴"
@@ -1466,7 +1468,7 @@ class APIClient:
         target_provider = provider if provider else self.default_provider
         user_str = self._get_username_str()
         
-        self.logger.info(f"{user_str}💬 [多轮对话] 调用 | 提供商: {target_provider} | 消息数: {len(messages)}")
+        self.logger.info(f"{user_str}💬 [多轮对话] 调用 | 提供商池: {target_provider} | 消息数: {len(messages)}")
         
         # 获取端点池
         pool = self.endpoint_pools.get(target_provider)

@@ -562,12 +562,52 @@ POST /api/v2/prompt-config/component/chapter_stage
         return "\n".join(parts)
     
     def _extract_chapter_rhythm_rules(self) -> str:
-        """提取章节写作的节奏规则"""
-        return """```
-第1层（现场）：身边人震惊
-第2层（直播间）：网友刷屏
-第3层（全球）：高层/世界反应
-```
+        """提取章节写作的节奏规则（从 shock_flow.json 加载）"""
+        # 从 style_loader 加载 shock_flow 配置
+        from .style_loader import StyleLoader
+        
+        try:
+            style_loader = StyleLoader()
+            shock_flow = style_loader.load_style("shock_flow")
+            
+            if shock_flow:
+                # 提取核心原则
+                principles = shock_flow.get('core_principles', [])
+                principles_text = "\n".join([f"- {p}" for p in principles])
+                
+                # 提取层级说明（从 levels 字段）
+                levels = shock_flow.get('levels', {})
+                levels_desc = []
+                
+                # 按 order 排序
+                sorted_levels = sorted(levels.items(), 
+                                      key=lambda x: x[1].get('order', 999))
+                for level_id, level_info in sorted_levels:
+                    name = level_info.get('name', level_id)
+                    desc = level_info.get('description', '')
+                    levels_desc.append(f"- {name}：{desc}")
+                
+                levels_text = "\n".join(levels_desc)
+                
+                # 提取字数指南
+                word_count_guide = shock_flow.get('word_count_guide', {})
+                total_range = word_count_guide.get('total', '600-1000字')
+                
+                return f"""{principles_text}
+
+**震惊铺展顺序**（禁止写"第X层"标签）：
+{levels_text}
+
+**字数分配**：震惊部分占章节总字数 {total_range}"""
+        
+        except Exception as e:
+            logger.warning(f"[TropePromptBuilder] 加载 shock_flow.json 失败: {e}，使用降级配置")
+        
+        # 降级配置（不带"第X层"标签）
+        return """震惊铺展顺序（禁止写"第X层"标签）：
+- 先写现场：当事人的表情、动作、内心反应
+- 再写直播：弹幕停滞→爆炸，主播失态/造梗  
+- 最后权威：专家/官方从质疑到震惊的递进
 
 **要求**：
 - 小爽点：至少2层震惊

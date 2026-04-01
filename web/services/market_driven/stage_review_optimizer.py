@@ -1295,13 +1295,37 @@ class StageReviewOptimizer:
                     continue
                 
                 # 解析修复结果
+                new_content = None
+                new_title_from_ai = None
+                
                 if "chapter_number" in fix_data:
                     new_content = fix_data.get("content")
+                    new_title_from_ai = fix_data.get("title")  # 🔥 获取分开的title
                 elif "fixed_chapters" in fix_data and len(fix_data["fixed_chapters"]) > 0:
                     new_content = fix_data["fixed_chapters"][0].get("content")
+                    new_title_from_ai = fix_data["fixed_chapters"][0].get("title")
                 else:
                     retry_count += 1
                     continue
+                
+                # 🔥 兼容处理：如果AI仍返回合并格式（content包含标题），尝试分离
+                if new_content and not new_title_from_ai:
+                    lines = new_content.strip().split('\n')
+                    if lines and ('第' in lines[0] and ('章' in lines[0] or '：' in lines[0])):
+                        # 第一行可能是标题
+                        potential_title = lines[0].strip()
+                        # 去掉"第X章"前缀
+                        import re
+                        match = re.search(r'第[一二三四五六七八九十百千万零\d]+章[：:\s]*(.+)', potential_title)
+                        if match:
+                            new_title_from_ai = match.group(1).strip()
+                        elif '：' in potential_title:
+                            new_title_from_ai = potential_title.split('：', 1)[1].strip()
+                        else:
+                            new_title_from_ai = potential_title
+                        # 剩余行作为正文
+                        new_content = '\n'.join(lines[1:]).strip()
+                        logger.info(f"[StageOptimizer] 第{ch_num}章从合并格式中分离出标题: '{new_title_from_ai}'")
                 
                 ch_idx = chapter_map[ch_num]
                 original_word_count = fixed_chapters[ch_idx].get("word_count", 0)
@@ -1350,15 +1374,9 @@ class StageReviewOptimizer:
                 fixed_chapters[ch_idx]["optimized"] = True
                 
                 # 🔥 更新标题（如果AI返回了新标题）
-                new_title = None
-                if "chapter_number" in fix_data:
-                    new_title = fix_data.get("title")
-                elif "fixed_chapters" in fix_data and len(fix_data["fixed_chapters"]) > 0:
-                    new_title = fix_data["fixed_chapters"][0].get("title")
-                
-                if new_title and new_title.strip() and new_title.strip() != ch_title:
-                    fixed_chapters[ch_idx]["title"] = new_title.strip()
-                    logger.info(f"[StageOptimizer] 第{ch_num}章标题已优化: '{ch_title}' -> '{new_title.strip()}'")
+                if new_title_from_ai and new_title_from_ai.strip() and new_title_from_ai.strip() != ch_title:
+                    fixed_chapters[ch_idx]["title"] = new_title_from_ai.strip()
+                    logger.info(f"[StageOptimizer] 第{ch_num}章标题已优化: '{ch_title}' -> '{new_title_from_ai.strip()}'")
                 
                 logger.info(f"[StageOptimizer] 第{ch_num}章已优化: {original_word_count} -> {new_word_count}字 ({change_pct:+.1f}%)")
             

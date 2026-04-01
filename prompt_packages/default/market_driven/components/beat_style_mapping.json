@@ -1,0 +1,38 @@
+{
+  "version": "1.0.0",
+  "description": "节拍类型到风格配置的映射",
+  "mapping": {
+    "SETUP": {
+      "style_id": null,
+      "description": "铺垫章节，不需要特殊风格"
+    },
+    "CONFLICT": {
+      "style_id": "face_slap",
+      "description": "冲突章节，使用打脸流"
+    },
+    "CLIMAX": {
+      "style_id": "shock_flow",
+      "description": "高潮章节，使用震惊流"
+    },
+    "TRANSITION": {
+      "style_id": "transition",
+      "description": "过渡章节"
+    },
+    "REWARD": {
+      "style_id": "reward",
+      "description": "收获章节"
+    },
+    "REVEAL": {
+      "style_id": "reveal",
+      "description": "揭秘章节"
+    },
+    "CRISIS": {
+      "style_id": "shock_flow",
+      "description": "危机章节，使用震惊流增强紧迫感"
+    }
+  },
+  "default_mapping": {
+    "style_id": null,
+    "description": "默认无特殊风格"
+  }
+}

@@ -1297,13 +1297,32 @@ class ChapterPromptOptimizerV3:
         purpose = blueprint.get('purpose', '')
         beat_type = blueprint.get('beat_type', '')
         
-        # 构建策略列表
-        strategies = config.get('expansion_strategies', [])
-        strategies_str = '\n'.join([f"- {s}" for s in strategies])
+        # 🔥 优先使用 blueprint 中传入的动态配置（从 chapter_expansion_prompts.json 加载）
+        # 展开策略
+        if 'expansion_strategy' in blueprint:
+            strategies_str = blueprint['expansion_strategy']
+        else:
+            strategies = config.get('expansion_strategies', [])
+            strategies_str = '\n'.join([f"- {s}" for s in strategies])
         
-        # 构建连贯性检查列表
-        coherence = config.get('coherence_checks', [])
-        coherence_str = '\n'.join([f"- {c}" for c in coherence])
+        # 弹幕剧本
+        if 'bullet_script' in blueprint:
+            bullet_script_str = blueprint['bullet_script']
+        else:
+            bullet_script_str = "根据情绪变化自然设计弹幕"
+        
+        # 连贯性检查
+        if 'coherence_check' in blueprint:
+            coherence_str = blueprint['coherence_check']
+        else:
+            coherence = config.get('coherence_checks', [])
+            coherence_str = '\n'.join([f"- {c}" for c in coherence])
+        
+        # 自检清单
+        if 'self_check_list' in blueprint:
+            self_check_str = blueprint['self_check_list']
+        else:
+            self_check_str = self._render_self_check_from_config(config.get('self_check_steps', []))
         
         # 构建提示词
         prompt = f"""# 第{chapter_num}章生成指令
@@ -1328,11 +1347,14 @@ class ChapterPromptOptimizerV3:
 ## 【展开策略】
 {strategies_str}
 
+## 【弹幕剧本】
+{bullet_script_str}
+
 ## 【连贯性检查】
 {coherence_str}
 
 ## 【自检清单】
-{self._render_self_check_from_config(config.get('self_check_steps', []))}
+{self_check_str}
 
 {self._render_output_format_from_config(config.get('output_format', {}))}
 """

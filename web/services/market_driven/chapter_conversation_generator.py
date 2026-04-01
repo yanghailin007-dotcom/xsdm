@@ -183,6 +183,12 @@ class ChapterConversationGenerator:
         # 🔥 加载扩写提示词配置
         self._expansion_config = self._load_expansion_config()
         
+        # 🔥 加载章节展开策略配置
+        self._chapter_expansion_prompts = self._load_chapter_expansion_prompts()
+        
+        # 🔥 加载节拍类型到风格的映射配置
+        self._beat_style_mapping = self._load_beat_style_mapping()
+        
         # 🔥 加载番茄爆款结尾模板
         self._ending_template = self._load_ending_template()
         
@@ -253,6 +259,32 @@ class ChapterConversationGenerator:
                 logging.warning(f"[ChapterConversationGenerator] 加载扩写配置失败: {e}")
         return {}
     
+    def _load_chapter_expansion_prompts(self) -> Dict:
+        """加载章节展开策略和弹幕剧本配置"""
+        config_path = Path(__file__).parent.parent.parent.parent / "prompt_packages" / "default" / "market_driven" / "components" / "chapter_expansion_prompts.json"
+        if config_path.exists():
+            try:
+                with open(config_path, 'r', encoding='utf-8') as f:
+                    config = json.load(f)
+                    logger.info("[ChapterConversationGenerator] 已加载章节展开策略配置")
+                    return config
+            except Exception as e:
+                logger.warning(f"[ChapterConversationGenerator] 加载章节展开策略配置失败: {e}")
+        return {}
+    
+    def _load_beat_style_mapping(self) -> Dict:
+        """加载节拍类型到风格的映射配置"""
+        config_path = Path(__file__).parent.parent.parent.parent / "prompt_packages" / "default" / "market_driven" / "components" / "beat_style_mapping.json"
+        if config_path.exists():
+            try:
+                with open(config_path, 'r', encoding='utf-8') as f:
+                    config = json.load(f)
+                    logger.info("[ChapterConversationGenerator] 已加载节拍风格映射配置")
+                    return config
+            except Exception as e:
+                logger.warning(f"[ChapterConversationGenerator] 加载节拍风格映射失败: {e}")
+        return {}
+    
     def _load_ending_template(self) -> str:
         """加载番茄爆款结尾模板"""
         config_path = Path(__file__).parent.parent.parent.parent / "prompt_packages" / "default" / "market_driven" / "components" / "chapters" / "standard_chapter_prompts.json"
@@ -306,7 +338,7 @@ class ChapterConversationGenerator:
         session = ConversationSession(
             api_client=self.api_client,
             system_prompt=system_prompt,
-            provider="kimi",
+            provider=self.api_client.default_provider,
             purpose_prefix=f"{self.session_id}"
         )
         # 设置历史限制
@@ -1087,20 +1119,145 @@ class ChapterConversationGenerator:
         # 🔥 使用从JSON加载的番茄爆款结尾模板
         ending_template_prompt = self._ending_template
         
+        # 🔥 从配置构建展开策略、弹幕剧本等
+        beat_type = chapter_plan.get('beat_type', 'SETUP')
+        expansion_strategy = self._build_expansion_strategy_from_config(beat_type)
+        bullet_script = self._build_bullet_script_from_config(emotion_beat)
+        coherence_check = self._build_coherence_check_from_config(chapter_num)
+        self_check_list = self._build_self_check_list_from_config()
+        
+        # 🔥 根据节拍类型自动加载风格指南
+        style_guide = self._load_style_guide_for_beat(beat_type)
+        
+        # 构建增强的章节提示词（填充空白字段）
+        enhanced_chapter_plan = chapter_plan.copy()
+        enhanced_chapter_plan['expansion_strategy'] = expansion_strategy
+        enhanced_chapter_plan['bullet_script'] = bullet_script
+        enhanced_chapter_plan['coherence_check'] = coherence_check
+        enhanced_chapter_plan['self_check_list'] = self_check_list
+        
         # 使用优化器构建详细的章节提示词
         if HAS_OPTIMIZER:
             try:
                 optimizer = ChapterPromptOptimizer(self.novel_data)
-                chapter_prompt = optimizer.build_chapter_prompt(chapter_num, chapter_plan, prev_summary)
-                # 在章节提示词前添加主角设定提醒和世界状态约束，后加结尾模板
-                return protagonist_reminder + world_state_constraint + chapter_prompt + ending_template_prompt
+                chapter_prompt = optimizer.build_chapter_prompt(chapter_num, enhanced_chapter_plan, prev_summary)
+                # 在章节提示词前添加主角设定提醒和世界状态约束，后加结尾模板和风格指南
+                full_prompt = protagonist_reminder + world_state_constraint + chapter_prompt + ending_template_prompt
+                if style_guide:
+                    full_prompt += f"\n\n## 【本章风格指南】\n{style_guide}"
+                return full_prompt
             except Exception as e:
                 logger.warning(f"[章节对话 {self.session_id}] 优化器失败，使用备用模式: {e}")
         
         # 使用简化版优化器（备用）
         optimizer = SimpleOptimizer(self.novel_data)
-        chapter_prompt = optimizer.build_chapter_prompt(chapter_num, chapter_plan, prev_summary)
-        return protagonist_reminder + chapter_prompt + ending_template_prompt
+        chapter_prompt = optimizer.build_chapter_prompt(chapter_num, enhanced_chapter_plan, prev_summary)
+        full_prompt = protagonist_reminder + chapter_prompt + ending_template_prompt
+        if style_guide:
+            full_prompt += f"\n\n## 【本章风格指南】\n{style_guide}"
+        return full_prompt
+    
+    def _build_expansion_strategy_from_config(self, beat_type: str) -> str:
+        """从配置构建展开策略"""
+        strategies = self._chapter_expansion_prompts.get('expansion_strategies', {})
+        strategy = strategies.get(beat_type, strategies.get('SETUP', {}))
+        
+        if not strategy:
+            return "根据章节类型自然展开"
+        
+        phases = strategy.get('phases', [])
+        lines = [f"### {strategy.get('name', beat_type)}"]
+        for phase in phases:
+            lines.append(f"- {phase.get('range', '')}: {phase.get('name', '')} - {phase.get('content', '')}")
+        
+        return "\n".join(lines)
+    
+    def _build_bullet_script_from_config(self, emotion_beat: Dict) -> str:
+        """从配置构建弹幕剧本"""
+        emotion_type = emotion_beat.get('type', '反转').lower()
+        scripts = self._chapter_expansion_prompts.get('bullet_scripts', {})
+        
+        # 尝试匹配情绪类型
+        script = scripts.get(emotion_type, scripts.get('反转', {}))
+        
+        if not script:
+            return "根据情绪变化自然设计弹幕"
+        
+        phases = script.get('phases', [])
+        lines = []
+        for phase in phases:
+            phase_name = phase.get('phase', '')
+            comments = phase.get('comments', [])
+            lines.append(f"**{phase_name}**：")
+            for comment in comments:
+                lines.append(f"  - \"{comment}\"")
+        
+        return "\n".join(lines)
+    
+    def _build_coherence_check_from_config(self, chapter_num: int) -> str:
+        """从配置构建连贯性检查"""
+        checks = self._chapter_expansion_prompts.get('coherence_checks', [])
+        
+        # 获取主角信息用于格式化
+        protagonist_name = self._get_enforced_protagonist_name()
+        roleplay_percent = "90.0"  # 可以从状态管理器获取
+        unlocked_abilities = "静电操控, 九霄神雷"  # 可以从状态管理器获取
+        
+        lines = []
+        for check in checks:
+            formatted = check.format(
+                prev_chapter=chapter_num-1,
+                roleplay_percent=roleplay_percent,
+                unlocked_abilities=unlocked_abilities
+            )
+            lines.append(f"- {formatted}")
+        
+        return "\n".join(lines)
+    
+    def _build_self_check_list_from_config(self) -> str:
+        """从配置构建自检清单"""
+        checks = self._chapter_expansion_prompts.get('self_check_list', [])
+        return "\n".join([f"- [ ] {check}" for check in checks])
+    
+    def _load_style_guide_for_beat(self, beat_type: str) -> str:
+        """根据节拍类型加载对应风格指南"""
+        try:
+            from .style_loader import StyleLoader
+            
+            # 从映射配置获取 style_id
+            mapping = self._beat_style_mapping.get('mapping', {})
+            default = self._beat_style_mapping.get('default_mapping', {})
+            
+            beat_config = mapping.get(beat_type, default)
+            style_id = beat_config.get('style_id')
+            
+            if not style_id:
+                logger.debug(f"[章节对话 {self.session_id}] {beat_type} 节拍无对应风格")
+                return ""
+            
+            # 加载风格指南
+            style_loader = StyleLoader()
+            style = style_loader.load_style(style_id)
+            
+            if style:
+                # 提取核心原则和警告
+                principles = style.get('core_principles', [])
+                warning = style.get('warning', '')
+                
+                lines = []
+                if warning:
+                    lines.append(f"⚠️ {warning}")
+                lines.append("**核心原则**：")
+                for p in principles[:3]:  # 只取前3条避免过长
+                    lines.append(f"- {p}")
+                
+                logger.info(f"[章节对话 {self.session_id}] 已加载 {style_id} 风格指南用于 {beat_type} 节拍")
+                return "\n".join(lines)
+            
+        except Exception as e:
+            logger.warning(f"[章节对话 {self.session_id}] 加载风格指南失败: {e}")
+        
+        return ""
     
     def _parse_response(self, response) -> Dict:
         """

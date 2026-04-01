@@ -498,7 +498,7 @@ class StageChapterGenerator:
         session = ConversationSession(
             api_client=self.api_client,
             system_prompt=system_prompt,
-            provider="kimi",
+            provider=self.api_client.default_provider,
             purpose_prefix=f"STAGE-{self.generator_id}-{stage['stage_number']}"
         )
         session.max_history = 50
