@@ -182,7 +182,7 @@ class TropeAnalyzer:
     
     def _load_config(self) -> Dict:
         """从JSON加载提示词配置"""
-        config_path = Path("prompt_packages/default/market_driven/trope_analysis_prompts.json")
+        config_path = Path("prompt_packages/default/market_driven/components/trope_analysis_prompts.json")
         if config_path.exists():
             try:
                 with open(config_path, 'r', encoding='utf-8') as f:
@@ -294,7 +294,7 @@ class TropeAnalyzer:
 ❌ 错误：套路分析提示词配置缺失！
 
 请检查以下配置文件是否存在：
-- prompt_packages/default/market_driven/trope_analysis_prompts.json
+- prompt_packages/default/market_driven/components/trope_analysis_prompts.json
 """
             logger.error(error_msg)
             raise RuntimeError(error_msg)
