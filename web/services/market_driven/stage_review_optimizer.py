@@ -119,7 +119,7 @@ class StageReviewOptimizer:
         try:
             # 尝试从prompt_loader加载
             if self._prompt_loader:
-                prompts = self._prompt_loader.load_json("stage_review_prompts")
+                prompts = self._prompt_loader.load_json("components/stage_review_prompts")
                 if prompts:
                     return prompts
             
