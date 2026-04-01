@@ -53,6 +53,19 @@ CONFIG = {
                 "stream": True
             },
             {
+                "name": "aiapi-world",
+                "api_url": "https://aiapi.world/v1/chat/completions",
+                "api_key": os.getenv('AIAPI_WORLD_KEY', 'sk-h0obXbJ7NRUmu9ic9mgOYuFiK7vmTSENhDEGk3mJIPHlLm0L'),
+                "model": "gemini-3-flash-preview-thinking",
+                "assessment": "gemini-2.5-flash",
+                "priority": 1,
+                "enabled": True,
+                "timeout": 300,
+                "max_retries": 3,
+                "discount_rate": 100,
+                "stream": False
+            },
+            {
                 "name": "xiaochuang-backup",
                 "api_url": "https://newapi.xiaochuang.cc/v1/chat/completions",
                 "api_key": os.getenv('GEMINI_API_KEY', 'sk-zQHbJRdcVeNKX2ZqR18AMj5qutH4lDCZSmgE7WPP3aBdDdbw'),
