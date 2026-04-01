@@ -224,12 +224,12 @@ class StageReviewOptimizer:
             template = templates.get("retry_warning_over_limit", {}).get("template", "")
             if template:
                 return template.format(last_word_count=last_word_count)
-            return f"**🚨 紧急警告：上次输出字数{last_word_count}字超过了硬性上限2500字！**\n**你可以增爽点，但必须在2500字以内完成！**\n**删减建议：精简震惊描写（只保留现场+权威两层）、删除冗余弹幕反应、压缩环境描写。**"
+            return f"**🚨 紧急警告：上次输出字数{last_word_count}字超过了上限！**\n**你可以增爽点，但必须在合理范围内完成（建议2000-2500字）！**\n**删减建议：精简震惊描写（只保留现场+权威两层）、删除冗余弹幕反应、压缩环境描写。**"
         else:
             template = templates.get("retry_warning_under_limit", {}).get("template", "")
             if template:
                 return template.format(last_word_count=last_word_count)
-            return f"**警告：上次输出字数{last_word_count}字不足2000字。你必须输出至少2000字，但绝对不能超过2500字。输出前请统计字数。**"
+            return f"**警告：上次输出字数{last_word_count}字偏少。建议字数2000-2500字（允许±10%浮动，即1800-2800字）。输出前请统计字数。**"
         
     def _load_protagonist_name(self) -> str:
         """从project_info.json加载主角名"""
@@ -1308,39 +1308,58 @@ class StageReviewOptimizer:
                 new_word_count = len(new_content) if new_content else 0
                 last_word_count = new_word_count  # 🔥 记录本次字数用于下次重试提示
                 
-                # 🔥 字数检查：从JSON配置读取
+                # 🔥 字数检查：使用正负10%区间（更灵活）
                 word_count_config = self._review_prompts.get("word_count", {})
-                MIN_ABSOLUTE = word_count_config.get("min_absolute", 2000)  # 硬性下限
-                MAX_ABSOLUTE = word_count_config.get("max_absolute", 2500)  # 硬性上限
-                MIN_PERCENT = word_count_config.get("min_percent", 0.8)
-                MAX_PERCENT = word_count_config.get("max_percent", 1.1)
+                TARGET_WORDS = word_count_config.get("target", 2200)  # 目标字数
+                MIN_PERCENT = word_count_config.get("min_percent", 0.9)  # -10%
+                MAX_PERCENT = word_count_config.get("max_percent", 1.1)  # +10%
+                HARD_MIN = word_count_config.get("hard_min", 1800)  # 绝对下限（低于此必须重试）
+                HARD_MAX = word_count_config.get("hard_max", 2800)  # 绝对上限（高于此必须重试）
                 
-                # 检查1：硬性下限
-                if new_word_count < MIN_ABSOLUTE:
-                    logger.warning(f"[StageOptimizer] 第{ch_num}章字数({new_word_count})低于硬性下限{MIN_ABSOLUTE}字，将重试")
+                # 计算目标区间（基于原始字数的±10%）
+                target_min = int(original_word_count * MIN_PERCENT)
+                target_max = int(original_word_count * MAX_PERCENT)
+                
+                # 检查1：绝对下限（低于此字数必须重试）
+                if new_word_count < HARD_MIN:
+                    logger.warning(f"[StageOptimizer] 第{ch_num}章字数({new_word_count})低于绝对下限{HARD_MIN}字，将重试")
                     retry_count += 1
                     continue
                 
-                # 检查2：硬性上限（绝对不能超过）
-                if new_word_count > MAX_ABSOLUTE:
-                    logger.warning(f"[StageOptimizer] 第{ch_num}章字数({new_word_count})超过硬性上限{MAX_ABSOLUTE}字，将重试")
+                # 检查2：绝对上限（高于此字数必须重试）
+                if new_word_count > HARD_MAX:
+                    logger.warning(f"[StageOptimizer] 第{ch_num}章字数({new_word_count})超过绝对上限{HARD_MAX}字，将重试")
                     retry_count += 1
                     continue
                 
-                # 检查3：百分比范围（宽松警告，不强制重试）
-                min_percent = original_word_count * MIN_PERCENT
-                max_percent = original_word_count * MAX_PERCENT
-                if new_word_count < min_percent or new_word_count > max_percent:
+                # 检查3：目标区间（基于原文±10%，超出则警告但不强制重试）
+                if new_word_count < target_min or new_word_count > target_max:
                     deviation = abs(new_word_count - original_word_count) / original_word_count * 100
                     direction = "增加" if new_word_count > original_word_count else "减少"
-                    logger.info(f"[StageOptimizer] 第{ch_num}章字数较原文{direction}{deviation:.1f}%，但在{MIN_ABSOLUTE}-{MAX_ABSOLUTE}字范围内，接受修改")
+                    logger.info(f"[StageOptimizer] 第{ch_num}章字数较原文{direction}{deviation:.1f}%（目标区间{target_min}-{target_max}），但仍在允许范围内")
+                else:
+                    logger.info(f"[StageOptimizer] 第{ch_num}章字数符合目标区间({target_min}-{target_max}字)")
                 
                 # 字数符合要求，接受修改
                 is_accepted = True
                 change_pct = (new_word_count - original_word_count) / original_word_count * 100 if original_word_count > 0 else 0
+                
+                # 更新内容
                 fixed_chapters[ch_idx]["content"] = new_content
                 fixed_chapters[ch_idx]["word_count"] = new_word_count
                 fixed_chapters[ch_idx]["optimized"] = True
+                
+                # 🔥 更新标题（如果AI返回了新标题）
+                new_title = None
+                if "chapter_number" in fix_data:
+                    new_title = fix_data.get("title")
+                elif "fixed_chapters" in fix_data and len(fix_data["fixed_chapters"]) > 0:
+                    new_title = fix_data["fixed_chapters"][0].get("title")
+                
+                if new_title and new_title.strip() and new_title.strip() != ch_title:
+                    fixed_chapters[ch_idx]["title"] = new_title.strip()
+                    logger.info(f"[StageOptimizer] 第{ch_num}章标题已优化: '{ch_title}' -> '{new_title.strip()}'")
+                
                 logger.info(f"[StageOptimizer] 第{ch_num}章已优化: {original_word_count} -> {new_word_count}字 ({change_pct:+.1f}%)")
             
             if not is_accepted:
@@ -1369,7 +1388,7 @@ class StageReviewOptimizer:
                     fixed_chapters[ch_idx]["truncated"] = True  # 标记为截断
                     logger.info(f"[StageOptimizer] 第{ch_num}章已强制截断: {last_word_count} -> {len(truncated_content)}字")
                 else:
-                    logger.error(f"[StageOptimizer] 第{ch_num}章经过{max_retries+1}次尝试仍无法达到字数要求({last_word_count}字<2000)，放弃修改")
+                    logger.error(f"[StageOptimizer] 第{ch_num}章经过{max_retries+1}次尝试仍无法达到字数要求({last_word_count}字不在1800-2800范围内)，放弃修改")
         
         # 🔥 重新计算修复后章节的质量评分
         logger.info(f"[StageOptimizer] 重新计算修复后章节的质量评分...")
