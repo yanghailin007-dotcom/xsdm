@@ -286,6 +286,20 @@ POST /api/v2/prompt-config/component/optimization_hints
         # 生成优化后的提示词
         optimized_prompt = self._optimize_prompt(prompt, issues) if issues else prompt
         
+        # 详细日志：按类别统计问题
+        if issues:
+            issues_by_category = {}
+            for issue in issues:
+                cat = issue.category
+                if cat not in issues_by_category:
+                    issues_by_category[cat] = []
+                issues_by_category[cat].append(f"{issue.severity.value}:{issue.message[:30]}")
+            
+            logger.info(f"[QualityChecker] 第{chapter_num}章详细评分:")
+            logger.info(f"  - 基础分: 100 | 严重:-{critical_count*30} | 错误:-{error_count*15} | 警告:-{warning_count*5} | 最终:{score}")
+            for cat, msgs in issues_by_category.items():
+                logger.info(f"  - {cat}: {len(msgs)}个问题 - {msgs[:2]}")  # 只显示前2个
+        
         report = QualityReport(
             chapter_num=chapter_num,
             total_checks=total_checks,
