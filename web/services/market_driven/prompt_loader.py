@@ -106,7 +106,7 @@ class PromptLoader:
         Returns:
             黄金三章提示词配置字典
         """
-        return self.load_json("golden_chapter_prompts.json")
+        return self.load_json("components/chapters/golden_chapter_prompts.json")
     
     def get_chapter_templates(self) -> Optional[Dict]:
         """

@@ -242,7 +242,7 @@ class ChapterPromptOptimizerV3:
         """从 JSON 加载通用提示词组件"""
         try:
             base_dir = Path(__file__).parent.parent.parent.parent
-            components_file = base_dir / "prompt_packages" / "default" / "market_driven" / "common_prompt_components.json"
+            components_file = base_dir / "prompt_packages" / "default" / "market_driven" / "components" / "common_prompt_components.json"
             
             if components_file.exists():
                 with open(components_file, 'r', encoding='utf-8') as f:
@@ -707,7 +707,7 @@ class ChapterPromptOptimizerV3:
             return guide
         
         # JSON 配置缺失时抛出错误
-        raise ConfigError("golden_three_chapters 配置缺失", "common_prompt_components.json")
+        raise ConfigError("golden_three_chapters 配置缺失", "components/common_prompt_components.json")
 
     def _build_tomato_algorithm_guide(self) -> str:
         """构建番茄算法指南 - 从 JSON 配置加载"""
@@ -716,7 +716,7 @@ class ChapterPromptOptimizerV3:
             return guide
         
         # JSON 配置缺失时抛出错误
-        raise ConfigError("tomato_algorithm_guide 配置缺失", "common_prompt_components.json")
+        raise ConfigError("tomato_algorithm_guide 配置缺失", "components/common_prompt_components.json")
 
     def _build_micro_innovation_guide(self) -> str:
         """构建微创新原则指南 - 从 JSON 配置加载"""
@@ -725,7 +725,7 @@ class ChapterPromptOptimizerV3:
             return guide
         
         # JSON 配置缺失时抛出错误
-        raise ConfigError("micro_innovation_guide 配置缺失", "common_prompt_components.json")
+        raise ConfigError("micro_innovation_guide 配置缺失", "components/common_prompt_components.json")
 
     def _build_genre_specific_guide(self) -> str:
         """构建题材专项指南"""
@@ -800,7 +800,7 @@ class ChapterPromptOptimizerV3:
             return guide
         
         # JSON 配置缺失时抛出错误
-        raise ConfigError("emotion_control 配置缺失", "common_prompt_components.json")
+        raise ConfigError("emotion_control 配置缺失", "components/common_prompt_components.json")
 
     def _build_format_rules(self) -> str:
         """构建格式规则 - 从 JSON 配置加载"""
@@ -809,7 +809,7 @@ class ChapterPromptOptimizerV3:
             return guide
         
         # JSON 配置缺失时抛出错误
-        raise ConfigError("format_rules 配置缺失", "common_prompt_components.json")
+        raise ConfigError("format_rules 配置缺失", "components/common_prompt_components.json")
 
     def _build_ai_self_check_guide(self) -> str:
         """构建AI自检指南（生成后自检）- 从 JSON 配置加载"""
@@ -818,7 +818,7 @@ class ChapterPromptOptimizerV3:
             return guide
         
         # JSON 配置缺失时抛出错误
-        raise ConfigError("ai_self_check 配置缺失", "common_prompt_components.json")
+        raise ConfigError("ai_self_check 配置缺失", "components/common_prompt_components.json")
 
     def _build_footer(self) -> str:
         """构建页脚"""
@@ -986,13 +986,13 @@ class ChapterPromptOptimizerV3:
     def _build_golden_chapter_1(self, blueprint: Dict, prev_summary: str) -> str:
         """构建第1章（钩子章）提示词 - 从 JSON 配置加载"""
         if not self._golden_chapter_prompts or 'chapter_1' not in self._golden_chapter_prompts:
-            raise ConfigError("第1章提示词配置缺失", "golden_chapter_prompts.json")
+            raise ConfigError("第1章提示词配置缺失", "components/chapters/golden_chapter_prompts.json")
         
         try:
             return self._render_golden_chapter_1_from_config(blueprint)
         except Exception as e:
             logger.error(f"[PromptV3] 从配置渲染第1章提示词失败: {e}")
-            raise ConfigError(f"第1章提示词渲染失败: {e}", "golden_chapter_prompts.json")
+            raise ConfigError(f"第1章提示词渲染失败: {e}", "components/chapters/golden_chapter_prompts.json")
     def _get_micro_innov_for_chapter_1(self) -> str:
         """获取第1章微创新建议"""
         return """
@@ -1267,7 +1267,7 @@ class ChapterPromptOptimizerV3:
     ) -> str:
         """从 JSON 配置渲染标准章节提示词"""
         if not self._standard_chapter_prompts:
-            raise ConfigError("标准章节提示词配置未加载", "standard_chapter_prompts.json")
+            raise ConfigError("标准章节提示词配置未加载", "components/chapters/standard_chapter_prompts.json")
         
         config = self._standard_chapter_prompts
         
@@ -1552,22 +1552,22 @@ class ChapterPromptOptimizerV3:
     def _build_golden_chapter_2(self, blueprint: Dict, prev_summary: str) -> str:
         """构建第2章（验证章）提示词 - 从 JSON 配置加载"""
         if not self._golden_chapter_prompts or 'chapter_2' not in self._golden_chapter_prompts:
-            raise ConfigError("第2章提示词配置缺失", "golden_chapter_prompts.json")
+            raise ConfigError("第2章提示词配置缺失", "components/chapters/golden_chapter_prompts.json")
         try:
             return self._render_golden_chapter_2_from_config(blueprint, prev_summary)
         except Exception as e:
             logger.error(f"[PromptV3] 从配置渲染第2章提示词失败: {e}")
-            raise ConfigError(f"第2章提示词渲染失败: {e}", "golden_chapter_prompts.json")
+            raise ConfigError(f"第2章提示词渲染失败: {e}", "components/chapters/golden_chapter_prompts.json")
 
     def _build_golden_chapter_3(self, blueprint: Dict, prev_summary: str) -> str:
         """构建第3章（打脸章）提示词 - 从 JSON 配置加载"""
         if not self._golden_chapter_prompts or 'chapter_3' not in self._golden_chapter_prompts:
-            raise ConfigError("第3章提示词配置缺失", "golden_chapter_prompts.json")
+            raise ConfigError("第3章提示词配置缺失", "components/chapters/golden_chapter_prompts.json")
         try:
             return self._render_golden_chapter_3_from_config(blueprint, prev_summary)
         except Exception as e:
             logger.error(f"[PromptV3] 从配置渲染第3章提示词失败: {e}")
-            raise ConfigError(f"第3章提示词渲染失败: {e}", "golden_chapter_prompts.json")
+            raise ConfigError(f"第3章提示词渲染失败: {e}", "components/chapters/golden_chapter_prompts.json")
     def _build_standard_chapter_prompt(self, chapter_num: int, chapter_type: str,
                                         blueprint: Dict, prev_summary: str) -> str:
         """构建标准章节提示词（第4章以后）- 从 JSON 配置加载"""
@@ -1578,8 +1578,8 @@ class ChapterPromptOptimizerV3:
                 )
             except Exception as e:
                 logger.error(f"[PromptV3] 从配置渲染标准章节提示词失败: {e}")
-                raise ConfigError(f"标准章节提示词渲染失败: {e}", "standard_chapter_prompts.json")
-        raise ConfigError("标准章节提示词配置缺失", "standard_chapter_prompts.json")
+                raise ConfigError(f"标准章节提示词渲染失败: {e}", "components/chapters/standard_chapter_prompts.json")
+        raise ConfigError("标准章节提示词配置缺失", "components/chapters/standard_chapter_prompts.json")
     def _build_setup_template(self) -> str:
         """构建铺垫章模板 - 从 JSON 配置加载"""
         return self._render_template("SETUP")

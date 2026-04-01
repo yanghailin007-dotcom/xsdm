@@ -124,12 +124,12 @@ class StageReviewOptimizer:
                     return prompts
             
             # 直接加载JSON文件
-            config_path = Path("prompt_packages/default/market_driven/stage_review_prompts.json")
+            config_path = Path("prompt_packages/default/market_driven/components/stage_review_prompts.json")
             if config_path.exists():
                 with open(config_path, 'r', encoding='utf-8') as f:
                     return json.load(f)
             
-            logger.warning("[StageOptimizer] 无法加载stage_review_prompts.json，使用硬编码默认值")
+            logger.warning("[StageOptimizer] 无法加载 components/stage_review_prompts.json，使用硬编码默认值")
             return {}
         except Exception as e:
             logger.error(f"[StageOptimizer] 加载复盘提示词配置失败: {e}")

@@ -90,7 +90,7 @@ class SimpleOptimizer:
         """从JSON加载提示词配置"""
         try:
             base_dir = Path(__file__).parent.parent.parent.parent
-            config_file = base_dir / "prompt_packages" / "default" / "market_driven" / "conversation_step_prompts.json"
+            config_file = base_dir / "prompt_packages" / "default" / "market_driven" / "components" / "conversation" / "conversation_step_prompts.json"
             
             if config_file.exists():
                 with open(config_file, 'r', encoding='utf-8') as f:

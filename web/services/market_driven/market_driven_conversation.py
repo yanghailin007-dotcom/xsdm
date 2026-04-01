@@ -242,7 +242,7 @@ class MarketDrivenConversationSession:
         try:
             from pathlib import Path
             import json
-            config_path = Path("prompt_packages/default/market_driven/conversation_step_prompts.json")
+            config_path = Path("prompt_packages/default/market_driven/components/conversation/conversation_step_prompts.json")
             if config_path.exists():
                 with open(config_path, 'r', encoding='utf-8') as f:
                     return json.load(f)
@@ -261,7 +261,7 @@ class MarketDrivenConversationSession:
 ❌ 错误：步骤 '{step_name}' 的提示词配置缺失！
 
 请检查以下配置文件是否存在：
-- prompt_packages/default/market_driven/conversation_step_prompts.json
+- prompt_packages/default/market_driven/components/conversation/conversation_step_prompts.json
 
 或使用API创建配置：
 POST /api/v2/prompt-config/component/{step_name}
@@ -451,7 +451,7 @@ POST /api/v2/prompt-config/component/{step_name}
         # 尝试从JSON配置加载
         try:
             config_file = Path(__file__).parent.parent.parent.parent / \
-                "prompt_packages" / "default" / "market_driven" / "conversation_step_prompts.json"
+                "prompt_packages" / "default" / "market_driven" / "components" / "conversation" / "conversation_step_prompts.json"
             
             if config_file.exists():
                 with open(config_file, 'r', encoding='utf-8') as f:

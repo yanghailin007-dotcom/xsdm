@@ -451,12 +451,13 @@ BACKUP_PATH = Path("config/backups")
 
 
 def _get_all_components():
-    """获取所有可用组件"""
+    """获取所有可用组件（支持子目录递归）"""
     components = []
     for components_path in COMPONENTS_PATHS:
         if not components_path.exists():
             continue
-        for json_file in components_path.glob("*.json"):
+        # 使用 rglob 递归查找所有子目录中的 JSON 文件
+        for json_file in components_path.rglob("*.json"):
             try:
                 with open(json_file, 'r', encoding='utf-8') as f:
                     data = json.load(f)
@@ -476,11 +477,12 @@ def _get_all_components():
 
 
 def _find_component_file(component_id):
-    """查找组件文件路径"""
+    """查找组件文件路径（支持子目录递归）"""
     for components_path in COMPONENTS_PATHS:
         if not components_path.exists():
             continue
-        for json_file in components_path.glob("*.json"):
+        # 使用 rglob 递归查找所有子目录中的 JSON 文件
+        for json_file in components_path.rglob("*.json"):
             try:
                 with open(json_file, 'r', encoding='utf-8') as f:
                     data = json.load(f)

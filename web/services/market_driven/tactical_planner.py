@@ -47,7 +47,7 @@ class TacticalPlanner:
     def _load_planning_config(self) -> Dict:
         """加载战术规划配置"""
         try:
-            config = self._prompt_loader.load_json("tactical_planning_prompts.json")
+            config = self._prompt_loader.load_json("components/planning/tactical_planning_prompts.json")
             if config:
                 logger.info("[TacticalPlanner] 加载战术规划配置成功")
                 return config
