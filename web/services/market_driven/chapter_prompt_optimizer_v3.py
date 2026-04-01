@@ -203,6 +203,7 @@ class ChapterPromptOptimizerV3:
         # 初始化提示词加载器（用于加载 JSON 配置的提示词）
         self._prompt_loader = get_prompt_loader()
         self._golden_chapter_prompts = self._load_golden_chapter_prompts()
+        self._standard_chapter_prompts = self._load_standard_chapter_prompts()
         
         logger.info(f"[PromptV3] 初始化完成 | 书名: {self.title} | 题材: {self.genre_type}")
     
@@ -236,6 +237,24 @@ class ChapterPromptOptimizerV3:
                 return {}
         except Exception as e:
             logger.error(f"[PromptV3] 加载黄金三章提示词配置失败: {e}")
+            return {}
+    
+    def _load_standard_chapter_prompts(self) -> Dict:
+        """从 JSON 加载标准章节提示词配置"""
+        try:
+            base_dir = Path(__file__).parent.parent.parent.parent
+            prompts_file = base_dir / "prompt_packages" / "default" / "market_driven" / "components" / "chapters" / "standard_chapter_prompts.json"
+            
+            if prompts_file.exists():
+                with open(prompts_file, 'r', encoding='utf-8') as f:
+                    prompts = json.load(f)
+                logger.info(f"[PromptV3] 加载标准章节提示词配置成功")
+                return prompts
+            else:
+                logger.warning(f"[PromptV3] 标准章节提示词配置文件不存在: {prompts_file}")
+                return {}
+        except Exception as e:
+            logger.error(f"[PromptV3] 加载标准章节提示词配置失败: {e}")
             return {}
     
     def _load_common_components(self) -> Dict:
