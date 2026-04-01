@@ -210,6 +210,14 @@ class TropePromptBuilder:
         Returns:
             System Prompt 字符串
         """
+        # 优先使用JSON配置
+        if self.use_json_config and self._prompt_loader:
+            try:
+                return self._build_plot_from_config(emotion_blueprint)
+            except Exception as e:
+                logger.warning(f"[TropePromptBuilder] JSON配置加载失败，使用硬编码: {e}")
+        
+        # 硬编码fallback
         rhythm_tropes = self._extract_rhythm_tropes()
         
         prompt = f"""# 📚 角色：剧情架构大师
@@ -254,6 +262,36 @@ class TropePromptBuilder:
 """
         return prompt
     
+    def _build_plot_from_config(self, emotion_blueprint: Optional[Dict] = None) -> str:
+        """从JSON配置构建大纲阶段System Prompt"""
+        component = self._prompt_loader.get_component("plot_stage")
+        if not component:
+            raise ValueError("无法加载plot_stage组件")
+        
+        template = component.get("template", "")
+        rhythm_tropes = self._extract_rhythm_tropes()
+        
+        # 构建阶段数据
+        default_stages = {
+            "items": [
+                {"index": 1, "name": "第一阶段：主角崛起", "range": "0-30万字", "core": "快速升级+首次大高潮", "appeals": "打脸+震惊+国运提升"},
+                {"index": 2, "name": "第二阶段：龙国腾飞", "range": "30-60万字", "core": "主角成为龙国支柱", "appeals": "全球震惊+碾压他国"},
+                {"index": 3, "name": "第三阶段：全球争霸", "range": "60-90万字", "core": "主角影响世界格局", "appeals": "以一敌百+神话降临"},
+                {"index": 4, "name": "后续阶段", "range": "90万字+", "core": "宇宙/神界扩展", "appeals": "星空主宰+万族臣服"}
+            ]
+        }
+        
+        variables = {
+            "total_words": "300",
+            "total_chapters": "1200",
+            "rhythm_tropes": rhythm_tropes,
+            "stage_chapters": "120",
+            "stage_words": "30",
+            "stages": default_stages
+        }
+        
+        return self._prompt_loader.render_template(template, variables)
+    
     def build_chapter_system_prompt(
         self, 
         novel_title: str = "未命名",
@@ -275,6 +313,14 @@ class TropePromptBuilder:
         Returns:
             System Prompt 字符串
         """
+        # 优先使用JSON配置
+        if self.use_json_config and self._prompt_loader:
+            try:
+                return self._build_chapter_from_config(novel_title, chapter_num, protagonist_name, emotion_arc)
+            except Exception as e:
+                logger.warning(f"[TropePromptBuilder] JSON配置加载失败，使用硬编码: {e}")
+        
+        # 硬编码fallback
         rhythm_rules = self._extract_chapter_rhythm_rules()
         
         emotion_hint = ""
@@ -327,6 +373,43 @@ class TropePromptBuilder:
 字数：2000-2500字
 """
         return prompt
+    
+    def _build_chapter_from_config(
+        self, 
+        novel_title: str = "未命名",
+        chapter_num: int = 0,
+        protagonist_name: str = "主角",
+        emotion_arc: Optional[Dict] = None
+    ) -> str:
+        """从JSON配置构建章节生成阶段System Prompt"""
+        component = self._prompt_loader.get_component("chapter_stage")
+        if not component:
+            raise ValueError("无法加载chapter_stage组件")
+        
+        template = component.get("template", "")
+        rhythm_rules = self._extract_chapter_rhythm_rules()
+        
+        emotion_curve = emotion_arc.get('curve', '起-承-转-合') if emotion_arc else '根据章节位置合理设计'
+        
+        # 构建情绪提示
+        emotion_hint = ""
+        if emotion_arc:
+            emotion_type = emotion_arc.get('type', '爽')
+            intensity = emotion_arc.get('intensity', 7)
+            emotion_hint = f"""### 本章情绪要求
+- 情绪类型：{emotion_type}
+- 强度等级：{intensity}/10
+- 创作方向：{emotion_arc.get('hint', '根据情绪类型自由发挥')}"""
+        
+        variables = {
+            "novel_title": novel_title,
+            "protagonist_name": protagonist_name,
+            "emotion_curve": emotion_curve,
+            "rhythm_rules": rhythm_rules,
+            "emotion_hint": emotion_hint
+        }
+        
+        return self._prompt_loader.render_template(template, variables)
     
     def _extract_setting_constraints(self) -> str:
         """提取设定阶段的关键约束"""
