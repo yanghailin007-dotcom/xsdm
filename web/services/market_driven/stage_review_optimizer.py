@@ -188,9 +188,21 @@ class StageReviewOptimizer:
 **原文内容（前800字供参考）：**
 {variables.get('original_content_preview', '')}...
 
-## 输出格式
-**JSON格式：**
-{{{{\"chapter_number\": {variables.get('chapter_num')}, \"content\": \"完整的修改后章节内容\"}}}}
+## 【强制输出格式 - JSON】
+        必须返回以下JSON格式，不要返回纯文本或Markdown代码块：
+
+        ```json
+  "chapter_number": {variables.get('chapter_num')},
+  "title": "章节标题（8-14字，不要'第X章'前缀）",
+  "content": "完整的修改后章节内容（直接从正文开始，绝对禁止在开头写'第X章'标题）"
+}}
+
+        ```
+
+        ⚠️ **重要警告**：
+        - `content`字段必须直接以正文开头，绝对禁止以"第X章：XXX"开头
+        - `title`字段只放标题文本，不要加"第X章"前缀
+        - 标题只放在`title`字段，不要重复放在`content`里
 
 {self._get_default_self_check_list()}"""
     
