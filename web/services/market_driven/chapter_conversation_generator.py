@@ -1281,6 +1281,7 @@ class ChapterConversationGenerator:
         
         返回包含 title 和 content 的字典
         自动清理 content 中的标题行（如"第X章：XXX"）
+        支持处理 Markdown 代码块包裹的 JSON
         """
         import re
         
@@ -1290,17 +1291,32 @@ class ChapterConversationGenerator:
             result['title'] = response.get('title', '')
             result['content'] = response.get('content', str(response))
         elif isinstance(response, str):
+            # 先清理 Markdown 代码块标记
+            cleaned_response = response.strip()
+            
+            # 移除 Markdown 代码块标记 (```json ... ```)
+            if cleaned_response.startswith('```'):
+                # 找到第一个换行符（代码块标识符后面）
+                first_newline = cleaned_response.find('\n')
+                if first_newline != -1:
+                    # 移除开头的 ```json 或 ```
+                    cleaned_response = cleaned_response[first_newline:].strip()
+                # 移除结尾的 ```
+                if cleaned_response.endswith('```'):
+                    cleaned_response = cleaned_response[:-3].strip()
+            
             # 尝试解析 JSON
             try:
                 import json
-                parsed = json.loads(response)
+                parsed = json.loads(cleaned_response)
                 if isinstance(parsed, dict):
                     result['title'] = parsed.get('title', '')
-                    result['content'] = parsed.get('content', response)
+                    result['content'] = parsed.get('content', cleaned_response)
                 else:
-                    result['content'] = response
+                    result['content'] = cleaned_response
             except:
-                result['content'] = response
+                # 如果 JSON 解析失败，使用清理后的内容
+                result['content'] = cleaned_response
         else:
             result['content'] = str(response)
         
