@@ -1,0 +1,294 @@
+{# 右下角悬浮窗 - 生成进度/批次报告 #}
+<div id="generationFloat" class="generation-float minimized">
+    <!-- 头部（始终显示） -->
+    <div class="float-header" onclick="toggleFloat()">
+        <div class="float-title">
+            <span id="floatIcon">📝</span>
+            <span id="floatTitleText">生成中...</span>
+        </div>
+        <div class="float-status">
+            <span id="statusDot" class="status-dot"></span>
+            <span id="statusText">进行中</span>
+        </div>
+        <div class="float-actions" onclick="event.stopPropagation()">
+            <button class="float-btn" onclick="minimizeFloat()" title="最小化">−</button>
+            <button class="float-btn" onclick="closeFloat()" title="关闭">×</button>
+        </div>
+    </div>
+
+    <!-- 生成中内容 -->
+    <div id="generatingBody" class="float-body generating" style="display: none;">
+        <div class="current-chapter">
+            正在生成: <strong id="currentChapterNum">第25章</strong>
+            <span id="currentChapterTitle" style="color: #999; font-size: 13px;"> - 一剑灭樱花国百万大军</span>
+        </div>
+        
+        <!-- 批次进度 -->
+        <div class="progress-section">
+            <div class="progress-label">
+                <span>当前批次: 第<span id="batchStart">25</span>-<span id="batchEnd">30</span>章</span>
+                <span id="batchProgressText">2/6</span>
+            </div>
+            <div class="progress-bar">
+                <div id="batchProgressBar" class="progress-fill" style="width: 33%"></div>
+            </div>
+        </div>
+
+        <!-- 全书进度 -->
+        <div class="progress-section">
+            <div class="progress-label">
+                <span>全书进度</span>
+                <span id="totalProgressText">25/200 (12.5%)</span>
+            </div>
+            <div class="progress-bar">
+                <div id="totalProgressBar" class="progress-fill" style="width: 12.5%"></div>
+            </div>
+        </div>
+
+        <!-- 滑动窗口监控 -->
+        <div class="window-monitor">
+            <div class="window-title">最近5章质量监控</div>
+            <div id="windowBars" class="window-bars">
+                <!-- 动态生成 -->
+                <div class="window-bar excellent" style="height: 92%" data-score="92.3"></div>
+                <div class="window-bar excellent" style="height: 98%" data-score="98.9"></div>
+                <div class="window-bar good" style="height: 75%" data-score="75.3"></div>
+                <div class="window-bar excellent" style="height: 82%" data-score="82.7"></div>
+                <div class="window-bar current excellent" style="height: 95%" data-score="95.5"></div>
+            </div>
+            <div class="window-stats">
+                <span class="window-avg good">窗口平均: 88.8</span>
+                <span class="window-trend">↗ 上升</span>
+            </div>
+        </div>
+
+        <!-- 实时告警 -->
+        <div id="floatAlert" class="float-alert" style="display: none;">
+            <span class="alert-icon">⚠️</span>
+            <span id="alertText" class="alert-text">检测到低质量章节，已自动触发修复</span>
+        </div>
+
+        <!-- 操作按钮 -->
+        <div class="float-footer">
+            <button class="btn-float btn-secondary-float" onclick="pauseGeneration()">⏸ 暂停</button>
+            <button class="btn-float btn-primary-float" onclick="viewDashboard()">📊 查看仪表板</button>
+        </div>
+    </div>
+
+    <!-- 生成完成内容 -->
+    <div id="completedBody" class="float-body completed" style="display: none;">
+        <!-- 批次总结 -->
+        <div class="batch-summary">
+            <div id="batchScore" class="batch-score excellent">92.3</div>
+            <div class="batch-label">本批次平均得分</div>
+            <div class="batch-improvement">
+                <span>↗</span>
+                <span>较上批次 +15.2</span>
+            </div>
+        </div>
+
+        <!-- 章节对比 -->
+        <div class="chapter-comparison">
+            <div class="comparison-title">逐章得分</div>
+            <div id="chapterBars">
+                <!-- 动态生成 -->
+                <div class="chapter-bar">
+                    <span class="chapter-num">第19章</span>
+                    <div class="chapter-progress">
+                        <div class="chapter-fill excellent" style="width: 92%">
+                            <span class="chapter-score">92.8</span>
+                        </div>
+                    </div>
+                </div>
+                <div class="chapter-bar">
+                    <span class="chapter-num">第20章</span>
+                    <div class="chapter-progress">
+                        <div class="chapter-fill excellent" style="width: 92%">
+                            <span class="chapter-score">92.3</span>
+                        </div>
+                    </div>
+                </div>
+                <div class="chapter-bar">
+                    <span class="chapter-num">第21章</span>
+                    <div class="chapter-progress">
+                        <div class="chapter-fill good" style="width: 75%">
+                            <span class="chapter-score">75.3</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 亮点和问题 -->
+        <div class="batch-details">
+            <div class="detail-section">
+                <div class="detail-title">✨ 本批次亮点</div>
+                <ul id="highlightsList" class="detail-list">
+                    <li>第23章达到全书最高分 98.9 分</li>
+                    <li>对话比例大幅提升至 55.8%</li>
+                    <li>情绪节奏符合爆款标准</li>
+                </ul>
+            </div>
+            <div class="detail-section">
+                <div class="detail-title">⚠️ 需要注意</div>
+                <ul id="warningsList" class="detail-list warning">
+                    <li>第21章得分相对较低（75.3）</li>
+                </ul>
+            </div>
+        </div>
+
+        <!-- 操作按钮 -->
+        <div class="float-footer">
+            <button class="btn-float btn-secondary-float" onclick="dismissFloat()">稍后再说</button>
+            <button class="btn-float btn-primary-float" onclick="continueNextBatch()">继续生成下一批</button>
+        </div>
+    </div>
+
+    <!-- 最小化状态 -->
+    <div id="minimizedView" class="float-minimized" style="display: none;">
+        <div class="minimized-progress" id="miniProgress" style="--progress: 33%">33%</div>
+        <div class="minimized-info">
+            <div class="minimized-title">生成中...</div>
+            <div class="minimized-status">第25章 | 2/6</div>
+        </div>
+    </div>
+</div>
+
+<script>
+// 悬浮窗控制
+let isMinimized = false;
+
+function toggleFloat() {
+    if (isMinimized) {
+        expandFloat();
+    }
+}
+
+function minimizeFloat() {
+    isMinimized = true;
+    document.getElementById('generationFloat').classList.add('minimized');
+    document.getElementById('generatingBody').style.display = 'none';
+    document.getElementById('completedBody').style.display = 'none';
+    document.getElementById('minimizedView').style.display = 'flex';
+}
+
+function expandFloat() {
+    isMinimized = false;
+    document.getElementById('generationFloat').classList.remove('minimized');
+    document.getElementById('minimizedView').style.display = 'none';
+    
+    // 根据状态显示对应内容
+    const status = document.getElementById('statusText').textContent;
+    if (status === '已完成') {
+        document.getElementById('completedBody').style.display = 'block';
+    } else {
+        document.getElementById('generatingBody').style.display = 'block';
+    }
+}
+
+function closeFloat() {
+    document.getElementById('generationFloat').style.display = 'none';
+}
+
+// 更新生成进度
+function updateProgress(data) {
+    document.getElementById('currentChapterNum').textContent = '第' + data.current_chapter + '章';
+    document.getElementById('currentChapterTitle').textContent = ' - ' + data.chapter_title;
+    document.getElementById('batchProgressText').textContent = data.batch_progress + '/' + data.batch_size;
+    document.getElementById('batchProgressBar').style.width = (data.batch_progress / data.batch_size * 100) + '%';
+    document.getElementById('totalProgressText').textContent = data.total_progress;
+    document.getElementById('totalProgressBar').style.width = data.total_percent + '%';
+    document.getElementById('miniProgress').textContent = data.total_percent + '%';
+    document.getElementById('miniProgress').style.setProperty('--progress', data.total_percent + '%');
+    
+    // 更新窗口监控
+    updateWindowMonitor(data.window_metrics);
+    
+    // 检查告警
+    if (data.alert) {
+        showAlert(data.alert);
+    }
+}
+
+// 更新滑动窗口
+function updateWindowMonitor(metrics) {
+    const container = document.getElementById('windowBars');
+    container.innerHTML = '';
+    
+    metrics.forEach((m, index) => {
+        const bar = document.createElement('div');
+        bar.className = 'window-bar ' + m.class;
+        if (index === metrics.length - 1) bar.classList.add('current');
+        bar.style.height = m.score + '%';
+        bar.setAttribute('data-score', m.score);
+        container.appendChild(bar);
+    });
+    
+    // 更新统计
+    const avg = metrics.reduce((a, b) => a + b.score, 0) / metrics.length;
+    document.querySelector('.window-avg').textContent = '窗口平均: ' + avg.toFixed(1);
+    document.querySelector('.window-avg').className = 'window-avg ' + (avg >= 80 ? 'good' : avg >= 60 ? 'warning' : 'danger');
+}
+
+// 显示告警
+function showAlert(alert) {
+    const alertEl = document.getElementById('floatAlert');
+    document.getElementById('alertText').textContent = alert.message;
+    alertEl.className = 'float-alert ' + alert.level;
+    alertEl.style.display = 'flex';
+    
+    setTimeout(() => {
+        alertEl.style.display = 'none';
+    }, 5000);
+}
+
+// 完成批次
+function showBatchComplete(data) {
+    document.getElementById('floatIcon').textContent = '✓';
+    document.getElementById('floatTitleText').textContent = '生成完成';
+    document.getElementById('statusText').textContent = '已完成';
+    document.getElementById('statusDot').style.animation = 'none';
+    document.getElementById('statusDot').style.background = '#52c41a';
+    
+    document.getElementById('generatingBody').style.display = 'none';
+    document.getElementById('completedBody').style.display = 'block';
+    
+    // 填充数据
+    document.getElementById('batchScore').textContent = data.avg_score;
+    document.getElementById('batchScore').className = 'batch-score ' + data.score_class;
+    
+    // 展开显示
+    expandFloat();
+}
+
+// 功能函数
+function pauseGeneration() {
+    fetch('/api/generation/pause', { method: 'POST' });
+}
+
+function viewDashboard() {
+    window.open('/novels/{{ novel_id }}/dashboard', '_blank');
+}
+
+function continueNextBatch() {
+    fetch('/api/generation/continue', { method: 'POST' })
+        .then(() => location.reload());
+}
+
+function dismissFloat() {
+    minimizeFloat();
+}
+
+// WebSocket连接实时更新
+{% if novel_id %}
+const ws = new WebSocket('ws://' + window.location.host + '/ws/generation/{{ novel_id }}');
+ws.onmessage = function(event) {
+    const data = JSON.parse(event.data);
+    if (data.type === 'progress') {
+        updateProgress(data);
+    } else if (data.type === 'complete') {
+        showBatchComplete(data);
+    }
+};
+{% endif %}
+</script>

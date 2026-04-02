@@ -1,0 +1,122 @@
+{# 作品卡片 - 用于作品列表页 #}
+<div class="novel-card" onclick="openNovel({{ novel.id }})" data-novel-id="{{ novel.id }}">
+    <!-- 封面 -->
+    <div class="novel-cover">
+        {% if novel.cover_url %}
+        <img src="{{ novel.cover_url }}" alt="{{ novel.title }}">
+        {% else %}
+        <div style="width: 100%; height: 100%; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);"></div>
+        {% endif %}
+        
+        <!-- 状态标签 -->
+        {% if novel.status == 'generating' %}
+        <span class="status-tag generating">⏳ 生成中</span>
+        {% elif novel.status == 'completed' %}
+        <span class="status-tag completed">✓ 已完成</span>
+        {% elif novel.status == 'paused' %}
+        <span class="status-tag paused">⏸ 已暂停</span>
+        {% endif %}
+        
+        <!-- 质量徽章 -->
+        {% if novel.quality_score %}
+        <div class="quality-overlay {{ novel.quality_class }}">
+            ⭐ {{ novel.quality_score }}
+        </div>
+        {% endif %}
+    </div>
+    
+    <!-- 内容 -->
+    <div class="novel-content">
+        <div class="novel-title">{{ novel.title }}</div>
+        <div class="novel-author">{{ novel.author }}</div>
+        
+        <!-- 质量徽章网格 -->
+        {% if novel.metrics %}
+        <div class="quality-badges">
+            <div class="badge-item">
+                <div class="badge-icon">🏆</div>
+                <div class="badge-value {{ novel.metrics.overall_class }}">{{ novel.metrics.overall_score }}</div>
+                <div class="badge-label">综合</div>
+            </div>
+            <div class="badge-item">
+                <div class="badge-icon">💬</div>
+                <div class="badge-value {{ novel.metrics.dialogue_class }}">{{ novel.metrics.dialogue_ratio }}%</div>
+                <div class="badge-label">对话</div>
+            </div>
+            <div class="badge-item">
+                <div class="badge-icon">⚡</div>
+                <div class="badge-value {{ novel.metrics.shuang_class }}">{{ novel.metrics.shuang_density }}</div>
+                <div class="badge-label">爽点</div>
+            </div>
+            <div class="badge-item">
+                <div class="badge-icon">📈</div>
+                <div class="badge-value {{ novel.metrics.tomato_class }}">{{ novel.metrics.tomato_index }}</div>
+                <div class="badge-label">番茄</div>
+            </div>
+        </div>
+        
+        <!-- 趋势迷你图 -->
+        {% if novel.quality_trend %}
+        <div class="mini-trend">
+            <div class="mini-trend-label">
+                <span>最近{{ novel.quality_trend|length }}章趋势</span>
+                <span>{{ novel.trend_direction }}</span>
+            </div>
+            <div class="mini-chart">
+                {% for point in novel.quality_trend %}
+                <div class="mini-bar {{ point.class }}" 
+                     style="height: {{ point.score }}%;"
+                     title="第{{ point.chapter }}章: {{ point.score }}分"></div>
+                {% endfor %}
+            </div>
+        </div>
+        {% endif %}
+        {% endif %}
+        
+        <!-- 进度 -->
+        <div class="novel-progress">
+            <span>{{ novel.chapters_completed }}/{{ novel.total_chapters }}章</span>
+            <div class="progress-bar">
+                <div class="progress-fill" style="width: {{ novel.progress_percent }}%"></div>
+            </div>
+            <span>{{ novel.progress_percent|round }}%</span>
+        </div>
+    </div>
+    
+    <!-- 悬浮提示 -->
+    <div class="novel-tooltip">
+        <div class="tooltip-title">快速预览</div>
+        <div class="tooltip-item">已完成: {{ novel.chapters_completed }}/{{ novel.total_chapters }}章</div>
+        <div class="tooltip-item">总字数: {{ novel.total_words|number_format }}字</div>
+        {% if novel.last_chapter %}
+        <div class="tooltip-item">最近生成: 第{{ novel.last_chapter.number }}章 ({{ novel.last_chapter.score }}分)</div>
+        {% endif %}
+        <div class="tooltip-status">
+            {% if novel.problem_chapters > 0 %}
+            ⚠️ 质量状态: {{ novel.problem_chapters }}章需要关注
+            {% else %}
+            ✅ 质量状态: 良好
+            {% endif %}
+        </div>
+    </div>
+    
+    <!-- 操作按钮 -->
+    <div class="novel-actions">
+        {% if novel.status == 'generating' %}
+        <button class="btn-action btn-continue" onclick="event.stopPropagation(); continueNovel({{ novel.id }})">
+            继续生成
+        </button>
+        {% elif novel.status == 'completed' %}
+        <button class="btn-action btn-view" onclick="event.stopPropagation(); viewNovel({{ novel.id }})">
+            查看详情
+        </button>
+        {% else %}
+        <button class="btn-action btn-continue" onclick="event.stopPropagation(); startNovel({{ novel.id }})">
+            开始生成
+        </button>
+        {% endif %}
+        <button class="btn-action btn-view" onclick="event.stopPropagation(); viewAnalysis({{ novel.id }})">
+            分析
+        </button>
+    </div>
+</div>

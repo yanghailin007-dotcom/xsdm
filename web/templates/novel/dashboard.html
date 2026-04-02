@@ -1,0 +1,345 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ novel.title }} - 质量分析仪表板</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/novel-dashboard.css') }}">
+    <script src="https://cdn.jsdelivr.net/npm/echarts@5.4.3/dist/echarts.min.js"></script>
+</head>
+<body>
+    <div class="novel-dashboard">
+        <!-- 顶部标题栏 -->
+        <div class="dashboard-header">
+            <div class="dashboard-title">
+                <h1>{{ novel.title }}</h1>
+                <div class="subtitle">作者: {{ novel.author }} | 题材: {{ novel.genre }}</div>
+            </div>
+            <div class="dashboard-actions">
+                <button class="btn-secondary" onclick="refreshAnalysis()">🔄 刷新分析</button>
+                <button class="btn-primary" onclick="exportReport()">📊 导出报告</button>
+                <button class="btn-primary" onclick="continueGeneration()">▶️ 继续生成</button>
+            </div>
+        </div>
+
+        <!-- 告警横幅（如果有问题） -->
+        {% if alerts %}
+        {% for alert in alerts %}
+        <div class="alert-banner {{ alert.level }}">
+            <span class="alert-icon">{{ alert.icon }}</span>
+            <div class="alert-content">
+                <div class="alert-title">{{ alert.title }}</div>
+                <div class="alert-desc">{{ alert.description }}</div>
+            </div>
+        </div>
+        {% endfor %}
+        {% endif %}
+
+        <!-- 顶部指标卡片 -->
+        <div class="metrics-cards">
+            <div class="metric-card">
+                <div class="metric-value {{ quality_class }}">{{ metrics.overall_score }}</div>
+                <div class="metric-label">综合评分</div>
+                <div class="metric-sub">{{ quality_label }}</div>
+            </div>
+            <div class="metric-card">
+                <div class="metric-value">{{ metrics.total_words|number_format }}</div>
+                <div class="metric-label">总字数</div>
+                <div class="metric-sub">{{ metrics.avg_words_per_chapter }}字/章</div>
+            </div>
+            <div class="metric-card">
+                <div class="metric-value">{{ metrics.chapters_completed }}/{{ metrics.total_chapters }}</div>
+                <div class="metric-label">已完成</div>
+                <div class="metric-sub">{{ (metrics.chapters_completed / metrics.total_chapters * 100)|round }}%</div>
+            </div>
+            <div class="metric-card">
+                <div class="metric-value {{ tomato_class }}">{{ metrics.tomato_index }}</div>
+                <div class="metric-label">番茄指数</div>
+                <div class="metric-sub">{{ tomato_trend }}</div>
+            </div>
+        </div>
+
+        <!-- 质量趋势图 -->
+        <div class="chart-section">
+            <div class="section-title">质量趋势曲线 ({{ metrics.chapters_completed }}章)</div>
+            <div id="qualityTrendChart"></div>
+        </div>
+
+        <!-- 中间双栏 -->
+        <div class="dashboard-middle">
+            <div class="radar-section">
+                <div class="section-title">核心指标雷达</div>
+                <div id="radarChart"></div>
+            </div>
+            <div class="heatmap-section">
+                <div class="section-title">问题章节分布</div>
+                <div id="heatmapChart"></div>
+            </div>
+        </div>
+
+        <!-- 断层分析 -->
+        {% if gap_analysis %}
+        <div class="chart-section">
+            <div class="section-title">中期质量断层分析</div>
+            <div class="gap-comparison">
+                {% for phase in gap_analysis.phases %}
+                <div class="gap-phase {{ phase.class }}">
+                    <div class="gap-phase-title">{{ phase.name }}</div>
+                    <div class="gap-phase-score" style="color: {{ phase.color }}">{{ phase.avg_score }}</div>
+                    <div class="gap-phase-metrics">
+                        对话: {{ phase.dialogue_ratio }}%<br>
+                        爽点: {{ phase.shuang_density }}/千字
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+            {% if gap_analysis.diagnosis %}
+            <div style="margin-top: 16px; padding: 12px; background: #fff7e6; border-radius: 6px;">
+                <strong>📊 诊断:</strong> {{ gap_analysis.diagnosis }}
+                {% if gap_analysis.suggestion %}
+                <br><strong>💡 建议:</strong> {{ gap_analysis.suggestion }}
+                {% endif %}
+            </div>
+            {% endif %}
+        </div>
+        {% endif %}
+
+        <!-- 章节列表 -->
+        <div class="chapters-section">
+            <div class="section-title">章节列表（带质量标签）</div>
+            <table class="chapters-table">
+                <thead>
+                    <tr>
+                        <th>章</th>
+                        <th>标题</th>
+                        <th>得分</th>
+                        <th>对话比</th>
+                        <th>字数</th>
+                        <th>状态</th>
+                        <th>操作</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for ch in chapters %}
+                    <tr>
+                        <td>{{ "%03d"|format(ch.number) }}</td>
+                        <td>
+                            <span class="chapter-title" onclick="viewChapter({{ ch.number }})">
+                                {{ ch.title }}
+                            </span>
+                        </td>
+                        <td>
+                            <span class="score-badge {{ ch.score_class }}">
+                                {{ ch.tomato_score|round(1) }} {{ ch.score_icon }}
+                            </span>
+                        </td>
+                        <td>{{ ch.dialogue_ratio|round(1) }}%</td>
+                        <td>{{ ch.word_count|number_format }}</td>
+                        <td>
+                            <span class="status-tag {{ ch.status_class }}">{{ ch.status }}</span>
+                        </td>
+                        <td>
+                            {% if ch.needs_fix %}
+                            <button class="fix-btn" onclick="fixChapter({{ ch.number }})">修复</button>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <script>
+        // 质量趋势图
+        function initTrendChart() {
+            const chart = echarts.init(document.getElementById('qualityTrendChart'));
+            const data = {{ quality_trend|tojson }};
+            
+            chart.setOption({
+                tooltip: {
+                    trigger: 'axis',
+                    formatter: function(params) {
+                        const p = params[0];
+                        return `第${p.data[0]}章<br/>得分: ${p.data[1]}<br/>${p.data[2] || ''}`;
+                    }
+                },
+                grid: { left: '3%', right: '4%', bottom: '3%', containLabel: true },
+                xAxis: {
+                    type: 'category',
+                    boundaryGap: false,
+                    data: data.map(d => d.chapter)
+                },
+                yAxis: {
+                    type: 'value',
+                    min: 0,
+                    max: 100,
+                    splitLine: { lineStyle: { type: 'dashed' } }
+                },
+                series: [{
+                    name: '番茄得分',
+                    type: 'line',
+                    smooth: true,
+                    data: data.map(d => ({
+                        value: d.score,
+                        itemStyle: {
+                            color: d.score >= 80 ? '#52c41a' : 
+                                   d.score >= 60 ? '#1890ff' : 
+                                   d.score >= 50 ? '#faad14' : '#f5222d'
+                        }
+                    })),
+                    areaStyle: {
+                        color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
+                            { offset: 0, color: 'rgba(24,144,255,0.3)' },
+                            { offset: 1, color: 'rgba(24,144,255,0.05)' }
+                        ])
+                    },
+                    markLine: {
+                        data: [
+                            { yAxis: 60, name: '及格线', lineStyle: { color: '#faad14', type: 'dashed' } },
+                            { yAxis: 80, name: '优秀线', lineStyle: { color: '#52c41a', type: 'dashed' } }
+                        ]
+                    }
+                }]
+            });
+            
+            // 点击跳转
+            chart.on('click', function(params) {
+                viewChapter(params.dataIndex + 1);
+            });
+            
+            return chart;
+        }
+
+        // 雷达图
+        function initRadarChart() {
+            const chart = echarts.init(document.getElementById('radarChart'));
+            const metrics = {{ radar_metrics|tojson }};
+            
+            chart.setOption({
+                radar: {
+                    indicator: [
+                        { name: '对话', max: 100 },
+                        { name: '情绪', max: 100 },
+                        { name: '爽点', max: 100 },
+                        { name: '钩子', max: 100 },
+                        { name: '节奏', max: 100 },
+                        { name: '创新', max: 100 }
+                    ],
+                    splitArea: { areaStyle: { color: ['#f8f8f8', '#fff'] } }
+                },
+                series: [{
+                    type: 'radar',
+                    data: [{
+                        value: [
+                            metrics.dialogue,
+                            metrics.emotion,
+                            metrics.shuang,
+                            metrics.hook,
+                            metrics.pace,
+                            metrics.innovation
+                        ],
+                        name: '本书',
+                        areaStyle: { color: 'rgba(24,144,255,0.3)' },
+                        lineStyle: { color: '#1890ff' }
+                    }, {
+                        value: [80, 75, 85, 90, 80, 70],
+                        name: '爆款标准',
+                        lineStyle: { type: 'dashed', color: '#52c41a' }
+                    }]
+                }]
+            });
+            
+            return chart;
+        }
+
+        // 热力图
+        function initHeatmap() {
+            const chart = echarts.init(document.getElementById('heatmapChart'));
+            const data = {{ heatmap_data|tojson }};
+            
+            chart.setOption({
+                tooltip: {
+                    position: 'top',
+                    formatter: function(p) {
+                        return `第${p.data[0]}章<br/>问题数: ${p.data[2]}`;
+                    }
+                },
+                grid: { height: '70%', top: '10%' },
+                xAxis: {
+                    type: 'category',
+                    data: data.x_labels,
+                    splitArea: { show: true }
+                },
+                yAxis: {
+                    type: 'category',
+                    data: ['对话低', '情绪低', '爽点低', '无钩子', '长段落'],
+                    splitArea: { show: true }
+                },
+                visualMap: {
+                    min: 0,
+                    max: 5,
+                    calculable: true,
+                    orient: 'horizontal',
+                    left: 'center',
+                    bottom: '0%',
+                    inRange: {
+                        color: ['#f0f0f0', '#ffccc7', '#ff4d4f']
+                    }
+                },
+                series: [{
+                    type: 'heatmap',
+                    data: data.values,
+                    label: { show: true }
+                }]
+            });
+            
+            return chart;
+        }
+
+        // 初始化
+        let trendChart, radarChart, heatmapChart;
+        
+        document.addEventListener('DOMContentLoaded', function() {
+            trendChart = initTrendChart();
+            radarChart = initRadarChart();
+            heatmapChart = initHeatmap();
+            
+            // 响应式
+            window.addEventListener('resize', function() {
+                trendChart && trendChart.resize();
+                radarChart && radarChart.resize();
+                heatmapChart && heatmapChart.resize();
+            });
+        });
+
+        // 功能函数
+        function refreshAnalysis() {
+            location.reload();
+        }
+
+        function exportReport() {
+            window.open(`/api/novels/{{ novel.id }}/export-report`, '_blank');
+        }
+
+        function continueGeneration() {
+            window.location.href = `/novels/{{ novel.id }}/generate`;
+        }
+
+        function viewChapter(chapterNum) {
+            window.open(`/novels/{{ novel.id }}/chapters/${chapterNum}`, '_blank');
+        }
+
+        function fixChapter(chapterNum) {
+            if (confirm(`确定要修复第${chapterNum}章吗？这将自动扩写弹幕和围观反应。`)) {
+                fetch(`/api/novels/{{ novel.id }}/chapters/${chapterNum}/fix`, {
+                    method: 'POST'
+                }).then(r => r.json()).then(data => {
+                    alert(data.message);
+                    location.reload();
+                });
+            }
+        }
+    </script>
+</body>
+</html>
