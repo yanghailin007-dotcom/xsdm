@@ -676,23 +676,7 @@ class ChapterConversationGenerator:
             logger.info(f"[章节对话 {self.session_id}] 第{chapter_num}章尝试重试...")
             
             # 简化提示词重试 - 必须包含JSON格式要求
-            retry_prompt = f"""请生成第{chapter_num}章,约2000-2500字.
-
-要求:快节奏爽文,强情绪流,章章有钩子.
-
-## [强制输出格式 - JSON]
-必须返回以下JSON格式,不要返回纯文本:
-```json
-{{
-  "title": "章节标题(8-14字,不要'第X章'前缀)",
-  "content": "章节正文(2000-2500字,直接从场景开始,禁止在正文开头写'第X章'标题)"
-}}
-```
-
-⚠️ 警告:
-- content字段必须直接以正文开头,绝对禁止以"第X章:XXX"开头
-- 标题只放在title字段,不要重复放在content里
-- 不需要自检报告,只返回JSON"""
+            retry_prompt = self._get_retry_prompt_template(chapter_num)
             retry_response = self.session.send_message(
                 user_prompt=retry_prompt,
                 temperature=0.7,
@@ -841,56 +825,8 @@ class ChapterConversationGenerator:
         try:
             logger.info(f"[章节对话 {self.session_id}] 第{chapter_num}章开始扩写,需要+{need_words}字")
             
-            prompt = f"""请基于以下已有章节内容,**必须**补充{need_words}字以上.
-
-**当前字数:{len(content)}字,需要扩写到{len(content) + need_words}字以上**
-
-**扩写策略(按优先级):**
-1. **弹幕反应链**(推荐,+200-400字)
-   - 现场围观者反应(表情,惊呼)
-   - 直播间弹幕(5-8条具体弹幕内容)
-   - 社交媒体发酵(热搜,朋友圈,论坛)
-
-2. **震惊层级递进**(推荐,+200-400字)
-   - 先写现场人物反应(反派/配角)
-   - 再写暗处观战者反应(强者感应)
-   - 最后写大范围影响(全城/全网震动)
-   - **用自然叙事过渡,不要写"第一层/第二层"标签**
-
-3. **数字可视化**(国运文适用,+100-200字)
-   - 国运值变化的天空异象
-   - 战力数值的气场表现
-   - 奖励获得的具体展示
-
-4. **情绪渲染链**(+100-200字)
-   - 主角:微表情,小动作(非内心独白)
-   - 配角:从质疑到震惊到跪服的转变
-   - 反派:从嚣张到恐惧到绝望的过程
-
-**扩写要求:**
-- 必须增加{need_words}字以上
-- 必须是有内容的扩写,不能水字数
-- 优先使用弹幕和震惊层级(效果最明显)
-
-**禁止(这些会被删除):**
-- 环境描写(天气,景色)
-- 心理独白(超过1行的内心戏)
-- 重复对话
-
-已有内容(最后800字,请在此区域前/中插入扩写):
-...{content[-800:]}
-
-## [强制输出格式 - JSON]
-必须返回以下JSON格式:
-
-```json
-{{
-  "content": "扩写后的完整章节内容({len(content) + need_words}字以上)"
-}}
-```
-
-⚠️ **重要**:只需要返回content字段,包含扩写后的完整章节内容即可."
-
+            prompt = self._get_expansion_prompt_template(chapter_num, content, need_words)
+            
             response = self.session.send_message(
                 user_prompt=prompt,
                 temperature=0.8,
@@ -1274,6 +1210,56 @@ class ChapterConversationGenerator:
         """从配置构建自检清单"""
         checks = self._chapter_expansion_prompts.get('self_check_list', [])
         return "\n".join([f"- [ ] {check}" for check in checks])
+    
+    def _get_retry_prompt_template(self, chapter_num: int) -> str:
+        """从配置获取重试提示词模板"""
+        template = self._chapter_expansion_prompts.get('retry_prompt_template', '')
+        if template:
+            return template.format(chapter_num=chapter_num)
+        # 回退到硬编码
+        return f"""请生成第{chapter_num}章,约2000-2500字.
+
+要求:快节奏爽文,强情绪流,章章有钩子.
+
+## 【强制输出格式 - JSON】
+必须返回以下JSON格式,不要返回纯文本:
+```json
+{{
+  "title": "章节标题（8-14字,不要'第X章'前缀）",
+  "content": "章节正文（2000-2500字,直接从场景开始,禁止在正文开头写'第X章'标题）"
+}}
+```
+
+⚠️ 警告:
+- content字段必须直接以正文开头,绝对禁止以"第X章:XXX"开头
+- 标题只放在title字段,不要重复放在content里
+- 不需要自检报告,只返回JSON"""
+    
+    def _get_expansion_prompt_template(self, chapter_num: int, content: str, need_words: int) -> str:
+        """从配置获取扩写提示词模板"""
+        template = self._chapter_expansion_prompts.get('force_expansion_prompt_template', '')
+        if template:
+            return template.format(
+                chapter_num=chapter_num,
+                current_words=len(content),
+                target_words=len(content) + need_words,
+                need_words=need_words,
+                content_preview=content[-800:] if len(content) > 800 else content
+            )
+        # 回退到硬编码
+        return f"""请基于以下已有章节内容,**必须**补充{need_words}字以上.
+
+**当前字数:{len(content)}字,需要扩写到{len(content) + need_words}字以上**
+
+## 【强制输出格式 - JSON】
+必须返回以下JSON格式:
+```json
+{{
+  "content": "扩写后的完整章节内容（{len(content) + need_words}字以上）"
+}}
+```
+
+⚠️ **重要**:只需要返回content字段,包含扩写后的完整章节内容即可."""
     
     def _load_style_guide_for_beat(self, beat_type: str) -> str:
         """根据节拍类型加载对应风格指南"""
