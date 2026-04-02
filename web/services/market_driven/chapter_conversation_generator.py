@@ -1303,11 +1303,10 @@ class ChapterConversationGenerator:
     
     def _parse_response(self, response) -> Dict:
         """
-        解析响应
+        解析响应 - 支持多种格式(JSON/分隔符/纯文本)
         
         返回包含 title 和 content 的字典
-        自动清理 content 中的标题行(如"第X章:XXX")
-        支持处理 Markdown 代码块包裹的 JSON
+        自动清理 content 中的标题行
         """
         import re
         
@@ -1317,69 +1316,119 @@ class ChapterConversationGenerator:
             result['title'] = response.get('title', '')
             result['content'] = response.get('content', str(response))
         elif isinstance(response, str):
-            # 先清理 Markdown 代码块标记
             cleaned_response = response.strip()
             
-            # 移除 Markdown 代码块标记 (```json ... ```)
-            if cleaned_response.startswith('```'):
-                # 找到第一个换行符(代码块标识符后面)
-                first_newline = cleaned_response.find('\n')
-                if first_newline != -1:
-                    # 移除开头的 ```json 或 ```
-                    cleaned_response = cleaned_response[first_newline:].strip()
-                # 移除结尾的 ```
-                if cleaned_response.endswith('```'):
-                    cleaned_response = cleaned_response[:-3].strip()
+            # 策略1: 尝试解析分隔符格式 ---标题---/---正文---
+            title_match = re.search(r'---\s*标题\s*---\s*\n?(.*?)\n?---\s*正文\s*---', cleaned_response, re.DOTALL | re.IGNORECASE)
+            if title_match:
+                result['title'] = title_match.group(1).strip()
+                # 正文在 ---正文--- 之后
+                content_start = cleaned_response.find('---正文---') + len('---正文---')
+                result['content'] = cleaned_response[content_start:].strip()
+                logger.info(f"[章节对话] 使用分隔符格式解析,标题: '{result['title']}'")
+                return self._clean_result(result)
             
-            # 尝试解析 JSON
+            # 策略2: 移除 Markdown 代码块后尝试解析 JSON
+            json_content = cleaned_response
+            if json_content.startswith('```'):
+                first_newline = json_content.find('\n')
+                if first_newline != -1:
+                    json_content = json_content[first_newline:].strip()
+                if json_content.endswith('```'):
+                    json_content = json_content[:-3].strip()
+            
             try:
                 import json
-                parsed = json.loads(cleaned_response)
+                parsed = json.loads(json_content)
                 if isinstance(parsed, dict):
                     result['title'] = parsed.get('title', '')
-                    result['content'] = parsed.get('content', cleaned_response)
-                else:
-                    result['content'] = cleaned_response
+                    result['content'] = parsed.get('content', '')
+                    logger.info(f"[章节对话] 使用JSON格式解析,标题: '{result['title']}'")
+                    return self._clean_result(result)
             except:
-                # 如果 JSON 解析失败,使用清理后的内容
-                result['content'] = cleaned_response
-                
-                #  尝试从纯文本中提取标题(第一行可能是标题)
-                lines = cleaned_response.split('\n')
-                for line in lines[:5]:  # 检查前5行
-                    line = line.strip()
-                    if line and len(line) >= 4 and len(line) <= 20:
-                        # 可能是标题(不是章节号,不是空行,长度合适)
-                        if not line.startswith('第') and '章' not in line and not line.startswith('['):
-                            result['title'] = line
-                            logger.info(f"[章节对话] 从纯文本中提取标题: '{line}'")
-                            break
+                pass
+            
+            # 策略3: 尝试从 ---正文开始--- 或类似标记提取
+            content_markers = ['---正文开始---', '---正文---', '【正文】']
+            for marker in content_markers:
+                if marker in cleaned_response:
+                    parts = cleaned_response.split(marker, 1)
+                    if len(parts) == 2:
+                        # 尝试从前面的内容提取标题
+                        header = parts[0].strip()
+                        result['content'] = parts[1].strip()
+                        # 从header中提取非章节号的文本作为标题
+                        for line in header.split('\n'):
+                            line = line.strip()
+                            if line and len(line) >= 4 and len(line) <= 20:
+                                if not line.startswith('第') and '章' not in line and not line.startswith('---'):
+                                    result['title'] = line
+                                    break
+                        logger.info(f"[章节对话] 使用内容标记解析,标题: '{result['title']}'")
+                        return self._clean_result(result)
+            
+            # 策略4: 纯文本Fallback - 清理第X章后取第一行作为标题
+            result['content'] = cleaned_response
+            lines = cleaned_response.split('\n')
+            for line in lines[:10]:  # 检查前10行
+                line = line.strip()
+                if not line:
+                    continue
+                # 跳过章节号行
+                if re.match(r'^第[一二三四五六七八九十百千万零\d]+章', line):
+                    continue
+                if re.match(r'^Chapter\s*\d+', line, re.IGNORECASE):
+                    continue
+                # 找到可能是标题的行(4-20字,不是特殊标记)
+                if 4 <= len(line) <= 20 and not line.startswith('【') and not line.startswith('['):
+                    result['title'] = line
+                    logger.info(f"[章节对话] 从纯文本提取标题: '{line}'")
+                    break
         else:
             result['content'] = str(response)
         
-        #  清理 content 中的标题行(AI经常不遵守规则,在正文中写标题)
-        if result['content']:
-            # 匹配 "第X章:标题" 或 "第X章 标题" 或 "第X章:标题" 格式(X可以是数字或中文数字)
-            # 支持多种变体:第1章,第一章,第1章:,第1章 等
-            title_patterns = [
-                r'^第[一二三四五六七八九十百千万零\d]+章[::\s]*[^\n]*\n*',  # 第X章:标题
-                r'^Chapter\s*\d+[::\s]*[^\n]*\n*',  # Chapter X: Title
-                r'^第[一二三四五六七八九十百千万零\d]+章[::\s]*',  # 只匹配到章号
-            ]
-            
-            original_content = result['content']
-            cleaned_content = original_content
-            
-            for pattern in title_patterns:
-                cleaned_content = re.sub(pattern, '', cleaned_content, flags=re.IGNORECASE)
-            
-            # 去除开头的空行
-            cleaned_content = cleaned_content.lstrip('\n')
-            
-            if cleaned_content != original_content:
-                logger.info(f"[章节对话] 已自动清理 content 中的标题行")
-                result['content'] = cleaned_content
+        return self._clean_result(result)
+    
+    def _clean_result(self, result: Dict) -> Dict:
+        """清理结果中的标题行和多余内容"""
+        import re
         
+        if not result['content']:
+            return result
+        
+        content = result['content']
+        original_content = content
+        
+        # 步骤1: 移除开头可能存在的标题行(各种变体)
+        # 匹配 "第X章:标题" "第X章 标题" "第X章：标题" "第一章XXX"
+        patterns = [
+            r'^[\s]*第[一二三四五六七八九十百千万零\d]+章[：:\s]*[^\n]*\n+',  # 第X章:标题 + 换行
+            r'^[\s]*Chapter\s*\d+[：:\s]*[^\n]*\n+',  # Chapter X + 换行
+            r'^[\s]*第[一二三四五六七八九十百千万零\d]+章[：:\s]*',  # 只匹配章号
+            r'^[\s]*\d+[\s]*章[：:\s]*[^\n]*\n+',  # 数字章
+        ]
+        
+        for pattern in patterns:
+            content = re.sub(pattern, '', content, flags=re.IGNORECASE)
+        
+        # 步骤2: 如果提取的标题还在正文开头,移除它
+        if result['title']:
+            title_pattern = r'^[\s]*' + re.escape(result['title']) + r'[\s]*\n+'
+            content = re.sub(title_pattern, '', content)
+        
+        # 步骤3: 移除开头的空行和特殊标记
+        content = content.lstrip('\n').lstrip('\r').lstrip()
+        
+        # 步骤4: 移除自检报告分隔符及之后的内容
+        separators = ['---正文结束---', '【AI自检报告】', '---自检报告---', '【自检报告】']
+        for sep in separators:
+            if sep in content:
+                content = content.split(sep)[0].strip()
+        
+        if content != original_content:
+            logger.info("[章节对话] 已自动清理 content 中的标题行和分隔符")
+        
+        result['content'] = content
         return result
     
     def _extract_title(self, content: str, chapter_plan: Dict, 
