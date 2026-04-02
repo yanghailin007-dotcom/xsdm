@@ -1264,27 +1264,54 @@ class ChapterConversationGenerator:
         解析响应
         
         返回包含 title 和 content 的字典
+        自动清理 content 中的标题行（如"第X章：XXX"）
         """
+        import re
+        
+        result = {'title': '', 'content': ''}
+        
         if isinstance(response, dict):
-            return {
-                'title': response.get('title', ''),
-                'content': response.get('content', str(response))
-            }
+            result['title'] = response.get('title', '')
+            result['content'] = response.get('content', str(response))
         elif isinstance(response, str):
             # 尝试解析 JSON
             try:
                 import json
                 parsed = json.loads(response)
                 if isinstance(parsed, dict):
-                    return {
-                        'title': parsed.get('title', ''),
-                        'content': parsed.get('content', response)
-                    }
+                    result['title'] = parsed.get('title', '')
+                    result['content'] = parsed.get('content', response)
+                else:
+                    result['content'] = response
             except:
-                pass
-            # 如果不是 JSON，返回字符串作为 content
-            return {'title': '', 'content': response}
-        return {'title': '', 'content': str(response)}
+                result['content'] = response
+        else:
+            result['content'] = str(response)
+        
+        # 🔥 清理 content 中的标题行（AI经常不遵守规则，在正文中写标题）
+        if result['content']:
+            # 匹配 "第X章：标题" 或 "第X章 标题" 或 "第X章:标题" 格式（X可以是数字或中文数字）
+            # 支持多种变体：第1章、第一章、第1章：、第1章 等
+            title_patterns = [
+                r'^第[一二三四五六七八九十百千万零\d]+章[：:\s]*[^\n]*\n*',  # 第X章：标题
+                r'^Chapter\s*\d+[：:\s]*[^\n]*\n*',  # Chapter X: Title
+                r'^第[一二三四五六七八九十百千万零\d]+章[：:\s]*',  # 只匹配到章号
+            ]
+            
+            original_content = result['content']
+            cleaned_content = original_content
+            
+            for pattern in title_patterns:
+                cleaned_content = re.sub(pattern, '', cleaned_content, flags=re.IGNORECASE)
+            
+            # 去除开头的空行
+            cleaned_content = cleaned_content.lstrip('\n')
+            
+            if cleaned_content != original_content:
+                logger.info(f"[章节对话] 已自动清理 content 中的标题行")
+                result['content'] = cleaned_content
+        
+        return result
     
     def _extract_title(self, content: str, chapter_plan: Dict, 
                         ai_title: str = '') -> str:
