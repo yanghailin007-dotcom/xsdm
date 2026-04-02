@@ -768,8 +768,10 @@ class ChapterConversationGenerator:
         """
         根据分隔符提取正文部分
         格式：正文内容 + ---正文结束--- + 自检报告
+        
+        注意：AI有时会先输出自检报告，再输出正文（以---开头）
         """
-        # 尝试找到分隔符
+        # 尝试找到分隔符（优先匹配完整的）
         separators = [
             '---正文结束---',
             '【AI自检报告】',
@@ -784,14 +786,41 @@ class ChapterConversationGenerator:
                 logger.info(f"[章节对话 {self.session_id}] 第{chapter_num}章使用分隔符'{sep}'提取正文: {len(main_content)}字")
                 return main_content
         
+        # 🔥 特殊处理：如果内容以 "---" 开头（自检报告分隔符），跳过它
+        if content.strip().startswith('---'):
+            lines = content.split('\n')
+            # 找到第一个不以 --- 开头且不是空的行
+            main_lines = []
+            found_start = False
+            for line in lines:
+                if not found_start:
+                    # 跳过开头的 --- 和空行
+                    if line.strip() == '---' or line.strip() == '':
+                        continue
+                    found_start = True
+                
+                # 开始收集正文
+                if found_start:
+                    # 遇到自检报告标记停止
+                    if '自检' in line and '报告' in line:
+                        break
+                    if line.strip() == '---' and '【AI自检报告】' in content:
+                        # 可能是自检报告结束标记
+                        break
+                    main_lines.append(line)
+            
+            if main_lines:
+                main_content = '\n'.join(main_lines).strip()
+                logger.info(f"[章节对话 {self.session_id}] 第{chapter_num}章跳过开头---提取正文: {len(main_content)}字")
+                return main_content
+        
         # 没有找到分隔符，尝试其他方式
         # 如果包含"自检报告"字样，尝试提取前面部分
         if '自检' in content or '字数：' in content:
-            # 找到最后一章标题的位置，之后通常是自检报告
             lines = content.split('\n')
             main_lines = []
             for line in lines:
-                if '自检' in line or '字数：' in line or '番茄算法' in line:
+                if '自检' in line or ('字数：' in line and '总字数' in line) or '番茄算法：' in line:
                     break
                 main_lines.append(line)
             if main_lines:
