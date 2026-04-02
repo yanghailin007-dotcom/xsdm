@@ -41,76 +41,99 @@
     ]
   },
   
-  "emotion_cycle_template": {
-    "name": "5章情绪循环",
-    "description": "严格5章一个情绪循环",
-    "cycles": [
-      {
-        "position": 1,
-        "emotion": "压抑",
-        "intensity_range": "7-8",
-        "beat_type": "铺垫",
-        "function": "积蓄情绪，让读者同情主角",
-        "key_requirements": [
-          "主角被质疑/遇到强大敌人",
-          "反派要有智商，不只是嚣张",
-          "通过具体细节让读者感到压抑"
-        ],
-        "algorithm_focus": "情绪词密度≥2.0/千字，前300字必须有冲突"
+  "stage_emotion_patterns": {
+    "description": "基于阶段目标的情绪设计模式 - 替代固定5章循环",
+    "selection_guide": "根据当前阶段目标选择合适的情绪模式",
+    
+    "patterns": {
+      "开局爆发型": {
+        "pattern_id": "opening_burst",
+        "description": "黄金三章专用，快速建立爽感预期",
+        "applicable_goals": ["黄金三章", "首次展现实力", "系统觉醒", "开局打脸"],
+        "emotion_arc": "极端压抑(9)→绝望(8)→反转爆发(9)→震惊(8)→期待(7)",
+        "chapter_structure": {
+          "ch1": { "emotion": "压抑", "intensity": 9, "beat": "钩子+压抑", "requirement": "3章内必须有大爽点" },
+          "ch2": { "emotion": "反转", "intensity": 8, "beat": "觉醒+初步反击", "requirement": "系统出现，点燃希望" },
+          "ch3": { "emotion": "爽快", "intensity": 9, "beat": "爆发+震惊", "requirement": "第一次大打脸，建立信心" }
+        },
+        "key_metrics": {
+          "emotion_variance": "≥3", 
+          "climax_in_3_chapters": true,
+          "hook_strength": "必须极强"
+        }
       },
-      {
-        "position": 2,
-        "emotion": "紧张/嘲讽",
-        "intensity_range": "8-9",
-        "beat_type": "冲突",
-        "function": "矛盾升级，制造紧张感",
-        "key_requirements": [
-          "反派嚣张/弹幕全网黑",
-          "主角陷入困境",
-          "读者感到紧张和压力"
+      
+      "蓄力积累型": {
+        "pattern_id": "build_up",
+        "description": "为高潮蓄力，波浪式小起伏",
+        "applicable_goals": ["成长积累", "能力解锁前", "地图切换前", "势力扩张"],
+        "emotion_arc": "小压抑(6)→小冲突(7)→小爽快(7)→小期待(6)→新伏笔(6)",
+        "design_principles": [
+          "波浪式小高潮，每3-5章一个小爽点",
+          "情绪强度波动范围：6-7（不要太高）",
+          "为即将到来的大高潮积蓄情绪势能",
+          "严禁提前消耗大高潮情绪"
         ],
-        "algorithm_focus": "情绪强度8以上，每500字情绪词"
+        "key_metrics": {
+          "emotion_variance": "1-2", 
+          "small_climax_every": "3-5章",
+          "max_intensity": 7
+        }
       },
-      {
-        "position": 3,
-        "emotion": "反转/爆发",
-        "intensity_range": "8-9",
-        "beat_type": "反转",
-        "function": "主角反击，刷新认知",
-        "key_requirements": [
-          "主角展现实力，开始反击",
-          "从被动转为主动",
-          "让读者感到大爽或震惊"
+      
+      "递进高潮型": {
+        "pattern_id": "progressive_climax",
+        "description": "阶段性高潮，爽感层层叠加",
+        "applicable_goals": ["阶段性高潮", "BOSS战", "身份大曝光", "大型打脸现场"],
+        "emotion_arc": "紧张(7)→冲突升级(8)→第一波爽(8)→第二波爽(9)→巅峰(9)",
+        "design_principles": [
+          "递进式爽感，一波比一波强",
+          "必须有3层以上震惊反应链",
+          "每层震惊要有不同的反应群体",
+          "最后50字大悬念，吊足胃口"
         ],
-        "algorithm_focus": "爽点密度≥1.5/千字，震惊反应链完整"
+        "key_metrics": {
+          "emotion_variance": "≥2",
+          "shock_layers": "≥3层",
+          "intensity_progression": "递增",
+          "final_hook": "必须极强"
+        }
       },
-      {
-        "position": 4,
-        "emotion": "震惊/渲染",
-        "intensity_range": "7-8",
-        "beat_type": "渲染",
-        "function": "放大震惊效果，多层次铺展",
-        "key_requirements": [
-          "全网刷屏/反派跪地",
-          "多角度、多层次描写震惊",
-          "震惊反应链：现场→弹幕→权威"
+      
+      "收束过渡型": {
+        "pattern_id": "transition",
+        "description": "阶段总结，承上启下",
+        "applicable_goals": ["阶段总结", "地图切换", "能力提升后", "新目标开启"],
+        "emotion_arc": "满足(7)→收获(6)→新线索(6)→新期待(7)→新目标(7)",
+        "design_principles": [
+          "享受成果，让读者有满足感",
+          "回收本阶段伏笔，给出交代",
+          "埋下新阶段伏笔，建立新期待",
+          "情绪平稳过渡，不要大波动"
         ],
-        "algorithm_focus": "震惊词密度，三层震惊铺展"
-      },
-      {
-        "position": 5,
-        "emotion": "期待/伏笔",
-        "intensity_range": "6-7",
-        "beat_type": "伏笔",
-        "function": "埋下伏笔，为下一循环做准备",
-        "key_requirements": [
-          "新地图/新能力线索",
-          "具体的时间锁/信息差",
-          "必须让人想点下一章"
-        ],
-        "algorithm_focus": "最后50字必须是钩子，钩子类型明确"
+        "key_metrics": {
+          "emotion_variance": "≤2",
+          "foreshadowing_resolution": "本阶段伏笔100%回收",
+          "new_setup": "新阶段期待建立"
+        }
       }
-    ]
+    },
+    
+    "emotion_design_quality_check": {
+      "description": "情绪设计质量检查清单",
+      "must_satisfy": [
+        "情绪密度≥2.0/千字",
+        "爽点密度≥1.5/千字",
+        "章章有钩子",
+        "相邻章强度差≥1（有起伏）",
+        "与阶段目标100%对齐"
+      ],
+      "should_avoid": [
+        "连续3章同强度（平铺直叙）",
+        "高潮前情绪透支",
+        "与阶段目标无关的情绪设计"
+      ]
+    }
   },
   
   "algorithm_requirements": {
@@ -264,11 +287,13 @@
       "前序总结（已发生事件、角色状态、待回收伏笔、阶段完成度）"
     ],
     "planning_requirements": [
-      "严格5章情绪循环",
+      "基于阶段目标选择合适的情绪模式（开局爆发型/蓄力积累型/递进高潮型/收束过渡型）",
+      "情绪设计必须有起伏，相邻章强度差≥1",
       "每章必须有明确节拍类型",
       "章章有钩子",
-      "与阶段目标对齐",
-      "回收前序伏笔"
+      "与阶段目标100%对齐",
+      "回收前序伏笔",
+      "严禁机械使用固定循环"
     ],
     "output_requirements": [
       "JSON格式",
@@ -280,7 +305,7 @@
   },
   
   "system_prompt_template": {
-    "template": "# 角色：战术规划师\n\n为小说《{novel_title}》规划第{start_chapter}-{end_chapter}章详细战术。\n\n## 基本信息（必须遵守）\n- 书名: {novel_title}\n- 主角名: {protagonist_name} ⚠️ 所有事件必须围绕此主角名展开，绝对禁止更换主角名\n\n{bestseller_ref}\n\n## 阶段目标（核心约束）\n目标ID: {goal_id}\n目标描述: {goal_description}\n成功标准: {success_criteria}\n关键交付物: {key_deliverables}\n\n{summary_text}\n\n## 规划要求\n\n### 情绪循环公式（严格5章循环）\n**注意**: 如果上面的\"爆款设计参考\"中定义了不同的情绪设计，以爆款设计为准！\n\n第1章: 压抑(强度7-8) - {protagonist_name}被质疑/遇到强大敌人\n第2章: 嘲讽升级(强度8-9) - 反派嚣张/弹幕全网黑\n第3章: 反转爆发(强度8-9) - {protagonist_name}展现实力，开始反击\n第4章: 震惊渲染(强度7-8) - 全网刷屏/反派跪地\n第5章: 期待铺垫(强度6-7) - 新地图/新能力线索\n\n### 阶段目标对齐（重要！）\n- 本批次所有章节必须服务于阶段目标\n- 不要提前消耗后续阶段的关键交付物\n- 如果阶段目标要求\"首次展现实力\"，本批次必须包含这个事件\n- 如果阶段目标要求\"解锁技能\"，本批次必须铺垫并最终解锁\n\n### 伏笔回收\n优先回收前序总结中的\"待回收伏笔\"，按优先级处理。\n\n## 输出格式\nJSON格式，包含chapters数组，每个元素:\n{{\n  \"chapter_number\": 章节号,\n  \"emotion\": \"情绪类型(压抑/紧张/小爽快/大爽快/震惊/期待)\",\n  \"intensity\": 强度(1-10),\n  \"beat_type\": \"节拍类型(铺垫/冲突/反转/渲染/伏笔)\",\n  \"event\": \"主要事件简述\",\n  \"purpose\": \"本章目的（如何服务于阶段目标）\",\n  \"hook_type\": \"钩子类型\",\n  \"hook_content\": \"章尾钩子内容\",\n  \"stage_goal_alignment\": \"如何推进阶段目标\"\n}}\n\n只输出JSON，不要其他说明。",
+    "template": "# 角色：战术规划师\n\n为小说《{novel_title}》规划第{start_chapter}-{end_chapter}章详细战术。\n\n## 基本信息（必须遵守）\n- 书名: {novel_title}\n- 主角名: {protagonist_name} ⚠️ 所有事件必须围绕此主角名展开，绝对禁止更换主角名\n\n{bestseller_ref}\n\n## 阶段目标（核心约束）\n目标ID: {goal_id}\n目标描述: {goal_description}\n成功标准: {success_criteria}\n关键交付物: {key_deliverables}\n\n{summary_text}\n\n## 情绪设计指南（基于阶段目标）\n\n### 步骤1：识别阶段类型\n根据阶段目标描述，判断当前属于哪种阶段类型：\n\n**开局爆发型** - 适用于：黄金三章、首次展现实力、系统觉醒\n- 情绪弧线：极端压抑(9)→绝望(8)→反转爆发(9)→震惊(8)→期待(7)\n- 关键要求：3章内必须有大爽点，快速建立爽感预期\n\n**蓄力积累型** - 适用于：成长积累、能力解锁前、地图切换前\n- 情绪弧线：小压抑(6)→小冲突(7)→小爽快(7)→小期待(6)→新伏笔(6)\n- 关键要求：波浪式小高潮，每3-5章一个小爽点，为高潮蓄力，严禁提前消耗大高潮情绪\n\n**递进高潮型** - 适用于：阶段性高潮、BOSS战、身份大曝光\n- 情绪弧线：紧张(7)→冲突升级(8)→第一波爽(8)→第二波爽(9)→巅峰(9)\n- 关键要求：递进式爽感层层叠加，必须有3层以上震惊反应链\n\n**收束过渡型** - 适用于：阶段总结、地图切换、能力提升后\n- 情绪弧线：满足(7)→收获(6)→新线索(6)→新期待(7)→新目标(7)\n- 关键要求：享受成果+埋下新伏笔，承上启下，情绪平稳过渡\n\n### 步骤2：设计情绪弧线\n- 为本批次6章设计整体情绪弧线（不要机械循环）\n- 相邻章强度差必须≥1（有起伏，不平铺直叙）\n- 高潮章节强度必须高于铺垫章节\n\n### 步骤3：质量自检\n设计完成后，自检以下指标：\n- [ ] 情绪密度≥2.0/千字（每章）\n- [ ] 爽点密度≥1.5/千字（每章）\n- [ ] 相邻章强度差≥1（有起伏）\n- [ ] 与阶段目标100%对齐\n- [ ] 章章有钩子（最后50字）\n\n### 重要提醒\n- ❌ 严禁使用\"压抑→嘲讽→反转→震惊→期待\"的机械5章循环\n- ✅ 必须根据阶段目标选择合适的情绪模式\n- ✅ 必须确保情绪有起伏，不要平铺直叙\n\n## 输出格式\nJSON格式，包含chapters数组，每个元素:\n{{\n  \"chapter_number\": 章节号,\n  \"emotion\": \"情绪类型(压抑/紧张/小爽快/大爽快/震惊/期待)\",\n  \"intensity\": 强度(1-10),\n  \"beat_type\": \"节拍类型(铺垫/冲突/反转/渲染/伏笔)\",\n  \"event\": \"主要事件简述\",\n  \"purpose\": \"本章目的（如何服务于阶段目标）\",\n  \"hook_type\": \"钩子类型\",\n  \"hook_content\": \"章尾钩子内容\",\n  \"stage_goal_alignment\": \"如何推进阶段目标\"\n}}\n\n只输出JSON，不要其他说明。",
     "variables": [
       "novel_title", "start_chapter", "end_chapter", "protagonist_name",
       "bestseller_ref", "goal_id", "goal_description", "success_criteria",
