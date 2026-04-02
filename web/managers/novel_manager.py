@@ -1594,21 +1594,6 @@ class NovelGenerationManager:
         generated_chapters = novel_data.get("generated_chapters", {})
         chapter = generated_chapters.get(chapter_num)
         if chapter:
-            # 🔥 清理 content 中的标题行（兼容旧数据）
-            content = chapter.get('content', '')
-            if content:
-                import re
-                title_patterns = [
-                    r'^第[一二三四五六七八九十百千万零\d]+章[：:\s]*[^\n]*\n*',
-                    r'^Chapter\s*\d+[：:\s]*[^\n]*\n*',
-                ]
-                cleaned_content = content
-                for pattern in title_patterns:
-                    cleaned_content = re.sub(pattern, '', cleaned_content, flags=re.IGNORECASE)
-                cleaned_content = cleaned_content.lstrip('\n')
-                if cleaned_content != content:
-                    logger.info(f"[NovelManager] 已清理第{chapter_num}章 content 中的标题行")
-                    chapter['content'] = cleaned_content
             return chapter
         
         # 🔥 如果内存中没有，从文件系统读取
@@ -1632,24 +1617,6 @@ class NovelGenerationManager:
                             try:
                                 with open(ch_file, 'r', encoding='utf-8-sig') as f:
                                     ch_data = json.load(f)
-                                
-                                # 🔥 清理 content 中的标题行（兼容旧数据）
-                                content = ch_data.get('content', '')
-                                if content:
-                                    import re
-                                    # 匹配 "第X章：标题" 格式
-                                    title_patterns = [
-                                        r'^第[一二三四五六七八九十百千万零\d]+章[：:\s]*[^\n]*\n*',
-                                        r'^Chapter\s*\d+[：:\s]*[^\n]*\n*',
-                                    ]
-                                    cleaned_content = content
-                                    for pattern in title_patterns:
-                                        cleaned_content = re.sub(pattern, '', cleaned_content, flags=re.IGNORECASE)
-                                    cleaned_content = cleaned_content.lstrip('\n')
-                                    if cleaned_content != content:
-                                        logger.info(f"[NovelManager] 已清理第{chapter_num}章 content 中的标题行")
-                                        ch_data['content'] = cleaned_content
-                                
                                 logger.debug(f"✅ 从文件系统读取章节 {chapter_num}: {ch_file.name}")
                                 return ch_data
                             except Exception as e:

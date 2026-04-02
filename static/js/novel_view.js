@@ -227,7 +227,13 @@ async function loadChapter(novelTitle, chapterNum) {
  * 更新中间内容区
  */
 function updateCenterContent(chapter) {
-    const title = chapter.title || `第${chapter.chapter_number}章`;
+    // 🔥 拼接标题格式：第X章：标题
+    const chapterNum = chapter.chapter_number;
+    const titleText = chapter.title || '';
+    const displayTitle = titleText 
+        ? `第${chapterNum}章：${titleText}` 
+        : `第${chapterNum}章`;
+    
     const wordCount = chapter.content ? chapter.content.length : 0;
     const generatedTime = chapter.generated_at
         ? new Date(chapter.generated_at).toLocaleString('zh-CN')
@@ -237,8 +243,8 @@ function updateCenterContent(chapter) {
     const titleElement = document.getElementById('chapter-title');
     const numberElement = document.getElementById('chapter-number');
     
-    if (titleElement) titleElement.textContent = title;
-    if (numberElement) numberElement.textContent = `第 ${chapter.chapter_number} 章`;
+    if (titleElement) titleElement.textContent = displayTitle;
+    if (numberElement) numberElement.textContent = `第 ${chapterNum} 章`;
 
     // 保存章节内容到全局变量，供分页系统使用
     if (chapter.content) {
@@ -279,7 +285,7 @@ function updateCenterContent(chapter) {
     
     // 更新工具栏标题
     const toolbarTitle = document.getElementById('toolbar-title');
-    if (toolbarTitle) toolbarTitle.textContent = title;
+    if (toolbarTitle) toolbarTitle.textContent = displayTitle;
 }
 
 /**
@@ -2790,17 +2796,22 @@ function displayAllChapters() {
         return;
     }
     
-    listContainer.innerHTML = chaptersData.map(chapter => `
+    listContainer.innerHTML = chaptersData.map(chapter => {
+        // 🔥 拼接标题格式：第X章：标题
+        const displayTitle = chapter.title 
+            ? `第${chapter.chapter_number}章：${chapter.title}`
+            : `第${chapter.chapter_number}章`;
+        return `
         <div class="chapter-item ${chapter.chapter_number === currentChapter ? 'active' : ''}"
              onclick="loadChapter('${(currentNovelTitle || '').replace(/'/g, "\\'")}', ${chapter.chapter_number})"
              data-chapter="${chapter.chapter_number}">
             <div class="chapter-item-number">${chapter.chapter_number}</div>
             <div class="chapter-item-info">
-                <div class="chapter-item-title">${chapter.title}</div>
+                <div class="chapter-item-title">${displayTitle}</div>
                 <div class="chapter-item-meta">${chapter.word_count || 0} 字</div>
             </div>
         </div>
-    `).join('');
+    `}).join('');
     
     // 更新章节总数
     const countElement = document.getElementById('chapters-count');
@@ -2828,17 +2839,22 @@ function displayCurrentChapterPage() {
     
     console.log('显示当前页章节:', currentPageData);
     
-    listContainer.innerHTML = currentPageData.map(chapter => `
+    listContainer.innerHTML = currentPageData.map(chapter => {
+        // 🔥 拼接标题格式：第X章：标题
+        const displayTitle = chapter.title 
+            ? `第${chapter.chapter_number}章：${chapter.title}`
+            : `第${chapter.chapter_number}章`;
+        return `
         <div class="chapter-item ${chapter.chapter_number === currentChapter ? 'active' : ''}"
              onclick="loadChapter('${(currentNovelTitle || '').replace(/'/g, "\\'")}', ${chapter.chapter_number})"
              data-chapter="${chapter.chapter_number}">
             <div class="chapter-item-number">${chapter.chapter_number}</div>
             <div class="chapter-item-info">
-                <div class="chapter-item-title">${chapter.title}</div>
+                <div class="chapter-item-title">${displayTitle}</div>
                 <div class="chapter-item-meta">${chapter.word_count} 字</div>
             </div>
         </div>
-    `).join('');
+    `}).join('');
     
     // 显示分页导航
     const paginationElement = document.getElementById('chapter-pagination');
