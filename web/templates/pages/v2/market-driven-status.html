@@ -4,6 +4,7 @@
 
 {% block extra_css %}
 <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+<link rel="stylesheet" href="/static/css/generation-float.css">
 <style>
 .status-container {
   max-width: 800px;
@@ -486,6 +487,10 @@
     
   </div>
 </div>
+
+<!-- 生成进度悬浮窗 -->
+{% include 'novel/generation_float.html' %}
+
 {% endblock %}
 
 {% block extra_js %}
@@ -566,10 +571,35 @@ function updateUI(task) {
     statusEl.textContent = '已完成';
     statusEl.className = 'progress-card__status progress-card__status--completed';
     showResult(task);
+    // 显示悬浮窗完成状态
+    if (typeof showBatchComplete === 'function' && task.result) {
+      showBatchComplete({
+        avg_score: task.result.avg_quality || 85.0,
+        score_class: task.result.avg_quality >= 80 ? 'excellent' : task.result.avg_quality >= 60 ? 'good' : 'warning'
+      });
+    }
   } else if (task.status === 'failed') {
     statusEl.textContent = '失败';
     statusEl.className = 'progress-card__status progress-card__status--failed';
     showError(task.error);
+  } else if (task.status === 'running' || task.status === 'in_progress') {
+    // 更新悬浮窗进度
+    if (typeof updateProgress === 'function') {
+      updateProgress({
+        current_chapter: task.current_chapter || 0,
+        chapter_title: task.chapter_title || '生成中...',
+        batch_progress: task.batch_progress || 0,
+        batch_size: task.batch_size || 1,
+        total_progress: `${task.total_chapters || 0}/${task.target_chapters || 0}`,
+        total_percent: `${progress}%`,
+        window_metrics: task.window_metrics || []
+      });
+      // 显示悬浮窗
+      const floatEl = document.getElementById('generationFloat');
+      if (floatEl && floatEl.style.display === 'none') {
+        floatEl.style.display = 'block';
+      }
+    }
   }
   
   // 更新阶段列表
