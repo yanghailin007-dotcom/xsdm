@@ -330,6 +330,8 @@ def duplicate_package(package_id):
     """
     复制提示词包
     
+    只能复制系统默认包或自己的包
+    
     Request Body:
         {
             "name": "新名称（可选）"
@@ -340,9 +342,14 @@ def duplicate_package(package_id):
         user_id = get_user_id()
         data = request.json or {}
         
-        source_package = manager.get_package(package_id)
+        # 1. 先尝试查找自己的包
+        source_package = manager.get_package(package_id, user_id)
+        
+        # 2. 如果不是自己的包，检查是否是默认包
         if not source_package:
-            return jsonify({"error": "源包不存在"}), 404
+            source_package = manager.get_package(package_id, None)
+            if not source_package or not source_package.is_default:
+                return jsonify({"error": "源包不存在或无权限复制"}), 404
         
         new_name = data.get('name') or f"{source_package.name} - 副本"
         

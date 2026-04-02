@@ -121,34 +121,47 @@ class PromptPackageManager:
         
         return packages
     
-    def get_package(self, package_id: str, user_id: Optional[str] = None) -> Optional[PromptPackage]:
+    def get_package(self, package_id: str, user_id: Optional[str] = None,
+                    allow_shared: bool = False) -> Optional[PromptPackage]:
         """
         获取提示词包
         
         Args:
             package_id: 包ID
             user_id: 用户ID（如果是用户自定义包）
+            allow_shared: 是否允许访问其他用户的共享包（默认False）
             
         Returns:
             提示词包对象，如果不存在则返回None
         """
-        # 先查找默认包
+        # 1. 先查找默认包（系统预设，所有用户可访问）
         default_path = self.default_packages_path / package_id
         if default_path.exists():
             return PromptPackage(default_path)
         
-        # 再查找用户包
+        # 2. 查找当前用户的包（严格用户隔离）
         if user_id:
             user_path = self.user_packages_path / str(user_id) / package_id
             if user_path.exists():
                 return PromptPackage(user_path)
         
-        # 遍历所有用户目录查找（用于共享包）
-        for user_dir in self.user_packages_path.iterdir():
-            if user_dir.is_dir():
+        # 3. 查找共享包（仅当显式允许时，且包必须标记为共享）
+        if allow_shared and user_id:
+            for user_dir in self.user_packages_path.iterdir():
+                if not user_dir.is_dir():
+                    continue
+                # 跳过当前用户自己的目录（已检查过）
+                if user_dir.name == str(user_id):
+                    continue
                 package_path = user_dir / package_id
                 if package_path.exists():
-                    return PromptPackage(package_path)
+                    try:
+                        pkg = PromptPackage(package_path)
+                        # 只返回显式标记为共享的包
+                        if pkg.info.get('is_shared', False):
+                            return pkg
+                    except Exception:
+                        continue
         
         return None
     
