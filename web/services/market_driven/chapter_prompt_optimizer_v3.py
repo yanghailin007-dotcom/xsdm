@@ -475,8 +475,7 @@ class ChapterPromptOptimizerV3:
         Returns:
             完整的System Prompt字符串
         """
-        # 🔥 优先使用JSON配置构建
-        if use_json_config and self._prompt_loader:
+        # 🔥 使用JSON配置构建
         return self._build_system_prompt_from_config()
     
     def _build_system_prompt_from_config(self) -> str:
