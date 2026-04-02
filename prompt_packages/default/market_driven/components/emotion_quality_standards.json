@@ -1,0 +1,121 @@
+{
+  "version": "1.0.0",
+  "description": "不同情绪类型的质量标准配置 - 用于实时质量监控",
+  
+  "emotion_standards": {
+    "压抑": {
+      "min_dialogue_ratio": 40,
+      "min_tomato_score": 65,
+      "min_emotion_density": 1.5,
+      "min_shuang_density": 1.0,
+      "required_elements": ["弹幕反应", "系统希望提示", "队友互动"],
+      "barrage_requirements": {
+        "min_count": 8,
+        "must_include": ["龙国观众担忧", "外国观众嘲讽", "专家分析"]
+      },
+      "system_prompt_requirements": {
+        "must_have_hope_hint": true,
+        "forbidden_pure_negative": ["威力下降", "无法恢复", "彻底失败"]
+      },
+      "hook_requirements": {
+        "type": "希望型",
+        "forbidden_endings": ["无路可逃", "死定了", "绝望"],
+        "recommended_endings": ["机会来了", "嘴角微扬", "底牌未出"]
+      }
+    },
+    
+    "紧张": {
+      "min_dialogue_ratio": 42,
+      "min_tomato_score": 68,
+      "min_emotion_density": 1.8,
+      "min_shuang_density": 1.2,
+      "required_elements": ["危机升级", "倒计时", "弹幕紧张"],
+      "barrage_requirements": {
+        "min_count": 8,
+        "tension_keywords": ["快", "小心", "怎么办"]
+      }
+    },
+    
+    "反转": {
+      "min_dialogue_ratio": 45,
+      "min_tomato_score": 75,
+      "min_emotion_density": 2.0,
+      "min_shuang_density": 1.5,
+      "required_elements": ["主角反击", "震惊反应链", "具体数字"],
+      "barrage_requirements": {
+        "min_count": 10,
+        "must_include": ["卧槽", "不可能", "跪了"]
+      }
+    },
+    
+    "震惊": {
+      "min_dialogue_ratio": 45,
+      "min_tomato_score": 78,
+      "min_emotion_density": 2.2,
+      "min_shuang_density": 1.8,
+      "required_elements": ["三层震惊铺展", "数据可视化", "权威反应"],
+      "shock_chain_requirements": {
+        "on_site": true,
+        "barrage": true,
+        "authority": true
+      }
+    },
+    
+    "大爽": {
+      "min_dialogue_ratio": 50,
+      "min_tomato_score": 80,
+      "min_emotion_density": 2.5,
+      "min_shuang_density": 2.0,
+      "required_elements": ["打脸", "收获", "全球反应", "章尾高钩子"],
+      "barrage_requirements": {
+        "min_count": 12,
+        "satisfaction_keywords": ["爽", "牛逼", "解气", "跪了"]
+      }
+    },
+    
+    "期待": {
+      "min_dialogue_ratio": 40,
+      "min_tomato_score": 70,
+      "min_emotion_density": 1.5,
+      "min_shuang_density": 1.0,
+      "required_elements": ["悬念钩子", "信息差", "时间锁"],
+      "hook_strength": "强"
+    },
+    
+    "小爽": {
+      "min_dialogue_ratio": 45,
+      "min_tomato_score": 72,
+      "min_emotion_density": 1.8,
+      "min_shuang_density": 1.3,
+      "required_elements": ["小收获", "弹幕好评", "持续期待"]
+    }
+  },
+  
+  "universal_requirements": {
+    "max_consecutive_same_emotion": 2,
+    "forbidden_emotion_sequences": [
+      ["压抑", "压抑", "压抑"],
+      ["紧张", "紧张", "紧张"]
+    ],
+    "cliffhanger_required": true,
+    "cliffhanger_position": "最后50字",
+    "perspective_rules": {
+      "max_antagonist_ratio": 0.30,
+      "protagonist_must_active": true
+    }
+  },
+  
+  "sliding_window_config": {
+    "window_size": 5,
+    "alert_thresholds": {
+      "low_score_chapters": 2,
+      "consecutive_low_dialogue": 3,
+      "avg_score_drop": 15
+    },
+    "auto_fix_trigger": {
+      "single_chapter_score_below": 60,
+      "window_avg_score_below": 65,
+      "consecutive_depressing": 2
+    }
+  }
+}

@@ -135,30 +135,29 @@ class ChapterAnalyticsService:
         )
     
     def _calc_dialogue_ratio(self, content: str) -> float:
-        """计算对话比例"""
-        # 匹配对话："..." 或 '...' 或 「...」
-        # 使用简单的逐字符匹配来避免正则复杂性
+        """计算对话比例 - 支持中英文引号、角引号、弹幕格式"""
+        if not content:
+            return 0.0
+            
         dialogue_len = 0
-        in_quote = False
-        quote_char = None
-        current_dialogue = []
         
-        for char in content:
-            if char in '"""\'\'\'「」':
-                if not in_quote:
-                    in_quote = True
-                    quote_char = char
-                    current_dialogue = []
-                elif char == quote_char or (quote_char == '"' and char in '"""') or (quote_char == "'" and char in "'''"):
-                    in_quote = False
-                    dialogue_len += len(current_dialogue)
-                    current_dialogue = []
-                else:
-                    current_dialogue.append(char)
-            elif in_quote:
-                current_dialogue.append(char)
+        # 1. 英文双引号 "..."
+        english_quotes = re.findall(r'"([^"]*)"', content)
+        dialogue_len += sum(len(q) for q in english_quotes)
         
-        return (dialogue_len / len(content) * 100) if content else 0
+        # 2. 中文双引号 "..." (U+201C 左引号, U+201D 右引号)
+        chinese_quotes = re.findall(r'"([^"]*)"', content)
+        dialogue_len += sum(len(q) for q in chinese_quotes)
+        
+        # 3. 中文角引号 「...」
+        corner_quotes = re.findall(r'「([^」]*)」', content)
+        dialogue_len += sum(len(q) for q in corner_quotes)
+        
+        # 4. 弹幕格式 【...】（国运文直播弹幕）
+        barrage_quotes = re.findall(r'【([^】]*)】', content)
+        dialogue_len += sum(len(q) for q in barrage_quotes)
+        
+        return (dialogue_len / len(content) * 100)
     
     def _calc_shuang_density(self, content: str, word_count: int) -> float:
         """计算爽点密度"""

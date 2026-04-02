@@ -481,7 +481,7 @@ class BurstStateManager:
         for name, npc in npcs.items():
             npc_lines.append(f"- {name}: {npc.role}, {npc.identity}, 初始关系{npc.initial_relation}")
         
-        return f"""=== 第一层：核心设定（绝对不能变）===
+        return f"""=== 【核心设定】（绝对不能变）===
 【主角】
 - 姓名：{p.name}
 - 年龄：{p.age}
@@ -509,7 +509,7 @@ class BurstStateManager:
         for event in self.dynamic_state.active_events:
             event_lines.append(f"- {event.get('name')}: 进度{event.get('progress')}, 截止第{event.get('deadline_ch')}章")
         
-        return f"""=== 第二层：当前状态（必须从这个状态开始写）===
+        return f"""=== 【当前状态】（必须从这个状态开始写）===
 【主角当前】
 - 实力：{pc.cultivation_level}
 - 资产：{pc.current_wealth:,}元
@@ -553,7 +553,7 @@ class BurstStateManager:
         recent_history = self.emotion_rhythm.emotion_history[-3:] if self.emotion_rhythm.emotion_history else []
         history_lines = [f"- 第{r.ch}章: {r.emotion}(强度{r.intensity})" for r in recent_history]
         
-        return f"""=== 第三层：本章情绪规划 ===
+        return f"""=== 【本章情绪规划】===
 【最近情绪轨迹】
 {chr(10).join(history_lines) if history_lines else "- 无前文"}
 
@@ -571,7 +571,7 @@ class BurstStateManager:
     
     def _format_emotion_beat(self, beat: Dict) -> str:
         """格式化情绪节拍（从EmotionFlow传入）"""
-        return f"""=== 第三层：本章情绪节拍 ===
+        return f"""=== 【本章情绪节拍】===
 【情绪目标】
 - 情绪类型：{beat.get('emotion', '期待')}
 - 强度要求：{beat.get('intensity', 5)}/10

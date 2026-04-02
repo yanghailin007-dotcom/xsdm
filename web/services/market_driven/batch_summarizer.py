@@ -26,9 +26,11 @@ class BatchSummarizer:
     # 配置路径
     CONFIG_PATH = "prompt_packages/default/market_driven/components/batch_summary_prompts.json"
     
-    def __init__(self, api_client=None):
+    def __init__(self, api_client=None, analytics_service=None):
         self.api_client = api_client
+        self.analytics_service = analytics_service  # 🔥 新增：接入真实质量分析服务
         self._config = self._load_config()
+        self._emotion_quality_config = self._load_emotion_quality_config()
     
     def _load_config(self) -> Dict:
         """加载提示词配置"""
@@ -41,6 +43,19 @@ class BatchSummarizer:
             return {}
         except Exception as e:
             logger.warning(f"[BatchSummarizer] 无法加载配置: {e}")
+            return {}
+    
+    def _load_emotion_quality_config(self) -> Dict:
+        """🔥 加载情绪质量标准配置"""
+        try:
+            from pathlib import Path
+            config_path = Path("prompt_packages/default/market_driven/components/emotion_quality_standards.json")
+            if config_path.exists():
+                with open(config_path, 'r', encoding='utf-8') as f:
+                    return json.load(f)
+            return {}
+        except Exception as e:
+            logger.warning(f"[BatchSummarizer] 无法加载情绪质量标准配置: {e}")
             return {}
     
     def summarize_batch(
@@ -78,9 +93,19 @@ class BatchSummarizer:
         start_ch = min(chapter_nums) if chapter_nums else 0
         end_ch = max(chapter_nums) if chapter_nums else 0
         
-        # 基础统计
+        # 🔥 基础统计 - 使用真实质量数据（如果analytics_service可用）
         total_words = sum(c.get('word_count', 0) for c in chapters)
-        avg_quality = sum(c.get('quality_score', 0) for c in chapters) / len(chapters) if chapters else 0
+        
+        # 尝试获取真实质量分析
+        real_quality_metrics = self._analyze_real_quality(chapters)
+        if real_quality_metrics:
+            # 使用真实质量数据
+            avg_quality = sum(m['tomato_score'] for m in real_quality_metrics) / len(real_quality_metrics)
+            logger.info(f"[BatchSummarizer] 使用真实质量数据: 平均得分{avg_quality:.1f}")
+        else:
+            # 降级：使用章节自带的quality_score
+            avg_quality = sum(c.get('quality_score', 0) for c in chapters) / len(chapters) if chapters else 0
+            logger.warning(f"[BatchSummarizer] 使用章节自带质量分（可能不准确）: {avg_quality:.1f}")
         
         # 收集提取信息
         all_new_chars = []
@@ -89,20 +114,20 @@ class BatchSummarizer:
         key_events = []
         
         for ch in chapters:
-            extracted = ch.get('extracted_info', {})
+            extracted = ch.get('extracted_info', {}) or {}
             
             # 新角色
-            new_chars = extracted.get('new_characters', [])
+            new_chars = extracted.get('new_characters') or []
             for char in new_chars:
                 if char not in all_new_chars:
                     all_new_chars.append(char)
             
             # 角色变化
-            changes = extracted.get('character_changes', [])
+            changes = extracted.get('character_changes') or []
             all_char_changes.extend(changes)
             
             # 钩子
-            hooks = extracted.get('new_hooks', [])
+            hooks = extracted.get('new_hooks') or []
             all_hooks.extend(hooks)
             
             # 关键事件
@@ -263,6 +288,130 @@ class BatchSummarizer:
             "pending_hooks": [],
             "plot_direction": "继续推进当前阶段目标",
             "stage_progress_assessment": "阶段进行中"
+        }
+    
+    def _analyze_real_quality(self, chapters: List[Dict]) -> List[Dict]:
+        """
+        🔥 使用ChapterAnalyticsService分析真实质量
+        
+        Returns:
+            各章节的真实质量指标列表
+        """
+        if not self.analytics_service:
+            return []
+        
+        metrics_list = []
+        for ch in chapters:
+            ch_num = ch.get('chapter_number') or ch.get('chapter') or 0
+            if not ch_num:
+                continue
+            
+            try:
+                # 调用真实质量分析
+                metrics = self.analytics_service.analyze_chapter(ch_num)
+                if metrics:
+                    # 获取章节规划的情绪类型
+                    chapter_plan = ch.get('chapter_plan', {})
+                    planned_emotion = chapter_plan.get('emotion', '未知')
+                    
+                    # 对比规划情绪和实际质量
+                    quality_check = self._check_emotion_quality(
+                        planned_emotion, 
+                        metrics,
+                        ch.get('content', '')
+                    )
+                    
+                    metrics_list.append({
+                        'chapter_num': ch_num,
+                        'title': ch.get('title', ''),
+                        'tomato_score': metrics.tomato_score,
+                        'dialogue_ratio': metrics.dialogue_ratio,
+                        'shuang_density': metrics.shuang_density,
+                        'emotion_density': metrics.emotion_density,
+                        'has_cliffhanger': metrics.has_cliffhanger,
+                        'planned_emotion': planned_emotion,
+                        'quality_check': quality_check,
+                        'passed': quality_check.get('passed', False)
+                    })
+            except Exception as e:
+                logger.error(f"[BatchSummarizer] 分析第{ch_num}章质量失败: {e}")
+        
+        return metrics_list
+    
+    def _check_emotion_quality(self, emotion: str, metrics, content: str) -> Dict:
+        """
+        🔥 检查章节质量是否符合情绪类型的标准
+        """
+        standards = self._emotion_quality_config.get('emotion_standards', {})
+        emotion_std = standards.get(emotion, {})
+        
+        if not emotion_std:
+            return {'passed': True, 'issues': [], 'notes': '无该情绪类型标准'}
+        
+        issues = []
+        
+        # 检查对话比例
+        min_dialogue = emotion_std.get('min_dialogue_ratio', 40)
+        if metrics.dialogue_ratio < min_dialogue:
+            issues.append({
+                'type': 'low_dialogue',
+                'message': f"对话比例{metrics.dialogue_ratio:.1f}%低于标准{min_dialogue}%",
+                'severity': 'warning'
+            })
+        
+        # 检查番茄得分
+        min_score = emotion_std.get('min_tomato_score', 60)
+        if metrics.tomato_score < min_score:
+            issues.append({
+                'type': 'low_score',
+                'message': f"番茄得分{metrics.tomato_score:.1f}低于标准{min_score}",
+                'severity': 'critical'
+            })
+        
+        # 检查情绪密度
+        min_emotion_density = emotion_std.get('min_emotion_density', 1.5)
+        if metrics.emotion_density < min_emotion_density:
+            issues.append({
+                'type': 'low_emotion_density',
+                'message': f"情绪密度{metrics.emotion_density:.2f}低于标准{min_emotion_density}",
+                'severity': 'warning'
+            })
+        
+        # 检查爽点密度
+        min_shuang = emotion_std.get('min_shuang_density', 1.0)
+        if metrics.shuang_density < min_shuang:
+            issues.append({
+                'type': 'low_shuang_density',
+                'message': f"爽点密度{metrics.shuang_density:.2f}低于标准{min_shuang}",
+                'severity': 'info'
+            })
+        
+        # 检查必含元素
+        required_elements = emotion_std.get('required_elements', [])
+        missing_elements = []
+        for element in required_elements:
+            # 简化检查：在内容中查找关键词
+            if element == '弹幕反应' and '【' not in content:
+                missing_elements.append(element)
+            elif element == '系统希望提示' and '系统提示' not in content:
+                missing_elements.append(element)
+        
+        if missing_elements:
+            issues.append({
+                'type': 'missing_elements',
+                'message': f"缺少必含元素: {', '.join(missing_elements)}",
+                'severity': 'warning'
+            })
+        
+        return {
+            'passed': len([i for i in issues if i['severity'] == 'critical']) == 0,
+            'issues': issues,
+            'standards': {
+                'min_dialogue': min_dialogue,
+                'min_score': min_score,
+                'min_emotion_density': min_emotion_density,
+                'min_shuang': min_shuang
+            }
         }
     
     def _empty_summary(self) -> Dict:

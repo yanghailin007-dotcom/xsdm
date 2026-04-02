@@ -570,6 +570,11 @@ class ChapterPromptOptimizerV3:
         else:
             sections.append(self._build_emotion_control())
         
+        # 🔥 10.5 压抑章节特殊增强（如果是压抑章节）
+        depressing_enhancement = self._build_depressing_chapter_enhancement()
+        if depressing_enhancement:
+            sections.append(depressing_enhancement)
+        
         # 11. Format Rules
         fmt = self._render_component("format_rules", {})
         if fmt:
@@ -820,6 +825,52 @@ class ChapterPromptOptimizerV3:
         
         # JSON 配置缺失时抛出错误
         raise ConfigError("emotion_control 配置缺失", "components/common_prompt_components.json")
+    
+    def _build_depressing_chapter_enhancement(self) -> Optional[str]:
+        """
+        🔥 构建压抑章节特殊增强提示词
+        
+        如果是压抑章节，加载特殊质量要求
+        """
+        # 获取当前章节的情绪类型
+        emotion = self._get_current_chapter_emotion()
+        
+        if emotion not in ['压抑', '紧张']:
+            return None  # 不是压抑章节，不加载
+        
+        # 从JSON配置加载压抑章节增强
+        try:
+            config_path = "prompt_packages/default/market_driven/components/depressing_chapter_enhancement.json"
+            with open(config_path, 'r', encoding='utf-8') as f:
+                config = json.load(f)
+            
+            template = config.get('template', '')
+            
+            # 记录日志
+            logger.info(f"[PromptV3] 第{self.current_chapter_number}章为'{emotion}'情绪，加载压抑章节增强")
+            
+            return template
+            
+        except Exception as e:
+            logger.warning(f"[PromptV3] 无法加载压抑章节增强配置: {e}")
+            return None
+    
+    def _get_current_chapter_emotion(self) -> str:
+        """获取当前章节的情绪类型"""
+        # 从战术蓝图获取
+        blueprint = self.chapter_blueprints.get(self.current_chapter_number, {})
+        if blueprint:
+            return blueprint.get('emotion', '')
+        
+        # 从情绪曲线获取
+        if self.emotion_curve:
+            for phase_key, phase_data in self.emotion_curve.items():
+                curve = phase_data.get('curve', [])
+                for beat in curve:
+                    if beat.get('ch') == self.current_chapter_number:
+                        return beat.get('emotion', '')
+        
+        return ''
 
     def _build_format_rules(self) -> str:
         """构建格式规则 - 从 JSON 配置加载"""

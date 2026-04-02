@@ -1,0 +1,105 @@
+{
+  "version": "1.0.0",
+  "description": "自动修复触发器配置 - 当质量不达标时触发修复",
+  
+  "triggers": {
+    "low_single_chapter_score": {
+      "condition": "tomato_score < 60",
+      "priority": "critical",
+      "action": "flag_for_rewrite",
+      "message": "单章得分过低，建议重写",
+      "auto_expand": false
+    },
+    
+    "consecutive_low_dialogue": {
+      "condition": "dialogue_ratio < 40 for 3 chapters",
+      "priority": "high",
+      "action": "force_dialogue_expansion",
+      "message": "连续多章对话比例低，强制扩写弹幕",
+      "auto_expand": true,
+      "expansion_target": {
+        "min_barrage_count": 10,
+        "target_dialogue_ratio": 45
+      }
+    },
+    
+    "window_avg_dropping": {
+      "condition": "window_avg_score < 65",
+      "priority": "critical",
+      "action": "adjust_next_batch_emotion",
+      "message": "窗口平均分下降，调整下一批次情绪规划",
+      "adjustment": {
+        "force_satisfaction_chapters": 2,
+        "skip_depressing": true
+      }
+    },
+    
+    "consecutive_depressing": {
+      "condition": "consecutive_depressing >= 2",
+      "priority": "high",
+      "action": "force_next_emotion",
+      "message": "连续压抑章节过多，下一章强制改为爽点",
+      "forced_emotion": "大爽",
+      "forced_intensity": 9
+    },
+    
+    "depressing_chapter_low_quality": {
+      "condition": "emotion == '压抑' AND tomato_score < 65",
+      "priority": "high",
+      "action": "apply_depressing_enhancement",
+      "message": "压抑章节质量不达标，应用增强提示词",
+      "enhancements": [
+        "add_hope_system_prompt",
+        "expand_barrage",
+        "rewrite_hook_to_hope_type"
+      ]
+    }
+  },
+  
+  "auto_fix_strategies": {
+    "expand_barrage": {
+      "description": "扩写弹幕和围观反应",
+      "template": "请在本章关键事件处增加以下弹幕反应（用【】包裹）：\n1. 龙国观众担忧支持：【龙国观众：撑住啊！】\n2. 外国观众嘲讽：【外国观众：哈哈，看你怎么死！】\n3. 专家紧张分析：【专家：根据数据，现在的状态很危险！】\n共增加8-10条弹幕。",
+      "target_increase": "dialogue_ratio +15%"
+    },
+    
+    "add_hope_system_prompt": {
+      "description": "添加带有希望的系统提示",
+      "template": "在章节适当位置添加以下系统提示：\n【系统提示：检测到宿主处于极限状态，突破概率+30%】\n或\n【叮！隐藏任务触发：绝境反击（奖励翻倍）】",
+      "position": "章节后半段，主角困境后"
+    },
+    
+    "rewrite_hook_to_hope_type": {
+      "description": "将结尾钩子改为希望型",
+      "forbidden_endings": ["无路可逃", "死定了", "彻底绝望"],
+      "recommended_endings": ["机会来了", "嘴角微扬", "底牌未出"],
+      "template": "将结尾改为：\n苏辰{positive_action}，{positive_hint}"
+    },
+    
+    "force_satisfaction_chapter": {
+      "description": "强制下一章为爽点章节",
+      "emotion": "大爽",
+      "intensity": 9,
+      "beat_type": "反转",
+      "required_elements": ["主角反击", "震惊反应链", "具体数字"]
+    }
+  },
+  
+  "notification_rules": {
+    "critical": {
+      "log_level": "error",
+      "block_next_generation": false,
+      "require_manual_confirmation": true
+    },
+    "high": {
+      "log_level": "warning",
+      "block_next_generation": false,
+      "auto_fix": true
+    },
+    "medium": {
+      "log_level": "info",
+      "block_next_generation": false,
+      "auto_fix": false
+    }
+  }
+}

@@ -17,6 +17,7 @@ from datetime import datetime
 from .world_builder import WorldBuilder
 from .tactical_planner import TacticalPlanner
 from .batch_summarizer import BatchSummarizer
+from .sliding_window_monitor import SlidingWindowMonitor
 from .config import get_config
 
 logger = logging.getLogger(__name__)
@@ -80,7 +81,12 @@ class HierarchicalPlanner:
         # 初始化组件
         self.world_builder = WorldBuilder(api_client)
         self.tactical_planner = TacticalPlanner(api_client, project_path)
-        self.batch_summarizer = BatchSummarizer(api_client)
+        
+        # 🔥 初始化滑动窗口监控器（用于实时监控质量趋势）
+        self.window_monitor = SlidingWindowMonitor(window_size=5)
+        
+        # 🔥 analytics_service将在需要时延迟初始化
+        self._analytics_service = None
         
         # 状态
         self.world_setting = None        # 世界观设定
@@ -364,6 +370,51 @@ class HierarchicalPlanner:
         count = len(generated_chapters)
         self.generated_chapters_count += count
         
+        # 🔥 初始化BatchSummarizer（延迟初始化，确保analytics_service可用）
+        if not hasattr(self, 'batch_summarizer') or self.batch_summarizer is None:
+            self.batch_summarizer = BatchSummarizer(
+                api_client=self.api_client,
+                analytics_service=self._get_analytics_service()
+            )
+        
+        # 🔥 滑动窗口质量监控
+        for ch in generated_chapters:
+            ch_num = ch.get('chapter_number') or ch.get('chapter') or 0
+            
+            # 获取章节质量指标（如果analytics_service可用）
+            if self._analytics_service:
+                metrics = self._analytics_service.analyze_chapter(ch_num)
+                if metrics:
+                    chapter_plan = ch.get('chapter_plan', {})
+                    planned_emotion = chapter_plan.get('emotion', '未知')
+                    
+                    # 添加到滑动窗口
+                    window_result = self.window_monitor.add_chapter(
+                        ch_num,
+                        {
+                            'tomato_score': metrics.tomato_score,
+                            'dialogue_ratio': metrics.dialogue_ratio,
+                            'shuang_density': metrics.shuang_density,
+                            'emotion_density': metrics.emotion_density
+                        },
+                        planned_emotion
+                    )
+                    
+                    # 如果触发告警，记录日志
+                    if window_result.get('alert'):
+                        logger.warning(
+                            f"[HierarchicalPlanner] 质量告警: {window_result.get('alert_type')} - "
+                            f"{window_result.get('message')}"
+                        )
+                        
+                        # 如果触发自动修复，记录建议
+                        auto_fix = self.window_monitor.should_trigger_auto_fix()
+                        if auto_fix.get('trigger'):
+                            logger.critical(
+                                f"[HierarchicalPlanner] 触发自动修复: {auto_fix.get('fix_type')} - "
+                                f"{auto_fix.get('reason')}"
+                            )
+        
         # 生成批次总结
         current_goal = self._get_current_stage_goal()
         new_summary = self.batch_summarizer.summarize_batch(
@@ -592,6 +643,22 @@ class HierarchicalPlanner:
             lines.append("")
         
         return "\n".join(lines)
+    
+    def _get_analytics_service(self):
+        """
+        🔥 延迟初始化并返回ChapterAnalyticsService
+        """
+        if self._analytics_service is None and self.project_path:
+            try:
+                from .chapter_analytics_service import ChapterAnalyticsService
+                novel_path = self.project_path.parent / self.project_path.name
+                if novel_path.exists():
+                    self._analytics_service = ChapterAnalyticsService(str(novel_path))
+                    logger.info(f"[HierarchicalPlanner] 初始化ChapterAnalyticsService: {novel_path}")
+            except Exception as e:
+                logger.error(f"[HierarchicalPlanner] 初始化ChapterAnalyticsService失败: {e}")
+        
+        return self._analytics_service
     
     def _check_stage_completion(self):
         """检查当前阶段目标是否完成"""

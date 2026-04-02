@@ -522,7 +522,7 @@ class ChapterPromptOptimizer:
         elif chapter_num <= 15:
             return "第" + str(chapter_num) + "章 | 【第一次中高潮区间】碾压国家代表队"
         elif chapter_num <= 30:
-            return "第" + str(chapter_num) + "章 | 【第一阶段高潮】通关第一层，全球震惊"
+            return "第" + str(chapter_num) + "章 | 【第一阶段高潮】通关首层禁地，全球震惊"
         else:
             return "第" + str(chapter_num) + "章 | 【持续发展阶段】"
     
@@ -638,7 +638,7 @@ class ChapterPromptOptimizer:
         elif chapter_num % 10 == 0:
             requirements.append("7. 【中高潮章-" + str(chapter_num) + "】大场面，大收获，全球震动，龙国高层反应")
         elif chapter_num == 30:
-            requirements.append("7. 【阶段高潮章】通关第一层，完全体降临，全球各国紧急会议，主角封将")
+            requirements.append("7. 【阶段高潮章】通关首层禁地，完全体降临，全球各国紧急会议，主角封将")
         
         return "\n".join(requirements)
 

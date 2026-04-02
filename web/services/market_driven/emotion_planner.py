@@ -110,7 +110,7 @@ class DynamicEmotionPlanner:
                 {"ch": 3, "emotion": "震惊", "intensity": 8, "event": "全国震惊"},
                 {"ch": 5, "emotion": "爽快", "intensity": 7, "event": "首次击杀"},
                 {"ch": 8, "emotion": "震惊", "intensity": 8, "event": "具现奖励"},
-                {"ch": 10, "emotion": "大爽快", "intensity": 9, "event": "第一层BOSS"},
+                {"ch": 10, "emotion": "大爽快", "intensity": 9, "event": "首层禁地BOSS战"},
                 {"ch": 15, "emotion": "震惊", "intensity": 9, "event": "全国直播高潮"},
             ],
             "rules": [
