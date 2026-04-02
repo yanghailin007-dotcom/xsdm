@@ -582,6 +582,9 @@ class ChapterPromptOptimizerV3:
         else:
             sections.append(self._build_format_rules())
         
+        # 🔥 11.5 强制 JSON 输出格式（最高优先级）
+        sections.append(self._build_json_format_enforcement())
+        
         # 12. AI Self Check
         check = self._render_component("ai_self_check_guide", {})
         if check:
@@ -890,6 +893,50 @@ class ChapterPromptOptimizerV3:
         # JSON 配置缺失时抛出错误
         raise ConfigError("ai_self_check 配置缺失", "components/common_prompt_components.json")
 
+    def _build_json_format_enforcement(self) -> str:
+        """构建强制 JSON 输出格式要求"""
+        return """## 【🚨 最高优先级：强制输出格式】
+
+### 你必须返回 JSON 格式，否则内容将被拒绝
+
+**正确格式：**
+```json
+{
+  "title": "章节标题（8-14字，不含'第X章'）",
+  "content": "章节正文内容（2000-2500字）"
+}
+```
+
+**警告：**
+- ❌ 禁止返回纯文本
+- ❌ 禁止返回 Markdown 代码块包裹的文本
+- ❌ 禁止在 content 中包含 "第X章" 标题行
+- ✅ 必须返回可解析的 JSON 对象
+- ✅ title 和 content 字段必须都存在
+
+**失败示例（将被拒绝）：**
+```
+第4章：苏辰一剑挥出
+
+大地在咆哮...
+```
+
+**成功示例：**
+```json
+{
+  "title": "苏辰一剑挥出，C级巨兽被平滑",
+  "content": "大地在咆哮..."
+}
+```
+
+### 如果无法生成 JSON，请返回错误信息：
+```json
+{
+  "title": "生成失败",
+  "content": "错误原因：..."
+}
+```"""
+
     def _build_footer(self) -> str:
         """构建页脚"""
         return """---
@@ -900,13 +947,14 @@ class ChapterPromptOptimizerV3:
 
 生成流程：
 1. 先阅读"章节指令"理解本章要求
-2. 生成本章正文（2000-2500字）
+2. **生成 JSON 格式的章节内容（title + content）**
 3. 必须进行AI自检（按照自检指南）
 4. 输出自检报告
 5. 如果自检不通过，重新优化后再次输出
 
 记住：
 1. 你是番茄爆款作家，不是普通写手
+2. **必须返回 JSON 格式，这是强制要求**
 2. 每章都要让读者欲罢不能
 3. 严格按照上述所有规则执行
 4. 必须自检，不可跳过！
