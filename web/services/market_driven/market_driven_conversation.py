@@ -2248,20 +2248,17 @@ POST /api/v2/prompt-config/component/{step_name}
             })
             return issues
         
-        # 🔥 新增：检查必需字段是否存在（生成阶段就应该有）
-        required_fields = {
+        # 🔥 检查必需字段是否存在（适配实际存储的字段名）
+        # 注意：plan.golden_finger 实际存储的字段名可能不同
+        required_field_mappings = {
             'name': '金手指名称',
-            'concept': '概念描述',
+            'concept': '概念描述', 
             'initial': '初始能力',
-            'stages': '成长阶段',
-            'growth_curve': '成长曲线',
-            'numeric_system': '数值体系',
-            'trigger_mechanism': '触发机制',
-            'limitations': '限制条件',
-            'upgrade_formula': '升级公式'
+            'growth_stages': '成长阶段',  # 实际字段名是 growth_stages 不是 stages
+            'limitations': '限制条件'
         }
         
-        for field, desc in required_fields.items():
+        for field, desc in required_field_mappings.items():
             if field not in golden_finger or not golden_finger[field]:
                 issues.append({
                     "type": f"missing_required_field_{field}",
@@ -2270,6 +2267,28 @@ POST /api/v2/prompt-config/component/{step_name}
                     "severity": "critical",
                     "stage": "generation"
                 })
+        
+        # 检查可选字段（有则更好，没有不报错）
+        optional_fields = {
+            'growth_curve': '成长曲线',
+            'numeric_system': '数值体系', 
+            'trigger_mechanism': '触发机制',
+            'upgrade_formula': '升级公式'
+        }
+        
+        missing_optional = []
+        for field, desc in optional_fields.items():
+            if field not in golden_finger or not golden_finger[field]:
+                missing_optional.append(desc)
+        
+        if missing_optional:
+            issues.append({
+                "type": "missing_optional_fields",
+                "issue": f"金手指缺少可选字段，建议补充: {', '.join(missing_optional)}",
+                "suggestion": "这些字段可以提升金手指的完整性和吸引力，建议补充",
+                "severity": "low",  # 降为 low，不是关键问题
+                "stage": "generation"
+            })
         
         # 获取爆款金手指公式
         bs_gf_formula = bestseller_analysis.get('golden_finger_formula', '')
@@ -2285,14 +2304,14 @@ POST /api/v2/prompt-config/component/{step_name}
             })
         
         # 检查金手指是否有层次感（成长空间）
-        growth_curve = golden_finger.get('growth_curve', [])
-        stages = golden_finger.get('stages', [])
+        # 适配实际字段名：growth_stages (不是 stages)
+        growth_stages = golden_finger.get('growth_stages', [])
         
-        if len(growth_curve) < 3 and len(stages) < 3:
+        if len(growth_stages) < 3:
             issues.append({
                 "type": "insufficient_gf_depth",
                 "issue": "金手指缺乏层次感和成长空间",
-                "current_stages": max(len(growth_curve), len(stages)),
+                "current_stages": len(growth_stages),
                 "suggestion": "建议设计3-5个成长阶段，如'解锁→熟练→精通→大师→传说'",
                 "severity": "high"
             })
