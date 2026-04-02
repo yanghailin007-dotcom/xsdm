@@ -676,8 +676,15 @@ class ChapterConversationGenerator:
                 purpose=f"第{chapter_num}章(重试)"
             )
             parsed_retry = self._parse_response(retry_response)
-            ai_title = parsed_retry.get('title', '')
+            retry_title = parsed_retry.get('title', '')
             content = parsed_retry.get('content', '')
+            
+            # 🔥 修复：重试时如果新标题有效则使用，否则保留原标题
+            if retry_title and len(retry_title.strip()) >= 4:
+                ai_title = retry_title.strip()
+                logger.info(f"[章节对话 {self.session_id}] 第{chapter_num}章重试后使用新标题: '{ai_title}'")
+            else:
+                logger.info(f"[章节对话 {self.session_id}] 第{chapter_num}章重试后保留原标题: '{ai_title}'")
             
             # 再次校验
             if self._is_only_self_check_report(content):
@@ -1416,9 +1423,8 @@ class ChapterConversationGenerator:
             title = ai_title.strip()
             # 清理可能存在的"第X章"前缀
             title = re.sub(r'^第[一二三四五六七八九十百千万零\d]+章\s*', '', title)
-            # 验证长度(番茄标准:8-14字)
-            if len(title) > 14:
-                title = title[:14]
+            # 验证长度(番茄标准:8-14字)，智能截断（在标点处截断）
+            title = self._smart_truncate_title(title, max_length=14)
             if len(title) >= 4:
                 return self._ensure_unique_title(title)
         
@@ -1428,29 +1434,25 @@ class ChapterConversationGenerator:
             if title and title != '章节' and len(title) >= 4:
                 # 清理"第X章"前缀
                 title = re.sub(r'^第[一二三四五六七八九十百千万零\d]+章\s*', '', title)
-                if len(title) > 14:
-                    title = title[:14]
+                title = self._smart_truncate_title(title, max_length=14)
                 return self._ensure_unique_title(title)
             
             # 从event字段生成
             event = chapter_plan.get('event', '').strip()
             if event and len(event) >= 4:
-                if len(event) > 14:
-                    event = event[:14]
+                event = self._smart_truncate_title(event, max_length=14)
                 return self._ensure_unique_title(event)
             
             # 从purpose字段生成
             purpose = chapter_plan.get('purpose', '').strip()
             if purpose and len(purpose) >= 4:
-                if len(purpose) > 14:
-                    purpose = purpose[:14]
+                purpose = self._smart_truncate_title(purpose, max_length=14)
                 return self._ensure_unique_title(purpose)
             
             # 从hook_content获取
             hook = chapter_plan.get('hook_content', '').strip()
             if hook and len(hook) >= 4:
-                if len(hook) > 14:
-                    hook = hook[:14]
+                hook = self._smart_truncate_title(hook, max_length=14)
                 return self._ensure_unique_title(hook)
         
         # 3. 从内容前10行分析提取(备用方案)
@@ -1464,6 +1466,46 @@ class ChapterConversationGenerator:
         
         # 4. 默认返回
         return self._ensure_unique_title('剧情推进')
+    
+    def _smart_truncate_title(self, title: str, max_length: int = 14) -> str:
+        """
+        智能截断标题
+        
+        策略:
+        1. 如果标题长度在限制内，直接返回
+        2. 优先在标点符号处截断（，。！？；）
+        3. 其次在词语边界截断（避免截断词中间）
+        4. 确保截断后至少有4个字
+        
+        Args:
+            title: 原始标题
+            max_length: 最大长度限制
+            
+        Returns:
+            截断后的标题
+        """
+        if not title or len(title) <= max_length:
+            return title
+        
+        # 标点符号优先级（越靠前越优先截断）
+        punctuations = ['，', '。', '！', '？', '；', '、', ',', '!', '?', ';']
+        
+        # 策略1: 在标点处截断
+        truncated = title[:max_length]
+        for punct in punctuations:
+            last_punct_pos = truncated.rfind(punct)
+            if last_punct_pos > 4:  # 确保截断后至少有4个字
+                return truncated[:last_punct_pos]
+        
+        # 策略2: 在词语边界截断（中文通常在2-4字词组后）
+        # 常见词边界模式：避免在"的"、"了"、"着"等虚词前截断
+        weak_boundaries = ['的', '了', '着', '过', '是', '在', '和', '与']
+        for i in range(max_length - 1, 3, -1):
+            if title[i] not in weak_boundaries:
+                return title[:i + 1]
+        
+        # 策略3: 硬截断（保底）
+        return title[:max_length]
     
     def _ensure_unique_title(self, title: str) -> str:
         """

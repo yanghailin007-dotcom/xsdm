@@ -583,20 +583,31 @@ function updateUI(task) {
     statusEl.className = 'progress-card__status progress-card__status--failed';
     showError(task.error);
   } else if (task.status === 'running' || task.status === 'in_progress') {
-    // 只在章节生成阶段显示悬浮窗
+    // 在章节生成阶段显示悬浮窗
+    // 判断条件：阶段名称为chapters/current_stage为generating_chapters/有当前章节号/有批次信息
     const isChapterPhase = stage === 'chapters' || stage === 'generating_chapters' || 
-                          stage === 'chapter_generation' || task.current_chapter > 0;
+                          stage === 'chapter_generation' || stage === 'generating' ||
+                          task.current_stage === 'generating_chapters' ||
+                          task.current_chapter > 0 || task.batch_num > 0;
     
     if (isChapterPhase && typeof updateProgress === 'function') {
+      // 从message中解析当前章节号（格式："正在生成第1/34批（第1-6章）"）
+      let currentCh = task.current_chapter || 0;
+      if (!currentCh && task.message) {
+        const match = task.message.match(/第(\d+)-/);
+        if (match) currentCh = parseInt(match[1]);
+      }
+      
       updateProgress({
-        current_chapter: task.current_chapter || 0,
-        chapter_title: task.chapter_title || '生成中...',
+        current_chapter: currentCh,
+        chapter_title: task.chapter_title || `第${task.batch_num || 1}批生成中...`,
         batch_progress: task.batch_progress || 0,
-        batch_size: task.batch_size || 1,
-        total_progress: `${task.total_chapters || 0}/${task.target_chapters || 0}`,
+        batch_size: task.batch_size || 6,
+        total_progress: `${currentCh || 0}/${task.target_chapters || 200}`,
         total_percent: `${progress}%`,
         window_metrics: task.window_metrics || []
       });
+      
       // 显示悬浮窗
       const floatEl = document.getElementById('generationFloat');
       if (floatEl) {
