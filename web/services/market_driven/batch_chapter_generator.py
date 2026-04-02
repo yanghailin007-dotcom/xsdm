@@ -597,10 +597,13 @@ class BatchChapterGenerator:
         
         # 生成内容
         if self.api_client:
-            content = self._call_ai_generation(prompt, chapter_num)
+            parsed_response = self._call_ai_generation(prompt, chapter_num)
+            ai_title = parsed_response.get('title', '')
+            content = parsed_response.get('content', '')
         else:
             # 模拟模式
             content = self._mock_chapter_content(chapter_num, chapter_plan)
+            ai_title = ''
         
         # 质量评估
         quality_score = self._assess_chapter_quality(content, chapter_plan, tropes)
@@ -611,12 +614,12 @@ class BatchChapterGenerator:
             content = self._optimize_chapter(content, chapter_plan, tropes)
             quality_score = self._assess_chapter_quality(content, chapter_plan, tropes)
         
-        # 确保 content 是字符串后再计算字数
+        # 确保 content 是字符串
         content_str = content if isinstance(content, str) else str(content) if content else ""
         
         return {
             "chapter_number": chapter_num,
-            "title": self._extract_title(content_str, chapter_plan),
+            "title": ai_title or self._extract_title(content_str, chapter_plan),
             "content": content_str,
             "word_count": len(content_str),
             "quality_score": quality_score,
@@ -788,11 +791,74 @@ class BatchChapterGenerator:
 - 打脸要干脆，不要拖泥带水
 - 周围人的震惊反应要写足
 
-请直接创作第{chapter_num}章内容。
+## 【强制输出格式 - JSON】
+必须返回以下JSON格式，不要返回纯文本：
+
+```json
+{{
+  "title": "章节标题（8-14字，不要'第X章'前缀）",
+  "content": "第{chapter_num}章正文（2000-2500字，直接从场景开始，禁止在正文开头写'第X章'标题）"
+}}
+```
+
+⚠️ **重要警告**：
+- 必须返回合法的JSON格式
+- `title`字段只放标题文本，不要加"第X章"前缀
+- `content`字段只放正文，不要包含标题行"第X章：XXX"
+- 禁止在正文中包含 `---正文结束---` 等分隔符
 """
     
-    def _call_ai_generation(self, prompt: str, chapter_num: int) -> str:
-        """调用AI生成"""
+    def _parse_response(self, response) -> Dict:
+        """
+        解析响应，返回包含 title 和 content 的字典
+        支持处理 Markdown 代码块包裹的 JSON
+        """
+        import re
+        
+        result = {'title': '', 'content': ''}
+        
+        if isinstance(response, dict):
+            result['title'] = response.get('title', '')
+            result['content'] = response.get('content', str(response))
+        elif isinstance(response, str):
+            cleaned_response = response.strip()
+            
+            # 移除 Markdown 代码块标记
+            if cleaned_response.startswith('```'):
+                first_newline = cleaned_response.find('\n')
+                if first_newline != -1:
+                    cleaned_response = cleaned_response[first_newline:].strip()
+                if cleaned_response.endswith('```'):
+                    cleaned_response = cleaned_response[:-3].strip()
+            
+            # 尝试解析 JSON
+            try:
+                parsed = json.loads(cleaned_response)
+                if isinstance(parsed, dict):
+                    result['title'] = parsed.get('title', '')
+                    result['content'] = parsed.get('content', cleaned_response)
+                else:
+                    result['content'] = cleaned_response
+            except:
+                # JSON 解析失败，使用清理后的内容
+                result['content'] = cleaned_response
+        else:
+            result['content'] = str(response)
+        
+        # 清理 content 中的标题行
+        if result['content']:
+            title_patterns = [
+                r'^第[一二三四五六七八九十百千万零\d]+章[：:\s]*[^\n]*\n*',
+                r'^Chapter\s*\d+[：:\s]*[^\n]*\n*',
+            ]
+            for pattern in title_patterns:
+                result['content'] = re.sub(pattern, '', result['content'], flags=re.IGNORECASE)
+            result['content'] = result['content'].lstrip('\n')
+        
+        return result
+    
+    def _call_ai_generation(self, prompt: str, chapter_num: int) -> Dict:
+        """调用AI生成，返回包含title和content的字典"""
         response = self.api_client.generate_content_with_retry(
             content_type="chapter_content",
             user_prompt=prompt,
@@ -800,20 +866,8 @@ class BatchChapterGenerator:
             purpose=f"生成第{chapter_num}章"
         )
         
-        if isinstance(response, str):
-            return response
-        elif isinstance(response, dict):
-            return response.get("content", str(response))
-        elif isinstance(response, list):
-            # 如果是列表，尝试提取内容或拼接
-            if len(response) > 0:
-                if isinstance(response[0], dict):
-                    return response[0].get("content", str(response))
-                elif isinstance(response[0], str):
-                    return "\n\n".join(response)
-            return str(response)
-        else:
-            return str(response)
+        # 🔥 解析JSON响应
+        return self._parse_response(response)
     
     def _mock_chapter_content(self, chapter_num: int, chapter_plan: Dict) -> str:
         """模拟章节内容（测试用）"""

@@ -189,20 +189,21 @@ class StageReviewOptimizer:
 {variables.get('original_content_preview', '')}...
 
 ## 【强制输出格式 - JSON】
-        必须返回以下JSON格式，不要返回纯文本或Markdown代码块：
+必须返回以下JSON格式，不要返回纯文本或Markdown代码块：
 
-        ```json
+```json
+{{
   "chapter_number": {variables.get('chapter_num')},
   "title": "章节标题（8-14字，不要'第X章'前缀）",
   "content": "完整的修改后章节内容（直接从正文开始，绝对禁止在开头写'第X章'标题）"
 }}
+```
 
-        ```
-
-        ⚠️ **重要警告**：
-        - `content`字段必须直接以正文开头，绝对禁止以"第X章：XXX"开头
-        - `title`字段只放标题文本，不要加"第X章"前缀
-        - 标题只放在`title`字段，不要重复放在`content`里
+⚠️ **重要警告**：
+- `content`字段必须直接以正文开头，绝对禁止以"第X章：XXX"开头
+- `title`字段只放标题文本，不要加"第X章"前缀
+- 标题只放在`title`字段，不要重复放在`content`里
+- 必须返回合法的JSON格式，title和content字段都不能省略
 
 {self._get_default_self_check_list()}"""
     
@@ -1653,17 +1654,41 @@ class StageReviewOptimizer:
 3. 字数维持在2000-2500字
 4. 保持番茄风格（短段落、多对话）
 
-直接输出修复后的完整章节内容。"""
+## 【强制输出格式 - JSON】
+必须返回以下JSON格式，不要返回纯文本：
+
+```json
+{{
+  "title": "章节标题（8-14字，不要'第X章'前缀）",
+  "content": "修复后的完整章节内容（2000-2500字）"
+}}
+```
+
+⚠️ **重要警告**：
+- 必须返回合法的JSON格式
+- `title`字段只放标题文本，不要加"第X章"前缀
+- `content`字段只放正文，不要包含标题行"""
 
         try:
             response = self.api_client.generate(messages=[
                 {"role": "user", "content": prompt}
             ])
             
-            new_content = response.get("content", chapter.get('content', ''))
+            # 🔥 解析JSON响应
+            response_text = response.get("content", '')
+            parsed = self._safe_parse_json(response_text, "single_chapter_fix")
+            
+            if parsed and 'content' in parsed:
+                new_content = parsed.get('content', chapter.get('content', ''))
+                new_title = parsed.get('title', chapter.get('title', ''))
+            else:
+                # 回退：使用原始响应
+                new_content = response_text
+                new_title = chapter.get('title', '')
             
             # 更新章节
             fixed_chapter = chapter.copy()
+            fixed_chapter['title'] = new_title
             fixed_chapter['content'] = new_content
             fixed_chapter['word_count'] = len(new_content)
             fixed_chapter['optimized'] = True

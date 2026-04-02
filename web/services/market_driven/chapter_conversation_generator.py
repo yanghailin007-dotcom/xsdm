@@ -880,7 +880,16 @@ class ChapterConversationGenerator:
 已有内容（最后800字，请在此区域前/中插入扩写）：
 ...{content[-800:]}
 
-请直接输出**完整章节**（原文+扩写内容合并），确保总字数达到{len(content) + need_words}字以上："""
+## 【强制输出格式 - JSON】
+必须返回以下JSON格式：
+
+```json
+{{
+  "content": "扩写后的完整章节内容（{len(content) + need_words}字以上）"
+}}
+```
+
+⚠️ **重要**：只需要返回content字段，包含扩写后的完整章节内容即可。"
 
             response = self.session.send_message(
                 user_prompt=prompt,
@@ -888,7 +897,9 @@ class ChapterConversationGenerator:
                 purpose=f"第{chapter_num}章强制扩写"
             )
             
-            full_content = self._parse_response(response)
+            # 🔥 解析JSON响应，提取content
+            parsed_response = self._parse_response(response)
+            full_content = parsed_response.get('content', '')
             
             # 验证扩写后字数
             final_count = len(full_content)
