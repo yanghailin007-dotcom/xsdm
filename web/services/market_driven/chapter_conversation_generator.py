@@ -1346,6 +1346,17 @@ class ChapterConversationGenerator:
             except:
                 # 如果 JSON 解析失败，使用清理后的内容
                 result['content'] = cleaned_response
+                
+                # 🔥 尝试从纯文本中提取标题（第一行可能是标题）
+                lines = cleaned_response.split('\n')
+                for line in lines[:5]:  # 检查前5行
+                    line = line.strip()
+                    if line and len(line) >= 4 and len(line) <= 20:
+                        # 可能是标题（不是章节号，不是空行，长度合适）
+                        if not line.startswith('第') and '章' not in line and not line.startswith('【'):
+                            result['title'] = line
+                            logger.info(f"[章节对话] 从纯文本中提取标题: '{line}'")
+                            break
         else:
             result['content'] = str(response)
         
