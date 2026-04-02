@@ -675,8 +675,24 @@ class ChapterConversationGenerator:
             # 尝试重试一次
             logger.info(f"[章节对话 {self.session_id}] 第{chapter_num}章尝试重试...")
             
-            # 简化提示词重试
-            retry_prompt = f"请生成第{chapter_num}章正文，约2000-2500字。要求：快节奏爽文，强情绪流，章章有钩子。直接输出正文，不需要自检报告。"
+            # 简化提示词重试 - 必须包含JSON格式要求
+            retry_prompt = f"""请生成第{chapter_num}章，约2000-2500字。
+
+要求：快节奏爽文，强情绪流，章章有钩子。
+
+## 【强制输出格式 - JSON】
+必须返回以下JSON格式，不要返回纯文本：
+```json
+{{
+  "title": "章节标题（8-14字，不要'第X章'前缀）",
+  "content": "章节正文（2000-2500字，直接从场景开始，禁止在正文开头写'第X章'标题）"
+}}
+```
+
+⚠️ 警告：
+- content字段必须直接以正文开头，绝对禁止以"第X章：XXX"开头
+- 标题只放在title字段，不要重复放在content里
+- 不需要自检报告，只返回JSON"""
             retry_response = self.session.send_message(
                 user_prompt=retry_prompt,
                 temperature=0.7,
