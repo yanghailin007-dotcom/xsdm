@@ -112,12 +112,10 @@ class SimpleOptimizer:
         config = self._prompt_config.get("system_prompt", {})
         template = config.get("template", "")
         
-        if template:
-            return template.replace("{title}", title)
+        if not template:
+            raise ValueError("[SimpleOptimizer] system_prompt 配置未找到，请检查 prompt 配置")
         
-        # 降级:硬编码
-        logging.warning("[SimpleOptimizer] system_prompt 配置未找到,使用硬编码")
-        return f"# 角色:顶级网络小说作家\n\n你正在为小说<{title}>生成章节."
+        return template.replace("{title}", title)
     
     def build_chapter_prompt(self, chapter_num, blueprint, prev_summary):
         parts = [
@@ -129,7 +127,13 @@ class SimpleOptimizer:
             "3. 本章必须有爽点或钩子",
             "4. 章尾留悬念",
             "",
-            "直接输出章节正文."
+            "## 【输出格式 - 使用分隔符】",
+            "必须按以下格式返回：",
+            "",
+            "---标题---",
+            "章节标题（8-14字，不要'第X章'前缀）",
+            "---正文---",
+            "章节正文内容（2000-2500字）"
         ]
         return "\n".join(parts)
 
@@ -288,30 +292,19 @@ class ChapterConversationGenerator:
     def _load_ending_template(self) -> str:
         """加载番茄爆款结尾模板"""
         config_path = Path(__file__).parent.parent.parent.parent / "prompt_packages" / "default" / "market_driven" / "components" / "chapters" / "standard_chapter_prompts.json"
-        if config_path.exists():
-            try:
-                with open(config_path, 'r', encoding='utf-8') as f:
-                    config = json.load(f)
-                    # 从 tomato_bestseller_ending_templates 中获取 prompt_template
-                    ending_config = config.get("standard_chapter", {}).get("tomato_bestseller_ending_templates", {})
-                    prompt_template = ending_config.get("prompt_template", "")
-                    if prompt_template:
-                        logger.info(f"[ChapterConversationGenerator] 已加载番茄爆款结尾模板")
-                        return prompt_template
-            except Exception as e:
-                logging.warning(f"[ChapterConversationGenerator] 加载结尾模板失败: {e}")
+        if not config_path.exists():
+            raise ValueError("[ChapterConversationGenerator] standard_chapter_prompts.json 配置文件不存在")
         
-        # 返回默认模板(硬编码作为后备)
-        return """
-[番茄爆款结尾模板 - 必须遵循]
-章节最后100-150字必须是强力钩子,从以下5种模板中选择1种:
-模板1-危机降临型(推荐):主角刚成功->突然->新危机出现->悬念截止
-模板2-身份揭露型:关键时刻->有人即将发现真相->揭露前截止
-模板3-系统提示型:完成某事->系统提示->出乎意料的奖励/惩罚
-模板4-时间锁型:倒计时开始->时间紧迫->截止
-模板5-对峙爆发型:正面对峙->剑拔弩张->动手前一秒截止
-[结尾禁忌]禁止以"完"/"结束"/"休息"/"晚安"等词结尾!最后50字必须是悬念!
-"""
+        with open(config_path, 'r', encoding='utf-8') as f:
+            config = json.load(f)
+        
+        ending_config = config.get("standard_chapter", {}).get("tomato_bestseller_ending_templates", {})
+        prompt_template = ending_config.get("prompt_template", "")
+        if not prompt_template:
+            raise ValueError("[ChapterConversationGenerator] tomato_bestseller_ending_templates.prompt_template 未找到")
+        
+        logger.info(f"[ChapterConversationGenerator] 已加载番茄爆款结尾模板")
+        return prompt_template
     
     def _sanitize_title(self, title: str) -> str:
         """清理书名,去除特殊字符,用于文件名"""
@@ -1214,52 +1207,22 @@ class ChapterConversationGenerator:
     def _get_retry_prompt_template(self, chapter_num: int) -> str:
         """从配置获取重试提示词模板"""
         template = self._chapter_expansion_prompts.get('retry_prompt_template', '')
-        if template:
-            return template.format(chapter_num=chapter_num)
-        # 回退到硬编码
-        return f"""请生成第{chapter_num}章,约2000-2500字.
-
-要求:快节奏爽文,强情绪流,章章有钩子.
-
-## 【强制输出格式 - JSON】
-必须返回以下JSON格式,不要返回纯文本:
-```json
-{{
-  "title": "章节标题（8-14字,不要'第X章'前缀）",
-  "content": "章节正文（2000-2500字,直接从场景开始,禁止在正文开头写'第X章'标题）"
-}}
-```
-
-⚠️ 警告:
-- content字段必须直接以正文开头,绝对禁止以"第X章:XXX"开头
-- 标题只放在title字段,不要重复放在content里
-- 不需要自检报告,只返回JSON"""
+        if not template:
+            raise ValueError("[ChapterConversationGenerator] retry_prompt_template 配置未找到")
+        return template.format(chapter_num=chapter_num)
     
     def _get_expansion_prompt_template(self, chapter_num: int, content: str, need_words: int) -> str:
         """从配置获取扩写提示词模板"""
         template = self._chapter_expansion_prompts.get('force_expansion_prompt_template', '')
-        if template:
-            return template.format(
-                chapter_num=chapter_num,
-                current_words=len(content),
-                target_words=len(content) + need_words,
-                need_words=need_words,
-                content_preview=content[-800:] if len(content) > 800 else content
-            )
-        # 回退到硬编码
-        return f"""请基于以下已有章节内容,**必须**补充{need_words}字以上.
-
-**当前字数:{len(content)}字,需要扩写到{len(content) + need_words}字以上**
-
-## 【强制输出格式 - JSON】
-必须返回以下JSON格式:
-```json
-{{
-  "content": "扩写后的完整章节内容（{len(content) + need_words}字以上）"
-}}
-```
-
-⚠️ **重要**:只需要返回content字段,包含扩写后的完整章节内容即可."""
+        if not template:
+            raise ValueError("[ChapterConversationGenerator] force_expansion_prompt_template 配置未找到")
+        return template.format(
+            chapter_num=chapter_num,
+            current_words=len(content),
+            target_words=len(content) + need_words,
+            need_words=need_words,
+            content_preview=content[-800:] if len(content) > 800 else content
+        )
     
     def _load_style_guide_for_beat(self, beat_type: str) -> str:
         """根据节拍类型加载对应风格指南"""

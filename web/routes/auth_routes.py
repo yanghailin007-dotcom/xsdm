@@ -426,6 +426,12 @@ def register_page_routes(app):
         """番茄小说一键上传页面"""
         return render_template('fanqie_upload.html')
     
+    @app.route('/honor-wall', methods=['GET'])
+    def honor_wall():
+        """荣誉墙页面 - 作品展示与分享"""
+        logger.info("📄 Loading honor-wall.html (V2 UI - 荣誉墙)")
+        return render_template('pages/v2/honor-wall.html')
+    
     @app.route('/pages/v2/fanqie-upload-v2', methods=['GET'])
     @login_required
     def fanqie_upload_v2():

@@ -129,8 +129,7 @@ class StageReviewOptimizer:
                 with open(config_path, 'r', encoding='utf-8') as f:
                     return json.load(f)
             
-            logger.warning("[StageOptimizer] 无法加载 components/stage_review_prompts.json，使用硬编码默认值")
-            return {}
+            raise ValueError("[StageOptimizer] 无法加载 components/stage_review_prompts.json，请检查配置文件")
         except Exception as e:
             logger.error(f"[StageOptimizer] 加载复盘提示词配置失败: {e}")
             return {}
@@ -144,13 +143,12 @@ class StageReviewOptimizer:
         self_check_template = templates.get("self_check_list", {}).get("template", "")
         main_template = templates.get("fix_prompt", {}).get("template", "")
         
-        # 如果没有配置，使用硬编码
         if not main_template:
-            return self._get_default_fix_prompt(variables)
+            raise ValueError("[StageOptimizer] fix_prompt 模板未找到，请检查 stage_review_prompts.json")
         
-        # 渲染字数约束
-        word_count_constraints = word_count_template or self._get_default_word_count_constraints()
-        self_check_list = self_check_template or self._get_default_self_check_list()
+        # 渲染字数约束和自检清单（这些是可选的）
+        word_count_constraints = word_count_template or ""
+        self_check_list = self_check_template or ""
         
         # 准备变量
         render_vars = {
@@ -163,71 +161,10 @@ class StageReviewOptimizer:
         try:
             return main_template.format(**render_vars)
         except KeyError as e:
-            logger.warning(f"[StageOptimizer] 模板渲染失败，使用默认提示词: {e}")
-            return self._get_default_fix_prompt(variables)
+            logger.error(f"[StageOptimizer] 模板渲染失败: {e}")
+            raise
     
-    def _get_default_fix_prompt(self, variables: Dict) -> str:
-        """获取默认修复提示词（硬编码回退）"""
-        return f"""修复第{variables.get('chapter_num')}章的所有问题。基于原文修改，不要重写。
 
-**第{variables.get('chapter_num')}章：{variables.get('chapter_title', '')}**
-**原文字数：**{variables.get('original_word_count')}字
-**问题统计：**P0={variables.get('p0_count')}个, P1={variables.get('p1_count')}个, P2={variables.get('p2_count')}个
-
-{self._get_default_word_count_constraints()}
-
-## 其他关键约束
-1. 主角名必须保持一致：'{variables.get('protagonist_name', '')}' - 禁止改为其他名字
-2. 世界观保持一致 - 不要引入新的力量体系
-3. 只修改有问题的部分，保留其他内容原样
-4. 保持原有的写作风格和语气
-
-**需要修复的所有问题：**
-{variables.get('issues_text', '')}
-
-**原文内容（前800字供参考）：**
-{variables.get('original_content_preview', '')}...
-
-## 【强制输出格式 - JSON】
-必须返回以下JSON格式，不要返回纯文本或Markdown代码块：
-
-```json
-{{
-  "chapter_number": {variables.get('chapter_num')},
-  "title": "章节标题（8-14字，不要'第X章'前缀）",
-  "content": "完整的修改后章节内容（直接从正文开始，绝对禁止在开头写'第X章'标题）"
-}}
-```
-
-⚠️ **重要警告**：
-- `content`字段必须直接以正文开头，绝对禁止以"第X章：XXX"开头
-- `title`字段只放标题文本，不要加"第X章"前缀
-- 标题只放在`title`字段，不要重复放在`content`里
-- 必须返回合法的JSON格式，title和content字段都不能省略
-
-{self._get_default_self_check_list()}"""
-    
-    def _get_default_word_count_constraints(self) -> str:
-        """获取默认字数约束（从JSON配置加载）"""
-        templates = self._review_prompts.get("templates", {})
-        template = templates.get("word_count_constraints", {}).get("template", "")
-        if template:
-            return template
-        
-        # 降级：硬编码
-        logger.warning("[StageOptimizer] word_count_constraints 模板未找到，使用硬编码")
-        return "## 字数约束：2000-2500字"
-    
-    def _get_default_self_check_list(self) -> str:
-        """获取默认自检清单（从JSON配置加载）"""
-        templates = self._review_prompts.get("templates", {})
-        template = templates.get("self_check_list", {}).get("template", "")
-        if template:
-            return template
-        
-        # 降级：硬编码
-        logger.warning("[StageOptimizer] self_check_list 模板未找到，使用硬编码")
-        return "## 自检清单：字数 2000-2500字"
     
     def _get_retry_warning(self, last_word_count: int, over_limit: bool = True) -> str:
         """获取重试警告提示"""
@@ -235,14 +172,14 @@ class StageReviewOptimizer:
         
         if over_limit:
             template = templates.get("retry_warning_over_limit", {}).get("template", "")
-            if template:
-                return template.format(last_word_count=last_word_count)
-            return f"**🚨 紧急警告：上次输出字数{last_word_count}字超过了上限！**\n**你可以增爽点，但必须在合理范围内完成（建议2000-2500字）！**\n**删减建议：精简震惊描写（只保留现场+权威两层）、删除冗余弹幕反应、压缩环境描写。**"
+            if not template:
+                raise ValueError("[StageOptimizer] retry_warning_over_limit 模板未找到")
+            return template.format(last_word_count=last_word_count)
         else:
             template = templates.get("retry_warning_under_limit", {}).get("template", "")
-            if template:
-                return template.format(last_word_count=last_word_count)
-            return f"**警告：上次输出字数{last_word_count}字偏少。建议字数2000-2500字（允许±10%浮动，即1800-2800字）。输出前请统计字数。**"
+            if not template:
+                raise ValueError("[StageOptimizer] retry_warning_under_limit 模板未找到")
+            return template.format(last_word_count=last_word_count)
         
     def _load_protagonist_name(self) -> str:
         """从project_info.json加载主角名"""

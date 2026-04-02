@@ -494,7 +494,15 @@ def create_app():
     except Exception as e:
         logger.warning(f"⚠️ prompt_package_api 注册失败: {e}")
 
-    # 28.4. 初始化题材自动更新调度器
+    # 28.4. 荣誉墙 API 路由
+    try:
+        from web.routes.honor_wall_routes import honor_wall_bp
+        app.register_blueprint(honor_wall_bp)
+        logger.info("✅ honor_wall_api 荣誉墙已注册")
+    except Exception as e:
+        logger.warning(f"⚠️ honor_wall_api 注册失败: {e}")
+
+    # 28.5. 初始化题材自动更新调度器
     try:
         from web.services.market_driven.genre_scheduler import init_genre_scheduler
         init_genre_scheduler(app)

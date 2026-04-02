@@ -447,27 +447,23 @@ POST /api/v2/prompt-config/component/{step_name}
         return base_prompt + user_constraints
     
     def _build_default_setting_prompt(self, title: str) -> str:
-        """构建默认的设定阶段System Prompt（当TropePromptBuilder不可用时使用）- 从JSON配置加载"""
-        # 尝试从JSON配置加载
-        try:
-            config_file = Path(__file__).parent.parent.parent.parent / \
-                "prompt_packages" / "default" / "market_driven" / "components" / "conversation" / "conversation_step_prompts.json"
-            
-            if config_file.exists():
-                with open(config_file, 'r', encoding='utf-8') as f:
-                    config = json.load(f)
-                
-                template_config = config.get("setting_system_prompt", {})
-                template = template_config.get("template", "")
-                
-                if template:
-                    return template.replace("{title}", title)
-        except Exception as e:
-            logger.warning(f"[对话模式 {getattr(self, 'session_id', 'N/A')}] 加载setting_system_prompt配置失败: {e}")
+        """构建默认的设定阶段System Prompt - 从JSON配置加载"""
+        config_file = Path(__file__).parent.parent.parent.parent / \
+            "prompt_packages" / "default" / "market_driven" / "components" / "conversation" / "conversation_step_prompts.json"
         
-        # 降级：硬编码
-        logger.warning(f"[对话模式 {getattr(self, 'session_id', 'N/A')}] 使用硬编码setting_system_prompt")
-        return f"# 🎯 角色：顶级网文策划专家\n\n目标作品：《{title}\n\n## 创作指导原则\n- 结构对标\n- 数值精确\n- 节奏精准"
+        if not config_file.exists():
+            raise ValueError(f"[对话模式] conversation_step_prompts.json 配置文件不存在")
+        
+        with open(config_file, 'r', encoding='utf-8') as f:
+            config = json.load(f)
+        
+        template_config = config.get("setting_system_prompt", {})
+        template = template_config.get("template", "")
+        
+        if not template:
+            raise ValueError("[对话模式] setting_system_prompt 模板未找到")
+        
+        return template.replace("{title}", title)
     
     def _get_step_prompt_from_package(self, step_id: str, variables: Dict) -> Optional[str]:
         """

@@ -640,7 +640,7 @@ POST /api/v2/prompt-config/component/stage_system_prompt
     def _parse_response(self, response) -> Dict:
         """
         解析响应，返回包含 title 和 content 的字典
-        支持处理 Markdown 代码块包裹的 JSON
+        支持分隔符格式(---标题---/---正文---)和JSON格式
         """
         import re
         
@@ -652,20 +652,33 @@ POST /api/v2/prompt-config/component/stage_system_prompt
         elif isinstance(response, str):
             cleaned_response = response.strip()
             
-            # 移除 Markdown 代码块标记
-            if cleaned_response.startswith('```'):
-                first_newline = cleaned_response.find('\n')
-                if first_newline != -1:
-                    cleaned_response = cleaned_response[first_newline:].strip()
-                if cleaned_response.endswith('```'):
-                    cleaned_response = cleaned_response[:-3].strip()
+            # 策略1: 尝试解析分隔符格式 ---标题---/---正文---
+            title_match = re.search(r'---\s*[标標][题題]\s*---\s*\n?(.*?)\n?---\s*[正正][文文]\s*---', cleaned_response, re.DOTALL | re.IGNORECASE)
+            if title_match:
+                result['title'] = title_match.group(1).strip()
+                # 正文在 ---正文--- 之后
+                content_start = cleaned_response.find('---正文---') + len('---正文---')
+                if content_start < len('---正文---') + 10:
+                    content_start = cleaned_response.find('---正文---') + len('---正文---')
+                result['content'] = cleaned_response[content_start:].strip()
+                logger.info(f"[StageGenerator] 使用分隔符格式解析,标题: '{result['title']}'")
+                return self._clean_result(result)
             
-            # 尝试解析 JSON
+            # 策略2: 移除 Markdown 代码块后尝试解析 JSON
+            json_content = cleaned_response
+            if json_content.startswith('```'):
+                first_newline = json_content.find('\n')
+                if first_newline != -1:
+                    json_content = json_content[first_newline:].strip()
+                if json_content.endswith('```'):
+                    json_content = json_content[:-3].strip()
+            
             try:
-                parsed = json.loads(cleaned_response)
+                parsed = json.loads(json_content)
                 if isinstance(parsed, dict):
                     result['title'] = parsed.get('title', '')
                     result['content'] = parsed.get('content', cleaned_response)
+                    logger.info(f"[StageGenerator] 使用JSON格式解析,标题: '{result['title']}'")
                 else:
                     result['content'] = cleaned_response
             except:
@@ -683,7 +696,11 @@ POST /api/v2/prompt-config/component/stage_system_prompt
         else:
             result['content'] = str(response)
         
-        # 清理 content 中的标题行
+        return self._clean_result(result)
+    
+    def _clean_result(self, result: Dict) -> Dict:
+        """清理结果中的标题行"""
+        import re
         if result['content']:
             title_patterns = [
                 r'^第[一二三四五六七八九十百千万零\d]+章[：:\s]*[^\n]*\n*',
@@ -692,7 +709,6 @@ POST /api/v2/prompt-config/component/stage_system_prompt
             for pattern in title_patterns:
                 result['content'] = re.sub(pattern, '', result['content'], flags=re.IGNORECASE)
             result['content'] = result['content'].lstrip('\n')
-        
         return result
     
     def _generate_chapter_in_session(self, chapter_num: int, stage: Dict, prev_summary: str) -> Dict:
@@ -703,23 +719,21 @@ POST /api/v2/prompt-config/component/stage_system_prompt
         # 构建提示词
         prompt = self._build_chapter_prompt(chapter_num, stage, chapter_outline, prev_summary)
         
-        # 添加 JSON 格式要求
+        # 添加分隔符格式要求
         prompt += """
 
-## 【强制输出格式 - JSON】
-必须返回以下JSON格式，不要返回纯文本：
+## 【强制输出格式 - 使用分隔符】
+必须按以下格式返回，使用 ---标题--- 和 ---正文--- 分隔：
 
-```json
-{
-  "title": "章节标题（8-14字，不要'第X章'前缀）",
-  "content": "章节正文（2000-2500字，直接从场景开始，禁止在正文开头写'第X章'标题）"
-}
-```
+---标题---
+章节标题（8-14字，不要'第X章'前缀）
+---正文---
+章节正文内容（2000-2500字，直接从场景开始）
 
 ⚠️ **重要警告**：
-- 必须返回合法的JSON格式
-- `title`字段只放标题文本，不要加"第X章"前缀
-- `content`字段只放正文，不要包含标题行"第X章：XXX"
+- 必须严格按照上述分隔符格式返回
+- 标题只放在---标题---后面，不要重复放在正文里
+- 正文开头绝对禁止写"第X章：XXX"
 """
         
         # 发送消息
@@ -749,17 +763,10 @@ POST /api/v2/prompt-config/component/stage_system_prompt
         return {"chapter": chapter_num, "type": "推进", "emotion": "期待"}
     
     def _build_chapter_prompt(self, chapter_num: int, stage: Dict, outline: Dict, prev_summary: str) -> str:
-        """
-        构建章节提示词
-        
-        向后兼容：如果JSON配置加载失败，使用内置模板
-        """
-        # 如果成功加载了JSON配置，使用模板渲染
-        if self._chapter_prompt_config and self._chapter_prompt_config.get('template_parts'):
-            return self._build_chapter_prompt_from_template(chapter_num, stage, outline, prev_summary)
-        
-        # 否则使用内置硬编码模板（向后兼容）
-        return self._build_chapter_prompt_builtin(chapter_num, stage, outline, prev_summary)
+        """构建章节提示词"""
+        if not self._chapter_prompt_config or not self._chapter_prompt_config.get('template_parts'):
+            raise ValueError("[StageGenerator] chapter_prompt_config 未加载，请检查配置文件")
+        return self._build_chapter_prompt_from_template(chapter_num, stage, outline, prev_summary)
     
     def _build_chapter_prompt_from_template(self, chapter_num: int, stage: Dict, outline: Dict, prev_summary: str) -> str:
         """使用JSON模板构建章节提示词"""
@@ -847,71 +854,6 @@ POST /api/v2/prompt-config/component/stage_system_prompt
             result_parts.append(self._render_template(line, variables, defaults))
         
         return "\n".join(result_parts)
-    
-    def _build_chapter_prompt_builtin(self, chapter_num: int, stage: Dict, outline: Dict, prev_summary: str) -> str:
-        """使用内置硬编码模板构建章节提示词（向后兼容）"""
-        relative_ch = chapter_num - stage['start_chapter'] + 1
-        
-        parts = [
-            f"请生成第{chapter_num}章（第{stage['stage_number']}周期 第{relative_ch}章）。",
-            "",
-            f"## 本章定位",
-            f"- 所在周期：{stage['name']}",
-            f"- 章节类型：{outline.get('type', '推进')}",
-            f"- 情绪要求：{outline.get('emotion', '期待')}",
-        ]
-        
-        # 添加节奏标记
-        if outline.get('rhythm'):
-            parts.append(f"- 节奏节点：{outline['rhythm']}")
-        
-        # 添加事件描述（如果有）
-        if outline.get('event'):
-            parts.append(f"- 核心事件：{outline['event']}")
-        parts.append("")
-        
-        # 距离高潮的提示
-        climax_ch = stage['end_chapter']
-        chapters_to_climax = climax_ch - chapter_num
-        
-        if chapter_num == climax_ch:
-            parts.append(f"🔥 **【周期高潮】本章必须达到：{stage['climax_type']}**")
-            parts.append(f"🔥 **这是本周期的终极高潮，必须爽到极致！**")
-            parts.append("")
-        elif chapters_to_climax == 5:
-            parts.append(f"⚠️ **距离周期高潮还有5章，开始密集铺垫！**")
-            parts.append("")
-        elif chapters_to_climax == 10:
-            parts.append(f"📈 **进入冲刺阶段，为周期高潮做最后准备！**")
-            parts.append("")
-        elif outline.get('type') == '小高潮':
-            parts.append("💥 **【3章节点】本章是小高潮，必须有打脸/收获爽点！**")
-            parts.append("")
-        elif outline.get('type') == '中高潮':
-            parts.append("💥💥 **【10章节点】本章是中高潮，必须有重大收获/身份升级！**")
-            parts.append("")
-        elif outline.get('type') == '大高潮':
-            parts.append("💥💥💥 **【20章节点】本章是大高潮，必须有重大转折/实力飞跃！**")
-            parts.append("")
-        
-        if prev_summary:
-            parts.extend([
-                "## 前文摘要（必须承接）",
-                prev_summary[:300] + "...",
-                ""
-            ])
-        
-        parts.extend([
-            "## 写作要求",
-            f"1. 字数2000-2500字",
-            f"2. 情绪严格遵循：{outline.get('emotion', '期待')}",
-            f"3. 承接上文，推动剧情",
-            f"4. 结尾留钩子",
-            "",
-            "直接输出章节正文。"
-        ])
-        
-        return "\n".join(parts)
     
     def _extract_title(self, content: str, outline: Dict) -> str:
         """

@@ -791,27 +791,25 @@ class BatchChapterGenerator:
 - 打脸要干脆，不要拖泥带水
 - 周围人的震惊反应要写足
 
-## 【强制输出格式 - JSON】
-必须返回以下JSON格式，不要返回纯文本：
+## 【强制输出格式 - 使用分隔符】
+必须按以下格式返回，使用 ---标题--- 和 ---正文--- 分隔：
 
-```json
-{{
-  "title": "章节标题（8-14字，不要'第X章'前缀）",
-  "content": "第{chapter_num}章正文（2000-2500字，直接从场景开始，禁止在正文开头写'第X章'标题）"
-}}
-```
+---标题---
+章节标题（8-14字，不要'第X章'前缀）
+---正文---
+第{chapter_num}章正文内容（2000-2500字，直接从场景开始）
 
 ⚠️ **重要警告**：
-- 必须返回合法的JSON格式
-- `title`字段只放标题文本，不要加"第X章"前缀
-- `content`字段只放正文，不要包含标题行"第X章：XXX"
+- 必须严格按照上述分隔符格式返回
+- 标题只放在---标题---后面，不要重复放在正文里
+- 正文开头绝对禁止写"第X章：XXX"
 - 禁止在正文中包含 `---正文结束---` 等分隔符
 """
     
     def _parse_response(self, response) -> Dict:
         """
         解析响应，返回包含 title 和 content 的字典
-        支持处理 Markdown 代码块包裹的 JSON
+        支持分隔符格式(---标题---/---正文---)和JSON格式
         """
         import re
         
@@ -823,20 +821,33 @@ class BatchChapterGenerator:
         elif isinstance(response, str):
             cleaned_response = response.strip()
             
-            # 移除 Markdown 代码块标记
-            if cleaned_response.startswith('```'):
-                first_newline = cleaned_response.find('\n')
-                if first_newline != -1:
-                    cleaned_response = cleaned_response[first_newline:].strip()
-                if cleaned_response.endswith('```'):
-                    cleaned_response = cleaned_response[:-3].strip()
+            # 策略1: 尝试解析分隔符格式 ---标题---/---正文---
+            title_match = re.search(r'---\s*[标標][题題]\s*---\s*\n?(.*?)\n?---\s*[正正][文文]\s*---', cleaned_response, re.DOTALL | re.IGNORECASE)
+            if title_match:
+                result['title'] = title_match.group(1).strip()
+                # 正文在 ---正文--- 之后
+                content_start = cleaned_response.find('---正文---') + len('---正文---')
+                if content_start < len('---正文---') + 10:  # 如果没找到简体，尝试繁体或其他格式
+                    content_start = cleaned_response.find('---正文---') + len('---正文---')
+                result['content'] = cleaned_response[content_start:].strip()
+                logger.info(f"[BatchGenerator] 使用分隔符格式解析,标题: '{result['title']}'")
+                return self._clean_result(result)
             
-            # 尝试解析 JSON
+            # 策略2: 移除 Markdown 代码块后尝试解析 JSON
+            json_content = cleaned_response
+            if json_content.startswith('```'):
+                first_newline = json_content.find('\n')
+                if first_newline != -1:
+                    json_content = json_content[first_newline:].strip()
+                if json_content.endswith('```'):
+                    json_content = json_content[:-3].strip()
+            
             try:
-                parsed = json.loads(cleaned_response)
+                parsed = json.loads(json_content)
                 if isinstance(parsed, dict):
                     result['title'] = parsed.get('title', '')
                     result['content'] = parsed.get('content', cleaned_response)
+                    logger.info(f"[BatchGenerator] 使用JSON格式解析,标题: '{result['title']}'")
                 else:
                     result['content'] = cleaned_response
             except:
@@ -845,7 +856,11 @@ class BatchChapterGenerator:
         else:
             result['content'] = str(response)
         
-        # 清理 content 中的标题行
+        return self._clean_result(result)
+    
+    def _clean_result(self, result: Dict) -> Dict:
+        """清理结果中的标题行"""
+        import re
         if result['content']:
             title_patterns = [
                 r'^第[一二三四五六七八九十百千万零\d]+章[：:\s]*[^\n]*\n*',
@@ -854,7 +869,6 @@ class BatchChapterGenerator:
             for pattern in title_patterns:
                 result['content'] = re.sub(pattern, '', result['content'], flags=re.IGNORECASE)
             result['content'] = result['content'].lstrip('\n')
-        
         return result
     
     def _call_ai_generation(self, prompt: str, chapter_num: int) -> Dict:

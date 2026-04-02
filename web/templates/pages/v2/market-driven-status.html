@@ -583,8 +583,11 @@ function updateUI(task) {
     statusEl.className = 'progress-card__status progress-card__status--failed';
     showError(task.error);
   } else if (task.status === 'running' || task.status === 'in_progress') {
-    // 更新悬浮窗进度
-    if (typeof updateProgress === 'function') {
+    // 只在章节生成阶段显示悬浮窗
+    const isChapterPhase = stage === 'chapters' || stage === 'generating_chapters' || 
+                          stage === 'chapter_generation' || task.current_chapter > 0;
+    
+    if (isChapterPhase && typeof updateProgress === 'function') {
       updateProgress({
         current_chapter: task.current_chapter || 0,
         chapter_title: task.chapter_title || '生成中...',
@@ -596,7 +599,7 @@ function updateUI(task) {
       });
       // 显示悬浮窗
       const floatEl = document.getElementById('generationFloat');
-      if (floatEl && floatEl.style.display === 'none') {
+      if (floatEl) {
         floatEl.style.display = 'block';
       }
     }

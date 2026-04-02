@@ -1,0 +1,852 @@
+{#
+    荣誉墙页面 - 用户分享作品展示
+#}
+{% extends "layouts/base-v2.html" %}
+
+{% block title %}荣誉墙 - 大文娱系统{% endblock %}
+
+{% block extra_css %}
+<style>
+.honor-wall-container {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 40px 20px;
+}
+
+/* 头部区域 */
+.honor-header {
+    text-align: center;
+    margin-bottom: 40px;
+}
+
+.honor-header__title {
+    font-size: 2.5rem;
+    font-weight: 800;
+    background: linear-gradient(135deg, #fbbf24 0%, #f59e0b 50%, #ef4444 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    margin-bottom: 12px;
+}
+
+.honor-header__subtitle {
+    font-size: 1.125rem;
+    color: var(--v2-text-secondary);
+    margin-bottom: 24px;
+}
+
+.honor-header__stats {
+    display: flex;
+    justify-content: center;
+    gap: 48px;
+    margin-top: 24px;
+}
+
+.honor-stat {
+    text-align: center;
+}
+
+.honor-stat__value {
+    font-size: 2rem;
+    font-weight: 700;
+    color: var(--v2-text-primary);
+}
+
+.honor-stat__label {
+    font-size: 0.875rem;
+    color: var(--v2-text-secondary);
+}
+
+/* 操作栏 */
+.honor-toolbar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 24px;
+    flex-wrap: wrap;
+    gap: 16px;
+}
+
+.honor-filters {
+    display: flex;
+    gap: 12px;
+    flex-wrap: wrap;
+}
+
+.honor-filter {
+    padding: 8px 16px;
+    background: var(--v2-bg-secondary);
+    border: 1px solid var(--v2-border-subtle);
+    border-radius: 8px;
+    color: var(--v2-text-secondary);
+    font-size: 0.875rem;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.honor-filter:hover,
+.honor-filter.active {
+    background: var(--v2-bg-tertiary);
+    border-color: var(--primary-gold);
+    color: var(--primary-gold);
+}
+
+.honor-search {
+    position: relative;
+    flex: 1;
+    max-width: 300px;
+}
+
+.honor-search input {
+    width: 100%;
+    padding: 10px 16px 10px 40px;
+    background: var(--v2-bg-secondary);
+    border: 1px solid var(--v2-border-subtle);
+    border-radius: 8px;
+    color: var(--v2-text-primary);
+    font-size: 0.875rem;
+}
+
+.honor-search input:focus {
+    outline: none;
+    border-color: var(--primary-gold);
+}
+
+.honor-search::before {
+    content: "🔍";
+    position: absolute;
+    left: 12px;
+    top: 50%;
+    transform: translateY(-50%);
+}
+
+/* 作品卡片网格 */
+.honor-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
+    gap: 24px;
+}
+
+.honor-card {
+    background: var(--v2-bg-secondary);
+    border: 1px solid var(--v2-border-subtle);
+    border-radius: 16px;
+    padding: 24px;
+    transition: all 0.3s;
+    position: relative;
+}
+
+.honor-card:hover {
+    transform: translateY(-4px);
+    border-color: var(--primary-gold);
+    box-shadow: 0 8px 32px rgba(245, 158, 11, 0.1);
+}
+
+.honor-card__rank {
+    position: absolute;
+    top: -12px;
+    left: 24px;
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 700;
+    font-size: 0.875rem;
+}
+
+.honor-card__rank.gold {
+    background: linear-gradient(135deg, #fbbf24, #f59e0b);
+    color: #000;
+}
+
+.honor-card__rank.silver {
+    background: linear-gradient(135deg, #e5e7eb, #9ca3af);
+    color: #000;
+}
+
+.honor-card__rank.bronze {
+    background: linear-gradient(135deg, #fdba74, #ea580c);
+    color: #fff;
+}
+
+.honor-card__header {
+    display: flex;
+    gap: 16px;
+    margin-bottom: 16px;
+    margin-top: 8px;
+}
+
+.honor-card__cover {
+    width: 80px;
+    height: 110px;
+    background: var(--v2-bg-tertiary);
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 2rem;
+    flex-shrink: 0;
+}
+
+.honor-card__info {
+    flex: 1;
+    min-width: 0;
+}
+
+.honor-card__title {
+    font-size: 1.125rem;
+    font-weight: 600;
+    color: var(--v2-text-primary);
+    margin-bottom: 8px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.honor-card__author {
+    font-size: 0.875rem;
+    color: var(--v2-text-secondary);
+    margin-bottom: 8px;
+}
+
+.honor-card__platform {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 4px 10px;
+    background: var(--v2-bg-tertiary);
+    border-radius: 4px;
+    font-size: 0.75rem;
+    color: var(--v2-text-tertiary);
+}
+
+.honor-card__intro {
+    font-size: 0.875rem;
+    color: var(--v2-text-secondary);
+    line-height: 1.6;
+    margin-bottom: 16px;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+}
+
+.honor-card__stats {
+    display: flex;
+    gap: 16px;
+    margin-bottom: 16px;
+    font-size: 0.75rem;
+    color: var(--v2-text-tertiary);
+}
+
+.honor-card__actions {
+    display: flex;
+    gap: 12px;
+}
+
+.honor-btn {
+    flex: 1;
+    padding: 10px 16px;
+    border-radius: 8px;
+    font-size: 0.875rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s;
+    border: none;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+}
+
+.honor-btn--primary {
+    background: linear-gradient(135deg, var(--primary-gold), #f59e0b);
+    color: #000;
+}
+
+.honor-btn--primary:hover {
+    box-shadow: 0 4px 16px rgba(245, 158, 11, 0.4);
+}
+
+.honor-btn--secondary {
+    background: var(--v2-bg-tertiary);
+    color: var(--v2-text-secondary);
+    border: 1px solid var(--v2-border-subtle);
+}
+
+.honor-btn--secondary:hover {
+    background: var(--v2-bg-hover);
+    color: var(--v2-text-primary);
+}
+
+.honor-btn--liked {
+    background: rgba(239, 68, 68, 0.1);
+    color: #f87171;
+    border: 1px solid rgba(239, 68, 68, 0.3);
+}
+
+/* 分享按钮 */
+.honor-share-btn {
+    position: fixed;
+    bottom: 32px;
+    right: 32px;
+    padding: 16px 24px;
+    background: linear-gradient(135deg, var(--primary-gold), #f59e0b);
+    color: #000;
+    border: none;
+    border-radius: 12px;
+    font-size: 1rem;
+    font-weight: 600;
+    cursor: pointer;
+    box-shadow: 0 4px 20px rgba(245, 158, 11, 0.4);
+    transition: all 0.3s;
+    z-index: 100;
+}
+
+.honor-share-btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 30px rgba(245, 158, 11, 0.5);
+}
+
+.honor-share-btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+/* 分享弹窗 */
+.modal-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.8);
+    backdrop-filter: blur(4px);
+    display: none;
+    align-items: center;
+    justify-content: center;
+    z-index: 1000;
+    padding: 20px;
+}
+
+.modal-overlay.active {
+    display: flex;
+}
+
+.modal {
+    background: var(--v2-bg-secondary);
+    border: 1px solid var(--v2-border-subtle);
+    border-radius: 16px;
+    width: 100%;
+    max-width: 500px;
+    max-height: 90vh;
+    overflow-y: auto;
+}
+
+.modal__header {
+    padding: 24px 24px 0;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.modal__title {
+    font-size: 1.25rem;
+    font-weight: 600;
+    color: var(--v2-text-primary);
+}
+
+.modal__close {
+    background: none;
+    border: none;
+    color: var(--v2-text-tertiary);
+    font-size: 1.5rem;
+    cursor: pointer;
+}
+
+.modal__body {
+    padding: 24px;
+}
+
+.form-group {
+    margin-bottom: 20px;
+}
+
+.form-group label {
+    display: block;
+    margin-bottom: 8px;
+    font-size: 0.875rem;
+    color: var(--v2-text-secondary);
+}
+
+.form-group input,
+.form-group select,
+.form-group textarea {
+    width: 100%;
+    padding: 12px 16px;
+    background: var(--v2-bg-tertiary);
+    border: 1px solid var(--v2-border-subtle);
+    border-radius: 8px;
+    color: var(--v2-text-primary);
+    font-size: 0.875rem;
+}
+
+.form-group input:focus,
+.form-group select:focus,
+.form-group textarea:focus {
+    outline: none;
+    border-color: var(--primary-gold);
+}
+
+.form-group textarea {
+    resize: vertical;
+    min-height: 100px;
+}
+
+.form-hint {
+    font-size: 0.75rem;
+    color: var(--v2-text-tertiary);
+    margin-top: 4px;
+}
+
+.modal__footer {
+    padding: 0 24px 24px;
+    display: flex;
+    gap: 12px;
+}
+
+.modal__footer .honor-btn {
+    flex: 1;
+}
+
+/* 空状态 */
+.empty-state {
+    text-align: center;
+    padding: 80px 20px;
+    color: var(--v2-text-secondary);
+}
+
+.empty-state__icon {
+    font-size: 4rem;
+    margin-bottom: 16px;
+}
+
+.empty-state__title {
+    font-size: 1.25rem;
+    font-weight: 600;
+    margin-bottom: 8px;
+}
+
+/* 加载更多 */
+.load-more {
+    text-align: center;
+    padding: 40px;
+}
+
+.load-more button {
+    padding: 12px 32px;
+    background: var(--v2-bg-tertiary);
+    border: 1px solid var(--v2-border-subtle);
+    border-radius: 8px;
+    color: var(--v2-text-secondary);
+    font-size: 0.875rem;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.load-more button:hover {
+    background: var(--v2-bg-hover);
+    color: var(--v2-text-primary);
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="honor-wall-container">
+    <!-- 头部 -->
+    <div class="honor-header">
+        <h1 class="honor-header__title">🏆 荣誉墙</h1>
+        <p class="honor-header__subtitle">分享你的作品，让更多人看到</p>
+        <div class="honor-header__stats">
+            <div class="honor-stat">
+                <div class="honor-stat__value" id="stat-total">-</div>
+                <div class="honor-stat__label">分享作品</div>
+            </div>
+            <div class="honor-stat">
+                <div class="honor-stat__value" id="stat-likes">-</div>
+                <div class="honor-stat__label">累计点赞</div>
+            </div>
+            <div class="honor-stat">
+                <div class="honor-stat__value" id="stat-authors">-</div>
+                <div class="honor-stat__label">作者</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 工具栏 -->
+    <div class="honor-toolbar">
+        <div class="honor-filters">
+            <button class="honor-filter active" data-platform="all">全部</button>
+            <button class="honor-filter" data-platform="fanqie">番茄小说</button>
+            <button class="honor-filter" data-platform="qidian">起点读书</button>
+            <button class="honor-filter" data-platform="qq_read">QQ阅读</button>
+            <button class="honor-filter" data-platform="jinjiang">晋江文学</button>
+        </div>
+        <div class="honor-search">
+            <input type="text" placeholder="搜索书名或作者..." id="searchInput">
+        </div>
+    </div>
+
+    <!-- 排序选项 -->
+    <div style="margin-bottom: 16px;">
+        <span style="color: var(--v2-text-tertiary); font-size: 0.875rem;">排序：</span>
+        <select id="sortSelect" style="background: var(--v2-bg-secondary); border: 1px solid var(--v2-border-subtle); border-radius: 6px; padding: 6px 12px; color: var(--v2-text-primary); font-size: 0.875rem;">
+            <option value="likes">最多点赞</option>
+            <option value="newest">最新发布</option>
+            <option value="word_count">字数最多</option>
+        </select>
+    </div>
+
+    <!-- 作品网格 -->
+    <div class="honor-grid" id="honorGrid">
+        <!-- 动态加载 -->
+    </div>
+
+    <!-- 加载更多 -->
+    <div class="load-more" id="loadMore" style="display: none;">
+        <button onclick="loadMore()">加载更多</button>
+    </div>
+
+    <!-- 空状态 -->
+    <div class="empty-state" id="emptyState" style="display: none;">
+        <div class="empty-state__icon">📚</div>
+        <div class="empty-state__title">还没有作品</div>
+        <p>成为第一个分享作品的人吧！</p>
+    </div>
+</div>
+
+<!-- 分享按钮 -->
+<button class="honor-share-btn" id="shareBtn" onclick="openShareModal()">
+    + 分享我的作品
+</button>
+
+<!-- 分享弹窗 -->
+<div class="modal-overlay" id="shareModal">
+    <div class="modal">
+        <div class="modal__header">
+            <h3 class="modal__title">分享我的作品</h3>
+            <button class="modal__close" onclick="closeShareModal()">&times;</button>
+        </div>
+        <div class="modal__body">
+            <div class="form-group">
+                <label>书名 *</label>
+                <input type="text" id="shareTitle" placeholder="输入书名">
+            </div>
+            <div class="form-group">
+                <label>发布平台 *</label>
+                <select id="sharePlatform">
+                    <option value="">选择平台</option>
+                    <option value="fanqie">番茄小说</option>
+                    <option value="qidian">起点读书</option>
+                    <option value="qq_read">QQ阅读</option>
+                    <option value="jinjiang">晋江文学</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label>作品链接 *</label>
+                <input type="url" id="shareUrl" placeholder="https://...">
+                <p class="form-hint">请粘贴作品在对应平台的链接</p>
+            </div>
+            <div class="form-group">
+                <label>字数</label>
+                <input type="number" id="shareWordCount" placeholder="例如：500000">
+            </div>
+            <div class="form-group">
+                <label>简介</label>
+                <textarea id="shareIntro" placeholder="简单介绍一下你的作品..."></textarea>
+            </div>
+            <p class="form-hint" id="shareLimitHint">您还可以分享 3 本作品</p>
+        </div>
+        <div class="modal__footer">
+            <button class="honor-btn honor-btn--secondary" onclick="closeShareModal()">取消</button>
+            <button class="honor-btn honor-btn--primary" onclick="submitShare()">确认分享</button>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+let currentPage = 1;
+let currentPlatform = 'all';
+let currentSort = 'likes';
+let isLoading = false;
+let hasMore = true;
+
+// 初始化
+document.addEventListener('DOMContentLoaded', function() {
+    loadHonorWall();
+    loadStats();
+    checkShareLimit();
+    
+    // 平台筛选
+    document.querySelectorAll('.honor-filter').forEach(btn => {
+        btn.addEventListener('click', function() {
+            document.querySelectorAll('.honor-filter').forEach(b => b.classList.remove('active'));
+            this.classList.add('active');
+            currentPlatform = this.dataset.platform;
+            currentPage = 1;
+            hasMore = true;
+            document.getElementById('honorGrid').innerHTML = '';
+            loadHonorWall();
+        });
+    });
+    
+    // 排序
+    document.getElementById('sortSelect').addEventListener('change', function() {
+        currentSort = this.value;
+        currentPage = 1;
+        hasMore = true;
+        document.getElementById('honorGrid').innerHTML = '';
+        loadHonorWall();
+    });
+    
+    // 搜索
+    let searchTimeout;
+    document.getElementById('searchInput').addEventListener('input', function() {
+        clearTimeout(searchTimeout);
+        searchTimeout = setTimeout(() => {
+            currentPage = 1;
+            hasMore = true;
+            document.getElementById('honorGrid').innerHTML = '';
+            loadHonorWall();
+        }, 500);
+    });
+});
+
+// 加载荣誉墙列表
+async function loadHonorWall() {
+    if (isLoading || !hasMore) return;
+    isLoading = true;
+    
+    try {
+        const search = document.getElementById('searchInput').value;
+        const response = await fetch(`/api/honor-wall/list?platform=${currentPlatform}&sort=${currentSort}&page=${currentPage}&search=${encodeURIComponent(search)}`);
+        const data = await response.json();
+        
+        if (data.success) {
+            const grid = document.getElementById('honorGrid');
+            
+            if (data.data.length === 0 && currentPage === 1) {
+                document.getElementById('emptyState').style.display = 'block';
+                document.getElementById('loadMore').style.display = 'none';
+            } else {
+                document.getElementById('emptyState').style.display = 'none';
+                
+                data.data.forEach((item, index) => {
+                    const rank = (currentPage - 1) * 10 + index + 1;
+                    const card = createHonorCard(item, rank);
+                    grid.appendChild(card);
+                });
+                
+                hasMore = data.data.length === 10;
+                document.getElementById('loadMore').style.display = hasMore ? 'block' : 'none';
+            }
+        }
+    } catch (error) {
+        console.error('加载失败:', error);
+    } finally {
+        isLoading = false;
+    }
+}
+
+// 创建作品卡片
+function createHonorCard(item, rank) {
+    const div = document.createElement('div');
+    div.className = 'honor-card';
+    
+    const rankClass = rank === 1 ? 'gold' : rank === 2 ? 'silver' : rank === 3 ? 'bronze' : '';
+    const platformNames = {
+        'fanqie': '📖 番茄',
+        'qidian': '📚 起点',
+        'qq_read': '📱 QQ阅读',
+        'jinjiang': '✨ 晋江'
+    };
+    
+    div.innerHTML = `
+        <div class="honor-card__rank ${rankClass}">${rank <= 3 ? '🏆' : rank}</div>
+        <div class="honor-card__header">
+            <div class="honor-card__cover">📖</div>
+            <div class="honor-card__info">
+                <div class="honor-card__title" title="${escapeHtml(item.book_title)}">${escapeHtml(item.book_title)}</div>
+                <div class="honor-card__author">作者: ${escapeHtml(item.user_name)}</div>
+                <span class="honor-card__platform">${platformNames[item.platform] || item.platform}</span>
+            </div>
+        </div>
+        <div class="honor-card__intro">${escapeHtml(item.book_intro || '暂无简介')}</div>
+        <div class="honor-card__stats">
+            <span>📄 ${formatNumber(item.word_count)}字</span>
+            <span>❤️ ${item.likes}赞</span>
+        </div>
+        <div class="honor-card__actions">
+            <button class="honor-btn ${item.is_liked ? 'honor-btn--liked' : 'honor-btn--secondary'}" 
+                    onclick="toggleLike(${item.id}, this)">
+                ${item.is_liked ? '❤️ 已赞' : '🤍 点赞'} ${item.likes}
+            </button>
+            <button class="honor-btn honor-btn--primary" onclick="viewBook('${item.platform_url}')">
+                📖 查看作品
+            </button>
+        </div>
+    `;
+    
+    return div;
+}
+
+// 加载统计
+async function loadStats() {
+    try {
+        const response = await fetch('/api/honor-wall/stats');
+        const data = await response.json();
+        
+        if (data.success) {
+            document.getElementById('stat-total').textContent = data.data.total;
+            document.getElementById('stat-likes').textContent = data.data.total_likes;
+            document.getElementById('stat-authors').textContent = data.data.total_authors;
+        }
+    } catch (error) {
+        console.error('统计加载失败:', error);
+    }
+}
+
+// 检查分享限制
+async function checkShareLimit() {
+    try {
+        const response = await fetch('/api/honor-wall/my-shares');
+        const data = await response.json();
+        
+        if (data.success) {
+            const remaining = data.remaining;
+            document.getElementById('shareLimitHint').textContent = `您还可以分享 ${remaining} 本作品`;
+            
+            if (remaining <= 0) {
+                document.getElementById('shareBtn').disabled = true;
+                document.getElementById('shareBtn').textContent = '已达到分享上限';
+            }
+        }
+    } catch (error) {
+        console.error('检查分享限制失败:', error);
+    }
+}
+
+// 点赞/取消点赞
+async function toggleLike(entryId, btn) {
+    try {
+        const response = await fetch(`/api/honor-wall/${entryId}/like`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' }
+        });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+            if (data.is_liked) {
+                btn.className = 'honor-btn honor-btn--liked';
+                btn.innerHTML = `❤️ 已赞 ${data.likes}`;
+            } else {
+                btn.className = 'honor-btn honor-btn--secondary';
+                btn.innerHTML = `🤍 点赞 ${data.likes}`;
+            }
+        }
+    } catch (error) {
+        console.error('点赞失败:', error);
+    }
+}
+
+// 查看作品
+function viewBook(url) {
+    window.open(url, '_blank');
+}
+
+// 打开分享弹窗
+function openShareModal() {
+    document.getElementById('shareModal').classList.add('active');
+}
+
+// 关闭分享弹窗
+function closeShareModal() {
+    document.getElementById('shareModal').classList.remove('active');
+}
+
+// 提交分享
+async function submitShare() {
+    const title = document.getElementById('shareTitle').value.trim();
+    const platform = document.getElementById('sharePlatform').value;
+    const url = document.getElementById('shareUrl').value.trim();
+    const wordCount = document.getElementById('shareWordCount').value;
+    const intro = document.getElementById('shareIntro').value.trim();
+    
+    if (!title || !platform || !url) {
+        alert('请填写必填项：书名、平台、链接');
+        return;
+    }
+    
+    try {
+        const response = await fetch('/api/honor-wall/share', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                book_title: title,
+                platform: platform,
+                platform_url: url,
+                word_count: parseInt(wordCount) || 0,
+                book_intro: intro
+            })
+        });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+            alert('分享成功！');
+            closeShareModal();
+            // 刷新列表
+            currentPage = 1;
+            document.getElementById('honorGrid').innerHTML = '';
+            loadHonorWall();
+            checkShareLimit();
+        } else {
+            alert(data.error || '分享失败');
+        }
+    } catch (error) {
+        console.error('分享失败:', error);
+        alert('分享失败，请重试');
+    }
+}
+
+// 加载更多
+function loadMore() {
+    currentPage++;
+    loadHonorWall();
+}
+
+// 工具函数
+function escapeHtml(text) {
+    if (!text) return '';
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+}
+
+function formatNumber(num) {
+    if (num >= 10000) {
+        return (num / 10000).toFixed(1) + '万';
+    }
+    return num.toLocaleString();
+}
+
+// 点击遮罩关闭弹窗
+document.getElementById('shareModal').addEventListener('click', function(e) {
+    if (e.target === this) {
+        closeShareModal();
+    }
+});
+</script>
+{% endblock %}

@@ -119,50 +119,319 @@
 <!-- 功能区域 -->
 <section class="v2-features" id="features">
     <div class="v2-section-header">
-        <div class="v2-section__label" data-i18n="landing.quickStart">QUICK START</div>
-        <h2 class="v2-section__title" data-i18n="landing.chooseEntry">选择创作入口</h2>
+        <div class="v2-section__label" data-i18n="landing.quickStart">START CREATING</div>
+        <h2 class="v2-section__title" data-i18n="landing.chooseEntry">开启你的创作之旅</h2>
+        <p class="v2-section__subtitle">无论你是小说作者还是视频创作者，这里都有适合你的AI工具</p>
     </div>
     
-    <div class="v2-features__grid v2-features__grid--2col">
+    <div class="v2-features__grid v2-features__grid--3col">
         <!-- 小说创作 -->
         {% if session.logged_in %}
-        <a href="/novels" class="v2-card v2-card--gradient">
+        <a href="/novels" class="v2-feature-card v2-feature-card--novel">
         {% else %}
-        <a href="javascript:void(0)" onclick="showLoginRequired('novel')" class="v2-card v2-card--gradient">
+        <a href="javascript:void(0)" onclick="showLoginRequired('novel')" class="v2-feature-card v2-feature-card--novel">
         {% endif %}
-            <div class="v2-card__icon v2-card__icon--purple">📖</div>
-            <h3 class="v2-card__title" data-i18n="landing.novel.title">小说创作</h3>
-            <p class="v2-card__desc" data-i18n="landing.novel.desc">
-                AI 驱动的智能小说生成系统，从设定到内容，全程智能辅助创作。
-            </p>
-            <div class="v2-card__footer">
-                <span style="color: var(--v2-text-tertiary);" data-i18n="landing.novel.features">两阶段生成 · 智能世界观</span>
-                <span class="v2-card__link" data-i18n="landing.novel.enter">
-                    {% if session.logged_in %}进入 →{% else %}登录后使用 →{% endif %}
-                </span>
+            <div class="v2-feature-card__bg"></div>
+            <div class="v2-feature-card__content">
+                <div class="v2-feature-card__icon">
+                    <span class="v2-feature-card__icon-emoji">📖</span>
+                    <div class="v2-feature-card__icon-glow"></div>
+                </div>
+                <h3 class="v2-feature-card__title" data-i18n="landing.novel.title">小说创作</h3>
+                <p class="v2-feature-card__desc" data-i18n="landing.novel.desc">
+                    从世界观设定到章节生成，AI全程辅助。支持市场导向创作，让你的作品更符合读者口味。
+                </p>
+                <div class="v2-feature-card__features">
+                    <span class="v2-feature-tag">AI世界观</span>
+                    <span class="v2-feature-tag">智能大纲</span>
+                    <span class="v2-feature-tag">章节生成</span>
+                </div>
+                <div class="v2-feature-card__action">
+                    <span class="v2-feature-card__btn">
+                        {% if session.logged_in %}开始创作{% else %}登录后使用{% endif %}
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M5 12h14M12 5l7 7-7 7"/>
+                        </svg>
+                    </span>
+                </div>
             </div>
         </a>
         
         <!-- 视频制作 -->
         {% if session.logged_in %}
-        <a href="/video-generation" class="v2-card v2-card--gradient">
+        <a href="/video-generation" class="v2-feature-card v2-feature-card--video">
         {% else %}
-        <a href="javascript:void(0)" onclick="showLoginRequired('video')" class="v2-card v2-card--gradient">
+        <a href="javascript:void(0)" onclick="showLoginRequired('video')" class="v2-feature-card v2-feature-card--video">
         {% endif %}
-            <div class="v2-card__icon v2-card__icon--pink">🎬</div>
-            <h3 class="v2-card__title" data-i18n="landing.video.title">视频制作</h3>
-            <p class="v2-card__desc" data-i18n="landing.video.desc">
-                多模式视频生成系统，短片·剧集·短视频，AI 一键转换。
-            </p>
-            <div class="v2-card__footer">
-                <span style="color: var(--v2-text-tertiary);" data-i18n="landing.video.features">多模式生成 · 自动剪辑</span>
-                <span class="v2-card__link" data-i18n="landing.video.enter">
-                    {% if session.logged_in %}进入 →{% else %}登录后使用 →{% endif %}
-                </span>
+            <div class="v2-feature-card__bg"></div>
+            <div class="v2-feature-card__content">
+                <div class="v2-feature-card__icon">
+                    <span class="v2-feature-card__icon-emoji">🎬</span>
+                    <div class="v2-feature-card__icon-glow"></div>
+                </div>
+                <h3 class="v2-feature-card__title" data-i18n="landing.video.title">视频制作</h3>
+                <p class="v2-feature-card__desc" data-i18n="landing.video.desc">
+                    小说转视频、短剧生成、多模式输出。AI自动分镜、配音、剪辑，一站式视频创作。
+                </p>
+                <div class="v2-feature-card__features">
+                    <span class="v2-feature-tag">小说转视频</span>
+                    <span class="v2-feature-tag">AI配音</span>
+                    <span class="v2-feature-tag">自动剪辑</span>
+                </div>
+                <div class="v2-feature-card__action">
+                    <span class="v2-feature-card__btn">
+                        {% if session.logged_in %}开始制作{% else %}登录后使用{% endif %}
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M5 12h14M12 5l7 7-7 7"/>
+                        </svg>
+                    </span>
+                </div>
+            </div>
+        </a>
+        
+        <!-- 荣誉墙 -->
+        <a href="/honor-wall" class="v2-feature-card v2-feature-card--honor">
+            <div class="v2-feature-card__bg"></div>
+            <div class="v2-feature-card__content">
+                <div class="v2-feature-card__icon">
+                    <span class="v2-feature-card__icon-emoji">🏆</span>
+                    <div class="v2-feature-card__icon-glow"></div>
+                </div>
+                <h3 class="v2-feature-card__title">荣誉墙</h3>
+                <p class="v2-feature-card__desc">
+                    分享你的出版作品，展示创作成果。与万千创作者交流，让更多人发现你的才华。
+                </p>
+                <div class="v2-feature-card__features">
+                    <span class="v2-feature-tag">作品展示</span>
+                    <span class="v2-feature-tag">互相点赞</span>
+                    <span class="v2-feature-tag">创作交流</span>
+                </div>
+                <div class="v2-feature-card__action">
+                    <span class="v2-feature-card__btn">
+                        查看作品
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M5 12h14M12 5l7 7-7 7"/>
+                        </svg>
+                    </span>
+                </div>
             </div>
         </a>
     </div>
 </section>
+
+<!-- 新功能卡片样式 -->
+<style>
+/* 3列网格 */
+.v2-features__grid--3col {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 24px;
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 0 20px;
+}
+
+@media (max-width: 1024px) {
+    .v2-features__grid--3col {
+        grid-template-columns: repeat(2, 1fr);
+    }
+}
+
+@media (max-width: 640px) {
+    .v2-features__grid--3col {
+        grid-template-columns: 1fr;
+    }
+}
+
+/* 副标题 */
+.v2-section__subtitle {
+    font-size: 1.125rem;
+    color: var(--v2-text-secondary);
+    margin-top: 12px;
+    text-align: center;
+}
+
+/* 功能卡片 */
+.v2-feature-card {
+    position: relative;
+    display: block;
+    background: var(--v2-bg-secondary);
+    border-radius: 24px;
+    overflow: hidden;
+    text-decoration: none;
+    transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+    border: 1px solid var(--v2-border-subtle);
+}
+
+.v2-feature-card:hover {
+    transform: translateY(-8px);
+    box-shadow: 0 20px 48px rgba(0, 0, 0, 0.3);
+}
+
+/* 卡片背景渐变 */
+.v2-feature-card__bg {
+    position: absolute;
+    inset: 0;
+    opacity: 0;
+    transition: opacity 0.4s;
+}
+
+.v2-feature-card--novel .v2-feature-card__bg {
+    background: linear-gradient(135deg, rgba(99, 102, 241, 0.15) 0%, rgba(139, 92, 246, 0.15) 100%);
+}
+
+.v2-feature-card--video .v2-feature-card__bg {
+    background: linear-gradient(135deg, rgba(236, 72, 153, 0.15) 0%, rgba(244, 114, 182, 0.15) 100%);
+}
+
+.v2-feature-card--honor .v2-feature-card__bg {
+    background: linear-gradient(135deg, rgba(251, 191, 36, 0.15) 0%, rgba(245, 158, 11, 0.15) 100%);
+}
+
+.v2-feature-card:hover .v2-feature-card__bg {
+    opacity: 1;
+}
+
+/* 卡片内容 */
+.v2-feature-card__content {
+    position: relative;
+    padding: 32px;
+    z-index: 1;
+}
+
+/* 图标 */
+.v2-feature-card__icon {
+    position: relative;
+    width: 72px;
+    height: 72px;
+    border-radius: 20px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-bottom: 24px;
+    transition: transform 0.4s;
+}
+
+.v2-feature-card--novel .v2-feature-card__icon {
+    background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
+}
+
+.v2-feature-card--video .v2-feature-card__icon {
+    background: linear-gradient(135deg, #ec4899 0%, #f472b6 100%);
+}
+
+.v2-feature-card--honor .v2-feature-card__icon {
+    background: linear-gradient(135deg, #fbbf24 0%, #f59e0b 100%);
+}
+
+.v2-feature-card:hover .v2-feature-card__icon {
+    transform: scale(1.1) rotate(-5deg);
+}
+
+.v2-feature-card__icon-emoji {
+    font-size: 36px;
+    position: relative;
+    z-index: 1;
+}
+
+.v2-feature-card__icon-glow {
+    position: absolute;
+    inset: -20px;
+    background: inherit;
+    filter: blur(30px);
+    opacity: 0.3;
+    border-radius: 50%;
+    z-index: 0;
+}
+
+/* 标题 */
+.v2-feature-card__title {
+    font-size: 1.5rem;
+    font-weight: 700;
+    color: var(--v2-text-primary);
+    margin-bottom: 12px;
+}
+
+/* 描述 */
+.v2-feature-card__desc {
+    font-size: 0.9375rem;
+    color: var(--v2-text-secondary);
+    line-height: 1.7;
+    margin-bottom: 20px;
+    min-height: 80px;
+}
+
+/* 功能标签 */
+.v2-feature-card__features {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-bottom: 24px;
+}
+
+.v2-feature-tag {
+    padding: 6px 12px;
+    background: var(--v2-bg-tertiary);
+    border: 1px solid var(--v2-border-subtle);
+    border-radius: 20px;
+    font-size: 0.75rem;
+    color: var(--v2-text-tertiary);
+    transition: all 0.2s;
+}
+
+.v2-feature-card:hover .v2-feature-tag {
+    background: rgba(255, 255, 255, 0.1);
+    color: var(--v2-text-secondary);
+}
+
+/* 按钮 */
+.v2-feature-card__action {
+    margin-top: auto;
+}
+
+.v2-feature-card__btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 12px 24px;
+    background: var(--v2-bg-tertiary);
+    border: 1px solid var(--v2-border-subtle);
+    border-radius: 12px;
+    color: var(--v2-text-primary);
+    font-size: 0.9375rem;
+    font-weight: 500;
+    transition: all 0.3s;
+}
+
+.v2-feature-card__btn svg {
+    transition: transform 0.3s;
+}
+
+.v2-feature-card:hover .v2-feature-card__btn {
+    background: var(--v2-text-primary);
+    color: var(--v2-bg-primary);
+}
+
+.v2-feature-card:hover .v2-feature-card__btn svg {
+    transform: translateX(4px);
+}
+
+/* 不同卡片的特殊hover效果 */
+.v2-feature-card--novel:hover {
+    border-color: rgba(99, 102, 241, 0.5);
+    box-shadow: 0 20px 48px rgba(99, 102, 241, 0.2);
+}
+
+.v2-feature-card--video:hover {
+    border-color: rgba(236, 72, 153, 0.5);
+    box-shadow: 0 20px 48px rgba(236, 72, 153, 0.2);
+}
+
+.v2-feature-card--honor:hover {
+    border-color: rgba(251, 191, 36, 0.5);
+    box-shadow: 0 20px 48px rgba(251, 191, 36, 0.2);
+}
+</style>
 
 <!-- 特性展示 -->
 <section class="v2-section v2-section--alt">

@@ -255,29 +255,27 @@ class TacticalPlanner:
         template_config = self._planning_config.get("system_prompt_template", {})
         template = template_config.get("template", "")
         
-        if template:
-            # 使用JSON模板
-            variables = {
-                "novel_title": novel_title,
-                "start_chapter": start_chapter,
-                "end_chapter": end_chapter,
-                "protagonist_name": protagonist_name,
-                "bestseller_ref": bestseller_ref,
-                "goal_id": stage_goal.get('goal_id', 'G1'),
-                "goal_description": stage_goal.get('description', ''),
-                "success_criteria": stage_goal.get('success_criteria', ''),
-                "key_deliverables": ', '.join(stage_goal.get('key_deliverables', [])),
-                "summary_text": summary_text
-            }
-            
-            result = template
-            for key, value in variables.items():
-                result = result.replace(f"{{{key}}}", str(value))
-            return result
+        if not template:
+            raise ValueError("[TacticalPlanner] system_prompt_template 配置未找到，请检查 planning_config.json")
         
-        # 降级：硬编码
-        logger.warning("[TacticalPlanner] system_prompt_template 未找到，使用硬编码")
-        return f"# 角色：战术规划师\n\n为小说《{novel_title}》规划第{start_chapter}-{end_chapter}章详细战术。\n\n## 阶段目标\n目标: {stage_goal.get('description', '')}"
+        # 使用JSON模板
+        variables = {
+            "novel_title": novel_title,
+            "start_chapter": start_chapter,
+            "end_chapter": end_chapter,
+            "protagonist_name": protagonist_name,
+            "bestseller_ref": bestseller_ref,
+            "goal_id": stage_goal.get('goal_id', 'G1'),
+            "goal_description": stage_goal.get('description', ''),
+            "success_criteria": stage_goal.get('success_criteria', ''),
+            "key_deliverables": ', '.join(stage_goal.get('key_deliverables', [])),
+            "summary_text": summary_text
+        }
+        
+        result = template
+        for key, value in variables.items():
+            result = result.replace(f"{{{key}}}", str(value))
+        return result
     
     def _generate_from_template(
         self,

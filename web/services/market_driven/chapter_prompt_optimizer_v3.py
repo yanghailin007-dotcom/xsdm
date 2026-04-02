@@ -229,15 +229,13 @@ class ChapterPromptOptimizerV3:
         """从 JSON 加载黄金三章提示词配置"""
         try:
             prompts = self._prompt_loader.get_golden_chapter_prompts()
-            if prompts:
-                logger.info(f"[PromptV3] 加载黄金三章提示词配置成功")
-                return prompts.get('golden_chapters', {})
-            else:
-                logger.warning(f"[PromptV3] 黄金三章提示词配置加载失败，将使用硬编码")
-                return {}
+            if not prompts:
+                raise ValueError("[PromptV3] 黄金三章提示词配置加载失败")
+            logger.info(f"[PromptV3] 加载黄金三章提示词配置成功")
+            return prompts.get('golden_chapters', {})
         except Exception as e:
             logger.error(f"[PromptV3] 加载黄金三章提示词配置失败: {e}")
-            return {}
+            raise
     
     def _load_standard_chapter_prompts(self) -> Dict:
         """从 JSON 加载标准章节提示词配置"""
@@ -245,17 +243,15 @@ class ChapterPromptOptimizerV3:
             base_dir = Path(__file__).parent.parent.parent.parent
             prompts_file = base_dir / "prompt_packages" / "default" / "market_driven" / "components" / "chapters" / "standard_chapter_prompts.json"
             
-            if prompts_file.exists():
-                with open(prompts_file, 'r', encoding='utf-8') as f:
-                    prompts = json.load(f)
-                logger.info(f"[PromptV3] 加载标准章节提示词配置成功")
-                return prompts
-            else:
-                logger.warning(f"[PromptV3] 标准章节提示词配置文件不存在: {prompts_file}")
-                return {}
+            if not prompts_file.exists():
+                raise ValueError(f"[PromptV3] 标准章节提示词配置文件不存在: {prompts_file}")
+            with open(prompts_file, 'r', encoding='utf-8') as f:
+                prompts = json.load(f)
+            logger.info(f"[PromptV3] 加载标准章节提示词配置成功")
+            return prompts
         except Exception as e:
             logger.error(f"[PromptV3] 加载标准章节提示词配置失败: {e}")
-            return {}
+            raise
     
     def _load_common_components(self) -> Dict:
         """从 JSON 加载通用提示词组件"""
@@ -263,17 +259,15 @@ class ChapterPromptOptimizerV3:
             base_dir = Path(__file__).parent.parent.parent.parent
             components_file = base_dir / "prompt_packages" / "default" / "market_driven" / "components" / "common_prompt_components.json"
             
-            if components_file.exists():
-                with open(components_file, 'r', encoding='utf-8') as f:
-                    components = json.load(f)
-                logger.info(f"[PromptV3] 加载通用提示词组件成功")
-                return components
-            else:
-                logger.warning(f"[PromptV3] 通用提示词组件文件不存在: {components_file}")
-                return {}
+            if not components_file.exists():
+                raise ValueError(f"[PromptV3] 通用提示词组件文件不存在: {components_file}")
+            with open(components_file, 'r', encoding='utf-8') as f:
+                components = json.load(f)
+            logger.info(f"[PromptV3] 加载通用提示词组件成功")
+            return components
         except Exception as e:
             logger.error(f"[PromptV3] 加载通用提示词组件失败: {e}")
-            return {}
+            raise
     
     def _get_common_component(self, component_name: str, **kwargs) -> str:
         """获取通用提示词组件"""
@@ -299,8 +293,7 @@ class ChapterPromptOptimizerV3:
         """渲染章节类型模板"""
         template_config = self._chapter_templates.get(template_type, {})
         if not template_config:
-            logger.warning(f"[PromptV3] 未找到模板配置: {template_type}")
-            return f"类型：{template_type}（使用默认配置）"
+            raise ValueError(f"[PromptV3] 未找到模板配置: {template_type}")
         
         lines = []
         lines.append(f"类型：{template_type}（{template_config.get('name', '')}）")
@@ -484,29 +477,7 @@ class ChapterPromptOptimizerV3:
         """
         # 🔥 优先使用JSON配置构建
         if use_json_config and self._prompt_loader:
-            try:
-                return self._build_system_prompt_from_config()
-            except Exception as e:
-                logger.warning(f"[PromptV3] JSON配置构建System Prompt失败: {e}，使用硬编码")
-        
-        # 硬编码fallback
-        sections = [
-            self._build_header(),
-            self._build_core_setting(),
-            self._build_worldview_section(),
-            self._build_protagonist_section(),
-            self._build_golden_three_chapters(),
-            self._build_tomato_algorithm_guide(),
-            self._build_micro_innovation_guide(),
-            self._build_genre_specific_guide(),
-            self._build_shock_techniques(),
-            self._build_emotion_control(),
-            self._build_format_rules(),
-            self._build_ai_self_check_guide(),
-            self._build_footer(),
-        ]
-        
-        return "\n\n".join(filter(None, sections))
+        return self._build_system_prompt_from_config()
     
     def _build_system_prompt_from_config(self) -> str:
         """从JSON配置构建System Prompt"""
@@ -947,14 +918,14 @@ class ChapterPromptOptimizerV3:
 
 生成流程：
 1. 先阅读"章节指令"理解本章要求
-2. **生成 JSON 格式的章节内容（title + content）**
+2. **使用分隔符格式生成章节内容（---标题---/---正文---）**
 3. 必须进行AI自检（按照自检指南）
 4. 输出自检报告
 5. 如果自检不通过，重新优化后再次输出
 
 记住：
 1. 你是番茄爆款作家，不是普通写手
-2. **必须返回 JSON 格式，这是强制要求**
+2. **必须使用分隔符格式（---标题---/---正文---），这是强制要求**
 2. 每章都要让读者欲罢不能
 3. 严格按照上述所有规则执行
 4. 必须自检，不可跳过！
@@ -1568,7 +1539,7 @@ class ChapterPromptOptimizerV3:
         schema = output_format.get('schema', {})
         rules = output_format.get('rules', [])
         
-        rules_text = chr(10).join(['- ' + r for r in rules]) if rules else "- title字段只放标题文本，不要加'第X章'前缀\n- content字段只放正文，绝对禁止在正文开头写'第X章 XXX'"
+        rules_text = chr(10).join(['- ' + r for r in rules]) if rules else "- 标题放在---标题---后面，不要加'第X章'前缀\n- 正文放在---正文---后面，绝对禁止在正文开头写'第X章 XXX'"
         
         return f"""## 【🚨 强制输出格式 - 必须严格遵守】
 
@@ -1578,42 +1549,37 @@ class ChapterPromptOptimizerV3:
 - 风格：简洁有力，有冲击力
 - **⚠️ 致命错误**：如果在正文开头写"第12章 XXX"这样的标题行，内容将被判定为不合格！
 
-### JSON输出格式（唯一允许的格式）
-**你必须且只能返回一个符合以下结构的JSON对象，任何其他格式都会被拒绝：**
+### 分隔符输出格式（唯一允许的格式）
+**你必须且只能返回以下分隔符格式，任何其他格式都会被拒绝：**
 
-```json
-{{
-  "title": "章节标题（8-14字，不含'第X章'）",
-  "content": "章节正文内容（2000-2500字，正文开头不要写标题）"
-}}
-```
+---标题---
+章节标题（8-14字，不含'第X章'）
+---正文---
+章节正文内容（2000-2500字，正文开头不要写标题）
 
 ### 🚨 强制规则（违反会导致生成失败）
 {rules_text}
 
 ### ❌ 错误示例（绝对禁止）
-```json
-{{
-  "chapter_number": 12,
-  "content": "第12章 国际联盟逼宫...\\n\\n昆仑山脉的炮声..."
-}}
 ```
-**错误原因**：content字段包含了"第12章"标题行！
+第12章 国际联盟逼宫
+
+昆仑山脉的炮声...
+```
+**错误原因**：正文开头包含了"第12章"标题行！
 
 ### ✅ 正确示例
-```json
-{{
-  "title": "国际联盟逼宫，公知带节奏卖国求荣",
-  "content": "昆仑山脉的炮声还未停歇，联合国特别会议的邀请函已经送到了龙国大长老的案头..."
-}}
-```
+---标题---
+国际联盟逼宫，公知带节奏卖国求荣
+---正文---
+昆仑山脉的炮声还未停歇，联合国特别会议的邀请函已经送到了龙国大长老的案头...
 
 ### 🔥 最终检查清单
 输出前必须检查：
-- [ ] 返回的是否是合法JSON格式？
-- [ ] title字段是否存在且不含"第X章"？
-- [ ] content字段是否以正文开头（不是标题）？
-- [ ] content字段内是否绝对没有出现"第X章 XXX"字样？
+- [ ] 是否使用了---标题---和---正文---分隔符？
+- [ ] 标题是否不含"第X章"？
+- [ ] 正文是否以正文开头（不是标题）？
+- [ ] 正文内是否绝对没有出现"第X章 XXX"字样？
 
 **警告：如果检查不通过，必须重新生成！**
 """
