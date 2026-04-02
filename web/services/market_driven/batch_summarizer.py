@@ -83,119 +83,151 @@ class BatchSummarizer:
         if not chapters:
             return self._empty_summary()
         
-        # 🔥 修复：兼容两种字段名（chapter_number 和 chapter）
-        chapter_nums = []
-        for c in chapters:
-            ch_num = c.get('chapter_number') or c.get('chapter') or 0
-            if ch_num:
-                chapter_nums.append(ch_num)
+        # 🔥 过滤掉 None 元素
+        chapters = [c for c in chapters if c is not None]
+        if not chapters:
+            logger.warning("[BatchSummarizer] 所有章节数据均为None")
+            return self._empty_summary()
         
-        start_ch = min(chapter_nums) if chapter_nums else 0
-        end_ch = max(chapter_nums) if chapter_nums else 0
-        
-        # 🔥 基础统计 - 使用真实质量数据（如果analytics_service可用）
-        total_words = sum(c.get('word_count', 0) for c in chapters)
-        
-        # 尝试获取真实质量分析
-        real_quality_metrics = self._analyze_real_quality(chapters)
-        if real_quality_metrics:
-            # 使用真实质量数据
-            avg_quality = sum(m['tomato_score'] for m in real_quality_metrics) / len(real_quality_metrics)
-            logger.info(f"[BatchSummarizer] 使用真实质量数据: 平均得分{avg_quality:.1f}")
-        else:
-            # 降级：使用章节自带的quality_score
-            avg_quality = sum(c.get('quality_score', 0) for c in chapters) / len(chapters) if chapters else 0
-            logger.warning(f"[BatchSummarizer] 使用章节自带质量分（可能不准确）: {avg_quality:.1f}")
-        
-        # 收集提取信息
-        all_new_chars = []
-        all_char_changes = []
-        all_hooks = []
-        key_events = []
-        
-        for ch in chapters:
-            extracted = ch.get('extracted_info', {}) or {}
+        try:
+            # 🔥 修复：兼容两种字段名（chapter_number 和 chapter）
+            chapter_nums = []
+            for c in chapters:
+                ch_num = c.get('chapter_number') or c.get('chapter') or 0
+                if ch_num:
+                    chapter_nums.append(ch_num)
             
-            # 新角色
-            new_chars = extracted.get('new_characters') or []
-            for char in new_chars:
-                if char not in all_new_chars:
-                    all_new_chars.append(char)
+            start_ch = min(chapter_nums) if chapter_nums else 0
+            end_ch = max(chapter_nums) if chapter_nums else 0
             
-            # 角色变化
-            changes = extracted.get('character_changes') or []
-            all_char_changes.extend(changes)
+            # 🔥 基础统计 - 使用真实质量数据（如果analytics_service可用）
+            total_words = sum(c.get('word_count', 0) for c in chapters)
             
-            # 钩子
-            hooks = extracted.get('new_hooks') or []
-            all_hooks.extend(hooks)
+            # 尝试获取真实质量分析
+            real_quality_metrics = self._analyze_real_quality(chapters)
+            if real_quality_metrics:
+                # 使用真实质量数据
+                avg_quality = sum(m['tomato_score'] for m in real_quality_metrics) / len(real_quality_metrics)
+                logger.info(f"[BatchSummarizer] 使用真实质量数据: 平均得分{avg_quality:.1f}")
+            else:
+                # 降级：使用章节自带的quality_score
+                avg_quality = sum(c.get('quality_score', 0) for c in chapters) / len(chapters) if chapters else 0
+                logger.warning(f"[BatchSummarizer] 使用章节自带质量分（可能不准确）: {avg_quality:.1f}")
             
-            # 关键事件
-            key_event = extracted.get('key_event')
-            if key_event:
-                key_events.append({
-                    **key_event,
-                    "chapter": ch.get('chapter_number')
-                })
-        
-        # 🔥 AI 深度分析
-        ai_analysis = self._ai_analyze_batch(
-            chapters, stage_goal, previous_summary,
-            all_new_chars, all_char_changes, key_events
-        )
-        
-        # 计算阶段目标进度
-        goal_id = stage_goal.get('goal_id', 'G1') if stage_goal else 'G1'
-        goal_name = stage_goal.get('name', '未知目标') if stage_goal else '未知'
-        progress = self._calculate_goal_progress(chapters, stage_goal, previous_summary)
-        
-        summary = {
-            "batch_range": f"{start_ch}-{end_ch}",
-            "chapter_count": len(chapters),
-            "total_words": total_words,
-            "average_quality": round(avg_quality, 1),
-            "generated_at": datetime.now().isoformat(),
+            # 收集提取信息
+            all_new_chars = []
+            all_char_changes = []
+            all_hooks = []
+            key_events = []
             
-            # 阶段目标进度
-            "current_goal": {
-                "goal_id": goal_id,
-                "goal_name": goal_name,
-                "progress_percent": progress
-            },
-            "goal_progress": {goal_id: f"{progress}%"},
+            for ch in chapters:
+                extracted = ch.get('extracted_info', {}) or {}
+                
+                # 新角色
+                new_chars = extracted.get('new_characters') or []
+                for char in new_chars:
+                    if char not in all_new_chars:
+                        all_new_chars.append(char)
+                
+                # 角色变化
+                changes = extracted.get('character_changes') or []
+                all_char_changes.extend(changes)
+                
+                # 钩子
+                hooks = extracted.get('new_hooks') or []
+                all_hooks.extend(hooks)
+                
+                # 关键事件
+                key_event = extracted.get('key_event')
+                if key_event:
+                    key_events.append({
+                        **key_event,
+                        "chapter": ch.get('chapter_number')
+                    })
             
-            # 内容摘要
-            "content": {
-                "new_characters": all_new_chars,
-                "new_characters_count": len(all_new_chars),
-                "character_changes": all_char_changes,
-                "character_changes_count": len(all_char_changes),
-                "new_hooks": all_hooks,
-                "hooks_count": len(all_hooks),
-                "key_events": key_events,
-                "key_events_count": len(key_events)
-            },
+            # 🔥 AI 深度分析
+            ai_analysis = self._ai_analyze_batch(
+                chapters, stage_goal, previous_summary,
+                all_new_chars, all_char_changes, key_events
+            )
             
-            # 🔥 AI 分析结果
-            "ai_analysis": ai_analysis,
+            # 计算阶段目标进度
+            goal_id = stage_goal.get('goal_id', 'G1') if stage_goal else 'G1'
+            goal_name = stage_goal.get('name', '未知目标') if stage_goal else '未知'
+            progress = self._calculate_goal_progress(chapters, stage_goal, previous_summary)
             
-            # 角色状态快照
-            "character_state": ai_analysis.get('character_states', {}) or self._extract_character_state(chapters),
+            summary = {
+                "batch_range": f"{start_ch}-{end_ch}",
+                "chapter_count": len(chapters),
+                "total_words": total_words,
+                "average_quality": round(avg_quality, 1),
+                "generated_at": datetime.now().isoformat(),
+                
+                # 阶段目标进度
+                "current_goal": {
+                    "goal_id": goal_id,
+                    "goal_name": goal_name,
+                    "progress_percent": progress
+                },
+                "goal_progress": {goal_id: f"{progress}%"},
+                
+                # 内容摘要
+                "content": {
+                    "new_characters": all_new_chars,
+                    "new_characters_count": len(all_new_chars),
+                    "character_changes": all_char_changes,
+                    "character_changes_count": len(all_char_changes),
+                    "new_hooks": all_hooks,
+                    "hooks_count": len(all_hooks),
+                    "key_events": key_events,
+                    "key_events_count": len(key_events)
+                },
+                
+                # 🔥 AI 分析结果
+                "ai_analysis": ai_analysis,
+                
+                # 角色状态快照
+                "character_state": ai_analysis.get('character_states', {}) or self._extract_character_state(chapters),
+                
+                # 用于传递的关键信息
+                "completed_events": ai_analysis.get('completed_events', []),
+                "pending_hooks": ai_analysis.get('pending_hooks', all_hooks[:5]),
+                "plot_direction": ai_analysis.get('plot_direction', ''),
+                
+                # 备注
+                "notes": ai_analysis.get('summary_text', f"第{start_ch}-{end_ch}章批次总结完成")
+            }
             
-            # 用于传递的关键信息
-            "completed_events": ai_analysis.get('completed_events', []),
-            "pending_hooks": ai_analysis.get('pending_hooks', all_hooks[:5]),
-            "plot_direction": ai_analysis.get('plot_direction', ''),
+            logger.info(f"[BatchSummarizer] 批次总结完成: 第{start_ch}-{end_ch}章, "
+                       f"新角色{len(all_new_chars)}人, 关键事件{len(key_events)}个, "
+                       f"目标进度{progress}%")
             
-            # 备注
-            "notes": ai_analysis.get('summary_text', f"第{start_ch}-{end_ch}章批次总结完成")
-        }
-        
-        logger.info(f"[BatchSummarizer] 批次总结完成: 第{start_ch}-{end_ch}章, "
-                   f"新角色{len(all_new_chars)}人, 关键事件{len(key_events)}个, "
-                   f"目标进度{progress}%")
-        
-        return summary
+            return summary
+            
+        except Exception as e:
+            logger.error(f"[BatchSummarizer] 生成批次总结时出错: {e}")
+            # 🔥 返回基础总结，确保不返回None
+            return {
+                "batch_range": f"{start_ch}-{end_ch}" if 'start_ch' in dir() else "unknown",
+                "chapter_count": len(chapters),
+                "total_words": sum(c.get('word_count', 0) for c in chapters),
+                "average_quality": 0,
+                "current_goal": {"goal_id": "", "goal_name": "", "progress_percent": 0},
+                "goal_progress": {},
+                "content": {
+                    "new_characters": [],
+                    "new_characters_count": 0,
+                    "character_changes": [],
+                    "character_changes_count": 0,
+                    "new_hooks": [],
+                    "hooks_count": 0,
+                    "key_events": [],
+                    "key_events_count": 0
+                },
+                "character_state": {},
+                "notes": f"批次总结生成失败: {str(e)}",
+                "error": str(e)
+            }
     
     def _ai_analyze_batch(
         self,

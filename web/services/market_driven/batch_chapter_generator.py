@@ -299,6 +299,11 @@ class BatchChapterGenerator:
                 previous_summary=self.current_batch_summary
             )
             
+            # 🔥 防御：确保 new_summary 不为 None
+            if new_summary is None:
+                logger.warning("[BatchGenerator] summarize_batch 返回 None，使用空总结")
+                new_summary = {"notes": "空总结", "chapter_count": len(chapters)}
+            
             # 合并总结（累积多批次信息）
             if self.current_batch_summary:
                 self.current_batch_summary = self.batch_summarizer.merge_summaries(

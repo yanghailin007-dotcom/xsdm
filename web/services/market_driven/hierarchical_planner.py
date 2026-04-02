@@ -83,7 +83,7 @@ class HierarchicalPlanner:
         self.tactical_planner = TacticalPlanner(api_client, project_path)
         
         # 🔥 初始化滑动窗口监控器（用于实时监控质量趋势）
-        self.window_monitor = SlidingWindowMonitor(window_size=5)
+        self.window_monitor = SlidingWindowMonitor(window_size=6)
         
         # 🔥 analytics_service将在需要时延迟初始化
         self._analytics_service = None

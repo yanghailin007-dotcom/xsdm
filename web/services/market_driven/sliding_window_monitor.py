@@ -39,7 +39,7 @@ class SlidingWindowMonitor:
     
     DEFAULT_CONFIG_PATH = "prompt_packages/default/market_driven/components/emotion_quality_standards.json"
     
-    def __init__(self, window_size: int = 5, config_path: str = None):
+    def __init__(self, window_size: int = 6, config_path: str = None):
         self.window_size = window_size
         self.metrics_history: List[WindowMetrics] = []
         self.config_path = config_path or self.DEFAULT_CONFIG_PATH
