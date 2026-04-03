@@ -777,43 +777,34 @@ document.addEventListener('DOMContentLoaded', function() {
     
     // 填充剧情线选择器
     if (plotOptions.length > 0) {
-      plotSelect.innerHTML = '<option value="">-- 选择剧情路线 --</option>' + 
-        plotOptions.map((plot, idx) => {
-          // 🔥 确保 name 和 desc 是字符串
-          let name = plot.name || `剧情线${idx + 1}`;
-          let desc = plot.desc || '';
-          // 如果 name 是对象，转换为字符串
-          if (typeof name === 'object') {
-            name = JSON.stringify(name);
-          }
-          if (typeof desc === 'object') {
-            desc = JSON.stringify(desc);
-          }
-          return `<option value="${idx}">${name}${desc ? ' - ' + desc : ''}</option>`;
-        }).join('');
-      
-      // 如果有从分析页面选择的剧情线，自动选中
-      let selectedIdx = 0; // 默认选择第一个
-      
+      // 🔥先确定默认选择的索引
+      let defaultSelectedIdx = 0;
       if (selectedPlotFromAnalysis) {
         const selectedName = typeof selectedPlotFromAnalysis.name === 'object' 
           ? JSON.stringify(selectedPlotFromAnalysis.name) 
           : (selectedPlotFromAnalysis.name || '');
-        const idx = plotOptions.findIndex(p => {
+        const foundIdx = plotOptions.findIndex(p => {
           const pName = typeof p.name === 'object' ? JSON.stringify(p.name) : (p.name || '');
           return pName === selectedName;
         });
-        if (idx >= 0) {
-          selectedIdx = idx;
-        }
+        if (foundIdx >= 0) defaultSelectedIdx = foundIdx;
       }
       
-      // 默认选择第一个剧情路线（或从分析页面带过来的）
-      plotSelect.value = selectedIdx;
-      window.selectedPlotRoute = plotOptions[selectedIdx]; // 自动保存默认选择
+      // 构建选项列表，默认选中的加上selected属性
+      plotSelect.innerHTML = plotOptions.map((plot, idx) => {
+        let name = plot.name || `剧情线${idx + 1}`;
+        let desc = plot.desc || '';
+        if (typeof name === 'object') name = JSON.stringify(name);
+        if (typeof desc === 'object') desc = JSON.stringify(desc);
+        const selectedAttr = idx === defaultSelectedIdx ? 'selected' : '';
+        return `<option value="${idx}" ${selectedAttr}>${name}${desc ? ' - ' + desc : ''}</option>`;
+      }).join('');
+      
+      // 使用已确定的默认选择索引
+      window.selectedPlotRoute = plotOptions[defaultSelectedIdx];
       
       // 自动填充剧情详情到主剧情框
-      const defaultPlot = plotOptions[selectedIdx];
+      const defaultPlot = plotOptions[defaultSelectedIdx];
       if (defaultPlot) {
         const detail = defaultPlot.detail || defaultPlot.content || '';
         if (detail) {
