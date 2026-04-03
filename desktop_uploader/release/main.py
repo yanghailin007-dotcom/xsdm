@@ -1083,6 +1083,7 @@ class MainWindow(QMainWindow):
             # 获取程序所在目录和推荐的项目目录
             app_dir = Path(__file__).parent.resolve()
             expected_dirs = [
+                Path("C:/小说项目"),  # 首选：C盘根目录，用户最容易找到
                 app_dir / "小说项目",
                 app_dir.parent / "小说项目"
             ]
@@ -1093,11 +1094,12 @@ class MainWindow(QMainWindow):
                 "1. 返回网页 https://xsdm.cainiao.cool/pages/v2/fanqie-upload-v2\n"
                 "2. 选择要上传的小说项目\n"
                 "3. 点击「下载配置」和「下载数据」\n"
-                "4. 把下载的文件解压到以下位置：\n\n"
-                f"📁 上传工具目录下：\n   {expected_dirs[0]}\n\n"
-                f"📁 或上级目录：\n   {expected_dirs[1]}\n\n"
-                "提示：下载的zip文件解压后会有「小说项目」文件夹，\n"
-                "      把这个文件夹拖到上面任意一个位置即可"
+                "4. 把下载的zip文件解压到： C:\\小说项目  (推荐，最简单)\n\n"
+                "其他可用位置：\n"
+                f"📁 {expected_dirs[1]}\n"
+                f"📁 {expected_dirs[2]}\n\n"
+                "提示：下载的zip解压后会有「小说项目」文件夹，\n"
+                "      建议整个拖到 C盘根目录（打开此电脑 → C盘）"
             )
             self.log(help_msg, "warning")
             
