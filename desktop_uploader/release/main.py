@@ -201,7 +201,7 @@ class MainWindow(QMainWindow):
     
     def __init__(self):
         super().__init__()
-        self.setWindowTitle("大文娱小说发布助手 v1.2")
+        self.setWindowTitle("大文娱小说发布助手 v1.3.0")
         self.setGeometry(100, 100, 1280, 840)
         
         # 应用现代化样式
@@ -840,7 +840,7 @@ class MainWindow(QMainWindow):
         main_card_layout.addWidget(title_label)
         
         # 版本
-        version_label = QLabel("Version 1.2.0")
+        version_label = QLabel("Version 1.3.0")
         version_label.setAlignment(Qt.AlignCenter)
         version_label.setStyleSheet("font-size: 14px; color: rgba(255,255,255,0.8);")
         main_card_layout.addWidget(version_label)
@@ -1358,7 +1358,7 @@ def main():
     
     # 设置应用信息
     app.setApplicationName("小说自动上传工具")
-    app.setApplicationVersion("1.0")
+    app.setApplicationVersion("1.3.0")
     
     window = MainWindow()
     window.show()
