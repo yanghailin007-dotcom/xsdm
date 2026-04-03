@@ -472,7 +472,11 @@ class MainWindow(QMainWindow):
         self.website_user = user_data
         # 保存token
         token_file = DATA_DIR / "website_token.json"
-        token_file.write_text(json.dumps(user_data, indent=2), encoding='utf-8')
+        try:
+            token_file.write_text(json.dumps(user_data, indent=2), encoding='utf-8')
+            self.log(f"💾 Token 已保存: {token_file}", "success")
+        except Exception as e:
+            self.log(f"❌ Token 保存失败: {e}", "error")
         self.update_title()
     
     def update_title(self):
@@ -984,30 +988,70 @@ class MainWindow(QMainWindow):
     
     # ============== 项目管理 ==============
     def load_projects(self):
-        """加载项目列表"""
+        """加载项目列表（包含默认项目和保存的最近项目）"""
         self.project_combo.clear()
+        added_paths = set()
         
+        # 1. 先加载保存的最近项目
+        recent_projects = self.load_recent_projects()
+        for proj_data in recent_projects:
+            proj_path = Path(proj_data['path'])
+            if proj_path.exists() and (proj_path / "project_config.json").exists():
+                display = f"📌 {proj_data['username']} / {proj_data['proj_name']}"
+                self.project_combo.addItem(display, proj_data)
+                added_paths.add(str(proj_path))
+        
+        # 2. 加载默认小说项目目录
         projects_dir = Path.cwd() / "小说项目"
-        if not projects_dir.exists():
-            return
+        if projects_dir.exists():
+            for user_dir in projects_dir.iterdir():
+                if user_dir.is_dir():
+                    for proj_dir in user_dir.iterdir():
+                        if proj_dir.is_dir() and (proj_dir / "project_config.json").exists():
+                            proj_path_str = str(proj_dir)
+                            if proj_path_str not in added_paths:
+                                display = f"{user_dir.name} / {proj_dir.name}"
+                                data = {
+                                    'username': user_dir.name,
+                                    'proj_name': proj_dir.name,
+                                    'path': proj_path_str
+                                }
+                                self.project_combo.addItem(display, data)
         
-        projects = []
-        for user_dir in projects_dir.iterdir():
-            if user_dir.is_dir():
-                for proj_dir in user_dir.iterdir():
-                    if proj_dir.is_dir() and (proj_dir / "project_config.json").exists():
-                        projects.append((user_dir.name, proj_dir.name, proj_dir))
+        self.status_bar.setText(f"加载了 {self.project_combo.count()} 个项目")
+    
+    def load_recent_projects(self) -> list:
+        """加载最近项目列表"""
+        recent_file = DATA_DIR / "recent_projects.json"
+        if recent_file.exists():
+            try:
+                return json.loads(recent_file.read_text(encoding='utf-8'))
+            except:
+                return []
+        return []
+    
+    def save_recent_project(self, proj_data: dict):
+        """保存项目到最近列表"""
+        recent_file = DATA_DIR / "recent_projects.json"
+        recent = self.load_recent_projects()
         
-        for username, proj_name, proj_path in sorted(projects):
-            display = f"{username} / {proj_name}"
-            data = {
-                'username': username,
-                'proj_name': proj_name,
-                'path': str(proj_path)
-            }
-            self.project_combo.addItem(display, data)
+        # 检查是否已存在
+        for i, p in enumerate(recent):
+            if p['path'] == proj_data['path']:
+                # 移动到最前面
+                recent.pop(i)
+                break
         
-        self.status_bar.setText(f"加载了 {len(projects)} 个项目")
+        # 添加到开头
+        recent.insert(0, proj_data)
+        
+        # 最多保留10个
+        recent = recent[:10]
+        
+        try:
+            recent_file.write_text(json.dumps(recent, indent=2, ensure_ascii=False), encoding='utf-8')
+        except Exception as e:
+            print(f"保存最近项目失败: {e}")
     
     def select_project_directory(self):
         """选择项目目录"""
@@ -1055,8 +1099,12 @@ class MainWindow(QMainWindow):
             username = config.get('username', project_path.parent.name)
             proj_name = config.get('project_name', project_path.name)
             
-            # 添加到下拉框 - 保存完整路径信息
-            display = f"{username} / {proj_name}"
+            # 准备数据
+            data = {
+                'username': username,
+                'proj_name': proj_name,
+                'path': str(project_path)
+            }
             
             # 检查是否已存在（通过完整路径）
             existing_idx = -1
@@ -1069,16 +1117,15 @@ class MainWindow(QMainWindow):
             if existing_idx >= 0:
                 self.project_combo.setCurrentIndex(existing_idx)
             else:
-                # 保存完整路径信息
-                data = {
-                    'username': username,
-                    'proj_name': proj_name,
-                    'path': str(project_path)
-                }
-                self.project_combo.addItem(display, data)
-                self.project_combo.setCurrentIndex(self.project_combo.count() - 1)
+                # 添加到列表开头（带📌标记表示是手动添加的）
+                display = f"📌 {username} / {proj_name}"
+                self.project_combo.insertItem(0, display, data)
+                self.project_combo.setCurrentIndex(0)
             
-            self.log(f"📁 已加载项目: {proj_name}", "success")
+            # 保存到最近项目
+            self.save_recent_project(data)
+            
+            self.log(f"📁 已加载并保存项目: {proj_name}", "success")
             
         except Exception as e:
             QMessageBox.warning(self, "错误", f"加载项目失败: {e}")

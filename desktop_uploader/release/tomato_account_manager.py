@@ -84,8 +84,9 @@ class TomatoAccountManager:
                 'accounts': [asdict(acc) for acc in self.accounts.values()]
             }
             self.config_file.write_text(json.dumps(data, indent=2, ensure_ascii=False), encoding='utf-8')
+            print(f"[DEBUG] 账户已保存: {self.config_file}")
         except Exception as e:
-            print(f"保存账户失败: {e}")
+            print(f"[ERROR] 保存账户失败: {e}")
     
     def _find_available_port(self) -> int:
         """查找可用端口"""
