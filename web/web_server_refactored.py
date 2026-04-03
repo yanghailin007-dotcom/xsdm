@@ -785,9 +785,13 @@ def register_fanqie_routes(app):
                 cp = project_dir / cover_name
                 if cp.exists():
                     cover_exists = True
-                    # 使用正确的静态文件路径
+                    # 使用相对路径，前端可以直接访问
                     cover_path = f"/api/project-cover/{username}/{project_id}/{cover_name}"
+                    logger.info(f"🖼️ 找到封面: {cp} -> {cover_path}")
                     break
+            
+            if not cover_exists:
+                logger.info(f"ℹ️ 项目 {project_id} 没有封面")
             
             # 获取保存的发布配置（如果存在）
             saved_publish_config = fanqie_data.get('publish_config', {})
@@ -835,9 +839,10 @@ def register_fanqie_routes(app):
     def serve_project_cover(username, project_id, filename):
         """提供项目封面图片文件"""
         try:
-            from flask import send_from_directory, session
+            from flask import send_file, session
             from pathlib import Path
             from urllib.parse import unquote
+            import mimetypes
             
             # URL 解码参数
             project_id_decoded = unquote(project_id)
@@ -850,19 +855,11 @@ def register_fanqie_routes(app):
                 logger.warning(f"🚫 用户 {current_user} 尝试访问 {username} 的封面")
                 return jsonify({"error": "无权访问其他用户的封面"}), 403
             
-            # 使用 find_user_project_dir 查找项目目录（支持拼音和中文名匹配）
+            # 使用 find_user_project_dir 查找项目目录
             project_dir = find_user_project_dir(username, project_id_decoded)
             
             if not project_dir:
                 logger.error(f"❌ 找不到项目目录: {username}/{project_id_decoded}")
-                # 调试：列出用户目录内容
-                user_dir = Path("小说项目") / username
-                if user_dir.exists():
-                    try:
-                        projects = [p.name for p in user_dir.iterdir() if p.is_dir()]
-                        logger.info(f"📁 用户 {username} 的项目: {projects}")
-                    except Exception as e:
-                        logger.error(f"无法列出目录: {e}")
                 return jsonify({"error": "项目不存在"}), 404
             
             # 验证文件名
@@ -874,11 +871,15 @@ def register_fanqie_routes(app):
                 logger.error(f"❌ 封面文件不存在: {file_path}")
                 return jsonify({"error": "封面文件不存在"}), 404
             
-            logger.info(f"✅ 提供封面: {file_path}")
-            return send_from_directory(str(project_dir), filename)
+            # 使用 send_file 发送文件
+            mimetype = mimetypes.guess_type(str(file_path))[0] or 'image/jpeg'
+            logger.info(f"✅ 提供封面: {file_path} ({mimetype})")
+            return send_file(str(file_path), mimetype=mimetype)
             
         except Exception as e:
             logger.error(f"❌ 提供封面文件失败: {e}")
+            import traceback
+            logger.error(f"错误堆栈: {traceback.format_exc()}")
             return jsonify({"error": str(e)}), 500
     
     @app.route('/api/fanqie-upload/validate', methods=['GET'])
