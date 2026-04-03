@@ -1372,6 +1372,85 @@ def register_fanqie_routes(app):
             logger.error(f"❌ 获取上传进度失败: {e}")
             return jsonify({"success": False, "error": str(e)}), 500
 
+    @app.route('/api/user/default-author', methods=['GET'])
+    def get_default_author():
+        """获取用户保存的默认作者名"""
+        try:
+            from flask import session
+            from pathlib import Path
+            import json
+            
+            username = session.get('username')
+            if not username:
+                return jsonify({"success": False, "error": "请先登录"}), 401
+            
+            # 从用户配置文件读取
+            user_config_file = Path("config") / f"user_{username}.json"
+            if user_config_file.exists():
+                with open(user_config_file, 'r', encoding='utf-8') as f:
+                    user_config = json.load(f)
+                    author_name = user_config.get('default_author_name', '')
+                    if author_name:
+                        return jsonify({
+                            "success": True,
+                            "author_name": author_name
+                        })
+            
+            return jsonify({
+                "success": False,
+                "author_name": None
+            })
+            
+        except Exception as e:
+            logger.error(f"❌ 获取默认作者名失败: {e}")
+            return jsonify({"success": False, "error": str(e)}), 500
+
+    @app.route('/api/user/default-author', methods=['POST'])
+    def save_default_author():
+        """保存用户的默认作者名"""
+        try:
+            from flask import session
+            from pathlib import Path
+            import json
+            
+            username = session.get('username')
+            if not username:
+                return jsonify({"success": False, "error": "请先登录"}), 401
+            
+            data = request.get_json()
+            author_name = data.get('author_name', '').strip()
+            
+            if not author_name:
+                return jsonify({"success": False, "error": "作者名不能为空"}), 400
+            
+            # 保存到用户配置文件
+            config_dir = Path("config")
+            config_dir.mkdir(exist_ok=True)
+            user_config_file = config_dir / f"user_{username}.json"
+            
+            user_config = {}
+            if user_config_file.exists():
+                with open(user_config_file, 'r', encoding='utf-8') as f:
+                    user_config = json.load(f)
+            
+            user_config['default_author_name'] = author_name
+            user_config['updated_at'] = datetime.now().isoformat()
+            
+            with open(user_config_file, 'w', encoding='utf-8') as f:
+                json.dump(user_config, f, ensure_ascii=False, indent=2)
+            
+            logger.info(f"✅ 用户 {username} 保存默认作者名: {author_name}")
+            
+            return jsonify({
+                "success": True,
+                "message": "作者名已保存",
+                "author_name": author_name
+            })
+            
+        except Exception as e:
+            logger.error(f"❌ 保存默认作者名失败: {e}")
+            return jsonify({"success": False, "error": str(e)}), 500
+
 
 def register_quality_assessment_routes(app):
     """注册质量评估API路由"""

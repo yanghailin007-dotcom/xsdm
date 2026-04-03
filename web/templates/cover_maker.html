@@ -880,6 +880,18 @@
                     <input type="text" id="novel-title" class="form-input" placeholder="请先选择一本小说" readonly data-i18n-attr="placeholder" data-i18n="coverMaker.settings.novelTitle.placeholder">
                 </div>
 
+                <!-- 作者名 -->
+                <div class="form-group">
+                    <label class="form-label">作者名 <span style="color: #ef4444; font-size: 12px;">*</span></label>
+                    <div style="display: flex; gap: 8px;">
+                        <input type="text" id="author-name" class="form-input" placeholder="请输入作者名，如：北苟王庭的达延" style="flex: 1;">
+                        <button type="button" id="save-author-btn" class="form-btn" style="white-space: nowrap; padding: 10px 16px; font-size: 13px;" onclick="saveDefaultAuthor()">
+                            💾 记住
+                        </button>
+                    </div>
+                    <span style="font-size: 12px; color: #6b7280; margin-top: 4px; display: block;">作者名会显示在封面上，点击"记住"可保存为默认作者</span>
+                </div>
+
                 <!-- 小说类型 -->
                 <div class="form-group">
                     <label class="form-label" data-i18n="coverMaker.form.style">风格</label>
@@ -1103,6 +1115,9 @@
         const titleParam = urlParams.get('title');
         projectIdFromUrl = urlParams.get('project_id');
         
+        // 加载默认作者名
+        loadDefaultAuthor();
+        
         loadNovels().then(() => {
             // 检查 URL 参数，如果有 title 则自动选择对应小说
             if (titleParam) {
@@ -1258,6 +1273,64 @@
         
         let prompt = generateCompleteDefaultPrompt(novelTitle, category);
         document.getElementById('generated-default-prompt').value = prompt;
+    }
+
+    // 加载默认作者名
+    async function loadDefaultAuthor() {
+        try {
+            const response = await fetch('/api/user/default-author');
+            if (response.ok) {
+                const result = await response.json();
+                if (result.success && result.author_name) {
+                    document.getElementById('author-name').value = result.author_name;
+                    console.log('✅ 已加载默认作者:', result.author_name);
+                }
+            }
+        } catch (error) {
+            console.log('未能加载默认作者:', error);
+        }
+    }
+
+    // 保存默认作者名
+    async function saveDefaultAuthor() {
+        const authorName = document.getElementById('author-name').value.trim();
+        if (!authorName) {
+            alert('请先输入作者名');
+            return;
+        }
+
+        const btn = document.getElementById('save-author-btn');
+        const originalText = btn.innerHTML;
+        btn.innerHTML = '🙈 保存中...';
+        btn.disabled = true;
+
+        try {
+            const response = await fetch('/api/user/default-author', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ author_name: authorName })
+            });
+
+            const result = await response.json();
+            
+            if (result.success) {
+                btn.innerHTML = '✅ 已保存';
+                showSuccessMessage('作者名已保存，下次自动填充');
+                setTimeout(() => {
+                    btn.innerHTML = originalText;
+                    btn.disabled = false;
+                }, 2000);
+            } else {
+                throw new Error(result.error || '保存失败');
+            }
+        } catch (error) {
+            console.error('保存作者名失败:', error);
+            alert('保存失败: ' + error.message);
+            btn.innerHTML = originalText;
+            btn.disabled = false;
+        }
     }
 
     // 生成完整的默认提示词（基于NovelGenerator.py中的完整模板）
@@ -1470,11 +1543,19 @@
             finalPrompt = document.getElementById('custom-prompt').value.trim();
         }
 
+        // 获取作者名
+        const authorName = document.getElementById('author-name').value.trim();
+        if (!authorName) {
+            alert('请输入作者名');
+            document.getElementById('author-name').focus();
+            return;
+        }
+
         const formData = {
             novel_title: selectedNovel.title,
-            author_name: "北莽王庭的达延", // 修复作者名
+            author_name: authorName,
             genre: document.getElementById('genre').value,
-            style: "默认风格", // 固定风格
+            style: "默认风格",
             color_scheme: document.querySelector('.color-option.selected').dataset.color,
             custom_prompt: finalPrompt,
             generation_count: parseInt(document.getElementById('generation-count').value),
