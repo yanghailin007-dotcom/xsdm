@@ -718,20 +718,40 @@ def register_fanqie_routes(app):
                     except Exception as e:
                         logger.warning(f"读取 project_config.json 失败: {e}")
             
-            # 从 fanqie_data 或 project_config 获取字段
-            title = fanqie_data.get('title') or project_config.get('title', project_id)
-            synopsis = fanqie_data.get('synopsis', '')
+            # 从 fanqie_data 或 project_config 获取字段（兼容多种数据结构）
+            # 书名：fanqie_upload_data.title > novel_title > title
+            title = (fanqie_data.get('title') or 
+                     project_config.get('novel_title') or 
+                     project_config.get('title', project_id))
+            
+            # 简介：fanqie_upload_data.synopsis > novel_synopsis > description
+            synopsis = (fanqie_data.get('synopsis') or 
+                       project_config.get('novel_synopsis', ''))
+            
+            # 标签数据
             tags_data = fanqie_data.get('tags', {})
+            if not tags_data and 'category_tags' in project_config:
+                # 使用旧格式 category_tags
+                cat_tags = project_config.get('category_tags', {})
+                tags_data = {
+                    'main_category': cat_tags.get('main_category', ''),
+                    'themes': cat_tags.get('tags', [])
+                }
             
             # 构建标签列表（从 themes 和 plots 合并）
             tags_list = []
             if tags_data:
-                tags_list.extend(tags_data.get('themes', []))
-                tags_list.extend(tags_data.get('plots', []))
+                themes = tags_data.get('themes', [])
+                plots = tags_data.get('plots', [])
+                if isinstance(themes, list):
+                    tags_list.extend(themes)
+                if isinstance(plots, list):
+                    tags_list.extend(plots)
                 tags_list = list(set(tags_list))[:5]  # 去重并限制5个
             
-            # 分类（从 main_category 或旧字段获取）
-            category = tags_data.get('main_category') or project_config.get('category', '')
+            # 分类：fanqie_upload_data.tags.main_category > category_tags.main_category > category
+            category = (tags_data.get('main_category') or 
+                       project_config.get('category', ''))
             
             # 计算章节数据
             chapters_dir = project_dir / "chapters"
@@ -866,11 +886,23 @@ def register_fanqie_routes(app):
                     except:
                         pass
             
-            # 从 fanqie_data 或 project_info 获取字段
-            title = fanqie_data.get('title') or project_info.get('title', '')
-            synopsis = fanqie_data.get('synopsis', '')
+            # 从 fanqie_data 或 project_info 获取字段（兼容多种数据结构）
+            title = (fanqie_data.get('title') or 
+                     project_info.get('novel_title') or 
+                     project_info.get('title', ''))
+            synopsis = (fanqie_data.get('synopsis') or 
+                       project_info.get('novel_synopsis', ''))
+            
             tags_data = fanqie_data.get('tags', {})
-            category = tags_data.get('main_category') or project_info.get('category', '')
+            if not tags_data and 'category_tags' in project_info:
+                cat_tags = project_info.get('category_tags', {})
+                tags_data = {
+                    'main_category': cat_tags.get('main_category', ''),
+                    'themes': cat_tags.get('tags', [])
+                }
+            
+            category = (tags_data.get('main_category') or 
+                       project_info.get('category', ''))
             
             # 2. 检查书名
             if not title:
