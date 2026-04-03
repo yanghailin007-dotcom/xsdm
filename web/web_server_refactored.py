@@ -837,17 +837,32 @@ def register_fanqie_routes(app):
         try:
             from flask import send_from_directory, session
             from pathlib import Path
+            from urllib.parse import unquote
+            
+            # URL 解码参数
+            project_id_decoded = unquote(project_id)
+            
+            logger.info(f"🔍 请求封面: username={username}, project_id={project_id_decoded}, filename={filename}")
             
             # 安全检查：只能访问自己的项目封面
             current_user = session.get('username')
             if current_user and current_user != username:
+                logger.warning(f"🚫 用户 {current_user} 尝试访问 {username} 的封面")
                 return jsonify({"error": "无权访问其他用户的封面"}), 403
             
             # 使用 find_user_project_dir 查找项目目录（支持拼音和中文名匹配）
-            project_dir = find_user_project_dir(username, project_id)
+            project_dir = find_user_project_dir(username, project_id_decoded)
             
             if not project_dir:
-                logger.error(f"❌ 找不到项目目录: {username}/{project_id}")
+                logger.error(f"❌ 找不到项目目录: {username}/{project_id_decoded}")
+                # 调试：列出用户目录内容
+                user_dir = Path("小说项目") / username
+                if user_dir.exists():
+                    try:
+                        projects = [p.name for p in user_dir.iterdir() if p.is_dir()]
+                        logger.info(f"📁 用户 {username} 的项目: {projects}")
+                    except Exception as e:
+                        logger.error(f"无法列出目录: {e}")
                 return jsonify({"error": "项目不存在"}), 404
             
             # 验证文件名
