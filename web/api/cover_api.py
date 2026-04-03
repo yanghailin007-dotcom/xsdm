@@ -143,6 +143,8 @@ def register_cover_routes(app):
             cover_url = data.get('cover_url')
             project_id = data.get('project_id')
             
+            logger.info(f"🎨 收到保存封面请求: project_id={project_id}, cover_url={cover_url[:50]}...")
+            
             if not cover_url or not project_id:
                 return jsonify({
                     "success": False,
@@ -154,18 +156,30 @@ def register_cover_routes(app):
             if not username:
                 return jsonify({"success": False, "error": "请先登录"}), 401
             
+            logger.info(f"👤 当前用户: {username}")
+            
             # 查找用户项目目录
             from web.web_server_refactored import find_user_project_dir
             project_dir = find_user_project_dir(username, project_id)
             
             if not project_dir:
+                logger.error(f"❌ 未找到项目目录: {username}/{project_id}")
+                # 尝试查找用户目录下的所有项目
+                user_dir = Path("小说项目") / username
+                if user_dir.exists():
+                    projects = [p.name for p in user_dir.iterdir() if p.is_dir()]
+                    logger.info(f"📁 用户 {username} 的项目列表: {projects}")
                 return jsonify({
                     "success": False,
-                    "error": "项目不存在或无权访问"
+                    "error": f"项目不存在: {project_id}，请确认项目已创建"
                 }), 404
+            
+            logger.info(f"📁 找到项目目录: {project_dir}")
             
             # URL解码并构建源文件路径
             cover_url = unquote(cover_url)
+            logger.info(f"🔍 解析封面URL: {cover_url}")
+            
             if cover_url.startswith('/generated_images/'):
                 relative_path = cover_url.replace('/generated_images/', '')
                 source_path = Path(BASE_DIR) / 'generated_images' / relative_path
@@ -175,17 +189,23 @@ def register_cover_routes(app):
                     "error": f"不支持的图片URL格式: {cover_url}"
                 }), 400
             
+            logger.info(f"📄 源文件路径: {source_path}")
+            
             if not source_path.exists():
+                logger.error(f"❌ 源文件不存在: {source_path}")
                 return jsonify({
                     "success": False,
-                    "error": "源图片文件不存在"
+                    "error": f"源图片文件不存在: {source_path}"
                 }), 404
             
             # 删除旧封面
+            deleted_old = False
             for old_cover in ["cover.png", "cover.jpg", "cover.jpeg"]:
                 old_path = project_dir / old_cover
                 if old_path.exists():
                     old_path.unlink()
+                    deleted_old = True
+                    logger.info(f"🗑️ 删除旧封面: {old_cover}")
             
             # 确定文件扩展名
             ext = source_path.suffix.lower()
@@ -201,7 +221,8 @@ def register_cover_routes(app):
             return jsonify({
                 "success": True,
                 "message": "封面已保存到项目",
-                "cover_path": f"/generated_images/{username}/{project_id}/cover{ext}"
+                "cover_path": f"/generated_images/{username}/{project_id}/cover{ext}",
+                "deleted_old": deleted_old
             })
             
         except Exception as e:

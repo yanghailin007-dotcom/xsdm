@@ -1823,13 +1823,15 @@
         event.stopPropagation();
         
         if (!projectIdFromUrl) {
-            alert('未指定项目ID，无法保存封面');
+            alert('❌ 未指定项目ID，无法保存封面\n\n请从番茄上传页面点击「制作封面」按钮打开此页面。');
             return;
         }
         
         if (!confirm('确定要将此封面设为项目封面吗？')) {
             return;
         }
+        
+        console.log('保存封面到项目:', { coverUrl, projectId: projectIdFromUrl });
         
         try {
             showLoadingOverlay('正在保存封面到项目...');
@@ -1845,7 +1847,17 @@
                 })
             });
             
-            const result = await response.json();
+            console.log('API响应状态:', response.status);
+            
+            let result;
+            try {
+                result = await response.json();
+            } catch (parseError) {
+                const text = await response.text();
+                console.error('解析响应失败:', text);
+                throw new Error('服务器返回格式错误: ' + text.substring(0, 100));
+            }
+            
             hideLoadingOverlay();
             
             if (result.success) {
@@ -1856,12 +1868,13 @@
                     window.opener.postMessage({ type: 'cover_saved', project_id: projectIdFromUrl }, '*');
                 }
             } else {
-                alert('保存失败：' + (result.error || '未知错误'));
+                console.error('保存失败:', result);
+                alert('❌ 保存失败\n\n' + (result.error || '未知错误') + '\n\n请检查控制台获取详细信息。');
             }
         } catch (error) {
             hideLoadingOverlay();
             console.error('保存封面失败:', error);
-            alert('保存失败，请重试');
+            alert('❌ 保存失败\n\n' + error.message + '\n\n请检查网络连接或联系管理员。');
         }
     }
 

@@ -130,9 +130,8 @@ class CoverService:
             }
 
     def build_final_prompt(self, data: Dict[str, Any]) -> str:
-        """构建最终的图片生成提示词"""
+        """构建番茄风格的网文封面提示词 - 高视觉冲击力的爽文审美"""
         novel_title = data.get('novel_title', '').strip()
-        # 使用你指定的作者名作为默认值
         author_name = data.get('author_name', '北莽王庭的达延').strip()
         genre = data.get('genre', '').strip()
         style = data.get('style', '现代简约').strip()
@@ -140,82 +139,141 @@ class CoverService:
         custom_prompt = data.get('custom_prompt', '').strip()
         negative_prompt = data.get('negative_prompt', '').strip()
         
-        # 基础提示词模板
-        base_prompt = f"""小说封面设计，768×1024像素，竖版比例，{style}风格
-
-【封面文字内容】：
-书名：《{novel_title}》
-作者：{author_name}
-
-【严格禁止的内容】：
-- 绝对禁止添加任何其他文字
-- 禁止出现"番茄小说"、"番茄"、"起点"、"晋江"等任何平台相关文字
-- 禁止出现水印、标语、宣传语、广告语
-- 禁止任何额外标注文字（如"完结"、"爆笑"等标签）
-
-【设计要求】：
-- 封面设计精美，符合东方仙侠类型风格特色
-- 书名要醒目突出，使用清晰易读的艺术字体
-- 作者名放在适当位置（通常右下角或下方）
-- 整体设计专业简洁，具有商业出版品质
-- 背景与文字形成良好对比，确保可读性
-
-【色彩搭配】：
-- 根据小说东方仙侠类型选择合适的色调
-- 色彩要和谐统一，突出主题氛围
-- 避免过于花哨或单调的色彩搭配
-
-【图像元素】：
-- 可以包含与小说类型相关的背景图案或装饰元素
-- 图案要简约不抢夺文字主体地位
-- 如有人物，要符合东方仙侠类型特征
-
-【文字排版要求】：
-- 文字清晰可读但不要过于突兀
-- 文字与背景和谐统一
-- 字体选择要与整体设计风格匹配
-- 只能出现书名和作者名，无其他任何文字
-
-【质量要求】：
-- 高分辨率，清晰锐利
-- 专业级设计水准
-- 适合作为网络小说封面使用
-- 视觉效果吸引目标读者群体"""
-        
-        # 添加风格和类型特定的描述
-        if genre:
-            genre_descriptions = {
-                '玄幻': '仙侠元素、奇幻场景',
-                '都市': '现代都市背景、时尚人物',
-                '历史': '古代建筑、传统元素',
-                '科幻': '未来科技、太空场景',
-                '武侠': '江湖气息、古风元素',
-                '悬疑': '神秘氛围、推理元素',
-                '游戏': '游戏界面、数字元素'
+        # 番茄风格类型映射 - 网文爽文审美
+        genre_fanqie_styles = {
+            '玄幻': {
+                'atmosphere': '仙气缭绕/魔气滔天的史诗感',
+                'elements': '主角光环、神兵利器、远古神兽、天地异象',
+                'mood': '霸气张扬、唯我独尊、逆天改命'
+            },
+            '都市': {
+                'atmosphere': '现代都市的繁华与神秘',
+                'elements': '系统面板、财富象征、豪车豪宅、美女环绕、强者姿态',
+                'mood': '低调奢华、强势崛起、扮猪吃虎'
+            },
+            '历史': {
+                'atmosphere': '王朝争霸的恢弘气势',
+                'elements': '龙袍冠冕、千军万马、权谋算计、江山社稷',
+                'mood': '君临天下、运筹帷幄、豪情万丈'
+            },
+            '科幻': {
+                'atmosphere': '未来科技的冷峻与宏大',
+                'elements': '机甲战舰、星际战场、能量光环、数据流',
+                'mood': '科技霸权、星际征服、人类荣耀'
+            },
+            '武侠': {
+                'atmosphere': '江湖风云的快意恩仇',
+                'elements': '神兵宝剑、绝世武功、门派标识、江湖气息',
+                'mood': '侠骨柔情、一剑封喉、笑傲江湖'
+            },
+            '悬疑': {
+                'atmosphere': '神秘诡谲的紧张氛围',
+                'elements': '阴影迷雾、符号线索、诡异场景、心理压迫',
+                'mood': '惊心动魄、步步紧逼、真相迷雾'
+            },
+            '游戏': {
+                'atmosphere': '游戏世界的奇幻冒险',
+                'elements': '游戏界面、技能特效、装备道具、等级标识',
+                'mood': '升级快感、满级大佬、全服第一'
+            },
+            '国运': {
+                'atmosphere': '国家荣耀与民族自豪感',
+                'elements': '龙国标志、直播弹幕、禁地场景、国运绑定、民族象征',
+                'mood': '为国争光、全球震惊、龙国崛起'
+            },
+            '修仙': {
+                'atmosphere': '问道长生的飘渺仙气',
+                'elements': '飞剑法宝、灵根异象、洞天福地、渡劫天雷',
+                'mood': '逆天修仙、长生不死、大道争锋'
+            },
+            '末世': {
+                'atmosphere': '末日废土的残酷生存',
+                'elements': '废墟城市、丧尸怪物、生存装备、基地建设',
+                'mood': '绝境求生、强者生存、重建文明'
             }
-            if genre in genre_descriptions:
-                base_prompt += f"\n- 融入{genre_descriptions[genre]}"
-        
-        # 添加配色方案描述
-        # 简化的配色方案
-        colorSchemes = {
-            "blue": "蓝色调",
-            "red": "红色调",
-            "green": "绿色调",
-            "purple": "紫色调",
-            "gold": "金色调"
         }
         
-        if color_scheme in colorSchemes:
-            base_prompt += f"\n- 主色调采用{colorSchemes[color_scheme]}"
+        # 获取类型风格，默认为玄幻
+        genre_style = genre_fanqie_styles.get(genre, genre_fanqie_styles['玄幻'])
+        
+        # 番茄风格配色 - 高饱和度网文审美
+        fanqie_colors = {
+            "blue": {
+                "name": "深邃蓝金",
+                "desc": "以深蓝色为底，搭配金色光效，营造神秘尊贵的王者气息"
+            },
+            "red": {
+                "name": "炽焰红金", 
+                "desc": "以炽红色为主，金色点缀，充满热血霸气的战斗氛围"
+            },
+            "green": {
+                "name": "翡翠青冥",
+                "desc": "以翠绿青碧为基调，仙气飘渺，适合修仙玄幻题材"
+            },
+            "purple": {
+                "name": "紫气东来",
+                "desc": "以深紫和金色搭配，神秘高贵，暗示主角不凡身份"
+            },
+            "gold": {
+                "name": "至尊金黄",
+                "desc": "以金色和黑色对比，奢华霸气，彰显无敌流主角气场"
+            },
+            "black": {
+                "name": "暗夜黑红",
+                "desc": "以黑色为底，红色光效，冷酷神秘，适合暗黑系主角"
+            }
+        }
+        
+        color_info = fanqie_colors.get(color_scheme, fanqie_colors['blue'])
+        
+        # 番茄风格封面提示词模板 - 高视觉冲击力
+        base_prompt = f"""番茄小说风格封面设计，768×1024竖版，网文爽文审美，强视觉冲击力
+
+【封面文字 - 必须清晰呈现】：
+主标题：《{novel_title}》 - 要求字体大气醒目，有发光/描边效果
+作者：{novel_title}  
+作者名：{author_name} - 放在封面底部或右下角
+
+【番茄风格设计要求】：
+1. 视觉层次：前景主角（占画面60%）+ 中景元素 + 远景氛围
+2. 主角形象：要有主角光环、强者气场、自信姿态，不能太普通
+3. 色彩风格：{color_info['name']} - {color_info['desc']}
+4. 光影效果：强烈的明暗对比，主角要有光效/特效环绕
+5. 网文感：画面要有"爽点"暗示，让人一眼看出这是爽文
+
+【类型特征 - {genre}】：
+氛围：{genre_style['atmosphere']}
+元素：{genre_style['elements']}
+情绪：{genre_style['mood']}
+
+【文字排版 - 番茄风格】：
+- 书名大字居中偏上，占封面宽度80%，字体要霸气有设计感
+- 书名要有发光效果或立体描边，确保在复杂背景上清晰可读
+- 作者名小字放底部，不抢主角和书名的视觉焦点
+- 严禁其他文字、水印、标签、平台标识
+
+【绝对禁止】：
+- 禁止"番茄小说"、"起点"、"晋江"等平台字样
+- 禁止"连载中"、"完结"、"爆款"等标签
+- 禁止除书名和作者名之外的任何文字
+- 禁止二维码、网址、水印
+
+【质量要求】：
+- 高分辨率768×1024，清晰锐利
+- 专业网文封面水准，符合番茄平台审美
+- 缩略图模式下依然清晰醒目
+- 目标：让读者在书架上一眼被吸引"""
         
         # 添加自定义提示词
         if custom_prompt:
-            base_prompt += f"\n\n【自定义要求】:\n{custom_prompt}"
+            base_prompt += f"\n\n【额外要求】:\n{custom_prompt}"
         
         # 添加负面提示词
         if negative_prompt:
-            base_prompt += f"\n\n【严格禁止的内容】:\n{negative_prompt}"
+            base_prompt += f"\n\n【负面要求】:\n{negative_prompt}"
+        else:
+            base_prompt += """\n\n【负面要求】:
+low quality, blurry, deformed, ugly, bad anatomy, watermark, signature, text error, extra text, cropped, worst quality, jpeg artifacts"""
         
         return base_prompt.strip()
 
