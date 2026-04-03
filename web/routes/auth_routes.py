@@ -439,6 +439,12 @@ def register_page_routes(app):
         logger.info("📄 Loading fanqie-upload-v2.html (V2 Pro Design)")
         return render_template('pages/v2/fanqie-upload-v2.html')
     
+    @app.route('/pages/v2/uploader-guide', methods=['GET'])
+    def uploader_guide():
+        """上传工具使用指南页面"""
+        logger.info("📄 Loading uploader-guide.html")
+        return render_template('pages/v2/uploader-guide.html')
+    
     @app.route('/phase-one-setup', methods=['GET'])
     @login_required
     def phase_one_setup():

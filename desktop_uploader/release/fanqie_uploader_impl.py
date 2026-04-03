@@ -36,6 +36,7 @@ class FanqieUploaderImpl:
         self.chapters = []
         self.book_id = None
         self.is_running = True
+        self.book_created = False  # 标记是否自动创建了书籍
         
     def _log(self, message: str, level: str = "info"):
         """记录日志"""
@@ -111,9 +112,12 @@ class FanqieUploaderImpl:
         return False
     
     def find_book(self) -> bool:
-        """查找书籍"""
+        """查找书籍，找不到则自动创建"""
         try:
             self._progress(35, f"查找书籍: {self.novel_title}")
+            
+            # 等待页面加载
+            time.sleep(2)
             page_content = self.page.content()
             
             # 尝试多种方式查找书籍
@@ -133,10 +137,197 @@ class FanqieUploaderImpl:
                     self._progress(40, f"从URL获取书籍ID: {self.book_id}")
                     return True
             
-            self._log("未找到书籍，请先手动创建", "warning")
-            return False
+            # 未找到书籍，自动创建
+            self._log("未找到书籍，准备自动创建...", "warning")
+            return self.create_book()
+            
         except Exception as e:
             self._log(f"查找书籍失败: {e}", "error")
+            return False
+    
+    def create_book(self) -> bool:
+        """自动创建新书"""
+        try:
+            self._progress(36, "正在创建新书...")
+            self._log(f"开始创建书籍: {self.novel_title}")
+            
+            # 访问创建书籍页面
+            self.page.goto("https://fanqienovel.com/main/writer/create-book", timeout=30000)
+            time.sleep(3)
+            
+            # 检查是否在登录页
+            if "login" in self.page.url:
+                self._log("需要登录，等待登录...", "warning")
+                return False
+            
+            # 填写书名
+            try:
+                # 尝试多种选择器
+                title_selectors = [
+                    'input[placeholder*="书名"]',
+                    'input[placeholder*="标题"]',
+                    'input[name="title"]',
+                    'input[class*="title"]',
+                    '.book-title input',
+                    'input[type="text"]'
+                ]
+                
+                title_filled = False
+                for selector in title_selectors:
+                    try:
+                        input_elem = self.page.locator(selector).first
+                        if input_elem.count() > 0 and input_elem.is_visible():
+                            input_elem.fill(self.novel_title)
+                            self._log(f"✓ 填写书名: {self.novel_title}")
+                            title_filled = True
+                            break
+                    except:
+                        continue
+                
+                if not title_filled:
+                    self._log("⚠️ 未能自动填写书名，可能需要手动创建", "warning")
+                    return False
+                    
+            except Exception as e:
+                self._log(f"填写书名失败: {e}", "error")
+                return False
+            
+            # 填写简介（可选）
+            try:
+                intro_selectors = [
+                    'textarea[placeholder*="简介"]',
+                    'textarea[placeholder*="介绍"]',
+                    'textarea[name="intro"]',
+                    '.book-intro textarea'
+                ]
+                
+                intro_text = f"{self.novel_title}，精彩小说，敬请期待！"
+                for selector in intro_selectors:
+                    try:
+                        textarea = self.page.locator(selector).first
+                        if textarea.count() > 0 and textarea.is_visible():
+                            textarea.fill(intro_text)
+                            self._log(f"✓ 填写简介")
+                            break
+                    except:
+                        continue
+            except:
+                pass  # 简介可选
+            
+            # 选择分类（点击第一个选项）
+            try:
+                category_selectors = [
+                    '.category-select',
+                    '.book-category',
+                    '[class*="category"] .select',
+                    'div[class*="select"]:has-text("选择")'
+                ]
+                
+                for selector in category_selectors:
+                    try:
+                        select_elem = self.page.locator(selector).first
+                        if select_elem.count() > 0 and select_elem.is_visible():
+                            select_elem.click()
+                            time.sleep(1)
+                            # 点击第一个选项
+                            first_option = self.page.locator('.option-item, .select-option, [class*="option"]').first
+                            if first_option.count() > 0:
+                                first_option.click()
+                                self._log("✓ 选择分类")
+                                break
+                    except:
+                        continue
+            except:
+                pass  # 分类可能已有默认值
+            
+            time.sleep(2)
+            
+            # 点击创建按钮
+            try:
+                create_btn_selectors = [
+                    'button:has-text("创建")',
+                    'button:has-text("提交")',
+                    'button:has-text("确定")',
+                    'button[class*="primary"]',
+                    'button[type="submit"]',
+                    '.create-btn',
+                    '.submit-btn'
+                ]
+                
+                btn_clicked = False
+                for selector in create_btn_selectors:
+                    try:
+                        btn = self.page.locator(selector).first
+                        if btn.count() > 0 and btn.is_visible():
+                            btn.click()
+                            self._log("✓ 点击创建按钮")
+                            btn_clicked = True
+                            break
+                    except:
+                        continue
+                
+                if not btn_clicked:
+                    self._log("⚠️ 未能找到创建按钮", "warning")
+                    return False
+                    
+            except Exception as e:
+                self._log(f"点击创建按钮失败: {e}", "error")
+                return False
+            
+            # 等待创建结果
+            time.sleep(5)
+            
+            # 检查是否创建成功
+            page_content = self.page.content()
+            
+            # 检查成功提示
+            success_indicators = ['创建成功', '书籍创建', 'book-manage', '/book/']
+            if any(ind in page_content for ind in success_indicators) or '/book/' in self.page.url:
+                # 提取书籍ID
+                book_ids = re.findall(r'/book/(\d+)', self.page.url)
+                if book_ids:
+                    self.book_id = book_ids[0]
+                else:
+                    book_ids = re.findall(r'long-article-table-item-(\d+)', page_content)
+                    if book_ids:
+                        self.book_id = book_ids[0]
+                
+                if self.book_id:
+                    self.book_created = True  # 标记自动创建成功
+                    self._progress(40, f"✅ 书籍创建成功！ID: {self.book_id}")
+                    self._log(f"✅ 书籍《{self.novel_title}》创建成功！")
+                    return True
+            
+            # 检查是否已有同名书籍
+            if '已存在' in page_content or '重复' in page_content:
+                self._log("⚠️ 检测到同名书籍，尝试查找...", "warning")
+                # 返回书籍列表查找
+                self.page.goto("https://fanqienovel.com/main/writer/book-manage", timeout=30000)
+                time.sleep(3)
+                return self.find_book_in_list()
+            
+            self._log("⚠️ 书籍创建结果未知，请检查页面", "warning")
+            return False
+            
+        except Exception as e:
+            self._log(f"创建书籍失败: {e}", "error")
+            return False
+    
+    def find_book_in_list(self) -> bool:
+        """在书籍列表中查找"""
+        try:
+            page_content = self.page.content()
+            
+            if self.novel_title[:10] in page_content:
+                book_ids = re.findall(r'long-article-table-item-(\d+)', page_content)
+                if book_ids:
+                    self.book_id = book_ids[0]
+                    self._progress(40, f"找到书籍ID: {self.book_id}")
+                    return True
+            
+            return False
+        except Exception as e:
+            self._log(f"查找书籍列表失败: {e}", "error")
             return False
     
     def upload_chapter(self, chapter: dict, retry_count: int = 0) -> bool:

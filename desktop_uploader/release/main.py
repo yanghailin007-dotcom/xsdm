@@ -46,12 +46,17 @@ from PyQt5.QtGui import QIcon, QFont, QTextCursor, QColor
 try:
     from chrome_manager import ChromeManager
     from fanqie_uploader_impl import FanqieUploaderImpl
+    from api_auth import MultiAccountManager
+    from gui_account_manager_v2 import AccountManagerDialogV2, BrowserManager
     UPLOADER_AVAILABLE = True
 except ImportError as e:
     print(f"[ERROR] Failed to import uploader modules: {e}")
     UPLOADER_AVAILABLE = False
     ChromeManager = None
     FanqieUploaderImpl = None
+    MultiAccountManager = None
+    AccountManagerDialog = None
+    BrowserManager = None
 
 # 导入样式
 try:
@@ -77,13 +82,17 @@ class UploadWorker(QThread):
     finished_signal = pyqtSignal(bool, str)  # 成功/失败, 消息
     browser_started_signal = pyqtSignal(bool, str)  # 浏览器启动状态
     login_required_signal = pyqtSignal()  # 需要用户登录
+    book_created_signal = pyqtSignal(str)  # 书籍自动创建成功，返回书名
     
-    def __init__(self, novel_title: str, chapters: List[Dict], settings: Dict, config: Dict = None):
+    def __init__(self, novel_title: str, chapters: List[Dict], settings: Dict, config: Dict = None,
+                 debug_port: int = None, browser_manager=None):
         super().__init__()
         self.novel_title = novel_title
         self.chapters = chapters
         self.settings = settings
         self.config = config or {}
+        self.debug_port = debug_port  # 多账户模式下使用指定端口
+        self.browser_manager = browser_manager  # 浏览器管理器
         self.is_running = True
         self.current_index = 0
         self.chrome_manager = None
@@ -97,18 +106,25 @@ class UploadWorker(QThread):
                 self.finished_signal.emit(False, "模块加载失败")
                 return
             
-            # 第1步：启动 Chrome
-            self.log_signal.emit("🚀 正在启动 Chrome...", "info")
-            self.chrome_manager = ChromeManager()
-            
-            if not self.chrome_manager.start_chrome(progress_callback=self._on_chrome_progress):
-                self.log_signal.emit("❌ Chrome 启动失败", "error")
-                self.log_signal.emit("💡 解决方案：查看使用指南 https://xsdm.cainiao.cool/pages/v2/uploader-guide", "info")
-                self.finished_signal.emit(False, "Chrome 启动失败，请检查网络连接或手动安装 Chrome")
-                return
-            
-            self.browser_started_signal.emit(True, "Chrome 已启动")
-            self.log_signal.emit("✅ Chrome 启动成功，请登录番茄小说", "success")
+            # 多账户模式：使用已有浏览器
+            if self.debug_port and self.browser_manager:
+                self.log_signal.emit(f"🚀 正在连接浏览器 (端口: {self.debug_port})...", "info")
+                if not self.connect_to_existing_browser():
+                    self.finished_signal.emit(False, "无法连接到浏览器")
+                    return
+            else:
+                # 第1步：启动 Chrome（传统模式）
+                self.log_signal.emit("🚀 正在启动 Chrome...", "info")
+                self.chrome_manager = ChromeManager()
+                
+                if not self.chrome_manager.start_chrome(progress_callback=self._on_chrome_progress):
+                    self.log_signal.emit("❌ Chrome 启动失败", "error")
+                    self.log_signal.emit("💡 解决方案：查看使用指南 https://xsdm.cainiao.cool/pages/v2/uploader-guide", "info")
+                    self.finished_signal.emit(False, "Chrome 启动失败，请检查网络连接或手动安装 Chrome")
+                    return
+                
+                self.browser_started_signal.emit(True, "Chrome 已启动")
+                self.log_signal.emit("✅ Chrome 启动成功，请登录番茄小说", "success")
             
             # 第2步：连接 Chrome 并上传
             self.uploader = FanqieUploaderImpl(
@@ -130,11 +146,15 @@ class UploadWorker(QThread):
                     self.finished_signal.emit(False, "登录超时")
                     return
             
-            # 查找书籍
+            # 查找书籍（支持自动创建）
             if not self.uploader.find_book():
-                self.log_signal.emit("⚠️ 未找到书籍，请先手动创建", "warning")
-                self.finished_signal.emit(False, "未找到书籍")
+                self.log_signal.emit("❌ 无法找到或创建书籍", "error")
+                self.finished_signal.emit(False, "书籍处理失败")
                 return
+            
+            # 如果自动创建了书籍，发射信号
+            if hasattr(self.uploader, 'book_created') and self.uploader.book_created:
+                self.book_created_signal.emit(self.novel_title)
             
             # 上传章节
             result = self.uploader.upload_chapters(
@@ -156,6 +176,37 @@ class UploadWorker(QThread):
         finally:
             if self.uploader:
                 self.uploader.close()
+    
+    def connect_to_existing_browser(self) -> bool:
+        """连接到已存在的浏览器实例（多账户模式）"""
+        try:
+            from playwright.sync_api import sync_playwright
+            
+            self.progress_signal.emit(10, f"正在连接浏览器...")
+            
+            self.uploader = FanqieUploaderImpl(
+                novel_title=self.novel_title,
+                progress_callback=self._on_progress,
+                log_callback=self._on_log
+            )
+            
+            self.uploader.playwright = sync_playwright().start()
+            self.uploader.browser = self.uploader.playwright.chromium.connect_over_cdp(
+                f"http://localhost:{self.debug_port}"
+            )
+            
+            contexts = self.uploader.browser.contexts
+            if contexts and contexts[0].pages:
+                self.uploader.page = contexts[0].pages[0]
+            else:
+                self.uploader.page = self.uploader.browser.new_page()
+            
+            self.progress_signal.emit(20, "已连接到浏览器")
+            return True
+            
+        except Exception as e:
+            self.log_signal.emit(f"连接浏览器失败: {e}", "error")
+            return False
     
     def _on_chrome_progress(self, percent: int, message: str):
         """Chrome启动进度回调"""
@@ -213,9 +264,15 @@ class MainWindow(QMainWindow):
         self.upload_worker = None
         self.config = self.load_config()
         
+        # 多账户管理 - V2: 每个官网账户 = 一个浏览器实例
+        self.account_manager = MultiAccountManager() if MultiAccountManager else None
+        self.browser_manager = BrowserManager() if BrowserManager else None
+        self.current_website_account = None  # 当前选中的官网账户
+        
         self.init_ui()
         self.init_tray()
         self.load_projects()
+        self.check_saved_accounts()
         
     def init_ui(self):
         """初始化界面"""
@@ -306,6 +363,42 @@ class MainWindow(QMainWindow):
         platform_container.addWidget(website_btn)
         
         title_layout.addLayout(platform_container)
+        
+        # === 账户管理区域 ===
+        account_container = QHBoxLayout()
+        account_container.setSpacing(8)
+        
+        # 当前账户显示
+        self.account_label = QLabel("👤 未选择账户")
+        self.account_label.setStyleSheet("font-size: 14px; color: #757575;")
+        account_container.addWidget(self.account_label)
+        
+        # 运行中实例计数
+        self.running_count_label = QLabel("🌐 0个浏览器运行中")
+        self.running_count_label.setStyleSheet("font-size: 14px; color: #1976D2;")
+        account_container.addWidget(self.running_count_label)
+        
+        # 账户管理按钮
+        self.account_btn = QPushButton("🔑 账户管理")
+        self.account_btn.setToolTip("管理多账户登录")
+        self.account_btn.setStyleSheet(f"""
+            QPushButton {{
+                background-color: {PRIMARY_COLOR};
+                color: white;
+                border: none;
+                border-radius: 6px;
+                padding: 6px 16px;
+                font-weight: 600;
+                font-size: 14px;
+            }}
+            QPushButton:hover {{
+                background-color: #1565C0;
+            }}
+        """)
+        self.account_btn.clicked.connect(self.open_account_manager)
+        account_container.addWidget(self.account_btn)
+        
+        title_layout.addLayout(account_container)
         
         main_layout.addLayout(title_layout)
         
@@ -1012,9 +1105,82 @@ class MainWindow(QMainWindow):
             )
             if reply == QMessageBox.Yes:
                 self.stop_upload()
+                # 停止所有浏览器实例
+                if self.browser_manager:
+                    self.browser_manager.stop_all()
                 QApplication.quit()
         else:
+            # 停止所有浏览器实例
+            if self.browser_manager:
+                self.browser_manager.stop_all()
             QApplication.quit()
+    
+    def check_saved_accounts(self):
+        """检查是否有保存的账户"""
+        if not self.account_manager:
+            return
+        
+        accounts = self.account_manager.storage.get_all_accounts()
+        if accounts:
+            # 有保存的账户，显示第一个
+            first_account = accounts[0]
+            self.current_website_account = first_account['username']
+            
+            # 尝试自动登录
+            if self.account_manager.auto_login(self.current_website_account):
+                self.update_account_display()
+                self.log(f"✅ 已自动登录: {self.current_website_account}", "success")
+            else:
+                self.account_label.setText(f"👤 {self.current_website_account} (需重新登录)")
+                self.account_label.setStyleSheet("font-size: 14px; color: #f59e0b;")
+    
+    def update_account_display(self):
+        """更新账户显示"""
+        if self.current_website_account:
+            user_info = self.account_manager.get_current_user()
+            if user_info:
+                points = user_info.get('points_balance', 0)
+                self.account_label.setText(f"👤 {self.current_website_account} | 💰 {points}点")
+                self.account_label.setStyleSheet("font-size: 14px; color: #22c55e;")
+            else:
+                self.account_label.setText(f"👤 {self.current_website_account}")
+                self.account_label.setStyleSheet("font-size: 14px; color: #1976D2;")
+        else:
+            self.account_label.setText("👤 未选择账户")
+            self.account_label.setStyleSheet("font-size: 14px; color: #757575;")
+    
+    def update_running_count(self):
+        """更新运行中浏览器计数"""
+        if self.browser_manager:
+            count = self.browser_manager.get_running_count()
+            self.running_count_label.setText(f"🌐 {count}个浏览器运行中")
+            if count > 0:
+                self.running_count_label.setStyleSheet("font-size: 14px; color: #22c55e;")
+            else:
+                self.running_count_label.setStyleSheet("font-size: 14px; color: #757575;")
+    
+    def open_account_manager(self):
+        """打开账户管理对话框"""
+        if not AccountManagerDialogV2 or not self.account_manager:
+            QMessageBox.warning(self, "提示", "账户管理功能暂不可用")
+            return
+        
+        dialog = AccountManagerDialogV2(self, self.account_manager)
+        dialog.account_selected.connect(self.on_account_selected)
+        dialog.exec_()
+        
+        # 刷新运行中计数
+        self.update_running_count()
+    
+    def on_account_selected(self, website_username: str):
+        """账户选择回调"""
+        self.current_website_account = website_username
+        self.update_account_display()
+        
+        self.log(f"✅ 已选择账户: {website_username}", "success")
+        
+        # 刷新运行中计数
+        self.update_running_count()
             
     def load_config(self) -> Dict:
         """加载配置文件"""
@@ -1304,6 +1470,20 @@ class MainWindow(QMainWindow):
             except Exception as e:
                 QMessageBox.critical(self, "错误", f"导入失败: {e}")
                 
+    def start_browser_instance(self, username: str):
+        """启动浏览器实例"""
+        if not self.browser_manager:
+            return
+        
+        success = self.browser_manager.start_instance(username, headless=False)
+        if success:
+            self.log(f"✅ 浏览器已启动: {username}", "success")
+            self.update_running_count()
+        else:
+            instance = self.browser_manager.get_instance(username)
+            error_msg = instance.last_error if instance else "未知错误"
+            self.log(f"❌ 浏览器启动失败: {error_msg}", "error")
+    
     def start_upload(self):
         """开始上传"""
         selected_chapters = self.get_selected_chapters()
@@ -1312,11 +1492,41 @@ class MainWindow(QMainWindow):
             QMessageBox.warning(self, "警告", "请先选择要上传的章节！")
             return
         
+        # 检查是否选择了账户
+        if not self.current_website_account:
+            reply = QMessageBox.question(
+                self, "账户未选择",
+                "尚未选择上传账户，是否打开账户管理器？\n\n"
+                "注意：每个官网账户对应一个浏览器实例，\n"
+                "想同时上传多个书籍需要多个官网账户。",
+                QMessageBox.Yes | QMessageBox.No
+            )
+            if reply == QMessageBox.Yes:
+                self.open_account_manager()
+            return
+        
         # 获取当前项目名称
         project_name = self.project_combo.currentText() if self.project_combo.count() > 0 else ""
         if not project_name or project_name == "未找到项目":
             QMessageBox.warning(self, "警告", "请先选择有效的项目！")
             return
+        
+        # 检查浏览器实例是否已启动
+        if self.browser_manager:
+            instance = self.browser_manager.get_instance(self.current_website_account)
+            if not instance or instance.status != "running":
+                reply = QMessageBox.question(
+                    self, "浏览器未启动",
+                    f"账户 '{self.current_website_account}' 的浏览器未启动，是否立即启动？",
+                    QMessageBox.Yes | QMessageBox.No
+                )
+                if reply == QMessageBox.Yes:
+                    self.start_browser_instance(self.current_website_account)
+                    QMessageBox.information(
+                        self, "提示",
+                        "浏览器正在启动，请在浏览器中登录番茄小说后，再次点击上传。"
+                    )
+                return
         
         # 检查 Chrome（首次使用需要下载）
         if UPLOADER_AVAILABLE:
@@ -1357,12 +1567,22 @@ class MainWindow(QMainWindow):
             'stop_on_error': self.stop_on_error_check.isChecked()
         }
         
+        # 确定使用的浏览器端口
+        debug_port = None
+        if self.browser_manager and self.current_website_account:
+            instance = self.browser_manager.get_instance(self.current_website_account)
+            if instance and instance.status == "running":
+                debug_port = instance.debug_port
+                self.log(f"🎯 使用账户: {self.current_website_account} (端口: {debug_port})", "info")
+        
         # 创建工作线程 - 使用真实的上传核心
         self.upload_worker = UploadWorker(
             novel_title=project_name,
             chapters=selected_chapters,
             settings=settings,
-            config=self.config
+            config=self.config,
+            debug_port=debug_port,
+            browser_manager=self.browser_manager
         )
         
         # 连接信号
