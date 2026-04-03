@@ -12,6 +12,18 @@ import time
 from pathlib import Path
 from datetime import datetime
 
+# 获取程序运行目录（支持打包后的EXE）
+def get_app_dir() -> Path:
+    """获取应用程序目录（兼容开发和打包环境）"""
+    if getattr(sys, 'frozen', False):
+        # 打包后的EXE环境
+        return Path(sys.executable).parent
+    else:
+        # 开发环境
+        return Path(__file__).parent
+
+APP_DIR = get_app_dir()
+
 from PyQt5.QtWidgets import (
     QApplication, QMainWindow, QWidget, QVBoxLayout, QHBoxLayout,
     QLabel, QPushButton, QComboBox, QListWidget, QListWidgetItem,
@@ -178,6 +190,26 @@ class AddAccountDialog(QDialog):
         
         self.account_added.emit(name)
         self.accept()
+
+
+# ============== Chrome下载工作线程 ==============
+class ChromeDownloadWorker(QThread):
+    """Chrome下载工作线程 - 避免GUI卡顿和崩溃"""
+    
+    progress_signal = pyqtSignal(int, str)
+    finished_signal = pyqtSignal(bool, str)
+    
+    def __init__(self, chrome_launcher):
+        super().__init__()
+        self.chrome_launcher = chrome_launcher
+    
+    def run(self):
+        """执行下载"""
+        def progress_cb(percent, message):
+            self.progress_signal.emit(percent, message)
+        
+        success, message = self.chrome_launcher.download_chrome_blocking(progress_cb)
+        self.finished_signal.emit(success, message)
 
 
 # ============== 上传工作线程 ==============
@@ -386,8 +418,8 @@ class MainWindow(QMainWindow):
         
         # 数据
         self.website_user = None
-        self.tomato_manager = TomatoAccountManager()
-        self.chrome_launcher = ChromeLauncher()
+        self.tomato_manager = TomatoAccountManager(app_dir=APP_DIR)
+        self.chrome_launcher = ChromeLauncher(app_dir=APP_DIR)
         self.current_project = None
         self.chapters = []
         self.upload_worker = None
@@ -409,7 +441,7 @@ class MainWindow(QMainWindow):
     
     def check_saved_login(self) -> bool:
         """检查是否有保存的登录"""
-        token_file = Path(__file__).parent / "website_token.json"
+        token_file = APP_DIR / "website_token.json"
         if token_file.exists():
             try:
                 data = json.loads(token_file.read_text(encoding='utf-8'))
@@ -430,7 +462,7 @@ class MainWindow(QMainWindow):
         """登录成功"""
         self.website_user = user_data
         # 保存token
-        token_file = Path(__file__).parent / "website_token.json"
+        token_file = APP_DIR / "website_token.json"
         token_file.write_text(json.dumps(user_data, indent=2), encoding='utf-8')
         self.update_title()
     
@@ -842,36 +874,50 @@ class MainWindow(QMainWindow):
             )
             
             if reply == QMessageBox.Yes:
-                self.log("🚀 开始下载 Chrome...", "info")
-                self.status_bar.setText("正在下载 Chrome...")
-                
-                # 禁用按钮
-                if account_id in self.account_cards:
-                    self.account_cards[account_id].action_btn.setEnabled(False)
-                
-                def on_progress(percent, message):
-                    self.progress_bar.setValue(percent)
-                    self.status_label.setText(message)
-                    self.log(f"📥 {message}", "info")
-                
-                def on_finished(success, message):
-                    if account_id in self.account_cards:
-                        self.account_cards[account_id].action_btn.setEnabled(True)
-                    
-                    if success:
-                        self.log(f"✅ {message}", "success")
-                        self.status_bar.setText("Chrome 安装完成")
-                        # 重新尝试启动
-                        self._do_launch_browser(account_id, acc)
-                    else:
-                        self.log(f"❌ {message}", "error")
-                        self.status_bar.setText("Chrome 下载失败")
-                        QMessageBox.critical(self, "错误", f"下载 Chrome 失败: {message}")
-                
-                self.chrome_launcher.download_chrome(on_progress, on_finished)
+                self._start_chrome_download(account_id, acc)
             return
         
         self._do_launch_browser(account_id, acc)
+    
+    def _start_chrome_download(self, account_id: str, acc):
+        """开始下载 Chrome"""
+        self.log("🚀 开始下载 Chrome...", "info")
+        self.status_bar.setText("正在下载 Chrome...")
+        
+        # 禁用按钮
+        if account_id in self.account_cards:
+            self.account_cards[account_id].action_btn.setEnabled(False)
+        
+        # 使用 QThread 下载（避免崩溃）
+        self.download_worker = ChromeDownloadWorker(self.chrome_launcher)
+        self.download_worker.progress_signal.connect(
+            lambda p, m: self._on_download_progress(p, m, account_id)
+        )
+        self.download_worker.finished_signal.connect(
+            lambda s, msg: self._on_download_finished(s, msg, account_id, acc)
+        )
+        self.download_worker.start()
+    
+    def _on_download_progress(self, percent: int, message: str, account_id: str):
+        """下载进度"""
+        self.progress_bar.setValue(percent)
+        self.status_label.setText(message)
+        self.log(f"📥 {message}", "info")
+    
+    def _on_download_finished(self, success: bool, message: str, account_id: str, acc):
+        """下载完成"""
+        if account_id in self.account_cards:
+            self.account_cards[account_id].action_btn.setEnabled(True)
+        
+        if success:
+            self.log(f"✅ {message}", "success")
+            self.status_bar.setText("Chrome 安装完成")
+            # 重新尝试启动
+            self._do_launch_browser(account_id, acc)
+        else:
+            self.log(f"❌ {message}", "error")
+            self.status_bar.setText("Chrome 下载失败")
+            QMessageBox.critical(self, "错误", f"下载 Chrome 失败: {message}")
     
     def _do_launch_browser(self, account_id: str, acc):
         """实际启动浏览器"""

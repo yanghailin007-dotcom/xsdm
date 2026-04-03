@@ -10,6 +10,7 @@ import json
 import shutil
 import subprocess
 import socket
+import sys
 from pathlib import Path
 from typing import Dict, List, Optional
 from dataclasses import dataclass, asdict
@@ -26,14 +27,24 @@ class TomatoAccount:
     created_at: str = ""
 
 
+def get_app_dir() -> Path:
+    """获取应用程序目录（兼容开发和打包环境）"""
+    if getattr(sys, 'frozen', False):
+        return Path(sys.executable).parent
+    else:
+        return Path(__file__).parent
+
+
 class TomatoAccountManager:
     """番茄账户管理器"""
     
     PORT_START = 10001
     PORT_END = 10100
     
-    def __init__(self, base_dir: str = "browser_data/tomato_accounts"):
-        self.base_dir = Path(__file__).parent / base_dir
+    def __init__(self, base_dir: str = "browser_data/tomato_accounts", app_dir: Path = None):
+        # 支持传入应用目录（兼容打包环境）
+        self.app_dir = app_dir or get_app_dir()
+        self.base_dir = self.app_dir / base_dir
         self.base_dir.mkdir(parents=True, exist_ok=True)
         
         self.config_file = self.base_dir / "accounts.json"
@@ -54,10 +65,13 @@ class TomatoAccountManager:
     
     def _save_accounts(self):
         """保存账户列表"""
-        data = {
-            'accounts': [asdict(acc) for acc in self.accounts.values()]
-        }
-        self.config_file.write_text(json.dumps(data, indent=2, ensure_ascii=False), encoding='utf-8')
+        try:
+            data = {
+                'accounts': [asdict(acc) for acc in self.accounts.values()]
+            }
+            self.config_file.write_text(json.dumps(data, indent=2, ensure_ascii=False), encoding='utf-8')
+        except Exception as e:
+            print(f"保存账户失败: {e}")
     
     def _find_available_port(self) -> int:
         """查找可用端口"""
@@ -151,8 +165,9 @@ class ChromeLauncher:
     # Chrome 下载链接 (Chrome for Testing)
     CHROME_URL = "https://storage.googleapis.com/chrome-for-testing-public/120.0.6099.109/win64/chrome-win64.zip"
     
-    def __init__(self):
-        self.work_dir = Path(__file__).parent
+    def __init__(self, app_dir: Path = None):
+        self.app_dir = app_dir or get_app_dir()
+        self.work_dir = self.app_dir
         self.chrome_path = self._find_chrome()
         self.is_downloading = False
     
@@ -178,65 +193,56 @@ class ChromeLauncher:
         """Chrome 是否可用"""
         return self.chrome_path is not None
     
-    def download_chrome(self, progress_callback=None, finished_callback=None):
-        """下载 Chrome（在后台线程中执行）"""
-        import threading
+    def download_chrome_blocking(self, progress_callback=None):
+        """同步下载 Chrome（在主线程中执行，用于后台线程）"""
         import urllib.request
         import zipfile
         
-        def do_download():
-            self.is_downloading = True
-            try:
-                chrome_dir = self.work_dir / "chrome"
-                chrome_dir.mkdir(exist_ok=True)
-                zip_path = chrome_dir / "chrome.zip"
+        self.is_downloading = True
+        try:
+            chrome_dir = self.work_dir / "chrome"
+            chrome_dir.mkdir(exist_ok=True)
+            zip_path = chrome_dir / "chrome.zip"
+            
+            # 下载
+            if progress_callback:
+                progress_callback(10, "开始下载 Chrome...")
+            
+            def download_progress(block_num, block_size, total_size):
+                if total_size > 0 and progress_callback:
+                    percent = min(90, int(block_num * block_size / total_size * 80) + 10)
+                    progress_callback(percent, f"下载中... {percent}%")
+            
+            urllib.request.urlretrieve(
+                self.CHROME_URL, 
+                zip_path,
+                reporthook=download_progress
+            )
+            
+            if progress_callback:
+                progress_callback(90, "下载完成，正在解压...")
+            
+            # 解压
+            with zipfile.ZipFile(zip_path, 'r') as zf:
+                zf.extractall(chrome_dir)
+            
+            # 删除zip
+            zip_path.unlink(missing_ok=True)
+            
+            # 更新路径
+            self.chrome_path = self._find_chrome()
+            
+            if progress_callback:
+                progress_callback(100, "Chrome 安装完成")
+            
+            return True, "Chrome 安装成功"
                 
-                # 下载
-                if progress_callback:
-                    progress_callback(10, "开始下载 Chrome...")
-                
-                def download_progress(block_num, block_size, total_size):
-                    if total_size > 0 and progress_callback:
-                        percent = min(90, int(block_num * block_size / total_size * 80) + 10)
-                        progress_callback(percent, f"下载中... {percent}%")
-                
-                urllib.request.urlretrieve(
-                    self.CHROME_URL, 
-                    zip_path,
-                    reporthook=download_progress
-                )
-                
-                if progress_callback:
-                    progress_callback(90, "下载完成，正在解压...")
-                
-                # 解压
-                with zipfile.ZipFile(zip_path, 'r') as zf:
-                    zf.extractall(chrome_dir)
-                
-                # 删除zip
-                zip_path.unlink(missing_ok=True)
-                
-                # 更新路径
-                self.chrome_path = self._find_chrome()
-                
-                if progress_callback:
-                    progress_callback(100, "Chrome 安装完成")
-                
-                if finished_callback:
-                    finished_callback(True, "Chrome 安装成功")
-                    
-            except Exception as e:
-                if progress_callback:
-                    progress_callback(0, f"下载失败: {e}")
-                if finished_callback:
-                    finished_callback(False, str(e))
-            finally:
-                self.is_downloading = False
-        
-        # 启动后台线程下载
-        thread = threading.Thread(target=do_download, daemon=True)
-        thread.start()
-        return thread
+        except Exception as e:
+            if progress_callback:
+                progress_callback(0, f"下载失败: {e}")
+            return False, str(e)
+        finally:
+            self.is_downloading = False
     
     def launch(self, port: int, data_dir: Path, url: str = "https://fanqienovel.com") -> bool:
         """启动 Chrome"""
