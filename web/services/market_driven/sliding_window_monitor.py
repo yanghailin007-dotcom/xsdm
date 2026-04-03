@@ -133,7 +133,7 @@ class SlidingWindowMonitor:
         if low_score_count >= max_low_chapters:
             result['alert'] = True
             result['alert_type'] = 'too_many_low_chapters'
-            result['message'] = f"窗口内有{low_score_chapters}章得分低于60"
+            result['message'] = f"窗口内有{low_score_count}章得分低于60"
             result['suggestions'].append("触发自动修复流程，重写低质量章节")
         
         # 检查3：连续对话比例低
