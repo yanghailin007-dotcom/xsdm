@@ -801,9 +801,14 @@
                             <img id="cover-image" style="display: none;" alt="封面">
                         </div>
                         <input type="file" id="cover-file" accept="image/*" style="display: none;" onchange="handleCoverUpload(event)">
-                        <button class="v2-btn v2-btn--secondary v2-btn--sm" onclick="document.getElementById('cover-file').click()">
-                            📄 选择封面
-                        </button>
+                        <div style="display: flex; gap: 8px; flex-wrap: wrap; justify-content: center;">
+                            <button class="v2-btn v2-btn--secondary v2-btn--sm" onclick="document.getElementById('cover-file').click()">
+                                📄 选择封面
+                            </button>
+                            <button class="v2-btn v2-btn--primary v2-btn--sm" onclick="openCoverMaker()">
+                                🎨 制作封面
+                            </button>
+                        </div>
                     </div>
                     
                     <!-- 右侧：基本信息 -->
@@ -1119,6 +1124,40 @@ function removeTag(index) {
  */
 function updateTagsCount() {
     document.getElementById('tags-count').textContent = `${currentTags.length}/5`;
+}
+
+/**
+ * 打开封面制作页面
+ */
+function openCoverMaker() {
+    if (!selectedProject) {
+        showToast('请先选择项目', 'warning');
+        return;
+    }
+    
+    const title = document.getElementById('edit-title').value.trim() || selectedProject.title;
+    const url = `/cover-maker?title=${encodeURIComponent(title)}&project_id=${encodeURIComponent(selectedProject.id)}`;
+    
+    // 在新窗口打开封面制作页面
+    const coverWindow = window.open(url, '_blank', 'width=1400,height=900,scrollbars=yes');
+    
+    if (!coverWindow) {
+        showToast('弹窗被阻止，请允许弹窗后重试', 'error');
+        return;
+    }
+    
+    showToast('封面制作页面已打开，制作完成后点击「保存到项目」即可', 'info');
+    
+    // 监听封面制作完成的消息
+    window.addEventListener('message', function handleCoverMessage(event) {
+        if (event.data && event.data.type === 'cover_saved') {
+            showToast('封面已保存，正在刷新...', 'success');
+            // 刷新封面显示
+            loadProjectInfoToEditForm(selectedProject.id);
+            // 移除监听器
+            window.removeEventListener('message', handleCoverMessage);
+        }
+    });
 }
 
 /**

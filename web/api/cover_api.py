@@ -130,6 +130,86 @@ def register_cover_routes(app):
             logger.error(f"❌ 批量拷贝封面API失败: {e}")
             return jsonify({"success": False, "error": str(e)}), 500
 
+    @app.route('/api/cover/save-to-project', methods=['POST'])
+    @login_required
+    def save_cover_to_project():
+        """将封面保存到指定项目目录（用于番茄上传等）"""
+        try:
+            from flask import session
+            from pathlib import Path
+            import shutil
+            
+            data = request.json or {}
+            cover_url = data.get('cover_url')
+            project_id = data.get('project_id')
+            
+            if not cover_url or not project_id:
+                return jsonify({
+                    "success": False,
+                    "error": "缺少必需参数: cover_url 和 project_id"
+                }), 400
+            
+            # 获取当前用户
+            username = session.get('username')
+            if not username:
+                return jsonify({"success": False, "error": "请先登录"}), 401
+            
+            # 查找用户项目目录
+            from web.web_server_refactored import find_user_project_dir
+            project_dir = find_user_project_dir(username, project_id)
+            
+            if not project_dir:
+                return jsonify({
+                    "success": False,
+                    "error": "项目不存在或无权访问"
+                }), 404
+            
+            # URL解码并构建源文件路径
+            cover_url = unquote(cover_url)
+            if cover_url.startswith('/generated_images/'):
+                relative_path = cover_url.replace('/generated_images/', '')
+                source_path = Path(BASE_DIR) / 'generated_images' / relative_path
+            else:
+                return jsonify({
+                    "success": False,
+                    "error": f"不支持的图片URL格式: {cover_url}"
+                }), 400
+            
+            if not source_path.exists():
+                return jsonify({
+                    "success": False,
+                    "error": "源图片文件不存在"
+                }), 404
+            
+            # 删除旧封面
+            for old_cover in ["cover.png", "cover.jpg", "cover.jpeg"]:
+                old_path = project_dir / old_cover
+                if old_path.exists():
+                    old_path.unlink()
+            
+            # 确定文件扩展名
+            ext = source_path.suffix.lower()
+            if ext not in ['.png', '.jpg', '.jpeg']:
+                ext = '.jpg'
+            
+            # 复制封面到项目目录
+            target_path = project_dir / f"cover{ext}"
+            shutil.copy2(str(source_path), str(target_path))
+            
+            logger.info(f"✅ 封面已保存到项目: {username}/{project_id}/cover{ext}")
+            
+            return jsonify({
+                "success": True,
+                "message": "封面已保存到项目",
+                "cover_path": f"/generated_images/{username}/{project_id}/cover{ext}"
+            })
+            
+        except Exception as e:
+            logger.error(f"❌ 保存封面到项目失败: {e}")
+            import traceback
+            logger.error(f"详细错误: {traceback.format_exc()}")
+            return jsonify({"success": False, "error": str(e)}), 500
+
     # 静态文件服务
     @app.route('/static/<path:filename>')
     def serve_static(filename):

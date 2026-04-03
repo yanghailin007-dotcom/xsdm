@@ -1094,13 +1094,17 @@
     let novels = [];
     let generatedCovers = [];
     let selectedCovers = new Set(); // 存储选中的封面ID
+    let projectIdFromUrl = null; // 从URL获取的项目ID
 
     // 页面加载完成后执行
     document.addEventListener('DOMContentLoaded', function() {
+        // 获取URL参数
+        const urlParams = new URLSearchParams(window.location.search);
+        const titleParam = urlParams.get('title');
+        projectIdFromUrl = urlParams.get('project_id');
+        
         loadNovels().then(() => {
             // 检查 URL 参数，如果有 title 则自动选择对应小说
-            const urlParams = new URLSearchParams(window.location.search);
-            const titleParam = urlParams.get('title');
             if (titleParam) {
                 autoSelectNovel(titleParam);
             }
@@ -1621,6 +1625,14 @@
                         <span>${escapeHtml(cover.author_name)}</span>
                         <span>${new Date(cover.timestamp).toLocaleDateString()}</span>
                     </div>
+                    ${projectIdFromUrl ? `
+                    <div style="margin-top: 8px; padding-top: 8px; border-top: 1px solid rgba(255,255,255,0.1);">
+                        <button onclick="saveCoverToProject('${cover.url}', event)" 
+                                style="width: 100%; padding: 6px 12px; background: linear-gradient(135deg, #10b981, #059669); color: white; border: none; border-radius: 4px; font-size: 12px; cursor: pointer;">
+                            💾 设为项目封面
+                        </button>
+                    </div>
+                    ` : ''}
                 </div>
             </div>
         `).join('');
@@ -1803,6 +1815,53 @@
             selectedCount.textContent = selectedCovers.size;
         } else {
             selectionActions.style.display = 'none';
+        }
+    }
+
+    // 保存封面到指定项目
+    async function saveCoverToProject(coverUrl, event) {
+        event.stopPropagation();
+        
+        if (!projectIdFromUrl) {
+            alert('未指定项目ID，无法保存封面');
+            return;
+        }
+        
+        if (!confirm('确定要将此封面设为项目封面吗？')) {
+            return;
+        }
+        
+        try {
+            showLoadingOverlay('正在保存封面到项目...');
+            
+            const response = await fetch('/api/cover/save-to-project', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    cover_url: coverUrl,
+                    project_id: projectIdFromUrl
+                })
+            });
+            
+            const result = await response.json();
+            hideLoadingOverlay();
+            
+            if (result.success) {
+                showSuccessMessage('✅ 封面已保存到项目！');
+                
+                // 通知父窗口封面已保存（如果是从番茄上传页面打开的）
+                if (window.opener && window.opener !== window) {
+                    window.opener.postMessage({ type: 'cover_saved', project_id: projectIdFromUrl }, '*');
+                }
+            } else {
+                alert('保存失败：' + (result.error || '未知错误'));
+            }
+        } catch (error) {
+            hideLoadingOverlay();
+            console.error('保存封面失败:', error);
+            alert('保存失败，请重试');
         }
     }
 
