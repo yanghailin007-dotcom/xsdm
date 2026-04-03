@@ -788,6 +788,9 @@ def register_fanqie_routes(app):
                     cover_path = f"/generated_images/{username}/{project_id}/{cover_name}"
                     break
             
+            # 获取保存的发布配置（如果存在）
+            saved_publish_config = fanqie_data.get('publish_config', {})
+            
             # 构建上传配置
             config = {
                 "project_id": project_id,
@@ -801,22 +804,22 @@ def register_fanqie_routes(app):
                 "total_words": total_words,
                 # 首次发布配置
                 "first_publish": {
-                    "chapter_count": min(20, total_chapters),  # 首次发布20章（番茄签约要求）
+                    "chapter_count": min(saved_publish_config.get('first_publish_count', 20), total_chapters),
                     "word_count": 60000,
                     "publish_immediately": True
                 },
                 # 每日发布配置
                 "daily_publish": {
-                    "chapter_count": 2,  # 默认每天2章
-                    "interval_minutes": 30,  # 章节间隔30分钟
-                    "publish_time": "09:00"  # 默认上午9点发布
+                    "chapter_count": saved_publish_config.get('daily_count', 2),
+                    "interval_minutes": saved_publish_config.get('interval_minutes', 30),
+                    "publish_time": saved_publish_config.get('publish_time', '09:00')
                 },
                 # 高级配置
                 "advanced": {
-                    "skip_published": True,  # 跳过已发布章节
-                    "check_duplicate": True,  # 检查重复
-                    "retry_on_failure": 3,  # 失败重试3次
-                    "publish_mode": "immediate"  # 立即发布
+                    "skip_published": saved_publish_config.get('skip_published', True),
+                    "check_duplicate": True,
+                    "retry_on_failure": 3,
+                    "publish_mode": "immediate"
                 },
                 # 章节列表（供工具使用）
                 "chapters": chapter_list
@@ -1085,6 +1088,7 @@ def register_fanqie_routes(app):
             description = data.get('description', '').strip()
             category = data.get('category', '').strip()
             tags = data.get('tags', [])
+            publish_config = data.get('publish_config', {})
             
             if not project_id:
                 return jsonify({"success": False, "error": "缺少project_id参数"}), 400
@@ -1130,6 +1134,16 @@ def register_fanqie_routes(app):
                 fanqie_data['tags'] = {}
             fanqie_data['tags']['main_category'] = category
             fanqie_data['tags']['themes'] = tags
+            
+            # 更新发布配置
+            if publish_config:
+                fanqie_data['publish_config'] = {
+                    'first_publish_count': publish_config.get('first_publish_count', 20),
+                    'daily_count': publish_config.get('daily_count', 2),
+                    'publish_time': publish_config.get('publish_time', '09:00'),
+                    'interval_minutes': publish_config.get('interval_minutes', 30),
+                    'skip_published': publish_config.get('skip_published', True)
+                }
             
             # 更新 project_info.json（根级别，用于后续读取兼容性）
             project_data['fanqie_upload_data'] = fanqie_data
