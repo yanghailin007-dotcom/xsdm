@@ -553,6 +553,53 @@ def create_app():
 def register_fanqie_routes(app):
     """注册番茄上传相关API路由"""
     
+    @app.route('/api/novels/list', methods=['GET'])
+    def get_novels_list():
+        """获取小说项目列表"""
+        try:
+            from pathlib import Path
+            from web.auth import login_required
+            
+            # 检查小说项目目录
+            novels_dir = Path("小说项目")
+            if not novels_dir.exists():
+                return jsonify({"success": True, "data": []})
+            
+            novels = []
+            for item in novels_dir.iterdir():
+                if item.is_dir():
+                    # 计算章节数和字数
+                    chapters_dir = item / "chapters"
+                    chapter_count = 0
+                    word_count = 0
+                    
+                    if chapters_dir.exists():
+                        chapter_files = list(chapters_dir.glob("chapter_*.json"))
+                        chapter_count = len(chapter_files)
+                        # 读取第一个章节获取字数信息（作为估算）
+                        if chapter_files:
+                            try:
+                                import json
+                                with open(chapter_files[0], 'r', encoding='utf-8') as f:
+                                    chapter_data = json.load(f)
+                                    avg_words = chapter_data.get('word_count', 2500)
+                                    word_count = avg_words * chapter_count
+                            except:
+                                word_count = chapter_count * 2500  # 默认估算
+                    
+                    novels.append({
+                        "id": item.name,
+                        "title": item.name,
+                        "chapter_count": chapter_count,
+                        "word_count": word_count,
+                        "path": str(item)
+                    })
+            
+            return jsonify({"success": True, "data": novels})
+        except Exception as e:
+            logger.error(f"❌ 获取小说列表失败: {e}")
+            return jsonify({"success": False, "error": str(e)}), 500
+    
     @app.route('/api/fanqie/upload/check-prerequisites', methods=['GET'])
     def check_fanqie_upload_prerequisites():
         """检查番茄上传前提条件 - 手动浏览器模式"""

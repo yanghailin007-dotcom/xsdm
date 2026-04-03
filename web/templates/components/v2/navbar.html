@@ -86,52 +86,10 @@
             <a href="/pages/v2/prompt-packages" class="v2-nav-link {% if request.endpoint == 'prompt_packages' %}v2-nav-link--active{% endif %}">
                 <span>提示词包</span>
             </a>
-            <!-- 平台下拉菜单 - 第三方平台上传功能 -->
-            <div class="v2-nav-dropdown {% if request.endpoint in ['fanqie_upload', 'fanqie_upload_v2'] %}v2-nav-dropdown--active{% endif %}">
-                <span class="v2-nav-trigger">
-                    <span data-i18n="nav.platform">平台</span>
-                    <svg class="v2-nav-trigger__arrow" width="12" height="12" viewBox="0 0 12 12" fill="none">
-                        <path d="M2.5 4.5L6 8L9.5 4.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
-                    </svg>
-                </span>
-                <div class="v2-nav-dropdown__menu v2-nav-dropdown__menu--platform">
-                    <!-- 番茄上传 -->
-                    <a href="/pages/v2/fanqie-upload-v2" class="v2-dropdown-item {% if request.endpoint == 'fanqie_upload_v2' %}v2-dropdown-item--active{% endif %}">
-                        <span class="v2-dropdown-item__icon" style="font-size: 16px; background: linear-gradient(135deg, #ff6b6b, #ee5a6f); -webkit-background-clip: text; -webkit-text-fill-color: transparent;">🍅</span>
-                        <div class="v2-dropdown-item__content">
-                            <span class="v2-dropdown-item__title" data-i18n="nav.platform.fanqie">番茄小说</span>
-                            <span class="v2-dropdown-item__desc"><span data-i18n="nav.platform.fanqie.desc">一键上传到番茄作家平台</span> <span class="premium-badge-inline">Pro</span></span>
-                        </div>
-                        <svg class="v2-dropdown-item__arrow" width="16" height="16" viewBox="0 0 16 16" fill="none">
-                            <path d="M6 12L10 8L6 4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
-                        </svg>
-                    </a>
-                    <!-- 分隔线 -->
-                    <div class="v2-dropdown-divider"></div>
-                    <!-- 起点上传（即将上线） -->
-                    <a href="#" class="v2-dropdown-item v2-dropdown-item--disabled" onclick="event.preventDefault(); showComingSoon('起点上传');">
-                        <span class="v2-dropdown-item__icon" style="font-size: 16px; opacity: 0.5;">🔴</span>
-                        <div class="v2-dropdown-item__content">
-                            <span class="v2-dropdown-item__title" data-i18n="nav.platform.qidian">起点中文</span>
-                            <span class="v2-dropdown-item__desc"><span data-i18n="nav.platform.qidian.desc">一键上传到起点中文网</span> <span class="coming-soon-badge" data-i18n="nav.platform.comingSoon">即将上线</span></span>
-                        </div>
-                        <svg class="v2-dropdown-item__arrow" width="16" height="16" viewBox="0 0 16 16" fill="none" style="opacity: 0.3;">
-                            <path d="M6 12L10 8L6 4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
-                        </svg>
-                    </a>
-                    <!-- 晋江上传（即将上线） -->
-                    <a href="#" class="v2-dropdown-item v2-dropdown-item--disabled" onclick="event.preventDefault(); showComingSoon('晋江上传');">
-                        <span class="v2-dropdown-item__icon" style="font-size: 16px; opacity: 0.5;">💮</span>
-                        <div class="v2-dropdown-item__content">
-                            <span class="v2-dropdown-item__title" data-i18n="nav.platform.jjwxc">晋江文学</span>
-                            <span class="v2-dropdown-item__desc"><span data-i18n="nav.platform.jjwxc.desc">一键上传到晋江文学城</span> <span class="coming-soon-badge" data-i18n="nav.platform.comingSoon">即将上线</span></span>
-                        </div>
-                        <svg class="v2-dropdown-item__arrow" width="16" height="16" viewBox="0 0 16 16" fill="none" style="opacity: 0.3;">
-                            <path d="M6 12L10 8L6 4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
-                        </svg>
-                    </a>
-                </div>
-            </div>
+            <!-- 发布 - 统一桌面端工具 -->
+            <a href="/pages/v2/fanqie-upload-v2" class="v2-nav-link {% if request.endpoint in ['fanqie_upload', 'fanqie_upload_v2'] %}v2-nav-link--active{% endif %}">
+                <span>自动发布</span>
+            </a>
         {% else %}
             <a href="/" class="v2-nav-link {% if request.endpoint == 'index' %}v2-nav-link--active{% endif %}">
                 <span data-i18n="nav.home">首页</span>

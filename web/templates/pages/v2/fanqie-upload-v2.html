@@ -11,136 +11,201 @@
         margin: 0 auto;
     }
     
-    /* ===== 4步步骤指示器 ===== */
-    .steps-indicator {
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        gap: var(--v2-space-2);
+    /* ===== 页面头部 ===== */
+    .upload-header {
+        text-align: center;
         margin-bottom: var(--v2-space-8);
-        padding: var(--v2-space-3);
-        background: var(--v2-bg-secondary);
-        border: 1px solid var(--v2-border-subtle);
-        border-radius: var(--v2-radius-2xl);
-        width: fit-content;
-        margin-left: auto;
-        margin-right: auto;
     }
     
-    .step-item {
-        display: flex;
-        align-items: center;
-        gap: var(--v2-space-2);
-        padding: var(--v2-space-2) var(--v2-space-4);
-        border-radius: var(--v2-radius-xl);
-        background: transparent;
-        border: 1px solid transparent;
-        transition: all 0.3s ease;
-        cursor: pointer;
-    }
-    
-    .step-item.active {
-        background: linear-gradient(135deg, rgba(99, 102, 241, 0.2), rgba(139, 92, 246, 0.15));
-        border-color: rgba(99, 102, 241, 0.4);
-    }
-    
-    .step-item.completed {
-        background: rgba(34, 197, 94, 0.12);
-        border-color: rgba(34, 197, 94, 0.25);
-    }
-    
-    .step-item.completed .step-number {
-        background: linear-gradient(135deg, #22c55e, #16a34a);
-        color: white;
-    }
-    
-    .step-number {
-        width: 24px;
-        height: 24px;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        border-radius: var(--v2-radius-md);
-        background: var(--v2-bg-tertiary);
-        border: 1px solid var(--v2-border-default);
-        font-size: 12px;
-        font-weight: 600;
-        color: var(--v2-text-muted);
-    }
-    
-    .step-item.active .step-number {
-        background: linear-gradient(135deg, #6366f1, #8b5cf6);
-        color: white;
-    }
-    
-    .step-text {
-        font-size: 13px;
-        font-weight: 500;
-        color: var(--v2-text-muted);
-    }
-    
-    .step-item.active .step-text {
+    .upload-header h1 {
+        font-size: 28px;
+        font-weight: 700;
         color: var(--v2-text-primary);
-        font-weight: 600;
+        margin-bottom: 8px;
     }
     
-    .step-item.completed .step-text {
-        color: #4ade80;
-    }
-    
-    .step-arrow {
-        color: var(--v2-text-muted);
+    .upload-header p {
+        color: var(--v2-text-secondary);
         font-size: 14px;
     }
     
-    /* ===== 步骤内容区 ===== */
-    .step-content-area {
-        display: none;
-        animation: fadeIn 0.3s ease;
-    }
-    
-    .step-content-area.active {
-        display: block;
-    }
-    
-    @keyframes fadeIn {
-        from { opacity: 0; transform: translateY(10px); }
-        to { opacity: 1; transform: translateY(0); }
-    }
-    
-    .step-header {
-        text-align: center;
+    /* ===== 推荐下载区 ===== */
+    .download-hero {
+        background: linear-gradient(135deg, rgba(99, 102, 241, 0.1), rgba(139, 92, 246, 0.05));
+        border: 2px solid rgba(99, 102, 241, 0.3);
+        border-radius: var(--v2-radius-2xl);
+        padding: var(--v2-space-8);
         margin-bottom: var(--v2-space-6);
+        text-align: center;
     }
     
-    .step-header h3 {
-        font-size: 20px;
+    .download-hero-icon {
+        font-size: 64px;
+        margin-bottom: var(--v2-space-4);
+    }
+    
+    .download-hero h2 {
+        font-size: 24px;
+        font-weight: 700;
+        color: var(--v2-text-primary);
+        margin-bottom: var(--v2-space-3);
+    }
+    
+    .download-hero p {
+        color: var(--v2-text-secondary);
+        font-size: 15px;
+        max-width: 600px;
+        margin: 0 auto var(--v2-space-5);
+        line-height: 1.6;
+    }
+    
+    .download-btn-large {
+        display: inline-flex;
+        align-items: center;
+        gap: var(--v2-space-2);
+        padding: var(--v2-space-4) var(--v2-space-8);
+        font-size: 18px;
+        font-weight: 600;
+        background: linear-gradient(135deg, #6366f1, #8b5cf6);
+        color: white;
+        border: none;
+        border-radius: var(--v2-radius-xl);
+        cursor: pointer;
+        transition: all 0.3s ease;
+        box-shadow: 0 4px 20px rgba(99, 102, 241, 0.3);
+    }
+    
+    .download-btn-large:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 8px 30px rgba(99, 102, 241, 0.4);
+    }
+    
+    .download-meta {
+        margin-top: var(--v2-space-4);
+        font-size: 13px;
+        color: var(--v2-text-muted);
+    }
+    
+    /* ===== 特性卡片 ===== */
+    .features-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+        gap: var(--v2-space-4);
+        margin-bottom: var(--v2-space-8);
+    }
+    
+    .feature-card {
+        background: var(--v2-bg-secondary);
+        border: 1px solid var(--v2-border-subtle);
+        border-radius: var(--v2-radius-xl);
+        padding: var(--v2-space-5);
+        text-align: center;
+    }
+    
+    .feature-icon {
+        font-size: 36px;
+        margin-bottom: var(--v2-space-3);
+    }
+    
+    .feature-title {
+        font-size: 16px;
         font-weight: 600;
         color: var(--v2-text-primary);
         margin-bottom: 8px;
     }
     
-    .step-header p {
+    .feature-desc {
+        font-size: 13px;
         color: var(--v2-text-secondary);
-        font-size: 14px;
+        line-height: 1.5;
     }
     
-    /* ===== 项目选择列表 ===== */
-    .project-list-container {
+    /* ===== 步骤流程 ===== */
+    .steps-section {
         background: var(--v2-bg-secondary);
         border: 1px solid var(--v2-border-subtle);
         border-radius: var(--v2-radius-xl);
-        padding: var(--v2-space-4);
+        padding: var(--v2-space-6);
+        margin-bottom: var(--v2-space-6);
     }
     
-    .project-list-header {
+    .steps-section h3 {
+        font-size: 18px;
+        font-weight: 600;
+        color: var(--v2-text-primary);
+        margin-bottom: var(--v2-space-5);
+        text-align: center;
+    }
+    
+    .steps-list {
+        display: flex;
+        justify-content: space-between;
+        position: relative;
+        max-width: 800px;
+        margin: 0 auto;
+    }
+    
+    .steps-list::before {
+        content: '';
+        position: absolute;
+        top: 20px;
+        left: 10%;
+        right: 10%;
+        height: 2px;
+        background: var(--v2-border-default);
+        z-index: 0;
+    }
+    
+    .step-item-v2 {
+        position: relative;
+        z-index: 1;
+        text-align: center;
+        flex: 1;
+    }
+    
+    .step-number-v2 {
+        width: 40px;
+        height: 40px;
+        background: linear-gradient(135deg, #6366f1, #8b5cf6);
+        color: white;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 16px;
+        font-weight: 700;
+        margin: 0 auto var(--v2-space-3);
+    }
+    
+    .step-title-v2 {
+        font-size: 14px;
+        font-weight: 600;
+        color: var(--v2-text-primary);
+        margin-bottom: 4px;
+    }
+    
+    .step-desc-v2 {
+        font-size: 12px;
+        color: var(--v2-text-muted);
+    }
+    
+    /* ===== 项目选择区 ===== */
+    .project-section {
+        background: var(--v2-bg-secondary);
+        border: 1px solid var(--v2-border-subtle);
+        border-radius: var(--v2-radius-xl);
+        padding: var(--v2-space-5);
+        margin-bottom: var(--v2-space-6);
+    }
+    
+    .project-section-header {
         display: flex;
         justify-content: space-between;
         align-items: center;
         margin-bottom: var(--v2-space-4);
     }
     
-    .project-list-title {
+    .project-section h3 {
         font-size: 16px;
         font-weight: 600;
         color: var(--v2-text-primary);
@@ -163,7 +228,6 @@
     
     .project-card:hover {
         border-color: rgba(99, 102, 241, 0.3);
-        transform: translateY(-2px);
     }
     
     .project-card.selected {
@@ -203,192 +267,99 @@
         color: var(--v2-text-secondary);
     }
     
-    .project-chapters {
-        display: inline-flex;
-        align-items: center;
-        gap: 4px;
-    }
-    
-    /* ===== 包选择卡片 ===== */
-    .package-options {
-        display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-        gap: var(--v2-space-4);
-        max-width: 800px;
-        margin: 0 auto;
-    }
-    
-    .package-card {
-        background: var(--v2-bg-secondary);
-        border: 2px solid var(--v2-border-subtle);
-        border-radius: var(--v2-radius-xl);
-        padding: var(--v2-space-5);
-        cursor: pointer;
-        transition: all 0.3s ease;
-        position: relative;
-    }
-    
-    .package-card:hover {
-        border-color: rgba(99, 102, 241, 0.5);
-        transform: translateY(-4px);
-        box-shadow: 0 8px 30px rgba(99, 102, 241, 0.15);
-    }
-    
-    .package-card.recommended {
-        border-color: #6366f1;
-        background: linear-gradient(135deg, rgba(99, 102, 241, 0.08), rgba(139, 92, 246, 0.04));
-    }
-    
-    .package-badge {
-        position: absolute;
-        top: -10px;
-        right: 16px;
-        padding: 4px 12px;
-        background: linear-gradient(135deg, #6366f1, #8b5cf6);
-        color: white;
-        font-size: 11px;
-        font-weight: 600;
-        border-radius: 20px;
-    }
-    
-    .package-icon {
-        font-size: 40px;
-        margin-bottom: var(--v2-space-3);
-    }
-    
-    .package-name {
-        font-size: 18px;
-        font-weight: 600;
-        color: var(--v2-text-primary);
-        margin-bottom: 8px;
-    }
-    
-    .package-desc {
-        font-size: 13px;
-        color: var(--v2-text-secondary);
-        margin-bottom: var(--v2-space-3);
-        line-height: 1.5;
-    }
-    
-    .package-meta-row {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        padding-top: var(--v2-space-3);
-        border-top: 1px solid var(--v2-border-subtle);
-    }
-    
-    .package-size {
-        font-size: 12px;
-        color: var(--v2-text-muted);
-    }
-    
-    /* ===== 指南样式 ===== */
-    .guide-container {
+    /* ===== 数据包下载区 ===== */
+    .data-package-section {
         background: var(--v2-bg-secondary);
         border: 1px solid var(--v2-border-subtle);
         border-radius: var(--v2-radius-xl);
         padding: var(--v2-space-5);
     }
     
-    .guide-section {
-        margin-bottom: var(--v2-space-5);
-    }
-    
-    .guide-section:last-child {
-        margin-bottom: 0;
-    }
-    
-    .guide-section-title {
-        font-size: 14px;
+    .data-package-section h3 {
+        font-size: 16px;
         font-weight: 600;
         color: var(--v2-text-primary);
-        margin-bottom: var(--v2-space-3);
+        margin-bottom: var(--v2-space-4);
+    }
+    
+    .data-package-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+        gap: var(--v2-space-4);
+    }
+    
+    .data-package-card {
+        background: var(--v2-bg-tertiary);
+        border: 1px solid var(--v2-border-subtle);
+        border-radius: var(--v2-radius-lg);
+        padding: var(--v2-space-4);
         display: flex;
         align-items: center;
-        gap: 8px;
+        gap: var(--v2-space-3);
     }
     
-    .check-list {
-        list-style: none;
-        padding: 0;
-        margin: 0;
-    }
-    
-    .check-list li {
-        display: flex;
-        align-items: center;
-        gap: 12px;
-        padding: 12px 0;
-        border-bottom: 1px solid var(--v2-border-subtle);
-    }
-    
-    .check-list li:last-child {
-        border-bottom: none;
-    }
-    
-    .check-icon {
-        width: 24px;
-        height: 24px;
-        border-radius: 50%;
+    .data-package-icon {
+        width: 48px;
+        height: 48px;
+        background: rgba(99, 102, 241, 0.1);
+        border-radius: var(--v2-radius-md);
         display: flex;
         align-items: center;
         justify-content: center;
-        font-size: 12px;
-        background: rgba(245, 158, 11, 0.2);
-        color: #f59e0b;
+        font-size: 24px;
         flex-shrink: 0;
     }
     
-    .check-icon.success {
-        background: rgba(34, 197, 94, 0.2);
-        color: #22c55e;
+    .data-package-info {
+        flex: 1;
     }
     
-    .check-text {
-        font-size: 13px;
-        color: var(--v2-text-secondary);
-    }
-    
-    .step-list {
-        counter-reset: guide-step;
-        list-style: none;
-        padding: 0;
-        margin: 0;
-    }
-    
-    .step-list li {
-        position: relative;
-        padding-left: 36px;
-        padding-bottom: var(--v2-space-3);
-        color: var(--v2-text-secondary);
-        font-size: 13px;
-    }
-    
-    .step-list li::before {
-        counter-increment: guide-step;
-        content: counter(guide-step);
-        position: absolute;
-        left: 0;
-        top: 0;
-        width: 22px;
-        height: 22px;
-        background: rgba(99, 102, 241, 0.2);
-        color: #6366f1;
-        border-radius: 50%;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        font-size: 11px;
+    .data-package-name {
+        font-size: 14px;
         font-weight: 600;
+        color: var(--v2-text-primary);
+        margin-bottom: 4px;
     }
     
-    /* ===== 按钮组 ===== */
-    .action-buttons {
-        display: flex;
-        gap: var(--v2-space-3);
-        justify-content: center;
-        margin-top: var(--v2-space-6);
+    .data-package-desc {
+        font-size: 12px;
+        color: var(--v2-text-secondary);
+    }
+    
+    .data-package-btn {
+        padding: var(--v2-space-2) var(--v2-space-3);
+        font-size: 13px;
+        background: var(--v2-primary-500);
+        color: white;
+        border: none;
+        border-radius: var(--v2-radius-md);
+        cursor: pointer;
+        transition: all 0.2s ease;
+    }
+    
+    .data-package-btn:hover {
+        background: var(--v2-primary-600);
+    }
+    
+    .data-package-btn:disabled {
+        background: var(--v2-bg-tertiary);
+        color: var(--v2-text-muted);
+        cursor: not-allowed;
+    }
+    
+    /* ===== 提示信息 ===== */
+    .info-tip {
+        background: rgba(99, 102, 241, 0.08);
+        border-left: 3px solid #6366f1;
+        padding: var(--v2-space-3) var(--v2-space-4);
+        border-radius: var(--v2-radius-md);
+        margin-top: var(--v2-space-4);
+    }
+    
+    .info-tip p {
+        font-size: 13px;
+        color: var(--v2-text-secondary);
+        margin: 0;
     }
     
     /* ===== 加载状态 ===== */
@@ -400,307 +371,152 @@
     .spinner {
         width: 40px;
         height: 40px;
-        border: 3px solid rgba(99, 102, 241, 0.2);
+        border: 3px solid var(--v2-border-default);
         border-top-color: #6366f1;
         border-radius: 50%;
         animation: spin 1s linear infinite;
-        margin: 0 auto var(--v2-space-4);
+        margin: 0 auto var(--v2-space-3);
     }
     
     @keyframes spin {
         to { transform: rotate(360deg); }
-    }
-    
-    /* ===== 进度状态卡片 ===== */
-    .upload-status-card {
-        background: var(--v2-bg-secondary);
-        border: 1px solid var(--v2-border-subtle);
-        border-radius: var(--v2-radius-xl);
-        padding: var(--v2-space-5);
-    }
-    
-    .upload-status-header {
-        display: flex;
-        align-items: center;
-        gap: var(--v2-space-4);
-        margin-bottom: var(--v2-space-5);
-    }
-    
-    .upload-status-icon {
-        width: 48px;
-        height: 48px;
-        background: linear-gradient(135deg, #6366f1, #8b5cf6);
-        border-radius: 12px;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        font-size: 24px;
-    }
-    
-    .upload-status-info {
-        flex: 1;
-    }
-    
-    .upload-status-title {
-        font-size: 16px;
-        font-weight: 600;
-        color: var(--v2-text-primary);
-        margin-bottom: 4px;
-    }
-    
-    .upload-status-desc {
-        font-size: 13px;
-        color: var(--v2-text-secondary);
-    }
-    
-    .upload-progress-container {
-        margin-bottom: var(--v2-space-4);
-    }
-    
-    .upload-progress-bar {
-        height: 8px;
-        background: var(--v2-bg-tertiary);
-        border-radius: 4px;
-        overflow: hidden;
-        margin-bottom: 8px;
-    }
-    
-    .upload-progress-fill {
-        height: 100%;
-        background: linear-gradient(90deg, #6366f1, #8b5cf6);
-        border-radius: 4px;
-        transition: width 0.3s ease;
-    }
-    
-    .upload-progress-text {
-        display: flex;
-        justify-content: space-between;
-        font-size: 12px;
-        color: var(--v2-text-secondary);
-    }
-    
-    /* ===== 响应式 ===== */
-    @media (max-width: 768px) {
-        .upload-page {
-            padding: var(--v2-space-4);
-        }
-        
-        .steps-indicator {
-            flex-wrap: wrap;
-            gap: var(--v2-space-1);
-        }
-        
-        .step-arrow {
-            display: none;
-        }
-        
-        .package-options {
-            grid-template-columns: 1fr;
-        }
-        
-        .project-grid {
-            grid-template-columns: 1fr;
-        }
     }
 </style>
 {% endblock %}
 
 {% block content %}
 <div class="upload-page">
-    <!-- 页面标题 -->
-    <header class="v2-page-header" style="margin-bottom: var(--v2-space-8); text-align: center;">
-        <h1 class="v2-page-header__title" style="font-size: 28px;">🚀 番茄小说一键上传</h1>
-        <p class="v2-page-header__subtitle">本地上传脚本，安全高效</p>
-    </header>
     
-    <!-- 4步步骤指示器 -->
-    <div class="steps-indicator">
-        <div class="step-item active" id="step-indicator-1" onclick="goToStep(1)">
-            <div class="step-number">1</div>
-            <span class="step-text">选择作品</span>
-        </div>
-        <div class="step-arrow">→</div>
-        <div class="step-item" id="step-indicator-2" onclick="goToStep(2)">
-            <div class="step-number">2</div>
-            <span class="step-text">环境检测</span>
-        </div>
-        <div class="step-arrow">→</div>
-        <div class="step-item" id="step-indicator-3" onclick="goToStep(3)">
-            <div class="step-number">3</div>
-            <span class="step-text">下载脚本</span>
-        </div>
-        <div class="step-arrow">→</div>
-        <div class="step-item" id="step-indicator-4" onclick="goToStep(4)">
-            <div class="step-number">4</div>
-            <span class="step-text">查看进度</span>
+    <!-- 页面头部 -->
+    <div class="upload-header">
+        <h1>🚀 番茄小说一键上传</h1>
+        <p>使用桌面端上传工具，安全高效地将作品发布到番茄小说</p>
+    </div>
+    
+    <!-- 推荐下载区 -->
+    <div class="download-hero">
+        <div class="download-hero-icon">💻</div>
+        <h2>大文娱小说发布助手 v1.2</h2>
+        <p>全新的桌面端上传工具，支持多平台配置、可视化操作、智能风控策略。<br>
+        无需复杂的环境配置，下载即可使用！</p>
+        <button class="download-btn-large" onclick="downloadUploaderTool()">
+            <span>⬇️</span> 立即下载上传工具
+        </button>
+        <div class="download-meta">
+            版本：v1.2.0 | 大小：约 114 MB | 支持：Windows 10/11
         </div>
     </div>
     
-    <!-- 步骤1: 选择作品 -->
-    <div class="step-content-area active" id="step-content-1">
-        <div class="step-header">
-            <h3>📖 选择要上传的小说</h3>
-            <p>从您的小说项目中选择要上传到番茄平台的作品</p>
+    <!-- 特性卡片 -->
+    <div class="features-grid">
+        <div class="feature-card">
+            <div class="feature-icon">🎯</div>
+            <div class="feature-title">一键上传</div>
+            <div class="feature-desc">可视化界面，选择项目后一键批量上传，自动模拟人工操作</div>
         </div>
-        
-        <div class="project-list-container">
-            <div class="project-list-header">
-                <span class="project-list-title">我的作品</span>
-                <button class="v2-btn v2-btn--ghost v2-btn--sm" onclick="loadProjects()">
-                    <span>🔄</span> 刷新
+        <div class="feature-card">
+            <div class="feature-icon">🛡️</div>
+            <div class="feature-title">智能风控</div>
+            <div class="feature-desc">可调节上传间隔，模拟人工输入，避免触发平台风控</div>
+        </div>
+        <div class="feature-card">
+            <div class="feature-icon">📱</div>
+            <div class="feature-title">多平台支持</div>
+            <div class="feature-desc">支持番茄小说、起点中文网、纵横中文网等多个平台</div>
+        </div>
+        <div class="feature-card">
+            <div class="feature-icon">⚡</div>
+            <div class="feature-title">后台运行</div>
+            <div class="feature-desc">支持最小化到系统托盘，上传进度实时通知</div>
+        </div>
+    </div>
+    
+    <!-- 使用步骤 -->
+    <div class="steps-section">
+        <h3>📖 使用步骤</h3>
+        <div class="steps-list">
+            <div class="step-item-v2">
+                <div class="step-number-v2">1</div>
+                <div class="step-title-v2">下载工具</div>
+                <div class="step-desc-v2">下载桌面端上传工具</div>
+            </div>
+            <div class="step-item-v2">
+                <div class="step-number-v2">2</div>
+                <div class="step-title-v2">选择项目</div>
+                <div class="step-desc-v2">在下方选择要上传的项目</div>
+            </div>
+            <div class="step-item-v2">
+                <div class="step-number-v2">3</div>
+                <div class="step-title-v2">下载数据</div>
+                <div class="step-desc-v2">下载配置文件和项目数据</div>
+            </div>
+            <div class="step-item-v2">
+                <div class="step-number-v2">4</div>
+                <div class="step-title-v2">开始上传</div>
+                <div class="step-desc-v2">运行工具，完成上传</div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- 项目选择区 -->
+    <div class="project-section">
+        <div class="project-section-header">
+            <h3>📚 选择要上传的项目</h3>
+            <button class="v2-btn v2-btn--secondary v2-btn--sm" onclick="loadProjects()">
+                🔄 刷新列表
+            </button>
+        </div>
+        <div id="project-list" class="project-grid">
+            <div class="loading-container">
+                <div class="spinner"></div>
+                <p style="color: var(--v2-text-secondary);">加载项目中...</p>
+            </div>
+        </div>
+    </div>
+    
+    <!-- 数据包下载区 -->
+    <div class="data-package-section">
+        <h3>📦 下载数据文件</h3>
+        <p style="color: var(--v2-text-secondary); font-size: 13px; margin-bottom: var(--v2-space-4);">
+            请先选择上方的项目，然后下载以下数据文件供上传工具使用
+        </p>
+        <div class="data-package-grid">
+            <div class="data-package-card">
+                <div class="data-package-icon">⚙️</div>
+                <div class="data-package-info">
+                    <div class="data-package-name">上传配置文件</div>
+                    <div class="data-package-desc">包含平台配置、上传参数等</div>
+                </div>
+                <button class="data-package-btn" id="btn-download-config" onclick="downloadConfig()" disabled>
+                    下载配置
                 </button>
             </div>
-            
-            <div id="project-list-loading" class="loading-container">
-                <div class="spinner"></div>
-                <p>加载作品中...</p>
+            <div class="data-package-card">
+                <div class="data-package-icon">📁</div>
+                <div class="data-package-info">
+                    <div class="data-package-name">项目数据文件</div>
+                    <div class="data-package-desc">包含选定项目的章节数据</div>
+                </div>
+                <button class="data-package-btn" id="btn-download-project" onclick="downloadProject()" disabled>
+                    下载数据
+                </button>
             </div>
-            
-            <div id="project-list" class="project-grid" style="display: none;">
-                <!-- 动态填充 -->
-            </div>
-        </div>
-    </div>
-    
-    <!-- 步骤2: 环境检测 -->
-    <div class="step-content-area" id="step-content-2">
-        <div class="step-header">
-            <h3>🔍 检测本地环境</h3>
-            <p>检查您的电脑是否具备运行上传脚本的环境</p>
         </div>
         
-        <div id="env-check-loading" class="loading-container">
-            <div class="spinner"></div>
-            <p style="color: var(--v2-text-secondary);">正在检测本地环境...</p>
-            <p style="font-size: 12px; color: var(--v2-text-muted); margin-top: 8px;">
-                检查 Chrome 浏览器 和 Python 环境
+        <div class="info-tip">
+            <p>
+                <strong>💡 使用提示：</strong>下载完成后，将配置文件和项目数据解压到上传工具目录中，
+                然后运行 <code>NovelPublisher.exe</code> 即可开始上传。
             </p>
         </div>
-        
-        <div id="env-check-result" style="display: none; max-width: 600px; margin: 0 auto;">
-            <!-- 动态填充检测结果 -->
-        </div>
     </div>
     
-    <!-- 步骤3: 下载脚本 -->
-    <div class="step-content-area" id="step-content-3">
-        <div class="step-header">
-            <h3>📦 下载上传脚本</h3>
-            <p>根据您的环境选择合适的脚本包下载</p>
-        </div>
-        
-        <div id="package-selection">
-            <div class="package-options">
-                <!-- 首次使用包 -->
-                <div class="package-card" id="package-first-time" onclick="selectPackage('first_time')">
-                    <div class="package-icon">🎁</div>
-                    <div class="package-name">完整环境包</div>
-                    <div class="package-desc">
-                        包含 Chrome 浏览器、Python 环境、上传脚本<br>
-                        适合首次使用，一站式解决环境配置
-                    </div>
-                    <div class="package-meta-row">
-                        <span class="package-size">约 200MB</span>
-                        <span class="v2-btn v2-btn--primary v2-btn--sm">选择下载</span>
-                    </div>
-                </div>
-                
-                <!-- 脚本包 -->
-                <div class="package-card recommended" id="package-script" onclick="selectPackage('script')">
-                    <div class="package-badge">推荐</div>
-                    <div class="package-icon">📜</div>
-                    <div class="package-name">上传脚本包</div>
-                    <div class="package-desc">
-                        仅包含上传脚本和小说数据<br>
-                        环境已就绪，快速开始上传
-                    </div>
-                    <div class="package-meta-row">
-                        <span class="package-size">约 500KB</span>
-                        <span class="v2-btn v2-btn--primary v2-btn--sm">选择下载</span>
-                    </div>
-                </div>
-            </div>
-        </div>
-        
-        <div id="package-generating" class="loading-container" style="display: none;">
-            <div class="spinner"></div>
-            <p>正在生成上传包...</p>
-            <p style="color: var(--v2-text-muted); font-size: 12px;">根据包大小可能需要几秒到几分钟</p>
-        </div>
-    </div>
-    
-    <!-- 步骤4: 查看进度 -->
-    <div class="step-content-area" id="step-content-4">
-        <div class="step-header">
-            <h3>📊 上传进度</h3>
-            <p>实时跟踪本地脚本上传状态</p>
-        </div>
-        
-        <div id="upload-guide-section">
-            <div class="guide-container" style="margin-bottom: var(--v2-space-5);">
-                <div class="guide-section">
-                    <div class="guide-section-title">📋 运行前检查</div>
-                    <ul class="check-list">
-                        <li>
-                            <span class="check-icon" id="guide-check-chrome">⏳</span>
-                            <span class="check-text">Chrome 浏览器已启动（运行一键启动.bat）</span>
-                        </li>
-                        <li>
-                            <span class="check-icon" id="guide-check-login">⏳</span>
-                            <span class="check-text">已在 Chrome 中登录番茄小说作者账号</span>
-                        </li>
-                        <li>
-                            <span class="check-icon" id="guide-check-script">⏳</span>
-                            <span class="check-text">已下载并解压上传脚本包</span>
-                        </li>
-                    </ul>
-                </div>
-                
-                <div class="guide-section">
-                    <div class="guide-section-title">▶️ 开始上传</div>
-                    <ol class="step-list">
-                        <li>打开下载的脚本包文件夹</li>
-                        <li>双击运行 <code>upload_script.py</code> 或 <code>开始上传_xxx.bat</code></li>
-                        <li>脚本会自动连接 Chrome 并开始上传</li>
-                        <li>上传进度会自动同步到本页面</li>
-                    </ol>
-                </div>
-            </div>
-            
-            <div class="action-buttons">
-                <button class="v2-btn v2-btn--secondary" onclick="goToStep(3)">
-                    <span>←</span> 返回下载
-                </button>
-                <button class="v2-btn v2-btn--primary" onclick="startMonitoring()">
-                    <span>🚀</span> 我已运行脚本，开始监控
-                </button>
-            </div>
-        </div>
-        
-        <div id="upload-status-section" style="display: none;">
-            <!-- 动态加载上传状态组件 -->
-            <div id="upload-status-container"></div>
-            
-            <div class="action-buttons">
-                <button class="v2-btn v2-btn--secondary" onclick="goToStep(3)">
-                    <span>←</span> 返回
-                </button>
-                <button class="v2-btn v2-btn--primary" onclick="refreshStatus()">
-                    <span>🔄</span> 刷新状态
-                </button>
-            </div>
-        </div>
-    </div>
 </div>
 
 <script>
 // 全局状态
-let currentStep = 1;
-let selectedNovel = null;
-let selectedPackageType = 'script';
-let currentTaskId = null;
-let envStatus = null;
-let refreshInterval = null;
+let selectedProject = null;
+let projects = [];
 
 /**
  * 页面加载初始化
@@ -710,373 +526,177 @@ document.addEventListener('DOMContentLoaded', function() {
 });
 
 /**
- * 步骤1: 加载小说列表
+ * 加载项目列表
  */
 async function loadProjects() {
-    const loadingEl = document.getElementById('project-list-loading');
-    const listEl = document.getElementById('project-list');
-    
-    loadingEl.style.display = 'block';
-    listEl.style.display = 'none';
+    const container = document.getElementById('project-list');
+    container.innerHTML = `
+        <div class="loading-container">
+            <div class="spinner"></div>
+            <p style="color: var(--v2-text-secondary);">加载项目中...</p>
+        </div>
+    `;
     
     try {
-        // 调用API获取小说列表
-        const response = await fetch('/api/fanqie/upload/novels');
-        const data = await response.json();
+        const resp = await fetch('/api/novels/list');
+        const result = await resp.json();
         
-        if (data.success && data.projects && data.projects.length > 0) {
-            renderProjectList(data.projects);
+        if (result.success && result.data && result.data.length > 0) {
+            projects = result.data;
+            renderProjects(projects);
         } else {
-            // 显示空状态
-            listEl.innerHTML = `
-                <div style="grid-column: 1/-1; text-align: center; padding: var(--v2-space-8);">
-                    <div style="font-size: 48px; margin-bottom: var(--v2-space-4);">📝</div>
-                    <p style="color: var(--v2-text-secondary);">暂无可用的小说项目</p>
-                    <a href="/project-management" class="v2-btn v2-btn--primary" style="margin-top: var(--v2-space-4);">
-                        去创建小说
-                    </a>
+            container.innerHTML = `
+                <div style="text-align: center; padding: var(--v2-space-8);">
+                    <p style="color: var(--v2-text-muted);">暂无项目</p>
+                    <p style="font-size: 12px; color: var(--v2-text-muted); margin-top: 8px;">
+                        请先在系统中创建小说项目
+                    </p>
                 </div>
             `;
         }
-    } catch (error) {
-        console.error('加载项目失败:', error);
-        listEl.innerHTML = `
-            <div style="grid-column: 1/-1; text-align: center; padding: var(--v2-space-8);">
-                <p style="color: var(--v2-text-secondary);">加载失败，请刷新重试</p>
-                <button class="v2-btn v2-btn--secondary" onclick="loadProjects()" style="margin-top: var(--v2-space-4);">
-                    重新加载
+    } catch (e) {
+        console.error('加载项目失败:', e);
+        container.innerHTML = `
+            <div style="text-align: center; padding: var(--v2-space-8);">
+                <p style="color: var(--v2-error);">加载失败</p>
+                <button class="v2-btn v2-btn--secondary v2-btn--sm" onclick="loadProjects()" style="margin-top: 8px;">
+                    重试
                 </button>
             </div>
         `;
     }
-    
-    loadingEl.style.display = 'none';
-    listEl.style.display = 'grid';
 }
 
-function renderProjectList(projects) {
+/**
+ * 渲染项目列表
+ */
+function renderProjects(projects) {
     const container = document.getElementById('project-list');
     
-    if (!projects || projects.length === 0) {
-        container.innerHTML = `
-            <div style="grid-column: 1/-1; text-align: center; padding: var(--v2-space-8);">
-                <div style="font-size: 48px; margin-bottom: var(--v2-space-4);">📝</div>
-                <p style="color: var(--v2-text-secondary);">暂无可上传的小说项目</p>
-                <a href="/phase-one-setup" class="v2-btn v2-btn--primary" style="margin-top: var(--v2-space-4);">
-                    创建新作品
-                </a>
-            </div>
-        `;
-        return;
-    }
-    
-    // 使用 DOM API 安全创建元素，避免引号问题
-    container.innerHTML = '';
-    projects.forEach(project => {
-        const card = document.createElement('div');
-        card.className = 'project-card';
-        card.innerHTML = `
+    container.innerHTML = projects.map(project => `
+        <div class="project-card" id="project-${project.id}" onclick="selectProject('${project.id}')">
             <div class="project-card-header">
                 <div class="project-icon">📖</div>
                 <div class="project-title">${escapeHtml(project.title)}</div>
             </div>
             <div class="project-meta">
-                <span class="project-chapters">📄 ${project.chapters || 0} 章</span>
-                <span>📝 ${formatNumber(project.words || 0)} 字</span>
+                <span>📄 ${project.chapter_count || 0} 章</span>
+                <span>📝 ${project.word_count || 0} 字</span>
             </div>
-        `;
-        
-        // 绑定点击事件
-        card.addEventListener('click', function() {
-            selectNovel(project.id, project.title, project.chapters || 0, this);
-        });
-        
-        container.appendChild(card);
-    });
+        </div>
+    `).join('');
 }
 
-function selectNovel(id, title, chapters, cardElement) {
-    console.log('选择小说:', { id, title, chapters });
-    selectedNovel = { id, title, chapters };
-    
-    // 标记选中状态
+/**
+ * 选择项目
+ */
+function selectProject(projectId) {
+    // 更新选中状态
     document.querySelectorAll('.project-card').forEach(card => {
         card.classList.remove('selected');
     });
-    cardElement.classList.add('selected');
+    document.getElementById(`project-${projectId}`).classList.add('selected');
     
-    // 延迟后进入下一步
-    setTimeout(() => {
-        goToStep(2);
-        detectEnvironment();
-    }, 300);
+    selectedProject = projects.find(p => p.id === projectId);
+    
+    // 启用下载按钮
+    document.getElementById('btn-download-config').disabled = false;
+    document.getElementById('btn-download-project').disabled = false;
+    
+    showToast(`已选择：${selectedProject.title}`, 'success');
 }
 
 /**
- * 步骤2: 环境检测
+ * 下载上传工具
  */
-async function detectEnvironment() {
-    const loadingEl = document.getElementById('env-check-loading');
-    const resultEl = document.getElementById('env-check-result');
+function downloadUploaderTool() {
+    // 下载桌面端上传工具
+    const link = document.createElement('a');
+    link.href = '/downloads/NovelPublisher.exe';
+    link.download = 'NovelPublisher.exe';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
     
-    loadingEl.style.display = 'block';
-    resultEl.style.display = 'none';
+    showToast('开始下载上传工具...', 'success');
     
-    // 设置超时：最多等待3秒
-    const timeoutPromise = new Promise((_, reject) => {
-        setTimeout(() => reject(new Error('timeout')), 3000);
-    });
-    
-    try {
-        const fetchPromise = fetch('/api/local-upload/detect-environment');
-        const response = await Promise.race([fetchPromise, timeoutPromise]);
-        const data = await response.json();
-        
-        if (data.success) {
-            envStatus = data.environment;
-            selectedPackageType = data.recommended_package;
-            
-            // 根据环境推荐包
-            renderEnvResult(data);
-        } else {
-            // API返回错误，使用默认推荐
-            renderDefaultEnvResult();
-        }
-    } catch (error) {
-        console.error('环境检测失败:', error);
-        // 超时或网络错误，使用默认推荐
-        renderDefaultEnvResult();
-    }
-    
-    loadingEl.style.display = 'none';
-    resultEl.style.display = 'block';
+    // 记录下载事件
+    fetch('/api/analytics/download', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ type: 'uploader_tool', version: '1.2.0' })
+    }).catch(() => {});
 }
 
 /**
- * 渲染默认环境检测结果（当API失败或超时时）
+ * 下载配置文件
  */
-function renderDefaultEnvResult() {
-    renderEnvResult({
-        recommended_package: 'script',
-        message: '建议下载脚本包（若上传失败请尝试完整包）',
-        package_configs: {
-            first_time: { name: '完整环境包' },
-            script: { name: '上传脚本包' }
-        }
-    });
-}
-
-function renderEnvResult(data) {
-    const resultEl = document.getElementById('env-check-result');
-    const isFirstTime = data.recommended_package === 'first_time';
-    
-    // 🔥 关键修复：根据推荐设置 package_type
-    selectedPackageType = data.recommended_package;
-    console.log('环境检测结果，推荐包类型:', selectedPackageType);
-    
-    resultEl.innerHTML = `
-        <div style="background: var(--v2-bg-secondary); border: 1px solid var(--v2-border-subtle); border-radius: var(--v2-radius-xl); padding: var(--v2-space-5); text-align: center;">
-            <div style="font-size: 48px; margin-bottom: var(--v2-space-3);">${isFirstTime ? '🎁' : '✅'}</div>
-            <h4 style="font-size: 18px; font-weight: 600; margin-bottom: 8px;">${data.message}</h4>
-            <p style="color: var(--v2-text-secondary); font-size: 14px; margin-bottom: var(--v2-space-5);">
-                推荐方案: <strong style="color: var(--v2-primary-500);">${data.package_configs[data.recommended_package].name}</strong>
-            </p>
-            
-            <div style="display: flex; gap: var(--v2-space-3); justify-content: center;">
-                <button class="v2-btn v2-btn--primary" onclick="goToStep(3)">
-                    <span>→</span> 下一步: 下载 ${data.package_configs[data.recommended_package].name}
-                </button>
-            </div>
-        </div>
-    `;
-    
-    // 更新步骤3的推荐标记
-    if (isFirstTime) {
-        document.getElementById('package-first-time').classList.add('recommended');
-        document.getElementById('package-script').classList.remove('recommended');
-    } else {
-        document.getElementById('package-first-time').classList.remove('recommended');
-        document.getElementById('package-script').classList.add('recommended');
-    }
-}
-
-/**
- * 步骤3: 选择并下载包
- */
-function selectPackage(type) {
-    selectedPackageType = type;
-    generatePackage();
-}
-
-async function generatePackage() {
-    console.log('生成包, selectedNovel:', selectedNovel);
-    if (!selectedNovel) {
-        showToast('请先选择一部小说', 'warning');
+async function downloadConfig() {
+    if (!selectedProject) {
+        showToast('请先选择项目', 'warning');
         return;
     }
     
-    document.getElementById('package-selection').style.display = 'none';
-    document.getElementById('package-generating').style.display = 'block';
-    
     try {
-        // 第一步：从服务器获取真实章节数据
-        console.log('正在获取章节数据...');
-        const chaptersResponse = await fetch(`/api/fanqie/upload/novel-chapters?title=${encodeURIComponent(selectedNovel.title)}`);
-        const chaptersData = await chaptersResponse.json();
+        const resp = await fetch(`/api/fanqie-upload/config?project_id=${selectedProject.id}`);
+        const result = await resp.json();
         
-        if (!chaptersData.success) {
-            throw new Error(chaptersData.error || '获取章节数据失败');
-        }
-        
-        if (!chaptersData.chapters || chaptersData.chapters.length === 0) {
-            throw new Error('该小说暂无章节数据，请先创建章节');
-        }
-        
-        console.log(`获取到 ${chaptersData.chapters.length} 个章节`);
-        
-        // 第二步：调用生成包API
-        const response = await fetch('/api/local-upload/generate-package', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                novel_title: selectedNovel.title,
-                novel_id: selectedNovel.id,
-                package_type: selectedPackageType,
-                chapters: chaptersData.chapters,
-                platform: 'fanqie'
-            })
-        });
-        
-        if (!response.ok) {
-            const errorData = await response.json().catch(() => ({}));
-            throw new Error(errorData.error || `HTTP错误: ${response.status}`);
-        }
-        
-        const data = await response.json();
-        
-        if (data.success) {
-            currentTaskId = data.task_id;
+        if (result.success) {
+            // 下载配置文件
+            const blob = new Blob([JSON.stringify(result.data, null, 2)], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = `upload_config_${selectedProject.id}.json`;
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            URL.revokeObjectURL(url);
             
-            // 触发下载
-            window.location.href = data.download_url;
-            
-            // 显示下一步
-            markStepCompleted(3);
-            goToStep(4);
+            showToast('配置文件下载成功', 'success');
         } else {
-            throw new Error(data.error || '生成包失败');
+            showToast(result.error || '下载失败', 'error');
         }
-    } catch (error) {
-        console.error('生成包失败:', error);
-        showToast(error.message || '生成上传包失败，请重试', 'error');
-        document.getElementById('package-selection').style.display = 'block';
-        document.getElementById('package-generating').style.display = 'none';
+    } catch (e) {
+        console.error('下载配置失败:', e);
+        showToast('下载失败，请重试', 'error');
     }
 }
 
 /**
- * 步骤4: 开始监控上传进度
+ * 下载项目数据
  */
-function startMonitoring() {
-    if (!currentTaskId) {
-        // 如果没有任务ID，可能是刷新页面后，尝试从URL获取
-        const urlParams = new URLSearchParams(window.location.search);
-        currentTaskId = urlParams.get('task');
-    }
-    
-    if (!currentTaskId) {
-        showToast('未找到上传任务，请先下载脚本包', 'warning');
+async function downloadProject() {
+    if (!selectedProject) {
+        showToast('请先选择项目', 'warning');
         return;
     }
     
-    document.getElementById('upload-guide-section').style.display = 'none';
-    document.getElementById('upload-status-section').style.display = 'block';
-    
-    // 加载上传状态组件
-    loadUploadStatusComponent();
-    
-    // 开始轮询
-    startStatusPolling();
-}
-
-async function loadUploadStatusComponent() {
-    const container = document.getElementById('upload-status-container');
-    
     try {
-        // 加载状态组件HTML
-        const response = await fetch('/components/local_upload_status.html');
-        const html = await response.text();
-        container.innerHTML = html;
+        showToast('正在打包项目数据...', 'info');
         
-        // 初始化并加载状态
-        if (typeof loadUploadStatus === 'function') {
-            loadUploadStatus(currentTaskId);
-        }
-    } catch (error) {
-        console.error('加载状态组件失败:', error);
-        container.innerHTML = `
-            <div class="upload-status-card">
-                <div style="text-align: center; padding: var(--v2-space-8);">
-                    <div class="spinner"></div>
-                    <p>正在加载上传状态...</p>
-                    <p style="color: var(--v2-text-muted); font-size: 12px;">任务ID: ${currentTaskId}</p>
-                </div>
-            </div>
-        `;
-    }
-}
-
-function startStatusPolling() {
-    // 每3秒刷新一次状态
-    refreshInterval = setInterval(() => {
-        if (typeof refreshUploadStatus === 'function') {
-            refreshUploadStatus();
-        }
-    }, 3000);
-}
-
-function refreshStatus() {
-    if (typeof refreshUploadStatus === 'function') {
-        refreshUploadStatus();
+        const resp = await fetch(`/api/fanqie-upload/project-data?project_id=${selectedProject.id}`);
+        if (!resp.ok) throw new Error('下载失败');
+        
+        const blob = await resp.blob();
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = `project_data_${selectedProject.id}.zip`;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        URL.revokeObjectURL(url);
+        
+        showToast('项目数据下载成功', 'success');
+    } catch (e) {
+        console.error('下载项目数据失败:', e);
+        showToast('下载失败，请重试', 'error');
     }
 }
 
 /**
- * 通用：切换步骤
- */
-function goToStep(step) {
-    // 隐藏所有步骤内容
-    document.querySelectorAll('.step-content-area').forEach(el => {
-        el.classList.remove('active');
-    });
-    
-    // 显示目标步骤
-    const targetContent = document.getElementById(`step-content-${step}`);
-    if (targetContent) {
-        targetContent.classList.add('active');
-    }
-    
-    // 更新步骤指示器
-    document.querySelectorAll('.step-item').forEach((el, index) => {
-        el.classList.remove('active');
-        if (index + 1 === step) {
-            el.classList.add('active');
-        }
-    });
-    
-    currentStep = step;
-}
-
-function markStepCompleted(step) {
-    const indicator = document.getElementById(`step-indicator-${step}`);
-    if (indicator) {
-        indicator.classList.add('completed');
-        indicator.querySelector('.step-number').textContent = '✓';
-    }
-}
-
-/**
- * 工具函数
+ * HTML 转义
  */
 function escapeHtml(text) {
     if (!text) return '';
@@ -1085,151 +705,15 @@ function escapeHtml(text) {
     return div.innerHTML;
 }
 
-function formatNumber(num) {
-    if (num >= 10000) {
-        return (num / 10000).toFixed(1) + '万';
-    }
-    return num.toString();
-}
-
 /**
- * 美观的错误/提示弹窗
- * @param {string} message - 提示消息
- * @param {string} type - 类型: 'error' | 'warning' | 'info' | 'success'
- * @param {string} title - 标题（可选）
+ * 显示提示
  */
-function showToast(message, type = 'error', title = '') {
-    // 移除已有的弹窗
-    const existingToast = document.getElementById('upload-toast');
-    if (existingToast) {
-        existingToast.remove();
+function showToast(message, type = 'info') {
+    if (window.showToast) {
+        window.showToast(message, type);
+    } else {
+        alert(message);
     }
-    
-    const icons = {
-        error: '❌',
-        warning: '⚠️',
-        info: 'ℹ️',
-        success: '✅'
-    };
-    
-    const titles = {
-        error: title || '操作失败',
-        warning: title || '温馨提示',
-        info: title || '提示信息',
-        success: title || '操作成功'
-    };
-    
-    const colors = {
-        error: { bg: '#ef4444', border: '#f87171' },
-        warning: { bg: '#f59e0b', border: '#fbbf24' },
-        info: { bg: '#3b82f6', border: '#60a5fa' },
-        success: { bg: '#10b981', border: '#34d399' }
-    };
-    
-    const toast = document.createElement('div');
-    toast.id = 'upload-toast';
-    toast.style.cssText = `
-        position: fixed;
-        top: 80px;
-        left: 50%;
-        transform: translateX(-50%) translateY(-20px);
-        background: linear-gradient(135deg, #1e293b, #0f172a);
-        border: 1px solid ${colors[type].border};
-        border-radius: 16px;
-        padding: 20px 24px;
-        min-width: 320px;
-        max-width: 480px;
-        z-index: 9999;
-        box-shadow: 
-            0 25px 50px -12px rgba(0, 0, 0, 0.5),
-            0 0 0 1px rgba(255, 255, 255, 0.05) inset,
-            0 0 30px ${colors[type].bg}20;
-        opacity: 0;
-        transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
-        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-    `;
-    
-    toast.innerHTML = `
-        <div style="display: flex; align-items: flex-start; gap: 16px;">
-            <div style="
-                width: 44px;
-                height: 44px;
-                background: ${colors[type].bg}20;
-                border-radius: 12px;
-                display: flex;
-                align-items: center;
-                justify-content: center;
-                font-size: 22px;
-                flex-shrink: 0;
-                border: 1px solid ${colors[type].border}40;
-            ">${icons[type]}</div>
-            <div style="flex: 1; min-width: 0;">
-                <div style="
-                    font-size: 16px;
-                    font-weight: 600;
-                    color: #f1f5f9;
-                    margin-bottom: 4px;
-                ">${titles[type]}</div>
-                <div style="
-                    font-size: 14px;
-                    color: #94a3b8;
-                    line-height: 1.5;
-                    word-wrap: break-word;
-                ">${escapeHtml(message)}</div>
-            </div>
-            <button onclick="this.closest('#upload-toast').remove()" style="
-                width: 28px;
-                height: 28px;
-                background: rgba(255, 255, 255, 0.05);
-                border: none;
-                border-radius: 8px;
-                color: #64748b;
-                cursor: pointer;
-                display: flex;
-                align-items: center;
-                justify-content: center;
-                font-size: 18px;
-                line-height: 1;
-                transition: all 0.2s;
-                flex-shrink: 0;
-            " onmouseover="this.style.background='rgba(255,255,255,0.1)';this.style.color='#94a3b8'" 
-            onmouseout="this.style.background='rgba(255,255,255,0.05)';this.style.color='#64748b'">×</button>
-        </div>
-        <div style="
-            position: absolute;
-            bottom: 0;
-            left: 0;
-            right: 0;
-            height: 3px;
-            background: linear-gradient(90deg, ${colors[type].bg}, ${colors[type].border});
-            border-radius: 0 0 16px 16px;
-            opacity: 0.6;
-        "></div>
-    `;
-    
-    document.body.appendChild(toast);
-    
-    // 动画显示
-    requestAnimationFrame(() => {
-        toast.style.opacity = '1';
-        toast.style.transform = 'translateX(-50%) translateY(0)';
-    });
-    
-    // 自动关闭
-    setTimeout(() => {
-        if (toast.parentNode) {
-            toast.style.opacity = '0';
-            toast.style.transform = 'translateX(-50%) translateY(-20px)';
-            setTimeout(() => toast.remove(), 300);
-        }
-    }, 5000);
 }
-
-// 页面卸载时清理
-window.addEventListener('beforeunload', () => {
-    if (refreshInterval) {
-        clearInterval(refreshInterval);
-    }
-});
 </script>
 {% endblock %}

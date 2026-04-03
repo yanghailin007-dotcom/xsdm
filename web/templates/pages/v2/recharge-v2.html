@@ -382,6 +382,51 @@
     border-radius: var(--v2-radius-sm);
 }
 
+/* 服务条款勾选 */
+.v2-terms-agreement {
+    margin-top: var(--v2-space-6);
+    padding-top: var(--v2-space-4);
+    border-top: 1px solid var(--v2-border-subtle);
+}
+
+.v2-terms-agreement__label {
+    display: flex;
+    align-items: flex-start;
+    gap: var(--v2-space-3);
+    cursor: pointer;
+    user-select: none;
+}
+
+.v2-terms-agreement__checkbox {
+    width: 18px;
+    height: 18px;
+    margin-top: 2px;
+    accent-color: var(--v2-primary-500);
+    cursor: pointer;
+    flex-shrink: 0;
+}
+
+.v2-terms-agreement__text {
+    font-size: var(--v2-text-sm);
+    color: var(--v2-text-secondary);
+    line-height: 1.5;
+}
+
+.v2-terms-agreement__link {
+    color: var(--v2-primary-400);
+    text-decoration: none;
+    font-weight: var(--v2-font-medium);
+}
+
+.v2-terms-agreement__link:hover {
+    color: var(--v2-primary-300);
+    text-decoration: underline;
+}
+
+.v2-terms-agreement__label:hover .v2-terms-agreement__text {
+    color: var(--v2-text-primary);
+}
+
 /* 按钮 */
 /* 充值页面专用按钮 - 避免影响导航栏 */
 .v2-recharge-card .v2-btn {
@@ -637,6 +682,16 @@
                             </label>
                         </div>
                     </div>
+
+                    <!-- 服务条款勾选 -->
+                    <div class="v2-terms-agreement">
+                        <label class="v2-terms-agreement__label">
+                            <input type="checkbox" id="termsCheckbox" class="v2-terms-agreement__checkbox" onchange="toggleRechargeButton()">
+                            <span class="v2-terms-agreement__text">
+                                我已阅读并同意 <a href="/terms" target="_blank" class="v2-terms-agreement__link">《服务条款》</a> 和 <a href="/privacy" target="_blank" class="v2-terms-agreement__link">《隐私政策》</a>
+                            </span>
+                        </label>
+                    </div>
                 </div>
             </div>
         </div>
@@ -713,6 +768,12 @@ async function init() {
     await loadBalance();
     await loadPaymentConfig();
     await loadOrderList();
+    
+    // 初始化服务条款勾选状态（默认未勾选）
+    const termsCheckbox = document.getElementById('termsCheckbox');
+    if (termsCheckbox) {
+        termsCheckbox.checked = false;
+    }
 }
 
 // 加载余额
@@ -766,9 +827,38 @@ function renderRechargeOptions(options) {
     `).join('');
 }
 
+// 检查是否同意服务条款
+function checkTermsAgreement() {
+    const checkbox = document.getElementById('termsCheckbox');
+    if (!checkbox || !checkbox.checked) {
+        showToast('请先阅读并同意服务条款', 'warning');
+        // 滚动到条款区域
+        checkbox.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        checkbox.focus();
+        return false;
+    }
+    return true;
+}
+
+// 切换充值按钮状态（根据条款勾选）
+function toggleRechargeButton() {
+    const checkbox = document.getElementById('termsCheckbox');
+    const btn = document.getElementById('rechargeBtn');
+    if (checkbox && btn) {
+        // 按钮始终可用，但在点击时会检查条款
+        // 这样用户可以在未勾选时收到提示
+    }
+}
+
 // 处理充值 - 选择金额后填充到自定义输入框并立即创建订单
 async function handleRecharge(amount, element) {
     console.log('handleRecharge called with amount:', amount);
+    
+    // 检查服务条款
+    if (!checkTermsAgreement()) {
+        return;
+    }
+    
     document.getElementById('customAmount').value = amount;
     
     // 高亮选中的选项
@@ -790,6 +880,12 @@ async function handleRecharge(amount, element) {
 // 自定义金额充值
 async function handleCustomRecharge() {
     console.log('handleCustomRecharge called');
+    
+    // 检查服务条款
+    if (!checkTermsAgreement()) {
+        return;
+    }
+    
     const input = document.getElementById('customAmount');
     const amount = parseFloat(input.value);
     console.log('Amount:', amount);

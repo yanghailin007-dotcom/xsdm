@@ -19,15 +19,7 @@
                         <li><a href="/novels" class="v2-footer__link" data-i18n="footer.link.novel">小说创作</a></li>
                         <li><a href="/cover-maker" class="v2-footer__link" data-i18n="footer.link.cover">封面制作</a></li>
                         <li><a href="/video-generation" class="v2-footer__link" data-i18n="footer.link.video">视频创作</a></li>
-                    </ul>
-                </div>
-                
-                <div class="v2-footer__group">
-                    <h4 class="v2-footer__group-title" data-i18n="footer.group.platform">平台</h4>
-                    <ul class="v2-footer__group-list">
-                        <li><a href="/pages/v2/fanqie-upload-v2" class="v2-footer__link" data-i18n="footer.link.fanqie">番茄上传</a></li>
-                        <li><span class="v2-footer__link v2-footer__link--disabled" title="功能开发中，敬请期待"><span data-i18n="footer.link.qidian">起点上传</span> <small data-i18n="footer.link.comingSoon">(开发中)</small></span></li>
-                        <li><span class="v2-footer__link v2-footer__link--disabled" title="功能开发中，敬请期待"><span data-i18n="footer.link.jjwxc">晋江上传</span> <small data-i18n="footer.link.comingSoon">(开发中)</small></span></li>
+                        <li><a href="/pages/v2/fanqie-upload-v2" class="v2-footer__link">自动发布</a></li>
                     </ul>
                 </div>
                 
@@ -63,7 +55,7 @@
 .v2-footer {
     background: var(--v2-bg-secondary);
     border-top: 1px solid var(--v2-border-subtle);
-    padding: var(--v2-space-12) var(--v2-space-8) var(--v2-space-6);
+    padding: var(--v2-space-6) var(--v2-space-8) var(--v2-space-4);
     margin-top: auto;
 }
 
@@ -73,10 +65,11 @@
 }
 
 .v2-footer__content {
-    display: grid;
-    grid-template-columns: 300px 1fr;
-    gap: var(--v2-space-12);
-    margin-bottom: var(--v2-space-10);
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: var(--v2-space-8);
+    margin-bottom: var(--v2-space-6);
 }
 
 /* 品牌区域 */
@@ -112,9 +105,40 @@
 
 /* 链接区域 */
 .v2-footer__links {
-    display: grid;
-    grid-template-columns: repeat(3, 1fr);
-    gap: var(--v2-space-8);
+    display: flex;
+    flex-direction: column;
+    gap: var(--v2-space-6);
+}
+
+/* 产品组 - 横向排列 */
+.v2-footer__links .v2-footer__group:first-child .v2-footer__group-list {
+    display: flex;
+    flex-direction: row;
+    flex-wrap: wrap;
+    gap: var(--v2-space-4);
+}
+
+.v2-footer__links .v2-footer__group:first-child .v2-footer__group-title {
+    display: none; /* 隐藏产品标题，更简洁 */
+}
+
+/* 支持组 */
+.v2-footer__group:last-child {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    gap: var(--v2-space-4);
+}
+
+.v2-footer__group:last-child .v2-footer__group-title {
+    margin: 0;
+    font-size: var(--v2-text-xs);
+}
+
+.v2-footer__group:last-child .v2-footer__group-list {
+    display: flex;
+    flex-direction: row;
+    gap: var(--v2-space-4);
 }
 
 .v2-footer__group-title {

@@ -58,7 +58,7 @@ CONFIG = {
                 "api_key": os.getenv('AIBERM_API_KEY', 'sk-dWu7JFD69zTYeSLZiWV8OQYBjQ2IoJlQCmSo3f963ArGEAju'),
                 "model": "google/gemini-3-flash",
                 "assessment": "google/gemini-2.5-flash",
-                "priority": 1,
+                "priority": 2,
                 "enabled": True,
                 "timeout": 300,
                 "max_retries": 3,

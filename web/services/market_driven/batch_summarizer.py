@@ -80,7 +80,9 @@ class BatchSummarizer:
         Returns:
             总结字典
         """
-        if not chapters:
+        # 🔥 防御：确保 chapters 是列表/元组且不为 None
+        if not chapters or not isinstance(chapters, (list, tuple)):
+            logger.warning(f"[BatchSummarizer] chapters 无效: {type(chapters)}")
             return self._empty_summary()
         
         # 🔥 过滤掉 None 元素
@@ -205,12 +207,14 @@ class BatchSummarizer:
             return summary
             
         except Exception as e:
-            logger.error(f"[BatchSummarizer] 生成批次总结时出错: {e}")
+            logger.error(f"[BatchSummarizer] 生成批次总结时出错: {e}", exc_info=True)
             # 🔥 返回基础总结，确保不返回None
+            # 防御：确保 chapters 不为 None 且元素不为 None
+            safe_chapters = [c for c in (chapters or []) if c is not None]
             return {
                 "batch_range": f"{start_ch}-{end_ch}" if 'start_ch' in dir() else "unknown",
-                "chapter_count": len(chapters),
-                "total_words": sum(c.get('word_count', 0) for c in chapters),
+                "chapter_count": len(safe_chapters),
+                "total_words": sum((c or {}).get('word_count', 0) for c in safe_chapters),
                 "average_quality": 0,
                 "current_goal": {"goal_id": "", "goal_name": "", "progress_percent": 0},
                 "goal_progress": {},
@@ -505,8 +509,9 @@ class BatchSummarizer:
         
         # 如果有前序总结，累积进度
         if previous_summary:
+            goal_id = stage_goal.get('goal_id', 'G1') if stage_goal else 'G1'
             prev_progress_str = previous_summary.get('goal_progress', {}).get(
-                stage_goal.get('goal_id', 'G1'), '0%'
+                goal_id, '0%'
             )
             try:
                 prev_progress = int(prev_progress_str.replace('%', ''))
