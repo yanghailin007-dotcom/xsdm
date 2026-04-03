@@ -1091,15 +1091,12 @@ class MainWindow(QMainWindow):
             help_msg = (
                 "未找到任何项目。\n\n"
                 "📝 使用步骤：\n"
-                "1. 返回网页 https://xsdm.cainiao.cool/pages/v2/fanqie-upload-v2\n"
-                "2. 选择要上传的小说项目\n"
-                "3. 点击「下载配置」和「下载数据」\n"
-                "4. 把下载的zip文件解压到： C:\\小说项目  (推荐，最简单)\n\n"
-                "其他可用位置：\n"
-                f"📁 {expected_dirs[1]}\n"
-                f"📁 {expected_dirs[2]}\n\n"
-                "提示：下载的zip解压后会有「小说项目」文件夹，\n"
-                "      建议整个拖到 C盘根目录（打开此电脑 → C盘）"
+                "1. 在网页下载项目数据（得到一个zip文件）\n"
+                "2. 解压zip到 C盘根目录，最终路径如：\n"
+                "   C:\\小说项目\\你的项目名称\\chapters\n\n"
+                "📂 目录结构示例：\n"
+                "   C:\\小说项目\\国运扮演酒剑仙\\chapters\\chapter_001.json\n\n"
+                "💡 提示：直接右键zip → 解压到 C:\\ 即可"
             )
             self.log(help_msg, "warning")
             
