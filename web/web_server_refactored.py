@@ -706,6 +706,121 @@ def register_fanqie_routes(app):
             logger.error(f"❌ 获取上传配置失败: {e}")
             return jsonify({"success": False, "error": str(e)}), 500
     
+    @app.route('/api/fanqie-upload/validate', methods=['GET'])
+    def validate_fanqie_project():
+        """验证项目是否符合番茄上传要求"""
+        try:
+            from pathlib import Path
+            import json
+            from collections import Counter
+            
+            project_id = request.args.get('project_id')
+            if not project_id:
+                return jsonify({"success": False, "error": "缺少project_id参数"}), 400
+            
+            project_dir = Path("小说项目") / project_id
+            if not project_dir.exists():
+                return jsonify({"success": False, "error": "项目不存在"}), 404
+            
+            errors = []
+            warnings = []
+            project_info = {}
+            
+            # 1. 读取项目配置
+            config_files = ["project_config.json", "config.json", "novel_info.json"]
+            for cf_name in config_files:
+                cf = project_dir / cf_name
+                if cf.exists():
+                    try:
+                        with open(cf, 'r', encoding='utf-8') as f:
+                            project_info = json.load(f)
+                        break
+                    except:
+                        pass
+            
+            # 2. 检查书名
+            title = project_info.get('title', '')
+            if not title:
+                errors.append("缺少书名：请在项目配置中设置书名")
+            elif len(title) > 15:
+                errors.append(f"书名过长：当前{len(title)}个字符，番茄要求15个字符以内")
+            
+            # 3. 检查简介
+            description = project_info.get('description', '')
+            if not description:
+                errors.append("缺少简介：请在项目配置中设置书籍简介")
+            elif len(description) < 50:
+                warnings.append("简介过短：建议简介至少50字以上，更有利于吸引读者")
+            
+            # 4. 检查分类
+            category = project_info.get('category', '')
+            if not category:
+                warnings.append("缺少分类：建议设置书籍分类，便于读者查找")
+            
+            # 5. 检查封面
+            cover_exists = False
+            for cover_name in ["cover.png", "cover.jpg", "cover.jpeg"]:
+                if (project_dir / cover_name).exists():
+                    cover_exists = True
+                    break
+            if not cover_exists:
+                errors.append("缺少封面：请上传书籍封面图片（cover.png/jpg/jpeg）")
+            
+            # 6. 检查章节
+            chapters_dir = project_dir / "chapters"
+            if not chapters_dir.exists():
+                errors.append("缺少章节目录：请检查项目结构")
+            else:
+                chapter_files = list(chapters_dir.glob("chapter_*.json"))
+                if len(chapter_files) == 0:
+                    errors.append("没有章节文件：请检查 chapters 目录")
+                else:
+                    # 检查重复章节名
+                    chapter_titles = []
+                    duplicate_titles = []
+                    for cf in chapter_files:
+                        try:
+                            with open(cf, 'r', encoding='utf-8') as f:
+                                ch = json.load(f)
+                                title = ch.get('title', '')
+                                if title in chapter_titles:
+                                    duplicate_titles.append(title)
+                                chapter_titles.append(title)
+                        except:
+                            pass
+                    
+                    if duplicate_titles:
+                        errors.append(f"存在重复章节名：{', '.join(set(duplicate_titles))}")
+                    
+                    # 检查章节数量（番茄签约要求20章）
+                    if len(chapter_files) < 20:
+                        warnings.append(f"章节数较少：当前有{len(chapter_files)}章，番茄签约要求至少20章")
+                    
+                    # 检查总字数（番茄签约要求6万字）
+                    total_words = sum(ch.get('word_count', 0) for ch in [json.load(open(cf, 'r', encoding='utf-8')) for cf in chapter_files])
+                    if total_words < 60000:
+                        warnings.append(f"字数不足：当前约{total_words}字，番茄签约要求至少6万字")
+            
+            # 返回验证结果
+            result = {
+                "valid": len(errors) == 0,
+                "errors": errors,
+                "warnings": warnings,
+                "can_download": len(errors) == 0,  # 有错误也允许下载，但需要警告
+                "project_info": {
+                    "title": title,
+                    "description": description[:100] + "..." if len(description) > 100 else description,
+                    "category": category,
+                    "cover_exists": cover_exists,
+                    "chapter_count": len(chapter_files) if chapters_dir.exists() else 0
+                }
+            }
+            
+            return jsonify({"success": True, "data": result})
+        except Exception as e:
+            logger.error(f"❌ 验证项目失败: {e}")
+            return jsonify({"success": False, "error": str(e)}), 500
+    
     @app.route('/api/fanqie-upload/project-data', methods=['GET'])
     def get_fanqie_project_data():
         """下载项目数据ZIP包"""

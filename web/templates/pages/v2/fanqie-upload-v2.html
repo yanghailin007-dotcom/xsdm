@@ -713,7 +713,7 @@ async function downloadConfig() {
 }
 
 /**
- * 下载项目数据
+ * 验证项目并下载
  */
 async function downloadProject() {
     if (!selectedProject) {
@@ -721,6 +721,47 @@ async function downloadProject() {
         return;
     }
     
+    try {
+        // 先进行验证
+        showToast('正在检查项目...', 'info');
+        const validateResp = await fetch(`/api/fanqie-upload/validate?project_id=${selectedProject.id}`);
+        const validateResult = await validateResp.json();
+        
+        if (!validateResult.success) {
+            showToast('验证失败：' + validateResult.error, 'error');
+            return;
+        }
+        
+        const validation = validateResult.data;
+        
+        // 如果有错误，显示弹窗阻止下载
+        if (validation.errors && validation.errors.length > 0) {
+            showValidationDialog(validation, true);
+            return;
+        }
+        
+        // 如果有警告，显示确认弹窗
+        if (validation.warnings && validation.warnings.length > 0) {
+            showValidationDialog(validation, false, () => {
+                // 用户确认后开始下载
+                doDownloadProject();
+            });
+            return;
+        }
+        
+        // 没有问题，直接下载
+        doDownloadProject();
+        
+    } catch (e) {
+        console.error('验证项目失败:', e);
+        showToast('验证失败，请重试', 'error');
+    }
+}
+
+/**
+ * 执行下载项目数据
+ */
+async function doDownloadProject() {
     try {
         showToast('正在打包项目数据...', 'info');
         
@@ -741,6 +782,160 @@ async function downloadProject() {
     } catch (e) {
         console.error('下载项目数据失败:', e);
         showToast('下载失败，请重试', 'error');
+    }
+}
+
+/**
+ * 显示验证结果弹窗
+ */
+function showValidationDialog(validation, isBlocking, onConfirm) {
+    // 移除已有的弹窗
+    const existingDialog = document.getElementById('validation-dialog');
+    if (existingDialog) existingDialog.remove();
+    
+    const errors = validation.errors || [];
+    const warnings = validation.warnings || [];
+    
+    let html = `
+        <div id="validation-dialog" class="validation-overlay">
+            <div class="validation-modal ${isBlocking ? 'blocking' : ''}">
+                <div class="validation-header">
+                    <span class="validation-icon">${isBlocking ? '❌' : '⚠️'}</span>
+                    <h3>${isBlocking ? '项目检查未通过' : '项目检查警告'}</h3>
+                </div>
+                <div class="validation-body">
+    `;
+    
+    if (errors.length > 0) {
+        html += `
+            <div class="validation-section">
+                <h4>❌ 必须修复的问题（${errors.length}项）：</h4>
+                <ul class="validation-list error-list">
+                    ${errors.map(e => `<li>${escapeHtml(e)}</li>`).join('')}
+                </ul>
+            </div>
+        `;
+    }
+    
+    if (warnings.length > 0) {
+        html += `
+            <div class="validation-section">
+                <h4>⚠️ 建议优化的问题（${warnings.length}项）：</h4>
+                <ul class="validation-list warning-list">
+                    ${warnings.map(w => `<li>${escapeHtml(w)}</li>`).join('')}
+                </ul>
+            </div>
+        `;
+    }
+    
+    html += `
+                </div>
+                <div class="validation-footer">
+                    ${isBlocking 
+                        ? `<button class="v2-btn v2-btn--primary" onclick="closeValidationDialog()">我知道了，去修复</button>` 
+                        : `<button class="v2-btn v2-btn--secondary" onclick="closeValidationDialog()">取消</button>
+                           <button class="v2-btn v2-btn--primary" onclick="confirmDownload()">仍要下载</button>`
+                    }
+                </div>
+            </div>
+        </div>
+    `;
+    
+    document.body.insertAdjacentHTML('beforeend', html);
+    
+    // 添加样式
+    if (!document.getElementById('validation-styles')) {
+        const styles = `
+            <style id="validation-styles">
+                .validation-overlay {
+                    position: fixed;
+                    top: 0; left: 0; right: 0; bottom: 0;
+                    background: rgba(0,0,0,0.5);
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    z-index: 10000;
+                }
+                .validation-modal {
+                    background: var(--v2-bg-primary);
+                    border-radius: var(--v2-radius-xl);
+                    width: 90%;
+                    max-width: 500px;
+                    max-height: 80vh;
+                    overflow: hidden;
+                    box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+                }
+                .validation-modal.blocking {
+                    border: 2px solid #ef4444;
+                }
+                .validation-header {
+                    padding: var(--v2-space-4) var(--v2-space-5);
+                    border-bottom: 1px solid var(--v2-border-subtle);
+                    display: flex;
+                    align-items: center;
+                    gap: var(--v2-space-3);
+                }
+                .validation-icon {
+                    font-size: 24px;
+                }
+                .validation-header h3 {
+                    margin: 0;
+                    font-size: 18px;
+                    color: var(--v2-text-primary);
+                }
+                .validation-body {
+                    padding: var(--v2-space-4) var(--v2-space-5);
+                    max-height: 50vh;
+                    overflow-y: auto;
+                }
+                .validation-section {
+                    margin-bottom: var(--v2-space-4);
+                }
+                .validation-section h4 {
+                    margin: 0 0 var(--v2-space-2) 0;
+                    font-size: 14px;
+                    color: var(--v2-text-secondary);
+                }
+                .validation-list {
+                    margin: 0;
+                    padding-left: var(--v2-space-5);
+                }
+                .validation-list li {
+                    margin-bottom: var(--v2-space-1);
+                    font-size: 13px;
+                    line-height: 1.5;
+                }
+                .error-list li {
+                    color: #ef4444;
+                }
+                .warning-list li {
+                    color: #f59e0b;
+                }
+                .validation-footer {
+                    padding: var(--v2-space-3) var(--v2-space-5);
+                    border-top: 1px solid var(--v2-border-subtle);
+                    display: flex;
+                    justify-content: flex-end;
+                    gap: var(--v2-space-2);
+                }
+            </style>
+        `;
+        document.head.insertAdjacentHTML('beforeend', styles);
+    }
+    
+    // 保存回调
+    window._validationOnConfirm = onConfirm;
+}
+
+function closeValidationDialog() {
+    const dialog = document.getElementById('validation-dialog');
+    if (dialog) dialog.remove();
+}
+
+function confirmDownload() {
+    closeValidationDialog();
+    if (window._validationOnConfirm) {
+        window._validationOnConfirm();
     }
 }
 
