@@ -162,6 +162,15 @@ def create_app():
     except Exception as e:
         logger.error(f"⚠️ JWT 初始化失败: {e}")
 
+    # 🔥 注入版本号到模板
+    from web.version import UPLOADER_VERSION, UPLOADER_VERSION_NAME
+    @app.context_processor
+    def inject_version():
+        return dict(
+            uploader_version=UPLOADER_VERSION,
+            uploader_version_name=UPLOADER_VERSION_NAME
+        )
+
     # 🔥 禁用静态文件缓存（开发环境）
     @app.after_request
     def add_header(response):

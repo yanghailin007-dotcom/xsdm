@@ -669,14 +669,14 @@
     <!-- 推荐下载区 -->
     <div class="download-hero">
         <div class="download-hero-icon">💻</div>
-        <h2>💻 大文娱小说发布助手 v1.3.2</h2>
+        <h2>💻 大文娱小说发布助手 {{ uploader_version_name }}</h2>
         <p>全新的桌面端上传工具，支持多平台配置、可视化操作、智能风控策略。<br>
         无需复杂的环境配置，下载即可使用！</p>
         <button class="download-btn-large" onclick="downloadUploaderTool()">
             <span>⬇️</span> 立即下载上传工具
         </button>
         <div class="download-meta">
-            版本：v1.3.2 | 大小：约 72 MB | 支持：Windows 10/11
+            版本：{{ uploader_version_name }} | 大小：约 72 MB | 支持：Windows 10/11
         </div>
         <div class="download-security-note">
             <span class="note-icon">⚠️</span>
@@ -1358,7 +1358,7 @@ function downloadUploaderTool() {
     link.click();
     document.body.removeChild(link);
     
-    showToast('开始下载上传工具 v1.3.2...', 'success');
+    showToast('开始下载上传工具 {{ uploader_version_name }}...', 'success');
     
     // 记录下载事件
     fetch('/api/analytics/download', {

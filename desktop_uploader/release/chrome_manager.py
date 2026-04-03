@@ -108,10 +108,9 @@ class ChromeManager:
                     progress_callback(0, "用户取消下载 Chrome")
                 return False
         else:
+            # GUI 模式下默认自动下载（通过回调确认）
             print(confirm_msg)
-            choice = input("是否下载? (Y/n): ").strip().lower()
-            if choice not in ('', 'y', 'yes'):
-                return False
+            print("自动下载 Chrome...")
         
         if progress_callback:
             progress_callback(0, "正在下载 Chrome for Testing（约 150MB）...")
