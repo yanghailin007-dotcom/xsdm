@@ -15,3 +15,6 @@ accounts/
 config.json
 accounts.json
 .dev_mode
+
+# Git filter-branch 临时文件
+.git-rewrite/
