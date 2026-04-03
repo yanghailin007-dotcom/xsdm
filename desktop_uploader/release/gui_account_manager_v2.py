@@ -142,6 +142,31 @@ class BrowserManager:
             print(f"❌ 删除实例失败: {e}")
             return False
     
+    def _find_chrome_executable(self) -> str:
+        """查找 Chrome 可执行文件路径（支持 PyInstaller 打包环境）"""
+        import sys
+        import os
+        
+        # 可能的 Chrome 路径
+        possible_paths = [
+            # Windows 默认安装路径
+            r"C:\Program Files\Google\Chrome\Application\chrome.exe",
+            r"C:\Program Files (x86)\Google\Chrome\Application\chrome.exe",
+            # Edge
+            r"C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe",
+            r"C:\Program Files\Microsoft\Edge\Application\msedge.exe",
+            # 用户目录
+            os.path.expandvars(r"%LOCALAPPDATA%\Google\Chrome\Application\chrome.exe"),
+            os.path.expandvars(r"%LOCALAPPDATA%\Microsoft\Edge\Application\msedge.exe"),
+        ]
+        
+        for path in possible_paths:
+            if os.path.exists(path):
+                print(f"✅ 找到浏览器: {path}")
+                return path
+        
+        return None
+    
     def start_instance(self, username: str, headless: bool = False) -> bool:
         """启动浏览器实例"""
         from playwright.sync_api import sync_playwright
@@ -163,17 +188,29 @@ class BrowserManager:
             if not self.playwright:
                 self.playwright = sync_playwright().start()
             
+            # 查找 Chrome 可执行文件
+            chrome_path = self._find_chrome_executable()
+            
             # 启动持久化浏览器
-            browser = self.playwright.chromium.launch_persistent_context(
-                user_data_dir=str(instance.chrome_data_dir),
-                headless=headless,
-                args=[
+            launch_args = {
+                'user_data_dir': str(instance.chrome_data_dir),
+                'headless': headless,
+                'args': [
                     f'--remote-debugging-port={instance.debug_port}',
                     '--no-sandbox',
                     '--disable-dev-shm-usage',
                     '--disable-blink-features=AutomationControlled'
                 ]
-            )
+            }
+            
+            # 如果找到系统 Chrome，使用它
+            if chrome_path:
+                launch_args['executable_path'] = chrome_path
+                print(f"🚀 使用系统浏览器启动: {username}")
+            else:
+                print(f"🚀 使用 Playwright 内置浏览器启动: {username}")
+            
+            browser = self.playwright.chromium.launch_persistent_context(**launch_args)
             
             # 创建新页面
             page = browser.new_page()
