@@ -622,6 +622,142 @@ def register_fanqie_routes(app):
             logger.error(f"❌ 获取小说列表失败: {e}")
             return jsonify({"success": False, "error": str(e)}), 500
     
+    @app.route('/api/fanqie-upload/config', methods=['GET'])
+    def get_fanqie_upload_config():
+        """获取番茄上传配置 - 结合项目配置和上传参数"""
+        try:
+            project_id = request.args.get('project_id')
+            if not project_id:
+                return jsonify({"success": False, "error": "缺少project_id参数"}), 400
+            
+            # 加载项目配置（如果存在）
+            from pathlib import Path
+            import json
+            
+            project_dir = Path("小说项目") / project_id
+            project_config = {}
+            
+            # 尝试读取项目配置
+            config_files = [
+                project_dir / "project_config.json",
+                project_dir / "config.json",
+                project_dir / "novel_info.json"
+            ]
+            for cf in config_files:
+                if cf.exists():
+                    try:
+                        with open(cf, 'r', encoding='utf-8') as f:
+                            project_config = json.load(f)
+                        break
+                    except:
+                        pass
+            
+            # 计算章节数据
+            chapters_dir = project_dir / "chapters"
+            chapter_files = sorted(chapters_dir.glob("chapter_*.json")) if chapters_dir.exists() else []
+            total_chapters = len(chapter_files)
+            total_words = 0
+            chapter_list = []
+            
+            for cf in chapter_files:
+                try:
+                    with open(cf, 'r', encoding='utf-8') as f:
+                        ch = json.load(f)
+                        chapter_list.append({
+                            "number": ch.get('chapter_number', 0),
+                            "title": ch.get('title', ''),
+                            "word_count": ch.get('word_count', 0)
+                        })
+                        total_words += ch.get('word_count', 0)
+                except:
+                    pass
+            
+            # 构建上传配置（默认符合番茄签约要求：20章 6万字）
+            config = {
+                "project_id": project_id,
+                "project_name": project_config.get('title', project_id),
+                "total_chapters": total_chapters,
+                "total_words": total_words,
+                # 首次发布配置
+                "first_publish": {
+                    "chapter_count": min(20, total_chapters),  # 首次发布20章（番茄签约要求）
+                    "word_count": 60000,
+                    "publish_immediately": True
+                },
+                # 每日发布配置
+                "daily_publish": {
+                    "chapter_count": 2,  # 默认每天2章
+                    "interval_minutes": 30,  # 章节间隔30分钟
+                    "publish_time": "09:00"  # 默认上午9点发布
+                },
+                # 高级配置
+                "advanced": {
+                    "skip_published": True,  # 跳过已发布章节
+                    "check_duplicate": True,  # 检查重复
+                    "retry_on_failure": 3,  # 失败重试3次
+                    "publish_mode": "immediate"  # 立即发布
+                },
+                # 章节列表（供工具使用）
+                "chapters": chapter_list
+            }
+            
+            return jsonify({"success": True, "data": config})
+        except Exception as e:
+            logger.error(f"❌ 获取上传配置失败: {e}")
+            return jsonify({"success": False, "error": str(e)}), 500
+    
+    @app.route('/api/fanqie-upload/project-data', methods=['GET'])
+    def get_fanqie_project_data():
+        """下载项目数据ZIP包"""
+        try:
+            from flask import send_file
+            import zipfile
+            import io
+            from pathlib import Path
+            import json
+            
+            project_id = request.args.get('project_id')
+            if not project_id:
+                return jsonify({"success": False, "error": "缺少project_id参数"}), 400
+            
+            project_dir = Path("小说项目") / project_id
+            if not project_dir.exists():
+                return jsonify({"success": False, "error": "项目不存在"}), 404
+            
+            # 创建ZIP文件
+            memory_file = io.BytesIO()
+            with zipfile.ZipFile(memory_file, 'w', zipfile.ZIP_DEFLATED) as zf:
+                # 添加章节文件
+                chapters_dir = project_dir / "chapters"
+                if chapters_dir.exists():
+                    for chapter_file in chapters_dir.glob("chapter_*.json"):
+                        zf.write(chapter_file, f"chapters/{chapter_file.name}")
+                
+                # 添加项目配置
+                for config_file in ["project_config.json", "config.json", "novel_info.json"]:
+                    cf = project_dir / config_file
+                    if cf.exists():
+                        zf.write(cf, config_file)
+                        break
+                
+                # 添加封面（如果存在）
+                for cover in ["cover.png", "cover.jpg", "cover.jpeg"]:
+                    cover_path = project_dir / cover
+                    if cover_path.exists():
+                        zf.write(cover_path, cover)
+                        break
+            
+            memory_file.seek(0)
+            return send_file(
+                memory_file,
+                mimetype='application/zip',
+                as_attachment=True,
+                download_name=f"{project_id}_project_data.zip"
+            )
+        except Exception as e:
+            logger.error(f"❌ 打包项目数据失败: {e}")
+            return jsonify({"success": False, "error": str(e)}), 500
+    
     @app.route('/api/fanqie/upload/check-prerequisites', methods=['GET'])
     def check_fanqie_upload_prerequisites():
         """检查番茄上传前提条件 - 手动浏览器模式"""
