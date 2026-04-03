@@ -908,6 +908,19 @@
                     </select>
                 </div>
 
+                <!-- AI供应商选择 -->
+                <div class="form-group">
+                    <label class="form-label">🤖 AI供应商</label>
+                    <select id="provider" class="form-select">
+                        <option value="doubao">🌶️ 豆包 (DouBao) - 推荐，速度快</option>
+                        <option value="nanobanana">🍌 NanoBanana Pro (Gemini) - 质量高，支持多比例</option>
+                    </select>
+                    <span style="font-size: 12px; color: #6b7280; margin-top: 4px; display: block;">
+                        <span id="provider-hint-doubao">豆包：国内服务，生成速度快</span>
+                        <span id="provider-hint-nanobanana" style="display:none;">NanoBanana：基于Gemini，支持1K/2K/4K分辨率，4K较慢</span>
+                    </span>
+                </div>
+
                 <!-- 配色方案 -->
                 <div class="form-group">
                     <label class="form-label" data-i18n="coverMaker.settings.colorScheme">配色方案</label>
@@ -1149,6 +1162,18 @@
                 this.classList.add('selected');
             });
         });
+
+        // 供应商选择切换提示
+        const providerSelect = document.getElementById('provider');
+        if (providerSelect) {
+            providerSelect.addEventListener('change', function() {
+                const provider = this.value;
+                document.getElementById('provider-hint-doubao').style.display = 
+                    provider === 'doubao' ? 'inline' : 'none';
+                document.getElementById('provider-hint-nanobanana').style.display = 
+                    provider === 'nanobanana' ? 'inline' : 'none';
+            });
+        }
     }
 
     // 加载小说列表
@@ -1560,7 +1585,8 @@
             custom_prompt: finalPrompt,
             generation_count: parseInt(document.getElementById('generation-count').value),
             image_size: document.getElementById('image-size').value,
-            add_watermark: document.getElementById('add-watermark').checked
+            add_watermark: document.getElementById('add-watermark').checked,
+            provider: document.getElementById('provider').value  // AI供应商
         };
 
         try {

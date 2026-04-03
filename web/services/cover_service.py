@@ -10,16 +10,21 @@ from typing import Dict, Any, List
 
 from web.web_config import logger, BASE_DIR
 from src.utils.DouBaoImageGenerator import DouBaoImageGenerator
+from src.utils.NanoBananaProGenerator import NanoBananaProGenerator
 
 
 class CoverService:
-    """封面生成服务"""
+    """封面生成服务 - 支持多供应商"""
     
     def __init__(self):
-        self.generator = DouBaoImageGenerator()
+        self.generators = {
+            'doubao': DouBaoImageGenerator(),
+            'nanobanana': NanoBananaProGenerator()
+        }
+        self.default_provider = 'doubao'
     
     def generate_cover(self, data: Dict[str, Any]) -> Dict[str, Any]:
-        """生成小说封面"""
+        """生成小说封面 - 支持多供应商"""
         try:
             # 验证必需参数
             required_fields = ['novel_title', 'custom_prompt']
@@ -29,6 +34,20 @@ class CoverService:
                         "success": False,
                         "error": f"缺少必需参数: {field}"
                     }
+            
+            # 获取供应商配置
+            provider = data.get('provider', self.default_provider)
+            if provider not in self.generators:
+                provider = self.default_provider
+            
+            generator = self.generators[provider]
+            
+            # 验证供应商配置
+            if hasattr(generator, 'validate_config') and not generator.validate_config():
+                return {
+                    "success": False,
+                    "error": f"{provider} 供应商未正确配置 API Key"
+                }
             
             # 构建最终的提示词
             final_prompt = self.build_final_prompt(data)
@@ -51,7 +70,7 @@ class CoverService:
                 except Exception:
                     username = 'anonymous'
             
-            logger.info(f"🎨 开始生成封面: {novel_title}, 用户: {username}")
+            logger.info(f"🎨 开始生成封面: {novel_title}, 用户: {username}, 供应商: {provider}")
             logger.info(f"📝 提示词长度: {len(final_prompt)} 字符")
             
             # 创建用户隔离的小说专用目录: generated_images/username/safe_title
@@ -69,13 +88,23 @@ class CoverService:
                     filename = f"{safe_title}_封面_{timestamp}_{i+1}.jpg"
                     save_path = os.path.join(novel_cover_dir, filename)
                     
-                    # 生成单张图片，指定保存路径
-                    result = self.generator.generate_image(
-                        prompt=final_prompt,
-                        size=image_size,
-                        watermark=add_watermark,
-                        save_path=save_path
-                    )
+                    # 根据不同供应商调用不同参数
+                    if provider == 'nanobanana':
+                        # NanoBanana Pro 使用 3:4 比例（适合书籍封面）
+                        result = generator.generate_image(
+                            prompt=final_prompt,
+                            size=image_size,
+                            save_path=save_path,
+                            aspect_ratio="3:4"
+                        )
+                    else:
+                        # 豆包使用原有参数
+                        result = generator.generate_image(
+                            prompt=final_prompt,
+                            size=image_size,
+                            watermark=add_watermark,
+                            save_path=save_path
+                        )
                     
                     if result and 'local_path' in result:
                         # 构建正确的图片URL路径（包含小说子目录）
@@ -91,7 +120,8 @@ class CoverService:
                             "prompt": final_prompt,
                             "index": i + 1,
                             "novel_title": novel_title,  # 添加小说标题信息
-                            "author_name": data.get('author_name', '北莽王庭的达延')
+                            "author_name": data.get('author_name', '北莽王庭的达延'),
+                            "provider": provider  # 添加供应商信息
                         }
                         generated_images.append(image_info)
                         logger.info(f"✅ 第 {i+1} 张封面生成成功: {result['local_path']}")
