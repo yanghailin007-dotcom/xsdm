@@ -1088,9 +1088,14 @@ class MainWindow(QMainWindow):
             ]
             
             help_msg = (
-                "未找到任何项目。请将小说项目放置在以下目录之一：\n"
-                f"📁 1. {expected_dirs[0]}\n"
-                f"📁 2. {expected_dirs[1]}\n\n"
+                "未找到任何项目。\n\n"
+                "📝 使用步骤：\n"
+                "1. 返回网页 https://xsdm.cainiao.cool/pages/v2/fanqie-upload-v2\n"
+                "2. 选择要上传的小说项目\n"
+                "3. 点击「下载配置」和「下载数据」\n"
+                "4. 把下载的文件解压到以下目录之一：\n\n"
+                f"📁 {expected_dirs[0]}\n"
+                f"📁 {expected_dirs[1]}\n\n"
                 "项目结构应为：小说项目/小说名称/chapters/chapter_XXX.json"
             )
             self.log(help_msg, "warning")
