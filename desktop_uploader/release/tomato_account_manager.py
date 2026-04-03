@@ -41,11 +41,25 @@ class TomatoAccountManager:
     PORT_START = 10001
     PORT_END = 10100
     
-    def __init__(self, base_dir: str = "browser_data/tomato_accounts", app_dir: Path = None):
-        # 支持传入应用目录（兼容打包环境）
-        self.app_dir = app_dir or get_app_dir()
-        self.base_dir = self.app_dir / base_dir
-        self.base_dir.mkdir(parents=True, exist_ok=True)
+    def __init__(self, data_dir: Path = None):
+        """
+        初始化
+        
+        Args:
+            data_dir: 统一数据目录，默认为 NovelPublisher_Data
+        """
+        if data_dir:
+            self.data_dir = data_dir
+        else:
+            # 默认在程序目录下创建 NovelPublisher_Data
+            app_dir = get_app_dir()
+            self.data_dir = app_dir / "NovelPublisher_Data"
+        
+        self.data_dir.mkdir(exist_ok=True)
+        
+        # 番茄账户数据存放在 data_dir/tomato_accounts/
+        self.base_dir = self.data_dir / "tomato_accounts"
+        self.base_dir.mkdir(exist_ok=True)
         
         self.config_file = self.base_dir / "accounts.json"
         self.accounts: Dict[str, TomatoAccount] = {}
@@ -165,16 +179,30 @@ class ChromeLauncher:
     # Chrome 下载链接 (Chrome for Testing)
     CHROME_URL = "https://storage.googleapis.com/chrome-for-testing-public/120.0.6099.109/win64/chrome-win64.zip"
     
-    def __init__(self, app_dir: Path = None):
-        self.app_dir = app_dir or get_app_dir()
-        self.work_dir = self.app_dir
+    def __init__(self, data_dir: Path = None):
+        """
+        初始化
+        
+        Args:
+            data_dir: 统一数据目录，Chrome将下载到 data_dir/chrome/
+        """
+        if data_dir:
+            self.data_dir = data_dir
+        else:
+            app_dir = get_app_dir()
+            self.data_dir = app_dir / "NovelPublisher_Data"
+        
+        self.data_dir.mkdir(exist_ok=True)
+        
+        # Chrome 下载到 data_dir/chrome/
+        self.chrome_dir = self.data_dir / "chrome"
         self.chrome_path = self._find_chrome()
         self.is_downloading = False
     
     def _find_chrome(self) -> Optional[str]:
         """查找 Chrome"""
         # 检查下载目录
-        chrome_exe = self.work_dir / "chrome" / "chrome-win64" / "chrome.exe"
+        chrome_exe = self.chrome_dir / "chrome-win64" / "chrome.exe"
         if chrome_exe.exists():
             return str(chrome_exe)
         
@@ -200,9 +228,8 @@ class ChromeLauncher:
         
         self.is_downloading = True
         try:
-            chrome_dir = self.work_dir / "chrome"
-            chrome_dir.mkdir(exist_ok=True)
-            zip_path = chrome_dir / "chrome.zip"
+            self.chrome_dir.mkdir(exist_ok=True)
+            zip_path = self.chrome_dir / "chrome.zip"
             
             # 下载
             if progress_callback:
@@ -224,7 +251,7 @@ class ChromeLauncher:
             
             # 解压
             with zipfile.ZipFile(zip_path, 'r') as zf:
-                zf.extractall(chrome_dir)
+                zf.extractall(self.chrome_dir)
             
             # 删除zip
             zip_path.unlink(missing_ok=True)
@@ -270,7 +297,13 @@ class ChromeLauncher:
 
 # 测试代码
 if __name__ == "__main__":
-    mgr = TomatoAccountManager()
+    # 测试数据目录
+    data_dir = Path(__file__).parent / "NovelPublisher_Data"
+    data_dir.mkdir(exist_ok=True)
+    
+    print(f"数据目录: {data_dir}")
+    
+    mgr = TomatoAccountManager(data_dir=data_dir)
     
     # 添加测试账户
     acc = mgr.add_account("作者张三")
@@ -281,3 +314,9 @@ if __name__ == "__main__":
     print("\n所有账户:")
     for a in mgr.get_all_accounts():
         print(f"  - {a.name} ({a.id}): port={a.port}, status={a.status}")
+    
+    # 测试 ChromeLauncher
+    launcher = ChromeLauncher(data_dir=data_dir)
+    print(f"\nChrome 可用: {launcher.is_available()}")
+    if launcher.chrome_path:
+        print(f"Chrome 路径: {launcher.chrome_path}")

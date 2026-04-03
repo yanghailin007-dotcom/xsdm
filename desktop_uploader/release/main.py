@@ -24,6 +24,15 @@ def get_app_dir() -> Path:
 
 APP_DIR = get_app_dir()
 
+# 统一数据目录
+def get_data_dir() -> Path:
+    """获取统一数据目录"""
+    data_dir = APP_DIR / "NovelPublisher_Data"
+    data_dir.mkdir(exist_ok=True)
+    return data_dir
+
+DATA_DIR = get_data_dir()
+
 from PyQt5.QtWidgets import (
     QApplication, QMainWindow, QWidget, QVBoxLayout, QHBoxLayout,
     QLabel, QPushButton, QComboBox, QListWidget, QListWidgetItem,
@@ -418,8 +427,8 @@ class MainWindow(QMainWindow):
         
         # 数据
         self.website_user = None
-        self.tomato_manager = TomatoAccountManager(app_dir=APP_DIR)
-        self.chrome_launcher = ChromeLauncher(app_dir=APP_DIR)
+        self.tomato_manager = TomatoAccountManager(data_dir=DATA_DIR)
+        self.chrome_launcher = ChromeLauncher(data_dir=DATA_DIR)
         self.current_project = None
         self.chapters = []
         self.upload_worker = None
@@ -441,7 +450,7 @@ class MainWindow(QMainWindow):
     
     def check_saved_login(self) -> bool:
         """检查是否有保存的登录"""
-        token_file = APP_DIR / "website_token.json"
+        token_file = DATA_DIR / "website_token.json"
         if token_file.exists():
             try:
                 data = json.loads(token_file.read_text(encoding='utf-8'))
@@ -462,7 +471,7 @@ class MainWindow(QMainWindow):
         """登录成功"""
         self.website_user = user_data
         # 保存token
-        token_file = APP_DIR / "website_token.json"
+        token_file = DATA_DIR / "website_token.json"
         token_file.write_text(json.dumps(user_data, indent=2), encoding='utf-8')
         self.update_title()
     
