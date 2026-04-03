@@ -832,7 +832,8 @@ function showValidationDialog(validation, isBlocking, onConfirm) {
                 </div>
                 <div class="validation-footer">
                     ${isBlocking 
-                        ? `<button class="v2-btn v2-btn--primary" onclick="closeValidationDialog()">我知道了，去修复</button>` 
+                        ? `<button class="v2-btn v2-btn--secondary" onclick="closeValidationDialog()">稍后处理</button>
+                           <a href="/project-management" class="v2-btn v2-btn--primary" onclick="closeValidationDialog()">去项目管理修复</a>` 
                         : `<button class="v2-btn v2-btn--secondary" onclick="closeValidationDialog()">取消</button>
                            <button class="v2-btn v2-btn--primary" onclick="confirmDownload()">仍要下载</button>`
                     }

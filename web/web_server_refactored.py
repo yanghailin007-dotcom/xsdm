@@ -757,14 +757,14 @@ def register_fanqie_routes(app):
             if not category:
                 warnings.append("缺少分类：建议设置书籍分类，便于读者查找")
             
-            # 5. 检查封面
+            # 5. 检查封面（改为警告，不阻止下载）
             cover_exists = False
             for cover_name in ["cover.png", "cover.jpg", "cover.jpeg"]:
                 if (project_dir / cover_name).exists():
                     cover_exists = True
                     break
             if not cover_exists:
-                errors.append("缺少封面：请上传书籍封面图片（cover.png/jpg/jpeg）")
+                warnings.append("缺少封面：建议上传书籍封面图片（cover.png/jpg/jpeg），会影响点击率")
             
             # 6. 检查章节
             chapters_dir = project_dir / "chapters"
