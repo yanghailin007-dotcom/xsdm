@@ -1278,6 +1278,11 @@ class MainWindow(QMainWindow):
                 print(f"加载章节失败 {ch_file}: {e}")
         
         self.chapters_stats.setText(f"共 {len(self.chapters)} 个章节")
+        
+        # 自动全选所有章节
+        if self.chapters:
+            self.chapters_list.selectAll()
+            self.chapters_stats.setText(f"共 {len(self.chapters)} 个章节，已全选")
     
     def select_all_chapters(self):
         """全选"""
@@ -1327,10 +1332,21 @@ class MainWindow(QMainWindow):
             'stop_on_error': self.stop_on_error.isChecked()
         }
         
-        # 获取书名
+        # 获取书名 - 优先从项目配置获取
         novel_title = "未知书名"
+        
+        # 尝试从当前选中的项目获取书名
+        proj_idx = self.project_combo.currentIndex()
+        if proj_idx >= 0:
+            proj_data = self.project_combo.itemData(proj_idx)
+            if isinstance(proj_data, dict):
+                novel_title = proj_data.get('proj_name', novel_title)
+        
+        # 如果章节数据中有书名，优先使用
         if chapters:
-            novel_title = chapters[0].get('novel_title', novel_title)
+            ch_title = chapters[0].get('novel_title') or chapters[0].get('book_title')
+            if ch_title:
+                novel_title = ch_title
         
         # 启动上传线程
         self.upload_worker = UploadWorker(novel_title, chapters, settings, acc)

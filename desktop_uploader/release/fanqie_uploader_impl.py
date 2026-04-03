@@ -83,12 +83,53 @@ class FanqieUploaderImpl:
         """检查登录状态"""
         try:
             self._progress(25, "检查登录状态...")
-            self.page.goto("https://fanqienovel.com/main/writer/book-manage", timeout=30000)
-            time.sleep(3)
             
-            if self.page.url.startswith("https://fanqienovel.com/login"):
-                self._log("未登录番茄小说，请在 Chrome 中登录", "warning")
+            # 先访问首页检查登录状态
+            self.page.goto("https://fanqienovel.com", timeout=30000)
+            time.sleep(2)
+            
+            # 检查是否有登录按钮或用户头像
+            # 方法1: 检查URL是否跳转到登录页
+            current_url = self.page.url
+            if "login" in current_url.lower():
+                self._log("未登录番茄小说（跳转到登录页），请在 Chrome 中登录", "warning")
                 return False
+            
+            # 方法2: 检查页面中是否有登录按钮
+            try:
+                login_button = self.page.locator('a[href*="login"], .login-btn, [data-e2e="login-button"]').first
+                if login_button.is_visible(timeout=3000):
+                    self._log("未登录番茄小说（发现登录按钮），请在 Chrome 中登录", "warning")
+                    return False
+            except:
+                pass
+            
+            # 方法3: 检查是否有用户头像或用户名
+            try:
+                user_avatar = self.page.locator('.avatar, .user-avatar, [data-e2e="user-avatar"]').first
+                if not user_avatar.is_visible(timeout=3000):
+                    # 没有头像，可能未登录，再尝试访问作者后台确认
+                    pass
+            except:
+                pass
+            
+            # 方法4: 尝试访问作者后台确认
+            self.page.goto("https://fanqienovel.com/main/writer/book-manage", timeout=30000)
+            time.sleep(2)
+            
+            current_url = self.page.url
+            if "login" in current_url.lower():
+                self._log("未登录番茄小说（访问后台被拦截），请在 Chrome 中登录", "warning")
+                return False
+            
+            # 检查是否有"创建作品"或"书籍管理"等元素
+            try:
+                writer_elements = self.page.locator('.writer-page, .book-manage, [data-e2e="writer-page"]').first
+                if not writer_elements.is_visible(timeout=3000):
+                    self._log("可能未登录或页面加载异常，请在 Chrome 中确认登录状态", "warning")
+                    # 不直接返回False，让上层决定是否需要等待登录
+            except:
+                pass
             
             self._progress(30, "已登录番茄小说")
             return True
