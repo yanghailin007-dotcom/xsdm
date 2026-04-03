@@ -831,11 +831,48 @@ class MainWindow(QMainWindow):
         
         # 检查 Chrome
         if not self.chrome_launcher.is_available():
-            self.log("❌ Chrome 未安装，正在尝试自动下载...", "warning")
-            # 这里可以添加下载逻辑
-            QMessageBox.warning(self, "错误", "Chrome 未安装，请先运行 Chrome 下载器")
+            self.log("⚠️ Chrome 未安装，需要自动下载 (~150MB)", "warning")
+            
+            reply = QMessageBox.question(
+                self, "下载 Chrome",
+                "首次使用需要下载 Chrome 浏览器（约 150MB）\n\n是否立即下载？",
+                QMessageBox.Yes | QMessageBox.No
+            )
+            
+            if reply == QMessageBox.Yes:
+                self.log("🚀 开始下载 Chrome...", "info")
+                self.status_bar.setText("正在下载 Chrome...")
+                
+                # 禁用按钮
+                if account_id in self.account_cards:
+                    self.account_cards[account_id].action_btn.setEnabled(False)
+                
+                def on_progress(percent, message):
+                    self.progress_bar.setValue(percent)
+                    self.status_label.setText(message)
+                    self.log(f"📥 {message}", "info")
+                
+                def on_finished(success, message):
+                    if account_id in self.account_cards:
+                        self.account_cards[account_id].action_btn.setEnabled(True)
+                    
+                    if success:
+                        self.log(f"✅ {message}", "success")
+                        self.status_bar.setText("Chrome 安装完成")
+                        # 重新尝试启动
+                        self._do_launch_browser(account_id, acc)
+                    else:
+                        self.log(f"❌ {message}", "error")
+                        self.status_bar.setText("Chrome 下载失败")
+                        QMessageBox.critical(self, "错误", f"下载 Chrome 失败: {message}")
+                
+                self.chrome_launcher.download_chrome(on_progress, on_finished)
             return
         
+        self._do_launch_browser(account_id, acc)
+    
+    def _do_launch_browser(self, account_id: str, acc):
+        """实际启动浏览器"""
         data_dir = self.tomato_manager.get_data_dir(account_id)
         
         if self.chrome_launcher.launch(acc.port, data_dir):
@@ -912,8 +949,89 @@ class MainWindow(QMainWindow):
     
     def select_project_directory(self):
         """选择项目目录"""
-        # 简化为刷新列表
-        self.load_projects()
+        dir_path = QFileDialog.getExistingDirectory(
+            self, "选择项目目录", str(Path.cwd() / "小说项目"),
+            QFileDialog.ShowDirsOnly
+        )
+        
+        if not dir_path:
+            return
+        
+        path = Path(dir_path)
+        
+        # 检查是否是有效的项目目录（包含 project_config.json）
+        config_file = path / "project_config.json"
+        if config_file.exists():
+            # 直接加载这个项目
+            self.load_single_project(path)
+        else:
+            # 尝试作为用户目录，扫描其中的项目
+            parent = path.parent
+            if (parent / "project_config.json").exists():
+                # 用户在项目目录内，找到父项目
+                self.load_single_project(parent)
+            else:
+                # 扫描目录下的所有项目
+                count = self.scan_directory_for_projects(path)
+                if count == 0:
+                    QMessageBox.information(
+                        self, "提示", 
+                        f"在选定目录中未找到项目配置文件\n\n"
+                        f"已自动刷新默认项目列表。\n\n"
+                        f"提示: 项目目录应包含 project_config.json 文件"
+                    )
+                    self.load_projects()
+    
+    def load_single_project(self, project_path: Path):
+        """加载单个项目"""
+        try:
+            config_file = project_path / "project_config.json"
+            if not config_file.exists():
+                return
+            
+            config = json.loads(config_file.read_text(encoding='utf-8'))
+            username = config.get('username', project_path.parent.name)
+            proj_name = config.get('project_name', project_path.name)
+            
+            # 添加到下拉框
+            display = f"{username} / {proj_name}"
+            
+            # 检查是否已存在
+            existing_idx = -1
+            for i in range(self.project_combo.count()):
+                if self.project_combo.itemData(i) == (username, proj_name):
+                    existing_idx = i
+                    break
+            
+            if existing_idx >= 0:
+                self.project_combo.setCurrentIndex(existing_idx)
+            else:
+                self.project_combo.addItem(display, (username, proj_name))
+                self.project_combo.setCurrentIndex(self.project_combo.count() - 1)
+            
+            self.log(f"📁 已加载项目: {proj_name}", "success")
+            
+        except Exception as e:
+            QMessageBox.warning(self, "错误", f"加载项目失败: {e}")
+    
+    def scan_directory_for_projects(self, base_dir: Path) -> int:
+        """扫描目录中的所有项目"""
+        count = 0
+        
+        # 检查当前目录是否是项目
+        if (base_dir / "project_config.json").exists():
+            self.load_single_project(base_dir)
+            count += 1
+        
+        # 递归扫描子目录
+        for subdir in base_dir.rglob("project_config.json"):
+            self.load_single_project(subdir.parent)
+            count += 1
+        
+        if count > 0:
+            self.log(f"📁 扫描到 {count} 个项目", "success")
+        
+        return count
     
     def on_project_changed(self, index):
         """项目变更"""

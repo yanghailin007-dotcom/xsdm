@@ -148,15 +148,18 @@ class TomatoAccountManager:
 class ChromeLauncher:
     """Chrome 启动器 - 使用 subprocess"""
     
+    # Chrome 下载链接 (Chrome for Testing)
+    CHROME_URL = "https://storage.googleapis.com/chrome-for-testing-public/120.0.6099.109/win64/chrome-win64.zip"
+    
     def __init__(self):
+        self.work_dir = Path(__file__).parent
         self.chrome_path = self._find_chrome()
+        self.is_downloading = False
     
     def _find_chrome(self) -> Optional[str]:
         """查找 Chrome"""
-        work_dir = Path(__file__).parent
-        
         # 检查下载目录
-        chrome_exe = work_dir / "chrome" / "chrome-win64" / "chrome.exe"
+        chrome_exe = self.work_dir / "chrome" / "chrome-win64" / "chrome.exe"
         if chrome_exe.exists():
             return str(chrome_exe)
         
@@ -175,6 +178,66 @@ class ChromeLauncher:
         """Chrome 是否可用"""
         return self.chrome_path is not None
     
+    def download_chrome(self, progress_callback=None, finished_callback=None):
+        """下载 Chrome（在后台线程中执行）"""
+        import threading
+        import urllib.request
+        import zipfile
+        
+        def do_download():
+            self.is_downloading = True
+            try:
+                chrome_dir = self.work_dir / "chrome"
+                chrome_dir.mkdir(exist_ok=True)
+                zip_path = chrome_dir / "chrome.zip"
+                
+                # 下载
+                if progress_callback:
+                    progress_callback(10, "开始下载 Chrome...")
+                
+                def download_progress(block_num, block_size, total_size):
+                    if total_size > 0 and progress_callback:
+                        percent = min(90, int(block_num * block_size / total_size * 80) + 10)
+                        progress_callback(percent, f"下载中... {percent}%")
+                
+                urllib.request.urlretrieve(
+                    self.CHROME_URL, 
+                    zip_path,
+                    reporthook=download_progress
+                )
+                
+                if progress_callback:
+                    progress_callback(90, "下载完成，正在解压...")
+                
+                # 解压
+                with zipfile.ZipFile(zip_path, 'r') as zf:
+                    zf.extractall(chrome_dir)
+                
+                # 删除zip
+                zip_path.unlink(missing_ok=True)
+                
+                # 更新路径
+                self.chrome_path = self._find_chrome()
+                
+                if progress_callback:
+                    progress_callback(100, "Chrome 安装完成")
+                
+                if finished_callback:
+                    finished_callback(True, "Chrome 安装成功")
+                    
+            except Exception as e:
+                if progress_callback:
+                    progress_callback(0, f"下载失败: {e}")
+                if finished_callback:
+                    finished_callback(False, str(e))
+            finally:
+                self.is_downloading = False
+        
+        # 启动后台线程下载
+        thread = threading.Thread(target=do_download, daemon=True)
+        thread.start()
+        return thread
+    
     def launch(self, port: int, data_dir: Path, url: str = "https://fanqienovel.com") -> bool:
         """启动 Chrome"""
         if not self.chrome_path:
@@ -187,6 +250,7 @@ class ChromeLauncher:
                 f"--user-data-dir={data_dir}",
                 "--no-first-run",
                 "--no-default-browser-check",
+                "--no-sandbox",
                 url
             ]
             
