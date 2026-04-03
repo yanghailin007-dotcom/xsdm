@@ -702,8 +702,13 @@ def register_fanqie_routes(app):
                 try:
                     with open(info_file, 'r', encoding='utf-8') as f:
                         project_config = json.load(f)
-                        # 优先使用 fanqie_upload_data 中的数据
+                        # 优先使用 fanqie_upload_data 中的数据（支持嵌套路径）
                         fanqie_data = project_config.get('fanqie_upload_data', {})
+                        # 如果根级别没有，尝试从 generation_metadata.mode_specific.info 读取
+                        if not fanqie_data:
+                            mode_specific = project_config.get('generation_metadata', {}).get('mode_specific', {})
+                            info_data = mode_specific.get('info', {})
+                            fanqie_data = info_data.get('fanqie_upload_data', {})
                 except Exception as e:
                     logger.warning(f"读取 project_info.json 失败: {e}")
             
@@ -1106,7 +1111,13 @@ def register_fanqie_routes(app):
                 try:
                     with open(info_file, 'r', encoding='utf-8') as f:
                         project_data = json.load(f)
+                        # 尝试从根级别读取
                         fanqie_data = project_data.get('fanqie_upload_data', {})
+                        # 如果根级别没有，尝试从嵌套路径读取
+                        if not fanqie_data:
+                            mode_specific = project_data.get('generation_metadata', {}).get('mode_specific', {})
+                            info_nested = mode_specific.get('info', {})
+                            fanqie_data = info_nested.get('fanqie_upload_data', {})
                 except:
                     pass
             
@@ -1120,8 +1131,17 @@ def register_fanqie_routes(app):
             fanqie_data['tags']['main_category'] = category
             fanqie_data['tags']['themes'] = tags
             
-            # 更新 project_info.json
+            # 更新 project_info.json（根级别，用于后续读取兼容性）
             project_data['fanqie_upload_data'] = fanqie_data
+            
+            # 同时更新嵌套路径（如果存在）
+            if 'generation_metadata' in project_data:
+                if 'mode_specific' not in project_data['generation_metadata']:
+                    project_data['generation_metadata']['mode_specific'] = {}
+                if 'info' not in project_data['generation_metadata']['mode_specific']:
+                    project_data['generation_metadata']['mode_specific']['info'] = {}
+                project_data['generation_metadata']['mode_specific']['info']['fanqie_upload_data'] = fanqie_data
+            
             with open(info_file, 'w', encoding='utf-8') as f:
                 json.dump(project_data, f, ensure_ascii=False, indent=2)
             
