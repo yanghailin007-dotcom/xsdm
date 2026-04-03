@@ -676,6 +676,7 @@ def register_fanqie_routes(app):
             config = {
                 "project_id": project_id,
                 "project_name": project_config.get('title', project_id),
+                "description": project_config.get('description', ''),
                 "total_chapters": total_chapters,
                 "total_words": total_words,
                 # 首次发布配置
@@ -890,6 +891,65 @@ def register_fanqie_routes(app):
             )
         except Exception as e:
             logger.error(f"❌ 打包项目数据失败: {e}")
+            return jsonify({"success": False, "error": str(e)}), 500
+    
+    @app.route('/api/fanqie-upload/project-info', methods=['POST'])
+    def save_fanqie_project_info():
+        """保存项目基本信息（书名、简介）"""
+        try:
+            from pathlib import Path
+            import json
+            
+            data = request.get_json()
+            project_id = data.get('project_id')
+            title = data.get('title', '').strip()
+            description = data.get('description', '').strip()
+            
+            if not project_id:
+                return jsonify({"success": False, "error": "缺少project_id参数"}), 400
+            
+            if not title:
+                return jsonify({"success": False, "error": "书名不能为空"}), 400
+            
+            if len(title) > 15:
+                return jsonify({"success": False, "error": "书名不能超过15个字符"}), 400
+            
+            project_dir = Path("小说项目") / project_id
+            if not project_dir.exists():
+                return jsonify({"success": False, "error": "项目不存在"}), 404
+            
+            # 查找现有配置文件
+            config_file = None
+            for cf_name in ["project_config.json", "config.json", "novel_info.json"]:
+                cf = project_dir / cf_name
+                if cf.exists():
+                    config_file = cf
+                    break
+            
+            # 如果没有配置文件，创建一个默认的
+            if config_file is None:
+                config_file = project_dir / "project_config.json"
+                config_data = {}
+            else:
+                # 读取现有配置
+                try:
+                    with open(config_file, 'r', encoding='utf-8') as f:
+                        config_data = json.load(f)
+                except:
+                    config_data = {}
+            
+            # 更新书名和简介
+            config_data['title'] = title
+            config_data['description'] = description
+            
+            # 保存配置
+            with open(config_file, 'w', encoding='utf-8') as f:
+                json.dump(config_data, f, ensure_ascii=False, indent=2)
+            
+            logger.info(f"✅ 项目 {project_id} 信息已更新: 书名={title}")
+            return jsonify({"success": True, "message": "保存成功"})
+        except Exception as e:
+            logger.error(f"❌ 保存项目信息失败: {e}")
             return jsonify({"success": False, "error": str(e)}), 500
     
     @app.route('/api/fanqie/upload/check-prerequisites', methods=['GET'])

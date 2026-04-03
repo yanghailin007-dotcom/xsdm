@@ -403,6 +403,80 @@
         margin: 0;
     }
     
+    /* ===== 项目编辑区域 ===== */
+    .project-edit-section {
+        background: var(--v2-bg-tertiary);
+        border: 1px solid var(--v2-border-subtle);
+        border-radius: var(--v2-radius-lg);
+        padding: var(--v2-space-4);
+        margin-top: var(--v2-space-4);
+    }
+    
+    .edit-section-title {
+        font-size: 14px;
+        font-weight: 600;
+        color: var(--v2-text-primary);
+        margin: 0 0 var(--v2-space-3) 0;
+    }
+    
+    .edit-form {
+        display: flex;
+        flex-direction: column;
+        gap: var(--v2-space-3);
+    }
+    
+    .form-group {
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+    }
+    
+    .form-group label {
+        font-size: 13px;
+        font-weight: 500;
+        color: var(--v2-text-primary);
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+    
+    .char-count {
+        font-size: 11px;
+        color: var(--v2-text-muted);
+        font-weight: normal;
+    }
+    
+    .char-count.warning {
+        color: #ef4444;
+    }
+    
+    .edit-input,
+    .edit-textarea {
+        padding: 10px 12px;
+        border: 1px solid var(--v2-border-subtle);
+        border-radius: var(--v2-radius-md);
+        background: var(--v2-bg-primary);
+        color: var(--v2-text-primary);
+        font-size: 13px;
+        transition: border-color 0.2s ease;
+    }
+    
+    .edit-input:focus,
+    .edit-textarea:focus {
+        outline: none;
+        border-color: #6366f1;
+    }
+    
+    .edit-textarea {
+        resize: vertical;
+        min-height: 80px;
+    }
+    
+    .input-hint {
+        font-size: 11px;
+        color: var(--v2-text-muted);
+    }
+    
     /* ===== 加载状态 ===== */
     .loading-container {
         text-align: center;
@@ -552,6 +626,26 @@
             </div>
         </div>
         
+        <!-- 项目信息编辑区域 -->
+        <div id="project-edit-section" class="project-edit-section" style="display: none;">
+            <h4 class="edit-section-title">📝 编辑项目信息</h4>
+            <div class="edit-form">
+                <div class="form-group">
+                    <label for="edit-title">书名 <span class="char-count" id="title-count">0/15</span></label>
+                    <input type="text" id="edit-title" class="edit-input" placeholder="请输入书名（最多15个字）" maxlength="15">
+                    <span class="input-hint">番茄要求：15个字符以内</span>
+                </div>
+                <div class="form-group">
+                    <label for="edit-description">简介 <span class="char-count" id="desc-count">0</span></label>
+                    <textarea id="edit-description" class="edit-textarea" rows="4" placeholder="请输入书籍简介（建议50字以上，更有利于吸引读者）"></textarea>
+                    <span class="input-hint">建议至少50字以上</span>
+                </div>
+                <button class="v2-btn v2-btn--primary v2-btn--sm" onclick="saveProjectInfo()">
+                    💾 保存修改
+                </button>
+            </div>
+        </div>
+        
         <div class="info-tip">
             <p>
                 <strong>💡 使用提示：</strong>下载完成后，将配置文件和项目数据解压到上传工具目录中，
@@ -652,8 +746,117 @@ function selectProject(projectId) {
     document.getElementById('btn-download-config').disabled = false;
     document.getElementById('btn-download-project').disabled = false;
     
+    // 加载项目信息到编辑表单
+    loadProjectInfoToEditForm(projectId);
+    
     showToast(`已选择：${selectedProject.title}`, 'success');
 }
+
+/**
+ * 加载项目信息到编辑表单
+ */
+async function loadProjectInfoToEditForm(projectId) {
+    try {
+        const resp = await fetch(`/api/fanqie-upload/config?project_id=${projectId}`);
+        const result = await resp.json();
+        
+        if (result.success) {
+            const config = result.data;
+            document.getElementById('edit-title').value = config.project_name || '';
+            document.getElementById('edit-description').value = config.description || '';
+            
+            // 更新字符计数
+            updateCharCount('edit-title', 'title-count', 15);
+            updateCharCount('edit-description', 'desc-count');
+            
+            // 显示编辑区域
+            document.getElementById('project-edit-section').style.display = 'block';
+        }
+    } catch (e) {
+        console.error('加载项目信息失败:', e);
+    }
+}
+
+/**
+ * 更新字符计数
+ */
+function updateCharCount(inputId, countId, maxLength = null) {
+    const input = document.getElementById(inputId);
+    const count = document.getElementById(countId);
+    const length = input.value.length;
+    
+    if (maxLength) {
+        count.textContent = `${length}/${maxLength}`;
+        if (length > maxLength) {
+            count.classList.add('warning');
+        } else {
+            count.classList.remove('warning');
+        }
+    } else {
+        count.textContent = length;
+    }
+}
+
+/**
+ * 保存项目信息
+ */
+async function saveProjectInfo() {
+    if (!selectedProject) {
+        showToast('请先选择项目', 'warning');
+        return;
+    }
+    
+    const title = document.getElementById('edit-title').value.trim();
+    const description = document.getElementById('edit-description').value.trim();
+    
+    if (!title) {
+        showToast('书名不能为空', 'warning');
+        return;
+    }
+    
+    if (title.length > 15) {
+        showToast('书名不能超过15个字', 'warning');
+        return;
+    }
+    
+    try {
+        const resp = await fetch('/api/fanqie-upload/project-info', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                project_id: selectedProject.id,
+                title: title,
+                description: description
+            })
+        });
+        
+        const result = await resp.json();
+        
+        if (result.success) {
+            showToast('保存成功', 'success');
+            // 刷新项目列表显示新书名
+            loadProjects();
+        } else {
+            showToast('保存失败：' + result.error, 'error');
+        }
+    } catch (e) {
+        console.error('保存失败:', e);
+        showToast('保存失败，请重试', 'error');
+    }
+}
+
+// 绑定字符计数事件
+document.addEventListener('DOMContentLoaded', () => {
+    const titleInput = document.getElementById('edit-title');
+    const descInput = document.getElementById('edit-description');
+    
+    if (titleInput) {
+        titleInput.addEventListener('input', () => updateCharCount('edit-title', 'title-count', 15));
+    }
+    if (descInput) {
+        descInput.addEventListener('input', () => updateCharCount('edit-description', 'desc-count'));
+    }
+});
 
 /**
  * 下载上传工具
