@@ -552,6 +552,18 @@ class MainWindow(QMainWindow):
         add_btn.clicked.connect(self.add_tomato_account)
         accounts_layout.addWidget(add_btn)
         
+        # 💡 提示信息
+        hint_label = QLabel("💡 提示：每个账户有独立的浏览器数据，登录状态互不干扰")
+        hint_label.setStyleSheet("color: #757575; font-size: 12px; padding: 5px;")
+        hint_label.setWordWrap(True)
+        accounts_layout.addWidget(hint_label)
+        
+        # ⚠️ 重要提示
+        important_hint = QLabel("⚠️ 保留登录：直接关闭Chrome窗口(X)，不要点停止按钮")
+        important_hint.setStyleSheet("color: #E65100; font-size: 12px; padding: 5px; background-color: #FFF3E0; border-radius: 4px;")
+        important_hint.setWordWrap(True)
+        accounts_layout.addWidget(important_hint)
+        
         accounts_group.setLayout(accounts_layout)
         layout.addWidget(accounts_group)
         
@@ -748,11 +760,34 @@ class MainWindow(QMainWindow):
         guide_text.setReadOnly(True)
         guide_text.setHtml("""
         <h2>使用指南</h2>
+        
+        <h3>📁 数据目录结构</h3>
+        <pre style="background:#f5f5f5;padding:10px;border-radius:4px;">
+NovelPublisher_Data/              ← 统一数据目录
+├── chrome/                       ← Chrome程序（所有账户共用）
+│   └── chrome-win64/chrome.exe
+├── tomato_accounts/              ← 各账户数据（完全独立）
+│   ├── tomato_001/               ← 账户A的数据
+│   │   ├── Cookies               ← 独立的登录态
+│   │   ├── Local Storage/        ← 独立的本地存储
+│   │   └── ...
+│   ├── tomato_002/               ← 账户B的数据
+│   └── ...
+└── ...
+        </pre>
+        
         <h3>1. 添加番茄账户</h3>
-        <p>点击"➕ 添加番茄账户"，输入名称（如"作者张三"），创建独立的浏览器配置。</p>
+        <p>点击"➕ 添加番茄账户"，输入名称（如"作者张三"），创建<b>完全独立的浏览器配置</b>。</p>
+        <p>每个账户都有：</p>
+        <ul>
+            <li>独立的端口号（10001, 10002...）</li>
+            <li>独立的用户数据目录</li>
+            <li>独立的 Cookie 和登录状态</li>
+        </ul>
         
         <h3>2. 启动浏览器</h3>
         <p>点击账户卡片的"启动"按钮，会自动打开 Chrome 并跳转到番茄小说。</p>
+        <p>同一个 Chrome 程序，加载不同的用户数据。</p>
         
         <h3>3. 登录番茄</h3>
         <p>在打开的浏览器中登录番茄小说作者后台。</p>
@@ -765,17 +800,27 @@ class MainWindow(QMainWindow):
         
         <h3>⚠️ 重要：如何保留登录状态</h3>
         <ul>
-            <li><b>推荐</b>：直接关闭 Chrome 窗口（点击右上角的 X），下次启动会自动恢复登录状态</li>
-            <li><b>不推荐</b>：点击本软件的"停止"按钮（可能导致登录状态丢失）</li>
-            <li>每个番茄账户的登录状态保存在独立的数据目录中</li>
-            <li>只要不清理浏览器数据，登录状态可以长期保持</li>
+            <li><b style="color:green">✓ 推荐做法</b>：直接关闭 Chrome 窗口（点击右上角的 X）
+                <br>→ 下次点击"启动"会自动恢复登录状态</li>
+            <li><b style="color:red">✗ 不推荐</b>：点击本软件的"停止"按钮
+                <br>→ 强制关闭可能导致登录状态损坏</li>
+        </ul>
+        <p><b>原理</b>：Chrome 关闭时会自动保存用户数据（包括登录态），
+        强制终止可能导致数据写入不完整。</p>
+        
+        <h3>💡 多账户说明</h3>
+        <ul>
+            <li>可以创建多个番茄账户（如：作者A、作者B、作者C）</li>
+            <li>每个账户需要单独登录不同的番茄账号</li>
+            <li>账户之间的数据完全隔离，互不干扰</li>
+            <li>上传时必须选择其中一个账户</li>
         </ul>
         
-        <h3>注意事项</h3>
+        <h3>🛡️ 风控建议</h3>
         <ul>
-            <li>每个番茄账户有独立的浏览器数据，登录状态会保持</li>
-            <li>上传时请保持对应浏览器处于运行状态</li>
-            <li>建议设置3-8秒随机间隔，避免触发风控</li>
+            <li>建议设置3-8秒随机间隔，避免触发平台风控</li>
+            <li>每个账户的操作都是独立的浏览器环境</li>
+            <li>长期保持登录状态可减少频繁登录引起的风控</li>
         </ul>
         """)
         guide_layout.addWidget(guide_text)
