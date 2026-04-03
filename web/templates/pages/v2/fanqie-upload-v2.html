@@ -1621,11 +1621,57 @@ function escapeHtml(text) {
  * 显示提示
  */
 function showToast(message, type = 'info') {
-    if (window.showToast) {
-        window.showToast(message, type);
-    } else {
-        alert(message);
+    // 使用自定义的 toast 实现
+    const existingToast = document.querySelector('.custom-toast');
+    if (existingToast) {
+        existingToast.remove();
     }
+    
+    const toast = document.createElement('div');
+    toast.className = `custom-toast toast-${type}`;
+    toast.style.cssText = `
+        position: fixed;
+        top: 20px;
+        left: 50%;
+        transform: translateX(-50%);
+        padding: 12px 24px;
+        border-radius: 8px;
+        font-size: 14px;
+        font-weight: 500;
+        z-index: 10000;
+        animation: slideDown 0.3s ease;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+    `;
+    
+    const colors = {
+        success: 'background: #10b981; color: white;',
+        error: 'background: #ef4444; color: white;',
+        warning: 'background: #f59e0b; color: white;',
+        info: 'background: #3b82f6; color: white;'
+    };
+    toast.style.cssText += colors[type] || colors.info;
+    toast.textContent = message;
+    
+    document.body.appendChild(toast);
+    
+    setTimeout(() => {
+        toast.style.animation = 'slideUp 0.3s ease';
+        setTimeout(() => toast.remove(), 300);
+    }, 3000);
 }
+
+// 添加动画样式
+const toastStyles = document.createElement('style');
+toastStyles.textContent = `
+    @keyframes slideDown {
+        from { opacity: 0; transform: translateX(-50%) translateY(-20px); }
+        to { opacity: 1; transform: translateX(-50%) translateY(0); }
+    }
+    @keyframes slideUp {
+        from { opacity: 1; transform: translateX(-50%) translateY(0); }
+        to { opacity: 0; transform: translateX(-50%) translateY(-20px); }
+    }
+`;
+document.head.appendChild(toastStyles);
 </script>
 {% endblock %}
