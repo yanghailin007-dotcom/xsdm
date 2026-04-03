@@ -1163,7 +1163,7 @@ class MainWindow(QMainWindow):
         return selected
         
     def select_project_directory(self):
-        """手动选择项目目录"""
+        """手动选择项目目录，自动读取 project_config.json 或 project_info.json"""
         from PyQt5.QtWidgets import QFileDialog
         
         # 打开目录选择对话框
@@ -1190,8 +1190,42 @@ class MainWindow(QMainWindow):
             )
             return
         
-        # 获取项目名称（使用目录名）
-        project_name = dir_path.name
+        # 尝试读取配置文件获取书名
+        project_title = dir_path.name  # 默认使用目录名
+        fanqie_data = {}
+        
+        # 优先读取 project_config.json，其次 project_info.json
+        config_files = ['project_config.json', 'project_info.json']
+        config_data = {}
+        
+        for config_file in config_files:
+            config_path = dir_path / config_file
+            if config_path.exists():
+                try:
+                    with open(config_path, 'r', encoding='utf-8') as f:
+                        config_data = json.load(f)
+                    
+                    # 尝试获取书名
+                    fanqie_upload_data = config_data.get('fanqie_upload_data', {})
+                    if isinstance(fanqie_upload_data, dict):
+                        if fanqie_upload_data.get('title'):
+                            project_title = fanqie_upload_data['title']
+                        elif config_data.get('novel_title'):
+                            project_title = config_data['novel_title']
+                        fanqie_data = fanqie_upload_data
+                    else:
+                        # 如果 fanqie_upload_data 不是字典，尝试其他字段
+                        if config_data.get('novel_title'):
+                            project_title = config_data['novel_title']
+                        elif config_data.get('title'):
+                            project_title = config_data['title']
+                    
+                    self.log(f"✅ 已读取配置: {config_file}", "info")
+                    break  # 成功读取后退出循环
+                    
+                except Exception as e:
+                    self.log(f"⚠️ 读取配置文件失败: {e}", "warning")
+                    continue
         
         # 计算章节数和字数
         try:
@@ -1215,22 +1249,24 @@ class MainWindow(QMainWindow):
             total_chapters = 0
             total_words = 0
         
-        # 创建项目数据
+        # 创建项目数据（包含配置信息）
         project_data = {
-            'name': project_name,
+            'name': project_title,  # 使用配置中的书名
             'path': str(dir_path),
             'chapters': total_chapters,
-            'words': total_words
+            'words': total_words,
+            'config': config_data,  # 保存完整配置
+            'fanqie_data': fanqie_data  # 保存番茄上传数据
         }
         
         # 清空并添加新项目
         self.project_combo.clear()
         self.project_combo.addItem(
-            f"📖 {project_name} ({total_chapters}章)",
+            f"📖 {project_title} ({total_chapters}章)",
             project_data
         )
         
-        self.log(f"✅ 已加载项目: {project_name} ({total_chapters}章, {total_words}字)", "success")
+        self.log(f"✅ 已加载项目: {project_title} ({total_chapters}章, {total_words}字)", "success")
         
         # 自动加载章节
         self.load_chapters(str(dir_path))
@@ -1238,7 +1274,8 @@ class MainWindow(QMainWindow):
         QMessageBox.information(
             self,
             "项目已加载",
-            f"项目：{project_name}\n"
+            f"书名：{project_title}\n"
+            f"目录：{dir_path.name}\n"
             f"章节：{total_chapters}章\n"
             f"字数：{total_words}字\n\n"
             "可以开始选择章节并上传了！"
