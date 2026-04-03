@@ -692,19 +692,31 @@ def register_fanqie_routes(app):
             from pathlib import Path
             import json
             
-            # 尝试读取项目配置（优先从 fanqie_upload_data 读取）
+            # 尝试读取项目配置（优先从 project_info.json 的 fanqie_upload_data 读取）
             project_config = {}
             fanqie_data = {}
             
-            config_file = project_dir / "project_config.json"
-            if config_file.exists():
+            # 首先尝试读取 project_info.json
+            info_file = project_dir / "project_info.json"
+            if info_file.exists():
                 try:
-                    with open(config_file, 'r', encoding='utf-8') as f:
+                    with open(info_file, 'r', encoding='utf-8') as f:
                         project_config = json.load(f)
                         # 优先使用 fanqie_upload_data 中的数据
                         fanqie_data = project_config.get('fanqie_upload_data', {})
                 except Exception as e:
-                    logger.warning(f"读取配置文件失败: {e}")
+                    logger.warning(f"读取 project_info.json 失败: {e}")
+            
+            # 如果没有 fanqie_data，尝试读取 project_config.json
+            if not fanqie_data:
+                config_file = project_dir / "project_config.json"
+                if config_file.exists():
+                    try:
+                        with open(config_file, 'r', encoding='utf-8') as f:
+                            project_config = json.load(f)
+                            fanqie_data = project_config.get('fanqie_upload_data', {})
+                    except Exception as e:
+                        logger.warning(f"读取 project_config.json 失败: {e}")
             
             # 从 fanqie_data 或 project_config 获取字段
             title = fanqie_data.get('title') or project_config.get('title', project_id)
@@ -833,15 +845,26 @@ def register_fanqie_routes(app):
             project_info = {}
             fanqie_data = {}
             
-            # 1. 读取项目配置（优先从 fanqie_upload_data 读取）
-            config_file = project_dir / "project_config.json"
-            if config_file.exists():
+            # 1. 读取项目配置（优先从 project_info.json 的 fanqie_upload_data 读取）
+            info_file = project_dir / "project_info.json"
+            if info_file.exists():
                 try:
-                    with open(config_file, 'r', encoding='utf-8') as f:
+                    with open(info_file, 'r', encoding='utf-8') as f:
                         project_info = json.load(f)
                         fanqie_data = project_info.get('fanqie_upload_data', {})
                 except:
                     pass
+            
+            # 如果没有，尝试从 project_config.json 读取
+            if not fanqie_data:
+                config_file = project_dir / "project_config.json"
+                if config_file.exists():
+                    try:
+                        with open(config_file, 'r', encoding='utf-8') as f:
+                            project_info = json.load(f)
+                            fanqie_data = project_info.get('fanqie_upload_data', {})
+                    except:
+                        pass
             
             # 从 fanqie_data 或 project_info 获取字段
             title = fanqie_data.get('title') or project_info.get('title', '')
@@ -1040,16 +1063,18 @@ def register_fanqie_routes(app):
             if not project_dir:
                 return jsonify({"success": False, "error": "项目不存在或无权访问"}), 404
             
-            # 读取现有配置文件
+            # 读取现有配置文件（优先从 project_info.json）
+            info_file = project_dir / "project_info.json"
             config_file = project_dir / "project_config.json"
-            config_data = {}
+            
+            project_data = {}
             fanqie_data = {}
             
-            if config_file.exists():
+            if info_file.exists():
                 try:
-                    with open(config_file, 'r', encoding='utf-8') as f:
-                        config_data = json.load(f)
-                        fanqie_data = config_data.get('fanqie_upload_data', {})
+                    with open(info_file, 'r', encoding='utf-8') as f:
+                        project_data = json.load(f)
+                        fanqie_data = project_data.get('fanqie_upload_data', {})
                 except:
                     pass
             
@@ -1063,11 +1088,21 @@ def register_fanqie_routes(app):
             fanqie_data['tags']['main_category'] = category
             fanqie_data['tags']['themes'] = tags
             
-            # 更新顶级字段（兼容性）
+            # 更新 project_info.json
+            project_data['fanqie_upload_data'] = fanqie_data
+            with open(info_file, 'w', encoding='utf-8') as f:
+                json.dump(project_data, f, ensure_ascii=False, indent=2)
+            
+            # 同时更新 project_config.json（兼容性）
+            config_data = {}
+            if config_file.exists():
+                try:
+                    with open(config_file, 'r', encoding='utf-8') as f:
+                        config_data = json.load(f)
+                except:
+                    pass
             config_data['title'] = title
             config_data['fanqie_upload_data'] = fanqie_data
-            
-            # 保存配置
             with open(config_file, 'w', encoding='utf-8') as f:
                 json.dump(config_data, f, ensure_ascii=False, indent=2)
             
