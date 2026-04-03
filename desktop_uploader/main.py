@@ -341,27 +341,9 @@ class MainWindow(QMainWindow):
         refresh_btn.clicked.connect(self.load_projects)
         btn_layout.addWidget(refresh_btn)
         
-        # 添加选择目录按钮
-        select_dir_btn = QPushButton("📂 选择目录")
-        select_dir_btn.setToolTip("手动选择项目所在目录")
-        select_dir_btn.setStyleSheet(f"""
-            QPushButton {{
-                background-color: {SUCCESS_COLOR};
-                color: white;
-                border: none;
-                border-radius: 6px;
-                padding: 8px 16px;
-                font-weight: 600;
-            }}
-            QPushButton:hover {{
-                background-color: #059669;
-            }}
-        """)
-        select_dir_btn.clicked.connect(self.select_project_directory)
-        btn_layout.addWidget(select_dir_btn)
-        
-        import_btn = QPushButton("📤 导入配置")
-        import_btn.setToolTip("从文件导入项目配置")
+        # 选择目录按钮（原来导入配置的位置）
+        import_btn = QPushButton("📂 选择目录")
+        import_btn.setToolTip("选择项目所在目录，自动加载配置")
         import_btn.setStyleSheet(f"""
             QPushButton {{
                 background-color: transparent;
@@ -375,7 +357,7 @@ class MainWindow(QMainWindow):
                 background-color: #E3F2FD;
             }}
         """)
-        import_btn.clicked.connect(self.import_config)
+        import_btn.clicked.connect(self.select_project_directory)
         btn_layout.addWidget(import_btn)
         
         project_layout.addLayout(btn_layout)
