@@ -426,10 +426,12 @@ class AccountManagerDialogV2(QDialog):
             self.start_btn.setEnabled(False)
             self.stop_btn.setEnabled(True)
             self.use_btn.setEnabled(True)
+            self.use_btn.setText("✅ 使用此账户上传")
         else:
             self.start_btn.setEnabled(True)
             self.stop_btn.setEnabled(False)
-            self.use_btn.setEnabled(False)
+            self.use_btn.setEnabled(True)  # 允许选择，即使浏览器未启动
+            self.use_btn.setText("✅ 选择此账户（需启动浏览器）")
     
     def show_account_menu(self, position):
         """显示右键菜单"""
@@ -637,13 +639,27 @@ class AccountManagerDialogV2(QDialog):
     def use_selected_account(self):
         """使用选中的账户"""
         if not hasattr(self, 'current_username'):
+            QMessageBox.warning(self, "错误", "请先选择一个账户")
             return
         
         instance = self.browser_manager.get_instance(self.current_username)
-        if not instance or instance.status != "running":
-            QMessageBox.information(self, "提示", "请先启动浏览器")
+        if not instance:
+            QMessageBox.warning(self, "错误", "浏览器实例不存在")
             return
         
+        # 如果浏览器未启动，提示用户
+        if instance.status != "running":
+            reply = QMessageBox.question(
+                self, "浏览器未启动",
+                f"账户 '{self.current_username}' 的浏览器未启动。\n\n"
+                "选择此账户后，需要在主界面点击上传时启动浏览器。\n"
+                "是否继续选择此账户？",
+                QMessageBox.Yes | QMessageBox.No
+            )
+            if reply != QMessageBox.Yes:
+                return
+        
+        # 发射信号，通知主界面已选择账户
         self.account_selected.emit(self.current_username)
         self.accept()
 

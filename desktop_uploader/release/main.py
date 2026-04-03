@@ -1203,6 +1203,7 @@ class MainWindow(QMainWindow):
     def on_account_selected(self, website_username: str):
         """账户选择回调"""
         self.current_website_account = website_username
+        print(f"[DEBUG] 账户已选择: {website_username}")  # 调试信息
         self.update_account_display()
         
         self.log(f"✅ 已选择账户: {website_username}", "success")
@@ -1521,6 +1522,7 @@ class MainWindow(QMainWindow):
             return
         
         # 检查是否选择了账户
+        print(f"[DEBUG] 检查账户: current_website_account={self.current_website_account}")  # 调试
         if not self.current_website_account:
             reply = QMessageBox.question(
                 self, "账户未选择",
