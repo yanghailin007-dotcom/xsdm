@@ -149,7 +149,7 @@ class BatchSummarizer:
             ai_analysis = self._ai_analyze_batch(
                 chapters, stage_goal, previous_summary,
                 all_new_chars, all_char_changes, key_events
-            )
+            ) or {}  # 确保不为None
             
             # 计算阶段目标进度
             goal_id = stage_goal.get('goal_id', 'G1') if stage_goal else 'G1'
@@ -186,16 +186,16 @@ class BatchSummarizer:
                 # 🔥 AI 分析结果
                 "ai_analysis": ai_analysis,
                 
-                # 角色状态快照
-                "character_state": ai_analysis.get('character_states', {}) or self._extract_character_state(chapters),
+                # 角色状态快照（安全访问）
+                "character_state": ai_analysis.get('character_states') or self._extract_character_state(chapters) or {},
                 
-                # 用于传递的关键信息
-                "completed_events": ai_analysis.get('completed_events', []),
-                "pending_hooks": ai_analysis.get('pending_hooks', all_hooks[:5]),
-                "plot_direction": ai_analysis.get('plot_direction', ''),
+                # 用于传递的关键信息（安全访问）
+                "completed_events": ai_analysis.get('completed_events') or [],
+                "pending_hooks": ai_analysis.get('pending_hooks') or all_hooks[:5],
+                "plot_direction": ai_analysis.get('plot_direction') or '继续推进当前阶段目标',
                 
-                # 备注
-                "notes": ai_analysis.get('summary_text', f"第{start_ch}-{end_ch}章批次总结完成")
+                # 备注（安全访问）
+                "notes": ai_analysis.get('summary_text') or f"第{start_ch}-{end_ch}章批次总结完成"
             }
             
             logger.info(f"[BatchSummarizer] 批次总结完成: 第{start_ch}-{end_ch}章, "
@@ -243,18 +243,27 @@ class BatchSummarizer:
         
         生成用于下批次规划的关键信息。
         """
-        if not self.api_client:
+        # 先计算章节范围（避免后面异常时变量未定义）
+        if not chapters:
             return {
-                "summary_text": "无API客户端，使用基础统计",
+                "summary_text": "无章节数据",
                 "character_states": {},
                 "completed_events": [],
                 "pending_hooks": [],
                 "plot_direction": ""
             }
         
-        # 构建分析提示词
         start_ch = min(c.get('chapter_number', 0) for c in chapters)
         end_ch = max(c.get('chapter_number', 0) for c in chapters)
+        
+        if not self.api_client:
+            return {
+                "summary_text": f"无API客户端，使用基础统计（第{start_ch}-{end_ch}章）",
+                "character_states": {},
+                "completed_events": key_events[:3],
+                "pending_hooks": [],
+                "plot_direction": "继续推进当前阶段目标"
+            }
         
         # 提取关键内容（每章前500字）
         chapter_snippets = []
