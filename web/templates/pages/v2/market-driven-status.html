@@ -233,6 +233,18 @@
   background: var(--v2-bg-secondary);
 }
 
+/* 后台运行按钮特殊样式 */
+#background-btn {
+  background: linear-gradient(135deg, #3b82f6, #60a5fa);
+  color: white;
+  box-shadow: 0 4px 14px 0 rgba(59, 130, 246, 0.4);
+}
+
+#background-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 25px rgba(59, 130, 246, 0.5);
+}
+
 /* 结果展示 */
 .result-section {
   background: var(--v2-bg-secondary);
@@ -625,7 +637,11 @@ function updateUI(task) {
     showError(task.error);
   } else if (task.status === 'running' || task.status === 'in_progress') {
     // 显示后台运行按钮
-    document.getElementById('background-btn').style.display = 'inline-flex';
+    const bgBtn = document.getElementById('background-btn');
+    if (bgBtn) {
+      bgBtn.style.display = 'inline-flex';
+      console.log('[UI] 后台运行按钮已显示');
+    }
     
     // 在章节生成阶段显示悬浮窗
     // 判断条件：阶段名称为chapters/current_stage为generating_chapters/有当前章节号/有批次信息
