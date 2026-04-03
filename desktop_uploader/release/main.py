@@ -8,7 +8,7 @@
 1. 运行源码: python main.py
 2. 运行EXE: 双击 NovelPublisher.exe
 
-官网: https://novel-ai.online/
+使用指南: https://xsdm.cainiao.cool/pages/v2/uploader-guide
 """
 
 import sys
@@ -103,7 +103,7 @@ class UploadWorker(QThread):
             
             if not self.chrome_manager.start_chrome(progress_callback=self._on_chrome_progress):
                 self.log_signal.emit("❌ Chrome 启动失败", "error")
-                self.log_signal.emit("💡 解决方案：访问官网 https://novel-ai.online/ 获取帮助", "info")
+                self.log_signal.emit("💡 解决方案：查看使用指南 https://xsdm.cainiao.cool/pages/v2/uploader-guide", "info")
                 self.finished_signal.emit(False, "Chrome 启动失败，请检查网络连接或手动安装 Chrome")
                 return
             
@@ -287,7 +287,7 @@ class MainWindow(QMainWindow):
         
         # 官网链接按钮
         website_btn = QPushButton("🌐 官网")
-        website_btn.setToolTip("访问官方网站: https://novel-ai.online/")
+        website_btn.setToolTip("查看使用指南: https://xsdm.cainiao.cool/pages/v2/uploader-guide")
         website_btn.setStyleSheet(f"""
             QPushButton {{
                 background-color: transparent;
@@ -302,7 +302,7 @@ class MainWindow(QMainWindow):
                 background-color: #E3F2FD;
             }}
         """)
-        website_btn.clicked.connect(lambda: QDesktopServices.openUrl(QUrl("https://novel-ai.online/")))
+        website_btn.clicked.connect(lambda: QDesktopServices.openUrl(QUrl("https://xsdm.cainiao.cool/pages/v2/uploader-guide")))
         platform_container.addWidget(website_btn)
         
         title_layout.addLayout(platform_container)
@@ -709,7 +709,7 @@ class MainWindow(QMainWindow):
         log_btn_layout.addStretch()
         
         # 官网链接
-        website_link = QLabel('<a href="https://novel-ai.online/" style="color: #1976D2; text-decoration: none;">🌐 访问官网获取更多帮助</a>')
+        website_link = QLabel('<a href="https://xsdm.cainiao.cool/pages/v2/uploader-guide" style="color: #1976D2; text-decoration: none;">📖 查看使用指南</a>')
         website_link.setOpenExternalLinks(True)
         website_link.setStyleSheet("font-size: 14px;")
         log_btn_layout.addWidget(website_link)
@@ -929,7 +929,7 @@ class MainWindow(QMainWindow):
         website_text = QLabel("""
         <p style="font-size: 16px; color: #424242; line-height: 1.8;">
         访问官方网站获取更多功能和帮助：<br>
-        <a href="https://novel-ai.online/" style="color: #1976D2; font-weight: 600; font-size: 14px;">https://novel-ai.online/</a>
+        <a href="https://xsdm.cainiao.cool/pages/v2/uploader-guide" style="color: #1976D2; font-weight: 600; font-size: 14px;">查看完整使用指南</a>
         </p>
         <p style="font-size: 14px; color: #757575; margin-top: 12px;">
         • 最新版本下载<br>
@@ -1343,7 +1343,7 @@ class MainWindow(QMainWindow):
                         "您可以选择以下方式之一：\n\n"
                         "1. 重新点击上传，同意下载 Chrome\n"
                         "2. 自行安装 Chrome 浏览器后再使用\n\n"
-                        "官网：https://novel-ai.online/"
+                        "使用指南：https://xsdm.cainiao.cool/pages/v2/uploader-guide"
                     )
                     return
         

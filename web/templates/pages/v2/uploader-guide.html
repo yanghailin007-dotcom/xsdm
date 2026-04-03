@@ -1,0 +1,420 @@
+{% extends "layouts/base-v2.html" %}
+
+{% block title %}上传工具使用指南 - 大文娱系统{% endblock %}
+
+{% block extra_css %}
+<style>
+    .guide-container {
+        max-width: 900px;
+        margin: 0 auto;
+        padding: 40px 20px;
+    }
+    
+    .guide-header {
+        text-align: center;
+        margin-bottom: 40px;
+    }
+    
+    .guide-header h1 {
+        font-size: 28px;
+        color: var(--v2-text-primary);
+        margin-bottom: 12px;
+    }
+    
+    .guide-header p {
+        color: var(--v2-text-secondary);
+        font-size: 16px;
+    }
+    
+    .step-card {
+        background: var(--v2-bg-secondary);
+        border-radius: 12px;
+        padding: 24px;
+        margin-bottom: 24px;
+        border: 1px solid var(--v2-border);
+    }
+    
+    .step-header {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        margin-bottom: 16px;
+    }
+    
+    .step-number {
+        width: 40px;
+        height: 40px;
+        background: linear-gradient(135deg, #6366f1, #8b5cf6);
+        color: white;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 18px;
+        font-weight: 700;
+    }
+    
+    .step-title {
+        font-size: 18px;
+        font-weight: 600;
+        color: var(--v2-text-primary);
+    }
+    
+    .step-content {
+        color: var(--v2-text-secondary);
+        line-height: 1.8;
+    }
+    
+    .step-content ol, .step-content ul {
+        margin: 12px 0;
+        padding-left: 24px;
+    }
+    
+    .step-content li {
+        margin: 8px 0;
+    }
+    
+    .highlight-box {
+        background: rgba(99, 102, 241, 0.1);
+        border-left: 4px solid #6366f1;
+        padding: 16px;
+        margin: 16px 0;
+        border-radius: 0 8px 8px 0;
+    }
+    
+    .highlight-box.warning {
+        background: rgba(245, 158, 11, 0.1);
+        border-left-color: #f59e0b;
+    }
+    
+    .highlight-box.success {
+        background: rgba(16, 185, 129, 0.1);
+        border-left-color: #10b981;
+    }
+    
+    .btn-primary {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        background: linear-gradient(135deg, #6366f1, #8b5cf6);
+        color: white;
+        padding: 12px 24px;
+        border-radius: 8px;
+        text-decoration: none;
+        font-weight: 500;
+        transition: all 0.2s;
+    }
+    
+    .btn-primary:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(99, 102, 241, 0.3);
+    }
+    
+    .video-placeholder {
+        background: var(--v2-bg-primary);
+        border: 2px dashed var(--v2-border);
+        border-radius: 12px;
+        padding: 60px 20px;
+        text-align: center;
+        margin: 20px 0;
+    }
+    
+    .video-placeholder .icon {
+        font-size: 48px;
+        margin-bottom: 16px;
+    }
+    
+    .faq-section {
+        margin-top: 40px;
+    }
+    
+    .faq-item {
+        background: var(--v2-bg-secondary);
+        border-radius: 8px;
+        padding: 16px 20px;
+        margin-bottom: 12px;
+        cursor: pointer;
+        transition: all 0.2s;
+    }
+    
+    .faq-item:hover {
+        background: var(--v2-bg-hover);
+    }
+    
+    .faq-question {
+        font-weight: 600;
+        color: var(--v2-text-primary);
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+    
+    .faq-answer {
+        color: var(--v2-text-secondary);
+        margin-top: 12px;
+        padding-top: 12px;
+        border-top: 1px solid var(--v2-border);
+        display: none;
+    }
+    
+    .faq-item.active .faq-answer {
+        display: block;
+    }
+    
+    .back-link {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        color: var(--v2-text-secondary);
+        text-decoration: none;
+        margin-bottom: 20px;
+    }
+    
+    .back-link:hover {
+        color: var(--v2-primary);
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="guide-container">
+    <a href="/pages/v2/fanqie-upload-v2" class="back-link">
+        <span>←</span> 返回上传页面
+    </a>
+    
+    <div class="guide-header">
+        <h1>📖 大文娱小说发布助手 - 完整使用指南</h1>
+        <p>从下载工具到成功发布，一步一步教你完成全自动发布</p>
+    </div>
+
+    <!-- 第一步 -->
+    <div class="step-card">
+        <div class="step-header">
+            <div class="step-number">1</div>
+            <div class="step-title">下载上传工具</div>
+        </div>
+        <div class="step-content">
+            <p>首先，你需要下载桌面端上传工具 NovelPublisher.exe</p>
+            <div class="highlight-box">
+                <strong>下载方式：</strong>
+                <ol>
+                    <li>返回<a href="/pages/v2/fanqie-upload-v2">上传页面</a></li>
+                    <li>点击「立即下载上传工具」按钮</li>
+                    <li>保存 NovelPublisher.exe 到你的电脑</li>
+                </ol>
+            </div>
+            <div class="highlight-box warning">
+                <strong>注意事项：</strong>
+                <ul>
+                    <li>第一次运行可能会被 Windows 防火墙拦截，请选择「仍要运行」</li>
+                    <li>如果缺少 Chrome 浏览器，工具会自动提示下载（约150MB）</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+
+    <!-- 第二步 -->
+    <div class="step-card">
+        <div class="step-header">
+            <div class="step-number">2</div>
+            <div class="step-title">准备项目数据</div>
+        </div>
+        <div class="step-content">
+            <p>在使用上传工具之前，你需要从网页下载项目数据：</p>
+            <ol>
+                <li>进入<a href="/pages/v2/fanqie-upload-v2">番茄上传页面</a></li>
+                <li>选择你要发布的小说项目</li>
+                <li>编辑书籍信息（书名、分类、简介等）</li>
+                <li>点击「下载配置」和「下载数据」按钮</li>
+            </ol>
+            <div class="highlight-box">
+                <strong>下载的文件说明：</strong>
+                <ul>
+                    <li><strong>配置文件</strong>（JSON）：包含书名、简介、发布设置等</li>
+                    <li><strong>项目数据</strong>（ZIP）：包含所有章节内容</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+
+    <!-- 第三步 -->
+    <div class="step-card">
+        <div class="step-header">
+            <div class="step-number">3</div>
+            <div class="step-title">解压项目数据</div>
+        </div>
+        <div class="step-content">
+            <p>将下载的 ZIP 文件解压到你的电脑：</p>
+            <ol>
+                <li>找到下载的 ZIP 文件（如 <code>project_data_项目名.zip</code>）</li>
+                <li>右键 ZIP 文件 → 选择「解压到当前文件夹」或「解压到 xxx」</li>
+                <li>解压后会得到一个项目文件夹</li>
+            </ol>
+            <div class="highlight-box success">
+                <strong>解压后的目录结构应该是：</strong>
+                <pre style="margin: 8px 0; font-family: monospace; background: rgba(0,0,0,0.05); padding: 12px; border-radius: 4px;">
+项目文件夹/
+├── chapters/          # 章节目录
+│   ├── chapter_001.json
+│   ├── chapter_002.json
+│   └── ...
+├── project_config.json  # 配置文件
+└── cover.jpg           # 封面图片（如果有）
+                </pre>
+            </div>
+        </div>
+    </div>
+
+    <!-- 第四步 -->
+    <div class="step-card">
+        <div class="step-header">
+            <div class="step-number">4</div>
+            <div class="step-title">使用上传工具</div>
+        </div>
+        <div class="step-content">
+            <p>现在可以打开上传工具开始发布了：</p>
+            <ol>
+                <li><strong>运行工具</strong>：双击 NovelPublisher.exe</li>
+                <li><strong>选择项目</strong>：点击「选择目录」按钮，选择刚才解压的项目文件夹</li>
+                <li><strong>等待加载</strong>：工具会自动读取配置并加载章节列表</li>
+            </ol>
+            <div class="highlight-box">
+                <strong>选择章节：</strong>
+                <ul>
+                    <li>在章节列表中勾选要上传的章节（默认全选）</li>
+                    <li>可以使用「全选」或「取消全选」快速选择</li>
+                    <li>第一次发布建议先上传 3-5 章测试</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+
+    <!-- 第五步 -->
+    <div class="step-card">
+        <div class="step-header">
+            <div class="step-number">5</div>
+            <div class="step-title">配置发布参数</div>
+        </div>
+        <div class="step-content">
+            <p>根据需要调整上传参数：</p>
+            <ul>
+                <li><strong>最小/最大延迟</strong>：建议保持 3-8 秒，模拟人工操作避免风控</li>
+                <li><strong>出错停止</strong>：如果某章上传失败是否自动停止</li>
+                <li><strong>窗口置顶</strong>：上传时是否最小化到系统托盘</li>
+            </ul>
+            <div class="highlight-box warning">
+                <strong>风控建议：</strong>
+                <ul>
+                    <li>首次使用建议先上传少量章节测试（如 3-5 章）</li>
+                    <li>确认正常后再批量上传</li>
+                    <li>不要频繁操作，避免触发平台安全机制</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+
+    <!-- 第六步 -->
+    <div class="step-card">
+        <div class="step-header">
+            <div class="step-number">6</div>
+            <div class="step-title">开始上传</div>
+        </div>
+        <div class="step-content">
+            <p>一切准备就绪，开始上传：</p>
+            <ol>
+                <li>点击「开始上传」按钮</li>
+                <li>工具会自动打开 Chrome 浏览器</li>
+                <li>在浏览器中登录你的番茄作者账号（首次需要）</li>
+                <li>工具会自动完成以下操作：
+                    <ul>
+                        <li>创建新书（如果不存在）</li>
+                        <li>填写书籍信息</li>
+                        <li>上传封面</li>
+                        <li>逐章上传内容</li>
+                    </ul>
+                </li>
+            </ol>
+            <div class="highlight-box success">
+                <strong>上传过程中：</strong>
+                <ul>
+                    <li>请不要关闭 Chrome 浏览器</li>
+                    <li>不要操作鼠标和键盘</li>
+                    <li>可以最小化窗口后台运行</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+
+    <!-- 完成 -->
+    <div class="step-card" style="background: linear-gradient(135deg, rgba(16, 185, 129, 0.1), rgba(6, 182, 212, 0.1)); border-color: #10b981;">
+        <div class="step-header">
+            <div class="step-number" style="background: linear-gradient(135deg, #10b981, #06b6d4);">✓</div>
+            <div class="step-title">完成发布</div>
+        </div>
+        <div class="step-content">
+            <p>🎉 恭喜！你已成功完成小说发布！</p>
+            <p>上传完成后，你可以：</p>
+            <ul>
+                <li>在番茄作者后台查看已发布的章节</li>
+                <li>继续使用工具发布更多章节</li>
+                <li>编辑或修改已发布的内容</li>
+            </ul>
+            <div style="margin-top: 20px; text-align: center;">
+                <a href="/pages/v2/fanqie-upload-v2" class="btn-primary">
+                    <span>🚀</span> 立即开始发布
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <!-- FAQ -->
+    <div class="faq-section">
+        <h2 style="font-size: 22px; margin-bottom: 20px; color: var(--v2-text-primary);">❌ 常见问题</h2>
+        
+        <div class="faq-item">
+            <div class="faq-question">
+                <span>上传失败怎么办？</span>
+                <span>+</span>
+            </div>
+            <div class="faq-answer">
+                <p>1. 检查网络连接是否正常</p>
+                <p>2. 确认番茄作者账号已正确登录</p>
+                <p>3. 检查项目配置是否完整</p>
+                <p>4. 尝试增加延迟时间，避免操作过快</p>
+            </div>
+        </div>
+        
+        <div class="faq-item">
+            <div class="faq-question">
+                <span>可以修改已发布的章节吗？</span>
+                <span>+</span>
+            </div>
+            <div class="faq-answer">
+                <p>可以。工具会自动跳过已发布的章节，你也可以手动在番茄作者后台修改。</p>
+            </div>
+        </div>
+        
+        <div class="faq-item">
+            <div class="faq-question">
+                <span>支持哪些平台？</span>
+                <span>+</span>
+            </div>
+            <div class="faq-answer">
+                <p>当前主要支持番茄小说。起点中文网、纵横中文网等其他平台正在开发中。</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+// FAQ 展开/收起
+
+document.querySelectorAll('.faq-item').forEach(item => {
+    item.querySelector('.faq-question').addEventListener('click', () => {
+        item.classList.toggle('active');
+        const icon = item.querySelector('.faq-question span:last-child');
+        icon.textContent = item.classList.contains('active') ? '−' : '+';
+    });
+});
+</script>
+{% endblock %}
