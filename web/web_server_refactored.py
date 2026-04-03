@@ -577,7 +577,7 @@ def register_fanqie_routes(app):
     
     @app.route('/api/novels/list', methods=['GET'])
     def get_novels_list():
-        """获取小说项目列表"""
+        """获取小说项目列表 - 支持多层目录结构"""
         try:
             from pathlib import Path
             from web.auth import login_required
@@ -590,12 +590,30 @@ def register_fanqie_routes(app):
             novels = []
             for item in novels_dir.iterdir():
                 if item.is_dir():
+                    # 查找 chapters 目录（支持多层结构）
+                    chapters_dir = None
+                    project_title = None
+                    project_path = None
+                    
+                    # 情况1: 直接在项目目录下有 chapters
+                    if (item / "chapters").exists():
+                        chapters_dir = item / "chapters"
+                        project_title = item.name
+                        project_path = str(item)
+                    else:
+                        # 情况2: 在子目录中查找 chapters（如：项目名/小说名/chapters/）
+                        for subdir in item.iterdir():
+                            if subdir.is_dir() and (subdir / "chapters").exists():
+                                chapters_dir = subdir / "chapters"
+                                project_title = subdir.name  # 使用子目录名作为书名
+                                project_path = str(subdir)
+                                break
+                    
                     # 计算章节数和字数
-                    chapters_dir = item / "chapters"
                     chapter_count = 0
                     word_count = 0
                     
-                    if chapters_dir.exists():
+                    if chapters_dir and chapters_dir.exists():
                         chapter_files = list(chapters_dir.glob("chapter_*.json"))
                         chapter_count = len(chapter_files)
                         # 读取第一个章节获取字数信息（作为估算）
@@ -609,13 +627,15 @@ def register_fanqie_routes(app):
                             except:
                                 word_count = chapter_count * 2500  # 默认估算
                     
-                    novels.append({
-                        "id": item.name,
-                        "title": item.name,
-                        "chapter_count": chapter_count,
-                        "word_count": word_count,
-                        "path": str(item)
-                    })
+                    # 只显示有章节的项目
+                    if chapter_count > 0:
+                        novels.append({
+                            "id": item.name,
+                            "title": project_title or item.name,
+                            "chapter_count": chapter_count,
+                            "word_count": word_count,
+                            "path": project_path or str(item)
+                        })
             
             return jsonify({"success": True, "data": novels})
         except Exception as e:
