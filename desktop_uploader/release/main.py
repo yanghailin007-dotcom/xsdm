@@ -38,6 +38,7 @@ except ImportError:
     class EnvConfig:
         website_url = "https://novel-ai.online"
         api_base_url = "https://novel-ai.online"
+        upload_guide_url = "https://novel-ai.online/pages/v2/uploader-guide"
     env_config = EnvConfig()
 
 
@@ -465,9 +466,10 @@ class MainWindow(QMainWindow):
         self.platform_combo.setMinimumWidth(140)
         title_layout.addWidget(self.platform_combo)
         
-        # 官网按钮
-        website_btn = QPushButton("🌐 官网")
-        website_btn.clicked.connect(lambda: os.startfile(env_config.website_url))
+        # 官网按钮（链接到使用指南）
+        website_btn = QPushButton("📖 使用指南")
+        website_btn.setToolTip("打开官网使用指南页面")
+        website_btn.clicked.connect(lambda: os.startfile(getattr(env_config, 'upload_guide_url', 'https://novel-ai.online/pages/v2/uploader-guide')))
         title_layout.addWidget(website_btn)
         
         layout.addLayout(title_layout)
