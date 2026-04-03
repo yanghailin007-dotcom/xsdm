@@ -41,7 +41,15 @@ class AccountToken:
 class WebsiteAuth:
     """官网认证客户端"""
     
-    def __init__(self, base_url: str = "https://xsdm.cainiao.cool"):
+    def __init__(self, base_url: str = None):
+        if base_url is None:
+            # 尝试从环境配置获取
+            try:
+                from config_env import env_config
+                base_url = env_config.api_base_url
+            except ImportError:
+                base_url = "https://novel-ai.online"
+        
         self.base_url = base_url.rstrip('/')
         self.session = requests.Session()
         self.session.headers.update({
@@ -267,7 +275,15 @@ class AccountStorage:
 class MultiAccountManager:
     """多账户管理器 - 整合认证和存储"""
     
-    def __init__(self, base_url: str = "https://xsdm.cainiao.cool"):
+    def __init__(self, base_url: str = None):
+        if base_url is None:
+            # 尝试从环境配置获取
+            try:
+                from config_env import env_config
+                base_url = env_config.api_base_url
+            except ImportError:
+                base_url = "https://novel-ai.online"
+        
         self.auth = WebsiteAuth(base_url)
         self.storage = AccountStorage()
         self.current_account: Optional[str] = None  # 当前登录的官网账户
