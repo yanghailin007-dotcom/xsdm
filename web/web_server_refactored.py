@@ -843,24 +843,11 @@ def register_fanqie_routes(app):
             if current_user and current_user != username:
                 return jsonify({"error": "无权访问其他用户的封面"}), 403
             
-            # 构建项目目录路径
-            project_dir = Path("小说项目") / username / project_id
+            # 使用 find_user_project_dir 查找项目目录（支持拼音和中文名匹配）
+            project_dir = find_user_project_dir(username, project_id)
             
-            # 如果直接路径不存在，尝试查找子目录
-            if not project_dir.exists():
-                user_dir = Path("小说项目") / username
-                if user_dir.exists():
-                    for subdir in user_dir.iterdir():
-                        if subdir.is_dir():
-                            if subdir.name == project_id:
-                                project_dir = subdir
-                                break
-                            for subsubdir in subdir.iterdir():
-                                if subsubdir.is_dir() and subsubdir.name == project_id:
-                                    project_dir = subsubdir
-                                    break
-            
-            if not project_dir.exists():
+            if not project_dir:
+                logger.error(f"❌ 找不到项目目录: {username}/{project_id}")
                 return jsonify({"error": "项目不存在"}), 404
             
             # 验证文件名
@@ -869,8 +856,10 @@ def register_fanqie_routes(app):
             
             file_path = project_dir / filename
             if not file_path.exists():
+                logger.error(f"❌ 封面文件不存在: {file_path}")
                 return jsonify({"error": "封面文件不存在"}), 404
             
+            logger.info(f"✅ 提供封面: {file_path}")
             return send_from_directory(str(project_dir), filename)
             
         except Exception as e:
