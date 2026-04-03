@@ -3,25 +3,40 @@ NanoBanana Pro 图像生成器
 基于 Gemini 的图像生成服务
 """
 import os
+import sys
 import json
 import base64
 import requests
 from datetime import datetime
 from typing import Dict, Any, Optional
+from pathlib import Path
 
 from web.web_config import logger
 
+# 导入配置
+BASE_DIR = Path(__file__).parent.parent.parent
+sys.path.insert(0, str(BASE_DIR))
+from config.config import CONFIG
+
 
 class NanoBananaProGenerator:
-    """NanoBanana Pro 图像生成器"""
+    """NanoBanana Pro 图像生成器 - 使用 config.py 配置"""
     
     def __init__(self):
-        self.base_url = "https://aiapi.world"
-        self.model = "gemini-3.1-flash-image-preview"  # 用户指定的模型
+        # 使用 config.py 中的配置
+        self.config = CONFIG.get("cover_generation", {}).get("nanobanana", {})
+        self.base_url = self.config.get("base_url", "https://aiapi.world")
+        self.model = self.config.get("model", "gemini-3.1-flash-image-preview")
+        self.timeout = self.config.get("timeout", 300)
+        self.max_retries = self.config.get("max_retries", 2)
     
     @property
     def api_key(self):
-        """动态获取 API Key，确保环境变量已加载"""
+        """获取 API Key，优先使用配置文件中的值"""
+        # 优先使用 config.py 中的配置，其次是环境变量
+        config_key = self.config.get("api_key", "")
+        if config_key:
+            return config_key
         return os.environ.get('NANOBANANA_API_KEY', '')
         
     def generate_image(self, prompt: str, size: str = "1K", watermark: bool = False, 
@@ -77,9 +92,9 @@ class NanoBananaProGenerator:
                 }
             }
             
-            logger.info(f"🎨 调用 NanoBanana Pro 生成图片: size={size}, ratio={aspect_ratio}")
+            logger.info(f"🎨 调用 NanoBanana Pro 生成图片: size={size}, ratio={aspect_ratio}, timeout={self.timeout}")
             
-            response = requests.post(url, headers=headers, json=payload, timeout=300)
+            response = requests.post(url, headers=headers, json=payload, timeout=self.timeout)
             response.raise_for_status()
             
             result = response.json()
@@ -152,9 +167,10 @@ class NanoBananaProGenerator:
     
     def validate_config(self) -> bool:
         """验证配置是否完整"""
-        key = os.environ.get('NANOBANANA_API_KEY', '')
-        logger.info(f"🔑 NanoBanana API Key check: {'已配置' if key else '未配置'} (length: {len(key)})")
-        return bool(key)
+        key = self.api_key
+        enabled = self.config.get("enabled", True)
+        logger.info(f"🔑 NanoBanana API Key check: {'已配置' if key else '未配置'} (length: {len(key)}), enabled={enabled}")
+        return bool(key) and enabled
 
 
 def test_generator():

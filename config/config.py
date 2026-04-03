@@ -131,6 +131,20 @@ CONFIG = {
     # 多轮对话优化（仅 Kimi 支持）
     "use_conversation_mode_for_kimi": True,
     
+    # 🎨 封面生成配置（NanoBanana Pro / Gemini）
+    "cover_generation": {
+        "nanobanana": {
+            "enabled": True,
+            "base_url": "https://aiapi.world",
+            "api_key": os.getenv('NANOBANANA_API_KEY', 'sk-h0obXbJ7NRUmu9ic9mgOYuFiK7vmTSENhDEGk3mJIPHlLm0L'),
+            "model": "gemini-3.1-flash-image-preview",
+            "default_aspect_ratio": "3:4",  # 书籍封面默认比例
+            "default_size": "1K",  # 默认分辨率
+            "timeout": 300,
+            "max_retries": 2
+        }
+    },
+    
     # 默认生成参数
     "defaults": {
         "temperature": 0.9,  # 提高温度以增加内容多样性
