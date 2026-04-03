@@ -56,13 +56,18 @@ class ChapterAnalyticsService:
             content = chapter_data.get('content', '')
             
             # 基础分析
+            word_count = len(content)
             analysis = {
                 "chapter_number": chapter_num,
-                "word_count": len(content),
+                "word_count": word_count,
                 "emotion_density": self._calculate_emotion_density(content),
                 "appeal_density": self._calculate_appeal_density(content),
+                "dialogue_ratio": self._calculate_dialogue_ratio(content),
+                "shuang_density": self._calculate_appeal_density(content),  # 爽点密度
                 "has_hook": self._check_has_hook(content),
-                "quality_score": chapter_data.get('quality_score', 8.0)
+                "has_cliffhanger": self._check_has_hook(content),
+                "quality_score": chapter_data.get('quality_score', 8.0),
+                "tomato_score": chapter_data.get('quality_score', 8.0) * 10  # 转换为百分制
             }
             
             return analysis
@@ -124,6 +129,31 @@ class ChapterAnalyticsService:
         # 每千字的爽点词数
         density = (appeal_count / word_count) * 1000 if word_count > 0 else 0
         return round(density, 2)
+    
+    def _calculate_dialogue_ratio(self, content: str) -> float:
+        """计算对话比例（引号内容占比）"""
+        if not content:
+            return 0.0
+        
+        import re
+        # 匹配引号内的内容（包括中文引号和英文引号）
+        dialogue_patterns = [
+            r'"[^"]*"',  # 中文双引号
+            r'"[^"]*"',  # 英文双引号
+            r'『[^』]*』',  # 中文书名号变体
+            r'「[^」]*」',  # 日式引号
+            r'【[^】]*】',  # 方括号（弹幕/系统提示）
+        ]
+        
+        dialogue_chars = 0
+        for pattern in dialogue_patterns:
+            matches = re.findall(pattern, content)
+            for match in matches:
+                dialogue_chars += len(match)
+        
+        total_chars = len(content)
+        ratio = (dialogue_chars / total_chars) * 100 if total_chars > 0 else 0
+        return round(ratio, 1)
     
     def _check_has_hook(self, content: str) -> bool:
         """检查是否有章尾钩子"""
