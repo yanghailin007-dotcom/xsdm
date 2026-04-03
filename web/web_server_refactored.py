@@ -352,6 +352,28 @@ def create_app():
     logger.info(f"✅ 配置视频访问路由: /static/generated_videos/<filename>")
     logger.info(f"✅ 配置视频访问路由: /generated_videos/<filename>")
     
+    # 🔥 下载桌面端上传工具
+    @app.route('/downloads/<filename>')
+    def download_file(filename):
+        """提供桌面端工具下载"""
+        from flask import send_from_directory
+        import os
+        
+        # 安全检查：只允许下载特定文件
+        allowed_files = ['NovelPublisher.exe']
+        if filename not in allowed_files:
+            return jsonify({"error": "File not allowed"}), 403
+        
+        download_dir = os.path.join(BASE_DIR, 'desktop_uploader', 'release')
+        file_path = os.path.join(download_dir, filename)
+        
+        if not os.path.exists(file_path):
+            return jsonify({"error": "File not found"}), 404
+        
+        return send_from_directory(download_dir, filename, as_attachment=True)
+    
+    logger.info(f"✅ 配置下载路由: /downloads/<filename>")
+    
     # 注册路由
     # 1. 认证和页面路由
     register_auth_routes(app)

@@ -86,6 +86,47 @@
         color: var(--v2-text-muted);
     }
     
+    /* 安全提示 */
+    .download-security-note {
+        margin-top: var(--v2-space-4);
+        padding: var(--v2-space-3) var(--v2-space-4);
+        background: rgba(251, 191, 36, 0.1);
+        border: 1px solid rgba(251, 191, 36, 0.3);
+        border-radius: var(--v2-radius-lg);
+        display: flex;
+        align-items: flex-start;
+        gap: var(--v2-space-2);
+        max-width: 560px;
+        margin-left: auto;
+        margin-right: auto;
+    }
+    
+    .note-icon {
+        font-size: 18px;
+        flex-shrink: 0;
+        margin-top: 2px;
+    }
+    
+    .note-content {
+        text-align: left;
+    }
+    
+    .note-content strong {
+        color: var(--v2-text-primary);
+        font-size: 13px;
+    }
+    
+    .note-content p {
+        margin: 4px 0 0 0;
+        font-size: 12px;
+        color: var(--v2-text-secondary);
+        line-height: 1.5;
+    }
+    
+    .note-steps {
+        color: var(--v2-text-primary) !important;
+    }
+    
     /* ===== 特性卡片 ===== */
     .features-grid {
         display: grid;
@@ -404,6 +445,14 @@
         </button>
         <div class="download-meta">
             版本：v1.2.0 | 大小：约 114 MB | 支持：Windows 10/11
+        </div>
+        <div class="download-security-note">
+            <span class="note-icon">⚠️</span>
+            <div class="note-content">
+                <strong>下载安全提示</strong>
+                <p>由于软件未进行数字签名，Windows 可能会显示安全警告。</p>
+                <p class="note-steps">请点击 <strong>"保留"</strong> 或 <strong>"更多信息" → "仍要运行"</strong> 继续下载和安装。</p>
+            </div>
         </div>
     </div>
     
