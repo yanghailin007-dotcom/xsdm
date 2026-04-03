@@ -793,6 +793,8 @@ document.addEventListener('DOMContentLoaded', function() {
         }).join('');
       
       // 如果有从分析页面选择的剧情线，自动选中
+      let selectedIdx = 0; // 默认选择第一个
+      
       if (selectedPlotFromAnalysis) {
         const selectedName = typeof selectedPlotFromAnalysis.name === 'object' 
           ? JSON.stringify(selectedPlotFromAnalysis.name) 
@@ -802,12 +804,22 @@ document.addEventListener('DOMContentLoaded', function() {
           return pName === selectedName;
         });
         if (idx >= 0) {
-          plotSelect.value = idx;
+          selectedIdx = idx;
         }
       }
       
-      // 全局变量保存用户选择的剧情路线
-    window.selectedPlotRoute = null;
+      // 默认选择第一个剧情路线（或从分析页面带过来的）
+      plotSelect.value = selectedIdx;
+      window.selectedPlotRoute = plotOptions[selectedIdx]; // 自动保存默认选择
+      
+      // 自动填充剧情详情到主剧情框
+      const defaultPlot = plotOptions[selectedIdx];
+      if (defaultPlot) {
+        const detail = defaultPlot.detail || defaultPlot.content || '';
+        if (detail) {
+          document.getElementById('main-plot').value = detail;
+        }
+      }
     
     // 添加选择事件
     plotSelect.addEventListener('change', function() {
