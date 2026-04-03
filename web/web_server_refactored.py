@@ -577,13 +577,18 @@ def register_fanqie_routes(app):
     
     @app.route('/api/novels/list', methods=['GET'])
     def get_novels_list():
-        """获取小说项目列表 - 支持多层目录结构"""
+        """获取当前用户的小说项目列表 - 支持多层目录结构"""
         try:
             from pathlib import Path
-            from web.auth import login_required
+            from flask import session
             
-            # 检查小说项目目录
-            novels_dir = Path("小说项目")
+            # 获取当前用户
+            username = session.get('username')
+            if not username:
+                return jsonify({"success": False, "error": "请先登录"}), 401
+            
+            # 检查用户的小说项目目录
+            novels_dir = Path("小说项目") / username
             if not novels_dir.exists():
                 return jsonify({"success": True, "data": []})
             
@@ -601,7 +606,7 @@ def register_fanqie_routes(app):
                         project_title = item.name
                         project_path = str(item)
                     else:
-                        # 情况2: 在子目录中查找 chapters（如：项目名/小说名/chapters/）
+                        # 情况2: 在子目录中查找 chapters（如：用户名/小说名/chapters/）
                         for subdir in item.iterdir():
                             if subdir.is_dir() and (subdir / "chapters").exists():
                                 chapters_dir = subdir / "chapters"
@@ -642,19 +647,51 @@ def register_fanqie_routes(app):
             logger.error(f"❌ 获取小说列表失败: {e}")
             return jsonify({"success": False, "error": str(e)}), 500
     
+    def find_user_project_dir(username, project_id):
+        """查找用户的项目目录 - 支持多层结构"""
+        from pathlib import Path
+        user_dir = Path("小说项目") / username
+        
+        # 直接查找
+        project_dir = user_dir / project_id
+        if project_dir.exists():
+            return project_dir
+        
+        # 在子目录中查找
+        for subdir in user_dir.iterdir():
+            if subdir.is_dir():
+                if subdir.name == project_id:
+                    return subdir
+                # 检查二级子目录
+                for subsubdir in subdir.iterdir():
+                    if subsubdir.is_dir() and subsubdir.name == project_id:
+                        return subsubdir
+        return None
+    
     @app.route('/api/fanqie-upload/config', methods=['GET'])
     def get_fanqie_upload_config():
         """获取番茄上传配置 - 结合项目配置和上传参数"""
         try:
+            from flask import session
+            
+            # 获取当前用户
+            username = session.get('username')
+            if not username:
+                return jsonify({"success": False, "error": "请先登录"}), 401
+            
             project_id = request.args.get('project_id')
             if not project_id:
                 return jsonify({"success": False, "error": "缺少project_id参数"}), 400
+            
+            # 查找用户项目
+            project_dir = find_user_project_dir(username, project_id)
+            if not project_dir:
+                return jsonify({"success": False, "error": "项目不存在或无权访问"}), 404
             
             # 加载项目配置（如果存在）
             from pathlib import Path
             import json
             
-            project_dir = Path("小说项目") / project_id
             project_config = {}
             
             # 尝试读取项目配置
@@ -734,14 +771,36 @@ def register_fanqie_routes(app):
             from pathlib import Path
             import json
             from collections import Counter
+            from flask import session
+            
+            # 获取当前用户
+            username = session.get('username')
+            if not username:
+                return jsonify({"success": False, "error": "请先登录"}), 401
             
             project_id = request.args.get('project_id')
             if not project_id:
                 return jsonify({"success": False, "error": "缺少project_id参数"}), 400
             
-            project_dir = Path("小说项目") / project_id
+            # 在用户自己的目录下查找项目
+            user_dir = Path("小说项目") / username
+            project_dir = user_dir / project_id
+            
+            # 如果直接没有，尝试在子目录中查找
             if not project_dir.exists():
-                return jsonify({"success": False, "error": "项目不存在"}), 404
+                for subdir in user_dir.iterdir():
+                    if subdir.is_dir() and subdir.name == project_id:
+                        project_dir = subdir
+                        break
+                    # 检查二级子目录
+                    if subdir.is_dir():
+                        for subsubdir in subdir.iterdir():
+                            if subsubdir.is_dir() and subsubdir.name == project_id:
+                                project_dir = subsubdir
+                                break
+            
+            if not project_dir.exists():
+                return jsonify({"success": False, "error": "项目不存在或无权访问"}), 404
             
             errors = []
             warnings = []
@@ -865,19 +924,25 @@ def register_fanqie_routes(app):
     def get_fanqie_project_data():
         """下载项目数据ZIP包"""
         try:
-            from flask import send_file
+            from flask import send_file, session
             import zipfile
             import io
             from pathlib import Path
             import json
             
+            # 获取当前用户
+            username = session.get('username')
+            if not username:
+                return jsonify({"success": False, "error": "请先登录"}), 401
+            
             project_id = request.args.get('project_id')
             if not project_id:
                 return jsonify({"success": False, "error": "缺少project_id参数"}), 400
             
-            project_dir = Path("小说项目") / project_id
-            if not project_dir.exists():
-                return jsonify({"success": False, "error": "项目不存在"}), 404
+            # 查找用户项目
+            project_dir = find_user_project_dir(username, project_id)
+            if not project_dir:
+                return jsonify({"success": False, "error": "项目不存在或无权访问"}), 404
             
             # 创建ZIP文件
             memory_file = io.BytesIO()
@@ -919,6 +984,12 @@ def register_fanqie_routes(app):
         try:
             from pathlib import Path
             import json
+            from flask import session
+            
+            # 获取当前用户
+            username = session.get('username')
+            if not username:
+                return jsonify({"success": False, "error": "请先登录"}), 401
             
             data = request.get_json()
             project_id = data.get('project_id')
@@ -934,9 +1005,10 @@ def register_fanqie_routes(app):
             if len(title) > 15:
                 return jsonify({"success": False, "error": "书名不能超过15个字符"}), 400
             
-            project_dir = Path("小说项目") / project_id
-            if not project_dir.exists():
-                return jsonify({"success": False, "error": "项目不存在"}), 404
+            # 查找用户项目
+            project_dir = find_user_project_dir(username, project_id)
+            if not project_dir:
+                return jsonify({"success": False, "error": "项目不存在或无权访问"}), 404
             
             # 查找现有配置文件
             config_file = None
