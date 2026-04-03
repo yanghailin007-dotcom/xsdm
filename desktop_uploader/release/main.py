@@ -763,6 +763,14 @@ class MainWindow(QMainWindow):
         <h3>5. 开始上传</h3>
         <p>选择要使用的番茄账户（单选），点击"开始上传"。</p>
         
+        <h3>⚠️ 重要：如何保留登录状态</h3>
+        <ul>
+            <li><b>推荐</b>：直接关闭 Chrome 窗口（点击右上角的 X），下次启动会自动恢复登录状态</li>
+            <li><b>不推荐</b>：点击本软件的"停止"按钮（可能导致登录状态丢失）</li>
+            <li>每个番茄账户的登录状态保存在独立的数据目录中</li>
+            <li>只要不清理浏览器数据，登录状态可以长期保持</li>
+        </ul>
+        
         <h3>注意事项</h3>
         <ul>
             <li>每个番茄账户有独立的浏览器数据，登录状态会保持</li>
@@ -934,6 +942,30 @@ class MainWindow(QMainWindow):
     
     def _do_launch_browser(self, account_id: str, acc):
         """实际启动浏览器"""
+        import socket
+        
+        # 先检查是否已经有浏览器在运行
+        try:
+            with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+                s.settimeout(1)
+                if s.connect_ex(('localhost', acc.port)) == 0:
+                    # 浏览器已经在运行，尝试访问 CDP 确认
+                    try:
+                        import urllib.request
+                        url = f"http://localhost:{acc.port}/json/version"
+                        with urllib.request.urlopen(url, timeout=2) as response:
+                            self.log(f"✅ 浏览器已在运行: {acc.name} (端口: {acc.port})", "success")
+                            acc.status = "running"
+                            if account_id in self.account_cards:
+                                self.account_cards[account_id].update_status("running")
+                            return
+                    except:
+                        # 端口被占用但无法访问 CDP，可能是僵尸进程
+                        self.log(f"⚠️ 端口 {acc.port} 被占用，尝试清理...", "warning")
+        except:
+            pass
+        
+        # 启动新浏览器
         data_dir = self.tomato_manager.get_data_dir(account_id)
         
         if self.chrome_launcher.launch(acc.port, data_dir):
@@ -945,18 +977,72 @@ class MainWindow(QMainWindow):
             QMessageBox.warning(self, "错误", "启动浏览器失败")
     
     def stop_account_browser(self, account_id: str):
-        """停止账户浏览器（通过关闭 Chrome 进程）"""
+        """停止账户浏览器（通过 CDP 优雅关闭）"""
         import subprocess
+        import urllib.request
+        import json
+        
         try:
-            # 查找并关闭对应端口的 Chrome
             acc = self.tomato_manager.get_account(account_id)
-            if acc:
-                # 使用 taskkill 关闭 Chrome（简单方式）
-                subprocess.run(['taskkill', '/F', '/IM', 'chrome.exe'], capture_output=True)
-                self.log(f"⏹ 已停止浏览器: {acc.name}", "info")
-                acc.status = "stopped"
-                if account_id in self.account_cards:
-                    self.account_cards[account_id].update_status("stopped")
+            if not acc:
+                return
+            
+            # 方法1: 尝试通过 CDP 优雅关闭浏览器
+            try:
+                url = f"http://localhost:{acc.port}/json/version"
+                with urllib.request.urlopen(url, timeout=2) as response:
+                    # 如果能访问，尝试关闭页面
+                    try:
+                        close_url = f"http://localhost:{acc.port}/json/close"
+                        urllib.request.urlopen(close_url, timeout=2)
+                    except:
+                        pass
+            except:
+                pass
+            
+            # 方法2: 通过进程用户数据目录关闭特定 Chrome
+            # 查找使用特定 user-data-dir 的 Chrome 进程
+            data_dir = self.tomato_manager.get_data_dir(account_id)
+            try:
+                # 使用 wmic 查找包含特定数据目录的 Chrome 进程
+                result = subprocess.run(
+                    ['wmic', 'process', 'where', f'commandline like "%{data_dir}%"', 'get', 'processid', '/format:csv'],
+                    capture_output=True, text=True, timeout=5
+                )
+                
+                # 解析输出获取 PID
+                for line in result.stdout.strip().split('\n'):
+                    if 'chrome.exe' in line.lower() or line.strip().isdigit():
+                        parts = line.strip().split(',')
+                        for part in parts:
+                            pid = part.strip()
+                            if pid.isdigit():
+                                # 优雅关闭进程
+                                subprocess.run(['taskkill', '/PID', pid], capture_output=True)
+                                
+            except Exception as e:
+                # wmic 可能不可用，降级处理：只关闭当前调试端口的 Chrome
+                self.log(f"优雅关闭失败，尝试强制关闭: {e}", "warning")
+                # 关闭使用特定端口的进程
+                try:
+                    result = subprocess.run(
+                        ['netstat', '-ano', '|', 'findstr', f':{acc.port}'],
+                        capture_output=True, text=True, shell=True
+                    )
+                    for line in result.stdout.split('\n'):
+                        if f":{acc.port}" in line:
+                            parts = line.strip().split()
+                            if len(parts) >= 5:
+                                pid = parts[-1]
+                                subprocess.run(['taskkill', '/PID', pid, '/T'], capture_output=True)
+                except:
+                    pass
+            
+            self.log(f"⏹ 已停止浏览器: {acc.name}", "info")
+            acc.status = "stopped"
+            if account_id in self.account_cards:
+                self.account_cards[account_id].update_status("stopped")
+                
         except Exception as e:
             self.log(f"停止浏览器失败: {e}", "error")
     
