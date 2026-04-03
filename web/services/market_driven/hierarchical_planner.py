@@ -400,20 +400,14 @@ class HierarchicalPlanner:
                         planned_emotion
                     )
                     
-                    # 如果触发告警，记录日志
+                    # 如果触发告警，记录日志（仅分析，不自动修复）
                     if window_result.get('alert'):
                         logger.warning(
                             f"[HierarchicalPlanner] 质量告警: {window_result.get('alert_type')} - "
                             f"{window_result.get('message')}"
                         )
-                        
-                        # 如果触发自动修复，记录建议
-                        auto_fix = self.window_monitor.should_trigger_auto_fix()
-                        if auto_fix.get('trigger'):
-                            logger.critical(
-                                f"[HierarchicalPlanner] 触发自动修复: {auto_fix.get('fix_type')} - "
-                                f"{auto_fix.get('reason')}"
-                            )
+                        # 注意：此处仅记录告警，不触发自动修复
+                        # 修复决策由用户在UI中手动确认后执行
         
         # 生成批次总结
         current_goal = self._get_current_stage_goal()

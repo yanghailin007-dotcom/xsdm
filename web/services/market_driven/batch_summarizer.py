@@ -356,11 +356,11 @@ class BatchSummarizer:
                     metrics_list.append({
                         'chapter_num': ch_num,
                         'title': ch.get('title', ''),
-                        'tomato_score': metrics.get('tomato_score', 0),
-                        'dialogue_ratio': metrics.get('dialogue_ratio', 0),
-                        'shuang_density': metrics.get('shuang_density', 0),
-                        'emotion_density': metrics.get('emotion_density', 0),
-                        'has_cliffhanger': metrics.get('has_cliffhanger', False),
+                        'tomato_score': metrics.tomato_score,
+                        'dialogue_ratio': metrics.dialogue_ratio,
+                        'shuang_density': metrics.shuang_density,
+                        'emotion_density': metrics.emotion_density,
+                        'has_cliffhanger': metrics.has_cliffhanger,
                         'planned_emotion': planned_emotion,
                         'quality_check': quality_check,
                         'passed': quality_check.get('passed', False)
@@ -370,7 +370,7 @@ class BatchSummarizer:
         
         return metrics_list
     
-    def _check_emotion_quality(self, emotion: str, metrics: Dict, content: str) -> Dict:
+    def _check_emotion_quality(self, emotion: str, metrics, content: str) -> Dict:
         """
         🔥 检查章节质量是否符合情绪类型的标准
         """
@@ -384,41 +384,37 @@ class BatchSummarizer:
         
         # 检查对话比例
         min_dialogue = emotion_std.get('min_dialogue_ratio', 40)
-        dialogue_ratio = metrics.get('dialogue_ratio', 0)
-        if dialogue_ratio < min_dialogue:
+        if metrics.dialogue_ratio < min_dialogue:
             issues.append({
                 'type': 'low_dialogue',
-                'message': f"对话比例{dialogue_ratio:.1f}%低于标准{min_dialogue}%",
+                'message': f"对话比例{metrics.dialogue_ratio:.1f}%低于标准{min_dialogue}%",
                 'severity': 'warning'
             })
         
         # 检查番茄得分
         min_score = emotion_std.get('min_tomato_score', 60)
-        tomato_score = metrics.get('tomato_score', 0)
-        if tomato_score < min_score:
+        if metrics.tomato_score < min_score:
             issues.append({
                 'type': 'low_score',
-                'message': f"番茄得分{tomato_score:.1f}低于标准{min_score}",
+                'message': f"番茄得分{metrics.tomato_score:.1f}低于标准{min_score}",
                 'severity': 'critical'
             })
         
         # 检查情绪密度
         min_emotion_density = emotion_std.get('min_emotion_density', 1.5)
-        emotion_density = metrics.get('emotion_density', 0)
-        if emotion_density < min_emotion_density:
+        if metrics.emotion_density < min_emotion_density:
             issues.append({
                 'type': 'low_emotion_density',
-                'message': f"情绪密度{emotion_density:.2f}低于标准{min_emotion_density}",
+                'message': f"情绪密度{metrics.emotion_density:.2f}低于标准{min_emotion_density}",
                 'severity': 'warning'
             })
         
         # 检查爽点密度
         min_shuang = emotion_std.get('min_shuang_density', 1.0)
-        shuang_density = metrics.get('shuang_density', 0)
-        if shuang_density < min_shuang:
+        if metrics.shuang_density < min_shuang:
             issues.append({
                 'type': 'low_shuang_density',
-                'message': f"爽点密度{shuang_density:.2f}低于标准{min_shuang}",
+                'message': f"爽点密度{metrics.shuang_density:.2f}低于标准{min_shuang}",
                 'severity': 'info'
             })
         
