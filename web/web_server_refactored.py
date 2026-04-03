@@ -692,22 +692,34 @@ def register_fanqie_routes(app):
             from pathlib import Path
             import json
             
+            # 尝试读取项目配置（优先从 fanqie_upload_data 读取）
             project_config = {}
+            fanqie_data = {}
             
-            # 尝试读取项目配置
-            config_files = [
-                project_dir / "project_config.json",
-                project_dir / "config.json",
-                project_dir / "novel_info.json"
-            ]
-            for cf in config_files:
-                if cf.exists():
-                    try:
-                        with open(cf, 'r', encoding='utf-8') as f:
-                            project_config = json.load(f)
-                        break
-                    except:
-                        pass
+            config_file = project_dir / "project_config.json"
+            if config_file.exists():
+                try:
+                    with open(config_file, 'r', encoding='utf-8') as f:
+                        project_config = json.load(f)
+                        # 优先使用 fanqie_upload_data 中的数据
+                        fanqie_data = project_config.get('fanqie_upload_data', {})
+                except Exception as e:
+                    logger.warning(f"读取配置文件失败: {e}")
+            
+            # 从 fanqie_data 或 project_config 获取字段
+            title = fanqie_data.get('title') or project_config.get('title', project_id)
+            synopsis = fanqie_data.get('synopsis', '')
+            tags_data = fanqie_data.get('tags', {})
+            
+            # 构建标签列表（从 themes 和 plots 合并）
+            tags_list = []
+            if tags_data:
+                tags_list.extend(tags_data.get('themes', []))
+                tags_list.extend(tags_data.get('plots', []))
+                tags_list = list(set(tags_list))[:5]  # 去重并限制5个
+            
+            # 分类（从 main_category 或旧字段获取）
+            category = tags_data.get('main_category') or project_config.get('category', '')
             
             # 计算章节数据
             chapters_dir = project_dir / "chapters"
@@ -739,13 +751,13 @@ def register_fanqie_routes(app):
                     cover_path = f"/generated_images/{username}/{project_id}/{cover_name}"
                     break
             
-            # 构建上传配置（默认符合番茄签约要求：20章 6万字）
+            # 构建上传配置
             config = {
                 "project_id": project_id,
-                "project_name": project_config.get('title', project_id),
-                "description": project_config.get('description', ''),
-                "category": project_config.get('category', ''),
-                "tags": project_config.get('tags', []),
+                "project_name": title,
+                "description": synopsis,
+                "category": category,
+                "tags": tags_list,
                 "cover_exists": cover_exists,
                 "cover_path": cover_path,
                 "total_chapters": total_chapters,
@@ -819,35 +831,37 @@ def register_fanqie_routes(app):
             errors = []
             warnings = []
             project_info = {}
+            fanqie_data = {}
             
-            # 1. 读取项目配置
-            config_files = ["project_config.json", "config.json", "novel_info.json"]
-            for cf_name in config_files:
-                cf = project_dir / cf_name
-                if cf.exists():
-                    try:
-                        with open(cf, 'r', encoding='utf-8') as f:
-                            project_info = json.load(f)
-                        break
-                    except:
-                        pass
+            # 1. 读取项目配置（优先从 fanqie_upload_data 读取）
+            config_file = project_dir / "project_config.json"
+            if config_file.exists():
+                try:
+                    with open(config_file, 'r', encoding='utf-8') as f:
+                        project_info = json.load(f)
+                        fanqie_data = project_info.get('fanqie_upload_data', {})
+                except:
+                    pass
+            
+            # 从 fanqie_data 或 project_info 获取字段
+            title = fanqie_data.get('title') or project_info.get('title', '')
+            synopsis = fanqie_data.get('synopsis', '')
+            tags_data = fanqie_data.get('tags', {})
+            category = tags_data.get('main_category') or project_info.get('category', '')
             
             # 2. 检查书名
-            title = project_info.get('title', '')
             if not title:
-                errors.append("缺少书名：请在项目配置中设置书名")
+                errors.append("缺少书名：请编辑书籍信息设置书名")
             elif len(title) > 15:
                 errors.append(f"书名过长：当前{len(title)}个字符，番茄要求15个字符以内")
             
             # 3. 检查简介
-            description = project_info.get('description', '')
-            if not description:
-                errors.append("缺少简介：请在项目配置中设置书籍简介")
-            elif len(description) < 50:
+            if not synopsis:
+                errors.append("缺少简介：请编辑书籍信息设置书籍简介")
+            elif len(synopsis) < 50:
                 warnings.append("简介过短：建议简介至少50字以上，更有利于吸引读者")
             
             # 4. 检查分类
-            category = project_info.get('category', '')
             if not category:
                 warnings.append("缺少分类：建议设置书籍分类，便于读者查找")
             
@@ -922,7 +936,7 @@ def register_fanqie_routes(app):
                 "can_download": len(errors) == 0,  # 有错误也允许下载，但需要警告
                 "project_info": {
                     "title": title,
-                    "description": description[:100] + "..." if len(description) > 100 else description,
+                    "description": synopsis[:100] + "..." if len(synopsis) > 100 else synopsis,
                     "category": category,
                     "cover_exists": cover_exists,
                     "chapter_count": len(chapter_files) if chapters_dir.exists() else 0
@@ -1026,31 +1040,32 @@ def register_fanqie_routes(app):
             if not project_dir:
                 return jsonify({"success": False, "error": "项目不存在或无权访问"}), 404
             
-            # 查找现有配置文件
-            config_file = None
-            for cf_name in ["project_config.json", "config.json", "novel_info.json"]:
-                cf = project_dir / cf_name
-                if cf.exists():
-                    config_file = cf
-                    break
+            # 读取现有配置文件
+            config_file = project_dir / "project_config.json"
+            config_data = {}
+            fanqie_data = {}
             
-            # 如果没有配置文件，创建一个默认的
-            if config_file is None:
-                config_file = project_dir / "project_config.json"
-                config_data = {}
-            else:
-                # 读取现有配置
+            if config_file.exists():
                 try:
                     with open(config_file, 'r', encoding='utf-8') as f:
                         config_data = json.load(f)
+                        fanqie_data = config_data.get('fanqie_upload_data', {})
                 except:
-                    config_data = {}
+                    pass
             
-            # 更新书名、简介、分类、标签
+            # 更新 fanqie_upload_data 结构
+            fanqie_data['title'] = title
+            fanqie_data['synopsis'] = description
+            
+            # 更新 tags 结构
+            if 'tags' not in fanqie_data:
+                fanqie_data['tags'] = {}
+            fanqie_data['tags']['main_category'] = category
+            fanqie_data['tags']['themes'] = tags
+            
+            # 更新顶级字段（兼容性）
             config_data['title'] = title
-            config_data['description'] = description
-            config_data['category'] = category
-            config_data['tags'] = tags
+            config_data['fanqie_upload_data'] = fanqie_data
             
             # 保存配置
             with open(config_file, 'w', encoding='utf-8') as f:
