@@ -51,14 +51,20 @@ class FanqieUploaderImpl:
             self.progress_callback(percent, message)
         self._log(f"[{percent}%] {message}")
     
-    def connect_chrome(self) -> bool:
-        """连接 Chrome"""
+    def connect_chrome(self, port: int = None) -> bool:
+        """连接 Chrome
+        
+        Args:
+            port: Chrome 调试端口，默认使用 DEBUG_PORT
+        """
         try:
             from playwright.sync_api import sync_playwright
             
-            self._progress(10, "正在连接 Chrome...")
+            target_port = port if port else DEBUG_PORT
+            
+            self._progress(10, f"正在连接 Chrome (端口: {target_port})...")
             self.playwright = sync_playwright().start()
-            self.browser = self.playwright.chromium.connect_over_cdp(f"http://localhost:{DEBUG_PORT}")
+            self.browser = self.playwright.chromium.connect_over_cdp(f"http://localhost:{target_port}")
             
             contexts = self.browser.contexts
             if contexts and contexts[0].pages:
@@ -70,7 +76,7 @@ class FanqieUploaderImpl:
             return True
         except Exception as e:
             self._log(f"连接 Chrome 失败: {e}", "error")
-            self._log("请确保：1. 已运行 Chrome 启动 2. Chrome 窗口保持打开", "warning")
+            self._log("请确保：1. 已启动对应账户的浏览器 2. 浏览器窗口保持打开", "warning")
             return False
     
     def check_login(self) -> bool:
