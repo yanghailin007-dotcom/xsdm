@@ -17,8 +17,12 @@ class NanoBananaProGenerator:
     
     def __init__(self):
         self.base_url = "https://aiapi.world"
-        self.api_key = os.environ.get('NANOBANANA_API_KEY', '')
         self.model = "gemini-3.1-flash-image-preview"  # 用户指定的模型
+    
+    @property
+    def api_key(self):
+        """动态获取 API Key，确保环境变量已加载"""
+        return os.environ.get('NANOBANANA_API_KEY', '')
         
     def generate_image(self, prompt: str, size: str = "1K", watermark: bool = False, 
                       save_path: str = None, aspect_ratio: str = "3:4") -> Dict[str, Any]:
@@ -148,7 +152,9 @@ class NanoBananaProGenerator:
     
     def validate_config(self) -> bool:
         """验证配置是否完整"""
-        return bool(self.api_key)
+        key = os.environ.get('NANOBANANA_API_KEY', '')
+        logger.info(f"🔑 NanoBanana API Key check: {'已配置' if key else '未配置'} (length: {len(key)})")
+        return bool(key)
 
 
 def test_generator():
