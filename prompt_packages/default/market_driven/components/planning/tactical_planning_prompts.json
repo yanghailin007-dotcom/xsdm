@@ -53,11 +53,11 @@
         "emotion_arc": "极端压抑(9)→绝望(8)→反转爆发(9)→震惊(8)→期待(7)",
         "chapter_structure": {
           "ch1": { "emotion": "压抑", "intensity": 9, "beat": "钩子+压抑", "requirement": "3章内必须有大爽点" },
-          "ch2": { "emotion": "反转", "intensity": 8, "beat": "觉醒+初步反击", "requirement": "系统出现，点燃希望" },
+          "ch2": { "emotion": "反转", "intensity": 7, "beat": "觉醒+初步反击", "requirement": "系统出现，点燃希望" },
           "ch3": { "emotion": "爽快", "intensity": 9, "beat": "爆发+震惊", "requirement": "第一次大打脸，建立信心" }
         },
         "key_metrics": {
-          "emotion_variance": "≥3", 
+          "emotion_variance": "≥2", 
           "climax_in_3_chapters": true,
           "hook_strength": "必须极强"
         }

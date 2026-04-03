@@ -392,10 +392,10 @@ class HierarchicalPlanner:
                     window_result = self.window_monitor.add_chapter(
                         ch_num,
                         {
-                            'tomato_score': metrics.tomato_score,
-                            'dialogue_ratio': metrics.dialogue_ratio,
-                            'shuang_density': metrics.shuang_density,
-                            'emotion_density': metrics.emotion_density
+                            'tomato_score': metrics.get('tomato_score', 0),
+                            'dialogue_ratio': metrics.get('dialogue_ratio', 0),
+                            'shuang_density': metrics.get('shuang_density', 0),
+                            'emotion_density': metrics.get('emotion_density', 0)
                         },
                         planned_emotion
                     )

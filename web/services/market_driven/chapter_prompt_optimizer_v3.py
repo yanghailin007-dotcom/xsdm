@@ -1252,7 +1252,8 @@ class ChapterPromptOptimizerV3:
         
         structure = config.get('structure', {})
         emotion_vocab = config.get('emotion_vocabulary', {})
-        algo_req = common.get('algorithm_requirements', {})
+        # 优先使用章节特定配置，否则使用通用配置
+        algo_req = config.get('algorithm_requirements', common.get('algorithm_requirements', {}))
         
         emotion_curve = config.get('emotion_curve', ['犹豫', '期待', '满足', '紧张'])
         emotion_curve_str = ' → '.join(emotion_curve)
@@ -1300,7 +1301,8 @@ class ChapterPromptOptimizerV3:
         
         structure = config.get('structure', {})
         shock_flow = config.get('shock_flow', {})
-        algo_req = common.get('algorithm_requirements', {})
+        # 优先使用章节特定配置，否则使用通用配置
+        algo_req = config.get('algorithm_requirements', common.get('algorithm_requirements', {}))
         
         layers = shock_flow.get('layers', [])
         layers_str = '\n'.join([f"- {layer}" for layer in layers])

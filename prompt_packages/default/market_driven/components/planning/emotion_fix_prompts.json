@@ -1,0 +1,196 @@
+{
+  "version": "1.0.0",
+  "description": "情绪设计问题修复提示词配置",
+  
+  "fix_strategies": {
+    "description": "修复策略分级，根据问题严重程度选择不同策略",
+    
+    "levels": {
+      "critical": {
+        "threshold": "超过50%章节有问题 或 存在关键指标不达标",
+        "action": "regenerate_all",
+        "description": "重新生成整个批次",
+        "max_attempts": 3
+      },
+      "high": {
+        "threshold": "3-5个章节有问题",
+        "action": "ai_partial_fix",
+        "description": "AI局部修复问题章节",
+        "max_attempts": 2
+      },
+      "medium": {
+        "threshold": "1-2个章节数值偏差",
+        "action": "auto_adjust",
+        "description": "数值自动调整+AI润色",
+        "max_attempts": 1
+      },
+      "low": {
+        "threshold": "轻微偏差（如差0.5）",
+        "action": "mark_only",
+        "description": "仅标记，不修复",
+        "max_attempts": 0
+      }
+    }
+  },
+  
+  "validation_rules": {
+    "emotion_variance": {
+      "description": "情绪起伏度检查",
+      "rule_id": "emotion_variance_check",
+      "min_variance_by_pattern": {
+        "开局爆发型": 2,
+        "递进高潮型": 2,
+        "蓄力积累型": 1,
+        "收束过渡型": 2
+      },
+      "issue_template": "{location}情绪起伏不足，当前差值{actual_variance} < 要求{expected_variance}",
+      "fix_instruction_template": "将第{chapter}章强度从{old_value}调整为{new_value}，确保与第{prev_chapter}章差值≥{min_variance}",
+      "severity_calculation": {
+        "critical": "variance == 0 且 pattern == 开局爆发型",
+        "high": "variance == 0",
+        "medium": "variance < min_variance * 0.5",
+        "low": "variance < min_variance"
+      }
+    },
+    
+    "opening_burst": {
+      "description": "开局爆发型检查",
+      "rule_id": "opening_burst_check",
+      "applies_to": ["开局爆发型"],
+      "requirements": {
+        "max_intensity_first_3": {
+          "min_value": 8,
+          "description": "前3章必须有强度≥8的高潮"
+        },
+        "intensity_progression": {
+          "description": "前3章强度必须呈U型：高→低→高"
+        }
+      },
+      "issue_template": "开局爆发型前3章强度不达标，当前最高{current_max} < 要求{required_min}",
+      "fix_instruction_template": "将前3章中第{target_chapter}章强度提升至{target_intensity}，形成9→6→9或8→5→9的U型曲线",
+      "severity": "critical"
+    },
+    
+    "progressive_climax": {
+      "description": "递进高潮型检查",
+      "rule_id": "progressive_climax_check",
+      "applies_to": ["递进高潮型"],
+      "requirements": {
+        "intensity_progression": "递增趋势",
+        "min_shock_layers": 3
+      },
+      "issue_template": "递进高潮型强度未呈递增趋势，末期{end_intensity} < 初期{start_intensity}",
+      "fix_instruction_template": "调整后段章节强度，确保整体呈递增趋势，最终章达到9",
+      "severity": "high"
+    },
+    
+    "hook_check": {
+      "description": "钩子检查",
+      "rule_id": "hook_presence_check",
+      "requirements": {
+        "required": true,
+        "position": "最后50字"
+      },
+      "issue_template": "第{chapter}章缺少钩子或钩子内容为空",
+      "fix_instruction_template": "为第{chapter}章添加符合{emotion}情绪的钩子，类型建议：{suggested_hook_type}",
+      "severity": "high"
+    },
+    
+    "intensity_range": {
+      "description": "强度范围检查",
+      "rule_id": "intensity_range_check",
+      "valid_range": [1, 10],
+      "issue_template": "第{chapter}章强度{intensity}超出1-10有效范围",
+      "fix_instruction_template": "将第{chapter}章强度调整为{clamped_value}",
+      "severity": "medium"
+    }
+  },
+  
+  "fix_value_calculation": {
+    "description": "修复值计算策略",
+    
+    "strategies": {
+      "increase_variance": {
+        "description": "增加起伏度",
+        "formula": "如果前一章强度高，当前降低；如果前一章低，当前升高",
+        "calculation": {
+          "when_prev_high": "new_value = max(1, prev_intensity - min_variance - random(0,1))",
+          "when_prev_low": "new_value = min(10, prev_intensity + min_variance + random(0,1))"
+        }
+      },
+      
+      "opening_burst_fix": {
+        "description": "开局爆发型修复",
+        "target_arc": [9, 6, 9],
+        "alternative_arc": [8, 5, 9],
+        "fallback_arc": [9, 7, 8]
+      },
+      
+      "progressive_fix": {
+        "description": "递进型修复",
+        "formula": "线性递增分配强度值",
+        "calculation": "intensity = start + (end - start) * (index / total)"
+      }
+    }
+  },
+  
+  "ai_fix_prompts": {
+    "description": "AI修复提示词模板",
+    
+    "system_role": "你是一位专业的小说情绪设计修复专家。你的任务是根据检测到的问题，精确修复章节的情绪强度设计，确保符合番茄爆款小说的情绪曲线要求。",
+    
+    "templates": {
+      "intensity_fix": {
+        "description": "强度值修复",
+        "prompt": "【修复任务：调整章节情绪强度】\n\n### 原始章节设计\n```json\n{original_chapter_json}\n```\n\n### 检测到的问题\n{issue_description}\n\n### 修复要求\n- 章节号：第{chapter_number}章\n- 修复字段：intensity（情绪强度）\n- 当前值：{old_value}\n- 目标值：{new_value}\n- 情绪类型：保持'{emotion}'不变\n- 相邻章关系：第{prev_chapter}章强度为{prev_intensity}，第{next_chapter}章强度为{next_intensity}\n\n### 修复规则（必须遵守）\n1. 仅修改强度数值为{new_value}，不要修改其他数值字段\n2. 保持情绪类型（emotion）不变：'{emotion}'\n3. 保持节拍类型（beat_type）不变：'{beat_type}'\n4. 保持钩子设计（hook_content）不变：'{hook_content}'\n5. 保持关键事件（event）不变：'{event}'\n6. 调整与强度相关的描述字段：\n   - algorithm_requirements中的强度相关描述\n   - purpose中的强度预期\n   - self_check_items中与强度相关的检查项\n\n### 输出要求\n直接返回修复后的完整JSON对象，不要包含任何解释或markdown标记。确保intensity字段值为{new_value}。"
+      },
+      
+      "opening_burst_redesign": {
+        "description": "开局爆发型重设计",
+        "prompt": "【修复任务：开局爆发型情绪弧线重设计】\n\n### 原始前3章设计\n```json\n{original_chapters_json}\n```\n\n### 检测到的问题\n{issue_description}\n\n### 修复要求\n前3章必须形成U型情绪弧线：压抑(9)→反转铺垫(6-7)→爽快爆发(9)\n\n具体分配：\n- 第1章：压抑(9) - 极端压抑，让读者同情主角\n- 第2章：反转(6-7) - 系统觉醒，点燃希望，但不要太爽\n- 第3章：爽快(9) - 第一次大打脸，震惊全场\n\n### 必须保持的内容\n- 主角名：{protagonist_name}\n- 核心事件：保持原设计的关键事件\n- 阶段目标：{goal_id} - {goal_description}\n\n### 输出要求\n返回前3章的完整JSON数组，每章必须包含所有必需字段。"
+      },
+      
+      "hook_addition": {
+        "description": "添加钩子",
+        "prompt": "【修复任务：为章节添加钩子】\n\n### 章节信息\n- 章节号：第{chapter_number}章\n- 情绪类型：{emotion}\n- 主要事件：{event}\n- 当前结尾：{current_ending}\n\n### 钩子要求\n- 位置：章节最后50字\n- 类型建议：{suggested_hook_type}\n- 效果：必须让读者想点下一章\n\n### 可选钩子类型\n1. 时间锁：具体倒计时，如'72小时后，死局降临'\n2. 信息差：主角知道读者知道但反派不知道\n3. 危机预警：更大危机逼近\n4. 身份揭露：神秘人物登场\n5. 反派出招：反派放大招\n\n### 输出要求\n只返回钩子内容字符串（50字以内），不要其他说明。"
+      },
+      
+      "batch_regenerate": {
+        "description": "整批次重新生成",
+        "prompt": "【修复任务：重新生成战术规划】\n\n### 失败原因\n{failure_reason}\n\n### 原始生成结果的问题\n{issues_list}\n\n### 重新生成要求\n- 批次：第{start_chapter}-{end_chapter}章\n- 阶段目标：{goal_id} - {goal_description}\n- 情绪模式：{pattern_name}\n- 关键指标：\n  - 相邻章强度差必须≥{min_variance}\n  - 严禁平铺直叙\n  - 章章有钩子\n\n### 加强约束（必须严格遵守）\n{enhanced_constraints}\n\n### 输出格式\n标准JSON格式，包含完整的chapters数组。"
+      }
+    }
+  },
+  
+  "output_schema": {
+    "fix_report": {
+      "description": "修复报告结构",
+      "fields": {
+        "fixed": "boolean - 是否修复成功",
+        "strategy": "string - 使用的修复策略",
+        "attempts": "integer - 尝试次数",
+        "details": [
+          {
+            "chapter": "integer - 章节号",
+            "field": "string - 修复的字段",
+            "old_value": "any - 原值",
+            "new_value": "any - 新值",
+            "reason": "string - 修复原因"
+          }
+        ],
+        "before_validation": "object - 修复前验证结果",
+        "after_validation": "object - 修复后验证结果"
+      }
+    }
+  },
+  
+  "logging_templates": {
+    "validation_failed": "[TacticalPlanner] 情绪设计验证发现问题:{issue_count}个 | 模式:{pattern_name}",
+    "issue_detail": "[TacticalPlanner]   - {location}: {issue_type} | 当前值:{current} | 要求:{expected}",
+    "fix_start": "[TacticalPlanner] 启动自动修复 | 策略:{strategy} | 问题章节:{chapters}",
+    "fix_chapter": "[TacticalPlanner]   修复第{chapter}章: {field} {old_value}→{new_value} ({reason})",
+    "fix_success": "[TacticalPlanner] ✓ 自动修复成功 | 修复{count}处 | 再次验证通过",
+    "fix_partial": "[TacticalPlanner] ⚠ 部分修复 | 成功{success_count}处 | 仍有{remaining}个问题",
+    "fix_failed": "[TacticalPlanner] ✗ 自动修复失败 | 已达到最大尝试次数{max_attempts} | 需人工审核"
+  }
+}

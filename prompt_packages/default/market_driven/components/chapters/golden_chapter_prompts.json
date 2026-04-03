@@ -119,10 +119,10 @@
       "goal": "让读者对金手指有信心，期待后续",
       "emotion_curve": ["犹豫", "期待", "满足", "紧张"],
       "structure": {
-        "recap": {"range": "0-300字", "requirement": "简洁承接第一章，回顾系统"},
+        "recap": {"range": "0-300字", "requirement": "简洁承接第一章，回顾系统，前300字必须出现冲突/悬念"},
         "first_use": {"range": "800字处", "requirement": "金手指首次正式使用"},
         "first_success": {"range": "1500字处", "requirement": "第一次成功，具体数字收益"},
-        "new_conflict": {"range": "章尾", "requirement": "新反派登场，更大危机"}
+        "new_conflict": {"range": "章尾", "requirement": "新反派登场，更大危机，最后50字必须是钩子"}
       },
       "key_requirements": [
         "金手指使用过程是否清晰？",
@@ -136,8 +136,20 @@
         "satisfaction": ["狂喜", "畅快", "扬眉吐气", "通体舒泰"],
         "tension": ["瞳孔收缩", "后背发凉", "如坠冰窟"]
       },
+      "algorithm_requirements": {
+        "emotion_density": {"target": "≥2.0个/千字", "min_count": 10},
+        "hook_presence": {"required": true, "position": "最后50字"},
+        "appeal_density": {"target": "≥1.5个/千字", "min_moments": 3},
+        "basic": [
+          "前300字必须出现冲突/悬念",
+          "对话占比≥50%",
+          "每段1-3行，多用换行",
+          "最后50字必须是钩子",
+          "第三人称上帝视角"
+        ]
+      },
       "self_check_steps": [
-        {"name": "基础指标", "items": ["字数：2000-2500字？", "对话占比：≥50%？"]},
+        {"name": "基础指标", "items": ["字数：2000-2500字？", "段落：每段1-3行？", "对话占比：≥50%？", "前300字：有冲突/悬念？"]},
         {"name": "关键节拍", "items": ["800字使用（是/否）", "1500字成功（是/否）", "章尾冲突（是/否）"]},
         {"name": "情绪曲线", "items": ["情绪转变：犹豫→期待→满足→紧张？"]},
         {"name": "爽点与钩子", "items": ["小规模爽点：是否让读者有信心？", "爽点是否有震惊反应链？", "新反派：是否让读者恨？", "最后50字必须是钩子！"]}
@@ -152,11 +164,11 @@
       "emotion_intensity": "8→10→9→7",
       "structure": {
         "recap": {"range": "0-200字", "requirement": "回顾上一章结尾，简洁过渡"},
-        "villain_ramp_up": {"range": "500字处", "requirement": "反派极致羞辱（情绪强度8/10）"},
+        "villain_ramp_up": {"range": "200-500字", "requirement": "反派极致羞辱（情绪强度8/10），前300字必须出现冲突/羞辱场景"},
         "turning_point": {"range": "800-1200字", "requirement": "主角反击开始，反派出招"},
         "climax": {"range": "1500字处", "requirement": "打脸高潮，碾压式反击（情绪10/10）"},
-        "harvest": {"range": "2000字处", "requirement": "系统提示+具体数字收益"},
-        "hook": {"range": "章尾", "requirement": "更大反派/新目标"}
+        "harvest": {"range": "2000字处", "requirement": "系统提示+具体数字收益，展示收获"},
+        "hook": {"range": "2200-2500字", "requirement": "更大反派/新目标，最后50字必须是钩子"}
       },
       "emotion_requirements": {
         "anger": ["暴怒", "狂怒", "目眦尽裂", "杀意滔天", "怒火中烧"],
@@ -174,12 +186,30 @@
         "villain_turn": "180度态度转变（嚣张→震惊→恐惧→求饶）",
         "warning": "重要：用自然叙事展现震惊，严禁使用'第一层/第二层/第三层'这种标签！"
       },
+      "algorithm_requirements": {
+        "emotion_density": {"target": "≥2.0个/千字", "min_count": 10, "distribution": "每500字至少1个强烈情绪词"},
+        "hook_presence": {"required": true, "position": "最后50字", "compliance_rate": "100%"},
+        "appeal_density": {"target": "≥1.5个/千字", "min_moments": 3, "reaction_chain": "现场→围观者→传播→权威"},
+        "basic": [
+          "前300字必须出现冲突/羞辱场景",
+          "对话占比≥50%",
+          "每段1-3行，多用换行",
+          "最后50字必须是钩子",
+          "第三人称上帝视角"
+        ]
+      },
+      "micro_innovation": {
+        "face_slap": "避开'你一拳我一拳'的回合制，尝试：一击必杀、智商碾压、降维打击",
+        "villain_reaction": "反派从嚣张到恐惧的转变要有层次，不要瞬间崩塌",
+        "harvest_display": "收益展示要具体（数字+对比+未来预期）"
+      },
       "appeal_moments": [
         {"name": "主角开始反击", "type": "初露锋芒"},
         {"name": "碾压反派", "type": "高潮打脸"},
         {"name": "收获展示", "type": "系统奖励"}
       ],
       "self_check_steps": [
+        {"name": "基础指标", "items": ["字数：2000-2500字？", "段落：每段1-3行？", "对话：占比≥50%？", "前300字：有冲突/羞辱？"]},
         {"name": "关键节拍", "items": ["500字压抑（是/否）", "1500字爆发（是/否）", "2000字收益（是/否）"]},
         {"name": "情绪强度", "items": ["情绪曲线：8→10→9→7？", "压抑是否到位？", "爆发是否够爽？", "情绪密度：≥2.0/千字？"]},
         {"name": "震惊流", "items": ["3层结构完整？", "围观反应具体？", "反派转变180度？", "爽点密度：≥1.5/千字？"]},

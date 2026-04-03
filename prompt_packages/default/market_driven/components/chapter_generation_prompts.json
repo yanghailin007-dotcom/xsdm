@@ -57,50 +57,65 @@
     
     "chapter_2": {
       "name": "第2章 - 金手指使用+小爽点",
-      "core_task": "金手指成功应用，第一次小爽点",
+      "core_task": "金手指成功应用，第一次小爽点，建立读者信心",
       "word_count": "2000-2500字",
       "structure": {
-        "recap": {"range": "0-300字", "requirement": "简洁承接第一章，回顾系统"},
+        "recap": {"range": "0-300字", "requirement": "简洁承接第一章，回顾系统，前300字必须出现冲突/悬念"},
         "first_use": {"range": "800字处", "requirement": "金手指首次正式使用"},
         "first_success": {"range": "1500字处", "requirement": "第一次成功，具体数字收益"},
-        "new_conflict": {"range": "章尾", "requirement": "新反派登场，更大危机"}
+        "new_conflict": {"range": "章尾", "requirement": "新反派登场，更大危机，最后50字必须是钩子"}
       },
       "emotion_curve": ["犹豫", "期待", "满足", "紧张"],
       "algorithm_requirements": {
-        "emotion_density": {"target": "≥2.0个/千字", "chapter_specific": "犹豫→期待→满足→紧张"},
-        "hook_presence": {"required": true, "recommended_types": ["新反派登场", "危机预警", "时间锁"]},
-        "appeal_density": {"target": "≥1.5个/千字", "key_moment": "金手指首次成功必须有震惊反应链"}
+        "emotion_density": {"target": "≥2.0个/千字", "min_count": 10, "chapter_specific": "犹豫→期待→满足→紧张"},
+        "hook_presence": {"required": true, "position": "最后50字", "recommended_types": ["新反派登场", "危机预警", "时间锁"]},
+        "appeal_density": {"target": "≥1.5个/千字", "min_moments": 3, "key_moment": "金手指首次成功必须有震惊反应链"},
+        "basic": [
+          "前300字必须出现冲突/悬念",
+          "对话占比≥50%",
+          "每段1-3行，多用换行",
+          "最后50字必须是钩子",
+          "第三人称上帝视角"
+        ]
       },
       "self_check_items": [
+        "字数：2000-2500字？",
+        "段落：每段1-3行？",
+        "对话：占比≥50%？",
+        "前300字：有冲突/悬念？",
         "金手指使用过程是否清晰？",
         "首次成功是否有具体数字？",
         "新反派是否让读者恨？",
         "是否为第3章打脸做好了铺垫？",
-        "最后50字必须是钩子！"
+        "最后50字必须是钩子！",
+        "情绪密度：≥2.0/千字？",
+        "爽点密度：≥1.5/千字？"
       ]
     },
     
     "chapter_3": {
       "name": "第3章 - 第一次正式打脸",
-      "core_task": "铺垫→压抑→爆发→震惊流",
+      "core_task": "铺垫→压抑→爆发→震惊流，让读者彻底痛快",
       "word_count": "2000-2500字",
       "structure": {
         "recap": {"range": "0-200字", "requirement": "回顾上一章结尾，简洁过渡"},
-        "villain_ramp_up": {"range": "500字处", "requirement": "反派极致羞辱（情绪强度8/10）"},
+        "villain_ramp_up": {"range": "200-500字", "requirement": "反派极致羞辱（情绪强度8/10），前300字必须出现冲突"},
         "turning_point": {"range": "800-1200字", "requirement": "主角反击开始，反派出招"},
         "climax": {"range": "1500字处", "requirement": "打脸高潮，碾压式反击（情绪10/10）"},
-        "harvest": {"range": "2000字处", "requirement": "系统提示+具体数字收益"},
-        "hook": {"range": "章尾", "requirement": "更大反派/新目标"}
+        "harvest": {"range": "2000字处", "requirement": "系统提示+具体数字收益，展示收获"},
+        "hook": {"range": "2200-2500字", "requirement": "更大反派/新目标，最后50字必须是钩子"}
       },
       "emotion_intensity": "8→10→9→7",
       "algorithm_requirements": {
         "emotion_density": {
           "target": "≥2.0个/千字", 
+          "min_count": 10,
           "required_emotions": ["愤怒(暴怒/狂怒/目眦尽裂)", "震惊(骇然/目瞪口呆)", "爽快(畅快/扬眉吐气)"]
         },
-        "hook_presence": {"required": true, "recommended_types": ["更大反派登场", "危机预警", "新机遇"]},
+        "hook_presence": {"required": true, "position": "最后50字", "recommended_types": ["更大反派登场", "危机预警", "新机遇"]},
         "appeal_density": {
           "target": "≥1.5个/千字",
+          "min_moments": 3,
           "moments": ["主角开始反击", "碾压反派", "收获展示"],
           "reaction_chain": "现场→弹幕→传播→权威",
           "number_emphasis": "必须有具体数字强化爽感"
@@ -109,15 +124,34 @@
           "layers": ["现场围观者", "弹幕/传播扩散", "权威人物反应"],
           "villain_turn": "180度态度转变",
           "satisfaction": "具体收益数字"
-        }
+        },
+        "basic": [
+          "前300字必须出现冲突/羞辱场景（让读者立即入戏）",
+          "对话占比≥50%",
+          "每段1-3行，多用换行",
+          "最后50字必须是钩子",
+          "第三人称上帝视角"
+        ]
+      },
+      "micro_innovation": {
+        "face_slap": "避开'你一拳我一拳'的回合制，尝试：一击必杀、智商碾压、降维打击",
+        "villain_reaction": "反派从嚣张到恐惧的转变要有层次，不要瞬间崩塌",
+        "harvest_display": "收益展示要具体（数字+对比+未来预期）"
       },
       "self_check_items": [
+        "字数：2000-2500字？",
+        "段落：每段1-3行？",
+        "对话：占比≥50%？",
+        "前300字：有冲突/羞辱？",
         "500字处压抑到位（让读者恨反派）？",
         "1500字处爆发够爽（让读者痛快）？",
-        "震惊流：3层结构完整？",
+        "震惊流：3层结构完整（现场→弹幕→权威）？",
         "围观者反应具体（表情+语言+动作）？",
         "反派态度180度转变？",
-        "最后50字必须是钩子！"
+        "收获：有具体数字收益？",
+        "最后50字必须是钩子！",
+        "情绪密度：≥2.0/千字？",
+        "爽点密度：≥1.5/千字？"
       ]
     },
     

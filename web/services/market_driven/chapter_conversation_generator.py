@@ -1412,9 +1412,10 @@ class ChapterConversationGenerator:
         3. 从chapter_plan的event/purpose字段生成
         4. 最后使用默认标题
         
-        标题规范(番茄爆款标准):
-        - 字数:8-14字(不含"第X章")
-        - 风格:简洁有力,概括核心爽点
+        标题规范:
+        - 不再强制截取，保留AI生成的完整标题
+        - 只清理"第X章"前缀
+        - 确保长度至少4个字
         """
         import re
         
@@ -1423,8 +1424,7 @@ class ChapterConversationGenerator:
             title = ai_title.strip()
             # 清理可能存在的"第X章"前缀
             title = re.sub(r'^第[一二三四五六七八九十百千万零\d]+章\s*', '', title)
-            # 验证长度(番茄标准:8-14字)，智能截断（在标点处截断）
-            title = self._smart_truncate_title(title, max_length=14)
+            # 不再截断标题，保留完整格式
             if len(title) >= 4:
                 return self._ensure_unique_title(title)
         
@@ -1434,25 +1434,22 @@ class ChapterConversationGenerator:
             if title and title != '章节' and len(title) >= 4:
                 # 清理"第X章"前缀
                 title = re.sub(r'^第[一二三四五六七八九十百千万零\d]+章\s*', '', title)
-                title = self._smart_truncate_title(title, max_length=14)
+                # 不再截断标题
                 return self._ensure_unique_title(title)
             
             # 从event字段生成
             event = chapter_plan.get('event', '').strip()
             if event and len(event) >= 4:
-                event = self._smart_truncate_title(event, max_length=14)
                 return self._ensure_unique_title(event)
             
             # 从purpose字段生成
             purpose = chapter_plan.get('purpose', '').strip()
             if purpose and len(purpose) >= 4:
-                purpose = self._smart_truncate_title(purpose, max_length=14)
                 return self._ensure_unique_title(purpose)
             
             # 从hook_content获取
             hook = chapter_plan.get('hook_content', '').strip()
             if hook and len(hook) >= 4:
-                hook = self._smart_truncate_title(hook, max_length=14)
                 return self._ensure_unique_title(hook)
         
         # 3. 从内容前10行分析提取(备用方案)
@@ -1461,7 +1458,7 @@ class ChapterConversationGenerator:
             line = line.strip()
             if line.startswith('第') and '章' in line[:10]:
                 continue
-            if 8 <= len(line) <= 20 and not line.startswith('[') and not line.startswith('('):
+            if 8 <= len(line) <= 30 and not line.startswith('[') and not line.startswith('('):
                 return self._ensure_unique_title(line)
         
         # 4. 默认返回

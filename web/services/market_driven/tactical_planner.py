@@ -18,6 +18,29 @@ from .prompt_loader import get_prompt_loader
 logger = logging.getLogger(__name__)
 
 
+def _parse_numeric(value, default=0):
+    """
+    安全地解析数值，处理字符串格式如 '≥3', '<5' 等
+    
+    Args:
+        value: 待解析的值（可能是数字、字符串）
+        default: 默认值
+        
+    Returns:
+        float: 解析后的数值
+    """
+    if isinstance(value, (int, float)):
+        return float(value)
+    if isinstance(value, str):
+        # 移除前缀符号如 ≥, >, <, ≤
+        cleaned = value.lstrip('≥><≤').strip()
+        try:
+            return float(cleaned)
+        except ValueError:
+            return float(default)
+    return float(default)
+
+
 class TacticalPlanner:
     """
     战术层规划器
@@ -43,6 +66,46 @@ class TacticalPlanner:
         # 加载战术规划配置
         self._prompt_loader = get_prompt_loader()
         self._planning_config = self._load_planning_config()
+        self._fix_config = self._load_fix_config()  # 加载修复配置
+        
+    def _load_fix_config(self) -> Dict:
+        """加载情绪修复配置"""
+        try:
+            config = self._prompt_loader.load_json("components/planning/emotion_fix_prompts.json")
+            if config:
+                logger.info("[TacticalPlanner] 加载情绪修复配置成功")
+                return config
+            else:
+                logger.warning("[TacticalPlanner] 情绪修复配置加载失败，使用默认配置")
+                return self._get_default_fix_config()
+        except Exception as e:
+            logger.error(f"[TacticalPlanner] 加载修复配置失败: {e}")
+            return self._get_default_fix_config()
+    
+    def _get_default_fix_config(self) -> Dict:
+        """获取默认修复配置"""
+        return {
+            "fix_strategies": {
+                "levels": {
+                    "critical": {"action": "regenerate_all", "max_attempts": 3},
+                    "high": {"action": "ai_partial_fix", "max_attempts": 2},
+                    "medium": {"action": "auto_adjust", "max_attempts": 1},
+                    "low": {"action": "mark_only", "max_attempts": 0}
+                }
+            },
+            "validation_rules": {
+                "emotion_variance": {
+                    "min_variance_by_pattern": {
+                        "开局爆发型": 3, "递进高潮型": 2, 
+                        "蓄力积累型": 1, "收束过渡型": 2
+                    }
+                }
+            },
+            "ai_fix_prompts": {
+                "system_role": "你是一位专业的小说情绪设计修复专家。",
+                "templates": {}
+            }
+        }
         
     def _load_planning_config(self) -> Dict:
         """加载战术规划配置"""
@@ -138,8 +201,12 @@ class TacticalPlanner:
         
         if scores[best_pattern] == 0:
             # 没有匹配到，根据阶段类型默认
-            if 'opening' in goal_id.lower() or start_chapter <= 10:
+            # 🔥 开局爆发型只用于前3章（黄金三章）
+            if start_chapter <= 3:
                 best_pattern = "开局爆发型"
+            elif 'opening' in goal_id.lower() and start_chapter <= 5:
+                # 开局相关但超过前3章，用蓄力积累型过渡
+                best_pattern = "蓄力积累型"
             elif 'climax' in goal_id.lower() or 'peak' in goal_id.lower():
                 best_pattern = "递进高潮型"
             elif 'transition' in goal_id.lower() or 'summary' in goal_id.lower():
@@ -151,91 +218,249 @@ class TacticalPlanner:
         
         logger.info(f"[TacticalPlanner] 阶段目标'{goal_id}'识别为{best_pattern} | 匹配分数: {scores}")
         
+        # 解析 emotion_arc（支持字符串或列表格式）
+        emotion_arc = pattern_config.get('emotion_arc', [])
+        if isinstance(emotion_arc, str):
+            # 字符串格式："压抑(9)→反转(8)→爽快(9)"
+            emotion_arc = [item.strip() for item in emotion_arc.split('→')]
+        
         return {
             "pattern_name": best_pattern,
             "pattern_id": pattern_config.get('pattern_id', best_pattern),
             "description": pattern_config.get('description', ''),
-            "emotion_arc": pattern_config.get('emotion_arc', []),
+            "emotion_arc": emotion_arc,
             "key_metrics": pattern_config.get('key_metrics', {}),
             "applicable_goals": pattern_config.get('applicable_goals', [])
         }
     
     def _validate_emotion_design(self, chapters: List[Dict], expected_pattern: Dict) -> Dict:
         """
-        验证情绪设计是否符合模式要求
+        验证情绪设计 - 增强版（带精准定位和修复计划）
         
         Args:
             chapters: 生成的章节列表
             expected_pattern: 期望的情绪模式
             
         Returns:
-            验证结果
+            验证结果，包含精准问题定位和修复计划
         """
         issues = []
-        fixes = []
+        fixes = {}  # 章节号 -> 修复指令
         
         pattern_name = expected_pattern.get('pattern_name', '')
         key_metrics = expected_pattern.get('key_metrics', {})
         
-        # 1. 检查情绪起伏度
-        intensities = [ch.get('intensity', 5) for ch in chapters]
-        if len(intensities) >= 2:
-            variances = [abs(intensities[i] - intensities[i-1]) for i in range(1, len(intensities))]
-            avg_variance = sum(variances) / len(variances)
+        # 获取最小起伏度要求
+        variance_config = self._fix_config.get('validation_rules', {}).get('emotion_variance', {})
+        min_variance_by_pattern = variance_config.get('min_variance_by_pattern', {})
+        min_variance = min_variance_by_pattern.get(pattern_name, 
+                         _parse_numeric(key_metrics.get('emotion_variance', 1), 1))
+        
+        # 1. 检查情绪起伏度 - 精准定位每一对相邻章节
+        intensities = [(ch.get('chapter_number'), ch.get('intensity', 5)) for ch in chapters]
+        
+        for i in range(1, len(intensities)):
+            ch_num_prev, intensity_prev = intensities[i-1]
+            ch_num_curr, intensity_curr = intensities[i]
+            variance = abs(intensity_curr - intensity_prev)
             
-            min_variance = key_metrics.get('emotion_variance', 1)
-            if avg_variance < min_variance:
-                issues.append(f"情绪起伏度过低({avg_variance:.1f} < {min_variance})，过于平铺直叙")
-                fixes.append("增加相邻章节的情绪强度差异")
+            if variance < min_variance:
+                # 精准定位到具体章节对
+                location = f"第{ch_num_prev}章→第{ch_num_curr}章"
+                severity = self._calculate_severity(variance, min_variance, pattern_name)
+                
+                # 自动生成修复值
+                suggested_intensity = self._calculate_fix_intensity(
+                    intensity_prev, intensity_curr, min_variance
+                )
+                
+                issue = {
+                    "type": "情绪起伏不足",
+                    "chapters": [ch_num_prev, ch_num_curr],
+                    "location": location,
+                    "current_values": [intensity_prev, intensity_curr],
+                    "expected_min_variance": min_variance,
+                    "actual_variance": variance,
+                    "severity": severity,
+                    "fix_instruction": f"将第{ch_num_curr}章强度从{intensity_curr}改为{suggested_intensity}，确保与第{ch_num_prev}章差值≥{min_variance}",
+                    "suggested_fix": {
+                        "chapter": ch_num_curr,
+                        "field": "intensity",
+                        "old_value": intensity_curr,
+                        "new_value": suggested_intensity,
+                        "reason": f"情绪起伏不足({variance} < {min_variance})"
+                    }
+                }
+                
+                issues.append(issue)
+                fixes[ch_num_curr] = issue["suggested_fix"]
+                
+                # 记录详细日志
+                logger.warning(f"[TacticalPlanner]   - {location}: 情绪起伏不足 | 差值{variance} < 要求{min_variance}")
         
-        # 2. 模式特定检查
+        # 2. 模式特定检查 - 开局爆发型
         if pattern_name == "开局爆发型":
-            # 检查前3章是否有高爽点
-            first_3_intensities = intensities[:3]
-            if max(first_3_intensities) < 8:
-                issues.append("开局爆发型要求前3章必须有强度≥8的高潮")
-                fixes.append("提升前3章中至少1章的情绪强度到8-9")
+            first_3 = intensities[:3] if len(intensities) >= 3 else intensities
+            if first_3:
+                max_in_first_3 = max([v for _, v in first_3])
                 
-        elif pattern_name == "递进高潮型":
-            # 检查是否有递增趋势
-            if intensities[-1] < intensities[0]:
-                issues.append("递进高潮型要求情绪强度总体递增")
-                fixes.append("调整章节强度，使后期章节强度高于前期")
-                
-        elif pattern_name == "蓄力积累型":
-            # 检查强度是否过高（会透支高潮）
-            max_intensity = key_metrics.get('max_intensity', 7)
-            if max(intensities) > max_intensity + 1:
-                issues.append(f"蓄力积累型强度不应超过{max_intensity}，避免透支高潮")
-                fixes.append(f"降低高潮章节强度到{max_intensity}以下")
+                if max_in_first_3 < 8:
+                    weak_chapters = [ch for ch, v in first_3 if v < 8]
+                    # 为前3章生成修复计划
+                    target_arc = [9, 6, 9]  # 理想的U型弧线
+                    for idx, (ch_num, current) in enumerate(first_3):
+                        if current < target_arc[idx]:
+                            fixes[ch_num] = {
+                                "chapter": ch_num,
+                                "field": "intensity",
+                                "old_value": current,
+                                "new_value": target_arc[idx],
+                                "reason": f"开局爆发型第{idx+1}章强度不达标",
+                                "pattern_fix": True
+                            }
+                    
+                    issue = {
+                        "type": "开局强度不足",
+                        "chapters": weak_chapters,
+                        "current_max": max_in_first_3,
+                        "required_min": 8,
+                        "severity": "critical",
+                        "fix_instruction": f"前3章必须有强度≥8的高潮，当前最高仅{max_in_first_3}。建议弧线：9(压抑)→6(反转)→9(爽快)",
+                        "suggested_fix": {"chapters": weak_chapters, "target_arc": target_arc}
+                    }
+                    issues.append(issue)
+                    logger.warning(f"[TacticalPlanner]   - 开局爆发型: 前3章最高强度{max_in_first_3} < 要求8")
         
-        # 3. 通用检查
-        for i, ch in enumerate(chapters):
-            # 检查每章是否有钩子
+        # 3. 模式特定检查 - 递进高潮型
+        elif pattern_name == "递进高潮型":
+            if len(intensities) >= 2:
+                start_intensity = intensities[0][1]
+                end_intensity = intensities[-1][1]
+                
+                if end_intensity < start_intensity:
+                    issue = {
+                        "type": "递增趋势不足",
+                        "chapters": [ch[0] for ch in intensities],
+                        "start_intensity": start_intensity,
+                        "end_intensity": end_intensity,
+                        "severity": "high",
+                        "fix_instruction": "递进高潮型要求情绪强度总体递增，建议后期章节提升到9"
+                    }
+                    issues.append(issue)
+                    logger.warning(f"[TacticalPlanner]   - 递进高潮型: 末期强度{end_intensity} < 初期{start_intensity}")
+        
+        # 4. 通用检查 - 钩子
+        for ch in chapters:
+            ch_num = ch.get('chapter_number')
             if not ch.get('hook_content'):
-                issues.append(f"第{ch.get('chapter_number')}章缺少钩子")
-                fixes.append("为每章添加明确的章尾钩子")
+                issue = {
+                    "type": "缺少钩子",
+                    "chapter": ch_num,
+                    "severity": "high",
+                    "fix_instruction": f"为第{ch_num}章添加章尾钩子"
+                }
+                issues.append(issue)
+                fixes[ch_num] = {
+                    "chapter": ch_num,
+                    "field": "hook_content",
+                    "old_value": None,
+                    "new_value": "TODO",
+                    "reason": "缺少章尾钩子"
+                }
+                logger.warning(f"[TacticalPlanner]   - 第{ch_num}章: 缺少钩子")
             
             # 检查强度范围
             intensity = ch.get('intensity', 5)
             if intensity < 1 or intensity > 10:
-                issues.append(f"第{ch.get('chapter_number')}章强度{intensity}超出1-10范围")
+                clamped = max(1, min(10, intensity))
+                issue = {
+                    "type": "强度超出范围",
+                    "chapter": ch_num,
+                    "intensity": intensity,
+                    "severity": "medium",
+                    "fix_instruction": f"第{ch_num}章强度{intensity}超出1-10范围，应调整为{clamped}"
+                }
+                issues.append(issue)
+                fixes[ch_num] = {
+                    "chapter": ch_num,
+                    "field": "intensity",
+                    "old_value": intensity,
+                    "new_value": clamped,
+                    "reason": f"强度超出有效范围"
+                }
+                logger.warning(f"[TacticalPlanner]   - 第{ch_num}章: 强度{intensity}超出1-10范围")
+        
+        # 计算整体严重程度和修复策略
+        fix_strategy = self._calculate_fix_strategy(issues, len(chapters))
         
         is_valid = len(issues) == 0
         
         if is_valid:
             logger.info(f"[TacticalPlanner] 情绪设计验证通过 | 模式:{pattern_name}")
         else:
-            logger.warning(f"[TacticalPlanner] 情绪设计验证发现问题:{len(issues)}个 | 模式:{pattern_name}")
-            for issue in issues[:3]:
-                logger.warning(f"  - {issue}")
+            logger.warning(f"[TacticalPlanner] 情绪设计验证发现问题:{len(issues)}个 | 模式:{pattern_name} | 策略:{fix_strategy['action']}")
         
         return {
             "is_valid": is_valid,
             "issues": issues,
             "fixes": fixes,
-            "pattern_name": pattern_name
+            "pattern_name": pattern_name,
+            "fix_strategy": fix_strategy,
+            "needs_regeneration": fix_strategy['action'] == 'regenerate_all'
         }
+    
+    def _calculate_severity(self, variance: float, min_variance: float, pattern_name: str) -> str:
+        """计算问题严重程度"""
+        if variance == 0:
+            # 开局爆发型前3章如果是0差值，标记为high（用auto_adjust修复），避免regenerate_all
+            if pattern_name == "开局爆发型" and min_variance >= 3:
+                return "high"
+            return "high"
+        elif variance < min_variance * 0.5:
+            return "medium"
+        else:
+            return "low"
+    
+    def _calculate_fix_strategy(self, issues: List[Dict], total_chapters: int) -> Dict:
+        """计算修复策略"""
+        if not issues:
+            return {"action": "none", "max_attempts": 0}
+        
+        # 统计严重程度
+        critical_count = sum(1 for i in issues if i.get('severity') == 'critical')
+        high_count = sum(1 for i in issues if i.get('severity') == 'high')
+        affected_chapters = len(set(
+            ch for i in issues for ch in i.get('chapters', [i.get('chapter')])
+        ))
+        
+        # 根据配置选择策略
+        strategy_config = self._fix_config.get('fix_strategies', {}).get('levels', {})
+        
+        if critical_count > 0 or affected_chapters > total_chapters * 0.5:
+            level = strategy_config.get('critical', {})
+            return {"action": level.get('action', 'regenerate_all'), 
+                   "max_attempts": level.get('max_attempts', 3)}
+        elif high_count > 0 or affected_chapters >= 3:
+            level = strategy_config.get('high', {})
+            return {"action": level.get('action', 'ai_partial_fix'), 
+                   "max_attempts": level.get('max_attempts', 2)}
+        elif affected_chapters > 0:
+            level = strategy_config.get('medium', {})
+            return {"action": level.get('action', 'auto_adjust'), 
+                   "max_attempts": level.get('max_attempts', 1)}
+        else:
+            level = strategy_config.get('low', {})
+            return {"action": level.get('action', 'mark_only'), 
+                   "max_attempts": level.get('max_attempts', 0)}
+    
+    def _calculate_fix_intensity(self, prev: int, current: int, min_variance: int) -> int:
+        """计算修复后的强度值"""
+        # 如果前一章强度高，当前降低形成反差
+        if prev >= 7:
+            return max(1, prev - min_variance - (1 if prev > 8 else 0))
+        # 如果前一章低，当前升高形成高潮
+        else:
+            return min(10, prev + min_variance + (1 if prev < 4 else 0))
         
     def plan_next_batch(
         self,
@@ -302,9 +527,28 @@ class TacticalPlanner:
             
             if not validation['is_valid']:
                 logger.warning(f"[TacticalPlanner] 情绪设计验证未通过，问题数:{len(validation['issues'])}")
-                # 可选：尝试自动修复或标记为需人工审核
-                tactical_plan['needs_review'] = True
-                tactical_plan['review_issues'] = validation['issues']
+                
+                # 启动自动修复
+                fixed_chapters, fix_report = self._fix_emotion_design(
+                    chapters, validation, stage_goal,
+                    novel_title=novel_title, protagonist_name=protagonist_name
+                )
+                
+                # 更新章节和修复报告
+                tactical_plan['chapters'] = fixed_chapters
+                tactical_plan['emotion_fix_report'] = fix_report
+                
+                # 修复后再次验证
+                re_validation = self._validate_emotion_design(fixed_chapters, detected_pattern)
+                tactical_plan['emotion_re_validation'] = re_validation
+                
+                if re_validation['is_valid']:
+                    logger.info(f"[TacticalPlanner] 自动修复后验证通过")
+                    tactical_plan['needs_review'] = False
+                else:
+                    logger.warning(f"[TacticalPlanner] 自动修复后仍有问题，需人工审核")
+                    tactical_plan['needs_review'] = True
+                    tactical_plan['review_issues'] = re_validation['issues']
             else:
                 tactical_plan['needs_review'] = False
         
@@ -555,6 +799,29 @@ class TacticalPlanner:
                 emotion = cycle_template.get('emotion', '期待')
                 intensity = cycle_template.get('intensity', 6)
                 beat_type = cycle_template.get('beat_type', '推进')
+                
+                # 🔥 开局爆发型特殊处理：确保前3章是 9→7→9 的U型曲线
+                if pattern_name == "开局爆发型" and ch_num <= 3:
+                    opening_intensities = {1: 9, 2: 7, 3: 9}  # 第1章压抑9, 第2章反转7, 第3章爽快9
+                    if ch_num in opening_intensities:
+                        intensity = opening_intensities[ch_num]
+                        # 同步更新情绪类型
+                        opening_emotions = {1: "压抑", 2: "反转", 3: "爽快"}
+                        emotion = opening_emotions.get(ch_num, emotion)
+                        beat_type = self._emotion_to_beat_type(emotion)
+                
+                # 🔥 通用起伏逻辑：确保相邻章节有起伏（避免连续相同强度）
+                elif i > 0 and ch_num > 3:  # 第4章以后，检查与前章的差值
+                    prev_ch = chapters[-1] if chapters else None
+                    if prev_ch:
+                        prev_intensity = prev_ch.get('intensity', 6)
+                        # 如果差值<2，调整当前章节强度
+                        if abs(intensity - prev_intensity) < 2:
+                            # 根据位置决定升还是降
+                            if i % 2 == 0:  # 偶数位，升高
+                                intensity = min(10, prev_intensity + 2)
+                            else:  # 奇数位，降低
+                                intensity = max(1, prev_intensity - 2)
             
             # 根据阶段目标生成事件
             event = self._generate_event_for_goal(ch_num, goal_id, i, protagonist_name)
@@ -563,7 +830,7 @@ class TacticalPlanner:
             hook_type, hook_content = self._generate_hook_design(ch_num, emotion, cycle_template)
             
             # 生成微创新要求
-            micro_innovation = self._generate_micro_innovation(ch_num, cycle_pos, micro_innov_config)
+            micro_innovation = self._generate_micro_innovation(ch_num, i % 5, micro_innov_config)
             
             # 构建详细的算法要求
             algorithm_requirements = {
@@ -576,7 +843,14 @@ class TacticalPlanner:
                 "appeal_reaction_chain": appeal_config.get('reaction_chain', '主角行动→具体数字→围观者震惊→弹幕扩散→权威反应→主角内心爽感'),
                 "hook_required": hook_config.get('required', True),
                 "hook_position": hook_config.get('position', '最后50字'),
-                "hook_types": [h.get('type') for h in hook_config.get('types', [])]
+                "hook_types": [h.get('type') for h in hook_config.get('types', [])],
+                "basic": [
+                    "前300字必须出现冲突/悬念",
+                    "对话占比≥50%",
+                    "每段1-3行，多用换行",
+                    "最后50字必须是钩子",
+                    "第三人称上帝视角"
+                ]
             }
             
             # 生成自检清单
@@ -878,6 +1152,157 @@ class TacticalPlanner:
             items.extend([f"【{step_name}】{item}" for item in step_items])
         
         return items
+    
+    # ==================== 情绪设计修复方法 ====================
+
+    def _fix_emotion_design(self, chapters, validation, stage_goal, **context):
+        """修复情绪设计问题"""
+        fix_strategy = validation.get('fix_strategy', {})
+        action = fix_strategy.get('action', 'none')
+        max_attempts = fix_strategy.get('max_attempts', 0)
+        
+        if action == 'none' or max_attempts == 0:
+            return chapters, {"fixed": False, "reason": "无需修复"}
+        
+        fix_report = {
+            "fixed": False, "strategy": action, "max_attempts": max_attempts,
+            "attempts": 0, "details": [],
+            "before_issues": len(validation.get('issues', []))
+        }
+        
+        fixes = validation.get('fixes', {})
+        problem_chapters = list(fixes.keys())[:5]
+        logger.info(f"[TacticalPlanner] 启动自动修复 | 策略:{action} | 问题章节:{problem_chapters}")
+        
+        current_chapters = chapters
+        for attempt in range(max_attempts):
+            fix_report['attempts'] = attempt + 1
+            
+            if action == 'regenerate_all':
+                current_chapters = self._regenerate_with_stronger_prompt(
+                    current_chapters, validation, stage_goal, **context
+                )
+            elif action == 'ai_partial_fix':
+                current_chapters = self._ai_fix_chapters(current_chapters, validation, stage_goal, **context)
+            elif action == 'auto_adjust':
+                current_chapters = self._auto_adjust_values(current_chapters, fixes)
+            
+            if current_chapters:
+                detected_pattern = self._detect_emotion_pattern(stage_goal, current_chapters[0].get('chapter_number', 1))
+                re_validation = self._validate_emotion_design(current_chapters, detected_pattern)
+                
+                if re_validation['is_valid']:
+                    fix_report['fixed'] = True
+                    fix_report['after_issues'] = 0
+                    logger.info(f"[TacticalPlanner] 自动修复成功 | 策略:{action} | 尝试{attempt+1}次")
+                    break
+                else:
+                    fix_report['after_issues'] = len(re_validation.get('issues', []))
+                    if attempt < max_attempts - 1:
+                        validation = re_validation
+        
+        if not fix_report['fixed']:
+            logger.warning(f"[TacticalPlanner] 自动修复失败 | 已达最大尝试次数{max_attempts}")
+        
+        return current_chapters, fix_report
+
+    def _ai_fix_chapters(self, chapters, validation, stage_goal, **context):
+        """使用AI修复特定章节"""
+        fixes = validation.get('fixes', {})
+        if not fixes:
+            return chapters
+        
+        fixed_chapters = []
+        for ch in chapters:
+            ch_num = ch.get('chapter_number')
+            if ch_num in fixes:
+                fix = fixes[ch_num]
+                field = fix.get('field')
+                try:
+                    if field == 'intensity':
+                        fixed_ch = self._fix_chapter_intensity(ch, fix)
+                    elif field == 'hook_content':
+                        fixed_ch = self._fix_chapter_hook(ch, fix)
+                    else:
+                        fixed_ch = ch.copy()
+                    fixed_chapters.append(fixed_ch)
+                    logger.info(f"[TacticalPlanner]   修复第{ch_num}章: {field} {fix.get('old_value')}->{fix.get('new_value')}")
+                except Exception as e:
+                    logger.error(f"[TacticalPlanner] 修复第{ch_num}章失败: {e}")
+                    ch_copy = ch.copy()
+                    ch_copy['_fix_failed'] = True
+                    fixed_chapters.append(ch_copy)
+            else:
+                fixed_chapters.append(ch)
+        return fixed_chapters
+
+    def _fix_chapter_intensity(self, chapter, fix):
+        """修复章节强度值"""
+        ch_copy = chapter.copy()
+        new_intensity = fix.get('new_value')
+        old_intensity = fix.get('old_value')
+        ch_copy['intensity'] = new_intensity
+        ch_copy['_auto_fixed'] = True
+        ch_copy['_fix_note'] = f"强度从{old_intensity}调整为{new_intensity}"
+        return ch_copy
+
+    def _fix_chapter_hook(self, chapter, fix):
+        """为章节添加钩子"""
+        ch_copy = chapter.copy()
+        emotion = chapter.get('emotion', '期待')
+        hook_templates = {
+            '压抑': ['绝望之际，手机突然震动：【系统激活倒计时：71:59:59】', '他抬头，发现所有人都在看他'],
+            '反转': ['他嘴角微扬，他们不知道的是，这一切都在计划之中', '远处，一道S级气息正在苏醒'],
+            '爽快': ['就在他享受胜利时，一条匿名短信让他瞳孔骤缩', '直播间弹幕突然静止'],
+            '震惊': ['电话那头传来一个声音：游戏才刚开始', '他低头看着手中的物品，发现底部刻着一行小字'],
+            '期待': ['明天，就是最后的期限', '他不知道的是，此刻正有无数双眼睛盯着屏幕']
+        }
+        import random
+        templates = hook_templates.get(emotion, hook_templates['期待'])
+        ch_copy['hook_content'] = random.choice(templates)
+        ch_copy['hook_type'] = 'auto_generated'
+        ch_copy['_auto_fixed'] = True
+        return ch_copy
+
+    def _auto_adjust_values(self, chapters, fixes):
+        """自动调整数值"""
+        fixed_chapters = []
+        for ch in chapters:
+            ch_num = ch.get('chapter_number')
+            if ch_num in fixes:
+                fix = fixes[ch_num]
+                field = fix.get('field')
+                ch_copy = ch.copy()
+                if field == 'intensity':
+                    ch_copy['intensity'] = fix.get('new_value')
+                    ch_copy['_auto_fixed'] = True
+                    ch_copy['_fix_note'] = f"强度从{fix.get('old_value')}调整为{fix.get('new_value')}"
+                elif field == 'hook_content':
+                    ch_copy = self._fix_chapter_hook(ch, fix)
+                fixed_chapters.append(ch_copy)
+            else:
+                fixed_chapters.append(ch)
+        return fixed_chapters
+
+    def _regenerate_with_stronger_prompt(self, chapters, validation, stage_goal, **context):
+        """使用更强约束重新生成"""
+        logger.info("[TacticalPlanner] 重新生成批次 | 增强约束")
+        if not chapters:
+            return []
+        
+        # 使用模板重新生成
+        start_chapter = chapters[0].get('chapter_number', 1)
+        end_chapter = chapters[-1].get('chapter_number', start_chapter + 5)
+        novel_title = context.get('novel_title', '未知')
+        protagonist_name = context.get('protagonist_name', '主角')
+        
+        result = self._generate_from_template(
+            start_chapter, end_chapter, novel_title, protagonist_name,
+            stage_goal, None, [], {}
+        )
+        
+        # 返回章节列表
+        return result.get('chapters', [])
 
 
 # 便捷函数
