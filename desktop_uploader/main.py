@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+﻿#!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
 大文娱小说发布助手 - 统一的桌面GUI版本
@@ -341,7 +341,26 @@ class MainWindow(QMainWindow):
         refresh_btn.clicked.connect(self.load_projects)
         btn_layout.addWidget(refresh_btn)
         
-        import_btn = QPushButton("📂 导入配置")
+        # 添加选择目录按钮
+        select_dir_btn = QPushButton("📂 选择目录")
+        select_dir_btn.setToolTip("手动选择项目所在目录")
+        select_dir_btn.setStyleSheet(f"""
+            QPushButton {{
+                background-color: {SUCCESS_COLOR};
+                color: white;
+                border: none;
+                border-radius: 6px;
+                padding: 8px 16px;
+                font-weight: 600;
+            }}
+            QPushButton:hover {{
+                background-color: #059669;
+            }}
+        """)
+        select_dir_btn.clicked.connect(self.select_project_directory)
+        btn_layout.addWidget(select_dir_btn)
+        
+        import_btn = QPushButton("📤 导入配置")
         import_btn.setToolTip("从文件导入项目配置")
         import_btn.setStyleSheet(f"""
             QPushButton {{
@@ -1079,7 +1098,7 @@ class MainWindow(QMainWindow):
                 )
             self.log(f"找到 {len(found_projects)} 个项目", "info")
         else:
-            self.project_combo.addItem("未找到项目", None)
+            self.project_combo.addItem("❌ 未找到项目 - 请点击「选择目录」按钮", None)
             # 获取程序所在目录和推荐的项目目录
             app_dir = Path(__file__).parent.resolve()
             expected_dirs = [
@@ -1088,17 +1107,7 @@ class MainWindow(QMainWindow):
                 app_dir.parent / "小说项目"
             ]
             
-            help_msg = (
-                "未找到任何项目。\n\n"
-                "📝 使用步骤：\n"
-                "1. 在网页下载项目数据（得到一个zip文件）\n"
-                "2. 解压zip到 C盘根目录，最终路径如：\n"
-                "   C:\\小说项目\\你的项目名称\\chapters\n\n"
-                "📂 目录结构示例：\n"
-                "   C:\\小说项目\\国运扮演酒剑仙\\chapters\\chapter_001.json\n\n"
-                "💡 提示：直接右键zip → 解压到 C:\\ 即可"
-            )
-            self.log(help_msg, "warning")
+            self.log("未找到项目。请点击「选择目录」按钮，选择解压后的项目文件夹。", "warning")ng")
             
     def on_project_changed(self, index):
         """项目选择变化"""
@@ -1171,6 +1180,88 @@ class MainWindow(QMainWindow):
                     selected.append(self.chapters[idx])
         return selected
         
+    def select_project_directory(self):
+        """手动选择项目目录"""
+        from PyQt5.QtWidgets import QFileDialog
+        
+        # 打开目录选择对话框
+        directory = QFileDialog.getExistingDirectory(
+            self,
+            "选择项目目录",
+            "C:/",
+            QFileDialog.ShowDirsOnly | QFileDialog.DontResolveSymlinks
+        )
+        
+        if not directory:
+            return
+        
+        dir_path = Path(directory)
+        
+        # 检查是否是有效的项目目录（包含 chapters 子目录）
+        chapters_dir = dir_path / "chapters"
+        if not chapters_dir.exists():
+            QMessageBox.warning(
+                self,
+                "无效的项目目录",
+                f"目录不包含 chapters 子目录：\n{directory}\n\n"
+                "请选择包含 chapters 文件夹的项目目录。"
+            )
+            return
+        
+        # 获取项目名称（使用目录名）
+        project_name = dir_path.name
+        
+        # 计算章节数和字数
+        try:
+            chapter_files = list(chapters_dir.glob("chapter_*.json"))
+            total_chapters = len(chapter_files)
+            total_words = 0
+            
+            for cf in chapter_files[:5]:  # 只读取5个估算
+                try:
+                    with open(cf, 'r', encoding='utf-8') as f:
+                        data = json.load(f)
+                        total_words += data.get('word_count', 0)
+                except:
+                    pass
+            
+            if total_chapters > 5:
+                avg_words = total_words / 5
+                total_words = int(avg_words * total_chapters)
+            
+        except Exception as e:
+            total_chapters = 0
+            total_words = 0
+        
+        # 创建项目数据
+        project_data = {
+            'name': project_name,
+            'path': str(dir_path),
+            'chapters': total_chapters,
+            'words': total_words
+        }
+        
+        # 清空并添加新项目
+        self.project_combo.clear()
+        self.project_combo.addItem(
+            f"📖 {project_name} ({total_chapters}章)",
+            project_data
+        )
+        
+        self.log(f"✅ 已加载项目: {project_name} ({total_chapters}章, {total_words}字)", "success")
+        
+        # 自动加载章节
+        self.load_chapters(str(dir_path))
+        
+        QMessageBox.information(
+            self,
+            "项目已加载",
+            f"项目：{project_name}\n"
+            f"章节：{total_chapters}章\n"
+            f"字数：{total_words}字\n\n"
+            "可以开始选择章节并上传了！"
+        )
+
     def import_config(self):
         """导入配置文件"""
         file, _ = QFileDialog.getOpenFileName(
