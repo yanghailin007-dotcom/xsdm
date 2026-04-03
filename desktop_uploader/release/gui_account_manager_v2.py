@@ -164,6 +164,7 @@ class BrowserManager:
             return chrome_path
         
         print("🚀 Chrome 不存在，开始自动下载...")
+        print(f"   下载目录: {self.get_chrome_download_path()}")
         
         try:
             from chrome_manager import ChromeManager
@@ -183,15 +184,19 @@ class BrowserManager:
                     return str(chrome_path)
             
             print("❌ Chrome 下载失败")
+            print("💡 请手动下载 Chrome 并安装到默认路径")
             return None
             
         except Exception as e:
+            import traceback
             print(f"❌ 下载 Chrome 异常: {e}")
+            print(f"   堆栈: {traceback.format_exc()}")
             return None
     
     def start_instance(self, username: str, headless: bool = False) -> bool:
-        """启动浏览器实例"""
-        from playwright.sync_api import sync_playwright
+        """启动浏览器实例 - 使用 subprocess 避免 Playwright 事件循环冲突"""
+        import subprocess
+        import os
         
         instance = self.instances.get(username)
         if not instance:
@@ -206,11 +211,7 @@ class BrowserManager:
             instance.status = "starting"
             instance.last_error = ""
             
-            # 初始化playwright
-            if not self.playwright:
-                self.playwright = sync_playwright().start()
-            
-            # 查找 Chrome 可执行文件（如果没有则自动下载）
+            # 查找 Chrome
             chrome_path = self._find_chrome_executable()
             
             # 如果没找到，自动下载
@@ -220,49 +221,66 @@ class BrowserManager:
                     progress_callback=lambda p, m: print(f"  [{p}%] {m}")
                 )
             
-            # 启动持久化浏览器
-            launch_args = {
-                'user_data_dir': str(instance.chrome_data_dir),
-                'headless': headless,
-                'args': [
-                    f'--remote-debugging-port={instance.debug_port}',
-                    '--no-sandbox',
-                    '--disable-dev-shm-usage',
-                    '--disable-blink-features=AutomationControlled'
-                ]
-            }
+            if not chrome_path:
+                instance.status = "error"
+                instance.last_error = "未找到 Chrome 且下载失败"
+                print("❌ 启动失败: 未找到 Chrome")
+                return False
             
-            # 如果找到 Chrome，使用它
-            if chrome_path:
-                launch_args['executable_path'] = chrome_path
-                print(f"🚀 使用 Chrome 启动: {chrome_path}")
-            else:
-                print(f"⚠️ 未找到 Chrome，尝试使用 Playwright 内置浏览器")
-                # 如果没有指定 executable_path，Playwright 会尝试使用内置浏览器
-                # 但这在 PyInstaller 打包后可能失败
+            # 使用 subprocess 直接启动 Chrome（避免 Playwright 事件循环问题）
+            cmd = [
+                chrome_path,
+                f"--remote-debugging-port={instance.debug_port}",
+                f"--user-data-dir={instance.chrome_data_dir}",
+                "--no-first-run",
+                "--no-default-browser-check",
+                "--disable-blink-features=AutomationControlled",
+                "https://fanqienovel.com/main/writer/book-manage"
+            ]
             
-            browser = self.playwright.chromium.launch_persistent_context(**launch_args)
+            print(f"🚀 启动 Chrome: {chrome_path}")
+            print(f"   调试端口: {instance.debug_port}")
+            print(f"   数据目录: {instance.chrome_data_dir}")
             
-            # 创建新页面
-            page = browser.new_page()
-            page.set_viewport_size({"width": 1920, "height": 1080})
+            # 启动进程
+            process = subprocess.Popen(
+                cmd,
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL,
+                creationflags=subprocess.CREATE_NEW_PROCESS_GROUP
+            )
             
-            instance.process = browser
-            instance.page = page
+            # 等待 Chrome 启动
+            import time
+            time.sleep(3)
+            
+            # 检查进程是否还在运行
+            if process.poll() is not None:
+                instance.status = "error"
+                instance.last_error = "Chrome 进程启动后立即退出"
+                print("❌ Chrome 进程启动失败（可能已退出）")
+                return False
+            
+            instance.process = process
             instance.status = "running"
             instance.started_at = datetime.now().isoformat()
             
-            print(f"✅ 启动浏览器: {username} (端口: {instance.debug_port})")
+            print(f"✅ 浏览器启动成功: {username} (端口: {instance.debug_port})")
             return True
             
         except Exception as e:
+            import traceback
             instance.status = "error"
             instance.last_error = str(e)
-            print(f"❌ 启动浏览器失败: {username} - {e}")
+            print(f"❌ 启动浏览器失败: {username}")
+            print(f"   错误: {e}")
+            print(f"   堆栈: {traceback.format_exc()}")
             return False
     
     def stop_instance(self, username: str) -> bool:
         """停止浏览器实例"""
+        import subprocess
+        
         instance = self.instances.get(username)
         if not instance:
             return False
@@ -272,7 +290,12 @@ class BrowserManager:
         
         try:
             if instance.process:
-                instance.process.close()
+                # 终止进程
+                instance.process.terminate()
+                try:
+                    instance.process.wait(timeout=3)
+                except:
+                    instance.process.kill()
             
             instance.process = None
             instance.page = None
@@ -282,10 +305,17 @@ class BrowserManager:
             return True
             
         except Exception as e:
+            import traceback
             instance.status = "error"
             instance.last_error = str(e)
             print(f"❌ 停止浏览器失败: {e}")
+            print(f"   堆栈: {traceback.format_exc()}")
             return False
+    
+    def get_chrome_download_path(self) -> str:
+        """获取 Chrome 下载路径"""
+        work_dir = Path(__file__).parent
+        return str(work_dir / "chrome" / "chrome-win64" / "chrome.exe")
     
     def stop_all(self):
         """停止所有实例"""
