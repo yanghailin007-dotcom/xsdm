@@ -1,0 +1,561 @@
+{% extends "layouts/base-v2.html" %}
+
+{% block title %}多账号管理 - 大文娱系统{% endblock %}
+
+{% block extra_css %}
+<style>
+    .account-container {
+        max-width: 1200px;
+        margin: 0 auto;
+        padding: 40px 20px;
+    }
+    
+    .account-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 30px;
+    }
+    
+    .account-header h1 {
+        font-size: 24px;
+        color: var(--v2-text-primary);
+    }
+    
+    .btn-add-account {
+        background: linear-gradient(135deg, #6366f1, #8b5cf6);
+        color: white;
+        border: none;
+        padding: 12px 24px;
+        border-radius: 8px;
+        font-size: 14px;
+        font-weight: 500;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        transition: all 0.2s;
+    }
+    
+    .btn-add-account:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(99, 102, 241, 0.3);
+    }
+    
+    .account-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+        gap: 20px;
+    }
+    
+    .account-card {
+        background: var(--v2-bg-secondary);
+        border: 1px solid var(--v2-border);
+        border-radius: 12px;
+        padding: 20px;
+        transition: all 0.2s;
+    }
+    
+    .account-card:hover {
+        border-color: var(--v2-primary);
+        box-shadow: 0 4px 12px rgba(99, 102, 241, 0.1);
+    }
+    
+    .account-card.active {
+        border-color: #10b981;
+        background: linear-gradient(135deg, rgba(16, 185, 129, 0.05), rgba(6, 182, 212, 0.05));
+    }
+    
+    .account-header-info {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        margin-bottom: 16px;
+    }
+    
+    .account-avatar {
+        width: 48px;
+        height: 48px;
+        background: linear-gradient(135deg, #6366f1, #8b5cf6);
+        border-radius: 12px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 24px;
+    }
+    
+    .account-avatar.active {
+        background: linear-gradient(135deg, #10b981, #06b6d4);
+    }
+    
+    .account-name {
+        font-size: 16px;
+        font-weight: 600;
+        color: var(--v2-text-primary);
+    }
+    
+    .account-status {
+        font-size: 12px;
+        padding: 4px 8px;
+        border-radius: 4px;
+        margin-top: 4px;
+        display: inline-block;
+    }
+    
+    .account-status.online {
+        background: rgba(16, 185, 129, 0.1);
+        color: #10b981;
+    }
+    
+    .account-status.offline {
+        background: rgba(107, 114, 128, 0.1);
+        color: #6b7280;
+    }
+    
+    .account-info {
+        color: var(--v2-text-secondary);
+        font-size: 13px;
+        margin-bottom: 16px;
+    }
+    
+    .account-info-item {
+        display: flex;
+        justify-content: space-between;
+        padding: 6px 0;
+        border-bottom: 1px solid var(--v2-border);
+    }
+    
+    .account-info-item:last-child {
+        border-bottom: none;
+    }
+    
+    .account-actions {
+        display: flex;
+        gap: 8px;
+    }
+    
+    .btn-action {
+        flex: 1;
+        padding: 8px 12px;
+        border-radius: 6px;
+        font-size: 13px;
+        font-weight: 500;
+        cursor: pointer;
+        border: none;
+        transition: all 0.2s;
+    }
+    
+    .btn-launch {
+        background: linear-gradient(135deg, #6366f1, #8b5cf6);
+        color: white;
+    }
+    
+    .btn-launch:hover {
+        opacity: 0.9;
+    }
+    
+    .btn-stop {
+        background: rgba(239, 68, 68, 0.1);
+        color: #ef4444;
+    }
+    
+    .btn-stop:hover {
+        background: rgba(239, 68, 68, 0.2);
+    }
+    
+    .btn-delete {
+        background: transparent;
+        color: #6b7280;
+        border: 1px solid var(--v2-border);
+    }
+    
+    .btn-delete:hover {
+        color: #ef4444;
+        border-color: #ef4444;
+    }
+    
+    .modal-overlay {
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: rgba(0, 0, 0, 0.5);
+        display: none;
+        align-items: center;
+        justify-content: center;
+        z-index: 1000;
+    }
+    
+    .modal-overlay.active {
+        display: flex;
+    }
+    
+    .modal {
+        background: var(--v2-bg-secondary);
+        border-radius: 12px;
+        padding: 24px;
+        width: 90%;
+        max-width: 400px;
+    }
+    
+    .modal h3 {
+        margin-bottom: 20px;
+        color: var(--v2-text-primary);
+    }
+    
+    .form-group {
+        margin-bottom: 16px;
+    }
+    
+    .form-group label {
+        display: block;
+        margin-bottom: 6px;
+        color: var(--v2-text-secondary);
+        font-size: 13px;
+    }
+    
+    .form-group input,
+    .form-group select {
+        width: 100%;
+        padding: 10px;
+        border: 1px solid var(--v2-border);
+        border-radius: 6px;
+        background: var(--v2-bg-primary);
+        color: var(--v2-text-primary);
+        font-size: 14px;
+    }
+    
+    .modal-actions {
+        display: flex;
+        gap: 12px;
+        margin-top: 24px;
+    }
+    
+    .modal-actions button {
+        flex: 1;
+        padding: 10px;
+        border-radius: 6px;
+        font-size: 14px;
+        font-weight: 500;
+        cursor: pointer;
+        border: none;
+    }
+    
+    .btn-cancel {
+        background: var(--v2-bg-primary);
+        color: var(--v2-text-secondary);
+    }
+    
+    .btn-confirm {
+        background: linear-gradient(135deg, #6366f1, #8b5cf6);
+        color: white;
+    }
+    
+    .stats-bar {
+        display: flex;
+        gap: 24px;
+        margin-bottom: 24px;
+        padding: 16px 20px;
+        background: var(--v2-bg-secondary);
+        border-radius: 8px;
+    }
+    
+    .stats-item {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        color: var(--v2-text-secondary);
+        font-size: 14px;
+    }
+    
+    .stats-item strong {
+        color: var(--v2-text-primary);
+        font-size: 18px;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="account-container">
+    <div class="account-header">
+        <h1>👥 多账号管理</h1>
+        <button class="btn-add-account" onclick="showAddModal()">
+            <span>+</span> 添加账号
+        </button>
+    </div>
+    
+    <div class="stats-bar">
+        <div class="stats-item">
+            <span>总账号：</span>
+            <strong id="total-count">0</strong>
+        </div>
+        <div class="stats-item">
+            <span>在线：</span>
+            <strong id="online-count" style="color: #10b981;">0</strong>
+        </div>
+        <div class="stats-item">
+            <span>离线：</span>
+            <strong id="offline-count">0</strong>
+        </div>
+    </div>
+    
+    <div class="account-grid" id="account-list">
+        <!-- 账号卡片将在这里动态生成 -->
+    </div>
+</div>
+
+<!-- 添加账号弹窗 -->
+<div class="modal-overlay" id="add-modal">
+    <div class="modal">
+        <h3>添加新账号</h3>
+        <div class="form-group">
+            <label>账号名称</label>
+            <input type="text" id="account-name" placeholder="如：主账号、小号1">
+        </div>
+        <div class="form-group">
+            <label>平台</label>
+            <select id="account-platform">
+                <option value="fanqie">🍅 番茄小说</option>
+                <option value="qidian" disabled>📚 起点中文网（开发中）</option>
+            </select>
+        </div>
+        <div class="modal-actions">
+            <button class="btn-cancel" onclick="hideAddModal()">取消</button>
+            <button class="btn-confirm" onclick="addAccount()">确认添加</button>
+        </div>
+    </div>
+</div>
+
+<script>
+// 账号数据
+let accounts = [];
+
+// 加载账号列表
+async function loadAccounts() {
+    try {
+        const resp = await fetch('/api/accounts/list');
+        const result = await resp.json();
+        if (result.success) {
+            accounts = result.accounts || [];
+            renderAccounts();
+            updateStats();
+        }
+    } catch (e) {
+        console.error('加载账号失败:', e);
+    }
+}
+
+// 渲染账号卡片
+function renderAccounts() {
+    const container = document.getElementById('account-list');
+    
+    if (accounts.length === 0) {
+        container.innerHTML = `
+            <div style="grid-column: 1/-1; text-align: center; padding: 60px; color: var(--v2-text-secondary);">
+                <p style="font-size: 48px; margin-bottom: 16px;">👥</p>
+                <p>还没有添加账号</p>
+                <p style="font-size: 13px; margin-top: 8px;">点击「添加账号」按钮创建第一个账号</p>
+            </div>
+        `;
+        return;
+    }
+    
+    container.innerHTML = accounts.map(acc => `
+        <div class="account-card ${acc.is_running ? 'active' : ''}">
+            <div class="account-header-info">
+                <div class="account-avatar ${acc.is_running ? 'active' : ''}">
+                    ${acc.platform === 'fanqie' ? '🍅' : '📚'}
+                </div>
+                <div>
+                    <div class="account-name">${escapeHtml(acc.name)}</div>
+                    <span class="account-status ${acc.is_running ? 'online' : 'offline'}">
+                        ${acc.is_running ? '✨ 在线中' : '⏸️ 离线'}
+                    </span>
+                </div>
+            </div>
+            
+            <div class="account-info">
+                <div class="account-info-item">
+                    <span>平台</span>
+                    <span>${acc.platform === 'fanqie' ? '番茄小说' : acc.platform}</span>
+                </div>
+                <div class="account-info-item">
+                    <span>创建时间</span>
+                    <span>${formatDate(acc.created_at)}</span>
+                </div>
+                <div class="account-info-item">
+                    <span>最后使用</span>
+                    <span>${acc.last_used ? formatDate(acc.last_used) : '未使用'}</span>
+                </div>
+            </div>
+            
+            <div class="account-actions">
+                ${acc.is_running ? `
+                    <button class="btn-action btn-stop" onclick="stopAccount('${acc.id}')">
+                        ⏸️ 停止
+                    </button>
+                ` : `
+                    <button class="btn-action btn-launch" onclick="launchAccount('${acc.id}')">
+                        🚀 启动
+                    </button>
+                `}
+                <button class="btn-action btn-delete" onclick="deleteAccount('${acc.id}')">
+                    🗑️
+                </button>
+            </div>
+        </div>
+    `).join('');
+}
+
+// 更新统计
+function updateStats() {
+    const total = accounts.length;
+    const online = accounts.filter(a => a.is_running).length;
+    const offline = total - online;
+    
+    document.getElementById('total-count').textContent = total;
+    document.getElementById('online-count').textContent = online;
+    document.getElementById('offline-count').textContent = offline;
+}
+
+// 显示添加弹窗
+function showAddModal() {
+    document.getElementById('add-modal').classList.add('active');
+    document.getElementById('account-name').focus();
+}
+
+// 隐藏添加弹窗
+function hideAddModal() {
+    document.getElementById('add-modal').classList.remove('active');
+    document.getElementById('account-name').value = '';
+}
+
+// 添加账号
+async function addAccount() {
+    const name = document.getElementById('account-name').value.trim();
+    const platform = document.getElementById('account-platform').value;
+    
+    if (!name) {
+        alert('请输入账号名称');
+        return;
+    }
+    
+    try {
+        const resp = await fetch('/api/accounts/create', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ name, platform })
+        });
+        
+        const result = await resp.json();
+        if (result.success) {
+            hideAddModal();
+            loadAccounts();
+            showToast('账号创建成功', 'success');
+        } else {
+            alert('创建失败：' + result.error);
+        }
+    } catch (e) {
+        alert('创建失败，请重试');
+    }
+}
+
+// 启动账号浏览器
+async function launchAccount(accountId) {
+    showToast('正在启动浏览器...', 'info');
+    
+    try {
+        const resp = await fetch(`/api/accounts/${accountId}/launch`, {
+            method: 'POST'
+        });
+        
+        const result = await resp.json();
+        if (result.success) {
+            loadAccounts();
+            showToast('浏览器已启动', 'success');
+        } else {
+            alert('启动失败：' + result.error);
+        }
+    } catch (e) {
+        alert('启动失败，请重试');
+    }
+}
+
+// 停止账号浏览器
+async function stopAccount(accountId) {
+    try {
+        const resp = await fetch(`/api/accounts/${accountId}/stop`, {
+            method: 'POST'
+        });
+        
+        const result = await resp.json();
+        if (result.success) {
+            loadAccounts();
+            showToast('浏览器已停止', 'success');
+        }
+    } catch (e) {
+        alert('停止失败');
+    }
+}
+
+// 删除账号
+async function deleteAccount(accountId) {
+    if (!confirm('确定要删除这个账号吗？相关数据将被清空。')) {
+        return;
+    }
+    
+    try {
+        const resp = await fetch(`/api/accounts/${accountId}/delete`, {
+            method: 'POST'
+        });
+        
+        const result = await resp.json();
+        if (result.success) {
+            loadAccounts();
+            showToast('账号已删除', 'success');
+        }
+    } catch (e) {
+        alert('删除失败');
+    }
+}
+
+// 工具函数
+function escapeHtml(text) {
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+}
+
+function formatDate(dateStr) {
+    if (!dateStr) return '未知';
+    const date = new Date(dateStr);
+    return date.toLocaleDateString('zh-CN');
+}
+
+function showToast(message, type = 'info') {
+    // 简单的 toast 提示
+    const toast = document.createElement('div');
+    toast.style.cssText = `
+        position: fixed;
+        top: 20px;
+        right: 20px;
+        padding: 12px 20px;
+        border-radius: 8px;
+        font-size: 14px;
+        z-index: 10000;
+        animation: slideIn 0.3s ease;
+        ${type === 'success' ? 'background: #10b981; color: white;' : 'background: #3b82f6; color: white;'}
+    `;
+    toast.textContent = message;
+    document.body.appendChild(toast);
+    setTimeout(() => toast.remove(), 3000);
+}
+
+// 页面加载完成后加载账号列表
+document.addEventListener('DOMContentLoaded', loadAccounts);
+
+// 定期刷新状态
+setInterval(loadAccounts, 5000);
+</script>
+{% endblock %}

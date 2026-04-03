@@ -1522,6 +1522,140 @@ def register_fanqie_routes(app):
         except Exception as e:
             logger.error(f"❌ 保存默认作者名失败: {e}")
             return jsonify({"success": False, "error": str(e)}), 500
+    
+    # ============================================================
+    # 👥 多账号管理 API
+    # ============================================================
+    
+    @app.route('/api/accounts/list', methods=['GET'])
+    def list_accounts():
+        """获取账号列表"""
+        try:
+            from flask import session
+            if 'logged_in' not in session:
+                return jsonify({"success": False, "error": "需要登录"}), 401
+            
+            # 获取账号管理器
+            from desktop_uploader.release.account_manager import get_account_manager
+            manager = get_account_manager()
+            
+            accounts = manager.list_accounts()
+            
+            # 添加运行状态
+            result = []
+            for acc in accounts:
+                acc_dict = acc.to_dict()
+                acc_dict['is_running'] = manager.is_browser_running(acc.id)
+                result.append(acc_dict)
+            
+            return jsonify({
+                "success": True,
+                "accounts": result
+            })
+            
+        except Exception as e:
+            logger.error(f"❌ 获取账号列表失败: {e}")
+            return jsonify({"success": False, "error": str(e)}), 500
+    
+    @app.route('/api/accounts/create', methods=['POST'])
+    def create_account():
+        """创建新账号"""
+        try:
+            from flask import session
+            if 'logged_in' not in session:
+                return jsonify({"success": False, "error": "需要登录"}), 401
+            
+            data = request.get_json()
+            name = data.get('name', '').strip()
+            platform = data.get('platform', 'fanqie')
+            
+            if not name:
+                return jsonify({"success": False, "error": "账号名称不能为空"}), 400
+            
+            from desktop_uploader.release.account_manager import get_account_manager
+            manager = get_account_manager()
+            
+            account = manager.create_account(name, platform)
+            
+            return jsonify({
+                "success": True,
+                "account": account.to_dict()
+            })
+            
+        except Exception as e:
+            logger.error(f"❌ 创建账号失败: {e}")
+            return jsonify({"success": False, "error": str(e)}), 500
+    
+    @app.route('/api/accounts/<account_id>/launch', methods=['POST'])
+    def launch_account_browser(account_id):
+        """启动账号浏览器"""
+        try:
+            from flask import session
+            if 'logged_in' not in session:
+                return jsonify({"success": False, "error": "需要登录"}), 401
+            
+            from desktop_uploader.release.account_manager import get_account_manager
+            manager = get_account_manager()
+            
+            # 在后台线程启动浏览器
+            import threading
+            def launch():
+                try:
+                    browser, page = manager.launch_browser(account_id, headless=False)
+                    # 跳转到番茄登录页
+                    page.goto("https://fanqienovel.com/author-page/")
+                except Exception as e:
+                    logger.error(f"启动浏览器失败: {e}")
+            
+            thread = threading.Thread(target=launch)
+            thread.daemon = True
+            thread.start()
+            
+            return jsonify({"success": True, "message": "浏览器启动中..."})
+            
+        except Exception as e:
+            logger.error(f"❌ 启动浏览器失败: {e}")
+            return jsonify({"success": False, "error": str(e)}), 500
+    
+    @app.route('/api/accounts/<account_id>/stop', methods=['POST'])
+    def stop_account_browser(account_id):
+        """停止账号浏览器"""
+        try:
+            from flask import session
+            if 'logged_in' not in session:
+                return jsonify({"success": False, "error": "需要登录"}), 401
+            
+            from desktop_uploader.release.account_manager import get_account_manager
+            manager = get_account_manager()
+            manager.stop_browser(account_id)
+            
+            return jsonify({"success": True})
+            
+        except Exception as e:
+            logger.error(f"❌ 停止浏览器失败: {e}")
+            return jsonify({"success": False, "error": str(e)}), 500
+    
+    @app.route('/api/accounts/<account_id>/delete', methods=['POST'])
+    def delete_account(account_id):
+        """删除账号"""
+        try:
+            from flask import session
+            if 'logged_in' not in session:
+                return jsonify({"success": False, "error": "需要登录"}), 401
+            
+            from desktop_uploader.release.account_manager import get_account_manager
+            manager = get_account_manager()
+            
+            success = manager.delete_account(account_id)
+            
+            if success:
+                return jsonify({"success": True})
+            else:
+                return jsonify({"success": False, "error": "账号不存在"}), 404
+            
+        except Exception as e:
+            logger.error(f"❌ 删除账号失败: {e}")
+            return jsonify({"success": False, "error": str(e)}), 500
 
 
 def register_quality_assessment_routes(app):
