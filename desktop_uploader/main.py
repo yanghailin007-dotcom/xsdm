@@ -1093,10 +1093,11 @@ class MainWindow(QMainWindow):
                 "1. 返回网页 https://xsdm.cainiao.cool/pages/v2/fanqie-upload-v2\n"
                 "2. 选择要上传的小说项目\n"
                 "3. 点击「下载配置」和「下载数据」\n"
-                "4. 把下载的文件解压到以下目录之一：\n\n"
-                f"📁 {expected_dirs[0]}\n"
-                f"📁 {expected_dirs[1]}\n\n"
-                "项目结构应为：小说项目/小说名称/chapters/chapter_XXX.json"
+                "4. 把下载的文件解压到以下位置：\n\n"
+                f"📁 上传工具目录下：\n   {expected_dirs[0]}\n\n"
+                f"📁 或上级目录：\n   {expected_dirs[1]}\n\n"
+                "提示：下载的zip文件解压后会有「小说项目」文件夹，\n"
+                "      把这个文件夹拖到上面任意一个位置即可"
             )
             self.log(help_msg, "warning")
             
