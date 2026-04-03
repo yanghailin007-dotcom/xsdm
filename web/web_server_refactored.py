@@ -729,11 +729,25 @@ def register_fanqie_routes(app):
                 except:
                     pass
             
+            # 检查封面
+            cover_exists = False
+            cover_path = None
+            for cover_name in ["cover.png", "cover.jpg", "cover.jpeg"]:
+                cp = project_dir / cover_name
+                if cp.exists():
+                    cover_exists = True
+                    cover_path = f"/generated_images/{username}/{project_id}/{cover_name}"
+                    break
+            
             # 构建上传配置（默认符合番茄签约要求：20章 6万字）
             config = {
                 "project_id": project_id,
                 "project_name": project_config.get('title', project_id),
                 "description": project_config.get('description', ''),
+                "category": project_config.get('category', ''),
+                "tags": project_config.get('tags', []),
+                "cover_exists": cover_exists,
+                "cover_path": cover_path,
                 "total_chapters": total_chapters,
                 "total_words": total_words,
                 # 首次发布配置
@@ -995,6 +1009,8 @@ def register_fanqie_routes(app):
             project_id = data.get('project_id')
             title = data.get('title', '').strip()
             description = data.get('description', '').strip()
+            category = data.get('category', '').strip()
+            tags = data.get('tags', [])
             
             if not project_id:
                 return jsonify({"success": False, "error": "缺少project_id参数"}), 400
@@ -1030,9 +1046,11 @@ def register_fanqie_routes(app):
                 except:
                     config_data = {}
             
-            # 更新书名和简介
+            # 更新书名、简介、分类、标签
             config_data['title'] = title
             config_data['description'] = description
+            config_data['category'] = category
+            config_data['tags'] = tags
             
             # 保存配置
             with open(config_file, 'w', encoding='utf-8') as f:
@@ -1042,6 +1060,62 @@ def register_fanqie_routes(app):
             return jsonify({"success": True, "message": "保存成功"})
         except Exception as e:
             logger.error(f"❌ 保存项目信息失败: {e}")
+            return jsonify({"success": False, "error": str(e)}), 500
+    
+    @app.route('/api/fanqie-upload/cover', methods=['POST'])
+    def upload_fanqie_cover():
+        """上传书籍封面"""
+        try:
+            from flask import session
+            import os
+            
+            # 获取当前用户
+            username = session.get('username')
+            if not username:
+                return jsonify({"success": False, "error": "请先登录"}), 401
+            
+            project_id = request.form.get('project_id')
+            if not project_id:
+                return jsonify({"success": False, "error": "缺少project_id参数"}), 400
+            
+            # 查找用户项目
+            project_dir = find_user_project_dir(username, project_id)
+            if not project_dir:
+                return jsonify({"success": False, "error": "项目不存在或无权访问"}), 404
+            
+            # 检查是否有文件
+            if 'cover' not in request.files:
+                return jsonify({"success": False, "error": "没有上传文件"}), 400
+            
+            file = request.files['cover']
+            if file.filename == '':
+                return jsonify({"success": False, "error": "文件名为空"}), 400
+            
+            # 验证文件类型
+            allowed_extensions = {'.png', '.jpg', '.jpeg'}
+            ext = os.path.splitext(file.filename)[1].lower()
+            if ext not in allowed_extensions:
+                return jsonify({"success": False, "error": "只支持 PNG、JPG 格式"}), 400
+            
+            # 删除旧封面
+            for old_cover in ["cover.png", "cover.jpg", "cover.jpeg"]:
+                old_path = project_dir / old_cover
+                if old_path.exists():
+                    old_path.unlink()
+            
+            # 保存新封面
+            cover_name = f"cover{ext}"
+            cover_path = project_dir / cover_name
+            file.save(str(cover_path))
+            
+            logger.info(f"✅ 用户 {username} 上传封面: {project_id}/{cover_name}")
+            return jsonify({
+                "success": True, 
+                "message": "封面上传成功",
+                "cover_path": f"/generated_images/{username}/{project_id}/{cover_name}"
+            })
+        except Exception as e:
+            logger.error(f"❌ 封面上传失败: {e}")
             return jsonify({"success": False, "error": str(e)}), 500
     
     @app.route('/api/fanqie/upload/check-prerequisites', methods=['GET'])

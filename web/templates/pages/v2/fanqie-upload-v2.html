@@ -431,6 +431,96 @@
         gap: 6px;
     }
     
+    /* 番茄风格表单布局 */
+    .book-form-row {
+        display: flex;
+        gap: var(--v2-space-4);
+        margin-bottom: var(--v2-space-3);
+    }
+    
+    .cover-upload-section {
+        flex-shrink: 0;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: var(--v2-space-2);
+    }
+    
+    .cover-preview {
+        width: 120px;
+        height: 160px;
+        background: var(--v2-bg-primary);
+        border: 2px dashed var(--v2-border-subtle);
+        border-radius: var(--v2-radius-md);
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+        transition: all 0.2s ease;
+        overflow: hidden;
+        position: relative;
+    }
+    
+    .cover-preview:hover {
+        border-color: #6366f1;
+        background: rgba(99, 102, 241, 0.05);
+    }
+    
+    .cover-preview.has-image {
+        border-style: solid;
+        border-color: var(--v2-border-hover);
+    }
+    
+    .cover-placeholder {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 4px;
+        padding: var(--v2-space-2);
+        text-align: center;
+    }
+    
+    .cover-icon {
+        font-size: 32px;
+        opacity: 0.6;
+    }
+    
+    .cover-text {
+        font-size: 12px;
+        color: var(--v2-text-secondary);
+    }
+    
+    .cover-hint {
+        font-size: 10px;
+        color: var(--v2-text-muted);
+    }
+    
+    .cover-preview img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+        position: absolute;
+        top: 0;
+        left: 0;
+    }
+    
+    .book-info-section {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        gap: var(--v2-space-3);
+    }
+    
+    .form-row {
+        display: flex;
+        gap: var(--v2-space-3);
+    }
+    
+    .form-group-half {
+        flex: 1;
+    }
+    
     .form-group label {
         font-size: 13px;
         font-weight: 500;
@@ -438,6 +528,12 @@
         display: flex;
         justify-content: space-between;
         align-items: center;
+        margin-bottom: 6px;
+    }
+    
+    .form-group label .required {
+        color: #ef4444;
+        margin-left: 4px;
     }
     
     .char-count {
@@ -451,7 +547,8 @@
     }
     
     .edit-input,
-    .edit-textarea {
+    .edit-textarea,
+    .edit-select {
         padding: 10px 12px;
         border: 1px solid var(--v2-border-subtle);
         border-radius: var(--v2-radius-md);
@@ -459,22 +556,83 @@
         color: var(--v2-text-primary);
         font-size: 13px;
         transition: border-color 0.2s ease;
+        width: 100%;
     }
     
     .edit-input:focus,
-    .edit-textarea:focus {
+    .edit-textarea:focus,
+    .edit-select:focus {
         outline: none;
         border-color: #6366f1;
     }
     
     .edit-textarea {
         resize: vertical;
-        min-height: 80px;
+        min-height: 100px;
     }
     
     .input-hint {
         font-size: 11px;
         color: var(--v2-text-muted);
+        margin-top: 4px;
+    }
+    
+    /* 标签输入 */
+    .tags-input-container {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        padding: 8px;
+        border: 1px solid var(--v2-border-subtle);
+        border-radius: var(--v2-radius-md);
+        background: var(--v2-bg-primary);
+        min-height: 42px;
+    }
+    
+    .tags-input-container:focus-within {
+        border-color: #6366f1;
+    }
+    
+    .tags-list {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px;
+    }
+    
+    .tag-item {
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+        padding: 4px 10px;
+        background: rgba(99, 102, 241, 0.1);
+        border: 1px solid rgba(99, 102, 241, 0.3);
+        border-radius: var(--v2-radius-sm);
+        font-size: 12px;
+        color: var(--v2-text-primary);
+    }
+    
+    .tag-item .tag-remove {
+        cursor: pointer;
+        opacity: 0.6;
+        transition: opacity 0.2s;
+    }
+    
+    .tag-item .tag-remove:hover {
+        opacity: 1;
+    }
+    
+    .tags-input {
+        flex: 1;
+        min-width: 120px;
+        border: none;
+        background: transparent;
+        color: var(--v2-text-primary);
+        font-size: 13px;
+        padding: 4px;
+    }
+    
+    .tags-input:focus {
+        outline: none;
     }
     
     /* ===== 加载状态 ===== */
@@ -626,20 +784,79 @@
             </div>
         </div>
         
-        <!-- 项目信息编辑区域 -->
+        <!-- 项目信息编辑区域 - 番茄创建新书风格 -->
         <div id="project-edit-section" class="project-edit-section" style="display: none;">
-            <h4 class="edit-section-title">📝 编辑项目信息</h4>
+            <h4 class="edit-section-title">📝 编辑书籍信息</h4>
             <div class="edit-form">
-                <div class="form-group">
-                    <label for="edit-title">书名 <span class="char-count" id="title-count">0/15</span></label>
-                    <input type="text" id="edit-title" class="edit-input" placeholder="请输入书名（最多15个字）" maxlength="15">
-                    <span class="input-hint">番茄要求：15个字符以内</span>
+                <!-- 第一行：封面 + 基本信息 -->
+                <div class="book-form-row">
+                    <!-- 左侧：封面上传 -->
+                    <div class="cover-upload-section">
+                        <div class="cover-preview" id="cover-preview">
+                            <div class="cover-placeholder">
+                                <span class="cover-icon">🖼️</span>
+                                <span class="cover-text">点击上传封面</span>
+                                <span class="cover-hint">建议尺寸 600x800</span>
+                            </div>
+                            <img id="cover-image" style="display: none;" alt="封面">
+                        </div>
+                        <input type="file" id="cover-file" accept="image/*" style="display: none;" onchange="handleCoverUpload(event)">
+                        <button class="v2-btn v2-btn--secondary v2-btn--sm" onclick="document.getElementById('cover-file').click()">
+                            📄 选择封面
+                        </button>
+                    </div>
+                    
+                    <!-- 右侧：基本信息 -->
+                    <div class="book-info-section">
+                        <div class="form-group">
+                            <label for="edit-title">书名 <span class="required">*</span> <span class="char-count" id="title-count">0/15</span></label>
+                            <input type="text" id="edit-title" class="edit-input" placeholder="请输入书名（最多15个字）" maxlength="15">
+                            <span class="input-hint">番茄要求：15个字符以内，简洁有吸引力</span>
+                        </div>
+                        
+                        <div class="form-row">
+                            <div class="form-group form-group-half">
+                                <label for="edit-category">分类 <span class="required">*</span></label>
+                                <select id="edit-category" class="edit-select">
+                                    <option value="">请选择分类</option>
+                                    <option value="玄幻">玄幻</option>
+                                    <option value="修仙">修仙</option>
+                                    <option value="都市">都市</option>
+                                    <option value="。
+科幻">科幻</option>
+                                    <option value="历史">历史</option>
+                                    <option value="游戏">游戏</option>
+                                    <option value="轻小说">轻小说</option>
+                                    <option value="玄幻修真">玄幻修真</option>
+                                    <option value="今天要推荐">今天要推荐</option>
+                                </select>
+                            </div>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label>标签 <span class="char-count" id="tags-count">0/5</span></label>
+                            <div class="tags-input-container" id="tags-container">
+                                <div class="tags-list" id="tags-list"></div>
+                                <input type="text" id="edit-tags-input" class="tags-input" placeholder="输入标签后回车（最多5个）" maxlength="10">
+                            </div>
+                            <span class="input-hint">添加标签帮助读者快速了解书籍内容，如：爱情、战斗、升级</span>
+                        </div>
+                    </div>
                 </div>
+                
+                <!-- 第二行：简介 -->
                 <div class="form-group">
-                    <label for="edit-description">简介 <span class="char-count" id="desc-count">0</span></label>
-                    <textarea id="edit-description" class="edit-textarea" rows="4" placeholder="请输入书籍简介（建议50字以上，更有利于吸引读者）"></textarea>
-                    <span class="input-hint">建议至少50字以上</span>
+                    <label for="edit-description">书籍简介 <span class="required">*</span> <span class="char-count" id="desc-count">0</span></label>
+                    <textarea id="edit-description" class="edit-textarea" rows="5" placeholder="请输入书籍简介，建议50字以上...
+
+优秀的简介应包含：
+• 主角身份和背景
+• 核心冲突或剧情亮点
+• 悬念设置吸引读者
+• 不要剧透关键剧情"></textarea>
+                    <span class="input-hint">建议50-500字，精简有力的简介能显著提升点击率</span>
                 </div>
+                
                 <button class="v2-btn v2-btn--primary v2-btn--sm" onclick="saveProjectInfo()">
                     💾 保存修改
                 </button>
@@ -755,6 +972,9 @@ function selectProject(projectId) {
 /**
  * 加载项目信息到编辑表单
  */
+// 标签管理
+let currentTags = [];
+
 async function loadProjectInfoToEditForm(projectId) {
     try {
         const resp = await fetch(`/api/fanqie-upload/config?project_id=${projectId}`);
@@ -762,18 +982,137 @@ async function loadProjectInfoToEditForm(projectId) {
         
         if (result.success) {
             const config = result.data;
+            
+            // 填充基本信息
             document.getElementById('edit-title').value = config.project_name || '';
             document.getElementById('edit-description').value = config.description || '';
+            
+            // 填充分类
+            document.getElementById('edit-category').value = config.category || '';
+            
+            // 填充标签
+            currentTags = config.tags || [];
+            renderTags();
+            
+            // 显示封面
+            const coverPreview = document.getElementById('cover-preview');
+            const coverImage = document.getElementById('cover-image');
+            if (config.cover_exists && config.cover_path) {
+                coverImage.src = config.cover_path;
+                coverImage.style.display = 'block';
+                coverPreview.classList.add('has-image');
+                coverPreview.querySelector('.cover-placeholder').style.display = 'none';
+            } else {
+                coverImage.style.display = 'none';
+                coverPreview.classList.remove('has-image');
+                coverPreview.querySelector('.cover-placeholder').style.display = 'flex';
+            }
             
             // 更新字符计数
             updateCharCount('edit-title', 'title-count', 15);
             updateCharCount('edit-description', 'desc-count');
+            updateTagsCount();
             
             // 显示编辑区域
             document.getElementById('project-edit-section').style.display = 'block';
         }
     } catch (e) {
         console.error('加载项目信息失败:', e);
+    }
+}
+
+/**
+ * 渲染标签列表
+ */
+function renderTags() {
+    const container = document.getElementById('tags-list');
+    container.innerHTML = currentTags.map((tag, index) => `
+        <span class="tag-item">
+            ${escapeHtml(tag)}
+            <span class="tag-remove" onclick="removeTag(${index})">×</span>
+        </span>
+    `).join('');
+    updateTagsCount();
+}
+
+/**
+ * 添加标签
+ */
+function addTag(tag) {
+    tag = tag.trim();
+    if (!tag) return;
+    if (currentTags.length >= 5) {
+        showToast('最多只能添加5个标签', 'warning');
+        return;
+    }
+    if (currentTags.includes(tag)) {
+        showToast('标签已存在', 'warning');
+        return;
+    }
+    currentTags.push(tag);
+    renderTags();
+}
+
+/**
+ * 移除标签
+ */
+function removeTag(index) {
+    currentTags.splice(index, 1);
+    renderTags();
+}
+
+/**
+ * 更新标签计数
+ */
+function updateTagsCount() {
+    document.getElementById('tags-count').textContent = `${currentTags.length}/5`;
+}
+
+/**
+ * 处理封面上传
+ */
+async function handleCoverUpload(event) {
+    const file = event.target.files[0];
+    if (!file) return;
+    
+    if (!file.type.startsWith('image/')) {
+        showToast('请上传图片文件', 'error');
+        return;
+    }
+    
+    // 读取文件预览
+    const reader = new FileReader();
+    reader.onload = function(e) {
+        const coverPreview = document.getElementById('cover-preview');
+        const coverImage = document.getElementById('cover-image');
+        coverImage.src = e.target.result;
+        coverImage.style.display = 'block';
+        coverPreview.classList.add('has-image');
+        coverPreview.querySelector('.cover-placeholder').style.display = 'none';
+    };
+    reader.readAsDataURL(file);
+    
+    // 上传到服务器
+    if (selectedProject) {
+        const formData = new FormData();
+        formData.append('cover', file);
+        formData.append('project_id', selectedProject.id);
+        
+        try {
+            const resp = await fetch('/api/fanqie-upload/cover', {
+                method: 'POST',
+                body: formData
+            });
+            const result = await resp.json();
+            if (result.success) {
+                showToast('封面上传成功', 'success');
+            } else {
+                showToast('上传失败：' + result.error, 'error');
+            }
+        } catch (e) {
+            console.error('封面上传失败:', e);
+            showToast('上传失败', 'error');
+        }
     }
 }
 
@@ -808,6 +1147,7 @@ async function saveProjectInfo() {
     
     const title = document.getElementById('edit-title').value.trim();
     const description = document.getElementById('edit-description').value.trim();
+    const category = document.getElementById('edit-category').value;
     
     if (!title) {
         showToast('书名不能为空', 'warning');
@@ -819,6 +1159,11 @@ async function saveProjectInfo() {
         return;
     }
     
+    if (!category) {
+        showToast('请选择分类', 'warning');
+        return;
+    }
+    
     try {
         const resp = await fetch('/api/fanqie-upload/project-info', {
             method: 'POST',
@@ -826,7 +1171,9 @@ async function saveProjectInfo() {
             body: JSON.stringify({
                 project_id: selectedProject.id,
                 title: title,
-                description: description
+                description: description,
+                category: category,
+                tags: currentTags
             })
         });
         
@@ -849,12 +1196,24 @@ async function saveProjectInfo() {
 document.addEventListener('DOMContentLoaded', () => {
     const titleInput = document.getElementById('edit-title');
     const descInput = document.getElementById('edit-description');
+    const tagsInput = document.getElementById('edit-tags-input');
     
     if (titleInput) {
         titleInput.addEventListener('input', () => updateCharCount('edit-title', 'title-count', 15));
     }
     if (descInput) {
         descInput.addEventListener('input', () => updateCharCount('edit-description', 'desc-count'));
+    }
+    
+    // 标签输入事件
+    if (tagsInput) {
+        tagsInput.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                addTag(tagsInput.value);
+                tagsInput.value = '';
+            }
+        });
     }
 });
 
