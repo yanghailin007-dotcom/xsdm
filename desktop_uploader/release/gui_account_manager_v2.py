@@ -147,7 +147,7 @@ class BrowserManager:
         import sys
         import os
         
-        # 优先查找 Google Chrome（番茄网站兼容性更好）
+        # 只查找 Google Chrome（Edge 有兼容性问题，不使用）
         chrome_paths = [
             # Chrome 系统安装路径
             r"C:\Program Files\Google\Chrome\Application\chrome.exe",
@@ -158,7 +158,7 @@ class BrowserManager:
             os.path.expandvars(r"%PROGRAMFILES(x86)%\Google\Chrome\Application\chrome.exe"),
         ]
         
-        # 先找 Chrome
+        # 找系统 Chrome
         for path in chrome_paths:
             if os.path.exists(path):
                 print(f"✅ 找到系统 Chrome: {path}")
@@ -175,19 +175,7 @@ class BrowserManager:
         except Exception as e:
             print(f"⚠️ 检查下载的 Chrome 失败: {e}")
         
-        # 如果没找到 Chrome，再找 Edge（作为备选）
-        edge_paths = [
-            r"C:\Program Files\Microsoft\Edge\Application\msedge.exe",
-            r"C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe",
-            os.path.expandvars(r"%LOCALAPPDATA%\Microsoft\Edge\Application\msedge.exe"),
-        ]
-        
-        for path in edge_paths:
-            if os.path.exists(path):
-                print(f"⚠️ 未找到 Chrome，使用 Edge: {path}")
-                return path
-        
-        print("❌ 未找到 Chrome 或 Edge")
+        print("❌ 未找到 Chrome")
         return None
     
     def download_chrome_if_needed(self, progress_callback=None) -> str:
