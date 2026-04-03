@@ -143,7 +143,7 @@ def register_cover_routes(app):
             cover_url = data.get('cover_url')
             project_id = data.get('project_id')
             
-            logger.info(f"🎨 收到保存封面请求: project_id={project_id}, cover_url={cover_url[:50]}...")
+            logger.info(f"🎨 收到保存封面请求: project_id={project_id}, cover_url={cover_url[:50] if cover_url else 'None'}...")
             
             if not cover_url or not project_id:
                 return jsonify({
@@ -158,8 +158,26 @@ def register_cover_routes(app):
             
             logger.info(f"👤 当前用户: {username}")
             
-            # 查找用户项目目录
-            from web.web_server_refactored import find_user_project_dir
+            # 查找用户项目目录（内联实现，避免循环导入）
+            def find_user_project_dir(username, project_id):
+                """查找用户的项目目录 - 支持多层结构"""
+                user_dir = Path("小说项目") / username
+                
+                # 直接查找
+                project_dir = user_dir / project_id
+                if project_dir.exists():
+                    return project_dir
+                
+                # 在子目录中查找
+                for subdir in user_dir.iterdir():
+                    if subdir.is_dir():
+                        if subdir.name == project_id:
+                            return subdir
+                        for subsubdir in subdir.iterdir():
+                            if subsubdir.is_dir() and subsubdir.name == project_id:
+                                return subsubdir
+                return None
+            
             project_dir = find_user_project_dir(username, project_id)
             
             if not project_dir:

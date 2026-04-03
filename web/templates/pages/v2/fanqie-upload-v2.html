@@ -1138,15 +1138,15 @@ function openCoverMaker() {
     const title = document.getElementById('edit-title').value.trim() || selectedProject.title;
     const url = `/cover-maker?title=${encodeURIComponent(title)}&project_id=${encodeURIComponent(selectedProject.id)}`;
     
-    // 在新窗口打开封面制作页面
-    const coverWindow = window.open(url, '_blank', 'width=1400,height=900,scrollbars=yes');
+    // 在新标签页打开封面制作页面（方便查看控制台）
+    const coverTab = window.open(url, '_blank');
     
-    if (!coverWindow) {
+    if (!coverTab) {
         showToast('弹窗被阻止，请允许弹窗后重试', 'error');
         return;
     }
     
-    showToast('封面制作页面已打开，制作完成后点击「保存到项目」即可', 'info');
+    showToast('封面制作页面已在新标签页打开', 'info');
     
     // 监听封面制作完成的消息
     window.addEventListener('message', function handleCoverMessage(event) {
