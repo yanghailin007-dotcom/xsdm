@@ -46,7 +46,7 @@ class WebsiteAuth:
         self.session = requests.Session()
         self.session.headers.update({
             'Content-Type': 'application/json',
-            'User-Agent': 'NovelPublisher-GUI/1.3.2'
+            'User-Agent': 'NovelPublisher-GUI/1.3.3'
         })
     
     def login(self, username: str, password: str) -> Optional[AccountToken]:

@@ -46,16 +46,24 @@ from PyQt5.QtGui import QIcon, QFont, QTextCursor, QColor
 try:
     from chrome_manager import ChromeManager
     from fanqie_uploader_impl import FanqieUploaderImpl
-    from api_auth import MultiAccountManager
-    from gui_account_manager_v2 import AccountManagerDialogV2, BrowserManager
     UPLOADER_AVAILABLE = True
 except ImportError as e:
     print(f"[ERROR] Failed to import uploader modules: {e}")
     UPLOADER_AVAILABLE = False
     ChromeManager = None
     FanqieUploaderImpl = None
+
+# 导入多账户模块（单独try，防止影响主功能）
+try:
+    import requests  # 确保PyInstaller包含这个库
+    from api_auth import MultiAccountManager
+    from gui_account_manager_v2 import AccountManagerDialogV2, BrowserManager
+    MULTI_ACCOUNT_AVAILABLE = True
+except ImportError as e:
+    print(f"[ERROR] Failed to import multi-account modules: {e}")
+    MULTI_ACCOUNT_AVAILABLE = False
     MultiAccountManager = None
-    AccountManagerDialog = None
+    AccountManagerDialogV2 = None
     BrowserManager = None
 
 # 导入样式
@@ -252,7 +260,7 @@ class MainWindow(QMainWindow):
     
     def __init__(self):
         super().__init__()
-        self.setWindowTitle("大文娱小说发布助手 v1.3.2")
+        self.setWindowTitle("大文娱小说发布助手 v1.3.3")
         self.setGeometry(100, 100, 1280, 840)
         
         # 应用现代化样式
@@ -265,8 +273,8 @@ class MainWindow(QMainWindow):
         self.config = self.load_config()
         
         # 多账户管理 - V2: 每个官网账户 = 一个浏览器实例
-        self.account_manager = MultiAccountManager() if MultiAccountManager else None
-        self.browser_manager = BrowserManager() if BrowserManager else None
+        self.account_manager = MultiAccountManager() if MULTI_ACCOUNT_AVAILABLE else None
+        self.browser_manager = BrowserManager() if MULTI_ACCOUNT_AVAILABLE else None
         self.current_website_account = None  # 当前选中的官网账户
         
         self.init_ui()
@@ -933,7 +941,7 @@ class MainWindow(QMainWindow):
         main_card_layout.addWidget(title_label)
         
         # 版本
-        version_label = QLabel("Version 1.3.2")
+        version_label = QLabel("Version 1.3.3")
         version_label.setAlignment(Qt.AlignCenter)
         version_label.setStyleSheet("font-size: 14px; color: rgba(255,255,255,0.8);")
         main_card_layout.addWidget(version_label)
@@ -1161,16 +1169,24 @@ class MainWindow(QMainWindow):
     
     def open_account_manager(self):
         """打开账户管理对话框"""
-        if not AccountManagerDialogV2 or not self.account_manager:
-            QMessageBox.warning(self, "提示", "账户管理功能暂不可用")
+        if not MULTI_ACCOUNT_AVAILABLE:
+            QMessageBox.warning(self, "提示", "多账户模块未正确加载\n\n可能缺少依赖库：requests")
             return
         
-        dialog = AccountManagerDialogV2(self, self.account_manager)
-        dialog.account_selected.connect(self.on_account_selected)
-        dialog.exec_()
+        if not self.account_manager:
+            QMessageBox.warning(self, "提示", "账户管理器初始化失败")
+            return
         
-        # 刷新运行中计数
-        self.update_running_count()
+        try:
+            dialog = AccountManagerDialogV2(self, self.account_manager)
+            dialog.account_selected.connect(self.on_account_selected)
+            dialog.exec_()
+            # 刷新运行中计数
+            self.update_running_count()
+        except Exception as e:
+            QMessageBox.critical(self, "错误", f"打开账户管理器失败:\n{str(e)}")
+            import traceback
+            traceback.print_exc()
     
     def on_account_selected(self, website_username: str):
         """账户选择回调"""
@@ -1697,7 +1713,7 @@ def main():
     
     # 设置应用信息
     app.setApplicationName("小说自动上传工具")
-    app.setApplicationVersion("1.3.2")
+    app.setApplicationVersion("1.3.3")
     
     window = MainWindow()
     window.show()
