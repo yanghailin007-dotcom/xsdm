@@ -1032,6 +1032,22 @@ NovelPublisher_Data/              ← 统一数据目录
             if not acc:
                 return
             
+            # 弹出确认对话框
+            reply = QMessageBox.warning(
+                self,
+                "⚠️ 确认停止浏览器",
+                f"停止浏览器 '{acc.name}' 可能导致登录状态丢失！\n\n"
+                f"💡 建议：直接关闭 Chrome 窗口(X)可保留登录状态\n\n"
+                f"确定要强制停止吗？",
+                QMessageBox.Yes | QMessageBox.No,
+                QMessageBox.No
+            )
+            
+            if reply != QMessageBox.Yes:
+                return
+            
+            self.log(f"⏹ 正在停止浏览器: {acc.name}...", "info")
+            
             # 方法1: 尝试通过 CDP 优雅关闭浏览器
             try:
                 url = f"http://localhost:{acc.port}/json/version"
