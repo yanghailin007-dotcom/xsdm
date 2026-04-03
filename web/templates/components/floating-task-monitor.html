@@ -1,0 +1,488 @@
+{# 全局任务监控浮窗 - 显示在所有页面上 #}
+<div id="globalTaskFloat" class="global-task-float" style="display: none;">
+    <!-- 头部（点击展开/收起） -->
+    <div class="global-float-header" onclick="toggleGlobalFloat()">
+        <span class="global-float-icon" id="globalFloatIcon">📝</span>
+        <div class="global-float-info">
+            <span class="global-float-title" id="globalFloatTitle">生成中...</span>
+            <span class="global-float-stage" id="globalFloatStage">准备中...</span>
+        </div>
+        <span class="global-float-percent" id="globalFloatPercent">0%</span>
+    </div>
+    
+    <!-- 展开内容 -->
+    <div class="global-float-body" id="globalFloatBody" style="display: none;">
+        <!-- 进度条 -->
+        <div class="global-float-progress">
+            <div class="progress-bar">
+                <div class="progress-fill" id="globalFloatBar" style="width: 0%"></div>
+            </div>
+            <div class="progress-stats">
+                <span id="globalFloatCount">0/0 章</span>
+                <span id="globalFloatStatus">进行中</span>
+            </div>
+        </div>
+        
+        <!-- 操作按钮 -->
+        <div class="global-float-actions">
+            <button class="btn-float-sm" onclick="goToTaskDetail(); event.stopPropagation();">
+                <span class="material-icons">open_in_new</span> 查看详情
+            </button>
+            <button class="btn-float-sm btn-secondary" onclick="minimizeGlobalFloat(); event.stopPropagation();">
+                <span class="material-icons">minimize</span> 收起
+            </button>
+        </div>
+    </div>
+    
+    <!-- 关闭按钮 -->
+    <button class="global-float-close" onclick="closeGlobalFloat(); event.stopPropagation();" title="关闭">
+        <span class="material-icons">close</span>
+    </button>
+</div>
+
+<style>
+/* 全局浮窗样式 - 使用 v2 主题颜色 */
+.global-task-float {
+    position: fixed;
+    right: 20px;
+    bottom: 20px;
+    width: 300px;
+    background: var(--v2-bg-secondary, #fff);
+    border: 1px solid var(--v2-border-subtle, rgba(0,0,0,0.08));
+    border-radius: 16px;
+    box-shadow: 0 8px 32px rgba(0,0,0,0.15);
+    z-index: 9999;
+    cursor: pointer;
+    animation: slideInFloat 0.3s ease;
+    overflow: hidden;
+    transition: all 0.3s ease;
+}
+
+@keyframes slideInFloat {
+    from { transform: translateX(100%); opacity: 0; }
+    to { transform: translateX(0); opacity: 1; }
+}
+
+/* 头部 */
+.global-float-header {
+    display: flex;
+    align-items: center;
+    padding: 14px 16px;
+    gap: 12px;
+    background: linear-gradient(135deg, var(--primary-gold, #f59e0b), var(--primary-gold-light, #fbbf24));
+    color: #0f172a;
+}
+
+.global-float-icon {
+    font-size: 24px;
+    flex-shrink: 0;
+}
+
+.global-float-info {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+}
+
+.global-float-title {
+    font-size: 14px;
+    font-weight: 700;
+    color: #0f172a;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.global-float-stage {
+    font-size: 12px;
+    color: rgba(15, 23, 42, 0.7);
+    margin-top: 2px;
+}
+
+.global-float-percent {
+    font-size: 16px;
+    font-weight: 800;
+    color: #0f172a;
+    flex-shrink: 0;
+}
+
+/* 展开内容 */
+.global-float-body {
+    padding: 16px;
+    background: var(--v2-bg-secondary, #fff);
+}
+
+.global-float-progress {
+    margin-bottom: 12px;
+}
+
+.global-float-progress .progress-bar {
+    height: 8px;
+    background: var(--v2-bg-tertiary, #e0e0e0);
+    border-radius: 4px;
+    overflow: hidden;
+    margin-bottom: 10px;
+}
+
+.global-float-progress .progress-fill {
+    height: 100%;
+    background: linear-gradient(90deg, var(--primary-gold, #f59e0b), var(--primary-gold-light, #fbbf24));
+    border-radius: 4px;
+    transition: width 0.5s ease;
+}
+
+.progress-stats {
+    display: flex;
+    justify-content: space-between;
+    font-size: 13px;
+    color: var(--v2-text-secondary, #666);
+}
+
+/* 操作按钮 */
+.global-float-actions {
+    display: flex;
+    gap: 8px;
+    margin-top: 12px;
+}
+
+.btn-float-sm {
+    flex: 1;
+    padding: 10px 12px;
+    font-size: 13px;
+    font-weight: 600;
+    border: none;
+    border-radius: 10px;
+    background: var(--primary-gold, #f59e0b);
+    color: #0f172a;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+    transition: all 0.2s;
+}
+
+.btn-float-sm:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(245, 158, 11, 0.3);
+}
+
+.btn-float-sm.btn-secondary {
+    background: var(--v2-bg-tertiary, #f0f0f0);
+    color: var(--v2-text-primary, #333);
+}
+
+.btn-float-sm.btn-secondary:hover {
+    background: var(--v2-bg-secondary, #e0e0e0);
+}
+
+.btn-float-sm .material-icons {
+    font-size: 16px;
+}
+
+/* 关闭按钮 */
+.global-float-close {
+    position: absolute;
+    top: 8px;
+    right: 8px;
+    width: 24px;
+    height: 24px;
+    border: none;
+    border-radius: 50%;
+    background: rgba(0,0,0,0.1);
+    color: #0f172a;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    opacity: 0;
+    transition: all 0.2s;
+    padding: 0;
+}
+
+.global-task-float:hover .global-float-close {
+    opacity: 1;
+}
+
+.global-float-close:hover {
+    background: rgba(0,0,0,0.2);
+}
+
+.global-float-close .material-icons {
+    font-size: 16px;
+}
+
+/* 最小化状态 */
+.global-task-float.minimized .global-float-body {
+    display: none !important;
+}
+
+/* 拖动样式 */
+.global-task-float.dragging {
+    opacity: 0.8;
+    cursor: move;
+    user-select: none;
+}
+
+/* 响应式 */
+@media (max-width: 640px) {
+    .global-task-float {
+        right: 10px;
+        bottom: 10px;
+        width: calc(100vw - 20px);
+        max-width: 320px;
+    }
+}
+
+/* 完成状态 */
+.global-task-float.completed .global-float-header {
+    background: linear-gradient(135deg, #22c55e, #4ade80);
+}
+
+/* 失败状态 */
+.global-task-float.failed .global-float-header {
+    background: linear-gradient(135deg, #ef4444, #f87171);
+    color: white;
+}
+
+.global-task-float.failed .global-float-title,
+.global-task-float.failed .global-float-stage,
+.global-task-float.failed .global-float-percent {
+    color: white;
+}
+</style>
+
+<script>
+(function() {
+    'use strict';
+    
+    // 全局任务监控
+    let currentTaskId = null;
+    let pollInterval = null;
+    let isExpanded = false;
+    let isDragging = false;
+    
+    // 页面加载时检查后台任务
+    document.addEventListener('DOMContentLoaded', function() {
+        checkBackgroundTask();
+    });
+    
+    // 检查是否有后台运行的任务
+    function checkBackgroundTask() {
+        const saved = localStorage.getItem('market_driven_background_task');
+        if (!saved) return;
+        
+        try {
+            const task = JSON.parse(saved);
+            if (!task.task_id) return;
+            
+            // 检查任务是否仍在运行
+            fetch(`/api/market-driven/tasks/${task.task_id}`)
+                .then(res => res.json())
+                .then(data => {
+                    if (data.status === 'running' || data.status === 'in_progress') {
+                        // 任务仍在运行，显示浮窗
+                        createGlobalFloat(task.task_id);
+                    } else {
+                        // 任务已完成或失败，清理状态
+                        localStorage.removeItem('market_driven_background_task');
+                        
+                        if (data.status === 'completed') {
+                            showNotification('生成完成！', `您的创作任务已完成`);
+                        }
+                    }
+                })
+                .catch(err => {
+                    console.error('[GlobalFloat] 检查任务失败:', err);
+                });
+        } catch (e) {
+            console.error('[GlobalFloat] 解析任务状态失败:', e);
+            localStorage.removeItem('market_driven_background_task');
+        }
+    }
+    
+    // 创建并显示全局浮窗
+    window.createGlobalFloat = function(taskId) {
+        currentTaskId = taskId;
+        const floatEl = document.getElementById('globalTaskFloat');
+        
+        if (floatEl) {
+            floatEl.style.display = 'block';
+            initDraggable(floatEl);
+            startPolling();
+        }
+    };
+    
+    // 开始轮询任务状态
+    function startPolling() {
+        // 清除旧轮询
+        if (pollInterval) clearInterval(pollInterval);
+        
+        // 立即执行一次
+        pollTaskStatus();
+        
+        // 每5秒轮询
+        pollInterval = setInterval(pollTaskStatus, 5000);
+    }
+    
+    // 轮询任务状态
+    async function pollTaskStatus() {
+        if (!currentTaskId) return;
+        
+        try {
+            const response = await fetch(`/api/market-driven/tasks/${currentTaskId}`);
+            if (!response.ok) throw new Error('获取失败');
+            
+            const task = await response.json();
+            updateFloatUI(task);
+            
+            // 任务完成或失败
+            if (['completed', 'failed'].includes(task.status)) {
+                clearInterval(pollInterval);
+                
+                // 更新浮窗状态
+                const floatEl = document.getElementById('globalTaskFloat');
+                if (floatEl) {
+                    floatEl.classList.add(task.status);
+                }
+                
+                // 清理 localStorage
+                localStorage.removeItem('market_driven_background_task');
+                
+                // 显示通知
+                if (task.status === 'completed') {
+                    showNotification('生成完成！', '您的创作任务已完成');
+                }
+            }
+        } catch (error) {
+            console.error('[GlobalFloat] 轮询失败:', error);
+        }
+    }
+    
+    // 更新浮窗UI
+    function updateFloatUI(task) {
+        const progress = parseInt(task.progress) || 0;
+        const stage = task.current_stage || task.message || '生成中...';
+        
+        // 更新进度
+        const percentEl = document.getElementById('globalFloatPercent');
+        const barEl = document.getElementById('globalFloatBar');
+        const stageEl = document.getElementById('globalFloatStage');
+        const countEl = document.getElementById('globalFloatCount');
+        const statusEl = document.getElementById('globalFloatStatus');
+        const titleEl = document.getElementById('globalFloatTitle');
+        
+        if (percentEl) percentEl.textContent = progress + '%';
+        if (barEl) barEl.style.width = progress + '%';
+        if (stageEl) stageEl.textContent = stage;
+        if (countEl) countEl.textContent = `${task.current_chapter || 0}/${task.target_chapters || 0} 章`;
+        if (statusEl) statusEl.textContent = task.status === 'completed' ? '已完成' : '进行中';
+        if (titleEl && task.novel_title) titleEl.textContent = task.novel_title;
+        
+        // 更新 localStorage 中的进度
+        const saved = localStorage.getItem('market_driven_background_task');
+        if (saved) {
+            const data = JSON.parse(saved);
+            data.progress = progress;
+            data.last_update = Date.now();
+            localStorage.setItem('market_driven_background_task', JSON.stringify(data));
+        }
+    }
+    
+    // 展开/收起浮窗
+    window.toggleGlobalFloat = function() {
+        if (isExpanded) {
+            minimizeGlobalFloat();
+        } else {
+            expandGlobalFloat();
+        }
+    };
+    
+    // 展开浮窗
+    window.expandGlobalFloat = function() {
+        const body = document.getElementById('globalFloatBody');
+        const floatEl = document.getElementById('globalTaskFloat');
+        
+        if (body) body.style.display = 'block';
+        if (floatEl) floatEl.classList.remove('minimized');
+        isExpanded = true;
+    };
+    
+    // 收起浮窗
+    window.minimizeGlobalFloat = function() {
+        const body = document.getElementById('globalFloatBody');
+        const floatEl = document.getElementById('globalTaskFloat');
+        
+        if (body) body.style.display = 'none';
+        if (floatEl) floatEl.classList.add('minimized');
+        isExpanded = false;
+    };
+    
+    // 关闭浮窗
+    window.closeGlobalFloat = function() {
+        const floatEl = document.getElementById('globalTaskFloat');
+        if (floatEl) floatEl.style.display = 'none';
+        
+        if (pollInterval) clearInterval(pollInterval);
+        
+        // 不清除 localStorage，任务继续在后台运行
+        // 只是隐藏了浮窗显示
+    };
+    
+    // 跳转到任务详情页
+    window.goToTaskDetail = function() {
+        if (currentTaskId) {
+            window.location.href = `/market-driven/status?task=${currentTaskId}`;
+        }
+    };
+    
+    // 初始化拖动功能
+    function initDraggable(element) {
+        let startX, startY, initialLeft, initialTop;
+        
+        element.addEventListener('mousedown', function(e) {
+            // 点击按钮时不拖动
+            if (e.target.closest('button')) return;
+            
+            isDragging = true;
+            startX = e.clientX;
+            startY = e.clientY;
+            initialLeft = element.offsetLeft;
+            initialTop = element.offsetTop;
+            element.classList.add('dragging');
+            
+            e.preventDefault();
+        });
+        
+        document.addEventListener('mousemove', function(e) {
+            if (!isDragging) return;
+            
+            const dx = e.clientX - startX;
+            const dy = e.clientY - startY;
+            
+            element.style.left = `${initialLeft + dx}px`;
+            element.style.top = `${initialTop + dy}px`;
+            element.style.right = 'auto';
+            element.style.bottom = 'auto';
+        });
+        
+        document.addEventListener('mouseup', function() {
+            isDragging = false;
+            element.classList.remove('dragging');
+        });
+    }
+    
+    // 显示浏览器通知
+    function showNotification(title, body) {
+        if ('Notification' in window && Notification.permission === 'granted') {
+            new Notification(title, { body, icon: '/static/img/logo.png' });
+        }
+    }
+    
+    // 请求通知权限
+    if ('Notification' in window && Notification.permission === 'default') {
+        Notification.requestPermission();
+    }
+})();
+</script>

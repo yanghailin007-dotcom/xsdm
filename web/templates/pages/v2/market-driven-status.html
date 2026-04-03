@@ -351,6 +351,40 @@
   justify-content: center;
   flex-wrap: wrap;
 }
+
+/* Toast 提示消息 */
+.toast-message {
+  position: fixed;
+  top: 100px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: linear-gradient(135deg, var(--primary-gold, #f59e0b), var(--primary-gold-light, #fbbf24));
+  color: #0f172a;
+  padding: 14px 28px;
+  border-radius: 12px;
+  font-size: 15px;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  box-shadow: 0 8px 32px rgba(245, 158, 11, 0.3);
+  z-index: 10000;
+  animation: toastIn 0.3s ease, toastOut 0.3s ease 2.7s;
+}
+
+.toast-message .material-icons {
+  font-size: 20px;
+}
+
+@keyframes toastIn {
+  from { opacity: 0; transform: translateX(-50%) translateY(-20px); }
+  to { opacity: 1; transform: translateX(-50%) translateY(0); }
+}
+
+@keyframes toastOut {
+  from { opacity: 1; transform: translateX(-50%) translateY(0); }
+  to { opacity: 0; transform: translateX(-50%) translateY(-20px); }
+}
 </style>
 {% endblock %}
 
@@ -435,6 +469,13 @@
         <span class="material-icons">arrow_back</span>
         返回
       </button>
+      
+      <!-- 后台运行按钮 - 生成中显示 -->
+      <button class="btn btn-primary" id="background-btn" style="display: none;" onclick="runInBackground()">
+        <span class="material-icons">picture_in_picture</span>
+        后台运行
+      </button>
+      
       <button class="btn btn-primary" id="view-result-btn" style="display: none;" onclick="viewResult()">
         <span class="material-icons">visibility</span>
         查看结果
@@ -583,6 +624,9 @@ function updateUI(task) {
     statusEl.className = 'progress-card__status progress-card__status--failed';
     showError(task.error);
   } else if (task.status === 'running' || task.status === 'in_progress') {
+    // 显示后台运行按钮
+    document.getElementById('background-btn').style.display = 'inline-flex';
+    
     // 在章节生成阶段显示悬浮窗
     // 判断条件：阶段名称为chapters/current_stage为generating_chapters/有当前章节号/有批次信息
     const isChapterPhase = stage === 'chapters' || stage === 'generating_chapters' || 
@@ -788,6 +832,37 @@ async function checkBalanceAndResume() {
       btn.innerHTML = '<span class="material-icons">play_arrow</span> 检查余额并继续';
     }
   }
+}
+
+// 后台运行 - 隐藏主页面，保持浮窗运行
+function runInBackground() {
+  // 保存任务状态到 localStorage（让全局浮窗接管）
+  localStorage.setItem('market_driven_background_task', JSON.stringify({
+    task_id: taskId,
+    start_time: Date.now(),
+    status: 'running',
+    novel_title: document.querySelector('.status-header__title')?.textContent || '生成中...'
+  }));
+  
+  // 创建并显示全局浮窗
+  if (typeof createGlobalFloat === 'function') {
+    createGlobalFloat(taskId);
+  }
+  
+  // 停止当前页面轮询（让全局浮窗负责）
+  clearInterval(pollInterval);
+  
+  // 显示提示
+  const toast = document.createElement('div');
+  toast.className = 'toast-message';
+  toast.innerHTML = '<span class="material-icons">check_circle</span> 已切换到后台运行，可以浏览其他页面';
+  document.body.appendChild(toast);
+  setTimeout(() => toast.remove(), 3000);
+  
+  // 跳转到项目列表页
+  setTimeout(() => {
+    window.location.href = '/projects';
+  }, 500);
 }
 
 // 返回
