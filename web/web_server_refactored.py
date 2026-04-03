@@ -839,7 +839,7 @@ def register_fanqie_routes(app):
     def serve_project_cover(username, project_id, filename):
         """提供项目封面图片文件"""
         try:
-            from flask import send_file, session
+            from flask import send_file, session, make_response
             from pathlib import Path
             from urllib.parse import unquote
             import mimetypes
@@ -847,39 +847,50 @@ def register_fanqie_routes(app):
             # URL 解码参数
             project_id_decoded = unquote(project_id)
             
-            logger.info(f"🔍 请求封面: username={username}, project_id={project_id_decoded}, filename={filename}")
-            
-            # 安全检查：只能访问自己的项目封面
+            # 安全检查
             current_user = session.get('username')
             if current_user and current_user != username:
-                logger.warning(f"🚫 用户 {current_user} 尝试访问 {username} 的封面")
-                return jsonify({"error": "无权访问其他用户的封面"}), 403
+                return jsonify({"error": "Forbidden"}), 403
             
-            # 使用 find_user_project_dir 查找项目目录
-            project_dir = find_user_project_dir(username, project_id_decoded)
+            # 查找项目目录
+            user_dir = Path("小说项目") / username
+            project_dir = user_dir / project_id_decoded
             
-            if not project_dir:
-                logger.error(f"❌ 找不到项目目录: {username}/{project_id_decoded}")
-                return jsonify({"error": "项目不存在"}), 404
+            # 如果不存在，尝试查找子目录
+            if not project_dir.exists():
+                for subdir in user_dir.iterdir():
+                    if subdir.is_dir():
+                        if subdir.name == project_id_decoded:
+                            project_dir = subdir
+                            break
+                        for subsubdir in subdir.iterdir():
+                            if subsubdir.is_dir() and subsubdir.name == project_id_decoded:
+                                project_dir = subsubdir
+                                break
+            
+            if not project_dir.exists():
+                return jsonify({"error": "Project not found"}), 404
             
             # 验证文件名
             if filename not in ["cover.png", "cover.jpg", "cover.jpeg"]:
-                return jsonify({"error": "无效的文件名"}), 400
+                return jsonify({"error": "Invalid filename"}), 400
             
             file_path = project_dir / filename
             if not file_path.exists():
-                logger.error(f"❌ 封面文件不存在: {file_path}")
-                return jsonify({"error": "封面文件不存在"}), 404
+                return jsonify({"error": "Cover not found"}), 404
             
-            # 使用 send_file 发送文件
+            # 读取文件并返回
+            with open(file_path, 'rb') as f:
+                image_data = f.read()
+            
             mimetype = mimetypes.guess_type(str(file_path))[0] or 'image/jpeg'
-            logger.info(f"✅ 提供封面: {file_path} ({mimetype})")
-            return send_file(str(file_path), mimetype=mimetype)
+            response = make_response(image_data)
+            response.headers.set('Content-Type', mimetype)
+            response.headers.set('Cache-Control', 'public, max-age=3600')
+            return response
             
         except Exception as e:
-            logger.error(f"❌ 提供封面文件失败: {e}")
-            import traceback
-            logger.error(f"错误堆栈: {traceback.format_exc()}")
+            logger.error(f"❌ 封面服务错误: {e}")
             return jsonify({"error": str(e)}), 500
     
     @app.route('/api/fanqie-upload/validate', methods=['GET'])
