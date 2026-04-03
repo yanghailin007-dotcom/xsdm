@@ -1,0 +1,17 @@
+# 忽略大文件
+NovelPublisher.exe
+*.exe
+
+# PyInstaller 构建文件
+build/
+dist/
+*.spec
+
+# 浏览器数据
+browser_data/
+accounts/
+
+# 配置文件（包含敏感信息）
+config.json
+accounts.json
+.dev_mode
