@@ -1193,6 +1193,8 @@ function updateCharCount(inputId, countId, maxLength = null) {
  * 保存项目信息
  */
 async function saveProjectInfo() {
+    console.log('saveProjectInfo called, selectedProject:', selectedProject);
+    
     if (!selectedProject) {
         showToast('请先选择项目', 'warning');
         return;
@@ -1209,6 +1211,8 @@ async function saveProjectInfo() {
     const intervalMinutes = parseInt(document.getElementById('edit-interval-minutes').value) || 30;
     const skipPublished = document.getElementById('edit-skip-published').checked;
     
+    console.log('Saving data:', { title, category, firstPublishCount, dailyCount, publishTime });
+    
     if (!title) {
         showToast('书名不能为空', 'warning');
         return;
@@ -1223,6 +1227,8 @@ async function saveProjectInfo() {
         showToast('请选择分类', 'warning');
         return;
     }
+    
+    showToast('正在保存...', 'info');
     
     try {
         const resp = await fetch('/api/fanqie-upload/project-info', {
@@ -1245,22 +1251,25 @@ async function saveProjectInfo() {
         });
         
         const result = await resp.json();
+        console.log('Save response:', result);
         
         if (result.success) {
             showToast('保存成功', 'success');
             // 刷新项目列表显示新书名
             loadProjects();
         } else {
-            showToast('保存失败：' + result.error, 'error');
+            showToast('保存失败：' + (result.error || '未知错误'), 'error');
         }
     } catch (e) {
         console.error('保存失败:', e);
-        showToast('保存失败，请重试', 'error');
+        showToast('保存失败，请重试：' + e.message, 'error');
     }
 }
 
 // 绑定字符计数事件
 document.addEventListener('DOMContentLoaded', () => {
+    console.log('DOMContentLoaded - binding events');
+    
     const titleInput = document.getElementById('edit-title');
     const descInput = document.getElementById('edit-description');
     const tagsInput = document.getElementById('edit-tags-input');
@@ -1281,6 +1290,19 @@ document.addEventListener('DOMContentLoaded', () => {
                 tagsInput.value = '';
             }
         });
+    }
+    
+    // 绑定保存按钮事件（防止 onclick 不工作）
+    const saveBtn = document.querySelector('button[onclick="saveProjectInfo()"]');
+    if (saveBtn) {
+        console.log('Save button found, binding click event');
+        saveBtn.addEventListener('click', function(e) {
+            console.log('Save button clicked');
+            e.preventDefault();
+            saveProjectInfo();
+        });
+    } else {
+        console.warn('Save button not found');
     }
 });
 
