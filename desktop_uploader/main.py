@@ -255,7 +255,7 @@ class MainWindow(QMainWindow):
         
         subtitle_label = QLabel("智能 · 高效 · 多平台支持")
         subtitle_font = QFont()
-        subtitle_font.setPointSize(10)
+        subtitle_font.setPointSize(12)
         subtitle_label.setFont(subtitle_font)
         subtitle_label.setStyleSheet("color: #757575;")
         title_text_layout.addWidget(subtitle_label)
@@ -296,7 +296,7 @@ class MainWindow(QMainWindow):
                 border-radius: 6px;
                 padding: 6px 12px;
                 font-weight: 500;
-                font-size: 12px;
+                font-size: 14px;
             }}
             QPushButton:hover {{
                 background-color: #E3F2FD;
@@ -324,7 +324,7 @@ class MainWindow(QMainWindow):
         
         # 项目选择提示
         project_hint = QLabel("选择要发布的小说项目：")
-        project_hint.setStyleSheet("color: #757575; font-size: 12px;")
+        project_hint.setStyleSheet("color: #757575; font-size: 14px;")
         project_layout.addWidget(project_hint)
         
         self.project_combo = QComboBox()
@@ -370,7 +370,7 @@ class MainWindow(QMainWindow):
         
         # 统计信息
         self.chapters_stats_label = QLabel("共 0 个章节")
-        self.chapters_stats_label.setStyleSheet("color: #757575; font-size: 12px;")
+        self.chapters_stats_label.setStyleSheet("color: #757575; font-size: 14px;")
         chapters_layout.addWidget(self.chapters_stats_label)
         
         # 章节列表
@@ -457,11 +457,11 @@ class MainWindow(QMainWindow):
         fengkong_layout.setContentsMargins(12, 12, 12, 12)
         
         fengkong_title = QLabel("🛡️ 风控策略")
-        fengkong_title.setStyleSheet("font-weight: 700; color: #E65100; font-size: 13px;")
+        fengkong_title.setStyleSheet("font-weight: 700; color: #E65100; font-size: 16px;")
         fengkong_layout.addWidget(fengkong_title)
         
         fengkong_desc = QLabel("设置上传间隔，模拟人工操作，避免触发平台风控")
-        fengkong_desc.setStyleSheet("color: #757575; font-size: 11px;")
+        fengkong_desc.setStyleSheet("color: #757575; font-size: 16px;")
         fengkong_desc.setWordWrap(True)
         fengkong_layout.addWidget(fengkong_desc)
         
@@ -518,13 +518,13 @@ class MainWindow(QMainWindow):
         # 错误处理
         self.stop_on_error_check = QCheckBox("❌ 上传失败时自动停止")
         self.stop_on_error_check.setChecked(self.config.get('stop_on_error', False))
-        self.stop_on_error_check.setStyleSheet("font-size: 13px;")
+        self.stop_on_error_check.setStyleSheet("font-size: 16px;")
         options_layout.addWidget(self.stop_on_error_check)
         
         # 后台运行
         self.minimize_to_tray_check = QCheckBox("🔄 上传时最小化到系统托盘")
         self.minimize_to_tray_check.setChecked(True)
-        self.minimize_to_tray_check.setStyleSheet("font-size: 13px;")
+        self.minimize_to_tray_check.setStyleSheet("font-size: 16px;")
         options_layout.addWidget(self.minimize_to_tray_check)
         
         settings_layout.addWidget(options_card)
@@ -587,7 +587,7 @@ class MainWindow(QMainWindow):
             QPushButton {{
                 background-color: {SUCCESS_COLOR};
                 color: white;
-                font-size: 15px;
+                font-size: 16px;
                 font-weight: 700;
                 padding: 12px 32px;
                 border-radius: 8px;
@@ -614,7 +614,7 @@ class MainWindow(QMainWindow):
             QPushButton {{
                 background-color: {ERROR_COLOR};
                 color: white;
-                font-size: 15px;
+                font-size: 16px;
                 font-weight: 700;
                 padding: 12px 32px;
                 border-radius: 8px;
@@ -646,12 +646,12 @@ class MainWindow(QMainWindow):
         
         # 日志说明
         log_hint = QLabel("实时显示上传状态和错误信息")
-        log_hint.setStyleSheet("color: #757575; font-size: 11px;")
+        log_hint.setStyleSheet("color: #757575; font-size: 16px;")
         log_layout.addWidget(log_hint)
         
         self.log_text = QTextEdit()
         self.log_text.setReadOnly(True)
-        log_font = QFont("JetBrains Mono", 10)
+        log_font = QFont("JetBrains Mono", 11)
         log_font.setStyleHint(QFont.Monospace)
         self.log_text.setFont(log_font)
         self.log_text.setMinimumHeight(200)
@@ -711,7 +711,7 @@ class MainWindow(QMainWindow):
         # 官网链接
         website_link = QLabel('<a href="https://novel-ai.online/" style="color: #1976D2; text-decoration: none;">🌐 访问官网获取更多帮助</a>')
         website_link.setOpenExternalLinks(True)
-        website_link.setStyleSheet("font-size: 12px;")
+        website_link.setStyleSheet("font-size: 14px;")
         log_btn_layout.addWidget(website_link)
         
         log_layout.addLayout(log_btn_layout)
@@ -746,7 +746,7 @@ class MainWindow(QMainWindow):
         
         # 步骤
         steps_text = QLabel("""
-        <ol style="line-height: 2; font-size: 13px; color: #424242;">
+        <ol style="line-height: 2; font-size: 16px; color: #424242;">
             <li><b>首次使用</b>：工具会自动检测 Chrome，如未安装会提示下载（约 150MB）</li>
             <li><b>选择平台</b>：在顶部下拉框选择要发布的平台（番茄/起点/纵横）</li>
             <li><b>登录账号</b>：在打开的 Chrome 中登录对应平台的作者账号</li>
@@ -761,7 +761,7 @@ class MainWindow(QMainWindow):
         
         # 提示
         tip_label = QLabel("💡 提示：登录状态会自动保存，下次无需重复登录")
-        tip_label.setStyleSheet("background-color: #E3F2FD; color: #1565C0; padding: 12px; border-radius: 8px; font-size: 12px;")
+        tip_label.setStyleSheet("background-color: #E3F2FD; color: #1565C0; padding: 12px; border-radius: 8px; font-size: 14px;")
         guide_layout.addWidget(tip_label)
         
         account_layout.addWidget(guide_card)
@@ -784,10 +784,10 @@ class MainWindow(QMainWindow):
         chrome_layout.addWidget(chrome_title)
         
         chrome_text = QLabel("""
-        <p style="font-size: 13px; color: #424242; line-height: 1.8;">
+        <p style="font-size: 16px; color: #424242; line-height: 1.8;">
         本工具使用 Chrome 浏览器进行自动化上传操作。
         </p>
-        <ul style="font-size: 13px; color: #424242; line-height: 1.8;">
+        <ul style="font-size: 16px; color: #424242; line-height: 1.8;">
             <li>如已安装 Chrome，工具会自动检测并使用</li>
             <li>如未安装 Chrome，首次使用会提示下载（约 150MB）</li>
             <li>下载完成后，下次使用无需重复下载</li>
@@ -901,7 +901,7 @@ class MainWindow(QMainWindow):
             
             item_desc = QLabel(desc)
             item_desc.setAlignment(Qt.AlignCenter)
-            item_desc.setStyleSheet("font-size: 11px; color: #757575;")
+            item_desc.setStyleSheet("font-size: 16px; color: #757575;")
             feature_item_layout.addWidget(item_desc)
             
             features_grid_layout.addWidget(feature_item)
@@ -927,11 +927,11 @@ class MainWindow(QMainWindow):
         website_card_layout.addWidget(website_title)
         
         website_text = QLabel("""
-        <p style="font-size: 13px; color: #424242; line-height: 1.8;">
+        <p style="font-size: 16px; color: #424242; line-height: 1.8;">
         访问官方网站获取更多功能和帮助：<br>
         <a href="https://novel-ai.online/" style="color: #1976D2; font-weight: 600; font-size: 14px;">https://novel-ai.online/</a>
         </p>
-        <p style="font-size: 12px; color: #757575; margin-top: 12px;">
+        <p style="font-size: 14px; color: #757575; margin-top: 12px;">
         • 最新版本下载<br>
         • 使用教程和文档<br>
         • 技术支持与反馈
