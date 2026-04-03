@@ -161,8 +161,19 @@ class BrowserManager:
         # 先找 Chrome
         for path in chrome_paths:
             if os.path.exists(path):
-                print(f"✅ 找到 Chrome: {path}")
+                print(f"✅ 找到系统 Chrome: {path}")
                 return path
+        
+        # 检查是否已下载的 Chrome（通过 ChromeManager）
+        try:
+            from chrome_manager import ChromeManager
+            chrome_manager = ChromeManager()
+            exists, chrome_path = chrome_manager.get_chrome_executable()
+            if exists:
+                print(f"✅ 找到下载的 Chrome: {chrome_path}")
+                return str(chrome_path)
+        except Exception as e:
+            print(f"⚠️ 检查下载的 Chrome 失败: {e}")
         
         # 如果没找到 Chrome，再找 Edge（作为备选）
         edge_paths = [
@@ -178,6 +189,38 @@ class BrowserManager:
         
         print("❌ 未找到 Chrome 或 Edge")
         return None
+    
+    def download_chrome_if_needed(self, progress_callback=None) -> str:
+        """如果 Chrome 不存在，自动下载"""
+        chrome_path = self._find_chrome_executable()
+        if chrome_path:
+            return chrome_path
+        
+        print("🚀 Chrome 不存在，开始自动下载...")
+        
+        try:
+            from chrome_manager import ChromeManager
+            chrome_manager = ChromeManager()
+            
+            # 下载 Chrome
+            success = chrome_manager.download_chrome(
+                progress_callback=progress_callback,
+                confirm_callback=lambda msg: True  # 自动确认下载
+            )
+            
+            if success:
+                # 再次查找
+                exists, chrome_path = chrome_manager.get_chrome_executable()
+                if exists:
+                    print(f"✅ Chrome 下载完成: {chrome_path}")
+                    return str(chrome_path)
+            
+            print("❌ Chrome 下载失败")
+            return None
+            
+        except Exception as e:
+            print(f"❌ 下载 Chrome 异常: {e}")
+            return None
     
     def start_instance(self, username: str, headless: bool = False) -> bool:
         """启动浏览器实例"""
@@ -200,8 +243,15 @@ class BrowserManager:
             if not self.playwright:
                 self.playwright = sync_playwright().start()
             
-            # 查找 Chrome 可执行文件
+            # 查找 Chrome 可执行文件（如果没有则自动下载）
             chrome_path = self._find_chrome_executable()
+            
+            # 如果没找到，自动下载
+            if not chrome_path:
+                print("⚠️ 未找到 Chrome，尝试自动下载...")
+                chrome_path = self.download_chrome_if_needed(
+                    progress_callback=lambda p, m: print(f"  [{p}%] {m}")
+                )
             
             # 启动持久化浏览器
             launch_args = {
@@ -215,12 +265,14 @@ class BrowserManager:
                 ]
             }
             
-            # 如果找到系统 Chrome，使用它
+            # 如果找到 Chrome，使用它
             if chrome_path:
                 launch_args['executable_path'] = chrome_path
-                print(f"🚀 使用系统浏览器启动: {username}")
+                print(f"🚀 使用 Chrome 启动: {chrome_path}")
             else:
-                print(f"🚀 使用 Playwright 内置浏览器启动: {username}")
+                print(f"⚠️ 未找到 Chrome，尝试使用 Playwright 内置浏览器")
+                # 如果没有指定 executable_path，Playwright 会尝试使用内置浏览器
+                # 但这在 PyInstaller 打包后可能失败
             
             browser = self.playwright.chromium.launch_persistent_context(**launch_args)
             
