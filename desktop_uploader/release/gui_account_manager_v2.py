@@ -143,39 +143,18 @@ class BrowserManager:
             return False
     
     def _find_chrome_executable(self) -> str:
-        """查找 Chrome 可执行文件路径（支持 PyInstaller 打包环境）"""
-        import sys
-        import os
+        """查找 Chrome - 只检查固定下载目录，避免遍历卡死"""
+        from pathlib import Path
         
-        # 只查找 Google Chrome（Edge 有兼容性问题，不使用）
-        chrome_paths = [
-            # Chrome 系统安装路径
-            r"C:\Program Files\Google\Chrome\Application\chrome.exe",
-            r"C:\Program Files (x86)\Google\Chrome\Application\chrome.exe",
-            # Chrome 用户安装路径
-            os.path.expandvars(r"%LOCALAPPDATA%\Google\Chrome\Application\chrome.exe"),
-            os.path.expandvars(r"%PROGRAMFILES%\Google\Chrome\Application\chrome.exe"),
-            os.path.expandvars(r"%PROGRAMFILES(x86)%\Google\Chrome\Application\chrome.exe"),
-        ]
+        # 只检查固定下载目录（ChromeManager 下载的位置）
+        work_dir = Path(__file__).parent
+        chrome_exe = work_dir / "chrome" / "chrome-win64" / "chrome.exe"
         
-        # 找系统 Chrome
-        for path in chrome_paths:
-            if os.path.exists(path):
-                print(f"✅ 找到系统 Chrome: {path}")
-                return path
+        if chrome_exe.exists():
+            print(f"✅ 找到 Chrome: {chrome_exe}")
+            return str(chrome_exe)
         
-        # 检查是否已下载的 Chrome（通过 ChromeManager）
-        try:
-            from chrome_manager import ChromeManager
-            chrome_manager = ChromeManager()
-            exists, chrome_path = chrome_manager.get_chrome_executable()
-            if exists:
-                print(f"✅ 找到下载的 Chrome: {chrome_path}")
-                return str(chrome_path)
-        except Exception as e:
-            print(f"⚠️ 检查下载的 Chrome 失败: {e}")
-        
-        print("❌ 未找到 Chrome")
+        print("❌ Chrome 不存在")
         return None
     
     def download_chrome_if_needed(self, progress_callback=None) -> str:
