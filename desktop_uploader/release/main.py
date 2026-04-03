@@ -996,11 +996,16 @@ class MainWindow(QMainWindow):
             if user_dir.is_dir():
                 for proj_dir in user_dir.iterdir():
                     if proj_dir.is_dir() and (proj_dir / "project_config.json").exists():
-                        projects.append((user_dir.name, proj_dir.name))
+                        projects.append((user_dir.name, proj_dir.name, proj_dir))
         
-        for username, proj_name in sorted(projects):
+        for username, proj_name, proj_path in sorted(projects):
             display = f"{username} / {proj_name}"
-            self.project_combo.addItem(display, (username, proj_name))
+            data = {
+                'username': username,
+                'proj_name': proj_name,
+                'path': str(proj_path)
+            }
+            self.project_combo.addItem(display, data)
         
         self.status_bar.setText(f"加载了 {len(projects)} 个项目")
     
@@ -1050,20 +1055,27 @@ class MainWindow(QMainWindow):
             username = config.get('username', project_path.parent.name)
             proj_name = config.get('project_name', project_path.name)
             
-            # 添加到下拉框
+            # 添加到下拉框 - 保存完整路径信息
             display = f"{username} / {proj_name}"
             
-            # 检查是否已存在
+            # 检查是否已存在（通过完整路径）
             existing_idx = -1
             for i in range(self.project_combo.count()):
-                if self.project_combo.itemData(i) == (username, proj_name):
+                item_data = self.project_combo.itemData(i)
+                if item_data and item_data.get('path') == str(project_path):
                     existing_idx = i
                     break
             
             if existing_idx >= 0:
                 self.project_combo.setCurrentIndex(existing_idx)
             else:
-                self.project_combo.addItem(display, (username, proj_name))
+                # 保存完整路径信息
+                data = {
+                    'username': username,
+                    'proj_name': proj_name,
+                    'path': str(project_path)
+                }
+                self.project_combo.addItem(display, data)
                 self.project_combo.setCurrentIndex(self.project_combo.count() - 1)
             
             self.log(f"📁 已加载项目: {proj_name}", "success")
@@ -1099,16 +1111,24 @@ class MainWindow(QMainWindow):
         if not data:
             return
         
-        username, proj_name = data
-        self.load_chapters(username, proj_name)
+        # 支持新旧两种数据格式
+        if isinstance(data, dict):
+            project_path = Path(data['path'])
+        else:
+            # 旧格式: (username, proj_name)
+            username, proj_name = data
+            project_path = Path.cwd() / "小说项目" / username / proj_name
+        
+        self.load_chapters(project_path)
     
-    def load_chapters(self, username: str, proj_name: str):
+    def load_chapters(self, project_path: Path):
         """加载章节"""
         self.chapters_list.clear()
         self.chapters = []
         
-        chapters_dir = Path.cwd() / "小说项目" / username / proj_name / "chapters"
+        chapters_dir = project_path / "chapters"
         if not chapters_dir.exists():
+            self.chapters_stats.setText("共 0 个章节 (章节目录不存在)")
             return
         
         for ch_file in sorted(chapters_dir.glob("chapter_*.json")):
