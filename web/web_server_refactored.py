@@ -768,29 +768,47 @@ def register_fanqie_routes(app):
             
             # 6. 检查章节
             chapters_dir = project_dir / "chapters"
+            auto_fixes = []  # 自动修复列表
             if not chapters_dir.exists():
                 errors.append("缺少章节目录：请检查项目结构")
             else:
-                chapter_files = list(chapters_dir.glob("chapter_*.json"))
+                chapter_files = sorted(chapters_dir.glob("chapter_*.json"))
                 if len(chapter_files) == 0:
                     errors.append("没有章节文件：请检查 chapters 目录")
                 else:
-                    # 检查重复章节名
-                    chapter_titles = []
-                    duplicate_titles = []
+                    # 检查重复章节名（可自动修复）
+                    from collections import defaultdict
+                    title_to_files = defaultdict(list)
+                    
                     for cf in chapter_files:
                         try:
                             with open(cf, 'r', encoding='utf-8') as f:
                                 ch = json.load(f)
                                 title = ch.get('title', '')
-                                if title in chapter_titles:
-                                    duplicate_titles.append(title)
-                                chapter_titles.append(title)
+                                title_to_files[title].append(cf)
                         except:
                             pass
                     
-                    if duplicate_titles:
-                        errors.append(f"存在重复章节名：{', '.join(set(duplicate_titles))}")
+                    duplicate_fixed = False
+                    for title, files in title_to_files.items():
+                        if len(files) > 1 and title:
+                            # 有重复，自动修复：添加序号区分
+                            for i, cf in enumerate(files[1:], 2):  # 从第2个开始
+                                try:
+                                    with open(cf, 'r', encoding='utf-8') as f:
+                                        ch = json.load(f)
+                                    # 修改标题添加序号
+                                    ch['title'] = f"{title}（{i}）"
+                                    ch['title_original'] = title  # 保留原标题
+                                    with open(cf, 'w', encoding='utf-8') as f:
+                                        json.dump(ch, f, ensure_ascii=False, indent=2)
+                                    auto_fixes.append(f"章节「{title}」重复，已自动修复为「{ch['title']}」")
+                                    duplicate_fixed = True
+                                except Exception as e:
+                                    logger.warning(f"自动修复章节失败: {e}")
+                    
+                    if duplicate_fixed:
+                        auto_fixes.append("重复章节名已自动修复，下载的数据已更新")
                     
                     # 检查章节数量（番茄签约要求20章）
                     if len(chapter_files) < 20:
@@ -806,6 +824,7 @@ def register_fanqie_routes(app):
                 "valid": len(errors) == 0,
                 "errors": errors,
                 "warnings": warnings,
+                "auto_fixes": auto_fixes,  # 自动修复列表
                 "can_download": len(errors) == 0,  # 有错误也允许下载，但需要警告
                 "project_info": {
                     "title": title,

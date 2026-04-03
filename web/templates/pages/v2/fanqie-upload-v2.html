@@ -795,21 +795,34 @@ function showValidationDialog(validation, isBlocking, onConfirm) {
     
     const errors = validation.errors || [];
     const warnings = validation.warnings || [];
+    const autoFixes = validation.auto_fixes || [];
     
     let html = `
         <div id="validation-dialog" class="validation-overlay">
             <div class="validation-modal ${isBlocking ? 'blocking' : ''}">
                 <div class="validation-header">
                     <span class="validation-icon">${isBlocking ? '❌' : '⚠️'}</span>
-                    <h3>${isBlocking ? '项目检查未通过' : '项目检查警告'}</h3>
+                    <h3>${isBlocking ? '项目检查未通过' : '项目检查完成'}</h3>
                 </div>
                 <div class="validation-body">
     `;
     
+    // 显示自动修复信息
+    if (autoFixes.length > 0) {
+        html += `
+            <div class="validation-section">
+                <h4>✅ 已自动修复的问题（${autoFixes.length}项）：</h4>
+                <ul class="validation-list fix-list">
+                    ${autoFixes.map(f => `<li>${escapeHtml(f)}</li>`).join('')}
+                </ul>
+            </div>
+        `;
+    }
+    
     if (errors.length > 0) {
         html += `
             <div class="validation-section">
-                <h4>❌ 必须修复的问题（${errors.length}项）：</h4>
+                <h4>❌ 需要手动修复的问题（${errors.length}项）：</h4>
                 <ul class="validation-list error-list">
                     ${errors.map(e => `<li>${escapeHtml(e)}</li>`).join('')}
                 </ul>
@@ -911,6 +924,9 @@ function showValidationDialog(validation, isBlocking, onConfirm) {
                 }
                 .warning-list li {
                     color: #f59e0b;
+                }
+                .fix-list li {
+                    color: #22c55e;
                 }
                 .validation-footer {
                     padding: var(--v2-space-3) var(--v2-space-5);
