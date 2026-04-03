@@ -147,24 +147,36 @@ class BrowserManager:
         import sys
         import os
         
-        # 可能的 Chrome 路径
-        possible_paths = [
-            # Windows 默认安装路径
+        # 优先查找 Google Chrome（番茄网站兼容性更好）
+        chrome_paths = [
+            # Chrome 系统安装路径
             r"C:\Program Files\Google\Chrome\Application\chrome.exe",
             r"C:\Program Files (x86)\Google\Chrome\Application\chrome.exe",
-            # Edge
-            r"C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe",
-            r"C:\Program Files\Microsoft\Edge\Application\msedge.exe",
-            # 用户目录
+            # Chrome 用户安装路径
             os.path.expandvars(r"%LOCALAPPDATA%\Google\Chrome\Application\chrome.exe"),
+            os.path.expandvars(r"%PROGRAMFILES%\Google\Chrome\Application\chrome.exe"),
+            os.path.expandvars(r"%PROGRAMFILES(x86)%\Google\Chrome\Application\chrome.exe"),
+        ]
+        
+        # 先找 Chrome
+        for path in chrome_paths:
+            if os.path.exists(path):
+                print(f"✅ 找到 Chrome: {path}")
+                return path
+        
+        # 如果没找到 Chrome，再找 Edge（作为备选）
+        edge_paths = [
+            r"C:\Program Files\Microsoft\Edge\Application\msedge.exe",
+            r"C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe",
             os.path.expandvars(r"%LOCALAPPDATA%\Microsoft\Edge\Application\msedge.exe"),
         ]
         
-        for path in possible_paths:
+        for path in edge_paths:
             if os.path.exists(path):
-                print(f"✅ 找到浏览器: {path}")
+                print(f"⚠️ 未找到 Chrome，使用 Edge: {path}")
                 return path
         
+        print("❌ 未找到 Chrome 或 Edge")
         return None
     
     def start_instance(self, username: str, headless: bool = False) -> bool:
