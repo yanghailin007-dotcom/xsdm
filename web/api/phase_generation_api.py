@@ -1157,6 +1157,9 @@ def start_phase_one_generate():
         # 🔥 新增：支持 is_resume_mode 参数，用于区分恢复模式
         is_resume_mode = data.get('is_resume_mode', False)
         
+        # 🔥 新增：支持 planning_mode 参数（auto / interactive）
+        planning_mode = data.get('planning_mode', 'auto')
+        
         # 参数验证
         if not title:
             return jsonify({"success": False, "error": "小说标题不能为空"}), 400
@@ -1216,6 +1219,25 @@ def start_phase_one_generate():
         username = get_current_username()
         logger.info(f"👤 [PHASE_ONE_API] 当前用户名: {username}")
         
+        # 🔥 新增：如果从交互式策划页面返回，加载已保存的策划结果
+        from_planning = data.get('from_planning', False)
+        final_plan_brief = None
+        if from_planning:
+            try:
+                from web.utils.path_utils import get_user_novel_dir
+                project_dir = get_user_novel_dir(create=False)
+                safe_title = "".join(c if c.isalnum() or c in "_ -" else "_" for c in title)
+                plan_path = project_dir / safe_title / "creative_planning_result.json"
+                if plan_path.exists():
+                    with open(plan_path, "r", encoding="utf-8") as f:
+                        planning_result = json.load(f)
+                    final_plan_brief = planning_result.get("final_plan_brief")
+                    logger.info(f"✅ [PHASE_ONE] 已加载交互式策划结果: {plan_path}")
+                else:
+                    logger.warning(f"⚠️ [PHASE_ONE] 未找到交互式策划结果文件: {plan_path}")
+            except Exception as e:
+                logger.warning(f"⚠️ [PHASE_ONE] 加载交互式策划结果失败: {e}")
+        
         # 构建生成参数
         generation_params = {
             'title': title,
@@ -1226,11 +1248,14 @@ def start_phase_one_generate():
             'generation_mode': generation_mode,
             'creative_seed': creative_seed,
             'target_platform': target_platform,  # 🔥 新增：传递目标平台参数
+            'planning_mode': planning_mode,  # 🔥 新增：传递方案生成模式
             'start_new': start_new,  # 🔥 新增：传递 start_new 参数
             'is_resume_mode': is_resume_mode,  # 🔥 新增：传递恢复模式标志
             'user_id': user_id,  # 🔥 新增：传递用户ID用于API调用扣费
             'username': username,  # 🔥 新增：传递用户名用于目录结构
-            'estimated_points': total_cost  # 🔥 新增：预估消耗点数
+            'estimated_points': total_cost,  # 🔥 新增：预估消耗点数
+            'from_planning': from_planning,  # 🔥 新增：标记来源
+            'final_plan_brief': final_plan_brief,  # 🔥 新增：交互式策划产物
         }
         
         logger.info(f"📱 [PLATFORM] 目标平台: {target_platform}")

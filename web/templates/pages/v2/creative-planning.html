@@ -1,0 +1,791 @@
+{% extends "layouts/base-v2.html" %}
+
+{% block title %}交互式创意策划 - AI小说生成{% endblock %}
+
+{% block extra_css %}
+<style>
+:root {
+  --cp-primary: #6366f1;
+  --cp-primary-light: #8b5cf6;
+  --cp-bg: #0a0a0f;
+  --cp-surface: rgba(255, 255, 255, 0.03);
+  --cp-border: rgba(255, 255, 255, 0.1);
+  --cp-text: #fafafa;
+  --cp-text-secondary: #a1a1aa;
+  --cp-text-muted: #71717a;
+}
+
+.cp-container {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 24px 40px;
+  height: calc(100vh - 60px);
+  display: flex;
+  flex-direction: column;
+}
+
+.cp-header {
+  text-align: center;
+  padding: 24px 0 16px;
+  border-bottom: 1px solid var(--cp-border);
+}
+
+.cp-header__title {
+  font-size: 24px;
+  font-weight: 700;
+  margin-bottom: 6px;
+  background: linear-gradient(135deg, #fff 0%, var(--cp-text-secondary) 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.cp-header__subtitle {
+  color: var(--cp-text-muted);
+  font-size: 14px;
+}
+
+.cp-chat {
+  flex: 1;
+  overflow-y: auto;
+  padding: 20px 0;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.cp-message {
+  display: flex;
+  gap: 12px;
+  max-width: 96%;
+}
+
+.cp-message--ai {
+  align-self: flex-start;
+}
+
+.cp-message--user {
+  align-self: flex-end;
+  flex-direction: row-reverse;
+}
+
+.cp-message__avatar {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 16px;
+  flex-shrink: 0;
+}
+
+.cp-message--ai .cp-message__avatar {
+  background: linear-gradient(135deg, var(--cp-primary), var(--cp-primary-light));
+}
+
+.cp-message--user .cp-message__avatar {
+  background: var(--cp-surface);
+  border: 1px solid var(--cp-border);
+}
+
+.cp-message__bubble {
+  padding: 14px 18px;
+  border-radius: 18px;
+  font-size: 14px;
+  line-height: 1.7;
+  white-space: pre-wrap;
+}
+
+.cp-message--ai .cp-message__bubble {
+  background: var(--cp-surface);
+  border: 1px solid var(--cp-border);
+  border-top-left-radius: 4px;
+  color: var(--cp-text);
+}
+
+.cp-message--user .cp-message__bubble {
+  background: linear-gradient(135deg, var(--cp-primary), var(--cp-primary-light));
+  color: #fff;
+  border-top-right-radius: 4px;
+}
+
+.cp-message__bubble h4 {
+  margin: 0 0 8px;
+  font-size: 14px;
+  color: inherit;
+}
+
+/* 同人背景卡片 */
+.cp-fanfiction-cards {
+  display: grid;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.cp-fanfiction-card {
+  background: rgba(0,0,0,0.2);
+  border: 1px solid var(--cp-border);
+  border-radius: 10px;
+  padding: 10px 12px;
+}
+
+.cp-fanfiction-card__title {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--cp-primary-light);
+  margin-bottom: 6px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.cp-fanfiction-card__content {
+  font-size: 13px;
+  color: var(--cp-text-secondary);
+  line-height: 1.5;
+}
+
+/* 同人角色紧凑列表 */
+.cp-fanfiction-char {
+  padding: 6px 0;
+  border-bottom: 1px solid rgba(255,255,255,0.06);
+}
+.cp-fanfiction-char:last-child {
+  border-bottom: none;
+}
+.cp-fanfiction-char__name {
+  font-weight: 600;
+  color: var(--cp-text);
+  font-size: 13px;
+  margin-bottom: 2px;
+}
+.cp-fanfiction-char__role {
+  font-size: 11px;
+  color: var(--cp-primary-light);
+  margin-bottom: 4px;
+}
+.cp-fanfiction-char__desc {
+  font-size: 12px;
+  color: var(--cp-text-secondary);
+  line-height: 1.45;
+}
+.cp-fanfiction-char__notes {
+  font-size: 11px;
+  color: var(--cp-text-muted);
+  margin-top: 3px;
+  line-height: 1.4;
+}
+
+/* 方案卡片 */
+.cp-plan-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 12px;
+  margin-top: 12px;
+}
+
+.cp-plan-card {
+  background: rgba(0,0,0,0.2);
+  border: 1px solid var(--cp-border);
+  border-radius: 12px;
+  padding: 14px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.cp-plan-card:hover {
+  border-color: rgba(99, 102, 241, 0.4);
+  transform: translateY(-2px);
+}
+
+.cp-plan-card--selected {
+  border-color: var(--cp-primary);
+  background: rgba(99, 102, 241, 0.18);
+  box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.25), 0 6px 16px rgba(0,0,0,0.2);
+  transform: translateY(-2px) scale(1.02);
+}
+
+.cp-plan-card__id {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--cp-primary);
+  margin-bottom: 4px;
+}
+
+.cp-plan-card__name {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--cp-text);
+  margin-bottom: 6px;
+}
+
+.cp-plan-card__desc {
+  font-size: 12px;
+  color: var(--cp-text-secondary);
+  line-height: 1.5;
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.cp-plan-card__score {
+  margin-top: 8px;
+  font-size: 11px;
+  color: var(--cp-text-muted);
+}
+
+.cp-plan-card__why {
+  margin-top: 6px;
+  font-size: 11px;
+  color: var(--cp-text-secondary);
+  line-height: 1.4;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+/* 快捷按钮 */
+.cp-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.cp-action-btn {
+  padding: 6px 12px;
+  border-radius: 100px;
+  border: 1px solid var(--cp-border);
+  background: transparent;
+  color: var(--cp-text-secondary);
+  font-size: 12px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.cp-action-btn:hover {
+  border-color: var(--cp-primary);
+  color: var(--cp-text);
+}
+
+.cp-action-btn--primary {
+  background: linear-gradient(135deg, var(--cp-primary), var(--cp-primary-light));
+  border-color: transparent;
+  color: #fff;
+}
+
+.cp-action-btn--primary:hover {
+  opacity: 0.9;
+}
+
+/* 底部输入区 */
+.cp-input-area {
+  border-top: 1px solid var(--cp-border);
+  padding-top: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.cp-input-row {
+  display: flex;
+  gap: 10px;
+}
+
+.cp-input {
+  flex: 1;
+  padding: 12px 16px;
+  border-radius: 12px;
+  border: 1px solid var(--cp-border);
+  background: var(--cp-surface);
+  color: var(--cp-text);
+  font-size: 14px;
+  outline: none;
+}
+
+.cp-input:focus {
+  border-color: var(--cp-primary);
+}
+
+.cp-send-btn {
+  padding: 0 20px;
+  border-radius: 12px;
+  border: none;
+  background: linear-gradient(135deg, var(--cp-primary), var(--cp-primary-light));
+  color: #fff;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: opacity 0.2s;
+}
+
+.cp-send-btn:hover {
+  opacity: 0.9;
+}
+
+.cp-send-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* 最终确认面板 */
+.cp-final-panel {
+  background: rgba(99, 102, 241, 0.08);
+  border: 1px solid rgba(99, 102, 241, 0.3);
+  border-radius: 16px;
+  padding: 20px;
+  text-align: center;
+  margin-top: 10px;
+}
+
+.cp-final-panel__title {
+  font-size: 16px;
+  font-weight: 600;
+  margin-bottom: 8px;
+  color: var(--cp-text);
+}
+
+.cp-final-panel__score {
+  font-size: 32px;
+  font-weight: 800;
+  background: linear-gradient(135deg, #f59e0b, #f97316);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  margin-bottom: 12px;
+}
+
+.cp-spinner {
+  width: 18px;
+  height: 18px;
+  border: 2px solid rgba(255,255,255,0.2);
+  border-top-color: #fff;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+  display: inline-block;
+  vertical-align: middle;
+  margin-right: 8px;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+@media (max-width: 768px) {
+  .cp-plan-grid {
+    grid-template-columns: 1fr;
+  }
+  .cp-container {
+    padding: 16px;
+    max-width: 100%;
+  }
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="cp-container">
+  <div class="cp-header">
+    <div class="cp-header__title">💬 交互式创意策划</div>
+    <div class="cp-header__subtitle" id="novel-title-display">与 AI 共同打磨爆款创作方案</div>
+  </div>
+
+  <div class="cp-chat" id="chat-area">
+    <!-- 消息会动态插入这里 -->
+  </div>
+
+  <div class="cp-input-area" id="input-area">
+    <div class="cp-actions" id="quick-actions">
+      <!-- 快捷按钮动态插入 -->
+    </div>
+    <div class="cp-input-row">
+      <input type="text" class="cp-input" id="user-input" placeholder="输入你的反馈..." onkeydown="if(event.key==='Enter')sendStep()">
+      <button class="cp-send-btn" id="send-btn" onclick="sendStep()">发送</button>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+let sessionId = null;
+let isLoading = false;
+let currentStatus = '';
+
+// 页面加载
+window.addEventListener('DOMContentLoaded', async () => {
+  const urlParams = new URLSearchParams(window.location.search);
+  sessionId = urlParams.get('session_id');
+  
+  if (sessionId) {
+    // 恢复已有会话
+    await loadSessionState();
+  } else {
+    // 从 localStorage 读取表单数据并启动新会话
+    const formDataRaw = localStorage.getItem('creative_planning_form_data');
+    if (!formDataRaw) {
+      addMessage('ai', '未找到创作信息，请返回设定页面重新填写。');
+      disableInput();
+      return;
+    }
+    const formData = JSON.parse(formDataRaw);
+    document.getElementById('novel-title-display').textContent = `《${formData.title}》`;
+    await startSession(formData);
+  }
+});
+
+async function startSession(formData) {
+  setLoading(true);
+  try {
+    const res = await fetch('/api/creative-planning/start', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(formData)
+    });
+    const data = await res.json();
+    if (data.success) {
+      sessionId = data.session_id;
+      handleResponse(data);
+    } else {
+      addMessage('ai', `启动失败: ${data.error || '未知错误'}`);
+    }
+  } catch (e) {
+    addMessage('ai', `网络错误: ${e.message}`);
+  }
+  setLoading(false);
+}
+
+async function loadSessionState() {
+  setLoading(true);
+  try {
+    const res = await fetch(`/api/creative-planning/state/${sessionId}`);
+    const data = await res.json();
+    if (data.success) {
+      const title = data.data?.novel_seed?.novel_title || '未命名';
+      document.getElementById('novel-title-display').textContent = `《${title}》`;
+      addMessage('ai', '已恢复之前的会话，继续打磨方案吧。');
+      renderByStatus(data.status, data.data);
+    } else {
+      addMessage('ai', `恢复失败: ${data.error}`);
+    }
+  } catch (e) {
+    addMessage('ai', `网络错误: ${e.message}`);
+  }
+  setLoading(false);
+}
+
+async function sendStep(userInputOverride) {
+  if (!sessionId || isLoading) return;
+  const inputEl = document.getElementById('user-input');
+  const text = userInputOverride !== undefined ? userInputOverride : inputEl.value.trim();
+  if (text === '' && !userInputOverride) return;
+  
+  if (!userInputOverride) inputEl.value = '';
+  addMessage('user', text || '（选择了快捷操作）');
+  setLoading(true);
+  
+  try {
+    const res = await fetch('/api/creative-planning/step', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ session_id: sessionId, user_input: text })
+    });
+    const data = await res.json();
+    if (data.success) {
+      handleResponse(data);
+    } else {
+      addMessage('ai', `请求失败: ${data.error || '未知错误'}`);
+    }
+  } catch (e) {
+    addMessage('ai', `网络错误: ${e.message}`);
+  }
+  setLoading(false);
+}
+
+function handleResponse(data) {
+  currentStatus = data.status;
+  
+  if (data.status === 'awaiting_fanfiction_review') {
+    addMessage('ai', data.message, { type: 'fanfiction', draft: data.data?.draft });
+    setQuickActions(['✅ 背景准确，继续', '❌ 人物关系有误', '❌ 战力体系漏了', '❌ 时间线不对']);
+  } else if (data.status === 'awaiting_plan_selection') {
+    const plans = data.data?.plans || (data.data?.refined_plan ? [data.data.refined_plan] : []);
+    if (plans.length === 1) {
+      addMessage('ai', data.message, { type: 'plan_single', plan: plans[0] });
+    } else if (plans.length === 3) {
+      addMessage('ai', data.message, { type: 'plans', plans });
+    } else {
+      addMessage('ai', data.message);
+    }
+    const actions = data.next_actions || ['🔥 加强爽点', '📝 输入自定义意见'];
+    if (plans.length > 1) {
+      actions.unshift('选方案 A', '选方案 B', '选方案 C');
+    }
+    setQuickActions(actions);
+  } else if (data.status === 'plan_selected') {
+    addMessage('ai', `已选择方案 ${data.data?.selected_plan?.plan_id || ''}：${data.data?.selected_plan?.plan_name || ''}`);
+    const actions = data.next_actions || ['🔥 加强爽点', '😈 反派主角', '💔 增加虐点', '🌟 强化金手指', '🎯 直接定型'];
+    setQuickActions(actions);
+  } else if (data.status === 'completed') {
+    const brief = data.data?.final_plan_brief;
+    const score = brief?.market_alignment?.score || 0;
+    addMessage('ai', renderFinalPanel(score, brief), { type: 'final_panel' });
+    setQuickActions(['确认并进入生成']);
+  } else {
+    addMessage('ai', data.message || '请继续');
+    setQuickActions([]);
+  }
+  
+  scrollToBottom();
+}
+
+function addMessage(role, content, options = {}) {
+  const chat = document.getElementById('chat-area');
+  const msg = document.createElement('div');
+  msg.className = `cp-message cp-message--${role}`;
+  
+  let inner = `<div class="cp-message__avatar">${role === 'ai' ? '🤖' : '👤'}</div>`;
+  inner += `<div class="cp-message__bubble">`;
+  
+  if (options.type === 'fanfiction' && options.draft) {
+    inner += renderFanfictionCards(options.draft);
+  } else if (options.type === 'plans' && options.plans) {
+    inner += renderPlanCards(options.plans);
+  } else if (options.type === 'plan_single' && options.plan) {
+    inner += renderPlanCards([options.plan]);
+  } else if (options.type === 'final_panel') {
+    inner += content;
+  } else {
+    inner += escapeHtml(content);
+  }
+  
+  inner += `</div>`;
+  msg.innerHTML = inner;
+  chat.appendChild(msg);
+  scrollToBottom();
+}
+
+function renderFanfictionCards(draft) {
+  if (!draft || typeof draft !== 'object') {
+    return '<div style="color:var(--cp-text-secondary);font-size:13px;padding:8px 0;">暂无背景资料数据</div>';
+  }
+  const sections = [
+    { key: 'worldview', icon: '🌍', title: '世界观' },
+    { key: 'characters', icon: '👤', title: '核心角色' },
+    { key: 'power_system', icon: '⚔️', title: '力量体系' },
+    { key: 'key_events', icon: '📅', title: '关键事件' },
+  ];
+
+  let hasAny = false;
+  let html = '<div class="cp-fanfiction-cards">';
+  for (const sec of sections) {
+    const data = draft[sec.key];
+    if (!data) continue;
+    hasAny = true;
+    let body = '';
+    if (sec.key === 'characters' && typeof data === 'object' && !Array.isArray(data)) {
+      body = renderCharactersCompact(data);
+    } else {
+      body = formatJsonToText(data);
+    }
+    html += `<div class="cp-fanfiction-card">
+      <div class="cp-fanfiction-card__title">${sec.icon} ${sec.title}</div>
+      <div class="cp-fanfiction-card__content">${body}</div>
+    </div>`;
+  }
+  html += '</div>';
+  if (!hasAny) {
+    return '<div style="color:var(--cp-text-secondary);font-size:13px;padding:8px 0;">背景资料结构异常，请直接回复"确认"继续，或描述具体问题。</div>';
+  }
+  return html;
+}
+
+function renderCharactersCompact(chars) {
+  let html = '';
+  for (const [name, info] of Object.entries(chars)) {
+    if (!info || typeof info !== 'object') continue;
+    const role = info.role || '';
+    const desc = info.description || '';
+    const notes = Array.isArray(info.important_notes)
+      ? info.important_notes.map(n => `• ${n}`).join('<br>')
+      : (info.important_notes || '');
+    html += `<div class="cp-fanfiction-char">
+      <div class="cp-fanfiction-char__name">${escapeHtml(name)}</div>
+      ${role ? `<div class="cp-fanfiction-char__role">${escapeHtml(role)}</div>` : ''}
+      ${desc ? `<div class="cp-fanfiction-char__desc">${escapeHtml(desc)}</div>` : ''}
+      ${notes ? `<div class="cp-fanfiction-char__notes">${notes}</div>` : ''}
+    </div>`;
+  }
+  return html || '<div style="font-size:12px;color:var(--cp-text-muted)">无角色数据</div>';
+}
+
+const FANFICTION_KEY_LABELS = {
+  world_name: '世界名称',
+  era_background: '时代背景',
+  social_structure: '社会结构',
+  geographical_division: '地理划分',
+  geography: '地理划分',
+  system_name: '体系名称',
+  level_division: '等级划分',
+  special_abilities: '特殊能力',
+  power_resources: '修炼资源',
+  cultivation_resources: '修炼资源',
+  description: '描述',
+  role: '角色定位',
+  important_notes: '注意事项',
+};
+
+function formatJsonToText(data, indent = 0) {
+  if (data === null || data === undefined) return '';
+  if (typeof data === 'string') return escapeHtml(data);
+  if (typeof data === 'number' || typeof data === 'boolean') return escapeHtml(String(data));
+  if (Array.isArray(data)) {
+    if (data.length === 0) return '';
+    return data.map(item => `• ${formatJsonToText(item, indent)}`).join('<br>');
+  }
+  if (typeof data === 'object') {
+    let html = '';
+    for (const [k, v] of Object.entries(data)) {
+      const label = FANFICTION_KEY_LABELS[k] || k;
+      const val = formatJsonToText(v, indent + 1);
+      if (!val) {
+        html += `<div style="margin:2px 0;"><b>${escapeHtml(label)}</b></div>`;
+      } else {
+        html += `<div style="margin:2px 0;"><b>${escapeHtml(label)}</b>: ${val}</div>`;
+      }
+    }
+    return html;
+  }
+  return escapeHtml(String(data));
+}
+
+function renderPlanCards(plans) {
+  const validPlans = (plans || []).filter(p => p && p.plan_id);
+  if (validPlans.length === 0) {
+    return '<div style="color:var(--cp-text-secondary);font-size:13px;padding:8px 0;">方案数据加载异常，请刷新页面重试。</div>';
+  }
+  let html = '<div class="cp-plan-grid">';
+  for (const plan of validPlans) {
+    const score = plan.market_fit_score !== undefined ? plan.market_fit_score : '--';
+    const risk = plan.risk_level || '--';
+    const why = plan.why_it_works || '';
+    html += `<div class="cp-plan-card" onclick="selectPlan('${plan.plan_id}', event)">
+      <div class="cp-plan-card__id">方案 ${plan.plan_id}</div>
+      <div class="cp-plan-card__name">${escapeHtml(plan.plan_name)}</div>
+      <div class="cp-plan-card__desc">${escapeHtml(plan.core_concept)}</div>
+      <div class="cp-plan-card__score">市场契合度: ${score}/10 | 风险: ${risk}</div>
+      ${why ? `<div class="cp-plan-card__why">${escapeHtml(why)}</div>` : ''}
+    </div>`;
+  }
+  html += '</div>';
+  return html;
+}
+
+function renderFinalPanel(score, brief) {
+  const hook = brief?.core_concept?.hook || '';
+  return `<div class="cp-final-panel">
+    <div class="cp-final-panel__title">🎉 方案已定型</div>
+    <div class="cp-final-panel__score">${score}</div>
+    <div style="color: var(--cp-text-secondary); font-size: 13px; margin-bottom: 12px;">爆款对齐评分 / 10</div>
+    <div style="color: var(--cp-text); font-size: 14px; margin-bottom: 16px;">${escapeHtml(hook)}</div>
+    <button class="cp-action-btn cp-action-btn--primary" onclick="finalizeAndRedirect()">✅ 确认并进入生成</button>
+  </div>`;
+}
+
+function selectPlan(planId, ev) {
+  // 明显的本地选中反馈
+  document.querySelectorAll('.cp-plan-card').forEach(c => c.classList.remove('cp-plan-card--selected'));
+  if (ev && ev.currentTarget) {
+    ev.currentTarget.classList.add('cp-plan-card--selected');
+  }
+  sendStep(`我选方案${planId}`);
+}
+
+async function finalizeAndRedirect() {
+  if (!sessionId) return;
+  setLoading(true);
+  try {
+    const res = await fetch('/api/creative-planning/finalize', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ session_id: sessionId })
+    });
+    const data = await res.json();
+    if (data.success && data.redirect_url) {
+      window.location.href = data.redirect_url;
+    } else {
+      addMessage('ai', `定型失败: ${data.error || '未知错误'}`);
+      setLoading(false);
+    }
+  } catch (e) {
+    addMessage('ai', `网络错误: ${e.message}`);
+    setLoading(false);
+  }
+}
+
+function setQuickActions(actions) {
+  const container = document.getElementById('quick-actions');
+  container.innerHTML = '';
+  for (const action of actions) {
+    const btn = document.createElement('button');
+    btn.className = 'cp-action-btn';
+    btn.textContent = action;
+    btn.onclick = () => {
+      if (action === '确认并进入生成') {
+        finalizeAndRedirect();
+      } else if (action.startsWith('选方案')) {
+        const pid = action.replace('选方案 ', '').trim();
+        selectPlan(pid);
+      } else if (action === '✅ 背景准确，继续') {
+        sendStep('确认');
+      } else {
+        sendStep(action);
+      }
+    };
+    container.appendChild(btn);
+  }
+}
+
+function setLoading(loading) {
+  isLoading = loading;
+  const btn = document.getElementById('send-btn');
+  const input = document.getElementById('user-input');
+  btn.disabled = loading;
+  input.disabled = loading;
+  if (loading) {
+    btn.innerHTML = '<span class="cp-spinner"></span>思考中';
+  } else {
+    btn.textContent = '发送';
+  }
+}
+
+function disableInput() {
+  document.getElementById('send-btn').disabled = true;
+  document.getElementById('user-input').disabled = true;
+}
+
+function scrollToBottom() {
+  const chat = document.getElementById('chat-area');
+  chat.scrollTop = chat.scrollHeight;
+}
+
+function escapeHtml(text) {
+  if (!text) return '';
+  const div = document.createElement('div');
+  div.textContent = text;
+  return div.innerHTML;
+}
+
+function renderByStatus(status, data) {
+  // 用于恢复会话时的简单渲染
+  if (status === 'fanfiction') {
+    addMessage('ai', '请检查同人背景资料：', { type: 'fanfiction', draft: data.diagnosis?._fanfiction_draft || {} });
+  } else if (status === 'initial_plans' || status === 'refinement') {
+    addMessage('ai', '当前方案状态如下，你可以继续优化或直接定型。');
+  } else {
+    addMessage('ai', '会话已恢复，请继续。');
+  }
+}
+</script>
+{% endblock %}

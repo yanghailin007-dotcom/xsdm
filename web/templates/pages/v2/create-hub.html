@@ -1,0 +1,459 @@
+{% extends "layouts/base-v2.html" %}
+
+{% block title %}开始创作 - AI小说生成{% endblock %}
+
+{% block extra_css %}
+<style>
+/* ===== 页面容器 ===== */
+.v2-project-container {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 24px;
+}
+
+/* ===== 页面变量 ===== */
+:root {
+  --hub-radius-sm: 12px;
+  --hub-radius-md: 16px;
+  --hub-radius-lg: 24px;
+  --hub-radius-xl: 32px;
+  --hub-transition: 250ms cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* ===== Hero 区域 ===== */
+.create-hub__hero {
+  text-align: center;
+  padding: 72px 24px 48px;
+  background:
+    radial-gradient(ellipse 80% 50% at 50% -20%, rgba(99, 102, 241, 0.12), transparent),
+    radial-gradient(ellipse 60% 40% at 80% 60%, rgba(139, 92, 246, 0.06), transparent);
+  border-radius: var(--hub-radius-xl);
+  margin-bottom: 8px;
+  position: relative;
+  overflow: hidden;
+}
+
+.create-hub__hero::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%236366f1' fill-opacity='0.02'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E");
+  opacity: 0.6;
+  pointer-events: none;
+}
+
+.create-hub__eyebrow {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 20px;
+  background: rgba(99, 102, 241, 0.1);
+  backdrop-filter: blur(8px);
+  border: 1px solid rgba(99, 102, 241, 0.2);
+  border-radius: 100px;
+  font-size: 14px;
+  font-weight: 500;
+  color: #a5b4fc;
+  margin-bottom: 24px;
+  position: relative;
+}
+
+.create-hub__title {
+  font-size: clamp(40px, 6vw, 56px);
+  font-weight: 800;
+  line-height: 1.1;
+  letter-spacing: -0.02em;
+  background: linear-gradient(135deg, #ffffff 0%, #c7d2fe 50%, #a5b4fc 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  margin-bottom: 16px;
+  position: relative;
+}
+
+.create-hub__subtitle {
+  font-size: 18px;
+  line-height: 1.7;
+  color: var(--v2-text-secondary);
+  max-width: 520px;
+  margin: 0 auto;
+  font-weight: 400;
+}
+
+/* ===== 区块包装 ===== */
+.create-hub__section {
+  padding: 32px 0;
+}
+
+.create-hub__section-title {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--v2-text-tertiary);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-bottom: 20px;
+  padding-left: 8px;
+}
+
+.create-hub__section-icon {
+  font-size: 16px;
+}
+
+/* ===== 卡片网格 ===== */
+.create-hub__grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 16px;
+}
+
+.create-hub__grid--1col {
+  grid-template-columns: 1fr;
+}
+
+/* ===== 创作模式卡片 ===== */
+.create-hub__card {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding: 28px;
+  border-radius: var(--hub-radius-md);
+  text-decoration: none;
+  border: 1px solid var(--v2-border-subtle);
+  background: var(--v2-bg-secondary);
+  transition: all var(--hub-transition);
+  position: relative;
+  overflow: hidden;
+}
+
+.create-hub__card::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(255,255,255,0.08), transparent);
+}
+
+.create-hub__card:hover {
+  border-color: rgba(99, 102, 241, 0.35);
+  transform: translateY(-3px);
+  box-shadow: 0 20px 40px -12px rgba(0, 0, 0, 0.45);
+}
+
+.create-hub__card-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.create-hub__card-icon {
+  width: 52px;
+  height: 52px;
+  border-radius: var(--hub-radius-sm);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 22px;
+  flex-shrink: 0;
+}
+
+/* 自由创作 - 紫色 */
+.create-hub__card--free .create-hub__card-icon {
+  background: linear-gradient(135deg, rgba(99, 102, 241, 0.22), rgba(139, 92, 246, 0.14));
+  box-shadow: 0 6px 16px rgba(99, 102, 241, 0.18);
+}
+.create-hub__card--free:hover {
+  border-color: rgba(99, 102, 241, 0.45);
+  background: linear-gradient(180deg, rgba(99, 102, 241, 0.06), var(--v2-bg-secondary));
+}
+
+/* 市场化创作 - 金色 */
+.create-hub__card--market .create-hub__card-icon {
+  background: linear-gradient(135deg, rgba(245, 158, 11, 0.22), rgba(251, 191, 36, 0.14));
+  box-shadow: 0 6px 16px rgba(245, 158, 11, 0.18);
+}
+.create-hub__card--market:hover {
+  border-color: rgba(245, 158, 11, 0.45);
+  background: linear-gradient(180deg, rgba(245, 158, 11, 0.06), var(--v2-bg-secondary));
+}
+
+/* 短篇 - 蓝色 */
+.create-hub__card--short .create-hub__card-icon {
+  background: linear-gradient(135deg, rgba(59, 130, 246, 0.22), rgba(37, 99, 235, 0.14));
+  box-shadow: 0 6px 16px rgba(59, 130, 246, 0.18);
+}
+
+/* 继续项目 - 绿色 */
+.create-hub__card--continue .create-hub__card-icon {
+  background: linear-gradient(135deg, rgba(34, 197, 94, 0.22), rgba(34, 211, 238, 0.14));
+  box-shadow: 0 6px 16px rgba(34, 197, 94, 0.18);
+}
+.create-hub__card--continue:hover {
+  border-color: rgba(34, 197, 94, 0.45);
+  background: linear-gradient(180deg, rgba(34, 197, 94, 0.06), var(--v2-bg-secondary));
+}
+
+.create-hub__card-badge {
+  font-size: 10px;
+  font-weight: 700;
+  padding: 4px 10px;
+  border-radius: 100px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  white-space: nowrap;
+}
+
+.create-hub__card-badge--hot {
+  background: linear-gradient(135deg, #f59e0b, #f97316);
+  color: #0f172a;
+}
+
+.create-hub__card-badge--soon {
+  background: var(--v2-bg-tertiary);
+  color: var(--v2-text-muted);
+  border: 1px solid var(--v2-border-subtle);
+}
+
+.create-hub__card-content {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.create-hub__card-title {
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--v2-text-primary);
+}
+
+.create-hub__card-desc {
+  font-size: 14px;
+  color: var(--v2-text-secondary);
+  line-height: 1.6;
+}
+
+.create-hub__card-features {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 4px;
+}
+
+.create-hub__card-feature {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 10px;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid var(--v2-border-subtle);
+  border-radius: 8px;
+  font-size: 12px;
+  color: var(--v2-text-tertiary);
+}
+
+/* ===== 禁用状态 ===== */
+.create-hub__card--disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+  pointer-events: none;
+}
+
+/* ===== 继续项目横幅卡片 ===== */
+.create-hub__banner {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  padding: 20px 24px;
+  border-radius: var(--hub-radius-md);
+  text-decoration: none;
+  border: 1px solid var(--v2-border-subtle);
+  background: var(--v2-bg-secondary);
+  transition: all var(--hub-transition);
+  margin-top: 8px;
+}
+
+.create-hub__banner:hover {
+  border-color: rgba(34, 197, 94, 0.4);
+  transform: translateY(-2px);
+  box-shadow: 0 16px 32px -10px rgba(0, 0, 0, 0.4);
+}
+
+.create-hub__banner-icon {
+  width: 48px;
+  height: 48px;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 20px;
+  background: linear-gradient(135deg, rgba(34, 197, 94, 0.2), rgba(34, 211, 238, 0.12));
+  box-shadow: 0 4px 12px rgba(34, 197, 94, 0.15);
+  flex-shrink: 0;
+}
+
+.create-hub__banner-content {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.create-hub__banner-title {
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--v2-text-primary);
+}
+
+.create-hub__banner-desc {
+  font-size: 13px;
+  color: var(--v2-text-secondary);
+}
+
+.create-hub__banner-arrow {
+  color: var(--v2-text-muted);
+  transition: transform var(--hub-transition);
+}
+
+.create-hub__banner:hover .create-hub__banner-arrow {
+  transform: translateX(4px);
+  color: #22c55e;
+}
+
+/* ===== 分隔线 ===== */
+.create-hub__divider {
+  height: 1px;
+  background: linear-gradient(90deg,
+    transparent,
+    var(--v2-border-default),
+    transparent
+  );
+  margin: 16px 0;
+  border: none;
+}
+
+/* ===== 响应式 ===== */
+@media (max-width: 768px) {
+  .create-hub__hero {
+    padding: 48px 20px 36px;
+    border-radius: var(--hub-radius-lg);
+  }
+
+  .create-hub__title {
+    font-size: 34px;
+  }
+
+  .create-hub__grid {
+    grid-template-columns: 1fr;
+  }
+
+  .create-hub__card {
+    padding: 22px;
+  }
+
+  .create-hub__banner {
+    flex-direction: column;
+    align-items: flex-start;
+    padding: 20px;
+  }
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="v2-project-container">
+
+  <!-- Hero -->
+  <section class="create-hub__hero">
+    <div class="create-hub__eyebrow">
+      <span>✨</span>
+      选择创作模式
+    </div>
+    <h1 class="create-hub__title">开始创作</h1>
+    <p class="create-hub__subtitle">
+      无论你是想自由发挥故事灵感，还是紧跟市场脉搏打造爆款<br>
+      这里都有适合你的起点
+    </p>
+  </section>
+
+  <!-- 长篇小说 -->
+  <section class="create-hub__section">
+    <div class="create-hub__section-title">
+      <span class="create-hub__section-icon">📚</span>
+      长篇小说
+    </div>
+    <div class="create-hub__grid">
+      <!-- 自由创作 -->
+      <a href="/phase-one-setup" class="create-hub__card create-hub__card--free">
+        <div class="create-hub__card-header">
+          <div class="create-hub__card-icon">✨</div>
+        </div>
+        <div class="create-hub__card-content">
+          <div class="create-hub__card-title">自由创作</div>
+          <div class="create-hub__card-desc">
+            从世界观、角色到章节生成，完整的长篇创作流程。适合有明确想法、想自由发挥的作者。
+          </div>
+          <div class="create-hub__card-features">
+            <span class="create-hub__card-feature">完整 Phase 1 + 2</span>
+            <span class="create-hub__card-feature">分域会话模式</span>
+            <span class="create-hub__card-feature">深度角色设计</span>
+          </div>
+        </div>
+      </a>
+
+      <!-- 市场化创作 -->
+      <a href="/market-driven-create" class="create-hub__card create-hub__card--market">
+        <div class="create-hub__card-header">
+          <div class="create-hub__card-icon">🎯</div>
+          <span class="create-hub__card-badge create-hub__card-badge--hot">推荐</span>
+        </div>
+        <div class="create-hub__card-content">
+          <div class="create-hub__card-title">市场化创作</div>
+          <div class="create-hub__card-desc">
+            不写我想写的，只写市场需要的。基于番茄爆款套路分析，AI 自动提取热门题材公式，提高成功率。
+          </div>
+          <div class="create-hub__card-features">
+            <span class="create-hub__card-feature">番茄 Top20 分析</span>
+            <span class="create-hub__card-feature">情绪曲线设计</span>
+            <span class="create-hub__card-feature">黄金三章</span>
+          </div>
+        </div>
+      </a>
+    </div>
+  </section>
+
+  <div class="create-hub__divider"></div>
+
+  <!-- 短篇 / 短剧 -->
+  <section class="create-hub__section">
+    <div class="create-hub__section-title">
+      <span class="create-hub__section-icon">📝</span>
+      短篇 / 短剧
+    </div>
+    <div class="create-hub__grid create-hub__grid--1col">
+      <div class="create-hub__card create-hub__card--short create-hub__card--disabled">
+        <div class="create-hub__card-header">
+          <div class="create-hub__card-icon">📄</div>
+          <span class="create-hub__card-badge create-hub__card-badge--soon">即将上线</span>
+        </div>
+        <div class="create-hub__card-content">
+          <div class="create-hub__card-title">短篇创作</div>
+          <div class="create-hub__card-desc">
+            5-30 章轻量爽文快速完本，适合知乎体、短篇爽文、短剧剧本等快节奏内容创作。
+          </div>
+          <div class="create-hub__card-features">
+            <span class="create-hub__card-feature">轻量会话</span>
+            <span class="create-hub__card-feature">快节奏爽点</span>
+            <span class="create-hub__card-feature">一键完本</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+</div>
+{% endblock %}

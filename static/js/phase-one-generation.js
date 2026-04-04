@@ -68,6 +68,10 @@ async function startPhaseOneGeneration(event) {
         console.log('[GENERATION] 使用创意库中的创意种子:', creativeSeed);
     }
 
+    // 读取方案生成模式
+    const planningModeEl = document.querySelector('input[name="planning_mode"]:checked');
+    const planningMode = planningModeEl ? planningModeEl.value : 'auto';
+
     const formData = {
         title: document.getElementById('novel-title').value,
         synopsis: document.getElementById('novel-synopsis').value,
@@ -77,10 +81,13 @@ async function startPhaseOneGeneration(event) {
         generation_mode: modeSelect ? modeSelect.value : 'phase_one_only',
         target_platform: document.getElementById('target-platform').value || 'fanqie',
         creative_seed: creativeSeed,
+        planning_mode: planningMode,
         // 🔥 关键修复：非恢复模式下，明确告知后端从头开始，不要检查检查点
         start_new: !isResumeMode,
         // 🔥 新增：明确传递恢复模式标志
-        is_resume_mode: isResumeMode
+        is_resume_mode: isResumeMode,
+        // 🔥 新增：标记是否从交互式策划页面返回
+        from_planning: window.fromCreativePlanning || false
     };
     
     console.log(`🎯 生成模式: ${formData.generation_mode}, 从头开始: ${formData.start_new}`);

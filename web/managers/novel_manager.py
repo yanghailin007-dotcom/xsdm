@@ -2013,6 +2013,13 @@ class NovelGenerationManager:
                     novel_generator.set_user_id(user_id)
                     logger.info(f"任务 {task_id}: 已设置用户ID {user_id} 用于API调用扣费")
                 
+                # 🔥 注入交互式策划结果（如果有）
+                final_plan_brief = config.get('final_plan_brief')
+                if final_plan_brief:
+                    novel_generator._ctx['final_plan_brief'] = final_plan_brief
+                    novel_generator.novel_data['final_plan_brief'] = final_plan_brief
+                    logger.info(f"任务 {task_id}: ✅ 已注入交互式策划结果 final_plan_brief")
+                
                 # 🔥 传递 start_new 和 target_platform 参数给生成器
                 logger.info(f"任务 {task_id}: 🚀 开始调用 phase_one_generation...")
                 logger.info(f"任务 {task_id}: 📋 创意种子: {creative_seed.get('novelTitle', 'N/A')}")
@@ -2256,6 +2263,11 @@ class NovelGenerationManager:
                 generator_config["defaults"]["total_chapters"] = config.get("total_chapters", 200)
                 generator_config["defaults"]["chapters_per_batch"] = 3
                 
+                # 🔥 新增：传递方案生成模式到 NovelGenerator 配置
+                planning_mode = config.get("planning_mode", "auto")
+                generator_config["creative_planning_mode"] = planning_mode
+                generator_config["creative_planning_auto_iterations"] = 3
+                
                 # 创建生成器实例
                 novel_generator = NovelGenerator(generator_config)
                 
@@ -2283,6 +2295,28 @@ class NovelGenerationManager:
                     if is_stop_requested():
                         raise InterruptedError("用户请求停止生成")
                 setattr(novel_generator, '_stop_check_callback', stop_check_callback)
+                
+                # 🔥 如果项目目录存在交互式策划产出的 final_plan_brief，注入到 novel_generator
+                try:
+                    from web.utils.path_utils import get_user_novel_dir
+                    project_dir = get_user_novel_dir(create=False)
+                    title = config.get("title", "未命名")
+                    safe_title = "".join(c if c.isalnum() or c in "_ -" else "_" for c in title)
+                    novel_data_path = project_dir / safe_title / "novel_data.json"
+                    if novel_data_path.exists():
+                        with open(novel_data_path, "r", encoding="utf-8") as f:
+                            saved_novel_data = json.load(f)
+                        if saved_novel_data.get("final_plan_brief"):
+                            novel_generator.novel_data["final_plan_brief"] = saved_novel_data["final_plan_brief"]
+                            novel_generator.novel_data["novel_title"] = saved_novel_data.get("novel_title", title)
+                            novel_generator.novel_data["novel_synopsis"] = saved_novel_data.get("novel_synopsis", "")
+                            novel_generator.novel_data["creative_seed"] = saved_novel_data.get("creative_seed", {})
+                            novel_generator.novel_data["category"] = saved_novel_data.get("category", "未分类")
+                            if "current_progress" in saved_novel_data:
+                                novel_generator.novel_data["current_progress"] = saved_novel_data["current_progress"]
+                            logger.info(f"[任务 {task_id}] 已注入交互式策划产出的 final_plan_brief")
+                except Exception as e:
+                    logger.warning(f"[任务 {task_id}] 尝试加载交互式策划结果失败: {e}")
                 
                 success = novel_generator.full_auto_generation(creative_seed, total_chapters)
                 
