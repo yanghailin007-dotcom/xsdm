@@ -1,6 +1,8 @@
 """
 Structure Session - 结构规划会话
 负责: 全书阶段划分 + 阶段详细计划 + 补充角色
+
+修复: stage_details 改为多轮对话逐阶段生成，避免单轮输出过长导致卡死
 """
 
 import json
@@ -29,8 +31,8 @@ class StructureSession(NovelGenerationSession):
             return False
         self.results["stage_overview"] = step1_result
 
-        # Step 2: 阶段详细计划
-        step2_result = self._execute_stage_details()
+        # Step 2: 阶段详细计划（多轮对话逐阶段生成）
+        step2_result = self._execute_stage_details_multiround()
         if not step2_result:
             self.session_logger.error("[StructureSession] 阶段详细计划步骤失败")
             return False
@@ -55,6 +57,17 @@ class StructureSession(NovelGenerationSession):
         growth_stages = global_growth.get('protagonist_growth', [])
         milestones = global_growth.get('milestone_events', [])
 
+        # 🔥 修复：大章数小说减少建议阶段数，降低后续多轮生成压力
+        if total_chapters >= 400:
+            suggest_min = total_chapters // 5
+            suggest_max = total_chapters // 3
+        elif total_chapters >= 300:
+            suggest_min = total_chapters // 5
+            suggest_max = total_chapters // 4
+        else:
+            suggest_min = total_chapters // 6
+            suggest_max = total_chapters // 4
+
         from src.prompts.Prompts import Prompts
         prompts = Prompts()
         prompt = prompts.format(
@@ -63,8 +76,8 @@ class StructureSession(NovelGenerationSession):
             total_chapters=total_chapters,
             growth_stage_count=len(growth_stages),
             milestone_count=len(milestones),
-            suggest_min=total_chapters // 6,
-            suggest_max=total_chapters // 4
+            suggest_min=suggest_min,
+            suggest_max=suggest_max
         )
         
         if not prompt:
@@ -73,38 +86,100 @@ class StructureSession(NovelGenerationSession):
             
         return self.send_structured_message(prompt, purpose="stage_overview")
 
-    def _execute_stage_details(self) -> Optional[Dict]:
-        """执行步骤2: 阶段详细计划"""
+    def _execute_stage_details_multiround(self) -> Optional[Dict]:
+        """
+        执行步骤2: 阶段详细计划（多轮对话逐阶段生成）
+        
+        在同一会话中，每次只生成 1 个阶段的详细计划，避免单轮输出过长导致卡死。
+        """
         stage_overview = self.results.get("stage_overview", {})
-        stages = stage_overview.get("stages", [])
+        # 兼容 LLM 可能忽略顶层字段的情况：优先取顶层 stages，否则取 overall_stage_plan.stages
+        stages = stage_overview.get("stages", []) or stage_overview.get("overall_stage_plan", {}).get("stages", [])
         stage_count = len(stages)
 
         if stage_count == 0:
             self.session_logger.error("缺少阶段概览，无法生成详细计划")
             return None
 
-        # 区分详细阶段和概览阶段
-        detailed_stages = stages[:2] if len(stages) >= 2 else stages
-        overview_stages = stages[2:] if len(stages) > 2 else []
-
-        from src.prompts.Prompts import Prompts
-        prompts = Prompts()
-        prompt = prompts.format(
-            "stage_details",
-            default="",
-            stage_count=stage_count,
-            stage_overview_summary=json.dumps([{"num": s.get("stage_number"), "name": s.get("stage_name"), "chapters": s.get("chapter_range"), "core_conflict": s.get("core_conflict")} for s in stages], ensure_ascii=False, indent=2),
-            detailed_stage_count=len(detailed_stages),
-            detailed_stage_names=", ".join([s.get('stage_name') for s in detailed_stages]),
-            overview_stage_count=len(overview_stages),
-            overview_stage_names=", ".join([s.get('stage_name') for s in overview_stages]) if overview_stages else "无"
+        self.session_logger.info(
+            f"[StructureSession] 开始逐阶段生成详细计划，共 {stage_count} 个阶段"
         )
+
+        stage_writing_plans = {}
         
-        if not prompt:
-            self.session_logger.error("[StructureSession] 未找到 stage_details 提示词模板")
-            return None
+        # 前 3 个阶段做详细生成，后面的做精简生成
+        detailed_count = min(3, stage_count)
+        
+        for idx, stage in enumerate(stages):
+            stage_name = stage.get("stage_name", f"阶段{idx+1}")
+            is_detailed = idx < detailed_count
             
-        return self.send_structured_message(prompt, purpose="stage_details")
+            self.session_logger.info(
+                f"[StructureSession] 正在生成阶段 {idx+1}/{stage_count}: {stage_name} "
+                f"({'详细' if is_detailed else '精简'})"
+            )
+            
+            detail_level = self._build_detail_level_text(stage, is_detailed)
+            
+            from src.prompts.Prompts import Prompts
+            prompts = Prompts()
+            prompt = prompts.format(
+                "stage_detail_single",
+                default="",
+                stage_name=stage_name,
+                chapter_range=stage.get("chapter_range", ""),
+                chapter_count=stage.get("chapter_count", 0),
+                core_conflict=stage.get("core_conflict", ""),
+                emotional_focus=stage.get("emotional_focus", ""),
+                growth_goals=stage.get("growth_goals", ""),
+                key_events=json.dumps(stage.get("key_events", []), ensure_ascii=False),
+                detail_level=detail_level
+            )
+            
+            if not prompt:
+                self.session_logger.error("[StructureSession] 未找到 stage_detail_single 提示词模板")
+                return None
+            
+            result = self.send_structured_message(prompt, purpose=f"stage_detail_{idx+1}")
+            
+            if result and stage_name in result:
+                stage_writing_plans[stage_name] = result[stage_name]
+                self.session_logger.info(f"[StructureSession] 阶段 {stage_name} 生成成功")
+            elif result:
+                # 有时 LLM 会忽略顶层字段要求，返回一个对象，我们尝试适配
+                first_key = next(iter(result.keys())) if result else None
+                if first_key and isinstance(result.get(first_key), dict):
+                    stage_writing_plans[stage_name] = result[first_key]
+                    self.session_logger.info(f"[StructureSession] 阶段 {stage_name} 生成成功（键名适配: {first_key}）")
+                else:
+                    self.session_logger.warning(
+                        f"[StructureSession] 阶段 {stage_name} 返回格式异常，跳过"
+                    )
+            else:
+                self.session_logger.error(f"[StructureSession] 阶段 {stage_name} 生成失败")
+                return None
+
+        return {"stage_writing_plans": stage_writing_plans}
+
+    def _build_detail_level_text(self, stage: Dict, is_detailed: bool) -> str:
+        """构建单个阶段的详细程度说明"""
+        chapter_count = stage.get("chapter_count", 0)
+        if is_detailed:
+            if chapter_count > 50:
+                return (
+                    "本阶段需要详细规划。由于章节数较多（超过50章），"
+                    "请将关键转折点章节单独列出，非关键的连续章节可合并为范围（如'31-40'）并简要概述。"
+                    "确保每10章至少有一个明确的情绪起伏或剧情推进点被单独标注。"
+                )
+            return (
+                "本阶段需要详细规划：chapter_breakdown 必须尽量覆盖该阶段的每一章，"
+                "每章都要有标题、关键事件、情绪节奏、剧情推进点和悬念设置。"
+            )
+        else:
+            return (
+                "本阶段做精简规划：chapter_breakdown 只列出关键章节（至少5-8个转折点），"
+                "其余连续章节可合并为范围并简要概述整体剧情走向。"
+            )
 
     def _execute_supplementary_chars(self) -> Optional[Dict]:
         """执行步骤3: 补充角色生成"""

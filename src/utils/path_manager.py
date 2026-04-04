@@ -128,11 +128,26 @@ class PathManager:
                 break
             
             if not chapter_file:
+                # 尝试另一种命名格式 chapter_xxx.json
+                for file_path in chapters_dir.glob(f"chapter_{chapter_number:03d}.json"):
+                    chapter_file = file_path
+                    break
+            
+            if not chapter_file:
                 self.logger.info(f"⚠️ 章节文件不存在: 第{chapter_number}章")
                 return None
             
             with open(chapter_file, 'r', encoding='utf-8') as f:
                 chapter_data = json.load(f)
+            
+            # 清理 content 字段中的 --- 分隔符（兼容旧数据）
+            if "content" in chapter_data and isinstance(chapter_data["content"], str):
+                import re
+                content = chapter_data["content"]
+                cleaned = re.split(r'\n?\s*---\s*\n?', content, maxsplit=1)[0]
+                if cleaned != content:
+                    chapter_data["content"] = cleaned.strip()
+                    self.logger.info(f"    🧹 加载时清理章节 {chapter_number} 的 --- 分隔符")
             
             self.logger.info(f"✅ 章节已加载: 第{chapter_number}章 <- {chapter_file}")
             return chapter_data
