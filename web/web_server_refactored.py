@@ -814,18 +814,25 @@ def register_fanqie_routes(app):
                        creative_seed.get('synopsis') or
                        project_config.get('novel_synopsis', ''))
             
-            # 标签数据
-            tags_data = fanqie_data.get('tags', {})
+            # 标签数据 - 优先使用 fanqie_upload_data.tags，但缺失字段从 selected_plan.tags 补全
+            tags_data = dict(fanqie_data.get('tags', {})) if fanqie_data.get('tags') else {}
+            plan_tags = selected_plan.get('tags', {}) if selected_plan and isinstance(selected_plan.get('tags'), dict) else {}
+            
             if not tags_data:
                 # 🔥 兼容传统模式：从 selected_plan.tags 或 category_tags 读取
-                if selected_plan and 'tags' in selected_plan:
-                    tags_data = selected_plan.get('tags', {})
+                if plan_tags:
+                    tags_data = dict(plan_tags)
                 elif 'category_tags' in project_config:
                     cat_tags = project_config.get('category_tags', {})
                     tags_data = {
                         'main_category': cat_tags.get('main_category', ''),
                         'themes': cat_tags.get('tags', [])
                     }
+            else:
+                # 补全缺失的标签字段（target_audience/roles/plots）
+                for key in ['target_audience', 'roles', 'plots']:
+                    if key not in tags_data and key in plan_tags:
+                        tags_data[key] = plan_tags[key]
             
             # 构建标签列表（从 themes 和 plots 合并）
             tags_list = []
@@ -1212,12 +1219,18 @@ def register_fanqie_routes(app):
                     for chapter_file in chapter_files:
                         zf.write(chapter_file, f"chapters/{chapter_file.name}")
                 
-                # 添加项目配置
-                for config_file in ["project_config.json", "config.json", "novel_info.json"]:
+                # 添加项目配置（多种文件名兼容）
+                for config_file in ["project_config.json", "config.json", "novel_info.json", "project_info.json"]:
                     cf = project_dir / config_file
                     if cf.exists():
                         zf.write(cf, config_file)
-                        break
+                
+                # 传统模式可能使用中文项目信息文件名
+                chinese_info = project_dir / f"{project_id}_项目信息.json"
+                if chinese_info.exists():
+                    zf.write(chinese_info, chinese_info.name)
+                elif (project_dir / "项目信息.json").exists():
+                    zf.write(project_dir / "项目信息.json", "项目信息.json")
                 
                 # 添加封面（如果存在）
                 for cover in ["cover.png", "cover.jpg", "cover.jpeg"]:
