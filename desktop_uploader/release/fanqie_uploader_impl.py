@@ -289,13 +289,15 @@ class FanqieUploaderImpl:
             self._log("等待创建完成...")
             time.sleep(3)
             
-            # 检查是否有错误提示
+            create_success = False
+            # 检查是否有错误/成功提示
             try:
                 error_msg = self.page.locator('.arco-message-content, .error-message, [class*="error"]').first
                 if error_msg.count() > 0 and error_msg.is_visible():
                     error_text = error_msg.text_content() or ""
                     if "成功" in error_text or "success" in error_text.lower():
                         self._log(f"✓ 操作成功提示: {error_text}")
+                        create_success = True
                     else:
                         self._log(f"✗ 创建失败，错误信息: {error_text}")
                         return False
@@ -303,7 +305,7 @@ class FanqieUploaderImpl:
                 pass
             
             # 等待跳转到书籍详情页
-            for i in range(10):
+            for i in range(15):
                 time.sleep(1)
                 current_url = self.page.url
                 if "/main/writer/book/" in current_url or "/main/writer/novel/" in current_url:
@@ -315,8 +317,27 @@ class FanqieUploaderImpl:
                     self.book_created = True
                     self._progress(40, f"✅ 书籍创建成功！ID: {self.book_id or 'unknown'}")
                     return True
+                if "/main/writer/chapter-manage/" in current_url:
+                    book_id = current_url.split("/chapter-manage/")[-1].split("/")[0]
+                    if book_id and book_id.isdigit():
+                        self.book_id = book_id
+                        self.book_created = True
+                        self._log(f"✓ 书籍创建成功，已跳转到章节管理页: {current_url}")
+                        self._progress(40, f"✅ 书籍创建成功！ID: {self.book_id}")
+                        return True
                 if "/main/writer/create" in current_url:
-                    self._log(f"仍在创建页面，等待中... ({i+1}/10)")
+                    self._log(f"仍在创建页面，等待中... ({i+1}/15)")
+            
+            # 如果提示成功但还没跳转，主动到书籍管理页查找
+            if create_success:
+                self._log("检测到创建成功提示但页面未跳转，主动查找书籍...")
+                self.page.goto("https://fanqienovel.com/main/writer/book-manage", timeout=30000)
+                time.sleep(3)
+                found = self.find_book_in_list()
+                if found:
+                    self.book_created = True
+                    self._progress(40, f"✅ 书籍创建成功！ID: {self.book_id or 'unknown'}")
+                return found
             
             # 检查是否已有同名书籍
             page_content = self.page.content()
@@ -501,7 +522,7 @@ class FanqieUploaderImpl:
                     has_text=re.compile(r'(确认|确定)')
                 ).first
                 if confirm_btn.count() > 0:
-                    confirm_btn.click()
+                    confirm_btn.click(timeout=5000, force=True)
                     self._log("[Tags] ✓ 点击确认按钮")
                     time.sleep(1)
                 else:
@@ -518,6 +539,7 @@ class FanqieUploaderImpl:
     
     def _click_tag_in_modal(self, category: str, tag_name: str) -> bool:
         """在标签弹窗中点击指定标签"""
+        self._log(f"[Tags] 正在切换分类到: {category}，准备点击标签: {tag_name}")
         try:
             tab_selectors = [
                 f'.arco-tabs-header-title:has-text("{category}")',
@@ -525,15 +547,22 @@ class FanqieUploaderImpl:
                 f'text="{category}" >> xpath=ancestor::*[@role="tab" or contains(@class, "arco-tabs-header-title")]',
             ]
             
+            tab_clicked = False
             for selector in tab_selectors:
                 try:
                     tab = self.page.locator(selector).first
                     if tab.count() > 0 and tab.is_visible():
-                        tab.click()
+                        tab.click(timeout=5000, force=True)
+                        tab_clicked = True
+                        self._log(f"[Tags] 已点击分类 tab: {category}")
                         time.sleep(0.5)
                         break
-                except Exception:
+                except Exception as e:
+                    self._log(f"[Tags] tab 选择器 {selector} 失败: {e}")
                     continue
+            
+            if not tab_clicked:
+                self._log(f"[Tags] ⚠ 未能点击分类 tab: {category}，尝试直接查找标签")
             
             selectors = [
                 f'.category-choose-item:has-text("{tag_name}")',
@@ -546,66 +575,83 @@ class FanqieUploaderImpl:
                 try:
                     tag = self.page.locator(selector).first
                     if tag.count() > 0 and tag.is_visible():
-                        tag.click()
+                        tag.click(timeout=5000, force=True)
+                        self._log(f"[Tags] 直接点击标签成功: {tag_name} (selector={selector})")
                         time.sleep(0.3)
                         return True
-                except Exception:
+                except Exception as e:
+                    self._log(f"[Tags] 直接选择器 {selector} 失败: {e}")
                     continue
             
-            scroll_container = self.page.locator('.category-choose-scroll-parent, .arco-tabs-content-item-active').first
-            if scroll_container.count() > 0:
-                for _ in range(10):
-                    try:
-                        tag = scroll_container.locator(f'.category-choose-item:has-text("{tag_name}")').first
-                        if tag.count() > 0 and tag.is_visible():
-                            tag.click()
-                            time.sleep(0.3)
-                            return True
-                    except Exception:
-                        pass
-                    scroll_container.evaluate('el => el.scrollTop += 200')
+            # 滚动查找
+            self._log(f"[Tags] 尝试滚动查找标签: {tag_name}")
+            for scroll_attempt in range(10):
+                try:
+                    scroll_container = self.page.locator('.category-choose-scroll-parent, .arco-tabs-content-item-active').first
+                    if scroll_container.count() == 0:
+                        self._log("[Tags] 未找到滚动容器")
+                        break
+                    tag = scroll_container.locator(f'.category-choose-item:has-text("{tag_name}")').first
+                    if tag.count() > 0 and tag.is_visible():
+                        tag.click(timeout=5000, force=True)
+                        self._log(f"[Tags] 滚动后点击标签成功: {tag_name}")
+                        time.sleep(0.3)
+                        return True
+                    # 短超时滚动，防止卡死 30 秒
+                    scroll_container.evaluate('el => el.scrollTop += 200', timeout=3000)
+                    time.sleep(0.3)
+                except Exception as e:
+                    self._log(f"[Tags] 滚动查找第 {scroll_attempt+1} 次失败: {e}")
                     time.sleep(0.3)
             
-            clicked = self.page.evaluate(f'''(tagName) => {{
-                const titles = document.querySelectorAll('.category-choose-item-title');
-                for (const title of titles) {{
-                    if (title.textContent.trim() === tagName) {{
-                        const item = title.closest('.category-choose-item');
+            self._log(f"[Tags] 尝试通过 page.evaluate 直接点击标签: {tag_name}")
+            try:
+                clicked = self.page.evaluate(f'''(tagName) => {{
+                    const titles = document.querySelectorAll('.category-choose-item-title');
+                    for (const title of titles) {{
+                        if (title.textContent.trim() === tagName) {{
+                            const item = title.closest('.category-choose-item');
+                            if (item) {{
+                                item.click();
+                                return true;
+                            }}
+                        }}
+                    }}
+                    const items = document.querySelectorAll('.category-choose-item, .tag-item');
+                    for (const item of items) {{
+                        const titleEl = item.querySelector('.category-choose-item-title');
+                        if (titleEl && titleEl.textContent.trim() === tagName) {{
+                            item.click();
+                            return true;
+                        }}
+                        if (item.textContent.trim().startsWith(tagName)) {{
+                            item.click();
+                            return true;
+                        }}
+                    }}
+                    const xpath = `//div[contains(@class, 'category-choose-item-title') and text()='${{tagName}}']`;
+                    const result = document.evaluate(xpath, document, null, XPathResult.FIRST_ORDERED_NODE_TYPE, null);
+                    const node = result.singleNodeValue;
+                    if (node) {{
+                        const item = node.closest('.category-choose-item');
                         if (item) {{
                             item.click();
                             return true;
                         }}
                     }}
-                }}
-                const items = document.querySelectorAll('.category-choose-item, .tag-item');
-                for (const item of items) {{
-                    const titleEl = item.querySelector('.category-choose-item-title');
-                    if (titleEl && titleEl.textContent.trim() === tagName) {{
-                        item.click();
-                        return true;
-                    }}
-                    if (item.textContent.trim().startsWith(tagName)) {{
-                        item.click();
-                        return true;
-                    }}
-                }}
-                const xpath = `//div[contains(@class, 'category-choose-item-title') and text()='${{tagName}}']`;
-                const result = document.evaluate(xpath, document, null, XPathResult.FIRST_ORDERED_NODE_TYPE, null);
-                const node = result.singleNodeValue;
-                if (node) {{
-                    const item = node.closest('.category-choose-item');
-                    if (item) {{
-                        item.click();
-                        return true;
-                    }}
-                }}
-                return false;
-            }}''', tag_name)
-            
-            return clicked
+                    return false;
+                }}''', tag_name)
+                if clicked:
+                    self._log(f"[Tags] evaluate 点击标签成功: {tag_name}")
+                else:
+                    self._log(f"[Tags] evaluate 未找到标签: {tag_name}")
+                return clicked
+            except Exception as e:
+                self._log(f"[Tags] evaluate 点击标签 '{tag_name}' 失败: {e}")
+                return False
             
         except Exception as e:
-            self._log(f"[Tags] 点击标签 '{tag_name}' 失败: {e}")
+            self._log(f"[Tags] 点击标签 '{tag_name}' 外层失败: {e}")
             return False
     
     def _handle_cover_upload(self) -> bool:
@@ -715,6 +761,67 @@ class FanqieUploaderImpl:
                 pass
             return False
     
+    def _navigate_to_publish_page(self) -> bool:
+        """导航到章节发布页面（通过章节管理页点击创建章节）"""
+        try:
+            current_url = self.page.url
+            if "/publish/" in current_url:
+                self._log("  当前已在发布页面")
+                return True
+            
+            if not self.book_id:
+                self._log("  ✗ 缺少书籍ID，无法进入发布页")
+                return False
+            
+            # 先访问章节管理页
+            manage_url = f"https://fanqienovel.com/main/writer/chapter-manage/{self.book_id}"
+            self.page.goto(manage_url, timeout=30000)
+            time.sleep(3)
+            
+            # 点击"创建章节"按钮
+            create_btn = self.page.locator(
+                f'#long-article-table-item-{self.book_id} a[href*="/publish/"] button, '
+                f'#long-article-table-item-{self.book_id} button:has-text("创建章节"), '
+                'a[href*="/publish/"] button:has-text("创建章节"), '
+                'button:has-text("创建章节")'
+            ).first
+            
+            if create_btn.count() > 0 and create_btn.is_visible():
+                create_btn.click()
+                self._log("  点击'创建章节'按钮")
+                time.sleep(4)
+                
+                # 检查是否弹出了新标签页
+                # Playwright 的 popup 处理较复杂，这里简化：检查当前页面 URL
+                if "/publish/" in self.page.url:
+                    return True
+            
+            # 尝试点击链接
+            create_link = self.page.locator(
+                f'#long-article-table-item-{self.book_id} a[href*="/publish/"], '
+                'a[href*="/publish/"]'
+            ).first
+            if create_link.count() > 0 and create_link.is_visible():
+                create_link.click()
+                self._log("  点击'创建章节'链接")
+                time.sleep(4)
+                if "/publish/" in self.page.url:
+                    return True
+            
+            # 最后尝试直接访问发布页（旧版兼容）
+            publish_url = f"https://fanqienovel.com/main/writer/publish/{self.book_id}"
+            self.page.goto(publish_url, timeout=30000)
+            time.sleep(3)
+            if "/publish/" in self.page.url:
+                return True
+            
+            self._log(f"  ⚠ 无法确认是否进入发布页，当前URL: {self.page.url}")
+            return False
+            
+        except Exception as e:
+            self._log(f"  导航到发布页失败: {e}")
+            return False
+    
     def upload_chapter(self, chapter: dict, retry_count: int = 0) -> bool:
         """上传单个章节"""
         if not self.is_running:
@@ -727,10 +834,10 @@ class FanqieUploaderImpl:
         self._log(f"正在上传第 {chapter_number} 章: {chapter_title[:30]}...")
         
         try:
-            # 访问发布页面
-            publish_url = f"https://fanqienovel.com/main/writer/publish/{self.book_id}"
-            self.page.goto(publish_url, timeout=30000)
-            time.sleep(3)
+            # 确保在发布页面
+            if not self._navigate_to_publish_page():
+                self._log("  ✗ 无法进入章节发布页面", "error")
+                return False
             
             # 填写章节号
             try:
@@ -788,12 +895,26 @@ class FanqieUploaderImpl:
             
             # 检查结果
             time.sleep(2)
-            if '/chapter-manage/' in self.page.url or 'publish' not in self.page.url:
+            current_url = self.page.url
+            page_text = self.page.content()[:500]
+            
+            # 判断是否成功
+            has_success_hint = any(kw in page_text for kw in ['发布成功', '操作成功', 'success', '创建成功'])
+            is_chapter_manage = '/chapter-manage/' in current_url
+            is_publish_page = '/publish/' in current_url
+            
+            if has_success_hint or is_chapter_manage:
                 self._log(f"  ✓ 第{chapter_number}章上传成功", "success")
                 return True
             
-            self._log(f"  ✓ 第{chapter_number}章上传完成", "success")
-            return True
+            if not is_publish_page and not is_chapter_manage:
+                self._log(f"  ⚠ 发布后页面异常，当前URL: {current_url}", "warning")
+                # 如果页面异常但看起来没有明确报错，也尝试返回成功（因为番茄有时会跳转）
+                if 'error' not in page_text.lower() and '报错' not in page_text:
+                    return True
+            
+            self._log(f"  ✗ 第{chapter_number}章上传可能失败，仍在发布页且无成功提示", "error")
+            return False
             
         except Exception as e:
             error_msg = str(e)

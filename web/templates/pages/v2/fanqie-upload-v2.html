@@ -839,12 +839,30 @@
                         </div>
                         
                         <div class="form-group">
-                            <label>标签 <span class="char-count" id="tags-count">0/5</span></label>
-                            <div class="tags-input-container" id="tags-container">
-                                <div class="tags-list" id="tags-list"></div>
-                                <input type="text" id="edit-tags-input" class="tags-input" placeholder="输入标签后回车（最多5个）" maxlength="10">
+                            <label>主题标签 <span class="char-count" id="themes-count">0/3</span></label>
+                            <div class="tags-input-container" id="themes-container">
+                                <div class="tags-list" id="themes-list"></div>
+                                <input type="text" id="edit-themes-input" class="tags-input" placeholder="输入标签后回车（最多3个）" maxlength="10">
                             </div>
-                            <span class="input-hint">添加标签帮助读者快速了解书籍内容，如：爱情、战斗、升级</span>
+                            <span class="input-hint">如：开局、玄幻、逆袭</span>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label>角色标签 <span class="char-count" id="roles-count">0/3</span></label>
+                            <div class="tags-input-container" id="roles-container">
+                                <div class="tags-list" id="roles-list"></div>
+                                <input type="text" id="edit-roles-input" class="tags-input" placeholder="输入标签后回车（最多3个）" maxlength="10">
+                            </div>
+                            <span class="input-hint">如：全能、腹黑、高冷</span>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label>情节标签 <span class="char-count" id="plots-count">0/3</span></label>
+                            <div class="tags-input-container" id="plots-container">
+                                <div class="tags-list" id="plots-list"></div>
+                                <input type="text" id="edit-plots-input" class="tags-input" placeholder="输入标签后回车（最多3个）" maxlength="10">
+                            </div>
+                            <span class="input-hint">如：系统、升级流、打脸</span>
                         </div>
                     </div>
                 </div>
@@ -1018,7 +1036,9 @@ function selectProject(projectId) {
  * 加载项目信息到编辑表单
  */
 // 标签管理
-let currentTags = [];
+let currentThemes = [];
+let currentRoles = [];
+let currentPlots = [];
 
 async function loadProjectInfoToEditForm(projectId) {
     try {
@@ -1036,8 +1056,10 @@ async function loadProjectInfoToEditForm(projectId) {
             document.getElementById('edit-category').value = config.category || '';
             
             // 填充标签
-            currentTags = config.tags || [];
-            renderTags();
+            currentThemes = config.themes || [];
+            currentRoles = config.roles || [];
+            currentPlots = config.plots || [];
+            renderAllTags();
             
             // 显示封面
             const coverPreview = document.getElementById('cover-preview');
@@ -1069,7 +1091,7 @@ async function loadProjectInfoToEditForm(projectId) {
             // 更新字符计数
             updateCharCount('edit-title', 'title-count', 15);
             updateCharCount('edit-description', 'desc-count');
-            updateTagsCount();
+            updateAllTagsCount();
             
             // 显示编辑区域
             document.getElementById('project-edit-section').style.display = 'block';
@@ -1080,50 +1102,73 @@ async function loadProjectInfoToEditForm(projectId) {
 }
 
 /**
- * 渲染标签列表
+ * 渲染所有标签列表
  */
-function renderTags() {
-    const container = document.getElementById('tags-list');
-    container.innerHTML = currentTags.map((tag, index) => `
+function renderTagsFor(type) {
+    let containerId, arr;
+    if (type === 'themes') { containerId = 'themes-list'; arr = currentThemes; }
+    else if (type === 'roles') { containerId = 'roles-list'; arr = currentRoles; }
+    else { containerId = 'plots-list'; arr = currentPlots; }
+    const container = document.getElementById(containerId);
+    container.innerHTML = arr.map((tag, index) => `
         <span class="tag-item">
             ${escapeHtml(tag)}
-            <span class="tag-remove" onclick="removeTag(${index})">×</span>
+            <span class="tag-remove" onclick="removeTag('${type}', ${index})">×</span>
         </span>
     `).join('');
-    updateTagsCount();
+}
+
+function renderAllTags() {
+    renderTagsFor('themes');
+    renderTagsFor('roles');
+    renderTagsFor('plots');
+    updateAllTagsCount();
 }
 
 /**
  * 添加标签
  */
-function addTag(tag) {
+function addTag(type, tag) {
     tag = tag.trim();
     if (!tag) return;
-    if (currentTags.length >= 5) {
-        showToast('最多只能添加5个标签', 'warning');
+    let arr;
+    if (type === 'themes') arr = currentThemes;
+    else if (type === 'roles') arr = currentRoles;
+    else arr = currentPlots;
+    
+    if (arr.length >= 3) {
+        showToast('每组最多只能添加3个标签', 'warning');
         return;
     }
-    if (currentTags.includes(tag)) {
+    if (arr.includes(tag)) {
         showToast('标签已存在', 'warning');
         return;
     }
-    currentTags.push(tag);
-    renderTags();
+    arr.push(tag);
+    renderTagsFor(type);
+    updateAllTagsCount();
 }
 
 /**
  * 移除标签
  */
-function removeTag(index) {
-    currentTags.splice(index, 1);
-    renderTags();
+function removeTag(type, index) {
+    let arr;
+    if (type === 'themes') arr = currentThemes;
+    else if (type === 'roles') arr = currentRoles;
+    else arr = currentPlots;
+    arr.splice(index, 1);
+    renderTagsFor(type);
+    updateAllTagsCount();
 }
 
 /**
  * 更新标签计数
  */
-function updateTagsCount() {
-    document.getElementById('tags-count').textContent = `${currentTags.length}/5`;
+function updateAllTagsCount() {
+    document.getElementById('themes-count').textContent = `${currentThemes.length}/3`;
+    document.getElementById('roles-count').textContent = `${currentRoles.length}/3`;
+    document.getElementById('plots-count').textContent = `${currentPlots.length}/3`;
 }
 
 /**
@@ -1278,7 +1323,9 @@ async function saveProjectInfo() {
                 title: title,
                 description: description,
                 category: category,
-                tags: currentTags,
+                themes: currentThemes,
+                roles: currentRoles,
+                plots: currentPlots,
                 publish_config: {
                     first_publish_count: firstPublishCount,
                     daily_count: dailyCount,
@@ -1311,7 +1358,9 @@ document.addEventListener('DOMContentLoaded', () => {
     
     const titleInput = document.getElementById('edit-title');
     const descInput = document.getElementById('edit-description');
-    const tagsInput = document.getElementById('edit-tags-input');
+    const themesInput = document.getElementById('edit-themes-input');
+    const rolesInput = document.getElementById('edit-roles-input');
+    const plotsInput = document.getElementById('edit-plots-input');
     
     if (titleInput) {
         titleInput.addEventListener('input', () => updateCharCount('edit-title', 'title-count', 15));
@@ -1321,15 +1370,17 @@ document.addEventListener('DOMContentLoaded', () => {
     }
     
     // 标签输入事件
-    if (tagsInput) {
-        tagsInput.addEventListener('keydown', (e) => {
-            if (e.key === 'Enter') {
-                e.preventDefault();
-                addTag(tagsInput.value);
-                tagsInput.value = '';
-            }
-        });
-    }
+    [ ['themes', themesInput], ['roles', rolesInput], ['plots', plotsInput] ].forEach(([type, input]) => {
+        if (input) {
+            input.addEventListener('keydown', (e) => {
+                if (e.key === 'Enter') {
+                    e.preventDefault();
+                    addTag(type, input.value);
+                    input.value = '';
+                }
+            });
+        }
+    });
     
     // 绑定保存按钮事件（防止 onclick 不工作）
     const saveBtn = document.querySelector('button[onclick="saveProjectInfo()"]');

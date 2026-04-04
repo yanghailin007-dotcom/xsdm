@@ -246,6 +246,25 @@ class ChromeDownloadWorker(QThread):
         self.finished_signal.emit(success, message)
 
 
+# ============== 项目加载工作线程 ==============
+class LoadProjectsWorker(QThread):
+    """后台加载项目列表，避免UI卡顿"""
+    
+    finished_signal = pyqtSignal(list)  # [(display, data), ...]
+    
+    def __init__(self, scan_callback):
+        super().__init__()
+        self.scan_callback = scan_callback
+    
+    def run(self):
+        try:
+            projects = self.scan_callback()
+            self.finished_signal.emit(projects)
+        except Exception as e:
+            print(f"加载项目失败: {e}")
+            self.finished_signal.emit([])
+
+
 # ============== 上传工作线程 ==============
 class UploadWorker(QThread):
     """上传工作线程"""
@@ -451,13 +470,18 @@ class MainWindow(QMainWindow):
             self.show_login_dialog()
         
         self.init_ui()
-        self.load_projects()
         self.refresh_accounts_ui()
         
-        # 定时刷新状态
+        # 🔥 异步加载项目列表，避免UI卡顿
+        self.status_bar.setText("正在扫描项目目录...")
+        self.project_loader = LoadProjectsWorker(self._scan_projects)
+        self.project_loader.finished_signal.connect(self._on_projects_loaded)
+        self.project_loader.start()
+        
+        # 定时刷新状态（延长至5秒，减少卡顿）
         self.status_timer = QTimer()
         self.status_timer.timeout.connect(self.refresh_accounts_status)
-        self.status_timer.start(2000)
+        self.status_timer.start(5000)
     
     def check_saved_login(self) -> bool:
         """检查是否有保存的登录"""
@@ -1145,18 +1169,18 @@ NovelPublisher_Data/              ← 统一数据目录
             self.upload_account_label.setText("🍅 未选择上传账户")
     
     # ============== 项目管理 ==============
-    def load_projects(self):
-        """加载项目列表（包含默认项目和保存的最近项目）"""
-        self.project_combo.clear()
+    def _scan_projects(self) -> list:
+        """扫描项目目录，返回 (display, data) 列表（可在后台线程执行）"""
+        projects = []
         added_paths = set()
         
         # 1. 先加载保存的最近项目
         recent_projects = self.load_recent_projects()
         for proj_data in recent_projects:
             proj_path = Path(proj_data['path'])
-            if proj_path.exists() and (proj_path / "project_config.json").exists():
+            if proj_path.exists() and ((proj_path / "project_config.json").exists() or (proj_path / "project_info.json").exists()):
                 display = f"📌 {proj_data['username']} / {proj_data['proj_name']}"
-                self.project_combo.addItem(display, proj_data)
+                projects.append((display, proj_data))
                 added_paths.add(str(proj_path))
         
         # 2. 加载默认小说项目目录
@@ -1165,19 +1189,40 @@ NovelPublisher_Data/              ← 统一数据目录
             for user_dir in projects_dir.iterdir():
                 if user_dir.is_dir():
                     for proj_dir in user_dir.iterdir():
-                        if proj_dir.is_dir() and (proj_dir / "project_config.json").exists():
-                            proj_path_str = str(proj_dir)
-                            if proj_path_str not in added_paths:
-                                display = f"{user_dir.name} / {proj_dir.name}"
-                                novel_config = self._extract_novel_config(proj_dir)
-                                data = {
-                                    'username': user_dir.name,
-                                    'proj_name': proj_dir.name,
-                                    'path': proj_path_str,
-                                    **novel_config
-                                }
-                                self.project_combo.addItem(display, data)
+                        if proj_dir.is_dir():
+                            is_project = (proj_dir / "project_config.json").exists() or (proj_dir / "project_info.json").exists()
+                            if is_project:
+                                proj_path_str = str(proj_dir)
+                                if proj_path_str not in added_paths:
+                                    display = f"{user_dir.name} / {proj_dir.name}"
+                                    novel_config = self._extract_novel_config(proj_dir)
+                                    data = {
+                                        'username': user_dir.name,
+                                        'proj_name': proj_dir.name,
+                                        'path': proj_path_str,
+                                        **novel_config
+                                    }
+                                    projects.append((display, data))
         
+        return projects
+    
+    def _on_projects_loaded(self, projects: list):
+        """项目加载完成后更新UI"""
+        self.project_combo.clear()
+        for display, data in projects:
+            self.project_combo.addItem(display, data)
+        self.status_bar.setText(f"加载了 {self.project_combo.count()} 个项目")
+        
+        # 如果当前有选中的项目，触发一次章节加载
+        if self.project_combo.count() > 0:
+            self.project_combo.setCurrentIndex(0)
+    
+    def load_projects(self):
+        """加载项目列表（同步版本，供手动刷新时使用）"""
+        self.project_combo.clear()
+        projects = self._scan_projects()
+        for display, data in projects:
+            self.project_combo.addItem(display, data)
         self.status_bar.setText(f"加载了 {self.project_combo.count()} 个项目")
     
     def load_recent_projects(self) -> list:
@@ -1249,7 +1294,7 @@ NovelPublisher_Data/              ← 统一数据目录
                     self.load_projects()
     
     def _extract_novel_config(self, project_path: Path) -> dict:
-        """从项目配置中提取小说元数据"""
+        """从项目配置中提取小说元数据（兼容自由创意模式和市场导向模式）"""
         result = {
             'novel_title': '',
             'synopsis': '',
@@ -1259,13 +1304,30 @@ NovelPublisher_Data/              ← 统一数据目录
         }
         
         configs = []
-        for fname in ['project_config.json', 'project_info.json']:
+        # 先读取 project_info.json（可能包含完整的 selected_plan）
+        for fname in ['project_info.json']:
             fpath = project_path / fname
             if fpath.exists():
                 try:
                     configs.append(json.loads(fpath.read_text(encoding='utf-8')))
                 except Exception:
                     pass
+        
+        # 再读取自由创意模式的 "*_项目信息.json"（通常有最完整的正确标签）
+        # 注意：目录名可能是 project_data_xxx，但文件名是 xxx_项目信息.json，所以用通配符查找
+        for legacy_info in project_path.glob('*_项目信息.json'):
+            try:
+                configs.append(json.loads(legacy_info.read_text(encoding='utf-8')))
+            except Exception:
+                pass
+        
+        # 最后再读取 project_config.json（Web 端保存时可能把标签扁平化污染）
+        config_file = project_path / 'project_config.json'
+        if config_file.exists():
+            try:
+                configs.append(json.loads(config_file.read_text(encoding='utf-8')))
+            except Exception:
+                pass
         
         for config in configs:
             # 1. fanqie_upload_data 结构
@@ -1281,7 +1343,7 @@ NovelPublisher_Data/              ← 统一数据目录
             result['novel_title'] = result['novel_title'] or config.get('title', '') or config.get('novel_title', '')
             result['synopsis'] = result['synopsis'] or config.get('synopsis', '')
             
-            # 3. novel_info 结构
+            # 3. novel_info 结构（自由创意模式）
             novel_info = config.get('novel_info')
             if isinstance(novel_info, dict):
                 result['novel_title'] = result['novel_title'] or novel_info.get('title', '')
@@ -1300,8 +1362,11 @@ NovelPublisher_Data/              ← 统一数据目录
                     tags = selected_plan.get('tags', {})
                     if isinstance(tags, dict) and tags:
                         result['tags_info'] = {**result['tags_info'], **tags}
+                    suggestions = selected_plan.get('suggestions', {})
+                    if isinstance(suggestions, dict) and suggestions.get('name'):
+                        result['main_character'] = suggestions['name']
             
-            # 4. 顶层 selected_plan
+            # 4. 顶层 selected_plan（市场导向模式兼容）
             selected_plan = config.get('selected_plan', {})
             if isinstance(selected_plan, dict):
                 result['novel_title'] = result['novel_title'] or selected_plan.get('title', '')
@@ -1309,6 +1374,9 @@ NovelPublisher_Data/              ← 统一数据目录
                 tags = selected_plan.get('tags', {})
                 if isinstance(tags, dict) and tags:
                     result['tags_info'] = {**result['tags_info'], **tags}
+                suggestions = selected_plan.get('suggestions', {})
+                if isinstance(suggestions, dict) and suggestions.get('name'):
+                    result['main_character'] = suggestions['name']
             
             # 5. 顶层 character_design
             char_design = config.get('character_design', {})
@@ -1316,6 +1384,55 @@ NovelPublisher_Data/              ← 统一数据目录
                 mc = char_design.get('main_character', {})
                 if isinstance(mc, dict) and mc.get('name'):
                     result['main_character'] = mc['name']
+            
+            # 6. 市场导向模式 - generation_metadata.mode_specific.info.fanqie_upload_data
+            fanqie_data = (
+                config.get('generation_metadata', {})
+                .get('mode_specific', {})
+                .get('info', {})
+                .get('fanqie_upload_data', {})
+            )
+            if isinstance(fanqie_data, dict):
+                result['novel_title'] = result['novel_title'] or fanqie_data.get('title', '')
+                result['synopsis'] = result['synopsis'] or fanqie_data.get('synopsis', '')
+                tags = fanqie_data.get('tags', {})
+                if isinstance(tags, dict) and tags:
+                    result['tags_info'] = {**result['tags_info'], **tags}
+            
+            # 7. 市场导向模式 - category_tags 转换
+            category_tags = config.get('category_tags', {})
+            if isinstance(category_tags, dict) and category_tags.get('main_category'):
+                if not result['tags_info'].get('main_category'):
+                    result['tags_info']['main_category'] = category_tags.get('main_category', '')
+                if not result['tags_info'].get('target_audience'):
+                    result['tags_info']['target_audience'] = category_tags.get('target_audience', '男频')
+                if not result['tags_info'].get('themes') and category_tags.get('tags'):
+                    result['tags_info']['themes'] = category_tags.get('tags', [])[:3]
+                if not result['tags_info'].get('roles'):
+                    result['tags_info']['roles'] = ['主角', '反派', '队友']
+                if not result['tags_info'].get('plots'):
+                    result['tags_info']['plots'] = ['系统流', '打脸', '逆袭']
+        
+        # 🔥 数据清洗：如果最终 tags_info 的 themes 被扁平化了（包含了 roles/plots 的标签），尝试拆分回来
+        themes = result['tags_info'].get('themes', [])
+        roles = result['tags_info'].get('roles', [])
+        plots = result['tags_info'].get('plots', [])
+        if isinstance(themes, list) and len(themes) > 3:
+            role_keywords = {"全能", "腹黑", "冷酷", "果断", "善良", "温柔", "傲娇", "高冷", "机智", "勇敢", "胆小", "自私", "无私", "奶爸", "萌娃", "宝妈", "男主", "女主", "美女", "反派", "屌丝", "神豪", "主播", "选手", "观众", "扮演者", "历史人物"}
+            plot_keywords = {"系统", "系统流", "升级流", "爽文", "打脸", "逆袭", "无敌流", "直播流", "国运流", "召唤流", "扮演流", "带娃流", "温馨流", "日常流", "末日", "囤货", "求生", "神豪", "花钱", "震惊", "装逼", "国运", "直播", "温馨", "搞笑", "日常", "甜宠", "豪门", "重生", "穿越", "快穿"}
+            
+            new_themes, new_roles, new_plots = [], [], []
+            for tag in themes:
+                if tag in role_keywords:
+                    new_roles.append(tag)
+                elif tag in plot_keywords:
+                    new_plots.append(tag)
+                else:
+                    new_themes.append(tag)
+            
+            result['tags_info']['themes'] = new_themes[:3] if new_themes else themes[:3]
+            result['tags_info']['roles'] = new_roles[:3] if new_roles else roles[:3]
+            result['tags_info']['plots'] = new_plots[:3] if new_plots else plots[:3]
         
         # 补齐 tags_info 中缺失的基础字段
         tags_info = result['tags_info']
@@ -1416,7 +1533,9 @@ NovelPublisher_Data/              ← 统一数据目录
         self.load_chapters(project_path)
     
     def load_chapters(self, project_path: Path):
-        """加载章节"""
+        """加载章节（兼容市场导向JSON和自由创意TXT）"""
+        import re
+        
         self.chapters_list.clear()
         self.chapters = []
         
@@ -1425,17 +1544,65 @@ NovelPublisher_Data/              ← 统一数据目录
             self.chapters_stats.setText("共 0 个章节 (章节目录不存在)")
             return
         
-        chapter_files = sorted(
-            list(chapters_dir.glob("chapter_*.json")) +
-            list(chapters_dir.glob("第*.json"))
-        )
+        # 同时支持 JSON（市场导向）和 TXT（自由创意）格式
+        json_files = list(chapters_dir.glob("chapter_*.json")) + list(chapters_dir.glob("第*.json"))
+        txt_files = list(chapters_dir.glob("第*.txt")) + list(chapters_dir.glob("chapter_*.txt"))
+        
+        all_files = json_files + txt_files
+        
+        def _extract_sort_key(ch_file: Path):
+            """从文件名提取章节号用于排序"""
+            name = ch_file.name
+            # 尝试匹配 "第001章" 或 "第1章"
+            m = re.search(r'第(\d+)章', name)
+            if m:
+                return int(m.group(1))
+            # 尝试匹配 "chapter_001"
+            m = re.search(r'chapter_(\d+)', name)
+            if m:
+                return int(m.group(1))
+            return 0
+        
+        chapter_files = sorted(all_files, key=_extract_sort_key)
+        
         for ch_file in chapter_files:
             try:
-                data = json.loads(ch_file.read_text(encoding='utf-8'))
-                ch_num = data.get('chapter_number', 0)
-                ch_title = data.get('title', f'第{ch_num}章')
+                if ch_file.suffix == '.json':
+                    # 市场导向模式：从 JSON 内容读取
+                    data = json.loads(ch_file.read_text(encoding='utf-8'))
+                    ch_num = data.get('chapter_number', 0)
+                    # 兼容自由创意 JSON：可能只有 chapter_title 没有 title
+                    ch_title = data.get('title') or data.get('chapter_title') or f'第{ch_num}章'
+                else:
+                    # 自由创意模式：从 TXT 文件名和内容读取
+                    content = ch_file.read_text(encoding='utf-8')
+                    name = ch_file.stem  # 去掉扩展名，如 "第1章_绝境求生" 或 "第1章"
+                    
+                    m = re.search(r'第(\d+)章', name)
+                    ch_num = int(m.group(1)) if m else 0
+                    
+                    # 标题：去掉 "第X章_" 前缀，剩余部分作为标题
+                    title_part = re.sub(r'^第\d+章[_\s]*', '', name).strip()
+                    if title_part:
+                        ch_title = title_part
+                    else:
+                        ch_title = f"第{ch_num}章"
+                    
+                    # 兼容上传器期望的字段名
+                    data = {
+                        "chapter_number": ch_num,
+                        "chapter_title": ch_title,
+                        "title": ch_title,
+                        "content": content
+                    }
                 
-                item = QListWidgetItem(f"第{ch_num:03d}章: {ch_title}")
+                # 避免显示 "第010章: 第10章" 这种重复
+                display_num = f"第{ch_num:03d}章"
+                if ch_title and ch_title != f"第{ch_num}章" and ch_title != display_num:
+                    display_text = f"{display_num}: {ch_title}"
+                else:
+                    display_text = display_num
+                item = QListWidgetItem(display_text)
                 item.setData(Qt.UserRole, data)
                 self.chapters_list.addItem(item)
                 self.chapters.append(data)

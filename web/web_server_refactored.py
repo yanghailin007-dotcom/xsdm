@@ -834,19 +834,10 @@ def register_fanqie_routes(app):
                     if key not in tags_data and key in plan_tags:
                         tags_data[key] = plan_tags[key]
             
-            # 构建标签列表（从 themes 和 plots 合并）
-            tags_list = []
-            if tags_data:
-                themes = tags_data.get('themes', [])
-                plots = tags_data.get('plots', [])
-                roles = tags_data.get('roles', [])
-                if isinstance(themes, list):
-                    tags_list.extend(themes)
-                if isinstance(plots, list):
-                    tags_list.extend(plots)
-                if isinstance(roles, list):
-                    tags_list.extend(roles)
-                tags_list = list(set(tags_list))[:5]  # 去重并限制5个
+            # 分别提取主题/角色/情节标签
+            themes_list = tags_data.get('themes', []) if isinstance(tags_data.get('themes'), list) else []
+            roles_list = tags_data.get('roles', []) if isinstance(tags_data.get('roles'), list) else []
+            plots_list = tags_data.get('plots', []) if isinstance(tags_data.get('plots'), list) else []
             
             # 分类：fanqie_upload_data.tags.main_category > selected_plan.tags.main_category > novel_info.category > category
             category = (tags_data.get('main_category') or 
@@ -901,7 +892,9 @@ def register_fanqie_routes(app):
                 "project_name": title,
                 "description": synopsis,
                 "category": category,
-                "tags": tags_list,
+                "themes": themes_list,
+                "roles": roles_list,
+                "plots": plots_list,
                 "cover_exists": cover_exists,
                 "cover_path": cover_path,
                 "total_chapters": total_chapters,
@@ -1269,6 +1262,7 @@ def register_fanqie_routes(app):
             description = data.get('description', '').strip()
             category = data.get('category', '').strip()
             tags = data.get('tags', [])
+            themes = data.get('themes', [])
             target_audience = data.get('target_audience', '').strip()
             roles = data.get('roles', [])
             plots = data.get('plots', [])
@@ -1324,23 +1318,31 @@ def register_fanqie_routes(app):
             if 'tags' not in fanqie_data:
                 fanqie_data['tags'] = {}
             fanqie_data['tags']['main_category'] = category
-            fanqie_data['tags']['themes'] = tags
+            
+            # 优先使用新前端传入的独立字段 themes/roles/plots
+            if themes:
+                fanqie_data['tags']['themes'] = themes
+            elif tags:
+                # 🔥 兼容旧前端：如果传的是扁平 tags，尝试拆分或直接使用
+                fanqie_data['tags']['themes'] = tags
+            elif existing_tags.get('themes'):
+                fanqie_data['tags']['themes'] = existing_tags['themes']
+            
+            if roles:
+                fanqie_data['tags']['roles'] = roles
+            elif existing_tags.get('roles'):
+                fanqie_data['tags']['roles'] = existing_tags['roles']
+            
+            if plots:
+                fanqie_data['tags']['plots'] = plots
+            elif existing_tags.get('plots'):
+                fanqie_data['tags']['plots'] = existing_tags['plots']
             
             # 保存完整的番茄标签（优先使用传入值，否则继承已有值）
             if target_audience:
                 fanqie_data['tags']['target_audience'] = target_audience
             elif existing_tags.get('target_audience') and not fanqie_data['tags'].get('target_audience'):
                 fanqie_data['tags']['target_audience'] = existing_tags['target_audience']
-            
-            if roles:
-                fanqie_data['tags']['roles'] = roles
-            elif existing_tags.get('roles') and not fanqie_data['tags'].get('roles'):
-                fanqie_data['tags']['roles'] = existing_tags['roles']
-            
-            if plots:
-                fanqie_data['tags']['plots'] = plots
-            elif existing_tags.get('plots') and not fanqie_data['tags'].get('plots'):
-                fanqie_data['tags']['plots'] = existing_tags['plots']
             
             # 更新发布配置
             if publish_config:

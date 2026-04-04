@@ -178,7 +178,7 @@ class FanqieUploader:
             }
     
     def _convert_to_fanqie_format(self, project_data: Dict[str, Any], novel_title: str, chapter_files: List[Path], character_design: Optional[Dict] = None) -> Dict[str, Any]:
-        """将创作系统的项目数据转换为番茄上传格式"""
+        """将创作系统的项目数据转换为番茄上传格式（兼容自由创意模式和市场导向模式）"""
         
         # 从新的项目文件结构中提取数据 - 支持多层嵌套结构
         # 优先级：novel_info.selected_plan > selected_plan > 顶层
@@ -199,7 +199,35 @@ class FanqieUploader:
                 project_data.get("tags", {})
             )
         
+        # 尝试从市场导向模式的 fanqie_upload_data 读取
+        if not tags:
+            fanqie_data_src = (
+                project_data.get("generation_metadata", {})
+                .get("mode_specific", {})
+                .get("info", {})
+                .get("fanqie_upload_data", {})
+            )
+            tags = fanqie_data_src.get("tags", {}) if isinstance(fanqie_data_src, dict) else {}
+        
+        # 尝试从 category_tags 转换
+        if not tags:
+            category_tags = project_data.get("category_tags", {})
+            if isinstance(category_tags, dict) and category_tags.get("main_category"):
+                tags = {
+                    "main_category": category_tags.get("main_category", ""),
+                    "themes": category_tags.get("tags", [])[:3] if category_tags.get("tags") else [],
+                    "roles": ["主角", "反派", "队友"],
+                    "plots": ["系统流", "打脸", "逆袭"],
+                    "target_audience": category_tags.get("target_audience", "男频")
+                }
+        
         self.logger.info(f"✅ 提取到标签信息: {tags}")
+        
+        # 确保 selected_plan 包含完整的 tags（供临时文件使用）
+        if isinstance(selected_plan, dict) and not selected_plan.get("tags"):
+            selected_plan = {**selected_plan, "tags": tags}
+        elif not isinstance(selected_plan, dict):
+            selected_plan = {"tags": tags}
         
         # 构建番茄格式的数据
         fanqie_data = {

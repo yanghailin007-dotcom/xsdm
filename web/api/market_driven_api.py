@@ -1000,7 +1000,7 @@ def save_phase_one_products(novel_title: str, products: Dict, task_id: str,
     
     if fanqie_data and fanqie_data.get("title"):
         # 使用AI生成的专业数据
-        project_info["selected_plan"] = {
+        selected_plan = {
             "title": fanqie_data["title"],
             "synopsis": fanqie_data["synopsis"],
             "tags": fanqie_data["tags"],
@@ -1008,6 +1008,13 @@ def save_phase_one_products(novel_title: str, products: Dict, task_id: str,
                 "name": user_choices.get("protagonist_name", "主角") if user_choices else "主角",
                 "genre": genre
             }
+        }
+        project_info["selected_plan"] = selected_plan
+        project_info["novel_info"] = {
+            "title": fanqie_data["title"],
+            "synopsis": fanqie_data["synopsis"],
+            "selected_plan": selected_plan,
+            "category": fanqie_data.get("tags", {}).get("main_category", "")
         }
         logger.info(f"[SaveProducts] 使用AI生成的专业上传数据: {fanqie_data['title']}")
     else:
@@ -1027,7 +1034,7 @@ def save_phase_one_products(novel_title: str, products: Dict, task_id: str,
         else:
             synopsis = ""
         
-        project_info["selected_plan"] = {
+        selected_plan = {
             "title": plan_title,
             "synopsis": synopsis,
             "tags": tags_info,
@@ -1036,7 +1043,53 @@ def save_phase_one_products(novel_title: str, products: Dict, task_id: str,
                 "genre": genre
             }
         }
+        project_info["selected_plan"] = selected_plan
+        project_info["novel_info"] = {
+            "title": plan_title,
+            "synopsis": synopsis,
+            "selected_plan": selected_plan,
+            "category": tags_info.get("main_category", "")
+        }
         logger.info(f"[SaveProducts] 使用备用方案: {plan_title}")
+    
+    # 🔥 统一格式：保存兼容的 "{novel_title}_项目信息.json" 和 project_config.json
+    safe_title = novel_title.replace('《', '').replace('》', '').replace('/', '_').replace('\\', '_')
+    legacy_info_path = project_path / f"{safe_title}_项目信息.json"
+    legacy_data = {
+        "novel_info": project_info["novel_info"],
+        "market_analysis": project_info.get("market_analysis", {}),
+        "character_design": project_info.get("character_design", {}),
+        "core_worldview": project_info.get("core_worldview", {}),
+        "progress": {
+            "completed_chapters": 0,
+            "total_chapters": len(project_info.get("chapters_index", [])),
+            "stage": "未开始"
+        }
+    }
+    try:
+        with open(legacy_info_path, 'w', encoding='utf-8') as f:
+            json.dump(legacy_data, f, ensure_ascii=False, indent=2)
+        logger.info(f"[SaveProducts] 已保存兼容格式项目信息: {legacy_info_path}")
+    except Exception as e:
+        logger.warning(f"[SaveProducts] 保存兼容项目信息失败: {e}")
+    
+    config_path = project_path / "project_config.json"
+    config_data = {
+        "title": novel_title,
+        "fanqie_upload_data": {
+            "title": project_info["novel_info"]["title"],
+            "synopsis": project_info["novel_info"]["synopsis"],
+            "tags": project_info["selected_plan"]["tags"]
+        },
+        "project_name": novel_title,
+        "username": project_info.get("created_by", "")
+    }
+    try:
+        with open(config_path, 'w', encoding='utf-8') as f:
+            json.dump(config_data, f, ensure_ascii=False, indent=2)
+        logger.info(f"[SaveProducts] 已保存桌面系统配置: {config_path}")
+    except Exception as e:
+        logger.warning(f"[SaveProducts] 保存桌面配置失败: {e}")
     
     # 设置模式特定信息（包含用户选择）
     mode_info = {

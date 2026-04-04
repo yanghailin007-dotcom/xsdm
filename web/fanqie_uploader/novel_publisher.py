@@ -285,15 +285,56 @@ class NovelPublisher:
             logger.info(f"✗ 填写书名失败: {e}")
             return False
         
-        # ===== 2. 选择男女频 =====
+        # ===== 2. 选择男女频 & 提取标签（兼容自由创意模式和市场导向模式） =====
+        tags_info = {}
+        
+        # 尝试1：自由创意模式格式 - novel_info.selected_plan.tags
         if "novel_info" in novel_data and isinstance(novel_data["novel_info"], dict):
             tags_info = novel_data.get("novel_info", {}).get("selected_plan", {}).get("tags", {})
-        else:
-            selected_plan = novel_data.get("selected_plan", {})
-            if isinstance(selected_plan, dict):
-                tags_info = selected_plan.get("tags", {})
-            else:
-                tags_info = {}
+            logger.info("[Publisher] 从 novel_info.selected_plan.tags 读取标签")
+        
+        # 尝试2：市场导向模式备用 - 顶层 selected_plan.tags
+        if not tags_info:
+            plan_tags = novel_data.get("selected_plan", {})
+            if isinstance(plan_tags, dict):
+                tags_info = plan_tags.get("tags", {})
+                if tags_info:
+                    logger.info("[Publisher] 从顶层 selected_plan.tags 读取标签")
+        
+        # 尝试3：市场导向模式 - generation_metadata.mode_specific.info.fanqie_upload_data.tags
+        if not tags_info:
+            tags_info = (
+                novel_data.get("generation_metadata", {})
+                .get("mode_specific", {})
+                .get("info", {})
+                .get("fanqie_upload_data", {})
+                .get("tags", {})
+            )
+            if tags_info:
+                logger.info("[Publisher] 从 fanqie_upload_data.tags 读取标签")
+        
+        # 尝试4：市场导向模式 - category_tags 转换
+        if not tags_info:
+            category_tags = novel_data.get("category_tags", {})
+            if isinstance(category_tags, dict) and category_tags.get("main_category"):
+                tags_info = {
+                    "main_category": category_tags.get("main_category", ""),
+                    "themes": category_tags.get("tags", [])[:3] if category_tags.get("tags") else [],
+                    "roles": ["主角", "反派", "队友"],
+                    "plots": ["系统流", "打脸", "逆袭"],
+                    "target_audience": category_tags.get("target_audience", "男频")
+                }
+                logger.info("[Publisher] 从 category_tags 转换标签")
+        
+        # 确保 tags_info 包含所有必要字段
+        if not isinstance(tags_info, dict):
+            tags_info = {}
+        tags_info.setdefault("target_audience", "男频")
+        tags_info.setdefault("main_category", "")
+        tags_info.setdefault("themes", [])
+        tags_info.setdefault("roles", [])
+        tags_info.setdefault("plots", [])
+        
         gender = tags_info.get("target_audience", "男频")
         
         try:

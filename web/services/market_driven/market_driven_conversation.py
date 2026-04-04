@@ -545,6 +545,65 @@ POST /api/v2/prompt-config/component/{step_name}
             project_info["generation_metadata"]["step_completed"] = step_name
             project_info["generation_metadata"]["updated_at"] = datetime.now().isoformat()
             
+            # 🔥 关键修复：同步保存兼容自由创意模式的数据结构，供番茄上传使用
+            if step_name == "fanqie_data" and "fanqie_upload_data" in results:
+                fanqie_data = results["fanqie_upload_data"]
+                novel_title = fanqie_data.get("title", self.user_choices.get("title", ""))
+                
+                # 构建 selected_plan（兼容 novel_publisher.py）
+                selected_plan = {
+                    "title": fanqie_data.get("title", ""),
+                    "synopsis": fanqie_data.get("synopsis", ""),
+                    "tags": fanqie_data.get("tags", {}),
+                    "suggestions": {
+                        "name": self.user_choices.get("protagonist_name", "主角"),
+                        "genre": self.genre
+                    }
+                }
+                project_info["selected_plan"] = selected_plan
+                
+                # 构建 novel_info（兼容桌面系统和自由创意模式）
+                project_info["novel_info"] = {
+                    "title": fanqie_data.get("title", ""),
+                    "synopsis": fanqie_data.get("synopsis", ""),
+                    "selected_plan": selected_plan,
+                    "category": fanqie_data.get("tags", {}).get("main_category", "")
+                }
+                
+                # 同步更新基本信息
+                project_info["novel_title"] = novel_title
+                project_info["novel_synopsis"] = fanqie_data.get("synopsis", "")
+                
+                # 保存兼容的 "{novel_title}_项目信息.json"（自由创意模式格式）
+                safe_title = novel_title.replace('《', '').replace('》', '').replace('/', '_').replace('\\', '_')
+                legacy_info_path = base_path / f"{safe_title}_项目信息.json"
+                legacy_data = {
+                    "novel_info": project_info["novel_info"],
+                    "market_analysis": project_info.get("market_analysis", {}),
+                    "character_design": project_info.get("character_design", {}),
+                    "core_worldview": project_info.get("core_worldview", {}),
+                    "progress": {
+                        "completed_chapters": 0,
+                        "total_chapters": total_chapters or 0,
+                        "stage": "未开始"
+                    }
+                }
+                with open(legacy_info_path, 'w', encoding='utf-8') as f:
+                    json.dump(legacy_data, f, ensure_ascii=False, indent=2)
+                logger.info(f"[对话模式 {self.session_id}] 已保存兼容格式项目信息: {legacy_info_path}")
+                
+                # 保存 project_config.json（兼容桌面系统）
+                config_path = base_path / "project_config.json"
+                config_data = {
+                    "title": novel_title,
+                    "fanqie_upload_data": fanqie_data,
+                    "project_name": novel_title,
+                    "username": project_info.get("created_by", "")
+                }
+                with open(config_path, 'w', encoding='utf-8') as f:
+                    json.dump(config_data, f, ensure_ascii=False, indent=2)
+                logger.info(f"[对话模式 {self.session_id}] 已保存桌面系统配置: {config_path}")
+            
             # 写入文件
             with open(info_path, 'w', encoding='utf-8') as f:
                 json.dump(project_info, f, ensure_ascii=False, indent=2)
@@ -556,6 +615,61 @@ POST /api/v2/prompt-config/component/{step_name}
             
         except Exception as e:
             logger.error(f"[对话模式 {self.session_id}] 保存步骤结果失败: {e}")
+    
+    def _sync_compatible_files(self, project_path: str, results: Dict):
+        """在所有步骤完成后，同步标准兼容格式文件（与自由创意模式统一）"""
+        try:
+            import json
+            base_path = Path(project_path)
+            info_path = base_path / "project_info.json"
+            if not info_path.exists():
+                return
+            
+            with open(info_path, 'r', encoding='utf-8') as f:
+                project_info = json.load(f)
+            
+            novel_title = project_info.get("novel_title", "")
+            if not novel_title:
+                return
+            
+            safe_title = novel_title.replace('《', '').replace('》', '').replace('/', '_').replace('\\', '_')
+            
+            # 1. 保存兼容的 "{novel_title}_项目信息.json"
+            legacy_info_path = base_path / f"{safe_title}_项目信息.json"
+            legacy_data = {
+                "novel_info": project_info.get("novel_info", {}),
+                "market_analysis": project_info.get("market_analysis", {}),
+                "character_design": project_info.get("character_design", {}),
+                "core_worldview": project_info.get("core_worldview", {}),
+                "progress": {
+                    "completed_chapters": len(project_info.get("chapters_index", [])),
+                    "total_chapters": project_info.get("generation_metadata", {}).get("target_chapters", 0),
+                    "stage": "未开始"
+                }
+            }
+            with open(legacy_info_path, 'w', encoding='utf-8') as f:
+                json.dump(legacy_data, f, ensure_ascii=False, indent=2)
+            logger.info(f"[对话模式 {self.session_id}] 最终同步兼容项目信息: {legacy_info_path}")
+            
+            # 2. 保存 project_config.json（供桌面系统读取）
+            config_path = base_path / "project_config.json"
+            selected_plan = project_info.get("selected_plan", {})
+            config_data = {
+                "title": novel_title,
+                "fanqie_upload_data": {
+                    "title": selected_plan.get("title", novel_title),
+                    "synopsis": selected_plan.get("synopsis", ""),
+                    "tags": selected_plan.get("tags", {})
+                },
+                "project_name": novel_title,
+                "username": project_info.get("created_by", "")
+            }
+            with open(config_path, 'w', encoding='utf-8') as f:
+                json.dump(config_data, f, ensure_ascii=False, indent=2)
+            logger.info(f"[对话模式 {self.session_id}] 最终同步桌面配置: {config_path}")
+            
+        except Exception as e:
+            logger.error(f"[对话模式 {self.session_id}] 同步兼容文件失败: {e}")
     
     def _save_phase_one_product(self, step_name: str, results: Dict, base_path: Path):
         """保存第一阶段产物到独立文件
@@ -727,6 +841,11 @@ POST /api/v2/prompt-config/component/{step_name}
         
         # 🔥 最终保存
         self._save_step_result("complete", results, project_path)
+        
+        # 🔥 关键：最终同步标准兼容格式（自由创意模式格式）
+        if project_path:
+            self._sync_compatible_files(project_path, results)
+        
         logger.info(f"[对话模式 {self.session_id}] ✅ 所有6个步骤完成 | 总轮次: {self.session.turn_count} | 全部结果已保存")
         return results
     
