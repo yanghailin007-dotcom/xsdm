@@ -249,6 +249,43 @@ def register_novel_routes(app, manager: NovelGenerationManager):
             logger.error(f"❌ 获取小说详情失败: {e}")
             return jsonify({"error": str(e)}), 500
 
+    @app.route('/api/novel-info', methods=['GET'])
+    def get_novel_info():
+        """获取小说信息（前端兼容性接口）"""
+        try:
+            title = request.args.get('title')
+            if not title:
+                return jsonify({"success": False, "error": "缺少title参数"}), 400
+            
+            novel_detail = manager.get_novel_detail(title)
+            
+            # 如果项目不在缓存中，尝试重新加载
+            if not novel_detail:
+                logger.info(f"[NOVEL_API] 项目 {title} 不在缓存中，尝试重新加载...")
+                manager.load_existing_novels()
+                novel_detail = manager.get_novel_detail(title)
+            
+            if not novel_detail:
+                return jsonify({"success": False, "error": "小说不存在"}), 404
+            
+            # 构造前端期望的数据格式
+            generated_chapters = novel_detail.get('generated_chapters', {})
+            total_chapters = novel_detail.get('current_progress', {}).get('total_chapters', 0)
+            completed_chapters = len(generated_chapters)
+            
+            return jsonify({
+                "success": True,
+                "novel": {
+                    "title": novel_detail.get('novel_title', title),
+                    "total_chapters": total_chapters,
+                    "completed_chapters": completed_chapters,
+                    "status": "completed" if completed_chapters >= total_chapters and total_chapters > 0 else "generating"
+                }
+            })
+        except Exception as e:
+            logger.error(f"❌ 获取小说信息失败: {e}")
+            return jsonify({"success": False, "error": str(e)}), 500
+
     @app.route('/api/project/<title>/chapter/<int:chapter_num>', methods=['GET'])
     def get_chapter_detail(title, chapter_num):
         """获取章节详情"""
@@ -434,29 +471,142 @@ def register_novel_routes(app, manager: NovelGenerationManager):
     def get_chapters_list():
         """获取章节列表（兼容性）"""
         try:
-            # 获取最新项目的章节
-            projects = manager.get_novel_projects()
-            if projects:
-                latest_project = projects[0]
-                novel_detail = manager.get_novel_detail(latest_project["title"])
-                if novel_detail:
-                    chapters = []
-                    generated_chapters = novel_detail.get("generated_chapters", {})
-                    for chapter_num in sorted(generated_chapters.keys()):
-                        chapter_data = generated_chapters[chapter_num]
-                        chapters.append({
-                            "chapter_number": chapter_num,
-                            "title": chapter_data.get("outline", {}).get("章节标题", f"第{chapter_num}章"),
-                            "word_count": len(chapter_data.get("content", "")),
-                            "score": chapter_data.get("assessment", {}).get("整体评分", 0),
-                            "status": "completed",
-                            "generated_at": chapter_data.get("generation_time", "")
-                        })
-                    return jsonify(chapters)
-            return jsonify([])
+            # 获取title参数
+            title = request.args.get('title')
+            
+            novel_detail = None
+            if title:
+                # 根据title获取指定小说
+                novel_detail = manager.get_novel_detail(title)
+                # 如果不在缓存中，尝试重新加载
+                if not novel_detail:
+                    manager.load_existing_novels()
+                    novel_detail = manager.get_novel_detail(title)
+            else:
+                # 兼容旧逻辑：获取最新项目
+                projects = manager.get_novel_projects()
+                if projects:
+                    latest_project = projects[0]
+                    novel_detail = manager.get_novel_detail(latest_project["title"])
+            
+            if novel_detail:
+                chapters = []
+                generated_chapters = novel_detail.get("generated_chapters", {})
+                for chapter_num in sorted(generated_chapters.keys()):
+                    chapter_data = generated_chapters[chapter_num]
+                    # 获取章节标题，尝试多个可能的字段（按优先级）
+                    title = None
+                    
+                    # 1. 直接从 chapter_data 取 title（最常用）
+                    if not title:
+                        title = chapter_data.get("title")
+                    
+                    # 2. 从 chapter_title 取
+                    if not title:
+                        title = chapter_data.get("chapter_title")
+                    
+                    # 3. 从 outline 取
+                    if not title:
+                        outline = chapter_data.get("outline") or {}
+                        if outline:
+                            title = outline.get("章节标题") or outline.get("title")
+                    
+                    # 4. 从 chapter_plan 取
+                    if not title:
+                        chapter_plan = chapter_data.get("chapter_plan") or {}
+                        if chapter_plan:
+                            title = chapter_plan.get("章节标题") or chapter_plan.get("title")
+                    
+                    # 5. 默认标题
+                    if not title:
+                        title = f"第{chapter_num}章"
+                    
+                    chapters.append({
+                        "number": chapter_num,
+                        "title": title,
+                        "word_count": chapter_data.get("word_count") or len(chapter_data.get("content", "")),
+                        "score": chapter_data.get("assessment", {}).get("整体评分", 0),
+                        "status": "completed",
+                        "generated_at": chapter_data.get("generation_time") or chapter_data.get("generated_at", "")
+                    })
+                return jsonify({"success": True, "chapters": chapters})
+            
+            return jsonify({"success": False, "error": "小说不存在", "chapters": []})
         except Exception as e:
             logger.error(f"❌ 获取章节列表失败: {e}")
-            return jsonify([])
+            return jsonify({"success": False, "error": str(e), "chapters": []})
+
+    @app.route('/api/chapter', methods=['GET'])
+    def get_chapter_by_query():
+        """获取章节详情（支持查询参数）"""
+        try:
+            title = request.args.get('title')
+            chapter_num = request.args.get('chapter', type=int)
+            
+            if not title or not chapter_num:
+                return jsonify({"success": False, "error": "缺少title或chapter参数"}), 400
+            
+            # 获取小说详情
+            novel_detail = manager.get_novel_detail(title)
+            if not novel_detail:
+                # 尝试重新加载
+                manager.load_existing_novels()
+                novel_detail = manager.get_novel_detail(title)
+            
+            if not novel_detail:
+                return jsonify({"success": False, "error": "小说不存在"}), 404
+            
+            # 从generated_chapters获取章节数据
+            generated_chapters = novel_detail.get("generated_chapters", {})
+            chapter_data = generated_chapters.get(str(chapter_num)) or generated_chapters.get(chapter_num)
+            
+            if not chapter_data:
+                return jsonify({"success": False, "error": "章节不存在"}), 404
+            
+            # 构造前端期望的格式
+            # 获取章节标题，尝试多个可能的字段（按优先级）
+            title = None
+            
+            # 1. 直接从 chapter_data 取 title（最常用）
+            if not title:
+                title = chapter_data.get("title")
+            
+            # 2. 从 chapter_title 取（有些版本用这个字段）
+            if not title:
+                title = chapter_data.get("chapter_title")
+            
+            # 3. 从 outline 取
+            outline = chapter_data.get("outline") or {}
+            if not title and outline:
+                title = outline.get("章节标题") or outline.get("title")
+            
+            # 4. 从 chapter_plan 取
+            chapter_plan = chapter_data.get("chapter_plan") or {}
+            if not title and chapter_plan:
+                title = chapter_plan.get("章节标题") or chapter_plan.get("title")
+            
+            # 5. 默认标题
+            if not title:
+                title = f"第{chapter_num}章"
+            
+            chapter = {
+                "number": chapter_num,
+                "title": title,
+                "outline": outline,
+                "content": chapter_data.get("content", ""),
+                "word_count": chapter_data.get("word_count") or len(chapter_data.get("content", "")),
+                "created_at": chapter_data.get("generation_time") or chapter_data.get("generated_at", ""),
+                "status": chapter_data.get("status", "completed"),
+                "file_path": chapter_data.get("file_path", ""),
+                "prompts": chapter_data.get("prompts", ""),
+                "ai_response": chapter_data.get("ai_response", ""),
+                "assessment": chapter_data.get("assessment", {})
+            }
+            
+            return jsonify({"success": True, "chapter": chapter})
+        except Exception as e:
+            logger.error(f"❌ 获取章节详情失败: {e}")
+            return jsonify({"success": False, "error": str(e)}), 500
 
     @app.route('/api/chapter/<int:chapter_num>', methods=['GET'])
     def get_chapter(chapter_num):

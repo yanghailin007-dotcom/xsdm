@@ -312,6 +312,9 @@
 .chapter-item-info {
     flex: 1;
     min-width: 0;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
 }
 
 .chapter-item-title {
@@ -320,6 +323,13 @@
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
+    line-height: 1.4;
+    min-height: 1.4em;
+}
+
+.chapter-item-title:empty::before {
+    content: "未命名章节";
+    color: var(--v2-text-tertiary);
 }
 
 .chapter-item-meta {
@@ -418,43 +428,70 @@
     gap: var(--v2-space-1);
 }
 
-/* 正文内容 - 优化排版体验 */
+/* 正文内容 - 番茄小说风格排版 */
 .chapter-body {
     padding: var(--v2-space-8) var(--v2-space-10);
     font-size: 18px;
-    line-height: 2;
+    line-height: 1.8;
     color: var(--v2-text-primary);
     min-height: 500px;
     text-align: justify;
     word-wrap: break-word;
     overflow-wrap: break-word;
+    letter-spacing: 0.05em;
 }
 
-/* 段落优化 */
+/* 段落优化 - 番茄风格：首行缩进，段落间有间距 */
 .chapter-body p {
-    margin-bottom: 1.5em;
-    text-indent: 2em; /* 首行缩进 */
-}
-
-.chapter-body p:first-of-type {
-    text-indent: 0; /* 第一段不缩进 */
-}
-
-.chapter-body p:last-child {
     margin-bottom: 0;
+    margin-top: 0;
+    text-indent: 2em; /* 首行缩进两字符 */
+    line-height: 1.8;
 }
 
-/* 对话内容不缩进 */
+/* 段与段之间用空行分隔 */
+.chapter-body p + p {
+    margin-top: 0.5em;
+}
+
+/* 章节标题不缩进 */
+.chapter-body p.chapter-title {
+    text-indent: 0;
+    text-align: center;
+    font-size: 1.5em;
+    font-weight: bold;
+    margin: 1em 0;
+}
+
+/* 对话内容不缩进，但要有区分 */
 .chapter-body p.dialogue {
     text-indent: 0;
-    padding-left: 1em;
+    padding-left: 0;
+    margin-top: 0.3em;
+    margin-bottom: 0.3em;
 }
 
 /* 场景分隔 */
 .chapter-body .scene-break {
     text-align: center;
-    margin: 2em 0;
+    margin: 1.5em 0;
     color: var(--v2-text-tertiary);
+    text-indent: 0;
+}
+
+.chapter-body .scene-break::before {
+    content: "* * *";
+    letter-spacing: 0.5em;
+}
+
+/* 场景转换描述（如：--- 大战一触即发） */
+.chapter-body p.scene-description {
+    text-align: center;
+    text-indent: 0;
+    color: var(--v2-text-secondary);
+    font-style: italic;
+    margin: 1em 0;
+    font-size: 0.95em;
 }
 
 /* 强调文字 */
@@ -463,17 +500,28 @@
     color: var(--v2-text-primary);
 }
 
-/* 称谓标注 */
+/* 对话中的说话人 */
 .chapter-body .speaker {
-    color: var(--v2-primary-400);
-    font-weight: 600;
+    color: var(--v2-text-primary);
 }
 
 /* 空行处理 */
 .chapter-body br {
-    display: block;
-    content: "";
-    margin-bottom: 0.5em;
+    display: none;
+}
+
+/* 移动端适配 */
+@media (max-width: 768px) {
+    .chapter-body {
+        font-size: 16px;
+        line-height: 1.75;
+        padding: var(--v2-space-6) var(--v2-space-4);
+    }
+    
+    .chapter-body p {
+        text-indent: 2em;
+        line-height: 1.75;
+    }
 }
 
 /* 底部导航 */
@@ -1532,7 +1580,8 @@ function closeJsonModal() {
     document.getElementById('json-modal').style.display = 'none';
 }
 
-// ESC 关闭抽屉和模态框 + 键盘导航document.addEventListener('keydown', function(e) {
+// ESC 关闭抽屉和模态框 + 键盘导航
+document.addEventListener('keydown', function(e) {
     // 如果正在输入框中，不触发快捷键
     if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') {
         return;

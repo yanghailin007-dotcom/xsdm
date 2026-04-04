@@ -1858,6 +1858,8 @@ class APIClient:
         try:
             result = json.loads(json_content)
             self.logger.info(f"  [{thread_id}] ✓ JSON直接解析成功")
+            # 清理章节内容中的 --- 分隔符及后面的内容
+            result = self._clean_chapter_content(result)
             return result
         except json.JSONDecodeError as e:
             self.logger.info(f"  [{thread_id}] - 首次JSON解析失败: {e}")
@@ -1866,6 +1868,8 @@ class APIClient:
             fixed_json = self._fix_json_format(json_content)
             result = json.loads(fixed_json)
             self.logger.info(f"  [{thread_id}] ✓ JSON修复后解析成功")
+            # 清理章节内容中的 --- 分隔符及后面的内容
+            result = self._clean_chapter_content(result)
             return result
         except json.JSONDecodeError as e:
             self.logger.info(f"  [{thread_id}] - JSON修复后仍然解析失败: {e}")
@@ -1883,6 +1887,24 @@ class APIClient:
         self._save_debug_response(json_content, "failed_json_parse")
         self.logger.info(f"  [{thread_id}] 💥 所有本地解析和修复方法均失败。放弃本次结果，交由上层重试。")
         return None
+    
+    def _clean_chapter_content(self, result: Any) -> Any:
+        """清理章节内容中的 --- 分隔符及后面的内容（自检/反思部分）"""
+        if not isinstance(result, dict):
+            return result
+        
+        # 清理 content 字段
+        if "content" in result and isinstance(result["content"], str):
+            content = result["content"]
+            # 查找 --- 分隔符（单独一行或行尾）
+            import re
+            # 匹配 --- 及其后面的所有内容（包括换行）
+            cleaned = re.split(r'\n?\s*---\s*\n?', content, maxsplit=1)[0]
+            if cleaned != content:
+                self.logger.info(f"    🧹 清理章节内容: 移除 --- 及其后面 {len(content) - len(cleaned)} 字符")
+                result["content"] = cleaned.strip()
+        
+        return result
     def _add_json_format_requirements(self, system_prompt: str) -> str:
         """在system_prompt中添加严格的JSON格式要求和中文语言要求"""
         strict_system_prompt = system_prompt + """

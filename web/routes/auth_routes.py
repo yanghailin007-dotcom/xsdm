@@ -445,6 +445,20 @@ def register_page_routes(app):
         logger.info("📄 Loading uploader-guide.html")
         return render_template('pages/v2/uploader-guide.html')
     
+    @app.route('/create-hub', methods=['GET'])
+    @login_required
+    def create_hub():
+        """创作入口选择页 - 长篇小说/短篇/继续项目"""
+        logger.info("📄 Loading create-hub.html")
+        return render_template('pages/v2/create-hub.html')
+
+    @app.route('/creative-planning', methods=['GET'])
+    @login_required
+    def creative_planning_page():
+        """交互式创意策划页面"""
+        logger.info("📄 Loading creative-planning.html")
+        return render_template('pages/v2/creative-planning.html')
+
     @app.route('/phase-one-setup', methods=['GET'])
     @login_required
     def phase_one_setup():

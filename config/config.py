@@ -134,7 +134,7 @@ CONFIG = {
     # 🚀 分域会话模式配置（新一代一阶段生成架构）
     # 启用后，一阶段将使用 Foundation -> Character -> Structure 三个独立会话
     # 通过 Context Brief 传递上下文，避免单一会话过载
-    "use_domain_session_mode": False,
+    "use_domain_session_mode": True,
     
     # 🎨 封面生成配置（NanoBanana Pro / Gemini）
     "cover_generation": {

@@ -219,18 +219,60 @@ function renderChapter(chapter) {
 function formatChapterContent(content) {
     if (!content) return '<p class="empty-text">本章暂无内容</p>';
     
+    // 去掉内容末尾的 ---（自检/反思部分的分隔符）
+    content = content.replace(/\s*---\s*$/, '');
+    
+    // 场景分隔符：单独的 *** 或 ------ 或 === 或 章节标题
+    const sceneBreakPattern = /^(\*{3,}|-{3,}|={3,}|\s*第[一二三四五六七八九十\d]+[章节节]\s*)$/;
+    // 场景转换标记：--- 文字 或 *** 文字（横杠后跟文字说明）
+    const sceneTransitionPattern = /^(\*{3,}|-{3,}|={3,})\s*(.+)$/;
+    
     return content
         .split('\n')
-        .filter(line => line.trim())
+        .map(line => line.trim())
+        .filter((line, index, arr) => {
+            // 保留非空行
+            if (line) return true;
+            // 保留段落间的空行（用于自然分段）
+            const prevHasContent = index > 0 && arr[index - 1]?.trim();
+            const nextHasContent = index < arr.length - 1 && arr[index + 1]?.trim();
+            return prevHasContent && nextHasContent;
+        })
         .map(line => {
-            // 检测对话
-            if (line.includes('：') || line.includes(':')) {
-                const [speaker, ...dialogue] = line.split(/[：:]/);
-                if (dialogue.length > 0 && speaker.trim().length <= 20) {
-                    return `<p class="dialogue"><span class="speaker">${speaker.trim()}</span>：${dialogue.join('：').trim()}</p>`;
-                }
+            // 检测单独的场景分隔符（渲染为分隔线）
+            if (sceneBreakPattern.test(line)) {
+                return '<div class="scene-break"></div>';
             }
-            return `<p>${line.trim()}</p>`;
+            
+            // 检测场景转换标记（--- 文字），去掉横杠保留文字
+            const transitionMatch = line.match(sceneTransitionPattern);
+            if (transitionMatch && transitionMatch[2]) {
+                const text = transitionMatch[2].trim();
+                // 如果横杠后面有实质内容，作为场景描述段落
+                if (text && text.length > 0) {
+                    return `<p class="scene-description">${text}</p>`;
+                }
+                // 如果后面没有内容，就是分隔线
+                return '<div class="scene-break"></div>';
+            }
+            
+            // 检测对话（说话人：内容）
+            const dialoguePattern = /^["""']?([^"""':：]{1,20})["""']?\s*[：:]\s*(.+)$/;
+            const match = line.match(dialoguePattern);
+            
+            if (match && match[2] && match[2].length > 0) {
+                const speaker = match[1].trim();
+                const text = match[2].trim();
+                return `<p class="dialogue"><span class="speaker">${speaker}</span>：${text}</p>`;
+            }
+            
+            // 检测以引号开头的对话
+            if (/^["""']/.test(line)) {
+                return `<p class="dialogue">${line}</p>`;
+            }
+            
+            // 普通段落
+            return `<p>${line}</p>`;
         })
         .join('');
 }
