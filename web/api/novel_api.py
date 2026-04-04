@@ -492,7 +492,7 @@ def register_novel_routes(app, manager: NovelGenerationManager):
             if novel_detail:
                 chapters = []
                 generated_chapters = novel_detail.get("generated_chapters", {})
-                for chapter_num in sorted(generated_chapters.keys()):
+                for chapter_num in sorted(generated_chapters.keys(), key=lambda x: int(x) if str(x).isdigit() else x):
                     chapter_data = generated_chapters[chapter_num]
                     # 获取章节标题，尝试多个可能的字段（按优先级）
                     title = None
@@ -559,6 +559,10 @@ def register_novel_routes(app, manager: NovelGenerationManager):
             # 从generated_chapters获取章节数据
             generated_chapters = novel_detail.get("generated_chapters", {})
             chapter_data = generated_chapters.get(str(chapter_num)) or generated_chapters.get(chapter_num)
+            
+            # 🔥 如果内存缓存中没有，回退到 get_chapter_detail（支持文件系统读取）
+            if not chapter_data:
+                chapter_data = manager.get_chapter_detail(title, chapter_num)
             
             if not chapter_data:
                 return jsonify({"success": False, "error": "章节不存在"}), 404
@@ -724,6 +728,137 @@ def register_novel_routes(app, manager: NovelGenerationManager):
         except Exception as e:
             logger.error(f"❌ 获取质量数据失败: {e}")
             return jsonify({"error": str(e)}), 500
+
+    @app.route('/api/project-materials/<title>', methods=['GET'])
+    def get_project_materials(title):
+        """获取项目一阶段产物材料（供设定结果页预览）"""
+        try:
+            novel_detail = manager.get_novel_detail(title)
+            if not novel_detail:
+                manager.load_existing_novels()
+                novel_detail = manager.get_novel_detail(title)
+            
+            if not novel_detail:
+                return jsonify({"success": False, "error": "小说不存在"}), 404
+            
+            # ---- worldview ----
+            core_worldview = novel_detail.get("core_worldview", {})
+            if isinstance(core_worldview, dict):
+                worldview_parts = []
+                if core_worldview.get("world_overview"):
+                    worldview_parts.append(f"【世界观概述】\n{core_worldview['world_overview']}")
+                if core_worldview.get("power_system"):
+                    worldview_parts.append(f"\n【力量体系】\n{core_worldview['power_system']}")
+                if core_worldview.get("world_rules"):
+                    rules = core_worldview['world_rules']
+                    if isinstance(rules, list):
+                        worldview_parts.append("\n【世界规则】\n" + "\n".join(f"- {r}" for r in rules))
+                    else:
+                        worldview_parts.append(f"\n【世界规则】\n{rules}")
+                if core_worldview.get("key_locations"):
+                    locs = core_worldview['key_locations']
+                    if isinstance(locs, list):
+                        loc_str = "\n".join(f"- {loc.get('name','')}: {loc.get('description','')}" for loc in locs)
+                        worldview_parts.append(f"\n【关键地点】\n{loc_str}")
+                worldview_str = "\n\n".join(worldview_parts) if worldview_parts else ""
+            else:
+                worldview_str = str(core_worldview)
+            
+            # ---- characters ----
+            character_design = novel_detail.get("character_design", {})
+            characters_list = []
+            if isinstance(character_design, dict):
+                for key, char_data in character_design.items():
+                    if not isinstance(char_data, dict):
+                        continue
+                    basic = char_data.get("basic_info", {})
+                    name = basic.get("name") or key
+                    desc_parts = []
+                    if basic.get("identity"):
+                        desc_parts.append(f"身份: {basic['identity']}")
+                    if basic.get("appearance"):
+                        desc_parts.append(f"外貌: {basic['appearance']}")
+                    if char_data.get("background", {}).get("origin"):
+                        desc_parts.append(f"背景: {char_data['background']['origin']}")
+                    if char_data.get("personality", {}).get("core_traits"):
+                        traits = char_data['personality']['core_traits']
+                        if isinstance(traits, list):
+                            desc_parts.append(f"核心特质: {', '.join(traits)}")
+                        else:
+                            desc_parts.append(f"核心特质: {traits}")
+                    if char_data.get("growth_arc", {}).get("arc_summary"):
+                        desc_parts.append(f"成长: {char_data['growth_arc']['arc_summary']}")
+                    description = " | ".join(desc_parts) if desc_parts else "暂无详细描述"
+                    characters_list.append({"name": name, "description": description})
+            elif isinstance(character_design, list):
+                characters_list = [
+                    {"name": c.get("name", "未命名"), "description": c.get("description", "")}
+                    for c in character_design if isinstance(c, dict)
+                ]
+            
+            # ---- outline ----
+            outline = (
+                novel_detail.get("story_synopsis", "")
+                or novel_detail.get("novel_synopsis", "")
+                or novel_detail.get("novel_info", {}).get("synopsis", "")
+            )
+            if not outline:
+                selected_plan = novel_detail.get("selected_plan") or novel_detail.get("novel_info", {}).get("selected_plan", {})
+                if isinstance(selected_plan, dict):
+                    outline = selected_plan.get("synopsis", "") or selected_plan.get("plot_outline", "")
+            
+            # ---- stage_plans ----
+            stage_plans = {}
+            overall_stage_plans = novel_detail.get("overall_stage_plans", {})
+            if isinstance(overall_stage_plans, dict):
+                # 可能包装在 overall_stage_plan 下
+                osp = overall_stage_plans.get("overall_stage_plan", overall_stage_plans)
+                stages_data = osp.get("stages") if isinstance(osp, dict) else None
+                if isinstance(stages_data, list):
+                    for stage in stages_data:
+                        if not isinstance(stage, dict):
+                            continue
+                        stage_name = stage.get("stage_name", f"阶段{stage.get('stage_number','')}")
+                        stage_plans[stage_name] = {
+                            "chapter_range": stage.get("chapter_range", ""),
+                            "stage_overview": stage.get("core_conflict", "") or stage.get("stage_overview", "")
+                        }
+                elif isinstance(stages_data, dict):
+                    for stage_name, stage in stages_data.items():
+                        if not isinstance(stage, dict):
+                            continue
+                        stage_plans[stage_name] = {
+                            "chapter_range": stage.get("chapter_range", ""),
+                            "stage_overview": stage.get("stage_overview", "") or stage.get("core_conflict", "")
+                        }
+            
+            # 若 overall_stage_plans 为空，尝试 stage_writing_plans
+            if not stage_plans:
+                stage_writing_plans = novel_detail.get("stage_writing_plans", {})
+                if isinstance(stage_writing_plans, dict):
+                    for stage_name, stage in stage_writing_plans.items():
+                        if not isinstance(stage, dict):
+                            continue
+                        plan = stage.get("stage_writing_plan", stage)
+                        stage_plans[stage_name] = {
+                            "chapter_range": plan.get("chapter_range", ""),
+                            "stage_overview": plan.get("stage_overview", "")
+                        }
+            
+            return jsonify({
+                "success": True,
+                "materials": {
+                    "worldview": worldview_str,
+                    "characters": characters_list,
+                    "outline": outline,
+                    "stage_plans": stage_plans
+                }
+            })
+        except Exception as e:
+            logger.error(f"❌ 获取项目材料失败: {e}")
+            import traceback
+            traceback.print_exc()
+            return jsonify({"success": False, "error": str(e)}), 500
 
 
 def standardize_novel_data_structure(novel_data):

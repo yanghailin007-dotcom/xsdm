@@ -1,6 +1,9 @@
 """
-一阶段多轮对话会话管理
-仅在 Kimi 端点启用，利用 256K 上下文窗口和缓存机制实现 Token 节省
+[DEPRECATED / REMOVED] 一阶段多轮对话会话管理
+
+该文件已被废弃，不再被任何业务代码引用。
+原因：自由创意模式的一阶段已统一使用分域会话模式（Foundation → Character → Structure）。
+保留此文件仅作历史参考，请勿在新代码中使用。
 """
 
 import json

@@ -922,6 +922,8 @@ class NovelGenerationManager:
                         # 提取章节号
                         try:
                             match = re.search(r'第(\d+)章', chapter_file.name)
+                            if not match:
+                                match = re.search(r'chapter_(\d+)', chapter_file.name)
                             if match:
                                 chapter_num = int(match.group(1))
                             else:
@@ -1553,6 +1555,12 @@ class NovelGenerationManager:
             try:
                 from src.config.path_config import path_config
                 username = novel_data.get('owner')
+                if not username:
+                    try:
+                        from web.utils.path_utils import get_current_username
+                        username = get_current_username()
+                    except Exception:
+                        pass
                 if username:
                     paths = path_config.get_project_paths(title, username=username)
                     chapters_dir = Path(paths.get("chapters_dir", ""))

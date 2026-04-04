@@ -170,11 +170,21 @@ class NativeSession(BaseSession):
 
 class SimulatedSession(BaseSession):
     """
-    模拟会话模式 - 适用于 Gemini/Deepseek 等不原生支持会话的 API
-    通过拼接历史消息到 prompt 中模拟上下文
+    [DEPRECATED] 模拟会话模式 - 已废弃
+    
+    原因：当前启用的所有 API 端点均已原生支持标准 OpenAI messages 格式。
+    保留此类仅用于向后兼容，不应在新代码中使用。
+    
+    替代方案：统一使用 NativeSession（标准会话模式）或 SingleCallClient（单次调用模式）。
     """
     
     def __init__(self, *args, context_format: str = "default", **kwargs):
+        import warnings
+        warnings.warn(
+            "SimulatedSession is deprecated. Use NativeSession or SingleCallClient instead.",
+            DeprecationWarning,
+            stacklevel=2
+        )
         super().__init__(*args, **kwargs)
         self.context_format = context_format  # 拼接格式
         
@@ -322,26 +332,17 @@ class SessionManager:
         """
         创建新会话
         
-        根据提供商自动选择会话类型：
-        - kimi -> NativeSession
-        - 其他 -> SimulatedSession
+        当前启用的所有 API 端点均已原生支持标准 messages 格式，统一使用 NativeSession。
+        如需单次调用，请使用 SingleCallClient。
         """
         provider = provider or self.api_client.default_provider
         
-        if provider.lower() == "kimi":
-            session = NativeSession(
-                api_client=self.api_client,
-                system_prompt=system_prompt,
-                provider=provider,
-                **kwargs
-            )
-        else:
-            session = SimulatedSession(
-                api_client=self.api_client,
-                system_prompt=system_prompt,
-                provider=provider,
-                **kwargs
-            )
+        session = NativeSession(
+            api_client=self.api_client,
+            system_prompt=system_prompt,
+            provider=provider,
+            **kwargs
+        )
         
         self.sessions[session_id] = session
         return session

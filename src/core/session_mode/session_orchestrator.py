@@ -221,6 +221,7 @@ class SessionOrchestrator:
             snapshot = data.get('novel_data_snapshot')
             if snapshot and isinstance(snapshot, dict):
                 self.generator.novel_data.update(snapshot)
+                self.generator._ctx.update(snapshot)
                 self.logger.info("✅ 从检查点恢复 novel_data 快照")
             
             return True
@@ -475,6 +476,8 @@ class SessionOrchestrator:
             if final_plan_brief:
                 self.generator.novel_data['final_plan_brief'] = final_plan_brief
                 self.generator.novel_data['creative_planning_results'] = results
+                self.generator._ctx['final_plan_brief'] = final_plan_brief
+                self.generator._ctx['creative_planning_results'] = results
                 self.logger.info(
                     f"[CreativePlanningSession] 完成，爆款对齐评分: "
                     f"{final_plan_brief.get('market_alignment', {}).get('score', 'N/A')}"
@@ -519,6 +522,7 @@ class SessionOrchestrator:
             # 导出结果到 novel_data
             results = session.export_results()
             self.generator.novel_data.update(results)
+            self.generator._ctx.update(results)
             
             # 🔥 同步到现有系统：保存写作风格指南到文件
             try:
@@ -573,6 +577,7 @@ class SessionOrchestrator:
         if success:
             results = session.export_results()
             self.generator.novel_data.update(results)
+            self.generator._ctx.update(results)
             
             # 🔥 同步到现有系统：持久化核心角色设计
             try:
@@ -625,6 +630,7 @@ class SessionOrchestrator:
         if success:
             results = session.export_results()
             self.generator.novel_data.update(results)
+            self.generator._ctx.update(results)
             
             # 🔥 同步到现有系统：运行阶段计划相关的 manager 初始化
             try:
@@ -725,16 +731,40 @@ class SessionOrchestrator:
     def _save_phase_one_result(self):
         """调用现有方法保存一阶段结果"""
         try:
-            if hasattr(self.generator, 'project_manager'):
-                username = getattr(self.generator, '_username', None)
-                title = self.generator.novel_data.get('novel_title')
-                if title:
-                    self.generator.project_manager.save_project(
-                        title,
-                        self.generator.novel_data,
-                        username=username
-                    )
-                    self.logger.info("✅ 一阶段结果已保存到项目文件")
+            # 1. 保存整体项目进度（使用 _ctx，确保任务上下文被持久化）
+            if hasattr(self.generator, 'project_manager') and hasattr(self.generator.project_manager, 'save_project_progress'):
+                self.generator.project_manager.save_project_progress(self.generator._ctx)
+                self.logger.info("✅ 一阶段结果已保存到项目文件")
+            
+            # 2. 将关键产物持久化到材料管理器/独立文件，保持与传统模式输出一致
+            if hasattr(self.generator, '_save_material_to_manager'):
+                novel_title = self.generator._ctx.get('novel_title') or self.generator.novel_data.get('novel_title')
+                
+                # 世界观
+                core_worldview = self.generator._ctx.get('core_worldview')
+                if core_worldview:
+                    self.generator._save_material_to_manager("世界观", core_worldview, novel_title=novel_title)
+                    self.logger.info("✅ 世界观已保存到材料管理器")
+                
+                # 势力系统
+                faction_system = self.generator._ctx.get('faction_system')
+                if faction_system:
+                    self.generator._save_material_to_manager("势力系统", faction_system, novel_title=novel_title)
+                    self.logger.info("✅ 势力系统已保存到材料管理器")
+                
+                # 角色设计
+                character_design = self.generator._ctx.get('character_design')
+                if character_design:
+                    self.generator._save_material_to_manager("角色设计", character_design, novel_title=novel_title)
+                    self.logger.info("✅ 角色设计已保存到材料管理器")
+                
+                # 阶段计划
+                stage_writing_plans = self.generator._ctx.get('stage_writing_plans')
+                if stage_writing_plans:
+                    total_stages = len(stage_writing_plans)
+                    self.generator._save_material_to_manager("阶段计划", stage_writing_plans, total_stages=total_stages)
+                    self.logger.info("✅ 阶段计划已保存到材料管理器")
+                
         except Exception as e:
             self.logger.warning(f"⚠️ 保存一阶段项目文件失败: {e}")
 
@@ -761,9 +791,11 @@ class SessionOrchestrator:
                     opt_result = pg._run_phase_one_optimization()
                     if opt_result:
                         self.generator.novel_data["phase_one_optimization"] = opt_result
+                        self.generator._ctx["phase_one_optimization"] = opt_result
                 if hasattr(pg, '_assess_writing_plan_quality'):
                     assessment = pg._assess_writing_plan_quality()
                     if assessment:
                         self.generator.novel_data["quality_assessment"] = assessment
+                        self.generator._ctx["quality_assessment"] = assessment
         except Exception as e:
             self.logger.warning(f"⚠️ 一阶段质量评估失败（不影响流程）: {e}")

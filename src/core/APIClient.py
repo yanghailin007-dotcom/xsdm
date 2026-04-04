@@ -63,7 +63,7 @@ class ConversationSession:
         self.temperature = temperature
         self.purpose_prefix = purpose_prefix
         
-        # 🔥 初始化消息历史（按照 Kimi 官方文档要求维护 messages 列表）
+        # 🔥 初始化消息历史（按照官方文档要求维护 messages 列表）
         self.messages: List[Dict[str, str]] = [
             {"role": "system", "content": system_prompt}
         ]
@@ -113,17 +113,15 @@ class ConversationSession:
         )
         
         if response:
-            # 添加助手响应到历史（按照 Kimi 官方文档要求）
+            # 添加助手响应到历史
             self.messages.append({"role": "assistant", "content": response})
             
             # 🔥 控制消息历史长度，防止超过上下文窗口（保留 system + 最近 max_history 条）
-            # system message 始终在索引 0，需要保留
-            if len(self.messages) > self.max_history + 1:  # +1 是 system message
-                # 保留 system message 和最近的 max_history 条
+            if len(self.messages) > self.max_history + 1:
                 self.messages = [self.messages[0]] + self.messages[-self.max_history:]
                 self.logger.info(f"[对话会话] 历史消息已裁剪，保留最新 {self.max_history} 条")
             
-            # 简单估算 token（中文约 2 token/字英文约 0.5 token/字）
+            # 简单估算 token
             sent_chars = sum(len(m["content"]) for m in self.messages[:-1])
             received_chars = len(response)
             self.total_tokens_sent += int(sent_chars * 1.5)
@@ -945,11 +943,13 @@ class APIClient:
     def _save_api_call_debug(self, system_prompt: str, user_prompt: str, response: str,
                            purpose: str, provider: str, model: str, attempt: int = 1):
         """保存完整的API调用调试信息，包括输入和回复"""
+        import re
         timestamp = int(time.time())
         datetime_str = datetime.now().strftime("%Y%m%d_%H%M%S")
         # 替换文件名中的特殊字符，避免路径问题
-        safe_purpose = purpose.replace("/", "_").replace("\\", "_").replace(":", "_")
+        safe_purpose = re.sub(r'[\\/:*?"<>|\s\n\r\t]', "_", purpose)
         filename = f"{self.debug_dir}/api_call_{safe_purpose}_{datetime_str}_attempt{attempt}.txt"
+        os.makedirs(self.debug_dir, exist_ok=True)
         debug_content = f"""========== API调用调试信息 ==========
 时间: {datetime.now().strftime("%Y-%m-%d %H:%M:%S")}
 提供商: {provider.upper()}
@@ -974,10 +974,12 @@ class APIClient:
             self._save_debug_response(response, f"raw_{purpose}_{attempt}")
     def _save_debug_response(self, content: str, stage: str):
         """保存调试响应到文件"""
+        import re
         timestamp = int(time.time())
         # 替换文件名中的特殊字符，避免路径问题
-        safe_stage = stage.replace("/", "_").replace("\\", "_").replace(":", "_")
+        safe_stage = re.sub(r'[\\/:*?"<>|\s\n\r\t]', "_", stage)
         filename = f"{self.debug_dir}/{safe_stage}_response_{timestamp}.txt"
+        os.makedirs(self.debug_dir, exist_ok=True)
         with open(filename, "w", encoding="utf-8") as f:
             f.write(content)
         self.logger.info(f"  💾 {stage}响应已保存到: {filename}")

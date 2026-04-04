@@ -80,12 +80,9 @@
         <!-- CTA 按钮 -->
         <div class="v2-hero__actions">
             {% if session.logged_in %}
-                <!-- 已登录：显示创作入口 -->
-                <a href="/novels" class="v2-btn v2-btn--primary v2-btn--lg">
-                    <span data-i18n="landing.novel.btn">📖 小说创作</span>
-                </a>
-                <a href="/video-generation" class="v2-btn v2-btn--secondary v2-btn--lg">
-                    <span data-i18n="landing.video.btn">🎬 视频制作</span>
+                <!-- 已登录：统一跳转到创作入口 -->
+                <a href="/create-hub" class="v2-btn v2-btn--primary v2-btn--lg">
+                    <span>🚀 开始创作</span>
                 </a>
             {% else %}
                 <!-- 未登录：显示登录/注册 -->

@@ -1,0 +1,615 @@
+{% extends "layouts/base-v2.html" %}
+
+{% block title %}番茄短篇创作 - AI小说生成{% endblock %}
+
+{% block extra_css %}
+<style>
+.ss-container {
+  max-width: 900px;
+  margin: 0 auto;
+  padding: 32px 24px;
+}
+
+.ss-header {
+  text-align: center;
+  margin-bottom: 32px;
+}
+.ss-header h1 {
+  font-size: 28px;
+  font-weight: 700;
+  margin-bottom: 8px;
+  background: linear-gradient(135deg, #ef4444, #f97316);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+.ss-header p {
+  color: var(--v2-text-secondary);
+  font-size: 15px;
+}
+
+/* 模式切换 */
+.ss-mode-tabs {
+  display: flex;
+  gap: 12px;
+  margin-bottom: 24px;
+  background: var(--v2-bg-secondary);
+  padding: 6px;
+  border-radius: 12px;
+  border: 1px solid var(--v2-border);
+}
+.ss-mode-tab {
+  flex: 1;
+  padding: 12px 20px;
+  border-radius: 8px;
+  text-align: center;
+  cursor: pointer;
+  font-weight: 500;
+  color: var(--v2-text-secondary);
+  transition: all .2s;
+  border: none;
+  background: transparent;
+}
+.ss-mode-tab.active {
+  background: var(--v2-bg-primary);
+  color: var(--v2-text-primary);
+  box-shadow: 0 2px 8px rgba(0,0,0,.08);
+}
+
+/* 表单卡片 */
+.ss-card {
+  background: var(--v2-bg-secondary);
+  border: 1px solid var(--v2-border);
+  border-radius: 16px;
+  padding: 24px;
+  margin-bottom: 20px;
+}
+.ss-card-title {
+  font-size: 16px;
+  font-weight: 600;
+  margin-bottom: 16px;
+  color: var(--v2-text-primary);
+}
+
+.ss-form-group {
+  margin-bottom: 18px;
+}
+.ss-form-group label {
+  display: block;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--v2-text-secondary);
+  margin-bottom: 6px;
+}
+.ss-form-group input,
+.ss-form-group select,
+.ss-form-group textarea {
+  width: 100%;
+  padding: 12px 14px;
+  border: 1px solid var(--v2-border);
+  border-radius: 10px;
+  background: var(--v2-bg-primary);
+  color: var(--v2-text-primary);
+  font-size: 14px;
+  outline: none;
+  transition: border .2s;
+}
+.ss-form-group input:focus,
+.ss-form-group select:focus,
+.ss-form-group textarea:focus {
+  border-color: #ef4444;
+}
+.ss-form-group textarea {
+  min-height: 120px;
+  resize: vertical;
+}
+
+.ss-form-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+}
+
+/* 按钮 */
+.ss-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 14px 28px;
+  border-radius: 10px;
+  font-weight: 600;
+  font-size: 15px;
+  border: none;
+  cursor: pointer;
+  transition: transform .15s, opacity .2s;
+}
+.ss-btn:hover { transform: translateY(-1px); }
+.ss-btn:disabled { opacity: .6; cursor: not-allowed; transform: none; }
+.ss-btn-primary {
+  background: linear-gradient(135deg, #ef4444, #f97316);
+  color: #fff;
+}
+.ss-btn-secondary {
+  background: var(--v2-bg-primary);
+  color: var(--v2-text-primary);
+  border: 1px solid var(--v2-border);
+}
+
+.ss-actions {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 8px;
+}
+.ss-estimate {
+  font-size: 13px;
+  color: var(--v2-text-secondary);
+}
+
+/* 进度面板 */
+.ss-progress-panel {
+  display: none;
+  background: var(--v2-bg-secondary);
+  border: 1px solid var(--v2-border);
+  border-radius: 16px;
+  padding: 24px;
+  margin-bottom: 20px;
+}
+.ss-progress-bar {
+  height: 10px;
+  background: var(--v2-bg-primary);
+  border-radius: 5px;
+  overflow: hidden;
+  margin-bottom: 12px;
+}
+.ss-progress-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #ef4444, #f97316);
+  width: 0%;
+  transition: width .4s ease;
+}
+.ss-progress-text {
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--v2-text-primary);
+  margin-bottom: 4px;
+}
+.ss-progress-sub {
+  font-size: 13px;
+  color: var(--v2-text-secondary);
+}
+
+/* 结果面板 */
+.ss-result-panel {
+  display: none;
+  background: var(--v2-bg-secondary);
+  border: 1px solid var(--v2-border);
+  border-radius: 16px;
+  padding: 24px;
+}
+.ss-result-title {
+  font-size: 20px;
+  font-weight: 700;
+  margin-bottom: 8px;
+}
+.ss-result-synopsis {
+  font-size: 14px;
+  color: var(--v2-text-secondary);
+  margin-bottom: 20px;
+  line-height: 1.6;
+}
+
+.ss-chapter-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.ss-chapter-item {
+  background: var(--v2-bg-primary);
+  border: 1px solid var(--v2-border);
+  border-radius: 10px;
+  padding: 14px 16px;
+  cursor: pointer;
+  transition: border .2s;
+}
+.ss-chapter-item:hover { border-color: #ef4444; }
+.ss-chapter-item.active { border-color: #ef4444; }
+.ss-chapter-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+.ss-chapter-num {
+  font-size: 12px;
+  color: var(--v2-text-secondary);
+}
+.ss-chapter-title {
+  font-weight: 600;
+  font-size: 15px;
+}
+.ss-chapter-meta {
+  font-size: 12px;
+  color: var(--v2-text-secondary);
+}
+
+.ss-chapter-content {
+  display: none;
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px dashed var(--v2-border);
+  font-size: 14px;
+  line-height: 1.8;
+  white-space: pre-wrap;
+}
+.ss-chapter-item.active .ss-chapter-content {
+  display: block;
+}
+
+.ss-export-bar {
+  display: flex;
+  gap: 10px;
+  margin-top: 20px;
+  padding-top: 16px;
+  border-top: 1px solid var(--v2-border);
+}
+
+.hidden { display: none !important; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="ss-container">
+  <div class="ss-header">
+    <h1>🍅 番茄短篇创作</h1>
+    <p>8-12 章轻量爽文快速完本，高密度钩子设计，适配番茄短篇 + 短剧改编</p>
+  </div>
+
+  <!-- 模式切换 -->
+  <div class="ss-mode-tabs">
+    <button class="ss-mode-tab active" data-mode="creative" onclick="switchMode('creative')">💡 创意模式</button>
+    <button class="ss-mode-tab" data-mode="imitate" onclick="switchMode('imitate')">🎭 仿写模式</button>
+  </div>
+
+  <!-- 创意模式表单 -->
+  <div id="creative-form" class="ss-form-panel">
+    <div class="ss-card">
+      <div class="ss-card-title">创意种子</div>
+      <div class="ss-form-group">
+        <label>一句话梗概 *</label>
+        <textarea id="creative-seed" placeholder="例如：我被闺蜜陷害，重生后我要她身败名裂"></textarea>
+      </div>
+    </div>
+
+    <div class="ss-card">
+      <div class="ss-card-title">创作设定</div>
+      <div class="ss-form-row">
+        <div class="ss-form-group">
+          <label>题材类型</label>
+          <select id="creative-genre">
+            <option value="revenge_romance">虐恋追妻火葬场</option>
+            <option value="urban_brainstorm">都市脑洞</option>
+            <option value="era_story">年代文</option>
+            <option value="rebirth_revenge">重生复仇</option>
+            <option value="high_concept">高概念脑洞</option>
+          </select>
+        </div>
+        <div class="ss-form-group">
+          <label>目标字数</label>
+          <select id="creative-word-count">
+            <option value="10000">1 万字</option>
+            <option value="15000" selected>1.5 万字</option>
+            <option value="20000">2 万字</option>
+            <option value="30000">3 万字</option>
+          </select>
+        </div>
+      </div>
+      <div class="ss-form-row">
+        <div class="ss-form-group">
+          <label>章节数</label>
+          <select id="creative-chapters">
+            <option value="8">8 章</option>
+            <option value="10" selected>10 章</option>
+            <option value="12">12 章</option>
+            <option value="15">15 章</option>
+          </select>
+        </div>
+        <div class="ss-form-group">
+          <label>结局偏好</label>
+          <select id="creative-ending">
+            <option value="open">开放式（推荐）</option>
+            <option value="he">圆满结局（HE）</option>
+            <option value="be">悲剧结局（BE）</option>
+          </select>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 仿写模式表单 -->
+  <div id="imitate-form" class="ss-form-panel hidden">
+    <div class="ss-card">
+      <div class="ss-card-title">参考爆款</div>
+      <div class="ss-form-group">
+        <label>参考故事梗概 *</label>
+        <textarea id="imitate-reference" placeholder="粘贴你看到的爆款短篇/短剧的剧情梗概..."></textarea>
+      </div>
+    </div>
+
+    <div class="ss-card">
+      <div class="ss-card-title">差异化调整</div>
+      <div class="ss-form-row">
+        <div class="ss-form-group">
+          <label>替换主角身份（可选）</label>
+          <input type="text" id="imitate-protagonist" placeholder="例如：把\"大学生\"换成\"女总裁\">">
+        </div>
+        <div class="ss-form-group">
+          <label>替换时代背景（可选）</label>
+          <input type="text" id="imitate-era" placeholder="例如：把\"现代\"换成\"八十年代\">">
+        </div>
+      </div>
+      <div class="ss-form-row">
+        <div class="ss-form-group">
+          <label>目标字数</label>
+          <select id="imitate-word-count">
+            <option value="10000">1 万字</option>
+            <option value="15000" selected>1.5 万字</option>
+            <option value="20000">2 万字</option>
+            <option value="30000">3 万字</option>
+          </select>
+        </div>
+        <div class="ss-form-group">
+          <label>章节数</label>
+          <select id="imitate-chapters">
+            <option value="8">8 章</option>
+            <option value="10" selected>10 章</option>
+            <option value="12">12 章</option>
+            <option value="15">15 章</option>
+          </select>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 进度面板 -->
+  <div id="progress-panel" class="ss-progress-panel">
+    <div class="ss-progress-text" id="progress-text">准备生成...</div>
+    <div class="ss-progress-bar">
+      <div class="ss-progress-fill" id="progress-fill"></div>
+    </div>
+    <div class="ss-progress-sub" id="progress-sub">预计耗时 10-20 分钟</div>
+  </div>
+
+  <!-- 结果面板 -->
+  <div id="result-panel" class="ss-result-panel">
+    <div class="ss-result-title" id="result-title"></div>
+    <div class="ss-result-synopsis" id="result-synopsis"></div>
+    <div class="ss-chapter-list" id="chapter-list"></div>
+    <div class="ss-export-bar">
+      <button class="ss-btn ss-btn-secondary" onclick="exportJSON()">📥 导出 JSON</button>
+      <button class="ss-btn ss-btn-secondary" onclick="exportTXT()">📝 导出 TXT</button>
+    </div>
+  </div>
+
+  <!-- 操作区 -->
+  <div class="ss-actions" id="action-bar">
+    <div class="ss-estimate">💰 预计消耗 <span id="estimate-points">4</span> 创造点</div>
+    <button class="ss-btn ss-btn-primary" id="start-btn" onclick="startGeneration()">
+      🚀 开始生成
+    </button>
+  </div>
+</div>
+
+<script>
+let currentMode = 'creative';
+let currentTaskId = null;
+let pollInterval = null;
+let generationResult = null;
+
+function switchMode(mode) {
+  currentMode = mode;
+  document.querySelectorAll('.ss-mode-tab').forEach(tab => {
+    tab.classList.toggle('active', tab.dataset.mode === mode);
+  });
+  document.getElementById('creative-form').classList.toggle('hidden', mode !== 'creative');
+  document.getElementById('imitate-form').classList.toggle('hidden', mode !== 'imitate');
+  updateEstimate();
+}
+
+function updateEstimate() {
+  const wordCount = parseInt(document.getElementById(currentMode + '-word-count').value) || 15000;
+  const estimated = Math.max(3, Math.round(wordCount / 3000 * 0.85));
+  document.getElementById('estimate-points').textContent = estimated;
+}
+
+document.querySelectorAll('select').forEach(sel => {
+  sel.addEventListener('change', updateEstimate);
+});
+
+async function startGeneration() {
+  const btn = document.getElementById('start-btn');
+  btn.disabled = true;
+  btn.textContent = '生成中...';
+
+  let payload = {};
+  let endpoint = '';
+
+  if (currentMode === 'creative') {
+    const seed = document.getElementById('creative-seed').value.trim();
+    if (!seed) {
+      alert('请输入创意种子');
+      btn.disabled = false;
+      btn.textContent = '🚀 开始生成';
+      return;
+    }
+    endpoint = '/api/short-story/create';
+    payload = {
+      creative_seed: seed,
+      genre: document.getElementById('creative-genre').value,
+      target_word_count: parseInt(document.getElementById('creative-word-count').value),
+      chapter_count: parseInt(document.getElementById('creative-chapters').value),
+      ending_type: document.getElementById('creative-ending').value
+    };
+  } else {
+    const ref = document.getElementById('imitate-reference').value.trim();
+    if (!ref) {
+      alert('请输入参考文本');
+      btn.disabled = false;
+      btn.textContent = '🚀 开始生成';
+      return;
+    }
+    endpoint = '/api/short-story/imitate';
+    payload = {
+      reference_text: ref,
+      protagonist_replacement: document.getElementById('imitate-protagonist').value.trim(),
+      era_replacement: document.getElementById('imitate-era').value.trim(),
+      target_word_count: parseInt(document.getElementById('imitate-word-count').value),
+      chapter_count: parseInt(document.getElementById('imitate-chapters').value),
+      ending_type: 'open'
+    };
+  }
+
+  try {
+    const res = await fetch(endpoint, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    });
+    const data = await res.json();
+    if (data.error) {
+      alert(data.error);
+      btn.disabled = false;
+      btn.textContent = '🚀 开始生成';
+      return;
+    }
+    currentTaskId = data.task_id;
+    showProgress();
+    startPolling();
+  } catch (e) {
+    alert('请求失败: ' + e.message);
+    btn.disabled = false;
+    btn.textContent = '🚀 开始生成';
+  }
+}
+
+function showProgress() {
+  document.getElementById('progress-panel').style.display = 'block';
+  document.getElementById('result-panel').style.display = 'none';
+  document.getElementById('action-bar').style.display = 'none';
+  document.querySelectorAll('.ss-form-panel').forEach(p => p.classList.add('hidden'));
+  document.querySelector('.ss-mode-tabs').style.display = 'none';
+}
+
+function startPolling() {
+  if (pollInterval) clearInterval(pollInterval);
+  pollInterval = setInterval(async () => {
+    if (!currentTaskId) return;
+    try {
+      const res = await fetch('/api/short-story/status/' + currentTaskId);
+      const data = await res.json();
+      document.getElementById('progress-fill').style.width = data.progress + '%';
+      document.getElementById('progress-text').textContent = data.message;
+      document.getElementById('progress-sub').textContent = data.current_stage || '';
+
+      if (data.status === 'completed' || data.status === 'failed') {
+        clearInterval(pollInterval);
+        if (data.status === 'completed') {
+          loadResult();
+        } else {
+          alert('生成失败: ' + (data.error || '未知错误'));
+          resetUI();
+        }
+      }
+    } catch (e) {
+      console.error('轮询失败', e);
+    }
+  }, 3000);
+}
+
+async function loadResult() {
+  try {
+    const res = await fetch('/api/short-story/result/' + currentTaskId);
+    const data = await res.json();
+    if (!data.result) return;
+    generationResult = data.result;
+
+    document.getElementById('progress-panel').style.display = 'none';
+    document.getElementById('result-panel').style.display = 'block';
+    document.getElementById('result-title').textContent = data.result.title || '未命名';
+    document.getElementById('result-synopsis').textContent = data.result.synopsis || '';
+
+    const list = document.getElementById('chapter-list');
+    list.innerHTML = '';
+    const chapters = data.result.chapters || {};
+    Object.keys(chapters).sort((a, b) => parseInt(a) - parseInt(b)).forEach(num => {
+      const ch = chapters[num];
+      const item = document.createElement('div');
+      item.className = 'ss-chapter-item';
+      item.innerHTML = `
+        <div class="ss-chapter-header">
+          <div>
+            <div class="ss-chapter-num">第 ${num} 章</div>
+            <div class="ss-chapter-title">${ch.title || '无标题'}</div>
+          </div>
+          <div class="ss-chapter-meta">${ch.word_count || 0} 字</div>
+        </div>
+        <div class="ss-chapter-content">${escapeHtml(ch.content || '')}</div>
+      `;
+      item.addEventListener('click', () => {
+        item.classList.toggle('active');
+      });
+      list.appendChild(item);
+    });
+  } catch (e) {
+    console.error('加载结果失败', e);
+  }
+}
+
+function resetUI() {
+  document.getElementById('progress-panel').style.display = 'none';
+  document.getElementById('action-bar').style.display = 'flex';
+  document.querySelector('.ss-mode-tabs').style.display = 'flex';
+  document.getElementById(currentMode + '-form').classList.remove('hidden');
+  const btn = document.getElementById('start-btn');
+  btn.disabled = false;
+  btn.textContent = '🚀 开始生成';
+}
+
+function escapeHtml(text) {
+  const div = document.createElement('div');
+  div.textContent = text;
+  return div.innerHTML;
+}
+
+function exportJSON() {
+  if (!generationResult) return;
+  const blob = new Blob([JSON.stringify(generationResult, null, 2)], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = (generationResult.title || '短篇') + '.json';
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+function exportTXT() {
+  if (!generationResult) return;
+  let text = generationResult.title + '\n\n';
+  text += generationResult.synopsis + '\n\n';
+  text += '========================\n\n';
+  const chapters = generationResult.chapters || {};
+  Object.keys(chapters).sort((a, b) => parseInt(a) - parseInt(b)).forEach(num => {
+    const ch = chapters[num];
+    text += `第 ${num} 章 ${ch.title}\n\n`;
+    text += ch.content + '\n\n';
+    text += '------------------------\n\n';
+  });
+  const blob = new Blob([text], { type: 'text/plain;charset=utf-8' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = (generationResult.title || '短篇') + '.txt';
+  a.click();
+  URL.revokeObjectURL(url);
+}
+</script>
+{% endblock %}

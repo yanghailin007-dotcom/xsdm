@@ -540,8 +540,16 @@ def create_app():
         logger.info("✅ creative_planning_api 交互式创意策划已注册")
     except Exception as e:
         logger.warning(f"⚠️ creative_planning_api 注册失败: {e}")
+    
+    # 28.6. 番茄短篇创作 API 路由
+    try:
+        from web.api.short_story_api import register_short_story_routes
+        register_short_story_routes(app)
+        logger.info("✅ short_story_api 番茄短篇创作已注册")
+    except Exception as e:
+        logger.warning(f"⚠️ short_story_api 注册失败: {e}")
 
-    # 28.5. 初始化题材自动更新调度器
+    # 28.7. 初始化题材自动更新调度器
     try:
         from web.services.market_driven.genre_scheduler import init_genre_scheduler
         init_genre_scheduler(app)

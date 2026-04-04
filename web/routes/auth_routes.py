@@ -451,6 +451,13 @@ def register_page_routes(app):
         """创作入口选择页 - 长篇小说/短篇/继续项目"""
         logger.info("📄 Loading create-hub.html")
         return render_template('pages/v2/create-hub.html')
+    
+    @app.route('/short-story/create', methods=['GET'])
+    @login_required
+    def short_story_create():
+        """番茄短篇创作页面"""
+        logger.info("📄 Loading short-story-create.html")
+        return render_template('short-story-create.html')
 
     @app.route('/creative-planning', methods=['GET'])
     @login_required

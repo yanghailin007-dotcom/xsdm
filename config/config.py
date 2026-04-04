@@ -33,11 +33,12 @@ CONFIG = {
                 "model1": "[L]gemini-3-flash-preview", 
                 "assessment": "[L]gemini-2.5-flash",
                 "priority": 3,
-                "enabled": True,
+                "enabled": False,
                 "timeout": 300,
                 "max_retries": 3,
                 "discount_rate": 80,
-                "stream": False
+                "stream": False,
+                "disable_reason": "API key 无效，待与供应商沟通后恢复"
             },
             {
                 "name": "aiapi-world",
@@ -50,7 +51,7 @@ CONFIG = {
                 "timeout": 300,
                 "max_retries": 3,
                 "discount_rate": 100,
-                "stream": False
+                "stream": True
             },
             {
                 "name": "aiberm",
@@ -72,11 +73,12 @@ CONFIG = {
                 "model": "gemini-3-pro-preview",
                 "assessment": "gemini-2.5-flash",
                 "priority": 2,
-                "enabled": True,
+                "enabled": False,
                 "timeout": 300,
                 "max_retries": 3,
                 "discount_rate": 100,
-                "stream": False
+                "stream": False,
+                "disable_reason": "服务端不支持 system role，待与供应商沟通后恢复"
             }
         ],
         "deepseek": [
@@ -128,13 +130,12 @@ CONFIG = {
         "fallback_provider": "deepseek"
     },
     
-    # 多轮对话优化（仅 Kimi 支持）
-    "use_conversation_mode_for_kimi": True,
+
     
     # 🚀 分域会话模式配置（新一代一阶段生成架构）
     # 启用后，一阶段将使用 Foundation -> Character -> Structure 三个独立会话
     # 通过 Context Brief 传递上下文，避免单一会话过载
-    "use_domain_session_mode": True,
+    "use_domain_session_mode": False,
     
     # 🎨 封面生成配置（NanoBanana Pro / Gemini）
     "cover_generation": {
