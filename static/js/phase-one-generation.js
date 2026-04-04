@@ -49,6 +49,46 @@ const STEP_NAMES = {
     'growth_plan': '📈 成长规划'
 };
 
+// 步骤预计用时映射（单位：秒）- 基于实际生成统计
+const STEP_TIME_ESTIMATES = {
+    'creative_refinement': 30,
+    'fanfiction_detection': 60,
+    'multiple_plans': 90,
+    'plan_selection': 15,
+    'foundation_planning': 60,
+    'worldview_with_factions': 60,
+    'character_design': 60,
+    'emotional_growth_planning': 90,
+    'stage_plan': 60,
+    'detailed_stage_plans': 300,
+    'supplementary_characters': 60,
+    'expectation_mapping': 30,
+    'system_init': 15,
+    'saving': 15,
+    'quality_assessment': 120,
+    // 兼容旧步骤名
+    'writing_style': 30,
+    'market_analysis': 30,
+    'worldview': 30,
+    'faction_system': 30,
+    'emotional_blueprint': 45,
+    'growth_plan': 45
+};
+
+// 格式化预计时间显示
+function formatEstimateTime(seconds) {
+    if (seconds < 60) {
+        return `约 ${seconds} 秒`;
+    } else if (seconds < 3600) {
+        const mins = Math.ceil(seconds / 60);
+        return `约 ${mins} 分钟`;
+    } else {
+        const hours = Math.floor(seconds / 3600);
+        const mins = Math.ceil((seconds % 3600) / 60);
+        return `约 ${hours} 小时 ${mins} 分钟`;
+    }
+}
+
 async function startPhaseOneGeneration(event) {
     event.preventDefault();
 
@@ -244,7 +284,7 @@ function updateDetailedStepStatus(stepStatus) {
     }
     
     // stepStatus 是一个对象，键是步骤名，值是状态
-    let activeStepFound = false;
+    let activeStepName = null;
     
     for (const [stepName, status] of Object.entries(stepStatus)) {
         const stepElement = document.querySelector(`[data-step="${stepName}"]`);
@@ -273,7 +313,7 @@ function updateDetailedStepStatus(stepStatus) {
                     icon.textContent = '❌';
                 } else if (status === 'active') {
                     icon.textContent = '⚡';
-                    activeStepFound = true;
+                    activeStepName = stepName;
                 } else {
                     icon.textContent = '⏳';
                 }
@@ -305,12 +345,30 @@ function updateDetailedStepStatus(stepStatus) {
         }
     }
     
+    // 🔥 新增：当检测到 active 步骤时，更新预计用时显示
+    if (activeStepName) {
+        updateStepEstimate(activeStepName);
+    }
+    
     // 计算并更新完成步骤数
     const completedSteps = Object.values(stepStatus).filter(s => s === 'completed').length;
     const totalSteps = DETAILED_STEP_ORDER.length;
     const stepsStatusEl = document.getElementById('steps-status');
     if (stepsStatusEl) {
         stepsStatusEl.textContent = `${completedSteps}/${totalSteps} 完成`;
+    }
+}
+
+// 🔥 新增：更新当前步骤预计用时
+function updateStepEstimate(stepName) {
+    const estimateEl = document.getElementById('current-step-estimate');
+    if (!estimateEl) return;
+    
+    const estimatedSeconds = STEP_TIME_ESTIMATES[stepName];
+    if (estimatedSeconds) {
+        estimateEl.innerHTML = `<span>⏱️</span><span>预计用时: ${formatEstimateTime(estimatedSeconds)}</span>`;
+    } else {
+        estimateEl.innerHTML = `<span>⏱️</span><span>预计用时: 计算中...</span>`;
     }
 }
 
