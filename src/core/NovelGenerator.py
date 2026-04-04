@@ -567,6 +567,59 @@ class NovelGenerator:
         # 重置API调用点数计数器
         self.reset_api_points_counter()
         
+        # 🔥 修复：如果已经通过交互式策划完成方案定型，跳过创意精炼、同人检测和方案生成
+        existing_plan_brief = self._ctx.get('final_plan_brief') or self.novel_data.get('final_plan_brief')
+        if existing_plan_brief:
+            self.logger.info("✅ 检测到已完成的交互式策划方案，跳过创意精炼、同人检测和方案生成")
+            try:
+                if hasattr(self, '_update_task_status_callback'):
+                    task_id = getattr(self, '_current_task_id', None)
+                    if task_id and callable(self._update_task_status_callback):
+                        self._update_task_status_callback(
+                            task_id, 'generating', 40, None,
+                            current_step='plan_selection',
+                            step_status={
+                                'creative_refinement': 'completed',
+                                'fanfiction_detection': 'completed',
+                                'multiple_plans': 'completed',
+                                'plan_selection': 'completed'
+                            }
+                        )
+                        self.logger.info("[phase_one] 步骤状态更新: 已跳过前置步骤")
+            except Exception as e:
+                self.logger.error(f"[phase_one] 步骤状态更新失败: {e}")
+            
+            # 🔥 关键修复：先从 creative_seed 提取标题并写入 novel_data，
+            # 避免 _build_plan_from_final_brief 回退到 "未命名"
+            title_from_seed = None
+            if isinstance(creative_seed, dict):
+                title_from_seed = creative_seed.get('novelTitle') or creative_seed.get('novel_title')
+            elif isinstance(creative_seed, str):
+                try:
+                    parsed = json.loads(creative_seed)
+                    title_from_seed = parsed.get('novelTitle') or parsed.get('novel_title')
+                except:
+                    pass
+            if title_from_seed:
+                self._ctx['novel_title'] = title_from_seed
+                self.novel_data['novel_title'] = title_from_seed
+                self.logger.info(f"[phase_one] 已从创意种子提取标题: {title_from_seed}")
+            
+            selected_plan = self._build_plan_from_final_brief(existing_plan_brief)
+            if not selected_plan:
+                self.logger.error("❌ 从 final_plan_brief 重建方案失败")
+                notify_failure("从交互式策划结果重建方案失败")
+                return False
+            
+            if not self._setup_novel_info(selected_plan, creative_seed, total_chapters):
+                error_msg = "小说基础信息设置失败"
+                print(f"❌ {error_msg}")
+                notify_failure(error_msg)
+                return False
+            
+            self.resume_manager.create_initial_checkpoint(creative_seed, total_chapters)
+            return self.phase_generator.generate_phase_one_preparations()
+        
         # 注意：初始检查点将在方案生成完成后再创建，那时才会有所有必要字段
         
         if isinstance(creative_seed, str):
@@ -735,11 +788,27 @@ class NovelGenerator:
             # 预处理：检测同人小说并获取背景资料
             processed_creative_seed = self._preprocess_creative_seed(refined_creative_seed)
             
-            # 第一步：生成和选择方案
-            selected_plan = self.plan_generator.generate_and_select_plan(processed_creative_seed, self.content_generator)
-            if not selected_plan:
-                print("❌ 方案生成失败")
-                return False
+            # 🔥 检查是否已有交互式策划产出的 final_plan_brief
+            existing_plan_brief = self.novel_data.get('final_plan_brief')
+            if existing_plan_brief:
+                print("✅ 检测到已完成的创意策划方案，跳过方案生成")
+                # 确保标题已设置
+                title_from_seed = None
+                if isinstance(creative_seed, dict):
+                    title_from_seed = creative_seed.get('novelTitle') or creative_seed.get('novel_title')
+                if title_from_seed:
+                    self._ctx['novel_title'] = title_from_seed
+                    self.novel_data['novel_title'] = title_from_seed
+                selected_plan = self._build_plan_from_final_brief(existing_plan_brief)
+                if not selected_plan:
+                    print("❌ 从 final_plan_brief 重建方案失败")
+                    return False
+            else:
+                # 第一步：生成和选择方案
+                selected_plan = self.plan_generator.generate_and_select_plan(processed_creative_seed, self.content_generator)
+                if not selected_plan:
+                    print("❌ 方案生成失败")
+                    return False
 
             # 第二步：设置基础信息
             if not self._setup_novel_info(selected_plan, creative_seed, total_chapters):
@@ -753,6 +822,46 @@ class NovelGenerator:
             import traceback
             traceback.print_exc()
             return False
+
+    def _build_plan_from_final_brief(self, final_plan_brief: Dict) -> Optional[Dict]:
+        """从交互式创意策划产出的 final_plan_brief 重建 selected_plan 格式"""
+        try:
+            market_pos = final_plan_brief.get("market_position", {})
+            core_concept = final_plan_brief.get("core_concept", {})
+            protagonist = final_plan_brief.get("protagonist_brief", {})
+            structure = final_plan_brief.get("structure_brief", {})
+            
+            golden_finger = protagonist.get("golden_finger", {})
+            
+            selected_plan = {
+                "title": self._ctx.get("novel_title") or self.novel_data.get("novel_title", "未命名"),
+                "synopsis": self._ctx.get("novel_synopsis") or self.novel_data.get("novel_synopsis", ""),
+                "tags": {
+                    "main_category": self.novel_data.get("category", "未分类"),
+                    "sub_categories": market_pos.get("genre_tags", []),
+                },
+                "core_hook": core_concept.get("hook", ""),
+                "emotional_arc": core_concept.get("emotional_arc", ""),
+                "protagonist": {
+                    "name": "",
+                    "archetype": protagonist.get("archetype", ""),
+                    "tags": protagonist.get("tags", []),
+                    "motivation": protagonist.get("motivation", ""),
+                },
+                "golden_finger": {
+                    "name": golden_finger.get("name", ""),
+                    "rules": golden_finger.get("rules", []),
+                    "limitations": golden_finger.get("limitations", []),
+                },
+                "stage_goals": structure.get("stage_goals", []),
+                "explosive_points": core_concept.get("explosive_points", []),
+                "market_alignment": final_plan_brief.get("market_alignment", {}),
+                "source": "creative_planning_session",
+            }
+            return selected_plan
+        except Exception as e:
+            print(f"❌ 从 final_plan_brief 重建方案失败: {e}")
+            return None
 
     def _setup_novel_info(self, selected_plan: Dict, creative_seed, total_chapters: Optional[int]) -> bool:
         """设置小说基础信息"""
@@ -1093,7 +1202,6 @@ class NovelGenerator:
                 
                 session = FanfictionBackgroundSession(
                     api_client=self.api_client,
-                    domain="fanfiction",
                     context_briefs=[],
                     novel_data=self.novel_data,
                     provider=provider,

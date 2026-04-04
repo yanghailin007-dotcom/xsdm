@@ -120,6 +120,95 @@
             padding: 40px 0 32px;
         }
         
+        /* 创作模式选择器 */
+        .pt-mode-selector {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 12px;
+        }
+        
+        .pt-mode-option {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 14px 16px;
+            border-radius: 12px;
+            border: 1px solid var(--pt-border-subtle, rgba(255,255,255,0.1));
+            background: var(--pt-bg-secondary, rgba(255,255,255,0.03));
+            cursor: pointer;
+            transition: all 0.2s ease;
+            position: relative;
+        }
+        
+        .pt-mode-option:hover {
+            border-color: rgba(99, 102, 241, 0.3);
+            background: rgba(255,255,255,0.05);
+        }
+        
+        .pt-mode-option--active {
+            border-color: rgba(99, 102, 241, 0.9);
+            background: rgba(99, 102, 241, 0.14);
+            box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.18), 0 4px 12px rgba(0,0,0,0.15);
+        }
+        
+        .pt-mode-option--active .pt-mode-option__icon {
+            background: rgba(99, 102, 241, 0.25);
+        }
+        
+        .pt-mode-option input[type="radio"] {
+            position: absolute;
+            opacity: 0;
+            width: 0;
+            height: 0;
+        }
+        
+        .pt-mode-option__icon {
+            font-size: 20px;
+            width: 40px;
+            height: 40px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: rgba(255,255,255,0.05);
+            border-radius: 10px;
+            flex-shrink: 0;
+        }
+        
+        .pt-mode-option__content {
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+            flex: 1;
+        }
+        
+        .pt-mode-option__title {
+            font-size: 14px;
+            font-weight: 600;
+            color: var(--pt-text-primary, #fafafa);
+        }
+        
+        .pt-mode-option__desc {
+            font-size: 12px;
+            color: var(--pt-text-tertiary, #a1a1aa);
+        }
+        
+        .pt-coming-soon-badge {
+            font-size: 10px;
+            font-weight: 600;
+            padding: 3px 8px;
+            background: var(--pt-bg-tertiary, rgba(255,255,255,0.08));
+            color: var(--pt-text-muted, #71717a);
+            border-radius: 100px;
+            border: 1px solid var(--pt-border-subtle, rgba(255,255,255,0.1));
+            white-space: nowrap;
+        }
+        
+        @media (max-width: 640px) {
+            .pt-mode-selector {
+                grid-template-columns: 1fr;
+            }
+        }
+        
         .pt-page-header__title {
             font-size: 32px;
             font-weight: 700;
@@ -874,6 +963,30 @@
                         </div>
                         
                         <form id="phase-one-form" onsubmit="handleFormSubmit(event)">
+                            <!-- 创作模式选择 -->
+                            <div class="pt-form-group" style="margin-bottom: 24px;">
+                                <label class="pt-form-group__label">方案生成模式</label>
+                                <div class="pt-mode-selector">
+                                    <label class="pt-mode-option pt-mode-option--active" id="mode-auto-label">
+                                        <input type="radio" name="planning_mode" value="auto" id="planning-mode-auto" checked onchange="onPlanningModeChange(this.value)">
+                                        <span class="pt-mode-option__icon">🤖</span>
+                                        <div class="pt-mode-option__content">
+                                            <span class="pt-mode-option__title">自动模式</span>
+                                            <span class="pt-mode-option__desc">AI 全自动优化爆款方案</span>
+                                        </div>
+                                    </label>
+                                    <label class="pt-mode-option" id="mode-interactive-label">
+                                        <input type="radio" name="planning_mode" value="interactive" id="planning-mode-interactive" onchange="onPlanningModeChange(this.value)">
+                                        <span class="pt-mode-option__icon">💬</span>
+                                        <div class="pt-mode-option__content">
+                                            <span class="pt-mode-option__title">对话模式</span>
+                                            <span class="pt-mode-option__desc">与 AI 共同打磨方案</span>
+                                        </div>
+                                        <!-- 对话模式已上线 -->
+                                    </label>
+                                </div>
+                            </div>
+                            
                             <!-- 小说标题 -->
                             <div class="pt-form-group">
                                 <label class="pt-form-group__label" data-i18n="phase1.field.title">小说标题 *</label>
@@ -1714,8 +1827,41 @@
         });
         
         // ==================== 表单提交处理 ====================
+        function onPlanningModeChange(value) {
+            const autoLabel = document.getElementById('mode-auto-label');
+            const interactiveLabel = document.getElementById('mode-interactive-label');
+            if (value === 'auto') {
+                autoLabel.classList.add('pt-mode-option--active');
+                interactiveLabel.classList.remove('pt-mode-option--active');
+            } else {
+                interactiveLabel.classList.add('pt-mode-option--active');
+                autoLabel.classList.remove('pt-mode-option--active');
+                // 对话模式已上线，表单提交后将跳转至交互式策划页面
+            }
+        }
+        
         async function handleFormSubmit(event) {
             event.preventDefault();
+            
+            const planningModeEl = document.querySelector('input[name="planning_mode"]:checked');
+            const planningMode = planningModeEl ? planningModeEl.value : 'auto';
+            
+            // 🔥 对话模式：保存表单数据并跳转到交互式策划页面
+            if (planningMode === 'interactive') {
+                const formData = {
+                    title: document.getElementById('novel-title').value,
+                    synopsis: document.getElementById('novel-synopsis').value,
+                    core_setting: document.getElementById('core-setting').value,
+                    core_selling_points: document.getElementById('core-selling-points').value,
+                    total_chapters: parseInt(document.getElementById('total-chapters').value),
+                    target_platform: document.getElementById('target-platform').value || 'fanqie',
+                    creative_seed: window.selectedCreativeId ? loadedCreativeIdeas.find(i => i.id === window.selectedCreativeId)?.raw_data : null,
+                    category: document.getElementById('target-platform').value || '未分类'
+                };
+                localStorage.setItem('creative_planning_form_data', JSON.stringify(formData));
+                window.location.href = '/creative-planning';
+                return;
+            }
             
             // 先检查创造点余额
             const hasEnoughPoints = await checkPointsBeforeSubmit(event);
@@ -2411,30 +2557,95 @@
         document.addEventListener('DOMContentLoaded', function() {
             console.log('[INIT] DOMContentLoaded 触发');
             
-            // 加载创意库（由 creative-library.js 提供）
-            if (typeof loadCreativeIdeas === 'function') {
-                console.log('[INIT] 开始加载创意库...');
-                loadCreativeIdeas().then(() => {
-                    console.log('[INIT] 创意库加载完成');
-                }).catch(err => {
-                    console.error('[INIT] 创意库加载失败:', err);
-                });
+            // 🔥 检查是否从交互式策划页面返回
+            const urlParams = new URLSearchParams(window.location.search);
+            const fromPlanning = urlParams.get('from_planning') === '1';
+            const planningTitle = urlParams.get('title') || '';
+            
+            if (fromPlanning) {
+                console.log('[INIT] 从交互式策划页面返回，准备自动启动生成');
+                
+                // 尝试恢复表单数据
+                const storedForm = localStorage.getItem('creative_planning_form_data');
+                if (storedForm) {
+                    try {
+                        const formData = JSON.parse(storedForm);
+                        document.getElementById('novel-title').value = formData.title || decodeURIComponent(planningTitle) || '';
+                        document.getElementById('novel-synopsis').value = formData.synopsis || '';
+                        document.getElementById('core-setting').value = formData.core_setting || '';
+                        document.getElementById('core-selling-points').value = formData.core_selling_points || '';
+                        document.getElementById('total-chapters').value = formData.total_chapters || 200;
+                        const platformEl = document.getElementById('target-platform');
+                        if (platformEl && formData.target_platform) platformEl.value = formData.target_platform;
+                    } catch (e) {
+                        console.warn('[INIT] 恢复表单数据失败:', e);
+                        if (planningTitle) {
+                            document.getElementById('novel-title').value = decodeURIComponent(planningTitle);
+                        }
+                    }
+                } else if (planningTitle) {
+                    document.getElementById('novel-title').value = decodeURIComponent(planningTitle);
+                }
+                
+                // 隐藏恢复横幅
+                const banner = document.getElementById('resume-banner');
+                if (banner) banner.style.display = 'none';
+                
+                // 自动选择自动模式（因为 planning 已完成）
+                document.getElementById('planning-mode-auto').checked = true;
+                onPlanningModeChange('auto');
+                
+                // 用方案摘要替换左侧创意库内容
+                const libContainer = document.getElementById('creative-library-container');
+                if (libContainer) {
+                    libContainer.innerHTML = `
+                        <div style="padding: 14px; background: rgba(99,102,241,0.08); border: 1px solid rgba(99,102,241,0.2); border-radius: 10px;">
+                            <div style="font-size: 12px; color: var(--v2-text-tertiary); margin-bottom: 4px;">已确认方案</div>
+                            <div style="font-size: 15px; font-weight: 600; color: var(--v2-text-primary);">${decodeURIComponent(planningTitle) || '未命名'}</div>
+                            <div style="font-size: 12px; color: var(--v2-text-secondary); margin-top: 6px;">来自交互式策划 · 已定型</div>
+                        </div>
+                    `;
+                }
+                
+                // 延迟后自动触发开始生成
+                setTimeout(() => {
+                    showProgressSection();
+                    updateProgress(5, '正在加载已确认的方案并启动生成...');
+                    const mockEvent = { preventDefault: () => {} };
+                    window.fromCreativePlanning = true;
+                    if (typeof startPhaseOneGenerationWithResume === 'function') {
+                        startPhaseOneGenerationWithResume(mockEvent);
+                    }
+                }, 800);
+                
+                // 清理 URL 参数
+                if (window.history.replaceState) {
+                    window.history.replaceState({}, document.title, window.location.pathname);
+                }
             } else {
-                console.warn('[INIT] loadCreativeIdeas 函数不存在，请检查 creative-library.js 是否正确加载');
+                // 普通进入：加载创意库
+                if (typeof loadCreativeIdeas === 'function') {
+                    console.log('[INIT] 开始加载创意库...');
+                    loadCreativeIdeas().then(() => {
+                        console.log('[INIT] 创意库加载完成');
+                    }).catch(err => {
+                        console.error('[INIT] 创意库加载失败:', err);
+                    });
+                } else {
+                    console.warn('[INIT] loadCreativeIdeas 函数不存在，请检查 creative-library.js 是否正确加载');
+                }
+                
+                // 新增：检测未完成项目并显示恢复横幅
+                setTimeout(() => {
+                    checkIncompleteProjects();
+                }, 500);
             }
             
-            // 检查登录状态
+            // 通用初始化
             if (typeof utils !== 'undefined' && utils.checkLoginStatus) {
                 utils.checkLoginStatus();
             }
-            
-            // 加载用户创造点余额
             loadUserPointsBalance();
-            
-            // 新增：检测未完成项目并显示恢复横幅
-            setTimeout(() => {
-                checkIncompleteProjects();
-            }, 500);
             
             // 新增：页面加载时检查是否有可恢复的检查点（用于下拉框）
             setTimeout(() => {
