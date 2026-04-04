@@ -1317,6 +1317,18 @@ NovelPublisher_Data/              ← 统一数据目录
                 if isinstance(mc, dict) and mc.get('name'):
                     result['main_character'] = mc['name']
         
+        # 补齐 tags_info 中缺失的基础字段
+        tags_info = result['tags_info']
+        if not tags_info.get('target_audience'):
+            tags_info['target_audience'] = '男频'
+        if 'themes' not in tags_info:
+            tags_info['themes'] = []
+        if 'roles' not in tags_info:
+            tags_info['roles'] = []
+        if 'plots' not in tags_info:
+            tags_info['plots'] = []
+        
+        result['tags_info'] = tags_info
         return result
     
     def load_single_project(self, project_path: Path):
