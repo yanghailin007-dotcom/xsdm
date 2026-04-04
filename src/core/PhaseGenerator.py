@@ -21,6 +21,13 @@ try:
 except ImportError:
     CONVERSATION_MODE_AVAILABLE = False
 
+# 🚀 导入分域会话编排器
+try:
+    from src.core.session_mode import SessionOrchestrator
+    DOMAIN_SESSION_MODE_AVAILABLE = True
+except ImportError:
+    DOMAIN_SESSION_MODE_AVAILABLE = False
+
 # 🔑 全局线程池监控（用于强制清理）
 _global_executors = weakref.WeakSet()
 
@@ -244,7 +251,20 @@ class PhaseGenerator:
         try:
             print("开始第一阶段准备工作...")
             
-            # 🔥🔥🔥 多轮对话模式检测：Kimi 端点启用
+            # 🚀🚀🚀 分域会话模式检测（优先级最高）
+            if DOMAIN_SESSION_MODE_AVAILABLE and self._should_use_domain_session_mode():
+                print("\n" + "="*60)
+                print("🚀 启用分域会话模式")
+                print("   Foundation → Character → Structure")
+                print("   通过 Context Brief 传递，避免单一会话过载")
+                print("="*60)
+                return self._generate_phase_one_with_domain_sessions(
+                    update_progress_callback=update_progress_callback,
+                    update_step_status=update_step_status,
+                    notify_failure=notify_failure
+                )
+            
+            # 🔥🔥🔥 多轮对话模式检测：Kimi 端点启用（旧模式，兼容）
             # 利用 Kimi 256K 上下文 + 缓存机制，节省 60-70% Token
             if CONVERSATION_MODE_AVAILABLE and self._should_use_conversation_mode():
                 print("\n" + "="*60)
@@ -402,6 +422,83 @@ class PhaseGenerator:
 
         except Exception as e:
             error_msg = f"第一阶段准备工作发生异常: {str(e)}"
+            print(f"❌ {error_msg}")
+            import traceback
+            traceback.print_exc()
+            notify_failure(error_msg)
+            return False
+    
+    def _should_use_domain_session_mode(self) -> bool:
+        """
+        判断是否应使用分域会话模式
+        
+        条件：
+        1. 配置中显式启用 use_domain_session_mode
+        2. API 客户端可用
+        """
+        try:
+            if not hasattr(self.generator, 'api_client') or not self.generator.api_client:
+                return False
+            
+            novel_config = getattr(self.generator, 'config', {})
+            if not isinstance(novel_config, dict):
+                return False
+            
+            # 必须显式启用
+            use_domain = novel_config.get('use_domain_session_mode', False)
+            if not use_domain:
+                return False
+            
+            self.logger.info("✅ 满足条件，启用分域会话模式")
+            return True
+            
+        except Exception as e:
+            self.logger.warning(f"⚠️ 检测分域会话模式时出错: {e}")
+            return False
+    
+    def _generate_phase_one_with_domain_sessions(self, update_progress_callback, update_step_status, notify_failure) -> bool:
+        """
+        使用分域会话模式执行一阶段
+        
+        通过 SessionOrchestrator 编排 Foundation -> Character -> Structure 三个会话
+        """
+        from src.core.session_mode import SessionOrchestrator
+        from src.managers.stage_plan.generation_checkpoint import GenerationCheckpoint
+        
+        try:
+            orchestrator = SessionOrchestrator(self.generator)
+            
+            # 设置回调
+            def _progress_cb(step_name, progress, message, step_status=None):
+                update_progress_callback(step_name, progress, message, step_status)
+            
+            def _step_status_cb(step_name, status, progress=None):
+                update_step_status(step_name, status, progress)
+            
+            orchestrator.set_callbacks(
+                progress_callback=_progress_cb,
+                step_status_callback=_step_status_cb,
+                notify_failure_callback=notify_failure,
+            )
+            
+            # 尝试从检查点恢复（如果存在 context_briefs）
+            title = self.generator.novel_data.get('novel_title') or self.generator.novel_data.get('title')
+            username = getattr(self.generator, '_username', None)
+            if title:
+                checkpoint_mgr = GenerationCheckpoint(title, Path.cwd(), username=username)
+                checkpoint = checkpoint_mgr.load_checkpoint()
+                if checkpoint:
+                    loaded_step = checkpoint.get('current_step')
+                    loaded_status = checkpoint.get('step_status')
+                    # 如果检查点包含 context_briefs，尝试恢复
+                    if checkpoint.get('data', {}).get('context_briefs'):
+                        self.logger.info(f"🔄 检测到分域会话检查点，步骤: {loaded_step} ({loaded_status})")
+                        orchestrator.load_from_checkpoint(checkpoint)
+            
+            return orchestrator.run_phase_one()
+            
+        except Exception as e:
+            error_msg = f"分域会话模式执行失败: {str(e)}"
             print(f"❌ {error_msg}")
             import traceback
             traceback.print_exc()
