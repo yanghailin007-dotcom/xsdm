@@ -418,22 +418,62 @@
     gap: var(--v2-space-1);
 }
 
-/* 正文内容 */
+/* 正文内容 - 优化排版体验 */
 .chapter-body {
     padding: var(--v2-space-8) var(--v2-space-10);
     font-size: 18px;
-    line-height: 1.8;
+    line-height: 2;
     color: var(--v2-text-primary);
     min-height: 500px;
+    text-align: justify;
+    word-wrap: break-word;
+    overflow-wrap: break-word;
 }
 
+/* 段落优化 */
 .chapter-body p {
-    margin-bottom: var(--v2-space-5);
-    /* 首行缩进已移除 - 现代排版不需要 */
+    margin-bottom: 1.5em;
+    text-indent: 2em; /* 首行缩进 */
+}
+
+.chapter-body p:first-of-type {
+    text-indent: 0; /* 第一段不缩进 */
 }
 
 .chapter-body p:last-child {
     margin-bottom: 0;
+}
+
+/* 对话内容不缩进 */
+.chapter-body p.dialogue {
+    text-indent: 0;
+    padding-left: 1em;
+}
+
+/* 场景分隔 */
+.chapter-body .scene-break {
+    text-align: center;
+    margin: 2em 0;
+    color: var(--v2-text-tertiary);
+}
+
+/* 强调文字 */
+.chapter-body strong,
+.chapter-body em {
+    color: var(--v2-text-primary);
+}
+
+/* 称谓标注 */
+.chapter-body .speaker {
+    color: var(--v2-primary-400);
+    font-weight: 600;
+}
+
+/* 空行处理 */
+.chapter-body br {
+    display: block;
+    content: "";
+    margin-bottom: 0.5em;
 }
 
 /* 底部导航 */
@@ -441,9 +481,10 @@
     display: flex;
     align-items: center;
     justify-content: space-between;
-    padding: var(--v2-space-4) var(--v2-space-6);
+    padding: var(--v2-space-5) var(--v2-space-8);
     border-top: 1px solid var(--v2-border-subtle);
     background: var(--v2-bg-tertiary);
+    gap: var(--v2-space-4);
 }
 
 .nav-btn {
@@ -480,6 +521,83 @@
 
 .nav-btn--primary:hover {
     background: rgba(99, 102, 241, 0.1);
+}
+
+/* 大型导航按钮 - 显示章节标题 */
+.nav-btn--large {
+    flex: 1;
+    max-width: 300px;
+    padding: var(--v2-space-4) var(--v2-space-5);
+    gap: var(--v2-space-3);
+}
+
+.nav-btn--large:disabled {
+    opacity: 0.3;
+}
+
+.nav-btn__icon {
+    font-size: var(--v2-text-xl);
+    opacity: 0.7;
+}
+
+.nav-btn__text {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 2px;
+}
+
+.nav-btn:last-child .nav-btn__text {
+    align-items: flex-end;
+}
+
+.nav-btn__label {
+    font-size: var(--v2-text-xs);
+    color: var(--v2-text-tertiary);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.nav-btn__title {
+    font-size: var(--v2-text-sm);
+    color: var(--v2-text-primary);
+    font-weight: var(--v2-font-semibold);
+    max-width: 180px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+/* 中间区域 */
+.chapter-nav-center {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: var(--v2-space-2);
+}
+
+/* 键盘提示 */
+.keyboard-hint {
+    display: flex;
+    align-items: center;
+    gap: var(--v2-space-2);
+    font-size: var(--v2-text-xs);
+    color: var(--v2-text-tertiary);
+}
+
+.keyboard-hint .key {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 20px;
+    height: 20px;
+    padding: 0 4px;
+    background: var(--v2-bg-tertiary);
+    border: 1px solid var(--v2-border-default);
+    border-radius: var(--v2-radius-sm);
+    font-size: 10px;
+    font-family: monospace;
+    color: var(--v2-text-secondary);
 }
 
 /* ==================== 调试抽屉 ==================== */
@@ -869,6 +987,24 @@
     color: var(--v2-text-tertiary);
 }
 
+/* ==================== 阅读进度条 ==================== */
+.reading-progress-container {
+    position: sticky;
+    top: 64px; /* 紧贴工具栏下方 */
+    left: 0;
+    right: 0;
+    height: 3px;
+    background: var(--v2-bg-tertiary);
+    z-index: 100;
+}
+
+.reading-progress-bar {
+    height: 100%;
+    background: linear-gradient(90deg, var(--v2-primary-500), var(--v2-primary-400));
+    width: 0%;
+    transition: width 0.1s ease-out;
+}
+
 /* ==================== 导出菜单 ==================== */
 .export-menu {
     position: absolute;
@@ -1063,6 +1199,11 @@
                         </div>
                     </header>
                     
+                    <!-- 阅读进度条 -->
+                    <div class="reading-progress-container">
+                        <div class="reading-progress-bar" id="reading-progress-bar"></div>
+                    </div>
+                    
                     <!-- 正文内容 -->
                     <div class="chapter-body" id="chapter-content">
                         <div class="empty-state">
@@ -1074,14 +1215,31 @@
                     
                     <!-- 章节导航 -->
                     <footer class="chapter-footer">
-                        <button type="button" class="nav-btn" id="prev-chapter-btn" onclick="prevChapter()" disabled>
-                            < 上一章
+                        <button type="button" class="nav-btn nav-btn--large" id="prev-chapter-btn" onclick="prevChapter()" disabled>
+                            <span class="nav-btn__icon">←</span>
+                            <span class="nav-btn__text">
+                                <span class="nav-btn__label">上一章</span>
+                                <span class="nav-btn__title" id="prev-chapter-title"></span>
+                            </span>
                         </button>
-                        <button type="button" class="toolbar-btn" onclick="openDebugDrawer()">
-                            🔍 查看调试信息
-                        </button>
-                        <button type="button" class="nav-btn nav-btn--primary" id="next-chapter-btn" onclick="nextChapter()" disabled>
-                            下一章 >
+                        
+                        <div class="chapter-nav-center">
+                            <button type="button" class="toolbar-btn" onclick="openDebugDrawer()">
+                                🔍 调试
+                            </button>
+                            <div class="keyboard-hint">
+                                <span class="key">ESC</span> 返回
+                                <span class="key">←</span> 上章
+                                <span class="key">→</span> 下章
+                            </div>
+                        </div>
+                        
+                        <button type="button" class="nav-btn nav-btn--large nav-btn--primary" id="next-chapter-btn" onclick="nextChapter()" disabled>
+                            <span class="nav-btn__text">
+                                <span class="nav-btn__label">下一章</span>
+                                <span class="nav-btn__title" id="next-chapter-title"></span>
+                            </span>
+                            <span class="nav-btn__icon">→</span>
                         </button>
                     </footer>
                 </article>
@@ -1374,12 +1532,82 @@ function closeJsonModal() {
     document.getElementById('json-modal').style.display = 'none';
 }
 
-// ESC 关闭抽屉和模态框
-document.addEventListener('keydown', function(e) {
-    if (e.key === 'Escape') {
-        closeDebugDrawer();
-        closeJsonModal();
+// ESC 关闭抽屉和模态框 + 键盘导航document.addEventListener('keydown', function(e) {
+    // 如果正在输入框中，不触发快捷键
+    if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') {
+        return;
     }
+    
+    switch (e.key) {
+        case 'Escape':
+            closeDebugDrawer();
+            closeJsonModal();
+            break;
+        case 'ArrowLeft':
+        case 'ArrowUp':
+            e.preventDefault();
+            prevChapter();
+            break;
+        case 'ArrowRight':
+        case 'ArrowDown':
+            e.preventDefault();
+            nextChapter();
+            break;
+        case 'Home':
+            e.preventDefault();
+            scrollToChapterTop();
+            break;
+        case 'End':
+            e.preventDefault();
+            scrollToChapterBottom();
+            break;
+    }
+});
+
+// 阅读进度跟踪f
+function updateReadingProgress() {
+    const content = document.getElementById('chapter-content');
+    const progressBar = document.getElementById('reading-progress-bar');
+    if (!content || !progressBar) return;
+    
+    const scrollTop = content.scrollTop;
+    const scrollHeight = content.scrollHeight - content.clientHeight;
+    const progress = scrollHeight > 0 ? (scrollTop / scrollHeight) * 100 : 0;
+    progressBar.style.width = progress + '%';
+}
+
+// 滚动到章节顶部
+function scrollToChapterTop() {
+    // 优先尝试滚动内容区域
+    const content = document.getElementById('chapter-content');
+    if (content) {
+        content.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+    
+    // 同时滚动页面到章节头部
+    const chapterHeader = document.querySelector('.chapter-header');
+    if (chapterHeader) {
+        chapterHeader.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    } else {
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+}
+
+// 滚动到章节底部
+function scrollToChapterBottom() {
+    const content = document.getElementById('chapter-content');
+    if (content) {
+        content.scrollTo({ top: content.scrollHeight, behavior: 'smooth' });
+    }
+}
+
+// 监听滚动事件更新进度条
+document.addEventListener('DOMContentLoaded', function() {
+    const content = document.getElementById('chapter-content');
+    if (content) {
+        content.addEventListener('scroll', updateReadingProgress);
+    }
+    window.addEventListener('scroll', updateReadingProgress);
 });
 </script>
 {% endblock %}
