@@ -1,10 +1,11 @@
 const { app, BrowserWindow, ipcMain, dialog } = require('electron');
 const path = require('path');
-const { spawn } = require('child_process');
+const { spawn, exec } = require('child_process');
 const fs = require('fs');
 
 let mainWindow;
 let flaskProcess;
+let isQuitting = false;
 const FLASK_PORT = 5000;
 
 // 判断是否为开发模式
@@ -35,13 +36,21 @@ function startFlaskServer() {
 
         console.log('启动Flask服务器:', command, args);
 
-        flaskProcess = spawn(command, args, {
+        const spawnOptions = {
             env: {
                 ...process.env,
                 FLASK_ENV: 'production',
                 PYTHONUNBUFFERED: '1'
             }
-        });
+        };
+
+        // Windows 上使用独立进程组，以便退出时可以整树终止
+        if (process.platform === 'win32') {
+            spawnOptions.detached = true;
+            spawnOptions.windowsHide = true;
+        }
+
+        flaskProcess = spawn(command, args, spawnOptions);
 
         flaskProcess.stdout.on('data', (data) => {
             const output = data.toString();
@@ -146,11 +155,46 @@ app.on('window-all-closed', () => {
     }
 });
 
-// 应用退出前清理
-app.on('before-quit', () => {
-    if (flaskProcess) {
+// 应用退出前彻底清理 Flask 进程树
+app.on('before-quit', (e) => {
+    if (isQuitting) return;
+
+    if (flaskProcess && !flaskProcess.killed) {
+        isQuitting = true;
+        e.preventDefault();
         console.log('正在关闭Flask服务器...');
-        flaskProcess.kill();
+
+        const doQuit = () => {
+            flaskProcess = null;
+            app.quit();
+        };
+
+        if (process.platform === 'win32') {
+            // /F 强制 /T 终止整个进程树
+            exec(`taskkill /F /T /PID ${flaskProcess.pid}`, (err) => {
+                if (err) {
+                    console.error('taskkill 失败:', err);
+                    try { flaskProcess.kill('SIGKILL'); } catch (e) {}
+                }
+                doQuit();
+            });
+            // 超时保护：3 秒后无论如何都退出
+            setTimeout(() => {
+                if (flaskProcess) {
+                    try { flaskProcess.kill('SIGKILL'); } catch (e) {}
+                    doQuit();
+                }
+            }, 3000);
+        } else {
+            // macOS/Linux: 杀掉整个进程组
+            try {
+                process.kill(-flaskProcess.pid, 'SIGKILL');
+            } catch (err) {
+                console.error('关闭Flask进程组失败:', err);
+                try { flaskProcess.kill('SIGKILL'); } catch (e) {}
+            }
+            setTimeout(doQuit, 500);
+        }
     }
 });
 
