@@ -739,6 +739,7 @@ class SessionOrchestrator:
             # 2. 将关键产物持久化到材料管理器/独立文件，保持与传统模式输出一致
             if hasattr(self.generator, '_save_material_to_manager'):
                 novel_title = self.generator._ctx.get('novel_title') or self.generator.novel_data.get('novel_title')
+                username = getattr(self.generator, '_username', None)
                 
                 # 世界观
                 core_worldview = self.generator._ctx.get('core_worldview')
@@ -764,6 +765,30 @@ class SessionOrchestrator:
                     total_stages = len(stage_writing_plans)
                     self.generator._save_material_to_manager("阶段计划", stage_writing_plans, total_stages=total_stages)
                     self.logger.info("✅ 阶段计划已保存到材料管理器")
+                    
+                    # 🔥 关键修复：同时保存到 plans/ 目录，确保与传统模式输出一致
+                    # 这样 phase_generation_api、quality_assessment、storyline 都能正确加载
+                    try:
+                        from pathlib import Path
+                        from src.managers.stage_plan import StagePlanPersistence
+                        
+                        base_dir = Path("小说项目") / (username or "")
+                        persistence = StagePlanPersistence(
+                            plans_dir_or_getter=base_dir,
+                            novel_data_getter=lambda: self.generator._ctx
+                        )
+                        
+                        saved_count = 0
+                        for stage_name, plan_data in stage_writing_plans.items():
+                            if not isinstance(plan_data, dict):
+                                continue
+                            file_path = persistence.save_plan_to_file(stage_name, plan_data)
+                            if file_path:
+                                saved_count += 1
+                        
+                        self.logger.info(f"✅ 阶段计划已保存到 plans/ 目录: {saved_count}/{total_stages} 个阶段")
+                    except Exception as plans_e:
+                        self.logger.warning(f"⚠️ 保存阶段计划到 plans/ 目录失败: {plans_e}")
                 
         except Exception as e:
             self.logger.warning(f"⚠️ 保存一阶段项目文件失败: {e}")

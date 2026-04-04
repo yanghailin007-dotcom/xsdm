@@ -49,23 +49,23 @@ const STEP_NAMES = {
     'growth_plan': '📈 成长规划'
 };
 
-// 步骤预计用时映射（单位：秒）- 基于实际生成统计
+// 步骤预计用时映射（单位：秒）- 基于本地实际生成日志统计
 const STEP_TIME_ESTIMATES = {
     'creative_refinement': 30,
     'fanfiction_detection': 60,
-    'multiple_plans': 90,
+    'multiple_plans': 60,
     'plan_selection': 15,
-    'foundation_planning': 60,
+    'foundation_planning': 90,
     'worldview_with_factions': 60,
     'character_design': 60,
-    'emotional_growth_planning': 90,
-    'stage_plan': 60,
-    'detailed_stage_plans': 300,
-    'supplementary_characters': 60,
-    'expectation_mapping': 30,
+    'emotional_growth_planning': 60,
+    'stage_plan': 180,
+    'detailed_stage_plans': 30,
+    'supplementary_characters': 15,
+    'expectation_mapping': 15,
     'system_init': 15,
-    'saving': 15,
-    'quality_assessment': 120,
+    'saving': 30,
+    'quality_assessment': 30,
     // 兼容旧步骤名
     'writing_style': 30,
     'market_analysis': 30,
