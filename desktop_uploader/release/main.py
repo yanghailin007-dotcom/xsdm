@@ -1315,11 +1315,23 @@ NovelPublisher_Data/              ← 统一数据目录
         
         # 再读取自由创意模式的 "*_项目信息.json"（通常有最完整的正确标签）
         # 注意：目录名可能是 project_data_xxx，但文件名是 xxx_项目信息.json，所以用通配符查找
+        legacy_found = False
         for legacy_info in project_path.glob('*_项目信息.json'):
             try:
                 configs.append(json.loads(legacy_info.read_text(encoding='utf-8')))
+                legacy_found = True
             except Exception:
                 pass
+        
+        # fallback: 如果 glob 因编码问题未匹配到，直接遍历目录查找
+        if not legacy_found:
+            for f in project_path.iterdir():
+                if f.is_file() and '_项目信息.json' in f.name:
+                    try:
+                        configs.append(json.loads(f.read_text(encoding='utf-8')))
+                        legacy_found = True
+                    except Exception:
+                        pass
         
         # 最后再读取 project_config.json（Web 端保存时可能把标签扁平化污染）
         config_file = project_path / 'project_config.json'

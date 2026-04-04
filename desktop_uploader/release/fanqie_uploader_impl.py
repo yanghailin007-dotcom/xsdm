@@ -202,6 +202,12 @@ class FanqieUploaderImpl:
                         if attempt < max_retries - 1:
                             continue
                     
+                    # 检查是否进入新手引导/实名认证页
+                    if self._check_for_guide_page():
+                        self._log("⚠️ 检测到番茄新手引导或实名认证页面，自动创建被中断", "warning")
+                        self._log("👉 请手动在浏览器中完成新手引导/实名认证/作者签约流程，然后再尝试自动上传", "warning")
+                        return False
+                    
                     break
                 except Exception as e:
                     self._log(f"⚠️ 导航失败 (尝试 {attempt + 1}): {str(e)[:200]}")
@@ -761,6 +767,32 @@ class FanqieUploaderImpl:
                 pass
             return False
     
+    def _check_for_guide_page(self) -> bool:
+        """检查是否进入了番茄新手引导/实名认证/作者签约页面"""
+        try:
+            url = self.page.url
+            content = self.page.content()[:1500]
+            content_lower = content.lower()
+            
+            guide_keywords = [
+                '新手引导', '作者引导', '实名认证', '完善信息', '作者认证',
+                '签约', '合同', '引导流程', '入驻引导', '开始创作',
+                '请完成实名认证', '请完善作者信息', '新人作者',
+                'guide', 'tutorial', 'rookie', 'verify identity',
+                'author certification', 'contract', 'agreement'
+            ]
+            
+            if any(kw in content for kw in guide_keywords):
+                return True
+            
+            # 如果 URL 里包含 author/certification/guide 等路径
+            if any(k in url.lower() for k in ['/author-guide', '/certification', '/contract', '/tutorial']):
+                return True
+                
+        except:
+            pass
+        return False
+    
     def _navigate_to_publish_page(self) -> bool:
         """导航到章节发布页面（通过章节管理页点击创建章节）"""
         try:
@@ -777,6 +809,11 @@ class FanqieUploaderImpl:
             manage_url = f"https://fanqienovel.com/main/writer/chapter-manage/{self.book_id}"
             self.page.goto(manage_url, timeout=30000)
             time.sleep(3)
+            
+            if self._check_for_guide_page():
+                self._log("  ⚠️ 检测到番茄新手引导或实名认证页面，自动上传被中断", "warning")
+                self._log("  👉 请手动在浏览器中完成新手引导/实名认证/作者签约流程，然后再尝试自动上传", "warning")
+                return False
             
             # 点击"创建章节"按钮
             create_btn = self.page.locator(
