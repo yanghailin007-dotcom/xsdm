@@ -532,6 +532,14 @@ def create_app():
         logger.info("✅ honor_wall_api 荣誉墙已注册")
     except Exception as e:
         logger.warning(f"⚠️ honor_wall_api 注册失败: {e}")
+    
+    # 28.5. 交互式创意策划 API 路由
+    try:
+        from web.api.creative_planning_api import creative_planning_api
+        app.register_blueprint(creative_planning_api)
+        logger.info("✅ creative_planning_api 交互式创意策划已注册")
+    except Exception as e:
+        logger.warning(f"⚠️ creative_planning_api 注册失败: {e}")
 
     # 28.5. 初始化题材自动更新调度器
     try:
@@ -733,14 +741,19 @@ def register_fanqie_routes(app):
                         logger.warning(f"读取 project_config.json 失败: {e}")
             
             # 从 fanqie_data 或 project_config 获取字段（兼容多种数据结构）
-            # 书名：fanqie_upload_data.title > novel_title > title
+            # 🔥 兼容自由创意模式的嵌套结构 novel_info
+            novel_info = project_config.get('novel_info', {})
+            
+            # 书名：fanqie_upload_data.title > novel_title > novel_info.title > title
             title = (fanqie_data.get('title') or 
                      project_config.get('novel_title') or 
+                     novel_info.get('title') or
                      project_config.get('title', project_id))
             
-            # 简介：fanqie_upload_data.synopsis > novel_synopsis > description
+            # 简介：fanqie_upload_data.synopsis > novel_synopsis > novel_info.synopsis
             synopsis = (fanqie_data.get('synopsis') or 
-                       project_config.get('novel_synopsis', ''))
+                       project_config.get('novel_synopsis') or 
+                       novel_info.get('synopsis', ''))
             
             # 标签数据
             tags_data = fanqie_data.get('tags', {})
@@ -763,9 +776,10 @@ def register_fanqie_routes(app):
                     tags_list.extend(plots)
                 tags_list = list(set(tags_list))[:5]  # 去重并限制5个
             
-            # 分类：fanqie_upload_data.tags.main_category > category_tags.main_category > category
+            # 分类：fanqie_upload_data.tags.main_category > category_tags.main_category > novel_info.category > category
             category = (tags_data.get('main_category') or 
-                       project_config.get('category', ''))
+                       project_config.get('category') or
+                       novel_info.get('category', ''))
             
             # 计算章节数据
             chapters_dir = project_dir / "chapters"
@@ -967,11 +981,16 @@ def register_fanqie_routes(app):
                         pass
             
             # 从 fanqie_data 或 project_info 获取字段（兼容多种数据结构）
+            # 🔥 兼容自由创意模式的嵌套结构 novel_info
+            novel_info = project_info.get('novel_info', {})
+            
             title = (fanqie_data.get('title') or 
                      project_info.get('novel_title') or 
+                     novel_info.get('title') or
                      project_info.get('title', ''))
             synopsis = (fanqie_data.get('synopsis') or 
-                       project_info.get('novel_synopsis', ''))
+                       project_info.get('novel_synopsis') or 
+                       novel_info.get('synopsis', ''))
             
             tags_data = fanqie_data.get('tags', {})
             if not tags_data and 'category_tags' in project_info:
@@ -982,7 +1001,8 @@ def register_fanqie_routes(app):
                 }
             
             category = (tags_data.get('main_category') or 
-                       project_info.get('category', ''))
+                       project_info.get('category') or
+                       novel_info.get('category', ''))
             
             # 2. 检查书名
             if not title:
@@ -1219,6 +1239,13 @@ def register_fanqie_routes(app):
             
             # 更新 project_info.json（根级别，用于后续读取兼容性）
             project_data['fanqie_upload_data'] = fanqie_data
+            
+            # 🔥 同步更新 novel_info（自由创意模式的嵌套结构）
+            if 'novel_info' in project_data:
+                project_data['novel_info']['title'] = title
+                project_data['novel_info']['synopsis'] = description
+                if category:
+                    project_data['novel_info']['category'] = category
             
             # 同时更新嵌套路径（如果存在）
             if 'generation_metadata' in project_data:
