@@ -388,10 +388,16 @@ class SessionOrchestrator:
         """执行创作基线会话：写作风格 + 市场分析 + 世界观 + 势力系统"""
         from src.core.session_mode.sessions.foundation_session import FoundationSession
         
+        # 收集 context briefs：同人背景资料 brief 优先
+        briefs = []
+        fanfiction_brief = self.generator.novel_data.get("fanfiction_brief", "")
+        if fanfiction_brief:
+            briefs.append(fanfiction_brief)
+        
         session = FoundationSession(
             api_client=api_client,
             domain="foundation",
-            context_briefs=[],
+            context_briefs=briefs,
             novel_data=self.generator.novel_data,
             provider=provider,
             model_name=model_name,

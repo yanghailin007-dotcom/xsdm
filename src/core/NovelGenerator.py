@@ -1074,7 +1074,54 @@ class NovelGenerator:
         
         print(f"    ✅ 检测为同人小说：《{work_name}》")
         
-        # 获取背景资料并进行可信度验证（ImprovedFanfictionDetector内部使用ImprovedContentVerifier）
+        # 🚀 分域会话模式：使用同人背景资料会话替代传统多轮独立调用
+        use_session_mode = False
+        try:
+            config = getattr(self, 'config', {})
+            if isinstance(config, dict):
+                use_session_mode = config.get('use_domain_session_mode', False)
+        except:
+            pass
+        
+        if use_session_mode and hasattr(self, 'api_client') and self.api_client:
+            print("    🚀 启用同人背景资料会话模式...")
+            try:
+                from src.core.session_mode.sessions.fanfiction_background_session import FanfictionBackgroundSession
+                
+                provider = getattr(self.api_client, 'default_provider', 'gemini')
+                model_name = config.get('models', {}).get(provider) if isinstance(config, dict) else None
+                
+                session = FanfictionBackgroundSession(
+                    api_client=self.api_client,
+                    domain="fanfiction",
+                    context_briefs=[],
+                    novel_data=self.novel_data,
+                    provider=provider,
+                    model_name=model_name,
+                    work_name=work_name,
+                )
+                
+                session_success = session.execute_all_steps()
+                if session_success:
+                    background_info = session.export_results()
+                    brief = session.background_brief
+                    
+                    # 保存到 novel_data，供后续 FoundationSession 引用
+                    if brief:
+                        self.novel_data["fanfiction_brief"] = brief
+                        print(f"    ✅ 同人背景资料会话完成，已生成 Background Brief")
+                    
+                    creative_work["original_work_background"] = background_info
+                    creative_work["is_fanfiction"] = True
+                    creative_work["original_work_name"] = work_name
+                    
+                    return json.dumps(creative_work, ensure_ascii=False)
+                else:
+                    print("    ⚠️ 同人背景资料会话失败，回退到传统模式")
+            except Exception as e:
+                print(f"    ⚠️ 同人背景资料会话异常: {e}，回退到传统模式")
+        
+        # 传统模式：获取背景资料并进行可信度验证（ImprovedFanfictionDetector内部使用ImprovedContentVerifier）
         background_info = self.fanfiction_detector.get_original_work_background(
             work_name,
             creative_work

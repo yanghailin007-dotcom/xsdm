@@ -34,6 +34,27 @@ class Prompts:
         """兼容原来的 get 方法"""
         return self.prompts.get(key, default)
     
+    def format(self, key: str, default: str = None, **kwargs) -> str:
+        """
+        获取提示词模板并格式化变量占位符
+        
+        Args:
+            key: 提示词键名
+            default: 如果未找到模板时的默认值
+            **kwargs: 用于格式化模板字符串的变量
+            
+        Returns:
+            格式化后的提示词字符串
+        """
+        template = self.get(key, default)
+        if template is None:
+            return ""
+        try:
+            return template.format(**kwargs)
+        except KeyError as e:
+            print(f"[Prompts] 格式化提示词 '{key}' 失败，缺少变量: {e}")
+            return template
+    
     def __getitem__(self, key):
         """支持字典式的访问"""
         return self.prompts[key]
