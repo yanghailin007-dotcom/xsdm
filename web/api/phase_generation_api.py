@@ -584,10 +584,12 @@ class ProductLoader:
         # 备用方案：从 planning 目录加载
         planning_dir = self.project_dir / "planning"
         if planning_dir.exists():
-            # 🔥 修复：只使用original_title，移除safe_title
+            # 🔥 修复：同时支持英文 writing_plan 和中文 写作计划 文件名
             patterns = [
                 f"{self.original_title}_*_writing_plan*.json",
-                "*writing_plan*.json"
+                "*writing_plan*.json",
+                f"{self.original_title}_*写作计划*.json",
+                "*写作计划*.json"
             ]
             
             for pattern in patterns:

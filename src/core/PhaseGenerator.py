@@ -21,6 +21,13 @@ try:
 except ImportError:
     DOMAIN_SESSION_MODE_AVAILABLE = False
 
+# 🧱 导入混合模式基础设定会话
+try:
+    from src.core.session_mode.sessions.foundation_setup_session import FoundationSetupSession
+    PARTIAL_FOUNDATION_SESSION_AVAILABLE = True
+except ImportError:
+    PARTIAL_FOUNDATION_SESSION_AVAILABLE = False
+
 # 🔑 全局线程池监控（用于强制清理）
 _global_executors = weakref.WeakSet()
 
@@ -275,30 +282,62 @@ class PhaseGenerator:
                 'quality_assessment': 100
             }
             
-            # 第一阶段：基础规划 (writing_style + market_analysis)
-            update_step_status('writing_style', 'active', step_progress_map['writing_style'])
-            if not self._generate_foundation_planning(update_step_status=update_step_status):
-                error_msg = "基础规划生成失败"
-                print(f"❌ {error_msg}")
-                notify_failure(error_msg)
-                return False
-            update_progress_callback('market_analysis', step_progress_map['market_analysis'], "基础规划完成",
-                                     step_status={'writing_style': 'completed', 'market_analysis': 'completed'})
+            # 🧱 混合模式检测：前4步使用 FoundationSetupSession
+            use_partial_foundation = PARTIAL_FOUNDATION_SESSION_AVAILABLE and self._should_use_partial_foundation_session()
             
-            # 第二阶段：世界观与角色设计 (worldview + faction_system + character_design)
-            self.logger.info("🔥 即将进入第二阶段: _generate_worldview_and_characters")
-            print("\n🔥 即将进入第二阶段: _generate_worldview_and_characters")
-            update_step_status('worldview', 'active', step_progress_map['worldview'])
-            result = self._generate_worldview_and_characters(update_step_status=update_step_status)
-            self.logger.info(f"🔥 _generate_worldview_and_characters 返回: {result}")
-            print(f"🔥 _generate_worldview_and_characters 返回: {result}")
+            if use_partial_foundation:
+                print("\n" + "="*60)
+                print("🧱 启用混合模式：前4步使用 FoundationSetupSession")
+                print("   writing_style → market_analysis → worldview → faction_system")
+                print("="*60)
+                update_step_status('writing_style', 'active', step_progress_map['writing_style'])
+                if not self._generate_foundation_setup_session(update_step_status=update_step_status):
+                    error_msg = "基础设定会话生成失败"
+                    print(f"❌ {error_msg}")
+                    notify_failure(error_msg)
+                    return False
+                update_progress_callback('faction_system', step_progress_map['faction_system'], "基础设定会话完成",
+                                         step_status={'writing_style': 'completed', 'market_analysis': 'completed',
+                                                     'worldview': 'completed', 'faction_system': 'completed'})
+            else:
+                # 第一阶段：基础规划 (writing_style + market_analysis)
+                update_step_status('writing_style', 'active', step_progress_map['writing_style'])
+                if not self._generate_foundation_planning(update_step_status=update_step_status):
+                    error_msg = "基础规划生成失败"
+                    print(f"❌ {error_msg}")
+                    notify_failure(error_msg)
+                    return False
+                update_progress_callback('market_analysis', step_progress_map['market_analysis'], "基础规划完成",
+                                         step_status={'writing_style': 'completed', 'market_analysis': 'completed'})
+                
+                # 第二阶段：世界观与势力设计 (worldview + faction_system)
+                self.logger.info("🔥 即将进入第二阶段: _generate_worldview_and_characters")
+                print("\n🔥 即将进入第二阶段: _generate_worldview_and_characters")
+                update_step_status('worldview', 'active', step_progress_map['worldview'])
+                if not self._generate_worldview_and_factions(update_step_status=update_step_status):
+                    error_msg = "世界观与势力设计失败"
+                    print(f"❌ {error_msg}")
+                    notify_failure(error_msg)
+                    return False
+                self.logger.info("🔥 世界观与势力设计完成，继续执行...")
+                print("🔥 世界观与势力设计完成，继续执行...")
+                update_progress_callback('faction_system', step_progress_map['faction_system'], "世界观与势力设计完成",
+                                         step_status={'worldview': 'completed', 'faction_system': 'completed'})
+            
+            # 核心角色设计（无论是否混合模式，都在这里执行）
+            self.logger.info("🔥 即将进入角色设计阶段: _generate_character_design")
+            print("\n🔥 即将进入角色设计阶段: _generate_character_design")
+            update_step_status('character_design', 'active', step_progress_map['character_design'])
+            result = self._generate_character_design(update_step_status=update_step_status)
+            self.logger.info(f"🔥 _generate_character_design 返回: {result}")
+            print(f"🔥 _generate_character_design 返回: {result}")
             if not result:
-                error_msg = "世界观与角色设计失败"
+                error_msg = "核心角色设计失败"
                 print(f"❌ {error_msg}")
                 notify_failure(error_msg)
                 return False
-            self.logger.info("🔥 第二阶段完成，继续执行...")
-            print("🔥 第二阶段完成，继续执行...")
+            self.logger.info("🔥 角色设计完成，继续执行...")
+            print("🔥 角色设计完成，继续执行...")
             update_progress_callback('character_design', step_progress_map['character_design'], "角色设计完成",
                                      step_status={'worldview': 'completed', 'faction_system': 'completed', 
                                                  'character_design': 'completed'})
@@ -484,6 +523,136 @@ class PhaseGenerator:
             notify_failure(error_msg)
             return False
     
+    def _should_use_partial_foundation_session(self) -> bool:
+        """
+        判断是否应使用混合模式的基础设定会话
+        
+        条件：
+        1. 配置中显式启用 use_partial_foundation_session
+        2. FoundationSetupSession 可用
+        3. API 客户端可用
+        """
+        try:
+            if not PARTIAL_FOUNDATION_SESSION_AVAILABLE:
+                return False
+            
+            if not hasattr(self.generator, 'api_client') or not self.generator.api_client:
+                return False
+            
+            novel_config = getattr(self.generator, 'config', {})
+            if not isinstance(novel_config, dict):
+                return False
+            
+            use_partial = novel_config.get('use_partial_foundation_session', False)
+            if not use_partial:
+                return False
+            
+            self.logger.info("✅ 满足条件，启用混合基础设定会话模式")
+            return True
+            
+        except Exception as e:
+            self.logger.warning(f"⚠️ 检测混合基础设定会话模式时出错: {e}")
+            return False
+    
+    def _generate_foundation_setup_session(self, update_step_status=None) -> bool:
+        """
+        使用 FoundationSetupSession 生成前4步设定
+        （writing_style, market_analysis, worldview, faction_system）
+        """
+        print("\n" + "="*60)
+        print("🧱 FoundationSetupSession: 基础设定会话")
+        print("="*60)
+        
+        try:
+            # 准备 novel_data
+            novel_data = self.generator.novel_data.copy() if hasattr(self.generator.novel_data, 'copy') else dict(self.generator.novel_data)
+            
+            # 提取 API 配置
+            api_client = self.generator.api_client
+            provider = getattr(self.generator, 'provider', None)
+            model_name = getattr(self.generator, 'model_name', None)
+            temperature = getattr(self.generator, 'temperature', 0.7)
+            
+            session = FoundationSetupSession(
+                api_client=api_client,
+                domain="foundation",
+                novel_data=novel_data,
+                provider=provider,
+                model_name=model_name,
+                temperature=temperature,
+            )
+            
+            success = session.execute_all_steps()
+            if not success:
+                print("❌ FoundationSetupSession 执行失败")
+                return False
+            
+            results = session.export_results()
+            
+            # 写入 generator.novel_data 并保存文件
+            writing_style = results.get('writing_style_guide', {})
+            if writing_style:
+                self.generator.novel_data["writing_style_guide"] = writing_style
+                print("✅ 写作风格指南生成成功（会话模式）")
+                self.generator._save_writing_style_to_file(writing_style)
+            else:
+                print("⚠️ 写作风格指南缺失，使用默认风格")
+                self.generator.novel_data["writing_style_guide"] = self._get_default_writing_style(
+                    self.generator.novel_data.get("category", "未分类")
+                )
+            
+            market_analysis = results.get('market_analysis', {})
+            if market_analysis:
+                self.generator.novel_data["market_analysis"] = market_analysis
+                print("✅ 市场分析生成成功（会话模式）")
+                self.generator._save_material_to_manager(
+                    "市场分析", market_analysis,
+                    creative_seed=self.generator.novel_data.get("creative_seed") or self.generator.novel_data.get("selected_plan", {})
+                )
+            else:
+                print("❌ 市场分析缺失")
+                return False
+            
+            core_worldview = results.get('core_worldview', {})
+            if core_worldview:
+                self.generator.novel_data["core_worldview"] = core_worldview
+                print("✅ 世界观构建完成（会话模式）")
+            else:
+                print("❌ 世界观缺失")
+                return False
+            
+            faction_system = results.get('faction_system', {})
+            if faction_system:
+                self.generator.novel_data["faction_system"] = faction_system
+                print("✅ 势力系统构建完成（会话模式）")
+                self.generator._save_material_to_manager(
+                    "势力系统", faction_system,
+                    novel_title=self.generator.novel_data.get("novel_title", "")
+                )
+            else:
+                print("⚠️ 势力系统缺失，使用默认设定")
+                self.generator.novel_data["faction_system"] = {
+                    "factions": [],
+                    "main_conflict": "待定",
+                    "faction_power_balance": "待定",
+                    "recommended_starting_faction": "待定"
+                }
+            
+            if update_step_status:
+                update_step_status('writing_style', 'completed', 15)
+                update_step_status('market_analysis', 'completed', 25)
+                update_step_status('worldview', 'completed', 40)
+                update_step_status('faction_system', 'completed', 45)
+            
+            print("✅ FoundationSetupSession 基础设定全部完成")
+            return True
+            
+        except Exception as e:
+            print(f"⚠️ FoundationSetupSession 执行异常: {e}")
+            import traceback
+            traceback.print_exc()
+            return False
+    
     def _generate_foundation_planning(self, update_step_status=None) -> bool:
         """
         生成基础规划 - 🔥 优化版本：合并写作风格和市场分析
@@ -586,6 +755,15 @@ class PhaseGenerator:
     def _generate_worldview_and_characters(self, update_step_status=None) -> bool:
         """
         生成世界观、势力和角色设计 - 🔥 优化版本：合并世界观和势力系统
+        此方法保留给传统模式调用；混合模式下前4步由 FoundationSetupSession 处理。
+        """
+        if not self._generate_worldview_and_factions(update_step_status=update_step_status):
+            return False
+        return self._generate_character_design(update_step_status=update_step_status)
+    
+    def _generate_worldview_and_factions(self, update_step_status=None) -> bool:
+        """
+        合并生成世界观与势力系统（传统模式步骤8-9）
         """
         print("\n" + "="*60)
         print("🌍 第二阶段：世界观与势力系统设计（合并优化版）")
@@ -643,6 +821,7 @@ class PhaseGenerator:
                     update_step_status('faction_system', 'completed', 45)
                 
                 print("✅ 世界观与势力系统合并生成完成")
+                return True
             else:
                 print("❌ 世界观与势力系统合并生成失败，尝试降级为分步生成...")
                 return self._generate_worldview_and_characters_fallback(update_step_status)
@@ -651,8 +830,11 @@ class PhaseGenerator:
             print(f"⚠️ 合并生成世界观与势力系统时出错: {e}")
             print("🔄 降级为分步生成...")
             return self._generate_worldview_and_characters_fallback(update_step_status)
-        
-        # 核心角色设计（现在可以基于势力系统） - 步骤10
+    
+    def _generate_character_design(self, update_step_status=None) -> bool:
+        """
+        设计核心角色（步骤10）
+        """
         print("👤 步骤10: 设计核心角色 (主角/核心盟友/宿敌)")
         self.logger.info("🔥 即将调用 generate_character_design API...")
         print("🔥 即将调用 generate_character_design API...")

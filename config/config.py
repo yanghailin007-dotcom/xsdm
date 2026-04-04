@@ -137,6 +137,11 @@ CONFIG = {
     # 通过 Context Brief 传递上下文，避免单一会话过载
     "use_domain_session_mode": False,
     
+    # 🧱 混合基础设定会话模式配置
+    # 启用后，前4步（writing_style, market_analysis, worldview, faction_system）将使用
+    # FoundationSetupSession 会话模式生成，后续步骤仍保持传统13步模式
+    "use_partial_foundation_session": False,
+    
     # 🎨 封面生成配置（NanoBanana Pro / Gemini）
     "cover_generation": {
         "nanobanana": {
