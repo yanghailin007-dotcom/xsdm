@@ -3103,7 +3103,7 @@
             const currentUrl = new URL(window.location.href);
             const title = currentUrl.searchParams.get('title');
             if (title) {
-                window.location.href = '/chapter-view?title=' + encodeURIComponent(title);
+                window.location.href = '/reader/' + encodeURIComponent(title);
             }
         }
         
@@ -3111,7 +3111,7 @@
             const currentUrl = new URL(window.location.href);
             const title = currentUrl.searchParams.get('title');
             if (title) {
-                window.location.href = '/novel?title=' + encodeURIComponent(title);
+                window.location.href = '/reader/' + encodeURIComponent(title);
             }
         }
         

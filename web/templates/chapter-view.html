@@ -523,8 +523,24 @@
 {% endblock %}
 
 {% block content %}
+<!-- 新版阅读器入口横幅 -->
+<div style="background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%); color: white; padding: 12px 20px; text-align: center; font-size: 14px; position: fixed; top: 64px; left: 0; right: 0; z-index: 50;">
+    <span>🎉 全新沉浸式阅读器已上线，支持主题切换、自动预加载、智能排版</span>
+    <a id="immersive-reader-link" href="/reader/" style="color: #fff; text-decoration: underline; font-weight: 600; margin-left: 12px;">立即体验 →</a>
+</div>
+<script>
+    (function(){
+        const urlParams = new URLSearchParams(window.location.search);
+        const title = urlParams.get('novel') || urlParams.get('title') || '';
+        const chapter = urlParams.get('chapter') || '1';
+        if (title) {
+            document.getElementById('immersive-reader-link').href = '/reader/' + encodeURIComponent(title) + '?chapter=' + chapter;
+        }
+    })();
+</script>
+
 <!-- 主容器 -->
-<div class="chapter-view-container">
+<div class="chapter-view-container" style="padding-top: 44px;">
     <!-- 左侧章节列表 -->
     <aside class="chapter-sidebar">
         <div class="sidebar-header">

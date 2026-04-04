@@ -1258,7 +1258,11 @@ class MainWindow(QMainWindow):
                         # 检查是否有章节文件
                         chapters_dir = item / "chapters"
                         if chapters_dir.exists():
-                            chapter_count = len(list(chapters_dir.glob("chapter_*.json")))
+                            chapter_files = (
+                                list(chapters_dir.glob("chapter_*.json")) +
+                                list(chapters_dir.glob("第*.json"))
+                            )
+                            chapter_count = len(chapter_files)
                             if chapter_count > 0:
                                 found_projects.append({
                                     'name': item.name,
@@ -1315,7 +1319,10 @@ class MainWindow(QMainWindow):
             self.log("未找到章节目录", "warning")
             return
             
-        chapter_files = sorted(chapters_dir.glob("chapter_*.json"))
+        chapter_files = sorted(
+            list(chapters_dir.glob("chapter_*.json")) +
+            list(chapters_dir.glob("第*.json"))
+        )
         
         for file in chapter_files:
             try:
@@ -1433,7 +1440,10 @@ class MainWindow(QMainWindow):
         
         # 计算章节数和字数
         try:
-            chapter_files = list(chapters_dir.glob("chapter_*.json"))
+            chapter_files = (
+                list(chapters_dir.glob("chapter_*.json")) +
+                list(chapters_dir.glob("第*.json"))
+            )
             total_chapters = len(chapter_files)
             total_words = 0
             

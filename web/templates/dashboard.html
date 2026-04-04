@@ -791,7 +791,7 @@
     }
 
     function viewChapter(title, chapterNumber) {
-        window.open(`/novel?title=${encodeURIComponent(title)}&chapter=${chapterNumber}`, '_blank');
+        window.open(`/reader/${encodeURIComponent(title)}?chapter=${chapterNumber}`, '_blank');
     }
 
     function escapeHtml(text) {

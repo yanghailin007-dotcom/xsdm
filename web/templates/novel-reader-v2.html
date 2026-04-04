@@ -1,0 +1,1450 @@
+{% extends "layouts/base-v2.html" %}
+
+{% block title %}沉浸式阅读 - {{ title }}{% endblock %}
+
+{% block extra_css %}
+<script>
+    // 防止主题闪烁和布局跳动：在页面渲染前立即应用阅读模式
+    (function() {
+        document.documentElement.classList.add('reader-mode');
+        try {
+            const prefs = JSON.parse(localStorage.getItem('novelReaderPrefs') || '{}');
+            if (prefs.theme) {
+                document.documentElement.setAttribute('data-theme', prefs.theme);
+            }
+        } catch (e) {}
+    })();
+</script>
+<style>
+/* ==================== 阅读器全局重置 ==================== */
+html.reader-mode,
+html.reader-mode body {
+    overflow: hidden;
+    height: 100%;
+    width: 100%;
+    margin: 0;
+    padding: 0;
+    background: var(--reader-bg);
+    transition: background-color 0.3s ease, color 0.3s ease;
+}
+
+/* 隐藏 base-v2 的导航栏、页脚和主容器边距 */
+html.reader-mode .v2-navbar,
+html.reader-mode .v2-footer,
+html.reader-mode .v2-version-switcher,
+html.reader-mode .v2-main {
+    display: none !important;
+}
+
+html.reader-mode main.v2-main {
+    display: block !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    max-width: none !important;
+}
+
+/* ==================== CSS 主题变量 ==================== */
+:root {
+    /* 默认浅色 */
+    --reader-bg: #ffffff;
+    --reader-text: #1f1f1f;
+    --reader-text-secondary: #666666;
+    --reader-border: #e5e5e5;
+    --reader-accent: #4f46e5;
+    --reader-panel-bg: rgba(255, 255, 255, 0.95);
+    --reader-shadow: rgba(0, 0, 0, 0.08);
+    --reader-btn-hover: rgba(0, 0, 0, 0.04);
+    --reader-divider: #f0f0f0;
+}
+
+[data-theme="sepia"] {
+    --reader-bg: #f5e6d3;
+    --reader-text: #5b4636;
+    --reader-text-secondary: #8b7355;
+    --reader-border: #d4c4b0;
+    --reader-accent: #8b5a2b;
+    --reader-panel-bg: rgba(245, 230, 211, 0.98);
+    --reader-shadow: rgba(91, 70, 54, 0.08);
+    --reader-btn-hover: rgba(91, 70, 54, 0.06);
+    --reader-divider: #e8d9c5;
+}
+
+[data-theme="green"] {
+    --reader-bg: #e8f5e9;
+    --reader-text: #2e3b2e;
+    --reader-text-secondary: #5a7a5a;
+    --reader-border: #c8e6c9;
+    --reader-accent: #2e7d32;
+    --reader-panel-bg: rgba(232, 245, 233, 0.98);
+    --reader-shadow: rgba(46, 59, 46, 0.08);
+    --reader-btn-hover: rgba(46, 59, 46, 0.05);
+    --reader-divider: #dcedc8;
+}
+
+[data-theme="dark"] {
+    --reader-bg: #1e1e1e;
+    --reader-text: #d4d4d4;
+    --reader-text-secondary: #a0a0a0;
+    --reader-border: #333333;
+    --reader-accent: #818cf8;
+    --reader-panel-bg: rgba(38, 38, 38, 0.98);
+    --reader-shadow: rgba(0, 0, 0, 0.3);
+    --reader-btn-hover: rgba(255, 255, 255, 0.05);
+    --reader-divider: #2a2a2a;
+}
+
+[data-theme="black"] {
+    --reader-bg: #000000;
+    --reader-text: #b0b0b0;
+    --reader-text-secondary: #808080;
+    --reader-border: #1a1a1a;
+    --reader-accent: #6366f1;
+    --reader-panel-bg: rgba(10, 10, 10, 0.98);
+    --reader-shadow: rgba(0, 0, 0, 0.5);
+    --reader-btn-hover: rgba(255, 255, 255, 0.04);
+    --reader-divider: #111111;
+}
+
+/* ==================== 阅读器容器 ==================== */
+.reader-app {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: var(--reader-bg);
+    color: var(--reader-text);
+    display: flex;
+    flex-direction: column;
+    transition: background-color 0.3s ease, color 0.3s ease;
+    z-index: 9999;
+}
+
+/* 点击热区 */
+.reader-touch-layer {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    display: flex;
+    z-index: 1;
+    pointer-events: none;
+}
+
+.reader-touch-zone {
+    flex: 1;
+    cursor: default;
+    pointer-events: auto;
+}
+
+.reader-touch-zone--center {
+    flex: 1.2;
+}
+
+/* ==================== 顶部工具栏 ==================== */
+.reader-header {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 56px;
+    background: var(--reader-panel-bg);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border-bottom: 1px solid var(--reader-border);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 16px;
+    z-index: 100;
+    transform: translateY(-100%);
+    opacity: 0;
+    transition: transform 0.3s ease, opacity 0.3s ease;
+}
+
+.reader-header.visible {
+    transform: translateY(0);
+    opacity: 1;
+}
+
+.reader-header__left,
+.reader-header__right {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    min-width: 80px;
+}
+
+.reader-header__right {
+    justify-content: flex-end;
+}
+
+.reader-header__title {
+    font-size: 15px;
+    font-weight: 500;
+    color: var(--reader-text);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 50vw;
+    text-align: center;
+}
+
+.reader-header__subtitle {
+    font-size: 12px;
+    color: var(--reader-text-secondary);
+    margin-top: 2px;
+}
+
+/* ==================== 底部工具栏 ==================== */
+.reader-footer {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    background: var(--reader-panel-bg);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border-top: 1px solid var(--reader-border);
+    z-index: 100;
+    transform: translateY(100%);
+    opacity: 0;
+    transition: transform 0.3s ease, opacity 0.3s ease;
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+
+.reader-footer.visible {
+    transform: translateY(0);
+    opacity: 1;
+}
+
+.reader-footer__controls {
+    display: flex;
+    align-items: center;
+    justify-content: space-around;
+    height: 52px;
+    padding: 0 12px;
+}
+
+.reader-footer__btn {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 2px;
+    padding: 6px 12px;
+    border-radius: 8px;
+    font-size: 11px;
+    color: var(--reader-text-secondary);
+    background: transparent;
+    border: none;
+    cursor: pointer;
+    transition: background 0.2s, color 0.2s;
+    min-width: 56px;
+}
+
+.reader-footer__btn:hover {
+    background: var(--reader-btn-hover);
+    color: var(--reader-text);
+}
+
+.reader-footer__btn-icon {
+    font-size: 18px;
+    line-height: 1;
+}
+
+.reader-footer__progress {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 2px;
+    background: var(--reader-border);
+}
+
+.reader-footer__progress-fill {
+    height: 100%;
+    background: var(--reader-accent);
+    transition: width 0.2s ease;
+}
+
+/* ==================== 阅读内容区 ==================== */
+.reader-scroll {
+    position: relative;
+    flex: 1;
+    overflow-y: auto;
+    overflow-x: hidden;
+    scroll-behavior: smooth;
+    z-index: 2;
+    -webkit-overflow-scrolling: touch;
+}
+
+/* 隐藏默认滚动条 */
+.reader-scroll::-webkit-scrollbar {
+    width: 0;
+    height: 0;
+}
+
+.reader-content {
+    max-width: 720px;
+    margin: 0 auto;
+    padding: 24px 20px 140px 20px;
+    min-height: 100vh;
+    box-sizing: border-box;
+    transition: padding 0.3s ease;
+}
+
+.reader-content.reader-content--narrow {
+    max-width: 600px;
+}
+
+.reader-content.reader-content--wide {
+    max-width: 840px;
+}
+
+.reader-content.reader-content--ultrawide {
+    max-width: 960px;
+}
+
+/* 边距模式 */
+.reader-content.reader-margin--narrow {
+    padding-left: 16px;
+    padding-right: 16px;
+}
+
+.reader-content.reader-margin--medium {
+    padding-left: 24px;
+    padding-right: 24px;
+}
+
+.reader-content.reader-margin--wide {
+    padding-left: 40px;
+    padding-right: 40px;
+}
+
+.reader-content.reader-margin--ultrawide {
+    padding-left: 64px;
+    padding-right: 64px;
+}
+
+/* 章节内容 typography */
+.reader-chapter {
+    font-size: var(--reader-font-size, 18px);
+    line-height: var(--reader-line-height, 1.8);
+    color: var(--reader-text);
+    font-family: var(--reader-font-family, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "PingFang SC", "Microsoft YaHei", sans-serif);
+    transition: font-size 0.2s, line-height 0.2s;
+}
+
+.reader-chapter__title {
+    font-size: calc(var(--reader-font-size, 18px) * 1.5);
+    font-weight: 700;
+    line-height: 1.4;
+    text-align: center;
+    margin-bottom: 32px;
+    color: var(--reader-text);
+}
+
+.reader-chapter__meta {
+    text-align: center;
+    font-size: calc(var(--reader-font-size, 18px) * 0.75);
+    color: var(--reader-text-secondary);
+    margin-bottom: 48px;
+}
+
+.reader-chapter__body p {
+    margin: 0 0 var(--reader-para-gap, 1em) 0;
+    text-indent: 2em;
+    letter-spacing: 0.03em;
+    word-break: break-word;
+}
+
+.reader-chapter__body p:last-child {
+    margin-bottom: 0;
+}
+
+/* 对话行不缩进 */
+.reader-chapter__body p.reader-para--dialog {
+    text-indent: 0;
+    padding-left: 2em;
+}
+
+/* 章节分割线 */
+.reader-divider {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 64px 0;
+    color: var(--reader-text-secondary);
+    font-size: 14px;
+    opacity: 0.6;
+}
+
+.reader-divider::before,
+.reader-divider::after {
+    content: '';
+    flex: 1;
+    height: 1px;
+    background: var(--reader-border);
+    margin: 0 16px;
+    max-width: 120px;
+}
+
+/* 加载状态 */
+.reader-loader {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 80px 20px;
+    color: var(--reader-text-secondary);
+}
+
+.reader-loader__spinner {
+    width: 32px;
+    height: 32px;
+    border: 3px solid var(--reader-border);
+    border-top-color: var(--reader-accent);
+    border-radius: 50%;
+    animation: reader-spin 1s linear infinite;
+    margin-bottom: 12px;
+}
+
+@keyframes reader-spin {
+    to { transform: rotate(360deg); }
+}
+
+.reader-end {
+    text-align: center;
+    padding: 60px 20px;
+    color: var(--reader-text-secondary);
+    font-size: 14px;
+}
+
+/* ==================== 抽屉面板 ==================== */
+.reader-drawer {
+    position: fixed;
+    top: 0;
+    bottom: 0;
+    width: 320px;
+    max-width: 80vw;
+    background: var(--reader-panel-bg);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    z-index: 110;
+    transition: transform 0.3s ease;
+    display: flex;
+    flex-direction: column;
+    box-shadow: 0 0 30px var(--reader-shadow);
+}
+
+.reader-drawer--left {
+    left: 0;
+    transform: translateX(-100%);
+}
+
+.reader-drawer--left.active {
+    transform: translateX(0);
+}
+
+.reader-drawer--right {
+    right: 0;
+    transform: translateX(100%);
+}
+
+.reader-drawer--right.active {
+    transform: translateX(0);
+}
+
+.reader-drawer__header {
+    padding: 16px;
+    border-bottom: 1px solid var(--reader-border);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
+.reader-drawer__title {
+    font-size: 16px;
+    font-weight: 600;
+    color: var(--reader-text);
+}
+
+.reader-drawer__close {
+    width: 32px;
+    height: 32px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 8px;
+    border: none;
+    background: transparent;
+    color: var(--reader-text-secondary);
+    font-size: 20px;
+    cursor: pointer;
+}
+
+.reader-drawer__close:hover {
+    background: var(--reader-btn-hover);
+    color: var(--reader-text);
+}
+
+.reader-drawer__body {
+    flex: 1;
+    overflow-y: auto;
+    padding: 12px;
+}
+
+/* 章节列表 */
+.reader-chapter-list {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.reader-chapter-item {
+    padding: 12px 14px;
+    border-radius: 8px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    transition: background 0.15s;
+}
+
+.reader-chapter-item:hover {
+    background: var(--reader-btn-hover);
+}
+
+.reader-chapter-item.active {
+    background: var(--reader-accent);
+    color: #fff;
+}
+
+.reader-chapter-item__num {
+    font-size: 12px;
+    font-weight: 600;
+    opacity: 0.7;
+    min-width: 44px;
+}
+
+.reader-chapter-item__title {
+    font-size: 14px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    flex: 1;
+}
+
+.reader-chapter-item__words {
+    font-size: 11px;
+    opacity: 0.6;
+}
+
+/* 章节搜索 */
+.reader-search {
+    padding: 0 4px 12px;
+}
+
+.reader-search__input {
+    width: 100%;
+    padding: 10px 14px;
+    border-radius: 8px;
+    border: 1px solid var(--reader-border);
+    background: var(--reader-bg);
+    color: var(--reader-text);
+    font-size: 14px;
+    outline: none;
+    box-sizing: border-box;
+}
+
+.reader-search__input:focus {
+    border-color: var(--reader-accent);
+}
+
+.reader-search__input::placeholder {
+    color: var(--reader-text-secondary);
+    opacity: 0.6;
+}
+
+/* 设置项 */
+.reader-setting-group {
+    margin-bottom: 24px;
+}
+
+.reader-setting-group__title {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--reader-text-secondary);
+    margin-bottom: 12px;
+    padding-left: 4px;
+}
+
+.reader-setting-options {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+}
+
+.reader-setting-options--center {
+    justify-content: center;
+}
+
+.reader-setting-btn {
+    padding: 8px 16px;
+    border-radius: 8px;
+    border: 1px solid var(--reader-border);
+    background: var(--reader-bg);
+    color: var(--reader-text);
+    font-size: 14px;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.reader-setting-btn:hover {
+    border-color: var(--reader-accent);
+}
+
+.reader-setting-btn.active {
+    background: var(--reader-accent);
+    border-color: var(--reader-accent);
+    color: #fff;
+}
+
+/* 字号步进器 */
+.reader-font-size-control {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 16px;
+    padding: 8px 0;
+}
+
+.reader-font-size-control__btn {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    border: 1px solid var(--reader-border);
+    background: var(--reader-bg);
+    color: var(--reader-text);
+    font-size: 18px;
+    font-weight: 600;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s;
+}
+
+.reader-font-size-control__btn:hover {
+    border-color: var(--reader-accent);
+    color: var(--reader-accent);
+}
+
+.reader-font-size-control__value {
+    font-size: 16px;
+    font-weight: 600;
+    color: var(--reader-text);
+    min-width: 48px;
+    text-align: center;
+}
+
+/* 主题色块 */
+.reader-theme-options {
+    display: flex;
+    gap: 12px;
+    justify-content: center;
+    padding: 4px 0;
+}
+
+.reader-theme-option {
+    width: 44px;
+    height: 44px;
+    border-radius: 50%;
+    cursor: pointer;
+    border: 2px solid transparent;
+    transition: transform 0.2s, border-color 0.2s;
+    position: relative;
+}
+
+.reader-theme-option:hover {
+    transform: scale(1.08);
+}
+
+.reader-theme-option.active {
+    border-color: var(--reader-accent);
+    transform: scale(1.1);
+}
+
+.reader-theme-option.active::after {
+    content: '✓';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    font-size: 14px;
+    font-weight: 700;
+    color: var(--reader-accent);
+    text-shadow: 0 0 2px rgba(255,255,255,0.8);
+}
+
+.reader-theme-option--light { background: #ffffff; border: 1px solid #ddd; }
+.reader-theme-option--sepia { background: #f5e6d3; }
+.reader-theme-option--green { background: #e8f5e9; }
+.reader-theme-option--dark { background: #1e1e1e; border: 1px solid #444; }
+.reader-theme-option--black { background: #000000; border: 1px solid #333; }
+
+/* 遮罩层 */
+.reader-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.3);
+    opacity: 0;
+    visibility: hidden;
+    transition: opacity 0.3s, visibility 0.3s;
+    z-index: 105;
+}
+
+.reader-overlay.active {
+    opacity: 1;
+    visibility: visible;
+}
+
+/* ==================== 空状态 ==================== */
+.reader-empty {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    min-height: 60vh;
+    color: var(--reader-text-secondary);
+    text-align: center;
+    padding: 40px;
+}
+
+.reader-empty__icon {
+    font-size: 64px;
+    margin-bottom: 16px;
+    opacity: 0.5;
+}
+
+.reader-empty__title {
+    font-size: 18px;
+    margin-bottom: 8px;
+}
+
+.reader-empty__desc {
+    font-size: 14px;
+    opacity: 0.8;
+}
+
+/* ==================== 返回按钮 ==================== */
+.reader-icon-btn {
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    border: none;
+    background: transparent;
+    color: var(--reader-text);
+    font-size: 18px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: background 0.2s;
+    text-decoration: none;
+}
+
+.reader-icon-btn:hover {
+    background: var(--reader-btn-hover);
+}
+
+/* ==================== 响应式 ==================== */
+@media (max-width: 640px) {
+    .reader-content {
+        padding: 16px 16px 120px 16px;
+    }
+
+    .reader-content.reader-margin--wide {
+        padding-left: 20px;
+        padding-right: 20px;
+    }
+
+    .reader-content.reader-margin--ultrawide {
+        padding-left: 24px;
+        padding-right: 24px;
+    }
+
+    .reader-chapter__title {
+        font-size: calc(var(--reader-font-size, 18px) * 1.3);
+        margin-bottom: 24px;
+    }
+
+    .reader-drawer {
+        width: 280px;
+    }
+
+    .reader-header__title {
+        max-width: 40vw;
+    }
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="reader-app" id="readerApp" data-title="{{ title }}" data-chapter="{{ chapter_num }}">
+    <!-- 点击热区 -->
+    <div class="reader-touch-layer" id="touchLayer">
+        <div class="reader-touch-zone reader-touch-zone--left" data-zone="prev" title="上一章"></div>
+        <div class="reader-touch-zone reader-touch-zone--center" data-zone="toggle" title="显示/隐藏菜单"></div>
+        <div class="reader-touch-zone reader-touch-zone--right" data-zone="next" title="下一章"></div>
+    </div>
+
+    <!-- 顶部工具栏 -->
+    <header class="reader-header" id="readerHeader">
+        <div class="reader-header__left">
+            <a href="/novels" class="reader-icon-btn" title="返回">←</a>
+        </div>
+        <div class="reader-header__title">
+            <div id="headerBookTitle">{{ title }}</div>
+            <div class="reader-header__subtitle" id="headerChapterTitle">加载中...</div>
+        </div>
+        <div class="reader-header__right">
+            <!-- 占位保持居中 -->
+        </div>
+    </header>
+
+    <!-- 底部工具栏 -->
+    <footer class="reader-footer" id="readerFooter">
+        <div class="reader-footer__progress">
+            <div class="reader-footer__progress-fill" id="progressFill" style="width: 0%"></div>
+        </div>
+        <div class="reader-footer__controls">
+            <button class="reader-footer__btn" onclick="reader.toggleChapterDrawer()">
+                <span class="reader-footer__btn-icon">📚</span>
+                <span>目录</span>
+            </button>
+            <button class="reader-footer__btn" onclick="reader.prevChapter()">
+                <span class="reader-footer__btn-icon">⬅</span>
+                <span>上一章</span>
+            </button>
+            <button class="reader-footer__btn" onclick="reader.nextChapter()">
+                <span class="reader-footer__btn-icon">➡</span>
+                <span>下一章</span>
+            </button>
+            <button class="reader-footer__btn" onclick="reader.toggleSettingsDrawer()">
+                <span class="reader-footer__btn-icon">⚙️</span>
+                <span>设置</span>
+            </button>
+            <div class="reader-footer__btn" style="cursor: default;">
+                <span class="reader-footer__btn-icon" id="progressText">0%</span>
+                <span>进度</span>
+            </div>
+        </div>
+    </footer>
+
+    <!-- 左侧章节抽屉 -->
+    <aside class="reader-drawer reader-drawer--left" id="chapterDrawer">
+        <div class="reader-drawer__header">
+            <span class="reader-drawer__title">📚 章节列表</span>
+            <button class="reader-drawer__close" onclick="reader.toggleChapterDrawer()">×</button>
+        </div>
+        <div class="reader-drawer__body">
+            <div class="reader-search">
+                <input type="text" class="reader-search__input" id="chapterSearch" placeholder="搜索章节...">
+            </div>
+            <div class="reader-chapter-list" id="chapterList">
+                <div class="reader-loader">
+                    <div class="reader-loader__spinner"></div>
+                    <div>加载章节列表...</div>
+                </div>
+            </div>
+        </div>
+    </aside>
+
+    <!-- 右侧设置抽屉 -->
+    <aside class="reader-drawer reader-drawer--right" id="settingsDrawer">
+        <div class="reader-drawer__header">
+            <span class="reader-drawer__title">⚙️ 阅读设置</span>
+            <button class="reader-drawer__close" onclick="reader.toggleSettingsDrawer()">×</button>
+        </div>
+        <div class="reader-drawer__body">
+            <!-- 主题 -->
+            <div class="reader-setting-group">
+                <div class="reader-setting-group__title">背景主题</div>
+                <div class="reader-theme-options">
+                    <div class="reader-theme-option reader-theme-option--light" data-theme="light" title="浅色" onclick="reader.setTheme('light')"></div>
+                    <div class="reader-theme-option reader-theme-option--sepia" data-theme="sepia" title="护眼" onclick="reader.setTheme('sepia')"></div>
+                    <div class="reader-theme-option reader-theme-option--green" data-theme="green" title="淡绿" onclick="reader.setTheme('green')"></div>
+                    <div class="reader-theme-option reader-theme-option--dark" data-theme="dark" title="深色" onclick="reader.setTheme('dark')"></div>
+                    <div class="reader-theme-option reader-theme-option--black" data-theme="black" title="纯黑" onclick="reader.setTheme('black')"></div>
+                </div>
+            </div>
+
+            <!-- 字号 -->
+            <div class="reader-setting-group">
+                <div class="reader-setting-group__title">字体大小</div>
+                <div class="reader-font-size-control">
+                    <button class="reader-font-size-control__btn" onclick="reader.changeFontSize(-2)">−</button>
+                    <span class="reader-font-size-control__value" id="fontSizeValue">18</span>
+                    <button class="reader-font-size-control__btn" onclick="reader.changeFontSize(2)">+</button>
+                </div>
+            </div>
+
+            <!-- 字体 -->
+            <div class="reader-setting-group">
+                <div class="reader-setting-group__title">字体</div>
+                <div class="reader-setting-options">
+                    <button class="reader-setting-btn" data-font="system" onclick="reader.setFont('system')">系统默认</button>
+                    <button class="reader-setting-btn" data-font="serif" onclick="reader.setFont('serif')">思源宋体</button>
+                    <button class="reader-setting-btn" data-font="lxgw" onclick="reader.setFont('lxgw')">霞鹜文楷</button>
+                </div>
+            </div>
+
+            <!-- 行高 -->
+            <div class="reader-setting-group">
+                <div class="reader-setting-group__title">行间距</div>
+                <div class="reader-setting-options">
+                    <button class="reader-setting-btn" data-lh="1.5" onclick="reader.setLineHeight(1.5)">紧凑</button>
+                    <button class="reader-setting-btn" data-lh="1.8" onclick="reader.setLineHeight(1.8)">适中</button>
+                    <button class="reader-setting-btn" data-lh="2.2" onclick="reader.setLineHeight(2.2)">舒适</button>
+                    <button class="reader-setting-btn" data-lh="2.8" onclick="reader.setLineHeight(2.8)">宽松</button>
+                </div>
+            </div>
+
+            <!-- 段间距 -->
+            <div class="reader-setting-group">
+                <div class="reader-setting-group__title">段间距</div>
+                <div class="reader-setting-options">
+                    <button class="reader-setting-btn" data-pg="0.5" onclick="reader.setParaGap(0.5)">紧凑</button>
+                    <button class="reader-setting-btn" data-pg="1.0" onclick="reader.setParaGap(1.0)">适中</button>
+                    <button class="reader-setting-btn" data-pg="1.5" onclick="reader.setParaGap(1.5)">宽松</button>
+                    <button class="reader-setting-btn" data-pg="2.0" onclick="reader.setParaGap(2.0)">超宽</button>
+                </div>
+            </div>
+
+            <!-- 页边距 -->
+            <div class="reader-setting-group">
+                <div class="reader-setting-group__title">页边距</div>
+                <div class="reader-setting-options">
+                    <button class="reader-setting-btn" data-margin="narrow" onclick="reader.setMargin('narrow')">窄</button>
+                    <button class="reader-setting-btn" data-margin="medium" onclick="reader.setMargin('medium')">中</button>
+                    <button class="reader-setting-btn" data-margin="wide" onclick="reader.setMargin('wide')">宽</button>
+                    <button class="reader-setting-btn" data-margin="ultrawide" onclick="reader.setMargin('ultrawide')">超宽</button>
+                </div>
+            </div>
+
+            <!-- 内容宽度 -->
+            <div class="reader-setting-group">
+                <div class="reader-setting-group__title">内容宽度</div>
+                <div class="reader-setting-options">
+                    <button class="reader-setting-btn" data-width="narrow" onclick="reader.setContentWidth('narrow')">窄</button>
+                    <button class="reader-setting-btn" data-width="medium" onclick="reader.setContentWidth('medium')">中</button>
+                    <button class="reader-setting-btn" data-width="wide" onclick="reader.setContentWidth('wide')">宽</button>
+                    <button class="reader-setting-btn" data-width="ultrawide" onclick="reader.setContentWidth('ultrawide')">超宽</button>
+                </div>
+            </div>
+        </div>
+    </aside>
+
+    <!-- 遮罩层 -->
+    <div class="reader-overlay" id="readerOverlay" onclick="reader.closeDrawers()"></div>
+
+    <!-- 阅读滚动区 -->
+    <div class="reader-scroll" id="readerScroll">
+        <div class="reader-content" id="readerContent">
+            <div class="reader-loader" id="initialLoader">
+                <div class="reader-loader__spinner"></div>
+                <div>正在加载章节内容...</div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+// ==================== 小说阅读器核心逻辑 ====================
+class NovelReader {
+    constructor() {
+        this.app = document.getElementById('readerApp');
+        this.title = this.app.dataset.title;
+        this.startChapter = parseInt(this.app.dataset.chapter) || 1;
+
+        this.scrollEl = document.getElementById('readerScroll');
+        this.contentEl = document.getElementById('readerContent');
+        this.header = document.getElementById('readerHeader');
+        this.footer = document.getElementById('readerFooter');
+        this.overlay = document.getElementById('readerOverlay');
+        this.chapterDrawer = document.getElementById('chapterDrawer');
+        this.settingsDrawer = document.getElementById('settingsDrawer');
+        this.progressFill = document.getElementById('progressFill');
+        this.progressText = document.getElementById('progressText');
+
+        this.chapters = [];
+        this.loadedChapters = new Map();
+        this.currentChapterNum = this.startChapter;
+        this.isUILocked = false;
+        this.isLoadingNext = false;
+        this.lastScrollTop = 0;
+
+        // 默认设置
+        this.prefs = {
+            theme: 'light',
+            fontSize: 18,
+            fontFamily: 'system',
+            lineHeight: 1.8,
+            paraGap: 1.0,
+            margin: 'medium',
+            contentWidth: 'medium'
+        };
+
+        this.init();
+    }
+
+    init() {
+        // 标记 html 为阅读模式
+        document.documentElement.classList.add('reader-mode');
+
+        // 加载本地偏好
+        this.loadPreferences();
+        this.applyPreferences();
+
+        // 绑定事件
+        this.bindEvents();
+
+        // 加载初始数据
+        this.loadInitialData();
+    }
+
+    // -------------------- 数据加载 --------------------
+    async loadInitialData() {
+        try {
+            await this.loadChapterList();
+            await this.loadChapter(this.startChapter);
+        } catch (e) {
+            console.error('初始化加载失败:', e);
+            this.showError('加载失败，请刷新重试');
+        }
+    }
+
+    async loadChapterList() {
+        const resp = await fetch(`/api/project/${encodeURIComponent(this.title)}/chapters`);
+        if (!resp.ok) throw new Error('加载章节列表失败');
+        const data = await resp.json();
+        this.chapters = (data.chapters || []).sort((a, b) => (a.number || 0) - (b.number || 0));
+        this.renderChapterList();
+    }
+
+    async loadChapter(chapterNum, append = false) {
+        if (!append) {
+            this.currentChapterNum = chapterNum;
+            this.contentEl.innerHTML = '<div class="reader-loader"><div class="reader-loader__spinner"></div><div>加载中...</div></div>';
+            this.scrollEl.scrollTop = 0;
+        } else {
+            this.isLoadingNext = true;
+        }
+
+        try {
+            // 检查缓存
+            if (this.loadedChapters.has(chapterNum) && !append) {
+                this.renderChapter(this.loadedChapters.get(chapterNum), append);
+                return;
+            }
+
+            const resp = await fetch(`/api/project/${encodeURIComponent(this.title)}/chapter/${chapterNum}`);
+            if (!resp.ok) throw new Error('加载章节失败');
+            const data = await resp.json();
+
+            this.loadedChapters.set(chapterNum, data);
+            this.renderChapter(data, append);
+
+            // 预加载下一章
+            this.preloadChapter(chapterNum + 1);
+        } catch (e) {
+            console.error('加载章节失败:', e);
+            if (!append) {
+                this.showError('章节加载失败');
+            }
+        } finally {
+            this.isLoadingNext = false;
+        }
+    }
+
+    async preloadChapter(chapterNum) {
+        if (this.loadedChapters.has(chapterNum)) return;
+        try {
+            const resp = await fetch(`/api/project/${encodeURIComponent(this.title)}/chapter/${chapterNum}`);
+            if (resp.ok) {
+                const data = await resp.json();
+                this.loadedChapters.set(chapterNum, data);
+            }
+        } catch (e) {
+            // 静默失败
+        }
+    }
+
+    // -------------------- 渲染 --------------------
+    renderChapter(data, append = false) {
+        const chapterNum = data.chapter_number || data.number || this.currentChapterNum;
+        const title = data.title || data.chapter_title || `第${chapterNum}章`;
+        const content = data.content || data.chapter_content || '';
+        const wordCount = data.word_count || 0;
+
+        const chapterEl = document.createElement('div');
+        chapterEl.className = 'reader-chapter';
+        chapterEl.dataset.chapterNum = chapterNum;
+        chapterEl.innerHTML = `
+            <h1 class="reader-chapter__title">${this.escapeHtml(title)}</h1>
+            <div class="reader-chapter__meta">${wordCount > 0 ? wordCount + ' 字' : ''}</div>
+            <div class="reader-chapter__body">${this.formatContent(content)}</div>
+        `;
+
+        if (append) {
+            // 插入章节分割线
+            const divider = document.createElement('div');
+            divider.className = 'reader-divider';
+            divider.innerHTML = `<span>第 ${chapterNum} 章 ${this.escapeHtml(title)}</span>`;
+            this.contentEl.appendChild(divider);
+            this.contentEl.appendChild(chapterEl);
+        } else {
+            this.contentEl.innerHTML = '';
+            this.contentEl.appendChild(chapterEl);
+            document.getElementById('headerChapterTitle').textContent = title;
+        }
+
+        // 更新章节列表高亮
+        this.updateChapterHighlight(chapterNum);
+
+        // 更新进度
+        this.updateProgress();
+    }
+
+    renderChapterList() {
+        const listEl = document.getElementById('chapterList');
+        if (this.chapters.length === 0) {
+            listEl.innerHTML = '<div class="reader-empty"><div class="reader-empty__desc">暂无章节</div></div>';
+            return;
+        }
+
+        listEl.innerHTML = this.chapters.map(ch => {
+            const num = ch.number || ch.chapter_number || 0;
+            const title = ch.title || '未命名';
+            const words = ch.word_count || 0;
+            return `
+                <div class="reader-chapter-item" data-chapter="${num}" onclick="reader.goToChapter(${num})">
+                    <span class="reader-chapter-item__num">第${num}章</span>
+                    <span class="reader-chapter-item__title">${this.escapeHtml(title)}</span>
+                    <span class="reader-chapter-item__words">${words > 0 ? words + '字' : ''}</span>
+                </div>
+            `;
+        }).join('');
+
+        // 搜索过滤
+        document.getElementById('chapterSearch').addEventListener('input', (e) => {
+            const keyword = e.target.value.trim().toLowerCase();
+            listEl.querySelectorAll('.reader-chapter-item').forEach(item => {
+                const text = item.textContent.toLowerCase();
+                item.style.display = text.includes(keyword) ? 'flex' : 'none';
+            });
+        });
+    }
+
+    updateChapterHighlight(chapterNum) {
+        document.querySelectorAll('.reader-chapter-item').forEach(item => {
+            item.classList.toggle('active', parseInt(item.dataset.chapter) === chapterNum);
+        });
+    }
+
+    formatContent(content) {
+        if (!content) return '<p>（本章暂无内容）</p>';
+        const paragraphs = content.split(/\n+/).filter(p => p.trim());
+        return paragraphs.map(p => {
+            const trimmed = p.trim();
+            // 对话检测
+            if (/^["""''『「【].*|[\u4e00-\u9fa5].*?[说道问道答道回答喃喃冷笑低声].*?$/.test(trimmed)) {
+                return `<p class="reader-para--dialog">${this.escapeHtml(trimmed)}</p>`;
+            }
+            return `<p>${this.escapeHtml(trimmed)}</p>`;
+        }).join('');
+    }
+
+    showError(msg) {
+        this.contentEl.innerHTML = `
+            <div class="reader-empty">
+                <div class="reader-empty__icon">😕</div>
+                <div class="reader-empty__title">${msg}</div>
+            </div>
+        `;
+    }
+
+    escapeHtml(text) {
+        const div = document.createElement('div');
+        div.textContent = text;
+        return div.innerHTML;
+    }
+
+    // -------------------- 导航 --------------------
+    goToChapter(num) {
+        this.closeDrawers();
+        this.loadChapter(num);
+    }
+
+    prevChapter() {
+        const prev = this.chapters.find(ch => (ch.number || ch.chapter_number) < this.currentChapterNum);
+        if (prev) {
+            this.goToChapter(prev.number || prev.chapter_number);
+        } else if (this.currentChapterNum > 1) {
+            this.goToChapter(this.currentChapterNum - 1);
+        }
+    }
+
+    nextChapter() {
+        const next = this.chapters.find(ch => (ch.number || ch.chapter_number) > this.currentChapterNum);
+        if (next) {
+            this.goToChapter(next.number || next.chapter_number);
+        } else {
+            this.goToChapter(this.currentChapterNum + 1);
+        }
+    }
+
+    // -------------------- UI 交互 --------------------
+    toggleUI() {
+        this.header.classList.toggle('visible');
+        this.footer.classList.toggle('visible');
+    }
+
+    showUI() {
+        this.header.classList.add('visible');
+        this.footer.classList.add('visible');
+    }
+
+    hideUI() {
+        this.header.classList.remove('visible');
+        this.footer.classList.remove('visible');
+    }
+
+    toggleChapterDrawer() {
+        const isOpen = this.chapterDrawer.classList.contains('active');
+        this.closeDrawers();
+        if (!isOpen) {
+            this.chapterDrawer.classList.add('active');
+            this.overlay.classList.add('active');
+            this.hideUI();
+        }
+    }
+
+    toggleSettingsDrawer() {
+        const isOpen = this.settingsDrawer.classList.contains('active');
+        this.closeDrawers();
+        if (!isOpen) {
+            this.settingsDrawer.classList.add('active');
+            this.overlay.classList.add('active');
+            this.hideUI();
+        }
+    }
+
+    closeDrawers() {
+        this.chapterDrawer.classList.remove('active');
+        this.settingsDrawer.classList.remove('active');
+        this.overlay.classList.remove('active');
+    }
+
+    // -------------------- 设置与偏好 --------------------
+    setTheme(theme) {
+        this.prefs.theme = theme;
+        document.documentElement.setAttribute('data-theme', theme);
+        document.querySelectorAll('.reader-theme-option').forEach(el => {
+            el.classList.toggle('active', el.dataset.theme === theme);
+        });
+        this.savePreferences();
+    }
+
+    changeFontSize(delta) {
+        const newSize = Math.max(12, Math.min(28, this.prefs.fontSize + delta));
+        this.prefs.fontSize = newSize;
+        this.applyFontSize();
+        this.savePreferences();
+    }
+
+    applyFontSize() {
+        document.documentElement.style.setProperty('--reader-font-size', this.prefs.fontSize + 'px');
+        document.getElementById('fontSizeValue').textContent = this.prefs.fontSize;
+    }
+
+    setFont(font) {
+        this.prefs.fontFamily = font;
+        const fontMap = {
+            system: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "PingFang SC", "Microsoft YaHei", sans-serif',
+            serif: '"Source Han Serif SC", "Noto Serif SC", "Songti SC", SimSun, serif',
+            lxgw: '"LXGW WenKai", "LXGWWenKai", "PingFang SC", "Microsoft YaHei", sans-serif'
+        };
+        document.documentElement.style.setProperty('--reader-font-family', fontMap[font] || fontMap.system);
+        document.querySelectorAll('[data-font]').forEach(el => {
+            el.classList.toggle('active', el.dataset.font === font);
+        });
+        this.savePreferences();
+    }
+
+    setLineHeight(lh) {
+        this.prefs.lineHeight = lh;
+        document.documentElement.style.setProperty('--reader-line-height', lh);
+        document.querySelectorAll('[data-lh]').forEach(el => {
+            el.classList.toggle('active', parseFloat(el.dataset.lh) === lh);
+        });
+        this.savePreferences();
+    }
+
+    setParaGap(gap) {
+        this.prefs.paraGap = gap;
+        document.documentElement.style.setProperty('--reader-para-gap', gap + 'em');
+        document.querySelectorAll('[data-pg]').forEach(el => {
+            el.classList.toggle('active', parseFloat(el.dataset.pg) === gap);
+        });
+        this.savePreferences();
+    }
+
+    setMargin(margin) {
+        this.prefs.margin = margin;
+        this.contentEl.classList.remove('reader-margin--narrow', 'reader-margin--medium', 'reader-margin--wide', 'reader-margin--ultrawide');
+        this.contentEl.classList.add('reader-margin--' + margin);
+        document.querySelectorAll('[data-margin]').forEach(el => {
+            el.classList.toggle('active', el.dataset.margin === margin);
+        });
+        this.savePreferences();
+    }
+
+    setContentWidth(width) {
+        this.prefs.contentWidth = width;
+        this.contentEl.classList.remove('reader-content--narrow', 'reader-content--medium', 'reader-content--wide', 'reader-content--ultrawide');
+        if (width !== 'medium') {
+            this.contentEl.classList.add('reader-content--' + width);
+        }
+        document.querySelectorAll('[data-width]').forEach(el => {
+            el.classList.toggle('active', el.dataset.width === width);
+        });
+        this.savePreferences();
+    }
+
+    applyPreferences() {
+        this.setTheme(this.prefs.theme);
+        this.applyFontSize();
+        this.setFont(this.prefs.fontFamily);
+        this.setLineHeight(this.prefs.lineHeight);
+        this.setParaGap(this.prefs.paraGap);
+        this.setMargin(this.prefs.margin);
+        this.setContentWidth(this.prefs.contentWidth);
+    }
+
+    loadPreferences() {
+        try {
+            const saved = localStorage.getItem('novelReaderPrefs');
+            if (saved) {
+                this.prefs = { ...this.prefs, ...JSON.parse(saved) };
+            }
+        } catch (e) {
+            console.warn('读取阅读偏好失败:', e);
+        }
+    }
+
+    savePreferences() {
+        try {
+            localStorage.setItem('novelReaderPrefs', JSON.stringify(this.prefs));
+        } catch (e) {
+            console.warn('保存阅读偏好失败:', e);
+        }
+    }
+
+    // -------------------- 进度与滚动 --------------------
+    updateProgress() {
+        const scrollTop = this.scrollEl.scrollTop;
+        const scrollHeight = this.scrollEl.scrollHeight - this.scrollEl.clientHeight;
+        const percent = scrollHeight > 0 ? Math.min(100, Math.round((scrollTop / scrollHeight) * 100)) : 0;
+        this.progressFill.style.width = percent + '%';
+        this.progressText.textContent = percent + '%';
+
+        // 更新当前阅读到的章节
+        const chapters = this.contentEl.querySelectorAll('.reader-chapter');
+        for (let ch of chapters) {
+            const rect = ch.getBoundingClientRect();
+            if (rect.top <= this.scrollEl.clientHeight / 2) {
+                this.currentChapterNum = parseInt(ch.dataset.chapterNum);
+            }
+        }
+        const currentCh = this.loadedChapters.get(this.currentChapterNum);
+        if (currentCh) {
+            document.getElementById('headerChapterTitle').textContent = currentCh.title || currentCh.chapter_title || `第${this.currentChapterNum}章`;
+        }
+        this.updateChapterHighlight(this.currentChapterNum);
+    }
+
+    bindEvents() {
+        // 滚动监听：进度 + 自动加载下一章
+        this.scrollEl.addEventListener('scroll', () => {
+            this.updateProgress();
+
+            const scrollTop = this.scrollEl.scrollTop;
+            const scrollHeight = this.scrollEl.scrollHeight - this.scrollEl.clientHeight;
+
+            // 滚动到底 80% 预加载
+            if (scrollHeight > 0 && scrollTop / scrollHeight > 0.8 && !this.isLoadingNext) {
+                const nextNum = this.currentChapterNum + 1;
+                const hasNext = this.chapters.some(ch => (ch.number || ch.chapter_number) >= nextNum);
+                if (hasNext || this.chapters.length === 0) {
+                    this.loadChapter(nextNum, true);
+                }
+            }
+
+            // 向下滚动隐藏 UI，向上滚动显示 UI（当 UI 已经显示时）
+            if (this.header.classList.contains('visible')) {
+                if (scrollTop > this.lastScrollTop + 10) {
+                    this.hideUI();
+                } else if (scrollTop < this.lastScrollTop - 10) {
+                    this.showUI();
+                }
+            }
+            this.lastScrollTop = scrollTop;
+        });
+
+        // 点击热区
+        document.getElementById('touchLayer').addEventListener('click', (e) => {
+            const zone = e.target.dataset.zone;
+            if (zone === 'toggle') {
+                // 如果抽屉打开则关闭抽屉
+                if (this.chapterDrawer.classList.contains('active') || this.settingsDrawer.classList.contains('active')) {
+                    this.closeDrawers();
+                } else {
+                    this.toggleUI();
+                }
+            } else if (zone === 'prev') {
+                this.prevChapter();
+            } else if (zone === 'next') {
+                this.nextChapter();
+            }
+        });
+
+        // 键盘导航
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape') {
+                if (this.chapterDrawer.classList.contains('active') || this.settingsDrawer.classList.contains('active')) {
+                    this.closeDrawers();
+                } else if (this.header.classList.contains('visible')) {
+                    this.hideUI();
+                } else {
+                    window.location.href = '/novels';
+                }
+            } else if (e.key === 'ArrowLeft') {
+                this.prevChapter();
+            } else if (e.key === 'ArrowRight') {
+                this.nextChapter();
+            }
+        });
+    }
+}
+
+// 初始化
+const reader = new NovelReader();
+</script>
+{% endblock %}

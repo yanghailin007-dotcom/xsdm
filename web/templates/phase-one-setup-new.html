@@ -2391,8 +2391,13 @@
                 
                 if (!response.ok) throw new Error('加载失败');
                 
-                const report = await response.json();
-                updateQualityCard(report);
+                const data = await response.json();
+                // 🔥 修复：提取 data.report 字段传递给 updateQualityCard
+                if (data.success && data.report) {
+                    updateQualityCard(data.report);
+                } else {
+                    updateQualityCard({ status: 'pending' });
+                }
             } catch (error) {
                 console.error('加载质量评估失败:', error);
                 updateQualityCard({ status: 'error', message: error.message });
@@ -2517,7 +2522,8 @@
         
         // 刷新质量评估
         async function refreshQualityAssessment() {
-            const title = document.getElementById('novel-title')?.value;
+            // 优先使用 localStorage 中保存的 lastNovelTitle（与后端实际目录一致）
+            const title = localStorage.getItem('lastNovelTitle') || document.getElementById('novel-title')?.value;
             if (!title) {
                 showStatusMessage('请先输入小说标题', 'error');
                 return;
@@ -2667,10 +2673,13 @@
             
             // 🔥 修复：页面加载时加载质量评估报告（如果存在）
             setTimeout(() => {
+                // 优先使用 localStorage 中保存的 lastNovelTitle（与后端实际目录一致）
+                const storedTitle = localStorage.getItem('lastNovelTitle');
                 const titleInput = document.getElementById('novel-title');
-                if (titleInput && titleInput.value && typeof loadQualityAssessment === 'function') {
-                    console.log(`[INIT] 页面加载时加载质量评估: ${titleInput.value}`);
-                    loadQualityAssessment(titleInput.value);
+                const assessmentTitle = storedTitle || (titleInput && titleInput.value) || '';
+                if (assessmentTitle && typeof loadQualityAssessment === 'function') {
+                    console.log(`[INIT] 页面加载时加载质量评估: ${assessmentTitle}`);
+                    loadQualityAssessment(assessmentTitle);
                 }
             }, 1000);
             

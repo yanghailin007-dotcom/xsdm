@@ -43,14 +43,25 @@ from PyQt5.QtWidgets import (
 from PyQt5.QtCore import Qt, QThread, pyqtSignal, QTimer
 from PyQt5.QtGui import QFont, QTextCursor, QColor
 
-# 导入模块
+# 导入模块（延迟重载，加快启动）
+UPLOADER_AVAILABLE = True
 try:
     from tomato_account_manager import TomatoAccountManager, TomatoAccount, ChromeLauncher
-    from fanqie_uploader_impl import FanqieUploaderImpl
-    UPLOADER_AVAILABLE = True
 except ImportError as e:
     print(f"导入失败: {e}")
     UPLOADER_AVAILABLE = False
+
+# FanqieUploaderImpl 延迟导入，避免启动时加载 playwright
+FanqieUploaderImpl = None
+def get_uploader_impl():
+    global FanqieUploaderImpl
+    if FanqieUploaderImpl is None:
+        try:
+            from fanqie_uploader_impl import FanqieUploaderImpl as _impl
+            FanqieUploaderImpl = _impl
+        except ImportError as e:
+            print(f"导入上传模块失败: {e}")
+    return FanqieUploaderImpl
 
 # 环境配置
 try:
@@ -244,8 +255,9 @@ class UploadWorker(QThread):
             self.log_signal.emit(f"🚀 开始上传 - 使用账户: {self.tomato_account.name}", "info")
             self.log_signal.emit(f"📡 连接浏览器 (端口: {self.tomato_account.port})...", "info")
             
-            # 创建上传器
-            self.uploader = FanqieUploaderImpl(
+            # 创建上传器（延迟导入）
+            UploaderImpl = get_uploader_impl()
+            self.uploader = UploaderImpl(
                 novel_title=self.novel_title,
                 progress_callback=lambda p, m: self.progress_signal.emit(int(p * 0.8) + 10, m),
                 log_callback=lambda m, l: self.log_signal.emit(m, l)
@@ -1325,7 +1337,11 @@ NovelPublisher_Data/              ← 统一数据目录
             self.chapters_stats.setText("共 0 个章节 (章节目录不存在)")
             return
         
-        for ch_file in sorted(chapters_dir.glob("chapter_*.json")):
+        chapter_files = sorted(
+            list(chapters_dir.glob("chapter_*.json")) +
+            list(chapters_dir.glob("第*.json"))
+        )
+        for ch_file in chapter_files:
             try:
                 data = json.loads(ch_file.read_text(encoding='utf-8'))
                 ch_num = data.get('chapter_number', 0)

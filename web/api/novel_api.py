@@ -286,11 +286,80 @@ def register_novel_routes(app, manager: NovelGenerationManager):
             logger.error(f"❌ 获取小说信息失败: {e}")
             return jsonify({"success": False, "error": str(e)}), 500
 
+    @app.route('/api/project/<title>/chapters', methods=['GET'])
+    def get_project_chapters(title):
+        """获取项目章节列表"""
+        try:
+            # 先尝试从内存读取
+            novel_detail = manager.get_novel_detail(title)
+            if not novel_detail:
+                manager.load_existing_novels()
+                novel_detail = manager.get_novel_detail(title)
+            
+            chapters = []
+            if novel_detail and novel_detail.get("generated_chapters"):
+                generated = novel_detail.get("generated_chapters", {})
+                for num in sorted(generated.keys(), key=lambda x: int(x) if str(x).isdigit() else x):
+                    ch = generated[num]
+                    chapters.append({
+                        "number": int(num) if str(num).isdigit() else num,
+                        "title": ch.get("title") or ch.get("chapter_title") or "",
+                        "word_count": ch.get("word_count", 0)
+                    })
+            
+            # 如果内存中没有，从文件系统扫描
+            if not chapters:
+                try:
+                    from pathlib import Path
+                    import json, re
+                    from flask import session
+                    username = session.get('username')
+                    from src.config.path_config import path_config
+                    paths = path_config.get_project_paths(title, username=username)
+                    chapters_dir = Path(paths.get("chapters_dir", ""))
+                    if chapters_dir.exists():
+                        files = sorted(
+                            list(chapters_dir.glob("chapter_*.json")) +
+                            list(chapters_dir.glob("第*.json"))
+                        )
+                        for f in files:
+                            try:
+                                data = json.loads(f.read_text(encoding='utf-8'))
+                                num = data.get("chapter_number", 0)
+                                if not num:
+                                    # 尝试从文件名解析
+                                    m = re.search(r'chapter_(\d+)', f.name) or re.search(r'第(\d+)章', f.name)
+                                    num = int(m.group(1)) if m else 0
+                                chapters.append({
+                                    "number": num,
+                                    "title": data.get("title", data.get("chapter_title", f"第{num}章")),
+                                    "word_count": data.get("word_count", 0)
+                                })
+                            except Exception:
+                                continue
+                        chapters.sort(key=lambda x: x["number"])
+                except Exception as e:
+                    logger.warning(f"从文件系统读取章节列表失败: {e}")
+            
+            return jsonify({
+                "success": True,
+                "title": title,
+                "chapters": chapters
+            })
+        except Exception as e:
+            logger.error(f"❌ 获取章节列表失败: {e}")
+            return jsonify({"success": False, "error": str(e)}), 500
+
     @app.route('/api/project/<title>/chapter/<int:chapter_num>', methods=['GET'])
     def get_chapter_detail(title, chapter_num):
         """获取章节详情"""
         try:
             chapter_detail = manager.get_chapter_detail(title, chapter_num)
+            # 🔥 如果内存中没有，尝试重新加载项目后再读取
+            if not chapter_detail:
+                manager.load_existing_novels()
+                chapter_detail = manager.get_chapter_detail(title, chapter_num)
+            
             if not chapter_detail:
                 return jsonify({"error": "章节不存在"}), 404
 

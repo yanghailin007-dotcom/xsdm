@@ -743,9 +743,9 @@
         }).join('');
     }
     
-    // 查看章节
+    // 查看章节（使用新版沉浸式阅读器）
     function viewChapter(novelTitle, chapterNum) {
-        window.open(`/chapter-view?novel=${encodeURIComponent(novelTitle)}&chapter=${chapterNum}`, '_blank');
+        window.open(`/reader/${encodeURIComponent(novelTitle)}?chapter=${chapterNum}`, '_blank');
     }
     
     // 页面加载时刷新数据

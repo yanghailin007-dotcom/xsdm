@@ -1426,7 +1426,7 @@ function showResultsSection(result) {
         fillOutlinesResult(result);
         fillValidationResult(result);
         
-        // 🔥 加载质量评估结果
+        // 🔥 加载质量评估结果（使用 result.novel_title，与后端保存路径一致）
         loadQualityAssessmentResult(result.novel_title);
     }
     

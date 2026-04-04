@@ -1595,41 +1595,61 @@ class NovelGenerationManager:
     def get_chapter_detail(self, title: str, chapter_num: int) -> Optional[Dict[str, Any]]:
         """获取章节详情，优先从内存读取，如果不存在则从文件系统读取"""
         novel_data = self.novel_projects.get(title)
-        if not novel_data:
-            return None
         
         # 首先尝试从内存缓存读取
-        generated_chapters = novel_data.get("generated_chapters", {})
-        chapter = generated_chapters.get(chapter_num)
-        if chapter:
-            return chapter
+        if novel_data:
+            generated_chapters = novel_data.get("generated_chapters", {})
+            chapter = generated_chapters.get(chapter_num)
+            if chapter:
+                return chapter
         
         # 🔥 如果内存中没有，从文件系统读取
         try:
             from src.config.path_config import path_config
-            username = novel_data.get('owner')
-            if username:
-                paths = path_config.get_project_paths(title, username=username)
-                chapters_dir = Path(paths.get("chapters_dir", ""))
-                if chapters_dir.exists():
-                    # 尝试多种文件命名格式
-                    possible_files = [
-                        chapters_dir / f"chapter_{chapter_num:03d}.json",
-                        chapters_dir / f"chapter_{chapter_num}.json",
-                        chapters_dir / f"第{chapter_num}章.json",
-                        chapters_dir / f"第{chapter_num:03d}章.json",
-                    ]
-                    
-                    for ch_file in possible_files:
-                        if ch_file.exists():
-                            try:
-                                with open(ch_file, 'r', encoding='utf-8-sig') as f:
-                                    ch_data = json.load(f)
-                                logger.debug(f"✅ 从文件系统读取章节 {chapter_num}: {ch_file.name}")
-                                return ch_data
-                            except Exception as e:
-                                logger.warning(f"⚠️ 读取章节文件失败 {ch_file}: {e}")
-                                continue
+            import re
+            username = novel_data.get('owner') if novel_data else None
+            if not username:
+                # 尝试从默认路径推断
+                from flask import session
+                username = session.get('username') if session else None
+            
+            paths = path_config.get_project_paths(title, username=username)
+            chapters_dir = Path(paths.get("chapters_dir", ""))
+            if chapters_dir.exists():
+                # 尝试多种文件命名格式（精确匹配）
+                possible_files = [
+                    chapters_dir / f"chapter_{chapter_num:03d}.json",
+                    chapters_dir / f"chapter_{chapter_num}.json",
+                    chapters_dir / f"第{chapter_num}章.json",
+                    chapters_dir / f"第{chapter_num:03d}章.json",
+                ]
+                
+                for ch_file in possible_files:
+                    if ch_file.exists():
+                        try:
+                            with open(ch_file, 'r', encoding='utf-8-sig') as f:
+                                ch_data = json.load(f)
+                            logger.debug(f"✅ 从文件系统读取章节 {chapter_num}: {ch_file.name}")
+                            return ch_data
+                        except Exception as e:
+                            logger.warning(f"⚠️ 读取章节文件失败 {ch_file}: {e}")
+                            continue
+                
+                # 🔥 精确匹配失败，使用 glob 扫描中文序号格式（如 第001章_xxx.json）
+                all_files = sorted(list(chapters_dir.glob("第*.json")) + list(chapters_dir.glob("chapter_*.json")))
+                for ch_file in all_files:
+                    try:
+                        with open(ch_file, 'r', encoding='utf-8-sig') as f:
+                            ch_data = json.load(f)
+                        file_ch_num = ch_data.get("chapter_number", 0)
+                        if not file_ch_num:
+                            m = re.search(r'chapter_(\d+)', ch_file.name) or re.search(r'第(\d+)章', ch_file.name)
+                            file_ch_num = int(m.group(1)) if m else 0
+                        if file_ch_num == chapter_num:
+                            logger.debug(f"✅ 从文件系统扫描读取章节 {chapter_num}: {ch_file.name}")
+                            return ch_data
+                    except Exception:
+                        continue
         except Exception as e:
             logger.warning(f"⚠️ 从文件系统读取章节 {chapter_num} 失败: {e}")
         

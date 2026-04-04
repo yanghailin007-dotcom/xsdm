@@ -193,13 +193,13 @@ class FanqieUploaderImpl:
             return False
     
     def create_book(self) -> bool:
-        """自动创建新书"""
+        """自动创建新书 - 从书籍管理页面点击创建"""
         try:
             self._progress(36, "正在创建新书...")
             self._log(f"开始创建书籍: {self.novel_title}")
             
-            # 访问创建书籍页面
-            self.page.goto("https://fanqienovel.com/main/writer/create-book", timeout=30000)
+            # 步骤0: 访问书籍管理页面
+            self.page.goto("https://fanqienovel.com/main/writer/book-manage", timeout=30000)
             time.sleep(3)
             
             # 检查是否在登录页
@@ -207,76 +207,110 @@ class FanqieUploaderImpl:
                 self._log("需要登录，等待登录...", "warning")
                 return False
             
-            # 填写书名
+            # 步骤1: 点击"创建新书"打开下拉菜单
+            menu_opened = False
             try:
-                # 尝试多种选择器
-                title_selectors = [
-                    'input[placeholder*="书名"]',
-                    'input[placeholder*="标题"]',
-                    'input[name="title"]',
-                    'input[class*="title"]',
-                    '.book-title input',
-                    'input[type="text"]'
-                ]
+                locator = self.page.locator('div.hoverup:has-text("创建新书"), div.font-4:has-text("创建新书"), button:has-text("创建新书")')
+                if locator.count() > 0:
+                    self._log("找到创建新书按钮，点击打开下拉菜单...")
+                    locator.first.click(timeout=5000)
+                    menu_opened = True
+                    time.sleep(1)
+            except Exception as e:
+                self._log(f"点击创建新书按钮失败: {e}", "warning")
+            
+            if not menu_opened:
+                self._log("无法打开创建新书菜单，尝试直接访问创建页面...", "warning")
+                self.page.goto("https://fanqienovel.com/main/writer/create?enter_from=home", timeout=30000)
+                time.sleep(3)
+            else:
+                # 步骤2: 点击下拉菜单中的"创建书本"选项
+                clicked = False
+                try:
+                    locator = self.page.get_by_text("创建书本", exact=True)
+                    if locator.count() > 0:
+                        locator.first.click(timeout=5000)
+                        clicked = True
+                except Exception as e:
+                    self._log(f"精确查找创建书本失败: {e}", "warning")
                 
-                title_filled = False
-                for selector in title_selectors:
+                if not clicked:
                     try:
-                        input_elem = self.page.locator(selector).first
-                        if input_elem.count() > 0 and input_elem.is_visible():
-                            input_elem.fill(self.novel_title)
-                            self._log(f"✓ 填写书名: {self.novel_title}")
-                            title_filled = True
-                            break
-                    except:
-                        continue
+                        locator = self.page.locator('text=书本信息已准备好')
+                        if locator.count() > 0:
+                            parent = locator.locator('xpath=ancestor::*[contains(., "创建书本")][1]')
+                            if parent.count() > 0:
+                                parent.first.click(timeout=5000)
+                                clicked = True
+                    except Exception as e:
+                        self._log(f"通过描述查找创建书本失败: {e}", "warning")
                 
-                if not title_filled:
-                    self._log("⚠️ 未能自动填写书名，可能需要手动创建", "warning")
-                    return False
-                    
+                if not clicked:
+                    try:
+                        elements = self.page.locator(':text("创建书本")').all()
+                        for el in elements:
+                            text = el.text_content()
+                            if text and ("书本信息已准备好" in text or text.strip() == "创建书本"):
+                                el.click(timeout=5000)
+                                clicked = True
+                                break
+                    except Exception as e:
+                        self._log(f"遍历创建书本元素失败: {e}", "warning")
+                
+                if not clicked:
+                    self._log("未找到创建书本选项，尝试直接访问创建页面...", "warning")
+                    self.page.goto("https://fanqienovel.com/main/writer/create?enter_from=home", timeout=30000)
+                    time.sleep(3)
+                else:
+                    self._log("✓ 点击创建书本选项成功")
+                    time.sleep(3)
+            
+            # 步骤3: 填写书名
+            try:
+                title_short = self.novel_title[:14] if len(self.novel_title) > 14 else self.novel_title
+                title_input = self.page.locator('input[placeholder="请输入作品名称"]').first
+                if title_input.count() > 0:
+                    title_input.wait_for(state='visible', timeout=5000)
+                    title_input.fill(title_short)
+                    self._log(f"✓ 填写书名: {title_short}")
+                else:
+                    # 备用选择器
+                    for selector in ['input[placeholder*="书名"]', 'input[name="title"]', 'input[type="text"]']:
+                        try:
+                            elem = self.page.locator(selector).first
+                            if elem.count() > 0 and elem.is_visible():
+                                elem.fill(title_short)
+                                self._log(f"✓ 填写书名: {title_short}")
+                                break
+                        except:
+                            continue
             except Exception as e:
                 self._log(f"填写书名失败: {e}", "error")
                 return False
             
-            # 填写简介（可选）
+            # 步骤4: 填写简介（可选）
             try:
-                intro_selectors = [
-                    'textarea[placeholder*="简介"]',
-                    'textarea[placeholder*="介绍"]',
-                    'textarea[name="intro"]',
-                    '.book-intro textarea'
-                ]
-                
                 intro_text = f"{self.novel_title}，精彩小说，敬请期待！"
-                for selector in intro_selectors:
+                for selector in ['textarea[placeholder*="简介"]', 'textarea', 'textarea[name="intro"]']:
                     try:
                         textarea = self.page.locator(selector).first
                         if textarea.count() > 0 and textarea.is_visible():
                             textarea.fill(intro_text)
-                            self._log(f"✓ 填写简介")
+                            self._log("✓ 填写简介")
                             break
                     except:
                         continue
             except:
-                pass  # 简介可选
+                pass
             
-            # 选择分类（点击第一个选项）
+            # 步骤5: 选择分类（点击第一个选项）
             try:
-                category_selectors = [
-                    '.category-select',
-                    '.book-category',
-                    '[class*="category"] .select',
-                    'div[class*="select"]:has-text("选择")'
-                ]
-                
-                for selector in category_selectors:
+                for selector in ['.category-select', '.book-category', '[class*="category"]']:
                     try:
                         select_elem = self.page.locator(selector).first
                         if select_elem.count() > 0 and select_elem.is_visible():
                             select_elem.click()
                             time.sleep(1)
-                            # 点击第一个选项
                             first_option = self.page.locator('.option-item, .select-option, [class*="option"]').first
                             if first_option.count() > 0:
                                 first_option.click()
@@ -285,24 +319,14 @@ class FanqieUploaderImpl:
                     except:
                         continue
             except:
-                pass  # 分类可能已有默认值
+                pass
             
             time.sleep(2)
             
-            # 点击创建按钮
+            # 步骤6: 点击创建按钮
             try:
-                create_btn_selectors = [
-                    'button:has-text("创建")',
-                    'button:has-text("提交")',
-                    'button:has-text("确定")',
-                    'button[class*="primary"]',
-                    'button[type="submit"]',
-                    '.create-btn',
-                    '.submit-btn'
-                ]
-                
                 btn_clicked = False
-                for selector in create_btn_selectors:
+                for selector in ['button:has-text("创建")', 'button:has-text("提交")', 'button:has-text("确定")', 'button[class*="primary"]', 'button[type="submit"]']:
                     try:
                         btn = self.page.locator(selector).first
                         if btn.count() > 0 and btn.is_visible():
@@ -316,7 +340,6 @@ class FanqieUploaderImpl:
                 if not btn_clicked:
                     self._log("⚠️ 未能找到创建按钮", "warning")
                     return False
-                    
             except Exception as e:
                 self._log(f"点击创建按钮失败: {e}", "error")
                 return False
@@ -326,11 +349,8 @@ class FanqieUploaderImpl:
             
             # 检查是否创建成功
             page_content = self.page.content()
-            
-            # 检查成功提示
             success_indicators = ['创建成功', '书籍创建', 'book-manage', '/book/']
             if any(ind in page_content for ind in success_indicators) or '/book/' in self.page.url:
-                # 提取书籍ID
                 book_ids = re.findall(r'/book/(\d+)', self.page.url)
                 if book_ids:
                     self.book_id = book_ids[0]
@@ -340,7 +360,7 @@ class FanqieUploaderImpl:
                         self.book_id = book_ids[0]
                 
                 if self.book_id:
-                    self.book_created = True  # 标记自动创建成功
+                    self.book_created = True
                     self._progress(40, f"✅ 书籍创建成功！ID: {self.book_id}")
                     self._log(f"✅ 书籍《{self.novel_title}》创建成功！")
                     return True
@@ -348,7 +368,6 @@ class FanqieUploaderImpl:
             # 检查是否已有同名书籍
             if '已存在' in page_content or '重复' in page_content:
                 self._log("⚠️ 检测到同名书籍，尝试查找...", "warning")
-                # 返回书籍列表查找
                 self.page.goto("https://fanqienovel.com/main/writer/book-manage", timeout=30000)
                 time.sleep(3)
                 return self.find_book_in_list()

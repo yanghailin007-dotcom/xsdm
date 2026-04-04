@@ -513,6 +513,13 @@ def register_page_routes(app):
         """章节内容查看页面"""
         return render_template('chapter-view.html')
     
+    @app.route('/reader/<title>', methods=['GET'])
+    @login_required
+    def novel_reader_v2(title):
+        """沉浸式小说阅读页 - V2"""
+        chapter_num = request.args.get('chapter', 1, type=int)
+        return render_template('novel-reader-v2.html', title=title, chapter_num=chapter_num)
+    
     @app.route('/video-generation', methods=['GET'])
     @login_required
     def video_generation():

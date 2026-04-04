@@ -602,74 +602,109 @@ def register_fanqie_routes(app):
     
     @app.route('/api/novels/list', methods=['GET'])
     def get_novels_list():
-        """获取当前用户的小说项目列表 - 支持多层目录结构"""
+        """获取当前用户的小说项目列表 - 支持多层目录结构，兼容传统模式"""
         try:
             from pathlib import Path
             from flask import session
+            from web.utils.path_utils import list_user_projects
             
             # 获取当前用户
             username = session.get('username')
             if not username:
                 return jsonify({"success": False, "error": "请先登录"}), 401
             
-            # 检查用户的小说项目目录
-            novels_dir = Path("小说项目") / username
-            if not novels_dir.exists():
-                return jsonify({"success": True, "data": []})
+            # 🔥 修复：使用 list_user_projects 获取所有项目（兼容传统模式）
+            user_projects = list_user_projects(username, include_public=True)
             
             novels = []
-            for item in novels_dir.iterdir():
-                if item.is_dir():
-                    # 查找 chapters 目录（支持多层结构）
-                    chapters_dir = None
-                    project_title = None
-                    project_path = None
+            seen_ids = set()
+            
+            for project_info in user_projects:
+                try:
+                    title = project_info['title']
+                    project_path = Path(project_info['path'])
+                    project_id = project_path.name
                     
-                    # 情况1: 直接在项目目录下有 chapters
-                    if (item / "chapters").exists():
-                        chapters_dir = item / "chapters"
-                        project_title = item.name
-                        project_path = str(item)
-                    else:
-                        # 情况2: 在子目录中查找 chapters（如：用户名/小说名/chapters/）
-                        for subdir in item.iterdir():
-                            if subdir.is_dir() and (subdir / "chapters").exists():
-                                chapters_dir = subdir / "chapters"
-                                project_title = subdir.name  # 使用子目录名作为书名
-                                project_path = str(subdir)
-                                break
+                    if project_id in seen_ids:
+                        continue
+                    seen_ids.add(project_id)
                     
-                    # 计算章节数和字数
-                    chapter_count = 0
-                    word_count = 0
-                    
-                    if chapters_dir and chapters_dir.exists():
-                        chapter_files = list(chapters_dir.glob("chapter_*.json"))
-                        chapter_count = len(chapter_files)
-                        # 读取第一个章节获取字数信息（作为估算）
-                        if chapter_files:
+                    # 尝试读取项目信息文件获取 generated_chapters
+                    generated_chapters = {}
+                    info_files = [
+                        f"{project_id}_项目信息.json",
+                        "项目信息.json",
+                        "project_info.json"
+                    ]
+                    for filename in info_files:
+                        info_path = project_path / filename
+                        if info_path.exists():
                             try:
                                 import json
-                                with open(chapter_files[0], 'r', encoding='utf-8') as f:
-                                    chapter_data = json.load(f)
-                                    avg_words = chapter_data.get('word_count', 2500)
-                                    word_count = avg_words * chapter_count
-                            except:
-                                word_count = chapter_count * 2500  # 默认估算
+                                with open(info_path, 'r', encoding='utf-8-sig') as f:
+                                    project_data = json.load(f)
+                                generated_chapters = project_data.get('generated_chapters', {})
+                                break
+                            except Exception:
+                                pass
                     
-                    # 只显示有章节的项目
+                    # 计算章节数和字数
+                    chapter_count = len(generated_chapters)
+                    word_count = 0
+                    
                     if chapter_count > 0:
-                        novels.append({
-                            "id": item.name,
-                            "title": project_title or item.name,
-                            "chapter_count": chapter_count,
-                            "word_count": word_count,
-                            "path": project_path or str(item)
-                        })
+                        for chapter_data in generated_chapters.values():
+                            if isinstance(chapter_data, dict):
+                                word_count += chapter_data.get('word_count', 0)
+                            else:
+                                word_count += len(str(chapter_data))
+                    
+                    # 🔥 如果从内存数据中没有章节，尝试从 chapters 目录读取（兼容新旧结构）
+                    if chapter_count == 0:
+                        chapters_dir = project_path / "chapters"
+                        if chapters_dir.exists():
+                            chapter_files = (
+                                list(chapters_dir.glob("chapter_*.json")) +
+                                list(chapters_dir.glob("第*.json")) +
+                                list(chapters_dir.glob("第*.txt")) +
+                                list(chapters_dir.glob("chapter_*.txt"))
+                            )
+                            unique_files = []
+                            seen_names = set()
+                            for f in chapter_files:
+                                if f.name not in seen_names:
+                                    seen_names.add(f.name)
+                                    unique_files.append(f)
+                            chapter_count = len(unique_files)
+                            
+                            for f in unique_files:
+                                try:
+                                    if f.suffix == '.json':
+                                        import json
+                                        with open(f, 'r', encoding='utf-8') as cf:
+                                            cdata = json.load(cf)
+                                        word_count += cdata.get('word_count', len(str(cdata)))
+                                    else:
+                                        word_count += len(f.read_text(encoding='utf-8'))
+                                except Exception:
+                                    word_count += 2500
+                    
+                    novels.append({
+                        "id": project_id,
+                        "title": title,
+                        "chapter_count": chapter_count,
+                        "word_count": word_count,
+                        "path": str(project_path)
+                    })
+                except Exception as e:
+                    logger.warning(f"[NOVELS_LIST] 加载项目失败 {project_info.get('title', 'unknown')}: {e}")
+                    continue
             
             return jsonify({"success": True, "data": novels})
         except Exception as e:
             logger.error(f"❌ 获取小说列表失败: {e}")
+            import traceback
+            traceback.print_exc()
             return jsonify({"success": False, "error": str(e)}), 500
     
     def find_user_project_dir(username, project_id):
@@ -721,12 +756,18 @@ def register_fanqie_routes(app):
             project_config = {}
             fanqie_data = {}
             
-            # 首先尝试读取 project_info.json
-            info_file = project_dir / "project_info.json"
-            if info_file.exists():
-                try:
-                    with open(info_file, 'r', encoding='utf-8') as f:
-                        project_config = json.load(f)
+            # 🔥 修复：兼容传统模式项目，尝试多种项目信息文件名
+            info_files = [
+                project_dir / "project_info.json",
+                project_dir / f"{project_id}_项目信息.json",
+                project_dir / "项目信息.json",
+            ]
+            
+            for info_file in info_files:
+                if info_file.exists():
+                    try:
+                        with open(info_file, 'r', encoding='utf-8') as f:
+                            project_config = json.load(f)
                         # 优先使用 fanqie_upload_data 中的数据（支持嵌套路径）
                         fanqie_data = project_config.get('fanqie_upload_data', {})
                         # 如果根级别没有，尝试从 generation_metadata.mode_specific.info 读取
@@ -734,11 +775,13 @@ def register_fanqie_routes(app):
                             mode_specific = project_config.get('generation_metadata', {}).get('mode_specific', {})
                             info_data = mode_specific.get('info', {})
                             fanqie_data = info_data.get('fanqie_upload_data', {})
-                except Exception as e:
-                    logger.warning(f"读取 project_info.json 失败: {e}")
+                        logger.info(f"✅ 读取项目信息: {info_file}")
+                        break
+                    except Exception as e:
+                        logger.warning(f"读取 {info_file.name} 失败: {e}")
             
             # 如果没有 fanqie_data，尝试读取 project_config.json
-            if not fanqie_data:
+            if not fanqie_data and not project_config:
                 config_file = project_dir / "project_config.json"
                 if config_file.exists():
                     try:
@@ -751,47 +794,65 @@ def register_fanqie_routes(app):
             # 从 fanqie_data 或 project_config 获取字段（兼容多种数据结构）
             # 🔥 兼容自由创意模式的嵌套结构 novel_info
             novel_info = project_config.get('novel_info', {})
+            # 🔥 兼容传统模式的 selected_plan 结构
+            selected_plan = novel_info.get('selected_plan', {}) if novel_info else project_config.get('selected_plan', {})
+            creative_seed = novel_info.get('creative_seed', {}) if novel_info else project_config.get('creative_seed', {})
             
-            # 书名：fanqie_upload_data.title > novel_title > novel_info.title > title
+            # 书名：fanqie_upload_data.title > novel_info.title > selected_plan.title > creative_seed.novelTitle > project_id
             title = (fanqie_data.get('title') or 
+                     novel_info.get('title') or 
+                     selected_plan.get('title') or
+                     creative_seed.get('novelTitle') or
+                     creative_seed.get('novel_title') or
                      project_config.get('novel_title') or 
-                     novel_info.get('title') or
                      project_config.get('title', project_id))
             
-            # 简介：fanqie_upload_data.synopsis > novel_synopsis > novel_info.synopsis
+            # 简介：fanqie_upload_data.synopsis > novel_info.synopsis > selected_plan.synopsis > creative_seed.synopsis
             synopsis = (fanqie_data.get('synopsis') or 
-                       project_config.get('novel_synopsis') or 
-                       novel_info.get('synopsis', ''))
+                       novel_info.get('synopsis') or 
+                       selected_plan.get('synopsis') or
+                       creative_seed.get('synopsis') or
+                       project_config.get('novel_synopsis', ''))
             
             # 标签数据
             tags_data = fanqie_data.get('tags', {})
-            if not tags_data and 'category_tags' in project_config:
-                # 使用旧格式 category_tags
-                cat_tags = project_config.get('category_tags', {})
-                tags_data = {
-                    'main_category': cat_tags.get('main_category', ''),
-                    'themes': cat_tags.get('tags', [])
-                }
+            if not tags_data:
+                # 🔥 兼容传统模式：从 selected_plan.tags 或 category_tags 读取
+                if selected_plan and 'tags' in selected_plan:
+                    tags_data = selected_plan.get('tags', {})
+                elif 'category_tags' in project_config:
+                    cat_tags = project_config.get('category_tags', {})
+                    tags_data = {
+                        'main_category': cat_tags.get('main_category', ''),
+                        'themes': cat_tags.get('tags', [])
+                    }
             
             # 构建标签列表（从 themes 和 plots 合并）
             tags_list = []
             if tags_data:
                 themes = tags_data.get('themes', [])
                 plots = tags_data.get('plots', [])
+                roles = tags_data.get('roles', [])
                 if isinstance(themes, list):
                     tags_list.extend(themes)
                 if isinstance(plots, list):
                     tags_list.extend(plots)
+                if isinstance(roles, list):
+                    tags_list.extend(roles)
                 tags_list = list(set(tags_list))[:5]  # 去重并限制5个
             
-            # 分类：fanqie_upload_data.tags.main_category > category_tags.main_category > novel_info.category > category
+            # 分类：fanqie_upload_data.tags.main_category > selected_plan.tags.main_category > novel_info.category > category
             category = (tags_data.get('main_category') or 
-                       project_config.get('category') or
-                       novel_info.get('category', ''))
+                       (selected_plan.get('tags', {}).get('main_category') if selected_plan and isinstance(selected_plan.get('tags'), dict) else None) or
+                       novel_info.get('category') or
+                       project_config.get('category', ''))
             
             # 计算章节数据
             chapters_dir = project_dir / "chapters"
-            chapter_files = sorted(chapters_dir.glob("chapter_*.json")) if chapters_dir.exists() else []
+            chapter_files = sorted(
+                list(chapters_dir.glob("chapter_*.json")) +
+                list(chapters_dir.glob("第*.json"))
+            ) if chapters_dir.exists() else []
             total_chapters = len(chapter_files)
             total_words = 0
             chapter_list = []
@@ -1043,7 +1104,10 @@ def register_fanqie_routes(app):
             if not chapters_dir.exists():
                 errors.append("缺少章节目录：请检查项目结构")
             else:
-                chapter_files = sorted(chapters_dir.glob("chapter_*.json"))
+                chapter_files = sorted(
+                    list(chapters_dir.glob("chapter_*.json")) +
+                    list(chapters_dir.glob("第*.json"))
+                )
                 if len(chapter_files) == 0:
                     errors.append("没有章节文件：请检查 chapters 目录")
                 else:
@@ -1141,7 +1205,11 @@ def register_fanqie_routes(app):
                 # 添加章节文件
                 chapters_dir = project_dir / "chapters"
                 if chapters_dir.exists():
-                    for chapter_file in chapters_dir.glob("chapter_*.json"):
+                    chapter_files = (
+                        list(chapters_dir.glob("chapter_*.json")) +
+                        list(chapters_dir.glob("第*.json"))
+                    )
+                    for chapter_file in chapter_files:
                         zf.write(chapter_file, f"chapters/{chapter_file.name}")
                 
                 # 添加项目配置
