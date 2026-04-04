@@ -45,6 +45,7 @@ class SessionOrchestrator:
 
     # 会话域 -> 负责的标准步骤映射
     DOMAIN_STEPS = {
+        'creative_planning': ['creative_planning'],
         'foundation': ['foundation_planning'],
         'character': ['character_design', 'emotional_growth_planning'],
         'structure': ['stage_plan', 'detailed_stage_plans', 'supplementary_characters', 
@@ -256,6 +257,42 @@ class SessionOrchestrator:
             self._update_step_status(step, 'completed', self.STEP_PROGRESS_MAP.get(step, 0))
         
         try:
+            # 🔥 如果已经有交互式策划产出的 final_plan_brief，直接跳过 CreativePlanningSession
+            existing_plan_brief = self.generator.novel_data.get('final_plan_brief')
+            if existing_plan_brief:
+                self.logger.info("[CreativePlanningSession] 检测到已有 final_plan_brief，跳过创意策划")
+                self._update_progress('creative_planning', 31, "创意策划已完成（交互式）")
+                self._update_step_status('creative_planning', 'completed', 31)
+                if 'creative_planning_brief' not in self.context_briefs:
+                    # 尝试从 final_plan_brief 重建 brief
+                    try:
+                        from src.prompts.Prompts import Prompts
+                        prompts = Prompts()
+                        template = prompts.get("creative_planning_brief_generation", "")
+                        if template:
+                            import json
+                            brief = template.format(
+                                final_plan_json=json.dumps(existing_plan_brief, ensure_ascii=False, indent=2)
+                            )
+                            self.context_briefs['creative_planning'] = brief
+                    except Exception as e:
+                        self.logger.warning(f"重建 creative_planning brief 失败: {e}")
+            else:
+                # ---------- Session 0: Creative Planning ----------
+                if resume_state in ['creative_planning_done', 'foundation_done', 'character_done', 'structure_done', 'all_done']:
+                    self.logger.info("[CreativePlanningSession] 检查点显示已完成，跳过")
+                    self._update_step_status('creative_planning', 'completed', 31)
+                else:
+                    self._update_progress('creative_planning', 30, "正在执行创意策划会话...")
+                    self._update_step_status('creative_planning', 'active', 30)
+                    
+                    planning_success = self._run_creative_planning_session(api_client, provider, model_name)
+                    if not planning_success:
+                        self._notify_failure("创意策划会话失败")
+                        return False
+                    self._update_step_status('creative_planning', 'completed', 31)
+                    self._save_session_checkpoint('phase_one', 'creative_planning', 'completed')
+            
             # ---------- Session A: Foundation ----------
             if resume_state in ['foundation_done', 'character_done', 'structure_done', 'all_done']:
                 self.logger.info("[FoundationSession] 检查点显示已完成，跳过")
@@ -340,7 +377,7 @@ class SessionOrchestrator:
         尝试加载检查点并判断恢复状态
         
         Returns:
-            'none' | 'foundation_done' | 'character_done' | 'structure_done' | 'all_done'
+            'none' | 'creative_planning_done' | 'foundation_done' | 'character_done' | 'structure_done' | 'all_done'
         """
         try:
             title = self.generator.novel_data.get('novel_title') or self.generator.novel_data.get('title')
@@ -373,6 +410,9 @@ class SessionOrchestrator:
             elif current_step == 'foundation_planning' and step_status == 'completed':
                 self.logger.info(f"检查点恢复: FoundationSession 已完成 ({current_step})")
                 return 'foundation_done'
+            elif current_step == 'creative_planning' and step_status == 'completed':
+                self.logger.info(f"检查点恢复: CreativePlanningSession 已完成 ({current_step})")
+                return 'creative_planning_done'
             else:
                 self.logger.info(f"检查点恢复: 从 {current_step} ({step_status}) 继续")
                 return 'none'
@@ -384,12 +424,81 @@ class SessionOrchestrator:
     # ------------------------------------------------------------------
     # 各域会话实现
     # ------------------------------------------------------------------
+    def _run_creative_planning_session(self, api_client, provider, model_name) -> bool:
+        """执行创意策划会话：从原始创意到爆款方案"""
+        from src.core.session_mode.sessions.creative_planning_session import (
+            CreativePlanningSession,
+            PlanningMode,
+        )
+        
+        # 从 NovelGenerator 配置读取用户选择的模式
+        mode = PlanningMode.AUTO
+        max_iterations = 3
+        try:
+            generator_config = getattr(self.generator, 'config', {})
+            if isinstance(generator_config, dict):
+                mode_str = generator_config.get('creative_planning_mode', 'auto')
+                if mode_str == 'interactive':
+                    mode = PlanningMode.INTERACTIVE
+                max_iterations = generator_config.get('creative_planning_auto_iterations', 3)
+        except Exception:
+            pass
+        
+        # 如果用户选择了 interactive 模式但没有交互会话状态，
+        # 说明方案策划将在前端交互页面完成，Orchestrator 无需在后台执行自动流程
+        if mode == PlanningMode.INTERACTIVE:
+            if not self.generator.novel_data.get('creative_planning_session_state'):
+                self.logger.info(
+                    "[CreativePlanningSession] 用户选择了对话模式，"
+                    "将前往交互页面完成方案策划，Orchestrator 跳过自动步骤"
+                )
+                self._update_step_status('creative_planning', 'completed', 31)
+                return True
+        
+        session = CreativePlanningSession(
+            api_client=api_client,
+            mode=mode,
+            max_auto_iterations=max_iterations,
+            context_briefs=[],
+            novel_data=self.generator.novel_data,
+            provider=provider,
+            model_name=model_name,
+        )
+        
+        self.logger.info(f"[CreativePlanningSession] 开始执行，模式: {mode.value}...")
+        success = session.execute_all_steps()
+        
+        if success:
+            results = session.export_results()
+            # 将 final_plan_brief 注入 novel_data，供下游所有 session 使用
+            final_plan_brief = results.get('final_plan_brief', {})
+            if final_plan_brief:
+                self.generator.novel_data['final_plan_brief'] = final_plan_brief
+                self.generator.novel_data['creative_planning_results'] = results
+                self.logger.info(
+                    f"[CreativePlanningSession] 完成，爆款对齐评分: "
+                    f"{final_plan_brief.get('market_alignment', {}).get('score', 'N/A')}"
+                )
+            
+            # 生成并保存 Context Brief
+            brief = session.generate_brief(results)
+            if brief:
+                self.context_briefs['creative_planning'] = brief
+            
+            self.logger.info("[CreativePlanningSession] 完成")
+            return True
+        
+        return False
+
     def _run_foundation_session(self, api_client, provider, model_name) -> bool:
         """执行创作基线会话：写作风格 + 市场分析 + 世界观 + 势力系统"""
         from src.core.session_mode.sessions.foundation_session import FoundationSession
         
-        # 收集 context briefs：同人背景资料 brief 优先
+        # 收集 context briefs：创意策划 brief + 同人背景资料 brief
         briefs = []
+        cp_brief = self.context_briefs.get("creative_planning", "")
+        if cp_brief:
+            briefs.append(cp_brief)
         fanfiction_brief = self.generator.novel_data.get("fanfiction_brief", "")
         if fanfiction_brief:
             briefs.append(fanfiction_brief)
