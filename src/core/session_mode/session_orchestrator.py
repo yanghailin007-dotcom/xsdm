@@ -247,6 +247,9 @@ class SessionOrchestrator:
             self._notify_failure("API 客户端不可用")
             return False
         
+        # 尝试从检查点恢复
+        resume_state = self._try_load_checkpoint()
+        
         # 标记前置步骤已完成
         pre_steps = ['creative_refinement', 'fanfiction_detection', 'multiple_plans', 'plan_selection']
         for step in pre_steps:
@@ -254,45 +257,64 @@ class SessionOrchestrator:
         
         try:
             # ---------- Session A: Foundation ----------
-            self._update_progress('foundation_planning', 32, "正在执行创作基线会话...")
-            self._update_step_status('foundation_planning', 'active', 32)
-            
-            foundation_success = self._run_foundation_session(api_client, provider, model_name)
-            if not foundation_success:
-                self._notify_failure("创作基线会话 (Foundation) 失败")
-                return False
+            if resume_state in ['foundation_done', 'character_done', 'structure_done', 'all_done']:
+                self.logger.info("[FoundationSession] 检查点显示已完成，跳过")
+                self._update_progress('foundation_planning', 38, "创作基线会话已从检查点恢复")
+                self._update_step_status('foundation_planning', 'completed', 38)
+            else:
+                self._update_progress('foundation_planning', 32, "正在执行创作基线会话...")
+                self._update_step_status('foundation_planning', 'active', 32)
+                
+                foundation_success = self._run_foundation_session(api_client, provider, model_name)
+                if not foundation_success:
+                    self._notify_failure("创作基线会话 (Foundation) 失败")
+                    return False
             
             # ---------- Session B: Character ----------
-            self._update_progress('character_design', 42, "正在执行角色与叙事会话...")
-            self._update_step_status('character_design', 'active', 42)
-            
-            character_success = self._run_character_session(api_client, provider, model_name)
-            if not character_success:
-                self._notify_failure("角色与叙事会话 (Character) 失败")
-                return False
+            if resume_state in ['character_done', 'structure_done', 'all_done']:
+                self.logger.info("[CharacterSession] 检查点显示已完成，跳过")
+                self._update_progress('character_design', 58, "角色与叙事会话已从检查点恢复")
+                self._update_step_status('character_design', 'completed', 46)
+                self._update_step_status('emotional_growth_planning', 'completed', 58)
+            else:
+                self._update_progress('character_design', 42, "正在执行角色与叙事会话...")
+                self._update_step_status('character_design', 'active', 42)
+                
+                character_success = self._run_character_session(api_client, provider, model_name)
+                if not character_success:
+                    self._notify_failure("角色与叙事会话 (Character) 失败")
+                    return False
             
             # ---------- Session C: Structure ----------
-            self._update_progress('stage_plan', 62, "正在执行结构规划会话...")
-            self._update_step_status('stage_plan', 'active', 62)
-            
-            structure_success = self._run_structure_session(api_client, provider, model_name)
-            if not structure_success:
-                self._notify_failure("结构规划会话 (Structure) 失败")
-                return False
+            if resume_state in ['structure_done', 'all_done']:
+                self.logger.info("[StructureSession] 检查点显示已完成，跳过")
+                for step in self.DOMAIN_STEPS['structure']:
+                    self._update_step_status(step, 'completed', self.STEP_PROGRESS_MAP.get(step, 80))
+            else:
+                self._update_progress('stage_plan', 62, "正在执行结构规划会话...")
+                self._update_step_status('stage_plan', 'active', 62)
+                
+                structure_success = self._run_structure_session(api_client, provider, model_name)
+                if not structure_success:
+                    self._notify_failure("结构规划会话 (Structure) 失败")
+                    return False
             
             # ---------- 保存与评估 ----------
-            self._update_progress('saving', 92, "正在保存一阶段结果...")
-            self._update_step_status('saving', 'active', 92)
-            self._save_phase_one_result()
-            self._update_step_status('saving', 'completed', 95)
-            self._save_session_checkpoint('phase_one', 'saving', 'completed')
-            
-            # 质量评估（保持与现有系统一致）
-            self._update_progress('quality_assessment', 98, "正在进行质量评估...")
-            self._update_step_status('quality_assessment', 'active', 98)
-            self._run_phase_one_quality_assessment()
-            self._update_step_status('quality_assessment', 'completed', 100)
-            self._save_session_checkpoint('phase_one', 'quality_assessment', 'completed')
+            if resume_state == 'all_done':
+                self.logger.info("一阶段已从检查点完整恢复，跳过保存与评估")
+            else:
+                self._update_progress('saving', 92, "正在保存一阶段结果...")
+                self._update_step_status('saving', 'active', 92)
+                self._save_phase_one_result()
+                self._update_step_status('saving', 'completed', 95)
+                self._save_session_checkpoint('phase_one', 'saving', 'completed')
+                
+                # 质量评估（保持与现有系统一致）
+                self._update_progress('quality_assessment', 98, "正在进行质量评估...")
+                self._update_step_status('quality_assessment', 'active', 98)
+                self._run_phase_one_quality_assessment()
+                self._update_step_status('quality_assessment', 'completed', 100)
+                self._save_session_checkpoint('phase_one', 'quality_assessment', 'completed')
             
             # 最终完成状态
             final_status = {step: 'completed' for step in self.STEP_PROGRESS_MAP.keys()}
@@ -312,6 +334,52 @@ class SessionOrchestrator:
             import traceback
             self.logger.error(traceback.format_exc())
             return False
+
+    def _try_load_checkpoint(self) -> str:
+        """
+        尝试加载检查点并判断恢复状态
+        
+        Returns:
+            'none' | 'foundation_done' | 'character_done' | 'structure_done' | 'all_done'
+        """
+        try:
+            title = self.generator.novel_data.get('novel_title') or self.generator.novel_data.get('title')
+            username = getattr(self.generator, '_username', None)
+            if not title:
+                return 'none'
+            
+            checkpoint_mgr = GenerationCheckpoint(title, Path.cwd(), username=username)
+            checkpoint = checkpoint_mgr.load_checkpoint()
+            if not checkpoint:
+                return 'none'
+            
+            current_step = checkpoint.get('current_step', '')
+            step_status = checkpoint.get('step_status', 'unknown')
+            
+            # 加载数据
+            self.load_from_checkpoint(checkpoint)
+            
+            # 判断恢复状态
+            if current_step in ['quality_assessment', 'saving'] and step_status == 'completed':
+                self.logger.info(f"检查点恢复: 一阶段已完成 ({current_step})")
+                return 'all_done'
+            elif current_step in ['system_init', 'expectation_mapping', 'supplementary_characters', 
+                                   'detailed_stage_plans', 'stage_plan'] and step_status == 'completed':
+                self.logger.info(f"检查点恢复: StructureSession 已完成 ({current_step})")
+                return 'structure_done'
+            elif current_step == 'emotional_growth_planning' and step_status == 'completed':
+                self.logger.info(f"检查点恢复: CharacterSession 已完成 ({current_step})")
+                return 'character_done'
+            elif current_step == 'foundation_planning' and step_status == 'completed':
+                self.logger.info(f"检查点恢复: FoundationSession 已完成 ({current_step})")
+                return 'foundation_done'
+            else:
+                self.logger.info(f"检查点恢复: 从 {current_step} ({step_status}) 继续")
+                return 'none'
+                
+        except Exception as e:
+            self.logger.warning(f"检查点加载失败: {e}")
+            return 'none'
 
     # ------------------------------------------------------------------
     # 各域会话实现
@@ -336,6 +404,25 @@ class SessionOrchestrator:
             # 导出结果到 novel_data
             results = session.export_results()
             self.generator.novel_data.update(results)
+            
+            # 🔥 同步到现有系统：保存写作风格指南到文件
+            try:
+                writing_style = results.get('writing_style_guide', {})
+                if writing_style and hasattr(self.generator, '_save_writing_style_to_file'):
+                    self.generator._save_writing_style_to_file(writing_style)
+                    self.logger.info("✅ 写作风格指南已保存到文件")
+            except Exception as e:
+                self.logger.warning(f"⚠️ 保存写作风格指南失败: {e}")
+            
+            # 🔥 同步到现有系统：保存市场分析到材料管理器
+            try:
+                market_analysis = results.get('market_analysis', {})
+                if market_analysis and hasattr(self.generator, '_save_material_to_manager'):
+                    creative_seed = self.generator.novel_data.get('creative_seed', {})
+                    self.generator._save_material_to_manager("市场分析", market_analysis, creative_seed=creative_seed)
+                    self.logger.info("✅ 市场分析已保存到材料管理器")
+            except Exception as e:
+                self.logger.warning(f"⚠️ 保存市场分析失败: {e}")
             
             # 生成并保存 Context Brief
             brief = session.generate_brief(results)
@@ -371,6 +458,20 @@ class SessionOrchestrator:
         if success:
             results = session.export_results()
             self.generator.novel_data.update(results)
+            
+            # 🔥 同步到现有系统：持久化核心角色设计
+            try:
+                character_design = results.get('character_design', {})
+                if character_design and hasattr(self.generator, 'quality_assessor') and self.generator.quality_assessor:
+                    if hasattr(self.generator.quality_assessor, 'persist_initial_character_designs'):
+                        novel_title = self.generator.novel_data.get('novel_title', '')
+                        self.generator.quality_assessor.persist_initial_character_designs(
+                            novel_title=novel_title,
+                            character_design=character_design
+                        )
+                        self.logger.info("✅ 核心角色设计已持久化")
+            except Exception as e:
+                self.logger.warning(f"⚠️ 持久化核心角色设计失败: {e}")
             
             brief = session.generate_brief(results)
             if brief:
@@ -409,6 +510,18 @@ class SessionOrchestrator:
         if success:
             results = session.export_results()
             self.generator.novel_data.update(results)
+            
+            # 🔥 同步到现有系统：运行阶段计划相关的 manager 初始化
+            try:
+                # 触发 stage_plan_manager 的相关初始化（如果需要）
+                if hasattr(self.generator, 'stage_plan_manager') and self.generator.stage_plan_manager:
+                    # 将 overall_stage_plans 同步到 stage_plan_manager 的内部状态
+                    overall_plans = results.get('overall_stage_plans', {})
+                    if overall_plans and hasattr(self.generator.stage_plan_manager, 'overall_stage_plan_data'):
+                        self.generator.stage_plan_manager.overall_stage_plan_data = overall_plans
+                        self.logger.info("✅ 阶段计划已同步到 StagePlanManager")
+            except Exception as e:
+                self.logger.warning(f"⚠️ 同步阶段计划失败: {e}")
             
             brief = session.generate_brief(results)
             if brief:

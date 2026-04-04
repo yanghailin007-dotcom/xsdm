@@ -6,6 +6,7 @@ from .WorldviewPrompts import WorldviewPrompts
 from .PlanningPrompts import PlanningPrompts
 from .WritingPrompts import WritingPrompts
 from .OptimizationPrompts import OptimizationPrompts
+from .SessionModePrompts import SessionModePrompts
 
 class Prompts:
     def __init__(self):
@@ -17,6 +18,8 @@ class Prompts:
         writing = WritingPrompts()
         optimization = OptimizationPrompts()
         
+        session_mode = SessionModePrompts()
+        
         self.prompts = {}
         self.prompts.update(base.prompts)
         self.prompts.update(analysis.prompts)
@@ -24,6 +27,7 @@ class Prompts:
         self.prompts.update(planning.prompts)
         self.prompts.update(writing.prompts)
         self.prompts.update(optimization.prompts)
+        self.prompts.update(session_mode.prompts)
     
     # 添加兼容性方法
     def get(self, key, default=None):

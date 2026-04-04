@@ -131,6 +131,11 @@ CONFIG = {
     # 多轮对话优化（仅 Kimi 支持）
     "use_conversation_mode_for_kimi": True,
     
+    # 🚀 分域会话模式配置（新一代一阶段生成架构）
+    # 启用后，一阶段将使用 Foundation -> Character -> Structure 三个独立会话
+    # 通过 Context Brief 传递上下文，避免单一会话过载
+    "use_domain_session_mode": False,
+    
     # 🎨 封面生成配置（NanoBanana Pro / Gemini）
     "cover_generation": {
         "nanobanana": {

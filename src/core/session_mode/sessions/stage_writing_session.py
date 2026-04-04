@@ -86,27 +86,21 @@ class StageWritingSession(NovelGenerationSession):
         if writing_plan and isinstance(writing_plan, dict):
             existing_breakdown = writing_plan.get("chapter_breakdown", [])
 
-        prompt = f"""
-请执行【步骤1：阶段细纲确认】
-
-当前阶段：{stage_name}（{chapter_range}）
-
-## 阶段关键事件
-{json.dumps(key_events, ensure_ascii=False, indent=2)}
-
-## 已有的章节概览
-{json.dumps(existing_breakdown, ensure_ascii=False, indent=2)}
-
-## 任务
-请基于以上信息，生成或精炼当前阶段的详细细纲。
-如果已有概览足够详细，请确认并补充每章的情绪节奏和悬念设置。
-如果不够详细，请为每章补充：标题、关键事件、情绪节奏、剧情推进点、悬念设置。
-
-## 输出要求
-返回合法 JSON，顶层字段 "outline"，包含：
-- "stage_name": 阶段名称
-- "chapters": 章节细纲列表，每个元素包含 chapter_num, title, key_events, emotional_beats, plot_progression, suspense_setup
-"""
+        from src.prompts.Prompts import Prompts
+        prompts = Prompts()
+        prompt = prompts.format(
+            "stage_outline",
+            default="",
+            stage_name=stage_name,
+            chapter_range=chapter_range,
+            key_events=json.dumps(key_events, ensure_ascii=False, indent=2),
+            existing_breakdown=json.dumps(existing_breakdown, ensure_ascii=False, indent=2)
+        )
+        
+        if not prompt:
+            self.session_logger.error(f"[StageWritingSession-{self.stage_number}] 未找到 stage_outline 提示词模板")
+            return None
+            
         return self.send_structured_message(prompt, purpose="stage_outline")
 
     def _execute_chapter_writing(self, outline: Dict) -> bool:
@@ -182,23 +176,19 @@ class StageWritingSession(NovelGenerationSession):
             for num, data in sorted(self.generated_chapters.items())
         ]
 
-        prompt = f"""
-请执行【步骤3：阶段总结】
-
-当前阶段：第 {self.stage_number} 阶段
-已生成章节：
-{chr(10).join(chapter_titles)}
-
-## 任务
-请总结本阶段的核心剧情推进、主角状态变化、以及留给下一阶段的悬念和伏笔。
-
-## 输出要求
-直接输出纯文本总结，500-800 字，包含：
-1. 本阶段核心成就
-2. 主角当前状态
-3. 关键伏笔列表（至少 3 条）
-4. 下一阶段需要回收的悬念
-"""
+        from src.prompts.Prompts import Prompts
+        prompts = Prompts()
+        prompt = prompts.format(
+            "stage_summary",
+            default="",
+            stage_number=self.stage_number,
+            chapter_titles=chr(10).join(chapter_titles)
+        )
+        
+        if not prompt:
+            self.session_logger.error(f"[StageWritingSession-{self.stage_number}] 未找到 stage_summary 提示词模板")
+            return ""
+            
         return self.send_message(prompt, purpose="stage_summary")
 
     def get_generated_chapters(self) -> Dict[int, Dict]:

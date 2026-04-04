@@ -49,36 +49,28 @@ class StructureSession(NovelGenerationSession):
     def _execute_stage_overview(self) -> Optional[Dict]:
         """执行步骤1: 全书阶段划分"""
         total_chapters = self.novel_data.get("current_progress", {}).get("total_chapters", 200)
-        emotional_blueprint = self.novel_data.get("emotional_blueprint", {})
         global_growth = self.novel_data.get("global_growth_plan", {})
+        
+        # 提取主角成长阶段数量
+        growth_stages = global_growth.get('protagonist_growth', [])
+        milestones = global_growth.get('milestone_events', [])
 
-        prompt = f"""
-请执行【步骤1：全书阶段划分】
-
-基于情绪蓝图和成长规划，将全书 {total_chapters} 章划分为若干阶段。
-
-## 情绪蓝图要点
-- 情绪曲线: {len(emotional_blueprint.get('emotional_curves', []))} 个阶段
-- 情绪钩子: {emotional_blueprint.get('emotional_hooks', [])}
-
-## 成长规划要点
-- 主角成长阶段: {len(global_growth.get('protagonist_growth', []))}
-- 关键里程碑: {len(global_growth.get('milestone_events', []))}
-
-## 输出要求
-返回合法 JSON，顶层字段 "overall_stage_plan"，包含：
-- stages: 阶段列表，每个阶段包含:
-  - stage_number: 阶段序号
-  - stage_name: 阶段名称
-  - chapter_range: 章节范围（如 "1-30"）
-  - chapter_count: 本章节点数
-  - core_conflict: 核心冲突
-  - emotional_focus: 情绪重点
-  - growth_goals: 成长目标
-  - key_events: 关键事件列表（3-5条）
-
-建议划分 5-8 个阶段，每阶段 20-50 章。
-"""
+        from src.prompts.Prompts import Prompts
+        prompts = Prompts()
+        prompt = prompts.format(
+            "stage_overview",
+            default="",
+            total_chapters=total_chapters,
+            growth_stage_count=len(growth_stages),
+            milestone_count=len(milestones),
+            suggest_min=total_chapters // 6,
+            suggest_max=total_chapters // 4
+        )
+        
+        if not prompt:
+            self.session_logger.error("[StructureSession] 未找到 stage_overview 提示词模板")
+            return None
+            
         return self.send_structured_message(prompt, purpose="stage_overview")
 
     def _execute_stage_details(self) -> Optional[Dict]:
@@ -91,39 +83,27 @@ class StructureSession(NovelGenerationSession):
             self.session_logger.error("缺少阶段概览，无法生成详细计划")
             return None
 
-        prompt = f"""
-请执行【步骤2：阶段详细写作计划】
+        # 区分详细阶段和概览阶段
+        detailed_stages = stages[:2] if len(stages) >= 2 else stages
+        overview_stages = stages[2:] if len(stages) > 2 else []
 
-为全部 {stage_count} 个阶段生成详细的写作计划。
-
-## 阶段概览
-{json.dumps([{"num": s.get("stage_number"), "name": s.get("stage_name"), "chapters": s.get("chapter_range")} for s in stages], ensure_ascii=False, indent=2)}
-
-## 输出要求
-返回合法 JSON，顶层字段 "stage_writing_plans"，为对象格式（键为阶段名称）：
-{{
-  "阶段1名称": {{
-    "opening_hook": "开局钩子设计",
-    "chapter_breakdown": [
-      {{
-        "chapter_num": 1,
-        "title": "章节标题",
-        "key_events": "关键事件",
-        "emotional_beats": "情绪节奏",
-        "plot_progression": "剧情推进点",
-        "suspense_setup": "悬念设置"
-      }}
-    ],
-    "cliffhanger": "阶段结尾悬念",
-    "transition_to_next": "与下阶段衔接"
-  }}
-}}
-
-注意：
-- 前 2 个阶段（约前 60 章）的 chapter_breakdown 需要详细，每章都要列出
-- 后续阶段可以只列关键章节的细纲，其余章节用概览描述
-- 总输出长度尽量精简，突出重点
-"""
+        from src.prompts.Prompts import Prompts
+        prompts = Prompts()
+        prompt = prompts.format(
+            "stage_details",
+            default="",
+            stage_count=stage_count,
+            stage_overview_summary=json.dumps([{"num": s.get("stage_number"), "name": s.get("stage_name"), "chapters": s.get("chapter_range"), "core_conflict": s.get("core_conflict")} for s in stages], ensure_ascii=False, indent=2),
+            detailed_stage_count=len(detailed_stages),
+            detailed_stage_names=", ".join([s.get('stage_name') for s in detailed_stages]),
+            overview_stage_count=len(overview_stages),
+            overview_stage_names=", ".join([s.get('stage_name') for s in overview_stages]) if overview_stages else "无"
+        )
+        
+        if not prompt:
+            self.session_logger.error("[StructureSession] 未找到 stage_details 提示词模板")
+            return None
+            
         return self.send_structured_message(prompt, purpose="stage_details")
 
     def _execute_supplementary_chars(self) -> Optional[Dict]:
@@ -131,34 +111,27 @@ class StructureSession(NovelGenerationSession):
         stage_plans = self.results.get("stage_details", {})
         stage_writing_plans = stage_plans.get("stage_writing_plans", {})
         stage_count = len(stage_writing_plans)
+        
+        # 提取各阶段的关键事件作为参考
+        stage_events = {}
+        for stage_name, plan in stage_writing_plans.items():
+            breakdown = plan.get("chapter_breakdown", [])
+            events = [b.get("key_events", "") for b in breakdown if b.get("key_events")]
+            stage_events[stage_name] = events[:3]  # 只取前3个关键事件
 
-        prompt = f"""
-请执行【步骤3：全书补充角色生成】
-
-基于已生成的 {stage_count} 个阶段详细计划，生成全书需要的补充角色。
-
-## 输出要求
-返回合法 JSON，顶层字段 "supplementary_characters"，为列表格式：
-[
-  {{
-    "character_name": "角色名",
-    "character_type": "角色类型（盟友/反派/中立/NPC）",
-    "importance": "重要程度（主要/次要/龙套）",
-    "introduce_stage": "登场阶段名称",
-    "introduce_chapter": "登场章节号",
-    "role_in_story": "在故事中的作用",
-    "relationship_to_protagonist": "与主角关系",
-    "key_traits": "关键特征",
-    "plot_function": "剧情功能说明"
-  }}
-]
-
-要求：
-- 覆盖所有主要阶段的关键角色
-- 与已有核心角色形成互补
-- 每个角色有明确的剧情功能
-- 预计生成 10-20 个补充角色
-"""
+        from src.prompts.Prompts import Prompts
+        prompts = Prompts()
+        prompt = prompts.format(
+            "supplementary_chars",
+            default="",
+            stage_count=stage_count,
+            stage_events=json.dumps(stage_events, ensure_ascii=False, indent=2)
+        )
+        
+        if not prompt:
+            self.session_logger.error("[StructureSession] 未找到 supplementary_chars 提示词模板")
+            return None
+            
         return self.send_structured_message(prompt, purpose="supplementary_chars")
 
     def export_results(self) -> Dict[str, Any]:

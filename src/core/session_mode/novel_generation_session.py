@@ -281,31 +281,17 @@ class NovelGenerationSession(ConversationSession):
 
     def _build_brief_generation_prompt(self, session_results: Optional[Dict[str, Any]]) -> str:
         """构建 Brief 生成提示词，子类可覆盖以控制摘要重点"""
+        from src.prompts.Prompts import Prompts
+        prompts = Prompts()
+        template = prompts.get("brief_generation", "")
+        if template:
+            return template.format(domain_name=self._get_domain_chinese_name())
+        
+        # 回退默认
         return f"""
 当前 {self._get_domain_chinese_name()} 会话已经完成。
-
-请基于本会话的所有对话内容和输出结果，生成一份精炼的【Context Brief】（上下文摘要），
-供下游创作域的专家在后续步骤中引用。
-
-## 要求
-1. 只保留对下游创作域**最关键**的约束和信息。
-2. 使用自然语言，条理清晰，分点列出。
-3. 明确标注哪些是"硬性约束"（不可修改），哪些是"参考信息"。
-4. 长度控制在 1500~2500 个汉字之间。
-5. 不要包含 JSON 格式，使用 Markdown 标题和列表即可。
-
-## 输出格式
-# {self._get_domain_chinese_name()}摘要
-
-## 硬性约束
-...
-
-## 核心设定
-...
-
-## 参考信息
-...
-"""
+请基于本会话的所有对话内容和输出结果，生成一份精炼的上下文摘要。
+..."""
 
     # ------------------------------------------------------------------
     # 步骤进度映射（供外部使用）

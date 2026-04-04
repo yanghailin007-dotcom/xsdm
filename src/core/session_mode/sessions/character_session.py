@@ -45,65 +45,60 @@ class CharacterSession(NovelGenerationSession):
         core_worldview = self.novel_data.get("core_worldview", {})
         faction_system = self.novel_data.get("faction_system", {})
         market_analysis = self.novel_data.get("market_analysis", {})
+        total_chapters = self.novel_data.get("current_progress", {}).get("total_chapters", 200)
 
-        prompt = f"""
-请执行【步骤1：核心角色设计】
-
-基于小说的世界观和势力系统，设计核心角色阵容。
-
-## 世界观信息
-- 世界概览: {core_worldview.get('world_overview', '待定')}
-- 力量体系: {core_worldview.get('power_system', '待定')}
-- 关键地点: {core_worldview.get('key_locations', [])}
-
-## 势力系统信息
-- 主要势力: {[f.get('name') for f in faction_system.get('factions', [])]}
-- 主要冲突: {faction_system.get('main_conflict', '待定')}
-
-## 设计要求
-设计以下角色：
-1. 主角（含姓名、性格、背景、目标、能力/金手指、成长弧线）
-2. 核心盟友（1-3位）
-3. 主要反派/宿敌（1-2位）
-4. 导师/引路人（1位）
-
-## 输出要求
-返回合法 JSON，顶层字段为 "characters"，包含角色列表。
-每个角色需包含: basic_info, personality, background, goals, abilities, relationships, growth_arc
-"""
+        from src.prompts.Prompts import Prompts
+        prompts = Prompts()
+        prompt = prompts.format(
+            "character_design",
+            default="",
+            world_overview=core_worldview.get('world_overview', '待定'),
+            power_system=core_worldview.get('power_system', '待定'),
+            key_locations=core_worldview.get('key_locations', []),
+            world_rules=core_worldview.get('world_rules', []),
+            faction_names=[f.get('name') for f in faction_system.get('factions', [])],
+            main_conflict=faction_system.get('main_conflict', '待定'),
+            faction_power_balance=faction_system.get('faction_power_balance', '待定'),
+            core_selling_points=market_analysis.get('core_selling_points', []),
+            target_audience=market_analysis.get('target_audience', '待定'),
+            total_chapters=total_chapters
+        )
+        
+        if not prompt:
+            self.session_logger.error("[CharacterSession] 未找到 character_design 提示词模板")
+            return None
+            
         return self.send_structured_message(prompt, purpose="character_design")
 
     def _execute_emotional_growth(self) -> Optional[Dict]:
         """执行步骤2: 情绪蓝图与成长规划"""
         total_chapters = self.novel_data.get("current_progress", {}).get("total_chapters", 200)
-        characters = self.results.get("character_design", {}).get("characters", [])
-        protagonist = characters[0] if characters else {}
+        characters = self.results.get("character_design", {}).get("characters", {})
+        protagonist = characters.get('protagonist', {}) if isinstance(characters, dict) else {}
+        if not protagonist and isinstance(characters, list) and characters:
+            protagonist = characters[0]
 
-        prompt = f"""
-请执行【步骤2：情绪蓝图与成长规划】
+        protagonist_name = protagonist.get('basic_info', {}).get('name', '主角')
+        protagonist_goals = protagonist.get('goals', '待定')
+        protagonist_abilities = protagonist.get('abilities', '待定')
+        power_system = self.novel_data.get("core_worldview", {}).get("power_system", "")
 
-基于核心角色设定，同时设计全书情绪蓝图和主角成长规划。
-
-## 全书信息
-- 总章节数: {total_chapters}
-- 主角: {protagonist.get('basic_info', {}).get('name', '主角')} 
-- 主角目标: {protagonist.get('goals', '待定')}
-
-## 输出要求
-返回合法 JSON，必须包含两个顶层字段：
-1. "emotional_blueprint": 情绪蓝图
-   - emotional_curves: 情绪曲线（每阶段情绪类型、强度、触发点）
-   - emotional_hooks: 情绪钩子（悬念、冲突、爽点安排）
-   - reader_journey: 读者情感旅程映射
-
-2. "global_growth_plan": 成长规划
-   - protagonist_growth: 主角成长阶段
-   - power_progression: 力量体系进阶路线
-   - milestone_events: 关键里程碑事件
-   - stage_goals: 各阶段目标
-
-注意：情绪蓝图和成长规划要相互协调，成长节点的情绪要有起伏变化。
-"""
+        from src.prompts.Prompts import Prompts
+        prompts = Prompts()
+        prompt = prompts.format(
+            "emotional_growth",
+            default="",
+            total_chapters=total_chapters,
+            protagonist_name=protagonist_name,
+            protagonist_goals=protagonist_goals,
+            protagonist_abilities=protagonist_abilities,
+            power_system=power_system
+        )
+        
+        if not prompt:
+            self.session_logger.error("[CharacterSession] 未找到 emotional_growth 提示词模板")
+            return None
+            
         return self.send_structured_message(prompt, purpose="emotional_growth")
 
     def export_results(self) -> Dict[str, Any]:
