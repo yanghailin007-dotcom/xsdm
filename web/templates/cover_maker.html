@@ -884,7 +884,7 @@
                 <div class="form-group">
                     <label class="form-label">作者名 <span style="color: #ef4444; font-size: 12px;">*</span></label>
                     <div style="display: flex; gap: 8px;">
-                        <input type="text" id="author-name" class="form-input" placeholder="请输入作者名，如：北苟王庭的达延" style="flex: 1;">
+                        <input type="text" id="author-name" class="form-input" placeholder="请输入作者名，如：北苟王庭的达延" style="flex: 1;" oninput="updateDefaultPrompt()">
                         <button type="button" id="save-author-btn" class="form-btn" style="white-space: nowrap; padding: 10px 16px; font-size: 13px;" onclick="saveDefaultAuthor()">
                             💾 记住
                         </button>
@@ -1237,6 +1237,9 @@
         // 加载该小说的已有封面
         loadNovelCovers(title);
 
+        // 更新默认提示词（书名已改变）
+        updateDefaultPrompt();
+
         console.log('已选择小说:', selectedNovel);
     }
 
@@ -1294,9 +1297,10 @@
     // 更新默认提示词
     function updateDefaultPrompt() {
         const category = document.getElementById('default-style-type').value;
-        const novelTitle = document.getElementById('novel-title').value || '示例小说';
+        const novelTitle = document.getElementById('novel-title').value.trim() || '[请在上方选择小说]';
+        const authorName = document.getElementById('author-name').value.trim() || '[请输入作者名]';
         
-        let prompt = generateCompleteDefaultPrompt(novelTitle, category);
+        let prompt = generateCompleteDefaultPrompt(novelTitle, category, authorName);
         document.getElementById('generated-default-prompt').value = prompt;
     }
 
@@ -1308,6 +1312,7 @@
                 const result = await response.json();
                 if (result.success && result.author_name) {
                     document.getElementById('author-name').value = result.author_name;
+                    updateDefaultPrompt();  // 作者名更新后同步提示词
                     console.log('✅ 已加载默认作者:', result.author_name);
                 }
             }
@@ -1358,50 +1363,57 @@
         }
     }
 
-    // 生成完整的默认提示词（基于NovelGenerator.py中的完整模板）
-    function generateCompleteDefaultPrompt(title, category) {
-        // 完整的风格模板字典，覆盖所有主分类
-        const styleTemplates = {
-            // 女频分类风格
-            "女频悬疑": "女性向悬疑风格，神秘氛围，柔和中带悬疑，淡雅色调与暗黑元素结合，细腻情感表达",
-            "科幻末世": "赛博朋克风格，未来城市，机械装甲，霓虹灯光，科技感，金属质感，末日氛围",
-            "女频衍生": "女性向衍生风格，二次元元素，精致人物设计，浪漫氛围，色彩柔和",
-            "民国言情": "复古民国风格，旗袍，老上海风情，怀旧色调，浪漫与时代感结合",
-            "悬疑脑洞": "创意悬疑风格，想象力丰富，离奇情节视觉化，神秘诡异氛围",
-            "青春甜宠": "甜美青春风格，明亮色彩，浪漫场景，年轻角色，温馨治愈氛围",
-            "双男主": "双男主CP风格，男性角色互动，帅气人物设计，热血或暧昧氛围",
-            "古言脑洞": "古风创意风格，传统元素与现代脑洞结合，仙侠奇幻色彩",
-            "现言脑洞": "现代都市奇幻风格，日常场景中的超现实元素，轻松幽默",
-            "玄幻言情": "仙侠爱情风格，唯美场景，仙气缭绕，浪漫与修行结合",
-            "宫斗宅斗": "古代宫廷风格，华丽服饰，权谋氛围，女性角色群像",
-            "豪门总裁": "现代奢华风格，商务精英，豪门场景，浪漫霸道氛围",
-            "动漫衍生": "二次元风格，动漫人物，日系画风，色彩明亮，角色鲜明",
-            "星光璀璨": "娱乐圈风格，明星光环，舞台效果，时尚奢华",
-            "游戏体育": "竞技热血风格，游戏或运动元素，动态感，团队精神",
-            "职场婚恋": "都市情感风格，职场场景，现代生活，情感细腻",
-            "双女主": "双女主CP风格，女性角色互动，优雅或帅气设计",
-            "年代": "怀旧年代风格，特定时代元素，复古色调，历史感",
-            "种田": "田园乡村风格，自然风光，农家生活，温馨朴实",
-            "快穿": "多元时空风格，不同世界场景切换，穿越元素",
-            
-            // 男频分类风格
-            "西方奇幻": "史诗奇幻风格，魔法光芒，巨龙，城堡，骑士，油画质感，神秘氛围",
-            "东方仙侠": "水墨风格，仙气缭绕，飞剑，仙宫，修真者，传统国风，飘逸潇洒",
-            "男频衍生": "热血战斗风格，主角特写，霸气侧漏，力量感，光影对比，电影质感",
-            "都市高武": "现代都市与武道结合，都市夜景，武道气息，气功波动，力量感",
-            "悬疑灵异": "暗黑风格，神秘氛围，阴影效果，诡异光线，悬疑感，冷色调",
-            "抗战谍战": "历史战争风格，民国背景，谍战元素，紧张氛围，怀旧色调",
-            "历史古代": "传统历史风格，古代场景，历史人物，文化底蕴",
-            "历史脑洞": "创意历史风格，历史与幻想结合，穿越元素，幽默夸张",
-            "都市种田": "现代田园风格，城市与自然结合，轻松生活氛围",
-            "都市脑洞": "现代奇幻风格，都市生活中的超现实元素，创意想象",
-            "都市日常": "温馨治愈风格，日常生活场景，柔和光线，温暖色彩，情感细腻",
-            "玄幻脑洞": "创意奇幻风格，想象力丰富，奇特生物，异世界景观，色彩鲜艳",
-            "战神赘婿": "霸气回归风格，主角逆袭，身份反差，豪华场景，金色红色主调",
-            "传统玄幻": "经典玄幻风格，修行世界，法宝灵兽，传统仙侠元素",
-            "都市修真": "现代修真风格，都市与修仙结合，灵气复苏，现代修仙者"
+    // 生成完整的默认提示词（番茄网文封面风格 - 高视觉冲击）
+    function generateCompleteDefaultPrompt(title, category, authorName) {
+        // 番茄风格类型映射 - 网文爽文审美
+        const fanqieStyles = {
+            "东方仙侠": {
+                atmosphere: "仙气缭绕/魔气滔天的史诗感",
+                elements: "主角光环、神兵利器、远古神兽、天地异象",
+                mood: "霸气张扬、唯我独尊、逆天改命"
+            },
+            "都市言情": {
+                atmosphere: "现代都市的繁华与神秘",
+                elements: "系统面板、财富象征、豪车豪宅、美女环绕、强者姿态",
+                mood: "低调奢华、强势崛起、扮猪吃虎"
+            },
+            "历史古代": {
+                atmosphere: "王朝争霸的恢弘气势",
+                elements: "龙袍冠冕、千军万马、权谋算计、江山社稷",
+                mood: "君临天下、运筹帷幄、豪情万丈"
+            },
+            "科幻末世": {
+                atmosphere: "未来科技的冷峻与宏大",
+                elements: "机甲战舰、星际战场、能量光环、数据流",
+                mood: "科技霸权、星际征服、人类荣耀"
+            },
+            "传统玄幻": {
+                atmosphere: "问道长生的飘渺仙气",
+                elements: "飞剑法宝、灵根异象、洞天福地、渡劫天雷",
+                mood: "逆天修仙、长生不死、大道争锋"
+            },
+            "青春甜宠": {
+                atmosphere: "甜美浪漫的氛围",
+                elements: "精致人物、浪漫场景、柔和光效、温馨互动",
+                mood: "甜蜜治愈、心动瞬间、幸福满溢"
+            },
+            "悬疑脑洞": {
+                atmosphere: "神秘诡谲的紧张氛围",
+                elements: "阴影迷雾、符号线索、诡异场景、心理压迫",
+                mood: "惊心动魄、步步紧逼、真相迷雾"
+            },
+            "游戏体育": {
+                atmosphere: "游戏世界的奇幻冒险",
+                elements: "游戏界面、技能特效、装备道具、等级标识",
+                mood: "升级快感、满级大佬、全服第一"
+            },
+            "抗战谍战": {
+                atmosphere: "历史战争的紧张激烈",
+                elements: "军装枪械、谍战道具、民国街景、紧张对峙",
+                mood: "为国捐躯、智勇双全、惊心动魄"
+            }
         };
-        
+
         // 映射前端选项到后端分类
         const categoryMapping = {
             "fantasy": "东方仙侠",
@@ -1413,63 +1425,68 @@
             "suspense": "悬疑脑洞",
             "game": "游戏体育",
             "military": "抗战谍战",
-            "female_suspense": "女频悬疑",
+            "female_suspense": "悬疑脑洞",
             "scifi_apocalypse": "科幻末世",
-            "female_derivative": "女频衍生",
-            "republican_romance": "民国言情",
+            "female_derivative": "青春甜宠",
+            "republican_romance": "历史古代",
             "suspense_creative": "悬疑脑洞",
             "sweet_romance": "青春甜宠",
-            "male_leads": "双男主",
-            "ancient_creative": "古言脑洞",
-            "modern_creative": "现言脑洞",
-            "fantasy_romance": "玄幻言情",
-            "palace_intrigue": "宫斗宅斗",
-            "wealthy_president": "豪门总裁",
-            "anime_derivative": "动漫衍生",
-            "entertainment": "星光璀璨",
-            "workplace_marriage": "职场婚恋",
-            "female_leads": "双女主",
-            "period": "年代",
-            "farming": "种田",
-            "quick_transmigration": "快穿",
-            "western_fantasy": "西方奇幻",
-            "male_derivative": "男频衍生",
-            "urban_martial": "都市高武",
-            "suspense_supernatural": "悬疑灵异",
+            "male_leads": "青春甜宠",
+            "ancient_creative": "东方仙侠",
+            "modern_creative": "都市言情",
+            "fantasy_romance": "东方仙侠",
+            "palace_intrigue": "历史古代",
+            "wealthy_president": "都市言情",
+            "anime_derivative": "青春甜宠",
+            "entertainment": "都市言情",
+            "workplace_marriage": "都市言情",
+            "female_leads": "青春甜宠",
+            "period": "历史古代",
+            "farming": "青春甜宠",
+            "quick_transmigration": "东方仙侠",
+            "western_fantasy": "科幻末世",
+            "male_derivative": "传统玄幻",
+            "urban_martial": "都市言情",
+            "suspense_supernatural": "悬疑脑洞",
             "war_spy": "抗战谍战",
             "historical_ancient": "历史古代",
-            "historical_creative": "历史脑洞",
-            "urban_farming": "都市种田",
-            "urban_creative": "都市脑洞",
-            "urban_daily": "都市日常",
-            "fantasy_creative": "玄幻脑洞",
-            "war_god_son": "战神赘婿",
+            "historical_creative": "历史古代",
+            "urban_farming": "都市言情",
+            "urban_creative": "都市言情",
+            "urban_daily": "都市言情",
+            "fantasy_creative": "东方仙侠",
+            "war_god_son": "都市言情",
             "traditional_fantasy": "传统玄幻",
-            "urban_cultivation": "都市修真"
+            "urban_cultivation": "都市言情"
         };
-        
-        // 获取对应分类的风格
+
         const actualCategory = categoryMapping[category] || "东方仙侠";
-        const style = styleTemplates[actualCategory] || "精美插画风格，小说封面设计，符合类型特点";
-        
-        // 构建完整的默认提示词模板 - 使用正面约束避免反强调效应
-        const prompt = `请设计一张精美的小说封面，要求如下：
+        const style = fanqieStyles[actualCategory] || fanqieStyles["东方仙侠"];
 
-【基本信息】
-- 构图：竖版封面，适合移动设备阅读的比例
-- 风格：${style}
-- 设计：简约大气，专业插画品质
+        // 构建番茄风格的默认提示词 - 适配网文爽文审美
+        const prompt = `小说封面设计，竖版构图，网文爽文审美，强视觉冲击力
 
-【封面文字内容】（只允许出现以下两项）：
-1. 书名：《${title}》- 要醒目突出，使用清晰易读的艺术字体
-2. 作者：北莽王庭的达延 - 放在书名正下方居中，字体较小
+【封面文字 - 只允许出现以下两项】：
+1. 主标题：《${title}》 - 字体大气醒目，有发光或描边效果
+2. 作者名：${authorName} - 放在书名正下方居中，字体较小
 
 【设计要求】：
-- 封面设计精美，符合${actualCategory}类型风格特色
-- 书名要醒目突出，字体选择要与封面风格协调
-- 作者名放在书名正下方居中
-- 整体设计专业简洁，具有商业出版品质
-- 背景与文字形成良好对比，确保可读性
+1. 视觉层次：前景主角（占画面60%）+ 中景元素 + 远景氛围
+2. 主角形象：要有主角光环、强者气场、自信姿态，不能太普通
+3. 色彩风格：高饱和度、强对比配色，符合${actualCategory}类型
+4. 光影效果：强烈的明暗对比，主角要有光效/特效环绕
+5. 网文感：画面要有爽点暗示，让人一眼看出这是爽文
+
+【类型特征 - ${actualCategory}】：
+氛围：${style.atmosphere}
+元素：${style.elements}
+情绪：${style.mood}
+
+【文字排版要求】：
+- 书名大字居中偏上，占封面宽度80%，字体要霸气有设计感
+- 书名要有发光效果或立体描边，确保在复杂背景上清晰可读
+- 作者名小字放在书名正下方居中，不抢主角和书名的视觉焦点
+- 只能出现书名和作者名，无其他任何文字
 
 【纯净封面要求】：
 - 封面上只能出现上述书名和作者名
@@ -1477,29 +1494,12 @@
 - 不得出现网址、二维码、条形码、版权标识
 - 保持画面纯净，专注视觉美感
 
-【色彩搭配】：
-- 根据小说${actualCategory}类型选择合适的色调
-- 色彩要和谐统一，突出主题氛围
-- 避免过于花哨或单调的色彩搭配
-
-【图像元素】：
-- 可以包含与小说类型相关的背景图案或装饰元素
-- 图案要简约不抢夺文字主体地位
-- 如有人物，要符合${actualCategory}类型特征
-
-【文字排版要求】：
-- 文字清晰可读但不要过于突兀
-- 文字与背景和谐统一
-- 字体选择要与整体设计风格匹配
-
 【质量要求】：
 - 画面清晰锐利，细节丰富
-- 专业级设计水准
-- 适合作为网络小说封面使用
-- 视觉效果吸引目标读者群体
+- 专业网文封面水准
+- 缩略图模式下依然清晰醒目
+- 目标：让读者在书架上一眼被吸引`;
 
-请严格按照以上要求生成封面，确保只包含指定的书名和作者名，不添加任何额外文字内容。`;
-        
         return prompt.trim();
     }
 

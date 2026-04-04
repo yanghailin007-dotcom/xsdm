@@ -25,9 +25,11 @@ class FanqieUploaderImpl:
     
     def __init__(self, 
                  novel_title: str = "",
+                 novel_config: Optional[Dict[str, Any]] = None,
                  progress_callback: Optional[Callable] = None,
                  log_callback: Optional[Callable] = None):
         self.novel_title = novel_title
+        self.novel_config = novel_config or {}
         self.progress_callback = progress_callback
         self.log_callback = log_callback
         self.playwright = None
@@ -163,26 +165,11 @@ class FanqieUploaderImpl:
         try:
             self._progress(35, f"查找书籍: {self.novel_title}")
             
-            # 等待页面加载
-            time.sleep(2)
-            page_content = self.page.content()
-            
-            # 尝试多种方式查找书籍
-            if self.novel_title[:10] in page_content:
-                self._log("找到已有书籍")
-                book_ids = re.findall(r'long-article-table-item-(\d+)', page_content)
-                if book_ids:
-                    self.book_id = book_ids[0]
-                    self._progress(40, f"书籍ID: {self.book_id}")
-                    return True
-            
-            # 尝试从URL中提取
-            if '/book/' in self.page.url:
-                match = re.search(r'/book/(\d+)', self.page.url)
-                if match:
-                    self.book_id = match.group(1)
-                    self._progress(40, f"从URL获取书籍ID: {self.book_id}")
-                    return True
+            # 先检查番茄平台上是否已有该书
+            existing_url = self._check_book_exists_on_fanqie()
+            if existing_url:
+                self._progress(40, "找到已有书籍")
+                return True
             
             # 未找到书籍，自动创建
             self._log("未找到书籍，准备自动创建...", "warning")
@@ -193,186 +180,153 @@ class FanqieUploaderImpl:
             return False
     
     def create_book(self) -> bool:
-        """自动创建新书 - 从书籍管理页面点击创建"""
+        """自动创建新书 - 复用 web 端完整逻辑"""
         try:
             self._progress(36, "正在创建新书...")
             self._log(f"开始创建书籍: {self.novel_title}")
             
-            # 步骤0: 访问书籍管理页面
-            self.page.goto("https://fanqienovel.com/main/writer/book-manage", timeout=30000)
+            # 重试机制
+            max_retries = 3
+            for attempt in range(max_retries):
+                try:
+                    self._log(f"访问创建作品页面... (尝试 {attempt + 1}/{max_retries})")
+                    self.page.goto(
+                        "https://fanqienovel.com/main/writer/create?enter_from=home",
+                        timeout=30000, wait_until="domcontentloaded"
+                    )
+                    time.sleep(2)
+                    
+                    current_url = self.page.url
+                    if "fanqienovel.com" not in current_url:
+                        self._log(f"⚠️ 页面可能未正确加载，当前URL: {current_url}")
+                        if attempt < max_retries - 1:
+                            continue
+                    
+                    break
+                except Exception as e:
+                    self._log(f"⚠️ 导航失败 (尝试 {attempt + 1}): {str(e)[:200]}")
+                    if attempt == max_retries - 1:
+                        self._log("✗ 所有重试都失败")
+                        return False
+                    time.sleep(3)
+            
+            # ===== 1. 填写书名 =====
+            title_short = self.novel_title[:14] if len(self.novel_title) > 14 else self.novel_title
+            try:
+                title_input = self.page.locator('input[placeholder="请输入作品名称"]').first
+                title_input.wait_for(state='visible', timeout=5000)
+                title_input.fill(title_short)
+                self._log(f"✓ 填写书名: {title_short}")
+            except Exception as e:
+                self._log(f"✗ 填写书名失败: {e}")
+                return False
+            
+            # 准备配置数据
+            tags_info = self.novel_config.get("tags_info", {})
+            gender = tags_info.get("target_audience", "男频")
+            main_character = self.novel_config.get("main_character", "未知主角")
+            synopsis = self.novel_config.get("synopsis", "")
+            formatted_synopsis = self._format_synopsis(synopsis)
+            
+            # ===== 2. 选择男女频 =====
+            try:
+                if gender == "女频":
+                    self.page.locator('label:has-text("女频")').first.click()
+                    self._log("✓ 选择女频")
+                else:
+                    self.page.locator('label:has-text("男频")').first.click()
+                    self._log("✓ 选择男频")
+                time.sleep(0.5)
+            except Exception as e:
+                self._log(f"⚠ 选择男/女频失败: {e}")
+            
+            # ===== 3. 选择作品标签 =====
+            self._log("准备选择作品标签...")
+            try:
+                self._select_book_tags_v2(tags_info)
+            except Exception as e:
+                self._log(f"⚠ 选择作品标签失败: {e}")
+            
+            # ===== 4. 处理封面 =====
+            self._log("准备处理封面...")
+            try:
+                cover_result = self._handle_cover_upload()
+                if not cover_result:
+                    self._log("⚠ 封面处理未完成，继续创建...")
+            except Exception as e:
+                self._log(f"⚠ 封面上传失败: {e}")
+            
+            # ===== 5. 填写主角名 =====
+            character_short = main_character[:5] if len(main_character) >= 5 else main_character
+            try:
+                character_input = self.page.locator('input[placeholder="请输入主角名1"]').first
+                character_input.fill(character_short)
+                self._log(f"✓ 填写主角名: {character_short}")
+            except Exception as e:
+                self._log(f"⚠ 填写主角名失败: {e}")
+            
+            # ===== 6. 填写作品简介 =====
+            synopsis_short = formatted_synopsis[:500] if len(formatted_synopsis) >= 500 else formatted_synopsis
+            try:
+                synopsis_input = self.page.locator('textarea').first
+                synopsis_input.fill(synopsis_short)
+                self._log("✓ 填写作品简介")
+            except Exception as e:
+                self._log(f"⚠ 填写简介失败: {e}")
+            
+            # ===== 7. 点击立即创建 =====
+            self._log("点击立即创建...")
+            try:
+                create_button = self.page.locator('button:has-text("立即创建")').first
+                create_button.wait_for(state='visible', timeout=5000)
+                create_button.click()
+                self._log("✓ 点击立即创建")
+            except Exception as e:
+                self._log(f"✗ 点击立即创建失败: {e}")
+                return False
+            
+            # 等待创建完成
+            self._log("等待创建完成...")
             time.sleep(3)
             
-            # 检查是否在登录页
-            if "login" in self.page.url:
-                self._log("需要登录，等待登录...", "warning")
-                return False
-            
-            # 步骤1: 点击"创建新书"打开下拉菜单
-            menu_opened = False
+            # 检查是否有错误提示
             try:
-                locator = self.page.locator('div.hoverup:has-text("创建新书"), div.font-4:has-text("创建新书"), button:has-text("创建新书")')
-                if locator.count() > 0:
-                    self._log("找到创建新书按钮，点击打开下拉菜单...")
-                    locator.first.click(timeout=5000)
-                    menu_opened = True
-                    time.sleep(1)
-            except Exception as e:
-                self._log(f"点击创建新书按钮失败: {e}", "warning")
-            
-            if not menu_opened:
-                self._log("无法打开创建新书菜单，尝试直接访问创建页面...", "warning")
-                self.page.goto("https://fanqienovel.com/main/writer/create?enter_from=home", timeout=30000)
-                time.sleep(3)
-            else:
-                # 步骤2: 点击下拉菜单中的"创建书本"选项
-                clicked = False
-                try:
-                    locator = self.page.get_by_text("创建书本", exact=True)
-                    if locator.count() > 0:
-                        locator.first.click(timeout=5000)
-                        clicked = True
-                except Exception as e:
-                    self._log(f"精确查找创建书本失败: {e}", "warning")
-                
-                if not clicked:
-                    try:
-                        locator = self.page.locator('text=书本信息已准备好')
-                        if locator.count() > 0:
-                            parent = locator.locator('xpath=ancestor::*[contains(., "创建书本")][1]')
-                            if parent.count() > 0:
-                                parent.first.click(timeout=5000)
-                                clicked = True
-                    except Exception as e:
-                        self._log(f"通过描述查找创建书本失败: {e}", "warning")
-                
-                if not clicked:
-                    try:
-                        elements = self.page.locator(':text("创建书本")').all()
-                        for el in elements:
-                            text = el.text_content()
-                            if text and ("书本信息已准备好" in text or text.strip() == "创建书本"):
-                                el.click(timeout=5000)
-                                clicked = True
-                                break
-                    except Exception as e:
-                        self._log(f"遍历创建书本元素失败: {e}", "warning")
-                
-                if not clicked:
-                    self._log("未找到创建书本选项，尝试直接访问创建页面...", "warning")
-                    self.page.goto("https://fanqienovel.com/main/writer/create?enter_from=home", timeout=30000)
-                    time.sleep(3)
-                else:
-                    self._log("✓ 点击创建书本选项成功")
-                    time.sleep(3)
-            
-            # 步骤3: 填写书名
-            try:
-                title_short = self.novel_title[:14] if len(self.novel_title) > 14 else self.novel_title
-                title_input = self.page.locator('input[placeholder="请输入作品名称"]').first
-                if title_input.count() > 0:
-                    title_input.wait_for(state='visible', timeout=5000)
-                    title_input.fill(title_short)
-                    self._log(f"✓ 填写书名: {title_short}")
-                else:
-                    # 备用选择器
-                    for selector in ['input[placeholder*="书名"]', 'input[name="title"]', 'input[type="text"]']:
-                        try:
-                            elem = self.page.locator(selector).first
-                            if elem.count() > 0 and elem.is_visible():
-                                elem.fill(title_short)
-                                self._log(f"✓ 填写书名: {title_short}")
-                                break
-                        except:
-                            continue
-            except Exception as e:
-                self._log(f"填写书名失败: {e}", "error")
-                return False
-            
-            # 步骤4: 填写简介（可选）
-            try:
-                intro_text = f"{self.novel_title}，精彩小说，敬请期待！"
-                for selector in ['textarea[placeholder*="简介"]', 'textarea', 'textarea[name="intro"]']:
-                    try:
-                        textarea = self.page.locator(selector).first
-                        if textarea.count() > 0 and textarea.is_visible():
-                            textarea.fill(intro_text)
-                            self._log("✓ 填写简介")
-                            break
-                    except:
-                        continue
+                error_msg = self.page.locator('.arco-message-content, .error-message, [class*="error"]').first
+                if error_msg.count() > 0 and error_msg.is_visible():
+                    error_text = error_msg.text_content() or ""
+                    if "成功" in error_text or "success" in error_text.lower():
+                        self._log(f"✓ 操作成功提示: {error_text}")
+                    else:
+                        self._log(f"✗ 创建失败，错误信息: {error_text}")
+                        return False
             except:
                 pass
             
-            # 步骤5: 选择分类（点击第一个选项）
-            try:
-                for selector in ['.category-select', '.book-category', '[class*="category"]']:
-                    try:
-                        select_elem = self.page.locator(selector).first
-                        if select_elem.count() > 0 and select_elem.is_visible():
-                            select_elem.click()
-                            time.sleep(1)
-                            first_option = self.page.locator('.option-item, .select-option, [class*="option"]').first
-                            if first_option.count() > 0:
-                                first_option.click()
-                                self._log("✓ 选择分类")
-                                break
-                    except:
-                        continue
-            except:
-                pass
-            
-            time.sleep(2)
-            
-            # 步骤6: 点击创建按钮
-            try:
-                btn_clicked = False
-                for selector in ['button:has-text("创建")', 'button:has-text("提交")', 'button:has-text("确定")', 'button[class*="primary"]', 'button[type="submit"]']:
-                    try:
-                        btn = self.page.locator(selector).first
-                        if btn.count() > 0 and btn.is_visible():
-                            btn.click()
-                            self._log("✓ 点击创建按钮")
-                            btn_clicked = True
-                            break
-                    except:
-                        continue
-                
-                if not btn_clicked:
-                    self._log("⚠️ 未能找到创建按钮", "warning")
-                    return False
-            except Exception as e:
-                self._log(f"点击创建按钮失败: {e}", "error")
-                return False
-            
-            # 等待创建结果
-            time.sleep(5)
-            
-            # 检查是否创建成功
-            page_content = self.page.content()
-            success_indicators = ['创建成功', '书籍创建', 'book-manage', '/book/']
-            if any(ind in page_content for ind in success_indicators) or '/book/' in self.page.url:
-                book_ids = re.findall(r'/book/(\d+)', self.page.url)
-                if book_ids:
-                    self.book_id = book_ids[0]
-                else:
-                    book_ids = re.findall(r'long-article-table-item-(\d+)', page_content)
-                    if book_ids:
-                        self.book_id = book_ids[0]
-                
-                if self.book_id:
+            # 等待跳转到书籍详情页
+            for i in range(10):
+                time.sleep(1)
+                current_url = self.page.url
+                if "/main/writer/book/" in current_url or "/main/writer/novel/" in current_url:
+                    self._log(f"✓ 书籍创建成功，已跳转到详情页: {current_url}")
+                    # 提取 book_id
+                    match = re.search(r'/book/(\d+)', current_url)
+                    if match:
+                        self.book_id = match.group(1)
                     self.book_created = True
-                    self._progress(40, f"✅ 书籍创建成功！ID: {self.book_id}")
-                    self._log(f"✅ 书籍《{self.novel_title}》创建成功！")
+                    self._progress(40, f"✅ 书籍创建成功！ID: {self.book_id or 'unknown'}")
                     return True
+                if "/main/writer/create" in current_url:
+                    self._log(f"仍在创建页面，等待中... ({i+1}/10)")
             
             # 检查是否已有同名书籍
+            page_content = self.page.content()
             if '已存在' in page_content or '重复' in page_content:
                 self._log("⚠️ 检测到同名书籍，尝试查找...", "warning")
                 self.page.goto("https://fanqienovel.com/main/writer/book-manage", timeout=30000)
                 time.sleep(3)
                 return self.find_book_in_list()
             
-            self._log("⚠️ 书籍创建结果未知，请检查页面", "warning")
+            self._log("✗ 等待超时，无法确认创建是否成功")
             return False
             
         except Exception as e:
@@ -394,6 +348,371 @@ class FanqieUploaderImpl:
             return False
         except Exception as e:
             self._log(f"查找书籍列表失败: {e}", "error")
+            return False
+    
+    def _check_book_exists_on_fanqie(self) -> Optional[str]:
+        """检查番茄平台上是否已有该书"""
+        try:
+            current_url = self.page.url
+            self._log(f"当前页面URL: {current_url}")
+            
+            if "/chapter-manage/" in current_url:
+                book_id = current_url.split("/chapter-manage/")[-1].split("/")[0]
+                if book_id and book_id.isdigit():
+                    self.book_id = book_id
+                    return current_url
+            
+            if "/book-info/" in current_url:
+                book_id = current_url.split("/book-info/")[-1].split("/")[0]
+                if book_id and book_id.isdigit():
+                    self.book_id = book_id
+                    return f"https://fanqienovel.com/main/writer/chapter-manage/{book_id}"
+            
+            if "/main/writer" not in current_url:
+                self.page.goto("https://fanqienovel.com/main/writer/book-manage",
+                             wait_until="networkidle", timeout=15000)
+                time.sleep(3)
+            
+            try:
+                title_short = self.novel_title[:10]
+                self._log(f"在书籍管理页面查找书名: {title_short}...")
+                self.page.wait_for_load_state("networkidle")
+                time.sleep(2)
+                
+                page_text = self.page.content()
+                if title_short in page_text or self.novel_title[:8] in page_text:
+                    book_ids = re.findall(r'long-article-table-item-(\d+)', page_text)
+                    if book_ids:
+                        for book_id in book_ids:
+                            book_elem = self.page.locator(f'#long-article-table-item-{book_id}')
+                            if book_elem.count() > 0:
+                                title_elem = book_elem.locator('.info-content-title').first
+                                if title_elem.count() > 0:
+                                    title_text = title_elem.text_content().strip()
+                                    if self.novel_title[:10] in title_text or title_text[:10] in self.novel_title:
+                                        url = f"https://fanqienovel.com/main/writer/chapter-manage/{book_id}"
+                                        self.book_id = book_id
+                                        return url
+                        book_id = book_ids[0]
+                        self.book_id = book_id
+                        return f"https://fanqienovel.com/main/writer/chapter-manage/{book_id}"
+            except Exception as e:
+                self._log(f"页面检查失败: {e}")
+            
+            return None
+        except Exception as e:
+            self._log(f"检查书籍存在性时出错: {e}")
+            return None
+    
+    def _format_synopsis(self, text: str, max_length: int = 500) -> str:
+        """针对番茄小说优化简介排版"""
+        if not text or len(text.strip()) == 0:
+            return ""
+        
+        text = re.sub(r'\s+', ' ', text.strip())
+        
+        tag_line = ""
+        tag_match = re.search(r'^(\[[^\]]+\])', text)
+        if tag_match:
+            tag_line = tag_match.group(1)
+            text = text.replace(tag_line, "").strip()
+        
+        if not tag_line:
+            tag_line = "[系统+爽文]"
+        
+        original_synopsis = text
+        sentences = re.split(r'([。！？])', original_synopsis)
+        processed_sentences = []
+        for i in range(0, len(sentences) - 1, 2):
+            if i + 1 < len(sentences):
+                sentence = sentences[i] + sentences[i + 1]
+                if sentence.strip():
+                    processed_sentences.append(sentence.strip())
+        
+        if not processed_sentences:
+            processed_sentences = [s.strip() for s in original_synopsis.split('。') if s.strip()]
+            processed_sentences = [s + '。' for s in processed_sentences]
+        
+        formatted_lines = [tag_line, ""]
+        formatted_lines.extend(processed_sentences)
+        formatted_text = '\n'.join(formatted_lines)
+        
+        if len(formatted_text) > max_length:
+            formatted_text = formatted_text[:max_length]
+        
+        return formatted_text
+    
+    def _select_book_tags_v2(self, tags_info: Dict[str, Any]) -> bool:
+        """选择作品标签 - V2版本（适配番茄最新界面）"""
+        self._log("[Tags] 开始选择作品标签...")
+        
+        try:
+            tag_selector = self.page.locator('.select-row, .select-view, [placeholder*="请选择作品标签"]').first
+            if tag_selector.count() == 0:
+                self._log("[Tags] 未找到标签选择器")
+                return False
+            
+            tag_selector.click()
+            self._log("[Tags] 已点击标签选择器")
+            time.sleep(2)
+            
+            main_category = tags_info.get("main_category", "")
+            themes = tags_info.get("themes", [])
+            roles = tags_info.get("roles", [])
+            plots = tags_info.get("plots", [])
+            
+            self._log(f"[Tags] 需要选择的标签: 主分类={main_category}, 主题={themes}, 角色={roles}, 情节={plots}")
+            
+            if main_category:
+                if self._click_tag_in_modal("主分类", main_category):
+                    self._log(f"[Tags] ✓ 选择主分类: {main_category}")
+                else:
+                    self._log(f"[Tags] ⚠ 未找到主分类: {main_category}")
+            
+            selected_themes = 0
+            for theme in themes[:3]:
+                if self._click_tag_in_modal("主题", theme):
+                    self._log(f"[Tags] ✓ 选择主题: {theme}")
+                    selected_themes += 1
+                    time.sleep(0.3)
+                else:
+                    self._log(f"[Tags] ⚠ 未找到主题: {theme}")
+            
+            selected_roles = 0
+            for role in roles[:3]:
+                if self._click_tag_in_modal("角色", role):
+                    self._log(f"[Tags] ✓ 选择角色: {role}")
+                    selected_roles += 1
+                    time.sleep(0.3)
+                else:
+                    self._log(f"[Tags] ⚠ 未找到角色: {role}")
+            
+            selected_plots = 0
+            for plot in plots[:3]:
+                if self._click_tag_in_modal("情节", plot):
+                    self._log(f"[Tags] ✓ 选择情节: {plot}")
+                    selected_plots += 1
+                    time.sleep(0.3)
+                else:
+                    self._log(f"[Tags] ⚠ 未找到情节: {plot}")
+            
+            try:
+                confirm_btn = self.page.locator('button:has-text("确认"), button:has-text("确定"), .arco-btn-primary').filter(
+                    has_text=re.compile(r'(确认|确定)')
+                ).first
+                if confirm_btn.count() > 0:
+                    confirm_btn.click()
+                    self._log("[Tags] ✓ 点击确认按钮")
+                    time.sleep(1)
+                else:
+                    self.page.keyboard.press("Escape")
+                    self._log("[Tags] 按ESC关闭标签弹窗")
+            except Exception as e:
+                self._log(f"[Tags] 关闭标签弹窗时出错: {e}")
+            
+            return True
+            
+        except Exception as e:
+            self._log(f"[Tags] 选择标签时出错: {e}")
+            return False
+    
+    def _click_tag_in_modal(self, category: str, tag_name: str) -> bool:
+        """在标签弹窗中点击指定标签"""
+        try:
+            tab_selectors = [
+                f'.arco-tabs-header-title:has-text("{category}")',
+                f'[role="tab"]:has-text("{category}")',
+                f'text="{category}" >> xpath=ancestor::*[@role="tab" or contains(@class, "arco-tabs-header-title")]',
+            ]
+            
+            for selector in tab_selectors:
+                try:
+                    tab = self.page.locator(selector).first
+                    if tab.count() > 0 and tab.is_visible():
+                        tab.click()
+                        time.sleep(0.5)
+                        break
+                except Exception:
+                    continue
+            
+            selectors = [
+                f'.category-choose-item:has-text("{tag_name}")',
+                f'.tag-item:has-text("{tag_name}")',
+                f'text="{tag_name}"',
+                f'[role="tabpanel"] >> text="{tag_name}"',
+            ]
+            
+            for selector in selectors:
+                try:
+                    tag = self.page.locator(selector).first
+                    if tag.count() > 0 and tag.is_visible():
+                        tag.click()
+                        time.sleep(0.3)
+                        return True
+                except Exception:
+                    continue
+            
+            scroll_container = self.page.locator('.category-choose-scroll-parent, .arco-tabs-content-item-active').first
+            if scroll_container.count() > 0:
+                for _ in range(10):
+                    try:
+                        tag = scroll_container.locator(f'.category-choose-item:has-text("{tag_name}")').first
+                        if tag.count() > 0 and tag.is_visible():
+                            tag.click()
+                            time.sleep(0.3)
+                            return True
+                    except Exception:
+                        pass
+                    scroll_container.evaluate('el => el.scrollTop += 200')
+                    time.sleep(0.3)
+            
+            clicked = self.page.evaluate(f'''(tagName) => {{
+                const titles = document.querySelectorAll('.category-choose-item-title');
+                for (const title of titles) {{
+                    if (title.textContent.trim() === tagName) {{
+                        const item = title.closest('.category-choose-item');
+                        if (item) {{
+                            item.click();
+                            return true;
+                        }}
+                    }}
+                }}
+                const items = document.querySelectorAll('.category-choose-item, .tag-item');
+                for (const item of items) {{
+                    const titleEl = item.querySelector('.category-choose-item-title');
+                    if (titleEl && titleEl.textContent.trim() === tagName) {{
+                        item.click();
+                        return true;
+                    }}
+                    if (item.textContent.trim().startsWith(tagName)) {{
+                        item.click();
+                        return true;
+                    }}
+                }}
+                const xpath = `//div[contains(@class, 'category-choose-item-title') and text()='${{tagName}}']`;
+                const result = document.evaluate(xpath, document, null, XPathResult.FIRST_ORDERED_NODE_TYPE, null);
+                const node = result.singleNodeValue;
+                if (node) {{
+                    const item = node.closest('.category-choose-item');
+                    if (item) {{
+                        item.click();
+                        return true;
+                    }}
+                }}
+                return false;
+            }}''', tag_name)
+            
+            return clicked
+            
+        except Exception as e:
+            self._log(f"[Tags] 点击标签 '{tag_name}' 失败: {e}")
+            return False
+    
+    def _handle_cover_upload(self) -> bool:
+        """处理封面上传"""
+        self._log("[Cover] 开始处理封面...")
+        
+        project_dir = Path(self.novel_config.get("project_dir", "."))
+        novel_title = self.novel_title
+        
+        cover_paths = [
+            project_dir / "cover.png",
+            project_dir / "cover.jpg",
+            project_dir / "cover.jpeg",
+            project_dir / f"{novel_title}_封面.png",
+            project_dir / f"{novel_title}_封面.jpg",
+            project_dir / "images" / "cover.png",
+            project_dir / "images" / "cover.jpg",
+        ]
+        
+        cover_file = None
+        for path in cover_paths:
+            if path.exists():
+                cover_file = path
+                break
+        
+        if not cover_file:
+            self._log("[Cover] 在项目目录未找到封面，检查 generated_images 目录...")
+            
+            username = ""
+            try:
+                parts = project_dir.parts
+                if "小说项目" in parts or "novel_projects" in parts:
+                    for i, part in enumerate(parts):
+                        if part in ["小说项目", "novel_projects"] and i + 1 < len(parts):
+                            username = parts[i + 1]
+                            break
+            except:
+                pass
+            
+            base_dir = project_dir.parent.parent.parent
+            generated_images_dir = base_dir / "generated_images" / username / novel_title
+            
+            self._log(f"[Cover] 检查目录: {generated_images_dir}")
+            
+            if generated_images_dir.exists():
+                image_extensions = ['.png', '.jpg', '.jpeg', '.webp']
+                cover_files = []
+                
+                for ext in image_extensions:
+                    cover_files.extend(generated_images_dir.glob(f'*{ext}'))
+                
+                if cover_files:
+                    cover_files.sort(key=lambda x: x.stat().st_mtime, reverse=True)
+                    cover_file = cover_files[0]
+                    self._log(f"[Cover] 在 generated_images 找到封面: {cover_file.name}")
+        
+        if not cover_file:
+            self._log("[Cover] ⚠ 未找到封面文件，跳过封面上传")
+            return False
+        
+        self._log(f"[Cover] 找到封面文件: {cover_file}")
+        
+        try:
+            cover_btn = self.page.locator('button:has-text("选择封面"), .left-cover-container button').first
+            if cover_btn.count() == 0:
+                self._log("[Cover] 未找到'选择封面'按钮")
+                return False
+            
+            cover_btn.click()
+            self._log("[Cover] 已点击选择封面按钮")
+            time.sleep(2)
+            
+            self.page.wait_for_selector('.arco-modal, [class*="modal"], [class*="upload"]', timeout=5000)
+            
+            file_input = self.page.locator('input[type="file"]').first
+            if file_input.count() == 0:
+                self._log("[Cover] 未找到文件输入框，尝试点击上传区域...")
+                upload_area = self.page.locator('.upload-area, .cover-upload, [class*="upload"]').first
+                if upload_area.count() > 0:
+                    upload_area.click()
+                    time.sleep(1)
+                    file_input = self.page.locator('input[type="file"]').first
+            
+            if file_input.count() > 0:
+                file_input.set_input_files(str(cover_file))
+                self._log(f"[Cover] 已选择文件: {cover_file}")
+                time.sleep(3)
+                
+                confirm_btn = self.page.locator('button:has-text("确认"), button:has-text("确定"), button:has-text("保存")').last
+                if confirm_btn.count() > 0:
+                    confirm_btn.click()
+                    self._log("[Cover] 已点击确认")
+                    time.sleep(1)
+                
+                self._log("[Cover] ✓ 封面上传完成")
+                return True
+            else:
+                self._log("[Cover] 无法找到文件输入框")
+                self.page.keyboard.press("Escape")
+                return False
+                
+        except Exception as e:
+            self._log(f"[Cover] 封面上传失败: {e}")
+            try:
+                self.page.keyboard.press("Escape")
+            except:
+                pass
             return False
     
     def upload_chapter(self, chapter: dict, retry_count: int = 0) -> bool:

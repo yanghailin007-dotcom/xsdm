@@ -26,9 +26,23 @@ APP_DIR = get_app_dir()
 
 # 统一数据目录
 def get_data_dir() -> Path:
-    """获取统一数据目录"""
-    data_dir = APP_DIR / "NovelPublisher_Data"
-    data_dir.mkdir(exist_ok=True)
+    """获取统一数据目录
+    
+    打包后安装在 Program Files 时无写入权限，
+    因此 Windows 上优先使用 %LOCALAPPDATA% 用户目录。
+    """
+    if sys.platform == 'win32':
+        # Windows: 使用 C:\Users\<user>\AppData\Local\大文娱小说发布助手
+        local_appdata = os.environ.get('LOCALAPPDATA')
+        if local_appdata:
+            data_dir = Path(local_appdata) / "大文娱小说发布助手"
+        else:
+            data_dir = Path.home() / "AppData" / "Local" / "大文娱小说发布助手"
+    else:
+        # macOS/Linux: 使用 ~/.local/share/大文娱小说发布助手
+        data_dir = Path.home() / ".local" / "share" / "大文娱小说发布助手"
+    
+    data_dir.mkdir(parents=True, exist_ok=True)
     return data_dir
 
 DATA_DIR = get_data_dir()
@@ -241,12 +255,13 @@ class UploadWorker(QThread):
     finished_signal = pyqtSignal(bool, str)
     
     def __init__(self, novel_title: str, chapters: list, settings: dict, 
-                 tomato_account: TomatoAccount):
+                 tomato_account: TomatoAccount, novel_config: dict = None):
         super().__init__()
         self.novel_title = novel_title
         self.chapters = chapters
         self.settings = settings
         self.tomato_account = tomato_account
+        self.novel_config = novel_config or {}
         self.is_running = True
         self.uploader = None
     
@@ -259,6 +274,7 @@ class UploadWorker(QThread):
             UploaderImpl = get_uploader_impl()
             self.uploader = UploaderImpl(
                 novel_title=self.novel_title,
+                novel_config=self.novel_config,
                 progress_callback=lambda p, m: self.progress_signal.emit(int(p * 0.8) + 10, m),
                 log_callback=lambda m, l: self.log_signal.emit(m, l)
             )
@@ -287,38 +303,21 @@ class UploadWorker(QThread):
             self.progress_signal.emit(25, "已找到书籍")
             
             # 上传章节
+            stop_on_error = self.settings.get('stop_on_error', False)
             delay_min = self.settings.get('delay_min', 3)
             delay_max = self.settings.get('delay_max', 8)
             
-            total = len(self.chapters)
-            success = 0
-            failed = 0
+            self.progress_signal.emit(30, "开始上传章节...")
+            result = self.uploader.upload_chapters(
+                self.chapters,
+                delay_min=delay_min,
+                delay_max=delay_max,
+                stop_on_error=stop_on_error
+            )
             
-            for i, ch in enumerate(self.chapters):
-                if not self.is_running:
-                    break
-                
-                ch_num = ch.get('chapter_number', i + 1)
-                ch_title = ch.get('title', f'第{ch_num}章')
-                
-                self.log_signal.emit(f"📤 上传第{ch_num}章: {ch_title}", "info")
-                
-                # 模拟上传（实际应调用真实上传）
-                time.sleep(0.5)  # 模拟延迟
-                
-                # 这里应该调用真实的上传方法
-                # result = self.uploader.upload_single_chapter(ch)
-                
-                success += 1
-                progress = 25 + int((i + 1) / total * 75)
-                self.progress_signal.emit(progress, f"已上传 {i+1}/{total} 章")
-                
-                # 章节间延迟
-                if i < total - 1 and self.is_running:
-                    import random
-                    delay = random.uniform(delay_min, delay_max)
-                    self.log_signal.emit(f"⏱️ 等待 {delay:.1f} 秒...", "info")
-                    time.sleep(delay)
+            success = result.get('success', 0)
+            total = result.get('total', 0)
+            failed = total - success
             
             # 完成
             if failed == 0:
@@ -1170,10 +1169,12 @@ NovelPublisher_Data/              ← 统一数据目录
                             proj_path_str = str(proj_dir)
                             if proj_path_str not in added_paths:
                                 display = f"{user_dir.name} / {proj_dir.name}"
+                                novel_config = self._extract_novel_config(proj_dir)
                                 data = {
                                     'username': user_dir.name,
                                     'proj_name': proj_dir.name,
-                                    'path': proj_path_str
+                                    'path': proj_path_str,
+                                    **novel_config
                                 }
                                 self.project_combo.addItem(display, data)
         
@@ -1247,6 +1248,77 @@ NovelPublisher_Data/              ← 统一数据目录
                     )
                     self.load_projects()
     
+    def _extract_novel_config(self, project_path: Path) -> dict:
+        """从项目配置中提取小说元数据"""
+        result = {
+            'novel_title': '',
+            'synopsis': '',
+            'main_character': '未知主角',
+            'tags_info': {},
+            'project_dir': str(project_path),
+        }
+        
+        configs = []
+        for fname in ['project_config.json', 'project_info.json']:
+            fpath = project_path / fname
+            if fpath.exists():
+                try:
+                    configs.append(json.loads(fpath.read_text(encoding='utf-8')))
+                except Exception:
+                    pass
+        
+        for config in configs:
+            # 1. fanqie_upload_data 结构
+            upload_data = config.get('fanqie_upload_data')
+            if isinstance(upload_data, dict):
+                result['novel_title'] = result['novel_title'] or upload_data.get('title', '')
+                result['synopsis'] = result['synopsis'] or upload_data.get('synopsis', '')
+                tags = upload_data.get('tags', {})
+                if isinstance(tags, dict) and tags:
+                    result['tags_info'] = {**result['tags_info'], **tags}
+            
+            # 2. 顶层字段
+            result['novel_title'] = result['novel_title'] or config.get('title', '') or config.get('novel_title', '')
+            result['synopsis'] = result['synopsis'] or config.get('synopsis', '')
+            
+            # 3. novel_info 结构
+            novel_info = config.get('novel_info')
+            if isinstance(novel_info, dict):
+                result['novel_title'] = result['novel_title'] or novel_info.get('title', '')
+                result['synopsis'] = result['synopsis'] or novel_info.get('synopsis', '')
+                
+                char_design = novel_info.get('character_design', {})
+                if isinstance(char_design, dict):
+                    mc = char_design.get('main_character', {})
+                    if isinstance(mc, dict) and mc.get('name'):
+                        result['main_character'] = mc['name']
+                
+                selected_plan = novel_info.get('selected_plan', {})
+                if isinstance(selected_plan, dict):
+                    result['novel_title'] = result['novel_title'] or selected_plan.get('title', '')
+                    result['synopsis'] = result['synopsis'] or selected_plan.get('synopsis', '')
+                    tags = selected_plan.get('tags', {})
+                    if isinstance(tags, dict) and tags:
+                        result['tags_info'] = {**result['tags_info'], **tags}
+            
+            # 4. 顶层 selected_plan
+            selected_plan = config.get('selected_plan', {})
+            if isinstance(selected_plan, dict):
+                result['novel_title'] = result['novel_title'] or selected_plan.get('title', '')
+                result['synopsis'] = result['synopsis'] or selected_plan.get('synopsis', '')
+                tags = selected_plan.get('tags', {})
+                if isinstance(tags, dict) and tags:
+                    result['tags_info'] = {**result['tags_info'], **tags}
+            
+            # 5. 顶层 character_design
+            char_design = config.get('character_design', {})
+            if isinstance(char_design, dict):
+                mc = char_design.get('main_character', {})
+                if isinstance(mc, dict) and mc.get('name'):
+                    result['main_character'] = mc['name']
+        
+        return result
+    
     def load_single_project(self, project_path: Path):
         """加载单个项目"""
         try:
@@ -1258,11 +1330,15 @@ NovelPublisher_Data/              ← 统一数据目录
             username = config.get('username', project_path.parent.name)
             proj_name = config.get('project_name', project_path.name)
             
+            # 提取小说元数据
+            novel_config = self._extract_novel_config(project_path)
+            
             # 准备数据
             data = {
                 'username': username,
                 'proj_name': proj_name,
-                'path': str(project_path)
+                'path': str(project_path),
+                **novel_config
             }
             
             # 检查是否已存在（通过完整路径）
@@ -1409,15 +1485,20 @@ NovelPublisher_Data/              ← 统一数据目录
             'stop_on_error': self.stop_on_error.isChecked()
         }
         
-        # 获取书名 - 优先从项目配置获取
+        # 获取书名和项目配置
         novel_title = "未知书名"
+        novel_config = {}
+        project_path = None
         
-        # 尝试从当前选中的项目获取书名
         proj_idx = self.project_combo.currentIndex()
         if proj_idx >= 0:
             proj_data = self.project_combo.itemData(proj_idx)
             if isinstance(proj_data, dict):
-                novel_title = proj_data.get('proj_name', novel_title)
+                novel_title = proj_data.get('novel_title') or proj_data.get('proj_name', novel_title)
+                novel_config = {k: v for k, v in proj_data.items() if k in [
+                    'novel_title', 'synopsis', 'main_character', 'tags_info', 'project_dir'
+                ]}
+                project_path = proj_data.get('path')
         
         # 如果章节数据中有书名，优先使用
         if chapters:
@@ -1425,8 +1506,13 @@ NovelPublisher_Data/              ← 统一数据目录
             if ch_title:
                 novel_title = ch_title
         
+        # 若下拉框中没拿到完整配置，尝试现场读取
+        if not novel_config.get('novel_title') and project_path:
+            novel_config = self._extract_novel_config(Path(project_path))
+            novel_config['novel_title'] = novel_config.get('novel_title') or novel_title
+        
         # 启动上传线程
-        self.upload_worker = UploadWorker(novel_title, chapters, settings, acc)
+        self.upload_worker = UploadWorker(novel_title, chapters, settings, acc, novel_config)
         self.upload_worker.progress_signal.connect(self.on_upload_progress)
         self.upload_worker.log_signal.connect(self.on_upload_log)
         self.upload_worker.finished_signal.connect(self.on_upload_finished)

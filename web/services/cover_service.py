@@ -256,8 +256,18 @@ class CoverService:
         
         color_info = fanqie_colors.get(color_scheme, fanqie_colors['blue'])
         
-        # 网文封面提示词模板 - 高视觉冲击力，避免平台名称和分辨率数字
-        base_prompt = f"""小说封面设计，竖版构图，网文爽文审美，强视觉冲击力
+        # 判断 custom_prompt 是否已经是完整的封面提示词（来自前端默认模板）
+        is_full_prompt = False
+        if custom_prompt and len(custom_prompt) > 200:
+            if '【封面文字' in custom_prompt or ('书名' in custom_prompt and '作者' in custom_prompt and '【' in custom_prompt):
+                is_full_prompt = True
+        
+        if is_full_prompt:
+            # 直接使用用户提供的完整提示词，避免与 base_prompt 重复
+            base_prompt = custom_prompt
+        else:
+            # 网文封面提示词模板 - 高视觉冲击力，避免平台名称和分辨率数字
+            base_prompt = f"""小说封面设计，竖版构图，网文爽文审美，强视觉冲击力
 
 【封面文字 - 只允许出现以下两项】：
 1. 主标题：《{novel_title}》 - 字体大气醒目，有发光或描边效果
@@ -292,10 +302,10 @@ class CoverService:
 - 专业网文封面水准
 - 缩略图模式下依然清晰醒目
 - 目标：让读者在书架上一眼被吸引"""
-        
-        # 添加自定义提示词
-        if custom_prompt:
-            base_prompt += f"\n\n【额外要求】:\n{custom_prompt}"
+            
+            # 添加自定义提示词（仅当是简短补充时）
+            if custom_prompt:
+                base_prompt += f"\n\n【额外要求】:\n{custom_prompt}"
         
         # 添加负面提示词
         if negative_prompt:

@@ -152,3 +152,18 @@ logs/bestseller_analysis/
 logs/genre_updates/
 logs/conversations/
 logs/*.md
+
+# Desktop uploader generated files
+desktop_uploader/release/NovelPublisher.exe
+desktop_uploader/release/_internal/
+desktop_uploader/release/build/
+desktop_uploader/release/dist/
+desktop_uploader/release/NovelPublisher_singlefile_backup.exe
+
+# Generated images
+generated_images/
+
+# Temp/analysis files
+analyze_log_times.py
+.chapter_extractions.json
+.world_state.json
