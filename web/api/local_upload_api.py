@@ -365,7 +365,11 @@ def download_package(task_id: str):
     """下载上传包"""
     try:
         from flask import send_file
-        from web.services.upload_package_manager import PACKAGES_DIR
+        
+        # 🔥 使用绝对路径，避免服务器部署时工作目录不同导致路径错误
+        # 获取项目根目录（基于当前文件位置）
+        BASE_DIR = Path(__file__).parent.parent.parent
+        PACKAGES_DIR = BASE_DIR / 'temp_uploads' / 'packages'
         
         # 查找包文件（支持不同类型）
         for prefix in ['first_time_', 'script_']:
