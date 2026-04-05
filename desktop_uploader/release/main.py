@@ -2847,24 +2847,13 @@ NovelPublisher_Data/              ← 统一数据目录
     def check_resume_publish(self, project_path: Path) -> dict:
         """
         检测是否需要续发 - 基于 v2.0 发布记录的 publish_time 推算
-        
-        Returns:
-            {
-                'need_resume': False,  # 是否需要续发
-                'last_chapter': 172,   # 最后发布的章节
-                'today_published': 6,  # 今天已发布数量
-                'today_remaining': 2,  # 今天剩余额度
-                'next_chapter': 173,   # 下一章
-                'next_publish_date': '2026-04-24',  # 建议发布日期
-                'next_publish_time': '06:00',       # 建议发布时间
-                'message': '今天还能发2章'
-            }
         """
         try:
             data = self._load_published_chapters_with_info(project_path)
             chapters = data.get('chapters', {})
             
             if not chapters:
+                self.log("[Resume] 没有发布记录", "debug")
                 return {'need_resume': False}
             
             # 获取配置
@@ -2876,59 +2865,61 @@ NovelPublisher_Data/              ← 统一数据目录
             # 找出最后发布的章节
             max_chapter = max(int(k) for k in chapters.keys())
             last_ch_info = chapters.get(str(max_chapter), {})
-            last_publish_time = last_ch_info.get('publish_time')  # 格式: "2026-04-26 06:00"
+            last_publish_time = last_ch_info.get('publish_time')
             
-            # 🔥 基于最后章节的 publish_time 推算下一个发布时间
+            self.log(f"[Resume] 最后章节: {max_chapter}, publish_time: {last_publish_time}", "debug")
+            
+            # 🔥 基于最后章节的 publish_time 推算
             if last_publish_time:
-                # 解析最后发布时间
                 try:
                     last_dt = datetime.strptime(last_publish_time, '%Y-%m-%d %H:%M')
+                    self.log(f"[Resume] 解析成功: {last_dt}", "debug")
                     
-                    # 计算当天已发数量（基于 publish_time）
+                    # 计算最后那天（按 publish_time）已发多少章
                     last_date_str = last_dt.strftime('%Y-%m-%d')
-                    today_count = 0
-                    for ch_info in chapters.values():
-                        if isinstance(ch_info, dict):
-                            pt = ch_info.get('publish_time')
-                            if pt and pt.startswith(last_date_str):
-                                today_count += 1
-                    
-                    # 计算下一个发布时间
-                    if today_count >= daily_limit:
-                        # 当天已满，跨到下一天
-                        next_date = (last_dt + timedelta(days=1)).strftime('%Y-%m-%d')
-                        next_time = base_time
-                    else:
-                        # 当天还有额度，间隔30分钟
-                        next_dt = last_dt + timedelta(minutes=30)
-                        next_date = next_dt.strftime('%Y-%m-%d')
-                        next_time = next_dt.strftime('%H:%M')
-                    
-                    # 计算今天（实际今天）的发布情况
-                    actual_today = datetime.now().strftime('%Y-%m-%d')
-                    actual_today_published = sum(
+                    last_day_count = sum(
                         1 for ch_info in chapters.values()
                         if isinstance(ch_info, dict) and 
-                        ch_info.get('publish_time', '').startswith(actual_today)
+                        ch_info.get('publish_time', '').startswith(last_date_str)
                     )
-                    actual_today_remaining = daily_limit - actual_today_published
+                    self.log(f"[Resume] {last_date_str} 已发 {last_day_count} 章", "debug")
+                    
+                    # 推算下一章时间
+                    if last_day_count >= daily_limit:
+                        # 当天已满，跨到下一天从 base_time 开始
+                        next_dt = datetime.combine(
+                            last_dt.date() + timedelta(days=1),
+                            datetime.strptime(base_time, '%H:%M').time()
+                        )
+                    else:
+                        # 当天还有额度，+30分钟
+                        next_dt = last_dt + timedelta(minutes=30)
+                    
+                    next_date = next_dt.strftime('%Y-%m-%d')
+                    next_time = next_dt.strftime('%H:%M')
+                    self.log(f"[Resume] 推算下一章: {next_date} {next_time}", "debug")
                     
                 except Exception as e:
-                    # 解析失败，使用默认逻辑
-                    next_date = datetime.now().strftime('%Y-%m-%d')
+                    self.log(f"[Resume] 解析 publish_time 失败: {e}, 使用默认值", "warning")
+                    next_date = (datetime.now() + timedelta(days=1)).strftime('%Y-%m-%d')
                     next_time = base_time
-                    actual_today_published = 0
-                    actual_today_remaining = daily_limit
             else:
-                # 没有 publish_time（立即发布），基于今天推算
-                next_date = datetime.now().strftime('%Y-%m-%d')
+                self.log("[Resume] 无 publish_time，使用明天", "debug")
+                next_date = (datetime.now() + timedelta(days=1)).strftime('%Y-%m-%d')
                 next_time = base_time
-                actual_today_published = 0
-                actual_today_remaining = daily_limit
+            
+            # 计算实际今天的情况
+            actual_today = datetime.now().strftime('%Y-%m-%d')
+            actual_today_published = sum(
+                1 for ch_info in chapters.values()
+                if isinstance(ch_info, dict) and 
+                ch_info.get('publish_time', '').startswith(actual_today)
+            )
+            actual_today_remaining = max(0, daily_limit - actual_today_published)
             
             next_chapter = max_chapter + 1
             
-            return {
+            result = {
                 'need_resume': True,
                 'daily_limit': daily_limit,
                 'last_chapter': max_chapter,
@@ -2939,11 +2930,16 @@ NovelPublisher_Data/              ← 统一数据目录
                 'next_publish_date': next_date,
                 'next_publish_time': next_time,
                 'publish_times': publish_times,
-                'message': f"最后发布: 第{max_chapter}章 @ {last_publish_time or '立即'} | 下一章: {next_chapter} @ {next_date} {next_time}"
+                'message': f"最后: 第{max_chapter}章 @ {last_publish_time or 'N/A'} → 下一章: 第{next_chapter}章 @ {next_date} {next_time}"
             }
+            self.log(f"[Resume] 结果: {result}", "debug")
+            return result
             
         except Exception as e:
             self.log(f"⚠️ 检测续发失败: {e}", "warning")
+            import traceback
+            traceback.print_exc()
+            return {'need_resume': False}
             return {'need_resume': False}
     
     def _save_published_chapter(self, project_path: Path, chapter: dict, publish_time: str = None):
@@ -3012,33 +3008,36 @@ NovelPublisher_Data/              ← 统一数据目录
         return count
     
     def _load_published_chapters_with_info(self, project_path: Path) -> dict:
-        """
-        加载已发布章节记录（返回完整信息）
-        
-        Returns:
-            {
-                'daily_limit': 8,
-                'publish_times': '06:00,12:00',
-                'chapters': {
-                    '172': {'published_at': '...', 'publish_time': '...', 'title': '...'},
-                    ...
-                }
-            }
-        """
+        """加载已发布章节记录（返回完整信息）"""
         try:
             published_file = self._get_published_chapters_file(project_path)
+            self.log(f"[Resume] 尝试加载发布记录: {published_file}", "debug")
+            
             if not published_file.exists():
+                self.log(f"[Resume] 发布记录文件不存在", "debug")
                 return {'chapters': {}}
             
-            data = json.loads(published_file.read_text(encoding='utf-8'))
+            content = published_file.read_text(encoding='utf-8')
+            data = json.loads(content)
+            self.log(f"[Resume] 加载成功，章节数: {len(data.get('chapters', {}))}", "debug")
             
             # 兼容旧格式
             if 'published_chapters' in data:
+                self.log(f"[Resume] 检测到旧格式，执行迁移", "debug")
                 return self._migrate_old_format(data)
+            
+            # 检查最后一章的 publish_time
+            chapters = data.get('chapters', {})
+            if chapters:
+                max_ch = max(int(k) for k in chapters.keys())
+                last_info = chapters.get(str(max_ch), {})
+                self.log(f"[Resume] 最后章节 {max_ch}: {last_info.get('publish_time')}", "debug")
             
             return data
         except Exception as e:
             self.log(f"⚠️ 加载发布记录失败: {e}", "warning")
+            import traceback
+            traceback.print_exc()
             return {'chapters': {}}
     
     def _migrate_old_format(self, old_data: dict) -> dict:
