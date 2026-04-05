@@ -1653,5 +1653,358 @@ def get_genre_update_logs():
         return jsonify({"error": str(e)}), 500
 
 
+# ==================== AI 市场化评估 API ====================
+
+@market_driven_api.route('/evaluate', methods=['POST'])
+def evaluate_creative():
+    """
+    AI市场化评估 - 在生成最终方案前评估创意
+    
+    请求体：
+    {
+        "genre": "国运文-直播类",
+        "dialog_history": [
+            {"role": "ai", "content": "想在哪个角度做出不同？"},
+            {"role": "user", "content": "主角性格 + 金手指"},
+            {"role": "ai", "content": "主角性格类型？"},
+            {"role": "user", "content": "话痨吐槽型"},
+            {"role": "ai", "content": "金手指设定？"},
+            {"role": "user", "content": "记忆消失代价"}
+        ],
+        "creative_draft": {
+            "title": "存在感归零后，我成了幕后黑手",
+            "protagonist": "话痨吐槽型，表面被动实则暗中布局",
+            "golden_finger": "扮演历史人物，但每次使用会随机遗忘一段记忆",
+            "unique_points": "直播变单口相声 + 越强大越被遗忘 + 妹妹是唯一记得他的人",
+            "emotion_pacing": "快节奏，每3章一个小高潮，吐槽与爽点比例3:7"
+        }
+    }
+    
+    响应：
+    {
+        "success": true,
+        "evaluation": {
+            "overall_score": 78,
+            "grade": "B+",
+            "verdict": "建议继续，但有优化空间",
+            "predicted_metrics": {
+                "completion_rate": {"min": 12, "max": 18, "unit": "%"},
+                "retention": {
+                    "d3": {"value": 25, "unit": "%"},
+                    "d7": {"value": 15, "unit": "%"},
+                    "d30": {"value": 8, "unit": "%"}
+                },
+                "debut_pass_rate": {"value": 65, "unit": "%"}
+            },
+            "algorithm_potential": {
+                "new_book_traffic": "中等偏上",
+                "debut_pass_rate": 65,
+                "recommendation_potential": ["书架推荐", "分类强推"]
+            },
+            "risk_analysis": {
+                "level": "中等风险",
+                "main_risks": [
+                    "话痨人设可能在30章后审美疲劳",
+                    "记忆消失代价过于压抑"
+                ],
+                "mitigation": "每5章安排1章轻松日常，妹妹线快速展开建立情感锚点"
+            },
+            "similar_cases": [
+                {
+                    "title": "《我在国运直播讲相声》",
+                    "completion_rate": 18,
+                    "note": "类似人设，30章后掉留存严重"
+                },
+                {
+                    "title": "《副作用太大我只好无敌了》",
+                    "completion_rate": 15,
+                    "note": "轻喜剧风格成功对冲压抑感"
+                }
+            ],
+            "optimization_suggestions": [
+                {
+                    "priority": "高",
+                    "suggestion": "开局第1章增加妹妹提醒直播桥段，提前铺垫情感线",
+                    "expected_impact": "3日留存+5%",
+                    "target_chapters": "第1-3章"
+                },
+                {
+                    "priority": "中",
+                    "suggestion": "第5-10章设计震惊+吐槽组合拳，建立人设记忆点",
+                    "expected_impact": "黄金三章完读率+10%",
+                    "target_chapters": "第5-10章"
+                }
+            ],
+            "detailed_reasoning": "基于用户选择的...",
+            "recommendation": "proceed_with_caution"
+        }
+    }
+    """
+    try:
+        data = request.get_json()
+        
+        if not data:
+            return jsonify({"error": "请求体不能为空"}), 400
+        
+        genre = data.get('genre')
+        dialog_history = data.get('dialog_history', [])
+        creative_draft = data.get('creative_draft', {})
+        
+        if not genre:
+            return jsonify({"error": "缺少genre参数"}), 400
+        
+        if not creative_draft:
+            return jsonify({"error": "缺少creative_draft参数"}), 400
+        
+        # 初始化API客户端
+        from src.core.APIClient import APIClient
+        from config.config import CONFIG
+        api_client = APIClient(CONFIG)
+        
+        # 导入评估器
+        from web.services.market_driven.ai_market_evaluator import AIMarketEvaluator
+        evaluator = AIMarketEvaluator(api_client)
+        
+        # 执行评估
+        import asyncio
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+        
+        try:
+            result = loop.run_until_complete(
+                evaluator.evaluate(
+                    genre=genre,
+                    dialog_history=dialog_history,
+                    final_creative=creative_draft
+                )
+            )
+        finally:
+            loop.close()
+        
+        # 转换为字典
+        evaluation_dict = evaluator.to_dict(result)
+        
+        return jsonify({
+            "success": True,
+            "evaluation": evaluation_dict
+        }), 200
+        
+    except Exception as e:
+        logger.error(f"AI评估失败: {e}", exc_info=True)
+        return jsonify({
+            "success": False,
+            "error": str(e),
+            "message": "AI评估服务暂时不可用，请稍后重试"
+        }), 500
+
+
+@market_driven_api.route('/evaluation-report/<task_id>', methods=['GET'])
+def get_evaluation_report(task_id: str):
+    """
+    获取已保存的评估报告
+    
+    用于在生成过程中查看评估结果
+    """
+    try:
+        task = task_manager.get_task(task_id)
+        if not task:
+            return jsonify({"error": "任务不存在"}), 404
+        
+        evaluation = task.get('evaluation')
+        if not evaluation:
+            return jsonify({
+                "error": "评估报告不存在",
+                "message": "该任务尚未完成评估或评估已过期"
+            }), 404
+        
+        return jsonify({
+            "success": True,
+            "evaluation": evaluation
+        }), 200
+        
+    except Exception as e:
+        logger.error(f"获取评估报告失败: {e}", exc_info=True)
+        return jsonify({"error": str(e)}), 500
+
+
+# ==================== 对话打磨 API ====================
+
+@market_driven_api.route('/dialog/start', methods=['POST'])
+def start_dialog_polish():
+    """
+    开始对话打磨流程
+    
+    请求体：
+    {
+        "genre": "国运文-直播类",
+        "tropes": { ... },  // 套路分析结果
+        "username": "作者名"  // 可选
+    }
+    
+    响应：
+    {
+        "success": true,
+        "session_id": "DPM-20260405143028",
+        "round": 1,
+        "round_type": "init",
+        "ai_message": "🎯 【国运文-直播类】套路框架分析...",
+        "options": [ ... ],
+        "allow_custom": true
+    }
+    """
+    try:
+        data = request.get_json()
+        if not data:
+            return jsonify({"error": "请求体不能为空"}), 400
+        
+        genre = data.get('genre')
+        tropes = data.get('tropes', {})
+        
+        if not genre:
+            return jsonify({"error": "缺少genre参数"}), 400
+        
+        # 导入对话打磨管理器
+        from web.services.market_driven.dialog_polish_manager import create_dialog_session
+        
+        # 创建会话
+        manager = create_dialog_session(None, genre, tropes)
+        
+        # 开始第一轮
+        result = manager.start_dialog()
+        
+        return jsonify({
+            "success": True,
+            **result
+        }), 200
+        
+    except Exception as e:
+        logger.error(f"开始对话打磨失败: {e}", exc_info=True)
+        return jsonify({"error": str(e)}), 500
+
+
+@market_driven_api.route('/dialog/continue', methods=['POST'])
+def continue_dialog_polish():
+    """
+    继续对话打磨流程
+    
+    请求体：
+    {
+        "session_id": "DPM-20260405143028",
+        "choice": "protagonist",
+        "custom_text": "我想写个话痨主角"  // 可选
+    }
+    
+    响应：
+    {
+        "success": true,
+        "session_id": "DPM-20260405143028",
+        "round": 2,
+        "round_type": "protagonist",
+        "ai_message": "🎭 第二步：主角性格设定...",
+        "options": [ ... ],
+        "allow_custom": true,
+        "is_final": false
+    }
+    """
+    try:
+        data = request.get_json()
+        if not data:
+            return jsonify({"error": "请求体不能为空"}), 400
+        
+        session_id = data.get('session_id')
+        choice = data.get('choice')
+        custom_text = data.get('custom_text')
+        
+        if not session_id:
+            return jsonify({"error": "缺少session_id参数"}), 400
+        
+        if not choice:
+            return jsonify({"error": "缺少choice参数"}), 400
+        
+        # 获取会话
+        from web.services.market_driven.dialog_polish_manager import get_dialog_session
+        manager = get_dialog_session(session_id)
+        
+        if not manager:
+            return jsonify({"error": "会话不存在或已过期"}), 404
+        
+        # 处理用户输入
+        result = manager.process_user_input(choice, custom_text)
+        
+        return jsonify({
+            "success": True,
+            **result
+        }), 200
+        
+    except Exception as e:
+        logger.error(f"继续对话打磨失败: {e}", exc_info=True)
+        return jsonify({"error": str(e)}), 500
+
+
+@market_driven_api.route('/dialog/back', methods=['POST'])
+def go_back_dialog():
+    """
+    返回到指定轮次
+    
+    请求体：
+    {
+        "session_id": "DPM-20260405143028",
+        "target_round": 2
+    }
+    """
+    try:
+        data = request.get_json()
+        session_id = data.get('session_id')
+        target_round = data.get('target_round')
+        
+        if not session_id or target_round is None:
+            return jsonify({"error": "缺少参数"}), 400
+        
+        from web.services.market_driven.dialog_polish_manager import get_dialog_session
+        manager = get_dialog_session(session_id)
+        
+        if not manager:
+            return jsonify({"error": "会话不存在"}), 404
+        
+        result = manager.go_back(target_round)
+        
+        return jsonify({
+            "success": True,
+            **result
+        }), 200
+        
+    except Exception as e:
+        logger.error(f"返回对话轮次失败: {e}", exc_info=True)
+        return jsonify({"error": str(e)}), 500
+
+
+@market_driven_api.route('/dialog/draft/<session_id>', methods=['GET'])
+def get_dialog_draft(session_id: str):
+    """
+    获取对话打磨产生的创意草案
+    
+    用于在对话结束后调用AI评估
+    """
+    try:
+        from web.services.market_driven.dialog_polish_manager import get_dialog_session
+        manager = get_dialog_session(session_id)
+        
+        if not manager:
+            return jsonify({"error": "会话不存在"}), 404
+        
+        draft = manager.get_creative_draft()
+        
+        return jsonify({
+            "success": True,
+            "creative_draft": draft.to_dict(),
+            "dialog_history": draft.dialog_history,
+            "summary": manager.get_dialog_summary()
+        }), 200
+        
+    except Exception as e:
+        logger.error(f"获取创意草案失败: {e}", exc_info=True)
+        return jsonify({"error": str(e)}), 500
+
+
 # 应用启动时的初始化
 app = None  # 将在注册时由 web_server_refactored.py 设置

@@ -1,0 +1,781 @@
+{#
+  AI 市场化评估报告组件
+  用法：
+  1. 在页面中引入此组件
+  2. 调用 showEvaluationReport(data) 显示评估报告
+  3. 用户选择【接受】或【优化】后执行回调
+#}
+
+<style>
+/* ===== 评估报告模态框 ===== */
+.eval-modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(15, 23, 42, 0.85);
+  backdrop-filter: blur(12px);
+  display: none;
+  align-items: center;
+  justify-content: center;
+  z-index: 10000;
+  padding: 20px;
+  overflow-y: auto;
+}
+
+.eval-modal-overlay.active {
+  display: flex;
+}
+
+.eval-modal {
+  width: 100%;
+  max-width: 900px;
+  max-height: 90vh;
+  background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);
+  border: 1px solid rgba(245, 158, 11, 0.2);
+  border-radius: 24px;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+}
+
+.eval-modal__header {
+  background: linear-gradient(135deg, rgba(245, 158, 11, 0.15), rgba(251, 191, 36, 0.05));
+  padding: 24px 32px;
+  border-bottom: 1px solid rgba(245, 158, 11, 0.1);
+}
+
+.eval-modal__title {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-size: 24px;
+  font-weight: 700;
+  color: #fff;
+}
+
+.eval-modal__title .material-icons {
+  font-size: 32px;
+  color: var(--primary-gold);
+}
+
+.eval-modal__subtitle {
+  font-size: 14px;
+  color: var(--v2-text-secondary);
+  margin-top: 4px;
+}
+
+.eval-modal__body {
+  padding: 32px;
+  overflow-y: auto;
+  flex: 1;
+}
+
+.eval-modal__footer {
+  padding: 24px 32px;
+  border-top: 1px solid var(--v2-border-subtle);
+  display: flex;
+  justify-content: flex-end;
+  gap: 16px;
+  background: var(--v2-bg-secondary);
+}
+
+/* ===== 综合评分卡片 ===== */
+.eval-score-card {
+  background: linear-gradient(135deg, rgba(245, 158, 11, 0.1), rgba(251, 191, 36, 0.05));
+  border: 2px solid rgba(245, 158, 11, 0.3);
+  border-radius: 20px;
+  padding: 32px;
+  text-align: center;
+  margin-bottom: 32px;
+}
+
+.eval-score-card__score {
+  font-size: 72px;
+  font-weight: 800;
+  background: linear-gradient(135deg, #fbbf24, #f59e0b);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  line-height: 1;
+}
+
+.eval-score-card__grade {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 20px;
+  background: rgba(245, 158, 11, 0.2);
+  border-radius: 100px;
+  font-size: 24px;
+  font-weight: 700;
+  color: var(--primary-gold);
+  margin-top: 12px;
+}
+
+.eval-score-card__verdict {
+  font-size: 18px;
+  color: var(--v2-text-primary);
+  margin-top: 16px;
+  font-weight: 600;
+}
+
+.eval-score-card__recommendation {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 16px;
+  padding: 10px 20px;
+  border-radius: 100px;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.eval-score-card__recommendation--proceed {
+  background: rgba(34, 197, 94, 0.15);
+  color: #22c55e;
+}
+
+.eval-score-card__recommendation--caution {
+  background: rgba(245, 158, 11, 0.15);
+  color: var(--primary-gold);
+}
+
+.eval-score-card__recommendation--optimize {
+  background: rgba(239, 68, 68, 0.15);
+  color: #ef4444;
+}
+
+/* ===== 指标网格 ===== */
+.eval-metrics-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 16px;
+  margin-bottom: 32px;
+}
+
+.eval-metric-card {
+  background: var(--v2-bg-secondary);
+  border: 1px solid var(--v2-border-subtle);
+  border-radius: 16px;
+  padding: 20px;
+  text-align: center;
+}
+
+.eval-metric-card__label {
+  font-size: 13px;
+  color: var(--v2-text-secondary);
+  margin-bottom: 8px;
+}
+
+.eval-metric-card__value {
+  font-size: 28px;
+  font-weight: 700;
+  color: var(--v2-text-primary);
+}
+
+.eval-metric-card__unit {
+  font-size: 14px;
+  color: var(--v2-text-muted);
+}
+
+.eval-metric-card__comparison {
+  font-size: 12px;
+  margin-top: 8px;
+  padding: 4px 10px;
+  border-radius: 100px;
+  display: inline-block;
+}
+
+.eval-metric-card__comparison--positive {
+  background: rgba(34, 197, 94, 0.15);
+  color: #22c55e;
+}
+
+.eval-metric-card__comparison--negative {
+  background: rgba(239, 68, 68, 0.15);
+  color: #ef4444;
+}
+
+/* ===== 详情区块 ===== */
+.eval-section {
+  background: var(--v2-bg-secondary);
+  border: 1px solid var(--v2-border-subtle);
+  border-radius: 16px;
+  padding: 24px;
+  margin-bottom: 24px;
+}
+
+.eval-section__header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 20px;
+}
+
+.eval-section__icon {
+  width: 40px;
+  height: 40px;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 20px;
+}
+
+.eval-section__icon--risk { background: rgba(239, 68, 68, 0.15); color: #ef4444; }
+.eval-section__icon--case { background: rgba(59, 130, 246, 0.15); color: #3b82f6; }
+.eval-section__icon--optimize { background: rgba(34, 197, 94, 0.15); color: #22c55e; }
+.eval-section__icon--algorithm { background: rgba(245, 158, 11, 0.15); color: var(--primary-gold); }
+
+.eval-section__title {
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--v2-text-primary);
+}
+
+/* ===== 风险分析 ===== */
+.eval-risk-level {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 16px;
+  border-radius: 100px;
+  font-size: 14px;
+  font-weight: 600;
+  margin-bottom: 16px;
+}
+
+.eval-risk-level--low { background: rgba(34, 197, 94, 0.15); color: #22c55e; }
+.eval-risk-level--medium { background: rgba(245, 158, 11, 0.15); color: var(--primary-gold); }
+.eval-risk-level--high { background: rgba(239, 68, 68, 0.15); color: #ef4444; }
+
+.eval-risk-list {
+  list-style: none;
+  padding: 0;
+  margin: 0 0 16px 0;
+}
+
+.eval-risk-list li {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 12px 0;
+  border-bottom: 1px solid var(--v2-border-subtle);
+}
+
+.eval-risk-list li:last-child {
+  border-bottom: none;
+}
+
+.eval-risk-list__icon {
+  color: #ef4444;
+  font-size: 20px;
+}
+
+.eval-mitigation {
+  background: rgba(34, 197, 94, 0.1);
+  border-left: 4px solid #22c55e;
+  padding: 16px;
+  border-radius: 0 12px 12px 0;
+  margin-top: 16px;
+}
+
+.eval-mitigation__label {
+  font-size: 13px;
+  color: #22c55e;
+  font-weight: 600;
+  margin-bottom: 8px;
+}
+
+/* ===== 同类案例 ===== */
+.eval-case-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.eval-case-item {
+  background: var(--v2-bg-tertiary);
+  border: 1px solid var(--v2-border-subtle);
+  border-radius: 12px;
+  padding: 16px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.eval-case-item__title {
+  font-weight: 600;
+  color: var(--v2-text-primary);
+}
+
+.eval-case-item__note {
+  font-size: 13px;
+  color: var(--v2-text-secondary);
+  margin-top: 4px;
+}
+
+.eval-case-item__rate {
+  text-align: right;
+}
+
+.eval-case-item__rate-value {
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--primary-gold);
+}
+
+.eval-case-item__rate-label {
+  font-size: 12px;
+  color: var(--v2-text-muted);
+}
+
+/* ===== 优化建议 ===== */
+.eval-suggestion-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.eval-suggestion-item {
+  background: var(--v2-bg-tertiary);
+  border: 1px solid var(--v2-border-subtle);
+  border-radius: 12px;
+  padding: 16px;
+}
+
+.eval-suggestion-item__header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 8px;
+}
+
+.eval-suggestion-item__priority {
+  padding: 4px 12px;
+  border-radius: 100px;
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+}
+
+.eval-suggestion-item__priority--high {
+  background: rgba(239, 68, 68, 0.15);
+  color: #ef4444;
+}
+
+.eval-suggestion-item__priority--medium {
+  background: rgba(245, 158, 11, 0.15);
+  color: var(--primary-gold);
+}
+
+.eval-suggestion-item__priority--low {
+  background: rgba(59, 130, 246, 0.15);
+  color: #3b82f6;
+}
+
+.eval-suggestion-item__impact {
+  margin-left: auto;
+  font-size: 13px;
+  color: #22c55e;
+  font-weight: 600;
+}
+
+.eval-suggestion-item__text {
+  color: var(--v2-text-secondary);
+  line-height: 1.6;
+}
+
+.eval-suggestion-item__chapters {
+  font-size: 12px;
+  color: var(--v2-text-muted);
+  margin-top: 8px;
+}
+
+/* ===== 详细分析 ===== */
+.eval-reasoning {
+  background: var(--v2-bg-tertiary);
+  border-radius: 12px;
+  padding: 20px;
+  font-size: 14px;
+  line-height: 1.8;
+  color: var(--v2-text-secondary);
+  white-space: pre-wrap;
+}
+
+/* ===== 加载状态 ===== */
+.eval-loading {
+  text-align: center;
+  padding: 60px 40px;
+}
+
+.eval-loading__spinner {
+  width: 64px;
+  height: 64px;
+  border: 4px solid var(--v2-border-subtle);
+  border-top-color: var(--primary-gold);
+  border-radius: 50%;
+  animation: eval-spin 1s linear infinite;
+  margin: 0 auto 24px;
+}
+
+@keyframes eval-spin {
+  to { transform: rotate(360deg); }
+}
+
+.eval-loading__text {
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--v2-text-primary);
+  margin-bottom: 8px;
+}
+
+.eval-loading__subtext {
+  font-size: 14px;
+  color: var(--v2-text-secondary);
+}
+
+/* ===== 按钮 ===== */
+.eval-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 14px 28px;
+  border-radius: 12px;
+  font-size: 15px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+  border: none;
+}
+
+.eval-btn--primary {
+  background: linear-gradient(135deg, var(--primary-gold), var(--primary-gold-dark, #d97706));
+  color: #fff;
+}
+
+.eval-btn--primary:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 10px 25px -5px rgba(245, 158, 11, 0.4);
+}
+
+.eval-btn--secondary {
+  background: var(--v2-bg-tertiary);
+  color: var(--v2-text-primary);
+  border: 1px solid var(--v2-border-subtle);
+}
+
+.eval-btn--secondary:hover {
+  background: var(--v2-border-subtle);
+}
+
+.eval-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  transform: none;
+}
+
+/* ===== 响应式 ===== */
+@media (max-width: 768px) {
+  .eval-modal {
+    max-height: 95vh;
+    border-radius: 20px;
+  }
+  
+  .eval-modal__header,
+  .eval-modal__body,
+  .eval-modal__footer {
+    padding: 20px;
+  }
+  
+  .eval-metrics-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+  
+  .eval-score-card__score {
+    font-size: 56px;
+  }
+}
+</style>
+
+<!-- 评估报告模态框 -->
+<div id="evaluation-modal" class="eval-modal-overlay">
+  <div class="eval-modal">
+    <div class="eval-modal__header">
+      <div class="eval-modal__title">
+        <span class="material-icons">analytics</span>
+        <span>AI 市场化评估报告</span>
+      </div>
+      <div class="eval-modal__subtitle">基于番茄小说平台数据深度分析</div>
+    </div>
+    
+    <div class="eval-modal__body" id="evaluation-content">
+      <!-- 动态内容 -->
+    </div>
+    
+    <div class="eval-modal__footer" id="evaluation-footer" style="display: none;">
+      <button class="eval-btn eval-btn--secondary" onclick="onEvaluationOptimize()">
+        <span class="material-icons">refresh</span>
+        继续优化
+      </button>
+      <button class="eval-btn eval-btn--primary" onclick="onEvaluationProceed()">
+        <span class="material-icons">check_circle</span>
+        接受评估，生成方案
+      </button>
+    </div>
+  </div>
+</div>
+
+<script>
+// 评估报告相关变量
+let currentEvaluationData = null;
+let evaluationCallbacks = {
+  onProceed: null,
+  onOptimize: null
+};
+
+/**
+ * 显示评估报告
+ * @param {Object} data - 评估数据
+ * @param {Object} callbacks - 回调函数 {onProceed, onOptimize}
+ */
+function showEvaluationReport(data, callbacks = {}) {
+  currentEvaluationData = data;
+  evaluationCallbacks = callbacks;
+  
+  const modal = document.getElementById('evaluation-modal');
+  const content = document.getElementById('evaluation-content');
+  const footer = document.getElementById('evaluation-footer');
+  
+  // 显示加载状态
+  content.innerHTML = `
+    <div class="eval-loading">
+      <div class="eval-loading__spinner"></div>
+      <div class="eval-loading__text">AI 正在分析创意方案...</div>
+      <div class="eval-loading__subtext">基于番茄小说平台数据，预计需要 5-10 秒</div>
+    </div>
+  `;
+  footer.style.display = 'none';
+  modal.classList.add('active');
+}
+
+/**
+ * 渲染评估报告内容
+ * @param {Object} evaluation - 评估结果
+ */
+function renderEvaluationReport(evaluation) {
+  const content = document.getElementById('evaluation-content');
+  const footer = document.getElementById('evaluation-footer');
+  
+  // 获取推荐样式
+  let recClass = 'eval-score-card__recommendation--caution';
+  let recText = '建议优化后继续';
+  if (evaluation.recommendation === 'proceed') {
+    recClass = 'eval-score-card__recommendation--proceed';
+    recText = '✅ 强烈推荐继续';
+  } else if (evaluation.recommendation === 'suggest_optimization') {
+    recClass = 'eval-score-card__recommendation--optimize';
+    recText = '⚠️ 建议优化后再继续';
+  }
+  
+  // 指标对比样式
+  const completion = evaluation.predicted_metrics.completion_rate;
+  const completionDiff = Math.round((completion.min + completion.max) / 2 - 10); // 假设平均10%
+  const completionClass = completionDiff >= 0 ? 'eval-metric-card__comparison--positive' : 'eval-metric-card__comparison--negative';
+  const completionText = completionDiff >= 0 ? `+${completionDiff}%` : `${completionDiff}%`;
+  
+  const retention = evaluation.predicted_metrics.retention;
+  const retentionDiff = Math.round(retention.d3.value - 20); // 假设平均20%
+  const retentionClass = retentionDiff >= 0 ? 'eval-metric-card__comparison--positive' : 'eval-metric-card__comparison--negative';
+  const retentionText = retentionDiff >= 0 ? `+${retentionDiff}%` : `${retentionDiff}%`;
+  
+  // 渲染HTML
+  content.innerHTML = `
+    <!-- 综合评分 -->
+    <div class="eval-score-card">
+      <div class="eval-score-card__score">${evaluation.overall_score}</div>
+      <div class="eval-score-card__grade">
+        <span class="material-icons">grade</span>
+        ${evaluation.grade}
+      </div>
+      <div class="eval-score-card__verdict">${evaluation.verdict}</div>
+      <div class="eval-score-card__recommendation ${recClass}">
+        <span class="material-icons">
+          ${evaluation.recommendation === 'proceed' ? 'check_circle' : 
+            evaluation.recommendation === 'proceed_with_caution' ? 'help' : 'warning'}
+        </span>
+        ${recText}
+      </div>
+    </div>
+    
+    <!-- 核心指标 -->
+    <div class="eval-metrics-grid">
+      <div class="eval-metric-card">
+        <div class="eval-metric-card__label">预估完读率</div>
+        <div class="eval-metric-card__value">
+          ${completion.min}-${completion.max}
+          <span class="eval-metric-card__unit">%</span>
+        </div>
+        <div class="eval-metric-card__comparison ${completionClass}">
+          ${completionText} vs 题材平均
+        </div>
+      </div>
+      <div class="eval-metric-card">
+        <div class="eval-metric-card__label">3日留存</div>
+        <div class="eval-metric-card__value">
+          ${retention.d3.value}
+          <span class="eval-metric-card__unit">%</span>
+        </div>
+        <div class="eval-metric-card__comparison ${retentionClass}">
+          ${retentionText} vs 题材平均
+        </div>
+      </div>
+      <div class="eval-metric-card">
+        <div class="eval-metric-card__label">首秀通过率</div>
+        <div class="eval-metric-card__value">
+          ${evaluation.predicted_metrics.debut_pass_rate.value}
+          <span class="eval-metric-card__unit">%</span>
+        </div>
+      </div>
+      <div class="eval-metric-card">
+        <div class="eval-metric-card__label">新书期给量</div>
+        <div class="eval-metric-card__value" style="font-size: 20px;">
+          ${evaluation.algorithm_potential.new_book_traffic}
+        </div>
+      </div>
+    </div>
+    
+    <!-- 风险分析 -->
+    <div class="eval-section">
+      <div class="eval-section__header">
+        <div class="eval-section__icon eval-section__icon--risk">
+          <span class="material-icons">warning</span>
+        </div>
+        <div class="eval-section__title">风险分析</div>
+      </div>
+      
+      <div class="eval-risk-level eval-risk-level--${getRiskLevelClass(evaluation.risk_analysis.level)}">
+        <span class="material-icons">error_outline</span>
+        ${evaluation.risk_analysis.level}
+      </div>
+      
+      <ul class="eval-risk-list">
+        ${evaluation.risk_analysis.main_risks.map(risk => `
+          <li>
+            <span class="material-icons eval-risk-list__icon">error</span>
+            <span>${risk}</span>
+          </li>
+        `).join('')}
+      </ul>
+      
+      <div class="eval-mitigation">
+        <div class="eval-mitigation__label">
+          <span class="material-icons" style="font-size: 16px; vertical-align: middle; margin-right: 4px;">lightbulb</span>
+          对冲方案
+        </div>
+        <div>${evaluation.risk_analysis.mitigation}</div>
+      </div>
+    </div>
+    
+    <!-- 同类案例 -->
+    <div class="eval-section">
+      <div class="eval-section__header">
+        <div class="eval-section__icon eval-section__icon--case">
+          <span class="material-icons">menu_book</span>
+        </div>
+        <div class="eval-section__title">同类案例参考</div>
+      </div>
+      
+      <div class="eval-case-list">
+        ${evaluation.similar_cases.map(case => `
+          <div class="eval-case-item">
+            <div>
+              <div class="eval-case-item__title">${case.title}</div>
+              <div class="eval-case-item__note">${case.note}</div>
+            </div>
+            <div class="eval-case-item__rate">
+              <div class="eval-case-item__rate-value">${case.completion_rate}%</div>
+              <div class="eval-case-item__rate-label">完读率</div>
+            </div>
+          </div>
+        `).join('')}
+      </div>
+    </div>
+    
+    <!-- 优化建议 -->
+    <div class="eval-section">
+      <div class="eval-section__header">
+        <div class="eval-section__icon eval-section__icon--optimize">
+          <span class="material-icons">trending_up</span>
+        </div>
+        <div class="eval-section__title">优化建议</div>
+      </div>
+      
+      <div class="eval-suggestion-list">
+        ${evaluation.optimization_suggestions.map(sug => `
+          <div class="eval-suggestion-item">
+            <div class="eval-suggestion-item__header">
+              <span class="eval-suggestion-item__priority eval-suggestion-item__priority--${sug.priority === '高' ? 'high' : sug.priority === '中' ? 'medium' : 'low'}">
+                ${sug.priority}优先级
+              </span>
+              <span class="eval-suggestion-item__impact">
+                <span class="material-icons" style="font-size: 16px; vertical-align: middle;">trending_up</span>
+                ${sug.expected_impact}
+              </span>
+            </div>
+            <div class="eval-suggestion-item__text">${sug.suggestion}</div>
+            ${sug.target_chapters ? `<div class="eval-suggestion-item__chapters">📍 适用章节：${sug.target_chapters}</div>` : ''}
+          </div>
+        `).join('')}
+      </div>
+    </div>
+    
+    <!-- 详细分析 -->
+    <div class="eval-section">
+      <div class="eval-section__header">
+        <div class="eval-section__icon eval-section__icon--algorithm">
+          <span class="material-icons">psychology</span>
+        </div>
+        <div class="eval-section__title">AI 详细分析</div>
+      </div>
+      <div class="eval-reasoning">${evaluation.detailed_reasoning}</div>
+    </div>
+  `;
+  
+  footer.style.display = 'flex';
+}
+
+function getRiskLevelClass(level) {
+  if (level.includes('低')) return 'low';
+  if (level.includes('高')) return 'high';
+  return 'medium';
+}
+
+function onEvaluationProceed() {
+  closeEvaluationModal();
+  if (evaluationCallbacks.onProceed) {
+    evaluationCallbacks.onProceed(currentEvaluationData);
+  }
+}
+
+function onEvaluationOptimize() {
+  closeEvaluationModal();
+  if (evaluationCallbacks.onOptimize) {
+    evaluationCallbacks.onOptimize(currentEvaluationData);
+  }
+}
+
+function closeEvaluationModal() {
+  document.getElementById('evaluation-modal').classList.remove('active');
+}
+
+// 点击遮罩关闭
+ document.getElementById('evaluation-modal').addEventListener('click', function(e) {
+  if (e.target === this) {
+    // 不自动关闭，防止误触
+  }
+});
+</script>

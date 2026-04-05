@@ -40,6 +40,15 @@ except ImportError as e:
     HAS_PROMPT_PACKAGE = False
     logging.warning(f"[MarketDrivenConversation] PromptPackage未加载: {e}")
 
+# 🔥 导入AI市场化评估器
+try:
+    from web.services.market_driven.ai_market_evaluator import AIMarketEvaluator, get_evaluator
+    HAS_AI_EVALUATOR = True
+    logging.info("[MarketDrivenConversation] AI市场化评估器已加载")
+except ImportError as e:
+    HAS_AI_EVALUATOR = False
+    logging.warning(f"[MarketDrivenConversation] AI市场化评估器未加载: {e}")
+
 logger = logging.getLogger(__name__)
 
 
@@ -236,6 +245,74 @@ class MarketDrivenConversationSession:
         self.session.max_history = 20
         
         logger.info(f"[对话模式 {self.session_id}] 会话创建 | 题材: {genre} | 标题: {user_choices.get('title', 'Unknown')} | 使用高质量Prompt: {self._prompt_generator is not None}")
+        
+        # 🔥 初始化AI市场化评估器
+        if HAS_AI_EVALUATOR:
+            self._evaluator = get_evaluator(api_client, provider)
+            self._evaluation_result = None  # 存储评估结果
+            logger.info(f"[对话模式 {self.session_id}] AI市场化评估器已初始化")
+        else:
+            self._evaluator = None
+            logger.warning(f"[对话模式 {self.session_id}] AI市场化评估器不可用")
+    
+    async def evaluate_creative(self, dialog_history: List[Dict], creative_draft: Dict) -> Dict:
+        """
+        AI市场化评估 - 在生成最终方案前评估创意
+        
+        Args:
+            dialog_history: 用户对话历史
+            creative_draft: 创意草案（用户选择汇总）
+            
+        Returns:
+            评估结果字典
+        """
+        if not self._evaluator:
+            logger.warning(f"[对话模式 {self.session_id}] AI评估器不可用，跳过评估")
+            return {"skipped": True, "reason": "evaluator_not_available"}
+        
+        logger.info(f"[对话模式 {self.session_id}] 开始AI市场化评估...")
+        
+        try:
+            # 获取题材市场数据
+            genre_market_data = self._get_genre_market_data()
+            
+            # 执行AI评估
+            evaluation = await self._evaluator.evaluate(
+                genre=self.genre,
+                dialog_history=dialog_history,
+                final_creative=creative_draft,
+                genre_market_data=genre_market_data
+            )
+            
+            # 转换为字典格式
+            result = self._evaluator.to_dict(evaluation)
+            self._evaluation_result = result
+            
+            logger.info(f"[对话模式 {self.session_id}] AI评估完成: {result['overall_score']}分, 等级{result['grade']}")
+            return result
+            
+        except Exception as e:
+            logger.error(f"[对话模式 {self.session_id}] AI评估失败: {e}")
+            import traceback
+            logger.error(traceback.format_exc())
+            return {"error": str(e), "skipped": True}
+    
+    def _get_genre_market_data(self) -> Dict:
+        """获取题材市场数据"""
+        # TODO: 从数据库或缓存获取真实的题材市场数据
+        # 这里返回默认数据，实际应该从市场分析模块获取
+        return {
+            "avg_completion": 10,
+            "avg_retention": 20,
+            "top_features": "快节奏、强爽点、直播/国运元素",
+            "saturation": "高（同质化严重）",
+            "typical_word_count": 200000,
+            "popular_tropes": ["震惊流", "迪化流", "国运直播"]
+        }
+    
+    def get_evaluation_result(self) -> Optional[Dict]:
+        """获取评估结果"""
+        return self._evaluation_result
     
     def _load_step_prompts_config(self) -> Dict:
         """加载步骤提示词配置"""

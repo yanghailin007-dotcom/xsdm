@@ -2,7 +2,7 @@
 ; 需要先安装 Inno Setup: https://jrsoftware.org/isdl.php
 
 #define MyAppName "大文娱小说发布助手"
-#define MyAppVersion "1.3.7"
+#define MyAppVersion "1.3.33"
 #define MyAppPublisher "大文娱"
 #define MyAppExeName "NovelPublisher.exe"
 
@@ -29,8 +29,8 @@ Name: "english"; MessagesFile: "compiler:Default.isl"
 Name: "desktopicon"; Description: "{cm:CreateDesktopIcon}"; GroupDescription: "{cm:AdditionalIcons}"; Flags: unchecked
 
 [Files]
+; 单文件版本 - 只需要打包主程序
 Source: "NovelPublisher.exe"; DestDir: "{app}"; Flags: ignoreversion
-Source: "_internal\*"; DestDir: "{app}\_internal"; Flags: ignoreversion recursesubdirs createallsubdirs
 Source: "使用说明.txt"; DestDir: "{app}"; Flags: ignoreversion
 Source: "启动.bat"; DestDir: "{app}"; Flags: ignoreversion
 

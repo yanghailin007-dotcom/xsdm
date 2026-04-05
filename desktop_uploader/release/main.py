@@ -795,7 +795,7 @@ class MainWindow(QMainWindow):
     
     def __init__(self):
         super().__init__()
-        self.setWindowTitle("大文娱小说发布助手 v1.3.13")
+        self.setWindowTitle("大文娱小说发布助手 v1.3.33")
         self.setGeometry(100, 100, 1400, 900)
         
         # 数据
@@ -863,7 +863,7 @@ class MainWindow(QMainWindow):
         if self.website_user:
             user = self.website_user.get('username', '未知')
             points = self.website_user.get('points', 0)
-            self.setWindowTitle(f"大文娱小说发布助手 v1.3.13 - {user} ({points}点)")
+            self.setWindowTitle(f"大文娱小说发布助手 v1.3.33 - {user} ({points}点)")
     
     def init_ui(self):
         """初始化界面"""

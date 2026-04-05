@@ -65,20 +65,22 @@ def clean_release_build():
 
 
 def build_onedir() -> bool:
-    """使用 PyInstaller 构建 onedir 版本"""
+    """使用 PyInstaller 构建单文件版本 (onefile)"""
     print("=" * 60)
-    print("步骤 1/2: PyInstaller 构建 onedir")
+    print("步骤 1/2: PyInstaller 构建单文件版本")
     print("=" * 60)
-
-    if not SPEC_PATH.exists():
-        print(f"[X] 未找到 spec 文件: {SPEC_PATH}")
+    
+    # 使用单文件 spec
+    onefile_spec = RELEASE_DIR / "NovelPublisher_onefile.spec"
+    if not onefile_spec.exists():
+        print(f"[X] 未找到单文件 spec: {onefile_spec}")
         return False
 
     clean_release_build()
 
     cmd = [
         sys.executable, "-m", "PyInstaller",
-        str(SPEC_PATH),
+        str(onefile_spec),
         "--noconfirm",
         "--clean",
         "--workpath", str(RELEASE_DIR / "build"),
@@ -93,36 +95,29 @@ def build_onedir() -> bool:
         print("\n[X] PyInstaller 构建失败！")
         return False
 
-    exe_path = RELEASE_DIR / "dist" / "NovelPublisher" / "NovelPublisher.exe"
+    exe_path = RELEASE_DIR / "dist" / "NovelPublisher.exe"
     if not exe_path.exists():
         print(f"\n[X] 未找到构建输出: {exe_path}")
         return False
 
-    # 把构建结果移回 release 根目录（因为 setup.iss 里的 Source 指向的是 release 根目录）
-    built_dir = RELEASE_DIR / "dist" / "NovelPublisher"
+    # 单文件版本 - 直接复制到 release 根目录
     target_exe = RELEASE_DIR / "NovelPublisher.exe"
-    target_internal = RELEASE_DIR / "_internal"
-
+    
     # 备份旧文件
     if target_exe.exists():
         backup = RELEASE_DIR / "NovelPublisher.exe.bak"
         shutil.move(str(target_exe), str(backup))
-    if target_internal.exists():
-        backup = RELEASE_DIR / "_internal.bak"
-        shutil.move(str(target_internal), str(backup))
-
+    
     # 移动新文件
-    shutil.move(str(built_dir / "NovelPublisher.exe"), str(target_exe))
-    shutil.move(str(built_dir / "_internal"), str(target_internal))
-
+    shutil.move(str(exe_path), str(target_exe))
+    
     # 清理临时备份
-    for bak in [RELEASE_DIR / "NovelPublisher.exe.bak", RELEASE_DIR / "_internal.bak"]:
-        if bak.exists():
-            shutil.rmtree(bak) if bak.is_dir() else bak.unlink()
+    if (RELEASE_DIR / "NovelPublisher.exe.bak").exists():
+        (RELEASE_DIR / "NovelPublisher.exe.bak").unlink()
 
     size_mb = target_exe.stat().st_size / (1024 * 1024)
-    print(f"\n[OK] onedir 构建成功: {target_exe}")
-    print(f"   启动器大小: {size_mb:.2f} MB")
+    print(f"\n[OK] 单文件版本构建成功: {target_exe}")
+    print(f"   文件大小: {size_mb:.2f} MB")
     return True
 
 
@@ -160,13 +155,9 @@ def build_installer(iscc_path: Path) -> bool:
     print(f"   文件: {setup_file}")
     print(f"   大小: {size_mb:.1f} MB")
 
-    # 复制一份到 release 根目录并命名为 NovelPublisher.exe，兼容旧的下载链接
-    target_for_download = RELEASE_DIR / "NovelPublisher.exe"
-    try:
-        shutil.copy2(str(setup_file), str(target_for_download))
-        print(f"   已复制到: {target_for_download}（兼容 /downloads/NovelPublisher.exe 下载链接）")
-    except Exception as e:
-        print(f"   [!] 复制到下载路径失败: {e}")
+    # 注意：单文件版本 (NovelPublisher.exe, ~72MB) 和安装包 (Setup.exe, ~145MB) 是不同的
+    # 单文件版本直接运行，安装包需要安装
+    # 两者都保留在 installer_output 目录中
 
     return True
 
