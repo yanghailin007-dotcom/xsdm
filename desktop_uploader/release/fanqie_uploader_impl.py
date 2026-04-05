@@ -1098,6 +1098,8 @@ class FanqieUploaderImpl:
                         if new_page:
                             self.page = new_page
                             time.sleep(2)
+                            # 🔥 关闭其他发布页标签，只保留当前和章节管理页
+                            self._close_extra_pages()
                         
                         if "/publish/" in self.page.url:
                             return True
@@ -1127,6 +1129,8 @@ class FanqieUploaderImpl:
                         if new_page:
                             self.page = new_page
                             time.sleep(2)
+                            # 🔥 关闭其他发布页标签，只保留当前和章节管理页
+                            self._close_extra_pages()
                         
                         if "/publish/" in self.page.url:
                             return True
