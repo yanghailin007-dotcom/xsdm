@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-大文娱小说发布助手 v1.3.7
+大文娱小说发布助手
 单官网账户 + 多番茄账户架构
 """
 
@@ -9,8 +9,9 @@ import sys
 import os
 import json
 import time
+import threading
 from pathlib import Path
-from datetime import datetime
+from datetime import datetime, timedelta
 
 # 获取程序运行目录（支持打包后的EXE）
 def get_app_dir() -> Path:
@@ -51,7 +52,7 @@ from PyQt5.QtWidgets import (
     QApplication, QMainWindow, QWidget, QVBoxLayout, QHBoxLayout,
     QLabel, QPushButton, QComboBox, QListWidget, QListWidgetItem,
     QMessageBox, QGroupBox, QTabWidget, QSplitter, QRadioButton,
-    QButtonGroup, QDialog, QLineEdit, QDoubleSpinBox, QCheckBox,
+    QButtonGroup, QDialog, QLineEdit, QDoubleSpinBox, QSpinBox, QCheckBox,
     QProgressBar, QTextEdit, QFileDialog, QScrollArea, QFrame
 )
 from PyQt5.QtCore import Qt, QThread, pyqtSignal, QTimer
@@ -272,17 +273,24 @@ class UploadWorker(QThread):
     progress_signal = pyqtSignal(int, str)
     log_signal = pyqtSignal(str, str)
     finished_signal = pyqtSignal(bool, str)
+    chapter_uploaded_signal = pyqtSignal(dict)  # 单个章节上传成功信号
     
     def __init__(self, novel_title: str, chapters: list, settings: dict, 
-                 tomato_account: TomatoAccount, novel_config: dict = None):
+                 tomato_account: TomatoAccount, novel_config: dict = None,
+                 project_path: Path = None):
         super().__init__()
         self.novel_title = novel_title
         self.chapters = chapters
         self.settings = settings
         self.tomato_account = tomato_account
         self.novel_config = novel_config or {}
+        self.project_path = project_path
         self.is_running = True
         self.uploader = None
+        self.uploaded_chapters = []  # 记录成功上传的章节
+        self.is_paused = False  # 暂停状态
+        self.pause_event = threading.Event()  # 用于暂停的线程事件
+        self.pause_event.set()  # 默认不暂停
     
     def run(self):
         try:
@@ -295,7 +303,8 @@ class UploadWorker(QThread):
                 novel_title=self.novel_title,
                 novel_config=self.novel_config,
                 progress_callback=lambda p, m: self.progress_signal.emit(int(p * 0.8) + 10, m),
-                log_callback=lambda m, l: self.log_signal.emit(m, l)
+                log_callback=lambda m, l: self.log_signal.emit(m, l),
+                pause_check_callback=self._check_pause_for_uploader
             )
             
             # 连接浏览器
@@ -321,38 +330,372 @@ class UploadWorker(QThread):
             
             self.progress_signal.emit(25, "已找到书籍")
             
-            # 上传章节
-            stop_on_error = self.settings.get('stop_on_error', False)
+            # 计算定时发布计划
+            self._apply_publish_schedule()
+            
+            # 逐个上传章节，失败立即停止
             delay_min = self.settings.get('delay_min', 3)
             delay_max = self.settings.get('delay_max', 8)
             
             self.progress_signal.emit(30, "开始上传章节...")
-            result = self.uploader.upload_chapters(
-                self.chapters,
-                delay_min=delay_min,
-                delay_max=delay_max,
-                stop_on_error=stop_on_error
-            )
             
-            success = result.get('success', 0)
-            total = result.get('total', 0)
-            failed = total - success
+            total = len(self.chapters)
+            success_count = 0
+            
+            for i, chapter in enumerate(self.chapters):
+                if not self.is_running:
+                    self.log_signal.emit("用户取消上传", "warning")
+                    break
+                
+                # 检查暂停状态（带超时防止死锁）
+                if self.is_paused:
+                    self.log_signal.emit("⏸️ 上传已暂停，点击继续可恢复...", "warning")
+                    while self.is_paused and self.is_running:
+                        if self.pause_event.wait(timeout=1.0):  # 1秒超时
+                            break
+                    if not self.is_running:
+                        break
+                    self.log_signal.emit("▶️ 上传继续...", "info")
+                
+                chapter_num = chapter.get('chapter_number', i + 1)
+                chapter_title = chapter.get('chapter_title', f'第{chapter_num}章')
+                
+                progress = 30 + int((i / total) * 70)
+                self.progress_signal.emit(progress, f"正在上传第{i+1}/{total}章: {chapter_title[:30]}...")
+                
+                # 上传单个章节
+                try:
+                    result = self.uploader.upload_chapter(chapter)
+                    if result:
+                        success_count += 1
+                        self.uploaded_chapters.append(chapter)
+                        self.chapter_uploaded_signal.emit(chapter)
+                        self.log_signal.emit(f"✅ 第{chapter_num}章上传成功", "success")
+                    else:
+                        # 上传失败，立即停止等待用户处理
+                        error_msg = f"❌ 第{chapter_num}章《{chapter_title}》上传失败"
+                        self.log_signal.emit(error_msg, "error")
+                        self.log_signal.emit("⏸️ 上传已停止，请检查浏览器状态，修复问题后重新选择剩余章节上传", "warning")
+                        self.finished_signal.emit(False, f"第{chapter_num}章上传失败，已停止。请手动处理后重试。")
+                        return
+                except Exception as e:
+                    # 异常立即停止
+                    error_msg = f"❌ 第{chapter_num}章《{chapter_title}》上传异常: {str(e)[:100]}"
+                    self.log_signal.emit(error_msg, "error")
+                    self.log_signal.emit("⏸️ 上传已停止，请检查浏览器状态，修复问题后重新选择剩余章节上传", "warning")
+                    self.finished_signal.emit(False, f"第{chapter_num}章上传异常，已停止。请手动处理后重试。")
+                    return
+                
+                # 章节间延迟（可中断）- 使用随机值
+                if i < total - 1:
+                    import random
+                    delay = random.uniform(delay_min, delay_max)
+                    self.log_signal.emit(f"  等待 {delay:.1f}s...", "debug")
+                    # 使用可中断的延迟
+                    self._sleep_with_pause_check(delay)
             
             # 完成
+            failed = total - success_count
             if failed == 0:
-                self.finished_signal.emit(True, f"✅ 上传完成: {success}/{total} 章")
+                self.finished_signal.emit(True, f"✅ 上传完成: {success_count}/{total} 章")
             else:
-                self.finished_signal.emit(False, f"⚠️ 上传完成: 成功 {success}, 失败 {failed}")
+                self.finished_signal.emit(False, f"⚠️ 上传完成: 成功 {success_count}, 失败 {failed}")
                 
         except Exception as e:
             self.log_signal.emit(f"❌ 上传异常: {e}", "error")
+            self.log_signal.emit("⏸️ 上传已停止，请检查浏览器状态后重试", "warning")
             self.finished_signal.emit(False, str(e))
         finally:
             if self.uploader:
                 self.uploader.close()
     
+    def _check_pause_for_uploader(self):
+        """供UploaderImpl调用的暂停检查（带超时防止死锁）"""
+        if self.is_paused:
+            self.log_signal.emit("⏸️ 上传已暂停（章节处理中）...", "warning")
+            # 等待暂停事件，但最多等待30秒检查一次
+            while self.is_paused and self.is_running:
+                if self.pause_event.wait(timeout=5.0):  # 5秒超时
+                    break
+            if not self.is_running:
+                raise InterruptedError("上传已停止")
+            self.log_signal.emit("▶️ 上传继续...", "info")
+    
+    def _sleep_with_pause_check(self, seconds: float, check_interval: float = 0.5):
+        """可暂停检查的睡眠"""
+        elapsed = 0
+        while elapsed < seconds and self.is_running:
+            # 检查暂停
+            if self.is_paused:
+                self.log_signal.emit("⏸️ 上传已暂停...", "warning")
+                while self.is_paused and self.is_running:
+                    if self.pause_event.wait(timeout=1.0):  # 1秒超时
+                        break
+                if not self.is_running:
+                    return
+                self.log_signal.emit("▶️ 上传继续...", "info")
+            # 小睡一下
+            time.sleep(min(check_interval, seconds - elapsed))
+            elapsed += check_interval
+    
+    def _apply_publish_schedule(self):
+        """应用定时发布计划到章节数据 - 使用时间点槽位机制，支持跨月"""
+        try:
+            # 调试：输出完整的 novel_config
+            self.log_signal.emit(f"DEBUG: novel_config keys = {list(self.novel_config.keys())}", "debug")
+            
+            # 获取发布配置
+            publish_config = self.novel_config.get('publish_config', {})
+            self.log_signal.emit(f"DEBUG: publish_config = {publish_config}", "debug")
+            
+            if not publish_config:
+                self.log_signal.emit("未找到发布配置，所有章节将立即发布", "warning")
+                return
+            
+            first_publish_count = publish_config.get('first_publish_count', 20)
+            daily_count = publish_config.get('daily_count', 8)  # 每日总章节数
+            
+            # 优先从 settings 读取发布时段配置（用户UI输入）
+            settings_publish_times = self.settings.get('publish_times', '')
+            if settings_publish_times:
+                publish_times = [t.strip() for t in settings_publish_times.split(',') if t.strip()]
+            else:
+                # 从配置文件读取
+                publish_time = publish_config.get('publish_time', '06:00')
+                publish_times = [t.strip() for t in str(publish_time).split(',') if t.strip()]
+            
+            if not publish_times:
+                publish_times = ['06:00']
+            
+            # 每个时间点的章节数 = daily_count / 时间点数量
+            chapters_per_slot = max(1, daily_count // len(publish_times))
+            
+            # 获取章节号列表
+            chapter_numbers = [ch.get('chapter_number', i+1) for i, ch in enumerate(self.chapters)]
+            max_chapter = max(chapter_numbers) if chapter_numbers else 0
+            min_chapter = min(chapter_numbers) if chapter_numbers else 0
+            
+            self.log_signal.emit(f"发布配置: 前{first_publish_count}章直接发布, 之后{daily_count}章/日", "info")
+            self.log_signal.emit(f"时间点: {publish_times}, 每时间点{chapters_per_slot}章", "info")
+            
+            # 检查是否需要定时
+            needs_schedule = any(ch_num > first_publish_count for ch_num in chapter_numbers)
+            if not needs_schedule:
+                self.log_signal.emit(f"所有章节({min_chapter}-{max_chapter})均≤{first_publish_count}，全部立即发布", "info")
+                return
+            
+            # 从平台同步最后发布时间
+            self.log_signal.emit("同步平台发布时间数据...", "info")
+            last_published_time, today_published_count = self._get_last_published_time_from_page()
+            
+            # 初始化日期-时间点使用跟踪
+            now = datetime.now()
+            date_time_slot_usage = {}
+            
+            # 如果平台有已发布章节，恢复时间点使用情况
+            if last_published_time:
+                last_date = last_published_time.strftime('%Y-%m-%d')
+                last_time = last_published_time.strftime('%H:%M')
+                # 找到对应的时间点
+                for time_slot in publish_times:
+                    if time_slot == last_time:
+                        if last_date not in date_time_slot_usage:
+                            date_time_slot_usage[last_date] = {}
+                        date_time_slot_usage[last_date][time_slot] = today_published_count % chapters_per_slot
+                        break
+                start_date = last_published_time.date()
+                self.log_signal.emit(f"基于平台数据: 最后发布 {last_date} {last_time}, 今天已发{today_published_count}章", "info")
+            else:
+                start_date = now.date() + timedelta(days=1)  # 从明天开始
+                self.log_signal.emit(f"无平台数据，从明天 {publish_times[0]} 开始", "info")
+            
+            # 应用定时计划到章节
+            scheduled_count = 0
+            
+            for chapter in self.chapters:
+                ch_num = chapter.get('chapter_number', 0)
+                
+                # 只对大于 first_publish_count 的章节设置定时
+                if ch_num <= first_publish_count:
+                    continue
+                
+                # 查找可用的时间点（支持跨月，最多搜索90天）
+                found_slot = False
+                target_date = None
+                target_time = None
+                
+                for day_offset in range(90):  # 最多搜索90天（3个月）
+                    search_date = start_date + timedelta(days=day_offset)
+                    date_str = search_date.strftime('%Y-%m-%d')
+                    
+                    if date_str not in date_time_slot_usage:
+                        date_time_slot_usage[date_str] = {}
+                    
+                    # 检查该日期的每个时间点
+                    for time_slot in publish_times:
+                        current_count = date_time_slot_usage[date_str].get(time_slot, 0)
+                        
+                        if current_count < chapters_per_slot:
+                            # 验证时间是否有效（必须比现在晚至少5分钟缓冲）
+                            slot_datetime = datetime.strptime(f"{date_str} {time_slot}", "%Y-%m-%d %H:%M")
+                            if slot_datetime > now + timedelta(minutes=5):
+                                target_date = search_date
+                                target_time = time_slot
+                                found_slot = True
+                                # 更新使用计数
+                                date_time_slot_usage[date_str][time_slot] = current_count + 1
+                                break
+                    
+                    if found_slot:
+                        break
+                
+                if found_slot:
+                    chapter['scheduled_time'] = f"{target_date.strftime('%Y-%m-%d')} {target_time}"
+                    scheduled_count += 1
+                else:
+                    self.log_signal.emit(f"⚠ 未找到可用时间点给第{ch_num}章", "warning")
+            
+            # 显示发布计划摘要
+            if scheduled_count > 0:
+                first_scheduled = next((ch for ch in self.chapters if ch.get('scheduled_time')), None)
+                last_scheduled = None
+                for ch in reversed(self.chapters):
+                    if ch.get('scheduled_time'):
+                        last_scheduled = ch
+                        break
+                
+                if first_scheduled and last_scheduled:
+                    self.log_signal.emit(f"定时发布计划: {scheduled_count}章", "info")
+                    self.log_signal.emit(f"  首章: 第{first_scheduled.get('chapter_number')}章 @ {first_scheduled.get('scheduled_time')}", "info")
+                    self.log_signal.emit(f"  末章: 第{last_scheduled.get('chapter_number')}章 @ {last_scheduled.get('scheduled_time')}", "info")
+            
+        except Exception as e:
+            self.log_signal.emit(f"计算定时计划失败: {e}", "warning")
+    
+    def _get_last_published_time_from_page(self) -> tuple:
+        """从页面获取最后发布时间和今天发布数量"""
+        try:
+            if not self.uploader or not self.uploader.book_id:
+                return None, 0
+            
+            # 从书籍管理页点击"章节管理"按钮进入（模拟真实用户操作）
+            book_manage_url = f"https://fanqienovel.com/main/writer/book-manage"
+            self.log_signal.emit(f"访问书籍管理页: {book_manage_url}", "debug")
+            self.uploader.page.goto(book_manage_url, wait_until="domcontentloaded", timeout=20000)
+            import time
+            time.sleep(3)
+            
+            # 查找并点击"章节管理"按钮
+            try:
+                # 等待书籍卡片加载
+                self.uploader.page.wait_for_selector(f"#long-article-table-item-{self.uploader.book_id}", timeout=15000)
+                
+                # 在当前书籍卡片中查找"章节管理"按钮
+                book_card = self.uploader.page.locator(f"#long-article-table-item-{self.uploader.book_id}").first
+                chapter_manage_btn = book_card.locator('button:has-text("章节管理"), a:has-text("章节管理")').first
+                
+                if chapter_manage_btn.count() > 0:
+                    self.log_signal.emit("点击'章节管理'按钮...", "debug")
+                    chapter_manage_btn.click()
+                    time.sleep(3)  # 等待页面跳转和加载
+                else:
+                    self.log_signal.emit("未找到'章节管理'按钮，尝试直接访问URL", "warning")
+                    # 备用方案：直接访问
+                    chapter_manage_url = f"https://fanqienovel.com/main/writer/chapter-manage/{self.uploader.book_id}"
+                    self.uploader.page.goto(chapter_manage_url, wait_until="domcontentloaded", timeout=20000)
+                    time.sleep(3)
+            except Exception as e:
+                self.log_signal.emit(f"点击章节管理失败: {e}，尝试直接访问URL", "warning")
+                chapter_manage_url = f"https://fanqienovel.com/main/writer/chapter-manage/{self.uploader.book_id}"
+                self.uploader.page.goto(chapter_manage_url, wait_until="domcontentloaded", timeout=20000)
+                time.sleep(3)
+            
+            # 等待表格加载（增加重试，使用多种选择器）
+            rows = []
+            for attempt in range(3):
+                try:
+                    # 尝试多种选择器
+                    selectors = [".arco-table-tbody tr", "table tbody tr", ".chapter-table tbody tr", ".arco-table tr"]
+                    for selector in selectors:
+                        try:
+                            self.uploader.page.wait_for_selector(selector, state="attached", timeout=8000)
+                            rows = self.uploader.page.locator(selector).all()
+                            if len(rows) > 0:
+                                self.log_signal.emit(f"成功获取到 {len(rows)} 行数据 (选择器: {selector})", "debug")
+                                break
+                        except:
+                            continue
+                    if rows:
+                        break
+                    time.sleep(2)
+                except Exception as e:
+                    self.log_signal.emit(f"等待表格尝试 {attempt+1}/3 失败: {e}", "debug")
+                    time.sleep(2)
+            
+            if not rows:
+                self.log_signal.emit("无法获取章节列表，使用默认时间", "warning")
+                return None, 0
+            
+            last_published_time = None
+            today_published_count = 0
+            today = datetime.now().date()
+            
+            for row in rows:
+                try:
+                    status_cell = row.locator("td:nth-child(4)").first
+                    if status_cell.count() == 0:
+                        continue
+                    
+                    status = status_cell.text_content().strip()
+                    
+                    if status == "已发布":
+                        time_cell = row.locator("td:nth-child(5)").first
+                        if time_cell.count() == 0:
+                            continue
+                        
+                        time_text = time_cell.text_content().strip()
+                        if not time_text or time_text == "-":
+                            continue
+                        
+                        try:
+                            publish_dt = datetime.strptime(time_text, "%Y-%m-%d %H:%M")
+                            
+                            if last_published_time is None or publish_dt > last_published_time:
+                                last_published_time = publish_dt
+                            
+                            if publish_dt.date() == today:
+                                today_published_count += 1
+                        except ValueError:
+                            continue
+                except:
+                    continue
+            
+            if last_published_time:
+                self.log_signal.emit(f"最后发布时间: {last_published_time.strftime('%Y-%m-%d %H:%M')}, 今天已发布: {today_published_count}章", "info")
+            
+            return last_published_time, today_published_count
+            
+        except Exception as e:
+            self.log_signal.emit(f"获取发布时间失败: {e}", "warning")
+            return None, 0
+    
+    def pause(self):
+        """暂停上传"""
+        if not self.is_paused:
+            self.is_paused = True
+            self.pause_event.clear()
+            self.log_signal.emit("⏸️ 用户请求暂停上传", "warning")
+    
+    def resume(self):
+        """继续上传"""
+        if self.is_paused:
+            self.is_paused = False
+            self.pause_event.set()
+            self.log_signal.emit("▶️ 用户请求继续上传", "info")
+    
     def stop(self):
         self.is_running = False
+        self.resume()  # 确保从暂停状态退出
         self.log_signal.emit("正在停止上传...", "warning")
 
 
@@ -452,7 +795,7 @@ class MainWindow(QMainWindow):
     
     def __init__(self):
         super().__init__()
-        self.setWindowTitle("大文娱小说发布助手 v1.3.7")
+        self.setWindowTitle("大文娱小说发布助手 v1.3.13")
         self.setGeometry(100, 100, 1400, 900)
         
         # 数据
@@ -464,6 +807,7 @@ class MainWindow(QMainWindow):
         self.upload_worker = None
         self.selected_account_id = None
         self.account_cards = {}
+        self.is_upload_paused = False
         
         # 检查登录
         if not self.check_saved_login():
@@ -519,7 +863,7 @@ class MainWindow(QMainWindow):
         if self.website_user:
             user = self.website_user.get('username', '未知')
             points = self.website_user.get('points', 0)
-            self.setWindowTitle(f"大文娱小说发布助手 v1.3.7 - {user} ({points}点)")
+            self.setWindowTitle(f"大文娱小说发布助手 v1.3.13 - {user} ({points}点)")
     
     def init_ui(self):
         """初始化界面"""
@@ -640,17 +984,59 @@ class MainWindow(QMainWindow):
         chapters_layout.addWidget(self.chapters_stats)
         
         self.chapters_list = QListWidget()
-        self.chapters_list.setSelectionMode(QListWidget.MultiSelection)
+        # 使用 NoSelection 模式，用勾选框控制选中状态
+        self.chapters_list.setSelectionMode(QListWidget.NoSelection)
+        # 设置样式
+        self.chapters_list.setStyleSheet("""
+            QListWidget::item {
+                padding: 5px;
+                border-bottom: 1px solid #eee;
+            }
+            QListWidget::item:hover {
+                background-color: #f5f5f5;
+            }
+        """)
+        # 连接勾选框变化信号
+        self.chapters_list.itemChanged.connect(self.on_chapter_check_changed)
         chapters_layout.addWidget(self.chapters_list)
         
         select_layout = QHBoxLayout()
-        select_all_btn = QPushButton("☑️ 全选")
+        select_all_btn = QPushButton("全选")
         select_all_btn.clicked.connect(self.select_all_chapters)
         select_layout.addWidget(select_all_btn)
         
-        select_none_btn = QPushButton("⬜ 全不选")
+        select_none_btn = QPushButton("全不选")
         select_none_btn.clicked.connect(self.select_none_chapters)
         select_layout.addWidget(select_none_btn)
+        
+        # 添加"只选未发布"按钮
+        select_unpublished_btn = QPushButton("只选未发布")
+        select_unpublished_btn.clicked.connect(self.select_unpublished_chapters)
+        select_unpublished_btn.setStyleSheet("background-color: #4CAF50; color: white;")
+        select_layout.addWidget(select_unpublished_btn)
+        
+        select_layout.addSpacing(20)
+        
+        # 添加"从第X章开始"功能
+        from_label = QLabel("从第")
+        select_layout.addWidget(from_label)
+        
+        self.start_chapter_spin = QSpinBox()
+        self.start_chapter_spin.setRange(1, 9999)
+        self.start_chapter_spin.setValue(1)
+        self.start_chapter_spin.setFixedWidth(60)
+        self.start_chapter_spin.setToolTip("设置起始章节号，加载时会自动勾选大于等于此章号的未发布章节")
+        select_layout.addWidget(self.start_chapter_spin)
+        
+        chapter_label = QLabel("章开始")
+        select_layout.addWidget(chapter_label)
+        
+        apply_start_btn = QPushButton("应用")
+        apply_start_btn.clicked.connect(self.apply_start_chapter)
+        apply_start_btn.setStyleSheet("background-color: #FF9800; color: white;")
+        apply_start_btn.setToolTip("根据输入的起始章节号重新选择")
+        select_layout.addWidget(apply_start_btn)
+        
         select_layout.addStretch()
         
         chapters_layout.addLayout(select_layout)
@@ -698,6 +1084,21 @@ class MainWindow(QMainWindow):
         
         settings_layout.addLayout(delay_layout)
         
+        # 发布时段设置
+        time_layout = QHBoxLayout()
+        time_layout.addWidget(QLabel("发布时段:"))
+        
+        self.publish_times_edit = QLineEdit()
+        self.publish_times_edit.setPlaceholderText("06:00,12:00,18:00,22:00")
+        self.publish_times_edit.setText("06:00")
+        self.publish_times_edit.setToolTip("多个时段用逗号分隔，如: 06:00,12:00,18:00,22:00")
+        time_layout.addWidget(self.publish_times_edit)
+        
+        time_layout.addWidget(QLabel("(逗号分隔)"))
+        time_layout.addStretch()
+        
+        settings_layout.addLayout(time_layout)
+        
         # 选项
         self.stop_on_error = QCheckBox("失败时自动停止")
         self.stop_on_error.setChecked(True)
@@ -742,6 +1143,24 @@ class MainWindow(QMainWindow):
         """)
         self.start_btn.clicked.connect(self.start_upload)
         btn_layout.addWidget(self.start_btn)
+        
+        # 暂停/继续按钮
+        self.pause_btn = QPushButton("⏸️ 暂停")
+        self.pause_btn.setMinimumHeight(45)
+        self.pause_btn.setEnabled(False)
+        self.pause_btn.setStyleSheet("""
+            QPushButton {
+                background-color: #FF9800;
+                color: white;
+                font-weight: bold;
+                border-radius: 6px;
+                padding: 8px 20px;
+            }
+            QPushButton:hover { background-color: #F57C00; }
+            QPushButton:disabled { background-color: #cccccc; }
+        """)
+        self.pause_btn.clicked.connect(self.toggle_pause_upload)
+        btn_layout.addWidget(self.pause_btn)
         
         self.stop_btn = QPushButton("⏹ 停止")
         self.stop_btn.setMinimumHeight(45)
@@ -1180,7 +1599,11 @@ NovelPublisher_Data/              ← 统一数据目录
             proj_path = Path(proj_data['path'])
             if proj_path.exists() and ((proj_path / "project_config.json").exists() or (proj_path / "project_info.json").exists()):
                 display = f"📌 {proj_data['username']} / {proj_data['proj_name']}"
-                projects.append((display, proj_data))
+                # 重新提取配置以确保获取最新数据（包括 publish_config）
+                novel_config = self._extract_novel_config(proj_path)
+                # 合并保存的数据和新提取的配置
+                merged_data = {**proj_data, **novel_config}
+                projects.append((display, merged_data))
                 added_paths.add(str(proj_path))
         
         # 2. 加载默认小说项目目录
@@ -1300,6 +1723,7 @@ NovelPublisher_Data/              ← 统一数据目录
             'synopsis': '',
             'main_character': '未知主角',
             'tags_info': {},
+            'publish_config': {},  # 添加 publish_config
             'project_dir': str(project_path),
         }
         
@@ -1350,6 +1774,10 @@ NovelPublisher_Data/              ← 统一数据目录
                 tags = upload_data.get('tags', {})
                 if isinstance(tags, dict) and tags:
                     result['tags_info'] = {**result['tags_info'], **tags}
+                # 提取 publish_config
+                publish_config = upload_data.get('publish_config')
+                if isinstance(publish_config, dict) and publish_config:
+                    result['publish_config'] = {**result['publish_config'], **publish_config}
             
             # 2. 顶层字段
             result['novel_title'] = result['novel_title'] or config.get('title', '') or config.get('novel_title', '')
@@ -1410,6 +1838,10 @@ NovelPublisher_Data/              ← 统一数据目录
                 tags = fanqie_data.get('tags', {})
                 if isinstance(tags, dict) and tags:
                     result['tags_info'] = {**result['tags_info'], **tags}
+                # 提取 publish_config
+                publish_config = fanqie_data.get('publish_config')
+                if isinstance(publish_config, dict) and publish_config:
+                    result['publish_config'] = {**result['publish_config'], **publish_config}
             
             # 7. 市场导向模式 - category_tags 转换
             category_tags = config.get('category_tags', {})
@@ -1556,6 +1988,9 @@ NovelPublisher_Data/              ← 统一数据目录
             self.chapters_stats.setText("共 0 个章节 (章节目录不存在)")
             return
         
+        # 加载已发布章节记录
+        published_chapters = self._load_published_chapters(project_path)
+        
         # 同时支持 JSON（市场导向）和 TXT（自由创意）格式
         json_files = list(chapters_dir.glob("chapter_*.json")) + list(chapters_dir.glob("第*.json"))
         txt_files = list(chapters_dir.glob("第*.txt")) + list(chapters_dir.glob("chapter_*.txt"))
@@ -1576,6 +2011,16 @@ NovelPublisher_Data/              ← 统一数据目录
             return 0
         
         chapter_files = sorted(all_files, key=_extract_sort_key)
+        
+        # 临时断开信号，避免初始化时触发频繁更新
+        try:
+            self.chapters_list.itemChanged.disconnect(self.on_chapter_check_changed)
+        except:
+            pass  # 可能还没连接
+        
+        # 存储需要选中的 items
+        items_to_select = []
+        skipped_count = 0
         
         for ch_file in chapter_files:
             try:
@@ -1608,33 +2053,210 @@ NovelPublisher_Data/              ← 统一数据目录
                         "content": content
                     }
                 
+                # 检查是否已发布
+                is_published = ch_num in published_chapters
+                
                 # 避免显示 "第010章: 第10章" 这种重复
                 display_num = f"第{ch_num:03d}章"
                 if ch_title and ch_title != f"第{ch_num}章" and ch_title != display_num:
                     display_text = f"{display_num}: {ch_title}"
                 else:
                     display_text = display_num
+                
+                # 已发布的章节标记
+                if is_published:
+                    display_text += " ✓"
+                    skipped_count += 1
+                
                 item = QListWidgetItem(display_text)
                 item.setData(Qt.UserRole, data)
+                
+                # 启用勾选框
+                item.setFlags(item.flags() | Qt.ItemIsUserCheckable)
+                
+                # 获取起始章节号设置（如果有的话）
+                start_chapter = getattr(self, 'start_chapter_spin', None)
+                start_num = start_chapter.value() if start_chapter else 1
+                
+                # 已发布的章节用灰色，不勾选
+                if is_published:
+                    item.setForeground(Qt.gray)
+                    item.setCheckState(Qt.Unchecked)
+                elif ch_num >= start_num:
+                    # 未发布且章号大于等于起始章号的，默认勾选
+                    item.setCheckState(Qt.Checked)
+                    items_to_select.append(item)
+                else:
+                    # 未发布但章号小于起始章号的，不勾选
+                    item.setCheckState(Qt.Unchecked)
+                
                 self.chapters_list.addItem(item)
                 self.chapters.append(data)
             except Exception as e:
                 print(f"加载章节失败 {ch_file}: {e}")
         
-        self.chapters_stats.setText(f"共 {len(self.chapters)} 个章节")
+        # 重新连接信号（先确保断开，避免重复连接）
+        try:
+            self.chapters_list.itemChanged.disconnect(self.on_chapter_check_changed)
+        except:
+            pass
+        self.chapters_list.itemChanged.connect(self.on_chapter_check_changed)
         
-        # 自动全选所有章节
-        if self.chapters:
-            self.chapters_list.selectAll()
-            self.chapters_stats.setText(f"共 {len(self.chapters)} 个章节，已全选")
+        # 统计勾选数量（未发布的默认已勾选）
+        selected_count = len(items_to_select)
+        self.chapters_stats.setText(f"共 {len(self.chapters)} 个章节，已选 {selected_count} 个，已发布 {skipped_count} 个")
+        
+        # 显示提示
+        if skipped_count > 0:
+            self.log(f"📂 已加载 {len(self.chapters)} 章，跳过 {skipped_count} 个已发布章节，默认勾选 {selected_count} 个待发布章节", "info")
+            self.log(f"ℹ️ 提示：已发布的章节（带✓标记）默认未勾选，如需重新上传请手动勾选", "info")
+        else:
+            self.log(f"📂 已加载 {len(self.chapters)} 个章节，全部默认勾选", "info")
     
     def select_all_chapters(self):
-        """全选"""
-        self.chapters_list.selectAll()
+        """全选（包括已发布的）"""
+        # 临时断开信号，避免触发 on_chapter_check_changed
+        try:
+            self.chapters_list.itemChanged.disconnect(self.on_chapter_check_changed)
+        except:
+            pass
+        try:
+            for i in range(self.chapters_list.count()):
+                item = self.chapters_list.item(i)
+                if item:
+                    item.setCheckState(Qt.Checked)
+        finally:
+            # 重新连接信号（先确保断开，避免重复连接）
+            try:
+                self.chapters_list.itemChanged.disconnect(self.on_chapter_check_changed)
+            except:
+                pass
+            self.chapters_list.itemChanged.connect(self.on_chapter_check_changed)
+        
+        # 更新状态显示
+        selected = sum(1 for i in range(self.chapters_list.count()) 
+                      if self.chapters_list.item(i).checkState() == Qt.Checked)
+        total = self.chapters_list.count()
+        self.chapters_stats.setText(f"共 {total} 个章节，已选 {selected} 个")
+        self.log(f"☑️ 已全选 {selected} 个章节", "info")
     
     def select_none_chapters(self):
         """全不选"""
-        self.chapters_list.clearSelection()
+        # 临时断开信号
+        try:
+            self.chapters_list.itemChanged.disconnect(self.on_chapter_check_changed)
+        except:
+            pass
+        try:
+            for i in range(self.chapters_list.count()):
+                item = self.chapters_list.item(i)
+                if item:
+                    item.setCheckState(Qt.Unchecked)
+        finally:
+            # 重新连接信号
+            try:
+                self.chapters_list.itemChanged.disconnect(self.on_chapter_check_changed)
+            except:
+                pass
+            self.chapters_list.itemChanged.connect(self.on_chapter_check_changed)
+        
+        total = self.chapters_list.count()
+        self.chapters_stats.setText(f"共 {total} 个章节，已选 0 个")
+        self.log(f"⬜ 已取消全选", "info")
+    
+    def select_unpublished_chapters(self):
+        """只选未发布的（排除已标记✓的）"""
+        # 临时断开信号
+        try:
+            self.chapters_list.itemChanged.disconnect(self.on_chapter_check_changed)
+        except:
+            pass
+        try:
+            selected_count = 0
+            for i in range(self.chapters_list.count()):
+                item = self.chapters_list.item(i)
+                if item:
+                    if "✓" not in item.text():
+                        item.setCheckState(Qt.Checked)
+                        selected_count += 1
+                    else:
+                        item.setCheckState(Qt.Unchecked)
+        finally:
+            # 重新连接信号
+            try:
+                self.chapters_list.itemChanged.disconnect(self.on_chapter_check_changed)
+            except:
+                pass
+            self.chapters_list.itemChanged.connect(self.on_chapter_check_changed)
+        
+        total = self.chapters_list.count()
+        self.chapters_stats.setText(f"共 {total} 个章节，已选 {selected_count} 个")
+        self.log(f"📋 已选中 {selected_count} 个未发布章节", "info")
+    
+    def apply_start_chapter(self):
+        """根据起始章节号选择（只选大于等于起始章号的未发布章节）"""
+        start_num = self.start_chapter_spin.value()
+        
+        # 临时断开信号
+        try:
+            self.chapters_list.itemChanged.disconnect(self.on_chapter_check_changed)
+        except:
+            pass
+        
+        selected_count = 0
+        skipped_published = 0
+        skipped_before = 0
+        
+        try:
+            for i in range(self.chapters_list.count()):
+                item = self.chapters_list.item(i)
+                if not item:
+                    continue
+                
+                # 获取章节数据
+                data = item.data(Qt.UserRole)
+                if not data:
+                    continue
+                
+                ch_num = data.get('chapter_number', 0)
+                is_published = "✓" in item.text()
+                
+                if is_published:
+                    # 已发布的保持未勾选
+                    item.setCheckState(Qt.Unchecked)
+                    skipped_published += 1
+                elif ch_num >= start_num:
+                    # 未发布且章号大于等于起始章号的，勾选
+                    item.setCheckState(Qt.Checked)
+                    selected_count += 1
+                else:
+                    # 未发布但章号小于起始章号的，不勾选
+                    item.setCheckState(Qt.Unchecked)
+                    skipped_before += 1
+        finally:
+            # 重新连接信号
+            try:
+                self.chapters_list.itemChanged.disconnect(self.on_chapter_check_changed)
+            except:
+                pass
+            self.chapters_list.itemChanged.connect(self.on_chapter_check_changed)
+        
+        total = self.chapters_list.count()
+        self.chapters_stats.setText(f"共 {total} 个章节，已选 {selected_count} 个")
+        self.log(f"🎯 从第 {start_num} 章开始：选中 {selected_count} 个，跳过已发布 {skipped_published} 个，跳过之前 {skipped_before} 个", "info")
+    
+    def on_chapter_check_changed(self, item):
+        """章节勾选状态变化时更新状态栏"""
+        # 延迟更新，避免频繁刷新
+        from PyQt5.QtCore import QTimer
+        QTimer.singleShot(100, self.update_chapter_stats)
+    
+    def update_chapter_stats(self):
+        """更新章节统计状态"""
+        total = self.chapters_list.count()
+        checked = sum(1 for i in range(total) 
+                     if self.chapters_list.item(i).checkState() == Qt.Checked)
+        self.chapters_stats.setText(f"共 {total} 个章节，已选 {checked} 个")
     
     # ============== 上传控制 ==============
     def start_upload(self):
@@ -1661,19 +2283,23 @@ NovelPublisher_Data/              ← 统一数据目录
                 QMessageBox.information(self, "提示", "请等待浏览器启动并登录番茄小说后，再点击开始上传")
             return
         
-        # 获取选中章节
-        selected_items = self.chapters_list.selectedItems()
-        if not selected_items:
-            QMessageBox.warning(self, "提示", "请先选择要上传的章节")
-            return
+        # 获取勾选的章节
+        chapters = []
+        for i in range(self.chapters_list.count()):
+            item = self.chapters_list.item(i)
+            if item and item.checkState() == Qt.Checked:
+                chapters.append(item.data(Qt.UserRole))
         
-        chapters = [item.data(Qt.UserRole) for item in selected_items]
+        if not chapters:
+            QMessageBox.warning(self, "提示", "请先勾选要上传的章节")
+            return
         
         # 获取设置
         settings = {
             'delay_min': self.delay_min.value(),
             'delay_max': self.delay_max.value(),
-            'stop_on_error': self.stop_on_error.isChecked()
+            'stop_on_error': self.stop_on_error.isChecked(),
+            'publish_times': self.publish_times_edit.text().strip()
         }
         
         # 获取书名和项目配置
@@ -1687,7 +2313,7 @@ NovelPublisher_Data/              ← 统一数据目录
             if isinstance(proj_data, dict):
                 novel_title = proj_data.get('novel_title') or proj_data.get('proj_name', novel_title)
                 novel_config = {k: v for k, v in proj_data.items() if k in [
-                    'novel_title', 'synopsis', 'main_character', 'tags_info', 'project_dir'
+                    'novel_title', 'synopsis', 'main_character', 'tags_info', 'publish_config', 'project_dir'
                 ]}
                 project_path = proj_data.get('path')
         
@@ -1699,25 +2325,53 @@ NovelPublisher_Data/              ← 统一数据目录
         
         # 若下拉框中没拿到完整配置，尝试现场读取
         if not novel_config.get('novel_title') and project_path:
-            novel_config = self._extract_novel_config(Path(project_path))
+            extracted_config = self._extract_novel_config(Path(project_path))
+            # 合并配置，保留已有的 publish_config 等
+            for key, value in extracted_config.items():
+                if key not in novel_config or not novel_config[key]:
+                    novel_config[key] = value
             novel_config['novel_title'] = novel_config.get('novel_title') or novel_title
         
         # 启动上传线程
-        self.upload_worker = UploadWorker(novel_title, chapters, settings, acc, novel_config)
+        self.upload_worker = UploadWorker(
+            novel_title, chapters, settings, acc, novel_config,
+            project_path=Path(project_path) if project_path else None
+        )
         self.upload_worker.progress_signal.connect(self.on_upload_progress)
         self.upload_worker.log_signal.connect(self.on_upload_log)
         self.upload_worker.finished_signal.connect(self.on_upload_finished)
+        self.upload_worker.chapter_uploaded_signal.connect(self.on_chapter_uploaded)
         
         self.start_btn.setEnabled(False)
+        self.pause_btn.setEnabled(True)
+        self.pause_btn.setText("⏸️ 暂停")
         self.stop_btn.setEnabled(True)
+        self.is_upload_paused = False
         
         self.log(f"🚀 开始上传 '{novel_title}'，使用账户: {acc.name}", "info")
         self.upload_worker.start()
+    
+    def toggle_pause_upload(self):
+        """切换暂停/继续状态"""
+        if not self.upload_worker:
+            return
+        
+        if self.is_upload_paused:
+            # 继续上传
+            self.upload_worker.resume()
+            self.pause_btn.setText("⏸️ 暂停")
+            self.is_upload_paused = False
+        else:
+            # 暂停上传
+            self.upload_worker.pause()
+            self.pause_btn.setText("▶️ 继续")
+            self.is_upload_paused = True
     
     def stop_upload(self):
         """停止上传"""
         if self.upload_worker:
             self.upload_worker.stop()
+        self.is_upload_paused = False
     
     def on_upload_progress(self, percent: int, message: str):
         """上传进度"""
@@ -1728,17 +2382,93 @@ NovelPublisher_Data/              ← 统一数据目录
         """上传日志"""
         self.log(message, level)
     
+    def on_chapter_uploaded(self, chapter: dict):
+        """单个章节上传成功，保存记录"""
+        try:
+            chapter_num = chapter.get('chapter_number', 0)
+            
+            # 获取当前项目路径
+            proj_idx = self.project_combo.currentIndex()
+            if proj_idx < 0:
+                return
+            
+            proj_data = self.project_combo.itemData(proj_idx)
+            if not isinstance(proj_data, dict):
+                return
+            
+            project_path = proj_data.get('path')
+            if not project_path:
+                return
+            
+            # 保存已发布章节记录
+            self._save_published_chapter(Path(project_path), chapter)
+            self.log(f"💾 已记录第{chapter_num}章为已发布，下次加载将默认不选中", "success")
+        except Exception as e:
+            self.log(f"⚠️ 保存已发布章节记录失败: {e}", "warning")
+    
+    def _get_published_chapters_file(self, project_path: Path) -> Path:
+        """获取已发布章节记录文件路径"""
+        return project_path / ".published_chapters.json"
+    
+    def _load_published_chapters(self, project_path: Path) -> set:
+        """加载已发布章节记录，返回章节号集合"""
+        try:
+            published_file = self._get_published_chapters_file(project_path)
+            if not published_file.exists():
+                self.log(f"📂 没有找到已发布章节记录文件，所有章节默认可选", "debug")
+                return set()
+            
+            data = json.loads(published_file.read_text(encoding='utf-8'))
+            published = set(data.get('published_chapters', []))
+            self.log(f"📋 加载已发布章节记录: 共 {len(published)} 章 ({sorted(published)[:10]}{'...' if len(published) > 10 else ''})", "info")
+            return published
+        except Exception as e:
+            self.log(f"⚠️ 加载已发布章节记录失败: {e}", "warning")
+            return set()
+    
+    def _save_published_chapter(self, project_path: Path, chapter: dict):
+        """保存已发布章节记录"""
+        try:
+            published_file = self._get_published_chapters_file(project_path)
+            
+            # 读取现有记录
+            data = {'published_chapters': []}
+            if published_file.exists():
+                data = json.loads(published_file.read_text(encoding='utf-8'))
+            
+            # 添加新记录
+            chapter_num = chapter.get('chapter_number', 0)
+            if chapter_num not in data['published_chapters']:
+                data['published_chapters'].append(chapter_num)
+                data['published_chapters'].sort()
+                
+                # 保存到文件
+                published_file.write_text(json.dumps(data, ensure_ascii=False, indent=2), encoding='utf-8')
+                self.log(f"💾 已保存发布记录: 第{chapter_num}章 (共{len(data['published_chapters'])}章已发布)", "debug")
+        except Exception as e:
+            self.log(f"⚠️ 保存已发布章节记录失败: {e}", "warning")
+    
     def on_upload_finished(self, success: bool, message: str):
         """上传完成"""
         self.start_btn.setEnabled(True)
+        self.pause_btn.setEnabled(False)
+        self.pause_btn.setText("⏸️ 暂停")
         self.stop_btn.setEnabled(False)
         
         if success:
             self.log(f"✅ {message}", "success")
             QMessageBox.information(self, "完成", message)
+            # 刷新章节列表，更新选中状态
+            proj_idx = self.project_combo.currentIndex()
+            if proj_idx >= 0:
+                proj_data = self.project_combo.itemData(proj_idx)
+                if isinstance(proj_data, dict):
+                    project_path = proj_data.get('path')
+                    if project_path:
+                        self.load_chapters(Path(project_path))
         else:
             self.log(f"❌ {message}", "error")
-            QMessageBox.warning(self, "完成", message)
+            QMessageBox.warning(self, "上传停止", message)
     
     # ============== 日志 ==============
     def log(self, message: str, level: str = "info"):
