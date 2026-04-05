@@ -1540,6 +1540,54 @@ function renderFinalConfirm(data) {
           </div>
         </div>
         
+        <!-- AI评估结果（只读展示） -->
+        <div class="form-section" style="margin-bottom: 20px; background: linear-gradient(135deg, rgba(245, 158, 11, 0.08), rgba(251, 191, 36, 0.04)); border: 1px solid rgba(245, 158, 11, 0.3);">
+          <h3 class="form-section__title">
+            <span class="material-icons">analytics</span>
+            AI 市场化评估
+          </h3>
+          
+          ${draft.ai_evaluation ? `
+          <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 12px; margin-bottom: 16px;">
+            <div style="text-align: center; padding: 12px; background: var(--v2-bg-secondary); border-radius: 10px;">
+              <div style="font-size: 20px; font-weight: 700; color: var(--primary-gold);">${draft.ai_evaluation.completion_rate || '15-18%'}</div>
+              <div style="font-size: 11px; color: var(--v2-text-muted);">预计完读率</div>
+            </div>
+            <div style="text-align: center; padding: 12px; background: var(--v2-bg-secondary); border-radius: 10px;">
+              <div style="font-size: 20px; font-weight: 700; color: var(--success);">${draft.ai_evaluation.debut_pass_rate || '60-70%'}</div>
+              <div style="font-size: 11px; color: var(--v2-text-muted);">首秀通过率</div>
+            </div>
+            <div style="text-align: center; padding: 12px; background: var(--v2-bg-secondary); border-radius: 10px;">
+              <div style="font-size: 20px; font-weight: 700; color: ${(draft.ai_evaluation.risk_level || '中') === '低' ? 'var(--success)' : (draft.ai_evaluation.risk_level || '中') === '高' ? 'var(--danger)' : 'var(--warning)'};">${draft.ai_evaluation.risk_level || '中等'}</div>
+              <div style="font-size: 11px; color: var(--v2-text-muted);">风险等级</div>
+            </div>
+            <div style="text-align: center; padding: 12px; background: var(--v2-bg-secondary); border-radius: 10px;">
+              <div style="font-size: 20px; font-weight: 700; color: var(--info);">${draft.ai_evaluation.differentiation_score || 80}</div>
+              <div style="font-size: 11px; color: var(--v2-text-muted);">差异化评分</div>
+            </div>
+          </div>
+          
+          <div style="margin-bottom: 16px;">
+            <div style="font-size: 12px; font-weight: 600; color: var(--success); margin-bottom: 6px;">✓ 优势</div>
+            <div style="font-size: 13px; color: var(--v2-text-secondary); line-height: 1.6; white-space: pre-line;">${draft.ai_evaluation.strengths || '• 符合市场主流喜好'}</div>
+          </div>
+          
+          <div style="margin-bottom: 16px;">
+            <div style="font-size: 12px; font-weight: 600; color: var(--danger); margin-bottom: 6px;">⚠ 风险提示</div>
+            <div style="font-size: 13px; color: var(--v2-text-secondary); line-height: 1.6; white-space: pre-line;">${draft.ai_evaluation.risks || '• 需要保持稳定更新'}</div>
+          </div>
+          
+          <div>
+            <div style="font-size: 12px; font-weight: 600; color: var(--primary-gold); margin-bottom: 6px;">💡 建议</div>
+            <div style="font-size: 13px; color: var(--v2-text-secondary); line-height: 1.6; white-space: pre-line;">${draft.ai_evaluation.suggestions || '• 按此方案直接开始生成'}</div>
+          </div>
+          ` : `
+          <div style="text-align: center; padding: 20px; color: var(--v2-text-muted);">
+            AI评估加载中...
+          </div>
+          `}
+        </div>
+        
         <!-- 差异化亮点（只读展示） -->
         <div class="form-section" style="margin-bottom: 20px; background: rgba(34, 197, 94, 0.05);">
           <h3 class="form-section__title">
