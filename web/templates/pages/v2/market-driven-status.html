@@ -6,6 +6,13 @@
 <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
 <link rel="stylesheet" href="/static/css/generation-float.css">
 <style>
+/* ===== 设计变量 ===== */
+:root {
+  --primary-gold: #f59e0b;
+  --primary-gold-light: #fbbf24;
+  --primary-gold-dark: #d97706;
+}
+
 .status-container {
   max-width: 800px;
   margin: 0 auto;
@@ -90,14 +97,61 @@
   border-radius: 4px;
   overflow: hidden;
   margin-bottom: 16px;
+  position: relative;
+}
+
+/* 调试样式 - 确保进度条容器可见 */
+.progress-bar::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  border: 1px solid var(--v2-border-color);
+  border-radius: 4px;
+  pointer-events: none;
 }
 
 .progress-bar__fill {
   height: 100%;
-  background: linear-gradient(90deg, var(--primary-gold), var(--primary-gold-light));
+  background: linear-gradient(90deg, var(--primary-gold) 0%, #fbbf24 50%, var(--primary-gold) 100%);
+  background-size: 200% 100%;
   border-radius: 4px;
   transition: width 0.3s ease-out;
-  width: 0%; /* 确保初始宽度为0 */
+  width: 0%;
+  will-change: width;
+  position: relative;
+}
+
+/* 进度进行中时显示动画和发光效果 */
+.progress-bar__fill[style*="width:"]:not([style*="width: 0%"]):not([style*="width:0%"]) {
+  animation: progress-shimmer 2s linear infinite;
+  box-shadow: 0 0 10px rgba(245, 158, 11, 0.5);
+  min-width: 4px; /* 小进度时确保可见 */
+}
+
+/* 进度条光效动画 */
+@keyframes progress-shimmer {
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+
+/* 进度条发光效果 */
+.progress-bar__fill::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: 20px;
+  height: 100%;
+  background: linear-gradient(90deg, transparent, rgba(255,255,255,0.4), transparent);
+  animation: progress-glow 1.5s ease-in-out infinite;
+}
+
+@keyframes progress-glow {
+  0%, 100% { opacity: 0; }
+  50% { opacity: 1; }
 }
 
 .progress-info {
@@ -590,7 +644,7 @@ async function pollTaskStatus() {
 // 阶段名称中英文映射
 const STAGE_NAME_MAP = {
   // 市场导向模式
-  'analyzing_tropes': '分析题材套路',
+  'analyzing_tropes': '分析题材爆款规律',
   'preparing_plan': '准备方案参数',
   'generate_plan': '生成完整方案',
   'generate_fanqie_data': '生成番茄上传数据',
@@ -667,20 +721,42 @@ function updateUI(task) {
   const message = task.message ? getStageName(task.message) : '';
   
   // 🔍 调试日志
-  console.log('[进度更新]', { progress, stage, message, status: task.status });
+  console.log('[进度更新]', { progress, stage, message, status: task.status, raw: task });
   
-  // 更新进度条
+  // 获取DOM元素
   const fillEl = document.getElementById('progress-fill');
   const percentEl = document.getElementById('progress-percent');
   const stageEl = document.getElementById('current-stage');
   
-  // 使用 requestAnimationFrame 确保 DOM 更新
-  requestAnimationFrame(() => {
-    fillEl.style.width = progress + '%';
-  });
+  if (!fillEl || !percentEl || !stageEl) {
+    console.error('[进度更新错误] DOM元素不存在');
+    return;
+  }
   
+  // 更新进度条 - 强制重绘确保动画生效
+  console.log(`[进度条] 更新: ${progress}%`);
+  
+  // 小进度保护：如果进度在1-5%之间，确保至少显示为5%以便可见
+  const displayProgress = (progress > 0 && progress < 5) ? 5 : progress;
+  
+  // 先读取当前值，强制浏览器计算样式
+  const currentWidth = fillEl.style.width;
+  void fillEl.offsetHeight; // 触发重绘
+  
+  // 设置新宽度
+  fillEl.style.width = displayProgress + '%';
+  
+  // 更新文本
   percentEl.textContent = `${progress}%`;
   stageEl.textContent = message || stage;
+  
+  // 进度变化时添加高亮效果
+  if (progress > 0 && progress < 100) {
+    fillEl.style.filter = 'brightness(1.2)';
+    setTimeout(() => {
+      fillEl.style.filter = '';
+    }, 200);
+  }
   
   // 更新状态标签
   const statusEl = document.getElementById('task-status');

@@ -50,7 +50,7 @@ CONFIG = {
                 "enabled": True,
                 "timeout": 300,
                 "max_retries": 3,
-                "discount_rate": 100,
+                "discount_rate": 50,
                 "stream": True
             },
             {
@@ -63,7 +63,7 @@ CONFIG = {
                 "enabled": True,
                 "timeout": 300,
                 "max_retries": 3,
-                "discount_rate": 150,
+                "discount_rate": 100,
                 "stream": True
             },
             {

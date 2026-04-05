@@ -180,7 +180,7 @@ function startGenerationFromForm() {
   .then(response => response.json())
   .then(data => {
     if (data.task_id) {
-      window.location.href = `/market-driven-status?task_id=${data.task_id}`;
+      window.location.href = `/market-driven-status?task=${data.task_id}`;
     } else {
       alert('生成失败: ' + (data.error || '未知错误'));
     }

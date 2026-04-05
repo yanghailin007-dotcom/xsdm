@@ -1117,7 +1117,8 @@
 </div>
 
 <!-- 生成按钮 -->
-<div class="generate-section" id="generate-section">
+<!-- 底部生成按钮区域 - 仅在第7步显示 -->
+<div class="generate-section hidden" id="generate-section">
   <div class="generate-section__info">
     <div class="generate-section__icon">
       <span class="material-icons">auto_fix_high</span>
@@ -1190,9 +1191,18 @@ function switchMode(mode) {
   document.getElementById('dialog-mode-container').classList.toggle('hidden', mode === 'form');
   document.getElementById('form-mode-container').classList.toggle('hidden', mode === 'dialog');
   
-  // 更新生成按钮状态
-  updateGenerateStatus(mode === 'dialog' ? '对话打磨中...' : '表单填写模式');
-  document.getElementById('generate-btn').disabled = mode === 'dialog';
+  // 🔥 表单模式下显示底部生成区域，对话模式下隐藏（第7步才显示）
+  if (mode === 'form') {
+    document.getElementById('generate-section').classList.remove('hidden');
+    updateGenerateStatus('表单填写模式');
+    document.getElementById('generate-btn').disabled = false;
+  } else {
+    // 对话模式下，只有第7步才显示
+    if (!finalPlan) {
+      document.getElementById('generate-section').classList.add('hidden');
+    }
+    updateGenerateStatus('对话打磨中...');
+  }
 }
 
 // ==================== 对话模式初始化 ====================
@@ -1373,9 +1383,24 @@ async function confirmSelection() {
       currentRound = data.round;
       
       if (data.is_final) {
-        // 对话结束，显示确认
+        // 🔥 第5步完成，进入第6步：汇总确认页面（用户确认基础信息）
         creativeDraft = data.creative_draft;
+        // 先收集基础表单数据（使用AI生成的默认值）
+        window.currentFormData = {
+          title: creativeDraft.title || '',
+          protagonist_name: '',
+          protagonist_identity: '',
+          golden_finger_desc: creativeDraft.golden_finger || '',
+          opening_scene: creativeDraft.opening_design || '',
+          main_plot: '',
+          emotion_line: creativeDraft.emotion_line || '',
+          wordcount: '50',
+          chapters: '200'
+        };
+        
+        // 显示第6步确认页面（让用户查看AI生成的基础方案）
         renderFinalConfirm(data);
+        updateGenerateStatus('第6步：确认基础方案');
       } else {
         // 渲染下一轮
         renderDialogRound(data);
@@ -1453,7 +1478,7 @@ function renderFinalConfirm(data) {
         </div>
       </div>
       
-      <form id="final-plan-form" onsubmit="event.preventDefault(); startGeneration();">
+      <form id="final-plan-form" onsubmit="event.preventDefault(); confirmFormAndGenerate();">
         
         <!-- 书名 -->
         <div class="form-section" style="margin-bottom: 20px;">
@@ -1606,9 +1631,9 @@ function renderFinalConfirm(data) {
           <span class="material-icons">arrow_back</span>
           返回修改
         </button>
-        <button class="confirm-btn confirm-btn--primary" onclick="startGeneration()">
-          <span class="material-icons">rocket_launch</span>
-          确认并开始生成
+        <button class="confirm-btn confirm-btn--primary" onclick="confirmFormAndGenerate()">
+          <span class="material-icons">visibility</span>
+          查看并编辑方案
         </button>
       </div>
     </div>
@@ -1707,6 +1732,8 @@ function returnToDialog() {
   document.getElementById('dialog-round-container').classList.remove('hidden');
   document.getElementById('step-indicator').classList.remove('hidden');
   document.getElementById('dialog-history').classList.remove('hidden');
+  // 🔥 返回修改时隐藏底部生成区域
+  document.getElementById('generate-section').classList.add('hidden');
   document.getElementById('generate-btn').disabled = true;
 }
 
@@ -1719,22 +1746,18 @@ async function startAIEvaluation() {
 // 全局变量存储最终方案
 let finalPlan = null;
 
-async function startGeneration() {
-  if (!creativeDraft) {
-    // 表单模式
-    startGenerationFromForm();
-    return;
-  }
-  
-  // 第一步：收集表单数据
+// 表单确认后生成详细方案
+// 第6步 → 第7步：用户确认基础信息后，调用AI生成详细方案
+async function confirmFormAndGenerate() {
+  // 收集表单数据
   const formData = {
-    title: document.getElementById('final-title')?.value || creativeDraft.title,
+    title: document.getElementById('final-title')?.value || creativeDraft?.title || '',
     protagonist_name: document.getElementById('final-protagonist')?.value || '',
     protagonist_identity: document.getElementById('final-identity')?.value || '',
-    golden_finger_desc: document.getElementById('final-golden-finger')?.value || creativeDraft.golden_finger,
-    opening_scene: document.getElementById('final-opening')?.value || creativeDraft.opening_design,
+    golden_finger_desc: document.getElementById('final-golden-finger')?.value || creativeDraft?.golden_finger || '',
+    opening_scene: document.getElementById('final-opening')?.value || creativeDraft?.opening_design || '',
     main_plot: document.getElementById('final-plot')?.value || '',
-    emotion_line: document.getElementById('final-emotion')?.value || creativeDraft.emotion_line,
+    emotion_line: document.getElementById('final-emotion')?.value || creativeDraft?.emotion_line || '',
     wordcount: document.getElementById('final-wordcount')?.value || '50',
     chapters: document.getElementById('final-chapters')?.value || '200'
   };
@@ -1748,8 +1771,44 @@ async function startGeneration() {
   // 保存表单数据
   window.currentFormData = formData;
   
-  // 第二步：调用AI生成最终详细方案
+  // 🔥 显示AI生成中状态（第6步 → 第7步）
+  const confirmContainer = document.getElementById('confirm-container');
+  confirmContainer.innerHTML = `
+    <div class="loading-container" style="padding: 80px 40px;">
+      <div class="loading-spinner" style="width: 64px; height: 64px;"></div>
+      <div class="loading-text" style="font-size: 22px; margin: 24px 0 12px;">AI正在生成核心设定...</div>
+      <div class="loading-subtext" style="font-size: 15px; color: var(--v2-text-muted); max-width: 400px; margin: 0 auto; line-height: 1.6;">
+        基于你的选择，AI正在生成：<br>
+        • 最终书名（高吸引力）<br>
+        • 主角姓名与核心性格<br>
+        • 金手指核心机制<br>
+        • 剧情方向与核心卖点<br><br>
+        <span style="color: var(--primary-gold);">预计需要 20-30 秒</span>
+      </div>
+    </div>
+  `;
+  updateGenerateStatus('AI生成核心设定中...');
+  
+  // 调用AI生成最终详细方案（进入第7步）
   await generateFinalPlan(formData);
+}
+
+// 底部"开始生成"按钮的处理函数
+async function startGeneration() {
+  // 表单模式（直接输入，无对话）
+  if (!creativeDraft) {
+    startGenerationFromForm();
+    return;
+  }
+  
+  // 🔥 对话模式：判断是否在第7步（最终方案已生成）
+  if (finalPlan) {
+    // 第7步：最终方案已生成，点击开始真正的小说生成
+    await confirmAndStartRealGeneration();
+  } else {
+    // 还未生成最终方案，提示用户先完成对话
+    showError('请先完成前6步对话，生成最终方案后再开始');
+  }
 }
 
 async function generateFinalPlan(formData) {
@@ -1758,8 +1817,8 @@ async function generateFinalPlan(formData) {
   confirmContainer.innerHTML = `
     <div class="loading-container" style="padding: 60px 20px;">
       <div class="loading-spinner"></div>
-      <div class="loading-text">AI正在生成最终详细方案...</div>
-      <div class="loading-subtext">包括：完整大纲、前30章规划、角色设定细化</div>
+      <div class="loading-text">AI正在生成核心设定...</div>
+      <div class="loading-subtext">包括：书名、主角、核心卖点、剧情方向</div>
     </div>
   `;
   
@@ -1778,7 +1837,15 @@ async function generateFinalPlan(formData) {
     
     if (data.success) {
       finalPlan = data.final_plan;
+      console.log('[FinalPlan] AI返回数据:', finalPlan);
+      if (data.note) {
+        console.warn('[FinalPlan] 使用默认方案:', data.note);
+      }
       renderFinalPlanReview(data.final_plan);
+      // 🔥 第7步：显示底部生成区域并启用按钮
+      document.getElementById('generate-section').classList.remove('hidden');
+      document.getElementById('generate-btn').disabled = false;
+      updateGenerateStatus('第7步：确认最终方案');
     } else {
       showError('生成最终方案失败: ' + (data.error || '未知错误'));
       // 返回表单页面
@@ -1794,6 +1861,7 @@ async function generateFinalPlan(formData) {
 function renderFinalPlanReview(plan) {
   const container = document.getElementById('confirm-container');
   
+  // 🔥 第7步：确认核心设定（不是详细大纲）
   container.innerHTML = `
     <div class="confirm-card fade-in">
       <div class="confirm-card__header">
@@ -1801,85 +1869,113 @@ function renderFinalPlanReview(plan) {
           <span class="material-icons" style="font-size: 24px; color: var(--primary-gold);">auto_stories</span>
         </div>
         <div>
-          <div class="confirm-card__title">AI生成的最终方案</div>
-          <div class="confirm-card__subtitle">请检查并确认后开始生成小说</div>
+          <div class="confirm-card__title">第7步：确认核心设定</div>
+          <div class="confirm-card__subtitle">AI已生成故事内核，确认后即可开始创作</div>
         </div>
       </div>
       
-      <!-- 书名和基本信息 -->
-      <div class="form-section" style="margin-bottom: 20px;">
+      <!-- 可编辑的核心信息 -->
+      <div class="form-section" style="margin-bottom: 20px; background: rgba(245, 158, 11, 0.05); border: 1px solid rgba(245, 158, 11, 0.2);">
         <h3 class="form-section__title">
-          <span class="material-icons">title</span>
-          ${plan.title || window.currentFormData?.title || '未命名'}
+          <span class="material-icons">edit</span>
+          核心设定（可编辑）
         </h3>
-        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px;">
-          <div>
-            <div style="font-size: 12px; color: var(--v2-text-muted); margin-bottom: 4px;">主角</div>
-            <div style="font-size: 14px; color: var(--v2-text-primary);">${plan.protagonist || window.currentFormData?.protagonist_name || '待定'}</div>
+        
+        <!-- 书名 -->
+        <div class="form-group" style="margin-bottom: 16px;">
+          <label class="form-label">书名 <span style="color: var(--danger);">*</span></label>
+          <input type="text" class="form-input" id="review-title" value="${window.currentFormData?.title || plan.title || ''}" placeholder="输入小说标题">
+          <div class="form-hint">AI推荐：${plan.title || '基于你的选择生成'}</div>
+        </div>
+        
+        <!-- 主角姓名 -->
+        <div class="form-group" style="margin-bottom: 16px;">
+          <label class="form-label">主角姓名</label>
+          <input type="text" class="form-input" id="review-protagonist-name" value="${window.currentFormData?.protagonist_name || plan.protagonist_name || ''}" placeholder="如：林凡">
+          <div class="form-hint">第6步填写：${window.currentFormData?.protagonist_name || '未填写'}</div>
+        </div>
+        
+        <!-- 主角核心性格 -->
+        <div class="form-group" style="margin-bottom: 16px;">
+          <label class="form-label">核心性格</label>
+          <input type="text" class="form-input" id="review-protagonist-personality" value="${plan.protagonist_personality || ''}" placeholder="如：表面话痨吐槽，内心冷静理智">
+        </div>
+        
+        <!-- 金手指 -->
+        <div class="form-group" style="margin-bottom: 16px;">
+          <label class="form-label">金手指机制</label>
+          <input type="text" class="form-input" id="review-golden-finger" value="${window.currentFormData?.golden_finger_desc || plan.golden_finger_summary || ''}" placeholder="核心能力+限制条件">
+        </div>
+        
+        <!-- 目标字数 -->
+        <div class="form-row" style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px;">
+          <div class="form-group">
+            <label class="form-label">目标字数</label>
+            <select class="form-select" id="review-wordcount">
+              <option value="30" ${(window.currentFormData?.wordcount || '50') == '30' ? 'selected' : ''}>30万字</option>
+              <option value="50" ${(window.currentFormData?.wordcount || '50') == '50' ? 'selected' : 'selected'}>50万字</option>
+              <option value="100" ${(window.currentFormData?.wordcount || '50') == '100' ? 'selected' : ''}>100万字</option>
+              <option value="200" ${(window.currentFormData?.wordcount || '50') == '200' ? 'selected' : ''}>200万字</option>
+            </select>
           </div>
-          <div>
-            <div style="font-size: 12px; color: var(--v2-text-muted); margin-bottom: 4px;">金手指</div>
-            <div style="font-size: 14px; color: var(--v2-text-primary);">${plan.golden_finger_summary || window.currentFormData?.golden_finger_desc?.substring(0, 30) + '...' || '待定'}</div>
-          </div>
-          <div>
-            <div style="font-size: 12px; color: var(--v2-text-muted); margin-bottom: 4px;">目标字数</div>
-            <div style="font-size: 14px; color: var(--v2-text-primary);">${window.currentFormData?.wordcount || '50'}万字 / ${window.currentFormData?.chapters || '200'}章</div>
+          <div class="form-group">
+            <label class="form-label">预计章节</label>
+            <input type="number" class="form-input" id="review-chapters" value="${window.currentFormData?.chapters || '200'}" min="50" max="1000">
           </div>
         </div>
       </div>
       
       <!-- 核心卖点 -->
-      <div class="form-section" style="margin-bottom: 20px; background: rgba(245, 158, 11, 0.05);">
+      <div class="form-section" style="margin-bottom: 20px; background: linear-gradient(135deg, rgba(245, 158, 11, 0.08), rgba(251, 191, 36, 0.04)); border: 1px solid rgba(245, 158, 11, 0.3);">
         <h3 class="form-section__title">
           <span class="material-icons">campaign</span>
           核心卖点
         </h3>
-        <div style="font-size: 15px; color: var(--v2-text-primary); line-height: 1.8;">
+        <div id="core-selling-point-display" style="font-size: 16px; color: var(--v2-text-primary); line-height: 1.8; font-weight: 500;">
           ${plan.core_selling_point || '暂无'}
         </div>
       </div>
       
-      <!-- 主线大纲 -->
+      <!-- 剧情方向 -->
       <div class="form-section" style="margin-bottom: 20px;">
         <h3 class="form-section__title">
-          <span class="material-icons">map</span>
-          主线大纲
+          <span class="material-icons">explore</span>
+          剧情方向
         </h3>
-        <div style="font-size: 14px; color: var(--v2-text-secondary); line-height: 1.8; white-space: pre-line;">
-          ${plan.main_outline || '暂无'}
+        <div style="font-size: 14px; color: var(--v2-text-secondary); line-height: 1.8;">
+          ${plan.story_direction || '暂无'}
         </div>
       </div>
       
-      <!-- 前30章规划 -->
+      <!-- 开局钩子 -->
       <div class="form-section" style="margin-bottom: 20px;">
         <h3 class="form-section__title">
-          <span class="material-icons">list_alt</span>
-          前30章规划
+          <span class="material-icons">play_circle</span>
+          开局钩子
         </h3>
-        <div style="font-size: 14px; color: var(--v2-text-secondary); line-height: 1.8; white-space: pre-line;">
-          ${plan.first_30_chapters || '暂无'}
+        <div style="font-size: 14px; color: var(--v2-text-secondary); line-height: 1.8;">
+          ${plan.opening_hook || '暂无'}
         </div>
       </div>
       
-      <!-- 角色设定 -->
+      <!-- 情感核心 -->
       <div class="form-section" style="margin-bottom: 20px;">
         <h3 class="form-section__title">
-          <span class="material-icons">people</span>
-          核心角色
+          <span class="material-icons">favorite</span>
+          情感核心
         </h3>
-        <div style="font-size: 14px; color: var(--v2-text-secondary); line-height: 1.8; white-space: pre-line;">
-          ${plan.characters || '暂无'}
+        <div style="font-size: 14px; color: var(--v2-text-secondary); line-height: 1.8;">
+          ${plan.emotion_core || '暂无'}
         </div>
       </div>
-      
-      <!-- 情绪曲线设计 -->
+      <!-- 主角背景 -->
       <div class="form-section" style="margin-bottom: 20px;">
         <h3 class="form-section__title">
-          <span class="material-icons">show_chart</span>
-          情绪曲线设计
+          <span class="material-icons">person_outline</span>
+          主角背景
         </h3>
-        <div style="font-size: 14px; color: var(--v2-text-secondary); line-height: 1.8; white-space: pre-line;">
-          ${plan.emotion_curve || '暂无'}
+        <div style="font-size: 14px; color: var(--v2-text-secondary); line-height: 1.8;">
+          ${plan.protagonist_background || '暂无'}
         </div>
       </div>
       
@@ -1923,13 +2019,46 @@ async function confirmAndStartRealGeneration() {
     return;
   }
   
+  // 🔥 读取第7步页面中可编辑字段的值（如果存在）
+  const reviewTitle = document.getElementById('review-title')?.value;
+  const reviewProtagonistName = document.getElementById('review-protagonist-name')?.value;
+  const reviewProtagonistPersonality = document.getElementById('review-protagonist-personality')?.value;
+  const reviewGoldenFinger = document.getElementById('review-golden-finger')?.value;
+  const reviewWordcount = document.getElementById('review-wordcount')?.value;
+  const reviewChapters = document.getElementById('review-chapters')?.value;
+  
+  // 使用用户编辑的值（优先）或AI生成的值
+  const finalTitle = reviewTitle || finalPlan?.title || window.currentFormData.title;
+  
+  if (!finalTitle) {
+    showError('请填写小说标题');
+    return;
+  }
+  
+  // 合并数据：用户编辑值 > AI生成的最终方案 > 原始表单数据
+  // 🔥 把 dialog_session_id 和 final_plan 也放入 user_choices，让后端识别为对话模式
+  const mergedData = {
+    ...window.currentFormData,
+    title: finalTitle,
+    protagonist_name: reviewProtagonistName || finalPlan?.protagonist_name || window.currentFormData.protagonist_name,
+    protagonist_personality: reviewProtagonistPersonality || finalPlan?.protagonist_personality || '',
+    golden_finger_desc: reviewGoldenFinger || finalPlan?.golden_finger_summary || window.currentFormData.golden_finger_desc,
+    story_direction: finalPlan?.story_direction || '',
+    opening_hook: finalPlan?.opening_hook || '',
+    emotion_core: finalPlan?.emotion_core || '',
+    wordcount: reviewWordcount || window.currentFormData.wordcount || '50',
+    chapters: reviewChapters || window.currentFormData.chapters || '200',
+    dialog_session_id: dialogSessionId,  // 🔥 关键：传递给后端识别对话模式
+    final_plan: finalPlan  // 🔥 关键：传递最终方案
+  };
+  
   // 显示最终加载状态
   const container = document.getElementById('confirm-container');
   container.innerHTML = `
     <div class="loading-container" style="padding: 80px 20px;">
       <div class="loading-spinner" style="width: 64px; height: 64px;"></div>
       <div class="loading-text" style="font-size: 24px; margin-bottom: 16px;">正在启动小说生成...</div>
-      <div class="loading-subtext" style="font-size: 16px;">AI正在根据最终方案创作你的世界</div>
+      <div class="loading-subtext" style="font-size: 16px;">正在创建项目：《${finalTitle}》</div>
       <div style="margin-top: 32px; padding: 20px; background: var(--v2-bg-secondary); border-radius: 12px; max-width: 500px; margin-left: auto; margin-right: auto;">
         <div style="font-size: 14px; color: var(--v2-text-muted); margin-bottom: 8px;">预计生成时间</div>
         <div style="font-size: 20px; color: var(--primary-gold); font-weight: 600;">30-60分钟</div>
@@ -1939,21 +2068,27 @@ async function confirmAndStartRealGeneration() {
   `;
   
   try {
+    // 🔥 调试日志：确认发送的数据
+    console.log('[生成请求] 发送数据:', {
+      genre,
+      dialog_session_id: dialogSessionId,
+      has_final_plan: !!finalPlan,
+      user_choices_keys: Object.keys(mergedData)
+    });
+    
     const response = await fetch('/api/market-driven/generate', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         genre: genre,
-        user_choices: window.currentFormData,
-        final_plan: finalPlan,
-        dialog_session_id: dialogSessionId
+        user_choices: mergedData
       })
     });
     
     const data = await response.json();
     
     if (data.task_id) {
-      window.location.href = `/market-driven-status?task_id=${data.task_id}`;
+      window.location.href = `/market-driven-status?task=${data.task_id}`;
     } else {
       showError('生成失败: ' + (data.error || '未知错误'));
     }
@@ -1992,7 +2127,7 @@ function startGenerationFromForm() {
   .then(response => response.json())
   .then(data => {
     if (data.task_id) {
-      window.location.href = `/market-driven-status?task_id=${data.task_id}`;
+      window.location.href = `/market-driven-status?task=${data.task_id}`;
     } else {
       alert('生成失败: ' + (data.error || '未知错误'));
     }

@@ -903,11 +903,13 @@ function displayResults(data) {
       return;
     }
     
-    // 隐藏加载动画，显示结果
+    // 隐藏加载动画和进度条，显示结果
     const spinner = document.getElementById('analyzing-spinner');
+    const progressSection = document.getElementById('progress-section');
     const grid = document.getElementById('tropes-grid');
     
     if (spinner) spinner.style.display = 'none';
+    if (progressSection) progressSection.style.display = 'none';
     if (grid) grid.style.display = 'grid';
     
     console.log('UI updated, processing data...');

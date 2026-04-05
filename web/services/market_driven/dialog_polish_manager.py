@@ -881,6 +881,22 @@ class DialogPolishManager:
             "creative_draft": self.creative_draft.to_dict() if is_final else None
         }
     
+    def _finish_dialog(self) -> Dict:
+        """结束对话，返回最终方案"""
+        logger.info(f"[对话打磨 {self.session_id}] 对话结束，返回最终方案")
+        
+        # 创建结束轮次
+        round_data = DialogRound(
+            round_num=self.current_round,
+            round_type=DialogRoundType.CONFIRM,
+            ai_message="对话已结束，最终方案已生成。",
+            options=[],
+            allow_custom=False
+        )
+        self.rounds.append(round_data)
+        
+        return self._format_round_response(round_data, is_final=True)
+    
     def go_back(self, target_round: int) -> Dict:
         """
         返回到指定轮次

@@ -557,16 +557,28 @@ def start_market_driven_generation():
                 except Exception as e:
                     logger.warning(f"APIClient初始化失败，将使用模拟模式: {e}")
                 
-                # 第1阶段：套路分析（传递user_choices以检查是否有前端缓存的分析结果）
-                _run_trope_analysis(task_id, genre, api_client, user_choices)
+                # 🔥 检查是否来自对话模式（已生成最终方案）
+                dialog_session_id = user_choices.get('dialog_session_id')
+                final_plan = user_choices.get('final_plan')
                 
-                # 第2阶段：方案 + 一阶段产物生成（对话模式）
-                if not options.get('skip_phase_one', False):
-                    _run_plan_and_products_conversation(task_id, genre, user_choices, api_client)
+                logger.info(f"[Task {task_id}] 检查对话模式 | dialog_session_id: {dialog_session_id} | final_plan: {bool(final_plan)}")
                 
-                # 第3阶段：生成章节
-                if options.get('generate_chapters', True):
-                    _run_chapter_generation(task_id, genre, target_words, api_client)
+                if dialog_session_id and final_plan:
+                    # 对话模式：已生成最终方案，跳过套路分析和方案生成，直接生成章节
+                    logger.info(f"[Task {task_id}] 对话模式检测到最终方案，跳过套路分析和方案生成，直接生成章节")
+                    _run_chapter_generation_with_plan(task_id, genre, target_words, api_client, final_plan, user_choices)
+                else:
+                    # 传统模式：完整流程
+                    # 第1阶段：套路分析
+                    _run_trope_analysis(task_id, genre, api_client, user_choices)
+                    
+                    # 第2阶段：方案 + 一阶段产物生成
+                    if not options.get('skip_phase_one', False):
+                        _run_plan_and_products_conversation(task_id, genre, user_choices, api_client)
+                    
+                    # 第3阶段：生成章节
+                    if options.get('generate_chapters', True):
+                        _run_chapter_generation(task_id, genre, target_words, api_client)
                 
                 # 完成
                 task_manager.update_task(
@@ -1432,6 +1444,538 @@ def _run_chapter_generation(task_id: str, genre: str, target_words: int, api_cli
         raise
 
 
+def _get_genre_specific_prompts(genre: str) -> Dict:
+    """
+    根据题材获取差异化提示词
+    返回各题材特定的书名公式、核心卖点示例、开局钩子公式等
+    """
+    genre_lower = genre.lower() if genre else ""
+    
+    # 神豪文特定提示词
+    if "神豪" in genre_lower or "花钱" in genre_lower or "返利" in genre_lower:
+        return {
+            "title_formula": """1. 《神豪：从XX开始》 - 如《神豪：从被校花拒绝开始》《神豪：从送外卖开始》
+2. 《开局XX，我XX了》 - 如《开局物价贬值百万倍，我无敌了》《激活百倍返利系统》
+3. 《绑定神豪系统后，我XX》 - 如《绑定神豪系统后，我直播打赏百亿》
+4. 《我有XX舔狗金》 - 如《我有九千万亿舔狗金》《我有无限黑卡》
+5. 《分手XX，我XX》 - 如《分手第一天，我中了十个亿》《分手后我成了首富》""",
+            "selling_point_example": "示例：穷小子觉醒花钱返利系统，越花越有钱，在前女友和富二代面前疯狂装逼打脸，极致逆袭爽感",
+            "hook_formula": "必须包含：主角身份卑微（外卖员/保安/穷学生）+ 被羞辱/分手 + 突然获得神豪系统 + 第一次装逼打脸",
+            "personality_guide": "要有隐忍后的爆发感，表面低调实则掌控全局",
+            "background_guide": "如：被分手的穷学生/被开除的保安/被看不起的实习生",
+            "selling_point_requirement": "穷小子逆袭+神豪系统+疯狂打脸+前女友后悔",
+            "story_keywords": "花钱返利、直播打赏、前女友后悔、富二代打脸、商业帝国",
+            "hook_requirement": "必须包含：被羞辱场景+系统觉醒+第一次消费打脸",
+            "emotion_guide": "逆袭爽感+打脸快感+前女友后悔的暗爽",
+            "risk_guide": "避免装逼过于刻意，保持消费场景多样化",
+            "rule_5": "开局钩子必须有被羞辱场景和第一次消费打脸"
+        }
+    
+    # 国运文/禁地类特定提示词
+    elif "国运" in genre_lower or "禁地" in genre_lower or "直播" in genre_lower:
+        return {
+            "title_formula": """1. 《开局XX，我XX了》 - 如《开局召唤兵马俑，我无敌了》《觉醒满级天赋，我一刀斩神》
+2. 《绑定XX系统后，我XX》 - 如《绑定吐槽系统后，我气哭了怪谈》《扮演酒剑仙，队友白月魁》
+3. 《XX：从XX开始》 - 如《诡秘：从扮演小丑开始》《国运：从被选中开始》
+4. 《我有XX》 - 如《我有无限复活甲》《我能召唤历史名将》""",
+            "selling_point_example": "示例：吐槽型主角觉醒弹幕系统，在全球直播的禁地挑战中靠气哭BOSS带飞全场，极致反差爽感",
+            "hook_formula": "必须包含：全球/全国直播场景 + 别人严肃紧张 + 主角离谱操作 + 震惊全球",
+            "personality_guide": "要有反差感，如：表面沙雕吐槽实则掌控全局",
+            "background_guide": "如：失意脱口秀演员/被选中的普通人/隐藏身份的大佬",
+            "selling_point_requirement": "独特能力+反差操作+直播震惊+带飞全场",
+            "story_keywords": "全球禁地、规则怪谈、神宠养成、跨国对垒、位面征服",
+            "hook_requirement": "必须包含：直播场景+别人正经+主角离谱操作+震惊效果",
+            "emotion_guide": "搞笑爽感+民族自豪感+观众震惊",
+            "risk_guide": "避免搞笑风格单一，中后期升级世界规则",
+            "rule_5": "开局钩子必须有直播元素和反差感"
+        }
+    
+    # 玄幻/仙侠类特定提示词
+    elif "玄幻" in genre_lower or "仙侠" in genre_lower or "修真" in genre_lower or "修仙" in genre_lower:
+        return {
+            "title_formula": """1. 《开局XX，我XX了》 - 如《开局签到荒古圣体》《觉醒满级灵根，我一剑破天》
+2. 《XX：从XX开始》 - 如《凡人：从杂役开始》《玄幻：从废柴开始逆袭》
+3. 《绑定XX系统后，我XX》 - 如《绑定万倍返还系统后，我无敌了》
+4. 《我有XX》 - 如《我有亿万倍修炼加速》《我能无限顿悟》""",
+            "selling_point_example": "示例：废柴少年觉醒逆天悟性，越级挑战天才妖孽，在宗门大比中一路碾压，成就无上道途",
+            "hook_formula": "必须包含：主角被废/被退婚/被看不起 + 觉醒金手指 + 第一次越级打脸",
+            "personality_guide": "要有坚韧不屈、逆天改命的气质",
+            "background_guide": "如：被废的天才/被退婚的少年/杂役弟子",
+            "selling_point_requirement": "废柴逆袭+逆天悟性+越级挑战+宗门崛起",
+            "story_keywords": "宗门争霸、秘境探索、天骄争锋、逆天改命、证道成帝",
+            "hook_requirement": "必须包含：被羞辱场景+金手指觉醒+第一次越级战斗",
+            "emotion_guide": "逆袭热血+战斗激情+逆天改命",
+            "risk_guide": "避免套路同质化，创新金手指设定",
+            "rule_5": "开局钩子必须有修炼体系和第一次战斗打脸"
+        }
+    
+    # 都市/职场类特定提示词
+    elif "都市" in genre_lower or "职场" in genre_lower or "医" in genre_lower or "兵王" in genre_lower:
+        return {
+            "title_formula": """1. 《神豪：从XX开始》 - 如《神豪：从被开除开始》《从实习生到首富》
+2. 《开局XX，我XX了》 - 如《开局获得神医传承》《激活人生选择系统》
+3. 《XX：从XX开始》 - 如《神医：从被退婚开始》《战神：从监狱归来》
+4. 《我有XX》 - 如《我有九十九位师父》《我能看透人心》""",
+            "selling_point_example": "示例：被开除的小职员获得人生选择系统，每次选择都有丰厚奖励，在职场和情场疯狂逆袭",
+            "hook_formula": "必须包含：主角身份低微 + 被羞辱/开除 + 获得金手指 + 第一次逆袭打脸",
+            "personality_guide": "要有隐忍后的爆发，低调中带着霸气",
+            "background_guide": "如：被开除的实习生/被退婚的小医生/退伍特种兵",
+            "selling_point_requirement": "小人物逆袭+特殊能力+职场打脸+美女环绕",
+            "story_keywords": "职场逆袭、美女总裁、医术无双、地下世界、商业帝国",
+            "hook_requirement": "必须包含：被羞辱场景+金手指觉醒+第一次成功逆袭",
+            "emotion_guide": "逆袭爽感+装逼快感+美女倒追",
+            "risk_guide": "避免过于YY，保持一定现实逻辑",
+            "rule_5": "开局钩子必须有都市场景和第一次逆袭打脸"
+        }
+    
+    # 末日/求生类特定提示词
+    elif "末日" in genre_lower or "求生" in genre_lower or "末世" in genre_lower or "天灾" in genre_lower:
+        return {
+            "title_formula": """1. 《末日：从XX开始》 - 如《末日：从囤货开始》《天灾：从建造避难所开始》
+2. 《开局XX，我XX了》 - 如《开局百倍爆率，我囤空了超市》《觉醒空间异能》
+3. 《XX：从XX开始》 - 如《重生：从末日前三天开始》《囤货：从改造地下室开始》
+4. 《我有XX》 - 如《我有无限储物空间》《我能预知天灾》""",
+            "selling_point_example": "示例：重生者提前囤货备战末日，在丧尸和天灾面前打造安全堡垒，被前队友疯狂跪舔",
+            "hook_formula": "必须包含：末日降临/重生归来 + 疯狂囤货 + 第一个求生挑战 + 打脸前队友",
+            "personality_guide": "要有先知的冷静和果断，杀伐决断",
+            "background_guide": "如：重生归来的先知/提前觉醒异能者/囤货达人",
+            "selling_point_requirement": "重生囤货+末日求生+安全堡垒+前队友后悔",
+            "story_keywords": "丧尸围城、天灾降临、囤货求生、安全堡垒、人性考验",
+            "hook_requirement": "必须包含：末日场景+囤货准备+第一个危机+打脸",
+            "emotion_guide": "生存紧张+囤货满足+人性反转",
+            "risk_guide": "避免过于压抑，保持囤货爽感",
+            "rule_5": "开局钩子必须有末日场景和囤货打脸"
+        }
+    
+    # 默认提示词（通用）
+    else:
+        return {
+            "title_formula": """1. 《开局XX，我XX了》 - 如《开局觉醒系统，我无敌了》
+2. 《绑定XX系统后，我XX》 - 如《绑定神级系统后，我逆袭了》
+3. 《XX：从XX开始》 - 如《逆袭：从被欺负开始》
+4. 《我有XX》 - 如《我有特殊能力》""",
+            "selling_point_example": "示例：普通主角觉醒特殊能力，在困境中不断逆袭，打脸看不起他的人",
+            "hook_formula": "必须包含：主角身份低微 + 被羞辱 + 觉醒能力 + 第一次打脸",
+            "personality_guide": "要有逆袭的决心和隐藏的实力",
+            "background_guide": "如：普通人/被看不起的小人物",
+            "selling_point_requirement": "普通人逆袭+特殊能力+打脸爽感",
+            "story_keywords": "系统、逆袭、打脸、成长",
+            "hook_requirement": "必须包含：被羞辱场景+能力觉醒+第一次成功",
+            "emotion_guide": "逆袭爽感+成长满足",
+            "risk_guide": "避免过于套路化",
+            "rule_5": "开局钩子必须有被羞辱场景和能力觉醒"
+        }
+
+
+def _run_chapter_generation_with_plan(task_id: str, genre: str, target_words: int, api_client=None, final_plan: Dict = None, user_choices: Dict = None):
+    """
+    对话模式：基于已确认的最终方案，先生成完整的世界观、角色、大纲，再生成章节
+    """
+    from web.services.market_driven.config import get_config, calculate_batches
+    config = get_config(genre)
+    
+    total_chapters = target_words // config["words_per_chapter"]
+    chapters_per_batch = config["chapters_per_batch"]
+    batches = calculate_batches(total_chapters, chapters_per_batch, genre)
+    
+    try:
+        task = task_manager.get_task(task_id)
+        username = task.get('username') or 'anonymous'
+        
+        # 从 final_plan 和 user_choices 获取核心设定
+        novel_title = user_choices.get('title') or final_plan.get('title') or f"未命名_{task_id[:8]}"
+        protagonist_name = user_choices.get('protagonist_name') or final_plan.get('protagonist_name') or '主角'
+        protagonist_personality = final_plan.get('protagonist_personality', '')
+        golden_finger = final_plan.get('golden_finger_summary', '')
+        story_direction = final_plan.get('story_direction', '')
+        opening_hook = final_plan.get('opening_hook', '')
+        
+        logger.info(f"[DialogMode] 对话模式完整生成 | 任务: {task_id} | 书名: {novel_title} | 主角: {protagonist_name}")
+        
+        # 创建项目路径
+        from web.services.market_driven.project_manager import create_unified_project
+        project_path = create_unified_project(
+            novel_title=novel_title,
+            generation_mode="market_driven_dialog",
+            genre=genre,
+            username=username
+        )
+        logger.info(f"[DialogMode] 项目路径: {project_path}")
+        
+        # ========== 阶段1：生成完整世界观 ==========
+        task_manager.update_task(
+            task_id,
+            status="generating_products",
+            progress=30,
+            current_stage="generating_worldview",
+            message="基于核心设定生成世界观..."
+        )
+        
+        # 使用AI生成完整世界观
+        worldview_prompt = f"""基于以下核心设定，生成完整的世界观设定：
+
+**题材：** {genre}
+**书名：** {novel_title}
+**主角：** {protagonist_name} - {protagonist_personality}
+**金手指：** {golden_finger}
+**剧情方向：** {story_direction}
+**开局钩子：** {opening_hook}
+
+请生成：
+1. 世界背景（这个世界的规则、力量体系）
+2. 核心设定（金手指的详细机制、限制、升级方式）
+3. 主要势力分布
+4. 世界地图/区域划分（简要）
+
+输出JSON格式：
+{{
+    "world_background": "世界背景描述（200字）",
+    "power_system": "力量体系说明（100字）",
+    "golden_finger_details": "金手指详细机制（150字）",
+    "major_factions": ["势力1", "势力2", "势力3"],
+    "world_map": "主要区域简述"
+}}"""
+        
+        worldview_result = api_client.generate_content_with_retry(
+            content_type="conversation",
+            user_prompt=worldview_prompt,
+            temperature=0.7,
+            purpose="生成世界观"
+        )
+        
+        # 解析世界观结果
+        world_setting = {}
+        if worldview_result:
+            try:
+                if isinstance(worldview_result, dict):
+                    world_setting = worldview_result
+                else:
+                    import re, json
+                    json_match = re.search(r'\{[\s\S]*\}', str(worldview_result))
+                    if json_match:
+                        world_setting = json.loads(json_match.group())
+            except:
+                world_setting = {}
+        
+        logger.info(f"[DialogMode] 世界观生成完成")
+        
+        # ========== 阶段2：生成完整角色设计 ==========
+        task_manager.update_task(
+            task_id,
+            progress=35,
+            current_stage="generating_characters",
+            message="基于核心设定生成角色设计..."
+        )
+        
+        character_prompt = f"""基于以下信息，生成完整的角色设计：
+
+**主角：** {protagonist_name}
+**性格：** {protagonist_personality}
+**金手指：** {golden_finger}
+**世界背景：** {world_setting.get('world_background', genre)}
+
+请设计：
+1. 主角详细人设（外貌、性格细节、成长线）
+2. 3-5个重要配角（姓名、身份、与主角关系）
+3. 2-3个主要反派（姓名、动机、特色）
+4. 情感线设计
+
+输出JSON格式：
+{{
+    "protagonist": {{
+        "name": "{protagonist_name}",
+        "appearance": "外貌描述",
+        "personality": "性格细节",
+        "growth_arc": "成长路线"
+    }},
+    "supporting": [
+        {{"name": "配角1", "identity": "身份", "relationship": "与主角关系"}},
+        {{"name": "配角2", "identity": "身份", "relationship": "与主角关系"}}
+    ],
+    "antagonists": [
+        {{"name": "反派1", "motive": "动机", "feature": "特色"}}
+    ]
+}}"""
+        
+        character_result = api_client.generate_content_with_retry(
+            content_type="conversation",
+            user_prompt=character_prompt,
+            temperature=0.7,
+            purpose="生成角色设计"
+        )
+        
+        characters = {"protagonist": {"name": protagonist_name, "personality": protagonist_personality}}
+        if character_result:
+            try:
+                if isinstance(character_result, dict):
+                    characters = character_result
+                else:
+                    import re, json
+                    json_match = re.search(r'\{[\s\S]*\}', str(character_result))
+                    if json_match:
+                        characters = json.loads(json_match.group())
+            except:
+                pass
+        
+        logger.info(f"[DialogMode] 角色设计生成完成")
+        
+        # ========== 阶段3：生成阶段目标和大纲 ==========
+        task_manager.update_task(
+            task_id,
+            progress=40,
+            current_stage="generating_outline",
+            message="生成完整大纲和阶段目标..."
+        )
+        
+        outline_prompt = f"""基于以下信息，生成完整的分阶段大纲：
+
+**总章节数：** {total_chapters}章
+**剧情方向：** {story_direction}
+**开局钩子：** {opening_hook}
+**世界观：** {world_setting.get('world_background', '')}
+
+请将{total_chapters}章分为3-4个阶段，每个阶段包含：
+- 阶段名称
+- 章节范围
+- 阶段目标
+- 关键事件
+- 情绪高潮点
+
+输出JSON格式：
+{{
+    "stages": [
+        {{
+            "stage": 1,
+            "name": "阶段名称",
+            "chapters": "1-30",
+            "goal": "阶段目标",
+            "key_events": ["事件1", "事件2"],
+            "climax": "高潮点"
+        }}
+    ],
+    "milestones": [10, 30, 50, 100]
+}}"""
+        
+        outline_result = api_client.generate_content_with_retry(
+            content_type="conversation",
+            user_prompt=outline_prompt,
+            temperature=0.7,
+            purpose="生成大纲"
+        )
+        
+        stage_goals = _build_stage_goals_from_plan(final_plan, total_chapters)
+        if outline_result:
+            try:
+                if isinstance(outline_result, dict):
+                    stage_goals = outline_result.get('stages', stage_goals)
+                else:
+                    import re, json
+                    json_match = re.search(r'\{[\s\S]*\}', str(outline_result))
+                    if json_match:
+                        parsed = json.loads(json_match.group())
+                        stage_goals = parsed.get('stages', stage_goals)
+            except:
+                pass
+        
+        logger.info(f"[DialogMode] 大纲生成完成")
+        
+        # ========== 阶段4：生成情绪曲线 ==========
+        emotion_curve = _build_emotion_curve_from_plan(final_plan, total_chapters)
+        
+        # 保存一阶段产物到任务结果
+        current_result = task.get("result", {})
+        current_result["products"] = {
+            "core_worldview": world_setting,
+            "character_design": characters,
+            "stage_goals": stage_goals,
+            "emotion_curve": emotion_curve,
+            "final_plan": final_plan
+        }
+        current_result["plan"] = {
+            "title": novel_title,
+            "protagonist": protagonist_name,
+            "genre": genre,
+            "word_count": target_words,
+            "chapters": total_chapters
+        }
+        
+        task_manager.update_task(
+            task_id,
+            progress=50,
+            result=current_result,
+            message=f"世界观、角色、大纲生成完成，准备生成章节..."
+        )
+        
+        logger.info(f"[DialogMode] 一阶段产物全部生成完成，开始生成章节")
+        
+        # ========== 阶段5：生成章节 ==========
+        task_manager.update_task(
+            task_id,
+            status="generating_chapters",
+            progress=55,
+            current_stage="generating_chapters",
+            message=f"开始生成章节，目标{total_chapters}章"
+        )
+        
+        # 构建一阶段产物用于规划器
+        existing_world_setting = {
+            "genre": genre,
+            "novel_title": novel_title,
+            "protagonist_name": protagonist_name,
+            "total_chapters": total_chapters,
+            "target_words": target_words,
+            "world_setting": world_setting,
+            "characters": characters,
+            "stage_goals": stage_goals,
+            "emotion_curve": emotion_curve,
+            "plan": final_plan
+        }
+        
+        # 初始化分层规划器
+        from web.services.market_driven.hierarchical_planner import HierarchicalPlanner
+        planner = HierarchicalPlanner(
+            genre=genre,
+            novel_title=novel_title,
+            protagonist_name=protagonist_name,
+            api_client=api_client,
+            project_path=project_path,
+            total_chapters=total_chapters,
+            target_words=target_words,
+            emotion_curve=emotion_curve,
+            bestseller_analysis={}
+        )
+        planner.initialize(existing_world_setting=existing_world_setting)
+        
+        # 准备 novel_data
+        novel_data = {
+            "title": novel_title,
+            "username": username,
+            "_username": username,
+            "core_worldview": world_setting,
+            "character_design": characters,
+            "stage_goals": stage_goals,
+            "emotion_curve": emotion_curve,
+            "plan": final_plan,
+            "user_choices": user_choices
+        }
+        
+        # 创建批次生成器
+        batch_gen = BatchChapterGenerator(
+            api_client=api_client,
+            project_path=str(project_path) if project_path else None
+        )
+        
+        all_results = []
+        prev_chapter_summary = ""
+        last_chapter_hook = ""
+        
+        for batch_num in range(1, batches + 1):
+            tactical_plan, strategic_context = planner.get_next_batch_plan(chapters_per_batch)
+            
+            start = (batch_num - 1) * chapters_per_batch + 1
+            end = min(batch_num * chapters_per_batch, total_chapters)
+            
+            # 注入前一章钩子
+            if batch_num > 1 and (prev_chapter_summary or last_chapter_hook):
+                chapters_plan = tactical_plan.get('chapters', [])
+                if chapters_plan and len(chapters_plan) > 0:
+                    first_chapter_plan = chapters_plan[0]
+                    if prev_chapter_summary:
+                        first_chapter_plan['prev_chapter_summary'] = prev_chapter_summary
+                    if last_chapter_hook:
+                        first_chapter_plan['hook_from_previous_batch'] = last_chapter_hook
+            
+            task_manager.update_task(
+                task_id,
+                progress=int(55 + (batch_num / batches) * 35),
+                message=f"正在生成第{batch_num}/{batches}批（第{start}-{end}章）"
+            )
+            
+            novel_data_with_plan = {
+                **novel_data,
+                "tactical_plan": tactical_plan,
+                "strategic_context": strategic_context
+            }
+            
+            result = batch_gen.generate_batch(
+                novel_title=novel_title,
+                start_chapter=start,
+                end_chapter=end,
+                blueprint=tactical_plan,
+                tropes={},
+                novel_data=novel_data_with_plan
+            )
+            
+            planner.update_progress(result.get("generated", []))
+            
+            # 提取最后一章钩子
+            generated_chapters = result.get('generated', [])
+            if generated_chapters:
+                last_chapter = generated_chapters[-1]
+                content = last_chapter.get('content', '')
+                if content:
+                    prev_chapter_summary = content[-300:] if len(content) > 300 else content
+                    paragraphs = content.strip().split('\n')
+                    last_chapter_hook = paragraphs[-1] if paragraphs else ""
+            
+            all_results.append(result)
+            logger.info(f"[DialogMode] 第{batch_num}批完成: {len(result['generated'])}章")
+        
+        # 汇总结果
+        total_generated = sum(len(r["generated"]) for r in all_results)
+        total_words = sum(r["total_words"] for r in all_results)
+        
+        current_result["chapter_generation"] = {
+            "total_chapters": total_generated,
+            "total_words": total_words
+        }
+        
+        task_manager.update_task(
+            task_id,
+            progress=95,
+            result=current_result,
+            message=f"章节生成完成: {total_generated}章, {total_words}字"
+        )
+        
+        logger.info(f"[DialogMode] 全部完成: {total_generated}章, {total_words}字")
+        
+    except Exception as e:
+        logger.error(f"[DialogMode] 失败: {e}")
+        raise
+
+
+def _build_stage_goals_from_plan(final_plan: Dict, total_chapters: int) -> List[Dict]:
+    """基于最终方案构建阶段目标（默认模板）"""
+    if total_chapters <= 100:
+        return [
+            {"stage": 1, "title": "觉醒试炼", "chapters": "1-20", "goal": "觉醒金手指，首次展现实力"},
+            {"stage": 2, "title": "崛起之路", "chapters": "21-60", "goal": "快速成长，建立势力"},
+            {"stage": 3, "title": "巅峰争霸", "chapters": "61-100", "goal": "成为巅峰，守护所爱"}
+        ]
+    else:
+        return [
+            {"stage": 1, "title": "觉醒试炼", "chapters": "1-30", "goal": "觉醒金手指，首次展现实力"},
+            {"stage": 2, "title": "崛起之路", "chapters": "31-80", "goal": "快速成长，建立势力"},
+            {"stage": 3, "title": "巅峰争霸", "chapters": "81-150", "goal": "对抗强敌，突破自我"},
+            {"stage": 4, "title": "终极之战", "chapters": "151-200", "goal": "成为巅峰，守护所爱"}
+        ]
+
+
+def _build_emotion_curve_from_plan(final_plan: Dict, total_chapters: int) -> List[Dict]:
+    """基于最终方案构建情绪曲线"""
+    curve = []
+    key_points = [1, 3, 5, 10, 15, 20, 30, 50, 100]
+    for ch in key_points:
+        if ch <= total_chapters:
+            intensity = 7 if ch < 10 else 8 if ch < 30 else 9 if ch < 50 else 10
+            curve.append({
+                "chapter": ch,
+                "emotion": "期待" if ch < 10 else "爽快" if ch < 30 else "高潮",
+                "intensity": intensity
+            })
+    return curve
+
+
 @market_driven_api.route('/prepare-upload/<novel_title>', methods=['GET'])
 def prepare_upload(novel_title: str):
     """
@@ -2065,80 +2609,190 @@ def generate_final_plan():
         from config.config import CONFIG
         api_client = APIClient(CONFIG)
         
-        # 构建提示词
-        prompt = f"""你是一位资深网文编辑，擅长为番茄小说平台创作爆款作品。
+        # 🔥 获取用户填写的主角名（第6步表单填写）
+        user_protagonist_name = form_data.get('protagonist_name', '').strip()
+        user_golden_finger_desc = form_data.get('golden_finger_desc', '').strip()
+        user_title = form_data.get('title', '').strip()
+        
+        logger.info(f"[FinalPlan] 用户输入 | Session: {session_id} | 题材: {genre} | 书名: {user_title} | 主角: {user_protagonist_name}")
+        
+        # 🔥 根据题材获取差异化提示词
+        genre_prompts = _get_genre_specific_prompts(genre)
+        
+        # 构建用户提示词 - 聚焦于核心设定（强制使用用户填写的值）
+        user_prompt = f"""你是一位资深番茄小说爆款策划编辑，请基于以下设定，生成故事的核心创作方案。
 
-请基于以下设定，生成一个完整的、可执行的创作方案：
+**【强制要求】**
+以下字段必须严格按照用户指定值使用，AI只能优化不能修改：
+- 主角姓名：{user_protagonist_name if user_protagonist_name else '[由AI生成，2-4字]'}
+- 书名：{user_title if user_title else '[由AI生成，必须符合番茄爆款书名公式]'}
+- 金手指描述：{user_golden_finger_desc if user_golden_finger_desc else draft.golden_finger}
 
+**【参考设定】**
 **题材：** {genre}
-**书名：** {form_data.get('title', draft.title)}
-**主角：** {form_data.get('protagonist_name', '')} - {draft.protagonist}
-**初始身份：** {form_data.get('protagonist_identity', '普通人')}
-**金手指：** {form_data.get('golden_finger_desc', draft.golden_finger)}
-**开局：** {form_data.get('opening_scene', draft.opening_design)}
-**情感线：** {form_data.get('emotion_line', draft.emotion_line)}
-**差异化：** {draft.unique_points}
+**主角性格：** {draft.protagonist}
+**开局设计：** {draft.opening_design}
+**情感线：** {draft.emotion_line}
+**差异化亮点：** {draft.unique_points}
 **目标字数：** {form_data.get('wordcount', '50')}万字 / {form_data.get('chapters', '200')}章
 
-请输出完整的创作方案（JSON格式）：
+**【番茄爆款书名公式 - 必须遵守】**
+{genre_prompts['title_formula']}
+5. 必须包含：数字/强烈对比/爽点预期/身份反差
+6. 严禁：文艺化书名、生僻字、超过15字
+
+**【核心卖点公式】**
+结构：[独特设定] + [主角性格] + [打脸方式] + [爽点结果]
+{genre_prompts['selling_point_example']}
+
+**【开局钩子公式】**
+{genre_prompts['hook_formula']}
+
+请输出故事核心设定（JSON格式）：
 {{
-    "title": "书名（最终确认）",
-    "protagonist": "主角完整设定（姓名+性格+背景）",
-    "golden_finger_summary": "金手指核心机制（30字以内）",
-    "core_selling_point": "核心卖点（一句话吸引读者）",
-    "main_outline": "主线大纲（分阶段描述，5-8个阶段）",
-    "first_30_chapters": "前30章详细规划（每10章一个节点，含爽点设计）",
-    "characters": "核心角色（主角+3-5个重要配角，含关系）",
-    "emotion_curve": "情绪曲线设计（整体节奏+关键情绪点）",
-    "risk_warning": "潜在风险与应对策略"
+    "title": "{user_title if user_title else '书名（6-14字，番茄爆款风格）'}",
+    "protagonist_name": "{user_protagonist_name if user_protagonist_name else '主角名（2-4字，有记忆点）'}",
+    "protagonist_personality": "核心性格（{genre_prompts['personality_guide']}）",
+    "protagonist_background": "背景（要有代入感，{genre_prompts['background_guide']}）",
+    "golden_finger_summary": "{user_golden_finger_desc if user_golden_finger_desc else '金手指机制'}",
+    "core_selling_point": "核心卖点（一句话概括爽点，必须包含：{genre_prompts['selling_point_requirement']}）",
+    "story_direction": "剧情方向（关键词，如：{genre_prompts['story_keywords']}）",
+    "opening_hook": "开局钩子（{genre_prompts['hook_requirement']}，100字内）",
+    "emotion_core": "情感核心（{genre_prompts['emotion_guide']}）",
+    "risk_warning": "风险提示（如：{genre_prompts['risk_guide']}）"
 }}
 
-要求：
-1. 方案必须具体可执行，不要泛泛而谈
-2. 每个阶段都要有明确的目标和爽点
-3. 考虑番茄读者的阅读偏好
-4. 突出差异化亮点
-5. 风险 warning 要诚实指出可能的问题"""
+**【强制规则】**
+1. {'主角姓名必须严格使用：' + user_protagonist_name if user_protagonist_name else '主角名要符合题材，2-4字有记忆点'}
+2. {'书名必须严格使用：' + user_title if user_title else '书名必须符合番茄爆款公式，6-14字'}
+3. {'金手指必须严格使用用户描述：' + user_golden_finger_desc if user_golden_finger_desc else '金手指要清晰'}
+4. 核心卖点必须有画面感，能激发点击欲望
+5. {genre_prompts['rule_5']}
+6. 所有内容必须符合番茄读者口味，直白有力
+7. 必须输出有效JSON格式"""
+
+        # 系统提示词 - 番茄爆款风格专家
+        system_prompt = """你是一位顶级番茄小说爆款策划专家，深谙番茄平台读者心理。
+
+你的核心能力：
+1. 精通番茄爆款书名公式：《开局XX，我XX了》《绑定XX系统后，我XX》《我有XX》
+2. 擅长设计强爽点：反差感、直播震惊、气哭反派、带飞全国
+3. 懂番茄读者：喜欢直白有力、画面感强、能引发好奇心的内容
+4. 会写核心卖点：一句话让人想点击，包含独特设定+反差操作+爽感结果
+
+输出要求：
+- 书名必须有爆款感，符合番茄公式
+- 核心卖点必须有画面感，能激发点击欲
+- 开局钩子必须有直播元素和震惊效果
+- 所有内容直白有力，符合番茄读者口味
+- 必须输出有效JSON格式"""
         
-        logger.info(f"[FinalPlan] 开始生成最终方案 | Session: {session_id}")
+        logger.info(f"[FinalPlan] 开始生成最终方案 | Session: {session_id} | 书名: {form_data.get('title', draft.title)}")
         
         # 调用AI生成
         try:
             response = api_client.generate_content_with_retry(
-                content_type="final_plan_generation",
-                user_prompt=prompt,
+                content_type="conversation",  # 使用已存在的类型
+                user_prompt=user_prompt,
+                system_prompt=system_prompt,
                 temperature=0.7,
-                max_tokens=8000
+                purpose="final_plan_generation"
             )
             
             if response:
+                logger.info(f"[FinalPlan] 收到AI响应 | Session: {session_id} | 响应长度: {len(str(response))}")
+                logger.debug(f"[FinalPlan] AI响应内容: {str(response)[:500]}...")
+                
                 # 尝试解析JSON
                 import json
                 import re
                 json_match = re.search(r'\{[\s\S]*\}', str(response))
                 if json_match:
-                    final_plan = json.loads(json_match.group())
-                    logger.info(f"[FinalPlan] 最终方案生成成功 | Session: {session_id}")
-                    
-                    return jsonify({
-                        "success": True,
-                        "final_plan": final_plan
-                    }), 200
+                    try:
+                        final_plan = json.loads(json_match.group())
+                        logger.info(f"[FinalPlan] JSON解析成功 | Session: {session_id}")
+                        logger.info(f"[FinalPlan] 书名: {final_plan.get('title', 'N/A')}")
+                        logger.info(f"[FinalPlan] 主角: {final_plan.get('protagonist_name', 'N/A')}")
+                        logger.info(f"[FinalPlan] 核心卖点: {final_plan.get('core_selling_point', 'N/A')[:50]}...")
+                        
+                        return jsonify({
+                            "success": True,
+                            "final_plan": final_plan
+                        }), 200
+                    except json.JSONDecodeError as je:
+                        logger.error(f"[FinalPlan] JSON解析失败: {je} | 内容: {json_match.group()[:200]}")
+                else:
+                    logger.error(f"[FinalPlan] 未找到JSON内容 | 响应: {str(response)[:200]}")
+            else:
+                logger.warning(f"[FinalPlan] AI返回空响应 | Session: {session_id}")
         except Exception as e:
-            logger.error(f"[FinalPlan] AI生成失败: {e}")
+            logger.error(f"[FinalPlan] AI生成异常: {e}", exc_info=True)
         
-        # 如果AI失败，使用默认方案
-        default_plan = {
-            "title": form_data.get('title', draft.title),
-            "protagonist": f"{form_data.get('protagonist_name', '主角')} - {draft.protagonist}",
-            "golden_finger_summary": draft.golden_finger[:30] + "..." if len(draft.golden_finger) > 30 else draft.golden_finger,
-            "core_selling_point": f"{draft.protagonist}获得{draft.golden_finger_type}，在{genre}中掀起风暴",
-            "main_outline": "第一阶段：觉醒能力，展现实力（1-30章）\n第二阶段：名声鹊起，遭遇挑战（31-80章）\n第三阶段：对抗强敌，突破自我（81-150章）\n第四阶段：成为巅峰，守护所爱（151-200章）",
-            "first_30_chapters": "第1-10章：觉醒金手指，首次展现实力，震惊众人\n第11-20章：遭遇第一个反派，打脸逆袭，建立名声\n第21-30章：迎来更强挑战，实力突破，奠定地位",
-            "characters": f"主角：{form_data.get('protagonist_name', '主角')} - {draft.protagonist}\n反派A：初期对手，被主角打脸\n盟友B：与主角并肩作战\n导师C：引导主角成长\n情感角色：{draft.emotion_line[:20] if draft.emotion_line else '待定'}",
-            "emotion_curve": "开局：压抑→爆发（爽）\n中期：起伏波动（期待+爽点交替）\n后期：高潮迭起（持续爽）\n结尾：圆满收束（满足感）",
-            "risk_warning": "• 注意保持更新节奏，避免读者流失\n• 金手指不要过强，保留成长空间\n• 注意平衡爽点与剧情推进"
-        }
+        # 如果AI失败，使用默认方案（核心设定）- 使用题材差异化的默认内容
+        # 从form_data获取用户填写的主角名
+        user_protagonist_name = form_data.get('protagonist_name', '')
+        user_title = form_data.get('title', '')
+        
+        # 提取主角性格关键词和金手指关键词
+        personality = draft.protagonist.split('（')[0].strip() if '（' in draft.protagonist else draft.protagonist
+        gf_desc = draft.golden_finger
+        gf_keyword = '特殊'
+        if '吐槽' in gf_desc or '弹幕' in gf_desc:
+            gf_keyword = '吐槽系统'
+        elif '观众' in gf_desc or '互动' in gf_desc:
+            gf_keyword = '互动系统'
+        elif '记忆' in gf_desc:
+            gf_keyword = '记忆回溯'
+        elif '身体' in gf_desc or '衰弱' in gf_desc:
+            gf_keyword = '身体强化'
+        elif '花钱' in gf_desc or '返利' in gf_desc or '神豪' in gf_desc:
+            gf_keyword = '花钱返利'
+        
+        # 🔥 根据题材获取差异化默认方案
+        genre_lower = genre.lower() if genre else ""
+        
+        if "神豪" in genre_lower or "花钱" in genre_lower:
+            # 神豪文默认方案
+            default_plan = {
+                "title": user_title or f"神豪：从被校花拒绝开始",
+                "protagonist_name": user_protagonist_name or "林凡",
+                "protagonist_personality": f"{personality}，表面低调实则霸气侧漏",
+                "protagonist_background": f"{personality}主角，被校花拒绝后觉醒神豪系统",
+                "golden_finger_summary": draft.golden_finger[:50] + "..." if len(draft.golden_finger) > 50 else draft.golden_finger,
+                "core_selling_point": f"{personality}主角觉醒{gf_keyword}系统，花钱就能变强，在前女友和富二代面前疯狂装逼打脸，享受极致逆袭快感",
+                "story_direction": "花钱返利、直播打赏、前女友后悔、商业帝国、美女环绕",
+                "opening_hook": f"校花生日宴上，{user_protagonist_name or '主角'}被当众羞辱分手，绝望之际觉醒神豪系统，当场打脸全场",
+                "emotion_core": f"{draft.emotion_line[:30] if hasattr(draft, 'emotion_line') and draft.emotion_line else '逆袭爽感+打脸快感+前女友后悔的暗爽'}",
+                "risk_warning": "• 避免装逼过于刻意\n• 保持消费场景多样化\n• 中后期引入商业布局"
+            }
+        elif "玄幻" in genre_lower or "仙侠" in genre_lower:
+            # 玄幻文默认方案
+            default_plan = {
+                "title": user_title or f"开局觉醒{gf_keyword}，我{personality}逆天改命",
+                "protagonist_name": user_protagonist_name or "叶尘",
+                "protagonist_personality": f"{personality}，逆天而行不屈服",
+                "protagonist_background": f"{personality}少年，从废柴开始逆袭",
+                "golden_finger_summary": draft.golden_finger[:50] + "..." if len(draft.golden_finger) > 50 else draft.golden_finger,
+                "core_selling_point": f"{personality}主角觉醒{gf_keyword}，越级挑战各路天骄，在宗门大比中一路碾压，成就无上道途",
+                "story_direction": "宗门争霸、秘境探索、天骄争锋、逆天改命、证道成帝",
+                "opening_hook": f"宗门测试上，{user_protagonist_name or '主角'}被判定为废柴，绝望之际觉醒{gf_keyword}，当场击败天才",
+                "emotion_core": f"{draft.emotion_line[:30] if hasattr(draft, 'emotion_line') and draft.emotion_line else '逆袭热血+战斗激情+逆天改命'}",
+                "risk_warning": "• 避免套路同质化\n• 创新金手指设定\n• 保持升级节奏"
+            }
+        else:
+            # 通用默认方案（偏向国运/禁地类）
+            default_plan = {
+                "title": user_title or f"开局觉醒{gf_keyword}，我{personality}无敌了",
+                "protagonist_name": user_protagonist_name or "江辰",
+                "protagonist_personality": f"{personality}，表面玩世不恭实则心思缜密",
+                "protagonist_background": f"{personality}主角，意外觉醒金手指开启逆袭之旅",
+                "golden_finger_summary": draft.golden_finger[:50] + "..." if len(draft.golden_finger) > 50 else draft.golden_finger,
+                "core_selling_point": f"{personality}主角觉醒{gf_keyword}，在全球直播的禁地挑战中不按套路出牌，用沙雕操作气哭BOSS，全国观众笑到破防",
+                "story_direction": "全球禁地、规则怪谈、神宠养成、跨国对垒、位面征服",
+                "opening_hook": f"全球禁地开启，各国选手全副武装，{user_protagonist_name or '主角'}却带着独特金手指登场，全球直播瞬间炸裂",
+                "emotion_core": f"{draft.emotion_line[:30] if hasattr(draft, 'emotion_line') and draft.emotion_line else '轻松搞笑+民族自豪感'}",
+                "risk_warning": "• 避免搞笑风格单一\n• 中后期升级世界规则\n• 保持更新节奏"
+            }
         
         logger.info(f"[FinalPlan] 使用默认方案 | Session: {session_id}")
         return jsonify({
