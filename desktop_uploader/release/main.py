@@ -2343,6 +2343,19 @@ NovelPublisher_Data/              ← 统一数据目录
         cancel_btn.clicked.connect(on_cancel)
         
         dialog.exec_()
+    
+    def _extract_chapter_num(self, text: str) -> int:
+        """从列表项文本中提取章节号"""
+        import re
+        # 尝试匹配 "第001章" 或 "第1章"
+        m = re.search(r'第(\d+)章', text)
+        if m:
+            return int(m.group(1))
+        # 尝试匹配 "chapter_001"
+        m = re.search(r'chapter_(\d+)', text)
+        if m:
+            return int(m.group(1))
+        return 0
 
     def select_all_chapters(self):
         """全选（包括已发布的）"""
