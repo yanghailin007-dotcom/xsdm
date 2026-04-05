@@ -2112,7 +2112,154 @@ NovelPublisher_Data/              ← 统一数据目录
             self.log(f"ℹ️ 提示：已发布的章节（带✓标记）默认未勾选，如需重新上传请手动勾选", "info")
         else:
             self.log(f"📂 已加载 {len(self.chapters)} 个章节，全部默认勾选", "info")
+        
+        # 🔥 续发检测
+        self._check_resume_and_show_dialog(project_path)
     
+    def _check_resume_and_show_dialog(self, project_path: Path):
+        """检测并显示续发弹窗"""
+        try:
+            resume_info = self.check_resume_publish(project_path)
+            
+            if not resume_info.get('need_resume'):
+                return
+            
+            # 检查下一章是否存在
+            next_chapter = resume_info.get('next_chapter')
+            has_next_chapter = any(
+                ch.get('chapter_number') == next_chapter 
+                for ch in self.chapters
+            )
+            
+            if not has_next_chapter:
+                return
+            
+            # 构建弹窗消息
+            msg = f"""<b>📊 续发检测</b><br><br>
+            
+<b>发布记录分析：</b><br>
+• 最后发布: 第{resume_info['last_chapter']}章<br>
+• 今天已发: {resume_info['today_published']} 章<br>
+• 今天剩余额度: <b>{resume_info['today_remaining']} 章</b><br><br>
+
+<b>建议操作：</b><br>
+• 下一章: 第{resume_info['next_chapter']}章<br>
+• 发布时间: {resume_info['next_publish_date']} {resume_info['next_publish_time']}<br>
+• 今天还能发 {resume_info['today_remaining']} 章（{resume_info['next_chapter']}-{resume_info['next_chapter'] + resume_info['today_remaining'] - 1}章）<br><br>
+
+是否自动设置续发？"""
+            
+            # 显示弹窗
+            msg_box = QMessageBox(self)
+            msg_box.setWindowTitle("续发检测")
+            msg_box.setTextFormat(Qt.RichText)
+            msg_box.setText(msg)
+            msg_box.setIcon(QMessageBox.Information)
+            
+            resume_btn = msg_box.addButton("🚀 自动续发", QMessageBox.AcceptRole)
+            manual_btn = msg_box.addButton("⚙️ 手动设置", QMessageBox.RejectRole)
+            cancel_btn = msg_box.addButton("取消", QMessageBox.DestructiveRole)
+            
+            msg_box.exec_()
+            
+            clicked_btn = msg_box.clickedButton()
+            
+            if clicked_btn == resume_btn:
+                # 自动续发
+                self._auto_setup_resume(resume_info)
+            elif clicked_btn == manual_btn:
+                # 手动设置：只选中下一章
+                self._select_next_chapter_only(resume_info['next_chapter'])
+            # 取消则不做任何操作
+            
+        except Exception as e:
+            self.log(f"⚠️ 续发检测失败: {e}", "warning")
+    
+    def _auto_setup_resume(self, resume_info: dict):
+        """自动设置续发"""
+        try:
+            next_chapter = resume_info['next_chapter']
+            today_remaining = resume_info['today_remaining']
+            
+            # 1. 选中今天剩余的章节
+            selected_count = 0
+            for i in range(self.chapters_list.count()):
+                item = self.chapters_list.item(i)
+                ch_num = self._extract_chapter_num(item.text())
+                
+                if ch_num and next_chapter <= ch_num < next_chapter + today_remaining:
+                    item.setCheckState(Qt.Checked)
+                    item.setBackground(QColor("#E3F2FD"))  # 蓝色高亮
+                    selected_count += 1
+                else:
+                    item.setCheckState(Qt.Unchecked)
+            
+            # 2. 设置"从第X章开始"
+            self.start_from_chapter_spin.setValue(next_chapter)
+            self._apply_start_chapter()
+            
+            # 3. 更新发布时间配置
+            next_date = resume_info['next_publish_date']
+            next_time = resume_info['next_publish_time']
+            
+            # 自动计算定时发布（如果今天有剩余额度）
+            if today_remaining > 0:
+                self._setup_publish_schedule(resume_info)
+            
+            self.log(f"🚀 已自动设置续发: 选中第{next_chapter}-{next_chapter + today_remaining - 1}章，共{selected_count}章", "success")
+            self.log(f"⏰ 发布时间: {next_date} {next_time}开始", "info")
+            
+        except Exception as e:
+            self.log(f"⚠️ 自动设置续发失败: {e}", "warning")
+    
+    def _setup_publish_schedule(self, resume_info: dict):
+        """设置发布时间表"""
+        try:
+            next_date = datetime.strptime(resume_info['next_publish_date'], '%Y-%m-%d')
+            publish_times = resume_info.get('publish_times', ['06:00'])
+            today_remaining = resume_info['today_remaining']
+            
+            # 构建日期-时间点分配
+            date_slots = {}
+            
+            # 今天的分配
+            if today_remaining > 0:
+                date_str = next_date.strftime('%Y-%m-%d')
+                date_slots[date_str] = {}
+                
+                # 每个时间点均匀分配
+                chapters_per_slot = max(1, today_remaining // len(publish_times))
+                remaining = today_remaining
+                
+                for time_slot in publish_times:
+                    if remaining <= 0:
+                        break
+                    count = min(chapters_per_slot, remaining)
+                    date_slots[date_str][time_slot] = count
+                    remaining -= count
+            
+            # 保存到配置
+            self.publish_date_slots = date_slots
+            self.log(f"📅 定时发布已设置: {date_slots}", "info")
+            
+        except Exception as e:
+            self.log(f"⚠️ 设置发布时间表失败: {e}", "warning")
+    
+    def _select_next_chapter_only(self, next_chapter: int):
+        """只选中下一章"""
+        for i in range(self.chapters_list.count()):
+            item = self.chapters_list.item(i)
+            ch_num = self._extract_chapter_num(item.text())
+            
+            if ch_num == next_chapter:
+                item.setCheckState(Qt.Checked)
+            else:
+                item.setCheckState(Qt.Unchecked)
+        
+        self.start_from_chapter_spin.setValue(next_chapter)
+        self._apply_start_chapter()
+        self.log(f"✅ 已选中第{next_chapter}章，请手动设置发布时间", "info")
+
     def select_all_chapters(self):
         """全选（包括已发布的）"""
         # 临时断开信号，避免触发 on_chapter_check_changed
@@ -2400,9 +2547,19 @@ NovelPublisher_Data/              ← 统一数据目录
             if not project_path:
                 return
             
-            # 保存已发布章节记录
-            self._save_published_chapter(Path(project_path), chapter)
-            self.log(f"💾 已记录第{chapter_num}章为已发布，下次加载将默认不选中", "success")
+            # 🔥 获取定时发布时间（从章节数据或配置）
+            publish_time = None
+            if hasattr(self, 'upload_worker') and self.upload_worker:
+                # 从worker获取当前章节的定时时间
+                publish_time = getattr(self.upload_worker, 'current_chapter_publish_time', None)
+            
+            # 如果worker中没有，尝试从章节数据获取
+            if not publish_time:
+                publish_time = chapter.get('publish_time') or chapter.get('scheduled_time')
+            
+            # 保存已发布章节记录（带时间）
+            self._save_published_chapter(Path(project_path), chapter, publish_time)
+            
         except Exception as e:
             self.log(f"⚠️ 保存已发布章节记录失败: {e}", "warning")
     
@@ -2411,42 +2568,197 @@ NovelPublisher_Data/              ← 统一数据目录
         return project_path / ".published_chapters.json"
     
     def _load_published_chapters(self, project_path: Path) -> set:
-        """加载已发布章节记录，返回章节号集合"""
-        try:
-            published_file = self._get_published_chapters_file(project_path)
-            if not published_file.exists():
-                self.log(f"📂 没有找到已发布章节记录文件，所有章节默认可选", "debug")
-                return set()
-            
-            data = json.loads(published_file.read_text(encoding='utf-8'))
-            published = set(data.get('published_chapters', []))
-            self.log(f"📋 加载已发布章节记录: 共 {len(published)} 章 ({sorted(published)[:10]}{'...' if len(published) > 10 else ''})", "info")
-            return published
-        except Exception as e:
-            self.log(f"⚠️ 加载已发布章节记录失败: {e}", "warning")
-            return set()
+        """加载已发布章节记录，返回章节号集合（兼容接口）"""
+        data = self._load_published_chapters_with_info(project_path)
+        return set(int(k) for k in data.get('chapters', {}).keys())
     
-    def _save_published_chapter(self, project_path: Path, chapter: dict):
-        """保存已发布章节记录"""
+    def check_resume_publish(self, project_path: Path) -> dict:
+        """
+        检测是否需要续发
+        
+        Returns:
+            {
+                'need_resume': False,  # 是否需要续发
+                'last_chapter': 172,   # 最后发布的章节
+                'today_published': 6,  # 今天已发布数量
+                'today_remaining': 2,  # 今天剩余额度
+                'next_chapter': 173,   # 下一章
+                'next_publish_date': '2026-04-24',  # 建议发布日期
+                'next_publish_time': '06:00',       # 建议发布时间
+                'message': '今天还能发2章'
+            }
+        """
+        try:
+            data = self._load_published_chapters_with_info(project_path)
+            chapters = data.get('chapters', {})
+            
+            if not chapters:
+                return {'need_resume': False}
+            
+            # 获取配置
+            daily_limit = data.get('daily_limit', 8)
+            publish_times_str = data.get('publish_times', '06:00')
+            publish_times = [t.strip() for t in publish_times_str.split(',') if t.strip()]
+            
+            # 找出最后发布的章节
+            max_chapter = max(int(k) for k in chapters.keys())
+            last_ch_info = chapters.get(str(max_chapter), {})
+            
+            # 计算今天发布数量
+            today = datetime.now().strftime('%Y-%m-%d')
+            today_published = 0
+            for ch_info in chapters.values():
+                if isinstance(ch_info, dict):
+                    # 检查定时时间
+                    pub_time = ch_info.get('publish_time')
+                    if pub_time and pub_time.startswith(today):
+                        today_published += 1
+            
+            today_remaining = daily_limit - today_published
+            next_chapter = max_chapter + 1
+            
+            # 判断是否需要续发（还有剩余额度且下一章存在）
+            need_resume = today_remaining > 0
+            
+            # 计算建议发布时间
+            if today_remaining > 0:
+                # 今天还有额度，继续今天
+                next_date = today
+                # 使用第一个时间点（或最后一个使用的时间点）
+                next_time = publish_times[0] if publish_times else '06:00'
+            else:
+                # 今天满了，明天开始
+                next_date = (datetime.now() + timedelta(days=1)).strftime('%Y-%m-%d')
+                next_time = publish_times[0] if publish_times else '06:00'
+            
+            return {
+                'need_resume': need_resume,
+                'daily_limit': daily_limit,
+                'last_chapter': max_chapter,
+                'last_publish_time': last_ch_info.get('publish_time'),
+                'today_published': today_published,
+                'today_remaining': today_remaining,
+                'next_chapter': next_chapter,
+                'next_publish_date': next_date,
+                'next_publish_time': next_time,
+                'publish_times': publish_times,
+                'message': f"今天已发{today_published}章，还能发{today_remaining}章"
+            }
+            
+        except Exception as e:
+            self.log(f"⚠️ 检测续发失败: {e}", "warning")
+            return {'need_resume': False}
+    
+    def _save_published_chapter(self, project_path: Path, chapter: dict, publish_time: str = None):
+        """
+        保存已发布章节记录（v2.0 带发布时间）
+        
+        Args:
+            chapter: 章节信息
+            publish_time: 定时发布时间 (ISO格式 2026-04-24T06:00:00)
+        """
         try:
             published_file = self._get_published_chapters_file(project_path)
             
-            # 读取现有记录
-            data = {'published_chapters': []}
+            # 读取现有记录（兼容旧格式）
+            data = {
+                'version': '2.0',
+                'daily_limit': 8,  # 每日发布限额
+                'publish_times': self.publish_times_edit.text().strip() or '06:00',
+                'chapters': {}  # 新格式：章节号 -> 详细信息
+            }
             if published_file.exists():
-                data = json.loads(published_file.read_text(encoding='utf-8'))
+                try:
+                    old_data = json.loads(published_file.read_text(encoding='utf-8'))
+                    # 兼容旧格式转换
+                    if 'published_chapters' in old_data:
+                        for ch_num in old_data['published_chapters']:
+                            data['chapters'][str(ch_num)] = {
+                                'published_at': datetime.now().isoformat(),
+                                'publish_time': None,  # 旧数据没有时间
+                                'title': f'第{ch_num}章'
+                            }
+                    else:
+                        data = old_data
+                except:
+                    pass
             
             # 添加新记录
             chapter_num = chapter.get('chapter_number', 0)
-            if chapter_num not in data['published_chapters']:
-                data['published_chapters'].append(chapter_num)
-                data['published_chapters'].sort()
-                
-                # 保存到文件
-                published_file.write_text(json.dumps(data, ensure_ascii=False, indent=2), encoding='utf-8')
-                self.log(f"💾 已保存发布记录: 第{chapter_num}章 (共{len(data['published_chapters'])}章已发布)", "debug")
+            chapter_title = chapter.get('title', f'第{chapter_num}章')
+            
+            data['chapters'][str(chapter_num)] = {
+                'published_at': datetime.now().isoformat(),  # 实际发布时间
+                'publish_time': publish_time,  # 定时时间（如果有）
+                'title': chapter_title
+            }
+            
+            # 保存到文件
+            published_file.write_text(json.dumps(data, ensure_ascii=False, indent=2), encoding='utf-8')
+            
+            # 计算今天发布数量用于提示
+            today_count = self._count_today_published(data['chapters'])
+            self.log(f"💾 已记录第{chapter_num}章 (今天已发{today_count}章)", "success")
+            
         except Exception as e:
-            self.log(f"⚠️ 保存已发布章节记录失败: {e}", "warning")
+            self.log(f"⚠️ 保存发布记录失败: {e}", "warning")
+    
+    def _count_today_published(self, chapters: dict) -> int:
+        """计算今天已发布的章节数"""
+        today = datetime.now().strftime('%Y-%m-%d')
+        count = 0
+        for ch_info in chapters.values():
+            if isinstance(ch_info, dict):
+                published_at = ch_info.get('published_at', '')
+                if published_at.startswith(today):
+                    count += 1
+        return count
+    
+    def _load_published_chapters_with_info(self, project_path: Path) -> dict:
+        """
+        加载已发布章节记录（返回完整信息）
+        
+        Returns:
+            {
+                'daily_limit': 8,
+                'publish_times': '06:00,12:00',
+                'chapters': {
+                    '172': {'published_at': '...', 'publish_time': '...', 'title': '...'},
+                    ...
+                }
+            }
+        """
+        try:
+            published_file = self._get_published_chapters_file(project_path)
+            if not published_file.exists():
+                return {'chapters': {}}
+            
+            data = json.loads(published_file.read_text(encoding='utf-8'))
+            
+            # 兼容旧格式
+            if 'published_chapters' in data:
+                return self._migrate_old_format(data)
+            
+            return data
+        except Exception as e:
+            self.log(f"⚠️ 加载发布记录失败: {e}", "warning")
+            return {'chapters': {}}
+    
+    def _migrate_old_format(self, old_data: dict) -> dict:
+        """将旧格式迁移到新格式"""
+        new_data = {
+            'version': '2.0',
+            'daily_limit': 8,
+            'publish_times': '06:00',
+            'chapters': {}
+        }
+        for ch_num in old_data.get('published_chapters', []):
+            new_data['chapters'][str(ch_num)] = {
+                'published_at': datetime.now().isoformat(),
+                'publish_time': None,
+                'title': f'第{ch_num}章'
+            }
+        return new_data
     
     def on_upload_finished(self, success: bool, message: str):
         """上传完成"""
