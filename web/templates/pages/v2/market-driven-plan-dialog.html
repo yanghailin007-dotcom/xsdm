@@ -1487,8 +1487,8 @@ function renderFinalConfirm(data) {
             小说标题
           </h3>
           <div class="form-group">
-            <input type="text" class="form-input" id="final-title" value="${draft.title || ''}" placeholder="输入小说标题">
-            <div class="form-hint">AI推荐：《${draft.title || '未命名'}》，你可以修改或直接采用</div>
+            <input type="text" class="form-input" id="final-title" value="" placeholder="留空由AI生成曝款书名，或输入你想要的标题">
+            <div class="form-hint" style="color: var(--primary-gold);">✌️ 建议留空，让AI根据你的设定生成最佳曝款书名（推荐）</div>
           </div>
         </div>
         
@@ -1762,13 +1762,7 @@ async function confirmFormAndGenerate() {
     chapters: document.getElementById('final-chapters')?.value || '200'
   };
   
-  // 验证必填项
-  if (!formData.title) {
-    showError('请输入小说标题');
-    return;
-  }
-  
-  // 保存表单数据
+  // 保存表单数据（书名可以为空，由AI生成）
   window.currentFormData = formData;
   
   // 🔥 显示AI生成中状态（第6步 → 第7步）
@@ -1883,9 +1877,9 @@ function renderFinalPlanReview(plan) {
         
         <!-- 书名 -->
         <div class="form-group" style="margin-bottom: 16px;">
-          <label class="form-label">书名 <span style="color: var(--danger);">*</span></label>
-          <input type="text" class="form-input" id="review-title" value="${window.currentFormData?.title || plan.title || ''}" placeholder="输入小说标题">
-          <div class="form-hint">AI推荐：${plan.title || '基于你的选择生成'}</div>
+          <label class="form-label">书名</label>
+          <input type="text" class="form-input" id="review-title" value="${window.currentFormData?.title || ''}" placeholder="留空由AI生成曝款书名，或输入你想要的标题">
+          <div class="form-hint" style="color: var(--primary-gold);">✌️ 留空则由AI生成最佳曝款书名；输入后将使用你指定的标题</div>
         </div>
         
         <!-- 主角姓名 -->

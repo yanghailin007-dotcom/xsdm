@@ -2294,9 +2294,8 @@ def generate_final_plan():
         user_prompt = f"""你是一位资深番茄小说爆款策划编辑，请基于以下设定，生成故事的核心创作方案。
 
 **【强制要求】**
-以下字段必须严格按照用户指定值使用，AI只能优化不能修改：
 - 主角姓名：{user_protagonist_name if user_protagonist_name else '[由AI生成，2-4字]'}
-- 书名：{user_title if user_title else '[由AI生成，必须符合番茄爆款书名公式]'}
+- {'书名：用户指定标题《' + user_title + '》（必须严格使用此标题）' if user_title else '书名：由AI根据题材和金手指特点生成最佳爆款书名（6-14字，含数字/对比/反差/爽点预期）'}
 - 金手指描述：{user_golden_finger_desc if user_golden_finger_desc else draft.golden_finger}
 
 **【参考设定】**
