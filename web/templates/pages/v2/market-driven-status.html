@@ -477,12 +477,7 @@
     
     <!-- 操作按钮 -->
     <div class="action-section" id="action-section">
-      <button class="btn btn-secondary" onclick="goBack()">
-        <span class="material-icons">arrow_back</span>
-        返回
-      </button>
-      
-      <!-- 后台运行按钮 - 生成中显示 -->
+      <!-- 后台运行按钮 - 生成中显示（非终态时显示） -->
       <button class="btn btn-primary" id="background-btn" style="display: none;" onclick="runInBackground()">
         <span class="material-icons">picture_in_picture</span>
         后台运行
@@ -631,6 +626,36 @@ function getStageName(stage) {
   return STAGE_NAME_MAP[stage] || stage;
 }
 
+// 判断任务是否在运行中（用于显示后台运行按钮）
+function isTaskRunning(task) {
+  const runningStatuses = [
+    'running', 'in_progress', 'pending', 'generating', 
+    'analyzing', 'planning', 'processing', 'preparing'
+  ];
+  const completedStatuses = ['completed', 'failed', 'cancelled', 'error'];
+  
+  // 明确完成的状态
+  if (completedStatuses.includes(task.status)) return false;
+  
+  // 运行中的状态
+  if (runningStatuses.includes(task.status)) return true;
+  
+  // 根据进度判断：进度在0-99之间认为是运行中
+  const progress = parseInt(task.progress) || 0;
+  if (progress > 0 && progress < 100) return true;
+  
+  // 根据current_stage判断
+  const runningStages = [
+    'analyzing_tropes', 'preparing_plan', 'generate_plan', 
+    'generate_fanqie_data', 'generate_worldview', 'generate_characters',
+    'generate_growth_plan', 'generate_stage_goals', 'bestseller_alignment',
+    'generate_supplementary', 'generating_chapters', 'analyze', 'optimize'
+  ];
+  if (runningStages.includes(task.current_stage)) return true;
+  
+  return false;
+}
+
 // 更新UI
 function updateUI(task) {
   // 确保 progress 是数字类型
@@ -674,8 +699,8 @@ function updateUI(task) {
     statusEl.textContent = '失败';
     statusEl.className = 'progress-card__status progress-card__status--failed';
     showError(task.error);
-  } else if (task.status === 'running' || task.status === 'in_progress') {
-    // 显示后台运行按钮
+  } else if (isTaskRunning(task)) {
+    // 显示后台运行按钮（任务进行中且未完成时）
     const bgBtn = document.getElementById('background-btn');
     if (bgBtn) {
       bgBtn.style.display = 'inline-flex';
@@ -918,11 +943,6 @@ function runInBackground() {
   setTimeout(() => {
     window.location.href = '/projects';
   }, 500);
-}
-
-// 返回
-function goBack() {
-  window.history.back();
 }
 
 // 查看结果
