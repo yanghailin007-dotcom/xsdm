@@ -1890,6 +1890,38 @@ NovelPublisher_Data/              ← 统一数据目录
             tags_info['plots'] = []
         
         result['tags_info'] = tags_info
+        
+        # 🔥 读取手动发布配置（覆盖自动计算的日期）
+        config_file = project_path / 'project_config.json'
+        if config_file.exists():
+            try:
+                config = json.loads(config_file.read_text(encoding='utf-8'))
+                publish_config = config.get('publish_config', {})
+                
+                # 检查是否有手动设置
+                manual_date = publish_config.get('manual_publish_date')
+                manual_time = publish_config.get('manual_publish_time')
+                
+                if manual_date and manual_time:
+                    # 将手动设置添加到 publish_config 中
+                    if 'publish_config' not in result:
+                        result['publish_config'] = {}
+                    
+                    result['publish_config']['manual_publish_date'] = manual_date
+                    result['publish_config']['manual_publish_time'] = manual_time
+                    result['publish_config']['publish_time'] = manual_time
+                    
+                    # 设置日期槽，让上传worker使用这个日期
+                    date_slots = {
+                        manual_date: {manual_time: publish_config.get('manual_chapter_count', 1)}
+                    }
+                    result['publish_config']['date_slots'] = date_slots
+                    
+                    # 记录日志
+                    print(f"[Config] 使用手动发布配置: {manual_date} {manual_time}")
+            except Exception as e:
+                print(f"[Config] 读取手动发布配置失败: {e}")
+        
         return result
     
     def load_single_project(self, project_path: Path):
@@ -2361,6 +2393,9 @@ NovelPublisher_Data/              ← 统一数据目录
             }
             self.publish_date_slots = date_slots
             
+            # 🔥 保存到项目配置，确保上传worker能读取到
+            self._save_manual_publish_config(date_str, time_str, chapter_count)
+            
             # 更新"从第X章开始"
             self.start_chapter_spin.setValue(chapter_num)
             self.apply_start_chapter()
@@ -2375,6 +2410,44 @@ NovelPublisher_Data/              ← 统一数据目录
         cancel_btn.clicked.connect(on_cancel)
         
         dialog.exec_()
+    
+    def _save_manual_publish_config(self, date_str: str, time_str: str, chapter_count: int):
+        """保存手动发布配置到项目配置"""
+        try:
+            # 获取当前项目路径
+            proj_idx = self.project_combo.currentIndex()
+            if proj_idx < 0:
+                return
+            
+            proj_data = self.project_combo.itemData(proj_idx)
+            if not isinstance(proj_data, dict):
+                return
+            
+            project_path = proj_data.get('path')
+            if not project_path:
+                return
+            
+            # 读取现有配置
+            config_path = Path(project_path) / "project_config.json"
+            config = {}
+            if config_path.exists():
+                config = json.loads(config_path.read_text(encoding='utf-8'))
+            
+            # 更新发布配置
+            if 'publish_config' not in config:
+                config['publish_config'] = {}
+            
+            config['publish_config']['manual_publish_date'] = date_str
+            config['publish_config']['manual_publish_time'] = time_str
+            config['publish_config']['manual_chapter_count'] = chapter_count
+            config['publish_config']['manual_set_at'] = datetime.now().isoformat()
+            
+            # 保存回文件
+            config_path.write_text(json.dumps(config, ensure_ascii=False, indent=2), encoding='utf-8')
+            self.log(f"💾 手动发布配置已保存到项目", "debug")
+            
+        except Exception as e:
+            self.log(f"⚠️ 保存手动发布配置失败: {e}", "warning")
     
     def _extract_chapter_num(self, text: str) -> int:
         """从列表项文本中提取章节号"""

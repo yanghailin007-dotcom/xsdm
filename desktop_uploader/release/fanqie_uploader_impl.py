@@ -2016,6 +2016,41 @@ class FanqieUploaderImpl:
         if not scheduled_chapters:
             return schedule  # 没有需要定时的章节
         
+        # 🔥 优先检查手动设置的日期槽
+        publish_config = self.novel_config.get('publish_config', {})
+        manual_date_slots = publish_config.get('date_slots')
+        
+        if manual_date_slots:
+            self._log("=" * 50)
+            self._log("使用手动设置的发布计划...")
+            
+            # 从手动设置的日期槽中提取发布计划
+            all_slots = []
+            for date_str, slots in manual_date_slots.items():
+                for time_str, count in slots.items():
+                    dt = datetime.strptime(f"{date_str} {time_str}", "%Y-%m-%d %H:%M")
+                    for _ in range(count):
+                        all_slots.append(dt)
+            
+            # 按时间排序
+            all_slots.sort()
+            
+            # 分配给章节
+            for i, chap_num in enumerate(scheduled_chapters):
+                if i < len(all_slots):
+                    schedule[chap_num] = all_slots[i].strftime('%Y-%m-%d %H:%M')
+                else:
+                    # 手动设置的不够，继续用默认逻辑
+                    break
+            
+            if schedule:
+                self._log(f"手动设置计划: 已安排 {len(schedule)} 章")
+                # 如果所有章节都安排了，直接返回
+                if len(schedule) == len(scheduled_chapters):
+                    return schedule
+                # 否则继续安排剩余章节
+                scheduled_chapters = scheduled_chapters[len(schedule):]
+        
         # 从页面获取最后发布时间和今天发布数量
         self._log("=" * 50)
         self._log("同步平台发布时间数据...")
