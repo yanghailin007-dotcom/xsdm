@@ -11,7 +11,7 @@ import json
 import time
 import threading
 from pathlib import Path
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, date
 
 # 获取程序运行目录（支持打包后的EXE）
 def get_app_dir() -> Path:
@@ -587,7 +587,7 @@ class UploadWorker(QThread):
                                         first_publish_count: int, daily_count: int, chapters_per_slot: int):
         """应用手动设置的发布时间计划"""
         try:
-            from datetime import datetime, timedelta
+            from datetime import datetime, timedelta, date
             
             # 解析基准时间
             base_time = datetime.strptime(f"{manual_date} {manual_time}", "%Y-%m-%d %H:%M")
