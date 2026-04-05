@@ -2921,23 +2921,31 @@ NovelPublisher_Data/              ← 统一数据目录
             last_date = last_dt.date()
             today = datetime.now().date()
             
-            # 🔥 统计最后一天（按 publish_time 日期）已发多少章
-            last_date_str = last_dt.strftime('%Y-%m-%d')
-            last_day_count = 0
-            for ch_info in chapters.values():
-                if isinstance(ch_info, dict):
-                    pt = ch_info.get('publish_time')
-                    if pt and isinstance(pt, str) and pt.startswith(last_date_str):
-                        last_day_count += 1
+            # 🔥 自动续传关键逻辑：如果最后发布日期是未来（定时任务），从今天重新开始算
+            if last_date > today:
+                # 记录里的日期还没到，说明是定时任务，从今天开始
+                base_date = today
+                last_day_count = 0  # 今天还没发过
+            else:
+                base_date = last_date
+                # 🔥 统计最后一天（按 publish_time 日期）已发多少章
+                last_date_str = last_dt.strftime('%Y-%m-%d')
+                last_day_count = 0
+                for ch_info in chapters.values():
+                    if isinstance(ch_info, dict):
+                        pt = ch_info.get('publish_time')
+                        if pt and isinstance(pt, str) and pt.startswith(last_date_str):
+                            last_day_count += 1
             
-            # 🔥 推算下一章时间
+            # 🔥 推算下一章时间（基于 base_date）
             if last_day_count >= daily_limit:
                 # 当天已满，跨到下一天从 base_time 开始
-                next_date = last_date + timedelta(days=1)
+                next_date = base_date + timedelta(days=1)
                 next_time = base_time
             else:
-                # 当天还有额度，+30分钟
-                next_dt = last_dt + timedelta(minutes=30)
+                # 当天还有额度，从 base_time 开始（或+30分钟）
+                base_dt = datetime.combine(base_date, datetime.strptime(base_time, '%H:%M').time())
+                next_dt = base_dt + timedelta(minutes=30 * last_day_count)
                 next_date = next_dt.date()
                 next_time = next_dt.strftime('%H:%M')
             
