@@ -198,7 +198,7 @@ class CreativeIdeasManager:
     
     def add_creative_idea(self, creative_data: Dict) -> int:
         """
-        添加新创意
+        添加新创意 - 始终使用多文件模式（单独JSON文件）
         
         Args:
             creative_data: 创意数据字典
@@ -213,26 +213,19 @@ class CreativeIdeasManager:
         new_id = len(creative_works) + 1
         creative_data["lastUpdated"] = datetime.now().isoformat()
         
-        # 根据当前模式决定保存方式
-        if data.get("format") == "multi_file":
-            # 多文件模式：保存为独立文件
-            novel_title = creative_data.get("novelTitle", f"创意{new_id}")
-            safe_title = "".join(c for c in novel_title if c.isalnum() or c in (' ', '-', '_')).strip()
-            if not safe_title:
-                safe_title = f"creative_idea_{new_id}"
-            
-            filename = f"{new_id:03d}_{safe_title}.json"
-            filepath = os.path.join(self.creative_ideas_dir, filename)
-            
-            with open(filepath, 'w', encoding='utf-8') as f:
-                json.dump(creative_data, f, ensure_ascii=False, indent=2)
-            
-        else:
-            # 单文件模式：追加到现有文件
-            creative_works.append(creative_data)
-            
-            with open(self.legacy_file, 'w', encoding='utf-8') as f:
-                json.dump({"creativeWorks": creative_works}, f, ensure_ascii=False, indent=2)
+        # 🔥 始终使用多文件模式：保存为独立JSON文件
+        novel_title = creative_data.get("novelTitle", f"创意{new_id}")
+        safe_title = "".join(c for c in novel_title if c.isalnum() or c in (' ', '-', '_')).strip()
+        if not safe_title:
+            safe_title = f"creative_idea_{new_id}"
+        
+        filename = f"{new_id:03d}_{safe_title}.json"
+        filepath = os.path.join(self.creative_ideas_dir, filename)
+        
+        with open(filepath, 'w', encoding='utf-8') as f:
+            json.dump(creative_data, f, ensure_ascii=False, indent=2)
+        
+        print(f"  ✅ 创意已保存到: {filepath}")
         
         # 清除缓存
         self._cache = None
