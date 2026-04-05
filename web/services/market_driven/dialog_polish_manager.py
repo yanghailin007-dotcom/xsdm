@@ -245,8 +245,11 @@ class DialogPolishManager:
             # 第四轮：剧情细节 → 情感线
             return self._round_emotion_line(user_input, custom_text)
         elif self.current_round == 5:
-            # 第五轮：情感线 → 确认
-            return self._round_confirm(user_input, custom_text)
+            # 第五轮：情感线 → 生成完整方案
+            return self._round_generate_full_plan(user_input, custom_text)
+        elif self.current_round == 6:
+            # 第六轮：确认最终方案
+            return self._round_final_confirm(user_input, custom_text)
         else:
             # 结束对话
             return self._finish_dialog()
@@ -534,62 +537,76 @@ class DialogPolishManager:
         
         return self._format_round_response(round_data)
     
-    def _round_confirm(self, prev_choice: str, custom: str = None) -> Dict:
-        """第六轮：最终确认"""
-        logger.info(f"[对话打磨 {self.session_id}] 进入第六轮：确认")
+    def _round_generate_full_plan(self, prev_choice: str, custom: str = None) -> Dict:
+        """第六轮：AI生成完整方案（书名+大纲）"""
+        logger.info(f"[对话打磨 {self.session_id}] 进入第六轮：生成完整方案")
         
         # 记录情感线
         emotion_map = {
-            "sister": "妹妹羁绊（唯一记得他的人）",
-            "rival": "宿敌变挚友",
-            "pet": "特殊宠物",
-            "mentor": "神秘导师",
-            "none": "暂无情感线"
+            "sister": "妹妹是唯一记得他的人，建立深层情感锚点",
+            "rival": "宿敌变挚友，亦敌亦友的复杂关系",
+            "pet": "特殊宠物伙伴，增加温馨元素",
+            "mentor": "神秘导师引导，提供背景深度",
+            "none": "专注事业线，无情感羁绊"
         }
         self.creative_draft.emotion_line = emotion_map.get(prev_choice, prev_choice)
         if custom:
             self.creative_draft.emotion_line += f"（自定义：{custom}）"
         
-        # 生成独特卖点
+        # 生成独特卖点和风险对冲
         self.creative_draft.unique_points = self._generate_unique_points()
-        self.creative_draft.emotion_pacing = "快节奏，每3章一个小高潮，吐槽与爽点比例3:7"
+        self.creative_draft.emotion_pacing = "快节奏，每3章一个小高潮"
         self.creative_draft.risk_mitigation = self._generate_risk_mitigation()
         
-        # 构建草案文本
-        draft_text = f"""**📋 你的创意方案**
+        # 🔥 调用AI生成完整方案
+        try:
+            full_plan = self._generate_plan_with_ai()
+            self.creative_draft.title = full_plan.get('title', '')
+            self.creative_draft.opening_design = full_plan.get('opening', self.creative_draft.opening_design)
+        except Exception as e:
+            logger.warning(f"AI生成方案失败，使用默认: {e}")
+            # 使用默认标题生成逻辑
+            self.creative_draft.title = self._generate_default_title()
+        
+        # 构建AI消息
+        ai_message = f"""🎉 **完整方案已生成！**
 
-**题材基础：** {self.genre}
+基于你的选择，AI为你生成了以下创作方案：
 
-**核心设定：**
-• 主角：{self.creative_draft.protagonist}
-• 金手指：{self.creative_draft.golden_finger}
-• 开局：{self.creative_draft.opening_design}
-• 情感线：{self.creative_draft.emotion_line}
+**📚 推荐书名：**
+《{self.creative_draft.title}》
 
-**差异化亮点：**
+**👤 主角设定：**
+{self.creative_draft.protagonist}
+
+**⚡ 金手指：**
+{self.creative_draft.golden_finger}
+
+**🎬 开局设计：**
+{self.creative_draft.opening_design}
+
+**💕 情感线：**
+{self.creative_draft.emotion_line}
+
+**✨ 差异化亮点：**
 {self.creative_draft.unique_points}
-
-**情绪节奏：** {self.creative_draft.emotion_pacing}
-
-**风险对冲：** {self.creative_draft.risk_mitigation}
 
 ---
 
-接下来 AI 将对这个方案进行**市场化评估**，预测在番茄平台的表现。
-
-**是否继续？**"""
+💡 **下一步：**
+你可以直接在表单中查看和修改这个方案，确认无误后即可开始生成。"""
         
         options = [
             {
-                "id": "evaluate",
-                "label": "✅ 继续，进行AI市场化评估",
-                "description": "评估后再决定是否生成方案",
+                "id": "continue",
+                "label": "✅ 查看并编辑方案",
+                "description": "在表单中确认和微调方案",
                 "style": "primary"
             },
             {
                 "id": "back",
                 "label": "🔄 返回修改",
-                "description": "重新调整某些设定",
+                "description": "重新调整设定",
                 "style": "secondary"
             }
         ]
@@ -597,7 +614,7 @@ class DialogPolishManager:
         round_data = DialogRound(
             round_num=6,
             round_type=DialogRoundType.CONFIRM,
-            ai_message=draft_text,
+            ai_message=ai_message,
             options=options,
             allow_custom=False
         )
@@ -608,6 +625,88 @@ class DialogPolishManager:
         self.creative_draft.dialog_history = self._generate_dialog_history()
         
         return self._format_round_response(round_data, is_final=True)
+    
+    def _round_final_confirm(self, prev_choice: str, custom: str = None) -> Dict:
+        """第七轮：最终确认（用户点击"查看并编辑方案"后）"""
+        logger.info(f"[对话打磨 {self.session_id}] 进入第七轮：最终确认")
+        
+        # 这一轮只是标记结束，实际表单在前端显示
+        return self._finish_dialog()
+    
+    def _generate_plan_with_ai(self) -> Dict:
+        """调用AI生成完整方案"""
+        if not self.api_client:
+            return self._generate_default_plan()
+        
+        prompt = f"""你是一位资深网文编辑，擅长为番茄小说平台创作爆款作品。
+
+请基于以下设定，生成一个完整的创作方案：
+
+**题材：** {self.genre}
+**主角：** {self.creative_draft.protagonist}
+**金手指：** {self.creative_draft.golden_finger}
+**情感线：** {self.creative_draft.emotion_line}
+**差异化：** {self.creative_draft.unique_points}
+
+请生成（JSON格式）：
+{{
+    "title": "书名（6-14字，含数字或强烈对比）",
+    "opening": "开局设计（100字以内，描述第1章核心冲突）",
+    "first_climax": "第一个爽点（第3-5章）",
+    "main_plot": "主线走向（50字）"
+}}
+
+要求：
+1. 书名要符合番茄爆款风格
+2. 开局要有强冲突和吸引力
+3. 突出差异化亮点"""
+        
+        try:
+            response = self.api_client.generate_content_with_retry(
+                content_type="plan_generation",
+                user_prompt=prompt,
+                temperature=0.8
+            )
+            
+            if response:
+                # 尝试解析JSON
+                import json
+                import re
+                # 提取JSON部分
+                json_match = re.search(r'\{[\s\S]*\}', str(response))
+                if json_match:
+                    return json.loads(json_match.group())
+        except Exception as e:
+            logger.error(f"AI生成方案失败: {e}")
+        
+        return self._generate_default_plan()
+    
+    def _generate_default_plan(self) -> Dict:
+        """生成默认方案（AI失败时使用）"""
+        protagonist = self.creative_draft.protagonist
+        golden_finger = self.creative_draft.golden_finger
+        
+        # 根据人设和金手指生成默认书名
+        if "话痨" in protagonist:
+            title = f"绑定吐槽系统后，我在{self.genre.split('-')[0]}无敌了"
+        elif "佛系" in protagonist:
+            title = f"摆烂后，我成了{self.genre.split('-')[0]}最强"
+        elif "疯批" in protagonist:
+            title = f"疯批主角：{self.genre.split('-')[0]}规则破坏者"
+        else:
+            title = f"开局觉醒{golden_finger[:6]}..."
+        
+        return {
+            "title": title,
+            "opening": f"主角获得{golden_finger}，首次在国运战中展现",
+            "first_climax": "第3章打脸敌国选手",
+            "main_plot": "从弱小到最强，一路碾压"
+        }
+    
+    def _generate_default_title(self) -> str:
+        """生成默认书名"""
+        plan = self._generate_default_plan()
+        return plan.get("title", "未命名")
     
     def _generate_unique_points(self) -> str:
         """生成差异化亮点描述"""

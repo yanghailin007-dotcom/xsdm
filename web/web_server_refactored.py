@@ -1993,11 +1993,19 @@ def register_contract_routes(app):
 
     @app.route('/market-driven-plan')
     def market_driven_plan_page():
-        """市场导向创作方案页面"""
+        """市场导向创作方案页面 - 支持对话打磨和表单两种模式"""
         try:
             from flask import render_template, request
             genre = request.args.get('genre', '')
-            return render_template('pages/v2/market-driven-plan.html', genre=genre)
+            mode = request.args.get('mode', 'dialog')  # dialog 或 form
+            
+            # 根据模式选择模板
+            if mode == 'form':
+                # 快速表单模式（旧版）
+                return render_template('pages/v2/market-driven-plan.html', genre=genre)
+            else:
+                # 对话打磨模式（新版，默认）
+                return render_template('pages/v2/market-driven-plan-dialog.html', genre=genre)
         except Exception as e:
             logger.error(f"❌ 加载市场导向方案页面失败: {e}")
             return f"页面加载失败: {str(e)}", 500

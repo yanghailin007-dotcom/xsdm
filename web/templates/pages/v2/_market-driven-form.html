@@ -1,0 +1,193 @@
+<!-- 表单填写模式 - 原有表单内容 -->
+<form id="plan-form" onsubmit="event.preventDefault(); startGeneration();">
+  
+  <!-- 基本信息 -->
+  <div class="form-section">
+    <h2 class="form-section__title">
+      <span class="material-icons">info</span>
+      基本信息
+    </h2>
+    
+    <div class="form-group">
+      <label class="form-label">小说标题 <span style="color: var(--primary-gold);">（支持从模板选择）</span></label>
+      <select class="form-select" id="title-select" style="margin-bottom: 12px;">
+        <option value="">-- 选择爆款标题模板 --</option>
+      </select>
+      <input type="text" class="form-input" id="novel-title" placeholder="输入小说标题（6-14字最佳）">
+      <div class="form-hint">建议包含数字或强烈对比，如《开局物价贬值百万倍》</div>
+    </div>
+    
+    <div class="form-group">
+      <label class="form-label">核心卖点</label>
+      <textarea class="form-textarea" id="novel-sellpoint" placeholder="一句话概括核心卖点，吸引读者点击阅读"></textarea>
+      <div class="form-hint">这是小说最吸引人的地方，将在简介中突出展示</div>
+    </div>
+    
+    <div class="form-row">
+      <div class="form-group">
+        <label class="form-label">目标字数</label>
+        <select class="form-select" id="novel-wordcount">
+          <option value="50" selected>50万字（精品中篇）</option>
+          <option value="100">100万字（长篇）</option>
+          <option value="200">200万字（超长篇）</option>
+          <option value="30">30万字（短篇精品）</option>
+        </select>
+      </div>
+      
+      <div class="form-group">
+        <label class="form-label">预计章节数</label>
+        <input type="number" class="form-input" id="novel-chapters" value="200" min="50" max="1000">
+        <div class="form-hint">建议每章2000-3000字</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 主角设定 -->
+  <div class="form-section">
+    <h2 class="form-section__title">
+      <span class="material-icons">person</span>
+      主角设定
+    </h2>
+    
+    <div class="form-row">
+      <div class="form-group">
+        <label class="form-label">主角姓名</label>
+        <input type="text" class="form-input" id="protagonist-name" placeholder="输入主角姓名">
+      </div>
+      
+      <div class="form-group">
+        <label class="form-label">初始身份</label>
+        <select class="form-select" id="protagonist-identity">
+          <option value="">-- 选择常见开局身份 --</option>
+          <option value="ordinary">普通人（上班族/学生）</option>
+          <option value="poor">底层（外卖员/保安/摆地摊）</option>
+          <option value="unlucky">倒霉蛋（被分手/被辞退）</option>
+          <option value="rebirth">重生者（带着前世记忆）</option>
+          <option value="transmigrator">穿越者（来到新世界）</option>
+        </select>
+      </div>
+    </div>
+    
+    <div class="form-group">
+      <label class="form-label">性格特征</label>
+      <input type="text" class="form-input" id="protagonist-traits" placeholder="如：表面佛系，实际杀伐果断">
+      <div class="form-hint">描述主角的核心性格特征，建议有反差感</div>
+    </div>
+  </div>
+
+  <!-- 金手指设定 -->
+  <div class="form-section">
+    <h2 class="form-section__title">
+      <span class="material-icons">flash_on</span>
+      金手指设定
+    </h2>
+    
+    <div class="form-group">
+      <label class="form-label">金手指类型</label>
+      <select class="form-select" id="golden-finger-type">
+        <option value="">-- 选择金手指类型 --</option>
+        <option value="system">系统流（系统发布任务给奖励）</option>
+        <option value="rebirth">重生记忆（预知未来信息）</option>
+        <option value="artifact">宝物/传承（获得神秘物品）</option>
+        <option value="ability">特殊能力（超能力/异能）</option>
+        <option value="identity">身份转变（隐藏大身份）</option>
+      </select>
+    </div>
+    
+    <div class="form-group">
+      <label class="form-label">金手指详细描述</label>
+      <textarea class="form-textarea" id="golden-finger-desc" placeholder="详细描述金手指的能力、限制条件、升级方式等"></textarea>
+      <div class="form-hint">建议包含：能力效果 + 限制/代价 + 成长空间</div>
+    </div>
+  </div>
+
+  <!-- 开局设计 -->
+  <div class="form-section">
+    <h2 class="form-section__title">
+      <span class="material-icons">play_circle</span>
+      开局设计
+    </h2>
+    
+    <div class="form-group">
+      <label class="form-label">开局场景</label>
+      <select class="form-select" id="opening-scene" style="margin-bottom: 12px;">
+        <option value="">-- 选择经典开局 --</option>
+        <option value="accident">意外获得能力（被撞/触电/坠崖）</option>
+        <option value="summon">被选中参与（国运战/诸天战场）</option>
+        <option value="crisis">危机触发（被追杀/快死了）</option>
+        <option value="daily">日常触发（直播/送外卖）</option>
+      </select>
+      <textarea class="form-textarea" id="opening-desc" placeholder="描述第1章的具体开局场景，要有冲突和吸引力"></textarea>
+    </div>
+    
+    <div class="form-group">
+      <label class="form-label">第一个爽点/打脸</label>
+      <input type="text" class="form-input" id="first-slap" placeholder="如：第3章在4S店打脸销售">
+      <div class="form-hint">建议在第3-5章安排第一个小高潮</div>
+    </div>
+  </div>
+
+  <!-- 主线剧情 -->
+  <div class="form-section">
+    <h2 class="form-section__title">
+      <span class="material-icons">auto_stories</span>
+      主线剧情
+    </h2>
+    
+    <div class="form-group">
+      <label class="form-label">主线目标</label>
+      <input type="text" class="form-input" id="main-goal" placeholder="如：从废柴到宇宙最强">
+    </div>
+    
+    <div class="form-group">
+      <label class="form-label">前30章主线大纲</label>
+      <textarea class="form-textarea" id="main-plot" placeholder="简述前30章的主要剧情发展，包括关键事件和升级节点"></textarea>
+      <div class="form-hint">建议每10章设置一个小高潮，保持节奏紧凑</div>
+    </div>
+  </div>
+
+</form>
+
+<script>
+// 表单模式下的生成函数
+function startGenerationFromForm() {
+  const data = {
+    title: document.getElementById('novel-title').value,
+    wordcount: document.getElementById('novel-wordcount').value,
+    chapters: document.getElementById('novel-chapters').value,
+    protagonist_name: document.getElementById('protagonist-name').value,
+    protagonist_identity: document.getElementById('protagonist-identity').value,
+    golden_finger_desc: document.getElementById('golden-finger-desc').value,
+    opening_scene: document.getElementById('opening-scene').value,
+    main_plot: document.getElementById('main-plot').value
+  };
+  
+  // 验证必填项
+  if (!data.title) {
+    alert('请输入小说标题');
+    return;
+  }
+  
+  // 调用生成API
+  fetch('/api/market-driven/generate', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      genre: genre,
+      user_choices: data
+    })
+  })
+  .then(response => response.json())
+  .then(data => {
+    if (data.task_id) {
+      window.location.href = `/market-driven-status?task_id=${data.task_id}`;
+    } else {
+      alert('生成失败: ' + (data.error || '未知错误'));
+    }
+  })
+  .catch(error => {
+    console.error('生成失败:', error);
+    alert('网络错误，请重试');
+  });
+}
+</script>

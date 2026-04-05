@@ -1,0 +1,1761 @@
+{% extends "layouts/base-v2.html" %}
+
+{% block title %}生成创作方案 - 对话打磨模式{% endblock %}
+
+{% block extra_css %}
+<!-- Material Icons -->
+<link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+<style>
+/* ===== 变量 ===== */
+:root {
+  --primary-gold: #f59e0b;
+  --primary-gold-light: #fbbf24;
+  --primary-gold-dark: #d97706;
+  --success: #22c55e;
+  --warning: #f59e0b;
+  --danger: #ef4444;
+  --info: #3b82f6;
+  --radius-lg: 16px;
+  --radius-xl: 24px;
+  --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+  --shadow-xl: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+}
+
+/* ===== Header ===== */
+.plan-header {
+  padding: 40px 0 24px;
+  text-align: center;
+}
+
+.plan-header__back {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--v2-text-secondary);
+  text-decoration: none;
+  font-size: 14px;
+  margin-bottom: 24px;
+  transition: color 0.2s;
+}
+
+.plan-header__back:hover {
+  color: var(--primary-gold);
+}
+
+.plan-header__title {
+  font-size: 32px;
+  font-weight: 800;
+  background: linear-gradient(135deg, #ffffff 0%, #fbbf24 50%, #f59e0b 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  margin-bottom: 12px;
+}
+
+.plan-header__subtitle {
+  font-size: 16px;
+  color: var(--v2-text-secondary);
+}
+
+/* ===== 模式切换 ===== */
+.mode-toggle {
+  display: flex;
+  justify-content: center;
+  margin-bottom: 32px;
+}
+
+.mode-toggle__inner {
+  display: inline-flex;
+  background: var(--v2-bg-secondary);
+  border: 1px solid var(--v2-border-subtle);
+  border-radius: 100px;
+  padding: 4px;
+}
+
+.mode-toggle__btn {
+  padding: 10px 24px;
+  border-radius: 100px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+  border: none;
+  background: transparent;
+  color: var(--v2-text-secondary);
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.mode-toggle__btn:hover {
+  color: var(--v2-text-primary);
+}
+
+.mode-toggle__btn--active {
+  background: linear-gradient(135deg, var(--primary-gold), var(--primary-gold-dark));
+  color: #fff;
+}
+
+.mode-toggle__btn .material-icons {
+  font-size: 16px;
+}
+
+/* ===== 步骤指示器 ===== */
+.step-indicator {
+  max-width: 900px;
+  margin: 0 auto 32px;
+  padding: 20px 24px;
+  background: var(--v2-bg-secondary);
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--v2-border-subtle);
+}
+
+.step-indicator__list {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  position: relative;
+}
+
+.step-indicator__line {
+  position: absolute;
+  top: 50%;
+  left: 40px;
+  right: 40px;
+  height: 2px;
+  background: var(--v2-bg-tertiary);
+  transform: translateY(-50%);
+  z-index: 0;
+}
+
+.step-indicator__line--progress {
+  background: linear-gradient(90deg, var(--success), var(--primary-gold));
+  transition: width 0.5s ease;
+}
+
+.step-indicator__item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  z-index: 1;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.step-indicator__item:hover {
+  transform: translateY(-2px);
+}
+
+.step-indicator__dot {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 14px;
+  font-weight: 600;
+  background: var(--v2-bg-tertiary);
+  border: 2px solid var(--v2-border-subtle);
+  color: var(--v2-text-muted);
+  transition: all 0.3s;
+}
+
+.step-indicator__item--completed .step-indicator__dot {
+  background: var(--success);
+  border-color: var(--success);
+  color: #fff;
+}
+
+.step-indicator__item--current .step-indicator__dot {
+  background: var(--primary-gold);
+  border-color: var(--primary-gold);
+  color: #fff;
+  box-shadow: 0 0 0 4px rgba(245, 158, 11, 0.2);
+  animation: pulse 2s infinite;
+}
+
+@keyframes pulse {
+  0%, 100% { box-shadow: 0 0 0 4px rgba(245, 158, 11, 0.2); }
+  50% { box-shadow: 0 0 0 8px rgba(245, 158, 11, 0.1); }
+}
+
+.step-indicator__label {
+  font-size: 12px;
+  color: var(--v2-text-muted);
+  white-space: nowrap;
+}
+
+.step-indicator__item--current .step-indicator__label {
+  color: var(--primary-gold);
+  font-weight: 600;
+}
+
+.step-indicator__item--completed .step-indicator__label {
+  color: var(--success);
+}
+
+/* ===== 对话容器 ===== */
+.dialog-container {
+  max-width: 900px;
+  margin: 0 auto;
+  padding-bottom: 120px;
+}
+
+/* ===== 对话历史 ===== */
+.dialog-history {
+  margin-bottom: 24px;
+  background: var(--v2-bg-secondary);
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--v2-border-subtle);
+  overflow: hidden;
+}
+
+.dialog-history__header {
+  padding: 16px 20px;
+  background: rgba(245, 158, 11, 0.05);
+  border-bottom: 1px solid var(--v2-border-subtle);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  cursor: pointer;
+}
+
+.dialog-history__title {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--v2-text-primary);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.dialog-history__toggle {
+  font-size: 12px;
+  color: var(--v2-text-muted);
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.dialog-history__content {
+  max-height: 300px;
+  overflow-y: auto;
+  padding: 16px 20px;
+}
+
+.dialog-history__content--collapsed {
+  max-height: 80px;
+  overflow: hidden;
+}
+
+.dialog-history__item {
+  display: flex;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.dialog-history__item:last-child {
+  margin-bottom: 0;
+}
+
+.dialog-history__avatar {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 16px;
+  flex-shrink: 0;
+}
+
+.dialog-history__avatar--ai {
+  background: linear-gradient(135deg, rgba(245, 158, 11, 0.2), rgba(251, 191, 36, 0.1));
+}
+
+.dialog-history__avatar--user {
+  background: linear-gradient(135deg, rgba(59, 130, 246, 0.2), rgba(96, 165, 250, 0.1));
+}
+
+.dialog-history__bubble {
+  flex: 1;
+  padding: 12px 16px;
+  border-radius: 12px;
+  font-size: 14px;
+  line-height: 1.6;
+}
+
+.dialog-history__bubble--ai {
+  background: linear-gradient(135deg, rgba(245, 158, 11, 0.08), rgba(251, 191, 36, 0.04));
+  border: 1px solid rgba(245, 158, 11, 0.15);
+  color: var(--v2-text-primary);
+}
+
+.dialog-history__bubble--user {
+  background: var(--v2-bg-tertiary);
+  border: 1px solid var(--v2-border-subtle);
+  color: var(--v2-text-secondary);
+}
+
+/* ===== 当前轮次 ===== */
+.dialog-round {
+  background: var(--v2-bg-secondary);
+  border: 1px solid var(--v2-border-subtle);
+  border-radius: var(--radius-lg);
+  padding: 28px;
+  animation: slideIn 0.4s ease;
+}
+
+@keyframes slideIn {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.dialog-round__header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 20px;
+}
+
+.dialog-round__badge {
+  padding: 6px 14px;
+  background: rgba(245, 158, 11, 0.15);
+  border-radius: 100px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--primary-gold);
+}
+
+.dialog-round__title {
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--v2-text-primary);
+}
+
+/* ===== AI 消息 ===== */
+.ai-message {
+  background: linear-gradient(135deg, rgba(245, 158, 11, 0.08), rgba(251, 191, 36, 0.04));
+  border-left: 4px solid var(--primary-gold);
+  border-radius: 0 12px 12px 0;
+  padding: 20px;
+  margin-bottom: 24px;
+  font-size: 15px;
+  line-height: 1.8;
+  color: var(--v2-text-primary);
+  white-space: pre-wrap;
+}
+
+.ai-message__icon {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 600;
+  color: var(--primary-gold);
+  margin-bottom: 12px;
+}
+
+/* ===== 选项网格 ===== */
+.options-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 16px;
+  margin-bottom: 20px;
+}
+
+.option-card {
+  background: var(--v2-bg-tertiary);
+  border: 2px solid var(--v2-border-subtle);
+  border-radius: 12px;
+  padding: 20px;
+  cursor: pointer;
+  transition: all 0.2s;
+  position: relative;
+}
+
+.option-card:hover {
+  border-color: rgba(245, 158, 11, 0.5);
+  transform: translateY(-2px);
+  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.2);
+}
+
+.option-card--selected {
+  border-color: var(--primary-gold);
+  background: linear-gradient(135deg, rgba(245, 158, 11, 0.1), rgba(251, 191, 36, 0.05));
+}
+
+.option-card--selected::before {
+  content: '✓';
+  position: absolute;
+  top: -10px;
+  right: -10px;
+  width: 28px;
+  height: 28px;
+  background: var(--primary-gold);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 14px;
+  color: #fff;
+  font-weight: 700;
+  box-shadow: 0 2px 8px rgba(245, 158, 11, 0.4);
+}
+
+.option-card__label {
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--v2-text-primary);
+  margin-bottom: 8px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.option-card__badge {
+  padding: 2px 8px;
+  border-radius: 100px;
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.option-card__badge--recommended {
+  background: rgba(34, 197, 94, 0.2);
+  color: var(--success);
+}
+
+.option-card__badge--risky {
+  background: rgba(239, 68, 68, 0.2);
+  color: var(--danger);
+}
+
+.option-card__description {
+  font-size: 13px;
+  color: var(--v2-text-secondary);
+  line-height: 1.5;
+  margin-bottom: 12px;
+}
+
+.option-card__meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.option-card__tag {
+  padding: 4px 10px;
+  border-radius: 100px;
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.option-card__tag--high {
+  background: rgba(34, 197, 94, 0.15);
+  color: var(--success);
+}
+
+.option-card__tag--medium {
+  background: rgba(245, 158, 11, 0.15);
+  color: var(--primary-gold);
+}
+
+.option-card__tag--low {
+  background: rgba(59, 130, 246, 0.15);
+  color: var(--info);
+}
+
+.option-card__tag--risk {
+  background: rgba(239, 68, 68, 0.15);
+  color: var(--danger);
+}
+
+.option-card__example {
+  font-size: 12px;
+  color: var(--v2-text-muted);
+  font-style: italic;
+  padding-top: 12px;
+  border-top: 1px solid var(--v2-border-subtle);
+}
+
+/* ===== 风险提示 ===== */
+.risk-warning {
+  background: rgba(239, 68, 68, 0.08);
+  border: 1px solid rgba(239, 68, 68, 0.3);
+  border-radius: 12px;
+  padding: 16px;
+  margin-bottom: 20px;
+}
+
+.risk-warning__title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--danger);
+  margin-bottom: 8px;
+}
+
+.risk-warning__text {
+  font-size: 13px;
+  color: var(--v2-text-secondary);
+  line-height: 1.6;
+}
+
+.risk-warning__actions {
+  display: flex;
+  gap: 12px;
+  margin-top: 12px;
+}
+
+/* ===== 自定义输入 ===== */
+.custom-input-section {
+  margin-top: 20px;
+  padding-top: 20px;
+  border-top: 1px solid var(--v2-border-subtle);
+}
+
+.custom-input__label {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--v2-text-primary);
+  margin-bottom: 12px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.custom-input__textarea {
+  width: 100%;
+  padding: 12px 16px;
+  background: var(--v2-bg-tertiary);
+  border: 1px solid var(--v2-border-subtle);
+  border-radius: 10px;
+  font-size: 15px;
+  color: var(--v2-text-primary);
+  resize: vertical;
+  min-height: 80px;
+  font-family: inherit;
+  box-sizing: border-box;
+}
+
+.custom-input__textarea:focus {
+  outline: none;
+  border-color: var(--primary-gold);
+  box-shadow: 0 0 0 3px rgba(245, 158, 11, 0.1);
+}
+
+/* ===== 操作按钮 ===== */
+.dialog-actions {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 24px;
+  padding-top: 24px;
+  border-top: 1px solid var(--v2-border-subtle);
+}
+
+.dialog-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 24px;
+  border-radius: 10px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+  border: none;
+}
+
+.dialog-btn--primary {
+  background: linear-gradient(135deg, var(--primary-gold), var(--primary-gold-dark));
+  color: #fff;
+}
+
+.dialog-btn--primary:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 10px 25px -5px rgba(245, 158, 11, 0.4);
+}
+
+.dialog-btn--primary:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.dialog-btn--secondary {
+  background: var(--v2-bg-tertiary);
+  color: var(--v2-text-primary);
+  border: 1px solid var(--v2-border-subtle);
+}
+
+.dialog-btn--secondary:hover {
+  background: var(--v2-border-subtle);
+}
+
+/* ===== 加载状态 ===== */
+.loading-container {
+  text-align: center;
+  padding: 60px 20px;
+}
+
+.loading-spinner {
+  width: 48px;
+  height: 48px;
+  border: 3px solid var(--v2-bg-tertiary);
+  border-top-color: var(--primary-gold);
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+  margin: 0 auto 24px;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+.loading-text {
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--v2-text-primary);
+  margin-bottom: 8px;
+}
+
+.loading-subtext {
+  font-size: 14px;
+  color: var(--v2-text-secondary);
+}
+
+/* ===== 最终确认页面 ===== */
+.confirm-container {
+  max-width: 800px;
+  margin: 0 auto;
+}
+
+.confirm-card {
+  background: var(--v2-bg-secondary);
+  border: 1px solid var(--v2-border-subtle);
+  border-radius: var(--radius-lg);
+  padding: 32px;
+  margin-bottom: 24px;
+}
+
+.confirm-card__header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 24px;
+}
+
+.confirm-card__icon {
+  width: 48px;
+  height: 48px;
+  background: linear-gradient(135deg, rgba(34, 197, 94, 0.2), rgba(34, 197, 94, 0.1));
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--success);
+}
+
+.confirm-card__title {
+  font-size: 24px;
+  font-weight: 700;
+  color: var(--v2-text-primary);
+}
+
+.confirm-card__subtitle {
+  font-size: 14px;
+  color: var(--v2-text-secondary);
+}
+
+.confirm-section {
+  margin-bottom: 24px;
+  padding-bottom: 24px;
+  border-bottom: 1px solid var(--v2-border-subtle);
+}
+
+.confirm-section:last-child {
+  margin-bottom: 0;
+  padding-bottom: 0;
+  border-bottom: none;
+}
+
+.confirm-section__title {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--v2-text-muted);
+  margin-bottom: 8px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.confirm-section__content {
+  font-size: 16px;
+  color: var(--v2-text-primary);
+  line-height: 1.6;
+}
+
+.confirm-stats {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 16px;
+  margin: 24px 0;
+}
+
+.confirm-stat {
+  background: var(--v2-bg-tertiary);
+  border-radius: 10px;
+  padding: 16px;
+  text-align: center;
+}
+
+.confirm-stat__value {
+  font-size: 28px;
+  font-weight: 700;
+  color: var(--primary-gold);
+  margin-bottom: 4px;
+}
+
+.confirm-stat__label {
+  font-size: 12px;
+  color: var(--v2-text-muted);
+}
+
+.confirm-actions {
+  display: flex;
+  gap: 16px;
+  justify-content: center;
+  flex-wrap: wrap;
+}
+
+.confirm-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 16px 32px;
+  border-radius: 12px;
+  font-size: 16px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+  border: none;
+}
+
+.confirm-btn--primary {
+  background: linear-gradient(135deg, var(--primary-gold), var(--primary-gold-dark));
+  color: #fff;
+}
+
+.confirm-btn--secondary {
+  background: var(--v2-bg-tertiary);
+  color: var(--v2-text-primary);
+  border: 1px solid var(--v2-border-subtle);
+}
+
+.confirm-btn--success {
+  background: linear-gradient(135deg, var(--success), #16a34a);
+  color: #fff;
+}
+
+/* ===== 表单模式（原有） ===== */
+.form-mode-container {
+  max-width: 800px;
+  margin: 0 auto;
+}
+
+/* 原有表单样式保持不变 */
+.plan-form {
+  margin-bottom: 32px;
+}
+
+.form-section {
+  background: var(--v2-bg-secondary);
+  border: 1px solid var(--v2-border-subtle);
+  border-radius: var(--radius-lg);
+  padding: 28px;
+  margin-bottom: 24px;
+}
+
+.form-section__title {
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--v2-text-primary);
+  margin-bottom: 20px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.form-group {
+  margin-bottom: 20px;
+}
+
+.form-label {
+  display: block;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--v2-text-primary);
+  margin-bottom: 8px;
+}
+
+.form-input,
+.form-textarea,
+.form-select {
+  width: 100%;
+  padding: 12px 16px;
+  background: var(--v2-bg-tertiary);
+  border: 1px solid var(--v2-border-subtle);
+  border-radius: 10px;
+  font-size: 15px;
+  color: var(--v2-text-primary);
+  transition: all 0.2s;
+  box-sizing: border-box;
+}
+
+.form-input:focus,
+.form-textarea:focus,
+.form-select:focus {
+  outline: none;
+  border-color: var(--primary-gold);
+  box-shadow: 0 0 0 3px rgba(245, 158, 11, 0.1);
+}
+
+.form-textarea {
+  min-height: 120px;
+  resize: vertical;
+  font-family: inherit;
+}
+
+.form-hint {
+  font-size: 13px;
+  color: var(--v2-text-muted);
+  margin-top: 6px;
+}
+
+.form-row {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 20px;
+}
+
+/* ===== 生成按钮区域 ===== */
+.generate-section {
+  position: fixed;
+  bottom: 24px;
+  left: 50%;
+  transform: translateX(-50%);
+  padding: 24px 32px;
+  background: rgba(30, 41, 59, 0.95);
+  backdrop-filter: blur(20px);
+  border: 1px solid rgba(245, 158, 11, 0.2);
+  border-radius: var(--radius-xl);
+  box-shadow: 0 20px 50px -10px rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+  max-width: 800px;
+  width: calc(100% - 48px);
+  z-index: 100;
+}
+
+.generate-section__info {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.generate-section__icon {
+  width: 48px;
+  height: 48px;
+  background: linear-gradient(135deg, var(--primary-gold), var(--primary-gold-light));
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #0f172a;
+}
+
+.generate-section__text {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.generate-section__label {
+  font-size: 13px;
+  color: var(--v2-text-muted);
+}
+
+.generate-section__value {
+  font-size: 18px;
+  font-weight: 700;
+  color: #ffffff;
+}
+
+.generate-btn {
+  background: linear-gradient(135deg, var(--primary-gold), var(--primary-gold-light));
+  color: #0f172a;
+  font-weight: 700;
+  font-size: 16px;
+  padding: 14px 32px;
+  border: none;
+  border-radius: 12px;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  transition: all 0.2s;
+  box-shadow: 0 4px 14px 0 rgba(245, 158, 11, 0.4);
+}
+
+.generate-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 25px rgba(245, 158, 11, 0.5);
+}
+
+.generate-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  transform: none;
+}
+
+/* ===== 响应式 ===== */
+@media (max-width: 900px) {
+  .step-indicator__label {
+    font-size: 10px;
+  }
+}
+
+@media (max-width: 768px) {
+  .step-indicator__label {
+    display: none;
+  }
+  
+  .step-indicator__dot {
+    width: 28px;
+    height: 28px;
+    font-size: 12px;
+  }
+  
+  .options-grid {
+    grid-template-columns: 1fr;
+  }
+  
+  .dialog-actions {
+    flex-direction: column;
+    gap: 12px;
+  }
+  
+  .dialog-btn {
+    width: 100%;
+    justify-content: center;
+  }
+  
+  .form-row {
+    grid-template-columns: 1fr;
+  }
+  
+  .generate-section {
+    flex-direction: column;
+    padding: 20px;
+    left: 16px;
+    right: 16px;
+    transform: none;
+    width: auto;
+  }
+  
+  .generate-btn {
+    width: 100%;
+    justify-content: center;
+  }
+  
+  .confirm-actions {
+    flex-direction: column;
+  }
+  
+  .confirm-btn {
+    width: 100%;
+    justify-content: center;
+  }
+}
+
+/* ===== 隐藏/显示 ===== */
+.hidden {
+  display: none !important;
+}
+
+.fade-in {
+  animation: fadeIn 0.3s ease;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="v2-project-container">
+  
+  <!-- Header -->
+  <div class="plan-header">
+    <a href="/market-driven-analysis?genre={{ genre }}" class="plan-header__back">
+      <span class="material-icons">arrow_back</span>
+      返回分析结果
+    </a>
+    <h1 class="plan-header__title">生成创作方案</h1>
+    <p class="plan-header__subtitle">基于市场规律，打造差异化爆款小说</p>
+  </div>
+
+  <!-- 模式切换 -->
+  <div class="mode-toggle">
+    <div class="mode-toggle__inner">
+      <button class="mode-toggle__btn mode-toggle__btn--active" id="mode-dialog-btn" onclick="switchMode('dialog')">
+        <span class="material-icons">chat</span>
+        对话打磨模式
+      </button>
+      <button class="mode-toggle__btn" id="mode-form-btn" onclick="switchMode('form')">
+        <span class="material-icons">edit</span>
+        快速表单模式
+      </button>
+    </div>
+  </div>
+
+  <!-- 对话打磨模式 -->
+  <div id="dialog-mode-container" class="dialog-container">
+    
+    <!-- 步骤指示器 -->
+    <div class="step-indicator" id="step-indicator">
+      <div class="step-indicator__list">
+        <div class="step-indicator__line"></div>
+        <div class="step-indicator__line step-indicator__line--progress" id="step-progress-line" style="width: 0%;"></div>
+        
+        <div class="step-indicator__item" data-step="1">
+          <div class="step-indicator__dot">1</div>
+          <span class="step-indicator__label">差异化</span>
+        </div>
+        <div class="step-indicator__item" data-step="2">
+          <div class="step-indicator__dot">2</div>
+          <span class="step-indicator__label">主角</span>
+        </div>
+        <div class="step-indicator__item" data-step="3">
+          <div class="step-indicator__dot">3</div>
+          <span class="step-indicator__label">金手指</span>
+        </div>
+        <div class="step-indicator__item" data-step="4">
+          <div class="step-indicator__dot">4</div>
+          <span class="step-indicator__label">剧情</span>
+        </div>
+        <div class="step-indicator__item" data-step="5">
+          <div class="step-indicator__dot">5</div>
+          <span class="step-indicator__label">情感</span>
+        </div>
+        <div class="step-indicator__item" data-step="6">
+          <div class="step-indicator__dot">6</div>
+          <span class="step-indicator__label">生成</span>
+        </div>
+        <div class="step-indicator__item" data-step="7">
+          <div class="step-indicator__dot">7</div>
+          <span class="step-indicator__label">确认</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- 对话历史 -->
+    <div class="dialog-history" id="dialog-history">
+      <div class="dialog-history__header" onclick="toggleHistory()">
+        <span class="dialog-history__title">
+          <span class="material-icons" style="font-size: 16px;">history</span>
+          对话记录
+        </span>
+        <span class="dialog-history__toggle">
+          <span id="history-toggle-text">收起</span>
+          <span class="material-icons" style="font-size: 16px;" id="history-toggle-icon">expand_less</span>
+        </span>
+      </div>
+      <div class="dialog-history__content" id="dialog-history-content">
+        <!-- 动态填充 -->
+      </div>
+    </div>
+
+    <!-- 加载状态 -->
+    <div class="loading-container" id="loading-container">
+      <div class="loading-spinner"></div>
+      <div class="loading-text">正在初始化对话打磨...</div>
+      <div class="loading-subtext">基于 {{ genre }} 的 Top100 作品分析</div>
+    </div>
+
+    <!-- 当前轮次内容 -->
+    <div id="dialog-round-container" class="hidden">
+      <!-- 动态填充 -->
+    </div>
+
+    <!-- 最终确认 -->
+    <div id="confirm-container" class="confirm-container hidden">
+      <!-- 动态填充 -->
+    </div>
+
+  </div>
+
+  <!-- 表单模式（原有） -->
+  <div id="form-mode-container" class="form-mode-container hidden">
+    {% include 'pages/v2/_market-driven-form.html' %}
+  </div>
+
+</div>
+
+<!-- 生成按钮 -->
+<div class="generate-section" id="generate-section">
+  <div class="generate-section__info">
+    <div class="generate-section__icon">
+      <span class="material-icons">auto_fix_high</span>
+    </div>
+    <div class="generate-section__text">
+      <span class="generate-section__label">准备生成</span>
+      <span class="generate-section__value" id="generate-status">等待选择创作模式...</span>
+    </div>
+  </div>
+  <button class="generate-btn" id="generate-btn" onclick="startGeneration()" disabled>
+    <span class="material-icons">rocket_launch</span>
+    开始生成
+  </button>
+</div>
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// ==================== 全局状态 ====================
+let currentMode = 'dialog';
+let dialogSessionId = null;
+let dialogHistory = [];
+let currentRound = 0;
+let selectedOption = null;
+let creativeDraft = null;
+let genre = '{{ genre }}';
+
+// 轮次标题映射
+const roundTitles = {
+  1: '差异化方向',
+  2: '主角设定',
+  3: '金手指',
+  4: '剧情细节',
+  5: '情感线',
+  6: '生成方案',
+  7: '确认'
+};
+
+// 轮次类型映射
+const roundTypes = {
+  1: 'init',
+  2: 'protagonist',
+  3: 'golden_finger',
+  4: 'plot_details',
+  5: 'emotion_line',
+  6: 'generate',
+  7: 'confirm'
+};
+
+// ==================== 初始化 ====================
+document.addEventListener('DOMContentLoaded', function() {
+  // 从URL获取题材
+  const urlParams = new URLSearchParams(window.location.search);
+  genre = urlParams.get('genre') || '国运文-直播类';
+  
+  // 初始化对话模式
+  initDialogMode();
+});
+
+// ==================== 模式切换 ====================
+function switchMode(mode) {
+  currentMode = mode;
+  
+  // 更新按钮状态
+  document.getElementById('mode-dialog-btn').classList.toggle('mode-toggle__btn--active', mode === 'dialog');
+  document.getElementById('mode-form-btn').classList.toggle('mode-toggle__btn--active', mode === 'form');
+  
+  // 显示/隐藏对应区域
+  document.getElementById('dialog-mode-container').classList.toggle('hidden', mode === 'form');
+  document.getElementById('form-mode-container').classList.toggle('hidden', mode === 'dialog');
+  
+  // 更新生成按钮状态
+  updateGenerateStatus(mode === 'dialog' ? '对话打磨中...' : '表单填写模式');
+  document.getElementById('generate-btn').disabled = mode === 'dialog';
+}
+
+// ==================== 对话模式初始化 ====================
+async function initDialogMode() {
+  try {
+    // 从localStorage获取套路分析结果
+    const cachedAnalysis = localStorage.getItem('marketDrivenAnalysis');
+    let tropes = {};
+    
+    if (cachedAnalysis) {
+      const parsed = JSON.parse(cachedAnalysis);
+      tropes = parsed.tropes || {};
+    }
+    
+    // 调用API开始对话
+    const response = await fetch('/api/market-driven/dialog/start', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ 
+        genre: genre,
+        tropes: tropes
+      })
+    });
+    
+    const data = await response.json();
+    
+    if (data.success) {
+      dialogSessionId = data.session_id;
+      currentRound = data.round;
+      
+      // 隐藏加载，显示对话
+      document.getElementById('loading-container').classList.add('hidden');
+      document.getElementById('dialog-round-container').classList.remove('hidden');
+      
+      // 渲染轮次
+      renderDialogRound(data);
+      updateStepIndicator(data.round);
+      updateGenerateStatus(`第${data.round}轮：${roundTitles[data.round]}`);
+    } else {
+      showError('初始化对话失败: ' + data.error);
+    }
+  } catch (error) {
+    console.error('初始化对话失败:', error);
+    showError('网络错误，请刷新页面重试');
+  }
+}
+
+// ==================== 渲染对话轮次 ====================
+function renderDialogRound(data) {
+  const container = document.getElementById('dialog-round-container');
+  
+  // 构建选项HTML
+  const optionsHtml = data.options.map((opt, idx) => `
+    <div class="option-card" onclick="selectOption('${opt.id}', this)" data-option="${opt.id}">
+      <div class="option-card__label">
+        ${opt.label}
+        ${opt.recommended ? '<span class="option-card__badge option-card__badge--recommended">推荐</span>' : ''}
+        ${opt.risk === '高' ? '<span class="option-card__badge option-card__badge--risky">高风险</span>' : ''}
+      </div>
+      <div class="option-card__description">${opt.description}</div>
+      <div class="option-card__meta">
+        ${opt.market_score ? `<span class="option-card__tag option-card__tag--${opt.market_score >= 80 ? 'high' : opt.market_score >= 60 ? 'medium' : 'low'}">市场契合: ${opt.market_score}分</span>` : ''}
+        ${opt.differentiation ? `<span class="option-card__tag option-card__tag--high">差异化: ${opt.differentiation}</span>` : ''}
+        ${opt.risk ? `<span class="option-card__tag option-card__tag--${opt.risk === '低' ? 'high' : opt.risk === '中' ? 'medium' : 'risk'}">风险: ${opt.risk}</span>` : ''}
+      </div>
+      ${opt.examples ? `<div class="option-card__example">💡 示例: ${opt.examples.join('、')}</div>` : ''}
+    </div>
+  `).join('');
+  
+  // 构建自定义输入HTML
+  const customHtml = data.allow_custom ? `
+    <div class="custom-input-section">
+      <label class="custom-input__label">
+        <span class="material-icons" style="font-size: 16px;">lightbulb</span>
+        我有自己的想法：
+      </label>
+      <textarea class="custom-input__textarea" id="custom-input" 
+        placeholder="描述你的想法，AI会帮你评估可行性...">${data.user_custom || ''}</textarea>
+    </div>
+  ` : '';
+  
+  // 构建按钮HTML
+  const buttonsHtml = `
+    <div class="dialog-actions">
+      <button class="dialog-btn dialog-btn--secondary" onclick="goBack()" ${data.round <= 1 ? 'disabled' : ''}>
+        <span class="material-icons">arrow_back</span>
+        返回上一步
+      </button>
+      <button class="dialog-btn dialog-btn--primary" id="confirm-btn" onclick="confirmSelection()" disabled>
+        <span class="material-icons">check_circle</span>
+        确认选择
+      </button>
+    </div>
+  `;
+  
+  // 组合完整HTML
+  container.innerHTML = `
+    <div class="dialog-round fade-in">
+      <div class="dialog-round__header">
+        <span class="dialog-round__badge">第 ${data.round} 轮</span>
+        <span class="dialog-round__title">${roundTitles[data.round] || '创意打磨'}</span>
+      </div>
+      
+      <div class="ai-message">
+        <div class="ai-message__icon">
+          <span class="material-icons">psychology</span>
+          AI 创作助手
+        </div>
+        ${data.ai_message}
+      </div>
+      
+      <div class="options-grid">
+        ${optionsHtml}
+      </div>
+      
+      ${customHtml}
+      ${buttonsHtml}
+    </div>
+  `;
+  
+  // 如果有风险警告，显示它
+  if (data.risk_warning) {
+    showRiskWarning(data.risk_warning);
+  }
+  
+  // 滚动到可视区域
+  container.scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+// ==================== 选择选项 ====================
+function selectOption(optionId, element) {
+  // 移除其他选中状态
+  document.querySelectorAll('.option-card').forEach(el => {
+    el.classList.remove('option-card--selected');
+  });
+  
+  // 添加选中状态
+  element.classList.add('option-card--selected');
+  selectedOption = optionId;
+  
+  // 启用确认按钮
+  const confirmBtn = document.getElementById('confirm-btn');
+  if (confirmBtn) {
+    confirmBtn.disabled = false;
+  }
+}
+
+// ==================== 确认选择 ====================
+async function confirmSelection() {
+  if (!selectedOption) return;
+  
+  const customText = document.getElementById('custom-input')?.value || '';
+  const confirmBtn = document.getElementById('confirm-btn');
+  
+  // 显示加载状态
+  confirmBtn.disabled = true;
+  confirmBtn.innerHTML = '<span class="material-icons">hourglass_top</span> 处理中...';
+  
+  try {
+    const response = await fetch('/api/market-driven/dialog/continue', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        session_id: dialogSessionId,
+        choice: selectedOption,
+        custom_text: customText
+      })
+    });
+    
+    const data = await response.json();
+    
+    if (data.success) {
+      // 添加到历史
+      addToHistory(data.round - 1, selectedOption, customText);
+      
+      // 重置选择
+      selectedOption = null;
+      currentRound = data.round;
+      
+      if (data.is_final) {
+        // 对话结束，显示确认
+        creativeDraft = data.creative_draft;
+        renderFinalConfirm(data);
+      } else {
+        // 渲染下一轮
+        renderDialogRound(data);
+        updateStepIndicator(data.round);
+        updateGenerateStatus(`第${data.round}轮：${roundTitles[data.round]}`);
+      }
+    } else {
+      showError('提交失败: ' + data.error);
+      confirmBtn.disabled = false;
+      confirmBtn.innerHTML = '<span class="material-icons">check_circle</span> 确认选择';
+    }
+  } catch (error) {
+    console.error('提交失败:', error);
+    showError('网络错误，请重试');
+    confirmBtn.disabled = false;
+    confirmBtn.innerHTML = '<span class="material-icons">check_circle</span> 确认选择';
+  }
+}
+
+// ==================== 返回上一步 ====================
+async function goBack() {
+  if (currentRound <= 1) return;
+  
+  try {
+    const response = await fetch('/api/market-driven/dialog/back', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        session_id: dialogSessionId,
+        target_round: currentRound - 1
+      })
+    });
+    
+    const data = await response.json();
+    
+    if (data.success) {
+      // 从历史中移除最后一轮
+      dialogHistory.pop();
+      selectedOption = null;
+      currentRound = data.round;
+      
+      renderDialogRound(data);
+      updateStepIndicator(data.round);
+      updateGenerateStatus(`第${data.round}轮：${roundTitles[data.round]}`);
+    } else {
+      showError('返回失败: ' + data.error);
+    }
+  } catch (error) {
+    console.error('返回失败:', error);
+    showError('网络错误，请重试');
+  }
+}
+
+// ==================== 渲染最终确认（可编辑表单） ====================
+function renderFinalConfirm(data) {
+  document.getElementById('dialog-round-container').classList.add('hidden');
+  document.getElementById('step-indicator').classList.add('hidden');
+  document.getElementById('dialog-history').classList.add('hidden');
+  
+  const container = document.getElementById('confirm-container');
+  const draft = data.creative_draft || {};
+  
+  // 保存到全局变量
+  creativeDraft = draft;
+  
+  container.innerHTML = `
+    <div class="confirm-card fade-in">
+      <div class="confirm-card__header">
+        <div class="confirm-card__icon">
+          <span class="material-icons" style="font-size: 24px;">edit_document</span>
+        </div>
+        <div>
+          <div class="confirm-card__title">确认并完善方案</div>
+          <div class="confirm-card__subtitle">AI已基于你的选择生成初稿，请检查并修改</div>
+        </div>
+      </div>
+      
+      <form id="final-plan-form" onsubmit="event.preventDefault(); startGeneration();">
+        
+        <!-- 书名 -->
+        <div class="form-section" style="margin-bottom: 20px;">
+          <h3 class="form-section__title">
+            <span class="material-icons">title</span>
+            小说标题
+          </h3>
+          <div class="form-group">
+            <input type="text" class="form-input" id="final-title" value="${draft.title || ''}" placeholder="输入小说标题">
+            <div class="form-hint">AI推荐：《${draft.title || '未命名'}》，你可以修改或直接采用</div>
+          </div>
+        </div>
+        
+        <!-- 主角设定 -->
+        <div class="form-section" style="margin-bottom: 20px;">
+          <h3 class="form-section__title">
+            <span class="material-icons">person</span>
+            主角设定
+          </h3>
+          <div class="form-row">
+            <div class="form-group">
+              <label class="form-label">主角姓名</label>
+              <input type="text" class="form-input" id="final-protagonist" placeholder="如：张三">
+            </div>
+            <div class="form-group">
+              <label class="form-label">初始身份</label>
+              <input type="text" class="form-input" id="final-identity" placeholder="如：外卖员/大学生">
+            </div>
+          </div>
+          <div class="form-group">
+            <label class="form-label">性格特征（AI推荐）</label>
+            <input type="text" class="form-input" id="final-protagonist-type" value="${draft.protagonist || ''}" readonly style="background: rgba(245, 158, 11, 0.05);">
+          </div>
+        </div>
+        
+        <!-- 金手指 -->
+        <div class="form-section" style="margin-bottom: 20px;">
+          <h3 class="form-section__title">
+            <span class="material-icons">flash_on</span>
+            金手指设定
+          </h3>
+          <div class="form-group">
+            <textarea class="form-textarea" id="final-golden-finger" rows="3">${draft.golden_finger || ''}</textarea>
+            <div class="form-hint">可以修改金手指的具体效果、限制条件等</div>
+          </div>
+        </div>
+        
+        <!-- 开局设计 -->
+        <div class="form-section" style="margin-bottom: 20px;">
+          <h3 class="form-section__title">
+            <span class="material-icons">play_circle</span>
+            开局设计
+          </h3>
+          <div class="form-group">
+            <label class="form-label">开局场景</label>
+            <textarea class="form-textarea" id="final-opening" rows="2">${draft.opening_design || ''}</textarea>
+          </div>
+          <div class="form-group">
+            <label class="form-label">情感线</label>
+            <input type="text" class="form-input" id="final-emotion" value="${draft.emotion_line || ''}">
+          </div>
+        </div>
+        
+        <!-- 生成设置 -->
+        <div class="form-section" style="margin-bottom: 20px;">
+          <h3 class="form-section__title">
+            <span class="material-icons">settings</span>
+            生成设置
+          </h3>
+          <div class="form-row">
+            <div class="form-group">
+              <label class="form-label">目标字数</label>
+              <select class="form-select" id="final-wordcount">
+                <option value="30">30万字（短篇精品）</option>
+                <option value="50" selected>50万字（精品中篇）</option>
+                <option value="100">100万字（长篇）</option>
+                <option value="200">200万字（超长篇）</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label class="form-label">预计章节数</label>
+              <input type="number" class="form-input" id="final-chapters" value="200" min="50" max="1000">
+            </div>
+          </div>
+        </div>
+        
+        <!-- 差异化亮点（只读展示） -->
+        <div class="form-section" style="margin-bottom: 20px; background: rgba(34, 197, 94, 0.05);">
+          <h3 class="form-section__title">
+            <span class="material-icons">stars</span>
+            差异化亮点
+          </h3>
+          <div style="font-size: 14px; color: var(--v2-text-secondary); line-height: 1.8; white-space: pre-line;">
+            ${draft.unique_points || '暂无'}
+          </div>
+        </div>
+        
+      </form>
+      
+      <div class="confirm-actions" style="margin-top: 32px;">
+        <button class="confirm-btn confirm-btn--secondary" onclick="returnToDialog()">
+          <span class="material-icons">arrow_back</span>
+          返回修改
+        </button>
+        <button class="confirm-btn confirm-btn--primary" onclick="startGeneration()">
+          <span class="material-icons">rocket_launch</span>
+          确认并开始生成
+        </button>
+      </div>
+    </div>
+  `;
+  
+  container.classList.remove('hidden');
+  updateGenerateStatus('请确认方案');
+  document.getElementById('generate-btn').disabled = false;
+}
+
+// ==================== 更新步骤指示器 ====================
+function updateStepIndicator(currentStep) {
+  const progress = ((currentStep - 1) / 6) * 100;
+  document.getElementById('step-progress-line').style.width = progress + '%';
+  
+  document.querySelectorAll('.step-indicator__item').forEach((item, idx) => {
+    const step = idx + 1;
+    item.classList.remove('step-indicator__item--completed', 'step-indicator__item--current');
+    
+    if (step < currentStep) {
+      item.classList.add('step-indicator__item--completed');
+      item.querySelector('.step-indicator__dot').innerHTML = '✓';
+    } else if (step === currentStep) {
+      item.classList.add('step-indicator__item--current');
+      item.querySelector('.step-indicator__dot').innerHTML = step;
+    } else {
+      item.querySelector('.step-indicator__dot').innerHTML = step;
+    }
+  });
+}
+
+// ==================== 对话历史管理 ====================
+function addToHistory(round, choice, customText) {
+  // 获取选项标签
+  const optionCard = document.querySelector(`[data-option="${choice}"]`);
+  const optionLabel = optionCard ? optionCard.querySelector('.option-card__label').textContent.trim() : choice;
+  
+  dialogHistory.push({
+    round: round,
+    choice: optionLabel,
+    custom: customText
+  });
+  
+  renderHistory();
+}
+
+function renderHistory() {
+  const container = document.getElementById('dialog-history-content');
+  
+  const historyHtml = dialogHistory.map((item, idx) => `
+    <div class="dialog-history__item">
+      <div class="dialog-history__avatar dialog-history__avatar--ai">🤖</div>
+      <div class="dialog-history__bubble dialog-history__bubble--ai">
+        <strong>第${item.round}轮</strong><br>
+        选择了: ${item.choice}
+        ${item.custom ? `<br>自定义: ${item.custom}` : ''}
+      </div>
+    </div>
+  `).join('');
+  
+  container.innerHTML = historyHtml || '<div style="text-align: center; color: var(--v2-text-muted); padding: 20px;">暂无对话记录</div>';
+}
+
+function toggleHistory() {
+  const content = document.getElementById('dialog-history-content');
+  const text = document.getElementById('history-toggle-text');
+  const icon = document.getElementById('history-toggle-icon');
+  
+  content.classList.toggle('dialog-history__content--collapsed');
+  
+  if (content.classList.contains('dialog-history__content--collapsed')) {
+    text.textContent = '展开';
+    icon.textContent = 'expand_more';
+  } else {
+    text.textContent = '收起';
+    icon.textContent = 'expand_less';
+  }
+}
+
+// ==================== 工具函数 ====================
+function updateGenerateStatus(text) {
+  document.getElementById('generate-status').textContent = text;
+}
+
+function showError(message) {
+  alert(message);
+}
+
+function showRiskWarning(warning) {
+  // 可以添加风险提示的UI显示
+  console.warn('Risk warning:', warning);
+}
+
+function returnToDialog() {
+  document.getElementById('confirm-container').classList.add('hidden');
+  document.getElementById('dialog-round-container').classList.remove('hidden');
+  document.getElementById('step-indicator').classList.remove('hidden');
+  document.getElementById('dialog-history').classList.remove('hidden');
+  document.getElementById('generate-btn').disabled = true;
+}
+
+// ==================== AI评估和生成 ====================
+async function startAIEvaluation() {
+  // 暂时不使用AI评估跳转，直接在表单中确认
+  alert('请直接在表单中确认方案后生成');
+}
+
+async function startGeneration() {
+  if (!creativeDraft) {
+    // 表单模式
+    startGenerationFromForm();
+    return;
+  }
+  
+  // 对话模式 - 从表单收集数据
+  const formData = {
+    title: document.getElementById('final-title')?.value || creativeDraft.title,
+    protagonist_name: document.getElementById('final-protagonist')?.value || '',
+    protagonist_identity: document.getElementById('final-identity')?.value || '',
+    golden_finger_desc: document.getElementById('final-golden-finger')?.value || creativeDraft.golden_finger,
+    opening_scene: document.getElementById('final-opening')?.value || creativeDraft.opening_design,
+    main_plot: document.getElementById('final-plot')?.value || '',
+    emotion_line: document.getElementById('final-emotion')?.value || creativeDraft.emotion_line,
+    wordcount: document.getElementById('final-wordcount')?.value || '50',
+    chapters: document.getElementById('final-chapters')?.value || '200'
+  };
+  
+  // 验证必填项
+  if (!formData.title) {
+    showError('请输入小说标题');
+    return;
+  }
+  
+  try {
+    const response = await fetch('/api/market-driven/generate', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        genre: genre,
+        user_choices: formData,
+        dialog_session_id: dialogSessionId
+      })
+    });
+    
+    const data = await response.json();
+    
+    if (data.task_id) {
+      window.location.href = `/market-driven-status?task_id=${data.task_id}`;
+    } else {
+      showError('生成失败: ' + (data.error || '未知错误'));
+    }
+  } catch (error) {
+    console.error('生成失败:', error);
+    showError('网络错误，请重试');
+  }
+}
+
+// 表单模式下的生成函数
+function startGenerationFromForm() {
+  const data = {
+    title: document.getElementById('novel-title')?.value,
+    wordcount: document.getElementById('novel-wordcount')?.value || '50',
+    chapters: document.getElementById('novel-chapters')?.value || '200',
+    protagonist_name: document.getElementById('protagonist-name')?.value,
+    protagonist_identity: document.getElementById('protagonist-identity')?.value,
+    golden_finger_desc: document.getElementById('golden-finger-desc')?.value,
+    opening_scene: document.getElementById('opening-scene')?.value,
+    main_plot: document.getElementById('main-plot')?.value
+  };
+  
+  if (!data.title) {
+    alert('请输入小说标题');
+    return;
+  }
+  
+  fetch('/api/market-driven/generate', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      genre: genre,
+      user_choices: data
+    })
+  })
+  .then(response => response.json())
+  .then(data => {
+    if (data.task_id) {
+      window.location.href = `/market-driven-status?task_id=${data.task_id}`;
+    } else {
+      alert('生成失败: ' + (data.error || '未知错误'));
+    }
+  })
+  .catch(error => {
+    console.error('生成失败:', error);
+    alert('网络错误，请重试');
+  });
+}
+</script>
+{% endblock %}
