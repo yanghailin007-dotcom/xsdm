@@ -1783,7 +1783,7 @@ def _run_chapter_generation_with_plan(task_id: str, genre: str, target_words: in
         emotion_curve = _build_emotion_curve_from_plan(final_plan, total_chapters)
         
         # 保存一阶段产物到任务结果
-        current_result = task.get("result", {})
+        current_result = task.get("result") or {}
         current_result["products"] = {
             "core_worldview": world_setting,
             "character_design": characters,
