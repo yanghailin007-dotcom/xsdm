@@ -1454,12 +1454,14 @@ def _get_genre_specific_prompts(genre: str) -> Dict:
     # 神豪文特定提示词
     if "神豪" in genre_lower or "花钱" in genre_lower or "返利" in genre_lower:
         return {
-            "title_formula": """1. 《神豪：从XX开始》 - 如《神豪：从被校花拒绝开始》《神豪：从送外卖开始》
-2. 《开局XX，我XX了》 - 如《开局物价贬值百万倍，我无敌了》《激活百倍返利系统》
-3. 《绑定神豪系统后，我XX》 - 如《绑定神豪系统后，我直播打赏百亿》
-4. 《我有XX舔狗金》 - 如《我有九千万亿舔狗金》《我有无限黑卡》
-5. 《分手XX，我XX》 - 如《分手第一天，我中了十个亿》《分手后我成了首富》""",
-            "selling_point_example": "示例：穷小子觉醒花钱返利系统，越花越有钱，在前女友和富二代面前疯狂装逼打脸，极致逆袭爽感",
+            "title_formula": """1. 《神豪：从XX开始》 - 如《神豪：从XX开始》《神豪：从XX开始》
+2. 《开局XX，我XX了》 - 如《开局物价XX，我无敌了》《激活XX系统》
+3. 《绑定神豪系统后，我XX》 - 如《绑定神豪系统后，我直播XX》
+4. 《我有XX》 - 如《我有XX》《我有XX》
+5. 《XX，我XX》 - 如《分手XX，我XX》《分手后我XX》
+
+【重要】以上只是格式示例，严禁直接复制示例内容！必须根据用户的金手指和题材创作全新书名！""",
+            "selling_point_example": "示例：穷小子觉醒XX系统，越花越有钱，在反派面前疯狂装逼打脸，极致逆袭爽感",
             "hook_formula": "必须包含：主角身份卑微（外卖员/保安/穷学生）+ 被羞辱/分手 + 突然获得神豪系统 + 第一次装逼打脸",
             "personality_guide": "要有隐忍后的爆发感，表面低调实则掌控全局",
             "background_guide": "如：被分手的穷学生/被开除的保安/被看不起的实习生",
@@ -1474,11 +1476,13 @@ def _get_genre_specific_prompts(genre: str) -> Dict:
     # 国运文/禁地类特定提示词
     elif "国运" in genre_lower or "禁地" in genre_lower or "直播" in genre_lower:
         return {
-            "title_formula": """1. 《开局XX，我XX了》 - 如《开局召唤兵马俑，我无敌了》《觉醒满级天赋，我一刀斩神》
-2. 《绑定XX系统后，我XX》 - 如《绑定吐槽系统后，我气哭了怪谈》《扮演酒剑仙，队友白月魁》
-3. 《XX：从XX开始》 - 如《诡秘：从扮演小丑开始》《国运：从被选中开始》
-4. 《我有XX》 - 如《我有无限复活甲》《我能召唤历史名将》""",
-            "selling_point_example": "示例：吐槽型主角觉醒弹幕系统，在全球直播的禁地挑战中靠气哭BOSS带飞全场，极致反差爽感",
+            "title_formula": """1. 《开局XX，我XX了》 - 如《开局觉醒XX能力》《觉醒满级XX，我无敌了》
+2. 《绑定XX系统后，我XX》 - 如《绑定XX系统后，我气哭了XX》《扮演XX，队友XX》
+3. 《XX：从XX开始》 - 如《XX：从扮演XX开始》《XX：从被选中开始》
+4. 《我有XX》 - 如《我有无限XX》《我能召唤XX》
+
+【重要】以上只是格式示例，严禁直接复制示例内容！必须根据用户的金手指和题材创作全新书名！""",
+            "selling_point_example": "示例：主角拥有XX能力，在全球直播的禁地挑战中靠XX操作带飞全场，极致反差爽感",
             "hook_formula": "必须包含：全球/全国直播场景 + 别人严肃紧张 + 主角离谱操作 + 震惊全球",
             "personality_guide": "要有反差感，如：表面沙雕吐槽实则掌控全局",
             "background_guide": "如：失意脱口秀演员/被选中的普通人/隐藏身份的大佬",
@@ -1493,11 +1497,13 @@ def _get_genre_specific_prompts(genre: str) -> Dict:
     # 玄幻/仙侠类特定提示词
     elif "玄幻" in genre_lower or "仙侠" in genre_lower or "修真" in genre_lower or "修仙" in genre_lower:
         return {
-            "title_formula": """1. 《开局XX，我XX了》 - 如《开局签到荒古圣体》《觉醒满级灵根，我一剑破天》
-2. 《XX：从XX开始》 - 如《凡人：从杂役开始》《玄幻：从废柴开始逆袭》
-3. 《绑定XX系统后，我XX》 - 如《绑定万倍返还系统后，我无敌了》
-4. 《我有XX》 - 如《我有亿万倍修炼加速》《我能无限顿悟》""",
-            "selling_point_example": "示例：废柴少年觉醒逆天悟性，越级挑战天才妖孽，在宗门大比中一路碾压，成就无上道途",
+            "title_formula": """1. 《开局XX，我XX了》 - 如《开局觉醒XX》《觉醒满级XX，我XX》
+2. 《XX：从XX开始》 - 如《XX：从XX开始》《XX：从XX开始逆袭》
+3. 《绑定XX系统后，我XX》 - 如《绑定XX系统后，我无敌了》
+4. 《我有XX》 - 如《我有XX》《我能XX》
+
+【重要】以上只是格式示例，严禁直接复制示例内容！必须根据用户的金手指和题材创作全新书名！""",
+            "selling_point_example": "示例：主角觉醒XX能力，越级挑战天才，在宗门大比中一路碾压，成就无上道途",
             "hook_formula": "必须包含：主角被废/被退婚/被看不起 + 觉醒金手指 + 第一次越级打脸",
             "personality_guide": "要有坚韧不屈、逆天改命的气质",
             "background_guide": "如：被废的天才/被退婚的少年/杂役弟子",
@@ -1512,11 +1518,13 @@ def _get_genre_specific_prompts(genre: str) -> Dict:
     # 都市/职场类特定提示词
     elif "都市" in genre_lower or "职场" in genre_lower or "医" in genre_lower or "兵王" in genre_lower:
         return {
-            "title_formula": """1. 《神豪：从XX开始》 - 如《神豪：从被开除开始》《从实习生到首富》
-2. 《开局XX，我XX了》 - 如《开局获得神医传承》《激活人生选择系统》
-3. 《XX：从XX开始》 - 如《神医：从被退婚开始》《战神：从监狱归来》
-4. 《我有XX》 - 如《我有九十九位师父》《我能看透人心》""",
-            "selling_point_example": "示例：被开除的小职员获得人生选择系统，每次选择都有丰厚奖励，在职场和情场疯狂逆袭",
+            "title_formula": """1. 《神豪：从XX开始》 - 如《神豪：从XX开始》《从XX到XX》
+2. 《开局XX，我XX了》 - 如《开局获得XX》《激活XX系统》
+3. 《XX：从XX开始》 - 如《XX：从XX开始》《XX：从XX归来》
+4. 《我有XX》 - 如《我有XX》《我能XX》
+
+【重要】以上只是格式示例，严禁直接复制示例内容！必须根据用户的金手指和题材创作全新书名！""",
+            "selling_point_example": "示例：小职员获得XX系统，每次选择都有丰厚奖励，在职场和情场疯狂逆袭",
             "hook_formula": "必须包含：主角身份低微 + 被羞辱/开除 + 获得金手指 + 第一次逆袭打脸",
             "personality_guide": "要有隐忍后的爆发，低调中带着霸气",
             "background_guide": "如：被开除的实习生/被退婚的小医生/退伍特种兵",
@@ -1531,10 +1539,12 @@ def _get_genre_specific_prompts(genre: str) -> Dict:
     # 末日/求生类特定提示词
     elif "末日" in genre_lower or "求生" in genre_lower or "末世" in genre_lower or "天灾" in genre_lower:
         return {
-            "title_formula": """1. 《末日：从XX开始》 - 如《末日：从囤货开始》《天灾：从建造避难所开始》
-2. 《开局XX，我XX了》 - 如《开局百倍爆率，我囤空了超市》《觉醒空间异能》
-3. 《XX：从XX开始》 - 如《重生：从末日前三天开始》《囤货：从改造地下室开始》
-4. 《我有XX》 - 如《我有无限储物空间》《我能预知天灾》""",
+            "title_formula": """1. 《末日：从XX开始》 - 如《末日：从XX开始》《天灾：从XX开始》
+2. 《开局XX，我XX了》 - 如《开局XX，我XX了》《觉醒XX》
+3. 《XX：从XX开始》 - 如《重生：从XX开始》《XX：从XX开始》
+4. 《我有XX》 - 如《我有XX》《我能XX》
+
+【重要】以上只是格式示例，严禁直接复制示例内容！必须根据用户的金手指和题材创作全新书名！""",
             "selling_point_example": "示例：重生者提前囤货备战末日，在丧尸和天灾面前打造安全堡垒，被前队友疯狂跪舔",
             "hook_formula": "必须包含：末日降临/重生归来 + 疯狂囤货 + 第一个求生挑战 + 打脸前队友",
             "personality_guide": "要有先知的冷静和果断，杀伐决断",
@@ -1550,11 +1560,13 @@ def _get_genre_specific_prompts(genre: str) -> Dict:
     # 默认提示词（通用）
     else:
         return {
-            "title_formula": """1. 《开局XX，我XX了》 - 如《开局觉醒系统，我无敌了》
-2. 《绑定XX系统后，我XX》 - 如《绑定神级系统后，我逆袭了》
-3. 《XX：从XX开始》 - 如《逆袭：从被欺负开始》
-4. 《我有XX》 - 如《我有特殊能力》""",
-            "selling_point_example": "示例：普通主角觉醒特殊能力，在困境中不断逆袭，打脸看不起他的人",
+            "title_formula": """1. 《开局XX，我XX了》 - 如《开局XX，我XX了》
+2. 《绑定XX系统后，我XX》 - 如《绑定XX后，我XX了》
+3. 《XX：从XX开始》 - 如《XX：从XX开始》
+4. 《我有XX》 - 如《我有XX》
+
+【重要】以上只是格式示例，严禁直接复制示例内容！必须根据用户的金手指和题材创作全新书名！""",
+            "selling_point_example": "示例：普通主角觉醒XX能力，在困境中不断逆袭，打脸看不起他的人",
             "hook_formula": "必须包含：主角身份低微 + 被羞辱 + 觉醒能力 + 第一次打脸",
             "personality_guide": "要有逆袭的决心和隐藏的实力",
             "background_guide": "如：普通人/被看不起的小人物",
