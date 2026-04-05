@@ -1830,8 +1830,9 @@ async function confirmFormAndGenerate() {
 
 // 底部"开始生成"按钮的处理函数
 async function startGeneration() {
-  // 表单模式（直接输入，无对话）
-  if (!creativeDraft) {
+  // 🔥 修复：根据当前模式判断，而不是根据 creativeDraft
+  if (currentMode === 'form') {
+    // 表单模式（直接输入，无对话）
     startGenerationFromForm();
     return;
   }
