@@ -1978,6 +1978,44 @@
         // 存储恢复项目信息
         window.resumeProjectInfo = null;
         
+        // 🔥 检查并填充从创意工坊保存的创意
+        function checkAndFillCreativeIdea() {
+            try {
+                const saved = localStorage.getItem('selectedCreativeIdea') || localStorage.getItem('lastSavedCreativeIdea');
+                if (!saved) return;
+                
+                const idea = JSON.parse(saved);
+                if (!idea) return;
+                
+                // 检查表单是否为空
+                const titleEl = document.getElementById('novel-title');
+                const synopsisEl = document.getElementById('novel-synopsis');
+                const settingEl = document.getElementById('core-setting');
+                const sellingEl = document.getElementById('core-selling-points');
+                
+                if (!titleEl.value && !settingEl.value) {
+                    // 自动填充表单
+                    if (idea.novelTitle) titleEl.value = idea.novelTitle;
+                    if (idea.synopsis && synopsisEl) synopsisEl.value = idea.synopsis;
+                    if (idea.coreSetting) settingEl.value = idea.coreSetting;
+                    if (idea.coreSellingPoints && sellingEl) sellingEl.value = idea.coreSellingPoints;
+                    if (idea.totalChapters) {
+                        const chaptersEl = document.getElementById('total-chapters');
+                        if (chaptersEl) chaptersEl.value = idea.totalChapters;
+                    }
+                    
+                    console.log('[INIT] 已自动填充从创意工坊保存的创意:', idea.novelTitle || '未命名');
+                    
+                    // 显示提示
+                    if (typeof showToast === 'function') {
+                        showToast('✅ 已自动填充创意工坊保存的创意', 'success');
+                    }
+                }
+            } catch (e) {
+                console.error('[INIT] 检查保存的创意失败:', e);
+            }
+        }
+        
         // 检测未完成项目并显示恢复横幅
         async function checkIncompleteProjects() {
             console.log('[RESUME] 检测未完成项目...');
@@ -2644,6 +2682,11 @@
                 } else {
                     console.warn('[INIT] loadCreativeIdeas 函数不存在，请检查 creative-library.js 是否正确加载');
                 }
+                
+                // 🔥 检查是否从创意工坊保存了创意，自动填充表单
+                setTimeout(() => {
+                    checkAndFillCreativeIdea();
+                }, 600);
                 
                 // 新增：检测未完成项目并显示恢复横幅
                 setTimeout(() => {

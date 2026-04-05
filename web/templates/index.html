@@ -946,6 +946,9 @@
             loadCreativeIdeas();
             loadUserPoints(); // 加载用户余额
             
+            // 🔥 检查是否有从创意工坊保存的创意，自动填充
+            checkAndFillSavedCreative();
+            
             // 初始化用户引导
             await initUserGuide();
         });
@@ -1019,8 +1022,12 @@
                 let html = '<option value="">-- 请选择一个创意 --</option>';
                 
                 ideas.forEach((idea, index) => {
-                    const preview = idea.title || (idea.summary ? idea.summary.substring(0, 50) : null) || `创意 #${index + 1}`;
-                    html += `<option value="${index}">创意 #${index + 1}: ${preview}...</option>`;
+                    const title = idea.title || idea.novelTitle || '';
+                    const summary = idea.summary || idea.synopsis || '';
+                    const preview = title || (summary ? summary.substring(0, 50) : '') || `创意 #${index + 1}`;
+                    const sourceIcon = idea.source === 'user' ? '👤' : '📚';
+                    const sourceLabel = idea.source === 'user' ? '我的' : '系统';
+                    html += `<option value="${index}">${sourceIcon} [${sourceLabel}] ${preview.substring(0, 30)}${preview.length > 30 ? '...' : ''}</option>`;
                 });
                 
                 select.innerHTML = html;
@@ -1046,10 +1053,17 @@
             selectedCreativeId = index;
             const idea = window.creativeIdeasData[index];
             
+            // 兼容系统创意和用户创意的不同字段名
+            const title = idea.title || idea.novelTitle || '未命名';
+            const summary = idea.summary || idea.synopsis || '暂无描述';
+            const settings = idea.settings || idea.core_setting || idea.coreSetting || '暂无设定';
+            const source = idea.source === 'user' ? '👤 我的创意' : '📚 系统推荐';
+            
             previewContent.innerHTML = `
-                <strong style="color: var(--dark-text-primary);">标题:</strong> ${idea.title || '未命名'}<br><br>
-                <strong style="color: var(--dark-text-primary);">简介:</strong> ${idea.summary || '暂无描述'}<br><br>
-                <strong style="color: var(--dark-text-primary);">设定:</strong> ${idea.settings || '暂无设定'}
+                <strong style="color: var(--dark-text-primary);">来源:</strong> ${source}<br><br>
+                <strong style="color: var(--dark-text-primary);">标题:</strong> ${title}<br><br>
+                <strong style="color: var(--dark-text-primary);">简介:</strong> ${summary}<br><br>
+                <strong style="color: var(--dark-text-primary);">设定:</strong> ${settings.substring(0, 200)}${settings.length > 200 ? '...' : ''}
             `;
             previewDiv.style.display = 'block';
         }
@@ -1059,15 +1073,60 @@
             if (selectedCreativeId === null || !window.creativeIdeasData) return;
             
             const idea = window.creativeIdeasData[selectedCreativeId];
-            if (idea.title) document.getElementById('title').value = idea.title;
-            if (idea.summary) document.getElementById('summary').value = idea.summary;
-            if (idea.settings) document.getElementById('settings').value = idea.settings;
+            
+            // 兼容系统创意和用户创意的不同字段名
+            const title = idea.title || idea.novelTitle || '';
+            const summary = idea.summary || idea.synopsis || '';
+            const settings = idea.settings || idea.core_setting || idea.coreSetting || '';
+            
+            if (title) document.getElementById('title').value = title;
+            if (summary) document.getElementById('summary').value = summary;
+            if (settings) document.getElementById('settings').value = settings;
+            
+            // 如果有完整创意数据，保存到 localStorage 供后续使用
+            const rawData = idea.raw_data || idea;
+            if (rawData && (rawData.completeStoryline || rawData.storyline)) {
+                localStorage.setItem('selectedCreativeIdea', JSON.stringify(rawData));
+            }
             
             // 隐藏预览
             document.getElementById('creative-idea-preview').style.display = 'none';
             
             // 显示成功提示
             showStatus('✅ 已填充创意内容到表单', 'success');
+        }
+
+        // ==================== 检查并填充保存的创意 ====================
+        function checkAndFillSavedCreative() {
+            try {
+                const saved = localStorage.getItem('selectedCreativeIdea');
+                if (!saved) return;
+                
+                const idea = JSON.parse(saved);
+                if (!idea) return;
+                
+                // 检查表单是否为空，如果为空则自动填充
+                const titleEl = document.getElementById('title');
+                const summaryEl = document.getElementById('summary');
+                const settingsEl = document.getElementById('settings');
+                
+                if (!titleEl.value && !settingsEl.value) {
+                    const title = idea.novelTitle || idea.title || '';
+                    const summary = idea.synopsis || idea.summary || '';
+                    const settings = idea.coreSetting || idea.settings || '';
+                    
+                    if (title) titleEl.value = title;
+                    if (summary) summaryEl.value = summary;
+                    if (settings) settingsEl.value = settings;
+                    
+                    showStatus('✅ 已自动填充上次保存的创意内容', 'success');
+                    
+                    // 清除已使用的标记（可选，如果需要保留可以注释掉）
+                    // localStorage.removeItem('selectedCreativeIdea');
+                }
+            } catch (e) {
+                console.error('检查保存的创意失败:', e);
+            }
         }
 
         // ==================== 打开创意编辑器 ====================

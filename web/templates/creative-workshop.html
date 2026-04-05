@@ -1225,6 +1225,10 @@
             const result = await response.json();
 
             if (result.success) {
+                // 🔥 保存到 localStorage，方便后续使用
+                localStorage.setItem('lastSavedCreativeIdea', JSON.stringify(data));
+                localStorage.setItem('selectedCreativeIdea', JSON.stringify(data));
+                
                 showToast('创意保存成功！');
                 setTimeout(() => {
                     window.location.href = '/phase-one-setup';

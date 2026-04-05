@@ -61,15 +61,6 @@ def register_creative_routes(app, manager: NovelGenerationManager):
             idea_id: 创意ID
             source: 来源 ('system' 或 'user')
         """
-        formatted = {
-            "id": idea_id,
-            "source": source,  # system 或 user
-            "core_setting": work.get("coreSetting", ""),
-            "core_selling_points": work.get("coreSellingPoints", ""),
-            "storyline": work.get("completeStoryline", {}),
-            "raw_data": work
-        }
-        
         # 提取故事线阶段名称作为预览
         storyline = work.get("completeStoryline", {})
         stages = []
@@ -77,7 +68,27 @@ def register_creative_routes(app, manager: NovelGenerationManager):
             if stage_key in storyline:
                 stage_name = storyline[stage_key].get("stageName", stage_key)
                 stages.append(stage_name)
-        formatted["stages_preview"] = stages
+        
+        # 构建摘要/简介
+        core_setting = work.get("coreSetting", "")
+        synopsis = work.get("synopsis", "")
+        summary = synopsis if synopsis else (core_setting[:200] + "..." if len(core_setting) > 200 else core_setting)
+        
+        formatted = {
+            "id": idea_id,
+            "source": source,  # system 或 user
+            # 前端兼容字段
+            "title": work.get("novelTitle", "未命名创意"),
+            "summary": summary,
+            "settings": core_setting,
+            # 原始字段
+            "core_setting": core_setting,
+            "core_selling_points": work.get("coreSellingPoints", ""),
+            "storyline": storyline,
+            "stages_preview": stages,
+            "total_chapters": work.get("totalChapters", 200),
+            "raw_data": work
+        }
         
         return formatted
 
