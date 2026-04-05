@@ -2041,21 +2041,21 @@ def generate_final_plan():
     try:
         data = request.get_json()
         if not data:
-            return jsonify({"error": "请求体不能为空"), 400
+            return jsonify({"error": "请求体不能为空"}), 400
         
         genre = data.get('genre')
         session_id = data.get('session_id')
         form_data = data.get('form_data', {})
         
         if not genre or not session_id:
-            return jsonify({"error": "缺少genre或session_id"), 400
+            return jsonify({"error": "缺少genre或session_id"}), 400
         
         # 获取对话会话
         from web.services.market_driven.dialog_polish_manager import get_dialog_session
         manager = get_dialog_session(session_id)
         
         if not manager:
-            return jsonify({"error": "会话不存在或已过期"), 404
+            return jsonify({"error": "会话不存在或已过期"}), 404
         
         # 获取创意草案
         draft = manager.get_creative_draft()
