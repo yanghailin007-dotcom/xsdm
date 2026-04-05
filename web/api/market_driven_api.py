@@ -5,7 +5,7 @@ Market Driven Generation API
 
 提供市场导向模式的完整流程：
 1. 获取可选择的题材列表
-2. 分析题材套路
+2. 分析爆款题材规律
 3. 基于套路生成方案
 4. 基于套路生成第一阶段产物
 5. 批量生成章节
@@ -282,7 +282,7 @@ def analyze_tropes():
                     status="analyzing",
                     progress=10,
                     current_stage="analyzing_tropes",
-                    message="正在分析题材套路..."
+                    message="正在分析爆款题材规律..."
                 )
                 
                 # 初始化分析器
@@ -623,7 +623,7 @@ def _run_trope_analysis(task_id: str, genre: str, api_client=None, user_choices:
         status="analyzing",
         progress=5,
         current_stage="analyzing_tropes",
-        message="正在分析题材套路..."
+        message="正在分析爆款题材规律..."
     )
     
     try:

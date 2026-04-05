@@ -223,7 +223,7 @@ class TropeAnalyzer:
             logger.info(f"[TropeAnalyzer] 使用缓存的爆款分析: {genre}")
             return self._cache[genre]
         
-        logger.info(f"[TropeAnalyzer] 开始分析题材套路: {genre}")
+        logger.info(f"[TropeAnalyzer] 开始分析爆款题材规律: {genre}")
         
         # 构建分析Prompt
         analysis_prompt = self._build_analysis_prompt(genre)
@@ -310,7 +310,7 @@ class TropeAnalyzer:
             content_type="trope_analysis",
             user_prompt=prompt,
             temperature=0.3,
-            purpose=f"分析题材套路"
+            purpose=f"分析爆款题材规律"
         )
         
         # 解析JSON响应（兼容多种格式）
