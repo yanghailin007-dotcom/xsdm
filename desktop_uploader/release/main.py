@@ -2284,15 +2284,16 @@ NovelPublisher_Data/              ← 统一数据目录
         """自动设置续发"""
         try:
             next_chapter = resume_info['next_chapter']
-            today_remaining = resume_info['today_remaining']
+            # 🔥 使用 last_day_remaining 代替 today_remaining
+            last_day_remaining = resume_info.get('last_day_remaining', 8)
             
-            # 1. 选中今天剩余的章节
+            # 1. 选中当天剩余的章节
             selected_count = 0
             for i in range(self.chapters_list.count()):
                 item = self.chapters_list.item(i)
                 ch_num = self._extract_chapter_num(item.text())
                 
-                if ch_num and next_chapter <= ch_num < next_chapter + today_remaining:
+                if ch_num and next_chapter <= ch_num < next_chapter + last_day_remaining:
                     item.setCheckState(Qt.Checked)
                     item.setBackground(QColor("#E3F2FD"))  # 蓝色高亮
                     selected_count += 1
@@ -2307,11 +2308,11 @@ NovelPublisher_Data/              ← 统一数据目录
             next_date = resume_info['next_publish_date']
             next_time = resume_info['next_publish_time']
             
-            # 自动计算定时发布（如果今天有剩余额度）
-            if today_remaining > 0:
+            # 自动计算定时发布（如果当天有剩余额度）
+            if last_day_remaining > 0:
                 self._setup_publish_schedule(resume_info)
             
-            self.log(f"🚀 已自动设置续发: 选中第{next_chapter}-{next_chapter + today_remaining - 1}章，共{selected_count}章", "success")
+            self.log(f"🚀 已自动设置续发: 选中第{next_chapter}-{next_chapter + last_day_remaining - 1}章，共{selected_count}章", "success")
             self.log(f"⏰ 发布时间: {next_date} {next_time}开始", "info")
             
         except Exception as e:
@@ -2322,19 +2323,20 @@ NovelPublisher_Data/              ← 统一数据目录
         try:
             next_date = datetime.strptime(resume_info['next_publish_date'], '%Y-%m-%d')
             publish_times = resume_info.get('publish_times', ['06:00'])
-            today_remaining = resume_info['today_remaining']
+            # 🔥 使用 last_day_remaining 代替 today_remaining
+            last_day_remaining = resume_info.get('last_day_remaining', 8)
             
             # 构建日期-时间点分配
             date_slots = {}
             
-            # 今天的分配
-            if today_remaining > 0:
+            # 当天的分配
+            if last_day_remaining > 0:
                 date_str = next_date.strftime('%Y-%m-%d')
                 date_slots[date_str] = {}
                 
                 # 每个时间点均匀分配
-                chapters_per_slot = max(1, today_remaining // len(publish_times))
-                remaining = today_remaining
+                chapters_per_slot = max(1, last_day_remaining // len(publish_times))
+                remaining = last_day_remaining
                 
                 for time_slot in publish_times:
                     if remaining <= 0:
@@ -2400,11 +2402,11 @@ NovelPublisher_Data/              ← 统一数据目录
             publish_time_edit.setText(self.publish_times_edit.text().split(',')[0])
         layout.addRow(publish_time_label, publish_time_edit)
         
-        # 🔥 今天发布章节数设置
-        today_max = resume_info.get('today_remaining', 8) if resume_info else 8
+        # 🔥 当天发布章节数设置
+        today_max = resume_info.get('last_day_remaining', 8) if resume_info else 8
         daily_limit = resume_info.get('daily_limit', 8) if resume_info else 8
         
-        chapter_count_label = QLabel(f"今天发布章节数 (最多{daily_limit}章):")
+        chapter_count_label = QLabel(f"发布章节数 (最多{daily_limit}章):")
         chapter_count_spin = QSpinBox()
         chapter_count_spin.setRange(1, daily_limit)
         chapter_count_spin.setValue(min(2, today_max))  # 默认选2章或剩余数量
@@ -2413,7 +2415,7 @@ NovelPublisher_Data/              ← 统一数据目录
         
         # 提示信息
         if resume_info:
-            info_text = f"💡 今天还能发 {today_max} 章 | 将从第{chapter_num}章连续发布"
+            info_text = f"💡 当天还能发 {today_max} 章 | 将从第{chapter_num}章连续发布"
             info_label = QLabel(info_text)
             info_label.setStyleSheet("color: #2196F3; font-size: 12px;")
             layout.addRow(info_label)
