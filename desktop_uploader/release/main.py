@@ -2362,7 +2362,7 @@ NovelPublisher_Data/              ← 统一数据目录
             self.publish_date_slots = date_slots
             
             # 更新"从第X章开始"
-            self.start_from_chapter_spin.setValue(chapter_num)
+            self.start_chapter_spin.setValue(chapter_num)
             self.apply_start_chapter()
             
             self.log(f"✅ 已手动设置: 第{chapter_num}-{chapter_num + chapter_count - 1}章 ({chapter_count}章) {date_str} {time_str}", "success")
