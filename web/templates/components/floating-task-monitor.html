@@ -360,10 +360,45 @@
         }
     }
     
+    // 阶段名称映射（与market-driven-status.html保持一致）
+    const STAGE_NAME_MAP = {
+        'analyzing_tropes': '分析题材套路',
+        'preparing_plan': '准备方案参数',
+        'generate_plan': '生成完整方案',
+        'generate_fanqie_data': '生成番茄上传数据',
+        'generate_worldview': '构建世界观',
+        'generate_characters': '设计角色',
+        'generate_growth_plan': '规划成长路线',
+        'generate_stage_goals': '制定阶段目标',
+        'bestseller_alignment': '爆款对齐优化',
+        'generate_supplementary': '生成附加产物',
+        'generating_chapters': '批量生成章节',
+        'analyze': '分析章节质量',
+        'optimize': '优化章节内容',
+        'completed': '生成完成',
+        'failed': '生成失败',
+        'pending': '等待中',
+        'preparing': '准备中',
+        'running': '运行中',
+        'in_progress': '进行中',
+        'generate_plot': '生成剧情大纲',
+        'generate_chapter_detail': '生成章纲详情',
+        'generate_chapter_content': '生成章节正文',
+        'save_chapter': '保存章节',
+        'init': '初始化',
+        'processing': '处理中',
+        'finalizing': '收尾中'
+    };
+    
+    function getStageName(stage) {
+        if (!stage) return '生成中...';
+        return STAGE_NAME_MAP[stage] || stage;
+    }
+    
     // 更新浮窗UI
     function updateFloatUI(task) {
         const progress = parseInt(task.progress) || 0;
-        const stage = task.current_stage || task.message || '生成中...';
+        const stage = getStageName(task.current_stage) || getStageName(task.message) || '生成中...';
         
         // 更新进度
         const percentEl = document.getElementById('globalFloatPercent');
