@@ -484,6 +484,17 @@ class UploadWorker(QThread):
                 self.log_signal.emit(f"所有章节({min_chapter}-{max_chapter})均≤{first_publish_count}，全部立即发布", "info")
                 return
             
+            # 🔥 优先检查手动设置的发布日期
+            manual_date = publish_config.get('manual_publish_date')
+            manual_time = publish_config.get('manual_publish_time')
+            manual_count = publish_config.get('manual_chapter_count', daily_count)
+            
+            if manual_date and manual_time:
+                self.log_signal.emit(f"🔥 使用手动设置的基准时间: {manual_date} {manual_time}", "info")
+                self._apply_manual_publish_schedule(manual_date, manual_time, manual_count, 
+                                                     first_publish_count, daily_count, chapters_per_slot)
+                return
+            
             # 从平台同步最后发布时间
             self.log_signal.emit("同步平台发布时间数据...", "info")
             last_published_time, today_published_count = self._get_last_published_time_from_page()
@@ -571,6 +582,60 @@ class UploadWorker(QThread):
             
         except Exception as e:
             self.log_signal.emit(f"计算定时计划失败: {e}", "warning")
+    
+    def _apply_manual_publish_schedule(self, manual_date: str, manual_time: str, manual_count: int,
+                                        first_publish_count: int, daily_count: int, chapters_per_slot: int):
+        """应用手动设置的发布时间计划"""
+        try:
+            from datetime import datetime, timedelta
+            
+            # 解析基准时间
+            base_time = datetime.strptime(f"{manual_date} {manual_time}", "%Y-%m-%d %H:%M")
+            hour, minute = map(int, manual_time.split(':'))
+            
+            scheduled_count = 0
+            today_chapters = 0
+            current_date = base_time.date()
+            next_time = base_time
+            
+            for chapter in self.chapters:
+                ch_num = chapter.get('chapter_number', 0)
+                
+                # 只对大于 first_publish_count 的章节设置定时
+                if ch_num <= first_publish_count:
+                    continue
+                
+                # 检查是否需要跨天（超过 daily_count 章）
+                if today_chapters >= daily_count:
+                    # 跳到明天同一时间
+                    current_date += timedelta(days=1)
+                    next_time = datetime(current_date.year, current_date.month, current_date.day, hour, minute)
+                    today_chapters = 0
+                
+                # 设置定时时间
+                scheduled_time = next_time.strftime('%Y-%m-%d %H:%M')
+                chapter['scheduled_time'] = scheduled_time
+                
+                # 准备下一个时间（+30分钟）
+                next_time += timedelta(minutes=30)
+                today_chapters += 1
+                scheduled_count += 1
+            
+            # 输出计划
+            self.log_signal.emit(f"=" * 50, "info")
+            self.log_signal.emit(f"定时发布计划: {scheduled_count}章 (手动设置)", "info")
+            
+            # 找出首章和末章
+            scheduled_chapters = [ch for ch in self.chapters if ch.get('scheduled_time')]
+            if scheduled_chapters:
+                first_scheduled = min(scheduled_chapters, key=lambda x: x['chapter_number'])
+                last_scheduled = max(scheduled_chapters, key=lambda x: x['chapter_number'])
+                self.log_signal.emit(f"  首章: 第{first_scheduled['chapter_number']}章 @ {first_scheduled['scheduled_time']}", "info")
+                self.log_signal.emit(f"  末章: 第{last_scheduled['chapter_number']}章 @ {last_scheduled['scheduled_time']}", "info")
+            self.log_signal.emit(f"=" * 50, "info")
+            
+        except Exception as e:
+            self.log_signal.emit(f"应用手动定时计划失败: {e}", "warning")
     
     def _get_last_published_time_from_page(self) -> tuple:
         """从页面获取最后发布时间和今天发布数量"""
@@ -1856,6 +1921,11 @@ NovelPublisher_Data/              ← 统一数据目录
                     result['tags_info']['roles'] = ['主角', '反派', '队友']
                 if not result['tags_info'].get('plots'):
                     result['tags_info']['plots'] = ['系统流', '打脸', '逆袭']
+            
+            # 🔥 8. 提取顶层的 publish_config（包含手动设置）
+            top_level_publish_config = config.get('publish_config')
+            if isinstance(top_level_publish_config, dict) and top_level_publish_config:
+                result['publish_config'] = {**result['publish_config'], **top_level_publish_config}
         
         # 🔥 数据清洗：如果最终 tags_info 的 themes 被扁平化了（包含了 roles/plots 的标签），尝试拆分回来
         themes = result['tags_info'].get('themes', [])
