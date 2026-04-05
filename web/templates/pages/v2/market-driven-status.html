@@ -992,33 +992,42 @@ async function checkBalanceAndResume() {
 
 // 后台运行 - 隐藏主页面，保持浮窗运行
 function runInBackground() {
-  // 保存任务状态到 localStorage（让全局浮窗接管）
-  localStorage.setItem('market_driven_background_task', JSON.stringify({
-    task_id: taskId,
-    start_time: Date.now(),
-    status: 'running',
-    novel_title: document.querySelector('.status-header__title')?.textContent || '生成中...'
-  }));
-  
-  // 创建并显示全局浮窗
-  if (typeof createGlobalFloat === 'function') {
-    createGlobalFloat(taskId);
+  try {
+    // 保存任务状态到 localStorage（让全局浮窗接管）
+    localStorage.setItem('market_driven_background_task', JSON.stringify({
+      task_id: taskId,
+      start_time: Date.now(),
+      status: 'running',
+      novel_title: document.querySelector('.status-header__title')?.textContent || '生成中...'
+    }));
+    
+    // 创建并显示全局浮窗
+    if (typeof window.createGlobalFloat === 'function') {
+      window.createGlobalFloat(taskId);
+    } else {
+      console.warn('[Background] createGlobalFloat 函数不存在，跳过浮窗创建');
+    }
+    
+    // 停止当前页面轮询（让全局浮窗负责）
+    if (pollInterval) {
+      clearInterval(pollInterval);
+    }
+    
+    // 显示提示
+    const toast = document.createElement('div');
+    toast.className = 'toast-message';
+    toast.innerHTML = '<span class="material-icons">check_circle</span> 已切换到后台运行，可以浏览其他页面';
+    document.body.appendChild(toast);
+    setTimeout(() => toast.remove(), 3000);
+    
+    // 跳转到项目列表页
+    setTimeout(() => {
+      window.location.href = '/projects';
+    }, 500);
+  } catch (error) {
+    console.error('[Background] 后台运行出错:', error);
+    alert('切换后台运行失败: ' + error.message);
   }
-  
-  // 停止当前页面轮询（让全局浮窗负责）
-  clearInterval(pollInterval);
-  
-  // 显示提示
-  const toast = document.createElement('div');
-  toast.className = 'toast-message';
-  toast.innerHTML = '<span class="material-icons">check_circle</span> 已切换到后台运行，可以浏览其他页面';
-  document.body.appendChild(toast);
-  setTimeout(() => toast.remove(), 3000);
-  
-  // 跳转到项目列表页
-  setTimeout(() => {
-    window.location.href = '/projects';
-  }, 500);
 }
 
 // 查看结果
