@@ -1593,7 +1593,11 @@ def _run_chapter_generation_with_plan(task_id: str, genre: str, target_words: in
             "final_plan": final_plan,  # 传递完整的final_plan
             "core_formula": final_plan.get('story_direction', ''),
             "protagonist_archetroype": final_plan.get('protagonist_personality', ''),
-            "golden_finger": final_plan.get('golden_finger_summary', ''),
+            "golden_finger": {
+                "type": final_plan.get('golden_finger_summary', '花钱返利'),
+                "mechanism": final_plan.get('golden_finger_summary', ''),
+                "upgrade": "随主角成长逐步解锁"
+            },
             "core_selling_point": final_plan.get('core_selling_point', ''),
             "opening_hook": final_plan.get('opening_hook', ''),
             # 标记这是来自对话模式的final_plan

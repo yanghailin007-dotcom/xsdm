@@ -170,6 +170,12 @@ class MarketDrivenConversationSession:
         
         self.user_choices = user_choices
         self.tropes = tropes or {}
+        self.provider = provider
+        self.results = {}
+        
+        # 🔥 生成唯一会话ID，用于日志追踪（必须在其他日志之前）
+        import uuid
+        self.session_id = f"MDC-{uuid.uuid4().hex[:8].upper()}"
         
         # 🔥 检测是否是来自对话模式的final_plan（跳过爆款分析的模式）
         self._is_dialog_mode_final_plan = tropes and tropes.get("_source") == "dialog_mode_final_plan"
@@ -185,12 +191,6 @@ class MarketDrivenConversationSession:
             first_name = str(protagonist_name).split('/')[0].strip()
             self.user_choices['protagonist_name'] = first_name
             logger.info(f"[对话模式 {self.session_id}] 多个主角候选名 detected，使用第一个: {first_name}")
-        self.provider = provider
-        self.results = {}
-        
-        # 🔥 生成唯一会话ID，用于日志追踪
-        import uuid
-        self.session_id = f"MDC-{uuid.uuid4().hex[:8].upper()}"
         
         # 🔥 加载提示词包
         self._prompt_package = None
