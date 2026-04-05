@@ -146,7 +146,7 @@ def register_creative_workshop_routes(app, manager=None):
             from config.config import CONFIG
             api_client = APIClient(CONFIG)
             
-            # 构建AI提示词
+            # 构建AI系统提示词
             system_prompt = """你是一位专业的小说创意策划师，擅长将简短的核心创意扩展成完整的小说创意结构。
 
 请根据用户提供的核心创意，生成以下内容：
@@ -156,7 +156,7 @@ def register_creative_workshop_routes(app, manager=None):
 4. 小说简介
 5. 四阶段故事线（开篇、发展、冲突、结局）
 
-输出必须是严格的JSON格式：
+输出必须是严格的JSON格式，不要包含任何markdown标记或其他解释：
 {
     "novelTitle": "小说标题",
     "coreSetting": "详细的核心设定...",
@@ -171,14 +171,12 @@ def register_creative_workshop_routes(app, manager=None):
     "totalChapters": 200
 }"""
 
-            # 构建完整的prompt（系统提示词 + 用户输入）
-            full_prompt = f"{system_prompt}\n\n用户核心创意：\n{core_idea}\n\n请根据以上要求，生成完整的创意JSON。"
-
-            # 调用AI生成 - 使用chapter_content_generation类型
+            # 调用AI生成 - 使用自定义系统提示词
             response = api_client.generate_content_with_retry(
-                "chapter_content_generation",
-                full_prompt,
-                purpose="创意扩展"
+                "creative_idea_expansion",  # 使用唯一的内容类型标识
+                core_idea,  # 用户核心创意作为用户提示词
+                purpose="创意扩展",
+                system_prompt=system_prompt  # 传入完整的系统提示词
             )
             
             if not response:
