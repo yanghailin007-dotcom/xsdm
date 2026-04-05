@@ -94,8 +94,23 @@ class FanqieUploaderImpl:
             target_port = port if port else DEBUG_PORT
             
             self._progress(10, f"正在连接 Chrome (端口: {target_port})...")
-            self.playwright = sync_playwright().start()
+            
+            # 🔥 调试信息
+            self._log(f"[DEBUG] 尝试启动 playwright...")
+            try:
+                pw = sync_playwright()
+                self._log(f"[DEBUG] sync_playwright() 返回: {type(pw)}")
+                self.playwright = pw.start()
+                self._log(f"[DEBUG] playwright 启动成功: {type(self.playwright)}")
+            except Exception as e:
+                self._log(f"❌ [DEBUG] playwright 启动失败: {e}")
+                import traceback
+                self._log(traceback.format_exc())
+                return False
+            
+            self._log(f"[DEBUG] 尝试连接 Chrome on port {target_port}...")
             self.browser = self.playwright.chromium.connect_over_cdp(f"http://localhost:{target_port}")
+            self._log(f"[DEBUG] Chrome 连接成功")
             
             contexts = self.browser.contexts
             if contexts and contexts[0].pages:
