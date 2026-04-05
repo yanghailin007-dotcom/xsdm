@@ -1231,6 +1231,9 @@ function switchMode(mode) {
     document.getElementById('generate-section').classList.remove('hidden');
     updateGenerateStatus('表单填写模式');
     document.getElementById('generate-btn').disabled = false;
+    
+    // 🔥将对话模式的数据同步到表单
+    syncDialogDataToForm();
   } else {
     // 对话模式下，只有第7步才显示
     if (!finalPlan) {
@@ -2196,5 +2199,117 @@ function startGenerationFromForm() {
     alert('网络错误，请重试');
   });
 }
+
+
+// 🔥 将对话模式的数据同步到表单
+function syncDialogDataToForm() {
+  const formData = window.currentFormData;
+  if (!formData) {
+    console.log('[syncDialogDataToForm] 没有对话模式数据可同步');
+    return;
+  }
+  
+  console.log('[syncDialogDataToForm] 同步数据到表单:', formData);
+  
+  // 基本信息
+  if (formData.title) {
+    const titleEl = document.getElementById('novel-title');
+    if (titleEl && !titleEl.value) titleEl.value = formData.title;
+  }
+  
+  // 从 finalPlan 获取核心卖点
+  if (finalPlan?.sellpoint) {
+    const sellpointEl = document.getElementById('novel-sellpoint');
+    if (sellpointEl && !sellpointEl.value) sellpointEl.value = finalPlan.sellpoint;
+  }
+  
+  if (formData.wordcount) {
+    const wordcountEl = document.getElementById('novel-wordcount');
+    if (wordcountEl) wordcountEl.value = formData.wordcount;
+  }
+  
+  if (formData.chapters) {
+    const chaptersEl = document.getElementById('novel-chapters');
+    if (chaptersEl) chaptersEl.value = formData.chapters;
+  }
+  
+  // 主角设定
+  if (formData.protagonist_name) {
+    const nameEl = document.getElementById('protagonist-name');
+    if (nameEl && !nameEl.value) nameEl.value = formData.protagonist_name;
+  }
+  
+  if (formData.protagonist_identity) {
+    const identityEl = document.getElementById('protagonist-identity');
+    if (identityEl && !identityEl.value) {
+      // 尝试匹配选项值
+      const identityMap = {
+        '普通人': 'ordinary',
+        '底层': 'poor',
+        '倒霉': 'unlucky',
+        '重生': 'rebirth',
+        '穿越': 'transmigrator'
+      };
+      for (const [key, val] of Object.entries(identityMap)) {
+        if (formData.protagonist_identity.includes(key)) {
+          identityEl.value = val;
+          break;
+        }
+      }
+    }
+  }
+  
+  // 从 finalPlan 获取性格特征
+  if (finalPlan?.protagonist_personality) {
+    const traitsEl = document.getElementById('protagonist-traits');
+    if (traitsEl && !traitsEl.value) traitsEl.value = finalPlan.protagonist_personality;
+  }
+  
+  // 金手指设定
+  if (formData.golden_finger_desc) {
+    const gfDescEl = document.getElementById('golden-finger-desc');
+    if (gfDescEl && !gfDescEl.value) gfDescEl.value = formData.golden_finger_desc;
+    
+    // 尝试推断金手指类型
+    const gfTypeEl = document.getElementById('golden-finger-type');
+    if (gfTypeEl && !gfTypeEl.value) {
+      const desc = formData.golden_finger_desc.toLowerCase();
+      if (desc.includes('系统')) gfTypeEl.value = 'system';
+      else if (desc.includes('重生') || desc.includes('预知')) gfTypeEl.value = 'rebirth';
+      else if (desc.includes('宝物') || desc.includes('传承')) gfTypeEl.value = 'artifact';
+      else if (desc.includes('能力') || desc.includes('异能')) gfTypeEl.value = 'ability';
+      else if (desc.includes('身份')) gfTypeEl.value = 'identity';
+    }
+  }
+  
+  // 开局设计
+  if (formData.opening_scene) {
+    const openingDescEl = document.getElementById('opening-desc');
+    if (openingDescEl && !openingDescEl.value) openingDescEl.value = formData.opening_scene;
+  }
+  
+  // 从 finalPlan 获取第一个爽点/打脸
+  if (finalPlan?.first_climax) {
+    const firstSlapEl = document.getElementById('first-slap');
+    if (firstSlapEl && !firstSlapEl.value) firstSlapEl.value = finalPlan.first_climax;
+  }
+  
+  // 主线剧情
+  if (finalPlan?.main_goal) {
+    const mainGoalEl = document.getElementById('main-goal');
+    if (mainGoalEl && !mainGoalEl.value) mainGoalEl.value = finalPlan.main_goal;
+  }
+  
+  if (formData.main_plot) {
+    const mainPlotEl = document.getElementById('main-plot');
+    if (mainPlotEl && !mainPlotEl.value) mainPlotEl.value = formData.main_plot;
+  } else if (finalPlan?.story_direction) {
+    const mainPlotEl = document.getElementById('main-plot');
+    if (mainPlotEl && !mainPlotEl.value) mainPlotEl.value = finalPlan.story_direction;
+  }
+  
+  console.log('[syncDialogDataToForm] 表单数据同步完成');
+}
+
 </script>
 {% endblock %}

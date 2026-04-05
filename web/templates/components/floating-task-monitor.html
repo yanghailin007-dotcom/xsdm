@@ -274,6 +274,25 @@
     transition: width 0.5s ease;
 }
 
+.gtf-progress-stopping {
+    background: linear-gradient(90deg, #ef4444 0%, #f87171 100%) !important;
+    animation: gtf-pulse-red 1s infinite;
+}
+
+@keyframes gtf-pulse-red {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.5; }
+}
+
+.gtf-task-stopping {
+    animation: gtf-fade-border 1.5s infinite;
+}
+
+@keyframes gtf-fade-border {
+    0%, 100% { border-left-color: #ef4444; }
+    50% { border-left-color: transparent; }
+}
+
 .gtf-progress-text {
     font-size: 12px;
     font-weight: 600;
@@ -463,6 +482,12 @@
             return this.getTasks().filter(t => activeStatuses.includes(t.status));
         },
         
+        // 获取单个任务
+        getTask(taskId) {
+            const tasks = this.getTasks();
+            return tasks.find(t => t.task_id === taskId);
+        },
+        
         // 计算总进度
         getTotalProgress() {
             const runningTasks = this.getRunningTasks();
@@ -498,25 +523,52 @@
             this.checkAndShow();
         },
         
-        // 🔥 从服务器恢复任务
+        // 🔥 从服务器恢复任务（同时查询市场导向和第一阶段任务）
         async restoreTasksFromServer() {
             try {
-                const response = await fetch('/api/market-driven/tasks/active');
-                if (!response.ok) {
-                    console.log('[TaskManager] 未登录或无法获取任务');
-                    return;
+                // 并发查询两个API
+                const [marketResponse, phaseOneResponse] = await Promise.allSettled([
+                    fetch('/api/market-driven/tasks/active'),
+                    fetch('/api/phase-one/active-tasks')
+                ]);
+                
+                let allServerTasks = [];
+                
+                // 处理市场导向任务
+                if (marketResponse.status === 'fulfilled' && marketResponse.value.ok) {
+                    const marketData = await marketResponse.value.json();
+                    if (marketData.success && marketData.tasks) {
+                        console.log('[TaskManager] 从服务器恢复市场导向任务:', marketData.tasks);
+                        allServerTasks = allServerTasks.concat(marketData.tasks);
+                    }
                 }
                 
-                const data = await response.json();
-                if (data.success && data.tasks && data.tasks.length > 0) {
-                    console.log('[TaskManager] 从服务器恢复任务:', data.tasks);
-                    
-                    // 合并服务器任务和本地任务（以服务器为准）
-                    const serverTasks = data.tasks;
+                // 处理第一阶段任务
+                if (phaseOneResponse.status === 'fulfilled' && phaseOneResponse.value.ok) {
+                    const phaseOneData = await phaseOneResponse.value.json();
+                    if (phaseOneData.success && phaseOneData.tasks) {
+                        console.log('[TaskManager] 从服务器恢复第一阶段任务:', phaseOneData.tasks);
+                        // 转换第一阶段任务格式为统一格式
+                        const formattedPhaseOneTasks = phaseOneData.tasks.map(task => ({
+                            task_id: task.task_id,
+                            title: task.title,
+                            type: 'phase_one',
+                            status: task.status === 'generating' ? 'running' : task.status,
+                            progress: task.progress || 0,
+                            stage: task.current_step || '生成中...',
+                            created_at: task.created_at,
+                            updated_at: task.updated_at
+                        }));
+                        allServerTasks = allServerTasks.concat(formattedPhaseOneTasks);
+                    }
+                }
+                
+                // 合并到本地
+                if (allServerTasks.length > 0) {
                     const localTasks = TaskManager.getTasks();
                     
                     // 将服务器任务添加到本地（覆盖或新增）
-                    serverTasks.forEach(serverTask => {
+                    allServerTasks.forEach(serverTask => {
                         const existingIndex = localTasks.findIndex(t => t.task_id === serverTask.task_id);
                         if (existingIndex >= 0) {
                             // 更新现有任务
@@ -609,24 +661,51 @@
         
         // 渲染任务项
         renderTaskItem(task) {
-            const isRunning = ['pending', 'running', 'in_progress', 'conversation_mode', 'generating_chapters'].includes(task.status);
+            const activeStatuses = ['pending', 'running', 'in_progress', 'conversation_mode', 'generating_chapters'];
+            const isRunning = activeStatuses.includes(task.status);
+            const isStopping = task.status === 'stopping';
             const typeLabels = {
                 'market_driven': '市场导向',
                 'phase_one': '自由创意',
                 'dialog': '对话打磨'
             };
             
+            // 根据状态决定显示什么按钮
+            let actionButtons = '';
+            if (isStopping) {
+                // 正在停止状态：显示停用的停止按钮
+                actionButtons = `
+                        <button class="gtf-btn gtf-btn-danger" disabled style="opacity: 0.6;">
+                            <span class="material-icons" style="font-size: 14px;">hourglass_empty</span>
+                            停止中...
+                        </button>`;
+            } else if (isRunning) {
+                // 运行中：显示停止按钮
+                actionButtons = `
+                        <button class="gtf-btn gtf-btn-danger" onclick="stopTask('${task.task_id}')">
+                            <span class="material-icons" style="font-size: 14px;">stop</span>
+                            停止
+                        </button>`;
+            } else {
+                // 已完成/已停止：显示关闭按钮
+                actionButtons = `
+                        <button class="gtf-btn gtf-btn-secondary" onclick="dismissTask('${task.task_id}')">
+                            <span class="material-icons" style="font-size: 14px;">close</span>
+                            关闭
+                        </button>`;
+            }
+            
             return `
-                <div class="gtf-task-item" data-task-id="${task.task_id}">
+                <div class="gtf-task-item ${isStopping ? 'gtf-task-stopping' : ''}" data-task-id="${task.task_id}">
                     <div class="gtf-task-header">
                         <span class="gtf-task-title" title="${task.title || '未命名'}">${task.title || '未命名任务'}</span>
                         <span class="gtf-task-type">${typeLabels[task.type] || '生成任务'}</span>
                     </div>
                     <div class="gtf-task-progress">
                         <div class="gtf-progress-bar">
-                            <div class="gtf-progress-fill" style="width: ${task.progress || 0}%"></div>
+                            <div class="gtf-progress-fill ${isStopping ? 'gtf-progress-stopping' : ''}" style="width: ${task.progress || 0}%"></div>
                         </div>
-                        <span class="gtf-progress-text">${Math.round(task.progress || 0)}%</span>
+                        <span class="gtf-progress-text">${isStopping ? '...' : Math.round(task.progress || 0) + '%'}</span>
                     </div>
                     <div class="gtf-task-stage">${task.stage || task.message || '生成中...'}</div>
                     <div class="gtf-task-actions">
@@ -634,17 +713,7 @@
                             <span class="material-icons" style="font-size: 14px;">visibility</span>
                             查看
                         </button>
-                        ${isRunning ? `
-                        <button class="gtf-btn gtf-btn-danger" onclick="stopTask('${task.task_id}')">
-                            <span class="material-icons" style="font-size: 14px;">stop</span>
-                            停止
-                        </button>
-                        ` : `
-                        <button class="gtf-btn gtf-btn-secondary" onclick="dismissTask('${task.task_id}')">
-                            <span class="material-icons" style="font-size: 14px;">close</span>
-                            关闭
-                        </button>
-                        `}
+                        ${actionButtons}
                     </div>
                 </div>
             `;
@@ -755,44 +824,110 @@
         UI.collapse();
     };
     
-    // 查看任务详情
+    // 查看任务详情 - 根据状态智能跳转
     window.viewTaskDetail = function(taskId, type) {
-        const urlMap = {
-            'market_driven': `/market-driven-status?task=${taskId}`,
-            'dialog': `/market-driven-status?task=${taskId}`,
-            'phase_one': `/phase-one-setup?task=${taskId}`
-        };
-        window.location.href = urlMap[type] || urlMap['market_driven'];
+        const task = TaskManager.getTask(taskId);
+        const status = task?.status || 'running';
+        
+        // 市场导向/对话模式任务
+        if (type === 'market_driven' || type === 'dialog') {
+            // 运行中状态：返回设定生成界面继续编辑
+            if (['pending', 'running', 'generating', 'generating_chapters', 'conversation_mode'].includes(status)) {
+                // 如果有genre信息，跳转到对话界面
+                if (task?.genre) {
+                    window.location.href = `/market-driven-plan-dialog?genre=${task.genre}&task=${taskId}`;
+                } else {
+                    // 否则跳转到任务状态页（带监控）
+                    window.location.href = `/market-driven-status?task=${taskId}`;
+                }
+            } else {
+                // 已完成状态：跳转到结果预览界面
+                window.location.href = `/market-driven-status?task=${taskId}`;
+            }
+        }
+        // 第一阶段任务
+        else if (type === 'phase_one') {
+            if (['pending', 'running', 'generating'].includes(status)) {
+                // 运行中：返回设定界面
+                window.location.href = `/phase-one-setup?task=${taskId}`;
+            } else {
+                // 已完成：跳转到结果页
+                window.location.href = `/api/phase-one/result-page?task_id=${taskId}`;
+            }
+        }
+        // 默认跳转
+        else {
+            window.location.href = `/market-driven-status?task=${taskId}`;
+        }
     };
     
-    // 停止任务
+    // 停止任务 - 停止后跳转到详情页让用户感知
     window.stopTask = async function(taskId) {
-        if (!confirm('确定要停止这个生成任务吗？已消耗的点数不会返还。')) {
+        // 获取任务信息用于后续跳转
+        const task = TaskManager.getTask(taskId);
+        
+        if (!confirm('确定要停止这个生成任务吗？\n\n⚠️ 温馨提示：已消耗的点数不会返还，已生成的章节会保存。')) {
             return;
         }
         
+        // 显示停止中状态
+        TaskManager.updateTask(taskId, { status: 'stopping', stage: '正在停止...' });
+        UI.update();
+        
         try {
-            const response = await fetch(`/api/market-driven/tasks/${taskId}/stop`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' }
-            });
+            let success = false;
             
-            if (response.ok) {
-                TaskManager.updateTask(taskId, { status: 'stopped', stage: '已停止' });
-                UI.update();
+            // 根据任务类型调用不同API
+            if (task?.type === 'phase_one') {
+                const response = await fetch(`/api/phase-one/stop/${taskId}`, { method: 'POST' });
+                success = response.ok;
             } else {
-                alert('停止任务失败，请重试');
+                const response = await fetch(`/api/market-driven/tasks/${taskId}/stop`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' }
+                });
+                success = response.ok;
+            }
+            
+            if (success) {
+                TaskManager.updateTask(taskId, { status: 'stopped', stage: '已停止', progress: 0 });
+                UI.update();
+                
+                // 🔥 停止成功后跳转到详情页，让用户感知任务已中断
+                setTimeout(() => {
+                    viewTaskDetail(taskId, task?.type || 'market_driven');
+                }, 500); // 给用户一点时间看到停止状态变化
+            } else {
+                TaskManager.updateTask(taskId, { status: 'running', stage: '停止失败，继续生成中' });
+                UI.update();
+                alert('停止任务失败，任务可能已经完成或停止失败');
             }
         } catch (e) {
             console.error('[stopTask] 失败:', e);
-            alert('停止任务失败，请重试');
+            TaskManager.updateTask(taskId, { status: 'running', stage: '停止失败，继续生成中' });
+            UI.update();
+            alert('停止任务失败: ' + (e.message || '网络错误'));
         }
     };
     
-    // 关闭任务（从列表移除）
+    // 关闭任务（从列表移除）- 已完成或已停止的任务
     window.dismissTask = function(taskId) {
+        const task = TaskManager.getTask(taskId);
+        
+        // 如果任务完成了，提示用户可以在历史记录中找到
+        if (task?.status === 'completed') {
+            if (!confirm('确定要从列表移除这个已完成的任务吗？\n\n提示：移除后任务将不再显示在此列表中，但已生成的小说仍然可以在"历史记录"中找到。')) {
+                return;
+            }
+        }
+        
         TaskManager.removeTask(taskId);
         UI.update();
+        
+        // 如果移除后没有任务了，自动收起悬浮窗
+        if (TaskManager.getRunningTasks().length === 0) {
+            UI.collapse();
+        }
     };
     
     // ==================== 对外API ====================
