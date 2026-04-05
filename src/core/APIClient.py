@@ -1555,6 +1555,9 @@ class APIClient:
         model_name = endpoint_config["model"]
         endpoint_name = endpoint_config.get("name", "unknown")
         
+        # 🔥 检测是否是 Gemini 格式端点（通过URL判断）
+        is_gemini_format = "generativelanguage.googleapis.com" in api_url or endpoint_config.get("format") == "gemini"
+        
         # 🔥 Kimi k2.5 模型强制使用 temperature=1.0
         if "k2.5" in model_name:
             temperature = 1.0
@@ -1575,13 +1578,39 @@ class APIClient:
                 return {key: ensure_utf8(value) for key, value in obj.items()}
             return obj
         
-        payload = {
-            "model": model_name,
-            "messages": ensure_utf8(messages),
-            "temperature": temperature,
-            "max_tokens": max_tokens,
-            "stream": False
-        }
+        # 🔥 根据端点格式构建不同的 payload
+        if is_gemini_format:
+            # Gemini 格式：使用 contents 而不是 messages
+            contents = []
+            system_instruction = None
+            for msg in messages:
+                role = msg.get("role", "")
+                content = msg.get("content", "")
+                if role == "system":
+                    system_instruction = content
+                elif role == "user":
+                    contents.append({"role": "user", "parts": [{"text": content}]})
+                elif role == "assistant":
+                    contents.append({"role": "model", "parts": [{"text": content}]})
+            
+            payload = {
+                "contents": contents,
+                "generationConfig": {
+                    "temperature": temperature,
+                    "maxOutputTokens": max_tokens
+                }
+            }
+            if system_instruction:
+                payload["systemInstruction"] = {"parts": [{"text": system_instruction}]}
+        else:
+            # OpenAI 格式
+            payload = {
+                "model": model_name,
+                "messages": ensure_utf8(messages),
+                "temperature": temperature,
+                "max_tokens": max_tokens,
+                "stream": False
+            }
         
         start_time = time.time()
         
@@ -1602,8 +1631,22 @@ class APIClient:
             
             if response.status_code == 200:
                 data = response.json()
-                if "choices" in data and len(data["choices"]) > 0:
-                    content = data["choices"][0].get("message", {}).get("content", "")
+                content = ""
+                
+                # 🔥 处理不同格式的响应
+                if is_gemini_format:
+                    # Gemini 格式
+                    if "candidates" in data and len(data["candidates"]) > 0:
+                        candidate = data["candidates"][0]
+                        if "content" in candidate and "parts" in candidate["content"]:
+                            parts = candidate["content"]["parts"]
+                            content = "".join(part.get("text", "") for part in parts)
+                else:
+                    # OpenAI 格式
+                    if "choices" in data and len(data["choices"]) > 0:
+                        content = data["choices"][0].get("message", {}).get("content", "")
+                
+                if content:
                     self.logger.info(f"  ✅ 端点 {endpoint_name} 响应成功 | 耗时: {elapsed:.2f}s | 长度: {len(content)} 字符")
                     # 🔥 保存调试信息
                     self._save_api_call_debug(system_prompt, user_prompt, content, 

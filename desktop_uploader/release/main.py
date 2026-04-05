@@ -2931,13 +2931,7 @@ NovelPublisher_Data/              ← 统一数据目录
                         last_day_count += 1
             
             # 🔥 推算下一章时间
-            # 关键判断：如果最后日期不是明天（已经过去或是未来定时），都从明天重新开始
-            if last_date != today and last_date != today + timedelta(days=1):
-                # 最后发布日期不是今天也不是明天，说明是过去的旧数据或未来的定时，都从明天开始
-                next_date = today + timedelta(days=1)
-                next_time = base_time
-                last_day_count = 0  # 重新计算，当天没发过
-            elif last_day_count >= daily_limit:
+            if last_day_count >= daily_limit:
                 # 当天已满，跨到下一天从 base_time 开始
                 next_date = last_date + timedelta(days=1)
                 next_time = base_time
