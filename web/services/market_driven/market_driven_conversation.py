@@ -852,21 +852,22 @@ POST /api/v2/prompt-config/component/{step_name}
         if self._is_dialog_mode_final_plan and self._final_plan:
             logger.info(f"[对话模式 {self.session_id}] 🎯 FinalPlan模式：跳过方案生成，直接使用已确认方案")
             
-            # 使用final_plan作为plan，跳过步骤1和1B
+            # 使用final_plan作为plan，跳过步骤1但保留步骤1B（番茄数据生成）
             plan = self._build_plan_from_final_plan()
             results["plan"] = plan
             results["title"] = plan.get("title", "")
             
-            # 构建简单的番茄数据
-            fanqie_data = {
-                "title": plan.get("title", ""),
-                "synopsis": plan.get("core_selling_point", ""),
-                "tags": plan.get("genre", self.genre).split(",")[:3]
-            }
+            # 🔥 步骤1B: 生成番茄上传数据（使用AI生成专业数据）
+            logger.info(f"[对话模式 {self.session_id}] [UI:planning] 步骤1B: 生成番茄上传数据")
+            if progress_callback:
+                progress_callback("generate_fanqie_data", 28)
+            fanqie_data = self._generate_fanqie_upload_data(plan)
             results["fanqie_upload_data"] = fanqie_data
             plan["recommended_title"] = fanqie_data["title"]
             plan["core_selling_points"] = [{"point": fanqie_data["synopsis"]}]
             plan["tags"] = fanqie_data["tags"]
+            self._save_step_result("fanqie_data", results, project_path)
+            logger.info(f"[对话模式 {self.session_id}] [UI:planning] 步骤1B完成 | 番茄数据已生成")
             
             logger.info(f"[对话模式 {self.session_id}] [UI:planning] 已加载FinalPlan | 标题: {plan.get('title', 'N/A')}")
         else:
