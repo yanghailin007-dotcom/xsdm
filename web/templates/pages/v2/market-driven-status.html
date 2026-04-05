@@ -677,7 +677,14 @@ const STAGE_NAME_MAP = {
 // 获取中文阶段名
 function getStageName(stage) {
   if (!stage) return '准备中';
-  return STAGE_NAME_MAP[stage] || stage;
+  // 如果 stage 包含中文，直接返回
+  if (/[\u4e00-\u9fa5]/.test(stage)) return stage;
+  // 映射表查找
+  const mapped = STAGE_NAME_MAP[stage];
+  if (mapped) return mapped;
+  // 如果是英文但没有映射，返回通用中文提示
+  console.warn('[getStageName] 未知阶段:', stage);
+  return '正在生成中...';
 }
 
 // 判断任务是否在运行中（用于显示后台运行按钮）
@@ -718,7 +725,26 @@ function updateUI(task) {
   if (progress > 100) progress = 100;
   
   const stage = getStageName(task.current_stage);
-  const message = task.message ? getStageName(task.message) : '';
+  
+  // 处理 message：如果包含英文阶段名，尝试提取并映射
+  let message = '';
+  if (task.message) {
+    // 检查 message 是否包含已知的英文阶段名
+    for (const [key, value] of Object.entries(STAGE_NAME_MAP)) {
+      if (task.message.includes(key)) {
+        message = value;
+        break;
+      }
+    }
+    // 如果没有匹配到，检查是否是纯中文
+    if (!message && /[\u4e00-\u9fa5]/.test(task.message)) {
+      message = task.message;
+    }
+    // 如果还是没有，使用 stage
+    if (!message) {
+      message = stage;
+    }
+  }
   
   // 🔍 调试日志
   console.log('[进度更新]', { progress, stage, message, status: task.status, raw: task });
