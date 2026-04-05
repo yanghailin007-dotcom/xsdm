@@ -297,7 +297,9 @@
             fetch(`/api/market-driven/tasks/${task.task_id}`)
                 .then(res => res.json())
                 .then(data => {
-                    if (data.status === 'running' || data.status === 'in_progress') {
+                    // 🔥 修复：包含 pending 状态，新创建的任务也要显示
+                    const activeStatuses = ['pending', 'running', 'in_progress', 'conversation_mode', 'generating_chapters'];
+                    if (activeStatuses.includes(data.status)) {
                         // 任务仍在运行，显示浮窗
                         createGlobalFloat(task.task_id);
                     } else {
@@ -354,7 +356,8 @@
             updateFloatUI(task);
             
             // 任务完成或失败
-            if (['completed', 'failed'].includes(task.status)) {
+            const terminalStatuses = ['completed', 'failed', 'cancelled', 'error'];
+            if (terminalStatuses.includes(task.status)) {
                 clearInterval(pollInterval);
                 
                 // 更新浮窗状态
@@ -363,13 +366,25 @@
                     floatEl.classList.add(task.status);
                 }
                 
-                // 清理 localStorage
-                localStorage.removeItem('market_driven_background_task');
+                // 更新 localStorage 标记任务已完成
+                const saved = localStorage.getItem('market_driven_background_task');
+                if (saved) {
+                    const data = JSON.parse(saved);
+                    data.status = task.status;
+                    data.progress = 100;
+                    localStorage.setItem('market_driven_background_task', JSON.stringify(data));
+                }
                 
                 // 显示通知
                 if (task.status === 'completed') {
                     showNotification('生成完成！', '您的创作任务已完成');
                 }
+                
+                // 5分钟后自动关闭浮窗
+                setTimeout(() => {
+                    closeGlobalFloat();
+                    localStorage.removeItem('market_driven_background_task');
+                }, 5 * 60 * 1000);
             }
         } catch (error) {
             console.error('[GlobalFloat] 轮询失败:', error);
