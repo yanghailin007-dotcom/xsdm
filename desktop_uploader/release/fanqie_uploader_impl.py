@@ -2016,40 +2016,40 @@ class FanqieUploaderImpl:
         if not scheduled_chapters:
             return schedule  # 没有需要定时的章节
         
-        # 🔥 优先检查手动设置的日期槽
+        # 🔥 优先检查手动设置的基准时间
         publish_config = self.novel_config.get('publish_config', {})
-        manual_date_slots = publish_config.get('date_slots')
+        manual_date = publish_config.get('manual_publish_date')
+        manual_time = publish_config.get('manual_publish_time')
+        manual_count = publish_config.get('manual_chapter_count', 1)
         
-        if manual_date_slots:
+        if manual_date and manual_time:
             self._log("=" * 50)
-            self._log("使用手动设置的发布计划...")
+            self._log(f"使用手动设置的基准时间: {manual_date} {manual_time}")
             
-            # 从手动设置的日期槽中提取发布计划
-            all_slots = []
-            for date_str, slots in manual_date_slots.items():
-                for time_str, count in slots.items():
-                    dt = datetime.strptime(f"{date_str} {time_str}", "%Y-%m-%d %H:%M")
-                    for _ in range(count):
-                        all_slots.append(dt)
+            # 解析基准时间
+            base_time = datetime.strptime(f"{manual_date} {manual_time}", "%Y-%m-%d %H:%M")
             
-            # 按时间排序
-            all_slots.sort()
+            # 分配给章节（基于基准时间递增）
+            today_chapters = 0
+            next_time = base_time
             
-            # 分配给章节
             for i, chap_num in enumerate(scheduled_chapters):
-                if i < len(all_slots):
-                    schedule[chap_num] = all_slots[i].strftime('%Y-%m-%d %H:%M')
-                else:
-                    # 手动设置的不够，继续用默认逻辑
-                    break
+                # 检查是否跨天（超过 daily_count 章）
+                if today_chapters >= daily_count:
+                    # 跳到明天同一时间
+                    next_day = next_time.date() + timedelta(days=1)
+                    hour, minute = map(int, manual_time.split(':'))
+                    next_time = datetime(next_day.year, next_day.month, next_day.day, hour, minute)
+                    today_chapters = 0
+                
+                schedule[chap_num] = next_time.strftime('%Y-%m-%d %H:%M')
+                
+                # 准备下一个时间（+间隔分钟）
+                next_time = next_time + timedelta(minutes=interval)
+                today_chapters += 1
             
-            if schedule:
-                self._log(f"手动设置计划: 已安排 {len(schedule)} 章")
-                # 如果所有章节都安排了，直接返回
-                if len(schedule) == len(scheduled_chapters):
-                    return schedule
-                # 否则继续安排剩余章节
-                scheduled_chapters = scheduled_chapters[len(schedule):]
+            self._log(f"手动设置计划: 已安排 {len(schedule)} 章 (从第{scheduled_chapters[0]}章开始)")
+            return schedule
         
         # 从页面获取最后发布时间和今天发布数量
         self._log("=" * 50)
