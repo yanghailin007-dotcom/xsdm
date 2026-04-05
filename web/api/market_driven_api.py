@@ -2364,7 +2364,23 @@ def generate_final_plan():
 - 所有内容直白有力，符合番茄读者口味
 - 必须输出有效JSON格式
 
-【重要警告】示例中的书名仅供参考格式，你必须创作全新的书名，不能复制《绑定吐槽系统后，我气哭了怪谈》这类示例书名！"""
+【书名处理规则 - 必须遵守】
+1. 如果用户未指定书名（留空）：
+   - 你必须根据题材和金手指，创作一个原创的番茄爆款风格书名
+   - 要求：6-14个中文字符，包含数字/对比/反差/爽点预期
+   - 示例格式：《开局XX，我XX了》《绑定XX系统后，我XX》《我有XX》
+   - 严禁直接复制任何示例书名，必须原创！
+
+2. 如果用户指定了书名：
+   - 必须严格使用用户提供的书名（一字不差）
+   - 但你需要检查：书名必须在15个中文字符以内
+   - 如果超过15字，你需要在保持原意的基础上精简到15字以内
+   - 如果用户书名不符合番茄风格，你可以轻微优化但保持原意
+
+【重要警告】
+- 示例中的书名仅供参考格式，严禁直接复制！
+- 用户未指定时，必须创作全新书名，不能复制任何已知作品标题！
+- 书名字符数必须控制在15个中文以内！"""
         
         logger.info(f"[FinalPlan] 开始生成最终方案 | Session: {session_id} | 书名: {form_data.get('title', draft.title)}")
         
@@ -2392,7 +2408,27 @@ def generate_final_plan():
                     try:
                         final_plan = json.loads(json_str)
                         logger.info(f"[FinalPlan] JSON解析成功 | Session: {session_id}")
-                        logger.info(f"[FinalPlan] 书名: {final_plan.get('title', 'N/A')}")
+                        
+                        # 🔥 验证并处理书名长度
+                        title = final_plan.get('title', '')
+                        # 计算中文字符数（不包括标点和空格）
+                        chinese_chars = re.findall(r'[\u4e00-\u9fa5]', title)
+                        chinese_count = len(chinese_chars)
+                        
+                        if chinese_count > 15:
+                            logger.warning(f"[FinalPlan] 书名超过15字: {title} ({chinese_count}字)，需要截断")
+                            # 截断到15字，保留前15个中文字符
+                            truncated_title = ''.join(chinese_chars[:15])
+                            final_plan['title'] = truncated_title
+                            logger.info(f"[FinalPlan] 书名已截断: {truncated_title}")
+                        elif not title:
+                            # 如果书名为空，生成默认标题
+                            default_title = f"{genre.split('-')[0]}之{user_protagonist_name or '主角'}传"
+                            final_plan['title'] = default_title[:15]
+                            logger.info(f"[FinalPlan] 书名为空，使用默认: {final_plan['title']}")
+                        else:
+                            logger.info(f"[FinalPlan] 书名: {title} ({chinese_count}字)")
+                        
                         logger.info(f"[FinalPlan] 主角: {final_plan.get('protagonist_name', 'N/A')}")
                         logger.info(f"[FinalPlan] 核心卖点: {final_plan.get('core_selling_point', 'N/A')[:50]}...")
                         
