@@ -477,7 +477,7 @@
         elements: {},
         
         // 初始化
-        init() {
+        async init() {
             this.elements = {
                 float: document.getElementById('globalTaskFloat'),
                 mini: document.getElementById('gtf-mini'),
@@ -491,8 +491,50 @@
                 totalPoints: document.getElementById('gtf-total-points')
             };
             
+            // 🔥 首先从服务器恢复任务（关闭浏览器后重新打开）
+            await this.restoreTasksFromServer();
+            
             // 初始检查
             this.checkAndShow();
+        },
+        
+        // 🔥 从服务器恢复任务
+        async restoreTasksFromServer() {
+            try {
+                const response = await fetch('/api/market-driven/tasks/active');
+                if (!response.ok) {
+                    console.log('[TaskManager] 未登录或无法获取任务');
+                    return;
+                }
+                
+                const data = await response.json();
+                if (data.success && data.tasks && data.tasks.length > 0) {
+                    console.log('[TaskManager] 从服务器恢复任务:', data.tasks);
+                    
+                    // 合并服务器任务和本地任务（以服务器为准）
+                    const serverTasks = data.tasks;
+                    const localTasks = TaskManager.getTasks();
+                    
+                    // 将服务器任务添加到本地（覆盖或新增）
+                    serverTasks.forEach(serverTask => {
+                        const existingIndex = localTasks.findIndex(t => t.task_id === serverTask.task_id);
+                        if (existingIndex >= 0) {
+                            // 更新现有任务
+                            localTasks[existingIndex] = { ...localTasks[existingIndex], ...serverTask };
+                        } else {
+                            // 添加新任务
+                            localTasks.push({
+                                ...serverTask,
+                                last_update: Date.now()
+                            });
+                        }
+                    });
+                    
+                    TaskManager.saveTasks(localTasks);
+                }
+            } catch (e) {
+                console.error('[TaskManager] 从服务器恢复任务失败:', e);
+            }
         },
         
         // 检查并显示
@@ -776,20 +818,20 @@
             return TaskManager.getRunningTasks();
         },
         
-        // 初始化
-        init() {
-            UI.init();
+        // 初始化（异步）
+        async init() {
+            await UI.init();
             Poller.start();
         }
     };
     
     // ==================== 初始化 ====================
     
-    // 页面加载时初始化
+    // 页面加载时初始化（异步）
     if (document.readyState === 'loading') {
-        document.addEventListener('DOMContentLoaded', () => window.BackgroundTaskManager.init());
+        document.addEventListener('DOMContentLoaded', async () => await window.BackgroundTaskManager.init());
     } else {
-        window.BackgroundTaskManager.init();
+        (async () => await window.BackgroundTaskManager.init())();
     }
     
     // 监听 localStorage 变化（跨页面同步）

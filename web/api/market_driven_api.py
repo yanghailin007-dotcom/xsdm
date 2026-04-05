@@ -98,6 +98,33 @@ class MarketGenerationTaskManager:
         """删除任务"""
         if task_id in self.tasks:
             del self.tasks[task_id]
+    
+    def get_user_active_tasks(self, username: str) -> List[Dict]:
+        """获取用户的所有活跃任务
+        
+        返回运行中、等待中、暂停的任务（不包括已完成/失败的）
+        """
+        active_statuses = ['pending', 'running', 'in_progress', 'conversation_mode', 
+                          'generating_chapters', 'paused', 'paused_insufficient_points']
+        user_tasks = []
+        
+        for task in self.tasks.values():
+            if task.get('username') == username and task.get('status') in active_statuses:
+                user_tasks.append({
+                    'task_id': task['id'],
+                    'title': task.get('user_choices', {}).get('title', '未命名任务'),
+                    'type': 'market_driven',
+                    'status': task.get('status', 'unknown'),
+                    'progress': task.get('progress', 0),
+                    'stage': task.get('current_stage', '生成中...'),
+                    'genre': task.get('genre', 'unknown'),
+                    'created_at': task.get('created_at'),
+                    'updated_at': task.get('updated_at')
+                })
+        
+        # 按创建时间倒序，最新的在前面
+        user_tasks.sort(key=lambda x: x.get('created_at', ''), reverse=True)
+        return user_tasks
 
 # 全局任务管理器
 task_manager = MarketGenerationTaskManager()
@@ -2562,3 +2589,54 @@ def generate_final_plan():
 
 # 应用启动时的初始化
 app = None  # 将在注册时由 web_server_refactored.py 设置
+
+
+@market_driven_api.route('/tasks/active', methods=['GET'])
+def get_user_active_tasks():
+    """
+    获取当前用户的所有活跃任务
+    
+    返回运行中、等待中、暂停的任务（不包括已完成/失败的）
+    用于页面加载时恢复后台任务显示
+    
+    响应：
+    {
+        "success": true,
+        "tasks": [
+            {
+                "task_id": "uuid",
+                "title": "小说名",
+                "type": "market_driven",
+                "status": "running",
+                "progress": 50,
+                "stage": "生成世界观...",
+                "genre": "国运文-直播类",
+                "created_at": "2024-01-01T12:00:00",
+                "updated_at": "2024-01-01T12:05:00"
+            }
+        ],
+        "count": 1
+    }
+    """
+    try:
+        username = _get_current_username()
+        
+        # 获取市场导向任务
+        tasks = task_manager.get_user_active_tasks(username)
+        
+        # TODO: 添加第一阶段任务查询（如果有独立的管理器）
+        
+        return jsonify({
+            "success": True,
+            "tasks": tasks,
+            "count": len(tasks)
+        }), 200
+        
+    except Exception as e:
+        logger.error(f"获取用户活跃任务失败: {e}", exc_info=True)
+        return jsonify({
+            "success": False,
+            "error": str(e),
+            "tasks": [],
+            "count": 0
+        }), 500
