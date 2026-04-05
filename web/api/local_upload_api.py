@@ -365,34 +365,52 @@ def download_package(task_id: str):
     """下载上传包"""
     try:
         from flask import send_file
+        import os
         
-        # 🔥 使用绝对路径，避免服务器部署时工作目录不同导致路径错误
-        # 获取项目根目录（基于当前文件位置）
-        BASE_DIR = Path(__file__).parent.parent.parent
-        PACKAGES_DIR = BASE_DIR / 'temp_uploads' / 'packages'
+        # 🔥 多种策略查找包文件
+        possible_paths = []
+        
+        # 策略 1: 基于当前文件位置
+        base_dir_1 = Path(__file__).parent.parent.parent
+        possible_paths.append(base_dir_1 / 'temp_uploads' / 'packages')
+        
+        # 策略 2: 基于工作目录
+        base_dir_2 = Path(os.getcwd())
+        possible_paths.append(base_dir_2 / 'temp_uploads' / 'packages')
+        
+        # 策略 3: 上级目录（如果当前在 web 目录）
+        base_dir_3 = Path(os.getcwd()).parent
+        possible_paths.append(base_dir_3 / 'temp_uploads' / 'packages')
+        
+        # 策略 4: 使用系统环境变量（如果有设置）
+        if os.environ.get('PROJECT_ROOT'):
+            possible_paths.append(Path(os.environ.get('PROJECT_ROOT')) / 'temp_uploads' / 'packages')
         
         # 📝 调试日志
-        import os
         print(f"[DEBUG] 下载请求: task_id={task_id}")
         print(f"[DEBUG] __file__={__file__}")
-        print(f"[DEBUG] BASE_DIR={BASE_DIR}")
-        print(f"[DEBUG] PACKAGES_DIR={PACKAGES_DIR}")
         print(f"[DEBUG] cwd={os.getcwd()}")
-        print(f"[DEBUG] PACKAGES_DIR exists={PACKAGES_DIR.exists()}")
+        print(f"[DEBUG] 可能的路径: {[str(p) for p in possible_paths]}")
         
-        # 查找包文件（支持不同类型）
-        for prefix in ['first_time_', 'script_']:
-            package_path = PACKAGES_DIR / f'{prefix}{task_id}.zip'
-            print(f"[DEBUG] 检查: {package_path}, exists={package_path.exists()}")
-            if package_path.exists():
-                print(f"[DEBUG] 找到包文件: {package_path}")
-                return send_file(
-                    package_path,
-                    as_attachment=True,
-                    download_name=package_path.name
-                )
+        # 遍历所有可能的路径
+        for packages_dir in possible_paths:
+            print(f"[DEBUG] 检查路径: {packages_dir}, exists={packages_dir.exists()}")
+            if packages_dir.exists():
+                for prefix in ['first_time_', 'script_']:
+                    package_path = packages_dir / f'{prefix}{task_id}.zip'
+                    print(f"[DEBUG]   检查文件: {package_path.name}, exists={package_path.exists()}")
+                    if package_path.exists():
+                        print(f"[DEBUG] 找到包文件: {package_path}")
+                        return send_file(
+                            package_path,
+                            as_attachment=True,
+                            download_name=package_path.name
+                        )
         
-        return jsonify({'success': False, 'error': '包文件不存在或已过期'}), 404
+        # 如果都没找到，返回详细错误信息
+        error_msg = f'包文件不存在或已过期。搜索路径: {[str(p) for p in possible_paths]}'
+        print(f"[ERROR] {error_msg}")
+        return jsonify({'success': False, 'error': error_msg}), 404
         
     except Exception as e:
         print(f"[LocalUploadAPI] 下载包错误: {e}")
