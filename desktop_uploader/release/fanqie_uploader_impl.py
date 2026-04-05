@@ -1708,6 +1708,9 @@ class FanqieUploaderImpl:
             
             self._log(f"  当前URL: {current_url}")
             
+            # 检查是否有明确的错误提示
+            has_error = any(kw in page_text.lower() for kw in ['error', '报错', '失败', '错误', 'cannot', 'unable'])
+            
             # 🔥 成功上传后关闭发布页标签，避免累积
             success_result = None
             
@@ -1722,9 +1725,6 @@ class FanqieUploaderImpl:
             elif is_book_page and not is_publish_page:
                 self._log(f"  ✓ 第{chapter_number}章上传成功 (已跳转到书籍页)", "success")
                 success_result = True
-            
-            # 检查是否有明确的错误提示
-            has_error = any(kw in page_text.lower() for kw in ['error', '报错', '失败', '错误', 'cannot', 'unable'])
             
             elif not is_publish_page and not has_error:
                 self._log(f"  ⚠ 页面已跳转，无错误提示，视为成功", "warning")
