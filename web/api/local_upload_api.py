@@ -371,10 +371,21 @@ def download_package(task_id: str):
         BASE_DIR = Path(__file__).parent.parent.parent
         PACKAGES_DIR = BASE_DIR / 'temp_uploads' / 'packages'
         
+        # 📝 调试日志
+        import os
+        print(f"[DEBUG] 下载请求: task_id={task_id}")
+        print(f"[DEBUG] __file__={__file__}")
+        print(f"[DEBUG] BASE_DIR={BASE_DIR}")
+        print(f"[DEBUG] PACKAGES_DIR={PACKAGES_DIR}")
+        print(f"[DEBUG] cwd={os.getcwd()}")
+        print(f"[DEBUG] PACKAGES_DIR exists={PACKAGES_DIR.exists()}")
+        
         # 查找包文件（支持不同类型）
         for prefix in ['first_time_', 'script_']:
             package_path = PACKAGES_DIR / f'{prefix}{task_id}.zip'
+            print(f"[DEBUG] 检查: {package_path}, exists={package_path.exists()}")
             if package_path.exists():
+                print(f"[DEBUG] 找到包文件: {package_path}")
                 return send_file(
                     package_path,
                     as_attachment=True,
@@ -385,4 +396,6 @@ def download_package(task_id: str):
         
     except Exception as e:
         print(f"[LocalUploadAPI] 下载包错误: {e}")
+        import traceback
+        traceback.print_exc()
         return jsonify({'success': False, 'error': str(e)}), 500
