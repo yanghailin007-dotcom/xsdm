@@ -29,7 +29,7 @@ class MarketDrivenPhaseOneGenerator:
         
         Args:
             genre: 题材
-            tropes: 套路分析
+            tropes: 爆款分析
             plan: 方案
             
         Returns:

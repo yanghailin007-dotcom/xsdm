@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 """
 Trope Analyzer Service
-套路分析服务
+爆款分析服务
 
 基于AI实时分析番茄头部作品，提取爆款套路
 """
@@ -38,7 +38,7 @@ class AIInteractionLogger:
         lines = []
         
         # 标题
-        lines.append(f"# 🔍 套路分析记录 - {genre}")
+        lines.append(f"# 🔍 爆款分析记录 - {genre}")
         lines.append("")
         lines.append(f"**时间**: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
         lines.append(f"**耗时**: {duration_ms/1000:.2f}秒")
@@ -148,7 +148,7 @@ class AIInteractionLogger:
 
 class TropeAnalyzer:
     """
-    套路分析器
+    爆款分析器
     使用AI实时分析番茄头部作品，总结爆款套路
     """
     
@@ -165,7 +165,7 @@ class TropeAnalyzer:
     
     def __init__(self, api_client=None, log_ai_interactions: bool = True):
         """
-        初始化套路分析器
+        初始化爆款分析器
         
         Args:
             api_client: AI API客户端
@@ -216,11 +216,11 @@ class TropeAnalyzer:
             use_cache: 是否使用缓存
             
         Returns:
-            套路分析结果
+            爆款分析结果
         """
         # 检查缓存
         if use_cache and genre in self._cache:
-            logger.info(f"[TropeAnalyzer] 使用缓存的套路分析: {genre}")
+            logger.info(f"[TropeAnalyzer] 使用缓存的爆款分析: {genre}")
             return self._cache[genre]
         
         logger.info(f"[TropeAnalyzer] 开始分析题材套路: {genre}")
@@ -234,7 +234,7 @@ class TropeAnalyzer:
         try:
             # 调用AI分析
             if not self.api_client:
-                raise ValueError("套路分析需要API客户端，请检查API配置")
+                raise ValueError("爆款分析需要API客户端，请检查API配置")
             
             result = self._call_ai_analysis(analysis_prompt)
             
@@ -261,11 +261,11 @@ class TropeAnalyzer:
             # 缓存结果
             self._cache[genre] = result
             
-            logger.info(f"[TropeAnalyzer] 套路分析完成: {genre}")
+            logger.info(f"[TropeAnalyzer] 爆款分析完成: {genre}")
             return result
             
         except Exception as e:
-            logger.error(f"[TropeAnalyzer] 套路分析失败: {e}", exc_info=True)
+            logger.error(f"[TropeAnalyzer] 爆款分析失败: {e}", exc_info=True)
             
             # 记录失败的交互日志
             if self._interaction_logger:
@@ -284,14 +284,14 @@ class TropeAnalyzer:
     
     def _build_analysis_prompt(self, genre: str) -> str:
         """
-        构建套路分析Prompt - 从JSON配置加载
+        构建爆款分析Prompt - 从JSON配置加载
         """
         # 从JSON配置加载模板
         template = self._config.get("analysis_template", "")
         
         if not template:
             error_msg = """
-❌ 错误：套路分析提示词配置缺失！
+❌ 错误：爆款分析提示词配置缺失！
 
 请检查以下配置文件是否存在：
 - prompt_packages/default/market_driven/components/trope_analysis_prompts.json

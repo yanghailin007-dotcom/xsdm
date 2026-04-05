@@ -492,8 +492,8 @@
             <span class="material-icons">psychology</span>
           </div>
           <div class="stage-item__content">
-            <div class="stage-item__name">套路分析</div>
-            <div class="stage-item__desc">分析题材爆款规律</div>
+            <div class="stage-item__name">爆款分析</div>
+            <div class="stage-item__desc">分析同类爆款规律</div>
           </div>
         </div>
         
@@ -644,7 +644,7 @@ async function pollTaskStatus() {
 // 阶段名称中英文映射
 const STAGE_NAME_MAP = {
   // 市场导向模式
-  'analyzing_tropes': '分析题材爆款规律',
+  'analyzing_tropes': '分析同类爆款规律',
   'preparing_plan': '准备方案参数',
   'generate_plan': '生成完整方案',
   'generate_fanqie_data': '生成番茄上传数据',
@@ -826,7 +826,7 @@ function updateStageList(currentStage, progress = 0) {
   
   // 阶段映射：将后端返回的阶段映射到前端阶段
   const stageMapping = {
-    // 套路分析阶段
+    // 爆款分析阶段
     'analyzing_tropes': 'analyzing',
     'trope_analysis': 'analyzing',
     'analyzing': 'analyzing',

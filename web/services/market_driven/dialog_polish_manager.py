@@ -100,7 +100,7 @@ class DialogPolishManager:
         logger.info(f"[对话打磨 {self.session_id}] 初始化 | 题材: {genre}")
     
     def _extract_trope_framework(self) -> Dict:
-        """从套路分析中提取框架信息"""
+        """从爆款分析中提取框架信息"""
         return {
             "core_formula": self.tropes.get("core_formula", ""),
             "typical_arcs": self.tropes.get("typical_arcs", []),

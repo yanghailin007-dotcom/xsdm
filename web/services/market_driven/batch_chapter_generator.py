@@ -105,7 +105,7 @@ class BatchChapterGenerator:
             start_chapter: 起始章节
             end_chapter: 结束章节
             blueprint: 章节规划
-            tropes: 套路分析
+            tropes: 爆款分析
             novel_data: 小说数据（包含世界观、角色等）
             use_conversation: 是否使用对话模式（默认启用）
             
@@ -1261,7 +1261,7 @@ class ChapterBluePrintGenerator:
         
         Args:
             total_words: 目标字数
-            tropes: 套路分析
+            tropes: 爆款分析
             plan: 方案
             
         Returns:

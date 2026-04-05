@@ -1,6 +1,6 @@
 """
 市场导向对话生成器
-在一个连续对话中完成套路分析 → 方案生成 → 一阶段产物生成
+在一个连续对话中完成爆款分析 → 方案生成 → 一阶段产物生成
 利用Kimi的256K上下文窗口和缓存机制
 
 v2.0更新：基于爆款反向工程分析生成Prompt
@@ -144,7 +144,7 @@ class MarketDrivenConversationSession:
             api_client: APIClient实例
             genre: 题材
             user_choices: 用户选择（包含标题、剧情路线、主角等）
-            tropes: 套路分析结果（可选，作为参考）
+            tropes: 爆款分析结果（可选，作为参考）
             provider: 提供商，None则使用APIClient默认提供商
             prompt_package: 提示词包（可选，用于自定义提示词）
             user_id: 用户ID（用于加载用户的提示词包）
@@ -171,11 +171,11 @@ class MarketDrivenConversationSession:
         self.user_choices = user_choices
         self.tropes = tropes or {}
         
-        # 🔥 检测是否是来自对话模式的final_plan（跳过套路分析的模式）
+        # 🔥 检测是否是来自对话模式的final_plan（跳过爆款分析的模式）
         self._is_dialog_mode_final_plan = tropes and tropes.get("_source") == "dialog_mode_final_plan"
         if self._is_dialog_mode_final_plan:
             self._final_plan = tropes.get("final_plan", {})
-            logger.info(f"[对话模式 {self.session_id}] 🎯 检测到DialogMode FinalPlan，将跳过套路分析步骤")
+            logger.info(f"[对话模式 {self.session_id}] 🎯 检测到DialogMode FinalPlan，将跳过爆款分析步骤")
         else:
             self._final_plan = None
         
@@ -362,7 +362,7 @@ POST /api/v2/prompt-config/component/{step_name}
     
     def _filter_tropes_for_prompt(self) -> Dict:
         """
-        过滤套路分析结果，只保留必要信息，移除干扰选项
+        过滤爆款分析结果，只保留必要信息，移除干扰选项
         
         移除内容：
         - title_templates: 所有备选标题（用户已选择）
@@ -453,7 +453,7 @@ POST /api/v2/prompt-config/component/{step_name}
         
         # 🔥 判断是否是final_plan模式
         if self._is_dialog_mode_final_plan and self._final_plan:
-            # 使用final_plan内容替代套路分析
+            # 使用final_plan内容替代爆款分析
             final_plan_info = f"""
 **书名**: {self._final_plan.get('title', title)}
 **主角**: {self._final_plan.get('protagonist_name', protagonist_name)} - {self._final_plan.get('protagonist_personality', '')}
@@ -476,13 +476,13 @@ POST /api/v2/prompt-config/component/{step_name}
 ⚠️ **强制要求**：以上设定（书名、主角名、金手指等）必须严格使用，禁止修改！
 """
         else:
-            # 🔥 清理套路分析结果，只保留必要信息
+            # 🔥 清理爆款分析结果，只保留必要信息
             filtered_tropes = self._filter_tropes_for_prompt()
             tropes_json = json.dumps(filtered_tropes, ensure_ascii=False, indent=2)
             reference_section = f"""
 ---
 
-## 📊 【套路分析结果 - 参考依据】
+## 📊 【爆款分析结果 - 参考依据】
 
 以下是对该题材Top10爆款的分析结果，**仅供参考，用于启发创作**。AI应基于这些套路自由创作，不必严格遵循固定情节。
 
@@ -1084,7 +1084,7 @@ POST /api/v2/prompt-config/component/{step_name}
             # 传统Prompt（备用）
             prompt_parts = [
                 "请执行【步骤1：生成完整方案】\n",
-                "基于系统提示词中的【用户最终选择】和【完整的套路分析结果】，生成完整的小说方案。\n",
+                "基于系统提示词中的【用户最终选择】和【完整的爆款分析结果】，生成完整的小说方案。\n",
                 "## 重要提醒",
                 f'1. **书名**：必须使用用户确定的「{title}」',
                 f'2. **主角名**：必须使用用户确定的「{protagonist_name}」',
@@ -1554,7 +1554,7 @@ POST /api/v2/prompt-config/component/{step_name}
             # 传统Prompt
             prompt_parts = [
                 "请执行【步骤5：生成情绪曲线】\n",
-                f"基于系统提示词中的【完整的套路分析结果】和前30章大纲，设计{total_chapters}章的情绪曲线。\n",
+                f"基于系统提示词中的【完整的爆款分析结果】和前30章大纲，设计{total_chapters}章的情绪曲线。\n",
                 "## 节奏要求（必须严格遵循）",
                 "- 每3章一个小高潮（强度7-8）",
                 "- 每10章一个中高潮（强度8-9）",
@@ -2819,7 +2819,7 @@ class MarketDrivenConversationManager:
         Args:
             genre: 题材
             user_choices: 用户选择
-            tropes: 套路分析结果
+            tropes: 爆款分析结果
             provider: 提供商，None则使用APIClient默认提供商
         """
         # 🔥 修复：传递provider参数，不再硬编码kimi
@@ -2856,7 +2856,7 @@ def generate_with_conversation(api_client, genre: str, user_choices: Dict,
         api_client: APIClient实例
         genre: 题材
         user_choices: 用户选择
-        tropes: 套路分析结果（可选）
+        tropes: 爆款分析结果（可选）
         progress_callback: 进度回调
         project_path: 项目路径，用于每步保存中间结果
     

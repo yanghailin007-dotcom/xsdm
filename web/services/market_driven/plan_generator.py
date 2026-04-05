@@ -211,7 +211,7 @@ class MarketDrivenPlanGenerator:
         
         Args:
             genre: 题材
-            tropes: 套路分析结果
+            tropes: 爆款分析结果
             user_choices: 用户选择（在套路框架内的微调）
             
         Returns:
@@ -729,7 +729,7 @@ class MarketDrivenPlanGenerator:
         
         Args:
             genre: 题材
-            tropes: 套路分析
+            tropes: 爆款分析
             user_choices: 用户选择
             
         Returns:

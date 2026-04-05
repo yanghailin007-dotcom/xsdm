@@ -240,7 +240,7 @@ def analyze_tropes():
     {
         "task_id": "uuid",
         "status": "pending",
-        "message": "套路分析任务已创建"
+        "message": "爆款分析任务已创建"
     }
     """
     try:
@@ -301,17 +301,17 @@ def analyze_tropes():
                     status="completed",
                     progress=100,
                     current_stage="analysis_completed",
-                    message="套路分析完成",
+                    message="爆款分析完成",
                     result={
                         "genre": genre,
                         "tropes": tropes
                     }
                 )
                 
-                logger.info(f"套路分析任务完成: {task_id}")
+                logger.info(f"爆款分析任务完成: {task_id}")
                 
             except Exception as e:
-                logger.error(f"套路分析任务失败: {e}", exc_info=True)
+                logger.error(f"爆款分析任务失败: {e}", exc_info=True)
                 task_manager.update_task(
                     task_id,
                     status="failed",
@@ -327,11 +327,11 @@ def analyze_tropes():
         return jsonify({
             "task_id": task_id,
             "status": "pending",
-            "message": "套路分析任务已创建并开始运行"
+            "message": "爆款分析任务已创建并开始运行"
         }), 202
         
     except Exception as e:
-        logger.error(f"创建套路分析任务失败: {e}", exc_info=True)
+        logger.error(f"创建爆款分析任务失败: {e}", exc_info=True)
         return jsonify({"error": str(e)}), 500
 
 
@@ -564,12 +564,12 @@ def start_market_driven_generation():
                 logger.info(f"[Task {task_id}] 检查对话模式 | dialog_session_id: {dialog_session_id} | final_plan: {bool(final_plan)}")
                 
                 if dialog_session_id and final_plan:
-                    # 对话模式：已生成最终方案，跳过套路分析和方案生成，直接生成章节
-                    logger.info(f"[Task {task_id}] 对话模式检测到最终方案，跳过套路分析和方案生成，直接生成章节")
+                    # 对话模式：已生成最终方案，跳过爆款分析和方案生成，直接生成章节
+                    logger.info(f"[Task {task_id}] 对话模式检测到最终方案，跳过爆款分析和方案生成，直接生成章节")
                     _run_chapter_generation_with_plan(task_id, genre, target_words, api_client, final_plan, user_choices)
                 else:
                     # 传统模式：完整流程
-                    # 第1阶段：套路分析
+                    # 第1阶段：爆款分析
                     _run_trope_analysis(task_id, genre, api_client, user_choices)
                     
                     # 第2阶段：方案 + 一阶段产物生成
@@ -617,7 +617,7 @@ def start_market_driven_generation():
 
 
 def _run_trope_analysis(task_id: str, genre: str, api_client=None, user_choices: Dict = None):
-    """执行套路分析"""
+    """执行爆款分析"""
     task_manager.update_task(
         task_id,
         status="analyzing",
@@ -648,13 +648,13 @@ def _run_trope_analysis(task_id: str, genre: str, api_client=None, user_choices:
                 "genre": genre,
                 "tropes": tropes
             },
-            message="套路分析完成"
+            message="爆款分析完成"
         )
         
-        logger.info(f"[Task {task_id}] 套路分析完成")
+        logger.info(f"[Task {task_id}] 爆款分析完成")
         
     except Exception as e:
-        logger.error(f"[Task {task_id}] 套路分析失败: {e}")
+        logger.error(f"[Task {task_id}] 爆款分析失败: {e}")
         raise
 
 
@@ -672,7 +672,7 @@ def _run_plan_generation(task_id: str, genre: str, user_choices: Dict, api_clien
     )
     
     try:
-        # 获取套路分析结果
+        # 获取爆款分析结果
         task = task_manager.get_task(task_id)
         tropes = task.get("result", {}).get("tropes", {})
         
@@ -2030,7 +2030,7 @@ def start_dialog_polish():
     请求体：
     {
         "genre": "国运文-直播类",
-        "tropes": { ... },  // 套路分析结果
+        "tropes": { ... },  // 爆款分析结果
         "username": "作者名"  // 可选
     }
     

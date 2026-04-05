@@ -152,7 +152,7 @@ class DynamicEmotionPlanner:
         
         Args:
             total_chapters: 总章节数
-            tropes: 套路分析
+            tropes: 爆款分析
             template_key: 情绪模板key（如"神豪文-花钱返利类"）
         """
         # 如果使用模板

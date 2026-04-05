@@ -41,7 +41,7 @@ class EmotionCurveGenerator:
         
         Args:
             genre: 题材
-            tropes: 套路分析
+            tropes: 爆款分析
             plan: 方案
             total_chapters: 总章节数
             
@@ -98,7 +98,7 @@ class EmotionCurveGenerator:
 主角：{protagonist.get('name', '主角')}，{protagonist.get('initial_identity', '普通人')}
 
 【关键节拍要求】
-基于套路分析，以下章节必须有特定情绪：
+基于爆款分析，以下章节必须有特定情绪：
 - 第1章：必须是"压抑→震惊"（绝望开局+系统觉醒）
 - 第3章左右：必须有"爽快"（第一次打脸）
 - 第8-10章：必须有"震惊"（身份小曝光）

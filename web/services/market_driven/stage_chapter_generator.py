@@ -3,7 +3,7 @@
 按题材特定的阶段性节奏批量生成
 每个阶段创建一个独立对话会话
 
-节奏参数从套路分析中获取：
+节奏参数从爆款分析中获取：
 - stage_climax_interval: 阶段性高潮间隔（如：30章/50章/100章）
 - small_climax_interval: 小高潮间隔（如：3章）
 - medium_climax_interval: 中高潮间隔（如：10章）
@@ -24,11 +24,11 @@ class StageChapterGenerator:
     阶段式章节生成器
     
     设计原则：
-    1. 按题材特定的"阶段性节奏"划分（从套路分析获取）
+    1. 按题材特定的"阶段性节奏"划分（从爆款分析获取）
     2. 每个阶段创建独立对话会话
     3. 会话system_prompt包含完整一阶段设定+本阶段详细规划
     
-    阶段划分基于套路分析中的stage_rhythm：
+    阶段划分基于爆款分析中的stage_rhythm：
     - stage_climax_chapters: 阶段性高潮章节列表
     - 如果没有提供，使用默认的30章周期
     
@@ -144,16 +144,16 @@ class StageChapterGenerator:
         """
         计算阶段划分 - 基于题材分析的阶段性节奏
         
-        从套路分析中获取该题材特定的阶段性节奏：
+        从爆款分析中获取该题材特定的阶段性节奏：
         - stage_climax_interval: 阶段性大高潮间隔（如：30章/50章/100章）
         - stage_climax_chapters: 具体的阶段性高潮章节列表
         - stage_climax_types: 每个阶段性高潮的类型描述
         
-        如果套路分析中没有节奏信息，则使用默认的30章周期。
+        如果爆款分析中没有节奏信息，则使用默认的30章周期。
         """
         stages = []
         
-        # 从套路分析中获取阶段性节奏
+        # 从爆款分析中获取阶段性节奏
         stage_rhythm = self.tropes.get('stage_rhythm', {})
         stage_climax_chapters = stage_rhythm.get('stage_climax_chapters', [])
         stage_climax_types = stage_rhythm.get('stage_climax_types', [])
@@ -204,7 +204,7 @@ class StageChapterGenerator:
         return stages
     
     def _calculate_default_stages(self, interval: int = 30) -> List[Dict]:
-        """使用默认节奏计算阶段（当套路分析中没有节奏信息时）"""
+        """使用默认节奏计算阶段（当爆款分析中没有节奏信息时）"""
         stages = []
         
         full_cycles = self.total_chapters // interval
@@ -513,7 +513,7 @@ class StageChapterGenerator:
         1. 完整一阶段设定（世界观、角色、成长路线）
         2. 本阶段详细规划（本阶段大纲、高潮设计）
         
-        注意：使用从套路分析中提取的题材特定节奏参数
+        注意：使用从爆款分析中提取的题材特定节奏参数
         """
         # 如果成功加载了JSON配置，使用模板渲染
         if self._stage_system_prompt_config and self._stage_system_prompt_config.get('template'):
@@ -553,7 +553,7 @@ POST /api/v2/prompt-config/component/stage_system_prompt
         # 获取主角当前阶段能力
         protagonist_current = self._get_protagonist_stage_status(stage)
         
-        # 从套路分析中获取节奏参数
+        # 从爆款分析中获取节奏参数
         stage_rhythm = self.tropes.get('stage_rhythm', {})
         small_interval = stage_rhythm.get('small_climax_interval', defaults.get('small_interval', 3))
         medium_interval = stage_rhythm.get('medium_climax_interval', defaults.get('medium_interval', 10))
@@ -598,7 +598,7 @@ POST /api/v2/prompt-config/component/stage_system_prompt
         """获取主角当前阶段状态 - 基于周期升级"""
         stage_num = stage['stage_number']
         
-        # 从套路分析中获取节奏参数
+        # 从爆款分析中获取节奏参数
         stage_rhythm = self.tropes.get('stage_rhythm', {})
         small_interval = stage_rhythm.get('small_climax_interval', 3)
         medium_interval = stage_rhythm.get('medium_climax_interval', 10)
@@ -913,7 +913,7 @@ def generate_by_stages(api_client, novel_data: Dict, tropes: Dict, prompt_packag
     Args:
         api_client: API客户端
         novel_data: 小说数据
-        tropes: 套路分析数据
+        tropes: 爆款分析数据
         prompt_package: 使用的prompt包名称（默认"default"）
         progress_callback: 进度回调
     
