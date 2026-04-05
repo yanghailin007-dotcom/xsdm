@@ -2195,8 +2195,8 @@ NovelPublisher_Data/              ← 统一数据目录
                     item.setCheckState(Qt.Unchecked)
             
             # 2. 设置"从第X章开始"
-            self.start_from_chapter_spin.setValue(next_chapter)
-            self._apply_start_chapter()
+            self.start_chapter_spin.setValue(next_chapter)
+            self.apply_start_chapter()
             
             # 3. 更新发布时间配置
             next_date = resume_info['next_publish_date']
@@ -2259,8 +2259,8 @@ NovelPublisher_Data/              ← 统一数据目录
                 item.setCheckState(Qt.Unchecked)
                 item.setBackground(QColor("transparent"))
         
-        self.start_from_chapter_spin.setValue(next_chapter)
-        self._apply_start_chapter()
+        self.start_chapter_spin.setValue(next_chapter)
+        self.apply_start_chapter()
         
         # 2. 弹出手动设置对话框
         self._show_manual_publish_dialog(next_chapter, resume_info)
@@ -2363,7 +2363,7 @@ NovelPublisher_Data/              ← 统一数据目录
             
             # 更新"从第X章开始"
             self.start_from_chapter_spin.setValue(chapter_num)
-            self._apply_start_chapter()
+            self.apply_start_chapter()
             
             self.log(f"✅ 已手动设置: 第{chapter_num}-{chapter_num + chapter_count - 1}章 ({chapter_count}章) {date_str} {time_str}", "success")
             dialog.accept()
