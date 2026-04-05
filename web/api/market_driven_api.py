@@ -2706,10 +2706,12 @@ def generate_final_plan():
                 # 尝试解析JSON
                 import json
                 import re
+                import ast
                 json_match = re.search(r'\{[\s\S]*\}', str(response))
                 if json_match:
+                    json_str = json_match.group()
                     try:
-                        final_plan = json.loads(json_match.group())
+                        final_plan = json.loads(json_str)
                         logger.info(f"[FinalPlan] JSON解析成功 | Session: {session_id}")
                         logger.info(f"[FinalPlan] 书名: {final_plan.get('title', 'N/A')}")
                         logger.info(f"[FinalPlan] 主角: {final_plan.get('protagonist_name', 'N/A')}")
@@ -2719,8 +2721,18 @@ def generate_final_plan():
                             "success": True,
                             "final_plan": final_plan
                         }), 200
-                    except json.JSONDecodeError as je:
-                        logger.error(f"[FinalPlan] JSON解析失败: {je} | 内容: {json_match.group()[:200]}")
+                    except json.JSONDecodeError:
+                        # 尝试解析Python单引号字典格式
+                        try:
+                            final_plan = ast.literal_eval(json_str)
+                            if isinstance(final_plan, dict):
+                                logger.info(f"[FinalPlan] Python字典解析成功 | Session: {session_id}")
+                                return jsonify({
+                                    "success": True,
+                                    "final_plan": final_plan
+                                }), 200
+                        except Exception as e2:
+                            logger.error(f"[FinalPlan] JSON/Python解析均失败 | 内容: {json_str[:200]} | 错误: {e2}")
                 else:
                     logger.error(f"[FinalPlan] 未找到JSON内容 | 响应: {str(response)[:200]}")
             else:
