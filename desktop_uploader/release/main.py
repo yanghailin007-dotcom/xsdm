@@ -2168,8 +2168,8 @@ NovelPublisher_Data/              ← 统一数据目录
                 # 自动续发
                 self._auto_setup_resume(resume_info)
             elif clicked_btn == manual_btn:
-                # 手动设置：只选中下一章
-                self._select_next_chapter_only(resume_info['next_chapter'])
+                # 手动设置：只选中下一章，并弹出设置对话框
+                self._select_next_chapter_only(resume_info['next_chapter'], resume_info)
             # 取消则不做任何操作
             
         except Exception as e:
@@ -2245,20 +2245,104 @@ NovelPublisher_Data/              ← 统一数据目录
         except Exception as e:
             self.log(f"⚠️ 设置发布时间表失败: {e}", "warning")
     
-    def _select_next_chapter_only(self, next_chapter: int):
-        """只选中下一章"""
+    def _select_next_chapter_only(self, next_chapter: int, resume_info: dict = None):
+        """只选中下一章，并弹出手动设置对话框"""
+        # 1. 选中下一章
         for i in range(self.chapters_list.count()):
             item = self.chapters_list.item(i)
             ch_num = self._extract_chapter_num(item.text())
             
             if ch_num == next_chapter:
                 item.setCheckState(Qt.Checked)
+                item.setBackground(QColor("#FFF9C4"))  # 黄色高亮提示
             else:
                 item.setCheckState(Qt.Unchecked)
+                item.setBackground(QColor("transparent"))
         
         self.start_from_chapter_spin.setValue(next_chapter)
         self._apply_start_chapter()
-        self.log(f"✅ 已选中第{next_chapter}章，请手动设置发布时间", "info")
+        
+        # 2. 弹出手动设置对话框
+        self._show_manual_publish_dialog(next_chapter, resume_info)
+    
+    def _show_manual_publish_dialog(self, chapter_num: int, resume_info: dict = None):
+        """显示手动发布设置对话框"""
+        from PyQt5.QtWidgets import QDialog, QFormLayout, QLineEdit, QSpinBox, QLabel
+        
+        dialog = QDialog(self)
+        dialog.setWindowTitle(f"手动设置 - 第{chapter_num}章发布")
+        dialog.setMinimumWidth(400)
+        
+        layout = QFormLayout()
+        
+        # 发布时间输入
+        publish_time_label = QLabel("发布时间 (HH:MM):")
+        publish_time_edit = QLineEdit()
+        publish_time_edit.setPlaceholderText("06:00")
+        if resume_info:
+            publish_time_edit.setText(resume_info.get('next_publish_time', '06:00'))
+        else:
+            publish_time_edit.setText(self.publish_times_edit.text().split(',')[0])
+        layout.addRow(publish_time_label, publish_time_edit)
+        
+        # 发布日期输入
+        publish_date_label = QLabel("发布日期 (YYYY-MM-DD):")
+        publish_date_edit = QLineEdit()
+        publish_date_edit.setPlaceholderText("2026-04-24")
+        if resume_info:
+            publish_date_edit.setText(resume_info.get('next_publish_date', ''))
+        else:
+            publish_date_edit.setText(datetime.now().strftime('%Y-%m-%d'))
+        layout.addRow(publish_date_label, publish_date_edit)
+        
+        # 每日限额提示
+        if resume_info:
+            limit_label = QLabel(f"💡 今天还能发 {resume_info.get('today_remaining', 0)} 章")
+            limit_label.setStyleSheet("color: #666;")
+            layout.addRow(limit_label)
+        
+        # 按钮
+        btn_layout = QHBoxLayout()
+        ok_btn = QPushButton("✅ 确认设置")
+        cancel_btn = QPushButton("❌ 取消")
+        btn_layout.addWidget(ok_btn)
+        btn_layout.addWidget(cancel_btn)
+        layout.addRow(btn_layout)
+        
+        dialog.setLayout(layout)
+        
+        # 按钮事件
+        def on_ok():
+            time_str = publish_time_edit.text().strip()
+            date_str = publish_date_edit.text().strip()
+            
+            # 验证格式
+            try:
+                datetime.strptime(time_str, '%H:%M')
+                datetime.strptime(date_str, '%Y-%m-%d')
+            except ValueError:
+                QMessageBox.warning(dialog, "格式错误", "时间格式应为 HH:MM，日期格式应为 YYYY-MM-DD")
+                return
+            
+            # 保存到配置
+            self.publish_times_edit.setText(time_str)
+            
+            # 构建日期槽
+            date_slots = {
+                date_str: {time_str: 1}
+            }
+            self.publish_date_slots = date_slots
+            
+            self.log(f"✅ 已手动设置: 第{chapter_num}章 {date_str} {time_str}", "success")
+            dialog.accept()
+        
+        def on_cancel():
+            dialog.reject()
+        
+        ok_btn.clicked.connect(on_ok)
+        cancel_btn.clicked.connect(on_cancel)
+        
+        dialog.exec_()
 
     def select_all_chapters(self):
         """全选（包括已发布的）"""
