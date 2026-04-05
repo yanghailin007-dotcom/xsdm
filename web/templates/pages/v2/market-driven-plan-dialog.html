@@ -1171,13 +1171,48 @@ const roundTypes = {
 
 // ==================== 初始化 ====================
 document.addEventListener('DOMContentLoaded', function() {
-  // 从URL获取题材
+  // 从URL获取参数
   const urlParams = new URLSearchParams(window.location.search);
   genre = urlParams.get('genre') || '国运文-直播类';
+  const shouldRestore = urlParams.get('restore') === 'true';
+  const urlTaskId = urlParams.get('task_id');
+  
+  // 🔥 如果是从后台运行模式返回，尝试恢复状态
+  if (shouldRestore) {
+    const saved = localStorage.getItem('market_driven_background_task');
+    if (saved) {
+      const task = JSON.parse(saved);
+      if (task && task.task_id && (!urlTaskId || task.task_id === urlTaskId)) {
+        console.log('[Dialog] 从后台运行模式恢复状态:', task);
+        restoreDialogState(task);
+        return; // 跳过正常初始化
+      }
+    }
+  }
   
   // 初始化对话模式
   initDialogMode();
 });
+
+// 🔥 从后台运行模式恢复状态
+function restoreDialogState(task) {
+  const taskId = task.task_id || task.taskId;
+  
+  // 如果任务已完成或失败，跳转到状态页面
+  if (['completed', 'failed'].includes(task.status)) {
+    window.location.href = `/market-driven-status?task=${taskId}`;
+    return;
+  }
+  
+  // 如果任务正在运行，跳转到状态页面继续监控
+  if (['running', 'generating_chapters', 'conversation_mode'].includes(task.status)) {
+    window.location.href = `/market-driven-status?task=${taskId}`;
+    return;
+  }
+  
+  // 否则继续正常初始化
+  initDialogMode();
+}
 
 // ==================== 模式切换 ====================
 function switchMode(mode) {
@@ -1750,8 +1785,11 @@ let finalPlan = null;
 // 第6步 → 第7步：用户确认基础信息后，调用AI生成详细方案
 async function confirmFormAndGenerate() {
   // 收集表单数据
+  // 🔥 重要：书名如果用户没有填写（留空），应该传空字符串让AI生成
+  // 不能使creativeDraft的标题作为默认值，否则AI会误以为用户已指定标题
+  const titleInput = document.getElementById('final-title')?.value || '';
   const formData = {
-    title: document.getElementById('final-title')?.value || creativeDraft?.title || '',
+    title: titleInput, // 用户留空则传空字符串，由AI生成
     protagonist_name: document.getElementById('final-protagonist')?.value || '',
     protagonist_identity: document.getElementById('final-identity')?.value || '',
     golden_finger_desc: document.getElementById('final-golden-finger')?.value || creativeDraft?.golden_finger || '',
@@ -1761,6 +1799,9 @@ async function confirmFormAndGenerate() {
     wordcount: document.getElementById('final-wordcount')?.value || '50',
     chapters: document.getElementById('final-chapters')?.value || '200'
   };
+  
+  console.log('[FormData] 收集的表单数据:', formData);
+  console.log('[FormData] 书名是否留空:', !formData.title);
   
   // 保存表单数据（书名可以为空，由AI生成）
   window.currentFormData = formData;
@@ -1878,7 +1919,7 @@ function renderFinalPlanReview(plan) {
         <!-- 书名 -->
         <div class="form-group" style="margin-bottom: 16px;">
           <label class="form-label">书名</label>
-          <input type="text" class="form-input" id="review-title" value="${window.currentFormData?.title || ''}" placeholder="留空由AI生成曝款书名，或输入你想要的标题">
+          <input type="text" class="form-input" id="review-title" value="${window.currentFormData?.title || plan.title || ''}" placeholder="留空由AI生成曝款书名，或输入你想要的标题">
           <div class="form-hint" style="color: var(--primary-gold);">✌️ 留空则由AI生成最佳曝款书名；输入后将使用你指定的标题</div>
         </div>
         
@@ -2014,20 +2055,30 @@ async function confirmAndStartRealGeneration() {
   }
   
   // 🔥 读取第7步页面中可编辑字段的值（如果存在）
-  const reviewTitle = document.getElementById('review-title')?.value;
-  const reviewProtagonistName = document.getElementById('review-protagonist-name')?.value;
-  const reviewProtagonistPersonality = document.getElementById('review-protagonist-personality')?.value;
-  const reviewGoldenFinger = document.getElementById('review-golden-finger')?.value;
-  const reviewWordcount = document.getElementById('review-wordcount')?.value;
-  const reviewChapters = document.getElementById('review-chapters')?.value;
+  const reviewTitleInput = document.getElementById('review-title');
+  const reviewProtagonistNameInput = document.getElementById('review-protagonist-name');
+  const reviewProtagonistPersonalityInput = document.getElementById('review-protagonist-personality');
+  const reviewGoldenFingerInput = document.getElementById('review-golden-finger');
+  const reviewWordcountInput = document.getElementById('review-wordcount');
+  const reviewChaptersInput = document.getElementById('review-chapters');
+  
+  // 🔥 关键：判断用户是否真的输入了内容（不是留空）
+  // 书名特殊处理：如果用户留空，传空字符串让后端生成
+  const reviewTitle = reviewTitleInput?.value?.trim();
+  const hasUserEnteredTitle = reviewTitle !== undefined && reviewTitle !== '';
+  
+  const reviewProtagonistName = reviewProtagonistNameInput?.value;
+  const reviewProtagonistPersonality = reviewProtagonistPersonalityInput?.value;
+  const reviewGoldenFinger = reviewGoldenFingerInput?.value;
+  const reviewWordcount = reviewWordcountInput?.value;
+  const reviewChapters = reviewChaptersInput?.value;
   
   // 使用用户编辑的值（优先）或AI生成的值
-  const finalTitle = reviewTitle || finalPlan?.title || window.currentFormData.title;
+  // 🔥 修复：如果用户留空（不是undefined或null，而是空字符串），则使用空字符串
+  const finalTitle = hasUserEnteredTitle ? reviewTitle : '';
   
-  if (!finalTitle) {
-    showError('请填写小说标题');
-    return;
-  }
+  console.log('[Step7] 用户是否输入书名:', hasUserEnteredTitle);
+  console.log('[Step7] 最终书名:', finalTitle || '（留空，由AI生成）');
   
   // 合并数据：用户编辑值 > AI生成的最终方案 > 原始表单数据
   // 🔥 把 dialog_session_id 和 final_plan 也放入 user_choices，让后端识别为对话模式
@@ -2082,6 +2133,15 @@ async function confirmAndStartRealGeneration() {
     const data = await response.json();
     
     if (data.task_id) {
+      // 🔥 保存到后台运行任务状态（供floating-task-monitor使用）
+      localStorage.setItem('market_driven_background_task', JSON.stringify({
+        task_id: data.task_id,
+        title: finalTitle || finalPlan?.title || '未命名小说',
+        genre: genre,
+        progress: 0,
+        created_at: Date.now()
+      }));
+      
       window.location.href = `/market-driven-status?task=${data.task_id}`;
     } else {
       showError('生成失败: ' + (data.error || '未知错误'));

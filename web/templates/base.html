@@ -43,5 +43,8 @@
     <script src="{{ url_for('static', filename='js/user-info.js') }}"></script>
     <script src="{{ url_for('static', filename='js/account-manager.js') }}?v=2"></script>
     {% block extra_js %}{% endblock %}
+    
+    <!-- 全局任务监控浮窗 - 显示在所有页面 -->
+    {% include 'components/floating-task-monitor.html' %}
 </body>
 </html>

@@ -372,6 +372,9 @@ class ProductLoader:
         self._load_from_legacy_structure(products)
         self._load_from_phase_one_file(products)
         
+        # 🔥 新增：尝试从 phase_one_products 目录加载对话模式生成的产物
+        self._load_from_phase_one_products_dir(products)
+        
         # 🔥 新增：尝试加载势力系统
         self._load_faction_system(products)
         
@@ -1122,6 +1125,51 @@ class ProductLoader:
                 return
             except Exception as e:
                 self.logger.info(f"读取第一阶段设定文件失败: {e}")
+    
+    def _load_from_phase_one_products_dir(self, products):
+        """
+        从 phase_one_products 目录加载对话模式生成的产物文件
+        对话模式将产物保存为独立的JSON文件，而不是合并的第一阶段设定文件
+        """
+        phase_one_products_dir = self.project_dir / "phase_one_products"
+        if not phase_one_products_dir.exists():
+            return
+        
+        # 文件名到产物key的映射
+        file_mapping = {
+            "世界观设定.json": "worldview",
+            "角色设计.json": "characters",
+            "升级路线.json": "growth",
+            "阶段目标.json": "stage_goals",
+            "完整方案.json": "storyline",  # 完整方案作为故事线
+            "番茄上传数据.json": None,  # 暂不映射
+            "写作风格指南.json": "writing",
+            "市场分析.json": "market",
+            "情绪蓝图.json": None,  # 暂不映射
+        }
+        
+        for filename, product_key in file_mapping.items():
+            if not product_key:
+                continue
+            
+            # 如果产物已完成，跳过
+            if products[product_key]['complete']:
+                continue
+            
+            file_path = phase_one_products_dir / filename
+            if not file_path.exists():
+                continue
+            
+            try:
+                with open(file_path, 'r', encoding='utf-8') as f:
+                    data = json.load(f)
+                
+                products[product_key]['content'] = json.dumps(data, ensure_ascii=False, indent=2)
+                products[product_key]['complete'] = True
+                products[product_key]['file_path'] = str(file_path)
+                self.logger.info(f"已加载产物: {product_key} (从 phase_one_products/{filename})")
+            except Exception as e:
+                self.logger.warning(f"加载 phase_one_products/{filename} 失败: {e}")
 
 
 # ==================== API路由 ====================

@@ -1717,18 +1717,68 @@ POST /api/v2/prompt-config/component/{step_name}
         }
     
     def _generate_writing_style_guide(self) -> Dict:
-        """生成写作风格指南（基于套路模板）"""
-        return self.tropes.get("platform_tips", {})
+        """生成写作风格指南（基于套路模板或final_plan）"""
+        # 优先使用tropes中的数据
+        platform_tips = self.tropes.get("platform_tips", {})
+        if platform_tips:
+            return platform_tips
+        
+        # 如果是对话模式，使用final_plan的数据
+        if self._is_dialog_mode_final_plan and self._final_plan:
+            return {
+                "narrative_style": "第一人称内心独白为主，对话简洁有力",
+                "sentence_structure": "短句为主，节奏快，每章结尾留钩子",
+                "vocabulary_preference": "口语化表达，避免过于书面的描述",
+                "emotional_expression": "通过动作和对话展现情感，减少心理描写",
+                "pacing_control": "开篇快速入戏，前3章必须有强冲突",
+                "genre_specific_tips": f"符合{self.genre}题材特点，突出爽点和反差"
+            }
+        
+        # 默认写作风格指南
+        return {
+            "narrative_style": "第一人称内心独白为主",
+            "sentence_structure": "短句为主，节奏快",
+            "vocabulary_preference": "口语化表达",
+            "emotional_expression": "动作+对话展现情感",
+            "pacing_control": "开篇快速入戏",
+            "genre_specific_tips": "突出爽点和反差"
+        }
     
     def _generate_market_analysis(self) -> Dict:
-        """生成市场分析（基于套路）"""
+        """生成市场分析（基于套路或final_plan）"""
+        # 优先使用tropes中的数据
+        if self.tropes:
+            return {
+                "target_platform": "番茄小说",
+                "genre_positioning": self.genre,
+                "core_selling_points": self.tropes.get("success_factors", []),
+                "target_audience": self.tropes.get("protagonist", {}).get("background", ""),
+                "competitive_advantages": self.tropes.get("platform_tips", {}).get("writing_style", ""),
+                "confidence_score": 8
+            }
+        
+        # 如果是对话模式，使用final_plan的数据
+        if self._is_dialog_mode_final_plan and self._final_plan:
+            return {
+                "target_platform": "番茄小说",
+                "genre_positioning": self.genre,
+                "core_selling_points": [
+                    self._final_plan.get("core_selling_point", "独特设定带来新鲜感"),
+                    self._final_plan.get("story_direction", "")
+                ],
+                "target_audience": self._final_plan.get("protagonist_background", "年轻读者"),
+                "competitive_advantages": self._final_plan.get("unique_points", "差异化亮点"),
+                "confidence_score": 8
+            }
+        
+        # 默认市场分析
         return {
             "target_platform": "番茄小说",
             "genre_positioning": self.genre,
-            "core_selling_points": self.tropes.get("success_factors", []),
-            "target_audience": self.tropes.get("protagonist", {}).get("background", ""),
-            "competitive_advantages": self.tropes.get("platform_tips", {}).get("writing_style", ""),
-            "confidence_score": 8
+            "core_selling_points": ["符合市场趋势", "突出爽点设计"],
+            "target_audience": "年轻读者",
+            "competitive_advantages": "差异化设定",
+            "confidence_score": 7
         }
     
     def _generate_emotional_blueprint(self) -> Dict:

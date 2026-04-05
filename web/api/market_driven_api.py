@@ -783,7 +783,13 @@ def _run_plan_and_products_conversation(task_id: str, genre: str, user_choices: 
             )
         
         # 🔥 创建项目目录（提前创建，用于保存每步结果）
-        novel_title = enriched_user_choices.get("title") or f"未命名_{task_id[:8]}"
+        # 🔥 修复：用户留空表示要求AI生成标题，使用临时项目名
+        user_title_for_project = enriched_user_choices.get("title")
+        if user_title_for_project and user_title_for_project.strip():
+            novel_title = user_title_for_project.strip()
+        else:
+            # 用户留空或未指定，使用临时项目名
+            novel_title = f"未命名_{task_id[:8]}"
         project_path = create_unified_project(novel_title, "market_driven", genre, username)
         logger.info(f"[Task {task_id}] 项目目录已创建: {project_path}")
         
@@ -1593,10 +1599,21 @@ def _run_chapter_generation_with_plan(task_id: str, genre: str, target_words: in
         username = task.get('username') or 'anonymous'
         
         # 从 final_plan 和 user_choices 获取核心设定
-        novel_title = user_choices.get('title') or final_plan.get('title') or f"未命名_{task_id[:8]}"
+        # 🔥 修复：书名特殊处理 - 用户传空字符串表示要求AI生成，不能使用模板标题
+        user_title = user_choices.get('title')
+        if user_title is not None and user_title.strip():
+            # 用户指定了标题（非空）
+            novel_title = user_title.strip()
+        elif user_title is not None and not user_title.strip():
+            # 用户主动留空，要求AI生成全新标题 - 传空字符串标识
+            novel_title = ""  # 空字符串表示由AI生成
+        else:
+            # 用户没有传title字段（undefined），使用final_plan的标题
+            novel_title = final_plan.get('title') or ""
+        
         protagonist_name = user_choices.get('protagonist_name') or final_plan.get('protagonist_name') or '主角'
         
-        logger.info(f"[DialogMode] 复用对话流程生成 | 任务: {task_id} | 书名: {novel_title} | 主角: {protagonist_name}")
+        logger.info(f"[DialogMode] 复用对话流程生成 | 任务: {task_id} | 书名: {novel_title or '(由AI生成)'} | 主角: {protagonist_name}")
         
         # 🔥 关键：将final_plan包装成类似tropes的结构，复用现有对话流程
         # 这样 _run_plan_and_products_conversation 可以无缝使用final_plan
@@ -2297,6 +2314,16 @@ def generate_final_plan():
 - 主角姓名：{user_protagonist_name if user_protagonist_name else '[由AI生成，2-4字]'}
 - {'书名：用户指定标题《' + user_title + '》（必须严格使用此标题）' if user_title else '书名：由AI根据题材和金手指特点生成最佳爆款书名（6-14字，含数字/对比/反差/爽点预期）'}
 - 金手指描述：{user_golden_finger_desc if user_golden_finger_desc else draft.golden_finger}
+
+**【重要警告 - 书名创新要求】**
+根据上述金扇指描述，可能涉及"吐槽系统"、"观众互动"等关键词。
+但你必须创新，不能直接用"绑定XX系统后我XX"这种直白方式命名！
+
+正确书名创作方法：
+- 不要直接出现"系统"二字
+- 使用回避、曲折、意外等手法
+- 例如金手指是"吐槽系统"，书名可以是《我靠嘴炮带飞全国》《观众大爷救救我》《直播间里我气哭了怪谈》
+- 书名要有悬念感，不能直白地告诉读者"我有系统"
 
 **【参考设定】**
 **题材：** {genre}

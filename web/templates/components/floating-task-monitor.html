@@ -268,6 +268,22 @@
         checkBackgroundTask();
     });
     
+    // 监听 localStorage 变化（其他页面保存任务时触发）
+    window.addEventListener('storage', function(e) {
+        if (e.key === 'market_driven_background_task') {
+            if (e.newValue) {
+                // 新任务被保存，立即显示浮窗
+                const task = JSON.parse(e.newValue);
+                if (task.task_id) {
+                    createGlobalFloat(task.task_id);
+                }
+            } else {
+                // 任务被清除，关闭浮窗
+                closeGlobalFloat();
+            }
+        }
+    });
+    
     // 检查是否有后台运行的任务
     function checkBackgroundTask() {
         const saved = localStorage.getItem('market_driven_background_task');

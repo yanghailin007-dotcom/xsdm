@@ -749,6 +749,21 @@ function updateUI(task) {
   // 🔍 调试日志
   console.log('[进度更新]', { progress, stage, message, status: task.status, raw: task });
   
+  // 🔥 同步到后台运行任务状态（供floating-task-monitor使用）
+  const bgTask = localStorage.getItem('market_driven_background_task');
+  if (bgTask) {
+    const bgData = JSON.parse(bgTask);
+    if (bgData.task_id === taskId) {
+      bgData.progress = progress;
+      bgData.status = task.status;
+      bgData.stage = task.current_stage;
+      bgData.message = message || stage;
+      bgData.last_update = Date.now();
+      if (task.novel_title) bgData.title = task.novel_title;
+      localStorage.setItem('market_driven_background_task', JSON.stringify(bgData));
+    }
+  }
+  
   // 获取DOM元素
   const fillEl = document.getElementById('progress-fill');
   const percentEl = document.getElementById('progress-percent');
