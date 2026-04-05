@@ -338,8 +338,8 @@
         // 立即执行一次
         pollTaskStatus();
         
-        // 每5秒轮询
-        pollInterval = setInterval(pollTaskStatus, 5000);
+        // 每30秒轮询（减少服务器压力）
+        pollInterval = setInterval(pollTaskStatus, 30000);
     }
     
     // 轮询任务状态
