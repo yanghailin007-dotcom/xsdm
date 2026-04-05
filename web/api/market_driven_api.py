@@ -1616,7 +1616,7 @@ def _run_chapter_generation_with_plan(task_id: str, genre: str, target_words: in
         )
         
         # 对话第1轮：生成世界观
-        worldview_prompt = f"""基于以下核心设定，生成完整的世界观设定：
+        worldview_prompt = f"""基于以下核心设定，生成完整的世界观设定。
 
 **题材：** {genre}
 **书名：** {novel_title}
@@ -1631,7 +1631,7 @@ def _run_chapter_generation_with_plan(task_id: str, genre: str, target_words: in
 3. 主要势力分布
 4. 世界地图/区域划分（简要）
 
-输出JSON格式：
+**【JSON格式要求】** 必须输出标准JSON（双引号，非单引号）：
 {{
     "world_background": "世界背景描述（200字）",
     "power_system": "力量体系说明（100字）",
@@ -1677,7 +1677,7 @@ def _run_chapter_generation_with_plan(task_id: str, genre: str, target_words: in
         )
         
         # 对话第2轮：生成角色（基于世界观上下文）
-        character_prompt = f"""我们继续。基于已确定的世界观设定，现在设计完整的角色：
+        character_prompt = f"""我们继续。基于已确定的世界观设定，现在设计完整的角色。
 
 【世界观背景】
 - 世界背景：{world_setting.get('world_background', '待定')}
@@ -1695,7 +1695,7 @@ def _run_chapter_generation_with_plan(task_id: str, genre: str, target_words: in
 3. 2-3个主要反派（姓名、动机、特色、与势力的关系）
 4. 情感线设计
 
-输出JSON格式：
+**【JSON格式要求】** 必须输出标准JSON（双引号，非单引号）：
 {{
     "protagonist": {{
         "name": "{protagonist_name}",
@@ -1748,7 +1748,7 @@ def _run_chapter_generation_with_plan(task_id: str, genre: str, target_words: in
         )
         
         # 对话第3轮：生成大纲（基于世界观+角色上下文）
-        outline_prompt = f"""我们继续。基于已确定的世界观和角色设计，现在生成分阶段大纲：
+        outline_prompt = f"""我们继续。基于已确定的世界观和角色设计，现在生成分阶段大纲。
 
 【世界观】
 - 世界背景：{world_setting.get('world_background', '')}
@@ -1776,7 +1776,7 @@ def _run_chapter_generation_with_plan(task_id: str, genre: str, target_words: in
 - 关键事件（利用世界观设定的冲突）
 - 情绪高潮点
 
-输出JSON格式：
+**【JSON格式要求】** 必须输出标准JSON（双引号，非单引号）：
 {{
     "stages": [
         {{
@@ -2688,7 +2688,13 @@ def generate_final_plan():
 **【开局钩子公式】**
 {genre_prompts['hook_formula']}
 
-请输出故事核心设定（JSON格式）：
+**【JSON输出格式 - 严格遵守】**
+请输出故事核心设定，必须是**标准JSON格式**，要求如下：
+- 所有字符串使用**双引号** "key": "value"（严禁使用单引号）
+- 所有字段必须填写，不能为空
+- 严禁在JSON中包含注释
+
+```json
 {{
     "title": "{user_title if user_title else '书名（6-14字，番茄爆款风格）'}",
     "protagonist_name": "{user_protagonist_name if user_protagonist_name else '主角名（2-4字，有记忆点）'}",
@@ -2701,6 +2707,7 @@ def generate_final_plan():
     "emotion_core": "情感核心（{genre_prompts['emotion_guide']}）",
     "risk_warning": "风险提示（如：{genre_prompts['risk_guide']}）"
 }}
+```
 
 **【强制规则】**
 1. {'主角姓名必须严格使用：' + user_protagonist_name if user_protagonist_name else '主角名要符合题材，2-4字有记忆点'}
@@ -2709,7 +2716,7 @@ def generate_final_plan():
 4. 核心卖点必须有画面感，能激发点击欲望
 5. {genre_prompts['rule_5']}
 6. 所有内容必须符合番茄读者口味，直白有力
-7. 必须输出有效JSON格式"""
+7. **必须输出标准JSON格式（双引号），严禁Python字典格式（单引号）**"""
 
         # 系统提示词 - 番茄爆款风格专家
         system_prompt = """你是一位顶级番茄小说爆款策划专家，深谙番茄平台读者心理。
