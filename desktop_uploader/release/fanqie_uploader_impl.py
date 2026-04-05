@@ -1021,8 +1021,8 @@ class FanqieUploaderImpl:
             pass
         return False
     
-    def _close_extra_pages(self):
-        """关闭多余的标签页，只保留当前页面和章节管理页"""
+    def _close_extra_pages(self, keep_chapter_manage=True):
+        """关闭多余的标签页，只保留当前页面和章节管理页（可选）"""
         try:
             if not self.browser:
                 return
@@ -1034,28 +1034,31 @@ class FanqieUploaderImpl:
                 if len(pages) <= 1:
                     continue
                 
-                # 找到当前页面在列表中的索引
+                # 找到当前页面和章节管理页
                 current_page_idx = -1
+                chapter_manage_idx = -1
                 for idx, page in enumerate(pages):
                     if page == self.page:
                         current_page_idx = idx
-                        break
+                    url = page.url
+                    if '/chapter-manage/' in url and '/publish/' not in url:
+                        chapter_manage_idx = idx
                 
-                # 关闭除当前页面外的其他页面
+                # 关闭除当前页面和章节管理页外的其他页面
                 closed_count = 0
                 for idx, page in enumerate(pages):
-                    if idx != current_page_idx:
-                        try:
-                            # 检查是否是章节管理页，如果是则保留
-                            url = page.url
-                            if '/chapter-manage/' in url and '/publish/' not in url:
-                                # 保留章节管理页，但不切换
-                                continue
-                            # 关闭发布页和其他页面
-                            page.close()
-                            closed_count += 1
-                        except:
-                            pass
+                    # 保留当前页面
+                    if idx == current_page_idx:
+                        continue
+                    # 保留章节管理页（如果keep_chapter_manage为True）
+                    if keep_chapter_manage and idx == chapter_manage_idx:
+                        continue
+                    
+                    try:
+                        page.close()
+                        closed_count += 1
+                    except:
+                        pass
                 
                 if closed_count > 0:
                     self._log(f"  已关闭 {closed_count} 个多余标签页")
@@ -1154,6 +1157,9 @@ class FanqieUploaderImpl:
         content = chapter.get('content', '')
         
         self._log(f"正在上传第 {chapter_number} 章: {chapter_title[:30]}...")
+        
+        # 🔥 先关闭多余的发布页标签，避免累积
+        self._close_extra_pages(keep_chapter_manage=True)
         
         try:
             # 确保在发布页面
@@ -1687,35 +1693,41 @@ class FanqieUploaderImpl:
             
             self._log(f"  当前URL: {current_url}")
             
+            # 🔥 成功上传后关闭发布页标签，避免累积
+            success_result = None
+            
             if has_success_hint:
                 self._log(f"  ✓ 第{chapter_number}章上传成功 (检测到成功提示)", "success")
-                return True
+                success_result = True
             
-            if is_chapter_manage:
+            elif is_chapter_manage:
                 self._log(f"  ✓ 第{chapter_number}章上传成功 (已返回章节管理页)", "success")
-                # 关闭之前的发布页标签（如果有）
-                self._close_extra_pages()
-                return True
+                success_result = True
             
-            if is_book_page and not is_publish_page:
+            elif is_book_page and not is_publish_page:
                 self._log(f"  ✓ 第{chapter_number}章上传成功 (已跳转到书籍页)", "success")
-                return True
+                success_result = True
             
             # 检查是否有明确的错误提示
             has_error = any(kw in page_text.lower() for kw in ['error', '报错', '失败', '错误', 'cannot', 'unable'])
             
-            if not is_publish_page and not has_error:
+            elif not is_publish_page and not has_error:
                 self._log(f"  ⚠ 页面已跳转，无错误提示，视为成功", "warning")
-                return True
+                success_result = True
             
-            if is_publish_page and not has_error:
+            elif is_publish_page and not has_error:
                 # 仍在发布页，但可能没有错误，可能是网络慢
                 self._log(f"  ⚠ 仍在发布页，等待后重试检查...", "warning")
                 time.sleep(3)
                 # 再次检查URL
                 if '/publish/' not in self.page.url:
                     self._log(f"  ✓ 第{chapter_number}章上传成功 (页面已跳转)", "success")
-                    return True
+                    success_result = True
+            
+            # 🔥 如果上传成功，关闭多余的发布页标签
+            if success_result:
+                self._close_extra_pages(keep_chapter_manage=True)
+                return True
             
             self._log(f"  ✗ 第{chapter_number}章上传可能失败", "error")
             if has_error:

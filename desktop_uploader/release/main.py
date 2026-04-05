@@ -2321,6 +2321,10 @@ NovelPublisher_Data/              ← 统一数据目录
                     proj_data['publish_config']['manual_chapter_count'] = last_day_remaining
                     proj_data['publish_config']['manual_set_at'] = datetime.now().isoformat()
                     proj_data['publish_config']['is_auto_resume'] = True  # 标记为自动续传
+                    # 🔥 重要：保存回 combo，否则修改不会生效
+                    self.project_combo.setItemData(proj_idx, proj_data)
+                    # 🔥 同时保存到配置文件，确保持久化
+                    self._save_publish_config_to_file(proj_data.get('path'), proj_data.get('publish_config', {}))
             
             # 自动计算定时发布（如果当天有剩余额度）
             if last_day_remaining > 0:
@@ -2331,6 +2335,29 @@ NovelPublisher_Data/              ← 统一数据目录
             
         except Exception as e:
             self.log(f"⚠️ 自动设置续发失败: {e}", "warning")
+    
+    def _save_publish_config_to_file(self, project_path: str, publish_config: dict):
+        """保存发布配置到项目配置文件"""
+        try:
+            if not project_path:
+                return
+            config_path = Path(project_path) / "project_config.json"
+            if not config_path.exists():
+                return
+            
+            # 读取现有配置
+            config = json.loads(config_path.read_text(encoding='utf-8'))
+            
+            # 更新 publish_config
+            if 'publish_config' not in config:
+                config['publish_config'] = {}
+            config['publish_config'].update(publish_config)
+            
+            # 写回文件
+            config_path.write_text(json.dumps(config, ensure_ascii=False, indent=2), encoding='utf-8')
+            self.log(f"💾 已保存发布配置: {publish_config.get('manual_publish_date')} {publish_config.get('manual_publish_time')}", "debug")
+        except Exception as e:
+            self.log(f"⚠️ 保存发布配置失败: {e}", "debug")
     
     def _setup_publish_schedule(self, resume_info: dict):
         """设置发布时间表"""
