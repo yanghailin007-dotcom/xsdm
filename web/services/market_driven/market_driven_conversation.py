@@ -171,6 +171,14 @@ class MarketDrivenConversationSession:
         self.user_choices = user_choices
         self.tropes = tropes or {}
         
+        # 🔥 检测是否是来自对话模式的final_plan（跳过套路分析的模式）
+        self._is_dialog_mode_final_plan = tropes and tropes.get("_source") == "dialog_mode_final_plan"
+        if self._is_dialog_mode_final_plan:
+            self._final_plan = tropes.get("final_plan", {})
+            logger.info(f"[对话模式 {self.session_id}] 🎯 检测到DialogMode FinalPlan，将跳过套路分析步骤")
+        else:
+            self._final_plan = None
+        
         # 🔥 处理主角名：如果包含多个候选名（如 "苏辰/叶枫/秦天"），只取第一个
         protagonist_name = self.user_choices.get('protagonist_name', '')
         if protagonist_name and '/' in str(protagonist_name):
@@ -443,9 +451,45 @@ POST /api/v2/prompt-config/component/{step_name}
         else:
             base_prompt = self._build_default_setting_prompt(title)
         
-        # 🔥 清理套路分析结果，只保留必要信息
-        filtered_tropes = self._filter_tropes_for_prompt()
-        tropes_json = json.dumps(filtered_tropes, ensure_ascii=False, indent=2)
+        # 🔥 判断是否是final_plan模式
+        if self._is_dialog_mode_final_plan and self._final_plan:
+            # 使用final_plan内容替代套路分析
+            final_plan_info = f"""
+**书名**: {self._final_plan.get('title', title)}
+**主角**: {self._final_plan.get('protagonist_name', protagonist_name)} - {self._final_plan.get('protagonist_personality', '')}
+**主角背景**: {self._final_plan.get('protagonist_background', '')}
+**金手指**: {self._final_plan.get('golden_finger_summary', golden_finger)}
+**核心卖点**: {self._final_plan.get('core_selling_point', '')}
+**剧情方向**: {self._final_plan.get('story_direction', '')}
+**开局钩子**: {self._final_plan.get('opening_hook', '')}
+**情感核心**: {self._final_plan.get('emotion_core', '')}
+"""
+            reference_section = f"""
+---
+
+## 📋 【核心设定 - 已通过对话确认】
+
+以下设定是通过6轮对话与用户共同确认的最终方案，**必须严格遵循**：
+
+{final_plan_info}
+
+⚠️ **强制要求**：以上设定（书名、主角名、金手指等）必须严格使用，禁止修改！
+"""
+        else:
+            # 🔥 清理套路分析结果，只保留必要信息
+            filtered_tropes = self._filter_tropes_for_prompt()
+            tropes_json = json.dumps(filtered_tropes, ensure_ascii=False, indent=2)
+            reference_section = f"""
+---
+
+## 📊 【套路分析结果 - 参考依据】
+
+以下是对该题材Top10爆款的分析结果，**仅供参考，用于启发创作**。AI应基于这些套路自由创作，不必严格遵循固定情节。
+
+```json
+{tropes_json}
+```
+"""
         
         # 构建用户约束部分
         user_constraints = f"""
@@ -476,15 +520,7 @@ POST /api/v2/prompt-config/component/{step_name}
 {main_plot}
 ```
 
----
-
-## 📊 【套路分析结果 - 参考依据】
-
-以下是对该题材Top10爆款的分析结果，**仅供参考，用于启发创作**。AI应基于这些套路自由创作，不必严格遵循固定情节。
-
-```json
-{tropes_json}
-```
+{reference_section}
 
 ---
 
@@ -812,30 +848,52 @@ POST /api/v2/prompt-config/component/{step_name}
             "genre": self.genre,
         }
         
-        logger.info(f"[对话模式 {self.session_id}] 开始5步对话生成流程...")
-        
-        # 步骤1: 生成方案 (20%) -> UI阶段: planning
-        logger.info(f"[对话模式 {self.session_id}] [UI:planning] 步骤1/6: 生成完整方案")
-        if progress_callback:
-            progress_callback("generate_plan", 20)
-        plan = self._generate_plan()
-        results["plan"] = plan
-        results["title"] = plan.get("title", "")
-        self._save_step_result("plan", results, project_path)
-        logger.info(f"[对话模式 {self.session_id}] [UI:planning] 步骤1完成 | 标题: {plan.get('title', 'N/A')}")
-        
-        # 🔥 步骤1B: 生成番茄上传数据（书名、简介、标签）
-        logger.info(f"[对话模式 {self.session_id}] [UI:planning] 步骤1B/6: 生成番茄上传数据")
-        if progress_callback:
-            progress_callback("generate_fanqie_data", 28)
-        fanqie_data = self._generate_fanqie_upload_data(plan)
-        results["fanqie_upload_data"] = fanqie_data
-        # 同步到 plan 以便后续使用
-        plan["recommended_title"] = fanqie_data["title"]
-        plan["core_selling_points"] = [{"point": fanqie_data["synopsis"]}]
-        plan["tags"] = fanqie_data["tags"]
-        self._save_step_result("fanqie_data", results, project_path)
-        logger.info(f"[对话模式 {self.session_id}] [UI:planning] 步骤1B完成 | 书名: {fanqie_data['title']}")
+        # 🔥 判断是否是final_plan模式（已通过对话确认方案）
+        if self._is_dialog_mode_final_plan and self._final_plan:
+            logger.info(f"[对话模式 {self.session_id}] 🎯 FinalPlan模式：跳过方案生成，直接使用已确认方案")
+            
+            # 使用final_plan作为plan，跳过步骤1和1B
+            plan = self._build_plan_from_final_plan()
+            results["plan"] = plan
+            results["title"] = plan.get("title", "")
+            
+            # 构建简单的番茄数据
+            fanqie_data = {
+                "title": plan.get("title", ""),
+                "synopsis": plan.get("core_selling_point", ""),
+                "tags": plan.get("genre", self.genre).split(",")[:3]
+            }
+            results["fanqie_upload_data"] = fanqie_data
+            plan["recommended_title"] = fanqie_data["title"]
+            plan["core_selling_points"] = [{"point": fanqie_data["synopsis"]}]
+            plan["tags"] = fanqie_data["tags"]
+            
+            logger.info(f"[对话模式 {self.session_id}] [UI:planning] 已加载FinalPlan | 标题: {plan.get('title', 'N/A')}")
+        else:
+            logger.info(f"[对话模式 {self.session_id}] 开始5步对话生成流程...")
+            
+            # 步骤1: 生成方案 (20%) -> UI阶段: planning
+            logger.info(f"[对话模式 {self.session_id}] [UI:planning] 步骤1/6: 生成完整方案")
+            if progress_callback:
+                progress_callback("generate_plan", 20)
+            plan = self._generate_plan()
+            results["plan"] = plan
+            results["title"] = plan.get("title", "")
+            self._save_step_result("plan", results, project_path)
+            logger.info(f"[对话模式 {self.session_id}] [UI:planning] 步骤1完成 | 标题: {plan.get('title', 'N/A')}")
+            
+            # 🔥 步骤1B: 生成番茄上传数据（书名、简介、标签）
+            logger.info(f"[对话模式 {self.session_id}] [UI:planning] 步骤1B/6: 生成番茄上传数据")
+            if progress_callback:
+                progress_callback("generate_fanqie_data", 28)
+            fanqie_data = self._generate_fanqie_upload_data(plan)
+            results["fanqie_upload_data"] = fanqie_data
+            # 同步到 plan 以便后续使用
+            plan["recommended_title"] = fanqie_data["title"]
+            plan["core_selling_points"] = [{"point": fanqie_data["synopsis"]}]
+            plan["tags"] = fanqie_data["tags"]
+            self._save_step_result("fanqie_data", results, project_path)
+            logger.info(f"[对话模式 {self.session_id}] [UI:planning] 步骤1B完成 | 书名: {fanqie_data['title']}")
         
         # 步骤2: 生成世界观 (35%) -> UI阶段: worldview
         logger.info(f"[对话模式 {self.session_id}] [UI:worldview] 步骤2/7: 生成世界观")
@@ -925,6 +983,39 @@ POST /api/v2/prompt-config/component/{step_name}
         
         logger.info(f"[对话模式 {self.session_id}] ✅ 所有6个步骤完成 | 总轮次: {self.session.turn_count} | 全部结果已保存")
         return results
+    
+    def _build_plan_from_final_plan(self) -> Dict:
+        """
+        从final_plan构建plan结构（用于DialogMode跳过方案生成步骤）
+        将final_plan的字段映射为标准的plan格式
+        """
+        if not self._final_plan:
+            logger.warning(f"[对话模式 {self.session_id}] final_plan为空，返回默认plan")
+            return {"title": "未命名", "protagonist": {"name": "主角"}}
+        
+        plan = {
+            "title": self._final_plan.get("title", "未命名"),
+            "protagonist": {
+                "name": self._final_plan.get("protagonist_name", "主角"),
+                "personality": self._final_plan.get("protagonist_personality", ""),
+                "background": self._final_plan.get("protagonist_background", "")
+            },
+            "golden_finger": {
+                "summary": self._final_plan.get("golden_finger_summary", ""),
+                "details": ""
+            },
+            "core_selling_point": self._final_plan.get("core_selling_point", ""),
+            "story_direction": self._final_plan.get("story_direction", ""),
+            "opening_hook": self._final_plan.get("opening_hook", ""),
+            "emotion_core": self._final_plan.get("emotion_core", ""),
+            # 🔥 从 user_choices 获取总章节数
+            "total_chapters": self.user_choices.get("chapters", 200),
+            # 标记这是来自final_plan
+            "_source": "dialog_mode_final_plan"
+        }
+        
+        logger.info(f"[对话模式 {self.session_id}] 从final_plan构建plan完成 | 标题: {plan['title']}")
+        return plan
     
     def _generate_plan(self) -> Dict:
         """生成完整方案（使用基于爆款的Prompt模板或提示词包）"""

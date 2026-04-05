@@ -1569,18 +1569,12 @@ def _get_genre_specific_prompts(genre: str) -> Dict:
 
 def _run_chapter_generation_with_plan(task_id: str, genre: str, target_words: int, api_client=None, final_plan: Dict = None, user_choices: Dict = None):
     """
-    对话模式：基于已确认的最终方案，使用连续对话生成世界观→角色→大纲→章节
-    每一步都基于前面的结果，保持上下文连贯
+    基于已确认的最终方案，复用现有对话流程生成产物
+    
+    方案：将final_plan包装成类似tropes的结构，复用_run_plan_and_products_conversation
     """
-    from web.services.market_driven.config import get_config, calculate_batches
+    from web.services.market_driven.config import get_config
     config = get_config(genre)
-    
-    total_chapters = target_words // config["words_per_chapter"]
-    chapters_per_batch = config["chapters_per_batch"]
-    batches = calculate_batches(total_chapters, chapters_per_batch, genre)
-    
-    # 初始化对话上下文（模拟连续对话）
-    conversation_history = []
     
     try:
         task = task_manager.get_task(task_id)
@@ -1589,231 +1583,46 @@ def _run_chapter_generation_with_plan(task_id: str, genre: str, target_words: in
         # 从 final_plan 和 user_choices 获取核心设定
         novel_title = user_choices.get('title') or final_plan.get('title') or f"未命名_{task_id[:8]}"
         protagonist_name = user_choices.get('protagonist_name') or final_plan.get('protagonist_name') or '主角'
-        protagonist_personality = final_plan.get('protagonist_personality', '')
-        golden_finger = final_plan.get('golden_finger_summary', '')
-        story_direction = final_plan.get('story_direction', '')
-        opening_hook = final_plan.get('opening_hook', '')
         
-        logger.info(f"[DialogMode] 对话模式完整生成 | 任务: {task_id} | 书名: {novel_title} | 主角: {protagonist_name}")
+        logger.info(f"[DialogMode] 复用对话流程生成 | 任务: {task_id} | 书名: {novel_title} | 主角: {protagonist_name}")
         
-        # 创建项目路径
-        from web.services.market_driven.project_manager import create_unified_project
-        project_path = create_unified_project(
-            novel_title=novel_title,
-            generation_mode="market_driven_dialog",
+        # 🔥 关键：将final_plan包装成类似tropes的结构，复用现有对话流程
+        # 这样 _run_plan_and_products_conversation 可以无缝使用final_plan
+        fake_tropes = {
+            "genre": genre,
+            "final_plan": final_plan,  # 传递完整的final_plan
+            "core_formula": final_plan.get('story_direction', ''),
+            "protagonist_archetroype": final_plan.get('protagonist_personality', ''),
+            "golden_finger": final_plan.get('golden_finger_summary', ''),
+            "core_selling_point": final_plan.get('core_selling_point', ''),
+            "opening_hook": final_plan.get('opening_hook', ''),
+            # 标记这是来自对话模式的final_plan
+            "_source": "dialog_mode_final_plan"
+        }
+        
+        # 更新任务，设置fake_tropes作为result，这样_run_plan_and_products_conversation可以获取
+        current_result = task.get("result") or {}
+        current_result["tropes"] = fake_tropes
+        task_manager.update_task(task_id, result=current_result)
+        
+        # 🔥 复用现有的对话流程！
+        # _run_plan_and_products_conversation 会使用 generate_with_conversation
+        # 后者会调用 MarketDrivenConversationManager 进行真正的对话生成
+        logger.info(f"[DialogMode] 调用现有对话流程 _run_plan_and_products_conversation")
+        
+        _run_plan_and_products_conversation(
+            task_id=task_id,
             genre=genre,
-            username=username
-        )
-        logger.info(f"[DialogMode] 项目路径: {project_path}")
-        
-        # ========== 阶段1：生成完整世界观 ==========
-        task_manager.update_task(
-            task_id,
-            status="generating_products",
-            progress=30,
-            current_stage="generating_worldview",
-            message="【对话模式】基于核心设定生成世界观..."
+            user_choices=user_choices,
+            api_client=api_client
         )
         
-        # 对话第1轮：生成世界观
-        worldview_prompt = f"""基于以下核心设定，生成完整的世界观设定。
-
-**题材：** {genre}
-**书名：** {novel_title}
-**主角：** {protagonist_name} - {protagonist_personality}
-**金手指：** {golden_finger}
-**剧情方向：** {story_direction}
-**开局钩子：** {opening_hook}
-
-请生成：
-1. 世界背景（这个世界的规则、力量体系）
-2. 核心设定（金手指的详细机制、限制、升级方式）
-3. 主要势力分布
-4. 世界地图/区域划分（简要）
-
-**【JSON格式要求】** 必须输出标准JSON（双引号，非单引号）：
-{{
-    "world_background": "世界背景描述（200字）",
-    "power_system": "力量体系说明（100字）",
-    "golden_finger_details": "金手指详细机制（150字）",
-    "major_factions": ["势力1", "势力2", "势力3"],
-    "world_map": "主要区域简述"
-}}"""
+        logger.info(f"[DialogMode] 对话流程完成，继续生成章节...")
+        return
         
-        worldview_result = api_client.generate_content_with_retry(
-            content_type="conversation",
-            user_prompt=worldview_prompt,
-            temperature=0.7,
-            purpose="生成世界观"
-        )
-        
-        # 解析世界观结果
-        world_setting = {}
-        if worldview_result:
-            try:
-                if isinstance(worldview_result, dict):
-                    world_setting = worldview_result
-                else:
-                    import re, json, ast
-                    json_match = re.search(r'\{[\s\S]*\}', str(worldview_result))
-                    if json_match:
-                        try:
-                            world_setting = json.loads(json_match.group())
-                        except json.JSONDecodeError:
-                            world_setting = ast.literal_eval(json_match.group())
-            except:
-                world_setting = {}
-        
-        # 记录到对话历史
-        conversation_history.append({"role": "assistant", "content": f"已生成世界观设定：{json.dumps(world_setting, ensure_ascii=False) if world_setting else '默认世界观'}"})
-        logger.info(f"[DialogMode] 【对话轮次1/3】世界观生成完成")
-        
-        # ========== 阶段2：生成完整角色设计 ==========
-        task_manager.update_task(
-            task_id,
-            progress=35,
-            current_stage="generating_characters",
-            message="【对话模式】基于世界观生成角色设计..."
-        )
-        
-        # 对话第2轮：生成角色（基于世界观上下文）
-        character_prompt = f"""我们继续。基于已确定的世界观设定，现在设计完整的角色。
-
-【世界观背景】
-- 世界背景：{world_setting.get('world_background', '待定')}
-- 力量体系：{world_setting.get('power_system', '待定')}
-- 主要势力：{', '.join(world_setting.get('major_factions', [])) if world_setting.get('major_factions') else '待定'}
-
-【主角基础设定】
-- 姓名：{protagonist_name}
-- 性格：{protagonist_personality}
-- 金手指：{golden_finger}
-
-请设计：
-1. 主角详细人设（外貌、性格细节、成长线）- 必须符合世界观力量体系
-2. 3-5个重要配角（姓名、身份、与主角关系、所属势力）
-3. 2-3个主要反派（姓名、动机、特色、与势力的关系）
-4. 情感线设计
-
-**【JSON格式要求】** 必须输出标准JSON（双引号，非单引号）：
-{{
-    "protagonist": {{
-        "name": "{protagonist_name}",
-        "appearance": "外貌描述",
-        "personality": "性格细节",
-        "growth_arc": "成长路线"
-    }},
-    "supporting": [
-        {{"name": "配角1", "identity": "身份", "relationship": "与主角关系", "faction": "所属势力"}},
-        {{"name": "配角2", "identity": "身份", "relationship": "与主角关系", "faction": "所属势力"}}
-    ],
-    "antagonists": [
-        {{"name": "反派1", "motive": "动机", "feature": "特色", "faction": "所属势力"}}
-    ]
-}}"""
-        
-        character_result = api_client.generate_content_with_retry(
-            content_type="conversation",
-            user_prompt=character_prompt,
-            temperature=0.7,
-            purpose="生成角色设计"
-        )
-        
-        characters = {"protagonist": {"name": protagonist_name, "personality": protagonist_personality}}
-        if character_result:
-            try:
-                if isinstance(character_result, dict):
-                    characters = character_result
-                else:
-                    import re, json, ast
-                    json_match = re.search(r'\{[\s\S]*\}', str(character_result))
-                    if json_match:
-                        try:
-                            characters = json.loads(json_match.group())
-                        except json.JSONDecodeError:
-                            characters = ast.literal_eval(json_match.group())
-            except:
-                pass
-        
-        # 记录到对话历史
-        conversation_history.append({"role": "assistant", "content": f"已生成角色设计：主角 {protagonist_name}, 配角 {len(characters.get('supporting', []))} 人"})
-        logger.info(f"[DialogMode] 【对话轮次2/3】角色设计生成完成")
-        
-        # ========== 阶段3：生成阶段目标和大纲 ==========
-        task_manager.update_task(
-            task_id,
-            progress=40,
-            current_stage="generating_outline",
-            message="【对话模式】基于世界观和角色生成大纲..."
-        )
-        
-        # 对话第3轮：生成大纲（基于世界观+角色上下文）
-        outline_prompt = f"""我们继续。基于已确定的世界观和角色设计，现在生成分阶段大纲。
-
-【世界观】
-- 世界背景：{world_setting.get('world_background', '')}
-- 力量体系：{world_setting.get('power_system', '')}
-
-【主角设定】
-- 姓名：{protagonist_name}
-- 性格：{protagonist_personality}
-- 金手指：{golden_finger}
-- 成长路线：{characters.get('protagonist', {}).get('growth_arc', '待定')}
-
-【配角与反派】
-- 重要配角：{len(characters.get('supporting', []))}人
-- 主要反派：{len(characters.get('antagonists', []))}人
-
-【剧情框架】
-- 总章节数：{total_chapters}章
-- 剧情方向：{story_direction}
-- 开局钩子：{opening_hook}
-
-请将{total_chapters}章分为3-4个阶段，每个阶段必须与上述世界观、角色成长线保持一致：
-- 阶段名称
-- 章节范围
-- 阶段目标（主角在这一阶段的具体成长目标）
-- 关键事件（利用世界观设定的冲突）
-- 情绪高潮点
-
-**【JSON格式要求】** 必须输出标准JSON（双引号，非单引号）：
-{{
-    "stages": [
-        {{
-            "stage": 1,
-            "name": "阶段名称",
-            "chapters": "1-30",
-            "goal": "阶段目标",
-            "key_events": ["事件1", "事件2"],
-            "climax": "高潮点"
-        }}
-    ],
-    "milestones": [10, 30, 50, 100]
-}}"""
-        
-        outline_result = api_client.generate_content_with_retry(
-            content_type="conversation",
-            user_prompt=outline_prompt,
-            temperature=0.7,
-            purpose="生成大纲"
-        )
-        
-        stage_goals = _build_stage_goals_from_plan(final_plan, total_chapters)
-        if outline_result:
-            try:
-                if isinstance(outline_result, dict):
-                    stage_goals = outline_result.get('stages', stage_goals)
-                else:
-                    import re, json, ast
-                    json_match = re.search(r'\{[\s\S]*\}', str(outline_result))
-                    if json_match:
-                        try:
-                            parsed = json.loads(json_match.group())
-                        except json.JSONDecodeError:
-                            parsed = ast.literal_eval(json_match.group())
-                        stage_goals = parsed.get('stages', stage_goals)
-            except:
-                pass
+    except Exception as e:
+        logger.error(f"[DialogMode] 对话流程失败: {e}", exc_info=True)
+        raise
         
         # 记录到对话历史
         conversation_history.append({"role": "assistant", "content": f"已生成大纲：{len(stage_goals) if isinstance(stage_goals, list) else 0} 个阶段"})
