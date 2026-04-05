@@ -1716,6 +1716,9 @@ async function startAIEvaluation() {
   alert('请直接在表单中确认方案后生成');
 }
 
+// 全局变量存储最终方案
+let finalPlan = null;
+
 async function startGeneration() {
   if (!creativeDraft) {
     // 表单模式
@@ -1723,7 +1726,7 @@ async function startGeneration() {
     return;
   }
   
-  // 对话模式 - 从表单收集数据
+  // 第一步：收集表单数据
   const formData = {
     title: document.getElementById('final-title')?.value || creativeDraft.title,
     protagonist_name: document.getElementById('final-protagonist')?.value || '',
@@ -1742,13 +1745,207 @@ async function startGeneration() {
     return;
   }
   
+  // 保存表单数据
+  window.currentFormData = formData;
+  
+  // 第二步：调用AI生成最终详细方案
+  await generateFinalPlan(formData);
+}
+
+async function generateFinalPlan(formData) {
+  // 显示加载状态
+  const confirmContainer = document.getElementById('confirm-container');
+  confirmContainer.innerHTML = `
+    <div class="loading-container" style="padding: 60px 20px;">
+      <div class="loading-spinner"></div>
+      <div class="loading-text">AI正在生成最终详细方案...</div>
+      <div class="loading-subtext">包括：完整大纲、前30章规划、角色设定细化</div>
+    </div>
+  `;
+  
+  try {
+    const response = await fetch('/api/market-driven/generate-final-plan', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        genre: genre,
+        session_id: dialogSessionId,
+        form_data: formData
+      })
+    });
+    
+    const data = await response.json();
+    
+    if (data.success) {
+      finalPlan = data.final_plan;
+      renderFinalPlanReview(data.final_plan);
+    } else {
+      showError('生成最终方案失败: ' + (data.error || '未知错误'));
+      // 返回表单页面
+      returnToDialog();
+    }
+  } catch (error) {
+    console.error('生成最终方案失败:', error);
+    showError('网络错误，请重试');
+    returnToDialog();
+  }
+}
+
+function renderFinalPlanReview(plan) {
+  const container = document.getElementById('confirm-container');
+  
+  container.innerHTML = `
+    <div class="confirm-card fade-in">
+      <div class="confirm-card__header">
+        <div class="confirm-card__icon" style="background: linear-gradient(135deg, rgba(245, 158, 11, 0.2), rgba(251, 191, 36, 0.1));">
+          <span class="material-icons" style="font-size: 24px; color: var(--primary-gold);">auto_stories</span>
+        </div>
+        <div>
+          <div class="confirm-card__title">AI生成的最终方案</div>
+          <div class="confirm-card__subtitle">请检查并确认后开始生成小说</div>
+        </div>
+      </div>
+      
+      <!-- 书名和基本信息 -->
+      <div class="form-section" style="margin-bottom: 20px;">
+        <h3 class="form-section__title">
+          <span class="material-icons">title</span>
+          ${plan.title || window.currentFormData?.title || '未命名'}
+        </h3>
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px;">
+          <div>
+            <div style="font-size: 12px; color: var(--v2-text-muted); margin-bottom: 4px;">主角</div>
+            <div style="font-size: 14px; color: var(--v2-text-primary);">${plan.protagonist || window.currentFormData?.protagonist_name || '待定'}</div>
+          </div>
+          <div>
+            <div style="font-size: 12px; color: var(--v2-text-muted); margin-bottom: 4px;">金手指</div>
+            <div style="font-size: 14px; color: var(--v2-text-primary);">${plan.golden_finger_summary || window.currentFormData?.golden_finger_desc?.substring(0, 30) + '...' || '待定'}</div>
+          </div>
+          <div>
+            <div style="font-size: 12px; color: var(--v2-text-muted); margin-bottom: 4px;">目标字数</div>
+            <div style="font-size: 14px; color: var(--v2-text-primary);">${window.currentFormData?.wordcount || '50'}万字 / ${window.currentFormData?.chapters || '200'}章</div>
+          </div>
+        </div>
+      </div>
+      
+      <!-- 核心卖点 -->
+      <div class="form-section" style="margin-bottom: 20px; background: rgba(245, 158, 11, 0.05);">
+        <h3 class="form-section__title">
+          <span class="material-icons">campaign</span>
+          核心卖点
+        </h3>
+        <div style="font-size: 15px; color: var(--v2-text-primary); line-height: 1.8;">
+          ${plan.core_selling_point || '暂无'}
+        </div>
+      </div>
+      
+      <!-- 主线大纲 -->
+      <div class="form-section" style="margin-bottom: 20px;">
+        <h3 class="form-section__title">
+          <span class="material-icons">map</span>
+          主线大纲
+        </h3>
+        <div style="font-size: 14px; color: var(--v2-text-secondary); line-height: 1.8; white-space: pre-line;">
+          ${plan.main_outline || '暂无'}
+        </div>
+      </div>
+      
+      <!-- 前30章规划 -->
+      <div class="form-section" style="margin-bottom: 20px;">
+        <h3 class="form-section__title">
+          <span class="material-icons">list_alt</span>
+          前30章规划
+        </h3>
+        <div style="font-size: 14px; color: var(--v2-text-secondary); line-height: 1.8; white-space: pre-line;">
+          ${plan.first_30_chapters || '暂无'}
+        </div>
+      </div>
+      
+      <!-- 角色设定 -->
+      <div class="form-section" style="margin-bottom: 20px;">
+        <h3 class="form-section__title">
+          <span class="material-icons">people</span>
+          核心角色
+        </h3>
+        <div style="font-size: 14px; color: var(--v2-text-secondary); line-height: 1.8; white-space: pre-line;">
+          ${plan.characters || '暂无'}
+        </div>
+      </div>
+      
+      <!-- 情绪曲线设计 -->
+      <div class="form-section" style="margin-bottom: 20px;">
+        <h3 class="form-section__title">
+          <span class="material-icons">show_chart</span>
+          情绪曲线设计
+        </h3>
+        <div style="font-size: 14px; color: var(--v2-text-secondary); line-height: 1.8; white-space: pre-line;">
+          ${plan.emotion_curve || '暂无'}
+        </div>
+      </div>
+      
+      <!-- 风险提示 -->
+      ${plan.risk_warning ? `
+      <div class="form-section" style="margin-bottom: 20px; background: rgba(239, 68, 68, 0.05); border: 1px solid rgba(239, 68, 68, 0.2);">
+        <h3 class="form-section__title">
+          <span class="material-icons">warning</span>
+          风险提示与应对
+        </h3>
+        <div style="font-size: 14px; color: var(--v2-text-secondary); line-height: 1.8; white-space: pre-line;">
+          ${plan.risk_warning}
+        </div>
+      </div>
+      ` : ''}
+      
+      <div class="confirm-actions" style="margin-top: 32px;">
+        <button class="confirm-btn confirm-btn--secondary" onclick="returnToForm()">
+          <span class="material-icons">arrow_back</span>
+          返回修改
+        </button>
+        <button class="confirm-btn confirm-btn--primary" onclick="confirmAndStartRealGeneration()">
+          <span class="material-icons">rocket_launch</span>
+          确认并开始生成
+        </button>
+      </div>
+    </div>
+  `;
+}
+
+function returnToForm() {
+  // 返回表单页面
+  const container = document.getElementById('confirm-container');
+  // 重新渲染表单（简化版，实际应该保存表单状态）
+  location.reload();
+}
+
+async function confirmAndStartRealGeneration() {
+  if (!window.currentFormData) {
+    showError('表单数据丢失，请重新填写');
+    return;
+  }
+  
+  // 显示最终加载状态
+  const container = document.getElementById('confirm-container');
+  container.innerHTML = `
+    <div class="loading-container" style="padding: 80px 20px;">
+      <div class="loading-spinner" style="width: 64px; height: 64px;"></div>
+      <div class="loading-text" style="font-size: 24px; margin-bottom: 16px;">正在启动小说生成...</div>
+      <div class="loading-subtext" style="font-size: 16px;">AI正在根据最终方案创作你的世界</div>
+      <div style="margin-top: 32px; padding: 20px; background: var(--v2-bg-secondary); border-radius: 12px; max-width: 500px; margin-left: auto; margin-right: auto;">
+        <div style="font-size: 14px; color: var(--v2-text-muted); margin-bottom: 8px;">预计生成时间</div>
+        <div style="font-size: 20px; color: var(--primary-gold); font-weight: 600;">30-60分钟</div>
+        <div style="font-size: 12px; color: var(--v2-text-muted); margin-top: 8px;">包括：世界观、角色、大纲、章节内容</div>
+      </div>
+    </div>
+  `;
+  
   try {
     const response = await fetch('/api/market-driven/generate', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         genre: genre,
-        user_choices: formData,
+        user_choices: window.currentFormData,
+        final_plan: finalPlan,
         dialog_session_id: dialogSessionId
       })
     });

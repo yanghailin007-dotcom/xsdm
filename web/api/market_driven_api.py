@@ -2006,5 +2006,151 @@ def get_dialog_draft(session_id: str):
         return jsonify({"error": str(e)}), 500
 
 
+@market_driven_api.route('/generate-final-plan', methods=['POST'])
+def generate_final_plan():
+    """
+    生成最终详细方案
+    
+    请求体：
+    {
+        "genre": "国运文-直播类",
+        "session_id": "DPM-xxx",
+        "form_data": {
+            "title": "xxx",
+            "protagonist_name": "xxx",
+            ...
+        }
+    }
+    
+    响应：
+    {
+        "success": true,
+        "final_plan": {
+            "title": "书名",
+            "protagonist": "主角设定",
+            "golden_finger_summary": "金手指概述",
+            "core_selling_point": "核心卖点",
+            "main_outline": "主线大纲",
+            "first_30_chapters": "前30章规划",
+            "characters": "核心角色",
+            "emotion_curve": "情绪曲线",
+            "risk_warning": "风险提示"
+        }
+    }
+    """
+    try:
+        data = request.get_json()
+        if not data:
+            return jsonify({"error": "请求体不能为空"), 400
+        
+        genre = data.get('genre')
+        session_id = data.get('session_id')
+        form_data = data.get('form_data', {})
+        
+        if not genre or not session_id:
+            return jsonify({"error": "缺少genre或session_id"), 400
+        
+        # 获取对话会话
+        from web.services.market_driven.dialog_polish_manager import get_dialog_session
+        manager = get_dialog_session(session_id)
+        
+        if not manager:
+            return jsonify({"error": "会话不存在或已过期"), 404
+        
+        # 获取创意草案
+        draft = manager.get_creative_draft()
+        
+        # 初始化API客户端
+        from src.core.APIClient import APIClient
+        from config.config import CONFIG
+        api_client = APIClient(CONFIG)
+        
+        # 构建提示词
+        prompt = f"""你是一位资深网文编辑，擅长为番茄小说平台创作爆款作品。
+
+请基于以下设定，生成一个完整的、可执行的创作方案：
+
+**题材：** {genre}
+**书名：** {form_data.get('title', draft.title)}
+**主角：** {form_data.get('protagonist_name', '')} - {draft.protagonist}
+**初始身份：** {form_data.get('protagonist_identity', '普通人')}
+**金手指：** {form_data.get('golden_finger_desc', draft.golden_finger)}
+**开局：** {form_data.get('opening_scene', draft.opening_design)}
+**情感线：** {form_data.get('emotion_line', draft.emotion_line)}
+**差异化：** {draft.unique_points}
+**目标字数：** {form_data.get('wordcount', '50')}万字 / {form_data.get('chapters', '200')}章
+
+请输出完整的创作方案（JSON格式）：
+{{
+    "title": "书名（最终确认）",
+    "protagonist": "主角完整设定（姓名+性格+背景）",
+    "golden_finger_summary": "金手指核心机制（30字以内）",
+    "core_selling_point": "核心卖点（一句话吸引读者）",
+    "main_outline": "主线大纲（分阶段描述，5-8个阶段）",
+    "first_30_chapters": "前30章详细规划（每10章一个节点，含爽点设计）",
+    "characters": "核心角色（主角+3-5个重要配角，含关系）",
+    "emotion_curve": "情绪曲线设计（整体节奏+关键情绪点）",
+    "risk_warning": "潜在风险与应对策略"
+}}
+
+要求：
+1. 方案必须具体可执行，不要泛泛而谈
+2. 每个阶段都要有明确的目标和爽点
+3. 考虑番茄读者的阅读偏好
+4. 突出差异化亮点
+5. 风险 warning 要诚实指出可能的问题"""
+        
+        logger.info(f"[FinalPlan] 开始生成最终方案 | Session: {session_id}")
+        
+        # 调用AI生成
+        try:
+            response = api_client.generate_content_with_retry(
+                content_type="final_plan_generation",
+                user_prompt=prompt,
+                temperature=0.7,
+                max_tokens=8000
+            )
+            
+            if response:
+                # 尝试解析JSON
+                import json
+                import re
+                json_match = re.search(r'\{[\s\S]*\}', str(response))
+                if json_match:
+                    final_plan = json.loads(json_match.group())
+                    logger.info(f"[FinalPlan] 最终方案生成成功 | Session: {session_id}")
+                    
+                    return jsonify({
+                        "success": True,
+                        "final_plan": final_plan
+                    }), 200
+        except Exception as e:
+            logger.error(f"[FinalPlan] AI生成失败: {e}")
+        
+        # 如果AI失败，使用默认方案
+        default_plan = {
+            "title": form_data.get('title', draft.title),
+            "protagonist": f"{form_data.get('protagonist_name', '主角')} - {draft.protagonist}",
+            "golden_finger_summary": draft.golden_finger[:30] + "..." if len(draft.golden_finger) > 30 else draft.golden_finger,
+            "core_selling_point": f"{draft.protagonist}获得{draft.golden_finger_type}，在{genre}中掀起风暴",
+            "main_outline": "第一阶段：觉醒能力，展现实力（1-30章）\n第二阶段：名声鹊起，遭遇挑战（31-80章）\n第三阶段：对抗强敌，突破自我（81-150章）\n第四阶段：成为巅峰，守护所爱（151-200章）",
+            "first_30_chapters": "第1-10章：觉醒金手指，首次展现实力，震惊众人\n第11-20章：遭遇第一个反派，打脸逆袭，建立名声\n第21-30章：迎来更强挑战，实力突破，奠定地位",
+            "characters": f"主角：{form_data.get('protagonist_name', '主角')} - {draft.protagonist}\n反派A：初期对手，被主角打脸\n盟友B：与主角并肩作战\n导师C：引导主角成长\n情感角色：{draft.emotion_line[:20] if draft.emotion_line else '待定'}",
+            "emotion_curve": "开局：压抑→爆发（爽）\n中期：起伏波动（期待+爽点交替）\n后期：高潮迭起（持续爽）\n结尾：圆满收束（满足感）",
+            "risk_warning": "• 注意保持更新节奏，避免读者流失\n• 金手指不要过强，保留成长空间\n• 注意平衡爽点与剧情推进"
+        }
+        
+        logger.info(f"[FinalPlan] 使用默认方案 | Session: {session_id}")
+        return jsonify({
+            "success": True,
+            "final_plan": default_plan,
+            "note": "使用默认方案（AI生成失败）"
+        }), 200
+        
+    except Exception as e:
+        logger.error(f"生成最终方案失败: {e}", exc_info=True)
+        return jsonify({"error": str(e)}), 500
+
+
 # 应用启动时的初始化
 app = None  # 将在注册时由 web_server_refactored.py 设置
