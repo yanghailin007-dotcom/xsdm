@@ -169,23 +169,18 @@ async function startPhaseOneGeneration(event) {
             estimatedPoints = result.points_spent || 0;  // 保存预估点数
             generationStartTime = Date.now();  // 记录生成开始时间
             
-            // 🔥 保存到后台运行任务状态（供global-task-monitor使用）
-            localStorage.setItem('market_driven_background_task', JSON.stringify({
-                task_id: result.task_id,
-                title: formData.title || '未命名小说',
-                genre: 'phase_one',
-                progress: 5,
-                status: 'running',
-                stage: '开始生成',
-                created_at: Date.now(),
-                type: 'phase_one'
-            }));
-            
-            // 触发 storage 事件，让其他页面显示浮窗
-            window.dispatchEvent(new StorageEvent('storage', {
-                key: 'market_driven_background_task',
-                newValue: localStorage.getItem('market_driven_background_task')
-            }));
+            // 🔥 添加到后台任务管理器（多任务支持）
+            if (window.BackgroundTaskManager) {
+                window.BackgroundTaskManager.addTask({
+                    task_id: result.task_id,
+                    title: formData.title || '未命名小说',
+                    type: 'phase_one',
+                    status: 'running',
+                    progress: 5,
+                    stage: '开始生成',
+                    genre: 'phase_one'
+                });
+            }
             
             // 初始化点数显示
             updatePointsDisplay(0, estimatedPoints);
@@ -245,17 +240,15 @@ async function updateProgressStatus(taskId) {
         // 更新进度条和百分比
         updateProgress(taskStatus.progress || 0, taskStatus.message || taskStatus.status_message || '生成中...');
 
-        // 🔥 同步更新后台运行状态到 localStorage
-        const bgTask = localStorage.getItem('market_driven_background_task');
-        if (bgTask) {
-            const bgData = JSON.parse(bgTask);
-            if (bgData.task_id === taskId) {
-                bgData.progress = taskStatus.progress || 0;
-                bgData.status = taskStatus.status || 'running';
-                bgData.stage = taskStatus.current_step || taskStatus.message || '生成中';
-                bgData.last_update = Date.now();
-                localStorage.setItem('market_driven_background_task', JSON.stringify(bgData));
-            }
+        // 🔥 同步到后台任务管理器（多任务支持）
+        if (window.BackgroundTaskManager) {
+            window.BackgroundTaskManager.updateTask(taskId, {
+                progress: taskStatus.progress || 0,
+                status: taskStatus.status || 'running',
+                stage: taskStatus.current_step || taskStatus.message || '生成中',
+                points_consumed: taskStatus.points_consumed,
+                last_update: Date.now()
+            });
         }
 
         // 更新详细步骤状态（如果后端返回了step_status）

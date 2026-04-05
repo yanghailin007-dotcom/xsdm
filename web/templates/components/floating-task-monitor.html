@@ -1,578 +1,803 @@
-{# 全局任务监控浮窗 - 显示在所有页面上 #}
+{# 全局任务监控浮窗 - 支持多任务后台运行 #}
 <div id="globalTaskFloat" class="global-task-float" style="display: none;">
-    <!-- 头部（点击展开/收起） -->
-    <div class="global-float-header" onclick="toggleGlobalFloat()">
-        <span class="global-float-icon" id="globalFloatIcon">📝</span>
-        <div class="global-float-info">
-            <span class="global-float-title" id="globalFloatTitle">生成中...</span>
-            <span class="global-float-stage" id="globalFloatStage">准备中...</span>
-        </div>
-        <span class="global-float-percent" id="globalFloatPercent">0%</span>
+    <!-- 迷你模式 (默认) -->
+    <div class="gtf-mini" id="gtf-mini" onclick="expandTaskFloat()">
+        <div class="gtf-mini-pulse"></div>
+        <div class="gtf-mini-icon">📝</div>
+        <div class="gtf-mini-count" id="gtf-task-count" style="display: none;">1</div>
+        <svg class="gtf-mini-ring" viewBox="0 0 36 36">
+            <path class="gtf-ring-bg" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" />
+            <path id="gtf-mini-progress" class="gtf-ring-progress" stroke-dasharray="0, 100" 
+                  d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" />
+        </svg>
     </div>
     
-    <!-- 展开内容 -->
-    <div class="global-float-body" id="globalFloatBody" style="display: none;">
-        <!-- 进度条 -->
-        <div class="global-float-progress">
-            <div class="progress-bar">
-                <div class="progress-fill" id="globalFloatBar" style="width: 0%"></div>
+    <!-- 展开模式 (任务列表) -->
+    <div class="gtf-panel" id="gtf-panel" style="display: none;">
+        <div class="gtf-header">
+            <div class="gtf-header-title">
+                <span id="gtf-panel-title">正在运行 0 个任务</span>
+                <span class="gtf-pulse-dot"></span>
             </div>
-            <div class="progress-stats">
-                <span id="globalFloatCount">0/0 章</span>
-                <span id="globalFloatStatus">进行中</span>
-            </div>
+            <button class="gtf-btn-icon" onclick="collapseTaskFloat(); event.stopPropagation();" title="收起">
+                <span class="material-icons">expand_more</span>
+            </button>
         </div>
         
-        <!-- 操作按钮 -->
-        <div class="global-float-actions">
-            <button class="btn-float-sm" onclick="goToTaskDetail(); event.stopPropagation();">
-                <span class="material-icons">open_in_new</span> 查看详情
-            </button>
-            <button class="btn-float-sm btn-secondary" onclick="minimizeGlobalFloat(); event.stopPropagation();">
-                <span class="material-icons">minimize</span> 收起
-            </button>
+        <!-- 任务列表 -->
+        <div class="gtf-task-list" id="gtf-task-list">
+            <!-- 动态生成任务项 -->
+        </div>
+        
+        <!-- 底部统计 -->
+        <div class="gtf-footer" id="gtf-footer" style="display: none;">
+            <span id="gtf-total-progress">总进度: 0%</span>
+            <span id="gtf-total-points">消耗: 0点</span>
         </div>
     </div>
-    
-    <!-- 关闭按钮 -->
-    <button class="global-float-close" onclick="closeGlobalFloat(); event.stopPropagation();" title="关闭">
-        <span class="material-icons">close</span>
-    </button>
 </div>
 
 <style>
-/* 全局浮窗样式 - 使用 v2 主题颜色 */
+/* ==================== 全局任务浮窗样式 ==================== */
 .global-task-float {
     position: fixed;
     right: 20px;
     bottom: 20px;
-    width: 300px;
-    background: var(--v2-bg-secondary, #fff);
-    border: 1px solid var(--v2-border-subtle, rgba(0,0,0,0.08));
-    border-radius: 16px;
-    box-shadow: 0 8px 32px rgba(0,0,0,0.15);
     z-index: 9999;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+}
+
+/* 迷你模式 */
+.gtf-mini {
+    position: relative;
+    width: 60px;
+    height: 60px;
+    background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
     cursor: pointer;
-    animation: slideInFloat 0.3s ease;
-    overflow: hidden;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3), 
+                0 0 0 1px rgba(99, 102, 241, 0.3),
+                inset 0 1px 0 rgba(255, 255, 255, 0.1);
     transition: all 0.3s ease;
 }
 
-@keyframes slideInFloat {
-    from { transform: translateX(100%); opacity: 0; }
-    to { transform: translateX(0); opacity: 1; }
+.gtf-mini:hover {
+    transform: scale(1.1);
+    box-shadow: 0 6px 30px rgba(99, 102, 241, 0.4), 
+                0 0 0 2px rgba(99, 102, 241, 0.5);
 }
 
-/* 头部 */
-.global-float-header {
+.gtf-mini-pulse {
+    position: absolute;
+    width: 100%;
+    height: 100%;
+    border-radius: 50%;
+    background: rgba(99, 102, 241, 0.3);
+    animation: gtf-pulse 2s infinite;
+}
+
+@keyframes gtf-pulse {
+    0% { transform: scale(1); opacity: 1; }
+    100% { transform: scale(1.5); opacity: 0; }
+}
+
+.gtf-mini-icon {
+    font-size: 24px;
+    z-index: 1;
+}
+
+.gtf-mini-count {
+    position: absolute;
+    top: -4px;
+    right: -4px;
+    width: 20px;
+    height: 20px;
+    background: #ef4444;
+    color: white;
+    font-size: 11px;
+    font-weight: bold;
+    border-radius: 50%;
     display: flex;
     align-items: center;
-    padding: 14px 16px;
-    gap: 12px;
-    background: linear-gradient(135deg, var(--primary-gold, #f59e0b), var(--primary-gold-light, #fbbf24));
-    color: #0f172a;
+    justify-content: center;
+    border: 2px solid #0f172a;
+    z-index: 2;
 }
 
-.global-float-icon {
-    font-size: 24px;
-    flex-shrink: 0;
+.gtf-mini-ring {
+    position: absolute;
+    width: 54px;
+    height: 54px;
+    transform: rotate(-90deg);
 }
 
-.global-float-info {
-    flex: 1;
-    min-width: 0;
+.gtf-ring-bg {
+    fill: none;
+    stroke: rgba(255, 255, 255, 0.1);
+    stroke-width: 2;
+}
+
+.gtf-ring-progress {
+    fill: none;
+    stroke: url(#gtf-gradient);
+    stroke-width: 2;
+    stroke-linecap: round;
+    transition: stroke-dasharray 0.5s ease;
+}
+
+/* 展开面板 */
+.gtf-panel {
+    position: absolute;
+    right: 0;
+    bottom: 70px;
+    width: 360px;
+    max-height: 500px;
+    background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);
+    border-radius: 16px;
+    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.4), 
+                0 0 0 1px rgba(99, 102, 241, 0.2);
+    overflow: hidden;
+    animation: gtf-slide-in 0.3s ease;
+}
+
+@keyframes gtf-slide-in {
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+.gtf-header {
     display: flex;
-    flex-direction: column;
-}
-
-.global-float-title {
-    font-size: 14px;
-    font-weight: 700;
-    color: #0f172a;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-}
-
-.global-float-stage {
-    font-size: 12px;
-    color: rgba(15, 23, 42, 0.7);
-    margin-top: 2px;
-}
-
-.global-float-percent {
-    font-size: 16px;
-    font-weight: 800;
-    color: #0f172a;
-    flex-shrink: 0;
-}
-
-/* 展开内容 */
-.global-float-body {
+    justify-content: space-between;
+    align-items: center;
     padding: 16px;
-    background: var(--v2-bg-secondary, #fff);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
 }
 
-.global-float-progress {
-    margin-bottom: 12px;
+.gtf-header-title {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 15px;
+    font-weight: 600;
+    color: #fff;
 }
 
-.global-float-progress .progress-bar {
+.gtf-pulse-dot {
+    width: 8px;
     height: 8px;
-    background: var(--v2-bg-tertiary, #e0e0e0);
-    border-radius: 4px;
-    overflow: hidden;
+    background: #10b981;
+    border-radius: 50%;
+    animation: gtf-dot-pulse 1.5s infinite;
+}
+
+@keyframes gtf-dot-pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.5; }
+}
+
+.gtf-btn-icon {
+    background: rgba(255, 255, 255, 0.1);
+    border: none;
+    color: #94a3b8;
+    width: 32px;
+    height: 32px;
+    border-radius: 8px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s;
+}
+
+.gtf-btn-icon:hover {
+    background: rgba(255, 255, 255, 0.2);
+    color: #fff;
+}
+
+.gtf-btn-icon .material-icons {
+    font-size: 18px;
+}
+
+/* 任务列表 */
+.gtf-task-list {
+    max-height: 350px;
+    overflow-y: auto;
+    padding: 12px;
+}
+
+.gtf-task-item {
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid rgba(255, 255, 255, 0.05);
+    border-radius: 12px;
+    padding: 14px;
+    margin-bottom: 10px;
+    transition: all 0.2s;
+}
+
+.gtf-task-item:hover {
+    background: rgba(255, 255, 255, 0.05);
+    border-color: rgba(99, 102, 241, 0.3);
+}
+
+.gtf-task-item:last-child {
+    margin-bottom: 0;
+}
+
+.gtf-task-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
     margin-bottom: 10px;
 }
 
-.global-float-progress .progress-fill {
-    height: 100%;
-    background: linear-gradient(90deg, var(--primary-gold, #f59e0b), var(--primary-gold-light, #fbbf24));
+.gtf-task-title {
+    font-size: 14px;
+    font-weight: 500;
+    color: #fff;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    flex: 1;
+}
+
+.gtf-task-type {
+    font-size: 11px;
+    color: #94a3b8;
+    background: rgba(255, 255, 255, 0.05);
+    padding: 2px 8px;
     border-radius: 4px;
+    margin-left: 8px;
+}
+
+.gtf-task-progress {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 8px;
+}
+
+.gtf-progress-bar {
+    flex: 1;
+    height: 6px;
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 3px;
+    overflow: hidden;
+}
+
+.gtf-progress-fill {
+    height: 100%;
+    background: linear-gradient(90deg, #6366f1 0%, #8b5cf6 100%);
+    border-radius: 3px;
     transition: width 0.5s ease;
 }
 
-.progress-stats {
-    display: flex;
-    justify-content: space-between;
-    font-size: 13px;
-    color: var(--v2-text-secondary, #666);
+.gtf-progress-text {
+    font-size: 12px;
+    font-weight: 600;
+    color: #6366f1;
+    min-width: 35px;
+    text-align: right;
 }
 
-/* 操作按钮 */
-.global-float-actions {
+.gtf-task-stage {
+    font-size: 12px;
+    color: #94a3b8;
+    margin-bottom: 10px;
+}
+
+.gtf-task-actions {
     display: flex;
     gap: 8px;
-    margin-top: 12px;
 }
 
-.btn-float-sm {
+.gtf-btn {
     flex: 1;
-    padding: 10px 12px;
-    font-size: 13px;
-    font-weight: 600;
+    padding: 8px 12px;
     border: none;
-    border-radius: 10px;
-    background: var(--primary-gold, #f59e0b);
-    color: #0f172a;
+    border-radius: 8px;
+    font-size: 12px;
+    font-weight: 500;
     cursor: pointer;
+    transition: all 0.2s;
     display: flex;
     align-items: center;
     justify-content: center;
     gap: 4px;
-    transition: all 0.2s;
 }
 
-.btn-float-sm:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 4px 12px rgba(245, 158, 11, 0.3);
+.gtf-btn-primary {
+    background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
+    color: #fff;
 }
 
-.btn-float-sm.btn-secondary {
-    background: var(--v2-bg-tertiary, #f0f0f0);
-    color: var(--v2-text-primary, #333);
+.gtf-btn-primary:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(99, 102, 241, 0.4);
 }
 
-.btn-float-sm.btn-secondary:hover {
-    background: var(--v2-bg-secondary, #e0e0e0);
+.gtf-btn-secondary {
+    background: rgba(255, 255, 255, 0.1);
+    color: #e2e8f0;
 }
 
-.btn-float-sm .material-icons {
-    font-size: 16px;
+.gtf-btn-secondary:hover {
+    background: rgba(255, 255, 255, 0.15);
 }
 
-/* 关闭按钮 */
-.global-float-close {
-    position: absolute;
-    top: 8px;
-    right: 8px;
-    width: 24px;
-    height: 24px;
-    border: none;
-    border-radius: 50%;
-    background: rgba(0,0,0,0.1);
-    color: #0f172a;
-    cursor: pointer;
+.gtf-btn-danger {
+    background: rgba(239, 68, 68, 0.2);
+    color: #f87171;
+}
+
+.gtf-btn-danger:hover {
+    background: rgba(239, 68, 68, 0.3);
+}
+
+/* 底部统计 */
+.gtf-footer {
     display: flex;
-    align-items: center;
-    justify-content: center;
-    opacity: 0;
-    transition: all 0.2s;
-    padding: 0;
+    justify-content: space-between;
+    padding: 12px 16px;
+    border-top: 1px solid rgba(255, 255, 255, 0.1);
+    font-size: 12px;
+    color: #94a3b8;
 }
 
-.global-task-float:hover .global-float-close {
-    opacity: 1;
+/* 空状态 */
+.gtf-empty {
+    padding: 40px 20px;
+    text-align: center;
+    color: #64748b;
 }
 
-.global-float-close:hover {
-    background: rgba(0,0,0,0.2);
-}
-
-.global-float-close .material-icons {
-    font-size: 16px;
-}
-
-/* 最小化状态 */
-.global-task-float.minimized .global-float-body {
-    display: none !important;
-}
-
-/* 拖动样式 */
-.global-task-float.dragging {
-    opacity: 0.8;
-    cursor: move;
-    user-select: none;
+.gtf-empty-icon {
+    font-size: 48px;
+    margin-bottom: 12px;
 }
 
 /* 响应式 */
 @media (max-width: 640px) {
-    .global-task-float {
-        right: 10px;
-        bottom: 10px;
-        width: calc(100vw - 20px);
-        max-width: 320px;
+    .gtf-panel {
+        width: calc(100vw - 40px);
+        max-width: 360px;
     }
 }
 
-/* 完成状态 */
-.global-task-float.completed .global-float-header {
-    background: linear-gradient(135deg, #22c55e, #4ade80);
-}
-
-/* 失败状态 */
-.global-task-float.failed .global-float-header {
-    background: linear-gradient(135deg, #ef4444, #f87171);
-    color: white;
-}
-
-.global-task-float.failed .global-float-title,
-.global-task-float.failed .global-float-stage,
-.global-task-float.failed .global-float-percent {
-    color: white;
+/* SVG渐变定义 */
+.gtf-defs {
+    position: absolute;
+    width: 0;
+    height: 0;
 }
 </style>
+
+<!-- SVG渐变定义 -->
+<svg class="gtf-defs">
+    <defs>
+        <linearGradient id="gtf-gradient" x1="0%" y1="0%" x2="100%" y2="0%">
+            <stop offset="0%" style="stop-color:#6366f1;stop-opacity:1" />
+            <stop offset="100%" style="stop-color:#8b5cf6;stop-opacity:1" />
+        </linearGradient>
+    </defs>
+</svg>
 
 <script>
 (function() {
     'use strict';
     
-    // 全局任务监控
-    let currentTaskId = null;
-    let pollInterval = null;
-    let isExpanded = false;
-    let isDragging = false;
+    // ==================== 配置 ====================
+    const CONFIG = {
+        STORAGE_KEY: 'market_driven_background_tasks',
+        CHECK_INTERVAL: 30000, // 30秒检查一次
+    };
     
-    // 页面加载时检查后台任务
-    document.addEventListener('DOMContentLoaded', function() {
-        checkBackgroundTask();
-    });
-    
-    // 监听 localStorage 变化（其他页面保存任务时触发）
-    window.addEventListener('storage', function(e) {
-        if (e.key === 'market_driven_background_task') {
-            if (e.newValue) {
-                // 新任务被保存，立即显示浮窗
-                const task = JSON.parse(e.newValue);
-                if (task.task_id) {
-                    createGlobalFloat(task.task_id);
-                }
+    // ==================== 状态管理 ====================
+    const TaskManager = {
+        tasks: [],
+        pollInterval: null,
+        isExpanded: false,
+        
+        // 获取所有任务
+        getTasks() {
+            try {
+                const data = localStorage.getItem(CONFIG.STORAGE_KEY);
+                return data ? JSON.parse(data) : [];
+            } catch (e) {
+                console.error('[TaskManager] 读取任务失败:', e);
+                return [];
+            }
+        },
+        
+        // 保存任务
+        saveTasks(tasks) {
+            try {
+                localStorage.setItem(CONFIG.STORAGE_KEY, JSON.stringify(tasks));
+                this.tasks = tasks;
+                return true;
+            } catch (e) {
+                console.error('[TaskManager] 保存任务失败:', e);
+                return false;
+            }
+        },
+        
+        // 添加任务
+        addTask(task) {
+            const tasks = this.getTasks();
+            // 检查是否已存在相同task_id
+            const existingIndex = tasks.findIndex(t => t.task_id === task.task_id);
+            if (existingIndex >= 0) {
+                tasks[existingIndex] = { ...tasks[existingIndex], ...task };
             } else {
-                // 任务被清除，关闭浮窗
-                closeGlobalFloat();
+                tasks.push(task);
             }
-        }
-    });
-    
-    // 检查是否有后台运行的任务
-    function checkBackgroundTask() {
-        const saved = localStorage.getItem('market_driven_background_task');
-        if (!saved) return;
+            this.saveTasks(tasks);
+            UI.update();
+        },
         
-        try {
-            const task = JSON.parse(saved);
-            if (!task.task_id) return;
+        // 更新任务
+        updateTask(taskId, updates) {
+            const tasks = this.getTasks();
+            const index = tasks.findIndex(t => t.task_id === taskId);
+            if (index >= 0) {
+                tasks[index] = { ...tasks[index], ...updates };
+                this.saveTasks(tasks);
+                UI.update();
+                return true;
+            }
+            return false;
+        },
+        
+        // 移除任务
+        removeTask(taskId) {
+            const tasks = this.getTasks().filter(t => t.task_id !== taskId);
+            this.saveTasks(tasks);
+            UI.update();
+        },
+        
+        // 获取运行中任务
+        getRunningTasks() {
+            const activeStatuses = ['pending', 'running', 'in_progress', 'conversation_mode', 'generating_chapters'];
+            return this.getTasks().filter(t => activeStatuses.includes(t.status));
+        },
+        
+        // 计算总进度
+        getTotalProgress() {
+            const runningTasks = this.getRunningTasks();
+            if (runningTasks.length === 0) return 0;
+            const total = runningTasks.reduce((sum, t) => sum + (t.progress || 0), 0);
+            return Math.round(total / runningTasks.length);
+        }
+    };
+    
+    // ==================== UI 组件 ====================
+    const UI = {
+        elements: {},
+        
+        // 初始化
+        init() {
+            this.elements = {
+                float: document.getElementById('globalTaskFloat'),
+                mini: document.getElementById('gtf-mini'),
+                panel: document.getElementById('gtf-panel'),
+                taskCount: document.getElementById('gtf-task-count'),
+                miniProgress: document.getElementById('gtf-mini-progress'),
+                panelTitle: document.getElementById('gtf-panel-title'),
+                taskList: document.getElementById('gtf-task-list'),
+                footer: document.getElementById('gtf-footer'),
+                totalProgress: document.getElementById('gtf-total-progress'),
+                totalPoints: document.getElementById('gtf-total-points')
+            };
             
-            // 检查任务是否仍在运行
-            fetch(`/api/market-driven/tasks/${task.task_id}`)
-                .then(res => res.json())
-                .then(data => {
-                    // 🔥 修复：包含 pending 状态，新创建的任务也要显示
-                    const activeStatuses = ['pending', 'running', 'in_progress', 'conversation_mode', 'generating_chapters'];
-                    if (activeStatuses.includes(data.status)) {
-                        // 任务仍在运行，显示浮窗
-                        createGlobalFloat(task.task_id);
-                    } else {
-                        // 任务已完成或失败，清理状态
-                        localStorage.removeItem('market_driven_background_task');
-                        
-                        if (data.status === 'completed') {
-                            showNotification('生成完成！', `您的创作任务已完成`);
-                        }
-                    }
-                })
-                .catch(err => {
-                    console.error('[GlobalFloat] 检查任务失败:', err);
+            // 初始检查
+            this.checkAndShow();
+        },
+        
+        // 检查并显示
+        checkAndShow() {
+            const runningTasks = TaskManager.getRunningTasks();
+            if (runningTasks.length > 0) {
+                this.elements.float.style.display = 'block';
+                this.update();
+            } else {
+                this.elements.float.style.display = 'none';
+            }
+        },
+        
+        // 更新UI
+        update() {
+            const runningTasks = TaskManager.getRunningTasks();
+            const allTasks = TaskManager.getTasks();
+            
+            // 更新迷你模式
+            this.updateMiniMode(runningTasks);
+            
+            // 更新面板
+            if (this.isExpanded) {
+                this.updatePanel(allTasks);
+            }
+            
+            // 如果没有运行中任务，隐藏浮窗
+            if (runningTasks.length === 0 && allTasks.length === 0) {
+                this.elements.float.style.display = 'none';
+            }
+        },
+        
+        // 更新迷你模式
+        updateMiniMode(runningTasks) {
+            const count = runningTasks.length;
+            
+            // 显示任务数量
+            if (count > 1) {
+                this.elements.taskCount.textContent = count;
+                this.elements.taskCount.style.display = 'flex';
+            } else {
+                this.elements.taskCount.style.display = 'none';
+            }
+            
+            // 更新进度圈
+            const avgProgress = count > 0 
+                ? Math.round(runningTasks.reduce((sum, t) => sum + (t.progress || 0), 0) / count)
+                : 0;
+            this.elements.miniProgress.setAttribute('stroke-dasharray', `${avgProgress}, 100`);
+        },
+        
+        // 更新面板
+        updatePanel(tasks) {
+            const runningTasks = TaskManager.getRunningTasks();
+            
+            // 更新标题
+            this.elements.panelTitle.textContent = `正在运行 ${runningTasks.length} 个任务`;
+            
+            // 更新任务列表
+            this.elements.taskList.innerHTML = tasks.map(task => this.renderTaskItem(task)).join('');
+            
+            // 更新底部统计
+            if (runningTasks.length > 0) {
+                this.elements.footer.style.display = 'flex';
+                this.elements.totalProgress.textContent = `平均进度: ${TaskManager.getTotalProgress()}%`;
+                const totalPoints = runningTasks.reduce((sum, t) => sum + (t.points_consumed || 0), 0);
+                this.elements.totalPoints.textContent = `已消耗: ${totalPoints.toFixed(1)}点`;
+            } else {
+                this.elements.footer.style.display = 'none';
+            }
+        },
+        
+        // 渲染任务项
+        renderTaskItem(task) {
+            const isRunning = ['pending', 'running', 'in_progress', 'conversation_mode', 'generating_chapters'].includes(task.status);
+            const typeLabels = {
+                'market_driven': '市场导向',
+                'phase_one': '自由创意',
+                'dialog': '对话打磨'
+            };
+            
+            return `
+                <div class="gtf-task-item" data-task-id="${task.task_id}">
+                    <div class="gtf-task-header">
+                        <span class="gtf-task-title" title="${task.title || '未命名'}">${task.title || '未命名任务'}</span>
+                        <span class="gtf-task-type">${typeLabels[task.type] || '生成任务'}</span>
+                    </div>
+                    <div class="gtf-task-progress">
+                        <div class="gtf-progress-bar">
+                            <div class="gtf-progress-fill" style="width: ${task.progress || 0}%"></div>
+                        </div>
+                        <span class="gtf-progress-text">${Math.round(task.progress || 0)}%</span>
+                    </div>
+                    <div class="gtf-task-stage">${task.stage || task.message || '生成中...'}</div>
+                    <div class="gtf-task-actions">
+                        <button class="gtf-btn gtf-btn-primary" onclick="viewTaskDetail('${task.task_id}', '${task.type}')">
+                            <span class="material-icons" style="font-size: 14px;">visibility</span>
+                            查看
+                        </button>
+                        ${isRunning ? `
+                        <button class="gtf-btn gtf-btn-danger" onclick="stopTask('${task.task_id}')">
+                            <span class="material-icons" style="font-size: 14px;">stop</span>
+                            停止
+                        </button>
+                        ` : `
+                        <button class="gtf-btn gtf-btn-secondary" onclick="dismissTask('${task.task_id}')">
+                            <span class="material-icons" style="font-size: 14px;">close</span>
+                            关闭
+                        </button>
+                        `}
+                    </div>
+                </div>
+            `;
+        },
+        
+        // 展开
+        expand() {
+            this.isExpanded = true;
+            this.elements.mini.style.display = 'none';
+            this.elements.panel.style.display = 'block';
+            this.update();
+        },
+        
+        // 收起
+        collapse() {
+            this.isExpanded = false;
+            this.elements.panel.style.display = 'none';
+            this.elements.mini.style.display = 'flex';
+        }
+    };
+    
+    // ==================== 轮询更新 ====================
+    const Poller = {
+        intervalId: null,
+        
+        start() {
+            this.stop();
+            this.updateAllTasks();
+            this.intervalId = setInterval(() => this.updateAllTasks(), CONFIG.CHECK_INTERVAL);
+        },
+        
+        stop() {
+            if (this.intervalId) {
+                clearInterval(this.intervalId);
+                this.intervalId = null;
+            }
+        },
+        
+        async updateAllTasks() {
+            const tasks = TaskManager.getRunningTasks();
+            if (tasks.length === 0) {
+                UI.update();
+                return;
+            }
+            
+            // 并发更新所有任务状态
+            await Promise.all(tasks.map(task => this.updateTaskStatus(task)));
+            
+            UI.update();
+        },
+        
+        async updateTaskStatus(task) {
+            try {
+                let url;
+                if (task.type === 'phase_one') {
+                    url = `/api/phase-one/task/${task.task_id}/status`;
+                } else {
+                    url = `/api/market-driven/tasks/${task.task_id}`;
+                }
+                
+                const response = await fetch(url);
+                if (!response.ok) return;
+                
+                const result = await response.json();
+                const data = result.data || result;
+                
+                // 更新任务状态
+                TaskManager.updateTask(task.task_id, {
+                    progress: data.progress || task.progress,
+                    status: data.status || task.status,
+                    stage: data.current_step || data.message || task.stage,
+                    points_consumed: data.points_consumed || task.points_consumed,
+                    last_update: Date.now()
                 });
-        } catch (e) {
-            console.error('[GlobalFloat] 解析任务状态失败:', e);
-            localStorage.removeItem('market_driven_background_task');
-        }
-    }
-    
-    // 创建并显示全局浮窗
-    window.createGlobalFloat = function(taskId) {
-        currentTaskId = taskId;
-        const floatEl = document.getElementById('globalTaskFloat');
-        
-        if (floatEl) {
-            floatEl.style.display = 'block';
-            initDraggable(floatEl);
-            startPolling();
-        }
-    };
-    
-    // 开始轮询任务状态
-    function startPolling() {
-        // 清除旧轮询
-        if (pollInterval) clearInterval(pollInterval);
-        
-        // 立即执行一次
-        pollTaskStatus();
-        
-        // 每30秒轮询（减少服务器压力）
-        pollInterval = setInterval(pollTaskStatus, 30000);
-    }
-    
-    // 轮询任务状态
-    async function pollTaskStatus() {
-        if (!currentTaskId) return;
-        
-        try {
-            const response = await fetch(`/api/market-driven/tasks/${currentTaskId}`);
-            if (!response.ok) throw new Error('获取失败');
-            
-            const task = await response.json();
-            updateFloatUI(task);
-            
-            // 任务完成或失败
-            const terminalStatuses = ['completed', 'failed', 'cancelled', 'error'];
-            if (terminalStatuses.includes(task.status)) {
-                clearInterval(pollInterval);
                 
-                // 更新浮窗状态
-                const floatEl = document.getElementById('globalTaskFloat');
-                if (floatEl) {
-                    floatEl.classList.add(task.status);
+                // 如果任务完成，发送通知
+                if (['completed', 'failed'].includes(data.status) && 
+                    !['completed', 'failed'].includes(task.status)) {
+                    this.notifyTaskComplete(task, data.status);
                 }
-                
-                // 更新 localStorage 标记任务已完成
-                const saved = localStorage.getItem('market_driven_background_task');
-                if (saved) {
-                    const data = JSON.parse(saved);
-                    data.status = task.status;
-                    data.progress = 100;
-                    localStorage.setItem('market_driven_background_task', JSON.stringify(data));
-                }
-                
-                // 显示通知
-                if (task.status === 'completed') {
-                    showNotification('生成完成！', '您的创作任务已完成');
-                }
-                
-                // 5分钟后自动关闭浮窗
-                setTimeout(() => {
-                    closeGlobalFloat();
-                    localStorage.removeItem('market_driven_background_task');
-                }, 5 * 60 * 1000);
+            } catch (e) {
+                console.error(`[Poller] 更新任务 ${task.task_id} 失败:`, e);
             }
-        } catch (error) {
-            console.error('[GlobalFloat] 轮询失败:', error);
-        }
-    }
-    
-    // 阶段名称映射（与market-driven-status.html保持一致）
-    const STAGE_NAME_MAP = {
-        'analyzing_tropes': '正在分析爆款题材规律',
-        'preparing_plan': '准备方案参数',
-        'generate_plan': '生成完整方案',
-        'generate_fanqie_data': '生成番茄上传数据',
-        'generate_worldview': '构建世界观',
-        'generate_characters': '设计角色',
-        'generate_growth_plan': '规划成长路线',
-        'generate_stage_goals': '制定阶段目标',
-        'bestseller_alignment': '爆款对齐优化',
-        'generate_supplementary': '生成附加产物',
-        'generating_chapters': '批量生成章节',
-        'analyze': '分析章节质量',
-        'optimize': '优化章节内容',
-        'completed': '生成完成',
-        'failed': '生成失败',
-        'pending': '等待中',
-        'preparing': '准备中',
-        'running': '运行中',
-        'in_progress': '进行中',
-        'generate_plot': '生成剧情大纲',
-        'generate_chapter_detail': '生成章纲详情',
-        'generate_chapter_content': '生成章节正文',
-        'save_chapter': '保存章节',
-        'init': '初始化',
-        'processing': '处理中',
-        'finalizing': '收尾中'
-    };
-    
-    function getStageName(stage) {
-        if (!stage) return '生成中...';
-        return STAGE_NAME_MAP[stage] || stage;
-    }
-    
-    // 更新浮窗UI
-    function updateFloatUI(task) {
-        const progress = parseInt(task.progress) || 0;
-        const stage = getStageName(task.current_stage) || getStageName(task.message) || '生成中...';
+        },
         
-        // 更新进度
-        const percentEl = document.getElementById('globalFloatPercent');
-        const barEl = document.getElementById('globalFloatBar');
-        const stageEl = document.getElementById('globalFloatStage');
-        const countEl = document.getElementById('globalFloatCount');
-        const statusEl = document.getElementById('globalFloatStatus');
-        const titleEl = document.getElementById('globalFloatTitle');
-        
-        if (percentEl) percentEl.textContent = progress + '%';
-        if (barEl) barEl.style.width = progress + '%';
-        if (stageEl) stageEl.textContent = stage;
-        if (countEl) countEl.textContent = `${task.current_chapter || 0}/${task.target_chapters || 0} 章`;
-        if (statusEl) statusEl.textContent = task.status === 'completed' ? '已完成' : '进行中';
-        if (titleEl && task.novel_title) titleEl.textContent = task.novel_title;
-        
-        // 更新 localStorage 中的进度
-        const saved = localStorage.getItem('market_driven_background_task');
-        if (saved) {
-            const data = JSON.parse(saved);
-            data.progress = progress;
-            data.last_update = Date.now();
-            localStorage.setItem('market_driven_background_task', JSON.stringify(data));
-        }
-    }
-    
-    // 展开/收起浮窗
-    window.toggleGlobalFloat = function() {
-        if (isExpanded) {
-            minimizeGlobalFloat();
-        } else {
-            expandGlobalFloat();
+        notifyTaskComplete(task, status) {
+            if ('Notification' in window && Notification.permission === 'granted') {
+                new Notification(
+                    status === 'completed' ? '生成完成！' : '生成失败',
+                    {
+                        body: `${task.title || '未命名任务'} ${status === 'completed' ? '已完成' : '生成失败'}`,
+                        icon: '/static/images/logo.png'
+                    }
+                );
+            }
         }
     };
+    
+    // ==================== 全局函数 ====================
     
     // 展开浮窗
-    window.expandGlobalFloat = function() {
-        const body = document.getElementById('globalFloatBody');
-        const floatEl = document.getElementById('globalTaskFloat');
-        
-        if (body) body.style.display = 'block';
-        if (floatEl) floatEl.classList.remove('minimized');
-        isExpanded = true;
+    window.expandTaskFloat = function() {
+        UI.expand();
     };
     
     // 收起浮窗
-    window.minimizeGlobalFloat = function() {
-        const body = document.getElementById('globalFloatBody');
-        const floatEl = document.getElementById('globalTaskFloat');
-        
-        if (body) body.style.display = 'none';
-        if (floatEl) floatEl.classList.add('minimized');
-        isExpanded = false;
+    window.collapseTaskFloat = function() {
+        UI.collapse();
     };
     
-    // 关闭浮窗
-    window.closeGlobalFloat = function() {
-        const floatEl = document.getElementById('globalTaskFloat');
-        if (floatEl) floatEl.style.display = 'none';
-        
-        if (pollInterval) clearInterval(pollInterval);
-        
-        // 不清除 localStorage，任务继续在后台运行
-        // 只是隐藏了浮窗显示
+    // 查看任务详情
+    window.viewTaskDetail = function(taskId, type) {
+        const urlMap = {
+            'market_driven': `/market-driven-status?task=${taskId}`,
+            'dialog': `/market-driven-status?task=${taskId}`,
+            'phase_one': `/phase-one-setup?task=${taskId}`
+        };
+        window.location.href = urlMap[type] || urlMap['market_driven'];
     };
     
-    // 跳转到任务详情页
-    window.goToTaskDetail = function() {
-        if (!currentTaskId) return;
+    // 停止任务
+    window.stopTask = async function(taskId) {
+        if (!confirm('确定要停止这个生成任务吗？已消耗的点数不会返还。')) {
+            return;
+        }
         
-        // 🔥 获取任务信息决定跳转目标
-        const saved = localStorage.getItem('market_driven_background_task');
-        if (saved) {
-            const task = JSON.parse(saved);
+        try {
+            const response = await fetch(`/api/market-driven/tasks/${taskId}/stop`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' }
+            });
             
-            // 🔥 根据任务类型和状态决定跳转目标
-            const runningStatuses = ['running', 'generating_chapters', 'conversation_mode', 'in_progress'];
-            const terminalStatuses = ['completed', 'failed'];
-            
-            // 判断是否是第一阶段任务
-            const isPhaseOne = task.type === 'phase_one' || task.genre === 'phase_one';
-            
-            if (isPhaseOne) {
-                // 第一阶段任务跳转到设定生成页面
-                window.location.href = `/phase-one-setup?task=${currentTaskId}`;
-            } else if (runningStatuses.includes(task.status)) {
-                // 市场导向任务正在运行，跳转到状态页面监控
-                window.location.href = `/market-driven-status?task=${currentTaskId}`;
-            } else if (terminalStatuses.includes(task.status)) {
-                // 任务已完成/失败，跳转到状态页面查看结果
-                window.location.href = `/market-driven-status?task=${currentTaskId}`;
+            if (response.ok) {
+                TaskManager.updateTask(taskId, { status: 'stopped', stage: '已停止' });
+                UI.update();
             } else {
-                // 任务等待中，跳转到对话页面继续配置
-                window.location.href = `/market-driven-plan-dialog?task_id=${currentTaskId}&restore=true`;
+                alert('停止任务失败，请重试');
             }
-        } else {
-            // 没有任务信息，默认跳转到状态页面
-            window.location.href = `/market-driven-status?task=${currentTaskId}`;
+        } catch (e) {
+            console.error('[stopTask] 失败:', e);
+            alert('停止任务失败，请重试');
         }
     };
     
-    // 初始化拖动功能
-    function initDraggable(element) {
-        let startX, startY, initialLeft, initialTop;
+    // 关闭任务（从列表移除）
+    window.dismissTask = function(taskId) {
+        TaskManager.removeTask(taskId);
+        UI.update();
+    };
+    
+    // ==================== 对外API ====================
+    window.BackgroundTaskManager = {
+        // 添加新任务
+        addTask(taskData) {
+            TaskManager.addTask({
+                ...taskData,
+                created_at: Date.now(),
+                last_update: Date.now()
+            });
+            UI.checkAndShow();
+            Poller.start();
+        },
         
-        element.addEventListener('mousedown', function(e) {
-            // 点击按钮时不拖动
-            if (e.target.closest('button')) return;
-            
-            isDragging = true;
-            startX = e.clientX;
-            startY = e.clientY;
-            initialLeft = element.offsetLeft;
-            initialTop = element.offsetTop;
-            element.classList.add('dragging');
-            
-            e.preventDefault();
-        });
+        // 更新任务
+        updateTask(taskId, updates) {
+            TaskManager.updateTask(taskId, updates);
+        },
         
-        document.addEventListener('mousemove', function(e) {
-            if (!isDragging) return;
-            
-            const dx = e.clientX - startX;
-            const dy = e.clientY - startY;
-            
-            element.style.left = `${initialLeft + dx}px`;
-            element.style.top = `${initialTop + dy}px`;
-            element.style.right = 'auto';
-            element.style.bottom = 'auto';
-        });
+        // 获取运行中任务
+        getRunningTasks() {
+            return TaskManager.getRunningTasks();
+        },
         
-        document.addEventListener('mouseup', function() {
-            isDragging = false;
-            element.classList.remove('dragging');
-        });
+        // 初始化
+        init() {
+            UI.init();
+            Poller.start();
+        }
+    };
+    
+    // ==================== 初始化 ====================
+    
+    // 页面加载时初始化
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', () => window.BackgroundTaskManager.init());
+    } else {
+        window.BackgroundTaskManager.init();
     }
     
-    // 显示浏览器通知
-    function showNotification(title, body) {
-        if ('Notification' in window && Notification.permission === 'granted') {
-            new Notification(title, { body, icon: '/static/img/logo.png' });
+    // 监听 localStorage 变化（跨页面同步）
+    window.addEventListener('storage', function(e) {
+        if (e.key === CONFIG.STORAGE_KEY) {
+            UI.checkAndShow();
         }
-    }
+    });
     
     // 请求通知权限
     if ('Notification' in window && Notification.permission === 'default') {

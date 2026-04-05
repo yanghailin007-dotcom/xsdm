@@ -180,14 +180,18 @@ function startGenerationFromForm() {
   .then(response => response.json())
   .then(data => {
     if (data.task_id) {
-      // 🔥 保存到后台运行任务状态（供floating-task-monitor使用）
-      localStorage.setItem('market_driven_background_task', JSON.stringify({
-        task_id: data.task_id,
-        title: data.title || '未命名小说',
-        genre: genre,
-        progress: 0,
-        created_at: Date.now()
-      }));
+      // 🔥 添加到后台任务管理器（多任务支持）
+      if (window.BackgroundTaskManager) {
+        window.BackgroundTaskManager.addTask({
+          task_id: data.task_id,
+          title: data.title || '未命名小说',
+          type: 'market_driven',
+          status: 'running',
+          progress: 0,
+          stage: '创建项目中...',
+          genre: genre
+        });
+      }
       
       window.location.href = `/market-driven-status?task=${data.task_id}`;
     } else {
