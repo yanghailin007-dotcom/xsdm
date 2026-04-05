@@ -505,12 +505,18 @@
         if (saved) {
             const task = JSON.parse(saved);
             
-            // 根据任务状态决定跳转目标
+            // 🔥 根据任务类型和状态决定跳转目标
             const runningStatuses = ['running', 'generating_chapters', 'conversation_mode', 'in_progress'];
             const terminalStatuses = ['completed', 'failed'];
             
-            if (runningStatuses.includes(task.status)) {
-                // 任务正在运行，跳转到状态页面监控
+            // 判断是否是第一阶段任务
+            const isPhaseOne = task.type === 'phase_one' || task.genre === 'phase_one';
+            
+            if (isPhaseOne) {
+                // 第一阶段任务跳转到设定生成页面
+                window.location.href = `/phase-one-setup?task=${currentTaskId}`;
+            } else if (runningStatuses.includes(task.status)) {
+                // 市场导向任务正在运行，跳转到状态页面监控
                 window.location.href = `/market-driven-status?task=${currentTaskId}`;
             } else if (terminalStatuses.includes(task.status)) {
                 // 任务已完成/失败，跳转到状态页面查看结果
