@@ -2270,20 +2270,10 @@ NovelPublisher_Data/              ← 统一数据目录
         from PyQt5.QtWidgets import QDialog, QFormLayout, QLineEdit, QSpinBox, QLabel
         
         dialog = QDialog(self)
-        dialog.setWindowTitle(f"手动设置 - 第{chapter_num}章发布")
-        dialog.setMinimumWidth(400)
+        dialog.setWindowTitle(f"手动设置 - 从第{chapter_num}章开始发布")
+        dialog.setMinimumWidth(450)
         
         layout = QFormLayout()
-        
-        # 发布时间输入
-        publish_time_label = QLabel("发布时间 (HH:MM):")
-        publish_time_edit = QLineEdit()
-        publish_time_edit.setPlaceholderText("06:00")
-        if resume_info:
-            publish_time_edit.setText(resume_info.get('next_publish_time', '06:00'))
-        else:
-            publish_time_edit.setText(self.publish_times_edit.text().split(',')[0])
-        layout.addRow(publish_time_label, publish_time_edit)
         
         # 发布日期输入
         publish_date_label = QLabel("发布日期 (YYYY-MM-DD):")
@@ -2295,11 +2285,33 @@ NovelPublisher_Data/              ← 统一数据目录
             publish_date_edit.setText(datetime.now().strftime('%Y-%m-%d'))
         layout.addRow(publish_date_label, publish_date_edit)
         
-        # 每日限额提示
+        # 发布时间输入
+        publish_time_label = QLabel("发布时间 (HH:MM):")
+        publish_time_edit = QLineEdit()
+        publish_time_edit.setPlaceholderText("06:00")
         if resume_info:
-            limit_label = QLabel(f"💡 今天还能发 {resume_info.get('today_remaining', 0)} 章")
-            limit_label.setStyleSheet("color: #666;")
-            layout.addRow(limit_label)
+            publish_time_edit.setText(resume_info.get('next_publish_time', '06:00'))
+        else:
+            publish_time_edit.setText(self.publish_times_edit.text().split(',')[0])
+        layout.addRow(publish_time_label, publish_time_edit)
+        
+        # 🔥 今天发布章节数设置
+        today_max = resume_info.get('today_remaining', 8) if resume_info else 8
+        daily_limit = resume_info.get('daily_limit', 8) if resume_info else 8
+        
+        chapter_count_label = QLabel(f"今天发布章节数 (最多{daily_limit}章):")
+        chapter_count_spin = QSpinBox()
+        chapter_count_spin.setRange(1, daily_limit)
+        chapter_count_spin.setValue(min(2, today_max))  # 默认选2章或剩余数量
+        chapter_count_spin.setSuffix(" 章")
+        layout.addRow(chapter_count_label, chapter_count_spin)
+        
+        # 提示信息
+        if resume_info:
+            info_text = f"💡 今天还能发 {today_max} 章 | 将从第{chapter_num}章连续发布"
+            info_label = QLabel(info_text)
+            info_label.setStyleSheet("color: #2196F3; font-size: 12px;")
+            layout.addRow(info_label)
         
         # 按钮
         btn_layout = QHBoxLayout()
@@ -2315,6 +2327,7 @@ NovelPublisher_Data/              ← 统一数据目录
         def on_ok():
             time_str = publish_time_edit.text().strip()
             date_str = publish_date_edit.text().strip()
+            chapter_count = chapter_count_spin.value()
             
             # 验证格式
             try:
@@ -2327,13 +2340,32 @@ NovelPublisher_Data/              ← 统一数据目录
             # 保存到配置
             self.publish_times_edit.setText(time_str)
             
-            # 构建日期槽
+            # 🔥 根据用户设置的章节数，选中对应数量的章节
+            selected_count = 0
+            start_ch = chapter_num
+            for i in range(self.chapters_list.count()):
+                item = self.chapters_list.item(i)
+                ch_num = self._extract_chapter_num(item.text())
+                
+                if ch_num and start_ch <= ch_num < start_ch + chapter_count:
+                    item.setCheckState(Qt.Checked)
+                    item.setBackground(QColor("#E3F2FD"))  # 蓝色高亮
+                    selected_count += 1
+                else:
+                    item.setCheckState(Qt.Unchecked)
+                    item.setBackground(QColor("transparent"))
+            
+            # 构建日期槽（根据用户设置的章节数）
             date_slots = {
-                date_str: {time_str: 1}
+                date_str: {time_str: chapter_count}
             }
             self.publish_date_slots = date_slots
             
-            self.log(f"✅ 已手动设置: 第{chapter_num}章 {date_str} {time_str}", "success")
+            # 更新"从第X章开始"
+            self.start_from_chapter_spin.setValue(chapter_num)
+            self._apply_start_chapter()
+            
+            self.log(f"✅ 已手动设置: 第{chapter_num}-{chapter_num + chapter_count - 1}章 ({chapter_count}章) {date_str} {time_str}", "success")
             dialog.accept()
         
         def on_cancel():
