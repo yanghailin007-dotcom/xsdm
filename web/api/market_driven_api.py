@@ -1633,7 +1633,13 @@ def _run_chapter_generation_with_plan(task_id: str, genre: str, target_words: in
             api_client=api_client
         )
         
-        logger.info(f"[DialogMode] 对话流程完成，继续生成章节...")
+        logger.info(f"[DialogMode] 对话流程完成，开始生成章节...")
+        
+        # 🔥 关键：对话流程完成后，继续生成章节
+        # 复用传统模式的章节生成逻辑
+        _run_chapter_generation(task_id, genre, target_words, api_client)
+        
+        logger.info(f"[DialogMode] 全部生成完成")
         return
         
     except Exception as e:
