@@ -1094,6 +1094,26 @@
         const container = document.getElementById('cw-ai-result-content');
         const storyline = data.completeStoryline || {};
         
+        // 🔥 固定顺序渲染四个阶段
+        const stageOrder = ['opening', 'development', 'conflict', 'ending'];
+        const stageNames = { opening: '开篇', development: '发展', conflict: '冲突', ending: '结局' };
+        
+        let stagesHtml = stageOrder.map((key, index) => {
+            const stage = storyline[key] || {};
+            const stageName = stage.stageName || stageNames[key] || key;
+            const summary = stage.summary || '<span style="color: var(--cw-text-secondary); font-style: italic;">暂无描述</span>';
+            
+            return `
+                <div class="cw-stage-card" style="background: var(--cw-bg-secondary);">
+                    <div class="cw-stage-header">
+                        <span class="cw-stage-number">${index + 1}</span>
+                        <span class="cw-stage-name">${stageName}</span>
+                    </div>
+                    <p style="font-size: 0.875rem; color: var(--cw-text-secondary); line-height: 1.6;">${summary}</p>
+                </div>
+            `;
+        }).join('');
+        
         container.innerHTML = `
             <div style="margin-bottom: 1.5rem;">
                 <h5 style="color: var(--cw-text-secondary); margin-bottom: 0.5rem; font-size: 0.875rem;">小说标题</h5>
@@ -1102,26 +1122,18 @@
             
             <div style="margin-bottom: 1.5rem;">
                 <h5 style="color: var(--cw-text-secondary); margin-bottom: 0.5rem; font-size: 0.875rem;">核心设定</h5>
-                <p style="color: var(--cw-text-primary);">${data.coreSetting}</p>
+                <p style="color: var(--cw-text-primary); line-height: 1.6;">${data.coreSetting || '<span style="color: var(--cw-text-secondary); font-style: italic;">暂无</span>'}</p>
             </div>
             
             <div style="margin-bottom: 1.5rem;">
                 <h5 style="color: var(--cw-text-secondary); margin-bottom: 0.5rem; font-size: 0.875rem;">核心卖点</h5>
-                <p style="color: var(--cw-text-primary);">${data.coreSellingPoints}</p>
+                <p style="color: var(--cw-text-primary);">${data.coreSellingPoints || '<span style="color: var(--cw-text-secondary); font-style: italic;">暂无</span>'}</p>
             </div>
             
             <div>
                 <h5 style="color: var(--cw-text-secondary); margin-bottom: 0.75rem; font-size: 0.875rem;">故事线</h5>
                 <div class="cw-stage-cards" style="margin-top: 0;">
-                    ${Object.entries(storyline).map(([key, stage], index) => `
-                        <div class="cw-stage-card" style="background: var(--cw-bg-secondary);">
-                            <div class="cw-stage-header">
-                                <span class="cw-stage-number">${index + 1}</span>
-                                <span class="cw-stage-name">${stage.stageName || key}</span>
-                            </div>
-                            <p style="font-size: 0.875rem; color: var(--cw-text-secondary);">${stage.summary || ''}</p>
-                        </div>
-                    `).join('')}
+                    ${stagesHtml}
                 </div>
             </div>
         `;
