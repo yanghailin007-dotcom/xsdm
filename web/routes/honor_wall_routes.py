@@ -198,3 +198,45 @@ def get_stats():
         import traceback
         traceback.print_exc()
         return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@honor_wall_bp.route('/banner', methods=['GET'])
+def get_banner():
+    """获取Banner数据（本周之星等）"""
+    try:
+        # 获取本周之星（点赞最多）
+        weekly_star = honor_wall_model.list_entries(
+            platform='all', 
+            sort_by='likes', 
+            page=1, 
+            per_page=3
+        )
+        
+        # 格式化数据
+        banners = []
+        for i, entry in enumerate(weekly_star['entries']):
+            badge = ['本周之星', '人气推荐', '经典回顾'][i] if i < 3 else '热门作品'
+            avatar = ['🍶', '✍️', '⚔️'][i] if i < 3 else '📖'
+            gradients = [
+                'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                'linear-gradient(135deg, #f093fb 0%, #f5576c 100%)',
+                'linear-gradient(135deg, #4facfe 0%, #00f2fe 100%)'
+            ]
+            
+            banners.append({
+                'title': entry['book_title'],
+                'desc': entry.get('book_intro', '')[:100] or '暂无简介',
+                'author': entry['user_name'],
+                'avatar': avatar,
+                'likes': entry['likes'],
+                'reads': f"{entry.get('word_count', 0) // 1000}k",
+                'gradient': gradients[i] if i < len(gradients) else gradients[0],
+                'platform': entry['platform'],
+                'platform_url': entry['platform_url']
+            })
+        
+        return jsonify({'success': True, 'data': banners})
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        return jsonify({'success': False, 'error': str(e)}), 500

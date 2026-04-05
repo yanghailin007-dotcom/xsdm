@@ -2281,11 +2281,8 @@ NovelPublisher_Data/              ← 统一数据目录
             self.log(f"⚠️ 续发检测失败: {e}", "warning")
     
     def _auto_setup_resume(self, resume_info: dict):
-        """自动设置续发 - 自动模式会清除之前的手动设置"""
+        """自动设置续发 - 直接用自动计算的时间覆盖手动设置"""
         try:
-            # 🔥 清除之前的手动设置，避免冲突
-            self._clear_manual_publish_config()
-            
             next_chapter = resume_info['next_chapter']
             # 🔥 使用 last_day_remaining 代替 today_remaining
             last_day_remaining = resume_info.get('last_day_remaining', 8)
@@ -2307,9 +2304,23 @@ NovelPublisher_Data/              ← 统一数据目录
             self.start_chapter_spin.setValue(next_chapter)
             self.apply_start_chapter()
             
-            # 3. 更新发布时间配置
+            # 3. 更新发布时间配置 - 🔥 直接用自动时间覆盖手动设置
             next_date = resume_info['next_publish_date']
             next_time = resume_info['next_publish_time']
+            
+            # 获取项目数据并更新 publish_config
+            proj_idx = self.project_combo.currentIndex()
+            if proj_idx >= 0:
+                proj_data = self.project_combo.itemData(proj_idx)
+                if isinstance(proj_data, dict):
+                    if 'publish_config' not in proj_data:
+                        proj_data['publish_config'] = {}
+                    # 🔥 关键：用自动计算的时间覆盖手动设置
+                    proj_data['publish_config']['manual_publish_date'] = next_date
+                    proj_data['publish_config']['manual_publish_time'] = next_time
+                    proj_data['publish_config']['manual_chapter_count'] = last_day_remaining
+                    proj_data['publish_config']['manual_set_at'] = datetime.now().isoformat()
+                    proj_data['publish_config']['is_auto_resume'] = True  # 标记为自动续传
             
             # 自动计算定时发布（如果当天有剩余额度）
             if last_day_remaining > 0:
@@ -2526,43 +2537,6 @@ NovelPublisher_Data/              ← 统一数据目录
             
         except Exception as e:
             self.log(f"⚠️ 保存手动发布配置失败: {e}", "warning")
-    
-    def _clear_manual_publish_config(self):
-        """清除手动发布配置（用于自动模式覆盖）"""
-        try:
-            # 获取当前项目路径
-            proj_idx = self.project_combo.currentIndex()
-            if proj_idx < 0:
-                return
-            
-            proj_data = self.project_combo.itemData(proj_idx)
-            if not isinstance(proj_data, dict):
-                return
-            
-            project_path = proj_data.get('path')
-            if not project_path:
-                return
-            
-            # 读取现有配置
-            config_path = Path(project_path) / "project_config.json"
-            if not config_path.exists():
-                return
-            
-            config = json.loads(config_path.read_text(encoding='utf-8'))
-            
-            # 清除手动设置字段
-            if 'publish_config' in config:
-                config['publish_config'].pop('manual_publish_date', None)
-                config['publish_config'].pop('manual_publish_time', None)
-                config['publish_config'].pop('manual_chapter_count', None)
-                config['publish_config'].pop('manual_set_at', None)
-                
-                # 保存回文件
-                config_path.write_text(json.dumps(config, ensure_ascii=False, indent=2), encoding='utf-8')
-                self.log(f"🗑️ 已清除之前的手动发布配置", "debug")
-            
-        except Exception as e:
-            self.log(f"⚠️ 清除手动发布配置失败: {e}", "debug")  # debug级别，不打扰用户
     
     def _extract_chapter_num(self, text: str) -> int:
         """从列表项文本中提取章节号"""

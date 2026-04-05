@@ -57,12 +57,14 @@
 
     
     <!-- 页脚 - 根据页面智能选择 -->
-    {% if request.endpoint in video_endpoints %}
-        <!-- 视频创作页脚 -->
-        {% include 'components/v2/footer-video.html' %}
-    {% else %}
-        <!-- 小说创作页脚（默认） -->
-        {% include 'components/v2/footer.html' %}
+    {% if not hide_footer %}
+        {% if request.endpoint in video_endpoints %}
+            <!-- 视频创作页脚 -->
+            {% include 'components/v2/footer-video.html' %}
+        {% else %}
+            <!-- 小说创作页脚（默认） -->
+            {% include 'components/v2/footer.html' %}
+        {% endif %}
     {% endif %}
     
     <!-- UI版本切换器 -->
