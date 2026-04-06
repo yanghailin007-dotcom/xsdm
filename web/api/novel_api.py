@@ -313,10 +313,19 @@ def register_novel_routes(app, manager: NovelGenerationManager):
                     from pathlib import Path
                     import json, re
                     from flask import session
+                    from web.utils.path_utils import find_novel_project
+                    
                     username = session.get('username')
-                    from src.config.path_config import path_config
-                    paths = path_config.get_project_paths(title, username=username)
-                    chapters_dir = Path(paths.get("chapters_dir", ""))
+                    project_path = find_novel_project(title, username)
+                    
+                    if project_path:
+                        chapters_dir = Path(project_path) / "chapters"
+                    else:
+                        # 回退到旧方式
+                        from src.config.path_config import path_config
+                        paths = path_config.get_project_paths(title, username=username)
+                        chapters_dir = Path(paths.get("chapters_dir", ""))
+                    
                     if chapters_dir.exists():
                         files = sorted(
                             list(chapters_dir.glob("chapter_*.json")) +

@@ -2991,13 +2991,58 @@ def continue_chapters(title):
         
         project_path = Path(project_path)
         
-        # 加载蓝图
-        blueprint_path = project_path / "phase_one_products" / "完整方案.json"
-        if not blueprint_path.exists():
-            return jsonify({
-                "success": False,
-                "error": "未找到章节规划文件，无法续写"
-            }), 400
+        # 工位修复：尝试多个可能的蓝图路径
+        blueprint_paths = [
+            project_path / "phase_one_products" / "完整方案.json",
+            project_path / "phase_one_products" / "blueprint.json",
+            project_path / "blueprint.json",
+            project_path / "完整方案.json",
+        ]
+        
+        blueprint_path = None
+        for path in blueprint_paths:
+            if path.exists():
+                blueprint_path = path
+                logger.info(f"[章节续写] 找到蓝图文件: {path}")
+                break
+        
+        if not blueprint_path:
+            # 工位修复：如果没有蓝图，尝试从 project_info.json 构建一个简单的蓝图
+            project_info_file = project_path / "project_info.json"
+            if project_info_file.exists():
+                try:
+                    with open(project_info_file, 'r', encoding='utf-8') as f:
+                        project_info = json.load(f)
+                    
+                    logger.info(f"[章节续写] 没有蓝图文件，尝试从 project_info 构建")
+                    
+                    # 构建简单蓝图
+                    blueprint = {
+                        'title': project_info.get('novel_title', title),
+                        'core_selling_point': project_info.get('novel_info', {}).get('synopsis', ''),
+                        'protagonist': project_info.get('character_design', {}).get('protagonist', {}),
+                        'golden_finger': project_info.get('golden_finger', {}),
+                        'main_plot': project_info.get('storyline', ''),
+                        'target_chapters': project_info.get('generation_metadata', {}).get('total_chapters', 200),
+                    }
+                    
+                    # 保存临时蓝图以便后续使用
+                    temp_blueprint_path = project_path / "phase_one_products" / "完整方案.json"
+                    temp_blueprint_path.parent.mkdir(parents=True, exist_ok=True)
+                    with open(temp_blueprint_path, 'w', encoding='utf-8') as f:
+                        json.dump(blueprint, f, ensure_ascii=False, indent=2)
+                    
+                    blueprint_path = temp_blueprint_path
+                    logger.info(f"[章节续写] 已从 project_info 构建并保存蓝图")
+                    
+                except Exception as e:
+                    logger.error(f"[章节续写] 从 project_info 构建蓝图失败: {e}")
+            
+            if not blueprint_path:
+                return jsonify({
+                    "success": False,
+                    "error": "未找到章节规划文件，无法续写"
+                }), 400
         
         with open(blueprint_path, 'r', encoding='utf-8') as f:
             blueprint = json.load(f)
