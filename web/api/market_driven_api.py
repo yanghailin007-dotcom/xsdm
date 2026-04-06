@@ -2947,7 +2947,6 @@ def get_user_active_tasks():
 # ==================== 章节续写 API ====================
 
 @market_driven_api.route('/<title>/continue-chapters', methods=['POST'])
-@login_required
 def continue_chapters(title):
     """
     章节续写 - 直接生成后续章节，不重新生成设定
@@ -3168,7 +3167,6 @@ def _run_continue_chapter_generation(task_id, title, blueprint, start_chapter, e
 # ==================== 重新规划 API ====================
 
 @market_driven_api.route('/<title>/replan', methods=['POST'])
-@login_required
 def replan_project(title):
     """
     重新规划 - 基于新设定重新生成创作方案（不重新生成章节）
