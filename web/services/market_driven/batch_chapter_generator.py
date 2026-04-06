@@ -49,12 +49,14 @@ class BatchChapterGenerator:
     
     def __init__(self, api_client=None, state_manager: Optional['BurstStateManager'] = None,
                  emotion_flow: Optional['EmotionFlow'] = None,
-                 project_path: str = None):
+                 project_path: str = None,
+                 stop_checker=None):  # 🔥 新增：停止检查函数
         self.api_client = api_client
         self.generated_chapters = []
         self.failed_chapters = []
         self.state_manager = state_manager  # 状态管理器（情绪/剧情）
         self.emotion_flow = emotion_flow  # 情绪流
+        self._stop_checker = stop_checker  # 🔥 停止检查函数
         
         # 🔥 项目路径处理
         if project_path:
@@ -130,12 +132,31 @@ class BatchChapterGenerator:
             blueprint, tropes, novel_data
         )
     
+    def _should_stop(self) -> bool:
+        """检查是否应该停止生成"""
+        if self._stop_checker and self._stop_checker():
+            logger.warning("[BatchGenerator] 检测到停止信号，准备停止生成")
+            return True
+        return False
+    
     def _generate_batch_conversation(self, novel_title: str, start_chapter: int, end_chapter: int,
                                      blueprint: Dict, tropes: Dict, novel_data: Dict) -> Dict:
         """使用对话模式批量生成"""
         from web.services.market_driven.chapter_conversation_generator import (
             ChapterConversationGenerator
         )
+        
+        # 🔥 检查停止信号
+        if self._should_stop():
+            logger.warning(f"[BatchGenerator] 第{start_chapter}-{end_chapter}批开始前检测到停止信号")
+            return {
+                "generated": [],
+                "failed": [],
+                "total_words": 0,
+                "avg_quality": 0,
+                "generation_mode": "conversation",
+                "stopped": True
+            }
         
         logger.info(f"[BatchGenerator] 🚀 使用对话模式生成第{start_chapter}-{end_chapter}章")
         

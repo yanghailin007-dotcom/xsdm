@@ -63,6 +63,21 @@ class MarketGenerationTaskManager:
     
     def __init__(self):
         self.tasks = {}
+        self._stop_flags = {}  # 🔥 新增：任务停止标志 {task_id: True/False}
+    
+    def should_stop(self, task_id: str) -> bool:
+        """检查任务是否应该停止"""
+        return self._stop_flags.get(task_id, False)
+    
+    def set_stop_flag(self, task_id: str, flag: bool = True):
+        """设置任务停止标志"""
+        self._stop_flags[task_id] = flag
+        logger.info(f"[TaskManager] 任务 {task_id} 停止标志设置为: {flag}")
+    
+    def clear_stop_flag(self, task_id: str):
+        """清除任务停止标志"""
+        if task_id in self._stop_flags:
+            del self._stop_flags[task_id]
     
     def create_task(self, genre: str, user_choices: Dict) -> str:
         """创建新任务"""
@@ -445,25 +460,18 @@ def stop_market_driven_task(task_id: str):
         
         # 🔥 实际停止逻辑：设置停止标志
         # 章节生成器会定期检查这个标志
-        task["_should_stop"] = True
+        task_manager.set_stop_flag(task_id, True)
         task["stopped_at"] = datetime.now().isoformat()
         
-        # 更新任务状态为已停止
-        task_manager.update_task(
-            task_id,
-            status="stopped",
-            message="任务已停止",
-            progress=task.get("progress", 0)
-        )
+        logger.info(f"[Task {task_id}] 停止标志已设置，等待生成循环检测...")
         
-        logger.info(f"[Task {task_id}] 任务已停止")
+        # 注意：实际状态更新会在生成循环检测到标志后完成
         
         return jsonify({
             "success": True,
-            "message": "任务已停止",
+            "message": "停止请求已发送，正在等待当前批次完成...",
             "task_id": task_id,
-            "status": "stopped",
-            "stopped_at": task["stopped_at"]
+            "status": "stopping"
         }), 200
         
     except Exception as e:
@@ -1416,9 +1424,15 @@ def _run_chapter_generation(task_id: str, genre: str, target_words: int, api_cli
         
         # 创建批次生成器
         logger.info(f"[ChapterGen] 创建BatchChapterGenerator，project_path: {project_path}")
+        
+        # 🔥 创建停止检查函数
+        def check_should_stop():
+            return task_manager.should_stop(task_id)
+        
         batch_gen = BatchChapterGenerator(
             api_client=api_client,
-            project_path=str(project_path) if project_path else None
+            project_path=str(project_path) if project_path else None,
+            stop_checker=check_should_stop  # 🔥 传入停止检查函数
         )
         
         all_results = []
@@ -1428,6 +1442,19 @@ def _run_chapter_generation(task_id: str, genre: str, target_words: int, api_cli
         last_chapter_hook = ""
         
         for batch_num in range(1, batches + 1):
+            # 🔥 检查是否应该停止任务
+            if task_manager.should_stop(task_id):
+                logger.info(f"[Task {task_id}] 检测到停止标志，正在优雅停止...")
+                task_manager.update_task(
+                    task_id,
+                    status="stopped",
+                    message=f"任务已在第{batch_num-1}批后停止",
+                    progress=int(55 + ((batch_num - 1) / batches) * 35)
+                )
+                task_manager.clear_stop_flag(task_id)
+                logger.info(f"[Task {task_id}] 任务已停止，已生成{batch_num-1}批章节")
+                return all_results
+            
             # 🔥 使用分层规划获取当前批次的战术规划
             tactical_plan, strategic_context = planner.get_next_batch_plan(chapters_per_batch)
             
