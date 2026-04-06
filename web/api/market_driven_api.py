@@ -3138,11 +3138,21 @@ def _run_continue_chapter_generation(task_id, title, blueprint, start_chapter, e
         from web.utils.path_utils import get_novel_project_dir
         project_path = get_novel_project_dir(title, username, create=False)
         
+        # 🔥 初始化 API 客户端
+        try:
+            from src.core.APIClient import APIClient
+            from config.config import CONFIG
+            api_client = APIClient(CONFIG)
+        except Exception as e:
+            logger.warning(f"[章节续写] APIClient初始化失败: {e}")
+            api_client = None
+        
         # 初始化批量生成器
         from web.services.market_driven.batch_chapter_generator import BatchChapterGenerator
         batch_generator = BatchChapterGenerator(
             stop_checker=lambda: task_manager.should_stop(task_id),
-            project_path=str(project_path) if project_path else None
+            project_path=str(project_path) if project_path else None,
+            api_client=api_client  # 🔥 传入 API 客户端
         )
         
         total_chapters = end_chapter - start_chapter + 1
@@ -3767,10 +3777,20 @@ def _run_rewrite_generation(task_id, title, project_path, new_settings, username
         })
         
         # 3. 重新生成章节（使用 _run_chapter_generation 的逻辑）
+        # 🔥 初始化 API 客户端
+        try:
+            from src.core.APIClient import APIClient
+            from config.config import CONFIG
+            api_client = APIClient(CONFIG)
+        except Exception as e:
+            logger.warning(f"[重写] APIClient初始化失败: {e}")
+            api_client = None
+        
         from web.services.market_driven.batch_chapter_generator import BatchChapterGenerator
         batch_generator = BatchChapterGenerator(
             stop_checker=lambda: task_manager.should_stop(task_id),
-            project_path=str(project_path) if project_path else None
+            project_path=str(project_path) if project_path else None,
+            api_client=api_client  # 🔥 传入 API 客户端
         )
         
         total_chapters = new_settings.get('chapters', 200)
