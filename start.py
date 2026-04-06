@@ -122,30 +122,50 @@ def cleanup_old_logs(days=3):
     """
     清理指定天数前的日志文件
     避免日志积累过多导致服务器空间不足
+    
+    清理策略：
+    - logs/ai_interactions/ : 删除3天前的所有AI交互日志（主要清理目标）
+    - logs/ : 只保留 server_*.log，其他旧文件删除
     """
     import datetime
     from pathlib import Path
-    
-    # 需要清理的日志目录
-    log_dirs = [
-        LOGS_DIR,  # 主日志目录
-        PROJECT_DIR / "logs" / "ai_interactions",  # AI交互日志
-    ]
     
     cutoff_date = datetime.datetime.now() - datetime.timedelta(days=days)
     deleted_count = 0
     deleted_size = 0
     
-    for log_dir in log_dirs:
-        if not log_dir.exists():
-            continue
-            
+    # 1. 优先清理 AI 交互日志目录（这是主要占用空间的目录）
+    ai_interactions_dir = PROJECT_DIR / "logs" / "ai_interactions"
+    if ai_interactions_dir.exists():
         try:
-            for log_file in log_dir.iterdir():
+            for log_file in ai_interactions_dir.iterdir():
                 if not log_file.is_file():
                     continue
                     
-                # 检查文件修改时间
+                try:
+                    mtime = datetime.datetime.fromtimestamp(log_file.stat().st_mtime)
+                    if mtime < cutoff_date:
+                        file_size = log_file.stat().st_size
+                        log_file.unlink()
+                        deleted_count += 1
+                        deleted_size += file_size
+                        print(f"{Colors.YELLOW}[CLEANUP]{Colors.RESET} 删除AI交互日志: {log_file.name}")
+                except Exception as e:
+                    print(f"{Colors.RED}[ERROR]{Colors.RESET} 删除日志失败 {log_file.name}: {e}")
+        except Exception as e:
+            print(f"{Colors.RED}[ERROR]{Colors.RESET} 清理AI交互日志目录失败: {e}")
+    
+    # 2. 清理主日志目录中的非 server 日志文件
+    if LOGS_DIR.exists():
+        try:
+            for log_file in LOGS_DIR.iterdir():
+                if not log_file.is_file():
+                    continue
+                
+                # 保留 server_*.log 文件
+                if log_file.name.startswith("server_"):
+                    continue
+                    
                 try:
                     mtime = datetime.datetime.fromtimestamp(log_file.stat().st_mtime)
                     if mtime < cutoff_date:
@@ -156,9 +176,8 @@ def cleanup_old_logs(days=3):
                         print(f"{Colors.YELLOW}[CLEANUP]{Colors.RESET} 删除旧日志: {log_file.name}")
                 except Exception as e:
                     print(f"{Colors.RED}[ERROR]{Colors.RESET} 删除日志失败 {log_file.name}: {e}")
-                    
         except Exception as e:
-            print(f"{Colors.RED}[ERROR]{Colors.RESET} 清理日志目录失败 {log_dir}: {e}")
+            print(f"{Colors.RED}[ERROR]{Colors.RESET} 清理主日志目录失败: {e}")
     
     if deleted_count > 0:
         size_mb = deleted_size / (1024 * 1024)
