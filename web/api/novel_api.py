@@ -369,6 +369,54 @@ def register_novel_routes(app, manager: NovelGenerationManager):
                 manager.load_existing_novels()
                 chapter_detail = manager.get_chapter_detail(title, chapter_num)
             
+            # 巧灯修复：如果内存中还是没有，尝试从文件系统读取
+            if not chapter_detail:
+                try:
+                    from pathlib import Path
+                    from flask import session
+                    from web.utils.path_utils import find_novel_project
+                    
+                    username = session.get('username')
+                    project_path = find_novel_project(title, username)
+                    
+                    if project_path:
+                        chapters_dir = Path(project_path) / "chapters"
+                        possible_files = [
+                            chapters_dir / f"chapter_{chapter_num}.json",
+                            chapters_dir / f"chapter_{chapter_num:03d}.json",
+                            chapters_dir / f"第{chapter_num}章.json",
+                        ]
+                        
+                        chapter_file = None
+                        for f in possible_files:
+                            if f.exists():
+                                chapter_file = f
+                                break
+                        
+                        if not chapter_file and chapters_dir.exists():
+                            import re
+                            for f in chapters_dir.glob("*.json"):
+                                match = re.search(r'chapter_(\d+)', f.name) or re.search(r'第(\d+)章', f.name)
+                                if match and int(match.group(1)) == chapter_num:
+                                    chapter_file = f
+                                    break
+                        
+                        if chapter_file and chapter_file.exists():
+                            with open(chapter_file, 'r', encoding='utf-8') as f:
+                                chapter_data = json.load(f)
+                            chapter_detail = {
+                                "chapter_number": chapter_data.get("chapter_number", chapter_num),
+                                "number": chapter_data.get("chapter_number", chapter_num),
+                                "title": chapter_data.get("title") or chapter_data.get("chapter_title", f"第{chapter_num}章"),
+                                "chapter_title": chapter_data.get("title") or chapter_data.get("chapter_title", f"第{chapter_num}章"),
+                                "content": chapter_data.get("content") or chapter_data.get("chapter_content", ""),
+                                "chapter_content": chapter_data.get("content") or chapter_data.get("chapter_content", ""),
+                                "word_count": chapter_data.get("word_count", 0),
+                            }
+                            logger.info(f"[章节详情] 从文件系统读取章节 {chapter_num}: {chapter_file}")
+                except Exception as e:
+                    logger.warning(f"[章节详情] 从文件系统读取失败: {e}")
+            
             if not chapter_detail:
                 return jsonify({"error": "章节不存在"}), 404
 
