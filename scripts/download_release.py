@@ -36,7 +36,7 @@ def get_latest_release():
         response.raise_for_status()
         return response.json()
     except requests.exceptions.RequestException as e:
-        print(f"❌ 获取 Release 信息失败: {e}")
+        print(f"[FAIL] 获取 Release 信息失败: {e}")
         return None
 
 
@@ -49,14 +49,14 @@ def get_release_by_tag(tag):
         response.raise_for_status()
         return response.json()
     except requests.exceptions.RequestException as e:
-        print(f"❌ 获取 Release 信息失败: {e}")
+        print(f"[FAIL] 获取 Release 信息失败: {e}")
         return None
 
 
 def download_file(url: str, dest_path: Path, filename: str):
     """下载文件并显示进度"""
     try:
-        print(f"⬇️  开始下载: {filename}")
+        print(f">>  开始下载: {filename}")
         
         response = requests.get(url, stream=True, timeout=300)
         response.raise_for_status()
@@ -78,11 +78,11 @@ def download_file(url: str, dest_path: Path, filename: str):
                         total_mb = total_size / (1024 * 1024)
                         print(f"\r   进度: {percent:.1f}% ({mb:.1f}MB / {total_mb:.1f}MB)", end='', flush=True)
         
-        print(f"\n✅ 下载完成: {filename} ({downloaded/1024/1024:.1f}MB)")
+        print(f"\n[OK] 下载完成: {filename} ({downloaded/1024/1024:.1f}MB)")
         return True
         
     except requests.exceptions.RequestException as e:
-        print(f"\n❌ 下载失败: {e}")
+        print(f"\n[FAIL] 下载失败: {e}")
         if dest_path.exists():
             dest_path.unlink()
         return False
@@ -93,17 +93,17 @@ def download_release_assets(release_data: dict):
     assets = release_data.get('assets', [])
     
     if not assets:
-        print("⚠️  该 Release 没有可下载的文件")
+        print("[WARN]  该 Release 没有可下载的文件")
         return False
     
     # 创建 release 目录
     RELEASE_DIR.mkdir(parents=True, exist_ok=True)
     
-    print(f"\n📦 发现 {len(assets)} 个文件:")
+    print(f"\n[PKG] 发现 {len(assets)} 个文件:")
     for asset in assets:
         print(f"   - {asset['name']} ({asset['size']/1024/1024:.1f}MB)")
     
-    print(f"\n💾 下载位置: {RELEASE_DIR.absolute()}\n")
+    print(f"\n[SAVE] 下载位置: {RELEASE_DIR.absolute()}\n")
     
     # 下载每个文件
     success_count = 0
@@ -114,7 +114,7 @@ def download_release_assets(release_data: dict):
         
         # 如果文件已存在，询问是否覆盖
         if dest_path.exists():
-            print(f"⚠️  文件已存在: {filename}")
+            print(f"[WARN]  文件已存在: {filename}")
             response = input(f"   是否覆盖? (y/n): ").strip().lower()
             if response != 'y':
                 print(f"   跳过: {filename}")
@@ -129,20 +129,20 @@ def download_release_assets(release_data: dict):
 def main():
     """主函数"""
     print("=" * 60)
-    print("🚀 GitHub Releases 下载工具")
+    print("GitHub Releases 下载工具")
     print("=" * 60)
     
     # 获取版本标签
     if len(sys.argv) > 1:
         tag = sys.argv[1]
-        print(f"\n📋 指定版本: {tag}")
+        print(f"\n[INFO] 指定版本: {tag}")
         release_data = get_release_by_tag(tag)
     else:
-        print(f"\n📋 获取最新版本...")
+        print(f"\n[INFO] 获取最新版本...")
         release_data = get_latest_release()
     
     if not release_data:
-        print("\n❌ 无法获取 Release 信息")
+        print("\n[FAIL] 无法获取 Release 信息")
         print("\n可能的解决方案:")
         print("1. 检查网络连接")
         print("2. 确认仓库名称正确 (当前: {}/{})".format(GITHUB_OWNER, GITHUB_REPO))
@@ -154,7 +154,7 @@ def main():
     name = release_data.get('name', 'No title')
     published_at = release_data.get('published_at', '')
     
-    print(f"\n✅ 找到 Release:")
+    print(f"\n[OK] 找到 Release:")
     print(f"   标签: {tag_name}")
     print(f"   标题: {name}")
     print(f"   发布时间: {published_at}")
@@ -162,7 +162,7 @@ def main():
     # 下载文件
     if download_release_assets(release_data):
         print("\n" + "=" * 60)
-        print("✅ 所有文件下载成功!")
+        print("[OK] 所有文件下载成功!")
         print("=" * 60)
         print(f"\n📂 文件位置: {RELEASE_DIR.absolute()}")
         print("\n下一步操作:")
@@ -174,7 +174,7 @@ def main():
         return True
     else:
         print("\n" + "=" * 60)
-        print("⚠️  部分文件下载失败")
+        print("[WARN]  部分文件下载失败")
         print("=" * 60)
         return False
 

@@ -20,7 +20,7 @@ from pathlib import Path
 def check_platform():
     """检查是否在 macOS 上运行"""
     if sys.platform != 'darwin':
-        print("⚠️  警告: 当前不是 macOS 系统，打包可能失败")
+        print("[WARN] 警告: 当前不是 macOS 系统，打包可能失败")
         print(f"当前系统: {sys.platform}")
         return False
     return True
@@ -29,10 +29,10 @@ def install_pyinstaller():
     """确保 PyInstaller 已安装"""
     try:
         import PyInstaller
-        print("✅ PyInstaller 已安装")
+        print("[OK] PyInstaller 已安装")
         return True
     except ImportError:
-        print("📦 安装 PyInstaller...")
+        print("[INFO] 安装 PyInstaller...")
         subprocess.run([sys.executable, '-m', 'pip', 'install', 'pyinstaller'], check=True)
         return True
 
@@ -42,16 +42,16 @@ def create_icns_icon():
     icns_path = Path('resources/icon.icns')
     
     if not icon_path.exists():
-        print("⚠️  未找到图标文件，跳过图标设置")
+        print("[WARN] 未找到图标文件，跳过图标设置")
         return None
     
     if icns_path.exists():
-        print("✅ 图标已存在")
+        print("[OK] 图标已存在")
         return str(icns_path)
     
     # 尝试使用 sips 和 iconutil 创建 icns
     try:
-        print("🎨 创建 macOS 图标...")
+        print("[INFO] 创建 macOS 图标...")
         temp_dir = Path('temp_icon.iconset')
         temp_dir.mkdir(exist_ok=True)
         
@@ -78,17 +78,17 @@ def create_icns_icon():
         # 清理临时文件
         shutil.rmtree(temp_dir)
         
-        print(f"✅ 图标创建完成: {icns_path}")
+        print(f"[OK] 图标创建完成: {icns_path}")
         return str(icns_path)
         
     except Exception as e:
-        print(f"⚠️  创建图标失败: {e}")
+        print(f"[WARN] 创建图标失败: {e}")
         return None
 
 def build_macos():
     """打包 macOS 应用"""
     print("=" * 60)
-    print("🍎 NovelPublisher macOS 打包工具")
+    print("NovelPublisher macOS 打包工具")
     print("=" * 60)
     
     # 检查平台
@@ -101,7 +101,7 @@ def build_macos():
     icon_path = create_icns_icon()
     
     # 清理旧的构建文件
-    print("🧹 清理旧的构建文件...")
+    print("[INFO] 清理旧的构建文件...")
     dirs_to_clean = ['build', 'dist']
     for dir_name in dirs_to_clean:
         if os.path.exists(dir_name):
@@ -109,7 +109,7 @@ def build_macos():
             print(f"  删除 {dir_name}/")
     
     # 准备 PyInstaller 参数
-    print("📦 开始打包...")
+    print("[INFO] 开始打包...")
     
     cmd = [
         sys.executable, '-m', 'PyInstaller',
@@ -153,7 +153,7 @@ def build_macos():
     try:
         subprocess.run(cmd, check=True)
         print("\n" + "=" * 60)
-        print("✅ 打包完成!")
+        print("[OK] 打包完成!")
         print("=" * 60)
         
         # 创建压缩包（方便下载）
@@ -161,10 +161,10 @@ def build_macos():
         zip_path = Path('dist/NovelPublisher-macos.zip')
         
         if app_path.exists():
-            print(f"\n📱 应用位置: {app_path.absolute()}")
+            print(f"\n[INFO] 应用位置: {app_path.absolute()}")
             
             # 创建 zip 压缩包
-            print("\n📦 创建压缩包...")
+            print("\n[INFO] 创建压缩包...")
             shutil.make_archive(
                 'dist/NovelPublisher-macos',
                 'zip',
@@ -173,11 +173,11 @@ def build_macos():
             )
             
             if zip_path.exists():
-                print(f"✅ 压缩包位置: {zip_path.absolute()}")
+                print(f"[OK] 压缩包位置: {zip_path.absolute()}")
                 
                 # 计算文件大小
                 size_mb = zip_path.stat().st_size / (1024 * 1024)
-                print(f"📊 文件大小: {size_mb:.1f} MB")
+                print(f"[INFO] 文件大小: {size_mb:.1f} MB")
                 
                 # 复制到 desktop_uploader/release/ 目录供 Web 下载
                 release_dir = Path('desktop_uploader/release')
@@ -193,10 +193,10 @@ def build_macos():
                 
                 release_path = release_dir / release_name
                 shutil.copy(zip_path, release_path)
-                print(f"📤 已复制到 Web 下载目录: {release_path}")
+                print(f"[OK] 已复制到 Web 下载目录: {release_path}")
         
         print("\n" + "=" * 60)
-        print("📋 使用说明:")
+        print("[INFO] 使用说明:")
         print("=" * 60)
         print("1. 首次运行时，在 Finder 中找到 NovelPublisher.app")
         print("2. 按住 Control 键点击应用图标")
@@ -211,10 +211,10 @@ def build_macos():
         return True
         
     except subprocess.CalledProcessError as e:
-        print(f"\n❌ 打包失败: {e}")
+        print(f"\n[FAIL] 打包失败: {e}")
         return False
     except Exception as e:
-        print(f"\n❌ 错误: {e}")
+        print(f"\n[ERROR] 错误: {e}")
         import traceback
         traceback.print_exc()
         return False

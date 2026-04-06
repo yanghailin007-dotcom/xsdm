@@ -20,7 +20,7 @@ from pathlib import Path
 def check_platform():
     """检查是否在 Windows 上运行"""
     if sys.platform != 'win32':
-        print("⚠️  警告: 当前不是 Windows 系统")
+        print("[WARN] 警告: 当前不是 Windows 系统")
         print(f"当前系统: {sys.platform}")
     return True
 
@@ -28,24 +28,24 @@ def install_pyinstaller():
     """确保 PyInstaller 已安装"""
     try:
         import PyInstaller
-        print("✅ PyInstaller 已安装")
+        print("[OK] PyInstaller 已安装")
         return True
     except ImportError:
-        print("📦 安装 PyInstaller...")
+        print("[INFO] 安装 PyInstaller...")
         subprocess.run([sys.executable, '-m', 'pip', 'install', 'pyinstaller'], check=True)
         return True
 
 def build_windows():
     """打包 Windows 应用"""
     print("=" * 60)
-    print("🪟 NovelPublisher Windows 打包工具")
+    print("NovelPublisher Windows 打包工具")
     print("=" * 60)
     
     check_platform()
     install_pyinstaller()
     
     # 清理旧的构建文件
-    print("🧹 清理旧的构建文件...")
+    print("[INFO] 清理旧的构建文件...")
     dirs_to_clean = ['build', 'dist']
     for dir_name in dirs_to_clean:
         if os.path.exists(dir_name):
@@ -53,7 +53,7 @@ def build_windows():
             print(f"  删除 {dir_name}/")
     
     # 准备 PyInstaller 参数
-    print("📦 开始打包...")
+    print("[INFO] 开始打包...")
     
     cmd = [
         sys.executable, '-m', 'PyInstaller',
@@ -96,7 +96,7 @@ def build_windows():
     try:
         subprocess.run(cmd, check=True)
         print("\n" + "=" * 60)
-        print("✅ 打包完成!")
+        print("[OK] 打包完成!")
         print("=" * 60)
         
         exe_path = Path('dist/NovelPublisher.exe')
@@ -104,18 +104,18 @@ def build_windows():
         if exe_path.exists():
             # 计算文件大小
             size_mb = exe_path.stat().st_size / (1024 * 1024)
-            print(f"\n📦 可执行文件: {exe_path.absolute()}")
-            print(f"📊 文件大小: {size_mb:.1f} MB")
+            print(f"\n[INFO] 可执行文件: {exe_path.absolute()}")
+            print(f"[INFO] 文件大小: {size_mb:.1f} MB")
             
             # 复制到 desktop_uploader/release/ 目录供 Web 下载
             release_dir = Path('desktop_uploader/release')
             release_dir.mkdir(parents=True, exist_ok=True)
             release_path = release_dir / 'NovelPublisher.exe'
             shutil.copy(exe_path, release_path)
-            print(f"📤 已复制到 Web 下载目录: {release_path}")
+            print(f"[OK] 已复制到 Web 下载目录: {release_path}")
         
         print("\n" + "=" * 60)
-        print("📋 使用说明:")
+        print("[INFO] 使用说明:")
         print("=" * 60)
         print("双击 NovelPublisher.exe 即可运行")
         print("首次运行可能需要允许 Windows Defender 访问")
@@ -124,10 +124,10 @@ def build_windows():
         return True
         
     except subprocess.CalledProcessError as e:
-        print(f"\n❌ 打包失败: {e}")
+        print(f"\n[FAIL] 打包失败: {e}")
         return False
     except Exception as e:
-        print(f"\n❌ 错误: {e}")
+        print(f"\n[FAIL] 错误: {e}")
         import traceback
         traceback.print_exc()
         return False
