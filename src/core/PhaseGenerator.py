@@ -565,9 +565,10 @@ class PhaseGenerator:
             if not isinstance(novel_config, dict):
                 return False
             
-            # 必须显式启用
-            use_conversation = novel_config.get('use_creative_conversation_mode', False)
+            # 🔥 默认启用对话模式（可通过配置显式关闭）
+            use_conversation = novel_config.get('use_creative_conversation_mode', True)
             if not use_conversation:
+                logger.info("创意到方案对话模式已显式禁用，使用传统模式")
                 return False
             
             self.logger.info("✅ 满足条件，启用创意到方案对话模式")
