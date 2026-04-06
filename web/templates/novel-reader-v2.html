@@ -393,6 +393,31 @@ html.reader-mode main.v2-main {
     max-width: 120px;
 }
 
+/* 加载更多按钮 */
+.reader-load-more {
+    display: flex;
+    justify-content: center;
+    padding: 40px 20px 80px;
+}
+
+.reader-load-more__btn {
+    padding: 12px 32px;
+    background: var(--reader-accent);
+    color: #fff;
+    border: none;
+    border-radius: 24px;
+    font-size: 15px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+}
+
+.reader-load-more__btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+    opacity: 0.9;
+}
+
 /* 加载状态 */
 .reader-loader {
     display: flex;
@@ -1045,6 +1070,16 @@ class NovelReader {
                     await this.loadChapter(nextNum, true);
                 }
             }
+            // 添加加载更多按钮
+            this._addLoadMoreButton();
+            
+            // 🔥 定时检查：防止 isLoadingNext 卡住
+            setInterval(() => {
+                if (this.isLoadingNext) {
+                    console.log('[阅读器] 检测到 isLoadingNext 卡住，自动重置');
+                    this.isLoadingNext = false;
+                }
+            }, 10000); // 每10秒检查一次
         } catch (e) {
             console.error('初始化加载失败:', e);
             this.showError('加载失败，请刷新重试');
@@ -1159,6 +1194,67 @@ class NovelReader {
 
         // 更新进度
         this.updateProgress();
+        
+        // 🔥 在最后一章后添加"加载更多"按钮（如果还有更多章节）
+        if (append) {
+            this._addLoadMoreButton();
+        }
+    }
+    
+    _addLoadMoreButton() {
+        // 移除旧的加载按钮
+        const oldBtn = document.getElementById('reader-load-more');
+        if (oldBtn) oldBtn.remove();
+        
+        // 获取当前最后渲染的章节
+        const renderedChapters = this.contentEl.querySelectorAll('.reader-chapter');
+        if (renderedChapters.length === 0) return;
+        
+        const lastChapter = renderedChapters[renderedChapters.length - 1];
+        const lastChapterNum = parseInt(lastChapter.dataset.chapterNum);
+        const nextNum = lastChapterNum + 1;
+        
+        // 检查是否还有更多章节
+        const hasMore = this.chapters.some(ch => (ch.number || ch.chapter_number) >= nextNum);
+        if (!hasMore && this.chapters.length > 0) return;
+        
+        // 检查是否已缓存
+        if (this.loadedChapters.has(nextNum)) return;
+        
+        // 添加加载按钮
+        const loadMoreEl = document.createElement('div');
+        loadMoreEl.id = 'reader-load-more';
+        loadMoreEl.className = 'reader-load-more';
+        loadMoreEl.innerHTML = `
+            <button class="reader-load-more__btn" onclick="reader.loadNextChapter()">
+                <span>加载下一章</span>
+            </button>
+        `;
+        this.contentEl.appendChild(loadMoreEl);
+    }
+    
+    loadNextChapter() {
+        const renderedChapters = this.contentEl.querySelectorAll('.reader-chapter');
+        if (renderedChapters.length === 0) return;
+        
+        const lastChapter = renderedChapters[renderedChapters.length - 1];
+        const lastChapterNum = parseInt(lastChapter.dataset.chapterNum);
+        const nextNum = lastChapterNum + 1;
+        
+        // 移除加载按钮
+        const loadMoreEl = document.getElementById('reader-load-more');
+        if (loadMoreEl) loadMoreEl.remove();
+        
+        this.loadChapter(nextNum, true).then(() => {
+            // 预加载下下章
+            const preloadNum = nextNum + 1;
+            if (!this.loadedChapters.has(preloadNum)) {
+                const hasMore = this.chapters.some(ch => (ch.number || ch.chapter_number) >= preloadNum);
+                if (hasMore || this.chapters.length === 0) {
+                    this.loadChapter(preloadNum, true);
+                }
+            }
+        });
     }
 
     renderChapterList() {
@@ -1431,18 +1527,25 @@ class NovelReader {
             const scrollTop = this.scrollEl.scrollTop;
             const scrollHeight = this.scrollEl.scrollHeight - this.scrollEl.clientHeight;
 
-            // 滚动到底 60% 预加载（提前加载，无感阅读）
-            if (scrollHeight > 0 && scrollTop / scrollHeight > 0.6 && !this.isLoadingNext) {
+            // 滚动到底 50% 预加载（提前加载，无感阅读）- 降低阈值更容易触发
+            const scrollProgress = scrollHeight > 0 ? scrollTop / scrollHeight : 0;
+            if (scrollProgress > 0.5 && !this.isLoadingNext) {
+                console.log('[阅读器] 触发滚动加载，进度:', scrollProgress.toFixed(2));
                 const renderedChapters = this.contentEl.querySelectorAll('.reader-chapter');
                 if (renderedChapters.length > 0) {
                     const lastChapter = renderedChapters[renderedChapters.length - 1];
                     const lastChapterNum = parseInt(lastChapter.dataset.chapterNum);
                     const nextNum = lastChapterNum + 1;
                     
+                    console.log('[阅读器] 最后章节:', lastChapterNum, '准备加载:', nextNum, '章节列表:', this.chapters.length);
+                    
                     // 检查是否已经加载过该章节
                     if (!this.loadedChapters.has(nextNum)) {
                         const hasNext = this.chapters.some(ch => (ch.number || ch.chapter_number) >= nextNum);
+                        console.log('[阅读器] 是否有下一章:', hasNext);
                         if (hasNext || this.chapters.length === 0) {
+                            console.log('[阅读器] 开始加载第', nextNum, '章');
+                            this.isLoadingNext = true; // 提前设置标志
                             // 🔥 加载下一章，并预加载下下章
                             this.loadChapter(nextNum, true).then(() => {
                                 // 加载完成后，继续预加载后面一章
@@ -1453,8 +1556,12 @@ class NovelReader {
                                         this.loadChapter(preloadNum, true);
                                     }
                                 }
+                            }).catch(() => {
+                                this.isLoadingNext = false; // 错误时重置
                             });
                         }
+                    } else {
+                        console.log('[阅读器] 第', nextNum, '章已缓存');
                     }
                 }
             }
