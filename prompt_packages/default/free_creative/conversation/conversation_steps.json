@@ -1,0 +1,94 @@
+{
+  "_comment": "自由创意模式：创意到方案对话流程配置",
+  "version": "1.0.0",
+  "mode": "creative_to_plan_conversation",
+  "total_steps": 4,
+  "steps": [
+    {
+      "step_id": "commercial_analysis",
+      "name": "商业化分析",
+      "description": "番茄平台适配分析、同人文检测与背景补充、核心卖点提炼",
+      "progress": 20,
+      "ui_stage": "analysis",
+      "ui_label": "创意分析",
+      "estimated_time": "30-60秒",
+      "outputs": [
+        "is_fanfiction",
+        "original_work",
+        "tomato_analysis",
+        "core_selling_points",
+        "creative_expansion"
+      ]
+    },
+    {
+      "step_id": "multi_plan_generation",
+      "name": "多方案生成",
+      "description": "生成2-3个差异化方案并进行AI评分",
+      "progress": 40,
+      "ui_stage": "planning",
+      "ui_label": "方案生成",
+      "estimated_time": "45-90秒",
+      "outputs": [
+        "plans",
+        "comparison"
+      ]
+    },
+    {
+      "step_id": "selection_bestseller",
+      "name": "智能选优与爆款对标",
+      "description": "自动选择最优方案，对比番茄爆款进行优化",
+      "progress": 70,
+      "ui_stage": "optimization",
+      "ui_label": "方案优化",
+      "estimated_time": "30-60秒",
+      "outputs": [
+        "selection",
+        "bestseller_comparison",
+        "optimized_plan"
+      ]
+    },
+    {
+      "step_id": "final_plan_deepening",
+      "name": "最终方案深化",
+      "description": "深化为完整可执行的final_plan",
+      "progress": 100,
+      "ui_stage": "finalization",
+      "ui_label": "方案完成",
+      "estimated_time": "45-90秒",
+      "outputs": [
+        "final_plan",
+        "tomato_upload_data"
+      ]
+    }
+  ],
+  "ui_mapping": {
+    "analysis": {
+      "icon": "📊",
+      "color": "#1890ff",
+      "description": "正在分析创意的商业化潜力..."
+    },
+    "planning": {
+      "icon": "💡",
+      "color": "#52c41a",
+      "description": "正在生成多个差异化方案..."
+    },
+    "optimization": {
+      "icon": "⚡",
+      "color": "#faad14",
+      "description": "正在对比爆款并优化方案..."
+    },
+    "finalization": {
+      "icon": "✨",
+      "color": "#722ed1",
+      "description": "正在深化最终方案..."
+    }
+  },
+  "features": {
+    "auto_fanfiction_detection": true,
+    "auto_background_supplement": true,
+    "multi_plan_scoring": true,
+    "auto_selection": true,
+    "bestseller_comparison": true,
+    "tomato_data_generation": true
+  }
+}

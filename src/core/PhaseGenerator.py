@@ -28,6 +28,15 @@ try:
 except ImportError:
     PARTIAL_FOUNDATION_SESSION_AVAILABLE = False
 
+# 💬 导入创意到方案对话会话
+try:
+    from src.core.creative_to_plan_conversation import CreativeToPlanConversation
+    CREATIVE_CONVERSATION_AVAILABLE = True
+except ImportError as e:
+    CREATIVE_CONVERSATION_AVAILABLE = False
+    import logging
+    logging.getLogger(__name__).warning(f"创意到方案对话会话不可用: {e}")
+
 # 🔑 全局线程池监控（用于强制清理）
 _global_executors = weakref.WeakSet()
 
@@ -251,7 +260,20 @@ class PhaseGenerator:
         try:
             print("开始第一阶段准备工作...")
             
-            # 🚀🚀🚀 分域会话模式检测（优先级最高）
+            # 💬💬💬 创意到方案对话模式（优先级最高 - 最快）
+            if CREATIVE_CONVERSATION_AVAILABLE and self._should_use_creative_conversation_mode():
+                print("\n" + "="*60)
+                print("💬 启用创意到方案对话模式")
+                print("   4步全自动：分析 → 多方案 → 选优对标 → 深化")
+                print("   单一会话复用，4轮对话完成")
+                print("="*60)
+                return self._generate_phase_one_with_creative_conversation(
+                    update_progress_callback=update_progress_callback,
+                    update_step_status=update_step_status,
+                    notify_failure=notify_failure
+                )
+            
+            # 🚀🚀🚀 分域会话模式检测
             if DOMAIN_SESSION_MODE_AVAILABLE and self._should_use_domain_session_mode():
                 print("\n" + "="*60)
                 print("🚀 启用分域会话模式")
@@ -522,6 +544,199 @@ class PhaseGenerator:
             traceback.print_exc()
             notify_failure(error_msg)
             return False
+    
+    def _should_use_creative_conversation_mode(self) -> bool:
+        """
+        判断是否应使用创意到方案对话模式
+        
+        条件：
+        1. 配置中显式启用 use_creative_conversation_mode
+        2. CreativeToPlanConversation 可用
+        3. API 客户端可用
+        """
+        try:
+            if not CREATIVE_CONVERSATION_AVAILABLE:
+                return False
+            
+            if not hasattr(self.generator, 'api_client') or not self.generator.api_client:
+                return False
+            
+            novel_config = getattr(self.generator, 'config', {})
+            if not isinstance(novel_config, dict):
+                return False
+            
+            # 必须显式启用
+            use_conversation = novel_config.get('use_creative_conversation_mode', False)
+            if not use_conversation:
+                return False
+            
+            self.logger.info("✅ 满足条件，启用创意到方案对话模式")
+            return True
+            
+        except Exception as e:
+            self.logger.warning(f"⚠️ 检测创意对话模式时出错: {e}")
+            return False
+    
+    def _generate_phase_one_with_creative_conversation(
+        self, 
+        update_progress_callback, 
+        update_step_status, 
+        notify_failure
+    ) -> bool:
+        """
+        使用创意到方案对话模式执行一阶段
+        
+        4步全自动流程：
+        1. 商业化分析（同人文检测+背景补充）
+        2. 多方案生成与评分
+        3. 智能选优+爆款对标
+        4. 最终方案深化
+        """
+        from src.core.creative_to_plan_conversation import CreativeToPlanConversation
+        
+        try:
+            # 准备 novel_data
+            novel_data = self.generator.novel_data.copy() if hasattr(self.generator.novel_data, 'copy') else dict(self.generator.novel_data)
+            
+            # 提取 API 配置
+            api_client = self.generator.api_client
+            provider = getattr(self.generator, 'provider', 'gemini')
+            model_name = getattr(self.generator, 'model_name', None)
+            temperature = getattr(self.generator, 'temperature', 0.7)
+            
+            # 获取项目路径
+            project_path = getattr(self.generator, 'project_path', None)
+            
+            print("\n💬 CreativeToPlanConversation: 创意到方案对话会话")
+            print("   步骤1: 商业化分析（同人文检测+背景补充）")
+            print("   步骤2: 多方案生成与评分")
+            print("   步骤3: 智能选优+爆款对标")
+            print("   步骤4: 最终方案深化")
+            print("="*60)
+            
+            # 创建对话会话
+            session = CreativeToPlanConversation(
+                api_client=api_client,
+                novel_data=novel_data,
+                provider=provider,
+                model_name=model_name,
+                temperature=temperature
+            )
+            
+            # 设置进度回调
+            def _progress_cb(step_id, progress, message, ui_state=None):
+                # 映射步骤ID到标准步骤名
+                step_mapping = {
+                    'commercial_analysis': 'creative_analysis',
+                    'multi_plan_generation': 'planning',
+                    'selection_bestseller': 'optimization', 
+                    'final_plan_deepening': 'finalization'
+                }
+                standard_step = step_mapping.get(step_id, step_id)
+                
+                # 更新步骤状态
+                update_step_status(standard_step, 'active', progress)
+                
+                # 调用主进度回调
+                detail = ui_state.get('detail', '') if ui_state else ''
+                update_progress_callback(
+                    standard_step, 
+                    progress, 
+                    message,
+                    step_status={standard_step: 'active'}
+                )
+            
+            # 执行所有步骤
+            results = session.execute_all_steps(
+                progress_callback=_progress_cb,
+                project_path=project_path
+            )
+            
+            # 同步结果到 novel_data
+            self._sync_creative_conversation_results(results)
+            
+            # 完成所有步骤
+            final_step_status = {
+                'commercial_analysis': 'completed',
+                'multi_plan_generation': 'completed',
+                'selection_bestseller': 'completed',
+                'final_plan_deepening': 'completed',
+                'creative_analysis': 'completed',
+                'planning': 'completed',
+                'optimization': 'completed',
+                'finalization': 'completed',
+                'completed': 'completed'
+            }
+            
+            update_progress_callback(
+                'completed', 
+                100, 
+                f"创意到方案对话模式完成 | 总轮次: {results.get('turn_count', 0)}",
+                step_status=final_step_status
+            )
+            
+            print(f"\n✅ 创意到方案对话模式完成！")
+            print(f"   总对话轮次: {results.get('turn_count', 0)}")
+            print(f"   生成方案数: {len(results.get('step2_multi_plan', {}).get('plans', []))}")
+            print(f"   选定方案: {results.get('step3_selected_plan', {}).get('selection', {}).get('selected_title', '')}")
+            
+            return True
+            
+        except Exception as e:
+            error_msg = f"创意到方案对话模式执行失败: {str(e)}"
+            print(f"❌ {error_msg}")
+            import traceback
+            traceback.print_exc()
+            notify_failure(error_msg)
+            return False
+    
+    def _sync_creative_conversation_results(self, results: Dict):
+        """同步对话模式结果到 novel_data"""
+        try:
+            final_plan = results.get('final_plan', {})
+            tomato_data = results.get('tomato_upload_data', {})
+            
+            # 同步核心数据
+            if final_plan:
+                self.generator.novel_data['final_plan'] = final_plan
+                self.generator.novel_data['selected_plan'] = final_plan
+                self.generator.novel_data['title'] = final_plan.get('title', '')
+                self.generator.novel_data['novel_title'] = final_plan.get('title', '')
+                
+                # 同步核心设定
+                core_setting = final_plan.get('core_setting', {})
+                if core_setting:
+                    self.generator.novel_data['core_setting'] = core_setting
+                    self.generator.novel_data['worldview'] = core_setting.get('worldview', '')
+                    self.generator.novel_data['character_design'] = {
+                        'protagonist': core_setting.get('protagonist', {})
+                    }
+                
+                # 同步全书结构
+                book_structure = final_plan.get('book_structure', {})
+                if book_structure:
+                    self.generator.novel_data['book_structure'] = book_structure
+                    self.generator.novel_data['stage_plan'] = book_structure
+            
+            # 同步番茄上传数据
+            if tomato_data:
+                self.generator.novel_data['tomato_upload_data'] = tomato_data
+                self.generator.novel_data['recommended_title'] = tomato_data.get('title', '')
+                self.generator.novel_data['core_selling_points'] = [
+                    {'point': sp} for sp in tomato_data.get('selling_points', [])
+                ]
+                self.generator.novel_data['tags'] = tomato_data.get('tags', [])
+            
+            # 保存商业分析结果
+            step1_result = results.get('step1_commercial_analysis', {})
+            if step1_result:
+                self.generator.novel_data['commercial_analysis'] = step1_result
+                self.generator.novel_data['market_analysis'] = step1_result.get('tomato_analysis', {})
+            
+            self.logger.info("✅ 对话模式结果已同步到 novel_data")
+            
+        except Exception as e:
+            self.logger.warning(f"⚠️ 同步对话模式结果时出错: {e}")
     
     def _should_use_partial_foundation_session(self) -> bool:
         """
