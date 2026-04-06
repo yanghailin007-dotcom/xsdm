@@ -1644,16 +1644,22 @@ def _run_chapter_generation_with_plan(task_id: str, genre: str, target_words: in
         
         # 🔥 关键：将final_plan包装成类似tropes的结构，复用现有对话流程
         # 这样 _run_plan_and_products_conversation 可以无缝使用final_plan
+        
+        # 获取金手指信息（优先使用完整的golden_finger，回退到summary）
+        gf_data = final_plan.get('golden_finger', {})
+        if not gf_data or not isinstance(gf_data, dict):
+            gf_data = {
+                "type": final_plan.get('golden_finger_summary', '花钱返利'),
+                "mechanism": final_plan.get('golden_finger_summary', ''),
+                "upgrade": "随主角成长逐步解锁"
+            }
+        
         fake_tropes = {
             "genre": genre,
             "final_plan": final_plan,  # 传递完整的final_plan
             "core_formula": final_plan.get('story_direction', ''),
             "protagonist_archetroype": final_plan.get('protagonist_personality', ''),
-            "golden_finger": {
-                "type": final_plan.get('golden_finger_summary', '花钱返利'),
-                "mechanism": final_plan.get('golden_finger_summary', ''),
-                "upgrade": "随主角成长逐步解锁"
-            },
+            "golden_finger": gf_data,  # 🔥 使用完整的金手指设计
             "core_selling_point": final_plan.get('core_selling_point', ''),
             "opening_hook": final_plan.get('opening_hook', ''),
             # 标记这是来自对话模式的final_plan
