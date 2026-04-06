@@ -601,7 +601,9 @@ class ChapterConversationGenerator:
                     # 收集扣分项详情
                     issues_detail = []
                     for issue in quality_report.issues:
-                        severity_icon = "🔴" if issue.severity.value == "critical" else "🟠" if issue.severity.value == "error" else "🟡"
+                        # 🔥 修复：兼容 severity 是 Enum 或字典的情况
+                        severity_val = issue.severity.value if hasattr(issue.severity, 'value') else issue.severity.get('value', '') if isinstance(issue.severity, dict) else str(issue.severity)
+                        severity_icon = "🔴" if severity_val == "critical" else "🟠" if severity_val == "error" else "🟡"
                         issues_detail.append(f"{severity_icon} [{issue.category}] {issue.message}")
                     
                     issues_str = "\n    ".join(issues_detail) if issues_detail else "无详细扣分项"
@@ -1604,8 +1606,16 @@ class ChapterConversationGenerator:
         
         # 统计问题
         total_issues = sum(len(r.issues) for r in self.quality_reports)
+        # 🔥 修复：兼容 severity 是 Enum 或字典的情况
+        def get_severity_name(sev):
+            if hasattr(sev, 'name'):
+                return sev.name
+            elif isinstance(sev, dict):
+                return sev.get('name', '')
+            return str(sev)
+        
         critical_issues = sum(
-            len([i for i in r.issues if i.severity.name == "CRITICAL"])
+            len([i for i in r.issues if get_severity_name(i.severity) == "CRITICAL"])
             for r in self.quality_reports
         )
         
