@@ -3134,15 +3134,16 @@ def _run_continue_chapter_generation(task_id, title, blueprint, start_chapter, e
             'message': f'开始续写第{start_chapter}-{end_chapter}章'
         })
         
+        # 获取项目路径（必须先获取，传递给生成器）
+        from web.utils.path_utils import get_novel_project_dir
+        project_path = get_novel_project_dir(title, username, create=False)
+        
         # 初始化批量生成器
         from web.services.market_driven.batch_chapter_generator import BatchChapterGenerator
         batch_generator = BatchChapterGenerator(
-            stop_checker=lambda: task_manager.should_stop(task_id)
+            stop_checker=lambda: task_manager.should_stop(task_id),
+            project_path=str(project_path) if project_path else None
         )
-        
-        # 获取项目路径
-        from web.utils.path_utils import get_novel_project_dir
-        project_path = get_novel_project_dir(title, username, create=False)
         
         total_chapters = end_chapter - start_chapter + 1
         generated_chapters = []
@@ -3768,7 +3769,8 @@ def _run_rewrite_generation(task_id, title, project_path, new_settings, username
         # 3. 重新生成章节（使用 _run_chapter_generation 的逻辑）
         from web.services.market_driven.batch_chapter_generator import BatchChapterGenerator
         batch_generator = BatchChapterGenerator(
-            stop_checker=lambda: task_manager.should_stop(task_id)
+            stop_checker=lambda: task_manager.should_stop(task_id),
+            project_path=str(project_path) if project_path else None
         )
         
         total_chapters = new_settings.get('chapters', 200)
