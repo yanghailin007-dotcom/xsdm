@@ -409,6 +409,68 @@ def get_task_status(task_id: str):
         return jsonify({"error": str(e)}), 500
 
 
+@market_driven_api.route('/tasks/<task_id>/stop', methods=['POST'])
+def stop_market_driven_task(task_id: str):
+    """
+    停止正在运行的市场导向生成任务
+    
+    请求体：无
+    
+    响应：
+    {
+        "success": true,
+        "message": "任务已停止"
+    }
+    """
+    try:
+        task = task_manager.get_task(task_id)
+        
+        if not task:
+            return jsonify({"error": "任务不存在"}), 404
+        
+        # 检查任务是否可以停止
+        if task["status"] not in ["pending", "running", "generating", "generating_chapters", "conversation_mode"]:
+            return jsonify({
+                "error": f"任务当前状态为 {task['status']}，无法停止"
+            }), 400
+        
+        # 更新任务状态为停止中
+        task_manager.update_task(
+            task_id,
+            status="stopping",
+            message="正在停止任务..."
+        )
+        
+        logger.info(f"[Task {task_id}] 用户请求停止任务")
+        
+        # 🔥 实际停止逻辑：设置停止标志
+        # 章节生成器会定期检查这个标志
+        task["_should_stop"] = True
+        task["stopped_at"] = datetime.now().isoformat()
+        
+        # 更新任务状态为已停止
+        task_manager.update_task(
+            task_id,
+            status="stopped",
+            message="任务已停止",
+            progress=task.get("progress", 0)
+        )
+        
+        logger.info(f"[Task {task_id}] 任务已停止")
+        
+        return jsonify({
+            "success": True,
+            "message": "任务已停止",
+            "task_id": task_id,
+            "status": "stopped",
+            "stopped_at": task["stopped_at"]
+        }), 200
+        
+    except Exception as e:
+        logger.error(f"停止任务失败: {e}", exc_info=True)
+        return jsonify({"error": str(e)}), 500
+
+
 @market_driven_api.route('/generate', methods=['POST'])
 def start_market_driven_generation():
     """
