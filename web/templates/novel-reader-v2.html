@@ -1177,6 +1177,8 @@ class NovelReader {
         const content = data.content || data.chapter_content || '';
         const wordCount = data.word_count || 0;
 
+        console.log('[阅读器] renderChapter 被调用', {chapterNum, append, hasContent: !!content, contentLength: content.length});
+
         const chapterEl = document.createElement('div');
         chapterEl.className = 'reader-chapter';
         chapterEl.dataset.chapterNum = chapterNum;
@@ -1193,10 +1195,12 @@ class NovelReader {
             divider.innerHTML = `<span>第 ${chapterNum} 章 ${this.escapeHtml(title)}</span>`;
             this.contentEl.appendChild(divider);
             this.contentEl.appendChild(chapterEl);
+            console.log('[阅读器] 章节', chapterNum, '已追加到页面');
         } else {
             this.contentEl.innerHTML = '';
             this.contentEl.appendChild(chapterEl);
             document.getElementById('headerChapterTitle').textContent = title;
+            console.log('[阅读器] 章节', chapterNum, '已替换当前章节');
         }
 
         // 更新章节列表高亮
