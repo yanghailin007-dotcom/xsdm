@@ -1507,6 +1507,13 @@ class NovelReader {
             }
         });
 
+        // 鼠标滚轮事件 - 转发到滚动区域（热区覆盖在上方会拦截滚轮事件）
+        touchLayer.addEventListener('wheel', (e) => {
+            // 将滚轮事件转发给滚动区域
+            this.scrollEl.scrollTop += e.deltaY;
+            e.preventDefault();
+        }, { passive: false });
+
         // 键盘导航
         document.addEventListener('keydown', (e) => {
             if (e.key === 'Escape') {
