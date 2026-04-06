@@ -1,8 +1,0 @@
-feat: 重构市场导向创作流程 - 分离对话打磨和快速表单模式
-
-主要变更:
-1. 新增模式选择页面(market-driven-mode-select.html)
-2. 恢复并优化对话打磨模式UI(7步完整流程)
-3. 快速表单模式保持独立不变
-4. 添加dialog/next和dialog/complete API路由
-5. 修复悬浮任务监控组件的中文stage显示

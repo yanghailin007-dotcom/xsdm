@@ -707,12 +707,22 @@
             
             // 根据状态决定显示什么按钮
             let actionButtons = '';
+            // 检测是否是停止失败状态
+            const isStopFailed = task.stage && task.stage.includes('停止失败');
+            
             if (isStopping) {
                 // 正在停止状态：显示停用的停止按钮
                 actionButtons = `
                         <button class="gtf-btn gtf-btn-danger" disabled style="opacity: 0.6;">
                             <span class="material-icons" style="font-size: 14px;">hourglass_empty</span>
                             停止中...
+                        </button>`;
+            } else if (isStopFailed) {
+                // 停止失败：显示关闭按钮（允许用户移除任务）
+                actionButtons = `
+                        <button class="gtf-btn gtf-btn-secondary" onclick="dismissTask('${task.task_id}')">
+                            <span class="material-icons" style="font-size: 14px;">close</span>
+                            移除记录
                         </button>`;
             } else if (isRunning) {
                 // 运行中：显示停止按钮
@@ -945,13 +955,21 @@
         }
     };
     
-    // 关闭任务（从列表移除）- 已完成或已停止的任务
+    // 关闭任务（从列表移除）- 已完成、已停止或停止失败的任务
     window.dismissTask = function(taskId) {
         const task = TaskManager.getTask(taskId);
+        const isStopFailed = task?.stage && task.stage.includes('停止失败');
         
         // 如果任务完成了，提示用户可以在历史记录中找到
         if (task?.status === 'completed') {
             if (!confirm('确定要从列表移除这个已完成的任务吗？\n\n提示：移除后任务将不再显示在此列表中，但已生成的小说仍然可以在"历史记录"中找到。')) {
+                return;
+            }
+        }
+        
+        // 停止失败的任务，提示用户
+        if (isStopFailed) {
+            if (!confirm('确定要从列表移除这个任务吗？\n\n⚠️ 此任务停止失败，可能是因为服务器连接中断或任务已经在后台继续运行。\n移除后任务将不再显示在此列表中。')) {
                 return;
             }
         }
