@@ -2017,6 +2017,20 @@ def register_contract_routes(app):
             logger.error(f"❌ 加载市场导向方案页面失败: {e}")
             return f"页面加载失败: {str(e)}", 500
     
+    # 支持 /pages/v2/ 路径格式（与前端跳转保持一致）
+    @app.route('/pages/v2/market-driven-plan.html')
+    def market_driven_plan_page_v2():
+        """市场导向创作方案页面 - 支持续写/规划模式"""
+        try:
+            from flask import render_template, request
+            genre = request.args.get('genre', '')
+            title = request.args.get('title', '')
+            mode = request.args.get('mode', '')
+            return render_template('pages/v2/market-driven-plan.html', genre=genre, title=title, mode=mode)
+        except Exception as e:
+            logger.error(f"❌ 加载市场导向方案页面失败: {e}")
+            return f"页面加载失败: {str(e)}", 500
+    
     @app.route('/market-driven-plan-dialog')
     def market_driven_plan_dialog_page():
         """市场导向创作方案页面 - 对话打磨模式"""
