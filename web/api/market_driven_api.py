@@ -3188,8 +3188,9 @@ def _run_continue_chapter_generation(task_id, title, blueprint, start_chapter, e
                     novel_data=novel_data
                 )
                 
-                if result and 'chapters' in result:
-                    generated_chapters.extend(result['chapters'])
+                # generate_batch 返回的是 'generated' 字段，不是 'chapters'
+                if result and 'generated' in result:
+                    generated_chapters.extend(result['generated'])
                     total_words += result.get('total_words', 0)
                     
                     # 更新进度
@@ -3808,8 +3809,9 @@ def _run_rewrite_generation(task_id, title, project_path, new_settings, username
                     novel_data=novel_data
                 )
                 
-                if result and 'chapters' in result:
-                    generated_chapters.extend(result['chapters'])
+                # generate_batch 返回的是 'generated' 字段，不是 'chapters'
+                if result and 'generated' in result:
+                    generated_chapters.extend(result['generated'])
                     total_words += result.get('total_words', 0)
                     
                     # 更新进度
