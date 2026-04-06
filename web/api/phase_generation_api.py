@@ -1850,7 +1850,10 @@ def register_additional_routes(app):
     def get_projectsWithPhaseStatus():
         """获取所有项目及其两阶段状态"""
         try:
-            if not manager:
+            # 🔥 修复：使用 get_manager() 确保管理器已初始化
+            mgr = get_manager()
+            if not mgr:
+                logger.error("[WITH_PHASE_STATUS] Manager 未初始化")
                 return jsonify({"success": False, "error": "Manager not initialized"}), 500
             
             # 🔥 改进：使用 list_user_projects 获取带路径的项目信息
@@ -1864,7 +1867,7 @@ def register_additional_routes(app):
             project_path_map = {p['title']: p for p in user_projects_with_paths}
             
             # 获取所有小说项目
-            all_projects = manager.get_novel_projects()
+            all_projects = mgr.get_novel_projects()
             
             # 🔥 改进：使用与前端相同的ProductLoader来检查产物
             # 为每个项目添加阶段状态信息
@@ -2054,11 +2057,13 @@ def register_additional_routes(app):
                     "hint": "请从正常入口访问，不要直接在URL中输入undefined"
                 }), 400
             
-            if not manager:
+            # 🔥 修复：使用 get_manager() 确保管理器已初始化
+            mgr = get_manager()
+            if not mgr:
                 return jsonify({"success": False, "error": "Manager not initialized"}), 500
             
             # 🔥 关键修复：先尝试获取项目详情
-            novel_detail = manager.get_novel_detail(title)
+            novel_detail = mgr.get_novel_detail(title)
             
             # 检查缓存的项目是否有章节数据
             has_chapters = False
@@ -2135,7 +2140,7 @@ def register_additional_routes(app):
                                 owner_value = current_user
                                 novel_data['owner'] = owner_value
                                 # 强制重新加载项目数据
-                                manager._load_project_from_data(title, novel_data, title, owner=owner_value)
+                                mgr._load_project_from_data(title, novel_data, title, owner=owner_value)
                                 logger.info(f"[PROJECT_INFO] 已强制重新加载项目 {title}, owner={owner_value}")
                                 break
                     except Exception as e:
@@ -2146,7 +2151,7 @@ def register_additional_routes(app):
                     logger.warning(f"[PROJECT_INFO] 未找到项目 {title}")
                 
                 # 再次获取项目详情
-                novel_detail = manager.get_novel_detail(title)
+                novel_detail = mgr.get_novel_detail(title)
             
             # 🔥 关键修复：如果仍然找不到，尝试直接从文件系统加载项目
             if not novel_detail:
@@ -2190,7 +2195,7 @@ def register_additional_routes(app):
                                     owner_value = current_user
                                 novel_data['owner'] = owner_value
                                 # 加载到 manager
-                                manager._load_project_from_data(
+                                mgr._load_project_from_data(
                                     title, 
                                     novel_data, 
                                     title, 
@@ -2200,7 +2205,7 @@ def register_additional_routes(app):
                                 break
                         
                         # 再次尝试获取项目详情
-                        novel_detail = manager.get_novel_detail(title)
+                        novel_detail = mgr.get_novel_detail(title)
                     except Exception as e:
                         logger.error(f"[PROJECT_INFO] 直接加载项目失败: {e}")
             
