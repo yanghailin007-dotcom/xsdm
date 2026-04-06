@@ -682,7 +682,7 @@
             const tContinueDesign = typeof I18N !== 'undefined' ? I18N.t('projectMgmt.action.continueDesign') : '⚙️ 继续设计';
             const tExport = typeof I18N !== 'undefined' ? I18N.t('projectMgmt.action.export') : '📥 导出';
             const tDelete = typeof I18N !== 'undefined' ? I18N.t('projectMgmt.action.delete') : '🗑️ 删除';
-            const tPlan = '规划'; // 🔥 新增
+            const tRewrite = '重写'; // 🔥 新增
             
             // 检查封面是否存在（用于显示警告图标）
             const hasCover = project.has_cover || false;
@@ -691,7 +691,7 @@
             // 🔥 新增：市场导向模式按钮
             if (isMarketDriven) {
                 buttons += `
-                    <button class="v2-btn v2-btn--primary" onclick="goToMarketDrivenWithCoverCheck('${escapeJs(project.title)}', ${hasCover})">${coverWarningIcon}${tPlan}</button>
+                    <button class="v2-btn v2-btn--primary" onclick="rewriteNovelWithCoverCheck('${escapeJs(project.title)}', ${hasCover})" style="background: linear-gradient(135deg, #ef4444, #f87171);">${coverWarningIcon}${tRewrite}</button>
                     <button class="v2-btn v2-btn--secondary" onclick="continueMarketDrivenWithCoverCheck('${escapeJs(project.title)}', ${hasCover})">${tContinue}</button>
                     <button class="v2-btn v2-btn--secondary" onclick="viewQualityAssessment('${escapeJs(project.title)}')">${tQuality}</button>
                     <button class="v2-btn v2-btn--secondary" onclick="goToVideoGeneration('${escapeJs(project.title)}')">${tVideo}</button>
@@ -1112,6 +1112,20 @@
                 });
             } else {
                 continueMarketDriven(projectTitle);
+            }
+        }
+        
+        // 工位新增：带确认对话框的重写跳转函数
+        async function rewriteNovelWithCoverCheck(projectTitle, hasCover) {
+            const confirmed = confirm(`警告：重写将删除该项目的所有已生成章节，并基于当前设定重新生成。\n\n确定要继续吗？`);
+            if (!confirmed) return;
+            
+            if (!hasCover) {
+                showCoverMissingDialog(projectTitle, () => {
+                    window.location.href = `/pages/v2/market-driven-plan.html?title=${encodeURIComponent(projectTitle)}&mode=rewrite`;
+                });
+            } else {
+                window.location.href = `/pages/v2/market-driven-plan.html?title=${encodeURIComponent(projectTitle)}&mode=rewrite`;
             }
         }
 
