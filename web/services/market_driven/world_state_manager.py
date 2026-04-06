@@ -43,12 +43,21 @@ class PlotThread:
 
 @dataclass
 class SystemRule:
-    """系统规则状态"""
-    current_playing_degree: float = 0.0  # 当前扮演度
-    max_playing_degree: float = 0.0  # 历史最高扮演度
+    """系统规则状态 - 通用模型，支持不同书的系统类型"""
+    # 通用字段（推荐新代码使用）
+    system_name: str = ""  # 系统名称（如"弹幕干涉系统"、"扮演度系统"）
+    system_type: str = ""  # 系统类型（如"金手指"、"扮演系统"、"直播系统"）
+    current_level: str = "初始"  # 当前等级/阶段
+    current_power: float = 0.0  # 当前能力值（通用）
+    max_power: float = 0.0  # 历史最高能力值
+    unlocked_abilities: List[str] = field(default_factory=list)  # 已解锁能力
+    
+    # 兼容字段（保留旧数据兼容）
+    current_playing_degree: float = 0.0  # 当前扮演度（兼容旧数据）
+    max_playing_degree: float = 0.0  # 历史最高扮演度（兼容旧数据）
     cooldown_end_chapter: int = 0  # 冷却结束章节
-    special_states: List[str] = field(default_factory=list)  # 特殊状态（透支、突破等）
-    unlocked_skills: List[str] = field(default_factory=list)  # 已解锁技能
+    special_states: List[str] = field(default_factory=list)  # 特殊状态
+    unlocked_skills: List[str] = field(default_factory=list)  # 已解锁技能（兼容旧数据）
 
 
 @dataclass
@@ -269,6 +278,7 @@ class WorldStateManager:
         构建剧情约束提示词
         
         这个提示词会被注入到每章的生成指令中，强制AI遵循当前状态
+        使用通用字段，支持不同书的系统类型（弹幕系统、扮演度系统等）
         """
         lines = ["\n【世界状态约束 - 必须遵循】\n"]
         
@@ -276,23 +286,46 @@ class WorldStateManager:
         protag = self.state.protagonist
         lines.append(f"主角({protag.name})当前状态:")
         lines.append(f"  - 健康: {protag.health}")
-        lines.append(f"  - 已解锁能力: {', '.join(protag.abilities_unlocked[-3:]) if protag.abilities_unlocked else '基础能力'}")
+        if protag.current_location:
+            lines.append(f"  - 当前位置: {protag.current_location}")
+        if protag.abilities_unlocked:
+            lines.append(f"  - 已解锁能力: {', '.join(protag.abilities_unlocked[-3:])}")
         
         # 2. 盟友状态
         if self.state.allies:
             lines.append("\n盟友状态:")
             for name, ally in self.state.allies.items():
                 if ally.health != "健康":
-                    lines.append(f"  - {name}: {ally.health} ({ally.injuries[-1] if ally.injuries else ''})")
+                    lines.append(f"  - {name}: {ally.health}")
+                    if ally.injuries:
+                        lines.append(f"    伤势: {ally.injuries[-1]}")
                 else:
                     lines.append(f"  - {name}: 健康")
         
-        # 3. 系统规则（扮演度）
+        # 3. 系统规则（使用实际的系统名称，不再硬编码"扮演度"）
         rules = self.state.system_rules
-        lines.append(f"\n系统规则(扮演度):")
-        lines.append(f"  - 当前扮演度: {rules.current_playing_degree}%")
-        lines.append(f"  - 历史最高: {rules.max_playing_degree}%")
-        lines.append(f"  - 已解锁技能: {', '.join(rules.unlocked_skills[-3:]) if rules.unlocked_skills else '基础技能'}")
+        
+        # 优先使用新的通用字段，兼容旧字段
+        system_name = rules.system_name or "系统"
+        current_level = rules.current_level or "初始"
+        current_power = rules.current_power if rules.current_power > 0 else rules.current_playing_degree
+        max_power = rules.max_power if rules.max_power > 0 else rules.max_playing_degree
+        
+        # 合并已解锁能力（新旧字段兼容）
+        all_abilities = list(rules.unlocked_abilities)
+        if not all_abilities and rules.unlocked_skills:
+            all_abilities = list(rules.unlocked_skills)
+        
+        lines.append(f"\n{system_name}状态:")
+        lines.append(f"  - 当前等级/阶段: {current_level}")
+        
+        # 只有在有具体数值时才显示
+        if current_power > 0:
+            lines.append(f"  - 当前能力值: {current_power:.1f}")
+        if max_power > 0:
+            lines.append(f"  - 历史最高: {max_power:.1f}")
+        if all_abilities:
+            lines.append(f"  - 已解锁能力: {', '.join(all_abilities[-3:])}")
         if rules.special_states:
             lines.append(f"  - 特殊状态: {', '.join(rules.special_states)}")
         
@@ -319,10 +352,10 @@ class WorldStateManager:
                 lines.append(f"  - {thread.name}: 预计第{thread.introduced_chapter}章引入")
         
         lines.append("\n【约束规则】")
-        lines.append("1. 必须保持上述角色状态一致（伤势、能力、扮演度）")
+        lines.append(f"1. 必须保持上述角色状态与{system_name}状态一致")
         lines.append("2. 不能突然解锁未获得的能力")
         lines.append("3. 活跃的剧情线索需要在文中体现（至少提及）")
-        lines.append("4. 扮演度变化需要有合理过渡，不能突变")
+        lines.append("4. 能力/等级变化需要有合理过渡，不能突变")
         lines.append("")
         
         return "\n".join(lines)

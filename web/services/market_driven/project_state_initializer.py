@@ -256,7 +256,9 @@ class ProjectStateInitializer:
         protagonist_name = protagonist.get('name', '主角')
         
         # 提取系统名称和机制
-        system_mechanics = power_system.get('shen_lang_exclusive', '')
+        # shen_lang_exclusive 在 combat_mechanics 子对象下
+        combat_mechanics = power_system.get('combat_mechanics', {})
+        system_mechanics = combat_mechanics.get('shen_lang_exclusive', '')
         system_name = self._extract_system_name(system_mechanics)
         pet_system = power_system.get('pet_system', '')
         
@@ -287,7 +289,7 @@ class ProjectStateInitializer:
         # 构建世界规则（从 world_rules 读取）
         world_rules = world_setting.get('world_rules', {})
         
-        # 构建世界状态
+        # 构建世界状态 - 使用新的通用字段
         world_state = {
             "version": "2.0",
             "protagonist": {
@@ -302,16 +304,25 @@ class ProjectStateInitializer:
             "enemies": {},
             "plot_threads": plot_threads,
             "system_rules": {
+                # 新的通用字段
                 "system_name": system_name,
                 "system_type": "金手指/系统",
+                "current_level": "F级（初始）",
+                "current_power": 0.0,
+                "max_power": 0.0,
+                "unlocked_abilities": [],
+                "special_states": [],
+                # 详细的系统信息
                 "system_mechanics": system_mechanics[:300] + "..." if len(system_mechanics) > 300 else system_mechanics,
                 "pet_system": pet_system,
                 "level_standard": level_standard,
-                "current_level": "F级（初始）",
                 "current_power_stage": "早期（1-30级）",
+                "activation_status": "未激活/等待觉醒",
+                # 兼容旧字段
+                "current_playing_degree": 0.0,
+                "max_playing_degree": 0.0,
                 "unlocked_skills": [],
-                "special_states": [],
-                "activation_status": "未激活/等待觉醒"
+                "cooldown_end_chapter": 0
             },
             "world_rules": world_rules,
             "world_overview": {
