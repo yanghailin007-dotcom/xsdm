@@ -751,15 +751,17 @@ class ChapterConversationGenerator:
     def _extract_main_content(self, content: str, chapter_num: int) -> str:
         """
         根据分隔符提取正文部分
-        格式:正文内容 + ---正文结束--- + 自检报告
+        格式:正文内容 + [AI自检报告] + 自检报告内容
         
-        注意:AI有时会先输出自检报告,再输出正文(以---开头)
+        注意:有些AI输出使用 --- 作为分隔符,需要特殊处理
         """
-        # 尝试找到分隔符(优先匹配完整的)
+        # 尝试找到分隔符(优先匹配完整的标记)
         separators = [
-            '---正文结束---',
-            '[AI自检报告]',
-            '自检报告:',
+            '[AI自检报告]',     # 标准标记
+            '---正文结束---',   # 旧版标记
+            '---\n【AI自检报告', # --- 换行后接自检报告
+            '---\n[AI自检报告',  # 英文括号版本
+            '自检报告:',        # 简化标记
             '[自检报告]'
         ]
         
@@ -767,10 +769,13 @@ class ChapterConversationGenerator:
             if sep in content:
                 # 找到分隔符,提取前面的内容
                 main_content = content.split(sep)[0].strip()
-                logger.info(f"[章节对话 {self.session_id}] 第{chapter_num}章使用分隔符'{sep}'提取正文: {len(main_content)}字")
+                # 移除尾部可能的 --- 分隔符
+                if main_content.endswith('---'):
+                    main_content = main_content[:-3].strip()
+                logger.info(f"[章节对话 {self.session_id}] 第{chapter_num}章使用分隔符'{sep[:20]}...'提取正文: {len(main_content)}字")
                 return main_content
         
-        #  特殊处理:如果内容以 "---" 开头(自检报告分隔符),跳过它
+        # 特殊处理:内容以 "---" 开头(自检报告分隔符),跳过它
         if content.strip().startswith('---'):
             lines = content.split('\n')
             # 找到第一个不以 --- 开头且不是空的行
@@ -789,7 +794,6 @@ class ChapterConversationGenerator:
                     if '自检' in line and '报告' in line:
                         break
                     if line.strip() == '---' and '[AI自检报告]' in content:
-                        # 可能是自检报告结束标记
                         break
                     main_lines.append(line)
             
@@ -797,6 +801,17 @@ class ChapterConversationGenerator:
                 main_content = '\n'.join(main_lines).strip()
                 logger.info(f"[章节对话 {self.session_id}] 第{chapter_num}章跳过开头---提取正文: {len(main_content)}字")
                 return main_content
+        
+        # 最后尝试:查找 "---" 后面跟着 "【AI自检报告" 的位置
+        import re
+        pattern = r'---\s*\n\s*【?\[?AI自检报告'
+        match = re.search(pattern, content)
+        if match:
+            main_content = content[:match.start()].strip()
+            if main_content.endswith('---'):
+                main_content = main_content[:-3].strip()
+            logger.info(f"[章节对话 {self.session_id}] 第{chapter_num}章使用正则提取正文: {len(main_content)}字")
+            return main_content
         
         # 没有找到分隔符,尝试其他方式
         # 如果包含"自检报告"字样,尝试提取前面部分
@@ -809,11 +824,17 @@ class ChapterConversationGenerator:
                 main_lines.append(line)
             if main_lines:
                 main_content = '\n'.join(main_lines).strip()
+                # 移除尾部可能的 --- 
+                if main_content.endswith('---'):
+                    main_content = main_content[:-3].strip()
                 logger.info(f"[章节对话 {self.session_id}] 第{chapter_num}章通过关键词提取正文: {len(main_content)}字")
                 return main_content
         
-        # 没有找到任何标记,返回原内容
-        return content.strip()
+        # 没有找到任何标记,返回原内容(但移除尾部的---)
+        result = content.strip()
+        if result.endswith('---'):
+            result = result[:-3].strip()
+        return result
     
     def _expand_chapter(self, content: str, chapter_num: int, need_words: int) -> str:
         """

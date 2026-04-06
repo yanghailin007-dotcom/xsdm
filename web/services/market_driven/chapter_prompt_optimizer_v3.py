@@ -1227,8 +1227,7 @@ class ChapterPromptOptimizerV3:
 
 {self._render_output_format_from_config(common.get('output_format', {}))}
 
----
-【AI自检报告 - 第1章】
+[AI自检报告 - 第1章]
 总字数：XXXX字
 
 🚨【三大问题修复检查】
@@ -1241,7 +1240,6 @@ class ChapterPromptOptimizerV3:
 情绪曲线：X次转变（列出）
 自检结论：【通过/需优化】
 问题与优化：列出发现的问题
----
 """
         return prompt
     
