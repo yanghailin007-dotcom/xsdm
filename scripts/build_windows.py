@@ -67,7 +67,6 @@ def build_windows():
         '--add-data=web;web',
         '--add-data=prompt_packages;prompt_packages',
         '--add-data=config;config',
-        '--add-data=小说项目;小说项目',
         '--add-data=README.md;.',
         '--add-data=LICENSE;.',
         
