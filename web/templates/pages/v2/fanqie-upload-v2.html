@@ -1470,19 +1470,10 @@ function downloadUploaderTool(platform) {
     document.getElementById('windows-note').style.display = (platform === 'windows') ? 'flex' : 'none';
     document.getElementById('macos-note').style.display = (platform === 'macos') ? 'flex' : 'none';
     
-    let filename, downloadName, platformName;
-    
-    if (platform === 'macos') {
-        // macOS 版本从服务器下载（GitHub Actions 构建后上传到服务器）
-        filename = 'NovelPublisher-macos.zip';
-        downloadName = 'NovelPublisher-macos.zip';
-        platformName = 'macOS';
-    } else {
-        // Windows 版本从本地下载
-        filename = 'NovelPublisher.exe';
-        downloadName = 'NovelPublisher.exe';
-        platformName = 'Windows';
-    }
+    // Windows 和 macOS 都从本地下载
+    const filename = platform === 'windows' ? 'NovelPublisher.exe' : 'NovelPublisher-macos.zip';
+    const downloadName = filename;
+    const platformName = platform === 'windows' ? 'Windows' : 'macOS';
     
     // 添加时间戳防止缓存
     const timestamp = new Date().getTime();

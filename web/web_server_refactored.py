@@ -371,8 +371,7 @@ def create_app():
         # 安全检查：只允许下载特定文件
         allowed_files = [
             'NovelPublisher.exe',           # Windows 版本
-            'NovelPublisher-macos.zip',     # macOS Intel 版本
-            'NovelPublisher-macos-arm64.zip' # macOS Apple Silicon 版本
+            'NovelPublisher-macos.zip',     # macOS 通用版本（支持 Intel 和 Apple Silicon）
         ]
         
         if filename not in allowed_files:

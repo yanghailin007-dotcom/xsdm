@@ -35,13 +35,7 @@ jobs:
         run: |
           mv desktop_uploader/release/dist/NovelPublisher-macos-arm64.zip desktop_uploader/release/dist/NovelPublisher-macos.zip
 
-      - name: Upload macOS artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: NovelPublisher-macos
-          path: desktop_uploader/release/dist/NovelPublisher-macos.zip
-
-      - name: Upload to Release
+      - name: Upload to GitHub Release
         if: startsWith(github.ref, 'refs/tags/')
         uses: softprops/action-gh-release@v1
         with:
