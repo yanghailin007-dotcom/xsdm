@@ -66,10 +66,18 @@ def build_macos():
     
     install_dependencies()
     
-    # 进入 desktop_uploader/release 目录
-    release_dir = Path('desktop_uploader/release')
+    # 获取仓库根目录（脚本在 scripts/ 目录下）
+    repo_root = Path(__file__).parent.parent
+    release_dir = repo_root / 'desktop_uploader' / 'release'
+    
+    print(f"[INFO] 工作目录: {repo_root.absolute()}")
+    print(f"[INFO] Release 目录: {release_dir.absolute()}")
+    
     if not release_dir.exists():
         print(f"[ERROR] 目录不存在: {release_dir}")
+        print(f"[INFO] 当前目录: {Path.cwd()}")
+        # 列出当前目录内容帮助调试
+        print(f"[INFO] 当前目录内容: {list(Path.cwd().iterdir())}")
         return False
     
     # 清理旧的构建文件
