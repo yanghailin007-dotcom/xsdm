@@ -413,6 +413,39 @@
         CHECK_INTERVAL: 30000, // 30秒检查一次
     };
     
+    // ==================== Stage名称映射表 ====================
+    const STAGE_NAME_MAP = {
+        'generate_bestseller_analysis': '分析爆款规律',
+        'generate_trope_adaptation': '适配题材特性',
+        'generate_worldview': '构建世界观',
+        'generate_characters': '设计角色',
+        'generate_growth_plan': '规划成长路线',
+        'generate_stage_goals': '制定阶段目标',
+        'bestseller_alignment': '爆款对齐优化',
+        'generate_supplementary': '生成附加产物',
+        'generating_chapters': '批量生成章节',
+        'analyze': '分析章节质量',
+        'optimize': '优化章节内容',
+        'completed': '生成完成',
+        'failed': '生成失败',
+        'pending': '等待中',
+        'preparing': '准备中',
+        'running': '运行中',
+        'in_progress': '进行中',
+        'init': '初始化',
+        'processing': '处理中',
+        'finalizing': '收尾中'
+    };
+    
+    // 获取中文stage名
+    function getStageName(stage) {
+        if (!stage) return '准备中';
+        // 如果已经是中文，直接返回
+        if (/[\u4e00-\u9fa5]/.test(stage)) return stage;
+        // 查找映射表
+        return STAGE_NAME_MAP[stage] || '正在生成中...';
+    }
+    
     // ==================== 状态管理 ====================
     const TaskManager = {
         tasks: [],
@@ -555,7 +588,7 @@
                             type: 'phase_one',
                             status: task.status === 'generating' ? 'running' : task.status,
                             progress: task.progress || 0,
-                            stage: task.current_step || '生成中...',
+                            stage: getStageName(task.current_step) || '生成中...',
                             created_at: task.created_at,
                             updated_at: task.updated_at
                         }));
@@ -670,6 +703,8 @@
                 'dialog': '对话打磨'
             };
             
+            // 使用全局的 getStageName 函数
+            
             // 根据状态决定显示什么按钮
             let actionButtons = '';
             if (isStopping) {
@@ -707,7 +742,7 @@
                         </div>
                         <span class="gtf-progress-text">${isStopping ? '...' : Math.round(task.progress || 0) + '%'}</span>
                     </div>
-                    <div class="gtf-task-stage">${task.stage || task.message || '生成中...'}</div>
+                    <div class="gtf-task-stage">${getStageName(task.stage) || task.message || '生成中...'}</div>
                     <div class="gtf-task-actions">
                         <button class="gtf-btn gtf-btn-primary" onclick="viewTaskDetail('${task.task_id}', '${task.type}')">
                             <span class="material-icons" style="font-size: 14px;">visibility</span>
@@ -784,7 +819,7 @@
                 TaskManager.updateTask(task.task_id, {
                     progress: data.progress || task.progress,
                     status: data.status || task.status,
-                    stage: data.current_step || data.message || task.stage,
+                    stage: getStageName(data.current_step) || data.message || task.stage,
                     points_consumed: data.points_consumed || task.points_consumed,
                     last_update: Date.now()
                 });

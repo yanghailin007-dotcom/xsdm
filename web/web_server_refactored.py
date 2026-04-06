@@ -1991,23 +1991,37 @@ def register_contract_routes(app):
             logger.error(f"❌ 加载市场导向分析页面失败: {e}")
             return f"页面加载失败: {str(e)}", 500
 
-    @app.route('/market-driven-plan')
-    def market_driven_plan_page():
-        """市场导向创作方案页面 - 支持对话打磨和表单两种模式"""
+    @app.route('/market-driven-mode-select')
+    def market_driven_mode_select_page():
+        """创作模式选择页面"""
         try:
             from flask import render_template, request
             genre = request.args.get('genre', '')
-            mode = request.args.get('mode', 'dialog')  # dialog 或 form
-            
-            # 根据模式选择模板
-            if mode == 'form':
-                # 快速表单模式（旧版）
-                return render_template('pages/v2/market-driven-plan.html', genre=genre)
-            else:
-                # 对话打磨模式（新版，默认）
-                return render_template('pages/v2/market-driven-plan-dialog.html', genre=genre)
+            return render_template('pages/v2/market-driven-mode-select.html', genre=genre)
+        except Exception as e:
+            logger.error(f"❌ 加载模式选择页面失败: {e}")
+            return f"页面加载失败: {str(e)}", 500
+
+    @app.route('/market-driven-plan')
+    def market_driven_plan_page():
+        """市场导向创作方案页面 - 快速表单模式（保持不变）"""
+        try:
+            from flask import render_template, request
+            genre = request.args.get('genre', '')
+            return render_template('pages/v2/market-driven-plan.html', genre=genre)
         except Exception as e:
             logger.error(f"❌ 加载市场导向方案页面失败: {e}")
+            return f"页面加载失败: {str(e)}", 500
+    
+    @app.route('/market-driven-plan-dialog')
+    def market_driven_plan_dialog_page():
+        """市场导向创作方案页面 - 对话打磨模式"""
+        try:
+            from flask import render_template, request
+            genre = request.args.get('genre', '')
+            return render_template('pages/v2/market-driven-plan-dialog.html', genre=genre)
+        except Exception as e:
+            logger.error(f"❌ 加载对话打磨页面失败: {e}")
             return f"页面加载失败: {str(e)}", 500
 
     @app.route('/market-driven-status')

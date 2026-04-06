@@ -2237,6 +2237,213 @@ def go_back_dialog():
         return jsonify({"error": str(e)}), 500
 
 
+@market_driven_api.route('/dialog/next', methods=['POST'])
+def dialog_next():
+    """
+    对话下一步（别名，等同于 /dialog/continue）
+    请求体：
+    {
+        "session_id": "xxx",
+        "selected_option": "option_id",
+        "custom_input": "自定义文本"
+    }
+    """
+    try:
+        data = request.get_json()
+        if not data:
+            return jsonify({"error": "请求体不能为空"}), 400
+        
+        session_id = data.get('session_id')
+        selected_option = data.get('selected_option')
+        custom_input = data.get('custom_input')
+        
+        if not session_id:
+            return jsonify({"error": "缺少session_id参数"}), 400
+        
+        # 获取会话
+        from web.services.market_driven.dialog_polish_manager import get_dialog_session
+        manager = get_dialog_session(session_id)
+        
+        if not manager:
+            return jsonify({"error": "会话不存在或已过期"}), 404
+        
+        # 处理用户输入
+        result = manager.process_user_input(selected_option or 'continue', custom_input)
+        
+        return jsonify({
+            "success": True,
+            **result
+        }), 200
+        
+    except Exception as e:
+        logger.error(f"对话下一步失败: {e}", exc_info=True)
+        return jsonify({"error": str(e)}), 500
+
+
+@market_driven_api.route('/dialog/complete', methods=['POST'])
+def dialog_complete():
+    """
+    完成对话打磨，开始生成小说
+    请求体：
+    {
+        "session_id": "xxx",
+        "selected_option": "option_id",
+        "custom_input": "自定义文本"
+    }
+    """
+    try:
+        data = request.get_json()
+        if not data:
+            return jsonify({"error": "请求体不能为空"}), 400
+        
+        session_id = data.get('session_id')
+        selected_option = data.get('selected_option')
+        custom_input = data.get('custom_input')
+        
+        if not session_id:
+            return jsonify({"error": "缺少session_id参数"}), 400
+        
+        # 获取会话
+        from web.services.market_driven.dialog_polish_manager import get_dialog_session
+        manager = get_dialog_session(session_id)
+        
+        if not manager:
+            return jsonify({"error": "会话不存在或已过期"}), 404
+        
+        # 如果有选择或输入，先处理最后一轮
+        if selected_option or custom_input:
+            manager.process_user_input(selected_option or 'complete', custom_input)
+        
+        # 获取对话结果
+        draft = manager.get_creative_draft()
+        
+        # 获取题材
+        genre = manager.genre
+        
+        # 构建用户选择数据（兼容表单模式）
+        user_choices = {
+            'title': draft.title or '未命名小说',
+            'protagonist_name': draft.protagonist_name or '主角',
+            'protagonist_personality': draft.protagonist_personality or '',
+            'golden_finger_desc': draft.golden_finger_desc or '',
+            'opening_scene': draft.opening_scene or '',
+            'main_plot': draft.main_plot or '',
+            'wordcount': '50',
+            'chapters': '200'
+        }
+        
+        # 调用标准生成流程（复用 /generate 逻辑）
+        # 创建任务
+        task_id = task_manager.create_task(genre, user_choices)
+        
+        # 获取当前用户信息
+        from flask import session
+        user_id = session.get('user_id')
+        username = _get_current_username()
+        
+        # 更新任务信息
+        task_manager.update_task(
+            task_id,
+            username=username,
+            user_id=user_id,
+            current_stage='initializing',
+            message='初始化生成任务...'
+        )
+        
+        # 启动后台生成 - 复用 /generate 的内部逻辑
+        def run_dialog_generation():
+            api_client = None
+            try:
+                # 初始化API客户端
+                try:
+                    from src.core.APIClient import APIClient
+                    from config.config import CONFIG
+                    api_client = APIClient(CONFIG)
+                    api_client.set_username(username)
+                except Exception as e:
+                    logger.warning(f"APIClient初始化失败，将使用模拟模式: {e}")
+                
+                # 使用目标字数配置
+                from web.services.market_driven.config import get_target_words
+                target_words = get_target_words(genre)
+                
+                # 对话模式：需要生成最终方案（如果还没有的话），然后生成章节
+                # 第1步：生成最终方案
+                task_manager.update_task(
+                    task_id,
+                    current_stage='planning',
+                    progress=5,
+                    message='生成最终创作方案...'
+                )
+                
+                # 从对话草稿构建最终方案
+                final_plan = {
+                    'title': draft.title or '未命名小说',
+                    'protagonist_name': draft.protagonist_name or '主角',
+                    'protagonist_personality': draft.protagonist_personality or '冷静果断',
+                    'golden_finger_summary': draft.golden_finger_desc or '系统金手指',
+                    'core_selling_point': draft.main_plot or '热血爽文',
+                    'opening_hook': draft.opening_scene or '开局获系统',
+                    'emotion_core': '爽',
+                    'world_rules': '现代都市+系统',
+                    'first_climax': '第3章首次打脸',
+                    'main_goal': '成为最强',
+                    'story_direction': draft.main_plot or '升级打脸流',
+                    'emotion_curve': [],
+                    'chapter_count': 200
+                }
+                
+                # 保存方案到任务
+                task_manager.update_task(
+                    task_id,
+                    final_plan=final_plan,
+                    progress=10,
+                    message='方案已生成，准备生成章节...'
+                )
+                
+                # 第2步：生成章节
+                _run_chapter_generation_with_plan(
+                    task_id=task_id,
+                    genre=genre,
+                    target_words=target_words,
+                    api_client=api_client,
+                    final_plan=final_plan,
+                    user_choices=user_choices
+                )
+                
+                # 完成
+                task_manager.update_task(
+                    task_id,
+                    status="completed",
+                    progress=100,
+                    current_stage="generation_completed",
+                    message="全部生成完成"
+                )
+                
+            except Exception as e:
+                logger.error(f"[Task {task_id}] 对话模式生成失败: {e}", exc_info=True)
+                task_manager.update_task(
+                    task_id,
+                    status="failed",
+                    error=str(e),
+                    message=f"生成失败: {str(e)}"
+                )
+        
+        thread = threading.Thread(target=run_dialog_generation)
+        thread.daemon = True
+        thread.start()
+        
+        return jsonify({
+            "success": True,
+            "task_id": task_id,
+            "message": "已开始生成小说"
+        }), 200
+        
+    except Exception as e:
+        logger.error(f"完成对话打磨失败: {e}", exc_info=True)
+        return jsonify({"error": str(e)}), 500
+
+
 @market_driven_api.route('/dialog/draft/<session_id>', methods=['GET'])
 def get_dialog_draft(session_id: str):
     """

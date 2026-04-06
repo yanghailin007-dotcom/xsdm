@@ -1310,8 +1310,8 @@ function startGeneration() {
   };
   localStorage.setItem('marketDrivenAnalysis', JSON.stringify(analysisCache));
   
-  // 跳转到生成页面
-  window.location.href = `/market-driven-plan?genre=${encodeURIComponent(genreId)}`;
+  // 跳转到模式选择页面
+  window.location.href = `/market-driven-mode-select?genre=${encodeURIComponent(genreId)}`;
 }
 
 function sleep(ms) {

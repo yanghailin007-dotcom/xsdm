@@ -1,0 +1,309 @@
+{% extends "layouts/base-v2.html" %}
+
+{% block title %}选择创作模式 - 市场导向创作{% endblock %}
+
+{% block extra_css %}
+<link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+<style>
+.mode-select-container {
+  max-width: 900px;
+  margin: 0 auto;
+  padding: 40px 20px;
+}
+
+.mode-select-header {
+  text-align: center;
+  margin-bottom: 48px;
+}
+
+.mode-select-header__back {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--text-secondary);
+  text-decoration: none;
+  font-size: 14px;
+  margin-bottom: 24px;
+  transition: color 0.2s;
+}
+
+.mode-select-header__back:hover {
+  color: var(--primary-gold);
+}
+
+.mode-select-header__title {
+  font-size: 32px;
+  font-weight: 800;
+  margin-bottom: 12px;
+  background: linear-gradient(135deg, #ffffff 0%, #fbbf24 50%, #f59e0b 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.mode-select-header__subtitle {
+  font-size: 16px;
+  color: var(--text-secondary);
+}
+
+.mode-cards {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 32px;
+  margin-bottom: 40px;
+}
+
+.mode-card {
+  background: var(--bg-secondary);
+  border: 2px solid var(--border-subtle);
+  border-radius: 24px;
+  padding: 40px 32px;
+  text-align: center;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  position: relative;
+  overflow: hidden;
+}
+
+.mode-card:hover {
+  border-color: var(--primary-gold);
+  transform: translateY(-4px);
+  box-shadow: 0 20px 40px rgba(245, 158, 11, 0.15);
+}
+
+.mode-card--recommended::before {
+  content: '推荐';
+  position: absolute;
+  top: 16px;
+  right: -28px;
+  background: var(--primary-gold);
+  color: #000;
+  font-size: 12px;
+  font-weight: 600;
+  padding: 4px 32px;
+  transform: rotate(45deg);
+}
+
+.mode-card__icon {
+  width: 80px;
+  height: 80px;
+  background: linear-gradient(135deg, rgba(245, 158, 11, 0.2) 0%, rgba(245, 158, 11, 0.05) 100%);
+  border-radius: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0 auto 24px;
+}
+
+.mode-card__icon .material-icons {
+  font-size: 40px;
+  color: var(--primary-gold);
+}
+
+.mode-card__title {
+  font-size: 24px;
+  font-weight: 700;
+  margin-bottom: 12px;
+}
+
+.mode-card__desc {
+  font-size: 14px;
+  color: var(--text-secondary);
+  margin-bottom: 24px;
+  line-height: 1.6;
+}
+
+.mode-card__features {
+  text-align: left;
+  margin-bottom: 32px;
+}
+
+.mode-card__feature {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-size: 14px;
+  color: var(--text-secondary);
+  margin-bottom: 12px;
+}
+
+.mode-card__feature .material-icons {
+  font-size: 18px;
+  color: var(--success);
+}
+
+.mode-card__btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 14px 32px;
+  background: var(--primary-gold);
+  color: #000;
+  border: none;
+  border-radius: 12px;
+  font-size: 15px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.mode-card__btn:hover {
+  transform: scale(1.05);
+  box-shadow: 0 8px 20px rgba(245, 158, 11, 0.3);
+}
+
+.mode-tips {
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-subtle);
+  border-radius: 16px;
+  padding: 24px 32px;
+}
+
+.mode-tips__title {
+  font-size: 16px;
+  font-weight: 600;
+  margin-bottom: 16px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.mode-tips__title .material-icons {
+  color: var(--primary-gold);
+}
+
+.mode-tips__list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.mode-tips__item {
+  font-size: 14px;
+  color: var(--text-secondary);
+  margin-bottom: 8px;
+  padding-left: 24px;
+  position: relative;
+}
+
+.mode-tips__item::before {
+  content: '•';
+  color: var(--primary-gold);
+  position: absolute;
+  left: 8px;
+}
+
+@media (max-width: 768px) {
+  .mode-cards {
+    grid-template-columns: 1fr;
+  }
+  
+  .mode-select-header__title {
+    font-size: 24px;
+  }
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="mode-select-container">
+  <!-- Header -->
+  <div class="mode-select-header">
+    <a href="/market-driven-analysis?genre={{ genre|default('') }}" class="mode-select-header__back">
+      <span class="material-icons">arrow_back</span>
+      返回题材分析
+    </a>
+    <h1 class="mode-select-header__title">选择创作模式</h1>
+    <p class="mode-select-header__subtitle">根据您的习惯和需求，选择最适合的创作方式</p>
+  </div>
+
+  <!-- Mode Cards -->
+  <div class="mode-cards">
+    <!-- 快速表单模式 -->
+    <div class="mode-card" onclick="selectMode('form')">
+      <div class="mode-card__icon">
+        <span class="material-icons">edit</span>
+      </div>
+      <h3 class="mode-card__title">快速表单模式</h3>
+      <p class="mode-card__desc">适合有明确想法的作者<br>快速填写关键信息，立即生成小说</p>
+      <div class="mode-card__features">
+        <div class="mode-card__feature">
+          <span class="material-icons">check_circle</span>
+          填写表单，一步到位
+        </div>
+        <div class="mode-card__feature">
+          <span class="material-icons">check_circle</span>
+          AI自动填充题材数据
+        </div>
+        <div class="mode-card__feature">
+          <span class="material-icons">check_circle</span>
+          快速进入章节生成
+        </div>
+      </div>
+      <button class="mode-card__btn">
+        <span class="material-icons">rocket_launch</span>
+        开始创作
+      </button>
+    </div>
+
+    <!-- 对话打磨模式 -->
+    <div class="mode-card mode-card--recommended" onclick="selectMode('dialog')">
+      <div class="mode-card__icon">
+        <span class="material-icons">chat</span>
+      </div>
+      <h3 class="mode-card__title">对话打磨模式</h3>
+      <p class="mode-card__desc">适合追求极致的作者<br>通过7轮AI对话，逐步打磨爆款方案</p>
+      <div class="mode-card__features">
+        <div class="mode-card__feature">
+          <span class="material-icons">check_circle</span>
+          7轮深度对话交流
+        </div>
+        <div class="mode-card__feature">
+          <span class="material-icons">check_circle</span>
+          AI专业建议优化
+        </div>
+        <div class="mode-card__feature">
+          <span class="material-icons">check_circle</span>
+          打造差异化爆款
+        </div>
+      </div>
+      <button class="mode-card__btn">
+        <span class="material-icons">auto_fix_high</span>
+        开始对话
+      </button>
+    </div>
+  </div>
+
+  <!-- Tips -->
+  <div class="mode-tips">
+    <div class="mode-tips__title">
+      <span class="material-icons">lightbulb</span>
+      温馨提示
+    </div>
+    <ul class="mode-tips__list">
+      <li class="mode-tips__item">快速表单模式：适合对题材有深入理解，有明确创作方向的作者</li>
+      <li class="mode-tips__item">对话打磨模式：适合希望在AI帮助下逐步完善设定，打造独特刷情的作者</li>
+      <li class="mode-tips__item">两种模式都会生成完整的创作方案，您可以根据习惯自由选择</li>
+    </ul>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// 从URL获取题材
+const urlParams = new URLSearchParams(window.location.search);
+const genreId = urlParams.get('genre') || '';
+
+// 选择模式
+function selectMode(mode) {
+  if (mode === 'form') {
+    // 快速表单模式 - 跳转到原有页面
+    window.location.href = `/market-driven-plan?genre=${encodeURIComponent(genreId)}`;
+  } else {
+    // 对话打磨模式 - 跳转到对话页面
+    window.location.href = `/market-driven-plan-dialog?genre=${encodeURIComponent(genreId)}`;
+  }
+}
+</script>
+{% endblock %}
