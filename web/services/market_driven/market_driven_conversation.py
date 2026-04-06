@@ -1200,16 +1200,27 @@ POST /api/v2/prompt-config/component/{step_name}
         
         # 提取金手指核心词（简化描述）
         gf_desc = gf.get("initial", "") if isinstance(gf, dict) else ""
+        gf_concept = gf.get("concept", "") if isinstance(gf, dict) else ""
+        gf_name = gf.get("name", "") if isinstance(gf, dict) else ""
+        
+        # 🔥 合并所有金手指描述信息，用于提取关键词
+        gf_full_desc = f"{gf_name} {gf_concept} {gf_desc}"
+        
         # 提取关键能力词
         gf_keywords = []
-        if "扮演" in gf_desc or "模板" in gf_desc:
+        if "扮演" in gf_full_desc or "模板" in gf_full_desc:
             gf_keywords.append("扮演系统")
-        if "剑" in gf_desc or "剑仙" in gf_desc:
+        if "剑" in gf_full_desc or "剑仙" in gf_full_desc:
             gf_keywords.append("酒剑仙")
-        if "雷神" in gf_desc:
+        if "雷神" in gf_full_desc:
             gf_keywords.append("雷神")
-        if "签到" in gf_desc:
+        if "签到" in gf_full_desc:
             gf_keywords.append("签到")
+        
+        # 🔥 提取具现倍数（万倍、百倍等）
+        import re
+        multiplier_match = re.search(r'(\d+万?千?百?)倍', gf_full_desc)
+        multiplier = multiplier_match.group(1) + "倍" if multiplier_match else "百倍"
         
         gf_core = gf_keywords[0] if gf_keywords else "神秘系统"
         
@@ -1229,9 +1240,9 @@ POST /api/v2/prompt-config/component/{step_name}
         # 提取核心爽点动作
         cool_action = "装逼打脸"
         if "国运" in genre:
-            cool_action = "一剑秒杀凶兽，百倍具现资源"
+            cool_action = f"一剑秒杀凶兽，{multiplier}具现资源"
         elif "神豪" in genre:
-            cool_action = "花钱返利，越花越有钱"
+            cool_action = f"花钱返利，{multiplier}返利"
         elif "末日" in genre:
             cool_action = "囤货求生，建立末世帝国"
         
@@ -1251,9 +1262,9 @@ POST /api/v2/prompt-config/component/{step_name}
 本书又名：《{surface_identity}，一剑开天门》《我在国运禁地当{gf_core.replace('系统', '')}》"""
         
         elif "神豪" in genre:
-            synopsis = f"""【花钱百倍返利，越花越有钱】
+            synopsis = f"""【花钱{multiplier}返利，越花越有钱】
 {protagonist_name}原本是个被前女友甩、被亲戚嘲的穷屌丝。
-直到绑定{gf_core}，花钱就能获得百倍返利！
+直到绑定{gf_core}，花钱就能获得{multiplier}返利！
 
 "劳斯莱斯幻影？买！"
 "市中心豪宅？买！"
