@@ -292,7 +292,7 @@ def analyze_tropes():
             return jsonify({"error": "请求体不能为空"}), 400
         
         genre = data.get('genre')
-        use_cache = data.get('use_cache', True)
+        use_cache = data.get('use_cache', False)  # 🔥 修复：默认禁用缓存，确保每次分析都是新鲜结果
         
         if not genre:
             return jsonify({"error": "缺少必要参数: genre"}), 400

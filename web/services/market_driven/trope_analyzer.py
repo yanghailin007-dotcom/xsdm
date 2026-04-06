@@ -9,6 +9,7 @@ Trope Analyzer Service
 import json
 import logging
 import os
+import random  # 🔥 新增：用于生成随机性元素
 from typing import Dict, List, Optional
 from datetime import datetime
 from pathlib import Path
@@ -284,7 +285,7 @@ class TropeAnalyzer:
     
     def _build_analysis_prompt(self, genre: str) -> str:
         """
-        构建爆款分析Prompt - 从JSON配置加载
+        构建爆款分析Prompt - 从JSON配置加载，并添加随机性元素
         """
         # 从JSON配置加载模板
         template = self._config.get("analysis_template", "")
@@ -299,7 +300,30 @@ class TropeAnalyzer:
             logger.error(error_msg)
             raise RuntimeError(error_msg)
         
-        return template.format(genre=genre)
+        # 🔥 构建基础Prompt
+        prompt = template.format(genre=genre)
+        
+        # 🔥 添加随机性元素，确保每次分析角度不同
+        analysis_angles = [
+            "从读者心理角度分析：什么样的设定能让读者欲罢不能",
+            "从市场数据角度分析：哪些套路在番茄头部作品中反复出现",
+            "从创意差异化角度分析：如何避免同质化，做出独特卖点",
+            "从情绪曲线设计角度分析：如何安排爽点和期待感",
+            "从角色塑造角度分析：什么样的主角人设最受欢迎",
+            "从开篇钩子角度分析：黄金三章如何设计强吸引力"
+        ]
+        
+        # 随机选择1-2个分析角度
+        selected_angles = random.sample(analysis_angles, k=min(2, len(analysis_angles)))
+        angle_prompt = "\n\n【本次分析重点】\n" + "\n".join([f"- {angle}" for angle in selected_angles])
+        
+        # 添加随机种子提示（让AI知道应该生成多样化内容）
+        random_seed = random.randint(1000, 9999)
+        diversity_prompt = f"\n\n【多样性要求】\n随机种子: {random_seed}\n请确保本次分析与以往不同，提供新鲜的观点和独特的发现。"
+        
+        prompt += angle_prompt + diversity_prompt
+        
+        return prompt
 
     def _call_ai_analysis(self, prompt: str) -> Dict:
         """
@@ -309,7 +333,7 @@ class TropeAnalyzer:
         response = self.api_client.generate_content_with_retry(
             content_type="trope_analysis",
             user_prompt=prompt,
-            temperature=0.3,
+            temperature=0.8,  # 🔥 修复：提高temperature以增加分析结果的多样性
             purpose=f"分析爆款题材规律"
         )
         
