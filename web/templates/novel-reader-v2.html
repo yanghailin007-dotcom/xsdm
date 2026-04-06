@@ -1116,16 +1116,26 @@ class NovelReader {
         }
 
         try {
-            // 检查缓存 - 修复：append 模式也要检查是否已加载
+            // 检查缓存
             if (this.loadedChapters.has(chapterNum)) {
-                if (!append) {
+                // 🔥 修复：检查章节是否已经在 DOM 中（通过 data-chapter-num 属性）
+                const existingChapter = this.contentEl.querySelector(`.reader-chapter[data-chapter-num="${chapterNum}"]`);
+                if (!existingChapter) {
+                    // 已缓存但未渲染，需要渲染
+                    console.log('[阅读器] 章节', chapterNum, '已缓存但未渲染，执行渲染');
                     this.renderChapter(this.loadedChapters.get(chapterNum), append);
+                } else {
+                    console.log('[阅读器] 章节', chapterNum, '已在 DOM 中，跳过渲染');
                 }
-                // append 模式下如果已加载则跳过，避免重复渲染
+                
+                if (!append) {
+                    this.currentChapterNum = chapterNum;
+                    document.getElementById('headerChapterTitle').textContent = this.loadedChapters.get(chapterNum).title || `第${chapterNum}章`;
+                }
                 if (append) {
                     this.isLoadingNext = false;
                 }
-                return Promise.resolve(); // 返回 resolved Promise 支持链式调用
+                return Promise.resolve();
             }
 
             const resp = await fetch(`/api/project/${encodeURIComponent(this.title)}/chapter/${chapterNum}`);
