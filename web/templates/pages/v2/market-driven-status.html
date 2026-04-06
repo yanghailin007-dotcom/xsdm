@@ -723,7 +723,9 @@ function updateUI(task) {
   if (progress < 0) progress = 0;
   if (progress > 100) progress = 100;
   
-  const stage = getStageName(task.current_stage);
+  // 保留原始阶段名（英文）用于阶段列表更新
+  const rawStage = task.current_stage || '';
+  const stage = getStageName(rawStage);
   
   // 处理 message：如果包含英文阶段名，尝试提取并映射
   let message = '';
@@ -821,9 +823,9 @@ function updateUI(task) {
     
     // 在章节生成阶段显示悬浮窗
     // 判断条件：阶段名称为chapters/current_stage为generating_chapters/有当前章节号/有批次信息
-    const isChapterPhase = stage === 'chapters' || stage === 'generating_chapters' || 
-                          stage === 'chapter_generation' || stage === 'generating' ||
-                          task.current_stage === 'generating_chapters' ||
+    const isChapterPhase = rawStage === 'chapters' || rawStage === 'generating_chapters' || 
+                          rawStage === 'chapter_generation' || rawStage === 'generating' ||
+                          rawStage === 'generating_chapters' ||
                           task.current_chapter > 0 || task.batch_num > 0;
     
     if (isChapterPhase && typeof updateProgress === 'function') {
@@ -852,8 +854,8 @@ function updateUI(task) {
     }
   }
   
-  // 更新阶段列表
-  updateStageList(stage, progress);
+  // 更新阶段列表（使用原始英文阶段名）
+  updateStageList(rawStage, progress);
 }
 
 // 更新阶段列表
