@@ -1420,12 +1420,34 @@
             }
         }
         
-        // 🔥 新增：跳转到市场导向规划页面
-        function rewriteNovel(title) {
-            // 检查是否有已生成的章节
-            const confirmed = confirm(`警告：重写将删除该项目的所有已生成章节，并基于当前设定重新生成。\n\n确定要继续吗？`);
-            if (confirmed) {
-                window.location.href = `/pages/v2/market-driven-plan.html?title=${encodeURIComponent(title)}&mode=rewrite`;
+        // 🔥 新增：跳转到重写页面
+        async function rewriteNovel(title) {
+            // 检查项目类型并跳转
+            const confirmed = confirm('警告：重写将删除该项目的所有已生成章节，并基于当前设定重新生成。\n\n确定要继续吗？');
+            if (!confirmed) return;
+            
+            try {
+                showLoadingOverlay('正在检测项目类型...');
+                
+                const detectResponse = await fetch('/api/novel/' + encodeURIComponent(title) + '/detect-type');
+                const detectResult = await detectResponse.json();
+                
+                if (!detectResult.success) {
+                    throw new Error(detectResult.error || '检测项目类型失败');
+                }
+                
+                const projectType = detectResult.type;
+                hideLoadingOverlay();
+                
+                if (projectType === 'market_driven') {
+                    window.location.href = '/pages/v2/market-driven-plan.html?title=' + encodeURIComponent(title) + '&mode=rewrite';
+                } else {
+                    alert('自由创意项目的重写功能暂未实现，请直接在项目管理页面操作');
+                }
+            } catch (error) {
+                hideLoadingOverlay();
+                console.error('进入重写模式失败:', error);
+                showError('进入重写模式失败: ' + error.message);
             }
         }
 
