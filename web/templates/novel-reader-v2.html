@@ -1066,6 +1066,10 @@ class NovelReader {
                     this.renderChapter(this.loadedChapters.get(chapterNum), append);
                 }
                 // append 模式下如果已加载则跳过，避免重复渲染
+                // 工位修复：确保 isLoadingNext 被重置
+                if (append) {
+                    this.isLoadingNext = false;
+                }
                 return;
             }
 
