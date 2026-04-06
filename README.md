@@ -28,13 +28,19 @@
 ## 🚀 快速开始
 
 ### 系统要求
-- Windows 10/11
-- 网络连接（首次安装需要下载Python和依赖）
-- 磁盘空间：约 200MB
 
-### 两种启动方式
+| 平台 | 最低版本 | Python版本 | 磁盘空间 |
+|------|---------|-----------|---------|
+| Windows | 10/11 | 3.11 | 约 200MB |
+| macOS | 12+ (Monterey) | 3.11 | 约 200MB |
 
-#### 方式一：Windows 批处理（推荐）
+- 网络连接（首次安装需要下载依赖）
+
+---
+
+## 🪟 Windows 用户
+
+### 方式一：批处理脚本（推荐）
 
 **第一次使用（安装环境 + 启动）：**
 ```
@@ -52,7 +58,7 @@
 - 快速启动 Web 服务
 - 自动打开浏览器访问首页
 
-#### 方式二：命令行
+### 方式二：命令行
 
 **第一次使用：**
 ```bash
@@ -63,6 +69,80 @@ python setup.py
 ```bash
 python start.py
 ```
+
+---
+
+## 🍎 macOS 用户
+
+### 方式一：命令行启动（推荐）
+
+**1. 安装 Python 3.11（如未安装）：**
+```bash
+# 使用 Homebrew 安装（推荐）
+brew install python@3.11
+
+# 或从官网下载安装包
+# https://www.python.org/downloads/macos/
+```
+
+**2. 第一次使用（安装依赖）：**
+```bash
+python3.11 setup.py
+```
+
+**3. 日常使用：**
+```bash
+python3.11 start.py
+```
+
+### 方式二：打包应用（可选）
+
+如果你想将应用打包为 `.app` 格式：
+
+```bash
+# 安装打包工具
+pip install pyinstaller
+
+# 执行打包脚本
+python scripts/build_macos.py
+```
+
+打包完成后会在 `dist/` 目录生成 `NovelPublisher.app`。
+
+### ⚠️ macOS 首次运行说明
+
+由于应用未经过 Apple 官方签名，**首次运行时**可能会看到安全提示：
+
+> **"无法打开 NovelPublisher，因为无法验证开发者"**
+
+**解决方法（二选一）：**
+
+**方法 A：Control + 点击打开（推荐）**
+1. 在 Finder 中找到应用
+2. **按住 Control 键** 点击应用图标
+3. 选择"打开"
+4. 在弹出的对话框中点击"打开"
+
+**方法 B：系统偏好设置**
+1. 打开"系统设置" → "隐私与安全性"
+2. 在"安全性"部分找到 NovelPublisher
+3. 点击"仍要打开"
+
+**注意**：只需要这样操作一次，之后可以正常双击打开。
+
+---
+
+## 📦 预编译版本下载
+
+如果不想手动配置环境，可以直接下载预编译版本：
+
+| 平台 | 下载链接 | 说明 |
+|------|---------|------|
+| Windows | [NovelPublisher-windows.exe](releases) | 双击运行 |
+| macOS Intel | [NovelPublisher-macos.zip](releases) | 解压后运行 .app |
+| macOS Apple Silicon | [NovelPublisher-macos-arm64.zip](releases) | 解压后运行 .app |
+
+前往 [Releases 页面](https://github.com/your-username/xsdm/releases) 下载最新版本。
 
 ---
 
@@ -99,6 +179,67 @@ python start.py
 ├── 小说项目/               # 小说项目存储
 └── data/                   # 数据库文件
 ```
+
+---
+
+## 📦 打包发布
+
+### 自动打包脚本
+
+项目提供了统一的打包脚本，支持 Windows 和 macOS 双平台：
+
+```bash
+# 自动检测平台并打包
+python scripts/build_all.py
+```
+
+### 各平台单独打包
+
+**Windows：**
+```bash
+python scripts/build_windows.py
+```
+输出：`dist/NovelPublisher.exe`
+
+**macOS：**
+```bash
+python scripts/build_macos.py
+```
+输出：`dist/NovelPublisher.app` (已自动打包为 zip)
+
+### 上传到服务器
+
+配置环境变量后自动上传：
+
+```bash
+# 设置上传服务器（可选）
+export UPLOAD_SERVER_URL="https://your-server.com/upload"
+export SCP_HOST="your-server.com"
+export SCP_USER="username"
+export SCP_PATH="/var/www/downloads/"
+
+# 执行上传
+python scripts/upload_release.py
+```
+
+### GitHub Actions 自动构建
+
+推送带有 `v` 前缀的 tag 时自动构建所有平台：
+
+```bash
+# 创建版本 tag
+git tag v1.0.0
+
+# 推送到 GitHub
+git push origin v1.0.0
+```
+
+GitHub Actions 会自动构建：
+- Windows 版本 (`NovelPublisher-windows.zip`)
+- macOS Intel 版本 (`NovelPublisher-macos.zip`)
+- macOS Apple Silicon 版本 (`NovelPublisher-macos-arm64.zip`)
+
+并在 Releases 页面创建带说明的发布包。
 
 ---
 

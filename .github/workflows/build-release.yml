@@ -1,0 +1,190 @@
+# GitHub Actions 双平台自动打包工作流
+# 在推送 tag 时自动构建 Windows 和 macOS 版本
+
+name: Build and Release
+
+on:
+  push:
+    tags:
+      - 'v*'  # 推送 v 开头的 tag 时触发，如 v1.0.0
+  workflow_dispatch:  # 也支持手动触发
+
+jobs:
+  # Windows 构建任务
+  build-windows:
+    runs-on: windows-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install pyinstaller
+
+      - name: Build Windows executable
+        run: python scripts/build_windows.py
+
+      - name: Upload Windows artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: NovelPublisher-windows
+          path: dist/NovelPublisher.exe
+
+      - name: Create ZIP archive
+        run: |
+          cd dist
+          7z a NovelPublisher-windows.zip NovelPublisher.exe
+
+      - name: Upload to Release
+        if: startsWith(github.ref, 'refs/tags/')
+        uses: softprops/action-gh-release@v1
+        with:
+          files: dist/NovelPublisher-windows.zip
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  # macOS Intel 构建任务
+  build-macos-intel:
+    runs-on: macos-13  # macos-13 是 Intel 架构
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install pyinstaller
+
+      - name: Build macOS app (Intel)
+        run: python scripts/build_macos.py
+
+      - name: Upload macOS artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: NovelPublisher-macos-intel
+          path: dist/NovelPublisher-macos.zip
+
+      - name: Upload to Release
+        if: startsWith(github.ref, 'refs/tags/')
+        uses: softprops/action-gh-release@v1
+        with:
+          files: dist/NovelPublisher-macos.zip
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  # macOS Apple Silicon 构建任务
+  build-macos-arm:
+    runs-on: macos-14  # macos-14 是 Apple Silicon (M1/M2)
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          architecture: arm64
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install pyinstaller
+
+      - name: Build macOS app (Apple Silicon)
+        run: python scripts/build_macos.py
+
+      - name: Rename for ARM64
+        run: |
+          mv dist/NovelPublisher-macos.zip dist/NovelPublisher-macos-arm64.zip
+
+      - name: Upload macOS ARM artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: NovelPublisher-macos-arm64
+          path: dist/NovelPublisher-macos-arm64.zip
+
+      - name: Upload to Release
+        if: startsWith(github.ref, 'refs/tags/')
+        uses: softprops/action-gh-release@v1
+        with:
+          files: dist/NovelPublisher-macos-arm64.zip
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  # 创建汇总 Release
+  create-release:
+    needs: [build-windows, build-macos-intel, build-macos-arm]
+    runs-on: ubuntu-latest
+    if: startsWith(github.ref, 'refs/tags/')
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+
+      - name: List artifacts
+        run: ls -R artifacts
+
+      - name: Create Release Notes
+        run: |
+          cat > RELEASE_NOTES.md << 'EOF'
+          ## NovelPublisher 新版本发布
+
+          ### 下载说明
+
+          **Windows 用户:**
+          - 下载 `NovelPublisher-windows.zip`
+          - 解压后双击 `NovelPublisher.exe` 运行
+
+          **macOS Intel 用户 (Intel CPU):**
+          - 下载 `NovelPublisher-macos.zip`
+          - 解压后双击 `NovelPublisher.app` 运行
+          - 首次运行需要在"系统偏好设置-安全性与隐私"中允许
+
+          **macOS Apple Silicon 用户 (M1/M2/M3):**
+          - 下载 `NovelPublisher-macos-arm64.zip`
+          - 解压后双击 `NovelPublisher.app` 运行
+          - 首次运行需要在"系统偏好设置-安全性与隐私"中允许
+
+          ### macOS 首次运行说明
+
+          由于应用未经过 Apple 官方签名，首次运行时可能会看到安全提示。
+
+          **解决方法：**
+          1. 在 Finder 中找到 `NovelPublisher.app`
+          2. **按住 Control 键**点击应用图标
+          3. 选择"打开"
+          4. 在弹出的对话框中点击"打开"
+
+          或者：
+          1. 打开"系统偏好设置" → "安全性与隐私"
+          2. 点击下方的"仍要打开"按钮
+          3. 重新运行应用
+
+          **注意**：只需要这样操作一次，之后可以正常双击打开。
+          EOF
+
+      - name: Update Release with Notes
+        uses: softprops/action-gh-release@v1
+        with:
+          body_path: RELEASE_NOTES.md
+          files: artifacts/**/*
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
