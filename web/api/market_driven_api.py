@@ -3127,7 +3127,7 @@ def _run_continue_chapter_generation(task_id, title, blueprint, start_chapter, e
     在后台运行章节续写生成
     """
     try:
-        task_manager.update_task(task_id, {
+        task_manager.update_task(task_id, **{
             'status': 'generating_chapters',
             'current_stage': 'generating_chapters',
             'progress': 0,
@@ -3154,7 +3154,7 @@ def _run_continue_chapter_generation(task_id, title, blueprint, start_chapter, e
         
         while current <= end_chapter:
             if task_manager.should_stop(task_id):
-                task_manager.update_task(task_id, {
+                task_manager.update_task(task_id, **{
                     'status': 'stopped',
                     'message': '用户停止生成'
                 })
@@ -3162,7 +3162,7 @@ def _run_continue_chapter_generation(task_id, title, blueprint, start_chapter, e
             
             batch_end = min(current + batch_size - 1, end_chapter)
             
-            task_manager.update_task(task_id, {
+            task_manager.update_task(task_id, **{
                 'message': f'正在生成第{current}-{batch_end}章',
                 'batch_num': (current - start_chapter) // batch_size + 1,
                 'current_chapter': current
@@ -3184,7 +3184,7 @@ def _run_continue_chapter_generation(task_id, title, blueprint, start_chapter, e
                     
                     # 更新进度
                     progress = int((batch_end - start_chapter + 1) / total_chapters * 100)
-                    task_manager.update_task(task_id, {
+                    task_manager.update_task(task_id, **{
                         'progress': progress,
                         'completed_chapters': len(generated_chapters),
                         'total_words': total_words
@@ -3194,14 +3194,14 @@ def _run_continue_chapter_generation(task_id, title, blueprint, start_chapter, e
                 
             except Exception as e:
                 logger.error(f"[章节续写] 批次生成失败 {current}-{batch_end}: {e}")
-                task_manager.update_task(task_id, {
+                task_manager.update_task(task_id, **{
                     'status': 'failed',
                     'error': f'第{current}-{batch_end}章生成失败: {str(e)}'
                 })
                 return
         
         # 完成任务
-        task_manager.update_task(task_id, {
+        task_manager.update_task(task_id, **{
             'status': 'completed',
             'progress': 100,
             'current_stage': 'generation_completed',
@@ -3216,7 +3216,7 @@ def _run_continue_chapter_generation(task_id, title, blueprint, start_chapter, e
         
     except Exception as e:
         logger.error(f"[章节续写] 生成失败: {e}", exc_info=True)
-        task_manager.update_task(task_id, {
+        task_manager.update_task(task_id, **{
             'status': 'failed',
             'error': str(e)
         })
@@ -3353,7 +3353,7 @@ def _run_replan_generation(task_id, title, project_path, new_settings, username)
     在后台运行重新规划生成
     """
     try:
-        task_manager.update_task(task_id, {
+        task_manager.update_task(task_id, **{
             'status': 'generating',
             'current_stage': 'replanning',
             'progress': 10,
@@ -3409,7 +3409,7 @@ def _run_replan_generation(task_id, title, project_path, new_settings, username)
         with open(project_info_file, 'w', encoding='utf-8') as f:
             json.dump(project_info, f, ensure_ascii=False, indent=2)
         
-        task_manager.update_task(task_id, {
+        task_manager.update_task(task_id, **{
             'progress': 30,
             'message': '已更新项目信息'
         })
@@ -3418,7 +3418,7 @@ def _run_replan_generation(task_id, title, project_path, new_settings, username)
         from web.services.market_driven.phase_one_generator import MarketDrivenPhaseOneGenerator
         generator = MarketDrivenPhaseOneGenerator(project_path=str(project_path))
         
-        task_manager.update_task(task_id, {
+        task_manager.update_task(task_id, **{
             'progress': 50,
             'message': '正在重新生成世界观设定'
         })
@@ -3442,7 +3442,7 @@ def _run_replan_generation(task_id, title, project_path, new_settings, username)
             'target_words': new_settings.get('target_words', 500000)
         }
         
-        task_manager.update_task(task_id, {
+        task_manager.update_task(task_id, **{
             'progress': 70,
             'message': '正在重新生成角色设计和升级路线'
         })
@@ -3450,7 +3450,7 @@ def _run_replan_generation(task_id, title, project_path, new_settings, username)
         # 生成第一阶段产物
         # 注意：这里简化处理，实际应该调用完整的生成流程
         
-        task_manager.update_task(task_id, {
+        task_manager.update_task(task_id, **{
             'progress': 90,
             'message': '正在保存新的创作方案'
         })
@@ -3468,7 +3468,7 @@ def _run_replan_generation(task_id, title, project_path, new_settings, username)
                 json.dump(blueprint, f, ensure_ascii=False, indent=2)
         
         # 完成任务
-        task_manager.update_task(task_id, {
+        task_manager.update_task(task_id, **{
             'status': 'completed',
             'progress': 100,
             'current_stage': 'replan_completed',
@@ -3481,7 +3481,7 @@ def _run_replan_generation(task_id, title, project_path, new_settings, username)
         
     except Exception as e:
         logger.error(f"[重新规划] 生成失败: {e}", exc_info=True)
-        task_manager.update_task(task_id, {
+        task_manager.update_task(task_id, **{
             'status': 'failed',
             'error': str(e)
         })
@@ -3653,7 +3653,7 @@ def _run_rewrite_generation(task_id, title, project_path, new_settings, username
     在后台运行重写生成（完整流程：方案+章节）
     """
     try:
-        task_manager.update_task(task_id, {
+        task_manager.update_task(task_id, **{
             'status': 'generating',
             'current_stage': 'rewriting',
             'progress': 5,
@@ -3713,7 +3713,7 @@ def _run_rewrite_generation(task_id, title, project_path, new_settings, username
         with open(project_info_file, 'w', encoding='utf-8') as f:
             json.dump(project_info, f, ensure_ascii=False, indent=2)
         
-        task_manager.update_task(task_id, {
+        task_manager.update_task(task_id, **{
             'progress': 10,
             'message': '已更新项目设定，开始生成完整方案'
         })
@@ -3743,7 +3743,7 @@ def _run_rewrite_generation(task_id, title, project_path, new_settings, username
         with open(blueprint_path, 'w', encoding='utf-8') as f:
             json.dump(blueprint, f, ensure_ascii=False, indent=2)
         
-        task_manager.update_task(task_id, {
+        task_manager.update_task(task_id, **{
             'progress': 20,
             'current_stage': 'generating_chapters',
             'message': '开始生成章节'
@@ -3765,7 +3765,7 @@ def _run_rewrite_generation(task_id, title, project_path, new_settings, username
         
         while current <= total_chapters:
             if task_manager.should_stop(task_id):
-                task_manager.update_task(task_id, {
+                task_manager.update_task(task_id, **{
                     'status': 'stopped',
                     'message': '用户停止生成'
                 })
@@ -3773,7 +3773,7 @@ def _run_rewrite_generation(task_id, title, project_path, new_settings, username
             
             batch_end = min(current + batch_size - 1, total_chapters)
             
-            task_manager.update_task(task_id, {
+            task_manager.update_task(task_id, **{
                 'message': f'正在生成第{current}-{batch_end}章',
                 'batch_num': (current - 1) // batch_size + 1,
                 'current_chapter': current
@@ -3794,7 +3794,7 @@ def _run_rewrite_generation(task_id, title, project_path, new_settings, username
                     
                     # 更新进度
                     progress = 20 + int((batch_end / total_chapters) * 80)
-                    task_manager.update_task(task_id, {
+                    task_manager.update_task(task_id, **{
                         'progress': progress,
                         'completed_chapters': len(generated_chapters),
                         'total_words': total_words
@@ -3804,14 +3804,14 @@ def _run_rewrite_generation(task_id, title, project_path, new_settings, username
                 
             except Exception as e:
                 logger.error(f"[重写] 批次生成失败 {current}-{batch_end}: {e}")
-                task_manager.update_task(task_id, {
+                task_manager.update_task(task_id, **{
                     'status': 'failed',
                     'error': f'第{current}-{batch_end}章生成失败: {str(e)}'
                 })
                 return
         
         # 完成任务
-        task_manager.update_task(task_id, {
+        task_manager.update_task(task_id, **{
             'status': 'completed',
             'progress': 100,
             'current_stage': 'rewrite_completed',
@@ -3825,7 +3825,7 @@ def _run_rewrite_generation(task_id, title, project_path, new_settings, username
         
     except Exception as e:
         logger.error(f"[重写] 生成失败: {e}", exc_info=True)
-        task_manager.update_task(task_id, {
+        task_manager.update_task(task_id, **{
             'status': 'failed',
             'error': str(e)
         })
