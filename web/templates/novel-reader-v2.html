@@ -128,7 +128,7 @@ html.reader-mode main.v2-main {
     right: 0;
     bottom: 0;
     display: flex;
-    z-index: 1;
+    z-index: 10;
     pointer-events: none;
 }
 
@@ -1464,6 +1464,14 @@ class NovelReader {
                 this.prevChapter();
             } else if (zone === 'next') {
                 this.nextChapter();
+            }
+        });
+
+        // 备选：点击内容区域也能切换UI（防止热区被遮挡）
+        document.getElementById('readerContent').addEventListener('click', (e) => {
+            // 如果点击的不是链接或按钮
+            if (e.target.tagName !== 'A' && e.target.tagName !== 'BUTTON') {
+                this.toggleUI();
             }
         });
 
