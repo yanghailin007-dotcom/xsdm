@@ -362,6 +362,8 @@ class ProductLoader:
             'characters': self._create_empty_product('角色设计'),
             'factions': self._create_empty_product('势力/阵营系统'),  # 🔥 新增：包含势力系统
             'growth': self._create_empty_product('成长路线'),
+            'stage_goals': self._create_empty_product('阶段目标'),
+            'golden_finger': self._create_empty_product('金手指设定'),
             'writing': self._create_empty_product('写作计划'),
             'storyline': self._create_empty_product('故事线'),
             'market': self._create_empty_product('市场分析')
@@ -1141,6 +1143,7 @@ class ProductLoader:
             "角色设计.json": "characters",
             "升级路线.json": "growth",
             "阶段目标.json": "stage_goals",
+            "金手指设定.json": "golden_finger",
             "完整方案.json": "storyline",  # 完整方案作为故事线
             "番茄上传数据.json": None,  # 暂不映射
             "写作风格指南.json": "writing",
