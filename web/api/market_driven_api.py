@@ -3170,12 +3170,22 @@ def _run_continue_chapter_generation(task_id, title, blueprint, start_chapter, e
             
             try:
                 # 生成当前批次
+                # 从 blueprints 获取小说数据
+                novel_data = {
+                    'title': title,
+                    'username': username,
+                    'project_path': str(project_path)
+                }
+                # 获取 tropes 数据（如果有）
+                tropes = blueprint.get('tropes', {})
+                
                 result = batch_generator.generate_batch(
-                    project_path=str(project_path),
-                    blueprint=blueprint,
+                    novel_title=title,
                     start_chapter=current,
                     end_chapter=batch_end,
-                    previous_chapters=generated_chapters[-3:] if generated_chapters else []
+                    blueprint=blueprint,
+                    tropes=tropes,
+                    novel_data=novel_data
                 )
                 
                 if result and 'chapters' in result:
@@ -3780,12 +3790,22 @@ def _run_rewrite_generation(task_id, title, project_path, new_settings, username
             })
             
             try:
+                # 从 blueprints 获取小说数据
+                novel_data = {
+                    'title': title,
+                    'username': username,
+                    'project_path': str(project_path)
+                }
+                # 获取 tropes 数据（如果有）
+                tropes = blueprint.get('tropes', {})
+                
                 result = batch_generator.generate_batch(
-                    project_path=str(project_path),
-                    blueprint=blueprint,
+                    novel_title=title,
                     start_chapter=current,
                     end_chapter=batch_end,
-                    previous_chapters=generated_chapters[-3:] if generated_chapters else []
+                    blueprint=blueprint,
+                    tropes=tropes,
+                    novel_data=novel_data
                 )
                 
                 if result and 'chapters' in result:
