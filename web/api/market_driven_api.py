@@ -2942,3 +2942,223 @@ def get_user_active_tasks():
             "tasks": [],
             "count": 0
         }), 500
+
+
+# ==================== 章节续写 API ====================
+
+@market_driven_api.route('/<title>/continue-chapters', methods=['POST'])
+@login_required
+def continue_chapters(title):
+    """
+    章节续写 - 直接生成后续章节，不重新生成设定
+    
+    Args:
+        title: 项目标题
+        
+    Request Body:
+        {
+            "start_chapter": 11,  # 起始章节号
+            "end_chapter": 16     # 结束章节号
+        }
+        
+    Returns:
+        {
+            "success": True,
+            "task_id": "...",
+            "message": "章节续写任务已启动"
+        }
+    """
+    try:
+        from urllib.parse import unquote
+        title = unquote(title)
+        username = _get_current_username()
+        
+        # 获取请求参数
+        data = request.json or {}
+        start_chapter = data.get('start_chapter', 1)
+        end_chapter = data.get('end_chapter', start_chapter + 5)
+        
+        logger.info(f"[章节续写] {title}: 第{start_chapter}-{end_chapter}章")
+        
+        # 查找项目路径
+        from web.utils.path_utils import find_novel_project
+        project_path = find_novel_project(title, username)
+        
+        if not project_path:
+            return jsonify({
+                "success": False,
+                "error": f"项目 '{title}' 不存在"
+            }), 404
+        
+        project_path = Path(project_path)
+        
+        # 加载蓝图
+        blueprint_path = project_path / "phase_one_products" / "完整方案.json"
+        if not blueprint_path.exists():
+            return jsonify({
+                "success": False,
+                "error": "未找到章节规划文件，无法续写"
+            }), 400
+        
+        with open(blueprint_path, 'r', encoding='utf-8') as f:
+            blueprint = json.load(f)
+        
+        # 扣除点数（每章10点）
+        from web.services.points_service import points_service
+        chapters_to_generate = end_chapter - start_chapter + 1
+        points_needed = chapters_to_generate * 10
+        
+        balance = points_service.get_balance(username)
+        if balance < points_needed:
+            return jsonify({
+                "success": False,
+                "error": f"创造点不足，需要{points_needed}点，当前{balance}点",
+                "current_balance": balance,
+                "needed": points_needed
+            }), 402
+        
+        # 扣除点数
+        success, result = points_service.consume_points(
+            username=username,
+            points=points_needed,
+            action=f"续写章节: {title} 第{start_chapter}-{end_chapter}章",
+            novel_title=title
+        )
+        
+        if not success:
+            return jsonify({
+                "success": False,
+                "error": result
+            }), 402
+        
+        # 创建续写任务
+        task_id = task_manager.create_task(
+            title=title,
+            task_type="continue_chapters",
+            username=username
+        )
+        
+        # 启动后台线程生成章节
+        import threading
+        thread = threading.Thread(
+            target=_run_continue_chapter_generation,
+            args=(task_id, title, blueprint, start_chapter, end_chapter, username)
+        )
+        thread.daemon = True
+        thread.start()
+        
+        return jsonify({
+            "success": True,
+            "task_id": task_id,
+            "message": f"章节续写任务已启动，将生成第{start_chapter}-{end_chapter}章",
+            "start_chapter": start_chapter,
+            "end_chapter": end_chapter,
+            "points_consumed": points_needed
+        })
+        
+    except Exception as e:
+        logger.error(f"[章节续写] 启动失败: {e}", exc_info=True)
+        return jsonify({
+            "success": False,
+            "error": str(e)
+        }), 500
+
+
+def _run_continue_chapter_generation(task_id, title, blueprint, start_chapter, end_chapter, username):
+    """
+    在后台运行章节续写生成
+    """
+    try:
+        task_manager.update_task(task_id, {
+            'status': 'generating_chapters',
+            'current_stage': 'generating_chapters',
+            'progress': 0,
+            'message': f'开始续写第{start_chapter}-{end_chapter}章'
+        })
+        
+        # 初始化批量生成器
+        from web.services.market_driven.batch_chapter_generator import BatchChapterGenerator
+        batch_generator = BatchChapterGenerator(
+            stop_checker=lambda: task_manager.should_stop(task_id)
+        )
+        
+        # 获取项目路径
+        from web.utils.path_utils import get_novel_project_dir
+        project_path = get_novel_project_dir(title, username, create=False)
+        
+        total_chapters = end_chapter - start_chapter + 1
+        generated_chapters = []
+        total_words = 0
+        
+        # 分批生成
+        batch_size = 6
+        current = start_chapter
+        
+        while current <= end_chapter:
+            if task_manager.should_stop(task_id):
+                task_manager.update_task(task_id, {
+                    'status': 'stopped',
+                    'message': '用户停止生成'
+                })
+                return
+            
+            batch_end = min(current + batch_size - 1, end_chapter)
+            
+            task_manager.update_task(task_id, {
+                'message': f'正在生成第{current}-{batch_end}章',
+                'batch_num': (current - start_chapter) // batch_size + 1,
+                'current_chapter': current
+            })
+            
+            try:
+                # 生成当前批次
+                result = batch_generator.generate_batch(
+                    project_path=str(project_path),
+                    blueprint=blueprint,
+                    start_chapter=current,
+                    end_chapter=batch_end,
+                    previous_chapters=generated_chapters[-3:] if generated_chapters else []
+                )
+                
+                if result and 'chapters' in result:
+                    generated_chapters.extend(result['chapters'])
+                    total_words += result.get('total_words', 0)
+                    
+                    # 更新进度
+                    progress = int((batch_end - start_chapter + 1) / total_chapters * 100)
+                    task_manager.update_task(task_id, {
+                        'progress': progress,
+                        'completed_chapters': len(generated_chapters),
+                        'total_words': total_words
+                    })
+                
+                current = batch_end + 1
+                
+            except Exception as e:
+                logger.error(f"[章节续写] 批次生成失败 {current}-{batch_end}: {e}")
+                task_manager.update_task(task_id, {
+                    'status': 'failed',
+                    'error': f'第{current}-{batch_end}章生成失败: {str(e)}'
+                })
+                return
+        
+        # 完成任务
+        task_manager.update_task(task_id, {
+            'status': 'completed',
+            'progress': 100,
+            'current_stage': 'generation_completed',
+            'message': f'续写完成，共生成{len(generated_chapters)}章',
+            'result': {
+                'total_chapters': len(generated_chapters),
+                'total_words': total_words,
+                'start_chapter': start_chapter,
+                'end_chapter': end_chapter
+            }
+        })
+        
+    except Exception as e:
+        logger.error(f"[章节续写] 生成失败: {e}", exc_info=True)
+        task_manager.update_task(task_id, {
+            'status': 'failed',
+            'error': str(e)
+        })

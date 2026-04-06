@@ -272,7 +272,7 @@
   <div class="plan-form">
     
     <!-- 基本信息 -->
-    <div class="form-section">
+    <div class="form-section" id="basic-info-section">
       <h2 class="form-section__title">
         <span class="material-icons">info</span>
         基本信息
@@ -317,7 +317,7 @@
     </div>
 
     <!-- 主角设定 -->
-    <div class="form-section">
+    <div class="form-section" id="protagonist-section">
       <h2 class="form-section__title">
         <span class="material-icons">person</span>
         主角设定
@@ -373,6 +373,40 @@
       <!-- 🔥 已移除固定大高潮输入，改为AI自由创作 -->
       <div class="form-group" style="display:none;">
         <input type="hidden" id="first-climax" value="">
+      </div>
+    </div>
+
+    <!-- 续写范围设定（仅续写模式显示） -->
+    <div class="form-section" id="continue-range-section" style="display: none;">
+      <h2 class="form-section__title">
+        <span class="material-icons">playlist_add</span>
+        章节续写设定
+      </h2>
+      
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">起始章节</label>
+          <input type="number" class="form-input" id="continue-start-chapter" min="1" value="1" readonly style="background: var(--v2-bg-tertiary); opacity: 0.7;">
+          <div class="form-hint" id="continue-start-hint">已完成0章，从第1章开始续写</div>
+        </div>
+        
+        <div class="form-group">
+          <label class="form-label">继续生成章节数</label>
+          <select class="form-select" id="continue-batch-size">
+            <option value="6" selected>6章（推荐）</option>
+            <option value="10">10章</option>
+            <option value="20">20章</option>
+            <option value="30">30章</option>
+          </select>
+          <div class="form-hint">每次生成的章节数量</div>
+        </div>
+      </div>
+      
+      <div class="form-group" style="background: rgba(34, 197, 94, 0.1); border: 1px solid rgba(34, 197, 94, 0.3); border-radius: 8px; padding: 16px;">
+        <div style="display: flex; align-items: center; gap: 12px; color: #4ade80;">
+          <span class="material-icons">info</span>
+          <span>续写模式将使用已有的创作设定，仅生成后续章节内容</span>
+        </div>
       </div>
     </div>
 
@@ -1008,58 +1042,33 @@ async function loadContinueProjectData(title) {
 
 // 用续写数据填充表单
 function fillFormWithContinueData(data) {
-  // 填充标题
-  if (data.title) {
-    document.getElementById('novel-title').value = data.title;
+  // 续写模式下，只设置续写范围，隐藏设定表单
+  const completedChapters = data.completed_chapters || 0;
+  const nextChapter = completedChapters + 1;
+  
+  // 设置起始章节（只读）
+  const startChapterInput = document.getElementById('continue-start-chapter');
+  if (startChapterInput) {
+    startChapterInput.value = nextChapter;
   }
   
-  // 填充核心卖点
-  if (data.sellpoint || data.core_sellpoint) {
-    document.getElementById('novel-sellpoint').value = data.sellpoint || data.core_sellpoint;
+  // 更新起始章节提示
+  const startHint = document.getElementById('continue-start-hint');
+  if (startHint) {
+    startHint.textContent = `已完成${completedChapters}章，从第${nextChapter}章开始续写`;
   }
   
-  // 填充主角姓名
-  if (data.protagonist_name || data.protagonist?.name) {
-    document.getElementById('protagonist-name').value = data.protagonist_name || data.protagonist?.name;
-  }
-  
-  // 填充主角背景
-  if (data.protagonist_bg || data.protagonist?.background || data.protagonist?.identity) {
-    document.getElementById('protagonist-bg').value = data.protagonist_bg || data.protagonist?.background || data.protagonist?.identity;
-  }
-  
-  // 填充金手指描述
-  if (data.golden_finger_desc || data.golden_finger?.description || data.golden_finger?.desc) {
-    const gfDesc = data.golden_finger_desc || data.golden_finger?.description || data.golden_finger?.desc;
-    document.getElementById('golden-finger-desc').value = gfDesc;
-  }
-  
-  // 填充主线剧情
-  if (data.main_plot || data.plot || data.storyline) {
-    document.getElementById('main-plot').value = data.main_plot || data.plot || data.storyline;
-  }
-  
-  // 设置目标字数和章节数（如果有）
-  if (data.target_words) {
-    const wordCountInWan = Math.floor(data.target_words / 10000);
-    const wordSelect = document.getElementById('novel-wordcount');
-    const option = Array.from(wordSelect.options).find(opt => opt.value == wordCountInWan);
-    if (option) wordSelect.value = wordCountInWan;
-  }
-  
-  if (data.total_chapters || data.chapters) {
-    const chapters = data.total_chapters || data.chapters;
-    const chapterSelect = document.getElementById('novel-chapters');
-    const option = Array.from(chapterSelect.options).find(opt => opt.value == chapters);
-    if (option) chapterSelect.value = chapters;
+  // 设置总章节数（隐藏字段，用于计算）
+  if (data.total_chapters) {
+    document.getElementById('novel-chapters').value = data.total_chapters;
   }
 }
 
 // 更新页面为续写模式
 function updatePageForContinueMode() {
   // 更新页面标题
-  document.querySelector('.plan-header__title').textContent = '续写创作方案';
-  document.querySelector('.plan-header__subtitle').textContent = `基于《${titleFromUrl}》继续生成后续章节`;
+  document.querySelector('.plan-header__title').textContent = '章节续写';
+  document.querySelector('.plan-header__subtitle').textContent = `为《${titleFromUrl}》生成后续章节`;
   
   // 更新按钮文本
   const btn = document.getElementById('generate-btn');
@@ -1069,7 +1078,24 @@ function updatePageForContinueMode() {
   
   // 更新生成区域信息
   document.querySelector('.generate-section__label').textContent = '准备续写';
-  document.querySelector('.generate-section__value').textContent = '基于现有设定继续创作';
+  document.querySelector('.generate-section__value').textContent = '生成后续章节内容';
+  
+  // 隐藏设定表单区块（续写模式下不需要修改设定）
+  const sectionsToHide = [
+    document.getElementById('basic-info-section'),
+    document.getElementById('protagonist-section'),
+    document.getElementById('plot-section')
+  ];
+  
+  sectionsToHide.forEach(section => {
+    if (section) section.style.display = 'none';
+  });
+  
+  // 显示续写范围设定
+  const continueSection = document.getElementById('continue-range-section');
+  if (continueSection) {
+    continueSection.style.display = 'block';
+  }
 }
 
 async function startGeneration() {
@@ -1174,52 +1200,43 @@ async function startGeneration() {
   }
 }
 
-// 续写模式：启动续写生成
+// 续写模式：启动章节续写生成
 async function startContinueGeneration() {
   const btn = document.getElementById('generate-btn');
   
   try {
-    console.log('启动续写生成:', titleFromUrl);
+    console.log('启动章节续写:', titleFromUrl);
     
-    // 获取续写的起始章节和结束章节
-    const startChapter = continueProjectData?.completed_chapters ? continueProjectData.completed_chapters + 1 : 1;
-    const endChapter = startChapter + parseInt(document.getElementById('novel-chapters').value) - 1;
+    // 获取续写参数
+    const startChapter = parseInt(document.getElementById('continue-start-chapter').value) || 1;
+    const batchSize = parseInt(document.getElementById('continue-batch-size').value) || 6;
+    const endChapter = startChapter + batchSize - 1;
     
-    // 构建续写请求数据
-    const continueData = {
-      start_chapter: startChapter,
-      end_chapter: endChapter,
-      // 可选：传递更新后的创作设定
-      updated_settings: {
-        title: document.getElementById('novel-title').value,
-        sellpoint: document.getElementById('novel-sellpoint').value,
-        protagonist_name: document.getElementById('protagonist-name').value,
-        protagonist_bg: document.getElementById('protagonist-bg').value,
-        golden_finger_desc: document.getElementById('golden-finger-desc').value,
-        main_plot: document.getElementById('main-plot').value
-      }
-    };
+    console.log(`续写范围: 第${startChapter}章 到 第${endChapter}章`);
     
-    // 调用续写API
-    const response = await fetch(`/api/novel/${encodeURIComponent(titleFromUrl)}/continue`, {
+    // 调用章节生成API（直接生成章节，不重新生成设定）
+    const response = await fetch(`/api/market-driven/${encodeURIComponent(titleFromUrl)}/continue-chapters`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(continueData)
+      body: JSON.stringify({
+        start_chapter: startChapter,
+        end_chapter: endChapter
+      })
     });
     
     const result = await response.json();
     
     if (result.success) {
-      console.log('续写任务已启动:', result);
+      console.log('章节续写任务已启动:', result);
       // 跳转到任务状态页面
       window.location.href = `/market-driven-status?task=${result.task_id}`;
     } else {
-      throw new Error(result.error || '续写任务启动失败');
+      throw new Error(result.error || '章节续写任务启动失败');
     }
     
   } catch (error) {
-    console.error('续写生成失败:', error);
-    alert('续写生成失败: ' + error.message);
+    console.error('章节续写失败:', error);
+    alert('章节续写失败: ' + error.message);
     btn.disabled = false;
     btn.innerHTML = '<span class="material-icons">playlist_add</span>开始续写';
   }
