@@ -3087,9 +3087,13 @@ def continue_chapters(title):
         
         # 创建续写任务
         task_id = task_manager.create_task(
-            title=title,
-            task_type="continue_chapters",
-            username=username
+            genre="continue_chapters",
+            user_choices={
+                "title": title,
+                "username": username,
+                "start_chapter": start_chapter,
+                "end_chapter": end_chapter
+            }
         )
         
         # 启动后台线程生成章节
@@ -3313,9 +3317,11 @@ def replan_project(title):
         
         # 创建规划任务
         task_id = task_manager.create_task(
-            title=title,
-            task_type="replan",
-            username=username
+            genre="replan",
+            user_choices={
+                "title": title,
+                "username": username
+            }
         )
         
         # 启动后台线程重新生成方案
@@ -3610,9 +3616,11 @@ def rewrite_project(title):
         
         # 创建重写任务
         task_id = task_manager.create_task(
-            title=title,
-            task_type="rewrite",
-            username=username
+            genre="rewrite",
+            user_choices={
+                "title": title,
+                "username": username
+            }
         )
         
         # 启动后台线程重新生成
