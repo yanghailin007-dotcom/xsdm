@@ -1035,14 +1035,18 @@ class NovelReader {
         listEl.innerHTML = '<div class="reader-empty"><div class="reader-loader__spinner"></div><div>加载章节列表中...</div></div>';
         
         try {
+            console.log('[阅读器] 开始加载章节列表:', this.title);
             const resp = await fetch(`/api/project/${encodeURIComponent(this.title)}/chapters`);
-            if (!resp.ok) throw new Error('加载章节列表失败');
+            console.log('[阅读器] 章节列表API响应:', resp.status);
+            if (!resp.ok) throw new Error('加载章节列表失败: ' + resp.status);
             const data = await resp.json();
+            console.log('[阅读器] 章节列表数据:', data);
             this.chapters = (data.chapters || []).sort((a, b) => (a.number || 0) - (b.number || 0));
+            console.log('[阅读器] 排序后的章节:', this.chapters.length, '章');
             this.renderChapterList();
         } catch (e) {
-            console.error('加载章节列表失败:', e);
-            listEl.innerHTML = '<div class="reader-empty"><div class="reader-empty__desc">加载失败，请刷新页面重试</div></div>';
+            console.error('[阅读器] 加载章节列表失败:', e);
+            listEl.innerHTML = '<div class="reader-empty"><div class="reader-empty__desc">加载失败: ' + e.message + '</div></div>';
         }
     }
 
