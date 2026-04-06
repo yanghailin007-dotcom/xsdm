@@ -3188,8 +3188,11 @@ def _run_continue_chapter_generation(task_id, title, blueprint, start_chapter, e
                     novel_data=novel_data
                 )
                 
+                logger.info(f"[章节续写] generate_batch 返回: {result}")
+                
                 # generate_batch 返回的是 'generated' 字段，不是 'chapters'
                 if result and 'generated' in result:
+                    logger.info(f"[章节续写] 本批次生成 {len(result['generated'])} 章，失败 {len(result.get('failed', []))} 章")
                     generated_chapters.extend(result['generated'])
                     total_words += result.get('total_words', 0)
                     
@@ -3200,6 +3203,8 @@ def _run_continue_chapter_generation(task_id, title, blueprint, start_chapter, e
                         'completed_chapters': len(generated_chapters),
                         'total_words': total_words
                     })
+                else:
+                    logger.warning(f"[章节续写] generate_batch 返回异常: result={result}")
                 
                 current = batch_end + 1
                 
