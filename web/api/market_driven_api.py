@@ -3048,11 +3048,19 @@ def continue_chapters(title):
             blueprint = json.load(f)
         
         # 扣除点数（每章10点）
-        from web.services.points_service import points_service
+        from web.models.point_model import point_model
         chapters_to_generate = end_chapter - start_chapter + 1
         points_needed = chapters_to_generate * 10
         
-        balance = points_service.get_balance(username)
+        # 获取用户ID
+        from flask import session
+        user_id = session.get('user_id')
+        if not user_id:
+            return jsonify({"success": False, "error": "请先登录"}), 401
+        
+        user_points = point_model.get_user_points(user_id)
+        balance = user_points.get('points', 0) if user_points else 0
+        
         if balance < points_needed:
             return jsonify({
                 "success": False,
@@ -3062,12 +3070,13 @@ def continue_chapters(title):
             }), 402
         
         # 扣除点数
-        success, result = points_service.consume_points(
-            username=username,
+        spend_result = point_model.spend_points(
+            user_id=user_id,
             points=points_needed,
-            action=f"续写章节: {title} 第{start_chapter}-{end_chapter}章",
-            novel_title=title
+            action=f"续写章节: {title} 第{start_chapter}-{end_chapter}章"
         )
+        success = spend_result.get('success', False)
+        result = spend_result.get('message', '') if not success else ''
         
         if not success:
             return jsonify({
@@ -3265,10 +3274,18 @@ def replan_project(title):
         project_path = Path(project_path)
         
         # 扣除点数（重新规划消耗50点）
-        from web.services.points_service import points_service
+        from web.models.point_model import point_model
         points_needed = 50
         
-        balance = points_service.get_balance(username)
+        # 获取用户ID
+        from flask import session
+        user_id = session.get('user_id')
+        if not user_id:
+            return jsonify({"success": False, "error": "请先登录"}), 401
+        
+        user_points = point_model.get_user_points(user_id)
+        balance = user_points.get('points', 0) if user_points else 0
+        
         if balance < points_needed:
             return jsonify({
                 "success": False,
@@ -3278,12 +3295,13 @@ def replan_project(title):
             }), 402
         
         # 扣除点数
-        success, result = points_service.consume_points(
-            username=username,
+        spend_result = point_model.spend_points(
+            user_id=user_id,
             points=points_needed,
-            action=f"重新规划: {title}",
-            novel_title=title
+            action=f"重新规划: {title}"
         )
+        success = spend_result.get('success', False)
+        result = spend_result.get('message', '') if not success else ''
         
         if not success:
             return jsonify({
@@ -3518,10 +3536,18 @@ def rewrite_project(title):
         project_path = Path(project_path)
         
         # 扣除点数（重写消耗100点）
-        from web.services.points_service import points_service
+        from web.models.point_model import point_model
         points_needed = 100
         
-        balance = points_service.get_balance(username)
+        # 获取用户ID
+        from flask import session
+        user_id = session.get('user_id')
+        if not user_id:
+            return jsonify({"success": False, "error": "请先登录"}), 401
+        
+        user_points = point_model.get_user_points(user_id)
+        balance = user_points.get('points', 0) if user_points else 0
+        
         if balance < points_needed:
             return jsonify({
                 "success": False,
@@ -3531,12 +3557,13 @@ def rewrite_project(title):
             }), 402
         
         # 扣除点数
-        success, result = points_service.consume_points(
-            username=username,
+        spend_result = point_model.spend_points(
+            user_id=user_id,
             points=points_needed,
-            action=f"重写项目: {title}",
-            novel_title=title
+            action=f"重写项目: {title}"
         )
+        success = spend_result.get('success', False)
+        result = spend_result.get('message', '') if not success else ''
         
         if not success:
             return jsonify({
