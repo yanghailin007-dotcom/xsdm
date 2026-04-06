@@ -149,11 +149,11 @@ class TomatoBestsellerTacticalSession:
         progression = self.phase_one_data.get('progression_path', {})
         milestones = progression.get('protagonist_growth', {}).get('milestones', [])
         
-        # 构建提示词
-        prompt = f"""# 番茄爆款细纲规划 - 第1轮：核心设定对齐
+        # 使用format方法避免f-string问题
+        prompt_template = """# 番茄爆款细纲规划 - 第1轮：核心设定对齐
 
 ## 任务
-为小说《{self.novel_title}》规划第{self.start_chapter}-{self.end_chapter}章的**设定落地框架**。
+为小说《{novel_title}》规划第{start_chapter}-{end_chapter}章的**设定落地框架**。
 这是细纲规划的第一轮，重点是确保一阶段的核心设定在30章中得到正确贯彻。
 
 ---
@@ -161,13 +161,13 @@ class TomatoBestsellerTacticalSession:
 ## 一、世界观设定（必须严格遵守）
 
 ### 背景设定
-{world_overview.get('background', '未设定')}
+{background}
 
 ### 核心概念
-{world_overview.get('core_concept', '未设定')}
+{core_concept}
 
 ### 基调风格
-{world_overview.get('tone', '未设定')}
+{tone}
 
 ---
 
@@ -177,52 +177,52 @@ class TomatoBestsellerTacticalSession:
 弹幕干涉系统
 
 ### 核心机制
-{power_system.get('shen_lang_exclusive', '未设定')}
+{shen_lang_exclusive}
 
 ### 等级体系
-{power_system.get('level_standard', '未设定')}
+{level_standard}
 
-### 当前阶段（{self.start_chapter}-{self.end_chapter}章）
-{self._get_current_power_stage()}
+### 当前阶段（{start_chapter}-{end_chapter}章）
+{current_power_stage}
 
 ---
 
 ## 三、主角人设（必须严格遵守）
 
 ### 基本信息
-- 姓名：{protagonist.get('name', '主角')}
-- 年龄：{protagonist.get('age', '未知')}
+- 姓名：{protagonist_name}
+- 年龄：{protagonist_age}
 
 ### 性格特质
-{self._format_list(protagonist.get('traits', []))}
+{traits}
 
 ### 身份定位
-{protagonist.get('identity', '未设定')}
+{identity}
 
 ### 成长弧线
-{protagonist.get('growth_arc', '未设定')}
+{growth_arc}
 
 ### 独特标签
-{protagonist.get('unique_label', '未设定')}
+{unique_label}
 
 ---
 
 ## 四、阶段目标（必须达成）
 
 ### 当前阶段
-{stage_goal.get('goal_id', 'G?')}: {stage_goal.get('description', '未设定')}
+{goal_id}: {goal_description}
 
 ### 关键交付物
-{self._format_list(stage_goal.get('key_deliverables', []))}
+{key_deliverables}
 
 ### 成功标准
-{stage_goal.get('success_criteria', '未设定')}
+{success_criteria}
 
 ---
 
 ## 五、升级里程碑（本章批应对齐）
 
-{self._format_milestones(milestones)}
+{milestones}
 
 ---
 
@@ -273,7 +273,31 @@ class TomatoBestsellerTacticalSession:
 4. **升级节点必须对齐**，不能提前解锁后期能力
 5. **约束条件必须列出**，供后续轮次参考
 """
-        return prompt
+        
+        format_params = {
+            'novel_title': self.novel_title,
+            'start_chapter': self.start_chapter,
+            'end_chapter': self.end_chapter,
+            'background': world_overview.get('background', '未设定'),
+            'core_concept': world_overview.get('core_concept', '未设定'),
+            'tone': world_overview.get('tone', '未设定'),
+            'shen_lang_exclusive': power_system.get('shen_lang_exclusive', '未设定'),
+            'level_standard': power_system.get('level_standard', '未设定'),
+            'current_power_stage': self._get_current_power_stage(),
+            'protagonist_name': protagonist.get('name', '主角'),
+            'protagonist_age': protagonist.get('age', '未知'),
+            'traits': self._format_list(protagonist.get('traits', [])),
+            'identity': protagonist.get('identity', '未设定'),
+            'growth_arc': protagonist.get('growth_arc', '未设定'),
+            'unique_label': protagonist.get('unique_label', '未设定'),
+            'goal_id': stage_goal.get('goal_id', 'G?'),
+            'goal_description': stage_goal.get('description', '未设定'),
+            'key_deliverables': self._format_list(stage_goal.get('key_deliverables', [])),
+            'success_criteria': stage_goal.get('success_criteria', '未设定'),
+            'milestones': self._format_milestones(milestones)
+        }
+        
+        return prompt_template.format(**format_params)
     
     def _get_round1_system_prompt(self) -> str:
         """第1轮系统提示词"""
@@ -331,7 +355,7 @@ class TomatoBestsellerTacticalSession:
             return self._get_default_emotion_plan()
     
     def _build_round2_prompt(self) -> str:
-        """构建第2轮提示词"""
+        """构建第2轮提示词 - 使用format方法避免f-string解析问题"""
         # 获取第1轮输出
         round1 = self.round1_result.get('core_framework', {}) if self.round1_result else {}
         
@@ -350,13 +374,24 @@ class TomatoBestsellerTacticalSession:
                        if self.start_chapter <= e.get('chapter', 0) <= self.end_chapter]
             emotion_curve_text = "\n".join([
                 f"第{e.get('chapter')}章: {e.get('emotion', '')} (强度{e.get('intensity', 5)})"
-                for e in relevant[:10]  # 只显示前10章
+                for e in relevant[:10]
             ])
         
-        prompt = f"""# 番茄爆款细纲规划 - 第2轮：情绪爽点规划【核心轮】
+        # 准备所有需要插入的变量
+        world_building = self._format_simple_list(round1.get('world_building_chapters', []))
+        golden_finger = self._format_simple_list(round1.get('golden_finger_progression', []))
+        protagonist_moments = self._format_simple_list(round1.get('protagonist_moments', []))
+        goal_milestones = json.dumps(round1.get('goal_milestones', {}), ensure_ascii=False, indent=2)
+        key_constraints = self._format_list(round1.get('key_constraints', []))
+        batch_climax_str = self._format_list(batch_climax)
+        batch_climax_raw = ', '.join(str(c) for c in batch_climax) if batch_climax else '无'
+        emotion_text = emotion_curve_text or '未提供详细曲线'
+        
+        # 使用format方法而不是f-string
+        prompt_template = """# 番茄爆款细纲规划 - 第2轮：情绪爽点规划【核心轮】
 
 ## 任务
-为小说《{self.novel_title}》规划第{self.start_chapter}-{self.end_chapter}章的**详细情绪设计**。
+为小说《{novel_title}》规划第{start_chapter}-{end_chapter}章的**详细情绪设计**。
 这是三轮中**最重要的一轮**，直接决定读者是否追读。
 
 ---
@@ -364,19 +399,19 @@ class TomatoBestsellerTacticalSession:
 ## 一、第1轮输出：设定框架（必须遵守）
 
 ### 世界观落地节点
-{self._format_simple_list(round1.get('world_building_chapters', []))}
+{world_building}
 
 ### 金手指升级路线
-{self._format_simple_list(round1.get('golden_finger_progression', []))}
+{golden_finger}
 
 ### 主角人设高光时刻
-{self._format_simple_list(round1.get('protagonist_moments', []))}
+{protagonist_moments}
 
 ### 阶段目标里程碑
-{json.dumps(round1.get('goal_milestones', {}), ensure_ascii=False, indent=2)}
+{goal_milestones}
 
 ### 设定约束（绝对不能违反）
-{self._format_list(round1.get('key_constraints', []))}
+{key_constraints}
 
 ---
 
@@ -405,22 +440,22 @@ class TomatoBestsellerTacticalSession:
 ## 三、一阶段情绪设计（参考）
 
 ### 高潮节点（本章批内）
-{self._format_list(batch_climax)}
+{batch_climax_str}
 
 ### 情绪曲线（前10章）
-{emotion_curve_text or '未提供详细曲线'}
+{emotion_text}
 
 ---
 
 ## 四、输出要求
 
-请输出第{self.start_chapter}-{self.end_chapter}章的详细设计，JSON格式：
+请输出第{start_chapter}-{end_chapter}章的详细设计，JSON格式：
 
 ```json
-{
+{{
   "chapters": [
     {{
-      "chapter_number": {self.start_chapter},
+      "chapter_number": {start_chapter},
       "emotion": "压抑",
       "intensity": 9,
       "emotion_type": "绝望/愤怒/期待/爽快/震惊/满足",
@@ -445,7 +480,7 @@ class TomatoBestsellerTacticalSession:
     "hook_distribution": "钩子类型统计",
     "expected_retention": "预估追读率"
   }}
-}
+}}
 ```
 
 ---
@@ -456,7 +491,7 @@ class TomatoBestsellerTacticalSession:
 2. **不能连续2章无爽点**：最多隔1章必须有爽点交付
 3. **打脸必须爽**：反派先嚣张→主角反转→反派崩溃，三层结构
 4. **情绪有起伏**：相邻章情绪强度差必须≥1，不能平铺直叙
-5. **高潮节点要对齐**：{batch_climax} 必须是情绪巅峰
+5. **高潮节点要对齐**：{batch_climax_raw} 必须是情绪巅峰
 6. **设定不能丢**：每章必须体现国运绑定或金手指运用
 
 ---
@@ -474,7 +509,20 @@ class TomatoBestsellerTacticalSession:
 - 打脸：詹姆斯从嘲讽到震惊到恐惧
 - 钩子：不可一世的BOSS在二哈嘴里发出咔嚓声，全球直播间：？？？
 """
-        return prompt
+        
+        return prompt_template.format(
+            novel_title=self.novel_title,
+            start_chapter=self.start_chapter,
+            end_chapter=self.end_chapter,
+            world_building=world_building,
+            golden_finger=golden_finger,
+            protagonist_moments=protagonist_moments,
+            goal_milestones=goal_milestones,
+            key_constraints=key_constraints,
+            batch_climax_str=batch_climax_str,
+            batch_climax_raw=batch_climax_raw,
+            emotion_text=emotion_text
+        )
     
     def _get_round2_system_prompt(self) -> str:
         """第2轮系统提示词"""
@@ -558,7 +606,7 @@ class TomatoBestsellerTacticalSession:
             for c in chapters[:15]
         ])
         
-        prompt = f"""# 番茄爆款细纲规划 - 第3轮：角色出场规划
+        prompt_template = """# 番茄爆款细纲规划 - 第3轮：角色出场规划
 
 ## 任务
 基于前2轮的情节规划，为每章分配角色出场。
@@ -624,7 +672,7 @@ JSON格式：
     ],
     "chapter_assignments": [
       {{
-        "chapter": {self.start_chapter},
+        "chapter": {start_chapter},
         "core": ["沈浪", "二哈"],
         "major": [],
         "minor": ["冰冰"],
@@ -640,7 +688,11 @@ JSON格式：
   }}
 }}
 """
-        return prompt
+        return prompt_template.format(
+            chars_text=chars_text,
+            chapters_summary=chapters_summary,
+            start_chapter=self.start_chapter
+        )
     
     def _get_round3_system_prompt(self) -> str:
         """第3轮系统提示词"""
