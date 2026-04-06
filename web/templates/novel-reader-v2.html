@@ -1031,11 +1031,19 @@ class NovelReader {
     }
 
     async loadChapterList() {
-        const resp = await fetch(`/api/project/${encodeURIComponent(this.title)}/chapters`);
-        if (!resp.ok) throw new Error('加载章节列表失败');
-        const data = await resp.json();
-        this.chapters = (data.chapters || []).sort((a, b) => (a.number || 0) - (b.number || 0));
-        this.renderChapterList();
+        const listEl = document.getElementById('chapterList');
+        listEl.innerHTML = '<div class="reader-empty"><div class="reader-loader__spinner"></div><div>加载章节列表中...</div></div>';
+        
+        try {
+            const resp = await fetch(`/api/project/${encodeURIComponent(this.title)}/chapters`);
+            if (!resp.ok) throw new Error('加载章节列表失败');
+            const data = await resp.json();
+            this.chapters = (data.chapters || []).sort((a, b) => (a.number || 0) - (b.number || 0));
+            this.renderChapterList();
+        } catch (e) {
+            console.error('加载章节列表失败:', e);
+            listEl.innerHTML = '<div class="reader-empty"><div class="reader-empty__desc">加载失败，请刷新页面重试</div></div>';
+        }
     }
 
     async loadChapter(chapterNum, append = false) {
@@ -1048,9 +1056,12 @@ class NovelReader {
         }
 
         try {
-            // 检查缓存
-            if (this.loadedChapters.has(chapterNum) && !append) {
-                this.renderChapter(this.loadedChapters.get(chapterNum), append);
+            // 检查缓存 - 修复：append 模式也要检查是否已加载
+            if (this.loadedChapters.has(chapterNum)) {
+                if (!append) {
+                    this.renderChapter(this.loadedChapters.get(chapterNum), append);
+                }
+                // append 模式下如果已加载则跳过，避免重复渲染
                 return;
             }
 
@@ -1388,12 +1399,21 @@ class NovelReader {
             const scrollTop = this.scrollEl.scrollTop;
             const scrollHeight = this.scrollEl.scrollHeight - this.scrollEl.clientHeight;
 
-            // 滚动到底 80% 预加载
+            // 滚动到底 80% 预加载 - 修复：获取当前渲染的最后一章来判断下一章
             if (scrollHeight > 0 && scrollTop / scrollHeight > 0.8 && !this.isLoadingNext) {
-                const nextNum = this.currentChapterNum + 1;
-                const hasNext = this.chapters.some(ch => (ch.number || ch.chapter_number) >= nextNum);
-                if (hasNext || this.chapters.length === 0) {
-                    this.loadChapter(nextNum, true);
+                const renderedChapters = this.contentEl.querySelectorAll('.reader-chapter');
+                if (renderedChapters.length > 0) {
+                    const lastChapter = renderedChapters[renderedChapters.length - 1];
+                    const lastChapterNum = parseInt(lastChapter.dataset.chapterNum);
+                    const nextNum = lastChapterNum + 1;
+                    
+                    // 检查是否已经加载过该章节
+                    if (!this.loadedChapters.has(nextNum)) {
+                        const hasNext = this.chapters.some(ch => (ch.number || ch.chapter_number) >= nextNum);
+                        if (hasNext || this.chapters.length === 0) {
+                            this.loadChapter(nextNum, true);
+                        }
+                    }
                 }
             }
 
