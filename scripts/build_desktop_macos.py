@@ -96,11 +96,8 @@ def build_macos():
     
     print("[INFO] 开始打包...")
     
-    # 检测平台架构
-    import platform
-    machine = platform.machine()
-    arch_flag = '--target-arch=arm64' if machine == 'arm64' else ''
-    
+    # 注意：使用 spec 文件时，不能加 --target-arch 参数
+    # 架构配置应该在 spec 文件中定义
     cmd = [
         sys.executable, '-m', 'PyInstaller',
         str(spec_file),
@@ -109,9 +106,6 @@ def build_macos():
         '--workpath', str(release_dir / 'build'),
         '--distpath', str(release_dir / 'dist'),
     ]
-    
-    if arch_flag:
-        cmd.append(arch_flag)
     
     try:
         subprocess.run(cmd, check=True, cwd=str(release_dir))
