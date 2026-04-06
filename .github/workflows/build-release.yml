@@ -52,7 +52,7 @@ jobs:
 
   # macOS Intel 构建任务
   build-macos-intel:
-    runs-on: macos-13  # macos-13 是 Intel 架构
+    runs-on: macos-13  # Intel 架构 (免费版)
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -87,7 +87,7 @@ jobs:
 
   # macOS Apple Silicon 构建任务
   build-macos-arm:
-    runs-on: macos-14  # macos-14 是 Apple Silicon (M1/M2)
+    runs-on: macos-14  # Apple Silicon (M1/M2)
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
