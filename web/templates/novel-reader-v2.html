@@ -1119,11 +1119,19 @@ class NovelReader {
             // 检查缓存
             if (this.loadedChapters.has(chapterNum)) {
                 // 🔥 修复：检查章节是否已经在 DOM 中（通过 data-chapter-num 属性）
+                // 注意：dataset 属性是字符串，需要确保匹配
                 const existingChapter = this.contentEl.querySelector(`.reader-chapter[data-chapter-num="${chapterNum}"]`);
+                console.log('[阅读器] 缓存检查 章节:', chapterNum, 'DOM元素:', existingChapter ? '存在' : '不存在');
                 if (!existingChapter) {
                     // 已缓存但未渲染，需要渲染
                     console.log('[阅读器] 章节', chapterNum, '已缓存但未渲染，执行渲染');
-                    this.renderChapter(this.loadedChapters.get(chapterNum), append);
+                    const cachedData = this.loadedChapters.get(chapterNum);
+                    // 🔥 修复：确保缓存数据包含章节号
+                    if (!cachedData.chapter_number && !cachedData.number) {
+                        cachedData.chapter_number = chapterNum;
+                    }
+                    console.log('[阅读器] 缓存数据:', {chapter_number: cachedData.chapter_number, number: cachedData.number, title: cachedData.title});
+                    this.renderChapter(cachedData, append);
                 } else {
                     console.log('[阅读器] 章节', chapterNum, '已在 DOM 中，跳过渲染');
                 }
@@ -1163,6 +1171,10 @@ class NovelReader {
             const resp = await fetch(`/api/project/${encodeURIComponent(this.title)}/chapter/${chapterNum}`);
             if (resp.ok) {
                 const data = await resp.json();
+                // 🔥 修复：确保预加载数据包含章节号
+                if (!data.chapter_number && !data.number) {
+                    data.chapter_number = chapterNum;
+                }
                 this.loadedChapters.set(chapterNum, data);
             }
         } catch (e) {
@@ -1172,7 +1184,11 @@ class NovelReader {
 
     // -------------------- 渲染 --------------------
     renderChapter(data, append = false) {
-        const chapterNum = data.chapter_number || data.number || this.currentChapterNum;
+        // 🔥 修复：优先使用 data 中的章节号，如果没有则尝试从 data.number 或 data.chapter_number 获取
+        let chapterNum = data.chapter_number || data.number;
+        if (!chapterNum && data.chapter_num) chapterNum = data.chapter_num;
+        if (!chapterNum) chapterNum = this.currentChapterNum;
+        
         const title = data.title || data.chapter_title || `第${chapterNum}章`;
         const content = data.content || data.chapter_content || '';
         const wordCount = data.word_count || 0;
