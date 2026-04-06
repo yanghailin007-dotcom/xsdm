@@ -1,6 +1,8 @@
-# 忽略大文件
+# 忽略大文件（构建产物，手动上传到服务器）
 NovelPublisher.exe
 *.exe
+NovelPublisher-macos.zip
+NovelPublisher-macos-*.zip
 
 # PyInstaller 构建文件
 build/
