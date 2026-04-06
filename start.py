@@ -118,6 +118,56 @@ def ensure_logs_dir():
     """确保日志目录存在"""
     LOGS_DIR.mkdir(parents=True, exist_ok=True)  # 日志文件直接放在项目根目录，方便查看
 
+def cleanup_old_logs(days=3):
+    """
+    清理指定天数前的日志文件
+    避免日志积累过多导致服务器空间不足
+    """
+    import datetime
+    from pathlib import Path
+    
+    # 需要清理的日志目录
+    log_dirs = [
+        LOGS_DIR,  # 主日志目录
+        PROJECT_DIR / "logs" / "ai_interactions",  # AI交互日志
+    ]
+    
+    cutoff_date = datetime.datetime.now() - datetime.timedelta(days=days)
+    deleted_count = 0
+    deleted_size = 0
+    
+    for log_dir in log_dirs:
+        if not log_dir.exists():
+            continue
+            
+        try:
+            for log_file in log_dir.iterdir():
+                if not log_file.is_file():
+                    continue
+                    
+                # 检查文件修改时间
+                try:
+                    mtime = datetime.datetime.fromtimestamp(log_file.stat().st_mtime)
+                    if mtime < cutoff_date:
+                        file_size = log_file.stat().st_size
+                        log_file.unlink()
+                        deleted_count += 1
+                        deleted_size += file_size
+                        print(f"{Colors.YELLOW}[CLEANUP]{Colors.RESET} 删除旧日志: {log_file.name}")
+                except Exception as e:
+                    print(f"{Colors.RED}[ERROR]{Colors.RESET} 删除日志失败 {log_file.name}: {e}")
+                    
+        except Exception as e:
+            print(f"{Colors.RED}[ERROR]{Colors.RESET} 清理日志目录失败 {log_dir}: {e}")
+    
+    if deleted_count > 0:
+        size_mb = deleted_size / (1024 * 1024)
+        print(f"{Colors.GREEN}[OK]{Colors.RESET} 已清理 {deleted_count} 个旧日志文件，释放 {size_mb:.2f} MB")
+    else:
+        print(f"{Colors.GREEN}[OK]{Colors.RESET} 没有需要清理的旧日志文件")
+    
+    return deleted_count
+
 def get_log_file():
     """获取今天的日志文件路径"""
     today = datetime.datetime.now().strftime("%Y-%m-%d")
@@ -600,6 +650,11 @@ def run_daemon():
 
 def main():
     """主函数"""
+    # 启动时清理3天前的日志，避免服务器空间不足
+    print(f"{Colors.CYAN}[INFO]{Colors.RESET} 正在清理3天前的旧日志...")
+    cleanup_old_logs(days=3)
+    print()
+    
     parser = argparse.ArgumentParser(
         description='大文娱系统启动脚本',
         formatter_class=argparse.RawDescriptionHelpFormatter,
