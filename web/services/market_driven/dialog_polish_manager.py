@@ -263,6 +263,20 @@ class DialogPolishManager:
         # 记录选择
         self.creative_draft.protagonist_type = prev_choice
         
+        # 🔥 记录主角性格到 protagonist 字段（包含自定义输入）
+        protagonist_map = {
+            "calm": "冷静理智型",
+            "talkative": "话瘘吐槽型",
+            "lazy": "佛系摆烂型",
+            "crazy": "疯批乐子型",
+            "antihero": "反英雄型"
+        }
+        base_protagonist = protagonist_map.get(prev_choice, prev_choice)
+        if custom:
+            self.creative_draft.protagonist = f"{base_protagonist}（自定义：{custom}）"
+        else:
+            self.creative_draft.protagonist = base_protagonist
+        
         # 构建选项
         options = [
             {
@@ -669,6 +683,21 @@ class DialogPolishManager:
         if not self.api_client:
             return self._generate_default_plan()
         
+        # 🔥 收集各轮次的自定义输入
+        custom_inputs = []
+        for round_data in self.rounds:
+            if round_data.user_custom_input:
+                round_name = {
+                    1: "题材类型",
+                    2: "主角性格", 
+                    3: "金手指",
+                    4: "开局设计",
+                    5: "情感线"
+                }.get(round_data.round_num, f"第{round_data.round_num}轮")
+                custom_inputs.append(f"[{round_name}] {round_data.user_custom_input}")
+        
+        all_custom = "\n".join(custom_inputs) if custom_inputs else "无"
+        
         prompt = f"""你是一位资深网文编辑，擅长为番茄小说平台创作爆款作品。
 
 请基于以下设定，生成一个完整的创作方案：
@@ -676,8 +705,14 @@ class DialogPolishManager:
 **题材：** {self.genre}
 **主角：** {self.creative_draft.protagonist}
 **金手指：** {self.creative_draft.golden_finger}
+**开局设计：** {self.creative_draft.opening_design}
 **情感线：** {self.creative_draft.emotion_line}
 **差异化：** {self.creative_draft.unique_points}
+
+**🔥 用户创意修改要求（必须严格遵守）：**
+{all_custom}
+
+请根据上述用户的创意修改，生成符合要求的方案。如果用户指定了特殊设定（如"二哈宠物"、"毒舌"等），必须在设定中体现。
 
 请生成（JSON格式）：
 {{
@@ -688,9 +723,10 @@ class DialogPolishManager:
 }}
 
 要求：
-1. 书名要符合番茄爆款风格
-2. 开局要有强冲突和吸引力
-3. 突出差异化亮点"""
+1. 严格遵守用户的创意修改要求，不要偏离
+2. 书名要符合番茄爆款风格
+3. 开局要有强冲突和吸引力
+4. 突出用户指定的差异化亮点"""
         
         try:
             response = self.api_client.generate_content_with_retry(
