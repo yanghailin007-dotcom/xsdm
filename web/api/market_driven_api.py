@@ -3059,7 +3059,7 @@ def continue_chapters(title):
             return jsonify({"success": False, "error": "请先登录"}), 401
         
         user_points = point_model.get_user_points(user_id)
-        balance = user_points.get('points', 0) if user_points else 0
+        balance = user_points.get('balance', 0) if user_points else 0
         
         if balance < points_needed:
             return jsonify({
@@ -3284,7 +3284,7 @@ def replan_project(title):
             return jsonify({"success": False, "error": "请先登录"}), 401
         
         user_points = point_model.get_user_points(user_id)
-        balance = user_points.get('points', 0) if user_points else 0
+        balance = user_points.get('balance', 0) if user_points else 0
         
         if balance < points_needed:
             return jsonify({
@@ -3546,7 +3546,7 @@ def rewrite_project(title):
             return jsonify({"success": False, "error": "请先登录"}), 401
         
         user_points = point_model.get_user_points(user_id)
-        balance = user_points.get('points', 0) if user_points else 0
+        balance = user_points.get('balance', 0) if user_points else 0
         
         if balance < points_needed:
             return jsonify({
