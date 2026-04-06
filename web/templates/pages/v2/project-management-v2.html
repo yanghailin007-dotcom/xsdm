@@ -1106,13 +1106,8 @@
         }
         
         async function continueMarketDrivenWithCoverCheck(projectTitle, hasCover) {
-            if (!hasCover) {
-                showCoverMissingDialog(projectTitle, () => {
-                    continueMarketDriven(projectTitle);
-                });
-            } else {
-                continueMarketDriven(projectTitle);
-            }
+            // 续写不需要封面检查，直接跳转
+            continueMarketDriven(projectTitle);
         }
         
         // 工位新增：带确认对话框的重写跳转函数
@@ -1120,13 +1115,8 @@
             const confirmed = confirm(`警告：重写将删除该项目的所有已生成章节，并基于当前设定重新生成。\n\n确定要继续吗？`);
             if (!confirmed) return;
             
-            if (!hasCover) {
-                showCoverMissingDialog(projectTitle, () => {
-                    window.location.href = `/pages/v2/market-driven-plan.html?title=${encodeURIComponent(projectTitle)}&mode=rewrite`;
-                });
-            } else {
-                window.location.href = `/pages/v2/market-driven-plan.html?title=${encodeURIComponent(projectTitle)}&mode=rewrite`;
-            }
+            // 重写不需要封面检查，直接跳转
+            window.location.href = `/pages/v2/market-driven-plan.html?title=${encodeURIComponent(projectTitle)}&mode=rewrite`;
         }
 
         function viewProjectViewer(projectTitle) {
