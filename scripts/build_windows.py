@@ -106,6 +106,13 @@ def build_windows():
             size_mb = exe_path.stat().st_size / (1024 * 1024)
             print(f"\n📦 可执行文件: {exe_path.absolute()}")
             print(f"📊 文件大小: {size_mb:.1f} MB")
+            
+            # 复制到 desktop_uploader/release/ 目录供 Web 下载
+            release_dir = Path('desktop_uploader/release')
+            release_dir.mkdir(parents=True, exist_ok=True)
+            release_path = release_dir / 'NovelPublisher.exe'
+            shutil.copy(exe_path, release_path)
+            print(f"📤 已复制到 Web 下载目录: {release_path}")
         
         print("\n" + "=" * 60)
         print("📋 使用说明:")

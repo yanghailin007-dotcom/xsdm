@@ -364,12 +364,17 @@ def create_app():
     # 🔥 下载桌面端上传工具
     @app.route('/downloads/<filename>')
     def download_file(filename):
-        """提供桌面端工具下载"""
+        """提供桌面端工具下载 - 支持 Windows 和 macOS"""
         from flask import send_from_directory
         import os
         
         # 安全检查：只允许下载特定文件
-        allowed_files = ['NovelPublisher.exe']
+        allowed_files = [
+            'NovelPublisher.exe',           # Windows 版本
+            'NovelPublisher-macos.zip',     # macOS Intel 版本
+            'NovelPublisher-macos-arm64.zip' # macOS Apple Silicon 版本
+        ]
+        
         if filename not in allowed_files:
             return jsonify({"error": "File not allowed"}), 403
         

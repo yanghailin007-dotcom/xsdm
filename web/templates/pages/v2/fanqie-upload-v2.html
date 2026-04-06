@@ -672,21 +672,96 @@
         <h2>💻 大文娱小说发布助手 {{ uploader_version_name }}</h2>
         <p>全新的桌面端上传工具，支持多平台配置、可视化操作、智能风控策略。<br>
         无需复杂的环境配置，下载即可使用！</p>
-        <button class="download-btn-large" onclick="downloadUploaderTool()">
-            <span>⬇️</span> 立即下载上传工具
-        </button>
-        <div class="download-meta">
-            版本：{{ uploader_version_name }} | 大小：约 72 MB | 支持：Windows 10/11
+        
+        <!-- 平台选择下载 -->
+        <div class="download-platforms">
+            <!-- Windows 下载 -->
+            <div class="platform-download">
+                <button class="download-btn-large download-windows" onclick="downloadUploaderTool('windows')">
+                    <span>⬇️</span> Windows 版本
+                </button>
+                <div class="platform-meta">
+                    约 72 MB | Windows 10/11
+                </div>
+            </div>
+            
+            <!-- macOS Intel 下载 -->
+            <div class="platform-download">
+                <button class="download-btn-large download-macos" onclick="downloadUploaderTool('macos-intel')">
+                    <span>⬇️</span> macOS Intel
+                </button>
+                <div class="platform-meta">
+                    约 85 MB | Intel 芯片
+                </div>
+            </div>
+            
+            <!-- macOS Apple Silicon 下载 -->
+            <div class="platform-download">
+                <button class="download-btn-large download-macos" onclick="downloadUploaderTool('macos-arm')">
+                    <span>⬇️</span> macOS Apple Silicon
+                </button>
+                <div class="platform-meta">
+                    约 80 MB | M1/M2/M3 芯片
+                </div>
+            </div>
         </div>
-        <div class="download-security-note">
+        
+        <div class="download-meta">
+            版本：{{ uploader_version_name }} | 选择适合你的平台下载
+        </div>
+        
+        <!-- Windows 安全提示 -->
+        <div id="windows-note" class="download-security-note">
             <span class="note-icon">⚠️</span>
             <div class="note-content">
-                <strong>下载安全提示</strong>
+                <strong>Windows 下载安全提示</strong>
                 <p>由于软件未进行数字签名，Windows 可能会显示安全警告。</p>
                 <p class="note-steps">请点击 <strong>"保留"</strong> 或 <strong>"更多信息" → "仍要运行"</strong> 继续下载和安装。</p>
             </div>
         </div>
+        
+        <!-- macOS 安全提示 -->
+        <div id="macos-note" class="download-security-note" style="display: none;">
+            <span class="note-icon">🍎</span>
+            <div class="note-content">
+                <strong>macOS 首次运行说明</strong>
+                <p>由于应用未经过 Apple 官方签名，首次运行时会显示安全提示。</p>
+                <p class="note-steps">请 <strong>按住 Control 键</strong> 点击应用图标，选择 <strong>"打开"</strong>，然后在弹出的对话框中点击 <strong>"打开"</strong>。</p>
+            </div>
+        </div>
     </div>
+    
+    <style>
+        .download-platforms {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            gap: 20px;
+            margin: 25px 0;
+        }
+        .platform-download {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+        .platform-meta {
+            font-size: 12px;
+            color: #666;
+            margin-top: 8px;
+        }
+        .download-windows {
+            background: linear-gradient(135deg, #0078D4 0%, #106EBE 100%) !important;
+        }
+        .download-windows:hover {
+            background: linear-gradient(135deg, #106EBE 0%, #005A9E 100%) !important;
+        }
+        .download-macos {
+            background: linear-gradient(135deg, #555555 0%, #333333 100%) !important;
+        }
+        .download-macos:hover {
+            background: linear-gradient(135deg, #333333 0%, #111111 100%) !important;
+        }
+    </style>
     
     <!-- 特性卡片 -->
     <div class="features-grid">
@@ -1397,19 +1472,46 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 /**
- * 下载上传工具
+ * 下载上传工具 - 支持多平台
+ * @param {string} platform - 平台类型: 'windows', 'macos-intel', 'macos-arm'
  */
-function downloadUploaderTool() {
-    // 下载桌面端上传工具 - 添加时间戳防止缓存
+function downloadUploaderTool(platform) {
+    // 显示对应的安全提示
+    document.getElementById('windows-note').style.display = (platform === 'windows') ? 'flex' : 'none';
+    document.getElementById('macos-note').style.display = (platform !== 'windows') ? 'flex' : 'none';
+    
+    // 根据平台选择文件名
+    let filename;
+    let downloadName;
+    
+    switch(platform) {
+        case 'windows':
+            filename = 'NovelPublisher.exe';
+            downloadName = 'NovelPublisher.exe';
+            break;
+        case 'macos-intel':
+            filename = 'NovelPublisher-macos.zip';
+            downloadName = 'NovelPublisher-macos.zip';
+            break;
+        case 'macos-arm':
+            filename = 'NovelPublisher-macos-arm64.zip';
+            downloadName = 'NovelPublisher-macos-arm64.zip';
+            break;
+        default:
+            filename = 'NovelPublisher.exe';
+            downloadName = 'NovelPublisher.exe';
+    }
+    
+    // 添加时间戳防止缓存
     const timestamp = new Date().getTime();
     const link = document.createElement('a');
-    link.href = `/downloads/NovelPublisher.exe?v=${timestamp}`;
-    link.download = 'NovelPublisher.exe';
+    link.href = `/downloads/${filename}?v=${timestamp}`;
+    link.download = downloadName;
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
     
-    showToast('开始下载上传工具 {{ uploader_version_name }}...', 'success');
+    showToast(`开始下载 ${platform === 'windows' ? 'Windows' : 'macOS'} 版本...`, 'success');
     
     // 记录下载事件
     fetch('/api/analytics/download', {
