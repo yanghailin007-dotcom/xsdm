@@ -397,6 +397,7 @@
             <option value="10">10章</option>
             <option value="20">20章</option>
             <option value="30">30章</option>
+            <option value="all">后续全部（生成到结尾）</option>
           </select>
           <div class="form-hint">每次生成的章节数量</div>
         </div>
@@ -1052,9 +1053,15 @@ async function loadContinueProjectData(title) {
 
 // 用续写数据填充表单
 function fillFormWithContinueData(data) {
+  console.log('[fillFormWithContinueData] 数据:', data);
+  
   // 续写模式下，只设置续写范围，隐藏设定表单
-  const completedChapters = data.completed_chapters || 0;
-  const nextChapter = completedChapters + 1;
+  // 兼容不同的字段名：completed_chapters 或 completedChapters
+  const completedChapters = data.completed_chapters || data.completedChapters || 0;
+  const totalChapters = data.total_chapters || data.totalChapters || data.chapters || 200;
+  const nextChapter = parseInt(completedChapters) + 1;
+  
+  console.log(`[fillFormWithContinueData] 已完成: ${completedChapters}, 总章节: ${totalChapters}, 下一章: ${nextChapter}`);
   
   // 设置起始章节（只读）
   const startChapterInput = document.getElementById('continue-start-chapter');
@@ -1065,8 +1072,12 @@ function fillFormWithContinueData(data) {
   // 更新起始章节提示
   const startHint = document.getElementById('continue-start-hint');
   if (startHint) {
-    startHint.textContent = `已完成${completedChapters}章，从第${nextChapter}章开始续写`;
+    startHint.textContent = `已完成${completedChapters}章，从第${nextChapter}章开始续写（共${totalChapters}章）`;
   }
+  
+  // 保存总章节数到全局变量供后续使用
+  window.totalChaptersCount = parseInt(totalChapters);
+  window.completedChaptersCount = parseInt(completedChapters);
 }
 
 // 加载规划模式项目数据
@@ -1227,6 +1238,12 @@ function updatePageForContinueMode() {
   const continueSection = document.getElementById('continue-range-section');
   if (continueSection) {
     continueSection.style.display = 'block';
+  }
+  
+  // 隐藏剧情方向区块（续写模式下不需要显示）
+  const plotSection = document.getElementById('plot-section');
+  if (plotSection) {
+    plotSection.style.display = 'none';
   }
 }
 
@@ -1536,8 +1553,16 @@ async function startContinueGeneration() {
     
     // 获取续写参数
     const startChapter = parseInt(document.getElementById('continue-start-chapter').value) || 1;
-    const batchSize = parseInt(document.getElementById('continue-batch-size').value) || 6;
-    const endChapter = startChapter + batchSize - 1;
+    const batchSizeSelect = document.getElementById('continue-batch-size').value;
+    
+    let endChapter;
+    if (batchSizeSelect === 'all') {
+      // 生成到总章节数
+      endChapter = window.totalChaptersCount || 200;
+    } else {
+      const batchSize = parseInt(batchSizeSelect) || 6;
+      endChapter = startChapter + batchSize - 1;
+    }
     
     console.log(`续写范围: 第${startChapter}章 到 第${endChapter}章`);
     

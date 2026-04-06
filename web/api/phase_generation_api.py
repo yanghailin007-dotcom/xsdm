@@ -1733,8 +1733,21 @@ def get_project_info_for_continue():
                     
                     # 获取已完成章节数
                     chapters_index = project_data.get('chapters_index', [])
-                    data["completed_chapters"] = len([c for c in chapters_index if c.get('status') == 'completed'])
-                    data["total_chapters"] = project_data.get('generation_metadata', {}).get('total_chapters', 0)
+                    completed_from_index = len([c for c in chapters_index if c.get('status') == 'completed'])
+                    
+                    # 如果 chapters_index 没有数据，尝试从 chapters 目录读取
+                    if completed_from_index == 0:
+                        chapters_dir = project_path / "chapters"
+                        if chapters_dir.exists():
+                            try:
+                                chapter_files = list(chapters_dir.glob("chapter_*.json"))
+                                completed_from_index = len(chapter_files)
+                                logger.info(f"[project-info] 从目录读取到 {completed_from_index} 个章节文件")
+                            except Exception as e:
+                                logger.warning(f"[project-info] 从目录读取章节失败: {e}")
+                    
+                    data["completed_chapters"] = completed_from_index
+                    data["total_chapters"] = project_data.get('generation_metadata', {}).get('total_chapters', 200)
                     
                     # 获取创作设定
                     if project_data.get('novel_info'):
