@@ -3181,12 +3181,43 @@ def _run_continue_chapter_generation(task_id, title, blueprint, start_chapter, e
             
             try:
                 # 生成当前批次
-                # 从 blueprints 获取小说数据
+                # 🔥 修复：从 blueprint 构建完整的 novel_data，确保续写时有完整上下文
                 novel_data = {
                     'title': title,
+                    'novel_title': title,
                     'username': username,
-                    'project_path': str(project_path)
+                    'project_path': str(project_path),
+                    # 核心设定（从 blueprint 提取）
+                    'core_setting': {
+                        'worldview': blueprint.get('core_setting', {}).get('worldview', '') if isinstance(blueprint.get('core_setting'), dict) else blueprint.get('worldview', ''),
+                        'power_system': blueprint.get('core_setting', {}).get('power_system', '') if isinstance(blueprint.get('core_setting'), dict) else '',
+                    },
+                    'worldview': blueprint.get('worldview', '') or blueprint.get('core_setting', {}).get('worldview', ''),
+                    # 角色设计
+                    'character_design': {
+                        'protagonist': blueprint.get('core_setting', {}).get('protagonist', {}) if isinstance(blueprint.get('core_setting'), dict) else blueprint.get('protagonist', {}),
+                    },
+                    'protagonist': blueprint.get('protagonist', {}) or blueprint.get('core_setting', {}).get('protagonist', {}),
+                    # 金手指
+                    'golden_finger': blueprint.get('core_setting', {}).get('golden_finger', {}) if isinstance(blueprint.get('core_setting'), dict) else blueprint.get('golden_finger', {}),
+                    # 主线剧情
+                    'storyline': blueprint.get('main_plot', '') or blueprint.get('storyline', ''),
+                    'main_plot': blueprint.get('main_plot', ''),
+                    # 全书结构
+                    'book_structure': blueprint.get('book_structure', {}),
+                    'stage_goals': blueprint.get('stage_goals', []),
+                    # 情绪曲线
+                    'emotion_curve': blueprint.get('emotion_curve', []),
+                    # 卖点
+                    'core_selling_point': blueprint.get('core_selling_point', ''),
+                    'core_selling_points': blueprint.get('core_selling_points', []),
+                    # 其他元数据
+                    'target_chapters': blueprint.get('target_chapters', 200),
+                    'genre': blueprint.get('genre', ''),
+                    'category': blueprint.get('category', ''),
+                    'tags': blueprint.get('tags', []),
                 }
+                
                 # 获取 tropes 数据（如果有）
                 tropes = blueprint.get('tropes', {})
                 
@@ -3818,12 +3849,33 @@ def _run_rewrite_generation(task_id, title, project_path, new_settings, username
             })
             
             try:
-                # 从 blueprints 获取小说数据
+                # 🔥 修复：从 blueprint 构建完整的 novel_data
                 novel_data = {
                     'title': title,
+                    'novel_title': title,
                     'username': username,
-                    'project_path': str(project_path)
+                    'project_path': str(project_path),
+                    # 核心设定
+                    'core_setting': {
+                        'worldview': blueprint.get('worldview', ''),
+                        'power_system': blueprint.get('power_system', ''),
+                    },
+                    'worldview': blueprint.get('worldview', ''),
+                    # 角色设计
+                    'character_design': {
+                        'protagonist': blueprint.get('protagonist', {}),
+                    },
+                    'protagonist': blueprint.get('protagonist', {}),
+                    # 金手指
+                    'golden_finger': blueprint.get('golden_finger', {}),
+                    # 主线剧情
+                    'storyline': blueprint.get('main_plot', ''),
+                    'main_plot': blueprint.get('main_plot', ''),
+                    # 卖点
+                    'core_selling_point': blueprint.get('core_selling_point', ''),
+                    'target_chapters': blueprint.get('target_chapters', 200),
                 }
+                
                 # 获取 tropes 数据（如果有）
                 tropes = blueprint.get('tropes', {})
                 
