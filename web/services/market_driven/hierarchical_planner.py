@@ -14,13 +14,26 @@ from typing import Dict, List, Optional, Tuple
 from pathlib import Path
 from datetime import datetime
 
+# 先定义logger
+logger = logging.getLogger(__name__)
+
 from .world_builder import WorldBuilder
 from .tactical_planner import TacticalPlanner
 from .batch_summarizer import BatchSummarizer
 from .sliding_window_monitor import SlidingWindowMonitor
 from .config import get_config
 
-logger = logging.getLogger(__name__)
+# 🔥 导入番茄爆款细纲会话（三轮对话）
+try:
+    from .tomato_tactical_session import (
+        TomatoBestsellerTacticalSession,
+        create_tactical_session
+    )
+    HAS_TOMATO_TACTICAL = True
+    logger.info("[HierarchicalPlanner] 已加载番茄爆款细纲会话")
+except ImportError as e:
+    HAS_TOMATO_TACTICAL = False
+    logger.warning(f"[HierarchicalPlanner] 番茄爆款细纲会话未加载: {e}")
 
 
 class HierarchicalPlanner:
@@ -48,7 +61,8 @@ class HierarchicalPlanner:
         total_chapters: int = None,
         target_words: int = None,
         emotion_curve: List[Dict] = None,       # ← 新增：一阶段情绪曲线
-        bestseller_analysis: Dict = None         # ← 新增：爆款分析数据
+        bestseller_analysis: Dict = None,        # ← 新增：爆款分析数据
+        use_tomato_tactical: bool = True        # 🔥 新增：是否使用番茄爆款细纲会话
     ):
         """
         初始化分层规划器
@@ -63,6 +77,7 @@ class HierarchicalPlanner:
             target_words: 目标字数
             emotion_curve: 一阶段生成的200章情绪曲线（用于确保战术规划符合爆款设计）
             bestseller_analysis: 爆款分析数据（钩子公式、爽点模式等）
+            use_tomato_tactical: 是否使用番茄爆款细纲会话（三轮对话：设定+情绪+角色）
         """
         self.genre = genre
         self.novel_title = novel_title
@@ -71,6 +86,7 @@ class HierarchicalPlanner:
         self.project_path = project_path
         self.emotion_curve = emotion_curve       # 存储一阶段情绪曲线
         self.bestseller_analysis = bestseller_analysis  # 存储爆款分析
+        self.use_tomato_tactical = use_tomato_tactical and HAS_TOMATO_TACTICAL  # 是否使用番茄细纲会话
         
         # 加载配置
         config = get_config(genre)
@@ -209,21 +225,26 @@ class HierarchicalPlanner:
         if need_new_tactical:
             logger.info(f"[HierarchicalPlanner] 规划第{start_ch}-{start_ch + self.tactical_window - 1}章战术...")
             
-            # 获取当前阶段目标
-            current_goal = self._get_current_stage_goal()
-            
-            # 🔥 生成战术规划（基于前序总结+阶段目标+一阶段爆款设计）
-            # 传递一阶段情绪曲线和爆款分析，确保战术规划符合爆款设计
-            tactical_plan = self.tactical_planner.plan_next_batch(
-                start_chapter=start_ch,
-                end_chapter=min(start_ch + self.tactical_window - 1, self.total_chapters),
-                novel_title=self.novel_title,
-                protagonist_name=self.protagonist_name,
-                stage_goal=current_goal,
-                previous_summary=self.current_batch_summary,
-                emotion_curve=self.emotion_curve,              # 传入一阶段情绪曲线
-                bestseller_analysis=self.bestseller_analysis   # 传入爆款分析数据
-            )
+            # 🔥 判断是否使用番茄爆款细纲会话（三轮对话）
+            if self.use_tomato_tactical:
+                logger.info("[HierarchicalPlanner] 使用番茄爆款细纲会话（三轮：设定+情绪+角色）")
+                tactical_plan = self._generate_tomato_tactical_plan(start_ch)
+            else:
+                logger.info("[HierarchicalPlanner] 使用传统战术规划")
+                # 获取当前阶段目标
+                current_goal = self._get_current_stage_goal()
+                
+                # 生成战术规划（基于前序总结+阶段目标+一阶段爆款设计）
+                tactical_plan = self.tactical_planner.plan_next_batch(
+                    start_chapter=start_ch,
+                    end_chapter=min(start_ch + self.tactical_window - 1, self.total_chapters),
+                    novel_title=self.novel_title,
+                    protagonist_name=self.protagonist_name,
+                    stage_goal=current_goal,
+                    previous_summary=self.current_batch_summary,
+                    emotion_curve=self.emotion_curve,              # 传入一阶段情绪曲线
+                    bestseller_analysis=self.bestseller_analysis   # 传入爆款分析数据
+                )
             
             # 保存战术规划到文件
             self._save_tactical_plan(tactical_plan, start_ch)
@@ -262,6 +283,50 @@ class HierarchicalPlanner:
             return {}
         
         return self.current_batch_summary.get('goal_progress', {})
+    
+    def _generate_tomato_tactical_plan(self, start_ch: int) -> Dict:
+        """
+        🔥 使用番茄爆款细纲会话生成战术规划（三轮对话）
+        
+        三轮：
+        1. 核心设定对齐（世界观+金手指+主角人设）
+        2. 情绪爽点规划（情绪曲线+钩子+爽点）
+        3. 角色出场规划（已有角色+新增角色）
+        
+        Args:
+            start_ch: 开始章节
+            
+        Returns:
+            Dict: 完整战术蓝图
+        """
+        if not HAS_TOMATO_TACTICAL:
+            logger.error("[HierarchicalPlanner] 番茄细纲会话不可用，回退到传统规划")
+            raise RuntimeError("TomatoBestsellerTacticalSession not available")
+        
+        try:
+            # 创建细纲会话
+            session = create_tactical_session(
+                project_path=self.project_path,
+                api_client=self.api_client,
+                start_chapter=start_ch,
+                end_chapter=min(start_ch + self.tactical_window - 1, self.total_chapters),
+                novel_title=self.novel_title,
+                emotion_curve=self.emotion_curve
+            )
+            
+            # 执行三轮对话，生成完整蓝图
+            blueprint = session.generate_blueprint()
+            
+            logger.info(f"[HierarchicalPlanner] 番茄细纲会话完成: {session.session_id}")
+            logger.info(f"  - 规划章节: {blueprint.get('summary', {}).get('total_chapters', 0)}章")
+            logger.info(f"  - 爽点数量: {blueprint.get('summary', {}).get('total_satisfaction_points', 0)}个")
+            logger.info(f"  - 新角色: {blueprint.get('summary', {}).get('new_characters_introduced', 0)}个")
+            
+            return blueprint
+            
+        except Exception as e:
+            logger.error(f"[HierarchicalPlanner] 番茄细纲会话失败: {e}")
+            raise
     
     def _extract_batch_plan(self, tactical_plan: Dict, start: int, end: int) -> Dict:
         """从战术规划中提取指定批次"""
