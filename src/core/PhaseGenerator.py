@@ -261,7 +261,12 @@ class PhaseGenerator:
             print("开始第一阶段准备工作...")
             
             # 💬💬💬 创意到方案对话模式（优先级最高 - 最快）
-            if CREATIVE_CONVERSATION_AVAILABLE and self._should_use_creative_conversation_mode():
+            print(f"\n[调试] CREATIVE_CONVERSATION_AVAILABLE: {CREATIVE_CONVERSATION_AVAILABLE}")
+            print(f"[调试] config: {getattr(self.generator, 'config', {})}")
+            should_use = self._should_use_creative_conversation_mode()
+            print(f"[调试] _should_use_creative_conversation_mode: {should_use}")
+            
+            if CREATIVE_CONVERSATION_AVAILABLE and should_use:
                 print("\n" + "="*60)
                 print("💬 启用创意到方案对话模式")
                 print("   4步全自动：分析 → 多方案 → 选优对标 → 深化")
@@ -272,6 +277,8 @@ class PhaseGenerator:
                     update_step_status=update_step_status,
                     notify_failure=notify_failure
                 )
+            else:
+                print(f"\n[调试] 跳过对话模式: AVAILABLE={CREATIVE_CONVERSATION_AVAILABLE}, should_use={should_use}")
             
             # 🚀🚀🚀 分域会话模式检测
             if DOMAIN_SESSION_MODE_AVAILABLE and self._should_use_domain_session_mode():
