@@ -690,7 +690,8 @@ function getStageName(stage) {
 function isTaskRunning(task) {
   const runningStatuses = [
     'running', 'in_progress', 'pending', 'generating', 
-    'analyzing', 'planning', 'processing', 'preparing'
+    'analyzing', 'planning', 'processing', 'preparing',
+    'generating_chapters', 'continue_chapters'
   ];
   const completedStatuses = ['completed', 'failed', 'cancelled', 'error'];
   
