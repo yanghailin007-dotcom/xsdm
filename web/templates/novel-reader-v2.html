@@ -1035,7 +1035,16 @@ class NovelReader {
     async loadInitialData() {
         try {
             await this.loadChapterList();
+            // 加载起始章节
             await this.loadChapter(this.startChapter);
+            // 🔥 连续预加载后续2章，实现无感阅读
+            for (let i = 1; i <= 2; i++) {
+                const nextNum = this.startChapter + i;
+                const hasNext = this.chapters.some(ch => (ch.number || ch.chapter_number) >= nextNum);
+                if (hasNext || this.chapters.length === 0) {
+                    await this.loadChapter(nextNum, true);
+                }
+            }
         } catch (e) {
             console.error('初始化加载失败:', e);
             this.showError('加载失败，请刷新重试');
@@ -1078,11 +1087,10 @@ class NovelReader {
                     this.renderChapter(this.loadedChapters.get(chapterNum), append);
                 }
                 // append 模式下如果已加载则跳过，避免重复渲染
-                // 工位修复：确保 isLoadingNext 被重置
                 if (append) {
                     this.isLoadingNext = false;
                 }
-                return;
+                return Promise.resolve(); // 返回 resolved Promise 支持链式调用
             }
 
             const resp = await fetch(`/api/project/${encodeURIComponent(this.title)}/chapter/${chapterNum}`);
@@ -1423,8 +1431,8 @@ class NovelReader {
             const scrollTop = this.scrollEl.scrollTop;
             const scrollHeight = this.scrollEl.scrollHeight - this.scrollEl.clientHeight;
 
-            // 滚动到底 80% 预加载 - 修复：获取当前渲染的最后一章来判断下一章
-            if (scrollHeight > 0 && scrollTop / scrollHeight > 0.8 && !this.isLoadingNext) {
+            // 滚动到底 60% 预加载（提前加载，无感阅读）
+            if (scrollHeight > 0 && scrollTop / scrollHeight > 0.6 && !this.isLoadingNext) {
                 const renderedChapters = this.contentEl.querySelectorAll('.reader-chapter');
                 if (renderedChapters.length > 0) {
                     const lastChapter = renderedChapters[renderedChapters.length - 1];
@@ -1435,7 +1443,17 @@ class NovelReader {
                     if (!this.loadedChapters.has(nextNum)) {
                         const hasNext = this.chapters.some(ch => (ch.number || ch.chapter_number) >= nextNum);
                         if (hasNext || this.chapters.length === 0) {
-                            this.loadChapter(nextNum, true);
+                            // 🔥 加载下一章，并预加载下下章
+                            this.loadChapter(nextNum, true).then(() => {
+                                // 加载完成后，继续预加载后面一章
+                                const preloadNum = nextNum + 1;
+                                if (!this.loadedChapters.has(preloadNum)) {
+                                    const hasMore = this.chapters.some(ch => (ch.number || ch.chapter_number) >= preloadNum);
+                                    if (hasMore || this.chapters.length === 0) {
+                                        this.loadChapter(preloadNum, true);
+                                    }
+                                }
+                            });
                         }
                     }
                 }
