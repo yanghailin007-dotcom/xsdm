@@ -1161,14 +1161,18 @@ class NovelReader {
             `;
         }).join('');
 
-        // 搜索过滤
-        document.getElementById('chapterSearch').addEventListener('input', (e) => {
-            const keyword = e.target.value.trim().toLowerCase();
-            listEl.querySelectorAll('.reader-chapter-item').forEach(item => {
-                const text = item.textContent.toLowerCase();
-                item.style.display = text.includes(keyword) ? 'flex' : 'none';
+        // 搜索过滤（只绑定一次）
+        const searchInput = document.getElementById('chapterSearch');
+        if (!searchInput._hasListener) {
+            searchInput._hasListener = true;
+            searchInput.addEventListener('input', (e) => {
+                const keyword = e.target.value.trim().toLowerCase();
+                listEl.querySelectorAll('.reader-chapter-item').forEach(item => {
+                    const text = item.textContent.toLowerCase();
+                    item.style.display = text.includes(keyword) ? 'flex' : 'none';
+                });
             });
-        });
+        }
     }
 
     updateChapterHighlight(chapterNum) {

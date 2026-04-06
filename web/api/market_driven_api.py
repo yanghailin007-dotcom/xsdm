@@ -3072,8 +3072,9 @@ def continue_chapters(title):
         # 扣除点数
         spend_result = point_model.spend_points(
             user_id=user_id,
-            points=points_needed,
-            action=f"续写章节: {title} 第{start_chapter}-{end_chapter}章"
+            amount=points_needed,
+            source='continue_chapters',
+            description=f"续写章节: {title} 第{start_chapter}-{end_chapter}章"
         )
         success = spend_result.get('success', False)
         result = spend_result.get('message', '') if not success else ''
@@ -3297,8 +3298,9 @@ def replan_project(title):
         # 扣除点数
         spend_result = point_model.spend_points(
             user_id=user_id,
-            points=points_needed,
-            action=f"重新规划: {title}"
+            amount=points_needed,
+            source='replan_project',
+            description=f"重新规划: {title}"
         )
         success = spend_result.get('success', False)
         result = spend_result.get('message', '') if not success else ''
@@ -3559,8 +3561,9 @@ def rewrite_project(title):
         # 扣除点数
         spend_result = point_model.spend_points(
             user_id=user_id,
-            points=points_needed,
-            action=f"重写项目: {title}"
+            amount=points_needed,
+            source='rewrite_project',
+            description=f"重写项目: {title}"
         )
         success = spend_result.get('success', False)
         result = spend_result.get('message', '') if not success else ''
