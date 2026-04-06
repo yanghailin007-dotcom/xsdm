@@ -46,8 +46,9 @@ class CreativeDraft:
     title: str = ""
     protagonist: str = ""
     protagonist_type: str = ""
-    golden_finger: str = ""
-    golden_finger_type: str = ""
+    golden_finger: str = ""                    # 用户选择的金手指描述（简短）
+    golden_finger_type: str = ""               # 金手指类型ID
+    golden_finger_design: Dict = field(default_factory=dict)  # 🔥 新增：AI生成的完整金手指设定
     unique_points: str = ""
     emotion_pacing: str = ""
     opening_design: str = ""
@@ -63,6 +64,7 @@ class CreativeDraft:
             "protagonist_type": self.protagonist_type,
             "golden_finger": self.golden_finger,
             "golden_finger_type": self.golden_finger_type,
+            "golden_finger_design": self.golden_finger_design,  # 🔥 新增
             "unique_points": self.unique_points,
             "emotion_pacing": self.emotion_pacing,
             "opening_design": self.opening_design,
@@ -574,15 +576,30 @@ class DialogPolishManager:
         self.creative_draft.emotion_pacing = "快节奏，每3章一个小高潮"
         self.creative_draft.risk_mitigation = self._generate_risk_mitigation()
         
+        # 🔥 调用AI生成金手指详细设定（新增）
+        try:
+            golden_finger_design = self._generate_golden_finger_detail_with_ai()
+            self.creative_draft.golden_finger_design = golden_finger_design
+            logger.info(f"[对话打磨 {self.session_id}] 金手指详细设定生成完成: {golden_finger_design.get('basic_info', {}).get('name', '未命名')}")
+        except Exception as e:
+            logger.warning(f"AI生成金手指详细设定失败: {e}")
+            self.creative_draft.golden_finger_design = self._create_fallback_golden_finger()
+        
         # 🔥 调用AI生成完整方案
         try:
             full_plan = self._generate_plan_with_ai()
             self.creative_draft.title = full_plan.get('title', '')
             self.creative_draft.opening_design = full_plan.get('opening', self.creative_draft.opening_design)
+            # 将金手指详细设定加入full_plan
+            full_plan['golden_finger'] = self.creative_draft.golden_finger_design
         except Exception as e:
             logger.warning(f"AI生成方案失败，使用默认: {e}")
             # 使用默认标题生成逻辑
             self.creative_draft.title = self._generate_default_title()
+            full_plan = {
+                'title': self.creative_draft.title,
+                'golden_finger': self.creative_draft.golden_finger_design
+            }
         
         # 🔥 调用AI进行自评
         try:
@@ -973,6 +990,141 @@ class DialogPolishManager:
             if round_data.user_choice:
                 lines.append(f"第{round_data.round_num}轮: {round_data.user_choice}")
         return "\n".join(lines)
+    
+    def _generate_golden_finger_detail_with_ai(self) -> Dict:
+        """
+        调用AI生成完整的金手指详细设定
+        
+        基于用户选择的类型和描述，AI自动生成完整的金手指结构
+        """
+        if not self.api_client:
+            logger.warning(f"[对话打磨 {self.session_id}] API客户端未初始化，使用回退金手指")
+            return self._create_fallback_golden_finger()
+        
+        # 构建基础信息
+        base_info = {
+            "genre": self.genre,
+            "protagonist": self.creative_draft.protagonist,
+            "protagonist_type": self.creative_draft.protagonist_type,
+            "golden_finger_type": self.creative_draft.golden_finger_type,
+            "golden_finger_desc": self.creative_draft.golden_finger,
+            "opening_design": self.creative_draft.opening_design,
+            "emotion_line": self.creative_draft.emotion_line,
+        }
+        
+        prompt = f"""基于以下信息，生成完整的金手指详细设定。
+
+【题材】{base_info['genre']}
+【主角性格】{base_info['protagonist']}（{base_info['protagonist_type']}）
+【金手指类型】{base_info['golden_finger_type']}
+【用户描述】{base_info['golden_finger_desc']}
+【开局设计】{base_info['opening_design']}
+【情感线】{base_info['emotion_line']}
+
+请生成完整的金手指设定（标准JSON格式）：
+{{
+    "basic_info": {{
+        "name": "金手指名称（有创意，2-8字）",
+        "type": "{base_info['golden_finger_type']}",
+        "type_label": "类型标签（带emoji）",
+        "concept": "核心概念（50字内，清晰说明机制）"
+    }},
+    "abilities": {{
+        "initial": "初始能力（刚获得时，限制较多）",
+        "growth": "成长曲线（前期1-30章/中期31-80章/后期81章+）",
+        "max": "最终形态（后期解锁的终极能力）"
+    }},
+    "restrictions": {{
+        "limitations": ["限制条件1", "限制条件2", "限制条件3"],
+        "side_effects": ["副作用1", "副作用2"],
+        "cooldown": "冷却规则"
+    }},
+    "applications": {{
+        "combat": "战斗应用场景",
+        "daily": "日常应用场景",
+        "special": {{}}
+    }},
+    "protagonist_synergy": {{
+        "compatibility": "与主角性格的契合度说明",
+        "combo_effects": ["联动效果1", "联动效果2"]
+    }},
+    "plot_role": {{
+        "hooks": [
+            {{"chapter": 3, "title": "首次使用", "description": "第3章左右的关键剧情"}},
+            {{"chapter": 15, "title": "进化/危机", "description": "第15章左右的进化或危机"}},
+            {{"chapter": 30, "title": "秘密揭晓", "description": "第30章左右揭晓秘密"}}
+        ],
+        "twist_potential": "潜在反转（金手指背后可能隐藏的真相）"
+    }}
+}}
+
+要求：
+1. 必须与主角性格【{base_info['protagonist_type']}】形成联动
+2. 必须有明确的成长空间（前期弱→后期强）
+3. 必须有代价或限制，不能无敌
+4. 必须包含3个剧情钩子，对应第3、15、30章"""
+
+        try:
+            response = self.api_client.generate_content_with_retry(
+                content_type="golden_finger_design",
+                user_prompt=prompt,
+                temperature=0.8
+            )
+            
+            if response:
+                # 解析JSON
+                import json
+                import re
+                json_match = re.search(r'\{[\s\S]*\}', str(response))
+                if json_match:
+                    result = json.loads(json_match.group())
+                    logger.info(f"[对话打磨 {self.session_id}] AI生成金手指成功: {result.get('basic_info', {}).get('name', '未命名')}")
+                    return result
+        except Exception as e:
+            logger.error(f"[对话打磨 {self.session_id}] AI生成金手指失败: {e}")
+        
+        # 回退
+        return self._create_fallback_golden_finger()
+    
+    def _create_fallback_golden_finger(self) -> Dict:
+        """创建回退金手指设定（AI失败时使用）"""
+        return {
+            "basic_info": {
+                "name": self.creative_draft.golden_finger or "待命名系统",
+                "type": self.creative_draft.golden_finger_type or "unknown",
+                "type_label": "❓ 待补充",
+                "concept": self.creative_draft.golden_finger or "金手指详细设定待补充"
+            },
+            "abilities": {
+                "initial": "初始能力待补充",
+                "growth": "成长曲线待补充",
+                "max": "最终形态待补充"
+            },
+            "restrictions": {
+                "limitations": [],
+                "side_effects": [],
+                "cooldown": ""
+            },
+            "applications": {
+                "combat": "",
+                "daily": "",
+                "special": {}
+            },
+            "protagonist_synergy": {
+                "compatibility": "",
+                "combo_effects": []
+            },
+            "plot_role": {
+                "hooks": [
+                    {"chapter": 3, "title": "首次使用", "description": "第3章首次使用金手指"},
+                    {"chapter": 15, "title": "能力进化", "description": "第15章金手指进化"},
+                    {"chapter": 30, "title": "秘密揭晓", "description": "第30章揭晓金手指秘密"}
+                ],
+                "twist_potential": "金手指背后的真相待补充"
+            },
+            "_source": "fallback",
+            "_needs_completion": True
+        }
 
 
 # 会话管理器（内存存储，生产环境应使用Redis）

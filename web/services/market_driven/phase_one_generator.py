@@ -85,6 +85,10 @@ class MarketDrivenPhaseOneGenerator:
         logger.info("生成情绪曲线模板（详细设计将在战术规划中分批生成）...")
         products["emotion_curve"] = self._get_default_emotion_curve(plan)
         
+        # 10. 金手指详细设定（🔥 新增）
+        logger.info("生成金手指详细设定...")
+        products["golden_finger_design"] = self._generate_golden_finger_product(plan)
+        
         logger.info(f"[PhaseOneGenerator] 第一阶段产物生成完成")
         return products
     
@@ -651,6 +655,186 @@ class MarketDrivenPhaseOneGenerator:
             curve.append(beat)
         
         return curve
+    
+    def _generate_golden_finger_product(self, plan: Dict) -> Dict:
+        """
+        生成金手指详细设定产物
+        
+        从plan中提取金手指信息，如果已有完整结构则直接使用，
+        否则调用AI生成完整设定
+        """
+        # 如果 plan 中已有完整的 golden_finger，直接使用
+        gf_data = plan.get("golden_finger", {})
+        
+        if gf_data and isinstance(gf_data, dict) and ("abilities" in gf_data or "basic_info" in gf_data):
+            logger.info("[PhaseOneGenerator] 使用plan中已有的完整金手指设定")
+            return gf_data
+        
+        # 否则，从简化信息生成
+        logger.info("[PhaseOneGenerator] 调用AI生成完整金手指设定...")
+        return self._generate_golden_finger_with_ai(plan)
+    
+    def _generate_golden_finger_with_ai(self, plan: Dict) -> Dict:
+        """
+        调用AI生成完整的金手指详细设定
+        
+        基于题材、主角性格等上下文，AI自动生成完整的金手指结构
+        """
+        # 收集上下文信息
+        genre = plan.get("genre", plan.get("genre_type", "未知题材"))
+        protagonist = plan.get("protagonist", {})
+        if isinstance(protagonist, str):
+            protagonist_name = protagonist
+            protagonist_personality = "冷静理智"
+        else:
+            protagonist_name = protagonist.get("name", "主角")
+            protagonist_personality = protagonist.get("personality", "冷静理智")
+        
+        # 获取金手指基础信息
+        gf_base = plan.get("golden_finger", plan.get("golden_finger_summary", plan.get("golden_finger_desc", "")))
+        if isinstance(gf_base, str):
+            gf_desc = gf_base
+            gf_type = "custom"
+        elif isinstance(gf_base, dict):
+            gf_desc = gf_base.get("concept", gf_base.get("name", gf_base.get("description", "")))
+            gf_type = gf_base.get("type", "custom")
+        else:
+            gf_desc = ""
+            gf_type = "custom"
+        
+        # 如果没有描述，根据题材生成默认描述
+        if not gf_desc:
+            gf_desc = self._get_default_golden_finger_desc(genre)
+        
+        prompt = f"""请为以下小说生成完整的金手指详细设定。
+
+【题材】{genre}
+【主角】{protagonist_name}（{protagonist_personality}）
+【金手指基础描述】{gf_desc}
+【金手指类型】{gf_type}
+
+请生成完整的金手指设定（必须是标准JSON格式）：
+{{
+    "basic_info": {{
+        "name": "金手指名称（有创意，符合题材，2-8字）",
+        "type": "{gf_type}",
+        "type_label": "类型标签（带emoji）",
+        "concept": "核心概念（50字内，清晰说明机制）"
+    }},
+    "abilities": {{
+        "initial": "初始能力（刚获得时，限制较多，具体可执行什么操作）",
+        "growth": "成长曲线（分前期1-30章/中期31-80章/后期81章+描述能力进化）",
+        "max": "最终形态（后期解锁的终极能力）"
+    }},
+    "restrictions": {{
+        "limitations": ["限制条件1（如：每日限10次）", "限制条件2（如：需要观众>1000人）", "限制条件3"],
+        "side_effects": ["副作用1（如：频繁使用导致话痨）", "副作用2"],
+        "cooldown": "冷却规则（如：普通5分钟/高级24小时）"
+    }},
+    "applications": {{
+        "combat": "战斗应用场景（如何利用金手指战斗）",
+        "daily": "日常应用场景（非战斗时的用途）",
+        "special": {{"特殊机制1": "说明", "特殊机制2": "说明"}}
+    }},
+    "protagonist_synergy": {{
+        "compatibility": "与主角性格的契合度说明",
+        "combo_effects": ["联动效果1（如：话痨+整活=吐槽变指令）", "联动效果2"]
+    }},
+    "plot_role": {{
+        "hooks": [
+            {{"chapter": 3, "title": "首次使用", "description": "第3章左右的关键剧情，首次展现金手指"}},
+            {{"chapter": 15, "title": "进化/危机", "description": "第15章左右，金手指进化或遭遇限制危机"}},
+            {{"chapter": 30, "title": "秘密揭晓", "description": "第30章左右，金手指背后的秘密揭晓"}}
+        ],
+        "twist_potential": "潜在反转（金手指背后可能隐藏的真相）"
+    }}
+}}
+
+要求：
+1. 金手指名称要有创意，符合【{genre}】题材风格
+2. 必须有明确的成长空间（前期弱→后期强）
+3. 必须有代价或限制，不能开局无敌
+4. 必须与主角性格【{protagonist_personality}】形成联动
+5. 必须包含3个剧情钩子，对应第3、15、30章左右"""
+
+        try:
+            if self.api_client:
+                response = self.api_client.generate_content_with_retry(
+                    content_type="golden_finger_design",
+                    user_prompt=prompt,
+                    temperature=0.8
+                )
+                
+                if response:
+                    # 解析JSON
+                    import re
+                    json_match = re.search(r'\{[\s\S]*\}', str(response))
+                    if json_match:
+                        result = json.loads(json_match.group())
+                        logger.info(f"[PhaseOneGenerator] AI生成金手指成功: {result.get('basic_info', {}).get('name', '未命名')}")
+                        return result
+        except Exception as e:
+            logger.error(f"[PhaseOneGenerator] AI生成金手指失败: {e}")
+        
+        # 回退：生成简化版本
+        return self._create_fallback_golden_finger(gf_desc)
+    
+    def _get_default_golden_finger_desc(self, genre: str) -> str:
+        """根据题材获取默认金手指描述"""
+        genre_lower = genre.lower()
+        
+        if "国运" in genre_lower or "直播" in genre_lower:
+            return "与直播/观众互动的特殊能力系统"
+        elif "神豪" in genre_lower or "花钱" in genre_lower:
+            return "花钱返利/消费获得奖励的系统"
+        elif "玄幻" in genre_lower or "修仙" in genre_lower:
+            return "修炼加速/特殊悟性的天赋系统"
+        elif "末世" in genre_lower or "求生" in genre_lower:
+            return "生存辅助/资源获取的系统"
+        elif "都市" in genre_lower:
+            return "职场/商业辅助的特殊能力"
+        else:
+            return "主角特有的金手指能力系统"
+    
+    def _create_fallback_golden_finger(self, desc: str) -> Dict:
+        """生成回退金手指设定（AI失败时使用）"""
+        return {
+            "basic_info": {
+                "name": "待命名系统",
+                "type": "unknown",
+                "type_label": "❓ 未知类型",
+                "concept": desc or "待补充"
+            },
+            "abilities": {
+                "initial": "初始能力待补充",
+                "growth": "前期(1-30章)：能力初步觉醒；中期(31-80章)：能力大幅提升；后期(81章+)：终极形态",
+                "max": "最终形态待补充"
+            },
+            "restrictions": {
+                "limitations": ["使用限制待补充"],
+                "side_effects": ["副作用待补充"],
+                "cooldown": "冷却规则待补充"
+            },
+            "applications": {
+                "combat": "战斗应用待补充",
+                "daily": "日常应用待补充",
+                "special": {}
+            },
+            "protagonist_synergy": {
+                "compatibility": "与主角的契合度待补充",
+                "combo_effects": ["联动效果待补充"]
+            },
+            "plot_role": {
+                "hooks": [
+                    {"chapter": 3, "title": "首次展现", "description": "第3章首次使用金手指"},
+                    {"chapter": 15, "title": "能力进化", "description": "第15章金手指进化"},
+                    {"chapter": 30, "title": "秘密揭晓", "description": "第30章揭晓金手指秘密"}
+                ],
+                "twist_potential": "金手指背后的真相待补充"
+            },
+            "_note": "AI生成失败，使用回退模板",
+            "_needs_completion": True
+        }
 
 
 # 便捷函数

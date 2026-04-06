@@ -104,7 +104,10 @@ class PhaseOneDataLoader:
         """验证关键数据是否存在"""
         # 检查主角名
         char_design = data.get('character_design', {})
-        protagonist = char_design.get('protagonist', {})
+        if not isinstance(char_design, dict):
+            logger.warning(f"[PhaseOneDataLoader] ⚠️ 角色设计数据格式错误，期望dict，实际为{type(char_design).__name__}！")
+            char_design = {}
+        protagonist = char_design.get('protagonist', {}) if isinstance(char_design.get('protagonist'), dict) else {}
         if not protagonist.get('name'):
             logger.warning("[PhaseOneDataLoader] ⚠️ 主角名缺失！")
         else:
@@ -112,16 +115,22 @@ class PhaseOneDataLoader:
         
         # 检查世界观
         world = data.get('world_setting', {})
+        if not isinstance(world, dict):
+            logger.warning(f"[PhaseOneDataLoader] ⚠️ 世界观数据格式错误，期望dict，实际为{type(world).__name__}！")
+            world = {}
         if not world.get('world_overview', {}).get('background'):
             logger.warning("[PhaseOneDataLoader] ⚠️ 世界观背景缺失！")
         
         # 检查金手指
-        power = world.get('power_system', {})
+        power = world.get('power_system', {}) if isinstance(world.get('power_system'), dict) else {}
         if not power.get('shen_lang_exclusive'):
             logger.warning("[PhaseOneDataLoader] ⚠️ 金手指详细规则缺失！")
         
         # 检查情绪蓝图
         emotion = data.get('emotional_blueprint', {})
+        if not isinstance(emotion, dict):
+            logger.warning(f"[PhaseOneDataLoader] ⚠️ 情绪蓝图数据格式错误，期望dict，实际为{type(emotion).__name__}！")
+            emotion = {}
         if not emotion.get('climax_moments'):
             logger.warning("[PhaseOneDataLoader] ⚠️ 高潮节点缺失！")
         else:
@@ -153,9 +162,14 @@ class PhaseOneDataLoader:
         char_design = self.load_character_design()
         characters = []
         
+        # 确保 char_design 是字典
+        if not isinstance(char_design, dict):
+            logger.warning(f"[PhaseOneDataLoader] 角色设计数据格式错误，期望dict，实际为{type(char_design).__name__}")
+            return characters
+        
         # 主角
         protagonist = char_design.get('protagonist', {})
-        if protagonist:
+        if isinstance(protagonist, dict) and protagonist:
             characters.append({
                 'name': protagonist.get('name', '主角'),
                 'type': 'protagonist',
@@ -167,58 +181,230 @@ class PhaseOneDataLoader:
             })
         
         # 核心盟友
-        for ally in char_design.get('core_allies', []):
-            characters.append({
-                'name': ally.get('name', ''),
-                'type': 'ally',
-                'role': ally.get('role', '盟友'),
-                'traits': ally.get('traits', []),
-                'contribution': ally.get('contribution', ''),
-                'source': '角色设计.json/core_allies'
-            })
+        core_allies = char_design.get('core_allies', [])
+        if isinstance(core_allies, list):
+            for ally in core_allies:
+                if isinstance(ally, dict):
+                    characters.append({
+                        'name': ally.get('name', ''),
+                        'type': 'ally',
+                        'role': ally.get('role', '盟友'),
+                        'traits': ally.get('traits', []),
+                        'contribution': ally.get('contribution', ''),
+                        'source': '角色设计.json/core_allies'
+                    })
         
         # 反派
         antagonists = char_design.get('main_antagonists', {})
-        for stage, villains in antagonists.items():
-            for villain in villains:
-                characters.append({
-                    'name': villain.get('name', ''),
-                    'type': 'villain',
-                    'role': f'反派({stage})',
-                    'motivation': villain.get('motivation', ''),
-                    'hate_point': villain.get('hate_point', ''),
-                    'face_slapping_arc': villain.get('face_slapping_arc', ''),
-                    'source': f'角色设计.json/main_antagonists/{stage}'
-                })
+        if isinstance(antagonists, dict):
+            for stage, villains in antagonists.items():
+                if isinstance(villains, list):
+                    for villain in villains:
+                        if isinstance(villain, dict):
+                            characters.append({
+                                'name': villain.get('name', ''),
+                                'type': 'villain',
+                                'role': f'反派({stage})',
+                                'motivation': villain.get('motivation', ''),
+                                'hate_point': villain.get('hate_point', ''),
+                                'face_slapping_arc': villain.get('face_slapping_arc', ''),
+                                'source': f'角色设计.json/main_antagonists/{stage}'
+                            })
         
         # 配角
-        for role in char_design.get('supporting_roles', []):
-            characters.append({
-                'name': role.get('name', ''),
-                'type': 'supporting',
-                'role': role.get('role', '配角'),
-                'traits': role.get('traits', []),
-                'source': '角色设计.json/supporting_roles'
-            })
+        supporting_roles = char_design.get('supporting_roles', [])
+        if isinstance(supporting_roles, list):
+            for role in supporting_roles:
+                if isinstance(role, dict):
+                    characters.append({
+                        'name': role.get('name', ''),
+                        'type': 'supporting',
+                        'role': role.get('role', '配角'),
+                        'traits': role.get('traits', []),
+                        'source': '角色设计.json/supporting_roles'
+                    })
         
         return characters
     
+    def load_golden_finger(self) -> Dict:
+        """
+        加载金手指详细设定（统一入口）
+        
+        优先从金手指设定.json读取，如不存在则从其他数据源回退
+        """
+        # 1. 优先从专用文件读取
+        gf = self._load_json("金手指设定.json", None)
+        if gf and isinstance(gf, dict):
+            logger.info(f"[PhaseOneDataLoader] 从金手指设定.json加载")
+            return gf
+        
+        # 2. 从 project_info.json 读取（兼容新结构）
+        project_info = self._load_project_info()
+        if project_info:
+            plan = project_info.get("plan", {})
+            gf = plan.get("golden_finger", None)
+            if gf and isinstance(gf, dict):
+                # 检查是否是完整结构
+                if "abilities" in gf or "basic_info" in gf:
+                    logger.info(f"[PhaseOneDataLoader] 从project_info.json加载完整金手指")
+                    return gf
+                else:
+                    logger.warning(f"[PhaseOneDataLoader] 金手指结构不完整，尝试转换")
+                    return self._normalize_golden_finger(gf)
+            
+            # 3. 尝试读取旧字段 golden_finger_summary
+            summary = plan.get("golden_finger_summary", "")
+            if summary:
+                logger.warning(f"[PhaseOneDataLoader] 使用旧版golden_finger_summary回退")
+                return self._create_simple_golden_finger(summary)
+        
+        # 4. 从世界观回退（mc_exclusive字段）
+        world = self.load_world_setting()
+        if isinstance(world, dict):
+            power = world.get("power_system", {})
+            if isinstance(power, dict):
+                mechanics = power.get("mechanics", {})
+                if isinstance(mechanics, dict):
+                    mc_exclusive = mechanics.get("mc_exclusive", "")
+                    if mc_exclusive:
+                        logger.warning(f"[PhaseOneDataLoader] 从世界观mc_exclusive回退")
+                        return self._create_simple_golden_finger(mc_exclusive)
+        
+        # 5. 空对象（不再硬编码）
+        logger.error(f"[PhaseOneDataLoader] 无法找到金手指设定！")
+        return self._create_empty_golden_finger()
+    
+    def _load_project_info(self) -> Dict:
+        """加载项目信息文件"""
+        try:
+            project_info_path = self.project_path / "project_info.json"
+            if project_info_path.exists():
+                with open(project_info_path, 'r', encoding='utf-8') as f:
+                    return json.load(f)
+        except Exception as e:
+            logger.warning(f"[PhaseOneDataLoader] 加载project_info.json失败: {e}")
+        return {}
+    
+    def _normalize_golden_finger(self, data: Dict) -> Dict:
+        """标准化金手指数据结构（处理不同版本）"""
+        # 如果已经是新结构，直接返回
+        if "basic_info" in data:
+            return data
+        
+        # 转换旧结构到新结构
+        return {
+            "basic_info": {
+                "name": data.get("name", "未命名系统"),
+                "type": data.get("type", "unknown"),
+                "type_label": data.get("type_label", "❓ 未知"),
+                "concept": data.get("concept", data.get("description", ""))
+            },
+            "abilities": {
+                "initial": data.get("initial_ability", data.get("initial", "")),
+                "growth": data.get("growth_curve", data.get("growth", "")),
+                "max": data.get("max_potential", data.get("max", ""))
+            },
+            "restrictions": {
+                "limitations": data.get("limitations", []),
+                "side_effects": data.get("side_effects", []),
+                "cooldown": data.get("cooldown_rules", data.get("cooldown", ""))
+            },
+            "applications": {
+                "combat": data.get("combat_usage", ""),
+                "daily": data.get("daily_usage", ""),
+                "special": data.get("special_mechanics", {})
+            },
+            "protagonist_synergy": {
+                "compatibility": data.get("compatibility", ""),
+                "combo_effects": data.get("combo_effects", [])
+            },
+            "plot_role": {
+                "hooks": data.get("plot_hooks", data.get("hooks", [])),
+                "twist_potential": data.get("twist_potential", "")
+            },
+            "_source": "normalized",
+            "_original_data": data
+        }
+    
+    def _create_simple_golden_finger(self, summary: str) -> Dict:
+        """从简单描述创建简化金手指结构"""
+        return {
+            "basic_info": {
+                "name": "待命名系统",
+                "type": "unknown",
+                "type_label": "❓ 待补充",
+                "concept": summary
+            },
+            "abilities": {
+                "initial": "初始能力待补充",
+                "growth": "成长曲线待补充",
+                "max": "最终形态待补充"
+            },
+            "restrictions": {
+                "limitations": [],
+                "side_effects": [],
+                "cooldown": ""
+            },
+            "applications": {
+                "combat": "",
+                "daily": "",
+                "special": {}
+            },
+            "protagonist_synergy": {
+                "compatibility": "",
+                "combo_effects": []
+            },
+            "plot_role": {
+                "hooks": [],
+                "twist_potential": ""
+            },
+            "_source": "fallback_summary",
+            "_needs_completion": True
+        }
+    
+    def _create_empty_golden_finger(self) -> Dict:
+        """创建空金手指对象（最终回退）"""
+        return {
+            "basic_info": {
+                "name": "未设定",
+                "type": "unknown",
+                "type_label": "❌ 缺失",
+                "concept": "金手指设定未找到"
+            },
+            "abilities": {
+                "initial": "",
+                "growth": "",
+                "max": ""
+            },
+            "restrictions": {
+                "limitations": [],
+                "side_effects": [],
+                "cooldown": ""
+            },
+            "applications": {
+                "combat": "",
+                "daily": "",
+                "special": {}
+            },
+            "protagonist_synergy": {
+                "compatibility": "",
+                "combo_effects": []
+            },
+            "plot_role": {
+                "hooks": [],
+                "twist_potential": ""
+            },
+            "_error": "金手指设定缺失",
+            "_source": "empty"
+        }
+    
     def get_golden_finger(self) -> Dict:
         """
-        获取金手指详细设定
+        获取金手指详细设定（向后兼容接口）
         
-        返回标准化格式的金手指信息
+        建议使用新的 load_golden_finger() 方法
         """
-        world = self.load_world_setting()
-        power = world.get('power_system', {})
-        
-        return {
-            'name': '弹幕干涉系统',
-            'mechanics': power.get('shen_lang_exclusive', ''),
-            'level_standard': power.get('level_standard', 'F-SSS级'),
-            'pet_system': power.get('pet_system', ''),
-            'combat_mechanics': power.get('combat_mechanics', {}),
-        }
+        return self.load_golden_finger()
     
     def get_current_stage_goal(self, chapter_range_start: int) -> Optional[Dict]:
         """
