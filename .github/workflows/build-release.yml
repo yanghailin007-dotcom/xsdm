@@ -1,5 +1,5 @@
 # GitHub Actions 双平台自动打包工作流
-# 在推送 tag 时自动构建 Windows 和 macOS 版本
+# 在推送 tag 时自动构建 Windows 和 macOS 桌面程序
 
 name: Build and Release
 
@@ -25,34 +25,29 @@ jobs:
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install -r requirements.txt
-          pip install pyinstaller
+          pip install pyinstaller PyQt5 playwright
+          playwright install chromium
 
       - name: Build Windows executable
-        run: python scripts/build_windows.py
+        run: python scripts/build_desktop_windows.py
 
       - name: Upload Windows artifact
         uses: actions/upload-artifact@v4
         with:
           name: NovelPublisher-windows
-          path: dist/NovelPublisher.exe
-
-      - name: Create ZIP archive
-        run: |
-          cd dist
-          7z a NovelPublisher-windows.zip NovelPublisher.exe
+          path: desktop_uploader/release/NovelPublisher.exe
 
       - name: Upload to Release
         if: startsWith(github.ref, 'refs/tags/')
         uses: softprops/action-gh-release@v1
         with:
-          files: dist/NovelPublisher-windows.zip
+          files: desktop_uploader/release/NovelPublisher.exe
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
   # macOS Intel 构建任务
   build-macos-intel:
-    runs-on: macos-13  # Intel 架构 (免费版)
+    runs-on: macos-13  # Intel 架构
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -65,23 +60,23 @@ jobs:
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install -r requirements.txt
-          pip install pyinstaller
+          pip install pyinstaller PyQt5 playwright
+          playwright install chromium
 
       - name: Build macOS app (Intel)
-        run: python scripts/build_macos.py
+        run: python scripts/build_desktop_macos.py
 
       - name: Upload macOS artifact
         uses: actions/upload-artifact@v4
         with:
           name: NovelPublisher-macos-intel
-          path: dist/NovelPublisher-macos.zip
+          path: desktop_uploader/release/dist/NovelPublisher-macos.zip
 
       - name: Upload to Release
         if: startsWith(github.ref, 'refs/tags/')
         uses: softprops/action-gh-release@v1
         with:
-          files: dist/NovelPublisher-macos.zip
+          files: desktop_uploader/release/dist/NovelPublisher-macos.zip
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
@@ -96,32 +91,27 @@ jobs:
         uses: actions/setup-python@v5
         with:
           python-version: '3.11'
-          architecture: arm64
 
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install -r requirements.txt
-          pip install pyinstaller
+          pip install pyinstaller PyQt5 playwright
+          playwright install chromium
 
       - name: Build macOS app (Apple Silicon)
-        run: python scripts/build_macos.py
-
-      - name: Rename for ARM64
-        run: |
-          mv dist/NovelPublisher-macos.zip dist/NovelPublisher-macos-arm64.zip
+        run: python scripts/build_desktop_macos.py
 
       - name: Upload macOS ARM artifact
         uses: actions/upload-artifact@v4
         with:
           name: NovelPublisher-macos-arm64
-          path: dist/NovelPublisher-macos-arm64.zip
+          path: desktop_uploader/release/dist/NovelPublisher-macos-arm64.zip
 
       - name: Upload to Release
         if: startsWith(github.ref, 'refs/tags/')
         uses: softprops/action-gh-release@v1
         with:
-          files: dist/NovelPublisher-macos-arm64.zip
+          files: desktop_uploader/release/dist/NovelPublisher-macos-arm64.zip
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
@@ -145,22 +135,22 @@ jobs:
       - name: Create Release Notes
         run: |
           cat > RELEASE_NOTES.md << 'EOF'
-          ## NovelPublisher 新版本发布
+          ## NovelPublisher 桌面程序发布
 
           ### 下载说明
 
           **Windows 用户:**
-          - 下载 `NovelPublisher-windows.zip`
-          - 解压后双击 `NovelPublisher.exe` 运行
+          - 下载 `NovelPublisher.exe`
+          - 双击运行即可
 
           **macOS Intel 用户 (Intel CPU):**
           - 下载 `NovelPublisher-macos.zip`
-          - 解压后双击 `NovelPublisher.app` 运行
+          - 解压后运行
           - 首次运行需要在"系统偏好设置-安全性与隐私"中允许
 
           **macOS Apple Silicon 用户 (M1/M2/M3):**
           - 下载 `NovelPublisher-macos-arm64.zip`
-          - 解压后双击 `NovelPublisher.app` 运行
+          - 解压后运行
           - 首次运行需要在"系统偏好设置-安全性与隐私"中允许
 
           ### macOS 首次运行说明
@@ -168,7 +158,7 @@ jobs:
           由于应用未经过 Apple 官方签名，首次运行时可能会看到安全提示。
 
           **解决方法：**
-          1. 在 Finder 中找到 `NovelPublisher.app`
+          1. 在 Finder 中找到应用
           2. **按住 Control 键**点击应用图标
           3. 选择"打开"
           4. 在弹出的对话框中点击"打开"
@@ -185,6 +175,5 @@ jobs:
         uses: softprops/action-gh-release@v1
         with:
           body_path: RELEASE_NOTES.md
-          files: artifacts/**/*
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
