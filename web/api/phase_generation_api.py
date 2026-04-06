@@ -1213,6 +1213,9 @@ def start_phase_one_generate():
         # 🔥 新增：支持 planning_mode 参数（auto / interactive）
         planning_mode = data.get('planning_mode', 'auto')
         
+        # 🔥 关键：支持对话模式配置（默认启用）
+        use_creative_conversation_mode = data.get('use_creative_conversation_mode', True)
+        
         # 参数验证
         if not title:
             return jsonify({"success": False, "error": "小说标题不能为空"}), 400
@@ -1309,6 +1312,7 @@ def start_phase_one_generate():
             'estimated_points': total_cost,  # 🔥 新增：预估消耗点数
             'from_planning': from_planning,  # 🔥 新增：标记来源
             'final_plan_brief': final_plan_brief,  # 🔥 新增：交互式策划产物
+            'use_creative_conversation_mode': use_creative_conversation_mode,  # 🔥 关键：传递对话模式配置
         }
         
         logger.info(f"📱 [PLATFORM] 目标平台: {target_platform}")

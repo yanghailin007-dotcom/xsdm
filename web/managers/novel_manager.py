@@ -1978,6 +1978,11 @@ class NovelGenerationManager:
                 generator_config["defaults"]["total_chapters"] = config.get("total_chapters", 200)
                 generator_config["defaults"]["chapters_per_batch"] = 3
                 
+                # 🔥 关键：传递对话模式配置到生成器
+                if "use_creative_conversation_mode" in config:
+                    generator_config["use_creative_conversation_mode"] = config["use_creative_conversation_mode"]
+                    logger.info(f"任务 {task_id}: 对话模式配置 = {config['use_creative_conversation_mode']}")
+                
                 # 🔥 使用单例模式获取生成器实例（首次初始化后复用）
                 logger.info(f"任务 {task_id}: 获取 NovelGenerator 实例...")
                 novel_generator = get_novel_generator(generator_config)
