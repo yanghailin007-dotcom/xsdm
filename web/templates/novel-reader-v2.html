@@ -1249,7 +1249,15 @@ class NovelReader {
         if (!hasMore && this.chapters.length > 0) return;
         
         // 检查是否已缓存
-        if (this.loadedChapters.has(nextNum)) return;
+        if (this.loadedChapters.has(nextNum)) {
+            // 🔥 章节已缓存，检查是否已在 DOM 中
+            const existingChapter = this.contentEl.querySelector(`.reader-chapter[data-chapter-num="${nextNum}"]`);
+            if (!existingChapter) {
+                console.log('[阅读器] 加载更多按钮: 第', nextNum, '章已缓存但未渲染，执行渲染');
+                this.loadChapter(nextNum, true);
+            }
+            return;
+        }
         
         // 添加加载按钮
         const loadMoreEl = document.createElement('div');
@@ -1570,10 +1578,9 @@ class NovelReader {
                     console.log('[阅读器] 最后章节:', lastChapterNum, '准备加载:', nextNum, '章节列表:', this.chapters.length);
                     
                     // 检查是否已经加载过该章节
-                    if (!this.loadedChapters.has(nextNum)) {
-                        const hasNext = this.chapters.some(ch => (ch.number || ch.chapter_number) >= nextNum);
-                        console.log('[阅读器] 是否有下一章:', hasNext);
-                        if (hasNext || this.chapters.length === 0) {
+                    const hasNext = this.chapters.some(ch => (ch.number || ch.chapter_number) >= nextNum);
+                    if (hasNext || this.chapters.length === 0) {
+                        if (!this.loadedChapters.has(nextNum)) {
                             console.log('[阅读器] 开始加载第', nextNum, '章');
                             this.isLoadingNext = true; // 提前设置标志
                             // 🔥 加载下一章，并预加载下下章
@@ -1589,9 +1596,21 @@ class NovelReader {
                             }).catch(() => {
                                 this.isLoadingNext = false; // 错误时重置
                             });
+                        } else {
+                            // 🔥 章节已缓存，检查是否已在 DOM 中
+                            const existingChapter = this.contentEl.querySelector(`.reader-chapter[data-chapter-num="${nextNum}"]`);
+                            if (!existingChapter) {
+                                console.log('[阅读器] 第', nextNum, '章已缓存但未渲染，执行渲染');
+                                this.isLoadingNext = true;
+                                this.loadChapter(nextNum, true).finally(() => {
+                                    this.isLoadingNext = false;
+                                });
+                            } else {
+                                console.log('[阅读器] 第', nextNum, '章已在 DOM 中，跳过');
+                            }
                         }
                     } else {
-                        console.log('[阅读器] 第', nextNum, '章已缓存');
+                        console.log('[阅读器] 没有更多章节');
                     }
                 }
             }

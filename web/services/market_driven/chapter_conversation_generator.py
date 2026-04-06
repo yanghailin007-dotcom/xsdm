@@ -1608,10 +1608,21 @@ class ChapterConversationGenerator:
         total_issues = sum(len(r.issues) for r in self.quality_reports)
         # 🔥 修复：兼容 severity 是 Enum 或字典的情况
         def get_severity_name(sev):
-            if hasattr(sev, 'name'):
-                return sev.name
-            elif isinstance(sev, dict):
+            try:
+                # 先尝试作为 Enum 访问
+                if hasattr(sev, 'name'):
+                    return sev.name
+            except (AttributeError, TypeError):
+                pass
+            # 尝试作为字典访问
+            if isinstance(sev, dict):
                 return sev.get('name', '')
+            # 尝试获取 value 属性（Enum 的另一种形式）
+            try:
+                if hasattr(sev, 'value'):
+                    return sev.value
+            except (AttributeError, TypeError):
+                pass
             return str(sev)
         
         critical_issues = sum(
