@@ -590,8 +590,7 @@
   </div>
 </div>
 
-<!-- 生成进度悬浮窗 -->
-{% include 'novel/generation_float.html' %}
+<!-- 注：本页面使用全局悬浮窗 floating-task-monitor.html，不再单独引入 generation_float.html -->
 
 {% endblock %}
 
@@ -605,15 +604,6 @@ if (!taskId) {
   alert('任务ID不存在');
   window.location.href = '/market-driven-create';
 }
-
-// 🔥 隐藏全局悬浮窗（本页面已自带生成进度显示，避免重复）
-document.addEventListener('DOMContentLoaded', function() {
-  const globalFloat = document.getElementById('globalTaskFloat');
-  if (globalFloat) {
-    globalFloat.style.display = 'none';
-    console.log('[market-driven-status] 已隐藏全局悬浮窗');
-  }
-});
 
 let pollInterval = null;
 
