@@ -3414,3 +3414,335 @@ def _run_replan_generation(task_id, title, project_path, new_settings, username)
             'status': 'failed',
             'error': str(e)
         })
+
+
+
+# ==================== 重写 API ====================
+
+@market_driven_api.route('/<title>/rewrite', methods=['POST'])
+def rewrite_project(title):
+    """
+    重写项目 - 删除已有章节，基于新设定重新生成完整方案
+    
+    Args:
+        title: 项目标题
+        
+    Request Body:
+        {
+            "new_settings": {
+                "title": "新标题",
+                "sellpoint": "新卖点",
+                "chapters": 200,
+                "target_words": 500000,
+                "protagonist_name": "主角名",
+                "protagonist_bg": "背景",
+                "golden_finger_type": "system",
+                "golden_finger_desc": "金手指描述",
+                "main_plot": "主线剧情"
+            }
+        }
+        
+    Returns:
+        {
+            "success": True,
+            "task_id": "...",
+            "message": "重写任务已启动"
+        }
+    """
+    try:
+        from urllib.parse import unquote
+        title = unquote(title)
+        username = _get_current_username()
+        
+        # 获取请求参数
+        data = request.json or {}
+        new_settings = data.get('new_settings', {})
+        
+        logger.info(f"[重写] {title}: 开始重写项目")
+        
+        # 查找项目路径
+        from web.utils.path_utils import find_novel_project
+        project_path = find_novel_project(title, username)
+        
+        if not project_path:
+            return jsonify({
+                "success": False,
+                "error": f"项目 '{title}' 不存在"
+            }), 404
+        
+        project_path = Path(project_path)
+        
+        # 扣除点数（重写消耗100点）
+        from web.services.points_service import points_service
+        points_needed = 100
+        
+        balance = points_service.get_balance(username)
+        if balance < points_needed:
+            return jsonify({
+                "success": False,
+                "error": f"创造点不足，需要{points_needed}点，当前{balance}点",
+                "current_balance": balance,
+                "needed": points_needed
+            }), 402
+        
+        # 扣除点数
+        success, result = points_service.consume_points(
+            username=username,
+            points=points_needed,
+            action=f"重写项目: {title}",
+            novel_title=title
+        )
+        
+        if not success:
+            return jsonify({
+                "success": False,
+                "error": result
+            }), 402
+        
+        # 删除已有章节
+        chapters_dir = project_path / "chapters"
+        deleted_count = 0
+        if chapters_dir.exists():
+            for chapter_file in chapters_dir.glob("chapter_*.json"):
+                try:
+                    chapter_file.unlink()
+                    deleted_count += 1
+                except Exception as e:
+                    logger.warning(f"删除章节文件失败 {chapter_file}: {e}")
+            logger.info(f"[重写] 已删除 {deleted_count} 个章节文件")
+        
+        # 清空 project_info.json 中的章节索引
+        project_info_file = project_path / "project_info.json"
+        if project_info_file.exists():
+            try:
+                with open(project_info_file, 'r', encoding='utf-8') as f:
+                    project_info = json.load(f)
+                
+                # 清空章节相关数据
+                project_info['chapters_index'] = []
+                if 'generation_metadata' in project_info:
+                    project_info['generation_metadata']['completed_chapters'] = 0
+                    project_info['generation_metadata']['total_words'] = 0
+                
+                project_info['updated_at'] = datetime.now().isoformat()
+                
+                with open(project_info_file, 'w', encoding='utf-8') as f:
+                    json.dump(project_info, f, ensure_ascii=False, indent=2)
+                
+                logger.info(f"[重写] 已清空项目章节索引")
+            except Exception as e:
+                logger.warning(f"更新 project_info.json 失败: {e}")
+        
+        # 创建重写任务
+        task_id = task_manager.create_task(
+            title=title,
+            task_type="rewrite",
+            username=username
+        )
+        
+        # 启动后台线程重新生成
+        import threading
+        thread = threading.Thread(
+            target=_run_rewrite_generation,
+            args=(task_id, title, project_path, new_settings, username)
+        )
+        thread.daemon = True
+        thread.start()
+        
+        return jsonify({
+            "success": True,
+            "task_id": task_id,
+            "message": "重写任务已启动，将删除旧章节并重新生成完整方案",
+            "deleted_chapters": deleted_count,
+            "points_consumed": points_needed
+        })
+        
+    except Exception as e:
+        logger.error(f"[重写] 启动失败: {e}", exc_info=True)
+        return jsonify({
+            "success": False,
+            "error": str(e)
+        }), 500
+
+
+def _run_rewrite_generation(task_id, title, project_path, new_settings, username):
+    """
+    在后台运行重写生成（完整流程：方案+章节）
+    """
+    try:
+        task_manager.update_task(task_id, {
+            'status': 'generating',
+            'current_stage': 'rewriting',
+            'progress': 5,
+            'message': '开始重写项目，更新设定'
+        })
+        
+        # 1. 更新项目设定
+        project_info_file = project_path / "project_info.json"
+        if project_info_file.exists():
+            with open(project_info_file, 'r', encoding='utf-8') as f:
+                project_info = json.load(f)
+        else:
+            project_info = {}
+        
+        # 更新项目信息
+        project_info.update({
+            'novel_title': new_settings.get('title', title),
+            'genre': new_settings.get('genre', project_info.get('genre', '未知')),
+            'updated_at': datetime.now().isoformat()
+        })
+        
+        if 'novel_info' not in project_info:
+            project_info['novel_info'] = {}
+        
+        project_info['novel_info'].update({
+            'title': new_settings.get('title', title),
+            'synopsis': new_settings.get('sellpoint', ''),
+            'target_chapters': new_settings.get('chapters', 200),
+            'target_words': new_settings.get('target_words', 500000)
+        })
+        
+        # 更新角色设计
+        if 'character_design' not in project_info:
+            project_info['character_design'] = {}
+        if 'protagonist' not in project_info['character_design']:
+            project_info['character_design']['protagonist'] = {}
+        
+        project_info['character_design']['protagonist'].update({
+            'name': new_settings.get('protagonist_name', ''),
+            'identity': new_settings.get('protagonist_bg', ''),
+            'background': new_settings.get('protagonist_bg', '')
+        })
+        
+        # 更新金手指
+        if 'golden_finger' not in project_info:
+            project_info['golden_finger'] = {}
+        
+        project_info['golden_finger'].update({
+            'type': new_settings.get('golden_finger_type', 'system'),
+            'description': new_settings.get('golden_finger_desc', ''),
+            'desc': new_settings.get('golden_finger_desc', '')
+        })
+        
+        # 更新故事线
+        project_info['storyline'] = new_settings.get('main_plot', '')
+        
+        with open(project_info_file, 'w', encoding='utf-8') as f:
+            json.dump(project_info, f, ensure_ascii=False, indent=2)
+        
+        task_manager.update_task(task_id, {
+            'progress': 10,
+            'message': '已更新项目设定，开始生成完整方案'
+        })
+        
+        # 2. 重新生成蓝图
+        blueprint_path = project_path / "phase_one_products" / "完整方案.json"
+        blueprint = {
+            'title': new_settings.get('title', title),
+            'core_selling_point': new_settings.get('sellpoint', ''),
+            'protagonist': {
+                'name': new_settings.get('protagonist_name', ''),
+                'background': new_settings.get('protagonist_bg', ''),
+                'identity': new_settings.get('protagonist_bg', '')
+            },
+            'golden_finger': {
+                'type': new_settings.get('golden_finger_type', 'system'),
+                'description': new_settings.get('golden_finger_desc', ''),
+                'mechanism': new_settings.get('golden_finger_desc', '')
+            },
+            'main_plot': new_settings.get('main_plot', ''),
+            'target_chapters': new_settings.get('chapters', 200),
+            'target_words': new_settings.get('target_words', 500000)
+        }
+        
+        # 确保目录存在
+        blueprint_path.parent.mkdir(parents=True, exist_ok=True)
+        with open(blueprint_path, 'w', encoding='utf-8') as f:
+            json.dump(blueprint, f, ensure_ascii=False, indent=2)
+        
+        task_manager.update_task(task_id, {
+            'progress': 20,
+            'current_stage': 'generating_chapters',
+            'message': '开始生成章节'
+        })
+        
+        # 3. 重新生成章节（使用 _run_chapter_generation 的逻辑）
+        from web.services.market_driven.batch_chapter_generator import BatchChapterGenerator
+        batch_generator = BatchChapterGenerator(
+            stop_checker=lambda: task_manager.should_stop(task_id)
+        )
+        
+        total_chapters = new_settings.get('chapters', 200)
+        generated_chapters = []
+        total_words = 0
+        
+        # 分批生成
+        batch_size = 6
+        current = 1
+        
+        while current <= total_chapters:
+            if task_manager.should_stop(task_id):
+                task_manager.update_task(task_id, {
+                    'status': 'stopped',
+                    'message': '用户停止生成'
+                })
+                return
+            
+            batch_end = min(current + batch_size - 1, total_chapters)
+            
+            task_manager.update_task(task_id, {
+                'message': f'正在生成第{current}-{batch_end}章',
+                'batch_num': (current - 1) // batch_size + 1,
+                'current_chapter': current
+            })
+            
+            try:
+                result = batch_generator.generate_batch(
+                    project_path=str(project_path),
+                    blueprint=blueprint,
+                    start_chapter=current,
+                    end_chapter=batch_end,
+                    previous_chapters=generated_chapters[-3:] if generated_chapters else []
+                )
+                
+                if result and 'chapters' in result:
+                    generated_chapters.extend(result['chapters'])
+                    total_words += result.get('total_words', 0)
+                    
+                    # 更新进度
+                    progress = 20 + int((batch_end / total_chapters) * 80)
+                    task_manager.update_task(task_id, {
+                        'progress': progress,
+                        'completed_chapters': len(generated_chapters),
+                        'total_words': total_words
+                    })
+                
+                current = batch_end + 1
+                
+            except Exception as e:
+                logger.error(f"[重写] 批次生成失败 {current}-{batch_end}: {e}")
+                task_manager.update_task(task_id, {
+                    'status': 'failed',
+                    'error': f'第{current}-{batch_end}章生成失败: {str(e)}'
+                })
+                return
+        
+        # 完成任务
+        task_manager.update_task(task_id, {
+            'status': 'completed',
+            'progress': 100,
+            'current_stage': 'rewrite_completed',
+            'message': f'重写完成，共生成{len(generated_chapters)}章',
+            'result': {
+                'total_chapters': len(generated_chapters),
+                'total_words': total_words,
+                'message': '项目重写完成，所有章节已重新生成'
+            }
+        })
+        
+    except Exception as e:
+        logger.error(f"[重写] 生成失败: {e}", exc_info=True)
+        task_manager.update_task(task_id, {
+            'status': 'failed',
+            'error': str(e)
+        })

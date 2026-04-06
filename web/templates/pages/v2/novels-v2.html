@@ -1228,12 +1228,12 @@
             
             if (!novel.is_public) {
                 if (isMarketDriven) {
-                    // 市场导向模式：显示"规划"和"续写"按钮
-                    const planText = '规划';
+                    // 市场导向模式：显示"重写"和"续写"按钮
+                    const rewriteText = '重写';
                     const continueText = I18N.t ? I18N.t('novels.card.continueShort') : '续写';
                     actionButtons += `
-                        <button class="novel-btn novel-btn-secondary" onclick="planNovel('${escapeHtml(novel.title)}')">
-                            📋 ${planText}
+                        <button class="novel-btn novel-btn-secondary" onclick="rewriteNovel('${escapeHtml(novel.title)}')">
+                            🔄 ${rewriteText}
                         </button>
                         <button class="novel-btn" style="background: linear-gradient(135deg, #6366f1, #8b5cf6); color: white; border: none;" onclick="continueNovel('${escapeHtml(novel.title)}')">
                             ➕ ${continueText}
@@ -1421,8 +1421,12 @@
         }
         
         // 🔥 新增：跳转到市场导向规划页面
-        function planNovel(title) {
-            window.location.href = `/pages/v2/market-driven-plan.html?title=${encodeURIComponent(title)}`;
+        function rewriteNovel(title) {
+            // 检查是否有已生成的章节
+            const confirmed = confirm(`警告：重写将删除该项目的所有已生成章节，并基于当前设定重新生成。\n\n确定要继续吗？`);
+            if (confirmed) {
+                window.location.href = `/pages/v2/market-driven-plan.html?title=${encodeURIComponent(title)}&mode=rewrite`;
+            }
         }
 
         function showContinueDialog(title) {

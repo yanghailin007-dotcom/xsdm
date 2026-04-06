@@ -615,10 +615,12 @@
 const urlParams = new URLSearchParams(window.location.search);
 const genreId = urlParams.get('genre') || '';
 const titleFromUrl = urlParams.get('title') || '';
-const isContinueMode = urlParams.get('mode') === 'continue';
-const isPlanMode = titleFromUrl && !isContinueMode;  // 有title但不是continue模式，则为规划模式
+const mode = urlParams.get('mode') || '';
+const isContinueMode = mode === 'continue';
+const isRewriteMode = mode === 'rewrite';
+const isExistingProject = titleFromUrl && !isContinueMode;  // 有title但不是continue模式
 
-// 续写/规划模式下的项目数据
+// 续写/重写模式下的项目数据
 let existingProjectData = null;
 
 // 读取 localStorage 中的分析结果
@@ -680,10 +682,10 @@ document.addEventListener('DOMContentLoaded', async function() {
     return;
   }
   
-  // 检查是否是规划模式（有title但没有mode=continue）
-  if (isPlanMode) {
-    console.log('进入规划模式:', titleFromUrl);
-    await loadPlanProjectData(titleFromUrl);
+  // 检查是否是重写模式
+  if (isRewriteMode && titleFromUrl) {
+    console.log('进入重写模式:', titleFromUrl);
+    await loadRewriteProjectData(titleFromUrl);
     return;
   }
   
@@ -1228,6 +1230,194 @@ function updatePageForContinueMode() {
   }
 }
 
+// ========== 重写模式函数 ==========
+
+// 加载重写项目数据
+async function loadRewriteProjectData(title) {
+  try {
+    console.log('正在加载重写项目数据:', title);
+    
+    // 调用API获取项目详情
+    const response = await fetch(`/api/project-info?title=${encodeURIComponent(title)}`);
+    const result = await response.json();
+    
+    if (!result.success) {
+      console.error('加载项目数据失败:', result.error);
+      alert('加载项目数据失败: ' + (result.error || '未知错误'));
+      return;
+    }
+    
+    existingProjectData = result.data;
+    console.log('已加载重写项目数据:', existingProjectData);
+    
+    // 填充表单（允许编辑）
+    fillFormWithRewriteData(existingProjectData);
+    
+    // 更新页面为重写模式
+    updatePageForRewriteMode();
+    
+    // 显示重写模式提示
+    showRewriteModeNotice(existingProjectData.completed_chapters || 0);
+    
+  } catch (error) {
+    console.error('加载重写项目数据出错:', error);
+    alert('加载重写项目数据失败，请刷新页面重试');
+  }
+}
+
+// 用重写数据填充表单（允许编辑）
+function fillFormWithRewriteData(data) {
+  // 填充标题
+  if (data.title || data.novel_title) {
+    document.getElementById('novel-title').value = data.title || data.novel_title;
+  }
+  
+  // 填充核心卖点
+  if (data.sellpoint || data.core_sellpoint) {
+    document.getElementById('novel-sellpoint').value = data.sellpoint || data.core_sellpoint;
+  }
+  
+  // 填充主角姓名
+  if (data.protagonist_name || (data.protagonist && data.protagonist.name)) {
+    document.getElementById('protagonist-name').value = data.protagonist_name || data.protagonist.name;
+  }
+  
+  // 填充主角背景
+  if (data.protagonist_bg || (data.protagonist && (data.protagonist.background || data.protagonist.identity))) {
+    document.getElementById('protagonist-bg').value = data.protagonist_bg || data.protagonist.background || data.protagonist.identity;
+  }
+  
+  // 填充金手指描述
+  if (data.golden_finger_desc || (data.golden_finger && (data.golden_finger.description || data.golden_finger.desc))) {
+    document.getElementById('golden-finger-desc').value = data.golden_finger_desc || data.golden_finger.description || data.golden_finger.desc;
+  }
+  
+  // 填充主线剧情
+  if (data.main_plot || data.plot || data.storyline) {
+    document.getElementById('main-plot').value = data.main_plot || data.plot || data.storyline;
+  }
+  
+  // 设置目标字数
+  if (data.target_words) {
+    const wordCountInWan = Math.floor(data.target_words / 10000);
+    const wordSelect = document.getElementById('novel-wordcount');
+    const option = Array.from(wordSelect.options).find(opt => opt.value == wordCountInWan);
+    if (option) wordSelect.value = wordCountInWan;
+  }
+  
+  // 设置总章节数
+  if (data.total_chapters || data.chapters) {
+    const chapters = data.total_chapters || data.chapters;
+    const chapterSelect = document.getElementById('novel-chapters');
+    const option = Array.from(chapterSelect.options).find(opt => opt.value == chapters);
+    if (option) chapterSelect.value = chapters;
+  }
+}
+
+// 更新页面为重写模式
+function updatePageForRewriteMode() {
+  // 更新页面标题
+  document.querySelector('.plan-header__title').textContent = '重写项目';
+  document.querySelector('.plan-header__subtitle').textContent = `重新生成《${titleFromUrl}》（将删除已有章节）`;
+  
+  // 更新按钮文本
+  const btn = document.getElementById('generate-btn');
+  if (btn) {
+    btn.innerHTML = '<span class="material-icons">refresh</span>开始重写';
+    // 添加警告样式
+    btn.style.background = 'linear-gradient(135deg, #ef4444, #f87171)';
+  }
+  
+  // 更新生成区域信息
+  document.querySelector('.generate-section__label').textContent = '准备重写';
+  document.querySelector('.generate-section__value').textContent = '删除旧章节，重新生成完整方案';
+  
+  // 隐藏返回按钮
+  const backBtn = document.querySelector('.plan-header__back');
+  if (backBtn) {
+    backBtn.href = '/novels';
+    backBtn.innerHTML = '<span class="material-icons">arrow_back</span>返回作品列表';
+  }
+}
+
+// 显示重写模式提示
+function showRewriteModeNotice(completedChapters) {
+  const notice = document.createElement('div');
+  notice.className = 'auto-fill-notice';
+  notice.innerHTML = `
+    <span class="material-icons" style="color: #ef4444;">warning</span>
+    <span><strong>重写模式</strong>：已加载现有设定。点击"开始重写"后将删除${completedChapters}个已生成的章节，并重新生成完整方案。</span>
+  `;
+  notice.style.cssText = 'background: rgba(239, 68, 68, 0.1); border: 1px solid rgba(239, 68, 68, 0.3); padding: 12px 20px; border-radius: 8px; margin-bottom: 24px; display: flex; align-items: center; gap: 12px; color: #f87171;';
+  
+  const form = document.querySelector('.plan-form');
+  if (form) {
+    form.insertBefore(notice, form.firstChild);
+  }
+}
+
+// 重写模式：删除旧章节并重新生成
+async function startRewriteGeneration() {
+  const btn = document.getElementById('generate-btn');
+  
+  try {
+    console.log('启动重写生成:', titleFromUrl);
+    
+    // 获取表单值
+    const title = document.getElementById('novel-title').value.replace(/[《》]/g, '').trim();
+    const sellpoint = document.getElementById('novel-sellpoint').value;
+    const wordcount = parseInt(document.getElementById('novel-wordcount').value) * 10000;
+    const chapters = parseInt(document.getElementById('novel-chapters').value);
+    const protagonistName = document.getElementById('protagonist-name').value.trim();
+    const protagonistBg = document.getElementById('protagonist-bg').value;
+    const goldenFingerType = document.getElementById('golden-finger-type').value;
+    const goldenFingerDesc = document.getElementById('golden-finger-desc').value;
+    const mainPlot = document.getElementById('main-plot').value;
+    
+    // 验证必填项
+    if (!title) {
+      alert('请输入小说标题');
+      btn.disabled = false;
+      btn.innerHTML = '<span class="material-icons">refresh</span>开始重写';
+      return;
+    }
+    
+    // 调用重写API
+    const response = await fetch(`/api/market-driven/${encodeURIComponent(titleFromUrl)}/rewrite`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        new_settings: {
+          title: title,
+          sellpoint: sellpoint,
+          chapters: chapters,
+          target_words: wordcount,
+          protagonist_name: protagonistName,
+          protagonist_bg: protagonistBg,
+          golden_finger_type: goldenFingerType,
+          golden_finger_desc: goldenFingerDesc,
+          main_plot: mainPlot
+        }
+      })
+    });
+    
+    const result = await response.json();
+    
+    if (result.success) {
+      console.log('重写任务已启动:', result);
+      window.location.href = `/market-driven-status?task=${result.task_id}`;
+    } else {
+      throw new Error(result.error || '重写任务启动失败');
+    }
+    
+  } catch (error) {
+    console.error('重写失败:', error);
+    alert('重写失败: ' + error.message);
+    btn.disabled = false;
+    btn.innerHTML = '<span class="material-icons">refresh</span>开始重写';
+  }
+}
+
 async function startGeneration() {
   const btn = document.getElementById('generate-btn');
   btn.disabled = true;
@@ -1239,10 +1429,10 @@ async function startGeneration() {
     return;
   }
   
-  // 规划模式处理
-  if (isPlanMode) {
-    btn.innerHTML = '<span class="material-icons">hourglass_top</span>规划中...';
-    await startPlanGeneration();
+  // 重写模式处理
+  if (isRewriteMode && titleFromUrl) {
+    btn.innerHTML = '<span class="material-icons">hourglass_top</span>重写中...';
+    await startRewriteGeneration();
     return;
   }
   
