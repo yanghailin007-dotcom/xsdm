@@ -76,7 +76,11 @@ class WorldState:
     
     @classmethod
     def from_dict(cls, data: dict) -> 'WorldState':
-        return cls(**data)
+        # 🔥 修复：只获取类定义中存在的字段，忽略多余字段
+        from dataclasses import fields
+        valid_fields = {f.name for f in fields(cls)}
+        filtered_data = {k: v for k, v in data.items() if k in valid_fields}
+        return cls(**filtered_data)
 
 
 class WorldStateManager:
