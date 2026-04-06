@@ -5,7 +5,10 @@ NovelPublisher.exe
 # PyInstaller 构建文件
 build/
 dist/
-*.spec
+
+# 忽略生成的 spec 文件，但保留我们手动维护的 spec 文件
+!NovelPublisher.spec
+!NovelPublisher_onefile.spec
 
 # 浏览器数据
 browser_data/
