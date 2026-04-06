@@ -135,12 +135,13 @@ html.reader-mode main.v2-main {
 .reader-touch-zone {
     flex: 1;
     cursor: pointer;
-    pointer-events: auto;
+    pointer-events: none;
     touch-action: pan-y;
 }
 
 .reader-touch-zone--center {
     flex: 1.2;
+    pointer-events: auto;
 }
 
 /* ==================== 顶部工具栏 ==================== */
@@ -1507,12 +1508,15 @@ class NovelReader {
             }
         });
 
-        // 鼠标滚轮事件 - 转发到滚动区域（热区覆盖在上方会拦截滚轮事件）
-        touchLayer.addEventListener('wheel', (e) => {
-            // 将滚轮事件转发给滚动区域
-            this.scrollEl.scrollTop += e.deltaY;
-            e.preventDefault();
-        }, { passive: false });
+        // 中间热区滚轮事件穿透（中间区域 pointer-events: auto 会拦截滚轮）
+        const centerZone = document.querySelector('.reader-touch-zone--center');
+        if (centerZone) {
+            centerZone.addEventListener('wheel', (e) => {
+                // 将滚轮事件转发给滚动区域，增加滚动倍速提升体验
+                this.scrollEl.scrollTop += e.deltaY * 3;
+                e.preventDefault();
+            }, { passive: false });
+        }
 
         // 键盘导航
         document.addEventListener('keydown', (e) => {
