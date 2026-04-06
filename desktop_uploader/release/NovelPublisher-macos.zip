@@ -1,0 +1,4 @@
+PK# This is a placeholder for macOS Intel version
+Actual build will be downloaded from GitHub Actions
+Version: v1.0.2
+Platform: macOS Intel (x64)
