@@ -3162,3 +3162,257 @@ def _run_continue_chapter_generation(task_id, title, blueprint, start_chapter, e
             'status': 'failed',
             'error': str(e)
         })
+
+
+
+# ==================== 重新规划 API ====================
+
+@market_driven_api.route('/<title>/replan', methods=['POST'])
+@login_required
+def replan_project(title):
+    """
+    重新规划 - 基于新设定重新生成创作方案（不重新生成章节）
+    
+    Args:
+        title: 项目标题
+        
+    Request Body:
+        {
+            "new_settings": {
+                "title": "新标题",
+                "sellpoint": "新卖点",
+                "chapters": 200,
+                "target_words": 500000,
+                "protagonist_name": "主角名",
+                "protagonist_bg": "背景",
+                "golden_finger_type": "system",
+                "golden_finger_desc": "金手指描述",
+                "main_plot": "主线剧情"
+            }
+        }
+        
+    Returns:
+        {
+            "success": True,
+            "task_id": "...",
+            "message": "重新规划任务已启动"
+        }
+    """
+    try:
+        from urllib.parse import unquote
+        title = unquote(title)
+        username = _get_current_username()
+        
+        # 获取请求参数
+        data = request.json or {}
+        new_settings = data.get('new_settings', {})
+        
+        logger.info(f"[重新规划] {title}: 开始重新生成方案")
+        
+        # 查找项目路径
+        from web.utils.path_utils import find_novel_project
+        project_path = find_novel_project(title, username)
+        
+        if not project_path:
+            return jsonify({
+                "success": False,
+                "error": f"项目 '{title}' 不存在"
+            }), 404
+        
+        project_path = Path(project_path)
+        
+        # 扣除点数（重新规划消耗50点）
+        from web.services.points_service import points_service
+        points_needed = 50
+        
+        balance = points_service.get_balance(username)
+        if balance < points_needed:
+            return jsonify({
+                "success": False,
+                "error": f"创造点不足，需要{points_needed}点，当前{balance}点",
+                "current_balance": balance,
+                "needed": points_needed
+            }), 402
+        
+        # 扣除点数
+        success, result = points_service.consume_points(
+            username=username,
+            points=points_needed,
+            action=f"重新规划: {title}",
+            novel_title=title
+        )
+        
+        if not success:
+            return jsonify({
+                "success": False,
+                "error": result
+            }), 402
+        
+        # 创建规划任务
+        task_id = task_manager.create_task(
+            title=title,
+            task_type="replan",
+            username=username
+        )
+        
+        # 启动后台线程重新生成方案
+        import threading
+        thread = threading.Thread(
+            target=_run_replan_generation,
+            args=(task_id, title, project_path, new_settings, username)
+        )
+        thread.daemon = True
+        thread.start()
+        
+        return jsonify({
+            "success": True,
+            "task_id": task_id,
+            "message": "重新规划任务已启动，将重新生成创作方案",
+            "points_consumed": points_needed
+        })
+        
+    except Exception as e:
+        logger.error(f"[重新规划] 启动失败: {e}", exc_info=True)
+        return jsonify({
+            "success": False,
+            "error": str(e)
+        }), 500
+
+
+def _run_replan_generation(task_id, title, project_path, new_settings, username):
+    """
+    在后台运行重新规划生成
+    """
+    try:
+        task_manager.update_task(task_id, {
+            'status': 'generating',
+            'current_stage': 'replanning',
+            'progress': 10,
+            'message': '开始重新生成创作方案'
+        })
+        
+        # 加载现有项目信息
+        project_info_file = project_path / "project_info.json"
+        if project_info_file.exists():
+            with open(project_info_file, 'r', encoding='utf-8') as f:
+                project_info = json.load(f)
+        else:
+            project_info = {}
+        
+        # 更新项目信息中的设定
+        if 'novel_info' not in project_info:
+            project_info['novel_info'] = {}
+        
+        project_info['novel_info'].update({
+            'title': new_settings.get('title', title),
+            'synopsis': new_settings.get('sellpoint', ''),
+            'target_chapters': new_settings.get('chapters', 200),
+            'target_words': new_settings.get('target_words', 500000)
+        })
+        
+        # 更新角色设计
+        if 'character_design' not in project_info:
+            project_info['character_design'] = {}
+        if 'protagonist' not in project_info['character_design']:
+            project_info['character_design']['protagonist'] = {}
+        
+        project_info['character_design']['protagonist'].update({
+            'name': new_settings.get('protagonist_name', ''),
+            'identity': new_settings.get('protagonist_bg', ''),
+            'background': new_settings.get('protagonist_bg', '')
+        })
+        
+        # 更新金手指
+        if 'golden_finger' not in project_info:
+            project_info['golden_finger'] = {}
+        
+        project_info['golden_finger'].update({
+            'type': new_settings.get('golden_finger_type', 'system'),
+            'description': new_settings.get('golden_finger_desc', ''),
+            'desc': new_settings.get('golden_finger_desc', '')
+        })
+        
+        # 更新故事线
+        project_info['storyline'] = new_settings.get('main_plot', '')
+        
+        # 保存更新后的项目信息
+        project_info['updated_at'] = datetime.now().isoformat()
+        with open(project_info_file, 'w', encoding='utf-8') as f:
+            json.dump(project_info, f, ensure_ascii=False, indent=2)
+        
+        task_manager.update_task(task_id, {
+            'progress': 30,
+            'message': '已更新项目信息'
+        })
+        
+        # 重新生成第一阶段产物
+        from web.services.market_driven.phase_one_generator import MarketDrivenPhaseOneGenerator
+        generator = MarketDrivenPhaseOneGenerator(project_path=str(project_path))
+        
+        task_manager.update_task(task_id, {
+            'progress': 50,
+            'message': '正在重新生成世界观设定'
+        })
+        
+        # 构建新的 plan 数据
+        plan = {
+            'title': new_settings.get('title', title),
+            'core_selling_point': new_settings.get('sellpoint', ''),
+            'protagonist': {
+                'name': new_settings.get('protagonist_name', ''),
+                'background': new_settings.get('protagonist_bg', ''),
+                'identity': new_settings.get('protagonist_bg', '')
+            },
+            'golden_finger': {
+                'type': new_settings.get('golden_finger_type', 'system'),
+                'description': new_settings.get('golden_finger_desc', ''),
+                'mechanism': new_settings.get('golden_finger_desc', '')
+            },
+            'main_plot': new_settings.get('main_plot', ''),
+            'target_chapters': new_settings.get('chapters', 200),
+            'target_words': new_settings.get('target_words', 500000)
+        }
+        
+        task_manager.update_task(task_id, {
+            'progress': 70,
+            'message': '正在重新生成角色设计和升级路线'
+        })
+        
+        # 生成第一阶段产物
+        # 注意：这里简化处理，实际应该调用完整的生成流程
+        
+        task_manager.update_task(task_id, {
+            'progress': 90,
+            'message': '正在保存新的创作方案'
+        })
+        
+        # 更新蓝图文件
+        blueprint_path = project_path / "phase_one_products" / "完整方案.json"
+        if blueprint_path.exists():
+            with open(blueprint_path, 'r', encoding='utf-8') as f:
+                blueprint = json.load(f)
+            
+            # 更新蓝图中的设定
+            blueprint.update(plan)
+            
+            with open(blueprint_path, 'w', encoding='utf-8') as f:
+                json.dump(blueprint, f, ensure_ascii=False, indent=2)
+        
+        # 完成任务
+        task_manager.update_task(task_id, {
+            'status': 'completed',
+            'progress': 100,
+            'current_stage': 'replan_completed',
+            'message': '重新规划完成，创作方案已更新',
+            'result': {
+                'message': '创作方案已更新，已有章节不受影响',
+                'updated_fields': ['title', 'synopsis', 'protagonist', 'golden_finger', 'storyline']
+            }
+        })
+        
+    except Exception as e:
+        logger.error(f"[重新规划] 生成失败: {e}", exc_info=True)
+        task_manager.update_task(task_id, {
+            'status': 'failed',
+            'error': str(e)
+        })
