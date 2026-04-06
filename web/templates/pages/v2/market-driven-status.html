@@ -606,6 +606,15 @@ if (!taskId) {
   window.location.href = '/market-driven-create';
 }
 
+// 🔥 隐藏全局悬浮窗（本页面已自带生成进度显示，避免重复）
+document.addEventListener('DOMContentLoaded', function() {
+  const globalFloat = document.getElementById('globalTaskFloat');
+  if (globalFloat) {
+    globalFloat.style.display = 'none';
+    console.log('[market-driven-status] 已隐藏全局悬浮窗');
+  }
+});
+
 let pollInterval = null;
 
 // 开始轮询任务状态
