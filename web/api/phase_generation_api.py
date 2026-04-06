@@ -1682,6 +1682,139 @@ def detect_novel_type(title):
         return jsonify({"success": False, "error": str(e)}), 500
 
 
+@phase_api.route('/project-info', methods=['GET'])
+@login_required
+def get_project_info_for_continue():
+    """
+    获取项目详细信息（用于续写页面）
+    
+    Query params:
+        title: 项目标题
+        
+    Returns:
+        包含项目详细信息的JSON，用于填充续写表单
+    """
+    try:
+        title = request.args.get('title')
+        if not title:
+            return jsonify({"success": False, "error": "缺少title参数"}), 400
+        
+        from urllib.parse import unquote
+        title = unquote(title)
+        current_user = get_current_username()
+        
+        # 查找项目路径
+        from web.utils.path_utils import find_novel_project
+        project_path = find_novel_project(title, current_user)
+        
+        if not project_path:
+            return jsonify({"success": False, "error": f"项目 '{title}' 不存在"}), 404
+        
+        project_path = Path(project_path)
+        project_type = detect_project_type(project_path)
+        
+        # 基础响应数据
+        data = {
+            "title": title,
+            "type": project_type,
+            "completed_chapters": 0
+        }
+        
+        # 加载项目基本信息
+        if project_type == 'market_driven':
+            # 加载 market_driven 模式信息
+            project_info_file = project_path / "project_info.json"
+            if project_info_file.exists():
+                with open(project_info_file, 'r', encoding='utf-8') as f:
+                    project_data = json.load(f)
+                    data["novel_title"] = project_data.get('novel_title', title)
+                    data["genre"] = project_data.get('genre', '')
+                    data["target_words"] = project_data.get('generation_metadata', {}).get('total_words', 0)
+                    
+                    # 获取已完成章节数
+                    chapters_index = project_data.get('chapters_index', [])
+                    data["completed_chapters"] = len([c for c in chapters_index if c.get('status') == 'completed'])
+                    data["total_chapters"] = project_data.get('generation_metadata', {}).get('total_chapters', 0)
+                    
+                    # 获取创作设定
+                    if project_data.get('novel_info'):
+                        novel_info = project_data['novel_info']
+                        data["sellpoint"] = novel_info.get('synopsis', '')
+                        
+                    if project_data.get('character_design'):
+                        char_design = project_data['character_design']
+                        if char_design.get('protagonist'):
+                            protagonist = char_design['protagonist']
+                            data["protagonist_name"] = protagonist.get('name', '')
+                            data["protagonist_bg"] = protagonist.get('identity', '') or protagonist.get('background', '')
+                            
+                    if project_data.get('golden_finger'):
+                        gf = project_data['golden_finger']
+                        data["golden_finger_desc"] = gf.get('description', '') or gf.get('desc', '')
+                        
+                    if project_data.get('storyline'):
+                        data["main_plot"] = project_data['storyline']
+        
+        # 尝试从 phase_one_products 加载更详细的创作设定
+        phase_one_products_dir = project_path / "phase_one_products"
+        if phase_one_products_dir.exists():
+            # 加载完整方案
+            blueprint_file = phase_one_products_dir / "完整方案.json"
+            if blueprint_file.exists():
+                try:
+                    with open(blueprint_file, 'r', encoding='utf-8') as f:
+                        blueprint = json.load(f)
+                        
+                    # 从蓝图中提取信息
+                    if blueprint.get('core_selling_point'):
+                        data["sellpoint"] = blueprint['core_selling_point']
+                    elif blueprint.get('core_selling_points'):
+                        points = blueprint['core_selling_points']
+                        if isinstance(points, list) and len(points) > 0:
+                            data["sellpoint"] = points[0].get('point', '') if isinstance(points[0], dict) else str(points[0])
+                        else:
+                            data["sellpoint"] = str(points)
+                            
+                    if blueprint.get('protagonist'):
+                        protagonist = blueprint['protagonist']
+                        if isinstance(protagonist, dict):
+                            data["protagonist_name"] = protagonist.get('name', data.get('protagonist_name', ''))
+                            data["protagonist_bg"] = protagonist.get('background', protagonist.get('identity', data.get('protagonist_bg', '')))
+                            
+                    if blueprint.get('golden_finger'):
+                        gf = blueprint['golden_finger']
+                        if isinstance(gf, dict):
+                            # 构建金手指描述
+                            gf_parts = []
+                            if gf.get('name'): gf_parts.append(f"名称：{gf['name']}")
+                            if gf.get('type'): gf_parts.append(f"类型：{gf['type']}")
+                            if gf.get('mechanism'): gf_parts.append(f"机制：{gf['mechanism']}")
+                            if gf.get('initial_reward'): gf_parts.append(f"初始奖励：{gf['initial_reward']}")
+                            if gf.get('upgrade_method'): gf_parts.append(f"升级方式：{gf['upgrade_method']}")
+                            if gf.get('restrictions'): gf_parts.append(f"限制：{gf['restrictions']}")
+                            if gf_parts:
+                                data["golden_finger_desc"] = '\n'.join(gf_parts)
+                        else:
+                            data["golden_finger_desc"] = str(gf)
+                            
+                    if blueprint.get('main_plot') or blueprint.get('storyline'):
+                        data["main_plot"] = blueprint.get('main_plot') or blueprint.get('storyline', data.get('main_plot', ''))
+                        
+                except Exception as e:
+                    logger.warning(f"读取完整方案失败: {e}")
+        
+        return jsonify({
+            "success": True,
+            "data": data
+        })
+        
+    except Exception as e:
+        logger.error(f"获取项目信息失败: {e}")
+        import traceback
+        logger.error(traceback.format_exc())
+        return jsonify({"success": False, "error": str(e)}), 500
+
+
 @phase_api.route('/novel/<title>/continue', methods=['GET', 'POST'])
 @login_required
 def novel_continue_entry(title):

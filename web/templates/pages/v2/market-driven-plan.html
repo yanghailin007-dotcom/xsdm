@@ -577,9 +577,14 @@
 
 {% block extra_js %}
 <script>
-// 从 URL 获取题材参数
+// 从 URL 获取参数
 const urlParams = new URLSearchParams(window.location.search);
 const genreId = urlParams.get('genre') || '';
+const titleFromUrl = urlParams.get('title') || '';
+const isContinueMode = urlParams.get('mode') === 'continue';
+
+// 续写模式下的项目数据
+let continueProjectData = null;
 
 // 读取 localStorage 中的分析结果
 let analysisContext = null;
@@ -632,7 +637,14 @@ const genreDefaults = {
 };
 
 // 🔥 智能填充表单
-document.addEventListener('DOMContentLoaded', function() {
+document.addEventListener('DOMContentLoaded', async function() {
+  // 检查是否是续写模式
+  if (isContinueMode && titleFromUrl) {
+    console.log('进入续写模式:', titleFromUrl);
+    await loadContinueProjectData(titleFromUrl);
+    return;
+  }
+  
   // 从分析结果中提取信息自动填充
   if (analysisContext) {
     console.log('根据分析结果填充表单:', analysisContext);
@@ -945,9 +957,132 @@ function showAutoFillNotice() {
   }
 }
 
+// 显示续写模式提示
+function showContinueModeNotice() {
+  const notice = document.createElement('div');
+  notice.className = 'auto-fill-notice';
+  notice.innerHTML = `
+    <span class="material-icons" style="color: #22c55e;">edit_note</span>
+    <span>续写模式：已加载当前项目信息</span>
+  `;
+  notice.style.cssText = 'background: rgba(34, 197, 94, 0.1); border: 1px solid rgba(34, 197, 94, 0.3); padding: 12px 20px; border-radius: 8px; margin-bottom: 24px; display: flex; align-items: center; gap: 12px; color: #4ade80;';
+  
+  const form = document.querySelector('.plan-form');
+  if (form) {
+    form.insertBefore(notice, form.firstChild);
+  }
+}
+
+// 加载续写项目数据
+async function loadContinueProjectData(title) {
+  try {
+    console.log('正在加载续写项目数据:', title);
+    
+    // 调用API获取项目详情
+    const response = await fetch(`/api/project-info?title=${encodeURIComponent(title)}`);
+    const result = await response.json();
+    
+    if (!result.success) {
+      console.error('加载项目数据失败:', result.error);
+      alert('加载项目数据失败: ' + (result.error || '未知错误'));
+      return;
+    }
+    
+    continueProjectData = result.data;
+    console.log('已加载续写项目数据:', continueProjectData);
+    
+    // 填充表单
+    fillFormWithContinueData(continueProjectData);
+    
+    // 更新页面标题和按钮
+    updatePageForContinueMode();
+    
+    // 显示续写模式提示
+    showContinueModeNotice();
+    
+  } catch (error) {
+    console.error('加载续写项目数据出错:', error);
+    alert('加载续写项目数据失败，请刷新页面重试');
+  }
+}
+
+// 用续写数据填充表单
+function fillFormWithContinueData(data) {
+  // 填充标题
+  if (data.title) {
+    document.getElementById('novel-title').value = data.title;
+  }
+  
+  // 填充核心卖点
+  if (data.sellpoint || data.core_sellpoint) {
+    document.getElementById('novel-sellpoint').value = data.sellpoint || data.core_sellpoint;
+  }
+  
+  // 填充主角姓名
+  if (data.protagonist_name || data.protagonist?.name) {
+    document.getElementById('protagonist-name').value = data.protagonist_name || data.protagonist?.name;
+  }
+  
+  // 填充主角背景
+  if (data.protagonist_bg || data.protagonist?.background || data.protagonist?.identity) {
+    document.getElementById('protagonist-bg').value = data.protagonist_bg || data.protagonist?.background || data.protagonist?.identity;
+  }
+  
+  // 填充金手指描述
+  if (data.golden_finger_desc || data.golden_finger?.description || data.golden_finger?.desc) {
+    const gfDesc = data.golden_finger_desc || data.golden_finger?.description || data.golden_finger?.desc;
+    document.getElementById('golden-finger-desc').value = gfDesc;
+  }
+  
+  // 填充主线剧情
+  if (data.main_plot || data.plot || data.storyline) {
+    document.getElementById('main-plot').value = data.main_plot || data.plot || data.storyline;
+  }
+  
+  // 设置目标字数和章节数（如果有）
+  if (data.target_words) {
+    const wordCountInWan = Math.floor(data.target_words / 10000);
+    const wordSelect = document.getElementById('novel-wordcount');
+    const option = Array.from(wordSelect.options).find(opt => opt.value == wordCountInWan);
+    if (option) wordSelect.value = wordCountInWan;
+  }
+  
+  if (data.total_chapters || data.chapters) {
+    const chapters = data.total_chapters || data.chapters;
+    const chapterSelect = document.getElementById('novel-chapters');
+    const option = Array.from(chapterSelect.options).find(opt => opt.value == chapters);
+    if (option) chapterSelect.value = chapters;
+  }
+}
+
+// 更新页面为续写模式
+function updatePageForContinueMode() {
+  // 更新页面标题
+  document.querySelector('.plan-header__title').textContent = '续写创作方案';
+  document.querySelector('.plan-header__subtitle').textContent = `基于《${titleFromUrl}》继续生成后续章节`;
+  
+  // 更新按钮文本
+  const btn = document.getElementById('generate-btn');
+  if (btn) {
+    btn.innerHTML = '<span class="material-icons">playlist_add</span>开始续写';
+  }
+  
+  // 更新生成区域信息
+  document.querySelector('.generate-section__label').textContent = '准备续写';
+  document.querySelector('.generate-section__value').textContent = '基于现有设定继续创作';
+}
+
 async function startGeneration() {
   const btn = document.getElementById('generate-btn');
   btn.disabled = true;
+  
+  // 续写模式跳转到续写逻辑
+  if (isContinueMode && titleFromUrl) {
+    btn.innerHTML = '<span class="material-icons">hourglass_top</span>续写中...';
+    await startContinueGeneration();
+    return;
+  }
+  
   btn.innerHTML = '<span class="material-icons">hourglass_top</span>生成中...';
   
   // 获取表单值
@@ -1036,6 +1171,57 @@ async function startGeneration() {
     alert('生成失败，请稍后重试');
     btn.disabled = false;
     btn.innerHTML = '<span class="material-icons">rocket_launch</span>开始生成';
+  }
+}
+
+// 续写模式：启动续写生成
+async function startContinueGeneration() {
+  const btn = document.getElementById('generate-btn');
+  
+  try {
+    console.log('启动续写生成:', titleFromUrl);
+    
+    // 获取续写的起始章节和结束章节
+    const startChapter = continueProjectData?.completed_chapters ? continueProjectData.completed_chapters + 1 : 1;
+    const endChapter = startChapter + parseInt(document.getElementById('novel-chapters').value) - 1;
+    
+    // 构建续写请求数据
+    const continueData = {
+      start_chapter: startChapter,
+      end_chapter: endChapter,
+      // 可选：传递更新后的创作设定
+      updated_settings: {
+        title: document.getElementById('novel-title').value,
+        sellpoint: document.getElementById('novel-sellpoint').value,
+        protagonist_name: document.getElementById('protagonist-name').value,
+        protagonist_bg: document.getElementById('protagonist-bg').value,
+        golden_finger_desc: document.getElementById('golden-finger-desc').value,
+        main_plot: document.getElementById('main-plot').value
+      }
+    };
+    
+    // 调用续写API
+    const response = await fetch(`/api/novel/${encodeURIComponent(titleFromUrl)}/continue`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(continueData)
+    });
+    
+    const result = await response.json();
+    
+    if (result.success) {
+      console.log('续写任务已启动:', result);
+      // 跳转到任务状态页面
+      window.location.href = `/market-driven-status?task=${result.task_id}`;
+    } else {
+      throw new Error(result.error || '续写任务启动失败');
+    }
+    
+  } catch (error) {
+    console.error('续写生成失败:', error);
+    alert('续写生成失败: ' + error.message);
+    btn.disabled = false;
+    btn.innerHTML = '<span class="material-icons">playlist_add</span>开始续写';
   }
 }
 
