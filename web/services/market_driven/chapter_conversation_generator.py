@@ -449,7 +449,8 @@ class ChapterConversationGenerator:
         self.session = self._create_session(start_chapter)
         
         chapters = []
-        prev_chapter_summary = ""  # 上一章摘要
+        # 🔥 修复：如果是续写（start_chapter > 1），加载前面章节的内容作为初始上下文
+        prev_chapter_summary = self._load_previous_chapter_summary(start_chapter)
         
         for i, chapter_num in enumerate(range(start_chapter, end_chapter + 1)):
             logger.info(f"[章节对话 {self.session_id}] 生成第{chapter_num}章 ({i+1}/{total})")
@@ -544,6 +545,61 @@ class ChapterConversationGenerator:
             
         except Exception as e:
             logger.error(f"[章节对话 {self.session_id}] 保存提取信息失败: {e}")
+    
+    def _load_previous_chapter_summary(self, start_chapter: int) -> str:
+        """
+        加载前面章节的摘要作为续写的初始上下文
+        
+        如果是续写（start_chapter > 1），读取前几章的内容生成摘要
+        如果是全新生成（start_chapter = 1），返回空字符串
+        
+        Args:
+            start_chapter: 起始章节号
+            
+        Returns:
+            前面章节的摘要，用于承接上下文
+        """
+        if start_chapter <= 1:
+            return ""  # 从第1章开始，无前文
+        
+        if not self.project_path:
+            logger.warning(f"[章节对话 {self.session_id}] 项目路径为空，无法加载前文")
+            return ""
+        
+        try:
+            # 加载前3章作为上下文（第 start_chapter-3 到 start_chapter-1 章）
+            context_chapters = []
+            for ch_num in range(max(1, start_chapter - 3), start_chapter):
+                chapter_file = Path(self.project_path) / "chapters" / f"chapter_{ch_num:03d}.json"
+                if chapter_file.exists():
+                    try:
+                        with open(chapter_file, 'r', encoding='utf-8') as f:
+                            chapter_data = json.load(f)
+                            context_chapters.append({
+                                'chapter_num': ch_num,
+                                'title': chapter_data.get('title', ''),
+                                'content': chapter_data.get('content', '')
+                            })
+                    except Exception as e:
+                        logger.warning(f"[章节对话 {self.session_id}] 读取第{ch_num}章失败: {e}")
+            
+            if not context_chapters:
+                logger.warning(f"[章节对话 {self.session_id}] 未找到前文章节（第{start_chapter-3}-{start_chapter-1}章）")
+                return ""
+            
+            # 生成前文摘要
+            summaries = []
+            for ch in context_chapters:
+                content_preview = ch['content'][:300] if len(ch['content']) > 300 else ch['content']
+                summaries.append(f"第{ch['chapter_num']}章《{ch['title']}》：{content_preview}...")
+            
+            summary = "前文回顾：\n" + "\n".join(summaries)
+            logger.info(f"[章节对话 {self.session_id}] 已加载{len(context_chapters)}章前文作为上下文")
+            return summary
+            
+        except Exception as e:
+            logger.error(f"[章节对话 {self.session_id}] 加载前文摘要失败: {e}")
+            return ""
     
     def _generate_single_chapter_in_session(self, chapter_num: int, 
                                             blueprint: Dict,
