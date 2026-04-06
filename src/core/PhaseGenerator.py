@@ -113,6 +113,13 @@ class PhaseGenerator:
         第一阶段准备工作：执行到"第一章生成前"的所有步骤
         不包含实际的章节内容生成
         """
+        # 🔥🔥🔥 入口调试日志
+        print("\n" + "="*80)
+        print("🔥 PhaseGenerator.generate_phase_one_preparations() 被调用")
+        print(f"🔥 CREATIVE_CONVERSATION_AVAILABLE: {CREATIVE_CONVERSATION_AVAILABLE}")
+        print(f"🔥 config: {getattr(self.generator, 'config', {})}")
+        print("="*80 + "\n")
+        
         def update_progress_callback(stage_name: str, progress: int, message: Optional[str] = None, 
                                       step_status: Dict = None, points_consumed: int = None):
             """更新第一阶段进度的回调函数 - 支持详细步骤状态和点数消耗"""

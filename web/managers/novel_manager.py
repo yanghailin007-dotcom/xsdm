@@ -220,6 +220,11 @@ def get_novel_generator(config):
                 setattr(_novel_generator_instance, '_stop_check_callback', stop_check_callback)
                 
                 logger.info(f"✅ NovelGenerator 初始化完成，总耗时: {time.time()-start:.2f}s")
+    else:
+        # 🔥 关键：更新现有实例的 config（特别是对话模式配置）
+        if "use_creative_conversation_mode" in config:
+            _novel_generator_instance.config["use_creative_conversation_mode"] = config["use_creative_conversation_mode"]
+            logger.info(f"🔄 NovelGenerator config 已更新: use_creative_conversation_mode={config['use_creative_conversation_mode']}")
     return _novel_generator_instance
 
 def preinitialize_novel_generator():
