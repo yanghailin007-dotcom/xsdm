@@ -56,8 +56,9 @@ coverage.xml
 
 # Environments
 .env
-.flask_secret
-.jwt_secret
+# 注释掉以避免JWT密钥不同步问题
+# .flask_secret
+# .jwt_secret
 .venv
 env/
 venv/
