@@ -134,8 +134,9 @@ html.reader-mode main.v2-main {
 
 .reader-touch-zone {
     flex: 1;
-    cursor: default;
+    cursor: pointer;
     pointer-events: auto;
+    touch-action: pan-y;
 }
 
 .reader-touch-zone--center {
@@ -1450,8 +1451,22 @@ class NovelReader {
             this.lastScrollTop = scrollTop;
         });
 
-        // 点击热区
-        document.getElementById('touchLayer').addEventListener('click', (e) => {
+        // 点击热区 - 使用 mousedown 而不是 click，避免与滚动冲突
+        const touchLayer = document.getElementById('touchLayer');
+        let touchStartY = 0;
+        let touchStartX = 0;
+        
+        touchLayer.addEventListener('mousedown', (e) => {
+            touchStartY = e.clientY;
+            touchStartX = e.clientX;
+        });
+        
+        touchLayer.addEventListener('click', (e) => {
+            // 如果移动距离太大，认为是滑动不是点击
+            const moveY = Math.abs(e.clientY - touchStartY);
+            const moveX = Math.abs(e.clientX - touchStartX);
+            if (moveY > 10 || moveX > 10) return;
+            
             const zone = e.target.dataset.zone;
             if (zone === 'toggle') {
                 // 如果抽屉打开则关闭抽屉
@@ -1467,11 +1482,28 @@ class NovelReader {
             }
         });
 
-        // 备选：点击内容区域也能切换UI（防止热区被遮挡）
-        document.getElementById('readerContent').addEventListener('click', (e) => {
-            // 如果点击的不是链接或按钮
-            if (e.target.tagName !== 'A' && e.target.tagName !== 'BUTTON') {
-                this.toggleUI();
+        // 触摸设备支持
+        touchLayer.addEventListener('touchstart', (e) => {
+            touchStartY = e.touches[0].clientY;
+            touchStartX = e.touches[0].clientX;
+        }, { passive: true });
+        
+        touchLayer.addEventListener('touchend', (e) => {
+            const moveY = Math.abs(e.changedTouches[0].clientY - touchStartY);
+            const moveX = Math.abs(e.changedTouches[0].clientX - touchStartX);
+            if (moveY > 10 || moveX > 10) return;
+            
+            const zone = e.target.dataset.zone;
+            if (zone === 'toggle') {
+                if (this.chapterDrawer.classList.contains('active') || this.settingsDrawer.classList.contains('active')) {
+                    this.closeDrawers();
+                } else {
+                    this.toggleUI();
+                }
+            } else if (zone === 'prev') {
+                this.prevChapter();
+            } else if (zone === 'next') {
+                this.nextChapter();
             }
         });
 
