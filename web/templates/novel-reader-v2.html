@@ -1015,6 +1015,16 @@ class NovelReader {
         // 绑定事件
         this.bindEvents();
 
+        // 默认显示UI 5秒，让用户知道有控制栏
+        this.showUI();
+        setTimeout(() => {
+            // 如果抽屉没有打开，则自动隐藏
+            if (!this.chapterDrawer.classList.contains('active') && 
+                !this.settingsDrawer.classList.contains('active')) {
+                this.hideUI();
+            }
+        }, 5000);
+
         // 加载初始数据
         this.loadInitialData();
     }
