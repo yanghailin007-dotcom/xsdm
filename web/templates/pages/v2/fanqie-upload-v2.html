@@ -1470,24 +1470,19 @@ function downloadUploaderTool(platform) {
     document.getElementById('windows-note').style.display = (platform === 'windows') ? 'flex' : 'none';
     document.getElementById('macos-note').style.display = (platform === 'macos') ? 'flex' : 'none';
     
-    if (platform === 'macos') {
-        // macOS 版本跳转到 GitHub Release 页面
-        const githubReleaseUrl = 'https://github.com/yanghailin007-dotcom/xsdm/releases/latest';
-        window.open(githubReleaseUrl, '_blank');
-        showToast('已跳转到 GitHub 下载页面，请下载 NovelPublisher-macos.zip', 'info');
-        
-        // 记录下载事件
-        fetch('/api/analytics/download', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ type: 'uploader_tool_macos', version: '1.3.2' })
-        }).catch(() => {});
-        return;
-    }
+    let filename, downloadName, platformName;
     
-    // Windows 版本从本地下载
-    const filename = 'NovelPublisher.exe';
-    const downloadName = 'NovelPublisher.exe';
+    if (platform === 'macos') {
+        // macOS 版本从服务器下载（GitHub Actions 构建后上传到服务器）
+        filename = 'NovelPublisher-macos.zip';
+        downloadName = 'NovelPublisher-macos.zip';
+        platformName = 'macOS';
+    } else {
+        // Windows 版本从本地下载
+        filename = 'NovelPublisher.exe';
+        downloadName = 'NovelPublisher.exe';
+        platformName = 'Windows';
+    }
     
     // 添加时间戳防止缓存
     const timestamp = new Date().getTime();
@@ -1498,13 +1493,13 @@ function downloadUploaderTool(platform) {
     link.click();
     document.body.removeChild(link);
     
-    showToast('开始下载 Windows 版本...', 'success');
+    showToast(`开始下载 ${platformName} 版本...`, 'success');
     
     // 记录下载事件
     fetch('/api/analytics/download', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ type: 'uploader_tool_windows', version: '1.3.2' })
+        body: JSON.stringify({ type: `uploader_tool_${platform}`, version: '1.3.2' })
     }).catch(() => {});
 }
 
