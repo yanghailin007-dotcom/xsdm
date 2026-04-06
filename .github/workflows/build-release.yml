@@ -33,12 +33,18 @@ jobs:
 
       - name: Rename artifact
         run: |
-          mv desktop_uploader/release/dist/NovelPublisher-macos-arm64.zip desktop_uploader/release/dist/NovelPublisher-macos.zip
+          mv desktop_uploader/release/dist/NovelPublisher-macos-arm64.zip desktop_uploader/release/NovelPublisher-macos.zip
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: NovelPublisher-macos
+          path: desktop_uploader/release/NovelPublisher-macos.zip
 
       - name: Upload to GitHub Release
         if: startsWith(github.ref, 'refs/tags/')
         uses: softprops/action-gh-release@v1
         with:
-          files: desktop_uploader/release/dist/NovelPublisher-macos.zip
+          files: desktop_uploader/release/NovelPublisher-macos.zip
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
