@@ -1219,6 +1219,13 @@ class FanqieUploaderImpl:
         chapter_number = chapter.get('chapter_number', chapter.get('number', 0))
         chapter_title = chapter.get('chapter_title', chapter.get('title', f'第{chapter_number}章'))
         
+        # 🔥 打印定时发布信息
+        scheduled_time = chapter.get('scheduled_time')
+        if scheduled_time:
+            self._log(f"[定时发布] 第{chapter_number}章 将在 {scheduled_time} 发布")
+        else:
+            self._log(f"[立即发布] 第{chapter_number}章 将立即发布")
+        
         # 截断章节标题以适应平台限制
         original_title = chapter_title
         chapter_title = self._truncate_chapter_title(chapter_title, self.MAX_CHAPTER_TITLE_LENGTH)
