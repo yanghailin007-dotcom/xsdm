@@ -1480,14 +1480,33 @@ class NovelGenerationManager:
                     project_path = Path("小说项目") / title
                 
                 stage_plan_file = project_path / "阶段计划.json"
+                logger.info(f"🔍 尝试从文件加载阶段计划: {stage_plan_file}")
                 if stage_plan_file.exists():
-                    with open(stage_plan_file, 'r', encoding='utf-8') as f:
-                        stage_plan_data = json.load(f)
+                    logger.info(f"✅ 阶段计划文件存在: {stage_plan_file}")
+                    # 尝试多种编码
+                    stage_plan_data = None
+                    for encoding in ['utf-8-sig', 'utf-8', 'gbk', 'gb2312']:
+                        try:
+                            with open(stage_plan_file, 'r', encoding=encoding) as f:
+                                stage_plan_data = json.load(f)
+                            logger.info(f"✅ 使用 {encoding} 编码成功解析阶段计划.json")
+                            break
+                        except Exception as e:
+                            logger.debug(f"  ⚠️ {encoding} 编码失败: {e}")
+                            continue
+                    
                     if stage_plan_data and "overall_stage_plan" in stage_plan_data:
                         standardized_data["overall_stage_plans"] = stage_plan_data
-                        logger.info(f"✅ 从阶段计划.json加载 overall_stage_plans: {len(stage_plan_data.get('overall_stage_plan', {}))} 个阶段")
+                        stage_count = len(stage_plan_data.get('overall_stage_plan', {}))
+                        logger.info(f"✅ 从阶段计划.json加载 overall_stage_plans: {stage_count} 个阶段")
+                    else:
+                        logger.warning(f"⚠️ 阶段计划.json 解析成功但没有 overall_stage_plan 字段")
+                else:
+                    logger.warning(f"⚠️ 阶段计划文件不存在: {stage_plan_file}")
             except Exception as e:
                 logger.warning(f"⚠️ 从阶段计划.json加载失败: {e}")
+                import traceback
+                logger.warning(traceback.format_exc())
             
             # 如果文件加载失败，尝试从 quality_data.writing_plans 构建
             if "overall_stage_plans" not in standardized_data or not standardized_data.get("overall_stage_plans", {}):
