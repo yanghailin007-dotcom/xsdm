@@ -81,18 +81,25 @@ class MultiChapterContentGenerator:
         style_guide = WritingStyleGuideLoader.load_and_format(novel_title, username)
         self.logger.info(f"[MultiChapterGen] 已加载风格指南: {style_guide.core_style[:50]}...")
         
-        # 🔥 新增：如果未提供主角名字，尝试从 medium_event 或 consistency_guidance 提取
-        if not protagonist_name:
+        # 🔥 修复：如果未提供主角名字，尝试从 medium_event 或 novel_title 提取
+        if not protagonist_name or protagonist_name == "主角":
             # 尝试从 medium_event 的 character_design 中提取
             if isinstance(medium_event, dict):
                 char_design = medium_event.get("character_design", {})
                 if isinstance(char_design, dict):
                     main_char = char_design.get("main_character", {})
-                    if isinstance(main_char, dict) and main_char.get("name"):
-                        protagonist_name = main_char["name"]
+                    if isinstance(main_char, dict):
+                        name = main_char.get("name")
+                        if name and name != "主角":
+                            protagonist_name = name
         
-        if not protagonist_name:
-            protagonist_name = "主角"
+        # 🔥 保底方案：智能推断（绝不使用"主角"）
+        if not protagonist_name or protagonist_name == "主角":
+            if "凡人" in novel_title and "修仙" in novel_title:
+                protagonist_name = "韩立"
+            else:
+                protagonist_name = "陆玄"  # 通用保底
+            self.logger.warning(f"[MultiChapterGen] 无法获取主角名字，使用保底: {protagonist_name}")
         
         self.logger.info(f"[MultiChapterGen] 锁定主角姓名: {protagonist_name}")
         

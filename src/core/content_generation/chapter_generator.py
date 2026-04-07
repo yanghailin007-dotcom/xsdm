@@ -25,6 +25,14 @@ class ChapterGenerator:
         
         self.logger.info(f"🎬 开始生成第{chapter_number}章内容...")
         
+        # 🔥 修复：从 character_design 自动提取主角名字（如果未设置）
+        if not self.cg.custom_main_character_name:
+            protagonist_name = self._extract_protagonist_name_from_novel_data(novel_data)
+            if protagonist_name:
+                self.cg.set_custom_main_character_name(protagonist_name)
+                self.custom_main_character_name = protagonist_name
+                self.logger.info(f"  ✅ 自动提取主角名字: {protagonist_name}")
+        
         MAX_CHAPTER_RETRIES = 5
         RETRY_WAIT_SECONDS = 20
         
@@ -188,6 +196,35 @@ class ChapterGenerator:
         # 所有重试都失败
         self.logger.info(f"🔥🔥🔥 严重错误: 第 {chapter_number} 章在 {MAX_CHAPTER_RETRIES} 次尝试后彻底失败！")
         self.cg._save_chapter_failure(novel_data, chapter_number, failure_reason or "未知原因导致所有重试失败", failure_details)
+        return None
+    
+    def _extract_protagonist_name_from_novel_data(self, novel_data: Dict) -> Optional[str]:
+        """从 novel_data 中提取主角名字（多源提取）"""
+        if not isinstance(novel_data, dict):
+            return None
+        
+        # 1. 从 character_design.main_character.name 获取
+        char_design = novel_data.get("character_design", {})
+        if isinstance(char_design, dict):
+            main_char = char_design.get("main_character", {})
+            if isinstance(main_char, dict):
+                name = main_char.get("name")
+                if name and name != "主角":
+                    return name
+        
+        # 2. 从 creative_seed 获取
+        creative_seed = novel_data.get("creative_seed", {})
+        if isinstance(creative_seed, dict):
+            main_char = creative_seed.get("main_character", {})
+            if isinstance(main_char, dict):
+                name = main_char.get("name")
+                if name and name != "主角":
+                    return name
+            # 或者直接获取 protagonist_name
+            name = creative_seed.get("protagonist_name")
+            if name and name != "主角":
+                return name
+        
         return None
     
     def _validate_chapter_params(self, params: Dict) -> bool:

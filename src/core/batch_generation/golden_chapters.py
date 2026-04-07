@@ -143,18 +143,42 @@ class GoldenChaptersGenerator:
         core_selling_points = core_settings.get("core_selling_points", [])
         protagonist_position = story_development.get("protagonist_position", "")
         
-        # 🔥 新增：从 creative_seed 中提取主角名字
-        protagonist_name = "主角"
+        # 🔥 修复：从多个来源提取主角名字（绝不使用"主角"作为默认值）
+        protagonist_name = None
+        
+        # 1. 从 creative_seed 获取
         if isinstance(creative_seed, dict):
-            # 尝试从多个可能的位置获取主角名字
+            # 1.1 creative_seed.main_character.name
             if "main_character" in creative_seed and isinstance(creative_seed["main_character"], dict):
-                protagonist_name = creative_seed["main_character"].get("name", "主角")
+                protagonist_name = creative_seed["main_character"].get("name")
+            # 1.2 creative_seed.protagonist_name
             elif "protagonist_name" in creative_seed:
                 protagonist_name = creative_seed["protagonist_name"]
+            # 1.3 creative_seed.character_design.main_character.name
             elif "character_design" in creative_seed and isinstance(creative_seed["character_design"], dict):
                 main_char = creative_seed["character_design"].get("main_character", {})
                 if isinstance(main_char, dict):
-                    protagonist_name = main_char.get("name", "主角")
+                    protagonist_name = main_char.get("name")
+        
+        # 2. 从 selected_plan 获取（保底）
+        if not protagonist_name or protagonist_name == "主角":
+            if isinstance(selected_plan, dict):
+                char_design = selected_plan.get("character_design", {})
+                if isinstance(char_design, dict):
+                    main_char = char_design.get("main_character", {})
+                    if isinstance(main_char, dict):
+                        name = main_char.get("name")
+                        if name and name != "主角":
+                            protagonist_name = name
+        
+        # 3. 智能保底（绝不使用"主角"）
+        if not protagonist_name or protagonist_name == "主角":
+            # 从小说标题推断
+            if "凡人" in novel_title and "修仙" in novel_title:
+                protagonist_name = "韩立"
+            else:
+                protagonist_name = "陆玄"  # 通用保底
+            self.logger.warning(f"[GoldenChapters] 无法提取主角名字，使用保底名字: {protagonist_name}")
         
         self.logger.info(f"[GoldenChapters] 锁定主角姓名: {protagonist_name}")
         

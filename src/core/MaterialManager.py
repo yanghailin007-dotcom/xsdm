@@ -44,6 +44,9 @@ class MaterialManager:
         for dir_path in [self.materials_dir, self.plans_dir, self.data_dir, self.export_dir]:
             dir_path.mkdir(parents=True, exist_ok=True)
         
+        # 🔥 清理旧的带时间戳的索引文件（只保留固定文件名的一份）
+        self._cleanup_old_index_files()
+        
         # 时间标签配置
         self.timestamp_format = "%Y%m%d_%H%M%S"
         self.date_format = "%Y-%m-%d"
@@ -70,10 +73,10 @@ class MaterialManager:
             "quality_assessment": "{safe_title}_质量评估_{timestamp}.json",
             "events_log": "{safe_title}_事件记录_{timestamp}.json",
             
-            # 素引和数据文件
-            "index": "{safe_title}_材料索引_{timestamp}.json",
-            "manifest": "{safe_title}_文件清单_{timestamp}.json",
-            "search_index": "{safe_title}_搜索索引_{timestamp}.json"
+            # 素引和数据文件（固定文件名，不带时间戳，只保留一份最新）
+            "index": "{safe_title}_材料索引.json",
+            "manifest": "{safe_title}_文件清单.json",
+            "search_index": "{safe_title}_搜索索引.json"
         }
         
         # 材料类型映射
@@ -135,6 +138,27 @@ class MaterialManager:
         if include_date:
             return datetime.now().strftime(self.date_format)
         return datetime.now().strftime(self.timestamp_format)
+    
+    def _cleanup_old_index_files(self):
+        """清理旧的带时间戳的索引文件，只保留最新的固定文件名版本"""
+        try:
+            # 匹配带时间戳的旧索引文件: 小说名_材料索引_YYYYMMDD_HHMMSS.json
+            pattern = re.compile(rf"^{re.escape(self.safe_title)}_材料索引_\d{{8}}_\d{{6}}\.json$")
+            
+            deleted_count = 0
+            for file_path in self.base_dir.iterdir():
+                if file_path.is_file() and pattern.match(file_path.name):
+                    try:
+                        file_path.unlink()
+                        deleted_count += 1
+                    except Exception as e:
+                        self.logger.warning(f"删除旧索引文件失败 {file_path}: {e}")
+            
+            if deleted_count > 0:
+                self.logger.info(f"清理了 {deleted_count} 个旧索引文件")
+                
+        except Exception as e:
+            self.logger.warning(f"清理旧索引文件时出错: {e}")
     
     def format_filename(self, material_type: str, **kwargs) -> str:
         """

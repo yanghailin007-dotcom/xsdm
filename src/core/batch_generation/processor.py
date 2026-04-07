@@ -171,7 +171,7 @@ class MediumEventBatchProcessor:
             novel_data, start_ch
         )
         
-        # 🔥 新增：提取主角名字
+        # 🔥 新增：提取主角名字（多源提取 + 智能保底）
         protagonist_name = self._extract_protagonist_name(novel_data)
         self.logger.info(f"[BatchProcessor] 提取主角姓名: {protagonist_name}")
         
@@ -359,41 +359,82 @@ class MediumEventBatchProcessor:
         return {}
     
     def _extract_protagonist_name(self, novel_data: Dict) -> str:
-        """从 novel_data 中提取主角名字"""
-        if not isinstance(novel_data, dict):
-            return "主角"
+        """从 novel_data 中提取主角名字
         
-        # 尝试多个可能的位置
-        # 1. 从 character_design.main_character.name 获取
+        从多个可能的位置提取，确保能找到实际的主角名字。
+        如果都找不到，使用智能保底（从小说标题推断），但绝不使用"主角"。
+        """
+        if not isinstance(novel_data, dict):
+            return self._get_fallback_protagonist_name(novel_data)
+        
+        # 尝试多个可能的位置（按优先级排序）
+        
+        # 1. 从 character_design.main_character.name 获取（最可靠）
         char_design = novel_data.get("character_design", {})
         if isinstance(char_design, dict):
             main_char = char_design.get("main_character", {})
-            if isinstance(main_char, dict) and main_char.get("name"):
-                return main_char["name"]
+            if isinstance(main_char, dict):
+                name = main_char.get("name")
+                if name and name != "主角":
+                    return name
         
-        # 2. 从 creative_seed.character_design.main_character.name 获取
+        # 2. 从 creative_seed 获取
         creative_seed = novel_data.get("creative_seed", {})
         if isinstance(creative_seed, dict):
+            # 2.1 creative_seed.main_character.name
+            main_char = creative_seed.get("main_character", {})
+            if isinstance(main_char, dict):
+                name = main_char.get("name")
+                if name and name != "主角":
+                    return name
+            
+            # 2.2 creative_seed.character_design.main_character.name
             char_design = creative_seed.get("character_design", {})
             if isinstance(char_design, dict):
                 main_char = char_design.get("main_character", {})
-                if isinstance(main_char, dict) and main_char.get("name"):
-                    return main_char["name"]
-            # 3. 从 creative_seed.main_character.name 获取
-            main_char = creative_seed.get("main_character", {})
-            if isinstance(main_char, dict) and main_char.get("name"):
-                return main_char["name"]
+                if isinstance(main_char, dict):
+                    name = main_char.get("name")
+                    if name and name != "主角":
+                        return name
+            
+            # 2.3 creative_seed.protagonist_name
+            name = creative_seed.get("protagonist_name")
+            if name and name != "主角":
+                return name
         
-        # 4. 从 selected_plan 获取
+        # 3. 从 selected_plan 获取
         selected_plan = novel_data.get("selected_plan", {})
         if isinstance(selected_plan, dict):
             char_design = selected_plan.get("character_design", {})
             if isinstance(char_design, dict):
                 main_char = char_design.get("main_character", {})
-                if isinstance(main_char, dict) and main_char.get("name"):
-                    return main_char["name"]
+                if isinstance(main_char, dict):
+                    name = main_char.get("name")
+                    if name and name != "主角":
+                        return name
         
-        return "主角"
+        # 4. 从 _ctx 或 novel_data 根级别获取
+        for key in ["protagonist_name", "main_character_name", "hero_name"]:
+            name = novel_data.get(key)
+            if name and name != "主角":
+                return name
+        
+        # 🔥 保底方案：使用智能推断，但绝不使用"主角"
+        return self._get_fallback_protagonist_name(novel_data)
+    
+    def _get_fallback_protagonist_name(self, novel_data: Dict) -> str:
+        """智能保底：从小说标题推断主角名字"""
+        # 尝试从小说标题提取
+        novel_title = ""
+        if isinstance(novel_data, dict):
+            novel_title = novel_data.get("novel_title", "")
+        
+        # 如果是凡人修仙传类标题，使用"韩立"
+        if "凡人" in novel_title and "修仙" in novel_title:
+            return "韩立"
+        
+        # 通用保底名字（中性，适用于大多数网络小说）
+        return "陆玄"
     
     def _build_consistency_guidance(self, novel_data: Dict, start_chapter: int) -> str:
         """构建一致性指导"""
