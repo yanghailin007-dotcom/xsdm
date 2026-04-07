@@ -36,7 +36,7 @@ class NovelPublisher:
     """小说发布器类"""
     
     # 番茄平台章节标题最大长度限制
-    MAX_CHAPTER_TITLE_LENGTH = 30  # 30个字符（约15个汉字）
+    MAX_CHAPTER_TITLE_LENGTH = 20  # 20个字符（约10个汉字），番茄硬性限制
     
     def __init__(self, config_loader: Optional[ConfigLoader] = None):
         """
