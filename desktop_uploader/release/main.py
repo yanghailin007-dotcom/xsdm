@@ -505,12 +505,15 @@ class UploadWorker(QThread):
                 return
             
             # 🔥 检查本地发布记录（自动续传）
-            if self.project_path:
-                resume_info = self.check_resume_publish(self.project_path, max_chapter)
-                if resume_info.get('need_resume'):
-                    self.log_signal.emit(f"检测到本地发布记录，使用自动续传: {resume_info.get('message')}", "info")
-                    self._apply_resume_schedule(resume_info, first_publish_count, daily_count)
-                    return
+            if self.project_path and hasattr(self, 'check_resume_publish'):
+                try:
+                    resume_info = self.check_resume_publish(self.project_path, max_chapter)
+                    if resume_info.get('need_resume'):
+                        self.log_signal.emit(f"检测到本地发布记录，使用自动续传: {resume_info.get('message')}", "info")
+                        self._apply_resume_schedule(resume_info, first_publish_count, daily_count)
+                        return
+                except Exception as e:
+                    self.log_signal.emit(f"检测续发失败: {e}", "warning")
             
             # 从平台同步最后发布时间（备用方案）
             self.log_signal.emit("同步平台发布时间数据...", "info")
