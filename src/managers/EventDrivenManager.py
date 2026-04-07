@@ -779,6 +779,19 @@ class EventDrivenManager:
                     self.logger.warning(f"⚠️ 阶段 {current_stage} 的事件系统为空")
             else:
                 self.logger.warning(f"⚠️ 无法从StagePlanManager获取 {current_stage} 的计划")
+                
+                # 🔥 关键修复：细纲不存在时，自动生成
+                self.logger.info(f"🔄 尝试为 {current_stage} 自动生成细纲...")
+                try:
+                    stage_plan = self._generate_stage_plan_on_demand(current_stage, current_chapter)
+                    if stage_plan:
+                        event_system = stage_plan.get("stage_writing_plan", {}).get("event_system", {})
+                        if event_system:
+                            self.logger.info(f"✅ 成功生成并加载 {current_stage} 的事件系统")
+                            self.update_from_stage_plan({"event_system": event_system})
+                            return
+                except Exception as e:
+                    self.logger.error(f"❌ 自动生成细纲失败: {e}")
         
         # 如果找不到当前阶段，尝试从所有阶段中查找
         self.logger.info("🔍 尝试从所有阶段查找适合当前章节的事件...")
@@ -858,6 +871,69 @@ class EventDrivenManager:
         except Exception as e:
             self.logger.info(f"❌ 解析章节范围失败: {chapter_range}, 错误: {e}")
         return False
+    
+    def _generate_stage_plan_on_demand(self, stage_name: str, chapter_number: int) -> Optional[Dict]:
+        """
+        按需生成阶段细纲
+        
+        当二阶段开始生成章节时，如果细纲不存在，自动根据阶段大纲生成
+        """
+        self.logger.info(f"🎯 [按需生成] 开始为 {stage_name} 生成细纲...")
+        
+        try:
+            stage_plan_manager = self.generator.stage_plan_manager
+            if not stage_plan_manager:
+                self.logger.error("❌ StagePlanManager未初始化，无法生成细纲")
+                return None
+            
+            # 从 overall_stage_plans 获取阶段信息
+            overall_plans = self.generator.novel_data.get("overall_stage_plans", {})
+            if "overall_stage_plan" in overall_plans:
+                stage_plan_dict = overall_plans["overall_stage_plan"]
+            else:
+                stage_plan_dict = overall_plans
+            
+            if stage_name not in stage_plan_dict:
+                self.logger.error(f"❌ 阶段 {stage_name} 在 overall_stage_plans 中不存在")
+                return None
+            
+            stage_info = stage_plan_dict[stage_name]
+            chapter_range = stage_info.get("chapter_range", "")
+            
+            # 获取生成细纲所需的参数
+            creative_seed = self.generator.novel_data.get("creative_seed", {})
+            novel_title = self.generator.novel_data.get("novel_title", "")
+            novel_synopsis = self.generator.novel_data.get("novel_synopsis", "")
+            
+            self.logger.info(f"   📋 阶段: {stage_name}")
+            self.logger.info(f"   📖 章节范围: {chapter_range}")
+            self.logger.info(f"   📚 小说标题: {novel_title}")
+            
+            # 调用 StagePlanManager 生成细纲
+            stage_plan = stage_plan_manager.generate_stage_writing_plan(
+                stage_name=stage_name,
+                stage_range=chapter_range,
+                creative_seed=creative_seed,
+                novel_title=novel_title,
+                novel_synopsis=novel_synopsis,
+                overall_stage_plan=overall_plans
+            )
+            
+            if stage_plan:
+                self.logger.info(f"✅ [按需生成] {stage_name} 细纲生成成功")
+                # 保存到文件，下次可以直接加载
+                stage_plan_manager.save_and_cache_stage_plan(stage_name, stage_plan)
+                return stage_plan
+            else:
+                self.logger.error(f"❌ [按需生成] {stage_name} 细纲生成失败")
+                return None
+                
+        except Exception as e:
+            self.logger.error(f"❌ [按需生成] 生成细纲时出错: {e}")
+            import traceback
+            self.logger.error(traceback.format_exc())
+            return None
+    
     def _generate_event_tasks(self, chapter_number: int, event_data: Dict, 
                          progress: Dict, buffer_info: Dict) -> List[Dict]:
         """生成事件执行任务"""
