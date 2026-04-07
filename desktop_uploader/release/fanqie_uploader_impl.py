@@ -23,6 +23,9 @@ MAX_RETRY = 3
 class FanqieUploaderImpl:
     """番茄小说上传实现类"""
     
+    # 番茄章节标题最大长度（20字符 = 约10个汉字）
+    MAX_CHAPTER_TITLE_LENGTH = 20
+    
     def __init__(self, 
                  novel_title: str = "",
                  novel_config: Optional[Dict[str, Any]] = None,
@@ -62,6 +65,40 @@ class FanqieUploaderImpl:
         delay = random.uniform(min_sec, max_sec)
         time.sleep(delay)
         return delay
+    
+    @staticmethod
+    def _truncate_chapter_title(title: str, max_length: int = 20) -> str:
+        """
+        智能截断章节标题以适应平台限制
+        
+        策略:
+        1. 如果标题长度在限制内，直接返回
+        2. 优先在标点符号处截断，保持语义完整（不要卡在半句话）
+        3. 如果没有合适标点，在限制长度处截断
+        """
+        if len(title) <= max_length:
+            return title
+        
+        # 截取前max_length个字符作为候选区域
+        candidate = title[:max_length]
+        
+        # 优先在标点符号处截断（从后往前找），确保不卡在半句话
+        # 优先使用中文标点，保持标题完整性
+        punctuations = ['，', '。', '！', '？', '；', '、', ',', '!', '?', ';']
+        
+        # 找到最后一个合适的标点位置
+        last_good_punct_pos = -1
+        for punct in punctuations:
+            pos = candidate.rfind(punct)
+            if pos > last_good_punct_pos and pos >= 8:  # 至少保留8个字符，确保标题有意义
+                last_good_punct_pos = pos
+        
+        if last_good_punct_pos > 0:
+            # 在最后一个标点处截断（去掉标点后的内容）
+            return candidate[:last_good_punct_pos]
+        
+        # 没有找到合适标点，直接截断
+        return candidate
     
     def _human_type(self, element, text: str, min_delay: float = 0.01, max_delay: float = 0.05):
         """模拟人类打字，逐个字符输入"""
@@ -1181,9 +1218,16 @@ class FanqieUploaderImpl:
             
         chapter_number = chapter.get('chapter_number', chapter.get('number', 0))
         chapter_title = chapter.get('chapter_title', chapter.get('title', f'第{chapter_number}章'))
+        
+        # 截断章节标题以适应平台限制
+        original_title = chapter_title
+        chapter_title = self._truncate_chapter_title(chapter_title, self.MAX_CHAPTER_TITLE_LENGTH)
+        if len(chapter_title) < len(original_title):
+            self._log(f"  章节标题已截断: '{original_title}' -> '{chapter_title}'")
+        
         content = chapter.get('content', '')
         
-        self._log(f"正在上传第 {chapter_number} 章: {chapter_title[:30]}...")
+        self._log(f"正在上传第 {chapter_number} 章: {chapter_title}")
         
         # 🔥 先关闭多余的发布页标签，避免累积
         self._close_extra_pages(keep_chapter_manage=True)
@@ -1294,7 +1338,7 @@ class FanqieUploaderImpl:
                     chapter_title_input.fill("")
                     self._random_sleep(0.1, 0.3)
                     chapter_title_input.fill(chapter_title)
-                    self._log(f"  填写标题: {chapter_title[:20]}...")
+                    self._log(f"  填写标题: {chapter_title}")
                 except Exception as e:
                     self._log(f"  标题填写失败: {e}", "warning")
             else:
@@ -1773,8 +1817,8 @@ class FanqieUploaderImpl:
             return False
     
     def upload_chapters(self, chapters: List[Dict], 
-                        delay_min: float = 3.0, 
-                        delay_max: float = 8.0,
+                        delay_min: float = 1.0, 
+                        delay_max: float = 3.0,
                         stop_on_error: bool = False) -> Dict[str, Any]:
         """批量上传章节，支持项目配置的定时发布设置"""
         self.chapters = chapters
