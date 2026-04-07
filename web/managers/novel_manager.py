@@ -1470,23 +1470,44 @@ class NovelGenerationManager:
         
         # 🔥 修复：确保 overall_stage_plans 字段存在
         if "overall_stage_plans" not in standardized_data or not standardized_data.get("overall_stage_plans", {}):
-            quality_data = novel_data.get("quality_data", {})
-            writing_plans = quality_data.get("writing_plans", {})
-            if writing_plans:
-                # 从所有阶段的写作计划中提取 overall_stage_plan
-                overall_stage_plan = {}
-                for stage_name, stage_data in writing_plans.items():
-                    if isinstance(stage_data, dict) and "stage_writing_plan" in stage_data:
-                        stage_plan = stage_data["stage_writing_plan"]
-                        overall_stage_plan[stage_name] = {
-                            "chapter_range": stage_plan.get("chapter_range", ""),
-                            "stage_overview": stage_plan.get("stage_overview", ""),
-                            "event_system": stage_plan.get("event_system", {})
-                        }
+            # 首先尝试从阶段计划.json文件加载
+            try:
+                from src.config.path_config import path_config
+                username = novel_data.get('owner')
+                if username:
+                    project_path = Path(path_config.get_project_paths(title, username=username).get("project_dir", ""))
+                else:
+                    project_path = Path("小说项目") / title
                 
-                if overall_stage_plan:
-                    standardized_data["overall_stage_plans"] = {"overall_stage_plan": overall_stage_plan}
-                    logger.debug(f"✅ 从 writing_plans 构建 overall_stage_plans: {len(overall_stage_plan)} 个阶段")
+                stage_plan_file = project_path / "阶段计划.json"
+                if stage_plan_file.exists():
+                    with open(stage_plan_file, 'r', encoding='utf-8') as f:
+                        stage_plan_data = json.load(f)
+                    if stage_plan_data and "overall_stage_plan" in stage_plan_data:
+                        standardized_data["overall_stage_plans"] = stage_plan_data
+                        logger.info(f"✅ 从阶段计划.json加载 overall_stage_plans: {len(stage_plan_data.get('overall_stage_plan', {}))} 个阶段")
+            except Exception as e:
+                logger.warning(f"⚠️ 从阶段计划.json加载失败: {e}")
+            
+            # 如果文件加载失败，尝试从 quality_data.writing_plans 构建
+            if "overall_stage_plans" not in standardized_data or not standardized_data.get("overall_stage_plans", {}):
+                quality_data = novel_data.get("quality_data", {})
+                writing_plans = quality_data.get("writing_plans", {})
+                if writing_plans:
+                    # 从所有阶段的写作计划中提取 overall_stage_plan
+                    overall_stage_plan = {}
+                    for stage_name, stage_data in writing_plans.items():
+                        if isinstance(stage_data, dict) and "stage_writing_plan" in stage_data:
+                            stage_plan = stage_data["stage_writing_plan"]
+                            overall_stage_plan[stage_name] = {
+                                "chapter_range": stage_plan.get("chapter_range", ""),
+                                "stage_overview": stage_plan.get("stage_overview", ""),
+                                "event_system": stage_plan.get("event_system", {})
+                            }
+                    
+                    if overall_stage_plan:
+                        standardized_data["overall_stage_plans"] = {"overall_stage_plan": overall_stage_plan}
+                        logger.debug(f"✅ 从 writing_plans 构建 overall_stage_plans: {len(overall_stage_plan)} 个阶段")
         
         # 🔥 修复：确保 global_growth_plan 字段存在
         if "global_growth_plan" not in standardized_data or not standardized_data.get("global_growth_plan", {}):
