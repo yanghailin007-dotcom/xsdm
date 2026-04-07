@@ -377,27 +377,133 @@ def regenerate_chapter():
     """重生成指定章节"""
     try:
         data = request.get_json() or {}
-        task_id = data.get('task_id')
+        username = _get_current_username()
+        user_id = _get_current_user_id()
+        
+        outline = data.get('outline')
+        chapters = data.get('chapters', [])
         chapter_num = int(data.get('chapter_num', 0))
+        blueprint = data.get('blueprint', {})
         
-        if not task_id or not chapter_num:
-            return jsonify({"error": "缺少 task_id 或 chapter_num"}), 400
+        if not outline or not chapter_num:
+            return jsonify({"error": "缺少 outline 或 chapter_num"}), 400
         
-        task = task_manager.get_task(task_id)
-        if not task:
-            return jsonify({"error": "任务不存在"}), 404
+        from src.core.short_story.models import ShortStoryConfig, StoryMode, StoryGenre
+        from web.utils.path_utils import get_user_novel_dir
         
-        # TODO: 从 checkpoint 恢复并重生成指定章节
-        # 当前版本先返回提示
-        return jsonify({
-            "task_id": task_id,
-            "chapter_num": chapter_num,
-            "message": "重生成功能将在后续版本开放",
-            "status": "not_implemented"
+        project_path = str(get_user_novel_dir(username=username, create=True))
+        
+        config_data = data.get('config', {})
+        config = ShortStoryConfig(
+            mode=StoryMode.CREATIVE,
+            title=config_data.get('title', '未命名短篇'),
+            genre=StoryGenre(config_data.get('genre', 'revenge_romance')),
+            target_word_count=int(config_data.get('target_word_count', 15000)),
+            chapter_count=int(config_data.get('chapter_count', 12)),
+            username=username,
+            project_path=project_path
+        )
+        
+        task_id = task_manager.create_task("regenerate_chapter", {
+            "title": config.title,
+            "phase": "regenerate_chapter",
+            "chapter_num": chapter_num
         })
         
+        def run():
+            try:
+                api_client = _init_api_client_with_deduction(task_id, user_id) if user_id else None
+                if not api_client:
+                    from src.core.APIClient import APIClient
+                    from config.config import CONFIG
+                    api_client = APIClient(CONFIG)
+                
+                config.api_client = api_client
+                
+                from src.core.short_story import ShortStoryGenerator
+                generator = ShortStoryGenerator(config)
+                
+                # 恢复上下文
+                generator.blueprint = blueprint
+                generator.result.title = outline.get('title', '')
+                generator.result.synopsis = outline.get('synopsis', '')
+                
+                # 恢复已生成章节的状态
+                for ch in chapters:
+                    if ch['chapter_number'] < chapter_num:
+                        generator.generated_chapters[ch['chapter_number']] = {
+                            'content': ch.get('content', ''),
+                            'summary': ch.get('content', '')[:200] + '...' if ch.get('content') else ''
+                        }
+                        # 更新前文摘要
+                        generator.prev_summary = ch.get('content', '')[:300] + '...' if ch.get('content') else ''
+                
+                task_manager.update_task(
+                    task_id,
+                    status="running",
+                    progress=10,
+                    current_stage=f"regenerating_chapter_{chapter_num}",
+                    message=f"正在重新生成第 {chapter_num} 章..."
+                )
+                
+                # 找到对应章节的blueprint
+                chapter_blueprint = None
+                for bp in blueprint.get('chapters', []):
+                    if bp.get('chapter_number') == chapter_num:
+                        chapter_blueprint = bp
+                        break
+                
+                if not chapter_blueprint:
+                    chapter_blueprint = {
+                        'chapter_number': chapter_num,
+                        'purpose': f'第{chapter_num}章',
+                        'word_count': 2000
+                    }
+                
+                # 重新生成指定章节
+                chapter_content = generator._generate_single_chapter(
+                    chapter_number=chapter_num,
+                    total_chapters=config.chapter_count,
+                    blueprint=chapter_blueprint
+                )
+                
+                task_manager.update_task(
+                    task_id,
+                    status="completed",
+                    progress=100,
+                    current_stage="regenerate_completed",
+                    message=f"第 {chapter_num} 章重新生成完成",
+                    result={
+                        "chapter": {
+                            "chapter_number": chapter_num,
+                            "title": chapter_content.get('title', f'第{chapter_num}章'),
+                            "content": chapter_content.get('content', ''),
+                            "word_count": chapter_content.get('word_count', 0)
+                        }
+                    }
+                )
+                
+            except Exception as e:
+                logger.error(f"重新生成章节失败: {e}", exc_info=True)
+                task_manager.update_task(
+                    task_id,
+                    status="failed",
+                    error=str(e),
+                    message=f"重新生成失败: {str(e)}"
+                )
+        
+        thread = threading.Thread(target=run)
+        thread.daemon = True
+        thread.start()
+        
+        return jsonify({
+            "task_id": task_id,
+            "status": "pending",
+            "message": f"第 {chapter_num} 章重新生成任务已创建"
+        }), 202
+        
     except Exception as e:
-        logger.error(f"重生成章节失败: {e}", exc_info=True)
+        logger.error(f"创建重新生成任务失败: {e}", exc_info=True)
         return jsonify({"error": str(e)}), 500
 
 
@@ -691,6 +797,76 @@ def finalize_story():
         
     except Exception as e:
         logger.error(f"保存失败: {e}", exc_info=True)
+        return jsonify({"error": str(e)}), 500
+
+
+@short_story_api.route('/save-draft', methods=['POST'])
+def save_draft():
+    """保存草稿"""
+    try:
+        data = request.get_json() or {}
+        username = _get_current_username()
+        
+        from web.utils.path_utils import get_user_novel_dir
+        import json
+        
+        title = data.get('title', '未命名短篇')
+        project_dir = get_user_novel_dir(username=username, create=True) / title
+        project_dir.mkdir(parents=True, exist_ok=True)
+        
+        # 保存草稿文件
+        draft_data = {
+            "title": title,
+            "outline": data.get('outline'),
+            "chapters": data.get('chapters', []),
+            "config": data.get('config', {}),
+            "cover_image": data.get('cover_image'),
+            "saved_at": time.time()
+        }
+        
+        with open(project_dir / 'draft.json', 'w', encoding='utf-8') as f:
+            json.dump(draft_data, f, ensure_ascii=False, indent=2)
+        
+        return jsonify({
+            "success": True,
+            "message": "草稿已保存",
+            "project_path": str(project_dir)
+        })
+        
+    except Exception as e:
+        logger.error(f"保存草稿失败: {e}", exc_info=True)
+        return jsonify({"error": str(e)}), 500
+
+
+@short_story_api.route('/load-draft', methods=['GET'])
+def load_draft():
+    """加载草稿"""
+    try:
+        username = _get_current_username()
+        title = request.args.get('title')
+        
+        if not title:
+            return jsonify({"error": "缺少 title 参数"}), 400
+        
+        from web.utils.path_utils import get_user_novel_dir
+        import json
+        
+        project_dir = get_user_novel_dir(username=username) / title
+        draft_file = project_dir / 'draft.json'
+        
+        if not draft_file.exists():
+            return jsonify({"error": "草稿不存在"}), 404
+        
+        with open(draft_file, 'r', encoding='utf-8') as f:
+            draft_data = json.load(f)
+        
+        return jsonify({
+            "success": True,
+            "draft": draft_data
+        })
+        
+    except Exception as e:
+        logger.error(f"加载草稿失败: {e}", exc_info=True)
         return jsonify({"error": str(e)}), 500
 
 

@@ -182,6 +182,13 @@
   <div class="ss-main">
     <!-- 左栏：配置 -->
     <div class="ss-left-panel">
+      <!-- 加载草稿按钮 -->
+      <div class="ss-panel-section" style="padding: 12px 16px; background: var(--v2-bg-primary);">
+        <button class="ss-btn ss-btn-secondary" @click="loadDraft" style="width: 100%; justify-content: center;">
+          <i class="fas fa-folder-open"></i> 加载草稿
+        </button>
+      </div>
+      
       <!-- 大纲阶段配置 -->
       <template v-if="state.phase === 'outline'">
         <div class="ss-panel-section">
@@ -602,6 +609,13 @@ createApp({
           } else if (phase === 'content') {
             state.chapters = data.result.chapters.map(ch => ({ ...ch, expanded: false }));
             updateEditorContent();
+          } else if (phase === 'regenerate' && data.result.chapter) {
+            // 更新重新生成的章节
+            const index = state.chapters.findIndex(ch => ch.chapter_number === data.result.chapter.chapter_number);
+            if (index !== -1) {
+              state.chapters[index] = { ...data.result.chapter, expanded: true };
+            }
+            updateEditorContent();
           }
         }
       } catch (err) {
@@ -621,17 +635,116 @@ createApp({
       });
     };
 
-    const regenerateChapter = (num) => {
-      alert(`重新生成第${num}章功能开发中`);
+    const regenerateChapter = async (num) => {
+      if (!confirm(`确定要重新生成第${num}章吗？`)) return;
+      
+      state.isGenerating = true;
+      state.progressMessage = `正在重新生成第${num}章...`;
+      
+      try {
+        const res = await fetch('/api/short-story/regenerate-chapter', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            outline: state.outline,
+            chapters: state.chapters,
+            chapter_num: num,
+            blueprint: state.outline.blueprint || {},
+            config: {
+              title: state.outline.title,
+              genre: state.config.genre,
+              chapter_count: state.config.chapterCount,
+              target_word_count: state.config.chapterCount * 1500
+            }
+          })
+        });
+        
+        const data = await res.json();
+        if (data.task_id) {
+          state.taskId = data.task_id;
+          pollTaskStatus('regenerate');
+        } else {
+          throw new Error(data.error || '创建任务失败');
+        }
+      } catch (err) {
+        alert('重新生成失败: ' + err.message);
+        state.isGenerating = false;
+      }
     };
 
     const applyEditorChanges = () => {
-      // 解析编辑器内容并应用
-      alert('已应用修改');
+      const content = state.editorContent;
+      
+      if (state.phase === 'outline') {
+        // 解析大纲内容
+        // 格式: 书名：XXX
+        //       简介：...
+        //       第1章：标题
+        //       简介...
+        const titleMatch = content.match(/书名[：:]\s*(.+)/);
+        const synopsisMatch = content.match(/简介[：:]\s*([\s\S]+?)(?=第\d+章|$)/);
+        
+        if (titleMatch) state.outline.title = titleMatch[1].trim();
+        if (synopsisMatch) state.outline.synopsis = synopsisMatch[1].trim();
+        
+        // 解析章节
+        const chapterMatches = content.matchAll(/第(\d+)章[：:]\s*(.+?)\n([\s\S]*?)(?=第\d+章|$)/g);
+        const newChapters = [];
+        for (const match of chapterMatches) {
+          newChapters.push({
+            chapter_number: parseInt(match[1]),
+            title: match[2].trim(),
+            synopsis: match[3].trim()
+          });
+        }
+        if (newChapters.length > 0) {
+          state.outline.chapters = newChapters;
+        }
+        
+        alert('大纲修改已应用');
+      } else if (state.phase === 'content') {
+        // 解析正文内容
+        // 格式: 第1章 标题
+        //       
+        //       内容...
+        const chapterMatches = content.matchAll(/第(\d+)章\s*(.+?)\n\n([\s\S]*?)(?=第\d+章|$)/g);
+        for (const match of chapterMatches) {
+          const chapterNum = parseInt(match[1]);
+          const chapter = state.chapters.find(ch => ch.chapter_number === chapterNum);
+          if (chapter) {
+            chapter.title = match[2].trim();
+            chapter.content = match[3].trim();
+            chapter.word_count = match[3].trim().length;
+          }
+        }
+        
+        alert('正文修改已应用');
+      }
     };
 
-    const saveProject = () => {
-      alert('保存功能开发中');
+    const saveProject = async () => {
+      try {
+        const res = await fetch('/api/short-story/save-draft', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            title: state.title || state.outline?.title || '未命名短篇',
+            outline: state.outline,
+            chapters: state.chapters,
+            config: state.config,
+            cover_image: state.coverImage
+          })
+        });
+        
+        const data = await res.json();
+        if (data.success) {
+          alert('草稿已保存');
+        } else {
+          throw new Error(data.error);
+        }
+      } catch (err) {
+        alert('保存失败: ' + err.message);
+      }
     };
 
     const finalizeProject = async () => {
@@ -661,6 +774,43 @@ createApp({
       // 模拟上传
       state.coverImage = 'https://via.placeholder.com/300x400/3b82f6/ffffff?text=封面';
     };
+    
+    const loadDraft = async () => {
+      const title = prompt('请输入要加载的短篇标题：');
+      if (!title) return;
+      
+      try {
+        const res = await fetch('/api/short-story/load-draft?title=' + encodeURIComponent(title));
+        const data = await res.json();
+        
+        if (data.success && data.draft) {
+          // 恢复状态
+          const draft = data.draft;
+          state.title = draft.title || '';
+          state.outline = draft.outline || null;
+          state.chapters = draft.chapters || [];
+          state.coverImage = draft.cover_image || null;
+          
+          if (draft.config) {
+            Object.assign(state.config, draft.config);
+          }
+          
+          // 根据数据决定显示哪个阶段
+          if (state.chapters.length > 0) {
+            state.phase = 'content';
+          } else if (state.outline) {
+            state.phase = 'outline';
+          }
+          
+          updateEditorContent();
+          alert('草稿加载成功');
+        } else {
+          throw new Error(data.error || '加载失败');
+        }
+      } catch (err) {
+        alert('加载失败: ' + err.message);
+      }
+    };
 
     return {
       state,
@@ -681,7 +831,8 @@ createApp({
       applyEditorChanges,
       saveProject,
       finalizeProject,
-      uploadCover
+      uploadCover,
+      loadDraft
     };
   }
 }).mount('#short-story-app');
