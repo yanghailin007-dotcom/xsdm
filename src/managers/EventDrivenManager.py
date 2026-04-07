@@ -833,18 +833,39 @@ class EventDrivenManager:
     def _get_current_stage_from_plans(self, chapter_number: int) -> str:
         """从阶段计划中获取当前章节所属的阶段"""
         novel_data = self.generator.novel_data
-        # 从 overall_stage_plans 中查找
-        if "overall_stage_plans" in novel_data and "overall_stage_plan" in novel_data["overall_stage_plans"]:
-            overall_plan = novel_data["overall_stage_plans"]["overall_stage_plan"]
-            for stage_name, stage_info in overall_plan.items():
+        
+        # 🔥 修复：处理两种数据结构
+        # 1. 嵌套结构: {"overall_stage_plan": {"阶段名": {...}}}
+        # 2. 扁平结构: {"阶段名": {...}}
+        overall_plans = novel_data.get("overall_stage_plans", {})
+        
+        if "overall_stage_plan" in overall_plans:
+            # 嵌套结构
+            stage_plan_dict = overall_plans["overall_stage_plan"]
+        elif overall_plans:
+            # 扁平结构，直接使用
+            stage_plan_dict = overall_plans
+        else:
+            stage_plan_dict = {}
+        
+        # 从阶段计划中查找
+        if stage_plan_dict:
+            self.logger.info(f"  📊 查找章节 {chapter_number} 所属阶段，可用阶段: {list(stage_plan_dict.keys())}")
+            for stage_name, stage_info in stage_plan_dict.items():
                 chapter_range = stage_info.get("chapter_range", "")
+                self.logger.info(f"    🔍 检查阶段: {stage_name}, 范围: {chapter_range}")
                 if self._is_chapter_in_range(chapter_number, chapter_range):
+                    self.logger.info(f"    ✅ 找到匹配阶段: {stage_name}")
                     return stage_name
-        # 从 stage_writing_plans 中推断
+        else:
+            self.logger.warning(f"  ⚠️ overall_stage_plans 为空或结构不正确")
+        
+        # 从 stage_writing_plans 中推断（备用）
         if "stage_writing_plans" in novel_data:
             for stage_name, stage_data in novel_data["stage_writing_plans"].items():
                 if self._is_chapter_in_stage(chapter_number, stage_data):
                     return stage_name
+        
         return "未知阶段"
     def _is_chapter_in_stage(self, chapter_number: int, stage_data: Dict) -> bool:
         """检查章节是否在阶段范围内"""
@@ -886,7 +907,7 @@ class EventDrivenManager:
                 self.logger.error("❌ StagePlanManager未初始化，无法生成细纲")
                 return None
             
-            # 从 overall_stage_plans 获取阶段信息
+            # 从 overall_stage_plans 获取阶段信息（处理两种结构）
             overall_plans = self.generator.novel_data.get("overall_stage_plans", {})
             if "overall_stage_plan" in overall_plans:
                 stage_plan_dict = overall_plans["overall_stage_plan"]
@@ -895,10 +916,24 @@ class EventDrivenManager:
             
             if stage_name not in stage_plan_dict:
                 self.logger.error(f"❌ 阶段 {stage_name} 在 overall_stage_plans 中不存在")
+                self.logger.error(f"   可用阶段: {list(stage_plan_dict.keys()) if stage_plan_dict else '无'}")
                 return None
             
             stage_info = stage_plan_dict[stage_name]
             chapter_range = stage_info.get("chapter_range", "")
+            
+            # 🔥 如果章节范围为空，尝试从 stage_name 推断
+            if not chapter_range:
+                # 尝试解析阶段名称中的范围，如 "开局阶段(1-30)"
+                import re
+                range_match = re.search(r'\((\d+)[-\~](\d+)\)', stage_name)
+                if range_match:
+                    chapter_range = f"{range_match.group(1)}-{range_match.group(2)}"
+                    self.logger.info(f"   📖 从阶段名称解析章节范围: {chapter_range}")
+                else:
+                    # 默认范围
+                    chapter_range = "1-100"
+                    self.logger.warning(f"   ⚠️ 阶段 {stage_name} 没有章节范围，使用默认值: {chapter_range}")
             
             # 获取生成细纲所需的参数
             creative_seed = self.generator.novel_data.get("creative_seed", {})
