@@ -834,10 +834,17 @@ class EventDrivenManager:
         """从阶段计划中获取当前章节所属的阶段"""
         novel_data = self.generator.novel_data
         
+        # 🔥 调试：打印 novel_data 的关键字段
+        self.logger.info(f"  [DEBUG] novel_data 类型: {type(novel_data)}")
+        self.logger.info(f"  [DEBUG] novel_data 键: {list(novel_data.keys()) if isinstance(novel_data, dict) else 'N/A'}")
+        
         # 🔥 修复：处理两种数据结构
         # 1. 嵌套结构: {"overall_stage_plan": {"阶段名": {...}}}
         # 2. 扁平结构: {"阶段名": {...}}
         overall_plans = novel_data.get("overall_stage_plans", {})
+        
+        self.logger.info(f"  [DEBUG] overall_stage_plans 类型: {type(overall_plans)}")
+        self.logger.info(f"  [DEBUG] overall_stage_plans 内容: {overall_plans}")
         
         if "overall_stage_plan" in overall_plans:
             # 嵌套结构
