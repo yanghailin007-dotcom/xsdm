@@ -171,14 +171,10 @@ class GoldenChaptersGenerator:
                         if name and name != "主角":
                             protagonist_name = name
         
-        # 3. 智能保底（绝不使用"主角"）
+        # 3. 关键修复：如果没有主角名字，报错而不是使用默认值
         if not protagonist_name or protagonist_name == "主角":
-            # 从小说标题推断
-            if "凡人" in novel_title and "修仙" in novel_title:
-                protagonist_name = "韩立"
-            else:
-                protagonist_name = "陆玄"  # 通用保底
-            self.logger.warning(f"[GoldenChapters] 无法提取主角名字，使用保底名字: {protagonist_name}")
+            self.logger.error(f"[GoldenChapters] 无法从 creative_seed 或 selected_plan 提取主角名字")
+            raise ValueError("缺少主角名字！必须在 creative_seed 中提供 protagonist_name、main_character.name 或 character_design.main_character.name")
         
         self.logger.info(f"[GoldenChapters] 锁定主角姓名: {protagonist_name}")
         

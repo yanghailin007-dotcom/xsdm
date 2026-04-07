@@ -700,9 +700,13 @@ class BatchChapterGenerator:
         protagonist_name = (
             protagonist.get('basic_info', {}).get('name') or
             protagonist.get('name') or
-            novel_data.get('protagonist_name') or
-            '陆玄'  # 保底但不使用"主角"
+            novel_data.get('protagonist_name')
         )
+        
+        # 🔥 关键修复：如果没有主角名字，报错而不是使用默认值
+        if not protagonist_name:
+            logger.error(f"[BatchChapterGenerator] 无法提取主角名字，novel_data: {novel_data}")
+            raise ValueError("缺少主角名字！必须在 novel_data.character_design 中提供 protagonist.name 或 main_character.basic_info.name")
         
         current_stage = self._get_current_growth_stage(chapter_num)
         context_parts.append(f"""

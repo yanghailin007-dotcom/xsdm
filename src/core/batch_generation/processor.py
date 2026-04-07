@@ -171,8 +171,11 @@ class MediumEventBatchProcessor:
             novel_data, start_ch
         )
         
-        # 🔥 新增：提取主角名字（多源提取 + 智能保底）
+        # 🔥 新增：提取主角名字（多源提取，找不到时报错）
         protagonist_name = self._extract_protagonist_name(novel_data)
+        if not protagonist_name:
+            self.logger.error(f"[BatchProcessor] 无法从 novel_data 提取主角名字")
+            raise ValueError("缺少主角名字！必须在 novel_data 中提供 character_design.main_character.name 或 creative_seed.main_character.name")
         self.logger.info(f"[BatchProcessor] 提取主角姓名: {protagonist_name}")
         
         # 3. 批量生成正文（核心优化）
@@ -419,22 +422,8 @@ class MediumEventBatchProcessor:
             if name and name != "主角":
                 return name
         
-        # 🔥 保底方案：使用智能推断，但绝不使用"主角"
-        return self._get_fallback_protagonist_name(novel_data)
-    
-    def _get_fallback_protagonist_name(self, novel_data: Dict) -> str:
-        """智能保底：从小说标题推断主角名字"""
-        # 尝试从小说标题提取
-        novel_title = ""
-        if isinstance(novel_data, dict):
-            novel_title = novel_data.get("novel_title", "")
-        
-        # 如果是凡人修仙传类标题，使用"韩立"
-        if "凡人" in novel_title and "修仙" in novel_title:
-            return "韩立"
-        
-        # 通用保底名字（中性，适用于大多数网络小说）
-        return "陆玄"
+        # 🔥 修复：找不到时返回 None（调用方应检查并抛出异常）
+        return None
     
     def _build_consistency_guidance(self, novel_data: Dict, start_chapter: int) -> str:
         """构建一致性指导"""
