@@ -245,7 +245,7 @@
           <button class="ss-btn ss-btn-primary ss-generate-btn" @click="generateOutline" :disabled="!state.config.creativeSeed || state.isGenerating">
             <i class="fas fa-magic" v-if="!state.isGenerating"></i>
             <i class="fas fa-spinner fa-spin" v-else></i>
-            {{ state.isGenerating ? '生成中...' : '开始生成大纲' }}
+            <span v-text="state.isGenerating ? '生成中...' : '开始生成大纲'"></span>
           </button>
           <button class="ss-regenerate-btn" v-if="state.outline" @click="regenerateOutline" :disabled="state.isGenerating">
             <i class="fas fa-redo"></i> 重新生成大纲
@@ -272,7 +272,7 @@
           <button class="ss-btn ss-btn-primary ss-generate-btn" @click="generateContent" :disabled="state.isGenerating">
             <i class="fas fa-magic" v-if="!state.isGenerating"></i>
             <i class="fas fa-spinner fa-spin" v-else></i>
-            {{ state.isGenerating ? '生成中...' : '开始生成正文' }}
+            <span v-text="state.isGenerating ? '生成中...' : '开始生成正文'"></span>
           </button>
           <div style="font-size:12px;color:var(--v2-text-secondary);text-align:center;margin-top:8px;">
             将基于右侧大纲逐章生成
