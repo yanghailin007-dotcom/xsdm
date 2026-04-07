@@ -531,8 +531,8 @@ class ProjectManager:
             growth_plan_manager.save_stage_writing_plans(novel_title, stage_plans, username=username, project_dir=project_dir)
             self.logger.info(f"✅ 写作计划已保存到独立文件")
         
-        # 获取路径配置（传递用户名）- 🔥 修复：提前导入 path_config
-        from src.config.path_config import path_config
+        # 获取路径配置（传递用户名）
+        # path_config 已在文件顶部导入
         paths = path_config.get_project_paths(novel_title, username=username)
         
         # 🔥 新增：保存质量评估报告到独立文件
