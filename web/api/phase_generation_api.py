@@ -3225,19 +3225,31 @@ def register_additional_routes(app):
             if not manager:
                 return jsonify({"success": False, "error": "管理器未初始化"}), 500
             
-            # 🔥 检查阶段计划是否存在
+            # 🔥 检查阶段大纲是否存在（一阶段产物）
             try:
                 from src.utils.path_manager import path_manager
-                stage_plan = path_manager.load_stage_plan(novel_title, "第一阶段", username=session.get('username'))
-                if not stage_plan:
+                from src.utils.project_loader import ProjectLoader
+                
+                username = session.get('username')
+                loader = ProjectLoader(novel_title, path_manager=path_manager, username=username)
+                loader.load_project()
+                
+                # 检查一阶段是否完成（是否有阶段大纲）
+                overall_plans = loader.project_data.get('overall_stage_plans', {})
+                if not overall_plans:
                     return jsonify({
                         "success": False, 
-                        "error": "未找到阶段计划，请先生成细纲后再进行章节生成",
-                        "need_stage_plan": True
+                        "error": "未找到阶段大纲，请确保一阶段已完成",
+                        "need_phase_one": True
                     }), 400
-                logger.info(f"✅ [PHASE_TWO] 阶段计划检查通过")
+                
+                logger.info(f"✅ [PHASE_TWO] 阶段大纲检查通过")
+                
+                # 注：细纲（stage_writing_plan）将在二阶段按需自动生成
+                # 不需要在一阶段就存在
+                
             except Exception as e:
-                logger.warning(f"⚠️ [PHASE_TWO] 阶段计划检查失败: {e}")
+                logger.warning(f"⚠️ [PHASE_TWO] 阶段大纲检查失败: {e}")
             
             # ===== 创造点扣除逻辑 =====
             from web.models.point_model import point_model
