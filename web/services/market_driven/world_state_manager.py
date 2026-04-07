@@ -80,6 +80,37 @@ class WorldState:
         from dataclasses import fields
         valid_fields = {f.name for f in fields(cls)}
         filtered_data = {k: v for k, v in data.items() if k in valid_fields}
+        
+        # 🔥 关键修复：递归转换嵌套字典为对象
+        # protagonist: dict -> CharacterStatus
+        if 'protagonist' in filtered_data and isinstance(filtered_data['protagonist'], dict):
+            filtered_data['protagonist'] = CharacterStatus(**filtered_data['protagonist'])
+        
+        # allies: dict[str, dict] -> dict[str, CharacterStatus]
+        if 'allies' in filtered_data and isinstance(filtered_data['allies'], dict):
+            filtered_data['allies'] = {
+                k: CharacterStatus(**v) if isinstance(v, dict) else v
+                for k, v in filtered_data['allies'].items()
+            }
+        
+        # enemies: dict[str, dict] -> dict[str, CharacterStatus]
+        if 'enemies' in filtered_data and isinstance(filtered_data['enemies'], dict):
+            filtered_data['enemies'] = {
+                k: CharacterStatus(**v) if isinstance(v, dict) else v
+                for k, v in filtered_data['enemies'].items()
+            }
+        
+        # plot_threads: dict[str, dict] -> dict[str, PlotThread]
+        if 'plot_threads' in filtered_data and isinstance(filtered_data['plot_threads'], dict):
+            filtered_data['plot_threads'] = {
+                k: PlotThread(**v) if isinstance(v, dict) else v
+                for k, v in filtered_data['plot_threads'].items()
+            }
+        
+        # system_rules: dict -> SystemRule
+        if 'system_rules' in filtered_data and isinstance(filtered_data['system_rules'], dict):
+            filtered_data['system_rules'] = SystemRule(**filtered_data['system_rules'])
+        
         return cls(**filtered_data)
 
 
