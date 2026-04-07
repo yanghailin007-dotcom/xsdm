@@ -1014,6 +1014,39 @@ class NovelGenerationManager:
             except Exception as e:
                 logger.warning(f"  ⚠️ 加载写作风格指南失败: {e}")
                 novel_data["writing_style_guide"] = novel_data.get("writing_style_guide", {})
+            
+            # 🔥 从独立文件加载阶段计划
+            try:
+                if not username:
+                    raise ValueError(f"加载项目 {title} 时用户名为空，用户必须登录")
+                
+                # 构建阶段计划文件路径
+                stage_plan_path = Path(paths.get("project_dir", "")) / "阶段计划.json"
+                logger.info(f"  🔍 尝试加载阶段计划: {stage_plan_path}")
+                
+                if stage_plan_path.exists():
+                    logger.info(f"  ✅ 阶段计划文件存在")
+                    # 尝试多种编码
+                    stage_plan_data = None
+                    for encoding in ['utf-8-sig', 'utf-8', 'gbk', 'gb2312']:
+                        try:
+                            with open(stage_plan_path, 'r', encoding=encoding) as f:
+                                stage_plan_data = json.load(f)
+                            logger.info(f"  ✅ 使用 {encoding} 编码成功解析阶段计划.json")
+                            break
+                        except Exception:
+                            continue
+                    
+                    if stage_plan_data and "overall_stage_plan" in stage_plan_data:
+                        novel_data["overall_stage_plans"] = stage_plan_data
+                        stage_count = len(stage_plan_data.get("overall_stage_plan", {}))
+                        logger.info(f"  ✅ 已加载阶段计划: {stage_count} 个阶段")
+                    else:
+                        logger.warning(f"  ⚠️ 阶段计划.json 中没有 overall_stage_plan 字段")
+                else:
+                    logger.info(f"  ℹ️ 阶段计划文件不存在（正常，尚未生成）")
+            except Exception as e:
+                logger.warning(f"  ⚠️ 加载阶段计划失败: {e}")
 
             # 添加到项目集合
             self.novel_projects[title] = novel_data
