@@ -2094,6 +2094,16 @@ def register_contract_routes(app):
             logger.error(f"❌ 加载提示词包管理页面失败: {e}")
             return f"页面加载失败: {str(e)}", 500
 
+    @app.route('/short-story/create')
+    def short_story_create_page():
+        """番茄短篇小说创作页面"""
+        try:
+            from flask import render_template
+            return render_template('short-story-create.html')
+        except Exception as e:
+            logger.error(f"❌ 加载短篇创作页面失败: {e}")
+            return f"页面加载失败: {str(e)}", 500
+
     @app.route('/admin/users')
     def admin_users_page():
         """管理员用户管理页面"""
