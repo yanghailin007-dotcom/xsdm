@@ -1,0 +1,102 @@
+# 番茄小说自动签约/上传配置文件
+# 位置: config/automation_config.yaml
+
+# ============================================
+# 签约用户配置
+# ============================================
+contract:
+  # 当前默认使用的用户ID
+  current_user: user1
+  
+  # 用户列表
+  users:
+    user1:
+      enabled: true                    # 是否启用此用户
+      name: "张三"                      # 签约人姓名（需与番茄作者名一致）
+      
+      # 联系信息
+      contact_info:
+        phone: "13800138000"           # 手机号（必填）
+        email: "zhangsan@example.com"  # 邮箱
+        qq: "123456789"                # QQ号
+        address: "北京市朝阳区xxx街道xxx号"  # 通讯地址
+      
+      # 银行卡信息（用于签约收款）
+      bank_info:
+        bank_name: "中国工商银行"       # 银行名称
+        card_number: "6222021234567890123"  # 银行卡号
+        branch_address: "北京市朝阳区xxx支行"  # 开户行地址
+        card_holder: "张三"             # 持卡人姓名
+    
+    # 可以配置多个用户，用于多账号管理
+    user2:
+      enabled: false                   # 禁用此用户
+      name: "李四"
+      contact_info:
+        phone: "13900139000"
+        email: "lisi@example.com"
+        qq: "987654321"
+        address: "上海市xxx区xxx路xxx号"
+      bank_info:
+        bank_name: "中国建设银行"
+        card_number: "6217001234567890123"
+        branch_address: "上海市xxx区xxx支行"
+        card_holder: "李四"
+
+# ============================================
+# 基础配置
+# ============================================
+basic:
+  # Chrome调试端口（用于连接已打开的浏览器）
+  debug_port: 9222
+  
+  # 是否显示浏览器界面（false=无头模式）
+  headless: false
+  
+  # 操作间隔（秒）
+  action_delay: 1
+
+# ============================================
+# 路径配置
+# ============================================
+paths:
+  # 小说项目根目录
+  novel_path: "小说项目"
+  
+  # 日志目录
+  log_path: "logs"
+  
+  # 发布记录目录
+  publish_record_path: "data/publish_records"
+
+# ============================================
+# 发布配置
+# ============================================
+publishing:
+  # 发布时间列表（HH:MM格式）
+  publish_times:
+    - "06:00"
+    - "12:00"
+    - "18:00"
+  
+  # 每日发布章节数
+  daily_chapter_count: 8
+  
+  # 首次发布章节数
+  first_publish_count: 20
+
+# ============================================
+# 超时配置（秒）
+# ============================================
+timeouts:
+  # 点击操作超时
+  click: 10
+  
+  # 页面加载超时
+  page_load: 30
+  
+  # 元素等待超时
+  element: 10
+  
+  # 任务总超时
+  task: 300
