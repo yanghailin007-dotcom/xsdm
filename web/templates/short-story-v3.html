@@ -266,12 +266,12 @@
           <div class="ss-section-header">
             <i class="fas fa-file-alt"></i> 当前大纲
           </div>
-          <div style="font-size:14px;font-weight:600;margin-bottom:8px;">{{ state.outline?.title }}</div>
-          <div style="font-size:12px;color:var(--v2-text-secondary);margin-bottom:12px;line-height:1.5;">
-            {{ state.outline?.synopsis?.slice(0, 100) }}...
+          <div style="font-size:14px;font-weight:600;margin-bottom:8px;" v-if="state.outline">{{ state.outline.title }}</div>
+          <div style="font-size:12px;color:var(--v2-text-secondary);margin-bottom:12px;line-height:1.5;" v-if="state.outline && state.outline.synopsis">
+            {{ state.outline.synopsis.slice(0, 100) }}...
           </div>
-          <div style="font-size:12px;color:var(--v2-text-secondary);">
-            共 {{ state.outline?.chapters?.length }} 章
+          <div style="font-size:12px;color:var(--v2-text-secondary);" v-if="state.outline && state.outline.chapters">
+            共 {{ state.outline.chapters.length }} 章
           </div>
         </div>
 
