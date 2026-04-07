@@ -580,28 +580,32 @@ class GlobalGrowthPlanner:
             "overview": f"全书{total_chapters}章的“起承转合”四阶段完整成长规划",
             "growth_stages": [
                 {
-                    "stage_name": "起 (开局阶段)",
+                    "stage_name": "opening_stage",
+                    "stage_name_cn": "起 (开局阶段)",
                     "chapter_range": f"1-{b['opening_end']}",
                     "core_objectives": ["建立故事基础", "引入核心冲突"],
                     "key_growth_themes": ["初始成长", "能力觉醒"],
                     "milestone_events": ["主角觉醒", "初次冲突"]
                 },
                 {
-                    "stage_name": "承 (发展阶段)",
+                    "stage_name": "development_stage",
+                    "stage_name_cn": "承 (发展阶段)",
                     "chapter_range": f"{b['development_start']}-{b['development_end']}",
                     "core_objectives": ["深化矛盾", "角色成长", "扩展世界"],
                     "key_growth_themes": ["能力提升", "关系建立", "探索新地图"],
                     "milestone_events": ["关键突破", "重要联盟", "遭遇强敌"]
                 },
                 {
-                    "stage_name": "转 (高潮阶段)", 
+                    "stage_name": "climax_stage",
+                    "stage_name_cn": "转 (高潮阶段)",
                     "chapter_range": f"{b['climax_start']}-{b['climax_end']}",
                     "core_objectives": ["冲突总爆发", "重大转折"],
                     "key_growth_themes": ["巅峰对决", "真相揭露", "角色蜕变"],
                     "milestone_events": ["最终对决", "关键反转", "揭露最大秘密"]
                 },
                 {
-                    "stage_name": "合 (结局阶段)",
+                    "stage_name": "ending_stage",
+                    "stage_name_cn": "合 (结局阶段)",
                     "chapter_range": f"{b['ending_start']}-{total_chapters}", 
                     "core_objectives": ["解决所有矛盾", "收束全部线索", "升华主题"],
                     "key_growth_themes": ["圆满收尾", "情感升华", "角色归宿"],
@@ -612,10 +616,10 @@ class GlobalGrowthPlanner:
                 "protagonist": {
                     "overall_arc": "从平凡到非凡的完整成长历程",
                     "stage_specific_growth": {
-                        "起 (开局阶段)": {},
-                        "承 (发展阶段)": {},
-                        "转 (高潮阶段)": {},
-                        "合 (结局阶段)": {},
+                        "opening_stage": {},
+                        "development_stage": {},
+                        "climax_stage": {},
+                        "ending_stage": {},
                     }
                 }
             },
