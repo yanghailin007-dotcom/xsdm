@@ -433,7 +433,6 @@ def generate_outline():
             chapter_count=int(data.get('chapter_count', 12)),
             ending_type=data.get('ending_type', 'open'),
             creative_seed=creative_seed,
-            extra_info=data.get('extra_info', ''),
             username=username,
             project_path=project_path
         )
