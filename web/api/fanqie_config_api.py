@@ -29,10 +29,10 @@ DEFAULT_UPLOAD_CONFIG = {
     # 每日发布配置
     "daily_publish": {
         "enabled": True,
-        "chapter_count": 2,    # 每天发布章节数
+        "chapter_count": 8,    # 每天发布章节数（默认8章）
         "word_count": 0,       # 每天发布字数（0表示不限制）
-        "publish_time": "09:00",  # 发布时间（HH:MM格式）
-        "interval_minutes": 30  # 章节间隔（分钟）
+        "publish_time": "06:00",  # 发布时间（HH:MM格式），默认早上6点
+        "interval_minutes": 0  # 章节间隔（分钟），0表示同一时间发布
     },
     # 高级配置
     "advanced": {

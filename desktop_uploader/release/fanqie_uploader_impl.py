@@ -28,8 +28,11 @@ class FanqieUploaderImpl:
                  novel_config: Optional[Dict[str, Any]] = None,
                  progress_callback: Optional[Callable] = None,
                  log_callback: Optional[Callable] = None,
-                 pause_check_callback: Optional[Callable] = None):
+                 pause_check_callback: Optional[Callable] = None,
+                 fanqie_book_title: str = None):
         self.novel_title = novel_title
+        # 🔥 番茄上的实际书名（如果与本地书名不同）
+        self.fanqie_book_title = fanqie_book_title or novel_title
         self.novel_config = novel_config or {}
         self.progress_callback = progress_callback
         self.log_callback = log_callback
@@ -567,13 +570,17 @@ class FanqieUploaderImpl:
                 time.sleep(3)
             
             try:
-                title_short = self.novel_title[:10] if self.novel_title else ""
+                # 🔥 使用番茄上的实际书名进行匹配
+                search_title = self.fanqie_book_title or self.novel_title
+                title_short = search_title[:10] if search_title else ""
                 if not title_short:
                     self._log("错误: 书名为空", "error")
                     return None
                     
                 self._log(f"在书籍管理页面查找书名(前10字): {title_short}")
-                self._log(f"完整书名: {self.novel_title}")
+                self._log(f"完整书名: {search_title}")
+                if self.fanqie_book_title and self.fanqie_book_title != self.novel_title:
+                    self._log(f"本地书名: {self.novel_title} | 番茄书名: {self.fanqie_book_title}")
                 
                 # 等待页面加载 - 最多重试3次
                 for attempt in range(3):
@@ -591,6 +598,9 @@ class FanqieUploaderImpl:
                 # 获取页面内容
                 page_text = self.page.content()
                 
+                # 🔥 使用番茄书名进行匹配
+                search_title = self.fanqie_book_title or self.novel_title
+                
                 # 调试：显示页面中的一部分文本帮助诊断
                 # 查找包含书名的上下文
                 title_idx = page_text.find(title_short) if title_short else -1
@@ -600,15 +610,15 @@ class FanqieUploaderImpl:
                     self._log(f"DEBUG: 找到书名上下文: ...{page_text[context_start:context_end]}...")
                 else:
                     # 尝试查找部分书名
-                    for i in range(min(8, len(self.novel_title) if self.novel_title else 0), 0, -1):
-                        partial = self.novel_title[:i]
+                    for i in range(min(8, len(search_title) if search_title else 0), 0, -1):
+                        partial = search_title[:i]
                         if partial in page_text:
                             self._log(f"DEBUG: 找到部分书名 '{partial}'")
                             break
                     self._log(f"DEBUG: 书名前10字'{title_short}'不在页面内容中")
                 
                 # 首先检查书名是否在页面中
-                if title_short not in page_text and self.novel_title[:8] not in page_text:
+                if title_short not in page_text and search_title[:8] not in page_text:
                     self._log(f"书名'{title_short}'不在当前页面，可能需要翻页或书籍不存在")
                     return None
                 
@@ -617,8 +627,8 @@ class FanqieUploaderImpl:
                 self._log(f"找到 {len(book_ids)} 本书籍，ID列表: {book_ids[:5]}...")  # 只显示前5个
                 
                 if book_ids:
-                    # 清理书名用于比较（去除多余空格）
-                    novel_title_clean = self.novel_title.strip() if self.novel_title else ""
+                    # 🔥 清理书名用于比较（去除多余空格）- 使用番茄书名
+                    novel_title_clean = search_title.strip() if search_title else ""
                     novel_title_lower = novel_title_clean.lower()
                     
                     # 优先精确匹配
@@ -1779,8 +1789,8 @@ class FanqieUploaderImpl:
         
         first_publish_count = publish_config.get('first_publish_count', 20)  # 前N章直接发布
         daily_count = publish_config.get('daily_count', 8)  # 每日发布数量
-        publish_time = publish_config.get('publish_time', '07:00')  # 发布时间
-        interval_minutes = publish_config.get('interval_minutes', 10)  # 章节间隔分钟
+        publish_time = publish_config.get('publish_time', '06:00')  # 发布时间
+        interval_minutes = publish_config.get('interval_minutes', 0)  # 章节间隔分钟，0表示同一时间发布
         
         # 获取本次上传章节的实际章节号列表
         chapter_numbers = [ch.get('chapter_number', i+1) for i, ch in enumerate(chapters)]
@@ -1979,7 +1989,7 @@ class FanqieUploaderImpl:
         """
         config = self.novel_config.get('publish_config', {})
         daily_count = config.get('daily_count', 8)
-        interval_mins = config.get('interval_minutes', 10)
+        interval_mins = config.get('interval_minutes', 0)
         publish_time_str = config.get('publish_time', '07:00')
         
         hour, minute = map(int, publish_time_str.split(':'))

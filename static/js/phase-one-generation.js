@@ -323,15 +323,28 @@ function updateDetailedStepStatus(stepStatus) {
                 'waiting': '等待中',
                 'active': '进行中',
                 'completed': '已完成',
-                'failed': '失败'
+                'failed': '失败',
+                'skipped': '对话完成'  // 🔥 对话模式下跳过的步骤
             };
             
-            // 更新状态文本
-            if (badge) badge.textContent = statusText[status] || status;
+            // 🔥 新增：阶段详细计划和补充角色在二阶段生成，特殊显示
+            const deferredSteps = ['detailed_stage_plans', 'supplementary_characters'];
+            const isDeferred = deferredSteps.includes(stepName) && (status === 'completed' || status === 'waiting');
             
-            // 更新图标
+            // 🔥 更新状态文本（二阶段步骤特殊显示）
+            if (badge) {
+                if (isDeferred) {
+                    badge.textContent = '二阶段生成';
+                } else {
+                    badge.textContent = statusText[status] || status;
+                }
+            }
+            
+            // 🔥 更新图标
             if (icon) {
-                if (status === 'completed') {
+                if (isDeferred) {
+                    icon.textContent = '📋';  // 二阶段步骤用文档图标
+                } else if (status === 'completed' || status === 'skipped') {
                     icon.textContent = '✅';
                 } else if (status === 'failed') {
                     icon.textContent = '❌';
@@ -343,8 +356,14 @@ function updateDetailedStepStatus(stepStatus) {
                 }
             }
             
-            // 更新样式
-            if (status === 'completed') {
+            // 🔥 更新样式
+            if (isDeferred) {
+                // 二阶段步骤：蓝色样式
+                stepElement.style.background = 'rgba(59, 130, 246, 0.1)';
+                stepElement.style.borderColor = 'rgba(59, 130, 246, 0.3)';
+                if (text) text.style.color = 'var(--v2-text-primary, #fafafa)';
+                if (badge) badge.style.color = '#60a5fa';  // 蓝色
+            } else if (status === 'completed' || status === 'skipped') {
                 stepElement.style.background = 'rgba(34, 197, 94, 0.1)';
                 stepElement.style.borderColor = 'rgba(34, 197, 94, 0.3)';
                 if (text) text.style.color = 'var(--v2-accent-green, #22c55e)';
@@ -360,7 +379,6 @@ function updateDetailedStepStatus(stepStatus) {
                 if (text) text.style.color = 'var(--v2-accent-red, #ef4444)';
                 if (badge) badge.style.color = 'var(--v2-accent-red, #ef4444)';
             } else {
-                // waiting
                 stepElement.style.background = 'rgba(255,255,255,0.03)';
                 stepElement.style.borderColor = 'rgba(255,255,255,0.06)';
                 if (text) text.style.color = 'var(--v2-text-secondary, #a1a1aa)';
@@ -376,8 +394,14 @@ function updateDetailedStepStatus(stepStatus) {
     
     // 计算并更新完成步骤数
     // 🔥 修复：只计算 DETAILED_STEP_ORDER 中定义的步骤，避免新模式返回额外步骤导致计数错误
-    const completedSteps = DETAILED_STEP_ORDER.filter(stepName => stepStatus[stepName] === 'completed').length;
-    const totalSteps = DETAILED_STEP_ORDER.length;
+    // 🔥 新增：'skipped'（对话模式跳过）也视为已完成
+    // 🔥 新增：排除二阶段生成的步骤（不计入第一阶段完成数）
+    const deferredSteps = ['detailed_stage_plans', 'supplementary_characters'];
+    const completedSteps = DETAILED_STEP_ORDER.filter(stepName => {
+        if (deferredSteps.includes(stepName)) return false;  // 二阶段步骤不计入
+        return stepStatus[stepName] === 'completed' || stepStatus[stepName] === 'skipped';
+    }).length;
+    const totalSteps = DETAILED_STEP_ORDER.length - deferredSteps.length;  // 总步骤数也减去二阶段步骤
     const stepsStatusEl = document.getElementById('steps-status');
     if (stepsStatusEl) {
         stepsStatusEl.textContent = `${completedSteps}/${totalSteps} 完成`;

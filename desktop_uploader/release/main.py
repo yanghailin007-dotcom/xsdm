@@ -277,7 +277,7 @@ class UploadWorker(QThread):
     
     def __init__(self, novel_title: str, chapters: list, settings: dict, 
                  tomato_account: TomatoAccount, novel_config: dict = None,
-                 project_path: Path = None):
+                 project_path: Path = None, fanqie_book_title: str = None):
         super().__init__()
         self.novel_title = novel_title
         self.chapters = chapters
@@ -285,6 +285,8 @@ class UploadWorker(QThread):
         self.tomato_account = tomato_account
         self.novel_config = novel_config or {}
         self.project_path = project_path
+        # 🔥 番茄上的实际书名（如果与本地书名不同）
+        self.fanqie_book_title = fanqie_book_title or novel_title
         self.is_running = True
         self.uploader = None
         self.uploaded_chapters = []  # 记录成功上传的章节
@@ -304,7 +306,8 @@ class UploadWorker(QThread):
                 novel_config=self.novel_config,
                 progress_callback=lambda p, m: self.progress_signal.emit(int(p * 0.8) + 10, m),
                 log_callback=lambda m, l: self.log_signal.emit(m, l),
-                pause_check_callback=self._check_pause_for_uploader
+                pause_check_callback=self._check_pause_for_uploader,
+                fanqie_book_title=self.fanqie_book_title  # 🔥 传递番茄书名
             )
             
             # 连接浏览器
@@ -454,8 +457,8 @@ class UploadWorker(QThread):
                 publish_config = {
                     'first_publish_count': 20,
                     'daily_count': 8,
-                    'publish_time': '07:00',
-                    'interval_minutes': 30
+                    'publish_time': '06:00',
+                    'interval_minutes': 0  # 0表示同一时间发布所有章节
                 }
             
             first_publish_count = publish_config.get('first_publish_count', 20)
@@ -643,8 +646,8 @@ class UploadWorker(QThread):
                 scheduled_time = next_time.strftime('%Y-%m-%d %H:%M')
                 chapter['scheduled_time'] = scheduled_time
                 
-                # 准备下一个时间（+30分钟）
-                next_time += timedelta(minutes=30)
+                # 准备下一个时间（同时发布，间隔0分钟）
+                # next_time += timedelta(minutes=0)  # 所有章节同一时间
                 today_chapters += 1
                 scheduled_count += 1
             
@@ -1132,6 +1135,29 @@ class MainWindow(QMainWindow):
         btn_layout.addWidget(import_btn)
         
         project_layout.addLayout(btn_layout)
+        
+        # 🔥 关联旧项目按钮（番茄改书名后使用）
+        link_btn_layout = QHBoxLayout()
+        link_resume_btn = QPushButton("🔗 关联旧项目续传")
+        link_resume_btn.setToolTip("如果番茄改了书名，选择原项目目录来继承发布记录")
+        link_resume_btn.setStyleSheet("""
+            QPushButton {
+                background-color: #FF9800;
+                color: white;
+                border: none;
+                border-radius: 4px;
+                padding: 5px 10px;
+                font-size: 12px;
+            }
+            QPushButton:hover {
+                background-color: #F57C00;
+            }
+        """)
+        link_resume_btn.clicked.connect(self.link_old_project_resume)
+        link_btn_layout.addWidget(link_resume_btn)
+        link_btn_layout.addStretch()
+        project_layout.addLayout(link_btn_layout)
+        
         project_group.setLayout(project_layout)
         left_layout.addWidget(project_group)
         
@@ -1242,6 +1268,27 @@ class MainWindow(QMainWindow):
         delay_layout.addStretch()
         
         settings_layout.addLayout(delay_layout)
+        
+        # 🔥 番茄书名设置（当番茄书名与本地书名不同时使用）
+        fanqie_title_layout = QHBoxLayout()
+        fanqie_title_layout.addWidget(QLabel("🍅 番茄书名:"))
+        
+        self.fanqie_title_edit = QLineEdit()
+        self.fanqie_title_edit.setPlaceholderText("如果番茄上书名不同，请填写")
+        self.fanqie_title_edit.setToolTip(
+            "当番茄平台修改了书名时使用\n"
+            "例如：本地是'凡人修仙传'，番茄改为'凡人：修仙传'\n"
+            "留空则使用本地书名"
+        )
+        fanqie_title_layout.addWidget(self.fanqie_title_edit)
+        
+        # 自动填充按钮
+        auto_fill_btn = QPushButton("📝 同步本地书名")
+        auto_fill_btn.setStyleSheet("font-size: 11px; padding: 2px 8px;")
+        auto_fill_btn.clicked.connect(self._sync_local_title_to_fanqie)
+        fanqie_title_layout.addWidget(auto_fill_btn)
+        
+        settings_layout.addLayout(fanqie_title_layout)
         
         # 发布时段设置
         time_layout = QHBoxLayout()
@@ -1875,6 +1922,138 @@ NovelPublisher_Data/              ← 统一数据目录
                     )
                     self.load_projects()
     
+    def link_old_project_resume(self):
+        """
+        🔥 关联旧项目续传记录
+        
+        当番茄上修改了书名，本地新建项目后，使用此功能继承旧项目的发布记录
+        """
+        # 获取当前选中的项目
+        proj_idx = self.project_combo.currentIndex()
+        if proj_idx < 0:
+            QMessageBox.warning(self, "警告", "请先选择当前项目")
+            return
+        
+        current_proj = self.project_combo.itemData(proj_idx)
+        if not current_proj or not current_proj.get('path'):
+            QMessageBox.warning(self, "警告", "当前项目信息不完整")
+            return
+        
+        current_path = Path(current_proj['path'])
+        
+        # 检查当前项目是否已有发布记录
+        current_record_file = current_path / ".published_chapters.json"
+        if current_record_file.exists():
+            reply = QMessageBox.question(
+                self, "确认覆盖",
+                f"当前项目已有发布记录，关联旧项目将覆盖现有记录。\n\n"
+                f"是否继续？",
+                QMessageBox.Yes | QMessageBox.No,
+                QMessageBox.No
+            )
+            if reply != QMessageBox.Yes:
+                return
+        
+        # 选择旧项目目录
+        dir_path = QFileDialog.getExistingDirectory(
+            self, "选择旧项目目录（要继承发布记录的项目）", 
+            str(Path.cwd() / "小说项目"),
+            QFileDialog.ShowDirsOnly
+        )
+        
+        if not dir_path:
+            return
+        
+        old_path = Path(dir_path)
+        
+        # 检查旧项目是否有发布记录
+        old_record_file = old_path / ".published_chapters.json"
+        if not old_record_file.exists():
+            QMessageBox.warning(
+                self, "未找到记录",
+                f"所选目录没有发布记录文件：\n"
+                f"{old_record_file}\n\n"
+                f"提示：旧项目必须至少发布过1章才能继承记录"
+            )
+            return
+        
+        try:
+            # 读取旧项目的发布记录
+            with open(old_record_file, 'r', encoding='utf-8') as f:
+                old_record = json.load(f)
+            
+            # 验证格式
+            if 'chapters' not in old_record:
+                QMessageBox.warning(self, "格式错误", "旧项目的发布记录格式不正确")
+                return
+            
+            chapter_count = len(old_record.get('chapters', {}))
+            if chapter_count == 0:
+                QMessageBox.warning(self, "无记录", "旧项目没有已发布的章节记录")
+                return
+            
+            # 确认对话框
+            reply = QMessageBox.question(
+                self, "确认关联",
+                f"找到旧项目的发布记录：\n"
+                f"• 已发布章节数: {chapter_count} 章\n"
+                f"• 最后发布时间: {self._get_last_publish_time(old_record)}\n\n"
+                f"将这些记录复制到当前项目？",
+                QMessageBox.Yes | QMessageBox.No,
+                QMessageBox.Yes
+            )
+            
+            if reply != QMessageBox.Yes:
+                return
+            
+            # 复制发布记录
+            import shutil
+            shutil.copy2(old_record_file, current_record_file)
+            
+            # 同时复制定时发布记录（如果有）
+            old_schedule_file = old_path / ".scheduled_publishes.json"
+            if old_schedule_file.exists():
+                current_schedule_file = current_path / ".scheduled_publishes.json"
+                shutil.copy2(old_schedule_file, current_schedule_file)
+            
+            self.log(f"✅ 已成功关联旧项目发布记录: {chapter_count} 章", "success")
+            QMessageBox.information(
+                self, "关联成功",
+                f"✅ 已成功继承旧项目的发布记录\n"
+                f"• 已发布章节: {chapter_count} 章\n"
+                f"• 续传功能已启用\n\n"
+                f"下次上传时会自动从第 {chapter_count + 1} 章开始续传"
+            )
+            
+            # 刷新章节列表
+            self.load_chapters(current_path)
+            
+        except Exception as e:
+            QMessageBox.critical(self, "关联失败", f"复制发布记录时出错:\n{str(e)}")
+            self.log(f"❌ 关联旧项目失败: {e}", "error")
+    
+    def _get_last_publish_time(self, record: dict) -> str:
+        """获取最后发布时间（辅助函数）"""
+        try:
+            chapters = record.get('chapters', {})
+            if not chapters:
+                return "无"
+            
+            max_ch = max(int(k) for k in chapters.keys())
+            last_info = chapters.get(str(max_ch), {})
+            publish_time = last_info.get('publish_time', '未知')
+            
+            # 格式化显示
+            if publish_time and publish_time != '未知':
+                try:
+                    dt = datetime.strptime(publish_time, '%Y-%m-%d %H:%M')
+                    return dt.strftime('%Y年%m月%d日 %H:%M')
+                except:
+                    return publish_time
+            return "未知"
+        except:
+            return "未知"
+    
     def _extract_novel_config(self, project_path: Path) -> dict:
         """从项目配置中提取小说元数据（兼容自由创意模式和市场导向模式）"""
         result = {
@@ -2165,10 +2344,16 @@ NovelPublisher_Data/              ← 统一数据目录
         # 支持新旧两种数据格式
         if isinstance(data, dict):
             project_path = Path(data['path'])
+            novel_title = data.get('novel_title') or data.get('proj_name', '')
         else:
             # 旧格式: (username, proj_name)
             username, proj_name = data
             project_path = Path.cwd() / "小说项目" / username / proj_name
+            novel_title = proj_name
+        
+        # 🔥 自动填充本地书名到番茄书名输入框（作为默认值）
+        if hasattr(self, 'fanqie_title_edit') and novel_title:
+            self.fanqie_title_edit.setText(novel_title)
         
         self.load_chapters(project_path)
     
@@ -2818,6 +3003,19 @@ NovelPublisher_Data/              ← 统一数据目录
         self.chapters_stats.setText(f"共 {total} 个章节，已选 {checked} 个")
     
     # ============== 上传控制 ==============
+    def _sync_local_title_to_fanqie(self):
+        """将本地书名同步到番茄书名输入框"""
+        proj_idx = self.project_combo.currentIndex()
+        if proj_idx >= 0:
+            proj_data = self.project_combo.itemData(proj_idx)
+            if isinstance(proj_data, dict):
+                local_title = proj_data.get('novel_title') or proj_data.get('proj_name', '')
+                if local_title:
+                    self.fanqie_title_edit.setText(local_title)
+                    self.log(f"📝 已同步本地书名到番茄书名: {local_title}", "info")
+                    return
+        QMessageBox.information(self, "提示", "未能获取到本地书名，请手动填写")
+    
     def start_upload(self):
         """开始上传"""
         # 检查账户选择
@@ -2891,10 +3089,16 @@ NovelPublisher_Data/              ← 统一数据目录
                     novel_config[key] = value
             novel_config['novel_title'] = novel_config.get('novel_title') or novel_title
         
+        # 获取番茄书名（如果填写了）
+        fanqie_book_title = self.fanqie_title_edit.text().strip()
+        if fanqie_book_title and fanqie_book_title != novel_title:
+            self.log(f"📝 使用番茄书名: {fanqie_book_title} (本地书名: {novel_title})", "info")
+        
         # 启动上传线程
         self.upload_worker = UploadWorker(
             novel_title, chapters, settings, acc, novel_config,
-            project_path=Path(project_path) if project_path else None
+            project_path=Path(project_path) if project_path else None,
+            fanqie_book_title=fanqie_book_title if fanqie_book_title else None
         )
         self.upload_worker.progress_signal.connect(self.on_upload_progress)
         self.upload_worker.log_signal.connect(self.on_upload_log)
@@ -3054,9 +3258,9 @@ NovelPublisher_Data/              ← 统一数据目录
                 next_date = base_date + timedelta(days=1)
                 next_time = base_time
             else:
-                # 当天还有额度，从 base_time 开始（或+30分钟）
-                base_dt = datetime.combine(base_date, datetime.strptime(base_time, '%H:%M').time())
-                next_dt = base_dt + timedelta(minutes=30 * last_day_count)
+                # 当天还有额度，所有章节同时发布
+                next_date = base_date
+                next_time = base_time
                 next_date = next_dt.date()
                 next_time = next_dt.strftime('%H:%M')
             

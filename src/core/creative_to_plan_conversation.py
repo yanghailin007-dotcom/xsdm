@@ -278,42 +278,51 @@ class CreativeToPlanConversation:
    - 如何强化商业化属性
    - 潜在的风险点及规避方案
 
-**输出格式（JSON）**
+**输出格式（严格JSON，必须遵守以下规则）**
+
+⚠️ **重要格式要求**：
+1. **必须**使用双引号包裹所有字符串（不要用单引号）
+2. **必须**确保JSON结构完整，每个 `{{` 都有对应的 `}}`
+3. **必须**确保数组和对象最后一个元素后**没有**多余的逗号
+4. **必须**确保所有键名用双引号包裹
+
 ```json
 {{
-  "is_fanfiction": true/false,
+  "is_fanfiction": false,
   "original_work": {{
-    "name": "原作名称（如果不是同人文则为空）",
-    "genre": "原作类型",
-    "core_setting": "原作核心设定（300字以内）",
-    "power_system": "力量体系",
-    "main_characters": ["主角", "重要配角"],
-    "fan_taboos": ["不能改动的设定1", "设定2"],
-    "target_fans": "粉丝群体特征"
+    "name": "",
+    "genre": "",
+    "core_setting": "",
+    "power_system": "",
+    "main_characters": [],
+    "fan_taboos": [],
+    "target_fans": ""
   }},
   "tomato_analysis": {{
-    "historical_performance": "该类型在番茄的表现",
+    "historical_performance": "",
     "target_audience": {{
-      "age": "18-30岁",
-      "gender": "男/女/均衡",
-      "preferences": ["偏好1", "偏好2"]
+      "age": "18-30",
+      "gender": "均衡",
+      "preferences": []
     }},
-    "algorithm_fit": "推荐机制适配度评分1-10及理由"
+    "algorithm_fit": ""
   }},
   "core_selling_points": {{
-    "one_liner": "一句话卖点",
-    "main_hooks": ["爽点1", "爽点2", "爽点3"],
-    "differentiation": "差异化竞争力"
+    "one_liner": "",
+    "main_hooks": [],
+    "differentiation": ""
   }},
   "creative_expansion": {{
-    "commercial_enhancement": "商业化强化建议",
-    "risks": ["风险1", "风险2"],
-    "mitigations": ["规避方案1", "方案2"]
+    "commercial_enhancement": "",
+    "risks": [],
+    "mitigations": []
   }}
 }}
 ```
 
-请只输出JSON，不要其他解释。"""
+⚠️ **警告**：如果JSON格式错误，系统将无法解析你的回答！
+
+请只输出JSON，不要任何其他文字、解释或代码块标记之外的字符。"""
 
         # 发送对话消息
         response = self.session.send_message(
@@ -645,22 +654,123 @@ class CreativeToPlanConversation:
         
         return result
     
-    def _parse_json_response(self, response: str) -> Dict:
-        """解析JSON响应"""
+    def _parse_json_response(self, response: str, max_retries: int = 2) -> Dict:
+        """解析JSON响应 - 增强容错版，带自动重试"""
+        import re
+        
+        # 先清理常见的格式问题
+        cleaned = response.strip()
+        
+        # 移除 BOM 标记
+        if cleaned.startswith('\ufeff'):
+            cleaned = cleaned[1:]
+        
+        # 🔥 第一轮：尝试各种解析方法
+        # 尝试直接解析
         try:
-            # 尝试直接解析
-            return json.loads(response)
+            return json.loads(cleaned)
         except json.JSONDecodeError:
-            # 尝试提取JSON代码块
-            import re
-            json_match = re.search(r'```(?:json)?\s*({\s*".*?})\s*```', response, re.DOTALL)
+            pass
+        
+        # 尝试提取JSON代码块
+        try:
+            json_match = re.search(r'```(?:json)?\s*({\s*".*?})\s*```', cleaned, re.DOTALL)
             if json_match:
                 return json.loads(json_match.group(1))
-            # 尝试查找第一个 { 和最后一个 }
-            json_match = re.search(r'({.*})', response, re.DOTALL)
-            if json_match:
-                return json.loads(json_match.group(1))
-            raise ValueError(f"无法解析JSON响应: {response[:200]}")
+        except json.JSONDecodeError:
+            pass
+        
+        # 尝试查找第一个 { 和最后一个 }
+        try:
+            start = cleaned.find('{')
+            end = cleaned.rfind('}')
+            if start != -1 and end != -1 and start < end:
+                json_str = cleaned[start:end+1]
+                return json.loads(json_str)
+        except json.JSONDecodeError:
+            pass
+        
+        # 修复常见JSON错误后再尝试
+        try:
+            fixed = re.sub(r',(\s*[}\]])', r'\1', cleaned)
+            fixed = fixed.replace("'", '"')
+            fixed = re.sub(r'([{,])\s*(\w+):', r'\1"\2":', fixed)
+            start = fixed.find('{')
+            end = fixed.rfind('}')
+            if start != -1 and end != -1:
+                return json.loads(fixed[start:end+1])
+        except json.JSONDecodeError:
+            pass
+        
+        # 🔥 第二轮：让AI修复JSON格式（重试机制）
+        if max_retries > 0 and self.session:
+            logger.warning(f"[{self.session_id}] JSON解析失败，请求AI修复格式（剩余重试次数: {max_retries}）")
+            try:
+                fix_prompt = f"""你刚才的返回JSON格式有误，请修复并重新输出正确的JSON。
+
+**错误信息**: JSON格式错误，请检查引号、逗号等
+
+**你的原始返回**:
+```
+{cleaned[:2000]}...
+```
+
+**要求**:
+1. 只输出正确的JSON，不要其他解释
+2. 确保所有字符串用双引号包裹
+3. 确保没有多余的逗号
+4. 确保JSON结构完整
+
+请输出修复后的JSON:"""
+                
+                fixed_response = self.session.send_message(
+                    user_prompt=fix_prompt,
+                    temperature=0.3
+                )
+                
+                # 递归调用，减少重试次数
+                return self._parse_json_response(fixed_response, max_retries - 1)
+                
+            except Exception as e:
+                logger.error(f"[{self.session_id}] AI修复JSON失败: {e}")
+        
+        # 记录失败的响应用于调试
+        logger.error(f"[{self.session_id}] JSON解析失败，所有重试已用尽")
+        error_file = Path(f"logs/json_parse_error_{self.session_id}.txt")
+        try:
+            error_file.parent.mkdir(exist_ok=True)
+            with open(error_file, 'w', encoding='utf-8') as f:
+                f.write(f"解析失败的响应:\n{cleaned}\n\n")
+            logger.error(f"[{self.session_id}] 失败的响应已保存到: {error_file}")
+        except:
+            pass
+        
+        # 🔥 返回一个默认结果而不是崩溃
+        logger.warning(f"[{self.session_id}] 返回默认结果，避免崩溃")
+        return self._get_default_result()
+    
+    def _get_default_result(self) -> Dict:
+        """获取默认结果，用于JSON解析失败时避免崩溃"""
+        return {
+            "error": "JSON解析失败，使用默认结果",
+            "is_fanfiction": False,
+            "original_work": {},
+            "tomato_analysis": {
+                "historical_performance": "解析失败，默认中等表现",
+                "target_audience": {"age": "18-30岁", "gender": "均衡", "preferences": []},
+                "algorithm_fit": "5"
+            },
+            "core_selling_points": {
+                "one_liner": "解析失败，请检查创意输入",
+                "main_hooks": [],
+                "differentiation": "默认差异化"
+            },
+            "creative_expansion": {
+                "commercial_enhancement": "解析失败，使用默认建议",
+                "risks": [],
+                "mitigations": []
+            }
+        }
     
     def _save_step_result(self, step_name: str, data: Dict, project_path: Optional[str]):
         """保存步骤结果到文件"""

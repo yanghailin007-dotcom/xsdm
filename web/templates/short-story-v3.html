@@ -1,0 +1,689 @@
+{% extends "layouts/base-v2.html" %}
+
+{% block title %}短篇创作 - 分步生成{% endblock %}
+
+{% block extra_css %}
+<style>
+/* 自定义滚动条 */
+.ss-left-panel::-webkit-scrollbar,
+.ss-center-panel::-webkit-scrollbar,
+.ss-right-panel::-webkit-scrollbar { width: 4px; }
+.ss-left-panel::-webkit-scrollbar-thumb,
+.ss-center-panel::-webkit-scrollbar-thumb,
+.ss-right-panel::-webkit-scrollbar-thumb { background: var(--v2-border); border-radius: 2px; }
+
+/* 页面整体 */
+.ss-workspace { display: flex; flex-direction: column; height: calc(100vh - 64px); background: var(--v2-bg-primary); }
+
+/* 顶部栏 */
+.ss-top-bar { display: flex; align-items: center; justify-content: space-between; padding: 12px 24px; background: var(--v2-bg-secondary); border-bottom: 1px solid var(--v2-border); }
+.ss-top-left { display: flex; align-items: center; gap: 16px; }
+.ss-back-btn { width: 36px; height: 36px; display: flex; align-items: center; justify-content: center; border: 1px solid var(--v2-border); border-radius: 8px; background: var(--v2-bg-primary); color: var(--v2-text-secondary); cursor: pointer; transition: all .2s; }
+.ss-back-btn:hover { border-color: #ef4444; color: #ef4444; }
+.ss-title-input { font-size: 16px; font-weight: 600; border: none; background: transparent; color: var(--v2-text-primary); outline: none; min-width: 200px; }
+
+/* 阶段标签 */
+.ss-phase-tabs { display: flex; gap: 8px; background: var(--v2-bg-primary); padding: 4px; border-radius: 8px; border: 1px solid var(--v2-border); }
+.ss-phase-tab { padding: 8px 20px; border-radius: 6px; font-size: 14px; font-weight: 500; color: var(--v2-text-secondary); cursor: pointer; border: none; background: transparent; transition: all .2s; display: flex; align-items: center; gap: 6px; }
+.ss-phase-tab:hover { color: var(--v2-text-primary); }
+.ss-phase-tab.active { background: var(--v2-bg-secondary); color: var(--v2-text-primary); box-shadow: 0 1px 3px rgba(0,0,0,.08); }
+.ss-phase-tab:disabled { opacity: 0.5; cursor: not-allowed; }
+.ss-phase-tab .badge { font-size: 11px; padding: 2px 6px; background: var(--v2-border); border-radius: 10px; color: var(--v2-text-secondary); }
+
+/* 按钮 */
+.ss-btn { display: inline-flex; align-items: center; gap: 6px; padding: 10px 20px; border-radius: 8px; font-size: 14px; font-weight: 500; border: none; cursor: pointer; transition: all .2s; }
+.ss-btn-primary { background: linear-gradient(135deg, #ef4444, #f97316); color: #fff; }
+.ss-btn-primary:hover { opacity: 0.9; }
+.ss-btn-primary:disabled { opacity: 0.5; cursor: not-allowed; }
+.ss-btn-secondary { background: var(--v2-bg-primary); color: var(--v2-text-primary); border: 1px solid var(--v2-border); }
+.ss-btn-secondary:hover { border-color: #ef4444; }
+.ss-btn-success { background: #10b981; color: #fff; }
+.ss-btn-text { background: transparent; color: var(--v2-text-secondary); padding: 8px 12px; }
+.ss-btn-text:hover { color: #ef4444; }
+
+/* 主体三栏 */
+.ss-main { display: flex; flex: 1; overflow: hidden; }
+
+/* 左栏 */
+.ss-left-panel { width: 320px; background: var(--v2-bg-secondary); border-right: 1px solid var(--v2-border); display: flex; flex-direction: column; overflow-y: auto; }
+.ss-panel-section { padding: 16px; border-bottom: 1px solid var(--v2-border); }
+.ss-section-header { display: flex; align-items: center; gap: 8px; margin-bottom: 12px; font-size: 14px; font-weight: 600; color: var(--v2-text-primary); }
+.ss-section-header i { color: var(--v2-text-secondary); font-size: 16px; }
+.ss-form-group { margin-bottom: 12px; }
+.ss-form-group:last-child { margin-bottom: 0; }
+.ss-form-group label { display: block; font-size: 12px; font-weight: 500; color: var(--v2-text-secondary); margin-bottom: 6px; }
+.ss-form-group select, .ss-form-group input, .ss-form-group textarea { width: 100%; padding: 10px 12px; border: 1px solid var(--v2-border); border-radius: 8px; background: var(--v2-bg-primary); color: var(--v2-text-primary); font-size: 13px; outline: none; transition: border .2s; }
+.ss-form-group select:focus, .ss-form-group input:focus, .ss-form-group textarea:focus { border-color: #ef4444; }
+.ss-form-group textarea { min-height: 80px; resize: vertical; }
+.ss-word-count { text-align: right; font-size: 12px; color: var(--v2-text-secondary); margin-top: 4px; }
+
+/* 模板选择 */
+.ss-template-tabs { display: flex; gap: 4px; margin-bottom: 12px; }
+.ss-template-tab { flex: 1; padding: 8px; border-radius: 6px; font-size: 13px; text-align: center; cursor: pointer; border: none; background: var(--v2-bg-primary); color: var(--v2-text-secondary); transition: all .2s; }
+.ss-template-tab.active { background: #ef4444; color: #fff; }
+
+/* 知识库 */
+.ss-kb-placeholder { display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 24px; background: var(--v2-bg-primary); border: 1px dashed var(--v2-border); border-radius: 8px; color: var(--v2-text-secondary); font-size: 13px; }
+
+/* 生成按钮区 */
+.ss-generate-section { margin-top: auto; padding: 16px; border-top: 1px solid var(--v2-border); }
+.ss-generate-btn { width: 100%; padding: 12px; font-size: 15px; font-weight: 600; justify-content: center; }
+.ss-regenerate-btn { width: 100%; padding: 10px; font-size: 14px; background: transparent; border: 1px solid var(--v2-border); color: var(--v2-text-secondary); margin-top: 8px; }
+.ss-regenerate-btn:hover { border-color: #ef4444; color: #ef4444; }
+
+/* 中栏 */
+.ss-center-panel { flex: 1; background: var(--v2-bg-primary); display: flex; flex-direction: column; overflow: hidden; }
+.ss-panel-header { display: flex; align-items: center; justify-content: space-between; padding: 12px 16px; border-bottom: 1px solid var(--v2-border); font-size: 14px; font-weight: 600; color: var(--v2-text-primary); }
+.ss-result-area { flex: 1; overflow-y: auto; padding: 20px; }
+
+/* 空状态 */
+.ss-empty-state { display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100%; color: var(--v2-text-secondary); text-align: center; }
+.ss-empty-icon { width: 80px; height: 80px; background: linear-gradient(135deg, #3b82f6, #8b5cf6); border-radius: 20px; display: flex; align-items: center; justify-content: center; margin-bottom: 16px; font-size: 36px; }
+.ss-empty-text { font-size: 14px; margin-bottom: 8px; }
+.ss-empty-tip { font-size: 12px; opacity: 0.7; }
+
+/* 生成中 */
+.ss-generating { display: none; flex-direction: column; align-items: center; justify-content: center; height: 100%; }
+.ss-spinner { width: 48px; height: 48px; border: 3px solid var(--v2-border); border-top-color: #ef4444; border-radius: 50%; animation: spin 1s linear infinite; margin-bottom: 16px; }
+@keyframes spin { to { transform: rotate(360deg); } }
+.ss-generating-text { font-size: 14px; color: var(--v2-text-secondary); margin-bottom: 8px; }
+.ss-generating-tip { font-size: 12px; color: var(--v2-text-secondary); opacity: 0.7; padding: 8px 16px; background: var(--v2-bg-secondary); border-radius: 20px; }
+
+/* 大纲结果 */
+.ss-outline-result { background: var(--v2-bg-secondary); border: 1px solid var(--v2-border); border-radius: 12px; padding: 20px; }
+.ss-outline-title { font-size: 20px; font-weight: 700; margin-bottom: 8px; color: var(--v2-text-primary); }
+.ss-outline-synopsis { font-size: 14px; color: var(--v2-text-secondary); margin-bottom: 20px; line-height: 1.6; }
+.ss-outline-chapters { display: flex; flex-direction: column; gap: 10px; }
+.ss-outline-chapter { display: flex; align-items: flex-start; gap: 12px; padding: 12px; background: var(--v2-bg-primary); border-radius: 8px; border: 1px solid var(--v2-border); }
+.ss-outline-chapter-num { font-size: 12px; color: var(--v2-text-secondary); background: var(--v2-bg-secondary); padding: 2px 8px; border-radius: 4px; flex-shrink: 0; }
+.ss-outline-chapter-info { flex: 1; }
+.ss-outline-chapter-title { font-weight: 600; font-size: 14px; margin-bottom: 4px; }
+.ss-outline-chapter-synopsis { font-size: 13px; color: var(--v2-text-secondary); }
+
+/* 章节列表 */
+.ss-chapters-list { display: flex; flex-direction: column; gap: 12px; }
+.ss-chapter-card { background: var(--v2-bg-secondary); border: 1px solid var(--v2-border); border-radius: 12px; overflow: hidden; }
+.ss-chapter-card-header { display: flex; align-items: center; justify-content: space-between; padding: 12px 16px; cursor: pointer; transition: background .2s; }
+.ss-chapter-card-header:hover { background: var(--v2-bg-primary); }
+.ss-chapter-card.expanded .ss-chapter-card-header { background: var(--v2-bg-primary); }
+.ss-chapter-card-info { display: flex; align-items: center; gap: 12px; }
+.ss-chapter-card-num { font-size: 12px; color: var(--v2-text-secondary); background: var(--v2-bg-primary); padding: 2px 8px; border-radius: 4px; }
+.ss-chapter-card-title { font-weight: 600; font-size: 14px; }
+.ss-chapter-card-meta { font-size: 12px; color: var(--v2-text-secondary); }
+.ss-chapter-card-actions { display: flex; gap: 8px; }
+.ss-chapter-card-action { width: 28px; height: 28px; display: flex; align-items: center; justify-content: center; border: none; background: transparent; color: var(--v2-text-secondary); border-radius: 6px; cursor: pointer; transition: all .2s; }
+.ss-chapter-card-action:hover { background: var(--v2-bg-primary); color: #ef4444; }
+.ss-chapter-card-content { padding: 16px; font-size: 14px; line-height: 1.8; color: var(--v2-text-primary); white-space: pre-wrap; border-top: 1px solid var(--v2-border); display: none; }
+.ss-chapter-card.expanded .ss-chapter-card-content { display: block; }
+
+/* 右栏 */
+.ss-right-panel { width: 400px; background: var(--v2-bg-secondary); border-left: 1px solid var(--v2-border); display: flex; flex-direction: column; }
+.ss-editor-tabs { display: flex; border-bottom: 1px solid var(--v2-border); }
+.ss-editor-tab { flex: 1; padding: 12px; font-size: 14px; font-weight: 500; color: var(--v2-text-secondary); background: transparent; border: none; cursor: pointer; transition: all .2s; display: flex; align-items: center; justify-content: center; gap: 6px; }
+.ss-editor-tab:hover { color: var(--v2-text-primary); }
+.ss-editor-tab.active { color: #ef4444; background: var(--v2-bg-primary); }
+.ss-editor-content { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
+.ss-editor-toolbar { display: flex; align-items: center; justify-content: space-between; padding: 8px 16px; border-bottom: 1px solid var(--v2-border); }
+.ss-editor-toolbar-text { font-size: 12px; color: var(--v2-text-secondary); }
+.ss-editor-actions { display: flex; gap: 8px; }
+.ss-editor-btn { padding: 6px 12px; font-size: 12px; }
+.ss-editor-textarea { flex: 1; width: 100%; padding: 16px; border: none; background: var(--v2-bg-primary); color: var(--v2-text-primary); font-size: 14px; line-height: 1.8; outline: none; resize: none; }
+.ss-editor-textarea::placeholder { color: var(--v2-text-secondary); opacity: 0.6; }
+.ss-editor-footer { padding: 8px 16px; text-align: right; font-size: 12px; color: var(--v2-text-secondary); border-top: 1px solid var(--v2-border); }
+
+/* 封面设置 */
+.ss-cover-upload { display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 40px; border: 2px dashed var(--v2-border); border-radius: 16px; margin: 20px; cursor: pointer; transition: all .2s; }
+.ss-cover-upload:hover { border-color: #ef4444; }
+.ss-cover-upload-icon { font-size: 48px; color: var(--v2-text-secondary); margin-bottom: 16px; }
+.ss-cover-upload-text { font-size: 16px; font-weight: 600; margin-bottom: 8px; }
+.ss-cover-upload-tip { font-size: 13px; color: var(--v2-text-secondary); }
+
+/* 进度指示 */
+.ss-progress-info { display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--v2-text-secondary); }
+.ss-progress-dot { width: 8px; height: 8px; border-radius: 50%; background: #10b981; animation: pulse 2s infinite; }
+@keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="ss-workspace" id="short-story-app">
+  <!-- 顶部栏 -->
+  <div class="ss-top-bar">
+    <div class="ss-top-left">
+      <button class="ss-back-btn" onclick="history.back()">
+        <i class="fas fa-chevron-left"></i>
+      </button>
+      <input type="text" class="ss-title-input" placeholder="未命名短篇小说" id="novel-title" v-model="state.title">
+    </div>
+    
+    <div class="ss-phase-tabs">
+      <button class="ss-phase-tab" :class="{ active: state.phase === 'outline' }" @click="switchPhase('outline')">
+        <i class="fas fa-file-alt"></i> 大纲生成
+      </button>
+      <button class="ss-phase-tab" :class="{ active: state.phase === 'content' }" @click="switchPhase('content')" :disabled="!state.outline">
+        <i class="fas fa-pen"></i> 正文生成
+      </button>
+      <button class="ss-phase-tab" :class="{ active: state.phase === 'cover' }" @click="switchPhase('cover')" :disabled="!state.chapters.length">
+        <i class="fas fa-image"></i> 封面设置
+      </button>
+    </div>
+    
+    <div class="ss-top-actions">
+      <button class="ss-btn ss-btn-secondary" @click="saveProject">
+        <i class="fas fa-save"></i> 保存
+      </button>
+      <button class="ss-btn ss-btn-success" @click="finalizeProject" v-if="state.phase === 'cover'">
+        <i class="fas fa-check"></i> 标记为完成
+      </button>
+    </div>
+  </div>
+
+  <!-- 主体 -->
+  <div class="ss-main">
+    <!-- 左栏：配置 -->
+    <div class="ss-left-panel">
+      <!-- 大纲阶段配置 -->
+      <template v-if="state.phase === 'outline'">
+        <div class="ss-panel-section">
+          <div class="ss-section-header">
+            <i class="fas fa-robot"></i> AI模型
+          </div>
+          <div class="ss-form-group">
+            <select v-model="state.config.model">
+              <option value="gemini">Gemini 2.5 Flash</option>
+              <option value="deepseek">DeepSeek</option>
+              <option value="kimi">Kimi K2.5</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="ss-panel-section">
+          <div class="ss-section-header">
+            <i class="fas fa-sliders-h"></i> 创作设定
+          </div>
+          <div class="ss-form-group">
+            <label>题材类型</label>
+            <select v-model="state.config.genre">
+              <option value="revenge_romance">虐恋追妻火葬场</option>
+              <option value="urban_brainstorm">都市脑洞</option>
+              <option value="era_story">年代文</option>
+              <option value="rebirth_revenge">重生复仇</option>
+              <option value="high_concept">高概念脑洞</option>
+            </select>
+          </div>
+          <div class="ss-form-group">
+            <label>章节数</label>
+            <select v-model="state.config.chapterCount">
+              <option :value="8">8章（约1万字）</option>
+              <option :value="12">12章（约1.5万字）</option>
+              <option :value="16">16章（约2万字）</option>
+              <option :value="20">20章（约2.5万字）</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="ss-panel-section">
+          <div class="ss-section-header">
+            <i class="fas fa-lightbulb"></i> 创意描述 <span style="color:#ef4444">*</span>
+          </div>
+          <div class="ss-form-group">
+            <textarea v-model="state.config.creativeSeed" placeholder="请输入一句话梗概，例如：我被闺蜜陷害，重生后我要她身败名裂"></textarea>
+            <div class="ss-word-count">{{ state.config.creativeSeed.length }} / 500</div>
+          </div>
+        </div>
+
+        <div class="ss-panel-section">
+          <div class="ss-section-header">
+            <i class="fas fa-info-circle"></i> 补充信息（可选）
+          </div>
+          <div class="ss-form-group">
+            <textarea v-model="state.config.extraInfo" placeholder="想要AI考虑的额外信息，如主角设定、金手指、关键情节..."></textarea>
+          </div>
+        </div>
+
+        <div class="ss-generate-section">
+          <button class="ss-btn ss-btn-primary ss-generate-btn" @click="generateOutline" :disabled="!state.config.creativeSeed || state.isGenerating">
+            <i class="fas fa-magic" v-if="!state.isGenerating"></i>
+            <i class="fas fa-spinner fa-spin" v-else></i>
+            {{ state.isGenerating ? '生成中...' : '开始生成大纲' }}
+          </button>
+          <button class="ss-regenerate-btn" v-if="state.outline" @click="regenerateOutline" :disabled="state.isGenerating">
+            <i class="fas fa-redo"></i> 重新生成大纲
+          </button>
+        </div>
+      </template>
+
+      <!-- 正文阶段配置 -->
+      <template v-if="state.phase === 'content'">
+        <div class="ss-panel-section">
+          <div class="ss-section-header">
+            <i class="fas fa-file-alt"></i> 当前大纲
+          </div>
+          <div style="font-size:14px;font-weight:600;margin-bottom:8px;">{{ state.outline?.title }}</div>
+          <div style="font-size:12px;color:var(--v2-text-secondary);margin-bottom:12px;line-height:1.5;">
+            {{ state.outline?.synopsis?.slice(0, 100) }}...
+          </div>
+          <div style="font-size:12px;color:var(--v2-text-secondary);">
+            共 {{ state.outline?.chapters?.length }} 章
+          </div>
+        </div>
+
+        <div class="ss-generate-section">
+          <button class="ss-btn ss-btn-primary ss-generate-btn" @click="generateContent" :disabled="state.isGenerating">
+            <i class="fas fa-magic" v-if="!state.isGenerating"></i>
+            <i class="fas fa-spinner fa-spin" v-else></i>
+            {{ state.isGenerating ? '生成中...' : '开始生成正文' }}
+          </button>
+          <div style="font-size:12px;color:var(--v2-text-secondary);text-align:center;margin-top:8px;">
+            将基于右侧大纲逐章生成
+          </div>
+        </div>
+      </template>
+
+      <!-- 封面阶段配置 -->
+      <template v-if="state.phase === 'cover'">
+        <div class="ss-panel-section">
+          <div class="ss-section-header">
+            <i class="fas fa-check-circle"></i> 完成信息
+          </div>
+          <div style="font-size:14px;font-weight:600;margin-bottom:8px;">{{ state.title || '未命名' }}</div>
+          <div style="font-size:12px;color:var(--v2-text-secondary);">
+            共 {{ state.chapters.length }} 章 / {{ totalWordCount }} 字
+          </div>
+        </div>
+      </template>
+    </div>
+
+    <!-- 中栏：生成结果 -->
+    <div class="ss-center-panel">
+      <div class="ss-panel-header">
+        <span>{{ phaseTitle }}</span>
+        <div class="ss-progress-info" v-if="state.isGenerating">
+          <span class="ss-progress-dot"></span>
+          <span>{{ state.progressMessage }}</span>
+        </div>
+      </div>
+      
+      <div class="ss-result-area">
+        <!-- 空状态 -->
+        <div class="ss-empty-state" v-if="showEmptyState">
+          <div class="ss-empty-icon">📝</div>
+          <div class="ss-empty-text">{{ emptyStateTitle }}</div>
+          <div class="ss-empty-tip">{{ emptyStateTip }}</div>
+        </div>
+
+        <!-- 生成中 -->
+        <div class="ss-generating" v-if="state.isGenerating" style="display:flex;">
+          <div class="ss-spinner"></div>
+          <div class="ss-generating-text">{{ state.progressMessage }}</div>
+          <div class="ss-generating-tip">💡 生成需要几分钟，请耐心等待</div>
+        </div>
+
+        <!-- 大纲结果 -->
+        <div class="ss-outline-result" v-if="state.phase === 'outline' && state.outline && !state.isGenerating">
+          <div class="ss-outline-title">{{ state.outline.title }}</div>
+          <div class="ss-outline-synopsis">{{ state.outline.synopsis }}</div>
+          <div class="ss-outline-chapters">
+            <div class="ss-outline-chapter" v-for="ch in state.outline.chapters" :key="ch.chapter_number">
+              <span class="ss-outline-chapter-num">第{{ ch.chapter_number }}章</span>
+              <div class="ss-outline-chapter-info">
+                <div class="ss-outline-chapter-title">{{ ch.title }}</div>
+                <div class="ss-outline-chapter-synopsis">{{ ch.synopsis }}</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- 章节列表 -->
+        <div class="ss-chapters-list" v-if="state.phase === 'content' && state.chapters.length && !state.isGenerating">
+          <div class="ss-chapter-card" v-for="ch in state.chapters" :key="ch.chapter_number" :class="{ expanded: ch.expanded }" :data-chapter="ch.chapter_number">
+            <div class="ss-chapter-card-header" @click="toggleChapter(ch)">
+              <div class="ss-chapter-card-info">
+                <span class="ss-chapter-card-num">第{{ ch.chapter_number }}章</span>
+                <span class="ss-chapter-card-title">{{ ch.title }}</span>
+                <span class="ss-chapter-card-meta">{{ ch.word_count }}字</span>
+              </div>
+              <div class="ss-chapter-card-actions">
+                <button class="ss-chapter-card-action" title="复制" @click.stop="copyChapter(ch)">
+                  <i class="fas fa-copy"></i>
+                </button>
+                <button class="ss-chapter-card-action" title="重新生成" @click.stop="regenerateChapter(ch.chapter_number)">
+                  <i class="fas fa-redo"></i>
+                </button>
+              </div>
+            </div>
+            <div class="ss-chapter-card-content">{{ ch.content }}</div>
+          </div>
+        </div>
+
+        <!-- 封面上传 -->
+        <div v-if="state.phase === 'cover'" style="padding:20px;">
+          <div class="ss-cover-upload" @click="uploadCover" v-if="!state.coverImage">
+            <div class="ss-cover-upload-icon"><i class="fas fa-image"></i></div>
+            <div class="ss-cover-upload-text">上传封面图片</div>
+            <div class="ss-cover-upload-tip">建议尺寸：600×800 像素，支持 JPG/PNG</div>
+          </div>
+          <div v-else style="text-align:center;">
+            <img :src="state.coverImage" style="max-width:300px;border-radius:12px;box-shadow:0 4px 20px rgba(0,0,0,0.1);">
+            <button class="ss-btn ss-btn-secondary" style="margin-top:16px;" @click="state.coverImage = null">
+              <i class="fas fa-trash"></i> 删除封面
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 右栏：编辑器 -->
+    <div class="ss-right-panel">
+      <div class="ss-editor-tabs">
+        <button class="ss-editor-tab" :class="{ active: state.editorTab === 'edit' }" @click="state.editorTab = 'edit'">
+          <i class="fas fa-edit"></i> {{ editorTabTitle }}
+        </button>
+        <button class="ss-editor-tab" :class="{ active: state.editorTab === 'history' }" @click="state.editorTab = 'history'">
+          <i class="fas fa-history"></i> 历史
+        </button>
+      </div>
+      
+      <div class="ss-editor-content">
+        <div class="ss-editor-toolbar" v-if="state.editorTab === 'edit'">
+          <span class="ss-editor-toolbar-text">在此编辑，修改后会同步到生成结果</span>
+          <div class="ss-editor-actions">
+            <button class="ss-btn ss-btn-primary ss-editor-btn" @click="applyEditorChanges">
+              <i class="fas fa-check"></i> 应用
+            </button>
+          </div>
+        </div>
+        
+        <textarea class="ss-editor-textarea" v-model="state.editorContent" :placeholder="editorPlaceholder"></textarea>
+        
+        <div class="ss-editor-footer">
+          <span>{{ state.editorContent.length }} 字</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
+<script>
+const { createApp, ref, computed, reactive } = Vue;
+
+createApp({
+  setup() {
+    // 状态管理
+    const state = reactive({
+      phase: 'outline', // 'outline' | 'content' | 'cover'
+      title: '',
+      config: {
+        model: 'gemini',
+        genre: 'revenge_romance',
+        chapterCount: 12,
+        creativeSeed: '',
+        extraInfo: ''
+      },
+      outline: null, // { title, synopsis, chapters: [] }
+      chapters: [], // [{ chapter_number, title, content, word_count, expanded }]
+      coverImage: null,
+      editorContent: '',
+      editorTab: 'edit',
+      isGenerating: false,
+      progressMessage: '',
+      taskId: null
+    });
+
+    // 计算属性
+    const phaseTitle = computed(() => {
+      const titles = { outline: 'AI生成大纲', content: 'AI生成正文', cover: '封面设置' };
+      return titles[state.phase];
+    });
+
+    const editorTabTitle = computed(() => {
+      return state.phase === 'outline' ? '大纲编辑' : '正文编辑';
+    });
+
+    const editorPlaceholder = computed(() => {
+      if (state.phase === 'outline') {
+        return '请在此输入短篇小说大纲，或从左侧AI生成后应用到这里...\n\n示例：\n书名：《XXX》\n简介：...\n第1章：...';
+      }
+      return '请在此编辑正文内容...';
+    });
+
+    const showEmptyState = computed(() => {
+      if (state.isGenerating) return false;
+      if (state.phase === 'outline') return !state.outline;
+      if (state.phase === 'content') return !state.chapters.length;
+      return false;
+    });
+
+    const emptyStateTitle = computed(() => {
+      const titles = { outline: '大纲将在这里生成', content: '正文将在这里生成', cover: '' };
+      return titles[state.phase];
+    });
+
+    const emptyStateTip = computed(() => {
+      const tips = { 
+        outline: '配置左侧参数后点击"开始生成大纲"', 
+        content: '点击"开始生成正文"基于大纲生成',
+        cover: ''
+      };
+      return tips[state.phase];
+    });
+
+    const totalWordCount = computed(() => {
+      return state.chapters.reduce((sum, ch) => sum + (ch.word_count || 0), 0);
+    });
+
+    // 方法
+    const switchPhase = (phase) => {
+      if (phase === 'content' && !state.outline) return;
+      if (phase === 'cover' && !state.chapters.length) return;
+      state.phase = phase;
+      updateEditorContent();
+    };
+
+    const updateEditorContent = () => {
+      if (state.phase === 'outline' && state.outline) {
+        const chapters = state.outline.chapters.map(ch => 
+          `第${ch.chapter_number}章：${ch.title}\n${ch.synopsis}`
+        ).join('\n\n');
+        state.editorContent = `书名：${state.outline.title}\n\n简介：\n${state.outline.synopsis}\n\n章节大纲：\n${chapters}`;
+      } else if (state.phase === 'content' && state.chapters.length) {
+        state.editorContent = state.chapters.map(ch => 
+          `第${ch.chapter_number}章 ${ch.title}\n\n${ch.content}`
+        ).join('\n\n');
+      }
+    };
+
+    const generateOutline = async () => {
+      state.isGenerating = true;
+      state.progressMessage = '正在生成大纲...';
+      
+      try {
+        const res = await fetch('/api/short-story/outline', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            creative_seed: state.config.creativeSeed,
+            genre: state.config.genre,
+            chapter_count: state.config.chapterCount,
+            target_word_count: state.config.chapterCount * 1500,
+            extra_info: state.config.extraInfo,
+            title: state.title || state.config.creativeSeed.slice(0, 20)
+          })
+        });
+        
+        const data = await res.json();
+        if (data.task_id) {
+          state.taskId = data.task_id;
+          pollTaskStatus('outline');
+        } else {
+          throw new Error(data.error || '创建任务失败');
+        }
+      } catch (err) {
+        alert('生成失败: ' + err.message);
+        state.isGenerating = false;
+      }
+    };
+
+    const regenerateOutline = () => {
+      state.outline = null;
+      generateOutline();
+    };
+
+    const generateContent = async () => {
+      state.isGenerating = true;
+      state.progressMessage = '正在生成正文...';
+      
+      try {
+        const res = await fetch('/api/short-story/content', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            outline: state.outline,
+            config: {
+              title: state.outline.title,
+              genre: state.config.genre,
+              chapter_count: state.config.chapterCount,
+              target_word_count: state.config.chapterCount * 1500
+            }
+          })
+        });
+        
+        const data = await res.json();
+        if (data.task_id) {
+          state.taskId = data.task_id;
+          pollTaskStatus('content');
+        } else {
+          throw new Error(data.error || '创建任务失败');
+        }
+      } catch (err) {
+        alert('生成失败: ' + err.message);
+        state.isGenerating = false;
+      }
+    };
+
+    const pollTaskStatus = (phase) => {
+      const interval = setInterval(async () => {
+        if (!state.taskId) {
+          clearInterval(interval);
+          return;
+        }
+        
+        try {
+          const res = await fetch('/api/short-story/status/' + state.taskId);
+          const data = await res.json();
+          
+          state.progressMessage = data.message || '处理中...';
+          
+          if (data.status === 'completed') {
+            clearInterval(interval);
+            loadTaskResult(phase);
+          } else if (data.status === 'failed') {
+            clearInterval(interval);
+            state.isGenerating = false;
+            alert('生成失败: ' + (data.error || '未知错误'));
+          }
+        } catch (err) {
+          console.error('轮询失败:', err);
+        }
+      }, 2000);
+    };
+
+    const loadTaskResult = async (phase) => {
+      try {
+        const res = await fetch('/api/short-story/result/' + state.taskId);
+        const data = await res.json();
+        
+        if (data.result) {
+          if (phase === 'outline') {
+            state.outline = data.result.outline;
+            state.title = data.result.outline.title;
+            updateEditorContent();
+          } else if (phase === 'content') {
+            state.chapters = data.result.chapters.map(ch => ({ ...ch, expanded: false }));
+            updateEditorContent();
+          }
+        }
+      } catch (err) {
+        alert('加载结果失败: ' + err.message);
+      } finally {
+        state.isGenerating = false;
+      }
+    };
+
+    const toggleChapter = (ch) => {
+      ch.expanded = !ch.expanded;
+    };
+
+    const copyChapter = (ch) => {
+      navigator.clipboard.writeText(ch.content).then(() => {
+        alert(`第${ch.chapter_number}章已复制`);
+      });
+    };
+
+    const regenerateChapter = (num) => {
+      alert(`重新生成第${num}章功能开发中`);
+    };
+
+    const applyEditorChanges = () => {
+      // 解析编辑器内容并应用
+      alert('已应用修改');
+    };
+
+    const saveProject = () => {
+      alert('保存功能开发中');
+    };
+
+    const finalizeProject = async () => {
+      try {
+        const res = await fetch('/api/short-story/finalize', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            outline: state.outline,
+            chapters: state.chapters,
+            cover_image: state.coverImage
+          })
+        });
+        
+        const data = await res.json();
+        if (data.success) {
+          alert('保存成功！');
+        } else {
+          throw new Error(data.error);
+        }
+      } catch (err) {
+        alert('保存失败: ' + err.message);
+      }
+    };
+
+    const uploadCover = () => {
+      // 模拟上传
+      state.coverImage = 'https://via.placeholder.com/300x400/3b82f6/ffffff?text=封面';
+    };
+
+    return {
+      state,
+      phaseTitle,
+      editorTabTitle,
+      editorPlaceholder,
+      showEmptyState,
+      emptyStateTitle,
+      emptyStateTip,
+      totalWordCount,
+      switchPhase,
+      generateOutline,
+      regenerateOutline,
+      generateContent,
+      toggleChapter,
+      copyChapter,
+      regenerateChapter,
+      applyEditorChanges,
+      saveProject,
+      finalizeProject,
+      uploadCover
+    };
+  }
+}).mount('#short-story-app');
+</script>
+{% endblock %}

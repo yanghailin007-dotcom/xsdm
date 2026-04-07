@@ -370,6 +370,8 @@ class ProductLoader:
         }
         
         self._load_from_quality_data(products)
+        # 🔥 新增：优先从简化目录结构加载（新格式）
+        self._load_from_simplified_structure(products)
         self._load_from_standard_structure(products)
         self._load_from_legacy_structure(products)
         self._load_from_phase_one_file(products)
@@ -463,6 +465,46 @@ class ProductLoader:
                     products['writing']['complete'] = True
                     products['writing']['file_path'] = f"quality_data/writing_plans/merged"
                     self.logger.debug(f"[PRODUCTS] 从quality_data加载写作计划: {len(stage_names)}个阶段")
+    
+    def _load_from_simplified_structure(self, products):
+        """从简化后的目录结构加载产物（新格式：小说项目/{username}/{标题}/产物.json）"""
+        try:
+            # 简化的产物文件名映射
+            simplified_files = {
+                'market': ('market_analysis', '市场分析.json'),
+                'worldview': ('core_worldview', '世界观设定.json'),
+                'factions': ('faction_system', '势力系统.json'),
+                'characters': ('character_design', '角色设计.json'),
+                'growth': ('global_growth_plan', '成长路线.json'),
+                'stage_goals': ('overall_stage_plans', '阶段计划.json'),
+                'writing': ('stage_writing_plans', '写作计划.json'),
+                'golden_finger': ('writing_style_guide', '写作风格.json'),
+                'storyline': ('emotional_blueprint', '情绪蓝图.json'),
+            }
+            
+            loaded_count = 0
+            for product_key, (data_key, filename) in simplified_files.items():
+                if products[product_key]['complete']:
+                    continue  # 已加载，跳过
+                
+                file_path = self.project_dir / filename
+                if file_path.exists():
+                    try:
+                        with open(file_path, 'r', encoding='utf-8') as f:
+                            data = json.load(f)
+                        products[product_key]['content'] = json.dumps(data, ensure_ascii=False, indent=2)
+                        products[product_key]['complete'] = True
+                        products[product_key]['file_path'] = str(file_path)
+                        loaded_count += 1
+                        self.logger.info(f"[简化结构] 已加载: {filename}")
+                    except Exception as e:
+                        self.logger.warning(f"[简化结构] 加载 {filename} 失败: {e}")
+            
+            if loaded_count > 0:
+                self.logger.info(f"[简化结构] 共加载 {loaded_count} 个产物文件")
+                
+        except Exception as e:
+            self.logger.warning(f"[简化结构] 加载失败: {e}")
     
     def _load_from_standard_structure(self, products):
         self.logger.info(f"[_load_from_standard_structure] 开始加载, characters.complete={products['characters']['complete']}")
@@ -1599,27 +1641,57 @@ def continue_to_phase_two(title):
         loader = ProductLoader(title, logger)
         products = loader.load_all_products()
         
-        # 必须完成所有7个核心产物
-        required_categories = ['worldview', 'factions', 'characters', 'growth', 'writing', 'storyline', 'market']
-        completed_count = sum(1 for category in required_categories if products.get(category, {}).get('complete', False))
+        # 🔥 修复：必须完成的核心产物（writing 和 storyline 可以是二阶段生成）
+        # 基础产物：世界观、势力、角色、成长路线、市场分析
+        base_categories = ['worldview', 'factions', 'characters', 'growth', 'market']
+        # 二阶段可生成的产物：writing（细纲）、storyline（剧情线）
+        deferred_categories = ['writing', 'storyline']
         
-        logger.info(f"📊 [PHASE_TRANSITION] 项目 {title}: 完成 {completed_count}/7 个核心产物")
+        base_completed = sum(1 for category in base_categories if products.get(category, {}).get('complete', False))
+        deferred_completed = sum(1 for category in deferred_categories if products.get(category, {}).get('complete', False))
+        
+        # 检查是否有阶段计划（阶段计划存在时，writing 和 storyline 可以二阶段生成）
+        has_stage_plan = products.get('storyline', {}).get('complete', False) or \
+                        (title in loader.project_data and 
+                         loader.project_data.get(title, {}).get('overall_stage_plans') is not None)
+        
+        # 计算完成度：基础产物必须完成，二阶段产物可选
+        if has_stage_plan:
+            # 有阶段计划，允许 writing 和 storyline 二阶段生成
+            completed_count = base_completed + deferred_completed
+            required_count = 5  # 只需要5个基础产物
+            logger.info(f"📊 [PHASE_TRANSITION] 项目 {title}: 基础产物 {base_completed}/5, 二阶段产物 {deferred_completed}/2 (可二阶段生成)")
+        else:
+            # 没有阶段计划，需要所有产物
+            completed_count = base_completed + deferred_completed
+            required_count = 7
+            logger.info(f"📊 [PHASE_TRANSITION] 项目 {title}: 完成 {completed_count}/7 个核心产物")
         
         # 详细日志
-        for category in required_categories:
+        for category in base_categories:
             status = "✅" if products.get(category, {}).get('complete', False) else "❌"
-            logger.info(f"  {status} {category}")
+            logger.info(f"  {status} {category} (基础)")
+        for category in deferred_categories:
+            if products.get(category, {}).get('complete', False):
+                logger.info(f"  ✅ {category} (二阶段)")
+            else:
+                logger.info(f"  ⏭️ {category} (二阶段生成)")
         
-        if completed_count < 7:
+        if base_completed < 5:
+            missing = [cat for cat in base_categories if not products.get(cat, {}).get('complete', False)]
             return jsonify({
                 "success": False,
-                "error": f"第一阶段尚未完成，仅完成 {completed_count}/7 个设定，请先完成所有设定生成",
-                "completed_products": completed_count,
-                "required_products": 7,
-                "missing_products": [cat for cat in required_categories if not products.get(cat, {}).get('complete', False)]
+                "error": f"第一阶段尚未完成，仅完成 {base_completed}/5 个基础设定，缺少: {', '.join(missing)}",
+                "completed_products": base_completed,
+                "required_products": 5,
+                "missing_products": missing
             }), 400
         
-        logger.info(f"✅ [PHASE_TRANSITION] 第一阶段验证通过（7/7产物完成），准备跳转到第二阶段")
+        # 🔥 修复：writing 和 storyline 可以二阶段生成，不强制要求
+        if has_stage_plan:
+            logger.info(f"✅ [PHASE_TRANSITION] 第一阶段验证通过（{base_completed}/5基础产物完成，细纲可二阶段生成），准备跳转到第二阶段")
+        else:
+            logger.info(f"✅ [PHASE_TRANSITION] 第一阶段验证通过（{completed_count}/7产物完成），准备跳转到第二阶段")
         
         return jsonify({
             "success": True,

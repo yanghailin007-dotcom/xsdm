@@ -12,7 +12,8 @@ from typing import Dict, Optional, Any
 class ShortStoryPromptBuilder:
     """短篇 Prompt 构建器"""
     
-    CONFIG_DIR = Path(__file__).parent.parent.parent / "config" / "short_story_prompts"
+    # 从 src/core/short_story/prompt_builder.py 向上四级到项目根目录
+    CONFIG_DIR = Path(__file__).parent.parent.parent.parent / "config" / "short_story_prompts"
     
     def __init__(self):
         self.system_prompts = self._load_json("system_prompts.json")

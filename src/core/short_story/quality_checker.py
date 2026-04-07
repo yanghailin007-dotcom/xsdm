@@ -5,6 +5,7 @@
 
 import json
 import logging
+import re
 from typing import Dict, List
 
 from .prompt_builder import ShortStoryPromptBuilder

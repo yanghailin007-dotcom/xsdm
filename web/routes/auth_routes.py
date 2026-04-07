@@ -457,9 +457,9 @@ def register_page_routes(app):
     @app.route('/short-story/create', methods=['GET'])
     @login_required
     def short_story_create():
-        """番茄短篇创作页面"""
-        logger.info("📄 Loading short-story-create.html")
-        return render_template('short-story-create.html')
+        """番茄短篇创作页面 - 分步生成"""
+        logger.info("📄 Loading short-story-v3.html")
+        return render_template('short-story-v3.html')
 
     @app.route('/creative-planning', methods=['GET'])
     @login_required

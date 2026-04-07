@@ -270,7 +270,13 @@ def register_novel_routes(app, manager: NovelGenerationManager):
             
             # 构造前端期望的数据格式
             generated_chapters = novel_detail.get('generated_chapters', {})
-            total_chapters = novel_detail.get('current_progress', {}).get('total_chapters', 0)
+            # 🔥 修复：支持简化结构（顶层 total_chapters）和旧结构（current_progress.total_chapters）
+            total_chapters = (
+                novel_detail.get('total_chapters', 0) or 
+                novel_detail.get('current_progress', {}).get('total_chapters', 0) or
+                novel_detail.get('progress', {}).get('total_chapters', 0) or
+                0
+            )
             completed_chapters = len(generated_chapters)
             
             return jsonify({

@@ -133,6 +133,17 @@ class MediumEventBatchProcessor:
             f"第{start_ch}-{end_ch}章(共{span}章)"
         )
         
+        # 🔥 确保章节所属阶段的细纲已生成（按需生成）
+        if self.novel_generator and hasattr(self.novel_generator, 'phase_generator'):
+            phase_gen = self.novel_generator.phase_generator
+            if hasattr(phase_gen, '_ensure_stage_writing_plan'):
+                self.logger.info(f"[BatchProcessor] 检查并生成第{start_ch}章所属阶段的细纲...")
+                stage_name = phase_gen._ensure_stage_writing_plan(start_ch)
+                if stage_name:
+                    self.logger.info(f"[BatchProcessor] ✅ 阶段细纲就绪: {stage_name}")
+                else:
+                    self.logger.warning(f"[BatchProcessor] ⚠️ 第{start_ch}章所属阶段细纲生成失败，尝试继续...")
+        
         # 特殊处理：黄金三章（第1-3章）必须整体生成
         if self._is_golden_chapters(chapter_range):
             self.logger.info(f"[BatchProcessor] 检测到黄金三章，使用整体生成模式")
@@ -472,6 +483,9 @@ class MediumEventBatchProcessor:
         api_calls_before = getattr(self.api_client, 'api_call_counter', 0)
         
         try:
+            # 🔥 修复：获取 selected_plan
+            selected_plan = novel_data.get("selected_plan", {})
+            
             # 使用黄金三章专用生成器
             chapters_content = self.golden_generator.generate(
                 novel_data=novel_data,

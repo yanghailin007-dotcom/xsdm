@@ -35,6 +35,9 @@ except ImportError:
 class NovelPublisher:
     """小说发布器类"""
     
+    # 番茄平台章节标题最大长度限制
+    MAX_CHAPTER_TITLE_LENGTH = 30  # 30个字符（约15个汉字）
+    
     def __init__(self, config_loader: Optional[ConfigLoader] = None):
         """
         初始化小说发布器
@@ -45,6 +48,47 @@ class NovelPublisher:
         self.config_loader = config_loader
         self.file_handler = FileHandler(config_loader)
         self.ui_helper = UIHelper(config_loader)
+    
+    @staticmethod
+    def _truncate_chapter_title(title: str, max_length: int = 30) -> str:
+        """
+        智能截断章节标题以适应平台限制
+        
+        策略:
+        1. 如果标题长度在限制内，直接返回
+        2. 优先在标点符号处截断（，。！？；、）
+        3. 其次在词语边界截断（避免截断词中间）
+        4. 确保截断后至少有4个字
+        
+        Args:
+            title: 原始标题
+            max_length: 最大字符长度（默认30，约15个汉字）
+            
+        Returns:
+            截断后的标题
+        """
+        if not title or len(title) <= max_length:
+            return title
+        
+        # 标点符号优先级（越靠前越优先截断）
+        punctuations = ['，', '。', '！', '？', '；', '、', ',', '!', '?', ';', ' ']
+        
+        # 策略1: 在标点处截断
+        truncated = title[:max_length]
+        for punct in punctuations:
+            last_punct_pos = truncated.rfind(punct)
+            if last_punct_pos > 7:  # 确保截断后至少有7个字符（约3-4个汉字）
+                return truncated[:last_punct_pos]
+        
+        # 策略2: 在词语边界截断（中文通常在2-4字词组后）
+        # 常见词边界模式：避免在"的"、"了"、"着"等虚词前截断
+        weak_boundaries = ['的', '了', '着', '过', '是', '在', '和', '与']
+        for i in range(max_length - 1, 7, -1):
+            if title[i] not in weak_boundaries:
+                return title[:i + 1]
+        
+        # 策略3: 硬截断（保底）
+        return title[:max_length]
     
     def _load_legacy_project_info(self, project_dir: Path, data: Dict) -> None:
         """
@@ -1134,6 +1178,11 @@ class NovelPublisher:
         Returns:
             0-成功, 1-失败, 2-需要重新导航
         """
+        # 截断章节标题以适应平台限制
+        original_title = chap_title
+        chap_title = self._truncate_chapter_title(chap_title, self.MAX_CHAPTER_TITLE_LENGTH)
+        if len(chap_title) < len(original_title):
+            logger.info(f"章节标题已截断: '{original_title}' -> '{chap_title}'")
         try:
             # 检查是否在创建章节页面
             current_url = page.url

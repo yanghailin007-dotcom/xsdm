@@ -1367,13 +1367,12 @@ class NovelGenerationManager:
                     return default
             
             # 获取目标章节数，优先从数据中获取，否则使用已生成章节数
-            # 修复：正确的字段路径是 progress.total_chapters，而不是 current_progress.total_chapters
-            # 修复：确保所有值都转换为整数后再比较
-            # 🔥 新增：支持市场导向模式的 generation_metadata.total_chapters
+            # 🔥 修复：简化结构中 total_chapters 是顶层字段
+            # 🔥 修复：优先检查简化结构，再检查嵌套结构
             target_chapters = (
-                _get_int_chapters(data, "progress", "total_chapters") if _get_int_chapters(data, "progress", "total_chapters") > 0 else
+                _get_int_chapters(data, "total_chapters") if _get_int_chapters(data, "total_chapters") > 0 else
+                (_get_int_chapters(data, "progress", "total_chapters") if _get_int_chapters(data, "progress", "total_chapters") > 0 else
                 (_get_int_chapters(data, "generation_metadata", "target_chapters") if _get_int_chapters(data, "generation_metadata", "target_chapters") > 0 else
-                (_get_int_chapters(data, "total_chapters") if _get_int_chapters(data, "total_chapters") > 0 else
                 (_get_int_chapters(data, "novel_info", "total_chapters") if _get_int_chapters(data, "novel_info", "total_chapters") > 0 else
                 (_get_int_chapters(data, "novel_info", "creative_seed", "totalChapters") if _get_int_chapters(data, "novel_info", "creative_seed", "totalChapters") > 0 else
                 completed_chapters))))

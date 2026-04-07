@@ -148,7 +148,7 @@ def get_novel_project_dir(title: str, username: str = None, create: bool = False
 
 def find_novel_project(title: str, username: str = None) -> Optional[Path]:
     """
-    查找小说项目路径（先查用户目录，再查公共目录）
+    查找小说项目路径（支持新格式原标题目录和旧格式safe_title目录）
     
     Args:
         title: 小说项目标题
@@ -160,30 +160,41 @@ def find_novel_project(title: str, username: str = None) -> Optional[Path]:
     if username is None:
         username = get_current_username()
     
+    # 🔥 同时支持原标题（新格式）和safe_title（旧格式）
+    original_title = title
     safe_title = _safe_filename(title)
     
+    # 尝试的路径列表（优先新格式原标题）
+    titles_to_try = [original_title, safe_title]
+    
     # 1. 先查用户自己的目录
-    user_project = get_user_novel_dir(username, create=False) / safe_title
-    if user_project.exists():
-        return user_project
+    user_base = get_user_novel_dir(username, create=False)
+    for try_title in titles_to_try:
+        user_project = user_base / try_title
+        if user_project.exists():
+            return user_project
     
     # 2. 如果是管理员，遍历所有用户目录查找
     if is_admin(username):
         for user_dir in NOVEL_PROJECTS_ROOT.iterdir():
             if user_dir.is_dir() and not user_dir.name.startswith('_'):
-                project_dir = user_dir / safe_title
-                if project_dir.exists():
-                    return project_dir
+                for try_title in titles_to_try:
+                    project_dir = user_dir / try_title
+                    if project_dir.exists():
+                        return project_dir
     
     # 3. 查公共目录（旧数据）
-    public_project = get_public_projects_dir(create=False) / safe_title
-    if public_project.exists():
-        return public_project
+    public_base = get_public_projects_dir(create=False)
+    for try_title in titles_to_try:
+        public_project = public_base / try_title
+        if public_project.exists():
+            return public_project
     
     # 4. 查根目录（兼容旧路径）
-    legacy_project = NOVEL_PROJECTS_ROOT / safe_title
-    if legacy_project.exists():
-        return legacy_project
+    for try_title in titles_to_try:
+        legacy_project = NOVEL_PROJECTS_ROOT / try_title
+        if legacy_project.exists():
+            return legacy_project
     
     return None
 

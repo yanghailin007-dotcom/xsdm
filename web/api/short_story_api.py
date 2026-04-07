@@ -218,6 +218,10 @@ def create_short_story():
             return jsonify({"error": "创意种子不能为空"}), 400
         
         from src.core.short_story.models import ShortStoryConfig, StoryMode, StoryGenre
+        from web.utils.path_utils import get_user_novel_dir
+        
+        # 使用与长篇相同的项目路径机制
+        project_path = str(get_user_novel_dir(username=username, create=True))
         
         config = ShortStoryConfig(
             mode=StoryMode.CREATIVE,
@@ -228,7 +232,7 @@ def create_short_story():
             ending_type=data.get('ending_type', 'open'),
             creative_seed=creative_seed,
             username=username,
-            project_path="."
+            project_path=project_path
         )
         
         task_id = task_manager.create_task("creative", {
@@ -278,6 +282,10 @@ def imitate_short_story():
             return jsonify({"error": "参考文本不能为空"}), 400
         
         from src.core.short_story.models import ShortStoryConfig, StoryMode, StoryGenre
+        from web.utils.path_utils import get_user_novel_dir
+        
+        # 使用与长篇相同的项目路径机制
+        project_path = str(get_user_novel_dir(username=username, create=True))
         
         config = ShortStoryConfig(
             mode=StoryMode.IMITATE,
@@ -290,7 +298,7 @@ def imitate_short_story():
             protagonist_replacement=data.get('protagonist_replacement', ''),
             era_replacement=data.get('era_replacement', ''),
             username=username,
-            project_path="."
+            project_path=project_path
         )
         
         task_id = task_manager.create_task("imitate", {
@@ -390,6 +398,300 @@ def regenerate_chapter():
         
     except Exception as e:
         logger.error(f"重生成章节失败: {e}", exc_info=True)
+        return jsonify({"error": str(e)}), 500
+
+
+# ==================== 分阶段生成 API (新) ====================
+
+@short_story_api.route('/outline', methods=['POST'])
+def generate_outline():
+    """
+    第一阶段：生成大纲
+    
+    输入：创意描述、题材、章节数等
+    输出：大纲（书名、简介、章节列表）
+    """
+    try:
+        data = request.get_json() or {}
+        username = _get_current_username()
+        user_id = _get_current_user_id()
+        
+        creative_seed = data.get('creative_seed', '').strip()
+        if not creative_seed:
+            return jsonify({"error": "创意描述不能为空"}), 400
+        
+        from src.core.short_story.models import ShortStoryConfig, StoryMode, StoryGenre
+        from web.utils.path_utils import get_user_novel_dir
+        
+        project_path = str(get_user_novel_dir(username=username, create=True))
+        
+        config = ShortStoryConfig(
+            mode=StoryMode.CREATIVE,
+            title=data.get('title', creative_seed[:20]),
+            genre=StoryGenre(data.get('genre', 'revenge_romance')),
+            target_word_count=int(data.get('target_word_count', 15000)),
+            chapter_count=int(data.get('chapter_count', 12)),
+            ending_type=data.get('ending_type', 'open'),
+            creative_seed=creative_seed,
+            extra_info=data.get('extra_info', ''),
+            username=username,
+            project_path=project_path
+        )
+        
+        task_id = task_manager.create_task("outline", {
+            "title": config.title,
+            "phase": "outline"
+        })
+        
+        def run():
+            try:
+                api_client = _init_api_client_with_deduction(task_id, user_id) if user_id else None
+                if not api_client:
+                    from src.core.APIClient import APIClient
+                    from config.config import CONFIG
+                    api_client = APIClient(CONFIG)
+                
+                config.api_client = api_client
+                
+                # 只生成大纲
+                from src.core.short_story import ShortStoryGenerator
+                generator = ShortStoryGenerator(config)
+                
+                task_manager.update_task(
+                    task_id,
+                    status="running",
+                    progress=10,
+                    current_stage="outline_generating",
+                    message="正在生成大纲..."
+                )
+                
+                # 生成大纲（使用conversation session）
+                blueprint = generator._create_blueprint_from_seed()
+                
+                outline = {
+                    "title": blueprint.get('title_candidates', [config.title])[0],
+                    "synopsis": blueprint.get('synopsis', ''),
+                    "chapters": [
+                        {
+                            "chapter_number": ch.get('chapter_number', i+1),
+                            "title": ch.get('purpose', f"第{i+1}章"),
+                            "synopsis": f"{ch.get('crisis_hook', '')} {ch.get('payoff_hook', '')}".strip()
+                        }
+                        for i, ch in enumerate(blueprint.get('chapters', []))
+                    ]
+                }
+                
+                # 保存到任务结果
+                task_manager.update_task(
+                    task_id,
+                    status="completed",
+                    progress=100,
+                    current_stage="outline_completed",
+                    message="大纲生成完成",
+                    result={
+                        "outline": outline,
+                        "blueprint": blueprint,
+                        "config": {
+                            "title": config.title,
+                            "genre": config.genre.value,
+                            "chapter_count": config.chapter_count,
+                            "target_word_count": config.target_word_count
+                        }
+                    }
+                )
+                
+            except Exception as e:
+                logger.error(f"大纲生成失败: {e}", exc_info=True)
+                task_manager.update_task(
+                    task_id,
+                    status="failed",
+                    error=str(e),
+                    message=f"生成失败: {str(e)}"
+                )
+        
+        thread = threading.Thread(target=run)
+        thread.daemon = True
+        thread.start()
+        
+        return jsonify({
+            "task_id": task_id,
+            "status": "pending",
+            "message": "大纲生成任务已创建"
+        }), 202
+        
+    except Exception as e:
+        logger.error(f"创建大纲任务失败: {e}", exc_info=True)
+        return jsonify({"error": str(e)}), 500
+
+
+@short_story_api.route('/content', methods=['POST'])
+def generate_content():
+    """
+    第二阶段：生成正文
+    
+    输入：大纲、起始章节
+    输出：章节内容
+    """
+    try:
+        data = request.get_json() or {}
+        username = _get_current_username()
+        user_id = _get_current_user_id()
+        
+        outline = data.get('outline')
+        if not outline:
+            return jsonify({"error": "缺少大纲数据"}), 400
+        
+        from src.core.short_story.models import ShortStoryConfig, StoryMode, StoryGenre
+        from web.utils.path_utils import get_user_novel_dir
+        
+        project_path = str(get_user_novel_dir(username=username, create=True))
+        
+        config_data = data.get('config', {})
+        config = ShortStoryConfig(
+            mode=StoryMode.CREATIVE,
+            title=config_data.get('title', '未命名短篇'),
+            genre=StoryGenre(config_data.get('genre', 'revenge_romance')),
+            target_word_count=int(config_data.get('target_word_count', 15000)),
+            chapter_count=int(config_data.get('chapter_count', 12)),
+            username=username,
+            project_path=project_path
+        )
+        
+        task_id = task_manager.create_task("content", {
+            "title": config.title,
+            "phase": "content"
+        })
+        
+        def run():
+            try:
+                api_client = _init_api_client_with_deduction(task_id, user_id) if user_id else None
+                if not api_client:
+                    from src.core.APIClient import APIClient
+                    from config.config import CONFIG
+                    api_client = APIClient(CONFIG)
+                
+                config.api_client = api_client
+                
+                from src.core.short_story import ShortStoryGenerator
+                generator = ShortStoryGenerator(config)
+                
+                # 从outline恢复blueprint
+                generator.blueprint = data.get('blueprint', {})
+                generator.result.title = outline.get('title', '')
+                generator.result.synopsis = outline.get('synopsis', '')
+                
+                chapters_data = outline.get('chapters', [])
+                total = len(chapters_data)
+                generated_chapters = []
+                
+                for i, ch_outline in enumerate(chapters_data):
+                    progress = int((i / total) * 100)
+                    task_manager.update_task(
+                        task_id,
+                        progress=progress,
+                        current_stage=f"chapter_{i+1}",
+                        message=f"正在生成第 {i+1}/{total} 章..."
+                    )
+                    
+                    # 逐章生成（使用conversation session保持上下文）
+                    chapter_content = generator._generate_single_chapter(
+                        chapter_number=ch_outline['chapter_number'],
+                        total_chapters=total,
+                        blueprint=generator.blueprint.get('chapters', [])[i] if i < len(generator.blueprint.get('chapters', [])) else {}
+                    )
+                    
+                    generated_chapters.append({
+                        "chapter_number": ch_outline['chapter_number'],
+                        "title": ch_outline.get('title', f"第{ch_outline['chapter_number']}章"),
+                        "content": chapter_content.get('content', ''),
+                        "word_count": chapter_content.get('word_count', 0)
+                    })
+                
+                task_manager.update_task(
+                    task_id,
+                    status="completed",
+                    progress=100,
+                    current_stage="content_completed",
+                    message="正文生成完成",
+                    result={
+                        "chapters": generated_chapters,
+                        "outline": outline,
+                        "total_word_count": sum(ch['word_count'] for ch in generated_chapters)
+                    }
+                )
+                
+            except Exception as e:
+                logger.error(f"正文生成失败: {e}", exc_info=True)
+                task_manager.update_task(
+                    task_id,
+                    status="failed",
+                    error=str(e),
+                    message=f"生成失败: {str(e)}"
+                )
+        
+        thread = threading.Thread(target=run)
+        thread.daemon = True
+        thread.start()
+        
+        return jsonify({
+            "task_id": task_id,
+            "status": "pending",
+            "message": "正文生成任务已创建"
+        }), 202
+        
+    except Exception as e:
+        logger.error(f"创建正文任务失败: {e}", exc_info=True)
+        return jsonify({"error": str(e)}), 500
+
+
+@short_story_api.route('/finalize', methods=['POST'])
+def finalize_story():
+    """
+    第三阶段：保存完成
+    
+    输入：大纲、正文、封面（可选）
+    输出：保存到项目
+    """
+    try:
+        data = request.get_json() or {}
+        username = _get_current_username()
+        
+        outline = data.get('outline')
+        chapters = data.get('chapters')
+        
+        if not outline or not chapters:
+            return jsonify({"error": "缺少大纲或正文数据"}), 400
+        
+        # 保存到项目目录
+        from web.utils.path_utils import get_user_novel_dir
+        import json
+        
+        project_dir = get_user_novel_dir(username=username, create=True) / outline.get('title', '未命名短篇')
+        project_dir.mkdir(parents=True, exist_ok=True)
+        
+        # 保存大纲
+        with open(project_dir / 'outline.json', 'w', encoding='utf-8') as f:
+            json.dump(outline, f, ensure_ascii=False, indent=2)
+        
+        # 保存章节
+        chapters_dir = project_dir / 'chapters'
+        chapters_dir.mkdir(exist_ok=True)
+        
+        for ch in chapters:
+            with open(chapters_dir / f"chapter_{ch['chapter_number']:03d}.json", 'w', encoding='utf-8') as f:
+                json.dump(ch, f, ensure_ascii=False, indent=2)
+        
+        return jsonify({
+            "success": True,
+            "message": "保存成功",
+            "project_path": str(project_dir),
+            "title": outline.get('title'),
+            "chapter_count": len(chapters),
+            "total_word_count": sum(ch.get('word_count', 0) for ch in chapters)
+        })
+        
+    except Exception as e:
+        logger.error(f"保存失败: {e}", exc_info=True)
         return jsonify({"error": str(e)}), 500
 
 

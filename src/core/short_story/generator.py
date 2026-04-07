@@ -5,6 +5,7 @@
 
 import json
 import os
+import re
 import time
 import logging
 from pathlib import Path
@@ -293,6 +294,46 @@ class ShortStoryGenerator:
         if self.conversation_session:
             self.api_calls_used += self.conversation_session.get_stats().get("turn_count", 0)
     
+    def _generate_single_chapter(self, chapter_number: int, total_chapters: int, blueprint: dict) -> dict:
+        """
+        生成单章内容（供API调用）
+        
+        Returns:
+            chapter_data: {
+                "chapter_number": int,
+                "title": str,
+                "content": str,
+                "summary": str,
+                "word_count": int
+            }
+        """
+        genre = self.config.genre.value
+        
+        # 使用现有的 conversation session 或创建新的
+        if not self.conversation_session:
+            self.conversation_session = self._init_conversation_session()
+        
+        conv_gen = ShortStoryConversationGenerator(
+            self.api_client, 
+            genre, 
+            session=self.conversation_session
+        )
+        
+        # 生成章节
+        chapter_data = conv_gen.generate_chapter(
+            chapter_number=chapter_number,
+            total_chapters=total_chapters,
+            blueprint=blueprint,
+            prev_summary=self.prev_summary,
+            character_states=self.character_states
+        )
+        
+        # 更新状态
+        self.prev_summary = chapter_data.get("summary", "")
+        self.character_states[f"第{chapter_number}章后"] = "剧情推进中"
+        
+        return chapter_data
+    
     def _generate_title_synopsis(self):
         """生成书名和简介"""
         # 构建故事梗概
@@ -343,14 +384,32 @@ class ShortStoryGenerator:
         
         logger.info(f"[ShortStoryGenerator] 书名生成: {final_title}")
     
-    def _call_api(self, prompt: str, purpose: str) -> str:
+    def _call_api(self, prompt: str, purpose: str, max_retries: int = 3) -> str:
         """调用 API 并统计次数 —— 统一使用 ConversationSession 拼接会话模式"""
         if not self.conversation_session:
             self.conversation_session = self._init_conversation_session()
         
-        result = self.conversation_session.send_message(prompt, purpose=purpose)
-        self.api_calls_used += 1
-        return result or ""
+        last_error = None
+        for attempt in range(max_retries):
+            try:
+                result = self.conversation_session.send_message(prompt, purpose=purpose)
+                if result:
+                    self.api_calls_used += 1
+                    return result
+                # 空响应但无异常，记录警告并短暂等待后重试
+                logger.warning(f"[_call_api] {purpose} 返回空响应 (尝试 {attempt+1}/{max_retries})")
+                if attempt < max_retries - 1:
+                    time.sleep(2 ** attempt)  # 指数退避
+            except Exception as e:
+                last_error = e
+                logger.warning(f"[_call_api] {purpose} 调用异常 (尝试 {attempt+1}/{max_retries}): {e}")
+                if attempt < max_retries - 1:
+                    time.sleep(2 ** attempt)  # 指数退避
+        
+        # 所有重试都失败
+        error_msg = f"API调用失败 ({purpose}): {last_error}" if last_error else f"API调用返回空 ({purpose})"
+        logger.error(f"[_call_api] {error_msg}")
+        raise RuntimeError(error_msg)
     
     def _parse_json(self, text: str) -> Dict:
         """解析 JSON"""
@@ -482,7 +541,7 @@ class ShortStoryGenerator:
             self.generated_chapters = data.get("generated_chapters", {})
             # 兼容 str/int key
             self.generated_chapters = {
-                int(k) if k.isdigit() else k: v 
+                int(k) if str(k).isdigit() else k: v 
                 for k, v in self.generated_chapters.items()
             }
             self.prev_summary = data.get("prev_summary", "")
