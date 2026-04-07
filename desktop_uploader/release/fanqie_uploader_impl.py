@@ -1850,9 +1850,17 @@ class FanqieUploaderImpl:
         schedule = {}
         if needs_schedule:
             # 计算定时发布计划（从第N+1章开始，同步平台数据）
-            schedule = self._calculate_publish_schedule_with_sync(
-                chapter_numbers, first_publish_count, daily_count, publish_time, interval_minutes
-            )
+            try:
+                schedule = self._calculate_publish_schedule_with_sync(
+                    chapter_numbers, first_publish_count, daily_count, publish_time, interval_minutes
+                )
+            except Exception as e:
+                self._log(f"计算定时计划失败: {e}", "error")
+                self._log("使用默认定时计划（从明天开始）", "warning")
+                # 备用：简单定时计划
+                schedule = self._calculate_publish_schedule(
+                    max_chapter, first_publish_count, daily_count, publish_time, interval_minutes
+                )
         else:
             self._log(f"所有章节({min_chapter}-{max_chapter})均≤{first_publish_count}，全部立即发布")
         
