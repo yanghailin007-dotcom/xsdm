@@ -3201,6 +3201,8 @@ NovelPublisher_Data/              ← 统一数据目录
             project_path: 项目路径
             total_chapters: 当前加载的总章节数，用于判断是否还有未发布章节
         """
+        from datetime import datetime, timedelta, date
+        
         try:
             data = self._load_published_chapters_with_info(project_path)
             chapters = data.get('chapters', {})
@@ -3226,7 +3228,6 @@ NovelPublisher_Data/              ← 统一数据目录
             # 🔥 修复：如果没有 publish_time，使用当前时间作为回退
             if not last_publish_time:
                 self.log(f"⚠️ 第{max_published}章无发布时间记录，使用当前时间作为续传起点", "warning")
-                from datetime import datetime
                 last_publish_time = datetime.now().strftime('%Y-%m-%d %H:%M')
             
             # 解析最后发布时间
