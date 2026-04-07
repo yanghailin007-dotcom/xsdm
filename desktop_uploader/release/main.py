@@ -1387,12 +1387,13 @@ class MainWindow(QMainWindow):
         
         self.log_text = QTextEdit()
         self.log_text.setReadOnly(True)
+        self.log_text.setMinimumHeight(400)  # 🔥 增大日志窗口高度
         self.log_text.setStyleSheet("""
             QTextEdit {
                 background-color: #1e1e1e;
                 color: #d4d4d4;
                 font-family: Consolas, monospace;
-                font-size: 12px;
+                font-size: 14px;  /* 🔥 增大字体 */
                 border: none;
                 border-radius: 4px;
             }
