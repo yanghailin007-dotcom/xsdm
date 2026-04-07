@@ -179,8 +179,8 @@ class UploadWorker(QThread):
             # 上传章节
             result = self.uploader.upload_chapters(
                 self.chapters,
-                delay_min=self.settings.get('delay_min', 3),
-                delay_max=self.settings.get('delay_max', 8),
+                delay_min=self.settings.get('delay_min', 1),
+                delay_max=self.settings.get('delay_max', 3),
                 stop_on_error=self.settings.get('stop_on_error', False)
             )
             
@@ -593,7 +593,7 @@ class MainWindow(QMainWindow):
         
         self.delay_min_spin = QDoubleSpinBox()
         self.delay_min_spin.setRange(0.5, 60)
-        self.delay_min_spin.setValue(self.config.get('delay_min', 3))
+        self.delay_min_spin.setValue(self.config.get('delay_min', 1))
         self.delay_min_spin.setDecimals(1)
         self.delay_min_spin.setSuffix(" 秒")
         self.delay_min_spin.setMinimumWidth(80)
@@ -605,7 +605,7 @@ class MainWindow(QMainWindow):
         
         self.delay_max_spin = QDoubleSpinBox()
         self.delay_max_spin.setRange(1, 120)
-        self.delay_max_spin.setValue(self.config.get('delay_max', 8))
+        self.delay_max_spin.setValue(self.config.get('delay_max', 3))
         self.delay_max_spin.setDecimals(1)
         self.delay_max_spin.setSuffix(" 秒")
         self.delay_max_spin.setMinimumWidth(80)
@@ -1221,8 +1221,8 @@ class MainWindow(QMainWindow):
             except:
                 pass
         return {
-            'delay_min': 3,
-            'delay_max': 8,
+            'delay_min': 1,
+            'delay_max': 3,
             'stop_on_error': False
         }
         
