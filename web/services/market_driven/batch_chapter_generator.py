@@ -692,11 +692,22 @@ class BatchChapterGenerator:
 """)
         
         # 2. 主角当前状态
-        protagonist = novel_data.get('character_design', {}).get('main_character', {})
+        character_design = novel_data.get('character_design', {})
+        # 🔥 修复：同时支持 main_character 和 protagonist 两种字段名
+        protagonist = character_design.get('main_character') or character_design.get('protagonist', {})
+        
+        # 提取主角名字（多种可能的位置）
+        protagonist_name = (
+            protagonist.get('basic_info', {}).get('name') or
+            protagonist.get('name') or
+            novel_data.get('protagonist_name') or
+            '陆玄'  # 保底但不使用"主角"
+        )
+        
         current_stage = self._get_current_growth_stage(chapter_num)
         context_parts.append(f"""
 【主角状态】
-- 姓名：{protagonist.get('basic_info', {}).get('name', '主角')}
+- 姓名：{protagonist_name}
 - 当前阶段：{current_stage}
 - 当前身份：{self._get_current_identity(chapter_num)}
 - 性格：{protagonist.get('personality', {}).get('core_traits', '隐忍但不怂')}
