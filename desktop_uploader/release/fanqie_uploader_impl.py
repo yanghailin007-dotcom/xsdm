@@ -2094,82 +2094,160 @@ class FanqieUploaderImpl:
             self._log(f"无历史发布时间，下一章: {next_time.strftime('%Y-%m-%d %H:%M')}")
             return next_time
     
+    def _get_base_date_and_count(self, first_count: int, daily_count: int, publish_time: str) -> tuple:
+        """
+        获取基准日期和当天已发章节数
+        
+        优先级：
+        1. 手动配置（用户通过GUI设置）
+        2. 自动配置（从发布记录推算）
+        3. 默认配置（明天）
+        
+        Returns:
+            (base_date: datetime, chapters_in_day: int)
+        """
+        from datetime import datetime, timedelta
+        
+        # 1. 检查手动配置
+        publish_config = self.novel_config.get('publish_config', {})
+        manual_date = publish_config.get('manual_publish_date')
+        manual_time = publish_config.get('manual_publish_time')
+        
+        if manual_date and manual_time:
+            base_dt = datetime.strptime(f"{manual_date} {manual_time}", "%Y-%m-%d %H:%M")
+            self._log(f"[基准日期] 使用手动配置: {base_dt.strftime('%Y-%m-%d %H:%M')}")
+            # 从发布记录统计该日期已发章节数
+            chapters_in_day = self._count_published_on_date(manual_date)
+            return base_dt, chapters_in_day
+        
+        # 2. 检查发布记录（自动配置）
+        project_dir = self.novel_config.get('project_dir')
+        if project_dir:
+            last_date, last_count = self._get_last_publish_info(Path(project_dir))
+            if last_date and last_count < daily_count:
+                # 最后一天未满，从该天继续
+                hour, minute = map(int, publish_time.split(':'))
+                base_dt = datetime.strptime(f"{last_date} {publish_time}", "%Y-%m-%d %H:%M")
+                self._log(f"[基准日期] 使用自动配置（续发）: {base_dt.strftime('%Y-%m-%d')}, 已发{last_count}章")
+                return base_dt, last_count
+            elif last_date and last_count >= daily_count:
+                # 最后一天已满，从下一天开始
+                next_date = (datetime.strptime(last_date, "%Y-%m-%d") + timedelta(days=1)).strftime("%Y-%m-%d")
+                hour, minute = map(int, publish_time.split(':'))
+                base_dt = datetime.strptime(f"{next_date} {publish_time}", "%Y-%m-%d %H:%M")
+                self._log(f"[基准日期] 使用自动配置（跨天）: {base_dt.strftime('%Y-%m-%d')}, 新一天")
+                return base_dt, 0
+        
+        # 3. 默认配置（明天）
+        hour, minute = map(int, publish_time.split(':'))
+        tomorrow = datetime.now() + timedelta(days=1)
+        base_dt = tomorrow.replace(hour=hour, minute=minute, second=0, microsecond=0)
+        self._log(f"[基准日期] 使用默认配置（明天）: {base_dt.strftime('%Y-%m-%d')}")
+        return base_dt, 0
+    
+    def _count_published_on_date(self, date_str: str) -> int:
+        """统计指定日期已发布的章节数"""
+        try:
+            project_dir = self.novel_config.get('project_dir')
+            if not project_dir:
+                return 0
+            
+            published_file = Path(project_dir) / ".published_chapters.json"
+            if not published_file.exists():
+                return 0
+            
+            import json
+            data = json.loads(published_file.read_text(encoding='utf-8'))
+            chapters = data.get('chapters', {})
+            
+            count = 0
+            for ch_info in chapters.values():
+                if isinstance(ch_info, dict):
+                    pt = ch_info.get('publish_time')
+                    if pt and isinstance(pt, str) and pt.startswith(date_str):
+                        count += 1
+            return count
+        except Exception as e:
+            self._log(f"统计已发布章节失败: {e}", "debug")
+            return 0
+    
+    def _get_last_publish_info(self, project_path: Path) -> tuple:
+        """获取最后发布日期和当天发布数量"""
+        try:
+            published_file = project_path / ".published_chapters.json"
+            if not published_file.exists():
+                return None, 0
+            
+            import json
+            data = json.loads(published_file.read_text(encoding='utf-8'))
+            chapters = data.get('chapters', {})
+            
+            if not chapters:
+                return None, 0
+            
+            # 找到最后发布的章节
+            max_chapter = max(int(k) for k in chapters.keys())
+            last_info = chapters.get(str(max_chapter), {})
+            last_time = last_info.get('publish_time', '')
+            
+            if not last_time:
+                return None, 0
+            
+            last_date = last_time.split(' ')[0] if ' ' in last_time else last_time
+            
+            # 统计该日期发布数量
+            count = 0
+            for ch_info in chapters.values():
+                if isinstance(ch_info, dict):
+                    pt = ch_info.get('publish_time')
+                    if pt and isinstance(pt, str) and pt.startswith(last_date):
+                        count += 1
+            
+            return last_date, count
+        except Exception as e:
+            self._log(f"获取最后发布信息失败: {e}", "debug")
+            return None, 0
+    
     def _calculate_publish_schedule_with_sync(self, chapter_numbers: List[int], 
                                                first_count: int,
                                                daily_count: int, 
                                                publish_time: str, 
                                                interval: int) -> Dict[int, str]:
         """
-        计算章节定时发布计划
+        计算章节定时发布计划（简化版）
         
         逻辑：
-        1. 前 first_count 章今天直接发布
-        2. 从 first_count+1 章开始，从明天起按 daily_count 每天分配
-        
-        示例：
-        - 今天4.7，first_count=20，daily_count=8
-        - 第1-20章：今天直接发布
-        - 第21-28章：4月8日
-        - 第29-36章：4月9日
-        - 第37-44章：4月10日
-        
-        Args:
-            chapter_numbers: 本次要上传的章节号列表
-            
-        Returns:
-            Dict[章节号, 发布时间字符串]  格式: "2026-04-05 07:00"
+        1. 确定基准日期（手动 > 自动 > 默认）
+        2. 从基准日期开始，按 daily_count 每天分配
         """
+        from datetime import datetime, timedelta
+        
         schedule = {}
         
-        # 过滤出需要定时发布的章节（章节号 > first_count）
+        # 过滤出需要定时发布的章节
         scheduled_chapters = sorted([ch for ch in chapter_numbers if ch > first_count])
-        
         if not scheduled_chapters:
-            return schedule  # 没有需要定时的章节
+            return schedule
         
         self._log("=" * 50)
-        self._log(f"计算定时发布计划: 前{first_count}章今天发布，之后每天{daily_count}章")
+        self._log(f"计算定时发布计划: 本次{len(scheduled_chapters)}章")
         
-        # 🔥 检查手动设置的基准时间（续传场景）
-        publish_config = self.novel_config.get('publish_config', {})
-        manual_date = publish_config.get('manual_publish_date')
-        manual_time = publish_config.get('manual_publish_time')
+        # 获取基准日期和当天已发章节数
+        base_dt, chapters_in_day = self._get_base_date_and_count(first_count, daily_count, publish_time)
+        current_date = base_dt
         
-        if manual_date and manual_time:
-            # 使用手动设置的时间作为起点
-            self._log(f"使用手动设置的基准时间: {manual_date} {manual_time}")
-            base_time = datetime.strptime(f"{manual_date} {manual_time}", "%Y-%m-%d %H:%M")
-        else:
-            # 🔥 默认从明天开始（因为今天已经发布了 first_count 章）
-            hour, minute = map(int, publish_time.split(':'))
-            tomorrow = datetime.now() + timedelta(days=1)
-            base_time = tomorrow.replace(hour=hour, minute=minute, second=0, microsecond=0)
-            self._log(f"从明天开始计算: {base_time.strftime('%Y-%m-%d %H:%M')}")
-        
-        # 为每个定时章节分配时间
-        # 第1个定时章节（first_count+1）→ 第1天（明天）
-        # 第2个定时章节 → 第1天（明天）
-        # ...
-        # 第daily_count+1个定时章节 → 第2天（后天）
-        day_offset = 0  # 从第1天（明天）开始
-        chapters_in_current_day = 0  # 当前天已分配章节数
-        
-        for i, chap_num in enumerate(scheduled_chapters):
-            # 计算目标日期：base_time + day_offset天
-            target_date = (base_time + timedelta(days=day_offset)).date()
-            target_time = base_time.time()
+        # 为每个章节分配时间
+        for chap_num in scheduled_chapters:
+            # 如果当天已满，进入下一天
+            if chapters_in_day >= daily_count:
+                current_date = current_date + timedelta(days=1)
+                chapters_in_day = 0
             
-            schedule[chap_num] = f"{target_date} {target_time.strftime('%H:%M')}"
-            
-            chapters_in_current_day += 1
-            
-            # 如果当天已满 daily_count 章，进入下一天
-            if chapters_in_current_day >= daily_count:
-                day_offset += 1
-                chapters_in_current_day = 0
+            schedule[chap_num] = current_date.strftime('%Y-%m-%d %H:%M')
+            chapters_in_day += 1
         
-        # 输出详细的分配计划
-        self._log(f"定时发布计划: 共{len(schedule)}章需要定时")
+        # 输出分配结果
+        self._log(f"定时发布计划: 共{len(schedule)}章")
         
         # 按日期分组显示
         date_groups = {}
@@ -2184,7 +2262,6 @@ class FanqieUploaderImpl:
             self._log(f"  {date}: 第{min(chapters)}-{max(chapters)}章 ({len(chapters)}章)")
         
         self._log("=" * 50)
-        
         return schedule
     
     def close(self):
