@@ -1021,8 +1021,13 @@ class NovelGenerationManager:
                     raise ValueError(f"加载项目 {title} 时用户名为空，用户必须登录")
                 
                 # 构建阶段计划文件路径
-                stage_plan_path = Path(paths.get("project_dir", "")) / "阶段计划.json"
-                logger.info(f"  🔍 尝试加载阶段计划: {stage_plan_path}")
+                # 🔥 修复：使用 project_root 而不是 project_dir
+                project_root = paths.get("project_root", "")
+                if not project_root:
+                    # 备选：手动构建路径
+                    project_root = Path("小说项目") / username / title
+                stage_plan_path = Path(project_root) / "阶段计划.json"
+                logger.info(f"  🔍 尝试加载阶段计划: {stage_plan_path} (project_root={project_root})")
                 
                 if stage_plan_path.exists():
                     logger.info(f"  ✅ 阶段计划文件存在")
@@ -1508,12 +1513,15 @@ class NovelGenerationManager:
                 from src.config.path_config import path_config
                 username = novel_data.get('owner')
                 if username:
-                    project_path = Path(path_config.get_project_paths(title, username=username).get("project_dir", ""))
+                    paths = path_config.get_project_paths(title, username=username)
+                    project_root = paths.get("project_root", "")
+                    if not project_root:
+                        project_root = Path("小说项目") / username / title
                 else:
-                    project_path = Path("小说项目") / title
+                    project_root = Path("小说项目") / title
                 
-                stage_plan_file = project_path / "阶段计划.json"
-                logger.info(f"🔍 尝试从文件加载阶段计划: {stage_plan_file}")
+                stage_plan_file = Path(project_root) / "阶段计划.json"
+                logger.info(f"🔍 尝试从文件加载阶段计划: {stage_plan_file} (project_root={project_root})")
                 if stage_plan_file.exists():
                     logger.info(f"✅ 阶段计划文件存在: {stage_plan_file}")
                     # 尝试多种编码
