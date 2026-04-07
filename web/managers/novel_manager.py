@@ -2917,11 +2917,15 @@ class NovelGenerationManager:
                 return
             
             # 关键修复：将 overall_stage_plans 同步到 novel_generator.novel_data
-            if "overall_stage_plans" in novel_detail:
-                novel_generator.novel_data["overall_stage_plans"] = novel_detail["overall_stage_plans"]
-                logger.info(f"任务 {task_id}: ✅ 已加载 overall_stage_plans")
+            overall_stage_plans = novel_detail.get("overall_stage_plans", {})
+            if overall_stage_plans and overall_stage_plans.get("overall_stage_plan"):
+                novel_generator.novel_data["overall_stage_plans"] = overall_stage_plans
+                stage_count = len(overall_stage_plans.get("overall_stage_plan", {}))
+                logger.info(f"任务 {task_id}: ✅ 已加载 overall_stage_plans，包含 {stage_count} 个阶段")
             else:
-                logger.warning(f"任务 {task_id}: ⚠️ 项目数据中没有 overall_stage_plans")
+                logger.warning(f"任务 {task_id}: ⚠️ 项目数据中没有 overall_stage_plans 或数据为空")
+                logger.warning(f"任务 {task_id}:    novel_detail 键: {list(novel_detail.keys())}")
+                logger.warning(f"任务 {task_id}:    overall_stage_plans 值: {overall_stage_plans}")
             
             # 同步其他关键数据
             for key in ["novel_title", "novel_synopsis", "creative_seed", "category", "selected_plan", 
