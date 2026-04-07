@@ -375,14 +375,45 @@ def create_app():
         ]
         
         if filename not in allowed_files:
+            logger.warning(f"[Download] 拒绝下载: {filename} (不在允许列表)")
             return jsonify({"error": "File not allowed"}), 403
         
         download_dir = os.path.join(BASE_DIR, 'desktop_uploader', 'release')
         file_path = os.path.join(download_dir, filename)
         
-        if not os.path.exists(file_path):
-            return jsonify({"error": "File not found"}), 404
+        # 🔥 详细诊断日志
+        logger.info(f"[Download] 下载请求: {filename}")
+        logger.info(f"[Download] BASE_DIR: {BASE_DIR}")
+        logger.info(f"[Download] 查找目录: {download_dir}")
+        logger.info(f"[Download] 完整路径: {file_path}")
+        logger.info(f"[Download] 目录存在: {os.path.exists(download_dir)}")
+        logger.info(f"[Download] 文件存在: {os.path.exists(file_path)}")
         
+        # 如果目录存在，列出内容
+        if os.path.exists(download_dir):
+            try:
+                files = os.listdir(download_dir)
+                logger.info(f"[Download] 目录内容: {files}")
+            except Exception as e:
+                logger.error(f"[Download] 列出目录失败: {e}")
+        else:
+            logger.error(f"[Download] 目录不存在: {download_dir}")
+        
+        if not os.path.exists(file_path):
+            logger.error(f"[Download] 文件未找到: {file_path}")
+            return jsonify({
+                "error": "File not found",
+                "details": {
+                    "filename": filename,
+                    "base_dir": str(BASE_DIR),
+                    "download_dir": download_dir,
+                    "file_path": file_path,
+                    "dir_exists": os.path.exists(download_dir),
+                    "hint": "exe文件被.gitignore排除，需要手动上传到服务器"
+                }
+            }), 404
+        
+        logger.info(f"[Download] 开始提供文件: {filename}")
         return send_from_directory(download_dir, filename, as_attachment=True)
     
     logger.info(f"✅ 配置下载路由: /downloads/<filename>")

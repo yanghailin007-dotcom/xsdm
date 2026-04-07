@@ -567,6 +567,60 @@ class NovelGenerator:
         # 重置API调用点数计数器
         self.reset_api_points_counter()
         
+        # 🔥🔥🔥 调试：检测创意到方案对话模式配置
+        use_conversation_mode = self.config.get('use_creative_conversation_mode', True)
+        self.logger.info(f"[调试] phase_one_generation 检测到 use_creative_conversation_mode={use_conversation_mode}")
+        
+        # 🔥🔥🔥 新增：如果启用对话模式，跳过传统步骤1-4（由对话模式替代）
+        if use_conversation_mode:
+            self.logger.info("💬 启用创意到方案对话模式，跳过传统步骤（创意精炼、同人检测、方案生成）")
+            self.logger.info("   对话模式4步：商业化分析 → 多方案生成 → 选优对标 → 方案深化")
+            
+            # 准备 creative_work_dict
+            if isinstance(creative_seed, str):
+                try:
+                    creative_work_dict = json.loads(creative_seed)
+                except:
+                    creative_work_dict = {"coreSetting": creative_seed, "coreSellingPoints": "", "completeStoryline": {}}
+            else:
+                creative_work_dict = creative_seed
+            
+            # 保存到 novel_data（对话模式会用到）
+            self.novel_data["creative_seed"] = creative_work_dict
+            
+            # 提取标题
+            title = creative_work_dict.get('novelTitle') or creative_work_dict.get('novel_title')
+            if title:
+                self._ctx['novel_title'] = title
+                self.novel_data['novel_title'] = title
+                self.logger.info(f"[对话模式] 已从创意种子提取标题: {title}")
+            
+            # 设置步骤状态为跳过（由对话模式替代执行）
+            try:
+                if hasattr(self, '_update_task_status_callback'):
+                    task_id = getattr(self, '_current_task_id', None)
+                    if task_id and callable(self._update_task_status_callback):
+                        self._update_task_status_callback(
+                            task_id, 'generating', 40, None,
+                            current_step='plan_selection',
+                            step_status={
+                                'creative_refinement': 'skipped',
+                                'fanfiction_detection': 'skipped',
+                                'multiple_plans': 'skipped',
+                                'plan_selection': 'skipped'
+                            }
+                        )
+                        self.logger.info("[对话模式] 步骤状态更新: 传统步骤1-4已跳过")
+            except Exception as e:
+                self.logger.error(f"[对话模式] 步骤状态更新失败: {e}")
+            
+            # 创建初始检查点
+            self.resume_manager.create_initial_checkpoint(creative_seed, total_chapters)
+            
+            # 🔥 直接调用 PhaseGenerator（它会进入对话模式）
+            self.logger.info("🔥 调用 PhaseGenerator.generate_phase_one_preparations()（对话模式）")
+            return self.phase_generator.generate_phase_one_preparations()
+        
         # 🔥 修复：如果已经通过交互式策划完成方案定型，跳过创意精炼、同人检测和方案生成
         existing_plan_brief = self._ctx.get('final_plan_brief') or self.novel_data.get('final_plan_brief')
         if existing_plan_brief:

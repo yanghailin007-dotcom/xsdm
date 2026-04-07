@@ -448,9 +448,15 @@ class UploadWorker(QThread):
             publish_config = self.novel_config.get('publish_config', {})
             self.log_signal.emit(f"DEBUG: publish_config = {publish_config}", "debug")
             
+            # 🔥 修复：如果配置为空，使用默认配置（番茄签约标准：20章首次，之后每天8章）
             if not publish_config:
-                self.log_signal.emit("未找到发布配置，所有章节将立即发布", "warning")
-                return
+                self.log_signal.emit("未找到发布配置，使用默认配置（首次20章，之后每天8章）", "warning")
+                publish_config = {
+                    'first_publish_count': 20,
+                    'daily_count': 8,
+                    'publish_time': '07:00',
+                    'interval_minutes': 30
+                }
             
             first_publish_count = publish_config.get('first_publish_count', 20)
             daily_count = publish_config.get('daily_count', 8)  # 每日总章节数
@@ -495,7 +501,15 @@ class UploadWorker(QThread):
                                                      first_publish_count, daily_count, chapters_per_slot)
                 return
             
-            # 从平台同步最后发布时间
+            # 🔥 检查本地发布记录（自动续传）
+            if self.project_path:
+                resume_info = self.check_resume_publish(self.project_path, max_chapter)
+                if resume_info.get('need_resume'):
+                    self.log_signal.emit(f"检测到本地发布记录，使用自动续传: {resume_info.get('message')}", "info")
+                    self._apply_resume_schedule(resume_info, first_publish_count, daily_count)
+                    return
+            
+            # 从平台同步最后发布时间（备用方案）
             self.log_signal.emit("同步平台发布时间数据...", "info")
             last_published_time, today_published_count = self._get_last_published_time_from_page()
             
@@ -507,15 +521,28 @@ class UploadWorker(QThread):
             if last_published_time:
                 last_date = last_published_time.strftime('%Y-%m-%d')
                 last_time = last_published_time.strftime('%H:%M')
-                # 找到对应的时间点
-                for time_slot in publish_times:
-                    if time_slot == last_time:
-                        if last_date not in date_time_slot_usage:
-                            date_time_slot_usage[last_date] = {}
-                        date_time_slot_usage[last_date][time_slot] = today_published_count % chapters_per_slot
-                        break
-                start_date = last_published_time.date()
-                self.log_signal.emit(f"基于平台数据: 最后发布 {last_date} {last_time}, 今天已发{today_published_count}章", "info")
+                
+                # 🔥 修复：检查今天是否已满额
+                if today_published_count >= daily_count:
+                    # 今天已满，从明天开始
+                    start_date = now.date() + timedelta(days=1)
+                    self.log_signal.emit(f"今天已发布{today_published_count}章（满额），从明天开始", "info")
+                elif last_published_time.date() < now.date():
+                    # 最后发布是昨天或更早，从今天的第一个时间点开始
+                    start_date = now.date()
+                    # 初始化今天的使用情况（从零开始）
+                    date_time_slot_usage[start_date.strftime('%Y-%m-%d')] = {}
+                    self.log_signal.emit(f"最后发布是昨天，从今天开始（已发0章）", "info")
+                else:
+                    # 最后发布是今天，记录已使用情况
+                    for time_slot in publish_times:
+                        if time_slot == last_time:
+                            if last_date not in date_time_slot_usage:
+                                date_time_slot_usage[last_date] = {}
+                            date_time_slot_usage[last_date][time_slot] = today_published_count % chapters_per_slot
+                            break
+                    start_date = now.date()
+                    self.log_signal.emit(f"基于平台数据: 最后发布 {last_date} {last_time}, 今天已发{today_published_count}章", "info")
             else:
                 start_date = now.date() + timedelta(days=1)  # 从明天开始
                 self.log_signal.emit(f"无平台数据，从明天 {publish_times[0]} 开始", "info")
@@ -636,6 +663,73 @@ class UploadWorker(QThread):
             
         except Exception as e:
             self.log_signal.emit(f"应用手动定时计划失败: {e}", "warning")
+    
+    def _apply_resume_schedule(self, resume_info: dict, first_publish_count: int, daily_count: int):
+        """
+        应用本地记录的续传计划
+        
+        Args:
+            resume_info: check_resume_publish 返回的续传信息
+            first_publish_count: 首次发布章节数
+            daily_count: 每天发布章节数
+        """
+        try:
+            from datetime import datetime, timedelta
+            
+            next_date_str = resume_info.get('next_publish_date')
+            next_time_str = resume_info.get('next_publish_time')
+            last_chapter = resume_info.get('last_chapter', 0)
+            last_day_remaining = resume_info.get('last_day_remaining', daily_count)
+            
+            # 解析起始时间
+            start_dt = datetime.strptime(f"{next_date_str} {next_time_str}", '%Y-%m-%d %H:%M')
+            
+            scheduled_count = 0
+            today_chapters = 0  # 当天已安排章节数（从续传点开始）
+            next_time = start_dt
+            
+            for chapter in self.chapters:
+                ch_num = chapter.get('chapter_number', 0)
+                
+                # 只对大于 first_publish_count 的章节设置定时
+                if ch_num <= first_publish_count:
+                    continue
+                
+                # 检查是否需要跨天
+                if today_chapters >= last_day_remaining:
+                    # 跳到明天
+                    next_day = next_time.date() + timedelta(days=1)
+                    next_time = datetime(next_day.year, next_day.month, next_day.day, 
+                                        int(next_time_str.split(':')[0]), 
+                                        int(next_time_str.split(':')[1]))
+                    today_chapters = 0
+                    last_day_remaining = daily_count  # 新一天满额
+                
+                # 设置定时时间
+                chapter['scheduled_time'] = next_time.strftime('%Y-%m-%d %H:%M')
+                
+                # 准备下一个时间（+30分钟）
+                next_time += timedelta(minutes=30)
+                today_chapters += 1
+                scheduled_count += 1
+            
+            # 输出计划
+            self.log_signal.emit(f"=" * 50, "info")
+            self.log_signal.emit(f"定时发布计划: {scheduled_count}章 (自动续传)", "info")
+            self.log_signal.emit(f"  续传起点: 第{last_chapter + 1}章", "info")
+            self.log_signal.emit(f"  起始时间: {next_date_str} {next_time_str}", "info")
+            
+            # 找出首章和末章
+            scheduled_chapters = [ch for ch in self.chapters if ch.get('scheduled_time')]
+            if scheduled_chapters:
+                first_scheduled = min(scheduled_chapters, key=lambda x: x['chapter_number'])
+                last_scheduled = max(scheduled_chapters, key=lambda x: x['chapter_number'])
+                self.log_signal.emit(f"  首章: 第{first_scheduled['chapter_number']}章 @ {first_scheduled['scheduled_time']}", "info")
+                self.log_signal.emit(f"  末章: 第{last_scheduled['chapter_number']}章 @ {last_scheduled['scheduled_time']}", "info")
+            self.log_signal.emit(f"=" * 50, "info")
+            
+        except Exception as e:
+            self.log_signal.emit(f"应用续传计划失败: {e}", "warning")
     
     def _get_last_published_time_from_page(self) -> tuple:
         """从页面获取最后发布时间和今天发布数量"""
@@ -2890,10 +2984,14 @@ NovelPublisher_Data/              ← 统一数据目录
         data = self._load_published_chapters_with_info(project_path)
         return set(int(k) for k in data.get('chapters', {}).keys())
     
-    def check_resume_publish(self, project_path: Path) -> dict:
+    def check_resume_publish(self, project_path: Path, total_chapters: int = None) -> dict:
         """
         检测是否需要续发 - 基于 v2.0 发布记录的 publish_time 推算
         逻辑：从后往前读，找到最后一天，统计那天发了多少章，推算下一章时间
+        
+        Args:
+            project_path: 项目路径
+            total_chapters: 当前加载的总章节数，用于判断是否还有未发布章节
         """
         try:
             data = self._load_published_chapters_with_info(project_path)
@@ -2902,24 +3000,32 @@ NovelPublisher_Data/              ← 统一数据目录
             if not chapters:
                 return {'need_resume': False}
             
+            # 🔥 修复：检查是否还有未发布的章节
+            max_published = max(int(k) for k in chapters.keys())
+            if total_chapters and max_published >= total_chapters:
+                # 所有章节都已发布，不需要续传
+                return {'need_resume': False, 'reason': 'all_chapters_published'}
+            
             daily_limit = data.get('daily_limit', 8)
             publish_times_str = data.get('publish_times', '06:00')
             publish_times = [t.strip() for t in publish_times_str.split(',') if t.strip()]
             base_time = publish_times[0] if publish_times else '06:00'
             
-            # 找出最后发布的章节
-            max_chapter = max(int(k) for k in chapters.keys())
-            last_ch_info = chapters.get(str(max_chapter), {})
+            # 使用已计算的 max_published
+            last_ch_info = chapters.get(str(max_published), {})
             last_publish_time = last_ch_info.get('publish_time')
             
+            # 🔥 修复：如果没有 publish_time，使用当前时间作为回退
             if not last_publish_time:
-                # 无定时信息，无法续发
-                return {'need_resume': False}
+                self.log(f"⚠️ 第{max_published}章无发布时间记录，使用当前时间作为续传起点", "warning")
+                from datetime import datetime
+                last_publish_time = datetime.now().strftime('%Y-%m-%d %H:%M')
             
             # 解析最后发布时间
             last_dt = datetime.strptime(last_publish_time, '%Y-%m-%d %H:%M')
             last_date = last_dt.date()
             today = datetime.now().date()
+            last_date_str = last_dt.strftime('%Y-%m-%d')  # 先定义好
             
             # 🔥 自动续传关键逻辑：如果最后发布日期是未来（定时任务），从今天重新开始算
             if last_date > today:
@@ -2929,7 +3035,6 @@ NovelPublisher_Data/              ← 统一数据目录
             else:
                 base_date = last_date
                 # 🔥 统计最后一天（按 publish_time 日期）已发多少章
-                last_date_str = last_dt.strftime('%Y-%m-%d')
                 last_day_count = 0
                 for ch_info in chapters.values():
                     if isinstance(ch_info, dict):
@@ -2938,7 +3043,13 @@ NovelPublisher_Data/              ← 统一数据目录
                             last_day_count += 1
             
             # 🔥 推算下一章时间（基于 base_date）
-            if last_day_count >= daily_limit:
+            # 🔥 修复：如果最后发布日期是今天，续传应该从明天开始（今天的已发完）
+            if base_date == today:
+                # 今天已经发过，从明天开始
+                next_date = base_date + timedelta(days=1)
+                next_time = base_time
+                last_day_count = 0  # 重置为0，因为是新的一天
+            elif last_day_count >= daily_limit:
                 # 当天已满，跨到下一天从 base_time 开始
                 next_date = base_date + timedelta(days=1)
                 next_time = base_time
@@ -2952,19 +3063,19 @@ NovelPublisher_Data/              ← 统一数据目录
             # 计算那一天还能发几章
             remaining_that_day = daily_limit - last_day_count
             
-            next_chapter = max_chapter + 1
+            next_chapter = max_published + 1
             
             return {
                 'need_resume': True,
                 'daily_limit': daily_limit,
-                'last_chapter': max_chapter,
+                'last_chapter': max_published,
                 'last_publish_date': last_date_str,
                 'last_day_published': last_day_count,
                 'last_day_remaining': remaining_that_day,
                 'next_chapter': next_chapter,
                 'next_publish_date': next_date.strftime('%Y-%m-%d') if isinstance(next_date, date) else str(next_date),
                 'next_publish_time': next_time,
-                'message': f"最后: 第{max_chapter}章 @ {last_publish_time} | 下一章: 第{next_chapter}章 @ {next_date} {next_time}"
+                'message': f"最后: 第{max_published}章 @ {last_publish_time} | 下一章: 第{next_chapter}章 @ {next_date} {next_time}"
             }
             
         except Exception as e:
@@ -3009,9 +3120,13 @@ NovelPublisher_Data/              ← 统一数据目录
             chapter_num = chapter.get('chapter_number', 0)
             chapter_title = chapter.get('title', f'第{chapter_num}章')
             
+            # 🔥 修复：如果没有定时时间（立即发布），使用当前时间
+            if not publish_time:
+                publish_time = datetime.now().strftime('%Y-%m-%d %H:%M')
+            
             data['chapters'][str(chapter_num)] = {
                 'published_at': datetime.now().isoformat(),  # 实际发布时间
-                'publish_time': publish_time,  # 定时时间（如果有）
+                'publish_time': publish_time,  # 发布时间（定时或立即）
                 'title': chapter_title
             }
             

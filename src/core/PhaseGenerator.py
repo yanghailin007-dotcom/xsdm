@@ -114,11 +114,12 @@ class PhaseGenerator:
         不包含实际的章节内容生成
         """
         # 🔥🔥🔥 入口调试日志
-        print("\n" + "="*80)
-        print("🔥 PhaseGenerator.generate_phase_one_preparations() 被调用")
-        print(f"🔥 CREATIVE_CONVERSATION_AVAILABLE: {CREATIVE_CONVERSATION_AVAILABLE}")
-        print(f"🔥 config: {getattr(self.generator, 'config', {})}")
-        print("="*80 + "\n")
+        self.logger.info("="*80)
+        self.logger.info("🔥 PhaseGenerator.generate_phase_one_preparations() 被调用")
+        self.logger.info(f"🔥 CREATIVE_CONVERSATION_AVAILABLE: {CREATIVE_CONVERSATION_AVAILABLE}")
+        config = getattr(self.generator, 'config', {})
+        self.logger.info(f"🔥 use_creative_conversation_mode: {config.get('use_creative_conversation_mode', 'NOT SET')}")
+        self.logger.info("="*80)
         
         def update_progress_callback(stage_name: str, progress: int, message: Optional[str] = None, 
                                       step_status: Dict = None, points_consumed: int = None):
@@ -268,24 +269,23 @@ class PhaseGenerator:
             print("开始第一阶段准备工作...")
             
             # 💬💬💬 创意到方案对话模式（优先级最高 - 最快）
-            print(f"\n[调试] CREATIVE_CONVERSATION_AVAILABLE: {CREATIVE_CONVERSATION_AVAILABLE}")
-            print(f"[调试] config: {getattr(self.generator, 'config', {})}")
+            self.logger.info(f"[调试] CREATIVE_CONVERSATION_AVAILABLE: {CREATIVE_CONVERSATION_AVAILABLE}")
+            config = getattr(self.generator, 'config', {})
+            self.logger.info(f"[调试] config.use_creative_conversation_mode: {config.get('use_creative_conversation_mode', 'NOT SET')}")
             should_use = self._should_use_creative_conversation_mode()
-            print(f"[调试] _should_use_creative_conversation_mode: {should_use}")
+            self.logger.info(f"[调试] _should_use_creative_conversation_mode: {should_use}")
             
             if CREATIVE_CONVERSATION_AVAILABLE and should_use:
-                print("\n" + "="*60)
-                print("💬 启用创意到方案对话模式")
-                print("   4步全自动：分析 → 多方案 → 选优对标 → 深化")
-                print("   单一会话复用，4轮对话完成")
-                print("="*60)
+                self.logger.info("💬 启用创意到方案对话模式")
+                self.logger.info("   4步全自动：分析 → 多方案 → 选优对标 → 深化")
+                self.logger.info("   单一会话复用，4轮对话完成")
                 return self._generate_phase_one_with_creative_conversation(
                     update_progress_callback=update_progress_callback,
                     update_step_status=update_step_status,
                     notify_failure=notify_failure
                 )
             else:
-                print(f"\n[调试] 跳过对话模式: AVAILABLE={CREATIVE_CONVERSATION_AVAILABLE}, should_use={should_use}")
+                self.logger.info(f"[调试] 跳过对话模式: AVAILABLE={CREATIVE_CONVERSATION_AVAILABLE}, should_use={should_use}")
             
             # 🚀🚀🚀 分域会话模式检测
             if DOMAIN_SESSION_MODE_AVAILABLE and self._should_use_domain_session_mode():
@@ -670,32 +670,22 @@ class PhaseGenerator:
             # 同步结果到 novel_data
             self._sync_creative_conversation_results(results)
             
-            # 完成所有步骤
-            final_step_status = {
-                'commercial_analysis': 'completed',
-                'multi_plan_generation': 'completed',
-                'selection_bestseller': 'completed',
-                'final_plan_deepening': 'completed',
-                'creative_analysis': 'completed',
-                'planning': 'completed',
-                'optimization': 'completed',
-                'finalization': 'completed',
-                'completed': 'completed'
-            }
-            
-            update_progress_callback(
-                'completed', 
-                100, 
-                f"创意到方案对话模式完成 | 总轮次: {results.get('turn_count', 0)}",
-                step_status=final_step_status
-            )
-            
             print(f"\n✅ 创意到方案对话模式完成！")
             print(f"   总对话轮次: {results.get('turn_count', 0)}")
             print(f"   生成方案数: {len(results.get('step2_multi_plan', {}).get('plans', []))}")
             print(f"   选定方案: {results.get('step3_selected_plan', {}).get('selection', {}).get('selected_title', '')}")
             
-            return True
+            # 🔥🔥🔥 关键修复：对话模式完成后，继续执行剩余步骤
+            print("\n" + "="*60)
+            print("🔄 对话模式完成，继续执行后续步骤...")
+            print("   基础规划 → 世界观 → 角色设计 → 全书规划")
+            print("="*60)
+            
+            return self._continue_phase_one_after_conversation(
+                update_progress_callback=update_progress_callback,
+                update_step_status=update_step_status,
+                notify_failure=notify_failure
+            )
             
         except Exception as e:
             error_msg = f"创意到方案对话模式执行失败: {str(e)}"
@@ -752,6 +742,520 @@ class PhaseGenerator:
             
         except Exception as e:
             self.logger.warning(f"⚠️ 同步对话模式结果时出错: {e}")
+    
+    def _sync_foundation_planning_results(self, result: Dict):
+        """
+        同步 FoundationPlanningSession 结果到 novel_data
+        
+        Args:
+            result: FoundationPlanningSession 的输出
+        """
+        try:
+            # 同步写作风格指南
+            if result.get("writing_style_guide"):
+                self.generator.novel_data["writing_style_guide"] = result["writing_style_guide"]
+                # 保存到文件
+                if hasattr(self.generator, '_save_writing_style_to_file'):
+                    self.generator._save_writing_style_to_file(result["writing_style_guide"])
+                self.logger.info("✅ 写作风格指南已同步")
+            
+            # 同步市场分析
+            if result.get("market_analysis"):
+                self.generator.novel_data["market_analysis"] = result["market_analysis"]
+                self.logger.info("✅ 市场分析已同步")
+            
+            # 同步世界观
+            if result.get("core_worldview"):
+                self.generator.novel_data["core_worldview"] = result["core_worldview"]
+                self.logger.info("✅ 世界观已同步")
+            
+            # 同步势力系统
+            if result.get("faction_system"):
+                self.generator.novel_data["faction_system"] = result["faction_system"]
+                # 保存到材料管理器
+                if hasattr(self.generator, '_save_material_to_manager'):
+                    self.generator._save_material_to_manager(
+                        "势力系统",
+                        result["faction_system"],
+                        novel_title=self.generator.novel_data.get("novel_title", "")
+                    )
+                self.logger.info("✅ 势力系统已同步")
+            
+            self.logger.info("✅ FoundationPlanningSession 结果已全部同步")
+            
+        except Exception as e:
+            self.logger.error(f"❌ 同步 FoundationPlanningSession 结果时出错: {e}")
+            raise
+    
+    def _sync_character_narrative_results(self, result: Dict):
+        """
+        同步 CharacterNarrativeSession 结果到 novel_data
+        
+        Args:
+            result: CharacterNarrativeSession 的输出
+        """
+        try:
+            # 同步角色设计
+            if result.get("character_design"):
+                self.generator.novel_data["character_design"] = result["character_design"]
+                
+                # 持久化角色数据
+                if self.generator.quality_assessor is not None:
+                    self.generator.quality_assessor.persist_initial_character_designs(
+                        novel_title=self.generator.novel_data.get("novel_title", ""),
+                        character_design=result["character_design"]
+                    )
+                self.logger.info("✅ 角色设计已同步")
+            
+            # 同步情绪蓝图
+            if result.get("emotional_blueprint"):
+                self.generator.novel_data["emotional_blueprint"] = result["emotional_blueprint"]
+                # 同时存储到 _ctx
+                if hasattr(self.generator, '_ctx'):
+                    self.generator._ctx["emotional_blueprint"] = result["emotional_blueprint"]
+                self.logger.info("✅ 情绪蓝图已同步")
+            
+            # 同步成长规划
+            if result.get("global_growth_plan"):
+                self.generator.novel_data["global_growth_plan"] = result["global_growth_plan"]
+                # 同时存储到 _ctx
+                if hasattr(self.generator, '_ctx'):
+                    self.generator._ctx["global_growth_plan"] = result["global_growth_plan"]
+                # 设置到 GlobalGrowthPlanner
+                if hasattr(self.generator, 'global_growth_planner'):
+                    self.generator.global_growth_planner.global_growth_plan = result["global_growth_plan"]
+                self.logger.info("✅ 成长规划已同步")
+            
+            self.logger.info("✅ CharacterNarrativeSession 结果已全部同步")
+            
+        except Exception as e:
+            self.logger.error(f"❌ 同步 CharacterNarrativeSession 结果时出错: {e}")
+            raise
+    
+    def _sync_expectation_system_results(self, result: Dict):
+        """
+        同步 ExpectationSystemSession 结果到 novel_data
+        
+        Args:
+            result: ExpectationSystemSession 的输出
+        """
+        try:
+            # 同步期待感映射
+            if result.get("expectation_mapping"):
+                self.generator.novel_data["expectation_mapping"] = result["expectation_mapping"]
+                
+                # 初始化期待感管理系统
+                if hasattr(self.generator, 'expectation_manager') and hasattr(self.generator.expectation_manager, 'initialize_from_mapping'):
+                    self.generator.expectation_manager.initialize_from_mapping(
+                        result["expectation_mapping"]
+                    )
+                
+                self.logger.info("✅ 期待感映射已同步")
+            
+            # 同步系统初始化状态
+            if result.get("system_init"):
+                self.generator.novel_data["system_init"] = result["system_init"]
+                
+                # 初始化各子系统
+                initialized_systems = result["system_init"].get("initialized_systems", [])
+                
+                # 初始化期待感管理
+                if "expectation_management" in initialized_systems:
+                    if hasattr(self.generator, 'initialize_expectation_elements'):
+                        self.generator.initialize_expectation_elements()
+                    self.logger.info("✅ 期待感管理系统已初始化")
+                
+                # 初始化角色一致性检查
+                if "character_consistency" in initialized_systems:
+                    self.logger.info("✅ 角色一致性检查已初始化")
+                
+                # 初始化剧情追踪
+                if "plot_tracking" in initialized_systems:
+                    self.logger.info("✅ 剧情追踪已初始化")
+                
+                self.logger.info("✅ 系统初始化状态已同步")
+            
+            self.logger.info("✅ ExpectationSystemSession 结果已全部同步")
+            
+        except Exception as e:
+            self.logger.error(f"❌ 同步 ExpectationSystemSession 结果时出错: {e}")
+            raise
+    
+    def _continue_phase_one_after_conversation(
+        self,
+        update_progress_callback,
+        update_step_status,
+        notify_failure
+    ) -> bool:
+        """
+        🔥 对话模式完成后，继续执行第一阶段剩余步骤
+        
+        执行步骤：
+        1. 基础规划 (foundation_planning): writing_style + market_analysis
+        2. 世界观与势力 (worldview_with_factions): worldview + faction_system  
+        3. 角色设计 (character_design)
+        4. 全书规划 (_generate_overall_planning): emotional_growth_planning + stage_plan + detailed_stage_plans + expectation_mapping + system_init
+        5. 保存结果 (saving)
+        6. 质量评估 (quality_assessment)
+        """
+        # 基于标准步骤的进度映射（从40%开始，因为对话模式占了前40%）
+        step_progress_map = {
+            'foundation_planning': 45,
+            'worldview_with_factions': 55,
+            'character_design': 65,
+            'emotional_growth_planning': 72,
+            'stage_plan': 78,
+            'detailed_stage_plans': 82,
+            'supplementary_characters': 85,
+            'expectation_mapping': 88,
+            'system_init': 92,
+            'saving': 96,
+            'quality_assessment': 100
+        }
+        
+        # 对话模式已完成的前4步状态
+        base_step_status = {
+            'creative_refinement': 'completed',
+            'fanfiction_detection': 'completed',
+            'multiple_plans': 'completed',
+            'plan_selection': 'completed'
+        }
+        
+        # 🔥 导入回退管理器和验证器
+        try:
+            from src.core.session_mode import FallbackManager, ExecutionMode
+            from src.core.session_mode.validators import quick_validate
+            
+            # 创建回退管理器
+            fallback_config = getattr(self.generator, 'config', {}).get('session_fallback', {})
+            fallback_manager = FallbackManager(fallback_config)
+        except ImportError as e:
+            self.logger.warning(f"回退管理器不可用: {e}，使用传统模式")
+            fallback_manager = None
+        
+        try:
+            # =================================================================
+            # 步骤1-2: 基础规划（使用 FoundationPlanningSession 或传统模式）
+            # =================================================================
+            print("\n" + "="*60)
+            print("🧱 步骤1-2: 基础规划 (写作风格 + 市场分析 + 世界观 + 势力)")
+            print("="*60)
+            update_step_status('foundation_planning', 'active', step_progress_map['foundation_planning'])
+            
+            # 定义对话模式函数
+            def conversation_foundation():
+                from src.core.session_mode.sessions.foundation_planning_session import (
+                    FoundationPlanningSession
+                )
+                
+                session = FoundationPlanningSession(
+                    api_client=self.generator.api_client,
+                    novel_data=self.generator.novel_data,
+                    provider=getattr(self.generator, 'provider', 'gemini'),
+                    model_name=getattr(self.generator, 'model_name', None),
+                    temperature=getattr(self.generator, 'temperature', 0.7)
+                )
+                
+                # 设置进度回调
+                def session_progress(progress, message):
+                    # 映射 Session 进度到整体进度 (45-55%)
+                    overall_progress = 45 + int(progress * 0.1)
+                    update_progress_callback('foundation_planning', overall_progress, message)
+                
+                session.set_progress_callback(session_progress)
+                
+                # 执行 Session
+                result = session.execute_all_steps()
+                
+                # 同步结果到 novel_data
+                self._sync_foundation_planning_results(result)
+                
+                # 保存 Context Brief 供后续使用
+                self._foundation_context_brief = session.export_context_brief()
+                
+                return result
+            
+            # 定义传统模式函数
+            def traditional_foundation():
+                # 执行基础规划
+                if not self._generate_foundation_planning(update_step_status=update_step_status):
+                    raise RuntimeError("基础规划生成失败")
+                
+                # 执行世界观与势力
+                if not self._generate_worldview_and_factions(update_step_status=update_step_status):
+                    raise RuntimeError("世界观与势力设计失败")
+                
+                return {
+                    "writing_style_guide": self.generator.novel_data.get("writing_style_guide", {}),
+                    "market_analysis": self.generator.novel_data.get("market_analysis", {}),
+                    "core_worldview": self.generator.novel_data.get("core_worldview", {}),
+                    "faction_system": self.generator.novel_data.get("faction_system", {})
+                }
+            
+            # 验证函数
+            def validate_foundation(result):
+                return quick_validate('foundation_planning', result)
+            
+            # 执行（带回退）
+            if fallback_manager:
+                success, result, mode = fallback_manager.execute_with_fallback(
+                    "foundation_planning",
+                    conversation_foundation,
+                    traditional_foundation,
+                    validate_foundation,
+                    update_progress_callback
+                )
+                
+                self.logger.info(f"基础规划使用模式: {mode.value}")
+                
+                if mode == ExecutionMode.CONVERSATION:
+                    # 对话模式已完成 worldview_with_factions
+                    base_step_status['worldview_with_factions'] = 'completed'
+            else:
+                # 无回退管理器，使用传统模式
+                result = traditional_foundation()
+            
+            base_step_status['foundation_planning'] = 'completed'
+            update_progress_callback('worldview_with_factions', step_progress_map['worldview_with_factions'],
+                                     "基础规划完成", step_status=base_step_status.copy())
+            
+            # 步骤3: 核心角色设计（使用 CharacterNarrativeSession 或传统模式）
+            print("\n" + "="*60)
+            print("👤 步骤3: 核心角色设计（使用 CharacterNarrativeSession）")
+            print("="*60)
+            update_step_status('character_design', 'active', step_progress_map['character_design'])
+            
+            # 定义对话模式函数
+            def conversation_character():
+                from src.core.session_mode.sessions.character_narrative_session import (
+                    CharacterNarrativeSession
+                )
+                
+                # 准备 Context Brief（从 FoundationPlanning）
+                context_briefs = []
+                if hasattr(self, '_foundation_context_brief'):
+                    context_briefs.append(json.dumps(self._foundation_context_brief))
+                
+                session = CharacterNarrativeSession(
+                    api_client=self.generator.api_client,
+                    novel_data=self.generator.novel_data,
+                    context_briefs=context_briefs,
+                    provider=getattr(self.generator, 'provider', 'gemini'),
+                    model_name=getattr(self.generator, 'model_name', None),
+                    temperature=getattr(self.generator, 'temperature', 0.7)
+                )
+                
+                # 设置进度回调
+                def session_progress(progress, message):
+                    overall_progress = 65 + int(progress * 0.05)
+                    update_progress_callback('character_design', overall_progress, message)
+                
+                session.set_progress_callback(session_progress)
+                
+                # 执行 Session
+                result = session.execute_all_steps()
+                
+                # 同步结果到 novel_data
+                self._sync_character_narrative_results(result)
+                
+                # 保存 Context Brief 供后续使用
+                self._character_context_brief = session.export_context_brief()
+                
+                return result
+            
+            # 定义传统模式函数
+            def traditional_character():
+                if not self._generate_character_design(update_step_status=update_step_status):
+                    raise RuntimeError("核心角色设计失败")
+                
+                # 生成情绪蓝图和成长规划
+                if not self._generate_emotional_and_growth_plan(update_step_status=update_step_status):
+                    print("⚠️ 情绪蓝图与成长规划生成失败，使用基础框架")
+                
+                return {
+                    "character_design": self.generator.novel_data.get("character_design", {}),
+                    "emotional_blueprint": self.generator.novel_data.get("emotional_blueprint", {}),
+                    "global_growth_plan": self.generator.novel_data.get("global_growth_plan", {})
+                }
+            
+            # 验证函数
+            def validate_character(result):
+                from src.core.session_mode.validators import quick_validate
+                return quick_validate('character_narrative', result)
+            
+            # 执行（带回退）
+            if fallback_manager:
+                success, result, mode = fallback_manager.execute_with_fallback(
+                    "character_narrative",
+                    conversation_character,
+                    traditional_character,
+                    validate_character,
+                    update_progress_callback
+                )
+                
+                self.logger.info(f"角色设计使用模式: {mode.value}")
+                
+                if mode == ExecutionMode.CONVERSATION:
+                    # 对话模式已完成 emotional_growth_planning
+                    base_step_status['emotional_growth_planning'] = 'completed'
+            else:
+                # 无回退管理器，使用传统模式
+                result = traditional_character()
+            
+            base_step_status['character_design'] = 'completed'
+            update_progress_callback('character_design', step_progress_map['character_design'],
+                                     "角色设计完成", step_status=base_step_status.copy())
+            
+            # 步骤4: 全书规划（保持传统实现，已稳定工作）
+            print("\n" + "="*60)
+            print("📚 步骤4: 全书规划")
+            print("="*60)
+            update_step_status('emotional_growth_planning', 'active', step_progress_map['emotional_growth_planning'])
+            if not self._generate_overall_planning(update_step_status=update_step_status):
+                error_msg = "全书规划生成失败"
+                print(f"❌ {error_msg}")
+                notify_failure(error_msg)
+                return False
+            base_step_status.update({
+                'emotional_growth_planning': 'completed',
+                'stage_plan': 'completed',
+                'detailed_stage_plans': 'completed',
+                'supplementary_characters': 'completed'
+            })
+            
+            # 步骤5: 期待感系统（使用 ExpectationSystemSession 或传统模式）
+            print("\n" + "="*60)
+            print("🎯 步骤5: 期待感系统")
+            print("="*60)
+            update_step_status('expectation_mapping', 'active', step_progress_map['expectation_mapping'])
+            
+            # 定义对话模式函数
+            def conversation_expectation():
+                from src.core.session_mode.sessions.expectation_system_session import (
+                    ExpectationSystemSession
+                )
+                
+                # 准备 Context Briefs
+                context_briefs = []
+                if hasattr(self, '_foundation_context_brief'):
+                    context_briefs.append(json.dumps(self._foundation_context_brief))
+                if hasattr(self, '_character_context_brief'):
+                    context_briefs.append(json.dumps(self._character_context_brief))
+                
+                session = ExpectationSystemSession(
+                    api_client=self.generator.api_client,
+                    novel_data=self.generator.novel_data,
+                    context_briefs=context_briefs,
+                    provider=getattr(self.generator, 'provider', 'gemini'),
+                    model_name=getattr(self.generator, 'model_name', None),
+                    temperature=getattr(self.generator, 'temperature', 0.7)
+                )
+                
+                # 设置进度回调
+                def session_progress(progress, message):
+                    overall_progress = 88 + int(progress * 0.04)
+                    update_progress_callback('expectation_mapping', overall_progress, message)
+                
+                session.set_progress_callback(session_progress)
+                
+                # 执行 Session
+                result = session.execute_all_steps()
+                
+                # 同步结果到 novel_data
+                self._sync_expectation_system_results(result)
+                
+                return result
+            
+            # 定义传统模式函数
+            def traditional_expectation():
+                # 传统模式下，expectation_mapping 和 system_init 是自动完成的
+                # 这里只需要标记状态
+                self.generator.novel_data["expectation_mapping"] = {
+                    "status": "integrated",
+                    "source": "traditional_mode",
+                    "elements": self.generator.expectation_manager.get_all_elements() if hasattr(self.generator, 'expectation_manager') else []
+                }
+                self.generator.novel_data["system_init"] = {
+                    "status": "completed",
+                    "initialized_systems": ["expectation_management", "character_consistency", "plot_tracking"]
+                }
+                return {
+                    "expectation_mapping": self.generator.novel_data["expectation_mapping"],
+                    "system_init": self.generator.novel_data["system_init"]
+                }
+            
+            # 验证函数
+            def validate_expectation(result):
+                from src.core.session_mode.validators import quick_validate
+                return quick_validate('expectation_system', result)
+            
+            # 执行（带回退）
+            if fallback_manager:
+                success, result, mode = fallback_manager.execute_with_fallback(
+                    "expectation_system",
+                    conversation_expectation,
+                    traditional_expectation,
+                    validate_expectation,
+                    update_progress_callback
+                )
+                
+                self.logger.info(f"期待感系统使用模式: {mode.value}")
+                
+                if mode == ExecutionMode.CONVERSATION:
+                    # 对话模式已完成 system_init
+                    pass
+            else:
+                # 无回退管理器，使用传统模式
+                result = traditional_expectation()
+            
+            base_step_status.update({
+                'expectation_mapping': 'completed',
+                'system_init': 'completed'
+            })
+            update_progress_callback('system_init', step_progress_map['system_init'],
+                                     "期待感系统完成", step_status=base_step_status.copy())
+            
+            # 步骤5: 保存结果
+            print("\n" + "="*60)
+            print("💾 步骤5: 保存结果")
+            print("="*60)
+            update_step_status('saving', 'active', step_progress_map['saving'])
+            self._save_phase_one_result()
+            base_step_status['saving'] = 'completed'
+            update_progress_callback('saving', step_progress_map['saving'],
+                                     "结果已保存", step_status=base_step_status.copy())
+            
+            # 步骤6: 质量评估
+            print("\n" + "="*60)
+            print("🎯 步骤6: 质量评估")
+            print("="*60)
+            update_step_status('quality_assessment', 'active', step_progress_map['quality_assessment'])
+            update_progress_callback('quality_assessment', 95, "正在进行三轮智能优化...",
+                                     step_status={'quality_assessment': 'active'})
+            quality_result = self._assess_writing_plan_quality()
+            if quality_result:
+                self.generator.novel_data["quality_assessment"] = quality_result
+                print(f"✅ 评估完成！得分: {quality_result.get('overall_score', 0)}/100")
+            base_step_status['quality_assessment'] = 'completed'
+            
+            # 最终完成状态
+            final_status = base_step_status.copy()
+            final_status['completed'] = 'completed'
+            update_progress_callback('completed', 100, "第一阶段全部完成",
+                                     step_status=final_status)
+            
+            print("\n" + "="*60)
+            print("✅ 第一阶段全部完成！")
+            print("="*60)
+            return True
+            
+        except Exception as e:
+            error_msg = f"继续执行第一阶段后续步骤时出错: {str(e)}"
+            print(f"❌ {error_msg}")
+            import traceback
+            traceback.print_exc()
+            notify_failure(error_msg)
+            return False
     
     def _should_use_partial_foundation_session(self) -> bool:
         """
@@ -1006,9 +1510,9 @@ class PhaseGenerator:
             update_step_status('worldview', 'active', 35)
         
         try:
-            novel_title = self.generator.novel_data["novel_title"]
-            novel_synopsis = self.generator.novel_data["novel_synopsis"]
-            selected_plan = self.generator.novel_data["selected_plan"]
+            novel_title = self.generator.novel_data.get("novel_title", "")
+            novel_synopsis = self.generator.novel_data.get("novel_synopsis", "")
+            selected_plan = self.generator.novel_data.get("selected_plan", {})
             market_analysis = self.generator.novel_data.get("market_analysis", {})
             
             # 调用合并生成方法
@@ -1141,12 +1645,12 @@ class PhaseGenerator:
             update_step_status('stage_plan', 'active', 72)
         
         creative_seed = self.generator.novel_data.get("creative_seed") or self.generator.novel_data.get("selected_plan", {})
-        total_chapters = self.generator.novel_data["current_progress"]["total_chapters"]
+        total_chapters = self.generator.novel_data.get("current_progress", {}).get("total_chapters", 1000)
         
         overall_stage_plans = self.generator.stage_plan_manager.generate_overall_stage_plan(
             creative_seed,
-            self.generator.novel_data["novel_title"],
-            self.generator.novel_data["novel_synopsis"],
+            self.generator.novel_data.get("novel_title", ""),
+            self.generator.novel_data.get("novel_synopsis", ""),
             self.generator.novel_data.get("market_analysis", {}),
             self.generator.novel_data.get("global_growth_plan", {}),
             self.generator.novel_data.get("emotional_blueprint", {}),
@@ -1161,43 +1665,17 @@ class PhaseGenerator:
         if update_step_status:
             update_step_status('stage_plan', 'completed', 75)
         
-        # 生成阶段详细写作计划 - 步骤14
-        print("📋 步骤14: 阶段详细计划")
+        # 🔥 步骤14: 阶段详细计划 - 移至第二阶段按需生成
+        print("📋 步骤14: 阶段详细计划（将在第二阶段按需生成）")
         self.generator.novel_data["current_progress"]["stage"] = "阶段详细计划"
         if update_step_status:
-            update_step_status('detailed_stage_plans', 'active', 76)
+            update_step_status('detailed_stage_plans', 'completed', 76)
         
-        if not self._generate_stage_writing_plans(update_step_status):
-            print("❌ 生成阶段详细写作计划失败")
-            return False
-        
-        if update_step_status:
-            update_step_status('detailed_stage_plans', 'completed', 72)
-        
-        # 🆕 步骤14.5: 全书补充角色生成（新增独立步骤）
-        print("👥 步骤14.5: 全书补充角色生成")
+        # 🔥 步骤14.5: 全书补充角色生成 - 移至第二阶段按需生成
+        print("👥 步骤14.5: 全书补充角色生成（将在第二阶段按需生成）")
         self.generator.novel_data["current_progress"]["stage"] = "全书补充角色生成"
         if update_step_status:
-            update_step_status('supplementary_characters', 'active', 74)
-        
-        try:
-            creative_seed = self.generator.novel_data.get("creative_seed") or self.generator.novel_data.get("selected_plan", {})
-            overall_stage_plans = self.generator.novel_data.get("overall_stage_plans", {})
-            stage_plan_dict = overall_stage_plans.get("overall_stage_plan", {}) if overall_stage_plans else {}
-            
-            self.generator.stage_plan_manager._generate_all_supplementary_characters_batch(
-                creative_seed=creative_seed,
-                novel_title=self.generator.novel_data.get("novel_title", ""),
-                novel_synopsis=self.generator.novel_data.get("novel_synopsis", ""),
-                overall_stage_plan=stage_plan_dict,
-                all_stages_writing_plans=self.generator.novel_data.get("stage_writing_plans", {})
-            )
-            print("✅ 全书补充角色生成完成")
-        except Exception as e:
-            print(f"⚠️ 全书补充角色生成失败: {e}，继续后续流程")
-        
-        if update_step_status:
-            update_step_status('supplementary_characters', 'completed', 76)
+            update_step_status('supplementary_characters', 'completed', 78)
         
         # 元素登场时机已由期待感系统管理 - 步骤15
         print("🎯 步骤15: 期待感映射")
@@ -1345,9 +1823,9 @@ class PhaseGenerator:
         print("=== 步骤3: 构建核心世界观 ===")
         
         core_worldview = self.generator.content_generator.generate_core_worldview(
-            self.generator.novel_data["novel_title"],
-            self.generator.novel_data["novel_synopsis"],
-            self.generator.novel_data["selected_plan"],
+            self.generator.novel_data.get("novel_title", ""),
+            self.generator.novel_data.get("novel_synopsis", ""),
+            self.generator.novel_data.get("selected_plan", {}),
             self.generator.novel_data.get("market_analysis", {})
         )
         
@@ -1401,10 +1879,10 @@ class PhaseGenerator:
         print("="*60)
         
         # 获取必要数据
-        novel_title = self.generator.novel_data["novel_title"]
-        novel_synopsis = self.generator.novel_data["novel_synopsis"]
+        novel_title = self.generator.novel_data.get("novel_title", "")
+        novel_synopsis = self.generator.novel_data.get("novel_synopsis", "")
         creative_seed = self.generator.novel_data.get("creative_seed") or self.generator.novel_data.get("selected_plan", {})
-        total_chapters = self.generator.novel_data["current_progress"]["total_chapters"]
+        total_chapters = self.generator.novel_data.get("current_progress", {}).get("total_chapters", 1000)
         
         # 更新进度
         if update_step_status:
@@ -1686,9 +2164,9 @@ class PhaseGenerator:
                 stage_tasks.append({
                     'stage_name': stage_name,
                     'stage_range': stage_range,
-                    'creative_seed': self.generator.novel_data["creative_seed"],
-                    'novel_title': self.generator.novel_data["novel_title"],
-                    'novel_synopsis': self.generator.novel_data["novel_synopsis"],
+                    'creative_seed': self.generator.novel_data.get("creative_seed") or self.generator.novel_data.get("selected_plan", {}),
+                    'novel_title': self.generator.novel_data.get("novel_title", ""),
+                    'novel_synopsis': self.generator.novel_data.get("novel_synopsis", ""),
                     'overall_stage_plan': stage_plan_dict
                 })
             
@@ -2160,6 +2638,274 @@ class PhaseGenerator:
             import traceback
             traceback.print_exc()
     
+    def _generate_single_stage_writing_plan(self, stage_name: str, chapter_number: int = None) -> Optional[Dict]:
+        """
+        🔥 按需生成单个阶段的详细写作计划
+        
+        Args:
+            stage_name: 阶段名称 (如 'opening_stage', 'development_stage' 等)
+            chapter_number: 当前章节号（用于根据章节号自动识别阶段）
+            
+        Returns:
+            阶段写作计划字典，失败返回 None
+        """
+        print(f"\n{'='*60}")
+        print(f"📋 按需生成阶段详细计划: {stage_name}")
+        print(f"{'='*60}")
+        
+        # 获取全书阶段计划
+        overall_stage_plans = self.generator.novel_data.get("overall_stage_plans", {})
+        if not overall_stage_plans or "overall_stage_plan" not in overall_stage_plans:
+            print("❌ 没有全书阶段计划，无法生成详细写作计划")
+            return None
+        
+        stage_plan_dict = overall_stage_plans["overall_stage_plan"]
+        
+        # 如果提供了章节号，自动识别所属阶段
+        if chapter_number and not stage_name:
+            stage_name = self._get_stage_name_by_chapter(chapter_number, stage_plan_dict)
+            print(f"📍 章节 {chapter_number} 属于阶段: {stage_name}")
+        
+        # 检查阶段是否存在
+        if stage_name not in stage_plan_dict:
+            print(f"❌ 阶段 {stage_name} 不存在于阶段计划中")
+            return None
+        
+        # 检查是否已生成
+        existing_plans = self.generator.novel_data.get("stage_writing_plans", {})
+        if stage_name in existing_plans:
+            print(f"✅ 阶段 {stage_name} 已存在，跳过生成")
+            return existing_plans[stage_name]
+        
+        try:
+            stage_info = stage_plan_dict[stage_name]
+            chapter_range_str = stage_info["chapter_range"]
+            
+            # 解析章节范围
+            import re
+            numbers = re.findall(r'\d+', chapter_range_str)
+            if len(numbers) >= 2:
+                stage_range = f"{numbers[0]}-{numbers[1]}"
+            else:
+                stage_range = "1-50"
+            
+            print(f"🎯 阶段范围: {stage_range}")
+            
+            # 获取情绪计划
+            emotional_blueprint = self.generator.novel_data.get("emotional_blueprint", {})
+            stages_info = [{'stage_name': stage_name, 'stage_range': stage_range}]
+            
+            from src.core.session_mode.sessions.emotional_planning_session import EmotionalPlanningSession
+            stage_emotional_plan = None
+            if emotional_blueprint:
+                session = EmotionalPlanningSession(
+                    novel_data=self.generator.novel_data,
+                    api_client=self.generator.api_client
+                )
+                stage_emotional_plan = session.generate_stage_emotional_plan(
+                    stage_name=stage_name,
+                    stage_range=stage_range,
+                    emotional_blueprint=emotional_blueprint
+                )
+                print(f"✅ 情绪计划生成完成")
+            
+            # 获取主龙骨
+            stage_length = int(numbers[1]) - int(numbers[0]) + 1 if len(numbers) >= 2 else 50
+            density = self.generator.stage_plan_manager.event_manager.calculate_optimal_event_density_by_stage(
+                stage_name, stage_length
+            )
+            
+            skeletons = self.generator.stage_plan_manager.major_event_generator.generate_stage_skeletons(
+                stage_name=stage_name,
+                stage_range=stage_range,
+                density_requirements=density,
+                creative_seed=self.generator.novel_data.get("creative_seed") or self.generator.novel_data.get("selected_plan", {}),
+                overall_stage_plan=stage_plan_dict,
+                novel_title=self.generator.novel_data.get("novel_title", "")
+            )
+            print(f"✅ 主龙骨生成完成: {len(skeletons) if skeletons else 0} 个事件")
+            
+            # 生成阶段写作计划
+            stage_plan = self.generator.stage_plan_manager.generate_stage_writing_plan(
+                stage_name=stage_name,
+                stage_range=stage_range,
+                creative_seed=self.generator.novel_data.get("creative_seed") or self.generator.novel_data.get("selected_plan", {}),
+                novel_title=self.generator.novel_data.get("novel_title", ""),
+                novel_synopsis=self.generator.novel_data.get("novel_synopsis", ""),
+                overall_stage_plan=stage_plan_dict,
+                stage_emotional_plan=stage_emotional_plan,
+                pre_generated_skeletons=skeletons,
+                skip_expectation_mapping=True
+            )
+            
+            if stage_plan:
+                # 保存到内存
+                if "stage_writing_plans" not in self.generator.novel_data:
+                    self.generator.novel_data["stage_writing_plans"] = {}
+                self.generator.novel_data["stage_writing_plans"][stage_name] = stage_plan
+                
+                # 保存到文件（持久化）
+                self._save_single_stage_writing_plan(stage_name, stage_plan)
+                
+                print(f"✅ 阶段 {stage_name} 详细计划生成完成并已保存")
+                
+                # 🔥 按需生成该阶段的补充角色
+                self._generate_supplementary_characters_for_stage(stage_name, stage_plan)
+                
+                return stage_plan
+            else:
+                print(f"❌ 阶段 {stage_name} 详细计划生成失败")
+                return None
+                
+        except Exception as e:
+            print(f"❌ 生成阶段 {stage_name} 详细计划时出错: {e}")
+            import traceback
+            traceback.print_exc()
+            return None
+    
+    def _get_stage_name_by_chapter(self, chapter_number: int, stage_plan_dict: Dict) -> str:
+        """根据章节号获取所属阶段名称"""
+        import re
+        
+        for stage_name, stage_info in stage_plan_dict.items():
+            chapter_range_str = stage_info.get("chapter_range", "")
+            numbers = re.findall(r'\d+', chapter_range_str)
+            if len(numbers) >= 2:
+                start, end = int(numbers[0]), int(numbers[1])
+                if start <= chapter_number <= end:
+                    return stage_name
+        
+        # 默认返回第一个阶段
+        return list(stage_plan_dict.keys())[0] if stage_plan_dict else "opening_stage"
+    
+    def _save_single_stage_writing_plan(self, stage_name: str, stage_plan: Dict):
+        """保存单个阶段的写作计划到文件"""
+        try:
+            import os
+            import re
+            from src.config.path_config import path_config
+            
+            safe_title = re.sub(r'[\\/*?:"<>|]', "_", self.generator.novel_data.get("novel_title", "unknown"))
+            username = getattr(self.generator, '_username', None)
+            paths = path_config.get_project_paths(safe_title, username=username)
+            
+            # 确保目录存在
+            os.makedirs(paths['materials_dir'], exist_ok=True)
+            
+            # 保存完整写作计划文件（合并所有阶段）
+            stage_plans_file = f"{paths['materials_dir']}/phase_one_products/{safe_title}_写作计划.json"
+            
+            # 读取现有数据或创建新数据
+            all_plans = {}
+            if os.path.exists(stage_plans_file):
+                with open(stage_plans_file, 'r', encoding='utf-8') as f:
+                    all_plans = json.load(f)
+            
+            # 更新当前阶段
+            all_plans[stage_name] = stage_plan
+            
+            # 写回文件
+            os.makedirs(os.path.dirname(stage_plans_file), exist_ok=True)
+            with open(stage_plans_file, 'w', encoding='utf-8') as f:
+                json.dump(all_plans, f, ensure_ascii=False, indent=2)
+            
+            print(f"💾 阶段 {stage_name} 写作计划已保存到: {stage_plans_file}")
+            
+        except Exception as e:
+            print(f"⚠️ 保存阶段 {stage_name} 写作计划时出错: {e}")
+    
+    def _generate_supplementary_characters_for_stage(self, stage_name: str, stage_plan: Dict) -> bool:
+        """
+        🔥 为单个阶段生成补充角色（按需生成）
+        
+        Args:
+            stage_name: 阶段名称
+            stage_plan: 阶段写作计划
+            
+        Returns:
+            是否成功
+        """
+        try:
+            print(f"\n👥 为阶段 {stage_name} 生成补充角色...")
+            
+            # 加载已有角色
+            character_design = self.generator.novel_data.get("character_design", {})
+            if not character_design or not character_design.get("main_character"):
+                print(f"⚠️ 未找到主角设计，跳过补充角色生成")
+                return False
+            
+            # 检查是否已有足够的配角
+            existing_supporting = character_design.get("supporting_characters", [])
+            # 只检查当前阶段是否已有专属角色标记
+            stage_tag = f"stage_{stage_name}"
+            stage_characters = [c for c in existing_supporting if stage_tag in c.get("tags", [])]
+            
+            if len(stage_characters) >= 3:
+                print(f"✅ 阶段 {stage_name} 已有 {len(stage_characters)} 个专属角色，跳过")
+                return True
+            
+            # 准备阶段信息
+            stage_info = {
+                "stage_name": stage_name,
+                "stage_overview": stage_plan.get("stage_writing_plan", {}).get("stage_overview", ""),
+                "chapter_range": stage_plan.get("stage_writing_plan", {}).get("chapter_range", ""),
+                "major_events": [
+                    event.get("name", "") 
+                    for event in stage_plan.get("stage_writing_plan", {}).get("major_events", [])
+                ]
+            }
+            
+            # 调用 ContentGenerator 生成该阶段的补充角色
+            creative_seed = self.generator.novel_data.get("creative_seed") or self.generator.novel_data.get("selected_plan", {})
+            updated_characters = self.generator.content_generator.generate_character_design(
+                novel_title=self.generator.novel_data.get("novel_title", ""),
+                core_worldview=self.generator.novel_data.get("core_worldview", {}),
+                selected_plan=creative_seed,
+                market_analysis=self.generator.novel_data.get("market_analysis", {}),
+                design_level="supplementary_stage",  # 使用单阶段模式
+                existing_characters=character_design,
+                stage_info=stage_info,  # 传入单个阶段信息
+                stage_name=stage_name,
+                global_growth_plan=self.generator.novel_data.get("global_growth_plan", {}),
+                faction_system=self.generator.novel_data.get("faction_system", {})
+            )
+            
+            if updated_characters and updated_characters != character_design:
+                # 更新 novel_data
+                self.generator.novel_data["character_design"] = updated_characters
+                
+                # 保存到文件
+                try:
+                    import json
+                    from pathlib import Path
+                    
+                    safe_title = re.sub(r'[\\/*?:"<>|]', "_", self.generator.novel_data.get("novel_title", "unknown"))
+                    username = getattr(self.generator, '_username', None)
+                    from src.config.path_config import path_config
+                    paths = path_config.get_project_paths(safe_title, username=username)
+                    
+                    char_file = Path(paths['materials_dir']) / "phase_one_products" / f"{safe_title}_角色设计.json"
+                    char_file.parent.mkdir(parents=True, exist_ok=True)
+                    
+                    with open(char_file, 'w', encoding='utf-8') as f:
+                        json.dump(updated_characters, f, ensure_ascii=False, indent=2)
+                    
+                    new_count = len(updated_characters.get("supporting_characters", [])) - \
+                               len(character_design.get("supporting_characters", []))
+                    print(f"✅ 阶段 {stage_name} 补充角色生成完成: 新增 {new_count} 个角色")
+                except Exception as e:
+                    print(f"⚠️ 保存阶段 {stage_name} 补充角色失败: {e}")
+            else:
+                print(f"ℹ️ 阶段 {stage_name} 无需生成额外补充角色")
+            
+            return True
+            
+        except Exception as e:
+            print(f"⚠️ 生成阶段 {stage_name} 补充角色时出错: {e}")
+            import traceback
+            traceback.print_exc()
+            return False
+    
     def _initialize_systems(self):
         """初始化各种系统"""
         print("=== 步骤7: 初始化系统 ===")
@@ -2350,12 +3096,12 @@ class PhaseGenerator:
             
             # 创建第一阶段索引文件（保存到主项目materials目录）
             phase_one_index = {
-                "novel_title": self.generator.novel_data["novel_title"],
-                "novel_synopsis": self.generator.novel_data["novel_synopsis"],
+                "novel_title": self.generator.novel_data.get("novel_title", ""),
+                "novel_synopsis": self.generator.novel_data.get("novel_synopsis", ""),
                 "category": self.generator.novel_data.get("category", "未分类"),
-                "total_chapters": self.generator.novel_data["current_progress"]["total_chapters"],
-                "creative_seed": self.generator.novel_data["creative_seed"],
-                "selected_plan": self.generator.novel_data["selected_plan"],
+                "total_chapters": self.generator.novel_data.get("current_progress", {}).get("total_chapters", 1000),
+                "creative_seed": self.generator.novel_data.get("creative_seed") or self.generator.novel_data.get("selected_plan", {}),
+                "selected_plan": self.generator.novel_data.get("selected_plan", {}),
                 "products_mapping": products_mapping,
                 "is_phase_one_completed": True,
                 "phase_one_completed_at": datetime.now().isoformat(),
@@ -2382,12 +3128,12 @@ class PhaseGenerator:
             # 确保目录存在
             os.makedirs(os.path.dirname(str(main_project_file)), exist_ok=True)
             project_info = {
-                "novel_title": self.generator.novel_data["novel_title"],
-                "novel_synopsis": self.generator.novel_data["novel_synopsis"],
+                "novel_title": self.generator.novel_data.get("novel_title", ""),
+                "novel_synopsis": self.generator.novel_data.get("novel_synopsis", ""),
                 "category": self.generator.novel_data.get("category", "未分类"),
-                "total_chapters": self.generator.novel_data["current_progress"]["total_chapters"],
-                "creative_seed": self.generator.novel_data["creative_seed"],
-                "selected_plan": self.generator.novel_data["selected_plan"],
+                "total_chapters": self.generator.novel_data.get("current_progress", {}).get("total_chapters", 1000),
+                "creative_seed": self.generator.novel_data.get("creative_seed") or self.generator.novel_data.get("selected_plan", {}),
+                "selected_plan": self.generator.novel_data.get("selected_plan", {}),
                 "phase_one_index_file": phase_one_index_file,
                 "products_mapping": products_mapping,
                 "is_phase_one_completed": True,
@@ -2897,11 +3643,64 @@ class PhaseGenerator:
         
         return self._finalize_generation()
     
+    def _ensure_stage_writing_plan(self, chapter_number: int) -> Optional[str]:
+        """
+        🔥 确保章节所属阶段的细纲已生成（按需生成）
+        
+        Args:
+            chapter_number: 章节号
+            
+        Returns:
+            阶段名称，失败返回 None
+        """
+        try:
+            # 获取阶段计划
+            overall_stage_plans = self.generator.novel_data.get("overall_stage_plans", {})
+            if not overall_stage_plans or "overall_stage_plan" not in overall_stage_plans:
+                print(f"⚠️ 没有全书阶段计划")
+                return None
+            
+            stage_plan_dict = overall_stage_plans["overall_stage_plan"]
+            
+            # 根据章节号确定所属阶段
+            stage_name = self._get_stage_name_by_chapter(chapter_number, stage_plan_dict)
+            
+            # 检查该阶段的细纲是否已存在
+            existing_plans = self.generator.novel_data.get("stage_writing_plans", {})
+            if stage_name in existing_plans and existing_plans[stage_name]:
+                print(f"📋 阶段 {stage_name} 细纲已存在，跳过生成")
+                return stage_name
+            
+            # 🔥 按需生成该阶段的细纲
+            print(f"\n🔥 按需生成阶段细纲: {stage_name} (第{chapter_number}章所需)")
+            stage_plan = self._generate_single_stage_writing_plan(stage_name, chapter_number)
+            
+            if stage_plan:
+                return stage_name
+            else:
+                print(f"⚠️ 阶段 {stage_name} 细纲生成失败")
+                return None
+                
+        except Exception as e:
+            print(f"❌ 确保阶段细纲时出错: {e}")
+            import traceback
+            traceback.print_exc()
+            return None
+    
     def _generate_chapters_batch(self, start_chapter: int, end_chapter: int) -> bool:
         """批量生成章节"""
         for chapter_num in range(start_chapter, end_chapter + 1):
             try:
-                print(f"\n📖 开始生成第{chapter_num}章...")
+                print(f"\n{'='*60}")
+                print(f"📖 开始生成第{chapter_num}章...")
+                print(f"{'='*60}")
+                
+                # 🔥 按需生成当前章节所属阶段的细纲
+                stage_name = self._ensure_stage_writing_plan(chapter_num)
+                if not stage_name:
+                    print(f"⚠️ 无法确定或生成第{chapter_num}章所属阶段的细纲，尝试继续...")
+                else:
+                    print(f"✅ 阶段细纲就绪: {stage_name}")
                 
                 # 调用第二阶段进度回调（如果有）
                 if hasattr(self.generator, '_phase_two_progress_callback') and callable(self.generator._phase_two_progress_callback):

@@ -375,7 +375,8 @@ function updateDetailedStepStatus(stepStatus) {
     }
     
     // 计算并更新完成步骤数
-    const completedSteps = Object.values(stepStatus).filter(s => s === 'completed').length;
+    // 🔥 修复：只计算 DETAILED_STEP_ORDER 中定义的步骤，避免新模式返回额外步骤导致计数错误
+    const completedSteps = DETAILED_STEP_ORDER.filter(stepName => stepStatus[stepName] === 'completed').length;
     const totalSteps = DETAILED_STEP_ORDER.length;
     const stepsStatusEl = document.getElementById('steps-status');
     if (stepsStatusEl) {
