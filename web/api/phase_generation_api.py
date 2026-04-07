@@ -3225,6 +3225,20 @@ def register_additional_routes(app):
             if not manager:
                 return jsonify({"success": False, "error": "管理器未初始化"}), 500
             
+            # 🔥 检查阶段计划是否存在
+            try:
+                from src.utils.path_manager import path_manager
+                stage_plan = path_manager.load_stage_plan(novel_title, "第一阶段", username=session.get('username'))
+                if not stage_plan:
+                    return jsonify({
+                        "success": False, 
+                        "error": "未找到阶段计划，请先生成细纲后再进行章节生成",
+                        "need_stage_plan": True
+                    }), 400
+                logger.info(f"✅ [PHASE_TWO] 阶段计划检查通过")
+            except Exception as e:
+                logger.warning(f"⚠️ [PHASE_TWO] 阶段计划检查失败: {e}")
+            
             # ===== 创造点扣除逻辑 =====
             from web.models.point_model import point_model
             
