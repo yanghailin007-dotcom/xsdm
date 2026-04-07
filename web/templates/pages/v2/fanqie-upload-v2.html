@@ -972,7 +972,7 @@
                         
                         <div class="form-group" style="flex: 1;">
                             <label for="edit-interval-minutes">章节间隔（分钟）</label>
-                            <input type="number" id="edit-interval-minutes" class="edit-input" value="30" min="5" max="120">
+                            <input type="number" id="edit-interval-minutes" class="edit-input" value="0" min="0" max="120">
                             <span class="input-hint">多章发布时的间隔时间</span>
                         </div>
                     </div>
@@ -1147,7 +1147,7 @@ async function loadProjectInfoToEditForm(projectId) {
             if (config.daily_publish) {
                 document.getElementById('edit-daily-count').value = config.daily_publish.chapter_count || 2;
                 document.getElementById('edit-publish-time').value = config.daily_publish.publish_time || '09:00';
-                document.getElementById('edit-interval-minutes').value = config.daily_publish.interval_minutes || 30;
+                document.getElementById('edit-interval-minutes').value = config.daily_publish.interval_minutes || 0;
             }
             if (config.advanced) {
                 document.getElementById('edit-skip-published').checked = config.advanced.skip_published !== false;
@@ -1357,7 +1357,7 @@ async function saveProjectInfo() {
     const firstPublishCount = parseInt(document.getElementById('edit-first-publish-count').value) || 20;
     const dailyCount = parseInt(document.getElementById('edit-daily-count').value) || 2;
     const publishTime = document.getElementById('edit-publish-time').value || '09:00';
-    const intervalMinutes = parseInt(document.getElementById('edit-interval-minutes').value) || 30;
+    const intervalMinutes = parseInt(document.getElementById('edit-interval-minutes').value) || 0;
     const skipPublished = document.getElementById('edit-skip-published').checked;
     
     console.log('Saving data:', { title, category, firstPublishCount, dailyCount, publishTime });

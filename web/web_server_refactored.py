@@ -943,7 +943,7 @@ def register_fanqie_routes(app):
                 # 每日发布配置
                 "daily_publish": {
                     "chapter_count": saved_publish_config.get('daily_count', 2),
-                    "interval_minutes": saved_publish_config.get('interval_minutes', 30),
+                    "interval_minutes": saved_publish_config.get('interval_minutes', 0),
                     "publish_time": saved_publish_config.get('publish_time', '09:00')
                 },
                 # 高级配置
@@ -1385,7 +1385,7 @@ def register_fanqie_routes(app):
                     'first_publish_count': publish_config.get('first_publish_count', 20),
                     'daily_count': publish_config.get('daily_count', 2),
                     'publish_time': publish_config.get('publish_time', '09:00'),
-                    'interval_minutes': publish_config.get('interval_minutes', 30),
+                    'interval_minutes': publish_config.get('interval_minutes', 0),
                     'skip_published': publish_config.get('skip_published', True)
                 }
             
