@@ -3096,6 +3096,9 @@ def continue_chapters(title):
             }
         )
         
+        # 🔥 关键：设置顶层 username，否则 get_user_active_tasks 无法找到该任务
+        task_manager.update_task(task_id, username=username)
+        
         # 启动后台线程生成章节
         import threading
         thread = threading.Thread(
@@ -3381,6 +3384,9 @@ def replan_project(title):
                 "username": username
             }
         )
+        
+        # 🔥 关键：设置顶层 username，否则 get_user_active_tasks 无法找到该任务
+        task_manager.update_task(task_id, username=username)
         
         # 启动后台线程重新生成方案
         import threading
@@ -3680,6 +3686,9 @@ def rewrite_project(title):
                 "username": username
             }
         )
+        
+        # 🔥 关键：设置顶层 username，否则 get_user_active_tasks 无法找到该任务
+        task_manager.update_task(task_id, username=username)
         
         # 启动后台线程重新生成
         import threading

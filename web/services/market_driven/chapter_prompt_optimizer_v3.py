@@ -205,6 +205,9 @@ class ChapterPromptOptimizerV3:
         self._golden_chapter_prompts = self._load_golden_chapter_prompts()
         self._standard_chapter_prompts = self._load_standard_chapter_prompts()
         
+        # 🔥 初始化当前章节号，避免在调用 _get_current_chapter_emotion 时为 None
+        self.current_chapter_number = 1
+        
         logger.info(f"[PromptV3] 初始化完成 | 书名: {self.title} | 题材: {self.genre_type}")
     
     def _load_chapter_templates(self) -> Dict:
@@ -1026,6 +1029,9 @@ class ChapterPromptOptimizerV3:
         Returns:
             完整的单章提示词
         """
+        # 保存当前章节号供其他方法使用
+        self.current_chapter_number = chapter_num
+        
         # 判断章节类型
         chapter_type = self.detect_chapter_type(chapter_num, blueprint)
         

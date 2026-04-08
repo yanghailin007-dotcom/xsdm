@@ -27,6 +27,7 @@ class CharacterStatus:
     abilities_unlocked: List[str] = field(default_factory=list)  # 已解锁能力
     current_location: str = ""  # 当前位置
     relationships: Dict[str, str] = field(default_factory=dict)  # 与其他角色关系
+    description: str = ""  # 描述（兼容旧数据）
 
 
 @dataclass
@@ -81,35 +82,43 @@ class WorldState:
         valid_fields = {f.name for f in fields(cls)}
         filtered_data = {k: v for k, v in data.items() if k in valid_fields}
         
-        # 🔥 关键修复：递归转换嵌套字典为对象
+        # 🔥 辅助函数：过滤字典字段
+        def filter_fields(data_dict: dict, dataclass_type) -> dict:
+            """只保留dataclass定义的字段"""
+            valid = {f.name for f in fields(dataclass_type)}
+            return {k: v for k, v in data_dict.items() if k in valid}
+        
+        # 🔥 关键修复：递归转换嵌套字典为对象，同时过滤字段
         # protagonist: dict -> CharacterStatus
         if 'protagonist' in filtered_data and isinstance(filtered_data['protagonist'], dict):
-            filtered_data['protagonist'] = CharacterStatus(**filtered_data['protagonist'])
+            filtered_protagonist = filter_fields(filtered_data['protagonist'], CharacterStatus)
+            filtered_data['protagonist'] = CharacterStatus(**filtered_protagonist)
         
         # allies: dict[str, dict] -> dict[str, CharacterStatus]
         if 'allies' in filtered_data and isinstance(filtered_data['allies'], dict):
             filtered_data['allies'] = {
-                k: CharacterStatus(**v) if isinstance(v, dict) else v
+                k: CharacterStatus(**filter_fields(v, CharacterStatus)) if isinstance(v, dict) else v
                 for k, v in filtered_data['allies'].items()
             }
         
         # enemies: dict[str, dict] -> dict[str, CharacterStatus]
         if 'enemies' in filtered_data and isinstance(filtered_data['enemies'], dict):
             filtered_data['enemies'] = {
-                k: CharacterStatus(**v) if isinstance(v, dict) else v
+                k: CharacterStatus(**filter_fields(v, CharacterStatus)) if isinstance(v, dict) else v
                 for k, v in filtered_data['enemies'].items()
             }
         
         # plot_threads: dict[str, dict] -> dict[str, PlotThread]
         if 'plot_threads' in filtered_data and isinstance(filtered_data['plot_threads'], dict):
             filtered_data['plot_threads'] = {
-                k: PlotThread(**v) if isinstance(v, dict) else v
+                k: PlotThread(**filter_fields(v, PlotThread)) if isinstance(v, dict) else v
                 for k, v in filtered_data['plot_threads'].items()
             }
         
         # system_rules: dict -> SystemRule
         if 'system_rules' in filtered_data and isinstance(filtered_data['system_rules'], dict):
-            filtered_data['system_rules'] = SystemRule(**filtered_data['system_rules'])
+            filtered_rules = filter_fields(filtered_data['system_rules'], SystemRule)
+            filtered_data['system_rules'] = SystemRule(**filtered_rules)
         
         return cls(**filtered_data)
 
