@@ -376,7 +376,7 @@ class WorldStateManager:
         # 4. 活跃的剧情线索
         active_threads = [
             t for t in self.state.plot_threads.values()
-            if t.status == 'active' and chapter_num - t.last_mentioned <= 5  # 5章内提及过
+            if t.status == 'active' and t.last_mentioned is not None and chapter_num - t.last_mentioned <= 5  # 5章内提及过
         ]
         if active_threads:
             lines.append(f"\n活跃剧情线索(本章需要提及或推进):")
@@ -441,7 +441,7 @@ class WorldStateManager:
         
         # 4. 校验剧情线索
         for name, thread in self.state.plot_threads.items():
-            if thread.status == 'active' and thread.last_mentioned < chapter_num - 3:
+            if thread.status == 'active' and thread.last_mentioned is not None and thread.last_mentioned < chapter_num - 3:
                 # 活跃线索超过3章没提及
                 if name not in content:
                     issues.append(f"活跃剧情线索'{name}'已连续{chapter_num - thread.last_mentioned}章未提及")

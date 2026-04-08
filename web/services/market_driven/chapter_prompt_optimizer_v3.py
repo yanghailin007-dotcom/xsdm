@@ -949,6 +949,13 @@ class ChapterPromptOptimizerV3:
         Returns:
             章节类型标识（SETUP/FACE_SLAP/REWARD/REVEAL/CRISIS/TRANSITION）
         """
+        # 🔥 如果 chapter_num 为 None，直接抛出异常以便追踪堆栈
+        if chapter_num is None:
+            import traceback
+            stack = traceback.format_stack()
+            logger.error(f"[PromptV3] CRITICAL: chapter_num is None in detect_chapter_type!\n调用堆栈:\n{''.join(stack)}")
+            raise ValueError(f"chapter_num cannot be None in detect_chapter_type")
+        
         # 黄金三章特殊处理
         if chapter_num <= 3:
             return self._detect_golden_chapter_type(chapter_num)
@@ -1029,6 +1036,19 @@ class ChapterPromptOptimizerV3:
         Returns:
             完整的单章提示词
         """
+        # 🔥 如果 chapter_num 为 None，直接抛出异常以便追踪堆栈
+        if chapter_num is None:
+            import traceback
+            stack = traceback.format_stack()
+            logger.error(f"[PromptV3] CRITICAL: chapter_num is None in build_chapter_prompt!\n调用堆栈:\n{''.join(stack)}")
+            raise ValueError(f"chapter_num cannot be None in build_chapter_prompt")
+        
+        # 确保 chapter_num 是整数
+        try:
+            chapter_num = int(chapter_num)
+        except (TypeError, ValueError) as e:
+            raise ValueError(f"chapter_num must be an integer, got {chapter_num} ({type(chapter_num)})") from e
+        
         # 保存当前章节号供其他方法使用
         self.current_chapter_number = chapter_num
         
@@ -2062,6 +2082,13 @@ class ChapterPromptOptimizerV3:
             chapter_num: 当前章节号
             blueprint: 可以是完整蓝图或单章规划
         """
+        # 🔥 如果 chapter_num 为 None，直接抛出异常以便追踪堆栈
+        if chapter_num is None:
+            import traceback
+            stack = traceback.format_stack()
+            logger.error(f"[PromptV3] CRITICAL: chapter_num is None in _format_prev_summary!\n调用堆栈:\n{''.join(stack)}")
+            raise ValueError(f"chapter_num cannot be None in _format_prev_summary")
+        
         result_lines = []
         
         # 优先使用传入的摘要（如果有效）

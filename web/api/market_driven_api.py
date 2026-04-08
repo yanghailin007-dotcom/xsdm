@@ -2974,8 +2974,19 @@ def continue_chapters(title):
         
         # 获取请求参数
         data = request.json or {}
-        start_chapter = data.get('start_chapter', 1)
-        end_chapter = data.get('end_chapter', start_chapter + 5)
+        start_chapter = data.get('start_chapter') or 1
+        end_chapter = data.get('end_chapter') or (start_chapter + 5)
+        
+        # 🔥 防御性编程：确保参数是整数
+        try:
+            start_chapter = int(start_chapter)
+            end_chapter = int(end_chapter)
+        except (TypeError, ValueError):
+            logger.error(f"[章节续写] 无效的章节号: start_chapter={start_chapter}, end_chapter={end_chapter}")
+            return jsonify({
+                "success": False,
+                "error": "无效的章节号"
+            }), 400
         
         logger.info(f"[章节续写] {title}: 第{start_chapter}-{end_chapter}章")
         

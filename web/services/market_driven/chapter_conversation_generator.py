@@ -456,6 +456,7 @@ class ChapterConversationGenerator:
         prev_chapter_summary = self._load_previous_chapter_summary(start_chapter)
         
         for i, chapter_num in enumerate(range(start_chapter, end_chapter + 1)):
+            logger.info(f"[CCG DEBUG] Loop chapter_num={chapter_num}, type={type(chapter_num)}, i={i}")
             logger.info(f"[章节对话 {self.session_id}] 生成第{chapter_num}章 ({i+1}/{total})")
             
             try:
@@ -482,12 +483,14 @@ class ChapterConversationGenerator:
                 # 原代码:if chapter_num % 10 == 0: self._trigger_stage_review(...)
                 
             except Exception as e:
-                logger.error(f"[章节对话 {self.session_id}] 第{chapter_num}章失败: {e}")
+                import traceback
+                stack_trace = traceback.format_exc()
+                logger.error(f"[章节对话 {self.session_id}] 第{chapter_num}章失败: {e}\n完整堆栈:\n{stack_trace}")
                 # 记录失败但不中断
                 chapters.append({
                     "chapter_number": chapter_num,
                     "title": f"第{chapter_num}章(生成失败)",
-                    "content": f"生成失败: {str(e)}",
+                    "content": f"生成失败: {str(e)}\n\n堆栈:\n{stack_trace}",
                     "word_count": 0,
                     "quality_score": 0,
                     "error": str(e)
@@ -608,10 +611,21 @@ class ChapterConversationGenerator:
                                             blueprint: Dict,
                                             prev_summary: str) -> Dict:
         """在会话中生成单章(集成质检)"""
-        # 调试：检查 chapter_num
+        # 🔥 调试：检查 chapter_num
+        logger.info(f"[CCG DEBUG] _generate_single_chapter_in_session: chapter_num={chapter_num}, type={type(chapter_num)}")
+        
+        # 🔥 如果 chapter_num 为 None，直接抛出异常以便追踪堆栈
         if chapter_num is None:
-            logger.error(f"[CCG {self.session_id}] _generate_single_chapter_in_session: chapter_num is None!")
-            raise ValueError("chapter_num cannot be None")
+            import traceback
+            stack = traceback.format_stack()
+            logger.error(f"[CCG {self.session_id}] CRITICAL: chapter_num is None!\n调用堆栈:\n{''.join(stack)}")
+            raise ValueError(f"chapter_num cannot be None in _generate_single_chapter_in_session")
+        
+        # 确保 chapter_num 是整数
+        try:
+            chapter_num = int(chapter_num)
+        except (TypeError, ValueError) as e:
+            raise ValueError(f"chapter_num must be an integer, got {chapter_num} ({type(chapter_num)})") from e
         
         # 获取本章规划
         chapter_plan = self._get_chapter_plan(chapter_num, blueprint)
@@ -1171,9 +1185,13 @@ class ChapterConversationGenerator:
         """构建章节生成提示词(使用优化后的详细版本)"""
         # 调试：检查 chapter_num
         logger.info(f"[CCG DEBUG] _build_chapter_prompt: chapter_num={chapter_num}, type={type(chapter_num)}")
+        
+        # 🔥 如果 chapter_num 为 None，直接抛出异常以便追踪堆栈
         if chapter_num is None:
-            logger.error(f"[CCG {self.session_id}] _build_chapter_prompt: chapter_num is None! Using default 1")
-            chapter_num = 1
+            import traceback
+            stack = traceback.format_stack()
+            logger.error(f"[CCG {self.session_id}] CRITICAL: chapter_num is None in _build_chapter_prompt!\n调用堆栈:\n{''.join(stack)}")
+            raise ValueError(f"chapter_num cannot be None in _build_chapter_prompt")
         
         # 构建主角设定提醒
         protagonist_reminder = self._build_protagonist_reminder()
@@ -1281,12 +1299,21 @@ class ChapterConversationGenerator:
     
     def _build_coherence_check_from_config(self, chapter_num: int) -> str:
         """从配置构建连贯性检查"""
-        # 调试：检查 chapter_num
+        # 🔥 调试：检查 chapter_num
+        logger.info(f"[CCG DEBUG] _build_coherence_check_from_config: chapter_num={chapter_num}, type={type(chapter_num)}")
+        
+        # 🔥 如果 chapter_num 为 None，直接抛出异常以便追踪堆栈
         if chapter_num is None:
             import traceback
-            stack = ''.join(traceback.format_stack())
-            logger.error(f"[CCG {self.session_id}] CRITICAL: chapter_num is None!\nStack trace:\n{stack}")
+            stack = traceback.format_stack()
+            logger.error(f"[CCG {self.session_id}] CRITICAL: chapter_num is None in _build_coherence_check_from_config!\n调用堆栈:\n{''.join(stack)}")
             raise ValueError(f"chapter_num cannot be None in _build_coherence_check_from_config")
+        
+        # 确保 chapter_num 是整数
+        try:
+            chapter_num = int(chapter_num)
+        except (TypeError, ValueError) as e:
+            raise ValueError(f"chapter_num must be an integer, got {chapter_num} ({type(chapter_num)})") from e
         
         checks = self._chapter_expansion_prompts.get('coherence_checks', [])
         
