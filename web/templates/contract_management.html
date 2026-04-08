@@ -934,7 +934,7 @@
         }
 
         async function resetServiceState() {
-            if (!confirm('确定要重置服务状态吗？这将停止服务并清理状态文件。')) {
+            if (!(await Dialog.confirm('确认重置', '确定要重置服务状态吗？这将停止服务并清理状态文件。'))) {
                 return;
             }
             

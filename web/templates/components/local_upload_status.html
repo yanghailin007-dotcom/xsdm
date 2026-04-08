@@ -347,7 +347,7 @@ function updateChaptersList(chapters) {
  */
 async function refreshUploadStatus() {
     if (!currentTaskId) {
-        alert('请先选择上传任务');
+        Dialog.alert('请先选择上传任务', '提示');
         return;
     }
     
@@ -367,9 +367,9 @@ async function retryFailedChapters() {
         const data = await response.json();
         
         if (data.success && data.chapters.length > 0) {
-            alert(`找到 ${data.chapters.length} 章可重试，请在本地脚本中选择重试`);
+            Dialog.alert(`找到 ${data.chapters.length} 章可重试，请在本地脚本中选择重试`, '提示');
         } else {
-            alert('没有可重试的章节');
+            Dialog.alert('没有可重试的章节', '提示');
         }
     } catch (error) {
         console.error('获取重试章节失败:', error);

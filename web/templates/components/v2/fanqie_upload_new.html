@@ -530,7 +530,7 @@ async function generatePackage() {
     const chapters = window.selectedChapters || []; // 从页面获取章节数据
     
     if (!novelTitle || chapters.length === 0) {
-        alert('请先选择小说和章节');
+        Dialog.alert('请先选择小说和章节', '提示');
         return;
     }
     
@@ -561,12 +561,12 @@ async function generatePackage() {
             markStepCompleted(2);
             goToStep(3);
         } else {
-            alert('生成包失败: ' + data.error);
+            Dialog.error('生成包失败: ' + data.error);
             document.getElementById('packageOptions').style.display = 'grid';
             document.getElementById('packageDownloading').style.display = 'none';
         }
     } catch (error) {
-        alert('请求失败: ' + error.message);
+        Dialog.error('请求失败: ' + error.message);
         document.getElementById('packageOptions').style.display = 'grid';
         document.getElementById('packageDownloading').style.display = 'none';
     }
@@ -577,7 +577,7 @@ async function generatePackage() {
  */
 function startUploadMonitoring() {
     if (!currentTaskId) {
-        alert('请先下载上传包');
+        Dialog.alert('请先下载上传包', '提示');
         return;
     }
     
@@ -633,7 +633,7 @@ function markStepCompleted(step) {
 
 function showError(message) {
     // 简单的错误显示
-    alert(message);
+    Dialog.error(message);
 }
 
 // 页面加载时初始化

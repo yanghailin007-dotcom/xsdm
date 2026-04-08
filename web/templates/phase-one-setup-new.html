@@ -1896,8 +1896,8 @@
         }
         
         // ==================== 表单功能 ====================
-        function resetForm() {
-            if (confirm('确定要重置表单吗？')) {
+        async function resetForm() {
+            if (await Dialog.confirm('确认重置', '确定要重置表单吗？')) {
                 document.getElementById('phase-one-form').reset();
             }
         }

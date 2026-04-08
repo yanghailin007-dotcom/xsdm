@@ -1139,7 +1139,7 @@
         async function deleteCreativeIdea() {
             if (selectedCreativeId === null || !window.creativeIdeasData) return;
             
-            if (!confirm('确定要删除这个创意吗？')) return;
+            if (!(await Dialog.confirm('确认删除', '确定要删除这个创意吗？'))) return;
             
             showStatus('🗑️ 删除功能待实现', 'info');
         }

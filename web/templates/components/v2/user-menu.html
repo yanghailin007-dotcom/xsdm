@@ -358,7 +358,7 @@ async function switchToAccount(accountId) {
     if (!window.accountManager) {
         console.error('[AccountSwitcher] AccountManager not available');
         const managerNotLoaded = (typeof I18N !== 'undefined' && I18N.t('accountSwitcher.managerNotLoaded')) || '账户管理器未加载，请刷新页面重试';
-        alert(managerNotLoaded);
+        Dialog.error(managerNotLoaded);
         return;
     }
     
@@ -378,7 +378,7 @@ async function switchToAccount(accountId) {
         window.location.reload();
     } else {
         const switchFailed = (typeof I18N !== 'undefined' && I18N.t('accountSwitcher.switchFailed')) || '切换账户失败，请重试';
-        alert(switchFailed);
+        Dialog.error(switchFailed);
         if (card) {
             card.style.opacity = '1';
             card.style.pointerEvents = 'auto';
@@ -407,7 +407,7 @@ async function addCurrentAccount() {
         
         if (!data.success) {
             const loadUserFailed = (typeof I18N !== 'undefined' && I18N.t('accountSwitcher.loadUserFailed')) || '获取用户信息失败，请刷新页面重试';
-        alert(loadUserFailed);
+        Dialog.error(loadUserFailed);
             return;
         }
         
@@ -433,7 +433,7 @@ async function addCurrentAccount() {
     } catch (error) {
         console.error('[AccountSwitcher] Failed to add current account:', error);
         const addAccountFailed = (typeof I18N !== 'undefined' && I18N.t('accountSwitcher.addAccountFailed')) || '添加账户失败，请重试';
-        alert(addAccountFailed);
+        Dialog.error(addAccountFailed);
     }
 }
 </script>

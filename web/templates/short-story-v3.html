@@ -527,7 +527,7 @@ createApp({
           throw new Error(data.error || '创建任务失败');
         }
       } catch (err) {
-        alert('生成失败: ' + err.message);
+        Dialog.error('生成失败: ' + err.message);
         state.isGenerating = false;
       }
     };
@@ -564,7 +564,7 @@ createApp({
           throw new Error(data.error || '创建任务失败');
         }
       } catch (err) {
-        alert('生成失败: ' + err.message);
+        Dialog.error('生成失败: ' + err.message);
         state.isGenerating = false;
       }
     };
@@ -588,7 +588,7 @@ createApp({
           } else if (data.status === 'failed') {
             clearInterval(interval);
             state.isGenerating = false;
-            alert('生成失败: ' + (data.error || '未知错误'));
+            Dialog.error('生成失败: ' + (data.error || '未知错误'));
           }
         } catch (err) {
           console.error('轮询失败:', err);
@@ -619,7 +619,7 @@ createApp({
           }
         }
       } catch (err) {
-        alert('加载结果失败: ' + err.message);
+        Dialog.error('加载结果失败: ' + err.message);
       } finally {
         state.isGenerating = false;
       }
@@ -631,12 +631,12 @@ createApp({
 
     const copyChapter = (ch) => {
       navigator.clipboard.writeText(ch.content).then(() => {
-        alert(`第${ch.chapter_number}章已复制`);
+        Dialog.alert(`第${ch.chapter_number}章已复制`, '已复制');
       });
     };
 
     const regenerateChapter = async (num) => {
-      if (!confirm(`确定要重新生成第${num}章吗？`)) return;
+      if (!(await Dialog.confirm('确认重新生成', `确定要重新生成第${num}章吗？`))) return;
       
       state.isGenerating = true;
       state.progressMessage = `正在重新生成第${num}章...`;
@@ -667,7 +667,7 @@ createApp({
           throw new Error(data.error || '创建任务失败');
         }
       } catch (err) {
-        alert('重新生成失败: ' + err.message);
+        Dialog.error('重新生成失败: ' + err.message);
         state.isGenerating = false;
       }
     };
@@ -701,7 +701,7 @@ createApp({
           state.outline.chapters = newChapters;
         }
         
-        alert('大纲修改已应用');
+        Dialog.alert('大纲修改已应用', '成功');
       } else if (state.phase === 'content') {
         // 解析正文内容
         // 格式: 第1章 标题
@@ -718,7 +718,7 @@ createApp({
           }
         }
         
-        alert('正文修改已应用');
+        Dialog.alert('正文修改已应用', '成功');
       }
     };
 
@@ -738,12 +738,12 @@ createApp({
         
         const data = await res.json();
         if (data.success) {
-          alert('草稿已保存');
+          Dialog.alert('草稿已保存', '成功');
         } else {
           throw new Error(data.error);
         }
       } catch (err) {
-        alert('保存失败: ' + err.message);
+        Dialog.error('保存失败: ' + err.message);
       }
     };
 
@@ -761,12 +761,12 @@ createApp({
         
         const data = await res.json();
         if (data.success) {
-          alert('保存成功！');
+          Dialog.alert('保存成功！', '成功');
         } else {
           throw new Error(data.error);
         }
       } catch (err) {
-        alert('保存失败: ' + err.message);
+        Dialog.error('保存失败: ' + err.message);
       }
     };
 
@@ -776,7 +776,7 @@ createApp({
     };
     
     const loadDraft = async () => {
-      const title = prompt('请输入要加载的短篇标题：');
+      const title = await Dialog.prompt('加载短篇', '请输入要加载的短篇标题：');
       if (!title) return;
       
       try {
@@ -803,12 +803,12 @@ createApp({
           }
           
           updateEditorContent();
-          alert('草稿加载成功');
+          Dialog.alert('草稿加载成功', '成功');
         } else {
           throw new Error(data.error || '加载失败');
         }
       } catch (err) {
-        alert('加载失败: ' + err.message);
+        Dialog.error('加载失败: ' + err.message);
       }
     };
 

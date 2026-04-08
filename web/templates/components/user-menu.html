@@ -577,7 +577,7 @@ async function logout() {
             window.location.href = '/login';
         } else {
             console.error('退出登录失败');
-            alert('退出登录失败，请重试');
+            Dialog.error('退出登录失败，请重试');
         }
     } catch (error) {
         console.error('退出登录出错:', error);

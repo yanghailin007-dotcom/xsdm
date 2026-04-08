@@ -766,7 +766,7 @@ function selectGenre(id, element) {
 
 function startAnalysis() {
   if (!selectedGenre) {
-    alert("请先选择一个题材类型");
+    Dialog.alert('请先选择一个题材类型', '提示');
     return;
   }
   window.location.href = `/market-driven-analysis?genre=${encodeURIComponent(selectedGenre)}`;

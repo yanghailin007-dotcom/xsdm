@@ -20,7 +20,7 @@
                 <span class="gtf-pulse-dot"></span>
             </div>
             <button class="gtf-btn-icon" onclick="collapseTaskFloat(); event.stopPropagation();" title="收起">
-                <span class="material-icons">expand_more</span>
+                <span class="material-icons">&#xe5ce;</span>
             </button>
         </div>
         
@@ -33,6 +33,41 @@
         <div class="gtf-footer" id="gtf-footer" style="display: none;">
             <span id="gtf-total-progress">总进度: 0%</span>
             <span id="gtf-total-points">消耗: 0点</span>
+        </div>
+    </div>
+</div>
+
+<!-- 自定义确认对话框 -->
+<div id="gtf-confirm-modal" class="gtf-modal" style="display: none;">
+    <div class="gtf-modal-overlay" onclick="closeConfirmModal(false)"></div>
+    <div class="gtf-modal-content">
+        <div class="gtf-modal-header">
+            <span class="gtf-modal-icon">&#xe8b2;</span>
+            <span id="gtf-modal-title">确认操作</span>
+        </div>
+        <div class="gtf-modal-body" id="gtf-modal-message">
+            <!-- 消息内容 -->
+        </div>
+        <div class="gtf-modal-footer">
+            <button class="gtf-btn gtf-btn-secondary" onclick="closeConfirmModal(false)">取消</button>
+            <button class="gtf-btn gtf-btn-primary" id="gtf-confirm-btn" onclick="closeConfirmModal(true)">确定</button>
+        </div>
+    </div>
+</div>
+
+<!-- 自定义提示框 -->
+<div id="gtf-alert-modal" class="gtf-modal" style="display: none;">
+    <div class="gtf-modal-overlay" onclick="closeAlertModal()"></div>
+    <div class="gtf-modal-content">
+        <div class="gtf-modal-header">
+            <span class="gtf-modal-icon" style="color: #f59e0b;">&#xe002;</span>
+            <span>提示</span>
+        </div>
+        <div class="gtf-modal-body" id="gtf-alert-message">
+            <!-- 消息内容 -->
+        </div>
+        <div class="gtf-modal-footer">
+            <button class="gtf-btn gtf-btn-primary" onclick="closeAlertModal()">知道了</button>
         </div>
     </div>
 </div>
@@ -390,6 +425,110 @@
     position: absolute;
     width: 0;
     height: 0;
+}
+/* 自定义模态框样式 */
+.gtf-modal {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 10000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.gtf-modal-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.5);
+    backdrop-filter: blur(4px);
+}
+
+.gtf-modal-content {
+    position: relative;
+    background: #fff;
+    border-radius: 16px;
+    box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+    min-width: 360px;
+    max-width: 480px;
+    margin: 20px;
+    overflow: hidden;
+    animation: gtf-modal-show 0.2s ease-out;
+}
+
+@keyframes gtf-modal-show {
+    from {
+        opacity: 0;
+        transform: scale(0.9) translateY(20px);
+    }
+    to {
+        opacity: 1;
+        transform: scale(1) translateY(0);
+    }
+}
+
+.gtf-modal-header {
+    padding: 20px 24px 0;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 18px;
+    font-weight: 600;
+    color: #1f2937;
+}
+
+.gtf-modal-icon {
+    font-family: 'Material Icons';
+    font-size: 24px;
+    color: #3b82f6;
+}
+
+.gtf-modal-body {
+    padding: 16px 24px 24px;
+    font-size: 14px;
+    line-height: 1.6;
+    color: #4b5563;
+    white-space: pre-line;
+}
+
+.gtf-modal-footer {
+    padding: 0 24px 20px;
+    display: flex;
+    justify-content: flex-end;
+    gap: 12px;
+}
+
+.gtf-modal-footer .gtf-btn {
+    padding: 10px 24px;
+    border-radius: 8px;
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    border: none;
+    transition: all 0.2s;
+}
+
+.gtf-modal-footer .gtf-btn-primary {
+    background: #3b82f6;
+    color: #fff;
+}
+
+.gtf-modal-footer .gtf-btn-primary:hover {
+    background: #2563eb;
+}
+
+.gtf-modal-footer .gtf-btn-secondary {
+    background: #f3f4f6;
+    color: #4b5563;
+}
+
+.gtf-modal-footer .gtf-btn-secondary:hover {
+    background: #e5e7eb;
 }
 </style>
 
@@ -906,12 +1045,55 @@
         }
     };
     
+    // 自定义确认对话框
+    let confirmResolve = null;
+    
+    window.showConfirmModal = function(title, message, confirmText = '确定', cancelText = '取消') {
+        return new Promise((resolve) => {
+            confirmResolve = resolve;
+            document.getElementById('gtf-modal-title').textContent = title;
+            document.getElementById('gtf-modal-message').innerHTML = message;
+            document.getElementById('gtf-confirm-btn').textContent = confirmText;
+            document.getElementById('gtf-confirm-modal').style.display = 'flex';
+        });
+    };
+    
+    window.closeConfirmModal = function(result) {
+        document.getElementById('gtf-confirm-modal').style.display = 'none';
+        if (confirmResolve) {
+            confirmResolve(result);
+            confirmResolve = null;
+        }
+    };
+    
+    // 自定义提示框
+    window.showAlertModal = function(message) {
+        return new Promise((resolve) => {
+            window.alertResolve = resolve;
+            document.getElementById('gtf-alert-message').innerHTML = message;
+            document.getElementById('gtf-alert-modal').style.display = 'flex';
+        });
+    };
+    
+    window.closeAlertModal = function() {
+        document.getElementById('gtf-alert-modal').style.display = 'none';
+        if (window.alertResolve) {
+            window.alertResolve();
+            window.alertResolve = null;
+        }
+    };
+    
     // 停止任务 - 停止后跳转到详情页让用户感知
     window.stopTask = async function(taskId) {
         // 获取任务信息用于后续跳转
         const task = TaskManager.getTask(taskId);
         
-        if (!confirm('确定要停止这个生成任务吗？\n\n⚠️ 温馨提示：已消耗的点数不会返还，已生成的章节会保存。')) {
+        const confirmed = await showConfirmModal(
+            '确认停止',
+            '确定要停止这个生成任务吗？<br><br><span style="color: #f59e0b;">⚠️ 温馨提示：已消耗的点数不会返还，已生成的章节会保存。</span>'
+        );
+        
+        if (!confirmed) {
             return;
         }
         
@@ -945,31 +1127,39 @@
             } else {
                 TaskManager.updateTask(taskId, { status: 'running', stage: '停止失败，继续生成中' });
                 UI.update();
-                alert('停止任务失败，任务可能已经完成或停止失败');
+                await showAlertModal('停止任务失败，任务可能已经完成或停止失败');
             }
         } catch (e) {
             console.error('[stopTask] 失败:', e);
             TaskManager.updateTask(taskId, { status: 'running', stage: '停止失败，继续生成中' });
             UI.update();
-            alert('停止任务失败: ' + (e.message || '网络错误'));
+            await showAlertModal('停止任务失败: ' + (e.message || '网络错误'));
         }
     };
     
     // 关闭任务（从列表移除）- 已完成、已停止或停止失败的任务
-    window.dismissTask = function(taskId) {
+    window.dismissTask = async function(taskId) {
         const task = TaskManager.getTask(taskId);
         const isStopFailed = task?.stage && task.stage.includes('停止失败');
         
         // 如果任务完成了，提示用户可以在历史记录中找到
         if (task?.status === 'completed') {
-            if (!confirm('确定要从列表移除这个已完成的任务吗？\n\n提示：移除后任务将不再显示在此列表中，但已生成的小说仍然可以在"历史记录"中找到。')) {
+            const confirmed = await showConfirmModal(
+                '确认移除',
+                '确定要从列表移除这个已完成的任务吗？<br><br><span style="color: #6b7280;">提示：移除后任务将不再显示在此列表中，但已生成的小说仍然可以在"历史记录"中找到。</span>'
+            );
+            if (!confirmed) {
                 return;
             }
         }
         
         // 停止失败的任务，提示用户
         if (isStopFailed) {
-            if (!confirm('确定要从列表移除这个任务吗？\n\n⚠️ 此任务停止失败，可能是因为服务器连接中断或任务已经在后台继续运行。\n移除后任务将不再显示在此列表中。')) {
+            const confirmed = await showConfirmModal(
+                '确认移除',
+                '确定要从列表移除这个任务吗？<br><br><span style="color: #ef4444;">⚠️ 此任务停止失败，可能是因为服务器连接中断或任务已经在后台继续运行。<br>移除后任务将不再显示在此列表中。</span>'
+            );
+            if (!confirmed) {
                 return;
             }
         }

@@ -6,6 +6,7 @@
     <title>{{ novel.title }} - 质量分析仪表板</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='css/novel-dashboard.css') }}">
     <script src="https://cdn.jsdelivr.net/npm/echarts@5.4.3/dist/echarts.min.js"></script>
+    <script src="/static/js/dialog.js"></script>
 </head>
 <body>
     <div class="novel-dashboard">
@@ -330,12 +331,12 @@
             window.open(`/novels/{{ novel.id }}/chapters/${chapterNum}`, '_blank');
         }
 
-        function fixChapter(chapterNum) {
-            if (confirm(`确定要修复第${chapterNum}章吗？这将自动扩写弹幕和围观反应。`)) {
+        async function fixChapter(chapterNum) {
+            if (await Dialog.confirm('确认修复', `确定要修复第${chapterNum}章吗？这将自动扩写弹幕和围观反应。`)) {
                 fetch(`/api/novels/{{ novel.id }}/chapters/${chapterNum}/fix`, {
                     method: 'POST'
                 }).then(r => r.json()).then(data => {
-                    alert(data.message);
+                    Dialog.alert(data.message, '提示');
                     location.reload();
                 });
             }

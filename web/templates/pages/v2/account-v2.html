@@ -542,8 +542,8 @@
     });
     
     // 退出登录
-    function logout() {
-        if (confirm('确定要退出登录吗？')) {
+    async function logout() {
+        if (await Dialog.confirm('确认退出', '确定要退出登录吗？')) {
             window.location.href = '/logout';
         }
     }

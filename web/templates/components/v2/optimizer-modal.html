@@ -266,7 +266,7 @@
         const title = window.currentProjectTitle || document.querySelector('[data-project-title]')?.dataset.projectTitle;
         
         if (!title) {
-            alert('无法获取项目标题');
+            Dialog.error('无法获取项目标题');
             closeModal();
             return;
         }
@@ -401,7 +401,7 @@
     // 应用优化
     async function applyOptimization() {
         // TODO: 实现应用优化建议的逻辑
-        alert('优化建议已应用！');
+        Dialog.alert('优化建议已应用！', '成功');
         closeModal();
     }
 
@@ -427,7 +427,7 @@
 
     window.applyOptimization = applyOptimization;
     window.exportReport = function() {
-        alert('导出功能开发中...');
+        Dialog.alert('导出功能开发中...', '提示');
     };
 })();
 </script>

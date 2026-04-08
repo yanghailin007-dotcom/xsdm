@@ -1430,7 +1430,7 @@ async function submitShare() {
     const intro = document.getElementById('shareIntro').value.trim();
     
     if (!title || !platform || !url) {
-        alert('请填写必填项：书名、平台、链接');
+        Dialog.alert('请填写必填项：书名、平台、链接', '提示');
         return;
     }
     
@@ -1450,17 +1450,17 @@ async function submitShare() {
         const data = await response.json();
         
         if (data.success) {
-            alert('分享成功！');
+            Dialog.alert('分享成功！', '成功');
             closeShareModal();
             loadWorks();
             loadRankings();
             checkShareLimit();
         } else {
-            alert(data.error || '分享失败');
+            Dialog.error(data.error || '分享失败');
         }
     } catch (error) {
         console.error('分享失败:', error);
-        alert('分享失败，请重试');
+        Dialog.error('分享失败，请重试');
     }
 }
 

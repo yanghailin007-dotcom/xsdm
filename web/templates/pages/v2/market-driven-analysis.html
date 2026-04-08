@@ -689,7 +689,7 @@ document.addEventListener('DOMContentLoaded', async function() {
   // 如果没有genreId，显示错误
   if (!genreId) {
     document.getElementById('genre-name').textContent = '未选择题材';
-    alert('请先选择题材类型');
+    Dialog.alert('请先选择题材类型', '提示');
     window.location.href = '/market-driven-create';
     return;
   }
@@ -809,7 +809,7 @@ async function startAnalysis() {
     console.error('分析失败:', error);
     // 显示错误状态
     updateProgress('分析失败: ' + error.message, 0);
-    alert('分析失败: ' + error.message);
+    Dialog.error('分析失败: ' + error.message);
   }
 }
 
@@ -846,19 +846,19 @@ async function pollTaskStatus(taskId) {
           displayResults(task.result);
         } else {
           console.error('无结果数据');
-          alert('分析失败：未能获取有效结果，请检查API配置或重试');
+          Dialog.error('分析失败：未能获取有效结果，请检查API配置或重试');
           return;
         }
       } catch (e) {
         console.error('显示结果时出错:', e);
-        alert('显示分析结果时出错: ' + e.message);
+        Dialog.error('显示分析结果时出错: ' + e.message);
       }
       return;
     } else if (task.status === 'failed') {
       console.error('任务失败:', task.error);
       // 显示错误状态
       updateProgress('分析失败', 0);
-      alert('分析失败: ' + (task.error || '未知错误'));
+      Dialog.error('分析失败: ' + (task.error || '未知错误'));
       return;
     }
     
@@ -899,7 +899,7 @@ function displayResults(data) {
     // 检查数据有效性
     if (!data || typeof data !== 'object') {
       console.error('Invalid data format:', data);
-      alert('分析结果格式错误');
+      Dialog.error('分析结果格式错误');
       return;
     }
     
@@ -1229,7 +1229,7 @@ function displayResults(data) {
     console.log('displayResults completed successfully');
   } catch (error) {
     console.error('Error in displayResults:', error);
-    alert('显示分析结果时出错: ' + error.message);
+    Dialog.error('显示分析结果时出错: ' + error.message);
   }
 }
 
@@ -1285,7 +1285,7 @@ function escapeHtml(text) {
 
 function startGeneration() {
   if (!analysisResult) {
-    alert('请等待分析完成');
+    Dialog.alert('请等待分析完成', '提示');
     return;
   }
   

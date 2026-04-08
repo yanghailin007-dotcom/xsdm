@@ -164,7 +164,7 @@ function startGenerationFromForm() {
   
   // 验证必填项
   if (!data.title) {
-    alert('请输入小说标题');
+    Dialog.alert('请输入小说标题', '提示');
     return;
   }
   
@@ -195,12 +195,12 @@ function startGenerationFromForm() {
       
       window.location.href = `/market-driven-status?task=${data.task_id}`;
     } else {
-      alert('生成失败: ' + (data.error || '未知错误'));
+      Dialog.error('生成失败: ' + (data.error || '未知错误'));
     }
   })
   .catch(error => {
     console.error('生成失败:', error);
-    alert('网络错误，请重试');
+    Dialog.error('网络错误，请重试');
   });
 }
 </script>

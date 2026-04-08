@@ -1112,7 +1112,7 @@
         
         // 工位新增：带确认对话框的重写跳转函数
         async function rewriteNovelWithCoverCheck(projectTitle, hasCover) {
-            const confirmed = confirm(`警告：重写将删除该项目的所有已生成章节，并基于当前设定重新生成。\n\n确定要继续吗？`);
+            const confirmed = await Dialog.confirm('警告', `重写将删除该项目的所有已生成章节，并基于当前设定重新生成。<br><br>确定要继续吗？`);
             if (!confirmed) return;
             
             // 重写不需要封面检查，直接跳转
@@ -1135,7 +1135,7 @@
             const confirmMsg = typeof I18N !== 'undefined' 
                 ? `Confirm delete project "${projectTitle}"? This cannot be undone.`
                 : `确定要删除项目 "${projectTitle}" 吗？此操作不可撤销，所有相关数据将被永久删除。`;
-            if (!confirm(confirmMsg)) {
+            if (!(await Dialog.confirm('确认', confirmMsg.replace(/\n/g, '<br>')))) {
                 return;
             }
 
@@ -1240,9 +1240,9 @@
             }
         }
 
-        function logout() {
+        async function logout() {
             const logoutConfirm = typeof I18N !== 'undefined' ? I18N.t('common.logoutConfirm') : '确定要退出登录吗？';
-            if (confirm(logoutConfirm)) {
+            if (await Dialog.confirm('确认退出', logoutConfirm)) {
                 window.location.href = '/logout';
             }
         }

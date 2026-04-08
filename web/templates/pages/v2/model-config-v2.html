@@ -1567,7 +1567,7 @@
     
     // 删除端点
     async function deleteEndpoint(name) {
-        if (!confirm(`确定要删除端点 "${name}" 吗？`)) return;
+        if (!(await Dialog.confirm('确认删除', `确定要删除端点 "${name}" 吗？`))) return;
         
         try {
             const response = await fetch(`/api/custom-endpoints/${name}`, {

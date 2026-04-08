@@ -1029,7 +1029,7 @@ async function loadContinueProjectData(title) {
     
     if (!result.success) {
       console.error('加载项目数据失败:', result.error);
-      alert('加载项目数据失败: ' + (result.error || '未知错误'));
+      Dialog.error('加载项目数据失败: ' + (result.error || '未知错误'));
       return;
     }
     
@@ -1047,7 +1047,7 @@ async function loadContinueProjectData(title) {
     
   } catch (error) {
     console.error('加载续写项目数据出错:', error);
-    alert('加载续写项目数据失败，请刷新页面重试');
+    Dialog.error('加载续写项目数据失败，请刷新页面重试');
   }
 }
 
@@ -1091,7 +1091,7 @@ async function loadPlanProjectData(title) {
     
     if (!result.success) {
       console.error('加载项目数据失败:', result.error);
-      alert('加载项目数据失败: ' + (result.error || '未知错误'));
+      Dialog.error('加载项目数据失败: ' + (result.error || '未知错误'));
       return;
     }
     
@@ -1109,7 +1109,7 @@ async function loadPlanProjectData(title) {
     
   } catch (error) {
     console.error('加载规划项目数据出错:', error);
-    alert('加载规划项目数据失败，请刷新页面重试');
+    Dialog.error('加载规划项目数据失败，请刷新页面重试');
   }
 }
 
@@ -1260,7 +1260,7 @@ async function loadRewriteProjectData(title) {
     
     if (!result.success) {
       console.error('加载项目数据失败:', result.error);
-      alert('加载项目数据失败: ' + (result.error || '未知错误'));
+      Dialog.error('加载项目数据失败: ' + (result.error || '未知错误'));
       return;
     }
     
@@ -1278,7 +1278,7 @@ async function loadRewriteProjectData(title) {
     
   } catch (error) {
     console.error('加载重写项目数据出错:', error);
-    alert('加载重写项目数据失败，请刷新页面重试');
+    Dialog.error('加载重写项目数据失败，请刷新页面重试');
   }
 }
 
@@ -1393,7 +1393,7 @@ async function startRewriteGeneration() {
     
     // 验证必填项
     if (!title) {
-      alert('请输入小说标题');
+      Dialog.alert('请输入小说标题', '提示');
       btn.disabled = false;
       btn.innerHTML = '<span class="material-icons">refresh</span>开始重写';
       return;
@@ -1429,7 +1429,7 @@ async function startRewriteGeneration() {
     
   } catch (error) {
     console.error('重写失败:', error);
-    alert('重写失败: ' + error.message);
+    Dialog.error('重写失败: ' + error.message);
     btn.disabled = false;
     btn.innerHTML = '<span class="material-icons">refresh</span>开始重写';
   }
@@ -1476,7 +1476,7 @@ async function startGeneration() {
   
   // 验证必填项
   if (!title) {
-    alert('请输入小说标题');
+    Dialog.alert('请输入小说标题', '提示');
     btn.disabled = false;
     btn.innerHTML = '<span class="material-icons">rocket_launch</span>开始生成';
     return;
@@ -1530,7 +1530,7 @@ async function startGeneration() {
         showInsufficientPointsModal(error.error, error.current_balance);
       } else {
         // 其他错误使用简单的alert
-        alert('生成失败: ' + (error.error || '未知错误'));
+        Dialog.error('生成失败: ' + (error.error || '未知错误'));
       }
       
       btn.disabled = false;
@@ -1538,7 +1538,7 @@ async function startGeneration() {
     }
   } catch (error) {
     console.error('生成失败:', error);
-    alert('生成失败，请稍后重试');
+    Dialog.error('生成失败，请稍后重试');
     btn.disabled = false;
     btn.innerHTML = '<span class="material-icons">rocket_launch</span>开始生成';
   }
@@ -1588,7 +1588,7 @@ async function startContinueGeneration() {
     
   } catch (error) {
     console.error('章节续写失败:', error);
-    alert('章节续写失败: ' + error.message);
+    Dialog.error('章节续写失败: ' + error.message);
     btn.disabled = false;
     btn.innerHTML = '<span class="material-icons">playlist_add</span>开始续写';
   }
@@ -1608,7 +1608,7 @@ async function startPlanGeneration() {
       confirmMessage = `警告：该项目已有 ${existingProjectData.completed_chapters} 个章节。\n\n重新生成方案可能会导致新旧章节设定不一致。\n\n建议使用"继续生成"功能来生成后续章节。\n\n仍然要继续吗？`;
     }
     
-    if (!confirm(confirmMessage)) {
+    if (!(await Dialog.confirm('确认', confirmMessage))) {
       btn.disabled = false;
       btn.innerHTML = '<span class="material-icons">refresh</span>重新生成方案';
       return;
@@ -1627,7 +1627,7 @@ async function startPlanGeneration() {
     
     // 验证必填项
     if (!title) {
-      alert('请输入小说标题');
+      Dialog.alert('请输入小说标题', '提示');
       btn.disabled = false;
       btn.innerHTML = '<span class="material-icons">refresh</span>重新生成方案';
       return;
@@ -1663,7 +1663,7 @@ async function startPlanGeneration() {
     
   } catch (error) {
     console.error('规划失败:', error);
-    alert('规划失败: ' + error.message);
+    Dialog.error('规划失败: ' + error.message);
     btn.disabled = false;
     btn.innerHTML = '<span class="material-icons">refresh</span>重新生成方案';
   }

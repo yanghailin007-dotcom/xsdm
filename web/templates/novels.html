@@ -1127,12 +1127,12 @@
         const additionalChapters = parseInt(document.getElementById('continue-chapters-count').value);
         
         if (isNaN(fromChapter) || fromChapter < 1) {
-            alert('请输入有效的起始章节数');
+            Dialog.alert('请输入有效的起始章节数', '提示');
             return;
         }
         
         if (isNaN(additionalChapters) || additionalChapters < 1) {
-            alert('请输入有效的续写章节数');
+            Dialog.alert('请输入有效的续写章节数', '提示');
             return;
         }
         
@@ -1150,7 +1150,7 @@
             
             if (response.status === 401) {
                 hideLoadingOverlay();
-                alert('请先登录后再试');
+                Dialog.alert('请先登录后再试', '提示');
                 window.location.href = '/login';
                 return;
             }
@@ -1176,7 +1176,7 @@
             
         } catch (error) {
             hideLoadingOverlay();
-            alert(`续写失败: ${error.message}`);
+            Dialog.error(`续写失败: ${error.message}`);
             console.error('续写失败:', error);
         }
     }
@@ -1215,7 +1215,7 @@
     }
 
     function showError(message) {
-        alert(message);
+        Dialog.error(message);
     }
 
     function exportNovel(title) {

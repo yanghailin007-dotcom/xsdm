@@ -1593,7 +1593,7 @@ function toggleHistory() {
 
 // ==================== 工具函数 ====================
 function showError(message) {
-  alert(message);
+  Dialog.error(message);
 }
 
 function showRiskWarning(warning) {
@@ -1611,7 +1611,7 @@ function returnToDialog() {
 // ==================== AI评估和生成 ====================
 async function startAIEvaluation() {
   // 暂时不使用AI评估跳转，直接在表单中确认
-  alert('请直接在表单中确认方案后生成');
+  Dialog.alert('请直接在表单中确认方案后生成', '提示');
 }
 
 // 全局变量存储最终方案
@@ -1996,7 +1996,7 @@ function startGenerationFromForm() {
   };
   
   if (!data.title) {
-    alert('请输入小说标题');
+    Dialog.alert('请输入小说标题', '提示');
     return;
   }
   
@@ -2013,12 +2013,12 @@ function startGenerationFromForm() {
     if (data.task_id) {
       window.location.href = `/market-driven-status?task=${data.task_id}`;
     } else {
-      alert('生成失败: ' + (data.error || '未知错误'));
+      Dialog.error('生成失败: ' + (data.error || '未知错误'));
     }
   })
   .catch(error => {
     console.error('生成失败:', error);
-    alert('网络错误，请重试');
+    Dialog.error('网络错误，请重试');
   });
 }
 

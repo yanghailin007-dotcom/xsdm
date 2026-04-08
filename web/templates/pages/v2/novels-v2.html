@@ -1423,7 +1423,7 @@
         // 🔥 新增：跳转到重写页面
         async function rewriteNovel(title) {
             // 检查项目类型并跳转
-            const confirmed = confirm('警告：重写将删除该项目的所有已生成章节，并基于当前设定重新生成。\n\n确定要继续吗？');
+            const confirmed = await Dialog.confirm('警告', '重写将删除该项目的所有已生成章节，并基于当前设定重新生成。<br><br>确定要继续吗？');
             if (!confirmed) return;
             
             try {
@@ -1442,7 +1442,7 @@
                 if (projectType === 'market_driven') {
                     window.location.href = '/pages/v2/market-driven-plan.html?title=' + encodeURIComponent(title) + '&mode=rewrite';
                 } else {
-                    alert('自由创意项目的重写功能暂未实现，请直接在项目管理页面操作');
+                    Dialog.alert('自由创意项目的重写功能暂未实现，请直接在项目管理页面操作', '提示');
                 }
             } catch (error) {
                 hideLoadingOverlay();

@@ -601,7 +601,7 @@ const urlParams = new URLSearchParams(window.location.search);
 const taskId = urlParams.get('task');
 
 if (!taskId) {
-  alert('任务ID不存在');
+  Dialog.alert('任务ID不存在', '提示');
   window.location.href = '/market-driven-create';
 }
 
@@ -1014,12 +1014,12 @@ async function checkBalanceAndResume() {
         // 刷新页面以重新开始
         location.reload();
       } else if (balance < 10) {
-        alert(`余额仍不足，当前余额: ${balance} 点\n建议充值后再继续生成`);
+        Dialog.alert(`余额仍不足，当前余额: ${balance} 点\n建议充值后再继续生成`, '提示');
       }
     }
   } catch (error) {
     console.error('检查余额失败:', error);
-    alert('检查余额失败，请刷新页面重试');
+    Dialog.error('检查余额失败，请刷新页面重试');
   } finally {
     const btn = document.querySelector('#paused-section .btn-secondary');
     if (btn) {
@@ -1065,14 +1065,14 @@ function runInBackground() {
     }, 500);
   } catch (error) {
     console.error('[Background] 后台运行出错:', error);
-    alert('切换后台运行失败: ' + error.message);
+    Dialog.error('切换后台运行失败: ' + error.message);
   }
 }
 
 // 查看结果
 function viewResult() {
   // 跳转到项目管理页面或其他结果展示页面
-  alert('功能开发中：将跳转到结果展示页面');
+  Dialog.alert('功能开发中：将跳转到结果展示页面', '提示');
 }
 
 // 重试

@@ -782,7 +782,7 @@ let pollInterval = null;
 async function startGenerate() {
   const creativeSeed = document.getElementById('extra-info').value.trim();
   if (!creativeSeed) {
-    alert('请输入创意种子（补充信息）');
+    Dialog.alert('请输入创意种子（补充信息）', '提示');
     return;
   }
   
@@ -821,7 +821,7 @@ async function startGenerate() {
       throw new Error(data.error || '创建任务失败');
     }
   } catch (err) {
-    alert('创建任务失败: ' + err.message);
+    Dialog.error('创建任务失败: ' + err.message);
     cancelGenerate();
   }
 }
@@ -848,7 +848,7 @@ function pollTaskStatus() {
         loadTaskResult();
       } else if (data.status === 'failed') {
         clearInterval(pollInterval);
-        alert('生成失败: ' + (data.error || '未知错误'));
+        Dialog.error('生成失败: ' + (data.error || '未知错误'));
         cancelGenerate();
       }
     } catch (err) {
@@ -877,7 +877,7 @@ async function loadTaskResult() {
       }
     }
   } catch (err) {
-    alert('加载结果失败: ' + err.message);
+    Dialog.error('加载结果失败: ' + err.message);
     cancelGenerate();
   }
 }
@@ -944,17 +944,17 @@ function toggleChapter(header) {
 
 // 保存
 function saveNovel() {
-  alert('保存成功！');
+  Dialog.alert('保存成功！', '成功');
 }
 
 // 标记完成
 function markComplete() {
-  alert('已标记为完成！');
+  Dialog.alert('已标记为完成！', '成功');
 }
 
 // 选择模板
 function selectTemplate() {
-  alert('打开模板选择弹窗');
+  Dialog.alert('打开模板选择弹窗', '提示');
 }
 
 // 复制章节
@@ -963,14 +963,14 @@ function copyChapter(num) {
   if (card) {
     const content = card.querySelector('.ss-chapter-content').textContent;
     navigator.clipboard.writeText(content).then(() => {
-      alert('第' + num + '章已复制到剪贴板');
+      Dialog.alert('第' + num + '章已复制到剪贴板', '已复制');
     });
   }
 }
 
 // 编辑章节
 function editChapter(num) {
-  alert('编辑第' + num + '章');
+  Dialog.alert('编辑第' + num + '章', '提示');
 }
 </script>
 {% endblock %}

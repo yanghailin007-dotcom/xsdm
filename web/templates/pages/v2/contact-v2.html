@@ -259,7 +259,7 @@
 <script>
 function submitForm(event) {
     event.preventDefault();
-    alert(I18N.t('contact.form.success'));
+    Dialog.alert(I18N.t('contact.form.success'), '成功');
     event.target.reset();
 }
 </script>

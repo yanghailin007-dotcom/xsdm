@@ -436,7 +436,7 @@ async function startGeneration() {
   if (currentMode === 'creative') {
     const seed = document.getElementById('creative-seed').value.trim();
     if (!seed) {
-      alert('请输入创意种子');
+      Dialog.alert('请输入创意种子', '提示');
       btn.disabled = false;
       btn.textContent = '🚀 开始生成';
       return;
@@ -452,7 +452,7 @@ async function startGeneration() {
   } else {
     const ref = document.getElementById('imitate-reference').value.trim();
     if (!ref) {
-      alert('请输入参考文本');
+      Dialog.alert('请输入参考文本', '提示');
       btn.disabled = false;
       btn.textContent = '🚀 开始生成';
       return;
@@ -476,7 +476,7 @@ async function startGeneration() {
     });
     const data = await res.json();
     if (data.error) {
-      alert(data.error);
+      Dialog.error(data.error);
       btn.disabled = false;
       btn.textContent = '🚀 开始生成';
       return;
@@ -485,7 +485,7 @@ async function startGeneration() {
     showProgress();
     startPolling();
   } catch (e) {
-    alert('请求失败: ' + e.message);
+    Dialog.error('请求失败: ' + e.message);
     btn.disabled = false;
     btn.textContent = '🚀 开始生成';
   }
@@ -515,7 +515,7 @@ function startPolling() {
         if (data.status === 'completed') {
           loadResult();
         } else {
-          alert('生成失败: ' + (data.error || '未知错误'));
+          Dialog.error('生成失败: ' + (data.error || '未知错误'));
           resetUI();
         }
       }

@@ -1325,7 +1325,7 @@
     async function saveDefaultAuthor() {
         const authorName = document.getElementById('author-name').value.trim();
         if (!authorName) {
-            alert('请先输入作者名');
+            Dialog.alert('请先输入作者名', '提示');
             return;
         }
 
@@ -1357,7 +1357,7 @@
             }
         } catch (error) {
             console.error('保存作者名失败:', error);
-            alert('保存失败: ' + error.message);
+            Dialog.error('保存失败: ' + error.message);
             btn.innerHTML = originalText;
             btn.disabled = false;
         }
@@ -1515,7 +1515,7 @@
             // 显示成功消息
             showSuccessMessage(I18N.t('coverMaker.success.copied') || '已将默认提示词复制到自定义编辑器，您现在可以进行修改');
         } else {
-            alert(I18N.t('coverMaker.alert.generateFirst') || '请先生成默认提示词');
+            Dialog.alert(I18N.t('coverMaker.alert.generateFirst') || '请先生成默认提示词', '提示');
         }
     }
 
@@ -1551,7 +1551,7 @@
         event.preventDefault();
 
         if (!selectedNovel) {
-            alert(I18N.t('coverMaker.alert.selectNovel') || '请先选择一本小说');
+            Dialog.alert(I18N.t('coverMaker.alert.selectNovel') || '请先选择一本小说', '提示');
             return;
         }
 
@@ -1570,7 +1570,7 @@
         // 获取作者名
         const authorName = document.getElementById('author-name').value.trim();
         if (!authorName) {
-            alert('请输入作者名');
+            Dialog.alert('请输入作者名', '提示');
             document.getElementById('author-name').focus();
             return;
         }
@@ -1629,7 +1629,7 @@
 
         } catch (error) {
             hideLoadingOverlay();
-            alert((I18N.t('coverMaker.error.generateFailed') || '生成封面失败') + ': ' + error.message);
+            Dialog.error((I18N.t('coverMaker.error.generateFailed') || '生成封面失败') + ': ' + error.message);
             console.error('生成封面失败:', error);
         }
     }
@@ -1931,11 +1931,12 @@
         event.stopPropagation();
         
         if (!projectIdFromUrl) {
-            alert('❌ 未指定项目ID，无法保存封面\n\n请从番茄上传页面点击「制作封面」按钮打开此页面。');
+            Dialog.alert('❌ 未指定项目ID，无法保存封面\n\n请从番茄上传页面点击「制作封面」按钮打开此页面。', '提示');
             return;
         }
         
-        if (!confirm('确定要将此封面设为项目封面吗？')) {
+        const confirmed = await Dialog.confirm('确认', '确定要将此封面设为项目封面吗？');
+        if (!confirmed) {
             return;
         }
         
@@ -1975,11 +1976,11 @@
                 }
             } else {
                 console.error('保存失败:', result);
-                alert('❌ 保存失败\n\n' + (result.error || '未知错误') + '\n\n请检查控制台获取详细信息。');
+                Dialog.error('❌ 保存失败\n\n' + (result.error || '未知错误') + '\n\n请检查控制台获取详细信息。');
             }
         } catch (error) {
             console.error('保存封面失败:', error);
-            alert('❌ 保存失败\n\n' + error.message + '\n\n请检查网络连接或联系管理员。');
+            Dialog.error('❌ 保存失败\n\n' + error.message + '\n\n请检查网络连接或联系管理员。');
         } finally {
             hideLoadingOverlay();
         }
@@ -2013,7 +2014,7 @@
     // 使用选中的封面
     function useSelectedCovers() {
         if (selectedCovers.size === 0) {
-            alert('请先选择要使用的封面');
+            Dialog.alert('请先选择要使用的封面', '提示');
             return;
         }
         
@@ -2030,7 +2031,7 @@
         }).filter(cover => cover !== null);
         
         if (selectedCoverList.length === 0) {
-            alert('选中的封面信息无效，请重新选择');
+            Dialog.alert('选中的封面信息无效，请重新选择', '提示');
             return;
         }
         
@@ -2090,7 +2091,7 @@
     // 拷贝选中的封面到小说目录
     function copySelectedCoversToNovels() {
         if (selectedCovers.size === 0) {
-            alert('请先选择要拷贝的封面');
+            Dialog.alert('请先选择要拷贝的封面', '提示');
             return;
         }
         
@@ -2116,7 +2117,7 @@
         
         if (selectedCoverList.length === 0) {
             console.error('❌ 选中的封面信息无效');
-            alert('选中的封面信息无效，请重新选择');
+            Dialog.alert('选中的封面信息无效，请重新选择', '提示');
             return;
         }
         
@@ -2282,13 +2283,13 @@
                 }, 1000);
                 
             } else {
-                alert(`拷贝失败: ${result.error}`);
+                Dialog.error(`拷贝失败: ${result.error}`);
             }
             
         } catch (error) {
             hideLoadingOverlay();
             console.error('拷贝封面失败:', error);
-            alert(`拷贝封面失败: ${error.message}`);
+            Dialog.error(`拷贝封面失败: ${error.message}`);
         }
     }
     
@@ -2379,7 +2380,7 @@
             
         } catch (error) {
             console.error('保存选中封面失败:', error);
-            alert('保存选中封面失败，请重试');
+            Dialog.error('保存选中封面失败，请重试');
         }
     }
 
