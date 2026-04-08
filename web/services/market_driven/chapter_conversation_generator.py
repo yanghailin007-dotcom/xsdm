@@ -442,6 +442,9 @@ class ChapterConversationGenerator:
         Returns:
             生成的章节列表
         """
+        # 调试：检查参数类型
+        logger.info(f"[CCG DEBUG] generate_chapters: start_chapter={start_chapter} (type={type(start_chapter)}), end_chapter={end_chapter} (type={type(end_chapter)})")
+        
         total = end_chapter - start_chapter + 1
         logger.info(f"[章节对话 {self.session_id}] 开始生成第{start_chapter}-{end_chapter}章 | 共{total}章")
         
@@ -605,6 +608,11 @@ class ChapterConversationGenerator:
                                             blueprint: Dict,
                                             prev_summary: str) -> Dict:
         """在会话中生成单章(集成质检)"""
+        # 调试：检查 chapter_num
+        if chapter_num is None:
+            logger.error(f"[CCG {self.session_id}] _generate_single_chapter_in_session: chapter_num is None!")
+            raise ValueError("chapter_num cannot be None")
+        
         # 获取本章规划
         chapter_plan = self._get_chapter_plan(chapter_num, blueprint)
         
@@ -1161,6 +1169,11 @@ class ChapterConversationGenerator:
     def _build_chapter_prompt(self, chapter_num: int, chapter_plan: Dict,
                              emotion_beat: Dict, prev_summary: str) -> str:
         """构建章节生成提示词(使用优化后的详细版本)"""
+        # 调试：检查 chapter_num
+        if chapter_num is None:
+            logger.error(f"[CCG {self.session_id}] _build_chapter_prompt: chapter_num is None! Stack trace:", exc_info=True)
+            chapter_num = 1
+        
         # 构建主角设定提醒
         protagonist_reminder = self._build_protagonist_reminder()
         
@@ -1267,6 +1280,11 @@ class ChapterConversationGenerator:
     
     def _build_coherence_check_from_config(self, chapter_num: int) -> str:
         """从配置构建连贯性检查"""
+        # 防御性编程：确保 chapter_num 有效
+        if chapter_num is None:
+            logger.error(f"[CCG {self.session_id}] _build_coherence_check_from_config: chapter_num is None, using default 1")
+            chapter_num = 1
+        
         checks = self._chapter_expansion_prompts.get('coherence_checks', [])
         
         # 获取主角信息用于格式化
