@@ -1170,8 +1170,9 @@ class ChapterConversationGenerator:
                              emotion_beat: Dict, prev_summary: str) -> str:
         """构建章节生成提示词(使用优化后的详细版本)"""
         # 调试：检查 chapter_num
+        logger.info(f"[CCG DEBUG] _build_chapter_prompt: chapter_num={chapter_num}, type={type(chapter_num)}")
         if chapter_num is None:
-            logger.error(f"[CCG {self.session_id}] _build_chapter_prompt: chapter_num is None! Stack trace:", exc_info=True)
+            logger.error(f"[CCG {self.session_id}] _build_chapter_prompt: chapter_num is None! Using default 1")
             chapter_num = 1
         
         # 构建主角设定提醒
