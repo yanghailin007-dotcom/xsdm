@@ -18,10 +18,11 @@ from PyQt5.QtWidgets import (
     QDialog, QVBoxLayout, QHBoxLayout, QLabel, QLineEdit, 
     QPushButton, QListWidget, QListWidgetItem, QMessageBox,
     QComboBox, QGroupBox, QGridLayout, QCheckBox, QMenu,
-    QInputDialog, QProgressDialog, QWidget
+    QInputDialog, QProgressDialog, QWidget, QScrollArea, QFrame,
+    QSizePolicy, QSpacerItem
 )
-from PyQt5.QtCore import Qt, QThread, pyqtSignal, QTimer
-from PyQt5.QtGui import QFont
+from PyQt5.QtCore import Qt, QThread, pyqtSignal, QTimer, QSize
+from PyQt5.QtGui import QFont, QColor
 
 from api_auth import MultiAccountManager, AccountToken
 
@@ -342,7 +343,7 @@ class AccountManagerDialogV2(QDialog):
         self.browser_manager = BrowserManager()
         
         self.setWindowTitle("多账户管理 - 每个账户一个浏览器实例")
-        self.setMinimumSize(700, 500)
+        self.setMinimumSize(850, 600)
         self.setup_ui()
         self.refresh_account_list()
     
@@ -376,16 +377,34 @@ class AccountManagerDialogV2(QDialog):
         
         layout.addWidget(info_card)
         
-        # 账户列表
-        list_label = QLabel("官网账户列表")
+        # 账户列表 - 网格卡片布局
+        list_label = QLabel("官网账户列表 (点击卡片选中)")
         list_label.setFont(QFont("Microsoft YaHei", 12, QFont.Bold))
         layout.addWidget(list_label)
         
-        self.account_list = QListWidget()
-        self.account_list.setContextMenuPolicy(Qt.CustomContextMenu)
-        self.account_list.customContextMenuRequested.connect(self.show_account_menu)
-        self.account_list.itemClicked.connect(self.on_account_selected)
-        layout.addWidget(self.account_list)
+        # 创建滚动区域
+        scroll_area = QScrollArea()
+        scroll_area.setWidgetResizable(True)
+        scroll_area.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
+        scroll_area.setStyleSheet("""
+            QScrollArea {
+                border: 1px solid #e0e0e0;
+                border-radius: 8px;
+                background-color: #f5f5f5;
+            }
+        """)
+        
+        # 创建网格容器
+        self.grid_container = QWidget()
+        self.grid_layout = QGridLayout(self.grid_container)
+        self.grid_layout.setSpacing(10)
+        self.grid_layout.setContentsMargins(10, 10, 10, 10)
+        
+        scroll_area.setWidget(self.grid_container)
+        layout.addWidget(scroll_area)
+        
+        # 存储卡片字典 {username: card_widget}
+        self.account_cards = {}
         
         # 按钮区域
         btn_layout = QHBoxLayout()
@@ -436,50 +455,139 @@ class AccountManagerDialogV2(QDialog):
         
         layout.addLayout(bottom_layout)
     
-    def refresh_account_list(self):
-        """刷新账户列表"""
-        self.account_list.clear()
+    def create_account_card(self, acc: dict, row: int, col: int):
+        """创建账户卡片"""
+        username = acc['username']
         
-        accounts = self.account_manager.storage.get_all_accounts()
-        for acc in accounts:
-            username = acc['username']
-            
-            # 检查浏览器状态
-            instance = self.browser_manager.get_instance(username)
-            if instance:
-                status_icon = {
-                    "stopped": "⏹️",
-                    "starting": "🔄",
-                    "running": "✅",
-                    "error": "❌"
-                }.get(instance.status, "❓")
-                port_info = f" (端口:{instance.debug_port})"
-            else:
-                status_icon = "⭕"
-                port_info = " (未创建)"
-            
-            # 检查登录状态
-            token = self.account_manager.get_token(username)
-            login_status = "🟢" if token else "🔴"
-            
-            item_text = f"{status_icon} {login_status} {username}{port_info}"
-            item = QListWidgetItem(item_text)
-            item.setData(Qt.UserRole, username)
-            item.setToolTip(
-                f"余额: {acc.get('points_balance', 0)}点\n"
-                f"最后登录: {acc.get('last_login', '-')[:19] if acc.get('last_login') else '-'}"
-            )
-            self.account_list.addItem(item)
+        # 创建卡片框架
+        card = QFrame()
+        card.setFrameShape(QFrame.StyledPanel)
+        card.setCursor(Qt.PointingHandCursor)
+        card.setMinimumSize(180, 120)
+        card.setMaximumSize(200, 140)
+        
+        # 检查浏览器状态
+        instance = self.browser_manager.get_instance(username)
+        if instance:
+            status_text = {
+                "stopped": "已停止",
+                "starting": "启动中",
+                "running": "运行中",
+                "error": "错误"
+            }.get(instance.status, "未知")
+            status_color = {
+                "stopped": "#9e9e9e",
+                "starting": "#ff9800",
+                "running": "#4caf50",
+                "error": "#f44336"
+            }.get(instance.status, "#9e9e9e")
+            port_info = f"端口:{instance.debug_port}"
+        else:
+            status_text = "未创建"
+            status_color = "#9e9e9e"
+            port_info = "点击创建"
+        
+        # 检查登录状态
+        token = self.account_manager.get_token(username)
+        login_status = "已登录" if token else "未登录"
+        login_color = "#4caf50" if token else "#f44336"
+        
+        # 卡片样式
+        is_selected = getattr(self, 'current_username', None) == username
+        border_color = "#2196F3" if is_selected else "#e0e0e0"
+        bg_color = "#e3f2fd" if is_selected else "#ffffff"
+        
+        card.setStyleSheet(f"""
+            QFrame {{
+                background-color: {bg_color};
+                border: 2px solid {border_color};
+                border-radius: 10px;
+                padding: 8px;
+            }}
+            QFrame:hover {{
+                border: 2px solid #2196F3;
+                background-color: #f5f5f5;
+            }}
+        """)
+        
+        # 卡片布局
+        card_layout = QVBoxLayout(card)
+        card_layout.setSpacing(4)
+        card_layout.setContentsMargins(8, 8, 8, 8)
+        
+        # 用户名
+        name_label = QLabel(f"👤 {username[:12]}{'...' if len(username) > 12 else ''}")
+        name_label.setFont(QFont("Microsoft YaHei", 10, QFont.Bold))
+        name_label.setStyleSheet("color: #333;")
+        card_layout.addWidget(name_label)
+        
+        # 状态行
+        status_layout = QHBoxLayout()
+        status_layout.setSpacing(4)
+        
+        status_label = QLabel(f"● {status_text}")
+        status_label.setStyleSheet(f"color: {status_color}; font-size: 11px;")
+        status_layout.addWidget(status_label)
+        
+        status_layout.addStretch()
+        
+        login_label = QLabel(f"{login_status}")
+        login_label.setStyleSheet(f"color: {login_color}; font-size: 11px;")
+        status_layout.addWidget(login_label)
+        
+        card_layout.addLayout(status_layout)
+        
+        # 端口信息
+        port_label = QLabel(f"🌐 {port_info}")
+        port_label.setStyleSheet("color: #666; font-size: 10px;")
+        card_layout.addWidget(port_label)
+        
+        # 余额信息
+        balance = acc.get('points_balance', 0)
+        balance_label = QLabel(f"💎 {balance}点")
+        balance_label.setStyleSheet("color: #ff9800; font-size: 11px; font-weight: bold;")
+        card_layout.addWidget(balance_label)
+        
+        card_layout.addStretch()
+        
+        # 点击事件
+        card.mousePressEvent = lambda event, u=username: self.on_card_clicked(u)
+        
+        # 右键菜单
+        card.setContextMenuPolicy(Qt.CustomContextMenu)
+        card.customContextMenuRequested.connect(
+            lambda pos, u=username: self.show_context_menu(u, card.mapToGlobal(pos))
+        )
+        
+        # 存储卡片引用
+        self.account_cards[username] = card
+        self.grid_layout.addWidget(card, row, col)
     
-    def on_account_selected(self, item):
-        """选中账户"""
-        username = item.data(Qt.UserRole)
+    def on_card_clicked(self, username: str):
+        """点击卡片选中账户"""
         self.current_username = username
+        
+        # 更新所有卡片样式
+        for uname, card in self.account_cards.items():
+            is_selected = uname == username
+            border_color = "#2196F3" if is_selected else "#e0e0e0"
+            bg_color = "#e3f2fd" if is_selected else "#ffffff"
+            card.setStyleSheet(f"""
+                QFrame {{
+                    background-color: {bg_color};
+                    border: 2px solid {border_color};
+                    border-radius: 10px;
+                    padding: 8px;
+                }}
+                QFrame:hover {{
+                    border: 2px solid #2196F3;
+                    background-color: #f5f5f5;
+                }}
+            """)
         
         # 检查是否创建了浏览器实例
         instance = self.browser_manager.get_instance(username)
         if not instance:
-            # 自动创建
             instance = self.browser_manager.create_instance(username)
         
         # 更新按钮状态
@@ -491,13 +599,103 @@ class AccountManagerDialogV2(QDialog):
         else:
             self.start_btn.setEnabled(True)
             self.stop_btn.setEnabled(False)
-            self.use_btn.setEnabled(True)  # 允许选择，即使浏览器未启动
+            self.use_btn.setEnabled(True)
             self.use_btn.setText("✅ 选择此账户（需启动浏览器）")
     
-    def show_account_menu(self, position):
+    def refresh_account_list(self):
+        """刷新账户列表 - 网格卡片布局"""
+        # 清除现有卡片
+        for card in self.account_cards.values():
+            card.deleteLater()
+        self.account_cards.clear()
+        
+        # 清除布局中的所有项目
+        while self.grid_layout.count():
+            item = self.grid_layout.takeAt(0)
+            if item.widget():
+                item.widget().deleteLater()
+        
+        accounts = self.account_manager.storage.get_all_accounts()
+        
+        # 每行显示4个卡片
+        cards_per_row = 4
+        
+        for idx, acc in enumerate(accounts):
+            row = idx // cards_per_row
+            col = idx % cards_per_row
+            self.create_account_card(acc, row, col)
+        
+        # 添加弹性空间
+        self.grid_layout.addItem(QSpacerItem(0, 0, QSizePolicy.Expanding, QSizePolicy.Expanding), 
+                                  row + 1, cards_per_row)
+    
+    def show_context_menu(self, username: str, pos):
         """显示右键菜单"""
-        item = self.account_list.itemAt(position)
-        if not item:
+        if not username:
+            return
+        
+        self.current_username = username
+        self.on_card_clicked(username)
+        
+        # 创建菜单
+        menu = QMenu(self)
+        
+        # 启动/停止浏览器
+        instance = self.browser_manager.get_instance(username)
+        if instance and instance.status == "running":
+            stop_action = menu.addAction("⏹️ 停止浏览器")
+            stop_action.triggered.connect(lambda: self.stop_selected_browser())
+        else:
+            start_action = menu.addAction("▶️ 启动浏览器")
+            start_action.triggered.connect(lambda: self.start_selected_browser())
+        
+        menu.addSeparator()
+        
+        # 删除账户
+        delete_action = menu.addAction("🗑️ 删除此账户")
+        delete_action.triggered.connect(lambda: self.delete_account(username))
+        
+        menu.exec_(pos)
+    
+    def delete_account(self, username: str):
+        """删除账户"""
+        reply = QMessageBox.question(
+            self, '确认删除',
+            f'确定要删除账户 "{username}" 吗？\n\n这将删除：\n• 该账户的登录信息\n• 浏览器数据目录\n• 相关配置文件\n\n此操作不可恢复！',
+            QMessageBox.Yes | QMessageBox.No,
+            QMessageBox.No
+        )
+        
+        if reply == QMessageBox.Yes:
+            try:
+                # 先停止浏览器
+                instance = self.browser_manager.get_instance(username)
+                if instance and instance.status == "running":
+                    self.browser_manager.stop_browser(username)
+                
+                # 删除账户数据
+                self.account_manager.storage.delete_account(username)
+                
+                # 删除浏览器数据目录
+                data_dir = self.browser_manager.base_dir / f"account_{username}"
+                if data_dir.exists():
+                    import shutil
+                    shutil.rmtree(data_dir)
+                
+                # 从管理器中移除
+                if username in self.browser_manager.instances:
+                    del self.browser_manager.instances[username]
+                
+                self.refresh_account_list()
+                QMessageBox.information(self, "删除成功", f"账户 '{username}' 已删除")
+                
+            except Exception as e:
+                QMessageBox.warning(self, "删除失败", f"删除账户时出错：{e}")
+    
+    # 保留旧方法兼容性
+    def show_account_menu(self, position):
+        """兼容旧版本 - 不再使用"""
+        pass
             return
         
         username = item.data(Qt.UserRole)
