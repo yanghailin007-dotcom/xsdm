@@ -1285,6 +1285,11 @@ class ChapterConversationGenerator:
         if chapter_num is None:
             logger.error(f"[CCG {self.session_id}] _build_coherence_check_from_config: chapter_num is None, using default 1")
             chapter_num = 1
+        try:
+            chapter_num = int(chapter_num)
+        except (TypeError, ValueError):
+            logger.error(f"[CCG {self.session_id}] chapter_num invalid: {chapter_num}, using default 1")
+            chapter_num = 1
         
         checks = self._chapter_expansion_prompts.get('coherence_checks', [])
         
