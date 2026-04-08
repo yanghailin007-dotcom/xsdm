@@ -1281,15 +1281,12 @@ class ChapterConversationGenerator:
     
     def _build_coherence_check_from_config(self, chapter_num: int) -> str:
         """从配置构建连贯性检查"""
-        # 防御性编程：确保 chapter_num 有效
+        # 调试：检查 chapter_num
         if chapter_num is None:
-            logger.error(f"[CCG {self.session_id}] _build_coherence_check_from_config: chapter_num is None, using default 1")
-            chapter_num = 1
-        try:
-            chapter_num = int(chapter_num)
-        except (TypeError, ValueError):
-            logger.error(f"[CCG {self.session_id}] chapter_num invalid: {chapter_num}, using default 1")
-            chapter_num = 1
+            import traceback
+            stack = ''.join(traceback.format_stack())
+            logger.error(f"[CCG {self.session_id}] CRITICAL: chapter_num is None!\nStack trace:\n{stack}")
+            raise ValueError(f"chapter_num cannot be None in _build_coherence_check_from_config")
         
         checks = self._chapter_expansion_prompts.get('coherence_checks', [])
         
