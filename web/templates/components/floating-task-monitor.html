@@ -721,21 +721,21 @@
                 // 停止失败：显示关闭按钮（允许用户移除任务）
                 actionButtons = `
                         <button class="gtf-btn gtf-btn-secondary" onclick="dismissTask('${task.task_id}')">
-                            <span class="material-icons" style="font-size: 14px;">close</span>
-                            移除记录
+                            <span class="material-icons" style="font-size: 14px;">&#xe5cd;</span>
+                            移除
                         </button>`;
             } else if (isRunning) {
                 // 运行中：显示停止按钮
                 actionButtons = `
                         <button class="gtf-btn gtf-btn-danger" onclick="stopTask('${task.task_id}')">
-                            <span class="material-icons" style="font-size: 14px;">stop</span>
+                            <span class="material-icons" style="font-size: 14px;">&#xe047;</span>
                             停止
                         </button>`;
             } else {
                 // 已完成/已停止：显示关闭按钮
                 actionButtons = `
                         <button class="gtf-btn gtf-btn-secondary" onclick="dismissTask('${task.task_id}')">
-                            <span class="material-icons" style="font-size: 14px;">close</span>
+                            <span class="material-icons" style="font-size: 14px;">&#xe5cd;</span>
                             关闭
                         </button>`;
             }
@@ -755,7 +755,7 @@
                     <div class="gtf-task-stage">${getStageName(task.stage) || task.message || '生成中...'}</div>
                     <div class="gtf-task-actions">
                         <button class="gtf-btn gtf-btn-primary" onclick="viewTaskDetail('${task.task_id}', '${task.type}')">
-                            <span class="material-icons" style="font-size: 14px;">visibility</span>
+                            <span class="material-icons" style="font-size: 14px;">&#xe8f4;</span>
                             查看
                         </button>
                         ${actionButtons}

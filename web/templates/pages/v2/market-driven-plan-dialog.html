@@ -916,7 +916,7 @@
   <!-- Header -->
   <div class="plan-header">
     <a href="/market-driven-analysis?genre={{ genre }}" class="plan-header__back">
-      <span class="material-icons">arrow_back</span>
+      <span class="material-icons">&#xe5c4;</span>
       返回分析结果
     </a>
     <h1 class="plan-header__title">生成创作方案</h1>
@@ -967,12 +967,12 @@
     <div class="dialog-history" id="dialog-history">
       <div class="dialog-history__header" onclick="toggleHistory()">
         <span class="dialog-history__title">
-          <span class="material-icons" style="font-size: 16px;">history</span>
+          <span class="material-icons" style="font-size: 16px;">&#xe889;</span>
           对话记录
         </span>
         <span class="dialog-history__toggle">
           <span id="history-toggle-text">收起</span>
-          <span class="material-icons" style="font-size: 16px;" id="history-toggle-icon">expand_less</span>
+          <span class="material-icons" style="font-size: 16px;" id="history-toggle-icon">&#xe5ce;</span>
         </span>
       </div>
       <div class="dialog-history__content" id="dialog-history-content">
@@ -1159,7 +1159,7 @@ function renderDialogRound(data) {
   const customHtml = data.allow_custom ? `
     <div class="custom-input-section">
       <label class="custom-input__label">
-        <span class="material-icons" style="font-size: 16px;">lightbulb</span>
+        <span class="material-icons" style="font-size: 16px;">&#xe0f0;</span>
         我有自己的想法：
       </label>
       <textarea class="custom-input__textarea" id="custom-input" 
@@ -1171,11 +1171,11 @@ function renderDialogRound(data) {
   const buttonsHtml = `
     <div class="dialog-actions">
       <button class="dialog-btn dialog-btn--secondary" onclick="goBack()" ${data.round <= 1 ? 'disabled' : ''}>
-        <span class="material-icons">arrow_back</span>
+        <span class="material-icons">&#xe5c4;</span>
         返回上一步
       </button>
       <button class="dialog-btn dialog-btn--primary" id="confirm-btn" onclick="confirmSelection()" disabled>
-        <span class="material-icons">check_circle</span>
+        <span class="material-icons">&#xe86c;</span>
         确认选择
       </button>
     </div>
@@ -1191,7 +1191,7 @@ function renderDialogRound(data) {
       
       <div class="ai-message">
         <div class="ai-message__icon">
-          <span class="material-icons">psychology</span>
+          <span class="material-icons">&#xea5b;</span>
           AI 创作助手
         </div>
         ${data.ai_message}
@@ -1242,7 +1242,7 @@ async function confirmSelection() {
   
   // 显示加载状态
   confirmBtn.disabled = true;
-  confirmBtn.innerHTML = '<span class="material-icons">hourglass_top</span> 处理中...';
+  confirmBtn.innerHTML = '<span class="material-icons">&#xea5b;</span> 处理中...';
   
   try {
     const response = await fetch('/api/market-driven/dialog/continue', {
@@ -1291,13 +1291,13 @@ async function confirmSelection() {
     } else {
       showError('提交失败: ' + data.error);
       confirmBtn.disabled = false;
-      confirmBtn.innerHTML = '<span class="material-icons">check_circle</span> 确认选择';
+      confirmBtn.innerHTML = '<span class="material-icons">&#xe86c;</span> 确认选择';
     }
   } catch (error) {
     console.error('提交失败:', error);
     showError('网络错误，请重试');
     confirmBtn.disabled = false;
-    confirmBtn.innerHTML = '<span class="material-icons">check_circle</span> 确认选择';
+    confirmBtn.innerHTML = '<span class="material-icons">&#xe86c;</span> 确认选择';
   }
 }
 
@@ -1508,11 +1508,11 @@ function renderFinalConfirm(data) {
       
       <div class="confirm-actions" style="margin-top: 32px;">
         <button class="confirm-btn confirm-btn--secondary" onclick="returnToDialog()">
-          <span class="material-icons">arrow_back</span>
+          <span class="material-icons">&#xe5c4;</span>
           返回修改
         </button>
         <button class="confirm-btn confirm-btn--primary" onclick="confirmFormAndGenerate()">
-          <span class="material-icons">visibility</span>
+          <span class="material-icons">&#xe8f4;</span>
           查看并编辑方案
         </button>
       </div>
@@ -1855,7 +1855,7 @@ function renderFinalPlanReview(plan) {
       
       <div class="confirm-actions" style="margin-top: 32px;">
         <button class="confirm-btn confirm-btn--secondary" onclick="returnToForm()">
-          <span class="material-icons">arrow_back</span>
+          <span class="material-icons">&#xe5c4;</span>
           返回修改
         </button>
         <button class="confirm-btn confirm-btn--primary" onclick="confirmAndStartRealGeneration()">

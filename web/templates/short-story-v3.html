@@ -146,6 +146,7 @@
 {% endblock %}
 
 {% block content %}
+{% raw %}
 <div class="ss-workspace" id="short-story-app">
   <!-- 顶部栏 -->
   <div class="ss-top-bar">
@@ -193,13 +194,13 @@
       <template v-if="state.phase === 'outline'">
         <div class="ss-panel-section">
           <div class="ss-section-header">
-            <i class="fas fa-robot"></i> AI模型
+            <i class="fas fa-magic"></i> 创作引擎
           </div>
           <div class="ss-form-group">
             <select v-model="state.config.model">
-              <option value="gemini">Gemini 2.5 Flash</option>
-              <option value="deepseek">DeepSeek</option>
-              <option value="kimi">Kimi K2.5</option>
+              <option value="gemini">✦ 星流引擎 - 极速创作</option>
+              <option value="deepseek">✦ 渊澜引擎 - 深度思考</option>
+              <option value="kimi">✦ 灵月引擎 - 长文专家</option>
             </select>
           </div>
         </div>
@@ -293,9 +294,8 @@
           <div class="ss-section-header">
             <i class="fas fa-check-circle"></i> 完成信息
           </div>
-          <div style="font-size:14px;font-weight:600;margin-bottom:8px;">{{ state.title || '未命名' }}</div>
-          <div style="font-size:12px;color:var(--v2-text-secondary);">
-            共 {{ state.chapters.length }} 章 / {{ totalWordCount }} 字
+          <div style="font-size:14px;font-weight:600;margin-bottom:8px;" v-text="state.title || '未命名'"></div>
+          <div style="font-size:12px;color:var(--v2-text-secondary);" v-text="'共 ' + state.chapters.length + ' 章 / ' + totalWordCount + ' 字'">
           </div>
         </div>
       </template>
@@ -837,4 +837,5 @@ createApp({
   }
 }).mount('#short-story-app');
 </script>
+{% endraw %}
 {% endblock %}
