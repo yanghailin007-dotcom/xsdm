@@ -1407,6 +1407,14 @@ POST /api/v2/prompt-config/component/{step_name}
             missing = [f for f in required_fields if f not in result]
             if missing:
                 raise ValueError(f"worldview 缺少必要字段: {missing}")
+            
+            # 🔥 数据规范化：确保 world_overview 是对象而非字符串
+            if isinstance(result.get("world_overview"), str):
+                logger.warning(f"[对话模式 {self.session_id}] world_overview 是字符串，自动转换为对象")
+                result["world_overview"] = {"background": result["world_overview"]}
+            elif not isinstance(result.get("world_overview"), dict):
+                result["world_overview"] = {}
+            
             return result
         except (json.JSONDecodeError, ValueError) as e:
             logger.error(f"[对话模式 {self.session_id}] 生成 worldview 失败: {e}")
@@ -1527,6 +1535,15 @@ POST /api/v2/prompt-config/component/{step_name}
             missing = [f for f in required_fields if f not in result]
             if missing:
                 raise ValueError(f"growth_plan 缺少必要字段: {missing}")
+            
+            # 🔥 数据规范化：确保 protagonist_growth 是对象而非列表
+            pg = result.get("protagonist_growth")
+            if isinstance(pg, list):
+                logger.warning(f"[对话模式 {self.session_id}] protagonist_growth 是列表，自动转换为对象")
+                result["protagonist_growth"] = {"milestones": pg}
+            elif not isinstance(pg, dict):
+                result["protagonist_growth"] = {"milestones": []}
+            
             return result
         except (json.JSONDecodeError, ValueError) as e:
             logger.error(f"[对话模式 {self.session_id}] 生成 growth_plan 失败: {e}")
