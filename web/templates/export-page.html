@@ -9,7 +9,9 @@
     .export-page {
         max-width: 1200px;
         margin: 0 auto;
-        padding: 48px 24px 64px;
+        padding: 48px 24px 120px;
+        position: relative;
+        z-index: 1;
     }
 
     /* ===== 页面标题 ===== */
@@ -291,6 +293,8 @@
         align-items: center;
         justify-content: center;
         gap: 8px;
+        position: relative;
+        z-index: 10;
     }
 
     .btn-export:hover {
@@ -549,15 +553,23 @@ document.addEventListener('DOMContentLoaded', function() {
 });
 
 async function loadPreviewData() {
+    console.log('[Export] Loading preview for:', NOVEL_TITLE);
     try {
         const response = await fetch(`/api/export/novel-preview?title=${encodeURIComponent(NOVEL_TITLE)}`);
         const data = await response.json();
+        console.log('[Export] API response:', data);
         if (data.success) {
             chaptersData = data.chapters || [];
             synopsis = data.synopsis || '';
+            console.log('[Export] Loaded', chaptersData.length, 'chapters');
             updatePreview();
+        } else {
+            console.error('[Export] API error:', data.error);
+            document.getElementById('previewDocument').innerHTML = `
+                <div class="preview-placeholder">加载失败: ${data.error || '未知错误'}</div>`;
         }
     } catch (e) {
+        console.error('[Export] Load error:', e);
         document.getElementById('previewDocument').innerHTML = `
             <div class="preview-placeholder">加载失败，请刷新重试</div>`;
     }
