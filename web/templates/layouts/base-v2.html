@@ -11,24 +11,11 @@
     <meta http-equiv="Expires" content="0">
     <title>{% block title %}大文娱系统{% endblock %}</title>
     
-    <!-- 防止页面加载时的闪烁 - 丝滑淡入动画 -->
+    <!-- 页面加载优化 -->
     <style>
-        /* 页面加载前隐藏内容防止FOUC */
-        html {
-            opacity: 0;
-            will-change: opacity;
-        }
-        html.loaded {
-            opacity: 1;
-            transition: opacity 0.25s cubic-bezier(0.4, 0, 0.2, 1);
-        }
-        /* 保持背景色一致 */
+        /* 保持背景色一致防止白屏 */
         html, body {
             background: #0a0a0a;
-        }
-        /* 确保内容不会在加载时跳动 */
-        body {
-            overflow-x: hidden;
         }
     </style>
     
@@ -117,16 +104,6 @@
             }
         }
 
-        // 显示页面（丝滑淡入）
-        function showPage() {
-            // 使用双重requestAnimationFrame确保渲染完成
-            requestAnimationFrame(() => {
-                requestAnimationFrame(() => {
-                    document.documentElement.classList.add('loaded');
-                });
-            });
-        }
-
         // 所有页面加载完成后应用翻译
         document.addEventListener('DOMContentLoaded', function() {
             // 初始化 i18n
@@ -140,13 +117,6 @@
                 document.querySelectorAll('#language-switcher, #page-language-switcher').forEach(el => {
                     if (el) el.value = settings.language;
                 });
-            }
-            
-            // 延迟显示等待字体和样式完全加载
-            if (document.fonts) {
-                document.fonts.ready.then(showPage);
-            } else {
-                showPage();
             }
         });
     </script>
