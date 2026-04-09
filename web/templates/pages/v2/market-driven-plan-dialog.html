@@ -2402,97 +2402,70 @@ function syncDialogDataToForm() {
 // 当前选中的文风
 let selectedWritingStyle = null;
 
-// 预设文风列表
-const PRESET_WRITING_STYLES = [
-  {
-    id: 'tomato_fast',
-    name: '番茄快节奏',
-    icon: '🔥',
-    genre: '通用',
-    description: '短句密集、节奏快速、爽点密集，适合番茄小说平台的快节奏爽文',
-    tags: ['短句', '快节奏', '口语化'],
-    features: {
-      short_sentence_ratio: 0.5,
-      dialogue_ratio: 0.35,
-      sensory_density: 0.04,
-      colloquialism_density: 0.03
+// 用户可用的文风列表（从API加载）
+let AVAILABLE_WRITING_STYLES = [];
+
+// 加载用户可用的文风
+async function loadAvailableStyles() {
+  try {
+    const response = await fetch('/api/writing-style/available');
+    const result = await response.json();
+    
+    if (result.success) {
+      AVAILABLE_WRITING_STYLES = result.data || [];
+      console.log('[文风选择] 加载可用文风:', AVAILABLE_WRITING_STYLES.length, '个');
+    } else {
+      console.error('[文风选择] 加载文风失败:', result.error);
+      // 使用默认文风
+      AVAILABLE_WRITING_STYLES = getDefaultStyles();
     }
-  },
-  {
-    id: 'yy_legacy',
-    name: 'YY白金风',
-    icon: '👑',
-    genre: '玄幻/都市',
-    description: '经典YY风格，装逼打脸、一路升级，满足读者代入感',
-    tags: ['装逼', '升级', '爽感'],
-    features: {
-      short_sentence_ratio: 0.35,
-      dialogue_ratio: 0.3,
-      sensory_density: 0.03,
-      colloquialism_density: 0.02
-    }
-  },
-  {
-    id: 'web_novel_standard',
-    name: '网文标准风',
-    icon: '📖',
-    genre: '通用',
-    description: '标准网文风格，平衡叙述与对话，适合大多数题材',
-    tags: ['平衡', '标准', '易懂'],
-    features: {
-      short_sentence_ratio: 0.3,
-      dialogue_ratio: 0.28,
-      sensory_density: 0.025,
-      colloquialism_density: 0.015
-    }
-  },
-  {
-    id: 'traditional_fantasy',
-    name: '传统玄幻风',
-    icon: '⚔️',
-    genre: '玄幻/仙侠',
-    description: '偏向传统出版物风格，描写细腻，节奏舒缓',
-    tags: ['细腻', '传统', '慢节奏'],
-    features: {
-      short_sentence_ratio: 0.2,
-      dialogue_ratio: 0.2,
-      sensory_density: 0.05,
-      colloquialism_density: 0.01
-    }
-  },
-  {
-    id: 'short_story_intense',
-    name: '短篇强情绪',
-    icon: '💥',
-    genre: '短篇/新媒体',
-    description: '适合短篇小说的强情绪风格，每章都有爽点或反转',
-    tags: ['强情绪', '反转', '高密度'],
-    features: {
-      short_sentence_ratio: 0.45,
-      dialogue_ratio: 0.4,
-      sensory_density: 0.035,
-      colloquialism_density: 0.025
-    }
-  },
-  {
-    id: 'daily_light',
-    name: '轻松日常风',
-    icon: '☕',
-    genre: '日常/轻小说',
-    description: '轻松幽默的日常风格，对话多、节奏轻快',
-    tags: ['轻松', '幽默', '对话多'],
-    features: {
-      short_sentence_ratio: 0.35,
-      dialogue_ratio: 0.45,
-      sensory_density: 0.02,
-      colloquialism_density: 0.04
-    }
+  } catch (error) {
+    console.error('[文风选择] 加载文风失败:', error);
+    AVAILABLE_WRITING_STYLES = getDefaultStyles();
   }
-];
+}
+
+// 默认文风（作为后备）
+function getDefaultStyles() {
+  return [
+    {
+      id: 'tomato_fast',
+      name: '番茄快节奏',
+      icon: '🔥',
+      genre: '通用',
+      description: '短句密集、节奏快速、爽点密集',
+      tags: ['短句', '快节奏', '口语化'],
+      features: { short_sentence_ratio: 0.5, dialogue_ratio: 0.35, sensory_density: 0.04, colloquialism_density: 0.03 }
+    },
+    {
+      id: 'web_novel_standard',
+      name: '网文标准风',
+      icon: '📖',
+      genre: '通用',
+      description: '标准网文风格，平衡叙述与对话',
+      tags: ['平衡', '标准', '易懂'],
+      features: { short_sentence_ratio: 0.3, dialogue_ratio: 0.28, sensory_density: 0.025, colloquialism_density: 0.015 }
+    }
+  ];
+}
 
 // 显示文风选择弹窗
 async function showStyleSelector() {
   console.log('[文风选择] 开始显示弹窗');
+  
+  // 确保已加载可用文风
+  if (AVAILABLE_WRITING_STYLES.length === 0) {
+    console.log('[文风选择] 文风未加载，先加载...');
+    await loadAvailableStyles();
+  }
+  
+  // 检查是否有可用文风
+  if (AVAILABLE_WRITING_STYLES.length === 0) {
+    alert('没有可用的文风，请先在文风库中启用文风');
+    // 直接继续生成，不选择文风
+    continueGenerationWithStyle();
+    return;
+  }
   
   // 检查是否已有弹窗存在
   const existingModal = document.getElementById('style-selector-modal');
@@ -2506,7 +2479,7 @@ async function showStyleSelector() {
   modal.id = 'style-selector-modal';
   modal.className = 'style-selector-modal';
   
-  const stylesHtml = PRESET_WRITING_STYLES.map(style => `
+  const stylesHtml = AVAILABLE_WRITING_STYLES.map(style => `
     <div class="style-card" data-style-id="${style.id}" onclick="selectWritingStyle('${style.id}')">
       <div class="style-card__check">
         <span class="material-icons">check</span>
@@ -2598,7 +2571,7 @@ function filterStyles(filter) {
   const cards = document.querySelectorAll('.style-card');
   cards.forEach(card => {
     const styleId = card.dataset.styleId;
-    const style = PRESET_WRITING_STYLES.find(s => s.id === styleId);
+    const style = AVAILABLE_WRITING_STYLES.find(s => s.id === styleId);
     if (filter === 'all' || style.genre.includes(filter)) {
       card.style.display = 'block';
     } else {
@@ -2621,7 +2594,7 @@ function selectWritingStyle(styleId) {
   }
   
   // 保存选择
-  selectedWritingStyle = PRESET_WRITING_STYLES.find(s => s.id === styleId);
+  selectedWritingStyle = AVAILABLE_WRITING_STYLES.find(s => s.id === styleId);
   
   // 启用确认按钮
   const confirmBtn = document.getElementById('confirm-style-btn');

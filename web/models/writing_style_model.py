@@ -322,6 +322,95 @@ ps：（大脑寄存处！）
             return filtered
         
         return presets
+    
+    # ========== 用户文风订阅管理 ==========
+    
+    def _get_user_subscriptions_file(self, user_id: str) -> Path:
+        """获取用户订阅文件路径"""
+        return self.user_dir / f"subscriptions_{user_id}.json"
+    
+    def get_user_subscribed_styles(self, user_id: str = None) -> List[str]:
+        """获取用户订阅的文风ID列表"""
+        if not user_id:
+            return []
+        
+        file_path = self._get_user_subscriptions_file(user_id)
+        if not file_path.exists():
+            return []
+        
+        try:
+            with open(file_path, 'r', encoding='utf-8') as f:
+                data = json.load(f)
+                return data.get("subscribed_styles", [])
+        except Exception:
+            return []
+    
+    def subscribe_style(self, user_id: str, style_id: str) -> bool:
+        """订阅文风"""
+        if not user_id or not style_id:
+            return False
+        
+        file_path = self._get_user_subscriptions_file(user_id)
+        
+        # 读取现有订阅
+        subscribed = self.get_user_subscribed_styles(user_id)
+        
+        # 如果已订阅则返回True
+        if style_id in subscribed:
+            return True
+        
+        # 添加新订阅
+        subscribed.append(style_id)
+        
+        # 保存
+        try:
+            with open(file_path, 'w', encoding='utf-8') as f:
+                json.dump({
+                    "user_id": user_id,
+                    "subscribed_styles": subscribed,
+                    "updated_at": datetime.now().isoformat()
+                }, f, ensure_ascii=False, indent=2)
+            return True
+        except Exception as e:
+            print(f"保存订阅失败: {e}")
+            return False
+    
+    def unsubscribe_style(self, user_id: str, style_id: str) -> bool:
+        """取消订阅文风"""
+        if not user_id or not style_id:
+            return False
+        
+        file_path = self._get_user_subscriptions_file(user_id)
+        
+        # 读取现有订阅
+        subscribed = self.get_user_subscribed_styles(user_id)
+        
+        # 如果没有订阅则返回True
+        if style_id not in subscribed:
+            return True
+        
+        # 移除订阅
+        subscribed.remove(style_id)
+        
+        # 保存
+        try:
+            with open(file_path, 'w', encoding='utf-8') as f:
+                json.dump({
+                    "user_id": user_id,
+                    "subscribed_styles": subscribed,
+                    "updated_at": datetime.now().isoformat()
+                }, f, ensure_ascii=False, indent=2)
+            return True
+        except Exception as e:
+            print(f"保存订阅失败: {e}")
+            return False
+    
+    def is_style_subscribed(self, user_id: str, style_id: str) -> bool:
+        """检查用户是否已订阅该文风"""
+        if not user_id:
+            return False
+        subscribed = self.get_user_subscribed_styles(user_id)
+        return style_id in subscribed
 
 
 # 全局实例

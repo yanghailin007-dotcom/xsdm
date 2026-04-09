@@ -229,6 +229,161 @@ def delete_style(style_id):
             "error": str(e)
         }), 500
 
+@writing_style_bp.route('/available', methods=['GET'])
+def get_available_styles():
+    """获取用户可用的文风列表（已订阅/有权限的）"""
+    try:
+        from flask import session
+        user_id = session.get('user_id')
+        
+        model = get_writing_style_model()
+        
+        # 获取用户订阅的文风ID列表
+        subscribed_ids = model.get_user_subscribed_styles(user_id)
+        
+        # 如果没有订阅任何文风，默认订阅所有免费预设文风
+        if not subscribed_ids:
+            presets = model.get_all_presets()
+            subscribed_ids = [s.get("style_id") for s in presets if s.get("is_free", True)]
+            # 保存默认订阅
+            for style_id in subscribed_ids:
+                model.subscribe_style(user_id, style_id)
+        
+        # 获取订阅文风的详情
+        available_styles = []
+        for style_id in subscribed_ids:
+            style = model.get_style(style_id)
+            if style:
+                available_styles.append({
+                    "id": style.get("style_id"),
+                    "name": style.get("style_name"),
+                    "icon": style.get("icon", "📝"),
+                    "genre": style.get("suitable_genres", ["通用"])[0] if style.get("suitable_genres") else "通用",
+                    "description": style.get("description", ""),
+                    "tags": style.get("tags", []),
+                    "features": style.get("dna", {}).get("sentence_structure", {}).get("mix_ratio", {
+                        "short": 0.5, "medium": 0.3, "long": 0.2
+                    })
+                })
+        
+        return jsonify({
+            "success": True,
+            "data": available_styles
+        })
+    except Exception as e:
+        logger.error(f"获取可用文风失败: {e}")
+        return jsonify({
+            "success": False,
+            "error": str(e)
+        }), 500
+
+@writing_style_bp.route('/subscribe/<style_id>', methods=['POST'])
+def subscribe_style(style_id):
+    """订阅/启用文风"""
+    try:
+        from flask import session
+        user_id = session.get('user_id')
+        
+        if not user_id:
+            return jsonify({
+                "success": False,
+                "error": "请先登录"
+            }), 401
+        
+        model = get_writing_style_model()
+        style = model.get_style(style_id)
+        
+        if not style:
+            return jsonify({
+                "success": False,
+                "error": "文风不存在"
+            }), 404
+        
+        # 检查权限（付费文风需要验证）
+        if not style.get("is_free", True):
+            # TODO: 检查用户是否已购买或是VIP
+            pass
+        
+        # 订阅文风
+        success = model.subscribe_style(user_id, style_id)
+        
+        if success:
+            return jsonify({
+                "success": True,
+                "message": f"已启用文风: {style.get('style_name')}"
+            })
+        else:
+            return jsonify({
+                "success": False,
+                "error": "订阅失败"
+            }), 500
+    except Exception as e:
+        logger.error(f"订阅文风失败: {e}")
+        return jsonify({
+            "success": False,
+            "error": str(e)
+        }), 500
+
+@writing_style_bp.route('/unsubscribe/<style_id>', methods=['POST'])
+def unsubscribe_style(style_id):
+    """取消订阅文风"""
+    try:
+        from flask import session
+        user_id = session.get('user_id')
+        
+        if not user_id:
+            return jsonify({
+                "success": False,
+                "error": "请先登录"
+            }), 401
+        
+        model = get_writing_style_model()
+        success = model.unsubscribe_style(user_id, style_id)
+        
+        if success:
+            return jsonify({
+                "success": True,
+                "message": "已取消订阅"
+            })
+        else:
+            return jsonify({
+                "success": False,
+                "error": "取消订阅失败"
+            }), 500
+    except Exception as e:
+        logger.error(f"取消订阅文风失败: {e}")
+        return jsonify({
+            "success": False,
+            "error": str(e)
+        }), 500
+
+@writing_style_bp.route('/subscriptions', methods=['GET'])
+def get_user_subscriptions():
+    """获取用户订阅的文风列表"""
+    try:
+        from flask import session
+        user_id = session.get('user_id')
+        
+        if not user_id:
+            return jsonify({
+                "success": False,
+                "error": "请先登录"
+            }), 401
+        
+        model = get_writing_style_model()
+        subscribed_ids = model.get_user_subscribed_styles(user_id)
+        
+        return jsonify({
+            "success": True,
+            "data": subscribed_ids
+        })
+    except Exception as e:
+        logger.error(f"获取订阅列表失败: {e}")
+        return jsonify({
+            "success": False,
+            "error": str(e)
+        }), 500
+
 @writing_style_bp.route('/apply-to-project', methods=['POST'])
 def apply_to_project():
     """将文风应用到项目"""

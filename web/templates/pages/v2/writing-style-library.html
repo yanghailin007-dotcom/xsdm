@@ -688,11 +688,29 @@ let currentTab = 'presets';
 let presetStyles = [];
 let userStyles = [];
 
+// 用户订阅的文风ID列表
+let subscribedStyleIds = [];
+
 // 页面加载时初始化
 document.addEventListener('DOMContentLoaded', function() {
-    loadPresetStyles();
-    loadUserStyles();
+    loadUserSubscriptions().then(() => {
+        loadPresetStyles();
+        loadUserStyles();
+    });
 });
+
+// 加载用户订阅列表
+async function loadUserSubscriptions() {
+    try {
+        const response = await fetch('/api/writing-style/subscriptions');
+        const result = await response.json();
+        if (result.success) {
+            subscribedStyleIds = result.data || [];
+        }
+    } catch (error) {
+        console.error('加载订阅列表失败:', error);
+    }
+}
 
 // 切换标签
 function switchTab(tab, element) {
@@ -777,7 +795,9 @@ function renderStyles(styles, container, isPreset) {
         return;
     }
     
-    container.innerHTML = styles.map(style => `
+    container.innerHTML = styles.map(style => {
+        const isSubscribed = subscribedStyleIds.includes(style.style_id);
+        return `
         <div class="style-card ${isPreset ? 'preset' : 'user'}">
             <div class="style-header">
                 <span class="style-name">${style.style_name}</span>
@@ -793,14 +813,20 @@ function renderStyles(styles, container, isPreset) {
             </div>
             <div class="style-preview">${style.example_paragraph || '暂无预览'}</div>
             <div class="style-actions">
-                <button class="btn btn-primary" onclick="useStyle('${style.style_id}')">
-                    <span>✓</span> 使用
-                </button>
+                ${isPreset ? `
+                    <button class="btn ${isSubscribed ? 'btn-secondary' : 'btn-primary'}" onclick="toggleSubscribe('${style.style_id}', ${isSubscribed})">
+                        <span>${isSubscribed ? '✓' : '+'}</span> ${isSubscribed ? '已启用' : '启用'}
+                    </button>
+                ` : `
+                    <button class="btn btn-primary" onclick="useStyle('${style.style_id}')">
+                        <span>✓</span> 使用
+                    </button>
+                `}
                 ${!isPreset ? `<button class="btn btn-secondary" onclick="editStyle('${style.style_id}')">编辑</button>` : ''}
                 ${!isPreset ? `<button class="btn btn-danger" onclick="deleteStyle('${style.style_id}')">删除</button>` : ''}
             </div>
         </div>
-    `).join('');
+    `}).join('');
 }
 
 // 显示提取区域
@@ -887,6 +913,57 @@ async function saveNewStyle() {
     hideExtractSection();
     loadUserStyles();
     switchTab('user', document.querySelectorAll('.tab')[1]);
+}
+
+// 启用/取消订阅文风
+async function toggleSubscribe(styleId, isSubscribed) {
+    try {
+        const url = isSubscribed 
+            ? `/api/writing-style/unsubscribe/${styleId}`
+            : `/api/writing-style/subscribe/${styleId}`;
+        
+        const response = await fetch(url, { method: 'POST' });
+        const result = await response.json();
+        
+        if (result.success) {
+            // 刷新订阅状态
+            await loadUserSubscriptions();
+            // 重新渲染
+            loadPresetStyles();
+            // 显示提示
+            showToast(result.message);
+        } else {
+            alert(result.error || '操作失败');
+        }
+    } catch (error) {
+        console.error('订阅操作失败:', error);
+        alert('网络错误，请重试');
+    }
+}
+
+// 显示提示
+function showToast(message) {
+    const toast = document.createElement('div');
+    toast.style.cssText = `
+        position: fixed;
+        bottom: 80px;
+        left: 50%;
+        transform: translateX(-50%);
+        background: rgba(16, 185, 129, 0.9);
+        color: white;
+        padding: 12px 24px;
+        border-radius: 8px;
+        font-size: 14px;
+        z-index: 10000;
+        animation: fadeInUp 0.3s ease;
+    `;
+    toast.textContent = message;
+    document.body.appendChild(toast);
+    
+    setTimeout(() => {
+        toast.style.animation = 'fadeOut 0.3s ease';
+        setTimeout(() => toast.remove(), 300);
+    }, 2000);
 }
 
 // 使用文风
