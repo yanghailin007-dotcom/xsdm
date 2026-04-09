@@ -890,6 +890,12 @@ function updateStageList(currentStage, progress = 0) {
   // 根据进度确定当前阶段
   let effectiveStage = stageMapping[currentStage] || currentStage;
   
+  // 🔥 修复：conversation_mode 阶段但进度较低时，显示为 analyzing 阶段
+  // 避免用户刚进入页面就看到"爆款分析已完成"
+  if (currentStage === 'conversation_mode' && progress < 25) {
+    effectiveStage = 'analyzing';
+  }
+  
   // 如果没有匹配的阶段，根据进度推断
   if (!stages.includes(effectiveStage)) {
     if (progress < 25) effectiveStage = 'analyzing';
