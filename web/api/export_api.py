@@ -657,11 +657,12 @@ def export_novel_content():
         ext = 'md' if format_type == 'md' else 'txt'
         filename = f"{title}_正文.{ext}"
         
-        # 安全处理文件名
-        safe_filename = "".join(c for c in filename if c.isalnum() or c in '._-')
+        # 🔥 修复：对中文文件名进行URL编码，避免HTTP头编码错误
+        from urllib.parse import quote
+        encoded_filename = quote(filename.encode('utf-8'))
         
         response = make_response(full_content)
-        response.headers["Content-Disposition"] = f"attachment; filename={safe_filename}"
+        response.headers["Content-Disposition"] = f"attachment; filename*=UTF-8''{encoded_filename}"
         response.headers["Content-Type"] = "text/plain; charset=utf-8"
         return response
         
