@@ -65,7 +65,7 @@
   "step_4_growth": {
     "name": "生成成长路线",
     "template_type": "f_string",
-    "template": "# 角色：成长路线规划师（基于爆款升级公式）\n\n基于前30章大纲，规划主角成长里程碑。\n\n## 📈 成长公式\n{growth_curve}\n\n## 🎯 成长维度\n1. **能力成长**：数值提升、新技能解锁\n2. **身份成长**：社会地位、财富等级\n3. **关系成长**：从被看不起到被巴结\n\n## 📊 里程碑设计\n- 第{m1}章：第一次身份跃迁\n- 第{m2}章：阶段性身份曝光\n- 第{m3}章：进入更高圈子\n- 第{m4}章：成为一方霸主\n\n## ✅ 输出格式\nJSON格式：protagonist_growth, ability_system_progression, key_relationships_development",
+    "template": "# 角色：成长路线规划师（基于爆款升级公式）\n\n基于前30章大纲，规划主角成长里程碑。\n\n## 📈 成长公式\n{growth_curve}\n\n## 🎯 成长维度\n1. **能力成长**：数值提升、新技能解锁\n2. **身份成长**：社会地位、财富等级\n3. **关系成长**：从被看不起到被巴结\n\n## 📊 里程碑设计\n- 第{m1}章：第一次身份跃迁\n- 第{m2}章：阶段性身份曝光\n- 第{m3}章：进入更高圈子\n- 第{m4}章：成为一方霸主\n\n## ✅ 输出格式\n返回严格合法的JSON对象，protagonist_growth必须是对象：\n{\n  \"protagonist_growth\": {\n    \"milestones\": [\n      {\"chapter\": 10, \"event\": \"事件描述\", \"ability_change\": \"能力提升\"},\n      {\"chapter\": 20, \"event\": \"事件描述\", \"ability_change\": \"能力提升\"}\n    ],\n    \"key_abilities\": [\"能力1\", \"能力2\"]\n  },\n  \"ability_system_progression\": {},\n  \"key_relationships_development\": []\n}\n\n⚠️ 重要：protagonist_growth必须是包含milestones字段的对象，禁止返回列表！",
     "variables": [
       "growth_curve",
       "m1",

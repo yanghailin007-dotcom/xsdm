@@ -147,7 +147,16 @@ class TomatoBestsellerTacticalSession:
         
         stage_goal = self._get_current_stage_goal()
         progression = self.phase_one_data.get('progression_path', {})
-        milestones = progression.get('protagonist_growth', {}).get('milestones', [])
+        
+        # 防御性处理：protagonist_growth 可能是 dict 或 list
+        protagonist_growth = progression.get('protagonist_growth', {})
+        if isinstance(protagonist_growth, dict):
+            milestones = protagonist_growth.get('milestones', [])
+        elif isinstance(protagonist_growth, list):
+            # 如果是列表，直接使用作为 milestones
+            milestones = protagonist_growth
+        else:
+            milestones = []
         
         # 使用format方法避免f-string问题
         prompt_template = """# 番茄爆款细纲规划 - 第1轮：核心设定对齐
