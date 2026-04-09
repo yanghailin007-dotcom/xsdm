@@ -2461,10 +2461,9 @@ async function showStyleSelector() {
   
   // 检查是否有可用文风
   if (AVAILABLE_WRITING_STYLES.length === 0) {
-    alert('没有可用的文风，请先在文风库中启用文风');
-    // 直接继续生成，不选择文风
-    continueGenerationWithStyle();
-    return;
+    console.log('[文风选择] 没有可用文风，使用默认文风');
+    // 自动使用默认文风（不阻止生成流程）
+    AVAILABLE_WRITING_STYLES = getDefaultStyles();
   }
   
   // 检查是否已有弹窗存在
