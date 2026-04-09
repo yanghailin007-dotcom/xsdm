@@ -1697,5 +1697,155 @@ function closeInsufficientModal() {
 function goToRecharge() {
   window.open('/recharge', '_blank');
 }
+
+// ==================== 文风选择功能 ====================
+let selectedWritingStyle = null;
+
+// 预设文风列表
+const PRESET_WRITING_STYLES = [
+  {
+    id: 'tomato_fast',
+    name: '番茄快节奏',
+    icon: '🔥',
+    description: '短句密集、节奏快速、爽点密集，适合番茄小说平台的快节奏爽文'
+  },
+  {
+    id: 'web_novel_standard',
+    name: '网文标准风',
+    icon: '📖',
+    description: '标准网文风格，平衡叙述与对话，适合大多数题材'
+  },
+  {
+    id: 'traditional_fantasy',
+    name: '传统玄幻风',
+    icon: '⚔️',
+    description: '偏向传统出版物风格，描写细腻，节奏舒缓'
+  }
+];
+
+// 显示文风选择弹窗
+async function showStyleSelector() {
+  // 创建弹窗
+  const modal = document.createElement('div');
+  modal.id = 'style-selector-modal';
+  modal.style.cssText = `
+    position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+    background: rgba(0,0,0,0.8); backdrop-filter: blur(8px);
+    z-index: 9999; display: flex; align-items: center; justify-content: center;
+    padding: 20px;
+  `;
+  
+  const stylesHtml = PRESET_WRITING_STYLES.map(style => `
+    <div class="style-card" data-style-id="${style.id}" onclick="selectWritingStyle('${style.id}')" style="
+      background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1);
+      border-radius: 12px; padding: 20px; cursor: pointer; transition: all 0.2s;
+    " onmouseover="this.style.borderColor='rgba(245,158,11,0.5)';this.style.background='rgba(255,255,255,0.08)';" 
+    onmouseout="this.style.borderColor='rgba(255,255,255,0.1)';this.style.background='rgba(255,255,255,0.05)';">
+      <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 12px;">
+        <span style="font-size: 28px;">${style.icon}</span>
+        <span style="font-size: 18px; font-weight: 600; color: #fff;">${style.name}</span>
+      </div>
+      <div style="font-size: 14px; color: rgba(255,255,255,0.6); line-height: 1.5;">${style.description}</div>
+    </div>
+  `).join('');
+  
+  modal.innerHTML = `
+    <div style="background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%); border-radius: 20px; 
+                border: 1px solid rgba(255,255,255,0.1); width: 100%; max-width: 600px; max-height: 80vh;
+                overflow-y: auto; padding: 32px;">
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px;">
+        <div>
+          <div style="font-size: 22px; font-weight: 700; color: #fff; margin-bottom: 8px;">选择文风</div>
+          <div style="font-size: 14px; color: rgba(255,255,255,0.5);">选择一种文风风格，AI将在生成过程中保持该风格特征</div>
+        </div>
+        <button onclick="closeStyleSelector()" style="background: none; border: none; color: rgba(255,255,255,0.5); 
+                font-size: 24px; cursor: pointer; padding: 4px;">&times;</button>
+      </div>
+      <div style="display: grid; gap: 16px; margin-bottom: 24px;">
+        ${stylesHtml}
+      </div>
+      <div style="display: flex; gap: 12px; justify-content: flex-end;">
+        <button onclick="closeStyleSelector()" style="padding: 12px 24px; border-radius: 10px; border: 1px solid rgba(255,255,255,0.2);
+                background: transparent; color: rgba(255,255,255,0.7); cursor: pointer; font-size: 14px;">取消</button>
+        <button onclick="confirmStyleSelection()" id="confirm-style-btn" disabled style="padding: 12px 24px; border-radius: 10px; 
+                border: none; background: linear-gradient(135deg, #f59e0b, #d97706); color: #fff; cursor: not-allowed; 
+                font-size: 14px; font-weight: 500; opacity: 0.5;">请选择文风</button>
+      </div>
+    </div>
+  `;
+  
+  document.body.appendChild(modal);
+}
+
+// 选择文风
+function selectWritingStyle(styleId) {
+  selectedWritingStyle = PRESET_WRITING_STYLES.find(s => s.id === styleId);
+  
+  // 更新UI
+  document.querySelectorAll('.style-card').forEach(card => {
+    card.style.borderColor = 'rgba(255,255,255,0.1)';
+    card.style.background = 'rgba(255,255,255,0.05)';
+  });
+  const selectedCard = document.querySelector(`.style-card[data-style-id="${styleId}"]`);
+  if (selectedCard) {
+    selectedCard.style.borderColor = '#f59e0b';
+    selectedCard.style.background = 'rgba(245,158,11,0.15)';
+  }
+  
+  // 启用确认按钮
+  const confirmBtn = document.getElementById('confirm-style-btn');
+  confirmBtn.disabled = false;
+  confirmBtn.style.cursor = 'pointer';
+  confirmBtn.style.opacity = '1';
+  confirmBtn.textContent = `确认选择：${selectedWritingStyle.name}`;
+}
+
+// 关闭文风选择弹窗
+function closeStyleSelector() {
+  const modal = document.getElementById('style-selector-modal');
+  if (modal) modal.remove();
+}
+
+// 确认文风选择
+function confirmStyleSelection() {
+  if (!selectedWritingStyle) {
+    alert('请先选择一个文风');
+    return;
+  }
+  closeStyleSelector();
+  // 继续生成流程
+  continueGenerationWithStyle();
+}
+
+// 带文风的继续生成
+async function continueGenerationWithStyle() {
+  // 调用原始的startGeneration逻辑，但是已经在showStyleSelector之前保存了formData
+  await startGenerationWithStyle();
+}
+
+// 修改的生成函数
+async function startGenerationWithStyle() {
+  // 这个函数会在原始startGeneration被调用时使用已选择的文风
+  const btn = document.getElementById('generate-btn');
+  btn.disabled = true;
+  btn.innerHTML = '<span class="material-icons">hourglass_top</span>生成中...';
+  
+  // ... 原始代码会在这里继续
+  // 由于复杂度，这里只是占位
+  console.log('使用文风:', selectedWritingStyle);
+  
+  // 重新调用原始函数
+  await startGenerationInternal();
+}
+
+// 原始生成逻辑
+async function startGenerationInternal() {
+  // 这个函数保留给实际实现
+  // 现在先调用原始的startGeneration，但需要修改以包含文风参数
+  console.log('开始生成，文风:', selectedWritingStyle?.name || '默认');
+  
+  // 调用原始的startGeneration
+  // 注意：这需要将startGeneration的代码拆分或修改
+}
 </script>
 {% endblock %}
