@@ -18,15 +18,9 @@
         *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
         html,body{height:100%;background:#0a0a0a;color:#fff;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;line-height:1.5}
         
-        /* 骨架屏动画 */
-        @keyframes skeleton-loading {
-            0%{background-position:200% 0}
-            100%{background-position:-200% 0}
-        }
+        /* 骨架屏静态样式（无动画，避免卡顿感） */
         .skeleton {
-            background:linear-gradient(90deg,rgba(255,255,255,0.05) 25%,rgba(255,255,255,0.1) 50%,rgba(255,255,255,0.05) 75%);
-            background-size:200% 100%;
-            animation:skeleton-loading 1.5s ease-in-out infinite;
+            background:rgba(255,255,255,0.08);
             border-radius:4px
         }
         
@@ -74,11 +68,9 @@
         .skeleton-text {width:80%;max-width:600px;height:20px;border-radius:4px}
         .skeleton-text.short {width:40%;max-width:300px}
         
-        /* 加载完成后隐藏骨架屏 */
+        /* 加载完成后立即隐藏骨架屏 */
         body.loaded #skeleton-container {
-            opacity:0;
-            visibility:hidden;
-            transition:opacity 0.3s ease,visibility 0.3s ease;
+            display:none;
         }
         
         /* 显示内容 */
@@ -87,7 +79,6 @@
         body.loaded .v2-footer {
             visibility:visible;
             opacity:1;
-            transition:opacity 0.3s ease;
         }
         
         /* 导航栏基础样式（防止错乱） */
@@ -216,15 +207,13 @@
                 });
             }
             
-            // 延迟显示内容，确保渲染完成
-            requestAnimationFrame(() => {
-                setTimeout(markPageLoaded, 100);
-            });
+            // 立即显示内容，不延迟
+            markPageLoaded();
         });
         
         // 备用：如果DOMContentLoaded已触发
         if (document.readyState !== 'loading') {
-            setTimeout(markPageLoaded, 100);
+            markPageLoaded();
         }
     </script>
     <script src="{{ url_for('static', filename='js/account-manager.js') }}?v=3"></script>

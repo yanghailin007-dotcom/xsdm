@@ -118,7 +118,11 @@ class PhaseOneDataLoader:
         if not isinstance(world, dict):
             logger.warning(f"[PhaseOneDataLoader] ⚠️ 世界观数据格式错误，期望dict，实际为{type(world).__name__}！")
             world = {}
-        if not world.get('world_overview', {}).get('background'):
+        world_overview = world.get('world_overview', {})
+        if not isinstance(world_overview, dict):
+            logger.warning(f"[PhaseOneDataLoader] ⚠️ world_overview格式错误，期望dict，实际为{type(world_overview).__name__}！")
+            world_overview = {}
+        if not world_overview.get('background'):
             logger.warning("[PhaseOneDataLoader] ⚠️ 世界观背景缺失！")
         
         # 检查金手指
