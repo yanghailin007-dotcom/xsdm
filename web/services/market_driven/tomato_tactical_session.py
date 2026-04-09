@@ -802,18 +802,31 @@ JSON格式：
     
     def _get_current_power_stage(self) -> str:
         """获取当前能力阶段描述"""
-        progression = self.phase_one_data.get('progression_path', {})
-        ability = progression.get('ability_system_progression', {})
-        
-        early = ability.get('early_stage', {})
-        if self.start_chapter <= 30:
-            return f"1-30级（早期）: {early.get('mechanics', '基础阶段')}"
-        
-        mid = ability.get('mid_stage', {})
-        if self.start_chapter <= 80:
-            return f"31-80级（中期）: {mid.get('mechanics', '成长阶段')}"
-        
-        return "81级+（后期）: 言出法随"
+        try:
+            progression = self.phase_one_data.get('progression_path', {})
+            ability = progression.get('ability_system_progression', {})
+            
+            # 🔥 防御性处理：确保是字典类型
+            early = ability.get('early_stage', {}) if isinstance(ability, dict) else {}
+            if isinstance(early, str):
+                early = {'mechanics': early, 'description': early}
+            
+            if self.start_chapter <= 30:
+                mechanics = early.get('mechanics', '基础阶段') if isinstance(early, dict) else str(early) or '基础阶段'
+                return f"1-30级（早期）: {mechanics}"
+            
+            mid = ability.get('mid_stage', {}) if isinstance(ability, dict) else {}
+            if isinstance(mid, str):
+                mid = {'mechanics': mid, 'description': mid}
+            
+            if self.start_chapter <= 80:
+                mechanics = mid.get('mechanics', '成长阶段') if isinstance(mid, dict) else str(mid) or '成长阶段'
+                return f"31-80级（中期）: {mechanics}"
+            
+            return "81级+（后期）: 巅峰阶段"
+        except Exception as e:
+            logger.warning(f"[_get_current_power_stage] 获取能力阶段失败: {e}")
+            return "能力成长阶段"
     
     def _format_list(self, items: List) -> str:
         """格式化列表为字符串"""
