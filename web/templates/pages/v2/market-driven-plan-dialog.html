@@ -2492,6 +2492,15 @@ const PRESET_WRITING_STYLES = [
 
 // 显示文风选择弹窗
 async function showStyleSelector() {
+  console.log('[文风选择] 开始显示弹窗');
+  
+  // 检查是否已有弹窗存在
+  const existingModal = document.getElementById('style-selector-modal');
+  if (existingModal) {
+    console.log('[文风选择] 弹窗已存在，移除旧弹窗');
+    existingModal.remove();
+  }
+  
   // 创建弹窗HTML
   const modal = document.createElement('div');
   modal.id = 'style-selector-modal';
@@ -2570,12 +2579,18 @@ async function showStyleSelector() {
   });
   
   // 显示弹窗
-  setTimeout(() => {
+  console.log('[文风选择] 准备显示弹窗');
+  requestAnimationFrame(() => {
     modal.classList.add('active');
-  }, 10);
+    console.log('[文风选择] 弹窗active类已添加');
+  });
   
-  // 加载用户保存的文风偏好
-  await loadUserStylePreference();
+  // 加载用户保存的文风偏好（不阻止弹窗显示）
+  try {
+    await loadUserStylePreference();
+  } catch (e) {
+    console.log('[文风选择] 加载偏好失败:', e);
+  }
 }
 
 // 筛选文风
@@ -2618,6 +2633,8 @@ function selectWritingStyle(styleId) {
 
 // 确认文风选择
 function confirmStyleSelection() {
+  console.log('[文风选择] 确认选择，当前选择:', selectedWritingStyle);
+  
   if (!selectedWritingStyle) {
     Dialog.alert('请先选择一个文风', '提示');
     return;
@@ -2625,11 +2642,13 @@ function confirmStyleSelection() {
   
   // 保存到本地存储
   localStorage.setItem('preferred_writing_style', JSON.stringify(selectedWritingStyle));
+  console.log('[文风选择] 已保存到localStorage');
   
   // 关闭弹窗
   closeStyleSelector();
   
   // 继续生成流程
+  console.log('[文风选择] 继续生成流程，模式:', window.currentMode);
   continueGenerationWithStyle();
 }
 
@@ -2663,18 +2682,33 @@ async function loadUserStylePreference() {
 
 // 带文风的继续生成
 async function continueGenerationWithStyle() {
+  console.log('[文风选择] continueGenerationWithStyle 被调用，模式:', window.currentMode);
+  
   // 根据当前模式调用相应的生成函数
   if (window.currentMode === 'dialog') {
+    console.log('[文风选择] 调用对话模式生成函数');
     await confirmAndStartRealGeneration();
   } else {
+    console.log('[文风选择] 调用表单模式生成函数');
     startGenerationFromForm();
   }
 }
 
 // 修改原有的生成函数，添加文风参数
 async function confirmAndStartRealGenerationWithStyle() {
-  // 先显示文风选择弹窗（保持已有的模式设置）
-  await showStyleSelector();
+  console.log('[文风选择] 函数被调用，当前模式:', window.currentMode);
+  console.log('[文风选择] finalPlan是否存在:', !!finalPlan);
+  
+  try {
+    // 先显示文风选择弹窗（保持已有的模式设置）
+    await showStyleSelector();
+    console.log('[文风选择] 弹窗显示成功');
+  } catch (error) {
+    console.error('[文风选择] 显示弹窗失败:', error);
+    // 如果显示弹窗失败，直接继续生成流程
+    alert('文风选择器加载失败，将使用默认设置继续');
+    continueGenerationWithStyle();
+  }
 }
 
 // 获取文风Prompt注入
