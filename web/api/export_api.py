@@ -621,10 +621,18 @@ def export_novel_content():
                 content_lines.append("")
         
         # 章节
-        chapter_nums = sorted([n for n in chapters.keys() if start_chapter <= n <= end_chapter])
+        # 🔥 修复：确保章节编号为整数进行比较
+        # 🔥 修复：章节键可能是字符串，需要转换
+        chapter_nums = sorted([int(n) for n in chapters.keys() if start_chapter <= int(n) <= end_chapter])
+        
+        print(f"[Export Debug] Total chapters: {len(chapters)}, Filtered: {len(chapter_nums)}, Range: {start_chapter}-{end_chapter}")
         
         for i, num in enumerate(chapter_nums):
-            chapter = chapters[num]
+            # 尝试整数键，如果不存在则尝试字符串键
+            chapter = chapters.get(num) or chapters.get(str(num))
+            if not chapter:
+                print(f"[Export Debug] Chapter {num} not found in chapters dict")
+                continue
             
             # 章节标题
             if include_title:
