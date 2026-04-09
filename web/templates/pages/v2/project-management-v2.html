@@ -696,6 +696,9 @@
                     <button class="v2-btn v2-btn--secondary" onclick="viewQualityAssessment('${escapeJs(project.title)}')">${tQuality}</button>
                     <button class="v2-btn v2-btn--secondary" onclick="goToVideoGeneration('${escapeJs(project.title)}')">${tVideo}</button>
                 `;
+                // 🔥 修复：市场导向模式也需要添加导出和删除按钮
+                buttons += `<button class="v2-btn v2-btn--secondary" onclick="exportNovelZip('${escapeJs(project.title)}')">${tExport}</button>`;
+                buttons += `<button class="v2-btn v2-btn--danger" onclick="deleteProject('${escapeJs(project.title)}')">${tDelete}</button>`;
                 return buttons;
             }
             
