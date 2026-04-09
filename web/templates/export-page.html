@@ -236,11 +236,17 @@
     }
 
     .range-inputs {
-        display: flex;
+        display: none;
         align-items: center;
         gap: 8px;
         margin-top: 12px;
-        padding-left: 30px;
+        padding: 12px 20px 12px 30px;
+        background: rgba(0,0,0,0.2);
+        border-radius: 8px;
+    }
+    
+    .range-inputs.visible {
+        display: flex !important;
     }
 
     .range-inputs input {
@@ -586,7 +592,11 @@ function selectFormat(format) {
 function toggleRangeInputs() {
     const rangeType = document.querySelector('input[name="range"]:checked').value;
     const rangeInputs = document.getElementById('rangeInputs');
-    rangeInputs.style.display = rangeType === 'custom' ? 'flex' : 'none';
+    if (rangeType === 'custom') {
+        rangeInputs.classList.add('visible');
+    } else {
+        rangeInputs.classList.remove('visible');
+    }
     updatePreview();
 }
 
