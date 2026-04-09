@@ -1,119 +1,107 @@
-{# 小说导出页面 - V2 设计 #}
+{# 小说导出页面 - 简洁优雅设计 #}
 {% extends "layouts/base-v2.html" %}
 
 {% block title %}导出小说 - {{ title }}{% endblock %}
 
 {% block extra_css %}
-<link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
 <style>
-    /* ===== 设计系统变量 ===== */
-    :root {
-        --export-sidebar-width: 360px;
-        --export-header-height: 64px;
-        --color-primary: #6366f1;
-        --color-primary-light: #818cf8;
-        --color-success: #22c55e;
-        --color-surface: #0f0f0f;
-        --color-surface-elevated: #1a1a1a;
-        --color-border: rgba(255,255,255,0.08);
-        --color-text-primary: #f5f5f5;
-        --color-text-secondary: #9ca3af;
-        --radius-lg: 12px;
-        --radius-xl: 16px;
-        --shadow-elevated: 0 20px 25px -5px rgba(0,0,0,0.3), 0 10px 10px -5px rgba(0,0,0,0.2);
+    /* ===== 页面容器 ===== */
+    .export-page {
+        max-width: 1200px;
+        margin: 0 auto;
+        padding: 48px 24px;
     }
 
-    /* ===== 页面布局 ===== */
-    .export-layout {
-        display: flex;
-        height: calc(100vh - 60px);
-        overflow: hidden;
+    /* ===== 页面标题 ===== */
+    .page-header {
+        margin-bottom: 40px;
+        padding-bottom: 24px;
+        border-bottom: 1px solid rgba(255,255,255,0.06);
     }
 
-    /* ===== 左侧配置面板 ===== */
-    .export-sidebar {
-        width: var(--export-sidebar-width);
-        background: var(--color-surface);
-        border-right: 1px solid var(--color-border);
-        display: flex;
-        flex-direction: column;
-        overflow: hidden;
+    .page-title {
+        font-size: 32px;
+        font-weight: 700;
+        color: #fff;
+        margin-bottom: 8px;
+        letter-spacing: -0.5px;
     }
 
-    .sidebar-header {
-        padding: 20px 24px;
-        border-bottom: 1px solid var(--color-border);
+    .page-subtitle {
+        font-size: 16px;
+        color: rgba(255,255,255,0.5);
     }
 
-    .sidebar-header h1 {
-        font-size: 18px;
-        font-weight: 600;
-        color: var(--color-text-primary);
-        margin-bottom: 4px;
-    }
-
-    .novel-title-display {
-        font-size: 14px;
-        color: var(--color-primary-light);
+    .page-subtitle strong {
+        color: rgba(255,255,255,0.8);
         font-weight: 500;
-        white-space: nowrap;
-        overflow: hidden;
-        text-overflow: ellipsis;
     }
 
-    .sidebar-content {
-        flex: 1;
-        overflow-y: auto;
-        padding: 20px 16px;
+    /* ===== 主布局：配置 + 预览 ===== */
+    .export-layout {
+        display: grid;
+        grid-template-columns: 520px 1fr;
+        gap: 32px;
+        align-items: start;
     }
 
-    .config-group {
-        margin-bottom: 28px;
+    @media (max-width: 1100px) {
+        .export-layout {
+            grid-template-columns: 1fr;
+        }
     }
 
-    .config-group:last-child {
+    /* ===== 配置面板 ===== */
+    .config-panel {
+        background: rgba(255,255,255,0.02);
+        border: 1px solid rgba(255,255,255,0.06);
+        border-radius: 16px;
+        padding: 32px;
+    }
+
+    .config-section {
+        margin-bottom: 32px;
+    }
+
+    .config-section:last-child {
         margin-bottom: 0;
     }
 
-    .config-label {
-        font-size: 12px;
+    .section-title {
+        font-size: 14px;
         font-weight: 600;
+        color: rgba(255,255,255,0.9);
+        margin-bottom: 16px;
         text-transform: uppercase;
         letter-spacing: 0.5px;
-        color: var(--color-text-secondary);
-        margin-bottom: 12px;
-        display: flex;
-        align-items: center;
-        gap: 6px;
     }
 
-    /* ===== 导出模式卡片 ===== */
-    .mode-selector {
+    /* ===== 模式选择（两个大卡片） ===== */
+    .mode-cards {
         display: grid;
         grid-template-columns: 1fr 1fr;
-        gap: 10px;
+        gap: 16px;
     }
 
     .mode-card {
         position: relative;
-        padding: 16px 12px;
-        background: var(--color-surface-elevated);
-        border: 1px solid var(--color-border);
-        border-radius: var(--radius-lg);
+        padding: 24px 20px;
+        background: rgba(255,255,255,0.03);
+        border: 1.5px solid rgba(255,255,255,0.08);
+        border-radius: 12px;
         cursor: pointer;
         transition: all 0.2s ease;
         text-align: center;
     }
 
     .mode-card:hover {
-        border-color: rgba(99, 102, 241, 0.4);
-        transform: translateY(-1px);
+        background: rgba(255,255,255,0.05);
+        border-color: rgba(255,255,255,0.15);
     }
 
     .mode-card.active {
         background: rgba(99, 102, 241, 0.1);
-        border-color: var(--color-primary);
-        box-shadow: 0 0 0 1px var(--color-primary);
+        border-color: #6366f1;
     }
 
     .mode-card input {
@@ -122,184 +110,118 @@
     }
 
     .mode-icon {
-        width: 40px;
-        height: 40px;
-        margin: 0 auto 10px;
-        background: linear-gradient(135deg, rgba(99,102,241,0.2), rgba(99,102,241,0.05));
-        border-radius: 10px;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        font-size: 20px;
+        font-size: 32px;
+        margin-bottom: 12px;
     }
 
-    .mode-card.active .mode-icon {
-        background: linear-gradient(135deg, var(--color-primary), var(--color-primary-light));
-    }
-
-    .mode-title {
-        font-size: 14px;
+    .mode-name {
+        font-size: 15px;
         font-weight: 600;
-        color: var(--color-text-primary);
+        color: #fff;
         margin-bottom: 4px;
     }
 
-    .mode-desc {
-        font-size: 11px;
-        color: var(--color-text-secondary);
-        line-height: 1.4;
+    .mode-card.active .mode-name {
+        color: #818cf8;
     }
 
-    /* ===== 格式选择器 ===== */
-    .format-selector {
+    .mode-desc {
+        font-size: 13px;
+        color: rgba(255,255,255,0.5);
+    }
+
+    /* ===== 格式选择（横向按钮） ===== */
+    .format-options {
         display: flex;
-        gap: 8px;
+        gap: 12px;
     }
 
     .format-btn {
         flex: 1;
-        padding: 12px 16px;
-        background: var(--color-surface-elevated);
-        border: 1px solid var(--color-border);
-        border-radius: var(--radius-lg);
-        color: var(--color-text-secondary);
-        font-size: 13px;
+        padding: 14px 20px;
+        background: rgba(255,255,255,0.03);
+        border: 1.5px solid rgba(255,255,255,0.08);
+        border-radius: 10px;
+        color: rgba(255,255,255,0.7);
+        font-size: 14px;
         font-weight: 500;
         cursor: pointer;
         transition: all 0.2s ease;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        gap: 8px;
     }
 
     .format-btn:hover {
-        border-color: rgba(99, 102, 241, 0.4);
-        color: var(--color-text-primary);
+        background: rgba(255,255,255,0.05);
+        border-color: rgba(255,255,255,0.15);
     }
 
     .format-btn.active {
         background: rgba(99, 102, 241, 0.15);
-        border-color: var(--color-primary);
-        color: var(--color-primary-light);
+        border-color: #6366f1;
+        color: #818cf8;
     }
 
-    .format-btn .material-icons {
-        font-size: 18px;
-    }
-
-    /* ===== 切换开关 ===== */
-    .toggle-list {
+    /* ===== 选项列表 ===== */
+    .option-list {
         display: flex;
         flex-direction: column;
-        gap: 8px;
+        gap: 12px;
     }
 
-    .toggle-item {
+    .option-item {
         display: flex;
         align-items: center;
         justify-content: space-between;
-        padding: 12px 14px;
-        background: var(--color-surface-elevated);
-        border: 1px solid var(--color-border);
+        padding: 16px 20px;
+        background: rgba(255,255,255,0.02);
+        border: 1px solid rgba(255,255,255,0.06);
         border-radius: 10px;
         cursor: pointer;
         transition: all 0.15s ease;
     }
 
-    .toggle-item:hover {
-        border-color: rgba(255,255,255,0.15);
+    .option-item:hover {
+        background: rgba(255,255,255,0.04);
     }
 
-    .toggle-info {
-        display: flex;
-        align-items: center;
-        gap: 10px;
+    .option-label {
+        font-size: 14px;
+        color: rgba(255,255,255,0.9);
     }
 
-    .toggle-icon {
-        width: 32px;
-        height: 32px;
-        background: rgba(255,255,255,0.05);
-        border-radius: 8px;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        font-size: 16px;
-    }
-
-    .toggle-text {
-        font-size: 13px;
-        color: var(--color-text-primary);
-        font-weight: 500;
-    }
-
-    /* 自定义开关 */
-    .switch {
-        position: relative;
-        width: 44px;
-        height: 24px;
-        background: rgba(255,255,255,0.1);
-        border-radius: 12px;
-        transition: background 0.2s ease;
-    }
-
-    .switch::after {
-        content: '';
-        position: absolute;
-        top: 2px;
-        left: 2px;
+    .option-item input[type="checkbox"] {
         width: 20px;
         height: 20px;
-        background: white;
-        border-radius: 50%;
-        transition: transform 0.2s ease;
-        box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+        accent-color: #6366f1;
+        cursor: pointer;
     }
 
-    .toggle-item input:checked ~ .switch {
-        background: var(--color-primary);
-    }
-
-    .toggle-item input:checked ~ .switch::after {
-        transform: translateX(20px);
-    }
-
-    .toggle-item input {
-        position: absolute;
-        opacity: 0;
-    }
-
-    /* ===== 范围选择器 ===== */
-    .range-selector {
-        background: var(--color-surface-elevated);
-        border: 1px solid var(--color-border);
-        border-radius: var(--radius-lg);
-        overflow: hidden;
+    /* ===== 范围选择 ===== */
+    .range-options {
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
     }
 
     .range-option {
         display: flex;
         align-items: center;
         gap: 12px;
-        padding: 14px 16px;
+        padding: 16px 20px;
+        background: rgba(255,255,255,0.02);
+        border: 1px solid rgba(255,255,255,0.06);
+        border-radius: 10px;
         cursor: pointer;
-        transition: background 0.15s ease;
-        border-bottom: 1px solid var(--color-border);
-    }
-
-    .range-option:last-child {
-        border-bottom: none;
+        transition: all 0.15s ease;
     }
 
     .range-option:hover {
-        background: rgba(255,255,255,0.02);
+        background: rgba(255,255,255,0.04);
     }
 
     .range-option input[type="radio"] {
         width: 18px;
         height: 18px;
-        accent-color: var(--color-primary);
+        accent-color: #6366f1;
         flex-shrink: 0;
     }
 
@@ -308,76 +230,54 @@
     }
 
     .range-option-title {
-        font-size: 13px;
-        color: var(--color-text-primary);
-        font-weight: 500;
+        font-size: 14px;
+        color: rgba(255,255,255,0.9);
+        margin-bottom: 2px;
     }
 
     .range-inputs {
         display: flex;
         align-items: center;
         gap: 8px;
-        margin-top: 10px;
+        margin-top: 12px;
         padding-left: 30px;
     }
 
-    .range-input-group {
-        display: flex;
-        align-items: center;
-        gap: 6px;
-    }
-
-    .range-input-group span {
-        font-size: 12px;
-        color: var(--color-text-secondary);
-    }
-
-    .range-input {
-        width: 60px;
-        padding: 8px 10px;
-        background: var(--color-surface);
-        border: 1px solid var(--color-border);
+    .range-inputs input {
+        width: 70px;
+        padding: 8px 12px;
+        background: rgba(0,0,0,0.3);
+        border: 1px solid rgba(255,255,255,0.1);
         border-radius: 6px;
-        color: var(--color-text-primary);
-        font-size: 13px;
+        color: #fff;
+        font-size: 14px;
         text-align: center;
-        transition: all 0.2s ease;
     }
 
-    .range-input:focus {
+    .range-inputs input:focus {
         outline: none;
-        border-color: var(--color-primary);
+        border-color: #6366f1;
     }
 
-    /* ===== 底部操作区 ===== */
-    .sidebar-footer {
-        padding: 16px 20px 20px;
-        border-top: 1px solid var(--color-border);
-        background: var(--color-surface);
+    .range-inputs span {
+        font-size: 13px;
+        color: rgba(255,255,255,0.5);
     }
 
-    .export-stats {
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        margin-bottom: 12px;
-        font-size: 12px;
-        color: var(--color-text-secondary);
-    }
-
-    .export-stats .highlight {
-        color: var(--color-text-primary);
-        font-weight: 600;
+    /* ===== 导出按钮 ===== */
+    .export-action {
+        padding-top: 24px;
+        border-top: 1px solid rgba(255,255,255,0.06);
     }
 
     .btn-export {
         width: 100%;
-        padding: 14px 20px;
-        background: linear-gradient(135deg, var(--color-primary) 0%, #7c3aed 100%);
+        padding: 16px 24px;
+        background: linear-gradient(135deg, #6366f1 0%, #7c3aed 100%);
         border: none;
         border-radius: 10px;
-        color: white;
-        font-size: 14px;
+        color: #fff;
+        font-size: 15px;
         font-weight: 600;
         cursor: pointer;
         transition: all 0.2s ease;
@@ -389,149 +289,112 @@
 
     .btn-export:hover {
         transform: translateY(-1px);
-        box-shadow: 0 8px 20px rgba(99, 102, 241, 0.4);
-    }
-
-    .btn-export:active {
-        transform: translateY(0);
+        box-shadow: 0 8px 20px rgba(99, 102, 241, 0.35);
     }
 
     .btn-export:disabled {
         opacity: 0.6;
         cursor: not-allowed;
         transform: none;
+        box-shadow: none;
     }
 
-    /* ===== 右侧预览区 ===== */
-    .export-preview {
-        flex: 1;
-        background: #080808;
-        display: flex;
-        flex-direction: column;
+    .export-stats {
+        text-align: center;
+        margin-top: 12px;
+        font-size: 13px;
+        color: rgba(255,255,255,0.5);
+    }
+
+    /* ===== 预览面板 ===== */
+    .preview-panel {
+        background: rgba(255,255,255,0.02);
+        border: 1px solid rgba(255,255,255,0.06);
+        border-radius: 16px;
         overflow: hidden;
+        position: sticky;
+        top: 24px;
     }
 
-    .preview-toolbar {
-        height: var(--export-header-height);
-        padding: 0 24px;
+    .preview-header {
         display: flex;
         align-items: center;
         justify-content: space-between;
-        border-bottom: 1px solid var(--color-border);
-        background: var(--color-surface);
+        padding: 20px 24px;
+        background: rgba(255,255,255,0.03);
+        border-bottom: 1px solid rgba(255,255,255,0.06);
     }
 
     .preview-title {
         font-size: 14px;
         font-weight: 600;
-        color: var(--color-text-primary);
-        display: flex;
-        align-items: center;
-        gap: 8px;
+        color: rgba(255,255,255,0.7);
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
     }
 
     .preview-badge {
-        padding: 4px 10px;
+        padding: 6px 12px;
         background: rgba(99, 102, 241, 0.15);
         border-radius: 20px;
         font-size: 12px;
-        color: var(--color-primary-light);
+        color: #818cf8;
         font-weight: 500;
     }
 
-    .preview-actions {
-        display: flex;
-        gap: 8px;
-    }
-
-    .preview-btn {
-        padding: 8px 14px;
-        background: transparent;
-        border: 1px solid var(--color-border);
-        border-radius: 6px;
-        color: var(--color-text-secondary);
-        font-size: 12px;
-        cursor: pointer;
-        transition: all 0.2s ease;
-        display: flex;
-        align-items: center;
-        gap: 4px;
-    }
-
-    .preview-btn:hover {
-        border-color: rgba(255,255,255,0.2);
-        color: var(--color-text-primary);
-    }
-
-    .preview-content-wrapper {
-        flex: 1;
-        padding: 24px;
-        overflow: auto;
+    .preview-body {
+        padding: 32px;
+        max-height: 600px;
+        overflow-y: auto;
     }
 
     .preview-document {
-        max-width: 720px;
-        margin: 0 auto;
-        background: var(--color-surface-elevated);
-        border: 1px solid var(--color-border);
-        border-radius: var(--radius-xl);
-        min-height: 600px;
-        box-shadow: var(--shadow-elevated);
-    }
-
-    .preview-document-header {
-        padding: 24px 32px;
-        border-bottom: 1px solid var(--color-border);
-    }
-
-    .preview-doc-title {
-        font-size: 24px;
-        font-weight: 700;
-        color: var(--color-text-primary);
-        margin-bottom: 8px;
-    }
-
-    .preview-doc-meta {
-        font-size: 13px;
-        color: var(--color-text-secondary);
-    }
-
-    .preview-document-body {
-        padding: 32px;
-        font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
-        font-size: 15px;
+        background: rgba(0,0,0,0.4);
+        border-radius: 8px;
+        padding: 40px;
+        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
         line-height: 1.8;
-        color: var(--color-text-primary);
+    }
+
+    .preview-title-text {
+        font-size: 22px;
+        font-weight: 700;
+        color: #fff;
+        margin-bottom: 8px;
+        padding-bottom: 16px;
+        border-bottom: 1px solid rgba(255,255,255,0.1);
+    }
+
+    .preview-meta {
+        font-size: 13px;
+        color: rgba(255,255,255,0.5);
+        margin-bottom: 24px;
+    }
+
+    .preview-content {
+        color: rgba(255,255,255,0.8);
+        font-size: 14px;
     }
 
     .preview-chapter {
-        margin-bottom: 32px;
-    }
-
-    .preview-chapter:last-child {
-        margin-bottom: 0;
+        margin-bottom: 24px;
     }
 
     .preview-chapter-title {
-        font-size: 18px;
+        font-size: 15px;
         font-weight: 600;
-        color: var(--color-text-primary);
-        margin-bottom: 16px;
-        padding-bottom: 12px;
-        border-bottom: 1px solid var(--color-border);
+        color: rgba(255,255,255,0.95);
+        margin-bottom: 12px;
     }
 
     .preview-chapter-content {
-        color: var(--color-text-secondary);
+        color: rgba(255,255,255,0.6);
     }
 
     .preview-placeholder {
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        justify-content: center;
-        height: 400px;
-        color: var(--color-text-secondary);
+        text-align: center;
+        padding: 80px 40px;
+        color: rgba(255,255,255,0.4);
     }
 
     .preview-placeholder-icon {
@@ -540,120 +403,83 @@
         opacity: 0.5;
     }
 
-    /* ===== 响应式 ===== */
-    @media (max-width: 1024px) {
-        .export-sidebar {
-            width: 320px;
-        }
-    }
-
-    @media (max-width: 768px) {
-        .export-layout {
-            flex-direction: column;
-        }
-        .export-sidebar {
-            width: 100%;
-            max-height: 50vh;
-            border-right: none;
-            border-bottom: 1px solid var(--color-border);
-        }
+    .hidden {
+        display: none !important;
     }
 </style>
 {% endblock %}
 
 {% block content %}
-<div class="export-layout">
-    <!-- 左侧配置面板 -->
-    <aside class="export-sidebar">
-        <div class="sidebar-header">
-            <h1>导出设置</h1>
-            <div class="novel-title-display">{{ title }}</div>
+<div class="export-page">
+    <!-- 页面标题 -->
+    <div class="page-header">
+        <h1 class="page-title">导出小说</h1>
+        <div class="page-subtitle">
+            正在导出：<strong>{{ title }}</strong> · 共 {{ total_chapters }} 章
         </div>
+    </div>
 
-        <div class="sidebar-content">
+    <!-- 主布局 -->
+    <div class="export-layout">
+        <!-- 左侧配置 -->
+        <div class="config-panel">
             <!-- 导出模式 -->
-            <div class="config-group">
-                <div class="config-label">
-                    <span class="material-icons" style="font-size:14px">category</span>
-                    导出模式
-                </div>
-                <div class="mode-selector">
+            <div class="config-section">
+                <div class="section-title">导出模式</div>
+                <div class="mode-cards">
                     <label class="mode-card active" onclick="selectMode(this, 'content')">
                         <input type="radio" name="export_mode" value="content" checked>
                         <div class="mode-icon">📝</div>
-                        <div class="mode-title">正文导出</div>
-                        <div class="mode-desc">仅导出可阅读的正文内容</div>
+                        <div class="mode-name">正文导出</div>
+                        <div class="mode-desc">仅导出可阅读的正文</div>
                     </label>
                     <label class="mode-card" onclick="selectMode(this, 'project')">
                         <input type="radio" name="export_mode" value="project">
                         <div class="mode-icon">📦</div>
-                        <div class="mode-title">项目导出</div>
-                        <div class="mode-desc">完整项目备份 ZIP</div>
+                        <div class="mode-name">项目导出</div>
+                        <div class="mode-desc">完整项目 ZIP 备份</div>
                     </label>
                 </div>
             </div>
 
-            <!-- 正文导出选项 -->
+            <!-- 正文选项 -->
             <div id="content-options">
                 <!-- 文件格式 -->
-                <div class="config-group">
-                    <div class="config-label">
-                        <span class="material-icons" style="font-size:14px">description</span>
-                        文件格式
-                    </div>
-                    <div class="format-selector">
+                <div class="config-section">
+                    <div class="section-title">文件格式</div>
+                    <div class="format-options">
                         <button class="format-btn active" data-format="txt" onclick="selectFormat('txt')">
-                            <span class="material-icons">text_snippet</span>
                             TXT 纯文本
                         </button>
                         <button class="format-btn" data-format="md" onclick="selectFormat('md')">
-                            <span class="material-icons">markdown</span>
                             Markdown
                         </button>
                     </div>
                 </div>
 
                 <!-- 内容选项 -->
-                <div class="config-group">
-                    <div class="config-label">
-                        <span class="material-icons" style="font-size:14px">tune</span>
-                        内容选项
-                    </div>
-                    <div class="toggle-list">
-                        <label class="toggle-item">
-                            <div class="toggle-info">
-                                <div class="toggle-icon">📖</div>
-                                <span class="toggle-text">包含章节标题</span>
-                            </div>
+                <div class="config-section">
+                    <div class="section-title">内容选项</div>
+                    <div class="option-list">
+                        <label class="option-item">
+                            <span class="option-label">包含章节标题</span>
                             <input type="checkbox" id="include_title" checked onchange="updatePreview()">
-                            <div class="switch"></div>
                         </label>
-                        <label class="toggle-item">
-                            <div class="toggle-info">
-                                <div class="toggle-icon">📋</div>
-                                <span class="toggle-text">包含小说简介</span>
-                            </div>
+                        <label class="option-item">
+                            <span class="option-label">包含小说简介</span>
                             <input type="checkbox" id="include_synopsis" checked onchange="updatePreview()">
-                            <div class="switch"></div>
                         </label>
-                        <label class="toggle-item">
-                            <div class="toggle-info">
-                                <div class="toggle-icon">✂️</div>
-                                <span class="toggle-text">章节间添加分隔线</span>
-                            </div>
+                        <label class="option-item">
+                            <span class="option-label">章节间添加分隔线</span>
                             <input type="checkbox" id="add_separator" checked onchange="updatePreview()">
-                            <div class="switch"></div>
                         </label>
                     </div>
                 </div>
 
                 <!-- 导出范围 -->
-                <div class="config-group">
-                    <div class="config-label">
-                        <span class="material-icons" style="font-size:14px">list</span>
-                        导出范围
-                    </div>
-                    <div class="range-selector">
+                <div class="config-section">
+                    <div class="section-title">导出范围</div>
+                    <div class="range-options">
                         <label class="range-option">
                             <input type="radio" name="range" value="all" checked onchange="toggleRangeInputs()">
                             <div class="range-option-content">
@@ -667,63 +493,41 @@
                             </div>
                         </label>
                         <div class="range-inputs" id="rangeInputs" style="display:none">
-                            <div class="range-input-group">
-                                <span>从</span>
-                                <input type="number" class="range-input" id="range_start" min="1" max="{{ total_chapters }}" value="1">
-                            </div>
-                            <div class="range-input-group">
-                                <span>到</span>
-                                <input type="number" class="range-input" id="range_end" min="1" max="{{ total_chapters }}" value="{{ total_chapters }}">
-                            </div>
+                            <span>从</span>
+                            <input type="number" id="range_start" min="1" max="{{ total_chapters }}" value="1">
+                            <span>到</span>
+                            <input type="number" id="range_end" min="1" max="{{ total_chapters }}" value="{{ total_chapters }}">
+                            <span>章</span>
                         </div>
                     </div>
                 </div>
             </div>
-        </div>
 
-        <!-- 底部操作 -->
-        <div class="sidebar-footer">
-            <div class="export-stats">
-                <span>预计导出</span>
-                <span class="highlight" id="exportStats">计算中...</span>
+            <!-- 导出按钮 -->
+            <div class="export-action">
+                <button class="btn-export" id="exportBtn" onclick="startExport()">
+                    <span>⬇</span> 开始导出
+                </button>
+                <div class="export-stats" id="exportStats">预计导出 0 章 · 约 0 字</div>
             </div>
-            <button class="btn-export" id="exportBtn" onclick="startExport()">
-                <span class="material-icons" style="font-size:18px">download</span>
-                开始导出
-            </button>
         </div>
-    </aside>
 
-    <!-- 右侧预览区 -->
-    <main class="export-preview">
-        <div class="preview-toolbar">
-            <div class="preview-title">
-                <span class="material-icons" style="font-size:18px;color:var(--color-primary-light)">visibility</span>
-                实时预览
+        <!-- 右侧预览 -->
+        <div class="preview-panel">
+            <div class="preview-header">
+                <span class="preview-title">预览</span>
                 <span class="preview-badge" id="previewBadge">加载中...</span>
             </div>
-            <div class="preview-actions">
-                <button class="preview-btn" onclick="refreshPreview()">
-                    <span class="material-icons" style="font-size:14px">refresh</span>
-                    刷新
-                </button>
-            </div>
-        </div>
-        <div class="preview-content-wrapper">
-            <div class="preview-document">
-                <div class="preview-document-header">
-                    <div class="preview-doc-title">{{ title }}</div>
-                    <div class="preview-doc-meta" id="previewMeta">正在加载章节数据...</div>
-                </div>
-                <div class="preview-document-body" id="previewBody">
+            <div class="preview-body">
+                <div class="preview-document" id="previewDocument">
                     <div class="preview-placeholder">
                         <div class="preview-placeholder-icon">📚</div>
-                        <div>正在加载预览...</div>
+                        <div>正在加载章节数据...</div>
                     </div>
                 </div>
             </div>
         </div>
-    </main>
+    </div>
 </div>
 {% endblock %}
 
@@ -746,19 +550,10 @@ async function loadPreviewData() {
             chaptersData = data.chapters || [];
             synopsis = data.synopsis || '';
             updatePreview();
-        } else {
-            document.getElementById('previewBody').innerHTML = `
-                <div class="preview-placeholder">
-                    <div class="preview-placeholder-icon">⚠️</div>
-                    <div>加载失败: ${data.error || '未知错误'}</div>
-                </div>`;
         }
     } catch (e) {
-        document.getElementById('previewBody').innerHTML = `
-            <div class="preview-placeholder">
-                <div class="preview-placeholder-icon">⚠️</div>
-                <div>加载失败，请刷新重试</div>
-            </div>`;
+        document.getElementById('previewDocument').innerHTML = `
+            <div class="preview-placeholder">加载失败，请刷新重试</div>`;
     }
 }
 
@@ -771,10 +566,10 @@ function selectMode(element, mode) {
     const rangeInputs = document.getElementById('rangeInputs');
     
     if (mode === 'content') {
-        contentOptions.style.display = 'block';
+        contentOptions.classList.remove('hidden');
         toggleRangeInputs();
     } else {
-        contentOptions.style.display = 'none';
+        contentOptions.classList.add('hidden');
         rangeInputs.style.display = 'none';
     }
     updatePreview();
@@ -807,20 +602,18 @@ function getSelectedRange() {
 
 function updatePreview() {
     const mode = document.querySelector('input[name="export_mode"]:checked').value;
-    const previewBody = document.getElementById('previewBody');
+    const previewDoc = document.getElementById('previewDocument');
     const previewBadge = document.getElementById('previewBadge');
-    const previewMeta = document.getElementById('previewMeta');
     const exportStats = document.getElementById('exportStats');
     
     if (mode === 'project') {
-        previewBody.innerHTML = `
+        previewDoc.innerHTML = `
             <div class="preview-placeholder">
-                <div class="preview-placeholder-icon" style="font-size:64px">📦</div>
-                <div style="font-size:16px;font-weight:500;color:var(--color-text-primary)">项目导出预览</div>
-                <div style="font-size:13px;margin-top:8px">将打包所有项目文件为 ZIP 格式</div>
+                <div class="preview-placeholder-icon">📦</div>
+                <div>项目导出预览</div>
+                <div style="font-size:13px;margin-top:8px;opacity:0.7">将打包所有项目文件为 ZIP 格式</div>
             </div>`;
         previewBadge.textContent = '项目备份';
-        previewMeta.textContent = '包含完整项目数据';
         exportStats.textContent = '1 个 ZIP 文件';
         return;
     }
@@ -832,44 +625,43 @@ function updatePreview() {
     const selectedChapters = chaptersData.slice(range.start - 1, range.end);
     
     // 更新统计
+    const wordCount = selectedChapters.length * 2000;
     previewBadge.textContent = `${selectedChapters.length} 章`;
-    previewMeta.textContent = `第 ${range.start} - ${range.end} 章 · ${currentFormat.toUpperCase()} 格式`;
-    exportStats.textContent = `${selectedChapters.length} 章 · 约 ${(selectedChapters.length * 2000).toLocaleString()} 字`;
+    exportStats.textContent = `预计导出 ${selectedChapters.length} 章 · 约 ${wordCount.toLocaleString()} 字`;
     
-    // 生成预览HTML
+    // 生成预览
     let html = '';
+    html += `<div class="preview-title-text">${NOVEL_TITLE}</div>`;
+    html += `<div class="preview-meta">第 ${range.start}-${range.end} 章 · ${currentFormat.toUpperCase()} 格式</div>`;
+    html += `<div class="preview-content">`;
     
     if (includeSynopsis && synopsis) {
-        html += `<div class="preview-chapter" style="border-left:3px solid var(--color-primary);padding-left:16px;margin-bottom:24px;">
-            <div style="font-size:12px;text-transform:uppercase;letter-spacing:1px;color:var(--color-primary-light);margin-bottom:8px;">简介</div>
-            <div style="color:var(--color-text-secondary);font-size:14px;line-height:1.7;">${synopsis.substring(0, 200)}${synopsis.length > 200 ? '...' : ''}</div>
-        </div>`;
+        html += `<div style="margin-bottom:24px;padding-bottom:16px;border-bottom:1px solid rgba(255,255,255,0.1);">`;
+        html += `<div style="font-size:12px;text-transform:uppercase;color:rgba(255,255,255,0.4);margin-bottom:8px;">简介</div>`;
+        html += `<div style="color:rgba(255,255,255,0.6);">${synopsis.substring(0, 150)}...</div>`;
+        html += `</div>`;
     }
     
     selectedChapters.slice(0, 3).forEach((chapter, index) => {
-        html += '<div class="preview-chapter">';
-        
+        html += `<div class="preview-chapter">`;
         if (includeTitle) {
             html += `<div class="preview-chapter-title">${chapter.title}</div>`;
         }
-        
-        const content = chapter.content.substring(0, 250);
-        html += `<div class="preview-chapter-content">${content}${chapter.content.length > 250 ? '...' : ''}</div>`;
-        
-        html += '</div>';
+        const content = chapter.content.substring(0, 200);
+        html += `<div class="preview-chapter-content">${content}...</div>`;
+        html += `</div>`;
         
         if (addSeparator && index < Math.min(selectedChapters.length, 3) - 1) {
-            html += '<div style="text-align:center;padding:16px 0;color:var(--color-border);">* * *</div>';
+            html += `<div style="text-align:center;padding:16px 0;color:rgba(255,255,255,0.2);">* * *</div>`;
         }
     });
     
     if (selectedChapters.length > 3) {
-        html += `<div style="text-align:center;padding:24px;color:var(--color-text-secondary);font-size:13px;">
-            还有 ${selectedChapters.length - 3} 章未显示
-        </div>`;
+        html += `<div style="text-align:center;padding:20px 0;color:rgba(255,255,255,0.4);font-size:13px;">还有 ${selectedChapters.length - 3} 章</div>`;
     }
     
-    previewBody.innerHTML = html;
+    html += `</div>`;
+    previewDoc.innerHTML = html;
 }
 
 async function startExport() {
@@ -877,38 +669,28 @@ async function startExport() {
     const mode = document.querySelector('input[name="export_mode"]:checked').value;
     
     btn.disabled = true;
-    btn.innerHTML = '<span class="material-icons" style="font-size:18px;animation:spin 1s linear infinite">sync</span> 导出中...';
+    btn.innerHTML = '<span>⏳</span> 导出中...';
     
     if (mode === 'project') {
         window.location.href = `/api/export/novel-zip/${encodeURIComponent(NOVEL_TITLE)}`;
-        setTimeout(() => {
-            btn.disabled = false;
-            btn.innerHTML = '<span class="material-icons" style="font-size:18px">download</span> 开始导出';
-        }, 2000);
-        return;
+    } else {
+        const range = getSelectedRange();
+        const params = new URLSearchParams({
+            title: NOVEL_TITLE,
+            format: currentFormat,
+            include_title: document.getElementById('include_title').checked,
+            include_synopsis: document.getElementById('include_synopsis').checked,
+            add_separator: document.getElementById('add_separator').checked,
+            start_chapter: range.start,
+            end_chapter: range.end
+        });
+        window.location.href = `/api/export/novel-content?${params}`;
     }
-    
-    const range = getSelectedRange();
-    const params = new URLSearchParams({
-        title: NOVEL_TITLE,
-        format: currentFormat,
-        include_title: document.getElementById('include_title').checked,
-        include_synopsis: document.getElementById('include_synopsis').checked,
-        add_separator: document.getElementById('add_separator').checked,
-        start_chapter: range.start,
-        end_chapter: range.end
-    });
-    
-    window.location.href = `/api/export/novel-content?${params}`;
     
     setTimeout(() => {
         btn.disabled = false;
-        btn.innerHTML = '<span class="material-icons" style="font-size:18px">download</span> 开始导出';
+        btn.innerHTML = '<span>⬇</span> 开始导出';
     }, 2000);
-}
-
-function refreshPreview() {
-    loadPreviewData();
 }
 </script>
 {% endblock %}
