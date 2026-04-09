@@ -13,12 +13,13 @@ const Dialog = {
             const confirmText = options.confirmText || '确定';
             const cancelText = options.cancelText || '取消';
             const confirmClass = options.confirmClass || 'dialog-btn-primary';
+            const icon = options.icon || '&#xe8b2;';
             
             const html = `
                 <div class="dialog-overlay" onclick="Dialog._close(false)"></div>
                 <div class="dialog-content">
                     <div class="dialog-header">
-                        <span class="dialog-icon">&#xe8b2;</span>
+                        <span class="dialog-icon" style="color: ${confirmClass === 'dialog-btn-danger' ? '#ef4444' : '#3b82f6'};">${icon}</span>
                         <span class="dialog-title">${title}</span>
                     </div>
                     <div class="dialog-body">${message}</div>
@@ -191,20 +192,21 @@ const Dialog = {
             left: 0;
             right: 0;
             bottom: 0;
-            background: rgba(0, 0, 0, 0.5);
-            backdrop-filter: blur(4px);
+            background: rgba(0, 0, 0, 0.7);
+            backdrop-filter: blur(8px);
         }
         
         .dialog-content {
             position: relative;
-            background: #fff;
+            background: linear-gradient(145deg, #1e1e2e 0%, #2d2d3d 100%);
+            border: 1px solid rgba(255, 255, 255, 0.1);
             border-radius: 16px;
-            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            box-shadow: 0 25px 80px rgba(0,0,0,0.5), 0 0 0 1px rgba(255,255,255,0.05);
             min-width: 360px;
             max-width: 480px;
             margin: 20px;
             overflow: hidden;
-            animation: dialog-show 0.2s ease-out;
+            animation: dialog-show 0.25s cubic-bezier(0.16, 1, 0.3, 1);
         }
         
         @keyframes dialog-show {
@@ -234,14 +236,14 @@ const Dialog = {
         .dialog-title {
             font-size: 18px;
             font-weight: 600;
-            color: #1f2937;
+            color: #f1f5f9;
         }
         
         .dialog-body {
             padding: 16px 24px 24px;
             font-size: 14px;
-            line-height: 1.6;
-            color: #4b5563;
+            line-height: 1.7;
+            color: #94a3b8;
         }
         
         .dialog-footer {
@@ -252,55 +254,68 @@ const Dialog = {
         }
         
         .dialog-btn {
-            padding: 10px 24px;
-            border-radius: 8px;
+            padding: 10px 20px;
+            border-radius: 10px;
             font-size: 14px;
             font-weight: 500;
             cursor: pointer;
             border: none;
-            transition: all 0.2s;
+            transition: all 0.2s ease;
         }
         
         .dialog-btn-primary {
-            background: #3b82f6;
+            background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
             color: #fff;
+            box-shadow: 0 4px 15px rgba(99, 102, 241, 0.3);
         }
         
         .dialog-btn-primary:hover {
-            background: #2563eb;
+            transform: translateY(-1px);
+            box-shadow: 0 6px 20px rgba(99, 102, 241, 0.4);
         }
         
         .dialog-btn-secondary {
-            background: #f3f4f6;
-            color: #4b5563;
+            background: rgba(255, 255, 255, 0.08);
+            color: #cbd5e1;
+            border: 1px solid rgba(255, 255, 255, 0.1);
         }
         
         .dialog-btn-secondary:hover {
-            background: #e5e7eb;
+            background: rgba(255, 255, 255, 0.12);
+            border-color: rgba(255, 255, 255, 0.15);
         }
         
         .dialog-btn-danger {
-            background: #ef4444;
+            background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
             color: #fff;
+            box-shadow: 0 4px 15px rgba(239, 68, 68, 0.3);
         }
         
         .dialog-btn-danger:hover {
-            background: #dc2626;
+            transform: translateY(-1px);
+            box-shadow: 0 6px 20px rgba(239, 68, 68, 0.4);
         }
         
         .dialog-input {
             width: 100%;
             padding: 12px 16px;
-            border: 1px solid #e5e7eb;
-            border-radius: 8px;
+            background: rgba(0, 0, 0, 0.3);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 10px;
             font-size: 14px;
+            color: #f1f5f9;
             box-sizing: border-box;
-            transition: border-color 0.2s;
+            transition: all 0.2s;
         }
         
         .dialog-input:focus {
             outline: none;
-            border-color: #3b82f6;
+            border-color: rgba(99, 102, 241, 0.5);
+            box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
+        }
+        
+        .dialog-input::placeholder {
+            color: #64748b;
         }
     `;
     

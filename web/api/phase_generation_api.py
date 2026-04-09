@@ -2564,6 +2564,7 @@ def register_additional_routes(app):
         """删除小说项目
         
         通过标题删除小说项目及其所有相关数据
+        只能删除当前用户自己的项目
         """
         try:
             from urllib.parse import unquote
@@ -2574,7 +2575,21 @@ def register_additional_routes(app):
             if not manager:
                 return jsonify({"success": False, "error": "Manager not initialized"}), 500
             
-            # 检查项目是否存在
+            # 获取当前用户名
+            from web.utils.path_utils import get_current_username, is_admin, get_user_novel_dir, _safe_filename
+            username = get_current_username()
+            
+            # 🔥 权限校验：检查项目是否属于当前用户
+            # 1. 先检查用户自己的目录
+            user_dir = get_user_novel_dir(username, create=False)
+            safe_title = _safe_filename(title)
+            project_in_user_dir = (user_dir / title).exists() or (user_dir / safe_title).exists()
+            
+            if not project_in_user_dir and not is_admin(username):
+                logger.warning(f"⛔ 用户 {username} 尝试删除不属于他的项目: {title}")
+                return jsonify({"success": False, "error": "没有权限删除此项目"}), 403
+            
+            # 2. 检查项目是否存在
             if title not in manager.novel_projects:
                 logger.warning(f"⚠️ 项目不存在: {title}")
                 return jsonify({"success": False, "error": "项目不存在"}), 404
@@ -2582,22 +2597,22 @@ def register_additional_routes(app):
             # 从内存中删除项目
             del manager.novel_projects[title]
             
-            # 注意：NovelGenerationManager 没有 _save_projects 方法
-            # 项目数据是动态从文件系统加载的，删除目录后下次加载会自动更新
-            
-            # 删除项目目录
+            # 删除项目目录（只在用户自己的目录中查找）
             import shutil
             from pathlib import Path
-            from web.utils.path_utils import get_novel_project_dir, get_current_username
             
-            # 获取当前用户名（用于构建正确的用户隔离路径）
-            username = get_current_username()
+            # 🔥 只在当前用户目录中查找项目（不跨用户查找）
+            novel_project_dir = None
+            if (user_dir / title).exists():
+                novel_project_dir = user_dir / title
+            elif (user_dir / safe_title).exists():
+                novel_project_dir = user_dir / safe_title
             
-            # 小说项目目录
-            novel_project_dir = get_novel_project_dir(title, username, create=False)
             if novel_project_dir and novel_project_dir.exists():
                 shutil.rmtree(novel_project_dir)
                 logger.info(f"✅ 已删除小说项目目录: {novel_project_dir}")
+            else:
+                logger.warning(f"⚠️ 未找到项目目录: {title}")
             
             # 如果存在视频项目目录，也一并删除
             video_project_dir = VIDEO_PROJECTS_DIR / title

@@ -1,169 +1,308 @@
 /**
- * 确认对话框模块
- * 提供可复用的确认对话框功能
+ * 全局自定义弹窗工具 - 替换原生 confirm/alert/prompt
+ * 用法：
+ *   await Dialog.confirm('标题', '消息内容');
+ *   await Dialog.alert('提示内容');
+ *   const name = await Dialog.prompt('请输入名称', '默认值');
  */
 
-/**
- * 显示确认对话框
- * @param {Object} options - 对话框配置选项
- * @param {string} options.title - 对话框标题
- * @param {string} options.message - 对话框消息
- * @param {string} options.confirmText - 确认按钮文本
- * @param {string} options.cancelText - 取消按钮文本
- * @param {string} options.type - 对话框类型: 'default', 'danger', 'warning', 'logout'
- * @param {string} options.icon - 图标 emoji
- * @returns {Promise<boolean>} - 返回用户的选择结果
- */
-function showConfirmDialog(options) {
-    return new Promise((resolve) => {
-        // 创建遮罩层
-        const overlay = document.createElement('div');
-        overlay.className = 'confirm-dialog-overlay';
+const Dialog = {
+    // 确认对话框
+    confirm(title, message, options = {}) {
+        return new Promise((resolve) => {
+            const confirmText = options.confirmText || '确定';
+            const cancelText = options.cancelText || '取消';
+            const confirmClass = options.confirmClass || 'dialog-btn-primary';
+            
+            const html = `
+                <div class="dialog-overlay" onclick="Dialog._close(false)"></div>
+                <div class="dialog-content">
+                    <div class="dialog-header">
+                        <span class="dialog-icon">&#xe8b2;</span>
+                        <span class="dialog-title">${title}</span>
+                    </div>
+                    <div class="dialog-body">${message}</div>
+                    <div class="dialog-footer">
+                        <button class="dialog-btn dialog-btn-secondary" onclick="Dialog._close(false)">${cancelText}</button>
+                        <button class="dialog-btn ${confirmClass}" onclick="Dialog._close(true)">${confirmText}</button>
+                    </div>
+                </div>
+            `;
+            
+            this._show(html, resolve);
+        });
+    },
+    
+    // 提示框
+    alert(message, title = '提示') {
+        return new Promise((resolve) => {
+            const html = `
+                <div class="dialog-overlay" onclick="Dialog._close()"></div>
+                <div class="dialog-content">
+                    <div class="dialog-header">
+                        <span class="dialog-icon" style="color: #f59e0b;">&#xe002;</span>
+                        <span class="dialog-title">${title}</span>
+                    </div>
+                    <div class="dialog-body">${message}</div>
+                    <div class="dialog-footer">
+                        <button class="dialog-btn dialog-btn-primary" onclick="Dialog._close()">知道了</button>
+                    </div>
+                </div>
+            `;
+            
+            this._show(html, resolve);
+        });
+    },
+    
+    // 输入框
+    prompt(title, defaultValue = '', options = {}) {
+        return new Promise((resolve) => {
+            const confirmText = options.confirmText || '确定';
+            const cancelText = options.cancelText || '取消';
+            
+            const html = `
+                <div class="dialog-overlay" onclick="Dialog._close(null)"></div>
+                <div class="dialog-content">
+                    <div class="dialog-header">
+                        <span class="dialog-icon" style="color: #3b82f6;">&#xe3c9;</span>
+                        <span class="dialog-title">${title}</span>
+                    </div>
+                    <div class="dialog-body">
+                        <input type="text" class="dialog-input" id="dialog-prompt-input" value="${defaultValue}" placeholder="${options.placeholder || ''}">
+                    </div>
+                    <div class="dialog-footer">
+                        <button class="dialog-btn dialog-btn-secondary" onclick="Dialog._close(null)">${cancelText}</button>
+                        <button class="dialog-btn dialog-btn-primary" onclick="Dialog._close(document.getElementById('dialog-prompt-input').value)">${confirmText}</button>
+                    </div>
+                </div>
+            `;
+            
+            this._show(html, resolve);
+            
+            // 自动聚焦输入框
+            setTimeout(() => {
+                const input = document.getElementById('dialog-prompt-input');
+                if (input) {
+                    input.focus();
+                    input.select();
+                }
+            }, 100);
+        });
+    },
+    
+    // 成功提示
+    success(message) {
+        return this.alert(message, '成功');
+    },
+    
+    // 错误提示
+    error(message) {
+        return new Promise((resolve) => {
+            const html = `
+                <div class="dialog-overlay" onclick="Dialog._close()"></div>
+                <div class="dialog-content">
+                    <div class="dialog-header">
+                        <span class="dialog-icon" style="color: #ef4444;">&#xe000;</span>
+                        <span class="dialog-title">错误</span>
+                    </div>
+                    <div class="dialog-body">${message}</div>
+                    <div class="dialog-footer">
+                        <button class="dialog-btn dialog-btn-danger" onclick="Dialog._close()">知道了</button>
+                    </div>
+                </div>
+            `;
+            
+            this._show(html, resolve);
+        });
+    },
+    
+    // 内部方法：显示弹窗
+    _show(html, callback) {
+        // 移除已存在的弹窗
+        this._close();
         
-        // 创建对话框
-        const dialog = document.createElement('div');
-        dialog.className = 'confirm-dialog';
+        // 创建弹窗容器
+        const modal = document.createElement('div');
+        modal.id = 'global-dialog-modal';
+        modal.className = 'dialog-modal';
+        modal.innerHTML = html;
+        document.body.appendChild(modal);
         
-        // 特殊样式类
-        if (options.type === 'logout') {
-            dialog.classList.add('confirm-logout-dialog');
-        }
+        // 保存回调
+        this._callback = callback;
         
-        // 创建对话框内容
-        let confirmBtnClass = 'confirm-dialog-btn-primary';
-        let iconClass = options.type || 'default';
-        let icon = options.icon || '❓';
-        
-        if (options.type === 'danger') {
-            confirmBtnClass = 'confirm-dialog-btn-danger';
-            icon = '🗑️';
-        } else if (options.type === 'warning') {
-            confirmBtnClass = 'confirm-dialog-btn-primary';
-            icon = '⚠️';
-        } else if (options.type === 'logout') {
-            confirmBtnClass = 'confirm-dialog-btn-danger';
-            icon = '🚪';
-        }
-        
-        dialog.innerHTML = `
-            <div class="confirm-dialog-header">
-                <span class="confirm-dialog-icon ${iconClass}">${icon}</span>
-                <h3 class="confirm-dialog-title">${escapeHtml(options.title || '确认')}</h3>
-            </div>
-            <div class="confirm-dialog-body">
-                <p class="confirm-dialog-message">${escapeHtml(options.message || '')}</p>
-            </div>
-            <div class="confirm-dialog-footer">
-                <button class="confirm-dialog-btn confirm-dialog-btn-secondary" data-action="cancel">
-                    ${escapeHtml(options.cancelText || '取消')}
-                </button>
-                <button class="confirm-dialog-btn ${confirmBtnClass}" data-action="confirm">
-                    ${escapeHtml(options.confirmText || '确认')}
-                </button>
-            </div>
-        `;
-        
-        overlay.appendChild(dialog);
-        document.body.appendChild(overlay);
-        
-        // 防止页面滚动
+        // 禁止背景滚动
         document.body.style.overflow = 'hidden';
         
-        // 绑定按钮事件
-        const buttons = dialog.querySelectorAll('.confirm-dialog-btn');
-        buttons.forEach(btn => {
-            btn.addEventListener('click', () => {
-                const action = btn.dataset.action;
-                document.body.removeChild(overlay);
-                document.body.style.overflow = '';
-                
-                if (action === 'confirm') {
-                    resolve(true);
-                } else {
-                    resolve(false);
-                }
-            });
-        });
-        
-        // 点击遮罩层关闭（返回false）
-        overlay.addEventListener('click', (e) => {
-            if (e.target === overlay) {
-                document.body.removeChild(overlay);
-                document.body.style.overflow = '';
-                resolve(false);
-            }
-        });
-        
-        // ESC键关闭
-        const handleEsc = (e) => {
+        // 支持 ESC 关闭
+        this._keydownHandler = (e) => {
             if (e.key === 'Escape') {
-                document.body.removeChild(overlay);
-                document.body.style.overflow = '';
-                resolve(false);
-                document.removeEventListener('keydown', handleEsc);
+                this._close(null);
             }
         };
-        document.addEventListener('keydown', handleEsc);
-    });
-}
+        document.addEventListener('keydown', this._keydownHandler);
+    },
+    
+    // 内部方法：关闭弹窗
+    _close(result) {
+        const modal = document.getElementById('global-dialog-modal');
+        if (modal) {
+            modal.remove();
+        }
+        
+        document.body.style.overflow = '';
+        
+        if (this._keydownHandler) {
+            document.removeEventListener('keydown', this._keydownHandler);
+            this._keydownHandler = null;
+        }
+        
+        if (this._callback) {
+            const cb = this._callback;
+            this._callback = null;
+            cb(result);
+        }
+    }
+};
 
-/**
- * HTML转义
- */
-function escapeHtml(text) {
-    const div = document.createElement('div');
-    div.textContent = text;
-    return div.innerHTML;
-}
-
-/**
- * 退出登录确认
- */
-function confirmLogout() {
-    return showConfirmDialog({
-        title: '确认退出登录',
-        message: '退出后需要重新登录才能继续使用，确定要退出吗？',
-        confirmText: '确认退出',
-        cancelText: '取消',
-        type: 'logout'
-    });
-}
-
-/**
- * 删除确认
- */
-function confirmDelete(message) {
-    return showConfirmDialog({
-        title: '确认删除',
-        message: message || '确定要删除吗？此操作不可恢复。',
-        confirmText: '确认删除',
-        cancelText: '取消',
-        type: 'danger'
-    });
-}
-
-/**
- * 警告确认
- */
-function confirmWarning(message) {
-    return showConfirmDialog({
-        title: '警告',
-        message: message || '确定要执行此操作吗？',
-        confirmText: '确定',
-        cancelText: '取消',
-        type: 'warning'
-    });
-}
-
-/**
- * 自定义确认
- */
-function confirm(message, title = '确认') {
-    return showConfirmDialog({
-        title: title,
-        message: message,
-        confirmText: '确定',
-        cancelText: '取消',
-        type: 'default'
-    });
-}
+// 添加 CSS 样式
+(function() {
+    if (document.getElementById('dialog-styles')) return;
+    
+    const style = document.createElement('style');
+    style.id = 'dialog-styles';
+    style.textContent = `
+        .dialog-modal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            z-index: 99999;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+        }
+        
+        .dialog-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.5);
+            backdrop-filter: blur(4px);
+        }
+        
+        .dialog-content {
+            position: relative;
+            background: #fff;
+            border-radius: 16px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            min-width: 360px;
+            max-width: 480px;
+            margin: 20px;
+            overflow: hidden;
+            animation: dialog-show 0.2s ease-out;
+        }
+        
+        @keyframes dialog-show {
+            from {
+                opacity: 0;
+                transform: scale(0.9) translateY(20px);
+            }
+            to {
+                opacity: 1;
+                transform: scale(1) translateY(0);
+            }
+        }
+        
+        .dialog-header {
+            padding: 20px 24px 0;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        .dialog-icon {
+            font-family: 'Material Icons';
+            font-size: 24px;
+            color: #3b82f6;
+        }
+        
+        .dialog-title {
+            font-size: 18px;
+            font-weight: 600;
+            color: #1f2937;
+        }
+        
+        .dialog-body {
+            padding: 16px 24px 24px;
+            font-size: 14px;
+            line-height: 1.6;
+            color: #4b5563;
+        }
+        
+        .dialog-footer {
+            padding: 0 24px 20px;
+            display: flex;
+            justify-content: flex-end;
+            gap: 12px;
+        }
+        
+        .dialog-btn {
+            padding: 10px 24px;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 500;
+            cursor: pointer;
+            border: none;
+            transition: all 0.2s;
+        }
+        
+        .dialog-btn-primary {
+            background: #3b82f6;
+            color: #fff;
+        }
+        
+        .dialog-btn-primary:hover {
+            background: #2563eb;
+        }
+        
+        .dialog-btn-secondary {
+            background: #f3f4f6;
+            color: #4b5563;
+        }
+        
+        .dialog-btn-secondary:hover {
+            background: #e5e7eb;
+        }
+        
+        .dialog-btn-danger {
+            background: #ef4444;
+            color: #fff;
+        }
+        
+        .dialog-btn-danger:hover {
+            background: #dc2626;
+        }
+        
+        .dialog-input {
+            width: 100%;
+            padding: 12px 16px;
+            border: 1px solid #e5e7eb;
+            border-radius: 8px;
+            font-size: 14px;
+            box-sizing: border-box;
+            transition: border-color 0.2s;
+        }
+        
+        .dialog-input:focus {
+            outline: none;
+            border-color: #3b82f6;
+        }
+    `;
+    
+    document.head.appendChild(style);
+})();

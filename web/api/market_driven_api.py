@@ -148,10 +148,11 @@ task_manager = MarketGenerationTaskManager()
 @market_driven_api.route('/genres', methods=['GET'])
 def get_available_genres():
     """
-    获取可选择的题材列表（支持自动更新）
+    获取可选择的题材列表（支持自动更新和性别筛选）
     
     Query参数:
         - refresh: 是否强制刷新（传入任意值触发）
+        - gender: 性别筛选，可选 'male' 或 'female'，不传则返回全部
     
     响应：
     {
@@ -162,7 +163,8 @@ def get_available_genres():
                 "description": "主角获得花钱返利系统...",
                 "expected_retention": "12-18%",
                 "competition": "激烈",
-                "market_status": "稳定"
+                "market_status": "稳定",
+                "gender": "male"
             }
         ],
         "total": 20,
@@ -180,6 +182,9 @@ def get_available_genres():
         # 检查是否强制刷新
         force_refresh = request.args.get('refresh') is not None
         
+        # 获取性别筛选参数
+        gender_filter = request.args.get('gender')
+        
         # 初始化API客户端（用于自动更新）
         api_client = None
         try:
@@ -196,12 +201,35 @@ def get_available_genres():
         # 获取类型列表（支持自动更新）
         genres = genre_manager.get_genres(force_refresh=force_refresh)
         
+        # 性别关键词映射（用于自动分类）
+        male_keywords = ['神豪', '国运', '签到', '奶爸', '神选', '模拟器', '灵气复苏', '末日', 
+                        '诡异', '游戏异界', '宠物', '御兽', '历史架空', '文娱', '盗墓', '综漫', 
+                        '无限流', '赛博修仙', '听劝系统', '规则怪谈', '诡异复苏']
+        female_keywords = ['穿越', '重生', '宫斗', '宅斗', '甜宠', '虐恋', '总裁', '豪门', 
+                          '先婚后爱', '替身', '白月光', '快穿', '年代文', '军婚', '种田', 
+                          '空间', '灵泉', '锦鲤', '福宝', '团宠']
+        
+        def get_genre_gender(genre_name):
+            """根据题材名称判断性别"""
+            for keyword in female_keywords:
+                if keyword in genre_name:
+                    return 'female'
+            # 默认为男频
+            return 'male'
+        
         # 格式化输出
         genre_list = []
         for genre_id, info in genres.items():
+            genre_gender = get_genre_gender(genre_id)
+            
+            # 如果指定了性别筛选，跳过不匹配的
+            if gender_filter and genre_gender != gender_filter:
+                continue
+            
             genre_list.append({
                 "id": genre_id,
                 "name": genre_id,
+                "gender": genre_gender,
                 **info
             })
         
@@ -211,6 +239,7 @@ def get_available_genres():
         return jsonify({
             "genres": genre_list,
             "total": len(genre_list),
+            "gender": gender_filter or 'all',
             "update_status": {
                 "last_update": update_status.get("last_update"),
                 "days_since_update": update_status.get("days_since_update"),

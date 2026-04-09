@@ -1263,6 +1263,24 @@ let selectedOption = null;
 let creativeDraft = null;
 let genre = '{{ genre }}';
 
+// 🔥 从localStorage恢复保存的genre（用于页面刷新后）
+function getSavedGenre() {
+  const saved = localStorage.getItem('market_driven_dialog_genre');
+  return saved || '{{ genre }}';
+}
+
+// 🔥 保存genre到localStorage
+function saveGenre(g) {
+  if (g && g !== '国运文-直播类') {
+    localStorage.setItem('market_driven_dialog_genre', g);
+  }
+}
+
+// 🔥 清除保存的genre
+function clearSavedGenre() {
+  localStorage.removeItem('market_driven_dialog_genre');
+}
+
 // 轮次标题映射
 const roundTitles = {
   1: '差异化方向',
@@ -1289,7 +1307,22 @@ const roundTypes = {
 document.addEventListener('DOMContentLoaded', function() {
   // 从URL获取参数
   const urlParams = new URLSearchParams(window.location.search);
-  genre = urlParams.get('genre') || '国运文-直播类';
+  const urlGenre = urlParams.get('genre');
+  
+  // 🔥 优先使用URL中的genre，如果没有则尝试从localStorage恢复
+  if (urlGenre && urlGenre !== '国运文-直播类') {
+    genre = urlGenre;
+    saveGenre(genre);
+  } else {
+    const savedGenre = getSavedGenre();
+    if (savedGenre && savedGenre !== '国运文-直播类') {
+      genre = savedGenre;
+      console.log('[Dialog] 从localStorage恢复genre:', genre);
+    } else {
+      genre = '国运文-直播类';
+    }
+  }
+  
   const shouldRestore = urlParams.get('restore') === 'true';
   const urlTaskId = urlParams.get('task_id');
   
@@ -1359,6 +1392,13 @@ async function initDialogMode() {
     if (data.success) {
       dialogSessionId = data.session_id;
       currentRound = data.round;
+      
+      // 🔥 保存后端返回的genre（确保一致）
+      if (data.genre) {
+        genre = data.genre;
+        saveGenre(genre);
+        console.log('[Dialog] 保存genre:', genre);
+      }
       
       // 隐藏加载，显示对话
       document.getElementById('loading-container').classList.add('hidden');
@@ -1501,6 +1541,12 @@ async function confirmSelection() {
     const data = await response.json();
     
     if (data.success) {
+      // 🔥 保存后端返回的genre
+      if (data.genre) {
+        genre = data.genre;
+        saveGenre(genre);
+      }
+      
       // 添加到历史
       addToHistory(data.round - 1, selectedOption, customText);
       

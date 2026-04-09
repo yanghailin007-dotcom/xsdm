@@ -131,8 +131,31 @@ from web.api.register_api import register_register_routes
 
 def create_app():
     """创建Flask应用实例"""
+    # 🔥 静态文件目录检查 - 防止目录混淆
+    wrong_static = os.path.join(BASE_DIR, 'web', 'static')
+    if os.path.exists(wrong_static):
+        print("⚠️  ⚠️  ⚠️  警告: 发现错误的静态文件目录!")
+        print(f"   错误路径: {wrong_static}")
+        print("   正确路径应该是项目根目录下的 static/")
+        print("   请将 web/static/ 的内容移动到 static/，然后删除 web/static/")
+        print("=" * 60)
+    
     # 配置静态文件路径 - static文件夹在项目根目录下，而不是web目录下
     static_folder = os.path.join(BASE_DIR, 'static')
+    
+    # 检查关键静态文件是否存在
+    key_files = ['js/dialog.js', 'css/confirm-dialog.css']
+    missing_files = []
+    for f in key_files:
+        if not os.path.exists(os.path.join(static_folder, f)):
+            missing_files.append(f)
+    
+    if missing_files:
+        print("⚠️  警告: 以下关键静态文件缺失:")
+        for f in missing_files:
+            print(f"   - static/{f}")
+        print("=" * 60)
+    
     app = Flask(__name__, static_folder=static_folder)
     app.config.from_object(FlaskConfig)
     

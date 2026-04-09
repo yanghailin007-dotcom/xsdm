@@ -44,10 +44,16 @@ def main():
     # 2. 检查关键目录
     print("\n[2] Checking directories...")
     checks.append(check_dir("web/templates", "Templates directory"))
-    checks.append(check_dir("web/static", "Static files directory"))
+    checks.append(check_dir("static", "Static files directory"))
     checks.append(check_dir("prompt_packages", "Prompt packages directory"))
     checks.append(check_dir("小说项目", "Novels directory"))
     checks.append(check_dir("data", "Data directory"))
+    
+    # 🔥 检查是否存在错误的 web/static 目录
+    if os.path.exists("web/static"):
+        print("\n⚠️  WARNING: Found incorrect directory 'web/static/'")
+        print("   Static files should be in 'static/' (project root), not 'web/static/'")
+        checks.append((False, "Directory check", "web/static should not exist"))
     
     # 3. 检查关键代码文件
     print("\n[3] Checking critical code files...")

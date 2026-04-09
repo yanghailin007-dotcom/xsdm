@@ -8,12 +8,37 @@ Dialog Polish Manager
 
 import json
 import logging
+import os
 from typing import Dict, List, Optional, Any, Callable
 from dataclasses import dataclass, field
 from datetime import datetime
 from enum import Enum
 
 logger = logging.getLogger(__name__)
+
+# 全局配置缓存
+_dialog_polish_config = None
+
+def _load_dialog_polish_config() -> Dict:
+    """加载对话打磨配置"""
+    global _dialog_polish_config
+    if _dialog_polish_config is not None:
+        return _dialog_polish_config
+    
+    config_path = os.path.join(
+        os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(__file__)))),
+        'config', 'dialog_polish_config.json'
+    )
+    
+    try:
+        with open(config_path, 'r', encoding='utf-8') as f:
+            _dialog_polish_config = json.load(f)
+            logger.info(f"[DialogPolishManager] 配置加载成功: {config_path}")
+            return _dialog_polish_config
+    except Exception as e:
+        logger.error(f"[DialogPolishManager] 配置加载失败: {e}")
+        _dialog_polish_config = {}
+        return _dialog_polish_config
 
 
 class DialogRoundType(Enum):
@@ -86,6 +111,9 @@ class DialogPolishManager:
     5. 准备数据供AI评估
     """
     
+    # 类级别的AI生成配置缓存，避免重复调用AI
+    _genre_config_cache: Dict[str, Dict] = {}
+    
     def __init__(self, genre: str, tropes: Dict, api_client=None):
         self.session_id = f"DPM-{datetime.now().strftime('%Y%m%d%H%M%S')}"
         self.genre = genre
@@ -100,6 +128,145 @@ class DialogPolishManager:
         self.trope_framework = self._extract_trope_framework()
         
         logger.info(f"[对话打磨 {self.session_id}] 初始化 | 题材: {genre}")
+    
+    def _generate_genre_config_with_ai(self, genre: str) -> Dict:
+        """
+        使用AI为未知题材生成配置
+        
+        Args:
+            genre: 题材名称，如 "读心术-吐槽反差类"
+            
+        Returns:
+            包含 protagonist_options, golden_finger_options, plot_details 的配置字典
+        """
+        if not self.api_client:
+            logger.warning(f"[对话打磨 {self.session_id}] API客户端未初始化，无法为题材 '{genre}' 生成AI配置")
+            return {}
+        
+        # 检查缓存
+        if genre in DialogPolishManager._genre_config_cache:
+            logger.info(f"[对话打磨 {self.session_id}] 命中题材配置缓存: '{genre}'")
+            return DialogPolishManager._genre_config_cache[genre]
+        
+        logger.info(f"[对话打磨 {self.session_id}] 使用AI为题材 '{genre}' 生成配置")
+        
+        prompt = f"""你是一位资深网文编辑，擅长分析小说题材和创作套路。
+
+请为以下题材生成创作配置：
+
+**题材名称：** {genre}
+
+请根据该题材的特点，生成以下内容：
+
+1. **主角性格选项**（5个选项）：
+   - 每个选项需要包含：id, label（带emoji）, market_score（0-100）, risk（低/中/高）
+   - 选项要体现该题材的差异化方向
+
+2. **题材特定描述**（对应5个主角性格）：
+   - 每个性格在该题材下的具体表现描述
+
+3. **金手指选项**（5个选项）：
+   - 每个选项需要包含：id, label（带emoji）, description, market_score
+   - 要有该题材特色的限制条件或代价
+
+4. **开局设计选项**（4个选项）：
+   - 经典开局、意外入局、复仇归来、被迫参加
+   - 每个选项需要包含：id, label（带emoji）, description, hook_strength, familiarity
+
+请输出标准JSON格式：
+{{
+    "protagonist_descriptions": {{
+        "calm": "冷静理智型在该题材的表现...",
+        "talkative": "话痨吐槽型在该题材的表现...",
+        "lazy": "佛系摆烂型在该题材的表现...",
+        "crazy": "疯批乐子型在该题材的表现...",
+        "antihero": "反英雄型在该题材的表现..."
+    }},
+    "golden_finger_options": [
+        {{
+            "id": "unique_option_1",
+            "label": "🎯 选项名称",
+            "description": "详细描述该金手指的特点和限制",
+            "combo_effect": "与主角性格的联动效果",
+            "market_score": 75
+        }},
+        ...（共5个）
+    ],
+    "plot_details": [
+        {{
+            "id": "classic",
+            "label": "📖 经典开局",
+            "description": "该题材经典开局的具体描述",
+            "hook_strength": "★★★☆☆",
+            "familiarity": "高（读者容易接受）"
+        }},
+        ...（共4个：classic, unexpected, revenge, forced）
+    ]
+}}
+
+要求：
+1. 所有内容必须贴合题材 '{genre}' 的特点
+2. 主角性格和金手指要有联动效果
+3. 选项要有差异化，避免同质化
+4. 返回的JSON必须有效且完整"""
+
+        try:
+            response = self.api_client.generate_content_with_retry(
+                content_type="genre_config_generation",
+                user_prompt=prompt,
+                temperature=0.8
+            )
+            
+            if response:
+                import json
+                import re
+                # 提取JSON部分
+                json_match = re.search(r'\{[\s\S]*\}', str(response))
+                if json_match:
+                    result = json.loads(json_match.group())
+                    # 验证必要字段
+                    if all(k in result for k in ["protagonist_descriptions", "golden_finger_options", "plot_details"]):
+                        # 缓存结果
+                        DialogPolishManager._genre_config_cache[genre] = result
+                        logger.info(f"[对话打磨 {self.session_id}] AI成功为题材 '{genre}' 生成配置")
+                        return result
+                    else:
+                        logger.warning(f"[对话打磨 {self.session_id}] AI生成的配置缺少必要字段")
+        except Exception as e:
+            logger.error(f"[对话打磨 {self.session_id}] AI生成题材配置失败: {e}")
+        
+        return {}
+    
+    def _is_config_incomplete(self, config: Dict, step: str) -> bool:
+        """
+        检查配置是否不完整
+        
+        Args:
+            config: 配置字典
+            step: 步骤名称 (protagonist, golden_finger, plot_details)
+            
+        Returns:
+            如果配置为空或不完整返回True
+        """
+        if not config:
+            return True
+            
+        if step == "protagonist":
+            # 检查是否有有效的descriptions
+            descriptions = config.get("descriptions", {})
+            return not descriptions or len(descriptions) < 3
+            
+        elif step == "golden_finger":
+            # 检查是否有有效的options列表
+            options = config.get("options", [])
+            return not options or len(options) < 2
+            
+        elif step == "plot_details":
+            # 检查是否有有效的options列表
+            options = config.get("options", [])
+            return not options or len(options) < 2
+            
+        return False
     
     def _extract_trope_framework(self) -> Dict:
         """从爆款分析中提取框架信息"""
@@ -117,13 +284,27 @@ class DialogPolishManager:
         """
         根据题材返回常见人设描述
         不同题材有不同的主流主角性格
+        优先从JSON配置加载，失败则使用内置映射
         """
-        genre = self.genre.lower()
+        # 🔥 清理 genre，去除前后空格
+        raw_genre = self.genre.strip() if self.genre else ""
+        genre_lower = raw_genre.lower()
         
         # 🔥 调试日志
-        logger.info(f"[_get_genre_protagonist_data] 原始题材: {self.genre}, 转小写: {genre}")
+        logger.info(f"[_get_genre_protagonist_data] 原始题材: '{self.genre}' -> 清理后: '{raw_genre}'")
         
-        # 题材到常见人设的映射（与UI上的题材列表匹配）
+        # 从JSON配置加载
+        config = _load_dialog_polish_config()
+        genre_mappings = config.get("genre_mappings", {})
+        protagonist_data = genre_mappings.get("protagonist_data", {})
+        
+        # 首先尝试从配置完整匹配
+        if raw_genre in protagonist_data:
+            result = protagonist_data[raw_genre]
+            logger.info(f"[_get_genre_protagonist_data] 配置完整匹配成功: '{raw_genre}' -> {result}")
+            return result
+        
+        # 内置映射作为后备（与UI上的题材列表匹配）
         protagonist_data_map = {
             # 神豪类
             "神豪文-花钱返利类": "张扬霸气型（市场占比40%，完读率15%）",
@@ -201,14 +382,13 @@ class DialogPolishManager:
             "无限流": "冷静适应型（市场占比36%，完读率14%）",
         }
         
-        # 首先尝试完整匹配
-        if self.genre in protagonist_data_map:
-            result = protagonist_data_map[self.genre]
-            logger.info(f"[_get_genre_protagonist_data] 完整匹配成功: {self.genre} -> {result}")
+        # 首先尝试完整匹配（使用清理后的 genre）
+        if raw_genre in protagonist_data_map:
+            result = protagonist_data_map[raw_genre]
+            logger.info(f"[_get_genre_protagonist_data] 内置完整匹配成功: '{raw_genre}' -> {result}")
             return result
         
         # 🔥 尝试匹配题材关键词（按优先级排序，优先匹配更具体的）
-        # 优先顺序：完整题材名 > 主要题材关键词
         priority_keywords = [
             # 神豪类（高优先级）
             "神豪文-花钱返利类", "神豪文-签到奖励类", "神豪文", "神豪",
@@ -230,160 +410,96 @@ class DialogPolishManager:
             "文娱文-文抄公类", "文娱",
             "盗墓文-探险寻宝类", "盗墓",
             "综漫文-无限流类", "综漫", "无限流",
-            # 多子多福类（低优先级，避免与神豪冲突）
             "多子多福", "多子",
         ]
         
         for key in priority_keywords:
-            if key in genre:
+            if key in genre_lower:
                 value = protagonist_data_map.get(key)
                 if value:
-                    logger.info(f"[_get_genre_protagonist_data] 优先级匹配成功: {key} in {genre} -> {value}")
+                    logger.info(f"[_get_genre_protagonist_data] 内置优先级匹配成功: {key} -> {value}")
                     return value
         
-        # 兜底：遍历所有关键词（保持原有逻辑）
+        # 兜底：遍历所有关键词
         for key, value in protagonist_data_map.items():
-            if key in genre:
-                logger.info(f"[_get_genre_protagonist_data] 兜底匹配成功: {key} in {genre} -> {value}")
+            if key in genre_lower:
+                logger.info(f"[_get_genre_protagonist_data] 内置兜底匹配成功: {key} -> {value}")
                 return value
         
-        # 默认返回通用描述
-        logger.info(f"[_get_genre_protagonist_data] 使用默认描述")
-        return "冷静理智型（市场占比约35%，完读率约13%）"
+        # 使用配置的默认描述或内置默认
+        default = protagonist_data.get("default", "冷静理智型（市场占比约35%，完读率约13%）")
+        logger.info(f"[_get_genre_protagonist_data] 使用默认描述: {default}")
+        return default
     
     def _get_genre_golden_finger_data(self) -> str:
         """
         根据题材返回常见金手指描述
         不同题材有不同的主流金手指类型
+        优先从JSON配置加载，失败则使用内置映射
         """
-        genre = self.genre.lower()
+        # 🔥 清理 genre，去除前后空格
+        raw_genre = self.genre.strip() if self.genre else ""
+        genre_lower = raw_genre.lower()
         
-        # 题材到常见金手指的映射（与UI上的题材列表匹配）
+        # 从JSON配置加载
+        config = _load_dialog_polish_config()
+        genre_mappings = config.get("genre_mappings", {})
+        gf_data = genre_mappings.get("golden_finger_data", {})
+        
+        # 首先尝试从配置完整匹配
+        if raw_genre in gf_data:
+            result = gf_data[raw_genre]
+            logger.info(f"[_get_genre_golden_finger_data] 配置完整匹配成功: '{raw_genre}'")
+            return result
+        
+        # 内置映射作为后备
         gf_data_map = {
-            # 神豪类
             "神豪文-花钱返利类": "该题材常见金手指：花钱返利系统，消费越多赚得越多（市场占比50%，已略显套路化）",
             "神豪文-签到奖励类": "该题材常见金手指：每日签到获得随机奖励，积少成多（市场占比45%，发展成熟）",
             "神豪": "该题材常见金手指：花钱返利系统，消费越多赚得越多（市场占比50%，已略显套路化）",
-            
-            # 国运类
             "国运文-直播类": "该题材常见金手指：绑定国运，代表国家参赛获得神级能力（市场占比45%，同质化严重）",
             "国运文-禁地探险类": "该题材常见金手指：获得探险能力或禁地地图，为国争光（市场占比42%，竞争激烈）",
             "国运": "该题材常见金手指：绑定国运，代表国家参赛获得神级能力（市场占比45%，同质化严重）",
-            
-            # 签到类
             "签到文-日常签到类": "该题材常见金手指：日常签到获得各种奖励，轻松变强（市场占比40%，经典套路）",
             "签到": "该题材常见金手指：日常签到获得各种奖励，轻松变强（市场占比40%，经典套路）",
-            
-            # 奶爸类
             "奶爸文-萌宝类": "该题材常见金手指：萌宝自带特殊能力或系统，辅助主角（市场占比38%，蓝海市场）",
-            "奶爸文-修炼类": "该题材常见金手指：带娃同时获得修炼资源或特殊传承（市场占比35%，双重爽点）",
             "奶爸": "该题材常见金手指：萌宝自带特殊能力或系统，辅助主角（市场占比38%，蓝海市场）",
-            
-            # 神选类
-            "神选文-神明选拔类": "该题材常见金手指：被神明选中，获得神级能力或神器（市场占比43%，读者期待高）",
-            "神选": "该题材常见金手指：被神明选中，获得神级能力或神器（市场占比43%，读者期待高）",
-            
-            # 模拟器类
-            "模拟器文-人生模拟类": "该题材常见金手指：人生模拟器，可以预知未来或模拟不同选择（市场占比41%，新颖设定）",
-            "模拟器": "该题材常见金手指：人生模拟器，可以预知未来或模拟不同选择（市场占比41%，新颖设定）",
-            
-            # 灵气复苏类
-            "灵气复苏-觉醒类": "该题材常见金手指：灵气复苏时代觉醒特殊能力或天赋（市场占比47%，竞争激烈）",
-            "灵气复苏": "该题材常见金手指：灵气复苏时代觉醒特殊能力或天赋（市场占比47%，竞争激烈）",
-            
-            # 末日类
             "末日求生-囤货类": "该题材常见金手指：重生或预知末日，提前大量囤货（市场占比44%，实用主义）",
             "末日": "该题材常见金手指：重生或空间能力，提前囤货或收集资源（市场占比44%，实用主义）",
-            
-            # 四合院类
-            "四合院-日常类": "该题材常见金手指：穿越四合院，利用现代知识或系统改善生活（市场占比39%，怀旧向）",
-            "四合院": "该题材常见金手指：穿越四合院，利用现代知识或系统改善生活（市场占比39%，怀旧向）",
-            
-            # 诡异类
             "诡异复苏-规则怪谈类": "该题材常见金手指：可以看到规则漏洞或免疫诡异污染（市场占比46%，恐怖求生）",
             "诡异": "该题材常见金手指：可以看到规则漏洞或免疫诡异污染（市场占比46%，恐怖求生）",
-            
-            # 游戏异界类
-            "游戏异界-虚拟现实类": "该题材常见金手指：游戏系统与现实融合，或获得唯一隐藏职业（市场占比48%，热门设定）",
-            "游戏异界": "该题材常见金手指：游戏系统与现实融合，或获得唯一隐藏职业（市场占比48%，热门设定）",
-            "虚拟现实": "该题材常见金手指：游戏系统与现实融合，或获得唯一隐藏职业（市场占比48%，热门设定）",
-            
-            # 美食类
-            "美食文-系统烹饪类": "该题材常见金手指：美食系统，通过烹饪获得能力或buff（市场占比37%，轻食向）",
-            "美食": "该题材常见金手指：美食系统，通过烹饪获得能力或buff（市场占比37%，轻食向）",
-            
-            # 宠物/御兽类
-            "宠物文-御兽进化类": "该题材常见金手指：契约宠物可以无限进化或获得稀有血脉（市场占比42%，养成系）",
-            "宠物": "该题材常见金手指：契约宠物可以无限进化或获得稀有血脉（市场占比42%，养成系）",
-            "御兽": "该题材常见金手指：契约宠物可以无限进化或获得稀有血脉（市场占比42%，养成系）",
-            
-            # 历史架空类
-            "历史架空-权谋争霸类": "该题材常见金手指：穿越先知或现代知识，在乱世中崛起（市场占比36%，智商向）",
-            "历史架空": "该题材常见金手指：穿越先知或现代知识，在乱世中崛起（市场占比36%，智商向）",
-            "权谋": "该题材常见金手指：穿越先知或现代知识，在乱世中崛起（市场占比36%，智商向）",
-            
-            # 文娱类
-            "文娱文-文抄公类": "该题材常见金手指：穿越平行世界，搬运地球文娱作品（市场占比40%，文抄公套路）",
-            "文娱": "该题材常见金手指：穿越平行世界，搬运地球文娱作品（市场占比40%，文抄公套路）",
-            
-            # 盗墓类
-            "盗墓文-探险寻宝类": "该题材常见金手指：获得盗墓传承或特殊能力，探寻古墓秘密（市场占比38%，探险向）",
-            "盗墓": "该题材常见金手指：获得盗墓传承或特殊能力，探寻古墓秘密（市场占比38%，探险向）",
-            
-            # 综漫/无限流类
-            "综漫文-无限流类": "该题材常见金手指：可以穿越诸天万界，或抽取动漫能力（市场占比45%，综漫向）",
-            "综漫": "该题材常见金手指：可以穿越诸天万界，或抽取动漫能力（市场占比45%，综漫向）",
-            "无限流": "该题材常见金手指：可以穿越诸天万界，或抽取动漫能力（市场占比45%，综漫向）",
         }
         
-        # 首先尝试完整匹配
-        if self.genre in gf_data_map:
-            result = gf_data_map[self.genre]
-            logger.info(f"[_get_genre_golden_finger_data] 完整匹配成功: {self.genre}")
+        # 首先尝试完整匹配（使用清理后的 genre）
+        if raw_genre in gf_data_map:
+            result = gf_data_map[raw_genre]
+            logger.info(f"[_get_genre_golden_finger_data] 内置完整匹配成功: '{raw_genre}'")
             return result
         
-        # 🔥 尝试匹配题材关键词（按优先级排序）
+        # 🔥 尝试匹配题材关键词
         priority_keywords = [
-            # 神豪类（高优先级）
-            "神豪文-花钱返利类", "神豪文-签到奖励类", "神豪文", "神豪",
-            # 国运类
-            "国运文-直播类", "国运文-禁地探险类", "国运文", "国运",
-            # 其他类别...
-            "奶爸文-萌宝类", "奶爸文-修炼类", "奶爸",
-            "签到文-日常签到类", "签到",
-            "末日求生-囤货类", "末日",
-            "诡异复苏-规则怪谈类", "诡异",
-            "游戏异界-虚拟现实类", "游戏异界", "虚拟现实",
-            "宠物文-御兽进化类", "宠物", "御兽",
-            "历史架空-权谋争霸类", "历史架空", "权谋",
-            "灵气复苏-觉醒类", "灵气复苏",
-            "模拟器文-人生模拟类", "模拟器",
-            "神选文-神明选拔类", "神选",
-            "四合院-日常类", "四合院",
-            "美食文-系统烹饪类", "美食",
-            "文娱文-文抄公类", "文娱",
-            "盗墓文-探险寻宝类", "盗墓",
-            "综漫文-无限流类", "综漫", "无限流",
-            # 多子多福类（低优先级）
-            "多子多福", "多子",
+            "神豪文-花钱返利类", "神豪文-签到奖励类", "神豪",
+            "国运文-直播类", "国运文-禁地探险类", "国运",
+            "签到", "奶爸", "末日", "诡异",
         ]
         
         for key in priority_keywords:
-            if key in genre:
+            if key in genre_lower:
                 value = gf_data_map.get(key)
                 if value:
-                    logger.info(f"[_get_genre_golden_finger_data] 优先级匹配成功: {key}")
+                    logger.info(f"[_get_genre_golden_finger_data] 内置优先级匹配成功: {key}")
                     return value
         
         # 兜底：遍历所有关键词
         for key, value in gf_data_map.items():
-            if key in genre:
-                logger.info(f"[_get_genre_golden_finger_data] 兜底匹配成功: {key}")
+            if key in genre_lower:
+                logger.info(f"[_get_genre_golden_finger_data] 内置兜底匹配成功: {key}")
                 return value
         
-        # 默认返回通用描述
+        # 使用配置的默认描述或内置默认
+        default = gf_data.get("default", "该题材常见金手指：直接获得能力，无副作用（市场占比40%，但同质化严重）")
         logger.info(f"[_get_genre_golden_finger_data] 使用默认描述")
-        return "该题材常见金手指：直接获得能力，无副作用（市场占比40%，但同质化严重）"
+        return default
     
     def start_dialog(self) -> Dict:
         """
@@ -530,6 +646,58 @@ class DialogPolishManager:
             # 结束对话
             return self._finish_dialog()
     
+    def _get_protagonist_options(self) -> List[Dict]:
+        """
+        根据题材返回差异化的主角性格选项
+        不同题材有不同的特色描述
+        从JSON配置加载，如果不完整则使用AI生成
+        """
+        genre = self.genre.strip() if self.genre else ""
+        
+        # 加载JSON配置
+        config = _load_dialog_polish_config()
+        step_config = config.get("steps", {}).get("step_2_protagonist", {})
+        
+        # 获取基础选项
+        base_options = step_config.get("base_options", {})
+        
+        # 获取题材特定描述或默认描述
+        genre_specific = step_config.get("genre_specific", {})
+        descriptions = None
+        genre_config = None
+        
+        # 首先尝试精确匹配
+        if genre in genre_specific:
+            genre_config = genre_specific[genre]
+            descriptions = genre_config.get("descriptions", {})
+        else:
+            # 尝试关键词匹配
+            for genre_key, genre_data in genre_specific.items():
+                if genre_key in genre:
+                    genre_config = genre_data
+                    descriptions = genre_data.get("descriptions", {})
+                    break
+        
+        # 如果配置不完整，尝试使用AI生成
+        if self._is_config_incomplete({"descriptions": descriptions}, "protagonist"):
+            ai_config = self._generate_genre_config_with_ai(genre)
+            if ai_config and "protagonist_descriptions" in ai_config:
+                descriptions = ai_config["protagonist_descriptions"]
+                logger.info(f"[对话打磨 {self.session_id}] 使用AI生成的 protagonist 描述")
+        
+        # 如果仍然没有描述，使用默认描述
+        if not descriptions:
+            descriptions = step_config.get("default_descriptions", {})
+        
+        # 构建选项列表
+        result = []
+        for option_id, base_option in base_options.items():
+            option = dict(base_option)
+            option["description"] = descriptions.get(option_id, "")
+            result.append(option)
+        
+        return result
+    
     def _round_protagonist_type(self, prev_choice: str, custom: str = None) -> Dict:
         """第二轮：主角性格选择"""
         logger.info(f"[对话打磨 {self.session_id}] 进入第二轮：主角性格")
@@ -540,7 +708,7 @@ class DialogPolishManager:
         # 🔥 记录主角性格到 protagonist 字段（包含自定义输入）
         protagonist_map = {
             "calm": "冷静理智型",
-            "talkative": "话瘘吐槽型",
+            "talkative": "话痨吐槽型",
             "lazy": "佛系摆烂型",
             "crazy": "疯批乐子型",
             "antihero": "反英雄型"
@@ -551,44 +719,8 @@ class DialogPolishManager:
         else:
             self.creative_draft.protagonist = base_protagonist
         
-        # 构建选项
-        options = [
-            {
-                "id": "calm",
-                "label": "🧊 冷静理智型",
-                "description": "传统稳健选择，市场验证度高",
-                "market_score": 85,
-                "risk": "低"
-            },
-            {
-                "id": "talkative",
-                "label": "🗣️ 话痨吐槽型",
-                "description": "直播变单口相声，反差萌",
-                "market_score": 78,
-                "risk": "中"
-            },
-            {
-                "id": "lazy",
-                "label": "😴 佛系摆烂型",
-                "description": "被迫营业，越不想火越火",
-                "market_score": 65,
-                "risk": "中"
-            },
-            {
-                "id": "crazy",
-                "label": "🤪 疯批乐子型",
-                "description": "不按常理出牌，读者猜不到",
-                "market_score": 55,
-                "risk": "高"
-            },
-            {
-                "id": "antihero",
-                "label": "😈 反英雄型",
-                "description": "看似自私冷漠，实际另有深意",
-                "market_score": 70,
-                "risk": "中"
-            }
-        ]
+        # 🔥 根据题材动态获取选项
+        options = self._get_protagonist_options()
         
         # 🔥 根据题材动态调整常见人设描述
         genre_protagonist_data = self._get_genre_protagonist_data()
@@ -616,6 +748,72 @@ class DialogPolishManager:
         
         return self._format_round_response(round_data)
     
+    def _get_golden_finger_options(self, protagonist: str) -> List[Dict]:
+        """
+        根据题材返回差异化的金手指选项
+        不同题材有不同的特色限制和代价
+        从JSON配置加载，如果不完整则使用AI生成
+        """
+        genre = self.genre.strip() if self.genre else ""
+        
+        # 加载JSON配置
+        config = _load_dialog_polish_config()
+        step_config = config.get("steps", {}).get("step_3_golden_finger", {})
+        
+        # 获取基础选项
+        base_options = step_config.get("base_options", [])
+        
+        # 处理combo_effect_template
+        processed_base_options = []
+        for option in base_options:
+            processed_option = dict(option)
+            if "combo_effect_template" in processed_option:
+                processed_option["combo_effect"] = processed_option.pop("combo_effect_template").format(protagonist=protagonist)
+            processed_base_options.append(processed_option)
+        
+        # 获取题材特定选项或默认选项
+        genre_specific = step_config.get("genre_specific", {})
+        specific_options = None
+        
+        # 首先尝试精确匹配
+        if genre in genre_specific:
+            specific_options = genre_specific[genre]
+        else:
+            # 尝试关键词匹配
+            for genre_key, genre_data in genre_specific.items():
+                if genre_key in genre:
+                    specific_options = genre_data
+                    break
+        
+        # 如果配置不完整，尝试使用AI生成
+        if self._is_config_incomplete({"options": specific_options}, "golden_finger"):
+            ai_config = self._generate_genre_config_with_ai(genre)
+            if ai_config and "golden_finger_options" in ai_config:
+                ai_options = ai_config["golden_finger_options"]
+                # 处理combo_effect中的 protagonist 占位符
+                processed_ai_options = []
+                for option in ai_options:
+                    processed_option = dict(option)
+                    if "combo_effect" in processed_option:
+                        processed_option["combo_effect"] = processed_option["combo_effect"].format(protagonist=protagonist)
+                    processed_ai_options.append(processed_option)
+                specific_options = processed_ai_options
+                logger.info(f"[对话打磨 {self.session_id}] 使用AI生成的 golden_finger 选项")
+        
+        # 如果仍然没有匹配到，使用默认选项
+        if not specific_options:
+            specific_options = step_config.get("default_options", [])
+        
+        # 处理题材特定选项中的combo_effect_template
+        processed_specific_options = []
+        for option in specific_options:
+            processed_option = dict(option)
+            if "combo_effect_template" in processed_option:
+                processed_option["combo_effect"] = processed_option.pop("combo_effect_template").format(protagonist=protagonist)
+            processed_specific_options.append(processed_option)
+        
+        return processed_base_options + processed_specific_options
+    
     def _round_golden_finger(self, prev_choice: str, custom: str = None) -> Dict:
         """第三轮：金手指设定"""
         logger.info(f"[对话打磨 {self.session_id}] 进入第三轮：金手指")
@@ -632,43 +830,8 @@ class DialogPolishManager:
         if custom:
             self.creative_draft.protagonist += f"（自定义：{custom}）"
         
-        options = [
-            {
-                "id": "side_effect_memory",
-                "label": "🧠 记忆消失代价",
-                "description": "每次使用能力会随机遗忘一段记忆",
-                "combo_effect": f"与{self.creative_draft.protagonist}结合：能力越强越孤独，反差感强",
-                "market_score": 75
-            },
-            {
-                "id": "side_effect_body",
-                "label": "💀 身体衰弱代价",
-                "description": "力量越强，现实中的身体越虚弱",
-                "combo_effect": "悲剧英雄路线，需配合轻松桥段",
-                "market_score": 60
-            },
-            {
-                "id": "restriction_name",
-                "label": "📝 真名限制",
-                "description": "必须知道对方真名才能发动能力",
-                "combo_effect": "增加智斗成分，信息战",
-                "market_score": 70
-            },
-            {
-                "id": "restriction_hostility",
-                "label": "😠 敌意触发",
-                "description": "需要对方先对主角产生敌意才能发动",
-                "combo_effect": "被动反击流，被挑衅后爆发",
-                "market_score": 72
-            },
-            {
-                "id": "unique_audience",
-                "label": "📺 观众互动型",
-                "description": "直播观众弹幕可以影响能力效果",
-                "combo_effect": f"与{self.creative_draft.protagonist}的直播场景完美契合",
-                "market_score": 80
-            }
-        ]
+        # 🔥 根据题材动态获取选项
+        options = self._get_golden_finger_options(self.creative_draft.protagonist)
         
         # 🔥 根据题材动态调整常见金手指描述
         genre_gf_data = self._get_genre_golden_finger_data()
@@ -683,7 +846,7 @@ class DialogPolishManager:
 （这样既能保留爽点，又能增加独特性和情感深度）
 
 **你想设计什么样的金手指？**
-（已智能推荐与主角性格契合的选项）"""
+（已智能推荐与主角性格和题材契合的选项）"""
         
         round_data = DialogRound(
             round_num=3,
@@ -701,49 +864,53 @@ class DialogPolishManager:
         """第四轮：剧情细节"""
         logger.info(f"[对话打磨 {self.session_id}] 进入第四轮：剧情细节")
         
-        # 记录金手指选择
-        gf_map = {
-            "side_effect_memory": "记忆消失代价",
-            "side_effect_body": "身体衰弱代价",
-            "restriction_name": "真名限制",
-            "restriction_hostility": "敌意触发",
-            "unique_audience": "观众互动型"
-        }
+        # 记录金手指选择（从JSON配置加载映射）
+        config = _load_dialog_polish_config()
+        step3_config = config.get("steps", {}).get("step_3_golden_finger", {})
+        
+        # 构建选项ID到标签的映射
+        gf_map = {}
+        for option in step3_config.get("base_options", []):
+            gf_map[option["id"]] = option["label"]
+        for genre_options in step3_config.get("genre_specific", {}).values():
+            for option in genre_options:
+                gf_map[option["id"]] = option["label"]
+        for option in step3_config.get("default_options", []):
+            gf_map[option["id"]] = option["label"]
+        
         self.creative_draft.golden_finger = gf_map.get(prev_choice, prev_choice)
         self.creative_draft.golden_finger_type = prev_choice
         if custom:
             self.creative_draft.golden_finger += f"（自定义：{custom}）"
         
-        options = [
-            {
-                "id": "classic",
-                "label": "📖 经典开局",
-                "description": "被选中进入副本，众人轻视，然后展现实力",
-                "hook_strength": "★★★☆☆",
-                "familiarity": "高（读者容易接受）"
-            },
-            {
-                "id": "unexpected",
-                "label": "🎪 意外入局",
-                "description": "以为是参加综艺，结果发现是玩真的",
-                "hook_strength": "★★★★☆",
-                "familiarity": "中（有喜剧效果）"
-            },
-            {
-                "id": "revenge",
-                "label": "🔥 复仇归来",
-                "description": "曾经失败过，这次以新身份重新参加",
-                "hook_strength": "★★★★★",
-                "familiarity": "中（悬念感强）"
-            },
-            {
-                "id": "forced",
-                "label": "😰 被迫参加",
-                "description": "完全不想参加，但被系统/国家强制选中",
-                "hook_strength": "★★★★☆",
-                "familiarity": "中（反差萌）"
-            }
-        ]
+        # 加载step_4_plot_details配置
+        step4_config = config.get("steps", {}).get("step_4_plot_details", {})
+        
+        # 获取题材特定选项或默认选项
+        genre = self.genre.strip() if self.genre else ""
+        genre_specific = step4_config.get("genre_specific", {})
+        options = None
+        
+        # 首先尝试精确匹配
+        if genre in genre_specific:
+            options = genre_specific[genre]
+        else:
+            # 尝试关键词匹配
+            for genre_key, genre_data in genre_specific.items():
+                if genre_key in genre:
+                    options = genre_data
+                    break
+        
+        # 如果配置不完整，尝试使用AI生成
+        if self._is_config_incomplete({"options": options}, "plot_details"):
+            ai_config = self._generate_genre_config_with_ai(genre)
+            if ai_config and "plot_details" in ai_config:
+                options = ai_config["plot_details"]
+                logger.info(f"[对话打磨 {self.session_id}] 使用AI生成的 plot_details 选项")
+        
+        # 如果仍然没有匹配到，使用默认选项
+        if not options:
+            options = step4_config.get("default_options", [])
         
         ai_message = f"""**🎬 第四步：开局设计**
 
@@ -767,6 +934,38 @@ class DialogPolishManager:
         
         return self._format_round_response(round_data)
     
+    def _get_emotion_line_options(self) -> List[Dict]:
+        """
+        根据题材返回差异化的情感线选项
+        不同题材有不同的情感羁绊类型
+        """
+        genre = self.genre.strip() if self.genre else ""
+        
+        # 加载配置
+        config = _load_dialog_polish_config()
+        step_config = config.get("steps", {}).get("step_5_emotion_line", {})
+        
+        # 基础选项（所有题材都适用）
+        base_options = step_config.get("base_options", [])
+        
+        # 题材特定选项
+        genre_specific = step_config.get("genre_specific", {})
+        
+        # 默认选项
+        default_options = step_config.get("default_options", [])
+        
+        # 尝试完整匹配
+        if genre in genre_specific:
+            return base_options + genre_specific[genre]
+        
+        # 尝试关键词匹配
+        for key, options in genre_specific.items():
+            if key in genre:
+                return base_options + options
+        
+        # 兜底：返回基础选项 + 默认选项
+        return base_options + default_options
+    
     def _round_emotion_line(self, prev_choice: str, custom: str = None) -> Dict:
         """第五轮：情感线"""
         logger.info(f"[对话打磨 {self.session_id}] 进入第五轮：情感线")
@@ -776,50 +975,18 @@ class DialogPolishManager:
         if custom:
             self.creative_draft.opening_design += f"（自定义：{custom}）"
         
-        options = [
-            {
-                "id": "sister",
-                "label": "👧 妹妹羁绊",
-                "description": "妹妹是唯一记得/理解他的人，情感核心",
-                "applicability": "适合记忆消失、被遗忘等设定",
-                "tear_jerker_potential": "★★★★★"
-            },
-            {
-                "id": "rival",
-                "label": "⚔️ 宿敌变挚友",
-                "description": "一开始敌对，后来成为最懂他的人",
-                "applicability": "通用，增加人物关系张力",
-                "tear_jerker_potential": "★★★★☆"
-            },
-            {
-                "id": "pet",
-                "label": "🐾 特殊宠物",
-                "description": "宠物有特殊能力，或能感知主角真实状态",
-                "applicability": "适合轻松向、治愈向",
-                "tear_jerker_potential": "★★★☆☆"
-            },
-            {
-                "id": "mentor",
-                "label": "👴 神秘导师",
-                "description": "暗中指导主角，真实身份成谜",
-                "applicability": "适合成长型主角",
-                "tear_jerker_potential": "★★★☆☆"
-            },
-            {
-                "id": "none",
-                "label": "🚫 暂无情感线",
-                "description": "专注主线，情感线后期再展开",
-                "applicability": "快节奏爽文",
-                "tear_jerker_potential": "☆☆☆☆☆"
-            }
-        ]
+        # 🔥 根据题材动态获取情感线选项
+        options = self._get_emotion_line_options()
         
-        ai_message = f"""**💕 第五步：情感副线（可选但推荐）**
+        # 加载配置中的消息模板
+        config = _load_dialog_polish_config()
+        step_config = config.get("steps", {}).get("step_5_emotion_line", {})
+        ai_message = step_config.get("ai_message_template", """**💕 第五步：情感副线（可选但推荐）**
 
 情感线是增强读者粘性的重要手段，能让读者为角色的命运牵肠挂肚。
 
 **你想添加什么样的情感羁绊？**
-（建议选择与当前设定互补的选项）"""
+（建议选择与当前设定互补的选项）""")
         
         round_data = DialogRound(
             round_num=5,
@@ -837,13 +1004,47 @@ class DialogPolishManager:
         """第六轮：AI生成完整方案（书名+大纲）"""
         logger.info(f"[对话打磨 {self.session_id}] 进入第六轮：生成完整方案")
         
-        # 记录情感线
+        # 记录情感线（包含所有题材特定选项）
         emotion_map = {
+            # 基础选项
             "sister": "妹妹是唯一记得他的人，建立深层情感锚点",
             "rival": "宿敌变挚友，亦敌亦友的复杂关系",
             "pet": "特殊宠物伙伴，增加温馨元素",
             "mentor": "神秘导师引导，提供背景深度",
-            "none": "专注事业线，无情感羁绊"
+            "none": "专注事业线，无情感羁绊",
+            # 神豪文选项
+            "secretary": "漂亮能干的秘书/助理，事业伙伴也是红颜知己",
+            "childhood_friend": "青梅竹马，不因贫穷或富贵而改变",
+            "business_rival": "商业对手，最后变成最懂你的人",
+            # 签到文选项
+            "system_guide": "系统精灵/AI助手，亦师亦友",
+            "fellow_signer": "签到伙伴，互相督促共同进步",
+            # 国运文选项
+            "national_fans": "全国人民都是后盾，家国情怀",
+            "comrade": "为国征战的战友，生死与共",
+            "live_stream_partner": "直播搭档，默契配合",
+            # 国运-探险选项
+            "teammate": "探险队友，禁地中的生死之交",
+            "local_guide": "当地向导，熟悉禁地的神秘人",
+            "family_legacy": "家族传承，先辈留下的足迹",
+            # 奶爸文选项
+            "cute_baby": "萌宝互动，最强助攻",
+            "baby_mother": "妻子/前妻，复杂的感情纠葛",
+            "other_parents": "家长群，互助交流",
+            # 末日文选项
+            "survival_team": "求生小队，末日中抱团取暖",
+            "saved_stranger": "救下的幸存者，知恩图报",
+            # 诡异文选项
+            "fellow_survivor": "怪谈同伴，同病相怜",
+            "mysterious_informant": "神秘线人，知道规则漏洞",
+            # 御兽文选项
+            "spirit_pet": "本命灵兽，共同成长",
+            "beast_master_peer": "御兽师同行，切磋交流",
+            # 灵气复苏选项
+            "awakening_companion": "觉醒同伴，惺惺相惜",
+            "ordinary_family": "普通家人，保护他们成为动力",
+            # 其他
+            "neighbor": "邻居日常，互帮互助"
         }
         self.creative_draft.emotion_line = emotion_map.get(prev_choice, prev_choice)
         if custom:
@@ -1047,22 +1248,66 @@ class DialogPolishManager:
         """生成默认方案（AI失败时使用）"""
         protagonist = self.creative_draft.protagonist
         golden_finger = self.creative_draft.golden_finger
+        genre_short = self.genre.split('-')[0] if '-' in self.genre else self.genre
+        
+        # 根据题材类型生成对应的开局场景
+        opening_scenarios = {
+            "国运": f"主角获得{golden_finger}，代表国家出战，震惊全球",
+            "神豪": f"主角获得{golden_finger}，在奢侈品店一掷千金，打脸势利导购",
+            "签到": f"主角获得{golden_finger}，在平凡日常中积累超凡实力",
+            "奶爸": f"主角获得{golden_finger}，为了保护萌宝展现出超强实力",
+            "末日": f"主角获得{golden_finger}，在末日危机中拯救幸存者",
+            "诡异": f"主角获得{golden_finger}，在规则怪谈中破解生死谜题",
+            "灵气": f"主角觉醒{golden_finger}，在灵气复苏时代引领潮流",
+            "御兽": f"主角觉醒{golden_finger}，契约第一只灵兽踏上征途",
+            "盗墓": f"主角获得{golden_finger}，下墓探险发现惊天秘密",
+            "文娱": f"主角获得{golden_finger}，在娱乐圈一作封神",
+        }
+        
+        # 匹配开局场景
+        opening = f"主角获得{golden_finger}，开启逆袭之路"
+        for key, scenario in opening_scenarios.items():
+            if key in self.genre:
+                opening = scenario
+                break
         
         # 根据人设和金手指生成默认书名
-        if "话痨" in protagonist:
-            title = f"绑定吐槽系统后，我在{self.genre.split('-')[0]}无敌了"
-        elif "佛系" in protagonist:
-            title = f"摆烂后，我成了{self.genre.split('-')[0]}最强"
-        elif "疯批" in protagonist:
-            title = f"疯批主角：{self.genre.split('-')[0]}规则破坏者"
+        if "话痨" in protagonist or "吐槽" in protagonist:
+            title = f"绑定吐槽系统后，我在{genre_short}无敌了"
+        elif "佛系" in protagonist or "摆烂" in protagonist:
+            title = f"摆烂后，我成了{genre_short}最强"
+        elif "疯批" in protagonist or "疯狂" in protagonist:
+            title = f"疯批主角：{genre_short}规则破坏者"
+        elif "冷静" in protagonist or "理智" in protagonist:
+            title = f"开局觉醒{golden_finger[:6]}，我靠智商无敌"
         else:
-            title = f"开局觉醒{golden_finger[:6]}..."
+            title = f"开局觉醒{golden_finger[:6]}，我在{genre_short}无敌了"
+        
+        # 根据题材生成爽点和主线
+        if "国运" in self.genre:
+            first_climax = "第3章代表国家出战，碾压敌国选手"
+            main_plot = "从无名小卒到国家英雄，为国争光"
+        elif "神豪" in self.genre:
+            first_climax = "第3章一掷千金，打脸曾经看不起自己的人"
+            main_plot = "花钱如流水，从穷小子到顶级神豪"
+        elif "末日" in self.genre:
+            first_climax = "第3章建立安全据点，收留第一批幸存者"
+            main_plot = "在末日中建立势力，拯救人类文明"
+        elif "诡异" in self.genre:
+            first_climax = "第3章破解诡异规则，成功生还"
+            main_plot = "探索规则怪谈，揭开诡异真相"
+        elif "奶爸" in self.genre:
+            first_climax = "第3章为了保护萌宝，展现超强实力"
+            main_plot = "带娃升级两不误，成为最强奶爸"
+        else:
+            first_climax = "第3章打脸反派，展现实力"
+            main_plot = "从弱小到最强，一路碾压"
         
         return {
             "title": title,
-            "opening": f"主角获得{golden_finger}，首次在国运战中展现",
-            "first_climax": "第3章打脸敌国选手",
-            "main_plot": "从弱小到最强，一路碾压"
+            "opening": opening,
+            "first_climax": first_climax,
+            "main_plot": main_plot
         }
     
     def _generate_default_title(self) -> str:
@@ -1203,6 +1448,7 @@ class DialogPolishManager:
         """格式化轮次响应"""
         return {
             "session_id": self.session_id,
+            "genre": self.genre,
             "round": round_data.round_num,
             "round_type": round_data.round_type.value,
             "ai_message": round_data.ai_message,

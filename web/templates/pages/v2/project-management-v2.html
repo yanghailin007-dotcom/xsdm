@@ -19,34 +19,34 @@
         /* 页面头部 */
         .v2-page-header {
             text-align: center;
-            padding: 40px 0 32px;
+            padding: 20px 0 16px;
         }
         
         .v2-page-header__badge {
             display: inline-flex;
             align-items: center;
             gap: 6px;
-            padding: 6px 14px;
+            padding: 4px 12px;
             background: var(--v2-bg-tertiary);
             border: 1px solid var(--v2-border-default);
             border-radius: 20px;
-            font-size: 13px;
+            font-size: 12px;
             color: var(--v2-text-secondary);
-            margin-bottom: 16px;
+            margin-bottom: 12px;
         }
         
         .v2-page-header__title {
-            font-size: 32px;
+            font-size: 28px;
             font-weight: 700;
             background: linear-gradient(135deg, #fafafa 0%, #a78bfa 50%, #6366f1 100%);
             -webkit-background-clip: text;
             -webkit-text-fill-color: transparent;
             background-clip: text;
-            margin-bottom: 8px;
+            margin-bottom: 4px;
         }
         
         .v2-page-header__subtitle {
-            font-size: 16px;
+            font-size: 14px;
             color: var(--v2-text-secondary);
         }
         
@@ -54,8 +54,8 @@
         .v2-stats-grid {
             display: grid;
             grid-template-columns: repeat(4, 1fr);
-            gap: 16px;
-            margin-bottom: 32px;
+            gap: 12px;
+            margin-bottom: 20px;
         }
         
         @media (max-width: 1024px) {
@@ -73,8 +73,8 @@
         .v2-stat-card {
             background: var(--v2-bg-secondary);
             border: 1px solid var(--v2-border-subtle);
-            border-radius: 16px;
-            padding: 24px;
+            border-radius: 12px;
+            padding: 16px;
             text-align: center;
             transition: all 0.2s ease;
         }
@@ -85,26 +85,26 @@
         }
         
         .v2-stat-card__icon {
-            width: 48px;
-            height: 48px;
+            width: 36px;
+            height: 36px;
             background: linear-gradient(135deg, rgba(99, 102, 241, 0.15), rgba(139, 92, 246, 0.05));
-            border-radius: 12px;
+            border-radius: 10px;
             display: flex;
             align-items: center;
             justify-content: center;
-            font-size: 24px;
-            margin: 0 auto 12px;
+            font-size: 20px;
+            margin: 0 auto 8px;
         }
         
         .v2-stat-card__value {
-            font-size: 32px;
+            font-size: 24px;
             font-weight: 700;
             color: var(--v2-text-primary);
-            margin-bottom: 4px;
+            margin-bottom: 2px;
         }
         
         .v2-stat-card__label {
-            font-size: 14px;
+            font-size: 13px;
             color: var(--v2-text-secondary);
         }
         
@@ -464,7 +464,6 @@
 {% endblock %}
 
 {% block extra_js %}
-    <script src="/static/js/confirm-dialog.js"></script>
     <script>
         // ==================== 项目数据 ====================
         let projectsData = [];
@@ -1135,10 +1134,8 @@
         }
 
         async function deleteProject(projectTitle) {
-            const confirmMsg = typeof I18N !== 'undefined' 
-                ? `Confirm delete project "${projectTitle}"? This cannot be undone.`
-                : `确定要删除项目 "${projectTitle}" 吗？此操作不可撤销，所有相关数据将被永久删除。`;
-            if (!(await Dialog.confirm('确认', confirmMsg.replace(/\n/g, '<br>')))) {
+            const confirmMsg = `确定要删除项目 "<strong style="color: #f1f5f9;">${projectTitle}</strong>" 吗？<br><br><span style="color: #f87171;">⚠️ 此操作不可撤销，所有相关数据将被永久删除。</span>`;
+            if (!(await Dialog.confirm('🗑️ 删除确认', confirmMsg, { confirmClass: 'dialog-btn-danger' }))) {
                 return;
             }
 

@@ -25,80 +25,112 @@
   --transition-slow: 350ms cubic-bezier(0.4, 0, 0.2, 1);
 }
 
-/* ===== Hero 区域 - Apple 风格大字体 + 留白 ===== */
+/* ===== Hero 区域 - 紧凑型居中 ===== */
 .market-hero {
   text-align: center;
-  padding: 80px 24px 64px;
-  background: 
-    radial-gradient(ellipse 80% 50% at 50% -20%, rgba(245, 158, 11, 0.15), transparent),
-    linear-gradient(180deg, var(--bg-warm) 0%, transparent 60%);
-  border-radius: var(--radius-xl);
-  margin-bottom: 16px;
+  padding: 32px 0 24px;
+  margin-bottom: 8px;
   position: relative;
-  overflow: hidden;
-}
-
-.market-hero::before {
-  content: '';
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23f59e0b' fill-opacity='0.03'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E");
-  opacity: 0.5;
-  pointer-events: none;
-}
-
-.market-hero__eyebrow {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  padding: 10px 20px;
-  background: rgba(245, 158, 11, 0.1);
-  backdrop-filter: blur(8px);
-  border: 1px solid rgba(245, 158, 11, 0.2);
-  border-radius: 100px;
-  font-size: 14px;
-  font-weight: 500;
-  color: var(--primary-gold);
-  margin-bottom: 28px;
-  position: relative;
-}
-
-.market-hero__eyebrow .material-icons {
-  font-size: 18px;
-  font-family: 'Material Icons';
-  font-weight: normal;
-  font-style: normal;
-  line-height: 1;
 }
 
 .market-hero__title {
-  font-size: clamp(40px, 6vw, 56px);
-  font-weight: 800;
-  line-height: 1.1;
-  letter-spacing: -0.02em;
-  background: linear-gradient(135deg, #ffffff 0%, #fbbf24 50%, #f59e0b 100%);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
-  margin-bottom: 20px;
-  position: relative;
+  font-size: 32px;
+  font-weight: 700;
+  line-height: 1.3;
+  color: var(--v2-text-primary);
+  margin-bottom: 12px;
 }
 
 .market-hero__subtitle {
-  font-size: 18px;
-  line-height: 1.7;
+  font-size: 14px;
+  line-height: 1.6;
   color: var(--v2-text-secondary);
-  max-width: 560px;
+  max-width: 480px;
   margin: 0 auto;
   font-weight: 400;
 }
 
+/* ===== 男频/女频切换 ===== */
+.gender-tabs {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 20px;
+  padding-bottom: 16px;
+  border-bottom: 1px solid var(--v2-border-subtle);
+}
+
+.gender-tabs__tab {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 10px 20px;
+  border-radius: var(--radius-md);
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  background: var(--v2-bg-tertiary);
+  color: var(--v2-text-secondary);
+  border: 1px solid var(--v2-border-subtle);
+}
+
+.gender-tabs__tab .material-icons {
+  font-size: 18px;
+}
+
+.gender-tabs__tab:hover {
+  background: rgba(245, 158, 11, 0.1);
+  color: var(--primary-gold);
+  border-color: rgba(245, 158, 11, 0.3);
+}
+
+.gender-tabs__tab--active[data-gender="male"] {
+  background: linear-gradient(135deg, #3b82f6, #60a5fa);
+  color: #fff;
+  border-color: #3b82f6;
+}
+
+.gender-tabs__tab--active[data-gender="female"] {
+  background: linear-gradient(135deg, #ec4899, #f472b6);
+  color: #fff;
+  border-color: #ec4899;
+}
+
+/* ===== 新增题材按钮 ===== */
+.section-header__actions {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.btn-add-genre {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 16px;
+  background: transparent;
+  border: 1px dashed var(--v2-text-muted);
+  border-radius: var(--radius-sm);
+  color: var(--v2-text-secondary);
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.btn-add-genre:hover {
+  border-color: var(--primary-gold);
+  color: var(--primary-gold);
+  background: rgba(245, 158, 11, 0.05);
+}
+
+.btn-add-genre .material-icons {
+  font-size: 18px;
+}
+
 /* ===== 区块标题 - 清晰的信息层级 ===== */
 .section-wrapper {
-  padding: 48px 0;
+  padding: 24px 24px 48px;
 }
 
 .section-header {
@@ -497,6 +529,145 @@
   margin-bottom: 8px;
 }
 
+/* ===== 分类筛选标签 - 紧凑型 ===== */
+.genre-filter {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 16px;
+  padding: 0;
+  background: transparent;
+  border: none;
+}
+
+.genre-filter__tag {
+  padding: 6px 14px;
+  border-radius: 100px;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  background: var(--v2-bg-tertiary);
+  color: var(--v2-text-secondary);
+  border: 1px solid var(--v2-border-subtle);
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.genre-filter__tag:hover {
+  background: rgba(245, 158, 11, 0.1);
+  color: var(--primary-gold);
+  border-color: rgba(245, 158, 11, 0.3);
+}
+
+.genre-filter__tag--active {
+  background: linear-gradient(135deg, var(--primary-gold), var(--primary-gold-light));
+  color: #0f172a;
+  border-color: var(--primary-gold);
+}
+
+.genre-filter__count {
+  font-size: 11px;
+  opacity: 0.8;
+  background: rgba(0, 0, 0, 0.15);
+  padding: 1px 5px;
+  border-radius: 8px;
+  margin-left: 2px;
+}
+
+/* ===== 搜索框 - 紧凑型 ===== */
+.genre-search {
+  position: relative;
+  margin-bottom: 16px;
+}
+
+.genre-search__input {
+  width: 100%;
+  max-width: 320px;
+  padding: 10px 14px 10px 40px;
+  background: var(--v2-bg-secondary);
+  border: 1px solid var(--v2-border-subtle);
+  border-radius: var(--radius-md);
+  color: var(--v2-text-primary);
+  font-size: 13px;
+  transition: all var(--transition-fast);
+}
+
+.genre-search__input:focus {
+  outline: none;
+  border-color: var(--primary-gold);
+  box-shadow: 0 0 0 3px rgba(245, 158, 11, 0.1);
+}
+
+.genre-search__icon {
+  position: absolute;
+  left: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--v2-text-muted);
+  font-size: 18px;
+}
+
+/* ===== 分页控制 ===== */
+.genre-pagination {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  margin-top: 32px;
+  padding: 16px;
+}
+
+.genre-pagination__btn {
+  padding: 8px 16px;
+  border-radius: var(--radius-sm);
+  background: var(--v2-bg-secondary);
+  border: 1px solid var(--v2-border-subtle);
+  color: var(--v2-text-secondary);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 14px;
+}
+
+.genre-pagination__btn:hover:not(:disabled) {
+  border-color: var(--primary-gold);
+  color: var(--primary-gold);
+}
+
+.genre-pagination__btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.genre-pagination__btn--active {
+  background: var(--primary-gold);
+  color: #0f172a;
+  border-color: var(--primary-gold);
+}
+
+.genre-pagination__info {
+  font-size: 14px;
+  color: var(--v2-text-secondary);
+  margin: 0 12px;
+}
+
+/* ===== 无结果提示 ===== */
+.genre-empty {
+  text-align: center;
+  padding: 60px 24px;
+  color: var(--v2-text-secondary);
+}
+
+.genre-empty__icon {
+  font-size: 48px;
+  margin-bottom: 16px;
+  opacity: 0.5;
+}
+
 /* ===== 响应式 ===== */
 @media (max-width: 1200px) {
   .genre-grid {
@@ -561,21 +732,24 @@
 {% block content %}
 <div class="v2-project-container">
   
-  <!-- Hero 区域 -->
+  <!-- 页面标题 -->
   <section class="market-hero">
-    <div class="market-hero__eyebrow">
-      <span class="material-icons">trending_up</span>
-      基于番茄小说 Top20 畅销书深度分析
-    </div>
     <h1 class="market-hero__title">市场导向创作</h1>
-    <p class="market-hero__subtitle">
-      不写我想写的，只写市场需要的。<br>
-      选择经过验证的热门题材，AI 自动提取爆款公式
-    </p>
+    <p class="market-hero__subtitle">选择经过验证的热门题材，AI 自动分析该品类的爆款规律</p>
   </section>
 
   <!-- 题材选择区域 -->
   <section class="section-wrapper">
+    <!-- 男频/女频切换 -->
+    <div class="gender-tabs">
+      <span class="gender-tabs__tab gender-tabs__tab--active" data-gender="male" onclick="selectGender('male')">
+        <span class="material-icons">male</span> 男频
+      </span>
+      <span class="gender-tabs__tab" data-gender="female" onclick="selectGender('female')">
+        <span class="material-icons">female</span> 女频
+      </span>
+    </div>
+
     <div class="section-header">
       <div class="section-header__main">
         <div class="section-header__icon">
@@ -583,10 +757,47 @@
         </div>
         <div class="section-header__content">
           <h2 class="section-header__title">选择题材类型</h2>
-          <p class="section-header__desc">以下 20 种题材均经过市场验证，系统会分析该品类的爆款规律</p>
+          <p class="section-header__desc">以下题材均经过市场验证，系统会分析该品类的爆款规律</p>
         </div>
       </div>
-      <div class="section-header__meta">共 20 个品类</div>
+      <div class="section-header__actions">
+        <button class="btn-add-genre" onclick="openAddGenreModal()" title="添加新题材">
+          <span class="material-icons">add</span>
+          <span>新增题材</span>
+        </button>
+        <div class="section-header__meta" id="genre-count">加载中...</div>
+      </div>
+    </div>
+
+    <!-- 搜索框 -->
+    <div class="genre-search">
+      <span class="material-icons genre-search__icon">search</span>
+      <input type="text" class="genre-search__input" id="genre-search" placeholder="搜索题材名称..." oninput="filterGenres()">
+    </div>
+
+    <!-- 分类筛选标签 -->
+    <div class="genre-filter" id="genre-filter">
+      <span class="genre-filter__tag genre-filter__tag--active" data-category="all" onclick="selectCategory('all')">
+        全部 <span class="genre-filter__count" id="count-all">0</span>
+      </span>
+      <span class="genre-filter__tag" data-category="神豪" onclick="selectCategory('神豪')">
+        神豪类 <span class="genre-filter__count" id="count-神豪">0</span>
+      </span>
+      <span class="genre-filter__tag" data-category="国运" onclick="selectCategory('国运')">
+        国运类 <span class="genre-filter__count" id="count-国运">0</span>
+      </span>
+      <span class="genre-filter__tag" data-category="系统" onclick="selectCategory('系统')">
+        系统流 <span class="genre-filter__count" id="count-系统">0</span>
+      </span>
+      <span class="genre-filter__tag" data-category="穿越" onclick="selectCategory('穿越')">
+        穿越类 <span class="genre-filter__count" id="count-穿越">0</span>
+      </span>
+      <span class="genre-filter__tag" data-category="悬疑" onclick="selectCategory('悬疑')">
+        悬疑/诡异 <span class="genre-filter__count" id="count-悬疑">0</span>
+      </span>
+      <span class="genre-filter__tag" data-category="其他" onclick="selectCategory('其他')">
+        其他 <span class="genre-filter__count" id="count-其他">0</span>
+      </span>
     </div>
 
     <div class="genre-grid" id="genre-grid">
@@ -596,10 +807,14 @@
       <div class="genre-skeleton"></div>
       <div class="genre-skeleton"></div>
       <div class="genre-skeleton"></div>
-      <div class="genre-skeleton"></div>
-      <div class="genre-skeleton"></div>
-      <div class="genre-skeleton"></div>
-      <div class="genre-skeleton"></div>
+    </div>
+
+    <!-- 无结果提示 -->
+    <div class="genre-empty" id="genre-empty" style="display: none;">
+      <div class="genre-empty__icon">
+        <span class="material-icons">search_off</span>
+      </div>
+      <div>没有找到匹配的题材</div>
     </div>
   </section>
 
@@ -626,6 +841,22 @@
 {% block extra_js %}
 <script>
 let selectedGenre = null;
+let maleGenres = [];          // 男频题材
+let femaleGenres = [];        // 女频题材
+let filteredGenres = [];      // 当前显示的筛选后题材
+let currentCategory = 'all';  // 当前选中的分类
+let currentGender = 'male';   // 当前选中的性别频道
+let isLoading = false;        // 加载状态
+
+// 分类映射规则
+const categoryRules = {
+  '神豪': ['神豪'],
+  '国运': ['国运'],
+  '系统': ['签到', '神选', '模拟器', '系统'],
+  '穿越': ['四合院', '历史架空', '文娱', '盗墓', '综漫', '无限流'],
+  '悬疑': ['诡异', '规则怪谈', '末日'],
+  '其他': ['奶爸', '灵气复苏', '游戏异界', '美食', '宠物', '御兽']
+};
 
 const icons = {
   "神豪文-花钱返利类": "payments",
@@ -675,13 +906,219 @@ const metaInfo = {
   "综漫文-无限流类": { readers: "75万+", completion: "85%" }
 };
 
-async function loadGenres() {
-  try {
-    const response = await fetch("/api/market-driven/genres");
-    const data = await response.json();
-    if (data.genres) {
-      renderGenres(data.genres);
+function getGenreCategory(genreName) {
+  for (const [category, keywords] of Object.entries(categoryRules)) {
+    if (keywords.some(kw => genreName.includes(kw))) {
+      return category;
     }
+  }
+  return '其他';
+}
+
+function selectGender(gender) {
+  if (isLoading) return;
+  
+  currentGender = gender;
+  currentCategory = 'all';
+  
+  // 更新标签样式
+  document.querySelectorAll('.gender-tabs__tab').forEach(tab => {
+    if (tab.dataset.gender === gender) {
+      tab.classList.add('gender-tabs__tab--active');
+    } else {
+      tab.classList.remove('gender-tabs__tab--active');
+    }
+  });
+  
+  // 重置分类标签
+  document.querySelectorAll('.genre-filter__tag').forEach(tag => {
+    if (tag.dataset.category === 'all') {
+      tag.classList.add('genre-filter__tag--active');
+    } else {
+      tag.classList.remove('genre-filter__tag--active');
+    }
+  });
+  
+  // 清除搜索框
+  document.getElementById('genre-search').value = '';
+  
+  // 切换显示对应性别的题材
+  const genresToShow = gender === 'male' ? maleGenres : femaleGenres;
+  filteredGenres = genresToShow;
+  
+  // 更新分类计数
+  updateCategoryCounts(genresToShow);
+  
+  // 渲染
+  renderGenreCards(filteredGenres);
+}
+
+function updateCategoryCounts(genres) {
+  const counts = { all: genres.length };
+  
+  // 初始化各分类计数
+  Object.keys(categoryRules).forEach(cat => counts[cat] = 0);
+  counts['其他'] = 0;
+  
+  // 统计各分类数量
+  genres.forEach(genre => {
+    const cat = getGenreCategory(genre.name);
+    counts[cat] = (counts[cat] || 0) + 1;
+  });
+  
+  // 更新UI
+  document.getElementById('count-all').textContent = counts.all;
+  Object.keys(categoryRules).forEach(cat => {
+    const el = document.getElementById(`count-${cat}`);
+    if (el) el.textContent = counts[cat] || 0;
+  });
+  document.getElementById('count-其他').textContent = counts['其他'] || 0;
+  document.getElementById('genre-count').textContent = `共 ${counts.all} 个品类`;
+}
+
+function openAddGenreModal() {
+  // 简单的提示，实际项目中应该打开一个模态框
+  const genreName = prompt('请输入新题材名称（格式：主类型-子类型）：\n例如：修仙文-凡人流');
+  if (!genreName || !genreName.trim()) return;
+  
+  const description = prompt('请输入题材描述：\n例如：凡人逐步修炼成仙，资源争夺，弱肉强食');
+  if (!description) return;
+  
+  // 确认新增
+  if (confirm(`确认新增题材？\n\n名称：${genreName}\n描述：${description}\n频道：${currentGender === 'male' ? '男频' : '女频'}`)) {
+    // 调用API新增题材
+    addNewGenre(genreName.trim(), description.trim(), currentGender);
+  }
+}
+
+async function addNewGenre(name, description, gender) {
+  try {
+    const response = await fetch('/api/market-driven/genres', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        name: name,
+        description: description,
+        gender: gender,
+        market_status: 'new'
+      })
+    });
+    
+    const data = await response.json();
+    if (data.success) {
+      alert('题材添加成功！系统将自动为该题材生成配置。');
+      // 刷新当前性别的题材列表
+      const genreResponse = await fetch(`/api/market-driven/genres?gender=${gender}`);
+      const genreData = await genreResponse.json();
+      if (genreData.genres) {
+        if (gender === 'male') {
+          maleGenres = genreData.genres;
+        } else {
+          femaleGenres = genreData.genres;
+        }
+        // 刷新当前显示
+        selectGender(currentGender);
+      }
+    } else {
+      alert('添加失败：' + (data.error || '未知错误'));
+    }
+  } catch (error) {
+    console.error('添加题材失败:', error);
+    alert('添加失败，请检查网络或联系管理员');
+  }
+}
+
+// updateCategoryCounts 已被 updateGenderCategoryCounts 替代
+
+function selectCategory(category) {
+  currentCategory = category;
+  
+  // 更新标签样式
+  document.querySelectorAll('.genre-filter__tag').forEach(tag => {
+    if (tag.dataset.category === category) {
+      tag.classList.add('genre-filter__tag--active');
+    } else {
+      tag.classList.remove('genre-filter__tag--active');
+    }
+  });
+  
+  // 清除搜索框
+  document.getElementById('genre-search').value = '';
+  
+  // 筛选题材
+  filterGenresByCategory(category);
+}
+
+function filterGenresByCategory(category) {
+  currentCategory = category;
+  
+  // 获取当前性别的题材
+  const genderGenres = currentGender === 'male' ? maleGenres : femaleGenres;
+  
+  // 按分类筛选
+  if (category === 'all') {
+    filteredGenres = genderGenres;
+  } else {
+    filteredGenres = genderGenres.filter(genre => {
+      const keywords = categoryRules[category] || [];
+      return keywords.some(kw => genre.name.includes(kw));
+    });
+  }
+  
+  renderGenreCards(filteredGenres);
+}
+
+function filterGenres() {
+  const searchTerm = document.getElementById('genre-search').value.toLowerCase().trim();
+  
+  // 获取当前性别的题材
+  const genderGenres = currentGender === 'male' ? maleGenres : femaleGenres;
+  
+  if (!searchTerm) {
+    // 无搜索词时按当前分类显示
+    if (currentCategory === 'all') {
+      filteredGenres = genderGenres;
+    } else {
+      filteredGenres = genderGenres.filter(genre => {
+        const keywords = categoryRules[currentCategory] || [];
+        return keywords.some(kw => genre.name.includes(kw));
+      });
+    }
+  } else {
+    // 有搜索词时在性别内搜索
+    filteredGenres = genderGenres.filter(genre => 
+      genre.name.toLowerCase().includes(searchTerm) ||
+      (genre.description && genre.description.toLowerCase().includes(searchTerm))
+    );
+  }
+  
+  renderGenreCards(filteredGenres);
+}
+
+async function loadGenres() {
+  isLoading = true;
+  try {
+    // 同时加载男频和女频题材
+    const [maleResponse, femaleResponse] = await Promise.all([
+      fetch("/api/market-driven/genres?gender=male"),
+      fetch("/api/market-driven/genres?gender=female")
+    ]);
+    
+    const maleData = await maleResponse.json();
+    const femaleData = await femaleResponse.json();
+    
+    if (maleData.genres) {
+      maleGenres = maleData.genres;
+    }
+    if (femaleData.genres) {
+      femaleGenres = femaleData.genres;
+    }
+    
+    // 默认显示男频
+    filteredGenres = maleGenres;
+    updateCategoryCounts(maleGenres);
+    renderGenreCards(filteredGenres);
+    
   } catch (error) {
     console.error("加载题材失败:", error);
     document.getElementById("genre-grid").innerHTML = `
@@ -693,14 +1130,28 @@ async function loadGenres() {
         <p>请刷新页面重试</p>
       </div>
     `;
+  } finally {
+    isLoading = false;
   }
 }
 
-function renderGenres(genres) {
+function renderGenreCards(genres) {
   const grid = document.getElementById("genre-grid");
+  const emptyState = document.getElementById("genre-empty");
+  
+  if (genres.length === 0) {
+    grid.style.display = 'none';
+    emptyState.style.display = 'block';
+    return;
+  }
+  
+  grid.style.display = 'grid';
+  emptyState.style.display = 'none';
+  
   grid.innerHTML = genres.map(genre => {
     const icon = icons[genre.name] || "auto_stories";
     const meta = metaInfo[genre.name] || { readers: "--", completion: "--" };
+    const category = getGenreCategory(genre.name);
     
     let badge = "";
     if (genre.market_status === "热门") {
