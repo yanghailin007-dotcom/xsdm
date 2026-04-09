@@ -11,21 +11,24 @@
     <meta http-equiv="Expires" content="0">
     <title>{% block title %}大文娱系统{% endblock %}</title>
     
-    <!-- 防止页面加载时的闪烁 -->
+    <!-- 防止页面加载时的闪烁 - 丝滑淡入动画 -->
     <style>
         /* 页面加载前隐藏内容防止FOUC */
         html {
-            visibility: hidden;
             opacity: 0;
+            will-change: opacity;
         }
         html.loaded {
-            visibility: visible;
             opacity: 1;
-            transition: opacity 0.1s ease;
+            transition: opacity 0.25s cubic-bezier(0.4, 0, 0.2, 1);
         }
-        /* 但是保持背景色一致 */
+        /* 保持背景色一致 */
         html, body {
             background: #0a0a0a;
+        }
+        /* 确保内容不会在加载时跳动 */
+        body {
+            overflow-x: hidden;
         }
     </style>
     
@@ -114,9 +117,14 @@
             }
         }
 
-        // 显示页面（移除防闪烁样式）
+        // 显示页面（丝滑淡入）
         function showPage() {
-            document.documentElement.classList.add('loaded');
+            // 使用双重requestAnimationFrame确保渲染完成
+            requestAnimationFrame(() => {
+                requestAnimationFrame(() => {
+                    document.documentElement.classList.add('loaded');
+                });
+            });
         }
 
         // 所有页面加载完成后应用翻译
@@ -134,16 +142,13 @@
                 });
             }
             
-            // 显示页面（延迟一点确保所有样式都已应用）
-            requestAnimationFrame(() => {
-                setTimeout(showPage, 50);
-            });
+            // 延迟显示等待字体和样式完全加载
+            if (document.fonts) {
+                document.fonts.ready.then(showPage);
+            } else {
+                showPage();
+            }
         });
-        
-        // 备用：如果DOMContentLoaded已经触发，直接显示
-        if (document.readyState === 'complete' || document.readyState === 'interactive') {
-            setTimeout(showPage, 50);
-        }
     </script>
     <script src="{{ url_for('static', filename='js/account-manager.js') }}?v=3"></script>
     <script src="{{ url_for('static', filename='js/dialog.js') }}"></script>
