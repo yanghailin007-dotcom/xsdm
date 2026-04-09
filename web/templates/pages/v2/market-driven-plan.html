@@ -1453,6 +1453,16 @@ async function startGeneration() {
     return;
   }
   
+  // 先显示文风选择器
+  btn.disabled = false;
+  btn.innerHTML = '<span class="material-icons">palette</span>选择文风...';
+  showStyleSelector();
+}
+
+// 真正的生成函数（在选择文风后调用）
+async function doStartGeneration() {
+  const btn = document.getElementById('generate-btn');
+  btn.disabled = true;
   btn.innerHTML = '<span class="material-icons">hourglass_top</span>生成中...';
   
   // 获取表单值
@@ -1819,33 +1829,7 @@ function confirmStyleSelection() {
 
 // 带文风的继续生成
 async function continueGenerationWithStyle() {
-  // 调用原始的startGeneration逻辑，但是已经在showStyleSelector之前保存了formData
-  await startGenerationWithStyle();
-}
-
-// 修改的生成函数
-async function startGenerationWithStyle() {
-  // 这个函数会在原始startGeneration被调用时使用已选择的文风
-  const btn = document.getElementById('generate-btn');
-  btn.disabled = true;
-  btn.innerHTML = '<span class="material-icons">hourglass_top</span>生成中...';
-  
-  // ... 原始代码会在这里继续
-  // 由于复杂度，这里只是占位
-  console.log('使用文风:', selectedWritingStyle);
-  
-  // 重新调用原始函数
-  await startGenerationInternal();
-}
-
-// 原始生成逻辑
-async function startGenerationInternal() {
-  // 这个函数保留给实际实现
-  // 现在先调用原始的startGeneration，但需要修改以包含文风参数
-  console.log('开始生成，文风:', selectedWritingStyle?.name || '默认');
-  
-  // 调用原始的startGeneration
-  // 注意：这需要将startGeneration的代码拆分或修改
+  await doStartGeneration();
 }
 </script>
 {% endblock %}
