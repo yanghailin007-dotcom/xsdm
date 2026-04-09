@@ -1,247 +1,126 @@
-<!-- V2 页脚组件 -->
+<!-- V2 极简页脚 -->
 <footer class="v2-footer">
     <div class="v2-footer__container">
-        <div class="v2-footer__content">
-            <!-- Logo 和简介 -->
-            <div class="v2-footer__brand">
-                <div class="v2-footer__logo">
-                    <span class="v2-footer__logo-icon">✨</span>
-                    <span class="v2-footer__logo-text" data-i18n="app.name.short">大文娱</span>
-                </div>
-                <p class="v2-footer__desc" data-i18n="app.tagline">AI驱动的全能娱乐创作平台，让创作更简单、更高效。</p>
-            </div>
-            
-            <!-- 链接分组 -->
-            <div class="v2-footer__links">
-                <div class="v2-footer__group">
-                    <h4 class="v2-footer__group-title" data-i18n="footer.group.product">产品</h4>
-                    <ul class="v2-footer__group-list">
-                        <li><a href="/novels" class="v2-footer__link" data-i18n="footer.link.novel">小说创作</a></li>
-                        <li><a href="/cover-maker" class="v2-footer__link" data-i18n="footer.link.cover">封面制作</a></li>
-                        <li><a href="/video-generation" class="v2-footer__link" data-i18n="footer.link.video">视频创作</a></li>
-                        <li><a href="/pages/v2/fanqie-upload-v2" class="v2-footer__link">自动发布</a></li>
-                    </ul>
-                </div>
-                
-                <div class="v2-footer__group">
-                    <h4 class="v2-footer__group-title" data-i18n="footer.group.support">支持</h4>
-                    <ul class="v2-footer__group-list">
-                        <li><a href="/help" class="v2-footer__link" data-i18n="footer.link.docs">使用文档</a></li>
-                        <li><a href="/help#faq" class="v2-footer__link" data-i18n="footer.link.faq">常见问题</a></li>
-                        <li><a href="/contact" class="v2-footer__link" data-i18n="footer.link.customerService">联系客服</a></li>
-                    </ul>
-                </div>
-            </div>
+        <!-- 左侧：品牌 -->
+        <div class="v2-footer__brand">
+            <span class="v2-footer__logo-icon">✨</span>
+            <span class="v2-footer__logo-text" data-i18n="app.name.short">大文娱</span>
         </div>
         
-        <!-- 底部版权 -->
-        <div class="v2-footer__bottom">
-            <p class="v2-footer__copyright" data-i18n="footer.copyright">
-                © 2026 大文娱创作平台. All rights reserved.
-            </p>
-            <div class="v2-footer__legal">
-                <a href="/privacy" class="v2-footer__legal-link" data-i18n="footer.privacy">隐私政策</a>
-                <span class="v2-footer__divider">·</span>
-                <a href="/terms" class="v2-footer__legal-link" data-i18n="footer.terms">服务条款</a>
-                <span class="v2-footer__divider">·</span>
-                <a href="/recharge" class="v2-footer__legal-link" data-i18n="footer.link.pro">Pro 会员</a>
-            </div>
+        <!-- 中间：细分功能导航 -->
+        <nav class="v2-footer__nav">
+            <a href="/help" class="v2-footer__link">帮助中心</a>
+            <a href="/recharge" class="v2-footer__link">点数充值</a>
+            <a href="/contact" class="v2-footer__link">联系客服</a>
+        </nav>
+        
+        <!-- 右侧：法律链接 -->
+        <div class="v2-footer__legal">
+            <a href="/privacy" class="v2-footer__link">隐私</a>
+            <span class="v2-footer__divider">·</span>
+            <a href="/terms" class="v2-footer__link">条款</a>
         </div>
     </div>
 </footer>
 
 <style>
-/* V2 页脚样式 */
+/* V2 极简页脚 */
 .v2-footer {
-    background: var(--v2-bg-secondary);
-    border-top: 1px solid var(--v2-border-subtle);
-    padding: var(--v2-space-6) var(--v2-space-8) var(--v2-space-4);
+    background: transparent;
+    border-top: 1px solid var(--v2-border-subtle, rgba(255,255,255,0.06));
+    padding: 0 32px;
     margin-top: auto;
 }
 
 .v2-footer__container {
-    max-width: 1200px;
+    max-width: 1400px;
     margin: 0 auto;
-}
-
-.v2-footer__content {
+    height: 56px;
     display: flex;
+    align-items: center;
     justify-content: space-between;
-    align-items: flex-start;
-    gap: var(--v2-space-8);
-    margin-bottom: var(--v2-space-6);
+    gap: 24px;
 }
 
 /* 品牌区域 */
 .v2-footer__brand {
     display: flex;
-    flex-direction: column;
-    gap: var(--v2-space-3);
-}
-
-.v2-footer__logo {
-    display: flex;
     align-items: center;
-    gap: var(--v2-space-2);
+    gap: 8px;
+    flex-shrink: 0;
 }
 
 .v2-footer__logo-icon {
-    font-size: var(--v2-text-xl);
+    font-size: 16px;
+    opacity: 0.8;
 }
 
 .v2-footer__logo-text {
-    font-size: var(--v2-text-xl);
-    font-weight: var(--v2-font-bold);
-    color: var(--v2-text-primary);
-    letter-spacing: var(--v2-tracking-tight);
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--v2-text-primary, rgba(255,255,255,0.85));
 }
 
-.v2-footer__desc {
-    font-size: var(--v2-text-sm);
-    color: var(--v2-text-secondary);
-    line-height: 1.6;
-    max-width: 260px;
-}
-
-/* 链接区域 */
-.v2-footer__links {
-    display: flex;
-    flex-direction: column;
-    gap: var(--v2-space-6);
-}
-
-/* 产品组 - 横向排列 */
-.v2-footer__links .v2-footer__group:first-child .v2-footer__group-list {
-    display: flex;
-    flex-direction: row;
-    flex-wrap: wrap;
-    gap: var(--v2-space-4);
-}
-
-.v2-footer__links .v2-footer__group:first-child .v2-footer__group-title {
-    display: none; /* 隐藏产品标题，更简洁 */
-}
-
-/* 支持组 */
-.v2-footer__group:last-child {
-    display: flex;
-    flex-direction: row;
-    align-items: center;
-    gap: var(--v2-space-4);
-}
-
-.v2-footer__group:last-child .v2-footer__group-title {
-    margin: 0;
-    font-size: var(--v2-text-xs);
-}
-
-.v2-footer__group:last-child .v2-footer__group-list {
-    display: flex;
-    flex-direction: row;
-    gap: var(--v2-space-4);
-}
-
-.v2-footer__group-title {
-    font-size: var(--v2-text-sm);
-    font-weight: var(--v2-font-semibold);
-    color: var(--v2-text-primary);
-    margin: 0 0 var(--v2-space-4) 0;
-    text-transform: uppercase;
-    letter-spacing: var(--v2-tracking-wide);
-}
-
-.v2-footer__group-list {
-    list-style: none;
-    padding: 0;
-    margin: 0;
-    display: flex;
-    flex-direction: column;
-    gap: var(--v2-space-2);
-}
-
-.v2-footer__link {
-    font-size: var(--v2-text-sm);
-    color: var(--v2-text-secondary);
-    text-decoration: none;
-    transition: color 0.2s ease;
-}
-
-.v2-footer__link:hover {
-    color: var(--v2-text-primary);
-}
-
-/* 禁用状态的链接 */
-.v2-footer__link--disabled {
-    color: var(--v2-text-muted);
-    cursor: not-allowed;
-    opacity: 0.6;
-}
-
-.v2-footer__link--disabled small {
-    font-size: 0.75em;
-    color: var(--v2-text-tertiary);
-    margin-left: 4px;
-}
-
-.v2-footer__link--disabled:hover {
-    color: var(--v2-text-muted);
-}
-
-/* 底部版权 */
-.v2-footer__bottom {
+/* 功能导航 */
+.v2-footer__nav {
     display: flex;
     align-items: center;
-    justify-content: space-between;
-    padding-top: var(--v2-space-6);
-    border-top: 1px solid var(--v2-border-subtle);
+    gap: 24px;
 }
 
-.v2-footer__copyright {
-    font-size: var(--v2-text-sm);
-    color: var(--v2-text-muted);
-    margin: 0;
-}
-
+/* 法律链接 */
 .v2-footer__legal {
     display: flex;
     align-items: center;
-    gap: var(--v2-space-2);
+    gap: 8px;
+    flex-shrink: 0;
 }
 
-.v2-footer__legal-link {
-    font-size: var(--v2-text-sm);
-    color: var(--v2-text-muted);
+.v2-footer__link {
+    font-size: 13px;
+    color: var(--v2-text-secondary, rgba(255,255,255,0.45));
     text-decoration: none;
     transition: color 0.2s ease;
+    white-space: nowrap;
 }
 
-.v2-footer__legal-link:hover {
-    color: var(--v2-text-secondary);
+.v2-footer__link:hover {
+    color: var(--v2-text-primary, rgba(255,255,255,0.9));
 }
 
 .v2-footer__divider {
-    color: var(--v2-text-muted);
+    color: var(--v2-text-muted, rgba(255,255,255,0.25));
+    font-size: 13px;
 }
 
 /* 响应式 */
 @media (max-width: 768px) {
     .v2-footer {
-        padding: var(--v2-space-8) var(--v2-space-4);
+        padding: 0 20px;
     }
     
-    .v2-footer__content {
-        grid-template-columns: 1fr;
-        gap: var(--v2-space-8);
+    .v2-footer__container {
+        height: auto;
+        padding: 16px 0;
+        flex-wrap: wrap;
+        gap: 12px 16px;
     }
     
-    .v2-footer__links {
-        grid-template-columns: repeat(2, 1fr);
+    .v2-footer__nav {
+        order: 3;
+        width: 100%;
+        justify-content: center;
+        gap: 20px;
+    }
+}
+
+@media (max-width: 480px) {
+    .v2-footer__nav {
+        gap: 16px;
     }
     
-    .v2-footer__bottom {
-        flex-direction: column;
-        gap: var(--v2-space-4);
-        text-align: center;
+    .v2-footer__link {
+        font-size: 12px;
     }
 }
 </style>

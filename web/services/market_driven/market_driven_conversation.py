@@ -1096,9 +1096,12 @@ POST /api/v2/prompt-config/component/{step_name}
                 "2. **开局设计** - 第1-3章详细剧本（情绪弧：压抑→震惊→希望）",
                 "3. **金手指细化** - 基于用户描述，细化具体数值和成长曲线",
                 "4. **主角人设** - 生成完整人设",
-                "5. **前30章情绪蓝图** - 只定义每章情绪类型和强度，不定义具体情节\n",
+                "5. **核心冲突** - 故事的主要矛盾和冲突点",
+                "6. **世界观** - 故事发生的世界背景和规则",
+                "7. **推荐标题** - 推荐的书名（可以是用户确定的标题）",
+                "8. **前30章情绪蓝图** - 只定义每章情绪类型和强度，不定义具体情节\n",
                 "## 输出格式（严格JSON）",
-                "返回标准JSON格式，包含: title, opening_design, golden_finger, protagonist, emotion_blueprint\n",
+                "返回标准JSON格式，必须包含以下字段: title, opening_design, golden_finger, protagonist, core_conflict, worldview, recommended_title, emotion_blueprint\n",
                 "**严格要求**：字符串值内部的双引号必须转义为 \\\"，不要返回Markdown代码块\n",
                 "只返回JSON，不要其他说明。"
             ]

@@ -102,8 +102,9 @@ def register_novel_routes(app, manager: NovelGenerationManager):
     # 小说项目管理 API
     @app.route('/api/projects', methods=['GET'])
     def get_novel_projects():
-        """获取所有小说项目"""
+        """获取所有作品（长篇+短篇）"""
         try:
+            # 1. 获取长篇项目
             projects = manager.get_novel_projects()
             # 为每个项目添加状态信息
             for project in projects:
@@ -115,6 +116,34 @@ def register_novel_routes(app, manager: NovelGenerationManager):
                     project["status"] = "generating"
                 else:
                     project["status"] = "paused"
+                # 标记为长篇
+                project["is_short_story"] = False
+                project["type"] = "novel"
+            
+            # 2. 获取短篇作品
+            from web.utils.path_utils import list_user_short_stories, get_current_username
+            username = get_current_username()
+            short_stories = list_user_short_stories(username)
+            
+            # 转换短篇格式以兼容前端
+            for story in short_stories:
+                story_obj = {
+                    "novel_title": story["title"],
+                    "title": story["title"],
+                    "synopsis": story.get("synopsis", ""),
+                    "is_short_story": True,
+                    "type": "short_story",
+                    "status": "completed",  # 短篇默认已完成
+                    "owner": story["owner"],
+                    "completed_chapters": story.get("chapter_count", 0),
+                    "total_chapters": story.get("chapter_count", 0),
+                    "word_count": story.get("word_count", 0),
+                    "average_score": None,
+                    "project_type": "short_story",
+                    "type_display": "短篇"
+                }
+                projects.append(story_obj)
+            
             return jsonify(projects)
         except Exception as e:
             logger.error(f"❌ 获取项目列表失败: {e}")

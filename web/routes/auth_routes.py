@@ -522,6 +522,35 @@ def register_page_routes(app):
         chapter_num = request.args.get('chapter', 1, type=int)
         return render_template('novel-reader-v2.html', title=title, chapter_num=chapter_num)
     
+    @app.route('/export-page/<title>', methods=['GET'])
+    @login_required
+    def export_page(title):
+        """小说导出页面 - 支持多种格式和选项"""
+        from urllib.parse import unquote
+        from web.utils.path_utils import list_user_projects, get_current_username
+        from src.utils.path_manager import path_manager
+        
+        title = unquote(title)
+        username = get_current_username()
+        
+        # 检查权限
+        user_projects = list_user_projects(username, include_public=True)
+        target_project = None
+        for project in user_projects:
+            if project['title'] == title:
+                target_project = project
+                break
+        
+        if not target_project:
+            return redirect('/novels')
+        
+        # 获取章节数量
+        owner = target_project.get('owner', username)
+        chapters = path_manager.get_all_chapters(title, username=owner)
+        total_chapters = len(chapters)
+        
+        return render_template('export-page.html', title=title, total_chapters=total_chapters)
+    
     @app.route('/video-generation', methods=['GET'])
     @login_required
     def video_generation():

@@ -177,13 +177,19 @@ class BatchChapterGenerator:
             self.world_state_manager.initialize_from_novel_data(novel_data)
             logger.info(f"[BatchGenerator] {self.world_state_manager.get_summary()}")
         
+        # 🔥 获取文风设置
+        writing_style = novel_data.get('writing_style')
+        if writing_style:
+            logger.info(f"[BatchGenerator] 使用文风: {writing_style.get('name', '未命名')}")
+        
         # 创建对话生成器
         generator = ChapterConversationGenerator(
             api_client=self.api_client,
             novel_data=novel_data,
             tropes=tropes,
             world_state_manager=self.world_state_manager,  # 🔥 传递世界状态管理器
-            project_path=str(self.project_path) if self.project_path else None  # 🔥 传递项目路径
+            project_path=str(self.project_path) if self.project_path else None,  # 🔥 传递项目路径
+            writing_style=writing_style  # 🔥 传递文风设置
         )
         
         # 生成章节

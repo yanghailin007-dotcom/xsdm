@@ -1,0 +1,308 @@
+{# 小说导出页面 #}
+{% extends "layouts/base-v2.html" %}
+
+{% block title %}导出小说 - {{ title }}{% endblock %}
+
+{% block extra_css %}
+<style>
+    .export-page { max-width: 1200px; margin: 0 auto; padding: 24px; }
+    .export-header { margin-bottom: 32px; padding-bottom: 20px; border-bottom: 1px solid var(--v2-border); }
+    .export-header h1 { font-size: 28px; font-weight: 600; color: var(--v2-text-primary); margin-bottom: 12px; }
+    .novel-info { display: flex; align-items: center; gap: 16px; flex-wrap: wrap; }
+    .novel-title { font-size: 18px; font-weight: 500; color: var(--v2-primary); }
+    .novel-meta { font-size: 14px; color: var(--v2-text-secondary); }
+    .export-container { display: grid; grid-template-columns: 1fr 400px; gap: 24px; }
+    @media (max-width: 992px) { .export-container { grid-template-columns: 1fr; } }
+    .export-config { background: var(--v2-card-bg); border-radius: 12px; padding: 24px; border: 1px solid var(--v2-border); }
+    .config-section { margin-bottom: 28px; }
+    .config-section:last-child { margin-bottom: 0; }
+    .config-section h3 { font-size: 16px; font-weight: 600; color: var(--v2-text-primary); margin-bottom: 16px; display: flex; align-items: center; gap: 8px; }
+    .config-section h3::before { content: ""; display: inline-block; width: 4px; height: 16px; background: var(--v2-primary); border-radius: 2px; }
+    .option-cards { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; }
+    .option-card { position: relative; cursor: pointer; border: 2px solid var(--v2-border); border-radius: 10px; padding: 16px; transition: all 0.2s ease; background: var(--v2-bg); }
+    .option-card:hover { border-color: var(--v2-primary-light); }
+    .option-card.active { border-color: var(--v2-primary); background: rgba(99, 102, 241, 0.05); }
+    .option-card input { position: absolute; opacity: 0; }
+    .card-content { display: flex; flex-direction: column; align-items: center; text-align: center; gap: 6px; }
+    .card-icon { font-size: 28px; margin-bottom: 4px; }
+    .card-title { font-size: 15px; font-weight: 600; color: var(--v2-text-primary); }
+    .card-desc { font-size: 12px; color: var(--v2-text-secondary); }
+    .form-group { margin-bottom: 20px; }
+    .form-group label { display: block; font-size: 14px; font-weight: 500; color: var(--v2-text-primary); margin-bottom: 10px; }
+    .format-tabs { display: flex; gap: 8px; background: var(--v2-bg); padding: 4px; border-radius: 8px; border: 1px solid var(--v2-border); }
+    .format-tab { flex: 1; padding: 10px 16px; border: none; background: transparent; border-radius: 6px; font-size: 14px; font-weight: 500; color: var(--v2-text-secondary); cursor: pointer; transition: all 0.2s ease; }
+    .format-tab.active { background: var(--v2-card-bg); color: var(--v2-primary); box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
+    .checkbox-group { display: flex; flex-direction: column; gap: 10px; }
+    .checkbox { display: flex; align-items: center; gap: 10px; cursor: pointer; font-size: 14px; color: var(--v2-text-primary); }
+    .range-selector { display: flex; flex-direction: column; gap: 12px; }
+    .radio { display: flex; align-items: center; gap: 10px; cursor: pointer; font-size: 14px; color: var(--v2-text-primary); flex-wrap: wrap; }
+    .range-inputs { display: inline-flex; align-items: center; gap: 6px; margin-left: 8px; }
+    .range-inputs input { width: 60px; padding: 6px 10px; border: 1px solid var(--v2-border); border-radius: 6px; font-size: 14px; text-align: center; }
+    .btn-export { width: 100%; padding: 14px 24px; background: linear-gradient(135deg, var(--v2-primary) 0%, var(--v2-primary-dark) 100%); color: white; border: none; border-radius: 10px; font-size: 16px; font-weight: 600; cursor: pointer; transition: all 0.2s ease; }
+    .btn-export:hover { transform: translateY(-1px); box-shadow: 0 4px 12px rgba(99, 102, 241, 0.4); }
+    .btn-export:disabled { opacity: 0.6; cursor: not-allowed; }
+    .export-preview { background: var(--v2-card-bg); border-radius: 12px; padding: 24px; border: 1px solid var(--v2-border); position: sticky; top: 24px; }
+    .preview-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
+    .preview-content { background: var(--v2-bg); border-radius: 8px; padding: 16px; font-family: monospace; font-size: 13px; line-height: 1.8; color: var(--v2-text-primary); max-height: 500px; overflow-y: auto; white-space: pre-wrap; }
+    .preview-placeholder { color: var(--v2-text-secondary); text-align: center; padding: 40px 20px; }
+    .hidden { display: none !important; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="export-page">
+    <div class="export-header">
+        <h1>导出小说</h1>
+        <div class="novel-info">
+            <span class="novel-title">{{ title }}</span>
+            <span class="novel-meta">共 {{ total_chapters }} 章</span>
+        </div>
+    </div>
+
+    <div class="export-container">
+        <div class="export-config">
+            <div class="config-section">
+                <h3>导出模式</h3>
+                <div class="option-cards">
+                    <label class="option-card active" onclick="selectMode(this, 'content')">
+                        <input type="radio" name="export_mode" value="content" checked>
+                        <div class="card-content">
+                            <span class="card-icon">📝</span>
+                            <span class="card-title">正文导出</span>
+                            <span class="card-desc">仅导出可阅读的正文内容</span>
+                        </div>
+                    </label>
+                    <label class="option-card" onclick="selectMode(this, 'project')">
+                        <input type="radio" name="export_mode" value="project">
+                        <div class="card-content">
+                            <span class="card-icon">📦</span>
+                            <span class="card-title">项目导出</span>
+                            <span class="card-desc">完整项目备份(ZIP)</span>
+                        </div>
+                    </label>
+                </div>
+            </div>
+
+            <div id="content-options">
+                <div class="config-section">
+                    <h3>格式与选项</h3>
+                    
+                    <div class="form-group">
+                        <label>文件格式</label>
+                        <div class="format-tabs">
+                            <button class="format-tab active" data-format="txt" onclick="selectFormat('txt')">TXT 纯文本</button>
+                            <button class="format-tab" data-format="md" onclick="selectFormat('md')">Markdown</button>
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label>内容选项</label>
+                        <div class="checkbox-group">
+                            <label class="checkbox">
+                                <input type="checkbox" id="include_title" checked onchange="updatePreview()">
+                                <span>包含章节标题</span>
+                            </label>
+                            <label class="checkbox">
+                                <input type="checkbox" id="include_synopsis" checked onchange="updatePreview()">
+                                <span>包含小说简介</span>
+                            </label>
+                            <label class="checkbox">
+                                <input type="checkbox" id="add_separator" checked onchange="updatePreview()">
+                                <span>章节间添加分隔线</span>
+                            </label>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="config-section">
+                    <h3>导出范围</h3>
+                    <div class="range-selector">
+                        <label class="radio">
+                            <input type="radio" name="range" value="all" checked onchange="toggleRangeInputs()">
+                            <span>全部章节</span>
+                        </label>
+                        <label class="radio">
+                            <input type="radio" name="range" value="custom" onchange="toggleRangeInputs()">
+                            <span>指定范围：</span>
+                            <span class="range-inputs">
+                                第 <input type="number" id="range_start" min="1" max="{{ total_chapters }}" value="1"> 章
+                                到 第 <input type="number" id="range_end" min="1" max="{{ total_chapters }}" value="{{ total_chapters }}"> 章
+                            </span>
+                        </label>
+                    </div>
+                </div>
+            </div>
+
+            <button class="btn-export" id="exportBtn" onclick="startExport()">📥 开始导出</button>
+        </div>
+
+        <div class="export-preview">
+            <div class="preview-header">
+                <h3>📋 预览</h3>
+                <span class="preview-stats" id="previewStats">加载中...</span>
+            </div>
+            <div class="preview-content" id="previewContent">
+                <div class="preview-placeholder">正在加载预览...</div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+const NOVEL_TITLE = '{{ title }}';
+let currentFormat = 'txt';
+let chaptersData = [];
+let synopsis = '';
+
+document.addEventListener('DOMContentLoaded', function() {
+    loadPreviewData();
+});
+
+async function loadPreviewData() {
+    try {
+        const response = await fetch(`/api/export/novel-preview?title=${encodeURIComponent(NOVEL_TITLE)}`);
+        const data = await response.json();
+        if (data.success) {
+            chaptersData = data.chapters || [];
+            synopsis = data.synopsis || '';
+            updatePreview();
+        } else {
+            document.getElementById('previewContent').innerHTML = '<div class="preview-placeholder">加载失败: ' + (data.error || '未知错误') + '</div>';
+        }
+    } catch (e) {
+        document.getElementById('previewContent').innerHTML = '<div class="preview-placeholder">加载失败，请刷新重试</div>';
+    }
+}
+
+function selectMode(element, mode) {
+    document.querySelectorAll('.option-card').forEach(card => card.classList.remove('active'));
+    element.classList.add('active');
+    element.querySelector('input').checked = true;
+    const contentOptions = document.getElementById('content-options');
+    if (mode === 'content') {
+        contentOptions.classList.remove('hidden');
+    } else {
+        contentOptions.classList.add('hidden');
+    }
+    updatePreview();
+}
+
+function selectFormat(format) {
+    currentFormat = format;
+    document.querySelectorAll('.format-tab').forEach(tab => {
+        tab.classList.toggle('active', tab.dataset.format === format);
+    });
+    updatePreview();
+}
+
+function toggleRangeInputs() {
+    updatePreview();
+}
+
+function getSelectedRange() {
+    const rangeType = document.querySelector('input[name="range"]:checked').value;
+    if (rangeType === 'all') {
+        return { start: 1, end: chaptersData.length };
+    }
+    const start = parseInt(document.getElementById('range_start').value) || 1;
+    const end = parseInt(document.getElementById('range_end').value) || chaptersData.length;
+    return { start: Math.max(1, start), end: Math.min(chaptersData.length, end) };
+}
+
+function updatePreview() {
+    const mode = document.querySelector('input[name="export_mode"]:checked').value;
+    const previewContent = document.getElementById('previewContent');
+    const previewStats = document.getElementById('previewStats');
+    
+    if (mode === 'project') {
+        previewContent.innerHTML = '<div class="preview-placeholder">📦 项目导出将打包所有项目文件为 ZIP 格式</div>';
+        previewStats.textContent = '项目备份';
+        return;
+    }
+    
+    const range = getSelectedRange();
+    const includeTitle = document.getElementById('include_title').checked;
+    const includeSynopsis = document.getElementById('include_synopsis').checked;
+    const addSeparator = document.getElementById('add_separator').checked;
+    const selectedChapters = chaptersData.slice(range.start - 1, range.end);
+    
+    let preview = '';
+    if (currentFormat === 'md') {
+        preview += '# ' + NOVEL_TITLE + '\n\n';
+    } else {
+        preview += NOVEL_TITLE + '\n' + '='.repeat(NOVEL_TITLE.length) + '\n\n';
+    }
+    
+    if (includeSynopsis && synopsis) {
+        if (currentFormat === 'md') {
+            preview += '## 简介\n\n' + synopsis + '\n\n---\n\n';
+        } else {
+            preview += '【简介】\n' + synopsis + '\n\n' + '='.repeat(40) + '\n\n';
+        }
+    }
+    
+    selectedChapters.slice(0, 3).forEach((chapter, index) => {
+        if (includeTitle) {
+            if (currentFormat === 'md') {
+                preview += '## ' + chapter.title + '\n\n';
+            } else {
+                preview += chapter.title + '\n' + '-'.repeat(chapter.title.length) + '\n\n';
+            }
+        }
+        const content = chapter.content.substring(0, 300);
+        preview += content;
+        if (chapter.content.length > 300) {
+            preview += '...';
+        }
+        preview += '\n\n';
+        if (addSeparator && index < Math.min(selectedChapters.length, 3) - 1) {
+            preview += currentFormat === 'md' ? '\n---\n\n' : '\n* * * * *\n\n';
+        }
+    });
+    
+    if (selectedChapters.length > 3) {
+        preview += '\n... 还有 ' + (selectedChapters.length - 3) + ' 章 ...';
+    }
+    
+    previewContent.textContent = preview;
+    previewStats.textContent = '共 ' + selectedChapters.length + ' 章';
+}
+
+async function startExport() {
+    const btn = document.getElementById('exportBtn');
+    const mode = document.querySelector('input[name="export_mode"]:checked').value;
+    
+    btn.disabled = true;
+    btn.innerHTML = '⏳ 导出中...';
+    
+    if (mode === 'project') {
+        window.location.href = `/api/export/novel-zip/${encodeURIComponent(NOVEL_TITLE)}`;
+        setTimeout(() => {
+            btn.disabled = false;
+            btn.innerHTML = '📥 开始导出';
+        }, 2000);
+        return;
+    }
+    
+    const range = getSelectedRange();
+    const params = new URLSearchParams({
+        title: NOVEL_TITLE,
+        format: currentFormat,
+        include_title: document.getElementById('include_title').checked,
+        include_synopsis: document.getElementById('include_synopsis').checked,
+        add_separator: document.getElementById('add_separator').checked,
+        start_chapter: range.start,
+        end_chapter: range.end
+    });
+    
+    window.location.href = `/api/export/novel-content?${params}`;
+    
+    setTimeout(() => {
+        btn.disabled = false;
+        btn.innerHTML = '📥 开始导出';
+    }, 2000);
+}
+</script>
+{% endblock %}

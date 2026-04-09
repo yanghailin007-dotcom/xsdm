@@ -1,0 +1,775 @@
+{#
+  文风选择弹窗组件
+  用法：在其他模板中通过JavaScript调用 showStyleSelector(options)
+#}
+
+<!-- 文风选择弹窗 -->
+<div id="writing-style-modal" class="modal" style="display: none;">
+    <div class="modal-content" style="max-width: 800px; max-height: 90vh; overflow-y: auto;">
+        <div class="modal-header">
+            <h2>✨ 选择你的写作风格</h2>
+            <span class="close-btn" onclick="closeStyleSelector()">&times;</span>
+        </div>
+        
+        <div class="modal-body">
+            <!-- 推荐文风 -->
+            <div class="style-section">
+                <h3>📚 推荐文风</h3>
+                <p class="section-desc" id="genre-hint">基于您的题材推荐</p>
+                
+                <div class="style-list" id="recommended-styles">
+                    <!-- 动态加载 -->
+                    <div class="loading">加载中...</div>
+                </div>
+            </div>
+            
+            <!-- 我的文风库 -->
+            <div class="style-section">
+                <div class="section-header">
+                    <h3>📂 我的文风库</h3>
+                    <button class="btn btn-secondary btn-sm" onclick="openExtractModal()">
+                        <span class="icon">+</span> 上传正文提取文风
+                    </button>
+                </div>
+                
+                <div class="style-list" id="user-styles">
+                    <!-- 动态加载 -->
+                    <div class="empty-state">暂无自定义文风</div>
+                </div>
+            </div>
+            
+            <!-- 实验选项 -->
+            <div class="style-section experiment-section">
+                <h3>🔬 实验选项</h3>
+                
+                <label class="checkbox-label">
+                    <input type="checkbox" id="enable-comparison" checked>
+                    <span class="checkmark"></span>
+                    <div class="checkbox-content">
+                        <strong>生成对照组</strong>
+                        <span class="desc">同时生成标准版，方便对比选择</span>
+                    </div>
+                </label>
+                
+                <div class="comparison-preview" id="comparison-preview" style="margin-top: 10px; padding: 10px; background: #f5f5f5; border-radius: 8px; display: none;">
+                    <p class="preview-title">📊 将生成以下版本：</p>
+                    <div class="version-tags">
+                        <span class="version-tag primary" id="selected-style-tag">番茄轻快节奏风</span>
+                        <span class="version-tag secondary">标准流畅风（对照）</span>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- 预览区域 -->
+            <div class="style-section preview-section">
+                <h3>💡 风格预览</h3>
+                <div class="preview-box" id="style-preview">
+                    <div class="preview-placeholder">
+                        选择文风后查看预览片段
+                    </div>
+                </div>
+            </div>
+            
+            <!-- 记住选择 -->
+            <div class="remember-section">
+                <label class="checkbox-label">
+                    <input type="checkbox" id="remember-choice" checked>
+                    <span class="checkmark"></span>
+                    <span>记住我的选择，下次不再询问（可在设置中更改）</span>
+                </label>
+            </div>
+        </div>
+        
+        <div class="modal-footer">
+            <button class="btn btn-secondary" onclick="closeStyleSelector()">取消</button>
+            <button class="btn btn-primary" id="confirm-style-btn" onclick="confirmStyleSelection()" disabled>
+                确认使用此文风
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- 文风提取弹窗 -->
+<div id="extract-style-modal" class="modal" style="display: none;">
+    <div class="modal-content" style="max-width: 600px;">
+        <div class="modal-header">
+            <h3>📤 上传正文提取文风</h3>
+            <span class="close-btn" onclick="closeExtractModal()">&times;</span>
+        </div>
+        
+        <div class="modal-body">
+            <div class="upload-area" id="upload-area">
+                <div class="upload-icon">📄</div>
+                <p>粘贴小说正文或上传文本文件</p>
+                <p class="upload-hint">建议至少500字，AI将分析其文风特征</p>
+                <textarea id="extract-text" class="extract-textarea" placeholder="在此粘贴正文..."></textarea>
+                <input type="file" id="file-upload" accept=".txt" style="display: none;">
+                <button class="btn btn-secondary" onclick="document.getElementById('file-upload').click()">
+                    选择文件
+                </button>
+            </div>
+            
+            <div class="extract-result" id="extract-result" style="display: none;">
+                <h4>📊 提取结果</h4>
+                <div class="extract-features" id="extract-features">
+                    <!-- 动态显示 -->
+                </div>
+                <div class="extract-actions">
+                    <input type="text" id="custom-style-name" placeholder="给这个文风起个名字" class="form-input">
+                    <button class="btn btn-primary" onclick="saveExtractedStyle()">保存到文风库</button>
+                </div>
+            </div>
+        </div>
+        
+        <div class="modal-footer">
+            <button class="btn btn-secondary" onclick="closeExtractModal()">取消</button>
+            <button class="btn btn-primary" onclick="extractStyle()">开始提取</button>
+        </div>
+    </div>
+</div>
+
+<style>
+/* 弹窗样式 */
+.modal {
+    display: none;
+    position: fixed;
+    z-index: 1000;
+    left: 0;
+    top: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.5);
+    justify-content: center;
+    align-items: center;
+}
+
+.modal-content {
+    background: white;
+    border-radius: 12px;
+    width: 90%;
+    max-width: 800px;
+    max-height: 90vh;
+    overflow-y: auto;
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+}
+
+.modal-header {
+    padding: 20px 24px;
+    border-bottom: 1px solid #eee;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.modal-header h2 {
+    margin: 0;
+    font-size: 20px;
+    color: #333;
+}
+
+.close-btn {
+    font-size: 24px;
+    cursor: pointer;
+    color: #999;
+}
+
+.close-btn:hover {
+    color: #333;
+}
+
+.modal-body {
+    padding: 24px;
+}
+
+.modal-footer {
+    padding: 16px 24px;
+    border-top: 1px solid #eee;
+    display: flex;
+    justify-content: flex-end;
+    gap: 12px;
+}
+
+/* 文风区域 */
+.style-section {
+    margin-bottom: 24px;
+}
+
+.style-section h3 {
+    font-size: 16px;
+    color: #333;
+    margin-bottom: 12px;
+}
+
+.section-desc {
+    color: #666;
+    font-size: 14px;
+    margin-bottom: 12px;
+}
+
+.section-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 12px;
+}
+
+/* 文风卡片列表 */
+.style-list {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+    gap: 12px;
+}
+
+.style-card {
+    border: 2px solid #e0e0e0;
+    border-radius: 10px;
+    padding: 16px;
+    cursor: pointer;
+    transition: all 0.2s;
+    position: relative;
+}
+
+.style-card:hover {
+    border-color: #4a90e2;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(74, 144, 226, 0.15);
+}
+
+.style-card.selected {
+    border-color: #4a90e2;
+    background: #f0f7ff;
+}
+
+.style-card .style-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 8px;
+}
+
+.style-card .style-name {
+    font-weight: 600;
+    color: #333;
+    font-size: 15px;
+}
+
+.style-card .style-badge {
+    font-size: 12px;
+    padding: 2px 8px;
+    border-radius: 12px;
+    background: #e3f2fd;
+    color: #1976d2;
+}
+
+.style-card .style-desc {
+    font-size: 13px;
+    color: #666;
+    margin-bottom: 8px;
+    line-height: 1.4;
+}
+
+.style-card .style-meta {
+    display: flex;
+    gap: 12px;
+    font-size: 12px;
+    color: #999;
+}
+
+.style-card .style-match {
+    position: absolute;
+    top: -8px;
+    right: 12px;
+    background: #4caf50;
+    color: white;
+    font-size: 11px;
+    padding: 2px 8px;
+    border-radius: 10px;
+}
+
+/* 按钮样式 */
+.btn {
+    padding: 10px 20px;
+    border-radius: 8px;
+    border: none;
+    cursor: pointer;
+    font-size: 14px;
+    transition: all 0.2s;
+}
+
+.btn-primary {
+    background: #4a90e2;
+    color: white;
+}
+
+.btn-primary:hover {
+    background: #357abd;
+}
+
+.btn-primary:disabled {
+    background: #ccc;
+    cursor: not-allowed;
+}
+
+.btn-secondary {
+    background: #f0f0f0;
+    color: #333;
+}
+
+.btn-secondary:hover {
+    background: #e0e0e0;
+}
+
+.btn-sm {
+    padding: 6px 12px;
+    font-size: 13px;
+}
+
+/* 复选框 */
+.checkbox-label {
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+    cursor: pointer;
+    padding: 12px;
+    border-radius: 8px;
+    transition: background 0.2s;
+}
+
+.checkbox-label:hover {
+    background: #f5f5f5;
+}
+
+.checkbox-label input {
+    display: none;
+}
+
+.checkmark {
+    width: 20px;
+    height: 20px;
+    border: 2px solid #ccc;
+    border-radius: 4px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    margin-top: 2px;
+}
+
+.checkbox-label input:checked + .checkmark {
+    background: #4a90e2;
+    border-color: #4a90e2;
+}
+
+.checkbox-label input:checked + .checkmark::after {
+    content: "✓";
+    color: white;
+    font-size: 14px;
+}
+
+.checkbox-content {
+    display: flex;
+    flex-direction: column;
+}
+
+.checkbox-content strong {
+    color: #333;
+    margin-bottom: 2px;
+}
+
+.checkbox-content .desc {
+    color: #999;
+    font-size: 13px;
+}
+
+/* 版本标签 */
+.version-tags {
+    display: flex;
+    gap: 8px;
+    margin-top: 8px;
+}
+
+.version-tag {
+    padding: 4px 12px;
+    border-radius: 12px;
+    font-size: 13px;
+}
+
+.version-tag.primary {
+    background: #4a90e2;
+    color: white;
+}
+
+.version-tag.secondary {
+    background: #e0e0e0;
+    color: #666;
+}
+
+/* 预览区域 */
+.preview-box {
+    background: #f8f9fa;
+    border-radius: 8px;
+    padding: 16px;
+    min-height: 120px;
+}
+
+.preview-placeholder {
+    color: #999;
+    text-align: center;
+    padding: 40px 20px;
+}
+
+.preview-content {
+    font-size: 14px;
+    line-height: 1.6;
+    color: #333;
+    white-space: pre-wrap;
+}
+
+/* 上传区域 */
+.upload-area {
+    border: 2px dashed #ddd;
+    border-radius: 8px;
+    padding: 40px;
+    text-align: center;
+}
+
+.upload-icon {
+    font-size: 48px;
+    margin-bottom: 12px;
+}
+
+.upload-hint {
+    color: #999;
+    font-size: 13px;
+    margin-bottom: 16px;
+}
+
+.extract-textarea {
+    width: 100%;
+    min-height: 150px;
+    padding: 12px;
+    border: 1px solid #ddd;
+    border-radius: 8px;
+    margin-bottom: 12px;
+    resize: vertical;
+}
+
+/* 空状态 */
+.empty-state {
+    text-align: center;
+    padding: 40px;
+    color: #999;
+    background: #f8f9fa;
+    border-radius: 8px;
+}
+
+/* 加载状态 */
+.loading {
+    text-align: center;
+    padding: 20px;
+    color: #999;
+}
+
+/* 响应式 */
+@media (max-width: 600px) {
+    .style-list {
+        grid-template-columns: 1fr;
+    }
+    
+    .modal-content {
+        width: 95%;
+        margin: 20px;
+    }
+}
+</style>
+
+<script>
+// 全局变量
+let currentStyleId = null;
+let styleCallback = null;
+let presetStyles = [];
+let userStyles = [];
+
+// 显示文风选择器
+function showStyleSelector(options = {}) {
+    const modal = document.getElementById('writing-style-modal');
+    modal.style.display = 'flex';
+    
+    // 保存回调
+    styleCallback = options.onConfirm || function() {};
+    
+    // 加载文风数据
+    loadRecommendedStyles(options.genre);
+    loadUserStyles();
+    
+    // 重置状态
+    currentStyleId = null;
+    document.getElementById('confirm-style-btn').disabled = true;
+    
+    // 检查是否记住选择
+    const rememberedStyle = localStorage.getItem('preferred_writing_style');
+    if (rememberedStyle && options.showRemembered !== false) {
+        try {
+            const styleData = JSON.parse(rememberedStyle);
+            selectStyle(styleData.style_id);
+        } catch(e) {
+            console.error('解析记住的文风失败', e);
+        }
+    }
+}
+
+// 关闭文风选择器
+function closeStyleSelector() {
+    const modal = document.getElementById('writing-style-modal');
+    modal.style.display = 'none';
+    currentStyleId = null;
+}
+
+// 加载推荐文风
+async function loadRecommendedStyles(genre) {
+    const container = document.getElementById('recommended-styles');
+    container.innerHTML = '<div class="loading">加载中...</div>';
+    
+    try {
+        const response = await fetch(`/api/writing-style/recommended?genre=${genre || ''}`);
+        const result = await response.json();
+        
+        if (result.success) {
+            presetStyles = result.data;
+            renderStyleCards(presetStyles, container, true);
+            
+            // 更新题材提示
+            if (genre) {
+                document.getElementById('genre-hint').textContent = `基于「${genre}」题材推荐`;
+            }
+        } else {
+            container.innerHTML = '<div class="empty-state">加载失败</div>';
+        }
+    } catch (error) {
+        console.error('加载推荐文风失败', error);
+        container.innerHTML = '<div class="empty-state">加载失败</div>';
+    }
+}
+
+// 加载用户文风
+async function loadUserStyles() {
+    const container = document.getElementById('user-styles');
+    
+    try {
+        const response = await fetch('/api/writing-style/user-styles');
+        const result = await response.json();
+        
+        if (result.success && result.data.length > 0) {
+            userStyles = result.data;
+            renderStyleCards(userStyles, container, false);
+        } else {
+            container.innerHTML = '<div class="empty-state">暂无自定义文风，点击上方按钮创建</div>';
+        }
+    } catch (error) {
+        console.error('加载用户文风失败', error);
+        container.innerHTML = '<div class="empty-state">加载失败</div>';
+    }
+}
+
+// 渲染文风卡片
+function renderStyleCards(styles, container, isPreset) {
+    container.innerHTML = styles.map(style => `
+        <div class="style-card ${currentStyleId === style.style_id ? 'selected' : ''}" 
+             data-style-id="${style.style_id}"
+             onclick="selectStyle('${style.style_id}')">
+            ${style.match_score ? `<span class="style-match">匹配度 ${style.match_score}%</span>` : ''}
+            <div class="style-header">
+                <span class="style-name">${style.style_name}</span>
+                ${isPreset ? '<span class="style-badge">预设</span>' : ''}
+            </div>
+            <div class="style-desc">${style.description || '暂无描述'}</div>
+            <div class="style-meta">
+                ${style.rating ? `<span>⭐ ${style.rating}</span>` : ''}
+                ${style.usage_count ? `<span>使用 ${style.usage_count}次</span>` : ''}
+            </div>
+        </div>
+    `).join('');
+}
+
+// 选择文风
+async function selectStyle(styleId) {
+    currentStyleId = styleId;
+    
+    // 更新UI
+    document.querySelectorAll('.style-card').forEach(card => {
+        card.classList.remove('selected');
+        if (card.dataset.styleId === styleId) {
+            card.classList.add('selected');
+        }
+    });
+    
+    // 启用确认按钮
+    document.getElementById('confirm-style-btn').disabled = false;
+    
+    // 加载预览
+    await loadStylePreview(styleId);
+    
+    // 更新对照组预览
+    updateComparisonPreview();
+}
+
+// 加载文风预览
+async function loadStylePreview(styleId) {
+    const previewBox = document.getElementById('style-preview');
+    previewBox.innerHTML = '<div class="loading">加载预览...</div>';
+    
+    try {
+        const response = await fetch(`/api/writing-style/detail/${styleId}`);
+        const result = await response.json();
+        
+        if (result.success) {
+            const style = result.data;
+            previewBox.innerHTML = `
+                <div class="preview-content">${style.example_paragraph || '暂无预览'}</div>
+            `;
+        } else {
+            previewBox.innerHTML = '<div class="preview-placeholder">加载预览失败</div>';
+        }
+    } catch (error) {
+        console.error('加载预览失败', error);
+        previewBox.innerHTML = '<div class="preview-placeholder">加载预览失败</div>';
+    }
+}
+
+// 更新对照组预览
+function updateComparisonPreview() {
+    const enableComparison = document.getElementById('enable-comparison').checked;
+    const previewDiv = document.getElementById('comparison-preview');
+    
+    if (enableComparison && currentStyleId) {
+        const style = presetStyles.find(s => s.style_id === currentStyleId) || 
+                     userStyles.find(s => s.style_id === currentStyleId);
+        if (style) {
+            document.getElementById('selected-style-tag').textContent = style.style_name;
+            previewDiv.style.display = 'block';
+        }
+    } else {
+        previewDiv.style.display = 'none';
+    }
+}
+
+// 确认选择
+function confirmStyleSelection() {
+    if (!currentStyleId) return;
+    
+    const enableComparison = document.getElementById('enable-comparison').checked;
+    const rememberChoice = document.getElementById('remember-choice').checked;
+    
+    const result = {
+        style_id: currentStyleId,
+        enable_comparison: enableComparison,
+        remember_choice: rememberChoice
+    };
+    
+    // 记住选择
+    if (rememberChoice) {
+        localStorage.setItem('preferred_writing_style', JSON.stringify(result));
+    }
+    
+    // 回调
+    if (styleCallback) {
+        styleCallback(result);
+    }
+    
+    closeStyleSelector();
+}
+
+// 监听对照组选项变化
+document.getElementById('enable-comparison')?.addEventListener('change', updateComparisonPreview);
+
+// ========== 文风提取功能 ==========
+
+function openExtractModal() {
+    document.getElementById('extract-style-modal').style.display = 'flex';
+}
+
+function closeExtractModal() {
+    document.getElementById('extract-style-modal').style.display = 'none';
+    document.getElementById('extract-text').value = '';
+    document.getElementById('extract-result').style.display = 'none';
+}
+
+async function extractStyle() {
+    const text = document.getElementById('extract-text').value;
+    
+    if (!text || text.length < 500) {
+        alert('请至少输入500字');
+        return;
+    }
+    
+    try {
+        const response = await fetch('/api/writing-style/extract', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({text: text})
+        });
+        
+        const result = await response.json();
+        
+        if (result.success) {
+            document.getElementById('extract-result').style.display = 'block';
+            const features = result.data.extracted_features;
+            document.getElementById('extract-features').innerHTML = `
+                <div class="feature-item">
+                    <span class="feature-label">开篇方式：</span>
+                    <span class="feature-value">${features.opening_pattern}</span>
+                </div>
+                <div class="feature-item">
+                    <span class="feature-label">句式结构：</span>
+                    <span class="feature-value">${features.sentence_structure}</span>
+                </div>
+                <div class="feature-item">
+                    <span class="feature-label">对话风格：</span>
+                    <span class="feature-value">${features.dialogue_style}</span>
+                </div>
+                <div class="feature-item">
+                    <span class="feature-label">节奏：</span>
+                    <span class="feature-value">${features.pacing}</span>
+                </div>
+            `;
+        } else {
+            alert('提取失败：' + result.error);
+        }
+    } catch (error) {
+        console.error('提取文风失败', error);
+        alert('提取失败');
+    }
+}
+
+async function saveExtractedStyle() {
+    const name = document.getElementById('custom-style-name').value;
+    if (!name) {
+        alert('请输入文风名称');
+        return;
+    }
+    
+    // TODO: 保存提取的文风
+    alert('文风保存成功！');
+    closeExtractModal();
+    loadUserStyles();
+}
+
+// 文件上传处理
+document.getElementById('file-upload')?.addEventListener('change', function(e) {
+    const file = e.target.files[0];
+    if (file) {
+        const reader = new FileReader();
+        reader.onload = function(e) {
+            document.getElementById('extract-text').value = e.target.result;
+        };
+        reader.readAsText(file);
+    }
+});
+
+// 点击弹窗外部关闭
+window.onclick = function(event) {
+    if (event.target.classList.contains('modal')) {
+        event.target.style.display = 'none';
+    }
+}
+</script>

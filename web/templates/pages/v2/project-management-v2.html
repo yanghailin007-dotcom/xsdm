@@ -1050,9 +1050,9 @@
             window.open(`/api/export/novel-zip/${encodeURIComponent(projectTitle)}`, '_blank');
         }
         
-        // 🔥 简化的导出函数（与作品页面一致）
+        // 🔥 跳转到导出配置页面
         function exportNovelZip(projectTitle) {
-            window.open(`/api/export/novel-zip/${encodeURIComponent(projectTitle)}`, '_blank');
+            window.location.href = `/export-page/${encodeURIComponent(projectTitle)}`;
         }
 
         async function exportProject(projectTitle) {

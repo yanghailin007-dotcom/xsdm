@@ -635,7 +635,250 @@
   color: var(--v2-text-secondary);
 }
 
-/* ===== 最终确认页面 ===== */
+/* ===== 文风选择弹窗 ===== */
+.style-selector-modal {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.8);
+  backdrop-filter: blur(8px);
+  z-index: 9999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  opacity: 0;
+  visibility: hidden;
+  transition: all 0.3s ease;
+}
+
+.style-selector-modal.active {
+  opacity: 1;
+  visibility: visible;
+}
+
+.style-selector-modal__content {
+  background: var(--v2-bg-secondary);
+  border: 1px solid var(--v2-border-subtle);
+  border-radius: var(--radius-xl);
+  width: 100%;
+  max-width: 900px;
+  max-height: 85vh;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  transform: translateY(20px) scale(0.95);
+  transition: transform 0.3s ease;
+}
+
+.style-selector-modal.active .style-selector-modal__content {
+  transform: translateY(0) scale(1);
+}
+
+.style-selector-modal__header {
+  padding: 24px 32px;
+  border-bottom: 1px solid var(--v2-border-subtle);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.style-selector-modal__title {
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--v2-text-primary);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.style-selector-modal__title-icon {
+  width: 36px;
+  height: 36px;
+  background: linear-gradient(135deg, var(--primary-gold), var(--primary-gold-dark));
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #fff;
+}
+
+.style-selector-modal__subtitle {
+  font-size: 13px;
+  color: var(--v2-text-secondary);
+  margin-top: 4px;
+}
+
+.style-selector-modal__close {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  border: none;
+  background: var(--v2-bg-tertiary);
+  color: var(--v2-text-secondary);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s;
+}
+
+.style-selector-modal__close:hover {
+  background: var(--v2-border-subtle);
+  color: var(--v2-text-primary);
+}
+
+.style-selector-modal__body {
+  flex: 1;
+  overflow-y: auto;
+  padding: 24px 32px;
+}
+
+.style-selector-modal__footer {
+  padding: 20px 32px;
+  border-top: 1px solid var(--v2-border-subtle);
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+}
+
+/* 文风列表 */
+.style-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: 16px;
+}
+
+.style-card {
+  background: var(--v2-bg-tertiary);
+  border: 2px solid transparent;
+  border-radius: var(--radius-lg);
+  padding: 20px;
+  cursor: pointer;
+  transition: all 0.2s;
+  position: relative;
+}
+
+.style-card:hover {
+  border-color: var(--v2-border-subtle);
+  transform: translateY(-2px);
+}
+
+.style-card--selected {
+  border-color: var(--primary-gold);
+  background: rgba(245, 158, 11, 0.1);
+}
+
+.style-card__header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.style-card__icon {
+  width: 40px;
+  height: 40px;
+  background: var(--v2-bg-secondary);
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 20px;
+}
+
+.style-card__title {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--v2-text-primary);
+}
+
+.style-card__genre {
+  font-size: 12px;
+  color: var(--v2-text-muted);
+}
+
+.style-card__desc {
+  font-size: 13px;
+  color: var(--v2-text-secondary);
+  line-height: 1.5;
+  margin-bottom: 12px;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.style-card__tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.style-card__tag {
+  padding: 4px 8px;
+  background: var(--v2-bg-secondary);
+  border-radius: 4px;
+  font-size: 11px;
+  color: var(--v2-text-muted);
+}
+
+.style-card__check {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  width: 24px;
+  height: 24px;
+  background: var(--success);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #fff;
+  font-size: 14px;
+  opacity: 0;
+  transform: scale(0);
+  transition: all 0.2s;
+}
+
+.style-card--selected .style-card__check {
+  opacity: 1;
+  transform: scale(1);
+}
+
+/* 文风筛选 */
+.style-filter {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 20px;
+  flex-wrap: wrap;
+}
+
+.style-filter__btn {
+  padding: 8px 16px;
+  border-radius: 100px;
+  border: 1px solid var(--v2-border-subtle);
+  background: transparent;
+  color: var(--v2-text-secondary);
+  font-size: 13px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.style-filter__btn:hover {
+  border-color: var(--v2-text-secondary);
+  color: var(--v2-text-primary);
+}
+
+.style-filter__btn--active {
+  background: var(--primary-gold);
+  border-color: var(--primary-gold);
+  color: #fff;
+}
+
+/* 最终确认页面 ===== */
 .confirm-container {
   max-width: 800px;
   margin: 0 auto;
@@ -1268,6 +1511,7 @@ async function confirmSelection() {
       if (data.is_final) {
         // 🔥 第5步完成，进入第6步：汇总确认页面（用户确认基础信息）
         creativeDraft = data.creative_draft;
+        window.currentMode = 'dialog';  // 🔥 标记为对话模式
         // 先收集基础表单数据（使用AI生成的默认值）
         window.currentFormData = {
           title: creativeDraft.title || '',
@@ -1641,6 +1885,10 @@ async function confirmFormAndGenerate() {
   
   // 保存表单数据（书名可以为空，由AI生成）
   window.currentFormData = formData;
+  // 🔥 如果没有设置模式（表单模式入口），则标记为表单模式
+  if (!window.currentMode) {
+    window.currentMode = 'form';
+  }
   
   // 🔥 显示AI生成中状态（第6步 → 第7步）
   const confirmContainer = document.getElementById('confirm-container');
@@ -1667,8 +1915,9 @@ async function confirmFormAndGenerate() {
 async function startGeneration() {
   // 🔥 对话模式：判断是否在第7步（最终方案已生成）
   if (finalPlan) {
-    // 第7步：最终方案已生成，点击开始真正的小说生成
-    await confirmAndStartRealGeneration();
+    // 第7步：最终方案已生成，先选择文风，然后开始生成
+    window.currentMode = 'dialog';
+    await showStyleSelector();
   } else {
     // 还未生成最终方案，提示用户先完成对话
     showError('请先完成前6步对话，生成最终方案后再开始');
@@ -1858,7 +2107,7 @@ function renderFinalPlanReview(plan) {
           <span class="material-icons">&#xe5c4;</span>
           返回修改
         </button>
-        <button class="confirm-btn confirm-btn--primary" onclick="confirmAndStartRealGeneration()">
+        <button class="confirm-btn confirm-btn--primary" onclick="confirmAndStartRealGenerationWithStyle()">
           <span class="material-icons">rocket_launch</span>
           确认并开始生成
         </button>
@@ -1920,7 +2169,8 @@ async function confirmAndStartRealGeneration() {
     wordcount: reviewWordcount || window.currentFormData.wordcount || '50',
     chapters: reviewChapters || window.currentFormData.chapters || '200',
     dialog_session_id: dialogSessionId,  // 🔥 关键：传递给后端识别对话模式
-    final_plan: finalPlan  // 🔥 关键：传递最终方案
+    final_plan: finalPlan,  // 🔥 关键：传递最终方案
+    writing_style: selectedWritingStyle  // 🔥 关键：传递文风选择
   };
   
   // 显示最终加载状态
@@ -1992,7 +2242,9 @@ function startGenerationFromForm() {
     protagonist_identity: document.getElementById('protagonist-identity')?.value,
     golden_finger_desc: document.getElementById('golden-finger-desc')?.value,
     opening_scene: document.getElementById('opening-scene')?.value,
-    main_plot: document.getElementById('main-plot')?.value
+    main_plot: document.getElementById('main-plot')?.value,
+    // 🔥 添加文风选择
+    writing_style: selectedWritingStyle
   };
   
   if (!data.title) {
@@ -2020,6 +2272,18 @@ function startGenerationFromForm() {
     console.error('生成失败:', error);
     Dialog.error('网络错误，请重试');
   });
+}
+
+// 表单模式：先选文风再生成
+function startGenerationFromFormWithStyle() {
+  const title = document.getElementById('novel-title')?.value;
+  if (!title) {
+    Dialog.alert('请输入小说标题', '提示');
+    return;
+  }
+  
+  window.currentMode = 'form';
+  showStyleSelector();
 }
 
 
@@ -2131,6 +2395,305 @@ function syncDialogDataToForm() {
   }
   
   console.log('[syncDialogDataToForm] 表单数据同步完成');
+}
+
+// ==================== 文风选择系统 ====================
+
+// 当前选中的文风
+let selectedWritingStyle = null;
+
+// 预设文风列表
+const PRESET_WRITING_STYLES = [
+  {
+    id: 'tomato_fast',
+    name: '番茄快节奏',
+    icon: '🔥',
+    genre: '通用',
+    description: '短句密集、节奏快速、爽点密集，适合番茄小说平台的快节奏爽文',
+    tags: ['短句', '快节奏', '口语化'],
+    features: {
+      short_sentence_ratio: 0.5,
+      dialogue_ratio: 0.35,
+      sensory_density: 0.04,
+      colloquialism_density: 0.03
+    }
+  },
+  {
+    id: 'yy_legacy',
+    name: 'YY白金风',
+    icon: '👑',
+    genre: '玄幻/都市',
+    description: '经典YY风格，装逼打脸、一路升级，满足读者代入感',
+    tags: ['装逼', '升级', '爽感'],
+    features: {
+      short_sentence_ratio: 0.35,
+      dialogue_ratio: 0.3,
+      sensory_density: 0.03,
+      colloquialism_density: 0.02
+    }
+  },
+  {
+    id: 'web_novel_standard',
+    name: '网文标准风',
+    icon: '📖',
+    genre: '通用',
+    description: '标准网文风格，平衡叙述与对话，适合大多数题材',
+    tags: ['平衡', '标准', '易懂'],
+    features: {
+      short_sentence_ratio: 0.3,
+      dialogue_ratio: 0.28,
+      sensory_density: 0.025,
+      colloquialism_density: 0.015
+    }
+  },
+  {
+    id: 'traditional_fantasy',
+    name: '传统玄幻风',
+    icon: '⚔️',
+    genre: '玄幻/仙侠',
+    description: '偏向传统出版物风格，描写细腻，节奏舒缓',
+    tags: ['细腻', '传统', '慢节奏'],
+    features: {
+      short_sentence_ratio: 0.2,
+      dialogue_ratio: 0.2,
+      sensory_density: 0.05,
+      colloquialism_density: 0.01
+    }
+  },
+  {
+    id: 'short_story_intense',
+    name: '短篇强情绪',
+    icon: '💥',
+    genre: '短篇/新媒体',
+    description: '适合短篇小说的强情绪风格，每章都有爽点或反转',
+    tags: ['强情绪', '反转', '高密度'],
+    features: {
+      short_sentence_ratio: 0.45,
+      dialogue_ratio: 0.4,
+      sensory_density: 0.035,
+      colloquialism_density: 0.025
+    }
+  },
+  {
+    id: 'daily_light',
+    name: '轻松日常风',
+    icon: '☕',
+    genre: '日常/轻小说',
+    description: '轻松幽默的日常风格，对话多、节奏轻快',
+    tags: ['轻松', '幽默', '对话多'],
+    features: {
+      short_sentence_ratio: 0.35,
+      dialogue_ratio: 0.45,
+      sensory_density: 0.02,
+      colloquialism_density: 0.04
+    }
+  }
+];
+
+// 显示文风选择弹窗
+async function showStyleSelector() {
+  // 创建弹窗HTML
+  const modal = document.createElement('div');
+  modal.id = 'style-selector-modal';
+  modal.className = 'style-selector-modal';
+  
+  const stylesHtml = PRESET_WRITING_STYLES.map(style => `
+    <div class="style-card" data-style-id="${style.id}" onclick="selectWritingStyle('${style.id}')">
+      <div class="style-card__check">
+        <span class="material-icons">check</span>
+      </div>
+      <div class="style-card__header">
+        <div class="style-card__icon">${style.icon}</div>
+        <div>
+          <div class="style-card__title">${style.name}</div>
+          <div class="style-card__genre">${style.genre}</div>
+        </div>
+      </div>
+      <div class="style-card__desc">${style.description}</div>
+      <div class="style-card__tags">
+        ${style.tags.map(tag => `<span class="style-card__tag">${tag}</span>`).join('')}
+      </div>
+    </div>
+  `).join('');
+  
+  modal.innerHTML = `
+    <div class="style-selector-modal__content">
+      <div class="style-selector-modal__header">
+        <div>
+          <div class="style-selector-modal__title">
+            <div class="style-selector-modal__title-icon">
+              <span class="material-icons">auto_stories</span>
+            </div>
+            选择文风
+          </div>
+          <div class="style-selector-modal__subtitle">
+            选择一种文风风格，AI将在生成过程中保持该风格特征
+          </div>
+        </div>
+        <button class="style-selector-modal__close" onclick="closeStyleSelector()">
+          <span class="material-icons">close</span>
+        </button>
+      </div>
+      
+      <div class="style-selector-modal__body">
+        <div class="style-filter">
+          <button class="style-filter__btn style-filter__btn--active" data-filter="all">全部</button>
+          <button class="style-filter__btn" data-filter="通用">通用</button>
+          <button class="style-filter__btn" data-filter="玄幻">玄幻</button>
+          <button class="style-filter__btn" data-filter="都市">都市</button>
+          <button class="style-filter__btn" data-filter="日常">日常</button>
+        </div>
+        
+        <div class="style-list">
+          ${stylesHtml}
+        </div>
+      </div>
+      
+      <div class="style-selector-modal__footer">
+        <button class="dialog-btn dialog-btn--secondary" onclick="closeStyleSelector()">取消</button>
+        <button class="dialog-btn dialog-btn--primary" onclick="confirmStyleSelection()" id="confirm-style-btn" disabled>
+          确认选择
+        </button>
+      </div>
+    </div>
+  `;
+  
+  document.body.appendChild(modal);
+  
+  // 添加筛选功能
+  modal.querySelectorAll('.style-filter__btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      modal.querySelectorAll('.style-filter__btn').forEach(b => b.classList.remove('style-filter__btn--active'));
+      btn.classList.add('style-filter__btn--active');
+      filterStyles(btn.dataset.filter);
+    });
+  });
+  
+  // 显示弹窗
+  setTimeout(() => {
+    modal.classList.add('active');
+  }, 10);
+  
+  // 加载用户保存的文风偏好
+  await loadUserStylePreference();
+}
+
+// 筛选文风
+function filterStyles(filter) {
+  const cards = document.querySelectorAll('.style-card');
+  cards.forEach(card => {
+    const styleId = card.dataset.styleId;
+    const style = PRESET_WRITING_STYLES.find(s => s.id === styleId);
+    if (filter === 'all' || style.genre.includes(filter)) {
+      card.style.display = 'block';
+    } else {
+      card.style.display = 'none';
+    }
+  });
+}
+
+// 选择文风
+function selectWritingStyle(styleId) {
+  // 移除所有选中状态
+  document.querySelectorAll('.style-card').forEach(card => {
+    card.classList.remove('style-card--selected');
+  });
+  
+  // 添加选中状态
+  const selectedCard = document.querySelector(`.style-card[data-style-id="${styleId}"]`);
+  if (selectedCard) {
+    selectedCard.classList.add('style-card--selected');
+  }
+  
+  // 保存选择
+  selectedWritingStyle = PRESET_WRITING_STYLES.find(s => s.id === styleId);
+  
+  // 启用确认按钮
+  const confirmBtn = document.getElementById('confirm-style-btn');
+  if (confirmBtn) {
+    confirmBtn.disabled = false;
+    confirmBtn.textContent = `确认选择：${selectedWritingStyle.name}`;
+  }
+}
+
+// 确认文风选择
+function confirmStyleSelection() {
+  if (!selectedWritingStyle) {
+    Dialog.alert('请先选择一个文风', '提示');
+    return;
+  }
+  
+  // 保存到本地存储
+  localStorage.setItem('preferred_writing_style', JSON.stringify(selectedWritingStyle));
+  
+  // 关闭弹窗
+  closeStyleSelector();
+  
+  // 继续生成流程
+  continueGenerationWithStyle();
+}
+
+// 关闭文风选择弹窗
+function closeStyleSelector() {
+  const modal = document.getElementById('style-selector-modal');
+  if (modal) {
+    modal.classList.remove('active');
+    setTimeout(() => {
+      modal.remove();
+    }, 300);
+  }
+}
+
+// 加载用户文风偏好
+async function loadUserStylePreference() {
+  try {
+    // 从本地存储加载
+    const saved = localStorage.getItem('preferred_writing_style');
+    if (saved) {
+      const preferred = JSON.parse(saved);
+      // 如果该文风存在，自动选中
+      if (PRESET_WRITING_STYLES.find(s => s.id === preferred.id)) {
+        selectWritingStyle(preferred.id);
+      }
+    }
+  } catch (e) {
+    console.log('加载文风偏好失败:', e);
+  }
+}
+
+// 带文风的继续生成
+async function continueGenerationWithStyle() {
+  // 根据当前模式调用相应的生成函数
+  if (window.currentMode === 'dialog') {
+    await confirmAndStartRealGeneration();
+  } else {
+    startGenerationFromForm();
+  }
+}
+
+// 修改原有的生成函数，添加文风参数
+async function confirmAndStartRealGenerationWithStyle() {
+  // 先显示文风选择弹窗（保持已有的模式设置）
+  await showStyleSelector();
+}
+
+// 获取文风Prompt注入
+function getWritingStylePrompt() {
+  if (!selectedWritingStyle) return '';
+  
+  const style = selectedWritingStyle;
+  return `
+【文风要求：${style.name}】
+${style.description}
+
+具体特征：
+- 短句占比：${(style.features.short_sentence_ratio * 100).toFixed(0)}%
+- 对话占比：${(style.features.dialogue_ratio * 100).toFixed(0)}%
+- 感官描写密度：${(style.features.sensory_density * 100).toFixed(1)}%
+- 口语化程度：${(style.features.colloquialism_density * 100).toFixed(1)}%
+
+请严格按照以上文风特征进行创作。
+`;
 }
 
 </script>

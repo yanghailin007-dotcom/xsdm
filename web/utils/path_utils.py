@@ -28,6 +28,9 @@ NOVEL_PROJECTS_ROOT = _get_novel_projects_root()
 # 公共项目目录（旧数据迁移至此）
 PUBLIC_PROJECTS_DIR = NOVEL_PROJECTS_ROOT / "_public"
 
+# 短篇作品根目录（与长篇分离）
+SHORT_STORIES_ROOT = NOVEL_PROJECTS_ROOT.parent / "短篇作品"
+
 
 def get_current_username() -> str:
     """获取当前登录用户名"""
@@ -75,6 +78,151 @@ def is_admin(username: str = None) -> bool:
 def get_novel_projects_root() -> Path:
     """获取小说项目根目录"""
     return NOVEL_PROJECTS_ROOT
+
+
+def get_short_stories_root() -> Path:
+    """获取短篇作品根目录"""
+    if not SHORT_STORIES_ROOT.exists():
+        SHORT_STORIES_ROOT.mkdir(parents=True, exist_ok=True)
+    return SHORT_STORIES_ROOT
+
+
+def get_user_short_stories_dir(username: str = None, create: bool = True) -> Path:
+    """
+    获取指定用户的短篇作品目录
+    
+    Args:
+        username: 用户名，默认当前登录用户
+        create: 是否自动创建目录
+    
+    Returns:
+        用户短篇作品目录路径
+    """
+    if username is None:
+        username = get_current_username()
+    
+    user_dir = get_short_stories_root() / username
+    
+    if create and not user_dir.exists():
+        user_dir.mkdir(parents=True, exist_ok=True)
+    
+    return user_dir
+
+
+def get_short_story_dir(title: str, username: str = None, create: bool = False) -> Path:
+    """
+    获取指定短篇作品的完整路径
+    
+    Args:
+        title: 短篇作品标题
+        username: 用户名，默认当前登录用户
+        create: 是否自动创建目录
+    
+    Returns:
+        短篇作品目录路径
+    """
+    project_dir = get_user_short_stories_dir(username, create) / _safe_filename(title)
+    
+    if create and not project_dir.exists():
+        project_dir.mkdir(parents=True, exist_ok=True)
+    
+    return project_dir
+
+
+def _is_short_story_dir(project_dir: Path) -> bool:
+    """
+    检查目录是否是短篇作品（通过outline.json判断）
+    
+    Args:
+        project_dir: 项目目录路径
+    
+    Returns:
+        是否是短篇作品目录
+    """
+    if not project_dir.is_dir():
+        return False
+    
+    # 短篇的特征文件
+    return (project_dir / "outline.json").exists()
+
+
+def list_user_short_stories(username: str = None) -> List[dict]:
+    """
+    列出用户的所有短篇作品
+    
+    Args:
+        username: 用户名，默认当前登录用户
+    
+    Returns:
+        短篇作品列表，每项包含 title, path, type='short_story' 等信息
+    """
+    if username is None:
+        username = get_current_username()
+    
+    stories = []
+    
+    # 获取用户的短篇目录
+    user_dir = get_user_short_stories_dir(username, create=False)
+    if user_dir.exists():
+        for story_dir in user_dir.iterdir():
+            if story_dir.is_dir() and _is_short_story_dir(story_dir):
+                title = _restore_filename(story_dir.name)
+                
+                # 读取元数据（如果存在）
+                metadata = {}
+                outline_file = story_dir / "outline.json"
+                if outline_file.exists():
+                    try:
+                        import json
+                        with open(outline_file, 'r', encoding='utf-8') as f:
+                            outline = json.load(f)
+                            metadata['synopsis'] = outline.get('synopsis', '')
+                    except:
+                        pass
+                
+                stories.append({
+                    'title': title,
+                    'path': str(story_dir),
+                    'owner': username,
+                    'type': 'short_story',
+                    'is_short_story': True,
+                    **metadata
+                })
+    
+    return stories
+
+
+def list_user_all_works(username: str = None) -> List[dict]:
+    """
+    列出用户的所有作品（长篇+短篇）
+    
+    Args:
+        username: 用户名，默认当前登录用户
+    
+    Returns:
+        作品列表，每项包含 type='novel'|'short_story' 标识
+    """
+    works = []
+    
+    # 1. 获取长篇项目
+    for project in list_user_projects(username):
+        works.append({
+            'title': project['title'],
+            'path': project['path'],
+            'owner': project['owner'],
+            'type': 'novel',
+            'is_short_story': False,
+            'is_public': project.get('is_public', False)
+        })
+    
+    # 2. 获取短篇作品
+    for story in list_user_short_stories(username):
+        works.append(story)
+    
+    # 按标题排序
+    works.sort(key=lambda x: x['title'])
+    
+    return works
 
 
 def _restore_filename(filename: str) -> str:

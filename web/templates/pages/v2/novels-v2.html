@@ -626,6 +626,12 @@
             color: #94a3b8;
             border: 1px solid rgba(148, 163, 184, 0.3);
         }
+        
+        .badge-short-story {
+            background: linear-gradient(135deg, rgba(245, 158, 11, 0.2), rgba(217, 119, 6, 0.2));
+            color: #fbbf24;
+            border: 1px solid rgba(245, 158, 11, 0.4);
+        }
 
         .status-completed {
             background: rgba(34, 197, 94, 0.15);
@@ -1197,6 +1203,9 @@
         }
 
         function createNovelCard(novel) {
+            // 🔥 判断是否为短篇
+            const isShortStory = novel.is_short_story === true || novel.type === 'short_story';
+            
             const progress = novel.total_chapters > 0 ? 
                 Math.round((novel.completed_chapters / novel.total_chapters) * 100) : 0;
             
@@ -1204,19 +1213,25 @@
                 new Date(novel.created_at).toLocaleDateString('zh-CN') : '未知';
             
             // 🔥 改进：判断是否为"可续写"状态（第一阶段完成但第二阶段未完成）
-            const canResume = novel.status === 'paused' && novel.completed_chapters === 0 && novel.total_chapters > 0;
+            const canResume = !isShortStory && novel.status === 'paused' && novel.completed_chapters === 0 && novel.total_chapters > 0;
             const statusClass = canResume ? 'status-resumable' : getStatusClass(novel.status);
             const statusText = canResume ? (I18N.t ? I18N.t('novels.card.status.resumable') : '可续写') : getStatusText(novel.status);
             
             // 🔥 新增：检测项目类型
             const projectType = novel.project_type || 'unknown';
             const typeDisplay = novel.type_display || '未知';
-            const isMarketDriven = projectType === 'market_driven';
-            const isPhaseOne = projectType === 'phase_one';
+            const isMarketDriven = !isShortStory && projectType === 'market_driven';
+            const isPhaseOne = !isShortStory && projectType === 'phase_one';
             
             // 根据项目类型显示不同的类型徽章
-            const typeBadgeClass = isMarketDriven ? 'badge-market' : (isPhaseOne ? 'badge-phase' : 'badge-legacy');
-            const typeBadgeText = typeDisplay;
+            let typeBadgeClass, typeBadgeText;
+            if (isShortStory) {
+                typeBadgeClass = 'badge-short-story';
+                typeBadgeText = '短篇';
+            } else {
+                typeBadgeClass = isMarketDriven ? 'badge-market' : (isPhaseOne ? 'badge-phase' : 'badge-legacy');
+                typeBadgeText = typeDisplay;
+            }
 
             // 🔥 改进：根据项目类型和状态显示不同的操作按钮
             const readText = I18N.t ? I18N.t('novels.card.read') : '阅读';
@@ -1226,7 +1241,8 @@
                 </button>
             `;
             
-            if (!novel.is_public) {
+            // 短篇只显示阅读和导出按钮
+            if (!isShortStory && !novel.is_public) {
                 if (isMarketDriven) {
                     // 市场导向模式：显示"重写"和"续写"按钮
                     const rewriteText = '重写';
@@ -1266,7 +1282,7 @@
             `;
 
             return `
-                <div class="novel-card" data-project-type="${projectType}">
+                <div class="novel-card" data-project-type="${projectType}" data-is-short-story="${isShortStory}">
                     <div class="novel-status ${statusClass}">${statusText}</div>
                     <div class="novel-type-badge ${typeBadgeClass}">${typeBadgeText}</div>
                     
@@ -1703,8 +1719,8 @@
         }
 
         function exportNovel(title) {
-            // 直接下载 ZIP 包，包含项目所有文件（一阶段设定、二阶段章节等）
-            window.location.href = `/api/export/novel-zip/${encodeURIComponent(title)}`;
+            // 跳转到导出配置页面
+            window.location.href = `/export-page/${encodeURIComponent(title)}`;
         }
 
         function escapeHtml(text) {

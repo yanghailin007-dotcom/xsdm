@@ -1520,19 +1520,13 @@ document.addEventListener('click', function(e) {
     }
 });
 
-// 导出功能
+// 导出功能 - 跳转到导出配置页面
 function exportNovel(format) {
     const title = getNovelTitle();
     if (!title) return;
     
-    if (format === 'txt') {
-        window.open(`/api/export-novel?title=${encodeURIComponent(title)}&format=txt`, '_blank');
-    } else if (format === 'zip') {
-        window.open(`/api/export/novel-zip/${encodeURIComponent(title)}`, '_blank');
-    }
-    
-    document.getElementById('export-menu').classList.remove('open');
-    exportMenuOpen = false;
+    // 跳转到新的导出配置页面
+    window.location.href = `/export-page/${encodeURIComponent(title)}`;
 }
 
 // 获取小说标题

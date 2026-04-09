@@ -1219,7 +1219,8 @@
     }
 
     function exportNovel(title) {
-        window.open(`/api/export-novel?title=${encodeURIComponent(title)}&format=txt`, '_blank');
+        // 跳转到导出配置页面
+        window.location.href = `/export-page/${encodeURIComponent(title)}`;
     }
 
     function escapeHtml(text) {

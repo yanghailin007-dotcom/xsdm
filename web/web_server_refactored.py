@@ -576,6 +576,22 @@ def create_app():
     except Exception as e:
         logger.warning(f"⚠️ creative_planning_api 注册失败: {e}")
     
+    # 28.6. 文风管理 API 路由
+    try:
+        from web.api.writing_style_api import writing_style_bp
+        app.register_blueprint(writing_style_bp)
+        logger.info("✅ writing_style_api 文风管理已注册")
+    except Exception as e:
+        logger.warning(f"⚠️ writing_style_api 注册失败: {e}")
+    
+    # 28.7. 文风训练库页面路由
+    try:
+        from web.routes.writing_style_routes import register_writing_style_routes
+        register_writing_style_routes(app)
+        logger.info("✅ writing_style_routes 文风训练库页面已注册")
+    except Exception as e:
+        logger.warning(f"⚠️ writing_style_routes 注册失败: {e}")
+    
     # 28.6. 番茄短篇创作 API 路由
     try:
         from web.api.short_story_api import register_short_story_routes
@@ -637,23 +653,26 @@ def register_fanqie_routes(app):
     
     @app.route('/api/novels/list', methods=['GET'])
     def get_novels_list():
-        """获取当前用户的小说项目列表 - 支持多层目录结构，兼容传统模式"""
+        """获取当前用户的所有作品（长篇+短篇）- 支持多层目录结构，兼容传统模式"""
         try:
             from pathlib import Path
             from flask import session
-            from web.utils.path_utils import list_user_projects
+            from web.utils.path_utils import list_user_projects, list_user_short_stories
             
             # 获取当前用户
             username = session.get('username')
             if not username:
                 return jsonify({"success": False, "error": "请先登录"}), 401
             
-            # 🔥 修复：使用 list_user_projects 获取所有项目（兼容传统模式）
+            # 🔥 修复：使用 list_user_projects 获取长篇项目（兼容传统模式）
             user_projects = list_user_projects(username, include_public=True)
+            # 🔥 新增：获取短篇作品
+            user_short_stories = list_user_short_stories(username)
             
-            novels = []
+            works = []
             seen_ids = set()
             
+            # ========== 处理长篇项目 ==========
             for project_info in user_projects:
                 try:
                     title = project_info['title']
@@ -724,18 +743,67 @@ def register_fanqie_routes(app):
                                 except Exception:
                                     word_count += 2500
                     
-                    novels.append({
+                    works.append({
                         "id": project_id,
                         "title": title,
                         "chapter_count": chapter_count,
                         "word_count": word_count,
-                        "path": str(project_path)
+                        "path": str(project_path),
+                        "type": "novel",
+                        "is_short_story": False
                     })
                 except Exception as e:
                     logger.warning(f"[NOVELS_LIST] 加载项目失败 {project_info.get('title', 'unknown')}: {e}")
                     continue
             
-            return jsonify({"success": True, "data": novels})
+            # ========== 处理短篇作品 ==========
+            for story_info in user_short_stories:
+                try:
+                    title = story_info['title']
+                    story_path = Path(story_info['path'])
+                    story_id = story_path.name
+                    
+                    if story_id in seen_ids:
+                        continue
+                    seen_ids.add(story_id)
+                    
+                    # 读取短篇章节
+                    chapter_count = 0
+                    word_count = 0
+                    synopsis = story_info.get('synopsis', '')
+                    
+                    chapters_dir = story_path / "chapters"
+                    if chapters_dir.exists():
+                        chapter_files = sorted(chapters_dir.glob("chapter_*.json"))
+                        chapter_count = len(chapter_files)
+                        
+                        for f in chapter_files:
+                            try:
+                                import json
+                                with open(f, 'r', encoding='utf-8') as cf:
+                                    cdata = json.load(cf)
+                                word_count += cdata.get('word_count', len(cdata.get('content', '')))
+                            except Exception:
+                                pass
+                    
+                    works.append({
+                        "id": story_id,
+                        "title": title,
+                        "chapter_count": chapter_count,
+                        "word_count": word_count,
+                        "path": str(story_path),
+                        "type": "short_story",
+                        "is_short_story": True,
+                        "synopsis": synopsis
+                    })
+                except Exception as e:
+                    logger.warning(f"[NOVELS_LIST] 加载短篇失败 {story_info.get('title', 'unknown')}: {e}")
+                    continue
+            
+            # 按标题排序
+            works.sort(key=lambda x: x['title'])
+            
+            return jsonify({"success": True, "data": works})
         except Exception as e:
             logger.error(f"❌ 获取小说列表失败: {e}")
             import traceback

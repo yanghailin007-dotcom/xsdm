@@ -166,7 +166,8 @@ class ChapterConversationGenerator:
     def __init__(self, api_client, novel_data: Dict, tropes: Dict, 
                  quality_config: Dict = None,
                  world_state_manager=None,  #  世界状态管理器
-                 project_path: str = None):  #  项目路径
+                 project_path: str = None,  #  项目路径
+                 writing_style: Dict = None):  #  🔥 文风选择
         self.api_client = api_client
         # 确保 novel_data 是字典类型
         if isinstance(novel_data, list):
@@ -177,6 +178,7 @@ class ChapterConversationGenerator:
             novel_data = {}
         self.novel_data = novel_data
         self.tropes = tropes
+        self.writing_style = writing_style  #  🔥 保存文风设置
         self.session = None
         self.logger = None  # 对话日志记录器
         self.quality_checker = None  # 质量检查器
@@ -372,10 +374,47 @@ class ChapterConversationGenerator:
         logger.warning(f"[章节对话 {self.session_id}] 警告:未能找到主角名!")
         return '主角'
     
+    def _build_writing_style_prompt(self) -> str:
+        """🔥 构建文风提示词"""
+        if not self.writing_style:
+            return ""
+        
+        style = self.writing_style
+        style_name = style.get('name', '未命名')
+        style_desc = style.get('description', '')
+        features = style.get('features', {})
+        
+        prompt_parts = [
+            f"""
+【文风要求：{style_name}】
+{style_desc}
+"""
+        ]
+        
+        # 如果有特征数据，添加具体指标
+        if features:
+            short_ratio = features.get('short_sentence_ratio', 0.3)
+            dialogue_ratio = features.get('dialogue_ratio', 0.3)
+            sensory_density = features.get('sensory_density', 0.03)
+            colloquialism_density = features.get('colloquialism_density', 0.02)
+            
+            prompt_parts.append(f"""
+具体指标要求：
+- 短句（<10字）占比约{short_ratio*100:.0f}%，营造快节奏感
+- 对话占比约{dialogue_ratio*100:.0f}%，推动情节发展
+- 感官描写密度约{sensory_density*100:.1f}%，增强代入感
+- 口语化程度约{colloquialism_density*100:.1f}%，贴近网文风格
+""")
+        
+        return "\n".join(prompt_parts)
+    
     def _build_system_prompt(self, start_chapter: int) -> str:
         """构建系统提示词(使用TropePromptBuilder分层架构)"""
         # 获取强制主角名
         protagonist_name = self._get_enforced_protagonist_name()
+        
+        # 🔥 构建文风提示词
+        style_prompt = self._build_writing_style_prompt()
         
         # 使用TropePromptBuilder构建System Prompt(分层架构)
         if HAS_TROPE_PROMPT_BUILDER:
@@ -399,6 +438,10 @@ class ChapterConversationGenerator:
 3. 如果前文有错误名字,本章必须纠正回来
 4. 违反此设定视为严重错误
 """
+                # 🔥 注入文风提示词
+                if style_prompt:
+                    logger.info(f"[章节对话 {self.session_id}] 注入文风: {self.writing_style.get('name')}")
+                    return system_prompt + style_prompt + enforcement
                 return system_prompt + enforcement
                 
             except Exception as e:
@@ -420,13 +463,23 @@ class ChapterConversationGenerator:
 4. 违反此设定视为严重错误
 
 """
+                # 🔥 注入文风提示词
+                if style_prompt:
+                    logger.info(f"[章节对话 {self.session_id}] 注入文风: {self.writing_style.get('name')}")
+                    return style_prompt + enforcement + system_prompt
                 return enforcement + system_prompt
             except Exception as e:
                 logger.warning(f"[章节对话 {self.session_id}] 优化器失败,使用备用模式: {e}")
         
         # 使用简化版优化器(备用)
         optimizer = SimpleOptimizer(self.novel_data)
-        return optimizer.build_system_prompt()
+        base_prompt = optimizer.build_system_prompt()
+        
+        # 🔥 注入文风提示词
+        if style_prompt:
+            logger.info(f"[章节对话 {self.session_id}] 注入文风: {self.writing_style.get('name')}")
+            return style_prompt + "\n" + base_prompt
+        return base_prompt
     
     def generate_chapters(self, start_chapter: int, end_chapter: int, 
                          blueprint: Dict, progress_callback=None) -> List[Dict]:

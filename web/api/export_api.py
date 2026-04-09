@@ -176,55 +176,64 @@ def export_complete_package():
 @export_api.route('/novel-zip/<title>', methods=['GET'])
 def export_novel_zip(title):
     """
-    打包导出小说项目所有文件为 ZIP
+    打包导出小说/短篇项目所有文件为 ZIP
     
     包含：
     - 章节内容 (txt)
     - 项目配置 (json)
-    - 世界观设定
-    - 角色设计
-    - 写作计划
+    - 世界观设定（长篇）
+    - 角色设计（长篇）
+    - 写作计划（长篇）
     """
     try:
         from urllib.parse import unquote
+        from pathlib import Path
         title = unquote(title)
         
         # 使用 path_utils 动态查找用户项目（支持 owner/title 结构）
-        from web.utils.path_utils import list_user_projects, is_admin
+        from web.utils.path_utils import list_user_projects, list_user_short_stories, is_admin, get_short_stories_root
         
         # 获取当前用户（从 session 或请求上下文）
         from flask import session
         try:
             username = session.get('username')
         except RuntimeError:
-            # 在没有 Flask 请求上下文时
             username = None
         
         # 检查用户是否登录
         if not username:
             return jsonify({'success': False, 'error': '请先登录'}), 401
         
-        # 列出用户的所有项目（管理员可查看所有项目）
-        user_projects = list_user_projects(username, include_public=True)
+        # 检查是否为短篇
+        short_stories = list_user_short_stories(username)
+        is_short_story = any(s['title'] == title for s in short_stories)
         
-        # 查找匹配的项目（只能导出自己的项目，管理员除外）
-        target_project = None
-        for project in user_projects:
-            if project['title'] == title:
-                target_project = project
-                break
-        
-        if not target_project:
-            return jsonify({'success': False, 'error': '小说项目不存在或无权访问'}), 404
-        
-        # 构建小说项目完整路径 (owner/title 结构)
-        owner = target_project.get('owner', username)
-        project_dir = NOVEL_PROJECTS_DIR / owner / title
-        if not project_dir.exists():
-            # 尝试直接查找（兼容旧结构）
-            project_dir = NOVEL_PROJECTS_DIR / title
+        if is_short_story:
+            # 🔥 短篇作品导出
+            story = next(s for s in short_stories if s['title'] == title)
+            project_dir = Path(story['path'])
             if not project_dir.exists():
-                return jsonify({'success': False, 'error': '小说项目路径不存在'}), 404
+                return jsonify({'success': False, 'error': '短篇作品路径不存在'}), 404
+        else:
+            # 🔥 长篇作品导出
+            user_projects = list_user_projects(username, include_public=True)
+            target_project = None
+            for project in user_projects:
+                if project['title'] == title:
+                    target_project = project
+                    break
+            
+            if not target_project:
+                return jsonify({'success': False, 'error': '小说项目不存在或无权访问'}), 404
+            
+            # 构建小说项目完整路径 (owner/title 结构)
+            owner = target_project.get('owner', username)
+            project_dir = NOVEL_PROJECTS_DIR / owner / title
+            if not project_dir.exists():
+                # 尝试直接查找（兼容旧结构）
+                project_dir = NOVEL_PROJECTS_DIR / title
+                if not project_dir.exists():
+                    return jsonify({'success': False, 'error': '小说项目路径不存在'}), 404
         
         # 创建临时 ZIP 文件
         temp_file = tempfile.NamedTemporaryFile(suffix='.zip', delete=False)
@@ -268,10 +277,39 @@ def export_novel_zip(title):
             
             # 9. 添加 README 说明文件
             now_str = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-            readme_content = f"""# {title} - 小说项目导出包
+            
+            if is_short_story:
+                readme_content = f"""# {title} - 短篇作品导出包
 
 导出时间: {now_str}
 共导出 {file_count} 个文件
+作品类型: 短篇
+
+## 目录结构
+
+本导出包包含短篇作品的完整文件结构：
+
+- outline.json - 大纲和简介
+- chapters/ - 章节内容
+- 00_完整小说.txt (如存在章节) - 合并所有章节的完整小说文本
+
+## 使用说明
+
+1. 解压后可直接阅读 00_完整小说.txt 查看完整内容
+2. chapters/ 目录包含各章节的独立文件
+3. outline.json 包含作品的大纲信息
+
+## 注意事项
+
+- 此导出包包含作品的完整数据，请妥善保管
+- 短篇作品可直接用于投稿、发布到知乎/公众号等平台
+"""
+            else:
+                readme_content = f"""# {title} - 小说项目导出包
+
+导出时间: {now_str}
+共导出 {file_count} 个文件
+作品类型: 长篇
 
 ## 目录结构
 
@@ -302,11 +340,333 @@ def export_novel_zip(title):
             temp_file.name,
             mimetype='application/zip',
             as_attachment=True,
-            download_name=f"{title}_小说项目导出.zip"
+            download_name=f"{title}_{'短篇' if is_short_story else '小说项目'}导出.zip"
         )
         
     except Exception as e:
         print(f"导出小说 ZIP 失败: {e}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@export_api.route('/novel-preview', methods=['GET'])
+def export_novel_preview():
+    """
+    获取小说/短篇预览数据（用于导出页面预览）
+    """
+    try:
+        from urllib.parse import unquote
+        from web.utils.path_utils import list_user_projects, list_user_short_stories, get_current_username
+        from flask import session
+        from pathlib import Path
+        import json
+        
+        title = request.args.get('title', '')
+        title = unquote(title)
+        
+        if not title:
+            return jsonify({'success': False, 'error': '缺少小说标题'}), 400
+        
+        # 获取当前用户
+        try:
+            username = session.get('username')
+        except RuntimeError:
+            username = None
+        
+        if not username:
+            return jsonify({'success': False, 'error': '请先登录'}), 401
+        
+        # 检查是否为短篇
+        short_stories = list_user_short_stories(username)
+        is_short_story = any(s['title'] == title for s in short_stories)
+        
+        chapter_list = []
+        synopsis = ''
+        
+        if is_short_story:
+            # 🔥 短篇作品处理
+            story = next(s for s in short_stories if s['title'] == title)
+            story_path = Path(story['path'])
+            
+            # 读取 outline.json 获取简介
+            outline_path = story_path / 'outline.json'
+            if outline_path.exists():
+                try:
+                    with open(outline_path, 'r', encoding='utf-8') as f:
+                        outline = json.load(f)
+                        synopsis = outline.get('synopsis', '')
+                except Exception:
+                    pass
+            
+            # 读取章节
+            chapters_dir = story_path / 'chapters'
+            if chapters_dir.exists():
+                chapter_files = sorted(chapters_dir.glob('chapter_*.json'))
+                for i, ch_file in enumerate(chapter_files, 1):
+                    try:
+                        with open(ch_file, 'r', encoding='utf-8') as f:
+                            ch_data = json.load(f)
+                        chapter_list.append({
+                            'number': ch_data.get('chapter_number', i),
+                            'title': ch_data.get('title', f'第{i}章'),
+                            'content': ch_data.get('content', '')[:1000]
+                        })
+                    except Exception:
+                        pass
+        else:
+            # 🔥 长篇作品处理
+            user_projects = list_user_projects(username, include_public=True)
+            target_project = None
+            for project in user_projects:
+                if project['title'] == title:
+                    target_project = project
+                    break
+            
+            if not target_project:
+                return jsonify({'success': False, 'error': '小说项目不存在或无权访问'}), 404
+            
+            # 获取章节数据
+            from src.utils.path_manager import path_manager
+            owner = target_project.get('owner', username)
+            chapters = path_manager.get_all_chapters(title, username=owner)
+            
+            # 格式化章节数据
+            for num in sorted(chapters.keys()):
+                chapter = chapters[num]
+                chapter_list.append({
+                    'number': num,
+                    'title': chapter.get('chapter_title', f'第{num}章'),
+                    'content': chapter.get('content', '')[:1000]
+                })
+            
+            # 获取简介
+            try:
+                project_info_path = Path('小说项目') / owner / title / 'project_info.json'
+                if not project_info_path.exists():
+                    project_info_path = Path('小说项目') / f"{title}_项目信息.json"
+                if project_info_path.exists():
+                    with open(project_info_path, 'r', encoding='utf-8') as f:
+                        project_info = json.load(f)
+                        synopsis = project_info.get('synopsis', '') or project_info.get('story_synopsis', '')
+            except Exception:
+                pass
+        
+        return jsonify({
+            'success': True,
+            'title': title,
+            'synopsis': synopsis,
+            'chapters': chapter_list,
+            'total_chapters': len(chapter_list),
+            'is_short_story': is_short_story
+        })
+        
+    except Exception as e:
+        print(f"获取预览数据失败: {e}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@export_api.route('/novel-content', methods=['GET'])
+def export_novel_content():
+    """
+    导出小说/短篇正文内容为 TXT 或 Markdown
+    
+    参数:
+        - title: 小说标题
+        - format: 格式 (txt|md)
+        - include_title: 是否包含章节标题
+        - include_synopsis: 是否包含简介
+        - add_separator: 是否添加分隔线
+        - start_chapter: 起始章节
+        - end_chapter: 结束章节
+    """
+    try:
+        from urllib.parse import unquote
+        from web.utils.path_utils import list_user_projects, list_user_short_stories
+        from flask import session, make_response
+        from pathlib import Path
+        
+        title = request.args.get('title', '')
+        title = unquote(title)
+        format_type = request.args.get('format', 'txt')
+        include_title = request.args.get('include_title', 'true').lower() == 'true'
+        include_synopsis = request.args.get('include_synopsis', 'true').lower() == 'true'
+        add_separator = request.args.get('add_separator', 'true').lower() == 'true'
+        start_chapter = int(request.args.get('start_chapter', 1))
+        end_chapter = int(request.args.get('end_chapter', 9999))
+        
+        if not title:
+            return jsonify({'success': False, 'error': '缺少小说标题'}), 400
+        
+        # 获取当前用户
+        try:
+            username = session.get('username')
+        except RuntimeError:
+            username = None
+        
+        if not username:
+            return jsonify({'success': False, 'error': '请先登录'}), 401
+        
+        # 检查是否为短篇
+        short_stories = list_user_short_stories(username)
+        is_short_story = any(s['title'] == title for s in short_stories)
+        
+        chapters = {}
+        synopsis = ''
+        
+        if is_short_story:
+            # 🔥 短篇作品处理
+            story = next(s for s in short_stories if s['title'] == title)
+            story_path = Path(story['path'])
+            
+            # 读取 outline.json 获取简介
+            outline_path = story_path / 'outline.json'
+            if outline_path.exists():
+                try:
+                    with open(outline_path, 'r', encoding='utf-8') as f:
+                        outline = json.load(f)
+                        synopsis = outline.get('synopsis', '')
+                except Exception:
+                    pass
+            
+            # 读取章节
+            chapters_dir = story_path / 'chapters'
+            if chapters_dir.exists():
+                chapter_files = sorted(chapters_dir.glob('chapter_*.json'))
+                for ch_file in chapter_files:
+                    try:
+                        with open(ch_file, 'r', encoding='utf-8') as f:
+                            ch_data = json.load(f)
+                        ch_num = ch_data.get('chapter_number', 0)
+                        chapters[ch_num] = {
+                            'chapter_title': ch_data.get('title', f'第{ch_num}章'),
+                            'content': ch_data.get('content', '')
+                        }
+                    except Exception:
+                        pass
+        else:
+            # 🔥 长篇作品处理
+            user_projects = list_user_projects(username, include_public=True)
+            target_project = None
+            for project in user_projects:
+                if project['title'] == title:
+                    target_project = project
+                    break
+            
+            if not target_project:
+                return jsonify({'success': False, 'error': '小说项目不存在或无权访问'}), 404
+            
+            # 获取章节数据
+            from src.utils.path_manager import path_manager
+            owner = target_project.get('owner', username)
+            chapters = path_manager.get_all_chapters(title, username=owner)
+            
+            # 获取简介
+            if include_synopsis:
+                try:
+                    project_info_path = Path('小说项目') / owner / title / 'project_info.json'
+                    if not project_info_path.exists():
+                        project_info_path = Path('小说项目') / f"{title}_项目信息.json"
+                    if project_info_path.exists():
+                        with open(project_info_path, 'r', encoding='utf-8') as f:
+                            project_info = json.load(f)
+                            synopsis = project_info.get('synopsis', '') or project_info.get('story_synopsis', '')
+                except Exception:
+                    pass
+        
+        # 获取简介（从项目信息文件）
+        synopsis = ''
+        if include_synopsis:
+            try:
+                import json
+                from pathlib import Path
+                project_info_path = Path('小说项目') / owner / title / 'project_info.json'
+                if not project_info_path.exists():
+                    project_info_path = Path('小说项目') / f"{title}_项目信息.json"
+                if project_info_path.exists():
+                    with open(project_info_path, 'r', encoding='utf-8') as f:
+                        project_info = json.load(f)
+                        synopsis = project_info.get('synopsis', '') or project_info.get('story_synopsis', '')
+            except Exception:
+                pass
+        
+        # 生成内容
+        content_lines = []
+        
+        # 标题
+        if format_type == 'md':
+            content_lines.append(f"# {title}")
+            content_lines.append("")
+        else:
+            content_lines.append(title)
+            content_lines.append("=" * len(title))
+            content_lines.append("")
+        
+        # 简介
+        if synopsis:
+            if format_type == 'md':
+                content_lines.append("## 简介")
+                content_lines.append("")
+                content_lines.append(synopsis)
+                content_lines.append("")
+                content_lines.append("---")
+                content_lines.append("")
+            else:
+                content_lines.append("【简介】")
+                content_lines.append(synopsis)
+                content_lines.append("")
+                content_lines.append("=" * 40)
+                content_lines.append("")
+        
+        # 章节
+        chapter_nums = sorted([n for n in chapters.keys() if start_chapter <= n <= end_chapter])
+        
+        for i, num in enumerate(chapter_nums):
+            chapter = chapters[num]
+            
+            # 章节标题
+            if include_title:
+                chapter_title = chapter.get('chapter_title', f'第{num}章')
+                if format_type == 'md':
+                    content_lines.append(f"## {chapter_title}")
+                    content_lines.append("")
+                else:
+                    content_lines.append(chapter_title)
+                    content_lines.append("-" * len(chapter_title))
+                    content_lines.append("")
+            
+            # 章节内容
+            chapter_content = chapter.get('content', '')
+            content_lines.append(chapter_content)
+            
+            # 分隔线
+            if add_separator and i < len(chapter_nums) - 1:
+                content_lines.append("")
+                if format_type == 'md':
+                    content_lines.append("---")
+                else:
+                    content_lines.append("*" * 20)
+                content_lines.append("")
+        
+        # 构建响应
+        full_content = "\n".join(content_lines)
+        
+        # 文件扩展名
+        ext = 'md' if format_type == 'md' else 'txt'
+        filename = f"{title}_正文.{ext}"
+        
+        # 安全处理文件名
+        safe_filename = "".join(c for c in filename if c.isalnum() or c in '._-')
+        
+        response = make_response(full_content)
+        response.headers["Content-Disposition"] = f"attachment; filename={safe_filename}"
+        response.headers["Content-Type"] = "text/plain; charset=utf-8"
+        return response
+        
+    except Exception as e:
+        print(f"导出正文失败: {e}")
         import traceback
         traceback.print_exc()
         return jsonify({'success': False, 'error': str(e)}), 500

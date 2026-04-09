@@ -218,10 +218,10 @@ def create_short_story():
             return jsonify({"error": "创意种子不能为空"}), 400
         
         from src.core.short_story.models import ShortStoryConfig, StoryMode, StoryGenre
-        from web.utils.path_utils import get_user_novel_dir
+        from web.utils.path_utils import get_user_short_stories_dir
         
-        # 使用与长篇相同的项目路径机制
-        project_path = str(get_user_novel_dir(username=username, create=True))
+        # 使用短篇作品专用路径（与长篇分离）
+        project_path = str(get_user_short_stories_dir(username=username, create=True))
         
         config = ShortStoryConfig(
             mode=StoryMode.CREATIVE,
@@ -284,8 +284,8 @@ def imitate_short_story():
         from src.core.short_story.models import ShortStoryConfig, StoryMode, StoryGenre
         from web.utils.path_utils import get_user_novel_dir
         
-        # 使用与长篇相同的项目路径机制
-        project_path = str(get_user_novel_dir(username=username, create=True))
+        # 使用短篇作品专用路径（与长篇分离）
+        project_path = str(get_user_short_stories_dir(username=username, create=True))
         
         config = ShortStoryConfig(
             mode=StoryMode.IMITATE,
@@ -767,11 +767,11 @@ def finalize_story():
         if not outline or not chapters:
             return jsonify({"error": "缺少大纲或正文数据"}), 400
         
-        # 保存到项目目录
-        from web.utils.path_utils import get_user_novel_dir
+        # 保存到短篇作品目录
+        from web.utils.path_utils import get_user_short_stories_dir
         import json
         
-        project_dir = get_user_novel_dir(username=username, create=True) / outline.get('title', '未命名短篇')
+        project_dir = get_user_short_stories_dir(username=username, create=True) / outline.get('title', '未命名短篇')
         project_dir.mkdir(parents=True, exist_ok=True)
         
         # 保存大纲
@@ -807,11 +807,11 @@ def save_draft():
         data = request.get_json() or {}
         username = _get_current_username()
         
-        from web.utils.path_utils import get_user_novel_dir
+        from web.utils.path_utils import get_user_short_stories_dir
         import json
         
         title = data.get('title', '未命名短篇')
-        project_dir = get_user_novel_dir(username=username, create=True) / title
+        project_dir = get_user_short_stories_dir(username=username, create=True) / title
         project_dir.mkdir(parents=True, exist_ok=True)
         
         # 保存草稿文件

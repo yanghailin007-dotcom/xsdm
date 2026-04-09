@@ -519,6 +519,9 @@ def start_market_driven_generation():
         target_words = data.get('target_words') or get_target_words(genre)
         options = data.get('options', {})
         
+        # 🔥 获取文风选择
+        writing_style = user_choices.get('writing_style') or data.get('writing_style')
+        
         if not genre:
             return jsonify({"error": "缺少必要参数: genre"}), 400
         
@@ -559,13 +562,15 @@ def start_market_driven_generation():
         task_id = task_manager.create_task(genre, user_choices)
         
         # 🔥 保存用户ID、用户名、预估点数和目标字数到任务中（后台线程无法访问session）
+        # 🔥 同时保存文风选择
         task_manager.update_task(
             task_id,
             username=username,
             user_id=user_id,
             estimated_points=estimated_points,
             points_consumed=0,
-            target_words=target_words
+            target_words=target_words,
+            writing_style=writing_style
         )
         logger.info(f"[Task {task_id}] 创建任务，用户名: {username}, user_id: {user_id}")
         
@@ -1496,6 +1501,13 @@ def _run_chapter_generation(task_id: str, genre: str, target_words: int, api_cli
                 "tactical_plan": tactical_plan,  # 当前批次的详细规划
                 "strategic_context": strategic_context  # 战略上下文
             }
+            
+            # 🔥 获取文风设置
+            writing_style = task.get('writing_style')
+            if writing_style:
+                # 将文风注入到novel_data中
+                novel_data_with_plan['writing_style'] = writing_style
+                logger.info(f"[Task {task_id}] 使用文风: {writing_style.get('name', '未命名')}")
             
             # 生成本批
             result = batch_gen.generate_batch(

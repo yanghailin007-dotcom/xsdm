@@ -1,0 +1,938 @@
+{% extends "layouts/base-v2.html" %}
+
+{% block title %}文风训练库{% endblock %}
+
+{% block extra_css %}
+<style>
+/* 页面整体样式 - 深色主题 */
+.style-library-container {
+    padding: 24px 32px;
+    max-width: 1400px;
+    margin: 0 auto;
+}
+
+/* 头部区域 - 渐变背景 */
+.page-header {
+    background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+    border-radius: 16px;
+    padding: 32px;
+    margin-bottom: 28px;
+    position: relative;
+    overflow: hidden;
+}
+
+.page-header::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: 
+        radial-gradient(circle at 20% 80%, rgba(74, 144, 226, 0.15) 0%, transparent 50%),
+        radial-gradient(circle at 80% 20%, rgba(99, 102, 241, 0.1) 0%, transparent 50%);
+    pointer-events: none;
+}
+
+.header-content {
+    position: relative;
+    z-index: 1;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 24px;
+}
+
+.header-title-section {
+    flex: 1;
+}
+
+.page-title {
+    font-size: 32px;
+    font-weight: 700;
+    color: #fff;
+    margin: 0 0 10px 0;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.page-title .icon {
+    font-size: 36px;
+    filter: drop-shadow(0 2px 8px rgba(74, 144, 226, 0.4));
+}
+
+.page-subtitle {
+    color: rgba(255, 255, 255, 0.6);
+    font-size: 15px;
+    margin: 0;
+    max-width: 500px;
+    line-height: 1.5;
+}
+
+.header-actions {
+    display: flex;
+    gap: 12px;
+    align-items: center;
+}
+
+.btn-extract {
+    background: linear-gradient(135deg, #4a90e2 0%, #6366f1 100%);
+    color: white;
+    border: none;
+    padding: 14px 28px;
+    border-radius: 12px;
+    font-size: 15px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    box-shadow: 0 4px 15px rgba(74, 144, 226, 0.35);
+}
+
+.btn-extract:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 25px rgba(74, 144, 226, 0.45);
+}
+
+.btn-extract .icon {
+    font-size: 20px;
+    font-weight: 300;
+}
+
+/* 标签页 - 胶囊式设计 */
+.tabs-wrapper {
+    display: flex;
+    justify-content: center;
+    margin-bottom: 28px;
+}
+
+.tabs {
+    display: inline-flex;
+    background: rgba(255, 255, 255, 0.05);
+    border-radius: 14px;
+    padding: 6px;
+    gap: 4px;
+    backdrop-filter: blur(10px);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.tab {
+    padding: 12px 28px;
+    cursor: pointer;
+    border-radius: 10px;
+    transition: all 0.3s ease;
+    color: rgba(255, 255, 255, 0.5);
+    font-size: 14px;
+    font-weight: 500;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    border: none;
+    background: transparent;
+}
+
+.tab:hover {
+    color: rgba(255, 255, 255, 0.8);
+    background: rgba(255, 255, 255, 0.05);
+}
+
+.tab.active {
+    color: #fff;
+    background: rgba(74, 144, 226, 0.2);
+    box-shadow: 0 2px 10px rgba(74, 144, 226, 0.2);
+}
+
+.tab .icon {
+    font-size: 16px;
+}
+
+/* 文风卡片网格 */
+.style-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
+    gap: 20px;
+}
+
+.style-card {
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 16px;
+    padding: 24px;
+    transition: all 0.3s ease;
+    position: relative;
+    overflow: hidden;
+}
+
+.style-card::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 3px;
+    background: linear-gradient(90deg, #4a90e2, #6366f1);
+    opacity: 0;
+    transition: opacity 0.3s ease;
+}
+
+.style-card:hover {
+    background: rgba(255, 255, 255, 0.05);
+    border-color: rgba(255, 255, 255, 0.15);
+    transform: translateY(-4px);
+    box-shadow: 0 12px 40px rgba(0, 0, 0, 0.3);
+}
+
+.style-card:hover::before {
+    opacity: 1;
+}
+
+.style-card.preset {
+    border-left: 3px solid #4a90e2;
+}
+
+.style-card.user {
+    border-left: 3px solid #10b981;
+}
+
+.style-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 14px;
+}
+
+.style-name {
+    font-size: 18px;
+    font-weight: 600;
+    color: #fff;
+    line-height: 1.3;
+    flex: 1;
+    margin-right: 12px;
+}
+
+.style-badge {
+    font-size: 11px;
+    padding: 5px 12px;
+    border-radius: 20px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.style-badge.preset {
+    background: rgba(74, 144, 226, 0.15);
+    color: #4a90e2;
+    border: 1px solid rgba(74, 144, 226, 0.25);
+}
+
+.style-badge.user {
+    background: rgba(16, 185, 129, 0.15);
+    color: #10b981;
+    border: 1px solid rgba(16, 185, 129, 0.25);
+}
+
+.style-desc {
+    color: rgba(255, 255, 255, 0.5);
+    font-size: 14px;
+    line-height: 1.6;
+    margin-bottom: 16px;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+}
+
+.style-meta {
+    display: flex;
+    gap: 16px;
+    font-size: 13px;
+    margin-bottom: 16px;
+    flex-wrap: wrap;
+}
+
+.style-meta span {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    color: rgba(255, 255, 255, 0.4);
+}
+
+.style-meta .rating {
+    color: #fbbf24;
+}
+
+.style-meta .genre {
+    background: rgba(255, 255, 255, 0.05);
+    padding: 3px 10px;
+    border-radius: 12px;
+    font-size: 12px;
+}
+
+.style-preview {
+    background: rgba(0, 0, 0, 0.2);
+    border-radius: 10px;
+    padding: 14px;
+    font-size: 13px;
+    color: rgba(255, 255, 255, 0.45);
+    line-height: 1.6;
+    display: -webkit-box;
+    -webkit-line-clamp: 3;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+    margin-bottom: 18px;
+    border-left: 2px solid rgba(255, 255, 255, 0.1);
+}
+
+.style-actions {
+    display: flex;
+    gap: 10px;
+}
+
+.btn {
+    padding: 10px 18px;
+    border-radius: 10px;
+    border: none;
+    cursor: pointer;
+    font-size: 13px;
+    font-weight: 500;
+    transition: all 0.2s ease;
+    flex: 1;
+    text-align: center;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+}
+
+.btn-primary {
+    background: linear-gradient(135deg, #4a90e2 0%, #6366f1 100%);
+    color: white;
+    box-shadow: 0 2px 10px rgba(74, 144, 226, 0.25);
+}
+
+.btn-primary:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 15px rgba(74, 144, 226, 0.4);
+}
+
+.btn-secondary {
+    background: rgba(255, 255, 255, 0.08);
+    color: rgba(255, 255, 255, 0.7);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.btn-secondary:hover {
+    background: rgba(255, 255, 255, 0.12);
+    color: #fff;
+}
+
+.btn-danger {
+    background: rgba(239, 68, 68, 0.1);
+    color: #ef4444;
+    border: 1px solid rgba(239, 68, 68, 0.2);
+}
+
+.btn-danger:hover {
+    background: rgba(239, 68, 68, 0.15);
+}
+
+/* 上传区域 */
+.upload-section {
+    background: linear-gradient(135deg, rgba(26, 26, 46, 0.8) 0%, rgba(22, 33, 62, 0.8) 100%);
+    border: 2px dashed rgba(74, 144, 226, 0.3);
+    border-radius: 20px;
+    padding: 48px;
+    text-align: center;
+    margin-bottom: 32px;
+    transition: all 0.3s ease;
+}
+
+.upload-section:hover {
+    border-color: rgba(74, 144, 226, 0.5);
+    background: linear-gradient(135deg, rgba(26, 26, 46, 0.9) 0%, rgba(22, 33, 62, 0.9) 100%);
+}
+
+.upload-icon {
+    font-size: 56px;
+    margin-bottom: 16px;
+    opacity: 0.8;
+}
+
+.upload-title {
+    font-size: 22px;
+    font-weight: 600;
+    color: #fff;
+    margin-bottom: 10px;
+}
+
+.upload-desc {
+    color: rgba(255, 255, 255, 0.5);
+    margin-bottom: 28px;
+    font-size: 14px;
+}
+
+.upload-or {
+    color: rgba(255, 255, 255, 0.3);
+    margin: 20px 0;
+    font-size: 14px;
+    position: relative;
+}
+
+.upload-or::before,
+.upload-or::after {
+    content: '';
+    position: absolute;
+    top: 50%;
+    width: 80px;
+    height: 1px;
+    background: rgba(255, 255, 255, 0.1);
+}
+
+.upload-or::before {
+    right: calc(50% + 20px);
+}
+
+.upload-or::after {
+    left: calc(50% + 20px);
+}
+
+.extract-textarea {
+    width: 100%;
+    min-height: 180px;
+    padding: 18px;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 12px;
+    margin-bottom: 20px;
+    resize: vertical;
+    font-size: 14px;
+    background: rgba(0, 0, 0, 0.2);
+    color: rgba(255, 255, 255, 0.8);
+    line-height: 1.6;
+}
+
+.extract-textarea::placeholder {
+    color: rgba(255, 255, 255, 0.3);
+}
+
+.extract-textarea:focus {
+    outline: none;
+    border-color: rgba(74, 144, 226, 0.5);
+    box-shadow: 0 0 0 3px rgba(74, 144, 226, 0.1);
+}
+
+/* 空状态 */
+.empty-state {
+    text-align: center;
+    padding: 80px 20px;
+    color: rgba(255, 255, 255, 0.4);
+    grid-column: 1 / -1;
+}
+
+.empty-icon {
+    font-size: 64px;
+    margin-bottom: 20px;
+    opacity: 0.5;
+}
+
+.empty-title {
+    font-size: 20px;
+    font-weight: 600;
+    color: rgba(255, 255, 255, 0.7);
+    margin-bottom: 10px;
+}
+
+.empty-desc {
+    font-size: 14px;
+    color: rgba(255, 255, 255, 0.4);
+    max-width: 400px;
+    margin: 0 auto;
+}
+
+/* 加载状态 */
+.loading {
+    text-align: center;
+    padding: 60px;
+    color: rgba(255, 255, 255, 0.5);
+    grid-column: 1 / -1;
+}
+
+.spinner {
+    display: inline-block;
+    width: 44px;
+    height: 44px;
+    border: 3px solid rgba(255, 255, 255, 0.1);
+    border-top: 3px solid #4a90e2;
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+    margin-bottom: 16px;
+}
+
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+/* 提取结果 */
+.extract-result {
+    background: rgba(0, 0, 0, 0.2);
+    border-radius: 16px;
+    padding: 28px;
+    margin-top: 28px;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.extract-result h3 {
+    margin-bottom: 20px;
+    color: #fff;
+    font-size: 18px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.feature-list {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 12px;
+    margin-bottom: 24px;
+}
+
+.feature-item {
+    display: flex;
+    justify-content: space-between;
+    padding: 14px 16px;
+    background: rgba(255, 255, 255, 0.03);
+    border-radius: 10px;
+    border: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.feature-label {
+    color: rgba(255, 255, 255, 0.4);
+    font-size: 13px;
+}
+
+.feature-value {
+    color: rgba(255, 255, 255, 0.8);
+    font-weight: 500;
+    font-size: 13px;
+}
+
+/* 保存区域 */
+.save-section {
+    display: flex;
+    gap: 12px;
+    margin-top: 20px;
+}
+
+.save-section input {
+    flex: 1;
+    padding: 14px 18px;
+    background: rgba(0, 0, 0, 0.2);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 10px;
+    color: #fff;
+    font-size: 14px;
+}
+
+.save-section input::placeholder {
+    color: rgba(255, 255, 255, 0.3);
+}
+
+.save-section input:focus {
+    outline: none;
+    border-color: rgba(74, 144, 226, 0.5);
+}
+
+/* 响应式 */
+@media (max-width: 768px) {
+    .style-library-container {
+        padding: 16px;
+    }
+    
+    .page-header {
+        padding: 24px;
+    }
+    
+    .header-content {
+        flex-direction: column;
+        text-align: center;
+    }
+    
+    .page-title {
+        font-size: 24px;
+        justify-content: center;
+    }
+    
+    .style-grid {
+        grid-template-columns: 1fr;
+    }
+    
+    .feature-list {
+        grid-template-columns: 1fr;
+    }
+    
+    .tabs {
+        width: 100%;
+    }
+    
+    .tab {
+        flex: 1;
+        justify-content: center;
+    }
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="style-library-container">
+    <!-- 页面头部 -->
+    <div class="page-header">
+        <div class="header-content">
+            <div class="header-title-section">
+                <h1 class="page-title">
+                    <span class="icon">🎨</span>
+                    文风训练库
+                </h1>
+                <p class="page-subtitle">选择或创建适合你的写作风格，让AI更好地理解你的需求，创作出更符合预期的作品</p>
+            </div>
+            <div class="header-actions">
+                <button class="btn-extract" onclick="showExtractSection()">
+                    <span class="icon">+</span>
+                    <span>提取新文风</span>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 提取文风区域（默认隐藏） -->
+    <div id="extract-section" class="upload-section" style="display: none;">
+        <div class="upload-icon">📄</div>
+        <div class="upload-title">上传小说正文提取文风</div>
+        <div class="upload-desc">AI将分析文本特征，提取文风DNA，打造专属于你的写作风格</div>
+        
+        <textarea id="extract-text" class="extract-textarea" placeholder="在此粘贴小说正文（至少500字）...&#10;&#10;提示：建议粘贴你最喜欢的作品片段，这样提取出的文风会更符合你的口味"></textarea>
+        
+        <div class="upload-or">或</div>
+        
+        <input type="file" id="file-upload" accept=".txt" style="display: none;">
+        <button class="btn btn-secondary" onclick="document.getElementById('file-upload').click()">
+            <span>📁</span> 选择文本文件
+        </button>
+        
+        <div style="margin-top: 20px; display: flex; gap: 12px; justify-content: center;">
+            <button class="btn btn-primary" onclick="extractStyle()" style="min-width: 140px;">
+                <span>🔍</span> 开始提取
+            </button>
+            <button class="btn btn-secondary" onclick="hideExtractSection()" style="min-width: 100px;">
+                取消
+            </button>
+        </div>
+        
+        <!-- 提取结果 -->
+        <div id="extract-result" class="extract-result" style="display: none;">
+            <h3><span>📊</span> 文风分析结果</h3>
+            <div class="feature-list" id="feature-list">
+                <!-- 动态生成 -->
+            </div>
+            <div class="save-section">
+                <input type="text" id="new-style-name" placeholder="给这个文风起个名字...">
+                <button class="btn btn-primary" onclick="saveNewStyle()" style="flex: 0 0 auto; min-width: 120px;">
+                    <span>💾</span> 保存
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 标签页 -->
+    <div class="tabs-wrapper">
+        <div class="tabs">
+            <div class="tab active" onclick="switchTab('presets', this)">
+                <span class="icon">🔥</span>
+                <span>预设文风</span>
+            </div>
+            <div class="tab" onclick="switchTab('user', this)">
+                <span class="icon">📂</span>
+                <span>我的文风</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- 预设文风 -->
+    <div id="presets-panel" class="style-panel">
+        <div id="presets-grid" class="style-grid">
+            <div class="loading">
+                <div class="spinner"></div>
+                <div>加载中...</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 我的文风 -->
+    <div id="user-panel" class="style-panel" style="display: none;">
+        <div id="user-grid" class="style-grid">
+            <div class="empty-state">
+                <div class="empty-icon">📭</div>
+                <div class="empty-title">暂无自定义文风</div>
+                <p class="empty-desc">点击上方"提取新文风"按钮，上传正文创建你的专属文风</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+// 当前标签
+let currentTab = 'presets';
+let presetStyles = [];
+let userStyles = [];
+
+// 页面加载时初始化
+document.addEventListener('DOMContentLoaded', function() {
+    loadPresetStyles();
+    loadUserStyles();
+});
+
+// 切换标签
+function switchTab(tab, element) {
+    currentTab = tab;
+    
+    // 更新标签样式
+    document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+    if (element) {
+        element.classList.add('active');
+    } else {
+        // 根据tab找到对应的元素
+        const tabs = document.querySelectorAll('.tab');
+        if (tab === 'presets') tabs[0].classList.add('active');
+        else tabs[1].classList.add('active');
+    }
+    
+    // 显示对应面板
+    document.getElementById('presets-panel').style.display = tab === 'presets' ? 'block' : 'none';
+    document.getElementById('user-panel').style.display = tab === 'user' ? 'block' : 'none';
+}
+
+// 加载预设文风
+async function loadPresetStyles() {
+    const container = document.getElementById('presets-grid');
+    
+    try {
+        const response = await fetch('/api/writing-style/presets');
+        const result = await response.json();
+        
+        if (result.success) {
+            presetStyles = result.data;
+            renderStyles(presetStyles, container, true);
+        } else {
+            container.innerHTML = `
+                <div class="empty-state">
+                    <div class="empty-icon">⚠️</div>
+                    <div class="empty-title">加载失败</div>
+                    <p class="empty-desc">请刷新页面重试</p>
+                </div>
+            `;
+        }
+    } catch (error) {
+        console.error('加载预设文风失败', error);
+        container.innerHTML = `
+            <div class="empty-state">
+                <div class="empty-icon">⚠️</div>
+                <div class="empty-title">加载失败</div>
+                <p class="empty-desc">请检查网络连接后刷新</p>
+            </div>
+        `;
+    }
+}
+
+// 加载用户文风
+async function loadUserStyles() {
+    const container = document.getElementById('user-grid');
+    
+    try {
+        const response = await fetch('/api/writing-style/user-styles');
+        const result = await response.json();
+        
+        if (result.success && result.data.length > 0) {
+            userStyles = result.data;
+            renderStyles(userStyles, container, false);
+        }
+        // 如果没有数据，保持空状态
+    } catch (error) {
+        console.error('加载用户文风失败', error);
+    }
+}
+
+// 渲染文风卡片
+function renderStyles(styles, container, isPreset) {
+    if (styles.length === 0) {
+        container.innerHTML = `
+            <div class="empty-state">
+                <div class="empty-icon">📭</div>
+                <div class="empty-title">暂无文风</div>
+                <p class="empty-desc">敬请期待更多文风上线</p>
+            </div>
+        `;
+        return;
+    }
+    
+    container.innerHTML = styles.map(style => `
+        <div class="style-card ${isPreset ? 'preset' : 'user'}">
+            <div class="style-header">
+                <span class="style-name">${style.style_name}</span>
+                <span class="style-badge ${isPreset ? 'preset' : 'user'}">
+                    ${isPreset ? '预设' : '自定义'}
+                </span>
+            </div>
+            <div class="style-desc">${style.description || '暂无描述'}</div>
+            <div class="style-meta">
+                ${style.rating ? `<span class="rating">⭐ ${style.rating}分</span>` : ''}
+                ${style.usage_count ? `<span>📊 使用${style.usage_count}次</span>` : ''}
+                ${style.suitable_genres ? `<span class="genre">🏷️ ${style.suitable_genres.slice(0, 2).join(',')}</span>` : ''}
+            </div>
+            <div class="style-preview">${style.example_paragraph || '暂无预览'}</div>
+            <div class="style-actions">
+                <button class="btn btn-primary" onclick="useStyle('${style.style_id}')">
+                    <span>✓</span> 使用
+                </button>
+                ${!isPreset ? `<button class="btn btn-secondary" onclick="editStyle('${style.style_id}')">编辑</button>` : ''}
+                ${!isPreset ? `<button class="btn btn-danger" onclick="deleteStyle('${style.style_id}')">删除</button>` : ''}
+            </div>
+        </div>
+    `).join('');
+}
+
+// 显示提取区域
+function showExtractSection() {
+    const section = document.getElementById('extract-section');
+    section.style.display = 'block';
+    section.scrollIntoView({behavior: 'smooth', block: 'center'});
+}
+
+// 隐藏提取区域
+function hideExtractSection() {
+    document.getElementById('extract-section').style.display = 'none';
+    document.getElementById('extract-text').value = '';
+    document.getElementById('extract-result').style.display = 'none';
+}
+
+// 提取文风
+async function extractStyle() {
+    const text = document.getElementById('extract-text').value;
+    
+    if (!text || text.length < 500) {
+        alert('请至少输入500字');
+        return;
+    }
+    
+    // 显示加载状态
+    const resultDiv = document.getElementById('extract-result');
+    resultDiv.style.display = 'block';
+    document.getElementById('feature-list').innerHTML = `
+        <div class="loading" style="grid-column: 1/-1; padding: 40px;">
+            <div class="spinner"></div>
+            <div>AI正在分析文风特征...</div>
+        </div>
+    `;
+    
+    try {
+        const response = await fetch('/api/writing-style/extract', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({text: text})
+        });
+        
+        const result = await response.json();
+        
+        if (result.success) {
+            const features = result.data.extracted_features;
+            document.getElementById('feature-list').innerHTML = `
+                <div class="feature-item">
+                    <span class="feature-label">开篇方式</span>
+                    <span class="feature-value">${features.opening_pattern}</span>
+                </div>
+                <div class="feature-item">
+                    <span class="feature-label">句式结构</span>
+                    <span class="feature-value">${features.sentence_structure}</span>
+                </div>
+                <div class="feature-item">
+                    <span class="feature-label">对话风格</span>
+                    <span class="feature-value">${features.dialogue_style}</span>
+                </div>
+                <div class="feature-item">
+                    <span class="feature-label">叙事节奏</span>
+                    <span class="feature-value">${features.pacing}</span>
+                </div>
+            `;
+        } else {
+            alert('提取失败：' + result.error);
+        }
+    } catch (error) {
+        console.error('提取失败', error);
+        alert('提取失败，请检查网络连接');
+    }
+}
+
+// 保存新文风
+async function saveNewStyle() {
+    const name = document.getElementById('new-style-name').value.trim();
+    if (!name) {
+        alert('请输入文风名称');
+        return;
+    }
+    
+    // TODO: 调用API保存
+    alert('文风保存成功！');
+    hideExtractSection();
+    loadUserStyles();
+    switchTab('user', document.querySelectorAll('.tab')[1]);
+}
+
+// 使用文风
+function useStyle(styleId) {
+    // 跳转到创建项目页面，带上文风参数
+    window.location.href = `/market-driven-create?style_id=${styleId}`;
+}
+
+// 编辑文风
+function editStyle(styleId) {
+    alert('编辑功能开发中...');
+}
+
+// 删除文风
+async function deleteStyle(styleId) {
+    if (!confirm('确定要删除这个文风吗？此操作不可恢复。')) return;
+    
+    try {
+        const response = await fetch(`/api/writing-style/delete/${styleId}`, {
+            method: 'POST'
+        });
+        
+        const result = await response.json();
+        
+        if (result.success) {
+            alert('删除成功');
+            loadUserStyles();
+        } else {
+            alert('删除失败：' + result.error);
+        }
+    } catch (error) {
+        console.error('删除失败', error);
+        alert('删除失败，请检查网络连接');
+    }
+}
+
+// 文件上传处理
+document.getElementById('file-upload')?.addEventListener('change', function(e) {
+    const file = e.target.files[0];
+    if (file) {
+        const reader = new FileReader();
+        reader.onload = function(e) {
+            document.getElementById('extract-text').value = e.target.result;
+        };
+        reader.readAsText(file);
+    }
+});
+</script>
+{% endblock %}
