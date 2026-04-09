@@ -11,6 +11,24 @@
     <meta http-equiv="Expires" content="0">
     <title>{% block title %}大文娱系统{% endblock %}</title>
     
+    <!-- 防止页面加载时的闪烁 -->
+    <style>
+        /* 页面加载前隐藏内容防止FOUC */
+        html {
+            visibility: hidden;
+            opacity: 0;
+        }
+        html.loaded {
+            visibility: visible;
+            opacity: 1;
+            transition: opacity 0.1s ease;
+        }
+        /* 但是保持背景色一致 */
+        html, body {
+            background: #0a0a0a;
+        }
+    </style>
+    
     <!-- V2 设计系统 CSS -->
     <link rel="stylesheet" href="/static/css/v2/design-system.css?v=3">
     <link rel="stylesheet" href="/static/css/v2/components.css?v=3">
@@ -96,6 +114,11 @@
             }
         }
 
+        // 显示页面（移除防闪烁样式）
+        function showPage() {
+            document.documentElement.classList.add('loaded');
+        }
+
         // 所有页面加载完成后应用翻译
         document.addEventListener('DOMContentLoaded', function() {
             // 初始化 i18n
@@ -110,7 +133,17 @@
                     if (el) el.value = settings.language;
                 });
             }
+            
+            // 显示页面（延迟一点确保所有样式都已应用）
+            requestAnimationFrame(() => {
+                setTimeout(showPage, 50);
+            });
         });
+        
+        // 备用：如果DOMContentLoaded已经触发，直接显示
+        if (document.readyState === 'complete' || document.readyState === 'interactive') {
+            setTimeout(showPage, 50);
+        }
     </script>
     <script src="{{ url_for('static', filename='js/account-manager.js') }}?v=3"></script>
     <script src="{{ url_for('static', filename='js/dialog.js') }}"></script>
