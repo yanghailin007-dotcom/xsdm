@@ -1228,8 +1228,14 @@ POST /api/v2/prompt-config/component/{step_name}
         gf_core = gf_keywords[0] if gf_keywords else "神秘系统"
         
         # 提取主角表面身份（从开局第1章）
-        ch1 = opening.get("chapter_1", {}) if isinstance(opening, dict) else {}
-        scene = ch1.get("scene", "")
+        # 安全处理：确保opening和ch1都是字典类型
+        if isinstance(opening, dict):
+            ch1 = opening.get("chapter_1", {})
+            if isinstance(ch1, str):
+                ch1 = {}
+        else:
+            ch1 = {}
+        scene = ch1.get("scene", "") if isinstance(ch1, dict) else ""
         surface_identity = "普通人"
         if "保安" in scene or "保安" in str(protagonist):
             surface_identity = "醉酒保安"
