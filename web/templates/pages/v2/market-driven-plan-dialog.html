@@ -2561,7 +2561,7 @@ async function showStyleSelector() {
       <div class="style-selector-modal__footer">
         <button class="dialog-btn dialog-btn--secondary" onclick="closeStyleSelector()">取消</button>
         <button class="dialog-btn dialog-btn--primary" onclick="confirmStyleSelection()" id="confirm-style-btn" disabled>
-          确认选择
+          请选择文风
         </button>
       </div>
     </div>
@@ -2640,10 +2640,6 @@ function confirmStyleSelection() {
     return;
   }
   
-  // 保存到本地存储
-  localStorage.setItem('preferred_writing_style', JSON.stringify(selectedWritingStyle));
-  console.log('[文风选择] 已保存到localStorage');
-  
   // 关闭弹窗
   closeStyleSelector();
   
@@ -2663,21 +2659,11 @@ function closeStyleSelector() {
   }
 }
 
-// 加载用户文风偏好
+// 每次都是独立选择，不保存偏好
 async function loadUserStylePreference() {
-  try {
-    // 从本地存储加载
-    const saved = localStorage.getItem('preferred_writing_style');
-    if (saved) {
-      const preferred = JSON.parse(saved);
-      // 如果该文风存在，自动选中
-      if (PRESET_WRITING_STYLES.find(s => s.id === preferred.id)) {
-        selectWritingStyle(preferred.id);
-      }
-    }
-  } catch (e) {
-    console.log('加载文风偏好失败:', e);
-  }
+  // 每本小说都应该独立选择文风，不自动选中任何项
+  // 用户必须明确选择一个文风才能继续
+  console.log('[文风选择] 每次独立选择，不自动选中');
 }
 
 // 带文风的继续生成
