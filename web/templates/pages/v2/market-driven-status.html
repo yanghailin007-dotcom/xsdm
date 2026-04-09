@@ -461,7 +461,11 @@
     <!-- Header -->
     <div class="status-header">
       <h1 class="status-header__title">生成进度</h1>
-      <p class="status-header__subtitle">AI正在为您生成创作方案和章节内容</p>
+      <p class="status-header__subtitle">
+        <span id="novel-title" style="color: var(--primary-gold); font-weight: 600;">加载中...</span>
+        <span style="color: var(--v2-text-secondary); margin: 0 8px;">·</span>
+        <span>AI正在生成创作方案和章节内容</span>
+      </p>
     </div>
     
     <!-- 进度卡片 -->
@@ -723,6 +727,13 @@ function updateUI(task) {
   let progress = parseInt(task.progress) || 0;
   if (progress < 0) progress = 0;
   if (progress > 100) progress = 100;
+  
+  // 🔥 更新书名显示
+  const novelTitle = task.novel_title || task.title || '未命名项目';
+  const titleEl = document.getElementById('novel-title');
+  if (titleEl && novelTitle) {
+    titleEl.textContent = novelTitle;
+  }
   
   // 保留原始阶段名（英文）用于阶段列表更新
   const rawStage = task.current_stage || '';

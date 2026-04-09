@@ -398,8 +398,14 @@ def get_task_status(task_id: str):
             return jsonify({"error": "任务不存在"}), 404
         
         # 构建响应
+        # 🔥 获取书名（从 user_choices 或 plan 中）
+        user_choices = task.get("user_choices", {})
+        plan = task.get("plan", {})
+        novel_title = user_choices.get("title") or plan.get("title") or plan.get("recommended_title") or "未命名项目"
+        
         response = {
             "task_id": task["id"],
+            "novel_title": novel_title,
             "genre": task.get("genre"),
             "status": task["status"],
             "progress": task["progress"],
