@@ -156,7 +156,7 @@ class PathManager:
             return None
     
     def get_all_chapters(self, novel_title: str, username: str = None) -> Dict[int, Dict]:
-        """获取所有章节"""
+        """获取所有章节 - 支持两种文件名格式: 第XXX章_标题.json 和 chapter_XXX.json"""
         try:
             paths = self.path_config.get_project_paths(novel_title, username=username)
             chapters_dir = Path(paths["chapters_dir"])
@@ -165,12 +165,34 @@ class PathManager:
                 return {}
             
             chapters = {}
+            
+            # 🔥 修复：同时支持两种文件名格式
+            # 格式1: 第XXX章_标题.json
             for chapter_file in chapters_dir.glob("第*章_*.json"):
                 try:
-                    # 解析章节号
                     match = chapter_file.stem.split('_')[0]  # 提取 "第XXX章" 部分
                     if match.startswith("第") and match.endswith("章"):
                         chapter_num = int(match[1:-1])
+                        
+                        with open(chapter_file, 'r', encoding='utf-8') as f:
+                            chapter_data = json.load(f)
+                            chapters[chapter_num] = chapter_data
+                except Exception as e:
+                    self.logger.info(f"⚠️ 加载章节文件失败: {chapter_file} - {e}")
+                    continue
+            
+            # 格式2: chapter_XXX.json
+            for chapter_file in chapters_dir.glob("chapter_*.json"):
+                try:
+                    # 解析章节号: chapter_001 -> 1
+                    stem = chapter_file.stem  # e.g., "chapter_001"
+                    parts = stem.split('_')
+                    if len(parts) >= 2 and parts[1].isdigit():
+                        chapter_num = int(parts[1])
+                        
+                        # 避免重复加载
+                        if chapter_num in chapters:
+                            continue
                         
                         with open(chapter_file, 'r', encoding='utf-8') as f:
                             chapter_data = json.load(f)

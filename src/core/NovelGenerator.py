@@ -148,6 +148,9 @@ class NovelGenerator:
         # 设置API调用扣费回调
         self.api_client.set_api_call_callback(self._on_api_call_deduct_points)
         
+        # 🔥 检查并显示用户自定义模型提示
+        self._check_and_display_user_custom_mode()
+        
         # 质量评估器 - 延迟初始化（需要 novel_title）
         self.quality_assessor = None
         
@@ -318,6 +321,15 @@ class NovelGenerator:
         self._api_points_consumed = 0
         self.api_client.reset_api_call_counter()
         self.logger.info("🔄 API调用点数计数器已重置")
+
+    def _check_and_display_user_custom_mode(self):
+        """检查并显示用户自定义模型模式提示（简化版）"""
+        if self.api_client.is_user_custom_mode():
+            custom_info = self.api_client.get_user_custom_info()
+            if custom_info:
+                # 🔥 只在初始化时提示一次，简化内容
+                endpoint_names = ', '.join(custom_info['endpoint_names'])
+                print(f"[INFO] 使用自定义模型: {endpoint_names}")
 
     def _initialize_data_structures(self):
         """初始化数据结构（支持并发）"""

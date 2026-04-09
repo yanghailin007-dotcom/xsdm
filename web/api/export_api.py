@@ -436,7 +436,7 @@ def export_novel_preview():
                 chapter = chapters[num]
                 chapter_list.append({
                     'number': num,
-                    'title': chapter.get('chapter_title', f'第{num}章'),
+                    'title': chapter.get('title') or chapter.get('chapter_title', f'第{num}章'),
                     'content': chapter.get('content', '')[:1000]
                 })
             
@@ -634,9 +634,9 @@ def export_novel_content():
                 print(f"[Export Debug] Chapter {num} not found in chapters dict")
                 continue
             
-            # 章节标题
+            # 章节标题 - 支持 'title' 和 'chapter_title' 两种字段名
             if include_title:
-                chapter_title = chapter.get('chapter_title', f'第{num}章')
+                chapter_title = chapter.get('title') or chapter.get('chapter_title', f'第{num}章')
                 if format_type == 'md':
                     content_lines.append(f"## {chapter_title}")
                     content_lines.append("")

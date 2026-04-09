@@ -318,6 +318,9 @@ class APIClient:
         
         # 🔊 加载用户自定义端点
         self._load_custom_endpoints()
+        
+        # 🔥 检查是否启用用户自定义模型优先模式
+        self._check_and_enable_user_custom_mode()
     
     def _migrate_legacy_config(self):
         """从旧版配置迁移到端点池"""
@@ -355,6 +358,51 @@ class APIClient:
                     self.logger.info(f"   📌 {ep['name']}: {ep.get('discount', 50)}%消耗")
         except Exception as e:
             self.logger.warning(f"⚠️ 加载自定义端点失败: {e}")
+    
+    def _check_and_enable_user_custom_mode(self):
+        """
+        检查并启用用户自定义模型优先模式
+        当用户配置了自己的模型时，强制使用用户模型
+        """
+        custom_pool = self.endpoint_pools.get("custom")
+        if custom_pool and custom_pool.get_available_endpoints():
+            custom_endpoints = custom_pool.get_available_endpoints()
+            
+            # 标记用户自定义模式
+            self._user_custom_mode = True
+            
+            # 构建端点名称列表
+            endpoint_names = [ep.name for ep in custom_endpoints]
+            
+            # 🔥 只在初始化时提示一次（简化版）
+            self.logger.info(f"🎯 用户自定义模型已启用: {', '.join(endpoint_names)}")
+            
+            # 将 custom 设为默认 provider
+            if self.default_provider != "custom":
+                self.default_provider = "custom"
+        else:
+            self._user_custom_mode = False
+    
+    def is_user_custom_mode(self) -> bool:
+        """检查是否处于用户自定义模型优先模式"""
+        return getattr(self, '_user_custom_mode', False)
+    
+    def get_user_custom_info(self) -> Optional[Dict[str, Any]]:
+        """获取用户自定义端点信息"""
+        if not self.is_user_custom_mode():
+            return None
+        
+        custom_pool = self.endpoint_pools.get("custom")
+        if not custom_pool:
+            return None
+        
+        endpoints = custom_pool.get_available_endpoints()
+        return {
+            'enabled': True,
+            'endpoint_count': len(endpoints),
+            'endpoint_names': [ep.name for ep in endpoints],
+            'default_provider': self.default_provider
+        }
     
     def _log_endpoint_pool_status(self):
         """打印端点池状态"""
@@ -596,6 +644,29 @@ class APIClient:
     
     def _get_provider_for_call(self, preferred_provider: Optional[str] = None) -> str:
         """根据优先级和故障状态获取用于调用的 provider"""
+        # 🔥 用户自定义模式：强制使用 custom provider，不自动切换
+        if getattr(self, '_user_custom_mode', False):
+            if preferred_provider != "custom":
+                self.logger.info(f"🎯 用户自定义模式：强制使用 custom provider (原请求: {preferred_provider})")
+            
+            # 检查 custom 端点是否可用
+            custom_pool = self.endpoint_pools.get("custom")
+            if custom_pool and custom_pool.get_available_endpoints():
+                return "custom"
+            else:
+                # 用户自定义端点不可用，给出明确的错误提示
+                self.logger.error("=" * 60)
+                self.logger.error("❌ 您配置的自定义模型当前不可用")
+                self.logger.error("   系统不会自动切换到系统模型（用户自定义模式）")
+                self.logger.error("   请检查：")
+                self.logger.error("   1. 您的API端点配置是否正确")
+                self.logger.error("   2. 您的API密钥是否有效")
+                self.logger.error("   3. 您的API服务是否正常")
+                self.logger.error("   或删除自定义端点以使用系统模型")
+                self.logger.error("=" * 60)
+                # 返回 custom，让上层处理失败
+                return "custom"
+        
         if not self.provider_failover_enabled:
             return preferred_provider or self.default_provider
         
@@ -1234,10 +1305,15 @@ class APIClient:
         
         1. 优先使用端点池中的高优先级端点，失败时自动切换到备用端点
         2. 当所有端点都失败时，根据 provider_priority 切换到下一个 provider
+        3. 🔥 如果用户配置了自定义端点，强制使用用户自定义模型
         """
         # 最高优先级：在发送给AI之前，将网站风格适配文本添加到system_prompt的最前面
         if self.website_style_enabled and self.website_style_text:
             system_prompt = self.website_style_text + "\n\n" + system_prompt
+        
+        # 🔥 用户自定义模型优先模式：强制使用 custom provider
+        if getattr(self, '_user_custom_mode', False):
+            provider = "custom"
         
         # 🔥 获取目标 provider（考虑故障转移）
         original_provider = provider if provider else self.default_provider
@@ -1357,11 +1433,23 @@ class APIClient:
         # 所有端点都失败
         self.logger.error(f"{user_str}💥 {target_provider} 所有端点均失败，已尝试: {tried_endpoints}")
         
+        # 🔥 用户自定义端点失败时的特殊提示
+        if getattr(self, '_user_custom_mode', False) and target_provider == "custom":
+            self.logger.error("=" * 60)
+            self.logger.error("❌ 您配置的自定义模型调用失败")
+            self.logger.error(f"   已尝试端点: {', '.join(tried_endpoints)}")
+            self.logger.error("   请检查：")
+            self.logger.error("   1. API地址和密钥是否正确")
+            self.logger.error("   2. 您的API服务是否正常")
+            self.logger.error("   3. 网络连接是否稳定")
+            self.logger.error("   如需使用系统模型，请删除自定义端点")
+            self.logger.error("=" * 60)
+        
         # 🔥 记录 provider 失败
         self._record_provider_failure(target_provider)
         
-        # 🔥 跨 Provider 故障转移
-        if self.provider_failover_enabled:
+        # 🔥 跨 Provider 故障转移（用户自定义模式下禁用）
+        if self.provider_failover_enabled and not getattr(self, '_user_custom_mode', False):
             next_provider = self._get_next_available_provider(target_provider)
             if next_provider:
                 self.logger.warning(f"{user_str}🔄 跨 Provider 故障转移: {target_provider} -> {next_provider}")
