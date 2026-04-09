@@ -2540,6 +2540,11 @@ async function showStyleSelector() {
   `;
   
   document.body.appendChild(modal);
+  console.log('[文风选择] 弹窗DOM已添加到body');
+  
+  // 验证弹窗是否正确添加
+  const addedModal = document.getElementById('style-selector-modal');
+  console.log('[文风选择] 验证DOM元素:', addedModal ? '存在' : '不存在');
   
   // 添加筛选功能
   modal.querySelectorAll('.style-filter__btn').forEach(btn => {
@@ -2555,6 +2560,9 @@ async function showStyleSelector() {
   requestAnimationFrame(() => {
     modal.classList.add('active');
     console.log('[文风选择] 弹窗active类已添加');
+    // 验证弹窗样式
+    const computedStyle = window.getComputedStyle(modal);
+    console.log('[文风选择] 弹窗opacity:', computedStyle.opacity, 'visibility:', computedStyle.visibility);
   });
   
   // 加载用户保存的文风偏好（不阻止弹窗显示）
@@ -2653,20 +2661,18 @@ async function continueGenerationWithStyle() {
 }
 
 // 修改原有的生成函数，添加文风参数
-async function confirmAndStartRealGenerationWithStyle() {
+function confirmAndStartRealGenerationWithStyle() {
   console.log('[文风选择] 函数被调用，当前模式:', window.currentMode);
   console.log('[文风选择] finalPlan是否存在:', !!finalPlan);
   
-  try {
-    // 先显示文风选择弹窗（保持已有的模式设置）
-    await showStyleSelector();
-    console.log('[文风选择] 弹窗显示成功');
-  } catch (error) {
+  // 显示文风选择弹窗（不等待，让用户选择后继续）
+  showStyleSelector().then(() => {
+    console.log('[文风选择] 弹窗显示完成');
+  }).catch(error => {
     console.error('[文风选择] 显示弹窗失败:', error);
-    // 如果显示弹窗失败，直接继续生成流程
     alert('文风选择器加载失败，将使用默认设置继续');
     continueGenerationWithStyle();
-  }
+  });
 }
 
 // 获取文风Prompt注入
