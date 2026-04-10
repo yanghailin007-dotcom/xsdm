@@ -159,6 +159,9 @@ desktop_uploader/release/build/
 desktop_uploader/release/dist/
 desktop_uploader/release/NovelPublisher_singlefile_backup.exe
 
+# Desktop uploader third-party libraries (should be installed via pip)
+desktop_uploader/libs/
+
 # Generated images
 generated_images/
 
