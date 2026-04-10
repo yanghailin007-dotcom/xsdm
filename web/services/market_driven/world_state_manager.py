@@ -165,9 +165,13 @@ class WorldStateManager:
             logger.error(f"[WorldState] 保存状态失败: {e}")
     
     def _load_genre_config(self, genre: str) -> dict:
-        """加载题材配置文件"""
-        config_path = Path(__file__).parent.parent.parent.parent / \
-                     f"prompt_packages/default/market_driven/v2_config/genre_techniques/{genre}.yaml"
+        """
+        加载题材配置文件
+        优先级: 用户配置 > 系统默认
+        """
+        # 获取配置路径（优先用户配置）
+        base_path = self._get_config_base_path()
+        config_path = base_path / "genre_techniques" / f"{genre}.yaml"
         
         if not config_path.exists():
             logger.warning(f"[WorldState] 题材配置不存在: {config_path}")
@@ -181,6 +185,23 @@ class WorldStateManager:
         except Exception as e:
             logger.error(f"[WorldState] 加载题材配置失败: {e}")
             return {}
+    
+    def _get_config_base_path(self) -> Path:
+        """
+        获取配置基础路径
+        优先级: 
+        1. prompt_packages/default/market_driven/v2_config/ (用户配置)
+        2. prompt_packages/v2_architecture/ (系统默认)
+        """
+        project_root = Path(__file__).parent.parent.parent.parent
+        
+        # 优先使用用户配置
+        user_config = project_root / "prompt_packages" / "default" / "market_driven" / "v2_config"
+        if user_config.exists():
+            return user_config
+        
+        # 回退到系统默认
+        return project_root / "prompt_packages" / "v2_architecture"
     
     def _load_golden_finger_config(self) -> dict:
         """

@@ -64,6 +64,27 @@ class V2IntegrationAdapter:
         self._genre_loader = None
         self._genre_renderer = None
     
+    def _get_genre_config_path(self, genre_file: str) -> Path:
+        """
+        获取题材配置文件路径
+        优先级:
+        1. prompt_packages/default/market_driven/v2_config/genre_techniques/ (用户配置)
+        2. prompt_packages/v2_architecture/genre_techniques/ (系统默认)
+        """
+        project_root = Path(__file__).parent.parent.parent.parent
+        
+        # 优先使用用户配置
+        user_path = project_root / "prompt_packages" / "default" / "market_driven" / "v2_config" / "genre_techniques" / genre_file
+        if user_path.exists():
+            return user_path
+        
+        # 回退到系统默认
+        default_path = project_root / "prompt_packages" / "v2_architecture" / "genre_techniques" / genre_file
+        if default_path.exists():
+            return default_path
+        
+        return None
+    
     def _detect_genre(self) -> str:
         """从小说数据中检测题材类型"""
         logger.debug(f"[V2适配器] _detect_genre 开始 | novel_data类型: {type(self.novel_data)}")
@@ -1072,10 +1093,10 @@ class V2IntegrationAdapter:
         else:
             genre_file = f"{self.genre}.yaml"
         
-        config_path = Path(__file__).parent.parent.parent.parent / \
-                     f"prompt_packages/default/market_driven/v2_config/genre_techniques/{genre_file}"
+        # 获取配置路径（优先用户配置，其次系统默认）
+        config_path = self._get_genre_config_path(genre_file)
         
-        if config_path.exists():
+        if config_path and config_path.exists():
             try:
                 with open(config_path, 'r', encoding='utf-8') as f:
                     genre_config = yaml.safe_load(f) or {}
