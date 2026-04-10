@@ -773,17 +773,31 @@ class DialogPolishManager:
         
         # 获取题材特定选项或默认选项
         genre_specific = step_config.get("genre_specific", {})
+        keywords_mapping = step_config.get("keywords_mapping", {})
         specific_options = None
         
         # 首先尝试精确匹配
         if genre in genre_specific:
             specific_options = genre_specific[genre]
+            logger.info(f"[GoldenFinger] 题材精确匹配: '{genre}'")
         else:
-            # 尝试关键词匹配
-            for genre_key, genre_data in genre_specific.items():
-                if genre_key in genre:
-                    specific_options = genre_data
+            # 尝试关键词映射匹配
+            matched_key = None
+            for keyword, mapped_genre in keywords_mapping.items():
+                if keyword in genre and mapped_genre in genre_specific:
+                    matched_key = mapped_genre
                     break
+            
+            if matched_key:
+                specific_options = genre_specific[matched_key]
+                logger.info(f"[GoldenFinger] 关键词匹配: '{genre}' -> '{matched_key}'")
+            else:
+                # 回退到原来的包含匹配
+                for genre_key, genre_data in genre_specific.items():
+                    if genre_key in genre:
+                        specific_options = genre_data
+                        logger.info(f"[GoldenFinger] 包含匹配: '{genre}' -> '{genre_key}'")
+                        break
         
         # 如果配置不完整，尝试使用AI生成
         if self._is_config_incomplete({"options": specific_options}, "golden_finger"):
