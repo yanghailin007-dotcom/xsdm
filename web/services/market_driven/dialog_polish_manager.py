@@ -663,6 +663,7 @@ class DialogPolishManager:
         
         # 获取题材特定描述或默认描述
         genre_specific = step_config.get("genre_specific", {})
+        keywords_mapping = step_config.get("keywords_mapping", {})
         descriptions = None
         genre_config = None
         
@@ -670,13 +671,27 @@ class DialogPolishManager:
         if genre in genre_specific:
             genre_config = genre_specific[genre]
             descriptions = genre_config.get("descriptions", {})
+            logger.info(f"[Protagonist] 题材精确匹配: '{genre}'")
         else:
-            # 尝试关键词匹配
-            for genre_key, genre_data in genre_specific.items():
-                if genre_key in genre:
-                    genre_config = genre_data
-                    descriptions = genre_data.get("descriptions", {})
+            # 尝试关键词映射匹配
+            matched_key = None
+            for keyword, mapped_genre in keywords_mapping.items():
+                if keyword in genre and mapped_genre in genre_specific:
+                    matched_key = mapped_genre
                     break
+            
+            if matched_key:
+                genre_config = genre_specific[matched_key]
+                descriptions = genre_config.get("descriptions", {})
+                logger.info(f"[Protagonist] 关键词匹配: '{genre}' -> '{matched_key}'")
+            else:
+                # 回退到原来的包含匹配
+                for genre_key, genre_data in genre_specific.items():
+                    if genre_key in genre:
+                        genre_config = genre_data
+                        descriptions = genre_data.get("descriptions", {})
+                        logger.info(f"[Protagonist] 包含匹配: '{genre}' -> '{genre_key}'")
+                        break
         
         # 如果配置不完整，尝试使用AI生成
         if self._is_config_incomplete({"descriptions": descriptions}, "protagonist"):
@@ -903,17 +918,31 @@ class DialogPolishManager:
         # 获取题材特定选项或默认选项
         genre = self.genre.strip() if self.genre else ""
         genre_specific = step4_config.get("genre_specific", {})
+        keywords_mapping = step4_config.get("keywords_mapping", {})
         options = None
         
         # 首先尝试精确匹配
         if genre in genre_specific:
             options = genre_specific[genre]
+            logger.info(f"[PlotDetails] 题材精确匹配: '{genre}'")
         else:
-            # 尝试关键词匹配
-            for genre_key, genre_data in genre_specific.items():
-                if genre_key in genre:
-                    options = genre_data
+            # 尝试关键词映射匹配
+            matched_key = None
+            for keyword, mapped_genre in keywords_mapping.items():
+                if keyword in genre and mapped_genre in genre_specific:
+                    matched_key = mapped_genre
                     break
+            
+            if matched_key:
+                options = genre_specific[matched_key]
+                logger.info(f"[PlotDetails] 关键词匹配: '{genre}' -> '{matched_key}'")
+            else:
+                # 回退到原来的包含匹配
+                for genre_key, genre_data in genre_specific.items():
+                    if genre_key in genre:
+                        options = genre_data
+                        logger.info(f"[PlotDetails] 包含匹配: '{genre}' -> '{genre_key}'")
+                        break
         
         # 如果配置不完整，尝试使用AI生成
         if self._is_config_incomplete({"options": options}, "plot_details"):
@@ -964,18 +993,38 @@ class DialogPolishManager:
         
         # 题材特定选项
         genre_specific = step_config.get("genre_specific", {})
+        keywords_mapping = step_config.get("keywords_mapping", {})
         
         # 默认选项
         default_options = step_config.get("default_options", [])
         
+        specific_options = None
+        
         # 尝试完整匹配
         if genre in genre_specific:
-            return base_options + genre_specific[genre]
+            specific_options = genre_specific[genre]
+            logger.info(f"[EmotionLine] 题材精确匹配: '{genre}'")
+        else:
+            # 尝试关键词映射匹配
+            matched_key = None
+            for keyword, mapped_genre in keywords_mapping.items():
+                if keyword in genre and mapped_genre in genre_specific:
+                    matched_key = mapped_genre
+                    break
+            
+            if matched_key:
+                specific_options = genre_specific[matched_key]
+                logger.info(f"[EmotionLine] 关键词匹配: '{genre}' -> '{matched_key}'")
+            else:
+                # 回退到原来的包含匹配
+                for key, options in genre_specific.items():
+                    if key in genre:
+                        specific_options = options
+                        logger.info(f"[EmotionLine] 包含匹配: '{genre}' -> '{key}'")
+                        break
         
-        # 尝试关键词匹配
-        for key, options in genre_specific.items():
-            if key in genre:
-                return base_options + options
+        if specific_options:
+            return base_options + specific_options
         
         # 兜底：返回基础选项 + 默认选项
         return base_options + default_options
