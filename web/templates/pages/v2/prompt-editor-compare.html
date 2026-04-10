@@ -1,0 +1,1065 @@
+{% extends "layouts/base-v2.html" %}
+
+{% block title %}编辑提示词 - 四屏对比模式{% endblock %}
+
+{% block extra_css %}
+<link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+<style>
+/* ===== 变量定义 ===== */
+:root {
+  --editor-bg: #0f1115;
+  --panel-bg-original: rgba(100, 116, 139, 0.05);
+  --panel-bg-editing: rgba(245, 158, 11, 0.05);
+  --border-original: rgba(100, 116, 139, 0.3);
+  --border-editing: rgba(245, 158, 11, 0.4);
+  --header-height: 60px;
+  --toolbar-height: 52px;
+}
+
+/* ===== 编辑器头部 ===== */
+.editor-header {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: var(--header-height);
+  background: var(--v2-bg-primary);
+  border-bottom: 1px solid var(--v2-border-subtle);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 24px;
+  z-index: 100;
+}
+
+.editor-header__left {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.editor-header__back {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 16px;
+  background: var(--v2-bg-tertiary);
+  border: 1px solid var(--v2-border-subtle);
+  border-radius: 8px;
+  color: var(--v2-text-secondary);
+  font-size: 14px;
+  cursor: pointer;
+  transition: all 0.2s;
+  text-decoration: none;
+}
+
+.editor-header__back:hover {
+  border-color: var(--primary-gold);
+  color: var(--primary-gold);
+}
+
+.editor-header__title {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.editor-header__title-main {
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--v2-text-primary);
+}
+
+.editor-header__title-sub {
+  font-size: 12px;
+  color: var(--v2-text-muted);
+}
+
+.editor-header__right {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+/* ===== 工具栏 ===== */
+.editor-toolbar {
+  position: fixed;
+  top: var(--header-height);
+  left: 0;
+  right: 0;
+  height: var(--toolbar-height);
+  background: var(--v2-bg-secondary);
+  border-bottom: 1px solid var(--v2-border-subtle);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 24px;
+  z-index: 99;
+}
+
+.editor-toolbar__left,
+.editor-toolbar__right {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.editor-toolbar__divider {
+  width: 1px;
+  height: 24px;
+  background: var(--v2-border-subtle);
+  margin: 0 8px;
+}
+
+.editor-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 16px;
+  border-radius: 6px;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+  border: none;
+  background: transparent;
+  color: var(--v2-text-secondary);
+}
+
+.editor-btn:hover {
+  background: var(--v2-bg-tertiary);
+  color: var(--v2-text-primary);
+}
+
+.editor-btn--primary {
+  background: linear-gradient(135deg, var(--primary-gold), var(--primary-gold-light));
+  color: #0f172a;
+}
+
+.editor-btn--primary:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(245, 158, 11, 0.3);
+}
+
+.editor-btn--secondary {
+  background: var(--v2-bg-tertiary);
+  border: 1px solid var(--v2-border-subtle);
+  color: var(--v2-text-primary);
+}
+
+.editor-btn--secondary:hover {
+  border-color: var(--primary-gold);
+  color: var(--primary-gold);
+}
+
+.editor-btn .material-icons {
+  font-size: 18px;
+}
+
+.editor-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* 切换按钮组 */
+.editor-toggle-group {
+  display: flex;
+  background: var(--v2-bg-tertiary);
+  border-radius: 6px;
+  padding: 4px;
+  gap: 4px;
+}
+
+.editor-toggle {
+  padding: 6px 12px;
+  border-radius: 4px;
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+  border: none;
+  background: transparent;
+  color: var(--v2-text-secondary);
+}
+
+.editor-toggle--active {
+  background: var(--v2-bg-secondary);
+  color: var(--v2-text-primary);
+  box-shadow: 0 1px 3px rgba(0,0,0,0.2);
+}
+
+/* ===== 四屏主区域 ===== */
+.editor-main {
+  position: fixed;
+  top: calc(var(--header-height) + var(--toolbar-height));
+  left: 0;
+  right: 0;
+  bottom: 0;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  grid-template-rows: 1fr 1fr;
+  gap: 1px;
+  background: var(--v2-border-subtle);
+}
+
+.editor-panel {
+  background: var(--v2-bg-secondary);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.editor-panel--original {
+  background: var(--panel-bg-original);
+}
+
+.editor-panel--editing {
+  background: var(--panel-bg-editing);
+}
+
+/* 面板头部 */
+.editor-panel__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--v2-border-subtle);
+  background: rgba(0, 0, 0, 0.2);
+  flex-shrink: 0;
+}
+
+.editor-panel__title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--v2-text-primary);
+}
+
+.editor-panel__title .material-icons {
+  font-size: 16px;
+}
+
+.editor-panel__badge {
+  padding: 2px 8px;
+  border-radius: 100px;
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+}
+
+.editor-panel__badge--system {
+  background: var(--border-original);
+  color: #94a3b8;
+}
+
+.editor-panel__badge--user {
+  background: var(--border-editing);
+  color: var(--primary-gold);
+}
+
+.editor-panel__actions {
+  display: flex;
+  gap: 8px;
+}
+
+.editor-panel__btn {
+  padding: 4px 10px;
+  border-radius: 4px;
+  font-size: 11px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+  border: 1px solid var(--v2-border-subtle);
+  background: transparent;
+  color: var(--v2-text-secondary);
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.editor-panel__btn:hover {
+  border-color: var(--primary-gold);
+  color: var(--primary-gold);
+}
+
+.editor-panel__btn .material-icons {
+  font-size: 14px;
+}
+
+/* 面板内容区 */
+.editor-panel__content {
+  flex: 1;
+  overflow: auto;
+  position: relative;
+}
+
+/* 提示词编辑区 */
+.editor-prompt {
+  width: 100%;
+  height: 100%;
+  padding: 16px;
+  background: transparent;
+  border: none;
+  font-family: 'Monaco', 'Menlo', 'Consolas', 'SF Mono', monospace;
+  font-size: 13px;
+  line-height: 1.7;
+  color: var(--v2-text-primary);
+  resize: none;
+  box-sizing: border-box;
+  white-space: pre-wrap;
+  word-wrap: break-word;
+}
+
+.editor-prompt:focus {
+  outline: none;
+}
+
+.editor-prompt--readonly {
+  cursor: default;
+  opacity: 0.8;
+}
+
+/* 预览区 */
+.editor-preview {
+  padding: 20px 24px;
+  font-size: 14px;
+  line-height: 1.9;
+  color: var(--v2-text-primary);
+}
+
+.editor-preview__title {
+  font-size: 16px;
+  font-weight: 700;
+  text-align: center;
+  margin-bottom: 16px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--v2-border-subtle);
+}
+
+.editor-preview__content {
+  text-indent: 2em;
+}
+
+.editor-preview__content p {
+  margin-bottom: 1em;
+}
+
+/* 空状态 */
+.editor-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  color: var(--v2-text-muted);
+  text-align: center;
+  padding: 40px;
+}
+
+.editor-empty__icon {
+  font-size: 48px;
+  margin-bottom: 16px;
+  opacity: 0.3;
+}
+
+.editor-empty__text {
+  font-size: 14px;
+  margin-bottom: 20px;
+}
+
+/* ===== 底部状态栏 ===== */
+.editor-statusbar {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 28px;
+  background: var(--v2-bg-tertiary);
+  border-top: 1px solid var(--v2-border-subtle);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 16px;
+  font-size: 11px;
+  color: var(--v2-text-muted);
+  z-index: 100;
+}
+
+.editor-statusbar__left,
+.editor-statusbar__right {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.editor-statusbar__item {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.editor-statusbar__item .material-icons {
+  font-size: 12px;
+}
+
+/* ===== 差异对比样式 ===== */
+.diff-highlight {
+  background: rgba(245, 158, 11, 0.2);
+  border-radius: 2px;
+}
+
+.diff-added {
+  background: rgba(34, 197, 94, 0.25);
+  border-radius: 2px;
+}
+
+.diff-removed {
+  background: rgba(239, 68, 68, 0.25);
+  text-decoration: line-through;
+  opacity: 0.7;
+  border-radius: 2px;
+}
+
+/* ===== 重新生成遮罩 ===== */
+.regenerating-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(15, 17, 21, 0.85);
+  backdrop-filter: blur(4px);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  z-index: 10;
+}
+
+.regenerating-overlay__spinner {
+  width: 40px;
+  height: 40px;
+  border: 3px solid var(--v2-border-subtle);
+  border-top-color: var(--primary-gold);
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+.regenerating-overlay__text {
+  font-size: 14px;
+  color: var(--v2-text-secondary);
+}
+
+.regenerating-overlay__progress {
+  font-size: 12px;
+  color: var(--v2-text-muted);
+}
+
+/* ===== 变量占位符高亮 ===== */
+.placeholder {
+  color: var(--primary-gold);
+  background: rgba(245, 158, 11, 0.15);
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-weight: 500;
+}
+
+/* ===== 响应式调整 ===== */
+@media (max-width: 1200px) {
+  .editor-main {
+    grid-template-columns: 1fr;
+    grid-template-rows: repeat(4, 1fr);
+  }
+}
+
+/* ===== 滚动条样式 ===== */
+.editor-panel__content::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+.editor-panel__content::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.editor-panel__content::-webkit-scrollbar-thumb {
+  background: var(--v2-border-subtle);
+  border-radius: 4px;
+}
+
+.editor-panel__content::-webkit-scrollbar-thumb:hover {
+  background: var(--v2-text-muted);
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<!-- 头部 -->
+<header class="editor-header">
+  <div class="editor-header__left">
+    <a href="/prompt-packages" class="editor-header__back">
+      <span class="material-icons">arrow_back</span>
+      返回
+    </a>
+    <div class="editor-header__title">
+      <span class="editor-header__title-main">编辑提示词 - {{ step_name or '生成完整方案' }}</span>
+      <span class="editor-header__title-sub">{{ package_name or '市场导向-爆款公式版' }} &gt; 步骤 {{ step_number or '1' }}</span>
+    </div>
+  </div>
+  <div class="editor-header__right">
+    <button class="editor-btn" onclick="resetToDefault()">
+      <span class="material-icons">restart_alt</span>
+      恢复默认
+    </button>
+    <button class="editor-btn editor-btn--primary" onclick="savePrompt()">
+      <span class="material-icons">save</span>
+      保存修改
+    </button>
+  </div>
+</header>
+
+<!-- 工具栏 -->
+<div class="editor-toolbar">
+  <div class="editor-toolbar__left">
+    <button class="editor-btn" id="btn-undo" onclick="undoEdit()" disabled>
+      <span class="material-icons">undo</span>
+      撤销
+    </button>
+    <button class="editor-btn" id="btn-redo" onclick="redoEdit()" disabled>
+      <span class="material-icons">redo</span>
+      重做
+    </button>
+    <div class="editor-toolbar__divider"></div>
+    <button class="editor-btn" onclick="formatPrompt()">
+      <span class="material-icons">format_indent_increase</span>
+      格式化
+    </button>
+    <button class="editor-btn" onclick="insertVariable()">
+      <span class="material-icons">data_object</span>
+      插入变量
+    </button>
+  </div>
+  <div class="editor-toolbar__right">
+    <div class="editor-toggle-group">
+      <button class="editor-toggle editor-toggle--active" id="toggle-sync" onclick="toggleSync()">
+        同步滚动
+      </button>
+      <button class="editor-toggle" id="toggle-diff" onclick="toggleDiff()">
+        显示差异
+      </button>
+    </div>
+    <div class="editor-toolbar__divider"></div>
+    <button class="editor-btn editor-btn--primary" onclick="regeneratePreview()" id="btn-regenerate">
+      <span class="material-icons">refresh</span>
+      重新生成预览
+    </button>
+  </div>
+</div>
+
+<!-- 四屏主区域 -->
+<div class="editor-main">
+  
+  <!-- 左上：系统默认提示词 -->
+  <div class="editor-panel editor-panel--original">
+    <div class="editor-panel__header">
+      <div class="editor-panel__title">
+        <span class="material-icons">description</span>
+        系统默认提示词
+        <span class="editor-panel__badge editor-panel__badge--system">参考</span>
+      </div>
+      <div class="editor-panel__actions">
+        <button class="editor-panel__btn" onclick="copyDefaultPrompt()">
+          <span class="material-icons">content_copy</span>
+          复制
+        </button>
+        <button class="editor-panel__btn" onclick="useAsTemplate()">
+          <span class="material-icons">content_paste</span>
+          填入右侧
+        </button>
+      </div>
+    </div>
+    <div class="editor-panel__content">
+      <textarea class="editor-prompt editor-prompt--readonly" id="default-prompt" readonly 
+                placeholder="系统默认提示词加载中...">{{ default_prompt or '系统默认提示词内容...' }}</textarea>
+    </div>
+  </div>
+
+  <!-- 右上：编辑中提示词 -->
+  <div class="editor-panel editor-panel--editing">
+    <div class="editor-panel__header">
+      <div class="editor-panel__title">
+        <span class="material-icons">edit_note</span>
+        编辑中提示词
+        <span class="editor-panel__badge editor-panel__badge--user">可编辑</span>
+      </div>
+      <div class="editor-panel__actions">
+        <button class="editor-panel__btn" onclick="clearEdit()">
+          <span class="material-icons">clear</span>
+          清空
+        </button>
+        <button class="editor-panel__btn" onclick="copyEditedPrompt()">
+          <span class="material-icons">content_copy</span>
+          复制
+        </button>
+      </div>
+    </div>
+    <div class="editor-panel__content">
+      <textarea class="editor-prompt" id="edited-prompt" 
+                placeholder="在此编辑提示词...
+
+支持使用变量占位符：
+{{genre}} - 题材名称
+{{protagonist}} - 主角设定
+{{golden_finger}} - 金手指设定
+..."
+                oninput="onPromptChange()">{{ edited_prompt or default_prompt or '' }}</textarea>
+    </div>
+  </div>
+
+  <!-- 左下：默认生成预览 -->
+  <div class="editor-panel editor-panel--original">
+    <div class="editor-panel__header">
+      <div class="editor-panel__title">
+        <span class="material-icons">menu_book</span>
+        默认生成预览
+        <span class="editor-panel__badge editor-panel__badge--system">参考</span>
+      </div>
+      <div class="editor-panel__actions">
+        <span style="font-size: 11px; color: var(--v2-text-muted);">
+          {{ default_word_count or '1,850' }} 字
+        </span>
+      </div>
+    </div>
+    <div class="editor-panel__content" id="default-preview-panel">
+      <div class="editor-preview" id="default-preview">
+        <div class="editor-preview__title">{{ default_chapter_title or '第1章 开局获得神豪系统' }}</div>
+        <div class="editor-preview__content">
+          {{ default_chapter_content or '<p>李明是一个普通的外卖员，每天奔波在城市的大街小巷...</p><p>这天，他意外获得了一个神豪系统...</p>' }}
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 右下：修改后生成预览 -->
+  <div class="editor-panel editor-panel--editing">
+    <div class="editor-panel__header">
+      <div class="editor-panel__title">
+        <span class="material-icons">auto_stories</span>
+        修改后生成预览
+        <span class="editor-panel__badge editor-panel__badge--user">实时</span>
+      </div>
+      <div class="editor-panel__actions">
+        <span style="font-size: 11px; color: var(--v2-text-muted);" id="edited-word-count">
+          未生成
+        </span>
+      </div>
+    </div>
+    <div class="editor-panel__content" id="edited-preview-panel">
+      <div class="editor-empty" id="edited-empty">
+        <span class="material-icons editor-empty__icon">psychology</span>
+        <div class="editor-empty__text">
+          编辑左侧提示词后<br>
+          点击"重新生成预览"查看效果
+        </div>
+        <button class="editor-btn editor-btn--primary" onclick="regeneratePreview()">
+          <span class="material-icons">refresh</span>
+          立即生成
+        </button>
+      </div>
+      <div class="editor-preview" id="edited-preview" style="display: none;">
+        <div class="editor-preview__title" id="edited-chapter-title">第1章</div>
+        <div class="editor-preview__content" id="edited-chapter-content"></div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<!-- 状态栏 -->
+<div class="editor-statusbar">
+  <div class="editor-statusbar__left">
+    <div class="editor-statusbar__item">
+      <span class="material-icons">straighten</span>
+      <span>默认: {{ default_prompt_length or '1,234' }} 字</span>
+    </div>
+    <div class="editor-statusbar__item">
+      <span class="material-icons">edit</span>
+      <span>编辑: <span id="edited-length">0</span> 字</span>
+    </div>
+  </div>
+  <div class="editor-statusbar__right">
+    <div class="editor-statusbar__item">
+      <span class="material-icons">info</span>
+      <span>按 Ctrl+Enter 快速重新生成</span>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// ===== 状态管理 =====
+let isSyncScroll = true;
+let isDiffMode = false;
+let editHistory = [];
+let historyIndex = -1;
+let isRegenerating = false;
+
+// 默认和编辑内容
+let defaultPrompt = '';
+let editedPrompt = '';
+
+// ===== 初始化 =====
+document.addEventListener('DOMContentLoaded', function() {
+  defaultPrompt = document.getElementById('default-prompt').value;
+  editedPrompt = document.getElementById('edited-prompt').value;
+  
+  // 保存初始状态到历史
+  saveHistory();
+  
+  // 更新字数统计
+  updateWordCount();
+  
+  // 设置同步滚动
+  setupSyncScroll();
+  
+  // 聚焦编辑区
+  document.getElementById('edited-prompt').focus();
+});
+
+// ===== 提示词编辑 =====
+function onPromptChange() {
+  editedPrompt = document.getElementById('edited-prompt').value;
+  updateWordCount();
+  saveHistory();
+  
+  // 标记预览需要重新生成
+  document.getElementById('edited-word-count').textContent = '待生成';
+  document.getElementById('edited-word-count').style.color = 'var(--primary-gold)';
+}
+
+function updateWordCount() {
+  const count = editedPrompt.length;
+  document.getElementById('edited-length').textContent = count.toLocaleString();
+}
+
+// ===== 历史记录 =====
+function saveHistory() {
+  // 删除当前位置之后的历史
+  editHistory = editHistory.slice(0, historyIndex + 1);
+  
+  // 添加新状态
+  editHistory.push(editedPrompt);
+  historyIndex++;
+  
+  // 限制历史记录数量
+  if (editHistory.length > 50) {
+    editHistory.shift();
+    historyIndex--;
+  }
+  
+  updateUndoRedoButtons();
+}
+
+function undoEdit() {
+  if (historyIndex > 0) {
+    historyIndex--;
+    editedPrompt = editHistory[historyIndex];
+    document.getElementById('edited-prompt').value = editedPrompt;
+    updateWordCount();
+    updateUndoRedoButtons();
+  }
+}
+
+function redoEdit() {
+  if (historyIndex < editHistory.length - 1) {
+    historyIndex++;
+    editedPrompt = editHistory[historyIndex];
+    document.getElementById('edited-prompt').value = editedPrompt;
+    updateWordCount();
+    updateUndoRedoButtons();
+  }
+}
+
+function updateUndoRedoButtons() {
+  document.getElementById('btn-undo').disabled = historyIndex <= 0;
+  document.getElementById('btn-redo').disabled = historyIndex >= editHistory.length - 1;
+}
+
+// ===== 格式化提示词 =====
+function formatPrompt() {
+  let text = document.getElementById('edited-prompt').value;
+  
+  // 简单的格式化：统一换行、去除多余空格
+  text = text.replace(/\r\n/g, '\n');
+  text = text.replace(/\n{3,}/g, '\n\n');
+  text = text.replace(/[ \t]+$/gm, '');
+  text = text.trim();
+  
+  document.getElementById('edited-prompt').value = text;
+  onPromptChange();
+}
+
+// ===== 插入变量 =====
+function insertVariable() {
+  const variables = [
+    { name: '{{genre}}', desc: '题材名称' },
+    { name: '{{protagonist}}', desc: '主角设定' },
+    { name: '{{golden_finger}}', desc: '金手指' },
+    { name: '{{worldview}}', desc: '世界观' },
+    { name: '{{plot}}', desc: '剧情方向' },
+    { name: '{{tone}}', desc: '文风基调' }
+  ];
+  
+  // 简单实现：插入第一个变量，实际应该弹出选择框
+  const textarea = document.getElementById('edited-prompt');
+  const start = textarea.selectionStart;
+  const end = textarea.selectionEnd;
+  const text = textarea.value;
+  
+  textarea.value = text.substring(0, start) + '{{genre}}' + text.substring(end);
+  textarea.selectionStart = textarea.selectionEnd = start + 9;
+  textarea.focus();
+  onPromptChange();
+}
+
+// ===== 复制功能 =====
+function copyDefaultPrompt() {
+  navigator.clipboard.writeText(defaultPrompt).then(() => {
+    showToast('已复制默认提示词');
+  });
+}
+
+function copyEditedPrompt() {
+  navigator.clipboard.writeText(editedPrompt).then(() => {
+    showToast('已复制编辑后提示词');
+  });
+}
+
+function useAsTemplate() {
+  if (confirm('这将用默认提示词覆盖当前编辑内容，确定吗？')) {
+    document.getElementById('edited-prompt').value = defaultPrompt;
+    onPromptChange();
+  }
+}
+
+function clearEdit() {
+  if (confirm('确定清空编辑内容吗？')) {
+    document.getElementById('edited-prompt').value = '';
+    onPromptChange();
+  }
+}
+
+// ===== 重新生成预览 =====
+async function regeneratePreview() {
+  if (isRegenerating) return;
+  if (!editedPrompt.trim()) {
+    showToast('请先编辑提示词');
+    return;
+  }
+  
+  isRegenerating = true;
+  const btn = document.getElementById('btn-regenerate');
+  btn.disabled = true;
+  btn.innerHTML = '<span class="material-icons">hourglass_empty</span>生成中...';
+  
+  // 显示遮罩
+  const panel = document.getElementById('edited-preview-panel');
+  const overlay = document.createElement('div');
+  overlay.className = 'regenerating-overlay';
+  overlay.innerHTML = `
+    <div class="regenerating-overlay__spinner"></div>
+    <div class="regenerating-overlay__text">正在生成章节...</div>
+    <div class="regenerating-overlay__progress">预计 10-20 秒</div>
+  `;
+  panel.appendChild(overlay);
+  
+  try {
+    // TODO: 调用API生成章节
+    // const response = await fetch('/api/generate-chapter-preview', {
+    //   method: 'POST',
+    //   headers: { 'Content-Type': 'application/json' },
+    //   body: JSON.stringify({ prompt: editedPrompt, genre: '{{genre}}' })
+    // });
+    // const data = await response.json();
+    
+    // 模拟API调用
+    await new Promise(r => setTimeout(r, 2000));
+    
+    // 模拟返回数据
+    const mockData = {
+      title: '第1章 开局获得神豪系统（修改后）',
+      content: `<p>${editedPrompt.substring(0, 50)}...生成的章节内容示例...</p><p>这是基于修改后提示词生成的章节，展示了新的文风效果。</p><p>（实际这里会显示AI生成的2000字左右完整章节）</p>`,
+      word_count: 2048
+    };
+    
+    // 显示预览
+    document.getElementById('edited-empty').style.display = 'none';
+    document.getElementById('edited-preview').style.display = 'block';
+    document.getElementById('edited-chapter-title').textContent = mockData.title;
+    document.getElementById('edited-chapter-content').innerHTML = mockData.content;
+    document.getElementById('edited-word-count').textContent = mockData.word_count.toLocaleString() + ' 字';
+    document.getElementById('edited-word-count').style.color = '';
+    
+    // 如果开启差异模式，高亮差异
+    if (isDiffMode) {
+      highlightDiff();
+    }
+    
+  } catch (error) {
+    showToast('生成失败：' + error.message);
+  } finally {
+    isRegenerating = false;
+    btn.disabled = false;
+    btn.innerHTML = '<span class="material-icons">refresh</span>重新生成预览';
+    overlay.remove();
+  }
+}
+
+// ===== 切换功能 =====
+function toggleSync() {
+  isSyncScroll = !isSyncScroll;
+  document.getElementById('toggle-sync').classList.toggle('editor-toggle--active', isSyncScroll);
+}
+
+function toggleDiff() {
+  isDiffMode = !isDiffMode;
+  document.getElementById('toggle-diff').classList.toggle('editor-toggle--active', isDiffMode);
+  
+  if (isDiffMode) {
+    highlightDiff();
+  } else {
+    clearDiff();
+  }
+}
+
+function highlightDiff() {
+  // TODO: 实现差异高亮逻辑
+  console.log('差异高亮模式');
+}
+
+function clearDiff() {
+  // TODO: 清除差异高亮
+  console.log('清除差异高亮');
+}
+
+// ===== 同步滚动 =====
+function setupSyncScroll() {
+  const panels = [
+    document.querySelector('#default-prompt').parentElement,
+    document.querySelector('#edited-prompt').parentElement,
+    document.querySelector('#default-preview-panel'),
+    document.querySelector('#edited-preview-panel')
+  ];
+  
+  panels.forEach(panel => {
+    panel.addEventListener('scroll', function() {
+      if (!isSyncScroll) return;
+      
+      const scrollTop = this.scrollTop;
+      const scrollLeft = this.scrollLeft;
+      
+      panels.forEach(otherPanel => {
+        if (otherPanel !== this) {
+          otherPanel.scrollTop = scrollTop;
+          otherPanel.scrollLeft = scrollLeft;
+        }
+      });
+    });
+  });
+}
+
+// ===== 保存和重置 =====
+async function savePrompt() {
+  if (!editedPrompt.trim()) {
+    showToast('提示词不能为空');
+    return;
+  }
+  
+  try {
+    // TODO: 调用API保存
+    // await fetch('/api/save-prompt', {
+    //   method: 'POST',
+    //   headers: { 'Content-Type': 'application/json' },
+    //   body: JSON.stringify({ step_id: '{{step_id}}', prompt: editedPrompt })
+    // });
+    
+    showToast('保存成功！');
+  } catch (error) {
+    showToast('保存失败：' + error.message);
+  }
+}
+
+function resetToDefault() {
+  if (confirm('确定恢复为系统默认提示词？所有修改将丢失。')) {
+    document.getElementById('edited-prompt').value = defaultPrompt;
+    onPromptChange();
+  }
+}
+
+// ===== 辅助功能 =====
+function showToast(message) {
+  const toast = document.createElement('div');
+  toast.style.cssText = `
+    position: fixed;
+    top: 80px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: rgba(30, 41, 59, 0.95);
+    color: #fff;
+    padding: 12px 24px;
+    border-radius: 8px;
+    font-size: 14px;
+    z-index: 1000;
+    border: 1px solid var(--primary-gold);
+    box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+  `;
+  toast.textContent = message;
+  document.body.appendChild(toast);
+  setTimeout(() => toast.remove(), 2000);
+}
+
+// ===== 键盘快捷键 =====
+document.addEventListener('keydown', function(e) {
+  // Ctrl+S 保存
+  if ((e.ctrlKey || e.metaKey) && e.key === 's') {
+    e.preventDefault();
+    savePrompt();
+  }
+  
+  // Ctrl+Enter 重新生成
+  if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
+    e.preventDefault();
+    regeneratePreview();
+  }
+  
+  // Ctrl+Z 撤销
+  if ((e.ctrlKey || e.metaKey) && e.key === 'z' && !e.shiftKey) {
+    e.preventDefault();
+    undoEdit();
+  }
+  
+  // Ctrl+Shift+Z / Ctrl+Y 重做
+  if (((e.ctrlKey || e.metaKey) && e.shiftKey && e.key === 'z') ||
+      ((e.ctrlKey || e.metaKey) && e.key === 'y')) {
+    e.preventDefault();
+    redoEdit();
+  }
+});
+
+// ===== 防止误关闭 =====
+window.addEventListener('beforeunload', function(e) {
+  if (editedPrompt !== defaultPrompt && editedPrompt !== editHistory[0]) {
+    e.preventDefault();
+    e.returnValue = '';
+  }
+});
+</script>
+{% endblock %}

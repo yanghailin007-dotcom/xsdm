@@ -1,0 +1,1112 @@
+{% extends "layouts/base-v2.html" %}
+
+{% block title %}章节对比 - 市场导向创作{% endblock %}
+
+{% block extra_css %}
+<link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+<style>
+/* ===== 变量定义 ===== */
+:root {
+  --compare-bg-original: rgba(100, 116, 139, 0.08);
+  --compare-bg-modified: rgba(245, 158, 11, 0.08);
+  --compare-border-original: rgba(100, 116, 139, 0.3);
+  --compare-border-modified: rgba(245, 158, 11, 0.4);
+  --diff-added: rgba(34, 197, 94, 0.2);
+  --diff-removed: rgba(239, 68, 68, 0.2);
+  --diff-modified: rgba(245, 158, 11, 0.2);
+}
+
+/* ===== 页面头部 ===== */
+.compare-header {
+  padding: 32px 0 24px;
+  text-align: center;
+}
+
+.compare-header__title {
+  font-size: 28px;
+  font-weight: 700;
+  color: var(--v2-text-primary);
+  margin-bottom: 8px;
+}
+
+.compare-header__subtitle {
+  font-size: 14px;
+  color: var(--v2-text-secondary);
+}
+
+.compare-header__info {
+  display: inline-flex;
+  align-items: center;
+  gap: 16px;
+  margin-top: 16px;
+  padding: 12px 24px;
+  background: var(--v2-bg-secondary);
+  border: 1px solid var(--v2-border-subtle);
+  border-radius: 100px;
+  font-size: 14px;
+}
+
+.compare-header__info-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--v2-text-secondary);
+}
+
+.compare-header__info-item .material-icons {
+  font-size: 16px;
+  color: var(--primary-gold);
+}
+
+/* ===== 工具栏 ===== */
+.compare-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 24px;
+  background: var(--v2-bg-secondary);
+  border: 1px solid var(--v2-border-subtle);
+  border-radius: 12px;
+  margin-bottom: 20px;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.compare-toolbar__left {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.compare-toolbar__right {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.compare-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 16px;
+  background: var(--v2-bg-tertiary);
+  border: 1px solid var(--v2-border-subtle);
+  border-radius: 8px;
+  font-size: 13px;
+  color: var(--v2-text-secondary);
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.compare-toggle:hover {
+  border-color: var(--primary-gold);
+  color: var(--primary-gold);
+}
+
+.compare-toggle--active {
+  background: rgba(245, 158, 11, 0.15);
+  border-color: var(--primary-gold);
+  color: var(--primary-gold);
+}
+
+.compare-toggle .material-icons {
+  font-size: 16px;
+}
+
+.compare-actions {
+  display: flex;
+  gap: 12px;
+}
+
+.compare-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 10px 20px;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+  border: none;
+}
+
+.compare-btn--primary {
+  background: linear-gradient(135deg, var(--primary-gold), var(--primary-gold-light));
+  color: #0f172a;
+}
+
+.compare-btn--primary:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(245, 158, 11, 0.3);
+}
+
+.compare-btn--secondary {
+  background: var(--v2-bg-tertiary);
+  color: var(--v2-text-primary);
+  border: 1px solid var(--v2-border-subtle);
+}
+
+.compare-btn--secondary:hover {
+  border-color: var(--primary-gold);
+  color: var(--primary-gold);
+}
+
+.compare-btn .material-icons {
+  font-size: 18px;
+}
+
+/* ===== 四面板网格布局 ===== */
+.compare-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  grid-template-rows: auto 1fr;
+  gap: 16px;
+  height: calc(100vh - 280px);
+  min-height: 600px;
+}
+
+.compare-panel {
+  background: var(--v2-bg-secondary);
+  border: 1px solid var(--v2-border-subtle);
+  border-radius: 12px;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.compare-panel--original {
+  border-color: var(--compare-border-original);
+  background: var(--compare-bg-original);
+}
+
+.compare-panel--modified {
+  border-color: var(--compare-border-modified);
+  background: var(--compare-bg-modified);
+}
+
+.compare-panel__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--v2-border-subtle);
+  background: rgba(0, 0, 0, 0.2);
+}
+
+.compare-panel__title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--v2-text-primary);
+}
+
+.compare-panel__title .material-icons {
+  font-size: 18px;
+}
+
+.compare-panel__badge {
+  padding: 2px 8px;
+  border-radius: 100px;
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.compare-panel__badge--original {
+  background: var(--compare-border-original);
+  color: #94a3b8;
+}
+
+.compare-panel__badge--modified {
+  background: var(--compare-border-modified);
+  color: var(--primary-gold);
+}
+
+.compare-panel__actions {
+  display: flex;
+  gap: 8px;
+}
+
+.compare-panel__btn {
+  padding: 4px 8px;
+  background: transparent;
+  border: 1px solid var(--v2-border-subtle);
+  border-radius: 6px;
+  font-size: 12px;
+  color: var(--v2-text-secondary);
+  cursor: pointer;
+  transition: all 0.2s;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.compare-panel__btn:hover {
+  border-color: var(--primary-gold);
+  color: var(--primary-gold);
+}
+
+.compare-panel__btn .material-icons {
+  font-size: 14px;
+}
+
+.compare-panel__content {
+  flex: 1;
+  overflow: auto;
+  padding: 16px;
+  font-size: 14px;
+  line-height: 1.7;
+  color: var(--v2-text-primary);
+}
+
+/* 提示词面板样式 */
+.compare-panel__prompt {
+  font-family: 'Monaco', 'Menlo', 'Consolas', monospace;
+  font-size: 13px;
+  line-height: 1.6;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+/* 章节面板样式 */
+.compare-panel__chapter {
+  font-size: 15px;
+  line-height: 1.9;
+}
+
+.compare-panel__chapter-title {
+  font-size: 18px;
+  font-weight: 700;
+  text-align: center;
+  margin-bottom: 20px;
+  padding-bottom: 16px;
+  border-bottom: 1px solid var(--v2-border-subtle);
+}
+
+.compare-panel__chapter-content {
+  text-indent: 2em;
+}
+
+.compare-panel__chapter-content p {
+  margin-bottom: 1em;
+}
+
+/* ===== 差异高亮样式 ===== */
+.diff-added {
+  background: var(--diff-added);
+  border-radius: 2px;
+  padding: 0 2px;
+}
+
+.diff-removed {
+  background: var(--diff-removed);
+  text-decoration: line-through;
+  opacity: 0.7;
+  border-radius: 2px;
+  padding: 0 2px;
+}
+
+.diff-modified {
+  background: var(--diff-modified);
+  border-radius: 2px;
+  padding: 0 2px;
+}
+
+/* 行级差异 */
+.diff-line-added {
+  background: rgba(34, 197, 94, 0.1);
+  border-left: 3px solid #22c55e;
+  padding-left: 8px;
+  margin-left: -8px;
+}
+
+.diff-line-removed {
+  background: rgba(239, 68, 68, 0.1);
+  border-left: 3px solid #ef4444;
+  padding-left: 8px;
+  margin-left: -8px;
+  opacity: 0.7;
+}
+
+/* ===== 统计信息栏 ===== */
+.compare-stats {
+  display: flex;
+  gap: 24px;
+  padding: 12px 16px;
+  background: rgba(0, 0, 0, 0.2);
+  border-top: 1px solid var(--v2-border-subtle);
+  font-size: 12px;
+  color: var(--v2-text-secondary);
+}
+
+.compare-stat {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.compare-stat__value {
+  font-weight: 600;
+  color: var(--v2-text-primary);
+}
+
+.compare-stat__change {
+  font-size: 11px;
+  padding: 2px 6px;
+  border-radius: 4px;
+}
+
+.compare-stat__change--up {
+  background: rgba(34, 197, 94, 0.2);
+  color: #4ade80;
+}
+
+.compare-stat__change--down {
+  background: rgba(239, 68, 68, 0.2);
+  color: #f87171;
+}
+
+/* ===== 底部操作栏 ===== */
+.compare-footer {
+  position: sticky;
+  bottom: 0;
+  margin-top: 24px;
+  padding: 20px 24px;
+  background: rgba(30, 41, 59, 0.95);
+  backdrop-filter: blur(20px);
+  border: 1px solid rgba(245, 158, 11, 0.2);
+  border-radius: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+}
+
+.compare-footer__info {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.compare-footer__icon {
+  width: 48px;
+  height: 48px;
+  background: linear-gradient(135deg, var(--primary-gold), var(--primary-gold-light));
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #0f172a;
+}
+
+.compare-footer__icon .material-icons {
+  font-size: 24px;
+}
+
+.compare-footer__text {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.compare-footer__label {
+  font-size: 13px;
+  color: var(--v2-text-muted);
+}
+
+.compare-footer__value {
+  font-size: 16px;
+  font-weight: 700;
+  color: #ffffff;
+}
+
+.compare-footer__actions {
+  display: flex;
+  gap: 12px;
+}
+
+/* ===== 提示词编辑模态框 ===== */
+.prompt-edit-modal {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.7);
+  backdrop-filter: blur(8px);
+  display: none;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  padding: 20px;
+}
+
+.prompt-edit-modal--open {
+  display: flex;
+}
+
+.prompt-edit-modal__content {
+  background: var(--v2-bg-secondary);
+  border: 1px solid var(--v2-border-subtle);
+  border-radius: 16px;
+  width: 100%;
+  max-width: 800px;
+  max-height: 80vh;
+  display: flex;
+  flex-direction: column;
+}
+
+.prompt-edit-modal__header {
+  padding: 20px 24px;
+  border-bottom: 1px solid var(--v2-border-subtle);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.prompt-edit-modal__title {
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--v2-text-primary);
+}
+
+.prompt-edit-modal__close {
+  background: none;
+  border: none;
+  color: var(--v2-text-secondary);
+  cursor: pointer;
+  padding: 4px;
+  border-radius: 6px;
+  transition: all 0.2s;
+}
+
+.prompt-edit-modal__close:hover {
+  background: var(--v2-bg-tertiary);
+  color: var(--v2-text-primary);
+}
+
+.prompt-edit-modal__body {
+  flex: 1;
+  padding: 20px 24px;
+  overflow: auto;
+}
+
+.prompt-edit-modal__textarea {
+  width: 100%;
+  min-height: 400px;
+  padding: 16px;
+  background: var(--v2-bg-tertiary);
+  border: 1px solid var(--v2-border-subtle);
+  border-radius: 8px;
+  font-family: 'Monaco', 'Menlo', 'Consolas', monospace;
+  font-size: 13px;
+  line-height: 1.6;
+  color: var(--v2-text-primary);
+  resize: vertical;
+  box-sizing: border-box;
+}
+
+.prompt-edit-modal__textarea:focus {
+  outline: none;
+  border-color: var(--primary-gold);
+  box-shadow: 0 0 0 3px rgba(245, 158, 11, 0.1);
+}
+
+.prompt-edit-modal__footer {
+  padding: 16px 24px;
+  border-top: 1px solid var(--v2-border-subtle);
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+}
+
+/* ===== 响应式适配 ===== */
+@media (max-width: 1200px) {
+  .compare-grid {
+    grid-template-columns: 1fr;
+    grid-template-rows: repeat(4, auto);
+    height: auto;
+  }
+  
+  .compare-panel {
+    min-height: 300px;
+  }
+}
+
+@media (max-width: 768px) {
+  .compare-toolbar {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  
+  .compare-toolbar__left,
+  .compare-toolbar__right {
+    justify-content: center;
+  }
+  
+  .compare-footer {
+    flex-direction: column;
+    text-align: center;
+  }
+  
+  .compare-footer__info {
+    flex-direction: column;
+  }
+  
+  .compare-footer__actions {
+    width: 100%;
+    justify-content: center;
+  }
+}
+
+/* ===== 滚动条美化 ===== */
+.compare-panel__content::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+.compare-panel__content::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.compare-panel__content::-webkit-scrollbar-thumb {
+  background: var(--v2-border-subtle);
+  border-radius: 4px;
+}
+
+.compare-panel__content::-webkit-scrollbar-thumb:hover {
+  background: var(--v2-text-muted);
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="v2-project-container">
+  
+  <!-- 页面头部 -->
+  <div class="compare-header">
+    <h1 class="compare-header__title">章节生成对比</h1>
+    <p class="compare-header__subtitle">对比修改提示词前后的生成效果差异</p>
+    
+    <div class="compare-header__info">
+      <div class="compare-header__info-item">
+        <span class="material-icons">book</span>
+        <span id="novel-title">开局物价贬值百万倍</span>
+      </div>
+      <div class="compare-header__info-item">
+        <span class="material-icons">tag</span>
+        <span id="chapter-number">第1章</span>
+      </div>
+      <div class="compare-header__info-item">
+        <span class="material-icons">schedule</span>
+        <span id="gen-time">生成于 2024-01-15 14:32</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- 工具栏 -->
+  <div class="compare-toolbar">
+    <div class="compare-toolbar__left">
+      <button class="compare-toggle compare-toggle--active" id="toggle-diff" onclick="toggleDiffMode()">
+        <span class="material-icons">difference</span>
+        显示差异
+      </button>
+      <button class="compare-toggle" id="toggle-sync" onclick="toggleSyncScroll()">
+        <span class="material-icons">sync</span>
+        同步滚动
+      </button>
+    </div>
+    
+    <div class="compare-toolbar__right">
+      <div class="compare-actions">
+        <button class="compare-btn compare-btn--secondary" onclick="editPrompt()">
+          <span class="material-icons">edit</span>
+          编辑提示词
+        </button>
+        <button class="compare-btn compare-btn--secondary" onclick="regenerate()">
+          <span class="material-icons">refresh</span>
+          重新生成
+        </button>
+        <button class="compare-btn compare-btn--primary" onclick="adoptModified()">
+          <span class="material-icons">check_circle</span>
+          采纳修改版
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 四面板对比网格 -->
+  <div class="compare-grid">
+    
+    <!-- 原始提示词 -->
+    <div class="compare-panel compare-panel--original">
+      <div class="compare-panel__header">
+        <div class="compare-panel__title">
+          <span class="material-icons">description</span>
+          原始提示词
+          <span class="compare-panel__badge compare-panel__badge--original">系统默认</span>
+        </div>
+        <div class="compare-panel__actions">
+          <button class="compare-panel__btn" onclick="copyPrompt('original')">
+            <span class="material-icons">content_copy</span>
+            复制
+          </button>
+        </div>
+      </div>
+      <div class="compare-panel__content">
+        <div class="compare-panel__prompt" id="original-prompt">{{ original_prompt or '加载中...' }}</div>
+      </div>
+      <div class="compare-stats">
+        <div class="compare-stat">
+          <span class="material-icons" style="font-size: 14px;">straighten</span>
+          长度: <span class="compare-stat__value" id="original-prompt-length">0</span> 字
+        </div>
+      </div>
+    </div>
+
+    <!-- 修改后提示词 -->
+    <div class="compare-panel compare-panel--modified">
+      <div class="compare-panel__header">
+        <div class="compare-panel__title">
+          <span class="material-icons">edit_note</span>
+          修改后提示词
+          <span class="compare-panel__badge compare-panel__badge--modified">用户编辑</span>
+        </div>
+        <div class="compare-panel__actions">
+          <button class="compare-panel__btn" onclick="copyPrompt('modified')">
+            <span class="material-icons">content_copy</span>
+            复制
+          </button>
+          <button class="compare-panel__btn" onclick="editPrompt()">
+            <span class="material-icons">edit</span>
+            编辑
+          </button>
+        </div>
+      </div>
+      <div class="compare-panel__content">
+        <div class="compare-panel__prompt" id="modified-prompt">{{ modified_prompt or '加载中...' }}</div>
+      </div>
+      <div class="compare-stats">
+        <div class="compare-stat">
+          <span class="material-icons" style="font-size: 14px;">straighten</span>
+          长度: <span class="compare-stat__value" id="modified-prompt-length">0</span> 字
+          <span class="compare-stat__change" id="prompt-change"></span>
+        </div>
+      </div>
+    </div>
+
+    <!-- 原始生成章节 -->
+    <div class="compare-panel compare-panel--original">
+      <div class="compare-panel__header">
+        <div class="compare-panel__title">
+          <span class="material-icons">menu_book</span>
+          原始生成章节
+          <span class="compare-panel__badge compare-panel__badge--original">基于原始提示词</span>
+        </div>
+        <div class="compare-panel__actions">
+          <button class="compare-panel__btn" onclick="copyChapter('original')">
+            <span class="material-icons">content_copy</span>
+            复制
+          </button>
+        </div>
+      </div>
+      <div class="compare-panel__content">
+        <div class="compare-panel__chapter" id="original-chapter">
+          <div class="compare-panel__chapter-title" id="original-chapter-title">{{ original_title or '第1章 开局获得神豪系统' }}</div>
+          <div class="compare-panel__chapter-content" id="original-chapter-content">{{ original_content or '加载中...' }}</div>
+        </div>
+      </div>
+      <div class="compare-stats">
+        <div class="compare-stat">
+          <span class="material-icons" style="font-size: 14px;">text_fields</span>
+          字数: <span class="compare-stat__value" id="original-word-count">0</span>
+        </div>
+        <div class="compare-stat">
+          <span class="material-icons" style="font-size: 14px;">timer</span>
+          生成耗时: <span class="compare-stat__value">{{ original_time or '12.5s' }}</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- 修改后生成章节 -->
+    <div class="compare-panel compare-panel--modified">
+      <div class="compare-panel__header">
+        <div class="compare-panel__title">
+          <span class="material-icons">auto_stories</span>
+          修改后生成章节
+          <span class="compare-panel__badge compare-panel__badge--modified">基于修改提示词</span>
+        </div>
+        <div class="compare-panel__actions">
+          <button class="compare-panel__btn" onclick="copyChapter('modified')">
+            <span class="material-icons">content_copy</span>
+            复制
+          </button>
+        </div>
+      </div>
+      <div class="compare-panel__content">
+        <div class="compare-panel__chapter" id="modified-chapter">
+          <div class="compare-panel__chapter-title" id="modified-chapter-title">{{ modified_title or '第1章 开局获得神豪系统' }}</div>
+          <div class="compare-panel__chapter-content" id="modified-chapter-content">{{ modified_content or '加载中...' }}</div>
+        </div>
+      </div>
+      <div class="compare-stats">
+        <div class="compare-stat">
+          <span class="material-icons" style="font-size: 14px;">text_fields</span>
+          字数: <span class="compare-stat__value" id="modified-word-count">0</span>
+          <span class="compare-stat__change" id="word-count-change"></span>
+        </div>
+        <div class="compare-stat">
+          <span class="material-icons" style="font-size: 14px;">timer</span>
+          生成耗时: <span class="compare-stat__value">{{ modified_time or '14.2s' }}</span>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- 底部操作栏 -->
+  <div class="compare-footer">
+    <div class="compare-footer__info">
+      <div class="compare-footer__icon">
+        <span class="material-icons">compare_arrows</span>
+      </div>
+      <div class="compare-footer__text">
+        <span class="compare-footer__label">对比结果</span>
+        <span class="compare-footer__value" id="compare-summary">修改提示词后字数增加 156 字，剧情细节更丰富</span>
+      </div>
+    </div>
+    <div class="compare-footer__actions">
+      <button class="compare-btn compare-btn--secondary" onclick="backToProject()">
+        <span class="material-icons">arrow_back</span>
+        返回项目
+      </button>
+      <button class="compare-btn compare-btn--primary" onclick="continueWriting()">
+        <span class="material-icons">edit_note</span>
+        继续创作
+      </button>
+    </div>
+  </div>
+
+</div>
+
+<!-- 提示词编辑模态框 -->
+<div class="prompt-edit-modal" id="prompt-edit-modal">
+  <div class="prompt-edit-modal__content">
+    <div class="prompt-edit-modal__header">
+      <h3 class="prompt-edit-modal__title">编辑提示词</h3>
+      <button class="prompt-edit-modal__close" onclick="closePromptEdit()">
+        <span class="material-icons">close</span>
+      </button>
+    </div>
+    <div class="prompt-edit-modal__body">
+      <textarea class="prompt-edit-modal__textarea" id="prompt-edit-textarea" placeholder="输入修改后的提示词..."></textarea>
+    </div>
+    <div class="prompt-edit-modal__footer">
+      <button class="compare-btn compare-btn--secondary" onclick="closePromptEdit()">取消</button>
+      <button class="compare-btn compare-btn--primary" onclick="savePromptEdit()">
+        <span class="material-icons">save</span>
+        保存并重新生成
+      </button>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// ===== 状态管理 =====
+let isDiffMode = true;
+let isSyncScroll = false;
+let originalPrompt = '';
+let modifiedPrompt = '';
+let originalContent = '';
+let modifiedContent = '';
+
+// ===== 初始化 =====
+document.addEventListener('DOMContentLoaded', function() {
+  // 从后端模板变量获取数据
+  originalPrompt = document.getElementById('original-prompt').textContent.trim();
+  modifiedPrompt = document.getElementById('modified-prompt').textContent.trim();
+  originalContent = document.getElementById('original-chapter-content').textContent.trim();
+  modifiedContent = document.getElementById('modified-chapter-content').textContent.trim();
+  
+  // 更新统计信息
+  updateStats();
+  
+  // 如果有差异，显示差异高亮
+  if (isDiffMode) {
+    highlightDifferences();
+  }
+  
+  // 设置同步滚动
+  setupSyncScroll();
+});
+
+// ===== 更新统计信息 =====
+function updateStats() {
+  // 提示词长度
+  const origPromptLen = originalPrompt.length;
+  const modPromptLen = modifiedPrompt.length;
+  document.getElementById('original-prompt-length').textContent = origPromptLen;
+  document.getElementById('modified-prompt-length').textContent = modPromptLen;
+  
+  // 提示词变化
+  const promptDiff = modPromptLen - origPromptLen;
+  const promptChangeEl = document.getElementById('prompt-change');
+  if (promptDiff !== 0) {
+    promptChangeEl.textContent = promptDiff > 0 ? `+${promptDiff}` : `${promptDiff}`;
+    promptChangeEl.className = `compare-stat__change ${promptDiff > 0 ? 'compare-stat__change--up' : 'compare-stat__change--down'}`;
+  } else {
+    promptChangeEl.textContent = '';
+  }
+  
+  // 章节字数
+  const origWordCount = countWords(originalContent);
+  const modWordCount = countWords(modifiedContent);
+  document.getElementById('original-word-count').textContent = origWordCount;
+  document.getElementById('modified-word-count').textContent = modWordCount;
+  
+  // 字数变化
+  const wordDiff = modWordCount - origWordCount;
+  const wordChangeEl = document.getElementById('word-count-change');
+  if (wordDiff !== 0) {
+    wordChangeEl.textContent = wordDiff > 0 ? `+${wordDiff}` : `${wordDiff}`;
+    wordChangeEl.className = `compare-stat__change ${wordDiff > 0 ? 'compare-stat__change--up' : 'compare-stat__change--down'}`;
+  } else {
+    wordChangeEl.textContent = '';
+  }
+  
+  // 更新底部总结
+  updateSummary(origWordCount, modWordCount, wordDiff);
+}
+
+// ===== 字数统计（中文） =====
+function countWords(text) {
+  // 去除空白字符后计算长度（中文字符）
+  const cleanText = text.replace(/\s/g, '');
+  return cleanText.length;
+}
+
+// ===== 更新总结 =====
+function updateSummary(origCount, modCount, diff) {
+  const summaryEl = document.getElementById('compare-summary');
+  let summary = '';
+  
+  if (diff === 0) {
+    summary = '字数相同，请查看内容细节差异';
+  } else if (diff > 0) {
+    summary = `修改后字数增加 ${diff} 字，内容更丰富`;
+  } else {
+    summary = `修改后字数减少 ${Math.abs(diff)} 字，更精简紧凑`;
+  }
+  
+  summaryEl.textContent = summary;
+}
+
+// ===== 差异高亮 =====
+function highlightDifferences() {
+  // 高亮提示词差异
+  const promptDiff = computeDiff(originalPrompt, modifiedPrompt);
+  document.getElementById('modified-prompt').innerHTML = promptDiff;
+  
+  // 高亮章节内容差异
+  const contentDiff = computeDiff(originalContent, modifiedContent);
+  document.getElementById('modified-chapter-content').innerHTML = contentDiff;
+}
+
+// ===== 简单差异计算（行级） =====
+function computeDiff(oldText, newText) {
+  const oldLines = oldText.split('\n');
+  const newLines = newText.split('\n');
+  
+  // 简化的差异检测：如果整行不同，标记为修改
+  let result = [];
+  const maxLen = Math.max(oldLines.length, newLines.length);
+  
+  for (let i = 0; i < maxLen; i++) {
+    const oldLine = oldLines[i] || '';
+    const newLine = newLines[i] || '';
+    
+    if (oldLine === newLine) {
+      result.push(escapeHtml(newLine));
+    } else if (!oldLine && newLine) {
+      // 新增行
+      result.push(`<span class="diff-line-added">${escapeHtml(newLine)}</span>`);
+    } else if (oldLine && !newLine) {
+      // 删除行
+      result.push(`<span class="diff-line-removed">${escapeHtml(oldLine)}</span>`);
+    } else {
+      // 修改行 - 简单处理，实际可以用更复杂的字符级diff
+      result.push(`<span class="diff-modified">${escapeHtml(newLine)}</span>`);
+    }
+  }
+  
+  return result.join('\n');
+}
+
+// ===== HTML转义 =====
+function escapeHtml(text) {
+  const div = document.createElement('div');
+  div.textContent = text;
+  return div.innerHTML;
+}
+
+// ===== 切换差异模式 =====
+function toggleDiffMode() {
+  isDiffMode = !isDiffMode;
+  const btn = document.getElementById('toggle-diff');
+  
+  if (isDiffMode) {
+    btn.classList.add('compare-toggle--active');
+    highlightDifferences();
+  } else {
+    btn.classList.remove('compare-toggle--active');
+    // 恢复纯文本
+    document.getElementById('modified-prompt').textContent = modifiedPrompt;
+    document.getElementById('modified-chapter-content').innerHTML = `<p>${escapeHtml(modifiedContent).replace(/\n/g, '</p><p>')}</p>`;
+  }
+}
+
+// ===== 切换同步滚动 =====
+function toggleSyncScroll() {
+  isSyncScroll = !isSyncScroll;
+  const btn = document.getElementById('toggle-sync');
+  btn.classList.toggle('compare-toggle--active', isSyncScroll);
+}
+
+// ===== 设置同步滚动 =====
+function setupSyncScroll() {
+  const panels = document.querySelectorAll('.compare-panel__content');
+  
+  panels.forEach(panel => {
+    panel.addEventListener('scroll', function() {
+      if (!isSyncScroll) return;
+      
+      const scrollTop = this.scrollTop;
+      const scrollLeft = this.scrollLeft;
+      
+      panels.forEach(otherPanel => {
+        if (otherPanel !== this) {
+          otherPanel.scrollTop = scrollTop;
+          otherPanel.scrollLeft = scrollLeft;
+        }
+      });
+    });
+  });
+}
+
+// ===== 复制功能 =====
+function copyPrompt(type) {
+  const text = type === 'original' ? originalPrompt : modifiedPrompt;
+  navigator.clipboard.writeText(text).then(() => {
+    showToast('提示词已复制');
+  });
+}
+
+function copyChapter(type) {
+  const title = document.getElementById(type + '-chapter-title').textContent;
+  const content = type === 'original' ? originalContent : modifiedContent;
+  const fullText = title + '\n\n' + content;
+  navigator.clipboard.writeText(fullText).then(() => {
+    showToast('章节内容已复制');
+  });
+}
+
+// ===== 编辑提示词 =====
+function editPrompt() {
+  document.getElementById('prompt-edit-textarea').value = modifiedPrompt;
+  document.getElementById('prompt-edit-modal').classList.add('prompt-edit-modal--open');
+}
+
+function closePromptEdit() {
+  document.getElementById('prompt-edit-modal').classList.remove('prompt-edit-modal--open');
+}
+
+function savePromptEdit() {
+  const newPrompt = document.getElementById('prompt-edit-textarea').value.trim();
+  if (!newPrompt) {
+    showToast('提示词不能为空');
+    return;
+  }
+  
+  modifiedPrompt = newPrompt;
+  document.getElementById('modified-prompt').textContent = modifiedPrompt;
+  updateStats();
+  closePromptEdit();
+  
+  // 触发重新生成
+  regenerate();
+}
+
+// ===== 重新生成 =====
+function regenerate() {
+  showToast('正在重新生成章节...');
+  // TODO: 调用API重新生成
+  // fetch('/api/regenerate-chapter', { ... })
+}
+
+// ===== 采纳修改版 =====
+function adoptModified() {
+  if (confirm('确定采纳修改后的版本？这将覆盖原始章节。')) {
+    showToast('已采纳修改版');
+    // TODO: 调用API保存
+    // window.location.href = '/novel/' + novelId;
+  }
+}
+
+// ===== 返回项目 =====
+function backToProject() {
+  window.history.back();
+}
+
+// ===== 继续创作 =====
+function continueWriting() {
+  showToast('进入章节编辑器...');
+  // TODO: 跳转到章节编辑页面
+}
+
+// ===== Toast提示 =====
+function showToast(message) {
+  // 简单的toast实现
+  const toast = document.createElement('div');
+  toast.style.cssText = `
+    position: fixed;
+    top: 20px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: rgba(30, 41, 59, 0.95);
+    color: #fff;
+    padding: 12px 24px;
+    border-radius: 8px;
+    font-size: 14px;
+    z-index: 9999;
+    border: 1px solid var(--primary-gold);
+    box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+  `;
+  toast.textContent = message;
+  document.body.appendChild(toast);
+  
+  setTimeout(() => {
+    toast.remove();
+  }, 2000);
+}
+
+// ===== 键盘快捷键 =====
+document.addEventListener('keydown', function(e) {
+  // Ctrl/Cmd + S 保存编辑
+  if ((e.ctrlKey || e.metaKey) && e.key === 's') {
+    e.preventDefault();
+    if (document.getElementById('prompt-edit-modal').classList.contains('prompt-edit-modal--open')) {
+      savePromptEdit();
+    }
+  }
+  
+  // ESC 关闭模态框
+  if (e.key === 'Escape') {
+    closePromptEdit();
+  }
+});
+</script>
+{% endblock %}

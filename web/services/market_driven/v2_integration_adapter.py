@@ -1253,6 +1253,47 @@ class V2IntegrationAdapter:
             lines.append(f"- **章节类型**：{beat_type}")
             lines.append(f"- **情绪目标**：{emotion}（强度{intensity}/10）")
             
+            # 🔥 新增：本章事件
+            event = chapter_plan.get('event', '')
+            if event:
+                lines.append(f"- **本章事件**：{event}")
+            
+            # 🔥 新增：阶段目标对齐
+            purpose = chapter_plan.get('purpose', '')
+            if purpose:
+                lines.append(f"- **阶段目标**：{purpose}")
+            
+            # 🔥 新增：关键元素（必须包含的情节要素）
+            key_requirements = chapter_plan.get('key_requirements', [])
+            if key_requirements and isinstance(key_requirements, list):
+                lines.append("- **关键元素**：")
+                for req in key_requirements:
+                    if isinstance(req, str):
+                        lines.append(f"  - {req}")
+            
+            # 🔥 新增：算法量化要求
+            algo_reqs = chapter_plan.get('algorithm_requirements', {})
+            if algo_reqs and isinstance(algo_reqs, dict):
+                lines.append("- **量化指标**：")
+                emotion_density = algo_reqs.get('emotion_density', '')
+                appeal_density = algo_reqs.get('appeal_density', '')
+                min_emotion_words = algo_reqs.get('min_emotion_words', 0)
+                min_appeal_moments = algo_reqs.get('min_appeal_moments', 0)
+                
+                if emotion_density:
+                    lines.append(f"  - 情绪词密度：{emotion_density}")
+                if appeal_density:
+                    lines.append(f"  - 爽点密度：{appeal_density}")
+                if min_emotion_words:
+                    lines.append(f"  - 情绪词数量：≥{min_emotion_words}个")
+                if min_appeal_moments:
+                    lines.append(f"  - 爽点时刻：≥{min_appeal_moments}个")
+            
+            # 🔥 新增：微创新设计
+            micro_innovation = chapter_plan.get('micro_innovation', '')
+            if micro_innovation:
+                lines.append(f"- **微创新**：{micro_innovation}")
+            
             # 爽点设计
             satisfaction = chapter_plan.get('satisfaction_point', '')
             if satisfaction:
@@ -1267,6 +1308,22 @@ class V2IntegrationAdapter:
             hook = chapter_plan.get('hook_content', '')
             if hook:
                 lines.append(f"- **章尾钩子**：{hook}")
+            
+            # 🔥 新增：本章涉及角色（从番茄细纲会话第3轮）
+            assigned_chars = chapter_plan.get('assigned_characters', {})
+            if assigned_chars and isinstance(assigned_chars, dict):
+                core = assigned_chars.get('core', [])
+                major = assigned_chars.get('major', [])
+                minor = assigned_chars.get('minor', [])
+                
+                if core or major or minor:
+                    lines.append("- **本章涉及角色**：")
+                    if core:
+                        lines.append(f"  - 核心角色：{', '.join(core)}")
+                    if major:
+                        lines.append(f"  - 主要角色：{', '.join(major)}")
+                    if minor:
+                        lines.append(f"  - 次要角色：{', '.join(minor)}")
         
         lines.append("")
         

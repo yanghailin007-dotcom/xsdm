@@ -252,9 +252,9 @@ class TomatoBestsellerTacticalSession:
       {{"chapter_range": "21-30", "level": "具现级", "ability": "万倍资源具现", "limitation": "需要击杀BOSS"}}
     ],
     "protagonist_moments": [
-      {{"chapter": 3, "trait": "腹黑整活", "action": "把BOSS说成辣条让二哈啃", "purpose": "体现不按常理出牌"}},
+      {{"chapter": 3, "trait": "腹黑整活", "action": "用非常规手段解决BOSS", "purpose": "体现不按常理出牌"}},
       {{"chapter": 8, "trait": "极致理智", "action": "预判埋伏反向收割", "purpose": "体现计算型主角"}},
-      {{"chapter": 15, "trait": "护短爱国", "action": "为华夏具现资源打脸外国", "purpose": "体现家国情怀"}}
+      {{"chapter": 15, "trait": "护短/爱国", "action": "为所属势力争取利益", "purpose": "体现主角立场"}}
     ],
     "goal_milestones": {{
       "milestone_1": {{"chapter": 3, "deliverable": "首个交付物", "emotion": "震惊反转"}},
@@ -263,8 +263,8 @@ class TomatoBestsellerTacticalSession:
     }},
     "key_constraints": [
       "金手指使用必须有触发条件和代价，不能随意使用",
-      "沈浪必须保持'极致理智'人设，不能有冲动降智行为",
-      "每章必须体现'国运绑定'设定（国民实时反馈）",
+      "主角必须保持人设一致性，不能有冲动降智行为",
+      "每章必须体现世界观核心设定",
       "必须在指定章节完成阶段目标交付物",
       "严格遵循升级里程碑，不能提前获得后期能力"
     ]
@@ -638,54 +638,51 @@ class TomatoBestsellerTacticalSession:
 
 ## 三、角色分类规则
 
-1. **核心角色**（每章必出场）：主角沈浪、二哈
-2. **重要配角**（关键章出场）：王强、詹姆斯等
-3. **次要配角**（按需出场）：冰冰、赵老等
+1. **核心角色**（每章必出场）：主角及其核心伙伴（如有）
+2. **重要配角**（关键章出场）：盟友、反派等
+3. **次要配角**（按需出场）：NPC、解说员等
 4. **新角色**（谨慎新增）：30章最多新增2个，需说明理由
 
 ---
 
 ## 四、输出要求
 
-JSON格式：
+JSON格式（示例结构，角色名使用已有角色或合理新创）：
 
 ```json
 {{
   "character_plan": {{
     "core_characters": [
-      {{"name": "沈浪", "appearance": "每章必出场", "highlight_chapters": [3,8,15,20,30]}},
-      {{"name": "二哈", "appearance": "每章必出场", "highlight_chapters": [3,11,19,24,30]}}
+      {{"name": "主角名", "appearance": "每章必出场", "highlight_chapters": [3,8,15,20,30]}},
+      {{"name": "核心伙伴", "appearance": "每章必出场", "highlight_chapters": [3,11,19,24,30]}}
     ],
     "major_characters": [
       {{
-        "name": "詹姆斯",
+        "name": "重要反派A",
         "first_chapter": 2,
         "key_chapters": [2,8,15],
         "purpose": "早期打脸对象",
-        "arc": "从嘲讽到恐惧到死亡",
-        "face_slapping_chapter": 15
+        "arc": "从嘲讽到恐惧到失败"
       }}
     ],
     "minor_characters": [
-      {{"name": "冰冰", "first_chapter": 1, "role": "直播间主持人"}},
-      {{"name": "赵老", "first_chapter": 4, "role": "战术解说"}}
+      {{"name": "解说员", "first_chapter": 1, "role": "世界观解说"}}
     ],
     "new_characters": [
       {{
-        "name": "祭司卡尔",
+        "name": "新反派XXX",
         "first_chapter": 28,
         "purpose": "中期反派铺垫",
-        "reason": "需要引入异族文明线索",
-        "traits": ["视人类为血食", "傲慢", "禁地祭司"]
+        "reason": "剧情需要引入新势力"
       }}
     ],
     "chapter_assignments": [
       {{
         "chapter": {start_chapter},
-        "core": ["沈浪", "二哈"],
+        "core": ["主角名"],
         "major": [],
-        "minor": ["冰冰"],
-        "notes": "通过冰冰解说引入国运设定"
+        "minor": ["解说员"],
+        "notes": "通过解说员引入世界观设定"
       }}
     ],
     "constraints": [
@@ -709,7 +706,7 @@ JSON格式：
 
 原则：
 1. 优先使用已有角色，避免创造新角色
-2. 核心角色（沈浪、二哈）每章必须出场
+2. 主角每章必须出场，核心盟友尽量每章出场
 3. 重要配角在关键章节高光
 4. 新角色30章最多2个，必须有充分理由
 5. 为每章分配具体的角色出场
@@ -743,9 +740,17 @@ JSON格式：
                     'minor': assignments_map[ch_num].get('minor', [])
                 }
             else:
-                # 默认分配
+                # 默认分配：从已有角色中提取核心角色，不硬编码
+                existing_chars = character_plan.get('existing_characters', [])
+                protagonist = next((c for c in existing_chars if c.get('type') == 'protagonist'), None)
+                core_chars = [protagonist.get('name')] if protagonist else []
+                
+                # 添加重要盟友（最多1个）
+                allies = [c.get('name') for c in existing_chars if c.get('type') == 'ally'][:1]
+                core_chars.extend(allies)
+                
                 chapter['assigned_characters'] = {
-                    'core': ['沈浪', '二哈'],
+                    'core': core_chars,
                     'major': [],
                     'minor': []
                 }
@@ -772,7 +777,95 @@ JSON格式：
             }
         }
         
+        # 🔥 保存新角色到角色设计文件
+        self._save_new_characters_to_design(character_plan.get('new_characters', []))
+        
         return blueprint
+    
+    def _save_new_characters_to_design(self, new_characters: List[Dict]) -> None:
+        """
+        将新角色保存到角色设计.json文件
+        
+        Args:
+            new_characters: 新角色列表
+        """
+        if not new_characters or not self.project_path:
+            return
+        
+        try:
+            import json
+            from pathlib import Path
+            
+            # 角色设计文件路径
+            char_design_path = Path(self.project_path) / "phase_one_products" / "角色设计.json"
+            
+            if not char_design_path.exists():
+                logger.warning(f"[TomatoTacticalSession] 角色设计文件不存在: {char_design_path}")
+                return
+            
+            # 读取现有角色设计
+            with open(char_design_path, 'r', encoding='utf-8') as f:
+                char_design = json.load(f)
+            
+            # 确保有 supporting_roles 字段
+            if 'supporting_roles' not in char_design:
+                char_design['supporting_roles'] = []
+            
+            if not isinstance(char_design['supporting_roles'], list):
+                char_design['supporting_roles'] = []
+            
+            # 获取现有角色名（避免重复）
+            existing_names = set()
+            for key in ['protagonist', 'core_allies', 'main_antagonists', 'supporting_roles']:
+                if key in char_design:
+                    if key == 'protagonist' and isinstance(char_design[key], dict):
+                        existing_names.add(char_design[key].get('name', ''))
+                    elif isinstance(char_design[key], list):
+                        for item in char_design[key]:
+                            if isinstance(item, dict):
+                                existing_names.add(item.get('name', ''))
+                    elif isinstance(char_design[key], dict):
+                        for stage, villains in char_design[key].items():
+                            if isinstance(villains, list):
+                                for v in villains:
+                                    if isinstance(v, dict):
+                                        existing_names.add(v.get('name', ''))
+            
+            # 添加新角色到 supporting_roles
+            added_count = 0
+            for char in new_characters:
+                if not isinstance(char, dict):
+                    continue
+                
+                char_name = char.get('name', '')
+                if not char_name or char_name in existing_names:
+                    continue
+                
+                # 构建角色数据
+                char_data = {
+                    'name': char_name,
+                    'role': char.get('role', '配角'),
+                    'identity': char.get('description', ''),
+                    'traits': char.get('traits', []),
+                    'first_appearance': char.get('first_chapter', char.get('intro_chapter', 0)),
+                    'source': 'tactical_planning',
+                    'created_at': datetime.now().isoformat(),
+                    'notes': f'由战术规划生成，第{char.get("first_chapter", char.get("intro_chapter", 0))}章出场'
+                }
+                
+                char_design['supporting_roles'].append(char_data)
+                existing_names.add(char_name)
+                added_count += 1
+                logger.info(f"[TomatoTacticalSession] 新角色添加到角色设计: {char_name}")
+            
+            # 保存回文件
+            if added_count > 0:
+                with open(char_design_path, 'w', encoding='utf-8') as f:
+                    json.dump(char_design, f, ensure_ascii=False, indent=2)
+                logger.info(f"[TomatoTacticalSession] 角色设计文件已更新: 新增{added_count}个角色")
+            
+        except Exception as e:
+            logger.error(f"[TomatoTacticalSession] 保存新角色失败: {e}")
     
     # ========== 辅助方法 ==========
     
@@ -898,8 +991,12 @@ JSON格式：
         return {'chapters': chapters}
     
     def _get_default_character_plan(self, existing_chars: List[Dict]) -> Dict:
-        """获取默认角色规划"""
-        core = ['沈浪', '二哈']
+        """获取默认角色规划（基于已有角色，无硬编码）"""
+        # 从已有角色中提取主角作为核心
+        protagonist = next((c for c in existing_chars if c.get('type') == 'protagonist'), None)
+        core = [protagonist.get('name')] if protagonist else []
+        
+        # 提取盟友和反派作为主要角色
         major = [c.get('name') for c in existing_chars if c.get('type') in ['ally', 'villain']][:5]
         
         chapter_assignments = []

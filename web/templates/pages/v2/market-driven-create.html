@@ -726,6 +726,335 @@
 .genre-card--selected {
   animation: selectPulse 0.6s ease-out;
 }
+
+/* ===== 骨架屏动画 ===== */
+@keyframes skeletonPulse {
+  0% { opacity: 1; }
+  50% { opacity: 0.5; }
+  100% { opacity: 1; }
+}
+
+.genre-card--skeleton {
+  pointer-events: none;
+}
+
+.genre-card--skeleton .skeleton,
+.genre-card--skeleton .skeleton-text {
+  animation: skeletonPulse 1.5s ease-in-out infinite;
+}
+
+/* ===== 新增题材模态框 ===== */
+.add-genre-modal {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.7);
+  backdrop-filter: blur(8px);
+  display: none;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  padding: 20px;
+  opacity: 0;
+  transition: opacity 0.3s ease;
+}
+
+.add-genre-modal--open {
+  display: flex;
+  opacity: 1;
+}
+
+.add-genre-modal__content {
+  background: var(--v2-bg-secondary);
+  border: 1px solid var(--v2-border-subtle);
+  border-radius: var(--radius-xl);
+  width: 100%;
+  max-width: 560px;
+  max-height: 90vh;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 
+    0 25px 50px -12px rgba(0, 0, 0, 0.5),
+    0 0 0 1px rgba(245, 158, 11, 0.1);
+  transform: scale(0.95) translateY(20px);
+  transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.add-genre-modal--open .add-genre-modal__content {
+  transform: scale(1) translateY(0);
+}
+
+.add-genre-modal__header {
+  padding: 24px 24px 16px;
+  border-bottom: 1px solid var(--v2-border-subtle);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.add-genre-modal__title {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--v2-text-primary);
+}
+
+.add-genre-modal__title-icon {
+  width: 40px;
+  height: 40px;
+  background: linear-gradient(135deg, var(--primary-gold), var(--primary-gold-light));
+  border-radius: var(--radius-md);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #0f172a;
+}
+
+.add-genre-modal__title-icon .material-icons {
+  font-size: 20px;
+}
+
+.add-genre-modal__close {
+  background: none;
+  border: none;
+  color: var(--v2-text-secondary);
+  cursor: pointer;
+  padding: 8px;
+  border-radius: var(--radius-sm);
+  transition: all 0.2s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.add-genre-modal__close:hover {
+  background: var(--v2-bg-tertiary);
+  color: var(--v2-text-primary);
+}
+
+.add-genre-modal__body {
+  flex: 1;
+  overflow-y: auto;
+  padding: 20px 24px;
+}
+
+.add-genre-form__group {
+  margin-bottom: 20px;
+}
+
+.add-genre-form__label {
+  display: block;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--v2-text-primary);
+  margin-bottom: 8px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.add-genre-form__label .material-icons {
+  font-size: 16px;
+  color: var(--primary-gold);
+}
+
+.add-genre-form__required {
+  color: #ef4444;
+  font-size: 12px;
+}
+
+.add-genre-form__input,
+.add-genre-form__textarea,
+.add-genre-form__select {
+  width: 100%;
+  padding: 12px 16px;
+  background: var(--v2-bg-tertiary);
+  border: 1px solid var(--v2-border-subtle);
+  border-radius: var(--radius-md);
+  font-size: 14px;
+  color: var(--v2-text-primary);
+  transition: all 0.2s;
+  box-sizing: border-box;
+  font-family: inherit;
+}
+
+.add-genre-form__input:focus,
+.add-genre-form__textarea:focus,
+.add-genre-form__select:focus {
+  outline: none;
+  border-color: var(--primary-gold);
+  box-shadow: 0 0 0 3px rgba(245, 158, 11, 0.1);
+}
+
+.add-genre-form__textarea {
+  min-height: 100px;
+  resize: vertical;
+  line-height: 1.7;
+}
+
+.add-genre-form__hint {
+  font-size: 12px;
+  color: var(--v2-text-muted);
+  margin-top: 6px;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.add-genre-form__hint .material-icons {
+  font-size: 14px;
+}
+
+/* 示例标签 */
+.add-genre-examples {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.add-genre-example {
+  padding: 4px 10px;
+  background: var(--v2-bg-tertiary);
+  border: 1px solid var(--v2-border-subtle);
+  border-radius: 100px;
+  font-size: 12px;
+  color: var(--v2-text-secondary);
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.add-genre-example:hover {
+  border-color: var(--primary-gold);
+  color: var(--primary-gold);
+  background: rgba(245, 158, 11, 0.1);
+}
+
+/* 性别选择 */
+.add-genre-gender {
+  display: flex;
+  gap: 12px;
+}
+
+.add-genre-gender__option {
+  flex: 1;
+  padding: 16px;
+  background: var(--v2-bg-tertiary);
+  border: 2px solid var(--v2-border-subtle);
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  transition: all 0.2s;
+  text-align: center;
+}
+
+.add-genre-gender__option:hover {
+  border-color: var(--v2-text-muted);
+}
+
+.add-genre-gender__option--active[data-gender="male"] {
+  border-color: #3b82f6;
+  background: rgba(59, 130, 246, 0.1);
+}
+
+.add-genre-gender__option--active[data-gender="female"] {
+  border-color: #ec4899;
+  background: rgba(236, 72, 153, 0.1);
+}
+
+.add-genre-gender__icon {
+  font-size: 24px;
+  margin-bottom: 8px;
+}
+
+.add-genre-gender__label {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--v2-text-primary);
+}
+
+/* 核心设定字段 */
+.add-genre-core-section {
+  background: rgba(245, 158, 11, 0.05);
+  border: 1px solid rgba(245, 158, 11, 0.2);
+  border-radius: var(--radius-md);
+  padding: 16px;
+  margin-bottom: 20px;
+}
+
+.add-genre-core-section__title {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--primary-gold);
+  margin-bottom: 12px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.add-genre-core-section__title .material-icons {
+  font-size: 16px;
+}
+
+.add-genre-form__footer {
+  padding: 16px 24px 24px;
+  border-top: 1px solid var(--v2-border-subtle);
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+}
+
+.add-genre-form__btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 12px 24px;
+  border-radius: var(--radius-md);
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+  border: none;
+}
+
+.add-genre-form__btn--primary {
+  background: linear-gradient(135deg, var(--primary-gold), var(--primary-gold-light));
+  color: #0f172a;
+}
+
+.add-genre-form__btn--primary:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(245, 158, 11, 0.3);
+}
+
+.add-genre-form__btn--secondary {
+  background: var(--v2-bg-tertiary);
+  color: var(--v2-text-primary);
+  border: 1px solid var(--v2-border-subtle);
+}
+
+.add-genre-form__btn--secondary:hover {
+  border-color: var(--primary-gold);
+  color: var(--primary-gold);
+}
+
+.add-genre-form__btn .material-icons {
+  font-size: 18px;
+}
+
+/* 字数统计 */
+.add-genre-char-count {
+  font-size: 12px;
+  color: var(--v2-text-muted);
+  margin-left: auto;
+}
+
+.add-genre-char-count--warning {
+  color: #ef4444;
+}
 </style>
 {% endblock %}
 
@@ -777,26 +1106,49 @@
 
     <!-- 分类筛选标签 -->
     <div class="genre-filter" id="genre-filter">
-      <span class="genre-filter__tag genre-filter__tag--active" data-category="all" onclick="selectCategory('all')">
+      <span class="genre-filter__tag genre-filter__tag--active" data-category="all" data-gender="all" onclick="selectCategory('all')">
         全部 <span class="genre-filter__count" id="count-all">0</span>
       </span>
-      <span class="genre-filter__tag" data-category="神豪" onclick="selectCategory('神豪')">
+      <!-- 男频分类 -->
+      <span class="genre-filter__tag" data-category="神豪" data-gender="male" onclick="selectCategory('神豪')">
         神豪类 <span class="genre-filter__count" id="count-神豪">0</span>
       </span>
-      <span class="genre-filter__tag" data-category="国运" onclick="selectCategory('国运')">
+      <span class="genre-filter__tag" data-category="国运" data-gender="male" onclick="selectCategory('国运')">
         国运类 <span class="genre-filter__count" id="count-国运">0</span>
       </span>
-      <span class="genre-filter__tag" data-category="系统" onclick="selectCategory('系统')">
+      <span class="genre-filter__tag" data-category="系统" data-gender="male" onclick="selectCategory('系统')">
         系统流 <span class="genre-filter__count" id="count-系统">0</span>
       </span>
-      <span class="genre-filter__tag" data-category="穿越" onclick="selectCategory('穿越')">
+      <span class="genre-filter__tag" data-category="穿越" data-gender="male" onclick="selectCategory('穿越')">
         穿越类 <span class="genre-filter__count" id="count-穿越">0</span>
       </span>
-      <span class="genre-filter__tag" data-category="悬疑" onclick="selectCategory('悬疑')">
+      <span class="genre-filter__tag" data-category="悬疑" data-gender="male" onclick="selectCategory('悬疑')">
         悬疑/诡异 <span class="genre-filter__count" id="count-悬疑">0</span>
       </span>
-      <span class="genre-filter__tag" data-category="其他" onclick="selectCategory('其他')">
+      <span class="genre-filter__tag" data-category="其他" data-gender="male" onclick="selectCategory('其他')">
         其他 <span class="genre-filter__count" id="count-其他">0</span>
+      </span>
+      <!-- 女频分类 -->
+      <span class="genre-filter__tag" data-category="甜宠" data-gender="female" onclick="selectCategory('甜宠')" style="display: none;">
+        甜宠类 <span class="genre-filter__count" id="count-甜宠">0</span>
+      </span>
+      <span class="genre-filter__tag" data-category="虐恋" data-gender="female" onclick="selectCategory('虐恋')" style="display: none;">
+        虐恋类 <span class="genre-filter__count" id="count-虐恋">0</span>
+      </span>
+      <span class="genre-filter__tag" data-category="女频穿越" data-gender="female" onclick="selectCategory('女频穿越')" style="display: none;">
+        穿越/快穿 <span class="genre-filter__count" id="count-女频穿越">0</span>
+      </span>
+      <span class="genre-filter__tag" data-category="重生" data-gender="female" onclick="selectCategory('重生')" style="display: none;">
+        重生类 <span class="genre-filter__count" id="count-重生">0</span>
+      </span>
+      <span class="genre-filter__tag" data-category="宫斗宅斗" data-gender="female" onclick="selectCategory('宫斗宅斗')" style="display: none;">
+        宫斗宅斗 <span class="genre-filter__count" id="count-宫斗宅斗">0</span>
+      </span>
+      <span class="genre-filter__tag" data-category="年代" data-gender="female" onclick="selectCategory('年代')" style="display: none;">
+        年代/军婚 <span class="genre-filter__count" id="count-年代">0</span>
+      </span>
+      <span class="genre-filter__tag" data-category="其他女频" data-gender="female" onclick="selectCategory('其他女频')" style="display: none;">
+        其他 <span class="genre-filter__count" id="count-其他女频">0</span>
       </span>
     </div>
 
@@ -836,6 +1188,149 @@
   </div>
 
 </div>
+
+<!-- 新增题材模态框 -->
+<div class="add-genre-modal" id="add-genre-modal">
+  <div class="add-genre-modal__content">
+    <!-- 头部 -->
+    <div class="add-genre-modal__header">
+      <div class="add-genre-modal__title">
+        <div class="add-genre-modal__title-icon">
+          <span class="material-icons">add_circle</span>
+        </div>
+        <span>新增自定义题材</span>
+      </div>
+      <button class="add-genre-modal__close" onclick="closeAddGenreModal()">
+        <span class="material-icons">close</span>
+      </button>
+    </div>
+
+    <!-- 表单内容 -->
+    <div class="add-genre-modal__body">
+      <form id="add-genre-form">
+        
+        <!-- 题材名称 -->
+        <div class="add-genre-form__group">
+          <label class="add-genre-form__label">
+            <span class="material-icons">badge</span>
+            题材名称
+            <span class="add-genre-form__required">*</span>
+          </label>
+          <input type="text" class="add-genre-form__input" id="add-genre-name" 
+                 placeholder="例如：神豪文-花钱返利类" maxlength="50">
+          <div class="add-genre-form__hint">
+            <span class="material-icons">info</span>
+            格式：主类型-子类型，控制在50字以内
+          </div>
+          <!-- 快速示例 -->
+          <div class="add-genre-examples">
+            <span class="add-genre-example" onclick="fillGenreName('神豪文-花钱返利类')">神豪文-花钱返利类</span>
+            <span class="add-genre-example" onclick="fillGenreName('国运文-直播类')">国运文-直播类</span>
+            <span class="add-genre-example" onclick="fillGenreName('甜宠文-豪门总裁类')">甜宠文-豪门总裁类</span>
+            <span class="add-genre-example" onclick="fillGenreName('穿越文-古代言情类')">穿越文-古代言情类</span>
+          </div>
+        </div>
+
+        <!-- 性别选择 -->
+        <div class="add-genre-form__group">
+          <label class="add-genre-form__label">
+            <span class="material-icons">wc</span>
+            目标频道
+          </label>
+          <div class="add-genre-gender">
+            <div class="add-genre-gender__option" data-gender="male" onclick="selectModalGender('male')">
+              <div class="add-genre-gender__icon">♂</div>
+              <div class="add-genre-gender__label">男频</div>
+            </div>
+            <div class="add-genre-gender__option" data-gender="female" onclick="selectModalGender('female')">
+              <div class="add-genre-gender__icon">♀</div>
+              <div class="add-genre-gender__label">女频</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- 核心设定区域 -->
+        <div class="add-genre-core-section">
+          <div class="add-genre-core-section__title">
+            <span class="material-icons">star</span>
+            核心设定（AI分析关键）
+          </div>
+
+          <!-- 世界观背景 -->
+          <div class="add-genre-form__group">
+            <label class="add-genre-form__label">
+              <span class="material-icons">public</span>
+              世界观/背景设定
+            </label>
+            <textarea class="add-genre-form__textarea" id="add-genre-worldview" rows="2"
+                      placeholder="描述故事发生的世界背景，如：现代都市但物价贬值百万倍、国运战场开启全球直播..."></textarea>
+          </div>
+
+          <!-- 主角设定 -->
+          <div class="add-genre-form__group">
+            <label class="add-genre-form__label">
+              <span class="material-icons">person</span>
+              主角设定
+            </label>
+            <textarea class="add-genre-form__textarea" id="add-genre-protagonist" rows="2"
+                      placeholder="主角身份、性格特点、初始状态，如：普通外卖员，被裁员后觉醒系统..."></textarea>
+          </div>
+
+          <!-- 金手指/核心爽点 -->
+          <div class="add-genre-form__group">
+            <label class="add-genre-form__label">
+              <span class="material-icons">bolt</span>
+              金手指 / 核心爽点
+              <span class="add-genre-form__required">*</span>
+            </label>
+            <textarea class="add-genre-form__textarea" id="add-genre-golden-finger" rows="3"
+                      placeholder="描述核心金手指或爽点机制，这是题材最核心的部分..."></textarea>
+            <div class="add-genre-form__hint">
+              <span class="material-icons">tips_and_updates</span>
+              金手指是题材的核心，需要明确功能、限制、升级方式
+            </div>
+          </div>
+
+          <!-- 剧情主线 -->
+          <div class="add-genre-form__group">
+            <label class="add-genre-form__label">
+              <span class="material-icons">route</span>
+              剧情主线方向
+            </label>
+            <textarea class="add-genre-form__textarea" id="add-genre-plot" rows="2"
+                      placeholder="简述剧情发展脉络，如：前期小试牛刀→中期建立势力→后期改变世界..."></textarea>
+          </div>
+        </div>
+
+        <!-- 参考爆款 -->
+        <div class="add-genre-form__group">
+          <label class="add-genre-form__label">
+            <span class="material-icons">local_fire_department</span>
+            参考爆款作品（可选）
+          </label>
+          <input type="text" class="add-genre-form__input" id="add-genre-reference" 
+                 placeholder="填写该题材的爆款书名，帮助AI更好理解，如：《开局物价贬值百万倍》">
+          <div class="add-genre-form__hint">
+            <span class="material-icons">lightbulb</span>
+            填写1-3部代表作品，AI会分析这些作品的爆款规律
+          </div>
+        </div>
+
+      </form>
+    </div>
+
+    <!-- 底部按钮 -->
+    <div class="add-genre-form__footer">
+      <button type="button" class="add-genre-form__btn add-genre-form__btn--secondary" onclick="closeAddGenreModal()">
+        取消
+      </button>
+      <button type="button" class="add-genre-form__btn add-genre-form__btn--primary" onclick="submitAddGenre()">
+        <span class="material-icons">add</span>
+        确认新增
+      </button>
+    </div>
+  </div>
+</div>
 {% endblock %}
 
 {% block extra_js %}
@@ -848,17 +1343,27 @@ let currentCategory = 'all';  // 当前选中的分类
 let currentGender = 'male';   // 当前选中的性别频道
 let isLoading = false;        // 加载状态
 
-// 分类映射规则
+// 分类映射规则（男频+女频）
 const categoryRules = {
+  // 男频分类
   '神豪': ['神豪'],
   '国运': ['国运'],
   '系统': ['签到', '神选', '模拟器', '系统'],
   '穿越': ['四合院', '历史架空', '文娱', '盗墓', '综漫', '无限流'],
   '悬疑': ['诡异', '规则怪谈', '末日'],
-  '其他': ['奶爸', '灵气复苏', '游戏异界', '美食', '宠物', '御兽']
+  '其他': ['奶爸', '灵气复苏', '游戏异界', '美食', '宠物', '御兽', '种田'],
+  // 女频分类
+  '甜宠': ['甜宠'],
+  '虐恋': ['虐恋'],
+  '女频穿越': ['穿越', '快穿'],
+  '重生': ['重生'],
+  '宫斗宅斗': ['宫斗', '宅斗'],
+  '年代': ['军婚', '年代'],
+  '其他女频': ['团宠', '娱乐圈', '玄学', '兽世']
 };
 
 const icons = {
+  // 男频
   "神豪文-花钱返利类": "payments",
   "神豪文-签到奖励类": "card_giftcard",
   "国运文-直播类": "live_tv",
@@ -871,7 +1376,6 @@ const icons = {
   "灵气复苏-觉醒类": "bolt",
   "末日求生-囤货类": "inventory_2",
   "四合院-日常类": "home",
-  // 新增8个类型
   "诡异复苏-规则怪谈类": "warning",
   "游戏异界-虚拟现实类": "sports_esports",
   "美食文-系统烹饪类": "restaurant",
@@ -879,10 +1383,30 @@ const icons = {
   "历史架空-权谋争霸类": "account_balance",
   "文娱文-文抄公类": "movie",
   "盗墓文-探险寻宝类": "search",
-  "综漫文-无限流类": "all_inclusive"
+  "综漫文-无限流类": "all_inclusive",
+  "种田文-发家致富类": "agriculture",
+  // 女频
+  "甜宠文-豪门总裁类": "favorite",
+  "甜宠文-先婚后爱类": "favorite_border",
+  "虐恋文-替身白月光类": "heart_broken",
+  "虐恋文-破镜重圆类": "healing",
+  "穿越文-古代言情类": "time_to_leave",
+  "穿越文-年代文类": "history",
+  "重生文-复仇逆袭类": "replay",
+  "重生文-弥补遗憾类": "restore",
+  "宫斗文-后宫升级类": "castle",
+  "宅斗文-嫡女逆袭类": "home_work",
+  "快穿文-攻略反派类": "fast_forward",
+  "快穿文-逆袭打脸类": "fast_rewind",
+  "军婚文-七零年代类": "military_tech",
+  "团宠文-锦鲤福宝类": "cruelty_free",
+  "娱乐圈文-顶流恋人类": "theaters",
+  "玄学文-直播算命类": "psychology",
+  "兽世文-穿越兽人类": "pets"
 };
 
 const metaInfo = {
+  // 男频
   "神豪文-花钱返利类": { readers: "120万+", completion: "92%" },
   "神豪文-签到奖励类": { readers: "98万+", completion: "89%" },
   "国运文-直播类": { readers: "150万+", completion: "94%" },
@@ -895,7 +1419,6 @@ const metaInfo = {
   "灵气复苏-觉醒类": { readers: "135万+", completion: "93%" },
   "末日求生-囤货类": { readers: "105万+", completion: "90%" },
   "四合院-日常类": { readers: "72万+", completion: "84%" },
-  // 新增8个类型
   "诡异复苏-规则怪谈类": { readers: "88万+", completion: "89%" },
   "游戏异界-虚拟现实类": { readers: "92万+", completion: "87%" },
   "美食文-系统烹饪类": { readers: "65万+", completion: "85%" },
@@ -903,7 +1426,26 @@ const metaInfo = {
   "历史架空-权谋争霸类": { readers: "95万+", completion: "91%" },
   "文娱文-文抄公类": { readers: "82万+", completion: "86%" },
   "盗墓文-探险寻宝类": { readers: "90万+", completion: "88%" },
-  "综漫文-无限流类": { readers: "75万+", completion: "85%" }
+  "综漫文-无限流类": { readers: "75万+", completion: "85%" },
+  "种田文-发家致富类": { readers: "70万+", completion: "86%" },
+  // 女频
+  "甜宠文-豪门总裁类": { readers: "180万+", completion: "93%" },
+  "甜宠文-先婚后爱类": { readers: "160万+", completion: "91%" },
+  "虐恋文-替身白月光类": { readers: "140万+", completion: "89%" },
+  "虐恋文-破镜重圆类": { readers: "130万+", completion: "88%" },
+  "穿越文-古代言情类": { readers: "170万+", completion: "92%" },
+  "穿越文-年代文类": { readers: "150万+", completion: "90%" },
+  "重生文-复仇逆袭类": { readers: "165万+", completion: "91%" },
+  "重生文-弥补遗憾类": { readers: "145万+", completion: "89%" },
+  "宫斗文-后宫升级类": { readers: "120万+", completion: "88%" },
+  "宅斗文-嫡女逆袭类": { readers: "135万+", completion: "90%" },
+  "快穿文-攻略反派类": { readers: "110万+", completion: "87%" },
+  "快穿文-逆袭打脸类": { readers: "115万+", completion: "88%" },
+  "军婚文-七零年代类": { readers: "140万+", completion: "91%" },
+  "团宠文-锦鲤福宝类": { readers: "155万+", completion: "92%" },
+  "娱乐圈文-顶流恋人类": { readers: "125万+", completion: "89%" },
+  "玄学文-直播算命类": { readers: "95万+", completion: "87%" },
+  "兽世文-穿越兽人类": { readers: "85万+", completion: "86%" }
 };
 
 function getGenreCategory(genreName) {
@@ -930,11 +1472,17 @@ function selectGender(gender) {
     }
   });
   
-  // 重置分类标签
+  // 显示/隐藏对应性别的分类标签
   document.querySelectorAll('.genre-filter__tag').forEach(tag => {
-    if (tag.dataset.category === 'all') {
+    const tagGender = tag.dataset.gender;
+    if (tagGender === 'all') {
+      tag.style.display = '';
       tag.classList.add('genre-filter__tag--active');
+    } else if (tagGender === gender) {
+      tag.style.display = '';
+      tag.classList.remove('genre-filter__tag--active');
     } else {
+      tag.style.display = 'none';
       tag.classList.remove('genre-filter__tag--active');
     }
   });
@@ -976,23 +1524,129 @@ function updateCategoryCounts(genres) {
   document.getElementById('genre-count').textContent = `共 ${counts.all} 个品类`;
 }
 
+// ===== 新增题材模态框控制 =====
+let modalGender = 'male';
+
 function openAddGenreModal() {
-  // 简单的提示，实际项目中应该打开一个模态框
-  const genreName = prompt('请输入新题材名称（格式：主类型-子类型）：\n例如：修仙文-凡人流');
-  if (!genreName || !genreName.trim()) return;
+  // 重置表单
+  document.getElementById('add-genre-form').reset();
   
-  const description = prompt('请输入题材描述：\n例如：凡人逐步修炼成仙，资源争夺，弱肉强食');
-  if (!description) return;
+  // 默认选中当前性别
+  modalGender = currentGender;
+  updateModalGenderUI();
   
-  // 确认新增
-  if (confirm(`确认新增题材？\n\n名称：${genreName}\n描述：${description}\n频道：${currentGender === 'male' ? '男频' : '女频'}`)) {
-    // 调用API新增题材
-    addNewGenre(genreName.trim(), description.trim(), currentGender);
+  // 打开模态框
+  const modal = document.getElementById('add-genre-modal');
+  modal.classList.add('add-genre-modal--open');
+  
+  // 聚焦名称输入
+  setTimeout(() => {
+    document.getElementById('add-genre-name').focus();
+  }, 100);
+}
+
+function closeAddGenreModal() {
+  const modal = document.getElementById('add-genre-modal');
+  modal.classList.remove('add-genre-modal--open');
+}
+
+function fillGenreName(name) {
+  document.getElementById('add-genre-name').value = name;
+  // 自动填充核心设定示例
+  if (name.includes('神豪')) {
+    document.getElementById('add-genre-golden-finger').value = '主角获得花钱返利系统，消费越多返利越多，可以购买豪宅、豪车、公司，享受奢华生活的同时财富不断增长';
+  } else if (name.includes('国运')) {
+    document.getElementById('add-genre-golden-finger').value = '主角代表国家参加国运战场，获得国运加持，全国人民的气运汇聚一身，在国运竞技中所向披靡';
+  } else if (name.includes('甜宠')) {
+    document.getElementById('add-genre-golden-finger').value = '女主意外与霸道总裁闪婚，获得男主无条件宠爱，各种甜蜜互动和守护，打脸欺负女主的反派';
+  } else if (name.includes('穿越')) {
+    document.getElementById('add-genre-golden-finger').value = '主角穿越到古代/异世界，携带现代知识或系统金手指，在新世界开启逆袭人生';
   }
 }
 
-async function addNewGenre(name, description, gender) {
+function selectModalGender(gender) {
+  modalGender = gender;
+  updateModalGenderUI();
+}
+
+function updateModalGenderUI() {
+  document.querySelectorAll('.add-genre-gender__option').forEach(el => {
+    if (el.dataset.gender === modalGender) {
+      el.classList.add('add-genre-gender__option--active');
+    } else {
+      el.classList.remove('add-genre-gender__option--active');
+    }
+  });
+}
+
+async function submitAddGenre() {
+  // 获取表单数据
+  const name = document.getElementById('add-genre-name').value.trim();
+  const worldview = document.getElementById('add-genre-worldview').value.trim();
+  const protagonist = document.getElementById('add-genre-protagonist').value.trim();
+  const goldenFinger = document.getElementById('add-genre-golden-finger').value.trim();
+  const plot = document.getElementById('add-genre-plot').value.trim();
+  const reference = document.getElementById('add-genre-reference').value.trim();
+  
+  // 验证必填项
+  if (!name) {
+    showAddGenreError('请输入题材名称');
+    return;
+  }
+  if (!goldenFinger) {
+    showAddGenreError('请填写金手指/核心爽点');
+    return;
+  }
+  
+  // 组合核心设定描述
+  const coreSettings = {
+    worldview: worldview,
+    protagonist: protagonist,
+    golden_finger: goldenFinger,
+    plot: plot,
+    reference: reference
+  };
+  
+  // 构建完整描述
+  let description = '';
+  if (worldview) description += `【世界观】${worldview}\n`;
+  if (protagonist) description += `【主角】${protagonist}\n`;
+  description += `【金手指】${goldenFinger}\n`;
+  if (plot) description += `【剧情】${plot}\n`;
+  if (reference) description += `【参考】${reference}`;
+  
+  // 提交
+  await addNewGenre(name, description, modalGender, coreSettings);
+}
+
+function showAddGenreError(msg) {
+  // 简单的错误提示
+  const toast = document.createElement('div');
+  toast.style.cssText = `
+    position: fixed;
+    top: 20px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: rgba(239, 68, 68, 0.95);
+    color: #fff;
+    padding: 12px 24px;
+    border-radius: 8px;
+    font-size: 14px;
+    z-index: 9999;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+  `;
+  toast.textContent = msg;
+  document.body.appendChild(toast);
+  setTimeout(() => toast.remove(), 2000);
+}
+
+async function addNewGenre(name, description, gender, coreSettings) {
   try {
+    const submitBtn = document.querySelector('#add-genre-modal .add-genre-form__btn--primary');
+    const originalBtnText = submitBtn.innerHTML;
+    submitBtn.disabled = true;
+    submitBtn.innerHTML = '<span class="material-icons">hourglass_empty</span>提交中...';
+    
     const response = await fetch('/api/market-driven/genres', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -1000,13 +1654,21 @@ async function addNewGenre(name, description, gender) {
         name: name,
         description: description,
         gender: gender,
-        market_status: 'new'
+        market_status: 'new',
+        core_settings: coreSettings
       })
     });
     
     const data = await response.json();
+    
+    // 恢复按钮
+    submitBtn.disabled = false;
+    submitBtn.innerHTML = originalBtnText;
+    
     if (data.success) {
-      alert('题材添加成功！系统将自动为该题材生成配置。');
+      closeAddGenreModal();
+      showAddGenreSuccess('题材添加成功！系统将自动为该题材生成配置。');
+      
       // 刷新当前性别的题材列表
       const genreResponse = await fetch(`/api/market-driven/genres?gender=${gender}`);
       const genreData = await genreResponse.json();
@@ -1016,17 +1678,52 @@ async function addNewGenre(name, description, gender) {
         } else {
           femaleGenres = genreData.genres;
         }
-        // 刷新当前显示
-        selectGender(currentGender);
+        // 切换到新题材所在的频道
+        selectGender(gender);
       }
     } else {
-      alert('添加失败：' + (data.error || '未知错误'));
+      showAddGenreError('添加失败：' + (data.error || '未知错误'));
     }
   } catch (error) {
     console.error('添加题材失败:', error);
-    alert('添加失败，请检查网络或联系管理员');
+    showAddGenreError('添加失败，请检查网络或联系管理员');
   }
 }
+
+function showAddGenreSuccess(msg) {
+  const toast = document.createElement('div');
+  toast.style.cssText = `
+    position: fixed;
+    top: 20px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: rgba(34, 197, 94, 0.95);
+    color: #fff;
+    padding: 12px 24px;
+    border-radius: 8px;
+    font-size: 14px;
+    z-index: 9999;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+  `;
+  toast.textContent = msg;
+  document.body.appendChild(toast);
+  setTimeout(() => toast.remove(), 3000);
+}
+
+// 点击模态框外部关闭
+document.addEventListener('click', function(e) {
+  const modal = document.getElementById('add-genre-modal');
+  if (e.target === modal) {
+    closeAddGenreModal();
+  }
+});
+
+// ESC键关闭模态框
+document.addEventListener('keydown', function(e) {
+  if (e.key === 'Escape') {
+    closeAddGenreModal();
+  }
+});
 
 // updateCategoryCounts 已被 updateGenderCategoryCounts 替代
 
@@ -1095,44 +1792,63 @@ function filterGenres() {
   renderGenreCards(filteredGenres);
 }
 
-async function loadGenres() {
+// 本地题材数据（无需API）
+const LOCAL_MALE_GENRES = [
+  { id: 'god-tier-spending', name: '神豪文-花钱返利类', description: '全球物价贬值百万倍，主角花钱就能获得返利，越花越有钱', readers: '120万+', completion: '92%' },
+  { id: 'god-tier-checkin', name: '神豪文-签到奖励类', description: '每日签到获得亿万奖励，从普通人到顶级富豪', readers: '98万+', completion: '89%' },
+  { id: 'nation-live', name: '国运文-直播类', description: '国运战场开启，主角代表国家参战，全国直播见证', readers: '150万+', completion: '94%' },
+  { id: 'nation-explore', name: '国运文-禁地探险类', description: '探索神秘禁地，为国争光，获得逆天机缘', readers: '85万+', completion: '87%' },
+  { id: 'sign-in-daily', name: '签到文-日常签到类', description: '每日签到获得随机奖励，连续签到奖励翻倍', readers: '76万+', completion: '85%' },
+  { id: 'dad-baby', name: '奶爸文-萌宝类', description: '突然获得萌宝，开启宠娃日常，温馨治愈', readers: '110万+', completion: '91%' },
+  { id: 'dad-cultivate', name: '奶爸文-修炼类', description: '带娃修仙两不误，萌娃助力老爸修炼', readers: '68万+', completion: '83%' },
+  { id: 'god-select', name: '神选文-神明选拔类', description: '被神明选中，获得神力，参与神之试炼', readers: '95万+', completion: '88%' },
+  { id: 'simulator-life', name: '模拟器文-人生模拟类', description: '可以模拟不同人生，选择最优路线', readers: '82万+', completion: '86%' },
+  { id: 'aura-recovery', name: '灵气复苏-觉醒类', description: '灵气复苏，主角觉醒异能，踏上修炼之路', readers: '135万+', completion: '93%' },
+  { id: 'apocalypse-hoard', name: '末日求生-囤货类', description: '末日降临前疯狂囤货，在废土中生存', readers: '105万+', completion: '90%' },
+  { id: 'courtyard-life', name: '四合院-日常类', description: '四合院里的家长里短，人情冷暖', readers: '72万+', completion: '84%' },
+  { id: 'weird-recovery', name: '诡异复苏-规则怪谈类', description: '诡异事件频发，在规则怪谈中求生存', readers: '88万+', completion: '89%' },
+  { id: 'game-vr', name: '游戏异界-虚拟现实类', description: '虚拟现实游戏，在游戏世界中称王称霸', readers: '92万+', completion: '87%' },
+  { id: 'food-system', name: '美食文-系统烹饪类', description: '获得美食系统，成为顶级大厨，征服味蕾', readers: '65万+', completion: '85%' },
+  { id: 'pet-evolution', name: '宠物文-御兽进化类', description: '收服各种灵兽，培养进化，战斗冒险', readers: '78万+', completion: '88%' },
+  { id: 'historical-power', name: '历史架空-权谋争霸类', description: '穿越历史，权谋斗争，争霸天下', readers: '95万+', completion: '91%' },
+  { id: 'entertainment-copy', name: '文娱文-文抄公类', description: '搬运现代文娱作品，在异界成为巨星', readers: '82万+', completion: '86%' },
+  { id: 'tomb-raider', name: '盗墓文-探险寻宝类', description: '探秘古墓，寻找宝藏，惊险刺激', readers: '90万+', completion: '88%' },
+  { id: 'anime-infinite', name: '综漫文-无限流类', description: '穿越动漫世界，完成任务，获得能力', readers: '75万+', completion: '85%' },
+  { id: 'farming-rich', name: '种田文-发家致富类', description: '种田养殖，发家致富，建设家园', readers: '70万+', completion: '86%' }
+];
+
+const LOCAL_FEMALE_GENRES = [
+  { id: 'sweet-ceo', name: '甜宠文-豪门总裁类', description: '霸道总裁爱上我，宠溺无边，甜度爆表', readers: '180万+', completion: '93%' },
+  { id: 'sweet-marriage', name: '甜宠文-先婚后爱类', description: '先结婚后恋爱，从陌生到相爱', readers: '160万+', completion: '91%' },
+  { id: 'tragic-double', name: '虐恋文-替身白月光类', description: '虐恋情深，误会重重，最终破镜重圆', readers: '140万+', completion: '89%' },
+  { id: 'tragic-reunion', name: '虐恋文-破镜重圆类', description: '曾经相爱，被迫分离，再次重逢', readers: '130万+', completion: '88%' },
+  { id: 'travel-ancient', name: '穿越文-古代言情类', description: '穿越古代，与王爷/将军/皇帝谈一场旷世奇恋', readers: '170万+', completion: '92%' },
+  { id: 'travel-era', name: '穿越文-年代文类', description: '穿越到七八十年代，在特殊年代谈恋爱', readers: '150万+', completion: '90%' },
+  { id: 'reborn-revenge', name: '重生文-复仇逆袭类', description: '重生归来，手撕渣男，打脸绿茶，走上人生巅峰', readers: '165万+', completion: '91%' },
+  { id: 'reborn-regret', name: '重生文-弥补遗憾类', description: '重生回到过去，弥补前世的遗憾', readers: '145万+', completion: '89%' },
+  { id: 'harem-battle', name: '宫斗文-后宫升级类', description: '步步为营，从宫女到皇后，权谋与爱情并存', readers: '120万+', completion: '88%' },
+  { id: 'house-battle', name: '宅斗文-嫡女逆袭类', description: '嫡女重生，斗倒姨娘庶妹，夺回一切', readers: '135万+', completion: '90%' },
+  { id: 'quick-villain', name: '快穿文-攻略反派类', description: '穿越各个世界，攻略反派BOSS，完成任务', readers: '110万+', completion: '87%' },
+  { id: 'quick-face', name: '快穿文-逆袭打脸类', description: '快穿各个世界，替原主逆袭打脸', readers: '115万+', completion: '88%' },
+  { id: 'army-marriage', name: '军婚文-七零年代类', description: '嫁给军人，在军属大院生活的年代甜宠', readers: '140万+', completion: '91%' },
+  { id: 'group-favorite', name: '团宠文-锦鲤福宝类', description: '全家团宠的小福宝，带来好运连连', readers: '155万+', completion: '92%' },
+  { id: 'entertainment-star', name: '娱乐圈文-顶流恋人类', description: '与顶流明星谈恋爱，甜度满分', readers: '125万+', completion: '89%' },
+  { id: 'mystic-live', name: '玄学文-直播算命类', description: '直播算命，断人吉凶，积累功德', readers: '95万+', completion: '87%' },
+  { id: 'beast-world', name: '兽世文-穿越兽人类', description: '穿越到兽人世界，被兽人首领宠爱', readers: '85万+', completion: '86%' }
+];
+
+// 加载题材（纯本地，无API）
+function loadGenres() {
   isLoading = true;
-  try {
-    // 同时加载男频和女频题材
-    const [maleResponse, femaleResponse] = await Promise.all([
-      fetch("/api/market-driven/genres?gender=male"),
-      fetch("/api/market-driven/genres?gender=female")
-    ]);
-    
-    const maleData = await maleResponse.json();
-    const femaleData = await femaleResponse.json();
-    
-    if (maleData.genres) {
-      maleGenres = maleData.genres;
-    }
-    if (femaleData.genres) {
-      femaleGenres = femaleData.genres;
-    }
-    
-    // 默认显示男频
-    filteredGenres = maleGenres;
-    updateCategoryCounts(maleGenres);
-    renderGenreCards(filteredGenres);
-    
-  } catch (error) {
-    console.error("加载题材失败:", error);
-    document.getElementById("genre-grid").innerHTML = `
-      <div class="empty-state" style="grid-column: 1/-1;">
-        <div class="empty-state__icon">
-          <span class="material-icons">error_outline</span>
-        </div>
-        <div class="empty-state__title">加载失败</div>
-        <p>请刷新页面重试</p>
-      </div>
-    `;
-  } finally {
-    isLoading = false;
-  }
+  
+  // 直接使用本地数据
+  maleGenres = LOCAL_MALE_GENRES;
+  femaleGenres = LOCAL_FEMALE_GENRES;
+  
+  // 默认显示男频
+  selectGender('male');
+  
+  isLoading = false;
 }
 
 function renderGenreCards(genres) {

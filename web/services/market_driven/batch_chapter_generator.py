@@ -172,6 +172,10 @@ class BatchChapterGenerator:
             novel_data = self.character_state_manager.validate_novel_data(novel_data)
             logger.info(f"[BatchGenerator] {self.character_state_manager.get_summary()}")
         
+        # 🔥 从战术规划预加载新角色（番茄细纲会话第3轮生成）
+        if self.character_state_manager and blueprint:
+            self._preload_characters_from_blueprint(blueprint)
+        
         # 🔥 初始化世界状态管理器（如果是第一批）
         if self.world_state_manager and start_chapter <= 1:
             self.world_state_manager.initialize_from_novel_data(novel_data)
@@ -1052,6 +1056,88 @@ class BatchChapterGenerator:
         # 3. 默认标题
         chapter_num = chapter_plan.get('chapter_number', 0) if chapter_plan else 0
         return f'第{chapter_num}章'
+    
+    def _preload_characters_from_blueprint(self, blueprint: Dict) -> None:
+        """
+        从战术规划蓝图预加载新角色到 CharacterStateManager
+        
+        番茄细纲会话第3轮生成 character_plan，包含：
+        - existing_characters: 已有角色
+        - new_characters: 新角色（每批次最多2个）
+        - chapter_assignments: 每章角色分配
+        
+        Args:
+            blueprint: 战术规划蓝图
+        """
+        if not self.character_state_manager:
+            return
+        
+        try:
+            character_plan = blueprint.get('character_plan', {})
+            if not character_plan:
+                return
+            
+            # 1. 预加载已有角色（确保状态一致）
+            existing_chars = character_plan.get('existing_characters', [])
+            for char in existing_chars:
+                if isinstance(char, dict) and char.get('name'):
+                    self.character_state_manager.add_or_update_character(
+                        char_info={
+                            'name': char.get('name'),
+                            'role': char.get('role', '未知'),
+                            'description': char.get('description', ''),
+                            'arc': char.get('arc', '')
+                        },
+                        char_type='neutral'  # 后续根据实际出场分类
+                    )
+            
+            # 2. 预加载新角色（重点！）
+            new_chars = character_plan.get('new_characters', [])
+            for char in new_chars:
+                if isinstance(char, dict) and char.get('name'):
+                    char_name = char.get('name')
+                    intro_chapter = char.get('intro_chapter', 0)
+                    
+                    self.character_state_manager.add_or_update_character(
+                        char_info={
+                            'name': char_name,
+                            'role': char.get('role', '新角色'),
+                            'description': char.get('description', f'第{intro_chapter}章出场的新角色'),
+                            'introduced_chapter': intro_chapter
+                        },
+                        char_type='neutral'  # 初始为中立，后续根据行为分类
+                    )
+                    logger.info(f"[BatchGenerator] 预加载新角色: {char_name} (第{intro_chapter}章出场)")
+            
+            # 3. 从章节分配中提取所有涉及角色
+            chapter_assignments = character_plan.get('chapter_assignments', [])
+            for assignment in chapter_assignments:
+                if not isinstance(assignment, dict):
+                    continue
+                ch_num = assignment.get('chapter', 0)
+                
+                # core, major, minor 都是角色列表
+                for role_type in ['core', 'major', 'minor']:
+                    char_names = assignment.get(role_type, [])
+                    if isinstance(char_names, list):
+                        for name in char_names:
+                            if name and isinstance(name, str):
+                                # 确保角色已注册
+                                if not self.character_state_manager._find_character(name):
+                                    self.character_state_manager.add_or_update_character(
+                                        char_info={
+                                            'name': name,
+                                            'role': '规划角色',
+                                            'introduced_chapter': ch_num
+                                        },
+                                        char_type='neutral'
+                                    )
+            
+            if existing_chars or new_chars:
+                logger.info(f"[BatchGenerator] 角色预加载完成: 已有{len(existing_chars)}个, 新增{len(new_chars)}个")
+            
+        except Exception as e:
+            logger.error(f"[BatchGenerator] 预加载角色失败: {e}")
     
     def _save_chapter(self, novel_title: str, chapter: Dict):
         """保存章节"""

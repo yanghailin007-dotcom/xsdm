@@ -54,6 +54,10 @@ class CharacterStateManager:
         
         # 加载或初始化状态
         self.state = self._load_or_init_state()
+        
+        # 🔥 从规划文档加载角色（如果状态为空或刚初始化）
+        if self._is_fresh_state():
+            self._load_characters_from_plan()
     
     def _load_or_init_state(self) -> Dict:
         """加载或初始化状态"""
@@ -102,6 +106,75 @@ class CharacterStateManager:
             },
             "saved_at": datetime.now().isoformat()
         }
+    
+    def _is_fresh_state(self) -> bool:
+        """检查是否是刚初始化的空状态（需要从规划加载角色）"""
+        # 如果没有任何角色数据，认为是新状态
+        has_protagonist = bool(self.state.get('protagonist', {}).get('name'))
+        has_allies = bool(self.state.get('allies'))
+        has_enemies = bool(self.state.get('enemies'))
+        
+        return not (has_protagonist or has_allies or has_enemies)
+    
+    def _load_characters_from_plan(self) -> None:
+        """
+        从规划文档加载角色
+        
+        从 phase_one_products/角色设计.json 解析角色并预填充状态
+        """
+        try:
+            # 导入 PhaseOneLoader
+            from .phase_one_loader import PhaseOneDataLoader
+            
+            loader = PhaseOneDataLoader(str(self.project_path))
+            characters = loader.get_character_list()
+            
+            if not characters:
+                logger.info("[CharacterState] 规划文档中未找到角色")
+                return
+            
+            logger.info(f"[CharacterState] 从规划文档加载 {len(characters)} 个角色")
+            
+            for char in characters:
+                name = char.get('name')
+                char_type = char.get('type', 'neutral')
+                role = char.get('role', '')
+                
+                if not name:
+                    continue
+                
+                # 标准化角色数据
+                char_data = {
+                    'name': name,
+                    'role': role,
+                    'description': char.get('description', ''),
+                    'introduced_chapter': 0,  # 规划中的角色视为第0章引入
+                    'health': '健康',
+                    'abilities': char.get('abilities', []),
+                    'traits': char.get('traits', [])
+                }
+                
+                # 根据类型放入不同字典
+                if char_type == 'protagonist':
+                    self.state['protagonist_name'] = name
+                    self.state['protagonist'] = char_data
+                    logger.info(f"[CharacterState] 加载主角: {name}")
+                elif char_type == 'ally':
+                    self.state['allies'][name] = char_data
+                    logger.info(f"[CharacterState] 加载盟友: {name}")
+                elif char_type == 'enemy':
+                    self.state['enemies'][name] = char_data
+                    logger.info(f"[CharacterState] 加载敌人: {name}")
+                else:
+                    self.state['neutral'][name] = char_data
+                    logger.info(f"[CharacterState] 加载中立角色: {name}")
+            
+            # 保存状态
+            self.save_state()
+            logger.info(f"[CharacterState] 规划角色加载完成: 主角{len(self.state['protagonist'])>0}, 盟友{len(self.state['allies'])}, 敌人{len(self.state['enemies'])}, 中立{len(self.state['neutral'])}")
+            
+        except Exception as e:
+            logger.error(f"[CharacterState] 从规划加载角色失败: {e}")
     
     def _migrate_from_world_state(self, world_state: Dict) -> Dict:
         """从 world_state.json 迁移数据"""
@@ -243,7 +316,7 @@ class CharacterStateManager:
     
     def update_character_status(self, name: str, changes: Dict, chapter: int = 0) -> None:
         """
-        更新角色状态
+        更新角色状态（自动创建不存在的角色）
         
         Args:
             name: 角色名
@@ -252,8 +325,25 @@ class CharacterStateManager:
         """
         char = self._find_character(name)
         if not char:
-            logger.warning(f"[CharacterState] 未找到角色: {name}")
-            return
+            # 🔥 自动创建新角色（AI在章节中创造的角色）
+            logger.info(f"[CharacterState] 发现新角色，自动创建: {name}")
+            char_data = {
+                'name': name,
+                'role': '未知',
+                'description': f'第{chapter}章出现的新角色',
+                'introduced_chapter': chapter,
+                'health': changes.get('health', '健康'),
+                'abilities': changes.get('abilities', []),
+                'injuries': changes.get('injuries', []),
+                'location': changes.get('location', ''),
+                'power_level': changes.get('power_level', ''),
+                'relationships': {},
+                'changes_history': []
+            }
+            # 添加到中立角色（后续可通过批次总结重新分类）
+            self.state['neutral'][name] = char_data
+            char = self.state['neutral'][name]
+            self.save_state()
         
         # 记录变更历史
         change_record = {
