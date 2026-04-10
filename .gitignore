@@ -10,6 +10,9 @@ __pycache__/
 config/user_*.json
 data/genres/genres_cache.json
 
+# 忽略自动化配置（可能包含敏感信息）
+config/automation_config.yaml
+
 # C extensions
 *.so
 
