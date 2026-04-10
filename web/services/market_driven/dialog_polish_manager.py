@@ -1179,50 +1179,79 @@ class DialogPolishManager:
         if not self.api_client:
             return self._generate_default_plan()
         
-        # 🔥 收集各轮次的自定义输入
+        # 🔥 收集各轮次的自定义输入和选择
         custom_inputs = []
-        for round_data in self.rounds:
-            if round_data.user_custom_input:
-                round_name = {
-                    1: "题材类型",
-                    2: "主角性格", 
-                    3: "金手指",
-                    4: "开局设计",
-                    5: "情感线"
-                }.get(round_data.round_num, f"第{round_data.round_num}轮")
-                custom_inputs.append(f"[{round_name}] {round_data.user_custom_input}")
+        user_choices = []
         
+        for round_data in self.rounds:
+            round_name = {
+                1: "题材类型",
+                2: "主角性格", 
+                3: "金手指",
+                4: "开局设计",
+                5: "情感线"
+            }.get(round_data.round_num, f"第{round_data.round_num}轮")
+            
+            # 记录用户选择（即使没有自定义输入）
+            if round_data.user_choice:
+                user_choices.append(f"[{round_name}] 选择了: {round_data.user_choice}")
+            
+            # 记录自定义输入
+            if round_data.user_custom_input:
+                custom_inputs.append(f"[{round_name}] 自定义: {round_data.user_custom_input}")
+        
+        all_choices = "\n".join(user_choices) if user_choices else "无"
         all_custom = "\n".join(custom_inputs) if custom_inputs else "无"
+        
+        # 🔥 检查主角设定是否包含自定义内容
+        protagonist_note = ""
+        if "自定义" in self.creative_draft.protagonist or "结合" in self.creative_draft.protagonist:
+            protagonist_note = "【⚠️ 注意：这是用户的创意设定，必须在方案中重点体现，不能忽略或修改】"
         
         prompt = f"""你是一位资深网文编辑，擅长为番茄小说平台创作爆款作品。
 
 请基于以下设定，生成一个完整的创作方案：
 
 **题材：** {self.genre}
-**主角：** {self.creative_draft.protagonist}
-**金手指：** {self.creative_draft.golden_finger}
-**开局设计：** {self.creative_draft.opening_design}
-**情感线：** {self.creative_draft.emotion_line}
-**差异化：** {self.creative_draft.unique_points}
+
+**👤 主角设定：** {self.creative_draft.protagonist} {protagonist_note}
+
+**⚡ 金手指：** {self.creative_draft.golden_finger}
+
+**🎬 开局设计：** {self.creative_draft.opening_design}
+
+**💕 情感线：** {self.creative_draft.emotion_line}
+
+**✨ 差异化：** {self.creative_draft.unique_points}
+
+---
+
+**📋 用户多轮选择记录：**
+{all_choices}
 
 **🔥 用户创意修改要求（必须严格遵守）：**
 {all_custom}
 
-请根据上述用户的创意修改，生成符合要求的方案。如果用户指定了特殊设定（如"二哈宠物"、"毒舌"等），必须在设定中体现。
+---
+
+**⚠️ 重要提醒：**
+1. 主角设定中的创意元素（如"结合题材多子多福"、特殊性格组合等）是用户的核心创意，必须在书名、开局、主线中重点体现
+2. 如果用户指定了特殊设定（如"二哈宠物"、"毒舌"、"多子多福"等），必须在方案中明确体现，不能遗漏
+3. 不要套用模板化的主角设定，必须根据用户的创意选择来设计
 
 请生成（JSON格式）：
 {{
-    "title": "书名（6-14字，含数字或强烈对比）",
-    "opening": "开局设计（100字以内，描述第1章核心冲突）",
-    "first_climax": "第一个爽点（第3-5章）",
-    "main_plot": "主线走向（50字）"
+    "title": "书名（6-14字，必须体现主角创意设定）",
+    "opening": "开局设计（100字以内，必须展示主角的创意性格/设定）",
+    "first_climax": "第一个爽点（第3-5章，必须与主角设定联动）",
+    "main_plot": "主线走向（50字，突出主角创意设定的作用）"
 }}
 
 要求：
-1. 严格遵守用户的创意修改要求，不要偏离
-2. 书名要符合番茄爆款风格
-3. 开局要有强冲突和吸引力
-4. 突出用户指定的差异化亮点"""
+1. 书名、开局、主线必须体现用户的创意主角设定
+2. 如果主角设定包含"自定义"内容，必须在方案中明确展示
+3. 不要偏离用户的创意方向，不要套用默认模板
+4. 书名要符合番茄爆款风格，同时突出创意点"""
         
         try:
             response = self.api_client.generate_content_with_retry(
@@ -1250,6 +1279,16 @@ class DialogPolishManager:
         golden_finger = self.creative_draft.golden_finger
         genre_short = self.genre.split('-')[0] if '-' in self.genre else self.genre
         
+        # 🔥 检查是否包含用户创意设定（自定义内容）
+        has_custom_protag = "自定义" in protagonist or "结合" in protagonist
+        custom_part = ""
+        if has_custom_protag:
+            # 提取自定义部分
+            if "（自定义：" in protagonist:
+                custom_part = protagonist.split("（自定义：")[-1].replace("）", "")
+            elif "结合" in protagonist:
+                custom_part = protagonist
+        
         # 根据题材类型生成对应的开局场景
         opening_scenarios = {
             "国运": f"主角获得{golden_finger}，代表国家出战，震惊全球",
@@ -1265,14 +1304,24 @@ class DialogPolishManager:
         }
         
         # 匹配开局场景
-        opening = f"主角获得{golden_finger}，开启逆袭之路"
-        for key, scenario in opening_scenarios.items():
-            if key in self.genre:
-                opening = scenario
-                break
+        if has_custom_protag and custom_part:
+            # 🔥 如果有自定义主角设定，在开局中体现
+            opening = f"主角{custom_part}，获得{golden_finger}，开启独特逆袭之路"
+        else:
+            opening = f"主角获得{golden_finger}，开启逆袭之路"
+            for key, scenario in opening_scenarios.items():
+                if key in self.genre:
+                    opening = scenario
+                    break
         
-        # 根据人设和金手指生成默认书名
-        if "话痨" in protagonist or "吐槽" in protagonist:
+        # 🔥 根据人设生成书名（优先处理自定义设定）
+        if has_custom_protag and custom_part:
+            # 提取关键词用于书名
+            keywords = custom_part.replace("结合题材", "").replace("型", "").strip()
+            if len(keywords) > 10:
+                keywords = keywords[:10]
+            title = f"{keywords}：我在{genre_short}无敌了"
+        elif "话痨" in protagonist or "吐槽" in protagonist:
             title = f"绑定吐槽系统后，我在{genre_short}无敌了"
         elif "佛系" in protagonist or "摆烂" in protagonist:
             title = f"摆烂后，我成了{genre_short}最强"
@@ -1390,7 +1439,14 @@ class DialogPolishManager:
         """生成差异化亮点描述"""
         points = []
         
-        if "话痨" in self.creative_draft.protagonist:
+        # 🔥 优先处理用户自定义的主角设定
+        if "自定义" in self.creative_draft.protagonist or "结合" in self.creative_draft.protagonist:
+            # 提取自定义内容
+            custom_part = self.creative_draft.protagonist
+            if "（自定义：" in custom_part:
+                custom_part = custom_part.split("（自定义：")[-1].replace("）", "")
+            points.append(f"主角设定创新：{custom_part}，打破传统套路")
+        elif "话痨" in self.creative_draft.protagonist:
             points.append("直播变单口相声，用吐槽缓解紧张氛围")
         elif "佛系" in self.creative_draft.protagonist:
             points.append("被迫营业的反差萌，越不想火越火")
@@ -1414,6 +1470,10 @@ class DialogPolishManager:
     def _generate_risk_mitigation(self) -> str:
         """生成风险对冲建议"""
         mitigations = []
+        
+        # 🔥 优先检查用户的自定义主角设定
+        if "自定义" in self.creative_draft.protagonist or "结合" in self.creative_draft.protagonist:
+            mitigations.append("前期充分铺垫主角的特殊设定，让读者快速理解并认同创新点")
         
         if "记忆" in self.creative_draft.golden_finger or "身体" in self.creative_draft.golden_finger:
             mitigations.append("每5章安排1章轻松日常，缓解压抑感")

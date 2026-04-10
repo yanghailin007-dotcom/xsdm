@@ -1839,16 +1839,12 @@ const LOCAL_FEMALE_GENRES = [
 
 // 加载题材（纯本地，无API）
 function loadGenres() {
-  isLoading = true;
-  
-  // 直接使用本地数据
+  // 直接使用本地数据（无需加载状态）
   maleGenres = LOCAL_MALE_GENRES;
   femaleGenres = LOCAL_FEMALE_GENRES;
   
   // 默认显示男频
   selectGender('male');
-  
-  isLoading = false;
 }
 
 function renderGenreCards(genres) {
