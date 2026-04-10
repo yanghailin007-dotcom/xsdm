@@ -1,0 +1,154 @@
+# 重生文题材技法
+# 版本: 1.0.0
+# 用途: 指导AI生成女频重生文（复仇逆袭、弥补遗憾）
+
+genre: "重生文"
+version: "1.0.0"
+description: "女频重生回到过去，改变命运，复仇或弥补遗憾的专项技法"
+
+# ==================== 1. 重生设定规范 ====================
+rebirth_rules:
+  description: "重生的方式和规则"
+  
+  rebirth_timing:
+    - "回到15-20岁（青春年华）"
+    - "回到关键节点前（如订婚/结婚/重大事件）"
+    - "回到人生转折点"
+    
+  memory_retention:
+    - "完全保留前世记忆"
+    - "可以选择是否保留前世技能"
+    
+  limitations:
+    - "不能改变大历史走向"
+    - "有些命运无法改变（如亲人死亡）"
+    - "蝴蝶效应，改变一件事会影响其他"
+
+# ==================== 2. 复仇逆袭类规范 ====================
+revenge_archetype:
+  description: "前世被伤害，重生后复仇"
+  
+  common_villains:
+    - "渣男前夫/男友（出轨/利用）"
+    - "绿茶闺蜜（背叛/陷害）"
+    - "恶毒继母/继妹（抢家产/陷害）"
+    - "虚伪亲戚（吸血/背叛）"
+    
+  revenge_methods:
+    - "以其人之道还治其人之身"
+    - "让反派自食恶果"
+    - "夺走反派最在意的东西"
+    - "揭露反派真面目"
+    
+  note: "复仇要有底线，不能变成反派；复仇后要放过自己"
+
+# ==================== 3. 弥补遗憾类规范 ====================
+redemption_archetype:
+  description: "前世有遗憾，重生后弥补"
+  
+  common_regrets:
+    - "错过了真爱（忽视了一直守护自己的人）"
+    - "对不起家人（没有好好孝顺父母）"
+    - "选错了路（事业/婚姻选择错误）"
+    - "没有珍惜健康"
+    
+  redemption_focus:
+    - "珍惜眼前人"
+    - "改变命运选择"
+    - "守护重要的人"
+    - "活出精彩人生"
+
+# ==================== 4. 爽点设计 ====================
+satisfaction_points:
+  description: "重生文的爽点节奏"
+  
+  scenes:
+    - type: "先知优势"
+      description: "利用前世记忆提前布局"
+      examples: ["预知股市涨跌", "提前投资房产", "避开前世陷阱"]
+      
+    - type: "打脸反派"
+      description: "让前世害自己的人尝尝苦果"
+      timing: "贯穿全文"
+      
+    - type: "改变命运"
+      description: "关键节点做出不同选择"
+      examples: ["不嫁渣男", "选择正确的事业", "守护家人"]
+      
+    - type: "收获真爱"
+      description: "找到前世错过的人"
+      emotion: "甜"
+      
+    - type: "圆满结局"
+      description: "所有遗憾都被弥补"
+      emotion: "温暖满足"
+
+# ==================== 5. 金手指使用 ====================
+golden_finger:
+  description: "重生本身就是最大的金手指"
+  
+  usage:
+    - "预知未来事件"
+    - "知道哪些人是真心/假意"
+    - "提前避开危险"
+    - "抓住时代机遇"
+    
+  limitations:
+    - "蝴蝶效应，改变一件事其他也会变"
+    - "不能过度依赖记忆"
+    - "需要用自己的能力去实现"
+
+# ==================== 6. 禁用元素 ====================
+forbidden_elements:
+  items:
+    - element: "无理由的复仇"
+      reason: "复仇要有合理原因和底线"
+      
+    - element: "过度改变历史"
+      reason: "可以小范围改变，不能改变大历史"
+      
+    - element: "BE结局"
+      reason: "重生文必须HE"
+
+# ==================== 7. 世界状态初始化 ====================
+world_state_initialization:
+  protagonist:
+    health: "健康"
+    abilities_unlocked: ["前世记忆", "前世技能"]
+  
+  plot_threads:
+    - name: "复仇/弥补主线"
+      status: "active"
+      introduced_chapter: 1
+      priority: 10
+      description: "根据题材选择复仇或弥补"
+      next_trigger: "贯穿全文"
+    
+    - name: "感情线"
+      status: "active"
+      introduced_chapter: 5
+      priority: 9
+      description: "找到真爱或修复关系"
+      next_trigger: "渐进发展"
+  
+  system_rules:
+    system_name: "无（重生本身就是金手指）"
+    system_type: "无"
+
+# ==================== 8. 质量检查点 ====================
+quality_checkpoints:
+  - point: "重生合理性"
+    condition: "重生有原因（不甘/遗憾）"
+    severity: "warning"
+  
+  - point: "复仇底线"
+    condition: "复仇有底线，不变成反派"
+    severity: "critical"
+  
+  - point: "改变合理"
+    condition: "改变符合蝴蝶效应"
+    severity: "warning"
+  
+  - point: "HE结局"
+    condition: "最终幸福圆满"
+    severity: "critical"

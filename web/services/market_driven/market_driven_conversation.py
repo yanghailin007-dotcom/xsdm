@@ -49,6 +49,15 @@ except ImportError as e:
     HAS_AI_EVALUATOR = False
     logging.warning(f"[MarketDrivenConversation] AI市场化评估器未加载: {e}")
 
+# 🔥 导入角色人设生成配置
+try:
+    from web.services.market_driven.character_generation_config import get_character_config
+    HAS_CHARACTER_CONFIG = True
+    logging.info("[MarketDrivenConversation] 角色人设生成配置已加载")
+except ImportError as e:
+    HAS_CHARACTER_CONFIG = False
+    logging.warning(f"[MarketDrivenConversation] 角色人设生成配置未加载: {e}")
+
 logger = logging.getLogger(__name__)
 
 
@@ -1421,29 +1430,55 @@ POST /api/v2/prompt-config/component/{step_name}
             raise RuntimeError(f"生成世界观失败: {e}") from e
     
     def _generate_characters(self) -> Dict:
-        """生成角色设计（使用基于爆款的Prompt模板 + TropePromptBuilder人物设定约束）"""
+        """生成角色设计（使用角色人设生成配置 + 基于爆款的Prompt模板）"""
         protagonist_name = self.user_choices.get('protagonist_name', '主角')
         
-        # 🔥 更新System Prompt为人物设定阶段（让AI知道在仿写头部作品的人设）
-        if HAS_TROPE_PROMPT_BUILDER:
+        # 🔥 尝试使用新的角色人设生成配置（YAML配置优先）
+        character_prompts = None
+        if HAS_CHARACTER_CONFIG:
+            try:
+                config = get_character_config()
+                character_prompts = config.generate_prompt(
+                    genre=self.genre,
+                    protagonist_name=protagonist_name,
+                    user_choices=self.user_choices
+                )
+                logger.info(f"[对话模式 {self.session_id}] 使用角色人设生成配置（YAML）| 题材: {self.genre}")
+            except Exception as e:
+                logger.warning(f"[对话模式 {self.session_id}] 角色人设生成配置加载失败: {e}")
+        
+        # 🔥 更新System Prompt为人物设定阶段
+        if character_prompts and character_prompts.get("system_prompt"):
+            # 使用 YAML 配置的 system prompt
+            try:
+                if self.session.messages and self.session.messages[0].get("role") == "system":
+                    self.session.messages[0]["content"] = character_prompts["system_prompt"]
+                    logger.info(f"[对话模式 {self.session_id}] 已更新System Prompt为[角色人设生成配置]")
+            except Exception as e:
+                logger.warning(f"[对话模式 {self.session_id}] 更新System Prompt失败: {e}")
+        elif HAS_TROPE_PROMPT_BUILDER:
+            # 回退到 TropePromptBuilder
             try:
                 builder = TropePromptBuilder(self.tropes)
                 character_system_prompt = builder.build_character_system_prompt(protagonist_name)
-                # 更新session的system message
                 if self.session.messages and self.session.messages[0].get("role") == "system":
                     self.session.messages[0]["content"] = character_system_prompt
-                    logger.info(f"[对话模式 {self.session_id}] 已更新System Prompt为人物设定阶段")
+                    logger.info(f"[对话模式 {self.session_id}] 已更新System Prompt为[TropePromptBuilder]")
             except Exception as e:
                 logger.warning(f"[对话模式 {self.session_id}] 更新人物设定System Prompt失败: {e}")
         
-        # 🔥 使用基于爆款分析的Prompt模板
-        if self._prompt_generator:
+        # 🔥 优先使用 YAML 配置的 user prompt
+        if character_prompts and character_prompts.get("user_prompt"):
+            prompt = character_prompts["user_prompt"]
+            logger.info(f"[对话模式 {self.session_id}] 使用角色人设生成配置的用户提示词")
+        # 其次使用基于爆款分析的Prompt模板
+        elif self._prompt_generator:
             logger.info(f"[对话模式 {self.session_id}] 使用基于爆款的Prompt模板（步骤3）")
             prompt = self._prompt_generator.generate_step3_characters_prompt(protagonist_name)
         else:
             prompt = None
         
-        # 如果模板生成失败，使用传统Prompt
+        # 如果都失败了，使用传统Prompt
         if not prompt:
             logger.warning(f"[对话模式 {self.session_id}] 模板生成失败，使用配置提示词")
             prompt = self._get_step_prompt("step3_characters", protagonist_name=protagonist_name)
@@ -1469,6 +1504,20 @@ POST /api/v2/prompt-config/component/{step_name}
             if actual_name != protagonist_name:
                 logger.warning(f"[对话模式 {self.session_id}] AI生成的角色名 '{actual_name}' 与用户指定 '{protagonist_name}' 不符，强制修正！")
                 result["protagonist"]["name"] = protagonist_name
+            
+            # 🔥 使用 YAML 配置验证人设质量
+            if HAS_CHARACTER_CONFIG:
+                try:
+                    config = get_character_config()
+                    validation = config.validate_character_design(result, self.genre)
+                    if validation.get("valid"):
+                        logger.info(f"[对话模式 {self.session_id}] 人设验证通过")
+                    else:
+                        logger.warning(f"[对话模式 {self.session_id}] 人设验证发现问题: {validation.get('errors', [])}")
+                    if validation.get("warnings"):
+                        logger.info(f"[对话模式 {self.session_id}] 人设优化建议: {validation.get('warnings', [])}")
+                except Exception as e:
+                    logger.debug(f"[对话模式 {self.session_id}] 人设验证失败: {e}")
         else:
             # 如果仍然失败，返回默认角色设计
             logger.error(f"[对话模式 {self.session_id}] 步骤3重试后仍失败，使用默认角色设计")

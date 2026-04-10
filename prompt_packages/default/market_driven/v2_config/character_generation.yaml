@@ -1,0 +1,250 @@
+# 角色人设生成配置
+# 用于控制一阶段角色设计的生成逻辑
+
+version: "1.0"
+description: "角色人设生成配置 - 按题材定制人设生成规则"
+
+# 默认人设模板（通用）
+default_template:
+  protagonist:
+    required_fields:
+      - name          # 姓名
+      - age           # 年龄
+      - identity      # 当前身份
+      - traits        # 核心特质（3-5个关键词）
+      - unique_label  # 独特标签（人设记忆点）
+      - growth_arc    # 成长弧线
+    optional_fields:
+      - background    # 背景故事
+      - motivation    # 核心动机
+      - catchphrase   # 口头禅
+      - forbidden     # 禁止行为
+    
+  output_format:
+    json_structure: |
+      {
+        "protagonist": {
+          "name": "",
+          "age": 0,
+          "identity": "",
+          "traits": [],
+          "unique_label": "",
+          "growth_arc": "",
+          "background": "",
+          "motivation": "",
+          "catchphrase": "",
+          "forbidden": []
+        },
+        "core_allies": [...],
+        "main_antagonists": {...}
+      }
+
+# 题材特定的人设生成模板
+genre_templates:
+  # ==================== 神豪文-花钱返利类 ====================
+  神豪文-花钱返利类:
+    description: "神豪文主角人设 - 花钱返利系统，从底层逆袭"
+    
+    protagonist_formula:
+      name_rules:
+        - "简洁好记，2-3个字"
+        - "避免过于文艺或古风"
+        - "示例：苏泽、陈凡、林轩"
+      
+      age_range: [22, 28]
+      
+      identity_options:
+        initial:
+          - "外卖员（被差评、被投诉、被车撞）"
+          - "保安（被业主羞辱、被队长压榨）"
+          - "工地搬砖（欠薪、被工头欺负）"
+          - "小摊贩（被城管赶、被同行排挤）"
+          - "失业青年（被女友甩、被房东赶）"
+          - "快递员（被客户刁难、被投诉扣钱）"
+        
+        after_system:
+          - "全球唯一盲盒系统宿主"
+          - "隐形财团幕后主宰"
+          - "神豪身份保密者"
+          - "多产业幕后投资人"
+      
+      traits_required:
+        - "冷静果断：面对羞辱不冲动，打脸时才爆发"
+        - "杀伐果断：对敌人绝不手软，有仇必报"
+        - "绝不圣母：不会因敌人求情而心软"
+        - "极致护短：对自己人极度保护，有恩必报"
+        - "低调装逼：平时看似普通，关键时刻才展示实力"
+      
+      unique_label_templates:
+        - "由于系统奖励的随机性，他永远拥有让敌人意想不到的翻盘底牌"
+        - "习惯在打脸前保持绝对的平静，越是愤怒越是冷静"
+        - "花钱速度决定变强速度，越花越有钱"
+        - "拥有'伪装'能力，敌人永远猜不到他的真实身份和实力"
+      
+      growth_arc_template: "从被{enemy}羞辱的社会底层，通过系统{system_feature}积累资本与武力，最终粉碎{final_enemy}，制定全球新秩序"
+      
+      background_elements:
+        - "父亲早逝/重病，母亲需要医药费"
+        - "被前女友/前女友家人羞辱分手"
+        - "被房东赶出门/被同事排挤"
+        - "努力工作但收入微薄，看不到希望"
+      
+      motivation: "改变现状，让曾经看不起自己的人后悔，保护自己在乎的人"
+      
+      catchphrase_examples:
+        - "钱能解决的事，都不叫事"
+        - "你确定要跟我比这个？"
+        - "我这人不喜欢惹事，但也不怕事"
+        - "现在，该算账了"
+      
+      forbidden_behaviors:
+        - "圣母行为：原谅曾经伤害过自己的敌人"
+        - "情绪失控：在敌人面前暴露愤怒和脆弱"
+        - "提前暴露：在实力不足时暴露全部底牌"
+        - "忘恩负义：对帮助过自己的人不回报"
+    
+    # 盟友配置
+    allies_config:
+      count: [2, 3]
+      types:
+        - role: "忠诚小弟"
+          function: "跑腿、打探消息、日常事务"
+          trait: "机灵、会来事、对主角绝对忠诚"
+        - role: "商业伙伴"
+          function: "帮主角打理产业、对外谈判"
+          trait: "精明、有商业头脑、知道主角实力"
+        - role: "红颜知己"
+          function: "情感线、关键时刻提供帮助"
+          trait: "漂亮但不花瓶、有识人之明"
+    
+    # 反派配置
+    antagonists_config:
+      early:  # 1-30章
+        description: "小人物、势利眼，用来铺垫爽点"
+        examples:
+          - "势利眼销售（狗眼看人低）"
+          - "装逼富二代（开宝马撞人还嚣张）"
+          - "前女友/前女友现男友（当面羞辱主角）"
+          - "小区业主/公司同事（日常欺负主角）"
+      
+      mid:  # 30-100章
+        description: "有背景的敌人，开始形成势力对抗"
+        examples:
+          - "地方豪门少爷"
+          - "行业大佬的儿子"
+          - "本地黑帮老大"
+          - "外资财团代表"
+      
+      late:  # 100章+
+        description: "终极BOSS，掌控全局的大佬"
+        examples:
+          - "隐藏的世界首富"
+          - "古老财阀家族掌舵人"
+          - "幕后操控世界经济的组织"
+
+  # ==================== 神豪文-签到奖励类 ====================
+  神豪文-签到奖励类:
+    description: "神豪文主角人设 - 签到系统，每日领取奖励"
+    
+    protagonist_formula:
+      name_rules:
+        - "简洁好记"
+        - "示例：陆晨、秦风、叶辰"
+      
+      age_range: [22, 28]
+      
+      identity_options:
+        initial:
+          - "普通上班族（996、被领导PUA）"
+          - "大学生（穷学生、被室友看不起）"
+          - "小职员（被同事排挤、被领导打压）"
+        after_system: "签到系统宿主，每日获得随机神级奖励"
+      
+      traits_required:
+        - "稳健谨慎：不轻易暴露签到奖励"
+        - "善于积累：每天坚持签到，积少成多"
+        - "眼光独到：能发现奖励物品的最大价值"
+        - "隐忍爆发：平时低调，关键时刻一鸣惊人"
+      
+      unique_label_templates:
+        - "签到奖励的随机性让他永远有底牌，敌人永远猜不到他今天获得了什么"
+        - "越是危急时刻，越容易触发签到暴击，获得逆转战局的神级奖励"
+
+  # ==================== 国运文-直播类 ====================
+  国运文-直播类:
+    description: "国运文主角人设 - 代表国家出战，全球直播"
+    
+    protagonist_formula:
+      name_rules:
+        - "大气有力"
+        - "示例：李擎苍、王破军、张卫国"
+      
+      age_range: [24, 32]
+      
+      identity_options:
+        initial: "被看不起的普通人，看似平凡"
+        after_system: "国运绑定者，唯一代表国家出战的选手"
+      
+      traits_required:
+        - "家国情怀：以国家利益为重"
+        - "绝对自信：面对外国选手毫不畏惧"
+        - "抗压能力：在全球直播的压力下依然冷静"
+        - "民族荣誉感：不允许任何人侮辱自己的国家"
+      
+      unique_label_templates:
+        - "他的表现直接关系国家气运，全国14亿人都在看他直播"
+        - "每次选择都会影响国运，失误会让国家遭受灾难，成功则让国运昌盛"
+
+# 人设质量检查规则
+quality_check:
+  required_fields_check:
+    - field: "protagonist.name"
+      error_if_missing: true
+    - field: "protagonist.identity"
+      error_if_missing: true
+    - field: "protagonist.traits"
+      min_count: 3
+      max_count: 5
+    - field: "protagonist.unique_label"
+      error_if_missing: true
+      min_length: 10
+  
+  content_validation:
+    - field: "protagonist.traits"
+      must_contain_one_of: ["果断", "狠", "护短", "冷静", "隐忍", "霸气"]
+      error_message: "神豪文主角必须有'果断/狠/护短/冷静'等特质"
+    
+    - field: "protagonist.unique_label"
+      must_not_contain: ["扮演度", "系统等级"]
+      error_message: "人设标签不能包含游戏化术语如'扮演度'"
+
+# 生成提示词模板
+prompt_templates:
+  system_prompt: |
+    你是一位专业的网文角色设计专家，擅长设计符合番茄爆款风格的角色人设。
+    
+    当前题材：{genre}
+    主角姓名：{protagonist_name}
+    
+    ## 人设生成要求
+    
+    {genre_specific_requirements}
+    
+    ## 输出格式
+    必须输出JSON格式：
+    ```json
+    {output_format}
+    ```
+    
+    ## 注意事项
+    1. 人设必须具有"记忆点"，让读者一眼记住主角
+    2. 特质必须具体，不能泛泛而谈
+    3. 成长弧线必须清晰，从A到B的变化要明确
+    4. 独特标签必须具有辨识度，是这个人独有的特点
+
+  user_prompt: |
+    请为题材"{genre}"设计完整的角色阵容。
+    
+    主角姓名：{protagonist_name}
+    
+    请严格按照上述JSON格式输出，确保包含所有必需字段。

@@ -29,8 +29,9 @@ class GenreManager:
     3. 缓存类型列表，避免重复请求
     """
     
-    # 基础类型列表（20个）
+    # 基础类型列表（男频20个 + 女频20个）
     BASE_GENRES = {
+        # ==================== 男频题材 ====================
         "神豪文-花钱返利类": {
             "description": "主角获得花钱返利系统，越花越有钱，装逼打脸",
             "expected_retention": "12-18%",
@@ -151,6 +152,115 @@ class GenreManager:
             "expected_retention": "14-18%",
             "competition": "激烈",
             "market_status": "稳定"
+        },
+        # ==================== 女频题材 ====================
+        "甜宠文-豪门总裁类": {
+            "description": "霸道总裁独宠小娇妻，高糖甜宠，虐狗日常",
+            "expected_retention": "18-25%",
+            "competition": "激烈",
+            "market_status": "稳定"
+        },
+        "甜宠文-先婚后爱类": {
+            "description": "契约婚姻变真爱，从陌生到深情的甜蜜旅程",
+            "expected_retention": "16-22%",
+            "competition": "中等",
+            "market_status": "上升期"
+        },
+        "虐恋文-替身白月光类": {
+            "description": "替身虐恋，白月光归来，追妻火葬场",
+            "expected_retention": "15-20%",
+            "competition": "中等",
+            "market_status": "稳定"
+        },
+        "虐恋文-破镜重圆类": {
+            "description": "曾经相爱却分离，命运让他们再次相遇",
+            "expected_retention": "14-19%",
+            "competition": "中等",
+            "market_status": "稳定"
+        },
+        "穿越文-古代言情类": {
+            "description": "现代女主穿越古代，用现代智慧征服古代",
+            "expected_retention": "16-22%",
+            "competition": "激烈",
+            "market_status": "稳定"
+        },
+        "穿越文-年代文类": {
+            "description": "穿越到七八十年代，发家致富，军婚甜宠",
+            "expected_retention": "15-21%",
+            "competition": "中等",
+            "market_status": "上升期"
+        },
+        "重生文-复仇逆袭类": {
+            "description": "重生回到过去，改变命运，打脸仇人",
+            "expected_retention": "17-23%",
+            "competition": "激烈",
+            "market_status": "稳定"
+        },
+        "重生文-弥补遗憾类": {
+            "description": "重生弥补前世遗憾，珍惜曾经错过的人",
+            "expected_retention": "15-20%",
+            "competition": "中等",
+            "market_status": "稳定"
+        },
+        "宫斗文-后宫升级类": {
+            "description": "从秀女到皇后，步步为营，智斗后宫",
+            "expected_retention": "16-22%",
+            "competition": "中等",
+            "market_status": "平稳"
+        },
+        "宅斗文-嫡女逆袭类": {
+            "description": "嫡女回归，斗继母，惩恶妹，夺回属于自己的一切",
+            "expected_retention": "15-21%",
+            "competition": "中等",
+            "market_status": "稳定"
+        },
+        "快穿文-攻略反派类": {
+            "description": "穿越各个世界攻略反派Boss，完成任务",
+            "expected_retention": "14-19%",
+            "competition": "中等",
+            "market_status": "上升期"
+        },
+        "快穿文-逆袭打脸类": {
+            "description": "替原主逆袭人生，打脸渣男贱女，收获真爱",
+            "expected_retention": "15-20%",
+            "competition": "中等",
+            "market_status": "稳定"
+        },
+        "种田文-发家致富类": {
+            "description": "带着空间/灵泉种田，发家致富，养娃日常",
+            "expected_retention": "16-23%",
+            "competition": "低",
+            "market_status": "蓝海"
+        },
+        "军婚文-七零年代类": {
+            "description": "嫁给兵哥哥，随军生活，年代感甜宠",
+            "expected_retention": "15-22%",
+            "competition": "中等",
+            "market_status": "上升期"
+        },
+        "团宠文-锦鲤福宝类": {
+            "description": "全家宠爱的锦鲤宝宝，福气满满，旺家旺村",
+            "expected_retention": "17-24%",
+            "competition": "低",
+            "market_status": "蓝海"
+        },
+        "娱乐圈文-顶流恋人类": {
+            "description": "与顶流明星谈恋爱，甜宠撒糖，事业爱情双丰收",
+            "expected_retention": "14-19%",
+            "competition": "中等",
+            "market_status": "上升期"
+        },
+        "玄学文-直播算命类": {
+            "description": "女主会玄学，直播算命捉鬼，爽文打脸",
+            "expected_retention": "15-20%",
+            "competition": "低",
+            "market_status": "蓝海"
+        },
+        "兽世文-穿越兽人类": {
+            "description": "穿越到兽人世界，被兽人首领独宠，种田生崽",
+            "expected_retention": "14-18%",
+            "competition": "低",
+            "market_status": "蓝海"
         }
     }
     

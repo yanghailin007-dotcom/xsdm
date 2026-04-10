@@ -1,0 +1,244 @@
+# 甜宠文题材技法
+# 版本: 1.0.0
+# 用途: 指导AI生成符合女频甜宠文特点的内容
+
+genre: "甜宠文"
+version: "1.0.0"
+description: "高糖甜宠、豪门总裁、先婚后爱类女频小说的专项技法"
+
+# ==================== 1. 甜宠节奏控制 ====================
+sweet_progression:
+  description: "甜宠文的核心是高糖互动，严格控制虐点比例"
+  sugar_ratio: "80%甜+20%小波折"
+  forbidden: "出轨、背叛、长时间分离、真虐心"
+  
+  stages:
+    - order: 1
+      name: "初遇"
+      content: "命中注定/误会相遇，男主对女主产生兴趣"
+      sugar_level: "20%"
+      
+    - order: 2
+      name: "靠近"
+      content: "男主主动追求，女主犹豫/误会，小暧昧"
+      sugar_level: "40%"
+      
+    - order: 3
+      name: "确认关系"
+      content: "表白/契约婚姻，正式在一起，高糖开始"
+      sugar_level: "60%"
+      
+    - order: 4
+      name: "热恋日常"
+      content: "撒糖日常，男主宠妻无底线，各种护短"
+      sugar_level: "80%"
+      
+    - order: 5
+      name: "小波折"
+      content: "白月光/前任/家族反对出现，但迅速解决"
+      sugar_level: "50%"
+      
+    - order: 6
+      name: "圆满结局"
+      content: "结婚/生子，幸福圆满"
+      sugar_level: "100%"
+
+# ==================== 2. 男主设定规范 ====================
+male_lead_rules:
+  description: "甜宠文男主必须是完美的宠妻人设"
+  
+  required_traits:
+    - "高颜值（必须具体描写外貌）"
+    - "高智商/能力强（事业成功）"
+    - "专一深情（只爱女主）"
+    - "占有欲强（对女主独占欲）"
+    - "护短（不允许任何人欺负女主）"
+    - "反差萌（对外冷酷，对女主温柔）"
+  
+  forbidden_traits:
+    - "出轨/暧昧"
+    - "家暴/言语侮辱"
+    - "长时间误会女主"
+    - "为了白月光伤害女主"
+  
+  classic_lines:
+    - "我的女人，谁允许你动她？"
+    - "除了她，我谁都不要。"
+    - "你想要什么，我都给你。"
+    - "别哭，我会心疼。"
+
+# ==================== 3. 女主设定规范 ====================
+female_lead_rules:
+  description: "甜宠文女主需要有可爱之处，但不圣母"
+  
+  recommended_traits:
+    - "颜值在线（不自知或自信）"
+    - "性格讨喜（善良但不圣母）"
+    - "有特长（某项技能突出）"
+    - "独立（不依附男主，但会撒娇）"
+    - "懂得回应（不是高冷冰块）"
+  
+  forbidden_traits:
+    - "圣母白莲花"
+    - "过度自卑"
+    - "不懂回应（永远高冷）"
+    - "作天作地"
+
+# ==================== 4. 甜宠场景模板 ====================
+sweet_scenes:
+  description: "经典甜宠场景，必须包含具体动作和台词"
+  
+  templates:
+    - type: "霸道护短"
+      example: "男主看到女主被欺负，当场护短，眼神冰冷扫视众人"
+      required_elements: ["动作描写", "眼神描写", "霸气台词"]
+      
+    - type: "温柔投喂"
+      example: "男主记得女主所有喜好，亲自下厨或买她爱吃的东西"
+      required_elements: ["细节记忆", "温柔动作", "女主反应"]
+      
+    - type: "占有欲爆发"
+      example: "男主看到女主和别人说话，醋意大发，宣示主权"
+      required_elements: ["吃醋动作", "占有欲台词", "亲吻/拥抱"]
+      
+    - type: "反差萌"
+      example: "对外冷酷无情的总裁，在女主面前变成温柔大狗狗"
+      required_elements: ["对比描写", "温柔细节", "女主感受"]
+      
+    - type: "惊喜浪漫"
+      example: "男主精心准备的浪漫惊喜，女主感动落泪"
+      required_elements: ["惊喜铺垫", "浪漫场景", "情感爆发"]
+
+# ==================== 5. 对话规范 ====================
+dialogue_rules:
+  description: "甜宠文对话要甜，但不能油腻"
+  
+  male_lines:
+    style: "霸道中带着温柔，命令式但宠溺"
+    examples:
+      - "过来。"
+      - "看着我。"
+      - "你只能是我的。"
+      - "别动，让我抱一会儿。"
+      
+  female_lines:
+    style: "撒娇但不做作，有来有回"
+    examples:
+      - "你干嘛呀~"
+      - "哼，不理你了。"
+      - "你怎么这么好？"
+      - "我...我也喜欢你。"
+      
+  interaction:
+    style: "互撩，有来有回，不能单方面输出"
+    note: "女主必须有回应，不能总是高冷或迟钝"
+
+# ==================== 6. 心理描写要求 ====================
+psychology_requirement:
+  description: "甜宠文必须有细腻的心理描写"
+  
+  male_pov:
+    required: ["看到女主的第一反应", "占有欲的来源", "宠妻的心理活动"]
+    
+  female_pov:
+    required: ["对男主的心动瞬间", "被宠爱的感受", "幸福感描述"]
+  
+  ratio: "心理描写占30%以上"
+
+# ==================== 7. 禁用元素（关键！） ====================
+forbidden_elements:
+  description: "以下元素绝对不能出现，会破坏甜宠氛围"
+  items:
+    - element: "真出轨/真背叛"
+      reason: "甜宠文底线，绝对不能碰"
+      
+    - element: "长时间误会"
+      reason: "误会必须在一章内解决"
+      
+    - element: "男主伤害女主"
+      reason: "包括言语暴力、冷暴力"
+      
+    - element: "白月光真回归"
+      reason: "可以有白月光，但必须证明是假的/误会"
+      
+    - element: "女主被强/被侮辱"
+      reason: "甜宠文不能有这类情节"
+      
+    - element: "男主有私生子"
+      reason: "绝对禁忌"
+
+# ==================== 8. 必须元素（检查清单） ====================
+required_elements:
+  description: "每章必须包含的甜宠元素"
+  items:
+    - element: "至少1次肢体接触"
+      check: "牵手/拥抱/亲吻/摸头等"
+      severity: "critical"
+      
+    - element: "至少1句甜宠台词"
+      check: "霸道的温柔话语"
+      severity: "critical"
+      
+    - element: "至少1处心理描写"
+      check: "心动/幸福的感受"
+      severity: "warning"
+      
+    - element: "至少1次男主护短"
+      check: "不允许女主受委屈"
+      severity: "warning"
+
+# ==================== 9. 世界状态初始化 ====================
+world_state_initialization:
+  description: "甜宠文的世界状态初始值"
+  
+  protagonist:
+    health: "健康"
+    abilities_unlocked: ["某项特长技能"]
+  
+  allies: []
+  
+  plot_threads:
+    - name: "感情发展"
+      status: "active"
+      introduced_chapter: 1
+      priority: 10
+      description: "主线感情发展进度"
+      next_trigger: "每章推进关系"
+    
+    - name: "外部阻碍"
+      status: "paused"
+      introduced_chapter: 10
+      priority: 6
+      description: "白月光/家族反对等外部阻碍"
+      next_trigger: "需要时激活，迅速解决"
+  
+  system_rules:
+    system_name: "无（甜宠文通常无系统）"
+    system_type: "无"
+    current_level: "初始"
+
+# ==================== 10. 节奏要求 ====================
+pacing:
+  conflict_first_300: false
+  mini_burst_every_1000: false
+  hook_last_50: true
+  no_narration_limit: 300
+  note: "甜宠文不需要快节奏冲突，注重情感细腻"
+
+# ==================== 11. 质量检查点 ====================
+quality_checkpoints:
+  - point: "甜度"
+    condition: "每章至少有3处甜宠互动"
+    severity: "critical"
+  
+  - point: "男主形象"
+    condition: "符合完美宠妻人设"
+    severity: "critical"
+  
+  - point: "心理描写"
+    condition: "有细腻的心理活动"
+    severity: "warning"
+  
+  - point: "无虐点"
+    condition: "没有真虐心情节"
+    severity: "critical"

@@ -73,6 +73,15 @@ try:
 except ImportError:
     HAS_STAGE_REVIEW_OPTIMIZER = False
     logging.warning("[ChapterConversationGenerator] 阶段性复盘优化器未加载")
+
+# 导入 V2 架构集成适配器
+try:
+    from .v2_integration_adapter import V2IntegrationAdapter, create_v2_adapter
+    HAS_V2_ADAPTER = True
+    logging.info("[ChapterConversationGenerator] 已加载 V2 架构集成适配器")
+except ImportError as e:
+    HAS_V2_ADAPTER = False
+    logging.warning(f"[ChapterConversationGenerator] V2 架构集成适配器未加载: {e}")
     
 # 定义备用的优化器(简化版)
 class SimpleOptimizer:
@@ -251,6 +260,18 @@ class ChapterConversationGenerator:
             except Exception as e:
                 logging.warning(f"[章节对话 {self.session_id}] 阶段性复盘优化器初始化失败: {e}")
         
+        # 初始化 V2 架构适配器
+        self.v2_adapter = None
+        if HAS_V2_ADAPTER:
+            try:
+                self.v2_adapter = create_v2_adapter(novel_data)
+                if self.v2_adapter:
+                    logging.info(f"[章节对话 {self.session_id}] V2 架构适配器已启动 | 题材: {self.v2_adapter.genre}")
+                else:
+                    logging.warning(f"[章节对话 {self.session_id}] V2 架构适配器不可用")
+            except Exception as e:
+                logging.warning(f"[章节对话 {self.session_id}] V2 架构适配器初始化失败: {e}")
+        
         # 初始化主角名称
         self.protagonist_name = self._get_protagonist_name()
     
@@ -408,10 +429,121 @@ class ChapterConversationGenerator:
         
         return "\n".join(prompt_parts)
     
-    def _build_system_prompt(self, start_chapter: int) -> str:
-        """构建系统提示词(使用TropePromptBuilder分层架构)"""
+    def _build_system_prompt(self, start_chapter: int, chapter_plan: Dict = None) -> str:
+        """构建系统提示词(使用V2六层架构 Layer 1-4)"""
         # 获取强制主角名
         protagonist_name = self._get_enforced_protagonist_name()
+        
+        # 🔥 获取世界状态（角色状态、系统状态、活跃剧情线索）
+        world_state = None
+        if self.world_state_manager and hasattr(self.world_state_manager, 'state'):
+            try:
+                state = self.world_state_manager.state
+                
+                # 构建 world_state 字典
+                world_state = {}
+                
+                # 主角状态
+                if hasattr(state, 'protagonist'):
+                    protag = state.protagonist
+                    world_state['protagonist_state'] = {
+                        'health': getattr(protag, 'health', '健康'),
+                        'unlocked_abilities': getattr(protag, 'abilities_unlocked', [])
+                    }
+                
+                # 系统状态
+                if hasattr(state, 'system_rules'):
+                    rules = state.system_rules
+                    # 获取系统名称
+                    system_name = getattr(rules, 'system_name', '系统')
+                    # 获取等级/阶段
+                    current_level = getattr(rules, 'current_level', '初始')
+                    # 获取能力值
+                    current_power = getattr(rules, 'current_power', 0)
+                    if current_power == 0:
+                        current_power = getattr(rules, 'current_playing_degree', 0)
+                    max_power = getattr(rules, 'max_power', 0)
+                    if max_power == 0:
+                        max_power = getattr(rules, 'max_playing_degree', 0)
+                    # 获取已解锁能力
+                    all_abilities = list(getattr(rules, 'unlocked_abilities', []))
+                    if not all_abilities:
+                        all_abilities = list(getattr(rules, 'unlocked_skills', []))
+                    
+                    world_state['system_state'] = {
+                        'system_name': system_name,
+                        'current_level': current_level,
+                        'current_value': current_power if current_power > 0 else None,
+                        'max_value': max_power if max_power > 0 else None,
+                        'unlocked_abilities': all_abilities
+                    }
+                
+                # 活跃剧情线索
+                if hasattr(state, 'plot_threads'):
+                    active_plots = []
+                    for name, thread in state.plot_threads.items():
+                        if getattr(thread, 'status', '') == 'active':
+                            last_mentioned = getattr(thread, 'last_mentioned', 0)
+                            # 只包含最近5章提及过的线索
+                            if last_mentioned and (start_chapter - last_mentioned) <= 5:
+                                plot_info = {
+                                    'name': name,
+                                    'status': getattr(thread, 'status', 'active'),
+                                    'hint': getattr(thread, 'current_hint', '')
+                                }
+                                active_plots.append(plot_info)
+                    world_state['active_plots'] = active_plots
+                
+                logger.info(f"[章节对话 {self.session_id}] 已获取第{start_chapter}章世界状态 | "
+                          f"主角健康: {world_state.get('protagonist_state', {}).get('health', '未知')} | "
+                          f"活跃线索: {len(world_state.get('active_plots', []))}个")
+            except Exception as e:
+                logger.warning(f"[章节对话 {self.session_id}] 获取世界状态失败: {e}")
+                import traceback
+                logger.debug(traceback.format_exc())
+        
+        # 🔥 提取钩子信息（用于 Layer 2.3 承接约束）
+        prev_hook = None
+        cross_batch_hook = None
+        if chapter_plan and isinstance(chapter_plan, dict):
+            # 上一章结尾钩子（如果有）
+            prev_hook = chapter_plan.get('prev_chapter_summary', '')
+            # 跨批次钩子（如果是新批次的第1章）
+            cross_batch_hook = chapter_plan.get('hook_from_previous_batch', '')
+            if cross_batch_hook:
+                logger.info(f"[章节对话 {self.session_id}] 第{start_chapter}章检测到跨批次钩子")
+        
+        # 🔥 V2 架构: 优先使用完整的 Layer 1-4
+        if HAS_V2_ADAPTER and self.v2_adapter:
+            try:
+                # 使用包含 Layer 1-4 的完整 System Prompt (Layer 4 来自项目的 writing_style)
+                # 🔥 传递 project_path 用于加载角色设计等产物文件
+                # 🔥 传递钩子信息用于 Layer 2.3 承接约束
+                v2_system_prompt = self.v2_adapter.build_full_system_prompt_v2(
+                    chapter_num=start_chapter,
+                    chapter_plan=chapter_plan,
+                    writing_style=self.writing_style,
+                    world_state=world_state,
+                    project_path=self.project_path,
+                    prev_hook=prev_hook,
+                    cross_batch_hook=cross_batch_hook
+                )
+                if v2_system_prompt:
+                    logger.info(f"[章节对话 {self.session_id}] 使用 V2 System Prompt (Layer 1-4) | 题材: {self.v2_adapter.genre}")
+                    
+                    # 添加角色设定强制执行
+                    enforcement = f"""
+[角色设定 - 绝对不可更改]
+主角姓名:{protagonist_name}
+约束:
+1. 必须使用此名字,禁止编造其他名字(如林枫,林霄等)
+2. 每章正文必须多次出现主角名字,不能用"他"代替
+3. 如果前文有错误名字,本章必须纠正回来
+4. 违反此设定视为严重错误
+"""
+                    return v2_system_prompt + enforcement
+            except Exception as e:
+                logger.warning(f"[章节对话 {self.session_id}] V2 System Prompt 失败,回退到传统模式: {e}")
         
         # 🔥 构建文风提示词
         style_prompt = self._build_writing_style_prompt()
@@ -1235,7 +1367,7 @@ class ChapterConversationGenerator:
     
     def _build_chapter_prompt(self, chapter_num: int, chapter_plan: Dict,
                              emotion_beat: Dict, prev_summary: str) -> str:
-        """构建章节生成提示词(使用优化后的详细版本)"""
+        """构建章节生成提示词(使用V2六层架构 Layer 5-6 + 任务指令)"""
         # 调试：检查 chapter_num
         logger.info(f"[CCG DEBUG] _build_chapter_prompt: chapter_num={chapter_num}, type={type(chapter_num)}")
         
@@ -1245,6 +1377,24 @@ class ChapterConversationGenerator:
             stack = traceback.format_stack()
             logger.error(f"[CCG {self.session_id}] CRITICAL: chapter_num is None in _build_chapter_prompt!\n调用堆栈:\n{''.join(stack)}")
             raise ValueError(f"chapter_num cannot be None in _build_chapter_prompt")
+        
+        # 🔥 V2 架构: 优先使用 Layer 5-6 + 任务指令
+        if HAS_V2_ADAPTER and self.v2_adapter:
+            try:
+                v2_user_prompt = self.v2_adapter.build_user_prompt_v2(
+                    chapter_num=chapter_num,
+                    chapter_plan=chapter_plan,
+                    emotion_beat=emotion_beat,
+                    prev_summary=prev_summary
+                )
+                if v2_user_prompt:
+                    logger.info(f"[章节对话 {self.session_id}] 使用 V2 User Prompt (Layer 5-6) | 第{chapter_num}章")
+                    
+                    # 🔥 V2 架构: Layer 1.1c 已包含世界状态，Layer 5.4 已包含结尾模板
+                    # 这里不需要重复添加，直接返回 V2 User Prompt
+                    return v2_user_prompt
+            except Exception as e:
+                logger.warning(f"[章节对话 {self.session_id}] V2 User Prompt 失败,回退到传统模式: {e}")
         
         # 构建主角设定提醒
         protagonist_reminder = self._build_protagonist_reminder()

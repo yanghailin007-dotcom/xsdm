@@ -1,0 +1,99 @@
+# 末日求生文题材技法
+# 版本: 1.0.0
+# 用途: 指导AI生成末日求生囤货文
+
+genre: "末日求生文"
+version: "1.0.0"
+description: "末日来临前大量囤货，末日中享受生活的专项技法"
+
+# ==================== 1. 核心套路 ====================
+core_mechanics:
+  description: "末日求生囤货文的核心是'提前准备，末日躺赢'"
+  key_points:
+    - "重生/预知回到末日爆发前"
+    - "疯狂囤货（食物、水、药品、武器）"
+    - "加固庇护所"
+    - "末日降临后享受生活/救助他人"
+
+# ==================== 2. 囤货清单规范 ====================
+stockpile_rules:
+  description: "囤货要有详细清单和数量"
+  categories:
+    - name: "食物"
+      items: ["大米", "面粉", "罐头", "压缩饼干", "方便面"]
+      note: "必须有具体数量，如：大米1000斤"
+    - name: "水"
+      items: ["矿泉水", "桶装水", "净水设备"]
+    - name: "药品"
+      items: ["抗生素", "绷带", "常用药品"]
+    - name: "武器"
+      items: ["冷兵器", "简易武器"]
+    - name: "能源"
+      items: ["发电机", "太阳能板", "电池"]
+
+# ==================== 3. 禁用元素 ====================
+forbidden_elements:
+  description: "末日求生文禁止的元素"
+  items:
+    - element: "圣母行为"
+      examples: ["无底线救助陌生人", "随意分享囤货"]
+      reason: "囤货文的核心是自私求生，不能太圣母"
+    - element: "囤货不合理"
+      examples: ["没有具体数量", "什么都有"]
+      reason: "必须有详细囤货清单和数量"
+    - element: "末日太轻松"
+      examples: ["末日像度假", "没有危机感"]
+      reason: "末日要有危机感，只是主角准备充分相对安全"
+
+# ==================== 4. 必须元素 ====================
+required_elements:
+  description: "末日求生文必须包含的元素"
+  items:
+    - element: "囤货清单"
+      check: "有详细的囤货物品和数量"
+      severity: "critical"
+    - element: "末日倒计时"
+      check: "有末日爆发的时间线"
+      severity: "critical"
+    - element: "庇护所"
+      check: "有加固房屋或庇护所的描写"
+      severity: "warning"
+
+# ==================== 5. 世界状态初始化 ====================
+world_state_initialization:
+  description: "末日求生文的世界状态初始值"
+  
+  protagonist:
+    health: "健康"
+    abilities_unlocked: ["重生/预知", "囤货知识"]
+  
+  plot_threads:
+    - name: "囤货进度"
+      status: "active"
+      introduced_chapter: 1
+      priority: 10
+      description: "疯狂囤货的主线"
+      next_trigger: "持续推进"
+    - name: "末日倒计时"
+      status: "active"
+      introduced_chapter: 1
+      priority: 9
+      description: "距离末日爆发的时间"
+      next_trigger: "末日爆发后转变"
+  
+  system_rules:
+    system_name: "末日生存系统（可选）"
+    system_type: "囤货/生存"
+    current_level: "初始"
+
+# ==================== 6. 质量检查点 ====================
+quality_checkpoints:
+  - point: "囤货细节"
+    condition: "有详细的囤货物品和数量"
+    severity: "critical"
+  - point: "末日氛围"
+    condition: "有末日危机感"
+    severity: "critical"
+  - point: "时间线清晰"
+    condition: "末日倒计时清晰"
+    severity: "warning"

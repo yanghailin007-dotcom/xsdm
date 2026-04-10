@@ -1,0 +1,244 @@
+# 军婚文题材技法
+# 版本: 1.0.0
+# 用途: 指导AI生成符合七零/八零年代军婚随军生活题材的内容
+
+genre: "军婚文"
+version: "1.0.0"
+description: "七零/八零年代军婚随军生活，讲述女主嫁给军人后随军生活的朴实深情故事"
+
+# ==================== 1. 核心套路 ====================
+core_mechanics:
+  description: "军婚文的核心是年代感、军嫂生活和朴实深情的爱情，强调责任与担当"
+  
+  era_setting:
+    time: "70-80年代"
+    elements:
+      - "物资匮乏但人情味浓"
+      - "计划经济时代特征"
+      - "随军家属院生活"
+      - "部队大院文化"
+      - "改革开放初期氛围"
+  
+  story_archetypes:
+    - type: "先婚后爱"
+      description: "经人介绍结婚，从陌生到相爱"
+    - type: "随军奋斗"
+      description: "女主随军到偏远驻地，一起奋斗建设家庭"
+    - type: "军嫂逆袭"
+      description: "女主利用现代知识/手艺，在年代创造美好生活"
+    - type: "重逢团圆"
+      description: "历经分离考验，最终团圆"
+  
+  plot_structure:
+    - phase: "相识结婚"
+      content: "相亲认识或娃娃亲，快速结婚随军"
+    - phase: "适应生活"
+      content: "适应军嫂身份和随军生活的挑战"
+    - phase: "建设小家"
+      content: "经营婚姻，建设家庭，生儿育女"
+    - phase: "共同成长"
+      content: "夫妻共同进步，面对生活考验"
+
+# ==================== 2. 人物设定规范 ====================
+character_rules:
+  description: "军婚文人物设定必须符合年代特征和军人形象"
+  
+  male_lead:
+    role: "军人丈夫"
+    required_traits:
+      - "正直坚毅，有责任感"
+      - "外冷内热，不善言辞但行动派"
+      - "军人荣誉感强"
+      - "对妻子爱护但不擅表达"
+      - "身板挺直，气质硬朗"
+      - "军衔：团长/营长/连长等级别"
+    forbidden_traits:
+      - "花花公子/多情"
+      - "大男子主义过度（轻度可接受但要成长）"
+      - "违反军纪的行为"
+    
+  female_lead:
+    role: "军嫂"
+    required_traits:
+      - "坚韧善良，能适应艰苦环境"
+      - "独立自强，不依赖丈夫"
+      - "有手艺/技能（裁缝、做饭、种植等）"
+      - "懂得持家，会过日子"
+      - "外貌清秀/漂亮"
+    archetypes:
+      - "穿越重生型：有现代知识加持"
+      - "本土成长型：从村姑成长为优秀军嫂"
+      - "知青下乡型：城市姑娘适应农村军婚"
+    
+  supporting_roles:
+    - type: "部队战友"
+      description: "男主的战友，后来成为朋友"
+    - type: "家属院姐妹"
+      description: "其他军嫂，互助又攀比"
+    - type: "极品亲戚"
+      description: "偶尔出现的极品，用来打脸"
+    - type: "部队领导"
+      description: "关心下属的好领导"
+
+# ==================== 3. 爽点设计 ====================
+satisfaction_points:
+  description: "军婚文的爽点在于年代生活的改善和军嫂地位的提高"
+  
+  categories:
+    - type: "生活改善"
+      examples:
+        - "用现代知识改善伙食"
+        - "种菜养鸡实现自给自足"
+        - "做衣服改善家人穿着"
+        - "精打细算过上好日子"
+      
+    - type: "打脸极品"
+      examples:
+        - "打脸看不起军嫂的城里人"
+        - "收拾想勾引男主的白莲花"
+        - "教训极品亲戚"
+        - "在家属院树立威望"
+      
+    - type: "夫妻恩爱"
+      examples:
+        - "男主默默保护妻子"
+        - "女主被欺负男主出头"
+        - "聚少离多后的重逢"
+        - "军婚不易但情深"
+      
+    - type: "事业成就"
+      examples:
+        - "女主开店做生意"
+        - "成为家属院榜样"
+        - "帮助其他军嫂"
+        - "获得部队表彰"
+
+# ==================== 4. 禁用元素 ====================
+forbidden_elements:
+  description: "军婚文中不能出现的元素，会破坏年代感和军人形象"
+  items:
+    - element: "现代电子产品/网络"
+      reason: "70-80年代没有这些，会出戏"
+    
+    - element: "军人违反军纪"
+      reason: "军人形象必须正面"
+    
+    - element: "过度开后宫"
+      reason: "军婚必须一对一，军人要有责任感"
+    
+    - element: "女主过于圣母"
+      reason: "军嫂要独立有主见"
+    
+    - element: "过分夸张的金手指"
+      reason: "年代文要接地气，不能过度玄幻"
+    
+    - element: "对历史事件不当描述"
+      reason: "尊重历史，避免敏感政治内容"
+
+# ==================== 5. 年代细节要求 ====================
+era_details:
+  description: "必须准确呈现的70-80年代特征"
+  
+  material_culture:
+    - "粮票、布票、肉票等票证"
+    - "的确良、涤卡等布料"
+    - "搪瓷缸、铝饭盒"
+    - "28自行车、缝纫机"
+    - "收音机、黑白电视（后期）"
+  
+  lifestyle:
+    - "排队买副食品"
+    - "家属院公共厨房/澡堂"
+    - "周末赶集/供销社"
+    - "写信、发电报联系"
+    - "部队放电影"
+  
+  social_norms:
+    - "自由恋爱仍受约束，相亲普遍"
+    - "婚后才同居"
+    - "计划生育政策"
+    - "部队政审严格"
+    - "随军条件限制"
+
+# ==================== 6. 情感描写规范 ====================
+emotion_guidelines:
+  description: "军婚文情感要朴实真挚，不能过于玛丽苏"
+  
+  style:
+    - "含蓄内敛，符合年代特征"
+    - "行动大于言语"
+    - "细节见真情"
+    - "聚少离多更显珍贵"
+  
+  classic_moments:
+    - "探亲时的团聚"
+    - "分离时的不舍"
+    - "写信寄物表思念"
+    - "默默为对方付出"
+    - "危难时刻的守护"
+
+# ==================== 7. 世界状态初始化 ====================
+world_state_initialization:
+  description: "军婚文的世界状态初始值"
+  
+  protagonist:
+    health: "健康"
+    abilities_unlocked: ["某项年代实用技能", "现代知识（如穿越）"]
+    status: "新婚/准备随军"
+  
+  allies:
+    - type: "丈夫"
+      relationship: "新婚丈夫，军人"
+    - type: "部队战友"
+      relationship: "待建立"
+    - type: "家属院军嫂"
+      relationship: "待建立"
+  
+  plot_threads:
+    - name: "随军生活适应"
+      status: "active"
+      introduced_chapter: 1
+      priority: 9
+      description: "适应军嫂身份和随军生活"
+      next_trigger: "到达部队驻地"
+    
+    - name: "夫妻关系发展"
+      status: "active"
+      introduced_chapter: 1
+      priority: 10
+      description: "从陌生到相爱的过程"
+      next_trigger: "日常相处积累感情"
+    
+    - name: "生活条件改善"
+      status: "pending"
+      introduced_chapter: 5
+      priority: 7
+      description: "利用技能改善生活"
+      next_trigger: "稳定后开始经营"
+  
+  system_rules:
+    system_name: "年代物资系统（如有）"
+    system_type: "物资兑换/商城"
+    current_level: "初始"
+
+# ==================== 8. 质量检查点 ====================
+quality_checkpoints:
+  - point: "年代感"
+    condition: "符合70-80年代社会特征"
+    severity: "critical"
+  
+  - point: "军人形象"
+    condition: "男主符合军人身份，有责任感"
+    severity: "critical"
+  
+  - point: "军嫂形象"
+    condition: "女主独立自强，不矫情"
+    severity: "critical"
+  
+  - point: "情感真挚"
+    condition: "感情发展自然，不突兀"
+    severity: "warning"
+  
+  - point: "年代细节"
+    condition: "物品、制度符合年代"
+    severity: "warning"

@@ -1,0 +1,70 @@
+# 综漫文题材技法
+genre: "综漫文"
+version: "1.0.0"
+description: "无限流+动漫穿越+多元世界类小说的专项技法"
+
+# ==================== 1. 核心套路 ====================
+core_mechanics:
+  description: "主角穿越到多个动漫/影视/游戏世界中，完成任务，获取能力，不断变强"
+
+# ==================== 2. 禁用元素 ====================
+forbidden_elements:
+  description: "以下元素绝对不能出现"
+  items:
+    - element: "过度OOC"
+      examples: ["原角色性格完全崩坏", "恶意丑化原作角色"]
+      reason: "需要尊重原作角色设定"
+    - element: "世界混淆不清"
+      examples: ["世界观混乱", "设定冲突不处理"]
+      reason: "需要保持世界独立性"
+    - element: "无脑碾压"
+      examples: ["主角开局无敌", "所有世界横着走"]
+      reason: "需要有合理的成长过程"
+
+# ==================== 3. 必须元素 ====================
+required_elements:
+  description: "每章必须包含的元素"
+  items:
+    - element: "原作还原"
+      check: "是否尊重原作的世界观和人物设定"
+      severity: "critical"
+    - element: "任务系统"
+      check: "是否有明确的任务目标和奖励"
+      severity: "critical"
+    - element: "世界切换"
+      check: "是否有清晰的世界切换或进度"
+      severity: "warning"
+
+# ==================== 4. 世界状态初始化 ====================
+world_state_initialization:
+  protagonist:
+    health: "健康"
+    abilities_unlocked: ["基础强化"]
+  plot_threads:
+    - name: "世界穿越"
+      status: "active"
+      priority: 10
+    - name: "能力获取"
+      status: "active"
+      priority: 9
+    - name: "主神空间"
+      status: "active"
+      priority: 8
+  system_rules:
+    system_name: "无限系统"
+    system_type: "穿越类"
+    current_world: "初始世界"
+    points: 0
+    worlds_cleared: 0
+
+# ==================== 5. 质量检查点 ====================
+quality_checkpoints:
+  - point: "原作尊重"
+    condition: "尊重原作设定和角色"
+    severity: "critical"
+  - point: "剧情参与"
+    condition: "主角合理参与原作剧情"
+    severity: "critical"
+  - point: "世界独立性"
+    condition: "各世界设定清晰不混淆"
+    severity: "warning"

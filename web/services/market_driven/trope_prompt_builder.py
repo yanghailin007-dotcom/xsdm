@@ -31,7 +31,8 @@ class TropePromptBuilder:
             tropes: TropeAnalyzer 分析结果
         """
         self.tropes = tropes or {}
-        self.genre = self.tropes.get('genre', '国运文-直播类')
+        # 默认使用通用题材，不再硬编码为国运文
+        self.genre = self.tropes.get('genre', '未知题材')
         self.core_formula = self.tropes.get('core_formula', '')
         self._prompt_loader = get_prompt_loader()
         
@@ -90,14 +91,34 @@ class TropePromptBuilder:
         template = component.get("template", "")
         rhythm_tropes = self._extract_rhythm_tropes()
         
-        default_stages = {
-            "items": [
-                {"index": 1, "name": "第一阶段：主角崛起", "range": "0-30万字", "core": "快速升级+首次大高潮", "appeals": "打脸+震惊+国运提升"},
-                {"index": 2, "name": "第二阶段：龙国腾飞", "range": "30-60万字", "core": "主角成为龙国支柱", "appeals": "全球震惊+碾压他国"},
-                {"index": 3, "name": "第三阶段：全球争霸", "range": "60-90万字", "core": "主角影响世界格局", "appeals": "以一敌百+神话降临"},
-                {"index": 4, "name": "后续阶段", "range": "90万字+", "core": "宇宙/神界扩展", "appeals": "星空主宰+万族臣服"}
-            ]
-        }
+        # 根据题材类型提供默认阶段设定
+        if "神豪" in self.genre:
+            default_stages = {
+                "items": [
+                    {"index": 1, "name": "第一阶段：初露锋芒", "range": "0-30万字", "core": "系统激活+首次消费高潮", "appeals": "打脸+震惊+财富积累"},
+                    {"index": 2, "name": "第二阶段：商业帝国", "range": "30-60万字", "core": "主角建立商业版图", "appeals": "震惊社交圈+碾压对手"},
+                    {"index": 3, "name": "第三阶段：资本巅峰", "range": "60-90万字", "core": "主角影响行业格局", "appeals": "以一敌百+垄断地位"},
+                    {"index": 4, "name": "后续阶段", "range": "90万字+", "core": "全球布局/跨界扩展", "appeals": "商业传奇+时代印记"}
+                ]
+            }
+        elif "国运" in self.genre:
+            default_stages = {
+                "items": [
+                    {"index": 1, "name": "第一阶段：主角崛起", "range": "0-30万字", "core": "快速升级+首次大高潮", "appeals": "打脸+震惊+国运提升"},
+                    {"index": 2, "name": "第二阶段：龙国腾飞", "range": "30-60万字", "core": "主角成为龙国支柱", "appeals": "全球震惊+碾压他国"},
+                    {"index": 3, "name": "第三阶段：全球争霸", "range": "60-90万字", "core": "主角影响世界格局", "appeals": "以一敌百+神话降临"},
+                    {"index": 4, "name": "后续阶段", "range": "90万字+", "core": "宇宙/神界扩展", "appeals": "星空主宰+万族臣服"}
+                ]
+            }
+        else:
+            default_stages = {
+                "items": [
+                    {"index": 1, "name": "第一阶段：主角成长", "range": "0-30万字", "core": "能力觉醒+首次突破", "appeals": "打脸+震惊+实力提升"},
+                    {"index": 2, "name": "第二阶段：建立势力", "range": "30-60万字", "core": "主角成为一方强者", "appeals": "震惊各界+碾压对手"},
+                    {"index": 3, "name": "第三阶段：巅峰对决", "range": "60-90万字", "core": "主角影响世界格局", "appeals": "终极一战+成就传奇"},
+                    {"index": 4, "name": "后续阶段", "range": "90万字+", "core": "更高维度扩展", "appeals": "开创纪元+万民敬仰"}
+                ]
+            }
         
         variables = {
             "total_words": "300",
@@ -129,12 +150,37 @@ class TropePromptBuilder:
         protagonist_name: str = "主角",
         emotion_arc: Optional[Dict] = None
     ) -> str:
-        """从JSON配置构建章节生成阶段System Prompt"""
+        """从JSON配置构建章节生成阶段System Prompt - 支持多题材模板"""
         component = self._prompt_loader.get_component("chapter_stage")
         if not component:
             raise ValueError("无法加载chapter_stage组件，请检查 prompt_packages/_base/system_components/chapter_stage.json")
         
-        template = component.get("template", "")
+        # 获取题材类型对应的模板
+        templates = component.get("templates", {})
+        default_key = component.get("default_template", "通用")
+        
+        # 根据 genre 选择模板
+        genre_key = self.genre if self.genre in templates else None
+        if not genre_key:
+            # 尝试模糊匹配
+            if "国运" in self.genre and "国运文" in templates:
+                genre_key = "国运文"
+            elif "神豪" in self.genre and "神豪文" in templates:
+                genre_key = "神豪文"
+            else:
+                genre_key = default_key
+        
+        template = templates.get(genre_key, templates.get(default_key, ""))
+        
+        # 兼容旧版单模板结构
+        if not template:
+            template = component.get("template", "")
+        
+        if not template:
+            raise ValueError(f"无法加载chapter_stage模板，genre={self.genre}")
+        
+        logger.info(f"[TropePromptBuilder] 使用 {genre_key} 章节模板")
+        
         rhythm_rules = self._extract_chapter_rhythm_rules()
         
         emotion_curve = emotion_arc.get('curve', '起-承-转-合') if emotion_arc else '根据章节位置合理设计'
@@ -188,12 +234,28 @@ class TropePromptBuilder:
                 constraints.append(f"爽点结构：{structure}")
         
         if not constraints:
-            constraints = [
-                "世界观：国运绑定+直播+异界禁地",
-                "金手指：扮演/召唤/具现类系统",
-                "情绪节奏：快节奏+高爽感+密集钩子",
-                "爽点结构：压抑→反转→3层震惊→收获"
-            ]
+            # 根据题材类型提供默认约束
+            if "神豪" in self.genre:
+                constraints = [
+                    "世界观：都市背景+财富系统+阶层跃迁",
+                    "金手指：花钱返利/签到奖励类系统",
+                    "情绪节奏：快节奏+高爽感+密集钩子",
+                    "爽点结构：被看不起→展现实力→震惊众人→收获尊重"
+                ]
+            elif "国运" in self.genre:
+                constraints = [
+                    "世界观：国运绑定+直播+异界禁地",
+                    "金手指：扮演/召唤/具现类系统",
+                    "情绪节奏：快节奏+高爽感+密集钩子",
+                    "爽点结构：压抑→反转→3层震惊→收获"
+                ]
+            else:
+                constraints = [
+                    f"世界观：{self.genre}典型背景设定",
+                    "金手指：符合题材特色的能力系统",
+                    "情绪节奏：快节奏+高爽感+密集钩子",
+                    "爽点结构：困境→突破→震惊→收获"
+                ]
         
         return "\n".join([f"{i+1}. {c}" for i, c in enumerate(constraints[:5])])
     
@@ -216,11 +278,25 @@ class TropePromptBuilder:
             tropes_list.append(f"反派：{villain}")
         
         if not tropes_list:
-            tropes_list = [
-                "主角：高天赋+冷静果断+守护龙国",
-                "配角：功能性+记忆点+服务主线",
-                "反派：有智商+有层次+递进式威胁"
-            ]
+            # 根据题材类型提供默认人设
+            if "神豪" in self.genre:
+                tropes_list = [
+                    "主角：获得财富系统+果断豪爽+阶层跃迁",
+                    "配角：势利眼反派+美女秘书+商业对手",
+                    "反派：有钱无德+被打脸+递进式登场"
+                ]
+            elif "国运" in self.genre:
+                tropes_list = [
+                    "主角：高天赋+冷静果断+守护龙国",
+                    "配角：功能性+记忆点+服务主线",
+                    "反派：有智商+有层次+递进式威胁"
+                ]
+            else:
+                tropes_list = [
+                    "主角：独特能力+坚定意志+成长型",
+                    "配角：功能性+记忆点+服务主线",
+                    "反派：有智商+有层次+递进式威胁"
+                ]
         
         return "\n".join([f"- {t}" for t in tropes_list])
     
@@ -243,11 +319,25 @@ class TropePromptBuilder:
             parts.append(f"**单章节奏**：{chapter}")
         
         if not parts:
-            parts = [
-                "**核心模式**：快节奏+密集爽点+强钩子",
-                "**黄金比例**：70%爽+20%铺垫+10%危机",
-                "**单章节奏**：前300字冲突+中间密集爽点+章尾强钩子"
-            ]
+            # 根据题材类型提供默认节奏
+            if "神豪" in self.genre:
+                parts = [
+                    "**核心模式**：快节奏+密集爽点+消费即正义",
+                    "**黄金比例**：70%爽+20%铺垫+10%危机",
+                    "**单章节奏**：前300字冲突+中间密集爽点+章尾强钩子"
+                ]
+            elif "国运" in self.genre:
+                parts = [
+                    "**核心模式**：快节奏+密集爽点+国运升级",
+                    "**黄金比例**：70%爽+20%铺垫+10%危机",
+                    "**单章节奏**：前300字冲突+中间密集爽点+章尾强钩子"
+                ]
+            else:
+                parts = [
+                    "**核心模式**：快节奏+密集爽点+强钩子",
+                    "**黄金比例**：70%爽+20%铺垫+10%危机",
+                    "**单章节奏**：前300字冲突+中间密集爽点+章尾强钩子"
+                ]
         
         return "\n".join(parts)
     
@@ -287,15 +377,45 @@ class TropePromptBuilder:
         except Exception as e:
             logger.warning(f"[TropePromptBuilder] 加载 shock_flow.json 失败: {e}")
         
-        return """震惊铺展顺序（禁止写"第X层"标签）：
+        # 根据题材类型返回默认 rhythm rules
+        if "国运" in self.genre:
+            return """震惊铺展顺序（禁止写"第X层"标签）：
 - 先写现场：当事人的表情、动作、内心反应
 - 再写直播：弹幕停滞→爆炸，主播失态/造梗  
 - 最后权威：专家/官方从质疑到震惊的递进
+
+**弹幕格式要求**（国运文必填）：
+- 弹幕用【】包裹，如：【龙国观众：卧槽！】
+- 每章至少8-10条弹幕
 
 **要求**：
 - 小爽点：至少2层震惊
 - 中爽点：必须3层震惊
 - 大爽点：3层震惊+数据可视化+全球影响"""
+        elif "神豪" in self.genre:
+            return """震惊铺展顺序（禁止写"第X层"标签）：
+- 先写现场：当事人的表情、动作、内心反应
+- 再写围观：路人的议论、围观者的反应
+- 最后权威：专家/上层人士从质疑到震惊的递进
+
+**对话格式要求**（神豪文必填）：
+- 角色对话用 "" 包裹
+- 增加路人震惊台词，用 "" 包裹
+
+**要求**：
+- 小爽点：至少2层震惊
+- 中爽点：必须3层震惊
+- 大爽点：3层震惊+具体金额/数字+阶层跨越"""
+        else:
+            return """震惊铺展顺序（禁止写"第X层"标签）：
+- 先写现场：当事人的表情、动作、内心反应
+- 再写传播：旁观者的反应、消息扩散
+- 最后权威：专家/上层从质疑到震惊的递进
+
+**要求**：
+- 小爽点：至少2层震惊
+- 中爽点：必须3层震惊
+- 大爽点：3层震惊+数据化呈现+广泛影响"""
     
     def build_compressed_tropes_summary(self, max_items: int = 5) -> str:
         """构建压缩版的 tropes 摘要"""

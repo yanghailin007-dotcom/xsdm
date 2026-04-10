@@ -1,0 +1,200 @@
+# 国运文题材技法
+# 版本: 1.0.0
+# 用途: 指导AI生成符合国运文特点的内容
+
+genre: "国运文"
+version: "1.0.0"
+description: "国运绑定+直播+异界禁地类小说的专项技法"
+
+# ==================== 1. 震惊铺展顺序 ====================
+shock_progression:
+  description: "按空间传播逻辑自然过渡，严禁使用'第一层/第二层'标签"
+  steps:
+    - order: 1
+      name: "现场反应"
+      content: "直接见证事件的当事人表情、动作、心理、台词"
+      format: "引号\"\"包裹"
+      examples:
+        - "约翰吓得一屁股坐在地上。"
+        - "白月魁瞳孔骤缩：\"这不可能！\""
+    
+    - order: 2
+      name: "直播弹幕反应"
+      content: "弹幕停滞→爆炸，主播失态/造梗"
+      format: "【ID：内容】，必须【】包裹"
+      examples:
+        - "【龙国观众：卧槽！这也行？】"
+        - "【弹幕刷屏：龙国牛逼！！！】"
+    
+    - order: 3
+      name: "各国官方反应"
+      content: "从质疑到震惊到行动的递进"
+      format: "引号\"\"包裹"
+      examples:
+        - "\"快！查清楚这个人的所有资料！\"元帅下令。"
+        - "龙国高层紧急召开会议..."
+    
+    - order: 4
+      name: "全球层面影响"
+      content: "联合国、世界格局变化"
+      format: "宏观叙述"
+      examples:
+        - "全球股市震荡，龙国概念股涨停..."
+        - "联合国紧急召开特别会议..."
+
+# ==================== 2. 弹幕规范（国运文核心） ====================
+barrage_rules:
+  description: "弹幕是国运文对话的重要组成部分"
+  required: true
+  min_count: 8
+  max_count: 12
+  format: "【ID：内容】"
+  
+  templates:
+    - type: "龙国支持型"
+      emotion: "担忧、支持、激动"
+      examples:
+        - "【龙国观众：撑住啊！我们相信你！】"
+        - "【龙国粉丝：苏神牛逼！！！】"
+        - "【龙国妈妈粉：孩子小心啊！】"
+    
+    - type: "外国嘲讽型"
+      emotion: "质疑、嘲讽、仇恨"
+      examples:
+        - "【漂亮国观众：哈哈，龙国完了！】"
+        - "【樱花观众：不可能！这一定是作弊！】"
+        - "【外国弹幕：Fake! Must be fake!】"
+    
+    - type: "专家分析型"
+      emotion: "紧张、专业、震惊"
+      examples:
+        - "【专家：根据数据，现在的状态很危险！】"
+        - "【技术流：能量值已经爆表了！】"
+    
+    - type: "官方账号型"
+      emotion: "正式、关注"
+      examples:
+        - "【龙国国运指挥部：密切关注中】"
+        - "【官方账号：已启动应急预案】"
+    
+    - type: "黑粉/质疑型"
+      emotion: "质疑、挑刺"
+      examples:
+        - "【黑粉头子：呵呵，肯定是开挂】"
+        - "【理中客：先别激动，看看后续】"
+
+# ==================== 3. 系统提示音（国运文特色） ====================
+system_prompts:
+  - type: "国运提升"
+    template: "【龙国国运+XXX】【全球排名上升至第X位】"
+    usage: "主角做出重大贡献时"
+  
+  - type: "扮演度提升"
+    template: "【扮演度提升至X.X%】【解锁新能力：XXX】"
+    usage: "扮演历史人物契合度提高时"
+  
+  - type: "全球公告"
+    template: "【全球公告】龙国选手XXX完成越级击杀，奖励国运值+X%！"
+    usage: "完成重大成就时"
+  
+  - type: "危机警告"
+    template: "【警告】检测到SS级凶兽正在接近！距离：XXX米！"
+    usage: "危机出现时"
+
+# ==================== 4. 数据展示要求 ====================
+data_visualization:
+  description: "国运文必须有数据化的实力展示"
+  required: true
+  items:
+    - name: "国运值变化"
+      display: "天空异象、数值浮空显示"
+    - name: "战力数值"
+      display: "气场表现、能量条"
+    - name: "全球排名"
+      display: "实时排名变化"
+    - name: "与他国对比"
+      display: "柱状图、百分比"
+
+# ==================== 5. 禁用元素（关键！） ====================
+forbidden_elements:
+  description: "以下元素绝对不能出现，会导致题材混淆"
+  items:
+    - element: "校园场景"
+      examples: ["教务处", "奖学金", "江城大学", "校花", "学生会"]
+      reason: "这是都市校园文的元素"
+    
+    - element: "金钱交易/消费返利"
+      examples: ["消费XXX元", "返利", "银行卡余额", "奢侈品购买"]
+      reason: "这是神豪文的元素"
+    
+    - element: "人生模拟器"
+      examples: ["第X次模拟", "模拟器启动", "模拟结果"]
+      reason: "这是模拟器文的元素，除非大纲明确指定"
+    
+    - element: "都市日常/职场生活"
+      examples: ["上班打卡", "公司会议", "升职加薪", "办公室政治"]
+      reason: "这是都市职场文的元素"
+    
+    - element: "修仙元素"
+      examples: ["筑基", "金丹", "元婴", "灵气", "渡劫"]
+      reason: "这是修仙文的元素"
+
+# ==================== 6. 必须元素（检查清单） ====================
+required_elements:
+  description: "每章必须包含的元素，缺少会导致质量下降"
+  items:
+    - element: "全球直播"
+      check: "是否有直播相关描述"
+    - element: "弹幕互动"
+      check: "弹幕数量≥8条"
+    - element: "国运相关数值"
+      check: "是否有国运值/排名等数值变化"
+    - element: "国家荣誉感"
+      check: "是否体现为龙国争光的情节"
+    - element: "震惊反应链"
+      check: "是否按顺序铺展震惊"
+
+# ==================== 7. 对话占比达成方式 ====================
+dialogue_achievement:
+  target: "对话占比≥50%"
+  methods:
+    - method: "增加弹幕密度"
+      description: "每章8-12条弹幕，每条单独成行"
+      weight: "30%"
+    
+    - method: "增加角色对话"
+      description: "关键场景用引号包裹的对话推进"
+      weight: "30%"
+    
+    - method: "增加围观反应"
+      description: "路人、观众的震惊台词用引号包裹"
+      weight: "20%"
+    
+    - method: "增加系统提示"
+      description: "系统消息用【】包裹，计入对话"
+      weight: "20%"
+
+# ==================== 8. 节奏要求 ====================
+pacing:
+  conflict_first_300: true
+  mini_burst_every_1000: true
+  hook_last_50: true
+  no_narration_limit: 200
+
+# ==================== 9. 质量检查点 ====================
+quality_checkpoints:
+  - point: "弹幕数量"
+    condition: ">=8条"
+    severity: "critical"
+  
+  - point: "弹幕格式"
+    condition: "全部用【】包裹"
+    severity: "critical"
+  
+  - point: "震惊层级"
+    condition: "至少3层"
+    severity: "warning"
+  
+  - point: "国运值展示"
+    condition: "至少有1处"
+    severity: "warning"

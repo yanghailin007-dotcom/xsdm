@@ -1,0 +1,105 @@
+# 通用题材技法
+# 版本: 1.0.0
+# 用途: 当指定题材不存在时使用的默认模板
+
+genre: "通用"
+version: "1.0.0"
+description: "通用题材技法，适用于未定义的题材类型"
+
+# ==================== 1. 震惊铺展顺序 ====================
+shock_progression:
+  description: "通用的震惊铺展逻辑"
+  steps:
+    - order: 1
+      name: "现场反应"
+      content: "直接见证事件的当事人表情、动作、心理、台词"
+      format: "引号\"\"包裹"
+    
+    - order: 2
+      name: "围观反应"
+      content: "旁观者、围观者的反应"
+      format: "引号\"\"包裹"
+    
+    - order: 3
+      name: "权威反应"
+      content: "专家、上层人士的质疑→震惊→行动的递进"
+      format: "引号\"\"包裹"
+    
+    - order: 4
+      name: "广泛影响"
+      content: "消息扩散后的更大范围影响"
+      format: "叙述+侧面描写"
+
+# ==================== 2. 特殊元素规范 ====================
+special_elements:
+  description: "通用题材没有特定的强制元素"
+  required: false
+  note: "根据具体剧情需要添加"
+
+# ==================== 3. 系统提示音 ====================
+system_prompts:
+  - type: "通用提示"
+    template: "【系统提示：XXX】"
+    usage: "通用系统消息"
+  
+  - type: "任务提示"
+    template: "【任务完成：XXX】"
+    usage: "完成任务时"
+  
+  - type: "警告提示"
+    template: "【警告：XXX】"
+    usage: "危机或警告时"
+
+# ==================== 4. 禁用元素 ====================
+forbidden_elements:
+  description: "通用题材没有特定的禁用元素"
+  note: "遵循通用的写作规范和道德准则"
+  items: []
+
+# ==================== 5. 必须元素 ====================
+required_elements:
+  description: "通用题材的基本要求"
+  items:
+    - element: "冲突/悬念"
+      check: "前300字有冲突或悬念"
+    - element: "章尾钩子"
+      check: "章节结尾有悬念"
+    - element: "对话"
+      check: "对话占比≥50%"
+
+# ==================== 6. 对话占比达成方式 ====================
+dialogue_achievement:
+  target: "对话占比≥50%"
+  methods:
+    - method: "增加角色对话"
+      description: "关键场景用引号包裹的对话推进"
+      weight: "40%"
+    
+    - method: "增加围观反应"
+      description: "路人、旁观者的反应用引号包裹"
+      weight: "30%"
+    
+    - method: "增加系统提示"
+      description: "系统消息用【】包裹，计入对话"
+      weight: "30%"
+
+# ==================== 7. 节奏要求 ====================
+pacing:
+  conflict_first_300: true
+  mini_burst_every_1000: true
+  hook_last_50: true
+  no_narration_limit: 200
+
+# ==================== 8. 质量检查点 ====================
+quality_checkpoints:
+  - point: "冲突开场"
+    condition: "前300字有冲突"
+    severity: "critical"
+  
+  - point: "章尾钩子"
+    condition: "有悬念"
+    severity: "critical"
+  
+  - point: "对话占比"
+    condition: "≥50%"
+    severity: "warning"

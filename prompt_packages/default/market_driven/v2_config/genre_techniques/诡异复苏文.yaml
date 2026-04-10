@@ -1,0 +1,69 @@
+# 诡异复苏文题材技法
+genre: "诡异复苏文"
+version: "1.0.0"
+description: "规则怪谈+诡异入侵+生存挑战类小说的专项技法"
+
+# ==================== 1. 核心套路 ====================
+core_mechanics:
+  description: "诡异复苏，规则怪谈降临现实，主角需要破解规则、对抗诡异，在恐怖中寻找生存之道"
+
+# ==================== 2. 禁用元素 ====================
+forbidden_elements:
+  description: "以下元素绝对不能出现"
+  items:
+    - element: "轻松搞笑过度"
+      examples: ["无厘头搞笑", "过度玩梗", "轻松氛围"]
+      reason: "破坏诡异恐怖的氛围"
+    - element: "无敌开挂"
+      examples: ["主角直接秒杀诡异", "毫无危险"]
+      reason: "诡异文需要紧张感和危机感"
+    - element: "传统修仙"
+      examples: ["筑基", "金丹", "正道除魔"]
+      reason: "与诡异规则体系冲突"
+
+# ==================== 3. 必须元素 ====================
+required_elements:
+  description: "每章必须包含的元素"
+  items:
+    - element: "规则呈现"
+      check: "是否有规则怪谈的具体规则展示"
+      severity: "critical"
+    - element: "诡异氛围"
+      check: "是否保持诡异、压抑、恐怖的氛围"
+      severity: "critical"
+    - element: "生存压力"
+      check: "主角是否面临真实的死亡威胁"
+      severity: "critical"
+
+# ==================== 4. 世界状态初始化 ====================
+world_state_initialization:
+  protagonist:
+    health: "健康"
+    abilities_unlocked: ["诡异感知"]
+  plot_threads:
+    - name: "诡异入侵"
+      status: "active"
+      priority: 10
+    - name: "规则破解"
+      status: "active"
+      priority: 9
+    - name: "诡异源头"
+      status: "hidden"
+      priority: 8
+  system_rules:
+    system_name: "诡异规则"
+    system_type: "规则类"
+    contamination_level: 0
+    rules_known: []
+
+# ==================== 5. 质量检查点 ====================
+quality_checkpoints:
+  - point: "规则清晰"
+    condition: "规则表述明确，有逻辑性"
+    severity: "critical"
+  - point: "恐怖氛围"
+    condition: "保持诡异恐怖的基调"
+    severity: "critical"
+  - point: "逻辑自洽"
+    condition: "规则之间不矛盾，破解合理"
+    severity: "warning"

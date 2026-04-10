@@ -164,75 +164,203 @@ class WorldStateManager:
         except Exception as e:
             logger.error(f"[WorldState] 保存状态失败: {e}")
     
+    def _load_genre_config(self, genre: str) -> dict:
+        """加载题材配置文件"""
+        config_path = Path(__file__).parent.parent.parent.parent / \
+                     f"prompt_packages/default/market_driven/v2_config/genre_techniques/{genre}.yaml"
+        
+        if not config_path.exists():
+            logger.warning(f"[WorldState] 题材配置不存在: {config_path}")
+            return {}
+        
+        try:
+            import yaml
+            with open(config_path, 'r', encoding='utf-8') as f:
+                config = yaml.safe_load(f)
+            return config.get('world_state_initialization', {})
+        except Exception as e:
+            logger.error(f"[WorldState] 加载题材配置失败: {e}")
+            return {}
+    
+    def _load_golden_finger_config(self) -> dict:
+        """
+        加载金手指设计配置文件
+        优先顺序：
+        1. phase_one_products/金手指设计.json
+        2. phase_one_products/金手指设定.json
+        3. phase_one_products/golden_finger.json
+        """
+        possible_files = [
+            self.project_path / "phase_one_products" / "金手指设计.json",
+            self.project_path / "phase_one_products" / "金手指设定.json",
+            self.project_path / "phase_one_products" / "golden_finger.json",
+        ]
+        
+        for file_path in possible_files:
+            if file_path.exists():
+                try:
+                    with open(file_path, 'r', encoding='utf-8') as f:
+                        data = json.load(f)
+                    logger.info(f"[WorldState] 从 {file_path.name} 加载金手指配置成功")
+                    return data
+                except Exception as e:
+                    logger.warning(f"[WorldState] 加载金手指配置失败 {file_path}: {e}")
+        
+        return {}
+    
     def initialize_from_novel_data(self, novel_data: dict, chapter: int = 1):
-        """从 novel_data 初始化状态"""
+        """从 novel_data 初始化状态（根据题材类型从配置读取）"""
+        # 检测题材类型
+        genre = self._detect_genre(novel_data)
+        
+        # 加载题材配置
+        genre_config = self._load_genre_config(genre)
+        
         # 主角
         char_design = novel_data.get('character_design', {})
         protagonist = char_design.get('protagonist', {})
         protag_name = protagonist.get('name', '主角')
         
+        # 从配置获取主角初始化数据
+        protagonist_config = genre_config.get('protagonist', {})
         self.state.protagonist = CharacterStatus(
             name=protag_name,
-            health="健康",
-            abilities_unlocked=["基础雷电操控"]
+            health=protagonist_config.get('health', '健康'),
+            abilities_unlocked=protagonist_config.get('abilities_unlocked', [])
         )
         
-        # 盟友
+        # 盟友（根据配置和条件）
         allies = {}
-        if '白月魁' in str(novel_data):
-            allies['白月魁'] = CharacterStatus(
-                name='白月魁',
-                health="健康",
-                abilities_unlocked=["唐刀术", "生命源质掌控"],
-                relationships={protag_name: "队友/潜在感情线"}
+        allies_config = genre_config.get('allies', [])
+        for ally_config in allies_config:
+            condition = ally_config.get('condition', '')
+            # 检查条件
+            if condition:
+                condition_met = False
+                if 'novel_data中包含' in condition:
+                    # 提取关键词
+                    import re
+                    match = re.search(r"'([^']+)'", condition)
+                    if match:
+                        keyword = match.group(1)
+                        condition_met = keyword in str(novel_data)
+                
+                if not condition_met:
+                    continue
+            
+            # 创建盟友
+            ally_name = ally_config.get('name', '盟友')
+            allies[ally_name] = CharacterStatus(
+                name=ally_name,
+                health=ally_config.get('health', '健康'),
+                abilities_unlocked=ally_config.get('abilities_unlocked', []),
+                relationships={protag_name: ally_config.get('relationships', '盟友')}
             )
         self.state.allies = allies
         
-        # 剧情线索（根据题材自动识别）
+        # 剧情线索（根据配置和条件）
         plot_threads = {}
-        
-        # 神启会（如果 detected）
-        if '神启会' in str(novel_data) or '神启' in str(novel_data):
-            plot_threads['神启会'] = PlotThread(
-                name='神启会',
-                status='active',
-                introduced_chapter=2,
-                priority=8,
-                description='神秘组织，对主角感兴趣',
-                next_trigger='第25-30章之间正式接触'
+        plots_config = genre_config.get('plot_threads', [])
+        for plot_config in plots_config:
+            condition = plot_config.get('condition', '')
+            # 检查条件
+            if condition:
+                condition_met = False
+                if 'novel_data中包含' in condition:
+                    import re
+                    match = re.search(r"'([^']+)'", condition)
+                    if match:
+                        keyword = match.group(1)
+                        condition_met = keyword in str(novel_data)
+                
+                if not condition_met:
+                    continue
+            
+            # 创建剧情线索
+            plot_name = plot_config.get('name', '未命名')
+            plot_threads[plot_name] = PlotThread(
+                name=plot_name,
+                status=plot_config.get('status', 'active'),
+                introduced_chapter=plot_config.get('introduced_chapter', 1),
+                priority=plot_config.get('priority', 5),
+                description=plot_config.get('description', ''),
+                next_trigger=plot_config.get('next_trigger', '')
             )
-        
-        # 高维观察者（后期线索）
-        plot_threads['高维观察者'] = PlotThread(
-            name='高维观察者',
-            status='paused',  # 先暂停，等到后期再激活
-            introduced_chapter=21,
-            priority=9,
-            description='禁地背后的存在',
-            next_trigger='第21章首次现身，第40章揭示更多'
-        )
-        
-        # 反龙联盟
-        plot_threads['反龙联盟'] = PlotThread(
-            name='反龙联盟',
-            status='active',
-            introduced_chapter=4,
-            priority=7,
-            description='漂亮国牵头的反龙国联盟',
-            next_trigger='持续存在，第18章大规模冲突'
-        )
-        
         self.state.plot_threads = plot_threads
         
-        # 系统规则
-        self.state.system_rules = SystemRule(
-            current_playing_degree=0.0,
-            max_playing_degree=0.0,
-            unlocked_skills=["静电操控"]
-        )
+        # 🔥 系统规则（优先从金手指设计文件加载，其次题材配置）
+        gf_config = self._load_golden_finger_config()
+        system_config = genre_config.get('system_rules', {})
+        
+        if gf_config:
+            # 从金手指设计文件构建系统规则
+            abilities = gf_config.get('abilities', [])
+            initial_abilities = []
+            for ab in abilities:
+                if ab.get('stage') == '初始':
+                    initial_abilities.append(ab.get('ability', ''))
+            
+            self.state.system_rules = SystemRule(
+                system_name=gf_config.get('name', '系统'),
+                system_type=gf_config.get('type', '金手指'),
+                current_level=gf_config.get('abilities', [{}])[0].get('stage', '初始') if gf_config.get('abilities') else '初始',
+                current_power=1.0,
+                unlocked_abilities=initial_abilities[:2]  # 只取前2个初始能力
+            )
+            logger.info(f"[WorldState] 从金手指设计文件初始化系统规则: {gf_config.get('name')}")
+        elif system_config:
+            # 从题材配置构建系统规则
+            self.state.system_rules = SystemRule(
+                system_name=system_config.get('system_name', '系统'),
+                system_type=system_config.get('system_type', '金手指'),
+                current_level=system_config.get('current_level', '初始'),
+                current_power=float(system_config.get('current_power', 0.0)),
+                current_playing_degree=float(system_config.get('current_playing_degree', 0.0)),
+                max_playing_degree=float(system_config.get('max_playing_degree', 0.0)),
+                unlocked_abilities=system_config.get('unlocked_abilities', []),
+                unlocked_skills=system_config.get('unlocked_skills', [])
+            )
+        else:
+            self.state.system_rules = SystemRule()
         
         self.save_state()
-        logger.info(f"[WorldState] 从 novel_data 初始化完成 | 主角: {protag_name}")
+        logger.info(f"[WorldState] 从配置初始化完成 | 题材: {genre} | 主角: {protag_name}")
+    
+    def _detect_genre(self, novel_data: dict) -> str:
+        """检测小说题材类型"""
+        # 1. 从 suggestions.genre 获取
+        suggestions = novel_data.get('suggestions', {})
+        if isinstance(suggestions, dict) and suggestions.get('genre'):
+            return suggestions.get('genre')
+        
+        # 2. 从 tags 分析
+        tags = novel_data.get('tags', [])
+        if isinstance(tags, list):
+            tags_str = ' '.join(str(t) for t in tags)
+        else:
+            tags_str = str(tags)
+        
+        # 3. 从标题分析
+        title = novel_data.get('title', '')
+        
+        combined_text = tags_str + ' ' + title
+        
+        # 关键词匹配
+        if any(kw in combined_text for kw in ['国运', '扮演', '禁地', '求生', '龙国', '灯塔国']):
+            return '国运文'
+        elif any(kw in combined_text for kw in ['神豪', '返利', '暴击', '消费', '壕']):
+            return '神豪文'
+        elif any(kw in combined_text for kw in ['赘婿', '龙王', '修罗', '战神', '丈母娘']):
+            return '赘婿文'
+        
+        # 从大纲内容判断
+        outline = novel_data.get('outline', '')
+        if '国运' in outline or '扮演' in outline or '禁地' in outline:
+            return '国运文'
+        elif '神豪' in outline or '返利' in outline:
+            return '神豪文'
+        
+        return '未知'  # 默认未知题材
     
     def update_after_chapter(self, chapter_num: int, chapter_content: str, chapter_title: str = ""):
         """

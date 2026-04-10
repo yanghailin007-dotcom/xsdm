@@ -1,0 +1,300 @@
+# 兽世文题材技法
+# 版本: 1.0.0
+# 用途: 指导AI生成穿越兽世被首领独宠的种田生崽文内容
+
+genre: "兽世文"
+version: "1.0.0"
+description: "穿越兽人世界，被兽人首领独宠，原始部落、兽人设定、种田生崽"
+
+# ==================== 1. 核心套路 ====================
+core_mechanics:
+  description: "兽世文的核心是兽人设定、首领独宠、种田生崽，带有原始部落色彩"
+  
+  story_archetypes:
+    - type: "首领独宠"
+      description: "穿越后被部落首领一见钟情，独宠一人"
+      elements: ["强大首领", "独宠", "部落地位高"]
+    
+    - type: "种田基建"
+      description: "利用现代知识改善部落生活"
+      elements: ["种植", "养殖", "制盐", "建造"]
+    
+    - type: "多夫宠文"
+      description: "一女多男，多位兽人宠爱"
+      elements: ["兽夫们", "争宠", "各类型兽人"]
+    
+    - type: "稀有雌性"
+      description: "雌性稀少，女主被争抢"
+      elements: ["珍贵", "选择权", "被追求"]
+  
+  story_structure:
+    - phase: "穿越初遇"
+      content: "穿越到兽世，遇到男主首领"
+    - phase: "适应生活"
+      content: "适应兽世生活，展示现代知识"
+    - phase: "部落发展"
+      content: "带领部落改善生活，地位提高"
+    - phase: "幸福生活"
+      content: "生子、建立大家庭，幸福结局"
+
+# ==================== 2. 世界设定规范 ====================
+world_setting:
+  description: "兽世文的世界观设定"
+  
+  world_rules:
+    - "兽人可以变身为人形和兽形"
+    - "雌性稀少珍贵，雄性多"
+    - "部落制社会，首领最大"
+    - "有兽魂/等级的设定"
+    - "冬天难熬，需要储备食物"
+  
+  tribes:
+    - type: "狮族"
+      traits: ["勇猛", "力量强", "草原霸主"]
+    - type: "虎族"
+      traits: ["战斗力强", "独来独往", "森林之王"]
+    - type: "狼族"
+      traits: ["群居", "忠诚", "速度快"]
+    - type: "蛇族"
+      traits: ["冷血", "狡猾", "毒性强"]
+    - type: "鹰族"
+      traits: ["飞行", "视野好", "高傲"]
+    - type: "狐族"
+      traits: ["聪明", "狡猾", "魅力高"]
+    - type: "熊族"
+      traits: ["力量大", "憨厚", "防御高"]
+  
+  social_structure:
+    - "首领：部落最高领导者"
+    - "巫医：治病祈福"
+    - "勇士：保护部落"
+    - "雌性：生育和照顾家庭"
+    - "幼崽：未来的希望"
+
+# ==================== 3. 人物设定规范 ====================
+character_rules:
+  description: "兽世文人物设定要突出兽人特征和原始魅力"
+  
+  male_lead:
+    role: "部落首领"
+    types:
+      - "狮族首领：霸气威严"
+      - "虎族首领：强大孤傲"
+      - "狼族首领：忠诚群居"
+      - "鹰族首领：高傲锐利"
+    required_traits:
+      - "战斗力顶级"
+      - "外表俊美（人形）"
+      - "兽形威武"
+      - "对女主独占欲强"
+      - "保护欲爆棚"
+      - "首领的责任感"
+    forbidden_traits:
+      - "花心多情"
+      - "软弱无能"
+      - "对女主不好"
+      - "被其他雌性诱惑"
+  
+  female_lead:
+    role: "穿越雌性"
+    required_traits:
+      - "外表可爱/漂亮"
+      - "有现代知识"
+      - "适应能力强"
+      - "善良但不圣母"
+      - "能生（多胎）"
+    abilities:
+      - "识别植物/药物"
+      - "懂得种植/养殖"
+      - "会做美食"
+      - "会做衣服/物品"
+  
+  supporting_roles:
+    - type: "情敌雌性"
+      description: "喜欢首领，嫉妒女主"
+    - type: "追求兽人"
+      description: "追求女主的其他兽人"
+    - type: "部落族人"
+      description: "支持女主的族人"
+    - type: "幼崽"
+      description: "女主和首领的孩子"
+
+# ==================== 4. 爽点设计 ====================
+satisfaction_points:
+  description: "兽世文的爽点在于首领独宠和种田成就"
+  
+  categories:
+    - type: "首领独宠"
+      examples:
+        - "首领对其他雌性冷淡"
+        - "首领为女主打架"
+        - "首领把所有好东西给女主"
+        - "首领拒绝所有追求者"
+      
+    - type: "种田成就"
+      examples:
+        - "发现新食物来源"
+        - "成功种植农作物"
+        - "制作新工具"
+        - "改善部落生活"
+      
+    - type: "打脸情敌"
+      examples:
+        - "情敌陷害被揭穿"
+        - "女主展示能力打脸"
+        - "首领当众护妻"
+        - "情敌自食恶果"
+      
+    - type: "生崽幸福"
+      examples:
+        - "怀孕生子"
+        - "幼崽可爱"
+        - "全家幸福"
+        - "多胎喜悦"
+
+# ==================== 5. 种田元素 ====================
+farming_elements:
+  description: "兽世文的种田基建元素"
+  
+  categories:
+    - type: "食物"
+      examples:
+        - "发现可食用植物"
+        - "种植蔬菜/谷物"
+        - "养殖动物"
+        - "制作美食"
+        - "制盐/保存食物"
+    
+    - type: "工具"
+      examples:
+        - "制作陶器"
+        - "编织篮子"
+        - "制作衣服"
+        - "建造房屋"
+        - "制作武器"
+    
+    - type: "医疗"
+      examples:
+        - "识别草药"
+        - "治病救人"
+        - "接生"
+        - "预防疾病"
+    
+    - type: "生活改善"
+      examples:
+        - "改善居住环境"
+        - "制作家具"
+        - "发展贸易"
+        - "储存食物过冬"
+
+# ==================== 6. 兽人互动规范 ====================
+beastman_interaction:
+  description: "兽人世界的互动特色"
+  
+  courtship_customs:
+    - "雄性展示实力追求雌性"
+    - "送猎物表示心意"
+    - "决斗赢得交配权"
+    - "首领有优先选择权"
+  
+  intimacy_elements:
+    - "兽形陪伴"
+    - "人形拥抱"
+    - "标记（气味标记）"
+    - "取暖（冬天）"
+    - "兽耳/尾巴的敏感"
+  
+  family_life:
+    - "共同抚养幼崽"
+    - "雄性外出狩猎"
+    - "雌性照顾家庭"
+    - "幼崽教育"
+    - "大家庭生活"
+
+# ==================== 7. 禁用元素 ====================
+forbidden_elements:
+  description: "兽世文中需谨慎或禁用的元素"
+  items:
+    - element: "过度血腥暴力"
+      reason: "原始社会有暴力，但要适度"
+    
+    - element: "强迫交配"
+      reason: "必须是双方自愿的感情"
+    
+    - element: "女主被虐待"
+      reason: "女主是被宠的，不能受虐待"
+    
+    - element: "过于落后的卫生观念"
+      reason: "女主会改善卫生条件"
+    
+    - element: "幼崽死亡/虐待"
+      reason: "幼崽是幸福元素，要保护"
+    
+    - element: "纯野蛮无温情"
+      reason: "要有温情和爱的元素"
+
+# ==================== 8. 世界状态初始化 ====================
+world_state_initialization:
+  description: "兽世文的世界状态初始值"
+  
+  protagonist:
+    health: "健康"
+    abilities_unlocked: ["现代知识", "识别植物"]
+    status: "刚穿越，被首领救回"
+  
+  allies:
+    - type: "首领"
+      relationship: "救命恩人，追求者"
+    - type: "部落巫医"
+      relationship: "教导者/盟友"
+    - type: "友好雌性"
+      relationship: "朋友"
+  
+  plot_threads:
+    - name: "感情发展"
+      status: "active"
+      introduced_chapter: 1
+      priority: 10
+      description: "与首领的感情发展"
+      next_trigger: "日常相处"
+    
+    - name: "部落发展"
+      status: "active"
+      introduced_chapter: 5
+      priority: 8
+      description: "利用现代知识发展部落"
+      next_trigger: "展示新技能"
+    
+    - name: "生子线"
+      status: "pending"
+      introduced_chapter: 30
+      priority: 7
+      description: "怀孕生子"
+      next_trigger: "感情稳定后"
+  
+  system_rules:
+    system_name: "兽世生存系统（如有）"
+    system_type: "技能解锁/好感度"
+    current_level: "初入部落"
+
+# ==================== 9. 质量检查点 ====================
+quality_checkpoints:
+  - point: "兽人设定"
+    condition: "兽人变身、部落社会设定清晰"
+    severity: "critical"
+  
+  - point: "首领形象"
+    condition: "首领强大且独宠女主"
+    severity: "critical"
+  
+  - point: "种田元素"
+    condition: "有改善生活的具体描写"
+    severity: "warning"
+  
+  - point: "原始与现代"
+    condition: "现代知识与原始社会结合自然"
+    severity: "warning"
+  
+  - point: "温情氛围"
+    condition: "有家庭的温馨感"
+    severity: "warning"

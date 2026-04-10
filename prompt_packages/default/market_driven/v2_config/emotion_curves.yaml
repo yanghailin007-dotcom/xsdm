@@ -1,0 +1,230 @@
+# 网文情绪曲线模板
+# 替代传统的"起-承-转-合"
+
+emotion_system:
+  version: "2.0"
+  description: "番茄快节奏爽文情绪曲线系统"
+  
+  # 情绪标签定义
+  emotion_labels:
+    爽:
+      description: "主角成功打脸、获得奖励、实力提升"
+      intensity_range: [8, 10]
+      usage: "打脸章、收获章"
+    
+    燃:
+      description: "热血战斗、为国争光、逆风翻盘"
+      intensity_range: [9, 10]
+      usage: "战斗章、国战章"
+    
+    甜:
+      description: "感情升温、暧昧互动、撒糖"
+      intensity_range: [6, 8]
+      usage: "感情线章节"
+    
+    悬:
+      description: "悬念、危机、未知"
+      intensity_range: [7, 9]
+      usage: "揭秘章、危机章"
+    
+    虐:
+      description: "主角受委屈、被误解、暂时受挫"
+      intensity_range: [4, 6]
+      usage: "压抑章（必须快速反转）"
+    
+    急:
+      description: "时间紧迫、倒计时、争分夺秒"
+      intensity_range: [7, 9]
+      usage: "限时任务章"
+    
+    惊:
+      description: "震惊、意外、意想不到"
+      intensity_range: [8, 10]
+      usage: "反转章、揭秘章"
+    
+    怕:
+      description: "恐怖、危险、生死危机"
+      intensity_range: [6, 8]
+      usage: "恐怖副本、生存危机"
+  
+  # 章节类型情绪曲线模板
+  chapter_templates:
+    打脸章:
+      description: "最常用章节类型，反派嚣张→被打脸"
+      curve: "虐(4)→急(7)→爽(9)→悬(7)"
+      breakdown:
+        - position: "0-300字"
+          emotion: "虐"
+          intensity: 4
+          content: "反派嚣张，主角被看不起"
+          goal: "让读者感到憋屈，期待反转"
+        
+        - position: "300-1500字"
+          emotion: "急"
+          intensity: 7
+          content: "冲突爆发，主角展现实力"
+          goal: "紧张刺激，打脸过程"
+        
+        - position: "1500-2000字"
+          emotion: "爽"
+          intensity: 9
+          content: "反派被打脸，众人震惊"
+          goal: "爽感最大化"
+        
+        - position: "2000-2200字"
+          emotion: "悬"
+          intensity: 7
+          content: "新钩子出现"
+          goal: "让读者想看下章"
+    
+    收获章:
+      description: "主角获得奖励、能力提升"
+      curve: "悬(7)→惊(8)→爽(10)→悬(7)"
+      breakdown:
+        - position: "0-300字"
+          emotion: "悬"
+          intensity: 7
+          content: "面临挑战/考验"
+        
+        - position: "300-1500字"
+          emotion: "惊"
+          intensity: 8
+          content: "通过考验，获得奖励"
+        
+        - position: "1500-2000字"
+          emotion: "爽"
+          intensity: 10
+          content: "展示收获，震惊众人"
+        
+        - position: "2000-2200字"
+          emotion: "悬"
+          intensity: 7
+          content: "新目标/新挑战"
+    
+    危机章:
+      description: "生死存亡，绝境求生"
+      curve: "怕(8)→虐(5)→燃(10)→爽(8)"
+      breakdown:
+        - position: "0-300字"
+          emotion: "怕"
+          intensity: 8
+          content: "危机降临，生死存亡"
+        
+        - position: "300-1500字"
+          emotion: "虐"
+          intensity: 5
+          content: "绝境挣扎，寻找生机"
+        
+        - position: "1500-2000字"
+          emotion: "燃"
+          intensity: 10
+          content: "逆转取胜，绝境重生"
+        
+        - position: "2000-2200字"
+          emotion: "爽"
+          intensity: 8
+          content: "胜利但留下隐患"
+    
+    揭秘章:
+      description: "真相揭露，层层反转"
+      curve: "悬(8)→惊(7)→惊(9)→惊(10)→悬(9)"
+      breakdown:
+        - position: "0-300字"
+          emotion: "悬"
+          intensity: 8
+          content: "悬念加深，谜团重重"
+        
+        - position: "300-1500字"
+          emotion: "惊"
+          intensity: 7
+          content: "逐步揭秘，层层反转"
+        
+        - position: "1500-2000字"
+          emotion: "惊"
+          intensity: 10
+          content: "核心真相揭露"
+        
+        - position: "2000-2200字"
+          emotion: "悬"
+          intensity: 9
+          content: "更大谜团出现"
+    
+    过渡章:
+      description: "承上启下，信息补充"
+      curve: "悬(6)→平(5)→悬(7)"
+      note: "尽量缩短，不要过多过渡章"
+      breakdown:
+        - position: "0-1000字"
+          emotion: "悬"
+          intensity: 6
+          content: "承接上文，新线索"
+        
+        - position: "1000-1800字"
+          emotion: "平"
+          intensity: 5
+          content: "信息补充，世界观展开"
+        
+        - position: "1800-2000字"
+          emotion: "悬"
+          intensity: 7
+          content: "强钩子，引出下章"
+  
+  # 阶段级情绪规划
+  stage_curves:
+    第一阶段_崭露头角:
+      chapter_range: "1-30章"
+      phases:
+        - range: "1-5章"
+          emotion: "悬+期待"
+          intensity: "5→7"
+          description: "主角入局，金手指激活，建立期待感"
+        
+        - range: "6-15章"
+          emotion: "爽"
+          intensity: "7→9"
+          description: "首次展现实力，连续打脸，建立爽感认知"
+        
+        - range: "16-25章"
+          emotion: "虐→燃"
+          intensity: "4→10"
+          description: "遭遇强敌，短暂压抑后强势反击"
+        
+        - range: "26-30章"
+          emotion: "燃+爽"
+          intensity: "10"
+          description: "阶段大高潮，为国争光/名震一方"
+  
+  # 题材特定情绪特点
+  genre_specific:
+    神豪文:
+      main_emotion: "爽"
+      secondary_emotion: "惊"
+      typical_curve: "平(被看不起)→爽(消费)→更爽(返利)→爽爆(震惊全场)"
+      intensity_distribution: "60%时间强度≥8"
+      suppression_limit: "压抑不超过500字，必须快速反转"
+    
+    国运文:
+      main_emotion: "燃+爽"
+      secondary_emotion: "悬"
+      typical_curve: "悬(危机)→虐(困境)→燃(反击)→爽(胜利+国运提升)"
+      climax_requirement: "大高潮必须达到强度10（为国争光）"
+      special_requirement: "每次胜利必须有国家层面反馈（国运值、排名）"
+    
+    修仙文:
+      main_emotion: "爽"
+      secondary_emotion: "惊"
+      typical_curve: "悬(突破瓶颈)→惊(天象异变)→爽(成功突破)→惊(震惊全宗)"
+      special_requirement: "每次突破必须有异象描写"
+  
+  # 强度等级说明
+  intensity_levels:
+    10: { label: "爆点", description: "全书大高潮，读者尖叫" }
+    9:  { label: "高潮", description: "阶段性大爽点" }
+    8:  { label: "爽点", description: "常规打脸/收获" }
+    7:  { label: "紧张", description: "危机/悬念" }
+    6:  { label: "期待", description: "铺垫，即将爆发" }
+    5:  { label: "过渡", description: "信息补充，低强度" }
+    4:  { label: "压抑", description: "短暂压抑，即将反转" }
+    3:  { label: "平淡", description: "尽量避免" }
+    2:  { label: "无聊", description: "必须删除" }
+    1:  { label: "毒点", description: "绝对禁止" }

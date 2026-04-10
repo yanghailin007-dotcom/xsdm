@@ -1,0 +1,95 @@
+# 灵气复苏文题材技法
+# 版本: 1.0.0
+# 用途: 指导AI生成灵气复苏觉醒文
+
+genre: "灵气复苏文"
+version: "1.0.0"
+description: "灵气复苏时代，主角觉醒特殊能力，崛起的专项技法"
+
+# ==================== 1. 核心套路 ====================
+core_mechanics:
+  description: "灵气复苏文的核心是'时代变革+个人崛起'"
+  key_points:
+    - "灵气复苏，世界剧变"
+    - "主角觉醒特殊能力/天赋"
+    - "修炼升级，对抗妖兽/敌人"
+    - "探索秘境，争夺资源"
+
+# ==================== 2. 能力体系 ====================
+power_system:
+  description: "灵气复苏的能力体系"
+  elements:
+    - name: "异能类型"
+      examples: ["元素系", "精神系", "肉体强化", "特殊系"]
+    - name: "等级划分"
+      examples: ["F-E-D-C-B-A-S-SS-SSS", "一至九品", "初级中级高级"]
+    - name: "修炼资源"
+      examples: ["灵石", "妖核", "灵草", "秘境传承"]
+
+# ==================== 3. 禁用元素 ====================
+forbidden_elements:
+  description: "灵气复苏文禁止的元素"
+  items:
+    - element: "升级过快"
+      examples: ["一章升十级", "没有积累"]
+      reason: "升级要有过程，不能太快"
+    - element: "能力无敌"
+      examples: ["什么都会", "没有弱点"]
+      reason: "能力要有特色，不能全能"
+    - element: "资源获取太容易"
+      examples: ["随便捡灵石", "遍地是宝"]
+      reason: "资源要稀缺，有争夺"
+
+# ==================== 4. 必须元素 ====================
+required_elements:
+  description: "灵气复苏文必须包含的元素"
+  items:
+    - element: "能力觉醒"
+      check: "主角觉醒特殊能力的描写"
+      severity: "critical"
+    - element: "等级体系"
+      check: "明确的等级划分"
+      severity: "critical"
+    - element: "妖兽/敌人"
+      check: "有威胁的敌人存在"
+      severity: "warning"
+
+# ==================== 5. 世界状态初始化 ====================
+world_state_initialization:
+  description: "灵气复苏文的世界状态初始值"
+  
+  protagonist:
+    health: "健康"
+    abilities_unlocked: ["异能觉醒", "基础修炼"]
+  
+  plot_threads:
+    - name: "能力成长"
+      status: "active"
+      introduced_chapter: 1
+      priority: 10
+      description: "主角能力成长主线"
+      next_trigger: "持续推进"
+    - name: "秘境探索"
+      status: "paused"
+      introduced_chapter: 10
+      priority: 8
+      description: "探索秘境获取资源"
+      next_trigger: "能力达标后"
+  
+  system_rules:
+    system_name: "灵气修炼系统"
+    system_type: "修炼/异能"
+    current_level: "觉醒初期"
+    unlocked_abilities: ["基础异能"]
+
+# ==================== 6. 质量检查点 ====================
+quality_checkpoints:
+  - point: "能力特色"
+    condition: "主角能力有特色，不雷同"
+    severity: "critical"
+  - point: "等级清晰"
+    condition: "等级体系清晰"
+    severity: "critical"
+  - point: "世界变革"
+    condition: "体现灵气复苏对世界的影响"
+    severity: "warning"

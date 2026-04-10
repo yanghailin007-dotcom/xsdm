@@ -1,0 +1,69 @@
+# 美食文题材技法
+genre: "美食文"
+version: "1.0.0"
+description: "系统烹饪+美食经营+厨艺竞技类小说的专项技法"
+
+# ==================== 1. 核心套路 ====================
+core_mechanics:
+  description: "主角获得美食系统或厨艺传承，通过制作美食、经营餐厅、参加厨艺比赛等方式成长"
+
+# ==================== 2. 禁用元素 ====================
+forbidden_elements:
+  description: "以下元素绝对不能出现"
+  items:
+    - element: "武力冲突主导"
+      examples: ["打斗", "杀戮", "战争"]
+      reason: "美食文应以美食为核心"
+    - element: "修仙元素"
+      examples: ["筑基", "金丹", "渡劫", "灵根"]
+      reason: "这是修仙文的元素"
+    - element: "过于黑暗的情节"
+      examples: ["杀人越货", "阴谋诡计", "血腥暴力"]
+      reason: "破坏美食文的治愈氛围"
+
+# ==================== 3. 必须元素 ====================
+required_elements:
+  description: "每章必须包含的元素"
+  items:
+    - element: "美食制作"
+      check: "是否有详细的烹饪过程描写"
+      severity: "critical"
+    - element: "感官描写"
+      check: "是否有色香味的详细描写"
+      severity: "critical"
+    - element: "食客反应"
+      check: "是否有品尝后的反应和评价"
+      severity: "warning"
+
+# ==================== 4. 世界状态初始化 ====================
+world_state_initialization:
+  protagonist:
+    health: "健康"
+    abilities_unlocked: ["基础刀工", "基础火候掌控"]
+  plot_threads:
+    - name: "厨艺提升"
+      status: "active"
+      priority: 10
+    - name: "餐厅经营"
+      status: "active"
+      priority: 9
+    - name: "美食探索"
+      status: "active"
+      priority: 8
+  system_rules:
+    system_name: "美食系统"
+    system_type: "技能类"
+    cooking_level: 1
+    recipes_unlocked: ["蛋炒饭", "清汤面"]
+
+# ==================== 5. 质量检查点 ====================
+quality_checkpoints:
+  - point: "美食描写"
+    condition: "有让人垂涎的美食描写"
+    severity: "critical"
+  - point: "烹饪细节"
+    condition: "烹饪过程专业可信"
+    severity: "critical"
+  - point: "治愈氛围"
+    condition: "整体氛围温暖治愈"
+    severity: "warning"

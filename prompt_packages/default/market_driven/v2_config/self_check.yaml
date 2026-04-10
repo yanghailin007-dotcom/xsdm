@@ -1,0 +1,73 @@
+# 自检清单配置
+# Layer 6: 自检清单
+
+version: "1.0"
+
+pre_writing:
+  items:
+    - item: "确认本章题材正确，无禁用元素混入"
+      critical: true
+    - item: "确认主角姓名、金手指设定一致"
+      critical: true
+    - item: "确认情绪曲线规划已理解"
+      critical: false
+
+during_writing:
+  checkpoints:
+    - check_point: "0-10%"
+      item: "前300字是否有冲突/悬念"
+    - check_point: "50%"
+      item: "是否按情绪曲线推进"
+    - check_point: "90-100%"
+      item: "章尾50字是否是钩子"
+
+post_writing:
+  format_check:
+    - item: "字数是否在2000-2500范围内"
+      severity: "critical"
+    - item: "对话占比是否≥50%"
+      severity: "warning"
+    - item: "是否正确使用 ---标题--- / ---正文--- 分隔符"
+      severity: "critical"
+    - item: "章尾是否有完结感词汇（完/结束/休息）"
+      severity: "critical"
+  content_check:
+    - item: "情节是否按blueprint执行"
+      severity: "critical"
+    - item: "爽点是否到位"
+      severity: "warning"
+    - item: "钩子是否有效"
+      severity: "warning"
+    - item: "人设是否一致"
+      severity: "critical"
+  genre_check:
+    - item: "神豪文：精确金额≥3处，精确到分"
+      severity: "critical"
+    - item: "神豪文：系统提示音格式正确【叮！...】"
+      severity: "critical"
+    - item: "神豪文：路人价格计算反应"
+      severity: "warning"
+    - item: "国运文：弹幕数量≥8条"
+      severity: "critical"
+    - item: "国运文：国运值/排名变化展示"
+      severity: "critical"
+
+quality_score:
+  dimensions:
+    - name: "节奏"
+      weight: 0.25
+    - name: "爽点"
+      weight: 0.25
+    - name: "人设"
+      weight: 0.2
+    - name: "钩子"
+      weight: 0.15
+    - name: "文笔"
+      weight: 0.15
+  min_pass_score: 70
+  target_score: 85
+
+execution_rules:
+  auto_fix: true
+  stop_on_critical: false
+  log_level: "info"

@@ -1,0 +1,70 @@
+# 宠物文题材技法
+genre: "宠物文"
+version: "1.0.0"
+description: "御兽进化+宠兽培养+人宠羁绊类小说的专项技法"
+
+# ==================== 1. 核心套路 ====================
+core_mechanics:
+  description: "主角与宠兽建立羁绊，通过培养、进化、战斗等方式共同成长，强调人宠情感"
+
+# ==================== 2. 禁用元素 ====================
+forbidden_elements:
+  description: "以下元素绝对不能出现"
+  items:
+    - element: "虐待宠兽"
+      examples: ["虐宠", "抛弃", "虐待"]
+      reason: "宠物文的核心是人宠和谐"
+    - element: "宠兽工具化"
+      examples: ["仅作为战斗工具", "无情利用", "用完即弃"]
+      reason: "破坏人宠羁绊的核心价值"
+    - element: "成人内容"
+      examples: ["人宠暧昧", "不当关系"]
+      reason: "违背伦理道德"
+
+# ==================== 3. 必须元素 ====================
+required_elements:
+  description: "每章必须包含的元素"
+  items:
+    - element: "宠兽互动"
+      check: "是否有主角与宠兽的互动描写"
+      severity: "critical"
+    - element: "宠兽成长"
+      check: "是否有宠兽的成长或进化"
+      severity: "critical"
+    - element: "情感羁绊"
+      check: "是否体现人宠之间的情感联系"
+      severity: "warning"
+
+# ==================== 4. 世界状态初始化 ====================
+world_state_initialization:
+  protagonist:
+    health: "健康"
+    abilities_unlocked: ["宠兽沟通"]
+  plot_threads:
+    - name: "宠兽培养"
+      status: "active"
+      priority: 10
+    - name: "羁绊深化"
+      status: "active"
+      priority: 9
+    - name: "进化之路"
+      status: "active"
+      priority: 8
+  system_rules:
+    system_name: "御兽系统"
+    system_type: "养成类"
+    pet_count: 1
+    pet_level: 1
+    bond_level: 1
+
+# ==================== 5. 质量检查点 ====================
+quality_checkpoints:
+  - point: "宠兽个性"
+    condition: "宠兽有鲜明个性和特点"
+    severity: "critical"
+  - point: "人宠羁绊"
+    condition: "体现真实的情感联系"
+    severity: "critical"
+  - point: "成长曲线"
+    condition: "宠兽成长有合理的过程"
+    severity: "warning"

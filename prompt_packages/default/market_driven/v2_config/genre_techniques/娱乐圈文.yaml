@@ -1,0 +1,262 @@
+# 娱乐圈文题材技法
+# 版本: 1.0.0
+# 用途: 指导AI生成顶流恋人甜宠类娱乐圈小说内容
+
+genre: "娱乐圈文"
+version: "1.0.0"
+description: "顶流恋人甜宠，讲述女主与顶流明星谈恋爱，事业爱情双丰收的故事"
+
+# ==================== 1. 核心套路 ====================
+core_mechanics:
+  description: "娱乐圈文的核心是明星光环、恋爱撒糖和事业成长，爽点密集"
+  
+  story_archetypes:
+    - type: "素人逆袭"
+      description: "女主从素人/小龙套成长为影后"
+      elements: ["演技进步", "资源升级", "逆袭打脸"]
+    
+    - type: "顶流恋爱"
+      description: "与顶级流量明星谈恋爱，瞒着粉丝撒糖"
+      elements: ["地下恋情", "偷偷约会", "被发现的危机"]
+    
+    - type: "影帝影后"
+      description: "双强设定，两位顶级明星恋爱"
+      elements: ["势均力敌", "公开恋情", "强强联合"]
+    
+    - type: "爱豆与粉丝"
+      description: "女主是男主粉丝，后来成为恋人"
+      elements: ["粉丝逆袭", "追星成功", "双向奔赴"]
+    
+    - type: "综艺CP"
+      description: "因综艺结缘，假戏真做"
+      elements: ["综艺互动", "CP粉", "因戏生情"]
+  
+  story_structure:
+    - phase: "初识"
+      content: "相识于剧组/综艺/活动，产生交集"
+    - phase: "暧昧"
+      content: "工作接触增多，暗生情愫"
+    - phase: "确定关系"
+      content: "表白确定关系，开始地下恋"
+    - phase: "公开/修成正果"
+      content: "恋情曝光或主动公开，获得祝福"
+
+# ==================== 2. 人物设定规范 ====================
+character_rules:
+  description: "娱乐圈文人物设定要符合明星身份"
+  
+  male_lead:
+    role: "顶流明星"
+    types:
+      - "影帝型：演技派，圈内地位高"
+      - "流量型：顶级流量，粉丝众多"
+      - "歌手型：实力唱将，舞台王者"
+      - "全能型：影视歌多栖发展"
+    required_traits:
+      - "颜值顶级（必须详细描写）"
+      - "专业能力出众"
+      - "对外高冷/礼貌疏离"
+      - "对女主温柔专一"
+      - "有反差萌"
+    forbidden_traits:
+      - "公开恋爱/绯闻"
+      - "耍大牌（太过分）"
+      - "潜规则上位"
+      - "对粉丝态度恶劣"
+  
+  female_lead:
+    role: "女艺人/素人"
+    types:
+      - "新人演员：从龙套做起"
+      - "过气明星：重新翻红"
+      - "素人逆袭：从普通人到明星"
+      - "实力派：靠演技说话"
+    required_traits:
+      - "颜值在线"
+      - "有演艺天赋或努力"
+      - "性格讨喜"
+      - "不卑不亢"
+    forbidden_traits:
+      - "花瓶（无能力纯靠男主）"
+      - "作精"
+      - "过度自卑"
+      - "蹭热度上位"
+  
+  supporting_roles:
+    - type: "经纪人"
+      description: "男主/女主经纪人，操心恋情"
+    - type: "队友/圈内好友"
+      description: "知道内情，打掩护"
+    - type: "对家"
+      description: "竞争关系，制造麻烦"
+    - type: "粉丝"
+      description: "女友粉、CP粉等不同类型"
+
+# ==================== 3. 爽点设计 ====================
+satisfaction_points:
+  description: "娱乐圈文的爽点在于明星光环、恋爱撒糖和事业成功"
+  
+  categories:
+    - type: "恋爱撒糖"
+      examples:
+        - "偷偷约会，避狗仔"
+        - "微博互动暗戳戳秀恩爱"
+        - "综艺上不经意流露关心"
+        - "探班送惊喜"
+      
+    - type: "事业升级"
+      examples:
+        - "从龙套到女一号"
+        - "演技被认可，拿奖"
+        - "商业价值飙升"
+        - "大牌代言"
+      
+    - type: "打脸对家"
+      examples:
+        - "演技碾压对手"
+        - "黑料澄清"
+        - "热度超过对家"
+        - "获奖打脸质疑"
+      
+    - type: "粉丝互动"
+      examples:
+        - "粉丝支持恋情"
+        - "CP粉狂欢"
+        - "双向奔赴的应援"
+        - "公开后的祝福"
+
+# ==================== 4. 娱乐圈元素 ====================
+industry_elements:
+  description: "必须准确呈现的娱乐圈细节"
+  
+  work_types:
+    - type: "电视剧"
+      elements: ["剧组生活", "对手戏", "杀青", "播出热度"]
+    - type: "电影"
+      elements: ["大银幕", "电影节", "票房", "拿奖"]
+    - type: "综艺"
+      elements: ["真人秀", "游戏互动", "剪辑效果", "热度"]
+    - type: "音乐"
+      elements: ["专辑", "演唱会", "打榜", "音源"]
+  
+  industry_details:
+    - "红毯、颁奖典礼"
+    - "狗仔、私生饭"
+    - "微博热搜、粉丝控评"
+    - "商务代言、时尚资源"
+    - "剧组盒饭、等戏"
+    - "通告、赶行程"
+    - "粉丝接机、应援"
+
+# ==================== 5. 撒糖场景模板 ====================
+sweet_scenes:
+  description: "娱乐圈文经典撒糖场景"
+  
+  templates:
+    - type: "秘密约会"
+      example: "全副武装偷偷约会，差点被发现"
+      elements: ["口罩帽子", "地下停车场", "紧张刺激", "独处时光"]
+    
+    - type: "探班"
+      example: "男主偷偷探班女主剧组"
+      elements: ["惊喜", "剧组起哄", "公开秀恩爱"]
+    
+    - type: "微博互动"
+      example: "暗戳戳发微博秀恩爱，CP粉发现糖"
+      elements: ["文案呼应", "时间巧合", "粉丝嗑糖"]
+    
+    - type: "综艺互动"
+      example: "同台上综艺，暗送秋波"
+      elements: ["眼神交流", "照顾动作", "观众尖叫"]
+    
+    - type: "发布会"
+      example: "同框出席，保护女主"
+      elements: ["挡在前面", "护短", "媒体拍照"]
+
+# ==================== 6. 禁用元素 ====================
+forbidden_elements:
+  description: "娱乐圈文中需谨慎或禁用的元素"
+  items:
+    - element: "过度美化潜规则"
+      reason: "需要保持正面价值观"
+    
+    - element: "粉丝极端行为美化"
+      reason: "私生饭等行为不能美化"
+    
+    - element: "过度抹黑行业"
+      reason: "不能全盘否定娱乐圈"
+    
+    - element: "男女主炒CP上位"
+      reason: "感情要纯粹，不能是工具"
+    
+    - element: "负面新闻缠身"
+      reason: "主角不能有原则性负面新闻"
+    
+    - element: "过度雌竞"
+      reason: "避免过度女性互相竞争"
+
+# ==================== 7. 世界状态初始化 ====================
+world_state_initialization:
+  description: "娱乐圈文的世界状态初始值"
+  
+  protagonist:
+    health: "健康"
+    abilities_unlocked: ["演技天赋", "才艺技能"]
+    status: "新人/小龙套"
+  
+  allies:
+    - type: "男主"
+      relationship: "顶流明星，刚开始接触"
+    - type: "经纪人"
+      relationship: "工作伙伴"
+    - type: "圈内好友"
+      relationship: "少数真朋友"
+  
+  plot_threads:
+    - name: "感情发展"
+      status: "active"
+      introduced_chapter: 1
+      priority: 10
+      description: "与顶流的恋爱进程"
+      next_trigger: "工作接触增加"
+    
+    - name: "事业成长"
+      status: "active"
+      introduced_chapter: 1
+      priority: 9
+      description: "从新人到影后的成长"
+      next_trigger: "作品播出"
+    
+    - name: "恋情公开"
+      status: "pending"
+      introduced_chapter: 30
+      priority: 8
+      description: "地下恋情何时公开"
+      next_trigger: "时机成熟"
+  
+  system_rules:
+    system_name: "明星热度系统（如有）"
+    system_type: "人气值/热度值"
+    current_level: "新人"
+
+# ==================== 8. 质量检查点 ====================
+quality_checkpoints:
+  - point: "明星光环"
+    condition: "男主有顶流气质，有具体描写"
+    severity: "critical"
+  
+  - point: "撒糖密度"
+    condition: "每章有甜蜜互动"
+    severity: "critical"
+  
+  - point: "娱乐圈细节"
+    condition: "有真实感，不脱离实际"
+    severity: "warning"
+  
+  - point: "事业线"
+    condition: "女主有事业成长，不纯依附"
+    severity: "warning"
+  
+  - point: "粉丝互动"
+    condition: "有粉丝反应描写，增加真实感"
+    severity: "info"

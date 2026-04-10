@@ -1,0 +1,174 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "金手指设计规范",
+  "description": "一阶段产物：金手指详细设计文件",
+  "type": "object",
+  "required": ["name", "type", "core_mechanism"],
+  "properties": {
+    "name": {
+      "type": "string",
+      "description": "金手指名称，如：每日盲盒系统、消费返利系统"
+    },
+    "type": {
+      "type": "string",
+      "enum": ["系统流", "签到流", "签到类", "空间类", "能力类", "知识类", "物品类", "其他"],
+      "description": "金手指类型"
+    },
+    "core_mechanism": {
+      "type": "string",
+      "description": "核心机制描述，如：每日零点开启随机盲盒，消费获得返利"
+    },
+    "activation": {
+      "type": "object",
+      "description": "激活条件",
+      "properties": {
+        "trigger": {
+          "type": "string",
+          "description": "触发条件，如：绑定银行卡、完成首次消费"
+        },
+        "scene": {
+          "type": "string",
+          "description": "激活场景，如：走投无路时、意外触发"
+        },
+        "initial_reward": {
+          "type": "string",
+          "description": "激活奖励，如：新手大礼包、初始资金"
+        }
+      }
+    },
+    "abilities": {
+      "type": "array",
+      "description": "能力列表（分阶段）",
+      "items": {
+        "type": "object",
+        "properties": {
+          "stage": {
+            "type": "string",
+            "description": "阶段，如：初始、LV.1-LV.10、中期、后期"
+          },
+          "ability": {
+            "type": "string",
+            "description": "能力描述"
+          },
+          "unlock_condition": {
+            "type": "string",
+            "description": "解锁条件"
+          }
+        }
+      }
+    },
+    "upgrade_system": {
+      "type": "object",
+      "description": "升级体系",
+      "properties": {
+        "metric": {
+          "type": "string",
+          "description": "升级指标，如：经验值、积分、消费金额"
+        },
+        "formula": {
+          "type": "string",
+          "description": "升级公式，如：每消费1万元升1级"
+        },
+        "max_level": {
+          "type": "string",
+          "description": "最高等级"
+        }
+      }
+    },
+    "limitations": {
+      "type": "array",
+      "description": "限制条件（必须有，否则太无敌）",
+      "items": {
+        "type": "string"
+      }
+    },
+    "reward_sound": {
+      "type": "string",
+      "description": "系统提示音模板，如：【叮！恭喜宿主...】"
+    },
+    "special_mechanics": {
+      "type": "array",
+      "description": "特殊机制",
+      "items": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "description": "机制名称"
+          },
+          "description": {
+            "type": "string",
+            "description": "机制描述"
+          },
+          "trigger": {
+            "type": "string",
+            "description": "触发条件"
+          }
+        }
+      }
+    },
+    "world_rules": {
+      "type": "array",
+      "description": "由金手指引出的世界规则",
+      "items": {
+        "type": "object",
+        "properties": {
+          "rule": {
+            "type": "string",
+            "description": "规则名称"
+          },
+          "description": {
+            "type": "string",
+            "description": "规则描述"
+          }
+        }
+      }
+    },
+    "plot_hooks": {
+      "type": "array",
+      "description": "金手指相关的剧情线索",
+      "items": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "description": "线索名称"
+          },
+          "description": {
+            "type": "string",
+            "description": "线索描述"
+          },
+          "trigger_chapter": {
+            "type": "string",
+            "description": "触发章节范围"
+          }
+        }
+      }
+    },
+    "examples": {
+      "type": "object",
+      "description": "示例",
+      "properties": {
+        "early_stage": {
+          "type": "string",
+          "description": "前期使用示例"
+        },
+        "mid_stage": {
+          "type": "string",
+          "description": "中期使用示例"
+        },
+        "late_stage": {
+          "type": "string",
+          "description": "后期使用示例"
+        }
+      }
+    },
+    "narrative_guidelines": {
+      "type": "array",
+      "description": "叙事指导",
+      "items": {
+        "type": "string"
+      }
+    }
+  }
+}

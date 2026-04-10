@@ -1,0 +1,300 @@
+# 神豪文题材技法
+# 版本: 1.0.0
+# 用途: 指导AI生成符合神豪文特点的内容
+
+genre: "神豪文"
+version: "1.0.0"
+description: "花钱返利/签到奖励类神豪小说的专项技法"
+
+# ==================== 1. 震惊铺展顺序 ====================
+shock_progression:
+  description: "神豪文的震惊围绕'金钱'和'阶层'展开"
+  steps:
+    - order: 1
+      name: "消费行为"
+      content: "主角的消费动作、选择、态度"
+      format: "动作+神态描写"
+      examples:
+        - "陈默扫了一眼橱窗，淡淡道：\"这个、这个，还有这个，包起来。\""
+        - "他指了指展厅中央那辆最贵的超跑：\"就它了。\""
+    
+    - order: 2
+      name: "周围人心算"
+      content: "路人在心中快速计算价格，产生初步震惊"
+      format: "心理描写"
+      examples:
+        - "周围人心中快速计算：这...这得多少钱啊？"
+        - "路人甲掐指一算：卧槽，这辈子都赚不到这么多！"
+    
+    - order: 3
+      name: "店员/经理反应"
+      content: "从轻视到震惊到谄媚的态度转变"
+      format: "引号\"\"包裹"
+      examples:
+        - "销售员手都在发抖：\"这位先生，您确定要...？\""
+        - "经理点头哈腰：\"尊贵的VIP，这边请！\""
+    
+    - order: 4
+      name: "反派打脸"
+      content: "之前看不起主角的人被打脸"
+      format: "对话+神态"
+      examples:
+        - "富二代脸色煞白：\"这...这不可能！\""
+        - "前女友悔不当初：\"我当初怎么瞎了眼...\""
+    
+    - order: 5
+      name: "消息扩散"
+      content: "上层社会、媒体、全网传播"
+      format: "叙述+侧面描写"
+      examples:
+        - "这个消息很快传遍了整个江城的上流圈子..."
+        - "某富豪群里炸开了锅..."
+
+# ==================== 2. 金钱规范（神豪文核心） ====================
+money_rules:
+  description: "金钱是神豪文的核心爽点，必须精确处理"
+  precision: "精确到小数点后2位"
+  
+  forbidden_words:
+    - "很多钱"
+    - "天价"
+    - "expensive"
+    - "便宜"
+    - "便宜货"
+    - "贵的"
+    - "便宜的"
+    - "一堆钱"
+    - "数不清的钱"
+  
+  required_format: "具体数字+单位（元/万/亿）"
+  
+  examples:
+    correct:
+      - "9876543.21元"
+      - "总价8888888.88元"
+      - "日利息12345.67元"
+      - "返利5432109.87元"
+    
+    incorrect:
+      - "很多钱"
+      - "八九百万"
+      - "大概一千万"
+  
+  calculation_requirement: "周围人必须在心中计算价格"
+
+# ==================== 3. 系统提示音（神豪文特色） ====================
+system_prompts:
+  - type: "消费返利"
+    template: "【叮！恭喜宿主消费XXX元，返利XXX元已到账！】"
+    usage: "正常消费返利时"
+  
+  - type: "暴击返利"
+    template: "【叮！触发暴击返利，额外奖励XXX元！】"
+    usage: "触发暴击时"
+  
+  - type: "等级提升"
+    template: "【恭喜宿主消费等级提升至LV.X，解锁新特权：XXX！】"
+    usage: "消费等级提升时"
+  
+  - type: "签到奖励"
+    template: "【叮！签到成功！恭喜宿主获得：XXX！】"
+    usage: "签到类神豪文的每日签到"
+  
+  - type: "任务完成"
+    template: "【叮！任务完成！奖励XXX元已到账！】"
+    usage: "完成系统任务时"
+
+# ==================== 4. 路人心理活动模板 ====================
+bystander_templates:
+  description: "路人的价格计算和震惊反应是神豪文的标志性内容"
+  templates:
+    - type: "初步震惊"
+      examples:
+        - "周围人心中快速计算：这...这得多少钱啊？"
+        - "路人甲倒吸一口凉气：这相当于我十年的工资！"
+    
+    - type: "深度震惊"
+      examples:
+        - "路人乙掐指一算：卧槽，这辈子都赚不到这么多！"
+        - "围观群众面面相觑：这得是多有钱啊？"
+    
+    - type: "对比震惊"
+      examples:
+        - "销售员手都在发抖：这比我一辈子赚的还多..."
+        - "经理心中暗惊：这相当于我们公司一个月的流水！"
+    
+    - type: "身份猜测"
+      examples:
+        - "\"这不会是哪个隐世家族的少爷吧？\""
+        - "\"江城什么时候来了这么号人物？\""
+
+# ==================== 5. 消费场景要求 ====================
+consumption_scenes:
+  description: "典型的神豪文消费场景"
+  
+  required_elements:
+    - "具体商品/服务名称"
+    - "精确价格"
+    - "支付方式描写"
+    - "周围人反应链"
+  
+  recommended_scenes:
+    - name: "奢侈品店扫货"
+      elements: ["包包", "手表", "珠宝", "一次性买空"]
+    
+    - name: "豪车4S店"
+      elements: ["超跑", "限量款", "全款", "试驾"]
+    
+    - name: "豪宅售楼处"
+      elements: ["别墅", "顶层豪宅", "一次性付款", "整栋购买"]
+    
+    - name: "高档餐厅"
+      elements: ["顶级食材", "整本菜单", "天价账单", "服务员震惊"]
+    
+    - name: "拍卖会"
+      elements: ["举牌", "加价", "碾压", "神秘买家"]
+    
+    - name: "股市/投资"
+      elements: ["精准抄底", "翻倍收益", "震惊分析师"]
+
+# ==================== 6. 禁用元素（关键！） ====================
+forbidden_elements:
+  description: "以下元素绝对不能出现，会导致题材混淆"
+  items:
+    - element: "国运绑定/国运值"
+      examples: ["国运值+", "龙国国运", "国运禁地"]
+      reason: "这是国运文的元素"
+    
+    - element: "全球直播/弹幕互动"
+      examples: ["国运直播间", "禁地直播", "代表国家参赛"]
+      reason: "这是国运文的元素（现代背景的普通直播除外）"
+    
+    - element: "异界禁地/凶兽"
+      examples: ["禁地", "凶兽", "异界", "灵气复苏"]
+      reason: "这是玄幻/国运文的元素"
+    
+    - element: "国家层面战斗"
+      examples: ["为国争光", "代表国家", "国战"]
+      reason: "这是国运文的元素"
+    
+    - element: "修仙元素"
+      examples: ["筑基", "金丹", "灵气", "法宝"]
+      reason: "这是修仙文的元素"
+    
+    - element: "模拟器元素"
+      examples: ["第X次模拟", "模拟结果", "死亡回档"]
+      reason: "这是模拟器文的元素"
+
+# ==================== 7. 必须元素（检查清单） ====================
+required_elements:
+  description: "每章必须包含的元素，缺少会导致质量下降"
+  items:
+    - element: "精确金额"
+      check: "至少3处具体金额，精确到分"
+      severity: "critical"
+    
+    - element: "系统返利提示音"
+      check: "【叮！恭喜宿主...】格式"
+      severity: "critical"
+    
+    - element: "路人价格计算"
+      check: "周围人在心中计算价格"
+      severity: "warning"
+    
+    - element: "阶层对比"
+      check: "主角vs路人vs反派的财富对比"
+      severity: "warning"
+    
+    - element: "打脸情节"
+      check: "有反派被打脸"
+      severity: "recommended"
+
+# ==================== 8. 对话占比达成方式 ====================
+dialogue_achievement:
+  target: "对话占比≥50%"
+  methods:
+    - method: "增加路人震惊台词"
+      description: "路人的议论、猜测、计算，用引号包裹"
+      weight: "30%"
+    
+    - method: "增加店员/经理对话"
+      description: "服务态度转变的对话"
+      weight: "25%"
+    
+    - method: "增加反派质疑→被打脸对话"
+      description: "反派从嘲讽到震惊的转变"
+      weight: "25%"
+    
+    - method: "增加系统提示音"
+      description: "系统消息用【】包裹，计入对话"
+      weight: "20%"
+
+# ==================== 9. 节奏要求 ====================
+pacing:
+  conflict_first_300: true
+  mini_burst_every_1000: true
+  hook_last_50: true
+  no_narration_limit: 200
+
+# ==================== 10. 前后对比要求 ====================
+contrast_requirement:
+  description: "神豪文必须有强烈的前后对比"
+  types:
+    - type: "财富对比"
+      description: "主角的财富vs路人的财富vs反派的财富"
+    
+    - type: "态度对比"
+      description: "店员/反派对主角态度的转变"
+    
+    - type: "身份对比"
+      description: "主角表面身份vs真实实力的反差"
+
+# ==================== 11. 世界状态初始化 ====================
+world_state_initialization:
+  description: "神豪文的世界状态初始值"
+  
+  protagonist:
+    health: "健康"
+    abilities_unlocked: ["消费返利系统激活"]
+  
+  allies: []  # 神豪文通常没有固定盟友，根据剧情动态添加
+  
+  plot_threads:
+    - name: "身份揭露"
+      status: "paused"
+      introduced_chapter: 5
+      priority: 8
+      description: "主角真实身份逐步被揭露"
+      next_trigger: "关键时刻暴露真实财力"
+    
+    - name: "系统升级"
+      status: "active"
+      introduced_chapter: 1
+      priority: 9
+      description: "返利系统等级提升"
+      next_trigger: "消费达到指定额度后升级"
+  
+  system_rules:
+    system_name: "神豪返利系统"
+    system_type: "金手指"
+    current_level: "LV.1"
+    current_power: 1.0
+    unlocked_abilities: ["基础返利"]
+
+# ==================== 12. 质量检查点 ====================
+quality_checkpoints:
+  - point: "金额精确度"
+    condition: "至少3处，精确到小数点后2位"
+    severity: "critical"
+  
+  - point: "系统提示音"
+    condition: "至少1处，格式正确"
+    severity: "critical"
+  
+  - point: "路人反应"
+    condition: "有价格计算和震惊"
+    severity: "warning"
+  
+  - point: "打脸完成度"
+    condition: "反派被打脸"
+    severity: "recommended"

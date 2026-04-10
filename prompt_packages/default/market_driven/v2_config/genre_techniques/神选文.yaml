@@ -1,0 +1,66 @@
+# 神选文题材技法
+genre: "神选文"
+version: "1.0.0"
+description: "神明选拔+信仰争夺+神迹展现类小说的专项技法"
+
+# ==================== 1. 核心套路 ====================
+core_mechanics:
+  description: "主角被神明选中，获得神力/神器，通过完成神谕任务获得信仰值，与其他神选者竞争神位"
+
+# ==================== 2. 禁用元素 ====================
+forbidden_elements:
+  description: "以下元素绝对不能出现"
+  items:
+    - element: "科技过度发达"
+      examples: ["星际战舰", "人工智能", "赛博朋克"]
+      reason: "与神明信仰世界观冲突"
+    - element: "纯粹修仙体系"
+      examples: ["筑基", "金丹", "元婴", "渡劫"]
+      reason: "这是修仙文的元素"
+    - element: "现代都市日常"
+      examples: ["上班打卡", "公司会议", "地铁公交"]
+      reason: "破坏神话氛围"
+
+# ==================== 3. 必须元素 ====================
+required_elements:
+  description: "每章必须包含的元素"
+  items:
+    - element: "神谕/任务"
+      check: "是否有神明发布的任务或指引"
+      severity: "critical"
+    - element: "信仰值变化"
+      check: "是否有信仰值获取或消耗的描写"
+      severity: "critical"
+    - element: "神迹展现"
+      check: "是否有神力的具体表现"
+      severity: "warning"
+
+# ==================== 4. 世界状态初始化 ====================
+world_state_initialization:
+  protagonist:
+    health: "健康"
+    abilities_unlocked: ["神选者基础感知"]
+  plot_threads:
+    - name: "神谕任务"
+      status: "active"
+      priority: 10
+    - name: "信仰争夺"
+      status: "active"
+      priority: 9
+  system_rules:
+    system_name: "神选系统"
+    system_type: "信仰体系"
+    faith_points: 0
+    deity_favor: 0
+
+# ==================== 5. 质量检查点 ====================
+quality_checkpoints:
+  - point: "神谕呈现"
+    condition: "有神明意志的传达"
+    severity: "critical"
+  - point: "信仰体系"
+    condition: "信仰值数值可见"
+    severity: "critical"
+  - point: "神性氛围"
+    condition: "保持神秘庄严的神性氛围"
+    severity: "warning"

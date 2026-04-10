@@ -1,0 +1,68 @@
+# 四合院文题材技法
+genre: "四合院文"
+version: "1.0.0"
+description: "四合院日常+邻里关系+年代生活类小说的专项技法"
+
+# ==================== 1. 核心套路 ====================
+core_mechanics:
+  description: "以四合院为背景，描写邻里间的家长里短、人情冷暖、生活琐事，体现年代特色和生活气息"
+
+# ==================== 2. 禁用元素 ====================
+forbidden_elements:
+  description: "以下元素绝对不能出现"
+  items:
+    - element: "超自然力量"
+      examples: ["修仙", "异能", "系统", "空间"]
+      reason: "破坏年代生活的真实感"
+    - element: "过于现代化的物品"
+      examples: ["智能手机", "互联网", "高铁"]
+      reason: "与年代背景不符"
+    - element: "官场权谋"
+      examples: ["政治斗争", "高层博弈", "机密文件"]
+      reason: "这是官场文的元素"
+
+# ==================== 3. 必须元素 ====================
+required_elements:
+  description: "每章必须包含的元素"
+  items:
+    - element: "邻里互动"
+      check: "是否有四合院内邻居间的交流或冲突"
+      severity: "critical"
+    - element: "年代细节"
+      check: "是否有符合年代的生活细节描写"
+      severity: "critical"
+    - element: "生活气息"
+      check: "是否有做饭、聊天、串门等日常场景"
+      severity: "warning"
+
+# ==================== 4. 世界状态初始化 ====================
+world_state_initialization:
+  protagonist:
+    health: "健康"
+    abilities_unlocked: []
+  plot_threads:
+    - name: "邻里关系"
+      status: "active"
+      priority: 10
+    - name: "家庭生活"
+      status: "active"
+      priority: 9
+    - name: "年代变迁"
+      status: "active"
+      priority: 8
+  system_rules:
+    system_name: "年代生活"
+    system_type: "现实主义"
+    era: "60-90年代"
+
+# ==================== 5. 质量检查点 ====================
+quality_checkpoints:
+  - point: "年代真实感"
+    condition: "物品、语言、生活方式符合年代"
+    severity: "critical"
+  - point: "四合院氛围"
+    condition: "体现出四合院独特的人际关系"
+    severity: "critical"
+  - point: "生活细节"
+    condition: "有丰富的生活细节描写"
+    severity: "warning"

@@ -1,0 +1,244 @@
+# 玄学文题材技法
+# 版本: 1.0.0
+# 用途: 指导AI生成直播算命捉鬼类玄学爽文内容
+
+genre: "玄学文"
+version: "1.0.0"
+description: "现代玄学爽文，女主会玄学算命捉鬼，直播互动打脸，悬疑解谜"
+
+# ==================== 1. 核心套路 ====================
+core_mechanics:
+  description: "玄学文的核心是玄学能力、直播互动和打脸爽点，结合现代元素"
+  
+  story_archetypes:
+    - type: "直播算命"
+      description: "女主直播算命，连线网友解疑"
+      elements: ["直播互动", "在线算命", "观众打赏"]
+    
+    - type: "天师捉鬼"
+      description: "女主是天师传人，专门处理灵异事件"
+      elements: ["捉鬼", "法器", "风水堪舆"]
+    
+    - type: "玄学大佬"
+      description: "女主是隐藏的大佬，被邀请解决难题"
+      elements: ["身份揭秘", "各方邀请", "低调装X"]
+    
+    - type: "真假千金"
+      description: "真千金是玄学大佬，假千金被打脸"
+      elements: ["身份反转", "玄学能力", "家族震惊"]
+  
+  story_structure:
+    - phase: "初露锋芒"
+      content: "女主展示玄学能力，引起关注"
+    - phase: "积累名气"
+      content: "通过直播/事件积累粉丝和名气"
+    - phase: "解决大案"
+      content: "处理重大灵异事件/风水难题"
+    - phase: "身份揭秘"
+      content: "真实身份被知晓，各方追捧"
+
+# ==================== 2. 人物设定规范 ====================
+character_rules:
+  description: "玄学文人物设定要突出玄学能力和现代反差"
+  
+  protagonist:
+    role: "玄学大佬"
+    types:
+      - "天师传人：正统玄学传承"
+      - "重生大佬：前世是玄学大师"
+      - "系统流：获得玄学系统"
+      - "天赋异禀：天生阴阳眼/灵觉"
+    required_traits:
+      - "玄学能力高强"
+      - "外表年轻但实力深不可测"
+      - "性格淡定/高冷/毒舌"
+      - "不畏强权，有原则"
+      - "有反差萌（可能爱钱/爱吃）"
+    forbidden_traits:
+      - "圣母心泛滥"
+      - "过分低调到憋屈"
+      - "不懂反击"
+      - "玄学能力来源不明"
+  
+  supporting_roles:
+    - type: "土豪粉丝"
+      description: "被女主能力折服，疯狂打赏"
+    - type: "警察/官方"
+      description: "请女主协助破案"
+    - type: "玄学同行"
+      description: "初期看不起，后期被折服"
+    - type: "鬼怪"
+      description: "有冤屈的鬼/恶鬼"
+    - type: "反派"
+      description: "邪恶天师/幕后黑手"
+
+# ==================== 3. 爽点设计 ====================
+satisfaction_points:
+  description: "玄学文的爽点在于玄学打脸和悬疑解谜"
+  
+  categories:
+    - type: "直播打脸"
+      examples:
+        - "算准网友隐私"
+        - "预言立即应验"
+        - "揭穿骗子把戏"
+        - "观众从质疑到跪服"
+      
+    - type: "捉鬼驱邪"
+      examples:
+        - "处理凶宅"
+        - "驱除附身恶鬼"
+        - "化解风水煞局"
+        - "超度冤魂"
+      
+    - type: "身份反差"
+      examples:
+        - "年轻女孩却是玄学大佬"
+        - "被看不起后实力打脸"
+        - "各方大佬求见"
+        - "家族后悔当初"
+      
+    - type: "悬疑解谜"
+      examples:
+        - "通过玄学破案"
+        - "寻找失踪人口"
+        - "揭开死亡真相"
+        - "化解百年冤仇"
+
+# ==================== 4. 玄学元素 ====================
+metaphysics_elements:
+  description: "玄学文需要的专业元素"
+  
+  knowledge_areas:
+    - type: "算命"
+      content: ["八字", "面相", "手相", "紫微斗数", "奇门遁甲"]
+    - type: "风水"
+      content: ["阳宅风水", "阴宅风水", "煞气", "龙脉", "罗盘"]
+    - type: "捉鬼"
+      content: ["符咒", "法器", "阵法", "超度", "阴阳眼"]
+    - type: "法器"
+      content: ["桃木剑", "罗盘", "符纸", "铃铛", "八卦镜"]
+  
+  common_tropes:
+    - "开天眼/阴阳眼"
+    - "掐指一算"
+    - "风水轮流转"
+    - "天机不可泄露"
+    - "因果报应"
+    - "功德金光"
+
+# ==================== 5. 直播互动设计 ====================
+livestream_elements:
+  description: "玄学直播的经典模式"
+  
+  stream_formats:
+    - type: "连线算命"
+      description: "随机连线网友，现场算命"
+      elements: ["网友质疑", "准确预言", "观众震惊", "疯狂打赏"]
+    
+    - type: "探灵直播"
+      description: "实地探查凶宅/灵异地点"
+      elements: ["实地拍摄", "鬼怪现身", "女主收服", "观众尖叫"]
+    
+    - type: "教学直播"
+      description: "教观众简单玄学知识"
+      elements: ["干货分享", "互动问答", "粉丝增长"]
+    
+    - type: "悬赏任务"
+      description: "接受网友委托解决难题"
+      elements: ["高额赏金", "难题解决", "名声大噪"]
+  
+  audience_interaction:
+    - "弹幕质疑->打脸"
+    - "礼物感谢"
+    - "求连线"
+    - "许愿祈福"
+    - "分享传播"
+
+# ==================== 6. 禁用元素 ====================
+forbidden_elements:
+  description: "玄学文中需谨慎或禁用的元素"
+  items:
+    - element: "过度迷信宣传"
+      reason: "要有正面价值观，不宣扬迷信"
+    
+    - element: "过于恐怖血腥"
+      reason: "保持适当恐怖感即可"
+    
+    - element: "侮辱宗教信仰"
+      reason: "尊重各宗教"
+    
+    - element: "宣扬封建糟粕"
+      reason: "要有现代价值观"
+    
+    - element: "女主被鬼吓坏"
+      reason: "女主是大佬，要淡定"
+    
+    - element: "过于晦涩的专业术语"
+      reason: "要让读者看懂"
+
+# ==================== 7. 世界状态初始化 ====================
+world_state_initialization:
+  description: "玄学文的世界状态初始值"
+  
+  protagonist:
+    health: "健康"
+    abilities_unlocked: ["算命", "捉鬼", "风水"]
+    status: "初入都市/开始直播"
+  
+  allies:
+    - type: "土豪粉丝"
+      relationship: "第一个大粉"
+    - type: "警察"
+      relationship: "合作方"
+    - type: "灵宠/法器"
+      relationship: "辅助伙伴"
+  
+  plot_threads:
+    - name: "直播事业发展"
+      status: "active"
+      introduced_chapter: 1
+      priority: 9
+      description: "积累粉丝和名气"
+      next_trigger: "定期直播"
+    
+    - name: "玄学案件"
+      status: "active"
+      introduced_chapter: 1
+      priority: 10
+      description: "处理各种玄学事件"
+      next_trigger: "案件上门"
+    
+    - name: "身世之谜"
+      status: "pending"
+      introduced_chapter: 20
+      priority: 7
+      description: "女主身世背景揭秘"
+      next_trigger: "线索出现"
+  
+  system_rules:
+    system_name: "天师系统/玄学系统"
+    system_type: "能力升级/功德值"
+    current_level: "初级天师"
+
+# ==================== 8. 质量检查点 ====================
+quality_checkpoints:
+  - point: "玄学专业度"
+    condition: "玄学内容有一定合理性，不出戏"
+    severity: "warning"
+  
+  - point: "直播互动"
+    condition: "有弹幕、打赏等直播元素"
+    severity: "warning"
+  
+  - point: "打脸爽感"
+    condition: "质疑->打脸的节奏到位"
+    severity: "critical"
+  
+  - point: "悬疑感"
+    condition: "案件有悬疑性，引人入胜"
+    severity: "warning"
+  
+  - point: "现代感"
+    condition: "玄学与现代元素结合自然"
+    severity: "warning"

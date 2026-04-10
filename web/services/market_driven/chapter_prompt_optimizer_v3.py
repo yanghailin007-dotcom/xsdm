@@ -572,7 +572,7 @@ class ChapterPromptOptimizerV3:
     
     def _render_component(self, component_id: str, variables: Dict) -> Optional[str]:
         """
-        渲染组件
+        渲染组件 - 支持多题材模板
         
         Args:
             component_id: 组件ID
@@ -589,7 +589,27 @@ class ChapterPromptOptimizerV3:
             if not component:
                 return None
             
-            template = component.get("template", "")
+            # 检查是否有分题材模板
+            templates = component.get("templates", {})
+            if templates:
+                # 根据 genre_type 选择模板
+                genre_key = self.genre_type if self.genre_type in templates else None
+                if not genre_key:
+                    # 尝试模糊匹配
+                    for key in templates.keys():
+                        if key in self.genre_type or self.genre_type in key:
+                            genre_key = key
+                            break
+                
+                if not genre_key:
+                    genre_key = component.get("default_template", "通用")
+                
+                template = templates.get(genre_key, templates.get("通用", ""))
+                logger.debug(f"[PromptV3] 使用 {genre_key} 模板渲染 {component_id}")
+            else:
+                # 兼容旧版单模板结构
+                template = component.get("template", "")
+            
             if not template:
                 return None
             
@@ -728,7 +748,47 @@ class ChapterPromptOptimizerV3:
         raise ConfigError("micro_innovation_guide 配置缺失", "components/common_prompt_components.json")
 
     def _build_genre_specific_guide(self) -> str:
-        """构建题材专项指南"""
+        """构建题材专项指南 - 从JSON配置加载多题材模板"""
+        if not self._prompt_loader:
+            # 回退到硬编码模板
+            return self._build_genre_specific_guide_fallback()
+        
+        try:
+            component = self._prompt_loader.get_component("market_driven/components/genre_specific_guide")
+            if not component:
+                return self._build_genre_specific_guide_fallback()
+            
+            # 获取分题材模板
+            templates = component.get("templates", {})
+            default_key = component.get("default_template", "通用")
+            
+            # 根据 genre_type 选择模板
+            genre_key = self.genre_type if self.genre_type in templates else None
+            if not genre_key:
+                # 尝试模糊匹配
+                for key in templates.keys():
+                    if key in self.genre_type or self.genre_type in key:
+                        genre_key = key
+                        break
+            
+            if not genre_key:
+                genre_key = default_key
+            
+            template = templates.get(genre_key, templates.get(default_key, ""))
+            if template:
+                logger.info(f"[PromptV3] 使用 {genre_key} 题材专项指南")
+                # 替换变量
+                template = template.replace("{{genre}}", self.genre_type)
+                return template
+            
+            return self._build_genre_specific_guide_fallback()
+            
+        except Exception as e:
+            logger.warning(f"[PromptV3] 加载题材专项指南失败: {e}")
+            return self._build_genre_specific_guide_fallback()
+    
+    def _build_genre_specific_guide_fallback(self) -> str:
+        """构建题材专项指南（回退方法 - 使用硬编码模板）"""
         genre_type = self.genre_type
         
         if genre_type not in self.GENRE_TEMPLATES:
@@ -849,13 +909,40 @@ class ChapterPromptOptimizerV3:
         return ''
 
     def _build_format_rules(self) -> str:
-        """构建格式规则 - 从 JSON 配置加载"""
-        guide = self._get_common_component('format_rules')
-        if guide:
-            return guide
+        """构建格式规则 - 根据题材类型从 JSON 配置加载"""
+        if not self._prompt_loader:
+            raise ConfigError("format_rules 加载失败：prompt_loader 未初始化", "")
         
-        # JSON 配置缺失时抛出错误
-        raise ConfigError("format_rules 配置缺失", "components/common_prompt_components.json")
+        try:
+            component = self._prompt_loader.get_component("market_driven/components/format_rules")
+            if not component:
+                raise ConfigError("format_rules 配置缺失", "components/format_rules.json")
+            
+            # 获取题材类型对应的模板
+            templates = component.get("templates", {})
+            default_key = component.get("default_template", "通用")
+            
+            # 根据 genre 选择模板
+            genre_key = self.genre_type if self.genre_type in templates else default_key
+            if genre_key not in templates:
+                genre_key = default_key
+            
+            template = templates.get(genre_key, templates.get(default_key, ""))
+            if template:
+                logger.info(f"[PromptV3] 使用 {genre_key} 格式规则模板")
+                return template
+            
+            # 兼容旧版单模板结构
+            old_template = component.get("template", "")
+            if old_template:
+                return old_template
+                
+            raise ConfigError("format_rules 模板为空", "components/format_rules.json")
+            
+        except Exception as e:
+            if isinstance(e, ConfigError):
+                raise
+            raise ConfigError(f"format_rules 加载失败: {e}", "components/format_rules.json")
 
     def _build_ai_self_check_guide(self) -> str:
         """构建AI自检指南（生成后自检）- 从 JSON 配置加载"""

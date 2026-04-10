@@ -1,0 +1,100 @@
+# 奶爸文题材技法
+# 版本: 1.0.0
+# 用途: 指导AI生成奶爸萌宝文
+
+genre: "奶爸文"
+version: "1.0.0"
+description: "主角带娃，萌宝助攻，温馨搞笑的专项技法"
+
+# ==================== 1. 核心套路 ====================
+core_mechanics:
+  description: "奶爸文的核心是'带娃日常+萌宝助攻'"
+  key_points:
+    - "突然获得萌宝（亲生的/领养的）"
+    - "手忙脚乱学带娃"
+    - "萌宝助攻找妈妈/解决问题"
+    - "温馨搞笑的日常"
+
+# ==================== 2. 萌宝设定 ====================
+baby_character:
+  description: "萌宝的设定要点"
+  traits:
+    - "可爱但不矫情"
+    - "聪明但不成人化"
+    - "助攻但不添乱"
+    - "有自己的小性格"
+  age_range: "2-5岁最佳，会说话会走路但还奶声奶气"
+
+# ==================== 3. 禁用元素 ====================
+forbidden_elements:
+  description: "奶爸文禁止的元素"
+  items:
+    - element: "虐娃"
+      examples: ["虐童", "危险环境"]
+      reason: "绝对禁止，萌宝必须安全快乐"
+    - element: "过于成熟"
+      examples: ["萌宝像大人", "说话太成熟"]
+      reason: "萌宝要符合年龄，不能太成熟"
+    - element: "忽视带娃"
+      examples: ["主角只顾事业不顾娃", "长期缺席"]
+      reason: "主角要重视带娃，不能当甩手掌柜"
+
+# ==================== 4. 必须元素 ====================
+required_elements:
+  description: "奶爸文必须包含的元素"
+  items:
+    - element: "带娃细节"
+      check: "有真实的带娃细节（喂奶/换尿布/哄睡）"
+      severity: "critical"
+    - element: "萌宝台词"
+      check: "萌宝有可爱的台词和助攻"
+      severity: "critical"
+    - element: "温馨互动"
+      check: "父女/父子温馨互动"
+      severity: "warning"
+
+# ==================== 5. 世界状态初始化 ====================
+world_state_initialization:
+  description: "奶爸文的世界状态初始值"
+  
+  protagonist:
+    health: "健康"
+    abilities_unlocked: ["带娃技能", "金手指"]
+  
+  allies:
+    - name: "萌宝"
+      condition: "主角的孩子"
+      health: "健康活泼"
+      abilities_unlocked: ["卖萌", "助攻"]
+      relationships: "父女/父子情深"
+  
+  plot_threads:
+    - name: "带娃日常"
+      status: "active"
+      introduced_chapter: 1
+      priority: 10
+      description: "带娃的温馨日常"
+      next_trigger: "贯穿全文"
+    - name: "寻找妈妈"
+      status: "paused"
+      introduced_chapter: 5
+      priority: 8
+      description: "萌宝助攻找妈妈"
+      next_trigger: "根据剧情需要"
+  
+  system_rules:
+    system_name: "奶爸系统（可选）"
+    system_type: "育儿/成长"
+    current_level: "新手奶爸"
+
+# ==================== 6. 质量检查点 ====================
+quality_checkpoints:
+  - point: "萌宝可爱"
+    condition: "萌宝形象可爱生动"
+    severity: "critical"
+  - point: "带娃真实"
+    condition: "带娃细节真实"
+    severity: "critical"
+  - point: "温馨氛围"
+    condition: "整体氛围温馨治愈"
+    severity: "warning"

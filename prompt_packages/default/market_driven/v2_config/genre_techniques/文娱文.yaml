@@ -1,0 +1,70 @@
+# 文娱文题材技法
+genre: "文娱文"
+version: "1.0.0"
+description: "文抄公+文娱逆袭+艺术创作类小说的专项技法"
+
+# ==================== 1. 核心套路 ====================
+core_mechanics:
+  description: "主角利用地球文化作品在异世界或平行世界装逼打脸，成为文娱界的传奇人物"
+
+# ==================== 2. 禁用元素 ====================
+forbidden_elements:
+  description: "以下元素绝对不能出现"
+  items:
+    - element: "过度贬低原作"
+      examples: ["无脑贬低原世界作品", "恶意嘲讽原住民"]
+      reason: "需要尊重原作品和读者"
+    - element: "脱离文娱主线"
+      examples: ["突然修仙", "突然争霸", "过多商战"]
+      reason: "应聚焦文娱创作"
+    - element: "抄袭争议"
+      examples: ["不当引用", "版权争议", "恶意剽窃"]
+      reason: "文抄也要有底线"
+
+# ==================== 3. 必须元素 ====================
+required_elements:
+  description: "每章必须包含的元素"
+  items:
+    - element: "作品展示"
+      check: "是否有文学作品/歌曲/影视的展示"
+      severity: "critical"
+    - element: "震惊反应"
+      check: "是否有他人对作品的震惊反应"
+      severity: "critical"
+    - element: "文娱元素"
+      check: "是否有创作、表演、比赛等文娱活动"
+      severity: "warning"
+
+# ==================== 4. 世界状态初始化 ====================
+world_state_initialization:
+  protagonist:
+    health: "健康"
+    abilities_unlocked: ["地球文娱记忆"]
+  plot_threads:
+    - name: "作品搬运"
+      status: "active"
+      priority: 10
+    - name: "名声积累"
+      status: "active"
+      priority: 9
+    - name: "文坛登顶"
+      status: "pending"
+      priority: 8
+  system_rules:
+    system_name: "文娱系统"
+    system_type: "成就类"
+    fame: 0
+    works_count: 0
+    fans: 0
+
+# ==================== 5. 质量检查点 ====================
+quality_checkpoints:
+  - point: "作品质量"
+    condition: "搬运的作品有质量保障"
+    severity: "critical"
+  - point: "震惊铺展"
+    condition: "震惊反应层层递进"
+    severity: "critical"
+  - point: "文娱氛围"
+    condition: "保持文娱创作的氛围"
+    severity: "warning"

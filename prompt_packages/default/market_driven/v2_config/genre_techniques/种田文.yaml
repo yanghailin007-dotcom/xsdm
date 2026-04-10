@@ -1,0 +1,229 @@
+# 种田文题材技法
+# 版本: 1.0.0
+# 用途: 指导AI生成女频种田文（发家致富、养娃日常）
+
+genre: "种田文"
+version: "1.0.0"
+description: "带着空间/灵泉种田，发家致富，温馨日常的专项技法"
+
+# ==================== 1. 种田节奏控制 ====================
+farming_progression:
+  description: "种田文节奏相对慢，注重生活细节和 gradual improvement"
+  pace: "慢热但温馨，细水长流"
+  focus: "日常生活、家庭关系、 gradual 致富"
+  
+  stages:
+    - order: 1
+      name: "立足"
+      content: "适应环境，解决基本生存问题"
+      timeline: "第1-10章"
+      
+    - order: 2
+      name: "起步"
+      content: "开始小规模种植/养殖，初步改善生活"
+      timeline: "第10-30章"
+      
+    - order: 3
+      name: "发展"
+      content: "扩大规模，有了稳定收入，生活明显改善"
+      timeline: "第30-60章"
+      
+    - order: 4
+      name: "致富"
+      content: "成为当地富户，受人尊敬"
+      timeline: "第60-100章"
+      
+    - order: 5
+      name: "圆满"
+      content: "事业家庭双丰收，幸福美满"
+      timeline: "第100章后"
+
+# ==================== 2. 金手指设定（种田文特色）====================
+farming_golden_finger:
+  description: "种田文常见的金手指类型"
+  
+  types:
+    - name: "空间类"
+      description: "拥有可种植的空间，时间流速不同或能保鲜"
+      examples: ["灵泉空间", "随身农场", "神秘山谷"]
+      
+    - name: "灵泉类" 
+      description: "拥有能滋养万物、治愈疾病的灵泉"
+      examples: ["井中灵泉", "空间灵泉", "异能凝聚"]
+      
+    - name: "异能类"
+      description: "拥有植物沟通、催熟等特殊能力"
+      examples: ["木系异能", "植物沟通", "天气预知"]
+      
+    - name: "知识类"
+      description: "拥有超越时代的农业/美食/医术知识"
+      examples: ["现代农业知识", "厨艺传承", "医术传承"]
+
+# ==================== 3. 温馨日常描写 ====================
+daily_life:
+  description: "种田文的核心是温馨日常"
+  
+  elements:
+    - type: "美食制作"
+      description: "详细描写制作食物的过程和香气"
+      required: "每3-5章至少1次"
+      
+    - type: "种植收获"
+      description: "描写作物生长、收获的喜悦"
+      required: "持续推进，体现 gradual 改善"
+      
+    - type: "家庭生活"
+      description: "家人互动、孩子成长的温馨场景"
+      required: "贯穿全文"
+      
+    - type: "邻里关系"
+      description: "与邻居的互助或小额矛盾化解"
+      required: "体现人情味"
+
+# ==================== 4. 发家致富路线 ====================
+wealth_path:
+  description: "种田文的致富要 realistic 且 gradual"
+  
+  steps:
+    - stage: "解决温饱"
+      method: "利用金手指种出优质粮食蔬菜"
+      income: "够吃，略有剩余"
+      
+    - stage: "小额售卖"
+      method: "赶集卖菜、卖给邻居"
+      income: "几百文/几块钱"
+      
+    - stage: "特色产品"
+      method: "种出稀有/高品质作物，打出名气"
+      income: "稳定月入"
+      
+    - stage: "扩大规模"
+      method: "租地/买地，雇佣帮工"
+      income: "成为当地富户"
+      
+    - stage: "产业多元"
+      method: "开酒楼/作坊，产业链延伸"
+      income: "大富之家"
+
+# ==================== 5. 感情线设计 ====================
+romance_rules:
+  description: "种田文的感情线要朴实温馨"
+  
+  male_lead_types:
+    - "憨厚老实的猎户/农夫"
+    - "退伍的受伤军人"
+    - "被贬谪的落魄书生"
+    - "同样穿越/重生的现代人"
+    
+  romance_pace: "慢热，从互相帮助到相知相守"
+  
+  dynamics: "夫妻同心，一起奋斗，共同进步"
+
+# ==================== 6. 禁用元素 ====================
+forbidden_elements:
+  description: "种田文绝对禁止的元素"
+  items:
+    - element: "过快致富"
+      examples: ["第一章就富可敌国", "没有积累过程"]
+      reason: "种田文的乐趣在于 gradual 改善的过程"
+      
+    - element: "过度打脸"
+      examples: ["频繁打脸极品亲戚", "天天斗极品"]
+      reason: "可以有极品，但不能整天斗，要专注发展"
+      
+    - element: "超时代物品乱入"
+      examples: ["直接拿出枪", "造出汽车", "使用现代科技"]
+      reason: "除非有合理来源，否则不能破坏时代背景"
+      
+    - element: "玛丽苏/杰克苏"
+      examples: ["所有异性都爱主角", "人见人爱"]
+      reason: "要 realistic，感情要自然发展"
+      
+    - element: "过度金手指"
+      examples: ["什么都能种出来", "没有限制"]
+      reason: "金手指要有合理限制，否则失去奋斗乐趣"
+
+# ==================== 7. 必须元素 ====================
+required_elements:
+  description: "种田文必须包含的元素"
+  items:
+    - element: "美食描写"
+      check: "有详细的食物制作过程和感官描写"
+      severity: "critical"
+      
+    - element: " gradual 改善"
+      check: "生活水平 gradual 提升，有对比"
+      severity: "critical"
+      
+    - element: "温馨日常"
+      check: "有温馨的家庭/生活场景"
+      severity: "warning"
+      
+    - element: "季节变化"
+      check: "体现农时季节，春种秋收"
+      severity: "recommended"
+
+# ==================== 8. 世界状态初始化 ====================
+world_state_initialization:
+  description: "种田文的世界状态初始值"
+  
+  protagonist:
+    health: "健康"
+    abilities_unlocked: ["空间/灵泉/异能"]
+  
+  allies: []
+  
+  plot_threads:
+    - name: "发家致富"
+      status: "active"
+      introduced_chapter: 1
+      priority: 10
+      description: "主线：通过种田 gradually 致富"
+      next_trigger: "持续推进"
+    
+    - name: "家庭生活"
+      status: "active"
+      introduced_chapter: 1
+      priority: 9
+      description: "家庭关系、养娃日常"
+      next_trigger: "贯穿全文"
+    
+    - name: "感情发展"
+      status: "active"
+      introduced_chapter: 5
+      priority: 8
+      description: "与男主的感情线"
+      next_trigger: "gradual 发展"
+  
+  system_rules:
+    system_name: "空间/灵泉系统"
+    system_type: "金手指"
+    current_level: "初始"
+    current_power: 1.0
+    unlocked_abilities: ["基础种植加速"]
+
+# ==================== 9. 节奏要求 ====================
+pacing:
+  conflict_first_300: false
+  mini_burst_every_1000: false
+  hook_last_50: true
+  no_narration_limit: 500
+  note: "种田文节奏慢，注重生活细节描写"
+
+# ==================== 10. 质量检查点 ====================
+quality_checkpoints:
+  - point: "生活细节"
+    condition: "有真实的日常生活描写"
+    severity: "critical"
+  
+  - point: "致富 gradual"
+    condition: "致富过程 gradual 合理"
+    severity: "critical"
+  
+  - point: "美食描写"
+    condition: "有详细的美食制作/品尝描写"
+    severity: "warning"
+  
+  - point: "温馨氛围"
+    condition: "整体氛围温馨治愈"
+    severity: "warning"

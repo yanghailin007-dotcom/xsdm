@@ -107,6 +107,16 @@ class UnifiedProjectManager:
                 "upload_time": None,
                 "published_chapters": 0,
                 "contract_status": "none"  # none / signed
+            },
+            
+            # ========== 写作风格配置（项目级）==========
+            "writing_style": {
+                "style_id": None,           # 文风ID (如: tomato_fast, fanqie_light_fast_v1)
+                "style_name": None,         # 显示名称
+                "style_config": None,       # 完整风格配置（包含所有风格参数）
+                "selected_at": None,        # 选择时间
+                "is_preset": True,          # 是否为预设风格
+                "source": None              # 来源: preset(预设)/user(用户自定义)
             }
         }
     
@@ -177,6 +187,57 @@ class UnifiedProjectManager:
             "mode": mode,
             "info": info
         }
+    
+    @staticmethod
+    def set_writing_style(project_info: Dict, style_id: str, style_name: str, 
+                          style_config: Dict, is_preset: bool = True):
+        """
+        设置项目写作风格
+        
+        Args:
+            project_info: 项目信息字典
+            style_id: 文风ID
+            style_name: 文风显示名称
+            style_config: 完整风格配置
+            is_preset: 是否为预设风格
+        """
+        project_info["writing_style"] = {
+            "style_id": style_id,
+            "style_name": style_name,
+            "style_config": style_config,
+            "selected_at": datetime.now().isoformat(),
+            "is_preset": is_preset,
+            "source": "preset" if is_preset else "user"
+        }
+        logger.info(f"[ProjectManager] 设置写作风格: {style_name} (ID: {style_id})")
+    
+    @staticmethod
+    def get_writing_style(project_info: Dict) -> Optional[Dict]:
+        """
+        获取项目写作风格配置
+        
+        Returns:
+            写作风格配置，如果未设置返回 None
+        """
+        writing_style = project_info.get("writing_style", {})
+        # 检查是否已设置（有style_id且style_config不为空）
+        if writing_style.get("style_id") and writing_style.get("style_config"):
+            return writing_style
+        return None
+    
+    @staticmethod
+    def get_writing_style_for_generation(project_info: Dict) -> Optional[Dict]:
+        """
+        获取用于生成的写作风格配置（兼容旧格式）
+        返回纯风格配置（不含包装层）
+        
+        Returns:
+            风格配置字典，兼容 _build_layer4_from_style 方法
+        """
+        writing_style = project_info.get("writing_style", {})
+        if writing_style.get("style_config"):
+            return writing_style["style_config"]
+        return None
     
     @staticmethod
     def get_upload_data(project_info: Dict) -> Dict:
@@ -347,7 +408,8 @@ class ProjectDirectoryManager:
 
 
 # 便捷函数
-def create_unified_project(novel_title: str, generation_mode: str, genre: str = "", username: str = None) -> Path:
+def create_unified_project(novel_title: str, generation_mode: str, genre: str = "", 
+                           username: str = None, writing_style: Dict = None) -> Path:
     """
     便捷函数：创建统一项目
     
@@ -356,6 +418,7 @@ def create_unified_project(novel_title: str, generation_mode: str, genre: str = 
         generation_mode: 生成模式
         genre: 题材（用于自动填充分类标签）
         username: 用户名（如果提供，项目会创建在用户子目录下）
+        writing_style: 写作风格配置 {id, name, ...}
         
     Returns:
         项目路径
@@ -389,6 +452,19 @@ def create_unified_project(novel_title: str, generation_mode: str, genre: str = 
     if genre:
         FanqieUploadAdapter.auto_fill_category_tags(project_info, genre)
         project_info["genre"] = genre
+    
+    # 🔥 保存写作风格配置（如果提供）
+    if writing_style:
+        style_id = writing_style.get('id') or writing_style.get('style_id', '')
+        style_name = writing_style.get('name') or writing_style.get('style_name', '')
+        UnifiedProjectManager.set_writing_style(
+            project_info=project_info,
+            style_id=style_id,
+            style_name=style_name,
+            style_config=writing_style,
+            is_preset=True  # 预设文风
+        )
+        logger.info(f"[create_unified_project] 写作风格已设置: {style_name} (ID: {style_id})")
     
     # 保存
     UnifiedProjectManager.save_project_info(project_path, project_info)

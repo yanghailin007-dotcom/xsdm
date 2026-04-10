@@ -1,0 +1,75 @@
+# AI约束配置
+# Layer 5: AI约束
+
+version: "1.0"
+
+word_count:
+  target: 2200
+  min: 2000
+  max: 2500
+  tolerance: 0.1
+
+format_rules:
+  dialogue_wrapper: '""'
+  system_wrapper: "【】"
+  paragraph_max_lines: 4
+  paragraph_max_chars: 80
+
+forbidden:
+  content:
+    - description: "爽点回退"
+      reason: "爽后突然压抑会打断阅读体验"
+    - description: "预告欺诈"
+      reason: "章尾预告不兑现会失去读者信任"
+    - description: "人设崩塌"
+      reason: "角色行为前后矛盾"
+    - description: "使用'第X章'作为正文开头"
+      reason: "正文不应包含章节标题"
+    - description: "使用'起-承-转-合'节奏"
+      reason: "网文节奏：前300字入戏，持续高爽，章尾钩子"
+
+safety:
+  sensitive_words_filter: true
+  political_correctness: true
+  violence_level: "轻度"
+
+# 番茄爆款结尾模板（Layer 5 输出格式的一部分）
+ending_template:
+  title: "【番茄爆款结尾模板 - 必须遵循】"
+  description: "章节最后100-150字必须是强力钩子"
+  
+  templates:
+    - id: "crisis"
+      name: "危机降临型（推荐）"
+      description: "主角刚成功→突然→新危机出现→悬念截止"
+      example: "苏白刚收好战利品，突然——【全球通告】警告！检测到SS级凶兽正在接近！白月魁脸色骤变：'快走！那是...'"
+      
+    - id: "identity"
+      name: "身份揭露型"
+      description: "关键时刻→有人即将发现真相→揭露前截止"
+      example: "'等等！'白月魁突然盯着苏白，'你刚才用的那招...根本不是盲人的战斗方式！'苏白心中一凛..."
+      
+    - id: "system"
+      name: "系统提示型"
+      description: "完成某事→系统提示→出乎意料的奖励/惩罚"
+      example: "【叮！恭喜宿主完成隐藏任务！】【奖励：扮演度+20%】但紧接着——【警告：您已被标记为SS级目标！】"
+      
+    - id: "countdown"
+      name: "时间锁型"
+      description: "倒计时开始→时间紧迫→截止"
+      example: "【系统提示】禁地第二区域即将开启，倒计时：23小时59分。【警告】第二区域难度提升100%！"
+      
+    - id: "confrontation"
+      name: "对峙爆发型"
+      description: "正面对峙→剑拔弩张→动手前一秒截止"
+      example: "约翰带着人堵住洞口：'终于找到你了，龙国的瞎子。'苏白站起身，嘴角勾起冷笑：'你确定要在这里动手？'"
+  
+  rules:
+    - "章节最后100-150字必须是强力钩子"
+    - "禁止以'完'/'结束'/'休息'/'晚安'等词结尾"
+    - "最后50字必须是悬念"
+    - "根据剧情选择最合适的模板类型"
+  
+  selection_guide: |
+    【模板选择指南】
+    - 爆发爽点后 → 选

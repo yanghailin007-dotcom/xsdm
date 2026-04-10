@@ -207,7 +207,8 @@ def get_available_genres():
                         '无限流', '赛博修仙', '听劝系统', '规则怪谈', '诡异复苏']
         female_keywords = ['穿越', '重生', '宫斗', '宅斗', '甜宠', '虐恋', '总裁', '豪门', 
                           '先婚后爱', '替身', '白月光', '快穿', '年代文', '军婚', '种田', 
-                          '空间', '灵泉', '锦鲤', '福宝', '团宠']
+                          '空间', '灵泉', '锦鲤', '福宝', '团宠', '娱乐圈', '玄学', '兽世',
+                          '顶流', '影后', '直播', '算命', '兽人', '生崽']
         
         def get_genre_gender(genre_name):
             """根据题材名称判断性别"""
@@ -871,6 +872,9 @@ def _run_plan_and_products_conversation(task_id: str, genre: str, user_choices: 
             username = 'anonymous'
         logger.info(f"[Task {task_id}] 使用用户名: {username}")
         
+        # 🔥 从任务中获取写作风格
+        writing_style = task.get('writing_style')
+        
         # 🔥 根据字数重新计算正确的章节数（覆盖用户可能错误选择的章节数）
         from web.services.market_driven.config import get_config, get_target_words
         target_words = task.get('target_words') or get_target_words(genre)
@@ -927,7 +931,7 @@ def _run_plan_and_products_conversation(task_id: str, genre: str, user_choices: 
         else:
             # 用户留空或未指定，使用临时项目名
             novel_title = f"未命名_{task_id[:8]}"
-        project_path = create_unified_project(novel_title, "market_driven", genre, username)
+        project_path = create_unified_project(novel_title, "market_driven", genre, username, writing_style)
         logger.info(f"[Task {task_id}] 项目目录已创建: {project_path}")
         
         # 使用对话会话生成所有产物（每步自动保存）
@@ -996,6 +1000,9 @@ def _run_phase_one_products(task_id: str, genre: str, api_client=None):
             username = 'anonymous'
         logger.info(f"[Task {task_id}] 使用用户名: {username}")
         
+        # 🔥 从任务中获取写作风格
+        writing_style = task.get('writing_style')
+        
         # 🔥 使用对话模式生成
         logger.info(f"[Task {task_id}] 启动对话模式生成...")
         
@@ -1025,7 +1032,7 @@ def _run_phase_one_products(task_id: str, genre: str, api_client=None):
         
         # 🔥 创建项目目录（提前创建，用于保存每步结果）
         novel_title = user_choices.get("title") or plan.get("recommended_title") or f"未命名_{task_id[:8]}"
-        project_path = create_unified_project(novel_title, "market_driven", genre, username)
+        project_path = create_unified_project(novel_title, "market_driven", genre, username, writing_style)
         logger.info(f"[Task {task_id}] 项目目录已创建: {project_path}")
         
         # 使用对话会话生成所有产物（每步自动保存）
@@ -1067,8 +1074,9 @@ def _run_phase_one_products(task_id: str, genre: str, api_client=None):
             
             # 优先使用用户填写的书名
             user_choices = task.get("user_choices", {})
+            writing_style = task.get('writing_style')
             novel_title = user_choices.get("title") or plan.get("recommended_title") or f"未命名_{task_id[:8]}"
-            save_path = save_phase_one_products(novel_title, products, task_id, genre, plan, user_choices, username)
+            save_path = save_phase_one_products(novel_title, products, task_id, genre, plan, user_choices, username, writing_style)
             
             current_result = task.get("result", {})
             current_result["products"] = products
@@ -1090,7 +1098,7 @@ def _run_phase_one_products(task_id: str, genre: str, api_client=None):
 
 def save_phase_one_products(novel_title: str, products: Dict, task_id: str, 
                             genre: str = "", plan: Dict = None, user_choices: Dict = None,
-                            username: str = None) -> Path:
+                            username: str = None, writing_style: Dict = None) -> Path:
     """保存第一阶段产物到项目目录（使用统一的项目信息管理）"""
     
     # 🔥 获取用户名（优先使用传入的参数，否则从session获取）
@@ -1103,7 +1111,8 @@ def save_phase_one_products(novel_title: str, products: Dict, task_id: str,
         novel_title=novel_title,
         generation_mode="market_driven",
         genre=genre,
-        username=username
+        username=username,
+        writing_style=writing_style
     )
     
     # 更新项目信息
@@ -1397,11 +1406,13 @@ def _run_chapter_generation(task_id: str, genre: str, target_words: int, api_cli
         if not project_path:
             logger.warning(f"[ChapterGen] 项目路径不存在，尝试创建...")
             from web.services.market_driven.project_manager import create_unified_project
+            writing_style = task.get('writing_style')
             project_path = create_unified_project(
                 novel_title=novel_title,
                 generation_mode="market_driven",
                 genre=genre,
-                username=username
+                username=username,
+                writing_style=writing_style
             )
             logger.info(f"[ChapterGen] 创建新项目路径: {project_path}")
         
@@ -1537,12 +1548,24 @@ def _run_chapter_generation(task_id: str, genre: str, target_words: int, api_cli
                 "strategic_context": strategic_context  # 战略上下文
             }
             
-            # 🔥 获取文风设置
-            writing_style = task.get('writing_style')
+            # 🔥 获取文风设置（优先从 project_info 读取，备选从 task 读取）
+            writing_style = None
+            if project_path:
+                project_info = UnifiedProjectManager.load_project_info(project_path)
+                if project_info:
+                    writing_style = UnifiedProjectManager.get_writing_style_for_generation(project_info)
+                    if writing_style:
+                        logger.info(f"[Task {task_id}] 从 project_info 读取文风: {writing_style.get('name', '未命名')}")
+            
+            # 备选：从 task 读取
+            if not writing_style:
+                writing_style = task.get('writing_style')
+                if writing_style:
+                    logger.info(f"[Task {task_id}] 从 task 读取文风: {writing_style.get('name', '未命名')}")
+            
             if writing_style:
                 # 将文风注入到novel_data中
                 novel_data_with_plan['writing_style'] = writing_style
-                logger.info(f"[Task {task_id}] 使用文风: {writing_style.get('name', '未命名')}")
             
             # 生成本批
             result = batch_gen.generate_batch(
