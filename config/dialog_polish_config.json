@@ -1,0 +1,755 @@
+{
+  "version": "1.0",
+  "description": "对话打磨模式 - 各步骤配置",
+  "steps": {
+    "step_2_protagonist": {
+      "title": "第二步：主角性格设定",
+      "description": "主角性格决定了读者的代入方式和情感连接。",
+      "ai_message_template": "**🎭 第二步：主角性格设定**\n\n主角性格决定了读者的代入方式和情感连接。\n\n**该题材常见人设：** {genre_protagonist_data}\n\n**差异化选项：**\n（每个选项都标注了市场化评分和风险等级）\n\n**你想让主角是什么性格？**",
+      "base_options": {
+        "calm": {
+          "id": "calm",
+          "label": "🧊 冷静理智型",
+          "market_score": 85,
+          "risk": "低"
+        },
+        "talkative": {
+          "id": "talkative",
+          "label": "🗣️ 话痨吐槽型",
+          "market_score": 78,
+          "risk": "中"
+        },
+        "lazy": {
+          "id": "lazy",
+          "label": "😴 佛系摆烂型",
+          "market_score": 65,
+          "risk": "中"
+        },
+        "crazy": {
+          "id": "crazy",
+          "label": "🤪 疯批乐子型",
+          "market_score": 55,
+          "risk": "高"
+        },
+        "antihero": {
+          "id": "antihero",
+          "label": "😈 反英雄型",
+          "market_score": 70,
+          "risk": "中"
+        }
+      },
+      "genre_specific": {
+        "神豪文-花钱返利类": {
+          "descriptions": {
+            "calm": "理性消费，每笔支出都算得清清楚楚",
+            "talkative": "花钱时话痨吐槽，一边撒钱一边怼人",
+            "lazy": "懒得花钱，系统强迫消费才能变强",
+            "crazy": "疯狂砸钱，用钞能力解决一切问题",
+            "antihero": "只为自己花钱，不装圣人，真实直接"
+          }
+        },
+        "神豪文-签到奖励类": {
+          "descriptions": {
+            "calm": "稳健签到，积少成多，步步为营",
+            "talkative": "每天签到都要吐槽一番，话痨属性拉满",
+            "lazy": "经常忘记签到，错过奖励后悔莫及",
+            "crazy": "疯狂打卡，为了奖励可以凌晨起床",
+            "antihero": "利用签到奖励为自己谋利，不在乎他人眼光"
+          }
+        },
+        "国运文-直播类": {
+          "descriptions": {
+            "calm": "传统稳健选择，市场验证度高",
+            "talkative": "直播变单口相声，反差萌",
+            "lazy": "被迫营业，越不想火越火",
+            "crazy": "不按常理出牌，读者猜不到",
+            "antihero": "看似自私冷漠，实际另有深意"
+          }
+        },
+        "国运文-禁地探险类": {
+          "descriptions": {
+            "calm": "冷静分析，步步为营，生存率高",
+            "talkative": "一边探险一边吐槽，缓解紧张气氛",
+            "lazy": "能不动就不动，被迫探索禁地",
+            "crazy": "疯狂作死，哪里危险往哪里冲",
+            "antihero": "只为自己活命，必要时牺牲队友"
+          }
+        }
+      },
+      "keywords_mapping": {
+        "神豪文-花钱返利类": "神豪文-花钱返利类",
+        "神豪文-签到奖励类": "神豪文-签到奖励类",
+        "国运文-直播类": "国运文-直播类",
+        "国运文-禁地探险类": "国运文-禁地探险类",
+        "神豪文": "神豪文-花钱返利类",
+        "神豪": "神豪文-花钱返利类",
+        "花钱返利": "神豪文-花钱返利类",
+        "返利": "神豪文-花钱返利类",
+        "签到": "神豪文-签到奖励类",
+        "国运文": "国运文-直播类",
+        "国运": "国运文-直播类",
+        "直播": "国运文-直播类",
+        "禁地": "国运文-禁地探险类",
+        "探险": "国运文-禁地探险类",
+        "奶爸": "奶爸文-萌宝类",
+        "萌宝": "奶爸文-萌宝类",
+        "灵气复苏": "灵气复苏-觉醒类",
+        "觉醒": "灵气复苏-觉醒类",
+        "末日": "末日求生-囤货类",
+        "囤货": "末日求生-囤货类",
+        "诡异": "诡异复苏-规则怪谈类",
+        "规则怪谈": "诡异复苏-规则怪谈类",
+        "宠物": "宠物文-御兽进化类",
+        "御兽": "宠物文-御兽进化类"
+      },
+      "default_descriptions": {
+        "calm": "传统稳健选择，市场验证度高",
+        "talkative": "话痨吐槽型，用幽默化解危机",
+        "lazy": "被迫变强，越不想出头越出彩",
+        "crazy": "不按常理出牌，读者猜不到",
+        "antihero": "看似自私冷漠，实际另有深意"
+      }
+    },
+    "step_3_golden_finger": {
+      "title": "第三步：金手指设定",
+      "ai_message_template": "**⚡ 第三步：金手指设定**\n\n当前选择的主角：**{protagonist}**\n\n{genre_gf_data}\n\n**差异化方向：** 给金手指添加**限制条件或代价**\n（这样既能保留爽点，又能增加独特性和情感深度）\n\n**你想设计什么样的金手指？**\n（已智能推荐与主角性格和题材契合的选项）",
+      "base_options": [],
+      "keywords_mapping": {
+        "神豪文": "神豪文-花钱返利类",
+        "神豪": "神豪文-花钱返利类",
+        "花钱返利": "神豪文-花钱返利类",
+        "返利": "神豪文-花钱返利类",
+        "签到": "神豪文-签到奖励类",
+        "国运文": "国运文-直播类",
+        "国运": "国运文-直播类",
+        "直播": "国运文-直播类",
+        "禁地": "国运文-禁地探险类",
+        "探险": "国运文-禁地探险类"
+      },
+      "genre_specific": {
+        "神豪文-花钱返利类": [
+          {
+            "id": "rebate_decay",
+            "label": "📉 返利比例递减",
+            "description": "消费金额越高，返利比例越低",
+            "combo_effect": "迫使你思考如何最优消费，增加策略性",
+            "market_score": 78
+          },
+          {
+            "id": "spending_limit",
+            "label": "💰 每日消费上限",
+            "description": "每天最多只能消费一定额度，超出部分无返利",
+            "combo_effect": "限制无脑消费，迫使精打细算",
+            "market_score": 72
+          },
+          {
+            "id": "category_restriction",
+            "label": "🛍️ 消费类型限制",
+            "description": "返利只在特定消费类别生效（如只能用于慈善或投资）",
+            "combo_effect": "限制消费自由，但增加正面人设",
+            "market_score": 68
+          }
+        ],
+        "神豪文-签到奖励类": [
+          {
+            "id": "checkin_continuity",
+            "label": "📅 连续签到要求",
+            "description": "断签会导致奖励重置或降级，连续签到有额外加成",
+            "combo_effect": "增加紧张感和坚持动力",
+            "market_score": 76
+          },
+          {
+            "id": "random_reward",
+            "label": "🎲 奖励完全随机",
+            "description": "签到奖励完全随机，好坏全凭运气",
+            "combo_effect": "增加不确定性和期待感",
+            "market_score": 74
+          },
+          {
+            "id": "reward_expiry",
+            "label": "⏰ 奖励有效期",
+            "description": "获得的奖励必须在限定时间内使用，否则会过期",
+            "combo_effect": "迫使及时行动，增加紧迫感",
+            "market_score": 70
+          }
+        ],
+        "国运文-直播类": [
+          {
+            "id": "unique_audience",
+            "label": "📺 观众互动型",
+            "description": "直播观众弹幕可以影响能力效果",
+            "combo_effect_template": "与{protagonist}的直播场景完美契合",
+            "market_score": 80
+          },
+          {
+            "id": "popularity_cost",
+            "label": "🔥 人气值消耗",
+            "description": "使用能力需要消耗直播人气值，人气越高能力越强",
+            "combo_effect": "迫使维持高人气，增加直播张力",
+            "market_score": 78
+          },
+          {
+            "id": "audience_vote",
+            "label": "🗳️ 观众投票决定",
+            "description": "重大能力使用需要观众投票同意",
+            "combo_effect": "增加互动性和不确定性",
+            "market_score": 72
+          },
+          {
+            "id": "unique_national",
+            "label": "🏛️ 国运绑定",
+            "description": "能力效果与国家命运绑定，国运越强能力越强",
+            "combo_effect": "增加家国情怀，与国运文完美契合",
+            "market_score": 82
+          },
+          {
+            "id": "restriction_name",
+            "label": "📝 真名限制",
+            "description": "必须知道对方真名才能发动能力",
+            "combo_effect": "增加智斗成分，信息战",
+            "market_score": 70
+          }
+        ],
+        "国运文-禁地探险类": [
+          {
+            "id": "exploration_unlock",
+            "label": "🗺️ 探索度解锁",
+            "description": "能力随禁地探索进度逐步解锁",
+            "combo_effect": "激励深入探索，逐步变强",
+            "market_score": 76
+          },
+          {
+            "id": "environment_adapt",
+            "label": "🌡️ 环境适应",
+            "description": "能力在不同禁地环境中效果不同，需要适应",
+            "combo_effect": "增加策略性和环境互动",
+            "market_score": 74
+          },
+          {
+            "id": "stamina_cost",
+            "label": "⚡ 体能消耗",
+            "description": "使用能力会大量消耗体能，需要合理分配",
+            "combo_effect": "限制能力滥用，增加生存压力",
+            "market_score": 70
+          },
+          {
+            "id": "restriction_hostility",
+            "label": "😠 敌意触发",
+            "description": "需要对方先对主角产生敌意才能发动",
+            "combo_effect": "被动反击流，被挑衅后爆发",
+            "market_score": 72
+          }
+        ]
+      },
+      "default_options": [
+        {
+          "id": "side_effect_memory",
+          "label": "🧠 记忆消失代价",
+          "description": "每次使用能力会随机遗忘一段记忆",
+          "combo_effect_template": "与{protagonist}结合：能力越强越孤独，反差感强",
+          "market_score": 75
+        },
+        {
+          "id": "side_effect_body",
+          "label": "💀 身体衰弱代价",
+          "description": "力量越强，现实中的身体越虚弱",
+          "combo_effect_template": "与{protagonist}结合：悲剧英雄路线，需配合轻松桥段",
+          "market_score": 60
+        },
+        {
+          "id": "cooldown_limit",
+          "label": "⏳ 使用冷却",
+          "description": "每次使用后需要等待一段时间才能再次使用",
+          "combo_effect_template": "与{protagonist}结合：迫使合理规划能力使用时机",
+          "market_score": 68
+        }
+      ]
+    },
+    "step_4_plot_details": {
+      "title": "第四步：开局设计",
+      "ai_message_template": "**🎬 第四步：开局设计**\n\n当前设定汇总：\n• 主角：**{protagonist}**\n• 金手指：**{golden_finger}**\n\n黄金三章（第1-3章）决定了读者是否会继续阅读。\n\n**你想用什么开局吸引读者？**",
+      "genre_specific": {
+        "神豪文-花钱返利类": [
+          {
+            "id": "classic",
+            "label": "📖 经典开局",
+            "description": "被系统选中，获得花钱返利能力，从打脸势利眼开始",
+            "hook_strength": "★★★☆☆",
+            "familiarity": "高（读者容易接受）"
+          },
+          {
+            "id": "unexpected",
+            "label": "🎪 意外觉醒",
+            "description": "以为是普通消费返现APP，结果发现返利的是超能力",
+            "hook_strength": "★★★★☆",
+            "familiarity": "中（有喜剧效果）"
+          },
+          {
+            "id": "revenge",
+            "label": "🔥 逆袭打脸",
+            "description": "被前女友/家人看不起，反手就砸钱让他们跪舔",
+            "hook_strength": "★★★★★",
+            "familiarity": "高（爽文套路）"
+          },
+          {
+            "id": "forced",
+            "label": "😰 被迫花钱",
+            "description": "系统规定必须花够一定金额，否则会有惩罚",
+            "hook_strength": "★★★★☆",
+            "familiarity": "中（反差萌）"
+          }
+        ],
+        "神豪文-签到奖励类": [
+          {
+            "id": "classic",
+            "label": "📖 经典开局",
+            "description": "绑定签到系统，每日打卡获得随机奖励，起步即巅峰",
+            "hook_strength": "★★★☆☆",
+            "familiarity": "高（读者容易接受）"
+          },
+          {
+            "id": "unexpected",
+            "label": "🎪 意外触发",
+            "description": "随手点个打卡APP，结果签到获得了超能力",
+            "hook_strength": "★★★★☆",
+            "familiarity": "中（有喜剧效果）"
+          },
+          {
+            "id": "revenge",
+            "label": "🔥 隐忍爆发",
+            "description": "坚持签到365天无人问津，第366天奖励震惊全网",
+            "hook_strength": "★★★★★",
+            "familiarity": "高（爽文套路）"
+          },
+          {
+            "id": "forced",
+            "label": "😰 被迫打卡",
+            "description": "断签会扣除已有奖励，被迫每天准时打卡",
+            "hook_strength": "★★★★☆",
+            "familiarity": "中（紧迫感）"
+          }
+        ],
+        "国运文-直播类": [
+          {
+            "id": "classic",
+            "label": "📖 经典开局",
+            "description": "被选中进入副本，众人轻视，然后展现实力",
+            "hook_strength": "★★★☆☆",
+            "familiarity": "高（读者容易接受）"
+          },
+          {
+            "id": "unexpected",
+            "label": "🎪 意外入局",
+            "description": "以为是参加综艺，结果发现是玩真的",
+            "hook_strength": "★★★★☆",
+            "familiarity": "中（有喜剧效果）"
+          },
+          {
+            "id": "revenge",
+            "label": "🔥 复仇归来",
+            "description": "曾经失败过，这次以新身份重新参加",
+            "hook_strength": "★★★★★",
+            "familiarity": "中（悬念感强）"
+          },
+          {
+            "id": "forced",
+            "label": "😰 被迫参加",
+            "description": "完全不想参加，但被系统/国家强制选中",
+            "hook_strength": "★★★★☆",
+            "familiarity": "中（反差萌）"
+          }
+        ],
+        "国运文-禁地探险类": [
+          {
+            "id": "classic",
+            "label": "📖 经典开局",
+            "description": "被选入探险队，众人不信任，用实力证明自己",
+            "hook_strength": "★★★☆☆",
+            "familiarity": "高（读者容易接受）"
+          },
+            {
+            "id": "unexpected",
+            "label": "🎪 意外卷入",
+            "description": "原本是普通游客，意外掉进禁地深处",
+            "hook_strength": "★★★★☆",
+            "familiarity": "中（有喜剧效果）"
+          },
+          {
+            "id": "revenge",
+            "label": "🔥 寻仇探秘",
+            "description": "为寻找失踪的亲人/队友，独自深入禁地",
+            "hook_strength": "★★★★★",
+            "familiarity": "中（情感驱动）"
+          },
+          {
+            "id": "forced",
+            "label": "😰 生死逃亡",
+            "description": "被敌人追杀逃入禁地，被迫在绝境中求生",
+            "hook_strength": "★★★★☆",
+            "familiarity": "高（紧张刺激）"
+          }
+        ]
+      },
+      "keywords_mapping": {
+        "神豪文-花钱返利类": "神豪文-花钱返利类",
+        "神豪文-签到奖励类": "神豪文-签到奖励类",
+        "国运文-直播类": "国运文-直播类",
+        "国运文-禁地探险类": "国运文-禁地探险类",
+        "神豪文": "神豪文-花钱返利类",
+        "神豪": "神豪文-花钱返利类",
+        "花钱返利": "神豪文-花钱返利类",
+        "返利": "神豪文-花钱返利类",
+        "签到": "神豪文-签到奖励类",
+        "国运文": "国运文-直播类",
+        "国运": "国运文-直播类",
+        "直播": "国运文-直播类",
+        "禁地": "国运文-禁地探险类",
+        "探险": "国运文-禁地探险类",
+        "奶爸": "奶爸文-萌宝类",
+        "萌宝": "奶爸文-萌宝类",
+        "灵气复苏": "灵气复苏-觉醒类",
+        "觉醒": "灵气复苏-觉醒类",
+        "末日": "末日求生-囤货类",
+        "囤货": "末日求生-囤货类",
+        "诡异": "诡异复苏-规则怪谈类",
+        "规则怪谈": "诡异复苏-规则怪谈类",
+        "宠物": "宠物文-御兽进化类",
+        "御兽": "宠物文-御兽进化类"
+      },
+      "default_options": [
+        {
+          "id": "classic",
+          "label": "📖 经典开局",
+          "description": "被选中进入副本，众人轻视，然后展现实力",
+          "hook_strength": "★★★☆☆",
+          "familiarity": "高（读者容易接受）"
+        },
+        {
+          "id": "unexpected",
+          "label": "🎪 意外入局",
+          "description": "以为是参加综艺，结果发现是玩真的",
+          "hook_strength": "★★★★☆",
+          "familiarity": "中（有喜剧效果）"
+        },
+        {
+          "id": "revenge",
+          "label": "🔥 复仇归来",
+          "description": "曾经失败过，这次以新身份重新参加",
+          "hook_strength": "★★★★★",
+          "familiarity": "中（悬念感强）"
+        },
+        {
+          "id": "forced",
+          "label": "😰 被迫参加",
+          "description": "完全不想参加，但被系统/国家强制选中",
+          "hook_strength": "★★★★☆",
+          "familiarity": "中（反差萌）"
+        }
+      ]
+    },
+    "step_5_emotion_line": {
+      "title": "第五步：情感副线",
+      "description": "情感线是增强读者粘性的重要手段，能让读者为角色的命运牵肠挂肚。",
+      "ai_message_template": "**💕 第五步：情感副线（可选但推荐）**\n\n情感线是增强读者粘性的重要手段，能让读者为角色的命运牵肠挂肚。\n\n**你想添加什么样的情感羁绊？**\n（建议选择与当前设定互补的选项）",
+      "base_options": [
+        {
+          "id": "sister",
+          "label": "👧 妹妹羁绊",
+          "description": "妹妹是唯一记得/理解他的人，情感核心",
+          "applicability": "适合记忆消失、被遗忘等设定",
+          "tear_jerker_potential": "★★★★★"
+        },
+        {
+          "id": "rival",
+          "label": "⚔️ 宿敌变挚友",
+          "description": "一开始敌对，后来成为最懂他的人",
+          "applicability": "通用，增加人物关系张力",
+          "tear_jerker_potential": "★★★★☆"
+        },
+        {
+          "id": "none",
+          "label": "🚫 暂无情感线",
+          "description": "专注主线，情感线后期再展开",
+          "applicability": "快节奏爽文",
+          "tear_jerker_potential": "☆☆☆☆☆"
+        }
+      ],
+      "genre_specific": {
+        "神豪文-花钱返利类": [
+          {
+            "id": "secretary",
+            "label": "💼 秘书/助理",
+            "description": "漂亮能干的女秘书，是事业伙伴也是红颜知己",
+            "applicability": "神豪标配，事业爱情双丰收",
+            "tear_jerker_potential": "★★★☆☆"
+          },
+          {
+            "id": "childhood_friend",
+            "label": "🏠 青梅竹马",
+            "description": "从小一起长大，不因贫穷或富贵而改变",
+            "applicability": "纯爱向，反差感强",
+            "tear_jerker_potential": "★★★★☆"
+          },
+          {
+            "id": "business_rival",
+            "label": "💰 商业对手",
+            "description": "商场上的劲敌，最后变成最懂你的人",
+            "applicability": "智斗向，惺惺相惜",
+            "tear_jerker_potential": "★★★★☆"
+          }
+        ],
+        "神豪文-签到奖励类": [
+          {
+            "id": "system_guide",
+            "label": "🤖 系统精灵",
+            "description": "系统觉醒的AI助手，亦师亦友",
+            "applicability": "系统流标配，信息提供者",
+            "tear_jerker_potential": "★★★☆☆"
+          },
+          {
+            "id": "fellow_signer",
+            "label": "📅 签到伙伴",
+            "description": "一起签到的同伴，互相督促共同进步",
+            "applicability": "养成向，陪伴感强",
+            "tear_jerker_potential": "★★★☆☆"
+          }
+        ],
+        "国运文-直播类": [
+          {
+            "id": "national_fans",
+            "label": "🇨🇳 国民观众",
+            "description": "全国人民都是你的后盾，弹幕刷爆支持你",
+            "applicability": "国运特色，家国情怀",
+            "tear_jerker_potential": "★★★★★"
+          },
+          {
+            "id": "comrade",
+            "label": "🎖️ 战友兄弟",
+            "description": "为国征战的伙伴，生死与共",
+            "applicability": "热血向，战友情深",
+            "tear_jerker_potential": "★★★★☆"
+          },
+          {
+            "id": "live_stream_partner",
+            "label": "📺 直播搭档",
+            "description": "直播间里的固定搭档，默契配合",
+            "applicability": "直播特色，互动性强",
+            "tear_jerker_potential": "★★★☆☆"
+          }
+        ],
+        "国运文-禁地探险类": [
+          {
+            "id": "teammate",
+            "label": "🏕️ 探险队友",
+            "description": "禁地探险中的生死之交",
+            "applicability": "生存向，信任感强",
+            "tear_jerker_potential": "★★★★☆"
+          },
+          {
+            "id": "local_guide",
+            "label": "🗺️ 当地向导",
+            "description": "熟悉禁地的神秘向导，亦正亦邪",
+            "applicability": "探险特色，信息不对称",
+            "tear_jerker_potential": "★★★★☆"
+          },
+          {
+            "id": "family_legacy",
+            "label": "📜 家族传承",
+            "description": "先辈曾在禁地留下足迹，继承遗志",
+            "applicability": "宿命向，使命感强",
+            "tear_jerker_potential": "★★★★★"
+          }
+        ],
+        "奶爸文-萌宝类": [
+          {
+            "id": "cute_baby",
+            "label": "👶 萌宝互动",
+            "description": "聪明可爱的孩子，最强助攻",
+            "applicability": "奶爸文核心，温馨治愈",
+            "tear_jerker_potential": "★★★★★"
+          },
+          {
+            "id": "baby_mother",
+            "label": "👩 妻子/前妻",
+            "description": "孩子的母亲，复杂的感情纠葛",
+            "applicability": "感情线核心，破镜重圆",
+            "tear_jerker_potential": "★★★★☆"
+          },
+          {
+            "id": "other_parents",
+            "label": "👨‍👩‍👧 家长群",
+            "description": "幼儿园/学校的其他家长，互助交流",
+            "applicability": "日常向，接地气",
+            "tear_jerker_potential": "★★☆☆☆"
+          }
+        ],
+        "签到文-日常签到类": [
+          {
+            "id": "neighbor",
+            "label": "🏘️ 邻居日常",
+            "description": "每天一起签到的邻居，互帮互助",
+            "applicability": "日常流特色，温馨",
+            "tear_jerker_potential": "★★★☆☆"
+          },
+          {
+            "id": "pet_companion",
+            "label": "🐾 萌宠陪伴",
+            "description": "签到奖励获得的特殊宠物，忠诚伙伴",
+            "applicability": "治愈向，陪伴感",
+            "tear_jerker_potential": "★★★★☆"
+          }
+        ],
+        "末日求生-囤货类": [
+          {
+            "id": "survival_team",
+            "label": "🛡️ 求生小队",
+            "description": "末日中互相依靠的队友，抱团取暖",
+            "applicability": "末日核心，信任考验",
+            "tear_jerker_potential": "★★★★☆"
+          },
+          {
+            "id": "saved_stranger",
+            "label": "🆘 救下的幸存者",
+            "description": "在末日中救下的人，成为得力助手",
+            "applicability": "救赎向，知恩图报",
+            "tear_jerker_potential": "★★★☆☆"
+          }
+        ],
+        "诡异复苏-规则怪谈类": [
+          {
+            "id": "fellow_survivor",
+            "label": "👻 怪谈同伴",
+            "description": "同样卷入规则怪谈的人，信息共享",
+            "applicability": "恐怖向，同病相怜",
+            "tear_jerker_potential": "★★★★☆"
+          },
+          {
+            "id": "mysterious_informant",
+            "label": "📞 神秘线人",
+            "description": "知道规则漏洞的神秘人，亦敌亦友",
+            "applicability": "悬疑特色，信息差",
+            "tear_jerker_potential": "★★★★★"
+          }
+        ],
+        "宠物文-御兽进化类": [
+          {
+            "id": "spirit_pet",
+            "label": "🐉 本命灵兽",
+            "description": "契约的第一只灵兽，共同成长",
+            "applicability": "御兽核心，羁绊最强",
+            "tear_jerker_potential": "★★★★★"
+          },
+          {
+            "id": "beast_master_peer",
+            "label": "🦅 御兽师同行",
+            "description": "同为御兽师的伙伴，切磋交流",
+            "applicability": "职业特色，竞争合作",
+            "tear_jerker_potential": "★★★☆☆"
+          }
+        ],
+        "灵气复苏-觉醒类": [
+          {
+            "id": "awakening_companion",
+            "label": "⚡ 觉醒同伴",
+            "description": "同时期觉醒的异能者，惺惺相惜",
+            "applicability": "灵气复苏特色，共同探索",
+            "tear_jerker_potential": "★★★★☆"
+          },
+          {
+            "id": "ordinary_family",
+            "label": "👨‍👩‍👦 普通家人",
+            "description": "没有觉醒能力的家人，保护他们成为动力",
+            "applicability": "守护向，反差感强",
+            "tear_jerker_potential": "★★★★★"
+          }
+        ]
+      },
+      "keywords_mapping": {
+        "神豪文-花钱返利类": "神豪文-花钱返利类",
+        "神豪文-签到奖励类": "神豪文-签到奖励类",
+        "国运文-直播类": "国运文-直播类",
+        "国运文-禁地探险类": "国运文-禁地探险类",
+        "签到文-日常签到类": "签到文-日常签到类",
+        "奶爸文-萌宝类": "奶爸文-萌宝类",
+        "末日求生-囤货类": "末日求生-囤货类",
+        "诡异复苏-规则怪谈类": "诡异复苏-规则怪谈类",
+        "宠物文-御兽进化类": "宠物文-御兽进化类",
+        "灵气复苏-觉醒类": "灵气复苏-觉醒类",
+        "神豪文": "神豪文-花钱返利类",
+        "神豪": "神豪文-花钱返利类",
+        "花钱返利": "神豪文-花钱返利类",
+        "返利": "神豪文-花钱返利类",
+        "签到": "签到文-日常签到类",
+        "国运文": "国运文-直播类",
+        "国运": "国运文-直播类",
+        "直播": "国运文-直播类",
+        "禁地": "国运文-禁地探险类",
+        "探险": "国运文-禁地探险类",
+        "奶爸": "奶爸文-萌宝类",
+        "萌宝": "奶爸文-萌宝类",
+        "灵气复苏": "灵气复苏-觉醒类",
+        "觉醒": "灵气复苏-觉醒类",
+        "末日": "末日求生-囤货类",
+        "囤货": "末日求生-囤货类",
+        "诡异": "诡异复苏-规则怪谈类",
+        "规则怪谈": "诡异复苏-规则怪谈类",
+        "宠物": "宠物文-御兽进化类",
+        "御兽": "宠物文-御兽进化类",
+        "甜宠": "神豪文-花钱返利类",
+        "虐恋": "国运文-直播类",
+        "穿越": "国运文-禁地探险类",
+        "重生": "国运文-直播类",
+        "宫斗": "国运文-禁地探险类",
+        "宅斗": "国运文-禁地探险类",
+        "快穿": "诡异复苏-规则怪谈类",
+        "军婚": "末日求生-囤货类",
+        "团宠": "奶爸文-萌宝类",
+        "娱乐圈": "神豪文-花钱返利类",
+        "玄学": "国运文-直播类",
+        "兽世": "宠物文-御兽进化类",
+        "神选": "灵气复苏-觉醒类",
+        "模拟器": "神豪文-花钱返利类",
+        "游戏异界": "灵气复苏-觉醒类",
+        "美食": "神豪文-花钱返利类",
+        "历史架空": "国运文-禁地探险类",
+        "文娱": "神豪文-花钱返利类",
+        "盗墓": "国运文-禁地探险类",
+        "综漫": "诡异复苏-规则怪谈类",
+        "种田": "神豪文-花钱返利类",
+        "四合院": "签到文-日常签到类"
+      },
+      "default_options": [
+        {
+          "id": "pet",
+          "label": "🐾 特殊宠物",
+          "description": "宠物有特殊能力，或能感知主角真实状态",
+          "applicability": "适合轻松向、治愈向",
+          "tear_jerker_potential": "★★★☆☆"
+        },
+        {
+          "id": "mentor",
+          "label": "👴 神秘导师",
+          "description": "暗中指导主角，真实身份成谜",
+          "applicability": "适合成长型主角",
+          "tear_jerker_potential": "★★★☆☆"
+        }
+      ]
+    }
+  },
+  "genre_mappings": {
+    "protagonist_data": {
+      "神豪文-花钱返利类": "张扬霸气型（市场占比40%，完读率15%）",
+      "神豪文-签到奖励类": "稳健务实型（市场占比35%，完读率14%）",
+      "国运文-直播类": "冷静理智型（市场占比35%，完读率12%）",
+      "国运文-禁地探险类": "坚韧执着型（市场占比33%，完读率11%）",
+      "default": "冷静理智型（市场占比约35%，完读率约13%）"
+    },
+    "golden_finger_data": {
+      "神豪文-花钱返利类": "该题材常见金手指：花钱返利系统，消费越多赚得越多（市场占比50%，已略显套路化）",
+      "神豪文-签到奖励类": "该题材常见金手指：每日签到获得随机奖励，积少成多（市场占比45%，发展成熟）",
+      "国运文-直播类": "该题材常见金手指：绑定国运，代表国家参赛获得神级能力（市场占比45%，同质化严重）",
+      "国运文-禁地探险类": "该题材常见金手指：获得探险能力或禁地地图，为国争光（市场占比42%，竞争激烈）",
+      "default": "该题材常见金手指：直接获得能力，无副作用（市场占比40%，但同质化严重）"
+    }
+  }
+}
