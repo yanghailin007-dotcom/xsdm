@@ -3,17 +3,12 @@ __pycache__/
 *.pyc
 *.pyo
 *.pyd
-*.json
-# *.md  # 注释掉这个规则，因为我们需要跟踪某些md文件
 
-# 但保留多语言文件
-!static/js/i18n/*.json
-
-# 保留提示词包JSON配置文件
-!prompt_packages/**/*.json
-
-# 保留对话打磨配置
-!config/dialog_polish_config.json
+# 忽略临时JSON状态文件（但保留配置文件）
+.world_state.json
+.chapter_extractions.json
+config/user_*.json
+data/genres/genres_cache.json
 
 # C extensions
 *.so
