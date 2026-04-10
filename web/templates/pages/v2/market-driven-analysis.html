@@ -793,7 +793,7 @@ async function startAnalysis() {
     const response = await fetch('/api/market-driven/analyze-tropes', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ genre: genreId })
+      body: JSON.stringify({ genre: genreName })  // 使用中文名称而非ID
     });
     
     if (!response.ok) {
