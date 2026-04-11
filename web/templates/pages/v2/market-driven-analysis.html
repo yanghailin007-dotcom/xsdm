@@ -520,6 +520,29 @@
       <span class="progress-info__stage" id="progress-stage">正在初始化...</span>
       <span class="progress-info__percent" id="progress-percent">0%</span>
     </div>
+    <!-- 重试按钮 - 分析失败时显示 -->
+    <div class="retry-container" id="retry-container" style="display: none; margin-top: 16px; text-align: center;">
+      <button class="retry-btn" onclick="retryAnalysis()" style="
+        padding: 10px 24px;
+        background: linear-gradient(135deg, var(--primary-gold), var(--primary-gold-light));
+        color: #0f172a;
+        border: none;
+        border-radius: 8px;
+        font-size: 14px;
+        font-weight: 600;
+        cursor: pointer;
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        transition: all 0.3s ease;
+      ">
+        <span class="material-icons" style="font-size: 18px;">refresh</span>
+        <span>重试分析</span>
+      </button>
+      <div style="margin-top: 8px; font-size: 12px; color: var(--v2-text-tertiary);">
+        分析可能因网络波动失败，点击重试
+      </div>
+    </div>
   </div>
 
   <!-- 分析中动画 -->
@@ -809,7 +832,9 @@ async function startAnalysis() {
     console.error('分析失败:', error);
     // 显示错误状态
     updateProgress('分析失败: ' + error.message, 0);
-    Dialog.error('分析失败: ' + error.message);
+    // 显示重试按钮
+    showRetryButton(true);
+    Dialog.error('分析失败: ' + error.message + '，请重试');
   }
 }
 
@@ -858,7 +883,9 @@ async function pollTaskStatus(taskId) {
       console.error('任务失败:', task.error);
       // 显示错误状态
       updateProgress('分析失败', 0);
-      Dialog.error('分析失败: ' + (task.error || '未知错误'));
+      // 显示重试按钮
+      showRetryButton(true);
+      Dialog.error('分析失败: ' + (task.error || '未知错误') + '，请重试');
       return;
     }
     
@@ -866,6 +893,8 @@ async function pollTaskStatus(taskId) {
     await sleep(interval);
   }
   
+  // 超时时显示重试按钮
+  showRetryButton(true);
   throw new Error('分析超时');
 }
 
@@ -873,6 +902,11 @@ async function updateProgress(stage, percent) {
   document.getElementById('progress-stage').textContent = stage;
   document.getElementById('progress-percent').textContent = percent + '%';
   document.getElementById('progress-fill').style.width = percent + '%';
+  
+  // 进度开始时隐藏重试按钮
+  if (percent > 0 && percent < 100) {
+    showRetryButton(false);
+  }
   
   // 根据进度更新提示文本
   const timeText = document.getElementById('progress-time');
@@ -1316,6 +1350,32 @@ function startGeneration() {
 
 function sleep(ms) {
   return new Promise(resolve => setTimeout(resolve, ms));
+}
+
+// 显示/隐藏重试按钮
+function showRetryButton(show) {
+  const retryContainer = document.getElementById('retry-container');
+  if (retryContainer) {
+    retryContainer.style.display = show ? 'block' : 'none';
+  }
+}
+
+// 重试分析
+async function retryAnalysis() {
+  console.log('重试分析...');
+  
+  // 隐藏重试按钮
+  showRetryButton(false);
+  
+  // 重置进度条
+  await updateProgress('正在重新分析...', 5);
+  
+  // 显示加载动画
+  const spinner = document.getElementById('analyzing-spinner');
+  if (spinner) spinner.style.display = 'flex';
+  
+  // 重新开始分析
+  await startAnalysis();
 }
 </script>
 {% endblock %}
