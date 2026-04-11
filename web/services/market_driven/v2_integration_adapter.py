@@ -936,7 +936,7 @@ class V2IntegrationAdapter:
                 lines.append("### 【Layer 1.1c】世界状态约束（本章必须遵循）")
                 
                 # 主角当前状态
-                protagonist_state = filtered_state.get('protagonist_state', {})
+                protagonist_state = world_state.get('protagonist_state', {})
                 if protagonist_state:
                     lines.append("**主角当前状态：**")
                     health = protagonist_state.get('health', '健康')
@@ -948,7 +948,7 @@ class V2IntegrationAdapter:
                     lines.append("")
                 
                 # 系统状态
-                system_state = filtered_state.get('system_state', {})
+                system_state = world_state.get('system_state', {})
                 if system_state:
                     lines.append("**系统状态：**")
                     current_level = system_state.get('current_level', '初始')
@@ -963,7 +963,7 @@ class V2IntegrationAdapter:
                     lines.append("")
                 
                 # 活跃剧情线索
-                active_plots = filtered_state.get('active_plots', [])
+                active_plots = world_state.get('active_plots', [])
                 if active_plots:
                     lines.append("**活跃剧情线索（本章必须提及或推进）：**")
                     for plot in active_plots:
