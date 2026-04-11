@@ -7,13 +7,13 @@
 <style>
 /* ===== 变量定义 ===== */
 :root {
-  --editor-bg: #0f1115;
-  --panel-bg-original: rgba(100, 116, 139, 0.05);
-  --panel-bg-editing: rgba(245, 158, 11, 0.05);
-  --border-original: rgba(100, 116, 139, 0.3);
-  --border-editing: rgba(245, 158, 11, 0.4);
-  --header-height: 60px;
-  --toolbar-height: 52px;
+  --editor-bg: #0b0d10;
+  --panel-bg-original: rgba(30, 41, 59, 0.35);
+  --panel-bg-editing: rgba(15, 23, 42, 0.6);
+  --border-original: rgba(148, 163, 184, 0.15);
+  --border-editing: rgba(245, 158, 11, 0.35);
+  --header-height: 56px;
+  --toolbar-height: 48px;
 }
 
 /* ===== 编辑器头部 ===== */
@@ -23,13 +23,14 @@
   left: 0;
   right: 0;
   height: var(--header-height);
-  background: var(--v2-bg-primary);
-  border-bottom: 1px solid var(--v2-border-subtle);
+  background: linear-gradient(180deg, rgba(15,23,42,0.95) 0%, rgba(15,23,42,0.85) 100%);
+  border-bottom: 1px solid rgba(148,163,184,0.1);
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 0 24px;
+  padding: 0 20px;
   z-index: 100;
+  backdrop-filter: blur(8px);
 }
 
 .editor-header__left {
@@ -88,12 +89,12 @@
   left: 0;
   right: 0;
   height: var(--toolbar-height);
-  background: var(--v2-bg-secondary);
-  border-bottom: 1px solid var(--v2-border-subtle);
+  background: rgba(30, 41, 59, 0.4);
+  border-bottom: 1px solid rgba(148,163,184,0.08);
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 0 24px;
+  padding: 0 20px;
   z-index: 99;
 }
 
@@ -114,21 +115,21 @@
 .editor-btn {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
-  padding: 8px 16px;
+  gap: 5px;
+  padding: 6px 12px;
   border-radius: 6px;
-  font-size: 13px;
+  font-size: 12.5px;
   font-weight: 500;
   cursor: pointer;
   transition: all 0.2s;
   border: none;
   background: transparent;
-  color: var(--v2-text-secondary);
+  color: #94a3b8;
 }
 
 .editor-btn:hover {
-  background: var(--v2-bg-tertiary);
-  color: var(--v2-text-primary);
+  background: rgba(148, 163, 184, 0.12);
+  color: #e2e8f0;
 }
 
 .editor-btn--primary {
@@ -194,12 +195,13 @@
   top: calc(var(--header-height) + var(--toolbar-height));
   left: 0;
   right: 0;
-  bottom: 0;
+  bottom: 28px;
   display: grid;
   grid-template-columns: 1fr 1fr;
   grid-template-rows: 1fr 1fr;
-  gap: 1px;
-  background: var(--v2-border-subtle);
+  gap: 8px;
+  padding: 8px;
+  background: var(--editor-bg);
 }
 
 .editor-panel {
@@ -207,14 +209,20 @@
   display: flex;
   flex-direction: column;
   overflow: hidden;
+  border-radius: 10px;
+  border: 1px solid var(--v2-border-subtle);
+  box-shadow: 0 2px 8px rgba(0,0,0,0.25);
 }
 
 .editor-panel--original {
   background: var(--panel-bg-original);
+  border-color: var(--border-original);
 }
 
 .editor-panel--editing {
   background: var(--panel-bg-editing);
+  border-color: var(--border-editing);
+  box-shadow: 0 0 0 1px rgba(245, 158, 11, 0.08), 0 4px 16px rgba(0,0,0,0.35);
 }
 
 /* 面板头部 */
@@ -222,9 +230,9 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 12px 16px;
+  padding: 10px 14px;
   border-bottom: 1px solid var(--v2-border-subtle);
-  background: rgba(0, 0, 0, 0.2);
+  background: rgba(15, 23, 42, 0.4);
   flex-shrink: 0;
 }
 
@@ -239,24 +247,27 @@
 
 .editor-panel__title .material-icons {
   font-size: 16px;
+  color: var(--v2-text-muted);
 }
 
 .editor-panel__badge {
-  padding: 2px 8px;
-  border-radius: 100px;
+  padding: 3px 8px;
+  border-radius: 6px;
   font-size: 10px;
   font-weight: 600;
-  text-transform: uppercase;
+  letter-spacing: 0.3px;
 }
 
 .editor-panel__badge--system {
-  background: var(--border-original);
+  background: rgba(148, 163, 184, 0.15);
   color: #94a3b8;
+  border: 1px solid rgba(148, 163, 184, 0.2);
 }
 
 .editor-panel__badge--user {
-  background: var(--border-editing);
-  color: var(--primary-gold);
+  background: rgba(245, 158, 11, 0.12);
+  color: #fbbf24;
+  border: 1px solid rgba(245, 158, 11, 0.25);
 }
 
 .editor-panel__actions {
@@ -299,17 +310,22 @@
 .editor-prompt {
   width: 100%;
   height: 100%;
-  padding: 16px;
+  padding: 18px 20px;
   background: transparent;
   border: none;
-  font-family: 'Monaco', 'Menlo', 'Consolas', 'SF Mono', monospace;
-  font-size: 13px;
-  line-height: 1.7;
-  color: var(--v2-text-primary);
+  font-family: 'JetBrains Mono', 'Monaco', 'Menlo', 'Consolas', 'SF Mono', monospace;
+  font-size: 13.5px;
+  line-height: 1.75;
+  color: #e2e8f0;
   resize: none;
   box-sizing: border-box;
   white-space: pre-wrap;
   word-wrap: break-word;
+}
+
+.editor-prompt::placeholder {
+  color: #475569;
+  font-size: 13px;
 }
 
 .editor-prompt:focus {
@@ -318,24 +334,25 @@
 
 .editor-prompt--readonly {
   cursor: default;
-  opacity: 0.8;
+  color: #94a3b8;
 }
 
 /* 预览区 */
 .editor-preview {
-  padding: 20px 24px;
-  font-size: 14px;
-  line-height: 1.9;
-  color: var(--v2-text-primary);
+  padding: 22px 28px;
+  font-size: 14.5px;
+  line-height: 2;
+  color: #e2e8f0;
 }
 
 .editor-preview__title {
-  font-size: 16px;
+  font-size: 17px;
   font-weight: 700;
   text-align: center;
-  margin-bottom: 16px;
-  padding-bottom: 12px;
-  border-bottom: 1px solid var(--v2-border-subtle);
+  margin-bottom: 18px;
+  padding-bottom: 14px;
+  border-bottom: 1px solid rgba(148, 163, 184, 0.15);
+  color: #f8fafc;
 }
 
 .editor-preview__content {
@@ -343,7 +360,7 @@
 }
 
 .editor-preview__content p {
-  margin-bottom: 1em;
+  margin-bottom: 1.1em;
 }
 
 /* 空状态 */
@@ -353,20 +370,22 @@
   align-items: center;
   justify-content: center;
   height: 100%;
-  color: var(--v2-text-muted);
+  color: #64748b;
   text-align: center;
   padding: 40px;
 }
 
 .editor-empty__icon {
-  font-size: 48px;
-  margin-bottom: 16px;
-  opacity: 0.3;
+  font-size: 44px;
+  margin-bottom: 14px;
+  opacity: 0.25;
+  color: #94a3b8;
 }
 
 .editor-empty__text {
-  font-size: 14px;
-  margin-bottom: 20px;
+  font-size: 13px;
+  margin-bottom: 18px;
+  line-height: 1.6;
 }
 
 /* ===== 底部状态栏 ===== */
@@ -376,15 +395,16 @@
   left: 0;
   right: 0;
   height: 28px;
-  background: var(--v2-bg-tertiary);
-  border-top: 1px solid var(--v2-border-subtle);
+  background: rgba(15, 23, 42, 0.6);
+  border-top: 1px solid rgba(148, 163, 184, 0.1);
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 0 16px;
+  padding: 0 20px;
   font-size: 11px;
-  color: var(--v2-text-muted);
+  color: #64748b;
   z-index: 100;
+  backdrop-filter: blur(4px);
 }
 
 .editor-statusbar__left,
@@ -588,7 +608,7 @@
     </div>
     <div class="editor-panel__content">
       <textarea class="editor-prompt editor-prompt--readonly" id="default-prompt" readonly 
-                placeholder="系统默认提示词加载中...">{{ default_prompt or '系统默认提示词内容...' }}</textarea>
+                placeholder="加载中...">{{ default_prompt or '' }}</textarea>
     </div>
   </div>
 
@@ -613,14 +633,8 @@
     </div>
     <div class="editor-panel__content">
       <textarea class="editor-prompt" id="edited-prompt" 
-                placeholder="在此编辑提示词...
-
-支持使用变量占位符：
-{{genre}} - 题材名称
-{{protagonist}} - 主角设定
-{{golden_finger}} - 金手指设定
-..."
-                oninput="onPromptChange()">{{ edited_prompt or default_prompt or '' }}</textarea>
+                placeholder="在这里编辑提示词..."
+                oninput="onPromptChange()">{{ edited_prompt or '' }}</textarea>
     </div>
   </div>
 
@@ -633,17 +647,22 @@
         <span class="editor-panel__badge editor-panel__badge--system">参考</span>
       </div>
       <div class="editor-panel__actions">
-        <span style="font-size: 11px; color: var(--v2-text-muted);">
-          {{ default_word_count or '1,850' }} 字
+        <span style="font-size: 11px; color: var(--v2-text-muted);" id="default-word-count">
+          -- 字
         </span>
       </div>
     </div>
     <div class="editor-panel__content" id="default-preview-panel">
-      <div class="editor-preview" id="default-preview">
-        <div class="editor-preview__title">{{ default_chapter_title or '第1章 开局获得神豪系统' }}</div>
-        <div class="editor-preview__content">
-          {{ default_chapter_content or '<p>李明是一个普通的外卖员，每天奔波在城市的大街小巷...</p><p>这天，他意外获得了一个神豪系统...</p>' }}
+      <div class="editor-empty" id="default-empty">
+        <span class="material-icons editor-empty__icon">menu_book</span>
+        <div class="editor-empty__text">
+          左侧为系统默认提示词<br>
+          生成预览将显示在这里
         </div>
+      </div>
+      <div class="editor-preview" id="default-preview" style="display: none;">
+        <div class="editor-preview__title" id="default-chapter-title"></div>
+        <div class="editor-preview__content" id="default-chapter-content"></div>
       </div>
     </div>
   </div>
@@ -798,6 +817,8 @@ async function loadDefaultPrompt() {
     defaultPrompt = sectionsToText(defaultSections);
     document.getElementById('default-prompt').value = defaultPrompt;
     document.getElementById('default-prompt-length').textContent = defaultPrompt.length.toLocaleString() + ' 字';
+    const dwc = document.getElementById('default-word-count');
+    if (dwc) dwc.textContent = defaultPrompt.length.toLocaleString() + ' 字';
   } catch (e) {
     console.error('加载默认提示词失败:', e);
     defaultPrompt = '';
