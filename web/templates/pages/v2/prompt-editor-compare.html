@@ -753,8 +753,12 @@
         <span class="material-icons editor-empty__icon">menu_book</span>
         <div class="editor-empty__text">
           左侧为系统默认提示词<br>
-          生成预览将显示在这里
+          点击"生成默认预览"查看效果
         </div>
+        <button class="editor-btn editor-btn--primary" onclick="regenerateDefaultPreview()">
+          <span class="material-icons">refresh</span>
+          生成默认预览
+        </button>
       </div>
       <div class="editor-preview" id="default-preview" style="display: none;">
         <div class="editor-preview__title" id="default-chapter-title"></div>
@@ -1222,11 +1226,11 @@ function clearEdit() {
   }
 }
 
-// ===== 重新生成预览 =====
-async function regeneratePreview() {
+// ===== 通用生成预览 =====
+async function doGeneratePreview(promptText, isDefault = false) {
   if (isRegenerating) return;
-  if (!editedPrompt.trim()) {
-    showToast('请先编辑提示词');
+  if (!promptText.trim()) {
+    showToast(isDefault ? '系统默认提示词为空，无法生成' : '请先编辑提示词');
     return;
   }
   if (!packageId || !stepId) {
@@ -1235,17 +1239,26 @@ async function regeneratePreview() {
   }
   
   isRegenerating = true;
-  const btn = document.getElementById('btn-regenerate');
-  btn.disabled = true;
-  btn.innerHTML = '<span class="material-icons">hourglass_empty</span>生成中...';
+  const btn = isDefault ? null : document.getElementById('btn-regenerate');
+  if (btn) {
+    btn.disabled = true;
+    btn.innerHTML = '<span class="material-icons">hourglass_empty</span>生成中...';
+  }
+  
+  const panelId = isDefault ? 'default-preview-panel' : 'edited-preview-panel';
+  const emptyId = isDefault ? 'default-empty' : 'edited-empty';
+  const previewId = isDefault ? 'default-preview' : 'edited-preview';
+  const titleId = isDefault ? 'default-chapter-title' : 'edited-chapter-title';
+  const contentId = isDefault ? 'default-chapter-content' : 'edited-chapter-content';
+  const wordCountId = isDefault ? 'default-word-count' : 'edited-word-count';
   
   // 显示遮罩
-  const panel = document.getElementById('edited-preview-panel');
+  const panel = document.getElementById(panelId);
   const overlay = document.createElement('div');
   overlay.className = 'regenerating-overlay';
   overlay.innerHTML = `
     <div class="regenerating-overlay__spinner"></div>
-    <div class="regenerating-overlay__text">AI正在生成预览章节...</div>
+    <div class="regenerating-overlay__text">${isDefault ? 'AI正在生成默认预览章节...' : 'AI正在生成预览章节...'}</div>
     <div class="regenerating-overlay__progress">预计 20-40 秒</div>
   `;
   panel.appendChild(overlay);
@@ -1254,7 +1267,7 @@ async function regeneratePreview() {
     const response = await fetch(`/api/v2/prompt-packages/${packageId}/steps/${stepId}/preview`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ prompt: editedPrompt })
+      body: JSON.stringify({ prompt: promptText })
     });
     
     const data = await response.json();
@@ -1263,15 +1276,15 @@ async function regeneratePreview() {
     }
     
     // 显示预览
-    document.getElementById('edited-empty').style.display = 'none';
-    document.getElementById('edited-preview').style.display = 'block';
-    document.getElementById('edited-chapter-title').textContent = data.title || '未命名章节';
-    document.getElementById('edited-chapter-content').innerHTML = data.content || '<p>无内容</p>';
-    document.getElementById('edited-word-count').textContent = (data.word_count || 0).toLocaleString() + ' 字';
-    document.getElementById('edited-word-count').style.color = '';
+    document.getElementById(emptyId).style.display = 'none';
+    document.getElementById(previewId).style.display = 'block';
+    document.getElementById(titleId).textContent = data.title || '未命名章节';
+    document.getElementById(contentId).innerHTML = data.content || '<p>无内容</p>';
+    document.getElementById(wordCountId).textContent = (data.word_count || 0).toLocaleString() + ' 字';
+    document.getElementById(wordCountId).style.color = '';
     
-    // 如果开启差异模式，高亮差异
-    if (isDiffMode) {
+    // 如果开启差异模式，高亮差异（仅修改后预览）
+    if (!isDefault && isDiffMode) {
       highlightDiff();
     }
     
@@ -1279,10 +1292,20 @@ async function regeneratePreview() {
     showToast('生成失败：' + error.message);
   } finally {
     isRegenerating = false;
-    btn.disabled = false;
-    btn.innerHTML = '<span class="material-icons">refresh</span>重新生成预览';
+    if (btn) {
+      btn.disabled = false;
+      btn.innerHTML = '<span class="material-icons">refresh</span>重新生成预览';
+    }
     overlay.remove();
   }
+}
+
+async function regeneratePreview() {
+  await doGeneratePreview(editedPrompt, false);
+}
+
+async function regenerateDefaultPreview() {
+  await doGeneratePreview(defaultPrompt, true);
 }
 
 // ===== 切换功能 =====
