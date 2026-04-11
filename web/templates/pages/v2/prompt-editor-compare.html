@@ -582,22 +582,28 @@
 }
 
 /* ===== 滚动条样式 ===== */
-.editor-panel__content::-webkit-scrollbar {
-  width: 8px;
-  height: 8px;
+.editor-panel__content::-webkit-scrollbar,
+textarea::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
 }
 
-.editor-panel__content::-webkit-scrollbar-track {
-  background: transparent;
+.editor-panel__content::-webkit-scrollbar-track,
+textarea::-webkit-scrollbar-track {
+  background: rgba(15, 23, 42, 0.3);
+  border-radius: 3px;
 }
 
-.editor-panel__content::-webkit-scrollbar-thumb {
-  background: var(--v2-border-subtle);
-  border-radius: 4px;
+.editor-panel__content::-webkit-scrollbar-thumb,
+textarea::-webkit-scrollbar-thumb {
+  background: rgba(100, 116, 139, 0.35);
+  border-radius: 3px;
+  border: 1px solid rgba(15, 23, 42, 0.2);
 }
 
-.editor-panel__content::-webkit-scrollbar-thumb:hover {
-  background: var(--v2-text-muted);
+.editor-panel__content::-webkit-scrollbar-thumb:hover,
+textarea::-webkit-scrollbar-thumb:hover {
+  background: rgba(148, 163, 184, 0.5);
 }
 </style>
 {% endblock %}
