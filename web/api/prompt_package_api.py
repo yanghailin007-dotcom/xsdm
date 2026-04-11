@@ -324,6 +324,108 @@ def update_step(package_id, step_id):
         return jsonify({"error": str(e)}), 500
 
 
+@prompt_package_api.route('/prompt-packages/<package_id>/steps/<step_id>/preview', methods=['POST'])
+@require_login
+def generate_step_preview(package_id, step_id):
+    """
+    根据提示词生成单章预览
+    
+    Request Body:
+        {
+            "prompt": "编辑后的提示词",
+            "variables": {}  // 可选
+        }
+    
+    Returns:
+        {
+            "title": "章节标题",
+            "content": "<p>正文HTML</p>",
+            "word_count": 1234
+        }
+    """
+    try:
+        data = request.get_json() or {}
+        prompt = data.get('prompt', '')
+        
+        if not prompt.strip():
+            return jsonify({"error": "提示词不能为空"}), 400
+        
+        # 初始化 API 客户端
+        from src.core.APIClient import APIClient
+        from config.config import CONFIG
+        api_client = APIClient(CONFIG)
+        
+        system_prompt = (
+            "你是一位网络小说写作助手。请根据用户给出的提示词，生成一章小说正文（约1200字）。\n"
+            "要求：\n"
+            "1. 章节要有吸引力，节奏紧凑\n"
+            "2. 返回严格的 JSON 格式：{\"title\": \"章节标题\", \"content\": \"正文内容\"}\n"
+            "3. 正文内容中可以用 <p> 标签分段，但不要加 markdown 代码块，只返回纯 JSON 字符串\n"
+            "4. 不要有任何额外解释"
+        )
+        
+        user_prompt = f"请根据以下提示词生成一章小说：\n\n{prompt}"
+        
+        logger.info(f"[PromptPackageAPI] 开始生成步骤预览: {package_id}/{step_id}")
+        response = api_client.call_api(
+            system_prompt=system_prompt,
+            user_prompt=user_prompt,
+            purpose="提示词预览生成",
+            temperature=0.8
+        )
+        
+        if not response:
+            return jsonify({"error": "AI 未返回内容"}), 500
+        
+        # 尝试解析 JSON
+        import re
+        result = None
+        try:
+            result = json.loads(response.strip())
+        except json.JSONDecodeError:
+            pass
+        
+        if not result:
+            code_block_match = re.search(r'```(?:json)?\s*([\s\S]*?)```', response)
+            if code_block_match:
+                try:
+                    result = json.loads(code_block_match.group(1).strip())
+                except json.JSONDecodeError:
+                    pass
+        
+        if not result:
+            json_match = re.search(r'\{[\s\S]*"title"[\s\S]*"content"[\s\S]*\}', response)
+            if json_match:
+                try:
+                    result = json.loads(json_match.group(0))
+                except json.JSONDecodeError:
+                    pass
+        
+        if not result:
+            result = {
+                "title": "预览生成结果",
+                "content": f"<p>{response.replace(chr(10), '</p><p>')}</p>"
+            }
+        
+        title = result.get('title', '未命名章节')
+        content = result.get('content', '')
+        if not content.startswith('<'):
+            content = f"<p>{content.replace(chr(10), '</p><p>')}</p>"
+        
+        clean_text = re.sub(r'<[^>]+>', '', content)
+        word_count = len(clean_text.replace(' ', '').replace('\n', ''))
+        
+        return jsonify({
+            "title": title,
+            "content": content,
+            "word_count": word_count
+        }), 200
+        
+    except Exception as e:
+        logger.error(f"[PromptPackageAPI] 生成预览失败: {e}", exc_info=True)
+        return jsonify({"error": str(e)}), 500
+
+
 @prompt_package_api.route('/prompt-packages/<package_id>/duplicate', methods=['POST'])
 @require_login
 def duplicate_package(package_id):
