@@ -171,6 +171,286 @@
   color: var(--v2-text-secondary);
 }
 
+/* 标签切换 */
+.view-tabs {
+  display: flex;
+  gap: 8px;
+  margin: 20px 0 16px;
+  padding: 4px;
+  background: var(--v2-bg-tertiary);
+  border-radius: 10px;
+}
+
+.view-tab {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 10px 12px;
+  border: none;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--v2-text-secondary);
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  position: relative;
+}
+
+.view-tab:hover {
+  color: var(--v2-text-primary);
+}
+
+.view-tab.active {
+  background: var(--v2-bg-secondary);
+  color: var(--primary-gold);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+}
+
+.view-tab .material-icons {
+  font-size: 18px;
+}
+
+.tab-badge {
+  position: absolute;
+  top: 2px;
+  right: 2px;
+  padding: 2px 6px;
+  background: #ef4444;
+  color: white;
+  font-size: 10px;
+  font-weight: 600;
+  border-radius: 10px;
+  animation: pulse 2s infinite;
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.7; }
+}
+
+/* 内容区域 */
+.view-content {
+  min-height: 320px;
+  max-height: 400px;
+  position: relative;
+}
+
+.view-panel {
+  display: none;
+  animation: fadeIn 0.3s ease;
+}
+
+.view-panel.active {
+  display: block;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* 实时内容视图 */
+.live-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+  padding: 0 4px;
+}
+
+.live-indicator {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+  color: var(--v2-text-secondary);
+}
+
+.pulse-dot {
+  width: 8px;
+  height: 8px;
+  background: #22c55e;
+  border-radius: 50%;
+  animation: pulse-dot 1.5s ease-in-out infinite;
+}
+
+@keyframes pulse-dot {
+  0%, 100% { transform: scale(1); opacity: 1; }
+  50% { transform: scale(1.2); opacity: 0.7; }
+}
+
+.live-indicator.generating .pulse-dot {
+  background: var(--primary-gold);
+}
+
+.live-stats {
+  font-size: 13px;
+  color: var(--v2-text-muted);
+}
+
+.chapters-scroll {
+  max-height: 320px;
+  overflow-y: auto;
+  padding-right: 4px;
+}
+
+.chapters-scroll::-webkit-scrollbar {
+  width: 6px;
+}
+
+.chapters-scroll::-webkit-scrollbar-track {
+  background: var(--v2-bg-tertiary);
+  border-radius: 3px;
+}
+
+.chapters-scroll::-webkit-scrollbar-thumb {
+  background: var(--v2-border-color);
+  border-radius: 3px;
+}
+
+.chapter-card {
+  background: var(--v2-bg-tertiary);
+  border: 1px solid var(--v2-border-subtle);
+  border-radius: 10px;
+  padding: 12px;
+  margin-bottom: 10px;
+  transition: all 0.3s ease;
+}
+
+.chapter-card:hover {
+  border-color: rgba(245, 158, 11, 0.3);
+}
+
+.chapter-card.current {
+  border-color: var(--primary-gold);
+  background: rgba(245, 158, 11, 0.05);
+}
+
+.chapter-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 6px;
+}
+
+.chapter-num {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--primary-gold);
+}
+
+.chapter-status {
+  font-size: 11px;
+  padding: 2px 8px;
+  border-radius: 10px;
+  background: rgba(34, 197, 94, 0.15);
+  color: #4ade80;
+}
+
+.chapter-status.generating {
+  background: rgba(245, 158, 11, 0.15);
+  color: var(--primary-gold);
+}
+
+.chapter-title {
+  font-size: 14px;
+  color: var(--v2-text-primary);
+  margin-bottom: 6px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.chapter-preview {
+  font-size: 12px;
+  color: var(--v2-text-secondary);
+  line-height: 1.5;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.chapter-meta {
+  display: flex;
+  gap: 12px;
+  margin-top: 8px;
+  font-size: 11px;
+  color: var(--v2-text-muted);
+}
+
+/* 统计视图 */
+.stats-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 12px;
+  margin-bottom: 20px;
+}
+
+.stat-card {
+  background: var(--v2-bg-tertiary);
+  border-radius: 10px;
+  padding: 16px;
+  text-align: center;
+}
+
+.stat-value {
+  font-size: 24px;
+  font-weight: 700;
+  color: var(--primary-gold);
+  margin-bottom: 4px;
+}
+
+.stat-label {
+  font-size: 12px;
+  color: var(--v2-text-secondary);
+}
+
+.stats-chart {
+  background: var(--v2-bg-tertiary);
+  border-radius: 10px;
+  padding: 16px;
+}
+
+.chart-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--v2-text-primary);
+  margin-bottom: 12px;
+}
+
+.chart-bars {
+  display: flex;
+  align-items: flex-end;
+  gap: 4px;
+  height: 100px;
+  padding-bottom: 20px;
+  position: relative;
+}
+
+.chart-bar {
+  flex: 1;
+  background: var(--primary-gold);
+  border-radius: 2px 2px 0 0;
+  min-height: 4px;
+  transition: height 0.3s ease;
+  position: relative;
+}
+
+.chart-bar:hover::after {
+  content: attr(data-score);
+  position: absolute;
+  bottom: -18px;
+  left: 50%;
+  transform: translateX(-50%);
+  font-size: 10px;
+  color: var(--v2-text-secondary);
+  white-space: nowrap;
+}
+
 /* 阶段列表 */
 .stage-list {
   margin-top: 24px;
@@ -480,54 +760,121 @@
         </div>
       </div>
       
-      <div class="progress-bar">
-        <div class="progress-bar__fill" id="progress-fill" style="width: 0%"></div>
+      <!-- 标签切换 -->
+      <div class="view-tabs">
+        <button class="view-tab active" data-view="progress" onclick="switchView('progress')">
+          <span class="material-icons">donut_large</span>
+          <span>进度</span>
+        </button>
+        <button class="view-tab" data-view="live" onclick="switchView('live')">
+          <span class="material-icons">menu_book</span>
+          <span>实时内容</span>
+          <span class="tab-badge" id="live-badge" style="display: none;">生成中</span>
+        </button>
+        <button class="view-tab" data-view="stats" onclick="switchView('stats')">
+          <span class="material-icons">analytics</span>
+          <span>统计</span>
+        </button>
       </div>
       
-      <div class="progress-info">
-        <span class="progress-info__percent" id="progress-percent">0%</span>
-        <span class="progress-info__stage" id="current-stage">准备中...</span>
-      </div>
-      
-      <!-- 阶段列表 -->
-      <div class="stage-list" id="stage-list">
-        <div class="stage-item stage-item--active" data-stage="analyzing">
-          <div class="stage-item__icon">
-            <span class="material-icons">psychology</span>
+      <!-- 内容区域 -->
+      <div class="view-content">
+        <!-- 进度视图 -->
+        <div class="view-panel active" id="view-progress">
+          <div class="progress-bar">
+            <div class="progress-bar__fill" id="progress-fill" style="width: 0%"></div>
           </div>
-          <div class="stage-item__content">
-            <div class="stage-item__name">爆款分析</div>
-            <div class="stage-item__desc">分析同类爆款规律</div>
+          
+          <div class="progress-info">
+            <span class="progress-info__percent" id="progress-percent">0%</span>
+            <span class="progress-info__stage" id="current-stage">准备中...</span>
+          </div>
+          
+          <!-- 阶段列表 -->
+          <div class="stage-list" id="stage-list">
+            <div class="stage-item stage-item--active" data-stage="analyzing">
+              <div class="stage-item__icon">
+                <span class="material-icons">psychology</span>
+              </div>
+              <div class="stage-item__content">
+                <div class="stage-item__name">爆款分析</div>
+                <div class="stage-item__desc">分析同类爆款规律</div>
+              </div>
+            </div>
+            
+            <div class="stage-item stage-item--pending" data-stage="planning">
+              <div class="stage-item__icon">
+                <span class="material-icons">edit_note</span>
+              </div>
+              <div class="stage-item__content">
+                <div class="stage-item__name">方案生成</div>
+                <div class="stage-item__desc">生成创作方案</div>
+              </div>
+            </div>
+            
+            <div class="stage-item stage-item--pending" data-stage="worldview">
+              <div class="stage-item__icon">
+                <span class="material-icons">public</span>
+              </div>
+              <div class="stage-item__content">
+                <div class="stage-item__name">世界观构建</div>
+                <div class="stage-item__desc">创建世界观、角色等设定</div>
+              </div>
+            </div>
+            
+            <div class="stage-item stage-item--pending" data-stage="chapters">
+              <div class="stage-item__icon">
+                <span class="material-icons">menu_book</span>
+              </div>
+              <div class="stage-item__content">
+                <div class="stage-item__name">章节生成</div>
+                <div class="stage-item__desc">批量生成小说章节</div>
+              </div>
+            </div>
           </div>
         </div>
         
-        <div class="stage-item stage-item--pending" data-stage="planning">
-          <div class="stage-item__icon">
-            <span class="material-icons">edit_note</span>
+        <!-- 实时内容视图 -->
+        <div class="view-panel" id="view-live">
+          <div class="live-header">
+            <span class="live-indicator">
+              <span class="pulse-dot"></span>
+              <span id="live-status">等待开始...</span>
+            </span>
+            <span class="live-stats" id="live-stats"></span>
           </div>
-          <div class="stage-item__content">
-            <div class="stage-item__name">方案生成</div>
-            <div class="stage-item__desc">生成创作方案</div>
-          </div>
-        </div>
-        
-        <div class="stage-item stage-item--pending" data-stage="worldview">
-          <div class="stage-item__icon">
-            <span class="material-icons">public</span>
-          </div>
-          <div class="stage-item__content">
-            <div class="stage-item__name">世界观构建</div>
-            <div class="stage-item__desc">创建世界观、角色等设定</div>
+          <div class="chapters-scroll" id="chapters-scroll">
+            <div class="chapter-list" id="chapter-list">
+              <!-- 动态生成章节卡片 -->
+            </div>
           </div>
         </div>
         
-        <div class="stage-item stage-item--pending" data-stage="chapters">
-          <div class="stage-item__icon">
-            <span class="material-icons">menu_book</span>
+        <!-- 统计视图 -->
+        <div class="view-panel" id="view-stats">
+          <div class="stats-grid">
+            <div class="stat-card">
+              <div class="stat-value" id="stat-total-chapters">0</div>
+              <div class="stat-label">已生成章节</div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-value" id="stat-total-words">0</div>
+              <div class="stat-label">总字数</div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-value" id="stat-avg-quality">0</div>
+              <div class="stat-label">平均质量分</div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-value" id="stat-speed">0</div>
+              <div class="stat-label">生成速度(字/分)</div>
+            </div>
           </div>
-          <div class="stage-item__content">
-            <div class="stage-item__name">章节生成</div>
-            <div class="stage-item__desc">批量生成小说章节</div>
+          <div class="stats-chart" id="stats-chart">
+            <div class="chart-title">质量趋势</div>
+            <div class="chart-bars" id="quality-chart">
+              <!-- 动态生成质量柱状图 -->
+            </div>
           </div>
         </div>
       </div>
@@ -840,6 +1187,16 @@ function updateUI(task) {
                           rawStage === 'generating_chapters' ||
                           task.current_chapter > 0 || task.batch_num > 0;
     
+    // 🔥 章节生成阶段自动切换到实时内容视图
+    if (isChapterPhase) {
+      const currentView = document.querySelector('.view-tab.active')?.dataset.view;
+      if (currentView !== 'live') {
+        switchView('live');
+      }
+      // 更新实时内容
+      updateLiveContent(task);
+    }
+    
     if (isChapterPhase && typeof updateProgress === 'function') {
       // 从message中解析当前章节号（格式："正在生成第1/34批（第1-6章）"）
       let currentCh = task.current_chapter || 0;
@@ -998,6 +1355,222 @@ function showPaused(message, balance) {
 // 跳转到充值页面
 function goToRecharge() {
   window.open('/recharge', '_blank');
+}
+
+// ==================== 视图切换功能 ====================
+
+// 当前视图
+let currentViewName = 'progress';
+
+// 切换视图
+function switchView(viewName) {
+  if (currentViewName === viewName) return;
+  
+  currentViewName = viewName;
+  
+  // 更新标签状态
+  document.querySelectorAll('.view-tab').forEach(tab => {
+    if (tab.dataset.view === viewName) {
+      tab.classList.add('active');
+    } else {
+      tab.classList.remove('active');
+    }
+  });
+  
+  // 更新内容面板
+  document.querySelectorAll('.view-panel').forEach(panel => {
+    panel.classList.remove('active');
+  });
+  document.getElementById(`view-${viewName}`).classList.add('active');
+  
+  console.log(`[视图切换] 切换到: ${viewName}`);
+}
+
+// 章节列表缓存
+const chapterCache = new Map();
+
+// 更新实时内容
+function updateLiveContent(task) {
+  const liveStatus = document.getElementById('live-status');
+  const liveStats = document.getElementById('live-stats');
+  const chapterList = document.getElementById('chapter-list');
+  const liveBadge = document.getElementById('live-badge');
+  
+  if (!liveStatus || !chapterList) return;
+  
+  // 更新状态指示器
+  if (task.status === 'running') {
+    liveStatus.textContent = task.message || '生成中...';
+    liveStatus.parentElement.classList.add('generating');
+    liveBadge.style.display = 'inline-block';
+  } else {
+    liveStatus.textContent = '已完成';
+    liveStatus.parentElement.classList.remove('generating');
+    liveBadge.style.display = 'none';
+  }
+  
+  // 更新统计信息
+  if (liveStats) {
+    const currentCh = task.current_chapter || 0;
+    const totalCh = task.target_chapters || 200;
+    const words = task.total_words || 0;
+    liveStats.textContent = `第${currentCh}/${totalCh}章 | ${words.toLocaleString()}字`;
+  }
+  
+  // 更新章节列表（如果有章节数据）
+  if (task.chapters && Array.isArray(task.chapters)) {
+    task.chapters.forEach(chapter => {
+      if (!chapterCache.has(chapter.number)) {
+        chapterCache.set(chapter.number, chapter);
+        addChapterCard(chapter);
+      }
+    });
+  }
+  
+  // 更新当前生成中的章节
+  if (task.current_chapter > 0) {
+    updateCurrentChapter(task);
+  }
+  
+  // 更新统计数据
+  updateStats(task);
+}
+
+// 添加章节卡片
+function addChapterCard(chapter) {
+  const chapterList = document.getElementById('chapter-list');
+  if (!chapterList) return;
+  
+  const card = document.createElement('div');
+  card.className = 'chapter-card';
+  card.id = `chapter-${chapter.number}`;
+  card.innerHTML = `
+    <div class="chapter-header">
+      <span class="chapter-num">第${chapter.number}章</span>
+      <span class="chapter-status">已完成</span>
+    </div>
+    <div class="chapter-title">${escapeHtml(chapter.title || '未命名章节')}</div>
+    <div class="chapter-preview">${escapeHtml(chapter.preview || chapter.content?.substring(0, 100) || '')}...</div>
+    <div class="chapter-meta">
+      <span>📄 ${chapter.word_count || chapter.content?.length || 0}字</span>
+      <span>⭐ ${chapter.quality_score || 0}分</span>
+      <span>⏱️ ${chapter.gen_time || 0}秒</span>
+    </div>
+  `;
+  
+  chapterList.appendChild(card);
+  
+  // 自动滚动到底部
+  const scrollContainer = document.getElementById('chapters-scroll');
+  if (scrollContainer) {
+    scrollContainer.scrollTop = scrollContainer.scrollHeight;
+  }
+}
+
+// 更新当前生成中的章节
+function updateCurrentChapter(task) {
+  const chapterList = document.getElementById('chapter-list');
+  if (!chapterList) return;
+  
+  let currentCard = document.getElementById(`chapter-${task.current_chapter}`);
+  
+  if (!currentCard) {
+    currentCard = document.createElement('div');
+    currentCard.className = 'chapter-card current';
+    currentCard.id = `chapter-${task.current_chapter}`;
+    currentCard.innerHTML = `
+      <div class="chapter-header">
+        <span class="chapter-num">第${task.current_chapter}章</span>
+        <span class="chapter-status generating">生成中</span>
+      </div>
+      <div class="chapter-title">${escapeHtml(task.chapter_title || '生成中...')}</div>
+      <div class="chapter-preview" id="current-chapter-preview"></div>
+      <div class="chapter-meta">
+        <span>📄 <span id="current-word-count">0</span>字</span>
+        <span>⭐ 计算中...</span>
+      </div>
+    `;
+    chapterList.appendChild(currentCard);
+  }
+  
+  // 更新预览内容和字数
+  const previewEl = document.getElementById('current-chapter-preview');
+  const wordCountEl = document.getElementById('current-word-count');
+  
+  if (previewEl && task.chapter_content) {
+    previewEl.textContent = task.chapter_content.substring(0, 150) + '...';
+  }
+  if (wordCountEl && task.chapter_word_count) {
+    wordCountEl.textContent = task.chapter_word_count;
+  }
+  
+  // 保持在视图中
+  currentCard.scrollIntoView({ behavior: 'smooth', block: 'end' });
+}
+
+// 更新统计数据
+function updateStats(task) {
+  // 总章节数
+  const totalChaptersEl = document.getElementById('stat-total-chapters');
+  if (totalChaptersEl) {
+    totalChaptersEl.textContent = task.completed_chapters || task.current_chapter || 0;
+  }
+  
+  // 总字数
+  const totalWordsEl = document.getElementById('stat-total-words');
+  if (totalWordsEl) {
+    const words = task.total_words || 0;
+    totalWordsEl.textContent = words >= 10000 ? (words / 10000).toFixed(1) + 'w' : words.toLocaleString();
+  }
+  
+  // 平均质量分
+  const avgQualityEl = document.getElementById('stat-avg-quality');
+  if (avgQualityEl && task.avg_quality) {
+    avgQualityEl.textContent = task.avg_quality.toFixed(1);
+  }
+  
+  // 生成速度
+  const speedEl = document.getElementById('stat-speed');
+  if (speedEl && task.gen_speed) {
+    speedEl.textContent = task.gen_speed;
+  }
+  
+  // 更新质量图表
+  updateQualityChart(task);
+}
+
+// 更新质量柱状图
+function updateQualityChart(task) {
+  const chartContainer = document.getElementById('quality-chart');
+  if (!chartContainer || !task.chapter_qualities) return;
+  
+  const qualities = task.chapter_qualities.slice(-20); // 最近20章
+  chartContainer.innerHTML = '';
+  
+  const maxScore = Math.max(...qualities, 100);
+  qualities.forEach(score => {
+    const bar = document.createElement('div');
+    bar.className = 'chart-bar';
+    bar.style.height = `${(score / maxScore) * 100}%`;
+    bar.dataset.score = score.toFixed(1);
+    
+    // 根据分数设置颜色
+    if (score >= 90) bar.style.background = '#22c55e';
+    else if (score >= 80) bar.style.background = '#f59e0b';
+    else bar.style.background = '#ef4444';
+    
+    chartContainer.appendChild(bar);
+  });
+}
+
+// HTML转义
+function escapeHtml(text) {
+  if (!text) return '';
+  return String(text)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
 }
 
 // 检查余额并尝试继续
