@@ -48,7 +48,27 @@ class StepConfig:
                 rendered = self._render_template(template, variables)
                 rendered_parts.append(rendered)
         
-        return "\n\n".join(rendered_parts)
+        prompt_text = "\n\n".join(rendered_parts)
+        
+        # 🔥 后端兜底：如果输出格式要求 JSON，强制在末尾追加格式约束
+        output_format = self.output_schema.get("format", "")
+        if output_format == "json":
+            required_fields = self.output_schema.get("required_fields", [])
+            field_hint = ""
+            if required_fields:
+                field_hint = "必须包含的字段：" + ", ".join(required_fields) + "。"
+            
+            fallback_section = (
+                "\n\n## [系统强制] 输出格式要求\n"
+                f"{field_hint}\n"
+                "无论前面如何描述，你必须返回严格合法的 JSON。\n"
+                "所有字符串值必须使用英文双引号，禁止单引号。\n"
+                "禁止在 JSON 末尾或数组/对象最后一个元素后加逗号。\n"
+                "只返回 JSON 字符串本身，禁止包裹 markdown 代码块，禁止添加任何额外说明。"
+            )
+            prompt_text += fallback_section
+        
+        return prompt_text
     
     def _render_template(self, template: str, variables: Dict[str, Any]) -> str:
         """

@@ -425,6 +425,85 @@
   font-size: 12px;
 }
 
+/* ===== 段落检查条 ===== */
+.section-check-bar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding: 8px 12px;
+  background: rgba(15, 23, 42, 0.5);
+  border-bottom: 1px solid rgba(148, 163, 184, 0.1);
+  min-height: 36px;
+  align-items: center;
+}
+
+.section-check-label {
+  font-size: 11px;
+  color: #64748b;
+  margin-right: 4px;
+}
+
+.section-check-item {
+  padding: 3px 8px;
+  border-radius: 5px;
+  font-size: 11px;
+  font-weight: 500;
+  background: rgba(34, 197, 94, 0.12);
+  color: #4ade80;
+  border: 1px solid rgba(34, 197, 94, 0.25);
+}
+
+.section-check-item--missing {
+  background: rgba(239, 68, 68, 0.12);
+  color: #f87171;
+  border: 1px solid rgba(239, 68, 68, 0.35);
+  animation: pulse-red 2s ease-in-out infinite;
+}
+
+@keyframes pulse-red {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.6; }
+}
+
+/* ===== 缺失段落警告条 ===== */
+.section-alert-bar {
+  display: none;
+  padding: 10px 14px;
+  background: rgba(239, 68, 68, 0.1);
+  border-top: 1px solid rgba(239, 68, 68, 0.2);
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.section-alert-bar--visible {
+  display: flex;
+}
+
+.section-alert-bar__text {
+  font-size: 12px;
+  color: #f87171;
+  line-height: 1.5;
+}
+
+.section-alert-bar__btn {
+  padding: 5px 10px;
+  border-radius: 5px;
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+  border: 1px solid rgba(239, 68, 68, 0.4);
+  background: rgba(239, 68, 68, 0.15);
+  color: #fca5a5;
+  white-space: nowrap;
+  transition: all 0.2s;
+}
+
+.section-alert-bar__btn:hover {
+  background: rgba(239, 68, 68, 0.25);
+  color: #fff;
+}
+
 /* ===== 差异对比样式 ===== */
 .diff-highlight {
   background: rgba(245, 158, 11, 0.2);
@@ -633,9 +712,19 @@
       </div>
     </div>
     <div class="editor-panel__content">
+      <!-- 段落检查条 -->
+      <div class="section-check-bar" id="section-check-bar">
+        <span class="section-check-label">段落结构：</span>
+      </div>
+      <!-- 编辑区 -->
       <textarea class="editor-prompt" id="edited-prompt" 
                 placeholder="在这里编辑提示词..."
                 oninput="onPromptChange()">{{ edited_prompt or '' }}</textarea>
+      <!-- 缺失警告条 -->
+      <div class="section-alert-bar" id="section-alert-bar">
+        <span class="section-alert-bar__text" id="section-alert-text"></span>
+        <button class="section-alert-bar__btn" onclick="autoFillMissing()">一键补全缺失段落</button>
+      </div>
     </div>
   </div>
 
@@ -902,11 +991,88 @@ function insertVariableText(varName) {
   onPromptChange();
 }
 
+// ===== 段落结构检查 =====
+function getCriticalSections() {
+  if (!originalSections || !originalSections.length) return [];
+  const keywords = ['输出格式', '输出要求', '格式', '要求', '返回格式', '约束', '系统强制'];
+  return originalSections.filter(sec => {
+    const name = (sec.name || '').toLowerCase();
+    return keywords.some(k => name.includes(k));
+  });
+}
+
+function updateSectionCheck() {
+  const bar = document.getElementById('section-check-bar');
+  const alertBar = document.getElementById('section-alert-bar');
+  const alertText = document.getElementById('section-alert-text');
+  if (!bar) return;
+  
+  const currentSections = textToSections(document.getElementById('edited-prompt').value);
+  const currentNames = currentSections.map(s => s.name.trim().toLowerCase());
+  const critical = getCriticalSections();
+  
+  // 构建 pills
+  let html = '<span class="section-check-label">段落结构：</span>';
+  const missingList = [];
+  
+  critical.forEach(sec => {
+    const name = sec.name || '未命名';
+    const isMissing = !currentNames.includes(name.toLowerCase());
+    if (isMissing) missingList.push(name);
+    html += `<span class="section-check-item ${isMissing ? 'section-check-item--missing' : ''}">${name}</span>`;
+  });
+  
+  // 也显示非关键段落（普通样式）
+  currentSections.forEach(sec => {
+    const name = sec.name || '未命名';
+    const isCritical = critical.some(c => (c.name || '').toLowerCase() === name.toLowerCase());
+    if (!isCritical) {
+      html += `<span class="section-check-item" style="background:rgba(148,163,184,0.12);color:#94a3b8;border-color:rgba(148,163,184,0.2);">${name}</span>`;
+    }
+  });
+  
+  bar.innerHTML = html;
+  
+  // 更新警告条
+  if (missingList.length > 0) {
+    alertBar.classList.add('section-alert-bar--visible');
+    alertText.innerHTML = `⚠️ <strong>缺少关键段落：</strong>${missingList.join('、')}。这可能导致 AI 不按要求返回数据。`;
+  } else {
+    alertBar.classList.remove('section-alert-bar--visible');
+  }
+}
+
+function autoFillMissing() {
+  const currentSections = textToSections(document.getElementById('edited-prompt').value);
+  const currentNames = currentSections.map(s => s.name.trim().toLowerCase());
+  const critical = getCriticalSections();
+  let appended = [];
+  let additions = '';
+  
+  critical.forEach(sec => {
+    const name = sec.name || '';
+    if (!currentNames.includes(name.toLowerCase())) {
+      const content = sec.content || sec.template || '';
+      additions += `\n\n## ${name}\n${content}`;
+      appended.push(name);
+    }
+  });
+  
+  if (additions) {
+    const textarea = document.getElementById('edited-prompt');
+    let val = textarea.value.trimEnd();
+    textarea.value = val + additions;
+    onPromptChange();
+    showToast(`已补全 ${appended.length} 个缺失段落，请检查内容后保存`);
+  }
+}
+
 // ===== 提示词编辑 =====
 function onPromptChange() {
   editedPrompt = document.getElementById('edited-prompt').value;
   updateWordCount();
   saveHistory();
+  updateSectionCheck();
   
   // 标记预览需要重新生成
   document.getElementById('edited-word-count').textContent = '待生成';
@@ -1174,10 +1340,46 @@ async function savePrompt() {
     if (!res.ok) throw new Error('保存请求失败');
     
     originalSections = JSON.parse(JSON.stringify(newSections));
-    showToast('保存成功！');
+    updateSectionCheck();
+    
+    // 🔥 保存后检查关键段落是否缺失，非侵入式提醒
+    const critical = getCriticalSections();
+    const currentNames = newSections.map(s => s.name.trim().toLowerCase());
+    const missing = critical.filter(sec => !currentNames.includes((sec.name || '').toLowerCase())).map(sec => sec.name);
+    
+    if (missing.length > 0) {
+      // 自定义一个红色 toast
+      showRedToast(`已保存，但缺少关键段落：${missing.join('、')}，可能导致 AI 返回格式异常。`);
+    } else {
+      showToast('保存成功！');
+    }
   } catch (error) {
     showToast('保存失败：' + error.message);
   }
+}
+
+function showRedToast(message) {
+  const toast = document.createElement('div');
+  toast.style.cssText = `
+    position: fixed;
+    top: 80px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: rgba(30, 41, 59, 0.98);
+    color: #f87171;
+    padding: 12px 20px;
+    border-radius: 8px;
+    font-size: 13px;
+    z-index: 1000;
+    border: 1px solid rgba(239, 68, 68, 0.5);
+    box-shadow: 0 4px 20px rgba(239, 68, 68, 0.2);
+    max-width: 420px;
+    text-align: center;
+    line-height: 1.5;
+  `;
+  toast.innerHTML = message;
+  document.body.appendChild(toast);
+  setTimeout(() => toast.remove(), 4000);
 }
 
 function resetToDefault() {
