@@ -988,7 +988,7 @@ function textToSections(text) {
   
   // 如果解析为空，回退到单一段落
   if (sections.length === 0 && text.trim()) {
-    sections.push({ name: originalSections[0]?.name || '正文', content: text.trim(), type: 'static' };
+    sections.push({ name: originalSections[0]?.name || '正文', content: text.trim(), type: 'static' });
   }
   
   return sections;
