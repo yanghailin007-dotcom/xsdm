@@ -14,12 +14,13 @@
   --border-editing: rgba(245, 158, 11, 0.35);
   --header-height: 56px;
   --toolbar-height: 48px;
+  --navbar-height: 60px;
 }
 
 /* ===== 编辑器头部 ===== */
 .editor-header {
   position: fixed;
-  top: 0;
+  top: var(--navbar-height);
   left: 0;
   right: 0;
   height: var(--header-height);
@@ -85,7 +86,7 @@
 /* ===== 工具栏 ===== */
 .editor-toolbar {
   position: fixed;
-  top: var(--header-height);
+  top: calc(var(--navbar-height) + var(--header-height));
   left: 0;
   right: 0;
   height: var(--toolbar-height);
@@ -192,7 +193,7 @@
 /* ===== 四屏主区域 ===== */
 .editor-main {
   position: fixed;
-  top: calc(var(--header-height) + var(--toolbar-height));
+  top: calc(var(--navbar-height) + var(--header-height) + var(--toolbar-height));
   left: 0;
   right: 0;
   bottom: 28px;
