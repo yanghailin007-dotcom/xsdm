@@ -103,7 +103,9 @@
 .editor-toolbar__right {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 10px;
+  flex-shrink: 0;
+  margin-left: auto;
 }
 
 .editor-toolbar__divider {
@@ -701,6 +703,10 @@
         <span class="editor-panel__badge editor-panel__badge--user">可编辑</span>
       </div>
       <div class="editor-panel__actions">
+        <button class="editor-panel__btn" onclick="regeneratePreview()" title="生成预览">
+          <span class="material-icons">refresh</span>
+          生成
+        </button>
         <button class="editor-panel__btn" onclick="clearEdit()">
           <span class="material-icons">clear</span>
           清空
@@ -718,7 +724,7 @@
       </div>
       <!-- 编辑区 -->
       <textarea class="editor-prompt" id="edited-prompt" 
-                placeholder="在这里编辑提示词..."
+                placeholder="⏳ 正在加载提示词数据..."
                 oninput="onPromptChange()">{{ edited_prompt or '' }}</textarea>
       <!-- 缺失警告条 -->
       <div class="section-alert-bar" id="section-alert-bar">
@@ -866,23 +872,33 @@ async function loadData() {
     document.querySelector('.editor-header__title-main').textContent = `编辑提示词 - ${currentStep.step_name}`;
     document.querySelector('.editor-header__title-sub').textContent = `${currentPackage.name} > 步骤 ${currentStep.step_order || 1}`;
     
-    // 记录原始分段
-    originalSections = JSON.parse(JSON.stringify(currentStep.prompt_template?.context_sections || []));
+    // 🔥 防御性读取：优先 context_sections，否则回退 content/template
+    const pt = currentStep.prompt_template || {};
+    originalSections = JSON.parse(JSON.stringify(pt.context_sections || []));
+    if (!originalSections.length && pt.content) {
+      originalSections = [{ name: '正文', content: pt.content, type: 'static' }];
+    }
+    if (!originalSections.length && pt.template) {
+      originalSections = [{ name: '正文', content: pt.template, type: 'dynamic' }];
+    }
     console.log('[四屏编辑器] 原始分段:', originalSections);
     
     // 设置编辑区内容
     const editText = sectionsToText(originalSections);
     console.log('[四屏编辑器] 编辑文本长度:', editText.length);
-    document.getElementById('edited-prompt').value = editText;
+    const textarea = document.getElementById('edited-prompt');
+    textarea.value = editText;
+    textarea.placeholder = "在这里编辑提示词...";
     onPromptChange();
     
     // 加载默认提示词
     await loadDefaultPrompt();
     
     // 聚焦
-    document.getElementById('edited-prompt').focus();
+    textarea.focus();
   } catch (e) {
     console.error('[四屏编辑器] 加载失败:', e);
+    document.getElementById('edited-prompt').placeholder = "加载失败，请刷新页面重试";
     showToast('加载失败: ' + e.message);
   }
 }
@@ -905,18 +921,33 @@ async function loadDefaultPrompt() {
         const pkgData = await pkgRes.json();
         const defaultStep = (pkgData.package?.steps || []).find(s => s.step_id === stepId);
         if (defaultStep) {
-          defaultSections = defaultStep.prompt_template?.context_sections || [];
+          const dpt = defaultStep.prompt_template || {};
+          defaultSections = dpt.context_sections || [];
+          if (!defaultSections.length && dpt.content) {
+            defaultSections = [{ name: '正文', content: dpt.content, type: 'static' }];
+          }
+          if (!defaultSections.length && dpt.template) {
+            defaultSections = [{ name: '正文', content: dpt.template, type: 'dynamic' }];
+          }
         }
       }
     }
     
     defaultPrompt = sectionsToText(defaultSections);
-    document.getElementById('default-prompt').value = defaultPrompt;
+    const dpEl = document.getElementById('default-prompt');
+    dpEl.value = defaultPrompt;
+    dpEl.placeholder = defaultPrompt ? "" : "暂无系统默认提示词";
     document.getElementById('default-prompt-length').textContent = defaultPrompt.length.toLocaleString() + ' 字';
     const dwc = document.getElementById('default-word-count');
     if (dwc) dwc.textContent = defaultPrompt.length.toLocaleString() + ' 字';
+    
+    // 如果默认包有预览数据，也展示出来（待后续接入真实预览）
+    if (defaultPrompt) {
+      // 可以在这里调用默认提示词的预览生成
+    }
   } catch (e) {
     console.error('加载默认提示词失败:', e);
+    document.getElementById('default-prompt').placeholder = "加载失败";
     defaultPrompt = '';
   }
 }
