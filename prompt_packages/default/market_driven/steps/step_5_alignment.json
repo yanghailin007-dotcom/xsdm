@@ -31,7 +31,7 @@
       {"name": "plan", "type": "object", "required": true, "description": "步骤1生成的方案"},
       {"name": "worldview", "type": "object", "required": true, "description": "步骤2生成的世界观"},
       {"name": "characters", "type": "object", "required": true, "description": "步骤3生成的角色"},
-      {"name": "growth_plan", "type": "object", "required": true, "description": "步骤4生成的成长路线"},
+      {"name": "growth_plan", "type": "object", "required": true, "description": "步骤4生成的成长路线"}
     ]
   },
   "parameters": {
