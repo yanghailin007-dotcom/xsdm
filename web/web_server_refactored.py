@@ -2185,6 +2185,16 @@ def register_contract_routes(app):
             logger.error(f"❌ 加载提示词包管理页面失败: {e}")
             return f"页面加载失败: {str(e)}", 500
 
+    @app.route('/pages/v2/prompt-editor-compare')
+    def prompt_editor_compare_page():
+        """四屏提示词对比编辑页面"""
+        try:
+            from flask import render_template
+            return render_template('pages/v2/prompt-editor-compare.html')
+        except Exception as e:
+            logger.error(f"❌ 加载四屏提示词编辑页面失败: {e}")
+            return f"页面加载失败: {str(e)}", 500
+
     @app.route('/short-story/create')
     def short_story_create_page():
         """番茄短篇小说创作页面"""

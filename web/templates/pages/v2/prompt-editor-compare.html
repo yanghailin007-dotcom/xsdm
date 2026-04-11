@@ -504,7 +504,7 @@
 <!-- 头部 -->
 <header class="editor-header">
   <div class="editor-header__left">
-    <a href="/prompt-packages" class="editor-header__back">
+    <a href="/pages/v2/prompt-packages" class="editor-header__back">
       <span class="material-icons">arrow_back</span>
       返回
     </a>
@@ -541,10 +541,11 @@
       <span class="material-icons">format_indent_increase</span>
       格式化
     </button>
-    <button class="editor-btn" onclick="insertVariable()">
+    <button class="editor-btn" onclick="showVariableMenu()">
       <span class="material-icons">data_object</span>
       插入变量
     </button>
+    <div id="variable-menu" style="display:none; position:absolute; top:48px; left:200px; background:#1e293b; border:1px solid #334155; border-radius:8px; padding:8px; z-index:100; max-width:320px;"></div>
   </div>
   <div class="editor-toolbar__right">
     <div class="editor-toggle-group">
@@ -687,7 +688,7 @@
   <div class="editor-statusbar__left">
     <div class="editor-statusbar__item">
       <span class="material-icons">straighten</span>
-      <span>默认: {{ default_prompt_length or '1,234' }} 字</span>
+      <span>默认: <span id="default-prompt-length">0</span> 字</span>
     </div>
     <div class="editor-statusbar__item">
       <span class="material-icons">edit</span>
@@ -716,23 +717,155 @@ let isRegenerating = false;
 let defaultPrompt = '';
 let editedPrompt = '';
 
+// 🔥 当前编辑上下文
+let packageId = '';
+let stepId = '';
+let currentPackage = null;
+let currentStep = null;
+let originalSections = [];
+
 // ===== 初始化 =====
 document.addEventListener('DOMContentLoaded', function() {
-  defaultPrompt = document.getElementById('default-prompt').value;
-  editedPrompt = document.getElementById('edited-prompt').value;
+  const params = new URLSearchParams(window.location.search);
+  packageId = params.get('package');
+  stepId = params.get('step');
   
-  // 保存初始状态到历史
-  saveHistory();
+  if (!packageId || !stepId) {
+    showToast('缺少包或步骤参数');
+    return;
+  }
   
-  // 更新字数统计
-  updateWordCount();
-  
-  // 设置同步滚动
+  loadData();
   setupSyncScroll();
-  
-  // 聚焦编辑区
-  document.getElementById('edited-prompt').focus();
 });
+
+// ===== 数据加载 =====
+async function loadData() {
+  try {
+    const res = await fetch(`/api/v2/prompt-packages/${packageId}`);
+    const data = await res.json();
+    if (!data.package) throw new Error('包不存在');
+    
+    currentPackage = data.package;
+    currentStep = currentPackage.steps.find(s => s.step_id === stepId);
+    if (!currentStep) throw new Error('步骤不存在');
+    
+    // 更新标题
+    document.querySelector('.editor-header__title-main').textContent = `编辑提示词 - ${currentStep.step_name}`;
+    document.querySelector('.editor-header__title-sub').textContent = `${currentPackage.name} > 步骤 ${currentStep.step_order || 1}`;
+    
+    // 记录原始分段
+    originalSections = JSON.parse(JSON.stringify(currentStep.prompt_template?.context_sections || []));
+    
+    // 设置编辑区内容
+    const editText = sectionsToText(originalSections);
+    document.getElementById('edited-prompt').value = editText;
+    onPromptChange();
+    
+    // 加载默认提示词
+    await loadDefaultPrompt();
+    
+    // 聚焦
+    document.getElementById('edited-prompt').focus();
+  } catch (e) {
+    showToast('加载失败: ' + e.message);
+  }
+}
+
+async function loadDefaultPrompt() {
+  try {
+    let defaultSections = [];
+    
+    if (currentPackage.is_default) {
+      // 当前包本身就是默认包，默认提示词就是当前内容（加载前的原始内容）
+      defaultSections = JSON.parse(JSON.stringify(originalSections));
+    } else {
+      // 找同 mode 的默认包
+      const listRes = await fetch('/api/v2/prompt-packages');
+      const listData = await listRes.json();
+      const defaultPkg = (listData.packages || []).find(p => p.is_default && p.mode === currentPackage.mode);
+      
+      if (defaultPkg) {
+        const pkgRes = await fetch(`/api/v2/prompt-packages/${defaultPkg.id}`);
+        const pkgData = await pkgRes.json();
+        const defaultStep = (pkgData.package?.steps || []).find(s => s.step_id === stepId);
+        if (defaultStep) {
+          defaultSections = defaultStep.prompt_template?.context_sections || [];
+        }
+      }
+    }
+    
+    defaultPrompt = sectionsToText(defaultSections);
+    document.getElementById('default-prompt').value = defaultPrompt;
+    document.getElementById('default-prompt-length').textContent = defaultPrompt.length.toLocaleString() + ' 字';
+  } catch (e) {
+    console.error('加载默认提示词失败:', e);
+    defaultPrompt = '';
+  }
+}
+
+function sectionsToText(sections) {
+  if (!sections || !sections.length) return '';
+  return sections.map(sec => `## ${sec.name || '未命名段落'}\n${sec.content || ''}`).join('\n\n');
+}
+
+function textToSections(text) {
+  const lines = text.split('\n');
+  const sections = [];
+  let current = null;
+  
+  for (const line of lines) {
+    const match = line.match(/^##\s*(.+)$/);
+    if (match) {
+      if (current) sections.push(current);
+      current = { name: match[1].trim(), content: '', type: 'user' };
+    } else {
+      if (!current) {
+        current = { name: originalSections[0]?.name || '正文', content: '', type: 'user' };
+      }
+      current.content += line + '\n';
+    }
+  }
+  if (current) sections.push(current);
+  
+  // 清理末尾换行
+  sections.forEach(s => s.content = s.content.replace(/\n+$/, ''));
+  
+  // 如果解析为空，回退到单一段落
+  if (sections.length === 0 && text.trim()) {
+    sections.push({ name: originalSections[0]?.name || '正文', content: text.trim(), type: 'user' });
+  }
+  
+  return sections;
+}
+
+function showVariableMenu() {
+  const menu = document.getElementById('variable-menu');
+  const vars = currentStep?.prompt_template?.variables || [];
+  if (!vars.length) {
+    showToast('当前步骤无可用变量');
+    return;
+  }
+  menu.innerHTML = vars.map(v => `
+    <div style="padding:6px 10px; cursor:pointer; border-radius:4px; font-size:13px; color:#e2e8f0;"
+         onmouseover="this.style.background='#334155'" onmouseout="this.style.background='transparent'"
+         onclick="insertVariableText('{${v.name}}'); document.getElementById('variable-menu').style.display='none'">
+      <code style="color:#fbbf24;">{${v.name}}</code> <span style="color:#94a3b8;">${v.description || ''}</span>
+    </div>
+  `).join('');
+  menu.style.display = menu.style.display === 'block' ? 'none' : 'block';
+}
+
+function insertVariableText(varName) {
+  const textarea = document.getElementById('edited-prompt');
+  const start = textarea.selectionStart;
+  const end = textarea.selectionEnd;
+  const text = textarea.value;
+  textarea.value = text.substring(0, start) + varName + text.substring(end);
+  textarea.selectionStart = textarea.selectionEnd = start + varName.length;
+  textarea.focus();
+  onPromptChange();
+}
 
 // ===== 提示词编辑 =====
 function onPromptChange() {
@@ -982,15 +1115,33 @@ async function savePrompt() {
     showToast('提示词不能为空');
     return;
   }
+  if (!currentStep || !currentPackage) {
+    showToast('数据尚未加载完成');
+    return;
+  }
   
   try {
-    // TODO: 调用API保存
-    // await fetch('/api/save-prompt', {
-    //   method: 'POST',
-    //   headers: { 'Content-Type': 'application/json' },
-    //   body: JSON.stringify({ step_id: '{{step_id}}', prompt: editedPrompt })
-    // });
+    const newSections = textToSections(editedPrompt);
+    const stepData = {
+      step_name: currentStep.step_name,
+      description: currentStep.description,
+      enabled: currentStep.enabled,
+      prompt_template: {
+        ...currentStep.prompt_template,
+        context_sections: newSections
+      },
+      parameters: currentStep.parameters || {}
+    };
     
+    const res = await fetch(`/api/v2/prompt-packages/${packageId}/steps/${stepId}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(stepData)
+    });
+    
+    if (!res.ok) throw new Error('保存请求失败');
+    
+    originalSections = JSON.parse(JSON.stringify(newSections));
     showToast('保存成功！');
   } catch (error) {
     showToast('保存失败：' + error.message);

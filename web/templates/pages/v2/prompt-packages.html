@@ -1158,8 +1158,13 @@ function renderPackageDetail() {
     `;
 }
 
-// ==================== 编辑步骤（分段编辑器） ====================
-async function editStep(stepId) {
+// ==================== 编辑步骤（跳转四屏对比编辑器） ====================
+function editStep(stepId) {
+    window.location.href = `/pages/v2/prompt-editor-compare?package=${currentPackage.id}&step=${stepId}`;
+}
+
+// ==================== 旧版内联编辑器（保留备用） ====================
+async function editStepInline(stepId) {
     try {
         const step = currentPackage.steps.find(s => s.step_id === stepId);
         if (!step) return;
