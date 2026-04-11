@@ -843,8 +843,6 @@ class V2IntegrationAdapter:
         lines = ["## 【Layer 1】核心设定（宪法级，全文遵守）"]
         lines.append("")
         
-        try:
-        
         # 尝试从 novel_data 提取核心设定
         character_design = self.novel_data.get('character_design', {})
         
@@ -1192,18 +1190,6 @@ class V2IntegrationAdapter:
                 lines.append("```")
         lines.append("")
         
-        except Exception as e:
-            logger.error(f"[V2适配器] 构建 Layer 1 时出错: {e}")
-            # 添加默认内容保证不为空
-            if len(lines) <= 2:
-                lines.append("### 【Layer 1.1】主角人设")
-                lines.append("- **姓名**：待设定")
-                lines.append("- **身份**：神豪/国运绑定者")
-                lines.append("")
-                lines.append("### 【Layer 1.2】金手指设定")
-                lines.append("等待详细设定...")
-                lines.append("")
-        
         return "\n".join(lines)
     
     def _build_layer2_tactical_planning(self, chapter_num: int, chapter_plan: Dict, 
@@ -1223,7 +1209,6 @@ class V2IntegrationAdapter:
         lines = ["## 【Layer 2】战术规划（批次级，本章执行）"]
         lines.append("")
         
-        try:
         lines.append("### 【Layer 2.1】当前阶段信息")
         lines.append("- **阶段**：根据章节号自动判断")
         if chapter_num <= 10:
@@ -1376,17 +1361,6 @@ class V2IntegrationAdapter:
         lines.append("- **要求**：一章内情绪转变至少2次")
         lines.append("- **高潮**：情绪强度必须达到峰值")
         lines.append("")
-        
-        except Exception as e:
-            logger.error(f"[V2适配器] 构建 Layer 2 时出错: {e}")
-            # 添加默认内容保证不为空
-            if len(lines) <= 2:
-                lines.append("### 【Layer 2.1】当前阶段")
-                lines.append(f"- **第{chapter_num}章**: 按计划执行")
-                lines.append("")
-                lines.append("### 【Layer 2.3】章节战术目标")
-                lines.append("按章节规划生成内容")
-                lines.append("")
         
         return "\n".join(lines)
     
