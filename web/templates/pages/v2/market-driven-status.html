@@ -960,7 +960,7 @@ let pollInterval = null;
 
 // 开始轮询任务状态
 function startPolling() {
-  pollInterval = setInterval(pollTaskStatus, 2000);
+  pollInterval = setInterval(pollTaskStatus, 10000);
   pollTaskStatus(); // 立即执行一次
 }
 
@@ -1399,7 +1399,7 @@ function updateLiveContent(task) {
   if (!liveStatus || !chapterList) return;
   
   // 更新状态指示器
-  if (task.status === 'running') {
+  if (task.status === 'running' || task.status === 'generating_chapters') {
     liveStatus.textContent = task.message || '生成中...';
     liveStatus.parentElement.classList.add('generating');
     liveBadge.style.display = 'inline-block';
@@ -1441,10 +1441,8 @@ function addChapterCard(chapter) {
   const chapterList = document.getElementById('chapter-list');
   if (!chapterList) return;
   
-  const card = document.createElement('div');
-  card.className = 'chapter-card';
-  card.id = `chapter-${chapter.number}`;
-  card.innerHTML = `
+  const existing = document.getElementById(`chapter-${chapter.number}`);
+  const cardHtml = `
     <div class="chapter-header">
       <span class="chapter-num">第${chapter.number}章</span>
       <span class="chapter-status">已完成</span>
@@ -1457,6 +1455,18 @@ function addChapterCard(chapter) {
       <span>⏱️ ${chapter.gen_time || 0}秒</span>
     </div>
   `;
+  
+  // 🔥 如果已有该章节卡片（比如之前是"生成中"状态），直接更新为"已完成"
+  if (existing) {
+    existing.className = 'chapter-card';
+    existing.innerHTML = cardHtml;
+    return;
+  }
+  
+  const card = document.createElement('div');
+  card.className = 'chapter-card';
+  card.id = `chapter-${chapter.number}`;
+  card.innerHTML = cardHtml;
   
   chapterList.appendChild(card);
   

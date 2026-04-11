@@ -98,7 +98,7 @@ class BatchChapterGenerator:
     
     def generate_batch(self, novel_title: str, start_chapter: int, end_chapter: int,
                        blueprint: Dict, tropes: Dict, novel_data: Dict,
-                       use_conversation: bool = True) -> Dict:
+                       use_conversation: bool = True, progress_callback=None) -> Dict:
         """
         批量生成一批章节
         
@@ -120,8 +120,9 @@ class BatchChapterGenerator:
         if use_conversation and self.api_client:
             try:
                 return self._generate_batch_conversation(
-                    novel_title, start_chapter, end_chapter, 
-                    blueprint, tropes, novel_data
+                    novel_title, start_chapter, end_chapter,
+                    blueprint, tropes, novel_data,
+                    progress_callback=progress_callback
                 )
             except Exception as e:
                 logger.error(f"[BatchGenerator] 对话模式失败: {e}，回退到独立模式")
@@ -129,7 +130,8 @@ class BatchChapterGenerator:
         # 传统模式：每章独立调用
         return self._generate_batch_individual(
             novel_title, start_chapter, end_chapter,
-            blueprint, tropes, novel_data
+            blueprint, tropes, novel_data,
+            progress_callback=progress_callback
         )
     
     def _should_stop(self) -> bool:
@@ -140,7 +142,8 @@ class BatchChapterGenerator:
         return False
     
     def _generate_batch_conversation(self, novel_title: str, start_chapter: int, end_chapter: int,
-                                     blueprint: Dict, tropes: Dict, novel_data: Dict) -> Dict:
+                                     blueprint: Dict, tropes: Dict, novel_data: Dict,
+                                     progress_callback=None) -> Dict:
         """使用对话模式批量生成"""
         from web.services.market_driven.chapter_conversation_generator import (
             ChapterConversationGenerator
@@ -200,7 +203,8 @@ class BatchChapterGenerator:
         chapters = generator.generate_chapters(
             start_chapter=start_chapter,
             end_chapter=end_chapter,
-            blueprint=blueprint
+            blueprint=blueprint,
+            progress_callback=progress_callback
         )
         
         # 处理结果
@@ -530,7 +534,8 @@ class BatchChapterGenerator:
             logger.error(f"[BatchGenerator] 滑动窗口优化触发失败: {e}")
     
     def _generate_batch_individual(self, novel_title: str, start_chapter: int, end_chapter: int,
-                                   blueprint: Dict, tropes: Dict, novel_data: Dict) -> Dict:
+                                   blueprint: Dict, tropes: Dict, novel_data: Dict,
+                                   progress_callback=None) -> Dict:
         """传统模式：每章独立生成"""
         logger.info(f"[BatchGenerator] 使用独立模式生成第{start_chapter}-{end_chapter}章")
         
@@ -571,7 +576,14 @@ class BatchChapterGenerator:
                 
                 # 短暂休息，避免API限流
                 time.sleep(0.5)
-                
+
+                # 🔥 进度回调
+                if progress_callback:
+                    try:
+                        progress_callback(chapter_num, end_chapter - start_chapter + 1, chapter)
+                    except Exception as cb_err:
+                        logger.warning(f"[BatchGenerator] 进度回调失败: {cb_err}")
+
             except Exception as e:
                 logger.error(f"  ❌ 第{chapter_num}章失败: {e}")
                 results["failed"].append({
@@ -703,6 +715,18 @@ class BatchChapterGenerator:
         
         # 2. 主角当前状态
         character_design = novel_data.get('character_design', {})
+        
+        # 🔥 调试日志：记录接收到的 character_design
+        logger.info(f"[BatchChapterGenerator] 接收到的 character_design 类型: {type(character_design)}")
+        if isinstance(character_design, dict):
+            logger.info(f"[BatchChapterGenerator] 接收到的 character_design 键: {list(character_design.keys())}")
+            if 'protagonist' in character_design:
+                prot = character_design['protagonist']
+                logger.info(f"[BatchChapterGenerator] protagonist 类型: {type(prot)}, 内容: {prot if not isinstance(prot, dict) else 'dict with keys ' + str(list(prot.keys()) if prot else 'EMPTY')}")
+            if 'main_character' in character_design:
+                mc = character_design['main_character']
+                logger.info(f"[BatchChapterGenerator] main_character 类型: {type(mc)}")
+        
         # 🔥 修复：同时支持 main_character 和 protagonist 两种字段名
         protagonist = character_design.get('main_character') or character_design.get('protagonist', {})
         

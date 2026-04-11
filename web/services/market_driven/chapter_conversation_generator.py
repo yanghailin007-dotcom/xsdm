@@ -659,7 +659,7 @@ class ChapterConversationGenerator:
                 
                 # 进度回调
                 if progress_callback:
-                    progress_callback(chapter_num, total)
+                    progress_callback(chapter_num, total, chapter)
                 
                 logger.info(f"[章节对话 {self.session_id}] 第{chapter_num}章完成 | 字数: {chapter.get('word_count', 0)}")
                 

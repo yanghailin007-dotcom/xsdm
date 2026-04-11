@@ -445,6 +445,16 @@ def get_task_status(task_id: str):
             "updated_at": task["updated_at"]
         }
         
+        # 🔥 实时内容字段（章节续写/批量生成时前端打印机效果需要）
+        live_fields = [
+            "current_chapter", "chapter_title", "chapter_word_count", "chapter_content",
+            "chapters", "total_words", "completed_chapters", "batch_progress", "batch_num",
+            "target_chapters"
+        ]
+        for field in live_fields:
+            if field in task:
+                response[field] = task[field]
+        
         # 如果完成，包含结果
         if task["status"] == "completed" and task["result"]:
             response["result"] = task["result"]
@@ -1461,6 +1471,19 @@ def _run_chapter_generation(task_id: str, genre: str, target_words: int, api_cli
         logger.info(f"[ChapterGen] 分层规划器初始化完成，战略框架已创建，项目路径: {project_path}")
         
         # 准备novel_data
+        # 🔥 调试日志：记录 products 中的 character_design
+        char_design = products.get("character_design", {})
+        if isinstance(char_design, dict):
+            if "protagonist" in char_design:
+                prot_name = char_design["protagonist"].get("name", "EMPTY/INVALID") if isinstance(char_design["protagonist"], dict) else "NOT_DICT"
+                logger.info(f"[ChapterGen] products.character_design.protagonist.name = {prot_name}")
+            elif "main_character" in char_design:
+                logger.info(f"[ChapterGen] products.character_design.main_character = {char_design['main_character']}")
+            else:
+                logger.warning(f"[ChapterGen] products.character_design 缺少 protagonist/main_character: keys={list(char_design.keys())}")
+        else:
+            logger.error(f"[ChapterGen] products.character_design 不是字典: type={type(char_design)}")
+        
         novel_data = {
             "title": novel_title,
             "username": username,
@@ -3305,13 +3328,55 @@ def _run_continue_chapter_generation(task_id, title, blueprint, start_chapter, e
                 # 获取 tropes 数据（如果有）
                 tropes = blueprint.get('tropes', {})
                 
+                # 🔥 实时进度回调：每完成一章更新任务状态
+                live_chapters = task_manager.get_task(task_id).get('chapters', [])
+                
+                def batch_progress_callback(chapter_num, batch_total, chapter=None):
+                    overall_progress = int((chapter_num - start_chapter + 1) / total_chapters * 100)
+                    update_data = {
+                        'current_chapter': chapter_num,
+                        'message': f'正在生成第{chapter_num}章（信息提取+正文）',
+                        'progress': overall_progress,
+                        'batch_progress': int((chapter_num - current + 1) / batch_total * 100),
+                        'batch_num': (current - start_chapter) // batch_size + 1
+                    }
+                    
+                    # 🔥 把最新章节内容同步到 task，实现前端"打印机"效果
+                    if chapter:
+                        update_data['chapter_title'] = chapter.get('title', '')
+                        update_data['chapter_word_count'] = chapter.get('word_count', 0)
+                        content = chapter.get('content', '')
+                        update_data['chapter_content'] = content[:600] if len(content) > 600 else content
+                        
+                        found = False
+                        for c in live_chapters:
+                            if c.get('number') == chapter_num:
+                                c['title'] = chapter.get('title', '')
+                                c['word_count'] = chapter.get('word_count', 0)
+                                c['content'] = update_data['chapter_content']
+                                c['quality_score'] = chapter.get('quality_score', 8.0)
+                                found = True
+                                break
+                        if not found:
+                            live_chapters.append({
+                                'number': chapter_num,
+                                'title': chapter.get('title', ''),
+                                'word_count': chapter.get('word_count', 0),
+                                'content': update_data['chapter_content'],
+                                'quality_score': chapter.get('quality_score', 8.0)
+                            })
+                        update_data['chapters'] = list(live_chapters)
+                    
+                    task_manager.update_task(task_id, **update_data)
+                
                 result = batch_generator.generate_batch(
                     novel_title=title,
                     start_chapter=current,
                     end_chapter=batch_end,
                     blueprint=blueprint,
                     tropes=tropes,
-                    novel_data=novel_data
+                    novel_data=novel_data,
+                    progress_callback=batch_progress_callback
                 )
                 
                 logger.info(f"[章节续写] generate_batch 返回: {result}")
