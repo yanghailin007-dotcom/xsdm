@@ -1026,15 +1026,20 @@
         
         // 市场导向/对话模式任务
         if (type === 'market_driven' || type === 'dialog') {
-            // 运行中状态（包括正在生成章节）：返回设定生成界面/状态页继续监控
-            if (['pending', 'running', 'generating', 'conversation_mode', 'generating_chapters'].includes(status)) {
+            // 对话打磨中：返回对话方案页继续编辑
+            if (status === 'conversation_mode') {
                 if (task?.genre) {
                     window.location.href = `/market-driven-plan-dialog?genre=${encodeURIComponent(task.genre)}&task=${encodeURIComponent(taskId)}`;
                 } else {
                     window.location.href = `/market-driven-status?task=${encodeURIComponent(taskId)}`;
                 }
-            } else {
-                // 已完成/已停止状态：跳转到新阅读页
+            }
+            // 运行中/等待中/生成章节：统一跳到状态监控页
+            else if (['pending', 'running', 'generating', 'generating_chapters'].includes(status)) {
+                window.location.href = `/market-driven-status?task=${encodeURIComponent(taskId)}`;
+            }
+            // 已完成/已停止状态：跳转到新阅读页
+            else {
                 if (task?.title) {
                     window.location.href = `/reader/${encodeURIComponent(task.title)}`;
                 } else {
