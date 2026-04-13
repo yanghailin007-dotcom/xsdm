@@ -867,6 +867,10 @@ html.reader-mode main.v2-main {
                 <span class="reader-footer__btn-icon">⚙️</span>
                 <span>设置</span>
             </button>
+            <button class="reader-footer__btn" onclick="reader.toggleEditMode()">
+                <span class="reader-footer__btn-icon">✏️</span>
+                <span>编辑</span>
+            </button>
             <div class="reader-footer__btn" style="cursor: default;">
                 <span class="reader-footer__btn-icon" id="progressText">0%</span>
                 <span>进度</span>
@@ -978,6 +982,27 @@ html.reader-mode main.v2-main {
         </div>
     </aside>
 
+    <!-- 编辑工具栏 -->
+    <div class="reader-edit-bar" id="readerEditBar">
+        <div class="reader-edit-bar__left">
+            <button class="reader-edit-btn reader-edit-btn--secondary" onclick="reader.copyChapterContent()">
+                📋 复制全文
+            </button>
+            <button class="reader-edit-btn reader-edit-btn--secondary" onclick="reader.pasteChapterContent()">
+                📥 粘贴覆盖
+            </button>
+        </div>
+        <div class="reader-edit-bar__right">
+            <span style="font-size:12px;color:var(--reader-text-secondary);" id="editWordCount">0 字</span>
+            <button class="reader-edit-btn reader-edit-btn--secondary" onclick="reader.cancelEdit()">
+                取消
+            </button>
+            <button class="reader-edit-btn reader-edit-btn--primary" onclick="reader.saveChapterChanges()">
+                💾 保存
+            </button>
+        </div>
+    </div>
+
     <!-- 遮罩层 -->
     <div class="reader-overlay" id="readerOverlay" onclick="reader.closeDrawers()"></div>
 
@@ -1016,6 +1041,7 @@ class NovelReader {
         this.isUILocked = false;
         this.isLoadingNext = false;
         this.lastScrollTop = 0;
+        this.isEditMode = false;
 
         // 默认设置
         this.prefs = {
@@ -1389,16 +1415,19 @@ class NovelReader {
 
     // -------------------- UI 交互 --------------------
     toggleUI() {
+        if (this.isEditMode) return;
         this.header.classList.toggle('visible');
         this.footer.classList.toggle('visible');
     }
 
     showUI() {
+        if (this.isEditMode) return;
         this.header.classList.add('visible');
         this.footer.classList.add('visible');
     }
 
     hideUI() {
+        if (this.isEditMode) return;
         this.header.classList.remove('visible');
         this.footer.classList.remove('visible');
     }
@@ -1557,6 +1586,196 @@ class NovelReader {
         this.updateChapterHighlight(this.currentChapterNum);
     }
 
+    // -------------------- 编辑模式 --------------------
+    async toggleEditMode() {
+        if (this.isEditMode) {
+            this.cancelEdit();
+            return;
+        }
+
+        // 确定当前要编辑的章节
+        const renderedChapters = this.contentEl.querySelectorAll('.reader-chapter');
+        let targetNum = this.currentChapterNum;
+        for (let ch of renderedChapters) {
+            const rect = ch.getBoundingClientRect();
+            if (rect.top <= this.scrollEl.clientHeight / 2) {
+                targetNum = parseInt(ch.dataset.chapterNum);
+            }
+        }
+
+        // 重新单章加载，确保只编辑一章
+        await this.loadChapter(targetNum, false);
+        this.isEditMode = true;
+
+        const chapterEl = this.contentEl.querySelector('.reader-chapter');
+        if (!chapterEl) return;
+
+        const titleEl = chapterEl.querySelector('.reader-chapter__title');
+        const bodyEl = chapterEl.querySelector('.reader-chapter__body');
+
+        if (titleEl) titleEl.contentEditable = 'true';
+        if (bodyEl) bodyEl.contentEditable = 'true';
+
+        document.getElementById('readerEditBar').classList.add('active');
+        this.footer.classList.remove('visible');
+        this.hideUI();
+        this.updateEditWordCount();
+
+        // 监听输入更新字数
+        if (bodyEl) {
+            bodyEl.addEventListener('input', () => this.updateEditWordCount(), { once: false });
+        }
+    }
+
+    updateEditWordCount() {
+        const bodyEl = this.contentEl.querySelector('.reader-chapter__body');
+        if (!bodyEl) return;
+        const text = this.extractContentText(bodyEl);
+        document.getElementById('editWordCount').textContent = text.length + ' 字';
+    }
+
+    extractContentText(bodyEl) {
+        // 将 contenteditable 中的 <p> 转回纯文本，保留换行
+        const paragraphs = Array.from(bodyEl.querySelectorAll('p'));
+        if (paragraphs.length === 0) {
+            return bodyEl.innerText.replace(/\n\n+/g, '\n').trim();
+        }
+        return paragraphs.map(p => p.innerText.trim()).filter(t => t).join('\n');
+    }
+
+    async copyChapterContent() {
+        const bodyEl = this.contentEl.querySelector('.reader-chapter__body');
+        if (!bodyEl) return;
+        const text = this.extractContentText(bodyEl);
+        try {
+            await navigator.clipboard.writeText(text);
+            this.showToast('已复制全文到剪贴板');
+        } catch (e) {
+            this.showToast('复制失败，请手动复制');
+        }
+    }
+
+    async pasteChapterContent() {
+        try {
+            const text = await navigator.clipboard.readText();
+            if (!text) return;
+            const bodyEl = this.contentEl.querySelector('.reader-chapter__body');
+            if (!bodyEl) return;
+
+            // 替换内容
+            const paragraphs = text.split(/\n+/).filter(p => p.trim());
+            bodyEl.innerHTML = paragraphs.map(p => {
+                const trimmed = p.trim();
+                if (/^[\"\'『「【].*|[\u4e00-\u9fa5].*?[说道问道答道回答喃喃冷笑低声].*?$/.test(trimmed)) {
+                    return `<p class="reader-para--dialog">${this.escapeHtml(trimmed)}</p>`;
+                }
+                return `<p>${this.escapeHtml(trimmed)}</p>`;
+            }).join('');
+
+            this.updateEditWordCount();
+            this.showToast('已粘贴覆盖');
+        } catch (e) {
+            this.showToast('粘贴失败，请检查浏览器权限');
+        }
+    }
+
+    async saveChapterChanges() {
+        const chapterEl = this.contentEl.querySelector('.reader-chapter');
+        if (!chapterEl) return;
+
+        const titleEl = chapterEl.querySelector('.reader-chapter__title');
+        const bodyEl = chapterEl.querySelector('.reader-chapter__body');
+
+        const newTitle = titleEl ? titleEl.innerText.trim() : '';
+        const newContent = bodyEl ? this.extractContentText(bodyEl) : '';
+        const chapterNum = parseInt(chapterEl.dataset.chapterNum);
+
+        if (!chapterNum) {
+            this.showToast('保存失败：章节号异常');
+            return;
+        }
+
+        try {
+            const resp = await fetch('/api/market-driven/chapter/save', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    title: this.title,
+                    chapter_number: chapterNum,
+                    new_title: newTitle,
+                    new_content: newContent
+                })
+            });
+            const result = await resp.json();
+            if (result.success) {
+                // 更新本地缓存
+                const cached = this.loadedChapters.get(chapterNum) || {};
+                cached.title = newTitle;
+                cached.content = newContent;
+                cached.word_count = newContent.length;
+                this.loadedChapters.set(chapterNum, cached);
+
+                // 更新章节列表中的标题和字数
+                const chItem = document.querySelector(`.reader-chapter-item[data-chapter="${chapterNum}"]`);
+                if (chItem) {
+                    const titleSpan = chItem.querySelector('.reader-chapter-item__title');
+                    const wordsSpan = chItem.querySelector('.reader-chapter-item__words');
+                    if (titleSpan) titleSpan.textContent = newTitle;
+                    if (wordsSpan) wordsSpan.textContent = newContent.length + '字';
+                }
+
+                this.showToast('保存成功');
+                this.exitEditMode();
+            } else {
+                this.showToast('保存失败：' + (result.error || '未知错误'));
+            }
+        } catch (e) {
+            console.error('保存章节失败:', e);
+            this.showToast('保存失败：网络错误');
+        }
+    }
+
+    cancelEdit() {
+        const chapterNum = parseInt(this.contentEl.querySelector('.reader-chapter')?.dataset?.chapterNum);
+        this.exitEditMode();
+        if (chapterNum) {
+            this.loadChapter(chapterNum, false);
+        }
+    }
+
+    exitEditMode() {
+        this.isEditMode = false;
+        const chapterEl = this.contentEl.querySelector('.reader-chapter');
+        if (chapterEl) {
+            const titleEl = chapterEl.querySelector('.reader-chapter__title');
+            const bodyEl = chapterEl.querySelector('.reader-chapter__body');
+            if (titleEl) titleEl.contentEditable = 'false';
+            if (bodyEl) bodyEl.contentEditable = 'false';
+        }
+        document.getElementById('readerEditBar').classList.remove('active');
+    }
+
+    showToast(msg) {
+        const toast = document.createElement('div');
+        toast.style.cssText = `
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(0,0,0,0.75);
+            color: #fff;
+            padding: 12px 24px;
+            border-radius: 8px;
+            font-size: 14px;
+            z-index: 9999;
+            pointer-events: none;
+            white-space: nowrap;
+        `;
+        toast.textContent = msg;
+        document.body.appendChild(toast);
+        setTimeout(() => toast.remove(), 2000);
+    }
+
     bindEvents() {
         // 滚动监听：进度 + 自动加载下一章
         this.scrollEl.addEventListener('scroll', () => {
@@ -1566,6 +1785,7 @@ class NovelReader {
             const scrollHeight = this.scrollEl.scrollHeight - this.scrollEl.clientHeight;
 
             // 滚动到底 50% 预加载（提前加载，无感阅读）- 降低阈值更容易触发
+            if (this.isEditMode) return; // 编辑模式下禁止自动加载下一章
             const scrollProgress = scrollHeight > 0 ? scrollTop / scrollHeight : 0;
             if (scrollProgress > 0.5 && !this.isLoadingNext) {
                 console.log('[阅读器] 触发滚动加载，进度:', scrollProgress.toFixed(2));
