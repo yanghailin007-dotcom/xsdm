@@ -389,12 +389,6 @@ def register_page_routes(app):
         """作品列表页面 - V2 UI"""
         return render_template('pages/v2/novels-v2.html')
 
-    @app.route('/novel', methods=['GET'])
-    @login_required
-    def novel_view():
-        """小说阅读页面 - V2 UI"""
-        return render_template('pages/v2/novel-v2.html')
-
     @app.route('/dashboard', methods=['GET'])
     @login_required
     def dashboard():

@@ -976,10 +976,10 @@
             /* 查看项目内容（带封面检查） */
             if (!hasCover) {
                 showCoverMissingDialog(projectTitle, () => {
-                    window.location.href = `/novel?title=${encodeURIComponent(projectTitle)}`;
+                    window.location.href = `/reader/${encodeURIComponent(projectTitle)}`;
                 });
             } else {
-                window.location.href = `/novel?title=${encodeURIComponent(projectTitle)}`;
+                window.location.href = `/reader/${encodeURIComponent(projectTitle)}`;
             }
         }
         
