@@ -306,7 +306,7 @@ contrast_requirement:
 progression_metrics:
   metric_name: "财富等级/返利倍数/社会地位"
   metric_examples:
-    - "财富等级提升至LV3"
+    - "财富规模达到千万级/亿级"
     - "返利倍数达到10倍"
     - "社会地位达到市级顶层"
   forbidden_concepts:
@@ -340,10 +340,10 @@ progression_metrics:
         - "成为全国首富/行业霸主"
         - "击败顶级商业对手"
       criteria: "全国顶级地位确立，资产达到千亿级"
-    - description: "全球布局，对抗隐世财阀"
+    - description: "全球布局，对抗跨国资本"
       deliverables:
-        - "解锁因果律消费"
-        - "击败隐世财阀/跨国资本"
+        - "解锁顶级消费特权/全球化资产配置"
+        - "击败跨国资本/隐世财阀"
         - "掌控全球核心产业"
       criteria: "全球影响力确立，资产进入全球前三"
     - description: "财富即真理，圆满人生"

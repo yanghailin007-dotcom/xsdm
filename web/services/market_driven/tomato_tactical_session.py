@@ -254,9 +254,9 @@ class TomatoBestsellerTacticalSession:
       {{"chapter": 4, "focus": "金手指中期能力展现"}}
     ],
     "golden_finger_progression": [
-      {{"chapter_range": "1-10", "level": "感知级", "ability": "基础能力运用", "limitation": "能力范围受限"}},
-      {{"chapter_range": "11-20", "level": "干预级", "ability": "能力范围扩大", "limitation": "需要一定触发条件"}},
-      {{"chapter_range": "21-30", "level": "具现级", "ability": "核心能力展现", "limitation": "存在使用代价或限制"}}
+      {{"chapter_range": "1-10", "level": "初创级", "ability": "基础资金/资源获取，建立初步优势", "limitation": "资金规模小，影响力有限"}},
+      {{"chapter_range": "11-20", "level": "扩张级", "ability": "区域资源整合，形成局部垄断或话语权", "limitation": "跨区域资源调动仍受限"}},
+      {{"chapter_range": "21-30", "level": "掌控级", "ability": "产业链主导权，具备降维打击能力", "limitation": "全国性/全球性资本对抗仍存在风险"}}
     ],
     "protagonist_moments": [
       {{"chapter": 3, "trait": "核心特质A", "action": "在关键时刻展现主角独特能力", "purpose": "体现主角与众不同"}},
@@ -555,15 +555,15 @@ class TomatoBestsellerTacticalSession:
 ## 七、参考示例
 
 第1章（压抑9）：
-- 事件：主角踏入未知秘境，被各方势力当众嘲讽，陷入绝境
+- 事件：主角陷入债务危机/职场困境，被前女友/富二代当众羞辱，陷入绝境
 - 爽点：无（压抑开局）
-- 钩子：主角对同伴说"看我的"，嘴角闪过一抹意味深长的笑
+- 钩子：主角的手机突然弹出一条系统提示，嘴角闪过一抹意味深长的笑
 
 第3章（反转9）：
-- 事件：强敌出现，主角以出人意料的方式破局，一招制敌
-- 爽点：首次展现金手指，荒诞方式碾压对手
-- 打脸：外媒记者从嘲讽到震惊到恐惧
-- 钩子：不可一世的强敌轰然倒地，全场寂静：这怎么可能？
+- 事件：反派带人上门逼债/羞辱，主角用第一笔系统返利/资源完成强势反击
+- 爽点：首次展现金手指，用钱或商业手段碾压对手
+- 打脸：反派从嘲讽到震惊到崩溃
+- 钩子：反派的靠山打来电话，语气恭敬："沈先生，手下不懂事，您多担待。"
 """
         
         return prompt_template.format(
