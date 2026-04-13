@@ -353,23 +353,113 @@ class BatchChapterGenerator:
         logger.info(f"[BatchGenerator] 对话模式完成: 成功{len(results['generated'])}章, 失败{len(results['failed'])}章")
         return results
     
+    def _format_core_setting_md(self, novel_data: Dict) -> str:
+        """将核心设定格式化为结构化 Markdown（替代裸 JSON）"""
+        lines = ["## 【Layer 1】核心设定"]
+        nd = novel_data or {}
+        
+        info = nd.get("novel_info", {})
+        if info and isinstance(info, dict):
+            lines.extend(["", "### 小说信息"])
+            for k, v in info.items():
+                lines.append(f"- **{k}**: {v}")
+        
+        worldview = nd.get("core_worldview", {})
+        if isinstance(worldview, dict):
+            wo = worldview.get("world_overview", {})
+            if wo:
+                if wo.get("background"):
+                    lines.extend(["", "### 世界观背景", wo["background"]])
+                if wo.get("era"):
+                    lines.extend(["", "### 时代", wo["era"]])
+                if wo.get("main_conflict"):
+                    lines.extend(["", "### 主要冲突", wo["main_conflict"]])
+            
+            ps = worldview.get("power_system", {})
+            if ps:
+                lines.extend(["", f"### 力量体系 - {ps.get('name', '未知')}"])
+                levels = ps.get("levels", [])
+                if levels:
+                    lines.append("等级: " + " → ".join([str(l) for l in levels]))
+                mechanics = ps.get("mechanics", {})
+                for rule in mechanics.get("core_rules", []):
+                    lines.append(f"- 规则: {rule}")
+                for lim in mechanics.get("limitations", []):
+                    lines.append(f"- 限制: {lim}")
+            
+            if worldview.get("shen_lang_exclusive"):
+                lines.extend(["", "### 神豪专属设定", worldview["shen_lang_exclusive"]])
+            
+            ss = worldview.get("social_structure", {})
+            if ss:
+                lines.extend(["", "### 社会阶层"])
+                for k, v in ss.items():
+                    lines.append(f"- **{k}**: {v}")
+            
+            factions = worldview.get("factions", [])
+            if factions:
+                lines.extend(["", "### 势力"])
+                for f in factions:
+                    lines.append(f"- **{f.get('name', '未知')}** ({f.get('type', '未知')}): {f.get('description', '')}")
+            
+            rules = worldview.get("world_rules", [])
+            if rules:
+                lines.extend(["", "### 世界规则"])
+                for rule in rules:
+                    lines.append(f"- {rule}")
+            
+            locations = worldview.get("key_locations", [])
+            if locations:
+                lines.extend(["", "### 关键地点"])
+                for loc in locations:
+                    lines.append(f"- **{loc.get('name', '未知')}** ({loc.get('location', '')}): {loc.get('description', '')}")
+        
+        cd = nd.get("character_design", {})
+        if cd and isinstance(cd, dict):
+            lines.extend(["", "### 角色设定", json.dumps(cd, ensure_ascii=False, indent=2)])
+        
+        gf = nd.get("golden_finger", {})
+        if gf and isinstance(gf, dict):
+            lines.extend(["", "### 金手指", json.dumps(gf, ensure_ascii=False, indent=2)])
+        
+        ws = nd.get("writing_style", {})
+        if ws and isinstance(ws, dict):
+            lines.extend(["", "### 文风设定", json.dumps(ws, ensure_ascii=False, indent=2)])
+        
+        return "\n".join(lines)
+    
+    def _format_tactical_planning_md(self, chapters: List[Dict]) -> str:
+        """将战术规划格式化为结构化 Markdown（替代裸 JSON）"""
+        lines = ["## 【Layer 2】战术规划"]
+        for ch in chapters:
+            ch_num = ch.get("chapter_number", 0)
+            emotion = ch.get("emotion", "待定")
+            intensity = ch.get("intensity", 5)
+            beat = ch.get("beat_type", "普通章")
+            event = ch.get("event", "")
+            hook = ch.get("hook_content", "")
+            lines.append("")
+            lines.append(f"### 第{ch_num}章 ({beat} | {emotion} 强度{intensity})")
+            lines.append(f"**事件**: {event}")
+            if hook:
+                lines.append(f"**钩子**: {hook}")
+            sp = ch.get("satisfaction_point")
+            if sp:
+                lines.append(f"**爽点**: {sp}")
+            fp = ch.get("face_slapping")
+            if fp:
+                lines.append(f"**打脸**: {fp}")
+        return "\n".join(lines)
+    
     def _generate_with_v2(self, start_chapter: int, end_chapter: int,
                           novel_data: Dict, relevant_chapters: List[Dict],
                           progress_callback=None) -> List[Dict]:
         """使用 V2 架构基于战术规划逐章生成"""
-        # 构建 Layer1 核心设定
-        core_setting = json.dumps({
-            "novel_info": novel_data.get("novel_info", {}),
-            "worldview": novel_data.get("core_worldview", {}),
-            "character_design": novel_data.get("character_design", {}),
-            "golden_finger": novel_data.get("golden_finger", {}),
-            "writing_style": novel_data.get("writing_style", {})
-        }, ensure_ascii=False)
+        # 构建 Layer1 核心设定（从 JSON 转为结构化 Markdown）
+        core_setting = self._format_core_setting_md(novel_data)
         
         # 构建 Layer2 战术规划（仅当前批次）
-        tactical_planning = json.dumps({
-            "chapters": relevant_chapters
-        }, ensure_ascii=False)
+        tactical_planning = self._format_tactical_planning_md(relevant_chapters)
         
         genre = novel_data.get("genre", "都市")
         
@@ -443,7 +533,7 @@ class BatchChapterGenerator:
             try:
                 content = generator.generate_chapter(
                     chapter_number=chapter_num,
-                    chapter_title=chapter_plan.get("event", f"第{chapter_num}章")[:30],
+                    chapter_title="",  # 标题由AI生成，不预传
                     outline_summary=chapter_plan.get("event", ""),
                     chapter_type=chapter_plan.get("beat_type", "普通章"),
                     emotion_config={

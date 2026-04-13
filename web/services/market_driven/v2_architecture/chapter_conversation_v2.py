@@ -379,11 +379,26 @@ class ChapterConversationV2:
             if forbidden_items:
                 lines.append(f"禁止: {', '.join(forbidden_items[:3])}")
         
+        # 追加固定约束（Layer 5 关键项，避免过于单薄）
+        lines.extend([
+            "段落: 每段3-4行，多用换行，平均长度50-80字",
+            "对话: 对话占比≥30%，用引号\"\"包裹，一句一段",
+            "节奏: 短句(<10字)占比≥40%，单句最长25字",
+            "结尾: 章尾必须留钩子（悬念/转折/期待），位于最后50字内"
+        ])
+        
         return "\n".join(lines)
     
     def _format_emotion_curve_custom(self, config: Dict) -> str:
         """格式化自定义情绪曲线"""
         lines = ["### 情绪节奏规划"]
+        emotion = config.get("emotion")
+        intensity = config.get("intensity")
+        emotion_type = config.get("emotion_type")
+        if emotion or intensity is not None:
+            lines.append(f"核心情绪: {emotion or '待定'} (强度: {intensity if intensity is not None else 5}/10)")
+        if emotion_type:
+            lines.append(f"情绪类型: {emotion_type}")
         lines.append(f"章节类型: {config.get('type', '自定义')}")
         if "curve" in config:
             lines.append(f"曲线: {config['curve']}")
@@ -424,13 +439,11 @@ class ChapterConversationV2:
                                chapter_number: int,
                                chapter_title: str,
                                outline_summary: str) -> str:
-        """构建任务指令"""
+        """构建任务指令（章节标题由AI生成，不预传入）"""
         lines = [
             "=" * 60,
             f"【任务】生成第 {chapter_number} 章",
             "=" * 60,
-            f"章节标题: {chapter_title}",
-            "",
             "【本章概要】",
             outline_summary,
             "",
