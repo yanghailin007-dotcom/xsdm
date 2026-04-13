@@ -453,14 +453,15 @@ class CharacterStateManager:
                     world_state = json.load(f)
             
             # 同步主角
-            if self.state.get('protagonist'):
+            protagonist = self.state.get('protagonist', {})
+            if protagonist:
                 world_state['protagonist'] = {
-                    'name': self.state['protagonist']['name'],
-                    'health': self.state['protagonist']['health'],
-                    'injuries': self.state['protagonist']['injuries'],
-                    'abilities_unlocked': self.state['protagonist']['abilities'],
-                    'current_location': self.state['protagonist']['location'],
-                    'relationships': self.state['protagonist']['relationships']
+                    'name': protagonist.get('name', ''),
+                    'health': protagonist.get('health', '健康'),
+                    'injuries': protagonist.get('injuries', []),
+                    'abilities_unlocked': protagonist.get('abilities', []),
+                    'current_location': protagonist.get('location', ''),
+                    'relationships': protagonist.get('relationships', {})
                 }
             
             # 同步盟友
@@ -468,13 +469,13 @@ class CharacterStateManager:
             for name, ally in self.state.get('allies', {}).items():
                 world_state['allies'][name] = {
                     'name': name,
-                    'health': ally['health'],
-                    'injuries': ally['injuries'],
-                    'abilities_unlocked': ally['abilities'],
-                    'current_location': ally['location'],
-                    'relationships': ally['relationships'],
-                    'description': ally['description'],
-                    'introduced_chapter': ally['introduced_chapter']
+                    'health': ally.get('health', '健康'),
+                    'injuries': ally.get('injuries', []),
+                    'abilities_unlocked': ally.get('abilities', []),
+                    'current_location': ally.get('location', ''),
+                    'relationships': ally.get('relationships', {}),
+                    'description': ally.get('description', ''),
+                    'introduced_chapter': ally.get('introduced_chapter', 0)
                 }
             
             # 同步敌人
@@ -482,13 +483,13 @@ class CharacterStateManager:
             for name, enemy in self.state.get('enemies', {}).items():
                 world_state['enemies'][name] = {
                     'name': name,
-                    'health': enemy['health'],
-                    'injuries': enemy['injuries'],
-                    'abilities_unlocked': enemy['abilities'],
-                    'current_location': enemy['location'],
-                    'relationships': enemy['relationships'],
-                    'description': enemy['description'],
-                    'introduced_chapter': enemy['introduced_chapter']
+                    'health': enemy.get('health', '健康'),
+                    'injuries': enemy.get('injuries', []),
+                    'abilities_unlocked': enemy.get('abilities', []),
+                    'current_location': enemy.get('location', ''),
+                    'relationships': enemy.get('relationships', {}),
+                    'description': enemy.get('description', ''),
+                    'introduced_chapter': enemy.get('introduced_chapter', 0)
                 }
             
             # 保存 world_state

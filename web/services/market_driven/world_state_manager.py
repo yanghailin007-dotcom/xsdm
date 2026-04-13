@@ -317,14 +317,29 @@ class WorldStateManager:
             # 从金手指设计文件构建系统规则
             abilities = gf_config.get('abilities', [])
             initial_abilities = []
-            for ab in abilities:
-                if ab.get('stage') == '初始':
-                    initial_abilities.append(ab.get('ability', ''))
+            if isinstance(abilities, dict):
+                # 兼容 abilities 为字典的格式 (e.g. {"initial": "...", "growth": "..."})
+                for key, value in abilities.items():
+                    if key == 'initial' or '初始' in str(value):
+                        initial_abilities.append(str(value))
+            elif isinstance(abilities, list):
+                for ab in abilities:
+                    if isinstance(ab, dict) and ab.get('stage') == '初始':
+                        initial_abilities.append(ab.get('ability', ''))
+                    elif isinstance(ab, str):
+                        initial_abilities.append(ab)
+            
+            # 安全获取 current_level
+            current_level = '初始'
+            if isinstance(abilities, list) and abilities and isinstance(abilities[0], dict):
+                current_level = abilities[0].get('stage', '初始')
+            elif isinstance(abilities, dict):
+                current_level = abilities.get('stage', '初始') or '初始'
             
             self.state.system_rules = SystemRule(
                 system_name=gf_config.get('name', '系统'),
                 system_type=gf_config.get('type', '金手指'),
-                current_level=gf_config.get('abilities', [{}])[0].get('stage', '初始') if gf_config.get('abilities') else '初始',
+                current_level=current_level,
                 current_power=1.0,
                 unlocked_abilities=initial_abilities[:2]  # 只取前2个初始能力
             )

@@ -1,0 +1,314 @@
+{% extends "layouts/base-v2.html" %}
+
+{% block title %}市场导向模式 - 完整指南{% endblock %}
+
+{% block extra_css %}
+<style>
+.guide-container {
+    max-width: 900px;
+    margin: 0 auto;
+    padding: 40px 24px;
+    color: rgba(255,255,255,0.85);
+    line-height: 1.8;
+}
+.guide-container h1 {
+    font-size: 32px;
+    color: #fff;
+    margin-bottom: 16px;
+}
+.guide-container h2 {
+    font-size: 22px;
+    color: #fff;
+    margin-top: 48px;
+    margin-bottom: 20px;
+    padding-bottom: 10px;
+    border-bottom: 1px solid rgba(255,255,255,0.1);
+}
+.guide-container h3 {
+    font-size: 18px;
+    color: #fbbf24;
+    margin-top: 28px;
+    margin-bottom: 12px;
+}
+.guide-intro {
+    background: rgba(255,255,255,0.03);
+    border: 1px solid rgba(255,255,255,0.06);
+    border-radius: 12px;
+    padding: 24px;
+    margin-bottom: 32px;
+}
+.flow-step {
+    display: flex;
+    gap: 16px;
+    margin-bottom: 16px;
+    padding: 16px 20px;
+    background: rgba(255,255,255,0.03);
+    border: 1px solid rgba(255,255,255,0.06);
+    border-radius: 10px;
+}
+.flow-step.highlight {
+    border-color: rgba(245, 158, 11, 0.3);
+    background: rgba(245, 158, 11, 0.05);
+}
+.flow-step.warning {
+    border-color: rgba(239, 68, 68, 0.3);
+    background: rgba(239, 68, 68, 0.05);
+}
+.step-num {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, #6366f1, #8b5cf6);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 700;
+    color: #fff;
+    flex-shrink: 0;
+}
+.step-title {
+    font-weight: 600;
+    color: #fff;
+    margin-bottom: 4px;
+}
+.step-desc {
+    font-size: 14px;
+    color: rgba(255,255,255,0.6);
+    margin-bottom: 4px;
+}
+.step-time {
+    font-size: 12px;
+    color: rgba(255,255,255,0.4);
+}
+.step-tip {
+    font-size: 13px;
+    color: #fbbf24;
+    margin-top: 6px;
+}
+.troubleshoot-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 16px;
+    font-size: 14px;
+}
+.troubleshoot-table th,
+.troubleshoot-table td {
+    text-align: left;
+    padding: 12px;
+    border-bottom: 1px solid rgba(255,255,255,0.08);
+}
+.troubleshoot-table th {
+    color: #fff;
+    font-weight: 600;
+    background: rgba(255,255,255,0.03);
+}
+.guide-section ul, .guide-section ol {
+    padding-left: 22px;
+}
+.guide-section li {
+    margin-bottom: 8px;
+}
+.guide-section code {
+    background: rgba(255,255,255,0.08);
+    padding: 2px 6px;
+    border-radius: 4px;
+    font-family: monospace;
+    font-size: 13px;
+}
+.btn-contact {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 12px 28px;
+    background: linear-gradient(135deg, #6366f1, #8b5cf6);
+    color: #fff;
+    text-decoration: none;
+    border-radius: 8px;
+    font-weight: 500;
+    transition: all 0.3s;
+}
+.btn-contact:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 24px rgba(99, 102, 241, 0.3);
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="guide-container">
+    <h1>🎯 市场导向模式：从创意到爆款的全流程指南</h1>
+    
+    <div class="guide-intro">
+        <p>市场导向模式是系统基于番茄小说平台的爆款规律，自动为您设计题材、情绪曲线和爽点分布的创作模式。相比"自由创作"，它更懂平台算法和读者口味。</p>
+    </div>
+
+    <h2>📍 完整执行流程</h2>
+    
+    <div class="flow-step">
+        <div class="step-num">1</div>
+        <div>
+            <div class="step-title">选择题材</div>
+            <div class="step-desc">从系统分析的爆款题材库中选择（如神豪文、国运文、灵气复苏）</div>
+            <div class="step-time">⏱️ 约 1 分钟</div>
+        </div>
+    </div>
+    
+    <div class="flow-step">
+        <div class="step-num">2</div>
+        <div>
+            <div class="step-title">确认核心卖点</div>
+            <div class="step-desc">系统根据爆款公式生成书名+简介方案，您选择最吸引人的一个</div>
+            <div class="step-time">⏱️ 约 2 分钟</div>
+        </div>
+    </div>
+
+    <div class="flow-step">
+        <div class="step-num">2.5</div>
+        <div>
+            <div class="step-title">对话打磨（可选）</div>
+            <div class="step-desc">与 AI 进行多轮对话，调整书名、简介、金手指设定，直到方案满意为止</div>
+            <div class="step-time">⏱️ 约 3-10 分钟</div>
+            <div class="step-tip">💡 适合对创意有明确要求的作者。跳过打磨将直接进入默认方案生成。</div>
+        </div>
+    </div>
+
+    <div class="flow-step highlight">
+        <div class="step-num">3</div>
+        <div>
+            <div class="step-title">生成一阶段产物</div>
+            <div class="step-desc">AI 自动产出：世界观、金手指设计、角色设计、升级路线、情绪蓝图、阶段目标</div>
+            <div class="step-time">⏱️ 约 5-8 分钟</div>
+        </div>
+    </div>
+    
+    <div class="flow-step warning">
+        <div class="step-num">3.5</div>
+        <div>
+            <div class="step-title">AI 设定审查</div>
+            <div class="step-desc">系统自动检查书名、简介、金手指规则是否冲突。如果发现"书名写双倍但金手指写百倍"这类问题，会触发自动修正。</div>
+            <div class="step-tip">💡 这是关键防线。审查失败的数据，正文生成时一定会崩。</div>
+        </div>
+    </div>
+    
+    <div class="flow-step">
+        <div class="step-num">4</div>
+        <div>
+            <div class="step-title">选择文风</div>
+            <div class="step-desc">选择"番茄快节奏爽文"或其他文风，决定正文的叙述调性</div>
+            <div class="step-time">⏱️ 约 30 秒</div>
+        </div>
+    </div>
+    
+    <div class="flow-step highlight">
+        <div class="step-num">5</div>
+        <div>
+            <div class="step-title">生成细纲</div>
+            <div class="step-desc">AI 按30章为一批，逐章规划情绪、钩子、爽点、角色出场</div>
+            <div class="step-time">⏱️ 约 3-5 分钟</div>
+        </div>
+    </div>
+    
+    <div class="flow-step highlight">
+        <div class="step-num">6</div>
+        <div>
+            <div class="step-title">生成正文</div>
+            <div class="step-desc">基于细纲逐章生成小说正文，每章自动关联战术规划确保不跑偏</div>
+            <div class="step-time">⏱️ 约 15-30 分钟（30章）</div>
+        </div>
+    </div>
+
+    <h2>⚠️ 常见失败原因与排查</h2>
+    <table class="troubleshoot-table">
+        <tr>
+            <th style="width:22%">现象</th>
+            <th style="width:35%">根因</th>
+            <th style="width:43%">解决方法</th>
+        </tr>
+        <tr>
+            <td>人物名字每章都在变</td>
+            <td>章节生成器没有读取细纲中的角色分配</td>
+            <td>确认项目路径下存在 <code>tactical_plan_1.json</code>，且生成流程走 V2 架构</td>
+        </tr>
+        <tr>
+            <td>返利倍数忽大忽小</td>
+            <td>一阶段产物中书名、金手指名称、能力描述数字冲突</td>
+            <td>在"AI 设定审查"步骤检查 <code>ai_consistency_review.json</code> 报告</td>
+        </tr>
+        <tr>
+            <td>第3章就买千万豪宅</td>
+            <td>金手指成长规则没有和消费曲线绑定</td>
+            <td>检查审查报告中是否有"升级曲线过陡"警告，必要时手动调整成长规则</td>
+        </tr>
+        <tr>
+            <td>情绪平铺，没有起伏</td>
+            <td>细纲生成时忽略了情绪节拍规划</td>
+            <td>重新生成细纲，或手动调整关键章节（第3、8、15、25章）的情绪强度</td>
+        </tr>
+        <tr>
+            <td>叙事视角乱跳</td>
+            <td>文风设定没有固化到生成约束中</td>
+            <td>在文风选择时明确指定"全书统一第三人称"，并重新生成</td>
+        </tr>
+    </table>
+
+    <h2>🛠️ 各步骤详细说明</h2>
+    
+    <h3>步骤2.5：对话打磨</h3>
+    <p>在确认核心卖点后，您可以进入<strong>对话打磨模式</strong>，与 AI 进行多轮对话，针对以下维度进行微调：</p>
+    <ul>
+        <li><strong>书名差异化</strong>：让书名更吸睛，避免同质化</li>
+        <li><strong>金手指创新</strong>：调整返利机制、限制条件，让设定更合理或更爽</li>
+        <li><strong>开篇钩子</strong>：修改主角出场的困境和反转节奏</li>
+        <li><strong>反派定位</strong>：增减反派层次，调整打脸节奏</li>
+    </ul>
+    <p>打磨完成后，系统会将最终确认的方案固化为一阶段产物。如果您时间紧张，也可以跳过此步骤，直接使用系统推荐的默认方案。</p>
+
+    <h3>步骤3：一阶段产物生成</h3>
+    <p>这是整个项目的"地基"。产物包括：</p>
+    <ul>
+        <li><strong>世界观设定.json</strong>：背景、力量体系、社会结构</li>
+        <li><strong>金手指设计.json</strong>：系统名称、核心机制、升级规则、限制条件</li>
+        <li><strong>角色设计.json</strong>：主角、盟友、反派的人设和弧光</li>
+        <li><strong>升级路线.json</strong>：主角成长里程碑和能力解锁节点</li>
+        <li><strong>情绪蓝图.json</strong>：高潮节点和情绪峰值分布</li>
+        <li><strong>阶段目标.json</strong>：每10-30章要达成的剧情目标</li>
+    </ul>
+
+    <h3>步骤3.5：AI 设定审查（关键防线）</h3>
+    <p>很多数据不理想的小说，问题都出在<strong>地基里的数字信号在打架</strong>。例如：</p>
+    <ul>
+        <li>书名说"开局签到七天"，升级路线写"签到三十天解锁"</li>
+        <li>简介说"低调发育"，金手指规则却是"全服公告"</li>
+        <li>书名是"双倍返利"，金手指能力却是"100倍返利"</li>
+    </ul>
+    <p>AI 审查会在这个阶段把这些冲突抓出来并自动修正。你可以在 <code>phase_one_products/ai_consistency_review.json</code> 中查看审查详情。</p>
+
+    <h3>步骤5：细纲生成</h3>
+    <p>系统会生成 <code>tactical_plan_1.json</code>，包含30章的详细规划：</p>
+    <ul>
+        <li>每章的情绪类型和强度（如"压抑9"、"反转9"）</li>
+        <li>每章的核心事件和爽点设计</li>
+        <li>每章的章尾钩子</li>
+        <li>每章出场的角色分配</li>
+    </ul>
+    <p>这是后续正文生成的"剧本"。如果正文出现人物漂移或情节跑偏，99%是因为生成器没有读到这个文件。</p>
+
+    <h3>步骤6：正文生成</h3>
+    <p>系统会检测是否存在细纲文件：</p>
+    <ul>
+        <li><strong>存在细纲</strong> → 启用 V2 架构，按细纲逐章生成，角色和情节受控</li>
+        <li><strong>无细纲</strong> → 回退到旧版生成器，容易出现人物名乱变、情节重复</li>
+    </ul>
+
+    <h2>💡 提高成功率的3个技巧</h2>
+    <ol>
+        <li><strong>书名里的数字要和金手指对齐</strong>：如果金手指是"百倍返利"，书名就别写"双倍"。</li>
+        <li><strong>不要让主角开局太强</strong>：神豪文第1章就给1个亿，后面就没有成长空间了。</li>
+        <li><strong>重要反派不要提前退场</strong>：前期反派至少要到15-20章再彻底落败，否则中间会出现"爽点真空期"。</li>
+    </ol>
+
+    <div style="margin-top: 48px; padding: 20px; background: rgba(255,255,255,0.03); border-radius: 12px; text-align: center;">
+        <a href="/help-v2" class="btn-contact" style="background: linear-gradient(135deg, #6366f1, #8b5cf6);">返回帮助中心</a>
+    </div>
+</div>
+{% endblock %}

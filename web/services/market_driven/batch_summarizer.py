@@ -26,11 +26,13 @@ class BatchSummarizer:
     # 配置路径
     CONFIG_PATH = "prompt_packages/default/market_driven/components/batch_summary_prompts.json"
     
-    def __init__(self, api_client=None, analytics_service=None):
+    def __init__(self, api_client=None, analytics_service=None, project_path: str = None):
         self.api_client = api_client
         self.analytics_service = analytics_service  # 🔥 新增：接入真实质量分析服务
+        self.project_path = project_path
         self._config = self._load_config()
         self._emotion_quality_config = self._load_emotion_quality_config()
+        self._worldview_config = self._load_worldview_config()
     
     def _load_config(self) -> Dict:
         """加载提示词配置"""
@@ -56,6 +58,40 @@ class BatchSummarizer:
             return {}
         except Exception as e:
             logger.warning(f"[BatchSummarizer] 无法加载情绪质量标准配置: {e}")
+            return {}
+    
+    def _load_worldview_config(self) -> Dict:
+        """🔥 加载项目世界观配置用于一致性检查"""
+        if not self.project_path:
+            return {}
+        try:
+            from pathlib import Path
+            project_path = Path(self.project_path)
+            # 尝试多个可能的路径
+            possible_files = [
+                project_path / "phase_one_products" / "世界观设定.json",
+                project_path / "phase_one_products" / "完整方案.json",
+                project_path / "phase_one_products" / "plan.json",
+                project_path / "project_info.json",
+            ]
+            for file_path in possible_files:
+                if file_path.exists():
+                    with open(file_path, 'r', encoding='utf-8') as f:
+                        data = json.load(f)
+                    # 如果包含 worldview 或 core_worldview，提取
+                    if isinstance(data, dict):
+                        worldview = data.get("worldview") or data.get("core_worldview") or data.get("plan", {}).get("worldview")
+                        genre = data.get("genre") or data.get("novel_info", {}).get("category") or data.get("category")
+                        golden_finger = data.get("golden_finger") or data.get("plan", {}).get("golden_finger")
+                        return {
+                            "worldview": worldview,
+                            "genre": genre,
+                            "golden_finger": golden_finger,
+                            "source": str(file_path.name)
+                        }
+            return {}
+        except Exception as e:
+            logger.warning(f"[BatchSummarizer] 加载世界观配置失败: {e}")
             return {}
     
     def summarize_batch(
@@ -116,6 +152,25 @@ class BatchSummarizer:
                 avg_quality = sum(c.get('quality_score', 0) for c in chapters) / len(chapters) if chapters else 0
                 logger.warning(f"[BatchSummarizer] 使用章节自带质量分（可能不准确）: {avg_quality:.1f}")
             
+            # 🔥 世界观一致性检查
+            worldview_check = self._check_worldview_consistency(chapters)
+            if worldview_check.get('has_violation', False):
+                severity = worldview_check.get('severity', 'low')
+                violation_count = len(worldview_check.get('violations', []))
+                original_quality = avg_quality
+                # 严重违规强制降分到4.0以下，中等违规降分到6.0以下
+                if severity == 'critical':
+                    avg_quality = min(avg_quality, 3.5)
+                elif severity == 'high':
+                    avg_quality = min(avg_quality, 4.5)
+                elif severity == 'medium':
+                    avg_quality = min(avg_quality, 6.0)
+                logger.error(
+                    f"[BatchSummarizer] 🚨 世界观崩坏检测！{violation_count}处违规 | "
+                    f"严重程度:{severity} | 质量分:{original_quality:.1f}→{avg_quality:.1f} | "
+                    f"违规词:{worldview_check.get('top_violations', [])}"
+                )
+            
             # 收集提取信息
             all_new_chars = []
             all_char_changes = []
@@ -172,6 +227,9 @@ class BatchSummarizer:
                     "progress_percent": progress
                 },
                 "goal_progress": {goal_id: f"{progress}%"},
+                
+                # 世界观一致性检查结果
+                "worldview_check": worldview_check,
                 
                 # 内容摘要
                 "content": {
@@ -269,12 +327,17 @@ class BatchSummarizer:
                 "plot_direction": "继续推进当前阶段目标"
             }
         
-        # 提取关键内容（每章前500字）
+        # 🔥 提取关键内容：给 AI 完整内容（Gemini 上下文够大）
+        # 如果单章过长（>2500字），采用 开头400字 + 结尾800字 的拼接方式保留钩子和开局
         chapter_snippets = []
         for ch in chapters:
-            content = ch.get('content', '')[:500]
+            content = ch.get('content', '')
             ch_num = ch.get('chapter_number', 0)
-            chapter_snippets.append(f"第{ch_num}章摘要: {content}...")
+            if len(content) > 2500:
+                snippet = f"【第{ch_num}章开头】\n{content[:400]}\n...\n【第{ch_num}章结尾】\n{content[-800:]}"
+            else:
+                snippet = f"【第{ch_num}章全文】\n{content}"
+            chapter_snippets.append(snippet)
         
         goal_desc = stage_goal.get('description', '完成当前阶段目标') if stage_goal else '推进剧情'
         
@@ -296,7 +359,7 @@ class BatchSummarizer:
             start_ch=start_ch,
             end_ch=end_ch,
             goal_desc=goal_desc,
-            chapter_snippets=chr(10).join(chapter_snippets),
+            chapter_snippets="\n\n".join(chapter_snippets),
             new_chars_count=len(new_chars),
             new_chars_list=', '.join(c.get('name', '') for c in new_chars[:3]),
             char_changes_count=len(char_changes),
@@ -463,6 +526,157 @@ class BatchSummarizer:
             }
         }
     
+    def _check_worldview_consistency(self, chapters: List[Dict]) -> Dict:
+        """
+        🔥 检查批次章节是否出现世界观崩坏（题材越界元素）
+        
+        例如：神豪文出现"基因锁/高维生命/修仙/宇宙"等关键词
+        Returns:
+            {
+                "has_violation": bool,
+                "severity": "low|medium|high|critical",
+                "violations": [{"word": str, "chapter": int, "context": str}],
+                "top_violations": [str],
+                "notes": str
+            }
+        """
+        if not chapters:
+            return {"has_violation": False, "severity": "low", "violations": [], "notes": "无章节数据"}
+        
+        genre = ""
+        if self._worldview_config:
+            genre = self._worldview_config.get("genre", "")
+        
+        # 如果没有 genre，尝试从 project_path 推断
+        if not genre and self.project_path:
+            try:
+                from pathlib import Path
+                p = Path(self.project_path)
+                # 尝试从 project_info.json 读取
+                info_file = p / "project_info.json"
+                if info_file.exists():
+                    with open(info_file, 'r', encoding='utf-8') as f:
+                        info = json.load(f)
+                    genre = info.get("genre") or info.get("novel_info", {}).get("category", "")
+            except Exception:
+                pass
+        
+        # 定义各题材禁忌词表
+        forbidden_map = {
+            "神豪": {
+                "critical": ["基因锁", "高维生命", "高维", "修仙", "灵气", "渡劫", "飞升", "斗气", "武魂", "魂环", "魔法", "咒语", "魔杖", "宇宙法则", "维度", "异次元"],
+                "high": ["宇宙", "星空", "外星", "虫洞", "超能力", "异能", "觉醒", "进化", "基因改造"],
+                "medium": ["古武", "内力", "真气", "宗师", "武林"]
+            },
+            "国运": {
+                "critical": ["花钱返利", "股票", "股市", "奢侈品", "豪车", "豪宅", "神豪", "投资", "上市", "并购"],
+                "high": ["劳斯莱斯", "法拉利", " billionaire", "首富", "泡妞", "夜店", "夜店"],
+                "medium": ["公司", "CEO", "总裁", "商业帝国"]
+            },
+            "末日": {
+                "critical": ["修仙", "灵气", "渡劫", "飞升", "魔法", "斗气", "武魂"],
+                "high": ["宇宙", "高维", "外星文明", "虫洞", "时空穿梭"],
+                "medium": ["古武", "内力", "真气"]
+            },
+            "奶爸": {
+                "critical": ["修仙", "渡劫", "飞升", "魔法", "斗气"],
+                "high": ["宇宙", "高维", "外星", "末日", "丧尸"],
+                "medium": ["古武", "内力"]
+            }
+        }
+        
+        # 匹配题材
+        matched_keywords = None
+        for genre_key, keywords in forbidden_map.items():
+            if genre_key in genre:
+                matched_keywords = keywords
+                break
+        
+        # 🔥 从YAML加载扩展禁忌词（优先，不硬编码）
+        try:
+            from web.services.market_driven.genre_techniques_loader import load_genre_techniques
+            gt = load_genre_techniques(genre)
+            yaml_forbidden = set()
+            
+            # final_plan_guardrails 中的禁用词
+            guardrails = gt.raw_data.get('final_plan_guardrails', {})
+            for kw in guardrails.get('golden_finger', {}).get('forbidden_keywords', []):
+                yaml_forbidden.add(kw)
+            
+            # forbidden_elements 中的禁用词
+            fe_data = gt.raw_data.get('forbidden_elements', {})
+            for item in fe_data.get('items', []):
+                yaml_forbidden.add(item.get('element', ''))
+                for ex in item.get('examples', []):
+                    yaml_forbidden.add(ex)
+            
+            yaml_forbidden = {w.strip() for w in yaml_forbidden if w and len(w.strip()) > 0}
+            
+            if yaml_forbidden:
+                if not matched_keywords:
+                    matched_keywords = {"critical": [], "high": [], "medium": []}
+                # 把YAML中的词合并到 critical（最严重）
+                existing_critical = set(matched_keywords.get("critical", []))
+                existing_critical.update(yaml_forbidden)
+                matched_keywords["critical"] = list(existing_critical)
+                logger.info(f"[BatchSummarizer] 从YAML加载题材禁忌词: {len(yaml_forbidden)}个")
+        except Exception as e:
+            logger.warning(f"[BatchSummarizer] 从YAML加载禁忌词失败: {e}")
+        
+        if not matched_keywords:
+            return {"has_violation": False, "severity": "low", "violations": [], "notes": f"未识别题材({genre})，跳过世界观检查"}
+        
+        violations = []
+        for ch in chapters:
+            content = ch.get('content', '') or ''
+            ch_num = ch.get('chapter_number') or ch.get('chapter') or 0
+            # 只检查前2000字（避免尾部干扰）
+            check_text = content[:2000]
+            
+            for severity, words in matched_keywords.items():
+                for word in words:
+                    if word in check_text:
+                        # 提取上下文
+                        idx = check_text.find(word)
+                        start = max(0, idx - 15)
+                        end = min(len(check_text), idx + len(word) + 15)
+                        context = check_text[start:end]
+                        violations.append({
+                            "word": word,
+                            "chapter": ch_num,
+                            "severity": severity,
+                            "context": context
+                        })
+        
+        if not violations:
+            return {"has_violation": False, "severity": "low", "violations": [], "notes": f"题材({genre})世界观检查通过"}
+        
+        # 判定严重程度
+        critical_count = sum(1 for v in violations if v['severity'] == 'critical')
+        high_count = sum(1 for v in violations if v['severity'] == 'high')
+        
+        if critical_count >= 2 or critical_count >= 1 and high_count >= 2:
+            severity = 'critical'
+        elif critical_count >= 1 or high_count >= 3:
+            severity = 'high'
+        elif high_count >= 1 or len(violations) >= 3:
+            severity = 'medium'
+        else:
+            severity = 'low'
+        
+        top_violations = list(set(v['word'] for v in violations))[:5]
+        affected_chapters = list(set(v['chapter'] for v in violations))
+        
+        return {
+            "has_violation": True,
+            "severity": severity,
+            "violations": violations,
+            "violation_count": len(violations),
+            "top_violations": top_violations,
+            "affected_chapters": affected_chapters,
+            "notes": f"检测到{len(violations)}处世界观违规（题材:{genre}），涉及章节:{affected_chapters}"
+        }
+    
     def _empty_summary(self) -> Dict:
         """返回空总结"""
         return {
@@ -618,6 +832,10 @@ class BatchSummarizer:
         old_content = old_summary.get('content', {})
         new_content = new_summary.get('content', {})
         
+        # 确保 merged 中有 content 键
+        if 'content' not in merged:
+            merged['content'] = {}
+        
         # 合并新角色（去重）
         all_chars = {c.get('name'): c for c in old_content.get('new_characters', [])}
         for char in new_content.get('new_characters', []):
@@ -656,9 +874,62 @@ class BatchSummarizer:
         # 更新当前目标
         merged['current_goal'] = new_summary.get('current_goal', old_summary.get('current_goal', {}))
         
-        # 更新时间
-        merged['updated_at'] = datetime.now().isoformat()
-        merged['notes'] = f"累积总结: 第{merged['batch_range']}章, 共{merged['chapter_count']}章"
+        # 🔥 保留世界观警告（取最严重的）
+        old_wv = old_summary.get('worldview_check', {})
+        new_wv = new_summary.get('worldview_check', {})
+        severity_rank = {'low': 0, 'medium': 1, 'high': 2, 'critical': 3}
+        old_sev = severity_rank.get(old_wv.get('severity', 'low'), 0)
+        new_sev = severity_rank.get(new_wv.get('severity', 'low'), 0)
+        merged['worldview_check'] = old_wv if old_sev >= new_sev else new_wv
+        if 'batch_range' not in merged:
+            merged['batch_range'] = new_summary.get('batch_range', 'unknown')
+        
+        # 🔥 关键修复：覆盖 AI 分析层，避免使用旧批次的 frozen ai_analysis
+        # V2 对话内总结返回的键与旧版不同，需要做映射
+        if new_summary.get('summary_text'):
+            merged['summary_text'] = new_summary['summary_text']
+            merged['notes'] = new_summary['summary_text']
+        
+        if new_summary.get('completed_events') is not None:
+            merged['completed_events'] = new_summary['completed_events']
+        
+        if new_summary.get('pending_hooks') is not None:
+            merged['pending_hooks'] = new_summary['pending_hooks']
+        
+        if new_summary.get('plot_direction'):
+            merged['plot_direction'] = new_summary['plot_direction']
+        
+        if new_summary.get('stage_progress_assessment'):
+            merged['stage_progress_assessment'] = new_summary['stage_progress_assessment']
+        
+        # 兼容 V2 的 character_states -> character_state
+        if new_summary.get('character_states'):
+            merged['character_state'] = new_summary['character_states']
+        elif new_summary.get('character_state'):
+            merged['character_state'] = new_summary['character_state']
+        
+        # 如果新总结有 ai_analysis（旧版格式），也直接覆盖
+        if new_summary.get('ai_analysis'):
+            merged['ai_analysis'] = new_summary['ai_analysis']
+        elif merged.get('summary_text') and not new_summary.get('ai_analysis'):
+            # 将新的扁平数据同步进 ai_analysis，保持旧版兼容
+            merged['ai_analysis'] = {
+                'summary_text': merged.get('summary_text', ''),
+                'completed_events': merged.get('completed_events', []),
+                'character_states': merged.get('character_state', {}),
+                'pending_hooks': merged.get('pending_hooks', []),
+                'plot_direction': merged.get('plot_direction', ''),
+                'stage_progress_assessment': merged.get('stage_progress_assessment', '')
+            }
+        
+        # 更新时间戳
+        if new_summary.get('generated_at'):
+            merged['generated_at'] = new_summary['generated_at']
+        
+        if merged.get('worldview_check', {}).get('has_violation'):
+            merged['notes'] = f"🚨【世界观异常】{merged['worldview_check'].get('notes', '')}"
+        elif not merged.get('notes'):
+            merged['notes'] = f"累积总结: 第{merged['batch_range']}章, 共{merged['chapter_count']}章"
         
         logger.info(f"[BatchSummarizer] 总结合并完成: 累积{merged['chapter_count']}章")
         

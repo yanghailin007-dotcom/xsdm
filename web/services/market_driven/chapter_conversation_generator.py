@@ -1003,13 +1003,17 @@ class ChapterConversationGenerator:
             "generated_at": datetime.now().isoformat()
         }
         
-        if self.info_extractor:
-            try:
-                extracted_info = self.info_extractor.extract_from_chapter(chapter_data)
-                chapter_data["extracted_info"] = extracted_info
-                logger.info(f"[章节对话 {self.session_id}] 第{chapter_num}章信息提取完成: {len(extracted_info.get('new_characters', []))}新角色, {len(extracted_info.get('new_hooks', []))}新钩子")
-            except Exception as e:
-                logger.warning(f"[章节对话 {self.session_id}] 第{chapter_num}章信息提取失败: {e}")
+        # 🔥 禁用每章独立信息提取，改为批次结束时由 V2 对话内统一总结
+        # 这样避免重复 API 调用，且能利用完整对话记忆做更准确的角色/世界状态更新
+        chapter_data["extracted_info"] = {
+            "new_characters": [],
+            "character_changes": [],
+            "new_hooks": [],
+            "resolved_hooks": [],
+            "world_changes": [],
+            "key_event": None,
+            "power_progression": None
+        }
         
         return chapter_data
     

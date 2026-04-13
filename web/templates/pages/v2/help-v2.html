@@ -172,6 +172,11 @@
     </div>
 
     <div class="help-grid">
+        <div class="help-card" style="cursor:pointer;" onclick="window.location.href='/help/market-driven-guide'">
+            <div class="help-icon" style="background: linear-gradient(135deg, #f59e0b, #fbbf24);">🎯</div>
+            <h3>市场导向模式</h3>
+            <p>番茄爆款 workflow 的完整指南：从题材选择、AI设定审查、细纲生成到正文输出的全流程说明。</p>
+        </div>
         <div class="help-card">
             <div class="help-icon">🚀</div>
             <h3 data-i18n="help.card.quickStart.title">快速开始</h3>
@@ -186,11 +191,6 @@
             <div class="help-icon">📚</div>
             <h3 data-i18n="help.card.project.title">项目管理</h3>
             <p data-i18n="help.card.project.desc">掌握项目创建、编辑、续写和导出的各种操作技巧。</p>
-        </div>
-        <div class="help-card">
-            <div class="help-icon">⚙️</div>
-            <h3 data-i18n="help.card.settings.title">系统设置</h3>
-            <p data-i18n="help.card.settings.desc">配置您的账户信息、修改密码和管理个人偏好设置。</p>
         </div>
     </div>
 
@@ -234,6 +234,36 @@
             </div>
             <div class="faq-answer">
                 您可以重新生成特定章节，或在续写时调整提示词来获得更符合预期的内容。建议在初始设定阶段尽可能详细地描述您的需求。
+            </div>
+        </div>
+        
+        <div class="faq-item">
+            <div class="faq-question" onclick="this.parentElement.classList.toggle('active')">
+                <span>什么是"对话打磨"模式？</span>
+                <span class="faq-toggle">▼</span>
+            </div>
+            <div class="faq-answer">
+                对话打磨是市场导向模式的可选步骤。在系统生成默认书名和金手指方案后，您可以进入多轮对话，与 AI 一起调整书名、简介、金手指规则和开篇钩子，直到方案符合您的预期。打磨结束后，系统才会继续生成世界观、角色和细纲。
+            </div>
+        </div>
+        
+        <div class="faq-item">
+            <div class="faq-question" onclick="this.parentElement.classList.toggle('active')">
+                <span>为什么市场导向模式会生成"AI设定审查"报告？</span>
+                <span class="faq-toggle">▼</span>
+            </div>
+            <div class="faq-answer">
+                很多小说崩盘的根源在于"书名说双倍返利，金手指写100倍"这类数字信号冲突。AI设定审查会在一阶段产物完成后自动检查这些冲突，并修正不一致的地方。你可以在项目的 <code>phase_one_products/ai_consistency_review.json</code> 中查看审查详情。
+            </div>
+        </div>
+        
+        <div class="faq-item">
+            <div class="faq-question" onclick="this.parentElement.classList.toggle('active')">
+                <span>人物名字每章都在变怎么办？</span>
+                <span class="faq-toggle">▼</span>
+            </div>
+            <div class="faq-answer">
+                这是因为正文生成器没有读到细纲文件 <code>tactical_plan_1.json</code>。请确保你使用的是"市场导向模式"，并且在生成正文前已经成功完成了"细纲生成"步骤。如果问题持续，请查看帮助中心的<a href="/help/market-driven-guide">市场导向模式完整指南</a>。
             </div>
         </div>
     </div>

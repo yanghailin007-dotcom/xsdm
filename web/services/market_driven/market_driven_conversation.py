@@ -22,6 +22,23 @@ except ImportError:
     HAS_BESTSELLER_ANALYSIS = False
     logging.warning("[MarketDrivenConversation] 爆款分析模块未加载，将使用传统Prompt")
 
+# 导入题材技法加载器
+try:
+    from web.services.market_driven.genre_techniques_loader import load_genre_techniques
+    HAS_GENRE_TECHNIQUES = True
+except ImportError:
+    HAS_GENRE_TECHNIQUES = False
+    logging.warning("[MarketDrivenConversation] 题材技法加载器未加载")
+
+# 导入一阶段产物 AI 审查器
+try:
+    from web.services.market_driven.phase_one_ai_reviewer import PhaseOneAIReviewer
+    HAS_PHASE_ONE_REVIEWER = True
+    logging.info("[MarketDrivenConversation] PhaseOneAIReviewer 已加载")
+except ImportError as e:
+    HAS_PHASE_ONE_REVIEWER = False
+    logging.warning(f"[MarketDrivenConversation] PhaseOneAIReviewer 未加载: {e}")
+
 # 导入TropePromptBuilder（分层System Prompt支持）
 try:
     from web.services.market_driven.trope_prompt_builder import TropePromptBuilder
@@ -30,6 +47,8 @@ try:
 except ImportError:
     HAS_TROPE_PROMPT_BUILDER = False
     logging.warning("[MarketDrivenConversation] TropePromptBuilder未加载")
+
+
 
 # 🔥 导入提示词包支持
 try:
@@ -816,8 +835,8 @@ POST /api/v2/prompt-config/component/{step_name}
                 "tactical_plan": ("战术规划.json", "tactical_plan"),
                 "writing_style_guide": ("写作风格指南.json", "writing_style_guide"),
                 "market_analysis": ("市场分析.json", "market_analysis"),
-                "emotional_blueprint": ("情绪蓝图.json", "emotional_blueprint"),
                 "alignment": ("爆款对齐报告.json", "alignment_report"),
+                "faction_system": ("势力设定.json", "faction_system"),
             }
             
             if step_name not in product_mapping:
@@ -833,6 +852,15 @@ POST /api/v2/prompt-config/component/{step_name}
                 with open(product_path, 'w', encoding='utf-8') as f:
                     json.dump(data, f, ensure_ascii=False, indent=2)
                 logger.info(f"[对话模式 {self.session_id}] 产物 [{step_name}] 已保存到: {product_path}")
+                
+                # 🔥 当保存 plan 时，同时提取并保存金手指设计
+                if step_name == "plan" and isinstance(data, dict):
+                    gf_data = data.get("golden_finger")
+                    if gf_data:
+                        gf_path = base_path / "phase_one_products" / "金手指设计.json"
+                        with open(gf_path, 'w', encoding='utf-8') as f:
+                            json.dump(gf_data, f, ensure_ascii=False, indent=2)
+                        logger.info(f"[对话模式 {self.session_id}] 产物 [golden_finger] 已保存到: {gf_path}")
             
         except Exception as e:
             logger.error(f"[对话模式 {self.session_id}] 保存产物文件失败 [{step_name}]: {e}")
@@ -848,6 +876,9 @@ POST /api/v2/prompt-config/component/{step_name}
         Returns:
             所有产物字典
         """
+        # 🔥 保存项目路径供后续对齐检查使用
+        self.project_path = project_path
+        
         # 🔥 版本标记，确保代码已更新
         logger.info(f"[对话模式 {self.session_id}] ===== CODE VERSION: DEBUG_v2_with_logging =====")
         
@@ -875,6 +906,8 @@ POST /api/v2/prompt-config/component/{step_name}
             plan["recommended_title"] = fanqie_data["title"]
             plan["core_selling_points"] = [{"point": fanqie_data["synopsis"]}]
             plan["tags"] = fanqie_data["tags"]
+            # 🔥 关键：FinalPlan模式也需要保存plan，以便生成phase_one_products/完整方案.json和金手指设计.json
+            self._save_step_result("plan", results, project_path)
             self._save_step_result("fanqie_data", results, project_path)
             logger.info(f"[对话模式 {self.session_id}] [UI:planning] 步骤1B完成 | 番茄数据已生成")
             
@@ -913,6 +946,9 @@ POST /api/v2/prompt-config/component/{step_name}
         results["core_worldview"] = worldview
         results["faction_system"] = self._extract_faction_system(worldview)
         self._save_step_result("worldview", results, project_path)
+        # 🔥 同时保存势力系统到独立文件
+        if project_path:
+            self._save_phase_one_product("faction_system", results, Path(project_path))
         logger.info(f"[对话模式 {self.session_id}] [UI:worldview] 步骤2完成 | 世界观已保存")
         
         # 步骤3: 生成角色 (50%) -> UI阶段: worldview
@@ -965,23 +1001,79 @@ POST /api/v2/prompt-config/component/{step_name}
         aligned_results = self._bestseller_alignment_check(results)
         results.update(aligned_results)
         self._save_step_result("alignment", results, project_path)
+        
+        # 🔥 关键修复：步骤6的爆款对齐优化结果必须写回对应的独立产物文件
+        optimized_keys = []
+        
+        if 'emotion_curve' in aligned_results and aligned_results['emotion_curve']:
+            results['emotion_curve'] = aligned_results['emotion_curve']
+            self._save_step_result("emotion_curve", results, project_path)
+            optimized_keys.append("情绪曲线")
+        
+        if 'stage_goals' in aligned_results and aligned_results['stage_goals']:
+            results['stage_goals'] = aligned_results['stage_goals']
+            self._save_step_result("stage_goals", results, project_path)
+            optimized_keys.append("阶段目标")
+        
+        has_plan_optimization = (
+            'plan' in aligned_results and aligned_results['plan'] and
+            ('golden_finger' in aligned_results['plan'] or 'opening_design' in aligned_results['plan'])
+        )
+        if has_plan_optimization:
+            if 'plan' not in results:
+                results['plan'] = {}
+            results['plan'].update(aligned_results['plan'])
+            self._save_step_result("plan", results, project_path)
+            optimized_keys.append("plan/金手指")
+        
+        if optimized_keys:
+            logger.info(f"[对话模式 {self.session_id}] 步骤6优化已触发重新保存: {', '.join(optimized_keys)}")
         logger.info(f"[对话模式 {self.session_id}] [UI:final_check] 步骤6完成 | 对齐优化已保存")
         
+        # 🔥 步骤6.5: AI 一致性审查（新防线）
+        logger.info(f"[对话模式 {self.session_id}] [UI:review] 步骤6.5/7: AI 设定一致性审查")
+        if progress_callback:
+            progress_callback("ai_consistency_review", 92)
+        
+        if HAS_PHASE_ONE_REVIEWER and self.api_client:
+            try:
+                reviewer = PhaseOneAIReviewer(self.api_client)
+                review = reviewer.review(results)
+                
+                if review.get("status") == "needs_fix":
+                    logger.info(f"[对话模式 {self.session_id}] AI 审查发现 {len(review.get('issues', []))} 个问题，自动应用高置信度修复")
+                    results = reviewer.apply_fixes(results, review)
+                    # 保存审查报告
+                    if project_path:
+                        review_path = Path(project_path) / "phase_one_products" / "ai_consistency_review.json"
+                        review_path.parent.mkdir(parents=True, exist_ok=True)
+                        with open(review_path, "w", encoding="utf-8") as f:
+                            json.dump(review, f, ensure_ascii=False, indent=2)
+                        logger.info(f"[对话模式 {self.session_id}] AI 审查报告已保存: {review_path}")
+                    # 重新保存 plan（因为可能已修复）
+                    self._save_step_result("plan", results, project_path)
+                else:
+                    logger.info(f"[对话模式 {self.session_id}] AI 审查通过: {review.get('summary', '')}")
+            except Exception as e:
+                logger.error(f"[对话模式 {self.session_id}] AI 审查步骤异常: {e}", exc_info=True)
+        else:
+            logger.warning(f"[对话模式 {self.session_id}] AI 审查器未加载或 api_client 不可用，跳过审查")
+        
         # 步骤6B: 生成附加产物 (100%) -> UI阶段: complete
-        logger.info(f"[对话模式 {self.session_id}] [UI:complete] 步骤6B/6: 生成附加产物")
+        logger.info(f"[对话模式 {self.session_id}] [UI:complete] 步骤6B/7: 生成附加产物")
         if progress_callback:
             progress_callback("generate_supplementary", 100)
         
         # 补充产物
         results["writing_style_guide"] = self._generate_writing_style_guide()
         results["market_analysis"] = self._generate_market_analysis()
+        # 🔥 情绪蓝图不再生成独立文件（冗余，细纲使用 emotion_curve）
         results["emotional_blueprint"] = self._generate_emotional_blueprint()
         
         # 🔥 保存补充产物
         if project_path:
             self._save_phase_one_product("writing_style_guide", results, Path(project_path))
             self._save_phase_one_product("market_analysis", results, Path(project_path))
-            self._save_phase_one_product("emotional_blueprint", results, Path(project_path))
             logger.info(f"[对话模式 {self.session_id}] 补充产物已保存到 phase_one_products/")
         
         # 🔥 最终保存
@@ -1003,6 +1095,11 @@ POST /api/v2/prompt-config/component/{step_name}
             logger.warning(f"[对话模式 {self.session_id}] final_plan为空，返回默认plan")
             return {"title": "未命名", "protagonist": {"name": "主角"}}
         
+        # 🔥 优先使用完整的 golden_finger 字典（来自对话打磨 AI 生成）
+        gf_data = self._final_plan.get("golden_finger", {})
+        if not gf_data or not isinstance(gf_data, dict):
+            gf_data = {}
+        
         plan = {
             "title": self._final_plan.get("title", "未命名"),
             "protagonist": {
@@ -1010,18 +1107,14 @@ POST /api/v2/prompt-config/component/{step_name}
                 "personality": self._final_plan.get("protagonist_personality", ""),
                 "background": self._final_plan.get("protagonist_background", "")
             },
-            "golden_finger": {
-                "summary": self._final_plan.get("golden_finger_summary", ""),
-                "details": ""
-            },
+            "golden_finger": gf_data,
             "core_selling_point": self._final_plan.get("core_selling_point", ""),
             "story_direction": self._final_plan.get("story_direction", ""),
             "opening_hook": self._final_plan.get("opening_hook", ""),
             "emotion_core": self._final_plan.get("emotion_core", ""),
-            # 🔥 从 user_choices 获取总章节数
             "total_chapters": self.user_choices.get("chapters", 200),
-            # 标记这是来自final_plan
-            "_source": "dialog_mode_final_plan"
+            "_source": "dialog_mode_final_plan",
+            "evaluation": self._final_plan.get("evaluation", {})
         }
         
         logger.info(f"[对话模式 {self.session_id}] 从final_plan构建plan完成 | 标题: {plan['title']}")
@@ -1162,7 +1255,7 @@ POST /api/v2/prompt-config/component/{step_name}
         
         🔥 参考 plan_generator.py 的专业实现：
         - 标签使用预制映射（FANQIE_TAG_MAPPINGS）
-        - 简介使用番茄爆款公式生成
+        - 简介优先使用AI在final_plan中生成的synopsis，确保与书名、金手指100%对齐
         """
         title = self.user_choices.get('title', '未命名')
         protagonist_name = self.user_choices.get('protagonist_name', '主角')
@@ -1171,8 +1264,14 @@ POST /api/v2/prompt-config/component/{step_name}
         # 1. 书名优化（基于用户确定的标题）
         optimized_title = self._optimize_title_for_fanqie(title, genre)
         
-        # 2. 生成专业简介（使用番茄爆款公式）
-        synopsis = self._generate_synopsis_by_formula(plan, protagonist_name, genre)
+        # 2. 简介生成：优先使用final_plan中AI生成的简介，对齐书名和金手指
+        synopsis = plan.get('synopsis', '') if isinstance(plan, dict) else ''
+        if synopsis and len(synopsis.strip()) > 20:
+            logger.info(f"[FanqieUpload] 使用AI生成的简介（与书名对齐）| 长度: {len(synopsis)}字")
+        else:
+            # 回退到模板公式生成
+            synopsis = self._generate_synopsis_by_formula(plan, protagonist_name, genre)
+            logger.info(f"[FanqieUpload] 使用模板公式生成简介（回退）| 长度: {len(synopsis)}字")
         
         # 3. 获取预制标签（参考 plan_generator.py）
         tags = self._get_fanqie_tags(genre)
@@ -1205,18 +1304,26 @@ POST /api/v2/prompt-config/component/{step_name}
         第4段：【爽点预告】具体会做什么（打脸/震惊/收获）
         第5段：【情绪钩子】书名号/别名（增加传播性）
         """
+        import re
+        
         # 从 plan 提取关键信息
         gf = plan.get("golden_finger", {})
-        protagonist = plan.get("protagonist", {})
-        opening = plan.get("opening_design", {})
+        if not isinstance(gf, dict):
+            gf = {}
+        protagonist = plan.get("protagonist", {}) if isinstance(plan.get("protagonist"), dict) else {}
+        opening = plan.get("opening_design", {}) if isinstance(plan.get("opening_design"), dict) else {}
+        title = self.user_choices.get('title', '') if hasattr(self, 'user_choices') else plan.get('title', '')
         
         # 提取金手指核心词（简化描述）
-        gf_desc = gf.get("initial", "") if isinstance(gf, dict) else ""
-        gf_concept = gf.get("concept", "") if isinstance(gf, dict) else ""
-        gf_name = gf.get("name", "") if isinstance(gf, dict) else ""
+        gf_desc = gf.get("initial", "")
+        gf_concept = gf.get("concept", "")
+        gf_name = gf.get("name", "")
+        gf_abilities = gf.get("abilities", [])
         
         # 🔥 合并所有金手指描述信息，用于提取关键词
         gf_full_desc = f"{gf_name} {gf_concept} {gf_desc}"
+        if isinstance(gf_abilities, list) and gf_abilities:
+            gf_full_desc += " " + " ".join([str(a) for a in gf_abilities[:3]])
         
         # 提取关键能力词
         gf_keywords = []
@@ -1228,16 +1335,22 @@ POST /api/v2/prompt-config/component/{step_name}
             gf_keywords.append("雷神")
         if "签到" in gf_full_desc:
             gf_keywords.append("签到")
+        if "返利" in gf_full_desc or "花钱" in gf_full_desc:
+            gf_keywords.append("花钱返利系统")
+        if "股市" in gf_full_desc or "股票" in gf_full_desc or "股神" in title:
+            gf_keywords.append("股神预判系统")
+        if "烂尾楼" in title or "地产" in title or "房产" in title:
+            gf_keywords.append("地产投资系统")
         
         # 🔥 提取具现倍数（万倍、百倍等）
-        import re
         multiplier_match = re.search(r'(\d+万?千?百?)倍', gf_full_desc)
         multiplier = multiplier_match.group(1) + "倍" if multiplier_match else "百倍"
         
-        gf_core = gf_keywords[0] if gf_keywords else "神秘系统"
+        gf_core = gf_keywords[0] if gf_keywords else (gf_name or gf_concept or "神秘系统")
+        if not gf_core:
+            gf_core = "神秘系统"
         
         # 提取主角表面身份（从开局第1章）
-        # 安全处理：确保opening和ch1都是字典类型
         if isinstance(opening, dict):
             ch1 = opening.get("chapter_1", {})
             if isinstance(ch1, str):
@@ -1255,16 +1368,48 @@ POST /api/v2/prompt-config/component/{step_name}
         elif "屌丝" in scene:
             surface_identity = "穷屌丝"
         
-        # 提取核心爽点动作
+        # 🔥 从书名提取差异化关键词
+        title_hook = ""
+        title_keywords = []
+        # 提取书名中的核心场景/动作词
+        hook_patterns = {
+            r'烂尾楼': '烂尾楼',
+            r'股神': '股市',
+            r'梭哈': '梭哈',
+            r'全仓': '全仓',
+            r'外卖员': '外卖员',
+            r'保安': '保安',
+            r'签到': '签到',
+            r'盲盒': '盲盒',
+            r'扮演': '扮演',
+            r'酒剑仙': '酒剑仙',
+            r'万亿': '万亿资产',
+            r'百亿': '百亿资产',
+            r'全球首富': '首富'
+        }
+        for pattern, keyword in hook_patterns.items():
+            if pattern in title:
+                title_keywords.append(keyword)
+        if title_keywords:
+            title_hook = "、".join(title_keywords[:2])
+        
+        # 提取核心爽点动作（更贴合书名和金手指）
         cool_action = "装逼打脸"
         if "国运" in genre:
             cool_action = f"一剑秒杀凶兽，{multiplier}具现资源"
         elif "神豪" in genre:
-            cool_action = f"花钱返利，{multiplier}返利"
+            if "股神" in title or "股市" in title or "梭哈" in title:
+                cool_action = f"股市预判，{multiplier}收益"
+            elif "烂尾楼" in title or "地产" in title:
+                cool_action = f"低价收购烂尾楼，转手{multiplier}暴利"
+            elif "返利" in gf_full_desc or "花钱" in gf_full_desc:
+                cool_action = f"花钱{multiplier}返利，越花越有钱"
+            else:
+                cool_action = f"花钱返利，{multiplier}返利"
         elif "末日" in genre:
             cool_action = "囤货求生，建立末世帝国"
         
-        # 🔥 构建爆款简介（必须包含情绪词和具体数字/场景）
+        # 🔥 构建差异化简介（根据书名注入具体元素）
         if "国运" in genre:
             synopsis = f"""【国运禁地，全球直播】
 当其他国家派出特种兵、基因战士时，龙国选中的竟是一个{surface_identity}。
@@ -1280,8 +1425,38 @@ POST /api/v2/prompt-config/component/{step_name}
 本书又名：《{surface_identity}，一剑开天门》《我在国运禁地当{gf_core.replace('系统', '')}》"""
         
         elif "神豪" in genre:
-            synopsis = f"""【花钱{multiplier}返利，越花越有钱】
-{protagonist_name}原本是个被前女友甩、被亲戚嘲的穷屌丝。
+            # 🔥 根据书名定制神豪简介，避免千篇一律
+            if "股神" in title or "股市" in title or "梭哈" in title or "全仓" in title:
+                synopsis = f"""【{gf_core}，股市通神】
+{protagonist_name}原本是个被人看不起的{surface_identity}。
+直到绑定{gf_core}，每一笔投资都精准命中暴涨股！
+
+"这只股票要涨停？全仓梭哈！"
+"大盘要崩盘？反手做空，翻倍！"
+"曾经看不起我的基金经理？现在跪着求我指点！"
+
+当{protagonist_name}在股市翻云覆雨时，
+全世界才发现：资本游戏，他才是唯一的神！
+
+本书又名：《从{surface_identity}到股神》《我炒股从不亏钱》"""
+            elif "烂尾楼" in title or "地产" in title or "房产" in title:
+                synopsis = f"""【{gf_core}，地产为王】
+{protagonist_name}原本是个被人嘲笑的{surface_identity}。
+直到觉醒{gf_core}，一眼看穿所有烂尾楼的隐藏价值！
+
+"百亿烂尾楼？反手买下！"
+"政府规划曝光？地价暴涨百倍！"
+"曾经嘲笑我的开发商？现在求着跟我合作！"
+
+当{protagonist_name}用{title_hook if title_hook else '烂尾楼'}砸翻地产圈时，
+全世界才明白：真正的富豪，玩的是眼光和魄力！
+
+本书又名：《从{surface_identity}到地产大亨》《我买下的烂尾楼全暴富了》"""
+            else:
+                # 默认神豪模板，但注入书名关键词
+                hook_line = f"【{gf_core}，{title_hook if title_hook else '越花越有钱'}】"
+                synopsis = f"""{hook_line}
+{protagonist_name}原本是个被人看不起的{surface_identity}。
 直到绑定{gf_core}，花钱就能获得{multiplier}返利！
 
 "劳斯莱斯幻影？买！"
@@ -1291,7 +1466,7 @@ POST /api/v2/prompt-config/component/{step_name}
 当{protagonist_name}用钞票砸翻一切时，
 全世界才发现：有钱，真的可以为所欲为！
 
-本书又名：《神豪：从外卖员到全球首富》《我花钱就能变强》"""
+本书又名：《神豪：从{surface_identity}到全球首富》《我花钱就能变强》"""
         
         elif "末日" in genre:
             synopsis = f"""【末日降临，囤货百亿】
@@ -1483,6 +1658,28 @@ POST /api/v2/prompt-config/component/{step_name}
             logger.warning(f"[对话模式 {self.session_id}] 模板生成失败，使用配置提示词")
             prompt = self._get_step_prompt("step3_characters", protagonist_name=protagonist_name)
         
+        # 🔥 追加强约束：traits必须是纯性格标签，不能与情节举例混合
+        constraint_addition = """
+
+## 🔴 格式强制约束（违反将导致后续生成严重偏离）
+
+### protagonist.traits 要求
+- 必须是 **3-5个字的纯性格标签列表**
+- **禁止**带冒号":"、**禁止**带具体情节举例
+- ✅ 正确示例：["极度护短", "冷酷果断", "消费美学", "不圣母"]
+- ❌ 错误示例：["极度护短：给身边人花钱从不手软，动辄买下整个商场送礼"] 
+
+### protagonist.personality_description 要求
+- 新增此字段，用于放置详细性格说明和典型行为举例
+- 示例："给身边人花钱从不手软，面对嘲讽直接用资金流碾碎对方，拒绝暴发户式的土气"
+
+### core_allies 和 main_antagonists 要求
+- 每个角色必须包含 `traits` 字段（3-5字人设标签）
+- 盟友示例：{"name": "沈冰月", "identity": "冰山操盘手", "traits": ["极度理性", "绝对忠诚"]}
+- 反派示例：{"name": "林婉儿", "identity": "势利千金", "traits": ["极度势利", "攀附权贵"]}
+"""
+        prompt = prompt + constraint_addition
+        
         logger.info(f"[对话模式 {self.session_id}] 发送步骤3提示词 | 当前消息历史: {len(self.session.messages)}条")
         response = self.session.send_message(prompt, temperature=0.85, purpose="步骤3-生成角色")
         self._logger.log_round("generate_characters", self.session.messages.copy(), response if isinstance(response, str) else json.dumps(response))
@@ -1498,12 +1695,68 @@ POST /api/v2/prompt-config/component/{step_name}
             response = self.session.send_message(retry_prompt, temperature=0.7)
             result = self._parse_json_response(response, "characters_retry")
         
-        # 🔥 验证并强制修正主角名
+        # 🔥 验证并强制修正主角名 + 清洗 traits 格式
         if result and result.get("protagonist"):
             actual_name = result["protagonist"].get("name", "")
             if actual_name != protagonist_name:
                 logger.warning(f"[对话模式 {self.session_id}] AI生成的角色名 '{actual_name}' 与用户指定 '{protagonist_name}' 不符，强制修正！")
                 result["protagonist"]["name"] = protagonist_name
+            
+            # 🔥 清洗 protagonist.traits，分离出 personality_description
+            traits = result["protagonist"].get("traits", [])
+            personality_parts = []
+            cleaned_traits = []
+            if isinstance(traits, list):
+                for t in traits:
+                    if isinstance(t, str) and ":" in t:
+                        parts = t.split(":", 1)
+                        cleaned_traits.append(parts[0].strip())
+                        personality_parts.append(parts[1].strip())
+                    elif isinstance(t, str) and len(t) > 10:
+                        # 过长的 trait 视为混合了描述，尝试截断
+                        cleaned_traits.append(t[:5].strip())
+                        personality_parts.append(t.strip())
+                    elif isinstance(t, str):
+                        cleaned_traits.append(t.strip())
+            
+            if cleaned_traits:
+                result["protagonist"]["traits"] = cleaned_traits
+            
+            existing_personality = result["protagonist"].get("personality_description", "")
+            if personality_parts and not existing_personality:
+                result["protagonist"]["personality_description"] = "；".join(personality_parts)
+            
+            # 🔥 确保盟友和反派都有 traits
+            for ally in result.get("core_allies", []):
+                if isinstance(ally, dict) and not ally.get("traits"):
+                    # 从 identity 或 contribution 推断一个简单 trait
+                    identity = ally.get("identity", "")
+                    if "秘书" in identity or "管家" in identity:
+                        ally["traits"] = ["能力出众", "绝对忠诚"]
+                    elif "保镖" in identity or "佣兵" in identity:
+                        ally["traits"] = ["武力高强", "沉默寡言"]
+                    elif "天才" in identity or "操盘手" in identity:
+                        ally["traits"] = ["智商超群", "理性冷静"]
+                    else:
+                        ally["traits"] = ["忠诚可靠"]
+            
+            main_antagonists = result.get("main_antagonists", {})
+            if isinstance(main_antagonists, list):
+                for antagonist in main_antagonists:
+                    if isinstance(antagonist, dict) and not antagonist.get("traits"):
+                        evil = antagonist.get("evil_traits", [])
+                        if evil:
+                            antagonist["traits"] = evil[:3]
+                        else:
+                            antagonist["traits"] = ["傲慢自负", "趋炎附势"]
+            elif isinstance(main_antagonists, dict):
+                for stage, antagonist in main_antagonists.items():
+                    if isinstance(antagonist, dict) and not antagonist.get("traits"):
+                        evil = antagonist.get("evil_traits", [])
+                        if evil:
+                            antagonist["traits"] = evil[:3]
+                        else:
+                            antagonist["traits"] = ["傲慢自负", "趋炎附势"]
             
             # 🔥 使用 YAML 配置验证人设质量
             if HAS_CHARACTER_CONFIG:
@@ -1795,11 +2048,118 @@ POST /api/v2/prompt-config/component/{step_name}
         return curve
     
     def _extract_faction_system(self, worldview: Dict) -> Dict:
-        """从世界观提取势力系统"""
+        """从世界观提取势力系统，若为空则基于 plan 自动生成"""
+        factions = worldview.get("factions", [])
+        if factions:
+            return {
+                "factions": factions,
+                "faction_relationships": worldview.get("faction_relationships", {}),
+                "power_dynamics": worldview.get("power_dynamics", {})
+            }
+        
+        # 🔥 若世界观未生成势力信息，基于 plan 自动构建默认势力系统
+        plan = self.user_choices.get("_final_plan") or self._final_plan or {}
+        if not plan:
+            # 尝试从已生成的 rounds 或当前状态推断
+            plan = getattr(self, '_plan_context', {})
+        
+        protagonist_name = "主角"
+        if plan and isinstance(plan, dict):
+            protagonist = plan.get("protagonist", {})
+            if isinstance(protagonist, dict):
+                protagonist_name = protagonist.get("name", "主角")
+        
+        genre = self.genre or "通用"
+        
+        # 根据题材调整势力名称
+        if "国运" in genre:
+            early_name, early_members, early_conflict = "他国打压势力", ["敌国代表", "傲慢评委", "阴谋家"], "贬低主角，试图让主角出丑"
+            mid_name, mid_members, mid_conflict = "国内保守派", ["官僚A", "守旧将军", "嫉妒政客"], "害怕主角改变现状，暗中打压"
+            late_name, late_members, late_conflict = "神秘古国", ["古神后裔", "失落文明代表"], "拥有超越现代科技的力量"
+        elif "末日" in genre:
+            early_name, early_members, early_conflict = "掠夺者团伙", ["暴徒首领", "掠夺者A"], "抢夺主角资源"
+            mid_name, mid_members, mid_conflict = "军阀势力", ["军阀A", "军阀B"], "争夺地盘和人口"
+            late_name, late_members, late_conflict = "幕后黑手", ["病毒制造者", "精英避难所"], "制造了末日的元凶"
+        elif "诡异" in genre:
+            early_name, early_members, early_conflict = "规则污染体", ["低级诡异A", "污染源"], "侵蚀正常世界"
+            mid_name, mid_members, mid_conflict = "邪教组织", ["教主", "狂信徒"], "崇拜诡异，试图献祭主角"
+            late_name, late_members, late_conflict = "诡异之主", ["古神", "不可名状存在"], "一切诡异的源头"
+        elif "奶爸" in genre:
+            early_name, early_members, early_conflict = "邻里八卦团", ["势利眼大妈", "长舌妇"], "看不起单身奶爸"
+            mid_name, mid_members, mid_conflict = "反派家长群", ["霸凌家长A", "优越感家长B"], "孩子欺负主角宝宝"
+            late_name, late_members, late_conflict = "黑暗势力", ["人贩子集团", "邪恶组织"], "盯上主角孩子的特殊天赋"
+        else:
+            # 默认：神豪/签到/都市等通用模板
+            early_name, early_members, early_conflict = "势利眼联盟", ["势利眼前女友", "势利眼上司", "势利眼销售"], "看不起主角，被主角打脸"
+            mid_name, mid_members, mid_conflict = "地方二代集团", ["富二代A", "家族子弟", "地方豪强"], "嫉妒主角崛起，试图打压"
+            late_name, late_members, late_conflict = "顶级资本联盟", ["资本大佬A", "财团代表", "幕后黑手"], "主角威胁到他们的利益"
+        
         return {
-            "factions": worldview.get("factions", []),
-            "faction_relationships": worldview.get("faction_relationships", {}),
-            "power_dynamics": worldview.get("power_dynamics", {})
+            "factions": [
+                {
+                    "name": f"{protagonist_name}阵营",
+                    "type": "protagonist",
+                    "description": "以主角为核心，逐步扩大的势力",
+                    "power_level": "随主角成长而成长",
+                    "key_members": [protagonist_name],
+                    "goals": "变强、打脸、保护重要的人",
+                    "resources": "系统资金、个人能力、盟友支持"
+                },
+                {
+                    "name": early_name,
+                    "type": "antagonist_early",
+                    "description": "初期反派，看不起主角的人",
+                    "power_level": "低",
+                    "key_members": early_members,
+                    "goals": "维护虚假的优越感",
+                    "conflict_with_protagonist": early_conflict
+                },
+                {
+                    "name": mid_name,
+                    "type": "antagonist_mid",
+                    "description": "中期反派，地方势力的代表",
+                    "power_level": "中",
+                    "key_members": mid_members,
+                    "goals": "维护既得利益，打压新兴势力",
+                    "conflict_with_protagonist": mid_conflict
+                },
+                {
+                    "name": late_name,
+                    "type": "antagonist_late",
+                    "description": "后期反派，掌控全局的顶级势力",
+                    "power_level": "高",
+                    "key_members": late_members,
+                    "goals": "维护旧秩序，消灭异类",
+                    "conflict_with_protagonist": late_conflict
+                },
+                {
+                    "name": "神秘组织",
+                    "type": "hidden",
+                    "description": "隐藏势力，后期揭晓",
+                    "power_level": "极高",
+                    "key_members": ["神秘人物（后期揭晓）"],
+                    "goals": "未知",
+                    "foreshadowing": "前期偶尔提及，增加神秘感"
+                }
+            ],
+            "faction_relationships": {
+                "early_stage": f"主角 vs {early_name}（单方面的碾压）",
+                "mid_stage": f"主角势力崛起，与{mid_name}冲突",
+                "late_stage": f"主角进入顶级圈子，与{late_name}博弈",
+                "final_stage": "揭开神秘组织，最终对决"
+            },
+            "power_dynamics": {
+                "early": "主角弱，被欺负",
+                "mid": "主角成长，开始反击",
+                "late": "主角强大，主导局势",
+                "final": "主角登顶，制定规则"
+            },
+            "conflict_escalation": [
+                "个人恩怨（被羞辱）",
+                "势力对抗（中级别）",
+                "资本/权力博弈",
+                "终极对决（改变世界格局）"
+            ]
         }
     
     def _generate_writing_style_guide(self) -> Dict:
@@ -1988,9 +2348,15 @@ POST /api/v2/prompt-config/component/{step_name}
 - key_deliverables: 关键交付物列表（必须完成的具体事项）
 - success_criteria: 完成标准（可衡量的指标）
 
+**题材适配要求**：
+当前题材为：{self.genre}
+- 成长指标应使用：{self._get_genre_adapted_progression()['metric_name']}
+- 示例：{', '.join(self._get_genre_adapted_progression()['metric_examples'])}
+- 禁止出现与题材不符的概念：{', '.join(self._get_genre_adapted_progression()['forbidden_concepts']) or '无'}
+
 **重要原则**：
 1. 阶段目标不绑定具体章数！如果第3章就完成了G1的目标，就直接进入G2
-2. 每个阶段目标必须有明确的成功标准（如"扮演度≥30%"）
+2. 每个阶段目标必须有明确的成功标准（请参考上述题材适配的成长指标）
 3. 阶段目标之间要有递进关系，不能重复
 4. **必须根据总章数 {total_chapters} 来划分阶段范围**！
 
@@ -2005,7 +2371,7 @@ POST /api/v2/prompt-config/component/{step_name}
 **关键原则**：
 - 阶段数量 = 3-6个，根据总章数决定
 - 每个阶段跨度不要太短（至少20章以上）
-- 每个阶段必须有明确的扮演度目标和剧情里程碑
+- 每个阶段必须有明确的成长目标和剧情里程碑
 
 ## 输出格式（严格JSON数组）
 
@@ -2017,15 +2383,15 @@ POST /api/v2/prompt-config/component/{step_name}
       "goal_id": "G1",
       "description": "建立主角形象，首次展现实力",
       "expected_chapters": "1-X章",
-      "key_deliverables": ["扮演度达到30%", "获得第一个强力技能", "震惊全场"],
-      "success_criteria": "扮演度≥30%，至少1次全场震惊"
+      "key_deliverables": ["主角获得第一个核心成长/资源", "完成首次实力展现", "震惊全场"],
+      "success_criteria": "至少1次全场震惊，主角获得实质性成长"
     }},
     {{
       "goal_id": "G2",
       "description": "快速成长，建立盟友",
       "expected_chapters": "X-Y章",
-      "key_deliverables": ["扮演度达到50%", "收服第一个盟友", "首次击败强敌"],
-      "success_criteria": "扮演度≥50%，盟友数量≥1"
+      "key_deliverables": ["主角实力再上新台阶", "收服第一个盟友", "首次击败强敌"],
+      "success_criteria": "盟友数量≥1，主角实力明显增强"
     }}
   ]
 }}
@@ -2071,6 +2437,103 @@ POST /api/v2/prompt-config/component/{step_name}
             logger.error(f"[对话模式 {self.session_id}] 生成 stage_goals 失败: {e}，使用默认值")
             return self._get_default_stage_goals(total_chapters)
     
+    def _get_genre_adapted_progression(self) -> Dict:
+        """获取题材适配的成长指标和阶段描述
+        
+        从题材技法YAML中加载progression_metrics配置，
+        避免国运文专属概念（如"扮演度"）出现在神豪文等其他题材中。
+        
+        Returns:
+            {
+                "metric_name": "主要成长指标名称",
+                "metric_examples": ["指标示例1", "指标示例2"],
+                "forbidden_concepts": ["不该出现的概念1", ...],
+                "stage_descriptions": ["阶段1描述", "阶段2描述", ...],
+                "stage_deliverables": [["交付物1", ...], ...],
+                "stage_criteria": ["标准1", ...]
+            }
+        """
+        import yaml
+        from pathlib import Path
+        
+        genre = (self.genre or "").lower()
+        base_dir = Path(__file__).parent.parent.parent.parent / "prompt_packages" / "default" / "market_driven" / "v2_config" / "genre_techniques"
+        
+        # 根据genre进行模糊匹配，与v2 loader逻辑保持一致
+        genre_file = None
+        if "神豪" in genre or "花钱" in genre or "消费" in genre or "返利" in genre or "签到" in genre or "百倍" in genre or "盲盒" in genre:
+            genre_file = "神豪文.yaml"
+        elif "国运" in genre or "禁地" in genre or "直播" in genre or "国战" in genre:
+            genre_file = "国运文.yaml"
+        
+        if not genre_file:
+            direct_file = base_dir / f"{self.genre}.yaml"
+            if direct_file.exists():
+                genre_file = f"{self.genre}.yaml"
+        
+        file_path = base_dir / genre_file if genre_file else base_dir / "通用.yaml"
+        if not file_path.exists():
+            file_path = base_dir / "通用.yaml"
+        
+        try:
+            with open(file_path, 'r', encoding='utf-8') as f:
+                data = yaml.safe_load(f) or {}
+        except Exception as e:
+            logger.error(f"[_get_genre_adapted_progression] 加载YAML失败: {e}，使用硬编码通用配置")
+            data = {}
+        
+        pm = data.get('progression_metrics', {})
+        
+        templates = pm.get('stage_templates', [])
+        # YAML中可能只有通用模板，需要对国运文做≥300章的适配替换
+        total_chapters = len(self.results.get('emotion_curve', []))
+        if genre_file == "国运文.yaml" and total_chapters < 300 and len(templates) >= 5:
+            # 第5阶段替换为"终极对决，守护龙国"
+            templates = [dict(t) for t in templates]
+            templates[4]['description'] = "终极对决，守护龙国"
+            templates[4]['deliverables'] = ["扮演度达到90%", "击败终极BOSS", "开启新篇章"]
+        
+        if templates:
+            return {
+                "metric_name": pm.get('metric_name', '能力/地位/影响力'),
+                "metric_examples": pm.get('metric_examples', ['能力达到新层级']),
+                "forbidden_concepts": pm.get('forbidden_concepts', ['扮演度']),
+                "stage_descriptions": [t.get('description', '') for t in templates],
+                "stage_deliverables": [t.get('deliverables', []) for t in templates],
+                "stage_criteria": [t.get('criteria', '') for t in templates]
+            }
+        
+        # Fallback (should not happen if YAML is correct)
+        return {
+            "metric_name": "能力/地位/影响力",
+            "metric_examples": ["能力达到新层级"],
+            "forbidden_concepts": ["扮演度"],
+            "stage_descriptions": [
+                "建立主角形象，首次展现实力",
+                "快速成长，建立盟友",
+                "区域崛起，称霸一方",
+                "登顶巅峰，横扫天下",
+                "终极对决，开启新篇",
+                "圆满结局，主宰一切"
+            ],
+            "stage_deliverables": [
+                ["主角获得第一个核心成长/资源", "完成首次实力展现", "震惊全场"],
+                ["主角实力再上新台阶", "收服第一个盟友", "首次击败强敌"],
+                ["主角成为区域级存在", "击败区域强敌", "掌控核心资源/势力"],
+                ["主角达到顶级实力/地位", "击败顶级对手/势力", "掌控全局"],
+                ["主角触及更高层次", "击败终极BOSS", "开启新篇章"],
+                ["主角达到最强状态", "守护核心利益/重要之人", "达成最终目标"]
+            ],
+            "stage_criteria": [
+                "至少1次全场震惊，主角获得实质性成长",
+                "盟友数量≥1，主角实力明显增强",
+                "区域范围内的主导地位确立",
+                "行业内/世界范围内的顶尖地位确立",
+                "核心冲突取得决定性胜利",
+                "所有核心目标达成，圆满结局"
+            ]
+        }
+
     def _get_default_stage_goals(self, total_chapters: int = 100) -> List[Dict]:
         """获取默认阶段目标（当AI生成失败时使用）
         
@@ -2111,57 +2574,19 @@ POST /api/v2/prompt-config/component/{step_name}
                 mid = total_chapters // 2
                 ranges = [(1, mid), (mid + 1, total_chapters)]
         
-        # 阶段定义模板
-        stage_templates = [
-            {
-                "description": "建立主角形象，首次展现实力",
-                "deliverables": ["扮演度达到20%", "获得第一个强力技能", "震惊全场"],
-                "criteria": "扮演度≥20%，至少1次全场震惊",
-                "power": "S级"
-            },
-            {
-                "description": "快速成长，建立盟友",
-                "deliverables": ["扮演度达到40%", "收服第一个盟友", "首次击败强敌"],
-                "criteria": "扮演度≥40%，盟友数量≥1",
-                "power": "SS级"
-            },
-            {
-                "description": "国运争霸，区域崛起",
-                "deliverables": ["扮演度达到60%", "龙国区域第一", "击败区域强敌"],
-                "criteria": "扮演度≥60%，区域排名No.1",
-                "power": "SSS级"
-            },
-            {
-                "description": "全球争霸，登顶巅峰",
-                "deliverables": ["扮演度达到80%", "成为全球第一", "击败多国联盟"],
-                "criteria": "扮演度≥80%，全球排名No.1",
-                "power": "SSS+级"
-            },
-            {
-                "description": "文明跃迁，星际接触" if total_chapters >= 300 else "终极对决，守护龙国",
-                "deliverables": ["扮演度达到90%", "接触更高维度" if total_chapters >= 300 else "击败终极BOSS", "开启新篇章"],
-                "criteria": "扮演度≥90%，掌控全局",
-                "power": "神级"
-            },
-            {
-                "description": "主宰万界，圆满结局",
-                "deliverables": ["扮演度达到100%", "成为禁地主宰", "龙国永世长存"],
-                "criteria": "扮演度≥95%，圆满结局",
-                "power": "超神级"
-            }
-        ]
+        # 获取题材适配的阶段模板
+        adapted = self._get_genre_adapted_progression()
         
         # 生成阶段目标
         goals = []
         for i in range(num_stages):
-            template = stage_templates[i]
             start, end = ranges[i]
             goals.append({
                 "goal_id": f"G{i+1}",
-                "description": template["description"],
+                "description": adapted["stage_descriptions"][i],
                 "expected_chapters": f"{start}-{end}章",
-                "key_deliverables": template["deliverables"],
-                "success_criteria": template["criteria"]
+                "key_deliverables": adapted["stage_deliverables"][i],
+                "success_criteria": adapted["stage_criteria"][i]
             })
         
         return goals
@@ -2317,6 +2742,47 @@ POST /api/v2/prompt-config/component/{step_name}
         返回优化后的结果和优化报告
         """
         logger.info(f"[对话模式 {self.session_id}] 开始爆款对齐检查...")
+        
+        # ========== 🔥 新增：P0/P1/P2 多轮对齐引擎 ==========
+        if getattr(self, 'project_path', None):
+            try:
+                from web.services.market_driven.alignment_engine import AlignmentEngine
+                engine = AlignmentEngine(
+                    genre=self.genre,
+                    project_path=self.project_path,
+                    api_client=self.api_client
+                )
+                alignment_result = engine.run(previous_results)
+                
+                logger.info(f"[对话模式 {self.session_id}] [AlignmentEngine] 结果: success={alignment_result.get('success')}, phase={alignment_result.get('phase')}")
+                
+                if not alignment_result.get("success"):
+                    # P0/P1 对齐失败，记录错误但继续执行（避免阻断完整流程）
+                    error_msg = alignment_result.get("message", "爆款对齐未通过")
+                    logger.error(f"[对话模式 {self.session_id}] {error_msg} | 已跳过AlignmentEngine阻断，继续生成")
+                    # 保存失败报告供排查
+                    try:
+                        report_path = Path(self.project_path) / "phase_one_products" / "alignment_engine_report.json"
+                        with open(report_path, "w", encoding="utf-8") as f:
+                            json.dump(alignment_result, f, ensure_ascii=False, indent=2)
+                    except Exception as e:
+                        logger.warning(f"[对话模式 {self.session_id}] 保存对齐引擎报告失败: {e}")
+                else:
+                    # 使用 P0/P1/P2 清洗后的数据继续后续检查
+                    previous_results = alignment_result.get("final_result", previous_results)
+                    # 保存成功报告
+                    try:
+                        report_path = Path(self.project_path) / "phase_one_products" / "alignment_engine_report.json"
+                        with open(report_path, "w", encoding="utf-8") as f:
+                            json.dump(alignment_result, f, ensure_ascii=False, indent=2)
+                    except Exception as e:
+                        logger.warning(f"[对话模式 {self.session_id}] 保存对齐引擎报告失败: {e}")
+                    
+            except Exception as e:
+                logger.error(f"[对话模式 {self.session_id}] AlignmentEngine 异常: {e}", exc_info=True)
+                # 引擎异常时不阻断，回退到原有逻辑（保守策略）
+        
+        # ========== 原有逻辑继续执行（P2 之后做情绪/阶段目标/金手指的爆款公式检查） ==========
         
         # 🔥 DEBUG: 记录previous_results中关键字段的类型
         debug_info = {}
@@ -2614,6 +3080,10 @@ POST /api/v2/prompt-config/component/{step_name}
         # 检查每个阶段的关键交付物是否爆款化
         climax_keywords = ['震惊', '震撼', '全场', '吊打', '碾压', '曝光', ' reveal', '反转', '爆发']
         
+        # 获取题材适配的禁用概念
+        adapted = self._get_genre_adapted_progression()
+        forbidden_concepts = adapted.get('forbidden_concepts', [])
+        
         for i, goal in enumerate(stage_goals):
             # 🔥 防御性类型处理：确保 goal 是字典
             if not isinstance(goal, dict):
@@ -2622,6 +3092,7 @@ POST /api/v2/prompt-config/component/{step_name}
             goal_id = goal.get('goal_id', f'G{i+1}')
             description = goal.get('description', '')
             deliverables = goal.get('key_deliverables', [])
+            success_criteria = goal.get('success_criteria', '')
             
             # 检查描述中是否有爽点关键词
             has_climax_in_desc = any(k in description for k in climax_keywords)
@@ -2641,14 +3112,26 @@ POST /api/v2/prompt-config/component/{step_name}
                     "severity": "high"
                 })
             
+            # 🔥 题材一致性检查：检测是否包含当前题材禁用的概念
+            if forbidden_concepts:
+                goal_text = f"{description} {' '.join(deliverables)} {success_criteria}"
+                found_forbidden = [c for c in forbidden_concepts if c in goal_text]
+                if found_forbidden:
+                    issues.append({
+                        "type": "genre_mismatch",
+                        "stage": goal_id,
+                        "description": f"阶段{goal_id}包含与题材'{self.genre}'不符的概念：{', '.join(found_forbidden)}",
+                        "suggestion": f"当前题材为'{self.genre}'，应使用'{adapted['metric_name']}'作为成长指标，避免出现'{', '.join(found_forbidden)}'等不相关概念",
+                        "severity": "high"
+                    })
+            
             # 检查是否有具体的成功标准
-            success_criteria = goal.get('success_criteria', '')
             if not success_criteria or len(success_criteria) < 10:
                 issues.append({
                     "type": "weak_success_criteria",
                     "stage": goal_id,
                     "current": success_criteria,
-                    "suggestion": "添加可衡量的成功标准，如'扮演度≥30%'、'获得X个技能'等",
+                    "suggestion": "添加可衡量的成功标准，如'影响力达到新层级'、'获得X个技能/资源'、'击败Y级敌人'等",
                     "severity": "medium"
                 })
         
@@ -2874,11 +3357,31 @@ POST /api/v2/prompt-config/component/{step_name}
             prompt_parts.append(f"\n### 金手指\n{json.dumps(golden_finger, ensure_ascii=False, indent=2)[:800]}")
         
         # 添加优化要求
+        adapted = self._get_genre_adapted_progression()
         prompt_parts.append("\n## 优化要求\n")
         prompt_parts.append("1. **情绪曲线**：严格遵循爆款的5章循环节奏（压抑→嘲讽→反转→震惊→期待）")
         prompt_parts.append("2. **阶段目标**：每个阶段必须有明确的'爽点交付物'，如'震惊全场'、'首次展现实力'")
         prompt_parts.append("3. **金手指**：增加层次感和具体数值体系，设计3-5个成长阶段")
         prompt_parts.append("4. **保持原有设定**：优化时不要改变书名、主角名、世界观等核心设定")
+        prompt_parts.append(f"5. **题材一致性（极其重要）**：当前题材为'{self.genre}'，阶段目标中的成长指标必须使用'{adapted['metric_name']}'。")
+        if adapted.get('forbidden_concepts'):
+            prompt_parts.append(f"   严禁出现与题材不符的概念：{', '.join(adapted['forbidden_concepts'])}。")
+        prompt_parts.append(f"   正确示例：{', '.join(adapted['metric_examples'])}。")
+        
+        # 🔥 注入题材防火墙（从YAML读取）
+        if HAS_GENRE_TECHNIQUES:
+            try:
+                gt = load_genre_techniques(self.genre)
+                guardrails = gt.raw_data.get('final_plan_guardrails', {})
+                gf_guard = guardrails.get('golden_finger', {})
+                if gf_guard.get('forbidden_keywords'):
+                    prompt_parts.append(f"\n**【题材防火墙 - 绝对禁止】**：当前题材'{self.genre}'严禁使用以下概念：{', '.join(gf_guard['forbidden_keywords'])}。")
+                    allowed = gf_guard.get('allowed_domains', [])
+                    if allowed:
+                        prompt_parts.append(f"金手指优化必须基于以下允许领域：{', '.join(allowed)}。")
+                    prompt_parts.append("即使为了增加'爽感'或'层次感'，也绝对不能引入玄幻、修仙、异能、科幻超自然机制。")
+            except Exception as e:
+                logger.warning(f"[对话模式 {self.session_id}] 加载题材防火墙失败: {e}")
         
         # 添加输出格式
         prompt_parts.append("\n## 输出格式\n")

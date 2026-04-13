@@ -77,7 +77,7 @@ class ChapterConversationV2:
             provider=provider,
             temperature=temperature,
             purpose_prefix=f"chapter_v2_{genre}",
-            max_history=10  # 每10章后刷新
+            max_history=30  # 支持6章+总结，避免历史被截断
         )
         
         self.generated_chapters = []
@@ -198,6 +198,73 @@ class ChapterConversationV2:
                 })
             
             return response
+    
+    def generate_batch_summary(self, start_chapter: int, end_chapter: int) -> Optional[str]:
+        """
+        在当前对话会话中生成批次总结
+        
+        利用对话历史中的完整上下文，让 AI 直接总结已生成章节的进展。
+        
+        Args:
+            start_chapter: 起始章节
+            end_chapter: 结束章节
+            
+        Returns:
+            JSON 格式的批次总结字符串
+        """
+        summary_prompt = f"""你现在需要为【第{start_chapter}-{end_chapter}章】生成批次总结。
+
+【重要区分】
+- 本次总结的对象是：**你刚才生成的第{start_chapter}-{end_chapter}章正文**。
+- 如果对话历史开头包含"上一批次剧情状态"的内容，那是**上一批次的总结**，仅作剧情承接参考，**不要**把它纳入本次总结的 completed_events、pending_hooks、character_changes 或 world_changes 中。
+
+【总结要求】
+1. 只提取第{start_chapter}-{end_chapter}章内实际发生的事件、角色变化、世界变化、埋下的钩子。
+2. completed_events 中的 chapter 字段必须严格落在 {start_chapter}-{end_chapter} 范围内。
+3. pending_hooks 必须是第{start_chapter}-{end_chapter}章中明确埋下、但尚未解决的情节悬念。
+4. resolved_hooks 必须是第{start_chapter}-{end_chapter}章中明确解决掉的旧钩子。
+5. new_characters 必须是第{start_chapter}-{end_chapter}章中**首次登场**的有名角色（不要重复写之前已经登场的角色）。
+6. character_changes 必须包含主角和关键配角在这几章里发生的状态、能力、立场、心态变化。
+7. world_changes 必须包含系统升级、势力更迭、道具获得、规则变化等世界观层面的变动。
+
+请严格按以下 JSON 格式输出（只输出 JSON，不要任何额外说明）：
+{{
+  "summary_text": "一句话总结这批章节的核心进展",
+  "completed_events": [
+    {{"chapter": 章节号, "event": "完成的事件", "significance": "high/medium/low"}}
+  ],
+  "character_states": {{
+    "protagonist": {{"name": "主角名", "status": "当前状态/等级", "playing_degree": "扮演度百分比或进度", "new_skills": []}},
+    "new_characters": [
+      {{"name": "新角色名", "role": "core/major/minor/enemy", "description": "简要人设", "introduced_chapter": 章节号}}
+    ],
+    "character_changes": [
+      {{"name": "角色名", "change": "变化类型", "details": "具体变化描述", "chapter": 章节号}}
+    ]
+  }},
+  "pending_hooks": [
+    {{"chapter": 埋下章节, "content": "钩子内容", "priority": "high/medium/low"}}
+  ],
+  "resolved_hooks": [
+    {{"chapter": 解决章节, "content": "已解决的钩子内容"}}
+  ],
+  "world_changes": [
+    {{"type": "力量体系/势力/道具/规则", "description": "变化描述", "chapter": 章节号}}
+  ],
+  "plot_direction": "下一批应该推进的方向建议（50字以内）",
+  "stage_progress_assessment": "阶段目标完成度评估(0-100)及原因"
+}}
+"""
+        try:
+            response = self.session.send_message(
+                user_prompt=summary_prompt,
+                purpose=f"batch_summary_{start_chapter}_{end_chapter}"
+            )
+            logger.info(f"[V2对话] 批次总结生成成功 ({len(response) if response else 0}字)")
+            return response
+        except Exception as e:
+            logger.error(f"[V2对话] 批次总结生成失败: {e}")
+            return None
     
     def _get_default_writing_style(self) -> str:
         """获取默认文风技法"""

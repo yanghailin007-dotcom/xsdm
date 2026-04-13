@@ -40,6 +40,18 @@ except ImportError as e:
     HAS_BATCH_SUMMARIZER = False
     logger.warning(f"批次总结器导入失败: {e}，禁用该功能")
 
+# 🔥 导入 V2 章节对话生成器
+try:
+    from web.services.market_driven.v2_architecture.chapter_conversation_v2 import (
+        ChapterConversationV2
+    )
+    HAS_V2_GENERATOR = True
+    logger.info("[BatchGenerator] V2 章节生成器已加载")
+except ImportError as e:
+    HAS_V2_GENERATOR = False
+    logger.warning(f"[BatchGenerator] V2 章节生成器导入失败: {e}")
+
+
 
 class BatchChapterGenerator:
     """
@@ -73,6 +85,7 @@ class BatchChapterGenerator:
         self.batch_summarizer = None  # 批次总结器
         self.optimized_windows = set()  # 已优化的窗口，避免重复优化
         self.current_batch_summary = None  # 当前批次总结
+        self.v2_last_batch_summary = None  # 🔥 V2对话内生成的批次总结
         
         if self.project_path:
             from .character_state_manager import CharacterStateManager
@@ -91,7 +104,10 @@ class BatchChapterGenerator:
             
             # 🔥 初始化批次总结器
             if HAS_BATCH_SUMMARIZER and api_client:
-                self.batch_summarizer = BatchSummarizer(api_client)
+                self.batch_summarizer = BatchSummarizer(
+                    api_client,
+                    project_path=str(self.project_path)
+                )
                 logger.info(f"[BatchGenerator] 批次总结器已启用")
             
             logger.info(f"[BatchGenerator] 状态管理器已启用: {self.project_path}")
@@ -145,10 +161,6 @@ class BatchChapterGenerator:
                                      blueprint: Dict, tropes: Dict, novel_data: Dict,
                                      progress_callback=None) -> Dict:
         """使用对话模式批量生成"""
-        from web.services.market_driven.chapter_conversation_generator import (
-            ChapterConversationGenerator
-        )
-        
         # 🔥 检查停止信号
         if self._should_stop():
             logger.warning(f"[BatchGenerator] 第{start_chapter}-{end_chapter}批开始前检测到停止信号")
@@ -162,6 +174,9 @@ class BatchChapterGenerator:
             }
         
         logger.info(f"[BatchGenerator] 🚀 使用对话模式生成第{start_chapter}-{end_chapter}章")
+        
+        # 每批对话开始前重置 V2 状态更新标记
+        self._v2_states_updated = False
         
         # 确保 novel_data 中包含书名（处理 None、空字符串、"未命名" 等情况）
         if novel_title:
@@ -189,23 +204,74 @@ class BatchChapterGenerator:
         if writing_style:
             logger.info(f"[BatchGenerator] 使用文风: {writing_style.get('name', '未命名')}")
         
-        # 创建对话生成器
-        generator = ChapterConversationGenerator(
-            api_client=self.api_client,
-            novel_data=novel_data,
-            tropes=tropes,
-            world_state_manager=self.world_state_manager,  # 🔥 传递世界状态管理器
-            project_path=str(self.project_path) if self.project_path else None,  # 🔥 传递项目路径
-            writing_style=writing_style  # 🔥 传递文风设置
-        )
+        # 🔥 尝试读取战术规划，优先使用 V2 生成器
+        use_v2 = False
+        relevant_chapters = []
+        if HAS_V2_GENERATOR and self.project_path:
+            # 优先使用传入的 blueprint（调用方已经加载了正确的战术规划）
+            chapters_plan = blueprint.get("chapters", []) if blueprint else []
+            if chapters_plan:
+                relevant_chapters = [
+                    c for c in chapters_plan
+                    if start_chapter <= c.get("chapter_number", 0) <= end_chapter
+                ]
+            
+            # 如果 blueprint 中没有，再尝试从磁盘读取对应文件
+            if not relevant_chapters:
+                # 按批次找文件：tactical_plan_1.json, tactical_plan_31.json, tactical_plan_61.json...
+                batch_start = ((start_chapter - 1) // 30) * 30 + 1
+                tactical_plan_path = self.project_path / f"tactical_plan_{batch_start}.json"
+                if not tactical_plan_path.exists() and batch_start != 1:
+                    # 兜底：尝试 tactical_plan_1.json
+                    tactical_plan_path = self.project_path / "tactical_plan_1.json"
+                
+                if tactical_plan_path.exists():
+                    try:
+                        with open(tactical_plan_path, 'r', encoding='utf-8') as f:
+                            tactical_data = json.load(f)
+                        chapters_plan = tactical_data.get("chapters", [])
+                        relevant_chapters = [
+                            c for c in chapters_plan
+                            if start_chapter <= c.get("chapter_number", 0) <= end_chapter
+                        ]
+                    except Exception as e:
+                        logger.error(f"[BatchGenerator] 读取战术规划失败: {e}")
+            
+            if relevant_chapters:
+                use_v2 = True
+                logger.info(f"[BatchGenerator] 检测到战术规划，启用 V2 生成器 ({len(relevant_chapters)}章)")
+            else:
+                logger.warning(f"[BatchGenerator] 战术规划中无第{start_chapter}-{end_chapter}章数据，回退旧版")
         
-        # 生成章节
-        chapters = generator.generate_chapters(
-            start_chapter=start_chapter,
-            end_chapter=end_chapter,
-            blueprint=blueprint,
-            progress_callback=progress_callback
-        )
+        chapters = []
+        if use_v2:
+            # 🔥 V2 模式：基于战术规划逐章生成
+            chapters = self._generate_with_v2(
+                start_chapter=start_chapter,
+                end_chapter=end_chapter,
+                novel_data=novel_data,
+                relevant_chapters=relevant_chapters,
+                progress_callback=progress_callback
+            )
+        else:
+            # 🔥 旧版回退
+            from web.services.market_driven.chapter_conversation_generator import (
+                ChapterConversationGenerator
+            )
+            generator = ChapterConversationGenerator(
+                api_client=self.api_client,
+                novel_data=novel_data,
+                tropes=tropes,
+                world_state_manager=self.world_state_manager,
+                project_path=str(self.project_path) if self.project_path else None,
+                writing_style=writing_style
+            )
+            chapters = generator.generate_chapters(
+                start_chapter=start_chapter,
+                end_chapter=end_chapter,
+                blueprint=blueprint,
+                progress_callback=progress_callback
+            )
         
         # 处理结果
         results = {
@@ -213,7 +279,7 @@ class BatchChapterGenerator:
             "failed": [],
             "total_words": 0,
             "avg_quality": 0,
-            "generation_mode": "conversation"
+            "generation_mode": "conversation_v2" if use_v2 else "conversation"
         }
         
         for chapter in chapters:
@@ -253,13 +319,23 @@ class BatchChapterGenerator:
             ) / len(results["generated"])
         
         # 🔥 批次总结：更新角色状态
-        if self.character_state_manager and chapters:
+        # 如果 V2 对话内总结已经更新了状态（在 _generate_with_v2 中完成），则跳过旧的 _collect_batch_info
+        v2_already_updated = (
+            hasattr(self, '_v2_states_updated') and self._v2_states_updated and
+            getattr(self, 'v2_last_batch_summary', None) is None  # 已被消费或已在 _generate_with_v2 中处理
+        )
+        if not v2_already_updated and self.character_state_manager and chapters:
             try:
-                # 收集批次信息
-                batch_info = self._collect_batch_info(start_chapter, end_chapter, chapters)
-                self.character_state_manager.update_after_batch(batch_info)
-                self.character_state_manager.sync_to_world_state()
-                logger.info(f"[BatchGenerator] 角色状态已更新并同步到 world_state")
+                # 如果 V2 总结有 character_states，优先用它；否则 fallback 到旧逻辑
+                if getattr(self, 'v2_last_batch_summary', None) and self.v2_last_batch_summary.get('character_states'):
+                    self._update_states_from_v2_summary(
+                        start_chapter, end_chapter, self.v2_last_batch_summary
+                    )
+                else:
+                    batch_info = self._collect_batch_info(start_chapter, end_chapter, chapters)
+                    self.character_state_manager.update_after_batch(batch_info)
+                    self.character_state_manager.sync_to_world_state()
+                    logger.info(f"[BatchGenerator] 角色状态已更新并同步到 world_state")
             except Exception as e:
                 logger.error(f"[BatchGenerator] 批次总结失败: {e}")
         
@@ -275,6 +351,303 @@ class BatchChapterGenerator:
         
         logger.info(f"[BatchGenerator] 对话模式完成: 成功{len(results['generated'])}章, 失败{len(results['failed'])}章")
         return results
+    
+    def _generate_with_v2(self, start_chapter: int, end_chapter: int,
+                          novel_data: Dict, relevant_chapters: List[Dict],
+                          progress_callback=None) -> List[Dict]:
+        """使用 V2 架构基于战术规划逐章生成"""
+        # 构建 Layer1 核心设定
+        core_setting = json.dumps({
+            "novel_info": novel_data.get("novel_info", {}),
+            "worldview": novel_data.get("core_worldview", {}),
+            "character_design": novel_data.get("character_design", {}),
+            "golden_finger": novel_data.get("golden_finger", {}),
+            "writing_style": novel_data.get("writing_style", {})
+        }, ensure_ascii=False)
+        
+        # 构建 Layer2 战术规划（仅当前批次）
+        tactical_planning = json.dumps({
+            "chapters": relevant_chapters
+        }, ensure_ascii=False)
+        
+        genre = novel_data.get("genre", "都市")
+        
+        generator = ChapterConversationV2(
+            api_client=self.api_client,
+            genre=genre,
+            core_setting=core_setting,
+            tactical_planning=tactical_planning,
+            provider=getattr(self.api_client, 'default_provider', 'gemini')
+        )
+        
+        # 🔥 读取跨批次总结（如果有的话），作为上下文注入
+        cross_batch_context = ""
+        if self.project_path:
+            latest_summary_path = self.project_path / "batch_summary_latest.json"
+            if latest_summary_path.exists():
+                try:
+                    with open(latest_summary_path, "r", encoding="utf-8") as f:
+                        latest_data = json.load(f)
+                    summary = latest_data.get("summary", {})
+                    completed = summary.get("completed_events", [])
+                    pending = summary.get("pending_hooks", [])
+                    direction = summary.get("plot_direction", "")
+                    if completed or pending:
+                        cross_batch_context = f"""### 上一批次剧情状态（本章必须承接，禁止重启剧情）
+□ 已完成关键事件：{'; '.join([e.get('event','') for e in completed[:5] if e.get('event')]) or '无'}
+□ 待解决钩子：{'; '.join([h.get('content','') for h in pending[:5] if h.get('content')]) or '无'}
+□ 后续剧情方向：{direction or '继续推进当前阶段目标'}
+"""
+                        logger.info(f"[BatchGenerator] 已加载跨批次总结: 已完成{len(completed)}件, 待解决钩子{len(pending)}个")
+                except Exception as e:
+                    logger.warning(f"[BatchGenerator] 读取跨批次总结失败: {e}")
+        
+        chapters = []
+        for chapter_num in range(start_chapter, end_chapter + 1):
+            chapter_plan = next(
+                (c for c in relevant_chapters if c.get("chapter_number") == chapter_num), None
+            )
+            if not chapter_plan:
+                logger.warning(f"[BatchGenerator] 第{chapter_num}章无战术规划，跳过")
+                chapters.append({
+                    "chapter_number": chapter_num,
+                    "title": "",
+                    "content": "",
+                    "word_count": 0,
+                    "quality_score": 0.0,
+                    "extracted_info": {},
+                    "error": "无战术规划"
+                })
+                continue
+            
+            # 🔥 构建战术规划执行自检清单
+            assigned_chars = chapter_plan.get("assigned_characters", {})
+            core_chars = ", ".join(assigned_chars.get("core", [])) or "主角"
+            major_chars = ", ".join(assigned_chars.get("major", [])) or "无"
+            minor_chars = ", ".join(assigned_chars.get("minor", [])) or "无"
+            
+            custom_selfcheck = f"""### 战术规划执行自检清单（输出前必须逐项确认）
+{cross_batch_context}
+□ **人物名字一致性**：本章出现的所有有名角色必须严格等于以下名单，禁止发明新名字——核心角色：[{core_chars}]；重要角色：[{major_chars}]；次要角色：[{minor_chars}]
+□ **事件对齐**：本章核心情节必须围绕"{chapter_plan.get('event', '')}"展开，不能偏离到无关场景
+□ **情绪对齐**：本章整体情绪必须是"{chapter_plan.get('emotion', '期待')}"(强度{chapter_plan.get('intensity', 5)})，正文情绪走向必须与该设定一致
+□ **钩子落实**：章尾必须留有与"{chapter_plan.get('hook_content', '')}"对应的悬念/钩子，且位于章节最后50字内
+□ **爽点对齐**：如果本章规划有爽点("{chapter_plan.get('satisfaction_point', '无')}")，正文中必须有明确的打脸/收获/反转交付
+□ **金手指/能力合规**：本章主角使用的系统能力或消费金额必须符合当前阶段设定，严禁提前使用后期才解锁的能力或社会关系
+□ **人设不崩**：主角行为必须符合其性格标签（冷静果断、不圣母等），禁止出现降智、冲动、圣母行为
+□ **格式合规**：字数2000-2500字，段落不超过3行，适合手机阅读
+"""
+            
+            try:
+                content = generator.generate_chapter(
+                    chapter_number=chapter_num,
+                    chapter_title=chapter_plan.get("event", f"第{chapter_num}章")[:30],
+                    outline_summary=chapter_plan.get("event", ""),
+                    chapter_type=chapter_plan.get("beat_type", "普通章"),
+                    emotion_config={
+                        "emotion": chapter_plan.get("emotion", "期待"),
+                        "intensity": chapter_plan.get("intensity", 5),
+                        "emotion_type": chapter_plan.get("emotion_type", "")
+                    },
+                    custom_selfcheck=custom_selfcheck
+                )
+                
+                if content and isinstance(content, str) and len(content) > 100:
+                    # 🔥 修复：从 chapter_plan 中提取结构化信息，不再传空字典
+                    extracted_info = {
+                        "key_event": {
+                            "event": chapter_plan.get("event", ""),
+                            "chapter": chapter_num
+                        },
+                        "new_characters": [
+                            {"name": name, "role": "core"} for name in assigned_chars.get("core", [])
+                        ] + [
+                            {"name": name, "role": "major"} for name in assigned_chars.get("major", [])
+                        ] + [
+                            {"name": name, "role": "minor"} for name in assigned_chars.get("minor", [])
+                        ],
+                        "new_hooks": [chapter_plan.get("hook_content", "")] if chapter_plan.get("hook_content") else [],
+                        "character_changes": []
+                    }
+                    chapters.append({
+                        "chapter_number": chapter_num,
+                        "title": chapter_plan.get("event", "")[:30],
+                        "content": content,
+                        "word_count": len(content),
+                        "quality_score": 8.0,
+                        "extracted_info": extracted_info
+                    })
+                    logger.info(f"[BatchGenerator] V2 生成第{chapter_num}章成功 ({len(content)}字)")
+                else:
+                    logger.error(f"[BatchGenerator] V2 生成第{chapter_num}章内容异常，标记失败")
+                    chapters.append({
+                        "chapter_number": chapter_num,
+                        "title": "",
+                        "content": "",
+                        "word_count": 0,
+                        "quality_score": 0.0,
+                        "extracted_info": {},
+                        "error": "V2 生成内容异常"
+                    })
+            except Exception as e:
+                logger.error(f"[BatchGenerator] V2 生成第{chapter_num}章失败: {e}")
+                chapters.append({
+                    "chapter_number": chapter_num,
+                    "title": "",
+                    "content": "",
+                    "word_count": 0,
+                    "quality_score": 0.0,
+                    "extracted_info": {},
+                    "error": str(e)
+                })
+            
+            if progress_callback:
+                try:
+                    progress_callback(chapter_num, end_chapter - start_chapter + 1, chapters[-1] if chapters else None)
+                except Exception as cb_err:
+                    logger.warning(f"[BatchGenerator] V2 进度回调失败: {cb_err}")
+        
+        # 🔥 在对话中生成批次总结（利用完整对话记忆）
+        if chapters and any(c.get("word_count", 0) > 0 for c in chapters):
+            try:
+                logger.info(f"[BatchGenerator] V2 对话内生成批次总结: 第{start_chapter}-{end_chapter}章")
+                summary_response = generator.generate_batch_summary(start_chapter, end_chapter)
+                if summary_response:
+                    import re
+                    json_match = re.search(r'\{[\s\S]*\}', str(summary_response))
+                    if json_match:
+                        try:
+                            self.v2_last_batch_summary = json.loads(json_match.group())
+                            logger.info(f"[BatchGenerator] V2 对话内总结解析成功")
+                        except Exception as parse_err:
+                            logger.warning(f"[BatchGenerator] V2 对话内总结解析失败: {parse_err}，尝试重试")
+                            # fallback：重新调用一次 V2 批次总结
+                            retry_response = generator.generate_batch_summary(start_chapter, end_chapter)
+                            if retry_response:
+                                retry_match = re.search(r'\{[\s\S]*\}', str(retry_response))
+                                if retry_match:
+                                    try:
+                                        self.v2_last_batch_summary = json.loads(retry_match.group())
+                                        logger.info(f"[BatchGenerator] V2 对话内总结重试解析成功")
+                                    except Exception:
+                                        self.v2_last_batch_summary = {"summary_text": str(retry_response)[:200]}
+                                else:
+                                    self.v2_last_batch_summary = {"summary_text": str(retry_response)[:200]}
+                            else:
+                                self.v2_last_batch_summary = {"summary_text": str(summary_response)[:200]}
+                    else:
+                        self.v2_last_batch_summary = {"summary_text": str(summary_response)[:200]}
+                else:
+                    self.v2_last_batch_summary = None
+            except Exception as e:
+                logger.error(f"[BatchGenerator] V2 对话内总结生成异常: {e}")
+                self.v2_last_batch_summary = None
+            
+            # 🔥 关键新增：直接用 V2 对话内总结更新角色状态和世界状态
+            if self.v2_last_batch_summary:
+                try:
+                    self._update_states_from_v2_summary(
+                        start_chapter, end_chapter, self.v2_last_batch_summary
+                    )
+                    self._v2_states_updated = True
+                except Exception as state_err:
+                    logger.error(f"[BatchGenerator] V2 总结更新状态失败: {state_err}")
+                    self._v2_states_updated = False
+        
+        return chapters
+    
+    def _update_states_from_v2_summary(self, start_chapter: int, end_chapter: int, v2_summary: Dict):
+        """
+        根据 V2 对话内批次总结直接更新角色状态和世界状态
+        """
+        char_states = v2_summary.get("character_states", {})
+        
+        # 1. 更新角色状态
+        if self.character_state_manager:
+            batch_info = {
+                "chapter_start": start_chapter,
+                "chapter_end": end_chapter,
+                "new_characters": char_states.get("new_characters", []),
+                "character_changes": char_states.get("character_changes", [])
+            }
+            self.character_state_manager.update_after_batch(batch_info)
+            self.character_state_manager.sync_to_world_state()
+            logger.info(f"[BatchGenerator] V2 总结已更新角色状态并同步到 world_state")
+        
+        # 2. 更新世界状态（直接读写 .world_state.json）
+        if self.project_path:
+            import json
+            ws_path = self.project_path / ".world_state.json"
+            world_state = {}
+            if ws_path.exists():
+                try:
+                    with open(ws_path, "r", encoding="utf-8") as f:
+                        world_state = json.load(f)
+                except Exception:
+                    world_state = {}
+            
+            # 安全默认值
+            if "protagonist" not in world_state:
+                world_state["protagonist"] = {"name": "", "health": "健康", "injuries": [], "abilities_unlocked": [], "current_location": "", "relationships": {}}
+            if "allies" not in world_state:
+                world_state["allies"] = {}
+            if "enemies" not in world_state:
+                world_state["enemies"] = {}
+            if "plot_threads" not in world_state:
+                world_state["plot_threads"] = {}
+            if "system_rules" not in world_state:
+                world_state["system_rules"] = {"current_playing_degree": 0.0, "max_playing_degree": 0.0, "cooldown_end_chapter": 0, "special_states": [], "unlocked_skills": []}
+            if "important_items" not in world_state:
+                world_state["important_items"] = []
+            if "global_events" not in world_state:
+                world_state["global_events"] = []
+            
+            # 合并 world_changes
+            for change in v2_summary.get("world_changes", []):
+                change_type = change.get("type", "")
+                if change_type == "力量体系":
+                    # 更新 system_rules
+                    desc = change.get("description", "")
+                    # 简单启发式：如果描述里提到等级/LV，更新 current_level
+                    import re
+                    lv_match = re.search(r'LV\.(\d+)|等级提升至(\d+)|提升至LV(\d+)|升级到(\d+)', desc, re.IGNORECASE)
+                    if lv_match:
+                        lv = next((g for g in lv_match.groups() if g is not None), None)
+                        if lv:
+                            world_state["system_rules"]["current_level"] = f"LV{lv}"
+                    # 更新解锁技能
+                    if "new_abilities" in change:
+                        for ability in change["new_abilities"]:
+                            if ability not in world_state["system_rules"].get("unlocked_skills", []):
+                                world_state["system_rules"].setdefault("unlocked_skills", []).append(ability)
+                elif change_type == "道具":
+                    item = change.get("description", "")
+                    if item and item not in world_state.get("important_items", []):
+                        world_state.setdefault("important_items", []).append(item)
+                elif change_type == "势力":
+                    world_state.setdefault("global_events", []).append({
+                        "chapter": change.get("chapter", end_chapter),
+                        "title": change.get("description", "")[:20],
+                        "description": change.get("description", ""),
+                        "impact": "high"
+                    })
+                
+                world_state.setdefault("global_events", []).append({
+                    "chapter": change.get("chapter", end_chapter),
+                    "title": change.get("description", "")[:20],
+                    "description": change.get("description", ""),
+                    "impact": "medium"
+                })
+            
+            # 同步扮演度
+            protagonist = char_states.get("protagonist", {})
+            if protagonist and protagonist.get("playing_degree"):
+                world_state["protagonist"]["playing_degree"] = protagonist["playing_degree"]
+            
+            # 保存
+            with open(ws_path, "w", encoding="utf-8") as f:
+                json.dump(world_state, f, ensure_ascii=False, indent=2)
+            logger.info(f"[BatchGenerator] V2 总结已更新 .world_state.json")
     
     def _collect_batch_info(self, start_chapter: int, end_chapter: int, chapters: List[Dict]) -> Dict:
         """
@@ -327,16 +700,20 @@ class BatchChapterGenerator:
         try:
             logger.info(f"[BatchGenerator] 生成批次总结: 第{start_chapter}-{end_chapter}章")
             
-            # 调用批次总结器
-            new_summary = self.batch_summarizer.summarize_batch(
-                chapters=chapters,
-                stage_goal=None,  # 可以从blueprint获取
-                previous_summary=self.current_batch_summary
-            )
+            # 🔥 优先使用 V2 对话内生成的总结（有完整对话记忆）
+            if hasattr(self, 'v2_last_batch_summary') and self.v2_last_batch_summary:
+                logger.info("[BatchGenerator] 使用 V2 对话内生成的批次总结（含完整记忆）")
+                new_summary = self.v2_last_batch_summary
+                # 清空，避免重复使用
+                self.v2_last_batch_summary = None
+            else:
+                # 不再回退到旧版独立总结器（它无法利用对话记忆，且格式与 V2 不一致）
+                logger.warning("[BatchGenerator] V2 对话内总结不可用，使用空总结")
+                new_summary = {"notes": "V2总结未生成", "chapter_count": len(chapters)}
             
             # 🔥 防御：确保 new_summary 不为 None
             if new_summary is None:
-                logger.warning("[BatchGenerator] summarize_batch 返回 None，使用空总结")
+                logger.warning("[BatchGenerator] 总结返回 None，使用空总结")
                 new_summary = {"notes": "空总结", "chapter_count": len(chapters)}
             
             # 合并总结（累积多批次信息）
@@ -1550,14 +1927,19 @@ def generate_300k_words(novel_title: str, genre: str, tropes: Dict, plan: Dict,
         character_design["protagonist"]["name"] = user_protagonist_name
         logger.info(f"[章节生成] 使用用户填写的主角名: {user_protagonist_name}")
     
+    # 🔥 金手指可能嵌套在 plan 中（对话模式产物结构）
+    golden_finger = products.get("golden_finger") or products.get("plan", {}).get("golden_finger", {})
+    
     novel_data = {
         "title": novel_title,
         "username": username,
         "_username": username,
+        "genre": genre,
         "core_worldview": products.get("core_worldview", {}),
         "character_design": character_design,
         "faction_system": products.get("faction_system", {}),
         "plan": products.get("plan", {}),
+        "golden_finger": golden_finger,
         "emotion_curve": products.get("emotion_curve", {}),
         "user_choices": user_choices  # 🔥 保存用户选择，供后续使用
     }
