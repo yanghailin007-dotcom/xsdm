@@ -3,7 +3,7 @@
   "description": "阶段性复盘优化器的提示词配置",
   "templates": {
     "fix_prompt": {
-      "template": "修复第{chapter_num}章的所有问题。基于原文修改，不要重写。\n\n**第{chapter_num}章：{chapter_title}**\n**原文字数：**{original_word_count}字\n**问题统计：**P0={p0_count}个, P1={p1_count}个, P2={p2_count}个\n\n{word_count_constraints}\n\n## 其他关键约束\n1. 主角名必须保持一致：'{protagonist_name}' - 禁止改为其他名字\n2. 世界观保持一致 - 不要引入新的力量体系\n3. 只修改有问题的部分，保留其他内容原样\n4. 保持原有的写作风格和语气\n\n**需要修复的所有问题：**\n{issues_text}\n\n**原文内容（前800字供参考）：**\n{original_content_preview}...\n\n## 输出格式\n**JSON格式：**\n{{\"chapter_number\": {chapter_num}, \"title\": \"章节标题（8-14字，不含第X章前缀）\", \"content\": \"正文内容（不含标题）\"}}\n\n**重要：**\n- `title` 字段只包含标题文本，不要包含\"第X章\"前缀\n- `content` 字段只包含正文内容，不要重复标题\n- 标题和正文要分开，不要合并在一个字段中\n\n{self_check_list}",
+      "template": "修复第{chapter_num}章的所有问题。基于原文修改，不要重写。\n\n**第{chapter_num}章：{chapter_title}**\n**原文字数：**{original_word_count}字\n**问题统计：**P0={p0_count}个, P1={p1_count}个, P2={p2_count}个\n\n{word_count_constraints}\n\n## 其他关键约束\n1. 主角名必须保持一致：'{protagonist_name}' - 禁止改为其他名字\n2. 世界观保持一致 - 不要引入新的力量体系\n3. 只修改有问题的部分，保留其他内容原样\n4. 保持原有的写作风格和语气\n5. **段落格式必须保留**：content 字段中必须使用 \\n 分隔段落，禁止合并成一段无换行的大文本\n\n**需要修复的所有问题：**\n{issues_text}\n\n**原文内容（前800字供参考）：**\n{original_content_preview}...\n\n## 输出格式\n**JSON格式：**\n{{\"chapter_number\": {chapter_num}, \"title\": \"章节标题（8-14字，不含第X章前缀）\", \"content\": \"正文内容（不含标题）\"}}\n\n**重要：**\n- `title` 字段只包含标题文本，不要包含\"第X章\"前缀\n- `content` 字段只包含正文内容，不要重复标题\n- 标题和正文要分开，不要合并在一个字段中\n\n{self_check_list}",
       "variables": [
         "chapter_num",
         "chapter_title",
