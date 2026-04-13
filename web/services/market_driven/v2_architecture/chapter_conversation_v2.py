@@ -122,6 +122,9 @@ class ChapterConversationV2:
                         emotion_config: Optional[Dict] = None,
                         custom_constraints: Optional[str] = None,
                         custom_selfcheck: Optional[str] = None,
+                        current_plan: Optional[Dict] = None,
+                        prev_plan: Optional[Dict] = None,
+                        next_plan: Optional[Dict] = None,
                         stream: bool = False) -> Optional[str]:
         """
         生成单个章节
@@ -161,11 +164,14 @@ class ChapterConversationV2:
         else:
             layer6_content = base_selfcheck
         
-        # 构建任务指令
+        # 构建任务指令（注入上一章+本章+下一章详细战术规划）
         task_instruction = self._build_task_instruction(
             chapter_number=chapter_number,
             chapter_title=chapter_title,
-            outline_summary=outline_summary
+            outline_summary=outline_summary,
+            current_plan=current_plan,
+            prev_plan=prev_plan,
+            next_plan=next_plan
         )
         
         # 组合 User Prompt
@@ -289,6 +295,11 @@ class ChapterConversationV2:
 - 每1000字一个小爽点
 - 章尾最后50字是钩子
 - 禁止连续200字无对话
+
+#### 叙事视角（强制）
+- **必须采用第三人称上帝视角**
+- 禁止第一人称「我」、第二人称「你」、日记体、书信体
+- 主角名字直接使用，禁止连续用「他」超过3次而不提名字
 
 #### 震惊流技法
 - 先写反应，后写原因
@@ -438,7 +449,10 @@ class ChapterConversationV2:
     def _build_task_instruction(self, 
                                chapter_number: int,
                                chapter_title: str,
-                               outline_summary: str) -> str:
+                               outline_summary: str,
+                               current_plan: Optional[Dict] = None,
+                               prev_plan: Optional[Dict] = None,
+                               next_plan: Optional[Dict] = None) -> str:
         """构建任务指令（章节标题由AI生成，不预传入）"""
         lines = [
             "=" * 60,
@@ -447,8 +461,50 @@ class ChapterConversationV2:
             "【本章概要】",
             outline_summary,
             "",
-            "【前章回顾】",
         ]
+        
+        # 上一章战术规划（承接）
+        if prev_plan:
+            lines.extend([
+                "【上一章承接】",
+                f"- 事件: {prev_plan.get('event', '')}",
+                f"- 遗留钩子: {prev_plan.get('hook_content', '')}",
+                "",
+            ])
+        
+        # 本章详细战术指令
+        if current_plan:
+            lines.extend([
+                "【本章战术指令 - 必须逐条执行】",
+                f"1. 核心事件: {current_plan.get('event', '')}",
+            ])
+            sp = current_plan.get('satisfaction_point')
+            if sp:
+                lines.append(f"2. 爽点交付: {sp}")
+            fp = current_plan.get('face_slapping')
+            if fp and isinstance(fp, dict):
+                lines.append(f"3. 打脸路径: 目标={fp.get('target','')}, 方式={fp.get('method','')}, 震惊层级={fp.get('shock_level','')}")
+            elif fp:
+                lines.append(f"3. 打脸路径: {fp}")
+            lines.extend([
+                f"4. 情绪目标: {current_plan.get('emotion', '期待')} (强度{current_plan.get('intensity', 5)})",
+                f"5. 钩子落点: 章尾50字内必须出现与 \"{current_plan.get('hook_content', '')}\" 相关的悬念",
+                f"6. 系统提示音插入点: {current_plan.get('system_prompt_moment', '在主角获得返利/奖励时插入')}",
+                "",
+            ])
+        
+        # 下一章预告（用于指导本章结尾钩子）
+        if next_plan:
+            lines.extend([
+                "【下一章预告 - 本章结尾必须为下文埋钩】",
+                f"- 核心事件: {next_plan.get('event', '')}",
+                f"- 情绪承接: {next_plan.get('emotion', '期待')} (强度{next_plan.get('intensity', 5)})",
+                "",
+            ])
+        
+        lines.extend([
+            "【前章生成状态】",
+        ])
         
         # 添加上一章概要（如果有）
         if self.generated_chapters:
@@ -465,6 +521,7 @@ class ChapterConversationV2:
             "3. 使用指定的题材技法和文风",
             "4. 确保自检清单全部通过",
             "5. 只输出章节正文，不要输出大纲或分析",
+            "6. 必须严格使用第三人称上帝视角，禁止任何第一人称叙述",
             "",
             "【强制输出格式 - 必须严格遵守】",
             "必须按以下格式返回，使用 ---标题--- 和 ---正文--- 分隔：",

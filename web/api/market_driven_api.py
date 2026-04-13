@@ -3401,41 +3401,55 @@ def _run_continue_chapter_generation(task_id, title, blueprint, start_chapter, e
             
             try:
                 # 生成当前批次
-                # 🔥 修复：从 blueprint 构建完整的 novel_data，确保续写时有完整上下文
+                # 🔥 修复：先读取 project_info.json，再用 blueprint 补全，确保续写时有完整上下文
+                project_info = {}
+                project_info_path = project_path / "project_info.json"
+                if project_info_path.exists():
+                    try:
+                        with open(project_info_path, 'r', encoding='utf-8') as f:
+                            project_info = json.load(f)
+                    except Exception as e:
+                        logger.warning(f"[续写] 读取 project_info.json 失败: {e}")
+                
+                # 兼容两种 mode_specific 嵌套位置：顶层 或 generation_metadata 下
+                mode_specific = project_info.get('mode_specific') or {}
+                if not mode_specific and isinstance(project_info.get('generation_metadata'), dict):
+                    mode_specific = project_info['generation_metadata'].get('mode_specific') or {}
+                mode_info = mode_specific.get('info', {}) if isinstance(mode_specific, dict) else {}
+                plan_data = mode_info.get('plan', {}) if isinstance(mode_info, dict) else {}
+                
                 novel_data = {
                     'title': title,
                     'novel_title': title,
                     'username': username,
                     'project_path': str(project_path),
-                    # 核心设定（从 blueprint 提取）
-                    'core_setting': {
-                        'worldview': blueprint.get('core_setting', {}).get('worldview', '') if isinstance(blueprint.get('core_setting'), dict) else blueprint.get('worldview', ''),
-                        'power_system': blueprint.get('core_setting', {}).get('power_system', '') if isinstance(blueprint.get('core_setting'), dict) else '',
+                    # 核心设定（优先 project_info，fallback blueprint）
+                    'novel_info': {
+                        'title': title,
+                        'synopsis': project_info.get('novel_synopsis', '') or plan_data.get('synopsis', '') or blueprint.get('synopsis', ''),
+                        'selected_plan': plan_data,
                     },
-                    'worldview': blueprint.get('worldview', '') or blueprint.get('core_setting', {}).get('worldview', ''),
-                    # 角色设计
-                    'character_design': {
-                        'protagonist': blueprint.get('core_setting', {}).get('protagonist', {}) if isinstance(blueprint.get('core_setting'), dict) else blueprint.get('protagonist', {}),
+                    'core_worldview': project_info.get('core_worldview', {}) or {
+                        'world_overview': {'background': blueprint.get('worldview', '') or blueprint.get('core_setting', {}).get('worldview', '')},
+                    },
+                    'character_design': project_info.get('character_design', {}) or {
+                        'protagonist': blueprint.get('protagonist', {}) or blueprint.get('core_setting', {}).get('protagonist', {}),
                     },
                     'protagonist': blueprint.get('protagonist', {}) or blueprint.get('core_setting', {}).get('protagonist', {}),
-                    # 金手指
-                    'golden_finger': blueprint.get('core_setting', {}).get('golden_finger', {}) if isinstance(blueprint.get('core_setting'), dict) else blueprint.get('golden_finger', {}),
-                    # 主线剧情
+                    'golden_finger': project_info.get('golden_finger', {}) or blueprint.get('golden_finger', {}) or blueprint.get('core_setting', {}).get('golden_finger', {}),
                     'storyline': blueprint.get('main_plot', '') or blueprint.get('storyline', ''),
                     'main_plot': blueprint.get('main_plot', ''),
-                    # 全书结构
                     'book_structure': blueprint.get('book_structure', {}),
                     'stage_goals': blueprint.get('stage_goals', []),
-                    # 情绪曲线
                     'emotion_curve': blueprint.get('emotion_curve', []),
-                    # 卖点
-                    'core_selling_point': blueprint.get('core_selling_point', ''),
+                    'core_selling_point': project_info.get('core_selling_point', '') or blueprint.get('core_selling_point', ''),
                     'core_selling_points': blueprint.get('core_selling_points', []),
-                    # 其他元数据
                     'target_chapters': blueprint.get('target_chapters', 200),
-                    'genre': blueprint.get('genre', ''),
+                    'genre': project_info.get('genre', '') or mode_info.get('genre', '') or blueprint.get('genre', ''),
                     'category': blueprint.get('category', ''),
                     'tags': blueprint.get('tags', []),
+                    'writing_style': project_info.get('writing_style', {}),
+                    'plan': plan_data,
                 }
                 
                 # 获取 tropes 数据（如果有）
@@ -4117,31 +4131,48 @@ def _run_rewrite_generation(task_id, title, project_path, new_settings, username
             })
             
             try:
-                # 🔥 修复：从 blueprint 构建完整的 novel_data
+                # 🔥 修复：先读取 project_info.json，再用 blueprint 补全
+                project_info = {}
+                project_info_path = project_path / "project_info.json"
+                if project_info_path.exists():
+                    try:
+                        with open(project_info_path, 'r', encoding='utf-8') as f:
+                            project_info = json.load(f)
+                    except Exception as e:
+                        logger.warning(f"[重写] 读取 project_info.json 失败: {e}")
+                
+                # 兼容两种 mode_specific 嵌套位置
+                mode_specific = project_info.get('mode_specific') or {}
+                if not mode_specific and isinstance(project_info.get('generation_metadata'), dict):
+                    mode_specific = project_info['generation_metadata'].get('mode_specific') or {}
+                mode_info = mode_specific.get('info', {}) if isinstance(mode_specific, dict) else {}
+                plan_data = mode_info.get('plan', {}) if isinstance(mode_info, dict) else {}
+                
                 novel_data = {
                     'title': title,
                     'novel_title': title,
                     'username': username,
                     'project_path': str(project_path),
-                    # 核心设定
-                    'core_setting': {
-                        'worldview': blueprint.get('worldview', ''),
-                        'power_system': blueprint.get('power_system', ''),
+                    'novel_info': {
+                        'title': title,
+                        'synopsis': project_info.get('novel_synopsis', '') or plan_data.get('synopsis', '') or blueprint.get('synopsis', ''),
+                        'selected_plan': plan_data,
                     },
-                    'worldview': blueprint.get('worldview', ''),
-                    # 角色设计
-                    'character_design': {
+                    'core_worldview': project_info.get('core_worldview', {}) or {
+                        'world_overview': {'background': blueprint.get('worldview', '')},
+                    },
+                    'character_design': project_info.get('character_design', {}) or {
                         'protagonist': blueprint.get('protagonist', {}),
                     },
                     'protagonist': blueprint.get('protagonist', {}),
-                    # 金手指
-                    'golden_finger': blueprint.get('golden_finger', {}),
-                    # 主线剧情
+                    'golden_finger': project_info.get('golden_finger', {}) or blueprint.get('golden_finger', {}),
                     'storyline': blueprint.get('main_plot', ''),
                     'main_plot': blueprint.get('main_plot', ''),
-                    # 卖点
-                    'core_selling_point': blueprint.get('core_selling_point', ''),
+                    'core_selling_point': project_info.get('core_selling_point', '') or blueprint.get('core_selling_point', ''),
                     'target_chapters': blueprint.get('target_chapters', 200),
+                    'genre': project_info.get('genre', '') or mode_info.get('genre', '') or blueprint.get('genre', ''),
+                    'plan': plan_data,
+                    'writing_style': project_info.get('writing_style', {}),
                 }
                 
                 # 获取 tropes 数据（如果有）

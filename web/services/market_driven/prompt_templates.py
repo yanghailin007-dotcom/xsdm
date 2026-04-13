@@ -118,6 +118,52 @@ POST /api/v2/prompt-config/step_1_plan
         logger.error(error_msg)
         raise RuntimeError(error_msg)
     
+    def _get_genre_guardrails_text(self) -> str:
+        """加载题材技法的禁忌元素和防火墙规则"""
+        try:
+            from web.services.market_driven.genre_techniques_loader import get_genre_techniques_loader
+            loader = get_genre_techniques_loader()
+            genre_name = self.genre
+            if genre_name in ["god-tier-spending", "god-tier-checkin", "sign-in-daily", "simulator-life", "food-system", "farming-rich", "entertainment-copy", "courtyard-life"]:
+                genre_name = "神豪文"
+            elif genre_name in ["nation-live", "nation-explore", "historical-power", "tomb-raider"]:
+                genre_name = "国运文"
+            elif genre_name in ["god-select", "aura-recovery", "game-vr"]:
+                genre_name = "灵气复苏-觉醒类"
+            elif genre_name in ["apocalypse-hoard"]:
+                genre_name = "末日求生-囤货类"
+            elif genre_name in ["weird-recovery", "anime-infinite"]:
+                genre_name = "诡异复苏-规则怪谈类"
+            elif genre_name in ["pet-evolution"]:
+                genre_name = "宠物文-御兽进化类"
+            elif genre_name in ["dad-baby", "dad-cultivate"]:
+                genre_name = "奶爸文-萌宝类"
+            techniques = loader.load(genre_name)
+            lines = []
+            fe = techniques.forbidden_elements
+            if isinstance(fe, dict) and fe.get('items'):
+                lines.append("## 🚫 题材禁忌（绝对不能出现）")
+                for item in fe['items']:
+                    examples = ', '.join(item.examples) if item.examples else ''
+                    lines.append(f"- {item.element}: {item.reason}（如：{examples}）")
+            raw = techniques.raw_data or {}
+            guardrails = raw.get('final_plan_guardrails', {})
+            if guardrails and isinstance(guardrails, dict):
+                gf_guard = guardrails.get('golden_finger', {})
+                if gf_guard and isinstance(gf_guard, dict):
+                    forbidden_kw = gf_guard.get('forbidden_keywords', [])
+                    allowed_domains = gf_guard.get('allowed_domains', [])
+                    if forbidden_kw:
+                        lines.append(f"\n## 🚫 金手指绝对禁止关键词")
+                        lines.append(f"以下词汇禁止出现在金手指设定和成长路线中：{', '.join(forbidden_kw)}")
+                    if allowed_domains:
+                        lines.append(f"\n## ✅ 金手指允许领域")
+                        lines.append(f"金手指必须严格限定在以下现实可解释领域：{', '.join(allowed_domains)}")
+            return "\n".join(lines)
+        except Exception as e:
+            logger.warning(f"[PromptTemplateGenerator] 加载题材防火墙失败: {e}")
+            return ""
+    
     def _generate_step1_from_config(self, title: str, protagonist_name: str, selected_plot: Dict) -> Optional[str]:
         """从JSON配置生成步骤1 Prompt"""
         formula = self.analysis.get("genre_formula", "")
@@ -129,6 +175,7 @@ POST /api/v2/prompt-config/step_1_plan
         plot_detail = selected_plot.get("detail", "") if selected_plot else ""
         taboos = self.analysis.get("taboos", [])
         taboo_list_str = "\n".join(["- " + taboo for taboo in taboos])
+        genre_guardrails = self._get_genre_guardrails_text()
         
         # 构建变量字典
         variables = {
@@ -160,7 +207,8 @@ POST /api/v2/prompt-config/step_1_plan
             "small_climax_types": str(self.analysis.get("climax_formula", {}).get("small_climax", {}).get("types", ["收获", "打脸"])),
             "medium_climax_types": str(self.analysis.get("climax_formula", {}).get("medium_climax", {}).get("types", ["升级", "曝光"])),
             "large_climax_types": str(self.analysis.get("climax_formula", {}).get("large_climax", {}).get("types", ["总结", "新地图"])),
-            "taboo_list": taboo_list_str
+            "taboo_list": taboo_list_str,
+            "genre_guardrails": genre_guardrails
         }
         
         return self._render_template("step_1_plan", variables)
@@ -202,7 +250,8 @@ POST /api/v2/prompt-config/step_2_worldview
             "mid_end": str(mid_end),
             "mid_antagonist": self.analysis.get("character_formula", {}).get("antagonists", {}).get("mid", "富二代、地方势力"),
             "late_start": str(mid_end + 1),
-            "late_antagonist": self.analysis.get("character_formula", {}).get("antagonists", {}).get("late", "国际势力、隐藏大佬")
+            "late_antagonist": self.analysis.get("character_formula", {}).get("antagonists", {}).get("late", "国际势力、隐藏大佬"),
+            "genre_guardrails": self._get_genre_guardrails_text()
         }
         
         return self._render_template("step_2_worldview", variables)

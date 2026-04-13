@@ -5,7 +5,7 @@
 import json
 import re
 import logging
-from typing import Dict, Any, Optional
+from typing import Dict, Any, Optional, List
 from datetime import datetime
 
 logger = logging.getLogger(__name__)
@@ -120,8 +120,128 @@ class PhaseOneAIReviewer:
             fixed["plan"]["protagonist"] = fixed["plan"].get("protagonist", {})
             fixed["plan"]["protagonist"]["name"] = fixed_version["protagonist_name"]
 
+        # 🔥 深度修复：升级路线与金手指设计中的具体数值矛盾
+        self._apply_deep_fixes(fixed, issues)
+
         logger.info(f"[PhaseOneAIReviewer] 自动修复完成，共应用 {applied_count} 条高置信度建议")
         return fixed
+
+    def _apply_deep_fixes(self, fixed: Dict[str, Any], issues: List[Dict[str, Any]]):
+        """应用产物内部的深度文本修复（基于 issue 的 location 和 suggestion 做模式匹配替换）"""
+        for issue in issues:
+            if not issue.get("auto_applicable") or issue.get("confidence", 0) < 0.85:
+                continue
+            location = issue.get("location", "")
+            suggestion = issue.get("suggestion", "")
+            problem = issue.get("problem", "")
+            
+            # 修复1: 升级路线第10章数值错误（千万级 -> 30亿级）
+            if "成长路线第10章" in location and "千万级" in problem:
+                gp = fixed.get("global_growth_plan") or fixed.get("growth_plan") or {}
+                milestones = []
+                if isinstance(gp, dict):
+                    milestones = gp.get("protagonist_growth", {}).get("milestones", []) or gp.get("milestones", [])
+                for m in milestones:
+                    if m.get("chapter") == 10 and isinstance(m.get("event"), str):
+                        m["event"] = m["event"].replace("千万级现金返利", "30亿级现金返利")
+                        logger.info(f"[PhaseOneAIReviewer] 已修复第10章事件: {m['event']}")
+            
+            # 修复2: 升级路线第20章倍数膨胀（20000倍 -> 固定一万倍上限+暴击奖励）
+            if "成长路线第20章" in location and ("20000倍" in problem or "书名" in problem):
+                gp = fixed.get("global_growth_plan") or fixed.get("growth_plan") or {}
+                milestones = []
+                if isinstance(gp, dict):
+                    milestones = gp.get("protagonist_growth", {}).get("milestones", []) or gp.get("milestones", [])
+                for m in milestones:
+                    if m.get("chapter") == 20 and isinstance(m.get("ability_change"), str):
+                        old = m["ability_change"]
+                        # 替换常见的倍数膨胀描述
+                        m["ability_change"] = old.replace("返现倍数增至20000倍", "返现倍数固定为一万倍上限，解锁\"暴击奖励\"")\
+                                                  .replace("20000倍", "一万倍上限+暴击奖励")\
+                                                  .replace("返现倍数增到20000倍", "返现倍数固定为一万倍上限，解锁\"暴击奖励\"")
+                        if m["ability_change"] != old:
+                            logger.info(f"[PhaseOneAIReviewer] 已修复第20章能力: {m['ability_change']}")
+            
+            # 修复3: 金手指设计/升级路线早期阶段倍数递增逻辑（与"固定一万倍"冲突）
+            if "金手指" in location or "书名" in location:
+                # 修复金手指设计中的早期阶段描述
+                gf = fixed.get("golden_finger", {})
+                if isinstance(gf, dict):
+                    abilities = gf.get("abilities", {})
+                    if isinstance(abilities, dict):
+                        growth = abilities.get("growth", {})
+                        if isinstance(growth, dict):
+                            es = growth.get("early_stage", "")
+                            if isinstance(es, str) and "每级增加1000倍" in es:
+                                growth["early_stage"] = es.replace("每消费100万升1级，返现倍数增加1000倍，身体素质提升20%", 
+                                    "1-30级：每消费100万升1级，身体素质提升20%，同步解锁商业嗅觉等辅助能力。返现倍数上限固定为一万倍。")
+                                logger.info("[PhaseOneAIReviewer] 已修复金手指 early_stage 倍数描述")
+            
+            # 修复4: 成长路线早期阶段机制描述
+            if "成长路线" in location and "万倍" in problem:
+                gp = fixed.get("global_growth_plan") or fixed.get("growth_plan") or {}
+                if isinstance(gp, dict):
+                    asp = gp.get("ability_system_progression", {})
+                    if isinstance(asp, dict):
+                        early = asp.get("early_stage", {})
+                        if isinstance(early, dict) and isinstance(early.get("mechanics"), str):
+                            mech = early["mechanics"]
+                            if "每级增加1000倍返现比例" in mech:
+                                early["mechanics"] = "每消费100万RMB提升1级，身体素质提升20%，同步解锁商业嗅觉等辅助能力。"
+                                logger.info("[PhaseOneAIReviewer] 已修复成长路线 early_stage 机制描述")
+            
+            # 修复5: 玄幻/因果律元素入侵（神豪文等严重题材越界）
+            if "因果律" in problem or "因果" in location or "玄幻" in problem or "修仙" in problem:
+                # 修复升级路线
+                gp = fixed.get("global_growth_plan") or fixed.get("growth_plan") or {}
+                if isinstance(gp, dict):
+                    milestones = gp.get("protagonist_growth", {}).get("milestones", []) or gp.get("milestones", [])
+                    for m in milestones:
+                        if isinstance(m.get("ability_change"), str):
+                            old = m["ability_change"]
+                            new = old.replace("因果律消费", "全球资本垄断")\
+                                     .replace("因果律", "全球金融规则重塑")\
+                                     .replace("购买寿命", "购买顶尖生命科技服务延长寿命")\
+                                     .replace("买断物理法则", "买断全球核心产业链")\
+                                     .replace("改变因果", "重塑世界经济秩序")\
+                                     .replace("篡改他人记忆", "通过资本影响力改变公众认知")
+                            if new != old:
+                                m["ability_change"] = new
+                                logger.info(f"[PhaseOneAIReviewer] 已修复里程碑 ability_change: {new}")
+                    # 修复 ability_system_progression 的 late_stage
+                    asp = gp.get("ability_system_progression", {})
+                    if isinstance(asp, dict):
+                        for stage_key in ["early_stage", "mid_stage", "late_stage"]:
+                            stage = asp.get(stage_key, {})
+                            if isinstance(stage, dict) and isinstance(stage.get("mechanics"), str):
+                                old = stage["mechanics"]
+                                new = old.replace("因果律消费", "全球资本垄断")\
+                                         .replace("因果律", "全球金融规则重塑")\
+                                         .replace("购买寿命", "购买顶尖生命科技服务延长寿命")\
+                                         .replace("买断物理法则", "买断全球核心产业链")\
+                                         .replace("改变因果", "重塑世界经济秩序")\
+                                         .replace("篡改他人记忆", "通过资本影响力改变公众认知")
+                                if new != old:
+                                    stage["mechanics"] = new
+                                    logger.info(f"[PhaseOneAIReviewer] 已修复 {stage_key} mechanics")
+                
+                # 修复金手指设计
+                gf = fixed.get("golden_finger", {})
+                if isinstance(gf, dict):
+                    abilities = gf.get("abilities", {})
+                    if isinstance(abilities, dict):
+                        for key in ["early_stage", "mid_stage", "late_stage", "max"]:
+                            if isinstance(abilities.get(key), str):
+                                old = abilities[key]
+                                new = old.replace("因果律消费", "全球资本垄断")\
+                                         .replace("因果律", "全球金融规则重塑")\
+                                         .replace("购买寿命", "购买顶尖生命科技服务延长寿命")\
+                                         .replace("买断物理法则", "买断全球核心产业链")\
+                                         .replace("改变因果", "重塑世界经济秩序")\
+                                         .replace("篡改他人记忆", "通过资本影响力改变公众认知")
+                                if new != old:
+                                    abilities[key] = new
+                                    logger.info(f"[PhaseOneAIReviewer] 已修复 golden_finger.abilities.{key}")
 
     def _build_review_prompt(self, products: Dict[str, Any]) -> str:
         plan = products.get("plan", {})

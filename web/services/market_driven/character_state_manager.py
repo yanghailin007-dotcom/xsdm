@@ -353,12 +353,13 @@ class CharacterStateManager:
         }
         char.setdefault('changes_history', []).append(change_record)
         
-        # 应用变更
+        # 应用变更（防御旧状态缺少字段）
         if 'health' in changes:
             char['health'] = changes['health']
         if 'injuries' in changes:
-            char['injuries'].extend(changes['injuries'])
+            char.setdefault('injuries', []).extend(changes['injuries'])
         if 'abilities' in changes:
+            char.setdefault('abilities', [])
             for ability in changes['abilities']:
                 if ability not in char['abilities']:
                     char['abilities'].append(ability)

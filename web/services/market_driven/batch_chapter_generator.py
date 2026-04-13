@@ -353,80 +353,367 @@ class BatchChapterGenerator:
         logger.info(f"[BatchGenerator] 对话模式完成: 成功{len(results['generated'])}章, 失败{len(results['failed'])}章")
         return results
     
-    def _format_core_setting_md(self, novel_data: Dict) -> str:
-        """将核心设定格式化为结构化 Markdown（替代裸 JSON）"""
-        lines = ["## 【Layer 1】核心设定"]
+    def _format_core_setting_md(self, novel_data: Dict, character_state: Dict = None, world_state: Dict = None) -> str:
+        """将核心设定格式化为结构化、叙事化的 Markdown（替代裸 JSON）"""
         nd = novel_data or {}
+        cs = character_state or {}
+        ws = world_state or {}
+        lines = ["## 【Layer 1】核心设定"]
         
-        info = nd.get("novel_info", {})
-        if info and isinstance(info, dict):
-            lines.extend(["", "### 小说信息"])
-            for k, v in info.items():
-                lines.append(f"- **{k}**: {v}")
+        # 辅助函数：安全取值
+        def _get(d, *keys, default=''):
+            for k in keys:
+                if isinstance(d, dict) and k in d:
+                    d = d[k]
+                else:
+                    return default
+            return d if d is not None else default
         
-        worldview = nd.get("core_worldview", {})
-        if isinstance(worldview, dict):
-            wo = worldview.get("world_overview", {})
-            if wo:
-                if wo.get("background"):
-                    lines.extend(["", "### 世界观背景", wo["background"]])
-                if wo.get("era"):
-                    lines.extend(["", "### 时代", wo["era"]])
-                if wo.get("main_conflict"):
-                    lines.extend(["", "### 主要冲突", wo["main_conflict"]])
-            
-            ps = worldview.get("power_system", {})
-            if ps:
-                lines.extend(["", f"### 力量体系 - {ps.get('name', '未知')}"])
-                levels = ps.get("levels", [])
+        # 优先从 plan 和 novel_info 取高层信息
+        plan = nd.get("plan", {}) if isinstance(nd.get("plan"), dict) else {}
+        info = nd.get("novel_info", {}) if isinstance(nd.get("novel_info"), dict) else {}
+        genre = nd.get("genre", "")
+        synopsis = _get(info, 'synopsis') or _get(plan, 'synopsis') or _get(nd, 'storyline') or ""
+        core_conflict = _get(plan, 'core_conflict') or _get(plan, 'main_conflict') or ""
+        worldview_text = _get(plan, 'worldview') or ""
+        
+        # 1. 一句话钩子 + 核心卖点
+        lines.extend([
+            "",
+            "### 核心卖点（写作时必须时刻对照）",
+            f"- **一句话钩子**: {synopsis.split(chr(10))[0] if synopsis else '（待补充）'}",
+            f"- **核心冲突**: {core_conflict or '（待补充）'}",
+            f"- **题材定位**: {genre or '都市'}",
+        ])
+        
+        # 2. 主角档案（合并 character_design / plan.protagonist / character_state）
+        cd = nd.get("character_design", {}) if isinstance(nd.get("character_design"), dict) else {}
+        protagonist_design = _get(cd, 'protagonist') or _get(cd, 'main_character') or _get(plan, 'protagonist') or _get(nd, 'protagonist') or {}
+        protagonist_state = cs.get('protagonist', {}) if isinstance(cs, dict) else {}
+        ws_protagonist = ws.get('protagonist', {}) if isinstance(ws, dict) else {}
+        
+        if isinstance(protagonist_design, dict) and protagonist_design:
+            name = protagonist_design.get('name', '主角')
+            bg = protagonist_design.get('background', '') or protagonist_design.get('surface_identity', '') or protagonist_design.get('identity', '')
+            tags = protagonist_design.get('personality_tags', []) or protagonist_design.get('traits', []) or protagonist_state.get('traits', [])
+            personality_desc = protagonist_design.get('personality_description', '')
+            actions = protagonist_design.get('signature_actions', [])
+            phrases = protagonist_design.get('catchphrases', [])
+            motivation = protagonist_design.get('core_motivation', '') or protagonist_design.get('growth_arc', '')
+            forbidden = protagonist_design.get('forbidden_behaviors', [])
+            health = protagonist_state.get('health', '') or ws_protagonist.get('health', '')
+            abilities = ws_protagonist.get('abilities_unlocked', []) or protagonist_state.get('abilities', [])
+            location = ws_protagonist.get('current_location', '') or protagonist_state.get('location', '')
+            lines.extend([
+                "",
+                f"### 主角档案 - {name}",
+                f"- **姓名**: {name}",
+            ])
+            if bg:
+                lines.append(f"- **表面身份/背景**: {bg}")
+            if tags:
+                lines.append(f"- **核心性格标签**: {', '.join([str(t) for t in tags])}（写作时必须时刻对照，严禁偏离）")
+            if personality_desc:
+                lines.append(f"- **性格画像**: {personality_desc}")
+            if motivation:
+                lines.append(f"- **核心动机/成长弧光**: {motivation}")
+            if actions:
+                lines.append(f"- **招牌动作**: {', '.join([str(a) for a in actions])}")
+            if phrases:
+                lines.append(f"- **口头禅**: {', '.join([str(p) for p in phrases])}")
+            if forbidden:
+                lines.append(f"- **绝对禁止行为**: {', '.join([str(f) for f in forbidden])}")
+            if health:
+                lines.append(f"- **当前健康状态**: {health}")
+            if location:
+                lines.append(f"- **当前位置**: {location}")
+            if abilities:
+                lines.append(f"- **已解锁能力**: {', '.join([str(a) for a in abilities])}")
+        
+        # 3. 金手指 / 系统（优先 world_state.system_rules，其次 novel_data.golden_finger）
+        sr = ws.get('system_rules', {}) if isinstance(ws, dict) else {}
+        gf = nd.get("golden_finger", {}) if isinstance(nd.get("golden_finger"), dict) else {}
+        
+        gf_name = sr.get('system_name', '') or gf.get('name', '') or gf.get('system_name', '')
+        mechanism = gf.get('core_mechanism', '') or gf.get('mechanism', '') or gf.get('description', '')
+        level = sr.get('current_level', '') or gf.get('current_level', '')
+        ability = sr.get('current_power', '') or gf.get('current_ability', '')
+        growth = gf.get('growth_path', [])
+        limits = gf.get('limitations', [])
+        reward_sound = gf.get('reward_sound', '')
+        synergy = gf.get('protagonist_synergy', {}) if isinstance(gf.get('protagonist_synergy'), dict) else {}
+        plot_role = gf.get('plot_role', {}) if isinstance(gf.get('plot_role'), dict) else {}
+        unlocked = sr.get('unlocked_abilities', []) or sr.get('unlocked_skills', []) or []
+        
+        if gf_name or mechanism or level or unlocked:
+            lines.extend([
+                "",
+                f"### 金手指 / 系统{' - ' + str(gf_name) if gf_name else ''}",
+            ])
+            if mechanism:
+                lines.append(f"- **核心机制**: {mechanism}")
+            if level or ability:
+                lines.append(f"- **当前等级/能力边界**: {level or '未知'} | {ability or '未知'}")
+            if unlocked:
+                lines.append(f"- **当前已解锁能力**: {', '.join([str(u) for u in unlocked])}")
+            if growth:
+                lines.append(f"- **升级路径**: {' → '.join([str(g) for g in growth])}")
+            if limits:
+                lines.append(f"- **限制条件**: {', '.join([str(l) for l in limits])}")
+            if synergy and synergy.get('compatibility'):
+                lines.append(f"- **主角契合度**: {synergy['compatibility']}")
+            if plot_role and plot_role.get('twist_potential'):
+                lines.append(f"- **剧情爆点潜力**: {plot_role['twist_potential']}")
+            if reward_sound:
+                lines.append(f"- **系统提示音规范**: {reward_sound}（必须在对应爽点后按此格式插入）")
+            else:
+                lines.append("- **系统提示音规范**: 【叮！神级万倍返现系统激活！】（必须在主角获得返利/奖励时插入）")
+        
+        # 4. 叙事世界观
+        worldview = nd.get("core_worldview", {}) if isinstance(nd.get("core_worldview"), dict) else {}
+        wo = _get(worldview, 'world_overview') if isinstance(_get(worldview, 'world_overview'), dict) else {}
+        era = wo.get('era', '') or ''
+        background = wo.get('background', '') or worldview_text or ''
+        main_conflict = wo.get('main_conflict', '') or core_conflict or ''
+        
+        lines.extend([
+            "",
+            "### 叙事世界观",
+        ])
+        if era:
+            lines.append(f"- **时代背景**: {era}")
+        if background:
+            lines.append(f"- **世界背景**: {background}")
+        if main_conflict:
+            lines.append(f"- **主要冲突**: {main_conflict}")
+        
+        # 社会阶层
+        ss = worldview.get("social_structure", {}) if isinstance(worldview.get("social_structure"), dict) else {}
+        if ss:
+            parts = [f"{k}={v}" for k, v in ss.items()]
+            lines.append(f"- **社会阶层**: {'; '.join(parts)}")
+        
+        # 势力
+        factions = worldview.get("factions", []) if isinstance(worldview.get("factions"), list) else []
+        if factions:
+            faction_parts = []
+            for f in factions:
+                if isinstance(f, dict):
+                    faction_parts.append(f"{f.get('name', '未知')}({f.get('type', '未知')}): {f.get('description', '')}")
+            if faction_parts:
+                lines.append(f"- **势力格局**: {'; '.join(faction_parts)}")
+        
+        # 世界规则
+        rules = worldview.get("world_rules", []) if isinstance(worldview.get("world_rules"), list) else []
+        if rules:
+            lines.append("- **世界规则（不可违背）**:")
+            for rule in rules:
+                lines.append(f"  - {rule}")
+        
+        # 力量体系
+        ps = worldview.get("power_system", {}) if isinstance(worldview.get("power_system"), dict) else {}
+        if ps:
+            ps_name = ps.get('name', '')
+            levels = ps.get("levels", [])
+            mechanics = ps.get("mechanics", {}) if isinstance(ps.get("mechanics"), dict) else {}
+            core_rules = mechanics.get("core_rules", [])
+            limitations = mechanics.get("limitations", [])
+            if ps_name or levels or core_rules:
+                lines.append(f"- **力量体系{' - ' + str(ps_name) if ps_name else ''}**:")
                 if levels:
-                    lines.append("等级: " + " → ".join([str(l) for l in levels]))
-                mechanics = ps.get("mechanics", {})
-                for rule in mechanics.get("core_rules", []):
-                    lines.append(f"- 规则: {rule}")
-                for lim in mechanics.get("limitations", []):
-                    lines.append(f"- 限制: {lim}")
-            
-            if worldview.get("shen_lang_exclusive"):
-                lines.extend(["", "### 神豪专属设定", worldview["shen_lang_exclusive"]])
-            
-            ss = worldview.get("social_structure", {})
-            if ss:
-                lines.extend(["", "### 社会阶层"])
-                for k, v in ss.items():
-                    lines.append(f"- **{k}**: {v}")
-            
-            factions = worldview.get("factions", [])
-            if factions:
-                lines.extend(["", "### 势力"])
-                for f in factions:
-                    lines.append(f"- **{f.get('name', '未知')}** ({f.get('type', '未知')}): {f.get('description', '')}")
-            
-            rules = worldview.get("world_rules", [])
-            if rules:
-                lines.extend(["", "### 世界规则"])
-                for rule in rules:
-                    lines.append(f"- {rule}")
-            
-            locations = worldview.get("key_locations", [])
-            if locations:
-                lines.extend(["", "### 关键地点"])
-                for loc in locations:
-                    lines.append(f"- **{loc.get('name', '未知')}** ({loc.get('location', '')}): {loc.get('description', '')}")
+                    lines.append(f"  - 等级: {' → '.join([str(l) for l in levels])}")
+                for rule in core_rules:
+                    lines.append(f"  - 规则: {rule}")
+                for lim in limitations:
+                    lines.append(f"  - 限制: {lim}")
         
-        cd = nd.get("character_design", {})
-        if cd and isinstance(cd, dict):
-            lines.extend(["", "### 角色设定", json.dumps(cd, ensure_ascii=False, indent=2)])
+        # 神豪专属
+        if worldview.get("shen_lang_exclusive"):
+            lines.append(f"- **神豪专属设定**: {worldview['shen_lang_exclusive']}")
         
-        gf = nd.get("golden_finger", {})
-        if gf and isinstance(gf, dict):
-            lines.extend(["", "### 金手指", json.dumps(gf, ensure_ascii=False, indent=2)])
+        # 5. 关键地点与符号
+        locations = worldview.get("key_locations", []) if isinstance(worldview.get("key_locations"), list) else []
+        if locations:
+            lines.extend(["", "### 关键地点与符号"])
+            for loc in locations:
+                if isinstance(loc, dict):
+                    loc_name = loc.get('name', '未知')
+                    loc_desc = loc.get('description', '')
+                    loc_pos = loc.get('location', '')
+                    symbol = loc.get('symbolism', '')
+                    s = f"- **{loc_name}**"
+                    if loc_pos:
+                        s += f" ({loc_pos})"
+                    s += f": {loc_desc}"
+                    if symbol:
+                        s += f" [象征意义: {symbol}]"
+                    lines.append(s)
         
-        ws = nd.get("writing_style", {})
-        if ws and isinstance(ws, dict):
-            lines.extend(["", "### 文风设定", json.dumps(ws, ensure_ascii=False, indent=2)])
+        # 6. 开篇锚点（如果 plan 里有 opening_design，提供给第1章附近参照）
+        opening = plan.get("opening_design", {}) if isinstance(plan.get("opening_design"), dict) else {}
+        if opening:
+            lines.extend([
+                "",
+                "### 开篇锚点（第1章附近必须严格遵循）",
+                f"- **场景**: {_get(opening, 'scene')}",
+                f"- **触发动作**: {_get(opening, 'action')}",
+            ])
+            dialogues = opening.get("dialogue", [])
+            if dialogues:
+                lines.append(f"- **关键对话（可直接化用）**:")
+                for d in dialogues:
+                    lines.append(f"  - \"{d}\"")
+            if opening.get("hook"):
+                lines.append(f"- **开篇钩子**: {opening['hook']}")
         
         return "\n".join(lines)
+    
+    def _format_assigned_characters_md(self, assigned_chars: Dict, character_state: Dict, world_state: Dict, novel_data: Dict = None) -> str:
+        """根据战术规划中的出场角色名单，从状态文件+角色设计中提取详细档案"""
+        if not assigned_chars:
+            return ""
+        
+        cs = character_state or {}
+        ws = world_state or {}
+        nd = novel_data or {}
+        cd = nd.get("character_design", {}) if isinstance(nd.get("character_design"), dict) else {}
+        
+        # 构建角色查找表（来自状态文件）
+        char_lookup = {}
+        # 主角
+        protagonist = cs.get('protagonist', {})
+        if protagonist and protagonist.get('name'):
+            char_lookup[protagonist['name']] = ('主角', protagonist)
+        # 盟友
+        for name, data in cs.get('allies', {}).items():
+            char_lookup[name] = ('盟友', data)
+        # 敌人
+        for name, data in cs.get('enemies', {}).items():
+            char_lookup[name] = ('敌人', data)
+        # 中立
+        for name, data in cs.get('neutral', {}).items():
+            char_lookup[name] = ('中立', data)
+        
+        # 构建辅助查找表（来自 character_design / plan）
+        design_lookup = {}
+        # 主角信息
+        if isinstance(cd, dict) and cd.get('protagonist'):
+            p = cd['protagonist']
+            design_lookup[p.get('name', '')] = ('主角', p)
+            if p.get('ex_girlfriend'):
+                design_lookup[p['ex_girlfriend']] = ('前女友/反派', {'description': '主角的前女友，拜金势利'})
+        # 盟友
+        if isinstance(cd, dict) and cd.get('core_allies'):
+            for ally in cd['core_allies']:
+                if isinstance(ally, dict) and ally.get('name'):
+                    design_lookup[ally['name']] = ('盟友', ally)
+        # 敌人（按阶段）
+        if isinstance(cd, dict) and cd.get('main_antagonists'):
+            for stage, enemies in cd['main_antagonists'].items():
+                if isinstance(enemies, list):
+                    for e in enemies:
+                        if isinstance(e, dict) and e.get('name'):
+                            design_lookup[e['name']] = ('敌人', e)
+        # plan 中的角色
+        plan = nd.get('plan', {}) if isinstance(nd.get('plan'), dict) else {}
+        if isinstance(plan, dict) and plan.get('protagonist'):
+            p = plan['protagonist']
+            if isinstance(p, dict) and p.get('name'):
+                design_lookup[p['name']] = ('主角', p)
+        
+        # 通用群体/功能角色映射
+        generic_roles = {
+            '全网网友': '舆论群体',
+            '网友': '舆论群体',
+            '路人': '围观群众',
+            '群众': '围观群众',
+            '围观群众': '围观群众',
+            '保安': '服务人员',
+            '服务员': '服务人员',
+            '经理': '服务人员',
+            '销售员': '服务人员',
+            '店员': '服务人员',
+            '主播': '职业角色',
+            '女主播': '职业角色',
+            '富二代': '反派群体',
+            '豪门公子': '反派群体',
+            '前女友': '情感反派',
+            '前任': '情感反派',
+        }
+        
+        # world_state 中补充主角和盟友状态
+        ws_protagonist = ws.get('protagonist', {})
+        ws_allies = ws.get('allies', {})
+        
+        lines = ["", "### 本章出场角色档案（必须严格对照，禁止随意更改人设）"]
+        
+        for role_type in ['core', 'major', 'minor']:
+            names = assigned_chars.get(role_type, [])
+            type_label = {'core': '核心角色', 'major': '重要角色', 'minor': '次要角色'}.get(role_type, role_type)
+            for name in names:
+                role, data = char_lookup.get(name, (None, None))
+                
+                # 状态文件没找到，尝试 character_design / plan 兜底
+                if role is None:
+                    role, data = design_lookup.get(name, (None, None))
+                
+                # 还是没找到，检查是否是通用群体/功能角色
+                if role is None:
+                    mapped_role = generic_roles.get(name)
+                    if mapped_role:
+                        role = mapped_role
+                        data = {'description': f'本章出现的{name}群体/角色'}
+                    else:
+                        # 模糊匹配：在 design_lookup 中搜索 role/description 包含 name
+                        for d_name, (d_role, d_data) in design_lookup.items():
+                            if name in d_name or name in str(d_data.get('role', '')) or name in str(d_data.get('description', '')):
+                                role = d_role
+                                data = d_data
+                                break
+                
+                if role is None:
+                    role = '未知'
+                    data = {}
+                
+                # 尝试从 world_state 补全状态
+                ws_data = {}
+                if name == ws_protagonist.get('name'):
+                    ws_data = ws_protagonist
+                elif name in ws_allies:
+                    ws_data = ws_allies[name]
+                
+                health = ws_data.get('health', '') or (data.get('health', '') if isinstance(data, dict) else '')
+                abilities = ws_data.get('abilities_unlocked', []) or (data.get('abilities', []) if isinstance(data, dict) else [])
+                traits = data.get('traits', []) if isinstance(data, dict) else []
+                location = ws_data.get('current_location', '') or (data.get('location', '') if isinstance(data, dict) else '')
+                description = data.get('description', '') if isinstance(data, dict) else ''
+                
+                parts = [f"- **{name}** ({type_label}/{role})"]
+                details = []
+                if health:
+                    details.append(f"健康={health}")
+                if location:
+                    details.append(f"位置={location}")
+                if traits:
+                    details.append(f"性格={', '.join([str(t) for t in traits])}")
+                if abilities:
+                    details.append(f"能力={', '.join([str(a) for a in abilities])}")
+                if description:
+                    details.append(f"简介={description}")
+                if details:
+                    parts.append(" | ".join(details))
+                lines.append(" ".join(parts))
+        
+        return "\n".join(lines)
+    
+    def _format_tactical_planning_summary_md(self, chapters: List[Dict]) -> str:
+        """将战术规划格式化为极简批次标识（用于 Layer 2 System Prompt，避免未来视）"""
+        if not chapters:
+            return "## 【Layer 2】战术规划\n当前批次信息待补充"
+        nums = [c.get("chapter_number", 0) for c in chapters if c.get("chapter_number")]
+        start = min(nums) if nums else 0
+        end = max(nums) if nums else 0
+        return f"## 【Layer 2】战术规划\n当前生成批次涵盖第 {start}-{end} 章。详细战术指令将在每章 User Prompt 中动态注入。"
     
     def _format_tactical_planning_md(self, chapters: List[Dict]) -> str:
         """将战术规划格式化为结构化 Markdown（替代裸 JSON）"""
@@ -455,13 +742,93 @@ class BatchChapterGenerator:
                           novel_data: Dict, relevant_chapters: List[Dict],
                           progress_callback=None) -> List[Dict]:
         """使用 V2 架构基于战术规划逐章生成"""
-        # 构建 Layer1 核心设定（从 JSON 转为结构化 Markdown）
-        core_setting = self._format_core_setting_md(novel_data)
+        # 🔥 补全 novel_data：如果关键字段缺失，尝试从 project_info.json 读取
+        enriched_novel_data = dict(novel_data) if novel_data else {}
+        if self.project_path:
+            project_info_path = self.project_path / "project_info.json"
+            if project_info_path.exists():
+                try:
+                    with open(project_info_path, 'r', encoding='utf-8') as f:
+                        project_info = json.load(f)
+                    # 兼容 mode_specific 的两种嵌套位置
+                    mode_specific = project_info.get('mode_specific') or {}
+                    if not mode_specific and isinstance(project_info.get('generation_metadata'), dict):
+                        mode_specific = project_info['generation_metadata'].get('mode_specific') or {}
+                    mode_info = mode_specific.get('info', {}) if isinstance(mode_specific, dict) else {}
+                    plan_from_info = mode_info.get('plan', {}) if isinstance(mode_info, dict) else {}
+                    
+                    # 从 mode_info 取深层数据（优先），顶层做 fallback
+                    char_design = mode_info.get('character_design') or project_info.get('character_design', {})
+                    golden_finger = mode_info.get('golden_finger') or project_info.get('golden_finger', {})
+                    core_worldview = mode_info.get('core_worldview') or project_info.get('core_worldview', {})
+                    
+                    # 只补全缺失的字段
+                    if not enriched_novel_data.get('plan'):
+                        enriched_novel_data['plan'] = plan_from_info
+                    if not enriched_novel_data.get('novel_info'):
+                        enriched_novel_data['novel_info'] = {
+                            'title': project_info.get('novel_title', ''),
+                            'synopsis': project_info.get('novel_synopsis', ''),
+                            'selected_plan': plan_from_info,
+                        }
+                    if not enriched_novel_data.get('character_design'):
+                        enriched_novel_data['character_design'] = char_design
+                    if not enriched_novel_data.get('golden_finger'):
+                        enriched_novel_data['golden_finger'] = golden_finger
+                    if not enriched_novel_data.get('core_worldview'):
+                        enriched_novel_data['core_worldview'] = core_worldview
+                    if not enriched_novel_data.get('writing_style'):
+                        enriched_novel_data['writing_style'] = project_info.get('writing_style', {})
+                    if not enriched_novel_data.get('genre'):
+                        enriched_novel_data['genre'] = project_info.get('genre', '') or mode_info.get('genre', '')
+                except Exception as e:
+                    logger.warning(f"[BatchGenerator] 读取 project_info.json 补全 novel_data 失败: {e}")
         
-        # 构建 Layer2 战术规划（仅当前批次）
-        tactical_planning = self._format_tactical_planning_md(relevant_chapters)
+        # 🔥 读取角色状态和世界状态文件
+        character_state = {}
+        world_state = {}
+        if self.project_path:
+            cs_path = self.project_path / ".character_state.json"
+            if cs_path.exists():
+                try:
+                    with open(cs_path, 'r', encoding='utf-8') as f:
+                        character_state = json.load(f)
+                except Exception as e:
+                    logger.warning(f"[BatchGenerator] 读取 .character_state.json 失败: {e}")
+            ws_path = self.project_path / ".world_state.json"
+            if ws_path.exists():
+                try:
+                    with open(ws_path, 'r', encoding='utf-8') as f:
+                        world_state = json.load(f)
+                except Exception as e:
+                    logger.warning(f"[BatchGenerator] 读取 .world_state.json 失败: {e}")
         
-        genre = novel_data.get("genre", "都市")
+        # 构建 Layer1 核心设定（从 JSON 转为结构化 Markdown，注入状态数据）
+        core_setting = self._format_core_setting_md(enriched_novel_data, character_state, world_state)
+        
+        # 构建 Layer2 战术规划（仅当前批次摘要，防止未来视）
+        tactical_planning = self._format_tactical_planning_summary_md(relevant_chapters)
+        
+        # Genre 健壮性兜底
+        genre = enriched_novel_data.get("genre")
+        if not genre or not str(genre).strip():
+            title = enriched_novel_data.get("title", "")
+            synopsis = ""
+            plan = enriched_novel_data.get("plan", {})
+            if isinstance(plan, dict):
+                synopsis = plan.get("synopsis", "")
+            if not synopsis:
+                info = enriched_novel_data.get("novel_info", {})
+                if isinstance(info, dict):
+                    synopsis = info.get("synopsis", "")
+            combined = f"{title} {synopsis}"
+            if any(k in combined for k in ["返利","神豪","签到","百倍","花钱","返现","万倍","消费","首富"]):
+                genre = "god-tier-spending"
+            elif any(k in combined for k in ["国运","禁地","扮演","直播","国战","怪谈","诡异"]):
+                genre = "nation-live"
+            else:
+                genre = "都市"
+            logger.info(f"[BatchGenerator] Genre 为空，已自动推断为: {genre}")
         
         generator = ChapterConversationV2(
             api_client=self.api_client,
@@ -492,6 +859,22 @@ class BatchChapterGenerator:
                         logger.info(f"[BatchGenerator] 已加载跨批次总结: 已完成{len(completed)}件, 待解决钩子{len(pending)}个")
                 except Exception as e:
                     logger.warning(f"[BatchGenerator] 读取跨批次总结失败: {e}")
+            
+            # 追加剧情线索（从 world_state）
+            plot_threads = world_state.get("plot_threads", {})
+            if plot_threads:
+                thread_lines = []
+                for t_name, t_info in plot_threads.items():
+                    if not isinstance(t_info, dict):
+                        continue
+                    status = t_info.get("status", "")
+                    if status in ["active", "paused"]:
+                        desc = t_info.get("description", "")
+                        next_trigger = t_info.get("next_trigger", "")
+                        priority = t_info.get("priority", 0)
+                        thread_lines.append(f"□ [{t_name}] 状态={status} 优先级={priority} | {desc} | 下次触发: {next_trigger}")
+                if thread_lines:
+                    cross_batch_context += "\n### 当前剧情线索（必须承接或埋设）\n" + "\n".join(thread_lines) + "\n"
         
         chapters = []
         for chapter_num in range(start_chapter, end_chapter + 1):
@@ -517,7 +900,11 @@ class BatchChapterGenerator:
             major_chars = ", ".join(assigned_chars.get("major", [])) or "无"
             minor_chars = ", ".join(assigned_chars.get("minor", [])) or "无"
             
+            # 动态注入出场角色详细档案
+            character_context = self._format_assigned_characters_md(assigned_chars, character_state, world_state, enriched_novel_data)
+            
             custom_selfcheck = f"""### 战术规划执行自检清单（输出前必须逐项确认）
+{character_context}
 {cross_batch_context}
 □ **人物名字一致性**：本章出现的所有有名角色必须严格等于以下名单，禁止发明新名字——核心角色：[{core_chars}]；重要角色：[{major_chars}]；次要角色：[{minor_chars}]
 □ **事件对齐**：本章核心情节必须围绕"{chapter_plan.get('event', '')}"展开，不能偏离到无关场景
@@ -530,6 +917,19 @@ class BatchChapterGenerator:
 □ **字数超限处罚**：如果输出超过2500字，系统会自动判定为不合格并拒绝接收，你必须在生成过程中主动压缩场景和描写
 """
             
+            # 获取上一章战术规划（用于承接）
+            prev_chapter_plan = None
+            if chapter_num > start_chapter:
+                prev_chapter_plan = next(
+                    (c for c in relevant_chapters if c.get("chapter_number") == chapter_num - 1), None
+                )
+            
+            # 获取下一章战术规划（用于预埋钩子）
+            next_chapter_plan = None
+            next_chapter_plan = next(
+                (c for c in relevant_chapters if c.get("chapter_number") == chapter_num + 1), None
+            )
+            
             try:
                 content = generator.generate_chapter(
                     chapter_number=chapter_num,
@@ -541,7 +941,10 @@ class BatchChapterGenerator:
                         "intensity": chapter_plan.get("intensity", 5),
                         "emotion_type": chapter_plan.get("emotion_type", "")
                     },
-                    custom_selfcheck=custom_selfcheck
+                    custom_selfcheck=custom_selfcheck,
+                    current_plan=chapter_plan,
+                    prev_plan=prev_chapter_plan,
+                    next_plan=next_chapter_plan
                 )
                 
                 if content and isinstance(content, str) and len(content) > 100:

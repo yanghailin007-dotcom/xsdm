@@ -585,7 +585,54 @@ POST /api/v2/prompt-config/component/{step_name}
 等待第 1 步指令：生成完整方案...
 """
         
+        # 🔥 追加题材技法中的禁忌和防火墙（防止题材越界，如神豪文出现因果律/修仙）
+        genre_guardrails = self._build_genre_guardrails()
+        if genre_guardrails:
+            user_constraints += f"\n\n{genre_guardrails}\n"
+        
         return base_prompt + user_constraints
+    
+    def _build_genre_guardrails(self) -> str:
+        """从 genre_techniques 加载禁忌元素和防火墙规则"""
+        try:
+            from web.services.market_driven.genre_techniques_loader import get_genre_techniques_loader
+            loader = get_genre_techniques_loader()
+            # 映射英文 genre key 到中文文件名
+            genre_name = self.genre
+            if genre_name in ["god-tier-spending", "god-tier-checkin", "sign-in-daily"]:
+                genre_name = "神豪文"
+            elif genre_name in ["nation-live", "nation-explore"]:
+                genre_name = "国运文"
+            techniques = loader.load(genre_name)
+            lines = []
+            
+            # forbidden_elements
+            fe = techniques.forbidden_elements
+            if isinstance(fe, dict) and fe.get('items'):
+                lines.append("## 🚫 题材禁忌（绝对不能出现）")
+                for item in fe['items']:
+                    examples = ', '.join(item.examples) if item.examples else ''
+                    lines.append(f"- {item.element}: {item.reason}（如：{examples}）")
+            
+            # final_plan_guardrails
+            raw = techniques.raw_data or {}
+            guardrails = raw.get('final_plan_guardrails', {})
+            if guardrails and isinstance(guardrails, dict):
+                gf_guard = guardrails.get('golden_finger', {})
+                if gf_guard and isinstance(gf_guard, dict):
+                    forbidden_kw = gf_guard.get('forbidden_keywords', [])
+                    allowed_domains = gf_guard.get('allowed_domains', [])
+                    if forbidden_kw:
+                        lines.append(f"\n## 🚫 金手指绝对禁止关键词")
+                        lines.append(f"以下词汇禁止出现在金手指设定和成长路线中：{', '.join(forbidden_kw)}")
+                    if allowed_domains:
+                        lines.append(f"\n## ✅ 金手指允许领域")
+                        lines.append(f"金手指必须严格限定在以下现实可解释领域：{', '.join(allowed_domains)}")
+            
+            return "\n".join(lines)
+        except Exception as e:
+            logger.warning(f"[对话模式 {self.session_id}] 加载题材防火墙失败: {e}")
+            return ""
     
     def _build_default_setting_prompt(self, title: str) -> str:
         """构建默认的设定阶段System Prompt - 从JSON配置加载"""
