@@ -1028,36 +1028,36 @@
         if (type === 'market_driven' || type === 'dialog') {
             // 🔥 正在批量生成章节阶段：优先跳转到阅读页面
             if (status === 'generating_chapters' && task?.title) {
-                window.location.href = `/novel-v2?title=${encodeURIComponent(task.title)}`;
+                window.location.href = `/novel?title=${encodeURIComponent(task.title)}`;
                 return;
             }
             // 运行中状态：返回设定生成界面继续编辑
             if (['pending', 'running', 'generating', 'conversation_mode'].includes(status)) {
                 // 如果有genre信息，跳转到对话界面
                 if (task?.genre) {
-                    window.location.href = `/market-driven-plan-dialog?genre=${task.genre}&task=${taskId}`;
+                    window.location.href = `/market-driven-plan-dialog?genre=${encodeURIComponent(task.genre)}&task=${encodeURIComponent(taskId)}`;
                 } else {
                     // 否则跳转到任务状态页（带监控）
-                    window.location.href = `/market-driven-status?task=${taskId}`;
+                    window.location.href = `/market-driven-status?task=${encodeURIComponent(taskId)}`;
                 }
             } else {
                 // 已完成状态：跳转到结果预览界面
-                window.location.href = `/market-driven-status?task=${taskId}`;
+                window.location.href = `/market-driven-status?task=${encodeURIComponent(taskId)}`;
             }
         }
         // 第一阶段任务
         else if (type === 'phase_one') {
             if (['pending', 'running', 'generating'].includes(status)) {
                 // 运行中：返回设定界面
-                window.location.href = `/phase-one-setup?task=${taskId}`;
+                window.location.href = `/phase-one-setup?task=${encodeURIComponent(taskId)}`;
             } else {
                 // 已完成：跳转到结果页
-                window.location.href = `/api/phase-one/result-page?task_id=${taskId}`;
+                window.location.href = `/api/phase-one/result-page?task_id=${encodeURIComponent(taskId)}`;
             }
         }
         // 默认跳转
         else {
-            window.location.href = `/market-driven-status?task=${taskId}`;
+            window.location.href = `/market-driven-status?task=${encodeURIComponent(taskId)}`;
         }
     };
     
