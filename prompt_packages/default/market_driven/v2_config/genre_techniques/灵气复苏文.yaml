@@ -101,7 +101,6 @@ progression_metrics:
   - 灵气修为突破炼气
   - 战力评级达到S级
   forbidden_concepts:
-  - 扮演度
   - 国运
   stage_templates:
   - description: 建立主角形象，首次展现实力

@@ -91,7 +91,6 @@ progression_metrics:
   - 属性点突破100
   - 推演等级提升
   forbidden_concepts:
-  - 扮演度
   - 国运
   stage_templates:
   - description: 建立主角形象，首次展现实力

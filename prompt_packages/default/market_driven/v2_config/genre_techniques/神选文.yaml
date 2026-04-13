@@ -67,11 +67,10 @@ quality_checkpoints:
 progression_metrics:
   metric_name: 神选等级/信仰值/神力
   metric_examples:
-  - 神选等级提升至LV2
+  - 神选等级提升/神力觉醒加深
   - 信仰值破万
   - 觉醒神迹能力
   forbidden_concepts:
-  - 扮演度
   - 国运
   - 修仙
   stage_templates:

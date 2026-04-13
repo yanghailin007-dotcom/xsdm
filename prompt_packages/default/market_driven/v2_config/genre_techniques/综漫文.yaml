@@ -71,7 +71,6 @@ progression_metrics:
   - 获得首个次元能力
   - 改变关键剧情
   forbidden_concepts:
-  - 扮演度
   - 国运
   stage_templates:
   - description: 建立主角形象，首次展现实力

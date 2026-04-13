@@ -102,11 +102,11 @@ forbidden_elements:
     - 无故灭人满门
     - 虐待无辜下人
     reason: 女主不能变成反派，要有底线
-  - element: 降智光环
+  - element: 强行降智
     examples:
     - 反派无理由送死
     - 对手突然变蠢
-    reason: 权谋要合理，不能靠降智推进
+    reason: 权谋要合理，不能靠强行降智推进
   - element: 现代物品乱入
     examples:
     - 拿出枪
@@ -154,7 +154,6 @@ progression_metrics:
   - 恩宠值达到新高度
   - 培植首个心腹
   forbidden_concepts:
-  - 扮演度
   - 国运
   - 修仙
   - 现代元素

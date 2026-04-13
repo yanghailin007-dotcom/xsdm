@@ -261,7 +261,6 @@ progression_metrics:
   - 咖位提升至三线
   - 首部作品出圈
   forbidden_concepts:
-  - 扮演度
   - 国运
   - 修仙
   stage_templates:
@@ -291,7 +290,7 @@ progression_metrics:
     criteria: 行业内/全国范围内的顶尖地位确立
   - description: 跨界封神，开启新篇
     deliverables:
-    - 主角触及更高层次/新领域
+    - 主角进入新阶段/拓展新方向
     - 击败终极对手/完成终极挑战
     - 开启新篇章
     criteria: 核心挑战取得决定性胜利

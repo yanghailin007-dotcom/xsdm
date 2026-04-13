@@ -141,7 +141,6 @@ progression_metrics:
   - 灵魂强度提升
   - 积分破万
   forbidden_concepts:
-  - 扮演度
   - 国运
   stage_templates:
   - description: 建立主角形象，首次展现实力

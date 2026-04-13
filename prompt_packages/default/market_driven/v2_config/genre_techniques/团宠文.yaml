@@ -197,7 +197,7 @@ world_state_initialization:
     health: 健康
     abilities_unlocked:
     - 锦鲤体质
-    - 可爱光环
+    - 讨喜体质
     age: 3-8岁
     status: 被全家宠爱
   allies:
@@ -257,7 +257,6 @@ progression_metrics:
   - 家族地位提升
   - 幸福值爆表
   forbidden_concepts:
-  - 扮演度
   - 国运
   - 修仙打斗
   - 财富等级
