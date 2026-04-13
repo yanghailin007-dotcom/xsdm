@@ -142,6 +142,41 @@ class TomatoBestsellerTacticalSession:
         logger.warning(f"[TomatoTacticalSession] 期望dict但得到{type(obj).__name__} (路径: {path})，使用空字典")
         return {}
     
+    def _load_prompt_template(self, round_name: str, prompt_type: str) -> Optional[str]:
+        """从配置包加载prompt模板（支持按题材覆写）"""
+        try:
+            # 定位配置文件：从当前文件向上回溯到项目根
+            config_path = (
+                Path(__file__).parent.parent.parent.parent
+                / "prompt_packages"
+                / "default"
+                / "market_driven"
+                / "components"
+                / "planning"
+                / "tactical_session_prompts.json"
+            )
+            with open(config_path, "r", encoding="utf-8") as f:
+                data = json.load(f)
+            
+            # 优先检查题材覆写
+            genre = getattr(self, '_genre', '') or ''
+            if genre:
+                override = (
+                    data.get("genre_overrides", {})
+                    .get(genre, {})
+                    .get(round_name, {})
+                    .get(prompt_type)
+                )
+                if override:
+                    logger.info(f"[TomatoTacticalSession] 使用题材覆写prompt: {genre}/{round_name}/{prompt_type}")
+                    return override
+            
+            # 回退到通用模板
+            return data.get("prompts", {}).get(round_name, {}).get(prompt_type)
+        except Exception as e:
+            logger.warning(f"[TomatoTacticalSession] 加载prompt配置失败({round_name}/{prompt_type}): {e}")
+            return None
+    
     def _build_round1_prompt(self) -> str:
         """构建第1轮提示词"""
         # 提取关键数据（带防御性处理）
@@ -160,147 +195,17 @@ class TomatoBestsellerTacticalSession:
         if isinstance(protagonist_growth, dict):
             milestones = protagonist_growth.get('milestones', [])
         elif isinstance(protagonist_growth, list):
-            # 如果是列表，直接使用作为 milestones
             milestones = protagonist_growth
         else:
             milestones = []
         
-        # 使用format方法避免f-string问题
-        prompt_template = """# 番茄爆款细纲规划 - 第1轮：核心设定对齐
-
-## 任务
-为小说《{novel_title}》规划第{start_chapter}-{end_chapter}章的**设定落地框架**。
-这是细纲规划的第一轮，重点是确保一阶段的核心设定在30章中得到正确贯彻。
-
----
-
-## 一、世界观设定（必须严格遵守）
-
-### 背景设定
-{background}
-
-### 核心概念
-{core_concept}
-
-### 基调风格
-{tone}
-
----
-
-## 二、金手指详细规则（必须严格遵守）
-
-### 系统名称
-{system_name}
-
-### 核心机制
-{shen_lang_exclusive}
-
-### 等级体系
-{level_standard}
-
-### 当前阶段（{start_chapter}-{end_chapter}章）
-{current_power_stage}
-
----
-
-## 三、主角人设（必须严格遵守）
-
-### 基本信息
-- 姓名：{protagonist_name}
-- 年龄：{protagonist_age}
-
-### 性格特质
-{traits}
-
-### 身份定位
-{identity}
-
-### 成长弧线
-{growth_arc}
-
-### 独特标签
-{unique_label}
-
----
-
-## 四、阶段目标（必须达成）
-
-### 当前阶段
-{goal_id}: {goal_description}
-
-### 关键交付物
-{key_deliverables}
-
-### 成功标准
-{success_criteria}
-
----
-
-## 五、升级里程碑（本章批应对齐）
-
-{milestones}
-
----
-
-## 六、输出要求
-
-请输出JSON格式，包含以下内容：
-
-```json
-{{
-  "core_framework": {{
-    "world_building_chapters": [
-      {{"chapter": 1, "focus": "世界观核心机制初次体现"}},
-      {{"chapter": 4, "focus": "金手指中期能力展现"}}
-    ],
-    "golden_finger_progression": [
-      {{"chapter_range": "1-10", "level": "初创级", "ability": "基础资金/资源获取，建立初步优势", "limitation": "资金规模小，影响力有限"}},
-      {{"chapter_range": "11-20", "level": "扩张级", "ability": "区域资源整合，形成局部垄断或话语权", "limitation": "跨区域资源调动仍受限"}},
-      {{"chapter_range": "21-30", "level": "掌控级", "ability": "产业链主导权，具备降维打击能力", "limitation": "全国性/全球性资本对抗仍存在风险"}}
-    ],
-    "protagonist_moments": [
-      {{"chapter": 3, "trait": "核心特质A", "action": "在关键时刻展现主角独特能力", "purpose": "体现主角与众不同"}},
-      {{"chapter": 8, "trait": "核心特质B", "action": "面对挑战时的标志性应对", "purpose": "强化主角人设标签"}},
-      {{"chapter": 15, "trait": "核心特质C", "action": "在重要冲突中做出的选择", "purpose": "推进主角成长弧光"}}
-    ],
-    "goal_milestones": {{
-      "milestone_1": {{"chapter": 3, "deliverable": "首个交付物", "emotion": "震惊反转"}},
-      "milestone_2": {{"chapter": 15, "deliverable": "第二个交付物", "emotion": "大爽快"}},
-      "milestone_3": {{"chapter": 20, "deliverable": "第三个交付物", "emotion": "期待升级"}}
-    }},
-    "key_constraints": [
-      "金手指使用必须有触发条件和代价，不能随意使用",
-      "主角必须保持人设一致性，不能有冲动降智行为",
-      "每章必须体现世界观核心设定",
-      "必须在指定章节完成阶段目标交付物",
-      "严格遵循升级里程碑，不能提前获得后期能力"
-    ]
-  }}
-}}
-```
-
----
-
-## 七、重要提醒
-
-1. **这是第1轮**，重点是设定对齐，不是详细情节
-2. **必须严格遵守**上述世界观、金手指、主角人设
-3. **阶段目标必须达成**，3个关键交付物必须分配到具体章节
-4. **升级节点必须对齐**，不能提前解锁后期能力
-5. **约束条件必须列出**，供后续轮次参考
-
-## 八、生成前自检清单（必须执行）
-
-在输出JSON之前，你必须逐条自检并在心中确认全部通过。如果有任何一项不通过，必须修正后再输出：
-
-□ **金手指名称检查**：系统名称必须严格等于"{system_name}"，禁止出现任何其他系统名（如"弹幕干涉系统"等）
-□ **数值自洽检查**：升级规则中的数字必须能用简单数学验证（如"每消费100万升1级"则消费1000万必须对应LV10，不能写LV20）
-□ **主角名锁定**：主角姓名必须严格等于"{protagonist_name}"，禁止改名
-□ **约束具体性**：key_constraints中的每条约束必须具体可检查，禁止出现"尽量""适当"等模糊词
-"""
+        # 从配置包加载模板
+        prompt_template = self._load_prompt_template("round1", "user_prompt_template")
+        if not prompt_template:
+            logger.warning("[TomatoTacticalSession] Round1 用户prompt配置缺失，使用极简fallback")
+            prompt_template = """# 番茄爆款细纲规划 - 第1轮：核心设定对齐\n\n为小说《{novel_title}》规划第{start_chapter}-{end_chapter}章设定落地框架。\n\n背景：{background}\n核心概念：{core_concept}\n基调：{tone}\n系统：{system_name}\n主角：{protagonist_name}\n阶段目标：{goal_description}\n\n请输出包含 core_framework 的JSON。"""
         
         # 🔥 动态提取系统/金手指名称，避免硬编码
-        # 注意：金手指名称必须从 golden_finger 数据中取，power_system 是力量体系不是系统名
         system_name = (
             self.phase_one_data.get('golden_finger', {}).get('basic_info', {}).get('name')
             or self.phase_one_data.get('golden_finger', {}).get('name')
@@ -336,20 +241,10 @@ class TomatoBestsellerTacticalSession:
     
     def _get_round1_system_prompt(self) -> str:
         """第1轮系统提示词"""
-        return """你是专业的番茄小说细纲规划师，负责核心设定对齐。
-
-你的任务：
-1. 确保世界观设定在30章中得到正确体现
-2. 规划金手指的递进式展现（从弱到强）
-3. 设计体现主角人设的关键时刻
-4. 将阶段目标分解到具体章节
-5. 列出所有必须遵守的设定约束
-
-输出要求：
-- 必须是JSON格式
-- 重点在"框架"而非详细情节
-- 所有设定必须与输入一致，不能篡改
-- 约束条件要具体可检查"""
+        sp = self._load_prompt_template("round1", "system_prompt")
+        if not sp:
+            sp = "你是专业的番茄小说细纲规划师，负责核心设定对齐。输出必须是JSON格式。"
+        return sp
     
     def _round_2_emotion_planning(self) -> Dict:
         """
@@ -391,14 +286,11 @@ class TomatoBestsellerTacticalSession:
     
     def _build_round2_prompt(self) -> str:
         """构建第2轮提示词 - 使用format方法避免f-string解析问题"""
-        # 获取第1轮输出
         round1 = self.round1_result.get('core_framework', {}) if self.round1_result else {}
         
-        # 获取情绪蓝图中的高潮节点
         emotion_blueprint = self._safe_dict(self.phase_one_data.get('emotional_blueprint', {}), 'emotional_blueprint')
         climax_moments = emotion_blueprint.get('climax_moments', [])
         
-        # 🔥 fallback：如果情绪蓝图没有高潮节点，从 emotion_curve 自动推导（intensity>=9视为高潮）
         if not climax_moments and self.emotion_curve:
             climax_moments = [
                 f"第{e.get('chapter')}章-{e.get('emotion', '高潮')}"
@@ -406,11 +298,9 @@ class TomatoBestsellerTacticalSession:
                 if e.get('intensity', 0) >= 9
             ]
         
-        # 过滤出本章批内的高潮节点
         batch_climax = [c for c in climax_moments 
                        if self.start_chapter <= self._parse_chapter_num(c) <= self.end_chapter]
         
-        # 获取情绪曲线（如果有）
         emotion_curve_text = ""
         if self.emotion_curve:
             relevant = [e for e in self.emotion_curve 
@@ -420,7 +310,6 @@ class TomatoBestsellerTacticalSession:
                 for e in relevant[:10]
             ])
         
-        # 准备所有需要插入的变量
         world_building = self._format_simple_list(round1.get('world_building_chapters', []))
         golden_finger = self._format_simple_list(round1.get('golden_finger_progression', []))
         protagonist_moments = self._format_simple_list(round1.get('protagonist_moments', []))
@@ -430,141 +319,10 @@ class TomatoBestsellerTacticalSession:
         batch_climax_raw = ', '.join(str(c) for c in batch_climax) if batch_climax else '无'
         emotion_text = emotion_curve_text or '未提供详细曲线'
         
-        # 使用format方法而不是f-string
-        prompt_template = """# 番茄爆款细纲规划 - 第2轮：情绪爽点规划【核心轮】
-
-## 任务
-为小说《{novel_title}》规划第{start_chapter}-{end_chapter}章的**详细情绪设计**。
-这是三轮中**最重要的一轮**，直接决定读者是否追读。
-
----
-
-## 一、第1轮输出：设定框架（必须遵守）
-
-### 世界观落地节点
-{world_building}
-
-### 金手指升级路线
-{golden_finger}
-
-### 主角人设高光时刻
-{protagonist_moments}
-
-### 阶段目标里程碑
-{goal_milestones}
-
-### 设定约束（绝对不能违反）
-{key_constraints}
-
----
-
-## 二、番茄爆款情绪公式（必须遵循）
-
-### 黄金三章公式
-- 第1章：极端压抑(9) - 主角被踩在泥里，读者憋屈想反击
-- 第2章：持续嘲讽(8) - 反派疯狂嘲讽，读者愤怒积累  
-- 第3章：强势反转(9) - 主角打脸，读者爽感爆发
-
-### 小循环公式（每3-5章）
-铺垫(6) → 冲突(7) → 爽点(8) → 渲染(7) → 新伏笔(6)
-
-### 大高潮公式（每10章）
-紧张(7) → 冲突升级(8) → 第一波爽(8) → 第二波爽(9) → 巅峰(10)
-
-### 章尾钩子类型
-- 悬念：提出新问题（"那个神秘人是谁？"）
-- 危机：突然的危险（"一把刀架在了脖子上"）
-- 反转：出乎意料（"没想到背后的黑手竟是他"）
-- 震惊：颠覆认知（"原来一切都是假的"）
-- 期待：预告即将发生（"明天就是决战之日"）
-
----
-
-## 三、一阶段情绪设计（参考）
-
-### 高潮节点（本章批内）
-{batch_climax_str}
-
-### 情绪曲线（前10章）
-{emotion_text}
-
----
-
-## 四、输出要求
-
-请输出第{start_chapter}-{end_chapter}章的详细设计，JSON格式：
-
-```json
-{{
-  "chapters": [
-    {{
-      "chapter_number": {start_chapter},
-      "emotion": "压抑",
-      "intensity": 9,
-      "emotion_type": "绝望/愤怒/期待/爽快/震惊/满足",
-      "beat_type": "铺垫/冲突/反转/渲染/爽点/伏笔",
-      
-      "event": "主要事件简述（100字内，必须体现设定）",
-      "satisfaction_point": "本章爽点（可无，但不能连续2章无爽点）",
-      "face_slapping": "打脸元素（如有）：反派嚣张→主角反转→反派崩溃",
-      
-      "hook_type": "悬念/危机/反转/震惊/期待",
-      "hook_content": "章尾钩子内容（50字内，必须让读者想点下一章）",
-      
-      "goal_alignment": "如何推进阶段目标",
-      "character_highlight": "哪个角色本章高光",
-      "constraints": "本章必须遵守的设定约束"
-    }}
-  ],
-  "emotion_analysis": {{
-    "pattern": "开局爆发型/递进高潮型/蓄力积累型",
-    "variance_score": "情绪起伏评分（1-10）",
-    "satisfaction_distribution": "爽点分布说明",
-    "hook_distribution": "钩子类型统计",
-    "expected_retention": "预估追读率"
-  }}
-}}
-```
-
----
-
-## 五、番茄爆款硬性要求（必须遵守）
-
-1. **章章有钩子**：每章最后50字必须是钩子，让读者忍不住点下一章
-2. **不能连续2章无爽点**：最多隔1章必须有爽点交付
-3. **打脸必须爽**：反派先嚣张→主角反转→反派崩溃，三层结构
-4. **情绪有起伏**：相邻章情绪强度差必须≥1，不能平铺直叙
-5. **高潮节点要对齐**：{batch_climax_raw} 必须是情绪巅峰
-6. **设定不能丢**：每章必须体现世界观核心设定或金手指运用
-
----
-
-## 六、生成前自检清单（必须执行）
-
-在输出JSON之前，你必须逐条自检并在心中确认全部通过。如果有任何一项不通过，必须修正后再输出：
-
-□ **数值-能力匹配检查**：每章的消费规模/能力展现必须与当前等级匹配（严禁前期章出现后期能力，如第3章消费 billion 级）
-□ **钩子检查**：每章必须有非空的hook_content，且长度控制在50字以内
-□ **爽点分布检查**：检查是否存在连续2章satisfaction_point为空的情况，如有必须调整
-□ **情绪起伏检查**：相邻章的intensity差值必须≥1，如有平铺必须调整
-□ **高潮对齐检查**：高潮节点{batch_climax_raw}对应章节的intensity必须是本章批内最高或接近最高（≥8）
-□ **书名-设定对齐检查**：如果书名含"双倍返利"，则正文金手指规则不能写成"百倍返利"或其他倍数
-
----
-
-## 七、参考示例
-
-第1章（压抑9）：
-- 事件：主角陷入债务危机/职场困境，被前女友/富二代当众羞辱，陷入绝境
-- 爽点：无（压抑开局）
-- 钩子：主角的手机突然弹出一条系统提示，嘴角闪过一抹意味深长的笑
-
-第3章（反转9）：
-- 事件：反派带人上门逼债/羞辱，主角用第一笔系统返利/资源完成强势反击
-- 爽点：首次展现金手指，用钱或商业手段碾压对手
-- 打脸：反派从嘲讽到震惊到崩溃
-- 钩子：反派的靠山打来电话，语气恭敬："沈先生，手下不懂事，您多担待。"
-"""
+        prompt_template = self._load_prompt_template("round2", "user_prompt_template")
+        if not prompt_template:
+            logger.warning("[TomatoTacticalSession] Round2 用户prompt配置缺失，使用极简fallback")
+            prompt_template = """# 番茄爆款细纲规划 - 第2轮：情绪爽点规划\n\n为小说《{novel_title}》规划第{start_chapter}-{end_chapter}章详细情绪设计。\n\n设定约束：\n{key_constraints}\n\n高潮节点：{batch_climax_raw}\n\n请输出包含 chapters 和 emotion_analysis 的JSON。"""
         
         return prompt_template.format(
             novel_title=self.novel_title,
@@ -582,25 +340,10 @@ class TomatoBestsellerTacticalSession:
     
     def _get_round2_system_prompt(self) -> str:
         """第2轮系统提示词"""
-        return """你是番茄小说爆款情绪设计专家。
-
-你的任务：
-1. 设计30章情绪曲线，确保章章有起伏
-2. 每章必须有章尾钩子（50字内）
-3. 规划爽点分布（每3章小爽点，每10章大爽点）
-4. 设计打脸节奏（三层结构：嚣张→反转→崩溃）
-5. 确保设定约束得到遵守
-
-番茄爆款核心：
-- 黄金三章：压抑→嘲讽→反转
-- 小循环：铺垫→冲突→爽点→渲染→伏笔
-- 大高潮：递进式爽感，3层震惊链
-
-输出要求：
-- 必须是JSON格式
-- 每章必须包含hook_content
-- 情绪必须有起伏，不能连续2章同强度
-- 爽点不能连续缺席2章"""
+        sp = self._load_prompt_template("round2", "system_prompt")
+        if not sp:
+            sp = "你是番茄小说爆款情绪设计专家。输出必须是JSON格式，每章必须有hook_content。"
+        return sp
     
     def _round_3_character_planning(self) -> Dict:
         """
@@ -662,97 +405,18 @@ class TomatoBestsellerTacticalSession:
             for c in chapters[:15]
         ])
         
-        prompt_template = """# 番茄爆款细纲规划 - 第3轮：角色出场规划
+        prompt_template = self._load_prompt_template("round3", "user_prompt_template")
+        if not prompt_template:
+            logger.warning("[TomatoTacticalSession] Round3 用户prompt配置缺失，使用极简fallback")
+            prompt_template = """# 番茄爆款细纲规划 - 第3轮：角色出场规划
 
-## 任务
-基于前2轮的情节规划，为每章分配角色出场。
-
----
-
-## 一、已有角色列表（优先使用）
-
+已有角色：
 {chars_text}
 
-**重要原则**：已有角色必须优先使用，避免遗忘！
-
----
-
-## 二、前2轮情节规划（本章批前15章）
-
+前15章情节：
 {chapters_summary}
 
----
-
-## 三、角色分类规则
-
-1. **核心角色**（每章必出场）：主角及其核心伙伴（如有）
-2. **重要配角**（关键章出场）：盟友、反派等
-3. **次要配角**（按需出场）：NPC、解说员等
-4. **新角色**（谨慎新增）：30章最多新增2个，需说明理由
-
----
-
-## 四、输出要求
-
-JSON格式（示例结构，角色名使用已有角色或合理新创）：
-
-```json
-{{
-  "character_plan": {{
-    "core_characters": [
-      {{"name": "主角名", "appearance": "每章必出场", "highlight_chapters": [3,8,15,20,30]}},
-      {{"name": "核心伙伴", "appearance": "每章必出场", "highlight_chapters": [3,11,19,24,30]}}
-    ],
-    "major_characters": [
-      {{
-        "name": "重要反派A",
-        "first_chapter": 2,
-        "key_chapters": [2,8,15],
-        "purpose": "早期打脸对象",
-        "arc": "从嘲讽到恐惧到失败"
-      }}
-    ],
-    "minor_characters": [
-      {{"name": "解说员", "first_chapter": 1, "role": "世界观解说"}}
-    ],
-    "new_characters": [
-      {{
-        "name": "新反派XXX",
-        "first_chapter": 28,
-        "purpose": "中期反派铺垫",
-        "reason": "剧情需要引入新势力"
-      }}
-    ],
-    "chapter_assignments": [
-      {{
-        "chapter": {start_chapter},
-        "core": ["主角名"],
-        "major": [],
-        "minor": ["解说员"],
-        "notes": "通过解说员引入世界观设定"
-      }}
-    ],
-    "constraints": [
-      "禁止创造未规划的有名新角色（路人可用通称）",
-      "已有角色优先使用，避免遗忘",
-      "新角色必须有完整弧光和后续安排",
-      "核心角色每章必须出场"
-    ]
-  }}
-}}
-
----
-
-## 五、生成前自检清单（必须执行）
-
-在输出JSON之前，你必须逐条自检并在心中确认全部通过。如果有任何一项不通过，必须修正后再输出：
-
-□ **角色名一致性检查**：所有已有角色名字必须与输入列表完全一致，禁止改名、禁止拼写差异
-□ **新角色管控检查**：chapter_assignments中出现的所有有名角色，必须已在"已有角色列表"或"new_characters"中声明，禁止临时创造
-□ **主角出场检查**：主角必须在每一章的core列表中
-□ **反派弧线检查**：重要反派（如前女友、前期富二代）的key_chapters必须覆盖其从登场到落败的完整弧线，不能突然消失
-□ **新角色数量检查**：new_characters数量必须≤2个，超过必须删除
-"""
+请输出包含 character_plan 的JSON，新角色不超过2个。"""
         return prompt_template.format(
             chars_text=chars_text,
             chapters_summary=chapters_summary,
@@ -761,19 +425,10 @@ JSON格式（示例结构，角色名使用已有角色或合理新创）：
     
     def _get_round3_system_prompt(self) -> str:
         """第3轮系统提示词"""
-        return """你是角色规划专家，负责为30章分配角色出场。
-
-原则：
-1. 优先使用已有角色，避免创造新角色
-2. 主角每章必须出场，核心盟友尽量每章出场
-3. 重要配角在关键章节高光
-4. 新角色30章最多2个，必须有充分理由
-5. 为每章分配具体的角色出场
-
-输出要求：
-- 必须是JSON格式
-- chapter_assignments必须包含每章的角色分配
-- new_characters不能超过2个"""
+        sp = self._load_prompt_template("round3", "system_prompt")
+        if not sp:
+            sp = "你是角色规划专家。输出必须是JSON格式，new_characters不能超过2个。"
+        return sp
     
     def _merge_blueprint(self) -> Dict:
         """合并三轮输出为最终蓝图"""
