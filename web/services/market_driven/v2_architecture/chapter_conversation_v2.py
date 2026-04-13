@@ -154,12 +154,12 @@ class ChapterConversationV2:
         
         layer5_content = f"{layer5_content}\n\n{emotion_curve}"
         
-        # 构建 Layer 6 (自检清单)
+        # 构建 Layer 6 (自检清单) - 默认自检 + 自定义战术自检合并
+        base_selfcheck = self._format_selfcheck(self.selfcheck_loader.load())
         if custom_selfcheck:
-            layer6_content = custom_selfcheck
+            layer6_content = f"{base_selfcheck}\n\n### 战术规划执行自检清单（输出前必须逐项确认）\n\n{custom_selfcheck}"
         else:
-            selfcheck = self.selfcheck_loader.load()
-            layer6_content = self._format_selfcheck(selfcheck)
+            layer6_content = base_selfcheck
         
         # 构建任务指令
         task_instruction = self._build_task_instruction(
