@@ -1291,23 +1291,12 @@ class StageReviewOptimizer:
                 
                 logger.info(f"[StageOptimizer] 修复第{ch_num}章的所有问题 (P0={p0_count}, P1={p1_count}, P2={p2_count}, 尝试{retry_count+1}/{max_retries+1})")
                 fix_response = session.send_message(fix_prompt, purpose=f"w{window_idx}-fix-ch{ch_num}-try{retry_count}")
-                fix_data = self._safe_parse_json(fix_response, f"w{window_idx}-fix-ch{ch_num}-try{retry_count}")
+                parsed_fix = self._parse_delimiter_response(fix_response)
                 
-                if not fix_data:
-                    retry_count += 1
-                    continue
+                new_content = parsed_fix.get('content')
+                new_title_from_ai = parsed_fix.get('title')
                 
-                # 解析修复结果
-                new_content = None
-                new_title_from_ai = None
-                
-                if "chapter_number" in fix_data:
-                    new_content = fix_data.get("content")
-                    new_title_from_ai = fix_data.get("title")  # 🔥 获取分开的title
-                elif "fixed_chapters" in fix_data and len(fix_data["fixed_chapters"]) > 0:
-                    new_content = fix_data["fixed_chapters"][0].get("content")
-                    new_title_from_ai = fix_data["fixed_chapters"][0].get("title")
-                else:
+                if not new_content:
                     retry_count += 1
                     continue
                 
@@ -1436,6 +1425,42 @@ class StageReviewOptimizer:
         logger.info(f"[StageOptimizer] 已成功保存 {saved_count} 个修复后的章节")
         
         return all_issues, fixed_chapters
+    
+    def _parse_delimiter_response(self, response: str) -> Dict[str, str]:
+        """
+        解析 ---标题--- / ---正文--- 格式的响应
+        返回 {"title": "...", "content": "..."}
+        """
+        import re
+        result = {'title': '', 'content': ''}
+        if not response or not isinstance(response, str):
+            return result
+        
+        cleaned = response.strip()
+        
+        # 策略1: 分隔符格式
+        title_match = re.search(r'---\s*[标標][题題]\s*---\s*\n?(.*?)\n?---\s*[正正][文文]\s*---', cleaned, re.DOTALL | re.IGNORECASE)
+        if title_match:
+            result['title'] = title_match.group(1).strip()
+            content_start = cleaned.find('---正文---') + len('---正文---')
+            if content_start < len('---正文---') + 10:
+                content_start = cleaned.find('---正文---') + len('---正文---')
+            result['content'] = cleaned[content_start:].strip()
+            return result
+        
+        # 策略2: JSON fallback（兼容旧响应）
+        try:
+            parsed = json.loads(cleaned)
+            if isinstance(parsed, dict):
+                result['title'] = parsed.get('title', '')
+                result['content'] = parsed.get('content', '')
+                return result
+        except Exception:
+            pass
+        
+        # 策略3: 原样返回content
+        result['content'] = cleaned
+        return result
     
     def _safe_parse_json(self, content: str, context: str = "") -> Optional[Dict]:
         """Safe JSON parsing with multiple strategies"""
