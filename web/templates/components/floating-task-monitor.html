@@ -1026,8 +1026,13 @@
         
         // 市场导向/对话模式任务
         if (type === 'market_driven' || type === 'dialog') {
+            // 🔥 正在批量生成章节阶段：优先跳转到阅读页面
+            if (status === 'generating_chapters' && task?.title) {
+                window.location.href = `/novel-v2?title=${encodeURIComponent(task.title)}`;
+                return;
+            }
             // 运行中状态：返回设定生成界面继续编辑
-            if (['pending', 'running', 'generating', 'generating_chapters', 'conversation_mode'].includes(status)) {
+            if (['pending', 'running', 'generating', 'conversation_mode'].includes(status)) {
                 // 如果有genre信息，跳转到对话界面
                 if (task?.genre) {
                     window.location.href = `/market-driven-plan-dialog?genre=${task.genre}&task=${taskId}`;
