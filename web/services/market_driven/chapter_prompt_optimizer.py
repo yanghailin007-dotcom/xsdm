@@ -167,13 +167,12 @@ class ChapterPromptOptimizer:
         """构建世界观章节"""
         worldview = self.worldview
         if not worldview:
-            return """国运禁地直播流：
-- 全球100个国家各选1名选手进入禁地
-- 选手表现直接关系国家资源奖励/惩罚
-- 全球实时直播，弹幕互动
-- 禁地内击杀生物可具现资源到现实
+            return """都市逆袭世界观：
+- 主角出身平凡，意外获得核心机遇（系统/异能/传承）
+- 通过不断成长，打脸反派，守护亲友，走向巅峰
+- 世界规则与现实都市相近，可存在低调的超凡圈层
 
-力量体系：F-SSS级禁地生物，对应不同实力层次"""
+力量体系：普通级、精英级、大师级、宗师级、传说级，层次分明"""
         
         parts = []
         
@@ -202,7 +201,7 @@ class ChapterPromptOptimizer:
             if summary:
                 parts.append("\n力量体系：" + summary[:150])
         
-        return "\n".join(parts) if parts else "国运禁地直播流"
+        return "\n".join(parts) if parts else "快节奏爽文流"
     
     def _build_protagonist_section(self) -> str:
         """构建主角人设章节"""
@@ -562,7 +561,7 @@ class ChapterPromptOptimizer:
         elif chapter_num <= 15:
             return "第" + str(chapter_num) + "章 | 【第一次中高潮区间】碾压国家代表队"
         elif chapter_num <= 30:
-            return "第" + str(chapter_num) + "章 | 【第一阶段高潮】通关首层禁地，全球震惊"
+            return "第" + str(chapter_num) + "章 | 【第一阶段高潮】完成核心挑战，全场震惊"
         else:
             return "第" + str(chapter_num) + "章 | 【持续发展阶段】"
     
@@ -617,24 +616,24 @@ class ChapterPromptOptimizer:
             basic = protagonist.get('basic_info', {})
             name = basic.get('name', '主角')
         
-        # 根据章节号推断主角能力进度
+        # 根据章节号推断主角能力进度（通用描述，避免题材错配）
         if chapter_num <= 3:
-            ability = "初始阶段，刚获得系统，扮演度1-5%"
+            ability = "初始阶段，刚获得核心能力，实力尚浅"
             mindset = "困惑->觉醒->初次尝试"
         elif chapter_num <= 10:
-            ability = "快速成长，扮演度10-30%，碾压F-E级敌人"
+            ability = "快速成长期，能力初步成型，碾压同级对手"
             mindset = "自信建立，开始展现强势"
         elif chapter_num <= 20:
-            ability = "中期阶段，扮演度30-50%，碾压D-C级"
-            mindset = "无敌气质初显，龙国代表意识觉醒"
+            ability = "中期阶段，能力显著提升，碾压中高阶敌人"
+            mindset = "无敌气质初显，立场与阵营意识觉醒"
         elif chapter_num <= 30:
-            ability = "阶段性巅峰，扮演度50%+，完全体降临"
-            mindset = "全球级强者心态，为龙国而战"
+            ability = "阶段性巅峰，核心能力大成，完全体降临"
+            mindset = "顶级强者心态，为目标而战"
         elif chapter_num <= 100:
-            ability = "持续成长，解锁多个角色形态"
-            mindset = "民族英雄，守护龙国"
+            ability = "持续成长，解锁多个进阶形态或资源"
+            mindset = "核心领袖，守护重要之人与势力"
         else:
-            ability = "诸天级存在"
+            ability = "巅峰级存在"
             mindset = "俯视众生，唯我独尊"
         
         return "主角[" + name + "]当前状态：\n- 能力进度：" + ability + "\n- 心理状态：" + mindset + "\n- 当前目标：根据章节剧情推进"
@@ -678,7 +677,7 @@ class ChapterPromptOptimizer:
         elif chapter_num % 10 == 0:
             requirements.append("7. 【中高潮章-" + str(chapter_num) + "】大场面，大收获，全球震动，龙国高层反应")
         elif chapter_num == 30:
-            requirements.append("7. 【阶段高潮章】通关首层禁地，完全体降临，全球各国紧急会议，主角封将")
+            requirements.append("7. 【阶段高潮章】完成核心挑战，完全体降临，权威阶层震动，主角地位跃升")
         
         return "\n".join(requirements)
 

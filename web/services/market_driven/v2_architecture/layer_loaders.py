@@ -305,11 +305,40 @@ class GenreTechniquesLoader(BaseLoader):
         genre_file = None
         genre_lower = genre.lower()
         
-        if "神豪" in genre or "花钱" in genre or "返利" in genre or "签到" in genre or "百倍" in genre or "盲盒" in genre:
-            genre_file = "神豪文.yaml"
-        elif "国运" in genre or "禁地" in genre or "直播" in genre or "国战" in genre:
-            genre_file = "国运文.yaml"
-        else:
+        # 🔥 英文题材 key 映射
+        english_mapping = {
+            "god-tier-spending": "神豪文.yaml",
+            "god-tier-checkin": "神豪文.yaml",
+            "nation-live": "国运文.yaml",
+            "nation-explore": "国运文.yaml",
+            "sign-in-daily": "神豪文.yaml",
+            "simulator-life": "神豪文.yaml",
+            "food-system": "神豪文.yaml",
+            "farming-rich": "神豪文.yaml",
+            "entertainment-copy": "神豪文.yaml",
+            "courtyard-life": "神豪文.yaml",
+            "god-select": "灵气复苏-觉醒类.yaml",
+            "aura-recovery": "灵气复苏-觉醒类.yaml",
+            "game-vr": "灵气复苏-觉醒类.yaml",
+            "apocalypse-hoard": "末日求生-囤货类.yaml",
+            "weird-recovery": "诡异复苏-规则怪谈类.yaml",
+            "anime-infinite": "诡异复苏-规则怪谈类.yaml",
+            "pet-evolution": "宠物文-御兽进化类.yaml",
+            "dad-baby": "奶爸文-萌宝类.yaml",
+            "dad-cultivate": "奶爸文-萌宝类.yaml",
+            "historical-power": "国运文.yaml",
+            "tomb-raider": "国运文.yaml",
+        }
+        if genre_lower in english_mapping:
+            genre_file = english_mapping[genre_lower]
+        
+        if not genre_file:
+            if "神豪" in genre or "花钱" in genre or "返利" in genre or "签到" in genre or "百倍" in genre or "盲盒" in genre:
+                genre_file = "神豪文.yaml"
+            elif "国运" in genre or "禁地" in genre or "直播" in genre or "国战" in genre:
+                genre_file = "国运文.yaml"
+        
+        if not genre_file:
             # 尝试直接匹配
             direct_file = self.base_path / "genre_techniques" / f"{genre}.yaml"
             if direct_file.exists():

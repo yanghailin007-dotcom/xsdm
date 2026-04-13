@@ -1,190 +1,197 @@
-# 宫斗宅斗文题材技法
-# 版本: 1.0.0
-# 用途: 指导AI生成女频宫斗宅斗文
-
-genre: "宫斗宅斗文"
-version: "1.0.0"
-description: "后宫/宅院中的权谋斗争，女主步步为营，最终上位"
-
-# ==================== 1. 宫斗设定规范 ====================
+genre: 宫斗宅斗文
+version: 1.0.0
+description: 后宫/宅院中的权谋斗争，女主步步为营，最终上位
 palace_intrigue_rules:
-  description: "宫斗文的特定规则"
-  
+  description: 宫斗文的特定规则
   hierarchy:
-    - "皇后（正宫）"
-    - "皇贵妃（副后）"
-    - "贵妃、妃、嫔、贵人、常在、答应"
-    
+  - 皇后（正宫）
+  - 皇贵妃（副后）
+  - 贵妃、妃、嫔、贵人、常在、答应
   power_sources:
-    - "皇帝宠爱"
-    - "子嗣（皇子公主）"
-    - "娘家势力"
-    - "心腹太监宫女"
-    
+  - 皇帝宠爱
+  - 子嗣（皇子公主）
+  - 娘家势力
+  - 心腹太监宫女
   common_conflicts:
-    - "争宠（争皇帝宠爱）"
-    - "夺嫡（让自己的儿子当太子）"
-    - "陷害（陷害对手失宠/流产）"
-    - "结盟（与其他妃嫔结盟）"
-
-# ==================== 2. 宅斗设定规范 ====================
+  - 争宠（争皇帝宠爱）
+  - 夺嫡（让自己的儿子当太子）
+  - 陷害（陷害对手失宠/流产）
+  - 结盟（与其他妃嫔结盟）
 household_intrigue_rules:
-  description: "宅斗文的特定规则"
-  
+  description: 宅斗文的特定规则
   hierarchy:
-    - "老太君/老祖宗（最高权威）"
-    - "老爷/家主"
-    - "正妻/主母"
-    - "姨娘/妾室"
-    - "嫡子嫡女、庶子庶女"
-    
+  - 老太君/老祖宗（最高权威）
+  - 老爷/家主
+  - 正妻/主母
+  - 姨娘/妾室
+  - 嫡子嫡女、庶子庶女
   power_sources:
-    - "老爷宠爱"
-    - "子嗣（尤其是儿子）"
-    - "管家权"
-    - "嫁妆/娘家势力"
-    
+  - 老爷宠爱
+  - 子嗣（尤其是儿子）
+  - 管家权
+  - 嫁妆/娘家势力
   common_conflicts:
-    - "争夺管家权"
-    - "嫡庶之争"
-    - "财产争夺"
-    - "婚姻安排权"
-
-# ==================== 3. 女主上位路线 ====================
+  - 争夺管家权
+  - 嫡庶之争
+  - 财产争夺
+  - 婚姻安排权
 ascension_path:
-  description: "女主从低位到高位的典型路线"
-  
+  description: 女主从低位到高位的典型路线
   stages:
-    - stage: "初入"
-      position: "低位（秀女/新嫁娘/不受宠的庶女）"
-      strategy: "低调观察，了解局势"
-      
-    - stage: "立威"
-      position: "开始冒头"
-      strategy: "小试锋芒，让人不敢轻视"
-      
-    - stage: "结盟"
-      position: "有一定地位"
-      strategy: "寻找盟友，打压敌人"
-      
-    - stage: "上位"
-      position: "高位（皇后/当家主母）"
-      strategy: "掌控全局，清除障碍"
-      
-    - stage: "巅峰"
-      position: "最高位/幕后掌权者"
-      strategy: "稳坐钓鱼台，培养继承人"
-
-# ==================== 4. 斗争手段规范 ====================
+  - stage: 初入
+    position: 低位（秀女/新嫁娘/不受宠的庶女）
+    strategy: 低调观察，了解局势
+  - stage: 立威
+    position: 开始冒头
+    strategy: 小试锋芒，让人不敢轻视
+  - stage: 结盟
+    position: 有一定地位
+    strategy: 寻找盟友，打压敌人
+  - stage: 上位
+    position: 高位（皇后/当家主母）
+    strategy: 掌控全局，清除障碍
+  - stage: 巅峰
+    position: 最高位/幕后掌权者
+    strategy: 稳坐钓鱼台，培养继承人
 intrigue_methods:
-  description: "宫斗宅斗的常用手段"
-  
+  description: 宫斗宅斗的常用手段
   legitimate:
-    - "才艺出众（吸引上位者注意）"
-    - "子嗣优势（生育皇子/儿子）"
-    - "管家能力（展现才干）"
-    - "娘家助力"
-    - "结盟互助"
-    
+  - 才艺出众（吸引上位者注意）
+  - 子嗣优势（生育皇子/儿子）
+  - 管家能力（展现才干）
+  - 娘家助力
+  - 结盟互助
   shady:
-    - "设局陷害（让对手犯错）"
-    - "挑拨离间（让对手内斗）"
-    - "收集把柄（威胁对手）"
-    - "借刀杀人（利用他人对付敌人）"
-    
-  note: "女主可以用手段，但不能恶毒；反派可以恶毒，但必须受到惩罚"
-
-# ==================== 5. 感情线设计 ====================
+  - 设局陷害（让对手犯错）
+  - 挑拨离间（让对手内斗）
+  - 收集把柄（威胁对手）
+  - 借刀杀人（利用他人对付敌人）
+  note: 女主可以用手段，但不能恶毒；反派可以恶毒，但必须受到惩罚
 romance_rules:
-  description: "宫斗宅斗中的感情线"
-  
+  description: 宫斗宅斗中的感情线
   palace:
-    male_lead: "皇帝"
-    dynamic: "从利用到真心，或始终清醒利用"
-    note: "皇帝可以有真心，但女主不能恋爱脑"
-    
+    male_lead: 皇帝
+    dynamic: 从利用到真心，或始终清醒利用
+    note: 皇帝可以有真心，但女主不能恋爱脑
   household:
-    male_lead: "老爷/家主 或 外男"
-    dynamic: "先婚后爱，或相知相守"
-    note: "如果是外男，要有合理的相遇和结合方式"
-
-# ==================== 6. 爽点设计 ====================
+    male_lead: 老爷/家主 或 外男
+    dynamic: 先婚后爱，或相知相守
+    note: 如果是外男，要有合理的相遇和结合方式
 satisfaction_points:
   scenes:
-    - type: "初次得宠"
-      description: "第一次获得上位者青睐"
-      
-    - type: "打脸反派"
-      description: "让欺负自己的人后悔"
-      
-    - type: "子嗣优势"
-      description: "生育子嗣，地位稳固"
-      
-    - type: "掌管大权"
-      description: "获得管家权/成为皇后"
-      
-    - type: "敌人下场"
-      description: "反派得到应有惩罚"
-
-# ==================== 7. 禁用元素 ====================
+  - type: 初次得宠
+    description: 第一次获得上位者青睐
+  - type: 打脸反派
+    description: 让欺负自己的人后悔
+  - type: 子嗣优势
+    description: 生育子嗣，地位稳固
+  - type: 掌管大权
+    description: 获得管家权/成为皇后
+  - type: 敌人下场
+    description: 反派得到应有惩罚
 forbidden_elements:
-  description: "宫斗宅斗文绝对禁止的元素"
+  description: 宫斗宅斗文绝对禁止的元素
   items:
-    - element: "真出轨"
-      examples: ["女主出轨", "男主出轨"] 
-      reason: "破坏主角人设，读者无法接受"
-    
-    - element: "过度残忍"
-      examples: ["无故灭人满门", "虐待无辜下人"]
-      reason: "女主不能变成反派，要有底线"
-    
-    - element: "降智光环"
-      examples: ["反派无理由送死", "对手突然变蠢"]
-      reason: "权谋要合理，不能靠降智推进"
-    
-    - element: "现代物品乱入"
-      examples: ["拿出枪", "使用现代科技"]
-      reason: "除非有合理来源，否则不能破坏时代背景"
-
-# ==================== 8. 世界状态初始化 ====================
+  - element: 真出轨
+    examples:
+    - 女主出轨
+    - 男主出轨
+    reason: 破坏主角人设，读者无法接受
+  - element: 过度残忍
+    examples:
+    - 无故灭人满门
+    - 虐待无辜下人
+    reason: 女主不能变成反派，要有底线
+  - element: 降智光环
+    examples:
+    - 反派无理由送死
+    - 对手突然变蠢
+    reason: 权谋要合理，不能靠降智推进
+  - element: 现代物品乱入
+    examples:
+    - 拿出枪
+    - 使用现代科技
+    reason: 除非有合理来源，否则不能破坏时代背景
 world_state_initialization:
   protagonist:
-    health: "健康"
-    abilities_unlocked: ["才艺", "智慧"]
-  
+    health: 健康
+    abilities_unlocked:
+    - 才艺
+    - 智慧
   plot_threads:
-    - name: "地位提升"
-      status: "active"
-      introduced_chapter: 1
-      priority: 10
-      description: "从低位到高位的主线"
-    
-    - name: "敌人清除"
-      status: "active"
-      introduced_chapter: 3
-      priority: 8
-      description: "清除路上的敌人"
-    
-    - name: "感情发展"
-      status: "active"
-      introduced_chapter: 5
-      priority: 7
-      description: "与男主的感情线"
-  
+  - name: 地位提升
+    status: active
+    introduced_chapter: 1
+    priority: 10
+    description: 从低位到高位的主线
+  - name: 敌人清除
+    status: active
+    introduced_chapter: 3
+    priority: 8
+    description: 清除路上的敌人
+  - name: 感情发展
+    status: active
+    introduced_chapter: 5
+    priority: 7
+    description: 与男主的感情线
   system_rules:
-    system_name: "视设定"
-    system_type: "可选"
-
-# ==================== 8. 质量检查点 ====================
+    system_name: 视设定
+    system_type: 可选
 quality_checkpoints:
-  - point: "权谋合理"
-    condition: "斗争手段符合时代背景"
-    severity: "critical"
-  
-  - point: "女主智慧"
-    condition: "女主有智慧，不圣母"
-    severity: "critical"
-  
-  - point: "升级合理"
-    condition: "地位提升有合理过程"
-    severity: "critical"
+- point: 权谋合理
+  condition: 斗争手段符合时代背景
+  severity: critical
+- point: 女主智慧
+  condition: 女主有智慧，不圣母
+  severity: critical
+- point: 升级合理
+  condition: 地位提升有合理过程
+  severity: critical
+progression_metrics:
+  metric_name: 位份/恩宠/势力
+  metric_examples:
+  - 位份晋升一级
+  - 恩宠值达到新高度
+  - 培植首个心腹
+  forbidden_concepts:
+  - 扮演度
+  - 国运
+  - 修仙
+  - 现代元素
+  stage_templates:
+  - description: 相遇相识，情愫暗生
+    deliverables:
+    - 男女主首次产生交集
+    - 建立初步好感/羁绊
+    - 留下深刻印象
+    criteria: 双方关系从陌生到产生兴趣
+  - description: 感情升温，误会解除
+    deliverables:
+    - 关系取得实质性突破
+    - 消除首个重大误会/阻碍
+    - 展现彼此真心
+    criteria: 感情明显升温，信任度显著提升
+  - description: 深情相许，共同面对
+    deliverables:
+    - 正式确立亲密关系
+    - 共同击败首个外部阻碍
+    - 获得身边人认可
+    criteria: 关系公开/稳固，外部认可度提升
+  - description: 披荆斩棘，守护爱情
+    deliverables:
+    - 感情达到深度契合
+    - 击败最大外部阻力
+    - 守护彼此不受伤害
+    criteria: 双方深度绑定，核心阻力被瓦解
+  - description: 终极考验，修成正果前夜
+    deliverables:
+    - 通过最终情感考验
+    - 消除最后的心结/障碍
+    - 准备迎接圆满
+    criteria: 所有重大阻碍消除，感情坚不可摧
+  - description: 圆满结局，幸福一生
+    deliverables:
+    - 正式修成正果
+    - 家庭/感情圆满
+    - 达成最终幸福目标
+    criteria: 所有感情目标达成，圆满结局

@@ -135,15 +135,22 @@ class TomatoBestsellerTacticalSession:
             logger.error(f"[TomatoTacticalSession] 第1轮失败: {e}")
             return self._get_default_core_framework()
     
+    def _safe_dict(self, obj, path=""):
+        """安全获取字典，非字典时返回空字典并记录警告"""
+        if isinstance(obj, dict):
+            return obj
+        logger.warning(f"[TomatoTacticalSession] 期望dict但得到{type(obj).__name__} (路径: {path})，使用空字典")
+        return {}
+    
     def _build_round1_prompt(self) -> str:
         """构建第1轮提示词"""
-        # 提取关键数据
-        world = self.phase_one_data.get('world_setting', {})
-        world_overview = world.get('world_overview', {})
-        power_system = world.get('power_system', {})
+        # 提取关键数据（带防御性处理）
+        world = self._safe_dict(self.phase_one_data.get('world_setting', {}), 'world_setting')
+        world_overview = self._safe_dict(world.get('world_overview', {}), 'world_setting.world_overview')
+        power_system = self._safe_dict(world.get('power_system', {}), 'world_setting.power_system')
         
-        char_design = self.phase_one_data.get('character_design', {})
-        protagonist = char_design.get('protagonist', {})
+        char_design = self._safe_dict(self.phase_one_data.get('character_design', {}), 'character_design')
+        protagonist = self._safe_dict(char_design.get('protagonist', {}), 'character_design.protagonist')
         
         stage_goal = self._get_current_stage_goal()
         progression = self.phase_one_data.get('progression_path', {})
@@ -183,7 +190,7 @@ class TomatoBestsellerTacticalSession:
 ## 二、金手指详细规则（必须严格遵守）
 
 ### 系统名称
-弹幕干涉系统
+{system_name}
 
 ### 核心机制
 {shen_lang_exclusive}
@@ -243,18 +250,18 @@ class TomatoBestsellerTacticalSession:
 {{
   "core_framework": {{
     "world_building_chapters": [
-      {{"chapter": 1, "focus": "国运绑定机制体现"}},
-      {{"chapter": 4, "focus": "万倍具现机制体现"}}
+      {{"chapter": 1, "focus": "世界观核心机制初次体现"}},
+      {{"chapter": 4, "focus": "金手指中期能力展现"}}
     ],
     "golden_finger_progression": [
-      {{"chapter_range": "1-10", "level": "感知级", "ability": "看到弹幕提示", "limitation": "只能感知不能干预"}},
-      {{"chapter_range": "11-20", "level": "干预级", "ability": "小范围逻辑改写", "limitation": "需要百万弹幕触发"}},
-      {{"chapter_range": "21-30", "level": "具现级", "ability": "万倍资源具现", "limitation": "需要击杀BOSS"}}
+      {{"chapter_range": "1-10", "level": "感知级", "ability": "基础能力运用", "limitation": "能力范围受限"}},
+      {{"chapter_range": "11-20", "level": "干预级", "ability": "能力范围扩大", "limitation": "需要一定触发条件"}},
+      {{"chapter_range": "21-30", "level": "具现级", "ability": "核心能力展现", "limitation": "存在使用代价或限制"}}
     ],
     "protagonist_moments": [
-      {{"chapter": 3, "trait": "腹黑整活", "action": "用非常规手段解决BOSS", "purpose": "体现不按常理出牌"}},
-      {{"chapter": 8, "trait": "极致理智", "action": "预判埋伏反向收割", "purpose": "体现计算型主角"}},
-      {{"chapter": 15, "trait": "护短/爱国", "action": "为所属势力争取利益", "purpose": "体现主角立场"}}
+      {{"chapter": 3, "trait": "核心特质A", "action": "在关键时刻展现主角独特能力", "purpose": "体现主角与众不同"}},
+      {{"chapter": 8, "trait": "核心特质B", "action": "面对挑战时的标志性应对", "purpose": "强化主角人设标签"}},
+      {{"chapter": 15, "trait": "核心特质C", "action": "在重要冲突中做出的选择", "purpose": "推进主角成长弧光"}}
     ],
     "goal_milestones": {{
       "milestone_1": {{"chapter": 3, "deliverable": "首个交付物", "emotion": "震惊反转"}},
@@ -281,12 +288,31 @@ class TomatoBestsellerTacticalSession:
 3. **阶段目标必须达成**，3个关键交付物必须分配到具体章节
 4. **升级节点必须对齐**，不能提前解锁后期能力
 5. **约束条件必须列出**，供后续轮次参考
+
+## 八、生成前自检清单（必须执行）
+
+在输出JSON之前，你必须逐条自检并在心中确认全部通过。如果有任何一项不通过，必须修正后再输出：
+
+□ **金手指名称检查**：系统名称必须严格等于"{system_name}"，禁止出现任何其他系统名（如"弹幕干涉系统"等）
+□ **数值自洽检查**：升级规则中的数字必须能用简单数学验证（如"每消费100万升1级"则消费1000万必须对应LV10，不能写LV20）
+□ **主角名锁定**：主角姓名必须严格等于"{protagonist_name}"，禁止改名
+□ **约束具体性**：key_constraints中的每条约束必须具体可检查，禁止出现"尽量""适当"等模糊词
 """
+        
+        # 🔥 动态提取系统/金手指名称，避免硬编码
+        # 注意：金手指名称必须从 golden_finger 数据中取，power_system 是力量体系不是系统名
+        system_name = (
+            self.phase_one_data.get('golden_finger', {}).get('basic_info', {}).get('name')
+            or self.phase_one_data.get('golden_finger', {}).get('name')
+            or power_system.get('name')
+            or '核心金手指系统'
+        )
         
         format_params = {
             'novel_title': self.novel_title,
             'start_chapter': self.start_chapter,
             'end_chapter': self.end_chapter,
+            'system_name': system_name,
             'background': world_overview.get('background', '未设定'),
             'core_concept': world_overview.get('core_concept', '未设定'),
             'tone': world_overview.get('tone', '未设定'),
@@ -368,9 +394,17 @@ class TomatoBestsellerTacticalSession:
         # 获取第1轮输出
         round1 = self.round1_result.get('core_framework', {}) if self.round1_result else {}
         
-        # 获取情绪蓝图
-        emotion_blueprint = self.phase_one_data.get('emotional_blueprint', {})
+        # 获取情绪蓝图中的高潮节点
+        emotion_blueprint = self._safe_dict(self.phase_one_data.get('emotional_blueprint', {}), 'emotional_blueprint')
         climax_moments = emotion_blueprint.get('climax_moments', [])
+        
+        # 🔥 fallback：如果情绪蓝图没有高潮节点，从 emotion_curve 自动推导（intensity>=9视为高潮）
+        if not climax_moments and self.emotion_curve:
+            climax_moments = [
+                f"第{e.get('chapter')}章-{e.get('emotion', '高潮')}"
+                for e in self.emotion_curve
+                if e.get('intensity', 0) >= 9
+            ]
         
         # 过滤出本章批内的高潮节点
         batch_climax = [c for c in climax_moments 
@@ -501,22 +535,35 @@ class TomatoBestsellerTacticalSession:
 3. **打脸必须爽**：反派先嚣张→主角反转→反派崩溃，三层结构
 4. **情绪有起伏**：相邻章情绪强度差必须≥1，不能平铺直叙
 5. **高潮节点要对齐**：{batch_climax_raw} 必须是情绪巅峰
-6. **设定不能丢**：每章必须体现国运绑定或金手指运用
+6. **设定不能丢**：每章必须体现世界观核心设定或金手指运用
 
 ---
 
-## 六、参考示例
+## 六、生成前自检清单（必须执行）
+
+在输出JSON之前，你必须逐条自检并在心中确认全部通过。如果有任何一项不通过，必须修正后再输出：
+
+□ **数值-能力匹配检查**：每章的消费规模/能力展现必须与当前等级匹配（严禁前期章出现后期能力，如第3章消费 billion 级）
+□ **钩子检查**：每章必须有非空的hook_content，且长度控制在50字以内
+□ **爽点分布检查**：检查是否存在连续2章satisfaction_point为空的情况，如有必须调整
+□ **情绪起伏检查**：相邻章的intensity差值必须≥1，如有平铺必须调整
+□ **高潮对齐检查**：高潮节点{batch_climax_raw}对应章节的intensity必须是本章批内最高或接近最高（≥8）
+□ **书名-设定对齐检查**：如果书名含"双倍返利"，则正文金手指规则不能写成"百倍返利"或其他倍数
+
+---
+
+## 七、参考示例
 
 第1章（压抑9）：
-- 事件：沈浪带二哈进禁地，全球嘲讽，华夏绝望
+- 事件：主角踏入未知秘境，被各方势力当众嘲讽，陷入绝境
 - 爽点：无（压抑开局）
-- 钩子：沈浪对二哈说"看你的了"，二哈露出诡异微笑
+- 钩子：主角对同伴说"看我的"，嘴角闪过一抹意味深长的笑
 
 第3章（反转9）：
-- 事件：BOSS出现，沈浪弹幕改写规则，二哈啃死BOSS
-- 爽点：首次展现金手指，荒诞方式击杀领主
-- 打脸：詹姆斯从嘲讽到震惊到恐惧
-- 钩子：不可一世的BOSS在二哈嘴里发出咔嚓声，全球直播间：？？？
+- 事件：强敌出现，主角以出人意料的方式破局，一招制敌
+- 爽点：首次展现金手指，荒诞方式碾压对手
+- 打脸：外媒记者从嘲讽到震惊到恐惧
+- 钩子：不可一世的强敌轰然倒地，全场寂静：这怎么可能？
 """
         
         return prompt_template.format(
@@ -693,6 +740,18 @@ JSON格式（示例结构，角色名使用已有角色或合理新创）：
     ]
   }}
 }}
+
+---
+
+## 五、生成前自检清单（必须执行）
+
+在输出JSON之前，你必须逐条自检并在心中确认全部通过。如果有任何一项不通过，必须修正后再输出：
+
+□ **角色名一致性检查**：所有已有角色名字必须与输入列表完全一致，禁止改名、禁止拼写差异
+□ **新角色管控检查**：chapter_assignments中出现的所有有名角色，必须已在"已有角色列表"或"new_characters"中声明，禁止临时创造
+□ **主角出场检查**：主角必须在每一章的core列表中
+□ **反派弧线检查**：重要反派（如前女友、前期富二代）的key_chapters必须覆盖其从登场到落败的完整弧线，不能突然消失
+□ **新角色数量检查**：new_characters数量必须≤2个，超过必须删除
 """
         return prompt_template.format(
             chars_text=chars_text,
@@ -986,7 +1045,7 @@ JSON格式（示例结构，角色名使用已有角色或合理新创）：
                 'intensity': 7,
                 'event': f'第{i}章事件（默认规划）',
                 'hook_content': '章尾钩子（默认规划）',
-                'assigned_characters': {'core': ['沈浪', '二哈'], 'major': [], 'minor': []}
+                'assigned_characters': {'core': ['主角', '同伴'], 'major': [], 'minor': []}
             })
         return {'chapters': chapters}
     
@@ -1010,7 +1069,7 @@ JSON格式（示例结构，角色名使用已有角色或合理新创）：
         
         return {
             'character_plan': {
-                'core_characters': [{'name': '沈浪'}, {'name': '二哈'}],
+                'core_characters': [{'name': '主角'}, {'name': '同伴'}],
                 'major_characters': [],
                 'minor_characters': [],
                 'new_characters': [],

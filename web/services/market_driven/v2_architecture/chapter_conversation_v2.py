@@ -234,7 +234,7 @@ class ChapterConversationV2:
     {{"chapter": 章节号, "event": "完成的事件", "significance": "high/medium/low"}}
   ],
   "character_states": {{
-    "protagonist": {{"name": "主角名", "status": "当前状态/等级", "playing_degree": "扮演度百分比或进度", "new_skills": []}},
+    "protagonist": {{"name": "主角名", "status": "当前状态/等级", "progress": "进度百分比或能力层级", "new_skills": []}},
     "new_characters": [
       {{"name": "新角色名", "role": "core/major/minor/enemy", "description": "简要人设", "introduced_chapter": 章节号}}
     ],
@@ -524,9 +524,9 @@ if __name__ == "__main__":
     print("=" * 80)
     
     # 测试数据
-    test_genre = "国运文-直播类"
-    test_core = "主角绑定酒剑仙模板，参与国运禁地探险"
-    test_tactical = "第一阶段：初入禁地，展示实力"
+    test_genre = "都市逆袭-神豪流"
+    test_core = "主角获得百倍消费返利系统，从平凡走向巅峰"
+    test_tactical = "第一阶段：获得系统，初次展现实力"
     
     # 模拟 APIClient
     class MockAPIClient:

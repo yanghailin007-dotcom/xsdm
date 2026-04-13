@@ -455,13 +455,19 @@ def create_unified_project(novel_title: str, generation_mode: str, genre: str = 
     
     # 🔥 保存写作风格配置（如果提供）
     if writing_style:
-        style_id = writing_style.get('id') or writing_style.get('style_id', '')
-        style_name = writing_style.get('name') or writing_style.get('style_name', '')
+        if isinstance(writing_style, str):
+            style_id = writing_style
+            style_name = writing_style
+            style_config = {"name": writing_style}
+        else:
+            style_id = writing_style.get('id') or writing_style.get('style_id', '')
+            style_name = writing_style.get('name') or writing_style.get('style_name', '')
+            style_config = writing_style
         UnifiedProjectManager.set_writing_style(
             project_info=project_info,
             style_id=style_id,
             style_name=style_name,
-            style_config=writing_style,
+            style_config=style_config,
             is_preset=True  # 预设文风
         )
         logger.info(f"[create_unified_project] 写作风格已设置: {style_name} (ID: {style_id})")

@@ -1,70 +1,115 @@
-# 宠物文题材技法
-genre: "宠物文"
-version: "1.0.0"
-description: "御兽进化+宠兽培养+人宠羁绊类小说的专项技法"
-
-# ==================== 1. 核心套路 ====================
+genre: 宠物文
+version: 1.0.0
+description: 御兽进化+宠兽培养+人宠羁绊类小说的专项技法
 core_mechanics:
-  description: "主角与宠兽建立羁绊，通过培养、进化、战斗等方式共同成长，强调人宠情感"
-
-# ==================== 2. 禁用元素 ====================
+  description: 主角与宠兽建立羁绊，通过培养、进化、战斗等方式共同成长，强调人宠情感
 forbidden_elements:
-  description: "以下元素绝对不能出现"
+  description: 以下元素绝对不能出现
   items:
-    - element: "虐待宠兽"
-      examples: ["虐宠", "抛弃", "虐待"]
-      reason: "宠物文的核心是人宠和谐"
-    - element: "宠兽工具化"
-      examples: ["仅作为战斗工具", "无情利用", "用完即弃"]
-      reason: "破坏人宠羁绊的核心价值"
-    - element: "成人内容"
-      examples: ["人宠暧昧", "不当关系"]
-      reason: "违背伦理道德"
-
-# ==================== 3. 必须元素 ====================
+  - element: 虐待宠兽
+    examples:
+    - 虐宠
+    - 抛弃
+    - 虐待
+    reason: 宠物文的核心是人宠和谐
+  - element: 宠兽工具化
+    examples:
+    - 仅作为战斗工具
+    - 无情利用
+    - 用完即弃
+    reason: 破坏人宠羁绊的核心价值
+  - element: 成人内容
+    examples:
+    - 人宠暧昧
+    - 不当关系
+    reason: 违背伦理道德
 required_elements:
-  description: "每章必须包含的元素"
+  description: 每章必须包含的元素
   items:
-    - element: "宠兽互动"
-      check: "是否有主角与宠兽的互动描写"
-      severity: "critical"
-    - element: "宠兽成长"
-      check: "是否有宠兽的成长或进化"
-      severity: "critical"
-    - element: "情感羁绊"
-      check: "是否体现人宠之间的情感联系"
-      severity: "warning"
-
-# ==================== 4. 世界状态初始化 ====================
+  - element: 宠兽互动
+    check: 是否有主角与宠兽的互动描写
+    severity: critical
+  - element: 宠兽成长
+    check: 是否有宠兽的成长或进化
+    severity: critical
+  - element: 情感羁绊
+    check: 是否体现人宠之间的情感联系
+    severity: warning
 world_state_initialization:
   protagonist:
-    health: "健康"
-    abilities_unlocked: ["宠兽沟通"]
+    health: 健康
+    abilities_unlocked:
+    - 宠兽沟通
   plot_threads:
-    - name: "宠兽培养"
-      status: "active"
-      priority: 10
-    - name: "羁绊深化"
-      status: "active"
-      priority: 9
-    - name: "进化之路"
-      status: "active"
-      priority: 8
+  - name: 宠兽培养
+    status: active
+    priority: 10
+  - name: 羁绊深化
+    status: active
+    priority: 9
+  - name: 进化之路
+    status: active
+    priority: 8
   system_rules:
-    system_name: "御兽系统"
-    system_type: "养成类"
+    system_name: 御兽系统
+    system_type: 养成类
     pet_count: 1
     pet_level: 1
     bond_level: 1
-
-# ==================== 5. 质量检查点 ====================
 quality_checkpoints:
-  - point: "宠兽个性"
-    condition: "宠兽有鲜明个性和特点"
-    severity: "critical"
-  - point: "人宠羁绊"
-    condition: "体现真实的情感联系"
-    severity: "critical"
-  - point: "成长曲线"
-    condition: "宠兽成长有合理的过程"
-    severity: "warning"
+- point: 宠兽个性
+  condition: 宠兽有鲜明个性和特点
+  severity: critical
+- point: 人宠羁绊
+  condition: 体现真实的情感联系
+  severity: critical
+- point: 成长曲线
+  condition: 宠兽成长有合理的过程
+  severity: warning
+progression_metrics:
+  metric_name: 宠兽等级/羁绊值/战力
+  metric_examples:
+  - 宠兽首次进化
+  - 羁绊值突破50
+  - 战力达到新层级
+  forbidden_concepts:
+  - 扮演度
+  - 国运
+  - 都市职场
+  stage_templates:
+  - description: 初露锋芒，获得首个成就
+    deliverables:
+    - 掌握第一个核心技能/资源
+    - 完成首次成功展示
+    - 获得关键认可
+    criteria: 至少1次关键认可，主角获得实质性进展
+  - description: 稳步发展，建立人脉班底
+    deliverables:
+    - 技能/事业再上新台阶
+    - 收服第一个核心盟友/粉丝
+    - 击败首个竞争对手
+    criteria: 核心盟友≥1，事业/技能明显进步
+  - description: 区域成名，成为一方翘楚
+    deliverables:
+    - 主角成为区域级存在
+    - 击败区域强敌/对手
+    - 掌控核心资源/市场
+    criteria: 区域范围内的话语权确立
+  - description: 行业登顶，影响力爆棚
+    deliverables:
+    - 主角达到顶级技能/地位
+    - 击败顶级对手/竞争者
+    - 掌控行业话语权
+    criteria: 行业内/全国范围内的顶尖地位确立
+  - description: 跨界封神，开启新篇
+    deliverables:
+    - 主角触及更高层次/新领域
+    - 击败终极对手/完成终极挑战
+    - 开启新篇章
+    criteria: 核心挑战取得决定性胜利
+  - description: 圆满结局，人生巅峰
+    deliverables:
+    - 主角达到最强状态/最高成就
+    - 守护核心利益/重要之人
+    - 达成最终人生目标
+    criteria: 所有核心目标达成，圆满结局

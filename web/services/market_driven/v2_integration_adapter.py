@@ -85,6 +85,48 @@ class V2IntegrationAdapter:
         
         return None
     
+    def _resolve_genre_for_yaml(self) -> str:
+        """将英文 genre key 映射为中文题材名，用于加载 YAML 配置"""
+        # 先尝试读取 dialog_polish_config.json 的映射表
+        try:
+            config_path = Path(__file__).parent.parent.parent.parent / "config" / "dialog_polish_config.json"
+            if config_path.exists():
+                with open(config_path, 'r', encoding='utf-8') as f:
+                    config = json.load(f)
+                keywords_mapping = config.get("steps", {}).get("step_2_protagonist", {}).get("keywords_mapping", {})
+                mapped = keywords_mapping.get(self.genre)
+                if mapped:
+                    logger.info(f"[V2适配器] 题材映射: {self.genre} -> {mapped}")
+                    return mapped
+        except Exception as e:
+            logger.warning(f"[V2适配器] 读取题材映射配置失败: {e}")
+        
+        # 内置 fallback
+        mapping = {
+            "god-tier-spending": "神豪文-花钱返利类",
+            "god-tier-checkin": "神豪文-签到奖励类",
+            "nation-live": "国运文-直播类",
+            "nation-explore": "国运文-禁地探险类",
+            "sign-in-daily": "神豪文-签到奖励类",
+            "simulator-life": "神豪文-花钱返利类",
+            "food-system": "神豪文-花钱返利类",
+            "farming-rich": "神豪文-花钱返利类",
+            "entertainment-copy": "神豪文-花钱返利类",
+            "courtyard-life": "神豪文-签到奖励类",
+            "god-select": "灵气复苏-觉醒类",
+            "aura-recovery": "灵气复苏-觉醒类",
+            "game-vr": "灵气复苏-觉醒类",
+            "apocalypse-hoard": "末日求生-囤货类",
+            "weird-recovery": "诡异复苏-规则怪谈类",
+            "anime-infinite": "诡异复苏-规则怪谈类",
+            "pet-evolution": "宠物文-御兽进化类",
+            "dad-baby": "奶爸文-萌宝类",
+            "dad-cultivate": "奶爸文-萌宝类",
+            "historical-power": "国运文-禁地探险类",
+            "tomb-raider": "国运文-禁地探险类",
+        }
+        return mapping.get(self.genre, self.genre)
+    
     def _detect_genre(self) -> str:
         """从小说数据中检测题材类型"""
         logger.debug(f"[V2适配器] _detect_genre 开始 | novel_data类型: {type(self.novel_data)}")
@@ -93,6 +135,15 @@ class V2IntegrationAdapter:
         if not isinstance(self.novel_data, dict):
             logger.warning(f"[V2适配器] _detect_genre: novel_data 不是字典，是 {type(self.novel_data)}，返回通用")
             return '通用'
+        
+        # 🔥 0. 优先从 novel_data.genre 直接获取
+        try:
+            if self.novel_data.get('genre'):
+                genre = self.novel_data['genre']
+                logger.info(f"[V2适配器] 从 novel_data.genre 获取题材: {genre}")
+                return genre
+        except Exception as e:
+            logger.warning(f"[V2适配器] 获取 novel_data.genre 失败: {e}")
         
         # 🔥 1. 优先从 suggestions.genre 获取（最准确的来源）
         try:
@@ -104,6 +155,25 @@ class V2IntegrationAdapter:
                 return genre
         except Exception as e:
             logger.warning(f"[V2适配器] 获取 suggestions.genre 失败: {e}")
+        
+        # 🔥 1.5 尝试从 plan.tags / plan.genre 获取（对话模式的主要数据位置）
+        try:
+            plan = self.novel_data.get('plan', {})
+            if isinstance(plan, dict):
+                if plan.get('genre'):
+                    logger.info(f"[V2适配器] 从 plan.genre 获取题材: {plan['genre']}")
+                    return plan['genre']
+                plan_tags = plan.get('tags', {})
+                if isinstance(plan_tags, dict):
+                    themes = plan_tags.get('themes', [])
+                    if '神豪' in themes or '花钱' in themes or '返利' in themes:
+                        return '神豪文-花钱返利类'
+                    if '国运' in themes:
+                        return '国运文-直播类'
+                    if '签到' in themes:
+                        return '神豪文-签到奖励类'
+        except Exception as e:
+            logger.warning(f"[V2适配器] 获取 plan genre 失败: {e}")
         
         # 2. 尝试从 tags 中获取
         try:
@@ -262,7 +332,9 @@ class V2IntegrationAdapter:
         
         try:
             # 加载 Layer 3: 题材技法（从配置文件）
-            genre_data = self._genre_loader.load(self.genre)
+            # 🔥 先解析 genre 为中文题材名
+            genre_for_yaml = self._resolve_genre_for_yaml()
+            genre_data = self._genre_loader.load(genre_for_yaml)
             layer3_content = self._genre_renderer.render(genre_data)
             
             # 加载 Layer 4: 文风技法（使用项目写作风格，如果没有则使用默认值）
@@ -395,6 +467,12 @@ class V2IntegrationAdapter:
         # 禁止事项
         lines.extend([
             "",
+            "### 【Layer 5.4b】对话硬性约束",
+            "- 对话占比必须≥40%，用引号\"\"包裹",
+            "- 每200字至少包含一段角色对话",
+            "- 禁止连续150字无对话（叙述后必须接对话或内心独白）",
+            "- 打脸场景中，反派和主角必须有来回对话交锋",
+            "",
             "### 【Layer 5.5】🚫 禁止事项",
             "- 爽点回退（爽后突然压抑）",
             "- 预告欺诈（章尾预告不兑现）",
@@ -469,19 +547,19 @@ class V2IntegrationAdapter:
 > 章节最后100-150字必须是强力钩子，从以下5种模板中选择1种：
 
 **模板1-危机降临型（推荐）：**主角刚成功→突然→新危机出现→悬念截止
-示例：苏白刚收好战利品，突然——【全球通告】警告！检测到SS级凶兽正在接近！白月魁脸色骤变："快走！那是..."
+示例：主角刚完成关键交易，突然——【系统警报】警告！检测到顶级强敌正在接近！同伴脸色骤变："快走！那是..."
 
 **模板2-身份揭露型：**关键时刻→有人即将发现真相→揭露前截止
-示例："等等！"白月魁突然盯着苏白，"你刚才用的那招...根本不是盲人的战斗方式！"苏白心中一凛...
+示例："等等！"同伴突然盯着主角，"你刚才用的那招...根本不是普通人的战斗方式！"主角心中一凛...
 
 **模板3-系统提示型：**完成某事→系统提示→出乎意料的奖励/惩罚
-示例：【叮！恭喜宿主完成隐藏任务！】【奖励：扮演度+20%】但紧接着——【警告：您已被标记为SS级目标！】
+示例：【叮！恭喜宿主完成隐藏任务！】【奖励：契合度+20%】但紧接着——【警告：您已被标记为SS级目标！】
 
 **模板4-时间锁型：**倒计时开始→时间紧迫→截止
-示例：【系统提示】禁地第二区域即将开启，倒计时：23小时59分。【警告】第二区域难度提升100%！
+示例：【系统提示】第二关卡即将开启，倒计时：23小时59分。【警告】第二区域难度提升100%！
 
 **模板5-对峙爆发型：**正面对峙→剑拔弩张→动手前一秒截止
-示例：约翰带着人堵住洞口："终于找到你了，龙国的瞎子。"苏白站起身，嘴角勾起冷笑："你确定要在这里动手？"
+示例：反派带着人堵住去路："终于找到你了，神秘的对手。"主角站起身，嘴角勾起冷笑："你确定要在这里动手？"
 
 **【结尾禁忌】**
 - 禁止以"完"/"结束"/"休息"/"晚安"等词结尾
@@ -692,7 +770,9 @@ class V2IntegrationAdapter:
                 Path(project_path) / "phase_one_products" / "金手指设计.json",  # 标准格式（推荐）
                 Path(project_path) / "phase_one_products" / "金手指设定.json",  # 兼容旧命名
                 Path(project_path) / "phase_one_products" / "golden_finger.json",  # 英文文件名
+                Path(project_path) / "phase_one_products" / "完整方案.json",  # 对话模式保存的 plan
                 Path(project_path) / "phase_one_products" / "plan.json",  # plan 文件中可能包含 golden_finger
+                Path(project_path) / "project_info.json",  # 项目信息中可能包含 plan.golden_finger
             ]
             
             for file_path in possible_paths:
@@ -700,15 +780,41 @@ class V2IntegrationAdapter:
                     with open(file_path, 'r', encoding='utf-8') as f:
                         data = json.load(f)
                         
-                        # 如果加载的是 plan.json，提取 golden_finger 字段
-                        if file_path.name == "plan.json":
-                            gf_data = data.get('golden_finger', {})
-                            if gf_data:
-                                logger.info(f"[V2适配器] 从 plan.json 加载金手指设定成功")
+                        # 如果加载的是 plan.json、完整方案.json 或 project_info.json，提取 golden_finger 字段
+                        if file_path.name in ("plan.json", "完整方案.json", "project_info.json"):
+                            if file_path.name == "project_info.json":
+                                # project_info.json 中 plan 可能在 mode_specific.info.plan
+                                plan = data.get('plan', {})
+                                if not plan:
+                                    mode_specific = data.get('generation_metadata', {}).get('mode_specific', {})
+                                    plan = mode_specific.get('info', {}).get('plan', {})
+                                gf_data = plan.get('golden_finger', {}) if isinstance(plan, dict) else {}
+                            else:
+                                gf_data = data.get('golden_finger', {})
+                            if gf_data and isinstance(gf_data, dict) and (gf_data.get('name') or gf_data.get('basic_info') or gf_data.get('concept')):
+                                logger.info(f"[V2适配器] 从 {file_path.name} 加载金手指设定成功")
                                 return gf_data
                         else:
-                            logger.info(f"[V2适配器] 从 {file_path.name} 加载金手指设定成功")
-                            return data
+                            # 对于金手指设计.json 等专用文件，检查内容是否有效
+                            if isinstance(data, dict) and (data.get('name') or data.get('basic_info') or data.get('concept') or data.get('details')):
+                                logger.info(f"[V2适配器] 从 {file_path.name} 加载金手指设定成功")
+                                return data
+                            else:
+                                logger.warning(f"[V2适配器] {file_path.name} 内容为空壳，尝试下一个来源")
+            
+            # 最终回退：再次尝试 project_info.json（无论前面是否已检查）
+            project_info_path = Path(project_path) / "project_info.json"
+            if project_info_path.exists():
+                with open(project_info_path, 'r', encoding='utf-8') as f:
+                    data = json.load(f)
+                plan = data.get('plan', {})
+                if not plan:
+                    mode_specific = data.get('generation_metadata', {}).get('mode_specific', {})
+                    plan = mode_specific.get('info', {}).get('plan', {})
+                gf_data = plan.get('golden_finger', {}) if isinstance(plan, dict) else {}
+                if gf_data and isinstance(gf_data, dict) and (gf_data.get('name') or gf_data.get('basic_info') or gf_data.get('concept')):
+                    logger.info(f"[V2适配器] 从 project_info.json 加载金手指设定成功（最终回退）")
+                    return gf_data
             
             logger.debug(f"[V2适配器] 未找到金手指设定文件，路径: {project_path}")
             return {}
@@ -795,12 +901,40 @@ class V2IntegrationAdapter:
         emotion_target = chapter_plan.get('emotion', '爽快')
         intensity = chapter_plan.get('intensity', 8)
         
-        # 🔥 构建任务指令（极简版 - Layer 2 已有详细规划，此处只保留执行指令）
+        # 🔥 提取强制角色阵容
+        assigned_chars = chapter_plan.get('assigned_characters', {})
+        core_chars = assigned_chars.get('core', [])
+        major_chars = assigned_chars.get('major', [])
+        minor_chars = assigned_chars.get('minor', [])
+        
+        # 🔥 构建任务指令（增加宪法级约束置顶）
         lines = [
             "## 【任务指令】开始生成",
             "",
             f"**第 {chapter_num} 章** | {title} | {beat_type}（强度{intensity}/10）",
             "",
+        ]
+        
+        # 🔥🔥🔥 宪法级约束置顶（防止AI被Layer 1.1静态人设带偏）
+        lines.append("### 🔴 本章宪法级约束（偏离视为严重错误）")
+        if event:
+            lines.append(f"- **核心事件**：{event}")
+        if satisfaction_point:
+            lines.append(f"- **爽点交付**：{satisfaction_point}")
+        if face_slapping:
+            lines.append(f"- **打脸设计**：{face_slapping}")
+        if core_chars:
+            lines.append(f"- **必须角色（核心）**：{', '.join(core_chars)}")
+        if major_chars:
+            lines.append(f"- **必须角色（主要）**：{', '.join(major_chars)}")
+        if minor_chars:
+            lines.append(f"- **必须角色（次要）**：{', '.join(minor_chars)}")
+        if hook_content:
+            lines.append(f"- **章尾钩子**：{hook_content}")
+        lines.append("- **红色警告**：禁止编造未列出的角色替代上述角色！禁止把核心事件替换为其他情节！")
+        lines.append("")
+        
+        lines.extend([
             "**执行要求：**",
             "1. 严格遵循 Layer 1-6 的所有约束",
             "2. 承接 Layer 2.2 的钩子（前300字必须处理）",
@@ -810,7 +944,7 @@ class V2IntegrationAdapter:
             "6. 完成 Layer 6 的自检清单",
             "7. 只输出章节正文，不要大纲/分析",
             "",
-        ]
+        ])
         
         # 前章回顾（仅在存在时显示，用于上下文衔接）
         if prev_summary:
@@ -828,7 +962,7 @@ class V2IntegrationAdapter:
         
         return "\n".join(lines)
     
-    def _build_layer1_core_setting(self, world_state: Dict = None, project_path: str = None) -> str:
+    def _build_layer1_core_setting(self, chapter_num: int = 1, world_state: Dict = None, project_path: str = None) -> str:
         """
         从 novel_data 构建 Layer 1 核心设定
         包含：主角人设、核心角色阵容、金手指设定、世界状态
@@ -861,15 +995,15 @@ class V2IntegrationAdapter:
         
         # 🔥 主角信息 - 优先从 character_design.protagonist 获取
         protagonist_name = "主角"  # 默认
-        protagonist_identity = "神豪/国运绑定者"
-        protagonist_traits = ["冷静理智", "杀伐果断", "极致护短"]
-        forbidden_behaviors = ["圣母行为", "情绪失控", "暴露全部底牌"]
+        protagonist_identity = None
+        protagonist_traits = None
+        forbidden_behaviors = None
         unique_label = ""
         
         if isinstance(protagonist, dict) and protagonist.get('name'):
             # 新格式：从 protagonist 对象获取
             protagonist_name = protagonist.get('name', protagonist_name)
-            protagonist_identity = protagonist.get('identity', protagonist_identity)
+            protagonist_identity = protagonist.get('identity')
             # traits 可能是列表或字符串
             traits = protagonist.get('traits', [])
             if isinstance(traits, list) and traits:
@@ -886,16 +1020,83 @@ class V2IntegrationAdapter:
             # 旧格式：从 suggestions 获取
             protagonist_name = self.novel_data['suggestions'].get('name', protagonist_name)
         
+        # 🔥 尝试从 plan.protagonist 补充缺失的身份信息
+        if not protagonist_identity:
+            plan = self.novel_data.get('plan', {})
+            if isinstance(plan, dict):
+                plan_prot = plan.get('protagonist', {})
+                if isinstance(plan_prot, dict):
+                    protagonist_identity = plan_prot.get('identity')
+                    if not protagonist_traits and plan_prot.get('traits'):
+                        traits = plan_prot.get('traits')
+                        if isinstance(traits, list):
+                            protagonist_traits = traits
+                        elif isinstance(traits, str):
+                            protagonist_traits = [t.strip() for t in traits.split(',') if t.strip()]
+                    if not forbidden_behaviors and plan_prot.get('forbidden'):
+                        forbidden = plan_prot.get('forbidden')
+                        if isinstance(forbidden, list):
+                            forbidden_behaviors = forbidden
+        
+        # 🔥 清洗 traits：必须是3-5字的性格标签，禁止带情节举例
+        personality_description = ""
+        if isinstance(protagonist, dict):
+            personality_description = protagonist.get('personality_description', '')
+        
+        cleaned_traits = []
+        if isinstance(protagonist_traits, list):
+            for t in protagonist_traits:
+                if not isinstance(t, str):
+                    continue
+                t = t.strip()
+                if ":" in t:
+                    cleaned_traits.append(t.split(":", 1)[0].strip())
+                    if not personality_description:
+                        personality_description = t.split(":", 1)[1].strip()
+                elif len(t) > 10:
+                    # 过长的视为混合描述，取前3-5字作为标签
+                    cleaned_traits.append(t[:5].strip())
+                    if not personality_description:
+                        personality_description = t
+                else:
+                    cleaned_traits.append(t)
+        
+        protagonist_traits = cleaned_traits if cleaned_traits else ["（特质待设定）"]
+        protagonist_identity = protagonist_identity or "（身份待设定）"
+        forbidden_behaviors = forbidden_behaviors or ["（禁忌行为待设定）"]
+        
+        # 🔥 按章读取 tactical_plan_1.json 中的 protagonist_moments，动态注入本章人设
+        chapter_moment = ""
+        if project_path:
+            try:
+                import json
+                from pathlib import Path
+                tactical_plan_path = Path(project_path) / "tactical_plan_1.json"
+                if tactical_plan_path.exists():
+                    with open(tactical_plan_path, 'r', encoding='utf-8') as f:
+                        tactical_plan = json.load(f)
+                    moments = tactical_plan.get("core_setting", {}).get("protagonist_moments", [])
+                    for moment in moments:
+                        if isinstance(moment, dict) and moment.get("chapter") == chapter_num:
+                            chapter_moment = f"【第{chapter_num}章专属】{moment.get('trait', '')}：{moment.get('action', '')}（{moment.get('purpose', '')}）"
+                            break
+            except Exception as e:
+                logger.debug(f"[V2适配器] 读取 tactical_plan_1.json 失败: {e}")
+        
         lines.append("### 【Layer 1.1】主角人设（绝对不可更改）")
         lines.append(f"- **姓名**：{protagonist_name}")
         lines.append(f"- **当前身份**：{protagonist_identity}")
         lines.append(f"- **核心特质**：{', '.join(protagonist_traits)}")
+        if personality_description:
+            lines.append(f"- **性格详述**：{personality_description}")
+        if chapter_moment:
+            lines.append(f"- **本章人设焦点**：{chapter_moment}")
         lines.append(f"- **禁止行为**：{', '.join(forbidden_behaviors)}")
         if unique_label:
             lines.append(f"- **人设标签**：{unique_label}")
         lines.append("")
         
-        # 🔥 Layer 1.1b 核心角色阵容（从 character_design 获取）
+        # 🔥 Layer 1.1b 核心角色阵容（从 character_design 获取，带人设标签）
         lines.append("### 【Layer 1.1b】核心角色阵容（本章可能涉及）")
         
         # 核心盟友
@@ -906,22 +1107,33 @@ class V2IntegrationAdapter:
                 if isinstance(ally, dict):
                     ally_name = ally.get('name', f'盟友{i}')
                     ally_role = ally.get('role', '盟友')
-                    ally_function = ally.get('function', '')
-                    lines.append(f"- {ally_name}（{ally_role}）{ally_function}")
+                    ally_identity = ally.get('identity', '')
+                    ally_traits = ally.get('traits', [])
+                    if isinstance(ally_traits, list) and ally_traits:
+                        traits_str = f" | 人设：{', '.join(ally_traits[:2])}"
+                    else:
+                        traits_str = ""
+                    identity_str = f" | {ally_identity}" if ally_identity else ""
+                    lines.append(f"- {ally_name}（{ally_role}）{identity_str}{traits_str}")
             lines.append("")
         
         # 主要反派
         main_antagonists = character_design.get('main_antagonists', {}) if isinstance(character_design, dict) else {}
         if main_antagonists and isinstance(main_antagonists, dict):
             lines.append("**主要反派：**")
-            if 'early' in main_antagonists:
-                early = main_antagonists['early']
-                if isinstance(early, dict):
-                    lines.append(f"- 早期反派：{early.get('description', '小人物、势利眼')}")
-            if 'mid' in main_antagonists:
-                mid = main_antagonists['mid']
-                if isinstance(mid, dict):
-                    lines.append(f"- 中期反派：{mid.get('description', '有背景的敌人')}")
+            for stage_key, stage_label in [('early', '早期'), ('mid', '中期'), ('late', '后期')]:
+                if stage_key in main_antagonists:
+                    stage_ant = main_antagonists[stage_key]
+                    if isinstance(stage_ant, dict):
+                        ant_name = stage_ant.get('name', '')
+                        ant_identity = stage_ant.get('identity', '')
+                        ant_traits = stage_ant.get('traits', [])
+                        if isinstance(ant_traits, list) and ant_traits:
+                            traits_str = f" | 人设：{', '.join(ant_traits[:2])}"
+                        else:
+                            traits_str = ""
+                        identity_str = f" | {ant_identity}" if ant_identity else ""
+                        lines.append(f"- {stage_label}反派：{ant_name}{identity_str}{traits_str}")
             lines.append("")
         
         # 如果没有角色阵容数据，显示提示
@@ -1052,28 +1264,32 @@ class V2IntegrationAdapter:
                         lines.append(f"  - {guide}")
             else:
                 # 简化格式（来自 plan.json）
-                gf_name = golden_finger.get('name', '每日盲盒系统')
-                gf_concept = golden_finger.get('concept', golden_finger.get('description', '通过系统不断变强'))
-                gf_initial = golden_finger.get('initial', '系统激活，获得基础能力')
-                gf_trigger = golden_finger.get('trigger_mechanism', '完成任务获得奖励')
-                gf_upgrade = golden_finger.get('upgrade_formula', '通过使用不断提升，解锁更强能力')
+                gf_name = golden_finger.get('name')
+                gf_concept = golden_finger.get('concept') or golden_finger.get('description')
+                gf_initial = golden_finger.get('initial')
+                gf_trigger = golden_finger.get('trigger_mechanism')
+                gf_upgrade = golden_finger.get('upgrade_formula')
                 gf_limitations = golden_finger.get('limitations', [])
                 
-                lines.append(f"- **名称**：{gf_name}")
-                lines.append(f"- **核心机制**：{gf_concept}")
-                lines.append(f"- **初始能力**：{gf_initial}")
-                lines.append(f"- **触发方式**：{gf_trigger}")
-                lines.append(f"- **成长公式**：{gf_upgrade}")
+                has_any_field = any([gf_name, gf_concept, gf_initial, gf_trigger, gf_upgrade])
+                if gf_name:
+                    lines.append(f"- **名称**：{gf_name}")
+                if gf_concept:
+                    lines.append(f"- **核心机制**：{gf_concept}")
+                if gf_initial:
+                    lines.append(f"- **初始能力**：{gf_initial}")
+                if gf_trigger:
+                    lines.append(f"- **触发方式**：{gf_trigger}")
+                if gf_upgrade:
+                    lines.append(f"- **成长公式**：{gf_upgrade}")
                 if isinstance(gf_limitations, list) and gf_limitations:
                     lines.append(f"- **限制条件**：{', '.join(gf_limitations[:3])}")
+                if not has_any_field:
+                    lines.append("- ⚠️ **[警告] 金手指设定缺失，请检查项目配置**")
         elif isinstance(golden_finger, str) and golden_finger:
             lines.append(f"- **核心机制**：{golden_finger}")
         else:
-            lines.append("- **名称**：每日盲盒系统")
-            lines.append("- **核心机制**：每日零点开启盲盒，消费获得随机奖励")
-            lines.append("- **初始能力**：系统激活，获得基础返利能力")
-            lines.append("- **触发方式**：消费、完成任务")
-            lines.append("- **成长公式**：通过消费和任务提升系统等级，解锁更强奖励")
+            lines.append("- ⚠️ **[警告] 金手指设定缺失，请检查项目配置**")
         lines.append("")
         
         # 🔥 从题材配置加载 Layer 1.3-1.5（直接读取YAML原始数据）
@@ -1081,20 +1297,21 @@ class V2IntegrationAdapter:
         from pathlib import Path
         
         genre_config = {}
-        if "神豪" in self.genre:
+        genre_for_yaml = self._resolve_genre_for_yaml()
+        if "神豪" in genre_for_yaml:
             genre_file = "神豪文.yaml"
-        elif "国运" in self.genre:
+        elif "国运" in genre_for_yaml:
             genre_file = "国运文.yaml"
-        elif "甜宠" in self.genre:
+        elif "甜宠" in genre_for_yaml:
             genre_file = "甜宠文.yaml"
-        elif "虐恋" in self.genre:
+        elif "虐恋" in genre_for_yaml:
             genre_file = "虐恋文.yaml"
-        elif "穿越" in self.genre:
+        elif "穿越" in genre_for_yaml:
             genre_file = "穿越文.yaml"
-        elif "重生" in self.genre:
+        elif "重生" in genre_for_yaml:
             genre_file = "重生文.yaml"
         else:
-            genre_file = f"{self.genre}.yaml"
+            genre_file = f"{genre_for_yaml}.yaml"
         
         # 获取配置路径（优先用户配置，其次系统默认）
         config_path = self._get_genre_config_path(genre_file)
@@ -1382,11 +1599,16 @@ class V2IntegrationAdapter:
         if 'style_config' in writing_style:
             # 新格式：从 project_info 读取，配置在 style_config 中
             config = writing_style.get('style_config', {})
-            style_name = config.get('name') or config.get('style_name') or writing_style.get('style_name', '番茄快节奏爽文')
+            style_name = config.get('name') or config.get('style_name') or writing_style.get('style_name')
         else:
             # 旧格式：直接从 task 读取
             config = writing_style
-            style_name = config.get('name') or config.get('style_name', '番茄快节奏爽文')
+            style_name = config.get('name') or config.get('style_name')
+        
+        # 🔥 修复：移除静默默认值。如果文风缺失，明确记录 ERROR 后再使用后备渲染
+        if not style_name:
+            logger.error("[V2适配器] 未接收到有效的 writing_style，说明前端文风选择流程可能异常跳过。将使用系统默认渲染，但这是一个需要排查的 BUG。")
+            style_name = '番茄快节奏爽文'
         
         description = config.get('description', '快节奏、强情绪、强冲突')
         
@@ -1439,9 +1661,9 @@ class V2IntegrationAdapter:
             "- 口语化表达，减少形容词",
             "",
             "### 【Layer 4.5】对话规范",
-            "- 对话占比≥30%，用引号包裹",
+            "- 对话占比≥40%，用引号包裹",
             "- 一句一段，对话后接动作/反应",
-            "- 禁止连续200字无对话",
+            "- 禁止连续150字无对话",
             "",
             "### 【Layer 4.6】震惊流技法",
             "- 先写反应，后写原因",
@@ -1491,6 +1713,7 @@ class V2IntegrationAdapter:
             
             # Layer 1: 核心设定（从 novel_data 构建，包含 world_state 和 project_path）
             layer1_content = self._build_layer1_core_setting(
+                chapter_num=chapter_num,
                 world_state=world_state,
                 project_path=project_path
             )

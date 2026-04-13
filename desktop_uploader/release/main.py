@@ -2832,7 +2832,7 @@ NovelPublisher_Data/              ← 统一数据目录
             if config_path.exists():
                 config = json.loads(config_path.read_text(encoding='utf-8'))
             
-            # 更新发布配置
+            # 更新发布配置（顶层）
             if 'publish_config' not in config:
                 config['publish_config'] = {}
             
@@ -2841,9 +2841,33 @@ NovelPublisher_Data/              ← 统一数据目录
             config['publish_config']['manual_chapter_count'] = chapter_count
             config['publish_config']['manual_set_at'] = datetime.now().isoformat()
             
+            # 🔥 关键修复：同时保存到 fanqie_upload_data.publish_config，保证 _extract_novel_config 能读取到
+            if 'fanqie_upload_data' not in config:
+                config['fanqie_upload_data'] = {}
+            if 'publish_config' not in config['fanqie_upload_data']:
+                config['fanqie_upload_data']['publish_config'] = {}
+            config['fanqie_upload_data']['publish_config']['manual_publish_date'] = date_str
+            config['fanqie_upload_data']['publish_config']['manual_publish_time'] = time_str
+            config['fanqie_upload_data']['publish_config']['manual_chapter_count'] = chapter_count
+            config['fanqie_upload_data']['publish_config']['manual_set_at'] = datetime.now().isoformat()
+            
             # 保存回文件
             config_path.write_text(json.dumps(config, ensure_ascii=False, indent=2), encoding='utf-8')
             self.log(f"💾 手动发布配置已保存到项目", "debug")
+            
+            # 🔥 关键修复：同步更新下拉框中的项目数据，因为 start_upload() 从下拉框读取 novel_config
+            updated_proj_data = dict(proj_data)
+            if 'publish_config' not in updated_proj_data:
+                updated_proj_data['publish_config'] = {}
+            updated_proj_data['publish_config'].update(config['publish_config'])
+            self.project_combo.setItemData(proj_idx, updated_proj_data)
+            self.log(f"💾 已同步更新项目下拉框数据", "debug")
+            
+            # 同时更新 self.novel_config（兼容其他可能读取它的地方）
+            if hasattr(self, 'novel_config') and isinstance(self.novel_config, dict):
+                if 'publish_config' not in self.novel_config:
+                    self.novel_config['publish_config'] = {}
+                self.novel_config['publish_config'].update(config['publish_config'])
             
         except Exception as e:
             self.log(f"⚠️ 保存手动发布配置失败: {e}", "warning")

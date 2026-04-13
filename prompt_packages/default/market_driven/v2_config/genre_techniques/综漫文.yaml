@@ -1,70 +1,112 @@
-# 综漫文题材技法
-genre: "综漫文"
-version: "1.0.0"
-description: "无限流+动漫穿越+多元世界类小说的专项技法"
-
-# ==================== 1. 核心套路 ====================
+genre: 综漫文
+version: 1.0.0
+description: 无限流+动漫穿越+多元世界类小说的专项技法
 core_mechanics:
-  description: "主角穿越到多个动漫/影视/游戏世界中，完成任务，获取能力，不断变强"
-
-# ==================== 2. 禁用元素 ====================
+  description: 主角穿越到多个动漫/影视/游戏世界中，完成任务，获取能力，不断变强
 forbidden_elements:
-  description: "以下元素绝对不能出现"
+  description: 以下元素绝对不能出现
   items:
-    - element: "过度OOC"
-      examples: ["原角色性格完全崩坏", "恶意丑化原作角色"]
-      reason: "需要尊重原作角色设定"
-    - element: "世界混淆不清"
-      examples: ["世界观混乱", "设定冲突不处理"]
-      reason: "需要保持世界独立性"
-    - element: "无脑碾压"
-      examples: ["主角开局无敌", "所有世界横着走"]
-      reason: "需要有合理的成长过程"
-
-# ==================== 3. 必须元素 ====================
+  - element: 过度OOC
+    examples:
+    - 原角色性格完全崩坏
+    - 恶意丑化原作角色
+    reason: 需要尊重原作角色设定
+  - element: 世界混淆不清
+    examples:
+    - 世界观混乱
+    - 设定冲突不处理
+    reason: 需要保持世界独立性
+  - element: 无脑碾压
+    examples:
+    - 主角开局无敌
+    - 所有世界横着走
+    reason: 需要有合理的成长过程
 required_elements:
-  description: "每章必须包含的元素"
+  description: 每章必须包含的元素
   items:
-    - element: "原作还原"
-      check: "是否尊重原作的世界观和人物设定"
-      severity: "critical"
-    - element: "任务系统"
-      check: "是否有明确的任务目标和奖励"
-      severity: "critical"
-    - element: "世界切换"
-      check: "是否有清晰的世界切换或进度"
-      severity: "warning"
-
-# ==================== 4. 世界状态初始化 ====================
+  - element: 原作还原
+    check: 是否尊重原作的世界观和人物设定
+    severity: critical
+  - element: 任务系统
+    check: 是否有明确的任务目标和奖励
+    severity: critical
+  - element: 世界切换
+    check: 是否有清晰的世界切换或进度
+    severity: warning
 world_state_initialization:
   protagonist:
-    health: "健康"
-    abilities_unlocked: ["基础强化"]
+    health: 健康
+    abilities_unlocked:
+    - 基础强化
   plot_threads:
-    - name: "世界穿越"
-      status: "active"
-      priority: 10
-    - name: "能力获取"
-      status: "active"
-      priority: 9
-    - name: "主神空间"
-      status: "active"
-      priority: 8
+  - name: 世界穿越
+    status: active
+    priority: 10
+  - name: 能力获取
+    status: active
+    priority: 9
+  - name: 主神空间
+    status: active
+    priority: 8
   system_rules:
-    system_name: "无限系统"
-    system_type: "穿越类"
-    current_world: "初始世界"
+    system_name: 无限系统
+    system_type: 穿越类
+    current_world: 初始世界
     points: 0
     worlds_cleared: 0
-
-# ==================== 5. 质量检查点 ====================
 quality_checkpoints:
-  - point: "原作尊重"
-    condition: "尊重原作设定和角色"
-    severity: "critical"
-  - point: "剧情参与"
-    condition: "主角合理参与原作剧情"
-    severity: "critical"
-  - point: "世界独立性"
-    condition: "各世界设定清晰不混淆"
-    severity: "warning"
+- point: 原作尊重
+  condition: 尊重原作设定和角色
+  severity: critical
+- point: 剧情参与
+  condition: 主角合理参与原作剧情
+  severity: critical
+- point: 世界独立性
+  condition: 各世界设定清晰不混淆
+  severity: warning
+progression_metrics:
+  metric_name: 次元契合度/能力收集/世界影响力
+  metric_examples:
+  - 契合度达到30%
+  - 获得首个次元能力
+  - 改变关键剧情
+  forbidden_concepts:
+  - 扮演度
+  - 国运
+  stage_templates:
+  - description: 建立主角形象，首次展现实力
+    deliverables:
+    - 主角获得第一个核心成长/资源
+    - 完成首次实力展现
+    - 震惊全场
+    criteria: 至少1次全场震惊，主角获得实质性成长
+  - description: 快速成长，建立盟友/班底
+    deliverables:
+    - 主角实力再上新台阶
+    - 收服第一个盟友/伙伴
+    - 首次击败强敌
+    criteria: 核心伙伴≥1，主角实力明显增强
+  - description: 区域崛起，称霸一方
+    deliverables:
+    - 主角成为区域级存在
+    - 击败区域强敌
+    - 掌控核心资源/势力
+    criteria: 区域范围内的主导地位确立
+  - description: 登顶巅峰，横扫天下
+    deliverables:
+    - 主角达到顶级实力/地位
+    - 击败顶级对手/势力
+    - 掌控全局
+    criteria: 行业内/世界范围内的顶尖地位确立
+  - description: 终极对决，开启新篇
+    deliverables:
+    - 主角触及更高层次
+    - 穿越最终世界，成就至高位格
+    - 开启新篇章
+    criteria: 核心冲突取得决定性胜利
+  - description: 圆满结局，主宰一切
+    deliverables:
+    - 主角达到最强状态
+    - 守护核心利益/重要之人
+    - 达成最终目标
+    criteria: 所有核心目标达成，圆满结局

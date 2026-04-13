@@ -1,70 +1,118 @@
-# 游戏异界文题材技法
-genre: "游戏异界文"
-version: "1.0.0"
-description: "虚拟现实+游戏异界+数据化生存类小说的专项技法"
-
-# ==================== 1. 核心套路 ====================
+genre: 游戏异界文
+version: 1.0.0
+description: 虚拟现实+游戏异界+数据化生存类小说的专项技法
 core_mechanics:
-  description: "主角进入虚拟现实游戏或游戏化的异界，通过打怪升级、完成任务、组建公会等方式变强"
-
-# ==================== 2. 禁用元素 ====================
+  description: 主角进入虚拟现实游戏或游戏化的异界，通过打怪升级、完成任务、组建公会等方式变强
 forbidden_elements:
-  description: "以下元素绝对不能出现"
+  description: 以下元素绝对不能出现
   items:
-    - element: "现实世界过度介入"
-      examples: ["现实政治", "现实经济", "现实法律"]
-      reason: "破坏游戏世界的沉浸感"
-    - element: "传统修仙体系"
-      examples: ["筑基", "金丹", "元婴", "飞升"]
-      reason: "这是修仙文的元素"
-    - element: "无系统提示"
-      examples: ["没有等级", "没有属性", "没有任务提示"]
-      reason: "游戏文需要数据化展示"
-
-# ==================== 3. 必须元素 ====================
+  - element: 现实世界过度介入
+    examples:
+    - 现实政治
+    - 现实经济
+    - 现实法律
+    reason: 破坏游戏世界的沉浸感
+  - element: 传统修仙体系
+    examples:
+    - 筑基
+    - 金丹
+    - 元婴
+    - 飞升
+    reason: 这是修仙文的元素
+  - element: 无系统提示
+    examples:
+    - 没有等级
+    - 没有属性
+    - 没有任务提示
+    reason: 游戏文需要数据化展示
 required_elements:
-  description: "每章必须包含的元素"
+  description: 每章必须包含的元素
   items:
-    - element: "数据面板"
-      check: "是否有等级、属性、技能等数据展示"
-      severity: "critical"
-    - element: "任务系统"
-      check: "是否有任务发布或完成"
-      severity: "critical"
-    - element: "游戏机制"
-      check: "是否有游戏特有的机制体现"
-      severity: "warning"
-
-# ==================== 4. 世界状态初始化 ====================
+  - element: 数据面板
+    check: 是否有等级、属性、技能等数据展示
+    severity: critical
+  - element: 任务系统
+    check: 是否有任务发布或完成
+    severity: critical
+  - element: 游戏机制
+    check: 是否有游戏特有的机制体现
+    severity: warning
 world_state_initialization:
   protagonist:
-    health: "100%"
-    abilities_unlocked: ["基础攻击", "基础防御"]
+    health: 100%
+    abilities_unlocked:
+    - 基础攻击
+    - 基础防御
   plot_threads:
-    - name: "主线任务"
-      status: "active"
-      priority: 10
-    - name: "等级提升"
-      status: "active"
-      priority: 9
-    - name: "公会建设"
-      status: "pending"
-      priority: 7
+  - name: 主线任务
+    status: active
+    priority: 10
+  - name: 等级提升
+    status: active
+    priority: 9
+  - name: 公会建设
+    status: pending
+    priority: 7
   system_rules:
-    system_name: "游戏系统"
-    system_type: "数据化"
+    system_name: 游戏系统
+    system_type: 数据化
     level: 1
     exp: 0
-    hp_mp: "100/100"
-
-# ==================== 5. 质量检查点 ====================
+    hp_mp: 100/100
 quality_checkpoints:
-  - point: "数据展示"
-    condition: "有清晰的数值变化"
-    severity: "critical"
-  - point: "游戏氛围"
-    condition: "保持游戏世界的沉浸感"
-    severity: "critical"
-  - point: "升级节奏"
-    condition: "升级有成就感，不过分拖沓"
-    severity: "warning"
+- point: 数据展示
+  condition: 有清晰的数值变化
+  severity: critical
+- point: 游戏氛围
+  condition: 保持游戏世界的沉浸感
+  severity: critical
+- point: 升级节奏
+  condition: 升级有成就感，不过分拖沓
+  severity: warning
+progression_metrics:
+  metric_name: 等级/装备/公会势力
+  metric_examples:
+  - 等级突破30级
+  - 获得传说级装备
+  - 建立顶级公会
+  forbidden_concepts:
+  - 扮演度
+  - 国运
+  - 都市金钱
+  stage_templates:
+  - description: 建立主角形象，首次展现实力
+    deliverables:
+    - 主角获得第一个核心成长/资源
+    - 完成首次实力展现
+    - 震惊全场
+    criteria: 至少1次全场震惊，主角获得实质性成长
+  - description: 快速成长，建立盟友/班底
+    deliverables:
+    - 主角实力再上新台阶
+    - 收服第一个盟友/伙伴
+    - 首次击败强敌
+    criteria: 核心伙伴≥1，主角实力明显增强
+  - description: 区域崛起，称霸一方
+    deliverables:
+    - 主角成为区域级存在
+    - 击败区域强敌
+    - 掌控核心资源/势力
+    criteria: 区域范围内的主导地位确立
+  - description: 登顶巅峰，横扫天下
+    deliverables:
+    - 主角达到顶级实力/地位
+    - 击败顶级对手/势力
+    - 掌控全局
+    criteria: 行业内/世界范围内的顶尖地位确立
+  - description: 终极对决，开启新篇
+    deliverables:
+    - 主角触及更高层次
+    - 击败最终魔王/BOSS，拯救异世界
+    - 开启新篇章
+    criteria: 核心冲突取得决定性胜利
+  - description: 圆满结局，主宰一切
+    deliverables:
+    - 主角达到最强状态
+    - 守护核心利益/重要之人
+    - 达成最终目标
+    criteria: 所有核心目标达成，圆满结局

@@ -1,176 +1,192 @@
-# 穿越文题材技法
-# 版本: 1.0.0
-# 用途: 指导AI生成女频穿越文（古代言情、年代文）
-
-genre: "穿越文"
-version: "1.0.0"
-description: "女频穿越古代或年代，用现代智慧改变命运的专项技法"
-
-# ==================== 1. 穿越设定规范 ====================
+genre: 穿越文
+version: 1.0.0
+description: 女频穿越古代或年代，用现代智慧改变命运的专项技法
 transmigration_rules:
-  description: "穿越方式和金手指设定"
-  
+  description: 穿越方式和金手指设定
   methods:
-    - "魂穿（灵魂穿越到古代/年代身体）"
-    - "身穿（整个人穿越，带现代物品）"
-    - "重生式穿越（回到过去改变命运）"
-    
+  - 魂穿（灵魂穿越到古代/年代身体）
+  - 身穿（整个人穿越，带现代物品）
+  - 重生式穿越（回到过去改变命运）
   golden_finger:
-    - "现代知识（历史、科技、医学等）"
-    - "空间/灵泉（种田文常用）"
-    - "系统（任务奖励型）"
-    - "锦鲤体质（运气好）"
-    
+  - 现代知识（历史、科技、医学等）
+  - 空间/灵泉（种田文常用）
+  - 系统（任务奖励型）
+  - 锦鲤体质（运气好）
   limitations:
-    - "不能过于依赖金手指"
-    - "需要面对古代/年代的限制"
-    - "改变历史要有合理限制"
-
-# ==================== 2. 古代言情规范 ====================
+  - 不能过于依赖金手指
+  - 需要面对古代/年代的限制
+  - 改变历史要有合理限制
 ancient_settings:
-  description: "古代穿越的特定规则"
-  
+  description: 古代穿越的特定规则
   setting_requirements:
-    - "有具体朝代背景或架空但逻辑自洽"
-    - "符合古代礼教但女主可以适度突破"
-    - "有明确的等级制度（嫡庶、主仆等）"
-    
+  - 有具体朝代背景或架空但逻辑自洽
+  - 符合古代礼教但女主可以适度突破
+  - 有明确的等级制度（嫡庶、主仆等）
   common_archetypes:
-    - type: "嫡女逆袭"
-      plot: "嫡女回归，斗继母，夺回家产"
-    - type: "庶女崛起"
-      plot: "庶女凭智慧/医术/才艺获得地位"
-    - type: "王妃/皇后"
-      plot: "嫁给王爷/皇帝，宫斗/宅斗升级"
-    
+  - type: 嫡女逆袭
+    plot: 嫡女回归，斗继母，夺回家产
+  - type: 庶女崛起
+    plot: 庶女凭智慧/医术/才艺获得地位
+  - type: 王妃/皇后
+    plot: 嫁给王爷/皇帝，宫斗/宅斗升级
   romance_requirements:
-    - "男主通常是王爷/将军/皇帝"
-    - "先婚后爱或互相试探"
-    - "男主被女主的现代思维吸引"
-
-# ==================== 3. 年代文规范 ====================
+  - 男主通常是王爷/将军/皇帝
+  - 先婚后爱或互相试探
+  - 男主被女主的现代思维吸引
 era_settings:
-  description: "七八十年代穿越的特定规则"
-  
+  description: 七八十年代穿越的特定规则
   setting_requirements:
-    - "真实的历史背景（改革开放初期）"
-    - "物资匮乏但机遇多多的时代特征"
-    - "有时代感的细节（粮票、的确良等）"
-    
+  - 真实的历史背景（改革开放初期）
+  - 物资匮乏但机遇多多的时代特征
+  - 有时代感的细节（粮票、的确良等）
   common_archetypes:
-    - type: "军婚随军"
-      plot: "嫁给军人，随军生活，发家致富"
-    - type: "农村致富"
-      plot: "在农村种田/养殖/做生意致富"
-    - type: "返城创业"
-      plot: "知青返城，白手起家创业"
-    
+  - type: 军婚随军
+    plot: 嫁给军人，随军生活，发家致富
+  - type: 农村致富
+    plot: 在农村种田/养殖/做生意致富
+  - type: 返城创业
+    plot: 知青返城，白手起家创业
   romance_requirements:
-    - "男主通常是军人/知青/创业者"
-    - "朴实但深情的爱情"
-    - "一起奋斗的共同成长"
-
-# ==================== 4. 金手指使用规范 ====================
+  - 男主通常是军人/知青/创业者
+  - 朴实但深情的爱情
+  - 一起奋斗的共同成长
 golden_finger_usage:
-  description: "如何合理使用金手指"
-  
+  description: 如何合理使用金手指
   principles:
-    - "金手指是辅助，不能解决所有问题"
-    - "使用金手指要有代价或限制"
-    - "主要依靠女主的智慧和能力"
-    
+  - 金手指是辅助，不能解决所有问题
+  - 使用金手指要有代价或限制
+  - 主要依靠女主的智慧和能力
   space_spirit_spring:
-    usage: ["储存物资", "种植特殊作物", "治愈伤病"]
-    limitations: ["需要时间积累", "不能暴露", "有使用限制"]
-    
+    usage:
+    - 储存物资
+    - 种植特殊作物
+    - 治愈伤病
+    limitations:
+    - 需要时间积累
+    - 不能暴露
+    - 有使用限制
   modern_knowledge:
-    usage: ["医术救人", "美食创业", "工艺改进", "预知历史走向"]
-    limitations: ["不能改变大历史", "需要符合时代条件", "可能被视为异类"]
-
-# ==================== 5. 爽点设计 ====================
+    usage:
+    - 医术救人
+    - 美食创业
+    - 工艺改进
+    - 预知历史走向
+    limitations:
+    - 不能改变大历史
+    - 需要符合时代条件
+    - 可能被视为异类
 satisfaction_points:
-  description: "穿越文的爽点节奏"
-  
+  description: 穿越文的爽点节奏
   scenes:
-    - type: "初显身手"
-      description: "用现代知识/金手指第一次解决问题"
-      timing: "第3-5章"
-      
-    - type: "打脸反派"
-      description: "用智慧/能力让看不起女主的人后悔"
-      timing: "每10章左右"
-      
-    - type: "事业起飞"
-      description: "事业/地位大幅提升"
-      timing: "第20-30章"
-      
-    - type: "感情升温"
-      description: "与男主感情突破"
-      timing: "穿插进行"
-      
-    - type: "身份揭露"
-      description: "真实身份/能力被认可"
-      timing: "阶段性高潮"
-
-# ==================== 6. 禁用元素 ====================
+  - type: 初显身手
+    description: 用现代知识/金手指第一次解决问题
+    timing: 第3-5章
+  - type: 打脸反派
+    description: 用智慧/能力让看不起女主的人后悔
+    timing: 每10章左右
+  - type: 事业起飞
+    description: 事业/地位大幅提升
+    timing: 第20-30章
+  - type: 感情升温
+    description: 与男主感情突破
+    timing: 穿插进行
+  - type: 身份揭露
+    description: 真实身份/能力被认可
+    timing: 阶段性高潮
 forbidden_elements:
   items:
-    - element: "过度改变历史"
-      reason: "可以小范围改变，但不能改变大历史走向"
-      
-    - element: "不符合时代的科技"
-      reason: "不能拿出超越时代太多的科技"
-      
-    - element: "过于现代的思想"
-      reason: "女主可以超前，但不能完全脱离时代"
-
-# ==================== 7. 世界状态初始化 ====================
+  - element: 过度改变历史
+    reason: 可以小范围改变，但不能改变大历史走向
+  - element: 不符合时代的科技
+    reason: 不能拿出超越时代太多的科技
+  - element: 过于现代的思想
+    reason: 女主可以超前，但不能完全脱离时代
 world_state_initialization:
   protagonist:
-    health: "健康"
-    abilities_unlocked: ["现代知识", "金手指能力"]
-  
+    health: 健康
+    abilities_unlocked:
+    - 现代知识
+    - 金手指能力
   plot_threads:
-    - name: "适应新环境"
-      status: "active"
-      introduced_chapter: 1
-      priority: 8
-      description: "适应穿越后的生活环境"
-      next_trigger: "前10章"
-    
-    - name: "事业发展"
-      status: "active"
-      introduced_chapter: 5
-      priority: 9
-      description: "用现代知识发展事业"
-      next_trigger: "持续推进"
-    
-    - name: "感情线"
-      status: "active"
-      introduced_chapter: 3
-      priority: 10
-      description: "与男主的感情发展"
-      next_trigger: "贯穿全文"
-  
+  - name: 适应新环境
+    status: active
+    introduced_chapter: 1
+    priority: 8
+    description: 适应穿越后的生活环境
+    next_trigger: 前10章
+  - name: 事业发展
+    status: active
+    introduced_chapter: 5
+    priority: 9
+    description: 用现代知识发展事业
+    next_trigger: 持续推进
+  - name: 感情线
+    status: active
+    introduced_chapter: 3
+    priority: 10
+    description: 与男主的感情发展
+    next_trigger: 贯穿全文
   system_rules:
-    system_name: "视具体设定"
-    system_type: "空间/灵泉/系统"
-    current_level: "初始"
-
-# ==================== 8. 质量检查点 ====================
+    system_name: 视具体设定
+    system_type: 空间/灵泉/系统
+    current_level: 初始
 quality_checkpoints:
-  - point: "时代感"
-    condition: "有符合时代的细节描写"
-    severity: "warning"
-  
-  - point: "金手指合理性"
-    condition: "金手指使用有逻辑"
-    severity: "critical"
-  
-  - point: "女主能力"
-    condition: "女主有智慧有能力"
-    severity: "critical"
-  
-  - point: "爽点节奏"
-    condition: "有合理的打脸和升级"
-    severity: "warning"
+- point: 时代感
+  condition: 有符合时代的细节描写
+  severity: warning
+- point: 金手指合理性
+  condition: 金手指使用有逻辑
+  severity: critical
+- point: 女主能力
+  condition: 女主有智慧有能力
+  severity: critical
+- point: 爽点节奏
+  condition: 有合理的打脸和升级
+  severity: warning
+progression_metrics:
+  metric_name: 适应度/权势/知识优势转化
+  metric_examples:
+  - 适应度达到50%
+  - 获得首个官职/地位
+  - 现代知识首次变现
+  forbidden_concepts:
+  - 扮演度
+  - 国运
+  - 现代都市元素
+  stage_templates:
+  - description: 建立主角形象，首次展现实力
+    deliverables:
+    - 主角获得第一个核心成长/资源
+    - 完成首次实力展现
+    - 震惊全场
+    criteria: 至少1次全场震惊，主角获得实质性成长
+  - description: 快速成长，建立盟友/班底
+    deliverables:
+    - 主角实力再上新台阶
+    - 收服第一个盟友/伙伴
+    - 首次击败强敌
+    criteria: 核心伙伴≥1，主角实力明显增强
+  - description: 区域崛起，称霸一方
+    deliverables:
+    - 主角成为区域级存在
+    - 击败区域强敌
+    - 掌控核心资源/势力
+    criteria: 区域范围内的主导地位确立
+  - description: 登顶巅峰，横扫天下
+    deliverables:
+    - 主角达到顶级实力/地位
+    - 击败顶级对手/势力
+    - 掌控全局
+    criteria: 行业内/世界范围内的顶尖地位确立
+  - description: 终极对决，开启新篇
+    deliverables:
+    - 主角触及更高层次
+    - 改变历史走向，功成名就圆满归隐
+    - 开启新篇章
+    criteria: 核心冲突取得决定性胜利
+  - description: 圆满结局，主宰一切
+    deliverables:
+    - 主角达到最强状态
+    - 守护核心利益/重要之人
+    - 达成最终目标
+    criteria: 所有核心目标达成，圆满结局

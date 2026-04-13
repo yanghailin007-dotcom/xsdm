@@ -567,12 +567,13 @@
         'optimize': '优化章节内容',
         'completed': '生成完成',
         'failed': '生成失败',
+        'alignment_failed': '对齐未通过',
         'pending': '等待中',
         'preparing': '准备中',
         'running': '运行中',
         'in_progress': '进行中',
         'init': '初始化',
-        'processing': '处理中',
+        'processing': 'AI生成中',
         'finalizing': '收尾中'
     };
     
@@ -974,8 +975,8 @@
                 });
                 
                 // 如果任务完成，发送通知
-                if (['completed', 'failed'].includes(data.status) && 
-                    !['completed', 'failed'].includes(task.status)) {
+                if (['completed', 'failed', 'alignment_failed'].includes(data.status) && 
+                    !['completed', 'failed', 'alignment_failed'].includes(task.status)) {
                     this.notifyTaskComplete(task, data.status);
                 }
             } catch (e) {
@@ -985,10 +986,20 @@
         
         notifyTaskComplete(task, status) {
             if ('Notification' in window && Notification.permission === 'granted') {
+                const titleMap = {
+                    'completed': '生成完成！',
+                    'failed': '生成失败',
+                    'alignment_failed': '爆款对齐未通过'
+                };
+                const bodyMap = {
+                    'completed': '已完成',
+                    'failed': '生成失败',
+                    'alignment_failed': '爆款对齐未通过，请查看报告'
+                };
                 new Notification(
-                    status === 'completed' ? '生成完成！' : '生成失败',
+                    titleMap[status] || '任务状态更新',
                     {
-                        body: `${task.title || '未命名任务'} ${status === 'completed' ? '已完成' : '生成失败'}`,
+                        body: `${task.title || '未命名任务'} ${bodyMap[status] || status}`,
                         icon: '/static/images/logo.png'
                     }
                 );

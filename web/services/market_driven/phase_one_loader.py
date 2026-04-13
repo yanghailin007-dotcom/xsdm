@@ -47,6 +47,10 @@ class PhaseOneDataLoader:
             'emotional_blueprint': self.load_emotional_blueprint(),
             'stage_goals': self.load_stage_goals(),
             'market_analysis': self.load_market_analysis(),
+            'golden_finger': self.load_golden_finger(),
+            'plan': self._load_json("完整方案.json", {}) or self._load_json("plan.json", {}) or self._load_project_info().get("plan", {}),
+            'emotion_curve': self._load_json("情绪曲线.json", []),
+            'faction_system': self._load_faction_system(),
         }
         
         # 验证关键数据
@@ -68,8 +72,27 @@ class PhaseOneDataLoader:
         return self._load_json("升级路线.json", {})
     
     def load_emotional_blueprint(self) -> Dict:
-        """加载情绪蓝图"""
-        return self._load_json("情绪蓝图.json", {})
+        """加载情绪蓝图（已废弃独立文件，从情绪曲线自动推导）"""
+        # 🔥 情绪蓝图.json 已废弃，不再生成独立文件
+        # 改为从情绪曲线自动推导高潮节点
+        emotion_curve = self._load_json("情绪曲线.json", [])
+        if emotion_curve and isinstance(emotion_curve, list):
+            climax_moments = [
+                f"第{e.get('chapter')}章-{e.get('emotion', '高潮')}"
+                for e in emotion_curve
+                if e.get('intensity', 0) >= 9
+            ]
+            return {"climax_moments": climax_moments}
+        
+        # fallback：从 project_info.json 的 generation_metadata 中读取（兼容旧项目）
+        # fallback：从 project_info.json 的 generation_metadata 中读取（兼容旧项目，静默）
+        project_info = self._load_project_info()
+        try:
+            metadata = project_info.get("generation_metadata", {})
+            mode_info = metadata.get("mode_specific", {}).get("info", {})
+            return mode_info.get("emotional_blueprint", {})
+        except Exception:
+            return {}
     
     def load_stage_goals(self) -> List[Dict]:
         """加载阶段目标"""
@@ -80,14 +103,21 @@ class PhaseOneDataLoader:
         """加载市场分析（可选）"""
         return self._load_json("市场分析.json", {})
     
-    def _load_json(self, filename: str, default: any) -> any:
-        """加载JSON文件"""
+    def _load_json(self, filename: str, default: any, silent: bool = False) -> any:
+        """加载JSON文件
+        
+        Args:
+            filename: 文件名
+            default: 默认值
+            silent: 如果为True，文件不存在时不输出warning（用于fallback读取）
+        """
         if filename in self._cache:
             return self._cache[filename]
         
         filepath = self.products_path / filename
         if not filepath.exists():
-            logger.warning(f"[PhaseOneDataLoader] 文件不存在: {filename}")
+            if not silent:
+                logger.warning(f"[PhaseOneDataLoader] 文件不存在: {filename}")
             return default
         
         try:
@@ -101,13 +131,17 @@ class PhaseOneDataLoader:
             return default
     
     def _validate_critical_data(self, data: Dict):
-        """验证关键数据是否存在"""
+        """验证关键数据是否存在，并就地修复格式错误的数据"""
         # 检查主角名
         char_design = data.get('character_design', {})
         if not isinstance(char_design, dict):
             logger.warning(f"[PhaseOneDataLoader] ⚠️ 角色设计数据格式错误，期望dict，实际为{type(char_design).__name__}！")
-            char_design = {}
+            data['character_design'] = {}
+            char_design = data['character_design']
         protagonist = char_design.get('protagonist', {}) if isinstance(char_design.get('protagonist'), dict) else {}
+        if not isinstance(protagonist, dict):
+            char_design['protagonist'] = {}
+            protagonist = char_design['protagonist']
         if not protagonist.get('name'):
             logger.warning("[PhaseOneDataLoader] ⚠️ 主角名缺失！")
         else:
@@ -117,16 +151,22 @@ class PhaseOneDataLoader:
         world = data.get('world_setting', {})
         if not isinstance(world, dict):
             logger.warning(f"[PhaseOneDataLoader] ⚠️ 世界观数据格式错误，期望dict，实际为{type(world).__name__}！")
-            world = {}
+            data['world_setting'] = {}
+            world = data['world_setting']
         world_overview = world.get('world_overview', {})
         if not isinstance(world_overview, dict):
             logger.warning(f"[PhaseOneDataLoader] ⚠️ world_overview格式错误，期望dict，实际为{type(world_overview).__name__}！")
-            world_overview = {}
+            world['world_overview'] = {}
+            world_overview = world['world_overview']
         if not world_overview.get('background'):
             logger.warning("[PhaseOneDataLoader] ⚠️ 世界观背景缺失！")
         
         # 检查金手指
-        power = world.get('power_system', {}) if isinstance(world.get('power_system'), dict) else {}
+        power = world.get('power_system', {})
+        if not isinstance(power, dict):
+            logger.warning(f"[PhaseOneDataLoader] ⚠️ power_system格式错误，期望dict，实际为{type(power).__name__}！")
+            world['power_system'] = {}
+            power = world['power_system']
         if not power.get('shen_lang_exclusive'):
             logger.warning("[PhaseOneDataLoader] ⚠️ 金手指详细规则缺失！")
         
@@ -134,7 +174,8 @@ class PhaseOneDataLoader:
         emotion = data.get('emotional_blueprint', {})
         if not isinstance(emotion, dict):
             logger.warning(f"[PhaseOneDataLoader] ⚠️ 情绪蓝图数据格式错误，期望dict，实际为{type(emotion).__name__}！")
-            emotion = {}
+            data['emotional_blueprint'] = {}
+            emotion = data['emotional_blueprint']
         if not emotion.get('climax_moments'):
             logger.warning("[PhaseOneDataLoader] ⚠️ 高潮节点缺失！")
         else:
@@ -158,8 +199,8 @@ class PhaseOneDataLoader:
         
         返回格式：
         [
-            {'name': '沈浪', 'type': 'protagonist', 'role': '主角', 'traits': [...]},
-            {'name': '二哈', 'type': 'ally', 'role': '战宠', 'traits': [...]},
+            {'name': '主角', 'type': 'protagonist', 'role': '主角', 'traits': ['冷静', '果断']},
+            {'name': '同伴', 'type': 'ally', 'role': '伙伴', 'traits': ['忠诚', '可靠']},
             ...
         ]
         """
@@ -237,6 +278,12 @@ class PhaseOneDataLoader:
         优先从金手指设定.json读取，如不存在则从其他数据源回退
         """
         # 1. 优先从专用文件读取
+        gf = self._load_json("金手指设计.json", None)
+        if gf and isinstance(gf, dict):
+            logger.info(f"[PhaseOneDataLoader] 从金手指设计.json加载")
+            return gf
+        
+        # 兼容旧命名
         gf = self._load_json("金手指设定.json", None)
         if gf and isinstance(gf, dict):
             logger.info(f"[PhaseOneDataLoader] 从金手指设定.json加载")
@@ -287,6 +334,31 @@ class PhaseOneDataLoader:
                     return json.load(f)
         except Exception as e:
             logger.warning(f"[PhaseOneDataLoader] 加载project_info.json失败: {e}")
+        return {}
+    
+    def _load_faction_system(self) -> Dict:
+        """加载势力系统（从专用文件、完整方案或项目信息回退）"""
+        # 1. 尝试读取专用文件（修复：使用正确的文件名）
+        fs = self._load_json("势力设定.json", {})
+        if fs:
+            return fs
+        
+        # 兼容旧命名（静默读取，避免输出废弃文件警告）
+        fs = self._load_json("faction_system.json", {}, silent=True)
+        if fs:
+            return fs
+        
+        # 2. 从完整方案回退
+        plan = self._load_json("完整方案.json", {}) or self._load_json("plan.json", {})
+        if isinstance(plan, dict) and plan.get("faction_system"):
+            return plan["faction_system"]
+        
+        # 3. 从项目信息回退
+        project_info = self._load_project_info()
+        plan = project_info.get("plan", {})
+        if isinstance(plan, dict) and plan.get("faction_system"):
+            return plan["faction_system"]
+        
         return {}
     
     def _normalize_golden_finger(self, data: Dict) -> Dict:

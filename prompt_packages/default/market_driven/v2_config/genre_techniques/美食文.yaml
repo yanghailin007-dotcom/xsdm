@@ -1,69 +1,119 @@
-# 美食文题材技法
-genre: "美食文"
-version: "1.0.0"
-description: "系统烹饪+美食经营+厨艺竞技类小说的专项技法"
-
-# ==================== 1. 核心套路 ====================
+genre: 美食文
+version: 1.0.0
+description: 系统烹饪+美食经营+厨艺竞技类小说的专项技法
 core_mechanics:
-  description: "主角获得美食系统或厨艺传承，通过制作美食、经营餐厅、参加厨艺比赛等方式成长"
-
-# ==================== 2. 禁用元素 ====================
+  description: 主角获得美食系统或厨艺传承，通过制作美食、经营餐厅、参加厨艺比赛等方式成长
 forbidden_elements:
-  description: "以下元素绝对不能出现"
+  description: 以下元素绝对不能出现
   items:
-    - element: "武力冲突主导"
-      examples: ["打斗", "杀戮", "战争"]
-      reason: "美食文应以美食为核心"
-    - element: "修仙元素"
-      examples: ["筑基", "金丹", "渡劫", "灵根"]
-      reason: "这是修仙文的元素"
-    - element: "过于黑暗的情节"
-      examples: ["杀人越货", "阴谋诡计", "血腥暴力"]
-      reason: "破坏美食文的治愈氛围"
-
-# ==================== 3. 必须元素 ====================
+  - element: 武力冲突主导
+    examples:
+    - 打斗
+    - 杀戮
+    - 战争
+    reason: 美食文应以美食为核心
+  - element: 修仙元素
+    examples:
+    - 筑基
+    - 金丹
+    - 渡劫
+    - 灵根
+    reason: 这是修仙文的元素
+  - element: 过于黑暗的情节
+    examples:
+    - 杀人越货
+    - 阴谋诡计
+    - 血腥暴力
+    reason: 破坏美食文的治愈氛围
 required_elements:
-  description: "每章必须包含的元素"
+  description: 每章必须包含的元素
   items:
-    - element: "美食制作"
-      check: "是否有详细的烹饪过程描写"
-      severity: "critical"
-    - element: "感官描写"
-      check: "是否有色香味的详细描写"
-      severity: "critical"
-    - element: "食客反应"
-      check: "是否有品尝后的反应和评价"
-      severity: "warning"
-
-# ==================== 4. 世界状态初始化 ====================
+  - element: 美食制作
+    check: 是否有详细的烹饪过程描写
+    severity: critical
+  - element: 感官描写
+    check: 是否有色香味的详细描写
+    severity: critical
+  - element: 食客反应
+    check: 是否有品尝后的反应和评价
+    severity: warning
 world_state_initialization:
   protagonist:
-    health: "健康"
-    abilities_unlocked: ["基础刀工", "基础火候掌控"]
+    health: 健康
+    abilities_unlocked:
+    - 基础刀工
+    - 基础火候掌控
   plot_threads:
-    - name: "厨艺提升"
-      status: "active"
-      priority: 10
-    - name: "餐厅经营"
-      status: "active"
-      priority: 9
-    - name: "美食探索"
-      status: "active"
-      priority: 8
+  - name: 厨艺提升
+    status: active
+    priority: 10
+  - name: 餐厅经营
+    status: active
+    priority: 9
+  - name: 美食探索
+    status: active
+    priority: 8
   system_rules:
-    system_name: "美食系统"
-    system_type: "技能类"
+    system_name: 美食系统
+    system_type: 技能类
     cooking_level: 1
-    recipes_unlocked: ["蛋炒饭", "清汤面"]
-
-# ==================== 5. 质量检查点 ====================
+    recipes_unlocked:
+    - 蛋炒饭
+    - 清汤面
 quality_checkpoints:
-  - point: "美食描写"
-    condition: "有让人垂涎的美食描写"
-    severity: "critical"
-  - point: "烹饪细节"
-    condition: "烹饪过程专业可信"
-    severity: "critical"
-  - point: "治愈氛围"
-    condition: "整体氛围温暖治愈"
-    severity: "warning"
+- point: 美食描写
+  condition: 有让人垂涎的美食描写
+  severity: critical
+- point: 烹饪细节
+  condition: 烹饪过程专业可信
+  severity: critical
+- point: 治愈氛围
+  condition: 整体氛围温暖治愈
+  severity: warning
+progression_metrics:
+  metric_name: 厨艺等级/餐厅声望/美食影响力
+  metric_examples:
+  - 厨艺等级突破LV2
+  - 餐厅首次爆满
+  - 获得首个美食奖项
+  forbidden_concepts:
+  - 扮演度
+  - 国运
+  - 修仙
+  stage_templates:
+  - description: 初露锋芒，获得首个成就
+    deliverables:
+    - 掌握第一个核心技能/资源
+    - 完成首次成功展示
+    - 获得关键认可
+    criteria: 至少1次关键认可，主角获得实质性进展
+  - description: 稳步发展，建立人脉班底
+    deliverables:
+    - 技能/事业再上新台阶
+    - 收服第一个核心盟友/粉丝
+    - 击败首个竞争对手
+    criteria: 核心盟友≥1，事业/技能明显进步
+  - description: 区域成名，成为一方翘楚
+    deliverables:
+    - 主角成为区域级存在
+    - 击败区域强敌/对手
+    - 掌控核心资源/市场
+    criteria: 区域范围内的话语权确立
+  - description: 行业登顶，影响力爆棚
+    deliverables:
+    - 主角达到顶级技能/地位
+    - 击败顶级对手/竞争者
+    - 掌控行业话语权
+    criteria: 行业内/全国范围内的顶尖地位确立
+  - description: 跨界封神，开启新篇
+    deliverables:
+    - 主角触及更高层次/新领域
+    - 击败终极对手/完成终极挑战
+    - 开启新篇章
+    criteria: 核心挑战取得决定性胜利
+  - description: 圆满结局，人生巅峰
+    deliverables:
+    - 主角达到最强状态/最高成就
+    - 守护核心利益/重要之人
+    - 达成最终人生目标
+    criteria: 所有核心目标达成，圆满结局

@@ -30,8 +30,11 @@
     "retry_warning_under_limit": {
       "template": "**警告：上次输出字数{last_word_count}字不足2000字。你必须输出至少2000字，但绝对不能超过2500字。输出前请统计字数。**"
     },
-    "editor_system_prompt": "你是专业的小说编辑。分析并修复质量问题。\n工作流程：1) 识别P0/P1/P2问题 2) 逐章修复 3) 验证。只输出JSON格式。",
-    "scene_editor_system_prompt": "You are a professional novel editor. Analyze and fix quality issues at scene level.\nWorkflow: 1) Identify issues 2) Fix specific scenes 3) Preserve unchanged content. Output JSON only."
+    "tomato_compliance_check": {
+      "template": "### 番茄算法合规性检查（量化标准）\n- **对话比例**：估算引号内容占总字数比例。若<40%，必须记为 P1 issue（类型bestseller），描述：对话比例仅X%，远低于番茄40%标准\n- **爽点密度**：估算'碾压/打脸/震惊/暴涨/反转'等词出现密度(/千字)。若<1.0，记P1 issue（类型bestseller）\n- **情绪密度**：估算'暴怒/骇然/狂喜/绝望/窒息'等词密度(/千字)。若<1.5，记P2 issue\n- **章末钩子**：检查最后50字是否有悬念/问号/感叹号/危机预警。若无有效钩子，记P1 issue（类型hook）\n- **字数合规**：若字数<1800或>2800，记P0 issue（类型bestseller）"
+    },
+    "editor_system_prompt": "你是专业的小说编辑，同时也是番茄小说平台算法合规专家。你的分析必须基于以下番茄核心指标：对话比例≥40%、爽点密度≥1.5/千字、情绪密度≥2.0/千字、章章有钩子、字数2000-2500。工作流程：1) 识别P0/P1/P2问题（必须包含番茄指标量化数据） 2) 逐章修复 3) 验证。只输出JSON格式。",
+    "scene_editor_system_prompt": "You are a professional novel editor and Fanqie algorithm compliance expert. Analyze and fix quality issues at scene level. You must evaluate dialogue ratio, appeal density, emotion density, and hook quality against Fanqie standards. Workflow: 1) Identify issues with quantified metrics 2) Fix specific scenes 3) Preserve unchanged content. Output JSON only."
   },
   "word_count": {
     "min_absolute": 2000,

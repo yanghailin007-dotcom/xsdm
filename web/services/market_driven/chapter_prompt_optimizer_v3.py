@@ -2108,6 +2108,28 @@ class ChapterPromptOptimizerV3:
 **严禁偏离上述事件！** 如需扩写，必须在不改变核心剧情的前提下进行。
 """
         
+        # 🔥 构建强制角色阵容
+        assigned_chars = chapter_plan.get('assigned_characters', {})
+        characters_section = ""
+        if assigned_chars and isinstance(assigned_chars, dict):
+            char_lines = []
+            core = assigned_chars.get('core', [])
+            major = assigned_chars.get('major', [])
+            minor = assigned_chars.get('minor', [])
+            if core:
+                char_lines.append(f"- 核心角色（本章主角，必须大量戏份）：{', '.join(core)}")
+            if major:
+                char_lines.append(f"- 主要角色（本章重要对手/盟友，必须出现）：{', '.join(major)}")
+            if minor:
+                char_lines.append(f"- 次要角色（推动剧情用）：{', '.join(minor)}")
+            if char_lines:
+                characters_section = f"""
+### 👥 强制角色阵容（严禁编造其他角色替代）
+{chr(10).join(char_lines)}
+
+**红色警告**：禁止用AI自创的角色（如突然出现的"孙倩"、"狂鲨"等）替代上述规划角色！
+"""
+        
         # 构建钩子
         hook_section = ""
         if hook_content:
@@ -2150,6 +2172,7 @@ class ChapterPromptOptimizerV3:
             purpose_section,
             emotion_guide,
             event_section,
+            characters_section,
             hook_section,
             stage_section,
             forbidden_section,

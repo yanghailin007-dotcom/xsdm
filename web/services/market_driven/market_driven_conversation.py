@@ -1330,7 +1330,7 @@ POST /api/v2/prompt-config/component/{step_name}
         if "扮演" in gf_full_desc or "模板" in gf_full_desc:
             gf_keywords.append("扮演系统")
         if "剑" in gf_full_desc or "剑仙" in gf_full_desc:
-            gf_keywords.append("酒剑仙")
+            gf_keywords.append("剑道/剑仙")
         if "雷神" in gf_full_desc:
             gf_keywords.append("雷神")
         if "签到" in gf_full_desc:
@@ -1383,6 +1383,7 @@ POST /api/v2/prompt-config/component/{step_name}
             r'盲盒': '盲盒',
             r'扮演': '扮演',
             r'酒剑仙': '酒剑仙',
+            r'剑仙': '剑仙',
             r'万亿': '万亿资产',
             r'百亿': '百亿资产',
             r'全球首富': '首富'
@@ -1779,37 +1780,37 @@ POST /api/v2/prompt-config/component/{step_name}
         return result
     
     def _get_default_characters(self, protagonist_name: str) -> Dict:
-        """获取默认角色设计（当AI生成失败时使用）"""
+        """获取默认角色设计（当AI生成失败时使用）—— 通用模板，避免题材错配"""
         return {
             "protagonist": {
                 "name": protagonist_name,
                 "age": 25,
-                "identity": "前外卖员，国运选手",
-                "traits": ["杀伐果断", "极度护短", "低调装逼", "不圣母"],
-                "background": "父亲早逝，母亲重病，送外卖三年攒下20万被骗"
+                "identity": "普通青年，意外获得核心机遇",
+                "traits": ["杀伐果断", "极度护短", "低调隐忍", "不圣母"],
+                "background": "出身平凡，曾遭受欺压与背叛，决心逆袭"
             },
             "core_allies": [
-                {"name": "白月魁", "role": "女主/战斗搭档", "template": "《灵笼》女主，冷艳刀姬"},
-                {"name": "胖子", "role": "捧哏/解说", "template": "主角死党，网吧网管"},
-                {"name": "苏明月", "role": "传声筒/美女军官", "template": "龙国特派员，负责联络"}
+                {"name": "女主", "role": "女主/核心伙伴", "template": "冷艳/温柔型女主，与主角并肩作战"},
+                {"name": "死党", "role": "捧哏/解说", "template": "主角死党，忠心耿耿，关键时刻不掉链子"},
+                {"name": "助手", "role": "传声筒/联络人", "template": "美女助理或高管，负责信息传递与资源对接"}
             ],
             "main_antagonists": {
                 "early_stage": [
-                    {"name": "麦克", "nationality": "漂亮国", "identity": "基因战士", "hate_points": "歧视龙国"},
-                    {"name": "佐佐木", "nationality": "樱花国", "identity": "忍者", "hate_points": "阴险偷袭"}
+                    {"name": "早期反派A", "nationality": "本地", "identity": "地头蛇/富二代", "hate_points": "看不起主角，屡次挑衅"},
+                    {"name": "早期反派B", "nationality": "外地", "identity": "阴险小人", "hate_points": "嫉妒主角，暗中使绊"}
                 ],
                 "mid_stage": [
-                    {"name": "马克", "nationality": "漂亮国", "identity": "国防部长之子", "hate_points": "动用现实力量暗杀"},
-                    {"name": "慕容云海", "nationality": "龙国（叛徒）", "identity": "古武世家", "hate_points": "出卖龙国"}
+                    {"name": "中期反派A", "nationality": "敌对势力", "identity": "大佬之子/行业巨头", "hate_points": "动用资源打压主角"},
+                    {"name": "中期反派B", "nationality": "内部", "identity": "叛徒/伪君子", "hate_points": "出卖同伴，与主角为敌"}
                 ],
                 "late_stage": [
-                    {"name": "八岐大蛇", "origin": "樱花国神话", "identity": "SS级凶兽", "hate_points": "吞噬人类"},
-                    {"name": "观察者", "origin": "高维文明", "identity": "禁地创造者", "hate_points": "视人类为实验品"}
+                    {"name": "终极反派A", "origin": "幕后黑手", "identity": "掌控全局的幕后BOSS", "hate_points": "视主角为眼中钉，欲除之而后快"},
+                    {"name": "终极反派B", "origin": "更高维度", "identity": "跨越阶层的顶级对手", "hate_points": "垄断资源，压迫弱者"}
                 ]
             },
             "supporting_roles": [
-                {"name": "张婷", "role": "势利眼前女友", "function": "让读者恨，然后爽"},
-                {"name": "母亲", "role": "主角软肋", "function": "情感支柱"}
+                {"name": "势利眼前女友", "role": "前期打脸工具人", "function": "让读者恨，然后爽"},
+                {"name": "家人", "role": "主角软肋", "function": "情感支柱与奋斗动力"}
             ]
         }
     
@@ -2330,7 +2331,7 @@ POST /api/v2/prompt-config/component/{step_name}
 金手指：{json.dumps(previous_results.get('plan', {}).get('golden_finger', {}), ensure_ascii=False)[:500]}
 
 ### 2. 世界观概要
-{previous_results.get('core_worldview', {}).get('world_overview', '国运禁地求生')}
+{previous_results.get('core_worldview', {}).get('world_overview', '都市逆袭世界观')}
 
 ### 3. 成长路线里程碑
 {_milestones_text}

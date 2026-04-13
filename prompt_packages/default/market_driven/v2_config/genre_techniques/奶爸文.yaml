@@ -1,100 +1,138 @@
-# 奶爸文题材技法
-# 版本: 1.0.0
-# 用途: 指导AI生成奶爸萌宝文
-
-genre: "奶爸文"
-version: "1.0.0"
-description: "主角带娃，萌宝助攻，温馨搞笑的专项技法"
-
-# ==================== 1. 核心套路 ====================
+genre: 奶爸文
+version: 1.0.0
+description: 主角带娃，萌宝助攻，温馨搞笑的专项技法
 core_mechanics:
-  description: "奶爸文的核心是'带娃日常+萌宝助攻'"
+  description: 奶爸文的核心是'带娃日常+萌宝助攻'
   key_points:
-    - "突然获得萌宝（亲生的/领养的）"
-    - "手忙脚乱学带娃"
-    - "萌宝助攻找妈妈/解决问题"
-    - "温馨搞笑的日常"
-
-# ==================== 2. 萌宝设定 ====================
+  - 突然获得萌宝（亲生的/领养的）
+  - 手忙脚乱学带娃
+  - 萌宝助攻找妈妈/解决问题
+  - 温馨搞笑的日常
 baby_character:
-  description: "萌宝的设定要点"
+  description: 萌宝的设定要点
   traits:
-    - "可爱但不矫情"
-    - "聪明但不成人化"
-    - "助攻但不添乱"
-    - "有自己的小性格"
-  age_range: "2-5岁最佳，会说话会走路但还奶声奶气"
-
-# ==================== 3. 禁用元素 ====================
+  - 可爱但不矫情
+  - 聪明但不成人化
+  - 助攻但不添乱
+  - 有自己的小性格
+  age_range: 2-5岁最佳，会说话会走路但还奶声奶气
 forbidden_elements:
-  description: "奶爸文禁止的元素"
+  description: 奶爸文禁止的元素
   items:
-    - element: "虐娃"
-      examples: ["虐童", "危险环境"]
-      reason: "绝对禁止，萌宝必须安全快乐"
-    - element: "过于成熟"
-      examples: ["萌宝像大人", "说话太成熟"]
-      reason: "萌宝要符合年龄，不能太成熟"
-    - element: "忽视带娃"
-      examples: ["主角只顾事业不顾娃", "长期缺席"]
-      reason: "主角要重视带娃，不能当甩手掌柜"
-
-# ==================== 4. 必须元素 ====================
+  - element: 虐娃
+    examples:
+    - 虐童
+    - 危险环境
+    reason: 绝对禁止，萌宝必须安全快乐
+  - element: 过于成熟
+    examples:
+    - 萌宝像大人
+    - 说话太成熟
+    reason: 萌宝要符合年龄，不能太成熟
+  - element: 忽视带娃
+    examples:
+    - 主角只顾事业不顾娃
+    - 长期缺席
+    reason: 主角要重视带娃，不能当甩手掌柜
 required_elements:
-  description: "奶爸文必须包含的元素"
+  description: 奶爸文必须包含的元素
   items:
-    - element: "带娃细节"
-      check: "有真实的带娃细节（喂奶/换尿布/哄睡）"
-      severity: "critical"
-    - element: "萌宝台词"
-      check: "萌宝有可爱的台词和助攻"
-      severity: "critical"
-    - element: "温馨互动"
-      check: "父女/父子温馨互动"
-      severity: "warning"
-
-# ==================== 5. 世界状态初始化 ====================
+  - element: 带娃细节
+    check: 有真实的带娃细节（喂奶/换尿布/哄睡）
+    severity: critical
+  - element: 萌宝台词
+    check: 萌宝有可爱的台词和助攻
+    severity: critical
+  - element: 温馨互动
+    check: 父女/父子温馨互动
+    severity: warning
 world_state_initialization:
-  description: "奶爸文的世界状态初始值"
-  
+  description: 奶爸文的世界状态初始值
   protagonist:
-    health: "健康"
-    abilities_unlocked: ["带娃技能", "金手指"]
-  
+    health: 健康
+    abilities_unlocked:
+    - 带娃技能
+    - 金手指
   allies:
-    - name: "萌宝"
-      condition: "主角的孩子"
-      health: "健康活泼"
-      abilities_unlocked: ["卖萌", "助攻"]
-      relationships: "父女/父子情深"
-  
+  - name: 萌宝
+    condition: 主角的孩子
+    health: 健康活泼
+    abilities_unlocked:
+    - 卖萌
+    - 助攻
+    relationships: 父女/父子情深
   plot_threads:
-    - name: "带娃日常"
-      status: "active"
-      introduced_chapter: 1
-      priority: 10
-      description: "带娃的温馨日常"
-      next_trigger: "贯穿全文"
-    - name: "寻找妈妈"
-      status: "paused"
-      introduced_chapter: 5
-      priority: 8
-      description: "萌宝助攻找妈妈"
-      next_trigger: "根据剧情需要"
-  
+  - name: 带娃日常
+    status: active
+    introduced_chapter: 1
+    priority: 10
+    description: 带娃的温馨日常
+    next_trigger: 贯穿全文
+  - name: 寻找妈妈
+    status: paused
+    introduced_chapter: 5
+    priority: 8
+    description: 萌宝助攻找妈妈
+    next_trigger: 根据剧情需要
   system_rules:
-    system_name: "奶爸系统（可选）"
-    system_type: "育儿/成长"
-    current_level: "新手奶爸"
-
-# ==================== 6. 质量检查点 ====================
+    system_name: 奶爸系统（可选）
+    system_type: 育儿/成长
+    current_level: 新手奶爸
 quality_checkpoints:
-  - point: "萌宝可爱"
-    condition: "萌宝形象可爱生动"
-    severity: "critical"
-  - point: "带娃真实"
-    condition: "带娃细节真实"
-    severity: "critical"
-  - point: "温馨氛围"
-    condition: "整体氛围温馨治愈"
-    severity: "warning"
+- point: 萌宝可爱
+  condition: 萌宝形象可爱生动
+  severity: critical
+- point: 带娃真实
+  condition: 带娃细节真实
+  severity: critical
+- point: 温馨氛围
+  condition: 整体氛围温馨治愈
+  severity: warning
+progression_metrics:
+  metric_name: 育儿技能/家庭幸福值/事业成就
+  metric_examples:
+  - 育儿技能升级
+  - 家庭幸福值提升
+  - 事业取得首个成就
+  forbidden_concepts:
+  - 扮演度
+  - 国运
+  - 修仙打斗
+  - 财富等级
+  stage_templates:
+  - description: 相遇相识，情愫暗生
+    deliverables:
+    - 男女主首次产生交集
+    - 建立初步好感/羁绊
+    - 留下深刻印象
+    criteria: 双方关系从陌生到产生兴趣
+  - description: 感情升温，误会解除
+    deliverables:
+    - 关系取得实质性突破
+    - 消除首个重大误会/阻碍
+    - 展现彼此真心
+    criteria: 感情明显升温，信任度显著提升
+  - description: 深情相许，共同面对
+    deliverables:
+    - 正式确立亲密关系
+    - 共同击败首个外部阻碍
+    - 获得身边人认可
+    criteria: 关系公开/稳固，外部认可度提升
+  - description: 披荆斩棘，守护爱情
+    deliverables:
+    - 感情达到深度契合
+    - 击败最大外部阻力
+    - 守护彼此不受伤害
+    criteria: 双方深度绑定，核心阻力被瓦解
+  - description: 终极考验，修成正果前夜
+    deliverables:
+    - 通过最终情感考验
+    - 消除最后的心结/障碍
+    - 准备迎接圆满
+    criteria: 所有重大阻碍消除，感情坚不可摧
+  - description: 圆满结局，幸福一生
+    deliverables:
+    - 正式修成正果
+    - 家庭/感情圆满
+    - 达成最终幸福目标
+    criteria: 所有感情目标达成，圆满结局

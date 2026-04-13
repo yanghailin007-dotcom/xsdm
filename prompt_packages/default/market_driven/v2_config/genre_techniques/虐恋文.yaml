@@ -1,170 +1,194 @@
-# 虐恋文题材技法
-# 版本: 1.0.0
-# 用途: 指导AI生成符合女频虐恋文特点的内容
-
-genre: "虐恋文"
-version: "1.0.0"
-description: "替身白月光、追妻火葬场、破镜重圆类虐恋小说技法"
-
-# ==================== 1. 虐恋节奏控制 ====================
+genre: 虐恋文
+version: 1.0.0
+description: 替身白月光、追妻火葬场、破镜重圆类虐恋小说技法
 angst_progression:
-  description: "虐恋文需要控制虐的节奏，不能一直虐，要有甜有虐"
-  ratio: "60%虐+40%甜/爽"
-  note: "先虐后甜，最终HE"
-  
+  description: 虐恋文需要控制虐的节奏，不能一直虐，要有甜有虐
+  ratio: 60%虐+40%甜/爽
+  note: 先虐后甜，最终HE
   stages:
-    - order: 1
-      name: "甜蜜假象"
-      content: "表面甜蜜，但暗藏危机（替身/误会）"
-      emotion: "甜中带忧"
-      
-    - order: 2
-      name: "真相揭露"
-      content: "女主发现自己是替身/被利用，心碎离开"
-      emotion: "虐心高潮"
-      
-    - order: 3
-      name: "男主追妻"
-      content: "男主意识到女主重要性，开始追妻火葬场"
-      emotion: "酸爽"
-      
-    - order: 4
-      name: "女主逆袭"
-      content: "女主独立发光，让男主后悔莫及"
-      emotion: "爽"
-      
-    - order: 5
-      name: "破镜重圆"
-      content: "男主真心悔改，两人重新在一起"
-      emotion: "甜"
-
-# ==================== 2. 虐点设计规范 ====================
+  - order: 1
+    name: 甜蜜假象
+    content: 表面甜蜜，但暗藏危机（替身/误会）
+    emotion: 甜中带忧
+  - order: 2
+    name: 真相揭露
+    content: 女主发现自己是替身/被利用，心碎离开
+    emotion: 虐心高潮
+  - order: 3
+    name: 男主追妻
+    content: 男主意识到女主重要性，开始追妻火葬场
+    emotion: 酸爽
+  - order: 4
+    name: 女主逆袭
+    content: 女主独立发光，让男主后悔莫及
+    emotion: 爽
+  - order: 5
+    name: 破镜重圆
+    content: 男主真心悔改，两人重新在一起
+    emotion: 甜
 angst_points:
-  description: "虐恋文的虐点要虐得合理、虐得动人"
-  
+  description: 虐恋文的虐点要虐得合理、虐得动人
   valid_angst:
-    - "女主发现自己是替身"
-    - "男主为了保护女主而说狠话"
-    - "误会造成的分离"
-    - "女主为男主付出却被误解"
-    - "白月光回归造成的危机"
-    
+  - 女主发现自己是替身
+  - 男主为了保护女主而说狠话
+  - 误会造成的分离
+  - 女主为男主付出却被误解
+  - 白月光回归造成的危机
   invalid_angst:
-    - "无理由的虐待"
-    - "男主出轨/背叛"
-    - "女主被强/被侮辱"
-    - "长时间的单方面付出无回应"
-    
-  resolution: "所有虐点最终都要有解释和弥补"
-
-# ==================== 3. 男主设定规范 ====================
+  - 无理由的虐待
+  - 男主出轨/背叛
+  - 女主被强/被侮辱
+  - 长时间的单方面付出无回应
+  resolution: 所有虐点最终都要有解释和弥补
 male_lead_rules:
-  description: "虐恋文男主可以渣但不能坏，后期必须真心悔改"
-  
+  description: 虐恋文男主可以渣但不能坏，后期必须真心悔改
   early_stage:
-    traits: ["冷漠", "不珍惜", "被白月光蒙蔽"]
-    note: "有原因但不是无理由的渣"
-    
+    traits:
+    - 冷漠
+    - 不珍惜
+    - 被白月光蒙蔽
+    note: 有原因但不是无理由的渣
   later_stage:
-    traits: ["后悔", "追妻", "卑微", "真心悔改"]
-    note: "追妻火葬场必须足够惨"
-    
+    traits:
+    - 后悔
+    - 追妻
+    - 卑微
+    - 真心悔改
+    note: 追妻火葬场必须足够惨
   forbidden:
-    - "真出轨"
-    - "对女主造成不可逆伤害"
-    - "到最后还不悔改"
-
-# ==================== 4. 女主设定规范 ====================
+  - 真出轨
+  - 对女主造成不可逆伤害
+  - 到最后还不悔改
 female_lead_rules:
-  description: "虐恋文女主要有尊严，被虐后会离开/反击"
-  
+  description: 虐恋文女主要有尊严，被虐后会离开/反击
   required_traits:
-    - "有尊严（被虐会选择离开）"
-    - "有闪光点（让男主后悔）"
-    - "独立（离开男主也能活得好）"
-    - "心软但不圣母（最后会给机会）"
-    
-  character_arc: "从卑微爱到独立自强，最终获得真爱"
-
-# ==================== 5. 追妻火葬场模板 ====================
+  - 有尊严（被虐会选择离开）
+  - 有闪光点（让男主后悔）
+  - 独立（离开男主也能活得好）
+  - 心软但不圣母（最后会给机会）
+  character_arc: 从卑微爱到独立自强，最终获得真爱
 chasing_wife_templates:
-  description: "追妻火葬场的经典桥段"
-  
+  description: 追妻火葬场的经典桥段
   scenes:
-    - type: "女主离开"
-      description: "女主决绝离开，男主震惊"
-      required: ["女主的尊严", "男主的不可置信", "世界的崩塌感"]
-      
-    - type: "男主后悔"
-      description: "男主意识到女主的重要性"
-      required: ["回忆杀", "心痛描写", "意识到自己多蠢"]
-      
-    - type: "卑微追求"
-      description: "男主放下身段追求"
-      required: ["送礼物被拒", "道歉不被接受", "默默守护"]
-      
-    - type: "女主发光"
-      description: "女主离开男主后过得更好"
-      required: ["事业成功", "新追求者出现", "男主危机感"]
-      
-    - type: "最终原谅"
-      description: "女主最终给男主机会"
-      required: [ "男主足够惨", "真心悔改证明", "女主心软"]
-
-# ==================== 6. 禁用元素 ====================
+  - type: 女主离开
+    description: 女主决绝离开，男主震惊
+    required:
+    - 女主的尊严
+    - 男主的不可置信
+    - 世界的崩塌感
+  - type: 男主后悔
+    description: 男主意识到女主的重要性
+    required:
+    - 回忆杀
+    - 心痛描写
+    - 意识到自己多蠢
+  - type: 卑微追求
+    description: 男主放下身段追求
+    required:
+    - 送礼物被拒
+    - 道歉不被接受
+    - 默默守护
+  - type: 女主发光
+    description: 女主离开男主后过得更好
+    required:
+    - 事业成功
+    - 新追求者出现
+    - 男主危机感
+  - type: 最终原谅
+    description: 女主最终给男主机会
+    required:
+    - 男主足够惨
+    - 真心悔改证明
+    - 女主心软
 forbidden_elements:
   items:
-    - element: "真出轨"
-      reason: "虐恋文底线，可以有误会但不能真出轨"
-      
-    - element: "不可逆伤害"
-      reason: "不能对女主造成无法弥补的伤害"
-      
-    - element: "BE结局"
-      reason: "女频虐恋文必须HE"
-      
-    - element: "女主死亡"
-      reason: "绝对禁止"
-
-# ==================== 7. 世界状态初始化 ====================
+  - element: 真出轨
+    reason: 虐恋文底线，可以有误会但不能真出轨
+  - element: 不可逆伤害
+    reason: 不能对女主造成无法弥补的伤害
+  - element: BE结局
+    reason: 女频虐恋文必须HE
+  - element: 女主死亡
+    reason: 绝对禁止
 world_state_initialization:
   protagonist:
-    health: "健康"
-    abilities_unlocked: ["某项特长/技能"]
-  
+    health: 健康
+    abilities_unlocked:
+    - 某项特长/技能
   plot_threads:
-    - name: "替身误会"
-      status: "active"
-      introduced_chapter: 1
-      priority: 9
-      description: "女主是白月光替身的主线"
-      next_trigger: "第15-20章揭露真相"
-    
-    - name: "追妻火葬场"
-      status: "paused"
-      introduced_chapter: 20
-      priority: 10
-      description: "男主追妻主线"
-      next_trigger: "女主离开后激活"
-  
+  - name: 替身误会
+    status: active
+    introduced_chapter: 1
+    priority: 9
+    description: 女主是白月光替身的主线
+    next_trigger: 第15-20章揭露真相
+  - name: 追妻火葬场
+    status: paused
+    introduced_chapter: 20
+    priority: 10
+    description: 男主追妻主线
+    next_trigger: 女主离开后激活
   system_rules:
-    system_name: "无"
-    system_type: "无"
-
-# ==================== 8. 质量检查点 ====================
+    system_name: 无
+    system_type: 无
 quality_checkpoints:
-  - point: "虐点合理性"
-    condition: "虐有原因，不是无理由虐"
-    severity: "critical"
-  
-  - point: "追妻诚意"
-    condition: "男主追妻火葬场足够惨"
-    severity: "critical"
-  
-  - point: "女主尊严"
-    condition: "女主有尊严，会反击/离开"
-    severity: "critical"
-  
-  - point: "HE结局"
-    condition: "最终幸福圆满"
-    severity: "critical"
+- point: 虐点合理性
+  condition: 虐有原因，不是无理由虐
+  severity: critical
+- point: 追妻诚意
+  condition: 男主追妻火葬场足够惨
+  severity: critical
+- point: 女主尊严
+  condition: 女主有尊严，会反击/离开
+  severity: critical
+- point: HE结局
+  condition: 最终幸福圆满
+  severity: critical
+progression_metrics:
+  metric_name: 感情纠葛度/关系修复度
+  metric_examples:
+  - 误会值清零
+  - 关系修复至亲密
+  - 感情深度达到顶峰
+  forbidden_concepts:
+  - 扮演度
+  - 国运
+  - 修仙打斗
+  - 财富等级
+  stage_templates:
+  - description: 相遇相识，情愫暗生
+    deliverables:
+    - 男女主首次产生交集
+    - 建立初步好感/羁绊
+    - 留下深刻印象
+    criteria: 双方关系从陌生到产生兴趣
+  - description: 感情升温，误会解除
+    deliverables:
+    - 关系取得实质性突破
+    - 消除首个重大误会/阻碍
+    - 展现彼此真心
+    criteria: 感情明显升温，信任度显著提升
+  - description: 深情相许，共同面对
+    deliverables:
+    - 正式确立亲密关系
+    - 共同击败首个外部阻碍
+    - 获得身边人认可
+    criteria: 关系公开/稳固，外部认可度提升
+  - description: 披荆斩棘，守护爱情
+    deliverables:
+    - 感情达到深度契合
+    - 击败最大外部阻力
+    - 守护彼此不受伤害
+    criteria: 双方深度绑定，核心阻力被瓦解
+  - description: 终极考验，修成正果前夜
+    deliverables:
+    - 通过最终情感考验
+    - 消除最后的心结/障碍
+    - 准备迎接圆满
+    criteria: 所有重大阻碍消除，感情坚不可摧
+  - description: 圆满结局，幸福一生
+    deliverables:
+    - 正式修成正果
+    - 家庭/感情圆满
+    - 达成最终幸福目标
+    criteria: 所有感情目标达成，圆满结局

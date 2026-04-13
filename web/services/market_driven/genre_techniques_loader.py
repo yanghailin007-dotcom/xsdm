@@ -114,10 +114,10 @@ class GenreTechniquesLoader:
             base_path: 技法文件的基础路径，默认使用项目内路径
         """
         if base_path is None:
-            # 默认路径：项目根目录/prompt_packages/v2_architecture/genre_techniques
+            # 默认路径：项目根目录/prompt_packages/default/market_driven/v2_config/genre_techniques
             current_file = Path(__file__).resolve()
             project_root = current_file.parent.parent.parent.parent
-            base_path = project_root / "prompt_packages" / "v2_architecture" / "genre_techniques"
+            base_path = project_root / "prompt_packages" / "default" / "market_driven" / "v2_config" / "genre_techniques"
         
         self.base_path = Path(base_path)
         self._cache: Dict[str, GenreTechniques] = {}

@@ -90,6 +90,11 @@
   color: #f87171;
 }
 
+.progress-card__status--alignment_failed {
+  background: rgba(168, 85, 247, 0.15);
+  color: #c084fc;
+}
+
 /* 进度条 */
 .progress-bar {
   height: 8px;
@@ -977,7 +982,7 @@ async function pollTaskStatus() {
     updateUI(task);
     
     // 任务完成、失败或暂停，停止轮询
-    if (task.status === 'completed' || task.status === 'failed' || task.status === 'paused_insufficient_points') {
+    if (task.status === 'completed' || task.status === 'failed' || task.status === 'alignment_failed' || task.status === 'paused_insufficient_points') {
       clearInterval(pollInterval);
     }
     
@@ -1009,6 +1014,7 @@ const STAGE_NAME_MAP = {
   'optimize': '优化章节内容',
   'completed': '生成完成',
   'failed': '生成失败',
+  'alignment_failed': '爆款对齐未通过',
   'pending': '等待中',
   'preparing': '准备中',
   'running': '运行中',
@@ -1020,7 +1026,7 @@ const STAGE_NAME_MAP = {
   'save_chapter': '保存章节',
   // 通用
   'init': '初始化',
-  'processing': '处理中',
+  'processing': 'AI生成中',
   'finalizing': '收尾中'
 };
 
@@ -1044,7 +1050,7 @@ function isTaskRunning(task) {
     'analyzing', 'planning', 'processing', 'preparing',
     'generating_chapters', 'continue_chapters'
   ];
-  const completedStatuses = ['completed', 'failed', 'cancelled', 'error'];
+  const completedStatuses = ['completed', 'failed', 'alignment_failed', 'cancelled', 'error'];
   
   // 明确完成的状态
   if (completedStatuses.includes(task.status)) return false;
@@ -1172,6 +1178,10 @@ function updateUI(task) {
     statusEl.textContent = '失败';
     statusEl.className = 'progress-card__status progress-card__status--failed';
     showError(task.error);
+  } else if (task.status === 'alignment_failed') {
+    statusEl.textContent = '对齐未通过';
+    statusEl.className = 'progress-card__status progress-card__status--alignment_failed';
+    showError(task.error || task.message || '爆款对齐检查未通过，请查看对齐报告并调整后重试。');
   } else if (isTaskRunning(task)) {
     // 显示后台运行按钮（任务进行中且未完成时）
     const bgBtn = document.getElementById('background-btn');

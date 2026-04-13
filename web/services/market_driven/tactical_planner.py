@@ -647,7 +647,7 @@ class TacticalPlanner:
 {chr(10).join([f"- 第{e.get('chapter', '?')}章: {e.get('event', '')}" for e in previous_summary.get('completed_events', [])[:5]])}
 
 ### 角色当前状态
-- 主角扮演度: {previous_summary.get('character_states', {}).get('protagonist', {}).get('扮演度', '未知')}
+- 主角进度/能力层级: {previous_summary.get('character_states', {}).get('protagonist', {}).get('进度', previous_summary.get('character_states', {}).get('protagonist', {}).get('扮演度', '未知'))}
 - 主角已解锁能力: {', '.join(previous_summary.get('character_states', {}).get('protagonist', {}).get('新技能', []))}
 - 队友态度: {previous_summary.get('character_states', {}).get('ally', {}).get('态度', '未知')}
 
@@ -903,11 +903,11 @@ class TacticalPlanner:
         
         events_map = {
             'G1': [  # establish形象
-                f"{p}醉酒状态被选中进入禁地",
+                f"{p}在平凡生活中被意外选中",
                 f"外媒嘲讽大夏选手{p}是酒鬼",
-                f"{p}随手一指秒杀凶兽",
+                f"{p}首次展露出人意料的能力",
                 f"直播间观众震惊于{p}实力",
-                f"{p}发现禁地灵酒线索"
+                f"{p}发现隐藏机遇的线索"
             ],
             'G2': [  # 解锁酒神咒
                 f"{p}收集上古灵酒配方",
@@ -917,7 +917,7 @@ class TacticalPlanner:
                 f"{p}首次用酒神咒斩杀伪神"
             ],
             'G3': [  # 诸神黄昏
-                f"{p}突破禁地外围屏障",
+                f"{p}突破第一道外部阻碍",
                 f"{p}遭遇异界文明先锋",
                 f"{p}发现诸神黄昏遗迹",
                 f"{p}与高魔文明初次交锋",

@@ -1,176 +1,182 @@
-# 快穿文题材技法
-# 版本: 1.0.0
-# 用途: 指导AI生成女频快穿文
-
-genre: "快穿文"
-version: "1.0.0"
-description: "女主穿越各个世界完成任务，攻略反派或逆袭打脸"
-
-# ==================== 1. 快穿设定规范 ====================
+genre: 快穿文
+version: 1.0.0
+description: 女主穿越各个世界完成任务，攻略反派或逆袭打脸
 quick_transmigration_rules:
-  description: "快穿的基本设定"
-  
+  description: 快穿的基本设定
   system_type:
-    - "攻略系统（攻略指定目标）"
-    - "逆袭系统（改变原主命运）"
-    - "复仇系统（为原主复仇）"
-    - "学习系统（学习各种技能）"
-    
+  - 攻略系统（攻略指定目标）
+  - 逆袭系统（改变原主命运）
+  - 复仇系统（为原主复仇）
+  - 学习系统（学习各种技能）
   world_types:
-    - "总裁文（霸道总裁与小白花）"
-    - "古代文（王爷/皇帝后宫）"
-    - "娱乐圈（明星与粉丝/经纪人）"
-    - "末世文（丧尸与异能）"
-    - "修仙文（修真世界）"
-    - "ABO（星际设定）"
-    
+  - 总裁文（霸道总裁与小白花）
+  - 古代文（王爷/皇帝后宫）
+  - 娱乐圈（明星与粉丝/经纪人）
+  - 末世文（丧尸与异能）
+  - 修仙文（修真世界）
+  - ABO（星际设定）
   task_requirements:
-    - "每个世界有特定任务"
-    - "完成任务获得奖励"
-    - "失败有惩罚（扣除积分/魂飞魄散）"
-
-# ==================== 2. 攻略反派类规范 ====================
+  - 每个世界有特定任务
+  - 完成任务获得奖励
+  - 失败有惩罚（扣除积分/魂飞魄散）
 villain_capture_archetype:
-  description: "攻略各个世界的反派Boss"
-  
+  description: 攻略各个世界的反派Boss
   villain_types:
-    - "黑化总裁（被背叛过的霸道总裁）"
-    - "暴虐王爷（被皇位斗争伤害）"
-    - "末世丧尸王（人类与丧尸的矛盾）"
-    - "魔尊/邪修（被正道背叛）"
-    
+  - 黑化总裁（被背叛过的霸道总裁）
+  - 暴虐王爷（被皇位斗争伤害）
+  - 末世丧尸王（人类与丧尸的矛盾）
+  - 魔尊/邪修（被正道背叛）
   capture_strategy:
-    - "了解反派黑化原因"
-    - "给予反派缺失的温暖"
-    - "在反派最脆弱时出现"
-    - "成为反派唯一的救赎"
-    
-  note: "每个世界的男主都是同一个人的灵魂碎片（可选设定）"
-
-# ==================== 3. 逆袭打脸类规范 ====================
+  - 了解反派黑化原因
+  - 给予反派缺失的温暖
+  - 在反派最脆弱时出现
+  - 成为反派唯一的救赎
+  note: 每个世界的男主都是同一个人的灵魂碎片（可选设定）
 counterattack_archetype:
-  description: "替原主逆袭人生，打脸渣男贱女"
-  
+  description: 替原主逆袭人生，打脸渣男贱女
   original_host_situation:
-    - "被渣男抛弃/利用"
-    - "被闺蜜/姐妹陷害"
-    - "被家族抛弃"
-    - "能力被低估"
-    
+  - 被渣男抛弃/利用
+  - 被闺蜜/姐妹陷害
+  - 被家族抛弃
+  - 能力被低估
   counterattack_methods:
-    - "展现真实实力"
-    - "让反派自食恶果"
-    - "找到真爱（比渣男更好的人）"
-    - "事业成功"
-    
-  satisfaction: "看着反派后悔莫及"
-
-# ==================== 4. 世界节奏控制 ====================
+  - 展现真实实力
+  - 让反派自食恶果
+  - 找到真爱（比渣男更好的人）
+  - 事业成功
+  satisfaction: 看着反派后悔莫及
 world_pacing:
-  description: "每个世界的节奏控制"
-  
-  chapter_limit: "每个世界10-20章"
-  
+  description: 每个世界的节奏控制
+  chapter_limit: 每个世界10-20章
   structure:
-    - "1-2章：了解世界和任务"
-    - "3-5章：初步行动，引起目标注意"
-    - "6-10章：任务推进，感情发展"
-    - "11-15章：高潮，任务完成"
-    - "16-20章：收尾，离开世界"
-    
-  note: "每个世界要有完整性，不能太仓促"
-
-# ==================== 5. 感情线设计 ====================
+  - 1-2章：了解世界和任务
+  - 3-5章：初步行动，引起目标注意
+  - 6-10章：任务推进，感情发展
+  - 11-15章：高潮，任务完成
+  - 16-20章：收尾，离开世界
+  note: 每个世界要有完整性，不能太仓促
 romance_rules:
-  description: "快穿的感情线处理"
-  
+  description: 快穿的感情线处理
   same_soul_theory:
-    description: "每个世界的男主都是同一个人的灵魂碎片"
-    advantage: "感情有延续性，最终可以在一起"
-    
+    description: 每个世界的男主都是同一个人的灵魂碎片
+    advantage: 感情有延续性，最终可以在一起
   different_love_interests:
-    description: "每个世界有不同的男主"
-    note: "每个世界都要有完整的感情线"
-    
+    description: 每个世界有不同的男主
+    note: 每个世界都要有完整的感情线
   emotional_continuity:
-    description: "女主带着记忆，感情有积累"
-    note: "可以是同一灵魂的吸引"
-
-# ==================== 6. 爽点设计 ====================
+    description: 女主带着记忆，感情有积累
+    note: 可以是同一灵魂的吸引
 satisfaction_points:
   scenes:
-    - type: "任务完成"
-      description: "完成系统任务，获得奖励"
-      
-    - type: "反派打脸"
-      description: "让原世界的反派后悔"
-      
-    - type: "攻略成功"
-      description: "成功攻略目标"
-      
-    - type: "技能积累"
-      description: "从每个世界带走技能"
-      
-    - type: "最终回归"
-      description: "完成所有任务，回到现实或最终世界"
-
-# ==================== 7. 禁用元素 ====================
+  - type: 任务完成
+    description: 完成系统任务，获得奖励
+  - type: 反派打脸
+    description: 让原世界的反派后悔
+  - type: 攻略成功
+    description: 成功攻略目标
+  - type: 技能积累
+    description: 从每个世界带走技能
+  - type: 最终回归
+    description: 完成所有任务，回到现实或最终世界
 forbidden_elements:
-  description: "快穿文绝对禁止的元素"
+  description: 快穿文绝对禁止的元素
   items:
-    - element: "世界混乱"
-      examples: ["世界设定矛盾", "规则不统一"]
-      reason: "每个世界要有清晰独立的规则"
-    
-    - element: "感情随便"
-      examples: ["每个世界都谈恋爱", "感情线突兀"]
-      reason: "感情要有发展过程，不能一见面就爱"
-    
-    - element: "任务不清"
-      examples: ["任务目标模糊", "完成条件不明"]
-      reason: "每个世界任务必须明确，否则读者困惑"
-    
-    - element: "能力崩坏"
-      examples: ["前一世界的技能突然不能用", "能力忽强忽弱"]
-      reason: "能力体系要一致，限制条件要遵守"
-
-# ==================== 8. 世界状态初始化 ====================
+  - element: 世界混乱
+    examples:
+    - 世界设定矛盾
+    - 规则不统一
+    reason: 每个世界要有清晰独立的规则
+  - element: 感情随便
+    examples:
+    - 每个世界都谈恋爱
+    - 感情线突兀
+    reason: 感情要有发展过程，不能一见面就爱
+  - element: 任务不清
+    examples:
+    - 任务目标模糊
+    - 完成条件不明
+    reason: 每个世界任务必须明确，否则读者困惑
+  - element: 能力崩坏
+    examples:
+    - 前一世界的技能突然不能用
+    - 能力忽强忽弱
+    reason: 能力体系要一致，限制条件要遵守
 world_state_initialization:
   protagonist:
-    health: "健康"
-    abilities_unlocked: ["系统能力", "之前世界学到的技能"]
-  
+    health: 健康
+    abilities_unlocked:
+    - 系统能力
+    - 之前世界学到的技能
   plot_threads:
-    - name: "当前世界任务"
-      status: "active"
-      introduced_chapter: 1
-      priority: 10
-      description: "每个世界的主要任务"
-    
-    - name: "技能积累"
-      status: "active"
-      priority: 8
-      description: "从各个世界获得的能力"
-  
+  - name: 当前世界任务
+    status: active
+    introduced_chapter: 1
+    priority: 10
+    description: 每个世界的主要任务
+  - name: 技能积累
+    status: active
+    priority: 8
+    description: 从各个世界获得的能力
   system_rules:
-    system_name: "快穿系统"
-    system_type: "攻略/逆袭系统"
-    current_level: "随世界推进"
-
-# ==================== 8. 质量检查点 ====================
+    system_name: 快穿系统
+    system_type: 攻略/逆袭系统
+    current_level: 随世界推进
 quality_checkpoints:
-  - point: "世界完整"
-    condition: "每个世界有完整的故事"
-    severity: "critical"
-  
-  - point: "任务清晰"
-    condition: "每个世界的任务明确"
-    severity: "critical"
-  
-  - point: "感情真实"
-    condition: "感情发展有逻辑"
-    severity: "warning"
-  
-  - point: "节奏合理"
-    condition: "每个世界篇幅适中"
-    severity: "warning"
+- point: 世界完整
+  condition: 每个世界有完整的故事
+  severity: critical
+- point: 任务清晰
+  condition: 每个世界的任务明确
+  severity: critical
+- point: 感情真实
+  condition: 感情发展有逻辑
+  severity: warning
+- point: 节奏合理
+  condition: 每个世界篇幅适中
+  severity: warning
+progression_metrics:
+  metric_name: 任务完成度/灵魂强度/积分
+  metric_examples:
+  - 完成首个世界任务
+  - 灵魂强度提升
+  - 积分破万
+  forbidden_concepts:
+  - 扮演度
+  - 国运
+  stage_templates:
+  - description: 建立主角形象，首次展现实力
+    deliverables:
+    - 主角获得第一个核心成长/资源
+    - 完成首次实力展现
+    - 震惊全场
+    criteria: 至少1次全场震惊，主角获得实质性成长
+  - description: 快速成长，建立盟友/班底
+    deliverables:
+    - 主角实力再上新台阶
+    - 收服第一个盟友/伙伴
+    - 首次击败强敌
+    criteria: 核心伙伴≥1，主角实力明显增强
+  - description: 区域崛起，称霸一方
+    deliverables:
+    - 主角成为区域级存在
+    - 击败区域强敌
+    - 掌控核心资源/势力
+    criteria: 区域范围内的主导地位确立
+  - description: 登顶巅峰，横扫天下
+    deliverables:
+    - 主角达到顶级实力/地位
+    - 击败顶级对手/势力
+    - 掌控全局
+    criteria: 行业内/世界范围内的顶尖地位确立
+  - description: 终极对决，开启新篇
+    deliverables:
+    - 主角触及更高层次
+    - 完成最终任务，回到现实世界/获得永生
+    - 开启新篇章
+    criteria: 核心冲突取得决定性胜利
+  - description: 圆满结局，主宰一切
+    deliverables:
+    - 主角达到最强状态
+    - 守护核心利益/重要之人
+    - 达成最终目标
+    criteria: 所有核心目标达成，圆满结局

@@ -1,69 +1,114 @@
-# 诡异复苏文题材技法
-genre: "诡异复苏文"
-version: "1.0.0"
-description: "规则怪谈+诡异入侵+生存挑战类小说的专项技法"
-
-# ==================== 1. 核心套路 ====================
+genre: 诡异复苏文
+version: 1.0.0
+description: 规则怪谈+诡异入侵+生存挑战类小说的专项技法
 core_mechanics:
-  description: "诡异复苏，规则怪谈降临现实，主角需要破解规则、对抗诡异，在恐怖中寻找生存之道"
-
-# ==================== 2. 禁用元素 ====================
+  description: 诡异复苏，规则怪谈降临现实，主角需要破解规则、对抗诡异，在恐怖中寻找生存之道
 forbidden_elements:
-  description: "以下元素绝对不能出现"
+  description: 以下元素绝对不能出现
   items:
-    - element: "轻松搞笑过度"
-      examples: ["无厘头搞笑", "过度玩梗", "轻松氛围"]
-      reason: "破坏诡异恐怖的氛围"
-    - element: "无敌开挂"
-      examples: ["主角直接秒杀诡异", "毫无危险"]
-      reason: "诡异文需要紧张感和危机感"
-    - element: "传统修仙"
-      examples: ["筑基", "金丹", "正道除魔"]
-      reason: "与诡异规则体系冲突"
-
-# ==================== 3. 必须元素 ====================
+  - element: 轻松搞笑过度
+    examples:
+    - 无厘头搞笑
+    - 过度玩梗
+    - 轻松氛围
+    reason: 破坏诡异恐怖的氛围
+  - element: 无敌开挂
+    examples:
+    - 主角直接秒杀诡异
+    - 毫无危险
+    reason: 诡异文需要紧张感和危机感
+  - element: 传统修仙
+    examples:
+    - 筑基
+    - 金丹
+    - 正道除魔
+    reason: 与诡异规则体系冲突
 required_elements:
-  description: "每章必须包含的元素"
+  description: 每章必须包含的元素
   items:
-    - element: "规则呈现"
-      check: "是否有规则怪谈的具体规则展示"
-      severity: "critical"
-    - element: "诡异氛围"
-      check: "是否保持诡异、压抑、恐怖的氛围"
-      severity: "critical"
-    - element: "生存压力"
-      check: "主角是否面临真实的死亡威胁"
-      severity: "critical"
-
-# ==================== 4. 世界状态初始化 ====================
+  - element: 规则呈现
+    check: 是否有规则怪谈的具体规则展示
+    severity: critical
+  - element: 诡异氛围
+    check: 是否保持诡异、压抑、恐怖的氛围
+    severity: critical
+  - element: 生存压力
+    check: 主角是否面临真实的死亡威胁
+    severity: critical
 world_state_initialization:
   protagonist:
-    health: "健康"
-    abilities_unlocked: ["诡异感知"]
+    health: 健康
+    abilities_unlocked:
+    - 诡异感知
   plot_threads:
-    - name: "诡异入侵"
-      status: "active"
-      priority: 10
-    - name: "规则破解"
-      status: "active"
-      priority: 9
-    - name: "诡异源头"
-      status: "hidden"
-      priority: 8
+  - name: 诡异入侵
+    status: active
+    priority: 10
+  - name: 规则破解
+    status: active
+    priority: 9
+  - name: 诡异源头
+    status: hidden
+    priority: 8
   system_rules:
-    system_name: "诡异规则"
-    system_type: "规则类"
+    system_name: 诡异规则
+    system_type: 规则类
     contamination_level: 0
     rules_known: []
-
-# ==================== 5. 质量检查点 ====================
 quality_checkpoints:
-  - point: "规则清晰"
-    condition: "规则表述明确，有逻辑性"
-    severity: "critical"
-  - point: "恐怖氛围"
-    condition: "保持诡异恐怖的基调"
-    severity: "critical"
-  - point: "逻辑自洽"
-    condition: "规则之间不矛盾，破解合理"
-    severity: "warning"
+- point: 规则清晰
+  condition: 规则表述明确，有逻辑性
+  severity: critical
+- point: 恐怖氛围
+  condition: 保持诡异恐怖的基调
+  severity: critical
+- point: 逻辑自洽
+  condition: 规则之间不矛盾，破解合理
+  severity: warning
+progression_metrics:
+  metric_name: san值/诡异抗性/调查进度
+  metric_examples:
+  - san值稳定度提升
+  - 诡异抗性觉醒
+  - 揭开首个真相
+  forbidden_concepts:
+  - 扮演度
+  - 国运
+  - 修仙
+  stage_templates:
+  - description: 卷入诡异，初次求生
+    deliverables:
+    - 遭遇首个诡异事件
+    - 成功存活并觉醒抗性
+    - 获得首个关键线索
+    criteria: 至少1次惊险求生，获得关键信息
+  - description: 快速成长，建立盟友
+    deliverables:
+    - 诡异抗性再上新台阶
+    - 收服第一个可信盟友
+    - 揭开首个局部真相
+    criteria: 核心盟友≥1，对诡异世界认知加深
+  - description: 区域调查，掌握规则
+    deliverables:
+    - 成为区域内诡异专家
+    - 击败/化解区域级诡异
+    - 掌控核心生存规则/道具
+    criteria: 区域范围内诡异事件可控
+  - description: 直面真相，挑战源头
+    deliverables:
+    - 达到顶级抗性/调查深度
+    - 击败/阻止顶级诡异源头
+    - 掌控全局真相
+    criteria: 核心诡异源头被遏制
+  - description: 终极对决，守护人间
+    deliverables:
+    - 触及诡异终极秘密
+    - 阻止末日级诡异降临
+    - 开启新篇
+    criteria: 核心灾难被阻止
+  - description: 诡异退散，圆满结局
+    deliverables:
+    - 达到最强状态
+    - 守护人间和平
+    - 达成最终目标
+    criteria: 所有核心目标达成，圆满结局

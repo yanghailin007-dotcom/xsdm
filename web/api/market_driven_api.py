@@ -41,6 +41,7 @@ try:
         UnifiedProjectManager, FanqieUploadAdapter, ProjectDirectoryManager,
         create_unified_project, load_and_prepare_upload
     )
+    from web.services.market_driven.genre_techniques_loader import load_genre_techniques
     logger.info("✅ MarketDriven services 导入成功")
 except ImportError as e:
     logger.error(f"❌ MarketDriven services 导入失败: {e}")
@@ -724,6 +725,19 @@ def start_market_driven_generation():
                     if not options.get('skip_phase_one', False):
                         _run_plan_and_products_conversation(task_id, genre, user_choices, api_client)
                     
+                    # 🔥 检查是否因对齐失败被熔断
+                    task_after_p1 = task_manager.get_task(task_id)
+                    if task_after_p1 and task_after_p1.get('status') == 'alignment_failed':
+                        logger.warning(f"[Task {task_id}] 🚫 检测到 alignment_failed 状态，跳过章节生成")
+                        task_manager.update_task(
+                            task_id,
+                            status="alignment_failed",
+                            progress=50,
+                            current_stage="alignment_failed",
+                            message="爆款对齐检查未通过，任务已终止。请查看对齐报告并调整后重试。"
+                        )
+                        return  # 结束后台线程，不抛出异常
+                    
                     # 第3阶段：生成章节
                     if options.get('generate_chapters', True):
                         _run_chapter_generation(task_id, genre, target_words, api_client)
@@ -977,11 +991,29 @@ def _run_plan_and_products_conversation(task_id: str, genre: str, user_choices: 
         logger.error(f"[Task {task_id}] ❌ 对话模式生成失败: {e}")
         import traceback
         logger.error(f"[Task {task_id}] 错误堆栈:\n{traceback.format_exc()}")
-        logger.info(f"[Task {task_id}] 🔄 回退到传统模式...")
         
-        # 回退到传统模式
-        _run_plan_generation(task_id, genre, user_choices, api_client)
-        _run_phase_one_products(task_id, genre, api_client)
+        # 🔥 对齐引擎熔断：如果是爆款对齐失败，标记为 alignment_failed 并不再回退
+        error_str = str(e)
+        if "步骤6爆款对齐失败" in error_str or "AlignmentEngine" in error_str or "爆款对齐未通过" in error_str:
+            logger.error(f"[Task {task_id}] 🚫 爆款对齐熔断触发，任务标记为 alignment_failed")
+            task_manager.update_task(
+                task_id,
+                status="alignment_failed",
+                error=error_str,
+                message=f"爆款对齐未通过，已终止章节生成: {error_str}",
+                current_stage="alignment_failed"
+            )
+            # 不抛出异常，让上层 run_full_generation 检测到状态后跳过章节生成
+            return
+        
+        # 🔥 对话模式失败直接终止，不再回退到传统模式
+        task_manager.update_task(
+            task_id,
+            status="failed",
+            error=str(e),
+            message=f"生成已终止: {e}"
+        )
+        raise
 
 
 def _run_phase_one_products(task_id: str, genre: str, api_client=None):
@@ -1072,38 +1104,17 @@ def _run_phase_one_products(task_id: str, genre: str, api_client=None):
         
     except Exception as e:
         logger.error(f"[Task {task_id}] 对话模式生成失败: {e}")
-        logger.info(f"[Task {task_id}] 回退到模板模式...")
+        import traceback
+        logger.error(f"[Task {task_id}] 错误堆栈:\n{traceback.format_exc()}")
         
-        # 回退到原来的模板模式
-        try:
-            tropes = task.get("result", {}).get("tropes", {})
-            plan = task.get("result", {}).get("plan", {})
-            
-            generator = MarketDrivenPhaseOneGenerator(api_client=api_client)
-            products = generator.generate_all_products(genre, tropes, plan)
-            
-            # 优先使用用户填写的书名
-            user_choices = task.get("user_choices", {})
-            writing_style = task.get('writing_style')
-            novel_title = user_choices.get("title") or plan.get("recommended_title") or f"未命名_{task_id[:8]}"
-            save_path = save_phase_one_products(novel_title, products, task_id, genre, plan, user_choices, username, writing_style)
-            
-            current_result = task.get("result", {})
-            current_result["products"] = products
-            current_result["save_path"] = str(save_path)
-            
-            task_manager.update_task(
-                task_id,
-                progress=50,
-                result=current_result,
-                message="第一阶段产物生成完成（模板模式）"
-            )
-            
-            logger.info(f"[Task {task_id}] 模板模式生成完成")
-            
-        except Exception as e2:
-            logger.error(f"[Task {task_id}] 模板模式也失败: {e2}")
-            raise
+        # 🔥 对话模式失败直接终止，不再回退到模板模式
+        task_manager.update_task(
+            task_id,
+            status="failed",
+            error=str(e),
+            message=f"生成已终止: {e}"
+        )
+        raise
 
 
 def save_phase_one_products(novel_title: str, products: Dict, task_id: str, 
@@ -1396,9 +1407,10 @@ def _run_chapter_generation(task_id: str, genre: str, target_words: int, api_cli
         plan = task.get("result", {}).get("plan", {})
         products = task.get("result", {}).get("products", {})
         
-        # 🔥 获取用户名
+        # 🔥 获取用户名和题材
         username = task.get('username') or 'anonymous'
-        logger.info(f"[ChapterGen] 使用用户名: {username}")
+        genre = task.get('genre', '')
+        logger.info(f"[ChapterGen] 使用用户名: {username}, 题材: {genre}")
         
         # 🔥 初始化分层规划器
         from web.services.market_driven.hierarchical_planner import HierarchicalPlanner
@@ -1484,14 +1496,19 @@ def _run_chapter_generation(task_id: str, genre: str, target_words: int, api_cli
         else:
             logger.error(f"[ChapterGen] products.character_design 不是字典: type={type(char_design)}")
         
+        # 🔥 金手指可能嵌套在 plan 中（对话模式产物结构）
+        golden_finger = products.get("golden_finger") or products.get("plan", {}).get("golden_finger", {})
+        
         novel_data = {
             "title": novel_title,
             "username": username,
             "_username": username,
+            "genre": genre,
             "core_worldview": products.get("core_worldview", {}),
             "character_design": products.get("character_design", {}),
             "faction_system": products.get("faction_system", {}),
             "plan": products.get("plan", {}),
+            "golden_finger": golden_finger,
             "emotion_curve": products.get("emotion_curve", {}),
             "user_choices": user_choices
         }
@@ -2310,11 +2327,20 @@ def start_dialog_polish():
         if not genre:
             return jsonify({"error": "缺少genre参数"}), 400
         
+        # 初始化API客户端
+        api_client = None
+        try:
+            from src.core.APIClient import APIClient
+            from config.config import CONFIG
+            api_client = APIClient(CONFIG)
+        except Exception as e:
+            logger.warning(f"对话打磨API客户端初始化失败: {e}")
+        
         # 导入对话打磨管理器
         from web.services.market_driven.dialog_polish_manager import create_dialog_session
         
         # 创建会话
-        manager = create_dialog_session(None, genre, tropes)
+        manager = create_dialog_session(None, genre, tropes, api_client)
         
         # 开始第一轮
         result = manager.start_dialog()
@@ -2502,8 +2528,21 @@ def dialog_complete():
         if selected_option or custom_input:
             manager.process_user_input(selected_option or 'complete', custom_input)
         
-        # 获取对话结果
+        # 🔥 关键修复：如果尚未生成完整方案（直接完成或跳过对话轮次），自动补生成
         draft = manager.get_creative_draft()
+        # 检查 golden_finger_design 是否为完整的6字段结构
+        gf_design = draft.golden_finger_design or {}
+        is_complete_gf = (
+            isinstance(gf_design, dict) and
+            all(k in gf_design for k in ["basic_info", "abilities", "restrictions", "applications", "protagonist_synergy", "plot_role"])
+        )
+        if not is_complete_gf or not draft.title:
+            logger.info(f"[dialog_complete] 检测到完整方案缺失/不完整，自动补生成 | session: {session_id} | gf完整:{is_complete_gf} | title:{bool(draft.title)}")
+            try:
+                manager._round_generate_full_plan(None, None)
+                draft = manager.get_creative_draft()
+            except Exception as e:
+                logger.error(f"[dialog_complete] 自动补生成完整方案失败: {e}")
         
         # 获取题材
         genre = manager.genre
@@ -2565,20 +2604,24 @@ def dialog_complete():
                 )
                 
                 # 从对话草稿构建最终方案
+                # 🔥 关键：必须使用对话打磨 AI 生成的完整金手指和方案
                 final_plan = {
                     'title': draft.title or '未命名小说',
                     'protagonist_name': draft.protagonist_name or '主角',
                     'protagonist_personality': draft.protagonist_personality or '冷静果断',
-                    'golden_finger_summary': draft.golden_finger_desc or '系统金手指',
-                    'core_selling_point': draft.main_plot or '热血爽文',
-                    'opening_hook': draft.opening_scene or '开局获系统',
+                    'protagonist_background': draft.protagonist_background or '',
+                    'golden_finger': draft.golden_finger_design or {},  # 🔥 AI生成的完整金手指
+                    'golden_finger_summary': draft.golden_finger or '系统金手指',
+                    'core_selling_point': draft.main_plot or draft.unique_points or '热血爽文',
+                    'opening_hook': draft.opening_scene or draft.opening_design or '开局获系统',
                     'emotion_core': '爽',
                     'world_rules': '现代都市+系统',
                     'first_climax': '第3章首次打脸',
                     'main_goal': '成为最强',
-                    'story_direction': draft.main_plot or '升级打脸流',
+                    'story_direction': draft.main_plot or draft.story_direction or '升级打脸流',
                     'emotion_curve': [],
-                    'chapter_count': 200
+                    'chapter_count': 200,
+                    'evaluation': draft.ai_evaluation or {}  # AI市场化评估
                 }
                 
                 # 保存方案到任务
@@ -2726,6 +2769,19 @@ def generate_final_plan():
         
         logger.info(f"[FinalPlan] 用户输入 | Session: {session_id} | 题材: {genre} | 书名: {user_title} | 主角: {user_protagonist_name}")
         
+        # 🔥 加载题材技法，获取 final_plan_guardrails
+        genre_techniques = None
+        try:
+            genre_techniques = load_genre_techniques(genre)
+        except Exception as e:
+            logger.warning(f"[FinalPlan] 加载题材技法失败: {e}")
+        
+        guardrails = {}
+        if genre_techniques:
+            guardrails = genre_techniques.raw_data.get('final_plan_guardrails', {})
+        gf_guardrails = guardrails.get('golden_finger', {})
+        forbidden_keywords = gf_guardrails.get('forbidden_keywords', [])
+        
         # 🔥 根据题材获取差异化提示词
         genre_prompts = _get_genre_specific_prompts(genre)
         
@@ -2784,7 +2840,8 @@ def generate_final_plan():
     "story_direction": "剧情方向（关键词，如：{genre_prompts['story_keywords']}）",
     "opening_hook": "开局钩子（{genre_prompts['hook_requirement']}，100字内）",
     "emotion_core": "情感核心（{genre_prompts['emotion_guide']}）",
-    "risk_warning": "风险提示（如：{genre_prompts['risk_guide']}）"
+    "risk_warning": "风险提示（如：{genre_prompts['risk_guide']}）",
+    "synopsis": "番茄爆款简介（5段式，必须有情绪爆点。第1段【极端反差】，第2段【困境铺垫】，第3段【金手指揭秘】，第4段【爽点预告】，第5段【情绪钩子/别名】）"
 }}
 ```
 
@@ -2796,6 +2853,14 @@ def generate_final_plan():
 5. {genre_prompts['rule_5']}
 6. 所有内容必须符合番茄读者口味，直白有力
 7. **必须输出标准JSON格式（双引号），严禁Python字典格式（单引号）**"""
+        
+        # 🔥 注入题材防火墙到 user_prompt
+        if forbidden_keywords:
+            firewall_user = f"\n\n**【题材防火墙 - 必须遵守】**\n"
+            firewall_user += f"当前题材为'{genre}'，金手指设计必须严格限定在以下现实领域：{', '.join(gf_guardrails.get('allowed_domains', ['金钱','投资','股市','消费','商业']))}\n"
+            firewall_user += f"以下概念绝对禁止出现在金手指、核心卖点、剧情方向、书名、简介中：{', '.join(forbidden_keywords)}\n"
+            firewall_user += "如果你使用了以上任何禁用词，方案将被视为严重错误并拒绝接受。\n"
+            user_prompt += firewall_user
 
         # 系统提示词 - 番茄爆款风格专家
         system_prompt = """你是一位顶级番茄小说爆款策划专家，深谙番茄平台读者心理。
@@ -2808,6 +2873,7 @@ def generate_final_plan():
 
 输出要求：
 - 【书名创作要求】必须根据用户提供的题材和金手指，创作全新的书名，严禁直接复制示例中的书名！书名必须是原创，15个中文字符以内，符合番茄爆款公式
+- 【简介创作要求】必须根据书名、金手指、开局钩子，写一个番茄爆款风格的5段式简介。简介必须与书名100%对齐，突出核心爽点，禁止泛泛而谈
 - 核心卖点必须有画面感，能激发点击欲
 - 开局钩子必须有直播元素和震惊效果
 - 所有内容直白有力，符合番茄读者口味
@@ -2830,6 +2896,12 @@ def generate_final_plan():
 - 示例中的书名仅供参考格式，严禁直接复制！
 - 用户未指定时，必须创作全新书名，不能复制任何已知作品标题！
 - 书名字符数必须控制在15个中文以内！"""
+        
+        # 🔥 注入题材防火墙到 system_prompt
+        if forbidden_keywords:
+            system_prompt += f"\n\n【题材防火墙 - 绝对禁止】\n你正在创作'{genre}'题材小说。以下概念严禁出现在任何字段中：{', '.join(forbidden_keywords)}。\n"
+            system_prompt += "即使为了增加'爽感'或'层次感'，也绝对不能引入玄幻、修仙、异能、科幻超自然机制。\n"
+            system_prompt += "如果输出包含上述禁用词，将被系统判定为严重错误并自动退回。\n"
         
         logger.info(f"[FinalPlan] 开始生成最终方案 | Session: {session_id} | 书名: {form_data.get('title', draft.title)}")
         
@@ -2880,6 +2952,47 @@ def generate_final_plan():
                         
                         logger.info(f"[FinalPlan] 主角: {final_plan.get('protagonist_name', 'N/A')}")
                         logger.info(f"[FinalPlan] 核心卖点: {final_plan.get('core_selling_point', 'N/A')[:50]}...")
+                        logger.info(f"[FinalPlan] 简介: {final_plan.get('synopsis', 'N/A')[:80]}...")
+                        
+                        # 🔥 Auto-validator：检查题材防火墙
+                        def _scan_for_violations(obj, path=""):
+                            violations = []
+                            if isinstance(obj, str):
+                                for kw in forbidden_keywords:
+                                    if kw in obj:
+                                        violations.append(f"{path}: 包含禁用词 '{kw}'")
+                            elif isinstance(obj, dict):
+                                for k, v in obj.items():
+                                    violations.extend(_scan_for_violations(v, f"{path}.{k}"))
+                            elif isinstance(obj, list):
+                                for i, v in enumerate(obj):
+                                    violations.extend(_scan_for_violations(v, f"{path}[{i}]"))
+                            return violations
+                        
+                        violations = _scan_for_violations(final_plan)
+                        if violations:
+                            logger.warning(f"[FinalPlan] 检测到题材越界，触发自动重试 | 违规: {violations}")
+                            strict_system = system_prompt + "\n\n【严厉警告 - 上次输出被退回】\n你上次的输出包含题材禁用词，这是严重错误。本次必须完全避免上述禁用词。如果再次包含，方案将被永久拒绝。\n"
+                            retry_response = api_client.generate_content_with_retry(
+                                content_type="conversation",
+                                user_prompt=user_prompt,
+                                system_prompt=strict_system,
+                                temperature=0.5,
+                                purpose="final_plan_generation_retry"
+                            )
+                            if retry_response:
+                                retry_match = re.search(r'\{[\s\S]*\}', str(retry_response))
+                                if retry_match:
+                                    try:
+                                        retry_plan = json.loads(retry_match.group())
+                                        retry_violations = _scan_for_violations(retry_plan)
+                                        if retry_violations:
+                                            logger.error(f"[FinalPlan] 重试后仍有违规: {retry_violations}")
+                                        else:
+                                            logger.info(f"[FinalPlan] 重试成功，违规已清除")
+                                            final_plan = retry_plan
+                                    except Exception as retry_err:
+                                        logger.error(f"[FinalPlan] 重试解析失败: {retry_err}")
                         
                         return jsonify({
                             "success": True,

@@ -1525,7 +1525,7 @@ async function confirmSelection() {
   
   // 显示加载状态
   confirmBtn.disabled = true;
-  confirmBtn.innerHTML = '<span class="material-icons">&#xea5b;</span> 处理中...';
+  confirmBtn.innerHTML = '<span class="material-icons">&#xea5b;</span> AI生成中...';
   
   try {
     const response = await fetch('/api/market-driven/dialog/continue', {
@@ -2716,8 +2716,9 @@ function confirmAndStartRealGenerationWithStyle() {
     console.log('[文风选择] 弹窗显示完成');
   }).catch(error => {
     console.error('[文风选择] 显示弹窗失败:', error);
-    alert('文风选择器加载失败，将使用默认设置继续');
-    continueGenerationWithStyle();
+    alert('文风选择器加载失败，请刷新页面重试。未选择文风不会继续生成。');
+    // 🔥 修复：不再静默使用默认文风继续，而是明确停止
+    return;
   });
 }
 

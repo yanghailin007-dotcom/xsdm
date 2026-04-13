@@ -453,7 +453,7 @@ if __name__ == "__main__":
     if len(sys.argv) > 1:
         test_path = Path(sys.argv[1])
     else:
-        test_path = Path("C:/work/xsdm/小说项目/yanghailin/开局带只二哈，我直播气哭邪神")
+        test_path = Path("C:/work/xsdm/小说项目/yanghailin/分手后，我百倍返现买下整条街")
     
     print(f"测试项目路径: {test_path}")
     print("=" * 60)

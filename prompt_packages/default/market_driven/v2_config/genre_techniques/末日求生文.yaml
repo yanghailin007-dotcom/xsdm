@@ -1,99 +1,151 @@
-# 末日求生文题材技法
-# 版本: 1.0.0
-# 用途: 指导AI生成末日求生囤货文
-
-genre: "末日求生文"
-version: "1.0.0"
-description: "末日来临前大量囤货，末日中享受生活的专项技法"
-
-# ==================== 1. 核心套路 ====================
+genre: 末日求生文
+version: 1.0.0
+description: 末日来临前大量囤货，末日中享受生活的专项技法
 core_mechanics:
-  description: "末日求生囤货文的核心是'提前准备，末日躺赢'"
+  description: 末日求生囤货文的核心是'提前准备，末日躺赢'
   key_points:
-    - "重生/预知回到末日爆发前"
-    - "疯狂囤货（食物、水、药品、武器）"
-    - "加固庇护所"
-    - "末日降临后享受生活/救助他人"
-
-# ==================== 2. 囤货清单规范 ====================
+  - 重生/预知回到末日爆发前
+  - 疯狂囤货（食物、水、药品、武器）
+  - 加固庇护所
+  - 末日降临后享受生活/救助他人
 stockpile_rules:
-  description: "囤货要有详细清单和数量"
+  description: 囤货要有详细清单和数量
   categories:
-    - name: "食物"
-      items: ["大米", "面粉", "罐头", "压缩饼干", "方便面"]
-      note: "必须有具体数量，如：大米1000斤"
-    - name: "水"
-      items: ["矿泉水", "桶装水", "净水设备"]
-    - name: "药品"
-      items: ["抗生素", "绷带", "常用药品"]
-    - name: "武器"
-      items: ["冷兵器", "简易武器"]
-    - name: "能源"
-      items: ["发电机", "太阳能板", "电池"]
-
-# ==================== 3. 禁用元素 ====================
+  - name: 食物
+    items:
+    - 大米
+    - 面粉
+    - 罐头
+    - 压缩饼干
+    - 方便面
+    note: 必须有具体数量，如：大米1000斤
+  - name: 水
+    items:
+    - 矿泉水
+    - 桶装水
+    - 净水设备
+  - name: 药品
+    items:
+    - 抗生素
+    - 绷带
+    - 常用药品
+  - name: 武器
+    items:
+    - 冷兵器
+    - 简易武器
+  - name: 能源
+    items:
+    - 发电机
+    - 太阳能板
+    - 电池
 forbidden_elements:
-  description: "末日求生文禁止的元素"
+  description: 末日求生文禁止的元素
   items:
-    - element: "圣母行为"
-      examples: ["无底线救助陌生人", "随意分享囤货"]
-      reason: "囤货文的核心是自私求生，不能太圣母"
-    - element: "囤货不合理"
-      examples: ["没有具体数量", "什么都有"]
-      reason: "必须有详细囤货清单和数量"
-    - element: "末日太轻松"
-      examples: ["末日像度假", "没有危机感"]
-      reason: "末日要有危机感，只是主角准备充分相对安全"
-
-# ==================== 4. 必须元素 ====================
+  - element: 圣母行为
+    examples:
+    - 无底线救助陌生人
+    - 随意分享囤货
+    reason: 囤货文的核心是自私求生，不能太圣母
+  - element: 囤货不合理
+    examples:
+    - 没有具体数量
+    - 什么都有
+    reason: 必须有详细囤货清单和数量
+  - element: 末日太轻松
+    examples:
+    - 末日像度假
+    - 没有危机感
+    reason: 末日要有危机感，只是主角准备充分相对安全
 required_elements:
-  description: "末日求生文必须包含的元素"
+  description: 末日求生文必须包含的元素
   items:
-    - element: "囤货清单"
-      check: "有详细的囤货物品和数量"
-      severity: "critical"
-    - element: "末日倒计时"
-      check: "有末日爆发的时间线"
-      severity: "critical"
-    - element: "庇护所"
-      check: "有加固房屋或庇护所的描写"
-      severity: "warning"
-
-# ==================== 5. 世界状态初始化 ====================
+  - element: 囤货清单
+    check: 有详细的囤货物品和数量
+    severity: critical
+  - element: 末日倒计时
+    check: 有末日爆发的时间线
+    severity: critical
+  - element: 庇护所
+    check: 有加固房屋或庇护所的描写
+    severity: warning
 world_state_initialization:
-  description: "末日求生文的世界状态初始值"
-  
+  description: 末日求生文的世界状态初始值
   protagonist:
-    health: "健康"
-    abilities_unlocked: ["重生/预知", "囤货知识"]
-  
+    health: 健康
+    abilities_unlocked:
+    - 重生/预知
+    - 囤货知识
   plot_threads:
-    - name: "囤货进度"
-      status: "active"
-      introduced_chapter: 1
-      priority: 10
-      description: "疯狂囤货的主线"
-      next_trigger: "持续推进"
-    - name: "末日倒计时"
-      status: "active"
-      introduced_chapter: 1
-      priority: 9
-      description: "距离末日爆发的时间"
-      next_trigger: "末日爆发后转变"
-  
+  - name: 囤货进度
+    status: active
+    introduced_chapter: 1
+    priority: 10
+    description: 疯狂囤货的主线
+    next_trigger: 持续推进
+  - name: 末日倒计时
+    status: active
+    introduced_chapter: 1
+    priority: 9
+    description: 距离末日爆发的时间
+    next_trigger: 末日爆发后转变
   system_rules:
-    system_name: "末日生存系统（可选）"
-    system_type: "囤货/生存"
-    current_level: "初始"
-
-# ==================== 6. 质量检查点 ====================
+    system_name: 末日生存系统（可选）
+    system_type: 囤货/生存
+    current_level: 初始
 quality_checkpoints:
-  - point: "囤货细节"
-    condition: "有详细的囤货物品和数量"
-    severity: "critical"
-  - point: "末日氛围"
-    condition: "有末日危机感"
-    severity: "critical"
-  - point: "时间线清晰"
-    condition: "末日倒计时清晰"
-    severity: "warning"
+- point: 囤货细节
+  condition: 有详细的囤货物品和数量
+  severity: critical
+- point: 末日氛围
+  condition: 有末日危机感
+  severity: critical
+- point: 时间线清晰
+  condition: 末日倒计时清晰
+  severity: warning
+progression_metrics:
+  metric_name: 生存物资/安全据点/异能等级
+  metric_examples:
+  - 异能觉醒至一级
+  - 建立安全据点
+  - 物资储备充足
+  forbidden_concepts:
+  - 扮演度
+  - 国运
+  - 神豪消费
+  stage_templates:
+  - description: 建立主角形象，首次展现实力
+    deliverables:
+    - 主角获得第一个核心成长/资源
+    - 完成首次实力展现
+    - 震惊全场
+    criteria: 至少1次全场震惊，主角获得实质性成长
+  - description: 快速成长，建立盟友/班底
+    deliverables:
+    - 主角实力再上新台阶
+    - 收服第一个盟友/伙伴
+    - 首次击败强敌
+    criteria: 核心伙伴≥1，主角实力明显增强
+  - description: 区域崛起，称霸一方
+    deliverables:
+    - 主角成为区域级存在
+    - 击败区域强敌
+    - 掌控核心资源/势力
+    criteria: 区域范围内的主导地位确立
+  - description: 登顶巅峰，横扫天下
+    deliverables:
+    - 主角达到顶级实力/地位
+    - 击败顶级对手/势力
+    - 掌控全局
+    criteria: 行业内/世界范围内的顶尖地位确立
+  - description: 终极对决，开启新篇
+    deliverables:
+    - 主角触及更高层次
+    - 建立人类安全区，战胜末世危机源头
+    - 开启新篇章
+    criteria: 核心冲突取得决定性胜利
+  - description: 圆满结局，主宰一切
+    deliverables:
+    - 主角达到最强状态
+    - 守护核心利益/重要之人
+    - 达成最终目标
+    criteria: 所有核心目标达成，圆满结局

@@ -90,7 +90,54 @@ pacing:
   hook_last_50: true
   no_narration_limit: 200
 
-# ==================== 8. 质量检查点 ====================
+# ==================== 8. 阶段目标成长指标（用于一阶段生成） ====================
+progression_metrics:
+  metric_name: "能力/地位/影响力"
+  metric_examples:
+    - "能力达到新层级"
+    - "地位显著提升"
+    - "影响力扩大"
+  forbidden_concepts:
+    - "扮演度"
+  stage_templates:
+    - description: "建立主角形象，首次展现实力"
+      deliverables:
+        - "主角获得第一个核心成长/资源"
+        - "完成首次实力展现"
+        - "震惊全场"
+      criteria: "至少1次全场震惊，主角获得实质性成长"
+    - description: "快速成长，建立盟友"
+      deliverables:
+        - "主角实力再上新台阶"
+        - "收服第一个盟友"
+        - "首次击败强敌"
+      criteria: "盟友数量≥1，主角实力明显增强"
+    - description: "区域崛起，称霸一方"
+      deliverables:
+        - "主角成为区域级存在"
+        - "击败区域强敌"
+        - "掌控核心资源/势力"
+      criteria: "区域范围内的主导地位确立"
+    - description: "登顶巅峰，横扫天下"
+      deliverables:
+        - "主角达到顶级实力/地位"
+        - "击败顶级对手/势力"
+        - "掌控全局"
+      criteria: "行业内/世界范围内的顶尖地位确立"
+    - description: "终极对决，开启新篇"
+      deliverables:
+        - "主角触及更高层次"
+        - "完成核心终极挑战，达成最终目标"
+        - "开启新篇章"
+      criteria: "核心冲突取得决定性胜利"
+    - description: "圆满结局，主宰一切"
+      deliverables:
+        - "主角达到最强状态"
+        - "守护核心利益/重要之人"
+        - "达成最终目标"
+      criteria: "所有核心目标达成，圆满结局"
+
+# ==================== 9. 质量检查点 ====================
 quality_checkpoints:
   - point: "冲突开场"
     condition: "前300字有冲突"

@@ -1,261 +1,300 @@
-# 团宠文题材技法
-# 版本: 1.0.0
-# 用途: 指导AI生成锦鲤福宝被全家/全村宠爱的温馨内容
-
-genre: "团宠文"
-version: "1.0.0"
-description: "锦鲤福宝被全家/全村宠爱，温馨日常为主，女主自带福气旺家运"
-
-# ==================== 1. 核心套路 ====================
+genre: 团宠文
+version: 1.0.0
+description: 锦鲤福宝被全家/全村宠爱，温馨日常为主，女主自带福气旺家运
 core_mechanics:
-  description: "团宠文的核心是女主作为全家的宝贝，带来福气和好运，温馨治愈"
-  
+  description: 团宠文的核心是女主作为全家的宝贝，带来福气和好运，温馨治愈
   archetypes:
-    - type: "萌宝团宠"
-      description: "女主是可爱的小女孩，被全家长辈宠"
-      age_range: "3-12岁"
-    - type: "锦鲤福宝"
-      description: "女主自带锦鲤体质，旺家运、避灾祸"
-      elements: ["福气", "好运", "旺家人"]
-    - type: "真假千金"
-      description: "被抱错的真千金回家，全家补偿式宠爱"
-      elements: ["身份揭秘", "打脸假千金", "全家宠爱"]
-    - type: "小福妻"
-      description: "女主是童养媳/小媳妇，被夫家团宠"
-      elements: ["青梅竹马", "从小养成", "夫家宠爱"]
-  
+  - type: 萌宝团宠
+    description: 女主是可爱的小女孩，被全家长辈宠
+    age_range: 3-12岁
+  - type: 锦鲤福宝
+    description: 女主自带锦鲤体质，旺家运、避灾祸
+    elements:
+    - 福气
+    - 好运
+    - 旺家人
+  - type: 真假千金
+    description: 被抱错的真千金回家，全家补偿式宠爱
+    elements:
+    - 身份揭秘
+    - 打脸假千金
+    - 全家宠爱
+  - type: 小福妻
+    description: 女主是童养媳/小媳妇，被夫家团宠
+    elements:
+    - 青梅竹马
+    - 从小养成
+    - 夫家宠爱
   story_structure:
-    - phase: "初显福气"
-      content: "女主到来/出生，家中开始转运"
-    - phase: "日常宠爱"
-      content: "全家宠爱的温馨日常，女主旺家"
-    - phase: "打脸反派"
-      content: "偶尔出现的极品，被福气打脸"
-    - phase: "全家兴旺"
-      content: "在女主福气下全家发达"
-
-# ==================== 2. 人物设定规范 ====================
+  - phase: 初显福气
+    content: 女主到来/出生，家中开始转运
+  - phase: 日常宠爱
+    content: 全家宠爱的温馨日常，女主旺家
+  - phase: 打脸反派
+    content: 偶尔出现的极品，被福气打脸
+  - phase: 全家兴旺
+    content: 在女主福气下全家发达
 character_rules:
-  description: "团宠文人物设定要突出温馨可爱"
-  
+  description: 团宠文人物设定要突出温馨可爱
   protagonist:
-    role: "团宠福宝"
+    role: 团宠福宝
     age_types:
-      - "幼年期：3-6岁，奶萌可爱"
-      - "童年期：7-12岁，聪慧懂事"
+    - 幼年期：3-6岁，奶萌可爱
+    - 童年期：7-12岁，聪慧懂事
     required_traits:
-      - "外表可爱/漂亮"
-      - "性格讨喜（软萌/机灵/懂事）"
-      - "自带福气/锦鲤体质"
-      - "善良但不圣母"
-      - "有独特的可爱习惯"
+    - 外表可爱/漂亮
+    - 性格讨喜（软萌/机灵/懂事）
+    - 自带福气/锦鲤体质
+    - 善良但不圣母
+    - 有独特的可爱习惯
     forbidden_traits:
-      - "过于成熟世故"
-      - "心机深沉"
-      - "不懂感恩"
-      - "无理取闹（过度）"
-  
+    - 过于成熟世故
+    - 心机深沉
+    - 不懂感恩
+    - 无理取闹（过度）
   family_members:
-    - role: "爷爷"
-      traits: ["威严但疼爱孙女", "全家最高话语权", "护短"]
-    - role: "奶奶"
-      traits: ["慈祥溺爱", "做饭好吃", "心疼孙女"]
-    - role: "爸爸"
-      traits: ["女儿奴", "沉默寡言但行动力max", "无条件宠"]
-    - role: "妈妈"
-      traits: ["温柔慈爱", "教女儿道理", "护犊子"]
-    - role: "哥哥们"
-      traits: ["妹控", "保护欲强", "为妹妹打架"]
-    - role: "叔叔伯伯"
-      traits: ["把侄女当亲女儿宠", "送礼物"]
-  
+  - role: 爷爷
+    traits:
+    - 威严但疼爱孙女
+    - 全家最高话语权
+    - 护短
+  - role: 奶奶
+    traits:
+    - 慈祥溺爱
+    - 做饭好吃
+    - 心疼孙女
+  - role: 爸爸
+    traits:
+    - 女儿奴
+    - 沉默寡言但行动力max
+    - 无条件宠
+  - role: 妈妈
+    traits:
+    - 温柔慈爱
+    - 教女儿道理
+    - 护犊子
+  - role: 哥哥们
+    traits:
+    - 妹控
+    - 保护欲强
+    - 为妹妹打架
+  - role: 叔叔伯伯
+    traits:
+    - 把侄女当亲女儿宠
+    - 送礼物
   supporting_roles:
-    - type: "村里/邻居"
-      description: "被女主福气惠及，成为女主粉"
-    - type: "极品亲戚"
-      description: "偶尔出现被福气打脸"
-    - type: "未来男主"
-      description: "青梅竹马，从小守护"
-
-# ==================== 3. 爽点设计 ====================
+  - type: 村里/邻居
+    description: 被女主福气惠及，成为女主粉
+  - type: 极品亲戚
+    description: 偶尔出现被福气打脸
+  - type: 未来男主
+    description: 青梅竹马，从小守护
 satisfaction_points:
-  description: "团宠文的爽点在于温馨被宠和锦鲤好运"
-  
+  description: 团宠文的爽点在于温馨被宠和锦鲤好运
   categories:
-    - type: "团宠日常"
-      examples:
-        - "全家争抢抱女主"
-        - "长辈偏心女主"
-        - "哥哥们为妹妹争风吃醋"
-        - "全村/全校都喜欢女主"
-      
-    - type: "锦鲤好运"
-      examples:
-        - "女主在的地方就有好事发生"
-        - "捡到宝贝/遇到贵人"
-        - "逢凶化吉，化险为夷"
-        - "旺家运，家中越来越富"
-      
-    - type: "打脸反派"
-      examples:
-        - "欺负女主的人倒霉"
-        - "极品亲戚自食恶果"
-        - "假千金被揭穿"
-        - "看不起女主的人打脸"
-      
-    - type: "温馨治愈"
-      examples:
-        - "女主奶声奶气说话"
-        - "女主懂事让人心疼"
-        - "全家团圆的温馨场景"
-        - "女主关心家人"
-
-# ==================== 4. 萌点设计 ====================
+  - type: 团宠日常
+    examples:
+    - 全家争抢抱女主
+    - 长辈偏心女主
+    - 哥哥们为妹妹争风吃醋
+    - 全村/全校都喜欢女主
+  - type: 锦鲤好运
+    examples:
+    - 女主在的地方就有好事发生
+    - 捡到宝贝/遇到贵人
+    - 逢凶化吉，化险为夷
+    - 旺家运，家中越来越富
+  - type: 打脸反派
+    examples:
+    - 欺负女主的人倒霉
+    - 极品亲戚自食恶果
+    - 假千金被揭穿
+    - 看不起女主的人打脸
+  - type: 温馨治愈
+    examples:
+    - 女主奶声奶气说话
+    - 女主懂事让人心疼
+    - 全家团圆的温馨场景
+    - 女主关心家人
 cute_elements:
-  description: "团宠文的萌点是核心竞争力"
-  
+  description: 团宠文的萌点是核心竞争力
   common_tropes:
-    - type: "奶声奶气"
-      examples:
-        - "说话带着奶音"
-        - "用词可爱（把‘我’说成‘宝宝’）"
-        - "童言童语逗乐大人"
-    
-    - type: "可爱动作"
-      examples:
-        - "揉眼睛想睡觉"
-        - "小手手抓着大人衣角"
-        - "嘟嘴生气"
-        - "要抱抱举高高"
-    
-    - type: "懂事贴心"
-      examples:
-        - "把好吃的留给家人"
-        - "心疼长辈辛苦"
-        - "关心哥哥们"
-        - "主动分享"
-    
-    - type: "福气显现"
-      examples:
-        - "女主一笑天就晴"
-        - "女主去的地方就有好事"
-        - "女主的梦能预知"
-        - "小动物喜欢亲近女主"
-
-# ==================== 5. 禁用元素 ====================
+  - type: 奶声奶气
+    examples:
+    - 说话带着奶音
+    - 用词可爱（把‘我’说成‘宝宝’）
+    - 童言童语逗乐大人
+  - type: 可爱动作
+    examples:
+    - 揉眼睛想睡觉
+    - 小手手抓着大人衣角
+    - 嘟嘴生气
+    - 要抱抱举高高
+  - type: 懂事贴心
+    examples:
+    - 把好吃的留给家人
+    - 心疼长辈辛苦
+    - 关心哥哥们
+    - 主动分享
+  - type: 福气显现
+    examples:
+    - 女主一笑天就晴
+    - 女主去的地方就有好事
+    - 女主的梦能预知
+    - 小动物喜欢亲近女主
 forbidden_elements:
-  description: "团宠文中不能出现的元素"
+  description: 团宠文中不能出现的元素
   items:
-    - element: "虐待儿童"
-      reason: "绝对禁忌，团宠文女主必须被宠"
-    
-    - element: "过于成人化的感情"
-      reason: "儿童期要单纯，不能有暧昧"
-    
-    - element: "女主长期受委屈"
-      reason: "团宠文，受委屈必须立即被解决"
-    
-    - element: "家人对女主不好"
-      reason: "团宠设定，全家必须宠"
-    
-    - element: "过度夸张的锦鲤"
-      reason: "福气要有合理性，不能太玄幻"
-    
-    - element: "血腥暴力"
-      reason: "温馨向，避免暴力血腥"
-
-# ==================== 6. 场景模板 ====================
+  - element: 虐待儿童
+    reason: 绝对禁忌，团宠文女主必须被宠
+  - element: 过于成人化的感情
+    reason: 儿童期要单纯，不能有暧昧
+  - element: 女主长期受委屈
+    reason: 团宠文，受委屈必须立即被解决
+  - element: 家人对女主不好
+    reason: 团宠设定，全家必须宠
+  - element: 过度夸张的锦鲤
+    reason: 福气要有合理性，不能太玄幻
+  - element: 血腥暴力
+    reason: 温馨向，避免暴力血腥
 scene_templates:
-  description: "团宠文经典场景"
-  
+  description: 团宠文经典场景
   templates:
-    - type: "全家争抢"
-      example: "爷爷、爸爸、哥哥们争抢抱女主"
-      elements: ["争风吃醋", "女主选择", "被抱走的人失落"]
-    
-    - type: "福气显现"
-      example: "女主在的地方发现宝藏/遇到贵人"
-      elements: ["巧合", "众人惊叹", "女主无辜"]
-    
-    - type: "奶萌互动"
-      example: "女主奶声奶气说话，萌翻全家"
-      elements: ["可爱台词", "长辈反应", "温馨氛围"]
-    
-    - type: "打脸现场"
-      example: "极品欺负女主，立刻倒霉"
-      elements: ["极品嚣张", "福气反击", "众人震惊"]
-    
-    - type: "全家团圆"
-      example: "节日/生日，全家宠爱女主"
-      elements: ["礼物", "美食", "温馨", "女主开心"]
-
-# ==================== 7. 世界状态初始化 ====================
+  - type: 全家争抢
+    example: 爷爷、爸爸、哥哥们争抢抱女主
+    elements:
+    - 争风吃醋
+    - 女主选择
+    - 被抱走的人失落
+  - type: 福气显现
+    example: 女主在的地方发现宝藏/遇到贵人
+    elements:
+    - 巧合
+    - 众人惊叹
+    - 女主无辜
+  - type: 奶萌互动
+    example: 女主奶声奶气说话，萌翻全家
+    elements:
+    - 可爱台词
+    - 长辈反应
+    - 温馨氛围
+  - type: 打脸现场
+    example: 极品欺负女主，立刻倒霉
+    elements:
+    - 极品嚣张
+    - 福气反击
+    - 众人震惊
+  - type: 全家团圆
+    example: 节日/生日，全家宠爱女主
+    elements:
+    - 礼物
+    - 美食
+    - 温馨
+    - 女主开心
 world_state_initialization:
-  description: "团宠文的世界状态初始值"
-  
+  description: 团宠文的世界状态初始值
   protagonist:
-    health: "健康"
-    abilities_unlocked: ["锦鲤体质", "可爱光环"]
-    age: "3-8岁"
-    status: "被全家宠爱"
-  
+    health: 健康
+    abilities_unlocked:
+    - 锦鲤体质
+    - 可爱光环
+    age: 3-8岁
+    status: 被全家宠爱
   allies:
-    - type: "爷爷"
-      relationship: "最疼爱孙女"
-    - type: "奶奶"
-      relationship: "溺爱孙女"
-    - type: "爸爸"
-      relationship: "女儿奴"
-    - type: "妈妈"
-      relationship: "温柔慈爱"
-    - type: "哥哥们"
-      relationship: "妹控"
-  
+  - type: 爷爷
+    relationship: 最疼爱孙女
+  - type: 奶奶
+    relationship: 溺爱孙女
+  - type: 爸爸
+    relationship: 女儿奴
+  - type: 妈妈
+    relationship: 温柔慈爱
+  - type: 哥哥们
+    relationship: 妹控
   plot_threads:
-    - name: "团宠日常"
-      status: "active"
-      introduced_chapter: 1
-      priority: 10
-      description: "全家宠爱的日常生活"
-      next_trigger: "持续展现"
-    
-    - name: "锦鲤好运"
-      status: "active"
-      introduced_chapter: 1
-      priority: 9
-      description: "女主带来的好运"
-      next_trigger: "随机触发"
-    
-    - name: "成长线"
-      status: "pending"
-      introduced_chapter: 10
-      priority: 7
-      description: "女主逐渐长大"
-      next_trigger: "时间推进"
-  
+  - name: 团宠日常
+    status: active
+    introduced_chapter: 1
+    priority: 10
+    description: 全家宠爱的日常生活
+    next_trigger: 持续展现
+  - name: 锦鲤好运
+    status: active
+    introduced_chapter: 1
+    priority: 9
+    description: 女主带来的好运
+    next_trigger: 随机触发
+  - name: 成长线
+    status: pending
+    introduced_chapter: 10
+    priority: 7
+    description: 女主逐渐长大
+    next_trigger: 时间推进
   system_rules:
-    system_name: "锦鲤福运系统（如有）"
-    system_type: "被动福气/气运值"
-    current_level: "初始"
-
-# ==================== 8. 质量检查点 ====================
+    system_name: 锦鲤福运系统（如有）
+    system_type: 被动福气/气运值
+    current_level: 初始
 quality_checkpoints:
-  - point: "团宠程度"
-    condition: "全家都宠爱女主，无冷落"
-    severity: "critical"
-  
-  - point: "可爱度"
-    condition: "女主言行可爱，有萌点"
-    severity: "critical"
-  
-  - point: "温馨氛围"
-    condition: "整体氛围温馨治愈"
-    severity: "critical"
-  
-  - point: "福气合理性"
-    condition: "锦鲤好运有合理性，不过分"
-    severity: "warning"
-  
-  - point: "年龄相符"
-    condition: "言行符合年龄，不过分成熟"
-    severity: "critical"
+- point: 团宠程度
+  condition: 全家都宠爱女主，无冷落
+  severity: critical
+- point: 可爱度
+  condition: 女主言行可爱，有萌点
+  severity: critical
+- point: 温馨氛围
+  condition: 整体氛围温馨治愈
+  severity: critical
+- point: 福气合理性
+  condition: 锦鲤好运有合理性，不过分
+  severity: warning
+- point: 年龄相符
+  condition: 言行符合年龄，不过分成熟
+  severity: critical
+progression_metrics:
+  metric_name: 宠爱值/家族地位/幸福值
+  metric_examples:
+  - 宠爱值达到满格
+  - 家族地位提升
+  - 幸福值爆表
+  forbidden_concepts:
+  - 扮演度
+  - 国运
+  - 修仙打斗
+  - 财富等级
+  stage_templates:
+  - description: 相遇相识，情愫暗生
+    deliverables:
+    - 男女主首次产生交集
+    - 建立初步好感/羁绊
+    - 留下深刻印象
+    criteria: 双方关系从陌生到产生兴趣
+  - description: 感情升温，误会解除
+    deliverables:
+    - 关系取得实质性突破
+    - 消除首个重大误会/阻碍
+    - 展现彼此真心
+    criteria: 感情明显升温，信任度显著提升
+  - description: 深情相许，共同面对
+    deliverables:
+    - 正式确立亲密关系
+    - 共同击败首个外部阻碍
+    - 获得身边人认可
+    criteria: 关系公开/稳固，外部认可度提升
+  - description: 披荆斩棘，守护爱情
+    deliverables:
+    - 感情达到深度契合
+    - 击败最大外部阻力
+    - 守护彼此不受伤害
+    criteria: 双方深度绑定，核心阻力被瓦解
+  - description: 终极考验，修成正果前夜
+    deliverables:
+    - 通过最终情感考验
+    - 消除最后的心结/障碍
+    - 准备迎接圆满
+    criteria: 所有重大阻碍消除，感情坚不可摧
+  - description: 圆满结局，幸福一生
+    deliverables:
+    - 正式修成正果
+    - 家庭/感情圆满
+    - 达成最终幸福目标
+    criteria: 所有感情目标达成，圆满结局

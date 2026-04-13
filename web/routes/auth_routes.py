@@ -677,6 +677,11 @@ def register_page_routes(app):
         """帮助中心页面 - V2 UI"""
         return render_template('pages/v2/help-v2.html')
 
+    @app.route('/help/market-driven-guide', methods=['GET'])
+    def market_driven_guide():
+        """市场导向模式完整指南"""
+        return render_template('pages/v2/market-driven-guide.html')
+
     @app.route('/terms', methods=['GET'])
     def terms():
         """使用条款页面 - V2 UI"""

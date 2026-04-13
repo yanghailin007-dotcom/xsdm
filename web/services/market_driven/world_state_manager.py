@@ -409,14 +409,14 @@ class WorldStateManager:
         """
         content = chapter_content
         
-        # 1. 检测主角伤势变化
+        # 1. 检测盟友伤势变化（通用逻辑，遍历所有已记录盟友）
         if '中毒' in content or '毒伤' in content:
-            if '白月魁' in content and ('中毒' in content.split('白月魁')[1][:500] if '白月魁' in content else False):
-                ally = self.state.allies.get('白月魁')
-                if ally:
+            for ally_name, ally in self.state.allies.items():
+                if ally_name in content and ('中毒' in content.split(ally_name)[1][:500]):
                     ally.health = "中毒"
                     ally.injuries.append(f"第{chapter_num}章中毒")
-                    logger.info(f"[WorldState] 白月魁状态更新: 中毒 (第{chapter_num}章)")
+                    logger.info(f"[WorldState] {ally_name}状态更新: 中毒 (第{chapter_num}章)")
+                    break
         
         if '治愈' in content or '痊愈' in content or '伤势好转' in content:
             for name, char in self.state.allies.items():

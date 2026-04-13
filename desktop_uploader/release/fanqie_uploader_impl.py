@@ -1405,6 +1405,27 @@ class FanqieUploaderImpl:
                 except:
                     pass
             
+            # 🔥 处理"非章节内容请使用'作者有话说'功能..."弹窗（必须在发布设置模态框之前）
+            try:
+                for _ in range(5):
+                    # 使用JS精确定位弹窗（外层div可能没有arco-modal类）
+                    has_dialog = self.page.evaluate('''() => {
+                        const contents = Array.from(document.querySelectorAll('.arco-modal-content'));
+                        const target = contents.find(el => el.textContent.includes('非章节内容请使用'));
+                        if (target) {
+                            const btn = target.parentElement.querySelector('.arco-modal-footer button.arco-btn-primary');
+                            if (btn) { btn.click(); return true; }
+                        }
+                        return false;
+                    }''')
+                    if has_dialog:
+                        self._log("  点击非章节内容提示弹窗的提交按钮")
+                        self._random_sleep(2.0, 3.0)
+                        break
+                    self._random_sleep(0.3, 0.6)
+            except Exception as e:
+                self._log(f"  非章节内容提示弹窗处理跳过: {e}", "debug")
+            
             # 检查暂停
             self._check_pause()
             if not self.is_running:
@@ -1714,9 +1735,10 @@ class FanqieUploaderImpl:
             except Exception as e:
                 self._log(f"  模态框处理跳过: {e}", "debug")
             
-            # 处理风险检测弹窗
+            # 处理风险检测弹窗（及AI内容检测消耗提示）
             try:
                 for _ in range(5):
+                    # 1. 旧版简短风险检测弹窗
                     risk_modal = self.page.locator('.arco-modal:has-text("风险检测")').first
                     if risk_modal.count() > 0 and risk_modal.is_visible():
                         self._log("  检测到风险检测弹窗")
@@ -1724,6 +1746,32 @@ class FanqieUploaderImpl:
                         self._log("  点击确定")
                         self._random_sleep(1.5, 2.5)
                         break
+                    
+                    # 2. 新版"是否进行内容风险检测"弹窗（带消耗次数提示）
+                    # 该弹窗默认点击"取消"，避免每次上传都消耗检测次数
+                    ai_risk_modal = self.page.locator('.arco-modal-content').filter(
+                        has_text='是否进行内容风险检测'
+                    ).first
+                    if ai_risk_modal.count() > 0 and ai_risk_modal.is_visible():
+                        self._log("  检测到AI风险检测提示弹窗")
+                        # 点击取消/关闭按钮（不消耗次数）
+                        clicked = self.page.evaluate('''() => {
+                            const contents = Array.from(document.querySelectorAll('.arco-modal-content'));
+                            const target = contents.find(el => el.textContent.includes('是否进行内容风险检测'));
+                            if (target) {
+                                const parent = target.parentElement;
+                                // 优先点取消按钮
+                                let btn = parent.querySelector('.arco-modal-footer button.arco-btn-secondary');
+                                if (!btn) btn = parent.querySelector('.arco-modal-close-icon');
+                                if (btn) { btn.click(); return true; }
+                            }
+                            return false;
+                        }''')
+                        if clicked:
+                            self._log("  点击取消（不消耗检测次数）")
+                        self._random_sleep(1.5, 2.5)
+                        break
+                    
                     self._random_sleep(0.3, 0.6)
             except Exception as e:
                 self._log(f"  风险检测处理跳过: {e}", "debug")
@@ -1796,7 +1844,61 @@ class FanqieUploaderImpl:
             elif is_publish_page and not has_error:
                 # 仍在发布页，但可能没有错误，可能是网络慢
                 self._log(f"  ⚠ 仍在发布页，等待后重试检查...", "warning")
-                time.sleep(3)
+                time.sleep(2)
+                
+                # 🔥 重试一次：再次处理可能延迟弹出的弹窗，并重新点击发布
+                try:
+                    # 1. 再次检测并关闭AI风险检测弹窗
+                    for _ in range(3):
+                        ai_risk_modal = self.page.locator('.arco-modal-content').filter(
+                            has_text='是否进行内容风险检测'
+                        ).first
+                        if ai_risk_modal.count() > 0 and ai_risk_modal.is_visible():
+                            self.page.evaluate('''() => {
+                                const contents = Array.from(document.querySelectorAll('.arco-modal-content'));
+                                const target = contents.find(el => el.textContent.includes('是否进行内容风险检测'));
+                                if (target) {
+                                    let btn = target.parentElement.querySelector('.arco-modal-footer button.arco-btn-secondary');
+                                    if (!btn) btn = target.parentElement.querySelector('.arco-modal-close-icon');
+                                    if (btn) btn.click();
+                                }
+                            }''')
+                            self._log("  重试：点击取消AI风险检测")
+                            self._random_sleep(1.0, 1.5)
+                            break
+                        self._random_sleep(0.3, 0.5)
+                    
+                    # 2. 再次检测非章节内容提示弹窗
+                    for _ in range(3):
+                        has_dialog = self.page.evaluate('''() => {
+                            const contents = Array.from(document.querySelectorAll('.arco-modal-content'));
+                            const target = contents.find(el => el.textContent.includes('非章节内容请使用'));
+                            if (target) {
+                                const btn = target.parentElement.querySelector('.arco-modal-footer button.arco-btn-primary');
+                                if (btn) { btn.click(); return true; }
+                            }
+                            return false;
+                        }''')
+                        if has_dialog:
+                            self._log("  重试：点击非章节内容提示弹窗的提交按钮")
+                            self._random_sleep(1.0, 1.5)
+                            break
+                        self._random_sleep(0.3, 0.5)
+                    
+                    # 3. 再次点击发布按钮
+                    for selector in ['button:has-text("确认发布")', 'button:has-text("立即发布")', 'button:has-text("发布")']:
+                        try:
+                            btn = self.page.locator(selector).first
+                            if btn.count() > 0 and btn.is_visible():
+                                btn.click()
+                                self._log(f"  重试点击发布按钮 ({selector})")
+                                self._random_sleep(3.0, 4.0)
+                                break
+                        except:
+                            continue
+                except Exception as e:
+                    self._log(f"  重试发布流程跳过: {e}", "debug")
+                
                 # 再次检查URL
                 if '/publish/' not in self.page.url:
                     self._log(f"  ✓ 第{chapter_number}章上传成功 (页面已跳转)", "success")

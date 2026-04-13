@@ -1,70 +1,116 @@
-# 历史架空文题材技法
-genre: "历史架空文"
-version: "1.0.0"
-description: "权谋争霸+历史穿越+王朝更迭类小说的专项技法"
-
-# ==================== 1. 核心套路 ====================
+genre: 历史架空文
+version: 1.0.0
+description: 权谋争霸+历史穿越+王朝更迭类小说的专项技法
 core_mechanics:
-  description: "主角穿越或重生到架空或真实历史时期，通过权谋、军事、改革等手段争霸天下"
-
-# ==================== 2. 禁用元素 ====================
+  description: 主角穿越或重生到架空或真实历史时期，通过权谋、军事、改革等手段争霸天下
 forbidden_elements:
-  description: "以下元素绝对不能出现"
+  description: 以下元素绝对不能出现
   items:
-    - element: "超自然力量主导"
-      examples: ["修仙", "魔法", "超能力"]
-      reason: "破坏历史文的厚重感"
-    - element: "过于超前的科技"
-      examples: ["核武器", "飞机", "互联网"]
-      reason: "需要符合历史发展水平"
-    - element: "不尊重历史"
-      examples: ["恶意歪曲历史人物", "历史虚无主义"]
-      reason: "基于真实历史时要有基本尊重"
-
-# ==================== 3. 必须元素 ====================
+  - element: 超自然力量主导
+    examples:
+    - 修仙
+    - 魔法
+    - 超能力
+    reason: 破坏历史文的厚重感
+  - element: 过于超前的科技
+    examples:
+    - 核武器
+    - 飞机
+    - 互联网
+    reason: 需要符合历史发展水平
+  - element: 不尊重历史
+    examples:
+    - 恶意歪曲历史人物
+    - 历史虚无主义
+    reason: 基于真实历史时要有基本尊重
 required_elements:
-  description: "每章必须包含的元素"
+  description: 每章必须包含的元素
   items:
-    - element: "历史细节"
-      check: "是否有符合时代背景的细节描写"
-      severity: "critical"
-    - element: "权谋斗争"
-      check: "是否有政治或军事上的博弈"
-      severity: "critical"
-    - element: "人物塑造"
-      check: "历史人物是否立体可信"
-      severity: "warning"
-
-# ==================== 4. 世界状态初始化 ====================
+  - element: 历史细节
+    check: 是否有符合时代背景的细节描写
+    severity: critical
+  - element: 权谋斗争
+    check: 是否有政治或军事上的博弈
+    severity: critical
+  - element: 人物塑造
+    check: 历史人物是否立体可信
+    severity: warning
 world_state_initialization:
   protagonist:
-    health: "健康"
-    abilities_unlocked: ["现代知识", "历史先知"]
+    health: 健康
+    abilities_unlocked:
+    - 现代知识
+    - 历史先知
   plot_threads:
-    - name: "争霸天下"
-      status: "active"
-      priority: 10
-    - name: "改革变法"
-      status: "active"
-      priority: 9
-    - name: "人才收拢"
-      status: "active"
-      priority: 8
+  - name: 争霸天下
+    status: active
+    priority: 10
+  - name: 改革变法
+    status: active
+    priority: 9
+  - name: 人才收拢
+    status: active
+    priority: 8
   system_rules:
-    system_name: "王朝系统"
-    system_type: "策略类"
-    territory: "初始领地"
+    system_name: 王朝系统
+    system_type: 策略类
+    territory: 初始领地
     reputation: 0
     followers: 0
-
-# ==================== 5. 质量检查点 ====================
 quality_checkpoints:
-  - point: "历史合理性"
-    condition: "符合历史发展逻辑"
-    severity: "critical"
-  - point: "权谋逻辑"
-    condition: "权谋斗争有智慧、有逻辑"
-    severity: "critical"
-  - point: "人物塑造"
-    condition: "历史人物鲜活立体"
-    severity: "warning"
+- point: 历史合理性
+  condition: 符合历史发展逻辑
+  severity: critical
+- point: 权谋逻辑
+  condition: 权谋斗争有智慧、有逻辑
+  severity: critical
+- point: 人物塑造
+  condition: 历史人物鲜活立体
+  severity: warning
+progression_metrics:
+  metric_name: 权势/疆土/民心
+  metric_examples:
+  - 获得首个实权职位
+  - 收服第一块疆土
+  - 民心声望提升
+  forbidden_concepts:
+  - 扮演度
+  - 国运绑定
+  - 现代元素
+  stage_templates:
+  - description: 建立主角形象，首次展现实力
+    deliverables:
+    - 主角获得第一个核心成长/资源
+    - 完成首次实力展现
+    - 震惊全场
+    criteria: 至少1次全场震惊，主角获得实质性成长
+  - description: 快速成长，建立盟友/班底
+    deliverables:
+    - 主角实力再上新台阶
+    - 收服第一个盟友/伙伴
+    - 首次击败强敌
+    criteria: 核心伙伴≥1，主角实力明显增强
+  - description: 区域崛起，称霸一方
+    deliverables:
+    - 主角成为区域级存在
+    - 击败区域强敌
+    - 掌控核心资源/势力
+    criteria: 区域范围内的主导地位确立
+  - description: 登顶巅峰，横扫天下
+    deliverables:
+    - 主角达到顶级实力/地位
+    - 击败顶级对手/势力
+    - 掌控全局
+    criteria: 行业内/世界范围内的顶尖地位确立
+  - description: 终极对决，开启新篇
+    deliverables:
+    - 主角触及更高层次
+    - 统一天下/改革成功，开创盛世太平
+    - 开启新篇章
+    criteria: 核心冲突取得决定性胜利
+  - description: 圆满结局，主宰一切
+    deliverables:
+    - 主角达到最强状态
+    - 守护核心利益/重要之人
+    - 达成最终目标
+    criteria: 所有核心目标达成，圆满结局

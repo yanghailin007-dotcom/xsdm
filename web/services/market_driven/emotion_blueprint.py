@@ -35,7 +35,7 @@ class EmotionBlueprint:
             must_have=["连续打脸", "能力成长", "首次震惊全场"],
             intensity_range=(7, 9),
             climax_type="小高潮密集",
-            creative_hints={"enemies": "任意敌人组合", "progression": "扮演度10%-30%"}
+            creative_hints={"enemies": "任意敌人组合", "progression": "能力进度10%-30%"}
         ),
         "phase_3": PhaseRequirements(
             chapters="11-20",

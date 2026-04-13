@@ -1,66 +1,113 @@
-# 神选文题材技法
-genre: "神选文"
-version: "1.0.0"
-description: "神明选拔+信仰争夺+神迹展现类小说的专项技法"
-
-# ==================== 1. 核心套路 ====================
+genre: 神选文
+version: 1.0.0
+description: 神明选拔+信仰争夺+神迹展现类小说的专项技法
 core_mechanics:
-  description: "主角被神明选中，获得神力/神器，通过完成神谕任务获得信仰值，与其他神选者竞争神位"
-
-# ==================== 2. 禁用元素 ====================
+  description: 主角被神明选中，获得神力/神器，通过完成神谕任务获得信仰值，与其他神选者竞争神位
 forbidden_elements:
-  description: "以下元素绝对不能出现"
+  description: 以下元素绝对不能出现
   items:
-    - element: "科技过度发达"
-      examples: ["星际战舰", "人工智能", "赛博朋克"]
-      reason: "与神明信仰世界观冲突"
-    - element: "纯粹修仙体系"
-      examples: ["筑基", "金丹", "元婴", "渡劫"]
-      reason: "这是修仙文的元素"
-    - element: "现代都市日常"
-      examples: ["上班打卡", "公司会议", "地铁公交"]
-      reason: "破坏神话氛围"
-
-# ==================== 3. 必须元素 ====================
+  - element: 科技过度发达
+    examples:
+    - 星际战舰
+    - 人工智能
+    - 赛博朋克
+    reason: 与神明信仰世界观冲突
+  - element: 纯粹修仙体系
+    examples:
+    - 筑基
+    - 金丹
+    - 元婴
+    - 渡劫
+    reason: 这是修仙文的元素
+  - element: 现代都市日常
+    examples:
+    - 上班打卡
+    - 公司会议
+    - 地铁公交
+    reason: 破坏神话氛围
 required_elements:
-  description: "每章必须包含的元素"
+  description: 每章必须包含的元素
   items:
-    - element: "神谕/任务"
-      check: "是否有神明发布的任务或指引"
-      severity: "critical"
-    - element: "信仰值变化"
-      check: "是否有信仰值获取或消耗的描写"
-      severity: "critical"
-    - element: "神迹展现"
-      check: "是否有神力的具体表现"
-      severity: "warning"
-
-# ==================== 4. 世界状态初始化 ====================
+  - element: 神谕/任务
+    check: 是否有神明发布的任务或指引
+    severity: critical
+  - element: 信仰值变化
+    check: 是否有信仰值获取或消耗的描写
+    severity: critical
+  - element: 神迹展现
+    check: 是否有神力的具体表现
+    severity: warning
 world_state_initialization:
   protagonist:
-    health: "健康"
-    abilities_unlocked: ["神选者基础感知"]
+    health: 健康
+    abilities_unlocked:
+    - 神选者基础感知
   plot_threads:
-    - name: "神谕任务"
-      status: "active"
-      priority: 10
-    - name: "信仰争夺"
-      status: "active"
-      priority: 9
+  - name: 神谕任务
+    status: active
+    priority: 10
+  - name: 信仰争夺
+    status: active
+    priority: 9
   system_rules:
-    system_name: "神选系统"
-    system_type: "信仰体系"
+    system_name: 神选系统
+    system_type: 信仰体系
     faith_points: 0
     deity_favor: 0
-
-# ==================== 5. 质量检查点 ====================
 quality_checkpoints:
-  - point: "神谕呈现"
-    condition: "有神明意志的传达"
-    severity: "critical"
-  - point: "信仰体系"
-    condition: "信仰值数值可见"
-    severity: "critical"
-  - point: "神性氛围"
-    condition: "保持神秘庄严的神性氛围"
-    severity: "warning"
+- point: 神谕呈现
+  condition: 有神明意志的传达
+  severity: critical
+- point: 信仰体系
+  condition: 信仰值数值可见
+  severity: critical
+- point: 神性氛围
+  condition: 保持神秘庄严的神性氛围
+  severity: warning
+progression_metrics:
+  metric_name: 神选等级/信仰值/神力
+  metric_examples:
+  - 神选等级提升至LV2
+  - 信仰值破万
+  - 觉醒神迹能力
+  forbidden_concepts:
+  - 扮演度
+  - 国运
+  - 修仙
+  stage_templates:
+  - description: 建立主角形象，首次展现实力
+    deliverables:
+    - 主角获得第一个核心成长/资源
+    - 完成首次实力展现
+    - 震惊全场
+    criteria: 至少1次全场震惊，主角获得实质性成长
+  - description: 快速成长，建立盟友/班底
+    deliverables:
+    - 主角实力再上新台阶
+    - 收服第一个盟友/伙伴
+    - 首次击败强敌
+    criteria: 核心伙伴≥1，主角实力明显增强
+  - description: 区域崛起，称霸一方
+    deliverables:
+    - 主角成为区域级存在
+    - 击败区域强敌
+    - 掌控核心资源/势力
+    criteria: 区域范围内的主导地位确立
+  - description: 登顶巅峰，横扫天下
+    deliverables:
+    - 主角达到顶级实力/地位
+    - 击败顶级对手/势力
+    - 掌控全局
+    criteria: 行业内/世界范围内的顶尖地位确立
+  - description: 终极对决，开启新篇
+    deliverables:
+    - 主角触及更高层次
+    - 完成神选终极使命，正式封神
+    - 开启新篇章
+    criteria: 核心冲突取得决定性胜利
+  - description: 圆满结局，主宰一切
+    deliverables:
+    - 主角达到最强状态
+    - 守护核心利益/重要之人
+    - 达成最终目标
+    criteria: 所有核心目标达成，圆满结局

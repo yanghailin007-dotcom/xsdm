@@ -160,8 +160,8 @@ def test_chapter_conversation():
     # 测试生成章节
     result = conversation.generate_chapter(
         chapter_number=1,
-        chapter_title="初入禁地",
-        outline_summary="主角觉醒酒剑仙模板，进入国运禁地",
+        chapter_title="初次逆袭",
+        outline_summary="主角获得核心机遇，开启都市逆袭之路",
         chapter_type="爆发章"
     )
     

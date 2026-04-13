@@ -1,97 +1,132 @@
-# 模拟器文题材技法
-# 版本: 1.0.0
-# 用途: 指导AI生成人生模拟器文
-
-genre: "模拟器文"
-version: "1.0.0"
-description: "可以模拟人生，提前知道未来，改变命运的专项技法"
-
-# ==================== 1. 核心套路 ====================
+genre: 模拟器文
+version: 1.0.0
+description: 可以模拟人生，提前知道未来，改变命运的专项技法
 core_mechanics:
-  description: "模拟器文的核心是'预知未来+改变命运'"
+  description: 模拟器文的核心是'预知未来+改变命运'
   key_points:
-    - "获得人生模拟器"
-    - "模拟人生，看到未来"
-    - "根据模拟结果改变现实"
-    - "死亡回溯，重新选择"
-
-# ==================== 2. 模拟器规则 ====================
+  - 获得人生模拟器
+  - 模拟人生，看到未来
+  - 根据模拟结果改变现实
+  - 死亡回溯，重新选择
 simulator_rules:
-  description: "模拟器的使用规则"
+  description: 模拟器的使用规则
   elements:
-    - name: "模拟消耗"
-      description: "每次模拟需要消耗资源（能量/积分）"
-    - name: "模拟次数"
-      description: "每日有限次数，可随等级提升"
-    - name: "模拟内容"
-      description: "模拟未来的特定事件/人生片段"
-    - name: "现实改变"
-      description: "根据模拟结果做出不同选择"
-
-# ==================== 3. 禁用元素 ====================
+  - name: 模拟消耗
+    description: 每次模拟需要消耗资源（能量/积分）
+  - name: 模拟次数
+    description: 每日有限次数，可随等级提升
+  - name: 模拟内容
+    description: 模拟未来的特定事件/人生片段
+  - name: 现实改变
+    description: 根据模拟结果做出不同选择
 forbidden_elements:
-  description: "模拟器文禁止的元素"
+  description: 模拟器文禁止的元素
   items:
-    - element: "模拟无限制"
-      examples: ["无限次模拟", "没有消耗"]
-      reason: "模拟必须有限制，否则太无敌"
-    - element: "模拟必中"
-      examples: ["模拟结果100%准确", "没有变数"]
-      reason: "模拟结果可以有变数，不是绝对"
-    - element: "改变太大"
-      examples: ["蝴蝶效应不合理", "随意改变历史"]
-      reason: "改变现实要有合理后果"
-
-# ==================== 4. 必须元素 ====================
+  - element: 模拟无限制
+    examples:
+    - 无限次模拟
+    - 没有消耗
+    reason: 模拟必须有限制，否则太无敌
+  - element: 模拟必中
+    examples:
+    - 模拟结果100%准确
+    - 没有变数
+    reason: 模拟结果可以有变数，不是绝对
+  - element: 改变太大
+    examples:
+    - 蝴蝶效应不合理
+    - 随意改变历史
+    reason: 改变现实要有合理后果
 required_elements:
-  description: "模拟器文必须包含的元素"
+  description: 模拟器文必须包含的元素
   items:
-    - element: "模拟过程"
-      check: "详细的模拟人生过程"
-      severity: "critical"
-    - element: "模拟结果"
-      check: "模拟的结局/关键信息"
-      severity: "critical"
-    - element: "现实改变"
-      check: "根据模拟改变现实选择"
-      severity: "critical"
-
-# ==================== 5. 世界状态初始化 ====================
+  - element: 模拟过程
+    check: 详细的模拟人生过程
+    severity: critical
+  - element: 模拟结果
+    check: 模拟的结局/关键信息
+    severity: critical
+  - element: 现实改变
+    check: 根据模拟改变现实选择
+    severity: critical
 world_state_initialization:
-  description: "模拟器文的世界状态初始值"
-  
+  description: 模拟器文的世界状态初始值
   protagonist:
-    health: "健康"
-    abilities_unlocked: ["人生模拟器"]
-  
+    health: 健康
+    abilities_unlocked:
+    - 人生模拟器
   plot_threads:
-    - name: "模拟主线"
-      status: "active"
-      introduced_chapter: 1
-      priority: 10
-      description: "通过模拟改变命运的主线"
-      next_trigger: "持续推进"
-    - name: "隐藏结局"
-      status: "paused"
-      introduced_chapter: 20
-      priority: 8
-      description: "模拟中发现的隐藏结局"
-      next_trigger: "特定条件触发"
-  
+  - name: 模拟主线
+    status: active
+    introduced_chapter: 1
+    priority: 10
+    description: 通过模拟改变命运的主线
+    next_trigger: 持续推进
+  - name: 隐藏结局
+    status: paused
+    introduced_chapter: 20
+    priority: 8
+    description: 模拟中发现的隐藏结局
+    next_trigger: 特定条件触发
   system_rules:
-    system_name: "人生模拟器"
-    system_type: "模拟/预知"
-    current_level: "初级"
-    unlocked_abilities: ["基础模拟"]
-
-# ==================== 6. 质量检查点 ====================
+    system_name: 人生模拟器
+    system_type: 模拟/预知
+    current_level: 初级
+    unlocked_abilities:
+    - 基础模拟
 quality_checkpoints:
-  - point: "模拟详细"
-    condition: "模拟过程详细具体"
-    severity: "critical"
-  - point: "限制合理"
-    condition: "模拟器限制合理"
-    severity: "critical"
-  - point: "改变有因"
-    condition: "现实改变有合理原因"
-    severity: "warning"
+- point: 模拟详细
+  condition: 模拟过程详细具体
+  severity: critical
+- point: 限制合理
+  condition: 模拟器限制合理
+  severity: critical
+- point: 改变有因
+  condition: 现实改变有合理原因
+  severity: warning
+progression_metrics:
+  metric_name: 模拟进度/属性点/推演等级
+  metric_examples:
+  - 完成首次人生模拟
+  - 属性点突破100
+  - 推演等级提升
+  forbidden_concepts:
+  - 扮演度
+  - 国运
+  stage_templates:
+  - description: 建立主角形象，首次展现实力
+    deliverables:
+    - 主角获得第一个核心成长/资源
+    - 完成首次实力展现
+    - 震惊全场
+    criteria: 至少1次全场震惊，主角获得实质性成长
+  - description: 快速成长，建立盟友/班底
+    deliverables:
+    - 主角实力再上新台阶
+    - 收服第一个盟友/伙伴
+    - 首次击败强敌
+    criteria: 核心伙伴≥1，主角实力明显增强
+  - description: 区域崛起，称霸一方
+    deliverables:
+    - 主角成为区域级存在
+    - 击败区域强敌
+    - 掌控核心资源/势力
+    criteria: 区域范围内的主导地位确立
+  - description: 登顶巅峰，横扫天下
+    deliverables:
+    - 主角达到顶级实力/地位
+    - 击败顶级对手/势力
+    - 掌控全局
+    criteria: 行业内/世界范围内的顶尖地位确立
+  - description: 终极对决，开启新篇
+    deliverables:
+    - 主角触及更高层次
+    - 模拟成功，改变现实悲惨命运
+    - 开启新篇章
+    criteria: 核心冲突取得决定性胜利
+  - description: 圆满结局，主宰一切
+    deliverables:
+    - 主角达到最强状态
+    - 守护核心利益/重要之人
+    - 达成最终目标
+    criteria: 所有核心目标达成，圆满结局

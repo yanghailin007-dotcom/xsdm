@@ -69,32 +69,61 @@ class DialogRound:
 class CreativeDraft:
     """创意草案"""
     title: str = ""
-    protagonist: str = ""
+    protagonist: str = ""                      # 兼容旧字段
+    protagonist_name: str = ""                 # 🔥 新增：与 market_driven_api.py 兼容
     protagonist_type: str = ""
+    protagonist_personality: str = ""          # 🔥 新增：与 market_driven_api.py 兼容
+    protagonist_background: str = ""           # 🔥 新增：与 market_driven_api.py 兼容
     golden_finger: str = ""                    # 用户选择的金手指描述（简短）
     golden_finger_type: str = ""               # 金手指类型ID
     golden_finger_design: Dict = field(default_factory=dict)  # 🔥 新增：AI生成的完整金手指设定
     unique_points: str = ""
     emotion_pacing: str = ""
     opening_design: str = ""
+    opening_scene: str = ""                    # 🔥 新增：与 market_driven_api.py 兼容
     emotion_line: str = ""
     risk_mitigation: str = ""
+    main_plot: str = ""                        # 🔥 新增：与 market_driven_api.py 兼容
+    story_direction: str = ""                  # 🔥 新增：与 market_driven_api.py 兼容
+    golden_finger_desc: str = ""               # 🔥 新增：与 market_driven_api.py 兼容
     ai_evaluation: Dict = field(default_factory=dict)  # AI自评结果
     dialog_history: List[Dict] = field(default_factory=list)
+    
+    def __post_init__(self):
+        # 保持 protagonist 和 protagonist_name 同步
+        if self.protagonist and not self.protagonist_name:
+            object.__setattr__(self, 'protagonist_name', self.protagonist)
+        if self.protagonist_name and not self.protagonist:
+            object.__setattr__(self, 'protagonist', self.protagonist_name)
+    
+    def __setattr__(self, name, value):
+        super().__setattr__(name, value)
+        # 保持 protagonist 和 protagonist_name 双向同步
+        if name == 'protagonist' and value:
+            object.__setattr__(self, 'protagonist_name', value)
+        elif name == 'protagonist_name' and value:
+            object.__setattr__(self, 'protagonist', value)
     
     def to_dict(self) -> Dict:
         return {
             "title": self.title,
             "protagonist": self.protagonist,
+            "protagonist_name": self.protagonist_name,
             "protagonist_type": self.protagonist_type,
+            "protagonist_personality": self.protagonist_personality,
+            "protagonist_background": self.protagonist_background,
             "golden_finger": self.golden_finger,
             "golden_finger_type": self.golden_finger_type,
-            "golden_finger_design": self.golden_finger_design,  # 🔥 新增
+            "golden_finger_design": self.golden_finger_design,
+            "golden_finger_desc": self.golden_finger_desc,
             "unique_points": self.unique_points,
             "emotion_pacing": self.emotion_pacing,
             "opening_design": self.opening_design,
+            "opening_scene": self.opening_scene,
             "emotion_line": self.emotion_line,
             "risk_mitigation": self.risk_mitigation,
+            "main_plot": self.main_plot,
+            "story_direction": self.story_direction,
             "ai_evaluation": self.ai_evaluation
         }
 
@@ -217,16 +246,20 @@ class DialogPolishManager:
                 temperature=0.8
             )
             
-            if response:
+            if isinstance(response, dict):
+                if all(k in response for k in ["protagonist_descriptions", "golden_finger_options", "plot_details"]):
+                    DialogPolishManager._genre_config_cache[genre] = response
+                    logger.info(f"[对话打磨 {self.session_id}] AI成功为题材 '{genre}' 生成配置")
+                    return response
+                else:
+                    logger.warning(f"[对话打磨 {self.session_id}] AI生成的配置缺少必要字段")
+            elif isinstance(response, str):
                 import json
                 import re
-                # 提取JSON部分
-                json_match = re.search(r'\{[\s\S]*\}', str(response))
+                json_match = re.search(r'\{[\s\S]*\}', response)
                 if json_match:
                     result = json.loads(json_match.group())
-                    # 验证必要字段
                     if all(k in result for k in ["protagonist_descriptions", "golden_finger_options", "plot_details"]):
-                        # 缓存结果
                         DialogPolishManager._genre_config_cache[genre] = result
                         logger.info(f"[对话打磨 {self.session_id}] AI成功为题材 '{genre}' 生成配置")
                         return result
@@ -1109,7 +1142,7 @@ class DialogPolishManager:
             # 其他
             "neighbor": "邻居日常，互帮互助"
         }
-        self.creative_draft.emotion_line = emotion_map.get(prev_choice, prev_choice)
+        self.creative_draft.emotion_line = emotion_map.get(prev_choice, prev_choice) if prev_choice else "专注事业线，无情感羁绊"
         if custom:
             self.creative_draft.emotion_line += f"（自定义：{custom}）"
         
@@ -1118,37 +1151,36 @@ class DialogPolishManager:
         self.creative_draft.emotion_pacing = "快节奏，每3章一个小高潮"
         self.creative_draft.risk_mitigation = self._generate_risk_mitigation()
         
-        # 🔥 调用AI生成金手指详细设定（新增）
+        # 🔥 一次性调用AI生成完整方案（金手指 + 方案 + 评估）
         try:
-            golden_finger_design = self._generate_golden_finger_detail_with_ai()
-            self.creative_draft.golden_finger_design = golden_finger_design
-            logger.info(f"[对话打磨 {self.session_id}] 金手指详细设定生成完成: {golden_finger_design.get('basic_info', {}).get('name', '未命名')}")
+            result = self._generate_full_plan_with_ai()
+            
+            # 提取金手指
+            self.creative_draft.golden_finger_design = result.get("golden_finger", self._create_fallback_golden_finger())
+            logger.info(f"[对话打磨 {self.session_id}] 金手指详细设定生成完成: {self.creative_draft.golden_finger_design.get('basic_info', {}).get('name', '未命名')}")
+            
+            # 提取方案
+            plan_data = result.get("plan", {})
+            self.creative_draft.title = plan_data.get('title', '')
+            self.creative_draft.opening_design = plan_data.get('opening', self.creative_draft.opening_design)
+            full_plan = {
+                'title': self.creative_draft.title,
+                'opening': self.creative_draft.opening_design,
+                'first_climax': plan_data.get('first_climax', ''),
+                'main_plot': plan_data.get('main_plot', ''),
+                'golden_finger': self.creative_draft.golden_finger_design
+            }
+            
+            # 提取评估
+            self.creative_draft.ai_evaluation = result.get("evaluation", self._generate_default_evaluation())
         except Exception as e:
-            logger.warning(f"AI生成金手指详细设定失败: {e}")
+            logger.warning(f"AI生成完整方案失败，使用默认: {e}")
             self.creative_draft.golden_finger_design = self._create_fallback_golden_finger()
-        
-        # 🔥 调用AI生成完整方案
-        try:
-            full_plan = self._generate_plan_with_ai()
-            self.creative_draft.title = full_plan.get('title', '')
-            self.creative_draft.opening_design = full_plan.get('opening', self.creative_draft.opening_design)
-            # 将金手指详细设定加入full_plan
-            full_plan['golden_finger'] = self.creative_draft.golden_finger_design
-        except Exception as e:
-            logger.warning(f"AI生成方案失败，使用默认: {e}")
-            # 使用默认标题生成逻辑
             self.creative_draft.title = self._generate_default_title()
             full_plan = {
                 'title': self.creative_draft.title,
                 'golden_finger': self.creative_draft.golden_finger_design
             }
-        
-        # 🔥 调用AI进行自评
-        try:
-            ai_evaluation = self._generate_ai_evaluation()
-            self.creative_draft.ai_evaluation = ai_evaluation
-        except Exception as e:
-            logger.warning(f"AI自评失败，使用默认: {e}")
             self.creative_draft.ai_evaluation = self._generate_default_evaluation()
         
         # 构建AI消息（包含方案和评估）
@@ -1237,8 +1269,161 @@ class DialogPolishManager:
         # 这一轮只是标记结束，实际表单在前端显示
         return self._finish_dialog()
     
+    def _generate_full_plan_with_ai(self) -> Dict:
+        """
+        一次性调用AI生成完整方案：金手指详细设定 + 创作方案 + 市场化评估
+        将原先的三次串行调用合并为一次，显著减少耗时和点数消耗。
+        """
+        if not self.api_client:
+            return {
+                "golden_finger": self._create_fallback_golden_finger(),
+                "plan": self._generate_default_plan(),
+                "evaluation": self._generate_default_evaluation()
+            }
+        
+        # 收集各轮次的自定义输入和选择
+        custom_inputs = []
+        user_choices = []
+        for round_data in self.rounds:
+            round_name = {
+                1: "题材类型",
+                2: "主角性格",
+                3: "金手指",
+                4: "开局设计",
+                5: "情感线"
+            }.get(round_data.round_num, f"第{round_data.round_num}轮")
+            if round_data.user_choice:
+                user_choices.append(f"[{round_name}] 选择了: {round_data.user_choice}")
+            if round_data.user_custom_input:
+                custom_inputs.append(f"[{round_name}] 自定义: {round_data.user_custom_input}")
+        
+        all_choices = "\n".join(user_choices) if user_choices else "无"
+        all_custom = "\n".join(custom_inputs) if custom_inputs else "无"
+        
+        protagonist_note = ""
+        if self.creative_draft.protagonist and ("自定义" in self.creative_draft.protagonist or "结合" in self.creative_draft.protagonist):
+            protagonist_note = "【⚠️ 注意：这是用户的创意设定，必须在方案中重点体现，不能忽略或修改】"
+        
+        prompt = f"""你是一位资深网文编辑+市场评估专家，擅长为番茄小说平台打造爆款。
+
+请基于以下设定，一次性生成**完整的金手指详细设定**、**创作方案**和**市场化评估**。
+
+**题材：** {self.genre}
+
+**👤 主角设定：** {self.creative_draft.protagonist} {protagonist_note}
+
+**⚡ 金手指：** {self.creative_draft.golden_finger}
+
+**🎬 开局设计：** {self.creative_draft.opening_design}
+
+**💕 情感线：** {self.creative_draft.emotion_line}
+
+**✨ 差异化：** {self.creative_draft.unique_points}
+
+---
+
+**📋 用户多轮选择记录：**
+{all_choices}
+
+**🔥 用户创意修改要求（必须严格遵守）：**
+{all_custom}
+
+---
+
+**⚠️ 重要提醒：**
+1. 主角设定中的创意元素是用户的核心创意，必须在书名、开局、主线、金手指中重点体现
+2. 不要套用默认模板，必须根据用户的创意选择来设计
+3. 金手指必须有明确的成长空间（前期弱→后期强）和限制条件
+
+请生成（严格JSON格式，不要任何前缀或后缀）：
+{{
+    "golden_finger": {{
+        "basic_info": {{
+            "name": "金手指名称（有创意，2-8字）",
+            "type": "{self.creative_draft.golden_finger_type or 'unknown'}",
+            "type_label": "类型标签（带emoji）",
+            "concept": "核心概念（50字内，清晰说明机制）"
+        }},
+        "abilities": {{
+            "initial": "初始能力（刚获得时，限制较多）",
+            "growth": "成长曲线（前期1-30章/中期31-80章/后期81章+）",
+            "max": "最终形态（后期解锁的终极能力）"
+        }},
+        "restrictions": {{
+            "limitations": ["限制条件1", "限制条件2", "限制条件3"],
+            "side_effects": ["副作用1", "副作用2"],
+            "cooldown": "冷却规则"
+        }},
+        "applications": {{
+            "combat": "战斗应用场景",
+            "daily": "日常应用场景",
+            "special": {{}}
+        }},
+        "protagonist_synergy": {{
+            "compatibility": "与主角性格的契合度说明",
+            "combo_effects": ["联动效果1", "联动效果2"]
+        }},
+        "plot_role": {{
+            "hooks": [
+                {{"chapter": 3, "title": "首次使用", "description": "第3章左右的关键剧情"}},
+                {{"chapter": 15, "title": "进化/危机", "description": "第15章左右的进化或危机"}},
+                {{"chapter": 30, "title": "秘密揭晓", "description": "第30章左右揭晓秘密"}}
+            ],
+            "twist_potential": "潜在反转（金手指背后可能隐藏的真相）"
+        }}
+    }},
+    "plan": {{
+        "title": "书名（6-14字，必须体现主角创意设定）",
+        "opening": "开局设计（100字以内，必须展示主角的创意性格/设定）",
+        "first_climax": "第一个爽点（第3-5章，必须与主角设定联动）",
+        "main_plot": "主线走向（50字，突出主角创意设定的作用）"
+    }},
+    "evaluation": {{
+        "completion_rate": "预计完读率（如：15-18%）",
+        "debut_pass_rate": "首秀通过率（如：60-70%）",
+        "risk_level": "风险等级（低/中/高）",
+        "differentiation_score": "差异化评分（0-100的数字）",
+        "strengths": "优势（3-5条，每条一行，以•开头）",
+        "risks": "风险（2-3条，每条一行，以•开头）",
+        "suggestions": "优化建议（2-3条，每件一行，以•开头）"
+    }}
+}}"""
+        
+        try:
+            response = self.api_client.generate_content_with_retry(
+                content_type="plan_generation",
+                user_prompt=prompt,
+                temperature=0.8
+            )
+            
+            parsed = None
+            if isinstance(response, dict):
+                parsed = response
+            elif isinstance(response, str):
+                import json
+                import re
+                json_match = re.search(r'\{[\s\S]*\}', response)
+                if json_match:
+                    parsed = json.loads(json_match.group())
+            
+            if parsed and isinstance(parsed, dict):
+                logger.info(f"[对话打磨 {self.session_id}] AI一次性生成完整方案成功 | 书名: {parsed.get('plan', {}).get('title', '未命名')}")
+                return {
+                    "golden_finger": parsed.get("golden_finger", self._create_fallback_golden_finger()),
+                    "plan": parsed.get("plan", self._generate_default_plan()),
+                    "evaluation": parsed.get("evaluation", self._generate_default_evaluation())
+                }
+        except Exception as e:
+            logger.error(f"[对话打磨 {self.session_id}] AI一次性生成完整方案失败: {e}")
+        
+        return {
+            "golden_finger": self._create_fallback_golden_finger(),
+            "plan": self._generate_default_plan(),
+            "evaluation": self._generate_default_evaluation()
+        }
+    
     def _generate_plan_with_ai(self) -> Dict:
-        """调用AI生成完整方案"""
+        """调用AI生成完整方案（保留备用）"""
         if not self.api_client:
             return self._generate_default_plan()
         
@@ -1268,7 +1453,7 @@ class DialogPolishManager:
         
         # 🔥 检查主角设定是否包含自定义内容
         protagonist_note = ""
-        if "自定义" in self.creative_draft.protagonist or "结合" in self.creative_draft.protagonist:
+        if self.creative_draft.protagonist and ("自定义" in self.creative_draft.protagonist or "结合" in self.creative_draft.protagonist):
             protagonist_note = "【⚠️ 注意：这是用户的创意设定，必须在方案中重点体现，不能忽略或修改】"
         
         prompt = f"""你是一位资深网文编辑，擅长为番茄小说平台创作爆款作品。
@@ -1299,7 +1484,7 @@ class DialogPolishManager:
 
 **⚠️ 重要提醒：**
 1. 主角设定中的创意元素（如"结合题材多子多福"、特殊性格组合等）是用户的核心创意，必须在书名、开局、主线中重点体现
-2. 如果用户指定了特殊设定（如"二哈宠物"、"毒舌"、"多子多福"等），必须在方案中明确体现，不能遗漏
+2. 如果用户指定了特殊设定（如"特殊宠物/伙伴"、"毒舌"、"多子多福"等），必须在方案中明确体现，不能遗漏
 3. 不要套用模板化的主角设定，必须根据用户的创意选择来设计
 
 请生成（JSON格式）：
@@ -1323,12 +1508,13 @@ class DialogPolishManager:
                 temperature=0.8
             )
             
-            if response:
+            if isinstance(response, dict):
+                return response
+            elif isinstance(response, str):
                 # 尝试解析JSON
                 import json
                 import re
-                # 提取JSON部分
-                json_match = re.search(r'\{[\s\S]*\}', str(response))
+                json_match = re.search(r'\{[\s\S]*\}', response)
                 if json_match:
                     return json.loads(json_match.group())
         except Exception as e:
@@ -1465,13 +1651,22 @@ class DialogPolishManager:
                 temperature=0.5
             )
             
-            if response:
+            if isinstance(response, dict):
+                return {
+                    "completion_rate": response.get("completion_rate", "15-18%"),
+                    "debut_pass_rate": response.get("debut_pass_rate", "60-70%"),
+                    "risk_level": response.get("risk_level", "中等"),
+                    "differentiation_score": response.get("differentiation_score", 80),
+                    "strengths": response.get("strengths", "• 符合市场主流喜好"),
+                    "risks": response.get("risks", "• 需要保持稳定更新"),
+                    "suggestions": response.get("suggestions", "• 按此方案直接开始生成")
+                }
+            elif isinstance(response, str):
                 import json
                 import re
-                json_match = re.search(r'\{[\s\S]*\}', str(response))
+                json_match = re.search(r'\{[\s\S]*\}', response)
                 if json_match:
                     result = json.loads(json_match.group())
-                    # 确保所有字段存在
                     return {
                         "completion_rate": result.get("completion_rate", "15-18%"),
                         "debut_pass_rate": result.get("debut_pass_rate", "60-70%"),
@@ -1503,29 +1698,29 @@ class DialogPolishManager:
         points = []
         
         # 🔥 优先处理用户自定义的主角设定
-        if "自定义" in self.creative_draft.protagonist or "结合" in self.creative_draft.protagonist:
+        if self.creative_draft.protagonist and ("自定义" in self.creative_draft.protagonist or "结合" in self.creative_draft.protagonist):
             # 提取自定义内容
             custom_part = self.creative_draft.protagonist
             if "（自定义：" in custom_part:
                 custom_part = custom_part.split("（自定义：")[-1].replace("）", "")
             points.append(f"主角设定创新：{custom_part}，打破传统套路")
-        elif "话痨" in self.creative_draft.protagonist:
+        elif self.creative_draft.protagonist and "话痨" in self.creative_draft.protagonist:
             points.append("直播变单口相声，用吐槽缓解紧张氛围")
-        elif "佛系" in self.creative_draft.protagonist:
+        elif self.creative_draft.protagonist and "佛系" in self.creative_draft.protagonist:
             points.append("被迫营业的反差萌，越不想火越火")
-        elif "疯批" in self.creative_draft.protagonist:
+        elif self.creative_draft.protagonist and "疯批" in self.creative_draft.protagonist:
             points.append(" unpredictable的行为模式，让读者猜不到下一步")
         
         if "记忆" in self.creative_draft.golden_finger:
             points.append("记忆消失的悲剧感与直播时的喜剧效果形成反差")
         elif "身体" in self.creative_draft.golden_finger:
             points.append("英雄迟暮的紧迫感，每一场战斗都可能是最后一场")
-        elif "观众" in self.creative_draft.golden_finger:
+        elif self.creative_draft.golden_finger and "观众" in self.creative_draft.golden_finger:
             points.append("观众互动创造不确定性，弹幕成为剧情变量")
         
-        if "妹妹" in self.creative_draft.emotion_line:
+        if self.creative_draft.emotion_line and "妹妹" in self.creative_draft.emotion_line:
             points.append("妹妹是唯一理解他的人，建立深层情感锚点")
-        elif "宿敌" in self.creative_draft.emotion_line:
+        elif self.creative_draft.emotion_line and "宿敌" in self.creative_draft.emotion_line:
             points.append("亦敌亦友的复杂关系，增加人物关系张力")
         
         return "\n".join([f"• {p}" for p in points]) if points else "• 独特的设定组合"
@@ -1535,16 +1730,16 @@ class DialogPolishManager:
         mitigations = []
         
         # 🔥 优先检查用户的自定义主角设定
-        if "自定义" in self.creative_draft.protagonist or "结合" in self.creative_draft.protagonist:
+        if self.creative_draft.protagonist and ("自定义" in self.creative_draft.protagonist or "结合" in self.creative_draft.protagonist):
             mitigations.append("前期充分铺垫主角的特殊设定，让读者快速理解并认同创新点")
         
-        if "记忆" in self.creative_draft.golden_finger or "身体" in self.creative_draft.golden_finger:
+        if self.creative_draft.golden_finger and ("记忆" in self.creative_draft.golden_finger or "身体" in self.creative_draft.golden_finger):
             mitigations.append("每5章安排1章轻松日常，缓解压抑感")
         
         if "话痨" in self.creative_draft.protagonist:
             mitigations.append("30章后减少纯吐槽，增加行动推进")
         
-        if "妹妹" in self.creative_draft.emotion_line:
+        if self.creative_draft.emotion_line and "妹妹" in self.creative_draft.emotion_line:
             mitigations.append("前10章快速建立妹妹羁绊，让读者有牵挂")
         
         return "；".join(mitigations) if mitigations else "按常规节奏推进"
@@ -1619,10 +1814,22 @@ class DialogPolishManager:
         if target_round <= 3:
             self.creative_draft.golden_finger = ""
             self.creative_draft.golden_finger_type = ""
+            # 🔥 关键：回退到金手指轮次，必须清空之前AI生成的完整方案
+            self.creative_draft.golden_finger_design = {}
+            self.creative_draft.title = ""
+            self.creative_draft.ai_evaluation = {}
         if target_round <= 4:
             self.creative_draft.opening_design = ""
+            # 🔥 回退到开局设计，也会影响整体方案
+            self.creative_draft.golden_finger_design = {}
+            self.creative_draft.title = ""
+            self.creative_draft.ai_evaluation = {}
         if target_round <= 5:
             self.creative_draft.emotion_line = ""
+            # 🔥 回退到情感线，完整方案必须重新生成
+            self.creative_draft.golden_finger_design = {}
+            self.creative_draft.title = ""
+            self.creative_draft.ai_evaluation = {}
         
         return self._format_round_response(self.rounds[-1])
     
@@ -1718,11 +1925,13 @@ class DialogPolishManager:
                 temperature=0.8
             )
             
-            if response:
-                # 解析JSON
+            if isinstance(response, dict):
+                logger.info(f"[对话打磨 {self.session_id}] AI生成金手指成功: {response.get('basic_info', {}).get('name', '未命名')}")
+                return response
+            elif isinstance(response, str):
                 import json
                 import re
-                json_match = re.search(r'\{[\s\S]*\}', str(response))
+                json_match = re.search(r'\{[\s\S]*\}', response)
                 if json_match:
                     result = json.loads(json_match.group())
                     logger.info(f"[对话打磨 {self.session_id}] AI生成金手指成功: {result.get('basic_info', {}).get('name', '未命名')}")

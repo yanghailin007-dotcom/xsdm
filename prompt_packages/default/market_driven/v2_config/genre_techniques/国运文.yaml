@@ -181,7 +181,53 @@ pacing:
   hook_last_50: true
   no_narration_limit: 200
 
-# ==================== 9. 世界状态初始化 ====================
+# ==================== 9. 阶段目标成长指标（用于一阶段生成） ====================
+progression_metrics:
+  metric_name: "扮演度/国运值"
+  metric_examples:
+    - "扮演度达到30%"
+    - "国运值提升"
+    - "解锁新形态"
+  forbidden_concepts: []
+  stage_templates:
+    - description: "建立主角形象，首次展现实力"
+      deliverables:
+        - "扮演度达到20%"
+        - "获得第一个强力技能"
+        - "震惊全场"
+      criteria: "扮演度≥20%，至少1次全场震惊"
+    - description: "快速成长，建立盟友"
+      deliverables:
+        - "扮演度达到40%"
+        - "收服第一个盟友"
+        - "首次击败强敌"
+      criteria: "扮演度≥40%，盟友数量≥1"
+    - description: "国运争霸，区域崛起"
+      deliverables:
+        - "扮演度达到60%"
+        - "龙国区域第一"
+        - "击败区域强敌"
+      criteria: "扮演度≥60%，区域排名No.1"
+    - description: "全球争霸，登顶巅峰"
+      deliverables:
+        - "扮演度达到80%"
+        - "成为全球第一"
+        - "击败多国联盟"
+      criteria: "扮演度≥80%，全球排名No.1"
+    - description: "文明跃迁，星际接触"
+      deliverables:
+        - "扮演度达到90%"
+        - "接触更高维度"
+        - "开启新篇章"
+      criteria: "扮演度≥90%，掌控全局"
+    - description: "主宰万界，圆满结局"
+      deliverables:
+        - "扮演度达到100%"
+        - "成为禁地主宰"
+        - "龙国永世长存"
+      criteria: "扮演度≥95%，圆满结局"
+
+# ==================== 10. 世界状态初始化 ====================
 world_state_initialization:
   description: "国运文的世界状态初始值"
   

@@ -10,6 +10,12 @@ from typing import Dict, List, Optional
 from datetime import datetime
 from pathlib import Path
 
+try:
+    from web.services.market_driven.genre_techniques_loader import load_genre_techniques
+    HAS_GENRE_TECHNIQUES = True
+except ImportError:
+    HAS_GENRE_TECHNIQUES = False
+
 logger = logging.getLogger(__name__)
 
 
@@ -91,6 +97,23 @@ class BestsellerAnalyzer:
         构建反向工程分析Prompt
         要求AI深度分析该题材Top10爆款的写法规律
         """
+        # 🔥 加载题材防火墙
+        firewall_text = ""
+        if HAS_GENRE_TECHNIQUES:
+            try:
+                gt = load_genre_techniques(genre)
+                guardrails = gt.raw_data.get('final_plan_guardrails', {})
+                gf_guard = guardrails.get('golden_finger', {})
+                if gf_guard.get('forbidden_keywords'):
+                    firewall_text = f"\n\n**【题材防火墙 - 分析时必须遵守】**\n"
+                    firewall_text += f"当前题材为'{genre}'，在提炼金手指公式和角色成长弧线时，严禁总结出包含以下概念的模板：{', '.join(gf_guard['forbidden_keywords'])}。\n"
+                    allowed = gf_guard.get('allowed_domains', [])
+                    if allowed:
+                        firewall_text += f"所有公式必须限定在以下现实/题材领域内：{', '.join(allowed)}。\n"
+                    firewall_text += "即使为了增加'爽感'或'层次感'，也绝对不能在公式中引入玄幻、修仙、异能、科幻超自然机制。\n"
+            except Exception as e:
+                logger.warning(f"[BestsellerAnalyzer] 加载题材防火墙失败: {e}")
+        
         return f"""你是一位资深的番茄小说爆款拆解专家，专门分析均订10万+的头部作品。
 
 请深度拆解"{genre}"题材的Top10爆款小说，提炼出**可复制的创作公式**。
@@ -263,7 +286,7 @@ class BestsellerAnalyzer:
 {{"field1": "value1", "field2": "value2"}}  // 正确：一个完整JSON
 ```
 
-Note: All content must be specific and actionable, not vague."""
+Note: All content must be specific and actionable, not vague.{firewall_text}"""
     
     def _call_ai_analysis(self, prompt: str, genre: str) -> Dict:
         """调用AI进行分析，带多重错误处理和回退"""

@@ -113,6 +113,15 @@ class StageReviewOptimizer:
         # 🔥 加载提示词配置
         self._prompt_loader = get_prompt_loader()
         self._review_prompts = self._load_review_prompts()
+        
+        # 🔥 加载章节分析服务（番茄算法评分）
+        try:
+            from .chapter_analytics_service import ChapterAnalyticsService
+            self.analytics = ChapterAnalyticsService(str(self.project_path))
+            logger.info("[StageOptimizer] ChapterAnalyticsService 已加载")
+        except Exception as e:
+            logger.warning(f"[StageOptimizer] ChapterAnalyticsService 加载失败: {e}")
+            self.analytics = None
     
     def _load_review_prompts(self) -> Dict:
         """从JSON加载复盘提示词配置"""
@@ -701,6 +710,27 @@ class StageReviewOptimizer:
             
             report += f"| {ch_num} | {word_count} | {score:.1f}/10.0 | {label} |\n"
         
+        # 🔥 番茄算法指标详情（新增）
+        report += f"\n### 番茄算法指标详情\n"
+        report += "| 章节 | 字数 | 对话比例 | 爽点密度 | 情绪密度 | 有钩子 | 番茄得分 |\n"
+        report += "|------|------|----------|----------|----------|--------|----------|\n"
+        
+        for ch in original_chapters:
+            ch_num = ch.get('chapter_number', 0)
+            word_count = ch.get('word_count', 0)
+            score = ch.get('quality_score', 8.0)
+            
+            if self.analytics:
+                content = ch.get('content', '')
+                dr = self.analytics._calculate_dialogue_ratio(content)
+                sd = self.analytics._calculate_appeal_density(content)
+                ed = self.analytics._calculate_emotion_density(content)
+                hk = self.analytics._check_has_hook(content)
+                hook_label = "✅" if hk else "❌"
+                report += f"| {ch_num} | {word_count} | {dr:.1f}% | {sd:.2f} | {ed:.2f} | {hook_label} | {score:.1f} |\n"
+            else:
+                report += f"| {ch_num} | {word_count} | N/A | N/A | N/A | N/A | {score:.1f} |\n"
+        
         # 🔥 章节质量对比（修复前后的评分对比）
         report += f"\n## 章节质量优化对比\n"
         report += "| 章节 | 原评分 | 修复后 | 字数变化 | 状态 |\n"
@@ -1119,6 +1149,9 @@ class StageReviewOptimizer:
         session.send_message(init_prompt, purpose=f"w{window_idx}-init")
         
         # Step 2: Identify all issues
+        # 🔥 加载番茄合规检查提示词片段
+        tomato_check_text = self._review_prompts.get("templates", {}).get("tomato_compliance_check", {}).get("template", "")
+        
         identify_prompt = f"""严格分析质量问题。
 
 【必须检查的维度】
@@ -1131,20 +1164,22 @@ class StageReviewOptimizer:
 3. **剧情连续性**: 窗口内各章之间是否连贯，章尾悬念是否有回应
 4. **世界设定一致性**: 力量体系、组织设定是否统一
 5. **爆款标准差距**: 爽点密度、情绪转折次数、字数是否达标
+6. **番茄算法合规性** (P0/P1/P2级别):
+{tomato_check_text}
 
 输出JSON格式：
 {{
     "issues": [
-        {{"type": "plot|character|world|bestseller|tactical", "priority": "p0|p1|p2", 
+        {{"type": "plot|character|world|bestseller|tactical|hook", "priority": "p0|p1|p2", 
          "chapter": 1, "description": "问题描述", "suggestion": "修复建议"}}
     ],
     "summary": {{"p0_count": 0, "p1_count": 0, "p2_count": 0}}
 }}
 
 优先级定义：
-- P0: 严重问题（主角名不一致、事件与战术规划严重偏离）
-- P1: 中等问题（情绪偏差、节拍不匹配）
-- P2: 轻微问题（爽点不足、字数略低）"""
+- P0: 严重问题（主角名不一致、事件与战术规划严重偏离、字数<1800或>2800）
+- P1: 中等问题（情绪偏差、节拍不匹配、对话比例<40%、爽点密度<1.0/千字、无钩子）
+- P2: 轻微问题（爽点不足、字数略低、情绪密度<1.5/千字）"""
         
         response = session.send_message(identify_prompt, purpose=f"w{window_idx}-identify")
         data = self._safe_parse_json(response, f"w{window_idx}-identify")
@@ -1202,6 +1237,22 @@ class StageReviewOptimizer:
             
             # 构建该章所有问题的描述
             issues_text = "\n".join([f"- [{i.priority.upper()}/{i.type}]: {i.description}" for i in ch_issues])
+            
+            # 🔥 追加番茄算法指标数据（让 AI 修复时有量化依据）
+            if self.analytics:
+                ch_content = ch.get('content', '')
+                dr = self.analytics._calculate_dialogue_ratio(ch_content)
+                sd = self.analytics._calculate_appeal_density(ch_content)
+                ed = self.analytics._calculate_emotion_density(ch_content)
+                hk = self.analytics._check_has_hook(ch_content)
+                issues_text += (
+                    f"\n\n【番茄指标实测数据 - 第{ch_num}章】\n"
+                    f"- 对话比例: {dr:.1f}% (番茄标准≥40%)\n"
+                    f"- 爽点密度: {sd:.2f}/千字 (番茄标准≥1.5/千字)\n"
+                    f"- 情绪密度: {ed:.2f}/千字 (番茄标准≥2.0/千字)\n"
+                    f"- 章末钩子: {'有' if hk else '无'}\n"
+                    f"- 当前字数: {len(ch_content)}字 (标准2000-2500)\n"
+                )
             
             protagonist_name = self.protagonist_name
             ch_title = ch.get('title', '')
@@ -1369,6 +1420,15 @@ class StageReviewOptimizer:
                 ch['quality_score'] = new_score
                 self._update_chapter_quality_score(ch_num, new_score)
                 logger.info(f"[StageOptimizer] 第{ch_num}章修复后评分: {new_score}")
+        
+        # 🔥 将修复后的章节持久化到磁盘
+        logger.info(f"[StageOptimizer] 开始保存修复后的章节到磁盘...")
+        saved_count = 0
+        for ch in fixed_chapters:
+            if ch.get('optimized'):
+                if self._save_chapter_to_disk(ch):
+                    saved_count += 1
+        logger.info(f"[StageOptimizer] 已成功保存 {saved_count} 个修复后的章节")
         
         return all_issues, fixed_chapters
     
@@ -1846,89 +1906,47 @@ class StageReviewOptimizer:
     
     def _calculate_chapter_quality_score(self, chapter: Dict) -> float:
         """
-        🔥 计算章节质量评分（基于规则）
+        🔥 计算章节质量评分（基于番茄算法标准）
         
         评分维度：
-        1. 字数达标度 (0-2分)
-        2. 情绪强度执行 (0-2分)
-        3. 爽点/反转密度 (0-2分)
-        4. 结构完整性 (0-2分)
-        5. 创新性 (0-2分)
+        1. 对话比例 (0-2.5分)
+        2. 爽点密度 (0-2.0分)
+        3. 情绪密度 (0-1.5分)
+        4. 章末钩子 (0-0.5分)
+        5. 字数合规 (0-0.5分, 超标/不足 -1.0)
         
-        总分：0-10分，保留1位小数
+        总分：1.0-10.0分，保留1位小数
         """
-        import re
-        
         content = chapter.get('content', '')
         word_count = len(content)
-        score = 6.0  # 基础分6分
         
-        # 1. 字数评分 (0-2分)
-        if word_count >= 3000:
-            score += 2.0
-        elif word_count >= 2500:
-            score += 1.5
-        elif word_count >= 2000:
-            score += 1.0
-        elif word_count >= 1800:
-            score += 0.5
+        # 使用 analytics_service 获取精确指标
+        if self.analytics:
+            dialogue_ratio = self.analytics._calculate_dialogue_ratio(content)
+            shuang_density = self.analytics._calculate_appeal_density(content)
+            emotion_density = self.analytics._calculate_emotion_density(content)
+            has_hook = self.analytics._check_has_hook(content)
         else:
-            score -= 1.0  # 字数不足扣分
+            # fallback：简单估算
+            import re
+            dialogue_matches = re.findall(r'"[^"]*"', content)
+            dialogue_chars = sum(len(m) for m in dialogue_matches)
+            dialogue_ratio = (dialogue_chars / word_count * 100) if word_count > 0 else 0
+            shuang_density = 0.0
+            emotion_density = 0.0
+            has_hook = False
         
-        # 2. 情绪强度检测 (0-2分)
-        emotion_indicators = {
-            'high': ['震惊', '震撼', '恐怖', '绝望', '狂喜', '暴怒'],
-            'medium': ['紧张', '兴奋', '愤怒', '悲伤', '期待']
-        }
-        high_count = sum(1 for w in emotion_indicators['high'] if w in content)
-        med_count = sum(1 for w in emotion_indicators['medium'] if w in content)
+        # 番茄标准对标评分
+        score = 5.0  # 基础分
+        score += min(2.5, dialogue_ratio * 0.05)        # 对话50% = +2.5分
+        score += min(2.0, shuang_density * 1.0)         # 爽点2.0/千字 = +2.0分
+        score += min(1.5, emotion_density * 0.5)        # 情绪3.0/千字 = +1.5分
+        score += 0.5 if has_hook else 0.0               # 有钩子 +0.5
+        score += 0.5 if 2000 <= word_count <= 2500 else 0.0  # 字数合规 +0.5
+        score -= 1.0 if word_count > 2800 else 0.0      # 字数严重超标 -1.0
+        score -= 1.0 if word_count < 1800 else 0.0      # 字数严重不足 -1.0
         
-        if high_count >= 5:
-            score += 2.0
-        elif high_count >= 3 or med_count >= 5:
-            score += 1.0
-        elif high_count >= 1 or med_count >= 3:
-            score += 0.5
-        
-        # 3. 爽点/反转密度 (0-2分)
-        climax_indicators = ['反转', '爆发', '秒杀', '震惊全场', '全网哗然', 
-                            '打脸', '求饶', '不可置信', '怎么可能']
-        climax_count = sum(1 for w in climax_indicators if w in content)
-        
-        if climax_count >= 5:
-            score += 2.0
-        elif climax_count >= 3:
-            score += 1.0
-        elif climax_count >= 1:
-            score += 0.5
-        
-        # 4. 结构完整性 (0-2分)
-        structure_score = 0.0
-        # 检查多层震惊结构（通过关键词判断，不依赖标签）
-        # 现场反应关键词
-        if any(w in content for w in ['弹幕', '直播间', '围观', '现场']):
-            structure_score += 0.5
-        # 传播扩散关键词
-        if any(w in content for w in ['全网', '热搜', '朋友圈', '社交媒体', '疯传']):
-            structure_score += 0.5
-        # 权威反应关键词
-        if any(w in content for w in ['高层', '元帅', '将军', '指挥部', '官方', '紧急会议']):
-            structure_score += 0.5
-        # 检查钩子
-        if any(w in content for w in ['钩子', '悬念', '伏笔']):
-            structure_score += 0.5
-        score += structure_score
-        
-        # 5. 创新性检测 (0-2分) - 检测是否有新的能力/角色/设定
-        if any(w in content for w in ['解锁', '新技能', '觉醒', '突破']):
-            score += 1.0
-        if any(w in content for w in ['新角色登场', '神秘人', '幕后黑手']):
-            score += 0.5
-        if any(w in content for w in ['隐藏设定', '世界观展开', '真相']):
-            score += 0.5
-        
-        # 限制在6.0-10.0之间（避免过低或过高）
-        return round(max(6.0, min(10.0, score)), 1)
+        return round(max(1.0, min(10.0, score)), 1)
     
     def _update_chapter_quality_score(self, chapter_num: int, score: float):
         """
@@ -1969,6 +1987,42 @@ class StageReviewOptimizer:
                     continue
         
         logger.warning(f"[StageOptimizer] 未找到第{chapter_num}章文件以更新评分")
+        return False
+    
+    def _save_chapter_to_disk(self, chapter: Dict) -> bool:
+        """
+        🔥 将修复后的章节完整写回 chapters/chapter_XXX.json
+        
+        解决 fixed_chapters 只在内存中、不持久化的问题。
+        """
+        ch_num = chapter.get('chapter_number', 0)
+        chapters_dir = self.project_path / "chapters"
+        
+        for path_pattern in [f"chapter_{ch_num:03d}.json", f"chapter_{ch_num}.json"]:
+            path = chapters_dir / path_pattern
+            if path.exists():
+                try:
+                    with open(path, 'r', encoding='utf-8') as f:
+                        data = json.load(f)
+                    
+                    data['content'] = chapter.get('content', data.get('content', ''))
+                    data['word_count'] = chapter.get('word_count', len(data.get('content', '')))
+                    data['quality_score'] = chapter.get('quality_score', data.get('quality_score', 8.0))
+                    data['title'] = chapter.get('title', data.get('title', ''))
+                    data['optimized'] = chapter.get('optimized', False)
+                    if chapter.get('truncated'):
+                        data['truncated'] = True
+                    
+                    with open(path, 'w', encoding='utf-8') as f:
+                        json.dump(data, f, ensure_ascii=False, indent=2)
+                    
+                    logger.debug(f"[StageOptimizer] 已保存修复后的第{ch_num}章到磁盘")
+                    return True
+                except Exception as e:
+                    logger.warning(f"[StageOptimizer] 保存第{ch_num}章到磁盘失败: {e}")
+                    continue
+        
+        logger.warning(f"[StageOptimizer] 未找到第{ch_num}章文件以保存修复内容")
         return False
     
     def _save_json(self, filename: str, data: Dict):

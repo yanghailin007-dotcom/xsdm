@@ -1,70 +1,117 @@
-# 盗墓文题材技法
-genre: "盗墓文"
-version: "1.0.0"
-description: "探险寻宝+古墓探秘+风水玄术类小说的专项技法"
-
-# ==================== 1. 核心套路 ====================
+genre: 盗墓文
+version: 1.0.0
+description: 探险寻宝+古墓探秘+风水玄术类小说的专项技法
 core_mechanics:
-  description: "主角作为盗墓者或探险家，进入古墓、遗迹探险，破解机关，寻找宝藏，对抗危险"
-
-# ==================== 2. 禁用元素 ====================
+  description: 主角作为盗墓者或探险家，进入古墓、遗迹探险，破解机关，寻找宝藏，对抗危险
 forbidden_elements:
-  description: "以下元素绝对不能出现"
+  description: 以下元素绝对不能出现
   items:
-    - element: "过度玄幻"
-      examples: ["飞天遁地", "修仙", "魔法"]
-      reason: "盗墓文应有现实基础"
-    - element: "无底线破坏"
-      examples: ["恶意破坏文物", "亵渎死者", "不尊重历史"]
-      reason: "需要有基本的文物保护意识"
-    - element: "脱离探险主线"
-      examples: ["过多感情戏", "过多日常", "商战"]
-      reason: "应聚焦探险寻宝"
-
-# ==================== 3. 必须元素 ====================
+  - element: 过度玄幻
+    examples:
+    - 飞天遁地
+    - 修仙
+    - 魔法
+    reason: 盗墓文应有现实基础
+  - element: 无底线破坏
+    examples:
+    - 恶意破坏文物
+    - 亵渎死者
+    - 不尊重历史
+    reason: 需要有基本的文物保护意识
+  - element: 脱离探险主线
+    examples:
+    - 过多感情戏
+    - 过多日常
+    - 商战
+    reason: 应聚焦探险寻宝
 required_elements:
-  description: "每章必须包含的元素"
+  description: 每章必须包含的元素
   items:
-    - element: "探险场景"
-      check: "是否有古墓、遗迹等探险场景"
-      severity: "critical"
-    - element: "机关/危险"
-      check: "是否有机关陷阱或危险生物"
-      severity: "critical"
-    - element: "风水玄术"
-      check: "是否有风水、寻龙点穴等元素"
-      severity: "warning"
-
-# ==================== 4. 世界状态初始化 ====================
+  - element: 探险场景
+    check: 是否有古墓、遗迹等探险场景
+    severity: critical
+  - element: 机关/危险
+    check: 是否有机关陷阱或危险生物
+    severity: critical
+  - element: 风水玄术
+    check: 是否有风水、寻龙点穴等元素
+    severity: warning
 world_state_initialization:
   protagonist:
-    health: "健康"
-    abilities_unlocked: ["基础风水知识", "古墓识别"]
+    health: 健康
+    abilities_unlocked:
+    - 基础风水知识
+    - 古墓识别
   plot_threads:
-    - name: "寻宝探险"
-      status: "active"
-      priority: 10
-    - name: "身世之谜"
-      status: "active"
-      priority: 9
-    - name: "神秘组织"
-      status: "hidden"
-      priority: 8
+  - name: 寻宝探险
+    status: active
+    priority: 10
+  - name: 身世之谜
+    status: active
+    priority: 9
+  - name: 神秘组织
+    status: hidden
+    priority: 8
   system_rules:
-    system_name: "盗墓系统"
-    system_type: "探险类"
+    system_name: 盗墓系统
+    system_type: 探险类
     artifacts_found: 0
     tombs_explored: 0
     danger_level: 1
-
-# ==================== 5. 质量检查点 ====================
 quality_checkpoints:
-  - point: "探险氛围"
-    condition: "保持神秘紧张的探险氛围"
-    severity: "critical"
-  - point: "机关设计"
-    condition: "机关陷阱有创意且合理"
-    severity: "critical"
-  - point: "历史考据"
-    condition: "古墓背景有历史依据"
-    severity: "warning"
+- point: 探险氛围
+  condition: 保持神秘紧张的探险氛围
+  severity: critical
+- point: 机关设计
+  condition: 机关陷阱有创意且合理
+  severity: critical
+- point: 历史考据
+  condition: 古墓背景有历史依据
+  severity: warning
+progression_metrics:
+  metric_name: 盗墓技艺/神器收集/江湖地位
+  metric_examples:
+  - 掌握分金定穴术
+  - 获得首个神器
+  - 江湖声望初显
+  forbidden_concepts:
+  - 扮演度
+  - 国运
+  - 修仙
+  stage_templates:
+  - description: 建立主角形象，首次展现实力
+    deliverables:
+    - 主角获得第一个核心成长/资源
+    - 完成首次实力展现
+    - 震惊全场
+    criteria: 至少1次全场震惊，主角获得实质性成长
+  - description: 快速成长，建立盟友/班底
+    deliverables:
+    - 主角实力再上新台阶
+    - 收服第一个盟友/伙伴
+    - 首次击败强敌
+    criteria: 核心伙伴≥1，主角实力明显增强
+  - description: 区域崛起，称霸一方
+    deliverables:
+    - 主角成为区域级存在
+    - 击败区域强敌
+    - 掌控核心资源/势力
+    criteria: 区域范围内的主导地位确立
+  - description: 登顶巅峰，横扫天下
+    deliverables:
+    - 主角达到顶级实力/地位
+    - 击败顶级对手/势力
+    - 掌控全局
+    criteria: 行业内/世界范围内的顶尖地位确立
+  - description: 终极对决，开启新篇
+    deliverables:
+    - 主角触及更高层次
+    - 找到终极宝藏，解开千年长生谜题
+    - 开启新篇章
+    criteria: 核心冲突取得决定性胜利
+  - description: 圆满结局，主宰一切
+    deliverables:
+    - 主角达到最强状态
+    - 守护核心利益/重要之人
+    - 达成最终目标
+    criteria: 所有核心目标达成，圆满结局
