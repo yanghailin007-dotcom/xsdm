@@ -510,6 +510,10 @@ class ChapterConversationV2:
         if self.generated_chapters:
             last = self.generated_chapters[-1]
             lines.append(f"第{last['chapter']}章《{last['title']}》已生成 ({last['content_length']} 字)")
+        elif prev_plan:
+            prev_num = prev_plan.get('chapter_number', chapter_number - 1)
+            prev_title = prev_plan.get('chapter_title', '') or '（未知标题）'
+            lines.append(f"第{prev_num}章《{prev_title}》已生成")
         else:
             lines.append("本章为小说开篇第一章")
         
@@ -522,6 +526,9 @@ class ChapterConversationV2:
             "4. 确保自检清单全部通过",
             "5. 只输出章节正文，不要输出大纲或分析",
             "6. 必须严格使用第三人称上帝视角，禁止任何第一人称叙述",
+            "7. 【硬规则】章节最后 1-3 段必须是钩子，总字数≤60 字。钩子句出现后必须立即停止，禁止继续写进屋、对话、解释或心理活动",
+            "8. 【硬规则】严禁输出「下一章预告」「本章完」「未完待续」等任何非正文内容",
+            "9. 【字数自救】如果生成到 2100 字仍未收尾，立即删除所有环境描写和路人重复反应，只保留 1 句核心动作 + 钩子句",
             "",
             "【强制输出格式 - 必须严格遵守】",
             "必须按以下格式返回，使用 ---标题--- 和 ---正文--- 分隔：",

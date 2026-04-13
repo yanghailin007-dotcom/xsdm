@@ -915,6 +915,10 @@ class BatchChapterGenerator:
 □ **人设不崩**：主角行为必须符合其性格标签（冷静果断、不圣母等），禁止出现降智、冲动、圣母行为
 □ **格式合规**：字数必须严格控制在2000-2500字之间，绝对禁止超过2500字；段落不超过3行，适合手机阅读
 □ **字数超限处罚**：如果输出超过2500字，系统会自动判定为不合格并拒绝接收，你必须在生成过程中主动压缩场景和描写
+□ **结尾硬切断**：本章最后 50 字内必须是且只能是钩子，钩子出现后禁止有任何后续场景、对话、解释或心理描写
+□ **禁止滑翔**：人物在钩子触发时必须停留在当前位置，禁止进入新房间、上车、展开新剧情
+□ **元文本禁令**：绝对禁止出现「下一章预告」「本章完」「未完待续」等字样
+□ **字数急救**：如果内容超过 2300 字，必须主动删除环境描写和重复震惊，确保最终输出≤2500 字
 """
             
             # 获取上一章战术规划（用于承接）
@@ -1825,7 +1829,35 @@ class BatchChapterGenerator:
             if result.get('title'):
                 escaped = re.escape(result['title'].strip())
                 result['content'] = re.sub(rf'^\s*{escaped}\s*\n+', '', result['content'], count=1)
+            # 钩子后硬截断，防止AI继续滑翔
+            result['content'] = self._truncate_at_hook(result['content'])
         return result
+    
+    def _truncate_at_hook(self, content: str) -> str:
+        """如果正文在钩子后继续滑翔，硬斩断"""
+        glide_markers = [
+            "---下一章预告---",
+            "下一章预告",
+            "本章完",
+            "未完待续",
+            "偏厅的门缓缓打开",
+            "就在这时，门开了",
+            "他大步走向",
+            "林墨挑了挑眉",
+            "林墨冷笑一声",
+            "林墨淡淡道",
+        ]
+        # 只在内容后 15% 处寻找滑翔标记
+        threshold = int(len(content) * 0.85)
+        earliest_idx = -1
+        for marker in glide_markers:
+            idx = content.find(marker)
+            if idx != -1 and idx >= threshold:
+                if earliest_idx == -1 or idx < earliest_idx:
+                    earliest_idx = idx
+        if earliest_idx != -1:
+            content = content[:earliest_idx].strip()
+        return content
     
     def _call_ai_generation(self, prompt: str, chapter_num: int) -> Dict:
         """调用AI生成，格式异常时自动重试1次"""
