@@ -86,6 +86,7 @@ class BatchChapterGenerator:
         self.optimized_windows = set()  # 已优化的窗口，避免重复优化
         self.current_batch_summary = None  # 当前批次总结
         self.v2_last_batch_summary = None  # 🔥 V2对话内生成的批次总结
+        self._chapter_titles = set()  # 本批次已生成的标题，用于唯一性检查
         
         if self.project_path:
             from .character_state_manager import CharacterStateManager
@@ -454,6 +455,17 @@ class BatchChapterGenerator:
                 )
                 
                 if content and isinstance(content, str) and len(content) > 100:
+                    parsed = self._parse_response(content)
+                    ai_title = parsed.get('title', '')
+                    clean_content = parsed.get('content', content)
+                    
+                    # 标题兜底：标准格式未返回title时，单独补生成
+                    if not ai_title and clean_content:
+                        ai_title = self._generate_title_from_content(clean_content)
+                    if not ai_title:
+                        ai_title = self._extract_title(clean_content)
+                    final_title = self._ensure_unique_title(ai_title)
+                    
                     # 🔥 修复：从 chapter_plan 中提取结构化信息，不再传空字典
                     extracted_info = {
                         "key_event": {
@@ -472,9 +484,9 @@ class BatchChapterGenerator:
                     }
                     chapters.append({
                         "chapter_number": chapter_num,
-                        "title": chapter_plan.get("event", "")[:30],
-                        "content": content,
-                        "word_count": len(content),
+                        "title": final_title,
+                        "content": clean_content,
+                        "word_count": len(clean_content),
                         "quality_score": 8.0,
                         "extracted_info": extracted_info
                     })
@@ -997,17 +1009,9 @@ class BatchChapterGenerator:
     
     def _generate_single_chapter(self, chapter_num: int, novel_title: str,
                                   blueprint: Dict, tropes: Dict, novel_data: Dict) -> Dict:
-        """
-        生成单章
-        严格按BluePrint执行
-        """
-        # 获取本章规划
+        """生成单章，强制标准格式，失败则补标题并保证唯一性"""
         chapter_plan = self._get_chapter_plan(chapter_num, blueprint)
-        
-        # 构建上下文（智能压缩）
         context = self._build_chapter_context(chapter_num, novel_title, novel_data)
-        
-        # 构建Prompt
         prompt = self._build_chapter_prompt(
             chapter_num=chapter_num,
             chapter_plan=chapter_plan,
@@ -1016,31 +1020,34 @@ class BatchChapterGenerator:
             tropes=tropes
         )
         
-        # 生成内容
         if self.api_client:
             parsed_response = self._call_ai_generation(prompt, chapter_num)
             ai_title = parsed_response.get('title', '')
             content = parsed_response.get('content', '')
         else:
-            # 模拟模式
             content = self._mock_chapter_content(chapter_num, chapter_plan)
             ai_title = ''
         
-        # 质量评估
-        quality_score = self._assess_chapter_quality(content, chapter_plan, tropes)
+        # 确保 content 有效
+        content_str = content if isinstance(content, str) else str(content) if content else ""
         
-        # 如果质量低，尝试优化
+        # 标题兜底：如果没标题但有正文，单独补生成
+        if not ai_title and content_str and len(content_str) > 100:
+            ai_title = self._generate_title_from_content(content_str)
+        
+        # 确保唯一性
+        final_title = self._ensure_unique_title(ai_title)
+        
+        # 质量评估
+        quality_score = self._assess_chapter_quality(content_str, chapter_plan, tropes)
         if quality_score < 7.0:
             logger.warning(f"  第{chapter_num}章质量偏低({quality_score})，尝试优化...")
-            content = self._optimize_chapter(content, chapter_plan, tropes)
-            quality_score = self._assess_chapter_quality(content, chapter_plan, tropes)
-        
-        # 确保 content 是字符串
-        content_str = content if isinstance(content, str) else str(content) if content else ""
+            content_str = self._optimize_chapter(content_str, chapter_plan, tropes)
+            quality_score = self._assess_chapter_quality(content_str, chapter_plan, tropes)
         
         return {
             "chapter_number": chapter_num,
-            "title": ai_title or self._extract_title(content_str, chapter_plan),
+            "title": final_title,
             "content": content_str,
             "word_count": len(content_str),
             "quality_score": quality_score,
@@ -1256,80 +1263,143 @@ class BatchChapterGenerator:
     
     def _parse_response(self, response) -> Dict:
         """
-        解析响应，返回包含 title 和 content 的字典
-        支持分隔符格式(---标题---/---正文---)和JSON格式
+        严格解析响应，只认两种标准格式：
+        1. 分隔符格式 ---标题---\n标题\n---正文---\n正文
+        2. JSON 格式 {"title": "...", "content": "..."}
+        非标准格式返回空title，由上层决定重试或补标题
         """
         import re
-        
         result = {'title': '', 'content': ''}
         
         if isinstance(response, dict):
             result['title'] = response.get('title', '')
             result['content'] = response.get('content', str(response))
-        elif isinstance(response, str):
-            cleaned_response = response.strip()
-            
-            # 策略1: 尝试解析分隔符格式 ---标题---/---正文---
-            title_match = re.search(r'---\s*[标標][题題]\s*---\s*\n?(.*?)\n?---\s*[正正][文文]\s*---', cleaned_response, re.DOTALL | re.IGNORECASE)
-            if title_match:
-                result['title'] = title_match.group(1).strip()
-                # 正文在 ---正文--- 之后
-                content_start = cleaned_response.find('---正文---') + len('---正文---')
-                if content_start < len('---正文---') + 10:  # 如果没找到简体，尝试繁体或其他格式
-                    content_start = cleaned_response.find('---正文---') + len('---正文---')
-                result['content'] = cleaned_response[content_start:].strip()
-                logger.info(f"[BatchGenerator] 使用分隔符格式解析,标题: '{result['title']}'")
-                return self._clean_result(result)
-            
-            # 策略2: 移除 Markdown 代码块后尝试解析 JSON
-            json_content = cleaned_response
-            if json_content.startswith('```'):
-                first_newline = json_content.find('\n')
-                if first_newline != -1:
-                    json_content = json_content[first_newline:].strip()
-                if json_content.endswith('```'):
-                    json_content = json_content[:-3].strip()
-            
-            try:
-                parsed = json.loads(json_content)
-                if isinstance(parsed, dict):
-                    result['title'] = parsed.get('title', '')
-                    result['content'] = parsed.get('content', cleaned_response)
-                    logger.info(f"[BatchGenerator] 使用JSON格式解析,标题: '{result['title']}'")
-                else:
-                    result['content'] = cleaned_response
-            except:
-                # JSON 解析失败，使用清理后的内容
-                result['content'] = cleaned_response
-        else:
-            result['content'] = str(response)
+            return self._clean_result(result)
         
+        if not isinstance(response, str):
+            result['content'] = str(response)
+            return self._clean_result(result)
+        
+        cleaned_response = response.strip()
+        
+        # 策略1: 分隔符格式
+        title_match = re.search(r'---\s*[标標][题題]\s*---\s*\n?(.*?)\n?---\s*[正正][文文]\s*---', cleaned_response, re.DOTALL | re.IGNORECASE)
+        if title_match:
+            result['title'] = title_match.group(1).strip()
+            content_start = cleaned_response.find('---正文---') + len('---正文---')
+            if content_start < len('---正文---') + 10:
+                content_start = cleaned_response.find('---正文---') + len('---正文---')
+            result['content'] = cleaned_response[content_start:].strip()
+            logger.info(f"[BatchGenerator] 分隔符格式,标题: '{result['title']}'")
+            return self._clean_result(result)
+        
+        # 策略2: JSON 格式
+        json_content = cleaned_response
+        if json_content.startswith('```'):
+            first_newline = json_content.find('\n')
+            if first_newline != -1:
+                json_content = json_content[first_newline:].strip()
+            if json_content.endswith('```'):
+                json_content = json_content[:-3].strip()
+        
+        try:
+            parsed = json.loads(json_content)
+            if isinstance(parsed, dict):
+                result['title'] = parsed.get('title', '')
+                result['content'] = parsed.get('content', '')
+                logger.info(f"[BatchGenerator] JSON格式,标题: '{result['title']}'")
+                return self._clean_result(result)
+        except Exception:
+            pass
+        
+        # 非标准格式：原样返回content，title留空，由上层处理
+        result['content'] = cleaned_response
+        logger.warning(f"[BatchGenerator] 响应不符合标准格式(分隔符/JSON)，title置空待补")
         return self._clean_result(result)
     
     def _clean_result(self, result: Dict) -> Dict:
-        """清理结果中的标题行"""
+        """清理content中的章节号行和已知标题"""
         import re
         if result['content']:
-            title_patterns = [
-                r'^第[一二三四五六七八九十百千万零\d]+章[：:\s]*[^\n]*\n*',
-                r'^Chapter\s*\d+[：:\s]*[^\n]*\n*',
+            patterns = [
+                r'^第\s*[一二三四五六七八九十百千万零\d]+\s*章[：: ]*[^\n]*\n*',
+                r'^Chapter\s*\d+[：: ]*[^\n]*\n*',
+                r'^Chapter\d+[：: ]*[^\n]*\n*',
             ]
-            for pattern in title_patterns:
+            for pattern in patterns:
                 result['content'] = re.sub(pattern, '', result['content'], flags=re.IGNORECASE)
             result['content'] = result['content'].lstrip('\n')
+            if result.get('title'):
+                escaped = re.escape(result['title'].strip())
+                result['content'] = re.sub(rf'^\s*{escaped}\s*\n+', '', result['content'], count=1)
         return result
     
     def _call_ai_generation(self, prompt: str, chapter_num: int) -> Dict:
-        """调用AI生成，返回包含title和content的字典"""
+        """调用AI生成，格式异常时自动重试1次"""
         response = self.api_client.generate_content_with_retry(
             content_type="chapter_content",
             user_prompt=prompt,
             temperature=0.7,
             purpose=f"生成第{chapter_num}章"
         )
+        result = self._parse_response(response)
         
-        # 🔥 解析JSON响应
-        return self._parse_response(response)
+        # 格式检查：必须有content且字数>500，title非空
+        if (not result.get('content') or len(result['content']) < 500 or not result.get('title')):
+            logger.warning(f"[BatchGenerator] 第{chapter_num}章格式异常，触发重试")
+            retry_prompt = prompt + "\n\n⚠️ 上一次的返回格式不正确。请严格遵守以下格式：\n---标题---\n章节标题（8-14字）\n---正文---\n章节正文内容（2000-2500字）\n"
+            response = self.api_client.generate_content_with_retry(
+                content_type="chapter_content",
+                user_prompt=retry_prompt,
+                temperature=0.6,
+                purpose=f"重试生成第{chapter_num}章"
+            )
+            result = self._parse_response(response)
+        
+        return result
+    
+    def _generate_title_from_content(self, content: str) -> str:
+        """基于正文单独补生成标题"""
+        if not self.api_client or not content or len(content) < 100:
+            return "剧情推进"
+        prompt = f"""请根据以下小说正文，生成一个8-14字的番茄风章节标题。标题要概括核心爽点，不要带"第X章"前缀。
+
+正文片段（前800字）：
+{content[:800]}
+
+必须严格返回JSON格式：
+{{"title": "章节标题"}}
+"""
+        try:
+            response = self.api_client.generate_content_with_retry(
+                content_type="title_generation",
+                user_prompt=prompt,
+                temperature=0.5,
+                purpose="补生成章节标题"
+            )
+            parsed = self._parse_response(response)
+            title = parsed.get('title', '').strip()
+            if title and title != '章节标题':
+                return title
+        except Exception as e:
+            logger.warning(f"[BatchGenerator] 补生成标题失败: {e}")
+        return "剧情推进"
+    
+    def _ensure_unique_title(self, title: str) -> str:
+        """确保标题唯一，重复则加 (1), (2)..."""
+        import re
+        if not title:
+            title = "剧情推进"
+        clean_title = re.sub(r'^第\s*[一二三四五六七八九十百千万零\d]+\s*章\s*', '', title).strip()
+        if not clean_title:
+            clean_title = "剧情推进"
+        original = clean_title
+        counter = 1
+        while clean_title in self._chapter_titles:
+            clean_title = f"{original} ({counter})"
+            counter += 1
+        self._chapter_titles.add(clean_title)
+        return clean_title
     
     def _mock_chapter_content(self, chapter_num: int, chapter_plan: Dict) -> str:
         """模拟章节内容（测试用）"""
@@ -1405,59 +1475,18 @@ class BatchChapterGenerator:
         
         return optimized
     
-    def _extract_title(self, content, chapter_plan: Dict) -> str:
-        """
-        提取或生成章节标题
-        
-        策略：
-        1. 优先从chapter_plan获取（战术规划中定义的标题）
-        2. 其次从chapter_plan的event/purpose字段生成
-        3. 最后从内容分析提取
-        """
+    def _extract_title(self, content: str) -> str:
+        """从正文中尝试提取标题（仅作为最后一道备用）"""
         import re
-        
-        # 确保 content 是字符串
         if not isinstance(content, str):
-            content = str(content) if content else ""
-        
-        # 1. 优先从chapter_plan获取标题
-        if chapter_plan:
-            # 直接标题字段
-            title = chapter_plan.get('title', '').strip()
-            if title and title != '章节' and not title.startswith('第'):
-                return title
-            
-            # 从event字段生成（事件描述通常是核心剧情）
-            event = chapter_plan.get('event', '').strip()
-            if event and len(event) <= 30:
-                return event
-            elif event:
-                return event[:20] + ('...' if len(event) > 20 else '')
-            
-            # 从purpose字段生成（战术企图）
-            purpose = chapter_plan.get('purpose', '').strip()
-            if purpose and len(purpose) <= 30:
-                return purpose
-            elif purpose:
-                return purpose[:20] + ('...' if len(purpose) > 20 else '')
-            
-            # 从hook_content获取（钩子内容往往有吸引力）
-            hook = chapter_plan.get('hook_content', '').strip()
-            if hook and len(hook) <= 30:
-                return hook
-            elif hook:
-                return hook[:20] + ('...' if len(hook) > 20 else '')
-        
-        # 2. 尝试从内容中提取（备用方案）
-        match = re.search(r'第\d+章\s*([^\n]+)', content)
+            return ""
+        first_line = content.strip().split('\n')[0].strip()
+        match = re.search(r'第\s*[一二三四五六七八九十百千万零\d]+\s*章[：:\s]*(.+)', first_line)
         if match:
             extracted = match.group(1).strip()
-            if extracted and not extracted.startswith('【'):
+            if extracted and not extracted.startswith('【') and len(extracted) <= 40:
                 return extracted
-        
-        # 3. 默认标题
-        chapter_num = chapter_plan.get('chapter_number', 0) if chapter_plan else 0
-        return f'第{chapter_num}章'
+        return ""
     
     def _preload_characters_from_blueprint(self, blueprint: Dict) -> None:
         """

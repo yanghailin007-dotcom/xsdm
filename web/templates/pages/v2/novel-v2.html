@@ -110,6 +110,18 @@
     background: rgba(99, 102, 241, 0.1);
 }
 
+/* 精修模式高亮 */
+.toolbar-btn.editing {
+    color: #fff;
+    background: linear-gradient(135deg, var(--v2-warning), #ea580c);
+    border-color: transparent;
+}
+
+.toolbar-btn.editing:hover {
+    color: #fff;
+    background: linear-gradient(135deg, #f59e0b, var(--v2-warning));
+}
+
 .toolbar-btn--primary {
     background: linear-gradient(135deg, var(--v2-primary-500), var(--v2-primary-600));
     color: white;
@@ -396,6 +408,20 @@
     text-align: center;
 }
 
+.chapter-header.editing {
+    background: rgba(245, 158, 11, 0.05);
+}
+
+.chapter-title[contenteditable="true"] {
+    outline: none;
+    border-bottom: 2px dashed var(--v2-warning);
+    padding-bottom: 4px;
+}
+
+.chapter-title[contenteditable="true"]:focus {
+    border-bottom-style: solid;
+}
+
 .chapter-number {
     font-size: var(--v2-text-xs);
     font-weight: var(--v2-font-medium);
@@ -510,6 +536,15 @@
     display: none;
 }
 
+.chapter-body.editing {
+    background: rgba(245, 158, 11, 0.03);
+    min-height: 400px;
+}
+
+.chapter-body[contenteditable="true"]:focus {
+    outline: none;
+}
+
 /* 移动端适配 */
 @media (max-width: 768px) {
     .chapter-body {
@@ -533,6 +568,76 @@
     border-top: 1px solid var(--v2-border-subtle);
     background: var(--v2-bg-tertiary);
     gap: var(--v2-space-4);
+}
+
+/* 精修操作栏 */
+.edit-toolbar {
+    display: none;
+    align-items: center;
+    justify-content: space-between;
+    padding: var(--v2-space-4) var(--v2-space-6);
+    background: rgba(245, 158, 11, 0.08);
+    border-bottom: 1px solid rgba(245, 158, 11, 0.2);
+    gap: var(--v2-space-3);
+    flex-wrap: wrap;
+}
+
+.edit-toolbar.active {
+    display: flex;
+}
+
+.edit-toolbar-left {
+    display: flex;
+    align-items: center;
+    gap: var(--v2-space-2);
+}
+
+.edit-toolbar-right {
+    display: flex;
+    align-items: center;
+    gap: var(--v2-space-2);
+}
+
+.edit-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--v2-space-1);
+    padding: var(--v2-space-2) var(--v2-space-3);
+    font-size: var(--v2-text-xs);
+    font-weight: var(--v2-font-semibold);
+    border-radius: var(--v2-radius-md);
+    cursor: pointer;
+    transition: all var(--v2-transition-fast);
+    border: 1px solid transparent;
+}
+
+.edit-btn--secondary {
+    color: var(--v2-text-secondary);
+    background: var(--v2-bg-secondary);
+    border-color: var(--v2-border-default);
+}
+
+.edit-btn--secondary:hover {
+    color: var(--v2-text-primary);
+    border-color: var(--v2-border-hover);
+}
+
+.edit-btn--primary {
+    color: #fff;
+    background: linear-gradient(135deg, var(--v2-warning), #ea580c);
+}
+
+.edit-btn--primary:hover {
+    background: linear-gradient(135deg, #f59e0b, var(--v2-warning));
+}
+
+.edit-btn--danger {
+    color: #fff;
+    background: rgba(239, 68, 68, 0.9);
+}
+
+.edit-btn--danger:hover {
+    background: rgba(239, 68, 68, 1);
 }
 
 .nav-btn {
@@ -1178,6 +1283,20 @@
                 
                 <div class="toolbar-divider"></div>
                 
+                <!-- 精修模式切换 -->
+                <button type="button" class="toolbar-btn" id="edit-mode-btn" onclick="toggleEditMode()">
+                    ✏️ 精修
+                </button>
+                
+                <div class="toolbar-divider"></div>
+                
+                <!-- 精修模式切换 -->
+                <button type="button" class="toolbar-btn" id="edit-mode-btn" onclick="toggleEditMode()">
+                    ✏️ 精修
+                </button>
+                
+                <div class="toolbar-divider"></div>
+                
                 <!-- 调试抽屉按钮 -->
                 <button type="button" class="toolbar-btn" onclick="openDebugDrawer()">
                     🔍 调试
@@ -1234,7 +1353,7 @@
             <main class="content-area">
                 <article class="reading-card">
                     <!-- 章节头部 -->
-                    <header class="chapter-header">
+                    <header class="chapter-header" id="chapter-header">
                         <div class="chapter-number" id="chapter-number">请选择章节</div>
                         <h1 class="chapter-title" id="chapter-title">选择章节开始阅读</h1>
                         <div class="chapter-meta">
@@ -1244,8 +1363,29 @@
                             <span class="chapter-meta-item">
                                 🕐 <span id="generated-time">-</span>
                             </span>
+                            <span class="chapter-meta-item" id="edit-status" style="display:none;">
+                                ✏️ 已精修
+                            </span>
                         </div>
                     </header>
+                    
+                    <!-- 精修工具栏 -->
+                    <div class="edit-toolbar" id="edit-toolbar">
+                        <div class="edit-toolbar-left">
+                            <button type="button" class="edit-btn edit-btn--secondary" onclick="copyChapterContent()">
+                                📋 复制全文
+                            </button>
+                            <button type="button" class="edit-btn edit-btn--secondary" onclick="pasteChapterContent()">
+                                📥 粘贴覆盖
+                            </button>
+                            <button type="button" class="edit-btn edit-btn--secondary" onclick="reanalyzeCurrentChapter()">
+                                📊 重新评分
+                            </button>
+                        </div>
+                        <div class="edit-toolbar-right">
+                            <span style="font-size:12px;color:var(--v2-text-tertiary);" id="edit-word-count">0 字</span>
+                        </div>
+                    </div>
                     
                     <!-- 阅读进度条 -->
                     <div class="reading-progress-container">
@@ -1261,8 +1401,25 @@
                         </div>
                     </div>
                     
+                    <!-- 精修底部操作栏 -->
+                    <div class="edit-toolbar" id="edit-footer-toolbar" style="border-bottom:none;border-top:1px solid rgba(245,158,11,0.2);">
+                        <div class="edit-toolbar-left">
+                            <button type="button" class="edit-btn edit-btn--danger" onclick="revertChapterChanges()">
+                                ↩️ 恢复原始
+                            </button>
+                        </div>
+                        <div class="edit-toolbar-right">
+                            <button type="button" class="edit-btn edit-btn--secondary" onclick="toggleEditMode()">
+                                取消
+                            </button>
+                            <button type="button" class="edit-btn edit-btn--primary" onclick="saveChapterChanges()">
+                                💾 保存精修
+                            </button>
+                        </div>
+                    </div>
+                    
                     <!-- 章节导航 -->
-                    <footer class="chapter-footer">
+                    <footer class="chapter-footer" id="chapter-footer">
                         <button type="button" class="nav-btn nav-btn--large" id="prev-chapter-btn" onclick="prevChapter()" disabled>
                             <span class="nav-btn__icon">←</span>
                             <span class="nav-btn__text">
@@ -1312,6 +1469,7 @@
         <button type="button" class="debug-tab" data-tab="prompts" onclick="switchDebugTab('prompts')">提示词</button>
         <button type="button" class="debug-tab" data-tab="ai-response" onclick="switchDebugTab('ai-response')">AI响应</button>
         <button type="button" class="debug-tab" data-tab="quality" onclick="switchDebugTab('quality')">质量评价</button>
+        <button type="button" class="debug-tab" data-tab="edit-analysis" onclick="switchDebugTab('edit-analysis')">精修分析</button>
     </div>
     
     <!-- Tab 内容 -->
@@ -1412,6 +1570,50 @@
                 </div>
             </div>
         </div>
+        
+        <!-- 精修分析 -->
+        <div class="debug-panel" id="tab-edit-analysis">
+            <div class="info-card expanded">
+                <div class="info-card-header" onclick="toggleInfoCard(this)">
+                    <div class="info-card-title">
+                        <span class="info-card-icon">✏️</span>
+                        精修前后对比
+                    </div>
+                    <span class="info-card-toggle">▼</span>
+                </div>
+                <div class="info-card-body">
+                    <div id="edit-analysis-content">
+                        <div class="detail-grid" style="margin-bottom:16px;">
+                            <div class="detail-item">
+                                <div class="detail-label">字数</div>
+                                <div class="detail-value" id="ea-word-count">-</div>
+                            </div>
+                            <div class="detail-item">
+                                <div class="detail-label">对话比例</div>
+                                <div class="detail-value" id="ea-dialogue-ratio">-</div>
+                            </div>
+                            <div class="detail-item">
+                                <div class="detail-label">爽点密度</div>
+                                <div class="detail-value" id="ea-appeal-density">-</div>
+                            </div>
+                            <div class="detail-item">
+                                <div class="detail-label">情绪密度</div>
+                                <div class="detail-value" id="ea-emotion-density">-</div>
+                            </div>
+                            <div class="detail-item">
+                                <div class="detail-label">章末钩子</div>
+                                <div class="detail-value" id="ea-has-hook">-</div>
+                            </div>
+                            <div class="detail-item">
+                                <div class="detail-label">番茄评分</div>
+                                <div class="detail-value" id="ea-quality-score">-</div>
+                            </div>
+                        </div>
+                        <p style="font-size:12px;color:var(--v2-text-tertiary);">保存精修后会自动更新本页数据。</p>
+                    </div>
+                </div>
+            </div>
+        </div>
     </div>
 </div>
 
@@ -1431,6 +1633,7 @@
 
 {% block extra_js %}
 <script src="/static/js/novel_view.js?v=12"></script>
+<script src="/static/js/novel_view_edit.js"></script>
 <script>
 // ==================== UI 控制 ====================
 

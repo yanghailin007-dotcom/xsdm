@@ -4198,3 +4198,268 @@ def _run_rewrite_generation(task_id, title, project_path, new_settings, username
             'status': 'failed',
             'error': str(e)
         })
+
+
+# ==================== 章节精修 API ====================
+
+try:
+    from web.services.market_driven.chapter_analytics_service import ChapterAnalyticsService
+except ImportError:
+    ChapterAnalyticsService = None
+
+
+def _get_chapter_path(title: str, chapter_number: int) -> Optional[Path]:
+    """根据书名和章节号获取章节文件路径"""
+    base = Path("C:/work/xsdm/小说项目")
+    # 尝试查找用户目录下的项目
+    for user_dir in base.iterdir():
+        if not user_dir.is_dir():
+            continue
+        project_dir = user_dir / title
+        if project_dir.exists():
+            chapters_dir = project_dir / "chapters"
+            for pattern in [f"chapter_{chapter_number:03d}.json", f"chapter_{chapter_number}.json"]:
+                path = chapters_dir / pattern
+                if path.exists():
+                    return path
+    return None
+
+
+@market_driven_api.route('/chapter/save', methods=['POST'])
+def save_chapter():
+    """
+    保存用户精修后的章节内容
+    
+    请求体：
+    {
+        "title": "小说书名",
+        "chapter_number": 40,
+        "new_title": "精修后的标题",
+        "new_content": "精修后的正文"
+    }
+    """
+    try:
+        data = request.get_json() or {}
+        title = data.get('title', '')
+        chapter_number = data.get('chapter_number')
+        new_title = data.get('new_title', '')
+        new_content = data.get('new_content', '')
+        
+        if not title or chapter_number is None:
+            return jsonify({"success": False, "error": "缺少 title 或 chapter_number"}), 400
+        
+        chapter_path = _get_chapter_path(title, chapter_number)
+        if not chapter_path:
+            return jsonify({"success": False, "error": f"未找到第{chapter_number}章"}), 404
+        
+        with open(chapter_path, 'r', encoding='utf-8') as f:
+            chapter_data = json.load(f)
+        
+        # 初始化 metadata
+        if 'metadata' not in chapter_data:
+            chapter_data['metadata'] = {}
+        metadata = chapter_data['metadata']
+        
+        # 首次编辑时保存原始内容
+        if metadata.get('is_edited') is not True:
+            metadata['original_title'] = chapter_data.get('title', '')
+            metadata['original_content'] = chapter_data.get('content', '')
+            metadata['edit_count'] = 0
+        
+        # 压入 revisions（轻量历史，保留最近 5 个版本）
+        revisions = metadata.setdefault('revisions', [])
+        revisions.append({
+            "edited_at": datetime.now().isoformat(),
+            "title": chapter_data.get('title', ''),
+            "content_preview": chapter_data.get('content', '')[:200],
+            "word_count": chapter_data.get('word_count', 0)
+        })
+        if len(revisions) > 5:
+            revisions.pop(0)
+        
+        # 更新内容
+        chapter_data['title'] = new_title
+        chapter_data['content'] = new_content
+        chapter_data['word_count'] = len(new_content)
+        metadata['is_edited'] = True
+        metadata['last_edited_at'] = datetime.now().isoformat()
+        metadata['edit_count'] = metadata.get('edit_count', 0) + 1
+        metadata['edit_source'] = 'manual'
+        
+        # 重新计算番茄评分
+        if ChapterAnalyticsService:
+            try:
+                project_dir = chapter_path.parent.parent
+                analytics = ChapterAnalyticsService(str(project_dir))
+                analysis = analytics.analyze_text(new_content)
+                chapter_data['quality_score'] = analysis.get('quality_score', chapter_data.get('quality_score', 8.0))
+            except Exception as e:
+                logger.warning(f"[SaveChapter] 重新评分失败: {e}")
+        
+        with open(chapter_path, 'w', encoding='utf-8') as f:
+            json.dump(chapter_data, f, ensure_ascii=False, indent=2)
+        
+        return jsonify({
+            "success": True,
+            "message": "保存成功",
+            "data": {
+                "chapter_number": chapter_number,
+                "word_count": chapter_data['word_count'],
+                "quality_score": chapter_data.get('quality_score'),
+                "is_edited": True,
+                "edit_count": metadata['edit_count']
+            }
+        })
+        
+    except Exception as e:
+        logger.error(f"[SaveChapter] 保存失败: {e}", exc_info=True)
+        return jsonify({"success": False, "error": str(e)}), 500
+
+
+@market_driven_api.route('/chapter/revert', methods=['POST'])
+def revert_chapter():
+    """
+    恢复章节到 AI 生成的原始版本
+    
+    请求体：
+    {
+        "title": "小说书名",
+        "chapter_number": 40
+    }
+    """
+    try:
+        data = request.get_json() or {}
+        title = data.get('title', '')
+        chapter_number = data.get('chapter_number')
+        
+        if not title or chapter_number is None:
+            return jsonify({"success": False, "error": "缺少 title 或 chapter_number"}), 400
+        
+        chapter_path = _get_chapter_path(title, chapter_number)
+        if not chapter_path:
+            return jsonify({"success": False, "error": f"未找到第{chapter_number}章"}), 404
+        
+        with open(chapter_path, 'r', encoding='utf-8') as f:
+            chapter_data = json.load(f)
+        
+        metadata = chapter_data.get('metadata', {})
+        original_title = metadata.get('original_title')
+        original_content = metadata.get('original_content')
+        
+        if original_content is None:
+            return jsonify({"success": False, "error": "该章节没有保存原始版本，无法恢复"}), 400
+        
+        # 压入恢复前的版本到 revisions
+        revisions = metadata.setdefault('revisions', [])
+        revisions.append({
+            "edited_at": datetime.now().isoformat(),
+            "title": chapter_data.get('title', ''),
+            "content_preview": chapter_data.get('content', '')[:200],
+            "word_count": chapter_data.get('word_count', 0),
+            "note": "恢复原始前快照"
+        })
+        if len(revisions) > 5:
+            revisions.pop(0)
+        
+        chapter_data['title'] = original_title
+        chapter_data['content'] = original_content
+        chapter_data['word_count'] = len(original_content)
+        metadata['is_edited'] = False
+        metadata['last_edited_at'] = datetime.now().isoformat()
+        
+        with open(chapter_path, 'w', encoding='utf-8') as f:
+            json.dump(chapter_data, f, ensure_ascii=False, indent=2)
+        
+        return jsonify({
+            "success": True,
+            "message": "已恢复原始版本",
+            "data": {
+                "chapter_number": chapter_number,
+                "word_count": chapter_data['word_count'],
+                "is_edited": False
+            }
+        })
+        
+    except Exception as e:
+        logger.error(f"[RevertChapter] 恢复失败: {e}", exc_info=True)
+        return jsonify({"success": False, "error": str(e)}), 500
+
+
+@market_driven_api.route('/chapter/reanalyze', methods=['POST'])
+def reanalyze_chapter():
+    """
+    对当前章节内容重新进行番茄算法分析
+    
+    请求体（二选一）：
+    {
+        "title": "小说书名",
+        "chapter_number": 40
+    }
+    或
+    {
+        "text": "要分析的文本内容"
+    }
+    """
+    try:
+        data = request.get_json() or {}
+        text = data.get('text')
+        title = data.get('title', '')
+        chapter_number = data.get('chapter_number')
+        
+        if not ChapterAnalyticsService:
+            return jsonify({"success": False, "error": "分析服务未加载"}), 500
+        
+        if text is not None:
+            # 直接分析传入的文本
+            analytics = ChapterAnalyticsService("")
+            analysis = analytics.analyze_text(text)
+            return jsonify({
+                "success": True,
+                "data": {
+                    "word_count": analysis['word_count'],
+                    "dialogue_ratio": analysis['dialogue_ratio'],
+                    "emotion_density": analysis['emotion_density'],
+                    "appeal_density": analysis['appeal_density'],
+                    "shuang_density": analysis['shuang_density'],
+                    "has_hook": analysis['has_hook'],
+                    "quality_score": analysis['quality_score'],
+                    "tomato_score": analysis.get('tomato_score', analysis.get('quality_score', 0)),
+                    "is_edited": False
+                }
+            })
+        
+        if not title or chapter_number is None:
+            return jsonify({"success": False, "error": "缺少 title 或 chapter_number，或直接传入 text"}), 400
+        
+        chapter_path = _get_chapter_path(title, chapter_number)
+        if not chapter_path:
+            return jsonify({"success": False, "error": f"未找到第{chapter_number}章"}), 404
+        
+        with open(chapter_path, 'r', encoding='utf-8') as f:
+            chapter_data = json.load(f)
+        
+        content = chapter_data.get('content', '')
+        
+        project_dir = chapter_path.parent.parent
+        analytics = ChapterAnalyticsService(str(project_dir))
+        analysis = analytics.analyze_text(content)
+        
+        return jsonify({
+            "success": True,
+            "data": {
+                "chapter_number": chapter_number,
+                "word_count": analysis['word_count'],
+                "dialogue_ratio": analysis['dialogue_ratio'],
+                "emotion_density": analysis['emotion_density'],
+                "appeal_density": analysis['appeal_density'],
+                "shuang_density": analysis['shuang_density'],
+                "has_hook": analysis['has_hook'],
+                "quality_score": analysis['quality_score'],
+                "tomato_score": analysis.get('tomato_score', analysis.get('quality_score', 0)),
+                "is_edited": chapter_data.get('metadata', {}).get('is_edited', False)
+            }
+        })
+        
+    except Exception as e:
+        logger.error(f"[ReanalyzeChapter] 分析失败: {e}", exc_info=True)
+        return jsonify({"success": False, "error": str(e)}), 500

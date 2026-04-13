@@ -1314,19 +1314,20 @@ class StageReviewOptimizer:
                 # 🔥 兼容处理：如果AI仍返回合并格式（content包含标题），尝试分离
                 if new_content and not new_title_from_ai:
                     lines = new_content.strip().split('\n')
-                    if lines and ('第' in lines[0] and ('章' in lines[0] or '：' in lines[0])):
-                        # 第一行可能是标题
+                    if lines and ('第' in lines[0] and ('章' in lines[0] or '：' in lines[0] or ':' in lines[0])):
                         potential_title = lines[0].strip()
-                        # 去掉"第X章"前缀
                         import re
-                        match = re.search(r'第[一二三四五六七八九十百千万零\d]+章[：:\s]*(.+)', potential_title)
+                        # 支持带空格格式：第 30 章：标题
+                        match = re.search(r'第\s*[一二三四五六七八九十百千万零\d]+\s*章[：:\s]*(.+)', potential_title)
                         if match:
                             new_title_from_ai = match.group(1).strip()
                         elif '：' in potential_title:
                             new_title_from_ai = potential_title.split('：', 1)[1].strip()
+                        elif ':' in potential_title:
+                            new_title_from_ai = potential_title.split(':', 1)[1].strip()
                         else:
                             new_title_from_ai = potential_title
-                        # 剩余行作为正文
+                        # 清理掉标题行本身
                         new_content = '\n'.join(lines[1:]).strip()
                         logger.info(f"[StageOptimizer] 第{ch_num}章从合并格式中分离出标题: '{new_title_from_ai}'")
                 
@@ -1376,10 +1377,14 @@ class StageReviewOptimizer:
                 fixed_chapters[ch_idx]["word_count"] = new_word_count
                 fixed_chapters[ch_idx]["optimized"] = True
                 
-                # 🔥 更新标题（如果AI返回了新标题）
-                if new_title_from_ai and new_title_from_ai.strip() and new_title_from_ai.strip() != ch_title:
-                    fixed_chapters[ch_idx]["title"] = new_title_from_ai.strip()
-                    logger.info(f"[StageOptimizer] 第{ch_num}章标题已优化: '{ch_title}' -> '{new_title_from_ai.strip()}'")
+                # 🔥 更新标题
+                final_title = new_title_from_ai.strip() if new_title_from_ai else ""
+                if not final_title and new_content and self.api_client:
+                    final_title = self._generate_title_from_content(new_content)
+                    logger.info(f"[StageOptimizer] 第{ch_num}章修复后标题为空，已补生成: '{final_title}'")
+                if final_title and final_title != ch_title:
+                    fixed_chapters[ch_idx]["title"] = final_title
+                    logger.info(f"[StageOptimizer] 第{ch_num}章标题已优化: '{ch_title}' -> '{final_title}'")
                 
                 logger.info(f"[StageOptimizer] 第{ch_num}章已优化: {original_word_count} -> {new_word_count}字 ({change_pct:+.1f}%)")
             
@@ -2024,6 +2029,34 @@ class StageReviewOptimizer:
         
         logger.warning(f"[StageOptimizer] 未找到第{ch_num}章文件以保存修复内容")
         return False
+    
+    def _generate_title_from_content(self, content: str) -> str:
+        """基于正文单独补生成标题"""
+        if not self.api_client or not content or len(content) < 100:
+            return "剧情推进"
+        prompt = f"""请根据以下小说正文，生成一个8-14字的番茄风章节标题。标题要概括核心爽点，不要带"第X章"前缀。
+
+正文片段（前800字）：
+{content[:800]}
+
+必须严格返回JSON格式：
+{{"title": "章节标题"}}
+"""
+        try:
+            response = self.api_client.generate_content_with_retry(
+                content_type="title_generation",
+                user_prompt=prompt,
+                temperature=0.5,
+                purpose="补生成章节标题"
+            )
+            parsed = self._safe_parse_json(response, "title_generation")
+            if isinstance(parsed, dict):
+                title = parsed.get('title', '').strip()
+                if title and title != '章节标题':
+                    return title
+        except Exception as e:
+            logger.warning(f"[StageOptimizer] 补生成标题失败: {e}")
+        return "剧情推进"
     
     def _save_json(self, filename: str, data: Dict):
         """保存JSON文件"""

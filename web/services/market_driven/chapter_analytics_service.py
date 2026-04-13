@@ -94,6 +94,43 @@ class ChapterAnalyticsService:
                 results.append(analysis)
         return results
     
+    def analyze_text(self, content: str) -> Dict:
+        """
+        分析任意文本的番茄指标（不依赖章节文件）
+        
+        Args:
+            content: 正文内容
+            
+        Returns:
+            分析结果字典
+        """
+        word_count = len(content)
+        dialogue_ratio = self._calculate_dialogue_ratio(content)
+        emotion_density = self._calculate_emotion_density(content)
+        appeal_density = self._calculate_appeal_density(content)
+        has_hook = self._check_has_hook(content)
+        
+        # 复用 stage_review_optimizer 的番茄评分公式（简化版）
+        score = 5.0
+        score += min(2.5, dialogue_ratio * 0.05)
+        score += min(2.0, appeal_density * 1.0)
+        score += min(1.5, emotion_density * 0.5)
+        score += 0.5 if has_hook else 0.0
+        score += 0.5 if 2000 <= word_count <= 2500 else 0.0
+        score -= 1.0 if word_count > 2800 or word_count < 1800 else 0.0
+        quality_score = round(max(1.0, min(10.0, score)), 1)
+        
+        return {
+            "word_count": word_count,
+            "dialogue_ratio": dialogue_ratio,
+            "emotion_density": emotion_density,
+            "appeal_density": appeal_density,
+            "shuang_density": appeal_density,
+            "has_hook": has_hook,
+            "quality_score": quality_score,
+            "tomato_score": quality_score * 10
+        }
+    
     def _calculate_emotion_density(self, content: str) -> float:
         """计算情绪词密度"""
         emotion_words = [

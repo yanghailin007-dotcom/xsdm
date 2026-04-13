@@ -214,6 +214,12 @@ function renderChapter(chapter) {
     
     // 更新调试信息
     updateDebugInfo(chapter);
+    
+    // 更新精修状态
+    const editStatus = document.getElementById('edit-status');
+    if (editStatus) {
+        editStatus.style.display = (chapter.is_edited || (chapter.metadata && chapter.metadata.is_edited)) ? 'inline-flex' : 'none';
+    }
 }
 
 function formatChapterContent(content) {
