@@ -1528,6 +1528,22 @@ def _run_chapter_generation(task_id: str, genre: str, target_words: int, api_cli
         # 🔥 金手指可能嵌套在 plan 中（对话模式产物结构）
         golden_finger = products.get("golden_finger") or products.get("plan", {}).get("golden_finger", {})
         
+        # 🔥 获取文风设置（优先从任务读取，备选从 project_info 读取）
+        writing_style = task.get('writing_style')
+        if not writing_style and project_path:
+            try:
+                from web.services.market_driven.project_manager import UnifiedProjectManager
+                project_info = UnifiedProjectManager.load_project_info(project_path)
+                if project_info:
+                    writing_style = UnifiedProjectManager.get_writing_style_for_generation(project_info)
+                    if writing_style:
+                        logger.info(f"[ChapterGen] 从 project_info 读取文风: {writing_style.get('name', '未命名')}")
+            except Exception as e:
+                logger.warning(f"[ChapterGen] 从 project_info 读取文风失败: {e}")
+        
+        if writing_style:
+            logger.info(f"[ChapterGen] 使用文风: {writing_style.get('name', '未命名')}")
+        
         novel_data = {
             "title": novel_title,
             "username": username,
@@ -1539,7 +1555,8 @@ def _run_chapter_generation(task_id: str, genre: str, target_words: int, api_cli
             "plan": products.get("plan", {}),
             "golden_finger": golden_finger,
             "emotion_curve": products.get("emotion_curve", {}),
-            "user_choices": user_choices
+            "user_choices": user_choices,
+            "writing_style": writing_style or {}
         }
         
         # 创建批次生成器

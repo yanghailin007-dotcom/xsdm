@@ -868,12 +868,18 @@ class BatchChapterGenerator:
                 genre = "都市"
             logger.info(f"[BatchGenerator] Genre 为空，已自动推断为: {genre}")
         
+        # 🔥 提取文风设置（从 enriched_novel_data 读取）
+        writing_style = enriched_novel_data.get('writing_style')
+        if writing_style:
+            logger.info(f"[BatchGenerator] V2生成器使用文风: {writing_style.get('name', '未命名')}")
+        
         generator = ChapterConversationV2(
             api_client=self.api_client,
             genre=genre,
             core_setting=core_setting,
             tactical_planning=tactical_planning,
-            provider=getattr(self.api_client, 'default_provider', 'gemini')
+            provider=getattr(self.api_client, 'default_provider', 'gemini'),
+            writing_style=writing_style
         )
         
         # 🔥 读取跨批次总结（如果有的话），作为上下文注入

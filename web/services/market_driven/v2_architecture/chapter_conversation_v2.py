@@ -45,7 +45,8 @@ class ChapterConversationV2:
                  core_setting: str,
                  tactical_planning: str,
                  provider: str = "default",
-                 temperature: float = 0.9):
+                 temperature: float = 0.9,
+                 writing_style: Dict = None):
         """
         初始化 V2 章节对话生成器
         
@@ -56,12 +57,14 @@ class ChapterConversationV2:
             tactical_planning: Layer 2 战术规划
             provider: 模型提供商
             temperature: 温度参数
+            writing_style: 写作风格配置（用于 Layer 4）
         """
         self.api_client = api_client
         self.genre = genre
+        self.writing_style = writing_style
         
         # 加载各层内容
-        self._load_layers(genre, core_setting, tactical_planning)
+        self._load_layers(genre, core_setting, tactical_planning, writing_style)
         
         # 创建分层对话会话
         system_prompt = LayeredSystemPrompt(
@@ -84,14 +87,14 @@ class ChapterConversationV2:
         
         logger.info(f"[V2对话] 初始化完成 | 题材: {genre}")
     
-    def _load_layers(self, genre: str, core_setting: str, tactical_planning: str):
+    def _load_layers(self, genre: str, core_setting: str, tactical_planning: str, writing_style: Dict = None):
         """加载六层内容"""
         try:
             from .layer_loaders import GenreTechniquesLoader, AIConstraintsLoader, SelfCheckLoader
-            from .renderers import GenreTechniquesRenderer
+            from .renderers import GenreTechniquesRenderer, WritingStyleRenderer
         except ImportError:
             from layer_loaders import GenreTechniquesLoader, AIConstraintsLoader, SelfCheckLoader
-            from renderers import GenreTechniquesRenderer
+            from renderers import GenreTechniquesRenderer, WritingStyleRenderer
         
         # Layer 1: 核心设定
         self.layer1_content = core_setting
@@ -105,8 +108,17 @@ class ChapterConversationV2:
         genre_renderer = GenreTechniquesRenderer()
         self.layer3_content = genre_renderer.render(genre_data)
         
-        # Layer 4: 文风技法（默认）
-        self.layer4_content = self._get_default_writing_style()
+        # Layer 4: 文风技法（优先使用传入的 writing_style）
+        if writing_style:
+            try:
+                style_renderer = WritingStyleRenderer()
+                self.layer4_content = style_renderer.render(writing_style)
+                logger.info(f"[V2对话] Layer 4 使用自定义文风: {writing_style.get('name', '未命名')}")
+            except Exception as e:
+                logger.warning(f"[V2对话] 渲染自定义文风失败，回退到默认: {e}")
+                self.layer4_content = self._get_default_writing_style()
+        else:
+            self.layer4_content = self._get_default_writing_style()
         
         # Layer 5 & 6 将由每次调用时动态加载
         self.constraints_loader = AIConstraintsLoader()
