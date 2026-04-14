@@ -661,6 +661,42 @@
   margin-bottom: 20px;
 }
 
+/* 对齐失败提示 */
+.alignment-section {
+  background: rgba(168, 85, 247, 0.1);
+  border: 1px solid rgba(168, 85, 247, 0.3);
+  border-radius: 16px;
+  padding: 32px;
+  text-align: center;
+}
+
+.alignment-section__icon {
+  font-size: 48px;
+  color: #c084fc;
+  margin-bottom: 16px;
+}
+
+.alignment-section__title {
+  font-size: 18px;
+  font-weight: 700;
+  color: #c084fc;
+  margin-bottom: 8px;
+}
+
+.alignment-section__message {
+  font-size: 14px;
+  color: var(--v2-text-secondary);
+  margin-bottom: 24px;
+  line-height: 1.6;
+}
+
+.alignment-section__actions {
+  display: flex;
+  gap: 12px;
+  justify-content: center;
+  flex-wrap: wrap;
+}
+
 /* 暂停提示 - 点数不足 */
 .paused-section {
   background: rgba(245, 158, 11, 0.1);
@@ -942,7 +978,26 @@
         重试
       </button>
     </div>
-    
+
+    <!-- 对齐失败区域（alignment_failed 时显示） -->
+    <div class="alignment-section" id="alignment-section" style="display: none;">
+      <div class="alignment-section__icon">
+        <span class="material-icons">&#xe002;</span>
+      </div>
+      <div class="alignment-section__title">爆款对齐未通过</div>
+      <div class="alignment-section__message" id="alignment-message">核心设定圣经存在结构性问题，需要修改后重试。</div>
+      <div class="alignment-section__actions" id="alignment-actions">
+        <button class="btn" id="btn-edit-bible" style="background: linear-gradient(135deg, #a855f7, #c084fc); color: white;" onclick="editBible()">
+          <span class="material-icons">&#xe3c9;</span>
+          修改设定圣经
+        </button>
+        <button class="btn btn-primary" id="btn-force-continue" onclick="forceContinueTask()">
+          <span class="material-icons">refresh</span>
+          忽略继续生成
+        </button>
+      </div>
+    </div>
+
   </div>
 </div>
 
@@ -1007,7 +1062,7 @@ const STAGE_NAME_MAP = {
   'generate_characters': '设计角色',
   'generate_growth_plan': '规划成长路线',
   'generate_stage_goals': '制定阶段目标',
-  'bestseller_alignment': '爆款对齐优化',
+  'bestseller_alignment': '爆款对齐检查',
   'generate_supplementary': '生成附加产物',
   'generating_chapters': '批量生成章节',
   'analyze': '分析章节质量',
@@ -1082,10 +1137,10 @@ function updateUI(task) {
   if (progress > 100) progress = 100;
   
   // 🔥 更新书名显示
-  const novelTitle = task.novel_title || task.title || '未命名项目';
+  window.novelTitle = task.novel_title || task.title || '未命名项目';
   const titleEl = document.getElementById('novel-title');
-  if (titleEl && novelTitle) {
-    titleEl.textContent = novelTitle;
+  if (titleEl && window.novelTitle) {
+    titleEl.textContent = window.novelTitle;
   }
   
   // 保留原始阶段名（英文）用于阶段列表更新
@@ -1181,21 +1236,23 @@ function updateUI(task) {
   } else if (task.status === 'alignment_failed') {
     statusEl.textContent = '对齐未通过';
     statusEl.className = 'progress-card__status progress-card__status--alignment_failed';
-    showError(task.error || task.message || '爆款对齐检查未通过，请查看对齐报告并调整后重试。');
+    showAlignmentFailed(task.error || task.message || '爆款对齐检查未通过，请查看对齐报告并调整后重试。');
   } else if (isTaskRunning(task)) {
-    // 显示后台运行按钮（任务进行中且未完成时）
-    const bgBtn = document.getElementById('background-btn');
-    if (bgBtn) {
-      bgBtn.style.display = 'inline-flex';
-      console.log('[UI] 后台运行按钮已显示');
-    }
-    
     // 在章节生成阶段显示悬浮窗
     // 判断条件：阶段名称为chapters/current_stage为generating_chapters/有当前章节号/有批次信息
     const isChapterPhase = rawStage === 'chapters' || rawStage === 'generating_chapters' || 
                           rawStage === 'chapter_generation' || rawStage === 'generating' ||
                           rawStage === 'generating_chapters' ||
                           task.current_chapter > 0 || task.batch_num > 0;
+    
+    // 🔥 后台运行按钮只在章节生成阶段显示（一阶段完成后才允许后台运行）
+    const bgBtn = document.getElementById('background-btn');
+    if (bgBtn) {
+      bgBtn.style.display = isChapterPhase ? 'inline-flex' : 'none';
+      if (isChapterPhase) {
+        console.log('[UI] 后台运行按钮已显示（章节生成阶段）');
+      }
+    }
     
     // 🔥 章节生成阶段自动切换到实时内容视图
     if (isChapterPhase) {
@@ -1341,11 +1398,343 @@ function showResult(task) {
   }
 }
 
+// 将文本中的 Windows 绝对路径转换为可点击的 vscode://file/ 链接
+function linkifyPaths(text) {
+  if (!text) return text;
+  // 如果文本本身已经是 HTML（包含 <a 标签），则跳过已被链接化的部分
+  if (text.includes('<a ')) {
+    // 用占位符保护已有 <a> 标签内的内容，只处理纯文本部分
+    const placeholders = [];
+    let protectedText = text.replace(/<a[\s\S]*?<\/a>/g, function(match) {
+      placeholders.push(match);
+      return '\u0000LINK\u0000';
+    });
+    const pathRegex = /([A-Za-z]:[\\\/](?:[^\\\/\s]+[\\\/])*[^\\\/\s]*?\.(?:md|json|txt|yaml|yml))/g;
+    protectedText = protectedText.replace(pathRegex, function(match) {
+      const normalized = match.replace(/\\/g, '/');
+      return `<a href="vscode://file/${normalized}" style="color:#c084fc;text-decoration:underline;cursor:pointer;" title="在 VS Code 中打开">${match}</a>`;
+    });
+    placeholders.forEach(function(ph) {
+      protectedText = protectedText.replace('\u0000LINK\u0000', ph);
+    });
+    return protectedText;
+  }
+  const pathRegex = /([A-Za-z]:[\\\/](?:[^\\\/\s]+[\\\/])*[^\\\/\s]*?\.(?:md|json|txt|yaml|yml))/g;
+  return text.replace(pathRegex, function(match) {
+    const normalized = match.replace(/\\/g, '/');
+    return `<a href="vscode://file/${normalized}" style="color:#c084fc;text-decoration:underline;cursor:pointer;" title="在 VS Code 中打开">${match}</a>`;
+  });
+}
+
 // 显示错误
 function showError(error) {
-  document.getElementById('error-message').textContent = error || '生成失败，请重试';
+  const messageEl = document.getElementById('error-message');
+  messageEl.innerHTML = linkifyPaths(error) || '生成失败，请重试';
   document.getElementById('error-section').style.display = 'block';
   document.getElementById('action-section').style.display = 'none';
+}
+
+// 显示对齐失败
+function showAlignmentFailed(error) {
+  const messageEl = document.getElementById('alignment-message');
+  const rawError = error || '核心设定圣经存在结构性问题，需要修改后重试。';
+  messageEl.innerHTML = linkifyPaths(rawError);
+  document.getElementById('alignment-section').style.display = 'block';
+  document.getElementById('error-section').style.display = 'none';
+  document.getElementById('action-section').style.display = 'none';
+  
+  // 检查是否已有编辑器保存信号（从 bible editor 跳转回来后）
+  const title = window.novelTitle;
+  let hasSavedSignal = false;
+  if (title) {
+    try {
+      const saved = localStorage.getItem('bible_version_' + title);
+      if (saved) hasSavedSignal = true;
+    } catch (e) {}
+  }
+  
+  if (hasSavedSignal) {
+    // 已从编辑器保存过，直接显示重新检测按钮，不再自动检测
+    updateAlignmentButtons('editing', '检测到设定圣经已保存，请点击重新检测。');
+    startBibleVersionWatch();
+  } else {
+    // 重置按钮为默认状态，停止之前的监听
+    stopBibleVersionWatch();
+    updateAlignmentButtons('default');
+  }
+}
+
+// ==================== 圣经版本检测与重新检测 ====================
+let bibleWatchInterval = null;
+let initialBibleVersion = null;
+let isWatchingBible = false;
+
+// 获取当前圣经版本号
+async function fetchBibleVersion() {
+  const title = window.novelTitle;
+  if (!title || title === '未命名项目') return null;
+  try {
+    const resp = await fetch(`/api/market-driven/${encodeURIComponent(title)}/bible-version`);
+    const result = await resp.json();
+    return result.success ? result.version : null;
+  } catch (e) {
+    return null;
+  }
+}
+
+// 开始监听圣经版本变化
+async function startBibleVersionWatch() {
+  if (isWatchingBible) return;
+  isWatchingBible = true;
+  
+  // 获取初始版本号
+  initialBibleVersion = await fetchBibleVersion();
+  
+  // 清除旧定时器
+  if (bibleWatchInterval) clearInterval(bibleWatchInterval);
+  
+  // 每3秒检查一次 localStorage 和 API
+  bibleWatchInterval = setInterval(async () => {
+    // 1. 检查 localStorage 中的编辑器保存信号
+    const title = window.novelTitle;
+    if (title) {
+      try {
+        const saved = localStorage.getItem('bible_version_' + title);
+        if (saved) {
+          const data = JSON.parse(saved);
+          if (data.version && data.version !== initialBibleVersion) {
+            initialBibleVersion = data.version;
+            // 版本变了，只更新提示，不再自动重新检测
+            updateAlignmentButtons('editing', '检测到设定圣经已保存，请点击重新检测。');
+            return;
+          }
+        }
+      } catch (e) {}
+    }
+    
+    // 2. 备用：直接轮询 API 获取文件 mtime
+    const currentVersion = await fetchBibleVersion();
+    if (currentVersion && currentVersion !== initialBibleVersion) {
+      initialBibleVersion = currentVersion;
+      // 只更新提示，由用户手动触发检测
+      updateAlignmentButtons('editing', '检测到设定圣经已保存，请点击重新检测。');
+    }
+  }, 3000);
+}
+
+// 停止监听
+function stopBibleVersionWatch() {
+  isWatchingBible = false;
+  if (bibleWatchInterval) {
+    clearInterval(bibleWatchInterval);
+    bibleWatchInterval = null;
+  }
+}
+
+// 更新对齐失败区域的按钮
+function updateAlignmentButtons(state, message) {
+  const actionsEl = document.getElementById('alignment-actions');
+  const msgEl = document.getElementById('alignment-message');
+  if (msgEl && message) msgEl.innerHTML = linkifyPaths(message);
+  
+  if (!actionsEl) return;
+  
+  if (state === 'editing') {
+    // 用户已点击修改或检测失败后：修改设定圣经 + 重新检测 + 忽略继续生成
+    actionsEl.innerHTML = `
+      <button class="btn" id="btn-edit-bible" style="background: linear-gradient(135deg, #7c3aed, #a855f7); color: white;" onclick="editBible()">
+        <span class="material-icons">&#xe3c9;</span>
+        修改设定圣经
+      </button>
+      <button class="btn" id="btn-redetect" style="background: linear-gradient(135deg, #a855f7, #c084fc); color: white;" onclick="reDetectBible()">
+        <span class="material-icons">sync</span>
+        重新检测
+      </button>
+      <button class="btn btn-primary" id="btn-force-continue" onclick="forceContinueTask()">
+        <span class="material-icons">refresh</span>
+        忽略继续生成
+      </button>
+    `;
+  } else if (state === 'checking') {
+    // 检测中
+    actionsEl.innerHTML = `
+      <button class="btn" disabled style="background: linear-gradient(135deg, #7c3aed, #a855f7); color: white; opacity: 0.6;">
+        <span class="material-icons">&#xe3c9;</span>
+        修改设定圣经
+      </button>
+      <button class="btn" disabled style="background: linear-gradient(135deg, #a855f7, #c084fc); color: white; opacity: 0.6;">
+        <span class="material-icons">hourglass_top</span>
+        检测中...
+      </button>
+      <button class="btn btn-primary" disabled style="opacity: 0.6;">
+        <span class="material-icons">refresh</span>
+        忽略继续生成
+      </button>
+    `;
+  } else if (state === 'passed') {
+    // 检测通过，显示：继续生成
+    actionsEl.innerHTML = `
+      <button class="btn btn-primary" id="btn-continue-generate" onclick="retryTask()">
+        <span class="material-icons">play_arrow</span>
+        继续生成
+      </button>
+    `;
+  } else {
+    // 默认：修改设定圣经 + 忽略继续生成
+    actionsEl.innerHTML = `
+      <button class="btn" id="btn-edit-bible" style="background: linear-gradient(135deg, #a855f7, #c084fc); color: white;" onclick="editBible()">
+        <span class="material-icons">&#xe3c9;</span>
+        修改设定圣经
+      </button>
+      <button class="btn btn-primary" id="btn-force-continue" onclick="forceContinueTask()">
+        <span class="material-icons">refresh</span>
+        忽略继续生成
+      </button>
+    `;
+  }
+}
+
+// Toast 提示兼容层（本页部分代码引用 showToast，但基础模板未提供）
+function showToast(message, type = 'success') {
+  if (typeof Dialog !== 'undefined') {
+    if (type === 'error') Dialog.error(message);
+    else if (type === 'warning') Dialog.alert(message, '警告');
+    else Dialog.success(message);
+  } else {
+    alert(message);
+  }
+}
+
+// 打开设定圣经编辑器
+function editBible() {
+  const title = window.novelTitle;
+  if (title && title !== '未命名项目') {
+    window.open('/bible/' + encodeURIComponent(title), '_blank');
+    // 点击后立刻切换按钮为重新检测模式，并开始监听版本变化
+    updateAlignmentButtons('editing');
+    startBibleVersionWatch();
+  } else {
+    showToast('无法获取小说标题', 'error');
+  }
+}
+
+// 重新检测圣经
+async function reDetectBible() {
+  const title = window.novelTitle;
+  if (!title || title === '未命名项目') {
+    Dialog.alert('无法获取小说标题', '提示');
+    return;
+  }
+  
+  updateAlignmentButtons('checking', '正在重新检测核心设定圣经...');
+  
+  try {
+    const response = await fetch(`/api/market-driven/${encodeURIComponent(title)}/bible-review-check`, {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'}
+    });
+    const result = await response.json();
+    
+    if (result.success && result.passed) {
+      // 检测通过
+      updateAlignmentButtons('passed', '✅ 核心设定圣经审稿通过，可以点击继续生成。');
+      showToast('圣经审稿通过！', 'success');
+    } else if (result.success && !result.passed) {
+      // 仍然被 BLOCK
+      updateAlignmentButtons('editing', linkifyPaths(result.error || '核心设定圣经审稿未通过，请继续修改或忽略继续生成。'));
+      showToast('圣经审稿仍未通过', 'warning');
+    } else {
+      // API 失败
+      updateAlignmentButtons('editing', '检测失败: ' + (result.error || '未知错误') + '，请重试。');
+    }
+  } catch (error) {
+    updateAlignmentButtons('editing', '检测请求失败: ' + error.message + '，请重试。');
+  }
+}
+
+// 普通错误重试
+async function retryTask() {
+  const title = window.novelTitle;
+  if (!title || title === '未命名项目') {
+    Dialog.alert('无法获取小说标题，请手动刷新页面', '提示');
+    return;
+  }
+  
+  const btn = document.querySelector('#error-section .btn-primary') || document.querySelector('#alignment-section .btn-primary');
+  if (btn) {
+    btn.disabled = true;
+    btn.innerHTML = '<span class="material-icons">hourglass_top</span>启动中...';
+  }
+  
+  try {
+    const response = await fetch(`/api/market-driven/${encodeURIComponent(title)}/continue-chapters`, {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({
+        start_chapter: 1,
+        end_chapter: 6
+      })
+    });
+    const result = await response.json();
+    if (result.success) {
+      window.location.href = `/market-driven-status?task=${result.task_id}`;
+    } else {
+      if (btn) {
+        btn.disabled = false;
+        btn.innerHTML = '<span class="material-icons">refresh</span>继续生成';
+      }
+      Dialog.error(result.error || '继续生成失败');
+    }
+  } catch (error) {
+    if (btn) {
+      btn.disabled = false;
+      btn.innerHTML = '<span class="material-icons">refresh</span>继续生成';
+    }
+    Dialog.error('请求失败: ' + error.message);
+  }
+}
+
+// 对齐失败时忽略继续生成（跳过圣经审稿检查）
+async function forceContinueTask() {
+  const title = window.novelTitle;
+  if (!title || title === '未命名项目') {
+    Dialog.alert('无法获取小说标题，请手动刷新页面', '提示');
+    return;
+  }
+  
+  const btn = document.querySelector('#alignment-section .btn-primary');
+  if (btn) {
+    btn.disabled = true;
+    btn.innerHTML = '<span class="material-icons">hourglass_top</span>启动中...';
+  }
+  
+  try {
+    const response = await fetch(`/api/market-driven/${encodeURIComponent(title)}/continue-chapters`, {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({
+        start_chapter: 1,
+        end_chapter: 6,
+        skip_bible_review: true
+      })
+    });
+    const result = await response.json();
+    if (result.success) {
+      window.location.href = `/market-driven-status?task=${result.task_id}`;
+    } else {
+      if (btn) {
+        btn.disabled = false;
+        btn.innerHTML = '<span class="material-icons">refresh</span>忽略继续生成';
+      }
+      Dialog.error(result.error || '忽略继续生成失败');
+    }
+  } catch (error) {
+    if (btn) {
+      btn.disabled = false;
+      btn.innerHTML = '<span class="material-icons">refresh</span>忽略继续生成';
+    }
+    Dialog.error('请求失败: ' + error.message);
+  }
 }
 
 // 显示暂停（点数不足）
@@ -1685,10 +2074,7 @@ function viewResult() {
   Dialog.alert('功能开发中：将跳转到结果展示页面', '提示');
 }
 
-// 重试
-function retryTask() {
-  location.reload();
-}
+
 
 // 启动轮询
 document.addEventListener('DOMContentLoaded', startPolling);

@@ -515,7 +515,13 @@ def register_page_routes(app):
         """沉浸式小说阅读页 - V2"""
         chapter_num = request.args.get('chapter', 1, type=int)
         return render_template('novel-reader-v2.html', title=title, chapter_num=chapter_num)
-    
+
+    @app.route('/bible/<title>', methods=['GET'])
+    @login_required
+    def bible_editor(title):
+        """设定圣经编辑页"""
+        return render_template('bible-editor.html', title=title)
+
     @app.route('/export-page/<title>', methods=['GET'])
     @login_required
     def export_page(title):

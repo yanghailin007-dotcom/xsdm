@@ -3,7 +3,7 @@
   "description": "阶段性复盘优化器的提示词配置",
   "templates": {
     "fix_prompt": {
-      "template": "修复第{chapter_num}章的所有问题。基于原文修改，不要重写。\n\n**第{chapter_num}章：{chapter_title}**\n**原文字数：**{original_word_count}字\n**问题统计：**P0={p0_count}个, P1={p1_count}个, P2={p2_count}个\n\n{word_count_constraints}\n\n## 其他关键约束\n1. 主角名必须保持一致：'{protagonist_name}' - 禁止改为其他名字\n2. 世界观保持一致 - 不要引入新的力量体系\n3. 只修改有问题的部分，保留其他内容原样\n4. 保持原有的写作风格和语气\n5. **段落格式必须保留**：content 字段中必须使用 \\n 分隔段落，禁止合并成一段无换行的大文本\n\n**需要修复的所有问题：**\n{issues_text}\n\n**原文内容（前800字供参考）：**\n{original_content_preview}...\n\n## 输出格式（必须严格遵守）\n必须按以下格式返回，使用 `---标题---` 和 `---正文---` 分隔：\n\n---标题---\n章节标题（8-14字，不含第X章前缀）\n\n---正文---\n章节正文内容（段落之间保留换行，不含标题）\n\n**重要：**\n- 标题必须放在 `---标题---` 后面\n- 正文必须放在 `---正文---` 后面\n- 禁止只返回纯文本\n- 正文开头禁止写\"第X章：XXX\"\n- 段落之间必须保留换行符\n\n{self_check_list}",
+      "template": "修复第{chapter_num}章的所有问题。基于原文修改，不要重写。\n\n**第{chapter_num}章：{chapter_title}**\n**原文字数：**{original_word_count}字\n**问题统计：**P0={p0_count}个, P1={p1_count}个, P2={p2_count}个\n\n{word_count_constraints}\n\n## 其他关键约束\n1. 主角名必须保持一致：'{protagonist_name}' - 禁止改为其他名字\n2. 世界观保持一致 - 不要引入新的力量体系\n3. 只修改有问题的部分，保留其他内容原样\n4. 保持原有的写作风格和语气\n5. **段落格式必须保留**：正文段落之间必须使用换行分隔，禁止合并成一段无换行的大文本\n\n**需要修复的所有问题：**\n{issues_text}\n\n{core_setting_summary}\n\n{tactical_context}\n\n**原文内容（完整）：**\n{original_content}\n\n## 输出格式（必须严格遵守）\n必须按以下格式返回，使用 `---标题---` 和 `---正文---` 分隔：\n\n---标题---\n章节标题（8-14字，不含第X章前缀）\n\n---正文---\n章节正文内容（段落之间保留换行，不含标题）\n\n**重要：**\n- 标题必须放在 `---标题---` 后面\n- 正文必须放在 `---正文---` 后面\n- 禁止只返回纯文本\n- 正文开头禁止写\"第X章：XXX\"\n- 段落之间必须保留换行符\n\n{self_check_list}",
       "variables": [
         "chapter_num",
         "chapter_title",
@@ -13,9 +13,11 @@
         "p2_count",
         "protagonist_name",
         "issues_text",
-        "original_content_preview",
+        "original_content",
         "word_count_constraints",
-        "self_check_list"
+        "self_check_list",
+        "tactical_context",
+        "core_setting_summary"
       ]
     },
     "word_count_constraints": {
@@ -33,7 +35,7 @@
     "tomato_compliance_check": {
       "template": "### 番茄算法合规性检查（量化标准）\n- **对话比例**：估算引号内容占总字数比例。若<40%，必须记为 P1 issue（类型bestseller），描述：对话比例仅X%，远低于番茄40%标准\n- **爽点密度**：估算'碾压/打脸/震惊/暴涨/反转'等词出现密度(/千字)。若<1.0，记P1 issue（类型bestseller）\n- **情绪密度**：估算'暴怒/骇然/狂喜/绝望/窒息'等词密度(/千字)。若<1.5，记P2 issue\n- **章末钩子**：检查最后50字是否有悬念/问号/感叹号/危机预警。若无有效钩子，记P1 issue（类型hook）\n- **字数合规**：若字数<1800或>2800，记P0 issue（类型bestseller）"
     },
-    "editor_system_prompt": "你是专业的小说编辑，同时也是番茄小说平台算法合规专家。你的分析必须基于以下番茄核心指标：对话比例≥40%、爽点密度≥1.5/千字、情绪密度≥2.0/千字、章章有钩子、字数2000-2500。工作流程：1) 识别P0/P1/P2问题（必须包含番茄指标量化数据） 2) 逐章修复 3) 验证。只输出JSON格式。",
+    "editor_system_prompt": "你是专业的小说编辑，同时也是番茄小说平台算法合规专家。你的分析必须基于以下番茄核心指标：对话比例≥40%、爽点密度≥1.5/千字、情绪密度≥2.0/千字、章章有钩子、字数2000-2500。工作流程：1) 识别P0/P1/P2问题 2) 逐章修复 3) 验证。修复时必须严格遵守核心设定摘要和战术规划。输出格式：使用 `---标题---` 和 `---正文---` 分隔符。",
     "scene_editor_system_prompt": "You are a professional novel editor and Fanqie algorithm compliance expert. Analyze and fix quality issues at scene level. You must evaluate dialogue ratio, appeal density, emotion density, and hook quality against Fanqie standards. Workflow: 1) Identify issues with quantified metrics 2) Fix specific scenes 3) Preserve unchanged content. Output JSON only."
   },
   "word_count": {

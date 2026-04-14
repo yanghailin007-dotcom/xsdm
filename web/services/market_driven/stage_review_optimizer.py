@@ -306,6 +306,101 @@ class StageReviewOptimizer:
             logger.error(f"[StageOptimizer] 加载战术规划失败: {e}")
             return {}
         
+    def _build_tactical_context(self, ch: Dict) -> str:
+        """构建单章战术规划上下文，确保修复不偏离核心事件"""
+        lines = []
+        ch_num = ch.get('chapter_number', 0)
+        ch_plan = ch.get('chapter_plan', {})
+        if ch_plan:
+            lines.append(f"【第{ch_num}章战术规划】")
+            lines.append(f"- 核心事件: {ch_plan.get('event', '无')}")
+            lines.append(f"- 情绪目标: {ch_plan.get('emotion', '无')} (强度{ch_plan.get('intensity', '无')})")
+            lines.append(f"- 节拍类型: {ch_plan.get('beat_type', '无')}")
+            lines.append(f"- 钩子内容: {ch_plan.get('hook_content', '无')}")
+            lines.append(f"- 阶段目标对齐: {ch_plan.get('stage_goal_alignment', '无')}")
+        else:
+            #  Fallback：从战术规划文件读取
+            tactical = self._load_tactical_plan(ch_num)
+            for tc in tactical.get('chapters', []):
+                if tc.get('chapter_number') == ch_num:
+                    lines.append(f"【第{ch_num}章战术规划】")
+                    lines.append(f"- 核心事件: {tc.get('event', '无')}")
+                    lines.append(f"- 情绪目标: {tc.get('emotion', '无')} (强度{tc.get('intensity', '无')})")
+                    lines.append(f"- 节拍类型: {tc.get('beat_type', '无')}")
+                    lines.append(f"- 钩子内容: {tc.get('hook_content', '无')}")
+                    break
+        return "\n".join(lines) if lines else "（无战术规划数据）"
+    
+    def _build_core_setting_summary(self) -> str:
+        """优先从 layer_1_4_core_settings.md 读取核心设定，fallback 到 project_info.json"""
+        try:
+            bible_path = self.project_path / 'layer_1_4_core_settings.md'
+            if bible_path.exists():
+                with open(bible_path, 'r', encoding='utf-8') as f:
+                    content = f.read()
+                # 提取 Layer 1、Layer 3、Layer 4；去掉 Layer 2（战术规划由 _build_tactical_context 负责）
+                filtered = self._filter_bible_for_review(content)
+                logger.info(f"[StageOptimizer] 已从圣经读取核心设定: {len(filtered)} 字符")
+                return filtered
+        except Exception as e:
+            logger.warning(f"[StageOptimizer] 读取圣经失败，fallback 到 project_info: {e}")
+
+        # Fallback 旧逻辑
+        try:
+            project_info_path = self.project_path / 'project_info.json'
+            if not project_info_path.exists():
+                return ""
+            with open(project_info_path, 'r', encoding='utf-8') as f:
+                info = json.load(f)
+
+            mode_info = info.get('generation_metadata', {}).get('mode_specific', {}).get('info', {})
+            plan = mode_info.get('plan', {})
+            protagonist = plan.get('protagonist', {})
+            golden_finger = plan.get('golden_finger', {})
+
+            lines = ["【核心设定摘要 - 修复时必须遵守】"]
+            if protagonist.get('name'):
+                lines.append(f"- 主角: {protagonist['name']} | 性格: {protagonist.get('personality', '无')}")
+            if golden_finger.get('name'):
+                lines.append(f"- 金手指: {golden_finger.get('name', '无')} | 初始能力: {golden_finger.get('initial_ability', golden_finger.get('initial_reward', '无'))}")
+            if plan.get('core_selling_point'):
+                lines.append(f"- 核心卖点: {plan['core_selling_point']}")
+
+            genre = info.get('genre', '')
+            if genre:
+                try:
+                    from web.services.market_driven.genre_techniques_loader import GenreTechniquesLoader
+                    gt = GenreTechniquesLoader().load(genre)
+                    raw = gt.raw_data or {}
+                    forbidden = raw.get('disabled_elements', [])
+                    templates = raw.get('system_prompt_templates', {})
+                    if forbidden:
+                        lines.append(f"- 🚫 禁用元素: {', '.join([f.get('element', '') for f in forbidden if isinstance(f, dict)])}")
+                    if templates:
+                        lines.append(f"- 系统提示音模板: {templates.get('consumption_rebate', '')}")
+                except Exception:
+                    pass
+
+            return "\n".join(lines)
+        except Exception as e:
+            logger.warning(f"[StageOptimizer] 构建核心设定摘要失败: {e}")
+            return ""
+
+    def _filter_bible_for_review(self, content: str) -> str:
+        """从圣经 MD 中提取 Layer 1 + Layer 3 + Layer 4，去掉 Layer 2"""
+        lines = content.splitlines()
+        result = []
+        skip_layer = None
+        for line in lines:
+            if line.startswith("## Layer 2:"):
+                skip_layer = 2
+                continue
+            if line.startswith("## Layer 3:"):
+                skip_layer = None
+            if skip_layer is None:
+                result.append(line)
+        return "\n".join(result)
+    
     def should_trigger(self, end_chapter: int) -> bool:
         """检查是否达到阶段节点"""
         return end_chapter in self.STAGE_MILESTONES
@@ -1259,6 +1354,12 @@ class StageReviewOptimizer:
             original_content = ch.get('content', '')
             original_word_count = ch.get('word_count', len(original_content))
             
+            # 🔥 构建战术规划上下文（保证修复不偏离核心事件）
+            tactical_context = self._build_tactical_context(ch)
+            
+            # 🔥 构建核心设定摘要（Layer 1）
+            core_setting_summary = self._build_core_setting_summary()
+            
             # 🔥 使用JSON配置渲染修复提示词
             fix_prompt_vars = {
                 "chapter_num": ch_num,
@@ -1269,7 +1370,9 @@ class StageReviewOptimizer:
                 "p2_count": p2_count,
                 "protagonist_name": protagonist_name,
                 "issues_text": issues_text,
-                "original_content_preview": original_content[:800]
+                "original_content": original_content,
+                "tactical_context": tactical_context,
+                "core_setting_summary": core_setting_summary
             }
             fix_prompt = self._render_fix_prompt(fix_prompt_vars)
             
@@ -1903,10 +2006,10 @@ class StageReviewOptimizer:
                 lines.append(f"【钩子内容】{ch_plan.get('hook_content', '无')}")
                 lines.append(f"【阶段目标对齐】{ch_plan.get('stage_goal_alignment', '无')}")
             
-            # 正文内容（前500字）
+            # 正文内容（完整传入，避免AI误判字数和钩子）
             content = ch.get('content', '')
-            lines.append(f"\n【正文内容（前500字）】")
-            lines.append(content[:500] + "..." if len(content) > 500 else content)
+            lines.append(f"\n【正文内容】")
+            lines.append(content)
             
         return "\n".join(lines)
     

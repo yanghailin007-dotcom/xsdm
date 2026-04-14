@@ -729,12 +729,15 @@ def start_market_driven_generation():
                     task_after_p1 = task_manager.get_task(task_id)
                     if task_after_p1 and task_after_p1.get('status') == 'alignment_failed':
                         logger.warning(f"[Task {task_id}] 🚫 检测到 alignment_failed 状态，跳过章节生成")
+                        # 保留已有的错误信息和路径，不要覆盖为固定文本
+                        existing_error = task_after_p1.get('error') or task_after_p1.get('message') or "爆款对齐检查未通过，任务已终止。请查看对齐报告并调整后重试。"
                         task_manager.update_task(
                             task_id,
                             status="alignment_failed",
                             progress=50,
                             current_stage="alignment_failed",
-                            message="爆款对齐检查未通过，任务已终止。请查看对齐报告并调整后重试。"
+                            error=existing_error,
+                            message=existing_error
                         )
                         return  # 结束后台线程，不抛出异常
                     
@@ -968,6 +971,19 @@ def _run_plan_and_products_conversation(task_id: str, genre: str, user_choices: 
             project_path=str(project_path)
         )
         
+        # 🔥 爆款对齐熔断：如果对话模式返回 blocked，标记为 alignment_failed
+        if products.get("_blocked"):
+            block_reason = products.get("_block_reason", "爆款对齐检查未通过")
+            logger.warning(f"[Task {task_id}] 🚫 爆款对齐熔断触发: {block_reason}")
+            task_manager.update_task(
+                task_id,
+                status="alignment_failed",
+                error=block_reason,
+                message=f"爆款对齐未通过，已终止章节生成: {block_reason}",
+                current_stage="alignment_failed"
+            )
+            return
+        
         # 提取方案信息
         plan = products.get("plan", {})
         
@@ -1086,6 +1102,19 @@ def _run_phase_one_products(task_id: str, genre: str, api_client=None):
             progress_callback=progress_callback,
             project_path=str(project_path)
         )
+        
+        # 🔥 爆款对齐熔断：如果对话模式返回 blocked，标记为 alignment_failed
+        if products.get("_blocked"):
+            block_reason = products.get("_block_reason", "爆款对齐检查未通过")
+            logger.warning(f"[Task {task_id}] 🚫 爆款对齐熔断触发: {block_reason}")
+            task_manager.update_task(
+                task_id,
+                status="alignment_failed",
+                error=block_reason,
+                message=f"爆款对齐未通过，已终止章节生成: {block_reason}",
+                current_stage="alignment_failed"
+            )
+            return
         
         # 🔥 结果已在每步生成时自动保存到 project_path
         # 这里只需要更新任务结果
@@ -3264,6 +3293,37 @@ def continue_chapters(title):
         with open(blueprint_path, 'r', encoding='utf-8') as f:
             blueprint = json.load(f)
         
+        # 🔥 可选：如果存在核心设定圣经且用户未要求跳过，先跑审稿检查
+        skip_bible_review = data.get('skip_bible_review', False)
+        bible_path = project_path / "layer_1_4_core_settings.md"
+        if bible_path.exists() and not skip_bible_review:
+            try:
+                from src.core.APIClient import APIClient
+                from config.config import CONFIG
+                check_client = APIClient(CONFIG)
+                check_client.set_username(username)
+                
+                from web.services.market_driven.bible_reviewer import BibleReviewer, BibleReviewBlockedError
+                reviewer = BibleReviewer(
+                    api_client=check_client,
+                    project_path=str(project_path)
+                )
+                reviewer.review(bible_path)
+                logger.info(f"[章节续写] {title}: 圣经审稿通过")
+            except BibleReviewBlockedError as e:
+                logger.warning(f"[章节续写] {title}: 圣经审稿被 BLOCK: {e}")
+                return jsonify({
+                    "success": False,
+                    "error": str(e),
+                    "blocked": True,
+                    "bible_path": str(bible_path.resolve())
+                }), 400
+            except Exception as e:
+                logger.warning(f"[章节续写] {title}: 圣经审稿异常，跳过检查: {e}")
+                # 审稿异常不阻断，避免 AI 不稳定导致无法续写
+        elif skip_bible_review:
+            logger.info(f"[章节续写] {title}: 用户选择跳过圣经审稿检查")
+        
         # 扣除点数（每章10点）
         from web.models.point_model import point_model
         chapters_to_generate = end_chapter - start_chapter + 1
@@ -4239,20 +4299,28 @@ except ImportError:
     ChapterAnalyticsService = None
 
 
-def _get_chapter_path(title: str, chapter_number: int) -> Optional[Path]:
-    """根据书名和章节号获取章节文件路径"""
+def _get_project_path(title: str) -> Optional[Path]:
+    """根据书名获取项目目录路径"""
     base = Path("C:/work/xsdm/小说项目")
-    # 尝试查找用户目录下的项目
     for user_dir in base.iterdir():
         if not user_dir.is_dir():
             continue
         project_dir = user_dir / title
         if project_dir.exists():
-            chapters_dir = project_dir / "chapters"
-            for pattern in [f"chapter_{chapter_number:03d}.json", f"chapter_{chapter_number}.json"]:
-                path = chapters_dir / pattern
-                if path.exists():
-                    return path
+            return project_dir
+    return None
+
+
+def _get_chapter_path(title: str, chapter_number: int) -> Optional[Path]:
+    """根据书名和章节号获取章节文件路径"""
+    project_dir = _get_project_path(title)
+    if not project_dir:
+        return None
+    chapters_dir = project_dir / "chapters"
+    for pattern in [f"chapter_{chapter_number:03d}.json", f"chapter_{chapter_number}.json"]:
+        path = chapters_dir / pattern
+        if path.exists():
+            return path
     return None
 
 
@@ -4344,6 +4412,633 @@ def save_chapter():
         
     except Exception as e:
         logger.error(f"[SaveChapter] 保存失败: {e}", exc_info=True)
+        return jsonify({"success": False, "error": str(e)}), 500
+
+
+@market_driven_api.route('/bible', methods=['GET'])
+def get_bible():
+    """
+    获取小说的核心设定圣经内容和审稿报告
+    
+    Query:
+        title: 小说书名
+    """
+    try:
+        title = request.args.get('title', '')
+        if not title:
+            return jsonify({"success": False, "error": "缺少 title 参数"}), 400
+        
+        project_dir = _get_project_path(title)
+        if not project_dir:
+            return jsonify({"success": False, "error": "未找到项目"}), 404
+        
+        bible_path = project_dir / "layer_1_4_core_settings.md"
+        bible_content = ""
+        if bible_path.exists():
+            with open(bible_path, "r", encoding="utf-8") as f:
+                bible_content = f.read()
+        
+        # 读取审稿报告（如果有）
+        review_report = None
+        review_path = project_dir / "bible_review_report.json"
+        if review_path.exists():
+            try:
+                with open(review_path, "r", encoding="utf-8") as f:
+                    review_report = json.load(f)
+            except Exception as e:
+                logger.warning(f"[GetBible] 读取审稿报告失败: {e}")
+        
+        return jsonify({
+            "success": True,
+            "data": {
+                "content": bible_content,
+                "review_report": review_report
+            }
+        })
+    except Exception as e:
+        logger.error(f"[GetBible] 失败: {e}", exc_info=True)
+        return jsonify({"success": False, "error": str(e)}), 500
+
+
+@market_driven_api.route('/bible/save', methods=['POST'])
+def save_bible():
+    """
+    保存用户修改后的核心设定圣经
+    
+    请求体：
+    {
+        "title": "小说书名",
+        "content": "修改后的 MD 内容"
+    }
+    """
+    try:
+        data = request.get_json() or {}
+        title = data.get('title', '')
+        content = data.get('content', '')
+        
+        if not title:
+            return jsonify({"success": False, "error": "缺少 title"}), 400
+        
+        project_dir = _get_project_path(title)
+        if not project_dir:
+            return jsonify({"success": False, "error": "未找到项目"}), 404
+        
+        bible_path = project_dir / "layer_1_4_core_settings.md"
+        with open(bible_path, "w", encoding="utf-8") as f:
+            f.write(content)
+        
+        version = bible_path.stat().st_mtime
+        logger.info(f"[SaveBible] 核心设定圣经已保存: {bible_path}, version={version}")
+        return jsonify({
+            "success": True, 
+            "message": "保存成功",
+            "version": version
+        })
+    except Exception as e:
+        logger.error(f"[SaveBible] 保存失败: {e}", exc_info=True)
+        return jsonify({"success": False, "error": str(e)}), 500
+
+
+@market_driven_api.route('/<title>/bible-version', methods=['GET'])
+def get_bible_version(title):
+    """获取核心设定圣经当前版本号（文件修改时间）"""
+    try:
+        from urllib.parse import unquote
+        title = unquote(title)
+        project_dir = _get_project_path(title)
+        if not project_dir:
+            return jsonify({"success": False, "error": "未找到项目"}), 404
+        
+        bible_path = project_dir / "layer_1_4_core_settings.md"
+        if not bible_path.exists():
+            return jsonify({"success": False, "error": "圣经文件不存在"}), 404
+        
+        version = bible_path.stat().st_mtime
+        return jsonify({
+            "success": True,
+            "version": version,
+            "exists": True
+        })
+    except Exception as e:
+        logger.error(f"[GetBibleVersion] 失败: {e}", exc_info=True)
+        return jsonify({"success": False, "error": str(e)}), 500
+
+
+@market_driven_api.route('/<title>/bible-review-check', methods=['POST'])
+def check_bible_review(title):
+    """运行核心设定圣经审稿检查"""
+    try:
+        from urllib.parse import unquote
+        title = unquote(title)
+        project_dir = _get_project_path(title)
+        if not project_dir:
+            return jsonify({"success": False, "error": "未找到项目"}), 404
+        
+        bible_path = project_dir / "layer_1_4_core_settings.md"
+        if not bible_path.exists():
+            return jsonify({"success": False, "error": "圣经文件不存在"}), 404
+        
+        username = _get_current_username()
+        from src.core.APIClient import APIClient
+        from config.config import CONFIG
+        check_client = APIClient(CONFIG)
+        check_client.set_username(username)
+        
+        from web.services.market_driven.bible_reviewer import BibleReviewer, BibleReviewBlockedError
+        reviewer = BibleReviewer(
+            api_client=check_client,
+            project_path=str(project_dir)
+        )
+        
+        try:
+            reviewer.review(bible_path)
+            return jsonify({
+                "success": True,
+                "passed": True,
+                "version": bible_path.stat().st_mtime
+            })
+        except BibleReviewBlockedError as e:
+            return jsonify({
+                "success": True,
+                "passed": False,
+                "blocked": True,
+                "error": str(e),
+                "version": bible_path.stat().st_mtime
+            })
+    except Exception as e:
+        logger.error(f"[CheckBibleReview] 失败: {e}", exc_info=True)
+        return jsonify({"success": False, "error": str(e)}), 500
+
+
+@market_driven_api.route('/bible/fix', methods=['POST'])
+def fix_bible():
+    """
+    AI 自动修复核心设定圣经
+    
+    请求体：
+    {
+        "title": "小说书名"
+    }
+    
+    响应：
+    {
+        "success": True,
+        "content": "修复后的完整 Markdown 内容",
+        "issues_fixed": 3
+    }
+    """
+    try:
+        data = request.get_json() or {}
+        title = data.get('title', '')
+        
+        if not title:
+            return jsonify({"success": False, "error": "缺少 title"}), 400
+        
+        project_dir = _get_project_path(title)
+        if not project_dir:
+            return jsonify({"success": False, "error": "未找到项目"}), 404
+        
+        bible_path = project_dir / "layer_1_4_core_settings.md"
+        if not bible_path.exists():
+            return jsonify({"success": False, "error": "圣经文件不存在"}), 404
+        
+        with open(bible_path, "r", encoding="utf-8") as f:
+            bible_content = f.read()
+        
+        # 读取审稿报告（如果有）
+        review_path = project_dir / "bible_review_report.json"
+        review_report = None
+        if review_path.exists():
+            try:
+                with open(review_path, "r", encoding="utf-8") as f:
+                    review_report = json.load(f)
+            except Exception as e:
+                logger.warning(f"[FixBible] 读取审稿报告失败: {e}")
+        
+        # 收集需要修复的问题
+        issues = []
+        if review_report and review_report.get('dimensions'):
+            for d in review_report['dimensions']:
+                if d.get('verdict') in ('BLOCK', 'WARN'):
+                    issues.append(
+                        f"【{d['name']} - {d['verdict']}】问题：{d.get('problem', '无')}；修改建议：{d.get('fix_suggestion', '无')}"
+                    )
+        
+        # 构造修复 prompt
+        system_prompt = """# Role
+你是番茄小说资深内容主编，专门负责修改存在结构性问题的核心设定圣经。
+你的任务是根据审稿报告中的 BLOCK/WARN 问题，直接修改并输出修复后的完整圣经内容。
+
+# 修复原则
+1. 必须保留原有的 Markdown 层级结构（# Layer 1-4 的标题体系不能变）
+2. 针对 BLOCK 问题必须彻底解决，针对 WARN 问题尽量优化
+3. 只修改与问题相关的部分，不要新增无关设定
+4. 数值设定必须具体、可计算、有可持续性
+5. 直接输出修复后的完整 Markdown 内容，禁止输出任何解释性文字、JSON 或代码块标记
+"""
+
+        issues_text = "\n".join(issues) if issues else "（请整体优化数值可持续性、预期管理和爽感设计，确保设定可持续写 200 章）"
+        
+        user_prompt = f"""请根据以下审稿报告，修复核心设定圣经中的问题。
+
+## 审稿报告
+{issues_text}
+
+## 当前设定圣经
+```markdown
+{bible_content}
+```
+
+请直接输出修复后的完整设定圣经 Markdown 内容："""
+
+        # 调用 AI
+        username = _get_current_username()
+        from src.core.APIClient import APIClient
+        from config.config import CONFIG
+        api_client = APIClient(CONFIG)
+        api_client.set_username(username)
+        
+        raw_response = api_client.call_api(
+            system_prompt=system_prompt,
+            user_prompt=user_prompt,
+            temperature=0.4,
+            purpose="bible_auto_fix"
+        )
+        
+        fixed_content = raw_response or bible_content
+        # 尝试提取 markdown 代码块
+        if "```markdown" in fixed_content:
+            fixed_content = fixed_content.split("```markdown")[1].split("```")[0].strip()
+        elif "```" in fixed_content:
+            parts = fixed_content.split("```")
+            if len(parts) >= 3:
+                fixed_content = parts[1].strip()
+        
+        logger.info(f"[FixBible] {title}: AI 自动修复完成，修复问题数: {len(issues)}")
+        
+        return jsonify({
+            "success": True,
+            "content": fixed_content,
+            "issues_fixed": len(issues)
+        })
+        
+    except Exception as e:
+        logger.error(f"[FixBible] 失败: {e}", exc_info=True)
+        return jsonify({"success": False, "error": str(e)}), 500
+
+
+# ==================== 对话式圣经修复 ====================
+import time
+import uuid
+from src.core.APIClient import APIClient, ConversationSession
+
+# 内存 session 存储: {session_id: {session, title, project_path, created_at, last_used}}
+bible_chat_sessions: Dict[str, Dict] = {}
+BIBLE_CHAT_SESSION_TTL = 3600  # 1小时过期
+
+
+def _cleanup_bible_chat_sessions():
+    """清理过期的对话修复 session"""
+    now = time.time()
+    expired = [sid for sid, data in bible_chat_sessions.items() 
+               if now - data.get('last_used', 0) > BIBLE_CHAT_SESSION_TTL]
+    for sid in expired:
+        del bible_chat_sessions[sid]
+        logger.info(f"[BibleChat] 清理过期 session: {sid}")
+
+
+def _extract_bible_from_response(response: str) -> str:
+    """从 AI 回复中提取完整的圣经 Markdown 内容"""
+    if not response:
+        return ""
+    content = response.strip()
+    # 尝试提取 ```markdown 代码块
+    if "```markdown" in content:
+        parts = content.split("```markdown")
+        if len(parts) >= 2:
+            return parts[1].split("```", 1)[0].strip()
+    # 尝试提取普通 ``` 代码块
+    if "```" in content:
+        parts = content.split("```")
+        if len(parts) >= 3:
+            # 找到第一个非空代码块
+            for i in range(1, len(parts), 2):
+                candidate = parts[i].strip()
+                if candidate:
+                    return candidate
+    # 如果没找到代码块，但内容以 # Layer 开头，直接返回
+    if "# Layer" in content or "# " in content:
+        return content
+    return content
+
+
+def _get_latest_bible_from_session(session_data: Dict) -> str:
+    """从 session 的 messages 中获取最新一版完整圣经内容"""
+    messages = session_data['session'].messages
+    # 从后往前找 assistant 消息
+    for msg in reversed(messages):
+        if msg.get('role') == 'assistant':
+            extracted = _extract_bible_from_response(msg.get('content', ''))
+            if extracted:
+                return extracted
+    return ""
+
+
+@market_driven_api.route('/bible/fix-chat/start', methods=['POST'])
+def fix_chat_start():
+    """
+    启动对话式圣经修复
+    
+    请求体：{ "title": "小说书名" }
+    响应：{ "success", "session_id", "messages": [{role, content, is_full_content?}] }
+    """
+    try:
+        _cleanup_bible_chat_sessions()
+        data = request.get_json() or {}
+        title = data.get('title', '')
+        
+        if not title:
+            return jsonify({"success": False, "error": "缺少 title"}), 400
+        
+        project_dir = _get_project_path(title)
+        if not project_dir:
+            return jsonify({"success": False, "error": "未找到项目"}), 404
+        
+        bible_path = project_dir / "layer_1_4_core_settings.md"
+        if not bible_path.exists():
+            return jsonify({"success": False, "error": "圣经文件不存在"}), 404
+        
+        with open(bible_path, "r", encoding="utf-8") as f:
+            bible_content = f.read()
+        
+        # 读取审稿报告
+        review_path = project_dir / "bible_review_report.json"
+        review_report = None
+        if review_path.exists():
+            try:
+                with open(review_path, "r", encoding="utf-8") as f:
+                    review_report = json.load(f)
+            except Exception as e:
+                logger.warning(f"[BibleChat] 读取审稿报告失败: {e}")
+        
+        issues = []
+        if review_report and review_report.get('dimensions'):
+            for d in review_report['dimensions']:
+                if d.get('verdict') in ('BLOCK', 'WARN'):
+                    issues.append(
+                        f"【{d['name']} - {d['verdict']}】问题：{d.get('problem', '无')}；修改建议：{d.get('fix_suggestion', '无')}"
+                    )
+        
+        system_prompt = """# Role
+你是番茄小说资深内容主编，专门通过对话帮助作者修复核心设定圣经。你以严格、零容忍著称，BLOCK 问题不彻底解决绝不允许通过。
+
+# 强制自检流程（必须在心里完成，并在修改说明中体现）
+1. 逐条阅读审稿报告中的 BLOCK 和 WARN。
+2. 对每一条 BLOCK：必须在设定圣经中找到对应的原文，并给出明确修改。不能只改文风或重写简介，必须改到根子上（数值、人设、逻辑）。
+3. 修改后做一致性扫描：确保同一份圣经内部没有任何自相矛盾。例如：简介里的返利金额 ≤ 金手指上限；G1 阶段的资产 ≤ 现金流的合理倍数；人物标签不能前后矛盾。
+4. 对 WARN：尽量优化，如果涉及量级偏差或读者质疑风险，必须调整具体数字或措辞。
+
+# 回复结构
+1. 先给出修改说明，其中必须包含：
+   - 本次修复了哪几条 BLOCK/WARN
+   - 每条问题的具体修改策略（数值怎么改的、人设怎么改的）
+   - 一致性扫描结果（确认无自相矛盾）
+2. 然后输出 ```markdown 代码块，包含**完整**的修复后设定圣经内容
+
+# 绝对不能犯的忌讳
+- 不能保留 BLOCK 问题的根子（如：简介写 500 万但上限 100 万，必须二选一统一；审稿要求去掉的人设标签必须真正删除，不能只加新标签却不删旧标签）
+- 不能只重写简介而不修正配套数值/规则
+"""
+
+        issues_text = "\n".join(issues) if issues else "（请整体优化数值可持续性、预期管理和爽感设计，确保设定可持续写 200 章）"
+        
+        initial_context = f"""请根据以下审稿报告，修复核心设定圣经中的问题。
+
+## 审稿报告
+{issues_text}
+
+## 当前设定圣经
+```markdown
+{bible_content}
+```
+"""
+
+        username = _get_current_username()
+        from config.config import CONFIG
+        api_client = APIClient(CONFIG)
+        api_client.set_username(username)
+        
+        conv_session = ConversationSession(
+            api_client=api_client,
+            system_prompt=system_prompt,
+            temperature=0.4,
+            purpose_prefix="bible_fix_chat"
+        )
+        conv_session.max_history = 30  # 放宽历史限制
+        
+        session_id = f"biblefix_{uuid.uuid4().hex[:12]}"
+        bible_chat_sessions[session_id] = {
+            'session': conv_session,
+            'title': title,
+            'project_path': str(project_dir),
+            'created_at': time.time(),
+            'last_used': time.time(),
+            'initial_context': initial_context,
+        }
+        
+        welcome_message = {
+            "role": "assistant",
+            "content": "已加载审稿报告和当前设定圣经。\n\n请直接描述你想怎么修（例如：把返利上限调到 500 万，或者删掉不近女色人设），也可以点击下方快捷指令让 AI 直接修复。",
+            "summary": "已加载审稿报告和当前设定圣经。请描述你想怎么修，或点击下方快捷指令直接开始修复。",
+            "has_full_content": False
+        }
+        
+        logger.info(f"[BibleChat] {title}: 对话修复已启动（用户主导模式）, session={session_id}")
+        
+        return jsonify({
+            "success": True,
+            "session_id": session_id,
+            "messages": [welcome_message],
+            "issues": issues
+        })
+        
+    except Exception as e:
+        logger.error(f"[BibleChat] start 失败: {e}", exc_info=True)
+        return jsonify({"success": False, "error": str(e)}), 500
+
+
+def _format_chat_messages(messages: List[Dict]) -> List[Dict]:
+    """格式化消息列表给前端"""
+    result = []
+    for msg in messages:
+        if msg.get('role') == 'system':
+            continue
+        content = msg.get('content', '')
+        is_full = msg.get('role') == 'assistant' and '# Layer' in content
+        summary = ''
+        if msg.get('role') == 'assistant':
+            # 提取说明文字（代码块之前的部分）
+            summary = content.split("```markdown")[0].strip() if "```markdown" in content else content[:200].strip()
+        result.append({
+            "role": msg.get('role'),
+            "content": content,
+            "summary": summary,
+            "has_full_content": is_full
+        })
+    return result
+
+
+@market_driven_api.route('/bible/fix-chat/send', methods=['POST'])
+def fix_chat_send():
+    """
+    发送用户消息，获取 AI 修复回复
+    
+    请求体：{ "session_id": "...", "message": "用户反馈" }
+    """
+    try:
+        data = request.get_json() or {}
+        session_id = data.get('session_id', '')
+        user_message = data.get('message', '')
+        
+        if not session_id or not user_message:
+            return jsonify({"success": False, "error": "缺少 session_id 或 message"}), 400
+        
+        session_data = bible_chat_sessions.get(session_id)
+        if not session_data:
+            return jsonify({"success": False, "error": "会话已过期，请重新开始"}), 404
+        
+        session_data['last_used'] = time.time()
+        conv_session = session_data['session']
+        
+        # 第一次发送时，将初始上下文（圣经+审稿报告）前置，确保 AI 有完整上下文
+        if conv_session.turn_count == 0:
+            initial_context = session_data.get('initial_context', '')
+            if initial_context:
+                user_message = f"{initial_context}\n\n## 用户修复要求\n{user_message}"
+        
+        response = conv_session.send_message(user_message, purpose="chat")
+        
+        if not response:
+            return jsonify({"success": False, "error": "AI 响应失败，请重试"}), 500
+        
+        messages = _format_chat_messages(conv_session.messages)
+        return jsonify({
+            "success": True,
+            "messages": messages
+        })
+        
+    except Exception as e:
+        logger.error(f"[BibleChat] send 失败: {e}", exc_info=True)
+        return jsonify({"success": False, "error": str(e)}), 500
+
+
+@market_driven_api.route('/bible/fix-chat/check', methods=['POST'])
+def fix_chat_check():
+    """
+    用当前对话最新内容跑 BibleReviewer 审稿检查
+    
+    请求体：{ "session_id": "..." }
+    响应：{ "success", "passed", "report", "error" }
+    """
+    try:
+        data = request.get_json() or {}
+        session_id = data.get('session_id', '')
+        
+        if not session_id:
+            return jsonify({"success": False, "error": "缺少 session_id"}), 400
+        
+        session_data = bible_chat_sessions.get(session_id)
+        if not session_data:
+            return jsonify({"success": False, "error": "会话已过期"}), 404
+        
+        session_data['last_used'] = time.time()
+        latest_bible = _get_latest_bible_from_session(session_data)
+        
+        if not latest_bible:
+            return jsonify({"success": False, "error": "未找到 AI 生成的圣经内容"}), 400
+        
+        project_dir = Path(session_data['project_path'])
+        # 写入临时文件进行检测
+        temp_bible_path = project_dir / "layer_1_4_core_settings_chat_tmp.md"
+        with open(temp_bible_path, "w", encoding="utf-8") as f:
+            f.write(latest_bible)
+        
+        username = _get_current_username()
+        from config.config import CONFIG
+        api_client = APIClient(CONFIG)
+        api_client.set_username(username)
+        
+        from web.services.market_driven.bible_reviewer import BibleReviewer, BibleReviewBlockedError
+        reviewer = BibleReviewer(
+            api_client=api_client,
+            project_path=str(project_dir)
+        )
+        
+        try:
+            report = reviewer.review(temp_bible_path)
+            # 删除临时文件
+            temp_bible_path.unlink(missing_ok=True)
+            return jsonify({
+                "success": True,
+                "passed": True,
+                "report": report
+            })
+        except BibleReviewBlockedError as e:
+            temp_bible_path.unlink(missing_ok=True)
+            return jsonify({
+                "success": True,
+                "passed": False,
+                "blocked": True,
+                "error": str(e),
+                "report": e.report if hasattr(e, 'report') else None
+            })
+            
+    except Exception as e:
+        logger.error(f"[BibleChat] check 失败: {e}", exc_info=True)
+        return jsonify({"success": False, "error": str(e)}), 500
+
+
+@market_driven_api.route('/bible/fix-chat/apply', methods=['POST'])
+def fix_chat_apply():
+    """
+    应用当前对话最新版本到正式圣经文件
+    
+    请求体：{ "session_id": "..." }
+    响应：{ "success", "content", "version" }
+    """
+    try:
+        data = request.get_json() or {}
+        session_id = data.get('session_id', '')
+        
+        if not session_id:
+            return jsonify({"success": False, "error": "缺少 session_id"}), 400
+        
+        session_data = bible_chat_sessions.get(session_id)
+        if not session_data:
+            return jsonify({"success": False, "error": "会话已过期"}), 404
+        
+        session_data['last_used'] = time.time()
+        latest_bible = _get_latest_bible_from_session(session_data)
+        
+        if not latest_bible:
+            return jsonify({"success": False, "error": "未找到 AI 生成的圣经内容"}), 400
+        
+        project_dir = Path(session_data['project_path'])
+        bible_path = project_dir / "layer_1_4_core_settings.md"
+        with open(bible_path, "w", encoding="utf-8") as f:
+            f.write(latest_bible)
+        
+        version = bible_path.stat().st_mtime
+        logger.info(f"[BibleChat] {session_data['title']}: 对话修复内容已应用, version={version}")
+        
+        return jsonify({
+            "success": True,
+            "content": latest_bible,
+            "version": version
+        })
+        
+    except Exception as e:
+        logger.error(f"[BibleChat] apply 失败: {e}", exc_info=True)
         return jsonify({"success": False, "error": str(e)}), 500
 
 

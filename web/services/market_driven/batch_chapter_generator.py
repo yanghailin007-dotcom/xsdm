@@ -353,6 +353,41 @@ class BatchChapterGenerator:
         logger.info(f"[BatchGenerator] 对话模式完成: 成功{len(results['generated'])}章, 失败{len(results['failed'])}章")
         return results
     
+    def _load_layer_1_4_bible(self, max_chars: int = 3000) -> Optional[str]:
+        """如果存在 layer_1_4_core_settings.md，优先读取作为 Layer 1 核心设定"""
+        if not self.project_path:
+            return None
+        bible_path = self.project_path / "layer_1_4_core_settings.md"
+        if not bible_path.exists():
+            return None
+        try:
+            with open(bible_path, "r", encoding="utf-8") as f:
+                content = f.read()
+            # 裁剪：保留 Layer 1、Layer 3、Layer 4，去掉 Layer 2 战术规划索引（避免与每章具体战术冲突）
+            filtered = self._filter_bible_layers(content)
+            if len(filtered) > max_chars:
+                filtered = filtered[:max_chars] + "\n...（核心设定已截断）"
+            logger.info(f"[BatchGenerator] 已从圣经加载核心设定: {len(filtered)} 字符")
+            return filtered
+        except Exception as e:
+            logger.warning(f"[BatchGenerator] 读取核心设定圣经失败: {e}")
+            return None
+
+    def _filter_bible_layers(self, content: str) -> str:
+        """从 MD 中提取 Layer 1 + Layer 3 + Layer 4，去掉 Layer 2"""
+        lines = content.splitlines()
+        result = []
+        skip_layer = None
+        for line in lines:
+            if line.startswith("## Layer 2:"):
+                skip_layer = 2
+                continue
+            if line.startswith("## Layer 3:"):
+                skip_layer = None
+            if skip_layer is None:
+                result.append(line)
+        return "\n".join(result)
+
     def _format_core_setting_md(self, novel_data: Dict, character_state: Dict = None, world_state: Dict = None) -> str:
         """将核心设定格式化为结构化、叙事化的 Markdown（替代裸 JSON）"""
         nd = novel_data or {}
@@ -803,8 +838,11 @@ class BatchChapterGenerator:
                 except Exception as e:
                     logger.warning(f"[BatchGenerator] 读取 .world_state.json 失败: {e}")
         
-        # 构建 Layer1 核心设定（从 JSON 转为结构化 Markdown，注入状态数据）
-        core_setting = self._format_core_setting_md(enriched_novel_data, character_state, world_state)
+        # 构建 Layer1 核心设定：优先读取圣经 MD，fallback 到旧 JSON 格式化逻辑
+        core_setting = self._load_layer_1_4_bible(max_chars=3500)
+        if core_setting is None:
+            logger.info("[BatchGenerator] 未找到核心设定圣经，fallback 到 JSON 格式化逻辑")
+            core_setting = self._format_core_setting_md(enriched_novel_data, character_state, world_state)
         
         # 构建 Layer2 战术规划（仅当前批次摘要，防止未来视）
         tactical_planning = self._format_tactical_planning_summary_md(relevant_chapters)

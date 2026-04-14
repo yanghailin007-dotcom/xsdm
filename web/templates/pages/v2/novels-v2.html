@@ -1239,6 +1239,9 @@
                 <button class="novel-btn novel-btn-primary" onclick="viewNovel('${escapeHtml(novel.title)}')">
                     📖 ${readText}
                 </button>
+                <button class="novel-btn novel-btn-secondary" onclick="openBible('${escapeHtml(novel.title)}')">
+                    📜 设定
+                </button>
             `;
             
             // 短篇只显示阅读和导出按钮
@@ -1385,6 +1388,10 @@
 
         function viewNovel(title) {
             window.open(`/reader/${encodeURIComponent(title)}`, '_blank');
+        }
+
+        function openBible(title) {
+            window.open(`/bible/${encodeURIComponent(title)}`, '_blank');
         }
 
         async function continueNovel(title) {

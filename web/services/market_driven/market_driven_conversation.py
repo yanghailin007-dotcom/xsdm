@@ -1041,15 +1041,28 @@ POST /api/v2/prompt-config/component/{step_name}
             logger.error(traceback.format_exc())
             raise
         
-        # 🔥 步骤6: 爆款对齐检查与优化 (90%) -> UI阶段: final_check
-        logger.info(f"[对话模式 {self.session_id}] [UI:final_check] 步骤6/6: 爆款对齐检查与优化")
+        # 🔥 步骤6: 爆款对齐检查 (90%) -> UI阶段: final_check
+        logger.info(f"[对话模式 {self.session_id}] [UI:final_check] 步骤6/6: 爆款对齐检查")
         if progress_callback:
             progress_callback("bestseller_alignment", 90)
         aligned_results = self._bestseller_alignment_check(results)
+        
+        # 🔥 如果审稿被 BLOCK，直接返回 blocked 结果，不抛异常
+        if aligned_results.get("blocked"):
+            block_reason = aligned_results.get("block_reason", "爆款对齐检查未通过")
+            logger.warning(f"[对话模式 {self.session_id}] [UI:final_check] 步骤6被BLOCK: {block_reason}")
+            return {
+                **results,
+                "_blocked": True,
+                "_block_reason": block_reason,
+                "_block_type": aligned_results.get("block_type", "bestseller_alignment"),
+                "_alignment_report": aligned_results.get("alignment_report"),
+            }
+        
         results.update(aligned_results)
         self._save_step_result("alignment", results, project_path)
         
-        # 🔥 关键修复：步骤6的爆款对齐优化结果必须写回对应的独立产物文件
+        # 🔥 关键修复：步骤6的爆款对齐检查结果必须写回对应的独立产物文件
         optimized_keys = []
         
         if 'emotion_curve' in aligned_results and aligned_results['emotion_curve']:
@@ -2784,53 +2797,99 @@ POST /api/v2/prompt-config/component/{step_name}
 
     def _bestseller_alignment_check(self, previous_results: Dict) -> Dict:
         """
-        步骤6: 爆款对齐检查与优化
+        步骤6: 爆款对齐检查
         
-        对比一阶段产物与爆款公式，识别偏差并优化
-        返回优化后的结果和优化报告
+        新流程：
+        1. 生成核心设定圣经 (layer_1_4_core_settings.md)
+        2. AI 编辑审稿 (BibleReviewer) — 若 BLOCK 则直接抛出异常中断生成
+        3. P0 硬规则数据校验 (瘦身版 AlignmentEngine)
+        4. 原有情绪/阶段目标/金手指检查
         """
         logger.info(f"[对话模式 {self.session_id}] 开始爆款对齐检查...")
         
-        # ========== 🔥 新增：P0/P1/P2 多轮对齐引擎 ==========
-        if getattr(self, 'project_path', None):
+        project_path = getattr(self, 'project_path', None)
+        
+        # ========== 🔥 Step 1: 生成核心设定圣经 ==========
+        if project_path:
+            try:
+                from web.services.market_driven.bible_generator import CoreSettingBibleGenerator
+                bible_gen = CoreSettingBibleGenerator(project_path)
+                bible_path = bible_gen.generate()
+                logger.info(f"[对话模式 {self.session_id}] 核心设定圣经已生成: {bible_path}")
+            except Exception as e:
+                logger.error(f"[对话模式 {self.session_id}] 圣经生成异常: {e}", exc_info=True)
+                # 生成失败不阻断，继续后续校验
+        
+        # ========== 🔥 Step 2: AI 编辑审稿 ==========
+        if project_path and self.api_client:
+            try:
+                from web.services.market_driven.bible_reviewer import BibleReviewer, BibleReviewBlockedError
+                reviewer = BibleReviewer(
+                    api_client=self.api_client,
+                    project_path=project_path,
+                    genre=self.genre
+                )
+                review_report = reviewer.review()
+                logger.info(
+                    f"[对话模式 {self.session_id}] [BibleReviewer] 审稿通过 | "
+                    f"overall_pass={review_report.get('overall_pass')} | "
+                    f"预估完读率={review_report.get('estimated_read_rate')}"
+                )
+            except BibleReviewBlockedError as e:
+                logger.warning(f"[对话模式 {self.session_id}] [BibleReviewer] 审稿被 BLOCK: {e}")
+                # 返回 BLOCK 结果，不抛异常，让上层正常处理
+                return {
+                    "blocked": True,
+                    "block_reason": str(e),
+                    "block_type": "bible_review",
+                    "alignment_report": getattr(e, 'report', {"blocked": True, "reason": str(e)}),
+                    "report_path": str(getattr(e, 'report_path', '')),
+                }
+            except Exception as e:
+                logger.error(f"[对话模式 {self.session_id}] BibleReviewer 异常: {e}", exc_info=True)
+                # 审稿异常不阻断（保守策略，避免 AI 不稳定导致任务全崩）
+        
+        # ========== 🔥 Step 3: P0 硬规则数据校验 ==========
+        if project_path:
             try:
                 from web.services.market_driven.alignment_engine import AlignmentEngine
                 engine = AlignmentEngine(
                     genre=self.genre,
-                    project_path=self.project_path,
+                    project_path=project_path,
                     api_client=self.api_client
                 )
                 alignment_result = engine.run(previous_results)
                 
-                logger.info(f"[对话模式 {self.session_id}] [AlignmentEngine] 结果: success={alignment_result.get('success')}, phase={alignment_result.get('phase')}")
+                logger.info(
+                    f"[对话模式 {self.session_id}] [AlignmentEngine] 结果: "
+                    f"success={alignment_result.get('success')}, phase={alignment_result.get('phase')}"
+                )
+                
+                # 保存报告
+                try:
+                    report_path = Path(project_path) / "phase_one_products" / "alignment_engine_report.json"
+                    with open(report_path, "w", encoding="utf-8") as f:
+                        json.dump(alignment_result, f, ensure_ascii=False, indent=2)
+                except Exception as e:
+                    logger.warning(f"[对话模式 {self.session_id}] 保存对齐引擎报告失败: {e}")
                 
                 if not alignment_result.get("success"):
-                    # P0/P1 对齐失败，记录错误但继续执行（避免阻断完整流程）
-                    error_msg = alignment_result.get("message", "爆款对齐未通过")
-                    logger.error(f"[对话模式 {self.session_id}] {error_msg} | 已跳过AlignmentEngine阻断，继续生成")
-                    # 保存失败报告供排查
-                    try:
-                        report_path = Path(self.project_path) / "phase_one_products" / "alignment_engine_report.json"
-                        with open(report_path, "w", encoding="utf-8") as f:
-                            json.dump(alignment_result, f, ensure_ascii=False, indent=2)
-                    except Exception as e:
-                        logger.warning(f"[对话模式 {self.session_id}] 保存对齐引擎报告失败: {e}")
-                else:
-                    # 使用 P0/P1/P2 清洗后的数据继续后续检查
-                    previous_results = alignment_result.get("final_result", previous_results)
-                    # 保存成功报告
-                    try:
-                        report_path = Path(self.project_path) / "phase_one_products" / "alignment_engine_report.json"
-                        with open(report_path, "w", encoding="utf-8") as f:
-                            json.dump(alignment_result, f, ensure_ascii=False, indent=2)
-                    except Exception as e:
-                        logger.warning(f"[对话模式 {self.session_id}] 保存对齐引擎报告失败: {e}")
+                    # 返回 BLOCK 结果，不抛异常
+                    return {
+                        "blocked": True,
+                        "block_reason": alignment_result.get('message', 'P0 数据校验失败'),
+                        "block_type": "alignment_engine",
+                        "alignment_report": alignment_result,
+                    }
                     
             except Exception as e:
+                # 如果是 BibleReview 已经处理过的 BLOCK，不再二次包裹
+                if "BibleReviewer" in str(e) or "核心设定圣经审稿被 BLOCK" in str(e):
+                    raise
                 logger.error(f"[对话模式 {self.session_id}] AlignmentEngine 异常: {e}", exc_info=True)
-                # 引擎异常时不阻断，回退到原有逻辑（保守策略）
+                # P0 异常时不再阻断，回退到原有逻辑（兼容旧行为）
         
-        # ========== 原有逻辑继续执行（P2 之后做情绪/阶段目标/金手指的爆款公式检查） ==========
+        # ========== 原有逻辑继续执行（情绪/阶段目标/金手指的爆款公式检查） ==========
         
         # 🔥 DEBUG: 记录previous_results中关键字段的类型
         debug_info = {}
@@ -2936,7 +2995,7 @@ POST /api/v2/prompt-config/component/{step_name}
             
             # 输出优化结果摘要
             logger.info(f"[对话模式 {self.session_id}] ═══════════════════════════════════════")
-            logger.info(f"[对话模式 {self.session_id}] 【步骤6 爆款对齐优化完成】")
+            logger.info(f"[对话模式 {self.session_id}] 【步骤6 爆款对齐检查完成】")
             if 'emotion_curve' in optimized:
                 logger.info(f"[对话模式 {self.session_id}]   ✅ 情绪曲线已优化")
             if 'stage_goals' in optimized:
@@ -3321,7 +3380,7 @@ POST /api/v2/prompt-config/component/{step_name}
         results = previous_results.copy()
         
         # 构建优化提示词
-        prompt_parts = ["# 爆款对齐优化专家\n"]
+        prompt_parts = ["# 爆款对齐检查专家\n"]
         prompt_parts.append("你是一名专业的爆款小说优化专家。请基于爆款分析数据，优化以下设计。\n")
         
         # 添加发现的偏差
@@ -3451,11 +3510,11 @@ POST /api/v2/prompt-config/component/{step_name}
         
         # 调用AI进行优化
         try:
-            logger.info(f"[对话模式 {self.session_id}] 发送爆款对齐优化请求...")
+            logger.info(f"[对话模式 {self.session_id}] 发送爆款对齐检查请求...")
             response = self.session.send_message(
                 prompt,
                 temperature=0.7,
-                purpose="步骤6-爆款对齐优化"
+                purpose="步骤6-爆款对齐检查"
             )
             self._logger.log_round("bestseller_alignment", self.session.messages.copy(), 
                                    response if isinstance(response, str) else json.dumps(response))
@@ -3488,7 +3547,7 @@ POST /api/v2/prompt-config/component/{step_name}
                 logger.warning(f"[对话模式 {self.session_id}] 优化响应解析失败，使用原始结果")
             
         except Exception as e:
-            logger.error(f"[对话模式 {self.session_id}] 爆款对齐优化失败: {e}")
+            logger.error(f"[对话模式 {self.session_id}] 爆款对齐检查失败: {e}")
         
         return results
 

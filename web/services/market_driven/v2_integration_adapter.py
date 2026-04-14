@@ -1599,11 +1599,11 @@ class V2IntegrationAdapter:
         # 🔥 统一提取配置：支持新格式（有 style_config 嵌套）和旧格式（扁平结构）
         if 'style_config' in writing_style:
             # 新格式：从 project_info 读取，配置在 style_config 中
-            config = writing_style.get('style_config', {})
+            config = writing_style.get('style_config') or {}
             style_name = config.get('name') or config.get('style_name') or writing_style.get('style_name')
         else:
             # 旧格式：直接从 task 读取
-            config = writing_style
+            config = writing_style or {}
             style_name = config.get('name') or config.get('style_name')
         
         # 🔥 修复：移除静默默认值。如果文风缺失，明确记录 ERROR 后再使用后备渲染
