@@ -1169,6 +1169,7 @@ POST /api/v2/prompt-config/component/{step_name}
             },
             "golden_finger": gf_data,
             "core_selling_point": self._final_plan.get("core_selling_point", ""),
+            "synopsis": self._final_plan.get("synopsis", ""),
             "story_direction": self._final_plan.get("story_direction", ""),
             "opening_hook": self._final_plan.get("opening_hook", ""),
             "emotion_core": self._final_plan.get("emotion_core", ""),
@@ -1261,9 +1262,10 @@ POST /api/v2/prompt-config/component/{step_name}
                 "5. **核心冲突** - 故事的主要矛盾和冲突点",
                 "6. **世界观** - 故事发生的世界背景和规则",
                 "7. **推荐标题** - 推荐的书名（可以是用户确定的标题）",
-                "8. **前30章情绪蓝图** - 只定义每章情绪类型和强度，不定义具体情节\n",
+                "8. **前30章情绪蓝图** - 只定义每章情绪类型和强度，不定义具体情节",
+                "9. **番茄味简介（synopsis）** - 写一个80-150字的强钩子简介，必须包含：\n   - 极端反差：主角表面身份 vs 实际能力\n   - 具体困境场景：被嘲讽/被分手/被看不起（用具体对话或动作，不要概括）\n   - 金手指直白揭秘：具体名称+核心效果（如'百倍返利系统'）\n   - 爽点预告：主角即将做什么（打脸/震惊/收获）\n   - 情绪钩子：一句反问或挑衅，引发点击欲望\n   要求：开场即高潮，冲突极度对立，禁止写成平淡说明文。\n",
                 "## 输出格式（严格JSON）",
-                "返回标准JSON格式，必须包含以下字段: title, opening_design, golden_finger, protagonist, core_conflict, worldview, recommended_title, emotion_blueprint\n",
+                "返回标准JSON格式，必须包含以下字段: title, synopsis, opening_design, golden_finger, protagonist, core_conflict, worldview, recommended_title, emotion_blueprint\n",
                 "**严格要求**：字符串值内部的双引号必须转义为 \\\"，不要返回Markdown代码块\n",
                 "只返回JSON，不要其他说明。"
             ]
@@ -1278,7 +1280,7 @@ POST /api/v2/prompt-config/component/{step_name}
         try:
             result = self._parse_json_response(response, "plan")
             # 验证必要字段
-            required_fields = ["protagonist", "golden_finger", "core_conflict", "worldview", "recommended_title"]
+            required_fields = ["protagonist", "golden_finger", "core_conflict", "worldview", "recommended_title", "synopsis"]
             missing = [f for f in required_fields if f not in result]
             if missing:
                 raise ValueError(f"plan 缺少必要字段: {missing}")

@@ -128,12 +128,14 @@ class CoreSettingBibleGenerator:
         if not emotion_curve:
             emotion_curve = self._load_json("情绪曲线.json", [])
 
-        # 选择最佳简介
-        core_selling_points = plan.get("core_selling_points", [])
-        if core_selling_points and core_selling_points[0].get("point"):
-            best_synopsis = core_selling_points[0]["point"].strip()
-        else:
-            best_synopsis = plan.get("synopsis", "").strip() or info.get("novel_synopsis", "").strip()
+        # 选择最佳简介（优先 AI 在方案阶段生成的番茄味 synopsis）
+        best_synopsis = plan.get("synopsis", "").strip()
+        if not best_synopsis:
+            core_selling_points = plan.get("core_selling_points", [])
+            if core_selling_points and core_selling_points[0].get("point"):
+                best_synopsis = core_selling_points[0]["point"].strip()
+        if not best_synopsis:
+            best_synopsis = info.get("novel_synopsis", "").strip()
 
         lines: List[str] = []
 
