@@ -1606,9 +1606,9 @@ class V2IntegrationAdapter:
             config = writing_style or {}
             style_name = config.get('name') or config.get('style_name')
         
-        # 🔥 修复：移除静默默认值。如果文风缺失，明确记录 ERROR 后再使用后备渲染
+        # 🔥 修复：如果文风缺失，记录 WARNING 后使用后备渲染（兼容 legacy 项目）
         if not style_name:
-            logger.error("[V2适配器] 未接收到有效的 writing_style，说明前端文风选择流程可能异常跳过。将使用系统默认渲染，但这是一个需要排查的 BUG。")
+            logger.warning("[V2适配器] 未接收到有效的 writing_style，将使用系统默认渲染（可能是 legacy 项目未配置文风）")
             style_name = '番茄快节奏爽文'
         
         description = config.get('description', '快节奏、强情绪、强冲突')

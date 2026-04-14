@@ -251,6 +251,26 @@ class HierarchicalPlanner:
         else:
             # 复用现有战术规划
             tactical_plan = self._load_tactical_plan(start_ch)
+            # 🔥 修复：如果加载的规划为空或缺少 chapters，强制重新生成（兼容 continue-chapters 等场景）
+            if not tactical_plan.get("chapters"):
+                logger.warning(f"[HierarchicalPlanner] 已保存的战术规划为空（第{start_ch}章起），强制重新生成")
+                if self.use_tomato_tactical:
+                    logger.info("[HierarchicalPlanner] 使用番茄爆款细纲会话重新生成")
+                    tactical_plan = self._generate_tomato_tactical_plan(start_ch)
+                else:
+                    logger.info("[HierarchicalPlanner] 使用传统战术规划重新生成")
+                    current_goal = self._get_current_stage_goal()
+                    tactical_plan = self.tactical_planner.plan_next_batch(
+                        start_chapter=start_ch,
+                        end_chapter=min(start_ch + self.tactical_window - 1, self.total_chapters),
+                        novel_title=self.novel_title,
+                        protagonist_name=self.protagonist_name,
+                        stage_goal=current_goal,
+                        previous_summary=self.current_batch_summary,
+                        emotion_curve=self.emotion_curve,
+                        bestseller_analysis=self.bestseller_analysis
+                    )
+                self._save_tactical_plan(tactical_plan, start_ch)
         
         # 提取当前批次
         batch_plan = self._extract_batch_plan(tactical_plan, start_ch, end_ch)

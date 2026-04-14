@@ -1511,7 +1511,9 @@ async function doStartGeneration() {
       // 🔥 传递用户选择的剧情路线（非常重要！）
       selected_plot: selectedPlot,
       // 传递分析结果上下文给AI
-      analysis_context: analysisContext
+      analysis_context: analysisContext,
+      // 🔥 传递文风选择
+      writing_style: selectedWritingStyle
     },
     target_words: wordcount,
     options: {

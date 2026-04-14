@@ -110,13 +110,24 @@ class ChapterConversationV2:
         
         # Layer 4: 文风技法（优先使用传入的 writing_style）
         if writing_style:
-            try:
-                style_renderer = WritingStyleRenderer()
-                self.layer4_content = style_renderer.render(writing_style)
-                logger.info(f"[V2对话] Layer 4 使用自定义文风: {writing_style.get('name', '未命名')}")
-            except Exception as e:
-                logger.warning(f"[V2对话] 渲染自定义文风失败，回退到默认: {e}")
-                self.layer4_content = self._get_default_writing_style()
+            # 🔥 区分 dataclass（YAML加载）和 dict（前端/项目传入）
+            if hasattr(writing_style, 'paragraph'):
+                # dataclass 格式（如 WritingStyle）
+                try:
+                    style_renderer = WritingStyleRenderer()
+                    self.layer4_content = style_renderer.render(writing_style)
+                    logger.info(f"[V2对话] Layer 4 使用自定义文风(dataclass): {getattr(writing_style, 'name', '未命名')}")
+                except Exception as e:
+                    logger.warning(f"[V2对话] 渲染自定义文风失败，回退到默认: {e}")
+                    self.layer4_content = self._get_default_writing_style()
+            else:
+                # dict 格式（前端/项目传入）
+                try:
+                    self.layer4_content = self._build_writing_style_from_config(writing_style)
+                    logger.info(f"[V2对话] Layer 4 使用自定义文风(dict): {writing_style.get('name', writing_style.get('style_name', '未命名'))}")
+                except Exception as e:
+                    logger.warning(f"[V2对话] 构建自定义文风失败，回退到默认: {e}")
+                    self.layer4_content = self._get_default_writing_style()
         else:
             self.layer4_content = self._get_default_writing_style()
         
@@ -125,6 +136,79 @@ class ChapterConversationV2:
         self.selfcheck_loader = SelfCheckLoader()
         
         logger.debug(f"[V2对话] Layer加载完成 | L3={len(self.layer3_content)} chars | L4={len(self.layer4_content)} chars")
+    
+    def _build_writing_style_from_config(self, writing_style: Dict) -> str:
+        """
+        从 dict 格式的 writing_style 构建 Layer 4 文风技法字符串
+        兼容 project_info 格式 {style_id, style_name, style_config} 和 task 格式 {id, name, description}
+        """
+        # 统一提取配置
+        if 'style_config' in writing_style:
+            config = writing_style.get('style_config') or {}
+            style_name = config.get('name') or config.get('style_name') or writing_style.get('style_name', '番茄快节奏爽文')
+        else:
+            config = writing_style or {}
+            style_name = config.get('name') or config.get('style_name') or '番茄快节奏爽文'
+        
+        description = config.get('description', '快节奏、强情绪、强冲突')
+        features = config.get('features', [])
+        if isinstance(features, list) and features:
+            features_str = '\n'.join([f"- {f}" for f in features[:5]])
+        else:
+            features_str = '- 快节奏叙事\n- 强情绪渲染\n- 高频冲突'
+        
+        taboos = config.get('taboos', [])
+        if isinstance(taboos, list) and taboos:
+            taboos_str = '\n'.join([f"- 禁止{t}" for t in taboos[:3]])
+        else:
+            taboos_str = '- 禁止注水\n- 禁止偏离主线'
+        
+        structure = config.get('structure_preference', {})
+        if isinstance(structure, dict):
+            chapter_length = structure.get('chapter_length', '3000-3500字')
+            pacing = structure.get('pacing', '快节奏')
+            cliffhanger = structure.get('cliffhanger', '章尾强钩子')
+        else:
+            chapter_length = '3000-3500字'
+            pacing = '快节奏'
+            cliffhanger = '章尾强钩子'
+        
+        return f"""### 【Layer 4】文风技法 - {style_name}
+
+> {description}
+
+#### 【Layer 4.1】风格特征
+{features_str}
+
+#### 【Layer 4.2】结构要求
+- **单章长度**：{chapter_length}
+- **叙事节奏**：{pacing}
+- **收尾方式**：{cliffhanger}
+
+#### 【Layer 4.3】段落规范
+- 每段3-4行，多用换行
+- 平均长度50-80字
+- 手机优先排版
+
+#### 【Layer 4.4】句子规范
+- 短句(<10字)占比≥40%
+- 单句最长25字
+- 口语化表达，减少形容词
+
+#### 【Layer 4.5】对话规范
+- 对话占比≥40%，用引号包裹
+- 一句一段，对话后接动作/反应
+- 禁止连续150字无对话
+
+#### 【Layer 4.6】震惊流技法
+- 先写反应，后写原因
+- 层层递进，禁止跳级
+- 数字量化，拒绝模糊
+- 🚫 严禁使用'第一层/第二层'标签
+
+#### 【Layer 4.7】创作禁忌
+{taboos_str}
+"""
     
     def generate_chapter(self,
                         chapter_number: int,

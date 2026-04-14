@@ -1263,9 +1263,10 @@ POST /api/v2/prompt-config/component/{step_name}
                 "6. **世界观** - 故事发生的世界背景和规则",
                 "7. **推荐标题** - 推荐的书名（可以是用户确定的标题）",
                 "8. **前30章情绪蓝图** - 只定义每章情绪类型和强度，不定义具体情节",
-                "9. **番茄味简介（synopsis）** - 写一个80-150字的强钩子简介，必须包含：\n   - 极端反差：主角表面身份 vs 实际能力\n   - 具体困境场景：被嘲讽/被分手/被看不起（用具体对话或动作，不要概括）\n   - 金手指直白揭秘：具体名称+核心效果（如'百倍返利系统'）\n   - 爽点预告：主角即将做什么（打脸/震惊/收获）\n   - 情绪钩子：一句反问或挑衅，引发点击欲望\n   要求：开场即高潮，冲突极度对立，禁止写成平淡说明文。\n",
+                "9. **番茄味简介（synopsis）【必填】** - 写一个80-150字的强钩子简介，必须包含：\n   - 极端反差：主角表面身份 vs 实际能力\n   - 具体困境场景：被嘲讽/被分手/被看不起（用具体对话或动作，不要概括）\n   - 金手指直白揭秘：具体名称+核心效果（如'百倍返利系统'）\n   - 爽点预告：主角即将做什么（打脸/震惊/收获）\n   - 情绪钩子：一句反问或挑衅，引发点击欲望\n   要求：开场即高潮，冲突极度对立，禁止写成平淡说明文。\n   **注意：synopsis 字段必须存在，不能为空字符串！**\n",
                 "## 输出格式（严格JSON）",
                 "返回标准JSON格式，必须包含以下字段: title, synopsis, opening_design, golden_finger, protagonist, core_conflict, worldview, recommended_title, emotion_blueprint\n",
+                "```json\n{\n  \"title\": \"书名\",\n  \"recommended_title\": \"推荐书名\",\n  \"synopsis\": \"80-150字强钩子简介，必须包含反差、困境、金手指、爽点预告、情绪钩子\",\n  ...\n}\n```\n",
                 "**严格要求**：字符串值内部的双引号必须转义为 \\\"，不要返回Markdown代码块\n",
                 "只返回JSON，不要其他说明。"
             ]
@@ -1279,15 +1280,54 @@ POST /api/v2/prompt-config/component/{step_name}
         
         try:
             result = self._parse_json_response(response, "plan")
-            # 验证必要字段
+            # 验证必要字段（synopsis 为必填，缺失时先尝试自动补全而非直接抛错）
             required_fields = ["protagonist", "golden_finger", "core_conflict", "worldview", "recommended_title", "synopsis"]
-            missing = [f for f in required_fields if f not in result]
+            missing = [f for f in required_fields if f not in result or not result.get(f)]
+            
+            # 🔥 如果只有 synopsis 缺失，先自动补全而不是直接失败
+            if missing == ["synopsis"]:
+                result["synopsis"] = self._auto_generate_synopsis(result)
+                logger.warning(f"[对话模式 {self.session_id}] AI 未返回 synopsis，已自动补全（提示词可能未生效）")
+                missing = []
+            
             if missing:
                 raise ValueError(f"plan 缺少必要字段: {missing}")
+            
             return result
         except (json.JSONDecodeError, ValueError) as e:
             logger.error(f"[对话模式 {self.session_id}] 生成 plan 失败: {e}")
             raise RuntimeError(f"生成方案失败: {e}") from e
+    
+    def _auto_generate_synopsis(self, plan: dict) -> str:
+        """基于 plan 内容自动生成 synopsis（AI 遗漏时的 fallback）"""
+        protagonist = plan.get("protagonist", {})
+        protagonist_name = protagonist.get("name", "主角") if isinstance(protagonist, dict) else "主角"
+        gf = plan.get("golden_finger", {})
+        if isinstance(gf, dict):
+            gf_name = gf.get("name") or gf.get("type") or gf.get("mechanism") or "神秘系统"
+            gf_effect = gf.get("effect") or gf.get("mechanism") or "获得逆天能力"
+        else:
+            gf_name = "神秘系统"
+            gf_effect = "获得逆天能力"
+        conflict = plan.get("core_conflict", "")
+        opening = plan.get("opening_design", "")
+        
+        # 组合生成一个简洁的番茄味简介
+        parts = [f"{protagonist_name}"]
+        if opening and len(opening) > 5:
+            parts.append(f"在{opening[:20]}的绝境中")
+        elif conflict and len(conflict) > 5:
+            parts.append(f"面对{conflict[:20]}的困境")
+        else:
+            parts.append("身处绝境")
+        parts.append(f"意外觉醒{gf_name}，{gf_effect}。")
+        parts.append("从此踏上逆袭之路，打脸全场，震惊世人！")
+        
+        synopsis = "".join(parts)
+        # 控制长度 80-150 字
+        if len(synopsis) > 150:
+            synopsis = synopsis[:147] + "..."
+        return synopsis
     
     # 🔥 番茄小说标签预制映射（参考 plan_generator.py）
     FANQIE_TAG_MAPPINGS = {

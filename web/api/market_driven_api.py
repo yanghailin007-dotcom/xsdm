@@ -3311,9 +3311,16 @@ def continue_chapters(title):
             blueprint = json.load(f)
         
         # 🔥 可选：如果存在核心设定圣经且用户未要求跳过，先跑审稿检查
+        # 但如果项目已经有正文章节，说明之前已通过或无需再审，跳过避免卡死
+        chapters_dir = project_path / "chapters"
+        has_existing_chapters = (
+            chapters_dir.exists()
+            and any(f.name.startswith("chapter_") and f.suffix == ".json" for f in chapters_dir.iterdir())
+        )
+
         skip_bible_review = data.get('skip_bible_review', False)
         bible_path = project_path / "layer_1_4_core_settings.md"
-        if bible_path.exists() and not skip_bible_review:
+        if bible_path.exists() and not skip_bible_review and not has_existing_chapters:
             try:
                 from src.core.APIClient import APIClient
                 from config.config import CONFIG
@@ -3340,6 +3347,8 @@ def continue_chapters(title):
                 # 审稿异常不阻断，避免 AI 不稳定导致无法续写
         elif skip_bible_review:
             logger.info(f"[章节续写] {title}: 用户选择跳过圣经审稿检查")
+        elif has_existing_chapters:
+            logger.info(f"[章节续写] {title}: 项目已有正文章节，跳过圣经审稿检查")
         
         # 扣除点数（每章10点）
         from web.models.point_model import point_model
@@ -3459,6 +3468,7 @@ def _run_continue_chapter_generation(task_id, title, blueprint, start_chapter, e
         # 分批生成
         batch_size = 6
         current = start_chapter
+        planner = None  # 🔥 延迟初始化分层规划器
         
         while current <= end_chapter:
             if task_manager.should_stop(task_id):
@@ -3525,12 +3535,80 @@ def _run_continue_chapter_generation(task_id, title, blueprint, start_chapter, e
                     'genre': project_info.get('genre', '') or mode_info.get('genre', '') or blueprint.get('genre', ''),
                     'category': blueprint.get('category', ''),
                     'tags': blueprint.get('tags', []),
-                    'writing_style': project_info.get('writing_style', {}),
+                    'writing_style': UnifiedProjectManager.get_writing_style_for_generation(project_info) or blueprint.get('writing_style') or {},
                     'plan': plan_data,
                 }
                 
                 # 获取 tropes 数据（如果有）
                 tropes = blueprint.get('tropes', {})
+                
+                # 🔥 初始化分层规划器（首次批次）
+                if planner is None:
+                    try:
+                        from web.services.market_driven.hierarchical_planner import HierarchicalPlanner
+                        genre_for_planner = project_info.get('genre', '') or mode_info.get('genre', '') or blueprint.get('genre', '')
+                        total_chapters_all = blueprint.get('target_chapters', 200)
+                        target_words_all = total_chapters_all * 2500
+                        protagonist_name = (
+                            project_info.get('character_design', {}).get('protagonist', {}).get('name')
+                            or blueprint.get('protagonist', {}).get('name')
+                            or blueprint.get('core_setting', {}).get('protagonist', {}).get('name')
+                            or '主角'
+                        )
+                        emotion_curve = blueprint.get('emotion_curve', [])
+                        bestseller_analysis = blueprint.get('bestseller_analysis', {})
+                        
+                        existing_world_setting = {
+                            "genre": genre_for_planner,
+                            "novel_title": title,
+                            "protagonist_name": protagonist_name,
+                            "total_chapters": total_chapters_all,
+                            "target_words": target_words_all,
+                            "world_setting": project_info.get('core_worldview', {}) or {
+                                'world_overview': {'background': blueprint.get('worldview', '') or blueprint.get('core_setting', {}).get('worldview', '')},
+                            },
+                            "characters": project_info.get('character_design', {}) or {
+                                'protagonist': blueprint.get('protagonist', {}) or blueprint.get('core_setting', {}).get('protagonist', {}),
+                            },
+                            "stage_goals": blueprint.get('stage_goals', []),
+                            "emotion_curve": emotion_curve,
+                            "plan": plan_data,
+                        }
+                        
+                        planner = HierarchicalPlanner(
+                            genre=genre_for_planner,
+                            novel_title=title,
+                            protagonist_name=protagonist_name,
+                            api_client=api_client,
+                            project_path=project_path,
+                            total_chapters=total_chapters_all,
+                            target_words=target_words_all,
+                            emotion_curve=emotion_curve,
+                            bestseller_analysis=bestseller_analysis
+                        )
+                        planner.initialize(existing_world_setting=existing_world_setting)
+                        planner.generated_chapters_count = start_chapter - 1
+                        if planner.generated_chapters_count > 0:
+                            planner.current_batch_summary = {}
+                        logger.info(f"[章节续写] HierarchicalPlanner 初始化完成，将从第{start_chapter}章开始生成战术规划")
+                    except Exception as e:
+                        logger.warning(f"[章节续写] HierarchicalPlanner 初始化失败，将回退旧版: {e}")
+                        planner = None
+                
+                # 🔥 获取当前批次战术规划
+                if planner:
+                    try:
+                        tactical_plan, strategic_context = planner.get_next_batch_plan(batch_size=batch_end - current + 1)
+                        # 将战略上下文注入 novel_data
+                        novel_data['tactical_plan'] = tactical_plan
+                        novel_data['strategic_context'] = strategic_context
+                        batch_blueprint = tactical_plan
+                        logger.info(f"[章节续写] 第{current}-{batch_end}章战术规划已生成，包含 {len(tactical_plan.get('chapters', []))} 章")
+                    except Exception as e:
+                        logger.warning(f"[章节续写] 战术规划生成失败，回退到完整方案: {e}")
+                        batch_blueprint = blueprint
+                else:
+                    batch_blueprint = blueprint
                 
                 # 🔥 实时进度回调：每完成一章更新任务状态
                 live_chapters = task_manager.get_task(task_id).get('chapters', [])
@@ -3577,7 +3655,7 @@ def _run_continue_chapter_generation(task_id, title, blueprint, start_chapter, e
                     novel_title=title,
                     start_chapter=current,
                     end_chapter=batch_end,
-                    blueprint=blueprint,
+                    blueprint=batch_blueprint,
                     tropes=tropes,
                     novel_data=novel_data,
                     progress_callback=batch_progress_callback
@@ -3590,6 +3668,13 @@ def _run_continue_chapter_generation(task_id, title, blueprint, start_chapter, e
                     logger.info(f"[章节续写] 本批次生成 {len(result['generated'])} 章，失败 {len(result.get('failed', []))} 章")
                     generated_chapters.extend(result['generated'])
                     total_words += result.get('total_words', 0)
+                    
+                    # 🔥 更新规划器进度
+                    if planner:
+                        try:
+                            planner.update_progress(result['generated'])
+                        except Exception as e:
+                            logger.warning(f"[章节续写] 更新规划器进度失败: {e}")
                     
                     # 更新进度
                     progress = int((batch_end - start_chapter + 1) / total_chapters * 100)

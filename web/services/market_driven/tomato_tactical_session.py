@@ -61,6 +61,9 @@ class TomatoBestsellerTacticalSession:
         # 加载一阶段数据
         self.phase_one_data = load_phase_one_data(self.project_path)
         
+        # 🔥 加载核心设定圣经（layer_1_4_core_settings.md）
+        self.core_settings_bible = self._load_core_settings_bible()
+        
         # 三轮输出缓存
         self.round1_result = None    # 核心设定对齐
         self.round2_result = None    # 情绪爽点规划
@@ -118,7 +121,8 @@ class TomatoBestsellerTacticalSession:
                 content_type="tactical_round1_core_setting",
                 user_prompt=prompt,
                 system_prompt=system_prompt,
-                temperature=0.7
+                temperature=0.7,
+                purpose="战术规划-核心设定对齐"
             )
             
             result = self._parse_json_response(response)
@@ -134,6 +138,23 @@ class TomatoBestsellerTacticalSession:
         except Exception as e:
             logger.error(f"[TomatoTacticalSession] 第1轮失败: {e}")
             return self._get_default_core_framework()
+    
+    def _load_core_settings_bible(self) -> str:
+        """读取 layer_1_4_core_settings.md 作为核心设定圣经"""
+        bible_path = self.project_path / "layer_1_4_core_settings.md"
+        if bible_path.exists():
+            try:
+                content = bible_path.read_text(encoding='utf-8')
+                # 截断过长内容，避免 system prompt 爆炸（保留前 8000 字）
+                if len(content) > 8000:
+                    content = content[:8000] + "\n\n[核心设定圣经过长，已截断前8000字]"
+                logger.info(f"[TomatoTacticalSession] 已加载核心设定圣经: {bible_path} ({len(content)} 字)")
+                return content
+            except Exception as e:
+                logger.warning(f"[TomatoTacticalSession] 读取核心设定圣经失败: {e}")
+        else:
+            logger.warning(f"[TomatoTacticalSession] 核心设定圣经不存在: {bible_path}，将回退到一阶段数据摘要")
+        return ""
     
     def _safe_dict(self, obj, path=""):
         """安全获取字典，非字典时返回空字典并记录警告"""
@@ -178,16 +199,12 @@ class TomatoBestsellerTacticalSession:
             return None
     
     def _build_round1_prompt(self) -> str:
-        """构建第1轮提示词"""
-        # 提取关键数据（带防御性处理）
+        """构建第1轮提示词（精简版：核心设定已由圣经承载）"""
+        # 只需要提取用于模板和自检的关键信息
         world = self._safe_dict(self.phase_one_data.get('world_setting', {}), 'world_setting')
-        world_overview = self._safe_dict(world.get('world_overview', {}), 'world_setting.world_overview')
         power_system = self._safe_dict(world.get('power_system', {}), 'world_setting.power_system')
-        
         char_design = self._safe_dict(self.phase_one_data.get('character_design', {}), 'character_design')
         protagonist = self._safe_dict(char_design.get('protagonist', {}), 'character_design.protagonist')
-        
-        stage_goal = self._get_current_stage_goal()
         progression = self.phase_one_data.get('progression_path', {})
         
         # 防御性处理：protagonist_growth 可能是 dict 或 list
@@ -203,9 +220,9 @@ class TomatoBestsellerTacticalSession:
         prompt_template = self._load_prompt_template("round1", "user_prompt_template")
         if not prompt_template:
             logger.warning("[TomatoTacticalSession] Round1 用户prompt配置缺失，使用极简fallback")
-            prompt_template = """# 番茄爆款细纲规划 - 第1轮：核心设定对齐\n\n为小说《{novel_title}》规划第{start_chapter}-{end_chapter}章设定落地框架。\n\n背景：{background}\n核心概念：{core_concept}\n基调：{tone}\n系统：{system_name}\n主角：{protagonist_name}\n阶段目标：{goal_description}\n\n请输出包含 core_framework 的JSON。"""
+            prompt_template = """# 番茄爆款细纲规划 - 第1轮：核心设定对齐\n\n为小说《{novel_title}》规划第{start_chapter}-{end_chapter}章设定落地框架。\n\n系统：{system_name}\n主角：{protagonist_name}\n\n升级里程碑：\n{milestones}\n\n请输出包含 core_framework 的JSON。"""
         
-        # 🔥 动态提取系统/金手指名称，避免硬编码
+        # 🔥 动态提取系统/金手指名称和主角名，用于自检清单
         system_name = (
             self.phase_one_data.get('golden_finger', {}).get('basic_info', {}).get('name')
             or self.phase_one_data.get('golden_finger', {}).get('name')
@@ -218,32 +235,19 @@ class TomatoBestsellerTacticalSession:
             'start_chapter': self.start_chapter,
             'end_chapter': self.end_chapter,
             'system_name': system_name,
-            'background': world_overview.get('background', '未设定'),
-            'core_concept': world_overview.get('core_concept', '未设定'),
-            'tone': world_overview.get('tone', '未设定'),
-            'shen_lang_exclusive': power_system.get('shen_lang_exclusive', '未设定'),
-            'level_standard': power_system.get('level_standard', '未设定'),
-            'current_power_stage': self._get_current_power_stage(),
             'protagonist_name': protagonist.get('name', '主角'),
-            'protagonist_age': protagonist.get('age', '未知'),
-            'traits': self._format_list(protagonist.get('traits', [])),
-            'identity': protagonist.get('identity', '未设定'),
-            'growth_arc': protagonist.get('growth_arc', '未设定'),
-            'unique_label': protagonist.get('unique_label', '未设定'),
-            'goal_id': stage_goal.get('goal_id', 'G?'),
-            'goal_description': stage_goal.get('description', '未设定'),
-            'key_deliverables': self._format_list(stage_goal.get('key_deliverables', [])),
-            'success_criteria': stage_goal.get('success_criteria', '未设定'),
             'milestones': self._format_milestones(milestones)
         }
         
         return prompt_template.format(**format_params)
     
     def _get_round1_system_prompt(self) -> str:
-        """第1轮系统提示词"""
+        """第1轮系统提示词（注入核心设定圣经）"""
         sp = self._load_prompt_template("round1", "system_prompt")
         if not sp:
             sp = "你是专业的番茄小说细纲规划师，负责核心设定对齐。输出必须是JSON格式。"
+        if self.core_settings_bible:
+            sp += f"\n\n---\n\n# 核心设定圣经（必须严格遵守）\n\n{self.core_settings_bible}"
         return sp
     
     def _round_2_emotion_planning(self) -> Dict:
@@ -265,7 +269,8 @@ class TomatoBestsellerTacticalSession:
                 content_type="tactical_round2_emotion_planning",
                 user_prompt=prompt,
                 system_prompt=system_prompt,
-                temperature=0.75
+                temperature=0.75,
+                purpose="战术规划-情绪爽点"
             )
             
             result = self._parse_json_response(response)
@@ -313,7 +318,7 @@ class TomatoBestsellerTacticalSession:
         world_building = self._format_simple_list(round1.get('world_building_chapters', []))
         golden_finger = self._format_simple_list(round1.get('golden_finger_progression', []))
         protagonist_moments = self._format_simple_list(round1.get('protagonist_moments', []))
-        goal_milestones = json.dumps(round1.get('goal_milestones', {}), ensure_ascii=False, indent=2)
+        goal_milestones = self._format_goal_milestones(round1.get('goal_milestones', {}))
         key_constraints = self._format_list(round1.get('key_constraints', []))
         batch_climax_str = self._format_list(batch_climax)
         batch_climax_raw = ', '.join(str(c) for c in batch_climax) if batch_climax else '无'
@@ -339,10 +344,12 @@ class TomatoBestsellerTacticalSession:
         )
     
     def _get_round2_system_prompt(self) -> str:
-        """第2轮系统提示词"""
+        """第2轮系统提示词（注入核心设定圣经）"""
         sp = self._load_prompt_template("round2", "system_prompt")
         if not sp:
             sp = "你是番茄小说爆款情绪设计专家。输出必须是JSON格式，每章必须有hook_content。"
+        if self.core_settings_bible:
+            sp += f"\n\n---\n\n# 核心设定圣经（必须严格遵守）\n\n{self.core_settings_bible}"
         return sp
     
     def _round_3_character_planning(self) -> Dict:
@@ -368,7 +375,8 @@ class TomatoBestsellerTacticalSession:
                 content_type="tactical_round3_character_planning",
                 user_prompt=prompt,
                 system_prompt=system_prompt,
-                temperature=0.7
+                temperature=0.7,
+                purpose="战术规划-角色出场"
             )
             
             result = self._parse_json_response(response)
@@ -424,10 +432,12 @@ class TomatoBestsellerTacticalSession:
         )
     
     def _get_round3_system_prompt(self) -> str:
-        """第3轮系统提示词"""
+        """第3轮系统提示词（注入核心设定圣经）"""
         sp = self._load_prompt_template("round3", "system_prompt")
         if not sp:
             sp = "你是角色规划专家。输出必须是JSON格式，new_characters不能超过2个。"
+        if self.core_settings_bible:
+            sp += f"\n\n---\n\n# 核心设定圣经（必须严格遵守）\n\n{self.core_settings_bible}"
         return sp
     
     def _merge_blueprint(self) -> Dict:
@@ -642,10 +652,33 @@ class TomatoBestsellerTacticalSession:
         return "\n".join([f"- {item}" for item in items])
     
     def _format_simple_list(self, items: List) -> str:
-        """格式化简单列表"""
+        """格式化简单列表（对dict自动展开为Markdown列表项）"""
         if not items:
             return "无"
-        return "\n".join([str(item) for item in items[:10]])
+        lines = []
+        for item in items[:10]:
+            if isinstance(item, dict):
+                # 将dict展开为可读的行内键值对
+                pairs = [f"{k}={v}" for k, v in item.items()]
+                lines.append("- " + " | ".join(pairs))
+            else:
+                lines.append(f"- {item}")
+        return "\n".join(lines)
+    
+    def _format_goal_milestones(self, milestones: dict) -> str:
+        """格式化阶段目标里程碑（从嵌套dict转为Markdown列表）"""
+        if not milestones:
+            return "无"
+        lines = []
+        for k, v in milestones.items():
+            if isinstance(v, dict):
+                ch = v.get('chapter', '?')
+                deliverable = v.get('deliverable', '')
+                emotion = v.get('emotion', '')
+                lines.append(f"- 第{ch}章: {deliverable} (情绪:{emotion})")
+            else:
+                lines.append(f"- {k}: {v}")
+        return "\n".join(lines)
     
     def _format_milestones(self, milestones: List[Dict]) -> str:
         """格式化里程碑"""
