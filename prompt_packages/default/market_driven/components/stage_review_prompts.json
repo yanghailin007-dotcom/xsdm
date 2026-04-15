@@ -3,7 +3,7 @@
   "description": "阶段性复盘优化器的提示词配置",
   "templates": {
     "fix_prompt": {
-      "template": "修复第{chapter_num}章的所有问题。基于原文修改，不要重写。\n\n**第{chapter_num}章：{chapter_title}**\n**原文字数：**{original_word_count}字\n**问题统计：**P0={p0_count}个, P1={p1_count}个, P2={p2_count}个\n\n{word_count_constraints}\n\n## 其他关键约束\n1. 主角名必须保持一致：'{protagonist_name}' - 禁止改为其他名字\n2. 世界观保持一致 - 不要引入新的力量体系\n3. 只修改有问题的部分，保留其他内容原样\n4. 保持原有的写作风格和语气\n5. **段落格式必须保留**：正文段落之间必须使用换行分隔，禁止合并成一段无换行的大文本\n\n**需要修复的所有问题：**\n{issues_text}\n\n{core_setting_summary}\n\n{tactical_context}\n\n**原文内容（完整）：**\n{original_content}\n\n## 输出格式（必须严格遵守）\n必须按以下格式返回，使用 `---标题---` 和 `---正文---` 分隔：\n\n---标题---\n章节标题（8-14字，不含第X章前缀）\n\n---正文---\n章节正文内容（段落之间保留换行，不含标题）\n\n**重要：**\n- 标题必须放在 `---标题---` 后面\n- 正文必须放在 `---正文---` 后面\n- 禁止只返回纯文本\n- 正文开头禁止写\"第X章：XXX\"\n- 段落之间必须保留换行符\n\n{self_check_list}",
+      "template": "对第{chapter_num}章进行番茄风格润笔与质量优化。\n\n**核心任务**：在保留原剧情、原人物关系、原系统设定和原结局的前提下，对全文进行番茄小说风格的改写与润色，去除AI味，提升口语化、节奏感和情绪张力。传入的问题清单是润笔时的重点注意项，但不是唯一的修改范围——你需要对整章进行风格化优化。\n\n**第{chapter_num}章：{chapter_title}**\n**原文字数：**{original_word_count}字\n**问题统计：**P0={p0_count}个, P1={p1_count}个, P2={p2_count}个\n\n{word_count_constraints}\n\n## 润笔风格要求（番茄向）\n1. **去AI味**：减少机械描写、重复修辞和过度正式的叙述，多用短句推进。\n2. **口语化对话**：对话符合番茄读者习惯，自然、有情绪、带爽点。\n3. **爽点直接**：打脸、反转、震惊等情节不绕弯，情绪渲染到位。\n4. **节奏紧凑**：删减滑翔内容，保持高密度信息输出。\n5. **主角名必须保持一致**：'{protagonist_name}' - 禁止改为其他名字。\n6. **世界观保持一致**：不要引入新的力量体系或改变原有设定。\n7. **段落格式保留**：正文段落之间必须使用换行分隔，禁止合并成一段无换行的大文本。\n\n{previous_context}\n\n**润笔重点注意的问题清单：**\n{issues_text}\n\n{core_setting_summary}\n\n{tactical_context}\n\n**原文内容（完整）：**\n{original_content}\n\n## 输出格式（必须严格遵守）\n必须按以下格式返回，使用 `---标题---` 和 `---正文---` 分隔：\n\n---标题---\n章节标题（8-20字，不含\"第X章\"前缀）\n\n---正文---\n章节正文内容（段落之间保留换行，不含标题）\n\n**重要：**\n- 标题必须放在 `---标题---` 后面\n- 正文必须放在 `---正文---` 后面\n- 禁止只返回纯文本\n- 正文开头禁止写\"第X章：XXX\"\n- 段落之间必须保留换行符\n\n{self_check_list}"
       "variables": [
         "chapter_num",
         "chapter_title",
@@ -17,7 +17,8 @@
         "word_count_constraints",
         "self_check_list",
         "tactical_context",
-        "core_setting_summary"
+        "core_setting_summary",
+        "previous_context"
       ]
     },
     "word_count_constraints": {

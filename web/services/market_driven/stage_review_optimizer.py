@@ -122,6 +122,13 @@ class StageReviewOptimizer:
         except Exception as e:
             logger.warning(f"[StageOptimizer] ChapterAnalyticsService 加载失败: {e}")
             self.analytics = None
+        
+        # 🔥 加载润笔配置
+        sro_config = (self.api_client.config if self.api_client else {}).get("stage_review_optimizer", {})
+        self.use_doubao_for_polish = sro_config.get("use_doubao_for_polish", False)
+        self.doubao_polish_strategy = sro_config.get("doubao_polish_strategy", "style_only")
+        if self.use_doubao_for_polish:
+            logger.info(f"[StageOptimizer] 豆包润笔已启用，策略: {self.doubao_polish_strategy}")
     
     def _load_review_prompts(self) -> Dict:
         """从JSON加载复盘提示词配置"""
@@ -189,6 +196,66 @@ class StageReviewOptimizer:
             if not template:
                 raise ValueError("[StageOptimizer] retry_warning_under_limit 模板未找到")
             return template.format(last_word_count=last_word_count)
+    
+    def _get_previous_context_text(self, ch_num: int, fixed_chapters: List[Dict]) -> str:
+        """获取上一章的结尾200字和钩子，用于润笔时保持衔接"""
+        prev_num = ch_num - 1
+        if prev_num < 1:
+            return ""
+        
+        # 优先从已修复的窗口章节中查找
+        prev_ch = None
+        for ch in fixed_chapters:
+            if ch.get('chapter_number') == prev_num:
+                prev_ch = ch
+                break
+        
+        # 若窗口中无，则从磁盘加载
+        if not prev_ch:
+            chapters_dir = self.project_path / "chapters"
+            for fname in [f"chapter_{prev_num:03d}.json", f"chapter_{prev_num}.json"]:
+                fpath = chapters_dir / fname
+                if fpath.exists():
+                    try:
+                        with open(fpath, 'r', encoding='utf-8') as f:
+                            prev_ch = json.load(f)
+                        break
+                    except Exception as e:
+                        logger.warning(f"[StageOptimizer] 读取上一章失败 {fpath}: {e}")
+        
+        if not prev_ch:
+            return ""
+        
+        prev_content = prev_ch.get('content', '')
+        ending = prev_content[-200:] if len(prev_content) >= 200 else prev_content
+        hook = ""
+        if isinstance(prev_ch.get('chapter_plan'), dict):
+            hook = prev_ch['chapter_plan'].get('hook', '')
+        if not hook:
+            hook = prev_ch.get('hook', '')
+        
+        parts = [f"【上一章（第{prev_num}章）结尾200字】\n{ending}"]
+        if hook:
+            parts.append(f"【上一章钩子】\n{hook}")
+        return "\n\n".join(parts) + "\n"
+    
+    @staticmethod
+    def _format_fanqie_title(title: str) -> str:
+        """强制标题符合番茄格式：《标题内容》，不含第X章前缀"""
+        if not title:
+            return title
+        import re
+        # 去除 markdown 加粗
+        title = title.replace('**', '').strip()
+        # 去除 第X章 前缀（支持多种格式）
+        title = re.sub(r'^第\s*[一二三四五六七八九十百千万零\d]+\s*章[：:\s]*', '', title)
+        title = title.strip()
+        # 确保带书名号
+        if title and not title.startswith('《'):
+            title = f'《{title}'
+        if title and not title.endswith('》'):
+            title = f'{title}》'
+        return title
         
     def _load_protagonist_name(self) -> str:
         """从project_info.json加载主角名"""
@@ -1364,6 +1431,9 @@ class StageReviewOptimizer:
             # 🔥 构建核心设定摘要（Layer 1）
             core_setting_summary = self._build_core_setting_summary()
             
+            # 🔥 构建上一章上下文（避免润笔后衔接断裂）
+            previous_context = self._get_previous_context_text(ch_num, fixed_chapters)
+            
             # 🔥 使用JSON配置渲染修复提示词
             fix_prompt_vars = {
                 "chapter_num": ch_num,
@@ -1376,9 +1446,20 @@ class StageReviewOptimizer:
                 "issues_text": issues_text,
                 "original_content": original_content,
                 "tactical_context": tactical_context,
-                "core_setting_summary": core_setting_summary
+                "core_setting_summary": core_setting_summary,
+                "previous_context": previous_context
             }
             fix_prompt = self._render_fix_prompt(fix_prompt_vars)
+            
+            # 🔥 判断是否使用豆包进行润笔修复
+            use_doubao = False
+            if self.use_doubao_for_polish and self.api_client:
+                if self.doubao_polish_strategy == "all":
+                    use_doubao = True
+                else:
+                    # style_only: 当没有结构性 P0 问题且包含风格/爆款/钩子类问题时启用
+                    has_style_issue = any(i.type in ("bestseller", "style", "polish", "hook") for i in ch_issues)
+                    use_doubao = (p0_count == 0 and has_style_issue)
             
             # 尝试修复（带重试机制）
             retry_config = self._review_prompts.get("retry", {})
@@ -1396,8 +1477,21 @@ class StageReviewOptimizer:
                     elif last_word_count < 2000:
                         fix_prompt += f"\n\n{self._get_retry_warning(last_word_count, over_limit=False)}"
                 
-                logger.info(f"[StageOptimizer] 修复第{ch_num}章的所有问题 (P0={p0_count}, P1={p1_count}, P2={p2_count}, 尝试{retry_count+1}/{max_retries+1})")
-                fix_response = session.send_message(fix_prompt, purpose=f"w{window_idx}-fix-ch{ch_num}-try{retry_count}")
+                # 🔥 每次尝试前切换 provider（如启用豆包润笔）
+                original_provider = None
+                if use_doubao and self.api_client:
+                    original_provider = self.api_client.default_provider
+                    self.api_client.default_provider = "doubao"
+                    logger.info(f"[StageOptimizer] 第{ch_num}章切换至 doubao 进行润笔修复")
+                
+                try:
+                    logger.info(f"[StageOptimizer] 修复第{ch_num}章的所有问题 (P0={p0_count}, P1={p1_count}, P2={p2_count}, 尝试{retry_count+1}/{max_retries+1})")
+                    fix_response = session.send_message(fix_prompt, purpose=f"w{window_idx}-fix-ch{ch_num}-try{retry_count}")
+                finally:
+                    # 恢复原始 provider
+                    if use_doubao and original_provider and self.api_client:
+                        self.api_client.default_provider = original_provider
+                
                 parsed_fix = self._parse_delimiter_response(fix_response)
                 
                 new_content = parsed_fix.get('content')
@@ -1426,6 +1520,10 @@ class StageReviewOptimizer:
                         # 清理掉标题行本身
                         new_content = '\n'.join(lines[1:]).strip()
                         logger.info(f"[StageOptimizer] 第{ch_num}章从合并格式中分离出标题: '{new_title_from_ai}'")
+                
+                # 🔥 标题保持原样，不再强制补全书名号
+                    logger.info(f"[StageOptimizer] 第{ch_num}章提取标题: '{new_title_from_ai}'")
+                    logger.info(f"[StageOptimizer] 第{ch_num}章格式化后标题: '{new_title_from_ai}'")
                 
                 ch_idx = chapter_map[ch_num]
                 original_word_count = fixed_chapters[ch_idx].get("word_count", 0)
@@ -2141,6 +2239,13 @@ class StageReviewOptimizer:
                 try:
                     with open(path, 'r', encoding='utf-8') as f:
                         data = json.load(f)
+                    
+                    # 🔥 备份原始内容（如果尚未备份）
+                    if 'content_back' not in data:
+                        data['title_back'] = data.get('title', '')
+                        data['content_back'] = data.get('content', '')
+                        from datetime import datetime
+                        data['backup_at'] = datetime.now().isoformat()
                     
                     data['content'] = chapter.get('content', data.get('content', ''))
                     data['word_count'] = chapter.get('word_count', len(data.get('content', '')))

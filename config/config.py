@@ -179,5 +179,11 @@ CONFIG = {
         "chapters_per_batch": 3,
         "max_optimization_attempts": 1,
         "json_retries": 3
+    },
+    
+    # 阶段性复盘优化器配置
+    "stage_review_optimizer": {
+        "use_doubao_for_polish": True,  # 润笔修复阶段使用 doubao provider
+        "doubao_polish_strategy": "all"  # all: 所有修复均走 doubao; style_only: 仅风格类问题走 doubao
     }
 }
