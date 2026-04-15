@@ -387,7 +387,9 @@ class HierarchicalPlanner:
             self.project_path.mkdir(parents=True, exist_ok=True)
             
             # 使用非隐藏文件名（Windows兼容性）
-            tactical_plan_path = self.project_path / f"tactical_plan_{start_chapter}.json"
+            # 🔥 按 tactical_window 对齐窗口起始，确保 BatchGenerator 能正确读取
+            aligned_start = ((start_chapter - 1) // self.tactical_window) * self.tactical_window + 1
+            tactical_plan_path = self.project_path / f"tactical_plan_{aligned_start}.json"
             with open(tactical_plan_path, 'w', encoding='utf-8') as f:
                 json.dump(tactical_plan, f, ensure_ascii=False, indent=2)
             logger.info(f"[HierarchicalPlanner] 战术规划已保存: {tactical_plan_path}")

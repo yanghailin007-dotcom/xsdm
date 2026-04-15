@@ -133,10 +133,12 @@ class BatchChapterGenerator:
         """
         logger.info(f"[BatchGenerator] 开始生成第{start_chapter}-{end_chapter}章 | 对话模式: {use_conversation}")
         
+        results = None
+        
         # 🔥 使用对话模式生成
         if use_conversation and self.api_client:
             try:
-                return self._generate_batch_conversation(
+                results = self._generate_batch_conversation(
                     novel_title, start_chapter, end_chapter,
                     blueprint, tropes, novel_data,
                     progress_callback=progress_callback
@@ -145,11 +147,23 @@ class BatchChapterGenerator:
                 logger.error(f"[BatchGenerator] 对话模式失败: {e}，回退到独立模式")
         
         # 传统模式：每章独立调用
-        return self._generate_batch_individual(
-            novel_title, start_chapter, end_chapter,
-            blueprint, tropes, novel_data,
-            progress_callback=progress_callback
-        )
+        if results is None:
+            results = self._generate_batch_individual(
+                novel_title, start_chapter, end_chapter,
+                blueprint, tropes, novel_data,
+                progress_callback=progress_callback
+            )
+        
+        # 🔥 批次结束后自动修复缺失/损坏章节
+        try:
+            self._repair_missing_chapters_in_range(
+                novel_title, start_chapter, end_chapter,
+                blueprint, tropes, novel_data, results
+            )
+        except Exception as e:
+            logger.error(f"[BatchGenerator] 自动修复缺失章节失败: {e}")
+        
+        return results
     
     def _should_stop(self) -> bool:
         """检查是否应该停止生成"""
@@ -223,8 +237,14 @@ class BatchChapterGenerator:
                 batch_start = ((start_chapter - 1) // 30) * 30 + 1
                 tactical_plan_path = self.project_path / f"tactical_plan_{batch_start}.json"
                 if not tactical_plan_path.exists() and batch_start != 1:
-                    # 兜底：尝试 tactical_plan_1.json
+                    # 兜底1：尝试 tactical_plan_1.json
                     tactical_plan_path = self.project_path / "tactical_plan_1.json"
+                
+                # 兜底2：尝试精确匹配当前批次起始章（兼容续写场景的非对齐保存）
+                if not tactical_plan_path.exists():
+                    fallback_path = self.project_path / f"tactical_plan_{start_chapter}.json"
+                    if fallback_path.exists():
+                        tactical_plan_path = fallback_path
                 
                 if tactical_plan_path.exists():
                     try:
@@ -1827,9 +1847,8 @@ class BatchChapterGenerator:
         title_match = re.search(r'---\s*[标標][题題]\s*---\s*\n?(.*?)\n?---\s*[正正][文文]\s*---', cleaned_response, re.DOTALL | re.IGNORECASE)
         if title_match:
             result['title'] = title_match.group(1).strip()
-            content_start = cleaned_response.find('---正文---') + len('---正文---')
-            if content_start < len('---正文---') + 10:
-                content_start = cleaned_response.find('---正文---') + len('---正文---')
+            # 使用正则匹配的结束位置作为内容起点，避免 find() 错位或重复标记
+            content_start = title_match.end()
             result['content'] = cleaned_response[content_start:].strip()
             logger.info(f"[BatchGenerator] 分隔符格式,标题: '{result['title']}'")
             return self._clean_result(result)
@@ -1846,8 +1865,9 @@ class BatchChapterGenerator:
         try:
             parsed = json.loads(json_content)
             if isinstance(parsed, dict):
-                result['title'] = parsed.get('title', '')
-                result['content'] = parsed.get('content', '')
+                # 兼容中文JSON键名
+                result['title'] = parsed.get('title', '') or parsed.get('标题', '')
+                result['content'] = parsed.get('content', '') or parsed.get('正文', '')
                 logger.info(f"[BatchGenerator] JSON格式,标题: '{result['title']}'")
                 return self._clean_result(result)
         except Exception:
@@ -2172,6 +2192,107 @@ class BatchChapterGenerator:
                 
         except Exception as e:
             logger.error(f"[BatchGenerator] ❌ 保存章节失败: {e} | chapter_number: {chapter.get('chapter_number')}", exc_info=True)
+    
+    def _repair_missing_chapters_in_range(self, novel_title: str, start_chapter: int, end_chapter: int,
+                                          blueprint: Dict, tropes: Dict, novel_data: Dict,
+                                          results: Dict) -> None:
+        """
+        🔥 批次生成结束后，扫描并自动修复缺失或损坏的章节
+        """
+        missing_chapters = []
+        chapters_dir = self.project_path / "chapters" if self.project_path else Path("小说项目") / novel_title / "chapters"
+        
+        for ch_num in range(start_chapter, end_chapter + 1):
+            chapter_valid = False
+            for fname in [f"chapter_{ch_num:03d}.json", f"chapter_{ch_num}.json"]:
+                fpath = chapters_dir / fname
+                if fpath.exists():
+                    try:
+                        data = json.loads(fpath.read_text(encoding='utf-8'))
+                        if data.get('word_count', 0) >= 100 and data.get('content', '').strip():
+                            chapter_valid = True
+                            break
+                    except Exception:
+                        pass
+            if not chapter_valid:
+                missing_chapters.append(ch_num)
+        
+        if not missing_chapters:
+            return
+        
+        logger.warning(f"[BatchGenerator] 发现 {len(missing_chapters)} 个缺失/损坏章节: {missing_chapters}")
+        
+        for ch_num in missing_chapters:
+            logger.info(f"[BatchGenerator] 开始修复第{ch_num}章...")
+            try:
+                # 尾章使用直接文本生成 fallback，避免 JSON 解析反复失败导致超时
+                if ch_num >= 180:
+                    chapter_plan = self._get_chapter_plan(ch_num, blueprint)
+                    context = self._build_chapter_context(ch_num, novel_title, novel_data)
+                    prompt = self._build_chapter_prompt(
+                        chapter_num=ch_num,
+                        chapter_plan=chapter_plan,
+                        context=context,
+                        novel_data=novel_data,
+                        tropes=tropes
+                    )
+                    raw = self.api_client.call_api(
+                        system_prompt="你是一个专业网文写手，严格按用户要求输出章节。",
+                        user_prompt=prompt + "\n\n请直接以 ---标题--- 和 ---正文--- 格式返回，不需要JSON。",
+                        temperature=0.7,
+                        purpose=f"直接生成第{ch_num}章"
+                    )
+                    parsed = self._parse_response(raw)
+                    if not parsed.get('title') and parsed.get('content'):
+                        lines = parsed['content'].strip().split('\n')
+                        parsed['title'] = lines[0].strip() if lines else f"第{ch_num}章"
+                        parsed['content'] = '\n'.join(lines[1:]).strip() if len(lines) > 1 else parsed['content']
+                    chapter = {
+                        "chapter_number": ch_num,
+                        "title": parsed.get('title', f"第{ch_num}章"),
+                        "content": parsed.get('content', ''),
+                        "word_count": len(parsed.get('content', '')),
+                        "quality_score": 7.0,
+                        "chapter_plan": chapter_plan,
+                        "generated_at": datetime.now().isoformat()
+                    }
+                else:
+                    chapter = self._generate_single_chapter(
+                        chapter_num=ch_num,
+                        novel_title=novel_title,
+                        blueprint=blueprint,
+                        tropes=tropes,
+                        novel_data=novel_data
+                    )
+                
+                self._save_chapter(novel_title, chapter)
+                
+                # 更新 results
+                results["generated"].append({
+                    "chapter_number": ch_num,
+                    "chapter": ch_num,
+                    "title": chapter.get("title", ""),
+                    "word_count": chapter.get("word_count", 0),
+                    "quality_score": chapter.get("quality_score", 8.0),
+                })
+                results["total_words"] += chapter.get("word_count", 0)
+                
+                # 移除之前标记的 failed
+                results["failed"] = [f for f in results["failed"] if f.get("chapter") != ch_num]
+                
+                logger.info(f"[BatchGenerator] ✅ 第{ch_num}章修复完成 ({chapter.get('word_count', 0)}字)")
+            except Exception as e:
+                logger.error(f"[BatchGenerator] ❌ 第{ch_num}章修复失败: {e}", exc_info=True)
+                if not any(f.get("chapter") == ch_num for f in results["failed"]):
+                    results["failed"].append({
+                        "chapter_number": ch_num,
+                        "chapter": ch_num,
+                        "error": str(e)
+                    })
+        
+        # 重新计算平均质量
+        if results["generated"]:
+            results["avg_quality"] = sum(c.get("quality_score", 8.0) for c in results["generated"]) / len(results["generated"])
     
     def _load_chapter_data(self, novel_title: str, chapter_num: int) -> Optional[Dict]:
         """加载章节数据"""

@@ -78,7 +78,13 @@ class FileHandler:
             排序后的文件路径列表
         """
         def extract_chapter_number(filepath):
-            match = re.search(r"_第(\d+)章_", os.path.basename(filepath))
+            basename = os.path.basename(filepath)
+            # 优先匹配 "chapter_NNN.json" / "chapter_N.json" 格式
+            match = re.search(r"chapter_(\d+)\.", basename)
+            if match:
+                return int(match.group(1))
+            # 兼容旧格式 "_第X章_"
+            match = re.search(r"_第(\d+)章_", basename)
             return int(match.group(1)) if match else 0
         
         return sorted(file_paths, key=extract_chapter_number)
@@ -143,12 +149,14 @@ class FileHandler:
             with open(file_path, 'r', encoding='utf-8') as f:
                 chapter_data = json.load(f)
             
-            # 检查必需字段
-            required_fields = ['chapter_number', 'chapter_title', 'content']
+            # 检查必需字段（兼容 title / chapter_title 两种命名）
             missing_fields = []
-            for field in required_fields:
-                if field not in chapter_data:
-                    missing_fields.append(field)
+            if 'chapter_number' not in chapter_data:
+                missing_fields.append('chapter_number')
+            if 'content' not in chapter_data:
+                missing_fields.append('content')
+            if 'chapter_title' not in chapter_data and 'title' not in chapter_data:
+                missing_fields.append('chapter_title/title')
             
             if missing_fields:
                 print(f"✗ 文件缺少必需字段 {missing_fields}: {file_path}")
@@ -187,7 +195,7 @@ class FileHandler:
                     renamed_files.append(chapter_file)
                     continue
                 
-                original_chapter_title = chapter_data.get('chapter_title', '')
+                original_chapter_title = chapter_data.get('chapter_title') or chapter_data.get('title', '')
                 
                 if original_chapter_title in chapter_title_count:
                     chapter_title_count[original_chapter_title] += 1

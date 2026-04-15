@@ -1053,7 +1053,7 @@ class NovelPublisher:
             chapter_data = self.file_handler.load_json_file(chapter_file)
             if chapter_data:
                 chap_num = str(chapter_data['chapter_number'])
-                chap_title = chapter_data['chapter_title']
+                chap_title = chapter_data.get('chapter_title') or chapter_data.get('title', '')
                 chap_content = chapter_data['content']
                 chap_len = self.file_handler.count_content_chars(chap_content)
                 

@@ -1308,7 +1308,11 @@ class StageReviewOptimizer:
         # 按章节分组所有问题（不分优先级）
         issues_by_chapter = {}
         for issue in all_issues:
-            ch_num = int(issue.chapter)
+            try:
+                ch_num = int(issue.chapter)
+            except (ValueError, TypeError):
+                logger.warning(f"[StageOptimizer] 忽略无法解析章号的问题: chapter={issue.chapter}, desc={issue.description[:40]}...")
+                continue
             if ch_num not in issues_by_chapter:
                 issues_by_chapter[ch_num] = []
             issues_by_chapter[ch_num].append(issue)
