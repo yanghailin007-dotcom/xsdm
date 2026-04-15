@@ -756,6 +756,14 @@
             cursor: pointer;
             transition: all 0.3s;
             text-align: center;
+            white-space: nowrap;
+            min-height: 2.5rem;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            box-sizing: border-box;
+            overflow: hidden;
+            text-overflow: ellipsis;
         }
 
         .novel-btn-primary {
@@ -771,12 +779,34 @@
         .novel-btn-secondary {
             background: rgba(255, 255, 255, 0.05);
             color: var(--text-secondary);
-            border: 1px solid rgba(255, 255, 255, 0.1);
+            box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.1);
         }
 
         .novel-btn-secondary:hover {
             background: rgba(255, 255, 255, 0.1);
-            border-color: rgba(255, 255, 255, 0.2);
+            box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.2);
+        }
+
+        .novel-btn-success {
+            background: linear-gradient(135deg, #10b981, #34d399);
+            color: white;
+            border: none;
+        }
+
+        .novel-btn-success:hover {
+            opacity: 0.9;
+            transform: translateY(-1px);
+        }
+
+        .novel-btn-accent {
+            background: linear-gradient(135deg, #6366f1, #8b5cf6);
+            color: white;
+            border: none;
+        }
+
+        .novel-btn-accent:hover {
+            opacity: 0.9;
+            transform: translateY(-1px);
         }
 
         /* 空状态 */
@@ -1254,7 +1284,7 @@
                         <button class="novel-btn novel-btn-secondary" onclick="rewriteNovel('${escapeHtml(novel.title)}')">
                             🔄 ${rewriteText}
                         </button>
-                        <button class="novel-btn" style="background: linear-gradient(135deg, #6366f1, #8b5cf6); color: white; border: none;" onclick="continueNovel('${escapeHtml(novel.title)}')">
+                        <button class="novel-btn novel-btn-accent" onclick="continueNovel('${escapeHtml(novel.title)}')">
                             ➕ ${continueText}
                         </button>
                     `;
@@ -1262,7 +1292,7 @@
                     // 可续写状态：显示醒目的"继续生成"按钮
                     const continueText = I18N.t ? I18N.t('novels.card.continue') : '继续生成';
                     actionButtons += `
-                        <button class="novel-btn" style="background: linear-gradient(135deg, #10b981, #34d399); color: white; border: none;" onclick="continueNovel('${escapeHtml(novel.title)}')">
+                        <button class="novel-btn novel-btn-success" onclick="continueNovel('${escapeHtml(novel.title)}')">
                             ▶️ ${continueText}
                         </button>
                     `;
