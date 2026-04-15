@@ -72,9 +72,9 @@ MINIMAX_TTS_GROUP_ID = '2017772342268141667'
 # 豆包 API
 # ============================================================================
 
-ARK_API_KEY = os.getenv('ARK_API_KEY', '')
-ARK_BASE_URL = os.getenv('ARK_BASE_URL', 'https://ark.cn-beijing.volces.com/api/v3')
-ARK_MODEL_ID = os.getenv('ARK_MODEL_ID', '')
+ARK_API_KEY = os.getenv('ARK_API_KEY', '88117df2-5ce5-4d75-8224-01695231951f')
+ARK_BASE_URL = os.getenv('ARK_BASE_URL', 'https://ark.cn-beijing.volces.com/api/v3/chat/completions')
+ARK_MODEL_ID = os.getenv('ARK_MODEL_ID', 'doubao-seed-2-0-pro-260215')
 
 # ============================================================================
 # 模型配置
@@ -84,6 +84,8 @@ MODELS = {
     'gemini': 'gemini-3-pro-preview',
     'deepseek': 'deepseek-reasoner',
     'yuanbao': 'deepseek-reasoner',
+    'doubao': 'doubao-pro-32k-241215',
+    'ark': 'doubao-pro-32k-241215',
 }
 
 # ============================================================================

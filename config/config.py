@@ -108,12 +108,26 @@ CONFIG = {
                 "discount_rate": 85,
                 "stream": True
             }
+        ],
+        "doubao": [
+            {
+                "name": "doubao-volces-primary",
+                "api_url": "https://ark.cn-beijing.volces.com/api/v3/chat/completions",
+                "api_key": os.getenv('ARK_API_KEY', '88117df2-5ce5-4d75-8224-01695231951f'),
+                "model": os.getenv('ARK_MODEL_ID', 'doubao-seed-2-0-pro-260215'),
+                "priority": 1,
+                "enabled": True,
+                "timeout": 120,
+                "max_retries": 3,
+                "discount_rate": 100,
+                "stream": False
+            }
         ]
     },
     # 🔥 Provider 优先级配置（自动选择 + 故障转移）
     # 1. 当 default_provider=None 时，按此列表自动选择第一个可用的 provider
     # 2. 当高优先级 provider 的所有端点都失败时，自动切换到低优先级
-    "provider_priority": ["gemini", "kimi", "deepseek"],  # 优先级: kimi > gemini > deepseek
+    "provider_priority": ["gemini", "kimi", "deepseek", "doubao"],  # 优先级: kimi > gemini > deepseek > doubao
     
     # 🔥 Provider 故障转移配置
     "provider_failover": {
