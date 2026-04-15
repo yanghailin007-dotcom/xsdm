@@ -271,6 +271,75 @@ html.reader-mode main.v2-main {
     transition: width 0.2s ease;
 }
 
+/* ==================== 编辑工具栏 ==================== */
+.reader-edit-bar {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    display: none;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 8px 16px;
+    background: var(--reader-panel-bg);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border-top: 1px solid var(--reader-border);
+    z-index: 200;
+    box-sizing: border-box;
+}
+
+.reader-edit-bar.active {
+    display: flex;
+}
+
+.reader-edit-bar__left,
+.reader-edit-bar__right {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.reader-edit-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 6px 12px;
+    border-radius: 6px;
+    font-size: 13px;
+    font-weight: 500;
+    border: 1px solid transparent;
+    cursor: pointer;
+    transition: background 0.2s, color 0.2s, border-color 0.2s;
+}
+
+.reader-edit-btn--secondary {
+    background: var(--reader-btn-hover, rgba(0,0,0,0.05));
+    color: var(--reader-text-secondary);
+    border-color: var(--reader-border);
+}
+
+.reader-edit-btn--secondary:hover {
+    background: var(--reader-btn-hover);
+    color: var(--reader-text);
+}
+
+.reader-edit-btn--primary {
+    background: var(--reader-accent, #3b82f6);
+    color: #fff;
+    border-color: var(--reader-accent, #3b82f6);
+}
+
+.reader-edit-btn--primary:hover {
+    opacity: 0.9;
+}
+
+/* 编辑模式下禁用点击热区，避免拦截正文点击 */
+.reader-app.edit-active .reader-touch-layer {
+    display: none;
+}
+
 /* ==================== 阅读内容区 ==================== */
 .reader-scroll {
     position: relative;
@@ -1606,6 +1675,7 @@ class NovelReader {
         // 重新单章加载，确保只编辑一章
         await this.loadChapter(targetNum, false);
         this.isEditMode = true;
+        document.getElementById('readerApp').classList.add('edit-active');
 
         const chapterEl = this.contentEl.querySelector('.reader-chapter');
         if (!chapterEl) return;
@@ -1614,7 +1684,11 @@ class NovelReader {
         const bodyEl = chapterEl.querySelector('.reader-chapter__body');
 
         if (titleEl) titleEl.contentEditable = 'true';
-        if (bodyEl) bodyEl.contentEditable = 'true';
+        if (bodyEl) {
+            bodyEl.contentEditable = 'true';
+            // 聚焦正文，让用户可以直接开始输入
+            bodyEl.focus();
+        }
 
         document.getElementById('readerEditBar').classList.add('active');
         this.footer.classList.remove('visible');
@@ -1656,27 +1730,28 @@ class NovelReader {
     }
 
     async pasteChapterContent() {
+        let text = '';
         try {
-            const text = await navigator.clipboard.readText();
-            if (!text) return;
-            const bodyEl = this.contentEl.querySelector('.reader-chapter__body');
-            if (!bodyEl) return;
-
-            // 替换内容
-            const paragraphs = text.split(/\n+/).filter(p => p.trim());
-            bodyEl.innerHTML = paragraphs.map(p => {
-                const trimmed = p.trim();
-                if (/^[\"\'『「【].*|[\u4e00-\u9fa5].*?[说道问道答道回答喃喃冷笑低声].*?$/.test(trimmed)) {
-                    return `<p class="reader-para--dialog">${this.escapeHtml(trimmed)}</p>`;
-                }
-                return `<p>${this.escapeHtml(trimmed)}</p>`;
-            }).join('');
-
-            this.updateEditWordCount();
-            this.showToast('已粘贴覆盖');
+            text = await navigator.clipboard.readText();
         } catch (e) {
-            this.showToast('粘贴失败，请检查浏览器权限');
+            text = prompt('无法直接读取剪贴板，请在此处粘贴内容：');
         }
+        if (!text) return;
+        const bodyEl = this.contentEl.querySelector('.reader-chapter__body');
+        if (!bodyEl) return;
+
+        // 替换内容
+        const paragraphs = text.split(/\n+/).filter(p => p.trim());
+        bodyEl.innerHTML = paragraphs.map(p => {
+            const trimmed = p.trim();
+            if (/^[\"\'『「【].*|[\u4e00-\u9fa5].*?[说道问道答道回答喃喃冷笑低声].*?$/.test(trimmed)) {
+                return `<p class="reader-para--dialog">${this.escapeHtml(trimmed)}</p>`;
+            }
+            return `<p>${this.escapeHtml(trimmed)}</p>`;
+        }).join('');
+
+        this.updateEditWordCount();
+        this.showToast('已粘贴覆盖');
     }
 
     async saveChapterChanges() {
@@ -1745,6 +1820,7 @@ class NovelReader {
 
     exitEditMode() {
         this.isEditMode = false;
+        document.getElementById('readerApp').classList.remove('edit-active');
         const chapterEl = this.contentEl.querySelector('.reader-chapter');
         if (chapterEl) {
             const titleEl = chapterEl.querySelector('.reader-chapter__title');
