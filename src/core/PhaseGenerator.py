@@ -615,7 +615,7 @@ class PhaseGenerator:
             
             # 提取 API 配置
             api_client = self.generator.api_client
-            provider = getattr(self.generator, 'provider', 'gemini')
+            provider = getattr(self.generator, 'provider', 'kimi')
             model_name = getattr(self.generator, 'model_name', None)
             temperature = getattr(self.generator, 'temperature', 0.7)
             
@@ -4323,14 +4323,18 @@ class PhaseGenerator:
             # 设置报告保存路径为项目目录下的标准文件名
             assessment_path = project_dir / "quality_assessment.json"
             
-            # 执行AI评估 - 🔥 修改：直接使用数据对象，不创建临时文件
-            result = assessor.assess_data(
-                merged_plan, 
-                use_deep_analysis=False, 
-                skip_compression=True,
-                report_save_path=assessment_path  # 指定报告保存路径到项目目录
-            )
-            
+            # 执行AI评估 - 强制使用 kimi 进行评估
+            original_provider = api_client.default_provider
+            api_client.default_provider = 'kimi'
+            try:
+                result = assessor.assess_data(
+                    merged_plan, 
+                    use_deep_analysis=False, 
+                    skip_compression=True,
+                    report_save_path=assessment_path  # 指定报告保存路径到项目目录
+                )
+            finally:
+                api_client.default_provider = original_provider
             # 读取保存的评估报告
             try:
                 with open(assessment_path, 'r', encoding='utf-8') as f:

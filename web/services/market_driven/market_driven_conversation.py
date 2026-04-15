@@ -966,7 +966,15 @@ POST /api/v2/prompt-config/component/{step_name}
             logger.info(f"[对话模式 {self.session_id}] [UI:planning] 步骤1/6: 生成完整方案")
             if progress_callback:
                 progress_callback("generate_plan", 20)
-            plan = self._generate_plan()
+            # 核心设定生成强制使用 kimi
+            original_provider = self.api_client.default_provider if self.api_client else None
+            if self.api_client:
+                self.api_client.default_provider = 'kimi'
+            try:
+                plan = self._generate_plan()
+            finally:
+                if self.api_client and original_provider:
+                    self.api_client.default_provider = original_provider
             results["plan"] = plan
             results["title"] = plan.get("title", "")
             self._save_step_result("plan", results, project_path)
@@ -1097,23 +1105,29 @@ POST /api/v2/prompt-config/component/{step_name}
         
         if HAS_PHASE_ONE_REVIEWER and self.api_client:
             try:
-                reviewer = PhaseOneAIReviewer(self.api_client)
-                review = reviewer.review(results)
-                
-                if review.get("status") == "needs_fix":
-                    logger.info(f"[对话模式 {self.session_id}] AI 审查发现 {len(review.get('issues', []))} 个问题，自动应用高置信度修复")
-                    results = reviewer.apply_fixes(results, review)
-                    # 保存审查报告
-                    if project_path:
-                        review_path = Path(project_path) / "phase_one_products" / "ai_consistency_review.json"
-                        review_path.parent.mkdir(parents=True, exist_ok=True)
-                        with open(review_path, "w", encoding="utf-8") as f:
-                            json.dump(review, f, ensure_ascii=False, indent=2)
-                        logger.info(f"[对话模式 {self.session_id}] AI 审查报告已保存: {review_path}")
-                    # 重新保存 plan（因为可能已修复）
-                    self._save_step_result("plan", results, project_path)
-                else:
-                    logger.info(f"[对话模式 {self.session_id}] AI 审查通过: {review.get('summary', '')}")
+                # 核心设定检查强制使用 kimi
+                original_provider = self.api_client.default_provider
+                self.api_client.default_provider = 'kimi'
+                try:
+                    reviewer = PhaseOneAIReviewer(self.api_client)
+                    review = reviewer.review(results)
+                    
+                    if review.get("status") == "needs_fix":
+                        logger.info(f"[对话模式 {self.session_id}] AI 审查发现 {len(review.get('issues', []))} 个问题，自动应用高置信度修复")
+                        results = reviewer.apply_fixes(results, review)
+                        # 保存审查报告
+                        if project_path:
+                            review_path = Path(project_path) / "phase_one_products" / "ai_consistency_review.json"
+                            review_path.parent.mkdir(parents=True, exist_ok=True)
+                            with open(review_path, "w", encoding="utf-8") as f:
+                                json.dump(review, f, ensure_ascii=False, indent=2)
+                            logger.info(f"[对话模式 {self.session_id}] AI 审查报告已保存: {review_path}")
+                        # 重新保存 plan（因为可能已修复）
+                        self._save_step_result("plan", results, project_path)
+                    else:
+                        logger.info(f"[对话模式 {self.session_id}] AI 审查通过: {review.get('summary', '')}")
+                finally:
+                    self.api_client.default_provider = original_provider
             except Exception as e:
                 logger.error(f"[对话模式 {self.session_id}] AI 审查步骤异常: {e}", exc_info=True)
         else:

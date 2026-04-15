@@ -898,7 +898,7 @@ class BatchChapterGenerator:
             genre=genre,
             core_setting=core_setting,
             tactical_planning=tactical_planning,
-            provider=getattr(self.api_client, 'default_provider', 'gemini'),
+            provider='kimi',
             writing_style=writing_style
         )
         

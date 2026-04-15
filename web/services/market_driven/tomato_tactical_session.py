@@ -122,7 +122,8 @@ class TomatoBestsellerTacticalSession:
                 user_prompt=prompt,
                 system_prompt=system_prompt,
                 temperature=0.7,
-                purpose="战术规划-核心设定对齐"
+                purpose="战术规划-核心设定对齐",
+                provider='kimi'
             )
             
             result = self._parse_json_response(response)
@@ -270,7 +271,8 @@ class TomatoBestsellerTacticalSession:
                 user_prompt=prompt,
                 system_prompt=system_prompt,
                 temperature=0.75,
-                purpose="战术规划-情绪爽点"
+                purpose="战术规划-情绪爽点",
+                provider='kimi'
             )
             
             result = self._parse_json_response(response)
@@ -376,7 +378,8 @@ class TomatoBestsellerTacticalSession:
                 user_prompt=prompt,
                 system_prompt=system_prompt,
                 temperature=0.7,
-                purpose="战术规划-角色出场"
+                purpose="战术规划-角色出场",
+                provider='kimi'
             )
             
             result = self._parse_json_response(response)
