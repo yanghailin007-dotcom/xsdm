@@ -386,21 +386,39 @@ class FileHandler:
         if novel_data and isinstance(novel_data, dict):
             tag_line = ""
             
-            # 方法1: 从简介开头提取标签
-            tag_match = re.search(r'^(\[[^\]]+\])', text)
-            if tag_match:
-                tag_line = tag_match.group(1)
-                text = text.replace(tag_line, "").strip()
+            # 方法1: 从简介开头提取标签（支持 **【...】**、**[...]**、【...】、[...] 等格式）
+            tag_patterns = [
+                r'^(\*\*[【\[][^】\]]+[】\]]\*\*)',
+                r'^([【\[][^】\]]+[】\]])',
+            ]
+            for pattern in tag_patterns:
+                tag_match = re.search(pattern, text)
+                if tag_match:
+                    tag_line = tag_match.group(1).replace('**', '').strip()
+                    text = text.replace(tag_match.group(1), "").strip()
+                    break
             
             # 方法2: 如果没有找到标签，尝试从creative_seed或core_settings中提取
             if not tag_line:
                 if "creative_seed" in novel_data:
                     creative_seed = novel_data["creative_seed"]
-                    tag_match = re.search(r'(\[[^\]]+\])', creative_seed)
+                    tag_match = re.search(r'([【\[][^】\]]+[】\]])', creative_seed)
                     if tag_match:
                         tag_line = tag_match.group(1)
                 
-                # 方法3: 如果还是没有，使用默认标签
+                # 方法3: 如果还是没有，尝试从selected_plan.tags中提取主题标签
+                if not tag_line:
+                    selected_plan = novel_data.get('selected_plan', {}) or (novel_data.get('novel_info', {}).get('selected_plan', {}) if isinstance(novel_data.get('novel_info'), dict) else {})
+                    if isinstance(selected_plan, dict):
+                        tags = selected_plan.get('tags', {})
+                        if isinstance(tags, dict):
+                            themes = tags.get('themes', [])
+                            if themes and isinstance(themes, list) and len(themes) > 0:
+                                tag_line = "[" + "+".join(themes[:3]) + "]"
+                        elif isinstance(tags, list) and len(tags) > 0:
+                            tag_line = "[" + "+".join(tags[:3]) + "]"
+                
+                # 方法4: 兜底默认标签
                 if not tag_line:
                     tag_line = "[系统+爽文]"
             
