@@ -1020,6 +1020,9 @@ class BatchChapterGenerator:
                     ai_title = parsed.get('title', '')
                     clean_content = parsed.get('content', content)
                     
+                    # 🔥 清理超长章节中的拼接/重复问题
+                    clean_content = self._sanitize_chapter_content(clean_content)
+                    
                     # 标题兜底：标准格式未返回title时，单独补生成
                     if not ai_title and clean_content:
                         ai_title = self._generate_title_from_content(clean_content)
@@ -1592,6 +1595,9 @@ class BatchChapterGenerator:
         # 确保 content 有效
         content_str = content if isinstance(content, str) else str(content) if content else ""
         
+        # 🔥 清理超长章节中的拼接/重复问题
+        content_str = self._sanitize_chapter_content(content_str)
+        
         # 标题兜底：如果没标题但有正文，单独补生成
         if not ai_title and content_str and len(content_str) > 100:
             ai_title = self._generate_title_from_content(content_str)
@@ -1878,6 +1884,47 @@ class BatchChapterGenerator:
         logger.warning(f"[BatchGenerator] 响应不符合标准格式(分隔符/JSON)，title置空待补")
         return self._clean_result(result)
     
+    def _sanitize_chapter_content(self, content: str) -> str:
+        """
+        🔥 清理超长章节中的拼接/重复问题
+        当字数>4000或检测到多个---正文---分隔符时，取内容最多的那段
+        """
+        if not content or len(content) < 500:
+            return content
+        
+        import re
+        
+        # 触发条件：字数过多 或 存在多个格式分隔符
+        if len(content) > 4000 or content.count('---正文---') > 1 or content.count('---标题---') > 1:
+            # 策略1: 按分隔符拆分，取最长段落
+            parts = re.split(r'\n?---+\s*(?:标题|正文)\s*---+\n?', content)
+            parts = [p.strip() for p in parts if len(p.strip()) > 100]
+            if len(parts) > 1:
+                best = max(parts, key=len)
+                if len(best) < len(content):
+                    logger.warning(f"[BatchGenerator] 检测到正文拼接，取最长段 {len(best)} 字 / 原 {len(content)} 字")
+                return best
+            
+            # 策略2: 段落级重复检测（后半段是前半段的复制）
+            paragraphs = [p.strip() for p in content.split('\n') if p.strip()]
+            if len(paragraphs) > 50:
+                first_para = paragraphs[0]
+                for dup_idx in range(20, len(paragraphs) - 10):
+                    if paragraphs[dup_idx] == first_para:
+                        match_len = 0
+                        max_check = min(dup_idx, len(paragraphs) - dup_idx)
+                        for i in range(max_check):
+                            if paragraphs[i] == paragraphs[dup_idx + i]:
+                                match_len += 1
+                            else:
+                                break
+                        if match_len > 30:
+                            truncated = '\n'.join(paragraphs[:dup_idx])
+                            logger.warning(f"[BatchGenerator] 检测到段落重复，截断为 {len(truncated)} 字 / 原 {len(content)} 字")
+                            return truncated
+        
+        return content
+
     def _clean_result(self, result: Dict) -> Dict:
         """清理content中的章节号行和已知标题"""
         import re
