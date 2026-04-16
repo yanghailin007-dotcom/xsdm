@@ -179,7 +179,7 @@ class HierarchicalPlanner:
         
         # 根据 genre 推断默认值
         genre_sub_theme_map = {
-            "god-tier": "spending_rebate",
+            "god-tier-spending": "spending_rebate",
             "god-tier-investment": "investment_guru",
             "god-tier-livestream": "livestream_tycoon",
             "god-tier-checkin": "daily_checkin",

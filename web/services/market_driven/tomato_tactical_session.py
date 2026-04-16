@@ -175,7 +175,7 @@ class TomatoBestsellerTacticalSession:
                     info = json.load(f)
                 genre = info.get("genre", "")
                 mapping = {
-                    "god-tier": "spending_rebate",
+                    "god-tier-spending": "spending_rebate",
                     "god-tier-investment": "investment_guru",
                     "god-tier-livestream": "livestream_tycoon",
                     "god-tier-checkin": "daily_checkin",

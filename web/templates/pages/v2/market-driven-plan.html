@@ -657,14 +657,23 @@ try {
 
 // 自动填充基于题材的默认值
 const genreDefaults = {
-  'god-tier': {
-    name: '陆沉',
-    title: '开局返利百亿：我，顶级神豪',
-    sellpoint: '获得神豪系统，花钱就能返利，从普通人一路逆袭成全球首富！',
+  'god-tier-spending': {
+    name: '李明',
+    title: '开局物价贬值百万倍',
+    sellpoint: '一觉醒来，全球物价贬值百万倍，唯独我的钱不变！',
     bg: '被裁员的穷社畜',
-    finger: '神豪系统：消费即可获得高额返利，等级越高返利倍数越高，还能解锁投资洞察、直播特权等隐藏能力',
-    plot: '初期：在超市、餐厅、直播间小试牛刀；中期：股市封神、收购公司、签约顶流主播；后期：建立商业帝国，掌控全球经济命脉',
-    climax: '拍卖会一掷千金，全场震惊，神豪身份彻底曝光'
+    finger: '花钱返利系统：消费1元返还10元，等级越高返利越多',
+    plot: '初期：在超市、餐厅小试牛刀；中期：收购公司、投资地产；后期：建立商业帝国，影响全球经济',
+    climax: '拍卖会一掷千金，全场震惊，身份曝光'
+  },
+  'god-tier-checkin': {
+    name: '张浩',
+    title: '每日签到：从百亿开始',
+    sellpoint: '签到第一天奖励100亿，第二天奖励千亿集团！',
+    bg: '普通大学生',
+    finger: '每日签到系统：每天签到获得随机奖励，连续签到奖励翻倍',
+    plot: '初期：签到获得豪车豪宅；中期：签到获得顶级技能；后期：签到获得超凡能力',
+    climax: '校庆日签到获得整座学校，惊呆全校师生'
   },
   'nation-live': {
     name: '夏天',
@@ -978,7 +987,7 @@ document.addEventListener('DOMContentLoaded', async function() {
     showAutoFillNotice();
   } else {
     // 没有分析结果，使用默认 placeholder
-    const defaults = genreDefaults[genreId] || genreDefaults['god-tier'];
+    const defaults = genreDefaults[genreId] || genreDefaults['god-tier-spending'];
     document.getElementById('novel-title').placeholder = defaults.title;
     document.getElementById('novel-sellpoint').placeholder = defaults.sellpoint;
     document.getElementById('protagonist-name').placeholder = defaults.name;
@@ -988,8 +997,8 @@ document.addEventListener('DOMContentLoaded', async function() {
     document.getElementById('first-climax').placeholder = defaults.climax;
   }
   
-  // 🔥 根据题材显示/隐藏子流派选择器
-  if (genreId === 'god-tier') {
+  // 🔥 根据题材显示/隐藏子流派选择器（仅神豪文-花钱返利类）
+  if (genreId === 'god-tier-spending') {
     document.getElementById('sub-theme-group').style.display = 'block';
   }
 });
@@ -1153,8 +1162,8 @@ function fillFormWithPlanData(data) {
     document.getElementById('main-plot').value = data.main_plot || data.plot || data.storyline;
   }
   
-  // 🔥 填充子流派（神豪文）
-  if (data.genre === 'god-tier' || (data.genre && data.genre.startsWith('god-tier'))) {
+  // 🔥 填充子流派（神豪文-花钱返利类）
+  if (data.genre === 'god-tier-spending') {
     document.getElementById('sub-theme-group').style.display = 'block';
     if (data.sub_theme) {
       document.getElementById('sub-theme').value = data.sub_theme;
@@ -1330,8 +1339,8 @@ function fillFormWithRewriteData(data) {
     document.getElementById('main-plot').value = data.main_plot || data.plot || data.storyline;
   }
   
-  // 🔥 填充子流派（神豪文）
-  if (data.genre === 'god-tier' || (data.genre && data.genre.startsWith('god-tier'))) {
+  // 🔥 填充子流派（神豪文-花钱返利类）
+  if (data.genre === 'god-tier-spending') {
     document.getElementById('sub-theme-group').style.display = 'block';
     if (data.sub_theme) {
       document.getElementById('sub-theme').value = data.sub_theme;
@@ -1414,7 +1423,7 @@ async function startRewriteGeneration() {
     const goldenFingerType = document.getElementById('golden-finger-type').value;
     const goldenFingerDesc = document.getElementById('golden-finger-desc').value;
     const mainPlot = document.getElementById('main-plot').value;
-    const subTheme = genreId === 'god-tier' ? document.getElementById('sub-theme').value : '';
+    const subTheme = genreId === 'god-tier-spending' ? document.getElementById('sub-theme').value : '';
     
     // 验证必填项
     if (!title) {
@@ -1509,7 +1518,7 @@ async function doStartGeneration() {
   const goldenFingerDesc = document.getElementById('golden-finger-desc').value;
   const mainPlot = document.getElementById('main-plot').value;
   const firstClimax = document.getElementById('first-climax').value;
-  const subTheme = genreId === 'god-tier' ? document.getElementById('sub-theme').value : '';
+  const subTheme = genreId === 'god-tier-spending' ? document.getElementById('sub-theme').value : '';
   
   // 验证必填项
   if (!title) {
@@ -1664,7 +1673,7 @@ async function startPlanGeneration() {
     const goldenFingerType = document.getElementById('golden-finger-type').value;
     const goldenFingerDesc = document.getElementById('golden-finger-desc').value;
     const mainPlot = document.getElementById('main-plot').value;
-    const subTheme = genreId === 'god-tier' ? document.getElementById('sub-theme').value : '';
+    const subTheme = genreId === 'god-tier-spending' ? document.getElementById('sub-theme').value : '';
     
     // 验证必填项
     if (!title) {
