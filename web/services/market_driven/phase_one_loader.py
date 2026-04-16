@@ -308,6 +308,28 @@ class PhaseOneDataLoader:
             if summary:
                 logger.warning(f"[PhaseOneDataLoader] 使用旧版golden_finger_summary回退")
                 return self._create_simple_golden_finger(summary)
+            
+            # 3.5 从 project_info 顶层读取（兼容对话模式直接写入的位置）
+            gf = project_info.get("golden_finger", None)
+            if gf and isinstance(gf, dict):
+                if "abilities" in gf or "basic_info" in gf:
+                    logger.info(f"[PhaseOneDataLoader] 从project_info.json顶层加载完整金手指")
+                    return gf
+                else:
+                    logger.warning(f"[PhaseOneDataLoader] 顶层金手指结构不完整，尝试转换")
+                    return self._normalize_golden_finger(gf)
+        
+        # 3.6 从完整方案 / plan.json 回退
+        plan_file = self._load_json("完整方案.json", {}, silent=True) or self._load_json("plan.json", {}, silent=True)
+        if isinstance(plan_file, dict):
+            gf = plan_file.get("golden_finger", None)
+            if gf and isinstance(gf, dict):
+                if "abilities" in gf or "basic_info" in gf:
+                    logger.info(f"[PhaseOneDataLoader] 从完整方案加载完整金手指")
+                    return gf
+                else:
+                    logger.warning(f"[PhaseOneDataLoader] 完整方案中金手指结构不完整，尝试转换")
+                    return self._normalize_golden_finger(gf)
         
         # 4. 从世界观回退（mc_exclusive字段）
         world = self.load_world_setting()
