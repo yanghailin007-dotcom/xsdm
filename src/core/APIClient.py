@@ -1205,7 +1205,6 @@ class APIClient:
                     if is_timeout and attempt < max_retries - 1:
                         wait_time = 2 ** attempt  # 指数退避：1s, 2s, 4s
                         self.logger.warning(f"{user_str}  OpenAI SDK第{attempt+1}次尝试超时({error_msg})，等待{wait_time}s后重试...")
-                        import time
                         time.sleep(wait_time)
                         continue
                     else:
