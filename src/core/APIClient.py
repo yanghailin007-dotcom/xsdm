@@ -1190,13 +1190,27 @@ class APIClient:
         
         # 🔥 针对Kimi API使用openai库（避免requests编码问题）
         if "moonshot" in api_url.lower() or "kimi" in model_name.lower():
-            try:
-                return self._call_with_openai_sdk(api_url, api_key, model_name, 
-                                                   system_prompt, user_prompt, 
-                                                   temperature, max_tokens, timeout,
-                                                   endpoint_name, user_str, thread_id)
-            except Exception as e:
-                self.logger.warning(f"{user_str}  OpenAI SDK调用失败，回退到requests: {e}")
+            max_retries = 3
+            for attempt in range(max_retries):
+                try:
+                    current_timeout = timeout + attempt * 30  # 每次重试增加30秒超时
+                    self.logger.info(f"{user_str}  🔄 OpenAI SDK 第{attempt+1}/{max_retries}次尝试 | 超时: {current_timeout}s")
+                    return self._call_with_openai_sdk(api_url, api_key, model_name,
+                                                       system_prompt, user_prompt,
+                                                       temperature, max_tokens, current_timeout,
+                                                       endpoint_name, user_str, thread_id)
+                except Exception as e:
+                    error_msg = str(e)
+                    is_timeout = "timed out" in error_msg.lower() or "timeout" in error_msg.lower()
+                    if is_timeout and attempt < max_retries - 1:
+                        wait_time = 2 ** attempt  # 指数退避：1s, 2s, 4s
+                        self.logger.warning(f"{user_str}  OpenAI SDK第{attempt+1}次尝试超时({error_msg})，等待{wait_time}s后重试...")
+                        import time
+                        time.sleep(wait_time)
+                        continue
+                    else:
+                        self.logger.warning(f"{user_str}  OpenAI SDK调用失败(已重试{attempt+1}次)，回退到requests: {e}")
+                        break
         
         # 标准requests调用（用于Gemini、DeepSeek等）
         headers = {
