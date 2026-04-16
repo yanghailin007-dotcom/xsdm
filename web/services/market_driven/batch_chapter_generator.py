@@ -1012,7 +1012,8 @@ class BatchChapterGenerator:
                     custom_selfcheck=custom_selfcheck,
                     current_plan=chapter_plan,
                     prev_plan=prev_chapter_plan,
-                    next_plan=next_chapter_plan
+                    next_plan=next_chapter_plan,
+                    is_batch_start=(chapter_num == start_chapter)
                 )
                 
                 if content and isinstance(content, str) and len(content) > 100:

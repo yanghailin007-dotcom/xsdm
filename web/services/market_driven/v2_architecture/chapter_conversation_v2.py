@@ -97,7 +97,10 @@ class ChapterConversationV2:
             from renderers import GenreTechniquesRenderer, WritingStyleRenderer
         
         # Layer 1: 核心设定
-        self.layer1_content = core_setting
+        # 🔥 优化：保存完整圣经，但 system prompt 中只放精简锚点
+        # 完整圣经将在批次第一章的 user prompt 中注入，后续章节通过对话历史保持
+        self.core_setting_full = core_setting or ""
+        self.layer1_content = self._extract_core_setting_anchor(core_setting)
         
         # Layer 2: 战术规划
         self.layer2_content = tactical_planning
@@ -210,6 +213,17 @@ class ChapterConversationV2:
 {taboos_str}
 """
     
+    def _extract_core_setting_anchor(self, core_setting: str, max_chars: int = 600) -> str:
+        """从完整核心设定中提取精简锚点，用于 System Prompt"""
+        if not core_setting:
+            return ""
+        anchor = core_setting[:max_chars].strip()
+        return (
+            f"{anchor}\n\n"
+            f"[提示：完整核心设定圣经已在本批次第一章的生成指令中详细给出，"
+            f"后续章节生成请严格遵循对话历史中的完整设定。]"
+        )
+    
     def generate_chapter(self,
                         chapter_number: int,
                         chapter_title: str,
@@ -221,7 +235,8 @@ class ChapterConversationV2:
                         current_plan: Optional[Dict] = None,
                         prev_plan: Optional[Dict] = None,
                         next_plan: Optional[Dict] = None,
-                        stream: bool = False) -> Optional[str]:
+                        stream: bool = False,
+                        is_batch_start: bool = False) -> Optional[str]:
         """
         生成单个章节
         
@@ -269,6 +284,17 @@ class ChapterConversationV2:
             prev_plan=prev_plan,
             next_plan=next_plan
         )
+        
+        # 🔥 批次首次生成时，在任务指令前注入完整核心设定圣经
+        # 后续章节通过对话历史保持记忆，避免每章都重复传递 3500 字 system prompt
+        if is_batch_start and self.core_setting_full:
+            task_instruction = (
+                f"【核心设定圣经 - 本批次必须严格遵守】\n\n"
+                f"{self.core_setting_full}\n\n"
+                f"{'='*60}\n"
+                f"{task_instruction}"
+            )
+            logger.info(f"[V2对话] 第{chapter_number}章为批次首章，已注入完整核心设定圣经 ({len(self.core_setting_full)} 字)")
         
         # 组合 User Prompt
         user_prompt = LayeredUserPrompt(

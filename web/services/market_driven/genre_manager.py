@@ -32,16 +32,10 @@ class GenreManager:
     # 基础类型列表（男频20个 + 女频20个）
     BASE_GENRES = {
         # ==================== 男频题材 ====================
-        "神豪文-花钱返利类": {
-            "description": "主角获得花钱返利系统，越花越有钱，装逼打脸",
+        "神豪文": {
+            "description": "花钱返利/投资股神/直播打赏/签到奖励，从普通人逆袭成顶级神豪",
             "expected_retention": "12-18%",
             "competition": "激烈",
-            "market_status": "稳定"
-        },
-        "神豪文-签到奖励类": {
-            "description": "每日签到获得奖励，逐步积累财富和实力",
-            "expected_retention": "10-15%",
-            "competition": "中等",
             "market_status": "稳定"
         },
         "国运文-直播类": {

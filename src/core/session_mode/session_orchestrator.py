@@ -479,7 +479,7 @@ class SessionOrchestrator:
                 self.generator._ctx['final_plan_brief'] = final_plan_brief
                 self.generator._ctx['creative_planning_results'] = results
                 self.logger.info(
-                    f"[CreativePlanningSession] 完成，爆款对齐评分: "
+                    f"[CreativePlanningSession] 完成，市场适配评分: "
                     f"{final_plan_brief.get('market_alignment', {}).get('score', 'N/A')}"
                 )
             

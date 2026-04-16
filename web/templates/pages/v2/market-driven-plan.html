@@ -370,6 +370,18 @@
         <div class="form-hint">上方选择剧情路线，或手动编辑详情</div>
       </div>
       
+      <!-- 🔥 子流派选择（仅神豪文显示） -->
+      <div class="form-group" id="sub-theme-group" style="display: none;">
+        <label class="form-label">子流派 / 主线方向 <span style="color: var(--primary-gold);">（影响战术场景库）</span></label>
+        <select class="form-select" id="sub-theme">
+          <option value="spending_rebate">花钱返利流（经典神豪）</option>
+          <option value="investment_guru">投资股神流（股市封神、收购财团）</option>
+          <option value="livestream_tycoon">直播打赏流（帝王套连刷、PK碾压）</option>
+          <option value="daily_checkin">签到奖励流（每日签到、天降横财）</option>
+        </select>
+        <div class="form-hint">选择后将加载对应的专属场景库和爽点模板</div>
+      </div>
+      
       <!-- 🔥 已移除固定大高潮输入，改为AI自由创作 -->
       <div class="form-group" style="display:none;">
         <input type="hidden" id="first-climax" value="">
@@ -645,23 +657,14 @@ try {
 
 // 自动填充基于题材的默认值
 const genreDefaults = {
-  'god-tier-spending': {
-    name: '李明',
-    title: '开局物价贬值百万倍',
-    sellpoint: '一觉醒来，全球物价贬值百万倍，唯独我的钱不变！',
+  'god-tier': {
+    name: '陆沉',
+    title: '开局返利百亿：我，顶级神豪',
+    sellpoint: '获得神豪系统，花钱就能返利，从普通人一路逆袭成全球首富！',
     bg: '被裁员的穷社畜',
-    finger: '花钱返利系统：消费1元返还10元，等级越高返利越多',
-    plot: '初期：在超市、餐厅小试牛刀；中期：收购公司、投资地产；后期：建立商业帝国，影响全球经济',
-    climax: '拍卖会一掷千金，全场震惊，身份曝光'
-  },
-  'god-tier-checkin': {
-    name: '张浩',
-    title: '每日签到：从百亿开始',
-    sellpoint: '签到第一天奖励100亿，第二天奖励千亿集团！',
-    bg: '普通大学生',
-    finger: '每日签到系统：每天签到获得随机奖励，连续签到奖励翻倍',
-    plot: '初期：签到获得豪车豪宅；中期：签到获得顶级技能；后期：签到获得超凡能力',
-    climax: '校庆日签到获得整座学校，惊呆全校师生'
+    finger: '神豪系统：消费即可获得高额返利，等级越高返利倍数越高，还能解锁投资洞察、直播特权等隐藏能力',
+    plot: '初期：在超市、餐厅、直播间小试牛刀；中期：股市封神、收购公司、签约顶流主播；后期：建立商业帝国，掌控全球经济命脉',
+    climax: '拍卖会一掷千金，全场震惊，神豪身份彻底曝光'
   },
   'nation-live': {
     name: '夏天',
@@ -975,7 +978,7 @@ document.addEventListener('DOMContentLoaded', async function() {
     showAutoFillNotice();
   } else {
     // 没有分析结果，使用默认 placeholder
-    const defaults = genreDefaults[genreId] || genreDefaults['god-tier-spending'];
+    const defaults = genreDefaults[genreId] || genreDefaults['god-tier'];
     document.getElementById('novel-title').placeholder = defaults.title;
     document.getElementById('novel-sellpoint').placeholder = defaults.sellpoint;
     document.getElementById('protagonist-name').placeholder = defaults.name;
@@ -983,6 +986,11 @@ document.addEventListener('DOMContentLoaded', async function() {
     document.getElementById('golden-finger-desc').placeholder = defaults.finger;
     document.getElementById('main-plot').placeholder = defaults.plot;
     document.getElementById('first-climax').placeholder = defaults.climax;
+  }
+  
+  // 🔥 根据题材显示/隐藏子流派选择器
+  if (genreId === 'god-tier') {
+    document.getElementById('sub-theme-group').style.display = 'block';
   }
 });
 
@@ -1143,6 +1151,14 @@ function fillFormWithPlanData(data) {
   // 填充主线剧情
   if (data.main_plot || data.plot || data.storyline) {
     document.getElementById('main-plot').value = data.main_plot || data.plot || data.storyline;
+  }
+  
+  // 🔥 填充子流派（神豪文）
+  if (data.genre === 'god-tier' || (data.genre && data.genre.startsWith('god-tier'))) {
+    document.getElementById('sub-theme-group').style.display = 'block';
+    if (data.sub_theme) {
+      document.getElementById('sub-theme').value = data.sub_theme;
+    }
   }
   
   // 设置目标字数
@@ -1314,6 +1330,14 @@ function fillFormWithRewriteData(data) {
     document.getElementById('main-plot').value = data.main_plot || data.plot || data.storyline;
   }
   
+  // 🔥 填充子流派（神豪文）
+  if (data.genre === 'god-tier' || (data.genre && data.genre.startsWith('god-tier'))) {
+    document.getElementById('sub-theme-group').style.display = 'block';
+    if (data.sub_theme) {
+      document.getElementById('sub-theme').value = data.sub_theme;
+    }
+  }
+  
   // 设置目标字数
   if (data.target_words) {
     const wordCountInWan = Math.floor(data.target_words / 10000);
@@ -1390,6 +1414,7 @@ async function startRewriteGeneration() {
     const goldenFingerType = document.getElementById('golden-finger-type').value;
     const goldenFingerDesc = document.getElementById('golden-finger-desc').value;
     const mainPlot = document.getElementById('main-plot').value;
+    const subTheme = genreId === 'god-tier' ? document.getElementById('sub-theme').value : '';
     
     // 验证必填项
     if (!title) {
@@ -1413,7 +1438,8 @@ async function startRewriteGeneration() {
           protagonist_bg: protagonistBg,
           golden_finger_type: goldenFingerType,
           golden_finger_desc: goldenFingerDesc,
-          main_plot: mainPlot
+          main_plot: mainPlot,
+          sub_theme: subTheme
         }
       })
     });
@@ -1483,6 +1509,7 @@ async function doStartGeneration() {
   const goldenFingerDesc = document.getElementById('golden-finger-desc').value;
   const mainPlot = document.getElementById('main-plot').value;
   const firstClimax = document.getElementById('first-climax').value;
+  const subTheme = genreId === 'god-tier' ? document.getElementById('sub-theme').value : '';
   
   // 验证必填项
   if (!title) {
@@ -1508,6 +1535,7 @@ async function doStartGeneration() {
       golden_finger_desc: goldenFingerDesc,
       main_plot: mainPlot,
       first_climax: firstClimax,
+      sub_theme: subTheme,
       // 🔥 传递用户选择的剧情路线（非常重要！）
       selected_plot: selectedPlot,
       // 传递分析结果上下文给AI
@@ -1636,6 +1664,7 @@ async function startPlanGeneration() {
     const goldenFingerType = document.getElementById('golden-finger-type').value;
     const goldenFingerDesc = document.getElementById('golden-finger-desc').value;
     const mainPlot = document.getElementById('main-plot').value;
+    const subTheme = genreId === 'god-tier' ? document.getElementById('sub-theme').value : '';
     
     // 验证必填项
     if (!title) {
@@ -1659,7 +1688,8 @@ async function startPlanGeneration() {
           protagonist_bg: protagonistBg,
           golden_finger_type: goldenFingerType,
           golden_finger_desc: goldenFingerDesc,
-          main_plot: mainPlot
+          main_plot: mainPlot,
+          sub_theme: subTheme
         }
       })
     });

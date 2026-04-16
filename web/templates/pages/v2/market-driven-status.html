@@ -661,7 +661,7 @@
   margin-bottom: 20px;
 }
 
-/* 对齐失败提示 */
+/* 核心设定审核失败提示 */
 .alignment-section {
   background: rgba(168, 85, 247, 0.1);
   border: 1px solid rgba(168, 85, 247, 0.3);
@@ -979,12 +979,12 @@
       </button>
     </div>
 
-    <!-- 对齐失败区域（alignment_failed 时显示） -->
+    <!-- 核心设定审核失败区域（alignment_failed 时显示） -->
     <div class="alignment-section" id="alignment-section" style="display: none;">
       <div class="alignment-section__icon">
         <span class="material-icons">&#xe002;</span>
       </div>
-      <div class="alignment-section__title">爆款对齐未通过</div>
+      <div class="alignment-section__title">核心设定审核未通过</div>
       <div class="alignment-section__message" id="alignment-message">核心设定圣经存在结构性问题，需要修改后重试。</div>
       <div class="alignment-section__actions" id="alignment-actions">
         <button class="btn" id="btn-edit-bible" style="background: linear-gradient(135deg, #a855f7, #c084fc); color: white;" onclick="editBible()">
@@ -1062,14 +1062,14 @@ const STAGE_NAME_MAP = {
   'generate_characters': '设计角色',
   'generate_growth_plan': '规划成长路线',
   'generate_stage_goals': '制定阶段目标',
-  'bestseller_alignment': '爆款对齐检查',
+  'bestseller_alignment': '核心设定审核',
   'generate_supplementary': '生成附加产物',
   'generating_chapters': '批量生成章节',
   'analyze': '分析章节质量',
   'optimize': '优化章节内容',
   'completed': '生成完成',
   'failed': '生成失败',
-  'alignment_failed': '爆款对齐未通过',
+  'alignment_failed': '核心设定审核未通过',
   'pending': '等待中',
   'preparing': '准备中',
   'running': '运行中',
@@ -1234,9 +1234,9 @@ function updateUI(task) {
     statusEl.className = 'progress-card__status progress-card__status--failed';
     showError(task.error);
   } else if (task.status === 'alignment_failed') {
-    statusEl.textContent = '对齐未通过';
+    statusEl.textContent = '核心设定审核未通过';
     statusEl.className = 'progress-card__status progress-card__status--alignment_failed';
-    showAlignmentFailed(task.error || task.message || '爆款对齐检查未通过，请查看对齐报告并调整后重试。');
+    showAlignmentFailed(task.error || task.message || '核心设定审核未通过，请修改设定圣经后重试。');
   } else if (isTaskRunning(task)) {
     // 在章节生成阶段显示悬浮窗
     // 判断条件：阶段名称为chapters/current_stage为generating_chapters/有当前章节号/有批次信息
@@ -1434,7 +1434,7 @@ function showError(error) {
   document.getElementById('action-section').style.display = 'none';
 }
 
-// 显示对齐失败
+// 显示核心设定审核失败
 function showAlignmentFailed(error) {
   const messageEl = document.getElementById('alignment-message');
   const rawError = error || '核心设定圣经存在结构性问题，需要修改后重试。';
@@ -1531,7 +1531,7 @@ function stopBibleVersionWatch() {
   }
 }
 
-// 更新对齐失败区域的按钮
+// 更新核心设定审核失败区域的按钮
 function updateAlignmentButtons(state, message) {
   const actionsEl = document.getElementById('alignment-actions');
   const msgEl = document.getElementById('alignment-message');
@@ -1694,7 +1694,7 @@ async function retryTask() {
   }
 }
 
-// 对齐失败时忽略继续生成（跳过圣经审稿检查）
+// 核心设定审核失败时忽略继续生成（跳过圣经审稿检查）
 async function forceContinueTask() {
   const title = window.novelTitle;
   if (!title || title === '未命名项目') {

@@ -164,11 +164,32 @@ class WorldStateManager:
         except Exception as e:
             logger.error(f"[WorldState] 保存状态失败: {e}")
     
+    def _normalize_genre_name(self, genre: str) -> str:
+        """将英文 genre key 映射到中文文件名"""
+        mapping = {
+            "god-tier": "神豪文",
+            "god-tier-spending": "神豪文",
+            "god-tier-investment": "神豪文",
+            "god-tier-livestream": "神豪文",
+            "god-tier-checkin": "神豪文",
+            "sign-in-daily": "神豪文",
+            "nation-live": "国运文",
+            "nation-explore": "国运文",
+        }
+        return mapping.get(genre, genre)
+    
     def _load_genre_config(self, genre: str) -> dict:
         """
         加载题材配置文件
         优先级: 用户配置 > 系统默认
         """
+        # 标准化题材名称（英文ID映射到中文文件名）
+        genre = self._normalize_genre_name(genre)
+        
+        # 未知题材直接回退，无需告警
+        if genre == '未知':
+            return {}
+        
         # 获取配置路径（优先用户配置）
         base_path = self._get_config_base_path()
         config_path = base_path / "genre_techniques" / f"{genre}.yaml"

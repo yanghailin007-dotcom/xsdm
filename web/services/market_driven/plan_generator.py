@@ -489,7 +489,7 @@ class MarketDrivenPlanGenerator:
     
     def _generate_golden_finger(self, tropes: Dict, user_choices: Dict) -> Dict:
         """
-        生成金手指设计 - 强制包含所有爆款对齐要求的字段
+        生成金手指设计 - 强制包含所有核心设定审核要求的字段
         从JSON加载默认模板，支持按题材自动匹配
         """
         gf_tropes = tropes.get("golden_finger", {})

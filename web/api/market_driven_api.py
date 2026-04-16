@@ -716,6 +716,21 @@ def start_market_driven_generation():
                     # 对话模式：已生成最终方案，跳过爆款分析和方案生成，直接生成章节
                     logger.info(f"[Task {task_id}] 对话模式检测到最终方案，跳过爆款分析和方案生成，直接生成章节")
                     _run_chapter_generation_with_plan(task_id, genre, target_words, api_client, final_plan, user_choices)
+                    
+                    # 🔥 检查是否因核心设定审核被熔断（和快速表单模式保持一致）
+                    task_after_p1 = task_manager.get_task(task_id)
+                    if task_after_p1 and task_after_p1.get('status') == 'alignment_failed':
+                        logger.warning(f"[Task {task_id}] 🚫 检测到 alignment_failed 状态，跳过章节生成")
+                        existing_error = task_after_p1.get('error') or task_after_p1.get('message') or "核心设定审核未通过，任务已终止。请修改设定圣经后重试。"
+                        task_manager.update_task(
+                            task_id,
+                            status="alignment_failed",
+                            progress=50,
+                            current_stage="alignment_failed",
+                            error=existing_error,
+                            message=existing_error
+                        )
+                        return  # 结束后台线程，不抛出异常
                 else:
                     # 传统模式：完整流程
                     # 第1阶段：爆款分析
@@ -725,12 +740,12 @@ def start_market_driven_generation():
                     if not options.get('skip_phase_one', False):
                         _run_plan_and_products_conversation(task_id, genre, user_choices, api_client)
                     
-                    # 🔥 检查是否因对齐失败被熔断
+                    # 🔥 检查是否因核心设定审核被熔断
                     task_after_p1 = task_manager.get_task(task_id)
                     if task_after_p1 and task_after_p1.get('status') == 'alignment_failed':
                         logger.warning(f"[Task {task_id}] 🚫 检测到 alignment_failed 状态，跳过章节生成")
                         # 保留已有的错误信息和路径，不要覆盖为固定文本
-                        existing_error = task_after_p1.get('error') or task_after_p1.get('message') or "爆款对齐检查未通过，任务已终止。请查看对齐报告并调整后重试。"
+                        existing_error = task_after_p1.get('error') or task_after_p1.get('message') or "核心设定审核未通过，任务已终止。请修改设定圣经后重试。"
                         task_manager.update_task(
                             task_id,
                             status="alignment_failed",
@@ -971,16 +986,26 @@ def _run_plan_and_products_conversation(task_id: str, genre: str, user_choices: 
             project_path=str(project_path)
         )
         
-        # 🔥 爆款对齐熔断：如果对话模式返回 blocked，标记为 alignment_failed
+        # 🔥 核心设定审核熔断：如果对话模式返回 blocked，标记为 alignment_failed
         if products.get("_blocked"):
-            block_reason = products.get("_block_reason", "爆款对齐检查未通过")
-            logger.warning(f"[Task {task_id}] 🚫 爆款对齐熔断触发: {block_reason}")
+            block_reason = products.get("_block_reason", "核心设定审核未通过")
+            logger.warning(f"[Task {task_id}] 🚫 核心设定审核未通过: {block_reason}")
+            current_result = task.get("result", {})
+            current_result["plan"] = products.get("plan", {})
+            current_result["products"] = products
+            current_result["save_path"] = str(project_path)
+            current_result["blocked"] = True
+            current_result["block_type"] = products.get("_block_type", "unknown")
+            current_result["block_reason"] = block_reason
+            current_result["alignment_report"] = products.get("_alignment_report", {})
+            current_result["report_path"] = products.get("_report_path", "")
             task_manager.update_task(
                 task_id,
                 status="alignment_failed",
                 error=block_reason,
-                message=f"爆款对齐未通过，已终止章节生成: {block_reason}",
-                current_stage="alignment_failed"
+                message=f"核心设定审核未通过，已终止章节生成: {block_reason}",
+                current_stage="alignment_failed",
+                result=current_result
             )
             return
         
@@ -1000,7 +1025,6 @@ def _run_plan_and_products_conversation(task_id: str, genre: str, user_choices: 
             result=current_result,
             message="对话模式生成完成"
         )
-        
         logger.info(f"[Task {task_id}] ✅ 对话模式生成完成，保存到: {project_path}")
         
     except Exception as e:
@@ -1008,15 +1032,15 @@ def _run_plan_and_products_conversation(task_id: str, genre: str, user_choices: 
         import traceback
         logger.error(f"[Task {task_id}] 错误堆栈:\n{traceback.format_exc()}")
         
-        # 🔥 对齐引擎熔断：如果是爆款对齐失败，标记为 alignment_failed 并不再回退
+        # 🔥 核心设定审核熔断：如果是核心设定审核失败，标记为 alignment_failed 并不再回退
         error_str = str(e)
-        if "步骤6爆款对齐失败" in error_str or "AlignmentEngine" in error_str or "爆款对齐未通过" in error_str:
-            logger.error(f"[Task {task_id}] 🚫 爆款对齐熔断触发，任务标记为 alignment_failed")
+        if "步骤6核心设定审核失败" in error_str or "AlignmentEngine" in error_str or "核心设定审核未通过" in error_str:
+            logger.error(f"[Task {task_id}] 🚫 核心设定审核未通过，任务标记为 alignment_failed")
             task_manager.update_task(
                 task_id,
                 status="alignment_failed",
                 error=error_str,
-                message=f"爆款对齐未通过，已终止章节生成: {error_str}",
+                message=f"核心设定审核未通过，已终止章节生成: {error_str}",
                 current_stage="alignment_failed"
             )
             # 不抛出异常，让上层 run_full_generation 检测到状态后跳过章节生成
@@ -1103,20 +1127,30 @@ def _run_phase_one_products(task_id: str, genre: str, api_client=None):
             project_path=str(project_path)
         )
         
-        # 🔥 爆款对齐熔断：如果对话模式返回 blocked，标记为 alignment_failed
+        # 核心设定审核熔断：如果对话模式返回 blocked，标记为 alignment_failed
         if products.get("_blocked"):
-            block_reason = products.get("_block_reason", "爆款对齐检查未通过")
-            logger.warning(f"[Task {task_id}] 🚫 爆款对齐熔断触发: {block_reason}")
+            block_reason = products.get("_block_reason", "核心设定审核未通过")
+            logger.warning(f"[Task {task_id}] 🚫 核心设定审核未通过: {block_reason}")
+            current_result = task.get("result", {})
+            current_result["plan"] = products.get("plan", {})
+            current_result["products"] = products
+            current_result["save_path"] = str(project_path)
+            current_result["blocked"] = True
+            current_result["block_type"] = products.get("_block_type", "unknown")
+            current_result["block_reason"] = block_reason
+            current_result["alignment_report"] = products.get("_alignment_report", {})
+            current_result["report_path"] = products.get("_report_path", "")
             task_manager.update_task(
                 task_id,
                 status="alignment_failed",
                 error=block_reason,
-                message=f"爆款对齐未通过，已终止章节生成: {block_reason}",
-                current_stage="alignment_failed"
+                message=f"核心设定审核未通过，已终止章节生成: {block_reason}",
+                current_stage="alignment_failed",
+                result=current_result
             )
             return
         
-        # 🔥 结果已在每步生成时自动保存到 project_path
+        # 结果已在每步生成时自动保存到 project_path
         # 这里只需要更新任务结果
         current_result = task.get("result", {})
         current_result["products"] = products
@@ -1171,6 +1205,8 @@ def save_phase_one_products(novel_title: str, products: Dict, task_id: str,
     # 设置基本信息
     project_info["novel_synopsis"] = plan.get("core_selling_points", [{}])[0].get("point", "") if plan else ""
     project_info["genre"] = genre
+    if user_choices and user_choices.get("sub_theme"):
+        project_info["sub_theme"] = user_choices.get("sub_theme")
     
     # 🔥 兼容旧版上传代码：添加 selected_plan 字段（包含完整的 tags）
     # novel_publisher.py 期望从 selected_plan.tags 读取标签信息
@@ -1927,6 +1963,12 @@ def _run_chapter_generation_with_plan(task_id: str, genre: str, target_words: in
             user_choices=user_choices,
             api_client=api_client
         )
+        
+        # 检查是否因核心设定审核被熔断
+        task_after_p1 = task_manager.get_task(task_id)
+        if task_after_p1 and task_after_p1.get('status') == 'alignment_failed':
+            logger.warning(f"[DialogMode] 检测到 alignment_failed 状态，跳过章节生成")
+            return
         
         logger.info(f"[DialogMode] 对话流程完成，开始生成章节...")
         
@@ -2687,6 +2729,21 @@ def dialog_complete():
                     final_plan=final_plan,
                     user_choices=user_choices
                 )
+                
+                # 🔥 检查是否因核心设定审核被熔断
+                task_after_p1 = task_manager.get_task(task_id)
+                if task_after_p1 and task_after_p1.get('status') == 'alignment_failed':
+                    logger.warning(f"[Task {task_id}] 🚫 检测到 alignment_failed 状态，终止对话模式生成")
+                    existing_error = task_after_p1.get('error') or task_after_p1.get('message') or "核心设定审核未通过，任务已终止。请修改设定圣经后重试。"
+                    task_manager.update_task(
+                        task_id,
+                        status="alignment_failed",
+                        progress=50,
+                        current_stage="alignment_failed",
+                        error=existing_error,
+                        message=existing_error
+                    )
+                    return  # 结束后台线程，不抛出异常
                 
                 # 完成
                 task_manager.update_task(
@@ -3902,6 +3959,8 @@ def _run_replan_generation(task_id, title, project_path, new_settings, username)
         
         # 更新故事线
         project_info['storyline'] = new_settings.get('main_plot', '')
+        if new_settings.get('sub_theme'):
+            project_info['sub_theme'] = new_settings.get('sub_theme')
         
         # 保存更新后的项目信息
         project_info['updated_at'] = datetime.now().isoformat()
@@ -4176,6 +4235,8 @@ def _run_rewrite_generation(task_id, title, project_path, new_settings, username
             'genre': new_settings.get('genre', project_info.get('genre', '未知')),
             'updated_at': datetime.now().isoformat()
         })
+        if new_settings.get('sub_theme'):
+            project_info['sub_theme'] = new_settings.get('sub_theme')
         
         if 'novel_info' not in project_info:
             project_info['novel_info'] = {}

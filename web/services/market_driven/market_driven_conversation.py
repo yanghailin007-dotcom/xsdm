@@ -882,7 +882,7 @@ POST /api/v2/prompt-config/component/{step_name}
                 "tactical_plan": ("战术规划.json", "tactical_plan"),
                 "writing_style_guide": ("写作风格指南.json", "writing_style_guide"),
                 "market_analysis": ("市场分析.json", "market_analysis"),
-                "alignment": ("爆款对齐报告.json", "alignment_report"),
+                "alignment": ("核心设定审核报告.json", "alignment_report"),
                 "faction_system": ("势力设定.json", "faction_system"),
             }
             
@@ -923,7 +923,7 @@ POST /api/v2/prompt-config/component/{step_name}
         Returns:
             所有产物字典
         """
-        # 🔥 保存项目路径供后续对齐检查使用
+        # 🔥 保存项目路径供后续核心设定审核使用
         self.project_path = project_path
         
         # 🔥 版本标记，确保代码已更新
@@ -1049,15 +1049,15 @@ POST /api/v2/prompt-config/component/{step_name}
             logger.error(traceback.format_exc())
             raise
         
-        # 🔥 步骤6: 爆款对齐检查 (90%) -> UI阶段: final_check
-        logger.info(f"[对话模式 {self.session_id}] [UI:final_check] 步骤6/6: 爆款对齐检查")
+        # 🔥 步骤6: 核心设定审核 (90%) -> UI阶段: final_check
+        logger.info(f"[对话模式 {self.session_id}] [UI:final_check] 步骤6/6: 核心设定审核")
         if progress_callback:
             progress_callback("bestseller_alignment", 90)
-        aligned_results = self._bestseller_alignment_check(results)
+        aligned_results = self._core_settings_review_check(results)
         
         # 🔥 如果审稿被 BLOCK，直接返回 blocked 结果，不抛异常
         if aligned_results.get("blocked"):
-            block_reason = aligned_results.get("block_reason", "爆款对齐检查未通过")
+            block_reason = aligned_results.get("block_reason", "核心设定审核未通过")
             logger.warning(f"[对话模式 {self.session_id}] [UI:final_check] 步骤6被BLOCK: {block_reason}")
             return {
                 **results,
@@ -1065,12 +1065,13 @@ POST /api/v2/prompt-config/component/{step_name}
                 "_block_reason": block_reason,
                 "_block_type": aligned_results.get("block_type", "bestseller_alignment"),
                 "_alignment_report": aligned_results.get("alignment_report"),
+                "_report_path": aligned_results.get("report_path", ""),
             }
         
         results.update(aligned_results)
         self._save_step_result("alignment", results, project_path)
         
-        # 🔥 关键修复：步骤6的爆款对齐检查结果必须写回对应的独立产物文件
+        # 🔥 关键修复：步骤6的核心设定审核结果必须写回对应的独立产物文件
         optimized_keys = []
         
         if 'emotion_curve' in aligned_results and aligned_results['emotion_curve']:
@@ -2413,9 +2414,11 @@ POST /api/v2/prompt-config/component/{step_name}
                 total_chapters = 200
         elif not isinstance(total_chapters, int):
             total_chapters = int(total_chapters) if total_chapters else 200
+        # emotion_curve 已在步骤5B中移除（改在战术规划中分批生成），
+        # 因此 previous_results 中 emotion_curve 为空是预期行为，无需告警
         emotion_curve_count = len(previous_results.get('emotion_curve', []))
         if emotion_curve_count != total_chapters:
-            logger.warning(f"[步骤5B] emotion_curve长度({emotion_curve_count})与目标章节数({total_chapters})不一致，使用目标章节数")
+            logger.info(f"[步骤5B] emotion_curve长度({emotion_curve_count})与目标章节数({total_chapters})不一致，使用目标章节数（情绪曲线已改在战术规划中分批生成，此处为空为预期）")
         
         # 🔥 安全获取里程碑（处理字典/列表类型问题）
         # 支持两种字段名：milestones 或 protagonist_growth
@@ -2423,8 +2426,9 @@ POST /api/v2/prompt-config/component/{step_name}
         milestones = growth_plan.get('milestones') or growth_plan.get('protagonist_growth', [])
         
         # 严格类型检查：确保 milestones 是列表
+        # AI 返回的 milestones 为字典是常见预期行为，直接转为单元素列表
         if isinstance(milestones, dict):
-            logger.warning(f"[对话模式 {self.session_id}] milestones 是字典而非列表，转换为单元素列表")
+            logger.info(f"[对话模式 {self.session_id}] milestones 是字典，转为单元素列表（预期行为）")
             milestones = [milestones]
         elif not isinstance(milestones, list):
             milestones = []
@@ -2851,9 +2855,9 @@ POST /api/v2/prompt-config/component/{step_name}
         # 注意：不修复内部引号问题，让AI通过重试学习正确格式
         return s
 
-    def _bestseller_alignment_check(self, previous_results: Dict) -> Dict:
+    def _core_settings_review_check(self, previous_results: Dict) -> Dict:
         """
-        步骤6: 爆款对齐检查
+        步骤6: 核心设定审核
         
         新流程：
         1. 生成核心设定圣经 (layer_1_4_core_settings.md)
@@ -2861,7 +2865,7 @@ POST /api/v2/prompt-config/component/{step_name}
         3. P0 硬规则数据校验 (瘦身版 AlignmentEngine)
         4. 原有情绪/阶段目标/金手指检查
         """
-        logger.info(f"[对话模式 {self.session_id}] 开始爆款对齐检查...")
+        logger.info(f"[对话模式 {self.session_id}] 开始核心设定审核...")
         
         project_path = getattr(self, 'project_path', None)
         
@@ -2955,11 +2959,11 @@ POST /api/v2/prompt-config/component/{step_name}
                 debug_info[key] = type(val).__name__
                 if isinstance(val, list):
                     debug_info[f"{key}_len"] = len(val)
-        logger.info(f"[DEBUG][_bestseller_alignment_check] previous_results类型: {debug_info}")
+        logger.info(f"[DEBUG][_core_settings_review_check] previous_results类型: {debug_info}")
         
         # 如果没有爆款分析数据，跳过检查
         if not self._prompt_generator:
-            logger.warning(f"[对话模式 {self.session_id}] 无Prompt生成器，跳过爆款对齐检查")
+            logger.warning(f"[对话模式 {self.session_id}] 无Prompt生成器，跳过核心设定审核中的爆款公式检查")
             return {"alignment_report": {"skipped": True, "reason": "无爆款分析数据"}}
         
         # 获取爆款分析数据
@@ -2997,7 +3001,7 @@ POST /api/v2/prompt-config/component/{step_name}
                    f"stage_goal_issues: {type(stage_goal_issues).__name__}, "
                    f"gf_issues: {type(gf_issues).__name__}")
         
-        # 4. 生成对齐报告
+        # 4. 生成审核报告
         total_issues = len(emotion_issues) + len(stage_goal_issues) + len(gf_issues)
         alignment_report = {
             "checked_at": datetime.now().isoformat(),
@@ -3013,7 +3017,7 @@ POST /api/v2/prompt-config/component/{step_name}
         
         # 🔥 输出检查摘要（让用户清楚看到检查结果）
         logger.info(f"[对话模式 {self.session_id}] ═══════════════════════════════════════")
-        logger.info(f"[对话模式 {self.session_id}] 【步骤6 爆款对齐检查摘要】")
+        logger.info(f"[对话模式 {self.session_id}] 【步骤6 核心设定审核摘要】")
         logger.info(f"[对话模式 {self.session_id}]   情绪曲线检查: {len(emotion_issues)} 个问题")
         logger.info(f"[对话模式 {self.session_id}]   阶段目标检查: {len(stage_goal_issues)} 个问题")
         logger.info(f"[对话模式 {self.session_id}]   金手指检查:   {len(gf_issues)} 个问题")
@@ -3039,7 +3043,7 @@ POST /api/v2/prompt-config/component/{step_name}
         
         # 5. 如果有偏差，进行优化
         if emotion_issues or stage_goal_issues or gf_issues:
-            logger.info(f"[对话模式 {self.session_id}] 对齐检查发现 {total_issues} 个问题，开始AI优化...")
+            logger.info(f"[对话模式 {self.session_id}] 核心设定审核发现 {total_issues} 个问题，开始AI优化...")
             optimized = self._optimize_for_bestseller(
                 previous_results,
                 emotion_issues,
@@ -3051,7 +3055,7 @@ POST /api/v2/prompt-config/component/{step_name}
             
             # 输出优化结果摘要
             logger.info(f"[对话模式 {self.session_id}] ═══════════════════════════════════════")
-            logger.info(f"[对话模式 {self.session_id}] 【步骤6 爆款对齐检查完成】")
+            logger.info(f"[对话模式 {self.session_id}] 【步骤6 核心设定审核完成】")
             if 'emotion_curve' in optimized:
                 logger.info(f"[对话模式 {self.session_id}]   ✅ 情绪曲线已优化")
             if 'stage_goals' in optimized:
@@ -3061,7 +3065,7 @@ POST /api/v2/prompt-config/component/{step_name}
             logger.info(f"[对话模式 {self.session_id}] ═══════════════════════════════════════")
             return optimized
         
-        logger.info(f"[对话模式 {self.session_id}] ✅ 对齐检查通过，无需优化（所有指标符合爆款公式）")
+        logger.info(f"[对话模式 {self.session_id}] ✅ 核心设定审核通过，无需优化（所有指标符合爆款公式）")
         return {"alignment_report": alignment_report}
     
     def _check_emotion_curve_bestseller_gap(self, emotion_curve: List[Dict], 
@@ -3436,7 +3440,7 @@ POST /api/v2/prompt-config/component/{step_name}
         results = previous_results.copy()
         
         # 构建优化提示词
-        prompt_parts = ["# 爆款对齐检查专家\n"]
+        prompt_parts = ["# 核心设定审核专家\n"]
         prompt_parts.append("你是一名专业的爆款小说优化专家。请基于爆款分析数据，优化以下设计。\n")
         
         # 添加发现的偏差
@@ -3566,13 +3570,13 @@ POST /api/v2/prompt-config/component/{step_name}
         
         # 调用AI进行优化
         try:
-            logger.info(f"[对话模式 {self.session_id}] 发送爆款对齐检查请求...")
+            logger.info(f"[对话模式 {self.session_id}] 发送核心设定审核请求...")
             response = self.session.send_message(
                 prompt,
                 temperature=0.7,
-                purpose="步骤6-爆款对齐检查"
+                purpose="步骤6-核心设定审核"
             )
-            self._logger.log_round("bestseller_alignment", self.session.messages.copy(), 
+            self._logger.log_round("core_settings_review", self.session.messages.copy(), 
                                    response if isinstance(response, str) else json.dumps(response))
             
             # 解析优化结果
@@ -3603,7 +3607,7 @@ POST /api/v2/prompt-config/component/{step_name}
                 logger.warning(f"[对话模式 {self.session_id}] 优化响应解析失败，使用原始结果")
             
         except Exception as e:
-            logger.error(f"[对话模式 {self.session_id}] 爆款对齐检查失败: {e}")
+            logger.error(f"[对话模式 {self.session_id}] 核心设定审核失败: {e}")
         
         return results
 

@@ -48,8 +48,8 @@ class PhaseOneDataLoader:
             'stage_goals': self.load_stage_goals(),
             'market_analysis': self.load_market_analysis(),
             'golden_finger': self.load_golden_finger(),
-            'plan': self._load_json("完整方案.json", {}) or self._load_json("plan.json", {}) or self._load_project_info().get("plan", {}),
-            'emotion_curve': self._load_json("情绪曲线.json", []),
+            'plan': self._load_json("完整方案.json", {}, silent=True) or self._load_json("plan.json", {}, silent=True) or self._load_project_info().get("plan", {}),
+            'emotion_curve': self._load_json("情绪曲线.json", [], silent=True),
             'faction_system': self._load_faction_system(),
         }
         
@@ -75,7 +75,7 @@ class PhaseOneDataLoader:
         """加载情绪蓝图（已废弃独立文件，从情绪曲线自动推导）"""
         # 🔥 情绪蓝图.json 已废弃，不再生成独立文件
         # 改为从情绪曲线自动推导高潮节点
-        emotion_curve = self._load_json("情绪曲线.json", [])
+        emotion_curve = self._load_json("情绪曲线.json", [], silent=True)
         if emotion_curve and isinstance(emotion_curve, list):
             climax_moments = [
                 f"第{e.get('chapter')}章-{e.get('emotion', '高潮')}"
@@ -100,8 +100,8 @@ class PhaseOneDataLoader:
         return data if isinstance(data, list) else [data]
     
     def load_market_analysis(self) -> Dict:
-        """加载市场分析（可选）"""
-        return self._load_json("市场分析.json", {})
+        """加载市场分析（可选，对话模式中不生成独立文件）"""
+        return self._load_json("市场分析.json", {}, silent=True)
     
     def _load_json(self, filename: str, default: any, silent: bool = False) -> any:
         """加载JSON文件
@@ -177,7 +177,7 @@ class PhaseOneDataLoader:
             data['emotional_blueprint'] = {}
             emotion = data['emotional_blueprint']
         if not emotion.get('climax_moments'):
-            logger.warning("[PhaseOneDataLoader] ⚠️ 高潮节点缺失！")
+            logger.info("[PhaseOneDataLoader] 高潮节点缺失（情绪曲线已改在战术规划中分批生成，此为预期）")
         else:
             logger.info(f"[PhaseOneDataLoader] 高潮节点: {emotion.get('climax_moments')}")
     
@@ -278,13 +278,13 @@ class PhaseOneDataLoader:
         优先从金手指设定.json读取，如不存在则从其他数据源回退
         """
         # 1. 优先从专用文件读取
-        gf = self._load_json("金手指设计.json", None)
+        gf = self._load_json("金手指设计.json", None, silent=True)
         if gf and isinstance(gf, dict):
             logger.info(f"[PhaseOneDataLoader] 从金手指设计.json加载")
             return gf
         
         # 兼容旧命名
-        gf = self._load_json("金手指设定.json", None)
+        gf = self._load_json("金手指设定.json", None, silent=True)
         if gf and isinstance(gf, dict):
             logger.info(f"[PhaseOneDataLoader] 从金手指设定.json加载")
             return gf
@@ -322,7 +322,7 @@ class PhaseOneDataLoader:
                         return self._create_simple_golden_finger(mc_exclusive)
         
         # 5. 空对象（不再硬编码）
-        logger.error(f"[PhaseOneDataLoader] 无法找到金手指设定！")
+        logger.warning(f"[PhaseOneDataLoader] 无法找到独立金手指设定文件，将从生成过程中动态提取或创建空对象")
         return self._create_empty_golden_finger()
     
     def _load_project_info(self) -> Dict:

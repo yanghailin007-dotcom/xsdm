@@ -48,7 +48,8 @@ class TomatoBestsellerTacticalSession:
         project_path: Path,
         api_client=None,
         novel_title: str = "",
-        emotion_curve: List[Dict] = None
+        emotion_curve: List[Dict] = None,
+        sub_theme: str = None
     ):
         self.session_id = session_id
         self.start_chapter = start_chapter
@@ -57,6 +58,7 @@ class TomatoBestsellerTacticalSession:
         self.api_client = api_client
         self.novel_title = novel_title
         self.emotion_curve = emotion_curve or []
+        self.sub_theme = sub_theme or self._detect_sub_theme()
         
         # 加载一阶段数据
         self.phase_one_data = load_phase_one_data(self.project_path)
@@ -164,8 +166,31 @@ class TomatoBestsellerTacticalSession:
         logger.warning(f"[TomatoTacticalSession] 期望dict但得到{type(obj).__name__} (路径: {path})，使用空字典")
         return {}
     
-    def _load_prompt_template(self, round_name: str, prompt_type: str) -> Optional[str]:
-        """从配置包加载prompt模板（支持按题材覆写）"""
+    def _detect_sub_theme(self) -> Optional[str]:
+        """基于 project_info.json 中的 genre 推断子主题"""
+        try:
+            project_info_path = self.project_path / "project_info.json"
+            if project_info_path.exists():
+                with open(project_info_path, "r", encoding="utf-8") as f:
+                    info = json.load(f)
+                genre = info.get("genre", "")
+                mapping = {
+                    "god-tier": "spending_rebate",
+                    "god-tier-investment": "investment_guru",
+                    "god-tier-livestream": "livestream_tycoon",
+                    "god-tier-checkin": "daily_checkin",
+                    "sign-in-daily": "daily_checkin",
+                }
+                sub_theme = mapping.get(genre)
+                if sub_theme:
+                    logger.info(f"[TomatoTacticalSession] 自动推断子主题: {genre} -> {sub_theme}")
+                    return sub_theme
+        except Exception as e:
+            logger.warning(f"[TomatoTacticalSession] 推断子主题失败: {e}")
+        return None
+    
+    def _load_prompt_template(self, round_name: str, prompt_type: str, sub_theme=None) -> Optional[str]:
+        """从配置包加载prompt模板（支持按题材覆写和子主题场景库注入）"""
         try:
             # 定位配置文件：从当前文件向上回溯到项目根
             config_path = (
@@ -193,8 +218,25 @@ class TomatoBestsellerTacticalSession:
                     logger.info(f"[TomatoTacticalSession] 使用题材覆写prompt: {genre}/{round_name}/{prompt_type}")
                     return override
             
-            # 回退到通用模板
-            return data.get("prompts", {}).get(round_name, {}).get(prompt_type)
+            template = data.get("prompts", {}).get(round_name, {}).get(prompt_type)
+            
+            # 注入子主题场景库
+            if template and round_name == "round2" and prompt_type == "user_prompt_template" and sub_theme:
+                scenarios = (
+                    data.get("prompts", {})
+                    .get("round2", {})
+                    .get("sub_themes", {})
+                    .get(sub_theme, {})
+                    .get("scenarios", "")
+                )
+                if scenarios:
+                    template = template.replace("{sub_theme_scenarios}", scenarios)
+                    logger.info(f"[TomatoTacticalSession] 注入子主题场景库: {sub_theme}")
+                else:
+                    template = template.replace("{sub_theme_scenarios}", "")
+                    logger.warning(f"[TomatoTacticalSession] 未找到子主题场景库: {sub_theme}")
+            
+            return template
         except Exception as e:
             logger.warning(f"[TomatoTacticalSession] 加载prompt配置失败({round_name}/{prompt_type}): {e}")
             return None
@@ -326,7 +368,7 @@ class TomatoBestsellerTacticalSession:
         batch_climax_raw = ', '.join(str(c) for c in batch_climax) if batch_climax else '无'
         emotion_text = emotion_curve_text or '未提供详细曲线'
         
-        prompt_template = self._load_prompt_template("round2", "user_prompt_template")
+        prompt_template = self._load_prompt_template("round2", "user_prompt_template", sub_theme=self.sub_theme)
         if not prompt_template:
             logger.warning("[TomatoTacticalSession] Round2 用户prompt配置缺失，使用极简fallback")
             prompt_template = """# 番茄爆款细纲规划 - 第2轮：情绪爽点规划\n\n为小说《{novel_title}》规划第{start_chapter}-{end_chapter}章详细情绪设计。\n\n设定约束：\n{key_constraints}\n\n高潮节点：{batch_climax_raw}\n\n请输出包含 chapters 和 emotion_analysis 的JSON。"""
@@ -780,7 +822,8 @@ def create_tactical_session(
     start_chapter: int = 1,
     end_chapter: int = 30,
     novel_title: str = "",
-    emotion_curve: List[Dict] = None
+    emotion_curve: List[Dict] = None,
+    sub_theme: str = None
 ) -> TomatoBestsellerTacticalSession:
     """
     创建新的番茄爆款细纲会话
@@ -792,6 +835,7 @@ def create_tactical_session(
         end_chapter: 结束章节
         novel_title: 小说标题
         emotion_curve: 情绪曲线数据
+        sub_theme: 子主题（如 investment_guru / livestream_tycoon / daily_checkin）
     
     Returns:
         TomatoBestsellerTacticalSession: 细纲会话实例
@@ -805,11 +849,12 @@ def create_tactical_session(
         project_path=project_path,
         api_client=api_client,
         novel_title=novel_title,
-        emotion_curve=emotion_curve
+        emotion_curve=emotion_curve,
+        sub_theme=sub_theme
     )
     
     _sessions[session_id] = session
-    logger.info(f"[TomatoTacticalSession] 创建会话: {session_id}")
+    logger.info(f"[TomatoTacticalSession] 创建会话: {session_id} | 子主题: {sub_theme or 'auto-detect'}")
     
     return session
 

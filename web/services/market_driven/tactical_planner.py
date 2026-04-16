@@ -668,7 +668,7 @@ class TacticalPlanner:
             # 添加窗口情绪设计
             if window_emotion_design:
                 bestseller_parts.append("### 一阶段情绪曲线设计（本窗口）")
-                bestseller_parts.append("以下是一阶段生成的爆款对齐情绪设计，必须严格遵循：")
+                bestseller_parts.append("以下是一阶段生成的核心设定审核情绪设计，必须严格遵循：")
                 for point in window_emotion_design[:10]:  # 最多显示10章
                     ch = point.get('chapter', '?')
                     emotion = point.get('emotion', '?')

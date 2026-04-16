@@ -124,6 +124,20 @@ class GenreTechniquesLoader:
         
         logger.info(f"[GenreTechniquesLoader] 初始化完成，基础路径: {self.base_path}")
     
+    def _normalize_genre_name(self, genre: str) -> str:
+        """将英文 genre key 映射到中文文件名"""
+        mapping = {
+            "god-tier": "神豪文",
+            "god-tier-spending": "神豪文",
+            "god-tier-investment": "神豪文",
+            "god-tier-livestream": "神豪文",
+            "god-tier-checkin": "神豪文",
+            "sign-in-daily": "神豪文",
+            "nation-live": "国运文",
+            "nation-explore": "国运文",
+        }
+        return mapping.get(genre, genre)
+    
     def load(self, genre: str, use_cache: bool = True) -> GenreTechniques:
         """
         加载指定题材的技法
@@ -142,6 +156,9 @@ class GenreTechniquesLoader:
         if use_cache and genre in self._cache:
             logger.debug(f"[GenreTechniquesLoader] 使用缓存: {genre}")
             return self._cache[genre]
+        
+        # 标准化题材名称（英文ID映射到中文文件名）
+        genre = self._normalize_genre_name(genre)
         
         # 构建文件路径
         file_path = self.base_path / f"{genre}.yaml"

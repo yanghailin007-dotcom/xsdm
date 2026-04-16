@@ -162,6 +162,36 @@ class HierarchicalPlanner:
         except Exception as e:
             logger.error(f"[HierarchicalPlanner] 加载历史总结失败: {e}")
     
+    def _get_sub_theme(self) -> Optional[str]:
+        """获取子主题配置：优先从 project_info.json 读取，否则根据 genre 推断"""
+        try:
+            if self.project_path:
+                project_info_path = self.project_path / "project_info.json"
+                if project_info_path.exists():
+                    with open(project_info_path, "r", encoding="utf-8") as f:
+                        info = json.load(f)
+                    sub_theme = info.get("sub_theme")
+                    if sub_theme:
+                        logger.info(f"[HierarchicalPlanner] 使用子主题: {sub_theme}")
+                        return sub_theme
+        except Exception as e:
+            logger.warning(f"[HierarchicalPlanner] 读取子主题失败: {e}")
+        
+        # 根据 genre 推断默认值
+        genre_sub_theme_map = {
+            "god-tier": "spending_rebate",
+            "god-tier-investment": "investment_guru",
+            "god-tier-livestream": "livestream_tycoon",
+            "god-tier-checkin": "daily_checkin",
+            "sign-in-daily": "daily_checkin",
+        }
+        sub_theme = genre_sub_theme_map.get(self.genre)
+        if sub_theme:
+            logger.info(f"[HierarchicalPlanner] 根据题材推断子主题: {sub_theme}")
+            return sub_theme
+        
+        return None
+    
     def initialize(self, existing_world_setting: Dict = None):
         """
         初始化世界观和阶段目标（只执行一次）
@@ -325,13 +355,17 @@ class HierarchicalPlanner:
         
         try:
             # 创建细纲会话
+            # 🔥 读取子主题配置
+            sub_theme = self._get_sub_theme()
+            
             session = create_tactical_session(
                 project_path=self.project_path,
                 api_client=self.api_client,
                 start_chapter=start_ch,
                 end_chapter=min(start_ch + self.tactical_window - 1, self.total_chapters),
                 novel_title=self.novel_title,
-                emotion_curve=self.emotion_curve
+                emotion_curve=self.emotion_curve,
+                sub_theme=sub_theme
             )
             
             # 执行三轮对话，生成完整蓝图
