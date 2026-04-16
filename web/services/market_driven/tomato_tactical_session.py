@@ -128,6 +128,8 @@ class TomatoBestsellerTacticalSession:
                 provider='kimi'
             )
             
+            self._save_round_log(1, prompt, system_prompt, response)
+            
             result = self._parse_json_response(response)
             
             # 验证关键字段
@@ -158,6 +160,25 @@ class TomatoBestsellerTacticalSession:
         else:
             logger.warning(f"[TomatoTacticalSession] 核心设定圣经不存在: {bible_path}，将回退到一阶段数据摘要")
         return ""
+    
+    def _save_round_log(self, round_num: int, user_prompt: str, system_prompt: str, response: str):
+        """保存每一轮战术对话的 prompt 和 response 到项目目录，用于调试和审计"""
+        try:
+            log_dir = self.project_path / "tactical_sessions" / self.session_id
+            log_dir.mkdir(parents=True, exist_ok=True)
+            
+            # 保存完整 prompt（system + user）
+            prompt_file = log_dir / f"round{round_num}_prompt.txt"
+            prompt_content = f"[SYSTEM PROMPT]\n{system_prompt}\n\n{'='*60}\n\n[USER PROMPT]\n{user_prompt}"
+            prompt_file.write_text(prompt_content, encoding='utf-8')
+            
+            # 保存原始 response
+            response_file = log_dir / f"round{round_num}_response.txt"
+            response_file.write_text(response, encoding='utf-8')
+            
+            logger.info(f"[TomatoTacticalSession] 第{round_num}轮对话日志已保存: {log_dir}")
+        except Exception as e:
+            logger.warning(f"[TomatoTacticalSession] 保存第{round_num}轮日志失败: {e}")
     
     def _safe_dict(self, obj, path=""):
         """安全获取字典，非字典时返回空字典并记录警告"""
@@ -317,6 +338,8 @@ class TomatoBestsellerTacticalSession:
                 provider='kimi'
             )
             
+            self._save_round_log(2, prompt, system_prompt, response)
+            
             result = self._parse_json_response(response)
             
             if not result.get('chapters'):
@@ -423,6 +446,8 @@ class TomatoBestsellerTacticalSession:
                 purpose="战术规划-角色出场",
                 provider='kimi'
             )
+            
+            self._save_round_log(3, prompt, system_prompt, response)
             
             result = self._parse_json_response(response)
             
