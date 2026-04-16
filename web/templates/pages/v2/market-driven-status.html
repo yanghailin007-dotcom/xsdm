@@ -1672,7 +1672,8 @@ async function retryTask() {
       headers: {'Content-Type': 'application/json'},
       body: JSON.stringify({
         start_chapter: 1,
-        end_chapter: 6
+        end_chapter: 6,
+        skip_bible_review: true
       })
     });
     const result = await response.json();
