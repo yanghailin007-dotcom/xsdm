@@ -1621,7 +1621,8 @@ async function startContinueGeneration() {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         start_chapter: startChapter,
-        end_chapter: endChapter
+        end_chapter: endChapter,
+        skip_bible_review: true
       })
     });
     
