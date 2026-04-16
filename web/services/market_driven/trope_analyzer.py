@@ -173,7 +173,10 @@ class TropeAnalyzer:
             log_ai_interactions: 是否记录AI交互日志
         """
         self.api_client = api_client
-        self._cache = {}  # 简单缓存，避免重复分析
+        self._cache = {}  # 内存缓存
+        self._cache_dir = Path("cache/tropes")
+        self._cache_dir.mkdir(parents=True, exist_ok=True)
+        self._cache_ttl_days = 7
         
         # AI交互日志记录器
         self._interaction_logger = AIInteractionLogger() if log_ai_interactions else None
@@ -208,6 +211,38 @@ class TropeAnalyzer:
             manager.api_client = api_client
         return manager.get_genres()
     
+    def _load_file_cache(self, genre: str) -> Optional[Dict]:
+        """加载本地文件缓存，7天内有效"""
+        cache_file = self._cache_dir / f"{genre.replace('/', '_')}.json"
+        if not cache_file.exists():
+            return None
+        try:
+            with open(cache_file, 'r', encoding='utf-8') as f:
+                data = json.load(f)
+            cached_at = data.get("analyzed_at", "")
+            if cached_at:
+                cached_date = datetime.fromisoformat(cached_at)
+                if (datetime.now() - cached_date).days < self._cache_ttl_days:
+                    logger.info(f"[TropeAnalyzer] 使用文件缓存({self._cache_ttl_days}天内): {genre}")
+                    return data
+                else:
+                    logger.info(f"[TropeAnalyzer] 文件缓存已过期({(datetime.now() - cached_date).days}天): {genre}")
+            else:
+                return data  # 无时间戳也允许读取，保守兼容
+        except Exception as e:
+            logger.warning(f"[TropeAnalyzer] 加载文件缓存失败: {e}")
+        return None
+    
+    def _save_file_cache(self, genre: str, result: Dict):
+        """保存分析结果到本地文件缓存"""
+        cache_file = self._cache_dir / f"{genre.replace('/', '_')}.json"
+        try:
+            with open(cache_file, 'w', encoding='utf-8') as f:
+                json.dump(result, f, ensure_ascii=False, indent=2)
+            logger.info(f"[TropeAnalyzer] 已保存文件缓存: {cache_file}")
+        except Exception as e:
+            logger.warning(f"[TropeAnalyzer] 保存文件缓存失败: {e}")
+    
     def analyze_genre(self, genre: str, use_cache: bool = True) -> Dict:
         """
         分析指定题材的爆款套路
@@ -219,10 +254,17 @@ class TropeAnalyzer:
         Returns:
             爆款分析结果
         """
-        # 检查缓存
+        # 1. 检查内存缓存
         if use_cache and genre in self._cache:
-            logger.info(f"[TropeAnalyzer] 使用缓存的爆款分析: {genre}")
+            logger.info(f"[TropeAnalyzer] 使用内存缓存: {genre}")
             return self._cache[genre]
+        
+        # 2. 检查文件缓存（7天）
+        if use_cache:
+            file_cache = self._load_file_cache(genre)
+            if file_cache:
+                self._cache[genre] = file_cache
+                return file_cache
         
         logger.info(f"[TropeAnalyzer] 开始分析爆款题材规律: {genre}")
         
@@ -261,6 +303,7 @@ class TropeAnalyzer:
             
             # 缓存结果
             self._cache[genre] = result
+            self._save_file_cache(genre, result)
             
             logger.info(f"[TropeAnalyzer] 爆款分析完成: {genre}")
             return result
