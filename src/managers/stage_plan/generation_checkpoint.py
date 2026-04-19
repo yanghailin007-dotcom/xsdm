@@ -127,12 +127,32 @@ class GenerationCheckpoint:
         # 保留中文和其他合法字符，使目录名更可读
         self.safe_title = self._sanitize_filename(novel_title)
         
-        # 检查点文件路径 - 如果提供了用户名，使用 小说项目/用户名/小说名/.generation 结构
+        # 🔥 修复：检查点路径优先使用实际存在的项目目录名（与项目保存路径一致）
+        # 避免 safe_title 和原始标题不一致导致"两个目录"
+        base_dir = workspace_dir / "小说项目"
         if username:
-            self.checkpoint_dir = workspace_dir / "小说项目" / username / self.safe_title / ".generation"
+            user_dir = base_dir / username
+            # 优先尝试原始标题的目录
+            project_dir_original = user_dir / novel_title
+            project_dir_safe = user_dir / self.safe_title
+            if project_dir_original.exists():
+                self.checkpoint_dir = project_dir_original / ".generation"
+            elif project_dir_safe.exists():
+                self.checkpoint_dir = project_dir_safe / ".generation"
+            else:
+                # 都不存在，使用原始标题创建（与项目保存逻辑一致）
+                self.checkpoint_dir = project_dir_original / ".generation"
         else:
             # 向后兼容：使用旧的路径结构
-            self.checkpoint_dir = workspace_dir / "小说项目" / self.safe_title / ".generation"
+            project_dir_original = base_dir / novel_title
+            project_dir_safe = base_dir / self.safe_title
+            if project_dir_original.exists():
+                self.checkpoint_dir = project_dir_original / ".generation"
+            elif project_dir_safe.exists():
+                self.checkpoint_dir = project_dir_safe / ".generation"
+            else:
+                self.checkpoint_dir = project_dir_original / ".generation"
+        
         self.checkpoint_file = self.checkpoint_dir / "checkpoint.json"
         self.backup_file = self.checkpoint_dir / "checkpoint_backup.json"
     
