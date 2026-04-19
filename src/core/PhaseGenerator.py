@@ -4409,9 +4409,10 @@ class PhaseGenerator:
                 # 回退到 novel_data
                 stage_writing_plans = self.generator.novel_data.get("stage_writing_plans", {})
             
+            # 🔥 修复：如果没有详细阶段计划，使用一阶段产物进行设定完整性评估
             if not stage_writing_plans:
-                print("⚠️ 没有写作计划，跳过评估")
-                return None
+                print("⚠️ 没有详细写作计划，使用一阶段产物进行设定完整性评估")
+                return self._assess_foundation_completeness()
 
             # 🔥 调试：打印阶段计划数据
             print(f"📊 开始AI质量评估（共 {len(stage_writing_plans)} 个阶段）...")
@@ -4769,12 +4770,249 @@ class PhaseGenerator:
         
         return merged
     
+    def _assess_foundation_completeness(self) -> Dict:
+        """
+        🔥 新增：基于一阶段产物进行设定完整性评估
+        
+        当没有详细阶段计划（stage_writing_plans）时，使用一阶段已有产物评估：
+        - overall_stage_plans: 全书阶段计划（爽点单元制）
+        - emotional_blueprint: 情绪蓝图
+        - character_design: 角色设计
+        - core_worldview / worldview: 世界观
+        - global_growth_plan: 成长规划
+        - writing_style_guide: 写作风格
+        - market_analysis: 市场分析
+        
+        评估维度：
+        1. 设定完整性（各模块是否存在）
+        2. 爽文结构合理性（爽点单元制）
+        3. 情绪蓝图质量（压抑-爆发配对）
+        4. 角色设计完整性（主角/配角/反派）
+        """
+        print("📊 [设定完整性评估] 基于一阶段产物进行评估...")
+        
+        novel_data = self.generator.novel_data
+        score = 60  # 基础分
+        issues = []
+        strengths = []
+        
+        # ========== 1. 设定完整性检查 ==========
+        modules = {
+            'overall_stage_plans': '全书阶段计划',
+            'emotional_blueprint': '情绪蓝图',
+            'character_design': '角色设计',
+            'core_worldview': '世界观',
+            'global_growth_plan': '成长规划',
+            'writing_style_guide': '写作风格',
+            'market_analysis': '市场分析'
+        }
+        
+        present_modules = []
+        missing_modules = []
+        
+        for key, name in modules.items():
+            # 兼容 worldviews/core_worldview 两种键名
+            data = novel_data.get(key)
+            if key == 'core_worldview' and not data:
+                data = novel_data.get('worldview')
+            if data and isinstance(data, dict) and len(data) > 0:
+                present_modules.append(name)
+            else:
+                missing_modules.append(name)
+        
+        score += len(present_modules) * 3  # 每个模块+3分
+        
+        if present_modules:
+            strengths.append(f"设定完整度良好，包含{len(present_modules)}/7个核心模块")
+        if missing_modules:
+            issues.append({
+                "category": "completeness",
+                "severity": "medium" if len(missing_modules) <= 2 else "high",
+                "location": "foundation",
+                "description": f"缺少设定模块: {', '.join(missing_modules)}",
+                "suggestion": "建议补全缺失的设定模块"
+            })
+        
+        # ========== 2. 爽文结构检查 ==========
+        overall_plans = novel_data.get("overall_stage_plans", {})
+        stage_plan = overall_plans.get("overall_stage_plan", overall_plans)
+        
+        if stage_plan and isinstance(stage_plan, dict):
+            stage_count = len(stage_plan)
+            if stage_count >= 4:
+                score += 8
+                strengths.append(f"爽点单元制结构完整（{stage_count}个阶段）")
+            elif stage_count >= 3:
+                score += 4
+                strengths.append(f"阶段划分合理（{stage_count}个阶段）")
+            else:
+                score -= 5
+                issues.append({
+                    "category": "structure",
+                    "severity": "medium",
+                    "location": "stage_plan",
+                    "description": f"阶段数量偏少（{stage_count}个），建议至少4个爽点单元",
+                    "suggestion": "增加阶段数量，确保爽点节奏丰富"
+                })
+            
+            # 检查是否包含爽点导向的阶段名
+            stage_names = [s.get("stage_name", s.get("name", "")) for s in stage_plan.values() if isinstance(s, dict)]
+            payoff_keywords = ["爽", "打脸", "碾压", "崛起", "突破", "爆发", "碾压", "登顶"]
+            payoff_stages = [name for name in stage_names if any(kw in name for kw in payoff_keywords)]
+            if payoff_stages:
+                score += 5
+                strengths.append(f"阶段命名爽点导向明确（{len(payoff_stages)}个）")
+            else:
+                issues.append({
+                    "category": "structure",
+                    "severity": "low",
+                    "location": "stage_plan",
+                    "description": "阶段命名缺少爽点导向",
+                    "suggestion": "建议阶段名体现核心爽点（如'觉醒打脸篇'）"
+                })
+        
+        # ========== 3. 情绪蓝图检查 ==========
+        emotional = novel_data.get("emotional_blueprint", {})
+        if emotional and isinstance(emotional, dict):
+            payoff_moments = emotional.get("payoff_moments", [])
+            suppression = emotional.get("suppression_design", [])
+            
+            if len(payoff_moments) >= 3:
+                score += 5
+                strengths.append(f"爽点设计丰富（{len(payoff_moments)}个爽点节点）")
+            
+            if suppression:
+                score += 5
+                strengths.append(f"压抑-爆发配对设计完整（{len(suppression)}处压抑铺垫）")
+            else:
+                issues.append({
+                    "category": "emotional",
+                    "severity": "medium",
+                    "location": "emotional_blueprint",
+                    "description": "缺少压抑设计，爽感可能不足",
+                    "suggestion": "为每个爽点设计前置压抑铺垫"
+                })
+            
+            golden_three = emotional.get("golden_three_chapters", {})
+            if golden_three and any(golden_three.values()):
+                score += 3
+                strengths.append("黄金三章已设计")
+            else:
+                issues.append({
+                    "category": "emotional",
+                    "severity": "high",
+                    "location": "golden_three",
+                    "description": "缺少黄金三章设计",
+                    "suggestion": "前3章必须有强钩子+冲突+首次爽点"
+                })
+        
+        # ========== 4. 角色设计检查 ==========
+        character = novel_data.get("character_design", {})
+        if character and isinstance(character, dict):
+            protagonist = character.get("protagonist", {})
+            if protagonist and protagonist.get("basic_info", {}).get("name"):
+                score += 3
+                strengths.append("主角设定完整")
+            
+            supporting = character.get("supporting_characters", [])
+            if len(supporting) >= 2:
+                score += 3
+                strengths.append(f"配角阵容丰富（{len(supporting)}个）")
+            
+            antagonist = character.get("antagonist", {})
+            if antagonist and antagonist.get("name"):
+                score += 3
+                strengths.append("反派设定完整")
+            else:
+                issues.append({
+                    "category": "character",
+                    "severity": "low",
+                    "location": "antagonist",
+                    "description": "缺少反派设定",
+                    "suggestion": "设计有合理动机的反派增强冲突"
+                })
+        
+        # ========== 5. 成长规划检查 ==========
+        growth = novel_data.get("global_growth_plan", {})
+        if growth and isinstance(growth, dict):
+            milestones = growth.get("milestone_events", [])
+            if len(milestones) >= 3:
+                score += 3
+                strengths.append(f"成长里程碑清晰（{len(milestones)}个）")
+            
+            face_slap = growth.get("face_slap_stages", [])
+            if face_slap:
+                score += 3
+                strengths.append("打脸升级路线已设计")
+        
+        # ========== 最终评分 ==========
+        score = min(100, max(0, score))
+        
+        if score >= 85:
+            readiness = "ready"
+        elif score >= 70:
+            readiness = "needs_review"
+        elif score >= 50:
+            readiness = "needs_revision"
+        else:
+            readiness = "incomplete"
+        
+        # 生成总结
+        summary_parts = [
+            f"设定完整性评估：{len(present_modules)}/7个核心模块已构建",
+        ]
+        if stage_plan:
+            summary_parts.append(f"爽点单元制：{len(stage_plan)}个阶段")
+        if emotional:
+            summary_parts.append(f"爽点节点：{len(emotional.get('payoff_moments', []))}个")
+        if missing_modules:
+            summary_parts.append(f"待补全：{', '.join(missing_modules[:3])}")
+        
+        assessment_dict = {
+            "overall_score": score,
+            "readiness": readiness,
+            "strengths": strengths[:5],  # 最多显示5个优点
+            "issues": issues[:5],  # 最多显示5个问题
+            "summary": "；".join(summary_parts),
+            "is_ai_assessment": False,
+            "assessment_mode": "foundation_completeness",  # 🔥 标记为设定完整性评估
+            "assessment_time": datetime.now().isoformat(),
+            "modules_present": present_modules,
+            "modules_missing": missing_modules
+        }
+        
+        print(f"✅ [设定完整性评估] 完成: {score}分 ({readiness})")
+        print(f"   优点: {len(strengths)}个 | 问题: {len(issues)}个")
+        
+        # 保存评估报告
+        try:
+            from src.config.path_config import path_config
+            username = (getattr(self.generator, '_username', None) or 
+                       getattr(self.generator, '_ctx', {}).get('username') or
+                       novel_data.get('username'))
+            paths = path_config.get_project_paths(novel_data.get("novel_title", "未命名"), username=username)
+            project_dir = Path(paths['project_root'])
+            project_dir.mkdir(parents=True, exist_ok=True)
+            assessment_path = project_dir / "quality_assessment.json"
+            with open(assessment_path, 'w', encoding='utf-8') as f:
+                json.dump(assessment_dict, f, ensure_ascii=False, indent=2)
+            print(f"📄 评估报告已保存: {assessment_path}")
+        except Exception as e:
+            print(f"⚠️ 保存评估报告失败: {e}")
+        
+        return assessment_dict
+    
     def _assess_writing_plan_quality_rule_based(self) -> Optional[Dict]:
-        """基于规则的评估（降级方案）"""
+        """基于规则的评估（降级方案）
+        
+        🔥 修复：支持无详细阶段计划的模式，基于一阶段产物进行设定完整性评估
+        """
         try:
             stage_writing_plans = self.generator.novel_data.get("stage_writing_plans", {})
+            
+            # 🔥 新增：如果没有详细阶段计划，基于一阶段产物进行设定完整性评估
             if not stage_writing_plans:
-                return None
+                return self._assess_foundation_completeness()
 
             # 统计各阶段的关键指标
             total_major_events = 0
