@@ -279,6 +279,9 @@ class NovelGenerationManager:
         # 🔥 新增：任务停止标志字典 {task_id: True/False}
         self._stop_flags = {}
         
+        # 🔥 新增：设置 logger 属性（避免 'NovelGenerationManager' object has no attribute 'logger'）
+        self.logger = logger
+        
         # 🔥 新增：初始化检查点管理器
         try:
             from src.managers.stage_plan.generation_checkpoint import GenerationCheckpoint
