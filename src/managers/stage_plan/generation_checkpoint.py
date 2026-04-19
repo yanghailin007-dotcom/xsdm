@@ -135,23 +135,38 @@ class GenerationCheckpoint:
             # 优先尝试原始标题的目录
             project_dir_original = user_dir / novel_title
             project_dir_safe = user_dir / self.safe_title
-            if project_dir_original.exists():
-                self.checkpoint_dir = project_dir_original / ".generation"
+            # 🔥🔥 关键修复：检查 .generation 子目录是否存在
+            checkpoint_original = project_dir_original / ".generation"
+            checkpoint_safe = project_dir_safe / ".generation"
+            if checkpoint_original.exists():
+                self.checkpoint_dir = checkpoint_original
+            elif checkpoint_safe.exists():
+                self.checkpoint_dir = checkpoint_safe
+            elif project_dir_original.exists():
+                # 原始目录存在但没有 .generation，使用原始目录（与项目保存逻辑一致）
+                self.checkpoint_dir = checkpoint_original
             elif project_dir_safe.exists():
-                self.checkpoint_dir = project_dir_safe / ".generation"
+                # safe 目录存在但没有 .generation，使用 safe 目录
+                self.checkpoint_dir = checkpoint_safe
             else:
-                # 都不存在，使用原始标题创建（与项目保存逻辑一致）
-                self.checkpoint_dir = project_dir_original / ".generation"
+                # 都不存在，使用原始标题创建
+                self.checkpoint_dir = checkpoint_original
         else:
             # 向后兼容：使用旧的路径结构
             project_dir_original = base_dir / novel_title
             project_dir_safe = base_dir / self.safe_title
-            if project_dir_original.exists():
-                self.checkpoint_dir = project_dir_original / ".generation"
+            checkpoint_original = project_dir_original / ".generation"
+            checkpoint_safe = project_dir_safe / ".generation"
+            if checkpoint_original.exists():
+                self.checkpoint_dir = checkpoint_original
+            elif checkpoint_safe.exists():
+                self.checkpoint_dir = checkpoint_safe
+            elif project_dir_original.exists():
+                self.checkpoint_dir = checkpoint_original
             elif project_dir_safe.exists():
-                self.checkpoint_dir = project_dir_safe / ".generation"
+                self.checkpoint_dir = checkpoint_safe
             else:
-                self.checkpoint_dir = project_dir_original / ".generation"
+                self.checkpoint_dir = checkpoint_original
         
         self.checkpoint_file = self.checkpoint_dir / "checkpoint.json"
         self.backup_file = self.checkpoint_dir / "checkpoint_backup.json"
