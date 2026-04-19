@@ -2593,8 +2593,9 @@ class NovelGenerator:
             print("⚠️ 阶段计划管理器未初始化，跳过写作计划加载")
         
         if self._ctx["overall_stage_plans"]:
-            self.event_driven_manager.initialize_event_system()
-            print("✅ 事件系统初始化完成")
+            # 🔥 一阶段初始化时不自动触发细纲生成
+            self.event_driven_manager.initialize_event_system(auto_generate_plans=False)
+            print("✅ 事件系统初始化完成（一阶段模式）")
         
         if self._ctx["character_design"]:
             # 期待感管理系统将在事件规划时自动初始化

@@ -821,9 +821,10 @@ class PhaseOneSetup {
                 name: '📅 阶段规划',
                 desc: '正在规划全书的阶段结构和情节节奏...'
             },
-            'detailed_stage_plans': {
-                name: '📅 阶段详细计划',
-                desc: '正在并行生成4个阶段的详细写作计划（起承转合）...'
+            // CTPC步骤名兼容
+            'creative_analysis': {
+                name: '💬 商业化分析',
+                desc: '正在进行商业化分析、同人文检测和背景补充...'
             },
             'story_outline': {
                 name: '📝 详细规划',
@@ -844,6 +845,23 @@ class PhaseOneSetup {
             'initialization': {
                 name: '🚀 初始化',
                 desc: '正在初始化生成环境...'
+            },
+            // 预计用时兼容
+            'emotional_growth_planning': {
+                name: '💫 情绪与成长规划',
+                desc: '正在设计全书情绪曲线和主角成长路线...'
+            },
+            'system_init': {
+                name: '🔧 系统初始化',
+                desc: '正在初始化期待感系统、伏笔管理系统...'
+            },
+            'saving': {
+                name: '💾 保存结果',
+                desc: '正在保存所有设定到项目...'
+            },
+            'quality_assessment': {
+                name: '✅ AI质量评估',
+                desc: '正在评估设定质量并进行智能优化...'
             }
         };
         

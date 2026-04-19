@@ -28,14 +28,11 @@ class GenerationCheckpoint:
                 'character_design',         # 6. 核心角色设计
                 'emotional_growth_planning', # 7. 情绪蓝图与成长规划
                 'stage_plan',               # 8. 全书阶段计划
-                'detailed_stage_plans',     # 9. 阶段详细计划
-                'supplementary_characters', # 10. 全书补充角色（基于各阶段需求统筹生成）
-                'expectation_mapping',      # 11. 期待感映射
-                'system_init',              # 12. 系统初始化
-                'saving',                   # 13. 保存设定结果
-                'quality_assessment'        # 14. AI质量评估
+                'system_init',              # 9. 系统初始化
+                'saving',                   # 10. 保存设定结果
+                'quality_assessment'        # 11. AI质量评估
             ],
-            # 🔥 新增：子步骤定义（用于详细UI显示）- 与14个标准步骤对齐
+            # 🔥 新增：子步骤定义（用于详细UI显示）- 与12个标准步骤对齐
             'sub_steps': {
                 'creative_refinement': [
                     ('parse_creative_seed', '解析创意种子'),
@@ -70,24 +67,6 @@ class GenerationCheckpoint:
                 'stage_plan': [
                     ('overall_stage_plan', '制定全书阶段计划')
                 ],
-                'detailed_stage_plans': [
-                    ('stage_emotional_plan', '阶段情绪计划'),
-                    ('major_event_skeletons', '顶层设计注入-主龙骨'),
-                    ('event_decomposition', '解剖重大事件为中型事件'),
-                    ('goal_coherence_assessment', '阶段目标层级一致性评估'),
-                    ('continuity_assessment', '阶段事件连续性评估'),
-                    ('continuity_optimization', '阶段事件连续性优化'),
-                    ('character_inference', '阶段角色推断')
-                ],
-                'supplementary_characters': [
-                    ('analyze_stage_needs', '分析各阶段角色需求'),
-                    ('batch_generate', '批量生成全书补充角色'),
-                    ('integrate_characters', '整合补充角色到角色库')
-                ],
-                'expectation_mapping': [
-                    ('expectation_mapping', '期待感地图生成'),
-                    ('expectation_integration', '期待感整合')
-                ],
                 'system_init': [
                     ('world_state_init', '世界状态初始化'),
                     ('relationship_init', '关系网初始化')
@@ -102,18 +81,7 @@ class GenerationCheckpoint:
                 ]
             },
             # 🔥 新增：子步骤进度权重（每个主步骤内部分配100%）
-            'sub_step_weights': {
-                'detailed_stage_plans': {
-                    'stage_emotional_plan': 10,
-                    'major_event_skeletons': 15,
-                    'event_decomposition': 30,
-                    'goal_coherence_assessment': 10,
-                    'continuity_assessment': 10,
-                    'continuity_optimization': 10,
-                    'character_inference': 10,
-                    'supporting_characters': 5
-                }
-            },
+            'sub_step_weights': {},
             # 🔥 新增：基于实际日志的API调用统计（用于预估点数和耗时）
             'api_call_estimates': {
                 'initialization': {'calls': 2, 'time_min': 2, 'time_max': 5},  # 创意精炼+同人检测
@@ -124,14 +92,6 @@ class GenerationCheckpoint:
                 'character_design': {'calls': 1, 'time_min': 1, 'time_max': 3},
                 'emotional_growth_planning': {'calls': 2, 'time_min': 2, 'time_max': 4},  # 情感蓝图 + 成长规划
                 'stage_plan': {'calls': 1, 'time_min': 1, 'time_max': 2},
-                # detailed_stage_plans 是动态的，按阶段计算
-                'detailed_stage_plans_per_stage': {
-                    'calls': 8,  # 情绪计划+主龙骨+4-7个事件解剖+2个评估+优化+角色推断（不含补充角色）
-                    'time_min': 15, 
-                    'time_max': 30
-                },
-                'supplementary_characters': {'calls': 1, 'time_min': 2, 'time_max': 4},  # 一次性批量生成全书补充角色
-                'expectation_mapping': {'calls': 1, 'time_min': 1, 'time_max': 2},
                 'system_init': {'calls': 1, 'time_min': 1, 'time_max': 2},
                 'saving': {'calls': 0, 'time_min': 1, 'time_max': 2},  # 本地操作
                 'quality_assessment': {'calls': 1, 'time_min': 2, 'time_max': 5}

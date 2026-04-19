@@ -483,12 +483,9 @@ class NovelGenerationManager:
                 'character_design',         # 6. 核心角色设计
                 'emotional_growth_planning', # 7. 情绪蓝图与成长规划
                 'stage_plan',               # 8. 全书阶段计划
-                'detailed_stage_plans',     # 9. 阶段详细计划
-                'supplementary_characters', # 10. 全书补充角色
-                'expectation_mapping',      # 11. 期待感映射
-                'system_init',              # 12. 系统初始化
-                'saving',                   # 13. 保存设定结果
-                'quality_assessment'        # 14. AI质量评估
+                'system_init',              # 9. 系统初始化
+                'saving',                   # 10. 保存设定结果
+                'quality_assessment'        # 11. AI质量评估
             ]
             
             # 🔥 修复：自动更新 step_status，将当前步骤及之前的步骤标记为完成
@@ -516,16 +513,6 @@ class NovelGenerationManager:
                     self.logger.warning(f"任务 {task_id}: 传入进度 {progress}% 与计算进度 {calculated_progress}% 相差过大，使用计算进度")
                     progress = calculated_progress
                 # 否则保留传入的进度（信任调用方提供的精确值）
-                
-                # 🔥 新增：如果是 detailed_stage_plans，根据子步骤计算细粒度进度
-                if current_step == 'detailed_stage_plans':
-                    if step_status and isinstance(step_status, dict) and 'sub_step' in step_status:
-                        sub_progress = self._calculate_detailed_stage_progress(task_id, step_status)
-                        # 将子步骤进度叠加到基础进度上（detailed_stage_plans 占 69% ~ 77%，跨度8%）
-                        progress = 69 + int(sub_progress * 0.08)
-                    else:
-                        # 如果没有子步骤信息，使用默认进度（69% + 阶段内偏移）
-                        progress = 69
                 
                 self.task_results[task_id]["progress"] = progress
                 
@@ -566,21 +553,19 @@ class NovelGenerationManager:
                     100: "completed"
                 }
             else:
-                # 使用进度映射（基于 13 个步骤的粗略映射）- 第一阶段
+                # 使用进度映射（基于 12 个步骤的粗略映射）- 第一阶段
                 step_mapping = {
                     0: "initialization",
-                    8: "writing_style",
-                    15: "market_analysis",
-                    23: "worldview",
-                    31: "faction_system",
-                    38: "character_design",
-                    46: "emotional_blueprint",
-                    54: "growth_plan",
-                    62: "stage_plan",
-                    69: "detailed_stage_plans",
-                    77: "expectation_mapping",
-                    85: "system_init",
-                    92: "saving",
+                    9: "writing_style",
+                    18: "market_analysis",
+                    27: "worldview",
+                    36: "faction_system",
+                    45: "character_design",
+                    54: "emotional_blueprint",
+                    63: "growth_plan",
+                    72: "stage_plan",
+                    81: "system_init",
+                    90: "saving",
                     100: "quality_assessment"
                 }
             # 找到最接近的进度
@@ -618,13 +603,12 @@ class NovelGenerationManager:
                 logger.warning(f"⚠️ 任务完成时删除检查点失败: {e}")
         
         # 🔥 新增：同步更新检查点（确保每个步骤变更都保存到检查点）
-        # 🔥 修复：只在15个主要步骤更新检查点，避免子线程频繁写入
+        # 🔥 修复：只在12个主要步骤更新检查点，避免子线程频繁写入
         # 注：与 GenerationCheckpoint.PHASES['phase_one']['steps'] 保持一致
         MAIN_CHECKPOINT_STEPS = [
             'creative_refinement', 'fanfiction_detection', 'multiple_plans', 'plan_selection',
             'foundation_planning', 'worldview_with_factions', 'character_design',
-            'emotional_growth_planning', 'stage_plan', 'detailed_stage_plans',
-            'supplementary_characters', 'expectation_mapping', 'system_init', 'saving', 'quality_assessment'
+            'emotional_growth_planning', 'stage_plan', 'system_init', 'saving', 'quality_assessment'
         ]
         
         if self.checkpoint_enabled and current_step and current_step in MAIN_CHECKPOINT_STEPS:
@@ -699,65 +683,6 @@ class NovelGenerationManager:
             self.task_results[task_id]["points_consumed"] = current_points + points_cost
         
         logger.info(f"任务 {task_id}: 步骤 {step_name} 更新为 {status}, 创造点: +{points_cost}")
-
-    def _calculate_detailed_stage_progress(self, task_id: str, step_status: Dict) -> int:
-        """
-        计算 detailed_stage_plans 步骤的子步骤进度
-        
-        detailed_stage_plans 步骤包含4个阶段（起承转合），每个阶段有7个子步骤：
-        1. emotional_plan - 情绪计划
-        2. major_event_skeletons - 重大事件骨架
-        3. event_decomposition - 事件分解
-        4. continuity_assessment - 连续性评估
-        5. scene_assembly - 场景组装
-        6. character_inference - 角色推断
-        7. supporting_characters - 配角生成
-        
-        总共 4 * 7 = 28 个子步骤
-        """
-        try:
-            # 获取当前阶段和子步骤
-            sub_step = step_status.get('sub_step', '')
-            stage_name = step_status.get('stage_name', '')
-            sub_step_status = step_status.get('sub_step_status', '')
-            
-            # 定义阶段顺序
-            stages = ['opening_stage', 'rising_stage', 'turning_stage', 'resolution_stage']
-            # 定义子步骤顺序
-            sub_steps = [
-                'emotional_plan',
-                'major_event_skeletons', 
-                'event_decomposition',
-                'continuity_assessment',
-                'scene_assembly',
-                'character_inference',
-                'supporting_characters'
-            ]
-            
-            # 计算已完成的子步骤数量
-            completed_count = 0
-            
-            # 计算已完成阶段数
-            current_stage_index = stages.index(stage_name) if stage_name in stages else 0
-            completed_count += current_stage_index * len(sub_steps)
-            
-            # 计算当前阶段已完成的子步骤数
-            if sub_step in sub_steps:
-                current_sub_index = sub_steps.index(sub_step)
-                if sub_step_status in ['completed', 'active']:
-                    completed_count += current_sub_index + 1
-                else:
-                    completed_count += current_sub_index
-            
-            # 计算进度百分比（0-100）
-            total_sub_steps = len(stages) * len(sub_steps)  # 28
-            progress = int((completed_count / total_sub_steps) * 100)
-            
-            return min(progress, 100)
-            
-        except Exception as e:
-            logger.warning(f"计算详细阶段进度失败: {e}")
-            return 0
 
     def get_task_status(self, task_id: str) -> Dict[str, Any]:
         """获取任务状态"""
@@ -1426,6 +1351,22 @@ class NovelGenerationManager:
                 data.get("novel_info", {}).get("synopsis", "")
             )
             
+            # 统一时间字段类型，避免排序时出现 float vs str 的比较错误
+            created_at = data.get("creation_time", datetime.now().isoformat())
+            last_updated = (
+                (data.get("current_progress") or {}).get("last_updated") or
+                data.get("last_updated") or
+                data.get("updated_at") or
+                created_at
+            )
+            # 确保是字符串
+            if isinstance(last_updated, (int, float)):
+                from datetime import datetime as _dt
+                last_updated = _dt.fromtimestamp(last_updated).isoformat()
+            if isinstance(created_at, (int, float)):
+                from datetime import datetime as _dt
+                created_at = _dt.fromtimestamp(created_at).isoformat()
+            
             projects.append({
                 "title": title,
                 "novel_title": title,  # 🔥 修复：添加 novel_title 字段以匹配前端期望
@@ -1433,8 +1374,8 @@ class NovelGenerationManager:
                 "completed_chapters": completed_chapters,
                 "word_count": total_word_count,
                 "average_score": round(average_score, 1),
-                "created_at": data.get("creation_time", datetime.now().isoformat()),
-                "last_updated": data.get("current_progress", {}).get("last_updated") or data.get("last_updated") or data.get("updated_at") or data.get("creation_time", datetime.now().isoformat()),
+                "created_at": created_at,
+                "last_updated": last_updated,
                 "status": "completed" if completed_chapters >= target_chapters and target_chapters > 0 else "generating",
                 # 添加前端需要的字段
                 "story_synopsis": synopsis,

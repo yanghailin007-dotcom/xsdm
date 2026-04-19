@@ -159,9 +159,8 @@ class PhaseGenerator:
                     # 只在主要步骤完成时保存检查点（步骤名称在 step_progress_map 中）
                     step_progress_map_keys = ['initialization', 'writing_style', 'market_analysis',
                                               'worldview', 'faction_system', 'character_design',
-                                              'emotional_growth_planning', 'stage_plan', 'detailed_stage_plans',
-                                              'supplementary_characters', 'expectation_mapping', 'system_init', 
-                                              'saving', 'quality_assessment']
+                                              'emotional_growth_planning', 'stage_plan',
+                                              'system_init', 'saving', 'quality_assessment']
                     if stage_name in step_progress_map_keys:
                         # 获取小说标题
                         title = None
@@ -182,9 +181,8 @@ class PhaseGenerator:
                         MAIN_STEPS = [
                             'creative_refinement', 'fanfiction_detection', 'multiple_plans', 'plan_selection',
                             'foundation_planning', 'worldview_with_factions', 'character_design',
-                            'emotional_growth_planning', 'stage_plan', 'detailed_stage_plans',
-                            'supplementary_characters', 'expectation_mapping', 'system_init',
-                            'saving', 'quality_assessment'
+                            'emotional_growth_planning', 'stage_plan',
+                            'system_init', 'saving', 'quality_assessment'
                         ]
                         
                         if title and stage_name in MAIN_STEPS:
@@ -310,11 +308,8 @@ class PhaseGenerator:
                 'character_design': 38,
                 'emotional_growth_planning': 46,
                 'stage_plan': 62,
-                'detailed_stage_plans': 69,
-                'supplementary_characters': 74,  # 新增：全书补充角色生成
-                'expectation_mapping': 77,
-                'system_init': 85,
-                'saving': 92,
+                'system_init': 78,
+                'saving': 88,
                 'quality_assessment': 100
             }
             
@@ -378,7 +373,7 @@ class PhaseGenerator:
                                      step_status={'worldview': 'completed', 'faction_system': 'completed', 
                                                  'character_design': 'completed'})
             
-            # 第三阶段：全书规划 (emotional_growth_planning + stage_plan + detailed_stage_plans + expectation_mapping + system_init)
+            # 第三阶段：全书规划 (emotional_growth_planning + stage_plan + system_init)
             self.logger.info("🔥 即将进入第三阶段: _generate_overall_planning")
             print("\n🔥 即将进入第三阶段: _generate_overall_planning")
             update_step_status('emotional_growth_planning', 'active', step_progress_map['emotional_growth_planning'])
@@ -391,8 +386,7 @@ class PhaseGenerator:
                 return False
             update_progress_callback('system_init', step_progress_map['system_init'], "全书大纲制定完成",
                                      step_status={'emotional_growth_planning': 'completed',
-                                                 'stage_plan': 'completed', 'detailed_stage_plans': 'completed',
-                                                 'expectation_mapping': 'completed', 'system_init': 'completed'})
+                                                 'stage_plan': 'completed', 'system_init': 'completed'})
             
             # 第四阶段：保存结果
             update_step_status('saving', 'active', step_progress_map['saving'])
@@ -461,9 +455,6 @@ class PhaseGenerator:
                 'character_design': 'completed',
                 'emotional_growth_planning': 'completed',  # 合并：情绪蓝图 + 成长规划
                 'stage_plan': 'completed',
-                'detailed_stage_plans': 'completed',
-                'supplementary_characters': 'completed',  # 🆕 全书补充角色生成
-                'expectation_mapping': 'completed',
                 'system_init': 'completed',
                 'saving': 'completed',
                 'quality_assessment': 'completed',
@@ -627,16 +618,8 @@ class PhaseGenerator:
             print("   步骤2: 多方案生成与评分")
             print("   步骤3: 智能选优+爆款对标")
             print("   步骤4: 最终方案深化")
+            print(f"   首选模型: {provider} | fallback: gemini")
             print("="*60)
-            
-            # 创建对话会话
-            session = CreativeToPlanConversation(
-                api_client=api_client,
-                novel_data=novel_data,
-                provider=provider,
-                model_name=model_name,
-                temperature=temperature
-            )
             
             # 设置进度回调
             def _progress_cb(step_id, progress, message, ui_state=None):
@@ -649,23 +632,77 @@ class PhaseGenerator:
                 }
                 standard_step = step_mapping.get(step_id, step_id)
                 
-                # 更新步骤状态
+                # 🔥 修改：CTPC执行期间，前4个标准步骤显示"对话中"(active)
+                ctpc_standard_steps = ['creative_refinement', 'fanfiction_detection', 'multiple_plans', 'plan_selection']
+                for s in ctpc_standard_steps:
+                    update_step_status(s, 'active', progress)
+                
+                # 更新CTPC当前步骤状态
                 update_step_status(standard_step, 'active', progress)
                 
                 # 调用主进度回调
                 detail = ui_state.get('detail', '') if ui_state else ''
+                step_status_dict = {s: 'active' for s in ctpc_standard_steps}
+                step_status_dict[standard_step] = 'active'
                 update_progress_callback(
                     standard_step, 
                     progress, 
                     message,
-                    step_status={standard_step: 'active'}
+                    step_status=step_status_dict
                 )
             
-            # 执行所有步骤
-            results = session.execute_all_steps(
-                progress_callback=_progress_cb,
-                project_path=project_path
-            )
+            # 🔥 执行所有步骤，带模型 fallback
+            results = None
+            last_error = None
+            providers_to_try = [(provider, model_name)]
+            
+            # 如果首选不是 gemini，添加 gemini 作为 fallback
+            if provider.lower() != 'gemini':
+                providers_to_try.append(('gemini', None))
+            
+            for try_idx, (try_provider, try_model) in enumerate(providers_to_try):
+                try:
+                    if try_idx > 0:
+                        print(f"\n🔄 模型 fallback: 切换到 {try_provider} 重试...")
+                    
+                    # 创建对话会话
+                    session = CreativeToPlanConversation(
+                        api_client=api_client,
+                        novel_data=novel_data,
+                        provider=try_provider,
+                        model_name=try_model,
+                        temperature=temperature
+                    )
+                    
+                    # 执行所有步骤
+                    results = session.execute_all_steps(
+                        progress_callback=_progress_cb,
+                        project_path=project_path
+                    )
+                    
+                    # 成功则跳出循环
+                    if try_idx > 0:
+                        print(f"✅ Fallback 成功！使用 {try_provider} 完成生成")
+                    break
+                    
+                except Exception as e:
+                    last_error = e
+                    error_str = str(e).lower()
+                    # 判断是否需要 fallback（空响应、端点失败、连接错误等）
+                    should_fallback = any(
+                        keyword in error_str 
+                        for keyword in ['none', '空响应', '端点', 'endpoint', '连接', 'connection', 'timeout', '超时']
+                    )
+                    
+                    if should_fallback and try_idx < len(providers_to_try) - 1:
+                        print(f"⚠️ {try_provider} 失败（{str(e)[:80]}），尝试 fallback...")
+                        continue
+                    else:
+                        # 最后一个 provider 也失败，或错误不需要 fallback
+                        raise
+            
+            if results is None:
+                raise RuntimeError(f"所有模型都失败: {last_error}")
             
             # 同步结果到 novel_data
             self._sync_creative_conversation_results(results)
@@ -894,7 +931,7 @@ class PhaseGenerator:
         1. 基础规划 (foundation_planning): writing_style + market_analysis
         2. 世界观与势力 (worldview_with_factions): worldview + faction_system  
         3. 角色设计 (character_design)
-        4. 全书规划 (_generate_overall_planning): emotional_growth_planning + stage_plan + detailed_stage_plans + expectation_mapping + system_init
+        4. 全书规划 (_generate_overall_planning): emotional_growth_planning + stage_plan + system_init
         5. 保存结果 (saving)
         6. 质量评估 (quality_assessment)
         """
@@ -905,20 +942,19 @@ class PhaseGenerator:
             'character_design': 65,
             'emotional_growth_planning': 72,
             'stage_plan': 78,
-            'detailed_stage_plans': 82,
-            'supplementary_characters': 85,
-            'expectation_mapping': 88,
+            'system_init': 85,
             'system_init': 92,
             'saving': 96,
             'quality_assessment': 100
         }
         
         # 对话模式已完成的前4步状态
+        # 🔥 修改：CTPC完成后，前4步显示"对话完成"(skipped)
         base_step_status = {
-            'creative_refinement': 'completed',
-            'fanfiction_detection': 'completed',
-            'multiple_plans': 'completed',
-            'plan_selection': 'completed'
+            'creative_refinement': 'skipped',
+            'fanfiction_detection': 'skipped',
+            'multiple_plans': 'skipped',
+            'plan_selection': 'skipped'
         }
         
         # 🔥 导入回退管理器和验证器
@@ -1106,29 +1142,29 @@ class PhaseGenerator:
             update_progress_callback('character_design', step_progress_map['character_design'],
                                      "角色设计完成", step_status=base_step_status.copy())
             
-            # 步骤4: 全书规划（保持传统实现，已稳定工作）
+            # 步骤4: 全书规划（使用 EmotionalStructureSession 对话模式）
             print("\n" + "="*60)
-            print("📚 步骤4: 全书规划")
+            print("📚 步骤4: 全书规划（使用 EmotionalStructureSession）")
             print("="*60)
             update_step_status('emotional_growth_planning', 'active', step_progress_map['emotional_growth_planning'])
-            if not self._generate_overall_planning(update_step_status=update_step_status):
+            
+            # 传递 CharacterNarrativeSession 的 Context Brief 给 EmotionalStructureSession
+            character_brief = getattr(self, '_character_context_brief', None)
+            if not self._generate_overall_planning(
+                update_step_status=update_step_status,
+                context_briefs=character_brief
+            ):
                 error_msg = "全书规划生成失败"
                 print(f"❌ {error_msg}")
                 notify_failure(error_msg)
                 return False
             base_step_status.update({
                 'emotional_growth_planning': 'completed',
-                'stage_plan': 'completed',
-                'detailed_stage_plans': 'completed',
-                'supplementary_characters': 'completed'
+                'stage_plan': 'completed'
             })
             
             # 步骤5: 期待感系统（使用 ExpectationSystemSession 或传统模式）
             print("\n" + "="*60)
-            print("🎯 步骤5: 期待感系统")
-            print("="*60)
-            update_step_status('expectation_mapping', 'active', step_progress_map['expectation_mapping'])
-            
             # 定义对话模式函数
             def conversation_expectation():
                 from src.core.session_mode.sessions.expectation_system_session import (
@@ -1151,10 +1187,10 @@ class PhaseGenerator:
                     temperature=getattr(self.generator, 'temperature', 0.7)
                 )
                 
-                # 设置进度回调
+                # 设置进度回调（合并到system_init步骤中）
                 def session_progress(progress, message):
-                    overall_progress = 88 + int(progress * 0.04)
-                    update_progress_callback('expectation_mapping', overall_progress, message)
+                    overall_progress = 78 + int(progress * 0.08)
+                    update_progress_callback('system_init', overall_progress, message)
                 
                 session.set_progress_callback(session_progress)
                 
@@ -1209,11 +1245,10 @@ class PhaseGenerator:
                 result = traditional_expectation()
             
             base_step_status.update({
-                'expectation_mapping': 'completed',
                 'system_init': 'completed'
             })
             update_progress_callback('system_init', step_progress_map['system_init'],
-                                     "期待感系统完成", step_status=base_step_status.copy())
+                                     "系统初始化完成", step_status=base_step_status.copy())
             
             # 步骤5: 保存结果
             print("\n" + "="*60)
@@ -1617,78 +1652,151 @@ class PhaseGenerator:
         
         return True
     
-    def _generate_overall_planning(self, update_step_status=None) -> bool:
-        """生成全书规划"""
+    def _generate_overall_planning(self, update_step_status=None, context_briefs=None) -> bool:
+        """
+        生成全书规划
+        
+        🔥 优化：使用 EmotionalStructureSession 对话会话替代单次调用孤岛
+        两轮对话在同一个会话中完成：
+        - Round 1: 爽文情绪蓝图 + 成长规划
+        - Round 2: 爽点单元制阶段计划
+        
+        Args:
+            update_step_status: 进度回调
+            context_briefs: CharacterNarrativeSession 的 Context Brief（对话模式时传入）
+        """
         self.logger.info("🔥 _generate_overall_planning 被调用!")
         print("\n" + "="*60)
         print("🔥 _generate_overall_planning 被调用!")
         print("📊 第三阶段：全书规划")
         print("="*60)
         
-        # 🔥 合并步骤：情绪蓝图 + 成长规划（步骤8-9合并）
-        print("🎨📈 步骤8-9: 情绪蓝图与成长规划（合并生成）")
-        self.generator.novel_data["current_progress"]["stage"] = "情绪蓝图与成长规划"
-        if update_step_status:
-            update_step_status('emotional_growth_planning', 'active', 60)
+        # 尝试使用 EmotionalStructureSession 对话模式
+        use_conversation = context_briefs is not None
         
-        if not self._generate_emotional_and_growth_plan(update_step_status):
-            print("⚠️ 情绪蓝图与成长规划生成失败，使用基础框架")
-            return False
+        if use_conversation:
+            try:
+                print("\n🚀 使用 EmotionalStructureSession 对话会话模式")
+                print("   Round 1: 爽文情绪蓝图 + 成长规划")
+                print("   Round 2: 爽点单元制阶段计划")
+                print("="*60)
+                
+                from src.core.session_mode.sessions.emotional_structure_session import EmotionalStructureSession
+                
+                # 准备 Context Briefs
+                briefs = []
+                if hasattr(self, '_foundation_context_brief'):
+                    briefs.append(json.dumps(self._foundation_context_brief))
+                if context_briefs:
+                    if isinstance(context_briefs, list):
+                        briefs.extend(context_briefs)
+                    else:
+                        briefs.append(json.dumps(context_briefs))
+                
+                session = EmotionalStructureSession(
+                    api_client=self.generator.api_client,
+                    novel_data=self.generator.novel_data,
+                    context_briefs=briefs,
+                    provider=getattr(self.generator, 'provider', 'gemini'),
+                    model_name=getattr(self.generator, 'model_name', None),
+                    temperature=getattr(self.generator, 'temperature', 0.7)
+                )
+                
+                # 设置进度回调
+                def session_progress(progress, message):
+                    if progress <= 50:
+                        overall_progress = 60 + int(progress * 0.2)
+                        update_step_status('emotional_growth_planning', 'active', overall_progress)
+                    else:
+                        overall_progress = 70 + int((progress - 50) * 0.1)
+                        update_step_status('stage_plan', 'active', overall_progress)
+                
+                session.set_progress_callback(session_progress)
+                
+                # 执行 Session
+                if update_step_status:
+                    update_step_status('emotional_growth_planning', 'active', 60)
+                
+                result = session.execute_all_steps()
+                
+                # 同步结果到 novel_data
+                if result.get("emotional_blueprint"):
+                    self.generator.novel_data["emotional_blueprint"] = result["emotional_blueprint"]
+                    if hasattr(self.generator, '_ctx'):
+                        self.generator._ctx["emotional_blueprint"] = result["emotional_blueprint"]
+                    print("✅ 情绪蓝图已同步（对话模式）")
+                
+                if result.get("global_growth_plan"):
+                    self.generator.novel_data["global_growth_plan"] = result["global_growth_plan"]
+                    if hasattr(self.generator, '_ctx'):
+                        self.generator._ctx["global_growth_plan"] = result["global_growth_plan"]
+                    if hasattr(self.generator, 'global_growth_planner'):
+                        self.generator.global_growth_planner.global_growth_plan = result["global_growth_plan"]
+                    print("✅ 成长规划已同步（对话模式）")
+                
+                if result.get("overall_stage_plans"):
+                    self.generator.novel_data["overall_stage_plans"] = result["overall_stage_plans"]
+                    print("✅ 阶段计划已同步（对话模式）")
+                
+                # 保存 Context Brief 供后续使用
+                self._structure_context_brief = session.export_context_brief()
+                
+                if update_step_status:
+                    update_step_status('emotional_growth_planning', 'completed', 70)
+                    update_step_status('stage_plan', 'completed', 75)
+                
+                print("✅ EmotionalStructureSession 对话模式完成")
+                
+            except Exception as e:
+                self.logger.warning(f"⚠️ EmotionalStructureSession 失败，回退到传统模式: {e}")
+                print(f"\n⚠️ 对话模式失败，回退到传统单次调用: {e}")
+                use_conversation = False
         
-        if update_step_status:
-            update_step_status('emotional_growth_planning', 'completed', 70)
+        # 传统模式（回退或本来就未传入 context_briefs）
+        if not use_conversation:
+            print("\n📋 使用传统单次调用模式")
+            
+            # 合并步骤：情绪蓝图 + 成长规划（步骤8-9合并）
+            print("🎨📈 步骤8-9: 情绪蓝图与成长规划（合并生成）")
+            self.generator.novel_data["current_progress"]["stage"] = "情绪蓝图与成长规划"
+            if update_step_status:
+                update_step_status('emotional_growth_planning', 'active', 60)
+            
+            if not self._generate_emotional_and_growth_plan(update_step_status):
+                print("⚠️ 情绪蓝图与成长规划生成失败，使用基础框架")
+                return False
+            
+            if update_step_status:
+                update_step_status('emotional_growth_planning', 'completed', 70)
+            
+            # 生成全书阶段计划 - 步骤13
+            print("🗓️ 步骤13: 阶段计划")
+            self.generator.novel_data["current_progress"]["stage"] = "阶段计划"
+            if update_step_status:
+                update_step_status('stage_plan', 'active', 72)
+            
+            creative_seed = self.generator.novel_data.get("creative_seed") or self.generator.novel_data.get("selected_plan", {})
+            total_chapters = self.generator.novel_data.get("current_progress", {}).get("total_chapters", 1000)
+            
+            overall_stage_plans = self.generator.stage_plan_manager.generate_overall_stage_plan(
+                creative_seed,
+                self.generator.novel_data.get("novel_title", ""),
+                self.generator.novel_data.get("novel_synopsis", ""),
+                self.generator.novel_data.get("market_analysis", {}),
+                self.generator.novel_data.get("global_growth_plan", {}),
+                self.generator.novel_data.get("emotional_blueprint", {}),
+                total_chapters
+            )
+            
+            self.generator.novel_data["overall_stage_plans"] = overall_stage_plans
+            
+            if not overall_stage_plans:
+                print("⚠️ 全书阶段计划生成失败，使用默认阶段划分")
+            
+            if update_step_status:
+                update_step_status('stage_plan', 'completed', 75)
         
-        # 生成全书阶段计划 - 步骤13
-        print("🗓️ 步骤13: 阶段计划")
-        self.generator.novel_data["current_progress"]["stage"] = "阶段计划"
-        if update_step_status:
-            update_step_status('stage_plan', 'active', 72)
-        
-        creative_seed = self.generator.novel_data.get("creative_seed") or self.generator.novel_data.get("selected_plan", {})
-        total_chapters = self.generator.novel_data.get("current_progress", {}).get("total_chapters", 1000)
-        
-        overall_stage_plans = self.generator.stage_plan_manager.generate_overall_stage_plan(
-            creative_seed,
-            self.generator.novel_data.get("novel_title", ""),
-            self.generator.novel_data.get("novel_synopsis", ""),
-            self.generator.novel_data.get("market_analysis", {}),
-            self.generator.novel_data.get("global_growth_plan", {}),
-            self.generator.novel_data.get("emotional_blueprint", {}),
-            total_chapters
-        )
-        
-        self.generator.novel_data["overall_stage_plans"] = overall_stage_plans
-        
-        if not overall_stage_plans:
-            print("⚠️ 全书阶段计划生成失败，使用默认阶段划分")
-        
-        if update_step_status:
-            update_step_status('stage_plan', 'completed', 75)
-        
-        # 🔥 步骤14: 阶段详细计划 - 移至第二阶段按需生成
-        print("📋 步骤14: 阶段详细计划（将在第二阶段按需生成）")
-        self.generator.novel_data["current_progress"]["stage"] = "阶段详细计划"
-        if update_step_status:
-            update_step_status('detailed_stage_plans', 'completed', 76)
-        
-        # 🔥 步骤14.5: 全书补充角色生成 - 移至第二阶段按需生成
-        print("👥 步骤14.5: 全书补充角色生成（将在第二阶段按需生成）")
-        self.generator.novel_data["current_progress"]["stage"] = "全书补充角色生成"
-        if update_step_status:
-            update_step_status('supplementary_characters', 'completed', 78)
-        
-        # 元素登场时机已由期待感系统管理 - 步骤15
-        print("🎯 步骤15: 期待感映射")
-        self.generator.novel_data["current_progress"]["stage"] = "期待感映射"
-        if update_step_status:
-            update_step_status('expectation_mapping', 'active', 79)
-        
-        print("✅ 元素登场时机由期待感系统统一管理")
-        
-        if update_step_status:
-            update_step_status('expectation_mapping', 'completed', 80)
-        
-        # 初始化系统 - 步骤16
+        # 初始化系统 - 步骤9（紧凑步骤）
         print("⚙️ 步骤16: 系统初始化")
         self.generator.novel_data["current_progress"]["stage"] = "系统初始化"
         if update_step_status:
@@ -2056,30 +2164,32 @@ class PhaseGenerator:
 *   **核心卖点**: {original_selling_points}
 *   **总章节数**: {total_chapters}
 
-# 第一部分：情绪蓝图设计
+# 第一部分：爽点情绪蓝图设计
 
 ## 任务
-设计全书的情绪发展蓝图，规划读者在不同阶段应体验的核心情绪流。
+设计全书的爽点情绪节奏图，核心目标：**让读者持续产生爽感，欲罢不能**。
 
-## 输出要求
-1. **核心情感光谱**: 提炼3-5个核心情绪关键词（如：复仇宣泄感、守护温情、兄弟情谊等）
-2. **四段式情绪弧线**: 
-   - 起(开局15%): 从什么情绪到什么情绪
-   - 承(发展35%): 情绪如何深化和发展
-   - 转(高潮30%): 情绪如何推向顶点
-   - 合(结局20%): 情绪如何圆满收束
-3. **关键情绪转折点**: 2-3个重要的情绪转折节点
+## 输出要求（爽文专用）
+1. **爽感情感光谱**: 提炼3-5个核心爽感关键词（如：装逼快感、打脸宣泄、收获满足、逆袭狂喜、护短温暖）
+2. **爽点节奏图**（不是传统的起承转合，而是爽点循环）：
+   - opening_stage(黄金开局): 快速建立代入感 → 首次小爽点 → 强悬念钩子
+   - development_stage(爽点展开): 压抑→爆发→收获的波浪节奏，每2-4章一个小爽点
+   - climax_stage(高潮碾压): 层层升级的爽点爆发，从个人打脸到势力碾压
+   - ending_stage(终局收束): 最终大爽点 + 圆满或新期待
+3. **爽点爆发节点**: 明确标记全书5-8个关键爽点的位置、类型和强度（1-10分）
+4. **压抑设计节点**: 标记为爽点做铺垫的压抑/困境节点（爽感来自压抑的深度）
+5. **黄金三章情绪设计**: 第1章钩子情绪、第2章冲突情绪、第3章爽感+新悬念
 
-# 第二部分：成长规划
+# 第二部分：爽感成长规划
 
 ## 任务
-基于"起承转合"四段式结构，规划人物成长、势力发展和能力体系演进。
+基于"爽点单元制"结构，规划主角成长。核心原则：**每次成长必须带来具象爽感**。
 
 ## 输出要求
-1. **阶段框架**: 四个阶段的章节范围和核心目标
-2. **人物成长弧线**: 主角在四阶段的关键成长节点
-3. **势力发展**: 各方势力的演变规划
-4. **能力体系演进**: 能力/等级的升级节奏
+1. **爽点阶段框架**: 四个阶段的章节范围、核心爽点目标
+2. **主角成长弧线**: 每次能力跃迁如何转化为打脸/收获爽点
+3. **势力发展**: 各方势力的演变如何服务于爽点设计（如：主角建立自己的势力后如何碾压对手）
+4. **能力体系演进**: 能力/等级的升级节奏，每次升级后必须有对应的爽点章节
 
 # 输出格式
 你必须返回一个严格的JSON对象，包含两个顶层key：
@@ -2087,50 +2197,76 @@ class PhaseGenerator:
 ```json
 {{
     "emotional_blueprint": {{
-        "overall_emotional_tone": "string (全书情感基调概括)",
-        "emotional_spectrum": ["string", "string", "string"],
+        "overall_emotional_tone": "string (全书爽感基调概括，如：一路碾压的极致爽感)",
+        "emotional_spectrum": ["爽感标签1", "爽感标签2", "爽感标签3"],
         "stage_emotional_arcs": {{
             "opening_stage": {{
-                "description": "string",
-                "start_emotion": "string", 
-                "end_emotion": "string"
+                "description": "string (黄金开局情绪设计：快速代入+首次爽感)",
+                "start_emotion": "string (开局情绪：如困惑/压抑/平凡)",
+                "end_emotion": "string (阶段末情绪：如期待/兴奋/跃跃欲试)",
+                "payoff_density": "string (爽点密度：如每1-2章一个小爽点)"
             }},
-            "development_stage": {{...}},
-            "climax_stage": {{...}},
-            "ending_stage": {{...}}
+            "development_stage": {{
+                "description": "string (爽点展开情绪：压抑→爆发的波浪节奏)",
+                "start_emotion": "string",
+                "end_emotion": "string",
+                "payoff_density": "string (爽点密度：如每2-4章一个小爽点)"
+            }},
+            "climax_stage": {{
+                "description": "string (高潮碾压情绪：层层升级的持续爽感)",
+                "start_emotion": "string",
+                "end_emotion": "string",
+                "payoff_density": "string (爽点密度：如每3-5章一个大爽点)"
+            }},
+            "ending_stage": {{
+                "description": "string (终局收束情绪：圆满满足或新期待)",
+                "start_emotion": "string",
+                "end_emotion": "string",
+                "payoff_density": "string (最终大爽点+结局收束)"
+            }}
         }},
+        "payoff_moments": [
+            {{"approx_chapter": number, "type": "装逼打脸/收获奖励/境界突破/势力碾压/揭秘反转", "intensity": 1-10, "description": "string"}}
+        ],
+        "suppression_moments": [
+            {{"approx_chapter": number, "type": "被轻视/被嘲讽/遇困境/被背叛", "purpose": "为哪个爽点做铺垫"}}
+        ],
         "key_emotional_turning_points": [
-            {{"approx_chapter_percent": number, "description": "string"}}
+            {{"approx_chapter_percent": number, "description": "string", "turning_type": "压抑转爆发/困境转逆袭"}}
         ]
     }},
     "global_growth_plan": {{
         "growth_stages": [
-            {{"stage_name": "起(开局)", "chapter_range": "string", "core_objective": "string"}},
-            {{"stage_name": "承(发展)", "chapter_range": "string", "core_objective": "string"}},
-            {{"stage_name": "转(高潮)", "chapter_range": "string", "core_objective": "string"}},
-            {{"stage_name": "合(结局)", "chapter_range": "string", "core_objective": "string"}}
+            {{"stage_name": "黄金开局", "chapter_range": "string", "core_objective": "string (必须包含：金手指展现 + 首次爽点 + 强钩子)"}},
+            {{"stage_name": "爽点展开", "chapter_range": "string", "core_objective": "string (必须包含：稳定爽点节奏 + 持续升级 + 长期期待感)"}},
+            {{"stage_name": "高潮碾压", "chapter_range": "string", "core_objective": "string (必须包含：最大爽点设计 + 势力碾压 + 世界观揭秘)"}},
+            {{"stage_name": "终局收束", "chapter_range": "string", "core_objective": "string (必须包含：最终爽点 + 伏笔收束 + 结局设计)"}}
         ],
         "ability_tree": {{
-            "protagonist_arc": "string (主角成长主线)",
-            "key_milestones": ["string", "string"]
+            "protagonist_arc": "string (主角成长主线：每次跃迁如何带来爽感)",
+            "key_milestones": ["string (里程碑1：首次打脸)", "string (里程碑2：首次碾压势力)", "string (里程碑3：终极蜕变)"]
         }},
         "realm_system": {{
             "name": "string (境界体系名称)",
             "overview": "string (体系概述)",
             "realms": [
-                {{"name": "string (境界名称)", "description": "string (境界描述)"}}
+                {{"name": "string (境界名称)", "description": "string (境界描述 + 该境界能打出什么爽点)"}}
             ]
         }},
         "resource_system": {{
-            "early_resources": "string (初期资源获取方式)",
-            "mid_resources": "string (中期资源获取方式)",
-            "late_resources": "string (后期资源获取方式)"
+            "early_resources": "string (初期资源获取方式 + 对应的爽点设计)",
+            "mid_resources": "string (中期资源获取方式 + 对应的爽点设计)",
+            "late_resources": "string (后期资源获取方式 + 对应的爽点设计)"
         }}
     }}
 }}
 ```
 
-注意：确保两个部分相互协调，情绪高潮与成长高潮要同步。"""
+爽文设计铁律：
+1. 确保两个部分相互协调，每次成长高潮后必须有对应的爽点章节
+2. 情绪蓝图中必须有明确的「压抑→爆发」配对设计
+3. 成长规划中每次能力升级后，必须标注「这个能力能打出什么爽点」
+"""
     
     def _generate_stage_writing_plans(self, update_step_status=None) -> bool:
         """
@@ -2916,15 +3052,28 @@ class PhaseGenerator:
     
     def _initialize_systems(self):
         """初始化各种系统"""
-        print("=== 步骤7: 初始化系统 ===")
+        print("=== 系统初始化 ===")
         
         if self.generator.novel_data["overall_stage_plans"]:
-            self.generator.event_driven_manager.initialize_event_system()
-            print("✅ 事件系统初始化完成")
+            # 🔥 优化：一阶段初始化时不自动触发细纲生成（避免进度条卡住）
+            self.generator.event_driven_manager.initialize_event_system(auto_generate_plans=False)
+            print("✅ 事件系统初始化完成（不触发细纲生成）")
         
         if self.generator.novel_data["character_design"]:
             self.generator.initialize_expectation_elements()
             print("✅ 期待感管理系统已就绪")
+        
+        # 🔥 新增：状态追踪模板初始化
+        try:
+            from src.managers.state_template_initializer import StateTemplateInitializer
+            category = self.generator.novel_data.get("category", "")
+            creative_seed = self.generator.novel_data.get("creative_seed") or self.generator.novel_data.get("selected_plan", {})
+            state_tracker = StateTemplateInitializer.initialize_state_tracker(category, creative_seed)
+            self.generator.novel_data["state_tracker"] = state_tracker
+            print(f"✅ 状态追踪模板初始化完成（模板：{state_tracker['template_name']}）")
+            print(f"   追踪字段：{list(state_tracker['initial_state'].keys())}")
+        except Exception as e:
+            print(f"⚠️ 状态追踪模板初始化失败（非致命）：{e}")
         
         print("✅ 第一阶段详细写作计划已生成")
     

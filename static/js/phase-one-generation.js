@@ -6,25 +6,23 @@ let estimatedPoints = 0;  // 预估点数
 let pointsCheckInterval = null;  // 点数轮询间隔
 let generationStartTime = null;  // 生成开始时间（用于耗时统计）
 
-// 详细步骤映射（14个步骤）- 对应实际的设定生成流程
+// 详细步骤映射（12个步骤）- 对应实际的设定生成流程
 const DETAILED_STEP_ORDER = [
-    'creative_refinement',      // 1. 创意精炼
-    'fanfiction_detection',     // 2. 同人检测
-    'multiple_plans',           // 3. 生成多个方案
-    'plan_selection',           // 4. 选择最佳方案
-    'foundation_planning',      // 5. 基础规划（写作风格+市场分析）
+    'creative_refinement',      // 1. 创意精炼（CTPC步骤1）
+    'fanfiction_detection',     // 2. 同人检测（CTPC步骤1）
+    'multiple_plans',           // 3. 生成多个方案（CTPC步骤2）
+    'plan_selection',           // 4. 选择最佳方案（CTPC步骤3+4）
+    'foundation_planning',      // 5. 基础规划（FoundationPlanningSession 6轮对话）
     'worldview_with_factions',  // 6. 世界观与势力系统
-    'character_design',         // 7. 核心角色设计
-    'emotional_growth_planning', // 8. 情绪蓝图与成长规划
-    'stage_plan',               // 9. 全书阶段计划
-    'detailed_stage_plans',     // 10. 阶段详细计划
-    'expectation_mapping',      // 11. 期待感映射
-    'system_init',              // 12. 系统初始化
-    'saving',                   // 13. 保存设定结果
-    'quality_assessment'        // 14. AI质量评估
+    'character_design',         // 7. 核心角色设计（CharacterNarrativeSession 6轮对话）
+    'emotional_growth_planning', // 8. 情绪蓝图与成长规划（EmotionalStructureSession R1）
+    'stage_plan',               // 9. 全书阶段计划（EmotionalStructureSession R2）
+    'system_init',              // 10. 系统初始化
+    'saving',                   // 11. 保存设定结果
+    'quality_assessment'        // 12. AI质量评估
 ];
 
-// 步骤名称映射（14个步骤）
+// 步骤名称映射（12个步骤）
 const STEP_NAMES = {
     'creative_refinement': '✨ 创意精炼',
     'fanfiction_detection': '🔍 同人检测',
@@ -35,11 +33,11 @@ const STEP_NAMES = {
     'character_design': '👥 核心角色设计',
     'emotional_growth_planning': '💫 情绪与成长规划',
     'stage_plan': '📚 全书阶段计划',
-    'detailed_stage_plans': '📖 阶段详细计划',
-    'expectation_mapping': '🎯 期待感映射',
     'system_init': '🔧 系统初始化',
     'saving': '💾 保存设定结果',
     'quality_assessment': '✅ AI质量评估',
+    // 兼容CTPC步骤名
+    'creative_analysis': '💬 商业化分析',
     // 兼容旧步骤名
     'writing_style': '📝 写作风格制定',
     'market_analysis': '📊 市场分析',
@@ -49,23 +47,24 @@ const STEP_NAMES = {
     'growth_plan': '📈 成长规划'
 };
 
-// 步骤预计用时映射（单位：秒）- 基于本地实际生成日志统计
+// 步骤预计用时映射（单位：秒）- 基于实际生成日志统计
+// CTPC 4步（kimi）：每步15-25s | FoundationPlanning 6轮（gemini）：每轮15-22s | CharacterNarrative 6轮：每轮13-21s
+// EmotionalStructure 2轮（gemini）：每轮25-35s
 const STEP_TIME_ESTIMATES = {
-    'creative_refinement': 30,
-    'fanfiction_detection': 60,
-    'multiple_plans': 60,
-    'plan_selection': 15,
-    'foundation_planning': 90,
-    'worldview_with_factions': 60,
-    'character_design': 60,
-    'emotional_growth_planning': 60,
-    'stage_plan': 180,
-    'detailed_stage_plans': 30,
-    'supplementary_characters': 15,
-    'expectation_mapping': 15,
-    'system_init': 15,
-    'saving': 30,
+    'creative_refinement': 20,      // CTPC R1
+    'fanfiction_detection': 20,     // CTPC R1（同人检测）
+    'multiple_plans': 25,           // CTPC R2（多方案）
+    'plan_selection': 30,           // CTPC R3+R4（选优+深化）
+    'foundation_planning': 120,     // FoundationPlanningSession 6轮×20s
+    'worldview_with_factions': 60,  // 包含在foundation_planning中（兼容）
+    'character_design': 100,        // CharacterNarrativeSession 6轮×17s
+    'emotional_growth_planning': 50, // EmotionalStructureSession R1
+    'stage_plan': 40,               // EmotionalStructureSession R2
+    'system_init': 5,               // 本地操作
+    'saving': 10,
     'quality_assessment': 30,
+    // 兼容CTPC步骤名
+    'creative_analysis': 20,
     // 兼容旧步骤名
     'writing_style': 30,
     'market_analysis': 30,
@@ -327,24 +326,14 @@ function updateDetailedStepStatus(stepStatus) {
                 'skipped': '对话完成'  // 🔥 对话模式下跳过的步骤
             };
             
-            // 🔥 新增：阶段详细计划和补充角色在二阶段生成，特殊显示
-            const deferredSteps = ['detailed_stage_plans', 'supplementary_characters'];
-            const isDeferred = deferredSteps.includes(stepName) && (status === 'completed' || status === 'waiting');
-            
-            // 🔥 更新状态文本（二阶段步骤特殊显示）
+            // 🔥 更新状态文本
             if (badge) {
-                if (isDeferred) {
-                    badge.textContent = '二阶段生成';
-                } else {
-                    badge.textContent = statusText[status] || status;
-                }
+                badge.textContent = statusText[status] || status;
             }
             
             // 🔥 更新图标
             if (icon) {
-                if (isDeferred) {
-                    icon.textContent = '📋';  // 二阶段步骤用文档图标
-                } else if (status === 'completed' || status === 'skipped') {
+                if (status === 'completed' || status === 'skipped') {
                     icon.textContent = '✅';
                 } else if (status === 'failed') {
                     icon.textContent = '❌';
@@ -357,13 +346,7 @@ function updateDetailedStepStatus(stepStatus) {
             }
             
             // 🔥 更新样式
-            if (isDeferred) {
-                // 二阶段步骤：蓝色样式
-                stepElement.style.background = 'rgba(59, 130, 246, 0.1)';
-                stepElement.style.borderColor = 'rgba(59, 130, 246, 0.3)';
-                if (text) text.style.color = 'var(--v2-text-primary, #fafafa)';
-                if (badge) badge.style.color = '#60a5fa';  // 蓝色
-            } else if (status === 'completed' || status === 'skipped') {
+            if (status === 'completed' || status === 'skipped') {
                 stepElement.style.background = 'rgba(34, 197, 94, 0.1)';
                 stepElement.style.borderColor = 'rgba(34, 197, 94, 0.3)';
                 if (text) text.style.color = 'var(--v2-accent-green, #22c55e)';
@@ -395,13 +378,10 @@ function updateDetailedStepStatus(stepStatus) {
     // 计算并更新完成步骤数
     // 🔥 修复：只计算 DETAILED_STEP_ORDER 中定义的步骤，避免新模式返回额外步骤导致计数错误
     // 🔥 新增：'skipped'（对话模式跳过）也视为已完成
-    // 🔥 新增：排除二阶段生成的步骤（不计入第一阶段完成数）
-    const deferredSteps = ['detailed_stage_plans', 'supplementary_characters'];
     const completedSteps = DETAILED_STEP_ORDER.filter(stepName => {
-        if (deferredSteps.includes(stepName)) return false;  // 二阶段步骤不计入
         return stepStatus[stepName] === 'completed' || stepStatus[stepName] === 'skipped';
     }).length;
-    const totalSteps = DETAILED_STEP_ORDER.length - deferredSteps.length;  // 总步骤数也减去二阶段步骤
+    const totalSteps = DETAILED_STEP_ORDER.length;
     const stepsStatusEl = document.getElementById('steps-status');
     if (stepsStatusEl) {
         stepsStatusEl.textContent = `${completedSteps}/${totalSteps} 完成`;

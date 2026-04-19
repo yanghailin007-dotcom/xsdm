@@ -658,6 +658,11 @@ class CreativeToPlanConversation:
         """解析JSON响应 - 增强容错版，带自动重试"""
         import re
         
+        # 🔥 防御：API返回None时的空值检查
+        if response is None:
+            logger.warning(f"[{self.session_id}] API返回空响应，跳过JSON解析")
+            return {}
+        
         # 先清理常见的格式问题
         cleaned = response.strip()
         

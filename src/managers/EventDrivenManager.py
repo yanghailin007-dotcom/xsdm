@@ -735,9 +735,16 @@ class EventDrivenManager:
         start_chapter = event_data.get("started_chapter", event_data.get("start_chapter", 0))
         end_chapter = event_data.get("end_chapter", chapter_number + 100)
         return start_chapter <= chapter_number <= end_chapter
-    def initialize_event_system(self):
-        """初始化事件系统 - 从StagePlanManager统一接口加载重大事件和中型事件"""
-        self.logger.info("🎯 初始化事件系统...")
+    def initialize_event_system(self, auto_generate_plans: bool = True):
+        """
+        初始化事件系统 - 从StagePlanManager统一接口加载重大事件和中型事件
+        
+        Args:
+            auto_generate_plans: 当细纲不存在时，是否自动按需生成。
+                - True（默认）: 二阶段章节生成时，自动按需生成细纲
+                - False: 一阶段初始化时，不自动触发细纲生成（避免一阶段末尾卡住）
+        """
+        self.logger.info(f"🎯 初始化事件系统... (auto_generate_plans={auto_generate_plans})")
         
         # 获取当前章节
         current_chapter = len(self.generator.novel_data["generated_chapters"]) + 1
@@ -780,18 +787,21 @@ class EventDrivenManager:
             else:
                 self.logger.warning(f"⚠️ 无法从StagePlanManager获取 {current_stage} 的计划")
                 
-                # 🔥 关键修复：细纲不存在时，自动生成
-                self.logger.info(f"🔄 尝试为 {current_stage} 自动生成细纲...")
-                try:
-                    stage_plan = self._generate_stage_plan_on_demand(current_stage, current_chapter)
-                    if stage_plan:
-                        event_system = stage_plan.get("stage_writing_plan", {}).get("event_system", {})
-                        if event_system:
-                            self.logger.info(f"✅ 成功生成并加载 {current_stage} 的事件系统")
-                            self.update_from_stage_plan({"event_system": event_system})
-                            return
-                except Exception as e:
-                    self.logger.error(f"❌ 自动生成细纲失败: {e}")
+                # 🔥 关键修复：细纲不存在时，按需自动生成
+                if auto_generate_plans:
+                    self.logger.info(f"🔄 尝试为 {current_stage} 自动生成细纲...")
+                    try:
+                        stage_plan = self._generate_stage_plan_on_demand(current_stage, current_chapter)
+                        if stage_plan:
+                            event_system = stage_plan.get("stage_writing_plan", {}).get("event_system", {})
+                            if event_system:
+                                self.logger.info(f"✅ 成功生成并加载 {current_stage} 的事件系统")
+                                self.update_from_stage_plan({"event_system": event_system})
+                                return
+                    except Exception as e:
+                        self.logger.error(f"❌ 自动生成细纲失败: {e}")
+                else:
+                    self.logger.info(f"⏭️ 跳过 {current_stage} 细纲自动生成（auto_generate_plans=False，一阶段不触发）")
         
         # 如果找不到当前阶段，尝试从所有阶段中查找
         self.logger.info("🔍 尝试从所有阶段查找适合当前章节的事件...")
