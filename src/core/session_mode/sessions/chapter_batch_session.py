@@ -191,24 +191,42 @@ class ChapterBatchSession(NovelGenerationSession):
             return "## 当前爽点单元上下文\n（暂无详细规划，请根据已有设定合理发挥）"
 
         stage_name = self.stage_context.get("stage_name", "未命名阶段")
-        chapter_range = self.stage_context.get("stage_chapter_range", "未知")
+        stage_range = self.stage_context.get("stage_chapter_range", "未知")
+        stage_goal = self.stage_context.get("stage_goal", "")
+
+        # 爽点单元信息
+        payoff_unit_name = self.stage_context.get("payoff_unit_name", "")
+        payoff_unit_range = self.stage_context.get("payoff_unit_range", "")
         core_payoff = self.stage_context.get("core_payoff", "")
         suppression_setup = self.stage_context.get("suppression_setup", "")
-        key_events = self.stage_context.get("key_events", [])
-        emotional_focus = self.stage_context.get("emotional_focus", "")
+        emotional_arc = self.stage_context.get("emotional_arc", "")
+        key_beats = self.stage_context.get("key_beats", [])
+        role_in_stage = self.stage_context.get("role_in_stage", "")
 
         lines = [
             "## 当前爽点单元上下文（Layer 2 战术规划）",
-            f"- 所属大阶段: {stage_name}（章节范围: {chapter_range}）",
-            f"- 核心爽点: {core_payoff}" if core_payoff else "",
-            f"- 压抑铺垫: {suppression_setup}" if suppression_setup else "",
-            f"- 情绪焦点: {emotional_focus}" if emotional_focus else "",
+            f"- 所属大阶段: {stage_name}（章节范围: {stage_range}）",
         ]
+        if stage_goal:
+            lines.append(f"- 阶段目标: {stage_goal}")
 
-        if key_events:
-            lines.append("- 关键事件:")
-            for event in key_events:
-                lines.append(f"  • {event}")
+        lines.append("")
+        lines.append("### 爽点单元详情")
+        if payoff_unit_name:
+            lines.append(f"- 单元名称: {payoff_unit_name}（{payoff_unit_range}）")
+        if role_in_stage:
+            lines.append(f"- 阶段定位: {role_in_stage}")
+        if core_payoff:
+            lines.append(f"- 核心爽点: {core_payoff}")
+        if suppression_setup:
+            lines.append(f"- 压抑铺垫: {suppression_setup}")
+        if emotional_arc:
+            lines.append(f"- 情绪弧线: {emotional_arc}")
+
+        if key_beats:
+            lines.append("- 关键节拍:")
+            for beat in key_beats:
+                lines.append(f"  • {beat}")
 
         return "\n".join(line for line in lines if line)
 

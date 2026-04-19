@@ -3,14 +3,17 @@ ChapterBatchOrchestrator - 章节批次调度编排器
 
 职责：
 1. 从 overall_stage_plans 解析大阶段上下文
-2. 按批次大小切分 specs
-3. 循环创建 ChapterBatchSession 生成每批
-4. 批次间传递 Context Brief
-5. 触发滑动优化（每10章）
-6. 管理回调和进度
+2. 🔥 基于大阶段信息动态生成爽点单元规划
+3. 按爽点单元切分批次
+4. 循环创建 ChapterBatchSession 生成每批
+5. 批次间传递 Context Brief
+6. 触发滑动优化（每10章）
+7. 管理回调和进度
 """
 
 import logging
+import json
+import re
 from typing import Dict, List, Optional, Any, Tuple, Callable
 from pathlib import Path
 
@@ -76,6 +79,10 @@ class ChapterBatchOrchestrator:
         self.previous_brief: Optional[str] = None
         self.all_chapters: List[GeneratedChapter] = []
         self.batch_count = 0
+
+        # 🔥 爽点单元缓存（按大阶段缓存）
+        self._payoff_units_cache: Dict[str, List[Dict]] = {}
+        self._current_stage_name: Optional[str] = None
 
         # 进度回调
         self._progress_callback: Optional[Callable[[Dict], None]] = None
@@ -294,23 +301,224 @@ class ChapterBatchOrchestrator:
     # 爽点单元上下文解析
     # =====================================================================
 
+    # =====================================================================
+    # 爽点单元生成与管理
+    # =====================================================================
+
+    def _get_or_generate_payoff_units(self, stage_key: str, stage_info: Dict) -> List[Dict]:
+        """
+        获取或生成大阶段的爽点单元规划
+
+        Args:
+            stage_key: 大阶段键名（opening_stage等）
+            stage_info: 大阶段信息
+
+        Returns:
+            爽点单元列表
+        """
+        # 检查缓存
+        if stage_key in self._payoff_units_cache:
+            logger.info(f"[Orchestrator] 使用缓存的爽点单元: {stage_key}")
+            return self._payoff_units_cache[stage_key]
+
+        # 检查 novel_data 缓存
+        cached = self.novel_data.get("_payoff_units", {}).get(stage_key)
+        if cached:
+            logger.info(f"[Orchestrator] 从 novel_data 加载爽点单元: {stage_key}")
+            self._payoff_units_cache[stage_key] = cached
+            return cached
+
+        # 生成爽点单元
+        logger.info(f"[Orchestrator] 生成爽点单元: {stage_key}")
+        payoff_units = self._generate_payoff_units_for_stage(stage_key, stage_info)
+        if payoff_units:
+            self._payoff_units_cache[stage_key] = payoff_units
+            # 保存到 novel_data 缓存
+            if "_payoff_units" not in self.novel_data:
+                self.novel_data["_payoff_units"] = {}
+            self.novel_data["_payoff_units"][stage_key] = payoff_units
+
+        return payoff_units
+
+    def _generate_payoff_units_for_stage(self, stage_key: str, stage_info: Dict) -> List[Dict]:
+        """
+        基于大阶段信息生成爽点单元规划
+
+        使用 gemini-3-flash 生成，快速便宜。
+
+        Args:
+            stage_key: 大阶段键名
+            stage_info: 大阶段信息
+
+        Returns:
+            爽点单元列表
+        """
+        stage_name = stage_info.get("stage_name", stage_key)
+        chapter_range = stage_info.get("chapter_range", "1-30")
+        stage_goal = stage_info.get("stage_goal", "")
+        key_developments = stage_info.get("key_developments", [])
+        core_conflicts = stage_info.get("core_conflicts", "")
+
+        # 解析章节范围
+        numbers = re.findall(r'\d+', chapter_range)
+        if len(numbers) >= 2:
+            stage_start, stage_end = int(numbers[0]), int(numbers[1])
+        else:
+            stage_start, stage_end = 1, 30
+
+        stage_chapter_count = stage_end - stage_start + 1
+
+        prompt = f"""你是一位顶级的网络小说结构规划专家。请基于以下大阶段信息，生成爽点单元规划。
+
+【爽点单元定义】
+一个爽点单元 = 铺垫(setup) + 压抑(suppression) + 爆发(payoff) + 收获(harvest)
+每个爽点单元跨3-5章，构成一个完整的情绪闭环（压抑→爆发→爽）。
+
+【大阶段信息】
+- 阶段名称: {stage_name}
+- 章节范围: 第{chapter_range}章（共{stage_chapter_count}章）
+- 阶段目标: {stage_goal}
+- 关键发展: {json.dumps(key_developments, ensure_ascii=False)}
+- 核心冲突: {core_conflicts}
+
+【输出要求】
+请输出 JSON 数组。爽点单元数量约 {max(1, stage_chapter_count // 4)} 个。
+
+每个爽点单元的结构：
+{{
+  "unit_name": "爽点单元名称（4-8字，有画面感）",
+  "chapter_range": "如 1-4",
+  "role_in_stage": "该单元在阶段中的定位（如：开局钩子、成长转折、高潮铺垫）",
+  "core_payoff": "核心爽点（一句话描述，如：主角觉醒金手指反杀反派）",
+  "suppression_setup": "压抑铺垫设计（如：主角被陷害，濒死之际）",
+  "emotional_arc": "情绪弧线（如：绝望→震惊→狂喜→期待）",
+  "key_beats": ["关键节拍1", "关键节拍2", "关键节拍3", "关键节拍4"]
+}}
+
+要求：
+1. 爽点单元之间要有递进关系，不能重复
+2. 每个单元必须有明确的 core_payoff（核心爽点）
+3. 单元的 suppression_setup 要具体，让读者感到憋屈
+4. 最后一个单元要留钩子，衔接下一阶段
+5. 情绪弧线要符合番茄爽文节奏：先抑后扬
+6. key_beats 要具体到情节层面，不要笼统
+
+请只输出 JSON 数组，不要添加 markdown 代码块标记。"""
+
+        try:
+            logger.info(f"[Orchestrator] 调用 gemini-3-flash 生成爽点单元: {stage_name}")
+            result = self.api_client.generate_content_with_retry(
+                content_type="payoff_unit_generation",
+                user_prompt=prompt,
+                provider="gemini",
+                model_name="gemini-3-flash-preview-thinking",
+                purpose=f"payoff_units_{stage_key}",
+            )
+
+            if not result:
+                logger.error("[Orchestrator] 爽点单元生成返回空")
+                return self._create_fallback_payoff_units(stage_start, stage_end)
+
+            # 解析JSON
+            text = result if isinstance(result, str) else str(result)
+            # 提取JSON数组
+            match = re.search(r'\[.*\]', text, re.DOTALL)
+            if match:
+                units = json.loads(match.group(0))
+                if isinstance(units, list) and len(units) > 0:
+                    logger.info(f"[Orchestrator] 生成爽点单元 {len(units)} 个")
+                    return units
+
+            logger.warning("[Orchestrator] 爽点单元解析失败，使用fallback")
+            return self._create_fallback_payoff_units(stage_start, stage_end)
+
+        except Exception as e:
+            logger.error(f"[Orchestrator] 爽点单元生成失败: {e}")
+            return self._create_fallback_payoff_units(stage_start, stage_end)
+
+    def _create_fallback_payoff_units(self, stage_start: int, stage_end: int) -> List[Dict]:
+        """创建fallback爽点单元（均匀分配）"""
+        units = []
+        total = stage_end - stage_start + 1
+        unit_size = 4
+        count = 0
+        for i in range(stage_start, stage_end + 1, unit_size):
+            count += 1
+            end = min(i + unit_size - 1, stage_end)
+            units.append({
+                "unit_name": f"爽点单元{count}",
+                "chapter_range": f"{i}-{end}",
+                "role_in_stage": "阶段推进",
+                "core_payoff": f"第{i}-{end}章的核心爽点",
+                "suppression_setup": "主角面临挑战",
+                "emotional_arc": "压抑→爆发→爽",
+                "key_beats": ["铺垫", "压抑", "爆发", "收获"]
+            })
+        return units
+
+    def _get_payoff_unit_for_chapter(self, chapter_number: int, stage_info: Dict) -> Optional[Dict]:
+        """
+        根据章节号获取所在爽点单元
+
+        Args:
+            chapter_number: 章节号
+            stage_info: 大阶段信息
+
+        Returns:
+            爽点单元字典或None
+        """
+        stage_key = self._get_stage_key_for_chapter(chapter_number)
+        if not stage_key:
+            return None
+
+        payoff_units = self._get_or_generate_payoff_units(stage_key, stage_info)
+        if not payoff_units:
+            return None
+
+        for unit in payoff_units:
+            cr = unit.get("chapter_range", "")
+            numbers = re.findall(r'\d+', cr)
+            if len(numbers) >= 2:
+                start, end = int(numbers[0]), int(numbers[1])
+                if start <= chapter_number <= end:
+                    return unit
+
+        return None
+
+    def _get_stage_key_for_chapter(self, chapter_number: int) -> Optional[str]:
+        """根据章节号获取大阶段键名"""
+        overall = self.novel_data.get("overall_stage_plans", {})
+        if not overall:
+            return None
+        stage_plan = overall.get("overall_stage_plan", overall)
+        stage_keys = ["opening_stage", "development_stage", "climax_stage", "ending_stage"]
+        for key in stage_keys:
+            stage_info = stage_plan.get(key)
+            if not stage_info:
+                continue
+            cr = stage_info.get("chapter_range", "")
+            numbers = re.findall(r'\d+', cr)
+            if len(numbers) >= 2:
+                start, end = int(numbers[0]), int(numbers[1])
+                if start <= chapter_number <= end:
+                    return key
+        return None
+
     def _get_stage_context_for_chapter(self, chapter_number: int) -> Dict[str, Any]:
         """
-        根据章节号定位大阶段，提取爽点单元上下文
+        根据章节号定位大阶段和爽点单元，提取上下文
 
         Args:
             chapter_number: 章节号
 
         Returns:
-            大阶段上下文字典
+            爽点单元上下文字典
         """
         overall = self.novel_data.get("overall_stage_plans", {})
         if not overall:
             return {}
 
         stage_plan = overall.get("overall_stage_plan", overall)
-
-        # 大阶段映射
         stage_keys = ["opening_stage", "development_stage", "climax_stage", "ending_stage"]
         stage_names = {
             "opening_stage": "黄金开局阶段",
@@ -319,43 +527,52 @@ class ChapterBatchOrchestrator:
             "ending_stage": "收尾完结阶段",
         }
 
+        # 找到大阶段
+        stage_info = None
+        stage_key = None
         for key in stage_keys:
-            stage_info = stage_plan.get(key)
-            if not stage_info:
+            info = stage_plan.get(key)
+            if not info:
                 continue
-
-            chapter_range = stage_info.get("chapter_range", "")
-            # 解析范围，如 "1-100"
-            import re
-            numbers = re.findall(r'\d+', chapter_range)
+            cr = info.get("chapter_range", "")
+            numbers = re.findall(r'\d+', cr)
             if len(numbers) >= 2:
                 start, end = int(numbers[0]), int(numbers[1])
                 if start <= chapter_number <= end:
-                    return {
-                        "stage_name": stage_names.get(key, key),
-                        "stage_chapter_range": chapter_range,
-                        "core_payoff": stage_info.get("core_payoff", ""),
-                        "suppression_setup": stage_info.get("suppression_setup", ""),
-                        "key_events": stage_info.get("key_events", []),
-                        "emotional_focus": stage_info.get("emotional_focus", ""),
-                        "climax": stage_info.get("climax", ""),
-                        "next_stage_hook": stage_info.get("next_stage_hook", ""),
-                    }
+                    stage_info = info
+                    stage_key = key
+                    break
 
-        # 未找到，返回第一个阶段的信息（兜底）
-        for key in stage_keys:
-            stage_info = stage_plan.get(key)
-            if stage_info:
-                return {
-                    "stage_name": stage_names.get(key, key),
-                    "stage_chapter_range": stage_info.get("chapter_range", ""),
-                    "core_payoff": stage_info.get("core_payoff", ""),
-                    "suppression_setup": stage_info.get("suppression_setup", ""),
-                    "key_events": stage_info.get("key_events", []),
-                    "emotional_focus": stage_info.get("emotional_focus", ""),
-                }
+        if not stage_info:
+            return {}
 
-        return {}
+        # 🔥 获取爽点单元
+        payoff_unit = self._get_payoff_unit_for_chapter(chapter_number, stage_info)
+
+        if payoff_unit:
+            # 使用爽点单元上下文
+            return {
+                "stage_name": stage_names.get(stage_key, stage_key),
+                "stage_chapter_range": stage_info.get("chapter_range", ""),
+                "stage_goal": stage_info.get("stage_goal", ""),
+                # 爽点单元信息
+                "payoff_unit_name": payoff_unit.get("unit_name", ""),
+                "payoff_unit_range": payoff_unit.get("chapter_range", ""),
+                "core_payoff": payoff_unit.get("core_payoff", ""),
+                "suppression_setup": payoff_unit.get("suppression_setup", ""),
+                "emotional_arc": payoff_unit.get("emotional_arc", ""),
+                "key_beats": payoff_unit.get("key_beats", []),
+                "role_in_stage": payoff_unit.get("role_in_stage", ""),
+            }
+        else:
+            # fallback: 使用大阶段信息
+            return {
+                "stage_name": stage_names.get(stage_key, stage_key),
+                "stage_chapter_range": stage_info.get("chapter_range", ""),
+                "stage_goal": stage_info.get("stage_goal", ""),
+                "core_payoff": stage_info.get("stage_goal", ""),
+                "key_beats": stage_info.get("key_developments", []),
+            }
 
     def _build_core_setting_text(self) -> str:
         """

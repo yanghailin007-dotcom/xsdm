@@ -1521,11 +1521,20 @@ class NovelGenerator:
         """
         批量生成章节
         
-        优化：使用中型事件批量生成，减少API调用次数
+        支持两种模式：
+        1. 对话模式（默认）：使用 ChapterBatchOrchestrator，按爽点单元批次生成
+        2. 传统模式：使用 MediumEventBatchProcessor 按中型事件批量生成
         """
         print(f"\n🚀 启动批量生成优化模式（第{start_chapter}-{end_chapter}章）")
         
-        # 尝试导入批量生成模块
+        # 🔥 检测是否使用对话模式
+        use_conversation = self._ctx.get('use_conversation_mode', True)
+        
+        if use_conversation:
+            print("🎙️ 使用对话模式生成（爽点单元批次 + kimi-k2.5）")
+            return self._generate_chapters_conversation_mode(start_chapter, end_chapter)
+        
+        # 传统模式
         try:
             from src.core.batch_generation import MediumEventBatchProcessor
             batch_processor = MediumEventBatchProcessor(self.api_client, self)
@@ -1535,9 +1544,7 @@ class NovelGenerator:
             print(f"⚠️ 批量生成模块加载失败，回退到逐章生成: {e}")
             use_batch_mode = False
         
-        # 如果使用批量生成，先初始化事件系统
         if use_batch_mode:
-            # 确保事件系统已初始化（这样才能获取中型事件）
             if hasattr(self, 'event_driven_manager') and self.event_driven_manager:
                 print("   🔄 初始化事件系统...")
                 try:
@@ -1550,8 +1557,125 @@ class NovelGenerator:
                 start_chapter, end_chapter, batch_processor
             )
         else:
-            # 回退到逐章生成
             return self._generate_chapters_one_by_one(start_chapter, end_chapter)
+    
+    def _generate_chapters_conversation_mode(self, start_chapter: int, end_chapter: int) -> bool:
+        """
+        对话模式：使用 ChapterBatchOrchestrator 按爽点单元批次生成
+        """
+        print(f"\n🎙️ [对话模式] 启动爽点单元批次生成（第{start_chapter}-{end_chapter}章）")
+        
+        try:
+            from src.core.chapter_engine.chapter_batch_orchestrator import ChapterBatchOrchestrator
+            from src.core.chapter_engine.types import ChapterSpec, Callbacks
+        except Exception as e:
+            print(f"⚠️ 对话模式模块加载失败: {e}")
+            print("   🔄 回退到逐章生成...")
+            return self._generate_chapters_one_by_one(start_chapter, end_chapter)
+        
+        # 准备 novel_data
+        novel_data = {
+            'novel_title': self._ctx.get('novel_title', 'Unknown'),
+            'novel_synopsis': self._ctx.get('novel_synopsis', ''),
+            'category': self._ctx.get('category', '都市'),
+            'username': getattr(self, '_username', None),
+            'creative_seed': self._ctx.get('creative_seed', {}),
+            'selected_plan': self._ctx.get('selected_plan', {}),
+            'stage_writing_plans': self._ctx.get('stage_writing_plans', {}),
+            'overall_stage_plans': self._ctx.get('overall_stage_plans', {}),
+            'core_worldview': self._ctx.get('core_worldview', {}),
+            'character_design': self._ctx.get('character_design', {}),
+            'writing_style_guide': self._ctx.get('writing_style_guide', {}),
+            'emotional_blueprint': self._ctx.get('emotional_blueprint', {}),
+            'global_growth_plan': self._ctx.get('global_growth_plan', {}),
+            'golden_finger': self._ctx.get('golden_finger', {}),
+            'min_word_threshold': self._ctx.get('min_word_threshold', 2000),
+            'max_word_threshold': self._ctx.get('max_word_threshold', 2500),
+        }
+        
+        # 构建 specs
+        specs = []
+        for ch_num in range(start_chapter, end_chapter + 1):
+            specs.append(ChapterSpec(
+                chapter_number=ch_num,
+                title="",
+                outline="",
+                is_golden_chapter=(ch_num <= 3)
+            ))
+        
+        # 项目路径
+        project_path = None
+        if hasattr(self, '_get_project_path'):
+            try:
+                project_path = self._get_project_path()
+            except:
+                pass
+        
+        # 创建 orchestrator
+        orchestrator = ChapterBatchOrchestrator(
+            api_client=self.api_client,
+            novel_data=novel_data,
+            project_path=str(project_path) if project_path else None,
+            batch_size=4,
+            provider="kimi",
+            model_name="kimi-k2.5",
+            use_quality_gate=True,
+            use_sliding_optimizer=True,
+        )
+        
+        # 进度回调
+        def on_progress(data):
+            print(f"   📊 进度: {data.get('current', 0)}/{data.get('total', 0)} 章 | 状态: {data.get('status', '')}")
+        
+        def on_chapter_done(chapter):
+            print(f"   ✅ 第{chapter.chapter_number}章完成 | {chapter.title} | {chapter.word_count}字")
+            
+            # 保存章节
+            chapter_result = {
+                'chapter_number': chapter.chapter_number,
+                'chapter_title': chapter.title,
+                'content': chapter.content,
+                'word_count': chapter.word_count,
+                'quality_score': chapter.quality_score,
+            }
+            
+            # 发布事件
+            if hasattr(self, 'event_bus') and self.event_bus:
+                self.event_bus.publish('chapter.generated', {
+                    'chapter_number': chapter.chapter_number,
+                    'result': chapter_result
+                })
+            
+            # 进度回调
+            if hasattr(self, '_phase_two_progress_callback') and callable(self._phase_two_progress_callback):
+                self._phase_two_progress_callback(
+                    chapter.chapter_number,
+                    "completed",
+                    {
+                        "status": "completed",
+                        "chapter_title": chapter.title,
+                        "word_count": chapter.word_count
+                    }
+                )
+            
+            # 累加计数
+            current_generated = self._ctx['current_progress'].get('chapters_generated', 0)
+            self._ctx['current_progress']['chapters_generated'] = current_generated + 1
+        
+        callbacks = Callbacks(on_progress=on_progress, on_chapter_done=on_chapter_done)
+        
+        # 生成
+        print(f"\n🎯 开始生成 {len(specs)} 章...")
+        result = orchestrator.generate_all(specs, callbacks)
+        
+        if result.chapters:
+            print(f"\n✅ 对话模式生成完成: {len(result.chapters)} 章")
+            print(f"   平均分: {result.overall_score:.1f}")
+            print(f"   问题: {len(result.issues)} 个")
+            return True
+        else:
+            print("\n❌ 对话模式生成失败")
+            return False
     
     def _generate_chapters_by_medium_event(
         self, 
