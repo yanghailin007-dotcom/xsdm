@@ -606,7 +606,8 @@ class PhaseGenerator:
             
             # 提取 API 配置
             api_client = self.generator.api_client
-            provider = getattr(self.generator, 'provider', 'kimi')
+            # 🔥 修复：优先使用 APIClient 的默认提供商，避免硬编码 kimi 导致无可用端点
+            provider = getattr(self.generator, 'provider', None) or api_client.default_provider or 'gemini'
             model_name = getattr(self.generator, 'model_name', None)
             temperature = getattr(self.generator, 'temperature', 0.7)
             
