@@ -1,0 +1,209 @@
+{% extends 'layouts/base-v2.html' %}
+{% set hide_footer = true %}
+
+{% block title %}NovelCraft - AI 长篇小说辅助工具{% endblock %}
+
+{% block extra_css %}
+<style>
+  /* 防止 V2 主内容区整体滚动，避免 NovelCraft 内部导航栏与顶部系统导航重叠 */
+  .v2-main {
+    overflow: hidden;
+  }
+  .novelcraft-wrapper {
+    height: 100%;
+  }
+  .novelcraft-wrapper .main-container {
+    height: calc(100% - 52px);
+  }
+</style>
+<link rel="stylesheet" href="/static/css/novelcraft.css?v=1">
+{% endblock %}
+
+{% block content %}
+<div class="novelcraft-wrapper">
+  <!-- 顶部导航（内嵌，与 NovelCraft 原生一致） -->
+  <header class="top-nav" id="top-nav" style="display:none;">
+    <div class="logo">📖 NovelCraft</div>
+    <nav class="nav-tabs">
+      <div class="nav-tab active" data-view="timeline">故事主线</div>
+      <div class="nav-tab" data-view="characters">角色图谱</div>
+      <div class="nav-tab" data-view="ai">AI工坊</div>
+    </nav>
+    <div class="spacer"></div>
+    <button class="btn" id="btn-export">导出项目</button>
+  </header>
+
+  <!-- 主容器 -->
+  <div class="main-container" id="main-container">
+    <!-- 左侧栏 -->
+    <aside class="sidebar" id="sidebar" style="display:none;">
+      <div class="sidebar-header">
+        <div class="sidebar-title">项目文件</div>
+      </div>
+      <div class="file-tree" id="file-tree"></div>
+    </aside>
+
+    <!-- 内容区 -->
+    <main class="content" id="content">
+      <!-- 仪表盘 -->
+      <div class="view dashboard active" id="view-dashboard">
+        <h1>📖 NovelCraft</h1>
+        <p>AI 辅助长篇小说创作工具 · 从核心设定到细纲 · 可视化故事主线</p>
+        <div style="margin-bottom:20px; display:flex; gap:10px; justify-content:center;">
+          <button class="btn btn-primary" id="btn-new-project">+ 创建新书</button>
+          <button class="btn" id="btn-import-project">导入项目</button>
+          <input type="file" id="import-file" accept=".json" style="display:none;">
+        </div>
+        <div class="project-list" id="project-list">
+          <div style="text-align:center;color:var(--text-secondary);">暂无项目</div>
+        </div>
+      </div>
+
+      <!-- 故事主线 -->
+      <div class="view timeline-view" id="view-timeline">
+        <div class="panel-header">
+          <h2>故事主线</h2>
+          <p>点击任意节点进入章节编辑器 · 红色=里程碑 · 黄色=关键事件 · 紫色=人物事件 · 蓝色=章节</p>
+        </div>
+        <div class="timeline-canvas">
+          <div class="timeline-track" id="timeline-track">
+            <div class="timeline-line"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 章节编辑器 -->
+      <div class="view editor-view" id="view-editor">
+        <div class="hint-bar">💡 编辑并保存后，故事主线与角色图谱将自动同步更新</div>
+        <div class="editor-body">
+          <div class="editor-center">
+            <div class="editor-toolbar">
+              <button class="btn btn-sm" id="editor-back">← 返回主线</button>
+              <div class="editor-title" id="editor-title">章节编辑</div>
+              <button class="btn btn-primary" id="editor-save">保存</button>
+            </div>
+            <textarea class="md-editor" id="md-editor" placeholder="在此编辑 Markdown 内容..."></textarea>
+          </div>
+          <div class="editor-right" id="editor-right"></div>
+        </div>
+      </div>
+
+      <!-- 角色图谱 -->
+      <div class="view characters-view" id="view-characters">
+        <div class="panel-header">
+          <h2>角色图谱</h2>
+          <p>点击角色节点查看详情 · 数据从细纲中自动提取</p>
+        </div>
+        <div class="char-main">
+          <div class="graph-area" id="graph-area">
+            <svg class="graph-svg" id="graph-svg"></svg>
+          </div>
+          <div class="char-panel" id="char-panel">
+            <div style="color:var(--text-secondary); text-align:center; margin-top:40px;">点击左侧节点查看角色详情</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- AI工坊 -->
+      <div class="view ai-view" id="view-ai">
+        <div class="panel-header" style="display:flex;align-items:center;gap:16px;padding:14px 24px;flex-wrap:wrap;">
+          <select id="ai-model" style="min-width:160px;background:#0d1117;border:1px solid #30363d;color:#c9d1d9;padding:6px 10px;border-radius:6px;">
+            <option value="" disabled>加载中...</option>
+          </select>
+          <button class="btn btn-sm" id="btn-add-model" title="添加自定义模型">+ 添加模型</button>
+          <div class="spacer"></div>
+          <span style="font-size:12px;color:var(--text-secondary);" id="ai-stage-label">当前：核心设定</span>
+        </div>
+        <div class="ai-body">
+          <div class="ai-chat">
+            <div class="chat-messages" id="chat-messages"></div>
+            <div class="chat-input-area">
+              <textarea class="chat-input" id="chat-input" rows="2" placeholder="输入你的需求，AI 将基于当前阶段生成内容..."></textarea>
+              <button class="btn btn-primary" id="chat-send">发送</button>
+            </div>
+          </div>
+          <div class="ai-sidebar">
+            <div class="sidebar-title">创作阶段</div>
+            <div class="stage-item" id="stage-1">
+              <div class="stage-title">① 核心设定</div>
+              <div class="stage-status">待开始</div>
+            </div>
+            <div class="stage-item" id="stage-2">
+              <div class="stage-title">② 粗纲生成</div>
+              <div class="stage-status">待开始</div>
+            </div>
+            <div class="stage-item" id="stage-3">
+              <div class="stage-title">③ 细纲生成</div>
+              <div class="stage-status">待开始</div>
+            </div>
+            <div class="stage-item" id="stage-4">
+              <div class="stage-title">④ 正文生成</div>
+              <div class="stage-status">待开始</div>
+            </div>
+            <div style="margin-top:16px; border-top:1px solid var(--border-light); padding-top:12px;">
+              <div class="sidebar-title" style="margin-bottom:8px;">快捷提示词</div>
+              <button class="btn" style="width:100%; margin-bottom:8px;" id="btn-prompt-core">插入核心设定提示词</button>
+              <button class="btn" style="width:100%; margin-bottom:8px;" id="btn-prompt-rough">插入粗纲提示词</button>
+              <button class="btn" style="width:100%; margin-bottom:8px;" id="btn-prompt-detail">插入细纲提示词</button>
+              <button class="btn btn-primary" style="width:100%; margin-bottom:8px;" id="btn-generate-chapters">🚀 生成正文（V2引擎）</button>
+            </div>
+            <div style="margin-top:16px; border-top:1px solid var(--border-light); padding-top:12px;">
+              <div class="sidebar-title" style="margin-bottom:8px;">其他操作</div>
+              <button class="btn" style="width:100%; margin-bottom:8px;" id="btn-insert-context">插入已生成的设定/粗纲</button>
+              <button class="btn" style="width:100%; margin-bottom:8px;" id="btn-parse-all">解析到视图</button>
+              <button class="btn" style="width:100%; margin-bottom:8px;" id="btn-export-md">导出 Markdown</button>
+              <button class="btn btn-primary" style="width:100%;" id="btn-gen-publish">🚀 提取发布信息</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <!-- 新建项目模态框 -->
+  <div class="modal-overlay" id="modal-new">
+    <div class="modal">
+      <h3>创建新书</h3>
+      <div class="form-row">
+        <label>书名</label>
+        <input type="text" id="new-project-name" placeholder="例如：星辰变">
+      </div>
+      <div class="modal-actions">
+        <button class="btn" id="modal-cancel">取消</button>
+        <button class="btn btn-primary" id="modal-confirm">创建</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 添加自定义模型模态框 -->
+  <div class="modal-overlay" id="modal-model">
+    <div class="modal" style="width:480px;">
+      <h3>添加自定义模型</h3>
+      <div class="form-row">
+        <label>名称</label>
+        <input type="text" id="model-name" placeholder="例如：我的 DeepSeek">
+      </div>
+      <div class="form-row">
+        <label>模型 ID</label>
+        <input type="text" id="model-id" placeholder="例如：deepseek-chat">
+      </div>
+      <div class="form-row">
+        <label>API Key</label>
+        <input type="password" id="model-key" placeholder="sk-...">
+      </div>
+      <div class="form-row">
+        <label>Base URL / API URL</label>
+        <input type="text" id="model-url" placeholder="https://api.openai.com/v1/chat/completions">
+      </div>
+      <div class="modal-actions">
+        <button class="btn" id="model-cancel">取消</button>
+        <button class="btn btn-primary" id="model-confirm">保存</button>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script type="module" src="/static/js/novelcraft/app.js"></script>
+{% endblock %}
