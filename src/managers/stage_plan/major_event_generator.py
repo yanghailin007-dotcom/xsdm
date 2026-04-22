@@ -121,7 +121,7 @@ class MajorEventGenerator:
 ```
 
 # 3. 战术地图：整体阶段计划 (Overall Stage Plans)
-这份计划将全书划分了"起承转合"，明确了各阶段的核心任务。当前正处于【{stage_name}】。
+这份计划将全书划分为"爽点单元制"四个功能阶段（opening_stage=黄金开局、development_stage=爽点展开、climax_stage=高潮碾压、ending_stage=终局收束）。当前正处于【{stage_name}】。
 ```json
 {overall_stage_plan_str}
 ```
@@ -146,9 +146,9 @@ class MajorEventGenerator:
     - 必须精准演绎`creative_seed.completeStoryline.opening`中的开篇情节
 
 2.  **阶段主体（第4章及以后）**
-    - 从第4章开始的重大事件，遵循"起、承、转、合"四段式结构
-    - 第一个阶段主体事件（第4章开始）承担"起"的功能
-    - 后续事件按"承、转、合"推进
+    - 从第4章开始的重大事件，遵循爽文"爽点单元制"结构
+    - 每个重大事件内部包含：铺垫（压抑）→ 爆发（爽点）→ 收获（余韵）→ 过渡（新悬念）
+    - 在composition中，我们用"起/承/转/合"来映射这四个功能（起=铺垫、承=压抑升级、转=爽点爆发、合=收获+新悬念）
 
 3.  **整体目标**
     - 你设计的 {density_requirements['major_events']} 个重大事件中：
@@ -190,11 +190,11 @@ class MajorEventGenerator:
         {
             "name": "阶段主体第一个事件",
             "is_golden_arc": false,
-            "role_in_stage_arc": "起",
+            "role_in_stage_arc": "起（铺垫setup）",
             "chapter_range": "4-15",
-            "main_goal": "承接黄金开局留下的危机钩子，展开阶段主体的'起'部分，建立世界观和主角初始目标",
-            "emotional_arc": "危机应对与目标确立",
-            "description": "阶段主体的开端，从第4章开始，承接黄金开局的结尾"
+            "main_goal": "承接黄金开局留下的危机钩子，展开阶段主体的'铺垫'部分，建立世界观和主角初始目标，同时设计足够的压抑元素为后续爽点做准备",
+            "emotional_arc": "危机应对与期待建立（让读者知道'后面要爽了'）",
+            "description": "阶段主体的开端，从第4章开始，承接黄金开局的结尾，重点是铺垫和压抑设计"
         },
         {
             "name": "阶段主体第二个事件",
