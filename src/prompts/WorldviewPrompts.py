@@ -240,6 +240,28 @@ JSON结构定义
         "character_tag_for_reader": "给读者看的一句话人设标签 (例如：扮猪吃虎的病秧子神医)",
         "cool_point_upgrade_path": "爽点升级路线图 (例如：都市打脸 -> 武道界称雄 -> 揭秘身世)",
         
+        "reference_bank": {
+            "speech_pattern": "string // 说话风格总结（如：冷淡简短，偶尔讽刺，对敌人话少，对亲近的人略带温度）",
+            "signature_actions": ["string // 标志性动作1（如：转茶杯）", "string // 标志性动作2（如：微微抬眼）"],
+            "catchphrases": ["string // 口头禅/标志性台词1", "string // 口头禅/标志性台词2"],
+            "emotional_triggers": {
+                "触发情境1": "string // 该情境下的反应（如：被轻视→表面平静，内心冷笑，下一步必定反击）",
+                "触发情境2": "string // 该情境下的反应（如：亲友受威胁→情绪失控边缘，手段变得狠辣）"
+            },
+            "relationship_status": {
+                "角色A": "string // 与角色A的当前关系状态",
+                "角色B": "string // 与角色B的当前关系状态"
+            },
+            "dialogue_samples": [
+                {
+                    "context": "string // 对话场景",
+                    "speaker": "主角",
+                    "line": "string // 具体台词",
+                    "tone": "string // 语气（如：淡然/冷漠/讽刺/温柔）"
+                }
+            ]
+        },
+        
         "faction_affiliation": {
             "current_faction": "当前所属势力名称 (基于[FACTION_SYSTEM]中的势力信息)",
             "position": "在势力中的地位/身份 (例如：外门弟子、内门弟子、长老、宗主)",
