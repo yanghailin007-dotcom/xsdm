@@ -377,12 +377,173 @@ class ChapterBatchSession(NovelGenerationSession):
             logger.error(f"第{chapter_number}章解析失败")
             return None
 
+        content = parsed.get("content", "")
+
+        # 🔥 字数超标：让AI自己精简。如果精简失败，返回原文（不截断，避免情节断裂）
+        if len(content) > self.word_count_max:
+            logger.warning(
+                f"第{chapter_number}章字数超标: {len(content)}字 > 上限{self.word_count_max}字，发送精简指令"
+            )
+            compressed = self._ask_ai_to_compress(content, chapter_number)
+            if len(compressed) <= self.word_count_max:
+                content = compressed
+                logger.info(f"第{chapter_number}章AI精简成功: {len(content)}字")
+            else:
+                logger.warning(
+                    f"第{chapter_number}章AI精简失败({len(compressed)}字)，保留原文({len(content)}字)等后续修复"
+                )
+                # 不截断，保留原文
+
+        # 字数不足警告（不拦截，因为AI容易写不够）
+        if len(content) < self.word_count_min:
+            logger.warning(
+                f"第{chapter_number}章字数不足: {len(content)}字 < 下限{self.word_count_min}字"
+            )
+
         return GeneratedChapter(
             chapter_number=chapter_number,
             title=parsed.get("title", title),
-            content=parsed.get("content", ""),
-            word_count=len(parsed.get("content", "")),
+            content=content,
+            word_count=len(content),
         )
+
+    def _ask_ai_to_compress(self, content: str, chapter_number: int) -> str:
+        """
+        让AI自己精简内容到目标字数以内。
+        如果精简后仍超标，外层会保留原文，不做截断。
+        """
+        compress_prompt = f"""【字数死刑通知】
+
+你刚才写的第{chapter_number}章严重超标：{len(content)}字。
+系统硬性限制：{self.word_count_max}字。超过部分会被直接丢弃，导致情节断裂。
+
+【必须执行】
+1. 将内容压缩到 {self.word_count_max} 字以内，这是死命令
+2. 保留：核心情节、关键对话1-2句、高潮动作、章尾钩子
+3. 删除：所有环境描写、所有心理活动、所有过渡叙述、所有非关键配角
+4. 每个场景用1-2句话推进，不要展开
+
+【输出格式】
+直接输出压缩后的正文，不要标题、不要分析、不要说明。
+
+请立即执行压缩："""
+
+        try:
+            response = self.send_message(
+                user_prompt=compress_prompt + "\n\n" + content,
+                temperature=0.3,
+                purpose=f"compress_chapter_{chapter_number}",
+            )
+            if response:
+                parsed = self._parse_chapter_response(response, chapter_number)
+                if parsed and parsed.get("content"):
+                    return parsed.get("content", "").strip()
+        except Exception as e:
+            logger.error(f"AI精简第{chapter_number}章失败: {e}")
+
+        # 精简失败，返回原文
+        return content
+
+    def _emergency_truncate(self, content: str, max_len: int) -> str:
+        """
+        极端兜底截断：只有当AI完全失控（如5000+字）且无法精简时才使用。
+        优先在段落边界截断，避免截断在句子中间。
+        """
+        if len(content) <= max_len:
+            return content
+        truncated = content[:max_len]
+        last_para_break = truncated.rfind('\n\n')
+        if last_para_break > max_len * 0.8:
+            truncated = truncated[:last_para_break]
+        else:
+            last_line_break = truncated.rfind('\n')
+            if last_line_break > max_len * 0.8:
+                truncated = truncated[:last_line_break]
+            else:
+                last_period = truncated.rfind('。')
+                if last_period > max_len * 0.8:
+                    truncated = truncated[:last_period + 1]
+        return truncated.strip()
+
+    def _get_current_payoff_context(self, chapter_number: int) -> Dict[str, Any]:
+        """
+        根据章节号从 novel_data 中动态查询当前爽点单元上下文。
+        避免整批次共用一个过期的 stage_context。
+        """
+        overall = self.novel_data.get("overall_stage_plans", {})
+        if not overall:
+            return {}
+
+        stage_plan = overall.get("overall_stage_plan", overall)
+        stage_keys = ["opening_stage", "development_stage", "climax_stage", "ending_stage"]
+        stage_names = {
+            "opening_stage": "黄金开局阶段",
+            "development_stage": "成长发展阶段",
+            "climax_stage": "高潮爆发阶段",
+            "ending_stage": "收尾完结阶段",
+        }
+
+        # 找到大阶段
+        stage_info = None
+        stage_key = None
+        for key in stage_keys:
+            info = stage_plan.get(key)
+            if not info:
+                continue
+            cr = info.get("chapter_range", "")
+            numbers = re.findall(r'\d+', cr)
+            if len(numbers) >= 2:
+                start, end = int(numbers[0]), int(numbers[1])
+                if start <= chapter_number <= end:
+                    stage_info = info
+                    stage_key = key
+                    break
+
+        if not stage_info:
+            return {}
+
+        # 获取爽点单元列表（优先从缓存读取）
+        payoff_units = []
+        cached = self.novel_data.get("_payoff_units", {}).get(stage_key)
+        if cached:
+            payoff_units = cached
+        else:
+            # fallback: 从 stage_info 中读取
+            payoff_units = stage_info.get("payoff_units", []) or stage_info.get("爽点单元", [])
+
+        # 找到覆盖当前章节号的爽点单元
+        payoff_unit = None
+        for unit in payoff_units:
+            cr = unit.get("chapter_range", "")
+            numbers = re.findall(r'\d+', cr)
+            if len(numbers) >= 2:
+                start, end = int(numbers[0]), int(numbers[1])
+                if start <= chapter_number <= end:
+                    payoff_unit = unit
+                    break
+
+        result = {
+            "stage_name": stage_names.get(stage_key, stage_key),
+            "stage_chapter_range": stage_info.get("chapter_range", ""),
+            "stage_goal": stage_info.get("stage_goal") or stage_info.get("core_payoff", ""),
+        }
+
+        if payoff_unit:
+            result.update({
+                "payoff_unit_name": payoff_unit.get("unit_name", ""),
+                "payoff_unit_range": payoff_unit.get("chapter_range", ""),
+                "core_payoff": payoff_unit.get("core_payoff", ""),
+                "suppression_setup": payoff_unit.get("suppression_setup", ""),
+                "emotional_arc": payoff_unit.get("emotional_arc", ""),
+                "key_beats": payoff_unit.get("key_beats", []),
+                "role_in_stage": payoff_unit.get("role_in_stage", ""),
+            })
+        else:
+            # fallback: 使用大阶段信息
+            result["core_payoff"] = stage_info.get("core_payoff") or stage_info.get("stage_goal", "")
+            result["key_beats"] = stage_info.get("key_developments") or stage_info.get("key_events", [])
+
+        return result
 
     def _build_chapter_prompt(
         self,
@@ -404,6 +565,18 @@ class ChapterBatchSession(NovelGenerationSession):
         lines.append(spec.outline or "（请根据上下文合理发挥）")
         lines.append("")
 
+        # 🔥 前章衔接（同批次内已生成章节的摘要）
+        if self.generated_chapters:
+            recent = self.generated_chapters[-2:]  # 最近1-2章
+            lines.append("### 前章衔接（本批次已生成章节摘要）")
+            for ch in recent:
+                lines.append(f"- 第{ch.chapter_number}章《{ch.title}》结尾状态:")
+                # 提取最后100字作为结尾摘要
+                ending = ch.content[-150:] if len(ch.content) > 150 else ch.content
+                lines.append(f"  {ending}")
+            lines.append("【要求】本章必须自然衔接上述结尾，保持剧情连贯")
+            lines.append("")
+
         # 情绪曲线
         lines.append(emotion_curve)
         lines.append("")
@@ -416,12 +589,56 @@ class ChapterBatchSession(NovelGenerationSession):
         lines.append("- 格式: ---第N章 标题--- 标记")
         lines.append("- 第三人称叙述")
         lines.append("")
+        lines.append("### 【字数死刑规定 - 必须遵守】")
+        lines.append(f"- 你的输出会被硬性截断到{self.word_count_max}字")
+        lines.append("- 超过部分直接丢弃，情节会断裂")
+        lines.append("- 每个场景只用1-2句话推进，不要展开描写")
+        lines.append("- 环境描写控制在1句以内，心理活动控制在1句以内")
+        lines.append("- 对话每句不超过15字，一段对话只保留最关键的1-2轮")
+        lines.append("- 如果字数超标，系统会强制删除后半段，你的故事就烂了")
+        lines.append("")
 
         # 批次首章注入完整核心设定
         if is_first and self.core_setting_full:
             lines.append("【核心设定圣经 - 本批次必须严格遵守】")
             lines.append(self.core_setting_full)
             lines.append("=" * 60)
+            lines.append("")
+
+        # 🔥 当前爽点单元上下文（动态查询，避免整批次共用过期信息）
+        payoff_ctx = self._get_current_payoff_context(spec.chapter_number)
+        if payoff_ctx:
+            lines.append("【当前爽点单元上下文 - 本章必须服务此单元目标】")
+            lines.append(f"- 所属阶段: {payoff_ctx.get('stage_name', '')} ({payoff_ctx.get('stage_chapter_range', '')})")
+            lines.append(f"- 爽点单元: {payoff_ctx.get('payoff_unit_name', '')} ({payoff_ctx.get('payoff_unit_range', '')})")
+            lines.append(f"- 核心爽点: {payoff_ctx.get('core_payoff', '')}")
+            if payoff_ctx.get('suppression_setup'):
+                lines.append(f"- 压抑铺垫: {payoff_ctx.get('suppression_setup', '')}")
+            if payoff_ctx.get('emotional_arc'):
+                lines.append(f"- 情绪弧线: {payoff_ctx.get('emotional_arc', '')}")
+            if payoff_ctx.get('key_beats'):
+                beats = payoff_ctx.get('key_beats', [])
+                if isinstance(beats, list):
+                    lines.append(f"- 关键节拍: {' → '.join(str(b) for b in beats)}")
+            # 🔥 场景设计下沉：根据章节在爽点单元中的位置，分配具体节拍任务
+            pu_range = payoff_ctx.get("payoff_unit_range", "")
+            beats = payoff_ctx.get("key_beats", [])
+            if pu_range and beats and isinstance(beats, list) and len(beats) > 0:
+                numbers = re.findall(r'\d+', pu_range)
+                if len(numbers) >= 2:
+                    pu_start, pu_end = int(numbers[0]), int(numbers[1])
+                    total_in_unit = pu_end - pu_start + 1
+                    if total_in_unit > 0:
+                        rel_pos = spec.chapter_number - pu_start  # 0-based
+                        if len(beats) >= total_in_unit:
+                            beat_idx = min(rel_pos, len(beats) - 1)
+                        else:
+                            beat_idx = min(int(rel_pos * len(beats) / total_in_unit), len(beats) - 1)
+                        chapter_beat = beats[beat_idx]
+                        lines.append(f"- 本章任务: 负责关键节拍「{chapter_beat}」")
+                        if beat_idx + 1 < len(beats):
+                            lines.append(f"- 下章预告: 将过渡至「{beats[beat_idx + 1]}」")
+            lines.append("【要求】本章内容必须服务于上述爽点单元目标，不能偏离")
             lines.append("")
 
         # 战术指令
@@ -499,6 +716,9 @@ class ChapterBatchSession(NovelGenerationSession):
         content = re.sub(r'第\d+章\s*完', '', content)
         # 移除AI分析
         content = re.sub(r'(?:分析|总结|自检|检查).*?[：:].*?(?=\n|$)', '', content, flags=re.MULTILINE)
+        # 🔥 移除正文内部残留的标题行（---第N章 标题--- 或 第N章 标题）
+        content = re.sub(r'^---\s*第\s*\d+\s*章\s+.*?---\s*\n?', '', content, flags=re.MULTILINE)
+        content = re.sub(r'^第\s*\d+\s*章[：:\s]+.*?\n', '', content, flags=re.MULTILINE)
         return content.strip()
 
     # =====================================================================

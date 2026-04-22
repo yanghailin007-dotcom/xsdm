@@ -109,16 +109,57 @@ class NovelGenerationSession(ConversationSession):
         return mapping.get(self.domain, "创作")
 
     def _get_novel_info_prompt(self) -> str:
-        title = self.novel_data.get("novel_title", "未命名")
-        synopsis = self.novel_data.get("novel_synopsis", "暂无简介")
-        category = self.novel_data.get("category", "未分类")
-        total_chapters = self.novel_data.get("current_progress", {}).get("total_chapters", 200)
+        nd = self.novel_data
+        title = nd.get("novel_title", "未命名")
+        synopsis = nd.get("novel_synopsis", "暂无简介")
+        category = nd.get("category", "未分类")
+        total_chapters = nd.get("current_progress", {}).get("total_chapters", 200)
         
-        return f"""## 小说基础信息
-- **书名**: {title}
-- **类型**: {category}
-- **总章节数**: {total_chapters}
-- **简介**: {synopsis}"""
+        lines = [
+            "## 小说基础信息",
+            f"- **书名**: {title}",
+            f"- **类型**: {category}",
+            f"- **总章节数**: {total_chapters}",
+            f"- **简介**: {synopsis}",
+        ]
+        
+        # 🔥 注入核心世界观
+        worldview = nd.get("core_worldview", {})
+        if isinstance(worldview, dict) and worldview:
+            import json
+            wv_text = json.dumps(worldview, ensure_ascii=False)
+            if len(wv_text) > 600:
+                wv_text = wv_text[:600] + "..."
+            lines.append(f"\n- **核心世界观**: {wv_text}")
+        
+        # 🔥 注入主要角色设计
+        char_design = nd.get("character_design", {})
+        if isinstance(char_design, dict) and char_design:
+            import json
+            char_text = json.dumps(char_design, ensure_ascii=False)
+            if len(char_text) > 600:
+                char_text = char_text[:600] + "..."
+            lines.append(f"\n- **主要角色设计**: {char_text}")
+        
+        # 🔥 注入金手指设定
+        golden_finger = nd.get("golden_finger", {})
+        if isinstance(golden_finger, dict) and golden_finger:
+            import json
+            gf_text = json.dumps(golden_finger, ensure_ascii=False)
+            if len(gf_text) > 400:
+                gf_text = gf_text[:400] + "..."
+            lines.append(f"\n- **金手指设定**: {gf_text}")
+        elif isinstance(golden_finger, str) and golden_finger:
+            lines.append(f"\n- **金手指设定**: {golden_finger}")
+        
+        # 🔥 注入核心设定（从 creative_seed 获取）
+        creative_seed = nd.get("creative_seed", {})
+        if isinstance(creative_seed, dict) and creative_seed:
+            core_setting = creative_seed.get("coreSetting") or creative_seed.get("core_setting", "")
+            if core_setting:
+                lines.append(f"\n- **核心设定**: {core_setting}")
+        
+        return "\n".join(lines)
 
     def _get_context_briefs_prompt(self) -> str:
         briefs_text = []
