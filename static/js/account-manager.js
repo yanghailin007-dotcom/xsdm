@@ -88,38 +88,37 @@ class MultiAccountManager {
             const data = localStorage.getItem(this.STORAGE_KEY);
             if (!data) return;
             
-            // 🔥 检测是否包含损坏的 bytes 格式数据
-            if (data.includes("b'") || data.includes('b"')) {
-                console.warn('[AccountManager] 检测到损坏的 token 数据，执行清理...');
+            // 🔥 检测是否包含损坏的 bytes 格式数据（只检查 token 字段）
+            const accounts = JSON.parse(data);
+            let hasCorruptedTokens = false;
+            
+            const cleanedAccounts = accounts.map(acc => {
+                if (!acc) return acc;
+                // 检测损坏的 token（Python bytes 格式 b'...'）
+                const accessCorrupted = acc.accessToken && 
+                    (acc.accessToken.startsWith("b'") || acc.accessToken.startsWith('b"'));
+                const refreshCorrupted = acc.refreshToken && 
+                    (acc.refreshToken.startsWith("b'") || acc.refreshToken.startsWith('b"'));
                 
-                const accounts = JSON.parse(data);
-                const cleanedAccounts = accounts.map(acc => {
-                    // 检测损坏的 token（Python bytes 格式 b'...'）
-                    const accessCorrupted = acc.accessToken && 
-                        (acc.accessToken.startsWith("b'") || acc.accessToken.startsWith('b"'));
-                    const refreshCorrupted = acc.refreshToken && 
-                        (acc.refreshToken.startsWith("b'") || acc.refreshToken.startsWith('b"'));
-                    
-                    if (accessCorrupted || refreshCorrupted) {
-                        console.warn(`[AccountManager] 清理账号 ${acc.username} 的损坏 token`);
-                        return {
-                            ...acc,
-                            accessToken: null,
-                            refreshToken: null,
-                            needsRelogin: true
-                        };
-                    }
-                    return acc;
-                });
-                
-                // 保存清理后的数据
+                if (accessCorrupted || refreshCorrupted) {
+                    hasCorruptedTokens = true;
+                    console.warn(`[AccountManager] 清理账号 ${acc.username} 的损坏 token`);
+                    return {
+                        ...acc,
+                        accessToken: null,
+                        refreshToken: null,
+                        needsRelogin: true
+                    };
+                }
+                return acc;
+            });
+            
+            // 只有真正清理了损坏 token 时才保存并提示
+            if (hasCorruptedTokens) {
                 localStorage.setItem(this.STORAGE_KEY, JSON.stringify(cleanedAccounts));
                 console.warn('[AccountManager] 已清除损坏的 token 数据，请重新登录');
-                
-                // 强制刷新页面以应用更改
-                setTimeout(() => {
-                    window.location.reload();
-                }, 1000);
+                // 🔥 修复：不再自动刷新页面，避免无限循环
+                // 改为显示提示（由 checkNeedsRelogin 处理）
             }
         } catch (e) {
             console.error('[AccountManager] 迁移数据失败:', e);
