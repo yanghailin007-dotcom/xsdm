@@ -60,7 +60,7 @@ CONFIG = {
                 "model": "google/gemini-3-flash",
                 "assessment": "google/gemini-2.5-flash",
                 "priority": 2,
-                "enabled": True,
+                "enabled": False,
                 "timeout": 300,
                 "max_retries": 3,
                 "discount_rate": 100,
@@ -117,7 +117,7 @@ CONFIG = {
                 "model": os.getenv('ARK_MODEL_ID', 'doubao-seed-2-0-pro-260215'),
                 "priority": 1,
                 "enabled": True,
-                "timeout": 120,
+                "timeout": 300,
                 "max_retries": 3,
                 "discount_rate": 100,
                 "stream": False
@@ -127,7 +127,7 @@ CONFIG = {
     # 🔥 Provider 优先级配置（自动选择 + 故障转移）
     # 1. 当 default_provider=None 时，按此列表自动选择第一个可用的 provider
     # 2. 当高优先级 provider 的所有端点都失败时，自动切换到低优先级
-    "provider_priority": ["gemini", "kimi", "deepseek", "doubao"],  # 优先级: kimi > gemini > deepseek > doubao
+    "provider_priority": ["doubao", "kimi", "deepseek", "gemini"],  # 优先级: kimi > gemini > deepseek > doubao
     
     # 🔥 Provider 故障转移配置
     "provider_failover": {

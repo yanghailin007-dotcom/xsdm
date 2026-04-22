@@ -55,6 +55,10 @@ config = {
 print("初始化 NovelGenerator...")
 generator = NovelGenerator(config)
 
+# 🔥 关键：设置用户名，确保产物保存到用户隔离目录
+generator.set_username("yanghailin")
+print("已设置用户名: yanghailin")
+
 # 启动一阶段
 print("=" * 60)
 print("启动一阶段生成...")
