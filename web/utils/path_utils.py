@@ -401,7 +401,7 @@ def list_user_projects(username: str = None, include_public: bool = True) -> Lis
     user_dir = get_user_novel_dir(username, create=False)
     if user_dir.exists():
         for project_dir in user_dir.iterdir():
-            if project_dir.is_dir() and _has_project_info_file(project_dir):
+            if project_dir.is_dir() and '_backup' not in project_dir.name and _has_project_info_file(project_dir):
                 title = _restore_filename(project_dir.name)
                 projects.append({
                     'title': title,
@@ -420,7 +420,7 @@ def list_user_projects(username: str = None, include_public: bool = True) -> Lis
                 
                 owner = user_dir.name
                 for project_dir in user_dir.iterdir():
-                    if project_dir.is_dir() and _has_project_info_file(project_dir):
+                    if project_dir.is_dir() and '_backup' not in project_dir.name and _has_project_info_file(project_dir):
                         title = _restore_filename(project_dir.name)
                         if title not in seen_titles:
                             projects.append({
@@ -436,7 +436,7 @@ def list_user_projects(username: str = None, include_public: bool = True) -> Lis
         public_dir = get_public_projects_dir(create=False)
         if public_dir.exists():
             for project_dir in public_dir.iterdir():
-                if project_dir.is_dir() and _has_project_info_file(project_dir):
+                if project_dir.is_dir() and '_backup' not in project_dir.name and _has_project_info_file(project_dir):
                     title = _restore_filename(project_dir.name)
                     if title not in seen_titles:
                         projects.append({

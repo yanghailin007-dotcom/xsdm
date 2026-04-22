@@ -623,7 +623,22 @@ def create_app():
     except Exception as e:
         logger.warning(f"⚠️ short_story_api 注册失败: {e}")
 
-    # 28.7. 初始化题材自动更新调度器
+    # 28.7. NovelCraft API 和页面路由
+    try:
+        from web.api.novelcraft_api import novelcraft_api
+        app.register_blueprint(novelcraft_api)
+        logger.info("✅ novelcraft_api 已注册")
+    except Exception as e:
+        logger.warning(f"⚠️ novelcraft_api 注册失败: {e}")
+    
+    try:
+        from web.routes.novelcraft_routes import register_novelcraft_routes
+        register_novelcraft_routes(app)
+        logger.info("✅ novelcraft_routes 页面路由已注册")
+    except Exception as e:
+        logger.warning(f"⚠️ novelcraft_routes 注册失败: {e}")
+
+    # 28.8. 初始化题材自动更新调度器
     try:
         from web.services.market_driven.genre_scheduler import init_genre_scheduler
         init_genre_scheduler(app)

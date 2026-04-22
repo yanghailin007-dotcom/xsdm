@@ -2708,7 +2708,15 @@ class NovelGenerationManager:
     def start_phase_two_generation(self, config: Dict[str, Any]) -> str:
         """启动第二阶段章节生成任务"""
         task_id = str(uuid.uuid4())
-        username = config.get('username', 'unknown')
+        # 🔥 修复：如果 config 中没有 username，从 session 获取
+        username = config.get('username')
+        if not username:
+            try:
+                from web.utils.path_utils import get_current_username
+                username = get_current_username()
+                config['username'] = username
+            except Exception:
+                username = 'unknown'
         novel_title = config.get('novel_title', '未命名小说')
         
         logger.info(f"🚀 [PHASE2_TASK] 用户 {username} 启动二阶段任务: {novel_title}, task_id={task_id[:8]}")
@@ -2957,6 +2965,8 @@ class NovelGenerationManager:
             if username:
                 novel_generator._username = username
                 novel_generator.set_username(username)
+                # 🔥 关键修复：同步 username 到 novel_data，供 ChapterBatchOrchestrator 使用
+                novel_generator.novel_data['username'] = username
                 logger.info(f"任务 {task_id}: 已设置用户名 {username} 用于用户隔离路径")
                 
                 # 🔥 关键修复：刷新 StagePlanManager 的缓存路径
