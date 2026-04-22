@@ -1578,7 +1578,7 @@ class NovelGenerator:
             'novel_title': self._ctx.get('novel_title', 'Unknown'),
             'novel_synopsis': self._ctx.get('novel_synopsis', ''),
             'category': self._ctx.get('category', '都市'),
-            'username': getattr(self, '_username', None),
+            'username': getattr(self, '_username', None) or self.novel_data.get('username'),
             'creative_seed': self._ctx.get('creative_seed', {}),
             'selected_plan': self._ctx.get('selected_plan', {}),
             'stage_writing_plans': self._ctx.get('stage_writing_plans', {}),
@@ -1612,13 +1612,24 @@ class NovelGenerator:
                 pass
         
         # 创建 orchestrator
+        # 🔥 修复：使用 api_client 的默认提供商，避免硬编码 kimi
+        provider = getattr(self.api_client, 'default_provider', 'gemini')
+        model_map = {
+            'gemini': 'gemini-3-flash-preview-thinking',
+            'deepseek': 'deepseek-chat',
+            'kimi': 'kimi-k2.5',
+            'doubao': 'doubao-seed-2-0-pro-260215',
+        }
+        model_name = model_map.get(provider, 'gemini-3-flash-preview-thinking')
+        self.logger.info(f"[对话模式] 使用提供商: {provider}, 模型: {model_name}")
+        
         orchestrator = ChapterBatchOrchestrator(
             api_client=self.api_client,
             novel_data=novel_data,
             project_path=str(project_path) if project_path else None,
             batch_size=4,
-            provider="kimi",
-            model_name="kimi-k2.5",
+            provider=provider,
+            model_name=model_name,
             use_quality_gate=True,
             use_sliding_optimizer=True,
         )
@@ -1703,7 +1714,7 @@ class NovelGenerator:
         novel_data = {
             'novel_title': self._ctx.get('novel_title', 'Unknown'),
             'novel_synopsis': self._ctx.get('novel_synopsis', ''),
-            'username': getattr(self, '_username', None),
+            'username': getattr(self, '_username', None) or self.novel_data.get('username'),
             'creative_seed': self._ctx.get('creative_seed', {}),
             'selected_plan': self._ctx.get('selected_plan', {}),
             'stage_writing_plans': self._ctx.get('stage_writing_plans', {}),
@@ -3088,14 +3099,17 @@ class NovelGenerator:
             print("🚀 开始第二阶段章节生成")
             print("="*60)
             
-            # 🔥 修复：确保novel_data中有novel_title和current_progress
-            if not self._ctx.get("novel_title"):
-                self._ctx["novel_title"] = novel_title
+            # 🔥 修复：强制使用传入的 novel_title 参数，但检测并跳过 backup 目录名
+            if '_backup' in str(novel_title):
+                correct_title = self._ctx.get('novel_title') or self.novel_data.get('novel_title')
+                if correct_title and '_backup' not in str(correct_title):
+                    novel_title = correct_title
+                    self.logger.warning(f"检测到 backup 目录名，已纠正为: {novel_title}")
+            self._ctx["novel_title"] = novel_title
 
-            # 关键修复：同时设置 self.novel_data，供 StagePlanPersistence 使用
-            if not self.novel_data.get("novel_title"):
-                self.novel_data["novel_title"] = novel_title
-                self.logger.info(f"已设置 novel_data['novel_title'] = {novel_title}")
+            # 关键修复：同时强制设置 self.novel_data，供 StagePlanPersistence 使用
+            self.novel_data["novel_title"] = novel_title
+            self.logger.info(f"已设置 novel_data['novel_title'] = {novel_title}")
             
             # 关键修复：将 novel_data 中的关键数据同步到 _ctx
             for key in ["overall_stage_plans", "global_growth_plan", "stage_writing_plans", 
@@ -3105,16 +3119,20 @@ class NovelGenerator:
                     self.logger.info(f"已同步 {key} 到 _ctx")
             
             # 🔥 修复：确保current_progress结构存在并正确初始化
+            # 强制使用传入的 chapters_to_generate 作为总章节数，忽略 _ctx 中可能为0或错误的残留值
             if "current_progress" not in self._ctx or not self._ctx["current_progress"]:
                 print("📋 初始化 current_progress 结构...")
                 self._ctx["current_progress"] = {
                     "completed_chapters": 0,
-                    "total_chapters": self._ctx.get("total_chapters", 200),
+                    "total_chapters": chapters_to_generate,
                     "stage": "第二阶段生成",
                     "current_stage": "第二阶段",
                     "start_time": datetime.now().isoformat()
                 }
-                print(f"✅ current_progress 已初始化: 总章节数 = {self._ctx['current_progress']['total_chapters']}")
+                print(f"✅ current_progress 已初始化: 总章节数 = {chapters_to_generate}")
+            else:
+                # 如果已有 current_progress，也强制更新 total_chapters
+                self._ctx["current_progress"]["total_chapters"] = chapters_to_generate
             
             print(f"📚 小说标题: {self._ctx.get('novel_title', '未知')}")
             print(f"📖 起始章节: {from_chapter}")
@@ -3142,9 +3160,10 @@ class NovelGenerator:
                 print("\n✅ 第二阶段章节生成完成")
                 
                 # 保存进度
-                # 🔥 确保用户名被传递到 _ctx
+                # 🔥 确保用户名被传递到 _ctx（同时设置 username 和 _username）
                 if hasattr(self, '_username') and self._username:
                     self._ctx['_username'] = self._username
+                    self._ctx['username'] = self._username
                 self.project_manager.save_project_progress(self._ctx)
                 
                 return True

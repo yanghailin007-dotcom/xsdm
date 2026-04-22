@@ -121,11 +121,11 @@ class ChapterGenerator:
                 chapter_data["quality_assessment"] = assessment
                 self.logger.info(f"  质量评分: {score:.1f}分")
                 
-                # 🔥 新增：字数检查（可配置阈值），只记录不调整
+                # 🔥 新增：字数检查（可配置阈值），超标时记录偏差触发优化/重试
                 current_word_count = len(chapter_data.get("content", ""))
-                # 从配置读取阈值，默认少于1500或多于3500触发重新生成
-                min_word_threshold = chapter_params.get('min_word_threshold', 1500)
-                max_word_threshold = chapter_params.get('max_word_threshold', 3500)
+                # 从配置读取阈值，默认1800-2800（收紧，避免AI失控写长）
+                min_word_threshold = chapter_params.get('min_word_threshold', 1800)
+                max_word_threshold = chapter_params.get('max_word_threshold', 2800)
                 
                 word_count_ok = min_word_threshold <= current_word_count <= max_word_threshold
                 if not word_count_ok:
@@ -243,6 +243,31 @@ class ChapterGenerator:
         f = io.StringIO()
         traceback.print_exc(file=f)
         return f.getvalue()
+
+    def _hard_truncate_content(self, content: str, max_len: int) -> str:
+        """
+        将内容硬截断到 max_len 以内，优先在段落边界截断，避免截断在句子中间。
+        """
+        if len(content) <= max_len:
+            return content
+
+        truncated = content[:max_len]
+
+        # 优先找段落边界
+        last_para_break = truncated.rfind('\n\n')
+        if last_para_break > max_len * 0.8:
+            truncated = truncated[:last_para_break]
+        else:
+            last_line_break = truncated.rfind('\n')
+            if last_line_break > max_len * 0.8:
+                truncated = truncated[:last_line_break]
+            else:
+                # 找最后一个句号
+                last_period = truncated.rfind('。')
+                if last_period > max_len * 0.8:
+                    truncated = truncated[:last_period + 1]
+
+        return truncated.strip()
     
     def _optimize_chapter_content(self, chapter_data: Dict, assessment: Dict, novel_data: Dict, 
                                   chapter_number: int, chapter_params: Dict) -> Dict:
@@ -289,10 +314,10 @@ class ChapterGenerator:
                 novel_data=novel_data
             )
             
-            # 🔥 修复：优化后重新检查字数，确保字数偏差标记被正确设置
+            # 🔥 修复：优化后重新检查字数，记录偏差但不再硬截断（避免情节断裂）
             optimized_word_count = len(optimized_data.get("content", ""))
-            min_word_threshold = chapter_params.get('min_word_threshold', 1500)
-            max_word_threshold = chapter_params.get('max_word_threshold', 3500)
+            min_word_threshold = chapter_params.get('min_word_threshold', 1800)
+            max_word_threshold = chapter_params.get('max_word_threshold', 2800)
             if not (min_word_threshold <= optimized_word_count <= max_word_threshold):
                 new_assessment['word_count_deviation'] = True
                 new_assessment['word_count'] = optimized_word_count
@@ -301,7 +326,7 @@ class ChapterGenerator:
                 if optimized_word_count < min_word_threshold:
                     self.logger.warning(f"  ⚠️ 优化后字数仍不足: {optimized_word_count}字，低于阈值{min_word_threshold}字")
                 else:
-                    self.logger.warning(f"  ⚠️ 优化后字数仍超标: {optimized_word_count}字，高于阈值{max_word_threshold}字")
+                    self.logger.warning(f"  ⚠️ 优化后字数仍超标: {optimized_word_count}字，高于阈值{max_word_threshold}字，将由外层重试机制处理")
             
             original_score = assessment.get("overall_score", 0)
             new_score = new_assessment.get("overall_score", 0)
@@ -363,12 +388,13 @@ class ChapterGenerator:
                 purpose=f"直接从场景事件生成第{chapter_number}章内容"
             )
             
-            if content_result and isinstance(content_result, dict) and len(content_result.get("content", "")) >= 1500:
-                self.logger.info(f"  ✅ 第{chapter_number}章内容生成成功，字数达标。")
+            content_len = len(content_result.get("content", "")) if content_result else 0
+            if content_result and isinstance(content_result, dict) and content_len >= 1800:
+                # 字数达标（>=1800），允许返回；如果超标由外层重试/优化机制处理
+                self.logger.info(f"  ✅ 第{chapter_number}章内容生成成功，{content_len}字。")
                 return content_result
             else:
-                word_count = len(content_result.get("content", "")) if content_result else 0
-                self.logger.warning(f"  ⚠️ 第{attempt + 1}次尝试失败或字数不足 ({word_count}字)。")
+                self.logger.warning(f"  ⚠️ 第{attempt + 1}次尝试失败或字数不足 ({content_len}字)。")
         
         self.logger.error(f"  ❌ 第{chapter_number}章所有直接生成尝试均失败")
         return None
