@@ -126,8 +126,24 @@ class ChapterBatchOrchestrator:
 
         result = BatchResult()
         total = len(specs)
+        
+        # 计算实际章节范围
+        if specs:
+            min_chapter = min(s.chapter_number for s in specs)
+            max_chapter = max(s.chapter_number for s in specs)
+        else:
+            min_chapter, max_chapter = 1, 1
+        
+        # 将实际章节范围存入 novel_data，供后续使用
+        self.novel_data['_actual_chapter_range'] = (min_chapter, max_chapter)
 
-        logger.info(f"[Orchestrator] 开始生成 {total} 章，批次大小: {self.batch_size}")
+        logger.info(f"[Orchestrator] 开始生成 {total} 章（第{min_chapter}-{max_chapter}章），批次大小: {self.batch_size}")
+        
+        # 🔥 预生成全书爽点单元（一次性生成所有大阶段的爽点单元）
+        self._pre_generate_all_payoff_units(max_chapter=max_chapter)
+
+        # 🔥 为每个 spec 填充细纲（从爽点单元中提取）
+        self._fill_specs_outline(specs)
 
         # 按批次大小切分
         for i in range(0, total, self.batch_size):
@@ -301,9 +317,340 @@ class ChapterBatchOrchestrator:
     # 爽点单元上下文解析
     # =====================================================================
 
+    def _build_novel_context_section(self) -> str:
+        """构建小说核心设定上下文，注入 prompt 防止 AI 跑偏"""
+        parts = []
+        nd = self.novel_data
+        
+        # 1. 小说标题
+        title = nd.get('novel_title') or nd.get('title', '未命名')
+        parts.append(f"【小说标题】\n{title}")
+        
+        # 2. 小说简介/故事梗概
+        synopsis = nd.get('novel_synopsis') or nd.get('story_synopsis') or nd.get('synopsis', '')
+        if synopsis:
+            parts.append(f"\n【小说简介/故事梗概】\n{synopsis}")
+        
+        # 3. 核心世界观
+        worldview = nd.get('core_worldview', {})
+        if isinstance(worldview, dict) and worldview:
+            worldview_text = json.dumps(worldview, ensure_ascii=False)
+            if len(worldview_text) > 800:
+                worldview_text = worldview_text[:800] + "..."
+            parts.append(f"\n【核心世界观】\n{worldview_text}")
+        
+        # 4. 主要角色设计
+        char_design = nd.get('character_design', {})
+        if isinstance(char_design, dict) and char_design:
+            char_text = json.dumps(char_design, ensure_ascii=False)
+            if len(char_text) > 800:
+                char_text = char_text[:800] + "..."
+            parts.append(f"\n【主要角色设计】\n{char_text}")
+        
+        # 5. 金手指设定
+        golden_finger = nd.get('golden_finger', {})
+        if isinstance(golden_finger, dict) and golden_finger:
+            gf_text = json.dumps(golden_finger, ensure_ascii=False)
+            if len(gf_text) > 600:
+                gf_text = gf_text[:600] + "..."
+            parts.append(f"\n【金手指设定】\n{gf_text}")
+        elif isinstance(golden_finger, str) and golden_finger:
+            parts.append(f"\n【金手指设定】\n{golden_finger}")
+        
+        # 6. 写作风格
+        style = nd.get('writing_style_guide', {})
+        if isinstance(style, dict) and style:
+            style_text = json.dumps(style, ensure_ascii=False)
+            if len(style_text) > 400:
+                style_text = style_text[:400] + "..."
+            parts.append(f"\n【写作风格】\n{style_text}")
+        
+        # 7. 核心设定（备选）
+        creative_seed = nd.get('creative_seed', {})
+        if isinstance(creative_seed, dict) and creative_seed:
+            core_setting = creative_seed.get('coreSetting') or creative_seed.get('core_setting', '')
+            if core_setting:
+                parts.append(f"\n【核心设定】\n{core_setting}")
+            genre = creative_seed.get('genre') or creative_seed.get('category', '')
+            if genre:
+                parts.append(f"\n【题材类型】\n{genre}")
+        
+        if len(parts) <= 1:  # 只有标题，说明没拿到多少数据
+            logger.warning("[Orchestrator] 小说核心设定数据不足，prompt 上下文可能薄弱")
+        
+        return "\n".join(parts)
+
     # =====================================================================
     # 爽点单元生成与管理
     # =====================================================================
+
+    def _fill_specs_outline(self, specs: List[ChapterSpec]) -> None:
+        """
+        为每个 ChapterSpec 填充细纲（outline）。
+        从爽点单元或阶段计划中提取对应章节的核心内容描述。
+        """
+        for spec in specs:
+            if spec.outline:
+                continue  # 已有细纲，跳过
+
+            ctx = self._get_stage_context_for_chapter(spec.chapter_number)
+            if not ctx:
+                continue
+
+            parts = []
+            # 爽点单元信息
+            pu_name = ctx.get("payoff_unit_name", "")
+            pu_range = ctx.get("payoff_unit_range", "")
+            core_payoff = ctx.get("core_payoff", "")
+            suppression = ctx.get("suppression_setup", "")
+            beats = ctx.get("key_beats", [])
+
+            if pu_name:
+                parts.append(f"所属爽点单元: {pu_name} ({pu_range})")
+            if core_payoff:
+                parts.append(f"核心爽点: {core_payoff}")
+            if suppression:
+                parts.append(f"压抑铺垫: {suppression}")
+            if beats:
+                if isinstance(beats, list):
+                    parts.append(f"关键节拍: {' → '.join(str(b) for b in beats)}")
+                else:
+                    parts.append(f"关键节拍: {beats}")
+
+            # 尝试从阶段key_events中找到更具体的章节事件
+            stage_key = self._get_stage_key_for_chapter(spec.chapter_number)
+            if stage_key:
+                stage_info = self._get_stage_info_by_key(stage_key)
+                if stage_info:
+                    key_events = stage_info.get("key_events", [])
+                    # 简单映射：按章节号对事件数量取模分配
+                    if key_events and isinstance(key_events, list):
+                        idx = (spec.chapter_number - 1) % len(key_events)
+                        event_desc = key_events[idx]
+                        if event_desc and isinstance(event_desc, str):
+                            parts.append(f"本章关键事件: {event_desc}")
+
+            if parts:
+                spec.outline = "\n".join(parts)
+                logger.info(f"[Orchestrator] 第{spec.chapter_number}章细纲已填充: {spec.outline[:60]}...")
+
+    def _get_stage_info_by_key(self, stage_key: str) -> Optional[Dict]:
+        """根据阶段键名获取阶段信息"""
+        overall = self.novel_data.get("overall_stage_plans", {})
+        if not overall:
+            return None
+        stage_plan = overall.get("overall_stage_plan", overall)
+        return stage_plan.get(stage_key)
+
+    def _pre_generate_all_payoff_units(self, max_chapter: int = None) -> bool:
+        """
+        🔥 一次性预生成全书所有大阶段的爽点单元
+        
+        在章节生成开始前，遍历所有大阶段，一次性调用 API 生成全书爽点单元规划。
+        这样可以全局把控爽点节奏，避免阶段间重复或断层。
+        
+        Args:
+            max_chapter: 实际要生成的最大章节号，用于截断超出范围的阶段
+        
+        Returns:
+            是否成功
+        """
+        # 检查是否已经预生成
+        if hasattr(self, '_all_payoff_units_generated') and self._all_payoff_units_generated:
+            logger.info("[Orchestrator] 全书爽点单元已预生成，跳过")
+            return True
+        
+        overall = self.novel_data.get("overall_stage_plans", {})
+        if not overall:
+            logger.warning("[Orchestrator] 未找到 overall_stage_plans，无法预生成爽点单元")
+            return False
+        
+        stage_plan = overall.get("overall_stage_plan", overall)
+        stage_keys = ["opening_stage", "development_stage", "climax_stage", "ending_stage"]
+        
+        # 收集所有大阶段信息
+        stage_infos = []
+        for key in stage_keys:
+            info = stage_plan.get(key)
+            if not info:
+                continue
+            stage_infos.append((key, info))
+        
+        if not stage_infos:
+            logger.warning("[Orchestrator] 未找到任何大阶段信息")
+            return False
+        
+        # 检查是否已全部缓存
+        all_cached = True
+        for key, _ in stage_infos:
+            if key not in self._payoff_units_cache and not self.novel_data.get("_payoff_units", {}).get(key):
+                all_cached = False
+                break
+        
+        if all_cached:
+            logger.info("[Orchestrator] 所有爽点单元已缓存，跳过预生成")
+            self._all_payoff_units_generated = True
+            return True
+        
+        logger.info(f"[Orchestrator] 🔥 开始预生成全书爽点单元，共 {len(stage_infos)} 个大阶段")
+        
+        # 构建全书 prompt
+        novel_context = self._build_novel_context_section()
+        
+        # 计算实际总章节数提示
+        total_chapters_hint = ""
+        if max_chapter:
+            total_chapters_hint = f"\n\n【实际生成范围】\n本书实际共 {max_chapter} 章。你只需为第 1-{max_chapter} 章规划爽点单元，不要超出此范围。"
+        
+        prompt_parts = [
+            "你是一位顶级的网络小说结构规划专家。请基于以下小说核心设定和全书大阶段信息，生成全书的爽点单元规划。",
+            "",
+            "【重要约束】",
+            "你必须严格遵循下方【小说核心设定】中的世界观、角色、金手指等设定来规划爽点单元，",
+            "绝不能偏离原小说的题材和风格。如果【全书架构】中的描述与【小说核心设定】冲突，",
+            "以【小说核心设定】为准进行纠正。",
+            total_chapters_hint,
+            "",
+            novel_context,
+            "",
+            "【爽点单元定义】",
+            "一个爽点单元 = 铺垫(setup) + 压抑(suppression) + 爆发(payoff) + 收获(harvest)",
+            "每个爽点单元跨3-5章，构成一个完整的情绪闭环（压抑→爆发→爽）。",
+            "",
+            "【全书架构】",
+        ]
+        
+        for key, info in stage_infos:
+            stage_name = info.get("stage_name", key)
+            chapter_range = info.get("chapter_range", "")
+            
+            # 🔥 修复：根据实际 max_chapter 截断阶段范围
+            if max_chapter and chapter_range:
+                numbers = re.findall(r'\d+', str(chapter_range))
+                if len(numbers) >= 2:
+                    stage_start, stage_end = int(numbers[0]), int(numbers[1])
+                    if stage_start > max_chapter:
+                        # 整个阶段都超出范围，跳过
+                        logger.info(f"[Orchestrator] 跳过超出范围的阶段 {key}: {chapter_range} > max={max_chapter}")
+                        continue
+                    if stage_end > max_chapter:
+                        stage_end = max_chapter
+                        chapter_range = f"{stage_start}-{stage_end}"
+                        logger.info(f"[Orchestrator] 截断阶段 {key} 范围: {info.get('chapter_range', '')} -> {chapter_range}")
+            
+            core_payoff = info.get("core_payoff") or info.get("stage_goal", "")
+            suppression_setup = info.get("suppression_setup") or info.get("core_conflicts", "")
+            key_events = info.get("key_events") or info.get("key_developments", [])
+            emotional_focus = info.get("emotional_focus", "")
+            climax = info.get("climax", "")
+            next_stage_hook = info.get("next_stage_hook", "")
+            
+            prompt_parts.append(f"\n【大阶段: {stage_name}】")
+            prompt_parts.append(f"- 章节范围: 第{chapter_range}章")
+            if core_payoff:
+                prompt_parts.append(f"- 核心爽点: {core_payoff}")
+            if suppression_setup:
+                prompt_parts.append(f"- 压抑铺垫: {suppression_setup}")
+            if key_events:
+                prompt_parts.append(f"- 关键事件: {json.dumps(key_events, ensure_ascii=False)}")
+            if emotional_focus:
+                prompt_parts.append(f"- 情绪焦点: {emotional_focus}")
+            if climax:
+                prompt_parts.append(f"- 阶段高潮: {climax}")
+            if next_stage_hook:
+                prompt_parts.append(f"- 下阶段钩子: {next_stage_hook}")
+        
+        prompt_parts.extend([
+            "",
+            "【输出要求】",
+            "请输出 JSON 对象。键名为大阶段键名（opening_stage, development_stage, climax_stage, ending_stage），每个键对应一个爽点单元数组。",
+            "",
+            "每个爽点单元的结构：",
+            "{",
+            '  "unit_name": "爽点单元名称（4-8字，有画面感）",',
+            '  "chapter_range": "如 1-4",',
+            '  "role_in_stage": "该单元在阶段中的定位（如：开局钩子、成长转折、高潮铺垫）",',
+            '  "core_payoff": "核心爽点（一句话描述，如：主角觉醒金手指反杀反派）",',
+            '  "suppression_setup": "压抑铺垫设计（如：主角被陷害，濒死之际）",',
+            '  "emotional_arc": "情绪弧线（如：绝望→震惊→狂喜→期待）",',
+            '  "key_beats": ["关键节拍1", "关键节拍2", "关键节拍3", "关键节拍4"]',
+            "}",
+            "",
+            "要求：",
+            "1. 全书爽点单元之间要有递进关系，不能重复",
+            "2. 每个单元必须有明确的 core_payoff（核心爽点）",
+            "3. 单元的 suppression_setup 要具体，让读者感到憋屈",
+            "4. 阶段之间要留钩子衔接，最后一个单元要留悬念",
+            "5. 情绪弧线要符合番茄爽文节奏：先抑后扬",
+            "6. key_beats 要具体到情节层面，不要笼统",
+            "7. 爽点单元数量约 每个大阶段章节数 // 4 个",
+            "",
+            "请只输出 JSON 对象，不要添加 markdown 代码块标记。",
+        ])
+        
+        prompt = "\n".join(prompt_parts)
+        
+        try:
+            logger.info("[Orchestrator] 调用 API 生成全书爽点单元...")
+            result = self.api_client.generate_content_with_retry(
+                content_type="payoff_unit_generation",
+                user_prompt=prompt,
+                provider="gemini",
+                purpose="all_payoff_units",
+            )
+            
+            if not result:
+                logger.error("[Orchestrator] 全书爽点单元生成返回空")
+                return False
+            
+            # 解析JSON
+            if isinstance(result, dict):
+                all_units = result
+            elif isinstance(result, str):
+                # 尝试提取 JSON 对象
+                match = re.search(r'\{[\s\S]*\}', result)
+                if not match:
+                    logger.error("[Orchestrator] 无法从响应中提取 JSON 对象")
+                    return False
+                all_units = json.loads(match.group(0))
+            else:
+                logger.error(f"[Orchestrator] 未知响应类型: {type(result)}")
+                return False
+            
+            if not isinstance(all_units, dict):
+                logger.error(f"[Orchestrator] 解析结果不是字典: {type(all_units)}")
+                return False
+            
+            # 缓存到各个阶段
+            success_count = 0
+            for key, _ in stage_infos:
+                units = all_units.get(key)
+                if units and isinstance(units, list) and len(units) > 0:
+                    self._payoff_units_cache[key] = units
+                    if "_payoff_units" not in self.novel_data:
+                        self.novel_data["_payoff_units"] = {}
+                    self.novel_data["_payoff_units"][key] = units
+                    logger.info(f"[Orchestrator] ✅ 预生成爽点单元: {key} ({len(units)} 个)")
+                    success_count += 1
+                else:
+                    logger.warning(f"[Orchestrator] ⚠️ 阶段 {key} 未返回爽点单元，将回退到单阶段生成")
+            
+            if success_count == len(stage_infos):
+                self._all_payoff_units_generated = True
+                logger.info("[Orchestrator] ✅ 全书爽点单元预生成完成")
+                return True
+            elif success_count > 0:
+                logger.info(f"[Orchestrator] ⚠️ 部分预生成完成 ({success_count}/{len(stage_infos)})，缺失的将在章节生成时动态生成")
+                return True
+            else:
+                logger.error("[Orchestrator] ❌ 全书爽点单元预生成失败")
+                return False
+                
+        except Exception as e:
+            logger.error(f"[Orchestrator] 全书爽点单元预生成异常: {e}")
+            import traceback
+            logger.error(f"[Orchestrator] 错误堆栈: {traceback.format_exc()}")
+            return False
 
     def _get_or_generate_payoff_units(self, stage_key: str, stage_info: Dict) -> List[Dict]:
         """
@@ -355,9 +702,10 @@ class ChapterBatchOrchestrator:
         """
         stage_name = stage_info.get("stage_name", stage_key)
         chapter_range = stage_info.get("chapter_range", "1-30")
-        stage_goal = stage_info.get("stage_goal", "")
-        key_developments = stage_info.get("key_developments", [])
-        core_conflicts = stage_info.get("core_conflicts", "")
+        # 🔥 修复：兼容阶段计划.json 的实际字段名
+        stage_goal = stage_info.get("stage_goal") or stage_info.get("core_payoff", "")
+        key_developments = stage_info.get("key_developments") or stage_info.get("key_events", [])
+        core_conflicts = stage_info.get("core_conflicts") or stage_info.get("suppression_setup", "")
 
         # 解析章节范围
         numbers = re.findall(r'\d+', chapter_range)
@@ -368,7 +716,16 @@ class ChapterBatchOrchestrator:
 
         stage_chapter_count = stage_end - stage_start + 1
 
-        prompt = f"""你是一位顶级的网络小说结构规划专家。请基于以下大阶段信息，生成爽点单元规划。
+        novel_context = self._build_novel_context_section()
+        
+        prompt = f"""你是一位顶级的网络小说结构规划专家。请基于以下小说核心设定和大阶段信息，生成爽点单元规划。
+
+【重要约束】
+你必须严格遵循下方【小说核心设定】中的世界观、角色、金手指等设定来规划爽点单元，
+绝不能偏离原小说的题材和风格。如果【大阶段信息】中的描述与【小说核心设定】冲突，
+以【小说核心设定】为准进行纠正。
+
+{novel_context}
 
 【爽点单元定义】
 一个爽点单元 = 铺垫(setup) + 压抑(suppression) + 爆发(payoff) + 收获(harvest)
@@ -411,7 +768,6 @@ class ChapterBatchOrchestrator:
                 content_type="payoff_unit_generation",
                 user_prompt=prompt,
                 provider="gemini",
-                model_name="gemini-3-flash-preview-thinking",
                 purpose=f"payoff_units_{stage_key}",
             )
 
@@ -420,14 +776,19 @@ class ChapterBatchOrchestrator:
                 return self._create_fallback_payoff_units(stage_start, stage_end)
 
             # 解析JSON
-            text = result if isinstance(result, str) else str(result)
-            # 提取JSON数组
-            match = re.search(r'\[.*\]', text, re.DOTALL)
-            if match:
-                units = json.loads(match.group(0))
-                if isinstance(units, list) and len(units) > 0:
+            if isinstance(result, list):
+                units = result
+                if len(units) > 0:
                     logger.info(f"[Orchestrator] 生成爽点单元 {len(units)} 个")
                     return units
+            elif isinstance(result, str):
+                # 提取JSON数组
+                match = re.search(r'\[.*\]', result, re.DOTALL)
+                if match:
+                    units = json.loads(match.group(0))
+                    if isinstance(units, list) and len(units) > 0:
+                        logger.info(f"[Orchestrator] 生成爽点单元 {len(units)} 个")
+                        return units
 
             logger.warning("[Orchestrator] 爽点单元解析失败，使用fallback")
             return self._create_fallback_payoff_units(stage_start, stage_end)
@@ -554,7 +915,7 @@ class ChapterBatchOrchestrator:
             return {
                 "stage_name": stage_names.get(stage_key, stage_key),
                 "stage_chapter_range": stage_info.get("chapter_range", ""),
-                "stage_goal": stage_info.get("stage_goal", ""),
+                "stage_goal": stage_info.get("stage_goal") or stage_info.get("core_payoff", ""),
                 # 爽点单元信息
                 "payoff_unit_name": payoff_unit.get("unit_name", ""),
                 "payoff_unit_range": payoff_unit.get("chapter_range", ""),
@@ -569,9 +930,9 @@ class ChapterBatchOrchestrator:
             return {
                 "stage_name": stage_names.get(stage_key, stage_key),
                 "stage_chapter_range": stage_info.get("chapter_range", ""),
-                "stage_goal": stage_info.get("stage_goal", ""),
-                "core_payoff": stage_info.get("stage_goal", ""),
-                "key_beats": stage_info.get("key_developments", []),
+                "stage_goal": stage_info.get("stage_goal") or stage_info.get("core_payoff", ""),
+                "core_payoff": stage_info.get("core_payoff") or stage_info.get("stage_goal", ""),
+                "key_beats": stage_info.get("key_developments") or stage_info.get("key_events", []),
             }
 
     def _build_core_setting_text(self) -> str:
