@@ -2376,11 +2376,12 @@ NovelPublisher_Data/              ← 统一数据目录
         # 加载已发布章节记录
         published_chapters = self._load_published_chapters(project_path)
         
-        # 同时支持 JSON（市场导向）和 TXT（自由创意）格式
+        # 同时支持 JSON（市场导向）、TXT（自由创意）和 MD（系统文/神豪文）格式
         json_files = list(chapters_dir.glob("chapter_*.json")) + list(chapters_dir.glob("第*.json"))
         txt_files = list(chapters_dir.glob("第*.txt")) + list(chapters_dir.glob("chapter_*.txt"))
+        md_files = list(chapters_dir.glob("第*.md")) + list(chapters_dir.glob("chapter_*.md"))
         
-        all_files = json_files + txt_files
+        all_files = json_files + txt_files + md_files
         
         def _extract_sort_key(ch_file: Path):
             """从文件名提取章节号用于排序"""
@@ -2415,8 +2416,8 @@ NovelPublisher_Data/              ← 统一数据目录
                     ch_num = data.get('chapter_number', 0)
                     # 兼容自由创意 JSON：可能只有 chapter_title 没有 title
                     ch_title = data.get('title') or data.get('chapter_title') or f'第{ch_num}章'
-                else:
-                    # 自由创意模式：从 TXT 文件名和内容读取
+                elif ch_file.suffix in ('.txt', '.md'):
+                    # 自由创意模式（TXT）或系统文/神豪文模式（MD）
                     content = ch_file.read_text(encoding='utf-8')
                     name = ch_file.stem  # 去掉扩展名，如 "第1章_绝境求生" 或 "第1章"
                     
@@ -2430,6 +2431,12 @@ NovelPublisher_Data/              ← 统一数据目录
                     else:
                         ch_title = f"第{ch_num}章"
                     
+                    # MD 文件：移除正文内重复的首行 Markdown 标题（如 # 第1章 xxx）
+                    if ch_file.suffix == '.md':
+                        lines = content.split('\n')
+                        if lines and re.match(r'^#{1,6}\s*第\d+章', lines[0].strip()):
+                            content = '\n'.join(lines[1:]).lstrip('\n')
+                    
                     # 兼容上传器期望的字段名
                     data = {
                         "chapter_number": ch_num,
@@ -2437,6 +2444,8 @@ NovelPublisher_Data/              ← 统一数据目录
                         "title": ch_title,
                         "content": content
                     }
+                else:
+                    continue  # 跳过不支持的格式
                 
                 # 检查是否已发布
                 is_published = ch_num in published_chapters
