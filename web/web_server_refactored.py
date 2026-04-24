@@ -1180,7 +1180,7 @@ def register_fanqie_routes(app):
             project_info = {}
             fanqie_data = {}
             
-            # 1. 读取项目配置（优先从 project_info.json 的 fanqie_upload_data 读取）
+            # 1. 读取项目配置（优先从 project_info.json 读取）
             info_file = project_dir / "project_info.json"
             if info_file.exists():
                 try:
@@ -1190,8 +1190,8 @@ def register_fanqie_routes(app):
                 except:
                     pass
             
-            # 如果没有，尝试从 project_config.json 读取
-            if not fanqie_data:
+            # 如果 project_info.json 读取失败，尝试从 project_config.json 读取
+            if not project_info:
                 config_file = project_dir / "project_config.json"
                 if config_file.exists():
                     try:
@@ -1253,34 +1253,49 @@ def register_fanqie_routes(app):
             # 6. 检查章节
             chapters_dir = project_dir / "chapters"
             auto_fixes = []  # 自动修复列表
+            chapter_files = []
             if not chapters_dir.exists():
                 errors.append("缺少章节目录：请检查项目结构")
             else:
                 chapter_files = sorted(
                     list(chapters_dir.glob("chapter_*.json")) +
-                    list(chapters_dir.glob("第*.json"))
+                    list(chapters_dir.glob("第*.json")) +
+                    list(chapters_dir.glob("chapter_*.md")) +
+                    list(chapters_dir.glob("第*.md")) +
+                    list(chapters_dir.glob("chapter_*.txt")) +
+                    list(chapters_dir.glob("第*.txt"))
                 )
                 if len(chapter_files) == 0:
                     errors.append("没有章节文件：请检查 chapters 目录")
                 else:
-                    # 检查重复章节名（可自动修复）
+                    # 检查重复章节名（可自动修复）—— 仅对 .json 文件
                     from collections import defaultdict
                     title_to_files = defaultdict(list)
+                    import re
                     
                     for cf in chapter_files:
                         try:
-                            with open(cf, 'r', encoding='utf-8') as f:
-                                ch = json.load(f)
+                            if cf.suffix == '.json':
+                                with open(cf, 'r', encoding='utf-8') as f:
+                                    ch = json.load(f)
                                 title = ch.get('title', '')
                                 title_to_files[title].append(cf)
+                            else:
+                                # .md / .txt: 从文件名提取标题
+                                m = re.search(r'chapter_(\d+)_(.+)', cf.stem) or re.search(r'第(\d+)章_(.+)', cf.stem)
+                                if m:
+                                    title = m.group(2)
+                                    title_to_files[title].append(cf)
                         except:
                             pass
                     
                     duplicate_fixed = False
                     for title, files in title_to_files.items():
                         if len(files) > 1 and title:
-                            # 有重复，自动修复：添加序号区分
+                            # 有重复，自动修复：添加序号区分（仅 .json）
                             for i, cf in enumerate(files[1:], 2):  # 从第2个开始
+                                if cf.suffix != '.json':
+                                    continue
                                 try:
                                     with open(cf, 'r', encoding='utf-8') as f:
                                         ch = json.load(f)
@@ -1302,7 +1317,18 @@ def register_fanqie_routes(app):
                         warnings.append(f"章节数较少：当前有{len(chapter_files)}章，番茄签约要求至少20章")
                     
                     # 检查总字数（番茄签约要求6万字）
-                    total_words = sum(ch.get('word_count', 0) for ch in [json.load(open(cf, 'r', encoding='utf-8')) for cf in chapter_files])
+                    total_words = 0
+                    for cf in chapter_files:
+                        try:
+                            if cf.suffix == '.json':
+                                with open(cf, 'r', encoding='utf-8') as f:
+                                    ch = json.load(f)
+                                total_words += ch.get('word_count', 0)
+                            else:
+                                # .md / .txt 直接读文本统计字数
+                                total_words += len(cf.read_text(encoding='utf-8'))
+                        except:
+                            pass
                     if total_words < 60000:
                         warnings.append(f"字数不足：当前约{total_words}字，番茄签约要求至少6万字")
             
