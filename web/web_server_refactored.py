@@ -1380,12 +1380,16 @@ def register_fanqie_routes(app):
             # 创建ZIP文件
             memory_file = io.BytesIO()
             with zipfile.ZipFile(memory_file, 'w', zipfile.ZIP_DEFLATED) as zf:
-                # 添加章节文件
+                # 添加章节文件（兼容 .json / .md / .txt）
                 chapters_dir = project_dir / "chapters"
                 if chapters_dir.exists():
                     chapter_files = (
                         list(chapters_dir.glob("chapter_*.json")) +
-                        list(chapters_dir.glob("第*.json"))
+                        list(chapters_dir.glob("第*.json")) +
+                        list(chapters_dir.glob("chapter_*.md")) +
+                        list(chapters_dir.glob("第*.md")) +
+                        list(chapters_dir.glob("chapter_*.txt")) +
+                        list(chapters_dir.glob("第*.txt"))
                     )
                     for chapter_file in chapter_files:
                         zf.write(chapter_file, f"chapters/{chapter_file.name}")
