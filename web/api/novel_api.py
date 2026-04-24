@@ -364,21 +364,39 @@ def register_novel_routes(app, manager: NovelGenerationManager):
                     if chapters_dir.exists():
                         files = sorted(
                             list(chapters_dir.glob("chapter_*.json")) +
-                            list(chapters_dir.glob("第*.json"))
+                            list(chapters_dir.glob("第*.json")) +
+                            list(chapters_dir.glob("chapter_*.md")) +
+                            list(chapters_dir.glob("第*.md"))
                         )
                         for f in files:
                             try:
-                                data = json.loads(f.read_text(encoding='utf-8'))
-                                num = data.get("chapter_number", 0)
-                                if not num:
-                                    # 尝试从文件名解析
+                                if f.suffix == '.json':
+                                    data = json.loads(f.read_text(encoding='utf-8'))
+                                    num = data.get("chapter_number", 0)
+                                    if not num:
+                                        m = re.search(r'chapter_(\d+)', f.name) or re.search(r'第(\d+)章', f.name)
+                                        num = int(m.group(1)) if m else 0
+                                    chapters.append({
+                                        "number": num,
+                                        "title": data.get("title", data.get("chapter_title", f"第{num}章")),
+                                        "word_count": data.get("word_count", 0)
+                                    })
+                                else:
+                                    # .md 文件：从文件名解析章节号，读文本统计字数
                                     m = re.search(r'chapter_(\d+)', f.name) or re.search(r'第(\d+)章', f.name)
                                     num = int(m.group(1)) if m else 0
-                                chapters.append({
-                                    "number": num,
-                                    "title": data.get("title", data.get("chapter_title", f"第{num}章")),
-                                    "word_count": data.get("word_count", 0)
-                                })
+                                    # 标题：去掉扩展名和 "第X章_" 前缀
+                                    title = f.stem
+                                    if title.startswith(f'第{num}章_'):
+                                        title = title[len(f'第{num}章_'):]
+                                    elif title.startswith(f'chapter_{num}_'):
+                                        title = title[len(f'chapter_{num}_'):]
+                                    text = f.read_text(encoding='utf-8')
+                                    chapters.append({
+                                        "number": num,
+                                        "title": title or f"第{num}章",
+                                        "word_count": len(text)
+                                    })
                             except Exception:
                                 continue
                         chapters.sort(key=lambda x: x["number"])

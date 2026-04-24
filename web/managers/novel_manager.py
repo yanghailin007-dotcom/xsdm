@@ -1259,14 +1259,17 @@ class NovelGenerationManager:
                 try:
                     chapters_dir = project_path / "chapters"
                     if chapters_dir.exists():
-                        # 🔥 支持多种文件命名格式
+                        # 🔥 支持多种文件命名格式（含 .md 兼容）
                         chapter_files = (
                             list(chapters_dir.glob('第*.json')) + 
                             list(chapters_dir.glob('第*.txt')) +
+                            list(chapters_dir.glob('第*.md')) +
                             list(chapters_dir.glob('chapter_*.json')) +  # 新格式
                             list(chapters_dir.glob('chapter_*.txt')) +
+                            list(chapters_dir.glob('chapter_*.md')) +
                             list(chapters_dir.glob('*.json')) +
-                            list(chapters_dir.glob('*.txt'))
+                            list(chapters_dir.glob('*.txt')) +
+                            list(chapters_dir.glob('*.md'))
                         )
                         # 去重（避免同一文件匹配多个模式）
                         unique_files = set(f.name for f in chapter_files)
@@ -1282,15 +1285,20 @@ class NovelGenerationManager:
                                         ch_path = chapters_dir / ch_file
                                         if ch_path.exists():
                                             try:
-                                                with open(ch_path, 'r', encoding='utf-8-sig') as f:
-                                                    ch_data = json.load(f)
-                                                # 累加字数
-                                                total_word_count += ch_data.get("word_count", 0)
-                                                # 累加评分
-                                                quality_score = ch_data.get("quality_score", 0)
-                                                if quality_score > 0:
-                                                    total_score += quality_score
-                                                    scored_chapters += 1
+                                                if ch_path.suffix == '.json':
+                                                    with open(ch_path, 'r', encoding='utf-8-sig') as f:
+                                                        ch_data = json.load(f)
+                                                    # 累加字数
+                                                    total_word_count += ch_data.get("word_count", 0)
+                                                    # 累加评分
+                                                    quality_score = ch_data.get("quality_score", 0)
+                                                    if quality_score > 0:
+                                                        total_score += quality_score
+                                                        scored_chapters += 1
+                                                else:
+                                                    # .txt / .md 直接读文本统计字数
+                                                    text = ch_path.read_text(encoding='utf-8')
+                                                    total_word_count += len(text)
                                             except Exception:
                                                 # 如果读取失败，跳过
                                                 continue
