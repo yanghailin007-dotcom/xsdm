@@ -638,6 +638,14 @@ def create_app():
     except Exception as e:
         logger.warning(f"⚠️ novelcraft_routes 注册失败: {e}")
 
+    # 28.7.1. 对话式设定生成 API
+    try:
+        from web.api.conversation_api import conversation_api
+        app.register_blueprint(conversation_api)
+        logger.info("✅ conversation_api 对话式设定已注册")
+    except Exception as e:
+        logger.warning(f"⚠️ conversation_api 注册失败: {e}")
+
     # 28.8. 初始化题材自动更新调度器
     try:
         from web.services.market_driven.genre_scheduler import init_genre_scheduler
@@ -759,7 +767,9 @@ def register_fanqie_routes(app):
                                 list(chapters_dir.glob("chapter_*.json")) +
                                 list(chapters_dir.glob("第*.json")) +
                                 list(chapters_dir.glob("第*.txt")) +
-                                list(chapters_dir.glob("chapter_*.txt"))
+                                list(chapters_dir.glob("第*.md")) +
+                                list(chapters_dir.glob("chapter_*.txt")) +
+                                list(chapters_dir.glob("chapter_*.md"))
                             )
                             unique_files = []
                             seen_names = set()
@@ -777,6 +787,7 @@ def register_fanqie_routes(app):
                                             cdata = json.load(cf)
                                         word_count += cdata.get('word_count', len(str(cdata)))
                                     else:
+                                        # .txt / .md 直接读文本统计字数
                                         word_count += len(f.read_text(encoding='utf-8'))
                                 except Exception:
                                     word_count += 2500

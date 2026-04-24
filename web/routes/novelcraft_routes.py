@@ -11,5 +11,5 @@ def register_novelcraft_routes(app):
     @app.route('/novelcraft', methods=['GET'])
     @login_required
     def novelcraft_page():
-        """NovelCraft - AI 长篇小说辅助工具页面"""
-        return render_template('pages/v2/novelcraft.html')
+        """对话式设定生成页面（替换原小说工坊）"""
+        return render_template('pages/v2/conversation-planning.html')
