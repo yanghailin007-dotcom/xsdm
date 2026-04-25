@@ -1406,3 +1406,99 @@ def get_project_files():
     except Exception as e:
         logger.error(f"[Conversation] /project-files 失败: {e}")
         return jsonify({"success": False, "error": str(e)}), 500
+
+
+# ───────────────────────────────
+#  8. 保存项目文件（设定/大纲/细纲）
+# ───────────────────────────────
+
+def _detect_file_path(project_dir: Path, candidates: list) -> Path:
+    """检测项目中已存在的文件，返回第一个存在的，都不存在则返回第一个候选"""
+    for name in candidates:
+        p = project_dir / name
+        if p.exists():
+            return p
+    return project_dir / candidates[0]
+
+
+@conversation_api.route('/save-project-files', methods=['POST'])
+@login_required
+def save_project_files():
+    """
+    保存项目文件（设定/大纲/细纲）。只保存提供的非空字段。
+    兼容新旧命名方式，保存前自动备份原文件。
+    """
+    try:
+        data = request.json or {}
+        project_id = data.get("project_id", "").strip()
+        volume_number = data.get("volume_number", 1)
+        settings_text = data.get("settings")
+        outline_text = data.get("outline")
+        detailed_text = data.get("detailed_outline")
+        
+        if not project_id:
+            return jsonify({"success": False, "error": "project_id 不能为空"}), 400
+        
+        username = session.get('username', 'anonymous')
+        user_dir = Path("小说项目") / username
+        project_dir = user_dir / project_id
+        if not project_dir.exists():
+            return jsonify({"success": False, "error": "项目不存在"}), 404
+        
+        saved = []
+        
+        # 保存设定
+        if settings_text is not None:
+            settings_path = _detect_file_path(project_dir, ["settings.md", "core-setting.md"])
+            # 备份
+            if settings_path.exists():
+                backup_path = settings_path.with_suffix('.md.bak')
+                try:
+                    backup_path.write_text(settings_path.read_text(encoding='utf-8'), encoding='utf-8')
+                except Exception:
+                    pass
+            settings_path.write_text(settings_text, encoding='utf-8')
+            saved.append(str(settings_path.name))
+            logger.info(f"[Conversation] 设定已保存: {settings_path}")
+        
+        # 保存大纲
+        if outline_text is not None:
+            outline_path = _detect_file_path(project_dir, ["outline.md", "rough-outline.md"])
+            if outline_path.exists():
+                backup_path = outline_path.with_suffix('.md.bak')
+                try:
+                    backup_path.write_text(outline_path.read_text(encoding='utf-8'), encoding='utf-8')
+                except Exception:
+                    pass
+            outline_path.write_text(outline_text, encoding='utf-8')
+            saved.append(str(outline_path.name))
+            logger.info(f"[Conversation] 大纲已保存: {outline_path}")
+        
+        # 保存细纲
+        if detailed_text is not None:
+            # 优先按卷文件，没有则按总览文件
+            vol_path = project_dir / f"detailed_outline_vol{volume_number}.md"
+            if vol_path.exists():
+                detailed_path = vol_path
+            else:
+                detailed_path = _detect_file_path(project_dir, ["detailed-outline.md", "detailed_outline.md"])
+            
+            if detailed_path.exists():
+                backup_path = detailed_path.with_suffix('.md.bak')
+                try:
+                    backup_path.write_text(detailed_path.read_text(encoding='utf-8'), encoding='utf-8')
+                except Exception:
+                    pass
+            detailed_path.write_text(detailed_text, encoding='utf-8')
+            saved.append(str(detailed_path.name))
+            logger.info(f"[Conversation] 细纲已保存: {detailed_path}")
+        
+        return jsonify({
+            "success": True,
+            "saved": saved,
+            "message": f"已保存 {len(saved)} 个文件",
+        })
+        
+    except Exception as e:
+        logger.error(f"[Conversation] /save-project-files 失败: {e}")
+        return jsonify({"success": False, "error": str(e)}), 500

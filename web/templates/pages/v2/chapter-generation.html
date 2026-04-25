@@ -351,6 +351,26 @@
             font-size: 15px;
             color: var(--text-primary);
         }
+        .content-body.edit-mode {
+            padding: 0;
+        }
+        .edit-textarea {
+            width: 100%;
+            height: 100%;
+            min-height: 400px;
+            padding: 20px 28px;
+            background: var(--bg-primary);
+            border: none;
+            color: var(--text-primary);
+            font-size: 14px;
+            line-height: 1.8;
+            font-family: inherit;
+            resize: vertical;
+            outline: none;
+        }
+        .edit-textarea:focus {
+            box-shadow: inset 0 0 0 2px var(--accent);
+        }
         /* 番茄 APP 标准：空行分隔，无首行缩进 */
         .content-body p {
             margin-bottom: 0.6em;
@@ -724,7 +744,9 @@
             <div class="content-card">
                 <div class="content-header">
                     <h3 id="contentTitle">章节内容</h3>
-                    <div class="actions">
+                    <div class="actions" id="contentActions">
+                        <button id="editBtn" style="display:none;">✏️ 编辑</button>
+                        <button id="cancelEditBtn" style="display:none;">❌ 取消</button>
                         <button id="rewriteBtn" disabled>🔄 重写</button>
                         <button id="saveBtn" disabled>💾 保存</button>
                     </div>
@@ -771,8 +793,10 @@ let currentVolume = 1;
 let activeChapter = null;
 let qualityReport = null; // 当前质检报告
 let projectFiles = null; // 当前项目文件（细纲等）
-let showingRef = false; // 是否正在显示参考内容（设定/细纲）
-let currentRefType = ''; // 'settings' | 'outline'
+let showingRef = false; // 是否正在显示参考内容（设定/大纲/细纲）
+let currentRefType = ''; // 'settings' | 'outline' | 'detailed'
+let isEditMode = false; // 是否处于编辑模式
+let editCache = ''; // 编辑缓存
 
 const $ = id => document.getElementById(id);
 
@@ -784,6 +808,8 @@ document.addEventListener('DOMContentLoaded', () => {
     $('qualityCheckBtn').addEventListener('click', runQualityCheck);
     $('rewriteBtn').addEventListener('click', openRewriteModal);
     $('saveBtn').addEventListener('click', saveChapterEdits);
+    $('editBtn').addEventListener('click', toggleEditMode);
+    $('cancelEditBtn').addEventListener('click', cancelEdit);
 });
 
 async function loadProjects() {
@@ -845,75 +871,143 @@ async function loadProjectFiles(projectId, volumeNumber) {
 }
 
 function updateReferenceTabs() {
-    // 设定标签
-    let settingsTab = document.querySelector('.chapter-tab.ref-tab[data-ref="settings"]');
-    if (!settingsTab) {
-        settingsTab = document.createElement('button');
-        settingsTab.className = 'chapter-tab ref-tab';
-        settingsTab.dataset.ref = 'settings';
-        settingsTab.innerHTML = '📖 设定';
-        settingsTab.addEventListener('click', () => showSettings());
-        $('chapterTabs').insertBefore(settingsTab, $('chapterTabs').firstChild);
-    }
-    // 细纲标签
-    let outlineTab = document.querySelector('.chapter-tab.ref-tab[data-ref="outline"]');
-    if (!outlineTab) {
-        outlineTab = document.createElement('button');
-        outlineTab.className = 'chapter-tab ref-tab';
-        outlineTab.dataset.ref = 'outline';
-        outlineTab.innerHTML = '📋 细纲';
-        outlineTab.addEventListener('click', () => showOutline());
-        $('chapterTabs').insertBefore(outlineTab, $('chapterTabs').firstChild);
+    const refs = [
+        { key: 'settings', icon: '📖', label: '设定', fn: showSettings },
+        { key: 'outline', icon: '📄', label: '大纲', fn: showRoughOutline },
+        { key: 'detailed', icon: '📋', label: '细纲', fn: showOutline },
+    ];
+    for (const ref of refs) {
+        let tab = document.querySelector(`.chapter-tab.ref-tab[data-ref="${ref.key}"]`);
+        if (!tab) {
+            tab = document.createElement('button');
+            tab.className = 'chapter-tab ref-tab';
+            tab.dataset.ref = ref.key;
+            tab.innerHTML = `${ref.icon} ${ref.label}`;
+            tab.addEventListener('click', () => ref.fn());
+            $('chapterTabs').insertBefore(tab, $('chapterTabs').firstChild);
+        }
     }
 }
 
 function showRefContent() {
     if (currentRefType === 'settings') showSettings();
-    else if (currentRefType === 'outline') showOutline();
+    else if (currentRefType === 'outline') showRoughOutline();
+    else if (currentRefType === 'detailed') showOutline();
+}
+
+function _renderRefContent(title, icon, content, type) {
+    showingRef = true;
+    currentRefType = type;
+    activeChapter = null;
+    isEditMode = false;
+    editCache = '';
+
+    document.querySelectorAll('.chapter-tab').forEach(t => t.classList.remove('active'));
+    const tab = document.querySelector(`.chapter-tab.ref-tab[data-ref="${type}"]`);
+    if (tab) tab.classList.add('active');
+
+    $('contentTitle').textContent = `${icon} ${title}`;
+    $('contentBody').classList.remove('empty');
+    $('contentBody').classList.remove('edit-mode');
+
+    if (content) {
+        $('contentBody').innerHTML = renderMarkdown(content);
+    } else {
+        $('contentBody').innerHTML = '<p style="color:var(--text-muted);">暂无内容</p>';
+    }
+
+    // 显示编辑按钮，隐藏重写/保存(章节)/取消
+    $('editBtn').style.display = 'inline-block';
+    $('cancelEditBtn').style.display = 'none';
+    $('rewriteBtn').style.display = 'none';
+    $('saveBtn').style.display = 'none';
 }
 
 function showSettings() {
-    showingRef = true;
-    currentRefType = 'settings';
-    activeChapter = null;
+    const content = projectFiles ? projectFiles.settings : '';
+    _renderRefContent('核心设定', '📖', content, 'settings');
+}
 
-    document.querySelectorAll('.chapter-tab').forEach(t => t.classList.remove('active'));
-    const tab = document.querySelector('.chapter-tab.ref-tab[data-ref="settings"]');
-    if (tab) tab.classList.add('active');
-
-    $('contentTitle').textContent = '📖 核心设定';
-    $('contentBody').classList.remove('empty');
-
-    if (projectFiles && projectFiles.settings) {
-        $('contentBody').innerHTML = renderMarkdown(projectFiles.settings);
-    } else {
-        $('contentBody').innerHTML = '<p style="color:var(--text-muted);">暂无设定内容</p>';
-    }
-
-    $('rewriteBtn').disabled = true;
-    $('saveBtn').disabled = true;
+function showRoughOutline() {
+    const content = projectFiles ? projectFiles.outline : '';
+    _renderRefContent('全书大纲', '📄', content, 'outline');
 }
 
 function showOutline() {
-    showingRef = true;
-    currentRefType = 'outline';
-    activeChapter = null;
+    const content = projectFiles ? projectFiles.detailed_outline : '';
+    _renderRefContent('本卷细纲', '📋', content, 'detailed');
+}
 
-    document.querySelectorAll('.chapter-tab').forEach(t => t.classList.remove('active'));
-    const tab = document.querySelector('.chapter-tab.ref-tab[data-ref="outline"]');
-    if (tab) tab.classList.add('active');
+// 编辑模式切换
+function toggleEditMode() {
+    if (!showingRef) return;
+    isEditMode = !isEditMode;
+    const content = getCurrentRefText();
 
-    $('contentTitle').textContent = '📋 本卷细纲';
-    $('contentBody').classList.remove('empty');
-
-    if (projectFiles && projectFiles.detailed_outline) {
-        $('contentBody').innerHTML = renderMarkdown(projectFiles.detailed_outline);
+    if (isEditMode) {
+        editCache = content;
+        $('contentBody').classList.add('edit-mode');
+        $('contentBody').innerHTML = `<textarea class="edit-textarea" id="editTextarea">${escapeHtml(content)}</textarea>`;
+        $('editBtn').textContent = '💾 保存';
+        $('cancelEditBtn').style.display = 'inline-block';
     } else {
-        $('contentBody').innerHTML = '<p style="color:var(--text-muted);">暂无细纲内容</p>';
+        // 点击保存
+        saveProjectFiles();
     }
+}
 
-    $('rewriteBtn').disabled = true;
-    $('saveBtn').disabled = true;
+function cancelEdit() {
+    isEditMode = false;
+    $('contentBody').classList.remove('edit-mode');
+    $('editBtn').textContent = '✏️ 编辑';
+    $('cancelEditBtn').style.display = 'none';
+    showRefContent();
+}
+
+function getCurrentRefText() {
+    if (!projectFiles) return '';
+    if (currentRefType === 'settings') return projectFiles.settings || '';
+    if (currentRefType === 'outline') return projectFiles.outline || '';
+    if (currentRefType === 'detailed') return projectFiles.detailed_outline || '';
+    return '';
+}
+
+async function saveProjectFiles() {
+    if (!currentProject || !showingRef) return;
+    const textarea = $('editTextarea');
+    if (!textarea) return;
+
+    const newText = textarea.value;
+    const payload = { project_id: currentProject, volume_number: currentVolume };
+    if (currentRefType === 'settings') payload.settings = newText;
+    else if (currentRefType === 'outline') payload.outline = newText;
+    else if (currentRefType === 'detailed') payload.detailed_outline = newText;
+
+    try {
+        const resp = await fetch('/api/conversation/save-project-files', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+        });
+        const data = await resp.json();
+        if (data.success) {
+            // 更新本地缓存
+            if (currentRefType === 'settings') projectFiles.settings = newText;
+            else if (currentRefType === 'outline') projectFiles.outline = newText;
+            else if (currentRefType === 'detailed') projectFiles.detailed_outline = newText;
+
+            isEditMode = false;
+            $('contentBody').classList.remove('edit-mode');
+            $('editBtn').textContent = '✏️ 编辑';
+            $('cancelEditBtn').style.display = 'none';
+            showRefContent();
+            showToast('✅ 已保存', 'success');
+        } else {
+            showToast('保存失败: ' + (data.error || '未知错误'), 'error');
+        }
+    } catch (e) {
+        showToast('保存请求失败: ' + e.message, 'error');
+    }
 }
 
 // 简单的 Markdown 渲染
@@ -1168,6 +1262,7 @@ function updateChapterTab(chNum) {
 function showChapter(chNum) {
     showingRef = false;
     currentRefType = '';
+    isEditMode = false;
     activeChapter = chNum;
     const ch = chapters[chNum];
     if (!ch) return;
@@ -1178,6 +1273,7 @@ function showChapter(chNum) {
 
     $('contentTitle').textContent = ch.title;
     $('contentBody').classList.remove('empty');
+    $('contentBody').classList.remove('edit-mode');
 
     if (ch.content) {
         let html = renderChapterWithHighlights(ch.content, chNum);
@@ -1186,6 +1282,11 @@ function showChapter(chNum) {
         $('contentBody').innerHTML = '<p style="color:var(--text-muted);">等待生成中...</p>';
     }
 
+    // 章节操作按钮
+    $('editBtn').style.display = 'none';
+    $('cancelEditBtn').style.display = 'none';
+    $('rewriteBtn').style.display = 'inline-block';
+    $('saveBtn').style.display = 'inline-block';
     $('rewriteBtn').disabled = false;
     $('saveBtn').disabled = false;
 }
