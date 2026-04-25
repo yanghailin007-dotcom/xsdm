@@ -566,6 +566,7 @@
                 <button class="tab-btn active" data-tab="settings" onclick="switchTab('settings')">设定</button>
                 <button class="tab-btn" data-tab="outline" onclick="switchTab('outline')">大纲</button>
                 <button class="tab-btn" data-tab="detailed" onclick="switchTab('detailed')">细纲</button>
+                <button class="tab-btn" data-tab="quality" onclick="switchTab('quality')" id="tabBtnQuality">质检</button>
             </div>
             <div class="settings-body">
                 <div class="tab-content active" id="tab-settings">
@@ -576,6 +577,11 @@
                 </div>
                 <div class="tab-content" id="tab-detailed">
                     <textarea class="edit-area" id="editDetailed" placeholder="细纲内容..."></textarea>
+                </div>
+                <div class="tab-content" id="tab-quality">
+                    <div id="qualityReport" style="padding:16px 20px;">
+                        <p style="text-align:center;color:var(--text-muted);">生成设定后将自动进行质检...</p>
+                    </div>
                 </div>
             </div>
             <div class="settings-footer">
@@ -606,6 +612,8 @@
         const editSettings = document.getElementById('editSettings');
         const editOutline = document.getElementById('editOutline');
         const editDetailed = document.getElementById('editDetailed');
+        const qualityReport = document.getElementById('qualityReport');
+        const tabBtnQuality = document.getElementById('tabBtnQuality');
         const errorToast = document.getElementById('errorToast');
 
         let messages = [];
@@ -859,6 +867,7 @@
             loadingOverlay.classList.add('active');
             const model = document.getElementById('modelSelector').value;
             loadingModel.textContent = model + ' · 单轮全设定生成';
+            qualityReport.innerHTML = '<p style="text-align:center;color:var(--text-muted);">正在生成方案，质检将在生成完成后自动进行...</p>';
 
             try {
                 const response = await fetch('/api/conversation/generate-settings', {
@@ -871,6 +880,8 @@
                 if (result.success && result.settings) {
                     renderSettings(result.settings);
                     settingsPanel.classList.add('active');
+                    // 自动生成后自动调用质检
+                    runQualityCheck(model, result.settings);
                 } else {
                     showError('生成失败: ' + (result.error || '未知错误'));
                 }
@@ -878,6 +889,79 @@
                 showError('请求失败: ' + err.message);
             } finally {
                 loadingOverlay.classList.remove('active');
+            }
+        }
+
+        async function runQualityCheck(model, projectData) {
+            qualityReport.innerHTML = '<p style="text-align:center;color:var(--text-muted);">🔍 正在质检打磨，请稍候...</p>';
+            tabBtnQuality.style.color = 'var(--accent-blue)';
+            try {
+                const response = await fetch('/api/conversation/quality-check', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        model: model,
+                        settings: projectData.settings || projectData,
+                        outline: projectData.outline || {},
+                        detailed_outline: projectData.detailed_outline || {}
+                    })
+                });
+                const result = await response.json();
+                if (result.success && result.report) {
+                    renderQualityReport(result.report);
+                } else {
+                    qualityReport.innerHTML = '<p style="color:var(--accent-red);">质检失败: ' + escapeHtml(result.error || '未知错误') + '</p>';
+                }
+            } catch (err) {
+                qualityReport.innerHTML = '<p style="color:var(--accent-red);">质检请求失败: ' + escapeHtml(err.message) + '</p>';
+            }
+        }
+
+        function renderQualityReport(report) {
+            const score = report.overall_score || 0;
+            const passed = report.passed ? '✅ 通过' : '❌ 未通过';
+            const scoreColor = score >= 80 ? '#238636' : score >= 60 ? '#d29922' : '#f85149';
+            let html = `
+                <div style="margin-bottom:16px;">
+                    <div style="font-size:24px;font-weight:700;color:${scoreColor};display:inline-block;">${score}</div>
+                    <span style="color:var(--text-muted);margin-left:8px;">/ 100 · ${passed}</span>
+                </div>
+                <p style="color:var(--text-secondary);margin-bottom:16px;">${escapeHtml(report.summary || '')}</p>
+            `;
+
+            const issues = report.issues || [];
+            if (issues.length > 0) {
+                html += '<h4 style="margin:16px 0 8px;color:#fff;font-size:14px;">🚨 问题列表</h4>';
+                for (const issue of issues) {
+                    const sevColor = issue.severity === 'critical' ? '#f85149' : issue.severity === 'warning' ? '#d29922' : '#8b949e';
+                    const sevLabel = issue.severity === 'critical' ? '致命' : issue.severity === 'warning' ? '警告' : '建议';
+                    html += `
+                        <div style="border-left:3px solid ${sevColor};padding-left:12px;margin:10px 0;">
+                            <div style="font-size:12px;color:${sevColor};font-weight:600;">[${sevLabel}] ${escapeHtml(issue.category || '')}</div>
+                            <div style="color:var(--text-primary);margin:4px 0;">${escapeHtml(issue.description || '')}</div>
+                            <div style="color:var(--text-secondary);font-size:12px;">📍 ${escapeHtml(issue.location || '')}</div>
+                            <div style="color:var(--accent-blue);font-size:12px;margin-top:4px;">💡 ${escapeHtml(issue.fix_suggestion || '')}</div>
+                        </div>
+                    `;
+                }
+            }
+
+            const highlights = report.highlights || [];
+            if (highlights.length > 0) {
+                html += '<h4 style="margin:16px 0 8px;color:#fff;font-size:14px;">✨ 亮点</h4>';
+                for (const h of highlights) {
+                    html += `<div style="color:var(--text-secondary);margin:4px 0;">• ${escapeHtml(h)}</div>`;
+                }
+            }
+
+            qualityReport.innerHTML = html;
+            // 如果有致命问题，自动跳转到质检页
+            const hasCritical = issues.some(i => i.severity === 'critical');
+            if (hasCritical) {
+                switchTab('quality');
+                tabBtnQuality.style.color = '#f85149';
+            } else {
+                tabBtnQuality.style.color = '#238636';
             }
         }
 

@@ -706,3 +706,147 @@ def _build_project_info(title: str, settings: dict, outline: dict) -> dict:
             }
         }
     }
+
+
+# ───────────────────────────────
+#  4. 自动质检（生成设定后自动调用）
+# ───────────────────────────────
+
+_QUALITY_CHECK_PROMPT = """请作为资深网文编辑，对以上小说项目方案进行严格质检。重点检查以下维度：
+
+## 1. 设定矛盾
+- 世界观背景、金手指规则、角色设定是否存在自相矛盾
+- 力量体系/经济体系是否自洽
+
+## 2. 毒点排查（读者雷区）
+- 主角圣母、降智、双标
+- 绿帽、背叛、虐主（让主角长期受辱无反击）
+- 反派过于强大导致长期压抑、无解
+- 逻辑硬伤（钱/实力来得太轻易、无代价）
+- 后宫关系处理不当（女配脸谱化、无成长）
+
+## 3. 爽点密度与节奏
+- 打脸节奏是否紧凑（建议每3-5章一个小爽点，每卷一个大高潮）
+- 期待感构建是否到位（铺垫→爆发→收获）
+- 金手指使用是否有新意，还是老套路重复
+
+## 4. 开局与节奏
+- 开局是否拖沓（前3章必须出现核心爽点或悬念）
+- 高潮来得是否太晚（第1卷结束前应有第一个大高潮）
+
+## 5. 市场契合度
+- 题材是否符合当前番茄/起点热门趋势
+- 书名+简介是否具有点击吸引力
+
+请输出 JSON（不要加代码块标记）：
+{
+  "passed": false,
+  "overall_score": 72,
+  "summary": "总体评价（100字以内）",
+  "issues": [
+    {
+      "severity": "critical/warning/suggestion",
+      "category": "设定矛盾/毒点/爽点/节奏/市场",
+      "description": "具体问题描述",
+      "location": "第X卷第Y章/全局/设定",
+      "fix_suggestion": "具体修改建议"
+    }
+  ],
+  "highlights": ["值得保留的亮点1", "亮点2"]
+}
+
+注意：
+- severity: critical=必须改，warning=建议改，suggestion=可优化
+- 至少找出3个问题，不能敷衍
+- 同时指出2-3个亮点，保持建设性"""
+
+
+@conversation_api.route('/quality-check', methods=['POST'])
+@login_required
+def quality_check():
+    """
+    对生成的项目方案进行自动质检。
+    接收 settings + outline + detailed_outline，返回质检报告。
+    """
+    try:
+        data = request.json or {}
+        settings = data.get("settings", {})
+        outline = data.get("outline", {})
+        detailed_outline = data.get("detailed_outline", {})
+        model = data.get("model", "deepseek-v4-pro")
+
+        endpoint = _resolve_endpoint(model)
+        if not endpoint:
+            return jsonify({"success": False, "error": f"模型 '{model}' 无可用端点"}), 404
+        if not endpoint.get("api_key"):
+            return jsonify({"success": False, "error": "API Key 未配置"}), 400
+
+        actual_model = endpoint.get("model", model)
+        logger.info(f"[Conversation] /quality-check 请求: model={actual_model}")
+
+        # 构建质检消息：把方案作为 user message，追加质检指令
+        plan_text = json.dumps({
+            "settings": settings,
+            "outline": outline,
+            "detailed_outline": detailed_outline
+        }, ensure_ascii=False, indent=2)
+
+        check_messages = [
+            {"role": "user", "content": f"请对以下小说项目方案进行质检：\n\n{plan_text}"},
+            {"role": "user", "content": _QUALITY_CHECK_PROMPT}
+        ]
+
+        import requests
+        headers = {
+            "Content-Type": "application/json",
+            "Authorization": f"Bearer {endpoint['api_key']}"
+        }
+
+        payload = {
+            "model": actual_model,
+            "messages": check_messages,
+            "stream": False,
+        }
+        # DeepSeek 思考模式
+        if "deepseek" in actual_model.lower():
+            payload["thinking"] = {"type": "enabled"}
+
+        resp = requests.post(
+            endpoint["api_url"],
+            headers=headers,
+            json=payload,
+            timeout=300
+        )
+
+        if not resp.ok:
+            try:
+                err = resp.json().get("error", {}).get("message", resp.text)
+            except Exception:
+                err = resp.text or f"HTTP {resp.status_code}"
+            logger.error(f"[Conversation] /quality-check API 错误: {err}")
+            return jsonify({"success": False, "error": err}), 502
+
+        result = resp.json()
+        choices = result.get("choices") or [{}]
+        raw_content = choices[0].get("message", {}).get("content", "") if choices else ""
+        logger.info(f"[Conversation] /quality-check 响应长度: {len(raw_content)} 字符")
+
+        report = _extract_json(raw_content)
+        if not report:
+            logger.warning(f"[Conversation] /quality-check JSON 解析失败")
+            return jsonify({
+                "success": False,
+                "error": "质检结果无法解析为有效 JSON",
+                "raw": raw_content[:2000]
+            }), 422
+
+        logger.info(f"[Conversation] /quality-check 完成: score={report.get('overall_score', 'N/A')}, issues={len(report.get('issues', []))}")
+        return jsonify({
+            "success": True,
+            "report": report,
+            "model": actual_model,
+        })
+
+    except Exception as e:
+        logger.error(f"[Conversation] /quality-check 失败: {e}")
+        return jsonify({"success": False, "error": str(e)}), 500
