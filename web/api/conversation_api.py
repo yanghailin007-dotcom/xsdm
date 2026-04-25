@@ -285,8 +285,13 @@ _GENERATE_SETTINGS_PROMPT = """根据以上对话内容，生成一份完整的�
           {
             "chapter_number": 1,
             "chapter_title": "第一章标题",
-            "summary": "本章详细内容规划（200-300字），包含出场人物、关键对话、情绪转折",
-            "key_scenes": ["场景1", "场景2"],
+            "scene_setting": "时间、地点、氛围",
+            "characters": "涉及角色1、角色2",
+            "hook_point": "核心爽点/猎奇点（一句话）",
+            "plot_steps": ["情节步骤1", "情节步骤2", "情节步骤3"],
+            "dialogue_samples": ["关键对话示例1", "关键对话示例2"],
+            "climax_design": "爽点设计说明：为什么这章能打动番茄读者",
+            "ending_hook": "章节结尾钩子：下一章的悬念预告",
             "emotional_arc": "情绪走向，如：压抑→爆发→爽",
             "word_count_estimate": 3000
           }
@@ -296,9 +301,9 @@ _GENERATE_SETTINGS_PROMPT = """根据以上对话内容，生成一份完整的�
   }
 }
 
-3. 大纲部分至少规划 3-5 卷，每卷 20-60 章
-4. 细纲部分至少输出前 30 章的详细规划，后续章节可简略但要覆盖全书
-5. 内容要充实、有创意，不能敷衍
+3. 大纲部分至少规划 3-5 卷，每卷固定 30 章（全书结构严谨，不要随意增减）
+4. 细纲部分必须输出前 30 章的完整详细规划，后续章节可简略但要覆盖全书
+5. 细纲字段必须严格按上述 JSON 结构填写，每个字段都要充实具体，不能敷衍
 6. 直接返回 JSON 字符串，不要加 ```json 这样的代码块"""
 
 
@@ -588,10 +593,62 @@ def _outline_to_markdown(outline: dict) -> str:
     return "\n".join(lines)
 
 
+def _chapter_to_markdown_lines(ch: dict) -> list:
+    """将单个 chapter JSON 转为 Markdown 行列表（统一番茄网文细纲格式）"""
+    lines = []
+    ch_num = ch.get('chapter_number', '?')
+    ch_title = ch.get('chapter_title', '')
+    lines.append(f"## 第{ch_num}章 {ch_title}")
+    lines.append("")
+    
+    # 场景设定
+    if ch.get('scene_setting'):
+        lines.append(f"**场景设定**：{ch['scene_setting']}")
+    # 涉及角色
+    if ch.get('characters'):
+        chars = ch['characters']
+        if isinstance(chars, list):
+            chars = '、'.join(str(c) for c in chars)
+        lines.append(f"**涉及角色**：{chars}")
+    # 核心爽点
+    if ch.get('hook_point'):
+        lines.append(f"**核心爽点/猎奇点**：{ch['hook_point']}")
+    # 具体情节步骤
+    if ch.get('plot_steps'):
+        lines.append("**具体情节步骤**：")
+        for i, step in enumerate(ch['plot_steps'], 1):
+            lines.append(f"{i}. {step}")
+    # 关键对话示例
+    if ch.get('dialogue_samples'):
+        lines.append("**关键对话示例**：")
+        for dlg in ch['dialogue_samples']:
+            lines.append(f"- {dlg}")
+    # 爽点设计
+    if ch.get('climax_design'):
+        lines.append(f"**爽点设计说明**：{ch['climax_design']}")
+    # 章节结尾钩子
+    if ch.get('ending_hook'):
+        lines.append(f"**章节结尾钩子**：{ch['ending_hook']}")
+    
+    # 兼容旧字段
+    if ch.get('summary') and not ch.get('scene_setting'):
+        lines.append(f"**剧情概要**：{ch['summary']}")
+    if ch.get('key_scenes'):
+        lines.append("**关键场景**：")
+        for s in ch['key_scenes']:
+            lines.append(f"- {s}")
+    if ch.get('emotional_arc'):
+        lines.append(f"**情绪曲线**：{ch['emotional_arc']}")
+    if ch.get('word_count_estimate'):
+        lines.append(f"**预计字数**：{ch['word_count_estimate']}")
+    
+    lines.append("")
+    return lines
+
+
 def _detailed_outline_to_markdown(detailed: dict) -> str:
-    """将 detailed_outline JSON 转为 Markdown（单卷格式，兼容旧结构）"""
+    """将 detailed_outline JSON 转为 Markdown（统一番茄网文细纲格式，兼容旧结构）"""
     lines = ["# 章节细纲", ""]
-    # 兼容新旧两种结构
     volumes = detailed.get('volumes', [])
     if volumes:
         for vol in volumes:
@@ -599,57 +656,20 @@ def _detailed_outline_to_markdown(detailed: dict) -> str:
             lines.append(f"## {vol_title}")
             lines.append("")
             for ch in vol.get('chapters', []):
-                lines.append(f"### 第{ch.get('chapter_number', '?')}章：{ch.get('chapter_title', '')}")
-                if ch.get('summary'):
-                    lines.extend(["", ch['summary'], ""])
-                if ch.get('key_scenes'):
-                    lines.extend(["**关键场景**：", ""])
-                    for s in ch['key_scenes']:
-                        lines.append(f"- {s}")
-                    lines.append("")
-                if ch.get('emotional_arc'):
-                    lines.append(f"**情绪曲线**：{ch['emotional_arc']}")
-                if ch.get('word_count_estimate'):
-                    lines.append(f"**预计字数**：{ch['word_count_estimate']}")
-                lines.append("")
+                lines.extend(_chapter_to_markdown_lines(ch))
     else:
         # 兼容旧结构：扁平 chapters
-        chapters = detailed.get('chapters', [])
-        for ch in chapters:
-            lines.append(f"## 第{ch.get('chapter_number', '?')}章：{ch.get('chapter_title', '')}")
-            if ch.get('summary'):
-                lines.extend(["", ch['summary'], ""])
-            if ch.get('key_scenes'):
-                lines.extend(["**关键场景**：", ""])
-                for s in ch['key_scenes']:
-                    lines.append(f"- {s}")
-                lines.append("")
-            if ch.get('emotional_arc'):
-                lines.append(f"**情绪曲线**：{ch['emotional_arc']}")
-            if ch.get('word_count_estimate'):
-                lines.append(f"**预计字数**：{ch['word_count_estimate']}")
-            lines.append("")
+        for ch in detailed.get('chapters', []):
+            lines.extend(_chapter_to_markdown_lines(ch))
     return "\n".join(lines)
 
 
 def _volume_to_markdown(vol: dict) -> str:
-    """将单卷细纲转为 Markdown"""
+    """将单卷细纲转为 Markdown（统一番茄网文细纲格式）"""
     vol_title = vol.get('volume_title') or f"第{vol.get('volume_number', '?')}卷"
     lines = [f"# {vol_title} 细纲", ""]
     for ch in vol.get('chapters', []):
-        lines.append(f"## 第{ch.get('chapter_number', '?')}章：{ch.get('chapter_title', '')}")
-        if ch.get('summary'):
-            lines.extend(["", ch['summary'], ""])
-        if ch.get('key_scenes'):
-            lines.extend(["**关键场景**：", ""])
-            for s in ch['key_scenes']:
-                lines.append(f"- {s}")
-            lines.append("")
-        if ch.get('emotional_arc'):
-            lines.append(f"**情绪曲线**：{ch['emotional_arc']}")
-        if ch.get('word_count_estimate'):
-            lines.append(f"**预计字数**：{ch['word_count_estimate']}")
-        lines.append("")
+        lines.extend(_chapter_to_markdown_lines(ch))
     return "\n".join(lines)
 
 
@@ -917,8 +937,102 @@ def _read_volume_detailed(project_dir: Path, volume_number: int):
     return ""
 
 
+def _offset_chapter_numbers(text: str, volume_number: int, chapters_per_volume: int = 30) -> str:
+    """将分卷细纲中的章节号偏移为全书连续章节号。
+    例如：第2卷的第1章 → 第31章
+    只处理 Markdown 标题格式（##/### 开头行），不处理正文中的引用。
+    """
+    import re
+    
+    if volume_number <= 1 or not text:
+        return text
+    
+    offset = (volume_number - 1) * chapters_per_volume
+    
+    CN_NUMS = {'一':1,'二':2,'三':3,'四':4,'五':5,'六':6,'七':7,'八':8,'九':9,'十':10,'百':100,'千':1000,'万':10000,'亿':100000000}
+    
+    def _cn_to_int(cn: str) -> int:
+        if cn.isdigit():
+            return int(cn)
+        total = 0
+        temp = 0
+        for c in cn:
+            if c in CN_NUMS:
+                n = CN_NUMS[c]
+                if n >= 10:
+                    if temp == 0:
+                        temp = 1
+                    total += temp * n
+                    temp = 0
+                else:
+                    temp = temp * 10 + n if temp else n
+        return total + temp
+    
+    def _replacer(match):
+        prefix = match.group(1)      # ## 或 ### 等（已包含"第"）
+        num_raw = match.group(2)     # 中文或阿拉伯数字
+        suffix = match.group(3)      # 章（已包含"章"）
+        num = _cn_to_int(num_raw)
+        new_num = num + offset
+        return f"{prefix}{new_num}{suffix}"
+    
+    # 匹配 Markdown 章节标题行：## 第X章 或 ### 第X章
+    pattern = r'^(#{2,3}\s+第)([一二三四五六七八九十百\d]+)(章\b)'
+    return re.sub(pattern, _replacer, text, flags=re.MULTILINE)
+
+
+def _extract_volume_chapter_plan(outline_text: str, volume_number: int, chapters_per_volume: int = 30) -> tuple:
+    """从 outline Markdown 文本中提取某卷的章节规划。
+    返回 (章节数, 章节列表文本, 全书起始章, 全书结束章)
+    """
+    import re
+    
+    global_start = (volume_number - 1) * chapters_per_volume + 1
+    global_end = volume_number * chapters_per_volume
+    
+    if not outline_text or volume_number < 1:
+        return chapters_per_volume, "", global_start, global_end
+    
+    # 尝试匹配 "第N卷" 区块：从 ## 第N卷 到下一个 ## 第N+1卷 或文件结束
+    # 先尝试包含卷标题的格式：## 第N卷：标题
+    vol_patterns = [
+        rf'##\s*第{volume_number}卷[：:\s][^\n]*\n(.*?)(?=##\s*第{volume_number + 1}卷|\Z)',
+        rf'##\s*第{volume_number}卷\n(.*?)(?=##\s*第|\Z)',
+    ]
+    
+    vol_text = ""
+    for p in vol_patterns:
+        m = re.search(p, outline_text, re.DOTALL)
+        if m:
+            vol_text = m.group(1)
+            break
+    
+    if not vol_text:
+        return chapters_per_volume, "", global_start, global_end
+    
+    # 提取 "- 第X章：标题 — summary" 或 "- 第X章 标题" 格式的章节
+    ch_pattern = r'^-\s*第(\d+)章[：:\s]+([^—\n]+?)(?:\s*—\s*(.+?))?$'
+    chapters = re.findall(ch_pattern, vol_text, re.MULTILINE)
+    
+    if chapters:
+        plan_lines = ["【本卷章节规划（按全书大纲）】"]
+        for ch_num_str, ch_title, ch_summary in chapters:
+            ch_num = int(ch_num_str)
+            g_num = ch_num + (volume_number - 1) * chapters_per_volume
+            line = f"- 全书第{g_num}章（本卷第{ch_num}章）：{ch_title.strip()}"
+            if ch_summary:
+                line += f" — {ch_summary.strip()}"
+            plan_lines.append(line)
+        return len(chapters), "\n".join(plan_lines), global_start, global_end
+    
+    return chapters_per_volume, "", global_start, global_end
+
+
 def _build_writing_prompt(settings_text: str, outline_text: str, detailed_text: str, vol_num: int) -> str:
     """构建初始写作设定 prompt"""
+    # 将分卷章节号偏移为全书连续章节号，确保 AI 生成正确的全书章节标题
+    detailed_offset = _offset_chapter_numbers(detailed_text, vol_num)
+    
     return f"""你是番茄小说（fanqienovel.com）签约级别的专业网文作家。请严格根据以下设定创作正文。
 
 【核心设定】
@@ -928,7 +1042,7 @@ def _build_writing_prompt(settings_text: str, outline_text: str, detailed_text: 
 {outline_text}
 
 【本卷细纲】
-{detailed_text}
+{detailed_offset}
 
 ---
 
@@ -1018,12 +1132,18 @@ def generate_batch():
             messages = [{"role": "user", "content": prompt}]
         
         end_chapter = start_chapter + batch_size - 1
-        gen_prompt = f"""请生成本卷第{start_chapter}章到第{end_chapter}章的正文。
+        
+        # 计算全书实际章节号（分卷章节号 → 全书连续章节号）
+        chapters_per_volume = 30
+        actual_start = start_chapter + (volume_number - 1) * chapters_per_volume
+        actual_end = end_chapter + (volume_number - 1) * chapters_per_volume
+        
+        gen_prompt = f"""请生成全书第{actual_start}章到第{actual_end}章的正文。
 
 记住：每章标题必须是抓眼球的悬念/冲突型，以下类型标题会直接导致读者划走，绝对禁止：
 - ❌ "省道上的四个小时" / "老房子里的相册" / "系统不对话" / "数据包装" / "老书记的沉默" / "全省第一个试点"
 - 正确公式：[核心事件] + [冲突/悬念/反转] + [情绪词/感叹词]
-- 正确示例："第1章 省道堵车四小时，系统突然弹出百亿蓝图！"
+- 正确示例："第{actual_start}章 省道堵车四小时，系统突然弹出百亿蓝图！"
 
 严格按照细纲写作，每章2000字左右。"""
         
@@ -1622,22 +1742,44 @@ def generate_volume_outline():
 #  10. 分卷细纲生成页面 API
 # ───────────────────────────────
 
-_VOLUME_OUTLINE_V2_PROMPT = """你是番茄小说签约级别的专业网文策划。请根据以下信息生成本卷细纲。
+def _build_volume_outline_v2_prompt(volume_number: int, chapter_count: int,
+                                     global_start: int, global_end: int,
+                                     chapter_plan_text: str = "") -> str:
+    """构建分卷细纲生成 prompt（统一番茄网文细纲格式，含章节范围约束）"""
+    plan_section = chapter_plan_text if chapter_plan_text else ""
+    
+    return f"""你是番茄小说签约级别的专业网文策划。请根据以下信息生成本卷细纲。
 
-要求：
+【卷次与章节范围】
+- 本卷为第{volume_number}卷
+- 本卷共 {chapter_count} 章
+- 对应全书第 {global_start} 章 到 第 {global_end} 章
+{plan_section}
+
+【细纲格式要求（必须严格遵守）】
+每章必须按以下固定格式输出，不得遗漏任何字段：
+
+## 第X章 【抓眼球标题】
+
+**场景设定**：时间、地点、氛围
+**涉及角色**：角色1、角色2
+**核心爽点/猎奇点**：一句话概括本章最吸引读者的点
+**具体情节步骤**：
+1. 步骤一
+2. 步骤二
+3. 步骤三
+**关键对话示例**：
+- "对话内容1"
+- "对话内容2"
+**爽点设计说明**：为什么这个设计能打动番茄读者
+**章节结尾钩子**：下一章的悬念预告
+
+【内容要求】
 1. 本卷细纲必须严格围绕大纲中该卷的内容展开，不能偏离主线
-2. 每章包含：
-   - 场景设定（时间、地点、氛围）
-   - 涉及角色
-   - 核心爽点/猎奇点
-   - 具体情节步骤（分点列出 1.2.3.）
-   - 关键对话示例（1-2句代表性对话）
-   - 爽点设计说明
-3. 每章细纲 200-400 字
-4. 章节之间要有清晰的情绪曲线和钩子衔接，每章结尾留钩子
-5. 用 Markdown 格式输出，每章用 "## 第X章 【抓眼球标题】" 开头
-6. 标题必须是悬念型/冲突型/情绪型，禁止平淡陈述句
-7. 不要输出任何说明文字、总结、分析、字数统计"""
+2. 每章细纲 200-400 字
+3. 章节之间要有清晰的情绪曲线和钩子衔接
+4. 标题必须是悬念型/冲突型/情绪型，禁止平淡陈述句
+5. 不要输出任何说明文字、总结、分析、字数统计"""
 
 
 @conversation_api.route('/volume-outline-context', methods=['GET'])
@@ -1745,7 +1887,16 @@ def generate_volume_outline_v2():
         actual_model = endpoint.get("model", model)
         logger.info(f"[Conversation] /generate-volume-outline-v2: project={project_id}, vol={volume_number}, model={actual_model}")
         
+        # 从全书大纲中提取本卷章节规划
+        chapter_count, chapter_plan_text, global_start, global_end = _extract_volume_chapter_plan(
+            outline, volume_number
+        )
+        
         # 构建 prompt
+        outline_prompt = _build_volume_outline_v2_prompt(
+            volume_number, chapter_count, global_start, global_end, chapter_plan_text
+        )
+        
         prompt_parts = [
             f"【核心设定】\n{settings[:5000]}",
             f"【全书大纲】\n{outline[:6000]}",
@@ -1754,7 +1905,7 @@ def generate_volume_outline_v2():
             prompt_parts.append(f"【上一卷细纲】\n{prev_outline[:4000]}")
         if user_notes:
             prompt_parts.append(f"【作者补充要求】\n{user_notes}")
-        prompt_parts.append(f"【任务】\n请生成第{volume_number}卷的详细细纲。\n\n{_VOLUME_OUTLINE_V2_PROMPT}")
+        prompt_parts.append(outline_prompt)
         
         full_prompt = "\n\n".join(prompt_parts)
         
