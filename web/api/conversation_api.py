@@ -128,6 +128,7 @@ def chat_stream():
 
         endpoint = _resolve_endpoint(model)
         if not endpoint:
+            logger.warning(f"[Conversation] /chat 模型 '{model}' 无可用端点")
             return jsonify({"success": False, "error": f"模型 '{model}' 无可用端点"}), 404
         if not endpoint.get("api_key"):
             return jsonify({"success": False, "error": "API Key 未配置"}), 400
@@ -135,6 +136,7 @@ def chat_stream():
         # 使用 endpoint 配置中实际可用的 model 名
         actual_model = endpoint.get("model", model)
         temperature = _normalize_temp(actual_model, temperature)
+        logger.info(f"[Conversation] /chat 请求: provider={endpoint['provider']}, model={actual_model}, messages={len(messages)}")
 
         import requests
         headers = {
@@ -164,6 +166,7 @@ def chat_stream():
                     timeout=300
                 )
             except Exception as e:
+                logger.error(f"[Conversation] /chat API 请求异常: {e}")
                 yield f"data: {json.dumps({'error': f'请求异常: {str(e)}'})}\n\n"
                 return
 
@@ -172,8 +175,11 @@ def chat_stream():
                     err = resp.json().get("error", {}).get("message", resp.text)
                 except Exception:
                     err = resp.text or f"HTTP {resp.status_code}"
+                logger.error(f"[Conversation] /chat API 返回错误: {err}")
                 yield f"data: {json.dumps({'error': err})}\n\n"
                 return
+            
+            logger.info(f"[Conversation] /chat 流式响应开始: provider={endpoint['provider']}, model={actual_model}")
 
             try:
                 for line in resp.iter_lines():
@@ -307,12 +313,14 @@ def generate_settings():
 
         endpoint = _resolve_endpoint(model)
         if not endpoint:
+            logger.warning(f"[Conversation] /generate-settings 模型 '{model}' 无可用端点")
             return jsonify({"success": False, "error": f"模型 '{model}' 无可用端点"}), 404
         if not endpoint.get("api_key"):
             return jsonify({"success": False, "error": "API Key 未配置"}), 400
 
         actual_model = endpoint.get("model", model)
         temperature = _normalize_temp(actual_model, temperature)
+        logger.info(f"[Conversation] /generate-settings 请求: provider={endpoint['provider']}, model={actual_model}, messages={len(messages)}")
 
         # 复制消息并追加设定生成指令
         gen_messages = messages.copy()
@@ -347,21 +355,25 @@ def generate_settings():
                 err = resp.json().get("error", {}).get("message", resp.text)
             except Exception:
                 err = resp.text or f"HTTP {resp.status_code}"
+            logger.error(f"[Conversation] /generate-settings API 错误: {err}")
             return jsonify({"success": False, "error": err}), 502
 
         result = resp.json()
         choices = result.get("choices") or [{}]
         raw_content = choices[0].get("message", {}).get("content", "") if choices else ""
+        logger.info(f"[Conversation] /generate-settings 响应长度: {len(raw_content)} 字符")
 
         # 尝试解析 JSON
         settings = _extract_json(raw_content)
         if not settings:
+            logger.warning(f"[Conversation] /generate-settings JSON 解析失败，原始内容前 500 字: {raw_content[:500]}")
             return jsonify({
                 "success": False,
                 "error": "AI 返回内容无法解析为有效 JSON",
                 "raw": raw_content[:2000]
             }), 422
 
+        logger.info(f"[Conversation] /generate-settings 解析成功: settings_keys={list(settings.keys()) if isinstance(settings, dict) else 'not dict'}")
         return jsonify({
             "success": True,
             "settings": settings,
@@ -482,7 +494,7 @@ def save_project():
         with open(config_file, 'w', encoding='utf-8') as f:
             json.dump(config, f, ensure_ascii=False, indent=2)
         
-        logger.info(f"[Conversation] 项目已保存: {project_dir}")
+        logger.info(f"[Conversation] /save-project 项目已保存: {project_dir} (title={title})")
         
         return jsonify({
             "success": True,
