@@ -1616,3 +1616,228 @@ def generate_volume_outline():
     except Exception as e:
         logger.error(f"[Conversation] /generate-volume-outline 失败: {e}")
         return jsonify({"success": False, "error": str(e)}), 500
+
+
+# ───────────────────────────────
+#  10. 分卷细纲生成页面 API
+# ───────────────────────────────
+
+_VOLUME_OUTLINE_V2_PROMPT = """你是番茄小说签约级别的专业网文策划。请根据以下信息生成本卷细纲。
+
+要求：
+1. 本卷细纲必须严格围绕大纲中该卷的内容展开，不能偏离主线
+2. 每章包含：
+   - 场景设定（时间、地点、氛围）
+   - 涉及角色
+   - 核心爽点/猎奇点
+   - 具体情节步骤（分点列出 1.2.3.）
+   - 关键对话示例（1-2句代表性对话）
+   - 爽点设计说明
+3. 每章细纲 200-400 字
+4. 章节之间要有清晰的情绪曲线和钩子衔接，每章结尾留钩子
+5. 用 Markdown 格式输出，每章用 "## 第X章 【抓眼球标题】" 开头
+6. 标题必须是悬念型/冲突型/情绪型，禁止平淡陈述句
+7. 不要输出任何说明文字、总结、分析、字数统计"""
+
+
+@conversation_api.route('/volume-outline-context', methods=['GET'])
+@login_required
+def volume_outline_context():
+    """
+    获取分卷细纲生成所需的上下文：设定 + 大纲 + 上一卷细纲
+    """
+    try:
+        project_id = request.args.get("project_id", "").strip()
+        volume_number = int(request.args.get("volume_number", 1))
+        
+        if not project_id:
+            return jsonify({"success": False, "error": "project_id 不能为空"}), 400
+        
+        username = session.get('username', 'anonymous')
+        user_dir = Path("小说项目") / username
+        project_dir = user_dir / project_id
+        if not project_dir.exists():
+            return jsonify({"success": False, "error": "项目不存在"}), 404
+        
+        files = _read_project_files(project_dir)
+        
+        # 读取上一卷细纲（如果 volume > 1）
+        prev_outline = ""
+        has_prev = False
+        if volume_number > 1:
+            prev_vol_file = project_dir / f"detailed_outline_vol{volume_number - 1}.md"
+            if prev_vol_file.exists():
+                prev_outline = prev_vol_file.read_text(encoding='utf-8')
+                has_prev = True
+            else:
+                # 尝试从总览文件中提取上一卷
+                total_file = _detect_file_path(project_dir, ["detailed-outline.md", "detailed_outline.md"])
+                if total_file.exists():
+                    total_text = total_file.read_text(encoding='utf-8')
+                    import re
+                    # 尝试匹配 "第N卷" 或 "第{N}卷"
+                    patterns = [
+                        rf'## 第{volume_number - 1}卷.*?(?=## 第{volume_number}卷|\Z)',
+                        rf'## .*?第{volume_number - 1}卷.*?(?=## .*?第{volume_number}卷|\Z)',
+                    ]
+                    for p in patterns:
+                        m = re.search(p, total_text, re.DOTALL)
+                        if m:
+                            prev_outline = m.group(0)
+                            has_prev = True
+                            break
+        
+        logger.info(f"[Conversation] /volume-outline-context: project={project_id}, vol={volume_number}, has_prev={has_prev}")
+        return jsonify({
+            "success": True,
+            "settings": files.get('settings', '')[:8000],
+            "outline": files.get('outline', '')[:8000],
+            "prev_volume_outline": prev_outline[:15000],
+            "has_prev": has_prev,
+            "volume_number": volume_number,
+        })
+        
+    except Exception as e:
+        logger.error(f"[Conversation] /volume-outline-context 失败: {e}")
+        return jsonify({"success": False, "error": str(e)}), 500
+
+
+@conversation_api.route('/generate-volume-outline-v2', methods=['POST'])
+@login_required
+def generate_volume_outline_v2():
+    """
+    流式生成分卷细纲（SSE）。
+    接收设定 + 大纲 + 上一卷细纲 + 用户补充要求。
+    """
+    try:
+        data = request.json or {}
+        project_id = data.get("project_id", "").strip()
+        volume_number = data.get("volume_number", 1)
+        model = data.get("model", "deepseek-v4-pro")
+        user_notes = data.get("user_notes", "").strip()
+        
+        if not project_id:
+            return jsonify({"success": False, "error": "project_id 不能为空"}), 400
+        
+        username = session.get('username', 'anonymous')
+        user_dir = Path("小说项目") / username
+        project_dir = user_dir / project_id
+        if not project_dir.exists():
+            return jsonify({"success": False, "error": "项目不存在"}), 404
+        
+        # 读取上下文
+        files = _read_project_files(project_dir)
+        settings = files.get('settings', '')
+        outline = files.get('outline', '')
+        
+        prev_outline = ""
+        if volume_number > 1:
+            prev_vol_file = project_dir / f"detailed_outline_vol{volume_number - 1}.md"
+            if prev_vol_file.exists():
+                prev_outline = prev_vol_file.read_text(encoding='utf-8')
+        
+        endpoint = _resolve_endpoint(model)
+        if not endpoint:
+            return jsonify({"success": False, "error": f"模型 '{model}' 无可用端点"}), 404
+        if not endpoint.get("api_key"):
+            return jsonify({"success": False, "error": "API Key 未配置"}), 400
+        
+        actual_model = endpoint.get("model", model)
+        logger.info(f"[Conversation] /generate-volume-outline-v2: project={project_id}, vol={volume_number}, model={actual_model}")
+        
+        # 构建 prompt
+        prompt_parts = [
+            f"【核心设定】\n{settings[:5000]}",
+            f"【全书大纲】\n{outline[:6000]}",
+        ]
+        if prev_outline:
+            prompt_parts.append(f"【上一卷细纲】\n{prev_outline[:4000]}")
+        if user_notes:
+            prompt_parts.append(f"【作者补充要求】\n{user_notes}")
+        prompt_parts.append(f"【任务】\n请生成第{volume_number}卷的详细细纲。\n\n{_VOLUME_OUTLINE_V2_PROMPT}")
+        
+        full_prompt = "\n\n".join(prompt_parts)
+        
+        import requests
+        headers = {
+            "Content-Type": "application/json",
+            "Authorization": f"Bearer {endpoint['api_key']}"
+        }
+        
+        payload = {
+            "model": actual_model,
+            "messages": [{"role": "user", "content": full_prompt}],
+            "stream": True,
+        }
+        if "deepseek" in actual_model.lower():
+            payload["thinking"] = {"type": "enabled"}
+        
+        def generate():
+            try:
+                resp = requests.post(
+                    endpoint["api_url"],
+                    headers=headers,
+                    json=payload,
+                    stream=True,
+                    timeout=600
+                )
+            except Exception as e:
+                yield f"data: {json.dumps({'error': f'请求异常: {str(e)}'})}\n\n"
+                return
+            
+            if not resp.ok:
+                try:
+                    err = resp.json().get("error", {}).get("message", resp.text)
+                except Exception:
+                    err = resp.text or f"HTTP {resp.status_code}"
+                logger.error(f"[Conversation] /generate-volume-outline-v2 API 错误: {err}")
+                yield f"data: {json.dumps({'error': err})}\n\n"
+                return
+            
+            full_text = ""
+            try:
+                for line in resp.iter_lines():
+                    if not line:
+                        continue
+                    line_text = line.decode('utf-8')
+                    if not line_text.startswith('data: '):
+                        continue
+                    
+                    data_content = line_text[6:]
+                    if data_content == '[DONE]':
+                        # 保存到文件
+                        vol_file = project_dir / f"detailed_outline_vol{volume_number}.md"
+                        vol_file.write_text(full_text, encoding='utf-8')
+                        logger.info(f"[Conversation] 第{volume_number}卷细纲已保存: {vol_file}")
+                        yield "data: [DONE]\n\n"
+                        break
+                    
+                    try:
+                        chunk = json.loads(data_content)
+                        choices = chunk.get("choices") or [{}]
+                        delta = choices[0].get("delta", {}) if choices else {}
+                        content_piece = delta.get("content", "")
+                        reasoning_piece = delta.get("reasoning_content", "")
+                        if content_piece:
+                            full_text += content_piece
+                            yield f"data: {json.dumps({'content': content_piece})}\n\n"
+                        if reasoning_piece:
+                            yield f"data: {json.dumps({'reasoning': reasoning_piece})}\n\n"
+                    except (json.JSONDecodeError, IndexError, KeyError):
+                        continue
+            except Exception as e:
+                logger.error(f"[Conversation] /generate-volume-outline-v2 流式异常: {e}")
+                yield f"data: {json.dumps({'error': str(e)})}\n\n"
+        
+        return Response(
+            stream_with_context(generate()),
+            mimetype='text/event-stream',
+            headers={
+                'Cache-Control': 'no-cache',
+                'X-Accel-Buffering': 'no',
+            }
+        )
+        
+    except Exception as e:
+        logger.error(f"[Conversation] /generate-volume-outline-v2 失败: {e}")
+        return jsonify({"success": False, "error": str(e)}), 500

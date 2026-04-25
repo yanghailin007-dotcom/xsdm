@@ -19,3 +19,9 @@ def register_novelcraft_routes(app):
     def chapter_generation_page():
         """正文生成页面"""
         return render_template('pages/v2/chapter-generation.html')
+
+    @app.route('/volume-outline-generation', methods=['GET'])
+    @login_required
+    def volume_outline_generation_page():
+        """分卷细纲生成页面"""
+        return render_template('pages/v2/volume-outline-generation.html')

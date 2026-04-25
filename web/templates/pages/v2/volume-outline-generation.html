@@ -1,0 +1,759 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>分卷细纲生成 - NovelCraft</title>
+    <style>
+        :root {
+            --bg-primary: #0d1117;
+            --bg-secondary: #111318;
+            --bg-tertiary: #161b22;
+            --border-color: #30363d;
+            --border-hover: #484f58;
+            --text-primary: #e6edf3;
+            --text-secondary: #8b949e;
+            --text-muted: #6e7681;
+            --accent: #8b5cf6;
+            --accent-dim: rgba(139,92,246,0.15);
+            --accent-border: rgba(139,92,246,0.3);
+            --success: #22c55e;
+            --warning: #f59e0b;
+            --error: #ef4444;
+            --radius: 12px;
+            --radius-sm: 8px;
+            --shadow: 0 4px 24px rgba(0,0,0,0.4);
+            --glow: 0 0 20px rgba(139,92,246,0.15);
+            --font-mono: 'SF Mono', 'JetBrains Mono', 'Fira Code', monospace;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        html, body {
+            height: 100%;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+            font-size: 15px;
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            overflow: hidden;
+        }
+
+        /* 顶部导航 */
+        .top-nav {
+            height: 56px;
+            background: var(--bg-secondary);
+            border-bottom: 1px solid var(--border-color);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 24px;
+            flex-shrink: 0;
+        }
+        .nav-left { display: flex; align-items: center; gap: 16px; }
+        .nav-logo {
+            font-size: 16px;
+            font-weight: 700;
+            color: var(--text-primary);
+            text-decoration: none;
+        }
+        .nav-links { display: flex; gap: 4px; }
+        .nav-links a {
+            padding: 6px 14px;
+            border-radius: var(--radius-sm);
+            font-size: 13px;
+            color: var(--text-secondary);
+            text-decoration: none;
+            transition: all 0.2s;
+        }
+        .nav-links a:hover { background: var(--bg-tertiary); color: var(--text-primary); }
+        .nav-links a.active { background: rgba(139,92,246,0.15); color: #a78bfa; }
+
+        /* 主体 */
+        .main-wrapper {
+            height: calc(100vh - 56px);
+            display: grid;
+            grid-template-columns: 380px 1fr;
+            overflow: hidden;
+        }
+
+        /* 左侧面板 */
+        .left-panel {
+            background: var(--bg-secondary);
+            border-right: 1px solid var(--border-color);
+            padding: 16px;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            overflow-y: auto;
+        }
+
+        .info-bar {
+            display: flex;
+            gap: 12px;
+            align-items: center;
+            font-size: 12px;
+            color: var(--text-secondary);
+            padding-bottom: 8px;
+            border-bottom: 1px solid var(--border-color);
+        }
+        .info-bar .tag {
+            background: var(--accent-dim);
+            color: var(--accent);
+            padding: 3px 10px;
+            border-radius: var(--radius-sm);
+            font-weight: 600;
+            font-size: 11px;
+            border: 1px solid var(--accent-border);
+        }
+
+        .ref-card {
+            background: var(--bg-tertiary);
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius);
+            overflow: hidden;
+            transition: border-color 0.2s;
+        }
+        .ref-card:hover { border-color: var(--border-hover); }
+        .ref-header {
+            padding: 10px 14px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            cursor: pointer;
+            user-select: none;
+            font-size: 12px;
+            font-weight: 600;
+            color: var(--text-primary);
+        }
+        .ref-header .toggle { font-size: 10px; color: var(--text-muted); transition: transform 0.2s; }
+        .ref-header .toggle.expanded { transform: rotate(90deg); }
+        .ref-body {
+            padding: 0 14px 12px;
+            font-size: 11px;
+            color: var(--text-secondary);
+            line-height: 1.6;
+            max-height: 200px;
+            overflow-y: auto;
+            white-space: pre-wrap;
+            word-break: break-word;
+        }
+        .ref-body.collapsed { display: none; }
+        .ref-body.empty { color: var(--text-muted); font-style: italic; padding: 8px 14px; }
+
+        .user-input-card {
+            background: var(--bg-tertiary);
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius);
+            padding: 14px;
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            min-height: 0;
+        }
+        .user-input-card h3 {
+            font-size: 12px;
+            font-weight: 600;
+            color: var(--text-primary);
+            margin-bottom: 8px;
+        }
+        .user-input-card textarea {
+            flex: 1;
+            min-height: 120px;
+            padding: 10px 12px;
+            background: var(--bg-primary);
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius-sm);
+            color: var(--text-primary);
+            font-size: 12px;
+            line-height: 1.7;
+            resize: vertical;
+            outline: none;
+            font-family: inherit;
+        }
+        .user-input-card textarea:focus {
+            border-color: var(--accent);
+            box-shadow: 0 0 0 3px var(--accent-dim);
+        }
+
+        .gen-btn {
+            width: 100%;
+            padding: 10px 14px;
+            background: linear-gradient(135deg, var(--accent), #7c3aed);
+            border: none;
+            border-radius: var(--radius-sm);
+            color: #fff;
+            font-size: 12px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 5px;
+            letter-spacing: 0.5px;
+        }
+        .gen-btn:hover:not(:disabled) { transform: translateY(-1px); box-shadow: var(--glow); filter: brightness(1.1); }
+        .gen-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+        .gen-btn.running { background: linear-gradient(135deg, var(--warning), #d97706); animation: btnPulse 2s infinite; }
+        @keyframes btnPulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.85; } }
+        .gen-btn.secondary {
+            background: var(--bg-primary);
+            border: 1px solid var(--border-color);
+            color: var(--text-secondary);
+        }
+        .gen-btn.secondary:hover:not(:disabled) { border-color: var(--accent); color: var(--accent); box-shadow: none; filter: none; }
+
+        .back-link {
+            font-size: 11px;
+            color: var(--text-muted);
+            text-align: center;
+            padding-top: 4px;
+        }
+        .back-link a { color: var(--accent); text-decoration: none; }
+        .back-link a:hover { text-decoration: underline; }
+
+        /* 右侧面板 */
+        .right-panel {
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+        .output-header {
+            padding: 12px 20px;
+            border-bottom: 1px solid var(--border-color);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: var(--bg-secondary);
+            flex-shrink: 0;
+        }
+        .output-header h3 {
+            font-size: 14px;
+            font-weight: 600;
+            color: var(--text-primary);
+        }
+        .output-header .actions { display: flex; gap: 8px; }
+        .output-header .actions button {
+            padding: 5px 12px;
+            font-size: 11px;
+            border-radius: var(--radius-sm);
+            border: 1px solid var(--border-color);
+            background: var(--bg-tertiary);
+            color: var(--text-secondary);
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .output-header .actions button:hover {
+            border-color: var(--accent);
+            color: var(--accent);
+        }
+        .output-header .actions button:disabled { opacity: 0.4; cursor: not-allowed; }
+
+        .output-body {
+            flex: 1;
+            padding: 20px 28px;
+            overflow-y: auto;
+            line-height: 1.85;
+            font-size: 14px;
+            color: var(--text-primary);
+        }
+        .output-body.empty {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: var(--text-muted);
+            font-size: 13px;
+        }
+        .output-body.edit-mode { padding: 0; }
+        .output-body h4 { color: var(--accent); font-size: 15px; margin: 16px 0 8px; font-weight: 600; }
+        .output-body h5 { color: var(--text-secondary); font-size: 13px; margin: 12px 0 6px; font-weight: 600; }
+        .output-body p { margin-bottom: 0.6em; }
+
+        .edit-textarea {
+            width: 100%;
+            height: 100%;
+            min-height: 500px;
+            padding: 20px 28px;
+            background: var(--bg-primary);
+            border: none;
+            color: var(--text-primary);
+            font-size: 14px;
+            line-height: 1.8;
+            font-family: inherit;
+            resize: vertical;
+            outline: none;
+        }
+        .edit-textarea:focus { box-shadow: inset 0 0 0 2px var(--accent); }
+
+        /* Toast */
+        .toast {
+            position: fixed;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            padding: 8px 18px;
+            border-radius: var(--radius-sm);
+            font-size: 12px;
+            font-weight: 500;
+            color: #fff;
+            z-index: 1000;
+            animation: slideUp 0.3s ease;
+            display: none;
+        }
+        .toast.show { display: block; }
+        .toast.success { background: var(--success); }
+        .toast.error { background: var(--error); }
+        .toast.info { background: var(--info); }
+        @keyframes slideUp {
+            from { transform: translateX(-50%) translateY(20px); opacity: 0; }
+            to { transform: translateX(-50%) translateY(0); opacity: 1; }
+        }
+
+        /* 流式输出区 */
+        .stream-box {
+            background: var(--bg-primary);
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius-sm);
+            padding: 12px 14px;
+            font-family: var(--font-mono);
+            font-size: 11px;
+            color: var(--text-secondary);
+            max-height: 160px;
+            overflow-y: auto;
+            white-space: pre-wrap;
+            word-break: break-word;
+            line-height: 1.6;
+            margin-bottom: 12px;
+        }
+
+        /* 思考过程 */
+        .thinking-box {
+            background: var(--bg-tertiary);
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius-sm);
+            padding: 8px 12px;
+            margin-bottom: 10px;
+            flex-shrink: 0;
+        }
+        .thinking-header {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            font-size: 11px;
+            font-weight: 600;
+            color: var(--warning);
+            cursor: pointer;
+            user-select: none;
+        }
+        .thinking-body {
+            margin-top: 6px;
+            padding-top: 6px;
+            border-top: 1px solid var(--border-color);
+            font-size: 11px;
+            color: var(--text-secondary);
+            font-family: var(--font-mono);
+            line-height: 1.5;
+            white-space: pre-wrap;
+            max-height: 160px;
+            overflow-y: auto;
+        }
+        .thinking-body.collapsed { display: none; }
+
+        /* 自定义滚动条 */
+        ::-webkit-scrollbar { width: 5px; height: 5px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: var(--border-color); border-radius: 3px; }
+        ::-webkit-scrollbar-thumb:hover { background: var(--text-muted); }
+
+        @media (max-width: 1024px) {
+            .main-wrapper { grid-template-columns: 1fr; }
+            .left-panel {
+                position: fixed;
+                bottom: 0;
+                left: 0;
+                right: 0;
+                max-height: 50vh;
+                z-index: 100;
+                border-right: none;
+                border-top: 1px solid var(--border-color);
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- 顶部导航 -->
+    <header class="top-nav">
+        <div class="nav-left">
+            <a href="/" class="nav-logo">📖 NovelCraft</a>
+            <div class="nav-links">
+                <a href="/">工作台</a>
+                <a href="/novelcraft">自由创作</a>
+                <a href="/chapter-generation">正文生成</a>
+                <a href="/volume-outline-generation" class="active">分卷细纲</a>
+            </div>
+        </div>
+    </header>
+
+    <!-- 主体 -->
+    <div class="main-wrapper">
+        <!-- 左侧面板 -->
+        <div class="left-panel">
+            <div class="info-bar">
+                <span class="tag" id="projectTag">加载中...</span>
+                <span class="tag" id="volumeTag">第1卷</span>
+            </div>
+
+            <!-- 设定 -->
+            <div class="ref-card">
+                <div class="ref-header" onclick="toggleRef('settingsRef')">
+                    <span>📖 核心设定</span>
+                    <span class="toggle" id="settingsRefToggle">▶</span>
+                </div>
+                <div class="ref-body collapsed" id="settingsRefBody">
+                    <span class="empty">加载中...</span>
+                </div>
+            </div>
+
+            <!-- 大纲 -->
+            <div class="ref-card">
+                <div class="ref-header" onclick="toggleRef('outlineRef')">
+                    <span>📄 全书大纲</span>
+                    <span class="toggle" id="outlineRefToggle">▶</span>
+                </div>
+                <div class="ref-body collapsed" id="outlineRefBody">
+                    <span class="empty">加载中...</span>
+                </div>
+            </div>
+
+            <!-- 上一卷细纲 -->
+            <div class="ref-card" id="prevVolCard" style="display:none;">
+                <div class="ref-header" onclick="toggleRef('prevVolRef')">
+                    <span>📋 上一卷细纲</span>
+                    <span class="toggle" id="prevVolRefToggle">▶</span>
+                </div>
+                <div class="ref-body collapsed" id="prevVolRefBody">
+                    <span class="empty">加载中...</span>
+                </div>
+            </div>
+
+            <!-- 补充要求 -->
+            <div class="user-input-card">
+                <h3>✏️ 补充要求（可选）</h3>
+                <textarea id="userNotes" placeholder="本卷重点想写... / 想调整的剧情... / 特殊要求..."></textarea>
+            </div>
+
+            <button id="generateBtn" class="gen-btn">
+                <span>✨</span> 开始生成本卷细纲
+            </button>
+
+            <div class="back-link">
+                <a href="/chapter-generation">← 返回正文生成</a>
+            </div>
+        </div>
+
+        <!-- 右侧面板 -->
+        <div class="right-panel">
+            <div class="output-header">
+                <h3 id="outputTitle">📝 本卷细纲</h3>
+                <div class="actions" id="outputActions">
+                    <button id="editBtn" style="display:none;">✏️ 编辑</button>
+                    <button id="cancelEditBtn" style="display:none;">❌ 取消</button>
+                    <button id="saveBtn" style="display:none;">💾 保存</button>
+                </div>
+            </div>
+            <div id="thinkingContainer"></div>
+            <div class="output-body empty" id="outputBody">
+                左侧确认上下文后，点击「开始生成本卷细纲」
+            </div>
+        </div>
+    </div>
+
+    <!-- Toast -->
+    <div class="toast" id="toast"></div>
+
+    <script>
+
+// ===== 状态 =====
+const urlParams = new URLSearchParams(window.location.search);
+const projectId = urlParams.get('project') || '';
+const volumeNumber = parseInt(urlParams.get('volume') || '1');
+let contextData = null;
+let isGenerating = false;
+let isEditMode = false;
+let generatedText = '';
+
+const $ = id => document.getElementById(id);
+
+// ===== 初始化 =====
+document.addEventListener('DOMContentLoaded', () => {
+    if (!projectId) {
+        $('outputBody').innerHTML = '<p style="color:var(--error);">❌ 缺少 project 参数，请从正文生成页跳转</p>';
+        return;
+    }
+    $('projectTag').textContent = projectId;
+    $('volumeTag').textContent = `第${volumeNumber}卷`;
+    loadContext();
+    $('generateBtn').addEventListener('click', startGeneration);
+    $('editBtn').addEventListener('click', toggleEditMode);
+    $('cancelEditBtn').addEventListener('click', cancelEdit);
+    $('saveBtn').addEventListener('click', saveOutline);
+});
+
+// ===== 加载上下文 =====
+async function loadContext() {
+    try {
+        const resp = await fetch(`/api/conversation/volume-outline-context?project_id=${encodeURIComponent(projectId)}&volume=${volumeNumber}`);
+        const data = await resp.json();
+        if (data.success) {
+            contextData = data;
+            renderContext();
+        } else {
+            showToast('加载上下文失败: ' + data.error, 'error');
+        }
+    } catch (e) {
+        showToast('加载上下文失败: ' + e.message, 'error');
+    }
+}
+
+function renderContext() {
+    if (!contextData) return;
+
+    // 设定
+    const settingsBody = $('settingsRefBody');
+    if (contextData.settings) {
+        settingsBody.innerHTML = escapeHtml(contextData.settings).replace(/\n/g, '<br>');
+        settingsBody.classList.remove('empty');
+    } else {
+        settingsBody.innerHTML = '<span class="empty">暂无设定</span>';
+    }
+
+    // 大纲
+    const outlineBody = $('outlineRefBody');
+    if (contextData.outline) {
+        outlineBody.innerHTML = escapeHtml(contextData.outline).replace(/\n/g, '<br>');
+        outlineBody.classList.remove('empty');
+    } else {
+        outlineBody.innerHTML = '<span class="empty">暂无大纲</span>';
+    }
+
+    // 上一卷细纲
+    if (contextData.has_prev && contextData.prev_volume_outline) {
+        $('prevVolCard').style.display = 'block';
+        const prevBody = $('prevVolRefBody');
+        prevBody.innerHTML = escapeHtml(contextData.prev_volume_outline).replace(/\n/g, '<br>');
+        prevBody.classList.remove('empty');
+    }
+}
+
+function toggleRef(id) {
+    const body = $(id + 'Body');
+    const toggle = $(id + 'Toggle');
+    if (body) body.classList.toggle('collapsed');
+    if (toggle) toggle.classList.toggle('expanded');
+}
+
+// ===== 开始生成 =====
+async function startGeneration() {
+    if (isGenerating) return;
+    isGenerating = true;
+
+    generatedText = '';
+    $('outputBody').innerHTML = '';
+    $('outputBody').classList.remove('empty');
+    $('thinkingContainer').innerHTML = '';
+    $('generateBtn').classList.add('running');
+    $('generateBtn').disabled = true;
+    $('generateBtn').innerHTML = '<span>⏳</span> 生成中...';
+    $('editBtn').style.display = 'none';
+    $('saveBtn').style.display = 'none';
+
+    try {
+        const resp = await fetch('/api/conversation/generate-volume-outline-v2', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                project_id: projectId,
+                volume_number: volumeNumber,
+                model: 'deepseek-v4-pro',
+                user_notes: $('userNotes').value.trim()
+            })
+        });
+
+        const reader = resp.body.getReader();
+        const decoder = new TextDecoder();
+        let currentThinking = '';
+
+        while (true) {
+            const { done, value } = await reader.read();
+            if (done) break;
+
+            const chunk = decoder.decode(value, { stream: true });
+            const lines = chunk.split('\n');
+
+            for (const line of lines) {
+                if (!line.startsWith('data: ')) continue;
+                const dataStr = line.slice(6).trim();
+                if (!dataStr) continue;
+                if (dataStr === '[DONE]') {
+                    finalizeGeneration();
+                    continue;
+                }
+
+                try {
+                    const data = JSON.parse(dataStr);
+                    if (data.error) {
+                        showToast('生成错误: ' + data.error, 'error');
+                        isGenerating = false;
+                        resetGenerateBtn();
+                        return;
+                    }
+                    if (data.reasoning) {
+                        currentThinking += data.reasoning;
+                        updateThinkingDisplay(currentThinking);
+                    }
+                    if (data.content) {
+                        generatedText += data.content;
+                        $('outputBody').innerHTML += escapeHtml(data.content).replace(/\n/g, '<br>');
+                        $('outputBody').scrollTop = $('outputBody').scrollHeight;
+                    }
+                } catch (e) {}
+            }
+        }
+
+        if (isGenerating) finalizeGeneration();
+
+    } catch (e) {
+        showToast('请求失败: ' + e.message, 'error');
+        isGenerating = false;
+        resetGenerateBtn();
+    }
+}
+
+function finalizeGeneration() {
+    isGenerating = false;
+    resetGenerateBtn();
+    $('outputBody').innerHTML = renderMarkdown(generatedText);
+    $('editBtn').style.display = 'inline-block';
+    $('saveBtn').style.display = 'inline-block';
+    showToast('✅ 本卷细纲生成完成', 'success');
+}
+
+function resetGenerateBtn() {
+    $('generateBtn').classList.remove('running');
+    $('generateBtn').disabled = false;
+    $('generateBtn').innerHTML = '<span>✨</span> 开始生成本卷细纲';
+}
+
+function updateThinkingDisplay(thinking) {
+    let box = $('thinkingBox');
+    if (!box) {
+        box = document.createElement('div');
+        box.id = 'thinkingBox';
+        box.className = 'thinking-box';
+        box.innerHTML = `
+            <div class="thinking-header" onclick="toggleThinking()">
+                <span>🧠</span> 思考中
+            </div>
+            <div class="thinking-body collapsed" id="thinkingBody"></div>
+        `;
+        $('thinkingContainer').appendChild(box);
+    }
+    $('thinkingBody').textContent = thinking;
+}
+
+function toggleThinking() {
+    const body = $('thinkingBody');
+    if (body) body.classList.toggle('collapsed');
+}
+
+// ===== 编辑与保存 =====
+function toggleEditMode() {
+    if (isEditMode) {
+        saveOutline();
+    } else {
+        isEditMode = true;
+        $('outputBody').classList.add('edit-mode');
+        $('outputBody').innerHTML = `<textarea class="edit-textarea" id="editTextarea">${escapeHtml(generatedText)}</textarea>`;
+        $('editBtn').textContent = '💾 保存';
+        $('cancelEditBtn').style.display = 'inline-block';
+    }
+}
+
+function cancelEdit() {
+    isEditMode = false;
+    $('outputBody').classList.remove('edit-mode');
+    $('editBtn').textContent = '✏️ 编辑';
+    $('cancelEditBtn').style.display = 'none';
+    $('outputBody').innerHTML = renderMarkdown(generatedText);
+}
+
+async function saveOutline() {
+    const textarea = $('editTextarea');
+    const text = textarea ? textarea.value : generatedText;
+
+    try {
+        const resp = await fetch('/api/conversation/save-project-files', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                project_id: projectId,
+                volume_number: volumeNumber,
+                detailed_outline: text
+            })
+        });
+        const data = await resp.json();
+        if (data.success) {
+            generatedText = text;
+            isEditMode = false;
+            $('outputBody').classList.remove('edit-mode');
+            $('editBtn').textContent = '✏️ 编辑';
+            $('cancelEditBtn').style.display = 'none';
+            $('outputBody').innerHTML = renderMarkdown(generatedText);
+            showToast('✅ 细纲已保存', 'success');
+        } else {
+            showToast('保存失败: ' + (data.error || '未知错误'), 'error');
+        }
+    } catch (e) {
+        showToast('保存请求失败: ' + e.message, 'error');
+    }
+}
+
+// ===== Markdown 渲染 =====
+function renderMarkdown(text) {
+    const lines = text.split('\n');
+    let html = '';
+    for (const line of lines) {
+        const trimmed = line.trim();
+        if (!trimmed) { html += '<br>'; continue; }
+        if (trimmed.startsWith('# ')) {
+            html += `<h4>${escapeHtml(trimmed.replace(/^#\s*/, ''))}</h4>`;
+        } else if (trimmed.startsWith('## ')) {
+            html += `<h4>${escapeHtml(trimmed.replace(/^##\s*/, ''))}</h4>`;
+        } else if (trimmed.startsWith('### ')) {
+            html += `<h5>${escapeHtml(trimmed.replace(/^###\s*/, ''))}</h5>`;
+        } else if (trimmed.startsWith('- ')) {
+            html += `<p style="margin-left:16px;color:var(--text-secondary);">• ${escapeHtml(trimmed.replace(/^-\s*/, ''))}</p>`;
+        } else if (trimmed.startsWith('**') && trimmed.endsWith('**')) {
+            html += `<p style="font-weight:600;">${escapeHtml(trimmed.replace(/\*\*/g, ''))}</p>`;
+        } else {
+            html += `<p>${escapeHtml(trimmed)}</p>`;
+        }
+    }
+    return html;
+}
+
+function escapeHtml(text) {
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+}
+
+function showToast(msg, type = 'info') {
+    const toast = $('toast');
+    toast.textContent = msg;
+    toast.className = 'toast show ' + type;
+    setTimeout(() => toast.classList.remove('show'), 3000);
+}
+    </script>
+</body>
+</html>

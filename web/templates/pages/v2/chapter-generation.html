@@ -719,7 +719,7 @@
                 <button id="nextBatchBtn" class="gen-btn secondary" style="margin-top:8px;display:none;" onclick="startNextBatch()">
                     <span>▶️</span> 继续下一批
                 </button>
-                <button id="genVolOutlineBtn" class="gen-btn secondary" style="margin-top:8px;" onclick="generateVolumeOutline()">
+                <button id="genVolOutlineBtn" class="gen-btn secondary" style="margin-top:8px;" onclick="openVolumeOutlinePage()">
                     <span>📋</span> 生成本卷细纲
                 </button>
             </div>
@@ -1028,48 +1028,15 @@ async function saveProjectFiles() {
     }
 }
 
-// ===== 生成分卷细纲 =====
-async function generateVolumeOutline() {
+// ===== 打开分卷细纲生成页面 =====
+function openVolumeOutlinePage() {
     const projectId = $('projectSelect').value;
-    const volumeNumber = parseInt($('volumeSelect').value);
-    const model = $('modelSelect').value;
-
+    const volumeNumber = $('volumeSelect').value;
     if (!projectId) {
         showToast('请先选择一个项目', 'error');
         return;
     }
-
-    const btn = $('genVolOutlineBtn');
-    const originalText = btn.innerHTML;
-    btn.disabled = true;
-    btn.innerHTML = '<span>⏳</span> 生成中...';
-
-    try {
-        const resp = await fetch('/api/conversation/generate-volume-outline', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                project_id: projectId,
-                volume_number: volumeNumber,
-                model: model
-            })
-        });
-        const data = await resp.json();
-        if (data.success) {
-            // 刷新项目文件
-            await loadProjectFiles(projectId, volumeNumber);
-            // 如果当前正在显示细纲，刷新
-            if (currentRefType === 'detailed') showOutline();
-            showToast(`✅ 第${volumeNumber}卷细纲生成完成`, 'success');
-        } else {
-            showToast('生成失败: ' + (data.error || '未知错误'), 'error');
-        }
-    } catch (e) {
-        showToast('请求失败: ' + e.message, 'error');
-    } finally {
-        btn.disabled = false;
-        btn.innerHTML = originalText;
-    }
+    window.open(`/volume-outline-generation?project=${encodeURIComponent(projectId)}&volume=${volumeNumber}`, '_blank');
 }
 
 // 简单的 Markdown 渲染
