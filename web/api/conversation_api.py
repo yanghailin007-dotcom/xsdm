@@ -1502,3 +1502,117 @@ def save_project_files():
     except Exception as e:
         logger.error(f"[Conversation] /save-project-files 失败: {e}")
         return jsonify({"success": False, "error": str(e)}), 500
+
+
+# ───────────────────────────────
+#  9. 生成分卷细纲
+# ───────────────────────────────
+
+_VOLUME_OUTLINE_PROMPT = """你是专业网文策划。请根据以下设定和大纲，生成指定卷的详细细纲。
+
+要求：
+1. 本卷细纲必须严格围绕大纲中该卷的内容展开，不能偏离主线
+2. 每章包含：场景设定、涉及角色、核心爽点/猎奇点、具体情节步骤、关键对话示例、爽点设计
+3. 每章细纲字数 200-400 字
+4. 章节之间要有清晰的情绪曲线和钩子衔接
+5. 用 Markdown 格式输出，每章用 "## 第X章 标题" 开头
+6. 不要输出任何说明文字、总结、分析"""
+
+
+@conversation_api.route('/generate-volume-outline', methods=['POST'])
+@login_required
+def generate_volume_outline():
+    """
+    根据设定和大纲，生成指定卷的细纲并保存。
+    """
+    try:
+        data = request.json or {}
+        project_id = data.get("project_id", "").strip()
+        volume_number = data.get("volume_number", 1)
+        model = data.get("model", "deepseek-v4-pro")
+        
+        if not project_id:
+            return jsonify({"success": False, "error": "project_id 不能为空"}), 400
+        
+        username = session.get('username', 'anonymous')
+        user_dir = Path("小说项目") / username
+        project_dir = user_dir / project_id
+        if not project_dir.exists():
+            return jsonify({"success": False, "error": "项目不存在"}), 404
+        
+        # 读取设定和大纲
+        files = _read_project_files(project_dir)
+        settings = files.get('settings', '')
+        outline = files.get('outline', '')
+        
+        if not outline:
+            return jsonify({"success": False, "error": "项目暂无大纲，无法生成分卷细纲"}), 400
+        
+        endpoint = _resolve_endpoint(model)
+        if not endpoint:
+            return jsonify({"success": False, "error": f"模型 '{model}' 无可用端点"}), 404
+        if not endpoint.get("api_key"):
+            return jsonify({"success": False, "error": "API Key 未配置"}), 400
+        
+        actual_model = endpoint.get("model", model)
+        logger.info(f"[Conversation] /generate-volume-outline: project={project_id}, vol={volume_number}, model={actual_model}")
+        
+        prompt = f"""【核心设定】
+{settings[:5000]}
+
+【全书大纲】
+{outline[:8000]}
+
+【任务】
+请生成第{volume_number}卷的详细细纲。
+
+{_VOLUME_OUTLINE_PROMPT}"""
+        
+        import requests
+        headers = {
+            "Content-Type": "application/json",
+            "Authorization": f"Bearer {endpoint['api_key']}"
+        }
+        
+        payload = {
+            "model": actual_model,
+            "messages": [{"role": "user", "content": prompt}],
+            "stream": False,
+        }
+        if "deepseek" in actual_model.lower():
+            payload["thinking"] = {"type": "enabled"}
+        
+        resp = requests.post(
+            endpoint["api_url"],
+            headers=headers,
+            json=payload,
+            timeout=300
+        )
+        
+        if not resp.ok:
+            try:
+                err = resp.json().get("error", {}).get("message", resp.text)
+            except Exception:
+                err = resp.text or f"HTTP {resp.status_code}"
+            logger.error(f"[Conversation] /generate-volume-outline API 错误: {err}")
+            return jsonify({"success": False, "error": err}), 502
+        
+        result = resp.json()
+        choices = result.get("choices") or [{}]
+        raw_content = choices[0].get("message", {}).get("content", "") if choices else ""
+        
+        # 保存到文件
+        vol_file = project_dir / f"detailed_outline_vol{volume_number}.md"
+        vol_file.write_text(raw_content, encoding='utf-8')
+        logger.info(f"[Conversation] 第{volume_number}卷细纲已保存: {vol_file}")
+        
+        return jsonify({
+            "success": True,
+            "content": raw_content,
+            "file": str(vol_file.name),
+            "model": actual_model,
+        })
+        
+    except Exception as e:
+        logger.error(f"[Conversation] /generate-volume-outline 失败: {e}")
+        return jsonify({"success": False, "error": str(e)}), 500

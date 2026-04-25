@@ -719,6 +719,9 @@
                 <button id="nextBatchBtn" class="gen-btn secondary" style="margin-top:8px;display:none;" onclick="startNextBatch()">
                     <span>▶️</span> 继续下一批
                 </button>
+                <button id="genVolOutlineBtn" class="gen-btn secondary" style="margin-top:8px;" onclick="generateVolumeOutline()">
+                    <span>📋</span> 生成本卷细纲
+                </button>
             </div>
 
             <!-- 状态 -->
@@ -810,6 +813,7 @@ document.addEventListener('DOMContentLoaded', () => {
     $('saveBtn').addEventListener('click', saveChapterEdits);
     $('editBtn').addEventListener('click', toggleEditMode);
     $('cancelEditBtn').addEventListener('click', cancelEdit);
+    restoreLastProject();
 });
 
 async function loadProjects() {
@@ -826,11 +830,6 @@ async function loadProjects() {
                 opt.textContent = p.title || p.id;
                 select.appendChild(opt);
             });
-            // 项目加载完成后，自动加载第一个项目的文件
-            if (projects.length > 0) {
-                select.value = projects[0].id;
-                await loadProjectFiles(projects[0].id, parseInt($('volumeSelect').value));
-            }
         } else {
             select.innerHTML = '<option value="">-- 无项目 --</option>';
         }
@@ -838,6 +837,25 @@ async function loadProjects() {
         $('projectSelect').innerHTML = '<option value="">-- 加载失败 --</option>';
         showToast('加载项目失败: ' + e.message, 'error');
     }
+}
+
+function restoreLastProject() {
+    try {
+        const lastPid = localStorage.getItem('lastProjectId');
+        const lastVol = localStorage.getItem('lastVolume');
+        if (lastPid && $('projectSelect').querySelector(`option[value="${lastPid}"]`)) {
+            $('projectSelect').value = lastPid;
+            if (lastVol) $('volumeSelect').value = lastVol;
+            loadProjectFiles(lastPid, parseInt($('volumeSelect').value));
+        }
+    } catch (e) {}
+}
+
+function saveLastProject() {
+    try {
+        if (currentProject) localStorage.setItem('lastProjectId', currentProject);
+        localStorage.setItem('lastVolume', $('volumeSelect').value);
+    } catch (e) {}
 }
 
 // 项目/卷号切换时自动加载细纲
@@ -1010,6 +1028,50 @@ async function saveProjectFiles() {
     }
 }
 
+// ===== 生成分卷细纲 =====
+async function generateVolumeOutline() {
+    const projectId = $('projectSelect').value;
+    const volumeNumber = parseInt($('volumeSelect').value);
+    const model = $('modelSelect').value;
+
+    if (!projectId) {
+        showToast('请先选择一个项目', 'error');
+        return;
+    }
+
+    const btn = $('genVolOutlineBtn');
+    const originalText = btn.innerHTML;
+    btn.disabled = true;
+    btn.innerHTML = '<span>⏳</span> 生成中...';
+
+    try {
+        const resp = await fetch('/api/conversation/generate-volume-outline', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                project_id: projectId,
+                volume_number: volumeNumber,
+                model: model
+            })
+        });
+        const data = await resp.json();
+        if (data.success) {
+            // 刷新项目文件
+            await loadProjectFiles(projectId, volumeNumber);
+            // 如果当前正在显示细纲，刷新
+            if (currentRefType === 'detailed') showOutline();
+            showToast(`✅ 第${volumeNumber}卷细纲生成完成`, 'success');
+        } else {
+            showToast('生成失败: ' + (data.error || '未知错误'), 'error');
+        }
+    } catch (e) {
+        showToast('请求失败: ' + e.message, 'error');
+    } finally {
+        btn.disabled = false;
+        btn.innerHTML = originalText;
+    }
+}
+
 // 简单的 Markdown 渲染
 function renderMarkdown(text) {
     const lines = text.split('\n');
@@ -1065,6 +1127,7 @@ async function startGeneration() {
     currentBatchStart = startChapter;
     currentBatchEnd = startChapter + batchSize - 1;
     isGenerating = true;
+    saveLastProject();
 
     // 重置 UI
     chapters = {};
