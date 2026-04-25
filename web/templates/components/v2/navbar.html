@@ -39,9 +39,13 @@
             <a href="/novels" class="v2-nav-link {% if request.endpoint == 'novels_view' %}v2-nav-link--active{% endif %}">
                 <span data-i18n="nav.works">作品</span>
             </a>
-            <!-- 对话式设定生成（替换原小说工坊） -->
+            <!-- 自由创作（原 AI 设定） -->
             <a href="/novelcraft" class="v2-nav-link {% if request.endpoint == 'novelcraft_page' %}v2-nav-link--active{% endif %}">
-                <span>AI 设定</span>
+                <span>自由创作</span>
+            </a>
+            <!-- 正文生成 -->
+            <a href="/chapter-generation" class="v2-nav-link {% if request.endpoint == 'chapter_generation_page' %}v2-nav-link--active{% endif %}">
+                <span>正文生成</span>
             </a>
             <!-- 文风管理 -->
             <a href="/writing-style-library" class="v2-nav-link {% if request.endpoint == 'writing_style_library' %}v2-nav-link--active{% endif %}">
@@ -81,10 +85,6 @@
             </select>
         </div>
         {% if session.logged_in %}
-            <a href="/create-hub" class="v2-btn v2-btn--primary v2-btn--sm">
-                <span style="font-size: 14px; line-height: 1;">✨</span>
-                <span data-i18n="nav.newCreate">新建创作</span>
-            </a>
             {% include 'components/v2/user-menu.html' %}
         {% else %}
             <a href="/login" class="v2-nav-link" data-i18n="nav.login">登录</a>

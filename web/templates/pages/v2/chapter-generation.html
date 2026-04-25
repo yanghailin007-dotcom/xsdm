@@ -1,0 +1,1472 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>正文生成 - NovelCraft</title>
+    <style>
+        :root {
+            --bg-primary: #0d1117;
+            --bg-secondary: #111318;
+            --bg-tertiary: #161b22;
+            --bg-message: #1a1d23;
+            --border-color: #30363d;
+            --border-light: #21262d;
+            --text-primary: #e6edf3;
+            --text-secondary: #8b949e;
+            --text-muted: #6e7681;
+            --accent: #8b5cf6;
+            --accent-dim: rgba(139,92,246,0.15);
+            --accent-border: rgba(139,92,246,0.3);
+            --success: #22c55e;
+            --warning: #f59e0b;
+            --error: #ef4444;
+            --info: #3b82f6;
+            --radius: 12px;
+            --radius-sm: 8px;
+            --shadow: 0 4px 24px rgba(0,0,0,0.4);
+            --glow: 0 0 20px rgba(139,92,246,0.15);
+            --font-mono: 'SF Mono', 'JetBrains Mono', 'Fira Code', monospace;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        html, body {
+            height: 100%;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+            font-size: 15px;
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            overflow: hidden;
+        }
+
+        /* ===== 顶部导航 ===== */
+        .top-nav {
+            height: 56px;
+            background: var(--bg-secondary);
+            border-bottom: 1px solid var(--border-color);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 24px;
+            flex-shrink: 0;
+        }
+        .nav-left { display: flex; align-items: center; gap: 16px; }
+        .nav-logo {
+            font-size: 16px;
+            font-weight: 700;
+            color: var(--text-primary);
+            text-decoration: none;
+        }
+        .nav-links { display: flex; gap: 4px; }
+        .nav-links a {
+            padding: 6px 14px;
+            border-radius: var(--radius-sm);
+            font-size: 13px;
+            color: var(--text-secondary);
+            text-decoration: none;
+            transition: all 0.2s;
+        }
+        .nav-links a:hover { background: var(--bg-tertiary); color: var(--text-primary); }
+        .nav-links a.active { background: rgba(139,92,246,0.15); color: #a78bfa; }
+
+        .nav-right { display: flex; align-items: center; gap: 10px; }
+        .nav-model-select {
+            background: var(--bg-tertiary);
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius-sm);
+            padding: 6px 12px;
+            color: var(--text-primary);
+            font-size: 12px;
+            outline: none;
+        }
+        .nav-user { font-size: 12px; color: var(--text-secondary); }
+
+        /* ===== 主体布局 ===== */
+        .main-wrapper {
+            height: calc(100vh - 56px);
+            display: grid;
+            grid-template-columns: 320px 1fr;
+            overflow: hidden;
+        }
+
+        /* ===== 左侧面板 ===== */
+        .left-panel {
+            background: var(--bg-secondary);
+            border-right: 1px solid var(--border-color);
+            padding: 16px;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            overflow-y: auto;
+        }
+
+        .config-card {
+            background: var(--bg-tertiary);
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius);
+            padding: 14px;
+            transition: border-color 0.2s;
+        }
+        .config-card:hover { border-color: var(--border-hover); }
+        .config-card h3 {
+            font-size: 13px;
+            font-weight: 600;
+            color: var(--text-primary);
+            margin-bottom: 12px;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .form-group { margin-bottom: 12px; }
+        .form-group:last-child { margin-bottom: 0; }
+        .form-group label {
+            display: block;
+            font-size: 11px;
+            color: var(--text-secondary);
+            margin-bottom: 5px;
+            font-weight: 500;
+            letter-spacing: 0.3px;
+        }
+        .form-group select,
+        .form-group input[type="number"] {
+            width: 100%;
+            padding: 8px 11px;
+            background: var(--bg-primary);
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius-sm);
+            color: var(--text-primary);
+            font-size: 12px;
+            outline: none;
+            transition: border-color 0.2s, box-shadow 0.2s;
+        }
+        .form-group select:focus,
+        .form-group input:focus {
+            border-color: var(--accent);
+            box-shadow: 0 0 0 3px var(--accent-dim);
+        }
+
+        .gen-btn {
+            width: 100%;
+            padding: 10px 14px;
+            background: linear-gradient(135deg, var(--accent), #7c3aed);
+            border: none;
+            border-radius: var(--radius-sm);
+            color: #fff;
+            font-size: 12px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 5px;
+            letter-spacing: 0.5px;
+        }
+        .gen-btn:hover:not(:disabled) { transform: translateY(-1px); box-shadow: var(--glow); filter: brightness(1.1); }
+        .gen-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+        .gen-btn.running {
+            background: linear-gradient(135deg, var(--warning), #d97706);
+            animation: btnPulse 2s infinite;
+        }
+        @keyframes btnPulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.85; }
+        }
+        .gen-btn.secondary {
+            background: var(--bg-primary);
+            border: 1px solid var(--border-color);
+            color: var(--text-secondary);
+        }
+        .gen-btn.secondary:hover:not(:disabled) {
+            border-color: var(--accent);
+            color: var(--accent);
+            box-shadow: none;
+            filter: none;
+        }
+
+        .status-card {
+            background: var(--bg-tertiary);
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius);
+            padding: 14px;
+            font-size: 11px;
+        }
+        .status-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 8px;
+            color: var(--text-secondary);
+        }
+        .status-row:last-child { margin-bottom: 0; }
+        .status-row .val {
+            font-weight: 600;
+            color: var(--text-primary);
+            font-family: var(--font-mono);
+        }
+        .status-row .val.success { color: var(--success); }
+        .status-row .val.error { color: var(--error); }
+        .status-row .val.warning { color: var(--warning); }
+
+        .progress-bar {
+            width: 100%;
+            height: 5px;
+            background: var(--bg-primary);
+            border-radius: 3px;
+            overflow: hidden;
+            margin-top: 6px;
+        }
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, var(--accent), #a78bfa);
+            border-radius: 3px;
+            transition: width 0.3s ease;
+        }
+
+        /* ===== 右侧面板 ===== */
+        .right-panel {
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        .chapter-tabs {
+            display: flex;
+            gap: 4px;
+            background: var(--bg-secondary);
+            border-bottom: 1px solid var(--border-color);
+            padding: 8px 14px;
+            overflow-x: auto;
+            flex-shrink: 0;
+        }
+        .chapter-tab {
+            padding: 6px 14px;
+            border-radius: var(--radius-sm);
+            font-size: 12px;
+            font-weight: 500;
+            color: var(--text-secondary);
+            background: transparent;
+            border: none;
+            cursor: pointer;
+            transition: all 0.2s;
+            white-space: nowrap;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            position: relative;
+        }
+        .chapter-tab:hover { background: var(--bg-tertiary); color: var(--text-primary); }
+        .chapter-tab.active {
+            background: var(--accent-dim);
+            color: var(--accent);
+            border: 1px solid var(--accent-border);
+        }
+        .chapter-tab .dot {
+            width: 6px;
+            height: 6px;
+            border-radius: 50%;
+            display: inline-block;
+            flex-shrink: 0;
+        }
+        .chapter-tab .dot.pending { background: var(--text-muted); }
+        .chapter-tab .dot.generating { background: var(--warning); animation: pulse 1.2s infinite; }
+        .chapter-tab .dot.generated { background: var(--success); }
+        .chapter-tab .dot.failed { background: var(--error); }
+        .chapter-tab.outline-tab {
+            background: var(--bg-tertiary);
+            border: 1px solid var(--border-color);
+            color: var(--accent);
+        }
+        .chapter-tab.outline-tab:hover {
+            background: var(--accent-dim);
+            border-color: var(--accent-border);
+        }
+        .chapter-tab.outline-tab.active {
+            background: var(--accent);
+            color: #fff;
+            border-color: var(--accent);
+        }
+        .chapter-tab .ch-title {
+            max-width: 140px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.4; }
+        }
+
+        .content-card {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+        .content-header {
+            padding: 10px 16px;
+            border-bottom: 1px solid var(--border-color);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: var(--bg-secondary);
+            flex-shrink: 0;
+        }
+        .content-header h3 {
+            font-size: 14px;
+            font-weight: 600;
+            color: var(--text-primary);
+            letter-spacing: 0.3px;
+        }
+        .content-header .actions {
+            display: flex;
+            gap: 6px;
+        }
+        .content-header .actions button {
+            padding: 4px 10px;
+            font-size: 11px;
+            border-radius: var(--radius-sm);
+            border: 1px solid var(--border-color);
+            background: var(--bg-tertiary);
+            color: var(--text-secondary);
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .content-header .actions button:hover {
+            border-color: var(--accent);
+            color: var(--accent);
+        }
+        .content-header .actions button:disabled {
+            opacity: 0.4;
+            cursor: not-allowed;
+        }
+
+        .content-body {
+            flex: 1;
+            padding: 20px 28px;
+            overflow-y: auto;
+            line-height: 1.85;
+            font-size: 15px;
+            color: var(--text-primary);
+        }
+        /* 番茄 APP 标准：空行分隔，无首行缩进 */
+        .content-body p {
+            margin-bottom: 0.6em;
+            text-indent: 0;
+        }
+        /* 对话段落特殊样式 */
+        .content-body p.dialogue {
+            color: var(--text-primary);
+            font-weight: 500;
+        }
+        .content-body mark {
+            transition: background 0.2s;
+        }
+        .content-body mark:hover {
+            filter: brightness(1.3);
+        }
+        .content-body.empty {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: var(--text-muted);
+            font-size: 13px;
+        }
+
+        .thinking-box {
+            background: var(--bg-tertiary);
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius-sm);
+            padding: 8px 12px;
+            margin: 6px 14px 0;
+            flex-shrink: 0;
+            max-width: fit-content;
+        }
+        .thinking-box .thinking-header {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            font-size: 11px;
+            font-weight: 600;
+            color: var(--warning);
+            cursor: pointer;
+            user-select: none;
+        }
+        .thinking-box .thinking-header .toggle-icon {
+            margin-left: 6px;
+            font-size: 10px;
+            transition: transform 0.2s;
+        }
+        .thinking-box .thinking-header .toggle-icon.expanded {
+            transform: rotate(90deg);
+        }
+        .thinking-box .thinking-body {
+            margin-top: 6px;
+            padding-top: 6px;
+            border-top: 1px solid var(--border-color);
+            font-size: 11px;
+            color: var(--text-secondary);
+            font-family: var(--font-mono);
+            line-height: 1.5;
+            white-space: pre-wrap;
+            max-height: 160px;
+            overflow-y: auto;
+        }
+        .thinking-box .thinking-body.collapsed { display: none; }
+
+        /* ===== 质检面板 ===== */
+        .quality-panel {
+            background: var(--bg-secondary);
+            border-top: 1px solid var(--border-color);
+            padding: 14px 16px;
+            max-height: 280px;
+            overflow-y: auto;
+            flex-shrink: 0;
+        }
+        .quality-panel h3 {
+            font-size: 13px;
+            font-weight: 600;
+            color: var(--text-primary);
+            margin-bottom: 10px;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+        .quality-summary {
+            display: flex;
+            gap: 12px;
+            margin-bottom: 12px;
+            flex-wrap: wrap;
+        }
+        .quality-score {
+            background: var(--bg-tertiary);
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius-sm);
+            padding: 10px 14px;
+            min-width: 80px;
+            text-align: center;
+        }
+        .quality-score .score-val {
+            font-size: 24px;
+            font-weight: 700;
+            font-family: var(--font-mono);
+        }
+        .quality-score .score-val.high { color: var(--success); }
+        .quality-score .score-val.mid { color: var(--warning); }
+        .quality-score .score-val.low { color: var(--error); }
+        .quality-score .score-label {
+            font-size: 10px;
+            color: var(--text-muted);
+            margin-top: 3px;
+        }
+        .quality-result {
+            padding: 5px 10px;
+            border-radius: var(--radius-sm);
+            font-size: 12px;
+            font-weight: 600;
+        }
+        .quality-result.pass {
+            background: rgba(34,197,94,0.12);
+            color: var(--success);
+            border: 1px solid rgba(34,197,94,0.25);
+        }
+        .quality-result.fail {
+            background: rgba(239,68,68,0.12);
+            color: var(--error);
+            border: 1px solid rgba(239,68,68,0.25);
+        }
+
+        .issue-list {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+        }
+        .issue-item {
+            background: var(--bg-tertiary);
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius-sm);
+            padding: 10px 12px;
+            margin-bottom: 6px;
+            font-size: 11px;
+        }
+        .issue-item:last-child { margin-bottom: 0; }
+        .issue-header {
+            display: flex;
+            gap: 6px;
+            align-items: center;
+            margin-bottom: 4px;
+            flex-wrap: wrap;
+        }
+        .issue-badge {
+            padding: 1px 6px;
+            border-radius: 3px;
+            font-size: 9px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        .issue-badge.critical { background: rgba(239,68,68,0.2); color: var(--error); }
+        .issue-badge.warning { background: rgba(245,158,11,0.2); color: var(--warning); }
+        .issue-badge.suggestion { background: rgba(59,130,246,0.2); color: var(--info); }
+        .issue-badge.cat {
+            background: var(--bg-primary);
+            color: var(--text-secondary);
+            border: 1px solid var(--border-color);
+        }
+        .issue-desc { color: var(--text-primary); line-height: 1.5; margin-bottom: 3px; }
+        .issue-fix { color: var(--text-muted); font-style: italic; }
+
+        /* ===== Toast ===== */
+        .toast {
+            position: fixed;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            padding: 8px 18px;
+            border-radius: var(--radius-sm);
+            font-size: 12px;
+            font-weight: 500;
+            color: #fff;
+            z-index: 1000;
+            animation: slideUp 0.3s ease;
+            display: none;
+        }
+        .toast.show { display: block; }
+        .toast.success { background: var(--success); }
+        .toast.error { background: var(--error); }
+        .toast.info { background: var(--info); }
+        @keyframes slideUp {
+            from { transform: translateX(-50%) translateY(20px); opacity: 0; }
+            to { transform: translateX(-50%) translateY(0); opacity: 1; }
+        }
+
+        /* ===== 自定义滚动条 ===== */
+        ::-webkit-scrollbar { width: 5px; height: 5px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: var(--border-color); border-radius: 3px; }
+        ::-webkit-scrollbar-thumb:hover { background: var(--text-muted); }
+
+        /* ===== 重写弹窗 ===== */
+        .modal-overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(0,0,0,0.7);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            z-index: 2000;
+        }
+        .modal-overlay.show { display: flex; }
+        .modal-box {
+            background: var(--bg-secondary);
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius);
+            padding: 20px;
+            width: 90%;
+            max-width: 520px;
+            max-height: 80vh;
+            overflow-y: auto;
+        }
+        .modal-box h3 {
+            font-size: 14px;
+            font-weight: 600;
+            color: var(--text-primary);
+            margin-bottom: 12px;
+        }
+        .modal-box textarea {
+            width: 100%;
+            min-height: 100px;
+            padding: 8px 10px;
+            background: var(--bg-primary);
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius-sm);
+            color: var(--text-primary);
+            font-size: 12px;
+            resize: vertical;
+            margin-bottom: 12px;
+            font-family: inherit;
+            line-height: 1.5;
+        }
+        .modal-box textarea:focus {
+            border-color: var(--accent);
+            outline: none;
+        }
+        .modal-actions {
+            display: flex;
+            justify-content: flex-end;
+            gap: 8px;
+        }
+        .modal-actions button {
+            padding: 6px 14px;
+            border-radius: var(--radius-sm);
+            font-size: 12px;
+            font-weight: 500;
+            cursor: pointer;
+            border: none;
+        }
+        .modal-actions .btn-primary {
+            background: var(--accent);
+            color: #fff;
+        }
+        .modal-actions .btn-secondary {
+            background: var(--bg-tertiary);
+            color: var(--text-secondary);
+            border: 1px solid var(--border-color);
+        }
+
+        @media (max-width: 1024px) {
+            .main-wrapper { grid-template-columns: 1fr; }
+            .left-panel {
+                position: fixed;
+                bottom: 0;
+                left: 0;
+                right: 0;
+                max-height: 50vh;
+                z-index: 100;
+                border-right: none;
+                border-top: 1px solid var(--border-color);
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- 顶部导航 -->
+    <header class="top-nav">
+        <div class="nav-left">
+            <a href="/" class="nav-logo">📖 NovelCraft</a>
+            <div class="nav-links">
+                <a href="/">工作台</a>
+                <a href="/novelcraft">AI 设定</a>
+                <a href="/chapter-generation" class="active">正文生成</a>
+            </div>
+        </div>
+        <div class="nav-right">
+            <span class="nav-user" id="navUser"></span>
+        </div>
+    </header>
+
+    <!-- 主体 -->
+    <div class="main-wrapper">
+        <!-- 左侧面板 -->
+        <div class="left-panel">
+            <!-- 项目配置 -->
+            <div class="config-card">
+                <h3>📚 项目选择</h3>
+                <div class="form-group">
+                    <label>项目</label>
+                    <select id="projectSelect"><option value="">-- 加载中 --</option></select>
+                </div>
+                <div class="form-group">
+                    <label>卷号</label>
+                    <select id="volumeSelect">
+                        <option value="1" selected>第1卷</option>
+                        <option value="2">第2卷</option>
+                        <option value="3">第3卷</option>
+                        <option value="4">第4卷</option>
+                        <option value="5">第5卷</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>模型</label>
+                    <select id="modelSelect">
+                        <option value="deepseek-v4-pro" selected>DeepSeek-V4-Pro</option>
+                        <option value="deepseek-v4-flash">DeepSeek-V4-Flash</option>
+                        <option value="kimi-k2.5">Kimi-K2.5</option>
+                        <option value="gemini-3-flash">Gemini-3-Flash</option>
+                    </select>
+                </div>
+            </div>
+
+            <!-- 生成设置 -->
+            <div class="config-card">
+                <h3>⚙️ 生成设置</h3>
+                <div class="form-group">
+                    <label>起始章节</label>
+                    <input type="number" id="startChapter" value="1" min="1" />
+                </div>
+                <div class="form-group">
+                    <label>每批章数</label>
+                    <input type="number" id="batchSize" value="6" min="1" max="10" />
+                </div>
+                <button id="generateBtn" class="gen-btn">
+                    <span>✨</span> 开始生成
+                </button>
+                <button id="qualityCheckBtn" class="gen-btn secondary" style="margin-top:8px;" disabled>
+                    <span>🔍</span> 对齐质检
+                </button>
+                <button id="nextBatchBtn" class="gen-btn secondary" style="margin-top:8px;display:none;" onclick="startNextBatch()">
+                    <span>▶️</span> 继续下一批
+                </button>
+            </div>
+
+            <!-- 状态 -->
+            <div class="status-card" id="statusCard">
+                <div class="status-row"><span>生成状态</span><span class="val" id="statusText">未开始</span></div>
+                <div class="status-row"><span>已生成章节</span><span class="val" id="generatedCount">0 / 0</span></div>
+                <div class="status-row"><span>当前章节</span><span class="val" id="currentChapterText">-</span></div>
+                <div class="progress-bar"><div class="progress-fill" id="progressFill" style="width:0%"></div></div>
+            </div>
+
+
+        </div>
+
+        <!-- 右侧面板 -->
+        <div class="right-panel">
+            <!-- 章节标签页 -->
+            <div class="chapter-tabs" id="chapterTabs"></div>
+
+            <!-- 思考区 -->
+            <div id="thinkingContainer"></div>
+
+            <!-- 内容区域 -->
+            <div class="content-card">
+                <div class="content-header">
+                    <h3 id="contentTitle">章节内容</h3>
+                    <div class="actions">
+                        <button id="rewriteBtn" disabled>🔄 重写</button>
+                        <button id="saveBtn" disabled>💾 保存</button>
+                    </div>
+                </div>
+                <div class="content-body empty" id="contentBody">请选择项目并点击「开始生成」</div>
+            </div>
+
+            <!-- 质检面板 -->
+            <div class="quality-panel" id="qualityPanel" style="display:none;">
+                <h3>🔍 对齐质检报告</h3>
+                <div class="quality-summary" id="qualitySummary"></div>
+                <ul class="issue-list" id="issueList"></ul>
+            </div>
+        </div>
+    </div>
+
+    <!-- Toast -->
+    <div class="toast" id="toast"></div>
+
+    <!-- 重写弹窗 -->
+    <div class="modal-overlay" id="rewriteModal">
+        <div class="modal-box">
+            <h3>🔄 重写章节 <span id="rewriteChapterNum"></span></h3>
+            <label style="font-size:11px;color:var(--text-secondary);display:block;margin-bottom:6px;">修改要求</label>
+            <textarea id="rewriteInstruction" placeholder="如：增加打脸力度、加强钩子、修正设定偏差等..."></textarea>
+            <div class="modal-actions">
+                <button class="btn-secondary" onclick="closeRewriteModal()">取消</button>
+                <button class="btn-primary" onclick="confirmRewrite()">确认重写</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+
+// ===== 状态 =====
+let projects = [];
+let currentProject = null;
+let chapters = {}; // { chNum: { title, content, status } }
+let isGenerating = false;
+let currentBatchStart = 1;
+let currentBatchEnd = 6;
+let sessionMessages = []; // 每卷一个会话的消息历史
+let currentVolume = 1;
+let activeChapter = null;
+let qualityReport = null; // 当前质检报告
+let projectFiles = null; // 当前项目文件（细纲等）
+let showingOutline = false; // 是否正在显示细纲
+
+const $ = id => document.getElementById(id);
+
+// ===== 初始化 =====
+document.addEventListener('DOMContentLoaded', () => {
+    loadProjects();
+    loadUserInfo();
+    $('generateBtn').addEventListener('click', startGeneration);
+    $('qualityCheckBtn').addEventListener('click', runQualityCheck);
+    $('rewriteBtn').addEventListener('click', openRewriteModal);
+    $('saveBtn').addEventListener('click', saveChapterEdits);
+});
+
+async function loadProjects() {
+    try {
+        const resp = await fetch('/api/novels/list');
+        const data = await resp.json();
+        const select = $('projectSelect');
+        if (data.success && data.data && data.data.length > 0) {
+            projects = data.data;
+            select.innerHTML = '<option value="">-- 选择项目 --</option>';
+            projects.forEach(p => {
+                const opt = document.createElement('option');
+                opt.value = p.id;
+                opt.textContent = p.title || p.id;
+                select.appendChild(opt);
+            });
+            // 项目加载完成后，自动加载第一个项目的文件
+            if (projects.length > 0) {
+                select.value = projects[0].id;
+                await loadProjectFiles(projects[0].id, parseInt($('volumeSelect').value));
+            }
+        } else {
+            select.innerHTML = '<option value="">-- 无项目 --</option>';
+        }
+    } catch (e) {
+        $('projectSelect').innerHTML = '<option value="">-- 加载失败 --</option>';
+        showToast('加载项目失败: ' + e.message, 'error');
+    }
+}
+
+// 项目/卷号切换时自动加载细纲
+$('projectSelect').addEventListener('change', async () => {
+    const pid = $('projectSelect').value;
+    if (pid) await loadProjectFiles(pid, parseInt($('volumeSelect').value));
+});
+$('volumeSelect').addEventListener('change', async () => {
+    const pid = $('projectSelect').value;
+    if (pid) await loadProjectFiles(pid, parseInt($('volumeSelect').value));
+});
+
+async function loadProjectFiles(projectId, volumeNumber) {
+    try {
+        const resp = await fetch('/api/conversation/project-files', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ project_id: projectId, volume_number: volumeNumber })
+        });
+        const data = await resp.json();
+        if (data.success) {
+            projectFiles = data;
+            // 更新或创建细纲标签
+            updateOutlineTab();
+            // 如果当前正在显示细纲，刷新内容
+            if (showingOutline) showOutline();
+        }
+    } catch (e) {
+        console.error('加载项目文件失败:', e);
+    }
+}
+
+function updateOutlineTab() {
+    let tab = document.querySelector('.chapter-tab.outline-tab');
+    if (!tab) {
+        tab = document.createElement('button');
+        tab.className = 'chapter-tab outline-tab';
+        tab.innerHTML = '📋 细纲';
+        tab.addEventListener('click', () => showOutline());
+        $('chapterTabs').insertBefore(tab, $('chapterTabs').firstChild);
+    }
+}
+
+function showOutline() {
+    showingOutline = true;
+    activeChapter = null;
+
+    // 更新标签页激活状态
+    document.querySelectorAll('.chapter-tab').forEach(t => t.classList.remove('active'));
+    const tab = document.querySelector('.chapter-tab.outline-tab');
+    if (tab) tab.classList.add('active');
+
+    $('contentTitle').textContent = '📋 本卷细纲';
+    $('contentBody').classList.remove('empty');
+
+    if (projectFiles && projectFiles.detailed_outline) {
+        // 简单渲染：按行分割，## 开头的加粗
+        const lines = projectFiles.detailed_outline.split('\n');
+        let html = '';
+        let inList = false;
+        for (const line of lines) {
+            const trimmed = line.trim();
+            if (!trimmed) {
+                html += '<br>';
+                continue;
+            }
+            if (trimmed.startsWith('## ')) {
+                html += `<h4 style="color:var(--accent);font-size:14px;margin:12px 0 6px;font-weight:600;">${escapeHtml(trimmed.replace(/^##\s*/, ''))}</h4>`;
+            } else if (trimmed.startsWith('- ')) {
+                html += `<p style="margin-left:16px;color:var(--text-secondary);font-size:13px;">• ${escapeHtml(trimmed.replace(/^-\s*/, ''))}</p>`;
+            } else if (trimmed.startsWith('**') && trimmed.endsWith('**')) {
+                html += `<p style="font-weight:600;color:var(--text-primary);">${escapeHtml(trimmed.replace(/\*\*/g, ''))}</p>`;
+            } else {
+                html += `<p>${escapeHtml(trimmed)}</p>`;
+            }
+        }
+        $('contentBody').innerHTML = html;
+    } else {
+        $('contentBody').innerHTML = '<p style="color:var(--text-muted);">暂无细纲内容</p>';
+    }
+
+    $('rewriteBtn').disabled = true;
+    $('saveBtn').disabled = true;
+}
+
+async function loadUserInfo() {
+    try {
+        const resp = await fetch('/api/user/info');
+        const data = await resp.json();
+        if (data.success && data.user) {
+            $('navUser').textContent = data.user.username || '';
+        }
+    } catch (e) {}
+}
+
+// ===== 开始生成 =====
+async function startGeneration() {
+    if (isGenerating) return;
+
+    const projectId = $('projectSelect').value;
+    const volumeNumber = parseInt($('volumeSelect').value);
+    const startChapter = parseInt($('startChapter').value);
+    const batchSize = parseInt($('batchSize').value);
+    const model = $('modelSelect').value;
+
+    if (!projectId) { showToast('请先选择一个项目', 'error'); return; }
+    if (batchSize < 1 || batchSize > 10) { showToast('每批章数应在 1-10 之间', 'error'); return; }
+
+    currentProject = projectId;
+    currentVolume = volumeNumber;
+    currentBatchStart = startChapter;
+    currentBatchEnd = startChapter + batchSize - 1;
+    isGenerating = true;
+
+    // 重置 UI
+    chapters = {};
+    sessionMessages = [];
+    $('chapterTabs').innerHTML = '';
+    $('contentBody').innerHTML = '';
+    $('contentBody').classList.add('empty');
+    $('contentTitle').textContent = '章节内容';
+    $('qualityPanel').style.display = 'none';
+    $('thinkingContainer').innerHTML = '';
+    $('nextBatchBtn').style.display = 'none';
+    qualityReport = null;
+    $('qualityPanel').style.display = 'none';
+    $('generateBtn').classList.add('running');
+    $('generateBtn').disabled = true;
+    $('generateBtn').innerHTML = '<span>⏳</span> 生成中...';
+    $('qualityCheckBtn').disabled = true;
+
+    // 创建标签页
+    for (let i = startChapter; i <= currentBatchEnd; i++) {
+        chapters[i] = { title: `第${i}章`, content: '', status: 'pending' };
+        createChapterTab(i);
+    }
+    updateStatus();
+    updateProgress();
+
+    // 启动 SSE
+    try {
+        const payload = {
+            project_id: projectId,
+            volume_number: volumeNumber,
+            start_chapter: startChapter,
+            batch_size: batchSize,
+            model: model,
+            messages: sessionMessages
+        };
+
+        const resp = await fetch('/api/conversation/generate-batch', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+        });
+
+        const reader = resp.body.getReader();
+        const decoder = new TextDecoder();
+        let fullText = '';
+        let currentThinking = '';
+
+        while (true) {
+            const { done, value } = await reader.read();
+            if (done) break;
+
+            const chunk = decoder.decode(value, { stream: true });
+            const lines = chunk.split('\n');
+
+            for (const line of lines) {
+                if (!line.startsWith('data: ')) continue;
+                const dataStr = line.slice(6).trim();
+                if (!dataStr) continue;
+                if (dataStr === '[DONE]') {
+                    finalizeGeneration();
+                    continue;
+                }
+
+                try {
+                    const data = JSON.parse(dataStr);
+                    if (data.error) {
+                        showToast('生成错误: ' + data.error, 'error');
+                        isGenerating = false;
+                        resetGenerateBtn();
+                        return;
+                    }
+                    if (data.reasoning) {
+                        currentThinking += data.reasoning;
+                        updateThinkingDisplay(currentThinking);
+                    }
+                    if (data.content) {
+                        fullText += data.content;
+                        parseChaptersFromStream(fullText);
+                    }
+                } catch (e) {
+                    // 忽略解析失败的行
+                }
+            }
+        }
+
+        if (isGenerating) finalizeGeneration();
+
+    } catch (e) {
+        showToast('请求失败: ' + e.message, 'error');
+        isGenerating = false;
+        resetGenerateBtn();
+    }
+}
+
+// 中文数字转阿拉伯数字
+function cnToInt(cn) {
+    const map = {'一':1,'二':2,'三':3,'四':4,'五':5,'六':6,'七':7,'八':8,'九':9,'十':10,'百':100,'千':1000,'万':10000,'亿':100000000};
+    if (/^\d+$/.test(cn)) return parseInt(cn);
+    let total = 0, temp = 0;
+    for (const c of cn) {
+        if (map[c] === undefined) continue;
+        const n = map[c];
+        if (n >= 10) {
+            if (temp === 0) temp = 1;
+            total += temp * n;
+            temp = 0;
+        } else {
+            temp = temp ? temp * 10 + n : n;
+        }
+    }
+    return total + temp;
+}
+
+// ===== 从流文本中解析章节 =====
+function parseChaptersFromStream(text) {
+    // 支持阿拉伯数字和中文数字
+    const headingRegex = /### 第([一二三四五六七八九十百千万亿\d]+)章\s*(.*?)\n/g;
+    const headings = [];
+    let m;
+    while ((m = headingRegex.exec(text)) !== null) {
+        headings.push({
+            num: cnToInt(m[1]),
+            title: m[2].trim(),
+            index: m.index,
+            end: m.index + m[0].length
+        });
+    }
+
+    // 提取每个章节的内容
+    for (let i = 0; i < headings.length; i++) {
+        const h = headings[i];
+        const chNum = h.num;
+        const startIdx = h.end;
+        const endIdx = (i + 1 < headings.length) ? headings[i + 1].index : text.length;
+        const content = text.substring(startIdx, endIdx).trim();
+
+        if (chapters[chNum]) {
+            chapters[chNum].title = h.title || `第${chNum}章`;
+            chapters[chNum].content = content;
+            chapters[chNum].status = 'generated';
+            updateChapterTab(chNum);
+        }
+    }
+    updateStatus();
+    updateProgress();
+}
+
+// ===== 完成生成 =====
+function finalizeGeneration() {
+    isGenerating = false;
+    resetGenerateBtn();
+    $('qualityCheckBtn').disabled = false;
+    $('nextBatchBtn').style.display = 'flex';
+    showToast('✅ 批次生成完成', 'success');
+
+    // 默认显示第一个已生成的章节
+    const nums = Object.keys(chapters).map(Number).sort((a, b) => a - b);
+    const firstGenerated = nums.find(n => chapters[n].status === 'generated');
+    if (firstGenerated) showChapter(firstGenerated);
+}
+
+// ===== 开始下一批 =====
+function startNextBatch() {
+    const nextStart = currentBatchEnd + 1;
+    $('startChapter').value = nextStart;
+    $('nextBatchBtn').style.display = 'none';
+    startGeneration();
+}
+
+function resetGenerateBtn() {
+    $('generateBtn').classList.remove('running');
+    $('generateBtn').disabled = false;
+    $('generateBtn').innerHTML = '<span>✨</span> 开始生成';
+}
+
+// ===== 章节标签页 =====
+function createChapterTab(chNum) {
+    const tab = document.createElement('button');
+    tab.className = 'chapter-tab';
+    tab.dataset.ch = chNum;
+    const title = chapters[chNum].title || `第${chNum}章`;
+    tab.innerHTML = `<span class="dot ${chapters[chNum].status}"></span><span class="ch-title">${escapeHtml(title)}</span>`;
+    tab.addEventListener('click', () => showChapter(chNum));
+    $('chapterTabs').appendChild(tab);
+}
+
+function updateChapterTab(chNum) {
+    const tab = document.querySelector(`.chapter-tab[data-ch="${chNum}"]`);
+    if (!tab) return;
+    const ch = chapters[chNum];
+    tab.innerHTML = `<span class="dot ${ch.status}"></span><span class="ch-title">${escapeHtml(ch.title)}</span>`;
+}
+
+function showChapter(chNum) {
+    showingOutline = false;
+    activeChapter = chNum;
+    const ch = chapters[chNum];
+    if (!ch) return;
+
+    document.querySelectorAll('.chapter-tab').forEach(t => t.classList.remove('active'));
+    document.querySelectorAll('.chapter-tab.outline-tab').forEach(t => t.classList.remove('active'));
+    const tab = document.querySelector(`.chapter-tab[data-ch="${chNum}"]`);
+    if (tab) tab.classList.add('active');
+
+    $('contentTitle').textContent = ch.title;
+    $('contentBody').classList.remove('empty');
+
+    if (ch.content) {
+        let html = renderChapterWithHighlights(ch.content, chNum);
+        $('contentBody').innerHTML = html;
+    } else {
+        $('contentBody').innerHTML = '<p style="color:var(--text-muted);">等待生成中...</p>';
+    }
+
+    $('rewriteBtn').disabled = false;
+    $('saveBtn').disabled = false;
+}
+
+// ===== 渲染章节内容，高亮质检问题 =====
+function renderChapterWithHighlights(content, chNum) {
+    // 先按段落分割
+    const paragraphs = content.split('\n\n').filter(p => p.trim());
+    let html = paragraphs.map(p => `<p>${escapeHtml(p)}</p>`).join('\n');
+
+    // 如果有质检报告，高亮当前章节的问题文字
+    if (qualityReport && qualityReport.issues) {
+        const chapterIssues = qualityReport.issues.filter(i => (i.chapter || '').toString() === chNum.toString());
+        for (const issue of chapterIssues) {
+            const highlights = issue.highlights || [];
+            for (const hl of highlights) {
+                if (!hl.trim()) continue;
+                const safeHl = escapeHtml(hl);
+                const color = issue.severity === 'critical' ? '#ef4444' : (issue.severity === 'warning' ? '#f59e0b' : '#3b82f6');
+                const bg = issue.severity === 'critical' ? 'rgba(239,68,68,0.15)' : (issue.severity === 'warning' ? 'rgba(245,158,11,0.12)' : 'rgba(59,130,246,0.1)');
+                // 用 mark 标签高亮，并添加 tooltip
+                const markHtml = `<mark style="background:${bg};color:${color};border-radius:3px;padding:1px 3px;cursor:pointer;" title="${escapeHtml(issue.category || '')}: ${escapeHtml(issue.description || '')}" onclick="showIssueTip(this)">${safeHl}</mark>`;
+                html = html.replaceAll(safeHl, markHtml);
+            }
+        }
+    }
+    return html;
+}
+
+function showIssueTip(el) {
+    showToast(el.getAttribute('title'), 'info');
+}
+
+// ===== 从质检问题直接重写 =====
+function rewriteFromIssue(issueIdx) {
+    if (!qualityReport || !qualityReport.issues[issueIdx]) return;
+    const issue = qualityReport.issues[issueIdx];
+    const chNum = issue.chapter;
+    if (!chNum || !chapters[chNum]) {
+        showToast('该章节尚未生成', 'error');
+        return;
+    }
+    activeChapter = parseInt(chNum);
+    showChapter(activeChapter);
+
+    // 构建重写指令
+    let instruction = `【质检发现的问题】\n类型：${issue.category || '其他'}\n严重程度：${issue.severity || 'warning'}\n问题描述：${issue.description || ''}`;
+    if (issue.fix_suggestion) {
+        instruction += `\n修改建议：${issue.fix_suggestion}`;
+    }
+    const highlights = issue.highlights || [];
+    if (highlights.length > 0) {
+        instruction += `\n问题文字："${highlights.join('"、"')}"`;
+    }
+    instruction += '\n\n请根据以上问题重写本章，确保修复所有问题。';
+
+    $('rewriteChapterNum').textContent = chNum;
+    $('rewriteInstruction').value = instruction;
+    $('rewriteModal').classList.add('show');
+}
+
+function escapeHtml(text) {
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+}
+
+// ===== 更新状态 =====
+function updateStatus() {
+    const total = Object.keys(chapters).length;
+    const done = Object.values(chapters).filter(c => c.status === 'generated').length;
+    const generating = Object.values(chapters).filter(c => c.status === 'generating').length;
+
+    if (isGenerating) {
+        $('statusText').textContent = '生成中...';
+        $('statusText').className = 'val warning';
+    } else if (done > 0) {
+        $('statusText').textContent = '已完成';
+        $('statusText').className = 'val success';
+    } else {
+        $('statusText').textContent = '未开始';
+        $('statusText').className = 'val';
+    }
+
+    $('generatedCount').textContent = `${done} / ${total}`;
+
+    // 找到当前正在生成的章节
+    let currentCh = '-';
+    for (let n = currentBatchStart; n <= currentBatchEnd; n++) {
+        if (chapters[n] && chapters[n].status === 'pending' && currentCh === '-') {
+            currentCh = `第${n}章`;
+            break;
+        }
+    }
+    if (generating > 0) {
+        const g = Object.entries(chapters).find(([k, v]) => v.status === 'generating');
+        if (g) currentCh = `第${g[0]}章`;
+    }
+    $('currentChapterText').textContent = currentCh;
+}
+
+function updateProgress() {
+    const total = Object.keys(chapters).length;
+    const done = Object.values(chapters).filter(c => c.status === 'generated').length;
+    const pct = total > 0 ? (done / total * 100) : 0;
+    $('progressFill').style.width = pct + '%';
+}
+
+// ===== 思考过程显示 =====
+function updateThinkingDisplay(thinking) {
+    let box = $('thinkingBox');
+    if (!box) {
+        box = document.createElement('div');
+        box.id = 'thinkingBox';
+        box.className = 'thinking-box';
+        box.innerHTML = `
+            <div class="thinking-header" onclick="toggleThinking()">
+                <span>🧠</span> 思考中 <span class="toggle-icon" id="thinkingToggle">▶</span>
+            </div>
+            <div class="thinking-body collapsed" id="thinkingBody"></div>
+        `;
+        $('thinkingContainer').appendChild(box);
+    }
+    $('thinkingBody').textContent = thinking;
+}
+
+function toggleThinking() {
+    const body = $('thinkingBody');
+    const toggle = $('thinkingToggle');
+    if (body) {
+        body.classList.toggle('collapsed');
+        if (toggle) toggle.classList.toggle('expanded');
+    }
+}
+
+// ===== 对齐质检 =====
+async function runQualityCheck() {
+    if (!currentProject) { showToast('请先完成生成', 'error'); return; }
+
+    $('qualityCheckBtn').disabled = true;
+    $('qualityCheckBtn').innerHTML = '<span>⏳</span> 质检中...';
+
+    try {
+        const resp = await fetch('/api/conversation/align-check', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                project_id: currentProject,
+                volume_number: currentVolume,
+                start_chapter: currentBatchStart,
+                end_chapter: currentBatchEnd,
+                model: $('modelSelect').value
+            })
+        });
+
+        const data = await resp.json();
+        if (data.success) {
+            renderQualityReport(data.report);
+            showToast('✅ 质检完成', 'success');
+        } else {
+            showToast('质检失败: ' + (data.error || '未知错误'), 'error');
+        }
+    } catch (e) {
+        showToast('质检请求失败: ' + e.message, 'error');
+    } finally {
+        $('qualityCheckBtn').disabled = false;
+        $('qualityCheckBtn').innerHTML = '<span>🔍</span> 对齐质检';
+    }
+}
+
+function renderQualityReport(report) {
+    qualityReport = report; // 保存到全局，供高亮和重写使用
+    $('qualityPanel').style.display = 'block';
+
+    const passed = report.passed;
+    const score = report.overall_score || 0;
+    const issues = report.issues || [];
+    const summary = report.summary || '';
+
+    let scoreClass = 'low';
+    if (score >= 80) scoreClass = 'high';
+    else if (score >= 60) scoreClass = 'mid';
+
+    let summaryHtml = '';
+    if (summary) {
+        summaryHtml = `<div style="font-size:11px;color:var(--text-secondary);margin-bottom:10px;line-height:1.6;padding:8px;background:var(--bg-tertiary);border-radius:var(--radius-sm);border:1px solid var(--border-color);">${escapeHtml(summary)}</div>`;
+    }
+
+    $('qualitySummary').innerHTML = `
+        <div class="quality-score">
+            <div class="score-val ${scoreClass}">${score}</div>
+            <div class="score-label">总分</div>
+        </div>
+        <div class="quality-result ${passed ? 'pass' : 'fail'}">
+            ${passed ? '✅ 通过' : '❌ 未通过'}
+        </div>
+    `;
+
+    const list = $('issueList');
+    if (issues.length === 0) {
+        list.innerHTML = '<li style="color:var(--success);font-size:12px;">✅ 未发现问题</li>';
+    } else {
+        list.innerHTML = summaryHtml + issues.map((issue, idx) => {
+            const highlights = issue.highlights || [];
+            const hlHtml = highlights.length > 0
+                ? `<div style="margin-top:4px;font-size:10px;color:var(--text-muted);">🔍 相关文字：${highlights.map(h => `<span style="color:var(--error);font-weight:600;">"${escapeHtml(h)}"</span>`).join('、')}</div>`
+                : '';
+            return `
+            <li class="issue-item" data-ch="${issue.chapter || ''}" data-idx="${idx}">
+                <div class="issue-header">
+                    <span class="issue-badge ${issue.severity || 'warning'}">${issue.severity || 'warning'}</span>
+                    <span class="issue-badge cat">${issue.category || '其他'}</span>
+                    <span style="color:var(--text-muted);">第${issue.chapter || '?'}章</span>
+                </div>
+                <div class="issue-desc">${escapeHtml(issue.description || '')}</div>
+                ${issue.fix_suggestion ? `<div class="issue-fix">💡 ${escapeHtml(issue.fix_suggestion)}</div>` : ''}
+                ${hlHtml}
+                <div style="margin-top:6px;text-align:right;">
+                    <button class="gen-btn secondary" style="width:auto;padding:3px 10px;font-size:10px;" onclick="rewriteFromIssue(${idx})">🔄 重写修复</button>
+                </div>
+            </li>
+        `}).join('');
+    }
+
+    // 刷新当前章节显示，应用高亮
+    if (activeChapter) showChapter(activeChapter);
+
+    $('qualityPanel').scrollIntoView({ behavior: 'smooth' });
+}
+
+// ===== 重写章节 =====
+function openRewriteModal() {
+    if (!activeChapter) return;
+    $('rewriteChapterNum').textContent = activeChapter;
+    $('rewriteInstruction').value = '';
+    $('rewriteModal').classList.add('show');
+}
+
+function closeRewriteModal() {
+    $('rewriteModal').classList.remove('show');
+}
+
+async function confirmRewrite() {
+    const chNum = activeChapter;
+    const instruction = $('rewriteInstruction').value.trim();
+    if (!chNum) return;
+
+    closeRewriteModal();
+    showToast(`🔄 开始重写第${chNum}章...`, 'info');
+
+    chapters[chNum].status = 'generating';
+    updateChapterTab(chNum);
+    showChapter(chNum);
+
+    try {
+        const payload = {
+            project_id: currentProject,
+            volume_number: currentVolume,
+            start_chapter: chNum,
+            batch_size: 1,
+            model: $('modelSelect').value,
+            messages: [
+                ...sessionMessages,
+                { role: 'user', content: `请重写第${chNum}章。修改要求：${instruction || '请优化本章质量，增强爽点，修正问题。'}` }
+            ]
+        };
+
+        const resp = await fetch('/api/conversation/generate-batch', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+        });
+
+        const reader = resp.body.getReader();
+        const decoder = new TextDecoder();
+        let fullText = '';
+
+        while (true) {
+            const { done, value } = await reader.read();
+            if (done) break;
+            const chunk = decoder.decode(value, { stream: true });
+            const lines = chunk.split('\n');
+            for (const line of lines) {
+                if (!line.startsWith('data: ')) continue;
+                const dataStr = line.slice(6).trim();
+                if (!dataStr || dataStr === '[DONE]') continue;
+                try {
+                    const data = JSON.parse(dataStr);
+                    if (data.content) fullText += data.content;
+                } catch (e) {}
+            }
+        }
+
+        // 解析重写结果（支持中文数字）
+        const regex = /### 第([一二三四五六七八九十百千万亿\d]+)章\s*(.*?)\n/;
+        const match = regex.exec(fullText);
+        if (match) {
+            const title = match[2].trim();
+            const content = fullText.substring(match.index + match[0].length).trim();
+            chapters[chNum].title = title || `第${chNum}章`;
+            chapters[chNum].content = content;
+        } else {
+            chapters[chNum].content = fullText;
+        }
+        chapters[chNum].status = 'generated';
+        updateChapterTab(chNum);
+        showChapter(chNum);
+        showToast('✅ 重写完成', 'success');
+    } catch (e) {
+        chapters[chNum].status = 'failed';
+        updateChapterTab(chNum);
+        showToast('重写失败: ' + e.message, 'error');
+    }
+}
+
+// ===== 保存章节编辑 =====
+function saveChapterEdits() {
+    // 后端已在流结束时自动保存文件
+    showToast('✅ 章节已保存', 'success');
+}
+
+// ===== Toast =====
+function showToast(msg, type = 'info') {
+    const toast = $('toast');
+    toast.textContent = msg;
+    toast.className = 'toast show ' + type;
+    setTimeout(() => toast.classList.remove('show'), 3000);
+}
+    </script>
+</body>
+</html>

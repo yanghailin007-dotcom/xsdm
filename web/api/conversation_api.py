@@ -5,6 +5,7 @@
 import json
 import os
 import time
+from pathlib import Path
 from flask import Blueprint, request, jsonify, Response, session, stream_with_context
 
 from web.auth import login_required
@@ -849,4 +850,559 @@ def quality_check():
 
     except Exception as e:
         logger.error(f"[Conversation] /quality-check 失败: {e}")
+        return jsonify({"success": False, "error": str(e)}), 500
+
+
+# ───────────────────────────────
+#  5. 正文生成（每卷一个会话）
+# ───────────────────────────────
+
+def _read_project_files(project_dir: Path):
+    """读取项目目录下的设定、大纲、细纲文件"""
+    files = {}
+    
+    # settings - 兼容新旧命名
+    for settings_name in ["settings.md", "core-setting.md", "project_config.json"]:
+        settings_path = project_dir / settings_name
+        if settings_path.exists():
+            if settings_name.endswith('.json'):
+                try:
+                    with open(settings_path, 'r', encoding='utf-8') as f:
+                        data = json.load(f)
+                    files['settings'] = _settings_to_markdown(data)
+                except:
+                    files['settings'] = settings_path.read_text(encoding='utf-8')
+            else:
+                files['settings'] = settings_path.read_text(encoding='utf-8')
+            break
+    if 'settings' not in files:
+        files['settings'] = ""
+    
+    # outline - 兼容新旧命名
+    for outline_name in ["outline.md", "rough-outline.md"]:
+        outline_path = project_dir / outline_name
+        if outline_path.exists():
+            files['outline'] = outline_path.read_text(encoding='utf-8')
+            break
+    if 'outline' not in files:
+        files['outline'] = ""
+    
+    return files
+
+
+def _read_volume_detailed(project_dir: Path, volume_number: int):
+    """读取指定卷的细纲"""
+    # 先尝试按卷文件
+    vol_file = project_dir / f"detailed_outline_vol{volume_number}.md"
+    if vol_file.exists():
+        return vol_file.read_text(encoding='utf-8')
+    
+    # 回退到总览文件（兼容连字符和下划线命名）
+    for total_name in ["detailed_outline.md", "detailed-outline.md"]:
+        total_file = project_dir / total_name
+        if total_file.exists():
+            text = total_file.read_text(encoding='utf-8')
+            # 尝试提取该卷部分
+            import re
+            patterns = [
+                rf'## 第{volume_number}卷.*?(?=## 第{volume_number + 1}卷|\Z)',
+                rf'## .*?第{volume_number}卷.*?(?=## .*?第{volume_number + 1}卷|\Z)',
+            ]
+            for p in patterns:
+                m = re.search(p, text, re.DOTALL)
+                if m:
+                    return m.group(0)
+            return text
+    
+    return ""
+
+
+def _build_writing_prompt(settings_text: str, outline_text: str, detailed_text: str, vol_num: int) -> str:
+    """构建初始写作设定 prompt"""
+    return f"""你是番茄小说（fanqienovel.com）签约级别的专业网文作家。请严格根据以下设定创作正文。
+
+【核心设定】
+{settings_text}
+
+【全书大纲】
+{outline_text}
+
+【本卷细纲】
+{detailed_text}
+
+---
+
+## 平台风格（番茄小说读者偏好）
+
+你的目标平台是番茄小说（fanqienovel.com），读者群体喜欢快节奏、强情绪、强反转的阅读体验。你只需要把握一个原则：**适合番茄读者**。
+
+1. **不要长段落**：拒绝大段旁白和景物描写。叙述、对话、动作、心理各自成段，段落之间用空行分隔。
+
+2. **防风格漂移**：
+   - 每章开头用 1-2 句话回顾上一章的钩子，保持情绪连贯
+   - 始终保持同一主角视角，禁止中途切换视角
+   - 主角性格、行事逻辑在全卷中保持一致
+
+## 格式铁律（违反视为失败）
+
+1. **章节标题决定点击率——必须抓眼球**：
+   - 标题公式：[核心事件/遭遇] + [冲突/悬念/反转] + [情绪词/感叹词]
+   - 标题必须通过"读者测试"：读者只看标题，是否会产生"这章到底发生了什么？"的好奇心想点进来？
+   - 以下标题会被番茄读者直接划走，**绝对禁止出现**：
+     ❌ "省道上的四个小时"（没有事件，没有冲突，像日记）
+     ❌ "老房子里的相册"（没有悬念，没有情绪，像散文）
+     ❌ "系统不对话"（太平淡，像说明文）
+     ❌ "数据包装"（没有人物，没有情节）
+     ❌ "老书记的沉默"（没有反转，没有爽点）
+     ❌ "全省第一个试点"（像公文报告）
+   - 正确示范：
+     ✅ "### 第1章 省道堵车四小时，系统突然弹出百亿蓝图！"
+     ✅ "### 第2章 老房子里翻出神秘相册，系统竟要求他造太空电梯？"
+     ✅ "### 第3章 系统装死不说话，林远一怒点了确认，全县炸了！"
+   - 每章用 "### 第X章 【抓眼球标题】" 作为分隔标记
+
+2. **第三人称**：全文使用第三人称（他/她），锁定主角视角，禁止切换视角。
+
+3. **段落格式**：
+   - 段落之间用一个空行分隔，顶格写（不要首行缩进）
+   - 对话单独成段，用中文引号 "" 包裹
+   - 拒绝大段旁白，叙述/对话/动作各自成段
+
+4. **每章 2000 字左右**（1800-2200 字），严格按照细纲写作
+5. 主角不能圣母、不能降智、不能受辱不还手
+6. 每章结尾必须留钩子
+7. **禁止输出任何说明文字、总结、分析、字数统计、写作思路、本章完、待续等标记**
+8. 章节之间直接连续输出，不要插入空行或分隔线
+9. 标题中的"第X章"用中文数字或阿拉伯数字均可"""
+
+
+@conversation_api.route('/generate-batch', methods=['POST'])
+@login_required
+def generate_batch():
+    """
+    按批次生成正文。每卷一个会话。
+    如果 messages 为空，自动构建初始设定消息。
+    返回 SSE 流式响应。
+    """
+    try:
+        data = request.json or {}
+        project_id = data.get("project_id", "").strip()
+        volume_number = data.get("volume_number", 1)
+        start_chapter = data.get("start_chapter", 1)
+        batch_size = data.get("batch_size", 6)
+        model = data.get("model", "deepseek-v4-pro")
+        messages = data.get("messages", [])
+        
+        if not project_id:
+            return jsonify({"success": False, "error": "project_id 不能为空"}), 400
+        
+        username = session.get('username', 'anonymous')
+        user_dir = Path("小说项目") / username
+        project_dir = user_dir / project_id
+        if not project_dir.exists():
+            return jsonify({"success": False, "error": "项目不存在"}), 404
+        
+        endpoint = _resolve_endpoint(model)
+        if not endpoint:
+            return jsonify({"success": False, "error": f"模型 '{model}' 无可用端点"}), 404
+        if not endpoint.get("api_key"):
+            return jsonify({"success": False, "error": "API Key 未配置"}), 400
+        
+        actual_model = endpoint.get("model", model)
+        
+        # 如果 messages 为空，构建初始设定消息
+        if not messages:
+            files = _read_project_files(project_dir)
+            detailed = _read_volume_detailed(project_dir, volume_number)
+            prompt = _build_writing_prompt(files.get('settings', ''), files.get('outline', ''), detailed, volume_number)
+            messages = [{"role": "user", "content": prompt}]
+        
+        end_chapter = start_chapter + batch_size - 1
+        gen_prompt = f"""请生成本卷第{start_chapter}章到第{end_chapter}章的正文。
+
+记住：每章标题必须是抓眼球的悬念/冲突型，以下类型标题会直接导致读者划走，绝对禁止：
+- ❌ "省道上的四个小时" / "老房子里的相册" / "系统不对话" / "数据包装" / "老书记的沉默" / "全省第一个试点"
+- 正确公式：[核心事件] + [冲突/悬念/反转] + [情绪词/感叹词]
+- 正确示例："第1章 省道堵车四小时，系统突然弹出百亿蓝图！"
+
+严格按照细纲写作，每章2000字左右。"""
+        
+        # 追加到 messages
+        req_messages = messages.copy()
+        req_messages.append({"role": "user", "content": gen_prompt})
+        
+        import requests
+        headers = {
+            "Content-Type": "application/json",
+            "Authorization": f"Bearer {endpoint['api_key']}"
+        }
+        
+        payload = {
+            "model": actual_model,
+            "messages": req_messages,
+            "stream": True,
+        }
+        if "deepseek" in actual_model.lower():
+            payload["thinking"] = {"type": "enabled"}
+        
+        logger.info(f"[Conversation] /generate-batch: project={project_id}, vol={volume_number}, chapters={start_chapter}-{end_chapter}, model={actual_model}")
+        
+        def generate():
+            try:
+                resp = requests.post(
+                    endpoint["api_url"],
+                    headers=headers,
+                    json=payload,
+                    stream=True,
+                    timeout=600
+                )
+            except Exception as e:
+                yield f"data: {json.dumps({'error': f'请求异常: {str(e)}'})}\n\n"
+                return
+            
+            if not resp.ok:
+                try:
+                    err = resp.json().get("error", {}).get("message", resp.text)
+                except Exception:
+                    err = resp.text or f"HTTP {resp.status_code}"
+                logger.error(f"[Conversation] /generate-batch API 错误: {err}")
+                yield f"data: {json.dumps({'error': err})}\n\n"
+                return
+            
+            full_text = ""
+            try:
+                for line in resp.iter_lines():
+                    if not line:
+                        continue
+                    line_text = line.decode('utf-8')
+                    if not line_text.startswith('data: '):
+                        continue
+                    
+                    data_content = line_text[6:]
+                    if data_content == '[DONE]':
+                        # 保存章节文件
+                        _save_chapters_from_text(project_dir, full_text)
+                        yield "data: [DONE]\n\n"
+                        break
+                    
+                    try:
+                        chunk = json.loads(data_content)
+                        choices = chunk.get("choices") or [{}]
+                        delta = choices[0].get("delta", {}) if choices else {}
+                        content_piece = delta.get("content", "")
+                        reasoning_piece = delta.get("reasoning_content", "")
+                        if content_piece:
+                            full_text += content_piece
+                            yield f"data: {json.dumps({'content': content_piece})}\n\n"
+                        if reasoning_piece:
+                            yield f"data: {json.dumps({'reasoning': reasoning_piece})}\n\n"
+                    except (json.JSONDecodeError, IndexError, KeyError):
+                        continue
+            except Exception as e:
+                logger.error(f"[Conversation] /generate-batch 流式异常: {e}")
+                yield f"data: {json.dumps({'error': str(e)})}\n\n"
+        
+        return Response(
+            stream_with_context(generate()),
+            mimetype='text/event-stream',
+            headers={
+                'Cache-Control': 'no-cache',
+                'X-Accel-Buffering': 'no',
+            }
+        )
+        
+    except Exception as e:
+        logger.error(f"[Conversation] /generate-batch 失败: {e}")
+        return jsonify({"success": False, "error": str(e)}), 500
+
+
+def _save_chapters_from_text(project_dir: Path, text: str):
+    """从 AI 返回的文本中提取章节并保存为 .md 文件"""
+    import re
+    
+    chapters_dir = project_dir / "chapters"
+    chapters_dir.mkdir(parents=True, exist_ok=True)
+    
+    # 按 "### 第X章 标题" 分割，支持阿拉伯数字和中文数字
+    pattern = r'### 第([一二三四五六七八九十百千万亿\d]+)章\s*(.*?)\n'
+    matches = list(re.finditer(pattern, text))
+    
+    if not matches:
+        logger.warning(f"[Conversation] 未找到章节标记，尝试保存为单文件")
+        # 兜底：保存为临时文件
+        temp_file = chapters_dir / "_generated_temp.md"
+        with open(temp_file, 'w', encoding='utf-8') as f:
+            f.write(text)
+        return
+    
+    # 中文数字转阿拉伯数字映射
+    CN_NUMS = {'一':1,'二':2,'三':3,'四':4,'五':5,'六':6,'七':7,'八':8,'九':9,'十':10,'百':100,'千':1000,'万':10000,'亿':100000000}
+    
+    def cn_to_int(cn: str) -> int:
+        """简单中文数字转阿拉伯数字"""
+        if cn.isdigit():
+            return int(cn)
+        total = 0
+        temp = 0
+        for c in cn:
+            if c in CN_NUMS:
+                n = CN_NUMS[c]
+                if n >= 10:
+                    if temp == 0:
+                        temp = 1
+                    total += temp * n
+                    temp = 0
+                else:
+                    temp = temp * 10 + n if temp else n
+        return total + temp
+    
+    for i, match in enumerate(matches):
+        ch_num_raw = match.group(1)
+        ch_title = match.group(2).strip()
+        start = match.end()
+        end = matches[i + 1].start() if i + 1 < len(matches) else len(text)
+        content = text[start:end].strip()
+        
+        # 转换章节号为阿拉伯数字
+        ch_num = cn_to_int(ch_num_raw)
+        
+        # 构建文件名
+        safe_title = re.sub(r'[\\/:*?"<>|]', '_', ch_title).strip() or "untitled"
+        filename = f"第{ch_num}章_{safe_title}.md"
+        filepath = chapters_dir / filename
+        
+        with open(filepath, 'w', encoding='utf-8') as f:
+            f.write(f"# 第{ch_num}章 {ch_title}\n\n{content}\n")
+        
+        logger.info(f"[Conversation] 章节已保存: {filepath}")
+
+
+# ───────────────────────────────
+#  6. 对齐质检（正文 vs 细纲）
+# ───────────────────────────────
+
+_ALIGN_CHECK_PROMPT = """你是番茄小说资深编辑。请对生成的正文进行全维度质检，严格对标原始大纲、细纲和核心设定。
+
+## 质检维度
+
+1. **大纲一致性**：正文剧情走向是否与全书大纲一致？是否有擅自改变主线、跳过关键节点、添加大纲外的支线？
+2. **细纲一致性**：正文是否严格按细纲中的场景、情绪曲线、关键对话写作？场景是否遗漏或擅自添加？
+3. **设定一致性**：
+   - 人设：主角性格、说话方式、行事逻辑是否与设定一致？是否圣母/降智/双标/人设崩塌？
+   - 世界观：金手指规则、力量体系、势力关系是否与设定一致？是否出现设定外的能力或规则？
+   - 物品/状态：关键道具、角色状态（修为/资产/伤势）是否前后一致？是否出现状态突变无解释？
+4. **逻辑一致性**：时间线是否合理？因果关系是否通顺？角色行为动机是否充分？是否存在明显的逻辑漏洞？
+5. **网文毒点分析**（必须逐项排查，发现即报）：
+   - 主角圣母心泛滥、以德报怨
+   - 主角智商掉线、被反派戏耍不还手
+   - 反派过强且长期无解，读者看不到希望
+   - 身份暴露/打脸节奏拖沓，爽点被水掉
+   - 突然新增设定解释之前漏洞（机械降神）
+   - 感情线突兀、暧昧对象工具人化
+   - 系统/金手指规则前后矛盾
+   - 严重水字数、大段无意义景物描写
+   - 章节结尾无钩子，读者没有翻页动力
+   - 视角漂移、突然切换到配角内心独白
+6. **爽点密度**：打脸是否有力？期待感是否拉满？钩子是否到位？情绪峰值是否足够？
+7. **节奏**：是否有拖沓？水字数？信息密度是否够？
+8. **字数**：每章是否在 1800-2200 字范围内？
+
+## 输出 JSON（不要加代码块标记）
+
+```json
+{
+  "passed": false,
+  "overall_score": 78,
+  "issues": [
+    {
+      "chapter": 1,
+      "severity": "critical/warning/suggestion",
+      "category": "大纲偏离/细纲偏离/设定矛盾/逻辑漏洞/毒点/爽点不足/节奏/字数/风格漂移",
+      "description": "具体问题描述，指出哪里错了、怎么错的",
+      "fix_suggestion": "具体的修改建议",
+      "highlights": ["正文中需要高亮的具体文字片段1", "片段2"]
+    }
+  ],
+  "chapter_scores": {"1": 80, "2": 75},
+  "summary": "总体评价，指出最严重的问题和最大亮点"
+}
+```
+
+## 输出要求
+- severity: critical=必须改，warning=建议改，suggestion=可优化
+- 每章至少找出1个问题，整批至少3个问题
+- 每章给分（0-100）
+- **highlights 字段必须填写**：从正文中摘录出具体的问题文字片段，供前端高亮显示。如果没有具体文字可摘录，填 []
+- summary 字段给出 50-100 字的总体评价"""
+
+
+@conversation_api.route('/align-check', methods=['POST'])
+@login_required
+def align_check():
+    """
+    对齐质检：对比生成的正文与原始细纲。
+    """
+    try:
+        data = request.json or {}
+        project_id = data.get("project_id", "").strip()
+        volume_number = data.get("volume_number", 1)
+        start_chapter = data.get("start_chapter", 1)
+        end_chapter = data.get("end_chapter", 6)
+        model = data.get("model", "deepseek-v4-pro")
+        
+        if not project_id:
+            return jsonify({"success": False, "error": "project_id 不能为空"}), 400
+        
+        username = session.get('username', 'anonymous')
+        user_dir = Path("小说项目") / username
+        project_dir = user_dir / project_id
+        if not project_dir.exists():
+            return jsonify({"success": False, "error": "项目不存在"}), 404
+        
+        # 读取生成的正文
+        chapters_dir = project_dir / "chapters"
+        generated_texts = []
+        for ch_num in range(start_chapter, end_chapter + 1):
+            # 查找文件
+            pattern = f"第{ch_num}章_*.md"
+            files = list(chapters_dir.glob(pattern))
+            if files:
+                text = files[0].read_text(encoding='utf-8')
+                generated_texts.append(f"=== 第{ch_num}章 ===\n{text}\n")
+        
+        if not generated_texts:
+            return jsonify({"success": False, "error": "未找到生成的章节文件"}), 404
+        
+        generated_combined = "\n".join(generated_texts)
+        
+        # 读取大纲、细纲、设定
+        files = _read_project_files(project_dir)
+        outline = files.get('outline', '')
+        settings = files.get('settings', '')
+        detailed = _read_volume_detailed(project_dir, volume_number)
+        
+        endpoint = _resolve_endpoint(model)
+        if not endpoint:
+            return jsonify({"success": False, "error": f"模型 '{model}' 无可用端点"}), 404
+        if not endpoint.get("api_key"):
+            return jsonify({"success": False, "error": "API Key 未配置"}), 400
+        
+        actual_model = endpoint.get("model", model)
+        logger.info(f"[Conversation] /align-check: project={project_id}, vol={volume_number}, chapters={start_chapter}-{end_chapter}")
+        
+        # 构建质检消息，包含大纲、设定、细纲、正文
+        check_prompt = f"""【全书大纲】
+{outline[:5000]}
+
+【核心设定】
+{settings[:5000]}
+
+【本卷细纲】
+{detailed[:8000]}
+
+【生成的正文】
+{generated_combined}
+
+{_ALIGN_CHECK_PROMPT}"""
+        
+        check_messages = [
+            {"role": "user", "content": check_prompt}
+        ]
+        
+        import requests
+        headers = {
+            "Content-Type": "application/json",
+            "Authorization": f"Bearer {endpoint['api_key']}"
+        }
+        
+        payload = {
+            "model": actual_model,
+            "messages": check_messages,
+            "stream": False,
+        }
+        if "deepseek" in actual_model.lower():
+            payload["thinking"] = {"type": "enabled"}
+        
+        resp = requests.post(
+            endpoint["api_url"],
+            headers=headers,
+            json=payload,
+            timeout=300
+        )
+        
+        if not resp.ok:
+            try:
+                err = resp.json().get("error", {}).get("message", resp.text)
+            except Exception:
+                err = resp.text or f"HTTP {resp.status_code}"
+            logger.error(f"[Conversation] /align-check API 错误: {err}")
+            return jsonify({"success": False, "error": err}), 502
+        
+        result = resp.json()
+        choices = result.get("choices") or [{}]
+        raw_content = choices[0].get("message", {}).get("content", "") if choices else ""
+        
+        report = _extract_json(raw_content)
+        if not report:
+            logger.warning(f"[Conversation] /align-check JSON 解析失败")
+            return jsonify({
+                "success": False,
+                "error": "质检结果无法解析为有效 JSON",
+                "raw": raw_content[:2000]
+            }), 422
+        
+        logger.info(f"[Conversation] /align-check 完成: score={report.get('overall_score', 'N/A')}")
+        return jsonify({
+            "success": True,
+            "report": report,
+            "model": actual_model,
+        })
+        
+    except Exception as e:
+        logger.error(f"[Conversation] /align-check 失败: {e}")
+        return jsonify({"success": False, "error": str(e)}), 500
+
+
+# ───────────────────────────────
+#  7. 读取项目文件（细纲/设定/大纲）
+# ───────────────────────────────
+
+@conversation_api.route('/project-files', methods=['POST'])
+@login_required
+def get_project_files():
+    """
+    读取项目目录下的设定、大纲、细纲文件内容
+    """
+    try:
+        data = request.json or {}
+        project_id = data.get("project_id", "").strip()
+        volume_number = data.get("volume_number", 1)
+        
+        if not project_id:
+            return jsonify({"success": False, "error": "project_id 不能为空"}), 400
+        
+        username = session.get('username', 'anonymous')
+        user_dir = Path("小说项目") / username
+        project_dir = user_dir / project_id
+        if not project_dir.exists():
+            return jsonify({"success": False, "error": "项目不存在"}), 404
+        
+        files = _read_project_files(project_dir)
+        detailed = _read_volume_detailed(project_dir, volume_number)
+        
+        # 统计各卷章节数
+        chapters_dir = project_dir / "chapters"
+        chapter_files = list(chapters_dir.glob("第*.md")) if chapters_dir.exists() else []
+        
+        logger.info(f"[Conversation] /project-files: project={project_id}, vol={volume_number}")
+        return jsonify({
+            "success": True,
+            "settings": files.get('settings', '')[:10000],
+            "outline": files.get('outline', '')[:10000],
+            "detailed_outline": detailed[:20000],
+            "chapter_count": len(chapter_files),
+        })
+        
+    except Exception as e:
+        logger.error(f"[Conversation] /project-files 失败: {e}")
         return jsonify({"success": False, "error": str(e)}), 500
