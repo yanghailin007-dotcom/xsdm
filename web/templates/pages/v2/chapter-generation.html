@@ -274,16 +274,16 @@
         .chapter-tab .dot.generating { background: var(--warning); animation: pulse 1.2s infinite; }
         .chapter-tab .dot.generated { background: var(--success); }
         .chapter-tab .dot.failed { background: var(--error); }
-        .chapter-tab.outline-tab {
+        .chapter-tab.ref-tab {
             background: var(--bg-tertiary);
             border: 1px solid var(--border-color);
             color: var(--accent);
         }
-        .chapter-tab.outline-tab:hover {
+        .chapter-tab.ref-tab:hover {
             background: var(--accent-dim);
             border-color: var(--accent-border);
         }
-        .chapter-tab.outline-tab.active {
+        .chapter-tab.ref-tab.active {
             background: var(--accent);
             color: #fff;
             border-color: var(--accent);
@@ -771,7 +771,8 @@ let currentVolume = 1;
 let activeChapter = null;
 let qualityReport = null; // 当前质检报告
 let projectFiles = null; // 当前项目文件（细纲等）
-let showingOutline = false; // 是否正在显示细纲
+let showingRef = false; // 是否正在显示参考内容（设定/细纲）
+let currentRefType = ''; // 'settings' | 'outline'
 
 const $ = id => document.getElementById(id);
 
@@ -833,67 +834,113 @@ async function loadProjectFiles(projectId, volumeNumber) {
         const data = await resp.json();
         if (data.success) {
             projectFiles = data;
-            // 更新或创建细纲标签
-            updateOutlineTab();
-            // 如果当前正在显示细纲，刷新内容
-            if (showingOutline) showOutline();
+            // 更新或创建参考标签（设定 + 细纲）
+            updateReferenceTabs();
+            // 如果当前正在显示参考内容，刷新
+            if (showingRef) showRefContent();
         }
     } catch (e) {
         console.error('加载项目文件失败:', e);
     }
 }
 
-function updateOutlineTab() {
-    let tab = document.querySelector('.chapter-tab.outline-tab');
-    if (!tab) {
-        tab = document.createElement('button');
-        tab.className = 'chapter-tab outline-tab';
-        tab.innerHTML = '📋 细纲';
-        tab.addEventListener('click', () => showOutline());
-        $('chapterTabs').insertBefore(tab, $('chapterTabs').firstChild);
+function updateReferenceTabs() {
+    // 设定标签
+    let settingsTab = document.querySelector('.chapter-tab.ref-tab[data-ref="settings"]');
+    if (!settingsTab) {
+        settingsTab = document.createElement('button');
+        settingsTab.className = 'chapter-tab ref-tab';
+        settingsTab.dataset.ref = 'settings';
+        settingsTab.innerHTML = '📖 设定';
+        settingsTab.addEventListener('click', () => showSettings());
+        $('chapterTabs').insertBefore(settingsTab, $('chapterTabs').firstChild);
+    }
+    // 细纲标签
+    let outlineTab = document.querySelector('.chapter-tab.ref-tab[data-ref="outline"]');
+    if (!outlineTab) {
+        outlineTab = document.createElement('button');
+        outlineTab.className = 'chapter-tab ref-tab';
+        outlineTab.dataset.ref = 'outline';
+        outlineTab.innerHTML = '📋 细纲';
+        outlineTab.addEventListener('click', () => showOutline());
+        $('chapterTabs').insertBefore(outlineTab, $('chapterTabs').firstChild);
     }
 }
 
-function showOutline() {
-    showingOutline = true;
+function showRefContent() {
+    if (currentRefType === 'settings') showSettings();
+    else if (currentRefType === 'outline') showOutline();
+}
+
+function showSettings() {
+    showingRef = true;
+    currentRefType = 'settings';
     activeChapter = null;
 
-    // 更新标签页激活状态
     document.querySelectorAll('.chapter-tab').forEach(t => t.classList.remove('active'));
-    const tab = document.querySelector('.chapter-tab.outline-tab');
+    const tab = document.querySelector('.chapter-tab.ref-tab[data-ref="settings"]');
+    if (tab) tab.classList.add('active');
+
+    $('contentTitle').textContent = '📖 核心设定';
+    $('contentBody').classList.remove('empty');
+
+    if (projectFiles && projectFiles.settings) {
+        $('contentBody').innerHTML = renderMarkdown(projectFiles.settings);
+    } else {
+        $('contentBody').innerHTML = '<p style="color:var(--text-muted);">暂无设定内容</p>';
+    }
+
+    $('rewriteBtn').disabled = true;
+    $('saveBtn').disabled = true;
+}
+
+function showOutline() {
+    showingRef = true;
+    currentRefType = 'outline';
+    activeChapter = null;
+
+    document.querySelectorAll('.chapter-tab').forEach(t => t.classList.remove('active'));
+    const tab = document.querySelector('.chapter-tab.ref-tab[data-ref="outline"]');
     if (tab) tab.classList.add('active');
 
     $('contentTitle').textContent = '📋 本卷细纲';
     $('contentBody').classList.remove('empty');
 
     if (projectFiles && projectFiles.detailed_outline) {
-        // 简单渲染：按行分割，## 开头的加粗
-        const lines = projectFiles.detailed_outline.split('\n');
-        let html = '';
-        let inList = false;
-        for (const line of lines) {
-            const trimmed = line.trim();
-            if (!trimmed) {
-                html += '<br>';
-                continue;
-            }
-            if (trimmed.startsWith('## ')) {
-                html += `<h4 style="color:var(--accent);font-size:14px;margin:12px 0 6px;font-weight:600;">${escapeHtml(trimmed.replace(/^##\s*/, ''))}</h4>`;
-            } else if (trimmed.startsWith('- ')) {
-                html += `<p style="margin-left:16px;color:var(--text-secondary);font-size:13px;">• ${escapeHtml(trimmed.replace(/^-\s*/, ''))}</p>`;
-            } else if (trimmed.startsWith('**') && trimmed.endsWith('**')) {
-                html += `<p style="font-weight:600;color:var(--text-primary);">${escapeHtml(trimmed.replace(/\*\*/g, ''))}</p>`;
-            } else {
-                html += `<p>${escapeHtml(trimmed)}</p>`;
-            }
-        }
-        $('contentBody').innerHTML = html;
+        $('contentBody').innerHTML = renderMarkdown(projectFiles.detailed_outline);
     } else {
         $('contentBody').innerHTML = '<p style="color:var(--text-muted);">暂无细纲内容</p>';
     }
 
     $('rewriteBtn').disabled = true;
     $('saveBtn').disabled = true;
+}
+
+// 简单的 Markdown 渲染
+function renderMarkdown(text) {
+    const lines = text.split('\n');
+    let html = '';
+    for (const line of lines) {
+        const trimmed = line.trim();
+        if (!trimmed) {
+            html += '<br>';
+            continue;
+        }
+        if (trimmed.startsWith('# ')) {
+            html += `<h3 style="color:var(--text-primary);font-size:16px;margin:14px 0 8px;font-weight:700;">${escapeHtml(trimmed.replace(/^#\s*/, ''))}</h3>`;
+        } else if (trimmed.startsWith('## ')) {
+            html += `<h4 style="color:var(--accent);font-size:14px;margin:12px 0 6px;font-weight:600;">${escapeHtml(trimmed.replace(/^##\s*/, ''))}</h4>`;
+        } else if (trimmed.startsWith('### ')) {
+            html += `<h5 style="color:var(--text-secondary);font-size:13px;margin:10px 0 5px;font-weight:600;">${escapeHtml(trimmed.replace(/^###\s*/, ''))}</h5>`;
+        } else if (trimmed.startsWith('- ')) {
+            html += `<p style="margin-left:16px;color:var(--text-secondary);font-size:13px;">• ${escapeHtml(trimmed.replace(/^-\s*/, ''))}</p>`;
+        } else if (trimmed.startsWith('**') && trimmed.endsWith('**')) {
+            html += `<p style="font-weight:600;color:var(--text-primary);">${escapeHtml(trimmed.replace(/\*\*/g, ''))}</p>`;
+        } else {
+            html += `<p>${escapeHtml(trimmed)}</p>`;
+        }
+    }
+    return html;
 }
 
 async function loadUserInfo() {
@@ -1119,13 +1166,13 @@ function updateChapterTab(chNum) {
 }
 
 function showChapter(chNum) {
-    showingOutline = false;
+    showingRef = false;
+    currentRefType = '';
     activeChapter = chNum;
     const ch = chapters[chNum];
     if (!ch) return;
 
     document.querySelectorAll('.chapter-tab').forEach(t => t.classList.remove('active'));
-    document.querySelectorAll('.chapter-tab.outline-tab').forEach(t => t.classList.remove('active'));
     const tab = document.querySelector(`.chapter-tab[data-ch="${chNum}"]`);
     if (tab) tab.classList.add('active');
 
