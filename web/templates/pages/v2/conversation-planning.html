@@ -611,6 +611,73 @@
         let messages = [];
         let isStreaming = false;
         let currentProjectData = null;
+        const STORAGE_KEY = 'conversation_chat_history';
+
+        // 从 localStorage 恢复对话历史
+        function loadHistory() {
+            try {
+                const saved = localStorage.getItem(STORAGE_KEY);
+                if (saved) {
+                    const data = JSON.parse(saved);
+                    if (Array.isArray(data) && data.length > 0) {
+                        messages = data;
+                        renderHistory();
+                        updateGenerateButton();
+                    }
+                }
+            } catch (e) {
+                console.error('恢复对话历史失败:', e);
+            }
+        }
+
+        // 保存对话历史到 localStorage
+        function saveHistory() {
+            try {
+                localStorage.setItem(STORAGE_KEY, JSON.stringify(messages));
+            } catch (e) {
+                console.error('保存对话历史失败:', e);
+            }
+        }
+
+        // 渲染恢复的历史消息
+        function renderHistory() {
+            chatMessages.innerHTML = '';
+            // 开场白
+            const welcome = document.createElement('div');
+            welcome.className = 'message-row ai';
+            welcome.innerHTML = `
+                <div class="message-content ai">
+                    <div class="avatar ai">🤖</div>
+                    <div class="bubble"><p>你好！想写什么类型的小说？直接告诉我你的创意，我们可以一起聊出来。</p></div>
+                </div>
+            `;
+            chatMessages.appendChild(welcome);
+            // 渲染已保存的消息
+            for (const msg of messages) {
+                if (msg.role === 'user') {
+                    const row = document.createElement('div');
+                    row.className = 'message-row user';
+                    row.innerHTML = `
+                        <div class="message-content user">
+                            <div class="bubble"><p>${escapeHtml(msg.content)}</p></div>
+                            <div class="avatar user">👤</div>
+                        </div>
+                    `;
+                    chatMessages.appendChild(row);
+                } else if (msg.role === 'assistant') {
+                    const row = document.createElement('div');
+                    row.className = 'message-row ai';
+                    row.innerHTML = `
+                        <div class="message-content ai">
+                            <div class="avatar ai">🤖</div>
+                            <div class="bubble">${marked.parse(msg.content)}</div>
+                        </div>
+                    `;
+                    chatMessages.appendChild(row);
+                }
+            }
+            scrollToBottom();
+        }
 
         function scrollToBottom() {
             chatMessages.scrollTop = chatMessages.scrollHeight;
@@ -633,6 +700,7 @@
             `;
             chatMessages.appendChild(row);
             messages.push({ role: 'user', content: text });
+            saveHistory();
             scrollToBottom();
             updateGenerateButton();
         }
@@ -773,6 +841,7 @@
                 finishBubble(aiMsg.bubble, aiMsg.streamText, aiMsg.thinkBox);
                 // 拼接完整消息给后续轮次（思考内容不传回 API，DeepSeek 会自动忽略）
                 messages.push({ role: 'assistant', content: fullText });
+                saveHistory();
             } catch (err) {
                 finishBubble(aiMsg.bubble, aiMsg.streamText);
                 aiMsg.streamText.innerHTML += `<span style="color:var(--accent-red)"> [请求失败: ${escapeHtml(err.message)}]</span>`;
@@ -918,7 +987,8 @@
         // 生成设定按钮
         btnGenerate.addEventListener('click', generateSettings);
 
-        // 初始化
+        // 初始化：恢复历史对话
+        loadHistory();
         updateGenerateButton();
     </script>
 
