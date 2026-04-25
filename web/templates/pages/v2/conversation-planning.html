@@ -545,6 +545,7 @@
             <!-- 操作栏 -->
             <div class="action-bar">
                 <button class="btn-generate" id="btnGenerate" disabled>✨ 生成设定</button>
+                <button class="btn-clear" id="btnClear" onclick="clearChat()" style="margin-left:12px;padding:8px 16px;background:transparent;color:var(--text-muted);border:1px solid var(--border-color);border-radius:var(--radius-sm);font-size:13px;cursor:pointer;">🗑️ 清空对话</button>
             </div>
 
             <!-- 输入栏 -->
@@ -925,6 +926,26 @@
         }
 
         function hideSettings() {
+            settingsPanel.classList.remove('active');
+        }
+
+        function clearChat() {
+            if (!confirm('确定要清空所有对话吗？此操作不可恢复。')) return;
+            messages = [];
+            chatMessages.innerHTML = `
+                <div class="message-row ai">
+                    <div class="message-content ai">
+                        <div class="avatar ai">🤖</div>
+                        <div class="bubble"><p>你好！想写什么类型的小说？直接告诉我你的创意，我们可以一起聊出来。</p></div>
+                    </div>
+                </div>
+            `;
+            updateGenerateButton();
+            currentProjectData = null;
+            editSettings.value = '';
+            editOutline.value = '';
+            editDetailed.value = '';
+            qualityReport.innerHTML = '<p style="text-align:center;color:var(--text-muted);">生成设定后将自动进行质检...</p>';
             settingsPanel.classList.remove('active');
         }
 
