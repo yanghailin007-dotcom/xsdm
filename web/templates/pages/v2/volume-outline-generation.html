@@ -4,6 +4,10 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>分卷细纲生成 - NovelCraft</title>
+    <script>
+        (function(){var t=localStorage.getItem('v2-theme')||'light';document.documentElement.setAttribute('data-theme',t);})();
+    </script>
+    <script src="/static/js/v2-theme.js"></script>
     <style>
         :root {
             --bg-primary: #0d1117;
@@ -25,6 +29,21 @@
             --shadow: 0 4px 24px rgba(0,0,0,0.4);
             --glow: 0 0 20px rgba(139,92,246,0.15);
             --font-mono: 'SF Mono', 'JetBrains Mono', 'Fira Code', monospace;
+        }
+        
+        html[data-theme="light"] {
+            --bg-primary: #ffffff;
+            --bg-secondary: #f8f9fa;
+            --bg-tertiary: #f1f3f4;
+            --border-color: #e5e7eb;
+            --border-hover: #d1d5db;
+            --text-primary: #1a1a2e;
+            --text-secondary: #6b7280;
+            --text-muted: #9ca3af;
+            --accent-dim: rgba(139,92,246,0.1);
+            --accent-border: rgba(139,92,246,0.25);
+            --shadow: 0 4px 24px rgba(0,0,0,0.08);
+            --glow: 0 0 20px rgba(139,92,246,0.1);
         }
 
         * { margin: 0; padding: 0; box-sizing: border-box; }

@@ -113,6 +113,54 @@
     --v2-z-tooltip: 700;
 }
 
+/* ===== Light 主题覆盖 ===== */
+:root[data-theme="light"] {
+    /* 背景色 - 浅色层级 */
+    --v2-bg-primary: #ffffff;
+    --v2-bg-secondary: #f8f9fa;
+    --v2-bg-tertiary: #f1f3f4;
+    --v2-bg-elevated: #ffffff;
+    --v2-bg-overlay: rgba(0, 0, 0, 0.4);
+    
+    /* 边框色 */
+    --v2-border-subtle: rgba(0, 0, 0, 0.06);
+    --v2-border-default: rgba(0, 0, 0, 0.1);
+    --v2-border-hover: rgba(0, 0, 0, 0.15);
+    --v2-border-glow: rgba(99, 102, 241, 0.3);
+    
+    /* 文字色 */
+    --v2-text-primary: #1a1a2e;
+    --v2-text-secondary: #6b7280;
+    --v2-text-tertiary: #9ca3af;
+    --v2-text-muted: #d1d5db;
+    --v2-text-inverse: #ffffff;
+    
+    /* 阴影 */
+    --v2-shadow-sm: 0 1px 2px rgba(0,0,0,0.08);
+    --v2-shadow-md: 0 4px 6px rgba(0,0,0,0.06);
+    --v2-shadow-lg: 0 10px 15px rgba(0,0,0,0.08);
+    --v2-shadow-glow: 0 0 20px rgba(99,102,241,0.2);
+    --v2-shadow-glow-lg: 0 0 40px rgba(99,102,241,0.25);
+}
+
+/* Light 主题下玻璃拟态覆盖 */
+[data-theme="light"] .v2-glass {
+    background: rgba(255, 255, 255, 0.85);
+}
+
+/* Light 主题下渐变文字覆盖 */
+[data-theme="light"] .v2-gradient-text {
+    background: linear-gradient(135deg, #1a1a2e 0%, #6366f1 50%, #8b5cf6 100%);
+    -webkit-background-clip: text;
+    background-clip: text;
+}
+
+[data-theme="light"] .v2-gradient-text-subtle {
+    background: linear-gradient(135deg, #1a1a2e 0%, #6b7280 100%);
+    -webkit-background-clip: text;
+    background-clip: text;
+}
+
 /* ===== 基础重置 ===== */
 *, *::before, *::after {
     box-sizing: border-box;

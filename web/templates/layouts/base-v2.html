@@ -12,11 +12,22 @@
     <meta http-equiv="Expires" content="0">
     <title>{% block title %}大文娱系统{% endblock %}</title>
     
+    <!-- 主题切换 - 必须在任何渲染前执行，防止FOUC -->
+    <script>
+        (function() {
+            var theme = localStorage.getItem('v2-theme') || 'light';
+            document.documentElement.setAttribute('data-theme', theme);
+        })();
+    </script>
+    
     <!-- Critical CSS - 内联关键样式防止FOUC -->
     <style>
         /* 重置与基础 */
         *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
         html,body{height:100%;background:#0a0a0a;color:#fff;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;line-height:1.5}
+        
+        /* Light 主题覆盖 */
+        html[data-theme="light"],html[data-theme="light"] body{background:#fff;color:#1a1a2e}
         
         /* Flex布局确保页脚在底部 */
         body{display:flex;flex-direction:column;min-height:100vh}
@@ -27,6 +38,7 @@
             background:rgba(255,255,255,0.08);
             border-radius:4px
         }
+        html[data-theme="light"] .skeleton{background:rgba(0,0,0,0.06)}
         
         /* 初始隐藏内容，显示骨架屏 */
         body:not(.loaded) .v2-navbar,
@@ -46,6 +58,7 @@
             flex-direction:column;
             padding:0 24px;
         }
+        html[data-theme="light"] #skeleton-container{background:#fff}
         
         /* 骨架导航栏 */
         .skeleton-navbar {
@@ -55,6 +68,7 @@
             justify-content:space-between;
             border-bottom:1px solid rgba(255,255,255,0.05);
         }
+        html[data-theme="light"] .skeleton-navbar{border-bottom-color:rgba(0,0,0,0.06)}
         .skeleton-navbar .skeleton-logo {width:100px;height:24px}
         .skeleton-navbar .skeleton-nav {width:300px;height:20px}
         
@@ -93,7 +107,9 @@
             display:flex;align-items:center;justify-content:space-between;
             padding:0 24px;z-index:100
         }
+        html[data-theme="light"] .v2-navbar{background:rgba(255,255,255,0.95);border-bottom-color:rgba(0,0,0,0.06)}
         .v2-navbar__brand {display:flex;align-items:center;gap:10px;color:#fff;text-decoration:none}
+        html[data-theme="light"] .v2-navbar__brand{color:#1a1a2e}
         .v2-navbar__logo {width:28px;height:28px;background:linear-gradient(135deg,#6366f1,#8b5cf6);border-radius:6px}
         .v2-navbar__brand-text {font-size:16px;font-weight:600}
         
@@ -168,6 +184,9 @@
     
     <!-- i18n 国际化 -->
     <script src="/static/js/i18n/i18n.js"></script>
+    
+    <!-- V2 主题切换 -->
+    <script src="/static/js/v2-theme.js"></script>
     
     <script>
         // 页面加载完成后显示内容

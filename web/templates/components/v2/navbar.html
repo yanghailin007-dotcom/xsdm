@@ -71,6 +71,10 @@
     
     <!-- 右侧：操作区域 -->
     <div class="v2-navbar__right">
+        <!-- 主题切换 -->
+        <button id="v2-theme-toggle" class="v2-theme-toggle" onclick="window.v2Theme && v2Theme.toggle()" title="切换主题" aria-label="切换主题">
+            🌙
+        </button>
         <!-- 语言切换器 -->
         <div class="v2-navbar__lang">
             <select id="language-switcher" class="v2-lang-select" onchange="switchLanguage(this.value)">
@@ -514,6 +518,47 @@
     color: #fff;
 }
 
+/* 主题切换按钮 */
+.v2-theme-toggle {
+    width: 32px;
+    height: 32px;
+    border-radius: 8px;
+    border: 1px solid var(--v2-border-default);
+    background: transparent;
+    cursor: pointer;
+    font-size: 16px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s ease;
+    flex-shrink: 0;
+}
+.v2-theme-toggle:hover {
+    background: var(--v2-bg-tertiary);
+    border-color: var(--v2-border-hover);
+}
+
+/* Light 主题覆盖 */
+[data-theme="light"] .v2-navbar {
+    background: rgba(255, 255, 255, 0.9);
+    border-bottom-color: rgba(0, 0, 0, 0.06);
+}
+[data-theme="light"] .v2-nav-dropdown__menu {
+    background: rgba(255, 255, 255, 0.98);
+    border-color: rgba(0, 0, 0, 0.08);
+    box-shadow: 0 25px 50px -12px rgba(0,0,0,0.1), 0 0 0 1px rgba(0,0,0,0.04);
+}
+[data-theme="light"] .v2-dropdown-item:hover {
+    background: rgba(0, 0, 0, 0.03);
+}
+[data-theme="light"] .v2-lang-select option {
+    background: #fff;
+    color: #1a1a2e;
+}
+[data-theme="light"] .v2-navbar__logo-svg {
+    filter: drop-shadow(0 0 2px rgba(0,0,0,0.1));
+}
+
 /* 响应式：移动端隐藏中间导航 */
 @media (max-width: 768px) {
     .v2-navbar__center {
@@ -525,6 +570,9 @@
     }
     
     .v2-navbar__lang {
+        display: none;
+    }
+    .v2-theme-toggle {
         display: none;
     }
 }
