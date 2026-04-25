@@ -69,7 +69,7 @@ def _resolve_endpoint(model_name: str):
             if provider:
                 break
 
-    # 3. 获取该 provider 下第一个启用的 endpoint
+    # 3. 获取该 provider 下第一个启用的 endpoint，使用配置中的实际 model 名
     if provider:
         endpoints = api_endpoints.get(provider, [])
         for ep in endpoints:
@@ -78,6 +78,7 @@ def _resolve_endpoint(model_name: str):
                     "api_key":  ep.get("api_key", ""),
                     "api_url":  ep.get("api_url", ""),
                     "provider": provider,
+                    "model":    ep.get("model", model_name),
                 }
 
     # 4. 兜底：遍历所有 provider 找匹配 model 的 endpoint
@@ -88,6 +89,7 @@ def _resolve_endpoint(model_name: str):
                     "api_key":  ep.get("api_key", ""),
                     "api_url":  ep.get("api_url", ""),
                     "provider": prov,
+                    "model":    ep.get("model", model_name),
                 }
 
     return None
@@ -130,7 +132,9 @@ def chat_stream():
         if not endpoint.get("api_key"):
             return jsonify({"success": False, "error": "API Key 未配置"}), 400
 
-        temperature = _normalize_temp(model, temperature)
+        # 使用 endpoint 配置中实际可用的 model 名
+        actual_model = endpoint.get("model", model)
+        temperature = _normalize_temp(actual_model, temperature)
 
         import requests
         headers = {
@@ -140,12 +144,12 @@ def chat_stream():
 
         def generate():
             payload = {
-                "model": model,
+                "model": actual_model,
                 "messages": messages,
                 "stream": True,
             }
             # DeepSeek 思考模式：添加 thinking 参数，并移除 temperature
-            is_deepseek = "deepseek" in model.lower()
+            is_deepseek = "deepseek" in actual_model.lower()
             if is_deepseek:
                 payload["thinking"] = {"type": "enabled"}
             elif temperature is not None:
@@ -307,7 +311,8 @@ def generate_settings():
         if not endpoint.get("api_key"):
             return jsonify({"success": False, "error": "API Key 未配置"}), 400
 
-        temperature = _normalize_temp(model, temperature)
+        actual_model = endpoint.get("model", model)
+        temperature = _normalize_temp(actual_model, temperature)
 
         # 复制消息并追加设定生成指令
         gen_messages = messages.copy()
@@ -323,7 +328,7 @@ def generate_settings():
         }
 
         payload = {
-            "model": model,
+            "model": actual_model,
             "messages": gen_messages,
             "stream": False,
         }
@@ -360,7 +365,7 @@ def generate_settings():
         return jsonify({
             "success": True,
             "settings": settings,
-            "model": model,
+            "model": actual_model,
         })
 
     except Exception as e:
