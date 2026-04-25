@@ -276,14 +276,20 @@ _GENERATE_SETTINGS_PROMPT = """根据以上对话内容，生成一份完整的�
     ]
   },
   "detailed_outline": {
-    "chapters": [
+    "volumes": [
       {
-        "chapter_number": 1,
-        "chapter_title": "第一章标题",
-        "summary": "本章详细内容规划（200-300字），包含出场人物、关键对话、情绪转折",
-        "key_scenes": ["场景1", "场景2"],
-        "emotional_arc": "情绪走向，如：压抑→爆发→爽",
-        "word_count_estimate": 3000
+        "volume_number": 1,
+        "volume_title": "第一卷标题",
+        "chapters": [
+          {
+            "chapter_number": 1,
+            "chapter_title": "第一章标题",
+            "summary": "本章详细内容规划（200-300字），包含出场人物、关键对话、情绪转折",
+            "key_scenes": ["场景1", "场景2"],
+            "emotional_arc": "情绪走向，如：压抑→爆发→爽",
+            "word_count_estimate": 3000
+          }
+        ]
       }
     ]
   }
@@ -462,11 +468,20 @@ def save_project():
         with open(outline_file, 'w', encoding='utf-8') as f:
             f.write(outline_md)
         
-        # 3. 保存 detailed_outline.md
+        # 3. 保存细纲（总览 + 按卷拆分）
         detailed_md = _detailed_outline_to_markdown(detailed_outline)
         detailed_file = project_dir / "detailed_outline.md"
         with open(detailed_file, 'w', encoding='utf-8') as f:
             f.write(detailed_md)
+        
+        # 按卷保存单独文件
+        volumes = detailed_outline.get('volumes', [])
+        for vol in volumes:
+            vol_num = vol.get('volume_number', 1)
+            vol_md = _volume_to_markdown(vol)
+            vol_file = project_dir / f"detailed_outline_vol{vol_num}.md"
+            with open(vol_file, 'w', encoding='utf-8') as f:
+                f.write(vol_md)
         
         # 4. 保存 core-setting.md（兼容旧流程，内容同 settings.md）
         core_file = project_dir / "core-setting.md"
@@ -573,10 +588,54 @@ def _outline_to_markdown(outline: dict) -> str:
 
 
 def _detailed_outline_to_markdown(detailed: dict) -> str:
-    """将 detailed_outline JSON 转为 Markdown"""
+    """将 detailed_outline JSON 转为 Markdown（单卷格式，兼容旧结构）"""
     lines = ["# 章节细纲", ""]
-    chapters = detailed.get('chapters', [])
-    for ch in chapters:
+    # 兼容新旧两种结构
+    volumes = detailed.get('volumes', [])
+    if volumes:
+        for vol in volumes:
+            vol_title = vol.get('volume_title') or f"第{vol.get('volume_number', '?')}卷"
+            lines.append(f"## {vol_title}")
+            lines.append("")
+            for ch in vol.get('chapters', []):
+                lines.append(f"### 第{ch.get('chapter_number', '?')}章：{ch.get('chapter_title', '')}")
+                if ch.get('summary'):
+                    lines.extend(["", ch['summary'], ""])
+                if ch.get('key_scenes'):
+                    lines.extend(["**关键场景**：", ""])
+                    for s in ch['key_scenes']:
+                        lines.append(f"- {s}")
+                    lines.append("")
+                if ch.get('emotional_arc'):
+                    lines.append(f"**情绪曲线**：{ch['emotional_arc']}")
+                if ch.get('word_count_estimate'):
+                    lines.append(f"**预计字数**：{ch['word_count_estimate']}")
+                lines.append("")
+    else:
+        # 兼容旧结构：扁平 chapters
+        chapters = detailed.get('chapters', [])
+        for ch in chapters:
+            lines.append(f"## 第{ch.get('chapter_number', '?')}章：{ch.get('chapter_title', '')}")
+            if ch.get('summary'):
+                lines.extend(["", ch['summary'], ""])
+            if ch.get('key_scenes'):
+                lines.extend(["**关键场景**：", ""])
+                for s in ch['key_scenes']:
+                    lines.append(f"- {s}")
+                lines.append("")
+            if ch.get('emotional_arc'):
+                lines.append(f"**情绪曲线**：{ch['emotional_arc']}")
+            if ch.get('word_count_estimate'):
+                lines.append(f"**预计字数**：{ch['word_count_estimate']}")
+            lines.append("")
+    return "\n".join(lines)
+
+
+def _volume_to_markdown(vol: dict) -> str:
+    """将单卷细纲转为 Markdown"""
+    vol_title = vol.get('volume_title') or f"第{vol.get('volume_number', '?')}卷"
+    lines = [f"# {vol_title} 细纲", ""]
+    for ch in vol.get('chapters', []):
         lines.append(f"## 第{ch.get('chapter_number', '?')}章：{ch.get('chapter_title', '')}")
         if ch.get('summary'):
             lines.extend(["", ch['summary'], ""])
