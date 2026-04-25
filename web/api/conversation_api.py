@@ -144,7 +144,11 @@ def chat_stream():
                 "messages": messages,
                 "stream": True,
             }
-            if temperature is not None:
+            # DeepSeek 思考模式：添加 thinking 参数，并移除 temperature
+            is_deepseek = "deepseek" in model.lower()
+            if is_deepseek:
+                payload["thinking"] = {"type": "enabled"}
+            elif temperature is not None:
                 payload["temperature"] = temperature
 
             try:
@@ -185,6 +189,9 @@ def chat_stream():
                         choices = chunk.get("choices") or [{}]
                         delta = choices[0].get("delta", {}) if choices else {}
                         content_piece = delta.get("content", "")
+                        reasoning_piece = delta.get("reasoning_content", "")
+                        if reasoning_piece:
+                            yield f"data: {json.dumps({'reasoning': reasoning_piece})}\n\n"
                         if content_piece:
                             yield f"data: {json.dumps({'content': content_piece})}\n\n"
                     except (json.JSONDecodeError, IndexError, KeyError):

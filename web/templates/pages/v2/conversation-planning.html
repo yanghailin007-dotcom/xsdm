@@ -641,10 +641,15 @@
             const row = document.createElement('div');
             row.className = 'message-row ai';
             const bubbleId = 'aiBubble_' + Date.now();
+            const thinkId = 'think_' + Date.now();
             row.innerHTML = `
                 <div class="message-content ai">
                     <div class="avatar ai">🤖</div>
                     <div class="bubble" id="${bubbleId}">
+                        <details class="think-box" id="${thinkId}" style="display:none;">
+                            <summary>💭 思考过程</summary>
+                            <span class="think-text"></span>
+                        </details>
                         <span class="stream-text"></span><span class="cursor"></span>
                     </div>
                 </div>
@@ -654,6 +659,8 @@
             return {
                 bubble: row.querySelector('.bubble'),
                 streamText: row.querySelector('.stream-text'),
+                thinkBox: row.querySelector('.think-box'),
+                thinkText: row.querySelector('.think-text'),
                 bubbleId: bubbleId
             };
         }
@@ -663,12 +670,22 @@
             scrollToBottom();
         }
 
-        function finishBubble(bubble, streamText) {
+        function appendToThink(thinkBox, thinkText, text) {
+            if (thinkBox) thinkBox.style.display = '';
+            if (thinkText) thinkText.textContent += text;
+            scrollToBottom();
+        }
+
+        function finishBubble(bubble, streamText, thinkBox) {
             const cursor = bubble.querySelector('.cursor');
             if (cursor) cursor.remove();
             // 用 marked.js 渲染最终 Markdown
             const rawText = streamText.textContent;
             streamText.innerHTML = marked.parse(rawText);
+            // 如果有思考内容，自动展开思考过程
+            if (thinkBox && thinkBox.style.display !== 'none') {
+                thinkBox.open = true;
+            }
         }
 
         function escapeHtml(text) {
@@ -718,6 +735,7 @@
                 const decoder = new TextDecoder();
                 let fullText = '';
 
+                let reasoningText = '';
                 while (true) {
                     const { done, value } = await reader.read();
                     if (done) break;
@@ -735,15 +753,25 @@
                                     showError(json.error);
                                     continue;
                                 }
+                                // 处理思考过程
+                                const reasoning = json.reasoning || '';
+                                if (reasoning) {
+                                    reasoningText += reasoning;
+                                    appendToThink(aiMsg.thinkBox, aiMsg.thinkText, reasoning);
+                                }
+                                // 处理最终内容
                                 const content = json.content || '';
-                                fullText += content;
-                                appendToBubble(aiMsg.streamText, content);
+                                if (content) {
+                                    fullText += content;
+                                    appendToBubble(aiMsg.streamText, content);
+                                }
                             } catch (e) {}
                         }
                     }
                 }
 
-                finishBubble(aiMsg.bubble, aiMsg.streamText);
+                finishBubble(aiMsg.bubble, aiMsg.streamText, aiMsg.thinkBox);
+                // 拼接完整消息给后续轮次（思考内容不传回 API，DeepSeek 会自动忽略）
                 messages.push({ role: 'assistant', content: fullText });
             } catch (err) {
                 finishBubble(aiMsg.bubble, aiMsg.streamText);
