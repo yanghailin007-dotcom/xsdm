@@ -208,6 +208,17 @@ def chat_stream():
             "Authorization": f"Bearer {endpoint['api_key']}"
         }
 
+        # 提取 system prompt 和 user message，用于流式结束后估算计费
+        system_prompt = ""
+        user_message = ""
+        for msg in messages:
+            role = msg.get("role", "")
+            content = msg.get("content", "")
+            if role == "system":
+                system_prompt = content
+            elif role == "user":
+                user_message = content
+
         def generate():
             payload = {
                 "model": actual_model,

@@ -287,29 +287,30 @@
 
 .v2-user-menu__dropdown {
     position: absolute;
-    top: calc(100% + 8px);
+    top: calc(100% + 10px);
     right: 0;
-    width: 220px;
+    width: 260px;
     background: var(--v2-bg-secondary);
     border: 1px solid var(--v2-border-default);
     border-radius: var(--v2-radius-xl);
     padding: var(--v2-space-2);
     opacity: 0;
     visibility: hidden;
-    transform: translateY(-8px);
-    transition: all var(--v2-transition-fast);
-    box-shadow: 0 20px 40px rgba(0, 0, 0, 0.4);
+    transform: translateY(-8px) scale(0.96);
+    transform-origin: top right;
+    transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+    box-shadow: var(--v2-shadow-lg);
     z-index: var(--v2-z-dropdown);
 }
 
 .v2-user-menu.active .v2-user-menu__dropdown {
     opacity: 1;
     visibility: visible;
-    transform: translateY(0);
+    transform: translateY(0) scale(1);
 }
 
 .v2-dropdown__header {
-    padding: var(--v2-space-3);
+    padding: var(--v2-space-4) var(--v2-space-4) var(--v2-space-3);
     border-bottom: 1px solid var(--v2-border-subtle);
     margin-bottom: var(--v2-space-2);
 }
@@ -317,6 +318,7 @@
 .v2-dropdown__name {
     font-weight: var(--v2-font-semibold);
     color: var(--v2-text-primary);
+    font-size: var(--v2-text-base);
 }
 
 .v2-dropdown__email {
@@ -325,6 +327,7 @@
     margin-top: var(--v2-space-1);
 }
 
+/* 菜单项 */
 .v2-dropdown__item {
     display: flex;
     align-items: center;
@@ -334,7 +337,10 @@
     font-size: var(--v2-text-sm);
     color: var(--v2-text-secondary);
     cursor: pointer;
-    transition: all var(--v2-transition-fast);
+    transition: all 0.15s ease;
+    text-decoration: none;
+    position: relative;
+    margin: 1px 0;
 }
 
 .v2-dropdown__item:hover {
@@ -342,18 +348,119 @@
     color: var(--v2-text-primary);
 }
 
-.v2-dropdown__divider {
-    height: 1px;
-    background: var(--v2-border-subtle);
-    margin: var(--v2-space-2) 0;
+/* 左侧指示条 */
+.v2-dropdown__item::before {
+    content: '';
+    position: absolute;
+    left: 0;
+    top: 50%;
+    transform: translateY(-50%) scaleY(0);
+    width: 3px;
+    height: 60%;
+    background: linear-gradient(180deg, var(--v2-primary-500), var(--v2-accent-purple));
+    border-radius: 0 3px 3px 0;
+    transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
+.v2-dropdown__item:hover::before {
+    transform: translateY(-50%) scaleY(1);
+}
+
+/* 当前页面高亮 */
+.v2-dropdown__item--active {
+    background: rgba(99, 102, 241, 0.08);
+    color: var(--v2-text-primary);
+    font-weight: var(--v2-font-medium);
+}
+
+.v2-dropdown__item--active::before {
+    transform: translateY(-50%) scaleY(1);
+}
+
+/* 图标容器 */
+.v2-dropdown__icon {
+    width: 20px;
+    height: 20px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 14px;
+    flex-shrink: 0;
+}
+
+/* 标签 */
+.v2-dropdown__badge {
+    margin-left: auto;
+    font-size: 11px;
+    font-weight: 600;
+    padding: 2px 8px;
+    border-radius: var(--v2-radius-full);
+    background: var(--v2-bg-tertiary);
+    color: var(--v2-text-secondary);
+    border: 1px solid var(--v2-border-default);
+    white-space: nowrap;
+}
+
+.v2-dropdown__badge--points {
+    color: var(--v2-primary-500);
+    background: rgba(99, 102, 241, 0.1);
+    border-color: rgba(99, 102, 241, 0.2);
+}
+
+.v2-dropdown__badge--admin {
+    background: linear-gradient(135deg, var(--v2-accent-purple), var(--v2-primary-500));
+    color: white;
+    border: none;
+    box-shadow: 0 2px 8px rgba(99, 102, 241, 0.25);
+}
+
+/* 分隔线 */
+.v2-dropdown__divider {
+    height: 1px;
+    background: linear-gradient(90deg, transparent, var(--v2-border-default), transparent);
+    margin: var(--v2-space-2) var(--v2-space-3);
+}
+
+/* 充值高亮项 */
+.v2-dropdown__item--highlight {
+    color: var(--v2-accent-green);
+}
+
+.v2-dropdown__item--highlight:hover {
+    color: var(--v2-accent-green);
+    background: rgba(16, 185, 129, 0.08);
+}
+
+.v2-dropdown__item--highlight::before {
+    background: var(--v2-accent-green);
+}
+
+/* 管理员项 */
+.v2-dropdown__item--admin {
+    color: var(--v2-accent-purple);
+}
+
+.v2-dropdown__item--admin:hover {
+    color: var(--v2-accent-purple);
+    background: rgba(139, 92, 246, 0.08);
+}
+
+.v2-dropdown__item--admin::before {
+    background: linear-gradient(180deg, var(--v2-accent-purple), var(--v2-primary-500));
+}
+
+/* 危险项 */
 .v2-dropdown__item--danger {
     color: var(--v2-error);
 }
 
 .v2-dropdown__item--danger:hover {
-    background: rgba(239, 68, 68, 0.1);
+    background: rgba(239, 68, 68, 0.08);
+    color: var(--v2-error);
+}
+
+.v2-dropdown__item--danger::before {
+    background: var(--v2-error);
 }
 
 /* ===== Flash 消息 ===== */

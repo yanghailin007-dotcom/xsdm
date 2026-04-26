@@ -17,70 +17,70 @@
             <div class="v2-dropdown__email">{{ session.username + '@example.com' if session.username else 'user@example.com' }}</div>
         </div>
         
-        <a href="/dashboard" class="v2-dropdown__item">
-            <span>📊</span>
+        <a href="/dashboard" class="v2-dropdown__item" data-route="/dashboard">
+            <span class="v2-dropdown__icon">📊</span>
             <span data-i18n="userMenu.dashboard">仪表板</span>
         </a>
-        
-        <a href="/account" class="v2-dropdown__item">
-            <span>👤</span>
+
+        <a href="/account" class="v2-dropdown__item" data-route="/account">
+            <span class="v2-dropdown__icon">👤</span>
             <span data-i18n="userMenu.accountSettings">账户设置</span>
         </a>
-        
-        <a href="/points" class="v2-dropdown__item">
-            <span>💰</span>
+
+        <a href="/points" class="v2-dropdown__item" data-route="/points">
+            <span class="v2-dropdown__icon">💰</span>
             <span data-i18n="userMenu.balance">余额管理</span>
-            <span id="v2UserPoints" style="margin-left: auto; color: var(--v2-primary-500); font-weight: 600;">-- <span data-i18n="userMenu.points">点</span></span>
+            <span id="v2UserPoints" class="v2-dropdown__badge v2-dropdown__badge--points">-- <span data-i18n="userMenu.points">点</span></span>
         </a>
-        
-        <a href="/recharge" class="v2-dropdown__item" style="color: var(--v2-accent-green);">
-            <span>💎</span>
+
+        <a href="/recharge" class="v2-dropdown__item v2-dropdown__item--highlight" data-route="/recharge">
+            <span class="v2-dropdown__icon">💎</span>
             <span data-i18n="userMenu.recharge">立即充值</span>
         </a>
-        
+
         {% if session.is_admin %}
         <div class="v2-dropdown__divider"></div>
-        
-        <a href="/admin/users" class="v2-dropdown__item" style="color: var(--v2-accent-purple);">
-            <span>👑</span>
+
+        <a href="/admin/users" class="v2-dropdown__item v2-dropdown__item--admin" data-route="/admin/users">
+            <span class="v2-dropdown__icon">👑</span>
             <span data-i18n="userMenu.userManagement">用户管理</span>
-            <span style="margin-left: auto; font-size: 11px; background: linear-gradient(135deg, #a78bfa 0%, #8b5cf6 100%); color: white; padding: 2px 8px; border-radius: 10px;" data-i18n="userMenu.admin">ADMIN</span>
+            <span class="v2-dropdown__badge v2-dropdown__badge--admin" data-i18n="userMenu.admin">ADMIN</span>
         </a>
-        <a href="/admin/model-pricing" class="v2-dropdown__item" style="color: var(--v2-accent-purple);">
-            <span>💰</span>
+        <a href="/admin/model-pricing" class="v2-dropdown__item v2-dropdown__item--admin" data-route="/admin/model-pricing">
+            <span class="v2-dropdown__icon">⚡</span>
             <span>模型定价</span>
-            <span style="margin-left: auto; font-size: 11px; background: linear-gradient(135deg, #a78bfa 0%, #8b5cf6 100%); color: white; padding: 2px 8px; border-radius: 10px;">ADMIN</span>
+            <span class="v2-dropdown__badge v2-dropdown__badge--admin">ADMIN</span>
         </a>
         {% endif %}
-        
+
         <div class="v2-dropdown__divider"></div>
-        
-        <a href="/help" class="v2-dropdown__item">
-            <span>📚</span>
+
+        <a href="/help" class="v2-dropdown__item" data-route="/help">
+            <span class="v2-dropdown__icon">📚</span>
             <span data-i18n="userMenu.tutorial">使用教程</span>
         </a>
-        
-        <a href="/model-config" class="v2-dropdown__item">
-            <span>🤖</span>
+
+        <a href="/model-config" class="v2-dropdown__item" data-route="/model-config">
+            <span class="v2-dropdown__icon">🤖</span>
             <span data-i18n="userMenu.modelConfig">模型配置</span>
         </a>
-        
-        <a href="/settings" class="v2-dropdown__item">
-            <span>⚙️</span>
+
+        <a href="/settings" class="v2-dropdown__item" data-route="/settings">
+            <span class="v2-dropdown__icon">⚙️</span>
             <span data-i18n="userMenu.preferences">偏好设置</span>
         </a>
-        
+
         <div class="v2-dropdown__divider"></div>
-        
+
         <!-- 多账户切换入口 -->
         <a href="javascript:void(0)" class="v2-dropdown__item" onclick="showAccountSwitcher(event); return false;">
-            <span>🔄</span>
+            <span class="v2-dropdown__icon">🔄</span>
             <span data-i18n="userMenu.switchAccount">切换账户</span>
             <span id="account-count-badge" class="v2-account-badge" style="display: none;">0</span>
         </a>
-        
+
         <a href="/logout" class="v2-dropdown__item v2-dropdown__item--danger">
-            <span>🚪</span>
+            <span class="v2-dropdown__icon">🚪</span>
             <span data-i18n="userMenu.logout">退出登录</span>
         </a>
     </div>
@@ -178,9 +178,24 @@
     
     // 页面加载完成后加载点数
     if (document.readyState === 'loading') {
-        document.addEventListener('DOMContentLoaded', loadV2UserPoints);
+        document.addEventListener('DOMContentLoaded', function() {
+            loadV2UserPoints();
+            highlightCurrentMenuItem();
+        });
     } else {
         loadV2UserPoints();
+        highlightCurrentMenuItem();
+    }
+    
+    // 高亮当前页面菜单项
+    function highlightCurrentMenuItem() {
+        const currentPath = window.location.pathname;
+        document.querySelectorAll('.v2-dropdown__item[data-route]').forEach(item => {
+            const route = item.getAttribute('data-route');
+            if (route && (currentPath === route || currentPath.startsWith(route + '/'))) {
+                item.classList.add('v2-dropdown__item--active');
+            }
+        });
     }
     
     // 初始化账户切换器 - 延迟执行确保 AccountManager 已加载
