@@ -308,82 +308,40 @@ def chat_stream():
 #  2. 生成设定（非流式 JSON）
 # ───────────────────────────────
 
-_GENERATE_SETTINGS_PROMPT = """根据以上对话内容，生成一份完整的小说项目方案，包含三大部分：设定、大纲、细纲。
+_GENERATE_SETTINGS_PROMPT = """根据以上对话内容，生成一份小说项目设定方案。
 
 要求：
 1. 输出格式必须是 **JSON**，不要包含任何 markdown 代码块标记或其他说明文字
-2. JSON 顶层结构如下：
+2. JSON 结构如下：
 
 {
-  "settings": {
-    "title": "书名",
-    "synopsis": "一句话简介（20-50字）",
-    "description": "详细简介（200-500字）",
-    "genre": "题材/类型",
-    "tags": ["标签1", "标签2", "标签3"],
-    "worldview": {
-      "background": "世界观背景",
-      "rules": "核心规则/金手指机制",
-      "era": "时代/背景设定"
-    },
-    "characters": [
-      {
-        "name": "角色名",
-        "role": "主角/反派/女主等",
-        "personality": "性格特征",
-        "background": "角色背景",
-        "goal": "核心目标"
-      }
-    ],
-    "key_hooks": ["爽点1", "爽点2", "爽点3"],
-    "target_words": 400000,
-    "chapters_estimate": 200
+  "title": "书名",
+  "synopsis": "一句话简介（20-50字）",
+  "description": "详细简介（200-500字）",
+  "genre": "题材/类型",
+  "tags": ["标签1", "标签2", "标签3"],
+  "worldview": {
+    "background": "世界观背景",
+    "rules": "核心规则/金手指机制",
+    "era": "时代/背景设定"
   },
-  "outline": {
-    "volumes": [
-      {
-        "volume_number": 1,
-        "volume_title": "第一卷标题",
-        "summary": "本卷核心剧情概要（100-200字）",
-        "chapters": [
-          {
-            "chapter_number": 1,
-            "chapter_title": "第一章标题",
-            "summary": "本章剧情概要（50-100字）"
-          }
-        ]
-      }
-    ]
-  },
-  "detailed_outline": {
-    "volumes": [
-      {
-        "volume_number": 1,
-        "volume_title": "第一卷标题",
-        "chapters": [
-          {
-            "chapter_number": 1,
-            "chapter_title": "第一章标题",
-            "scene_setting": "时间、地点、氛围",
-            "characters": "涉及角色1、角色2",
-            "hook_point": "核心爽点/猎奇点（一句话）",
-            "plot_steps": ["情节步骤1", "情节步骤2", "情节步骤3"],
-            "dialogue_samples": ["关键对话示例1", "关键对话示例2"],
-            "climax_design": "爽点设计说明：为什么这章能打动番茄读者",
-            "ending_hook": "章节结尾钩子：下一章的悬念预告",
-            "emotional_arc": "情绪走向，如：压抑→爆发→爽",
-            "word_count_estimate": 3000
-          }
-        ]
-      }
-    ]
-  }
+  "characters": [
+    {
+      "name": "角色名",
+      "role": "主角/反派/女主等",
+      "personality": "性格特征",
+      "background": "角色背景",
+      "goal": "核心目标"
+    }
+  ],
+  "key_hooks": ["爽点1", "爽点2", "爽点3"],
+  "target_words": 400000,
+  "chapters_estimate": 200
 }
 
-3. 大纲部分（outline）必须规划 3-6 卷，每卷固定 30 章。outline.volumes[].chapters 中每卷都必须列出完整的 30 章列表，每章包含 chapter_number + chapter_title + summary（50-100字）。这是全书的"骨架"，必须完整、不能省略任何一章。
-4. 细纲部分（detailed_outline）由于输出长度限制，优先保证前 1-2 卷的完整详细细纲（每章 200-400 字）。如果长度允许，尽量覆盖更多卷。但 outline 的章节列表必须完整覆盖全书所有卷。
-5. 细纲字段必须严格按上述 JSON 结构填写，每个字段都要充实具体，不能敷衍
-6. 直接返回 JSON 字符串，不要加 ```json 这样的代码块"""
+3. 角色至少包含主角、核心反派/对手、女主/重要配角
+4. 爽点设计要贴合番茄读者偏好：即时反馈、打脸反转、升级收获
+5. 直接返回 JSON 字符串，不要加 ```json 这样的代码块"""
 
 
 @conversation_api.route('/generate-settings', methods=['POST'])
@@ -475,6 +433,245 @@ def generate_settings():
 
     except Exception as e:
         logger.error(f"[Conversation] /generate-settings 失败: {e}")
+        return jsonify({"success": False, "error": str(e)}), 500
+
+
+_GENERATE_OUTLINE_PROMPT = """请根据以下小说设定，生成完整的卷级大纲。
+
+要求：
+1. 输出格式必须是 **JSON**，不要包含任何 markdown 代码块标记或其他说明文字
+2. JSON 结构如下：
+
+{
+  "volumes": [
+    {
+      "volume_number": 1,
+      "volume_title": "第一卷标题",
+      "summary": "本卷核心剧情概要（100-200字）",
+      "chapters": [
+        {
+          "chapter_number": 1,
+          "chapter_title": "第一章标题",
+          "summary": "本章剧情概要（50-100字）"
+        }
+      ]
+    }
+  ]
+}
+
+3. 必须规划 3-6 卷，每卷固定 30 章
+4. 每卷都必须列出完整的 30 章列表，不能省略任何一章
+5. 这是全书的"骨架"，必须完整、逻辑连贯
+6. 直接返回 JSON 字符串，不要加 ```json 这样的代码块"""
+
+
+_GENERATE_DETAILED_PROMPT = """请根据以下小说设定和大纲，生成前 1-2 卷的详细章节细纲。
+
+要求：
+1. 输出格式必须是 **JSON**，不要包含任何 markdown 代码块标记或其他说明文字
+2. JSON 结构如下：
+
+{
+  "volumes": [
+    {
+      "volume_number": 1,
+      "volume_title": "第一卷标题",
+      "chapters": [
+        {
+          "chapter_number": 1,
+          "chapter_title": "第一章标题",
+          "scene_setting": "时间、地点、氛围",
+          "characters": "涉及角色",
+          "hook_point": "核心爽点/猎奇点（一句话）",
+          "plot_steps": ["情节步骤1", "情节步骤2"],
+          "dialogue_samples": ["关键对话示例1"],
+          "climax_design": "爽点设计说明：为什么这章能打动番茄读者",
+          "ending_hook": "章节结尾钩子：下一章的悬念预告",
+          "emotional_arc": "情绪走向，如：压抑→爆发→爽",
+          "word_count_estimate": 3000
+        }
+      ]
+    }
+  ]
+}
+
+3. 优先保证前 1-2 卷的完整详细细纲，每章 200-400 字体量
+4. 每个字段都要充实具体，不能敷衍
+5. 直接返回 JSON 字符串，不要加 ```json 这样的代码块"""
+
+
+@conversation_api.route('/generate-outline', methods=['POST'])
+@login_required
+def generate_outline():
+    """基于设定生成大纲"""
+    try:
+        data = request.json or {}
+        messages = data.get("messages", [])
+        settings = data.get("settings", {})
+        model = data.get("model", "deepseek-v4-pro")
+
+        if not settings:
+            return jsonify({"success": False, "error": "settings 不能为空，请先生成设定"}), 400
+
+        endpoint = _resolve_endpoint(model)
+        if not endpoint:
+            return jsonify({"success": False, "error": f"模型 '{model}' 无可用端点"}), 404
+        if not endpoint.get("api_key"):
+            return jsonify({"success": False, "error": "API Key 未配置"}), 400
+
+        actual_model = endpoint.get("model", model)
+        temperature = _normalize_temp(actual_model, 0.7)
+        logger.info(f"[Conversation] /generate-outline 请求: model={actual_model}")
+
+        import requests
+        headers = {
+            "Content-Type": "application/json",
+            "Authorization": f"Bearer {endpoint['api_key']}"
+        }
+
+        # 构建消息：对话历史 + 设定 + 大纲生成指令
+        gen_messages = messages.copy()
+        gen_messages.append({
+            "role": "user",
+            "content": f"以下是已确定的小说设定：\n\n{json.dumps(settings, ensure_ascii=False, indent=2)}\n\n{_GENERATE_OUTLINE_PROMPT}"
+        })
+
+        payload = {
+            "model": actual_model,
+            "messages": gen_messages,
+            "stream": False,
+        }
+        if temperature is not None:
+            payload["temperature"] = temperature
+
+        resp = requests.post(
+            endpoint["api_url"],
+            headers=headers,
+            json=payload,
+            timeout=300
+        )
+
+        if not resp.ok:
+            try:
+                err = resp.json().get("error", {}).get("message", resp.text)
+            except Exception:
+                err = resp.text or f"HTTP {resp.status_code}"
+            logger.error(f"[Conversation] /generate-outline API 错误: {err}")
+            return jsonify({"success": False, "error": err}), 502
+
+        result = resp.json()
+        _deduct_by_usage(result, endpoint, actual_model, 'generate-outline')
+        choices = result.get("choices") or [{}]
+        raw_content = choices[0].get("message", {}).get("content", "") if choices else ""
+        logger.info(f"[Conversation] /generate-outline 响应长度: {len(raw_content)} 字符")
+
+        outline = _extract_json(raw_content)
+        if not outline:
+            logger.warning(f"[Conversation] /generate-outline JSON 解析失败")
+            return jsonify({
+                "success": False,
+                "error": "AI 返回内容无法解析为有效 JSON",
+                "raw": raw_content[:2000]
+            }), 422
+
+        logger.info(f"[Conversation] /generate-outline 解析成功")
+        return jsonify({
+            "success": True,
+            "outline": outline,
+            "model": actual_model,
+        })
+
+    except Exception as e:
+        logger.error(f"[Conversation] /generate-outline 失败: {e}")
+        return jsonify({"success": False, "error": str(e)}), 500
+
+
+@conversation_api.route('/generate-detailed', methods=['POST'])
+@login_required
+def generate_detailed():
+    """基于设定+大纲生成细纲"""
+    try:
+        data = request.json or {}
+        messages = data.get("messages", [])
+        settings = data.get("settings", {})
+        outline = data.get("outline", {})
+        model = data.get("model", "deepseek-v4-pro")
+
+        if not settings:
+            return jsonify({"success": False, "error": "settings 不能为空"}), 400
+        if not outline:
+            return jsonify({"success": False, "error": "outline 不能为空，请先生成大纲"}), 400
+
+        endpoint = _resolve_endpoint(model)
+        if not endpoint:
+            return jsonify({"success": False, "error": f"模型 '{model}' 无可用端点"}), 404
+        if not endpoint.get("api_key"):
+            return jsonify({"success": False, "error": "API Key 未配置"}), 400
+
+        actual_model = endpoint.get("model", model)
+        temperature = _normalize_temp(actual_model, 0.7)
+        logger.info(f"[Conversation] /generate-detailed 请求: model={actual_model}")
+
+        import requests
+        headers = {
+            "Content-Type": "application/json",
+            "Authorization": f"Bearer {endpoint['api_key']}"
+        }
+
+        # 构建消息：对话历史 + 设定 + 大纲 + 细纲生成指令
+        gen_messages = messages.copy()
+        gen_messages.append({
+            "role": "user",
+            "content": f"以下是已确定的小说设定：\n\n{json.dumps(settings, ensure_ascii=False, indent=2)}\n\n以下是已确定的大纲：\n\n{json.dumps(outline, ensure_ascii=False, indent=2)}\n\n{_GENERATE_DETAILED_PROMPT}"
+        })
+
+        payload = {
+            "model": actual_model,
+            "messages": gen_messages,
+            "stream": False,
+        }
+        if temperature is not None:
+            payload["temperature"] = temperature
+
+        resp = requests.post(
+            endpoint["api_url"],
+            headers=headers,
+            json=payload,
+            timeout=300
+        )
+
+        if not resp.ok:
+            try:
+                err = resp.json().get("error", {}).get("message", resp.text)
+            except Exception:
+                err = resp.text or f"HTTP {resp.status_code}"
+            logger.error(f"[Conversation] /generate-detailed API 错误: {err}")
+            return jsonify({"success": False, "error": err}), 502
+
+        result = resp.json()
+        _deduct_by_usage(result, endpoint, actual_model, 'generate-detailed')
+        choices = result.get("choices") or [{}]
+        raw_content = choices[0].get("message", {}).get("content", "") if choices else ""
+        logger.info(f"[Conversation] /generate-detailed 响应长度: {len(raw_content)} 字符")
+
+        detailed = _extract_json(raw_content)
+        if not detailed:
+            logger.warning(f"[Conversation] /generate-detailed JSON 解析失败")
+            return jsonify({
+                "success": False,
+                "error": "AI 返回内容无法解析为有效 JSON",
+                "raw": raw_content[:2000]
+            }), 422
+
+        logger.info(f"[Conversation] /generate-detailed 解析成功")
+        return jsonify({
+            "success": True,
+            "detailed_outline": detailed,
+            "model": actual_model,
+        })
+
+    except Exception as e:
+        logger.error(f"[Conversation] /generate-detailed 失败: {e}")
         return jsonify({"success": False, "error": str(e)}), 500
 
 
@@ -814,31 +1011,41 @@ def _build_project_info(title: str, settings: dict, outline: dict) -> dict:
 #  4. 自动质检（生成设定后自动调用）
 # ───────────────────────────────
 
-_QUALITY_CHECK_PROMPT = """请作为资深网文编辑，对以上小说项目方案进行严格质检。重点检查以下维度：
+_QUALITY_CHECK_PROMPT = """请作为番茄小说网的资深编辑，对以上小说项目方案进行严格质检。
+
+【目标平台】番茄小说网（免费阅读、算法推荐驱动、下沉市场为主）
+【目标读者】碎片化阅读的移动端用户，追求即时情绪释放，前3章留不住就会划走
+
+重点检查以下维度：
 
 ## 1. 设定矛盾
 - 世界观背景、金手指规则、角色设定是否存在自相矛盾
 - 力量体系/经济体系是否自洽
 
-## 2. 毒点排查（读者雷区）
+## 2. 毒点排查（番茄读者雷区）
 - 主角圣母、降智、双标
-- 绿帽、背叛、虐主（让主角长期受辱无反击）
+- 绿帽、背叛、虐主（让主角长期受辱无反击）——番茄读者零容忍
 - 反派过于强大导致长期压抑、无解
 - 逻辑硬伤（钱/实力来得太轻易、无代价）
 - 后宫关系处理不当（女配脸谱化、无成长）
+- 开篇压抑过长、先抑后扬的"抑"超过1章——番茄读者会直接划走
 
-## 3. 爽点密度与节奏
+## 3. 爽点密度与节奏（番茄核心指标）
+- 前3章是否出现核心爽点或强悬念（番茄算法留存的关键）
 - 打脸节奏是否紧凑（建议每3-5章一个小爽点，每卷一个大高潮）
-- 期待感构建是否到位（铺垫→爆发→收获）
+- 期待感构建是否到位（铺垫→爆发→收获，铺垫不宜超过2章）
 - 金手指使用是否有新意，还是老套路重复
+- 是否存在"长篇大论解释设定"的劝退段落
 
-## 4. 开局与节奏
-- 开局是否拖沓（前3章必须出现核心爽点或悬念）
-- 高潮来得是否太晚（第1卷结束前应有第一个大高潮）
+## 4. 开局与卷节奏
+- 开局是否拖沓（第1章前500字必须抓住眼球）
+- 第1卷结束前是否有第一个大高潮
+- 每章结尾是否有钩子（促使读者点击下一章）
 
-## 5. 市场契合度
-- 题材是否符合当前番茄/起点热门趋势
-- 书名+简介是否具有点击吸引力
+## 5. 番茄市场契合度
+- 题材是否符合当前番茄热门趋势（都市脑洞、玄幻脑洞、神豪、种田、奶爸等）
+- 书名+简介是否具有点击吸引力（算法推荐场景下的标题竞争力）
+- 前三章是否具备"算法推荐友好"的强钩子
 
 请输出 JSON（不要加代码块标记）：
 {

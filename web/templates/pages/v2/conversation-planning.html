@@ -109,6 +109,118 @@
             overflow: hidden;
         }
 
+        /* ===== 历史侧边栏 ===== */
+        .history-sidebar {
+            width: 220px;
+            background: var(--bg-secondary);
+            border-right: 1px solid var(--border-light);
+            display: flex;
+            flex-direction: column;
+            flex-shrink: 0;
+            transition: width 0.2s ease;
+        }
+        .history-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 14px 16px;
+            border-bottom: 1px solid var(--border-light);
+        }
+        .history-title {
+            font-size: 13px;
+            font-weight: 600;
+            color: var(--text-secondary);
+            letter-spacing: 0.02em;
+        }
+        .history-new-btn {
+            width: 26px;
+            height: 26px;
+            border-radius: 6px;
+            border: 1px solid var(--border-color);
+            background: transparent;
+            color: var(--text-secondary);
+            font-size: 16px;
+            line-height: 1;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.15s ease;
+        }
+        .history-new-btn:hover {
+            background: var(--bg-tertiary);
+            color: var(--accent-blue);
+            border-color: var(--accent-blue);
+        }
+        .history-list {
+            flex: 1;
+            overflow-y: auto;
+            padding: 8px;
+        }
+        .history-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 9px 10px;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.15s ease;
+            margin-bottom: 2px;
+            position: relative;
+        }
+        .history-item:hover {
+            background: var(--bg-tertiary);
+        }
+        .history-item.active {
+            background: rgba(88, 166, 255, 0.1);
+        }
+        .history-item.active .history-item-text {
+            color: var(--accent-blue);
+            font-weight: 500;
+        }
+        .history-item-text {
+            flex: 1;
+            font-size: 13px;
+            color: var(--text-primary);
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            line-height: 1.4;
+        }
+        .history-item-time {
+            font-size: 11px;
+            color: var(--text-muted);
+            white-space: nowrap;
+            flex-shrink: 0;
+        }
+        .history-item-delete {
+            width: 20px;
+            height: 20px;
+            border-radius: 4px;
+            border: none;
+            background: transparent;
+            color: var(--text-muted);
+            font-size: 13px;
+            cursor: pointer;
+            display: none;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+        }
+        .history-item:hover .history-item-delete {
+            display: flex;
+        }
+        .history-item-delete:hover {
+            background: rgba(248, 81, 73, 0.15);
+            color: var(--accent-red);
+        }
+        .history-empty {
+            text-align: center;
+            padding: 32px 16px;
+            color: var(--text-muted);
+            font-size: 13px;
+        }
+
         /* ===== 聊天区域 ===== */
         .chat-container {
             flex: 1;
@@ -184,12 +296,12 @@
         /* Markdown 样式 */
         .bubble p { margin: 0 0 10px 0; }
         .bubble p:last-child { margin-bottom: 0; }
-        .bubble strong { color: #fff; font-weight: 600; }
+        .bubble strong { color: var(--text-primary); font-weight: 600; }
         .bubble em { color: var(--text-secondary); font-style: normal; }
         .bubble h1, .bubble h2, .bubble h3, .bubble h4 {
             margin: 16px 0 8px 0;
             font-weight: 600;
-            color: #fff;
+            color: var(--text-primary);
         }
         .bubble h1 { font-size: 20px; }
         .bubble h2 { font-size: 18px; }
@@ -204,6 +316,26 @@
             padding-left: 12px;
             margin: 10px 0;
             color: var(--text-secondary);
+        }
+
+        /* Markdown 表格 */
+        .bubble table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 12px 0;
+            font-size: 14px;
+        }
+        .bubble th, .bubble td {
+            border: 1px solid var(--border-color);
+            padding: 8px 12px;
+            text-align: left;
+        }
+        .bubble th {
+            background: var(--bg-tertiary);
+            font-weight: 600;
+        }
+        .bubble tr:nth-child(even) {
+            background: rgba(128,128,128,0.04);
         }
 
         .bubble pre {
@@ -258,6 +390,27 @@
             line-height: 1.7;
         }
 
+        /* 生成中气泡 */
+        .generating-bubble {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            color: var(--text-muted);
+            font-size: 14px;
+        }
+        .generating-spinner {
+            width: 14px;
+            height: 14px;
+            border: 2px solid var(--border-color);
+            border-top-color: var(--accent-blue);
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+            flex-shrink: 0;
+        }
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
         /* 流式光标 */
         .cursor {
             display: inline-block;
@@ -272,6 +425,37 @@
         @keyframes blink {
             0%, 100% { opacity: 1; }
             50% { opacity: 0; }
+        }
+
+        /* 消息操作栏 */
+        .message-actions {
+            display: flex;
+            gap: 8px;
+            margin-top: 10px;
+            padding-top: 8px;
+            border-top: 1px solid var(--border-light);
+        }
+        .msg-action-btn {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            padding: 4px 10px;
+            border-radius: 6px;
+            border: 1px solid var(--border-color);
+            background: transparent;
+            color: var(--text-secondary);
+            font-size: 12px;
+            cursor: pointer;
+            transition: all 0.15s ease;
+        }
+        .msg-action-btn:hover {
+            background: var(--bg-tertiary);
+            color: var(--text-primary);
+            border-color: var(--border-color);
+        }
+        .msg-action-btn.copied {
+            color: var(--accent-green);
+            border-color: var(--accent-green);
         }
 
         /* ===== 输入区域 ===== */
@@ -452,6 +636,40 @@
             display: flex;
             gap: 10px;
         }
+        .tab-actions {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 10px 16px;
+            border-bottom: 1px solid var(--border-light);
+        }
+        .tab-gen-btn {
+            padding: 5px 14px;
+            border-radius: 6px;
+            border: 1px solid var(--border-color);
+            background: var(--bg-tertiary);
+            color: var(--text-primary);
+            font-size: 12px;
+            cursor: pointer;
+            transition: all 0.15s ease;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+        .tab-gen-btn:hover:not(:disabled) {
+            background: var(--accent-blue);
+            color: #fff;
+            border-color: var(--accent-blue);
+        }
+        .tab-gen-btn:disabled {
+            opacity: 0.4;
+            cursor: not-allowed;
+        }
+        .tab-status {
+            font-size: 12px;
+            color: var(--text-muted);
+            margin-left: auto;
+        }
         .btn-primary {
             flex: 1;
             padding: 10px;
@@ -535,8 +753,8 @@
             <a href="/" class="nav-title">自由创作</a>
         </div>
         <select class="model-selector" id="modelSelector">
+            <option value="deepseek-v4-pro" selected>DeepSeek-V4-Pro</option>
             <option value="deepseek-v4-flash">DeepSeek-V4-Flash</option>
-            <option value="deepseek-v4-pro">DeepSeek-V4-Pro</option>
             <option value="kimi-k2.5">Kimi-K2.5</option>
             <option value="gemini-3-flash">Gemini-3-Flash</option>
         </select>
@@ -544,15 +762,26 @@
 
     <!-- 主体 -->
     <div class="main">
+        <!-- 左侧历史侧边栏 -->
+        <div class="history-sidebar" id="historySidebar">
+            <div class="history-header">
+                <span class="history-title">💬 历史对话</span>
+                <button class="history-new-btn" onclick="startNewConversation()" title="新建对话">+</button>
+            </div>
+            <div class="history-list" id="historyList">
+                <!-- 动态生成 -->
+            </div>
+        </div>
+
         <!-- 聊天区域 -->
         <div class="chat-container">
             <div class="chat-messages" id="chatMessages">
                 <!-- AI 开场白 -->
                 <div class="message-row ai">
                     <div class="message-content ai">
-                        <div class="avatar ai">🤖</div>
+                        <div class="avatar ai"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg></div>
                         <div class="bubble" id="welcomeBubble">
-                            <p>你好！想写什么类型的小说？直接告诉我你的创意，我们可以一起聊出来。</p>
+                            <p>想写什么类型的故事？从一句话创意开始，我们一步步打磨出来。</p>
                         </div>
                     </div>
                 </div>
@@ -587,12 +816,24 @@
             </div>
             <div class="settings-body">
                 <div class="tab-content active" id="tab-settings">
+                    <div class="tab-actions">
+                        <button class="tab-gen-btn" id="btnGenSettings" onclick="generateSettings()">✨ 生成设定</button>
+                        <span class="tab-status" id="settingsStatus">基于对话内容生成</span>
+                    </div>
                     <textarea class="edit-area" id="editSettings" placeholder="点击“生成设定”后，设定内容将显示在这里，可直接编辑"></textarea>
                 </div>
                 <div class="tab-content" id="tab-outline">
+                    <div class="tab-actions">
+                        <button class="tab-gen-btn" id="btnGenOutline" onclick="generateOutline()" disabled>📝 生成大纲</button>
+                        <span class="tab-status" id="outlineStatus">需先完成设定</span>
+                    </div>
                     <textarea class="edit-area" id="editOutline" placeholder="大纲内容..."></textarea>
                 </div>
                 <div class="tab-content" id="tab-detailed">
+                    <div class="tab-actions">
+                        <button class="tab-gen-btn" id="btnGenDetailed" onclick="generateDetailed()" disabled>📖 生成细纲</button>
+                        <span class="tab-status" id="detailedStatus">需先完成大纲</span>
+                    </div>
                     <textarea class="edit-area" id="editDetailed" placeholder="细纲内容..."></textarea>
                 </div>
                 <div class="tab-content" id="tab-quality">
@@ -633,9 +874,16 @@
         const tabBtnQuality = document.getElementById('tabBtnQuality');
         const errorToast = document.getElementById('errorToast');
 
+        // 配置 marked.js 支持 GFM 表格
+        marked.use({ gfm: true, breaks: true });
+
         let messages = [];
         let isStreaming = false;
+        let isRegenerating = false;
         let currentProjectData = null;
+        let currentConversationId = null;
+        const HISTORY_KEY = 'novelcraft_conversation_history';
+        const MAX_HISTORY = 5;
 
         function scrollToBottom() {
             chatMessages.scrollTop = chatMessages.scrollHeight;
@@ -669,7 +917,7 @@
             const thinkId = 'think_' + Date.now();
             row.innerHTML = `
                 <div class="message-content ai">
-                    <div class="avatar ai">🤖</div>
+                    <div class="avatar ai"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg></div>
                     <div class="bubble" id="${bubbleId}">
                         <details class="think-box" id="${thinkId}" style="display:none;">
                             <summary>💭 思考过程</summary>
@@ -711,6 +959,80 @@
             if (thinkBox && thinkBox.style.display !== 'none') {
                 thinkBox.open = true;
             }
+            // 添加复制/重新生成按钮
+            addMessageActions(bubble);
+        }
+
+        function addMessageActions(bubble) {
+            const msgIndex = parseInt(bubble.dataset.msgIndex || '-1');
+            if (msgIndex < 0) return;
+            // 避免重复添加
+            if (bubble.querySelector('.message-actions')) return;
+            const actions = document.createElement('div');
+            actions.className = 'message-actions';
+            actions.innerHTML = `
+                <button class="msg-action-btn" onclick="copyMessage(this)" title="复制全文">
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+                    复制
+                </button>
+                <button class="msg-action-btn" onclick="regenerateMessage(this)" title="重新生成">
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="1 4 1 10 7 10"/><polyline points="23 20 23 14 17 14"/><path d="M20.49 9A9 9 0 0 0 5.64 5.64L1 10m22 4l-4.64 4.36A9 9 0 0 1 3.51 15"/></svg>
+                    重新生成
+                </button>
+            `;
+            bubble.appendChild(actions);
+        }
+
+        function copyMessage(btn) {
+            const bubble = btn.closest('.bubble');
+            const streamText = bubble.querySelector('.stream-text');
+            const text = streamText ? streamText.innerText : '';
+            if (!text) return;
+            navigator.clipboard.writeText(text).then(() => {
+                btn.classList.add('copied');
+                const original = btn.innerHTML;
+                btn.innerHTML = `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg> 已复制`;
+                setTimeout(() => {
+                    btn.classList.remove('copied');
+                    btn.innerHTML = original;
+                }, 2000);
+            });
+        }
+
+        function regenerateMessage(btn) {
+            const bubble = btn.closest('.bubble');
+            const msgIndex = parseInt(bubble.dataset.msgIndex || '-1');
+            if (msgIndex < 0 || isStreaming) return;
+
+            // 往前找最近一条 user 消息
+            let userIndex = -1;
+            for (let i = msgIndex - 1; i >= 0; i--) {
+                if (messages[i].role === 'user') {
+                    userIndex = i;
+                    break;
+                }
+            }
+            if (userIndex < 0) return;
+
+            const userText = messages[userIndex].content;
+
+            // 截断 messages（保留 user 消息）
+            messages = messages.slice(0, userIndex + 1);
+
+            // 删除 DOM 中该 AI 消息及之后的所有行
+            const row = bubble.closest('.message-row');
+            let nextRow = row.nextElementSibling;
+            while (nextRow) {
+                const toRemove = nextRow;
+                nextRow = nextRow.nextElementSibling;
+                toRemove.remove();
+            }
+            row.remove();
+
+            // 重新发送（不重复添加用户消息）
+            isRegenerating = true;
+            inputBox.value = userText;
+            sendMessage();
         }
 
         function escapeHtml(text) {
@@ -725,11 +1047,159 @@
             btnGenerate.style.opacity = userCount < 2 ? '0.5' : '1';
         }
 
+        // ===== 历史记录管理 =====
+        function loadHistory() {
+            try {
+                return JSON.parse(localStorage.getItem(HISTORY_KEY) || '[]');
+            } catch { return []; }
+        }
+        function saveHistoryToStorage(history) {
+            localStorage.setItem(HISTORY_KEY, JSON.stringify(history.slice(0, MAX_HISTORY)));
+        }
+        function getConversationTitle(msgs) {
+            const firstUser = msgs.find(m => m.role === 'user');
+            if (!firstUser) return '新对话';
+            const text = firstUser.content.trim();
+            return text.length > 18 ? text.slice(0, 18) + '…' : text;
+        }
+        function saveCurrentConversation() {
+            if (messages.length === 0) return;
+            const history = loadHistory();
+            const title = getConversationTitle(messages);
+            const entry = {
+                id: currentConversationId || ('conv_' + Date.now()),
+                title: title,
+                messages: JSON.parse(JSON.stringify(messages)),
+                projectData: currentProjectData,
+                timestamp: Date.now()
+            };
+            const existingIndex = history.findIndex(h => h.id === entry.id);
+            if (existingIndex >= 0) {
+                history[existingIndex] = entry;
+            } else {
+                history.unshift(entry);
+            }
+            saveHistoryToStorage(history);
+            currentConversationId = entry.id;
+            renderHistoryList();
+        }
+        function renderHistoryList() {
+            const list = document.getElementById('historyList');
+            const history = loadHistory();
+            if (history.length === 0) {
+                list.innerHTML = '<div class="history-empty">暂无历史对话<br>开始你的第一个创意吧</div>';
+                return;
+            }
+            list.innerHTML = history.map(item => {
+                const isActive = item.id === currentConversationId;
+                const time = new Date(item.timestamp).toLocaleDateString('zh-CN', { month: 'numeric', day: 'numeric' });
+                return `
+                    <div class="history-item ${isActive ? 'active' : ''}" onclick="switchConversation('${item.id}')">
+                        <span class="history-item-text">${escapeHtml(item.title)}</span>
+                        <span class="history-item-time">${time}</span>
+                        <button class="history-item-delete" onclick="event.stopPropagation();deleteConversation('${item.id}')" title="删除">×</button>
+                    </div>
+                `;
+            }).join('');
+        }
+        function startNewConversation() {
+            // 保存当前对话
+            if (messages.length > 0) {
+                saveCurrentConversation();
+            }
+            // 清空状态
+            messages = [];
+            currentConversationId = 'conv_' + Date.now();
+            currentProjectData = null;
+            chatMessages.innerHTML = `
+                <div class="message-row ai">
+                    <div class="message-content ai">
+                        <div class="avatar ai"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg></div>
+                        <div class="bubble"><p>想写什么类型的故事？从一句话创意开始，我们一步步打磨出来。</p></div>
+                    </div>
+                </div>
+            `;
+            editSettings.value = '';
+            editOutline.value = '';
+            editDetailed.value = '';
+            qualityReport.innerHTML = '<p style="text-align:center;color:var(--text-muted);">生成设定后将自动进行质检...</p>';
+            settingsPanel.classList.remove('active');
+            updateGenerateButton();
+            renderHistoryList();
+            inputBox.focus();
+        }
+        function switchConversation(id) {
+            const history = loadHistory();
+            const item = history.find(h => h.id === id);
+            if (!item) return;
+            // 先保存当前
+            if (messages.length > 0 && currentConversationId) {
+                saveCurrentConversation();
+            }
+            // 加载目标对话
+            currentConversationId = item.id;
+            messages = JSON.parse(JSON.stringify(item.messages || []));
+            currentProjectData = item.projectData || null;
+            // 渲染消息
+            chatMessages.innerHTML = '';
+            for (let i = 0; i < messages.length; i++) {
+                const msg = messages[i];
+                if (msg.role === 'user') {
+                    const row = document.createElement('div');
+                    row.className = 'message-row user';
+                    row.innerHTML = `
+                        <div class="message-content user">
+                            <div class="bubble"><p>${escapeHtml(msg.content)}</p></div>
+                            <div class="avatar user">👤</div>
+                        </div>
+                    `;
+                    chatMessages.appendChild(row);
+                } else {
+                    const row = document.createElement('div');
+                    row.className = 'message-row ai';
+                    const bubbleId = 'aiBubble_hist_' + Date.now() + '_' + i;
+                    row.innerHTML = `
+                        <div class="message-content ai">
+                            <div class="avatar ai"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg></div>
+                            <div class="bubble" id="${bubbleId}">${marked.parse(msg.content)}</div>
+                        </div>
+                    `;
+                    chatMessages.appendChild(row);
+                    const bubble = document.getElementById(bubbleId);
+                    bubble.dataset.msgIndex = i;
+                    addMessageActions(bubble);
+                }
+            }
+            // 如果有项目数据，恢复面板
+            if (currentProjectData) {
+                editSettings.value = JSON.stringify(currentProjectData.settings || {}, null, 2);
+                editOutline.value = JSON.stringify(currentProjectData.outline || {}, null, 2);
+                editDetailed.value = JSON.stringify(currentProjectData.detailed_outline || {}, null, 2);
+                settingsPanel.classList.add('active');
+            }
+            renderHistoryList();
+            updateGenerateButton();
+            scrollToBottom();
+        }
+        function deleteConversation(id) {
+            if (!confirm('确定删除这条历史对话？')) return;
+            let history = loadHistory();
+            history = history.filter(h => h.id !== id);
+            saveHistoryToStorage(history);
+            if (id === currentConversationId) {
+                startNewConversation();
+            } else {
+                renderHistoryList();
+            }
+        }
+
         async function sendMessage() {
             const text = inputBox.value.trim();
             if (!text || isStreaming) return;
 
-            addUserMessage(text);
+            if (!isRegenerating) {
+                addUserMessage(text);
+            }
             inputBox.value = '';
             inputBox.style.height = '52px';
             btnSend.disabled = true;
@@ -795,9 +1265,12 @@
                     }
                 }
 
-                finishBubble(aiMsg.bubble, aiMsg.streamText, aiMsg.thinkBox);
                 // 拼接完整消息给后续轮次（思考内容不传回 API，DeepSeek 会自动忽略）
                 messages.push({ role: 'assistant', content: fullText });
+                aiMsg.bubble.dataset.msgIndex = messages.length - 1;
+                finishBubble(aiMsg.bubble, aiMsg.streamText, aiMsg.thinkBox);
+                // 自动保存到历史
+                saveCurrentConversation();
             } catch (err) {
                 finishBubble(aiMsg.bubble, aiMsg.streamText);
                 aiMsg.streamText.innerHTML += `<span style="color:var(--accent-red)"> [请求失败: ${escapeHtml(err.message)}]</span>`;
@@ -810,12 +1283,28 @@
         }
 
         async function generateSettings() {
-            if (messages.length === 0) return;
+            if (messages.filter(m => m.role === 'user').length < 2) return;
+            if (isStreaming) return;
 
-            loadingOverlay.classList.add('active');
             const model = document.getElementById('modelSelector').value;
-            loadingModel.textContent = model + ' · 单轮全设定生成';
+            btnGenerate.disabled = true;
             qualityReport.innerHTML = '<p style="text-align:center;color:var(--text-muted);">正在生成方案，质检将在生成完成后自动进行...</p>';
+
+            // 在对话末尾添加"生成中"提示气泡
+            const loadingRow = document.createElement('div');
+            loadingRow.className = 'message-row ai';
+            loadingRow.id = 'generateLoadingRow';
+            loadingRow.innerHTML = `
+                <div class="message-content ai">
+                    <div class="avatar ai"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg></div>
+                    <div class="bubble generating-bubble">
+                        <span class="generating-spinner"></span>
+                        <span>正在整理项目方案，请稍候...</span>
+                    </div>
+                </div>
+            `;
+            chatMessages.appendChild(loadingRow);
+            scrollToBottom();
 
             try {
                 const response = await fetch('/api/conversation/generate-settings', {
@@ -828,15 +1317,111 @@
                 if (result.success && result.settings) {
                     renderSettings(result.settings);
                     settingsPanel.classList.add('active');
-                    // 自动生成后自动调用质检
-                    runQualityCheck(model, result.settings);
+                    // 保存到历史
+                    saveCurrentConversation();
+                    // 自动质检（基于设定）
+                    runQualityCheck(model, {settings: result.settings});
+
+                    // 更新生成中气泡为完成状态
+                    const bubble = loadingRow.querySelector('.bubble');
+                    bubble.classList.remove('generating-bubble');
+                    bubble.innerHTML = '✅ <strong>设定已生成</strong>，可继续生成大纲，或直接编辑保存。';
+
+                    // 启用大纲生成按钮
+                    document.getElementById('btnGenOutline').disabled = false;
+                    document.getElementById('outlineStatus').textContent = '可生成大纲';
                 } else {
+                    const bubble = loadingRow.querySelector('.bubble');
+                    bubble.classList.remove('generating-bubble');
+                    bubble.innerHTML = `<span style="color:var(--accent-red)">❌ 生成失败：${escapeHtml(result.error || '未知错误')}</span>`;
                     showError('生成失败: ' + (result.error || '未知错误'));
                 }
             } catch (err) {
+                const bubble = loadingRow.querySelector('.bubble');
+                if (bubble) {
+                    bubble.classList.remove('generating-bubble');
+                    bubble.innerHTML = `<span style="color:var(--accent-red)">❌ 请求失败：${escapeHtml(err.message)}</span>`;
+                }
                 showError('请求失败: ' + err.message);
             } finally {
-                loadingOverlay.classList.remove('active');
+                btnGenerate.disabled = false;
+            }
+        }
+
+        async function generateOutline() {
+            const settingsData = currentProjectData?.settings;
+            if (!settingsData) {
+                showError('请先生成设定');
+                return;
+            }
+            if (isStreaming) return;
+
+            const model = document.getElementById('modelSelector').value;
+            const btn = document.getElementById('btnGenOutline');
+            const status = document.getElementById('outlineStatus');
+            btn.disabled = true;
+            status.textContent = '生成中...';
+
+            try {
+                const response = await fetch('/api/conversation/generate-outline', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ model, messages, settings: settingsData })
+                });
+                const result = await response.json();
+                if (result.success && result.outline) {
+                    renderOutline(result.outline);
+                    settingsPanel.classList.add('active');
+                    saveCurrentConversation();
+                    status.textContent = '已生成';
+                } else {
+                    status.textContent = '生成失败';
+                    showError('大纲生成失败: ' + (result.error || '未知错误'));
+                    btn.disabled = false;
+                }
+            } catch (err) {
+                status.textContent = '请求失败';
+                showError('大纲请求失败: ' + err.message);
+                btn.disabled = false;
+            }
+        }
+
+        async function generateDetailed() {
+            const settingsData = currentProjectData?.settings;
+            const outlineData = currentProjectData?.outline;
+            if (!settingsData || !outlineData) {
+                showError('请先生成设定和大纲');
+                return;
+            }
+            if (isStreaming) return;
+
+            const model = document.getElementById('modelSelector').value;
+            const btn = document.getElementById('btnGenDetailed');
+            const status = document.getElementById('detailedStatus');
+            btn.disabled = true;
+            status.textContent = '生成中...';
+
+            try {
+                const response = await fetch('/api/conversation/generate-detailed', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ model, messages, settings: settingsData, outline: outlineData })
+                });
+                const result = await response.json();
+                if (result.success && result.detailed_outline) {
+                    renderDetailed(result.detailed_outline);
+                    settingsPanel.classList.add('active');
+                    saveCurrentConversation();
+                    status.textContent = '已生成';
+                } else {
+                    status.textContent = '生成失败';
+                    showError('细纲生成失败: ' + (result.error || '未知错误'));
+                    btn.disabled = false;
+                }
+            } catch (err) {
+                status.textContent = '请求失败';
+                showError('细纲请求失败: ' + err.message);
+                btn.disabled = false;
             }
         }
 
@@ -879,7 +1464,7 @@
 
             const issues = report.issues || [];
             if (issues.length > 0) {
-                html += '<h4 style="margin:16px 0 8px;color:#fff;font-size:14px;">🚨 问题列表</h4>';
+                html += '<h4 style="margin:16px 0 8px;color:var(--text-primary);font-size:14px;">🚨 问题列表</h4>';
                 for (const issue of issues) {
                     const sevColor = issue.severity === 'critical' ? '#f85149' : issue.severity === 'warning' ? '#d29922' : '#8b949e';
                     const sevLabel = issue.severity === 'critical' ? '致命' : issue.severity === 'warning' ? '警告' : '建议';
@@ -896,7 +1481,7 @@
 
             const highlights = report.highlights || [];
             if (highlights.length > 0) {
-                html += '<h4 style="margin:16px 0 8px;color:#fff;font-size:14px;">✨ 亮点</h4>';
+                html += '<h4 style="margin:16px 0 8px;color:var(--text-primary);font-size:14px;">✨ 亮点</h4>';
                 for (const h of highlights) {
                     html += `<div style="color:var(--text-secondary);margin:4px 0;">• ${escapeHtml(h)}</div>`;
                 }
@@ -914,22 +1499,29 @@
         }
 
         function renderSettings(data) {
-            currentProjectData = data;
-            // 填充三个编辑区
-            if (data.settings) {
-                editSettings.value = JSON.stringify(data.settings, null, 2);
-            } else if (data.title !== undefined) {
-                // 兼容旧格式：直接是 settings 对象
-                editSettings.value = JSON.stringify(data, null, 2);
-            }
-            if (data.outline) {
-                editOutline.value = JSON.stringify(data.outline, null, 2);
-            }
-            if (data.detailed_outline) {
-                editDetailed.value = JSON.stringify(data.detailed_outline, null, 2);
-            }
-            // 默认显示设定页
+            currentProjectData = currentProjectData || {};
+            currentProjectData.settings = data;
+            editSettings.value = JSON.stringify(data, null, 2);
+            // 如果已有大纲/细纲，保留它们
             switchTab('settings');
+        }
+
+        function renderOutline(data) {
+            currentProjectData = currentProjectData || {};
+            currentProjectData.outline = data;
+            editOutline.value = JSON.stringify(data, null, 2);
+            switchTab('outline');
+            // 启用细纲生成按钮
+            document.getElementById('btnGenDetailed').disabled = false;
+            document.getElementById('detailedStatus').textContent = '可生成细纲';
+        }
+
+        function renderDetailed(data) {
+            currentProjectData = currentProjectData || {};
+            currentProjectData.detailed_outline = data;
+            editDetailed.value = JSON.stringify(data, null, 2);
+            switchTab('detailed');
+            document.getElementById('detailedStatus').textContent = '已生成';
         }
 
         function switchTab(tab) {
@@ -946,23 +1538,10 @@
         }
 
         function clearChat() {
-            if (!confirm('确定要清空所有对话吗？此操作不可恢复。')) return;
-            messages = [];
-            chatMessages.innerHTML = `
-                <div class="message-row ai">
-                    <div class="message-content ai">
-                        <div class="avatar ai">🤖</div>
-                        <div class="bubble"><p>你好！想写什么类型的小说？直接告诉我你的创意，我们可以一起聊出来。</p></div>
-                    </div>
-                </div>
-            `;
-            updateGenerateButton();
-            currentProjectData = null;
-            editSettings.value = '';
-            editOutline.value = '';
-            editDetailed.value = '';
-            qualityReport.innerHTML = '<p style="text-align:center;color:var(--text-muted);">生成设定后将自动进行质检...</p>';
-            settingsPanel.classList.remove('active');
+            if (messages.length > 0) {
+                if (!confirm('确定要清空当前对话吗？已保存的历史记录不受影响。')) return;
+            }
+            startNewConversation();
         }
 
         async function saveProject() {
@@ -1040,6 +1619,8 @@
         btnGenerate.addEventListener('click', generateSettings);
 
         // 初始化
+        currentConversationId = 'conv_' + Date.now();
+        renderHistoryList();
         updateGenerateButton();
     </script>
 
