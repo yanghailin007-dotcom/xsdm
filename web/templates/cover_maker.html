@@ -6,6 +6,25 @@
 <style>
     /* ==================== 封面制作器专用样式 ==================== */
     
+    /* 旧变量 → V2 设计系统变量映射 */
+    :root {
+        --text-primary: var(--v2-text-primary);
+        --text-secondary: var(--v2-text-secondary);
+        --text-tertiary: var(--v2-text-tertiary);
+        --text-muted: var(--v2-text-muted);
+        --bg-primary: var(--v2-bg-primary);
+        --bg-secondary: var(--v2-bg-secondary);
+        --primary-500: var(--v2-primary-500);
+        --primary-400: var(--v2-primary-400);
+        --purple-500: var(--v2-accent-purple);
+        --success: var(--v2-success);
+        --danger: var(--v2-error);
+        --radius-lg: var(--v2-radius-lg);
+        --radius-md: var(--v2-radius-md);
+        --radius-sm: var(--v2-radius-sm);
+        --accent-500: var(--v2-accent-cyan);
+    }
+    
     /* 宇宙背景 */
     .universe {
         position: fixed;
@@ -45,6 +64,15 @@
         background-size: 400px 400px;
         animation: twinkle 15s infinite linear;
         opacity: 0.3;
+    }
+
+    /* 浅色主题：星星改为深灰色，保持微弱纹理感 */
+    [data-theme="light"] .stars {
+        background-image: 
+            radial-gradient(2px 2px at 20px 30px, rgba(0,0,0,0.15), transparent),
+            radial-gradient(2px 2px at 40px 70px, rgba(0,0,0,0.1), transparent),
+            radial-gradient(1px 1px at 90px 40px, rgba(0,0,0,0.2), transparent),
+            radial-gradient(2px 2px at 130px 80px, rgba(0,0,0,0.12), transparent);
     }
 
     @keyframes twinkle {
@@ -156,6 +184,16 @@
         box-shadow: var(--v2-shadow-md), 0 0 40px rgba(99, 102, 241, 0.08);
     }
 
+    /* 浅色主题增强：提升卡片边界可见度 */
+    [data-theme="light"] .glass-card {
+        border-color: rgba(0, 0, 0, 0.12);
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
+    }
+    [data-theme="light"] .glass-card:hover {
+        border-color: rgba(99, 102, 241, 0.35);
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08), 0 0 30px rgba(99, 102, 241, 0.1);
+    }
+
     .section-title {
         font-size: 1.25rem;
         font-weight: 700;
@@ -210,6 +248,18 @@
         border-color: var(--primary-500);
         background: rgba(99, 102, 241, 0.15);
         box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.2);
+    }
+
+    /* 浅色主题增强 */
+    [data-theme="light"] .novel-item {
+        border-color: rgba(0, 0, 0, 0.12);
+    }
+    [data-theme="light"] .novel-item:hover {
+        box-shadow: 0 8px 25px rgba(99, 102, 241, 0.15);
+    }
+    [data-theme="light"] .novel-item.selected {
+        background: rgba(99, 102, 241, 0.08);
+        box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.15);
     }
 
     .novel-item-title {
@@ -497,6 +547,16 @@
         box-shadow: 0 12px 40px rgba(99, 102, 241, 0.2);
     }
 
+    /* 浅色主题增强 */
+    [data-theme="light"] .cover-item {
+        border-color: rgba(0, 0, 0, 0.12);
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
+    }
+    [data-theme="light"] .cover-item:hover {
+        border-color: rgba(99, 102, 241, 0.35);
+        box-shadow: 0 8px 24px rgba(0, 0, 0, 0.08), 0 0 30px rgba(99, 102, 241, 0.12);
+    }
+
     .cover-item::before {
         content: '';
         position: absolute;
@@ -597,6 +657,10 @@
         gap: 1rem;
         animation: slideDown 0.3s ease-out;
     }
+    [data-theme="light"] .selection-actions {
+        border-color: rgba(99, 102, 241, 0.4);
+        box-shadow: 0 1px 4px rgba(0, 0, 0, 0.06);
+    }
 
     .selection-info {
         font-size: 0.875rem;
@@ -671,6 +735,9 @@
         border-radius: var(--radius-lg);
         border: 1px dashed var(--v2-border-default);
     }
+    [data-theme="light"] .empty-state {
+        border-color: rgba(0, 0, 0, 0.18);
+    }
 
     .empty-icon {
         font-size: 3rem;
@@ -703,7 +770,7 @@
         left: 0;
         right: 0;
         bottom: 0;
-        background: rgba(0, 0, 0, 0.8);
+        background: var(--v2-bg-overlay);
         display: flex;
         justify-content: center;
         align-items: center;
@@ -879,14 +946,14 @@
 
                 <!-- 作者名 -->
                 <div class="form-group">
-                    <label class="form-label">作者名 <span style="color: #ef4444; font-size: 12px;">*</span></label>
+                    <label class="form-label">作者名 <span style="color: var(--v2-error); font-size: 12px;">*</span></label>
                     <div style="display: flex; gap: 8px;">
                         <input type="text" id="author-name" class="form-input" placeholder="请输入作者名，如：北苟王庭的达延" style="flex: 1;" oninput="updateDefaultPrompt()">
                         <button type="button" id="save-author-btn" class="form-btn" style="white-space: nowrap; padding: 10px 16px; font-size: 13px;" onclick="saveDefaultAuthor()">
                             💾 记住
                         </button>
                     </div>
-                    <span style="font-size: 12px; color: #6b7280; margin-top: 4px; display: block;">作者名会显示在封面上，点击"记住"可保存为默认作者</span>
+                    <span style="font-size: 12px; color: var(--v2-text-secondary); margin-top: 4px; display: block;">作者名会显示在封面上，点击"记住"可保存为默认作者</span>
                 </div>
 
                 <!-- 小说类型 -->
@@ -912,7 +979,7 @@
                         <option value="doubao">🌶️ 豆包 (DouBao) - 推荐，速度快</option>
                         <option value="nanobanana">🍌 NanoBanana Pro (Gemini) - 质量高，支持多比例</option>
                     </select>
-                    <span style="font-size: 12px; color: #6b7280; margin-top: 4px; display: block;">
+                    <span style="font-size: 12px; color: var(--v2-text-secondary); margin-top: 4px; display: block;">
                         <span id="provider-hint-doubao">豆包：国内服务，生成速度快</span>
                         <span id="provider-hint-nanobanana" style="display:none;">NanoBanana：基于Gemini，支持1K/2K/4K分辨率，4K较慢</span>
                     </span>
@@ -1729,7 +1796,7 @@
                         <span>${new Date(cover.timestamp).toLocaleDateString()}</span>
                     </div>
                     ${projectIdFromUrl ? `
-                    <div style="margin-top: 8px; padding-top: 8px; border-top: 1px solid rgba(255,255,255,0.1);">
+                    <div style="margin-top: 8px; padding-top: 8px; border-top: 1px solid var(--v2-border-default);">
                         <button onclick="saveCoverToProject('${cover.url}', event)" 
                                 style="width: 100%; padding: 6px 12px; background: linear-gradient(135deg, var(--v2-success), #16a34a); color: white; border: none; border-radius: 4px; font-size: 12px; cursor: pointer;">
                             💾 设为项目封面
@@ -2036,7 +2103,7 @@
         const modal = document.createElement('div');
         modal.style.cssText = `
             position: fixed; top: 0; left: 0; right: 0; bottom: 0;
-            background: rgba(0, 0, 0, 0.85); z-index: 99999;
+            background: var(--v2-bg-overlay); z-index: 99999;
             display: flex; justify-content: center; align-items: center;
             padding: 20px; backdrop-filter: blur(10px);
         `;
@@ -2069,7 +2136,7 @@
                             确认使用
                         </button>
                         <button onclick="this.closest('div').parentElement.remove()"
-                                style="background: var(--v2-border-default); color: var(--text-secondary); border: 1px solid rgba(255, 255, 255, 0.2); padding: 12px 24px; border-radius: 8px; cursor: pointer; font-size: 14px;">
+                                style="background: var(--v2-border-default); color: var(--text-secondary); border: 1px solid var(--v2-border-default); padding: 12px 24px; border-radius: 8px; cursor: pointer; font-size: 14px;">
                             取消
                         </button>
                     </div>
@@ -2122,7 +2189,7 @@
         const modal = document.createElement('div');
         modal.style.cssText = `
             position: fixed; top: 0; left: 0; right: 0; bottom: 0;
-            background: rgba(0, 0, 0, 0.85); z-index: 99999;
+            background: var(--v2-bg-overlay); z-index: 99999;
             display: flex; justify-content: center; align-items: center;
             padding: 20px; backdrop-filter: blur(10px);
         `;
@@ -2161,7 +2228,7 @@
                             确认拷贝
                         </button>
                         <button onclick="this.closest('div').parentElement.remove()"
-                                style="background: var(--v2-border-default); color: var(--text-secondary); border: 1px solid rgba(255, 255, 255, 0.2); padding: 12px 24px; border-radius: 8px; cursor: pointer; font-size: 14px;">
+                                style="background: var(--v2-border-default); color: var(--text-secondary); border: 1px solid var(--v2-border-default); padding: 12px 24px; border-radius: 8px; cursor: pointer; font-size: 14px;">
                             取消
                         </button>
                     </div>
@@ -2219,7 +2286,7 @@
                     const resultModal = document.createElement('div');
                     resultModal.style.cssText = `
                         position: fixed; top: 0; left: 0; right: 0; bottom: 0;
-                        background: rgba(0, 0, 0, 0.85); z-index: 99999;
+                        background: var(--v2-bg-overlay); z-index: 99999;
                         display: flex; justify-content: center; align-items: center;
                         padding: 20px; backdrop-filter: blur(10px);
                     `;
@@ -2263,7 +2330,7 @@
                                         前往番茄上传
                                     </button>
                                     <button onclick="this.closest('div').parentElement.remove(); deselectAllCovers();"
-                                            style="background: var(--v2-border-default); color: var(--text-secondary); border: 1px solid rgba(255, 255, 255, 0.2); padding: 10px 20px; border-radius: 8px; cursor: pointer; font-size: 14px;">
+                                            style="background: var(--v2-border-default); color: var(--text-secondary); border: 1px solid var(--v2-border-default); padding: 10px 20px; border-radius: 8px; cursor: pointer; font-size: 14px;">
                                         完成
                                     </button>
                                 </div>
@@ -2329,7 +2396,7 @@
                 const infoModal = document.createElement('div');
                 infoModal.style.cssText = `
                     position: fixed; top: 0; left: 0; right: 0; bottom: 0;
-                    background: rgba(0, 0, 0, 0.85); z-index: 99999;
+                    background: var(--v2-bg-overlay); z-index: 99999;
                     display: flex; justify-content: center; align-items: center;
                     padding: 20px; backdrop-filter: blur(10px);
                 `;
@@ -2359,7 +2426,7 @@
                                     前往番茄上传
                                 </button>
                                 <button onclick="this.closest('div').parentElement.remove()"
-                                        style="background: var(--v2-border-default); color: var(--text-secondary); border: 1px solid rgba(255, 255, 255, 0.2); padding: 10px 20px; border-radius: 8px; cursor: pointer; font-size: 14px;">
+                                        style="background: var(--v2-border-default); color: var(--text-secondary); border: 1px solid var(--v2-border-default); padding: 10px 20px; border-radius: 8px; cursor: pointer; font-size: 14px;">
                                     知道了
                                 </button>
                             </div>
@@ -2390,7 +2457,7 @@
         const modal = document.createElement('div');
         modal.style.cssText = `
             position: fixed; top: 0; left: 0; right: 0; bottom: 0;
-            background: rgba(0, 0, 0, 0.85); z-index: 99999;
+            background: var(--v2-bg-overlay); z-index: 99999;
             display: flex; justify-content: center; align-items: center;
             padding: 20px; backdrop-filter: blur(10px);
         `;
@@ -2412,7 +2479,7 @@
                             ${selectedCovers.has(cover.id) ? '✓ 已选中' : '选择此封面'}
                         </button>
                         <button onclick="window.open('${encodedUrl}', '_blank')"
-                                style="background: var(--v2-border-default); color: var(--text-secondary); border: 1px solid rgba(255, 255, 255, 0.2); padding: 10px 20px; border-radius: 8px; cursor: pointer;">
+                                style="background: var(--v2-border-default); color: var(--text-secondary); border: 1px solid var(--v2-border-default); padding: 10px 20px; border-radius: 8px; cursor: pointer;">
                             📥 下载原图
                         </button>
                     </div>
