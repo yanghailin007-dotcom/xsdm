@@ -128,6 +128,7 @@ class NovelGenerator:
         self._api_points_consumed = 0  # API调用实际消耗的点数
         self._user_id = None  # 当前用户ID（用于扣费）
         self._username = None  # 当前用户名（用于用户隔离路径）
+        self._token_billed_this_call = False  # 标记本次调用是否已按token计费
         
         # 信号处理
         self._setup_signal_handlers()
@@ -256,6 +257,8 @@ class NovelGenerator:
     def _on_api_call_deduct_points(self, purpose: str, attempt: int, endpoint_name: str = None, discount_rate: int = 100):
         """API调用扣费回调 - 根据折扣率扣除点数
         
+        注意：如果本次调用已按token计费成功，则跳过按次计费，避免双重扣费。
+        
         Args:
             purpose: 调用目的
             attempt: 尝试次数
@@ -263,6 +266,12 @@ class NovelGenerator:
             discount_rate: 折扣率（百分比），默认100%
         """
         try:
+            # 🔥 如果已按token计费，跳过按次计费
+            if self._token_billed_this_call:
+                self._token_billed_this_call = False
+                self.logger.debug(f"⏭️ 跳过按次计费（已按token计费）: {purpose}")
+                return
+            
             # 🔥 计算实际扣除点数（应用折扣率）
             actual_cost = discount_rate / 100.0
             
@@ -335,6 +344,7 @@ class NovelGenerator:
             if result.get('success'):
                 cost = result.get('amount', 0)
                 self._api_points_consumed += cost
+                self._token_billed_this_call = True  # 标记已按token计费，防止按次计费重复扣费
                 self.logger.info(f"💰 Token计费成功: {provider}/{model_name} | "
                                f"输入:{prompt_tokens} 输出:{completion_tokens} tokens | "
                                f"扣除:{cost}点 | 总计:{self._api_points_consumed:.2f}点")
