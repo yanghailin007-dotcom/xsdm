@@ -245,6 +245,186 @@
             transition: width 0.3s ease;
         }
 
+        /* ===== 故事线视图（在右侧正文区域展示） ===== */
+        .storyline-view {
+            padding: 24px 32px;
+            overflow-y: auto;
+            flex: 1;
+        }
+        .storyline-view-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 24px;
+            padding-bottom: 12px;
+            border-bottom: 1px solid var(--border-color);
+        }
+        .storyline-view-header h2 {
+            font-size: 18px;
+            font-weight: 700;
+            color: var(--text-primary);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .storyline-back-btn {
+            padding: 6px 14px;
+            background: var(--bg-tertiary);
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius-sm);
+            color: var(--text-secondary);
+            font-size: 12px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .storyline-back-btn:hover {
+            border-color: var(--accent);
+            color: var(--accent);
+        }
+        .storyline-big-timeline {
+            position: relative;
+            padding-left: 32px;
+            max-width: 900px;
+            margin: 0 auto;
+        }
+        .storyline-big-timeline::before {
+            content: '';
+            position: absolute;
+            left: 8px;
+            top: 12px;
+            bottom: 12px;
+            width: 3px;
+            background: linear-gradient(to bottom, var(--accent), rgba(139,92,246,0.15));
+            border-radius: 2px;
+        }
+        .storyline-big-node {
+            position: relative;
+            margin-bottom: 28px;
+            padding: 20px 24px;
+            background: var(--bg-tertiary);
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius);
+            transition: border-color 0.2s, box-shadow 0.2s;
+        }
+        .storyline-big-node:hover {
+            border-color: var(--accent-border);
+            box-shadow: var(--glow);
+        }
+        .storyline-big-node:last-child { margin-bottom: 0; }
+        .storyline-big-dot {
+            position: absolute;
+            left: -30px;
+            top: 24px;
+            width: 14px;
+            height: 14px;
+            border-radius: 50%;
+            background: var(--accent);
+            border: 3px solid var(--bg-primary);
+            box-shadow: 0 0 0 2px var(--accent-border);
+            z-index: 1;
+        }
+        .storyline-big-dot.hook { background: var(--warning); box-shadow: 0 0 0 2px rgba(245,158,11,0.4); }
+        .storyline-big-dot.climax { background: var(--error); box-shadow: 0 0 0 2px rgba(239,68,68,0.4); }
+        .storyline-big-title {
+            font-size: 16px;
+            font-weight: 700;
+            color: var(--text-primary);
+            cursor: pointer;
+            transition: color 0.2s;
+            margin-bottom: 12px;
+        }
+        .storyline-big-title:hover { color: var(--accent); }
+        .storyline-big-title .ch-num {
+            font-size: 12px;
+            color: var(--text-muted);
+            font-weight: 500;
+            margin-right: 6px;
+        }
+        .storyline-big-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 12px;
+        }
+        .storyline-big-section {
+            background: var(--bg-primary);
+            border-radius: var(--radius-sm);
+            padding: 12px 14px;
+        }
+        .storyline-big-section.full { grid-column: 1 / -1; }
+        .storyline-big-section h4 {
+            font-size: 11px;
+            font-weight: 600;
+            color: var(--text-muted);
+            margin-bottom: 8px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        .storyline-big-section p {
+            font-size: 13px;
+            color: var(--text-primary);
+            line-height: 1.6;
+        }
+        .storyline-big-tags {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px;
+        }
+        .storyline-big-tag {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            padding: 4px 10px;
+            border-radius: 6px;
+            font-size: 12px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.15s;
+            border: none;
+        }
+        .storyline-big-tag:hover { filter: brightness(1.15); transform: translateY(-1px); }
+        .storyline-big-tag.char {
+            background: rgba(59,130,246,0.12);
+            color: #60a5fa;
+        }
+        .storyline-big-tag.hook {
+            background: rgba(245,158,11,0.12);
+            color: #fbbf24;
+        }
+        .storyline-big-tag.scene {
+            background: rgba(34,197,94,0.12);
+            color: #4ade80;
+        }
+        .storyline-big-tag.emotion {
+            background: rgba(236,72,153,0.12);
+            color: #f472b6;
+        }
+        .storyline-big-steps {
+            padding-left: 16px;
+            font-size: 13px;
+            color: var(--text-secondary);
+            line-height: 1.8;
+        }
+        .storyline-big-steps li { margin-bottom: 4px; }
+        .storyline-big-dialogues {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+        .storyline-big-dialogue {
+            font-size: 13px;
+            color: var(--text-secondary);
+            padding: 6px 10px;
+            background: rgba(255,255,255,0.03);
+            border-radius: 6px;
+            border-left: 2px solid var(--accent);
+        }
+        .storyline-empty {
+            text-align: center;
+            color: var(--text-muted);
+            padding: 60px 20px;
+            font-size: 14px;
+        }
+
         /* ===== 右侧面板 ===== */
         .right-panel {
             display: flex;
@@ -859,6 +1039,10 @@
                 <div class="progress-bar"><div class="progress-fill" id="progressFill" style="width:0%"></div></div>
             </div>
 
+            <!-- 故事线入口 -->
+            <button class="gen-btn secondary" id="storylineBtn" style="margin-top:8px;" onclick="showStorylineView()" disabled>
+                <span>📖</span> 故事线
+            </button>
 
         </div>
 
@@ -1024,6 +1208,8 @@ async function loadProjectFiles(projectId, volumeNumber) {
             updateReferenceTabs();
             // 如果当前正在显示参考内容，刷新
             if (showingRef) showRefContent();
+            // 启用故事线按钮
+            updateStorylineBtn();
         }
     } catch (e) {
         console.error('加载项目文件失败:', e);
@@ -1795,6 +1981,194 @@ function showToast(msg, type = 'info') {
     toast.className = 'toast show ' + type;
     setTimeout(() => toast.classList.remove('show'), 3000);
 }
+
+// ===== 故事线功能（在右侧正文区域展示） =====
+let storylineData = [];
+let showingStoryline = false;
+
+function updateStorylineBtn() {
+    const btn = document.getElementById('storylineBtn');
+    if (!btn) return;
+    btn.disabled = !(projectFiles && projectFiles.detailed_outline);
+}
+
+function showStorylineView() {
+    if (!projectFiles || !projectFiles.detailed_outline) {
+        showToast('暂无细纲数据，无法展示故事线', 'info');
+        return;
+    }
+    showingStoryline = true;
+    storylineData = parseStoryline(projectFiles.detailed_outline);
+
+    const body = document.getElementById('contentBody');
+    body.classList.remove('empty');
+    body.innerHTML = renderStorylineBigHtml();
+    document.getElementById('contentTitle').textContent = '📖 故事线概览';
+
+    document.getElementById('editBtn').style.display = 'none';
+    document.getElementById('cancelEditBtn').style.display = 'none';
+    document.getElementById('rewriteBtn').disabled = true;
+    document.getElementById('saveBtn').disabled = true;
+}
+
+function hideStorylineView() {
+    showingStoryline = false;
+    if (activeChapter && chapters[activeChapter]) {
+        showChapterContent(activeChapter);
+    } else {
+        document.getElementById('contentBody').innerHTML = '请选择项目并点击「开始生成」';
+        document.getElementById('contentBody').classList.add('empty');
+        document.getElementById('contentTitle').textContent = '章节内容';
+    }
+}
+
+function renderStorylineBigHtml() {
+    if (storylineData.length === 0) {
+        return '<div class="storyline-empty">未能从细纲中解析出章节数据</div>';
+    }
+    let html = '<div class="storyline-view"><div class="storyline-view-header"><h2>' +
+        '📖 故事线概览 <span style="font-size:13px;color:var(--text-muted);font-weight:400;">共 ' + storylineData.length + ' 章</span></h2>' +
+        '<button class="storyline-back-btn" onclick="hideStorylineView()">← 返回正文</button></div>' +
+        '<div class="storyline-big-timeline">';
+    for (const ch of storylineData) {
+        let dotClass = '';
+        if (ch.hook && (ch.hook.includes('爆') || ch.hook.includes('核') || ch.hook.includes('终极'))) dotClass = 'climax';
+        else if (ch.hook) dotClass = 'hook';
+        html += '<div class="storyline-big-node"><div class="storyline-big-dot ' + dotClass + '"></div>' +
+            '<div class="storyline-big-title" onclick="jumpToChapterFromStoryline(' + ch.num + ')" title="点击查看第' + ch.num + '章正文">' +
+            '<span class="ch-num">第' + ch.num + '章</span>' + escapeHtml(ch.title) + '</div><div class="storyline-big-grid">';
+        if (ch.scene) {
+            html += '<div class="storyline-big-section"><h4>🎬 场景设定</h4><p>' + escapeHtml(ch.scene) + '</p></div>';
+        }
+        if (ch.emotion) {
+            html += '<div class="storyline-big-section"><h4>🌡️ 情绪走向</h4><p>' + escapeHtml(ch.emotion) + '</p></div>';
+        }
+        if (ch.characters.length > 0) {
+            html += '<div class="storyline-big-section ' + (ch.characters.length > 4 ? 'full' : '') + '"><h4>🎭 出场角色</h4><div class="storyline-big-tags">';
+            for (const name of ch.characters) {
+                html += '<button class="storyline-big-tag char" onclick="showCharacterInfo(\'' + escapeHtml(name).replace(/'/g, "\\'") + '\', ' + ch.num + ')">' + escapeHtml(name) + '</button>';
+            }
+            html += '</div></div>';
+        }
+        if (ch.hook) {
+            html += '<div class="storyline-big-section full"><h4>💥 核心爽点</h4><div class="storyline-big-tags">' +
+                '<button class="storyline-big-tag hook" onclick="highlightHook(\'' + escapeHtml(ch.hook).replace(/'/g, "\\'") + '\', ' + ch.num + ')">' + escapeHtml(ch.hook) + '</button></div></div>';
+        }
+        if (ch.steps.length > 0) {
+            html += '<div class="storyline-big-section full"><h4>📋 情节步骤</h4><ol class="storyline-big-steps">';
+            for (const s of ch.steps) {
+                html += '<li>' + escapeHtml(s) + '</li>';
+            }
+            html += '</ol></div>';
+        }
+        if (ch.dialogues.length > 0) {
+            html += '<div class="storyline-big-section full"><h4>💬 关键对话</h4><div class="storyline-big-dialogues">';
+            for (const d of ch.dialogues) {
+                html += '<div class="storyline-big-dialogue">' + escapeHtml(d) + '</div>';
+            }
+            html += '</div></div>';
+        }
+        if (ch.endingHook) {
+            html += '<div class="storyline-big-section"><h4>🪝 结尾钩子</h4><p>' + escapeHtml(ch.endingHook) + '</p></div>';
+        }
+        if (ch.climaxDesign) {
+            html += '<div class="storyline-big-section"><h4>✨ 爽点设计</h4><p>' + escapeHtml(ch.climaxDesign) + '</p></div>';
+        }
+        if (ch.wordCount) {
+            html += '<div class="storyline-big-section"><h4>📝 预估字数</h4><p>' + escapeHtml(ch.wordCount) + '</p></div>';
+        }
+        html += '</div></div>';
+    }
+    html += '</div></div>';
+    return html;
+}
+
+function parseStoryline(markdown) {
+    if (!markdown) return [];
+    const chapters = [];
+    const chapterRegex = /^#{2,3}\s*第\s*(\d+)\s*章[\s:：]*(.+?)$/gm;
+    let match;
+    const positions = [];
+    while ((match = chapterRegex.exec(markdown)) !== null) {
+        positions.push({ index: match.index, num: parseInt(match[1]), title: match[2].trim() });
+    }
+    for (let i = 0; i < positions.length; i++) {
+        const start = positions[i].index;
+        const end = positions[i + 1] ? positions[i + 1].index : markdown.length;
+        const block = markdown.slice(start, end);
+        const ch = { num: positions[i].num, title: positions[i].title };
+        const extract = (label) => {
+            const r = new RegExp('\\*\\*' + label + '\\*\\*[：:]\\s*(.+?)(?=\\n\\*\\*|\\n#{2,3}|\\s*$)', 's');
+            const m = block.match(r);
+            return m ? m[1].trim() : '';
+        };
+        ch.scene = extract('场景设定');
+        const charsRaw = extract('涉及角色');
+        ch.characters = charsRaw ? charsRaw.split(/[,，、/]/).map(s => s.trim()).filter(Boolean) : [];
+        ch.hook = extract('核心爽点/猎奇点') || extract('核心爽点');
+        ch.steps = [];
+        const stepsMatch = block.match(/\*\*情节步骤\*\*[：:]?\s*([\s\S]*?)(?=\n\*\*|\n#{2,3}|\s*$)/);
+        if (stepsMatch) {
+            const stepLines = stepsMatch[1].split('\n');
+            for (const line of stepLines) {
+                const m = line.match(/^\s*\d+[.．]\s*(.+)$/);
+                if (m) ch.steps.push(m[1].trim());
+            }
+        }
+        ch.dialogues = [];
+        const dlgMatch = block.match(/\*\*关键对话\*\*[：:]?\s*([\s\S]*?)(?=\n\*\*|\n#{2,3}|\s*$)/);
+        if (dlgMatch) {
+            const dlgLines = dlgMatch[1].split('\n');
+            for (const line of dlgLines) {
+                const m = line.match(/^\s*[-•]\s*["\'](.+)["\']$/);
+                if (m) ch.dialogues.push(m[1].trim());
+            }
+        }
+        ch.climaxDesign = extract('爽点设计说明') || extract('爽点设计');
+        ch.endingHook = extract('章节结尾钩子') || extract('结尾钩子');
+        ch.emotion = extract('情绪曲线') || extract('情绪走向');
+        ch.wordCount = extract('预计字数') || extract('预估字数');
+        chapters.push(ch);
+    }
+    return chapters;
+}
+
+function jumpToChapterFromStoryline(num) {
+    showingStoryline = false;
+    const tab = document.querySelector('.chapter-tab[data-ch="' + num + '"]');
+    if (tab) tab.click();
+    else showToast('第' + num + '章尚未生成，请先开始生成', 'info');
+}
+
+function showCharacterInfo(name, chapterNum) {
+    showToast('🎭 角色「' + name + '」在第' + chapterNum + '章出场\n（后续可接入AI剧照生成）', 'info');
+}
+
+function showSceneInfo(scene, chapterNum) {
+    showToast('🎬 场景「' + scene + '」\n第' + chapterNum + '章\n（后续可接入AI场景图生成）', 'info');
+}
+
+function highlightHook(hookText, chapterNum) {
+    jumpToChapterFromStoryline(chapterNum);
+    setTimeout(() => {
+        const body = document.getElementById('contentBody');
+        if (!body || body.classList.contains('empty')) return;
+        const keywords = hookText.split(/[，,、\s]+/).filter(w => w.length >= 2).slice(0, 4);
+        if (keywords.length === 0) return;
+        let html = body.innerHTML;
+        for (const kw of keywords) {
+            const regex = new RegExp(escapeRegExp(kw), 'g');
+            html = html.replace(regex, '<mark style="background:rgba(245,158,11,0.3);color:#fbbf24;padding:1px 3px;border-radius:3px;">' + kw + '</mark>');
+        }
+        body.innerHTML = html;
+        showToast('💥 已高亮第' + chapterNum + '章爽点关键词', 'success');
+    }, 300);
+}
+
+function escapeRegExp(string) {
+    return string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
     </script>
 </body>
 </html>
