@@ -1083,7 +1083,12 @@
                         <button class="ref-tab-btn" data-ref="outline" onclick="showRefInDrawer('outline')">📄 大纲</button>
                         <button class="ref-tab-btn" data-ref="detailed" onclick="showRefInDrawer('detailed')">📋 细纲</button>
                     </div>
-                    <button class="ref-drawer-close" onclick="closeRefDrawer()" title="关闭">✕</button>
+                    <div style="display:flex;align-items:center;gap:6px;">
+                        <select id="outlineVolSelect" onchange="switchOutlineVolume(this.value)" style="display:none;padding:3px 6px;border-radius:4px;border:1px solid var(--border);background:var(--bg-secondary);color:var(--text-primary);font-size:12px;">
+                            <option value="all">全书框架</option>
+                        </select>
+                        <button class="ref-drawer-close" onclick="closeRefDrawer()" title="关闭">✕</button>
+                    </div>
                 </div>
                 <div class="ref-drawer-body" id="refDrawerBody">
                     <p style="color:var(--text-muted);">点击上方标签查看参考内容</p>
@@ -1126,6 +1131,7 @@ let showingRef = false; // 是否正在显示参考内容（设定/大纲/细纲
 let currentRefType = ''; // 'settings' | 'outline' | 'detailed'
 let isEditMode = false; // 是否处于编辑模式
 let editCache = ''; // 编辑缓存
+let outlineVolumes = { all: '', volumes: {} }; // 解析后的分卷大纲 { all: 框架文本, volumes: {1: '第1卷粗纲', ...} }
 
 const $ = id => document.getElementById(id);
 
@@ -1204,6 +1210,8 @@ async function loadProjectFiles(projectId, volumeNumber) {
         const data = await resp.json();
         if (data.success) {
             projectFiles = data;
+            // 解析分卷大纲
+            parseOutlineVolumes(data.outline || '');
             // 更新或创建参考标签（设定 + 细纲）
             updateReferenceTabs();
             // 如果当前正在显示参考内容，刷新
@@ -1213,6 +1221,76 @@ async function loadProjectFiles(projectId, volumeNumber) {
         }
     } catch (e) {
         console.error('加载项目文件失败:', e);
+    }
+}
+
+// 解析 outline.md 为全书框架 + 各卷粗纲
+function parseOutlineVolumes(outlineText) {
+    outlineVolumes = { all: outlineText, volumes: {} };
+    if (!outlineText) return;
+
+    // 尝试按 "# 各卷粗纲" 或 "---" 分隔符分割
+    const splitMarkers = [
+        /#{1,3}\s*各卷粗纲/,
+        /^---\s*$/m,
+    ];
+
+    let frameworkText = outlineText;
+    let volumesText = '';
+
+    for (const marker of splitMarkers) {
+        const match = outlineText.search(marker);
+        if (match !== -1) {
+            frameworkText = outlineText.substring(0, match).trim();
+            volumesText = outlineText.substring(match).trim();
+            break;
+        }
+    }
+
+    outlineVolumes.all = frameworkText;
+
+    // 从 volumesText 中解析各卷
+    if (volumesText) {
+        // 匹配 "# 第X卷粗纲" 或 "## 第X卷" 或 "### 第X卷"
+        const volRegex = /^#{1,3}\s*第\s*(\d+)\s*卷/g;
+        let m;
+        const volPositions = [];
+        while ((m = volRegex.exec(volumesText)) !== null) {
+            volPositions.push({ num: parseInt(m[1], 10), index: m.index });
+        }
+
+        for (let i = 0; i < volPositions.length; i++) {
+            const start = volPositions[i].index;
+            const end = (i + 1 < volPositions.length) ? volPositions[i + 1].index : volumesText.length;
+            const volText = volumesText.substring(start, end).trim();
+            outlineVolumes.volumes[volPositions[i].num] = volText;
+        }
+    }
+
+    // 填充卷选择器
+    const volSelect = $('outlineVolSelect');
+    if (volSelect) {
+        volSelect.innerHTML = '<option value="all">全书框架</option>';
+        const volKeys = Object.keys(outlineVolumes.volumes).map(Number).sort((a, b) => a - b);
+        for (const volNum of volKeys) {
+            const opt = document.createElement('option');
+            opt.value = String(volNum);
+            opt.textContent = `第${volNum}卷粗纲`;
+            volSelect.appendChild(opt);
+        }
+    }
+}
+
+function switchOutlineVolume(volKey) {
+    if (!showingRef || currentRefType !== 'outline') return;
+    const content = volKey === 'all'
+        ? outlineVolumes.all
+        : (outlineVolumes.volumes[volKey] || '该卷粗纲暂无内容');
+    const drawerBody = $('refDrawerBody');
+    if (content) {
+        drawerBody.innerHTML = renderMarkdown(content);
+    } else {
+        drawerBody.innerHTML = '<p style="color:var(--text-muted);">暂无内容</p>';
     }
 }
 
@@ -1277,19 +1355,28 @@ function closeRefDrawer() {
     document.querySelectorAll('.ref-tab-btn').forEach(t => t.classList.remove('active'));
 }
 
-function showSettings() {
-    const content = projectFiles ? projectFiles.settings : '';
-    _renderRefContent('核心设定', '📖', content, 'settings');
-}
-
 function showRoughOutline() {
-    const content = projectFiles ? projectFiles.outline : '';
+    const content = outlineVolumes.all || (projectFiles ? projectFiles.outline : '');
     _renderRefContent('全书大纲', '📄', content, 'outline');
+    // 显示卷选择器
+    const volSelect = $('outlineVolSelect');
+    if (volSelect) volSelect.style.display = 'inline-block';
 }
 
 function showOutline() {
     const content = projectFiles ? projectFiles.detailed_outline : '';
     _renderRefContent('本卷细纲', '📋', content, 'detailed');
+    // 隐藏卷选择器
+    const volSelect = $('outlineVolSelect');
+    if (volSelect) volSelect.style.display = 'none';
+}
+
+function showSettings() {
+    const content = projectFiles ? projectFiles.settings : '';
+    _renderRefContent('核心设定', '📖', content, 'settings');
+    // 隐藏卷选择器
+    const volSelect = $('outlineVolSelect');
+    if (volSelect) volSelect.style.display = 'none';
 }
 
 // 编辑模式切换

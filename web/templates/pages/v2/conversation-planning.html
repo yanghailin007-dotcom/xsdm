@@ -865,10 +865,16 @@
                 </div>
                 <div class="tab-content" id="tab-outline">
                     <div class="tab-actions">
-                        <button class="tab-gen-btn" id="btnGenOutline" onclick="generateOutline()" disabled>📝 生成大纲</button>
+                        <button class="tab-gen-btn" id="btnGenOutline" onclick="generateOutline()" disabled>📝 生成框架</button>
                         <span class="tab-status" id="outlineStatus">需先完成设定</span>
                     </div>
-                    <textarea class="edit-area" id="editOutline" placeholder="大纲内容..."></textarea>
+                    <div class="tab-actions" id="volumeActions" style="display:none;margin-top:4px;">
+                        <select id="volSelect" onchange="switchVolumeOutline(this.value)" style="padding:4px 8px;border-radius:4px;border:1px solid var(--border);background:var(--bg-secondary);color:var(--text-primary);font-size:12px;">
+                            <option value="">-- 选择卷 --</option>
+                        </select>
+                        <button class="tab-gen-btn" id="btnGenVolOutline" onclick="generateVolumeOutlineFromSelect()" style="margin-left:8px;">📝 生成该卷粗纲</button>
+                    </div>
+                    <textarea class="edit-area" id="editOutline" placeholder="先点击“生成框架”生成全书框架，再逐卷生成粗纲..."></textarea>
                 </div>
                 <div class="tab-content" id="tab-detailed">
                     <div class="tab-actions">
@@ -1193,6 +1199,11 @@
             document.getElementById('outlineStatus').textContent = '需先完成设定';
             document.getElementById('btnGenDetailed').disabled = true;
             document.getElementById('detailedStatus').textContent = '需先完成大纲';
+            // 重置卷选择器
+            const volActions = document.getElementById('volumeActions');
+            if (volActions) volActions.style.display = 'none';
+            const volSelect = document.getElementById('volSelect');
+            if (volSelect) volSelect.innerHTML = '<option value="">-- 选择卷 --</option>';
             editSettings.value = '';
             editOutline.value = '';
             editDetailed.value = '';
@@ -1250,6 +1261,12 @@
                 editOutline.value = currentProjectData.outline || '';
                 editDetailed.value = currentProjectData.detailed_outline || '';
                 settingsPanel.classList.add('active');
+                // 恢复卷选择器
+                if (currentProjectData.framework) {
+                    renderVolumeSelector(currentProjectData.framework);
+                    document.getElementById('btnGenOutline').disabled = false;
+                    document.getElementById('outlineStatus').textContent = '框架已生成';
+                }
             }
             renderHistoryList();
             updateGenerateButton();
@@ -1354,18 +1371,32 @@
                     document.getElementById('outlineStatus').textContent = '可生成大纲';
                     btnGenerate.innerHTML = '✨ 生成大纲';
                     pendingGenerateType = null;
-                } else if (pendingGenerateType === 'outline') {
+                } else if (pendingGenerateType === 'framework') {
                     currentProjectData = currentProjectData || {};
-                    currentProjectData.outline = fullText;
+                    currentProjectData.framework = fullText;
+                    // 初始化 volumeOutlines
+                    currentProjectData.volumeOutlines = currentProjectData.volumeOutlines || {};
                     renderOutline(fullText);
                     settingsPanel.classList.add('active');
-                    document.getElementById('btnGenDetailed').disabled = false;
-                    document.getElementById('detailedStatus').textContent = '可生成细纲';
+                    // 框架生成后，启用卷选择器
+                    renderVolumeSelector(fullText);
+                    document.getElementById('outlineStatus').textContent = '框架已生成，请选择卷生成粗纲';
                     btnGenerate.innerHTML = '✨ 生成细纲';
-                    // 大纲生成完成后自动质检
-                    qualityReport.innerHTML = '<p style="text-align:center;color:var(--text-muted);">🔍 正在质检，请稍候...</p>';
-                    runQualityCheck(model, currentProjectData);
                     pendingGenerateType = null;
+                } else if (pendingGenerateType === 'volume_outline') {
+                    currentProjectData = currentProjectData || {};
+                    currentProjectData.volumeOutlines = currentProjectData.volumeOutlines || {};
+                    if (currentGeneratingVolume > 0) {
+                        currentProjectData.volumeOutlines[currentGeneratingVolume] = fullText;
+                    }
+                    // 切换到对应卷显示
+                    const volSelect = document.getElementById('volSelect');
+                    if (volSelect) volSelect.value = String(currentGeneratingVolume);
+                    switchVolumeOutline(currentGeneratingVolume);
+                    settingsPanel.classList.add('active');
+                    document.getElementById('outlineStatus').textContent = `第${currentGeneratingVolume}卷粗纲已生成`;
+                    pendingGenerateType = null;
+                    currentGeneratingVolume = 0;
                 } else if (pendingGenerateType === 'detailed') {
                     currentProjectData = currentProjectData || {};
                     currentProjectData.detailed_outline = fullText;
@@ -1461,6 +1492,9 @@
             sendMessage(prompt);
         }
 
+        // 当前正在生成的卷号
+        let currentGeneratingVolume = 0;
+
         function generateOutline() {
             const settings = currentProjectData?.settings;
             if (!settings) {
@@ -1469,51 +1503,123 @@
             }
             if (isStreaming) return;
 
-            pendingGenerateType = 'outline';
+            pendingGenerateType = 'framework';
 
-            const prompt = `请根据以上项目设定，生成番茄风格的完整故事大纲。
+            const prompt = `请根据以上项目设定，生成全书框架规划。这是全书的"设计蓝图"，不是逐章大纲。
 
-【平台要求】番茄小说：算法推荐、免费阅读。读者随时会划走，必须每章都有钩子。
+【平台要求】番茄小说：算法推荐、免费阅读。读者随时会划走。
 
 输出格式为 Markdown：
 
-# 大纲总览
-- **总卷数**：x卷
-- **总章节**：xxx章
-- **核心爽点类型**：如 神豪流/签到流/震惊流（与设定一致）
-- **主线节奏**：开局打脸L1 → 积累打脸L2 → 最终爆杀L3
+# 全书框架
 
-# 分卷设计（每卷只列关键节点，不要逐章罗列）
+## 基础信息
+- **总卷数**：x卷（3-6卷）
+- **预估总章节**：xxx章
+- **预估总字数**：xxx万字
+- **核心爽点类型**：与设定一致
 
-## 第X卷：卷名（要有情绪词，如"全网炸了！""董事会跪了！"）
-- **核心冲突**：本卷主角要解决什么具体问题
-- **高潮爽点**：本卷最爽的一幕是什么（必须具体，如"主角用100亿收购前公司，开除前老板"）
-- **收尾钩子**：卷末最后一章的悬念（让读者忍不住点下一卷）
-- **打脸对象**：本卷主要打L1/L2/L3哪一层
+## 分卷规划
 
-### 关键章节（只列具有转折/爽点/钩子价值的章节，每卷8-15章即可）
-| 章号 | 章节标题 | 章节功能 | 爽点级别 |
-|------|---------|---------|---------|
-| 第X章 | 标题要像短视频标题（带情绪/带数字/带冲突） | 开篇钩子/金手指激活/第一次打脸... | 小爽/大爽/爆爽 |
-| ... | ... | ... | ... |
+### 第1卷：卷名（带情绪词）
+- **核心冲突**：本卷要解决的核心问题（50字内）
+- **高潮爽点**：最爽的一幕（必须具体）
+- **收尾钩子**：卷末悬念
+- **打脸对象**：L1/L2/L3
+- **预估章节数**：x章
+- **预估字数**：xx万字
 
-## 第X+1卷：...
+### 第2卷：...
+（同上格式）
 
-# 全书情绪曲线与钩子分布图
-- **情绪节奏一览**：3章一小爽、10章一大爽、30章一爆爽，标注全书约有多少次
-- **全书最重要的10个情绪核弹**：列出章节号+事件+情绪类型（燃/泪目/爆笑/爽）
-- **钩子密度统计**：每卷收尾钩子是什么类型（悬念/震惊/养成期待/爽感回味/温情）
-- **打脸节奏总表**：L1/L2/L3各在哪些章节被打脸，分别打脸多少次，最终如何终结
+## 全书关键节点一览表
+以下表格列出全书最重要的转折点，使用**绝对章号**（全书第X章）：
+
+| 全书章号 | 章节标题 | 章节功能 | 爽点级别 | 情绪标签 |
+|---------|---------|---------|---------|---------|
+| 第1章 | ... | 开局钩子/金手指激活 | 小爽 | [爆点] |
+| 第3章 | ... | 第一次打脸 | 小爽 | [反击] |
+| 第10章 | ... | 重要转折 | 大爽 | [高潮] |
+| ... | ... | ... | ... | ... |
+
+**情绪标签说明**：
+- [压抑]：主角陷入困境/被羞辱/被质疑
+- [反击]：主角开始反击/打脸
+- [收获]：主角获得具体收益（钱/能力/人脉）
+- [高潮]：大爽点，重大打脸或身份曝光
+- [爆点]：开局的强钩子，吸引读者
+- [钩子]：章节结尾悬念，驱动继续阅读
+
+## 全书情绪节奏设计
+- **情绪曲线**：用→连接，如 爆点→压抑→反击→收获→高潮→钩子
+- **关键节奏点**：标注全书第几章发生"第一次大爽""第一次身份曝光""第一次L2打脸"等
+- **钩子分布策略**：说明如何在全书范围内避免钩子聚集，保持每3-5章一个强钩子
 
 要求：
-1. 每卷必须严格对应"打脸地图"的一个阶段（L1小人 → L2中层 → L3顶层）
-2. "关键章节"只列**有叙事价值的章节**：开篇、金手指升级、重要打脸、身份曝光、重大转折、卷末钩子。普通过渡章不要列。
-3. 章节标题必须是"短视频标题风格"：带数字、带情绪词、直接展示冲突
-   - 好标题：《被裁员第1天，账户突然多了100万》《前同事嘲笑我送外卖，下一秒我买下整栋楼》
-   - 差标题：《初入江湖》《偶遇故人》
-4. 每卷末尾必须留强钩子（新反派出现/身份即将曝光/更大危机降临）
-5. 严禁慢热卷：任何一卷的前3章都必须有爽点，不能用"铺垫""过渡"做借口
-6. 大纲是"骨架"不是"血肉"：只写转折点，不写详细剧情。细纲阶段再展开每章内容。`;
+1. 全书关键节点一览表只需列出**有叙事价值的章节**（约占总章节的30-40%），不是每章都列
+2. 绝对章号一旦确定就不要更改，后续逐卷生成时会严格按此编号
+3. 每个情绪标签必须精准：不能连续3章都是[压抑]，[压抑]后下一章必须是[反击]或[收获]
+4. 章节标题必须是"短视频标题风格"：带数字、带情绪词
+5. 严禁"过渡卷""铺垫卷"，每卷前3章必须有爽点`;
+
+            sendMessage(prompt);
+        }
+
+        function generateVolumeOutline(volNum) {
+            const settings = currentProjectData?.settings;
+            const framework = currentProjectData?.framework;
+            if (!settings || !framework) {
+                showError('请先生成全书框架');
+                return;
+            }
+            if (isStreaming) return;
+
+            currentGeneratingVolume = volNum;
+            pendingGenerateType = 'volume_outline';
+
+            // 从框架中提取本书关键节点作为上下文
+            const prompt = `请根据以上项目设定和全书框架，生成**第${volNum}卷**的详细粗纲。
+
+【上下文】你之前已经生成了全书框架，其中规划了第${volNum}卷的核心冲突、高潮爽点和关键节点。现在需要把这卷的骨架细化成可执行的粗纲。
+
+【平台要求】番茄小说：算法推荐、免费阅读。读者随时会划走。
+
+输出格式为 Markdown：
+
+# 第${volNum}卷粗纲
+
+## 本卷信息
+- **卷名**：xxx（带情绪词）
+- **起始章号**：全书第X章
+- **结束章号**：全书第X章
+- **总章节数**：X章
+- **核心冲突**：...
+- **本卷高潮**：...
+- **收尾钩子**：...
+
+## 章节粗纲（使用绝对章号）
+
+### 第X章：章节标题 [情绪标签]
+- **章节功能**：如"开局钩子""金手指升级""打脸L1""身份曝光"
+- **核心爽点**：50字内，必须具体（不是"主角变强了"，是"主角用系统奖励的100万买下被嘲笑的摊位"）
+- **情绪走向**：本章从什么情绪到什么情绪
+- **涉及角色**：列出本章出现的关键角色
+- **钩子设计**：本章结尾如何驱动读者点下一章
+
+### 第X+1章：章节标题 [情绪标签]
+...
+
+要求：
+1. **必须使用绝对章号**（全书第X章），与全书框架中的编号严格一致
+2. 每章必须有**情绪标签**：[压抑]/[反击]/[收获]/[高潮]/[爆点]/[钩子]
+3. 情绪节奏铁律：
+   - [压抑]不能超过1章，下一章必须是[反击]或[收获]
+   - 每3-5章必须有一个[高潮]或[爆点]
+   - 每章结尾都必须是[钩子]（除非已经是[爆点]）
+4. "核心爽点"必须量化：涉及多少钱、多少人、什么级别的打脸
+5. 不要写详细剧情对话，这是粗纲不是正文。每章只需要"做什么""爽点是什么""钩子是什么"
+6. 如果某章在全书框架的关键节点表中，请标注 ⭐ 重要节点
+7. 本卷最后一章必须是强[钩子]，驱动读者进入下一卷`;
 
             sendMessage(prompt);
         }
@@ -1649,9 +1755,63 @@
             currentProjectData.outline = data;
             editOutline.value = data;
             switchTab('outline');
-            // 启用细纲生成按钮
-            document.getElementById('btnGenDetailed').disabled = false;
-            document.getElementById('detailedStatus').textContent = '可生成细纲';
+        }
+
+        // 从框架文本解析卷数，渲染卷选择器
+        function renderVolumeSelector(frameworkText) {
+            const volActions = document.getElementById('volumeActions');
+            const volSelect = document.getElementById('volSelect');
+            if (!volActions || !volSelect) return;
+
+            // 清空现有选项
+            volSelect.innerHTML = '<option value="">-- 选择卷 --</option>';
+
+            // 尝试从框架文本中解析卷数
+            let volCount = 0;
+            const volMatches = frameworkText.match(/第\s*(\d+)\s*卷/g);
+            if (volMatches) {
+                const nums = volMatches.map(m => {
+                    const n = parseInt(m.replace(/\D/g, ''), 10);
+                    return n;
+                }).filter(n => !isNaN(n));
+                volCount = Math.max(...nums, 0);
+            }
+            // 如果没解析到，默认5卷
+            if (volCount === 0) volCount = 5;
+
+            for (let i = 1; i <= volCount; i++) {
+                const opt = document.createElement('option');
+                opt.value = String(i);
+                opt.textContent = `第${i}卷`;
+                // 如果该卷已生成，标记为 ✓
+                if (currentProjectData?.volumeOutlines?.[i]) {
+                    opt.textContent += ' ✓';
+                }
+                volSelect.appendChild(opt);
+            }
+
+            volActions.style.display = 'flex';
+            volActions.style.alignItems = 'center';
+        }
+
+        function switchVolumeOutline(volNum) {
+            volNum = parseInt(volNum, 10);
+            if (!volNum || !currentProjectData) return;
+            const text = currentProjectData.volumeOutlines?.[volNum] || '';
+            editOutline.value = text || '（该卷粗纲尚未生成，点击上方“生成该卷粗纲”按钮）';
+            // 更新按钮状态
+            const btn = document.getElementById('btnGenVolOutline');
+            if (btn) btn.textContent = `📝 生成第${volNum}卷粗纲`;
+        }
+
+        function generateVolumeOutlineFromSelect() {
+            const volSelect = document.getElementById('volSelect');
+            const volNum = parseInt(volSelect?.value, 10);
+            if (!volNum) {
+                showError('请先选择要生成粗纲的卷号');
+                return;
+            }
+            generateVolumeOutline(volNum);
         }
 
         function renderDetailed(data) {
@@ -1695,10 +1855,34 @@
             const bookMatch = settingsText.match(/\*\*书名\*\*[：:]\s*[《]?([^《》]+)[》]?/);
             if (bookMatch) title = bookMatch[1].trim();
 
+            // 合并大纲：框架 + 各卷粗纲
+            let outlineText = '';
+            if (currentProjectData?.framework) {
+                // 先把当前编辑区的内容同步到对应卷（如果用户有手动编辑）
+                const volSelect = document.getElementById('volSelect');
+                const currentVol = volSelect ? parseInt(volSelect.value, 10) : 0;
+                if (currentVol && editOutline.value.trim()) {
+                    currentProjectData.volumeOutlines = currentProjectData.volumeOutlines || {};
+                    currentProjectData.volumeOutlines[currentVol] = editOutline.value.trim();
+                }
+                outlineText = currentProjectData.framework;
+                // 追加各卷粗纲
+                const vols = currentProjectData.volumeOutlines || {};
+                const volKeys = Object.keys(vols).map(Number).sort((a, b) => a - b);
+                if (volKeys.length > 0) {
+                    outlineText += '\n\n---\n\n# 各卷粗纲\n\n';
+                    for (const volNum of volKeys) {
+                        outlineText += vols[volNum] + '\n\n';
+                    }
+                }
+            } else {
+                outlineText = editOutline.value.trim();
+            }
+
             const payload = {
                 title: title,
                 settings: settingsText,
-                outline: editOutline.value.trim(),
+                outline: outlineText,
                 detailed_outline: editDetailed.value.trim()
             };
 
