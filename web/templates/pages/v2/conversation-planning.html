@@ -1043,8 +1043,24 @@
 
         function updateGenerateButton() {
             const userCount = messages.filter(m => m.role === 'user').length;
-            btnGenerate.disabled = userCount < 2;
-            btnGenerate.style.opacity = userCount < 2 ? '0.5' : '1';
+            const isReady = userCount >= 2;
+            btnGenerate.disabled = !isReady;
+            btnGenerate.style.opacity = isReady ? '1' : '0.5';
+            // 如果没有设定，保持默认文案
+            if (!currentProjectData?.settings && isReady) {
+                btnGenerate.innerHTML = '✨ 生成设定';
+            }
+        }
+
+        function handleGenerateButtonClick() {
+            const text = btnGenerate.textContent.trim();
+            if (text.includes('设定')) {
+                generateSettings();
+            } else if (text.includes('大纲')) {
+                generateOutline();
+            } else if (text.includes('细纲')) {
+                generateDetailed();
+            }
         }
 
         // ===== 历史记录管理 =====
@@ -1119,6 +1135,13 @@
                     </div>
                 </div>
             `;
+            // 重置底部按钮
+            btnGenerate.innerHTML = '✨ 生成设定';
+            // 重置面板按钮
+            document.getElementById('btnGenOutline').disabled = true;
+            document.getElementById('outlineStatus').textContent = '需先完成设定';
+            document.getElementById('btnGenDetailed').disabled = true;
+            document.getElementById('detailedStatus').textContent = '需先完成大纲';
             editSettings.value = '';
             editOutline.value = '';
             editDetailed.value = '';
@@ -1172,9 +1195,9 @@
             }
             // 如果有项目数据，恢复面板
             if (currentProjectData) {
-                editSettings.value = JSON.stringify(currentProjectData.settings || {}, null, 2);
-                editOutline.value = JSON.stringify(currentProjectData.outline || {}, null, 2);
-                editDetailed.value = JSON.stringify(currentProjectData.detailed_outline || {}, null, 2);
+                editSettings.value = currentProjectData.settings || '';
+                editOutline.value = currentProjectData.outline || '';
+                editDetailed.value = currentProjectData.detailed_outline || '';
                 settingsPanel.classList.add('active');
             }
             renderHistoryList();
@@ -1314,8 +1337,8 @@
                 });
 
                 const result = await response.json();
-                if (result.success && result.settings) {
-                    renderSettings(result.settings);
+                if (result.success && result.content) {
+                    renderSettings(result.content);
                     settingsPanel.classList.add('active');
                     // 保存到历史
                     saveCurrentConversation();
@@ -1330,6 +1353,8 @@
                     // 启用大纲生成按钮
                     document.getElementById('btnGenOutline').disabled = false;
                     document.getElementById('outlineStatus').textContent = '可生成大纲';
+                    // 更新底部按钮为"生成大纲"
+                    btnGenerate.innerHTML = '✨ 生成大纲';
                 } else {
                     const bubble = loadingRow.querySelector('.bubble');
                     bubble.classList.remove('generating-bubble');
@@ -1369,11 +1394,13 @@
                     body: JSON.stringify({ model, messages, settings: settingsData })
                 });
                 const result = await response.json();
-                if (result.success && result.outline) {
-                    renderOutline(result.outline);
+                if (result.success && result.content) {
+                    renderOutline(result.content);
                     settingsPanel.classList.add('active');
                     saveCurrentConversation();
                     status.textContent = '已生成';
+                    // 更新底部按钮为"生成细纲"
+                    btnGenerate.innerHTML = '✨ 生成细纲';
                 } else {
                     status.textContent = '生成失败';
                     showError('大纲生成失败: ' + (result.error || '未知错误'));
@@ -1408,11 +1435,13 @@
                     body: JSON.stringify({ model, messages, settings: settingsData, outline: outlineData })
                 });
                 const result = await response.json();
-                if (result.success && result.detailed_outline) {
-                    renderDetailed(result.detailed_outline);
+                if (result.success && result.content) {
+                    renderDetailed(result.content);
                     settingsPanel.classList.add('active');
                     saveCurrentConversation();
                     status.textContent = '已生成';
+                    // 更新底部按钮为"生成细纲"
+                    btnGenerate.innerHTML = '✨ 生成细纲';
                 } else {
                     status.textContent = '生成失败';
                     showError('细纲生成失败: ' + (result.error || '未知错误'));
@@ -1501,15 +1530,14 @@
         function renderSettings(data) {
             currentProjectData = currentProjectData || {};
             currentProjectData.settings = data;
-            editSettings.value = JSON.stringify(data, null, 2);
-            // 如果已有大纲/细纲，保留它们
+            editSettings.value = data;
             switchTab('settings');
         }
 
         function renderOutline(data) {
             currentProjectData = currentProjectData || {};
             currentProjectData.outline = data;
-            editOutline.value = JSON.stringify(data, null, 2);
+            editOutline.value = data;
             switchTab('outline');
             // 启用细纲生成按钮
             document.getElementById('btnGenDetailed').disabled = false;
@@ -1519,7 +1547,7 @@
         function renderDetailed(data) {
             currentProjectData = currentProjectData || {};
             currentProjectData.detailed_outline = data;
-            editDetailed.value = JSON.stringify(data, null, 2);
+            editDetailed.value = data;
             switchTab('detailed');
             document.getElementById('detailedStatus').textContent = '已生成';
         }
@@ -1545,37 +1573,25 @@
         }
 
         async function saveProject() {
-            if (!currentProjectData) {
+            const settingsText = editSettings.value.trim();
+            if (!settingsText) {
                 showError('没有可保存的项目数据');
                 return;
             }
-            // 读取用户编辑后的内容
-            let settings, outline, detailedOutline;
-            try {
-                settings = JSON.parse(editSettings.value || '{}');
-            } catch (e) {
-                showError('设定 JSON 格式错误: ' + e.message);
-                return;
-            }
-            try {
-                outline = JSON.parse(editOutline.value || '{}');
-            } catch (e) {
-                showError('大纲 JSON 格式错误: ' + e.message);
-                return;
-            }
-            try {
-                detailedOutline = JSON.parse(editDetailed.value || '{}');
-            } catch (e) {
-                showError('细纲 JSON 格式错误: ' + e.message);
-                return;
-            }
+            // 从设定文本中提取书名（匹配 Markdown 中的 **书名**：《xxx》 或 # 《xxx》）
+            let title = '未命名项目';
+            const titleMatch = settingsText.match(/[《\[]?([^》\]
+]+)[》\]]?/);
+            if (titleMatch) title = titleMatch[1].trim();
+            const bookMatch = settingsText.match(/\*\*书名\*\*[：:]\s*[《]?([^《》
+]+)[》]?/);
+            if (bookMatch) title = bookMatch[1].trim();
 
-            const title = settings.title || '未命名项目';
             const payload = {
                 title: title,
-                settings: settings,
-                outline: outline,
-                detailed_outline: detailedOutline
+                settings: settingsText,
+                outline: editOutline.value.trim(),
+                detailed_outline: editDetailed.value.trim()
             };
 
             loadingOverlay.classList.add('active');
@@ -1616,7 +1632,7 @@
         });
 
         // 生成设定按钮
-        btnGenerate.addEventListener('click', generateSettings);
+        btnGenerate.addEventListener('click', handleGenerateButtonClick);
 
         // 初始化
         currentConversationId = 'conv_' + Date.now();

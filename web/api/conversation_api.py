@@ -133,9 +133,19 @@ def _resolve_endpoint(model_name: str):
             if provider:
                 break
 
-    # 3. 获取该 provider 下第一个启用的 endpoint，使用配置中的实际 model 名
+    # 3. 获取该 provider 下与 model_name 匹配的 endpoint
     if provider:
         endpoints = api_endpoints.get(provider, [])
+        # 优先匹配 model_name 完全一致的 endpoint
+        for ep in endpoints:
+            if ep.get("model") == model_name and ep.get("enabled", True):
+                return {
+                    "api_key":  ep.get("api_key", ""),
+                    "api_url":  ep.get("api_url", ""),
+                    "provider": provider,
+                    "model":    ep.get("model", model_name),
+                }
+        # fallback：返回第一个启用的 endpoint
         for ep in endpoints:
             if ep.get("enabled", True):
                 return {
@@ -308,40 +318,67 @@ def chat_stream():
 #  2. 生成设定（非流式 JSON）
 # ───────────────────────────────
 
-_GENERATE_SETTINGS_PROMPT = """根据以上对话内容，生成一份小说项目设定方案。
+_GENERATE_SETTINGS_PROMPT = """根据以上对话内容，生成一份小说项目设定文档（Markdown格式）。
 
 要求：
-1. 输出格式必须是 **JSON**，不要包含任何 markdown 代码块标记或其他说明文字
-2. JSON 结构如下：
+1. 输出格式必须是 **Markdown**，不要包含任何 markdown 代码块标记（```）或其他说明文字
+2. 文档结构必须严格按以下模板：
 
-{
-  "title": "书名",
-  "synopsis": "一句话简介（20-50字）",
-  "description": "详细简介（200-500字）",
-  "genre": "题材/类型",
-  "tags": ["标签1", "标签2", "标签3"],
-  "worldview": {
-    "background": "世界观背景",
-    "rules": "核心规则/金手指机制",
-    "era": "时代/背景设定"
-  },
-  "characters": [
-    {
-      "name": "角色名",
-      "role": "主角/反派/女主等",
-      "personality": "性格特征",
-      "background": "角色背景",
-      "goal": "核心目标"
-    }
-  ],
-  "key_hooks": ["爽点1", "爽点2", "爽点3"],
-  "target_words": 400000,
-  "chapters_estimate": 200
-}
+# 项目信息
+
+- **书名**：《书名》
+- **一句话简介**：20-50字，必须抓住眼球
+- **番茄风格简介**：100-200字。要求：
+  - 第1章就有爽点或强悬念
+  - 突出金手指/系统的核心卖点（让读者一眼知道"这书爽在哪"）
+  - 有打脸/反转的预期，情绪强烈
+  - 短促有力，不要叙事体，不要抒情，像番茄推荐位文案
+  - 示例风格："35岁被大厂优化，回到连高铁都没有的贫困县。所有人都当他废了，直到手机里弹出一个倒计时：【太空电梯奠基仪式：29年364天】"
+- **题材**：例如 都市·科幻·系统
+- **标签**：标签1、标签2、标签3
+- **目标字数**：40万字
+- **预估章节**：200章
+
+# 世界观设定
+
+## 背景
+（世界观背景，100-300字）
+
+## 核心规则/金手指
+（金手指机制，必须具体、有代价、有成长空间）
+
+## 时代设定
+（时代/背景设定）
+
+# 角色设定
+
+## 主角：xxx
+- **性格**：...
+- **背景**：...
+- **核心目标**：...
+
+## 核心反派/对手：xxx
+- **性格**：...
+- **与主角的矛盾**：...
+
+## 女主/重要配角：xxx
+- **性格**：...
+- **与主角的关系**：...
+
+# 核心爽点设计
+1. 爽点1（说明为什么爽）
+2. 爽点2
+3. 爽点3
+
+# 全书节奏规划
+- 第1卷核心目标：...
+- 第2卷核心目标：...
+- 第3卷核心目标：...
+（3-6卷，每卷标注核心爽点和情绪走向）
 
 3. 角色至少包含主角、核心反派/对手、女主/重要配角
 4. 爽点设计要贴合番茄读者偏好：即时反馈、打脸反转、升级收获
-5. 直接返回 JSON 字符串，不要加 ```json 这样的代码块"""
+5. 直接返回 Markdown 文本，不要加 ``` 代码块"""
 
 
 @conversation_api.route('/generate-settings', methods=['POST'])
@@ -414,20 +451,19 @@ def generate_settings():
         raw_content = choices[0].get("message", {}).get("content", "") if choices else ""
         logger.info(f"[Conversation] /generate-settings 响应长度: {len(raw_content)} 字符")
 
-        # 尝试解析 JSON
-        settings = _extract_json(raw_content)
-        if not settings:
-            logger.warning(f"[Conversation] /generate-settings JSON 解析失败，原始内容前 500 字: {raw_content[:500]}")
+        # 直接返回原始 Markdown 文本
+        if not raw_content or len(raw_content) < 100:
+            logger.warning(f"[Conversation] /generate-settings 返回内容过短: {len(raw_content)} 字符")
             return jsonify({
                 "success": False,
-                "error": "AI 返回内容无法解析为有效 JSON",
+                "error": "AI 返回内容异常过短",
                 "raw": raw_content[:2000]
             }), 422
 
-        logger.info(f"[Conversation] /generate-settings 解析成功: settings_keys={list(settings.keys()) if isinstance(settings, dict) else 'not dict'}")
+        logger.info(f"[Conversation] /generate-settings 成功: {len(raw_content)} 字符")
         return jsonify({
             "success": True,
-            "settings": settings,
+            "content": raw_content,
             "model": actual_model,
         })
 
@@ -436,68 +472,68 @@ def generate_settings():
         return jsonify({"success": False, "error": str(e)}), 500
 
 
-_GENERATE_OUTLINE_PROMPT = """请根据以下小说设定，生成完整的卷级大纲。
+_GENERATE_OUTLINE_PROMPT = """请根据以下小说设定，生成完整的卷级大纲（Markdown格式）。
 
 要求：
-1. 输出格式必须是 **JSON**，不要包含任何 markdown 代码块标记或其他说明文字
-2. JSON 结构如下：
+1. 输出格式必须是 **Markdown**，不要包含任何 markdown 代码块标记（```）或其他说明文字
+2. 文档结构：
 
-{
-  "volumes": [
-    {
-      "volume_number": 1,
-      "volume_title": "第一卷标题",
-      "summary": "本卷核心剧情概要（100-200字）",
-      "chapters": [
-        {
-          "chapter_number": 1,
-          "chapter_title": "第一章标题",
-          "summary": "本章剧情概要（50-100字）"
-        }
-      ]
-    }
-  ]
-}
+# 全书大纲
 
-3. 必须规划 3-6 卷，每卷固定 30 章
-4. 每卷都必须列出完整的 30 章列表，不能省略任何一章
+## 第一卷：卷标题
+
+**本卷概要**：100-200字，说明本卷核心剧情和爽点
+
+**情绪走向**：例如 压抑→爆发→爽→收获
+
+### 第1章 章节标题
+本章概要：50-100字，包含核心爽点/悬念
+
+### 第2章 章节标题
+...
+
+（每卷固定30章，必须完整列出，不能省略任何一章）
+
+3. 必须规划 3-6 卷
+4. 每章概要必须包含该章的核心爽点或悬念钩子
 5. 这是全书的"骨架"，必须完整、逻辑连贯
-6. 直接返回 JSON 字符串，不要加 ```json 这样的代码块"""
+6. 直接返回 Markdown 文本，不要加 ``` 代码块"""
 
 
-_GENERATE_DETAILED_PROMPT = """请根据以下小说设定和大纲，生成前 1-2 卷的详细章节细纲。
+_GENERATE_DETAILED_PROMPT = """请根据以下小说设定和大纲，生成前 1-2 卷的详细章节细纲（Markdown格式）。
 
 要求：
-1. 输出格式必须是 **JSON**，不要包含任何 markdown 代码块标记或其他说明文字
-2. JSON 结构如下：
+1. 输出格式必须是 **Markdown**，不要包含任何 markdown 代码块标记（```）或其他说明文字
+2. 每章结构：
 
-{
-  "volumes": [
-    {
-      "volume_number": 1,
-      "volume_title": "第一卷标题",
-      "chapters": [
-        {
-          "chapter_number": 1,
-          "chapter_title": "第一章标题",
-          "scene_setting": "时间、地点、氛围",
-          "characters": "涉及角色",
-          "hook_point": "核心爽点/猎奇点（一句话）",
-          "plot_steps": ["情节步骤1", "情节步骤2"],
-          "dialogue_samples": ["关键对话示例1"],
-          "climax_design": "爽点设计说明：为什么这章能打动番茄读者",
-          "ending_hook": "章节结尾钩子：下一章的悬念预告",
-          "emotional_arc": "情绪走向，如：压抑→爆发→爽",
-          "word_count_estimate": 3000
-        }
-      ]
-    }
-  ]
-}
+### 第X章 章节标题
+
+**场景设定**：时间、地点、氛围
+
+**涉及角色**：角色1、角色2
+
+**核心爽点**：一句话概括本章最爽的点
+
+**情节步骤**：
+1. 步骤1
+2. 步骤2
+3. 步骤3
+
+**关键对话**：
+- "对话示例1"
+- "对话示例2"
+
+**爽点设计**：为什么这章能打动番茄读者？铺垫→爆发→收获的具体设计
+
+**结尾钩子**：下一章的悬念预告，让读者必须点下一章
+
+**情绪走向**：例如 压抑→爆发→爽
+
+**预估字数**：3000字
 
 3. 优先保证前 1-2 卷的完整详细细纲，每章 200-400 字体量
-4. 每个字段都要充实具体，不能敷衍
-5. 直接返回 JSON 字符串，不要加 ```json 这样的代码块"""
+4. 每个章节都要充实具体，不能敷衍
+5. 直接返回 Markdown 文本，不要加 ``` 代码块"""
 
 
 @conversation_api.route('/generate-outline', methods=['POST'])
@@ -565,19 +601,18 @@ def generate_outline():
         raw_content = choices[0].get("message", {}).get("content", "") if choices else ""
         logger.info(f"[Conversation] /generate-outline 响应长度: {len(raw_content)} 字符")
 
-        outline = _extract_json(raw_content)
-        if not outline:
-            logger.warning(f"[Conversation] /generate-outline JSON 解析失败")
+        if not raw_content or len(raw_content) < 100:
+            logger.warning(f"[Conversation] /generate-outline 返回内容过短: {len(raw_content)} 字符")
             return jsonify({
                 "success": False,
-                "error": "AI 返回内容无法解析为有效 JSON",
+                "error": "AI 返回内容异常过短",
                 "raw": raw_content[:2000]
             }), 422
 
-        logger.info(f"[Conversation] /generate-outline 解析成功")
+        logger.info(f"[Conversation] /generate-outline 成功: {len(raw_content)} 字符")
         return jsonify({
             "success": True,
-            "outline": outline,
+            "content": raw_content,
             "model": actual_model,
         })
 
@@ -654,19 +689,18 @@ def generate_detailed():
         raw_content = choices[0].get("message", {}).get("content", "") if choices else ""
         logger.info(f"[Conversation] /generate-detailed 响应长度: {len(raw_content)} 字符")
 
-        detailed = _extract_json(raw_content)
-        if not detailed:
-            logger.warning(f"[Conversation] /generate-detailed JSON 解析失败")
+        if not raw_content or len(raw_content) < 100:
+            logger.warning(f"[Conversation] /generate-detailed 返回内容过短: {len(raw_content)} 字符")
             return jsonify({
                 "success": False,
-                "error": "AI 返回内容无法解析为有效 JSON",
+                "error": "AI 返回内容异常过短",
                 "raw": raw_content[:2000]
             }), 422
 
-        logger.info(f"[Conversation] /generate-detailed 解析成功")
+        logger.info(f"[Conversation] /generate-detailed 成功: {len(raw_content)} 字符")
         return jsonify({
             "success": True,
-            "detailed_outline": detailed,
+            "content": raw_content,
             "model": actual_model,
         })
 
@@ -717,6 +751,7 @@ def _extract_json(text: str):
 def save_project():
     """
     保存设定+大纲+细纲到项目目录，同时生成番茄上传所需的 project_info.json
+    现在直接接收 Markdown 文本保存
     """
     try:
         from pathlib import Path
@@ -724,9 +759,9 @@ def save_project():
         
         data = request.json or {}
         title = data.get("title", "未命名项目").strip()
-        settings = data.get("settings", {})
-        outline = data.get("outline", {})
-        detailed_outline = data.get("detailed_outline", {})
+        settings_md = data.get("settings", "")
+        outline_md = data.get("outline", "")
+        detailed_md = data.get("detailed_outline", "")
         
         if not title:
             return jsonify({"success": False, "error": "书名不能为空"}), 400
@@ -735,57 +770,44 @@ def save_project():
         user_dir = Path("小说项目") / username
         user_dir.mkdir(parents=True, exist_ok=True)
         
-        # 安全目录名
         safe_name = _safe_filename(title)
         project_dir = user_dir / safe_name
         project_dir.mkdir(parents=True, exist_ok=True)
         
-        # 1. 保存设定为 Markdown（人类可读）
-        settings_md = _settings_to_markdown(settings)
+        # 1. 保存设定为 Markdown
         settings_file = project_dir / "settings.md"
         with open(settings_file, 'w', encoding='utf-8') as f:
             f.write(settings_md)
         
-        # 2. 保存 outline.md
-        outline_md = _outline_to_markdown(outline)
+        # 2. 保存大纲为 Markdown
         outline_file = project_dir / "outline.md"
         with open(outline_file, 'w', encoding='utf-8') as f:
             f.write(outline_md)
         
-        # 3. 保存细纲（总览 + 按卷拆分）
-        detailed_md = _detailed_outline_to_markdown(detailed_outline)
+        # 3. 保存细纲为 Markdown
         detailed_file = project_dir / "detailed_outline.md"
         with open(detailed_file, 'w', encoding='utf-8') as f:
             f.write(detailed_md)
         
-        # 按卷保存单独文件
-        volumes = detailed_outline.get('volumes', [])
-        for vol in volumes:
-            vol_num = vol.get('volume_number', 1)
-            vol_md = _volume_to_markdown(vol)
-            vol_file = project_dir / f"detailed_outline_vol{vol_num}.md"
-            with open(vol_file, 'w', encoding='utf-8') as f:
-                f.write(vol_md)
-        
-        # 4. 保存 core-setting.md（兼容旧流程，内容同 settings.md）
+        # 4. 保存 core-setting.md（兼容旧流程）
         core_file = project_dir / "core-setting.md"
         with open(core_file, 'w', encoding='utf-8') as f:
             f.write(settings_md)
         
-        # 5. 生成 project_info.json（给番茄上传用）
-        project_info = _build_project_info(title, settings, outline)
+        # 5. 从 Markdown 提取 project_info
+        project_info = _extract_project_info_from_markdown(settings_md, outline_md)
         info_file = project_dir / "project_info.json"
         with open(info_file, 'w', encoding='utf-8') as f:
             json.dump(project_info, f, ensure_ascii=False, indent=2)
         
-        # 6. 生成 project_config.json（兼容旧流程）
+        # 6. 生成 project_config.json
         config_file = project_dir / "project_config.json"
         config = {
             "novel_title": title,
             "proj_name": safe_name,
             "username": username,
-            "total_chapters": project_info.get("generation_metadata", {}).get("total_chapters", 0),
-            "total_words": project_info.get("generation_metadata", {}).get("total_words", 0),
+            "total_chapters": project_info.get("total_chapters", 0),
+            "total_words": project_info.get("total_words", 0),
             "created_at": datetime.datetime.now().isoformat(),
             "chapters_dir": "chapters",
             "format": "md"
@@ -949,6 +971,92 @@ def _volume_to_markdown(vol: dict) -> str:
     for ch in vol.get('chapters', []):
         lines.extend(_chapter_to_markdown_lines(ch))
     return "\n".join(lines)
+
+
+
+def _extract_project_info_from_markdown(settings_md: str, outline_md: str = "") -> dict:
+    """从 Markdown 设定文本中提取 project_info 所需字段"""
+    import re
+    import datetime
+    
+    info = {
+        "novel_title": "未命名项目",
+        "novel_synopsis": "",
+        "novel_description": "",
+        "genre": "",
+        "sub_genre": "",
+        "target_platform": "番茄小说",
+        "generation_mode": "conversation",
+        "created_at": datetime.datetime.now().isoformat(),
+        "updated_at": datetime.datetime.now().isoformat(),
+        "author_info": {
+            "author_name": session.get('username', ''),
+            "author_id": "",
+            "author_statement": ""
+        },
+        "category_tags": {
+            "main_category": "都市",
+            "sub_category": "都市生活",
+            "tags": [],
+            "target_audience": "男频",
+            "content_rating": "全年龄"
+        },
+        "generation_metadata": {
+            "generated_at": datetime.datetime.now().isoformat(),
+            "total_chapters": 0,
+            "total_words": 0,
+            "ai_model": "deepseek-v4",
+            "mode_specific": {"info": {"generation_mode": "conversation", "has_outline": bool(outline_md), "has_detailed_outline": False}}
+        }
+    }
+    
+    # 提取书名
+    book_match = re.search(r'\*\*书名\*\*[\s:：]*[《\[]?([^》\]
+]+)[》\]]?', settings_md)
+    if book_match:
+        info["novel_title"] = book_match.group(1).strip()
+    else:
+        h1_match = re.search(r'^#\s*[《\[]?([^《》
+]+)[》\]]?', settings_md, re.MULTILINE)
+        if h1_match:
+            info["novel_title"] = h1_match.group(1).strip()
+    
+    # 提取一句话简介
+    synopsis_match = re.search(r'\*\*一句话简介\*\*[\s:：]*(.+?)(?=
+|$)', settings_md)
+    if synopsis_match:
+        info["novel_synopsis"] = synopsis_match.group(1).strip()
+    
+    # 提取番茄风格简介（作为详细简介）
+    desc_match = re.search(r'\*\*番茄风格简介\*\*[\s:：]*(.+?)(?=
+#|
+\*\*|$)', settings_md, re.DOTALL)
+    if desc_match:
+        info["novel_description"] = desc_match.group(1).strip()
+    
+    # 提取题材
+    genre_match = re.search(r'\*\*题材\*\*[\s:：]*(.+?)(?=
+|$)', settings_md)
+    if genre_match:
+        info["genre"] = genre_match.group(1).strip()
+        info["category_tags"]["main_category"] = genre_match.group(1).strip().split('·')[0].strip()
+    
+    # 提取标签
+    tags_match = re.search(r'\*\*标签\*\*[\s:：]*(.+?)(?=
+|$)', settings_md)
+    if tags_match:
+        tags_text = tags_match.group(1).strip()
+        info["category_tags"]["tags"] = [t.strip() for t in tags_text.replace('、', ',').split(',') if t.strip()]
+    
+    # 统计章节数
+    total_chapters = 0
+    if outline_md:
+        chapters = re.findall(r'###\s*第\s*\d+\s*章', outline_md)
+        total_chapters = len(chapters)
+    info["generation_metadata"]["total_chapters"] = total_chapters
+    info["generation_metadata"]["total_words"] = total_chapters * 3000 if total_chapters > 0 else 0
+    
+    return info
 
 
 def _build_project_info(title: str, settings: dict, outline: dict) -> dict:
