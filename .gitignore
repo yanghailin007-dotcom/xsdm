@@ -175,13 +175,22 @@ analyze_log_times.py
 
 # Runtime generated data / caches / backups / test outputs
 backups/
+cache/
 config/short_story_prompts/
 data/bestseller_cache/
 data/creative_ideas/
 data/creative_planning_sessions/
 data/generation_tasks/
+data/genres/
+data/novelcraft_user_models.json
 data/writing_styles/
 desktop_uploader/release/NovelPublisher_Data/
 docs/golden_finger_example_*.json
 tests/comparison_outputs/
 tests/writing_style_check_report.json
+
+# Temporary test / write scripts
+test_*.py
+tmp_*.py
+write_plan.py
+*_output.txt
