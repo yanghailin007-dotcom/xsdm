@@ -2300,6 +2300,19 @@ def register_contract_routes(app):
             logger.error(f"❌ 加载任务监控页面失败: {e}")
             return f"任务监控页面加载失败: {str(e)}", 500
 
+    @app.route('/admin/model-pricing')
+    def admin_model_pricing_page():
+        """模型定价管理页面"""
+        try:
+            from flask import render_template, session, redirect, url_for
+            # 检查是否为管理员
+            if not session.get('is_admin'):
+                return redirect('/login')
+            return render_template('pages/v2/admin-model-pricing.html')
+        except Exception as e:
+            logger.error(f"❌ 加载模型定价管理页面失败: {e}")
+            return f"模型定价管理页面加载失败: {str(e)}", 500
+
     @app.route('/api/contract/users/enabled', methods=['GET'])
     def get_contract_enabled_users():
         """获取所有启用的用户配置"""

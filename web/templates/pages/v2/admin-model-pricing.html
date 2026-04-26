@@ -1,0 +1,756 @@
+{% extends "layouts/base-v2.html" %}
+
+{% block title %}模型定价管理 - 管理员后台{% endblock %}
+
+{% block extra_css %}
+<style>
+    .admin-container {
+        max-width: 1200px;
+        margin: 0 auto;
+        padding: 2rem 1.5rem 4rem;
+    }
+    .admin-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 2rem;
+        padding-bottom: 1.5rem;
+        border-bottom: 1px solid var(--v2-border-default);
+    }
+    .admin-title {
+        font-size: 1.5rem;
+        font-weight: 700;
+        color: var(--v2-text-primary);
+    }
+    .admin-subtitle {
+        font-size: 0.875rem;
+        color: var(--v2-text-secondary);
+        margin-top: 0.25rem;
+    }
+    .btn-group {
+        display: flex;
+        gap: 0.75rem;
+    }
+    .btn {
+        padding: 0.625rem 1.25rem;
+        border-radius: var(--v2-radius-md);
+        font-size: 0.875rem;
+        font-weight: 500;
+        cursor: pointer;
+        border: none;
+        transition: all 0.2s;
+        display: inline-flex;
+        align-items: center;
+        gap: 0.5rem;
+    }
+    .btn-primary {
+        background: linear-gradient(135deg, var(--v2-primary-500), var(--v2-accent-purple));
+        color: white;
+    }
+    .btn-primary:hover {
+        opacity: 0.9;
+        transform: translateY(-1px);
+    }
+    .btn-secondary {
+        background: var(--v2-bg-tertiary);
+        color: var(--v2-text-secondary);
+        border: 1px solid var(--v2-border-default);
+    }
+    .btn-secondary:hover {
+        border-color: var(--v2-border-hover);
+        color: var(--v2-text-primary);
+    }
+    .btn-danger {
+        background: rgba(239, 68, 68, 0.15);
+        color: var(--v2-error);
+        border: 1px solid rgba(239, 68, 68, 0.3);
+    }
+    .btn-danger:hover {
+        background: rgba(239, 68, 68, 0.25);
+    }
+    .btn-sm {
+        padding: 0.375rem 0.75rem;
+        font-size: 0.75rem;
+    }
+
+    /* 卡片 */
+    .card {
+        background: var(--v2-bg-secondary);
+        border: 1px solid var(--v2-border-default);
+        border-radius: var(--v2-radius-lg);
+        margin-bottom: 1.5rem;
+        overflow: hidden;
+    }
+    .card-header {
+        padding: 1.25rem 1.5rem;
+        border-bottom: 1px solid var(--v2-border-default);
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+    .card-title {
+        font-size: 1rem;
+        font-weight: 600;
+        color: var(--v2-text-primary);
+    }
+    .card-body {
+        padding: 1.5rem;
+    }
+
+    /* 表格 */
+    .data-table {
+        width: 100%;
+        border-collapse: collapse;
+    }
+    .data-table th {
+        text-align: left;
+        padding: 0.875rem 1rem;
+        font-size: 0.75rem;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        color: var(--v2-text-secondary);
+        border-bottom: 1px solid var(--v2-border-default);
+        background: var(--v2-bg-tertiary);
+    }
+    .data-table td {
+        padding: 1rem;
+        font-size: 0.875rem;
+        color: var(--v2-text-primary);
+        border-bottom: 1px solid var(--v2-border-subtle);
+    }
+    .data-table tr:hover td {
+        background: var(--v2-bg-tertiary);
+    }
+    .data-table tr:last-child td {
+        border-bottom: none;
+    }
+    .badge {
+        display: inline-flex;
+        align-items: center;
+        padding: 0.25rem 0.625rem;
+        border-radius: var(--v2-radius-full);
+        font-size: 0.75rem;
+        font-weight: 500;
+    }
+    .badge-active {
+        background: rgba(34, 197, 94, 0.15);
+        color: var(--v2-success);
+    }
+    .badge-inactive {
+        background: rgba(156, 163, 175, 0.15);
+        color: var(--v2-text-tertiary);
+    }
+
+    /* 统计卡片 */
+    .stats-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 1rem;
+        margin-bottom: 1.5rem;
+    }
+    .stat-card {
+        background: var(--v2-bg-secondary);
+        border: 1px solid var(--v2-border-default);
+        border-radius: var(--v2-radius-lg);
+        padding: 1.25rem;
+    }
+    .stat-value {
+        font-size: 1.5rem;
+        font-weight: 700;
+        color: var(--v2-text-primary);
+        margin-bottom: 0.25rem;
+    }
+    .stat-label {
+        font-size: 0.75rem;
+        color: var(--v2-text-secondary);
+    }
+
+    /* 弹窗 */
+    .modal-overlay {
+        position: fixed;
+        top: 0; left: 0; right: 0; bottom: 0;
+        background: var(--v2-bg-overlay);
+        display: none;
+        justify-content: center;
+        align-items: center;
+        z-index: 99999;
+        padding: 1rem;
+    }
+    .modal-overlay.active {
+        display: flex;
+    }
+    .modal-content {
+        background: var(--v2-bg-secondary);
+        border: 1px solid var(--v2-border-default);
+        border-radius: var(--v2-radius-xl);
+        max-width: 500px;
+        width: 100%;
+        max-height: 90vh;
+        overflow-y: auto;
+    }
+    .modal-header {
+        padding: 1.25rem 1.5rem;
+        border-bottom: 1px solid var(--v2-border-default);
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+    .modal-title {
+        font-size: 1.125rem;
+        font-weight: 600;
+        color: var(--v2-text-primary);
+    }
+    .modal-close {
+        background: none;
+        border: none;
+        color: var(--v2-text-secondary);
+        font-size: 1.5rem;
+        cursor: pointer;
+        line-height: 1;
+    }
+    .modal-close:hover {
+        color: var(--v2-text-primary);
+    }
+    .modal-body {
+        padding: 1.5rem;
+    }
+    .modal-footer {
+        padding: 1rem 1.5rem;
+        border-top: 1px solid var(--v2-border-default);
+        display: flex;
+        justify-content: flex-end;
+        gap: 0.75rem;
+    }
+
+    /* 表单 */
+    .form-group {
+        margin-bottom: 1rem;
+    }
+    .form-label {
+        display: block;
+        font-size: 0.875rem;
+        font-weight: 500;
+        color: var(--v2-text-secondary);
+        margin-bottom: 0.375rem;
+    }
+    .form-input, .form-select {
+        width: 100%;
+        padding: 0.625rem 0.875rem;
+        background: var(--v2-bg-tertiary);
+        border: 1px solid var(--v2-border-default);
+        border-radius: var(--v2-radius-md);
+        color: var(--v2-text-primary);
+        font-size: 0.875rem;
+        transition: all 0.2s;
+    }
+    .form-input:focus, .form-select:focus {
+        outline: none;
+        border-color: var(--v2-primary-500);
+        box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.15);
+    }
+    .form-hint {
+        font-size: 0.75rem;
+        color: var(--v2-text-tertiary);
+        margin-top: 0.25rem;
+    }
+
+    /* Toast */
+    .toast-container {
+        position: fixed;
+        top: 100px;
+        right: 20px;
+        z-index: 100000;
+        display: flex;
+        flex-direction: column;
+        gap: 0.5rem;
+    }
+    .toast {
+        padding: 0.875rem 1.25rem;
+        border-radius: var(--v2-radius-md);
+        font-size: 0.875rem;
+        font-weight: 500;
+        animation: slideIn 0.3s ease-out;
+        max-width: 400px;
+    }
+    .toast-success {
+        background: rgba(34, 197, 94, 0.15);
+        color: var(--v2-success);
+        border: 1px solid rgba(34, 197, 94, 0.3);
+    }
+    .toast-error {
+        background: rgba(239, 68, 68, 0.15);
+        color: var(--v2-error);
+        border: 1px solid rgba(239, 68, 68, 0.3);
+    }
+    @keyframes slideIn {
+        from { transform: translateX(100%); opacity: 0; }
+        to { transform: translateX(0); opacity: 1; }
+    }
+
+    /* 空状态 */
+    .empty-state {
+        text-align: center;
+        padding: 3rem;
+        color: var(--v2-text-tertiary);
+    }
+    .empty-icon {
+        font-size: 2.5rem;
+        margin-bottom: 1rem;
+        opacity: 0.5;
+    }
+
+    /* 价格示例 */
+    .price-example {
+        font-size: 0.75rem;
+        color: var(--v2-text-tertiary);
+        margin-top: 0.25rem;
+    }
+
+    /* 浅色主题增强 */
+    [data-theme="light"] .card,
+    [data-theme="light"] .stat-card {
+        border-color: rgba(0, 0, 0, 0.12);
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
+    }
+    [data-theme="light"] .data-table tr:hover td {
+        background: rgba(0, 0, 0, 0.02);
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="admin-container">
+    <div class="admin-header">
+        <div>
+            <div class="admin-title">💰 模型定价管理</div>
+            <div class="admin-subtitle">按Token计费 - 基于官方价格上浮20%</div>
+        </div>
+        <div class="btn-group">
+            <button class="btn btn-secondary" onclick="loadStats()">📊 刷新统计</button>
+            <button class="btn btn-secondary" onclick="showBatchUpdateModal()">🔄 批量更新价格</button>
+            <button class="btn btn-primary" onclick="showAddModal()">➕ 添加模型</button>
+        </div>
+    </div>
+
+    <!-- 统计概览 -->
+    <div class="stats-grid" id="statsGrid">
+        <div class="stat-card">
+            <div class="stat-value" id="statTotalModels">-</div>
+            <div class="stat-label">已配置模型</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-value" id="statTotalCalls">-</div>
+            <div class="stat-label">今日API调用</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-value" id="statTotalTokens">-</div>
+            <div class="stat-label">今日Token消耗</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-value" id="statTotalCost">-</div>
+            <div class="stat-label">今日费用(点)</div>
+        </div>
+    </div>
+
+    <!-- 定价列表 -->
+    <div class="card">
+        <div class="card-header">
+            <div class="card-title">模型价格配置</div>
+            <span style="font-size: 0.75rem; color: var(--v2-text-tertiary);">单位：创造点/百万token</span>
+        </div>
+        <div class="card-body" style="padding: 0;">
+            <table class="data-table" id="pricingTable">
+                <thead>
+                    <tr>
+                        <th>提供商</th>
+                        <th>模型名称</th>
+                        <th>显示名称</th>
+                        <th>输入价格</th>
+                        <th>输出价格</th>
+                        <th>状态</th>
+                        <th>更新时间</th>
+                        <th>操作</th>
+                    </tr>
+                </thead>
+                <tbody id="pricingTableBody">
+                    <tr>
+                        <td colspan="8" class="empty-state">
+                            <div class="empty-icon">⏳</div>
+                            加载中...
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Token使用统计 -->
+    <div class="card">
+        <div class="card-header">
+            <div class="card-title">Token使用统计（最近30天）</div>
+        </div>
+        <div class="card-body" style="padding: 0;">
+            <table class="data-table" id="usageTable">
+                <thead>
+                    <tr>
+                        <th>提供商</th>
+                        <th>模型</th>
+                        <th>输入Tokens</th>
+                        <th>输出Tokens</th>
+                        <th>总Tokens</th>
+                        <th>调用次数</th>
+                        <th>总费用(点)</th>
+                    </tr>
+                </thead>
+                <tbody id="usageTableBody">
+                    <tr>
+                        <td colspan="7" class="empty-state">
+                            <div class="empty-icon">📊</div>
+                            暂无数据
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- 添加/编辑弹窗 -->
+<div class="modal-overlay" id="pricingModal">
+    <div class="modal-content">
+        <div class="modal-header">
+            <div class="modal-title" id="modalTitle">添加模型定价</div>
+            <button class="modal-close" onclick="closeModal()">&times;</button>
+        </div>
+        <div class="modal-body">
+            <input type="hidden" id="editId" value="">
+            <div class="form-group">
+                <label class="form-label">提供商 *</label>
+                <select class="form-select" id="provider">
+                    <option value="deepseek">DeepSeek</option>
+                    <option value="kimi">Kimi</option>
+                    <option value="doubao">豆包</option>
+                    <option value="gemini">Gemini</option>
+                    <option value="openai">OpenAI</option>
+                    <option value="anthropic">Anthropic</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label class="form-label">模型名称 *</label>
+                <input type="text" class="form-input" id="modelName" placeholder="如: deepseek-reasoner">
+                <div class="form-hint">与API配置中的model字段保持一致</div>
+            </div>
+            <div class="form-group">
+                <label class="form-label">显示名称</label>
+                <input type="text" class="form-input" id="displayName" placeholder="如: DeepSeek Reasoner">
+            </div>
+            <div class="form-group">
+                <label class="form-label">输入价格（创造点/百万token）*</label>
+                <input type="number" class="form-input" id="inputPrice" placeholder="48" step="0.01">
+                <div class="form-hint">1元 = 10创造点，DeepSeek Reasoner 官方¥4/M → 48点/M</div>
+            </div>
+            <div class="form-group">
+                <label class="form-label">输出价格（创造点/百万token）*</label>
+                <input type="number" class="form-input" id="outputPrice" placeholder="192" step="0.01">
+            </div>
+            <div class="form-group">
+                <label class="form-label">状态</label>
+                <select class="form-select" id="isActive">
+                    <option value="1">启用</option>
+                    <option value="0">禁用</option>
+                </select>
+            </div>
+        </div>
+        <div class="modal-footer">
+            <button class="btn btn-secondary" onclick="closeModal()">取消</button>
+            <button class="btn btn-primary" onclick="savePricing()">保存</button>
+        </div>
+    </div>
+</div>
+
+<!-- 批量更新弹窗 -->
+<div class="modal-overlay" id="batchModal">
+    <div class="modal-content">
+        <div class="modal-header">
+            <div class="modal-title">批量更新模型价格</div>
+            <button class="modal-close" onclick="closeBatchModal()">&times;</button>
+        </div>
+        <div class="modal-body">
+            <p style="color: var(--v2-text-secondary); margin-bottom: 1rem;">
+                根据各模型官方价格自动计算并更新。默认上浮20%（覆盖已有配置）。
+            </p>
+            <div class="form-group">
+                <label class="form-label">上浮比例 (%)</label>
+                <input type="number" class="form-input" id="markupPercent" value="20" min="0" step="5">
+                <div class="form-hint">在官方价格基础上上浮的比例</div>
+            </div>
+            <div style="background: var(--v2-bg-tertiary); padding: 1rem; border-radius: var(--v2-radius-md); margin-top: 1rem;">
+                <div style="font-size: 0.875rem; font-weight: 600; color: var(--v2-text-primary); margin-bottom: 0.5rem;">即将更新的模型：</div>
+                <div style="font-size: 0.75rem; color: var(--v2-text-secondary); line-height: 1.6;">
+                    DeepSeek Reasoner · DeepSeek V3 · Kimi K2.5<br>
+                    豆包 Seed 2.0 Pro · Gemini 3 Flash · Gemini 2.5 Flash
+                </div>
+            </div>
+        </div>
+        <div class="modal-footer">
+            <button class="btn btn-secondary" onclick="closeBatchModal()">取消</button>
+            <button class="btn btn-primary" onclick="confirmBatchUpdate()">确认更新</button>
+        </div>
+    </div>
+</div>
+
+<div class="toast-container" id="toastContainer"></div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+let pricingData = [];
+
+// 加载定价列表
+async function loadPricingList() {
+    try {
+        const resp = await fetch('/api/admin/model-pricing');
+        const data = await resp.json();
+        if (data.success) {
+            pricingData = data.data;
+            renderPricingTable();
+            document.getElementById('statTotalModels').textContent = pricingData.length;
+        } else {
+            showToast(data.error || '加载失败', 'error');
+        }
+    } catch (e) {
+        showToast('网络错误: ' + e.message, 'error');
+    }
+}
+
+// 渲染定价表格
+function renderPricingTable() {
+    const tbody = document.getElementById('pricingTableBody');
+    if (pricingData.length === 0) {
+        tbody.innerHTML = `
+            <tr><td colspan="8" class="empty-state">
+                <div class="empty-icon">📋</div>暂无模型定价配置
+            </td></tr>`;
+        return;
+    }
+    tbody.innerHTML = pricingData.map(item => `
+        <tr>
+            <td><span class="badge badge-active">${escapeHtml(item.provider)}</span></td>
+            <td><code style="font-size: 0.75rem; color: var(--v2-text-secondary);">${escapeHtml(item.model_name)}</code></td>
+            <td>${escapeHtml(item.model_display_name || item.model_name)}</td>
+            <td>${item.input_price_per_1m}</td>
+            <td>${item.output_price_per_1m}</td>
+            <td>${item.is_active ? '<span class="badge badge-active">启用</span>' : '<span class="badge badge-inactive">禁用</span>'}</td>
+            <td style="font-size: 0.75rem; color: var(--v2-text-tertiary);">${formatDate(item.updated_at)}</td>
+            <td>
+                <button class="btn btn-sm btn-secondary" onclick="editPricing(${item.id})">编辑</button>
+                <button class="btn btn-sm btn-danger" onclick="deletePricing(${item.id})">删除</button>
+            </td>
+        </tr>
+    `).join('');
+}
+
+// 加载统计
+async function loadStats() {
+    try {
+        const resp = await fetch('/api/admin/token-usage-stats?days=1');
+        const data = await resp.json();
+        if (data.success) {
+            const d = data.data;
+            document.getElementById('statTotalCalls').textContent = d.total_calls || 0;
+            document.getElementById('statTotalTokens').textContent = formatNumber(d.total_tokens || 0);
+            document.getElementById('statTotalCost').textContent = d.total_cost ? d.total_cost.toFixed(2) : '0';
+        }
+
+        // 加载30天按模型统计
+        const resp2 = await fetch('/api/admin/token-usage-stats?days=30');
+        const data2 = await resp2.json();
+        if (data2.success) {
+            renderUsageTable(data2.data.by_model);
+        }
+    } catch (e) {
+        showToast('加载统计失败: ' + e.message, 'error');
+    }
+}
+
+function renderUsageTable(byModel) {
+    const tbody = document.getElementById('usageTableBody');
+    if (!byModel || byModel.length === 0) {
+        tbody.innerHTML = `
+            <tr><td colspan="7" class="empty-state">
+                <div class="empty-icon">📊</div>暂无使用数据
+            </td></tr>`;
+        return;
+    }
+    tbody.innerHTML = byModel.map(item => `
+        <tr>
+            <td><span class="badge badge-active">${escapeHtml(item.provider)}</span></td>
+            <td>${escapeHtml(item.model_name)}</td>
+            <td>${formatNumber(item.prompt_tokens || 0)}</td>
+            <td>${formatNumber(item.completion_tokens || 0)}</td>
+            <td>${formatNumber(item.total_tokens || 0)}</td>
+            <td>${item.call_count || 0}</td>
+            <td style="font-weight: 600;">${(item.total_cost || 0).toFixed(2)}</td>
+        </tr>
+    `).join('');
+}
+
+// 弹窗控制
+function showAddModal() {
+    document.getElementById('editId').value = '';
+    document.getElementById('modalTitle').textContent = '添加模型定价';
+    document.getElementById('provider').value = 'deepseek';
+    document.getElementById('modelName').value = '';
+    document.getElementById('displayName').value = '';
+    document.getElementById('inputPrice').value = '';
+    document.getElementById('outputPrice').value = '';
+    document.getElementById('isActive').value = '1';
+    document.getElementById('pricingModal').classList.add('active');
+}
+
+function editPricing(id) {
+    const item = pricingData.find(p => p.id === id);
+    if (!item) return;
+    document.getElementById('editId').value = item.id;
+    document.getElementById('modalTitle').textContent = '编辑模型定价';
+    document.getElementById('provider').value = item.provider;
+    document.getElementById('modelName').value = item.model_name;
+    document.getElementById('displayName').value = item.model_display_name || '';
+    document.getElementById('inputPrice').value = item.input_price_per_1m;
+    document.getElementById('outputPrice').value = item.output_price_per_1m;
+    document.getElementById('isActive').value = item.is_active ? '1' : '0';
+    document.getElementById('pricingModal').classList.add('active');
+}
+
+function closeModal() {
+    document.getElementById('pricingModal').classList.remove('active');
+}
+
+function showBatchUpdateModal() {
+    document.getElementById('batchModal').classList.add('active');
+}
+
+function closeBatchModal() {
+    document.getElementById('batchModal').classList.remove('active');
+}
+
+// 保存定价
+async function savePricing() {
+    const id = document.getElementById('editId').value;
+    const payload = {
+        provider: document.getElementById('provider').value,
+        model_name: document.getElementById('modelName').value.trim(),
+        model_display_name: document.getElementById('displayName').value.trim(),
+        input_price_per_1m: parseFloat(document.getElementById('inputPrice').value) || 0,
+        output_price_per_1m: parseFloat(document.getElementById('outputPrice').value) || 0,
+        is_active: parseInt(document.getElementById('isActive').value)
+    };
+
+    if (!payload.provider || !payload.model_name) {
+        showToast('提供商和模型名称不能为空', 'error');
+        return;
+    }
+
+    try {
+        const resp = await fetch('/api/admin/model-pricing', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify(payload)
+        });
+        const data = await resp.json();
+        if (data.success) {
+            showToast(id ? '更新成功' : '添加成功', 'success');
+            closeModal();
+            loadPricingList();
+        } else {
+            showToast(data.error || '保存失败', 'error');
+        }
+    } catch (e) {
+        showToast('保存失败: ' + e.message, 'error');
+    }
+}
+
+// 删除定价
+async function deletePricing(id) {
+    if (!confirm('确定删除此模型定价？删除后将回退到按次计费。')) return;
+    try {
+        const resp = await fetch(`/api/admin/model-pricing/${id}`, {method: 'DELETE'});
+        const data = await resp.json();
+        if (data.success) {
+            showToast('删除成功', 'success');
+            loadPricingList();
+        } else {
+            showToast(data.error || '删除失败', 'error');
+        }
+    } catch (e) {
+        showToast('删除失败: ' + e.message, 'error');
+    }
+}
+
+// 批量更新
+async function confirmBatchUpdate() {
+    const markup = parseFloat(document.getElementById('markupPercent').value) || 20;
+    try {
+        const resp = await fetch('/api/admin/model-pricing/batch-update', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({markup_percent: markup})
+        });
+        const data = await resp.json();
+        if (data.success) {
+            showToast(data.message, 'success');
+            closeBatchModal();
+            loadPricingList();
+        } else {
+            showToast(data.error || '更新失败', 'error');
+        }
+    } catch (e) {
+        showToast('更新失败: ' + e.message, 'error');
+    }
+}
+
+// 工具函数
+function escapeHtml(text) {
+    if (!text) return '';
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+}
+
+function formatNumber(num) {
+    if (num >= 1000000) return (num / 1000000).toFixed(1) + 'M';
+    if (num >= 1000) return (num / 1000).toFixed(1) + 'K';
+    return num.toString();
+}
+
+function formatDate(dateStr) {
+    if (!dateStr) return '-';
+    try {
+        const d = new Date(dateStr);
+        return d.toLocaleString('zh-CN', {month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit'});
+    } catch { return dateStr; }
+}
+
+function showToast(message, type = 'success') {
+    const container = document.getElementById('toastContainer');
+    const toast = document.createElement('div');
+    toast.className = `toast toast-${type}`;
+    toast.textContent = message;
+    container.appendChild(toast);
+    setTimeout(() => toast.remove(), 3000);
+}
+
+// 初始化
+loadPricingList();
+loadStats();
+
+// 点击遮罩关闭弹窗
+document.getElementById('pricingModal').addEventListener('click', e => {
+    if (e.target === e.currentTarget) closeModal();
+});
+document.getElementById('batchModal').addEventListener('click', e => {
+    if (e.target === e.currentTarget) closeBatchModal();
+});
+</script>
+{% endblock %}

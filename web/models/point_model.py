@@ -50,6 +50,7 @@ class PointModel:
         self.db_path = str(db_path)
         self._init_db()
         self._init_default_config()
+        self._init_default_model_pricing()
     
     @staticmethod
     def round_amount(amount: float) -> float:
@@ -136,6 +137,44 @@ class PointModel:
                 )
             """)
             
+            
+            # 模型定价表
+            conn.execute("""
+                CREATE TABLE IF NOT EXISTS model_pricing (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    provider TEXT NOT NULL,
+                    model_name TEXT NOT NULL,
+                    model_display_name TEXT,
+                    input_price_per_1m REAL NOT NULL DEFAULT 0,
+                    output_price_per_1m REAL NOT NULL DEFAULT 0,
+                    currency TEXT DEFAULT 'CNY',
+                    is_active INTEGER DEFAULT 1,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    UNIQUE(provider, model_name)
+                )
+            """)
+            
+            # Token使用日志表
+            conn.execute("""
+                CREATE TABLE IF NOT EXISTS token_usage_logs (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    user_id INTEGER,
+                    provider TEXT NOT NULL,
+                    model_name TEXT NOT NULL,
+                    prompt_tokens INTEGER DEFAULT 0,
+                    completion_tokens INTEGER DEFAULT 0,
+                    total_tokens INTEGER DEFAULT 0,
+                    input_cost REAL DEFAULT 0,
+                    output_cost REAL DEFAULT 0,
+                    total_cost REAL DEFAULT 0,
+                    purpose TEXT,
+                    source TEXT,
+                    related_id TEXT,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                )
+            """)
+            
             conn.commit()
             logger.info("✅ 点数系统数据库表初始化完成")
     
@@ -148,6 +187,31 @@ class PointModel:
                     VALUES (?, ?, ?)
                 """, (key, value, f"默认配置: {key}"))
             conn.commit()
+    
+    def _init_default_model_pricing(self):
+        """初始化默认模型定价（官方价格+20%，单位：点数/百万token）"""
+        # 1元 = 10创造点，官方价格上浮20%
+        defaults = [
+            # (provider, model_name, display_name, input_price_per_1m, output_price_per_1m)
+            ('deepseek', 'deepseek-reasoner', 'DeepSeek Reasoner', 48.0, 192.0),
+            ('deepseek', 'deepseek-chat', 'DeepSeek V3', 12.0, 24.0),
+            ('kimi', 'kimi-k2.5', 'Kimi K2.5', 96.0, 384.0),
+            ('doubao', 'doubao-seed-2-0-pro-260215', '豆包 Seed 2.0 Pro', 60.0, 108.0),
+            ('gemini', 'gemini-3-flash-preview-thinking', 'Gemini 3 Flash', 8.4, 25.2),
+            ('gemini', 'gemini-3-flash', 'Gemini 3 Flash', 8.4, 25.2),
+            ('gemini', 'gemini-2.5-flash', 'Gemini 2.5 Flash', 8.4, 25.2),
+        ]
+        try:
+            with self._get_connection() as conn:
+                for provider, model_name, display_name, input_p, output_p in defaults:
+                    conn.execute("""
+                        INSERT OR IGNORE INTO model_pricing 
+                        (provider, model_name, model_display_name, input_price_per_1m, output_price_per_1m)
+                        VALUES (?, ?, ?, ?, ?)
+                    """, (provider, model_name, display_name, input_p, output_p))
+                conn.commit()
+        except Exception as e:
+            logger.warning(f"初始化默认模型定价失败: {e}")
     
     # ==================== 用户点数操作 ====================
     
@@ -603,6 +667,182 @@ class PointModel:
             'mode': mode,
             'cost_per_chapter': cost_per
         }
+    
+    # ==================== Token计费系统 ====================
+    
+    def get_model_pricing(self, provider: str, model_name: str) -> Optional[Dict[str, Any]]:
+        """获取模型定价信息"""
+        with self._get_connection() as conn:
+            row = conn.execute(
+                """SELECT * FROM model_pricing 
+                    WHERE provider = ? AND model_name = ? AND is_active = 1""",
+                (provider, model_name)
+            ).fetchone()
+            return dict(row) if row else None
+    
+    def get_all_model_pricing(self) -> List[Dict[str, Any]]:
+        """获取所有模型定价"""
+        with self._get_connection() as conn:
+            rows = conn.execute(
+                """SELECT * FROM model_pricing ORDER BY provider, model_name"""
+            ).fetchall()
+            return [dict(r) for r in rows]
+    
+    def set_model_pricing(self, provider: str, model_name: str,
+                          model_display_name: str, input_price_per_1m: float,
+                          output_price_per_1m: float, is_active: int = 1) -> Dict[str, Any]:
+        """设置/更新模型定价"""
+        try:
+            with self._get_connection() as conn:
+                conn.execute("""
+                    INSERT INTO model_pricing 
+                        (provider, model_name, model_display_name, 
+                         input_price_per_1m, output_price_per_1m, is_active, updated_at)
+                    VALUES (?, ?, ?, ?, ?, ?, ?)
+                    ON CONFLICT(provider, model_name) DO UPDATE SET
+                        model_display_name = excluded.model_display_name,
+                        input_price_per_1m = excluded.input_price_per_1m,
+                        output_price_per_1m = excluded.output_price_per_1m,
+                        is_active = excluded.is_active,
+                        updated_at = excluded.updated_at
+                """, (provider, model_name, model_display_name,
+                      input_price_per_1m, output_price_per_1m, is_active,
+                      datetime.now().isoformat()))
+                conn.commit()
+                return {'success': True, 'message': f'{provider}/{model_name} 定价已更新'}
+        except Exception as e:
+            logger.error(f"❌ 更新模型定价失败: {e}")
+            return {'success': False, 'error': str(e)}
+    
+    def delete_model_pricing(self, pricing_id: int) -> Dict[str, Any]:
+        """删除模型定价"""
+        try:
+            with self._get_connection() as conn:
+                conn.execute("DELETE FROM model_pricing WHERE id = ?", (pricing_id,))
+                conn.commit()
+                return {'success': True, 'message': '定价已删除'}
+        except Exception as e:
+            logger.error(f"❌ 删除模型定价失败: {e}")
+            return {'success': False, 'error': str(e)}
+    
+    def calculate_token_cost(self, provider: str, model_name: str,
+                             prompt_tokens: int, completion_tokens: int) -> Optional[Dict[str, Any]]:
+        """计算Token费用，返回None表示该模型未配置价格（应回退到按次计费）"""
+        pricing = self.get_model_pricing(provider, model_name)
+        if not pricing:
+            return None
+        
+        input_cost = (prompt_tokens / 1_000_000) * pricing['input_price_per_1m']
+        output_cost = (completion_tokens / 1_000_000) * pricing['output_price_per_1m']
+        total_cost = self.round_amount(input_cost + output_cost)
+        
+        return {
+            'prompt_tokens': prompt_tokens,
+            'completion_tokens': completion_tokens,
+            'total_tokens': prompt_tokens + completion_tokens,
+            'input_cost': self.round_amount(input_cost),
+            'output_cost': self.round_amount(output_cost),
+            'total_cost': total_cost,
+            'pricing': pricing
+        }
+    
+    def deduct_by_tokens(self, user_id: int, provider: str, model_name: str,
+                         prompt_tokens: int, completion_tokens: int,
+                         purpose: str = "", source: str = "token_billing",
+                         related_id: str = None) -> Dict[str, Any]:
+        """按Token使用量扣费，无价格配置时返回None让调用方回退到按次计费"""
+        cost_info = self.calculate_token_cost(provider, model_name, prompt_tokens, completion_tokens)
+        if cost_info is None:
+            return None  # 回退信号
+        
+        total_cost = cost_info['total_cost']
+        
+        # 检查余额
+        points_info = self.get_user_points(user_id)
+        if points_info['balance'] < total_cost:
+            return {
+                'success': False,
+                'error': '点数不足',
+                'required': total_cost,
+                'current': points_info['balance']
+            }
+        
+        # 执行扣费
+        spend_result = self.spend_points(
+            user_id=user_id,
+            amount=total_cost,
+            source=source,
+            description=f"{provider}/{model_name}: {prompt_tokens}+{completion_tokens} tokens = {total_cost}点",
+            related_id=related_id
+        )
+        
+        if spend_result.get('success'):
+            # 记录Token使用日志
+            self.log_token_usage(
+                user_id=user_id,
+                provider=provider,
+                model_name=model_name,
+                prompt_tokens=prompt_tokens,
+                completion_tokens=completion_tokens,
+                total_tokens=cost_info['total_tokens'],
+                input_cost=cost_info['input_cost'],
+                output_cost=cost_info['output_cost'],
+                total_cost=total_cost,
+                purpose=purpose,
+                source=source,
+                related_id=related_id
+            )
+        
+        return spend_result
+    
+    def log_token_usage(self, user_id: int, provider: str, model_name: str,
+                        prompt_tokens: int, completion_tokens: int, total_tokens: int,
+                        input_cost: float, output_cost: float, total_cost: float,
+                        purpose: str = "", source: str = "", related_id: str = None):
+        """记录Token使用日志"""
+        try:
+            with self._get_connection() as conn:
+                conn.execute("""
+                    INSERT INTO token_usage_logs
+                        (user_id, provider, model_name, prompt_tokens, completion_tokens,
+                         total_tokens, input_cost, output_cost, total_cost, purpose, source, related_id)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """, (user_id, provider, model_name, prompt_tokens, completion_tokens,
+                      total_tokens, input_cost, output_cost, total_cost, purpose, source, related_id))
+                conn.commit()
+        except Exception as e:
+            logger.error(f"❌ 记录Token使用日志失败: {e}")
+    
+    def get_token_usage_stats(self, user_id: int, days: int = 30) -> Dict[str, Any]:
+        """获取用户Token使用统计"""
+        with self._get_connection() as conn:
+            # 总消耗
+            total = conn.execute("""
+                SELECT SUM(total_tokens) as tokens, SUM(total_cost) as cost, COUNT(*) as calls
+                FROM token_usage_logs WHERE user_id = ? 
+                AND created_at >= datetime('now', '-{} days')
+            """.format(days), (user_id,)).fetchone()
+            
+            # 按模型统计
+            by_model = conn.execute("""
+                SELECT provider, model_name, 
+                       SUM(prompt_tokens) as prompt_tokens,
+                       SUM(completion_tokens) as completion_tokens,
+                       SUM(total_tokens) as total_tokens,
+                       SUM(total_cost) as total_cost,
+                       COUNT(*) as call_count
+                FROM token_usage_logs WHERE user_id = ?
+                AND created_at >= datetime('now', '-{} days')
+                GROUP BY provider, model_name
+                ORDER BY total_cost DESC
+            """.format(days), (user_id,)).fetchall()
+            
+            return {
+                'total_tokens': total['tokens'] or 0,
+                'total_cost': total['cost'] or 0,
+                'total_calls': total['calls'] or 0,
+                'by_model': [dict(r) for r in by_model]
+            }
 
 
 # 创建全局实例

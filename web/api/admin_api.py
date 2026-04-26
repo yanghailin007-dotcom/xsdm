@@ -639,3 +639,166 @@ def get_system_status():
     except Exception as e:
         logger.error(f"❌ 获取系统状态失败: {e}")
         return jsonify({'success': False, 'error': str(e)}), 500
+
+
+# ==================== 模型定价管理 ====================
+
+@admin_api.route('/model-pricing', methods=['GET'])
+@admin_required
+def get_model_pricing_list():
+    """获取所有模型定价列表"""
+    try:
+        pricing_list = point_model.get_all_model_pricing()
+        return jsonify({'success': True, 'data': pricing_list})
+    except Exception as e:
+        logger.error(f"❌ 获取模型定价列表失败: {e}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@admin_api.route('/model-pricing', methods=['POST'])
+@admin_required
+def create_or_update_model_pricing():
+    """创建或更新模型定价"""
+    try:
+        data = request.get_json()
+        if not data:
+            return jsonify({'success': False, 'error': '请求数据不能为空'}), 400
+        
+        provider = data.get('provider', '').strip()
+        model_name = data.get('model_name', '').strip()
+        model_display_name = data.get('model_display_name', '').strip()
+        input_price = float(data.get('input_price_per_1m', 0))
+        output_price = float(data.get('output_price_per_1m', 0))
+        is_active = int(data.get('is_active', 1))
+        
+        if not provider or not model_name:
+            return jsonify({'success': False, 'error': 'provider 和 model_name 不能为空'}), 400
+        
+        result = point_model.set_model_pricing(
+            provider=provider,
+            model_name=model_name,
+            model_display_name=model_display_name or model_name,
+            input_price_per_1m=input_price,
+            output_price_per_1m=output_price,
+            is_active=is_active
+        )
+        
+        if result.get('success'):
+            return jsonify(result)
+        else:
+            return jsonify(result), 400
+            
+    except Exception as e:
+        logger.error(f"❌ 创建/更新模型定价失败: {e}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@admin_api.route('/model-pricing/<int:pricing_id>', methods=['DELETE'])
+@admin_required
+def delete_model_pricing_entry(pricing_id):
+    """删除模型定价"""
+    try:
+        result = point_model.delete_model_pricing(pricing_id)
+        if result.get('success'):
+            return jsonify(result)
+        else:
+            return jsonify(result), 400
+    except Exception as e:
+        logger.error(f"❌ 删除模型定价失败: {e}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@admin_api.route('/model-pricing/batch-update', methods=['POST'])
+@admin_required
+def batch_update_model_pricing():
+    """批量更新模型定价（基于官方价格自动上浮20%）"""
+    try:
+        data = request.get_json() or {}
+        markup_percent = float(data.get('markup_percent', 20))  # 默认上浮20%
+        
+        # 官方价格（人民币/百万token）
+        official_prices = {
+            ('deepseek', 'deepseek-reasoner'): ('DeepSeek Reasoner', 4.0, 16.0),
+            ('deepseek', 'deepseek-chat'): ('DeepSeek V3', 1.0, 2.0),
+            ('kimi', 'kimi-k2.5'): ('Kimi K2.5', 8.0, 32.0),
+            ('doubao', 'doubao-seed-2-0-pro-260215'): ('豆包 Seed 2.0 Pro', 5.0, 9.0),
+            ('gemini', 'gemini-3-flash-preview-thinking'): ('Gemini 3 Flash', 0.7, 2.1),
+            ('gemini', 'gemini-3-flash'): ('Gemini 3 Flash', 0.7, 2.1),
+            ('gemini', 'gemini-2.5-flash'): ('Gemini 2.5 Flash', 0.7, 2.1),
+        }
+        
+        multiplier = 1 + markup_percent / 100.0
+        # 1元 = 10创造点
+        points_per_yuan = 10
+        
+        updated = 0
+        for (provider, model_name), (display_name, official_input, official_output) in official_prices.items():
+            input_price = round(official_input * multiplier * points_per_yuan, 2)
+            output_price = round(official_output * multiplier * points_per_yuan, 2)
+            
+            result = point_model.set_model_pricing(
+                provider=provider,
+                model_name=model_name,
+                model_display_name=display_name,
+                input_price_per_1m=input_price,
+                output_price_per_1m=output_price,
+                is_active=1
+            )
+            if result.get('success'):
+                updated += 1
+        
+        return jsonify({
+            'success': True,
+            'message': f'已更新 {updated} 个模型定价（上浮 {markup_percent}%）',
+            'updated_count': updated
+        })
+    except Exception as e:
+        logger.error(f"❌ 批量更新模型定价失败: {e}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@admin_api.route('/token-usage-stats', methods=['GET'])
+@admin_required
+def get_token_usage_stats_admin():
+    """获取Token使用统计（管理员视角）"""
+    try:
+        user_id = request.args.get('user_id', type=int)
+        days = request.args.get('days', 30, type=int)
+        
+        if user_id:
+            stats = point_model.get_token_usage_stats(user_id, days)
+            return jsonify({'success': True, 'data': stats})
+        else:
+            # 获取全局统计
+            with point_model._get_connection() as conn:
+                total = conn.execute("""
+                    SELECT SUM(total_tokens) as tokens, SUM(total_cost) as cost, COUNT(*) as calls
+                    FROM token_usage_logs
+                    WHERE created_at >= datetime('now', '-{} days')
+                """.format(days)).fetchone()
+                
+                by_model = conn.execute("""
+                    SELECT provider, model_name,
+                           SUM(prompt_tokens) as prompt_tokens,
+                           SUM(completion_tokens) as completion_tokens,
+                           SUM(total_tokens) as total_tokens,
+                           SUM(total_cost) as total_cost,
+                           COUNT(*) as call_count
+                    FROM token_usage_logs
+                    WHERE created_at >= datetime('now', '-{} days')
+                    GROUP BY provider, model_name
+                    ORDER BY total_cost DESC
+                """.format(days)).fetchall()
+                
+                return jsonify({
+                    'success': True,
+                    'data': {
+                        'total_tokens': total['tokens'] or 0,
+                        'total_cost': total['cost'] or 0,
+                        'total_calls': total['calls'] or 0,
+                        'by_model': [dict(r) for r in by_model]
+                    }
+                })
+    except Exception as e:
+        logger.error(f"❌ 获取Token使用统计失败: {e}")
+        return jsonify({'success': False, 'error': str(e)}), 500

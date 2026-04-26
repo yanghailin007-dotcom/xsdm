@@ -10,6 +10,7 @@ from flask import Blueprint, request, jsonify, Response, session, stream_with_co
 
 from web.auth import login_required
 from web.web_config import logger, BASE_DIR
+from web.models.point_model import point_model
 
 conversation_api = Blueprint('conversation_api', __name__, url_prefix='/api/conversation')
 
@@ -29,6 +30,68 @@ _MODEL_PROVIDER_MAP = {
     "gemini-3-pro":      "gemini",
     "doubao-seed-2-0-pro": "doubao",
 }
+
+
+def _deduct_by_estimate(endpoint: dict, actual_model: str, prompt_text: str, 
+                         completion_text: str, purpose: str):
+    """基于字符数估算Token并扣费（用于流式响应）"""
+    try:
+        user_id = session.get('user_id')
+        if not user_id:
+            return
+        provider = endpoint.get('provider', 'unknown')
+        # 粗略估算：1个中文字符 ≈ 1.5 tokens
+        prompt_tokens = int(len(prompt_text) * 1.5)
+        completion_tokens = int(len(completion_text) * 1.5)
+        result = point_model.deduct_by_tokens(
+            user_id=user_id,
+            provider=provider,
+            model_name=actual_model,
+            prompt_tokens=prompt_tokens,
+            completion_tokens=completion_tokens,
+            purpose=purpose,
+            source='conversation_api_stream',
+            related_id=None
+        )
+        if result and result.get('success'):
+            logger.info(f"[Conversation] Token估算计费成功: {provider}/{actual_model} | "
+                      f"估算 输入:{prompt_tokens} 输出:{completion_tokens} | 扣除:{result.get('amount', 0)}点")
+        elif result is None:
+            logger.info(f"[Conversation] {provider}/{actual_model} 未配置token价格，跳过按token计费")
+    except Exception as e:
+        logger.error(f"[Conversation] Token估算计费失败: {e}")
+
+
+def _deduct_by_usage(resp_json: dict, endpoint: dict, actual_model: str, purpose: str):
+    """根据API响应中的usage信息进行Token扣费"""
+    try:
+        user_id = session.get('user_id')
+        if not user_id:
+            return
+        provider = endpoint.get('provider', 'unknown')
+        usage = resp_json.get('usage') if resp_json else None
+        if usage:
+            prompt_tokens = usage.get('prompt_tokens', 0)
+            completion_tokens = usage.get('completion_tokens', 0)
+            result = point_model.deduct_by_tokens(
+                user_id=user_id,
+                provider=provider,
+                model_name=actual_model,
+                prompt_tokens=prompt_tokens,
+                completion_tokens=completion_tokens,
+                purpose=purpose,
+                source='conversation_api',
+                related_id=None
+            )
+            if result and result.get('success'):
+                logger.info(f"[Conversation] Token计费成功: {provider}/{actual_model} | "
+                          f"输入:{prompt_tokens} 输出:{completion_tokens} | 扣除:{result.get('amount', 0)}点")
+            elif result is None:
+                logger.info(f"[Conversation] {provider}/{actual_model} 未配置token价格，跳过按token计费")
+        else:
+            logger.debug(f"[Conversation] 响应中无usage信息，跳过token计费")
+    except Exception as e:
+        logger.error(f"[Conversation] Token计费失败: {e}")
 
 
 def _load_config():
@@ -182,6 +245,7 @@ def chat_stream():
             
             logger.info(f"[Conversation] /chat 流式响应开始: provider={endpoint['provider']}, model={actual_model}")
 
+            full_content = ""
             try:
                 for line in resp.iter_lines():
                     if not line:
@@ -204,9 +268,13 @@ def chat_stream():
                         if reasoning_piece:
                             yield f"data: {json.dumps({'reasoning': reasoning_piece})}\n\n"
                         if content_piece:
+                            full_content += content_piece
                             yield f"data: {json.dumps({'content': content_piece})}\n\n"
                     except (json.JSONDecodeError, IndexError, KeyError):
                         continue
+                # 🔥 流式响应结束后进行Token估算计费
+                prompt_text = user_message + (system_prompt or "")
+                _deduct_by_estimate(endpoint, actual_model, prompt_text, full_content, 'chat')
             except Exception as e:
                 logger.error(f"[Conversation] 流式异常: {e}")
                 yield f"data: {json.dumps({'error': str(e)})}\n\n"
@@ -371,6 +439,8 @@ def generate_settings():
             return jsonify({"success": False, "error": err}), 502
 
         result = resp.json()
+        # 🔥 Token用量计费
+        _deduct_by_usage(result, endpoint, actual_model, 'generate-settings')
         choices = result.get("choices") or [{}]
         raw_content = choices[0].get("message", {}).get("content", "") if choices else ""
         logger.info(f"[Conversation] /generate-settings 响应长度: {len(raw_content)} 字符")
@@ -848,6 +918,8 @@ def quality_check():
             return jsonify({"success": False, "error": err}), 502
 
         result = resp.json()
+        # 🔥 Token用量计费
+        _deduct_by_usage(result, endpoint, actual_model, 'quality-check')
         choices = result.get("choices") or [{}]
         raw_content = choices[0].get("message", {}).get("content", "") if choices else ""
         logger.info(f"[Conversation] /quality-check 响应长度: {len(raw_content)} 字符")
@@ -1218,6 +1290,9 @@ def generate_batch():
                             yield f"data: {json.dumps({'reasoning': reasoning_piece})}\n\n"
                     except (json.JSONDecodeError, IndexError, KeyError):
                         continue
+                # 🔥 流式响应结束后进行Token估算计费
+                prompt_text = "\n".join(m.get("content", "") for m in req_messages)
+                _deduct_by_estimate(endpoint, actual_model, prompt_text, full_text, 'generate-batch')
             except Exception as e:
                 logger.error(f"[Conversation] /generate-batch 流式异常: {e}")
                 yield f"data: {json.dumps({'error': str(e)})}\n\n"
@@ -1459,6 +1534,8 @@ def align_check():
             return jsonify({"success": False, "error": err}), 502
         
         result = resp.json()
+        # 🔥 Token用量计费
+        _deduct_by_usage(result, endpoint, actual_model, 'align-check')
         choices = result.get("choices") or [{}]
         raw_content = choices[0].get("message", {}).get("content", "") if choices else ""
         
@@ -1718,6 +1795,8 @@ def generate_volume_outline():
             return jsonify({"success": False, "error": err}), 502
         
         result = resp.json()
+        # 🔥 Token用量计费
+        _deduct_by_usage(result, endpoint, actual_model, 'generate-volume-outline')
         choices = result.get("choices") or [{}]
         raw_content = choices[0].get("message", {}).get("content", "") if choices else ""
         
@@ -1976,6 +2055,8 @@ def generate_volume_outline_v2():
                             yield f"data: {json.dumps({'reasoning': reasoning_piece})}\n\n"
                     except (json.JSONDecodeError, IndexError, KeyError):
                         continue
+                # 🔥 流式响应结束后进行Token估算计费
+                _deduct_by_estimate(endpoint, actual_model, full_prompt, full_text, 'generate-volume-outline-v2')
             except Exception as e:
                 logger.error(f"[Conversation] /generate-volume-outline-v2 流式异常: {e}")
                 yield f"data: {json.dumps({'error': str(e)})}\n\n"

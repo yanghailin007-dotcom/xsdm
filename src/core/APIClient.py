@@ -216,6 +216,9 @@ class APIClient:
         # API调用扣费回调 - 用于实时点数扣除
         self.on_api_call_callback = None
         self.api_call_counter = 0  # API调用计数器
+        # Token用量计费回调 - 用于按token扣费
+        self.on_token_usage_callback = None
+        self._last_usage_info = None  # 存储最后一次API调用的usage信息
         # 频率限制相关属性 - 安全访问配置
         rate_limit_config = self.config.get("rate_limit", {})
         self.rate_limit_enabled = rate_limit_config.get("enabled", False)
@@ -428,6 +431,28 @@ class APIClient:
         """
         self.on_api_call_callback = callback
         self.logger.info(f"✓ API调用扣费回调已设置")
+    
+    def set_token_usage_callback(self, callback):
+        """设置Token用量计费回调函数 - 用于按token扣费
+        
+        Args:
+            callback: 回调函数，接收参数 (provider: str, model_name: str, 
+                      prompt_tokens: int, completion_tokens: int, purpose: str)
+        """
+        self.on_token_usage_callback = callback
+        self.logger.info(f"✓ Token用量计费回调已设置")
+    
+    def _trigger_token_usage_callback(self, provider: str, model_name: str, 
+                                       prompt_tokens: int, completion_tokens: int, 
+                                       purpose: str):
+        """触发Token用量计费回调"""
+        if self.on_token_usage_callback and prompt_tokens is not None:
+            try:
+                self.on_token_usage_callback(provider, model_name, prompt_tokens, completion_tokens, purpose)
+                self.logger.info(f"💰 Token计费触发: {provider}/{model_name} | "
+                               f"输入:{prompt_tokens} 输出:{completion_tokens} tokens | 目的:{purpose}")
+            except Exception as e:
+                self.logger.error(f"❌ Token计费回调失败: {e}")
     
     def set_username(self, username: str):
         """设置当前用户名 - 用于日志区分不同用户
@@ -973,6 +998,7 @@ class APIClient:
         full_content = ""
         chunk_count = 0
         last_log_time = time.time()
+        usage_info = None
         
         for line in response.iter_lines():
             if not line:
@@ -989,6 +1015,9 @@ class APIClient:
                     
                 try:
                     chunk = json.loads(data)
+                    # 🔥 捕获usage信息（通常在最后一个chunk中）
+                    if 'usage' in chunk and chunk['usage']:
+                        usage_info = chunk['usage']
                     if 'choices' in chunk and len(chunk['choices']) > 0:
                         delta = chunk['choices'][0].get('delta', {})
                         content_piece = delta.get('content', '')
@@ -1007,6 +1036,10 @@ class APIClient:
                 except Exception as e:
                     self.logger.warning(f"{user_str}     - 解析流式数据块出错: {e}")
                     continue
+        
+        # 存储usage信息供后续计费使用
+        if usage_info:
+            self._last_usage_info = usage_info
         
         self.logger.info(f"{user_str}     - [{thread_id}] 流式接收完成: {chunk_count} chunks, {len(full_content)} chars")
         return full_content
@@ -1136,6 +1169,14 @@ class APIClient:
             
             # 获取结果
             content = completion.choices[0].message.content
+            
+            # 🔥 捕获Token用量信息
+            if hasattr(completion, 'usage') and completion.usage:
+                self._last_usage_info = {
+                    'prompt_tokens': getattr(completion.usage, 'prompt_tokens', 0),
+                    'completion_tokens': getattr(completion.usage, 'completion_tokens', 0),
+                    'total_tokens': getattr(completion.usage, 'total_tokens', 0)
+                }
             
             safe_log(f"{user_str}  [OK] Endpoint {endpoint_name} success | Time: {elapsed:.2f}s | Len: {len(content)}")
             
@@ -1281,6 +1322,9 @@ class APIClient:
                     # 非流式响应
                     result = response.json()
                     content = result['choices'][0]['message']['content']
+                    # 🔥 捕获Token用量信息
+                    if 'usage' in result:
+                        self._last_usage_info = result['usage']
             except (KeyError, json.JSONDecodeError) as e:
                 self.logger.error(f"{user_str}  ❌ 解析响应失败: {e}")
                 return None
@@ -1423,6 +1467,15 @@ class APIClient:
                         self.logger.info(f"{user_str}   ✅ 端点 {endpoint.name} + 备用模型 {current_model} 调用成功")
                     else:
                         self.logger.info(f"{user_str}   ✅ 端点 {endpoint.name} 调用成功")
+                    # 🔥 Token用量计费（优先）
+                    if self._last_usage_info:
+                        self._trigger_token_usage_callback(
+                            target_provider, current_model,
+                            self._last_usage_info.get('prompt_tokens', 0),
+                            self._last_usage_info.get('completion_tokens', 0),
+                            purpose
+                        )
+                        self._last_usage_info = None  # 清空，避免重复计费
                     self._trigger_api_call_callback(purpose, 1, endpoint.name, getattr(endpoint, 'discount_rate', 100))
                     return result
                 else:
@@ -1539,6 +1592,15 @@ class APIClient:
             if result:
                 endpoint.record_success(time.time())
                 self.logger.info(f"{user_str}   ✅ {provider} 端点 {endpoint.name} 调用成功")
+                # 🔥 Token用量计费（优先）
+                if self._last_usage_info:
+                    self._trigger_token_usage_callback(
+                        provider, current_model,
+                        self._last_usage_info.get('prompt_tokens', 0),
+                        self._last_usage_info.get('completion_tokens', 0),
+                        purpose
+                    )
+                    self._last_usage_info = None
                 self._trigger_api_call_callback(purpose, 1, endpoint.name, getattr(endpoint, 'discount_rate', 100))
                 return result
             else:
@@ -1615,6 +1677,15 @@ class APIClient:
                     if result:
                         endpoint.record_success(time.time())
                         self.logger.info(f"{user_str}✅ 端点 {endpoint.name} 第{attempt+1}次尝试成功")
+                        # 🔥 Token用量计费（优先）
+                        if self._last_usage_info:
+                            self._trigger_token_usage_callback(
+                                target_provider, endpoint_config.get('model', ''),
+                                self._last_usage_info.get('prompt_tokens', 0),
+                                self._last_usage_info.get('completion_tokens', 0),
+                                purpose
+                            )
+                            self._last_usage_info = None
                         self._trigger_api_call_callback(purpose, 1, endpoint.name, 
                                                        getattr(endpoint, 'discount_rate', 100))
                         return result
@@ -1749,6 +1820,9 @@ class APIClient:
                 
                 if content:
                     self.logger.info(f"  ✅ 端点 {endpoint_name} 响应成功 | 耗时: {elapsed:.2f}s | 长度: {len(content)} 字符")
+                    # 🔥 捕获Token用量信息（OpenAI格式）
+                    if not is_gemini_format and 'usage' in data:
+                        self._last_usage_info = data['usage']
                     # 🔥 保存调试信息
                     self._save_api_call_debug(system_prompt, user_prompt, content, 
                                              purpose, endpoint_name, model_name, 1)

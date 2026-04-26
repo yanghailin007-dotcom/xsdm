@@ -147,6 +147,8 @@ class NovelGenerator:
         self.api_client = APIClient(self.config)
         # 设置API调用扣费回调
         self.api_client.set_api_call_callback(self._on_api_call_deduct_points)
+        # 设置Token用量计费回调
+        self.api_client.set_token_usage_callback(self._on_token_usage_deduct_points)
         
         # 🔥 检查并显示用户自定义模型提示
         self._check_and_display_user_custom_mode()
@@ -294,6 +296,65 @@ class NovelGenerator:
             
         except Exception as e:
             self.logger.error(f"❌ API调用扣费回调出错: {e}")
+    
+    def _on_token_usage_deduct_points(self, provider: str, model_name: str, 
+                                       prompt_tokens: int, completion_tokens: int, 
+                                       purpose: str):
+        """Token用量计费回调 - 按实际token消耗扣费
+        
+        Args:
+            provider: 模型提供商
+            model_name: 模型名称
+            prompt_tokens: 输入token数
+            completion_tokens: 输出token数
+            purpose: 调用目的
+        """
+        try:
+            if not self._user_id:
+                return
+            
+            from web.models.point_model import point_model
+            
+            # 尝试按token计费
+            result = point_model.deduct_by_tokens(
+                user_id=self._user_id,
+                provider=provider,
+                model_name=model_name,
+                prompt_tokens=prompt_tokens,
+                completion_tokens=completion_tokens,
+                purpose=purpose,
+                source='token_billing',
+                related_id=self._current_task_id
+            )
+            
+            if result is None:
+                # 模型未配置价格，回退到按次计费
+                self.logger.info(f"ℹ️ {provider}/{model_name} 未配置token价格，回退到按次计费")
+                return  # 让按次计费回调处理
+            
+            if result.get('success'):
+                cost = result.get('amount', 0)
+                self._api_points_consumed += cost
+                self.logger.info(f"💰 Token计费成功: {provider}/{model_name} | "
+                               f"输入:{prompt_tokens} 输出:{completion_tokens} tokens | "
+                               f"扣除:{cost}点 | 总计:{self._api_points_consumed:.2f}点")
+                # 发布事件
+                self.event_bus.publish('points.consumed', {
+                    'consumed': self._api_points_consumed,
+                    'purpose': purpose,
+                    'task_id': self._current_task_id,
+                    'provider': provider,
+                    'model': model_name,
+                    'prompt_tokens': prompt_tokens,
+                    'completion_tokens': completion_tokens,
+                    'cost': cost,
+                    'billing_mode': 'token'
+                })
+            else:
+                self.logger.error(f"❌ Token计费失败: {result.get('error')}")
+                
+        except Exception as e:
+            self.logger.error(f"❌ Token计费回调出错: {e}")
     
     def set_user_id(self, user_id: int):
         """设置当前用户ID（用于扣费）"""
