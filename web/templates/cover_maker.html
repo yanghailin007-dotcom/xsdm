@@ -15,7 +15,7 @@
         height: 100%;
         overflow: hidden;
         z-index: 0;
-        background: radial-gradient(ellipse at bottom, #1b2735 0%, #090a0f 100%);
+        background: var(--v2-bg-primary);
     }
 
     .stars {
@@ -32,7 +32,7 @@
         background-repeat: repeat;
         background-size: 200px 200px;
         animation: twinkle 8s infinite linear;
-        opacity: 0.8;
+        opacity: 0.2;
     }
 
     .stars:nth-child(2) {
@@ -52,24 +52,7 @@
         50% { opacity: 0.4; }
     }
 
-    .meteor {
-        position: absolute;
-        width: 300px;
-        height: 2px;
-        background: linear-gradient(90deg, 
-            rgba(255,255,255,0) 0%, 
-            rgba(99, 102, 241, 0.8) 50%, 
-            rgba(255,255,255,0) 100%);
-        transform: rotate(-45deg);
-        animation: meteor 4s infinite;
-        opacity: 0;
-    }
-
-    .meteor:nth-child(4) { top: 10%; left: 80%; animation-delay: 0s; }
-    .meteor:nth-child(5) { top: 30%; left: 60%; animation-delay: 1.5s; }
-    .meteor:nth-child(6) { top: 50%; left: 90%; animation-delay: 3s; }
-    .meteor:nth-child(7) { top: 70%; left: 70%; animation-delay: 4.5s; }
-
+    
     @keyframes meteor {
         0% { transform: translateX(0) translateY(0) rotate(-45deg); opacity: 0; }
         10% { opacity: 1; }
@@ -89,7 +72,7 @@
         left: -10%;
         width: 600px;
         height: 600px;
-        background: radial-gradient(circle, rgba(99, 102, 241, 0.4) 0%, transparent 70%);
+        background: radial-gradient(circle, rgba(99, 102, 241, 0.12) 0%, transparent 70%);
     }
 
     .glow-2 {
@@ -97,7 +80,7 @@
         right: -10%;
         width: 500px;
         height: 500px;
-        background: radial-gradient(circle, rgba(6, 182, 212, 0.4) 0%, transparent 70%);
+        background: radial-gradient(circle, rgba(99, 102, 241, 0.08) 0%, transparent 70%);
         animation-delay: 3s;
     }
 
@@ -126,7 +109,7 @@
         font-size: clamp(2rem, 4vw, 2.5rem);
         margin-bottom: 0.75rem;
         font-weight: 800;
-        background: linear-gradient(135deg, #6366f1 0%, #06b6d4 50%, #8b5cf6 100%);
+        background: linear-gradient(135deg, var(--v2-primary-500) 0%, var(--v2-accent-purple) 100%);
         -webkit-background-clip: text;
         -webkit-text-fill-color: transparent;
         background-clip: text;
@@ -160,17 +143,17 @@
 
     /* 玻璃卡片样式 */
     .glass-card {
-        background: rgba(30, 41, 59, 0.6);
+        background: var(--v2-bg-secondary);
         backdrop-filter: blur(20px);
         border-radius: var(--radius-lg);
-        border: 1px solid rgba(255, 255, 255, 0.1);
+        border: 1px solid var(--v2-border-default);
         padding: 2rem;
         transition: all 0.3s;
     }
 
     .glass-card:hover {
         border-color: rgba(99, 102, 241, 0.3);
-        box-shadow: 0 20px 60px rgba(99, 102, 241, 0.1);
+        box-shadow: var(--v2-shadow-md), 0 0 40px rgba(99, 102, 241, 0.08);
     }
 
     .section-title {
@@ -194,8 +177,8 @@
     }
 
     .novel-item {
-        background: rgba(15, 23, 42, 0.5);
-        border: 2px solid rgba(255, 255, 255, 0.1);
+        background: var(--v2-bg-tertiary);
+        border: 2px solid var(--v2-border-default);
         border-radius: var(--radius-md);
         padding: 1rem;
         cursor: pointer;
@@ -244,8 +227,8 @@
     .form-input, .form-select, .form-textarea {
         width: 100%;
         padding: 0.75rem 1rem;
-        background: rgba(15, 23, 42, 0.5);
-        border: 1px solid rgba(255, 255, 255, 0.1);
+        background: var(--v2-bg-tertiary);
+        border: 1px solid var(--v2-border-default);
         border-radius: var(--radius-md);
         font-size: 0.875rem;
         transition: all 0.3s;
@@ -305,14 +288,14 @@
         display: flex;
         gap: 0.75rem;
         margin-bottom: 1rem;
-        border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        border-bottom: 1px solid var(--v2-border-default);
         padding-bottom: 0.75rem;
     }
 
     .prompt-tab {
         padding: 0.5rem 1rem;
         background: rgba(255, 255, 255, 0.05);
-        border: 1px solid rgba(255, 255, 255, 0.1);
+        border: 1px solid var(--v2-border-default);
         border-radius: var(--radius-md);
         font-size: 0.875rem;
         color: var(--text-secondary);
@@ -332,10 +315,10 @@
     }
 
     .prompt-content {
-        background: rgba(15, 23, 42, 0.4);
+        background: var(--v2-bg-tertiary);
         border-radius: var(--radius-md);
         padding: 1.25rem;
-        border: 1px solid rgba(255, 255, 255, 0.05);
+        border: 1px solid var(--v2-border-subtle);
     }
 
     .preset-group {
@@ -360,7 +343,7 @@
     .preset-btn {
         padding: 0.375rem 0.75rem;
         background: rgba(255, 255, 255, 0.05);
-        border: 1px solid rgba(255, 255, 255, 0.1);
+        border: 1px solid var(--v2-border-default);
         border-radius: var(--radius-md);
         font-size: 0.75rem;
         color: var(--text-secondary);
@@ -386,8 +369,8 @@
         font-family: 'SF Pro Display', 'Helvetica Neue', 'Arial', 'PingFang SC', 'Microsoft YaHei', sans-serif;
         font-size: 0.875rem;
         line-height: 1.8;
-        background: rgba(15, 23, 42, 0.5);
-        border: 1px solid rgba(255, 255, 255, 0.1);
+        background: var(--v2-bg-tertiary);
+        border: 1px solid var(--v2-border-default);
         padding: 1rem;
         border-radius: var(--radius-md);
         white-space: pre-wrap;
@@ -408,7 +391,7 @@
         align-items: center;
         margin-top: 1rem;
         padding-top: 1rem;
-        border-top: 1px solid rgba(255, 255, 255, 0.1);
+        border-top: 1px solid var(--v2-border-default);
     }
 
     .help-text {
@@ -485,10 +468,10 @@
     }
 
     .cover-item {
-        background: rgba(30, 41, 59, 0.6);
+        background: var(--v2-bg-secondary);
         border-radius: var(--radius-md);
         overflow: hidden;
-        border: 1px solid rgba(255, 255, 255, 0.1);
+        border: 1px solid var(--v2-border-default);
         transition: all 0.3s;
         cursor: pointer;
         position: relative;
@@ -527,7 +510,7 @@
         right: 0.75rem;
         width: 24px;
         height: 24px;
-        background: rgba(15, 23, 42, 0.8);
+        background: var(--v2-bg-tertiary);
         border: 2px solid rgba(255, 255, 255, 0.3);
         border-radius: 6px;
         display: flex;
@@ -588,7 +571,7 @@
 
     /* ==================== 选中操作栏 ==================== */
     .selection-actions {
-        background: rgba(30, 41, 59, 0.8);
+        background: var(--v2-bg-secondary);
         border: 1px solid rgba(99, 102, 241, 0.3);
         border-radius: var(--radius-md);
         padding: 1rem 1.25rem;
@@ -635,7 +618,7 @@
     .btn-secondary {
         background: rgba(255, 255, 255, 0.05);
         color: var(--text-secondary);
-        border-color: rgba(255, 255, 255, 0.1);
+        border-color: var(--v2-border-default);
     }
 
     .btn-secondary:hover {
@@ -670,7 +653,7 @@
         text-align: center;
         padding: 4rem 2rem;
         color: var(--text-tertiary);
-        background: rgba(30, 41, 59, 0.4);
+        background: var(--v2-bg-secondary);
         border-radius: var(--radius-lg);
         border: 1px dashed rgba(255, 255, 255, 0.1);
     }
@@ -706,7 +689,7 @@
         left: 0;
         right: 0;
         bottom: 0;
-        background: rgba(15, 23, 42, 0.9);
+        background: rgba(0, 0, 0, 0.8);
         display: flex;
         justify-content: center;
         align-items: center;
@@ -715,12 +698,12 @@
     }
 
     .loading-content {
-        background: rgba(30, 41, 59, 0.95);
+        background: var(--v2-bg-secondary);
         padding: 2.5rem;
         border-radius: var(--radius-lg);
         text-align: center;
         max-width: 400px;
-        border: 1px solid rgba(255, 255, 255, 0.1);
+        border: 1px solid var(--v2-border-default);
     }
 
     .spinner {
@@ -1734,7 +1717,7 @@
                     ${projectIdFromUrl ? `
                     <div style="margin-top: 8px; padding-top: 8px; border-top: 1px solid rgba(255,255,255,0.1);">
                         <button onclick="saveCoverToProject('${cover.url}', event)" 
-                                style="width: 100%; padding: 6px 12px; background: linear-gradient(135deg, #10b981, #059669); color: white; border: none; border-radius: 4px; font-size: 12px; cursor: pointer;">
+                                style="width: 100%; padding: 6px 12px; background: linear-gradient(135deg, var(--v2-success), #16a34a); color: white; border: none; border-radius: 4px; font-size: 12px; cursor: pointer;">
                             💾 设为项目封面
                         </button>
                     </div>
@@ -1801,10 +1784,10 @@
         const messageDiv = document.createElement('div');
         messageDiv.style.cssText = `
             position: fixed; top: 100px; right: 20px; z-index: 100001;
-            background: linear-gradient(135deg, #10b981, #059669); color: white;
+            background: linear-gradient(135deg, var(--v2-success), #16a34a); color: white;
             padding: 16px 24px; border-radius: 12px; box-shadow: 0 4px 20px rgba(16, 185, 129, 0.3);
             font-weight: 600; animation: slideInRight 0.3s ease-out;
-            max-width: 400px; border: 1px solid rgba(255, 255, 255, 0.1);
+            max-width: 400px; border: 1px solid var(--v2-border-default);
         `;
         messageDiv.textContent = message;
         
@@ -2039,7 +2022,7 @@
         const modal = document.createElement('div');
         modal.style.cssText = `
             position: fixed; top: 0; left: 0; right: 0; bottom: 0;
-            background: rgba(15, 23, 42, 0.95); z-index: 99999;
+            background: rgba(0, 0, 0, 0.85); z-index: 99999;
             display: flex; justify-content: center; align-items: center;
             padding: 20px; backdrop-filter: blur(10px);
         `;
@@ -2053,14 +2036,14 @@
         `).join('');
         
         modal.innerHTML = `
-            <div style="background: rgba(30, 41, 59, 0.95); border-radius: 16px; max-width: 90%; max-height: 90%; overflow: auto; position: relative; border: 1px solid rgba(255, 255, 255, 0.1);">
+            <div style="background: var(--v2-bg-secondary); border-radius: 16px; max-width: 90%; max-height: 90%; overflow: auto; position: relative; border: 1px solid var(--v2-border-default);">
                 <button onclick="this.closest('div').parentElement.remove()" style="position: absolute; top: 15px; right: 15px; background: rgba(239, 68, 68, 0.8); color: white; border: none; border-radius: 50%; width: 36px; height: 36px; cursor: pointer; font-size: 20px; z-index: 10;">×</button>
                 <div style="padding: 30px; text-align: center;">
                     <h2 style="margin: 0 0 20px 0; color: var(--text-primary);">确认使用选中的封面</h2>
                     <div style="margin-bottom: 20px; color: var(--text-secondary);">
                         您已选择 <strong style="color: var(--primary-400);">${selectedCoverList.length}</strong> 个封面：
                     </div>
-                    <div style="margin-bottom: 30px; padding: 20px; background: rgba(15, 23, 42, 0.5); border-radius: 12px; border: 1px solid rgba(255, 255, 255, 0.05);">
+                    <div style="margin-bottom: 30px; padding: 20px; background: var(--v2-bg-tertiary); border-radius: 12px; border: 1px solid var(--v2-border-subtle);">
                         ${coverThumbnails}
                     </div>
                     <div style="color: var(--text-tertiary); margin-bottom: 20px; font-size: 14px;">
@@ -2125,7 +2108,7 @@
         const modal = document.createElement('div');
         modal.style.cssText = `
             position: fixed; top: 0; left: 0; right: 0; bottom: 0;
-            background: rgba(15, 23, 42, 0.95); z-index: 99999;
+            background: rgba(0, 0, 0, 0.85); z-index: 99999;
             display: flex; justify-content: center; align-items: center;
             padding: 20px; backdrop-filter: blur(10px);
         `;
@@ -2139,14 +2122,14 @@
         `).join('');
         
         modal.innerHTML = `
-            <div style="background: rgba(30, 41, 59, 0.95); border-radius: 16px; max-width: 90%; max-height: 90%; overflow: auto; position: relative; border: 1px solid rgba(255, 255, 255, 0.1);">
+            <div style="background: var(--v2-bg-secondary); border-radius: 16px; max-width: 90%; max-height: 90%; overflow: auto; position: relative; border: 1px solid var(--v2-border-default);">
                 <button onclick="this.closest('div').parentElement.remove()" style="position: absolute; top: 15px; right: 15px; background: rgba(239, 68, 68, 0.8); color: white; border: none; border-radius: 50%; width: 36px; height: 36px; cursor: pointer; font-size: 20px; z-index: 10;">×</button>
                 <div style="padding: 30px; text-align: center;">
                     <h2 style="margin: 0 0 20px 0; color: var(--text-primary);">确认拷贝封面到小说目录</h2>
                     <div style="margin-bottom: 20px; color: var(--text-secondary);">
                         您已选择 <strong style="color: var(--success);">${selectedCoverList.length}</strong> 个封面，将拷贝到对应的小说项目目录：
                     </div>
-                    <div style="margin-bottom: 30px; padding: 20px; background: rgba(15, 23, 42, 0.5); border-radius: 8px; border: 1px solid rgba(255, 255, 255, 0.05);">
+                    <div style="margin-bottom: 30px; padding: 20px; background: var(--v2-bg-tertiary); border-radius: 8px; border: 1px solid var(--v2-border-subtle);">
                         ${coverThumbnails}
                     </div>
                     <div style="color: var(--text-secondary); margin-bottom: 20px; font-size: 14px; background: rgba(99, 102, 241, 0.1); padding: 15px; border-radius: 8px; text-align: left; border: 1px solid rgba(99, 102, 241, 0.2);">
@@ -2222,7 +2205,7 @@
                     const resultModal = document.createElement('div');
                     resultModal.style.cssText = `
                         position: fixed; top: 0; left: 0; right: 0; bottom: 0;
-                        background: rgba(15, 23, 42, 0.95); z-index: 99999;
+                        background: rgba(0, 0, 0, 0.85); z-index: 99999;
                         display: flex; justify-content: center; align-items: center;
                         padding: 20px; backdrop-filter: blur(10px);
                     `;
@@ -2231,7 +2214,7 @@
                     const failedResults = result.results.filter(r => !r.success);
                     
                     resultModal.innerHTML = `
-                        <div style="background: rgba(30, 41, 59, 0.95); border-radius: 16px; max-width: 600px; position: relative; border: 1px solid rgba(255, 255, 255, 0.1);">
+                        <div style="background: var(--v2-bg-secondary); border-radius: 16px; max-width: 600px; position: relative; border: 1px solid var(--v2-border-default);">
                             <button onclick="this.closest('div').parentElement.remove()" style="position: absolute; top: 15px; right: 15px; background: rgba(239, 68, 68, 0.8); color: white; border: none; border-radius: 50%; width: 36px; height: 36px; cursor: pointer; font-size: 20px; z-index: 10;">×</button>
                             <div style="padding: 30px; text-align: center;">
                                 <div style="font-size: 48px; margin-bottom: 20px;">🎉</div>
@@ -2332,13 +2315,13 @@
                 const infoModal = document.createElement('div');
                 infoModal.style.cssText = `
                     position: fixed; top: 0; left: 0; right: 0; bottom: 0;
-                    background: rgba(15, 23, 42, 0.95); z-index: 99999;
+                    background: rgba(0, 0, 0, 0.85); z-index: 99999;
                     display: flex; justify-content: center; align-items: center;
                     padding: 20px; backdrop-filter: blur(10px);
                 `;
                 
                 infoModal.innerHTML = `
-                    <div style="background: rgba(30, 41, 59, 0.95); border-radius: 16px; max-width: 500px; position: relative; border: 1px solid rgba(255, 255, 255, 0.1);">
+                    <div style="background: var(--v2-bg-secondary); border-radius: 16px; max-width: 500px; position: relative; border: 1px solid var(--v2-border-default);">
                         <button onclick="this.closest('div').parentElement.remove()" style="position: absolute; top: 15px; right: 15px; background: rgba(239, 68, 68, 0.8); color: white; border: none; border-radius: 50%; width: 36px; height: 36px; cursor: pointer; font-size: 20px; z-index: 10;">×</button>
                         <div style="padding: 30px; text-align: center;">
                             <div style="font-size: 48px; margin-bottom: 20px;">🎉</div>
@@ -2347,7 +2330,7 @@
                                 您已成功选择 <strong style="color: var(--primary-400);">${selectedCoverList.length}</strong> 个封面<br>
                                 这些封面将在番茄自动上传时使用
                             </div>
-                            <div style="background: rgba(15, 23, 42, 0.5); padding: 15px; border-radius: 8px; margin-bottom: 20px; text-align: left; border: 1px solid rgba(255, 255, 255, 0.05);">
+                            <div style="background: var(--v2-bg-tertiary); padding: 15px; border-radius: 8px; margin-bottom: 20px; text-align: left; border: 1px solid var(--v2-border-subtle);">
                                 <div style="font-weight: 600; margin-bottom: 10px; color: var(--text-primary);">📋 使用说明：</div>
                                 <div style="font-size: 14px; color: var(--text-tertiary); line-height: 1.5;">
                                     1. 前往"番茄一键上传"页面<br>
@@ -2393,7 +2376,7 @@
         const modal = document.createElement('div');
         modal.style.cssText = `
             position: fixed; top: 0; left: 0; right: 0; bottom: 0;
-            background: rgba(15, 23, 42, 0.95); z-index: 99999;
+            background: rgba(0, 0, 0, 0.85); z-index: 99999;
             display: flex; justify-content: center; align-items: center;
             padding: 20px; backdrop-filter: blur(10px);
         `;
@@ -2402,7 +2385,7 @@
         const encodedUrl = encodeCoverUrl(cover.url);
         
         modal.innerHTML = `
-            <div style="background: rgba(30, 41, 59, 0.95); border-radius: 16px; max-width: 90%; max-height: 90%; overflow: auto; position: relative; border: 1px solid rgba(255, 255, 255, 0.1);">
+            <div style="background: var(--v2-bg-secondary); border-radius: 16px; max-width: 90%; max-height: 90%; overflow: auto; position: relative; border: 1px solid var(--v2-border-default);">
                 <button onclick="this.closest('div').parentElement.remove()" style="position: absolute; top: 15px; right: 15px; background: rgba(239, 68, 68, 0.8); color: white; border: none; border-radius: 50%; width: 36px; height: 36px; cursor: pointer; font-size: 20px; z-index: 10;">×</button>
                 <img src="${encodedUrl}" alt="${escapeHtml(cover.novel_title)}" style="max-width: 100%; max-height: 70vh; object-fit: contain; display: block;">
                 <div style="padding: 24px; text-align: center;">
