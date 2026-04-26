@@ -87,6 +87,17 @@
             font-weight: 500;
             color: var(--text-secondary);
         }
+        .nav-links { display: flex; gap: 4px; }
+        .nav-links a {
+            padding: 6px 14px;
+            border-radius: var(--radius-sm);
+            font-size: 13px;
+            color: var(--text-secondary);
+            text-decoration: none;
+            transition: all 0.2s;
+        }
+        .nav-links a:hover { background: var(--bg-tertiary); color: var(--text-primary); }
+        .nav-links a.active { background: rgba(88,166,255,0.15); color: var(--accent-blue); }
         .model-selector {
             padding: 6px 28px 6px 12px;
             border-radius: var(--radius-sm);
@@ -283,14 +294,22 @@
             word-break: break-word;
         }
         .message-content.user .bubble {
-            text-align: right;
+            text-align: left;
             flex: 0 1 auto;
             max-width: 80%;
-            background: var(--bg-tertiary);
-            border: 1px solid var(--border-color);
+            background: linear-gradient(135deg, #1f6feb 0%, #58a6ff 100%);
+            color: #fff;
+            border: none;
             padding: 10px 16px;
             border-radius: 16px;
             border-bottom-right-radius: 4px;
+        }
+        .message-content.user .bubble strong {
+            color: rgba(255,255,255,0.95);
+            font-weight: 600;
+        }
+        .message-content.user .bubble p {
+            color: rgba(255,255,255,0.95);
         }
 
         /* Markdown 样式 */
@@ -456,6 +475,25 @@
         .msg-action-btn.copied {
             color: var(--accent-green);
             border-color: var(--accent-green);
+        }
+
+        /* 用户消息（蓝色气泡）内的操作按钮 */
+        .message-content.user .message-actions {
+            border-top-color: rgba(255,255,255,0.2);
+        }
+        .message-content.user .msg-action-btn {
+            color: rgba(255,255,255,0.85);
+            border-color: rgba(255,255,255,0.3);
+            background: rgba(255,255,255,0.1);
+        }
+        .message-content.user .msg-action-btn:hover {
+            color: #fff;
+            background: rgba(255,255,255,0.2);
+            border-color: rgba(255,255,255,0.5);
+        }
+        .message-content.user .msg-action-btn.copied {
+            color: #86efac;
+            border-color: #86efac;
         }
 
         /* ===== 输入区域 ===== */
@@ -749,8 +787,11 @@
     <header class="top-nav">
         <div class="nav-left">
             <a href="/" class="nav-logo">大文娱</a>
-            <div class="nav-divider"></div>
-            <a href="/" class="nav-title">自由创作</a>
+            <div class="nav-links">
+                <a href="/">工作台</a>
+                <a href="/novelcraft" class="active">自由创作</a>
+                <a href="/chapter-generation">正文生成</a>
+            </div>
         </div>
         <select class="model-selector" id="modelSelector">
             <option value="deepseek-v4-pro" selected>DeepSeek-V4-Pro</option>
@@ -880,6 +921,7 @@
         let messages = [];
         let isStreaming = false;
         let isRegenerating = false;
+        let pendingGenerateType = null; // 'settings' | 'outline' | 'detailed' | null
         let currentProjectData = null;
         let currentConversationId = null;
         const HISTORY_KEY = 'novelcraft_conversation_history';
@@ -898,9 +940,10 @@
         function addUserMessage(text) {
             const row = document.createElement('div');
             row.className = 'message-row user';
+            const msgIndex = messages.length;
             row.innerHTML = `
                 <div class="message-content user">
-                    <div class="bubble"><p>${escapeHtml(text)}</p></div>
+                    <div class="bubble" data-msg-index="${msgIndex}"><p>${escapeHtml(text)}</p></div>
                     <div class="avatar user">👤</div>
                 </div>
             `;
@@ -908,6 +951,9 @@
             messages.push({ role: 'user', content: text });
             scrollToBottom();
             updateGenerateButton();
+            // 给用户消息添加复制按钮
+            const bubble = row.querySelector('.bubble');
+            addMessageActions(bubble, true);
         }
 
         function addAiMessage() {
@@ -937,7 +983,6 @@
                 bubbleId: bubbleId
             };
         }
-
         function appendToBubble(streamText, text) {
             streamText.textContent += text;
             scrollToBottom();
@@ -963,30 +1008,36 @@
             addMessageActions(bubble);
         }
 
-        function addMessageActions(bubble) {
+        function addMessageActions(bubble, isUser = false) {
             const msgIndex = parseInt(bubble.dataset.msgIndex || '-1');
             if (msgIndex < 0) return;
             // 避免重复添加
             if (bubble.querySelector('.message-actions')) return;
             const actions = document.createElement('div');
             actions.className = 'message-actions';
-            actions.innerHTML = `
+            let html = `
                 <button class="msg-action-btn" onclick="copyMessage(this)" title="复制全文">
                     <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
                     复制
                 </button>
-                <button class="msg-action-btn" onclick="regenerateMessage(this)" title="重新生成">
-                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="1 4 1 10 7 10"/><polyline points="23 20 23 14 17 14"/><path d="M20.49 9A9 9 0 0 0 5.64 5.64L1 10m22 4l-4.64 4.36A9 9 0 0 1 3.51 15"/></svg>
-                    重新生成
-                </button>
             `;
+            if (!isUser) {
+                html += `
+                    <button class="msg-action-btn" onclick="regenerateMessage(this)" title="重新生成">
+                        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="1 4 1 10 7 10"/><polyline points="23 20 23 14 17 14"/><path d="M20.49 9A9 9 0 0 0 5.64 5.64L1 10m22 4l-4.64 4.36A9 9 0 0 1 3.51 15"/></svg>
+                        重新生成
+                    </button>
+                `;
+            }
+            actions.innerHTML = html;
             bubble.appendChild(actions);
         }
 
         function copyMessage(btn) {
             const bubble = btn.closest('.bubble');
             const streamText = bubble.querySelector('.stream-text');
-            const text = streamText ? streamText.innerText : '';
+            const p = bubble.querySelector('p');
+            const text = streamText ? streamText.innerText : (p ? p.innerText : '');
             if (!text) return;
             navigator.clipboard.writeText(text).then(() => {
                 btn.classList.add('copied');
@@ -1216,8 +1267,8 @@
             }
         }
 
-        async function sendMessage() {
-            const text = inputBox.value.trim();
+        async function sendMessage(forcedText) {
+            const text = forcedText || inputBox.value.trim();
             if (!text || isStreaming) return;
 
             if (!isRegenerating) {
@@ -1292,166 +1343,225 @@
                 messages.push({ role: 'assistant', content: fullText });
                 aiMsg.bubble.dataset.msgIndex = messages.length - 1;
                 finishBubble(aiMsg.bubble, aiMsg.streamText, aiMsg.thinkBox);
+
+                // 如果是自动生成流程，保存到对应项目数据
+                if (pendingGenerateType === 'settings') {
+                    currentProjectData = currentProjectData || {};
+                    currentProjectData.settings = fullText;
+                    renderSettings(fullText);
+                    settingsPanel.classList.add('active');
+                    document.getElementById('btnGenOutline').disabled = false;
+                    document.getElementById('outlineStatus').textContent = '可生成大纲';
+                    btnGenerate.innerHTML = '✨ 生成大纲';
+                    pendingGenerateType = null;
+                } else if (pendingGenerateType === 'outline') {
+                    currentProjectData = currentProjectData || {};
+                    currentProjectData.outline = fullText;
+                    renderOutline(fullText);
+                    settingsPanel.classList.add('active');
+                    document.getElementById('btnGenDetailed').disabled = false;
+                    document.getElementById('detailedStatus').textContent = '可生成细纲';
+                    btnGenerate.innerHTML = '✨ 生成细纲';
+                    // 大纲生成完成后自动质检
+                    qualityReport.innerHTML = '<p style="text-align:center;color:var(--text-muted);">🔍 正在质检，请稍候...</p>';
+                    runQualityCheck(model, currentProjectData);
+                    pendingGenerateType = null;
+                } else if (pendingGenerateType === 'detailed') {
+                    currentProjectData = currentProjectData || {};
+                    currentProjectData.detailed_outline = fullText;
+                    renderDetailed(fullText);
+                    settingsPanel.classList.add('active');
+                    pendingGenerateType = null;
+                }
+
                 // 自动保存到历史
                 saveCurrentConversation();
             } catch (err) {
                 finishBubble(aiMsg.bubble, aiMsg.streamText);
                 aiMsg.streamText.innerHTML += `<span style="color:var(--accent-red)"> [请求失败: ${escapeHtml(err.message)}]</span>`;
                 showError(err.message);
+                pendingGenerateType = null;
             } finally {
                 btnSend.disabled = false;
                 isStreaming = false;
+                isRegenerating = false;
                 updateGenerateButton();
             }
         }
 
-        async function generateSettings() {
+        function generateSettings() {
             if (messages.filter(m => m.role === 'user').length < 2) return;
             if (isStreaming) return;
 
-            const model = document.getElementById('modelSelector').value;
-            btnGenerate.disabled = true;
-            qualityReport.innerHTML = '<p style="text-align:center;color:var(--text-muted);">正在生成方案，质检将在生成完成后自动进行...</p>';
+            pendingGenerateType = 'settings';
 
-            // 在对话末尾添加"生成中"提示气泡
-            const loadingRow = document.createElement('div');
-            loadingRow.className = 'message-row ai';
-            loadingRow.id = 'generateLoadingRow';
-            loadingRow.innerHTML = `
-                <div class="message-content ai">
-                    <div class="avatar ai"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg></div>
-                    <div class="bubble generating-bubble">
-                        <span class="generating-spinner"></span>
-                        <span>正在整理项目方案，请稍候...</span>
-                    </div>
-                </div>
-            `;
-            chatMessages.appendChild(loadingRow);
-            scrollToBottom();
+            const prompt = `请根据以上对话内容，生成一份番茄小说平台的项目设定方案。
 
-            try {
-                const response = await fetch('/api/conversation/generate-settings', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ model, messages })
-                });
+【平台背景】番茄小说：算法推荐驱动、免费阅读、下沉市场为主。读者没有沉没成本，3秒划走。书名+简介决定点击率，前3章决定留存率。
 
-                const result = await response.json();
-                if (result.success && result.content) {
-                    renderSettings(result.content);
-                    settingsPanel.classList.add('active');
-                    // 保存到历史
-                    saveCurrentConversation();
-                    // 自动质检（基于设定）
-                    runQualityCheck(model, {settings: result.settings});
+输出格式为 Markdown：
 
-                    // 更新生成中气泡为完成状态
-                    const bubble = loadingRow.querySelector('.bubble');
-                    bubble.classList.remove('generating-bubble');
-                    bubble.innerHTML = '✅ <strong>设定已生成</strong>，可继续生成大纲，或直接编辑保存。';
+# 项目信息
+- **书名**：番茄风格书名，要求：
+  - 15-25字，长书名，必须包含核心冲突
+  - 格式参考：《被裁员后，我觉醒了xxx》《全县最穷，你却说要xxx？》《xxx后，全网跪了》
+  - 要有情绪词（跪了/炸了/疯了/绝了）或数字（10倍/100万/第1名）
+- **一句话简介**：20字以内，广告文案体，直接说出核心卖点。禁止"讲述了"
+- **番茄风格简介**：80-150字，要求：
+  - 第1句必须是强钩子（主角遭遇绝境或获得逆天能力）
+  - 中间用具体数字/场景展示金手指爽感（不是"获得系统"，是"修一条路奖励1个亿"）
+  - 结尾给明确打脸预期（"所有人都嘲笑他，直到..."）
+  - 禁止叙事体！禁止"这是一个关于..."开头！要像短视频文案一样制造好奇
+- **题材**：如 都市·脑洞·系统 / 玄幻·无敌流 / 历史·种田·饥荒
+- **标签**：5-8个，必须包含番茄热门标签（系统、神豪、奶爸、签到、直播、美食、年代、重生、学霸、特种兵）
+- **目标字数**：100-200万字（番茄完本收益门槛）
+- **预估章节**：500-1000章
 
-                    // 启用大纲生成按钮
-                    document.getElementById('btnGenOutline').disabled = false;
-                    document.getElementById('outlineStatus').textContent = '可生成大纲';
-                    // 更新底部按钮为"生成大纲"
-                    btnGenerate.innerHTML = '✨ 生成大纲';
-                } else {
-                    const bubble = loadingRow.querySelector('.bubble');
-                    bubble.classList.remove('generating-bubble');
-                    bubble.innerHTML = `<span style="color:var(--accent-red)">❌ 生成失败：${escapeHtml(result.error || '未知错误')}</span>`;
-                    showError('生成失败: ' + (result.error || '未知错误'));
-                }
-            } catch (err) {
-                const bubble = loadingRow.querySelector('.bubble');
-                if (bubble) {
-                    bubble.classList.remove('generating-bubble');
-                    bubble.innerHTML = `<span style="color:var(--accent-red)">❌ 请求失败：${escapeHtml(err.message)}</span>`;
-                }
-                showError('请求失败: ' + err.message);
-            } finally {
-                btnGenerate.disabled = false;
-            }
+# 开局设计（番茄生死线）
+- **第1章前300字**：主角必须在极端困境中（被开除/被退婚/被嘲笑/被追杀/被背叛），让读者立刻同情或好奇
+- **第1章金手指激活**：必须在第1章内出现并产生第一个小爽感，不能拖到第2章
+- **前3章节奏**：
+  - 第1章：绝境 + 金手指降临
+  - 第2章：初次使用 + 周围人震惊/质疑
+  - 第3章：第一个小打脸（让读者感到"爽到了"）
+
+# 金手指与爽点体系
+- **金手指名称**：要有记忆点（不是"系统"，是"未来基建系统""万倍返还系统""曝光记忆直播"）
+- **金手指规则**：最多3条，简单到读者1秒能懂。必须有具体数值（多少钱/多少倍/多少点）
+- **爽点类型**：明确标注属于哪种番茄主流爽点
+  - 签到流（每日签到奖励升级）
+  - 神豪流（花钱返利/越花越多）
+  - 返还流（ investment 十倍返还）
+  - 震惊流（所做之事震惊全网/全宗门/全世界）
+  - 对比流（穷时被人踩，富后人人跪）
+  - 曝光流（隐藏身份被一点点揭开）
+- **打脸地图**（至少3层）：
+  - L1 身边小人（同事/同学/亲戚）：每5-10章打脸一次，提供高频爽感
+  - L2 中层反派（老板/情敌/ local 权贵）：每30-50章打脸一次，提供中频爽感
+  - L3 顶级反派（行业巨头/世家/幕后黑手）：每100-200章打脸一次，提供爆爽高潮
+
+# 主角人设（番茄公式）
+- **身份起点**：必须低（穷/废/被看不起），反差越大越好
+- **核心目标**：越具体越好（"三年内让全县通高铁"比"变强"好100倍）
+- **性格标签**：护短（动我家人=找死）、记仇（有仇当场报）、务实（不废话直接干）
+- **绝对禁区**：圣母（原谅仇人）、降智（明知陷阱还跳）、双标
+
+# 情绪节奏铁律
+- **每章结尾必须是钩子**：悬念/震惊/期待/爽感回味，不能让读者"看完这章就满足了"
+- **爽点间隔**：3章一小爽（小打脸），10章一大爽（中反派跪），30章一爆爽（L3反派崩溃/全网震惊）
+- **压抑上限**：主角受辱绝对不能超过1章，下一章必须开始反击。番茄读者没有耐心等"厚积薄发"
+- **收获可视化**：每次爽点后，主角必须有具体的数值增长（钱+了多少/声望涨了多少/等级升了多少），让读者有"养成感"
+
+要求：
+1. 所有设定必须服务于"让读者停不下来"这个目标，每一个字都要想想"这能让读者爽吗？"
+2. 金手指规则必须简单、具体、可量化。读者能口算出主角赚了多少钱/升了多少级
+3. 禁止文青病：不要深刻人性探讨，不要慢热铺垫，不要环境描写超过200字，不要诗词歌赋
+4. 书名和简介写完自己检查：如果我是刷抖音的，看到这个书名会点进来吗？`; 
+
+            sendMessage(prompt);
         }
 
-        async function generateOutline() {
-            const settingsData = currentProjectData?.settings;
-            if (!settingsData) {
+        function generateOutline() {
+            const settings = currentProjectData?.settings;
+            if (!settings) {
                 showError('请先生成设定');
                 return;
             }
             if (isStreaming) return;
 
-            const model = document.getElementById('modelSelector').value;
-            const btn = document.getElementById('btnGenOutline');
-            const status = document.getElementById('outlineStatus');
-            btn.disabled = true;
-            status.textContent = '生成中...';
+            pendingGenerateType = 'outline';
 
-            try {
-                const response = await fetch('/api/conversation/generate-outline', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ model, messages, settings: settingsData })
-                });
-                const result = await response.json();
-                if (result.success && result.content) {
-                    renderOutline(result.content);
-                    settingsPanel.classList.add('active');
-                    saveCurrentConversation();
-                    status.textContent = '已生成';
-                    // 更新底部按钮为"生成细纲"
-                    btnGenerate.innerHTML = '✨ 生成细纲';
-                } else {
-                    status.textContent = '生成失败';
-                    showError('大纲生成失败: ' + (result.error || '未知错误'));
-                    btn.disabled = false;
-                }
-            } catch (err) {
-                status.textContent = '请求失败';
-                showError('大纲请求失败: ' + err.message);
-                btn.disabled = false;
-            }
+            const prompt = `请根据以上项目设定，生成番茄风格的完整故事大纲。
+
+【平台要求】番茄小说：算法推荐、免费阅读。读者随时会划走，必须每章都有钩子。
+
+输出格式为 Markdown：
+
+# 大纲总览
+- **总卷数**：x卷
+- **总章节**：xxx章
+- **核心爽点类型**：如 神豪流/签到流/震惊流（与设定一致）
+- **主线节奏**：开局打脸L1 → 积累打脸L2 → 最终爆杀L3
+
+# 分卷设计（每卷只列关键节点，不要逐章罗列）
+
+## 第X卷：卷名（要有情绪词，如"全网炸了！""董事会跪了！"）
+- **核心冲突**：本卷主角要解决什么具体问题
+- **高潮爽点**：本卷最爽的一幕是什么（必须具体，如"主角用100亿收购前公司，开除前老板"）
+- **收尾钩子**：卷末最后一章的悬念（让读者忍不住点下一卷）
+- **打脸对象**：本卷主要打L1/L2/L3哪一层
+
+### 关键章节（只列具有转折/爽点/钩子价值的章节，每卷8-15章即可）
+| 章号 | 章节标题 | 章节功能 | 爽点级别 |
+|------|---------|---------|---------|
+| 第X章 | 标题要像短视频标题（带情绪/带数字/带冲突） | 开篇钩子/金手指激活/第一次打脸... | 小爽/大爽/爆爽 |
+| ... | ... | ... | ... |
+
+## 第X+1卷：...
+
+# 全书情绪曲线与钩子分布图
+- **情绪节奏一览**：3章一小爽、10章一大爽、30章一爆爽，标注全书约有多少次
+- **全书最重要的10个情绪核弹**：列出章节号+事件+情绪类型（燃/泪目/爆笑/爽）
+- **钩子密度统计**：每卷收尾钩子是什么类型（悬念/震惊/养成期待/爽感回味/温情）
+- **打脸节奏总表**：L1/L2/L3各在哪些章节被打脸，分别打脸多少次，最终如何终结
+
+要求：
+1. 每卷必须严格对应"打脸地图"的一个阶段（L1小人 → L2中层 → L3顶层）
+2. "关键章节"只列**有叙事价值的章节**：开篇、金手指升级、重要打脸、身份曝光、重大转折、卷末钩子。普通过渡章不要列。
+3. 章节标题必须是"短视频标题风格"：带数字、带情绪词、直接展示冲突
+   - 好标题：《被裁员第1天，账户突然多了100万》《前同事嘲笑我送外卖，下一秒我买下整栋楼》
+   - 差标题：《初入江湖》《偶遇故人》
+4. 每卷末尾必须留强钩子（新反派出现/身份即将曝光/更大危机降临）
+5. 严禁慢热卷：任何一卷的前3章都必须有爽点，不能用"铺垫""过渡"做借口
+6. 大纲是"骨架"不是"血肉"：只写转折点，不写详细剧情。细纲阶段再展开每章内容。`;
+
+            sendMessage(prompt);
         }
 
-        async function generateDetailed() {
-            const settingsData = currentProjectData?.settings;
-            const outlineData = currentProjectData?.outline;
-            if (!settingsData || !outlineData) {
+        function generateDetailed() {
+            const settings = currentProjectData?.settings;
+            const outline = currentProjectData?.outline;
+            if (!settings || !outline) {
                 showError('请先生成设定和大纲');
                 return;
             }
             if (isStreaming) return;
 
-            const model = document.getElementById('modelSelector').value;
-            const btn = document.getElementById('btnGenDetailed');
-            const status = document.getElementById('detailedStatus');
-            btn.disabled = true;
-            status.textContent = '生成中...';
+            pendingGenerateType = 'detailed';
 
-            try {
-                const response = await fetch('/api/conversation/generate-detailed', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ model, messages, settings: settingsData, outline: outlineData })
-                });
-                const result = await response.json();
-                if (result.success && result.content) {
-                    renderDetailed(result.content);
-                    settingsPanel.classList.add('active');
-                    saveCurrentConversation();
-                    status.textContent = '已生成';
-                    // 更新底部按钮为"生成细纲"
-                    btnGenerate.innerHTML = '✨ 生成细纲';
-                } else {
-                    status.textContent = '生成失败';
-                    showError('细纲生成失败: ' + (result.error || '未知错误'));
-                    btn.disabled = false;
-                }
-            } catch (err) {
-                status.textContent = '请求失败';
-                showError('细纲请求失败: ' + err.message);
-                btn.disabled = false;
-            }
+            const prompt = `请根据以上项目设定和故事大纲，生成番茄风格的详细细纲。
+
+【平台要求】番茄小说：每章都是独立战斗，读者随时会划走。每章必须有明确的情绪价值和钩子。
+
+输出格式为 Markdown（每章一个段落）：
+
+# 第X卷细纲
+
+## 第X章：章节标题
+**场景**：具体地点
+**出场人物**：主角 + 谁（标注该人物是L1/L2/L3哪一层打脸对象）
+**情节推进**：
+- 开头（50字）：直接切入冲突，不要环境描写！
+- 中段（100字）：主角用金手指解决问题/反击/收获
+- 结尾（50字）：钩子！必须是以下之一：
+  - 悬念（新危机出现）
+  - 震惊（旁人反应）
+  - 期待（主角即将获得新能力/新资源）
+  - 爽感回味（刚打完脸，反派还没反应过来）
+**情绪曲线**：压抑→反击→爽（标注具体爽点类型：震惊/收获/打脸/反转）
+**收获可视化**：主角具体获得了什么（钱+xx万/等级+xx/声望+xx）
+
+## 第X+1章：...
+
+要求：
+1. 每章细纲严格遵循"压抑不超过1章"铁律：如果这章主角受辱，下一章必须已经开始反击
+2. 每章结尾钩子必须让读者产生"再看一章"的冲动
+3. 爽点必须具体可量化：不是"主角变强了"，是"主角账户多了500万，等级升到Lv.5"
+4. 对话要简短有力，禁止大段独白和内心OS。番茄读者看的是"发生了什么"不是"主角在想什么"
+5. 第1章细纲要最详细（500字以上），因为第1章决定生死
+6. 大高潮章（每卷末章）要标注具体打脸场景：谁在什么场景下以什么方式被打脸`;
+
+            sendMessage(prompt);
         }
 
         async function runQualityCheck(model, projectData) {
@@ -1580,11 +1690,9 @@
             }
             // 从设定文本中提取书名（匹配 Markdown 中的 **书名**：《xxx》 或 # 《xxx》）
             let title = '未命名项目';
-            const titleMatch = settingsText.match(/[《\[]?([^》\]
-]+)[》\]]?/);
+            const titleMatch = settingsText.match(/[《\[]?([^》\]]+)[》\]]?/);
             if (titleMatch) title = titleMatch[1].trim();
-            const bookMatch = settingsText.match(/\*\*书名\*\*[：:]\s*[《]?([^《》
-]+)[》]?/);
+            const bookMatch = settingsText.match(/\*\*书名\*\*[：:]\s*[《]?([^《》]+)[》]?/);
             if (bookMatch) title = bookMatch[1].trim();
 
             const payload = {

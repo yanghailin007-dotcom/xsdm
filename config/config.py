@@ -83,11 +83,35 @@ CONFIG = {
         ],
         "deepseek": [
             {
-                "name": "deepseek-official",
+                "name": "deepseek-official-pro",
+                "api_url": "https://api.deepseek.com/v1/chat/completions",
+                "api_key": os.getenv('DEEPSEEK_API_KEY', 'sk-1342f04c85c5452ab46c673aa1a12c0b'),
+                "model": "deepseek-v4-pro",
+                "priority": 1,
+                "enabled": True,
+                "timeout": 120,
+                "max_retries": 3,
+                "discount_rate": 100,
+                "stream": False
+            },
+            {
+                "name": "deepseek-official-flash",
+                "api_url": "https://api.deepseek.com/v1/chat/completions",
+                "api_key": os.getenv('DEEPSEEK_API_KEY', 'sk-1342f04c85c5452ab46c673aa1a12c0b'),
+                "model": "deepseek-v4-flash",
+                "priority": 2,
+                "enabled": True,
+                "timeout": 120,
+                "max_retries": 3,
+                "discount_rate": 100,
+                "stream": False
+            },
+            {
+                "name": "deepseek-official-reasoner",
                 "api_url": "https://api.deepseek.com/v1/chat/completions",
                 "api_key": os.getenv('DEEPSEEK_API_KEY', 'sk-1342f04c85c5452ab46c673aa1a12c0b'),
                 "model": "deepseek-reasoner",
-                "priority": 1,
+                "priority": 3,
                 "enabled": True,
                 "timeout": 120,
                 "max_retries": 3,

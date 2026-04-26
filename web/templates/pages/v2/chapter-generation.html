@@ -250,6 +250,113 @@
             display: flex;
             flex-direction: column;
             overflow: hidden;
+            position: relative;
+        }
+
+        /* 参考侧滑面板 */
+        .ref-drawer {
+            position: absolute;
+            top: 0; right: 0; bottom: 0;
+            width: 55%;
+            min-width: 380px;
+            max-width: 600px;
+            background: var(--bg-secondary);
+            border-left: 1px solid var(--border-color);
+            transform: translateX(100%);
+            transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            z-index: 50;
+            display: flex;
+            flex-direction: column;
+            box-shadow: -8px 0 32px rgba(0,0,0,0.3);
+        }
+        .ref-drawer.open {
+            transform: translateX(0);
+        }
+        .ref-drawer-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 10px 14px;
+            border-bottom: 1px solid var(--border-color);
+            flex-shrink: 0;
+            background: var(--bg-tertiary);
+        }
+        .ref-tabs {
+            display: flex;
+            gap: 4px;
+        }
+        .ref-tab-btn {
+            padding: 5px 12px;
+            border-radius: var(--radius-sm);
+            font-size: 12px;
+            font-weight: 500;
+            color: var(--text-secondary);
+            background: transparent;
+            border: 1px solid transparent;
+            cursor: pointer;
+            transition: all 0.15s;
+        }
+        .ref-tab-btn:hover { color: var(--text-primary); background: var(--bg-primary); }
+        .ref-tab-btn.active {
+            background: var(--accent-dim);
+            color: var(--accent);
+            border-color: var(--accent-border);
+        }
+        .ref-drawer-close {
+            width: 28px; height: 28px;
+            border-radius: 6px;
+            border: none;
+            background: transparent;
+            color: var(--text-secondary);
+            font-size: 16px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .ref-drawer-close:hover { background: var(--bg-primary); color: var(--text-primary); }
+        .ref-drawer-body {
+            flex: 1;
+            overflow-y: auto;
+            padding: 16px;
+            font-size: 13px;
+            line-height: 1.7;
+        }
+        .ref-drawer-body h1, .ref-drawer-body h2, .ref-drawer-body h3 {
+            margin: 16px 0 10px;
+            color: var(--text-primary);
+        }
+        .ref-drawer-body p { margin: 8px 0; color: var(--text-secondary); }
+        .ref-drawer-body ul, .ref-drawer-body ol { margin: 8px 0; padding-left: 20px; }
+        .ref-drawer-body li { margin: 4px 0; color: var(--text-secondary); }
+        .ref-drawer-body code {
+            background: var(--bg-tertiary);
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-size: 12px;
+            color: var(--accent);
+        }
+        .ref-drawer-body blockquote {
+            border-left: 3px solid var(--accent);
+            padding-left: 12px;
+            margin: 10px 0;
+            color: var(--text-muted);
+        }
+        .ref-drawer-body table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 10px 0;
+            font-size: 12px;
+        }
+        .ref-drawer-body th, .ref-drawer-body td {
+            border: 1px solid var(--border-color);
+            padding: 6px 10px;
+            text-align: left;
+        }
+        .ref-drawer-body th {
+            background: var(--bg-tertiary);
+            color: var(--text-primary);
+            font-weight: 600;
         }
 
         .chapter-tabs {
@@ -783,6 +890,21 @@
                 <div class="quality-summary" id="qualitySummary"></div>
                 <ul class="issue-list" id="issueList"></ul>
             </div>
+
+            <!-- 参考侧滑面板（设定/大纲/细纲） -->
+            <div class="ref-drawer" id="refDrawer">
+                <div class="ref-drawer-header">
+                    <div class="ref-tabs">
+                        <button class="ref-tab-btn" data-ref="settings" onclick="showRefInDrawer('settings')">📖 设定</button>
+                        <button class="ref-tab-btn" data-ref="outline" onclick="showRefInDrawer('outline')">📄 大纲</button>
+                        <button class="ref-tab-btn" data-ref="detailed" onclick="showRefInDrawer('detailed')">📋 细纲</button>
+                    </div>
+                    <button class="ref-drawer-close" onclick="closeRefDrawer()" title="关闭">✕</button>
+                </div>
+                <div class="ref-drawer-body" id="refDrawerBody">
+                    <p style="color:var(--text-muted);">点击上方标签查看参考内容</p>
+                </div>
+            </div>
         </div>
     </div>
 
@@ -936,29 +1058,37 @@ function showRefContent() {
 function _renderRefContent(title, icon, content, type) {
     showingRef = true;
     currentRefType = type;
-    activeChapter = null;
     isEditMode = false;
     editCache = '';
 
-    document.querySelectorAll('.chapter-tab').forEach(t => t.classList.remove('active'));
-    const tab = document.querySelector(`.chapter-tab.ref-tab[data-ref="${type}"]`);
+    // 高亮对应标签
+    document.querySelectorAll('.ref-tab-btn').forEach(t => t.classList.remove('active'));
+    const tab = document.querySelector(`.ref-tab-btn[data-ref="${type}"]`);
     if (tab) tab.classList.add('active');
 
-    $('contentTitle').textContent = `${icon} ${title}`;
-    $('contentBody').classList.remove('empty');
-    $('contentBody').classList.remove('edit-mode');
-
+    // 在侧滑面板中显示内容
+    const drawerBody = $('refDrawerBody');
     if (content) {
-        $('contentBody').innerHTML = renderMarkdown(content);
+        drawerBody.innerHTML = renderMarkdown(content);
     } else {
-        $('contentBody').innerHTML = '<p style="color:var(--text-muted);">暂无内容</p>';
+        drawerBody.innerHTML = '<p style="color:var(--text-muted);">暂无内容</p>';
     }
 
-    // 显示编辑按钮，隐藏重写/保存(章节)/取消
-    $('editBtn').style.display = 'inline-block';
-    $('cancelEditBtn').style.display = 'none';
-    $('rewriteBtn').style.display = 'none';
-    $('saveBtn').style.display = 'none';
+    // 展开侧滑面板
+    $('refDrawer').classList.add('open');
+}
+
+function showRefInDrawer(type) {
+    if (type === 'settings') showSettings();
+    else if (type === 'outline') showRoughOutline();
+    else if (type === 'detailed') showOutline();
+}
+
+function closeRefDrawer() {
+    $('refDrawer').classList.remove('open');
+    showingRef = false;
+    // 高亮恢复为当前章节
+    document.querySelectorAll('.ref-tab-btn').forEach(t => t.classList.remove('active'));
 }
 
 function showSettings() {

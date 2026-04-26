@@ -145,14 +145,14 @@ def _resolve_endpoint(model_name: str):
                     "provider": provider,
                     "model":    ep.get("model", model_name),
                 }
-        # fallback：返回第一个启用的 endpoint
+        # fallback：返回第一个启用的 endpoint，但保留用户请求的 model 名用于 API 调用
         for ep in endpoints:
             if ep.get("enabled", True):
                 return {
                     "api_key":  ep.get("api_key", ""),
                     "api_url":  ep.get("api_url", ""),
                     "provider": provider,
-                    "model":    ep.get("model", model_name),
+                    "model":    model_name,
                 }
 
     # 4. 兜底：遍历所有 provider 找匹配 model 的 endpoint
@@ -1011,39 +1011,32 @@ def _extract_project_info_from_markdown(settings_md: str, outline_md: str = "") 
     }
     
     # 提取书名
-    book_match = re.search(r'\*\*书名\*\*[\s:：]*[《\[]?([^》\]
-]+)[》\]]?', settings_md)
+    book_match = re.search(r'\*\*书名\*\*[\s:：]*[《\[]?([^》\]]+)[》\]]?', settings_md)
     if book_match:
         info["novel_title"] = book_match.group(1).strip()
     else:
-        h1_match = re.search(r'^#\s*[《\[]?([^《》
-]+)[》\]]?', settings_md, re.MULTILINE)
+        h1_match = re.search(r'^#\s*[《\[]?([^《》]+)[》\]]?', settings_md, re.MULTILINE)
         if h1_match:
             info["novel_title"] = h1_match.group(1).strip()
     
     # 提取一句话简介
-    synopsis_match = re.search(r'\*\*一句话简介\*\*[\s:：]*(.+?)(?=
-|$)', settings_md)
+    synopsis_match = re.search(r'\*\*一句话简介\*\*[\s:：]*(.+?)(?=\n|$)', settings_md)
     if synopsis_match:
         info["novel_synopsis"] = synopsis_match.group(1).strip()
     
     # 提取番茄风格简介（作为详细简介）
-    desc_match = re.search(r'\*\*番茄风格简介\*\*[\s:：]*(.+?)(?=
-#|
-\*\*|$)', settings_md, re.DOTALL)
+    desc_match = re.search(r'\*\*番茄风格简介\*\*[\s:：]*(.+?)(?=\n#|\n\*\*|$)', settings_md, re.DOTALL)
     if desc_match:
         info["novel_description"] = desc_match.group(1).strip()
     
     # 提取题材
-    genre_match = re.search(r'\*\*题材\*\*[\s:：]*(.+?)(?=
-|$)', settings_md)
+    genre_match = re.search(r'\*\*题材\*\*[\s:：]*(.+?)(?=\n|$)', settings_md)
     if genre_match:
         info["genre"] = genre_match.group(1).strip()
         info["category_tags"]["main_category"] = genre_match.group(1).strip().split('·')[0].strip()
     
     # 提取标签
-    tags_match = re.search(r'\*\*标签\*\*[\s:：]*(.+?)(?=
-|$)', settings_md)
+    tags_match = re.search(r'\*\*标签\*\*[\s:：]*(.+?)(?=\n|$)', settings_md)
     if tags_match:
         tags_text = tags_match.group(1).strip()
         info["category_tags"]["tags"] = [t.strip() for t in tags_text.replace('、', ',').split(',') if t.strip()]
