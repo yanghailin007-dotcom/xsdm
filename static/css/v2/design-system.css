@@ -18,25 +18,25 @@
     --v2-accent-yellow: #f59e0b;
     --v2-accent-red: #ef4444;
     
-    /* 背景色 - 深色层级 */
-    --v2-bg-primary: #0a0a0a;        /* 最底层 */
-    --v2-bg-secondary: #111111;      /* 卡片背景 */
-    --v2-bg-tertiary: #1a1a1a;       /* 悬停背景 */
-    --v2-bg-elevated: #161616;       /* 提升层级 */
-    --v2-bg-overlay: rgba(0, 0, 0, 0.8);  /* 遮罩层 */
+    /* 背景色 - 深色层级（参考 Linear/Vercel，拉大层级差） */
+    --v2-bg-primary: #0d0d10;        /* 最底层：深蓝灰，拒绝纯黑 */
+    --v2-bg-secondary: #18181c;      /* 卡片背景：与主背景差 6.7% */
+    --v2-bg-tertiary: #25252c;       /* 悬停背景：明显可辨 */
+    --v2-bg-elevated: #202028;       /* 提升层级 */
+    --v2-bg-overlay: rgba(0, 0, 0, 0.75);  /* 遮罩层 */
     
-    /* 边框色 */
-    --v2-border-subtle: rgba(255, 255, 255, 0.06);
-    --v2-border-default: rgba(255, 255, 255, 0.1);
-    --v2-border-hover: rgba(255, 255, 255, 0.15);
-    --v2-border-glow: rgba(99, 102, 241, 0.4);
+    /* 边框色（增强边界感） */
+    --v2-border-subtle: rgba(255, 255, 255, 0.07);
+    --v2-border-default: rgba(255, 255, 255, 0.11);
+    --v2-border-hover: rgba(255, 255, 255, 0.18);
+    --v2-border-glow: rgba(99, 102, 241, 0.35);
     
-    /* 文字色 */
-    --v2-text-primary: #fafafa;
-    --v2-text-secondary: #a1a1aa;
-    --v2-text-tertiary: #71717a;
-    --v2-text-muted: #52525b;
-    --v2-text-inverse: #0a0a0a;
+    /* 文字色（不用纯白，降低刺眼感） */
+    --v2-text-primary: #e8e8ec;      /* 微暖灰白，舒适对比度 */
+    --v2-text-secondary: #a1a1ab;
+    --v2-text-tertiary: #6e6e7a;
+    --v2-text-muted: #4e4e5a;
+    --v2-text-inverse: #0d0d10;
     
     /* 状态色 */
     --v2-success: #22c55e;
@@ -91,12 +91,12 @@
     --v2-leading-normal: 1.5;
     --v2-leading-relaxed: 1.625;
     
-    /* 阴影 */
-    --v2-shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.3);
-    --v2-shadow-md: 0 4px 6px rgba(0, 0, 0, 0.4);
-    --v2-shadow-lg: 0 10px 15px rgba(0, 0, 0, 0.5);
-    --v2-shadow-glow: 0 0 20px rgba(99, 102, 241, 0.3);
-    --v2-shadow-glow-lg: 0 0 40px rgba(99, 102, 241, 0.4);
+    /* 阴影（暗色下用"轮廓+下沉"双阴影代替纯黑阴影） */
+    --v2-shadow-sm: 0 0 0 1px rgba(255, 255, 255, 0.04), 0 1px 2px rgba(0, 0, 0, 0.4);
+    --v2-shadow-md: 0 0 0 1px rgba(255, 255, 255, 0.05), 0 4px 12px rgba(0, 0, 0, 0.5);
+    --v2-shadow-lg: 0 0 0 1px rgba(255, 255, 255, 0.06), 0 12px 24px rgba(0, 0, 0, 0.6);
+    --v2-shadow-glow: 0 0 20px rgba(99, 102, 241, 0.25);
+    --v2-shadow-glow-lg: 0 0 40px rgba(99, 102, 241, 0.3);
     
     /* 过渡 */
     --v2-transition-fast: 150ms ease;
@@ -225,11 +225,12 @@ html {
     pointer-events: none;
 }
 
-/* 玻璃拟态 */
+/* 玻璃拟态（暗色下：深蓝灰底+微妙顶部高光） */
 .v2-glass {
-    background: rgba(17, 17, 17, 0.8);
-    backdrop-filter: blur(20px);
-    -webkit-backdrop-filter: blur(20px);
+    background: rgba(24, 24, 30, 0.85);
+    backdrop-filter: blur(20px) saturate(1.2);
+    -webkit-backdrop-filter: blur(20px) saturate(1.2);
+    border-top: 1px solid rgba(255, 255, 255, 0.06);
 }
 
 /* 微光背景 */
