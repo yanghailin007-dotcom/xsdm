@@ -534,3 +534,20 @@ def admin_deduct_points():
         })
     else:
         return jsonify({'success': False, 'error': result.get('error', '扣除失败')}), 500
+
+
+@points_api.route('/token-usage', methods=['GET'])
+@login_required_api
+def get_user_token_usage():
+    """获取当前用户的Token使用统计"""
+    user_id = session.get('user_id')
+    if not user_id:
+        return jsonify({'success': False, 'error': '用户信息不完整'}), 401
+    
+    days = request.args.get('days', 30, type=int)
+    try:
+        stats = point_model.get_token_usage_stats(user_id, days)
+        return jsonify({'success': True, 'data': stats})
+    except Exception as e:
+        logger.error(f"❌ 获取用户Token用量失败: {e}")
+        return jsonify({'success': False, 'error': str(e)}), 500

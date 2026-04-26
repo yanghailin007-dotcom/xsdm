@@ -189,6 +189,48 @@
     font-size: var(--v2-text-sm);
 }
 
+/* Token用量表格 */
+.v2-token-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: var(--v2-text-sm);
+}
+.v2-token-table th {
+    text-align: left;
+    padding: var(--v2-space-2) var(--v2-space-3);
+    font-size: var(--v2-text-xs);
+    font-weight: var(--v2-font-semibold);
+    color: var(--v2-text-secondary);
+    border-bottom: 1px solid var(--v2-border-default);
+}
+.v2-token-table td {
+    padding: var(--v2-space-2) var(--v2-space-3);
+    color: var(--v2-text-primary);
+    border-bottom: 1px solid var(--v2-border-subtle);
+}
+.v2-token-table tr:last-child td {
+    border-bottom: none;
+}
+.v2-token-table .v2-token-model {
+    font-weight: var(--v2-font-medium);
+}
+.v2-token-table .v2-token-provider {
+    font-size: var(--v2-text-xs);
+    color: var(--v2-text-tertiary);
+}
+.v2-token-table .v2-token-cost {
+    font-weight: var(--v2-font-semibold);
+    color: var(--v2-primary-500);
+}
+
+/* 交易记录 */
+.v2-transaction-spend {
+    color: var(--v2-error);
+}
+.v2-transaction-earn {
+    color: var(--v2-success);
+}
+
 /* 充值选项网格 */
 .v2-recharge-options {
     display: grid;
@@ -635,10 +677,26 @@
                 </div>
 
                 <!-- 最近充值记录 -->
-                <div class="v2-recharge-card">
+                <div class="v2-recharge-card" style="margin-bottom: var(--v2-space-4);">
                     <h3 class="v2-recharge-card__title">📋 <span data-i18n="recharge.recentOrders">最近充值</span></h3>
                     <div id="orderList" class="v2-order-list">
                         <p class="v2-order-empty" data-i18n="common.loading">加载中...</p>
+                    </div>
+                </div>
+
+                <!-- 交易记录 -->
+                <div class="v2-recharge-card" style="margin-bottom: var(--v2-space-4);">
+                    <h3 class="v2-recharge-card__title">💳 交易记录</h3>
+                    <div id="transactionList" class="v2-order-list">
+                        <p class="v2-order-empty">加载中...</p>
+                    </div>
+                </div>
+
+                <!-- Token用量 -->
+                <div class="v2-recharge-card">
+                    <h3 class="v2-recharge-card__title">🧮 Token用量（最近30天）</h3>
+                    <div id="tokenUsageList">
+                        <p class="v2-order-empty">加载中...</p>
                     </div>
                 </div>
             </div>
@@ -768,6 +826,8 @@ async function init() {
     await loadBalance();
     await loadPaymentConfig();
     await loadOrderList();
+    await loadTransactionList();
+    await loadTokenUsage();
     
     // 初始化服务条款勾选状态（默认未勾选）
     const termsCheckbox = document.getElementById('termsCheckbox');
@@ -1395,6 +1455,84 @@ async function loadOrderList() {
     } catch (e) {
         console.error('加载订单列表失败:', e);
     }
+}
+
+// 加载交易记录
+async function loadTransactionList() {
+    try {
+        const resp = await fetch('/api/points/transactions?limit=10');
+        const result = await resp.json();
+        const container = document.getElementById('transactionList');
+        if (result.success && result.data.transactions.length > 0) {
+            container.innerHTML = result.data.transactions.slice(0, 5).map(tx => {
+                const isSpend = tx.type === 'spend';
+                const sign = isSpend ? '-' : '+';
+                const colorClass = isSpend ? 'v2-transaction-spend' : 'v2-transaction-earn';
+                const date = new Date(tx.created_at).toLocaleDateString('zh-CN', {month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit'});
+                return `
+                    <div class="v2-order-item">
+                        <div class="v2-order-item__info">
+                            <div class="v2-order-item__amount ${colorClass}">${sign}${tx.amount}点</div>
+                            <div class="v2-order-item__date">${tx.description || tx.source}</div>
+                        </div>
+                        <span class="v2-order-item__date">${date}</span>
+                    </div>
+                `;
+            }).join('');
+        } else {
+            container.innerHTML = '<p class="v2-order-empty">暂无交易记录</p>';
+        }
+    } catch (e) {
+        console.error('加载交易记录失败:', e);
+    }
+}
+
+// 加载Token用量
+async function loadTokenUsage() {
+    try {
+        const resp = await fetch('/api/points/token-usage?days=30');
+        const result = await resp.json();
+        const container = document.getElementById('tokenUsageList');
+        if (result.success && result.data.by_model && result.data.by_model.length > 0) {
+            container.innerHTML = `
+                <table class="v2-token-table">
+                    <thead>
+                        <tr>
+                            <th>模型</th>
+                            <th>Tokens</th>
+                            <th>费用</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${result.data.by_model.map(item => `
+                            <tr>
+                                <td>
+                                    <div class="v2-token-model">${item.model_name}</div>
+                                    <div class="v2-token-provider">${item.provider}</div>
+                                </td>
+                                <td>${formatNumber(item.total_tokens || 0)}</td>
+                                <td class="v2-token-cost">${(item.total_cost || 0).toFixed(2)}点</td>
+                            </tr>
+                        `).join('')}
+                    </tbody>
+                </table>
+                <div style="margin-top: var(--v2-space-3); padding-top: var(--v2-space-3); border-top: 1px solid var(--v2-border-default); display: flex; justify-content: space-between; font-size: var(--v2-text-sm);">
+                    <span style="color: var(--v2-text-secondary);">总计: ${formatNumber(result.data.total_tokens || 0)} tokens · ${result.data.total_calls || 0}次调用</span>
+                    <span style="color: var(--v2-primary-500); font-weight: var(--v2-font-semibold);">${(result.data.total_cost || 0).toFixed(2)}点</span>
+                </div>
+            `;
+        } else {
+            container.innerHTML = '<p class="v2-order-empty">暂无Token使用数据</p>';
+        }
+    } catch (e) {
+        console.error('加载Token用量失败:', e);
+    }
+}
+
+function formatNumber(num) {
+    if (num >= 1000000) return (num / 1000000).toFixed(1) + 'M';
+    if (num >= 1000) return (num / 1000).toFixed(1) + 'K';
+    return num.toString();
 }
 
 // 初始化
