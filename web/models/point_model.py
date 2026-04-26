@@ -193,8 +193,11 @@ class PointModel:
         # 1元 = 10创造点，官方价格上浮20%
         defaults = [
             # (provider, model_name, display_name, input_price_per_1m, output_price_per_1m)
+            # 1元 = 10创造点，官方价格上浮20%
             ('deepseek', 'deepseek-reasoner', 'DeepSeek Reasoner', 48.0, 192.0),
             ('deepseek', 'deepseek-chat', 'DeepSeek V3', 12.0, 24.0),
+            ('deepseek', 'deepseek-v4-flash', 'DeepSeek V4 Flash', 12.0, 24.0),
+            ('deepseek', 'deepseek-v4-pro', 'DeepSeek V4 Pro', 144.0, 288.0),
             ('kimi', 'kimi-k2.5', 'Kimi K2.5', 96.0, 384.0),
             ('doubao', 'doubao-seed-2-0-pro-260215', '豆包 Seed 2.0 Pro', 60.0, 108.0),
             ('gemini', 'gemini-3-flash-preview-thinking', 'Gemini 3 Flash', 8.4, 25.2),

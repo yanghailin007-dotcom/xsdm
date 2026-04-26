@@ -716,10 +716,12 @@ def batch_update_model_pricing():
         data = request.get_json() or {}
         markup_percent = float(data.get('markup_percent', 20))  # 默认上浮20%
         
-        # 官方价格（人民币/百万token）
+        # 官方价格（人民币/百万token）——使用原价，非折扣价
         official_prices = {
             ('deepseek', 'deepseek-reasoner'): ('DeepSeek Reasoner', 4.0, 16.0),
             ('deepseek', 'deepseek-chat'): ('DeepSeek V3', 1.0, 2.0),
+            ('deepseek', 'deepseek-v4-flash'): ('DeepSeek V4 Flash', 1.0, 2.0),
+            ('deepseek', 'deepseek-v4-pro'): ('DeepSeek V4 Pro', 12.0, 24.0),
             ('kimi', 'kimi-k2.5'): ('Kimi K2.5', 8.0, 32.0),
             ('doubao', 'doubao-seed-2-0-pro-260215'): ('豆包 Seed 2.0 Pro', 5.0, 9.0),
             ('gemini', 'gemini-3-flash-preview-thinking'): ('Gemini 3 Flash', 0.7, 2.1),
