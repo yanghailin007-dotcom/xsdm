@@ -1198,6 +1198,7 @@
                     <div class="actions" id="contentActions">
                         <button id="editBtn" style="display:none;">✏️ 编辑</button>
                         <button id="cancelEditBtn" style="display:none;">❌ 取消</button>
+                        <button id="copyBtn" style="display:none;">📋 复制</button>
                         <button id="rewriteBtn" disabled>🔄 重写</button>
                         <button id="saveBtn" disabled>💾 保存</button>
                     </div>
@@ -1293,6 +1294,7 @@ document.addEventListener('DOMContentLoaded', () => {
     $('qualityCheckBtn').addEventListener('click', runQualityCheck);
     $('rewriteBtn').addEventListener('click', openRewriteModal);
     $('saveBtn').addEventListener('click', saveChapterEdits);
+    $('copyBtn').addEventListener('click', copyChapterContent);
     $('editBtn').addEventListener('click', toggleEditMode);
     $('cancelEditBtn').addEventListener('click', cancelEdit);
     restoreLastProject();
@@ -1923,8 +1925,10 @@ function showChapter(chNum) {
     // 章节操作按钮
     $('editBtn').style.display = 'none';
     $('cancelEditBtn').style.display = 'none';
+    $('copyBtn').style.display = 'inline-block';
     $('rewriteBtn').style.display = 'inline-block';
     $('saveBtn').style.display = 'inline-block';
+    $('copyBtn').disabled = !ch.content;
     $('rewriteBtn').disabled = false;
     $('saveBtn').disabled = false;
 }
@@ -2293,6 +2297,7 @@ function showStorylineView() {
 
     document.getElementById('editBtn').style.display = 'none';
     document.getElementById('cancelEditBtn').style.display = 'none';
+    document.getElementById('copyBtn').style.display = 'none';
     document.getElementById('rewriteBtn').disabled = true;
     document.getElementById('saveBtn').disabled = true;
 
@@ -2460,6 +2465,33 @@ function highlightHook(hookText, chapterNum) {
 
 function escapeRegExp(string) {
     return string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+// 复制当前章节正文
+function copyChapterContent() {
+    if (!activeChapter || !chapters[activeChapter] || !chapters[activeChapter].content) {
+        showToast('没有可复制的内容', 'error');
+        return;
+    }
+    const text = chapters[activeChapter].content;
+    navigator.clipboard.writeText(text).then(() => {
+        showToast('✅ 已复制到剪贴板', 'success');
+    }).catch(() => {
+        // 降级方案
+        const textarea = document.createElement('textarea');
+        textarea.value = text;
+        textarea.style.position = 'fixed';
+        textarea.style.opacity = '0';
+        document.body.appendChild(textarea);
+        textarea.select();
+        try {
+            document.execCommand('copy');
+            showToast('✅ 已复制到剪贴板', 'success');
+        } catch {
+            showToast('❌ 复制失败，请手动复制', 'error');
+        }
+        document.body.removeChild(textarea);
+    });
 }
 
 // ===== 故事线剧照功能 =====
