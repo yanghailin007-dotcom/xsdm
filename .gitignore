@@ -194,3 +194,5 @@ test_*.py
 tmp_*.py
 write_plan.py
 *_output.txt
+
+still_image_metadata/
