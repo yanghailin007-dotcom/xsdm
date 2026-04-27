@@ -55,9 +55,9 @@ def register_storyline_still_routes(app):
         try:
             data = request.json or {}
 
-            project_id = data.get('project_id', '').strip()
-            prompt = data.get('prompt', '').strip()
-            image_type_str = data.get('image_type', '').strip()
+            project_id = (data.get('project_id') or '').strip()
+            prompt = (data.get('prompt') or '').strip()
+            image_type_str = (data.get('image_type') or '').strip()
 
             if not project_id:
                 return jsonify({"success": False, "error": "缺少 project_id"}), 400
@@ -72,10 +72,10 @@ def register_storyline_still_routes(app):
 
             image_type = StillImageType.SCENE if image_type_str == 'scene' else StillImageType.CHARACTER
 
-            character_name = data.get('character_name', '').strip() or None
+            character_name = (data.get('character_name') or '').strip() or None
             default_ratio = '16:9' if image_type_str == 'scene' else '9:16'
-            aspect_ratio = data.get('aspect_ratio', default_ratio)
-            novel_title = data.get('novel_title', '').strip() or project_id
+            aspect_ratio = data.get('aspect_ratio') or default_ratio
+            novel_title = (data.get('novel_title') or '').strip() or project_id
 
             # 校验比例
             if aspect_ratio not in ('16:9', '9:16', '1:1', '4:3'):
