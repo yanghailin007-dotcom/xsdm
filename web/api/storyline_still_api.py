@@ -1,9 +1,11 @@
 """
 故事线剧照生成API
 在故事线概览中一键生成角色/场景剧照，合并"生成图片+入库"为单接口
+使用 DouBaoImageGenerator（与封面生成共用配置）
 """
 
 import os
+import re
 import traceback
 from datetime import datetime
 
@@ -11,7 +13,8 @@ from flask import jsonify, request
 
 from web.auth import login_required
 from web.web_config import logger, BASE_DIR
-from web.services.nanobanana_service import NanoBananaService
+from web.utils.path_utils import get_current_username
+from src.utils.DouBaoImageGenerator import DouBaoImageGenerator
 from src.managers.StillImageManager import get_still_image_manager
 from src.models.still_image_models import StillImageType
 
@@ -19,17 +22,18 @@ from src.models.still_image_models import StillImageType
 def register_storyline_still_routes(app):
     """注册故事线剧照生成API路由"""
 
-    nanobanana_service = NanoBananaService()
+    generator = DouBaoImageGenerator()
 
     @app.route('/api/storyline/generate-still', methods=['POST'])
     @login_required
     def generate_storyline_still():
         """
         生成故事线剧照（合并接口：生成图片 + 自动入库）
+        图片保存到 generated_images/{username}/{novel_title}/stills/ 目录
 
         请求体:
         {
-            "project_id": "项目ID",
+            "project_id": "项目ID（小说标题）",
             "chapter_num": 1,
             "image_type": "scene" | "character",
             "prompt": "生成提示词（用户可编辑）",
@@ -43,7 +47,7 @@ def register_storyline_still_routes(app):
             "success": true,
             "data": {
                 "image_id": "still_xxx",
-                "image_url": "/generated_images/xxx.png",
+                "image_url": "/generated_images/username/title/stills/xxx.jpg",
                 "local_path": "...",
                 "prompt": "...",
                 "aspect_ratio": "16:9",
@@ -73,41 +77,61 @@ def register_storyline_still_routes(app):
             image_type = StillImageType.SCENE if image_type_str == 'scene' else StillImageType.CHARACTER
 
             character_name = (data.get('character_name') or '').strip() or None
-            default_ratio = '16:9' if image_type_str == 'scene' else '9:16'
-            aspect_ratio = data.get('aspect_ratio') or default_ratio
+            aspect_ratio = data.get('aspect_ratio') or ('16:9' if image_type_str == 'scene' else '9:16')
             novel_title = (data.get('novel_title') or '').strip() or project_id
 
-            # 校验比例
-            if aspect_ratio not in ('16:9', '9:16', '1:1', '4:3'):
-                aspect_ratio = default_ratio
+            # 获取当前用户名
+            try:
+                username = get_current_username()
+            except Exception:
+                username = 'anonymous'
 
-            # 构造保存文件名
+            # 清理小说标题中的特殊字符，用于路径
+            safe_title = re.sub(r'[\\/*?:"<>|]', "_", novel_title)
+
+            # 构建保存目录: generated_images/username/safe_title/stills/
+            stills_dir = os.path.join(BASE_DIR, 'generated_images', username, safe_title, 'stills')
+            os.makedirs(stills_dir, exist_ok=True)
+
+            # 构造文件名
             timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
             safe_name = character_name or f"scene_ch{chapter_num}"
             safe_name = "".join(c for c in safe_name if c.isalnum() or c in '_-').rstrip('_')
-            save_filename = f"storyline_{project_id}_{safe_name}_{timestamp}"
+            filename = f"storyline_{safe_name}_{timestamp}.jpg"
+            save_path = os.path.join(stills_dir, filename)
 
-            logger.info(f"🎬 故事线剧照生成请求: project={project_id}, ch={chapter_num}, type={image_type_str}")
+            logger.info(f"🎬 故事线剧照生成请求: project={project_id}, ch={chapter_num}, type={image_type_str}, user={username}")
             logger.info(f"   prompt: {prompt[:80]}...")
 
-            # 1. 生成图片
-            gen_result = nanobanana_service.generate_image({
-                "prompt": prompt,
-                "aspect_ratio": aspect_ratio,
-                "image_size": "2K",
-                "save_filename": save_filename
-            })
+            # 1. 生成图片（使用豆包，与封面生成共用配置）
+            # 豆包只支持 OpenAI 标准尺寸，根据比例选择
+            size_mapping = {
+                '16:9': '1792x1024',
+                '9:16': '1024x1792',
+                '1:1': '1024x1024',
+                '4:3': '1024x1024'
+            }
+            # 映射到豆包支持的 1K/2K 尺寸
+            openai_size = size_mapping.get(aspect_ratio, '1024x1792')
+            doubao_size = '2K' if openai_size in ('1792x1024', '1024x1792') else '1K'
 
-            if not gen_result.get('success'):
-                err = gen_result.get('error', '图片生成失败')
-                logger.error(f"❌ 故事线剧照生成失败: {err}")
-                return jsonify({"success": False, "error": err}), 500
+            result = generator.generate_image(
+                prompt=prompt,
+                size=doubao_size,
+                save_path=save_path
+            )
 
-            local_path = gen_result.get('local_path')
-            image_url = gen_result.get('url')
+            if not result or 'local_path' not in result:
+                return jsonify({"success": False, "error": "图片生成失败或无返回路径"}), 500
 
-            if not local_path or not os.path.exists(local_path):
+            local_path = result['local_path']
+
+            if not os.path.exists(local_path):
                 return jsonify({"success": False, "error": "图片生成成功但文件未找到"}), 500
+
+            # 构建 image_url（相对于 generated_images 的相对路径）
+            rel_path = os.path.relpath(local_path, os.path.join(BASE_DIR, 'generated_images')).replace('\\', '/')
+            image_url = f"/generated_images/{rel_path}"
 
             # 2. 自动入库
             manager = get_still_image_manager()
@@ -120,15 +144,17 @@ def register_storyline_still_routes(app):
                 character_name=character_name,
                 event_name=f"第{chapter_num}章" if image_type_str == 'scene' else None,
                 aspect_ratio=aspect_ratio,
-                image_size="2K",
+                image_size=doubao_size,
                 metadata={
                     "project_id": project_id,
                     "chapter_num": chapter_num,
-                    "source": "storyline"
+                    "source": "storyline",
+                    "username": username
                 }
             )
 
             logger.info(f"✅ 故事线剧照生成并入库成功: {image.image_id}")
+            logger.info(f"   文件: {local_path}")
 
             return jsonify({
                 "success": True,
