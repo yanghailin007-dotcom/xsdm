@@ -1275,6 +1275,7 @@ let currentBatchStart = 1;
 let currentBatchEnd = 6;
 let sessionMessages = []; // 每卷一个会话的消息历史
 let currentVolume = 1;
+let lastVolumeSession = null; // 记录上一次生成时使用的卷号，切换卷时重置对话上下文
 let activeChapter = null;
 let qualityReport = null; // 当前质检报告
 let projectFiles = null; // 当前项目文件（细纲等）
@@ -1709,9 +1710,10 @@ async function startGeneration() {
 
     // 重置 UI
     chapters = {};
-    // 只有从第1章开始（新卷/重新开始）时才重置对话上下文
-    if (startChapter === 1) {
+    // 同一卷内保持对话上下文，切换卷时才重置
+    if (volumeNumber !== lastVolumeSession) {
         sessionMessages = [];
+        lastVolumeSession = volumeNumber;
     }
     $('chapterTabs').innerHTML = '';
     $('contentBody').innerHTML = '';
