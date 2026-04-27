@@ -2384,7 +2384,8 @@ function renderStorylineBigHtml() {
 function parseStoryline(markdown) {
     if (!markdown) return [];
     const chapters = [];
-    const chapterRegex = /^#{2,3}\s*第\s*(\d+)\s*章[\s:：]*(.+?)$/gm;
+    // 支持1-3级markdown标题，兼容各种格式
+    const chapterRegex = /^#{1,3}\s*第\s*(\d+)\s*章(?:[\s:：]+(.+?))?$/gm;
     let match;
     const positions = [];
     while ((match = chapterRegex.exec(markdown)) !== null) {
@@ -2396,7 +2397,7 @@ function parseStoryline(markdown) {
         const block = markdown.slice(start, end);
         const ch = { num: positions[i].num, title: positions[i].title };
         const extract = (label) => {
-            const r = new RegExp('\\*\\*' + label + '\\*\\*[：:]\\s*(.+?)(?=\\n\\*\\*|\\n#{2,3}|\\s*$)', 's');
+            const r = new RegExp('\\*\\*' + label + '\\*\\*[：:]\\s*(.+?)(?=\\n\\*\\*|\\n#{1,3}|\\s*$)', 's');
             const m = block.match(r);
             return m ? m[1].trim() : '';
         };
@@ -2405,7 +2406,7 @@ function parseStoryline(markdown) {
         ch.characters = charsRaw ? charsRaw.split(/[,，、/]/).map(s => s.trim()).filter(Boolean) : [];
         ch.hook = extract('核心爽点/猎奇点') || extract('核心爽点');
         ch.steps = [];
-        const stepsMatch = block.match(/\*\*情节步骤\*\*[：:]?\s*([\s\S]*?)(?=\n\*\*|\n#{2,3}|\s*$)/);
+        const stepsMatch = block.match(/\*\*情节步骤\*\*[：:]?\s*([\s\S]*?)(?=\n\*\*|\n#{1,3}|\s*$)/);
         if (stepsMatch) {
             const stepLines = stepsMatch[1].split('\n');
             for (const line of stepLines) {
@@ -2414,7 +2415,7 @@ function parseStoryline(markdown) {
             }
         }
         ch.dialogues = [];
-        const dlgMatch = block.match(/\*\*关键对话\*\*[：:]?\s*([\s\S]*?)(?=\n\*\*|\n#{2,3}|\s*$)/);
+        const dlgMatch = block.match(/\*\*关键对话\*\*[：:]?\s*([\s\S]*?)(?=\n\*\*|\n#{1,3}|\s*$)/);
         if (dlgMatch) {
             const dlgLines = dlgMatch[1].split('\n');
             for (const line of dlgLines) {
