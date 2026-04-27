@@ -2496,20 +2496,49 @@ function extractCharacterAppearance(characterName) {
     return '';
 }
 
+// 清洗角色名，去掉括号标注如"（首次出场）"
+function cleanCharacterName(name) {
+    if (!name) return '';
+    return name.replace(/[（(].*?[）)]/g, '').trim();
+}
+
+// 从项目设定中检测小说类型，返回对应绘画风格
+function detectNovelStyle() {
+    if (!projectFiles || !projectFiles.settings) return { genre: 'modern', style: '现代写实' };
+    const text = projectFiles.settings.slice(0, 2000).toLowerCase();
+
+    const genres = [
+        { keys: ['修仙', '玄幻', '仙侠', '修真', '金丹', '元婴', '灵气', '法宝', '渡劫', '魔道', '剑修'], genre: 'xianxia', style: '国漫仙侠风', sceneStyle: '国风玄幻', defaultDesc: '古风服饰，飘逸长发，仙气飘飘，面部精致' },
+        { keys: ['科幻', '星际', '机甲', '未来', '赛博', '末世', '基因', '量子', '飞船'], genre: 'scifi', style: '科幻未来风', sceneStyle: '科幻场景', defaultDesc: '未来感服装，科技元素，冷峻气质' },
+        { keys: ['悬疑', '推理', '刑侦', '探案', '犯罪', '惊悚', '法医', '谍战'], genre: 'suspense', style: '电影写实风', sceneStyle: '悬疑电影', defaultDesc: '写实风格，眼神有戏，气质沉稳，暗调光影' },
+        { keys: ['言情', '甜宠', '虐恋', '霸总', '千金', '婚恋', '竹马'], genre: 'romance', style: '唯美浪漫风', sceneStyle: '浪漫唯美', defaultDesc: '时尚精致，气质优雅，柔和打光' },
+        { keys: ['历史', '架空', '王朝', '皇帝', '宫斗', '权谋', '诸侯'], genre: 'history', style: '古风写实风', sceneStyle: '历史古风', defaultDesc: '古代服饰，仪态端庄，历史质感' },
+    ];
+
+    for (const g of genres) {
+        if (g.keys.some(k => text.includes(k))) return g;
+    }
+    // 默认现代都市
+    return { genre: 'modern', style: '现代写实', sceneStyle: '都市电影', defaultDesc: '现代时尚穿搭，都市气质，自然光感' };
+}
+
 // 构造场景图prompt
 function buildScenePrompt(sceneText) {
     if (!sceneText) return '';
-    return `【网文风格场景剧照】${sceneText}，电影级光影，构图精美，氛围感强烈，8K高清`;
+    const g = detectNovelStyle();
+    return `【${g.sceneStyle}场景剧照】${sceneText}，电影级光影，构图精美，氛围感强烈，8K高清`;
 }
 
 // 构造角色图prompt
 function buildCharacterPrompt(characterName) {
-    if (!characterName) return '';
-    const appearance = extractCharacterAppearance(characterName);
+    const cleanName = cleanCharacterName(characterName);
+    if (!cleanName) return '';
+    const appearance = extractCharacterAppearance(cleanName);
+    const g = detectNovelStyle();
     const base = appearance
-        ? `【国漫风格角色肖像】${characterName}，${appearance}`
-        : `【国漫风格角色肖像】${characterName}，出场角色，半身特写，面部清晰，表情生动`;
-    return base + '，高质量，8K，细腻皮肤纹理，专业影视打光';
+        ? `【${g.style}角色肖像】${cleanName}，${appearance}`
+        : `【${g.style}角色肖像】${cleanName}，${g.defaultDesc}`;
+    return base + '，半身特写，面部清晰，表情生动，高质量，8K，细腻皮肤纹理，专业影视打光';
 }
 
 // 显示剧照生成模态框
@@ -2523,7 +2552,8 @@ function showStillModal(chNum, type, name) {
         titleEl.textContent = `🎬 生成第${chNum}章场景图`;
         promptEl.value = buildScenePrompt(ch ? ch.scene : '');
     } else {
-        titleEl.textContent = `👤 生成「${name}」角色图`;
+        const cleanName = cleanCharacterName(name);
+        titleEl.textContent = `👤 生成「${cleanName}」角色图`;
         promptEl.value = buildCharacterPrompt(name);
     }
 
