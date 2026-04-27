@@ -25,7 +25,7 @@ def build_exe():
         f"--name={APP_NAME}",
         "--onefile",
         "--windowed",
-        "--icon=NONE",
+        "--icon=app_icon.ico",
         # 添加数据文件
         "--add-data", "libs;libs",
         # 隐藏导入
