@@ -1103,9 +1103,19 @@
             const isReady = userCount >= 2;
             btnGenerate.disabled = !isReady;
             btnGenerate.style.opacity = isReady ? '1' : '0.5';
-            // 如果没有设定，保持默认文案
-            if (!currentProjectData?.settings && isReady) {
+            if (!isReady) return;
+            // 根据当前进度智能设置按钮文案
+            if (!currentProjectData?.settings) {
                 btnGenerate.innerHTML = '✨ 生成设定';
+            } else if (!currentProjectData?.framework) {
+                btnGenerate.innerHTML = '✨ 生成框架';
+            } else {
+                const nextVol = findNextVolumeToGenerate();
+                if (nextVol) {
+                    btnGenerate.innerHTML = `✨ 生成第${nextVol}卷粗纲`;
+                } else {
+                    btnGenerate.innerHTML = '✨ 生成细纲';
+                }
             }
         }
 
@@ -1113,11 +1123,37 @@
             const text = btnGenerate.textContent.trim();
             if (text.includes('设定')) {
                 generateSettings();
-            } else if (text.includes('大纲')) {
+            } else if (text.includes('框架')) {
                 generateOutline();
+            } else if (text.includes('粗纲')) {
+                // 自动找到下一卷未生成的粗纲
+                const nextVol = findNextVolumeToGenerate();
+                if (nextVol) {
+                    generateVolumeOutline(nextVol);
+                } else {
+                    // 全部粗纲已完成，切换为细纲
+                    btnGenerate.innerHTML = '✨ 生成细纲';
+                    generateDetailed();
+                }
             } else if (text.includes('细纲')) {
                 generateDetailed();
             }
+        }
+
+        function findNextVolumeToGenerate() {
+            if (!currentProjectData?.framework) return null;
+            const volSelect = document.getElementById('volSelect');
+            if (!volSelect) return null;
+            const vols = currentProjectData.volumeOutlines || {};
+            // 遍历所有选项，找到第一个没有粗纲的卷
+            for (let i = 0; i < volSelect.options.length; i++) {
+                const val = volSelect.options[i].value;
+                const volNum = parseInt(val, 10);
+                if (val && !isNaN(volNum) && !vols[volNum]) {
+                    return volNum;
+                }
+            }
+            return null;
         }
 
         // ===== 历史记录管理 =====
@@ -1368,8 +1404,8 @@
                     renderSettings(fullText);
                     settingsPanel.classList.add('active');
                     document.getElementById('btnGenOutline').disabled = false;
-                    document.getElementById('outlineStatus').textContent = '可生成大纲';
-                    btnGenerate.innerHTML = '✨ 生成大纲';
+                    document.getElementById('outlineStatus').textContent = '可生成框架';
+                    btnGenerate.innerHTML = '✨ 生成框架';
                     pendingGenerateType = null;
                 } else if (pendingGenerateType === 'framework') {
                     currentProjectData = currentProjectData || {};
@@ -1381,7 +1417,7 @@
                     // 框架生成后，启用卷选择器
                     renderVolumeSelector(fullText);
                     document.getElementById('outlineStatus').textContent = '框架已生成，请选择卷生成粗纲';
-                    btnGenerate.innerHTML = '✨ 生成细纲';
+                    btnGenerate.innerHTML = '✨ 生成粗纲';
                     pendingGenerateType = null;
                 } else if (pendingGenerateType === 'volume_outline') {
                     currentProjectData = currentProjectData || {};
@@ -1395,6 +1431,18 @@
                     switchVolumeOutline(currentGeneratingVolume);
                     settingsPanel.classList.add('active');
                     document.getElementById('outlineStatus').textContent = `第${currentGeneratingVolume}卷粗纲已生成`;
+                    // 更新卷选择器的 ✓ 标记
+                    renderVolumeSelector(currentProjectData.framework);
+                    // 检查是否还有下一卷
+                    const nextVol = findNextVolumeToGenerate();
+                    if (nextVol) {
+                        btnGenerate.innerHTML = `✨ 生成第${nextVol}卷粗纲`;
+                    } else {
+                        btnGenerate.innerHTML = '✨ 生成细纲';
+                        document.getElementById('outlineStatus').textContent = '全部粗纲已生成，可生成细纲';
+                        document.getElementById('btnGenDetailed').disabled = false;
+                        document.getElementById('detailedStatus').textContent = '可生成细纲';
+                    }
                     pendingGenerateType = null;
                     currentGeneratingVolume = 0;
                 } else if (pendingGenerateType === 'detailed') {
