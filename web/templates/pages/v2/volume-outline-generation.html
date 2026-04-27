@@ -433,10 +433,10 @@
                 </div>
             </div>
 
-            <!-- 大纲 -->
+            <!-- 本卷粗纲 -->
             <div class="ref-card">
                 <div class="ref-header" onclick="toggleRef('outlineRef')">
-                    <span>📄 全书大纲</span>
+                    <span>📄 本卷粗纲</span>
                     <span class="toggle" id="outlineRefToggle">▶</span>
                 </div>
                 <div class="ref-body collapsed" id="outlineRefBody">
@@ -546,13 +546,17 @@ function renderContext() {
         settingsBody.innerHTML = '<span class="empty">暂无设定</span>';
     }
 
-    // 大纲
+    // 本卷粗纲
     const outlineBody = $('outlineRefBody');
-    if (contextData.outline) {
-        outlineBody.innerHTML = escapeHtml(contextData.outline).replace(/\n/g, '<br>');
+    if (contextData.volume_outline) {
+        outlineBody.innerHTML = escapeHtml(contextData.volume_outline).replace(/\n/g, '<br>');
+        outlineBody.classList.remove('empty');
+    } else if (contextData.outline) {
+        // fallback：显示全书大纲前2000字
+        outlineBody.innerHTML = escapeHtml(contextData.outline.substring(0, 2000)).replace(/\n/g, '<br>');
         outlineBody.classList.remove('empty');
     } else {
-        outlineBody.innerHTML = '<span class="empty">暂无大纲</span>';
+        outlineBody.innerHTML = '<span class="empty">暂无本卷粗纲，请先在自由创作页面生成</span>';
     }
 
     // 上一卷细纲

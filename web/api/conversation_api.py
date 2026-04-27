@@ -1379,6 +1379,40 @@ def _offset_chapter_numbers(text: str, volume_number: int, chapters_per_volume: 
     return re.sub(pattern, _replacer, text, flags=re.MULTILINE)
 
 
+def _extract_volume_rough_outline(outline_text: str, volume_number: int) -> str:
+    """从 outline.md 中提取某卷的粗纲内容。
+    支持两种格式：
+    1. 旧格式：## 第N卷 ... ### 第X章
+    2. 新格式：--- 分隔后 # 各卷粗纲 / # 第N卷粗纲
+    返回该卷的粗纲文本，找不到则返回空字符串。
+    """
+    import re
+    if not outline_text or volume_number < 1:
+        return ""
+    
+    # 模式1：新格式，按 "# 第N卷粗纲" 或 "## 第N卷粗纲" 匹配
+    new_patterns = [
+        rf'^#+\s*第{volume_number}卷粗纲.*?\n(.*?)(?=^#+\s*第{volume_number + 1}卷粗纲|\Z)',
+        rf'^#+\s*第{volume_number}卷.*?\n(.*?)(?=^#+\s*第{volume_number + 1}卷|\Z)',
+    ]
+    for p in new_patterns:
+        m = re.search(p, outline_text, re.MULTILINE | re.DOTALL)
+        if m:
+            return m.group(1).strip()
+    
+    # 模式2：旧格式，按 "## 第N卷" 匹配
+    old_patterns = [
+        rf'##\s*第{volume_number}卷[：:\s][^\n]*\n(.*?)(?=##\s*第{volume_number + 1}卷|\Z)',
+        rf'##\s*第{volume_number}卷\n(.*?)(?=##\s*第|\Z)',
+    ]
+    for p in old_patterns:
+        m = re.search(p, outline_text, re.DOTALL)
+        if m:
+            return m.group(1).strip()
+    
+    return ""
+
+
 def _extract_volume_chapter_plan(outline_text: str, volume_number: int, chapters_per_volume: int = 30) -> tuple:
     """从 outline Markdown 文本中提取某卷的章节规划。
     返回 (章节数, 章节列表文本, 全书起始章, 全书结束章)
@@ -1391,19 +1425,20 @@ def _extract_volume_chapter_plan(outline_text: str, volume_number: int, chapters
     if not outline_text or volume_number < 1:
         return chapters_per_volume, "", global_start, global_end
     
-    # 尝试匹配 "第N卷" 区块：从 ## 第N卷 到下一个 ## 第N+1卷 或文件结束
-    # 先尝试包含卷标题的格式：## 第N卷：标题
-    vol_patterns = [
-        rf'##\s*第{volume_number}卷[：:\s][^\n]*\n(.*?)(?=##\s*第{volume_number + 1}卷|\Z)',
-        rf'##\s*第{volume_number}卷\n(.*?)(?=##\s*第|\Z)',
-    ]
+    # 先尝试用新函数提取卷文本
+    vol_text = _extract_volume_rough_outline(outline_text, volume_number)
     
-    vol_text = ""
-    for p in vol_patterns:
-        m = re.search(p, outline_text, re.DOTALL)
-        if m:
-            vol_text = m.group(1)
-            break
+    # 如果没找到，回退到旧格式匹配
+    if not vol_text:
+        old_patterns = [
+            rf'##\s*第{volume_number}卷[：:\s][^\n]*\n(.*?)(?=##\s*第{volume_number + 1}卷|\Z)',
+            rf'##\s*第{volume_number}卷\n(.*?)(?=##\s*第|\Z)',
+        ]
+        for p in old_patterns:
+            m = re.search(p, outline_text, re.DOTALL)
+            if m:
+                vol_text = m.group(1)
+                break
     
     if not vol_text:
         return chapters_per_volume, "", global_start, global_end
@@ -2234,13 +2269,19 @@ def volume_outline_context():
                             has_prev = True
                             break
         
-        logger.info(f"[Conversation] /volume-outline-context: project={project_id}, vol={volume_number}, has_prev={has_prev}")
+        # 提取本卷粗纲
+        outline_text = files.get('outline', '')
+        volume_rough = _extract_volume_rough_outline(outline_text, volume_number)
+        
+        logger.info(f"[Conversation] /volume-outline-context: project={project_id}, vol={volume_number}, has_prev={has_prev}, has_rough={bool(volume_rough)}")
         return jsonify({
             "success": True,
             "settings": files.get('settings', '')[:8000],
-            "outline": files.get('outline', '')[:8000],
+            "outline": outline_text[:3000],  # 全书框架/大纲前3000字，供AI了解整体脉络
+            "volume_outline": volume_rough[:15000] if volume_rough else "",  # 本卷粗纲（主体）
             "prev_volume_outline": prev_outline[:15000],
             "has_prev": has_prev,
+            "has_volume_outline": bool(volume_rough),
             "volume_number": volume_number,
         })
         
@@ -2277,6 +2318,9 @@ def generate_volume_outline_v2():
         settings = files.get('settings', '')
         outline = files.get('outline', '')
         
+        # 提取本卷粗纲（新格式：框架+各卷粗纲）
+        volume_rough = _extract_volume_rough_outline(outline, volume_number)
+        
         prev_outline = ""
         if volume_number > 1:
             prev_vol_file = project_dir / f"detailed_outline_vol{volume_number - 1}.md"
@@ -2290,9 +2334,9 @@ def generate_volume_outline_v2():
             return jsonify({"success": False, "error": "API Key 未配置"}), 400
         
         actual_model = endpoint.get("model", model)
-        logger.info(f"[Conversation] /generate-volume-outline-v2: project={project_id}, vol={volume_number}, model={actual_model}")
+        logger.info(f"[Conversation] /generate-volume-outline-v2: project={project_id}, vol={volume_number}, model={actual_model}, has_rough={bool(volume_rough)}")
         
-        # 从全书大纲中提取本卷章节规划
+        # 从全书大纲中提取本卷章节规划（旧格式兼容）
         chapter_count, chapter_plan_text, global_start, global_end = _extract_volume_chapter_plan(
             outline, volume_number
         )
@@ -2304,8 +2348,17 @@ def generate_volume_outline_v2():
         
         prompt_parts = [
             f"【核心设定】\n{settings[:5000]}",
-            f"【全书大纲】\n{outline[:6000]}",
         ]
+        # 主体：本卷粗纲（如果有）
+        if volume_rough:
+            prompt_parts.append(f"【本卷粗纲】\n{volume_rough[:8000]}")
+        else:
+            # fallback：旧格式的全书大纲
+            prompt_parts.append(f"【全书大纲】\n{outline[:6000]}")
+        # 辅助：全书框架（让AI了解整体脉络，不超1000字）
+        framework_hint = outline[:1000] if outline else ""
+        if framework_hint:
+            prompt_parts.append(f"【全书框架（供参考）】\n{framework_hint}")
         if prev_outline:
             prompt_parts.append(f"【上一卷细纲】\n{prev_outline[:4000]}")
         if user_notes:
