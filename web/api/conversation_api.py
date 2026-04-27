@@ -1555,17 +1555,17 @@ def _extract_batch_detailed(detailed_text: str, start_chapter: int, end_chapter:
     return '\n'.join(result_parts)
 
 
-def _build_writing_prompt(settings_text: str, outline_text: str, vol_num: int) -> str:
+def _build_writing_prompt(settings_text: str, volume_rough_outline: str, vol_num: int) -> str:
     """构建初始写作设定 prompt（全局上下文，只传一次）。
-    不包含细纲——细纲按批次动态注入，避免输入 token 爆炸。
+    只传当前卷粗纲（不是全书大纲），细纲按批次动态注入，避免输入 token 爆炸。
     """
     return f"""你是番茄小说（fanqienovel.com）签约级别的专业网文作家。请严格根据以下设定创作正文。
 
 【核心设定】
 {settings_text}
 
-【全书大纲】
-{outline_text}
+【本卷粗纲】
+{volume_rough_outline}
 
 ---
 
@@ -1669,7 +1669,9 @@ def generate_batch():
         # 如果 messages 为空，构建初始设定消息（全局上下文，只传一次）
         if not messages:
             files = _read_project_files(project_dir)
-            prompt = _build_writing_prompt(files.get('settings', ''), files.get('outline', ''), volume_number)
+            # 只提取当前卷粗纲，全书大纲可能包含多卷内容导致 token 爆炸
+            volume_rough = _extract_volume_rough_outline(files.get('outline', ''), volume_number)
+            prompt = _build_writing_prompt(files.get('settings', ''), volume_rough, volume_number)
             messages = [{"role": "user", "content": prompt}]
         
         gen_prompt = f"""请生成第{actual_start}章到第{actual_end}章的正文。
