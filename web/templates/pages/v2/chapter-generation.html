@@ -1886,7 +1886,6 @@ function finalizeGeneration() {
     resetGenerateBtn();
     $('qualityCheckBtn').disabled = false;
     $('nextBatchBtn').style.display = 'flex';
-    showToast('✅ 批次生成完成', 'success');
     
     // 将所有 generating 状态标记为 generated，并刷新标签
     for (const chNum in chapters) {
@@ -1899,6 +1898,20 @@ function finalizeGeneration() {
     // 重新渲染当前显示章节（启用高亮质检）
     if (activeChapter && chapters[activeChapter]) {
         showChapter(activeChapter);
+    }
+
+    // 自动保存：刷新项目文件，更新 latest_chapter 和起始章节
+    const projectId = $('projectSelect').value;
+    const volumeNumber = parseInt($('volumeSelect').value);
+    if (projectId) {
+        loadProjectFiles(projectId, volumeNumber).then(() => {
+            const savedCount = Object.values(chapters).filter(c => c.status === 'generated').length;
+            showToast(`✅ 批次生成完成，${savedCount} 章已自动保存`, 'success');
+        }).catch(() => {
+            showToast('✅ 批次生成完成', 'success');
+        });
+    } else {
+        showToast('✅ 批次生成完成', 'success');
     }
 }
 
