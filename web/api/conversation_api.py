@@ -1415,15 +1415,18 @@ def _extract_volume_rough_outline(outline_text: str, volume_number: int) -> str:
 
 def _extract_volume_chapter_plan(outline_text: str, volume_number: int, chapters_per_volume: int = 30) -> tuple:
     """从 outline Markdown 文本中提取某卷的章节规划。
+    支持新旧两种格式：
+      - 新格式(绝对编号): ### 第X章：标题 [情绪标签]
+      - 旧格式(相对编号): - 第X章：标题 — summary
     返回 (章节数, 章节列表文本, 全书起始章, 全书结束章)
     """
     import re
     
-    global_start = (volume_number - 1) * chapters_per_volume + 1
-    global_end = volume_number * chapters_per_volume
+    default_start = (volume_number - 1) * chapters_per_volume + 1
+    default_end = volume_number * chapters_per_volume
     
     if not outline_text or volume_number < 1:
-        return chapters_per_volume, "", global_start, global_end
+        return chapters_per_volume, "", default_start, default_end
     
     # 先尝试用新函数提取卷文本
     vol_text = _extract_volume_rough_outline(outline_text, volume_number)
@@ -1441,24 +1444,45 @@ def _extract_volume_chapter_plan(outline_text: str, volume_number: int, chapters
                 break
     
     if not vol_text:
-        return chapters_per_volume, "", global_start, global_end
+        return chapters_per_volume, "", default_start, default_end
     
-    # 提取 "- 第X章：标题 — summary" 或 "- 第X章 标题" 格式的章节
-    ch_pattern = r'^-\s*第(\d+)章[：:\s]+([^—\n]+?)(?:\s*—\s*(.+?))?$'
-    chapters = re.findall(ch_pattern, vol_text, re.MULTILINE)
+    # === 模式A：新格式 — 绝对编号（### 第X章 或 ## 第X章）===
+    # 匹配如：### 第1章：雷劫之兆 [主线推进][爽][金手指]
+    abs_pattern = r'^#{2,3}\s*第(\d+)章[：:\s]+(.+?)$'
+    abs_chapters = re.findall(abs_pattern, vol_text, re.MULTILINE)
     
-    if chapters:
-        plan_lines = ["【本卷章节规划（按全书大纲）】"]
-        for ch_num_str, ch_title, ch_summary in chapters:
+    if abs_chapters:
+        plan_lines = ["【本卷章节规划（按粗纲逐章列表，绝对不可增减）】"]
+        ch_numbers = []
+        for ch_num_str, ch_title in abs_chapters:
+            ch_num = int(ch_num_str)
+            ch_numbers.append(ch_num)
+            plan_lines.append(f"- 全书第{ch_num}章（必须生成）：{ch_title.strip()}")
+        if ch_numbers:
+            return len(ch_numbers), "\n".join(plan_lines), min(ch_numbers), max(ch_numbers)
+    
+    # === 模式B：旧格式 — 相对编号（- 第X章：标题 — summary）===
+    rel_pattern = r'^-\s*第(\d+)章[：:\s]+([^—\n]+?)(?:\s*—\s*(.+?))?$'
+    rel_chapters = re.findall(rel_pattern, vol_text, re.MULTILINE)
+    
+    if rel_chapters:
+        plan_lines = ["【本卷章节规划（按粗纲逐章列表，绝对不可增减）】"]
+        for ch_num_str, ch_title, ch_summary in rel_chapters:
             ch_num = int(ch_num_str)
             g_num = ch_num + (volume_number - 1) * chapters_per_volume
-            line = f"- 全书第{g_num}章（本卷第{ch_num}章）：{ch_title.strip()}"
+            line = f"- 全书第{g_num}章（必须生成）：{ch_title.strip()}"
             if ch_summary:
                 line += f" — {ch_summary.strip()}"
             plan_lines.append(line)
-        return len(chapters), "\n".join(plan_lines), global_start, global_end
+        return len(rel_chapters), "\n".join(plan_lines), default_start, default_end
     
-    return chapters_per_volume, "", global_start, global_end
+    # === 兜底：从 vol_text 中暴力统计任何 "第X章" 出现 ===
+    fallback_nums = re.findall(r'第(\d+)章', vol_text)
+    if fallback_nums:
+        nums = sorted([int(n) for n in fallback_nums])
+        return len(nums), "", nums[0], nums[-1]
+    
+    return chapters_per_volume, "", default_start, default_end
 
 
 def _build_writing_prompt(settings_text: str, outline_text: str, detailed_text: str, vol_num: int) -> str:
@@ -1573,7 +1597,15 @@ def generate_batch():
         
         gen_prompt = f"""请生成全书第{actual_start}章到第{actual_end}章的正文。
 
-记住：每章标题必须是抓眼球的悬念/冲突型，以下类型标题会直接导致读者划走，绝对禁止：
+【段落格式铁律 — 手机阅读优先】
+1. 每段不超过50字（30-50字最佳），严禁出现超过80字的长段落。
+2. 段落之间必须用一个空行分隔（\n\n）。
+3. 叙述、对话、动作、心理各自成段，各自之间用空行分隔。
+4. 短段落是番茄风格，一句话一段完全没问题，不要刻意把短句拼接成长段。
+5. 对话独占一段，"引号"开头即可，不需要额外标识。
+
+【标题铁律】
+每章标题必须是抓眼球的悬念/冲突型，以下类型标题会直接导致读者划走，绝对禁止：
 - ❌ "省道上的四个小时" / "老房子里的相册" / "系统不对话" / "数据包装" / "老书记的沉默" / "全省第一个试点"
 - 正确公式：[核心事件] + [冲突/悬念/反转] + [情绪词/感叹词]
 - 正确示例："第{actual_start}章 省道堵车四小时，系统突然弹出百亿蓝图！"
@@ -2213,6 +2245,13 @@ def _build_volume_outline_v2_prompt(volume_number: int, chapter_count: int,
 - "对话内容2"
 **爽点设计说明**：为什么这个设计能打动番茄读者
 **章节结尾钩子**：下一章的悬念预告
+
+【绝对铁律 — 违反即失败】
+1. **章节数量铁律**：粗纲中列出了多少章，你就必须输出多少章，一章都不能少，一章都不能多。
+2. **严禁合并章节**：不能把两章或多章粗纲合并成一章细纲，必须严格 1:1 对应。
+3. **严禁跳过章节**：粗纲中的每一章都必须有对应的细纲，禁止以"与上一章类似"等理由跳过。
+4. **章节编号铁律**：必须从第 {global_start} 章开始，连续编号到第 {global_end} 章，中间不能断号、跳号、重号。
+5. **如果粗纲有51章，你的输出必须有51章细纲**，这是不可妥协的要求。
 
 【内容要求】
 1. 本卷细纲必须严格围绕大纲中该卷的内容展开，不能偏离主线

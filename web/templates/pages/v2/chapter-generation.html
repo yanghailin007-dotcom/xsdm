@@ -389,8 +389,8 @@
             color: #60a5fa;
         }
         .storyline-big-tag.hook {
-            background: rgba(245,158,11,0.12);
-            color: #fbbf24;
+            background: rgba(245,158,11,0.15);
+            color: #b45309;
         }
         .storyline-big-tag.scene {
             background: rgba(34,197,94,0.12);
@@ -656,9 +656,17 @@
             flex: 1;
             padding: 20px 28px;
             overflow-y: auto;
-            line-height: 1.85;
-            font-size: 15px;
+            line-height: 1.75;
+            font-size: 16px;
             color: var(--text-primary);
+        }
+        /* 手机端阅读优化 */
+        @media (max-width: 768px) {
+            .content-body {
+                padding: 16px 20px;
+                font-size: 17px;
+                line-height: 1.8;
+            }
         }
         .content-body.edit-mode {
             padding: 0;
@@ -682,13 +690,17 @@
         }
         /* 番茄 APP 标准：空行分隔，无首行缩进 */
         .content-body p {
-            margin-bottom: 0.6em;
-            text-indent: 0;
+            margin-bottom: 0.5em;
+            text-indent: 2em;
+            line-height: 1.75;
         }
-        /* 对话段落特殊样式 */
+        /* 场景/动作过渡短句（≤15字）——保持独立段落，番茄风格 */
+        .content-body p.short {
+            margin-bottom: 0.4em;
+        }
+        /* 对话段落——与普通叙述同格式，网文不额外缩进 */
         .content-body p.dialogue {
-            color: var(--text-primary);
-            font-weight: 500;
+            margin-bottom: 0.4em;
         }
         .content-body mark {
             transition: background 0.2s;
@@ -1545,6 +1557,9 @@ async function startGeneration() {
     }
     updateStatus();
     updateProgress();
+    
+    // 生成开始时，默认显示第一个章节（进入直播模式）
+    showChapter(startChapter);
 
     // 启动 SSE
     try {
@@ -1635,6 +1650,7 @@ function cnToInt(cn) {
 }
 
 // ===== 从流文本中解析章节 =====
+let _lastLiveUpdate = 0;
 function parseChaptersFromStream(text) {
     // 支持阿拉伯数字和中文数字
     const headingRegex = /### 第([一二三四五六七八九十百千万亿\d]+)章\s*(.*?)\n/g;
@@ -1649,6 +1665,7 @@ function parseChaptersFromStream(text) {
         });
     }
 
+    let latestChNum = null;
     // 提取每个章节的内容
     for (let i = 0; i < headings.length; i++) {
         const h = headings[i];
@@ -1658,12 +1675,33 @@ function parseChaptersFromStream(text) {
         const content = text.substring(startIdx, endIdx).trim();
 
         if (chapters[chNum]) {
+            const isNewChapter = !chapters[chNum].content;
             chapters[chNum].title = h.title || `第${chNum}章`;
             chapters[chNum].content = content;
-            chapters[chNum].status = 'generated';
+            chapters[chNum].status = 'generating';
             updateChapterTab(chNum);
+            latestChNum = chNum;
+            
+            // 新章节出现时，自动切换到该章节（直播跟随）
+            if (isNewChapter && isGenerating) {
+                showChapter(chNum);
+            }
         }
     }
+    
+    // 节流更新：当前显示章节的实时内容（每200ms最多更新一次，避免频繁重渲染）
+    if (latestChNum && isGenerating && activeChapter === latestChNum) {
+        const now = Date.now();
+        if (now - _lastLiveUpdate > 200) {
+            _lastLiveUpdate = now;
+            const ch = chapters[latestChNum];
+            $('contentTitle').textContent = ch.title;
+            // 生成中走同样的段落渲染（不用质检高亮）
+            $('contentBody').innerHTML = _paragraphsToHtml(ch.content.split('\n\n').filter(p => p.trim()));
+            $('contentBody').scrollTop = $('contentBody').scrollHeight;
+        }
+    }
+    
     updateStatus();
     updateProgress();
 }
@@ -1675,11 +1713,19 @@ function finalizeGeneration() {
     $('qualityCheckBtn').disabled = false;
     $('nextBatchBtn').style.display = 'flex';
     showToast('✅ 批次生成完成', 'success');
+    
+    // 将所有 generating 状态标记为 generated，并刷新标签
+    for (const chNum in chapters) {
+        if (chapters[chNum].status === 'generating') {
+            chapters[chNum].status = 'generated';
+            updateChapterTab(chNum);
+        }
+    }
 
-    // 默认显示第一个已生成的章节
-    const nums = Object.keys(chapters).map(Number).sort((a, b) => a - b);
-    const firstGenerated = nums.find(n => chapters[n].status === 'generated');
-    if (firstGenerated) showChapter(firstGenerated);
+    // 重新渲染当前显示章节（启用高亮质检）
+    if (activeChapter && chapters[activeChapter]) {
+        showChapter(activeChapter);
+    }
 }
 
 // ===== 开始下一批 =====
@@ -1736,6 +1782,7 @@ function showChapter(chNum) {
     } else {
         $('contentBody').innerHTML = '<p style="color:var(--text-muted);">等待生成中...</p>';
     }
+    $('contentBody').scrollTop = $('contentBody').scrollHeight;
 
     // 章节操作按钮
     $('editBtn').style.display = 'none';
@@ -1746,11 +1793,25 @@ function showChapter(chNum) {
     $('saveBtn').disabled = false;
 }
 
+// 常见引号 Unicode
+const DIALOGUE_RE = /^[\u201C\u201D\u0022\u300C\u300E]/;
+
+function _paragraphsToHtml(paragraphs) {
+    return paragraphs.map(p => {
+        const isDialogue = DIALOGUE_RE.test(p);
+        const isShort = p.length <= 15;
+        let cls = '';
+        if (isDialogue) cls = 'dialogue';
+        else if (isShort) cls = 'short';
+        return `<p class="${cls}">${escapeHtml(p)}</p>`;
+    }).join('\n');
+}
+
 // ===== 渲染章节内容，高亮质检问题 =====
 function renderChapterWithHighlights(content, chNum) {
-    // 先按段落分割
+    // 网文段落不做合并，保持AI原样（短段落是番茄风格）
     const paragraphs = content.split('\n\n').filter(p => p.trim());
-    let html = paragraphs.map(p => `<p>${escapeHtml(p)}</p>`).join('\n');
+    let html = _paragraphsToHtml(paragraphs);
 
     // 如果有质检报告，高亮当前章节的问题文字
     if (qualityReport && qualityReport.issues) {
@@ -2103,7 +2164,7 @@ function showStorylineView() {
 function hideStorylineView() {
     showingStoryline = false;
     if (activeChapter && chapters[activeChapter]) {
-        showChapterContent(activeChapter);
+        showChapter(activeChapter);
     } else {
         document.getElementById('contentBody').innerHTML = '请选择项目并点击「开始生成」';
         document.getElementById('contentBody').classList.add('empty');
