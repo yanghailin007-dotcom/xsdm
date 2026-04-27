@@ -1989,7 +1989,7 @@ def get_project_files():
             "success": True,
             "settings": files.get('settings', '')[:10000],
             "outline": files.get('outline', '')[:10000],
-            "detailed_outline": detailed[:20000],
+            "detailed_outline": detailed,
             "chapter_count": len(chapter_files),
         })
         
