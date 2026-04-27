@@ -1503,11 +1503,62 @@ def _extract_volume_chapter_plan(outline_text: str, volume_number: int, chapters
     return chapters_per_volume, "", default_start, default_end
 
 
-def _build_writing_prompt(settings_text: str, outline_text: str, detailed_text: str, vol_num: int) -> str:
-    """构建初始写作设定 prompt"""
-    # 将分卷章节号偏移为全书连续章节号，确保 AI 生成正确的全书章节标题
-    detailed_offset = _offset_chapter_numbers(detailed_text, vol_num)
+def _extract_batch_detailed(detailed_text: str, start_chapter: int, end_chapter: int) -> str:
+    """从整卷细纲中提取指定批次章节的细纲内容。
+    细纲格式：每章以 '### 第X章' 或 '## 第X章' 开头。
+    返回提取的细纲文本，找不到则返回空字符串。
+    """
+    import re
+    if not detailed_text:
+        return ""
     
+    CN_NUMS = {'一':1,'二':2,'三':3,'四':4,'五':5,'六':6,'七':7,'八':8,'九':9,'十':10,'百':100,'千':1000,'万':10000,'亿':100000000}
+    
+    def _cn_to_int(cn: str) -> int:
+        if cn.isdigit():
+            return int(cn)
+        total = 0
+        temp = 0
+        for c in cn:
+            if c in CN_NUMS:
+                n = CN_NUMS[c]
+                if n >= 10:
+                    if temp == 0:
+                        temp = 1
+                    total += temp * n
+                    temp = 0
+                else:
+                    temp = temp * 10 + n if temp else n
+        return total + temp
+    
+    # 找到所有章节标题位置
+    pattern = re.compile(r'^(#{2,3}\s+第)([一二三四五六七八九十百\d]+)(章)', re.MULTILINE)
+    matches = list(pattern.finditer(detailed_text))
+    
+    if not matches:
+        return ""
+    
+    # 构建 (章节号, 起始位置, 结束位置) 列表
+    chapters = []
+    for i, m in enumerate(matches):
+        ch_num = _cn_to_int(m.group(2))
+        start_pos = m.start()
+        end_pos = matches[i + 1].start() if i + 1 < len(matches) else len(detailed_text)
+        chapters.append((ch_num, start_pos, end_pos))
+    
+    # 提取指定范围的章节
+    result_parts = []
+    for ch_num, start_pos, end_pos in chapters:
+        if start_chapter <= ch_num <= end_chapter:
+            result_parts.append(detailed_text[start_pos:end_pos])
+    
+    return '\n'.join(result_parts)
+
+
+def _build_writing_prompt(settings_text: str, outline_text: str, vol_num: int) -> str:
+    """构建初始写作设定 prompt（全局上下文，只传一次）。
+    不包含细纲——细纲按批次动态注入，避免输入 token 爆炸。
+    """
     return f"""你是番茄小说（fanqienovel.com）签约级别的专业网文作家。请严格根据以下设定创作正文。
 
 【核心设定】
@@ -1515,9 +1566,6 @@ def _build_writing_prompt(settings_text: str, outline_text: str, detailed_text: 
 
 【全书大纲】
 {outline_text}
-
-【本卷细纲】
-{detailed_offset}
 
 ---
 
@@ -1603,12 +1651,8 @@ def generate_batch():
         
         actual_model = endpoint.get("model", model)
         
-        # 如果 messages 为空，构建初始设定消息
-        if not messages:
-            files = _read_project_files(project_dir)
-            detailed = _read_volume_detailed(project_dir, volume_number)
-            prompt = _build_writing_prompt(files.get('settings', ''), files.get('outline', ''), detailed, volume_number)
-            messages = [{"role": "user", "content": prompt}]
+        # 读取本卷细纲（按批次提取，避免一次性塞入全部章节导致 token 爆炸）
+        detailed_full = _read_volume_detailed(project_dir, volume_number)
         
         end_chapter = start_chapter + batch_size - 1
         
@@ -1617,7 +1661,21 @@ def generate_batch():
         actual_start = start_chapter + (volume_number - 1) * chapters_per_volume
         actual_end = end_chapter + (volume_number - 1) * chapters_per_volume
         
-        gen_prompt = f"""请生成全书第{actual_start}章到第{actual_end}章的正文。
+        # 提取当前批次的细纲（只传这几章，不传整卷）
+        batch_detailed = _extract_batch_detailed(detailed_full, start_chapter, end_chapter)
+        if not batch_detailed:
+            batch_detailed = "（当前批次细纲暂未找到，请根据粗纲自由发挥）"
+        
+        # 如果 messages 为空，构建初始设定消息（全局上下文，只传一次）
+        if not messages:
+            files = _read_project_files(project_dir)
+            prompt = _build_writing_prompt(files.get('settings', ''), files.get('outline', ''), volume_number)
+            messages = [{"role": "user", "content": prompt}]
+        
+        gen_prompt = f"""请生成第{actual_start}章到第{actual_end}章的正文。
+
+【本批细纲】
+{batch_detailed}
 
 【段落格式铁律 — 手机阅读优先】
 1. 每段不超过50字（30-50字最佳），严禁出现超过80字的长段落。
@@ -1632,7 +1690,7 @@ def generate_batch():
 - 正确公式：[核心事件] + [冲突/悬念/反转] + [情绪词/感叹词]
 - 正确示例："第{actual_start}章 省道堵车四小时，系统突然弹出百亿蓝图！"
 
-严格按照细纲写作，每章2000字左右。"""
+严格按照细纲写作，每章2000字左右。章节之间直接连续输出，不要插入空行或分隔线。"""
         
         # 追加到 messages
         req_messages = messages.copy()
@@ -1689,6 +1747,9 @@ def generate_batch():
                     if data_content == '[DONE]':
                         # 保存章节文件
                         _save_chapters_from_text(project_dir, full_text)
+                        # 返回完整对话历史，供前端下一批次续写使用
+                        final_messages = req_messages + [{"role": "assistant", "content": full_text}]
+                        yield f"data: {json.dumps({'session_messages': final_messages})}\n\n"
                         yield "data: [DONE]\n\n"
                         break
                     

@@ -1709,7 +1709,10 @@ async function startGeneration() {
 
     // 重置 UI
     chapters = {};
-    sessionMessages = [];
+    // 只有从第1章开始（新卷/重新开始）时才重置对话上下文
+    if (startChapter === 1) {
+        sessionMessages = [];
+    }
     $('chapterTabs').innerHTML = '';
     $('contentBody').innerHTML = '';
     $('contentBody').classList.add('empty');
@@ -1780,6 +1783,9 @@ async function startGeneration() {
                         isGenerating = false;
                         resetGenerateBtn();
                         return;
+                    }
+                    if (data.session_messages) {
+                        sessionMessages = data.session_messages;
                     }
                     if (data.reasoning) {
                         currentThinking += data.reasoning;
@@ -1918,8 +1924,17 @@ function finalizeGeneration() {
 // ===== 开始下一批 =====
 function startNextBatch() {
     const nextStart = currentBatchEnd + 1;
+    const batchSize = parseInt($('batchSize').value);
+    const endCh = nextStart + batchSize - 1;
     $('startChapter').value = nextStart;
     $('nextBatchBtn').style.display = 'none';
+    
+    // 在同一对话上下文中追加续写请求
+    sessionMessages.push({
+        role: 'user',
+        content: `请继续生成第${nextStart}章到第${endCh}章的正文。严格按照细纲写作，每章2000字左右。章节之间直接连续输出，不要插入空行或分隔线。`
+    });
+    
     startGeneration();
 }
 
