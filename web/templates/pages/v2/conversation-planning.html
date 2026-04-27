@@ -1800,20 +1800,47 @@
         // 从框架文本中提取某卷的起止章号
         function extractVolumeRange(frameworkText, volNum) {
             if (!frameworkText) return null;
-            // 尝试匹配第N卷附近的起始/结束章号
-            // 模式1: 第N卷标题后面的列表项
-            const volHeaderPattern = new RegExp(`### 第\\s*${volNum}\\s*卷[\\s\\S]{0,800}?- \\*\\*结束章号\\*\\*[:：]\\s*全书第\\s*(\\d+)\\s*章`, 'i');
-            const volHeaderMatch = frameworkText.match(volHeaderPattern);
-            if (volHeaderMatch) {
-                const endChapter = parseInt(volHeaderMatch[1], 10);
-                // 找起始章号
-                const startPattern = new RegExp(`### 第\\s*${volNum}\\s*卷[\\s\\S]{0,400}?- \\*\\*起始章号\\*\\*[:：]\\s*全书第\\s*(\\d+)\\s*章`, 'i');
-                const startMatch = frameworkText.match(startPattern);
-                const startChapter = startMatch ? parseInt(startMatch[1], 10) : 1;
-                return { start: startChapter, end: endChapter };
+            // 在框架文本中定位第N卷的区域（从 "第N卷" 到下一个 "第N+1卷" 或章节结束）
+            const volStartPattern = new RegExp(`### 第\\s*${volNum}\\s*卷[\\s\\S]*?(?=### 第\\s*${volNum + 1}\\s*卷|## 全书关键节点|$)`, 'i');
+            const volMatch = frameworkText.match(volStartPattern);
+            const volText = volMatch ? volMatch[0] : frameworkText;
+
+            // 模式1: 新版格式 **起始章号**：全书第X章 / **结束章号**：全书第Y章
+            const endMatch1 = volText.match(/\*\*结束章号\*\*[:：]\s*全书第\s*(\d+)\s*章/i);
+            if (endMatch1) {
+                const startMatch1 = volText.match(/\*\*起始章号\*\*[:：]\s*全书第\s*(\d+)\s*章/i);
+                return { start: parseInt(startMatch1?.[1] || '1', 10), end: parseInt(endMatch1[1], 10) };
             }
-            // 模式2: 尝试从全书关键节点表中推断（找第N卷相关章号）
-            // 简化：返回null，让prompt提示AI自行查找
+
+            // 模式2: "第X-Y章" 或 "第X章到第Y章" 或 "第X章~第Y章"
+            const rangeMatch = volText.match(/第\s*(\d+)\s*章?\s*[~\-到至]\s*第?\s*(\d+)\s*章?/);
+            if (rangeMatch) {
+                return { start: parseInt(rangeMatch[1], 10), end: parseInt(rangeMatch[2], 10) };
+            }
+
+            // 模式3: "预估章节数：X章" + 从上下文找起始章号（找附近的第一处"第\d+章"）
+            const chapterCountMatch = volText.match(/预估章节数\s*[:：]\s*(\d+)\s*章/i);
+            if (chapterCountMatch) {
+                const count = parseInt(chapterCountMatch[1], 10);
+                // 找附近的第一处"第\d+章"作为起始
+                const startMatch = volText.match(/第\s*(\d+)\s*章/);
+                if (startMatch) {
+                    const start = parseInt(startMatch[1], 10);
+                    return { start, end: start + count - 1 };
+                }
+            }
+
+            // 模式4: 全书关键节点一览表中找该卷的起止（找连续出现的章号范围）
+            const allChapters = [];
+            const chRegex = /第\s*(\d+)\s*章/g;
+            let m;
+            while ((m = chRegex.exec(volText)) !== null) {
+                allChapters.push(parseInt(m[1], 10));
+            }
+            if (allChapters.length >= 2) {
+                return { start: Math.min(...allChapters), end: Math.max(...allChapters) };
+            }
+
             return null;
         }
 
@@ -1833,9 +1860,16 @@
             const range = extractVolumeRange(framework, volNum);
             let rangeHint = '';
             if (range) {
-                rangeHint = `【铁律：本卷范围已锁定】全书框架明确规定：第${volNum}卷起始章号为"全书第${range.start}章"，结束章号为"全书第${range.end}章"，总章节数为${range.end - range.start + 1}章。你**必须**严格覆盖这个范围，一章都不能少，也不能擅自把后面的章节推到下一卷。`;
+                const count = range.end - range.start + 1;
+                rangeHint = `【铁律：本卷范围已锁定】全书框架明确规定：
+- 起始章号 = 全书第${range.start}章
+- 结束章号 = 全书第${range.end}章
+- 总章节数 = ${count}章（计算公式：${range.end} - ${range.start} + 1 = ${count}）
+
+【绝对禁止混淆】"总章节数${count}章"绝不等于"写到第${count}章结束"。你必须写到全书第${range.end}章，不是第${count}章。
+你**必须**严格覆盖从全书第${range.start}章到全书第${range.end}章的完整范围，一章都不能少。`;
             } else {
-                rangeHint = `【重要】请先在全书框架中查找第${volNum}卷的起始章号和结束章号，确保生成的粗纲严格覆盖框架规划的完整范围，不得擅自缩短或扩展。`;
+                rangeHint = `【重要】请先在全书框架中查找第${volNum}卷的起始章号和结束章号。注意："总章节数X章"不等于"写到第X章结束"。起始章号 + 总章节数 - 1 = 真正的结束章号。确保生成的粗纲严格覆盖框架规划的完整范围。`;
             }
 
             // 如果该卷已有部分粗纲，要求续写
@@ -1845,10 +1879,19 @@
                 continueHint = `【续写提示】该卷已有部分粗纲（见上文对话历史）。请继续生成剩余章节，**不要重复**已生成的内容。如果之前的输出有"（续）"标记，请从标记处继续。`;
             }
 
+            // 超长卷主动拆分提示
+            let splitHint = '';
+            const chapterCount = range ? (range.end - range.start + 1) : 0;
+            if (chapterCount > 70 && !existingVolOutline) {
+                const mid = Math.floor((range.start + range.end) / 2);
+                splitHint = `【输出限制提醒】本卷共${chapterCount}章，超出单次输出能力。请先生成前半部分（全书第${range.start}章 ~ 全书第${mid}章），在结尾标注"（续：下一批从全书第${mid + 1}章开始）"。用户会继续调用你生成后半部分。`;
+            }
+
             const prompt = `请根据以上项目设定和全书框架，生成**第${volNum}卷**的详细粗纲。
 
 ${rangeHint}
 ${continueHint}
+${splitHint}
 
 【上下文】你之前已经生成了全书框架，其中规划了第${volNum}卷的核心冲突、高潮爽点和关键节点。现在需要把这卷的骨架细化成可执行的粗纲。
 
