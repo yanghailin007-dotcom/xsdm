@@ -744,11 +744,32 @@
             resize: none; outline: none;
         }
         .editor-preview {
-            width: 100%; height: 100%; padding: 20px 24px;
+            width: 100%; height: 100%; padding: 28px 40px;
             overflow-y: auto; display: none;
-            font-size: 14px; line-height: 1.8; color: var(--text-primary);
+            font-size: 15px; line-height: 1.9; color: var(--text-primary);
         }
         .editor-preview.active { display: block; }
+        .editor-preview > * { max-width: 800px; margin-left: auto; margin-right: auto; }
+        .editor-preview h1 { font-size: 26px; font-weight: 700; margin: 28px 0 16px; padding-bottom: 10px; border-bottom: 2px solid var(--accent-blue); color: var(--text-primary); }
+        .editor-preview h2 { font-size: 21px; font-weight: 650; margin: 24px 0 14px; padding-bottom: 8px; border-bottom: 1px solid var(--border-light); color: var(--accent-blue); }
+        .editor-preview h3 { font-size: 18px; font-weight: 600; margin: 20px 0 12px; color: var(--text-primary); }
+        .editor-preview h4 { font-size: 16px; font-weight: 600; margin: 16px 0 10px; color: var(--text-secondary); }
+        .editor-preview p { margin: 12px 0; }
+        .editor-preview ul, .editor-preview ol { margin: 12px 0; padding-left: 28px; }
+        .editor-preview li { margin: 6px 0; }
+        .editor-preview li::marker { color: var(--accent-blue); }
+        .editor-preview blockquote { margin: 16px 0; padding: 12px 18px; border-left: 4px solid var(--accent-blue); background: var(--bg-secondary); border-radius: 0 8px 8px 0; font-style: italic; }
+        .editor-preview blockquote p { margin: 0; }
+        .editor-preview code { background: var(--bg-secondary); padding: 2px 6px; border-radius: 4px; font-family: "SF Mono", Monaco, monospace; font-size: 13px; color: var(--accent); }
+        .editor-preview pre { background: var(--bg-secondary); padding: 16px 20px; border-radius: 10px; overflow-x: auto; font-size: 13px; line-height: 1.6; }
+        .editor-preview pre code { background: none; padding: 0; }
+        .editor-preview table { width: 100%; max-width: 800px; margin: 16px auto; border-collapse: collapse; font-size: 14px; }
+        .editor-preview th, .editor-preview td { padding: 10px 14px; border: 1px solid var(--border-light); text-align: left; }
+        .editor-preview th { background: var(--bg-secondary); font-weight: 600; }
+        .editor-preview tr:nth-child(even) { background: rgba(0,0,0,0.02); }
+        .editor-preview hr { border: none; border-top: 1px solid var(--border-light); margin: 24px auto; max-width: 800px; }
+        .editor-preview strong { color: var(--text-primary); font-weight: 600; }
+        .editor-preview em { color: var(--text-secondary); }
         .editor-textarea.hidden { display: none; }
         .editor-modal-footer {
             padding: 12px 20px;
@@ -2150,10 +2171,14 @@ ${continueHint}
             document.getElementById('editorModalTitle').textContent = title;
             const textarea = document.getElementById('editorTextarea');
             textarea.value = content;
-            textarea.classList.remove('hidden');
-            document.getElementById('editorPreview').classList.remove('active');
-            document.getElementById('editorEditBtn').classList.add('active');
-            document.getElementById('editorPreviewBtn').classList.remove('active');
+            // 默认预览模式
+            editorMode = 'preview';
+            textarea.classList.add('hidden');
+            const preview = document.getElementById('editorPreview');
+            preview.classList.add('active');
+            preview.innerHTML = marked.parse(content);
+            document.getElementById('editorEditBtn').classList.remove('active');
+            document.getElementById('editorPreviewBtn').classList.add('active');
 
             document.getElementById('editorModal').classList.add('active');
         }
