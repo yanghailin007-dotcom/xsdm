@@ -8,6 +8,7 @@
         (function(){var t=localStorage.getItem('v2-theme')||'light';document.documentElement.setAttribute('data-theme',t);})();
     </script>
     <script src="/static/js/v2-theme.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/marked@9.1.6/marked.min.js"></script>
     <style>
         :root {
             --bg-primary: #0d0d12;
@@ -378,6 +379,27 @@
         }
         .thinking-body.collapsed { display: none; }
 
+        /* 流式渲染双容器 */
+        .stream-container { width: 100%; }
+        .rendered-chunks { display: block; }
+        .typing-text {
+            display: none; /* 未完成内容永远隐藏 */
+        }
+        .typing-line {
+            display: inline;
+            color: var(--text-primary);
+        }
+        .stream-cursor {
+            display: inline-block;
+            width: 2px;
+            height: 1.2em;
+            background: var(--accent);
+            animation: blink 1s step-end infinite;
+            vertical-align: text-bottom;
+            margin-left: 2px;
+        }
+        @keyframes blink { 0%, 100% { opacity: 1; } 50% { opacity: 0; } }
+
         /* 自定义滚动条 */
         ::-webkit-scrollbar { width: 5px; height: 5px; }
         ::-webkit-scrollbar-track { background: transparent; }
@@ -501,6 +523,10 @@ let isGenerating = false;
 let isEditMode = false;
 let generatedText = '';
 
+// 流式渲染状态（双容器打字机）
+let _streamRawBuffer = '';
+let _streamMarkdownTimer = null;
+
 const $ = id => document.getElementById(id);
 
 // ===== 初始化 =====
@@ -590,6 +616,11 @@ async function startGeneration() {
     $('editBtn').style.display = 'none';
     $('saveBtn').style.display = 'none';
 
+    // 初始化双容器结构
+    const outputBody = $('outputBody');
+    outputBody.innerHTML = '<div class="stream-container"><div class="rendered-chunks"></div><div class="typing-text"></div><span class="stream-cursor"></span></div>';
+    outputBody.classList.remove('empty');
+
     try {
         const resp = await fetch('/api/conversation/generate-volume-outline-v2', {
             method: 'POST',
@@ -636,8 +667,7 @@ async function startGeneration() {
                     }
                     if (data.content) {
                         generatedText += data.content;
-                        $('outputBody').innerHTML += escapeHtml(data.content).replace(/\n/g, '<br>');
-                        $('outputBody').scrollTop = $('outputBody').scrollHeight;
+                        appendToOutput(data.content);
                     }
                 } catch (e) {}
             }
@@ -655,6 +685,29 @@ async function startGeneration() {
 function finalizeGeneration() {
     isGenerating = false;
     resetGenerateBtn();
+
+    // 清除定时器
+    if (_streamMarkdownTimer) clearTimeout(_streamMarkdownTimer);
+    _streamMarkdownTimer = null;
+
+    // 渲染剩余缓冲区内容
+    const rendered = $('outputBody').querySelector('.rendered-chunks');
+    if (_streamRawBuffer.length > 0 && rendered) {
+        try {
+            const temp = document.createElement('div');
+            temp.innerHTML = marked.parse(_streamRawBuffer);
+            while (temp.firstChild) rendered.appendChild(temp.firstChild);
+        } catch (e) {
+            rendered.innerHTML += escapeHtml(_streamRawBuffer).replace(/\n/g, '<br>');
+        }
+        _streamRawBuffer = '';
+    }
+
+    // 移除光标
+    const cursor = $('outputBody').querySelector('.stream-cursor');
+    if (cursor) cursor.remove();
+
+    // 最终完整渲染（确保格式正确）
     $('outputBody').innerHTML = renderMarkdown(generatedText);
     $('editBtn').style.display = 'inline-block';
     $('saveBtn').style.display = 'inline-block';
@@ -665,6 +718,119 @@ function resetGenerateBtn() {
     $('generateBtn').classList.remove('running');
     $('generateBtn').disabled = false;
     $('generateBtn').innerHTML = '<span>✨</span> 开始生成本卷细纲';
+}
+
+// ===== 双容器打字机流式渲染 =====
+function appendToOutput(text) {
+    _streamRawBuffer += text;
+    if (!_streamMarkdownTimer) {
+        scheduleBufferedRender();
+    }
+}
+
+function scheduleBufferedRender() {
+    _streamMarkdownTimer = setTimeout(() => {
+        const raw = _streamRawBuffer;
+        const boundary = findCompleteBlock(raw);
+        const rendered = $('outputBody').querySelector('.rendered-chunks');
+
+        if (boundary > 0 && rendered) {
+            const completeText = raw.slice(0, boundary);
+            _streamRawBuffer = raw.slice(boundary);
+            typewriterChunk(rendered, completeText);
+        }
+
+        if (_streamRawBuffer.length > 0) {
+            scheduleBufferedRender();
+        } else {
+            _streamMarkdownTimer = null;
+        }
+
+        $('outputBody').scrollTop = $('outputBody').scrollHeight;
+    }, 30);
+}
+
+function typewriterChunk(container, text) {
+    const plain = text;
+    const html = marked.parse(text);
+
+    const wrapper = document.createElement('span');
+    wrapper.className = 'typing-line';
+    container.appendChild(wrapper);
+
+    let i = 0;
+    const speed = Math.max(8, Math.min(20, Math.floor(400 / plain.length)));
+
+    function typeChar() {
+        if (i >= plain.length) {
+            const temp = document.createElement('div');
+            temp.innerHTML = html;
+            while (temp.firstChild) {
+                container.insertBefore(temp.firstChild, wrapper);
+            }
+            wrapper.remove();
+            $('outputBody').scrollTop = $('outputBody').scrollHeight;
+            return;
+        }
+        wrapper.textContent = plain.slice(0, i + 1);
+        i++;
+        setTimeout(typeChar, speed);
+        $('outputBody').scrollTop = $('outputBody').scrollHeight;
+    }
+    typeChar();
+}
+
+function findCompleteBlock(text) {
+    const lines = text.split('\n');
+    let pos = 0;
+
+    // 1. 如果在表格内部，绝不分割
+    let i = 0;
+    while (i < lines.length) {
+        const line = lines[i].trim();
+        if (line.startsWith('|')) {
+            let tableEnd = i;
+            while (tableEnd < lines.length && lines[tableEnd].trim().startsWith('|')) {
+                tableEnd++;
+            }
+            if (tableEnd < lines.length) {
+                let p = 0;
+                for (let j = 0; j < tableEnd; j++) {
+                    p += lines[j].length + 1;
+                }
+                return p;
+            } else {
+                return 0;
+            }
+        }
+        i++;
+    }
+
+    // 2. 优先找 \n\n（段落分隔）
+    let idx = text.lastIndexOf('\n\n');
+    if (idx >= 0) return idx + 2;
+
+    // 3. 找块级元素边界
+    if (lines.length >= 2) {
+        const lastLine = lines[lines.length - 1].trim();
+        if (/^#{1,6}\s/.test(lastLine) || /^[-*]\s/.test(lastLine) || /^\d+\.\s/.test(lastLine) || /^```/.test(lastLine)) {
+            const withoutLast = lines.slice(0, -1).join('\n');
+            return withoutLast.length + 1;
+        }
+    }
+
+    // 4. 超过 150 字符，找最后一个 \n
+    if (text.length > 150) {
+        idx = text.lastIndexOf('\n');
+        if (idx >= 0) return idx + 1;
+    }
+
+    // 5. 超过 300 字符强制全部渲染
+    if (text.length > 300) {
+        return text.length;
+    }
+
+    return 0;
 }
 
 function updateThinkingDisplay(thinking) {

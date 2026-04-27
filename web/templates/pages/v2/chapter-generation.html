@@ -1327,9 +1327,18 @@ function restoreLastProject() {
     try {
         const lastPid = localStorage.getItem('lastProjectId');
         const lastVol = localStorage.getItem('lastVolume');
+        const lastModel = localStorage.getItem('lastModel');
+        const lastStart = localStorage.getItem('lastStartChapter');
+        const lastBatch = localStorage.getItem('lastBatchSize');
+
         if (lastPid && $('projectSelect').querySelector(`option[value="${lastPid}"]`)) {
             $('projectSelect').value = lastPid;
             if (lastVol) $('volumeSelect').value = lastVol;
+            if (lastModel && $('modelSelect').querySelector(`option[value="${lastModel}"]`)) {
+                $('modelSelect').value = lastModel;
+            }
+            if (lastStart) $('startChapter').value = lastStart;
+            if (lastBatch) $('batchSize').value = lastBatch;
             loadProjectFiles(lastPid, parseInt($('volumeSelect').value));
         }
     } catch (e) {}
@@ -1337,20 +1346,29 @@ function restoreLastProject() {
 
 function saveLastProject() {
     try {
-        if (currentProject) localStorage.setItem('lastProjectId', currentProject);
+        const pid = $('projectSelect').value;
+        if (pid) localStorage.setItem('lastProjectId', pid);
         localStorage.setItem('lastVolume', $('volumeSelect').value);
+        localStorage.setItem('lastModel', $('modelSelect').value);
+        localStorage.setItem('lastStartChapter', $('startChapter').value);
+        localStorage.setItem('lastBatchSize', $('batchSize').value);
     } catch (e) {}
 }
 
-// 项目/卷号切换时自动加载细纲
+// 项目/卷号/模型/章节设置切换时自动保存 + 加载细纲
 $('projectSelect').addEventListener('change', async () => {
     const pid = $('projectSelect').value;
     if (pid) await loadProjectFiles(pid, parseInt($('volumeSelect').value));
+    saveLastProject();
 });
 $('volumeSelect').addEventListener('change', async () => {
     const pid = $('projectSelect').value;
     if (pid) await loadProjectFiles(pid, parseInt($('volumeSelect').value));
+    saveLastProject();
 });
+$('modelSelect').addEventListener('change', saveLastProject);
+$('startChapter').addEventListener('change', saveLastProject);
+$('batchSize').addEventListener('change', saveLastProject);
 
 async function loadProjectFiles(projectId, volumeNumber) {
     try {
@@ -1370,9 +1388,16 @@ async function loadProjectFiles(projectId, volumeNumber) {
             if (showingRef) showRefContent();
             // 启用故事线按钮
             updateStorylineBtn();
-            // 自动填充起始章节为最新已生成章节 + 1
-            if (data.latest_chapter > 0) {
+            // 自动填充起始章节
+            if (!data.detailed_outline || !data.detailed_outline.trim()) {
+                // 没有细纲，说明还没开始生成，起始章节设为 1
+                $('startChapter').value = 1;
+            } else if (data.latest_chapter > 0) {
+                // 有细纲且有已生成章节，从最新章节+1继续
                 $('startChapter').value = data.latest_chapter + 1;
+            } else {
+                // 有细纲但没有已生成章节，从第1章开始
+                $('startChapter').value = 1;
             }
         }
     } catch (e) {
@@ -1666,6 +1691,13 @@ async function startGeneration() {
     const model = $('modelSelect').value;
 
     if (!projectId) { showToast('请先选择一个项目', 'error'); return; }
+
+    // 检查当前卷是否有细纲
+    if (!projectFiles || !projectFiles.detailed_outline || !projectFiles.detailed_outline.trim()) {
+        showToast('当前卷还没有细纲，请先点击【生成本卷细纲】生成细纲后再生成正文', 'error');
+        return;
+    }
+
     if (batchSize < 1 || batchSize > 10) { showToast('每批章数应在 1-10 之间', 'error'); return; }
 
     currentProject = projectId;
@@ -2198,6 +2230,7 @@ async function confirmRewrite() {
     showToast(`🔄 开始重写第${chNum}章...`, 'info');
 
     chapters[chNum].status = 'generating';
+    chapters[chNum].content = '';
     updateChapterTab(chNum);
     showChapter(chNum);
 
@@ -2223,6 +2256,7 @@ async function confirmRewrite() {
         const reader = resp.body.getReader();
         const decoder = new TextDecoder();
         let fullText = '';
+        let _rewriteLastUpdate = 0;
 
         while (true) {
             const { done, value } = await reader.read();
@@ -2235,12 +2269,30 @@ async function confirmRewrite() {
                 if (!dataStr || dataStr === '[DONE]') continue;
                 try {
                     const data = JSON.parse(dataStr);
-                    if (data.content) fullText += data.content;
+                    if (data.content) {
+                        fullText += data.content;
+                        // 实时解析并显示（节流 200ms）
+                        const now = Date.now();
+                        if (now - _rewriteLastUpdate > 200) {
+                            _rewriteLastUpdate = now;
+                            const regex = /### 第([一二三四五六七八九十百千万亿\d]+)章\s*(.*?)\n/;
+                            const match = regex.exec(fullText);
+                            if (match) {
+                                chapters[chNum].title = match[2].trim() || `第${chNum}章`;
+                                chapters[chNum].content = fullText.substring(match.index + match[0].length).trim();
+                                if (activeChapter === chNum) {
+                                    $('contentTitle').textContent = chapters[chNum].title;
+                                    $('contentBody').innerHTML = _paragraphsToHtml(chapters[chNum].content.split('\n\n').filter(p => p.trim()));
+                                    $('contentBody').scrollTop = $('contentBody').scrollHeight;
+                                }
+                            }
+                        }
+                    }
                 } catch (e) {}
             }
         }
 
-        // 解析重写结果（支持中文数字）
+        // 最终解析重写结果（支持中文数字）
         const regex = /### 第([一二三四五六七八九十百千万亿\d]+)章\s*(.*?)\n/;
         const match = regex.exec(fullText);
         if (match) {

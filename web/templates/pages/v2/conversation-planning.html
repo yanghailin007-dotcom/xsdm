@@ -1344,12 +1344,39 @@
 
         // 找到可以安全渲染的完整 Markdown 块
         function findCompleteBlock(text) {
-            // 1. 优先找 \n\n（段落分隔，最安全的边界）
+            const lines = text.split('\n');
+            let pos = 0;
+
+            // 1. 【最高优先级】如果在表格内部，绝不分割——等整张表完整
+            let i = 0;
+            while (i < lines.length) {
+                const line = lines[i].trim();
+                if (line.startsWith('|')) {
+                    // 找到表格结束位置（连续 | 行之后出现非 | 行或文本结束）
+                    let tableEnd = i;
+                    while (tableEnd < lines.length && lines[tableEnd].trim().startsWith('|')) {
+                        tableEnd++;
+                    }
+                    if (tableEnd < lines.length) {
+                        // 表格已结束，返回表格后的位置
+                        let p = 0;
+                        for (let j = 0; j < tableEnd; j++) {
+                            p += lines[j].length + 1;
+                        }
+                        return p;
+                    } else {
+                        // 表格还没结束，不分割
+                        return 0;
+                    }
+                }
+                i++;
+            }
+
+            // 2. 优先找 \n\n（段落分隔，最安全的边界）
             let idx = text.lastIndexOf('\n\n');
             if (idx >= 0) return idx + 2;
 
-            // 2. 找块级元素边界（标题、列表项、代码块开头 = 前面的内容可以安全渲染）
-            const lines = text.split('\n');
+            // 3. 找块级元素边界（标题、列表项、代码块开头 = 前面的内容可以安全渲染）
             if (lines.length >= 2) {
                 const lastLine = lines[lines.length - 1].trim();
                 if (/^#{1,6}\s/.test(lastLine) || /^[-*]\s/.test(lastLine) || /^\d+\.\s/.test(lastLine) || /^```/.test(lastLine)) {
@@ -1358,13 +1385,13 @@
                 }
             }
 
-            // 3. 超过 150 字符，找最后一个 \n
+            // 4. 超过 150 字符，找最后一个 \n
             if (text.length > 150) {
                 idx = text.lastIndexOf('\n');
                 if (idx >= 0) return idx + 1;
             }
 
-            // 4. 超过 300 字符强制全部渲染（防卡死）
+            // 5. 超过 300 字符强制全部渲染（防卡死）
             if (text.length > 300) {
                 return text.length;
             }
