@@ -1879,19 +1879,10 @@
                 continueHint = `【续写提示】该卷已有部分粗纲（见上文对话历史）。请继续生成剩余章节，**不要重复**已生成的内容。如果之前的输出有"（续）"标记，请从标记处继续。`;
             }
 
-            // 超长卷主动拆分提示
-            let splitHint = '';
-            const chapterCount = range ? (range.end - range.start + 1) : 0;
-            if (chapterCount > 70 && !existingVolOutline) {
-                const mid = Math.floor((range.start + range.end) / 2);
-                splitHint = `【输出限制提醒】本卷共${chapterCount}章，超出单次输出能力。请先生成前半部分（全书第${range.start}章 ~ 全书第${mid}章），在结尾标注"（续：下一批从全书第${mid + 1}章开始）"。用户会继续调用你生成后半部分。`;
-            }
-
             const prompt = `请根据以上项目设定和全书框架，生成**第${volNum}卷**的详细粗纲。
 
 ${rangeHint}
 ${continueHint}
-${splitHint}
 
 【上下文】你之前已经生成了全书框架，其中规划了第${volNum}卷的核心冲突、高潮爽点和关键节点。现在需要把这卷的骨架细化成可执行的粗纲。
 
