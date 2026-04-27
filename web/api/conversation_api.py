@@ -2313,6 +2313,8 @@ def generate_volume_outline_v2():
         if not project_dir.exists():
             return jsonify({"success": False, "error": "项目不存在"}), 404
         
+        import re
+        
         # 读取上下文
         files = _read_project_files(project_dir)
         settings = files.get('settings', '')
@@ -2360,7 +2362,13 @@ def generate_volume_outline_v2():
         if framework_hint:
             prompt_parts.append(f"【全书框架（供参考）】\n{framework_hint}")
         if prev_outline:
-            prompt_parts.append(f"【上一卷细纲】\n{prev_outline[:4000]}")
+            # 只取上一卷最后3章（承上启下），避免全文传递浪费token
+            prev_sections = re.split(r'\n(?=##\s*第\d+章|###\s*第\d+章)', prev_outline)
+            if len(prev_sections) > 3:
+                prev_tail = '\n'.join(prev_sections[-3:])
+            else:
+                prev_tail = prev_outline
+            prompt_parts.append(f"【上一卷结尾（承上）】\n{prev_tail[:2500]}")
         if user_notes:
             prompt_parts.append(f"【作者补充要求】\n{user_notes}")
         prompt_parts.append(outline_prompt)
