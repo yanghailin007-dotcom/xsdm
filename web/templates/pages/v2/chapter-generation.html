@@ -970,6 +970,129 @@
                 border-top: 1px solid var(--border-color);
             }
         }
+
+        /* ===== 故事线剧照 ===== */
+        .still-image-grid {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin-top: 10px;
+        }
+        .still-image-thumb {
+            width: 120px;
+            height: 80px;
+            object-fit: cover;
+            border-radius: var(--radius-sm);
+            border: 1px solid var(--border-color);
+            cursor: pointer;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+        .still-image-thumb:hover {
+            transform: scale(1.05);
+            box-shadow: var(--shadow);
+        }
+        .still-generate-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            padding: 4px 10px;
+            border-radius: 6px;
+            font-size: 11px;
+            font-weight: 500;
+            cursor: pointer;
+            border: 1px dashed var(--border-color);
+            background: transparent;
+            color: var(--text-muted);
+            transition: all 0.2s;
+            margin-top: 8px;
+        }
+        .still-generate-btn:hover {
+            border-color: var(--accent);
+            color: var(--accent);
+            background: var(--accent-dim);
+        }
+        .still-generate-btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        /* 剧照生成模态框 */
+        .still-modal-overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(0,0,0,0.7);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            z-index: 2000;
+        }
+        .still-modal-overlay.show { display: flex; }
+        .still-modal-box {
+            background: var(--bg-secondary);
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius);
+            padding: 20px;
+            width: 90%;
+            max-width: 520px;
+            max-height: 80vh;
+            overflow-y: auto;
+        }
+        .still-modal-box h3 {
+            font-size: 14px;
+            font-weight: 600;
+            color: var(--text-primary);
+            margin-bottom: 12px;
+        }
+        .still-modal-box label {
+            font-size: 11px;
+            color: var(--text-secondary);
+            display: block;
+            margin-bottom: 6px;
+        }
+        .still-modal-box textarea {
+            width: 100%;
+            min-height: 100px;
+            padding: 8px 10px;
+            background: var(--bg-primary);
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius-sm);
+            color: var(--text-primary);
+            font-size: 12px;
+            resize: vertical;
+            margin-bottom: 12px;
+            font-family: inherit;
+            line-height: 1.5;
+        }
+        .still-modal-box textarea:focus {
+            border-color: var(--accent);
+            outline: none;
+        }
+        .still-modal-actions {
+            display: flex;
+            justify-content: flex-end;
+            gap: 8px;
+        }
+        .still-modal-actions button {
+            padding: 6px 14px;
+            border-radius: var(--radius-sm);
+            font-size: 12px;
+            font-weight: 500;
+            cursor: pointer;
+            border: none;
+        }
+        .still-modal-actions .btn-primary {
+            background: var(--accent);
+            color: #fff;
+        }
+        .still-modal-actions .btn-primary:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+        .still-modal-actions .btn-secondary {
+            background: var(--bg-tertiary);
+            color: var(--text-secondary);
+            border: 1px solid var(--border-color);
+        }
     </style>
 </head>
 <body>
@@ -1123,6 +1246,19 @@
             <div class="modal-actions">
                 <button class="btn-secondary" onclick="closeRewriteModal()">取消</button>
                 <button class="btn-primary" onclick="confirmRewrite()">确认重写</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 剧照生成模态框 -->
+    <div class="still-modal-overlay" id="stillModal">
+        <div class="still-modal-box">
+            <h3 id="stillModalTitle">🎬 生成剧照</h3>
+            <label>提示词（可编辑）</label>
+            <textarea id="stillPrompt" placeholder="输入生成提示词..."></textarea>
+            <div class="still-modal-actions">
+                <button class="btn-secondary" onclick="closeStillModal()">取消</button>
+                <button class="btn-primary" id="stillGenerateBtn" onclick="confirmGenerateStill()">生成</button>
             </div>
         </div>
     </div>
@@ -2159,6 +2295,10 @@ function showStorylineView() {
     document.getElementById('cancelEditBtn').style.display = 'none';
     document.getElementById('rewriteBtn').disabled = true;
     document.getElementById('saveBtn').disabled = true;
+
+    // 加载并展示已生成的剧照
+    const pid = document.getElementById('projectSelect').value;
+    if (pid) loadStorylineStills(pid);
 }
 
 function hideStorylineView() {
@@ -2188,7 +2328,9 @@ function renderStorylineBigHtml() {
             '<div class="storyline-big-title" onclick="jumpToChapterFromStoryline(' + ch.num + ')" title="点击查看第' + ch.num + '章正文">' +
             '<span class="ch-num">第' + ch.num + '章</span>' + escapeHtml(ch.title) + '</div><div class="storyline-big-grid">';
         if (ch.scene) {
-            html += '<div class="storyline-big-section"><h4>🎬 场景设定</h4><p>' + escapeHtml(ch.scene) + '</p></div>';
+            html += '<div class="storyline-big-section"><h4>🎬 场景设定</h4><p>' + escapeHtml(ch.scene) + '</p>' +
+                '<div class="still-image-grid" id="still-scene-ch' + ch.num + '"></div>' +
+                '<button class="still-generate-btn" onclick="showStillModal(' + ch.num + ', \'scene\', null)">🎬 生场景图</button></div>';
         }
         if (ch.emotion) {
             html += '<div class="storyline-big-section"><h4>🌡️ 情绪走向</h4><p>' + escapeHtml(ch.emotion) + '</p></div>';
@@ -2198,7 +2340,9 @@ function renderStorylineBigHtml() {
             for (const name of ch.characters) {
                 html += '<button class="storyline-big-tag char" onclick="showCharacterInfo(\'' + escapeHtml(name).replace(/'/g, "\\'") + '\', ' + ch.num + ')">' + escapeHtml(name) + '</button>';
             }
-            html += '</div></div>';
+            html += '</div>' +
+                '<div class="still-image-grid" id="still-char-ch' + ch.num + '"></div>' +
+                '<button class="still-generate-btn" onclick="showStillModal(' + ch.num + ', \'character\', \'' + escapeHtml(ch.characters[0]).replace(/'/g, "\\'") + '\')">👤 生角色图</button></div>';
         }
         if (ch.hook) {
             html += '<div class="storyline-big-section full"><h4>💥 核心爽点</h4><div class="storyline-big-tags">' +
@@ -2317,6 +2461,176 @@ function highlightHook(hookText, chapterNum) {
 
 function escapeRegExp(string) {
     return string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+// ===== 故事线剧照功能 =====
+let storylineStills = []; // 已加载的剧照缓存 { image_id, chapter_num, image_type, image_url, character_name }
+let stillModalState = { chNum: null, type: null, name: null };
+
+// 从项目设定中提取角色外貌描述
+function extractCharacterAppearance(characterName) {
+    if (!projectFiles || !projectFiles.settings || !characterName) return '';
+    const settings = projectFiles.settings;
+
+    // 策略1: 搜索角色名附近的"外貌"、"长相"、"形象"关键词
+    const nameIdx = settings.indexOf(characterName);
+    if (nameIdx === -1) return '';
+
+    // 向前向后各取500字符
+    const start = Math.max(0, nameIdx - 300);
+    const end = Math.min(settings.length, nameIdx + 500);
+    const context = settings.slice(start, end);
+
+    // 尝试匹配常见格式
+    const patterns = [
+        new RegExp(characterName + '[：:：]\\s*([^\\n]{10,200})', 'i'),
+        /外貌[：:：]\s*([^\n]{10,200})/i,
+        /长相[：:：]\s*([^\n]{10,200})/i,
+        /形象[：:：]\s*([^\n]{10,200})/i,
+        /面容[：:：]\s*([^\n]{10,200})/i,
+        /外观[：:：]\s*([^\n]{10,200})/i,
+    ];
+    for (const p of patterns) {
+        const m = context.match(p);
+        if (m) return m[1].trim();
+    }
+    return '';
+}
+
+// 构造场景图prompt
+function buildScenePrompt(sceneText) {
+    if (!sceneText) return '';
+    return `【网文风格场景剧照】${sceneText}，电影级光影，构图精美，氛围感强烈，8K高清`;
+}
+
+// 构造角色图prompt
+function buildCharacterPrompt(characterName) {
+    if (!characterName) return '';
+    const appearance = extractCharacterAppearance(characterName);
+    const base = appearance
+        ? `【国漫风格角色肖像】${characterName}，${appearance}`
+        : `【国漫风格角色肖像】${characterName}，出场角色，半身特写，面部清晰，表情生动`;
+    return base + '，高质量，8K，细腻皮肤纹理，专业影视打光';
+}
+
+// 显示剧照生成模态框
+function showStillModal(chNum, type, name) {
+    stillModalState = { chNum, type, name };
+    const titleEl = document.getElementById('stillModalTitle');
+    const promptEl = document.getElementById('stillPrompt');
+    const ch = storylineData.find(c => c.num === chNum);
+
+    if (type === 'scene') {
+        titleEl.textContent = `🎬 生成第${chNum}章场景图`;
+        promptEl.value = buildScenePrompt(ch ? ch.scene : '');
+    } else {
+        titleEl.textContent = `👤 生成「${name}」角色图`;
+        promptEl.value = buildCharacterPrompt(name);
+    }
+
+    document.getElementById('stillGenerateBtn').disabled = false;
+    document.getElementById('stillGenerateBtn').textContent = '生成';
+    document.getElementById('stillModal').classList.add('show');
+}
+
+function closeStillModal() {
+    document.getElementById('stillModal').classList.remove('show');
+    stillModalState = { chNum: null, type: null, name: null };
+}
+
+// 确认生成剧照
+async function confirmGenerateStill() {
+    const { chNum, type, name } = stillModalState;
+    if (!chNum || !type) return;
+
+    const prompt = document.getElementById('stillPrompt').value.trim();
+    if (!prompt) { showToast('请输入提示词', 'error'); return; }
+
+    const btn = document.getElementById('stillGenerateBtn');
+    btn.disabled = true;
+    btn.textContent = '⏳ 生成中...';
+
+    try {
+        const response = await fetch('/api/storyline/generate-still', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                project_id: currentProject || document.getElementById('projectSelect').value,
+                chapter_num: chNum,
+                image_type: type,
+                prompt: prompt,
+                character_name: type === 'character' ? name : null,
+                aspect_ratio: type === 'scene' ? '16:9' : '9:16',
+                novel_title: currentProject
+            })
+        });
+
+        const data = await response.json();
+        if (data.success) {
+            storylineStills.push(data.data);
+            renderStillsInStoryline();
+            showToast('✅ 剧照生成成功', 'success');
+            closeStillModal();
+        } else {
+            showToast('生成失败: ' + (data.error || '未知错误'), 'error');
+            btn.disabled = false;
+            btn.textContent = '生成';
+        }
+    } catch (e) {
+        showToast('请求失败: ' + e.message, 'error');
+        btn.disabled = false;
+        btn.textContent = '生成';
+    }
+}
+
+// 加载某项目的所有故事线剧照
+async function loadStorylineStills(projectId) {
+    if (!projectId) return;
+    try {
+        const resp = await fetch(`/api/storyline/stills?project_id=${encodeURIComponent(projectId)}&limit=200`);
+        const data = await resp.json();
+        if (data.success) {
+            storylineStills = data.data;
+            renderStillsInStoryline();
+        }
+    } catch (e) {
+        console.error('加载剧照失败:', e);
+    }
+}
+
+// 在故事线中渲染已加载的剧照
+function renderStillsInStoryline() {
+    if (!showingStoryline) return;
+
+    for (const still of storylineStills) {
+        const meta = still.metadata || {};
+        const chNum = meta.chapter_num;
+        const type = still.image_type;
+        if (!chNum || !type) continue;
+
+        let containerId;
+        if (type === 'scene') {
+            containerId = 'still-scene-ch' + chNum;
+        } else if (type === 'character') {
+            containerId = 'still-char-ch' + chNum;
+        } else {
+            continue;
+        }
+
+        const container = document.getElementById(containerId);
+        if (!container) continue;
+
+        // 检查是否已渲染（避免重复）
+        if (container.querySelector(`[data-image-id="${still.image_id}"]`)) continue;
+
+        const img = document.createElement('img');
+        img.src = still.image_url;
+        img.className = 'still-image-thumb';
+        img.title = still.prompt;
+        img.dataset.imageId = still.image_id;
+        img.onclick = () => window.open(still.image_url, '_blank');
+        container.appendChild(img);
+    }
 }
 
     </script>

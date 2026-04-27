@@ -114,6 +114,7 @@ from web.api.nanobanana_api import register_nanobanana_routes
 from web.api.character_api import register_character_routes
 from web.api.veo_video_api import register_veo_video_routes
 from web.api.still_image_api import register_still_image_routes
+from web.api.storyline_still_api import register_storyline_still_routes
 from web.api.short_drama_api import register_short_drama_routes
 from web.api.script_quality_check import register_script_quality_routes
 from web.api.tts_api import register_tts_routes
@@ -496,6 +497,9 @@ def create_app():
     
     # 16. 剧照图片素材库 API 路由
     register_still_image_routes(app)
+
+    # 16.5 故事线剧照生成 API 路由
+    register_storyline_still_routes(app)
 
     # 17. 短剧工作台 API 路由
     register_short_drama_routes(app)
