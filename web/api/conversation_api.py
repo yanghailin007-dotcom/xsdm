@@ -472,6 +472,18 @@ def generate_settings():
         return jsonify({"success": False, "error": str(e)}), 500
 
 
+_REALITY_AVOIDANCE_RULES = """【现实规避铁律 — 平行时空设定】
+1. 国名代称：中国→龙国/华夏/九州，美国→星条国/合众国，日本→樱花国/东瀛，英国→雾都国
+2. 一线城市：北京→B市/京城/燕京，上海→S市/沪市/申城，深圳→S市/深市/鹏城，广州→G市/羊城
+3. 省份：广东→粤州/南粤，浙江→浙州/钱塘，江苏→苏州/江南，四川→蜀州/天府
+4. 机构：省政府→省署/省府，县政府→县衙/县署，公安局→警署/治安司，法院→裁判司，高铁→磁悬浮/城际快线
+5. 品牌/APP：iPhone→智能机，微信→某社交软件，支付宝→某支付软件，抖音→某短视频平台，微博→某社交平台，淘宝→某购物平台
+6. 真实名人：禁止出现真实存在的名人、明星、政客姓名
+7. 敏感事件：禁止影射、映射、暗示任何现实敏感事件
+8. 货币：人民币→龙币/华夏币；身份证→身份卡；驾驶证→驾驶许可
+9. 本故事发生在平行时空，所有地名、机构、事件均为虚构"""
+
+
 _GENERATE_OUTLINE_PROMPT = """请根据以下小说设定，生成完整的卷级大纲（Markdown格式）。
 
 要求：
@@ -497,7 +509,9 @@ _GENERATE_OUTLINE_PROMPT = """请根据以下小说设定，生成完整的卷�
 3. 必须规划 3-6 卷
 4. 每章概要必须包含该章的核心爽点或悬念钩子
 5. 这是全书的"骨架"，必须完整、逻辑连贯
-6. 直接返回 Markdown 文本，不要加 ``` 代码块"""
+6. 直接返回 Markdown 文本，不要加 ``` 代码块
+
+""" + _REALITY_AVOIDANCE_RULES
 
 
 _GENERATE_DETAILED_PROMPT = """请根据以下小说设定和大纲，生成前 1-2 卷的详细章节细纲（Markdown格式）。
@@ -533,7 +547,9 @@ _GENERATE_DETAILED_PROMPT = """请根据以下小说设定和大纲，生成前 
 
 3. 优先保证前 1-2 卷的完整详细细纲，每章 200-400 字体量
 4. 每个章节都要充实具体，不能敷衍
-5. 直接返回 Markdown 文本，不要加 ``` 代码块"""
+5. 直接返回 Markdown 文本，不要加 ``` 代码块
+
+""" + _REALITY_AVOIDANCE_RULES
 
 
 @conversation_api.route('/generate-outline', methods=['POST'])
@@ -1503,6 +1519,10 @@ def _build_writing_prompt(settings_text: str, outline_text: str, detailed_text: 
 
 ---
 
+{_REALITY_AVOIDANCE_RULES}
+
+---
+
 ## 平台风格（番茄小说读者偏好）
 
 你的目标平台是番茄小说（fanqienovel.com），读者群体喜欢快节奏、强情绪、强反转的阅读体验。你只需要把握一个原则：**适合番茄读者**。
@@ -2113,7 +2133,9 @@ _VOLUME_OUTLINE_PROMPT = """你是专业网文策划。请根据以下设定和�
 3. 每章细纲字数 200-400 字
 4. 章节之间要有清晰的情绪曲线和钩子衔接
 5. 用 Markdown 格式输出，每章用 "## 第X章 标题" 开头
-6. 不要输出任何说明文字、总结、分析"""
+6. 不要输出任何说明文字、总结、分析
+
+""" + _REALITY_AVOIDANCE_RULES
 
 
 @conversation_api.route('/generate-volume-outline', methods=['POST'])
@@ -2234,6 +2256,8 @@ def _build_volume_outline_v2_prompt(volume_number: int, chapter_count: int,
 - 本卷共 {chapter_count} 章
 - 对应全书第 {global_start} 章 到 第 {global_end} 章
 {plan_section}
+
+{_REALITY_AVOIDANCE_RULES}
 
 【细纲格式要求（必须严格遵守）】
 每章必须按以下固定格式输出，不得遗漏任何字段：
