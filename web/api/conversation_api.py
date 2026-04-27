@@ -1980,17 +1980,24 @@ def get_project_files():
         files = _read_project_files(project_dir)
         detailed = _read_volume_detailed(project_dir, volume_number)
         
-        # 统计各卷章节数
+        # 统计各卷章节数，提取最大章节号
         chapters_dir = project_dir / "chapters"
         chapter_files = list(chapters_dir.glob("第*.md")) if chapters_dir.exists() else []
+        latest_chapter = 0
+        import re as _re
+        for cf in chapter_files:
+            m = _re.search(r'第(\d+)章', cf.name)
+            if m:
+                latest_chapter = max(latest_chapter, int(m.group(1)))
         
-        logger.info(f"[Conversation] /project-files: project={project_id}, vol={volume_number}")
+        logger.info(f"[Conversation] /project-files: project={project_id}, vol={volume_number}, latest_chapter={latest_chapter}")
         return jsonify({
             "success": True,
             "settings": files.get('settings', '')[:10000],
             "outline": files.get('outline', '')[:10000],
             "detailed_outline": detailed,
             "chapter_count": len(chapter_files),
+            "latest_chapter": latest_chapter,
         })
         
     except Exception as e:

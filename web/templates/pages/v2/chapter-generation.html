@@ -1370,6 +1370,10 @@ async function loadProjectFiles(projectId, volumeNumber) {
             if (showingRef) showRefContent();
             // 启用故事线按钮
             updateStorylineBtn();
+            // 自动填充起始章节为最新已生成章节 + 1
+            if (data.latest_chapter > 0) {
+                $('startChapter').value = data.latest_chapter + 1;
+            }
         }
     } catch (e) {
         console.error('加载项目文件失败:', e);
