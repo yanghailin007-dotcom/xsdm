@@ -674,6 +674,88 @@
             display: flex;
             gap: 10px;
         }
+        /* 文件列表 */
+        .file-list { padding: 12px 16px; display: flex; flex-direction: column; gap: 8px; }
+        .file-item {
+            display: flex; align-items: center; gap: 12px;
+            padding: 12px 14px; border-radius: 10px;
+            background: var(--bg-primary);
+            border: 1px solid var(--border-light);
+            cursor: pointer; transition: all 0.2s;
+        }
+        .file-item:hover { border-color: var(--accent-blue); transform: translateX(2px); }
+        .file-item.empty { opacity: 0.5; cursor: default; border-style: dashed; }
+        .file-item.empty:hover { transform: none; border-color: var(--border-light); }
+        .file-icon { font-size: 20px; flex-shrink: 0; }
+        .file-info { flex: 1; min-width: 0; }
+        .file-name { font-size: 14px; font-weight: 600; color: var(--text-primary); }
+        .file-status { font-size: 12px; color: var(--text-muted); margin-top: 2px; }
+        .file-status.ready { color: var(--success); }
+        .file-action { font-size: 14px; opacity: 0.6; }
+        .file-item:hover .file-action { opacity: 1; }
+        /* 编辑器弹窗 */
+        .editor-modal-overlay {
+            position: fixed; inset: 0; z-index: 2000;
+            background: rgba(0,0,0,0.6);
+            display: none; align-items: center; justify-content: center;
+            backdrop-filter: blur(4px);
+        }
+        .editor-modal-overlay.active { display: flex; }
+        .editor-modal {
+            width: 85vw; height: 85vh; max-width: 1200px;
+            background: var(--bg-primary);
+            border-radius: 14px;
+            border: 1px solid var(--border-light);
+            display: flex; flex-direction: column;
+            overflow: hidden;
+            box-shadow: 0 25px 80px rgba(0,0,0,0.35);
+        }
+        .editor-modal-header {
+            padding: 14px 20px;
+            border-bottom: 1px solid var(--border-light);
+            display: flex; align-items: center; justify-content: space-between;
+            background: var(--bg-secondary);
+        }
+        .editor-modal-header h3 { font-size: 15px; font-weight: 600; margin: 0; }
+        .editor-modal-actions { display: flex; align-items: center; gap: 8px; }
+        .editor-mode-btn {
+            padding: 5px 12px; border-radius: 6px; border: 1px solid var(--border);
+            background: var(--bg-secondary); color: var(--text-secondary);
+            font-size: 12px; cursor: pointer; transition: all 0.2s;
+        }
+        .editor-mode-btn:hover { border-color: var(--accent-blue); color: var(--text-primary); }
+        .editor-mode-btn.active { background: var(--accent-blue); color: #fff; border-color: var(--accent-blue); }
+        .editor-close-btn {
+            width: 30px; height: 30px; border-radius: 6px; border: none;
+            background: transparent; color: var(--text-muted);
+            font-size: 16px; cursor: pointer; margin-left: 4px;
+            display: flex; align-items: center; justify-content: center;
+        }
+        .editor-close-btn:hover { background: var(--accent-red); color: #fff; }
+        .editor-modal-body {
+            flex: 1; overflow: hidden; position: relative;
+            display: flex;
+        }
+        .editor-textarea {
+            width: 100%; height: 100%; padding: 20px 24px;
+            border: none; background: var(--bg-primary);
+            color: var(--text-primary); font-size: 14px;
+            line-height: 1.8; font-family: "SF Mono", Monaco, monospace;
+            resize: none; outline: none;
+        }
+        .editor-preview {
+            width: 100%; height: 100%; padding: 20px 24px;
+            overflow-y: auto; display: none;
+            font-size: 14px; line-height: 1.8; color: var(--text-primary);
+        }
+        .editor-preview.active { display: block; }
+        .editor-textarea.hidden { display: none; }
+        .editor-modal-footer {
+            padding: 12px 20px;
+            border-top: 1px solid var(--border-light);
+            display: flex; justify-content: flex-end; gap: 10px;
+            background: var(--bg-secondary);
+        }
         .tab-actions {
             display: flex;
             align-items: center;
@@ -856,13 +938,31 @@
                 <button class="tab-btn" data-tab="quality" onclick="switchTab('quality')" id="tabBtnQuality">质检</button>
             </div>
             <div class="settings-body">
+                <!-- 设定 Tab -->
                 <div class="tab-content active" id="tab-settings">
                     <div class="tab-actions">
                         <button class="tab-gen-btn" id="btnGenSettings" onclick="generateSettings()">✨ 生成设定</button>
                         <span class="tab-status" id="settingsStatus">基于对话内容生成</span>
                     </div>
-                    <textarea class="edit-area" id="editSettings" placeholder="点击“生成设定”后，设定内容将显示在这里，可直接编辑"></textarea>
+                    <div class="file-list" id="fileListSettings">
+                        <div class="file-item empty" id="settingsFileEmpty">
+                            <div class="file-icon">📖</div>
+                            <div class="file-info">
+                                <div class="file-name">项目设定</div>
+                                <div class="file-status">未生成</div>
+                            </div>
+                        </div>
+                        <div class="file-item" id="settingsFileItem" style="display:none;" onclick="openEditorModal('settings')">
+                            <div class="file-icon">📖</div>
+                            <div class="file-info">
+                                <div class="file-name">项目设定</div>
+                                <div class="file-status ready">已生成，点击编辑</div>
+                            </div>
+                            <div class="file-action">✏️</div>
+                        </div>
+                    </div>
                 </div>
+                <!-- 大纲 Tab -->
                 <div class="tab-content" id="tab-outline">
                     <div class="tab-actions">
                         <button class="tab-gen-btn" id="btnGenOutline" onclick="generateOutline()" disabled>📝 生成框架</button>
@@ -870,19 +970,54 @@
                     </div>
                     <div class="tab-actions" id="volumeActions" style="display:none;margin-top:4px;">
                         <select id="volSelect" onchange="switchVolumeOutline(this.value)" style="padding:4px 8px;border-radius:4px;border:1px solid var(--border);background:var(--bg-secondary);color:var(--text-primary);font-size:12px;">
-                            <option value="">-- 选择卷 --</option>
+                            <option value="framework">📋 全书框架</option>
                         </select>
                         <button class="tab-gen-btn" id="btnGenVolOutline" onclick="generateVolumeOutlineFromSelect()" style="margin-left:8px;">📝 生成该卷粗纲</button>
                     </div>
-                    <textarea class="edit-area" id="editOutline" placeholder="先点击“生成框架”生成全书框架，再逐卷生成粗纲..."></textarea>
+                    <div class="file-list" id="fileListOutline">
+                        <div class="file-item empty" id="frameworkFileEmpty">
+                            <div class="file-icon">📋</div>
+                            <div class="file-info">
+                                <div class="file-name">全书框架</div>
+                                <div class="file-status">未生成</div>
+                            </div>
+                        </div>
+                        <div class="file-item" id="frameworkFileItem" style="display:none;" onclick="openEditorModal('framework')">
+                            <div class="file-icon">📋</div>
+                            <div class="file-info">
+                                <div class="file-name">全书框架</div>
+                                <div class="file-status ready">已生成，点击编辑</div>
+                            </div>
+                            <div class="file-action">✏️</div>
+                        </div>
+                        <div id="volumeFileList"></div>
+                    </div>
                 </div>
+                <!-- 细纲 Tab -->
                 <div class="tab-content" id="tab-detailed">
                     <div class="tab-actions">
                         <button class="tab-gen-btn" id="btnGenDetailed" onclick="generateDetailed()" disabled>📖 生成细纲</button>
                         <span class="tab-status" id="detailedStatus">需先完成大纲</span>
                     </div>
-                    <textarea class="edit-area" id="editDetailed" placeholder="细纲内容..."></textarea>
+                    <div class="file-list" id="fileListDetailed">
+                        <div class="file-item empty" id="detailedFileEmpty">
+                            <div class="file-icon">📄</div>
+                            <div class="file-info">
+                                <div class="file-name">章节细纲</div>
+                                <div class="file-status">未生成</div>
+                            </div>
+                        </div>
+                        <div class="file-item" id="detailedFileItem" style="display:none;" onclick="openEditorModal('detailed')">
+                            <div class="file-icon">📄</div>
+                            <div class="file-info">
+                                <div class="file-name">章节细纲</div>
+                                <div class="file-status ready">已生成，点击编辑</div>
+                            </div>
+                            <div class="file-action">✏️</div>
+                        </div>
+                    </div>
                 </div>
+                <!-- 质检 Tab -->
                 <div class="tab-content" id="tab-quality">
                     <div id="qualityReport" style="padding:16px 20px;">
                         <p style="text-align:center;color:var(--text-muted);">生成设定后将自动进行质检...</p>
@@ -892,6 +1027,28 @@
             <div class="settings-footer">
                 <button class="btn-secondary" onclick="hideSettings()">关闭</button>
                 <button class="btn-primary" onclick="saveProject()">💾 保存为最终方案</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 编辑器弹窗 -->
+    <div class="editor-modal-overlay" id="editorModal">
+        <div class="editor-modal">
+            <div class="editor-modal-header">
+                <h3 id="editorModalTitle">编辑</h3>
+                <div class="editor-modal-actions">
+                    <button class="editor-mode-btn" id="editorPreviewBtn" onclick="toggleEditorPreview()">👁️ 预览</button>
+                    <button class="editor-mode-btn active" id="editorEditBtn" onclick="toggleEditorEdit()">✏️ 编辑</button>
+                    <button class="editor-close-btn" onclick="closeEditorModal()">✕</button>
+                </div>
+            </div>
+            <div class="editor-modal-body">
+                <textarea class="editor-textarea" id="editorTextarea" spellcheck="false"></textarea>
+                <div class="editor-preview" id="editorPreview"></div>
+            </div>
+            <div class="editor-modal-footer">
+                <button class="btn-secondary" onclick="closeEditorModal()">关闭</button>
+                <button class="btn-primary" onclick="saveEditorModal()">💾 保存</button>
             </div>
         </div>
     </div>
@@ -914,9 +1071,7 @@
         const loadingOverlay = document.getElementById('loadingOverlay');
         const loadingModel = document.getElementById('loadingModel');
         const settingsPanel = document.getElementById('settingsPanel');
-        const editSettings = document.getElementById('editSettings');
-        const editOutline = document.getElementById('editOutline');
-        const editDetailed = document.getElementById('editDetailed');
+        // DOM 引用：文件列表项
         const qualityReport = document.getElementById('qualityReport');
         const tabBtnQuality = document.getElementById('tabBtnQuality');
         const errorToast = document.getElementById('errorToast');
@@ -1240,9 +1395,12 @@
             if (volActions) volActions.style.display = 'none';
             const volSelect = document.getElementById('volSelect');
             if (volSelect) volSelect.innerHTML = '<option value="">-- 选择卷 --</option>';
-            editSettings.value = '';
-            editOutline.value = '';
-            editDetailed.value = '';
+            // 重置文件列表
+            renderSettings('');
+            renderOutline('');
+            renderDetailed('');
+            const volumeFileList = document.getElementById('volumeFileList');
+            if (volumeFileList) volumeFileList.innerHTML = '';
             qualityReport.innerHTML = '<p style="text-align:center;color:var(--text-muted);">生成设定后将自动进行质检...</p>';
             settingsPanel.classList.remove('active');
             updateGenerateButton();
@@ -1293,9 +1451,9 @@
             }
             // 如果有项目数据，恢复面板
             if (currentProjectData) {
-                editSettings.value = currentProjectData.settings || '';
-                editOutline.value = currentProjectData.outline || '';
-                editDetailed.value = currentProjectData.detailed_outline || '';
+                renderSettings(currentProjectData.settings || '');
+                renderOutline(currentProjectData.outline || '');
+                renderDetailed(currentProjectData.detailed_outline || '');
                 settingsPanel.classList.add('active');
                 // 恢复卷选择器
                 if (currentProjectData.framework) {
@@ -1842,25 +2000,43 @@ ${continueHint}
         function renderSettings(data) {
             currentProjectData = currentProjectData || {};
             currentProjectData.settings = data;
-            editSettings.value = data;
+            const emptyEl = document.getElementById('settingsFileEmpty');
+            const itemEl = document.getElementById('settingsFileItem');
+            if (data && data.trim()) {
+                if (emptyEl) emptyEl.style.display = 'none';
+                if (itemEl) itemEl.style.display = 'flex';
+            } else {
+                if (emptyEl) emptyEl.style.display = 'flex';
+                if (itemEl) itemEl.style.display = 'none';
+            }
             switchTab('settings');
         }
 
         function renderOutline(data) {
             currentProjectData = currentProjectData || {};
             currentProjectData.outline = data;
-            editOutline.value = data;
+            const emptyEl = document.getElementById('frameworkFileEmpty');
+            const itemEl = document.getElementById('frameworkFileItem');
+            if (data && data.trim()) {
+                if (emptyEl) emptyEl.style.display = 'none';
+                if (itemEl) itemEl.style.display = 'flex';
+            } else {
+                if (emptyEl) emptyEl.style.display = 'flex';
+                if (itemEl) itemEl.style.display = 'none';
+            }
             switchTab('outline');
         }
 
-        // 从框架文本解析卷数，渲染卷选择器
+        // 从框架文本解析卷数，渲染卷选择器和文件列表
         function renderVolumeSelector(frameworkText) {
             const volActions = document.getElementById('volumeActions');
             const volSelect = document.getElementById('volSelect');
+            const volumeFileList = document.getElementById('volumeFileList');
             if (!volActions || !volSelect) return;
 
             // 清空现有选项，保留全书框架选项
             volSelect.innerHTML = '<option value="framework">📋 全书框架</option>';
+            if (volumeFileList) volumeFileList.innerHTML = '';
 
             // 尝试从框架文本中解析卷数
             let volCount = 0;
@@ -1876,14 +2052,31 @@ ${continueHint}
             if (volCount === 0) volCount = 5;
 
             for (let i = 1; i <= volCount; i++) {
+                // 下拉框选项
                 const opt = document.createElement('option');
                 opt.value = String(i);
                 opt.textContent = `第${i}卷`;
-                // 如果该卷已生成，标记为 ✓
                 if (currentProjectData?.volumeOutlines?.[i]) {
                     opt.textContent += ' ✓';
                 }
                 volSelect.appendChild(opt);
+
+                // 文件列表项
+                if (volumeFileList) {
+                    const hasOutline = currentProjectData?.volumeOutlines?.[i];
+                    const item = document.createElement('div');
+                    item.className = 'file-item';
+                    item.onclick = () => openEditorModal('volume', i);
+                    item.innerHTML = `
+                        <div class="file-icon">📑</div>
+                        <div class="file-info">
+                            <div class="file-name">第${i}卷粗纲</div>
+                            <div class="file-status ${hasOutline ? 'ready' : ''}">${hasOutline ? '已生成，点击编辑' : '未生成'}</div>
+                        </div>
+                        <div class="file-action">✏️</div>
+                    `;
+                    volumeFileList.appendChild(item);
+                }
             }
 
             volActions.style.display = 'flex';
@@ -1891,21 +2084,15 @@ ${continueHint}
         }
 
         function switchVolumeOutline(volNum) {
-            if (!currentProjectData) return;
-            // 选择"全书框架"
-            if (volNum === 'framework' || volNum === '') {
-                editOutline.value = currentProjectData.framework || '';
-                const btn = document.getElementById('btnGenVolOutline');
-                if (btn) btn.textContent = '📝 生成该卷粗纲';
-                return;
-            }
-            volNum = parseInt(volNum, 10);
-            if (!volNum) return;
-            const text = currentProjectData.volumeOutlines?.[volNum] || '';
-            editOutline.value = text || '（该卷粗纲尚未生成，点击上方“生成该卷粗纲”按钮）';
-            // 更新按钮状态
+            // 文件列表模式下，下拉框只用于控制"生成该卷粗纲"按钮的目标卷
             const btn = document.getElementById('btnGenVolOutline');
-            if (btn) btn.textContent = `📝 生成第${volNum}卷粗纲`;
+            if (!btn) return;
+            if (volNum === 'framework' || volNum === '') {
+                btn.textContent = '📝 生成该卷粗纲';
+            } else {
+                const n = parseInt(volNum, 10);
+                if (!isNaN(n)) btn.textContent = `📝 生成第${n}卷粗纲`;
+            }
         }
 
         function generateVolumeOutlineFromSelect() {
@@ -1921,9 +2108,101 @@ ${continueHint}
         function renderDetailed(data) {
             currentProjectData = currentProjectData || {};
             currentProjectData.detailed_outline = data;
-            editDetailed.value = data;
+            const emptyEl = document.getElementById('detailedFileEmpty');
+            const itemEl = document.getElementById('detailedFileItem');
+            if (data && data.trim()) {
+                if (emptyEl) emptyEl.style.display = 'none';
+                if (itemEl) itemEl.style.display = 'flex';
+            } else {
+                if (emptyEl) emptyEl.style.display = 'flex';
+                if (itemEl) itemEl.style.display = 'none';
+            }
             switchTab('detailed');
             document.getElementById('detailedStatus').textContent = '已生成';
+        }
+
+        // ===== 编辑器弹窗 =====
+        let editorModalType = '';
+        let editorModalVolNum = 0;
+        let editorMode = 'edit';
+
+        function openEditorModal(type, volNum) {
+            editorModalType = type;
+            editorModalVolNum = volNum || 0;
+            editorMode = 'edit';
+
+            let content = '';
+            let title = '编辑';
+            if (type === 'settings') {
+                content = currentProjectData?.settings || '';
+                title = '📖 项目设定';
+            } else if (type === 'framework') {
+                content = currentProjectData?.framework || '';
+                title = '📋 全书框架';
+            } else if (type === 'volume') {
+                content = currentProjectData?.volumeOutlines?.[volNum] || '';
+                title = `📑 第${volNum}卷粗纲`;
+            } else if (type === 'detailed') {
+                content = currentProjectData?.detailed_outline || '';
+                title = '📄 章节细纲';
+            }
+
+            document.getElementById('editorModalTitle').textContent = title;
+            const textarea = document.getElementById('editorTextarea');
+            textarea.value = content;
+            textarea.classList.remove('hidden');
+            document.getElementById('editorPreview').classList.remove('active');
+            document.getElementById('editorEditBtn').classList.add('active');
+            document.getElementById('editorPreviewBtn').classList.remove('active');
+
+            document.getElementById('editorModal').classList.add('active');
+        }
+
+        function closeEditorModal() {
+            document.getElementById('editorModal').classList.remove('active');
+            editorModalType = '';
+            editorModalVolNum = 0;
+        }
+
+        function toggleEditorEdit() {
+            editorMode = 'edit';
+            document.getElementById('editorTextarea').classList.remove('hidden');
+            document.getElementById('editorPreview').classList.remove('active');
+            document.getElementById('editorEditBtn').classList.add('active');
+            document.getElementById('editorPreviewBtn').classList.remove('active');
+        }
+
+        function toggleEditorPreview() {
+            editorMode = 'preview';
+            const textarea = document.getElementById('editorTextarea');
+            const preview = document.getElementById('editorPreview');
+            textarea.classList.add('hidden');
+            preview.classList.add('active');
+            preview.innerHTML = marked.parse(textarea.value);
+            document.getElementById('editorEditBtn').classList.remove('active');
+            document.getElementById('editorPreviewBtn').classList.add('active');
+        }
+
+        function saveEditorModal() {
+            const textarea = document.getElementById('editorTextarea');
+            const newText = textarea.value;
+            if (editorModalType === 'settings') {
+                currentProjectData.settings = newText;
+            } else if (editorModalType === 'framework') {
+                currentProjectData.framework = newText;
+                // 更新文件列表显示
+                renderOutline(newText);
+            } else if (editorModalType === 'volume' && editorModalVolNum) {
+                currentProjectData.volumeOutlines = currentProjectData.volumeOutlines || {};
+                currentProjectData.volumeOutlines[editorModalVolNum] = newText;
+                // 更新卷文件列表
+                renderVolumeSelector(currentProjectData.framework);
+            } else if (editorModalType === 'detailed') {
+                currentProjectData.detailed_outline = newText;
+                renderDetailed(newText);
+            }
+            closeEditorModal();
+            showError('✅ 已保存到本地，点击"保存为最终方案"写入文件');
         }
 
         function switchTab(tab) {
@@ -1947,8 +2226,8 @@ ${continueHint}
         }
 
         async function saveProject() {
-            const settingsText = editSettings.value.trim();
-            if (!settingsText) {
+            const settingsText = currentProjectData?.settings || '';
+            if (!settingsText.trim()) {
                 showError('没有可保存的项目数据');
                 return;
             }
@@ -1962,13 +2241,6 @@ ${continueHint}
             // 合并大纲：框架 + 各卷粗纲
             let outlineText = '';
             if (currentProjectData?.framework) {
-                // 先把当前编辑区的内容同步到对应卷（如果用户有手动编辑）
-                const volSelect = document.getElementById('volSelect');
-                const currentVol = volSelect ? parseInt(volSelect.value, 10) : 0;
-                if (currentVol && editOutline.value.trim()) {
-                    currentProjectData.volumeOutlines = currentProjectData.volumeOutlines || {};
-                    currentProjectData.volumeOutlines[currentVol] = editOutline.value.trim();
-                }
                 outlineText = currentProjectData.framework;
                 // 追加各卷粗纲
                 const vols = currentProjectData.volumeOutlines || {};
@@ -1980,14 +2252,14 @@ ${continueHint}
                     }
                 }
             } else {
-                outlineText = editOutline.value.trim();
+                outlineText = currentProjectData?.outline || '';
             }
 
             const payload = {
                 title: title,
                 settings: settingsText,
                 outline: outlineText,
-                detailed_outline: editDetailed.value.trim(),
+                detailed_outline: currentProjectData?.detailed_outline || '',
                 framework: currentProjectData?.framework || ''
             };
 
