@@ -1787,7 +1787,14 @@ async function startGeneration() {
                         return;
                     }
                     if (data.session_messages) {
-                        sessionMessages = data.session_messages;
+                        // 精简对话历史：只保留初始设定 prompt + 最新 AI 回复
+                        // 去掉中间过期的 gen_prompt（旧的批次细纲对后续批次无用）
+                        const msgs = data.session_messages;
+                        if (msgs.length >= 2) {
+                            sessionMessages = [msgs[0], msgs[msgs.length - 1]];
+                        } else {
+                            sessionMessages = msgs;
+                        }
                     }
                     if (data.reasoning) {
                         currentThinking += data.reasoning;
