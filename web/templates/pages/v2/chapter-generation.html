@@ -2338,11 +2338,10 @@ function renderStorylineBigHtml() {
         if (ch.characters.length > 0) {
             html += '<div class="storyline-big-section ' + (ch.characters.length > 4 ? 'full' : '') + '"><h4>🎭 出场角色</h4><div class="storyline-big-tags">';
             for (const name of ch.characters) {
-                html += '<button class="storyline-big-tag char" onclick="showCharacterInfo(\'' + escapeHtml(name).replace(/'/g, "\\'") + '\', ' + ch.num + ')">' + escapeHtml(name) + '</button>';
+                html += '<button class="storyline-big-tag char" onclick="showStillModal(' + ch.num + ', \'character\', \'' + escapeHtml(name).replace(/'/g, "\\'") + '\')" title="点击生成「' + escapeHtml(name).replace(/'/g, "\\'") + '」角色图">' + escapeHtml(name) + '</button>';
             }
             html += '</div>' +
-                '<div class="still-image-grid" id="still-char-ch' + ch.num + '"></div>' +
-                '<button class="still-generate-btn" onclick="showStillModal(' + ch.num + ', \'character\', \'' + escapeHtml(ch.characters[0]).replace(/'/g, "\\'") + '\')">👤 生角色图</button></div>';
+                '<div class="still-image-grid" id="still-char-ch' + ch.num + '"></div></div>';
         }
         if (ch.hook) {
             html += '<div class="storyline-big-section full"><h4>💥 核心爽点</h4><div class="storyline-big-tags">' +
