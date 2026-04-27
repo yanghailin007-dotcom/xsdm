@@ -650,6 +650,47 @@
             line-height: 1.7;
             color: var(--text-secondary);
         }
+        .project-config {
+            padding: 12px 16px;
+            border-bottom: 1px solid var(--border-light);
+            background: var(--bg-secondary);
+        }
+        .config-row {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin: 6px 0;
+            font-size: 13px;
+            color: var(--text-secondary);
+        }
+        .config-row label {
+            width: 70px;
+            flex-shrink: 0;
+            font-weight: 500;
+        }
+        .config-row input {
+            width: 70px;
+            padding: 4px 8px;
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            font-size: 13px;
+            text-align: right;
+        }
+        .config-row input:focus {
+            outline: none;
+            border-color: var(--accent-blue);
+        }
+        .config-stats {
+            margin-top: 8px;
+            padding-top: 8px;
+            border-top: 1px solid var(--border-light);
+            font-size: 12px;
+            color: var(--text-muted);
+        }
+        .config-stats b { color: var(--accent-blue); }
+        .config-stats.warning { color: var(--accent-red); }
         .tab-content {
             display: none;
             height: 100%;
@@ -756,17 +797,20 @@
         .editor-preview h2 { font-size: 21px; font-weight: 650; margin: 24px 0 14px; padding-bottom: 8px; border-bottom: 1px solid var(--border-light); color: var(--accent-blue); }
         .editor-preview h3 { font-size: 18px; font-weight: 600; margin: 20px 0 12px; color: var(--text-primary); }
         .editor-preview h4 { font-size: 16px; font-weight: 600; margin: 16px 0 10px; color: var(--text-secondary); }
-        .editor-preview p { margin: 12px 0; }
-        .editor-preview ul, .editor-preview ol { margin: 12px 0; padding-left: 28px; }
-        .editor-preview li { margin: 6px 0; }
-        .editor-preview li::marker { color: var(--accent-blue); }
-        .editor-preview blockquote { margin: 16px 0; padding: 12px 18px; border-left: 4px solid var(--accent-blue); background: var(--bg-secondary); border-radius: 0 8px 8px 0; font-style: italic; }
+        .editor-preview p { margin: 10px 0; }
+        .editor-preview ul, .editor-preview ol { margin: 10px 0; padding-left: 22px; }
+        .editor-preview li { margin: 4px 0; }
+        .editor-preview li > p:first-child { margin-top: 0; }
+        .editor-preview li > p:last-child { margin-bottom: 0; }
+        .editor-preview li::marker { color: var(--accent-blue); font-size: 13px; }
+        .editor-preview blockquote { margin: 14px 0; padding: 10px 16px; border-left: 3px solid var(--accent-blue); background: var(--bg-secondary); border-radius: 0 8px 8px 0; font-style: italic; }
         .editor-preview blockquote p { margin: 0; }
-        .editor-preview code { background: var(--bg-secondary); padding: 2px 6px; border-radius: 4px; font-family: "SF Mono", Monaco, monospace; font-size: 13px; color: var(--accent); }
-        .editor-preview pre { background: var(--bg-secondary); padding: 16px 20px; border-radius: 10px; overflow-x: auto; font-size: 13px; line-height: 1.6; }
+        .editor-preview code { background: var(--bg-secondary); padding: 2px 5px; border-radius: 4px; font-family: "SF Mono", Monaco, monospace; font-size: 13px; color: var(--accent); }
+        .editor-preview pre { background: var(--bg-secondary); padding: 14px 18px; border-radius: 10px; overflow-x: auto; font-size: 13px; line-height: 1.6; }
         .editor-preview pre code { background: none; padding: 0; }
-        .editor-preview table { width: 100%; max-width: 800px; margin: 16px auto; border-collapse: collapse; font-size: 14px; }
-        .editor-preview th, .editor-preview td { padding: 10px 14px; border: 1px solid var(--border-light); text-align: left; }
+        .editor-preview table { width: 100%; max-width: 800px; margin: 14px 0; border-collapse: collapse; font-size: 14px; margin-left: 0; margin-right: 0; }
+        .typing-text { white-space: pre-wrap; word-break: break-word; }
+        .editor-preview th, .editor-preview td { padding: 8px 12px; border: 1px solid var(--border-light); text-align: left; line-height: 1.6; }
         .editor-preview th { background: var(--bg-secondary); font-weight: 600; }
         .editor-preview tr:nth-child(even) { background: rgba(0,0,0,0.02); }
         .editor-preview hr { border: none; border-top: 1px solid var(--border-light); margin: 24px auto; max-width: 800px; }
@@ -954,10 +998,20 @@
                 <h3>📋 项目方案</h3>
                 <button class="btn-close" onclick="hideSettings()">✕</button>
             </div>
+            <!-- 项目配置 -->
+            <div class="project-config" id="projectConfig">
+                <div class="config-row">
+                    <label>预估总字数</label>
+                    <input type="number" id="configTotalWords" value="50" min="10" max="500" step="10">
+                    <span>万字</span>
+                </div>
+                <div class="config-stats" id="configStats">
+                    约 <b>200</b> 章 / <b>4</b> 卷，每卷约 <b>50</b> 章（每章2500字）
+                </div>
+            </div>
             <div class="settings-tabs">
                 <button class="tab-btn active" data-tab="settings" onclick="switchTab('settings')">设定</button>
                 <button class="tab-btn" data-tab="outline" onclick="switchTab('outline')">大纲</button>
-
                 <button class="tab-btn" data-tab="quality" onclick="switchTab('quality')" id="tabBtnQuality">质检</button>
             </div>
             <div class="settings-body">
@@ -1079,6 +1133,67 @@
         // 配置 marked.js 支持 GFM 表格
         marked.use({ gfm: true, breaks: true });
 
+        // ========== 项目配置 ==========
+        const WORDS_PER_CHAPTER = 2500; // 固定每章2500字
+        const MAX_CHAPTERS_PER_VOLUME = 60; // 每卷最多60章
+        const AVG_CHAPTERS_PER_VOLUME = 35; // 按平均每卷35章算建议卷数，给AI留弹性
+
+        function getProjectConfig() {
+            const totalWords = parseInt(document.getElementById('configTotalWords').value) || 50;
+            const wordsPerChapter = WORDS_PER_CHAPTER;
+            const totalChapters = Math.round(totalWords * 10000 / wordsPerChapter);
+            // 建议卷数：按平均每卷42章计算，这样AI可以让某些卷30章、某些卷50-60章
+            const totalVolumes = Math.max(3, Math.ceil(totalChapters / AVG_CHAPTERS_PER_VOLUME));
+            const chaptersPerVolume = Math.round(totalChapters / totalVolumes);
+            return { totalWords, totalVolumes, wordsPerChapter, totalChapters, chaptersPerVolume };
+        }
+
+        function updateConfigStats() {
+            const cfg = getProjectConfig();
+            const statsEl = document.getElementById('configStats');
+            statsEl.innerHTML = `约 <b>${cfg.totalChapters}</b> 章 / 建议 <b>${cfg.totalVolumes}</b> 卷，平均每卷约 <b>${cfg.chaptersPerVolume}</b> 章（每章${cfg.wordsPerChapter}字，单卷上限60章）`;
+        }
+
+        // 从设定/框架文本中提取总字数和总卷数，自动回填到配置面板
+        function syncConfigFromProjectData() {
+            let totalWords = null;
+            let totalVolumes = null;
+
+            // 1. 优先从框架中提取（更权威）
+            const framework = currentProjectData?.framework || '';
+            if (framework) {
+                // **总字数**：200万字 / 总字数：200万字 / 200万字
+                const fwWordsMatch = framework.match(/\*\*总字数\*\*[:：]?\s*(\d+(?:\.\d+)?)\s*[万w]/i)
+                    || framework.match(/总字数[:：]?\s*(\d+(?:\.\d+)?)\s*[万w]/i);
+                if (fwWordsMatch) totalWords = Math.round(parseFloat(fwWordsMatch[1]));
+
+                // **总卷数**：23卷 / 总卷数：23卷
+                const fwVolMatch = framework.match(/\*\*总卷数\*\*[:：]?\s*(\d+)\s*[卷]/i)
+                    || framework.match(/总卷数[:：]?\s*(\d+)\s*[卷]/i);
+                if (fwVolMatch) totalVolumes = parseInt(fwVolMatch[1], 10);
+            }
+
+            // 2. 框架没有则从设定中提取
+            const settings = currentProjectData?.settings || '';
+            if (!totalWords && settings) {
+                const stWordsMatch = settings.match(/\*\*目标字数\*\*[:：]?\s*(\d+(?:\.\d+)?)\s*[万w]/i)
+                    || settings.match(/目标字数[:：]?\s*(\d+(?:\.\d+)?)\s*[万w]/i)
+                    || settings.match(/总字数[:：]?\s*(\d+(?:\.\d+)?)\s*[万w]/i);
+                if (stWordsMatch) totalWords = Math.round(parseFloat(stWordsMatch[1]));
+            }
+
+            // 3. 回填到输入框（仅在提取到有效值时更新）
+            const wordsInput = document.getElementById('configTotalWords');
+            if (totalWords && totalWords >= 10 && totalWords <= 500) {
+                wordsInput.value = totalWords;
+            }
+
+            updateConfigStats();
+        }
+
+        document.getElementById('configTotalWords').addEventListener('input', updateConfigStats);
+        updateConfigStats();
+
         let messages = [];
         let isStreaming = false;
         let isRegenerating = false;
@@ -1119,18 +1234,21 @@
             addMessageActions(bubble, true);
         }
 
-        // 流式输出缓冲区（实时 Markdown 渲染用）
-        let _streamRawBuffer = '';
+        // 流式输出：只渲染完整块，未完成部分隐藏
+        let _streamRawBuffer = '';      // 只存未渲染的内容
         let _streamMarkdownTimer = null;
 
         function addAiMessage() {
-            // 重置缓冲区
+            // 重置流式渲染状态
             _streamRawBuffer = '';
             if (_streamMarkdownTimer) clearTimeout(_streamMarkdownTimer);
+            _streamMarkdownTimer = null;
+
             const row = document.createElement('div');
             row.className = 'message-row ai';
             const bubbleId = 'aiBubble_' + Date.now();
             const thinkId = 'think_' + Date.now();
+            // 双容器结构：rendered-chunks（已渲染 Markdown）+ typing-text（正在输入的纯文本）
             row.innerHTML = `
                 <div class="message-content ai">
                     <div class="avatar ai"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg></div>
@@ -1139,7 +1257,11 @@
                             <summary>💭 思考过程</summary>
                             <span class="think-text"></span>
                         </details>
-                        <span class="stream-text"></span><span class="cursor"></span>
+                        <span class="stream-text">
+                            <span class="rendered-chunks"></span>
+                            <span class="typing-text"></span>
+                        </span>
+                        <span class="cursor"></span>
                     </div>
                 </div>
             `;
@@ -1155,27 +1277,99 @@
         }
         function appendToBubble(streamText, text) {
             _streamRawBuffer += text;
-            // 防抖实时渲染 Markdown（300ms，平衡流畅度和性能）
-            if (_streamMarkdownTimer) clearTimeout(_streamMarkdownTimer);
-            _streamMarkdownTimer = setTimeout(() => {
-                renderStreamMarkdown(streamText);
-            }, 300);
+            // 首次触发渲染链
+            if (!_streamMarkdownTimer) {
+                scheduleBufferedRender(streamText);
+            }
             scrollToBottom();
         }
 
-        function renderStreamMarkdown(streamText) {
-            try {
-                streamText.innerHTML = marked.parse(_streamRawBuffer);
-                // 重新追加光标
-                const parent = streamText.parentElement;
-                if (parent && !parent.querySelector('.cursor')) {
-                    parent.insertAdjacentHTML('beforeend', '<span class="cursor"></span>');
+        // 核心逻辑：找到完整 Markdown 块 → 打字机显示纯文本 → 打完替换为 HTML
+        function scheduleBufferedRender(streamText) {
+            _streamMarkdownTimer = setTimeout(() => {
+                const raw = _streamRawBuffer;
+                const boundary = findCompleteBlock(raw);
+
+                const rendered = streamText.querySelector('.rendered-chunks');
+
+                if (boundary > 0 && rendered) {
+                    const completeText = raw.slice(0, boundary);
+                    // 从缓冲区移除已完成的块
+                    _streamRawBuffer = raw.slice(boundary);
+                    // 打字机显示这一段
+                    typewriterChunk(rendered, completeText);
                 }
-            } catch (e) {
-                // marked 解析失败则保底显示纯文本+换行
-                streamText.textContent = _streamRawBuffer;
+
+                scrollToBottom();
+
+                // 如果缓冲区还有内容，继续链式渲染
+                if (_streamRawBuffer.length > 0) {
+                    scheduleBufferedRender(streamText);
+                } else {
+                    _streamMarkdownTimer = null;
+                }
+            }, 30);
+        }
+
+        // 打字机效果：先逐字显示纯文本，打完后瞬间替换为 marked 渲染的 HTML
+        function typewriterChunk(container, text) {
+            const plain = text; // 纯文本逐字显示，没有 Markdown 标记刺眼
+            const html = marked.parse(text); // 预渲染好的 HTML，打完替换
+
+            const wrapper = document.createElement('span');
+            wrapper.style.display = 'inline';
+            container.appendChild(wrapper);
+
+            let i = 0;
+            const speed = Math.max(8, Math.min(20, Math.floor(400 / plain.length))); // 根据长度自适应速度
+
+            function typeChar() {
+                if (i >= plain.length) {
+                    // 打字完成，替换为排版好的 HTML
+                    const temp = document.createElement('div');
+                    temp.innerHTML = html;
+                    while (temp.firstChild) {
+                        container.insertBefore(temp.firstChild, wrapper);
+                    }
+                    wrapper.remove();
+                    scrollToBottom();
+                    return;
+                }
+                wrapper.textContent = plain.slice(0, i + 1);
+                i++;
+                setTimeout(typeChar, speed);
             }
-            scrollToBottom();
+            typeChar();
+        }
+
+        // 找到可以安全渲染的完整 Markdown 块
+        function findCompleteBlock(text) {
+            // 1. 优先找 \n\n（段落分隔，最安全的边界）
+            let idx = text.lastIndexOf('\n\n');
+            if (idx >= 0) return idx + 2;
+
+            // 2. 找块级元素边界（标题、列表项、代码块开头 = 前面的内容可以安全渲染）
+            const lines = text.split('\n');
+            if (lines.length >= 2) {
+                const lastLine = lines[lines.length - 1].trim();
+                if (/^#{1,6}\s/.test(lastLine) || /^[-*]\s/.test(lastLine) || /^\d+\.\s/.test(lastLine) || /^```/.test(lastLine)) {
+                    const withoutLast = lines.slice(0, -1).join('\n');
+                    return withoutLast.length + 1;
+                }
+            }
+
+            // 3. 超过 150 字符，找最后一个 \n
+            if (text.length > 150) {
+                idx = text.lastIndexOf('\n');
+                if (idx >= 0) return idx + 1;
+            }
+
+            // 4. 超过 300 字符强制全部渲染（防卡死）
+            if (text.length > 300) {
+                return text.length;
+            }
+
+            return 0; // 没有找到完整块，不渲染
         }
 
         function appendToThink(thinkBox, thinkText, text) {
@@ -1185,18 +1379,30 @@
         }
 
         function finishBubble(bubble, streamText, thinkBox) {
-            // 清除实时渲染定时器，避免和最终渲染冲突
+            // 清除实时渲染定时器
             if (_streamMarkdownTimer) clearTimeout(_streamMarkdownTimer);
+            _streamMarkdownTimer = null;
+
             const cursor = bubble.querySelector('.cursor');
             if (cursor) cursor.remove();
-            // 用 marked.js 渲染最终 Markdown（带安全降级）
-            const rawText = _streamRawBuffer || streamText.textContent || '';
-            try {
-                streamText.innerHTML = marked.parse(rawText);
-            } catch (e) {
-                // marked.parse 失败时，至少保留换行排版
-                streamText.innerHTML = escapeHtml(rawText).replace(/\n/g, '<br>');
+
+            // 最终渲染：把缓冲区中剩余的所有内容一次性渲染
+            const rendered = streamText.querySelector('.rendered-chunks');
+            const typing = streamText.querySelector('.typing-text');
+            if (_streamRawBuffer.length > 0 && rendered) {
+                try {
+                    const temp = document.createElement('div');
+                    temp.innerHTML = marked.parse(_streamRawBuffer);
+                    while (temp.firstChild) {
+                        rendered.appendChild(temp.firstChild);
+                    }
+                } catch (e) {
+                    rendered.innerHTML += escapeHtml(_streamRawBuffer).replace(/\n/g, '<br>');
+                }
+                _streamRawBuffer = '';
             }
+            if (typing) typing.textContent = ''; // 清空 typing 区
+
             // 如果有思考内容，自动展开思考过程
             if (thinkBox && thinkBox.style.display !== 'none') {
                 thinkBox.open = true;
@@ -1615,6 +1821,7 @@
                     document.getElementById('outlineStatus').textContent = '可生成框架';
                     btnGenerate.innerHTML = '✨ 生成框架';
                     pendingGenerateType = null;
+                    syncConfigFromProjectData();
                 } else if (pendingGenerateType === 'framework') {
                     currentProjectData = currentProjectData || {};
                     currentProjectData.framework = fullText;
@@ -1627,6 +1834,8 @@
                     document.getElementById('outlineStatus').textContent = '框架已生成，请选择卷生成粗纲';
                     btnGenerate.innerHTML = '✨ 生成粗纲';
                     pendingGenerateType = null;
+                    // 自动同步字数/卷数到配置面板
+                    syncConfigFromProjectData();
                 } else if (pendingGenerateType === 'volume_outline') {
                     currentProjectData = currentProjectData || {};
                     currentProjectData.volumeOutlines = currentProjectData.volumeOutlines || {};
@@ -1673,10 +1882,13 @@
             if (isStreaming) return;
 
             pendingGenerateType = 'settings';
+            const cfg = getProjectConfig();
 
             const prompt = `请根据以上对话内容，生成一份番茄小说平台的项目设定方案。
 
 【平台背景】番茄小说：算法推荐驱动、免费阅读、下沉市场为主。读者没有沉没成本，3秒划走。书名+简介决定点击率，前3章决定留存率。
+
+【项目规模】本书计划 ${cfg.totalWords} 万字，共 ${cfg.totalVolumes} 卷，每章约 ${cfg.wordsPerChapter} 字，预估总章节约 ${cfg.totalChapters} 章，每卷约 ${cfg.chaptersPerVolume} 章。每卷章节数严格控制在60章以内，不得超过。
 
 输出格式为 Markdown：
 
@@ -1693,8 +1905,9 @@
   - 禁止叙事体！禁止"这是一个关于..."开头！要像短视频文案一样制造好奇
 - **题材**：如 都市·脑洞·系统 / 玄幻·无敌流 / 历史·种田·饥荒
 - **标签**：5-8个，必须包含番茄热门标签（系统、神豪、奶爸、签到、直播、美食、年代、重生、学霸、特种兵）
-- **目标字数**：100-200万字（番茄完本收益门槛）
-- **预估章节**：500-1000章
+- **目标字数**：${cfg.totalWords}万字
+- **预估章节**：约${cfg.totalChapters}章（每章约${cfg.wordsPerChapter}字）
+- **总卷数**：${cfg.totalVolumes}卷，每卷章节数控制在30-60章之间，严禁超过60章
 
 # 开局设计（番茄生死线）
 - **第1章前300字**：主角必须在极端困境中（被开除/被退婚/被嘲笑/被追杀/被背叛），让读者立刻同情或好奇
@@ -1763,29 +1976,33 @@
             if (isStreaming) return;
 
             pendingGenerateType = 'framework';
+            const cfg = getProjectConfig();
 
             const prompt = `请根据以上项目设定，生成全书框架规划。这是全书的"设计蓝图"，不是逐章大纲。
 
 【平台要求】番茄小说：算法推荐、免费阅读。读者随时会划走。
+
+【项目规模】本书计划 ${cfg.totalWords} 万字，共 ${cfg.totalVolumes} 卷，每章约 ${cfg.wordsPerChapter} 字，预估总章节约 ${cfg.totalChapters} 章，每卷约 ${cfg.chaptersPerVolume} 章。每卷章节数严格控制在60章以内，不得超过。
 
 输出格式为 Markdown：
 
 # 全书框架
 
 ## 基础信息
-- **总字数**：xxx万字
-- **总卷数**：x卷（卷数由故事节奏决定，不预设范围）
+- **总字数**：${cfg.totalWords}万字
+- **总卷数**：${cfg.totalVolumes}卷
+- **总章节**：约${cfg.totalChapters}章（每章约${cfg.wordsPerChapter}字）
 - **核心爽点类型**：与设定一致
 
 ## 分卷字数分配表（必须用百分比）
 在分卷规划之前，先用下表明确各卷占总书字数的百分比。这是防止AI机械平均分配的关键：
 
-| 卷号 | 卷名 | 占全书字数比例 | 预估字数 | 作用定位 |
-|-----|------|--------------|---------|---------|
-| 第1卷 | ... | 8% | xx万字 | 快速开局，建立爽感 |
-| 第2卷 | ... | 12% | xx万字 | 世界观展开，埋下暗线 |
-| 第3卷 | ... | 15% | xx万字 | 第一个大高潮 |
-| ... | ... | ... | ... | ... |
+| 卷号 | 卷名 | 占全书字数比例 | 预估字数 | 章节数 | 作用定位 |
+|-----|------|--------------|---------|--------|---------|
+| 第1卷 | ... | 8% | xx万字 | 约X章 | 快速开局，建立爽感 |
+| 第2卷 | ... | 12% | xx万字 | 约X章 | 世界观展开，埋下暗线 |
+| 第3卷 | ... | 15% | xx万字 | 约X章 | 第一个大高潮 |
+| ... | ... | ... | ... | ... | ... |
 
 **百分比分配原则（供参考）**：
 - 开局卷（第1卷）：5-10%（快速入戏，不宜太长）
@@ -1802,7 +2019,7 @@
 - **起始章号**：全书第1章（必须从第1章开始）
 - **结束章号**：全书第X章（严格计算，不能多也不能少）
 - **预估字数**：约xx万字（仅供参考，由故事内容决定）
-- **章节数**：约X章（由爽点循环的节奏决定，不必精确）
+- **章节数**：约X章（由爽点循环的节奏决定，必须在30-60章之间，严禁超过60章）
 - **本卷爽点循环**：
   - 【开局压制】：...（主角遇到什么困境）
   - 【金手指/升级】：...（获得什么新能力/资源）
@@ -1846,7 +2063,7 @@
    - 【高潮打脸】正面碾压，具体爽感必须量化（钱/等级/声望涨了多少）
    - 【收获升级】主角获得具体收益，数值可视化
    - 【收尾钩子】新危机/新悬念出现，驱动读者点下一卷
-   节奏快的卷可以短（30章左右），需要铺陈的卷可以长（60章左右），长短搭配
+   节奏快的卷可以短（30章左右），需要铺陈的卷可以长（60章左右），长短搭配，但任何一卷都不得超过60章
 3. 全书关键节点一览表只需列出**有叙事价值的章节**（约占总章节的30-40%），不是每章都列
 4. 绝对章号一旦确定就不要更改，后续逐卷生成时会严格按此编号
 5. 每个情绪标签必须精准：不能连续3章都是[压抑]，[压抑]后下一章必须是[反击]或[收获]
