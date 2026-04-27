@@ -957,7 +957,7 @@
             <div class="settings-tabs">
                 <button class="tab-btn active" data-tab="settings" onclick="switchTab('settings')">设定</button>
                 <button class="tab-btn" data-tab="outline" onclick="switchTab('outline')">大纲</button>
-                <button class="tab-btn" data-tab="detailed" onclick="switchTab('detailed')">细纲</button>
+
                 <button class="tab-btn" data-tab="quality" onclick="switchTab('quality')" id="tabBtnQuality">质检</button>
             </div>
             <div class="settings-body">
@@ -1016,30 +1016,7 @@
                         <div id="volumeFileList"></div>
                     </div>
                 </div>
-                <!-- 细纲 Tab -->
-                <div class="tab-content" id="tab-detailed">
-                    <div class="tab-actions">
-                        <button class="tab-gen-btn" id="btnGenDetailed" onclick="generateDetailed()" disabled>📖 生成细纲</button>
-                        <span class="tab-status" id="detailedStatus">需先完成大纲</span>
-                    </div>
-                    <div class="file-list" id="fileListDetailed">
-                        <div class="file-item empty" id="detailedFileEmpty">
-                            <div class="file-icon">📄</div>
-                            <div class="file-info">
-                                <div class="file-name">章节细纲</div>
-                                <div class="file-status">未生成</div>
-                            </div>
-                        </div>
-                        <div class="file-item" id="detailedFileItem" style="display:none;" onclick="openEditorModal('detailed')">
-                            <div class="file-icon">📄</div>
-                            <div class="file-info">
-                                <div class="file-name">章节细纲</div>
-                                <div class="file-status ready">已生成，点击编辑</div>
-                            </div>
-                            <div class="file-action">✏️</div>
-                        </div>
-                    </div>
-                </div>
+
                 <!-- 质检 Tab -->
                 <div class="tab-content" id="tab-quality">
                     <div id="qualityReport" style="padding:16px 20px;">
@@ -1080,7 +1057,7 @@
     <div class="loading-overlay" id="loadingOverlay">
         <div class="spinner"></div>
         <div class="loading-text">正在生成项目方案，约需 60-120 秒...</div>
-        <div class="loading-sub" id="loadingModel">DeepSeek-V4-Pro · 设定+大纲+细纲</div>
+        <div class="loading-sub" id="loadingModel">DeepSeek-V4-Pro · 设定+大纲</div>
     </div>
 
     <!-- 错误提示 -->
@@ -1105,7 +1082,7 @@
         let messages = [];
         let isStreaming = false;
         let isRegenerating = false;
-        let pendingGenerateType = null; // 'settings' | 'outline' | 'detailed' | null
+        let pendingGenerateType = null; // 'settings' | 'outline' | null
         let currentProjectData = null;
         let currentConversationId = null;
         const HISTORY_KEY = 'novelcraft_conversation_history';
@@ -1125,9 +1102,11 @@
             const row = document.createElement('div');
             row.className = 'message-row user';
             const msgIndex = messages.length;
+            // 用户消息也渲染 Markdown（保留换行、列表、加粗等排版）
+            const rendered = marked.parse(text);
             row.innerHTML = `
                 <div class="message-content user">
-                    <div class="bubble" data-msg-index="${msgIndex}"><p>${escapeHtml(text)}</p></div>
+                    <div class="bubble" data-msg-index="${msgIndex}">${rendered}</div>
                     <div class="avatar user">👤</div>
                 </div>
             `;
@@ -1140,7 +1119,14 @@
             addMessageActions(bubble, true);
         }
 
+        // 流式输出缓冲区（实时 Markdown 渲染用）
+        let _streamRawBuffer = '';
+        let _streamMarkdownTimer = null;
+
         function addAiMessage() {
+            // 重置缓冲区
+            _streamRawBuffer = '';
+            if (_streamMarkdownTimer) clearTimeout(_streamMarkdownTimer);
             const row = document.createElement('div');
             row.className = 'message-row ai';
             const bubbleId = 'aiBubble_' + Date.now();
@@ -1168,7 +1154,27 @@
             };
         }
         function appendToBubble(streamText, text) {
-            streamText.textContent += text;
+            _streamRawBuffer += text;
+            // 防抖实时渲染 Markdown（300ms，平衡流畅度和性能）
+            if (_streamMarkdownTimer) clearTimeout(_streamMarkdownTimer);
+            _streamMarkdownTimer = setTimeout(() => {
+                renderStreamMarkdown(streamText);
+            }, 300);
+            scrollToBottom();
+        }
+
+        function renderStreamMarkdown(streamText) {
+            try {
+                streamText.innerHTML = marked.parse(_streamRawBuffer);
+                // 重新追加光标
+                const parent = streamText.parentElement;
+                if (parent && !parent.querySelector('.cursor')) {
+                    parent.insertAdjacentHTML('beforeend', '<span class="cursor"></span>');
+                }
+            } catch (e) {
+                // marked 解析失败则保底显示纯文本+换行
+                streamText.textContent = _streamRawBuffer;
+            }
             scrollToBottom();
         }
 
@@ -1179,11 +1185,18 @@
         }
 
         function finishBubble(bubble, streamText, thinkBox) {
+            // 清除实时渲染定时器，避免和最终渲染冲突
+            if (_streamMarkdownTimer) clearTimeout(_streamMarkdownTimer);
             const cursor = bubble.querySelector('.cursor');
             if (cursor) cursor.remove();
-            // 用 marked.js 渲染最终 Markdown
-            const rawText = streamText.textContent;
-            streamText.innerHTML = marked.parse(rawText);
+            // 用 marked.js 渲染最终 Markdown（带安全降级）
+            const rawText = _streamRawBuffer || streamText.textContent || '';
+            try {
+                streamText.innerHTML = marked.parse(rawText);
+            } catch (e) {
+                // marked.parse 失败时，至少保留换行排版
+                streamText.innerHTML = escapeHtml(rawText).replace(/\n/g, '<br>');
+            }
             // 如果有思考内容，自动展开思考过程
             if (thinkBox && thinkBox.style.display !== 'none') {
                 thinkBox.open = true;
@@ -1292,7 +1305,7 @@
                 if (nextVol) {
                     btnGenerate.innerHTML = `✨ 生成第${nextVol}卷粗纲`;
                 } else {
-                    btnGenerate.innerHTML = '✨ 生成细纲';
+                    btnGenerate.innerHTML = '✨ 保存并去写正文';
                 }
             }
         }
@@ -1309,12 +1322,11 @@
                 if (nextVol) {
                     generateVolumeOutline(nextVol);
                 } else {
-                    // 全部粗纲已完成，切换为细纲
-                    btnGenerate.innerHTML = '✨ 生成细纲';
-                    generateDetailed();
+                    // 全部粗纲已完成，提示保存并跳转正文生成
+                    saveProject();
+                    showToast('项目方案已保存，请前往「正文生成」页面继续', 'success');
+                    return;
                 }
-            } else if (text.includes('细纲')) {
-                generateDetailed();
             }
         }
 
@@ -1411,8 +1423,7 @@
             // 重置面板按钮
             document.getElementById('btnGenOutline').disabled = true;
             document.getElementById('outlineStatus').textContent = '需先完成设定';
-            document.getElementById('btnGenDetailed').disabled = true;
-            document.getElementById('detailedStatus').textContent = '需先完成大纲';
+
             // 重置卷选择器
             const volActions = document.getElementById('volumeActions');
             if (volActions) volActions.style.display = 'none';
@@ -1421,7 +1432,6 @@
             // 重置文件列表
             renderSettings('');
             renderOutline('');
-            renderDetailed('');
             const volumeFileList = document.getElementById('volumeFileList');
             if (volumeFileList) volumeFileList.innerHTML = '';
             qualityReport.innerHTML = '<p style="text-align:center;color:var(--text-muted);">生成设定后将自动进行质检...</p>';
@@ -1476,7 +1486,7 @@
             if (currentProjectData) {
                 renderSettings(currentProjectData.settings || '');
                 renderOutline(currentProjectData.outline || '');
-                renderDetailed(currentProjectData.detailed_outline || '');
+
                 settingsPanel.classList.add('active');
                 // 恢复卷选择器
                 if (currentProjectData.framework) {
@@ -1526,12 +1536,29 @@
                 // 检查是否是 SSE 流
                 const contentType = response.headers.get('content-type') || '';
                 if (!contentType.includes('text/event-stream')) {
-                    // 可能返回了 HTML（未登录或错误）
                     const text = await response.text();
+                    // 可能返回了 HTML（未登录或错误）
                     if (text.includes('<!DOCTYPE html>') || text.includes('<html')) {
                         throw new Error('会话已过期，请刷新页面重新登录');
                     }
-                    throw new Error('API 返回格式异常');
+                    // 尝试解析后端 JSON 错误
+                    try {
+                        const errJson = JSON.parse(text);
+                        if (errJson.error) {
+                            throw new Error(errJson.error);
+                        }
+                        if (errJson.message) {
+                            throw new Error(errJson.message);
+                        }
+                    } catch (e) {
+                        if (e.message && !e.message.includes('JSON')) {
+                            throw e; // 是后端返回的错误，直接抛
+                        }
+                    }
+                    //  fallback: 显示 HTTP 状态码 + 原始文本片段
+                    const status = response.status;
+                    const preview = text.slice(0, 200);
+                    throw new Error(`API 返回异常 (HTTP ${status}): ${preview || '无响应内容'}`);
                 }
 
                 const reader = response.body.getReader();
@@ -1619,19 +1646,11 @@
                     if (nextVol) {
                         btnGenerate.innerHTML = `✨ 生成第${nextVol}卷粗纲`;
                     } else {
-                        btnGenerate.innerHTML = '✨ 生成细纲';
-                        document.getElementById('outlineStatus').textContent = '全部粗纲已生成，可生成细纲';
-                        document.getElementById('btnGenDetailed').disabled = false;
-                        document.getElementById('detailedStatus').textContent = '可生成细纲';
+                        btnGenerate.innerHTML = '✨ 保存并去写正文';
+                        document.getElementById('outlineStatus').textContent = '全部粗纲已生成，请前往正文生成页面';
                     }
                     pendingGenerateType = null;
                     currentGeneratingVolume = 0;
-                } else if (pendingGenerateType === 'detailed') {
-                    currentProjectData = currentProjectData || {};
-                    currentProjectData.detailed_outline = fullText;
-                    renderDetailed(fullText);
-                    settingsPanel.classList.add('active');
-                    pendingGenerateType = null;
                 }
 
                 // 自动保存到历史
@@ -1663,7 +1682,7 @@
 
 # 项目信息
 - **书名**：番茄风格书名，要求：
-  - 15-25字，长书名，必须包含核心冲突
+  - 严格15字以内，超过15字的书名读者记忆成本过高，直接影响点击率
   - 格式参考：《被裁员后，我觉醒了xxx》《全县最穷，你却说要xxx？》《xxx后，全网跪了》
   - 要有情绪词（跪了/炸了/疯了/绝了）或数字（10倍/100万/第1名）
 - **一句话简介**：20字以内，广告文案体，直接说出核心卖点。禁止"讲述了"
@@ -1716,7 +1735,18 @@
 1. 所有设定必须服务于"让读者停不下来"这个目标，每一个字都要想想"这能让读者爽吗？"
 2. 金手指规则必须简单、具体、可量化。读者能口算出主角赚了多少钱/升了多少级
 3. 禁止文青病：不要深刻人性探讨，不要慢热铺垫，不要环境描写超过200字，不要诗词歌赋
-4. 书名和简介写完自己检查：如果我是刷抖音的，看到这个书名会点进来吗？`; 
+4. 书名和简介写完自己检查：如果我是刷短视频的，看到这个书名会点进来吗？
+
+【现实规避铁律 — 平行时空设定】
+1. 国名代称：中国→龙国/华夏/九州，美国→星条国/合众国，日本→樱花国/东瀛，英国→雾都国
+2. 一线城市：北京→B市/京城/燕京，上海→S市/沪市/申城，深圳→S市/深市/鹏城，广州→G市/羊城
+3. 省份：广东→粤州/南粤，浙江→浙州/钱塘，江苏→苏州/江南，四川→蜀州/天府
+4. 机构：省政府→省署/省府，县政府→县衙/县署，公安局→警署/治安司，法院→裁判司，高铁→磁悬浮/城际快线
+5. 品牌/APP：iPhone→智能机，微信→某社交软件，支付宝→某支付软件，抖音→某短视频平台，微博→某社交平台，淘宝→某购物平台
+6. 真实名人：禁止出现真实存在的名人、明星、政客姓名
+7. 敏感事件：禁止影射、映射、暗示任何现实敏感事件
+8. 货币：人民币→龙币/华夏币；身份证→身份卡；驾驶证→驾驶许可
+9. 本故事发生在平行时空，所有地名、机构、事件均为虚构`; 
 
             sendMessage(prompt);
         }
@@ -1951,51 +1981,7 @@ ${rangeHint}
             sendMessage(prompt);
         }
 
-        function generateDetailed() {
-            const settings = currentProjectData?.settings;
-            const outline = currentProjectData?.outline;
-            if (!settings || !outline) {
-                showError('请先生成设定和大纲');
-                return;
-            }
-            if (isStreaming) return;
 
-            pendingGenerateType = 'detailed';
-
-            const prompt = `请根据以上项目设定和故事大纲，生成番茄风格的详细细纲。
-
-【平台要求】番茄小说：每章都是独立战斗，读者随时会划走。每章必须有明确的情绪价值和钩子。
-
-输出格式为 Markdown（每章一个段落）：
-
-# 第X卷细纲
-
-## 第X章：章节标题
-**场景**：具体地点
-**出场人物**：主角 + 谁（标注该人物是L1/L2/L3哪一层打脸对象）
-**情节推进**：
-- 开头（50字）：直接切入冲突，不要环境描写！
-- 中段（100字）：主角用金手指解决问题/反击/收获
-- 结尾（50字）：钩子！必须是以下之一：
-  - 悬念（新危机出现）
-  - 震惊（旁人反应）
-  - 期待（主角即将获得新能力/新资源）
-  - 爽感回味（刚打完脸，反派还没反应过来）
-**情绪曲线**：压抑→反击→爽（标注具体爽点类型：震惊/收获/打脸/反转）
-**收获可视化**：主角具体获得了什么（钱+xx万/等级+xx/声望+xx）
-
-## 第X+1章：...
-
-要求：
-1. 每章细纲严格遵循"压抑不超过1章"铁律：如果这章主角受辱，下一章必须已经开始反击
-2. 每章结尾钩子必须让读者产生"再看一章"的冲动
-3. 爽点必须具体可量化：不是"主角变强了"，是"主角账户多了500万，等级升到Lv.5"
-4. 对话要简短有力，禁止大段独白和内心OS。番茄读者看的是"发生了什么"不是"主角在想什么"
-5. 第1章细纲要最详细（500字以上），因为第1章决定生死
-6. 大高潮章（每卷末章）要标注具体打脸场景：谁在什么场景下以什么方式被打脸`;
-
-            sendMessage(prompt);
-        }
 
         async function runQualityCheck(model, projectData) {
             qualityReport.innerHTML = '<p style="text-align:center;color:var(--text-muted);">🔍 正在质检打磨，请稍候...</p>';
@@ -2178,21 +2164,7 @@ ${rangeHint}
             generateVolumeOutline(volNum);
         }
 
-        function renderDetailed(data) {
-            currentProjectData = currentProjectData || {};
-            currentProjectData.detailed_outline = data;
-            const emptyEl = document.getElementById('detailedFileEmpty');
-            const itemEl = document.getElementById('detailedFileItem');
-            if (data && data.trim()) {
-                if (emptyEl) emptyEl.style.display = 'none';
-                if (itemEl) itemEl.style.display = 'flex';
-            } else {
-                if (emptyEl) emptyEl.style.display = 'flex';
-                if (itemEl) itemEl.style.display = 'none';
-            }
-            switchTab('detailed');
-            document.getElementById('detailedStatus').textContent = '已生成';
-        }
+
 
         // ===== 编辑器弹窗 =====
         let editorModalType = '';
@@ -2215,9 +2187,7 @@ ${rangeHint}
             } else if (type === 'volume') {
                 content = currentProjectData?.volumeOutlines?.[volNum] || '';
                 title = `📑 第${volNum}卷粗纲`;
-            } else if (type === 'detailed') {
-                content = currentProjectData?.detailed_outline || '';
-                title = '📄 章节细纲';
+
             }
 
             document.getElementById('editorModalTitle').textContent = title;
@@ -2228,7 +2198,11 @@ ${rangeHint}
             textarea.classList.add('hidden');
             const preview = document.getElementById('editorPreview');
             preview.classList.add('active');
-            preview.innerHTML = marked.parse(content);
+            try {
+                preview.innerHTML = marked.parse(content || '');
+            } catch (e) {
+                preview.innerHTML = '<pre style="white-space:pre-wrap;">' + escapeHtml(content || '') + '</pre>';
+            }
             document.getElementById('editorEditBtn').classList.remove('active');
             document.getElementById('editorPreviewBtn').classList.add('active');
 
@@ -2255,7 +2229,11 @@ ${rangeHint}
             const preview = document.getElementById('editorPreview');
             textarea.classList.add('hidden');
             preview.classList.add('active');
-            preview.innerHTML = marked.parse(textarea.value);
+            try {
+                preview.innerHTML = marked.parse(textarea.value || '');
+            } catch (e) {
+                preview.innerHTML = '<pre style="white-space:pre-wrap;">' + escapeHtml(textarea.value || '') + '</pre>';
+            }
             document.getElementById('editorEditBtn').classList.remove('active');
             document.getElementById('editorPreviewBtn').classList.add('active');
         }
@@ -2274,9 +2252,8 @@ ${rangeHint}
                 currentProjectData.volumeOutlines[editorModalVolNum] = newText;
                 // 更新卷文件列表
                 renderVolumeSelector(currentProjectData.framework);
-            } else if (editorModalType === 'detailed') {
-                currentProjectData.detailed_outline = newText;
-                renderDetailed(newText);
+
+
             }
             closeEditorModal();
             showError('✅ 已保存到本地，点击"保存为最终方案"写入文件');
