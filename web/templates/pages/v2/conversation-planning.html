@@ -1859,8 +1859,8 @@ ${continueHint}
             const volSelect = document.getElementById('volSelect');
             if (!volActions || !volSelect) return;
 
-            // 清空现有选项
-            volSelect.innerHTML = '<option value="">-- 选择卷 --</option>';
+            // 清空现有选项，保留全书框架选项
+            volSelect.innerHTML = '<option value="framework">📋 全书框架</option>';
 
             // 尝试从框架文本中解析卷数
             let volCount = 0;
@@ -1891,8 +1891,16 @@ ${continueHint}
         }
 
         function switchVolumeOutline(volNum) {
+            if (!currentProjectData) return;
+            // 选择"全书框架"
+            if (volNum === 'framework' || volNum === '') {
+                editOutline.value = currentProjectData.framework || '';
+                const btn = document.getElementById('btnGenVolOutline');
+                if (btn) btn.textContent = '📝 生成该卷粗纲';
+                return;
+            }
             volNum = parseInt(volNum, 10);
-            if (!volNum || !currentProjectData) return;
+            if (!volNum) return;
             const text = currentProjectData.volumeOutlines?.[volNum] || '';
             editOutline.value = text || '（该卷粗纲尚未生成，点击上方“生成该卷粗纲”按钮）';
             // 更新按钮状态
@@ -1979,7 +1987,8 @@ ${continueHint}
                 title: title,
                 settings: settingsText,
                 outline: outlineText,
-                detailed_outline: editDetailed.value.trim()
+                detailed_outline: editDetailed.value.trim(),
+                framework: currentProjectData?.framework || ''
             };
 
             loadingOverlay.classList.add('active');

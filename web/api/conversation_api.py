@@ -789,6 +789,13 @@ def save_project():
         with open(detailed_file, 'w', encoding='utf-8') as f:
             f.write(detailed_md)
         
+        # 3.5 保存框架为 Markdown（如有）
+        framework_md = data.get("framework", "")
+        if framework_md:
+            framework_file = project_dir / "framework.md"
+            with open(framework_file, 'w', encoding='utf-8') as f:
+                f.write(framework_md)
+        
         # 4. 保存 core-setting.md（兼容旧流程）
         core_file = project_dir / "core-setting.md"
         with open(core_file, 'w', encoding='utf-8') as f:
