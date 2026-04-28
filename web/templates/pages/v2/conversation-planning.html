@@ -42,6 +42,35 @@
             --text-muted: #9ca3af;
         }
 
+        /* Light mode 用户消息气泡覆盖（DeepSeek 风格） */
+        html[data-theme="light"] .message-content.user .bubble {
+            background: #f5f5f5;
+            color: #1a1a2e;
+        }
+        html[data-theme="light"] .message-content.user .bubble strong {
+            color: #1a1a2e;
+        }
+        html[data-theme="light"] .message-content.user .bubble p {
+            color: #1a1a2e;
+        }
+        html[data-theme="light"] .message-content.user .message-actions {
+            border-top-color: rgba(0,0,0,0.08);
+        }
+        html[data-theme="light"] .message-content.user .msg-action-btn {
+            color: rgba(0,0,0,0.6);
+            border-color: rgba(0,0,0,0.15);
+            background: rgba(0,0,0,0.05);
+        }
+        html[data-theme="light"] .message-content.user .msg-action-btn:hover {
+            color: #1a1a2e;
+            background: rgba(0,0,0,0.1);
+            border-color: rgba(0,0,0,0.25);
+        }
+        html[data-theme="light"] .message-content.user .msg-action-btn.copied {
+            color: #16a34a;
+            border-color: #16a34a;
+        }
+
         * { margin: 0; padding: 0; box-sizing: border-box; }
 
         html, body {
