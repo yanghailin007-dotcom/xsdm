@@ -1,9 +1,9 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="zh-CN">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>姝ｆ枃鐢熸垚 - NovelCraft</title>
+    <title>正文生成 - NovelCraft</title>
     <link rel="icon" type="image/x-icon" href="/static/favicon.ico">
     <link rel="shortcut icon" type="image/x-icon" href="/static/favicon.ico">
     <script>
@@ -62,7 +62,7 @@
             overflow: hidden;
         }
 
-        /* ===== 椤堕儴瀵艰埅 ===== */
+        /* ===== 顶部导航 ===== */
         .top-nav {
             height: 56px;
             background: var(--bg-secondary);
@@ -104,7 +104,7 @@
         }
         .nav-user { font-size: 12px; color: var(--text-secondary); }
 
-        /* ===== 涓讳綋甯冨眬 ===== */
+        /* ===== 主体布局 ===== */
         .main-wrapper {
             height: calc(100vh - 56px);
             display: grid;
@@ -112,7 +112,7 @@
             overflow: hidden;
         }
 
-        /* ===== 宸︿晶闈㈡澘 ===== */
+        /* ===== 左侧面板 ===== */
         .left-panel {
             background: var(--bg-secondary);
             border-right: 1px solid var(--border-color);
@@ -247,7 +247,7 @@
             transition: width 0.3s ease;
         }
 
-        /* ===== 鏁呬簨绾胯鍥撅紙鍦ㄥ彸渚ф鏂囧尯鍩熷睍绀猴級 ===== */
+        /* ===== 故事线视图（在右侧正文区域展示） ===== */
         .storyline-view {
             padding: 24px 32px;
             overflow-y: auto;
@@ -427,7 +427,7 @@
             font-size: 14px;
         }
 
-        /* ===== 鍙充晶闈㈡澘 ===== */
+        /* ===== 右侧面板 ===== */
         .right-panel {
             display: flex;
             flex-direction: column;
@@ -435,7 +435,7 @@
             position: relative;
         }
 
-        /* 鍙傝€冧晶婊戦潰鏉?*/
+        /* 参考侧滑面板 */
         .ref-drawer {
             position: absolute;
             top: 0; right: 0; bottom: 0;
@@ -541,7 +541,7 @@
             font-weight: 600;
         }
 
-        /* ===== 鍙充晶缁嗙翰闈㈡澘 ===== */
+        /* ===== 右侧细纲面板 ===== */
         .outline-panel {
             background: var(--bg-secondary);
             border-left: 1px solid var(--border-color);
@@ -549,9 +549,14 @@
             flex-direction: column;
             overflow: hidden;
         }
+        .outline-panel.collapsed {
+            width: 40px;
+            min-width: 40px;
+        }
         .outline-panel-header {
             display: flex;
             align-items: center;
+            justify-content: space-between;
             padding: 10px 14px;
             border-bottom: 1px solid var(--border-color);
             flex-shrink: 0;
@@ -565,6 +570,20 @@
             align-items: center;
             gap: 6px;
         }
+        .outline-panel-toggle {
+            width: 24px; height: 24px;
+            border-radius: 6px;
+            border: none;
+            background: transparent;
+            color: var(--text-secondary);
+            font-size: 14px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s;
+        }
+        .outline-panel-toggle:hover { background: var(--bg-primary); color: var(--text-primary); }
         .outline-panel-body {
             flex: 1;
             overflow-y: auto;
@@ -654,7 +673,7 @@
         }
         .outline-edit-textarea {
             width: 100%;
-            min-height: 500px;
+            min-height: 300px;
             padding: 10px;
             background: var(--bg-primary);
             border: 1px solid var(--border-color);
@@ -830,7 +849,7 @@
             max-width: 720px;
             margin: 0 auto;
         }
-        /* 鎵嬫満绔槄璇讳紭鍖?*/
+        /* 手机端阅读优化 */
         @media (max-width: 768px) {
             .content-body {
                 padding: 16px 20px;
@@ -858,17 +877,17 @@
         .edit-textarea:focus {
             box-shadow: inset 0 0 0 2px var(--accent);
         }
-        /* 鐣寗 APP 鏍囧噯锛氱┖琛屽垎闅旓紝鏃犻琛岀缉杩?*/
+        /* 番茄 APP 标准：空行分隔，无首行缩进 */
         .content-body p {
             margin-bottom: 0.5em;
             text-indent: 2em;
             line-height: 1.75;
         }
-        /* 鍦烘櫙/鍔ㄤ綔杩囨浮鐭彞锛堚墹15瀛楋級鈥斺€斾繚鎸佺嫭绔嬫钀斤紝鐣寗椋庢牸 */
+        /* 场景/动作过渡短句（≤15字）——保持独立段落，番茄风格 */
         .content-body p.short {
             margin-bottom: 0.4em;
         }
-        /* 瀵硅瘽娈佃惤鈥斺€斾笌鏅€氬彊杩板悓鏍煎紡锛岀綉鏂囦笉棰濆缂╄繘 */
+        /* 对话段落——与普通叙述同格式，网文不额外缩进 */
         .content-body p.dialogue {
             margin-bottom: 0.4em;
         }
@@ -927,7 +946,7 @@
         }
         .thinking-box .thinking-body.collapsed { display: none; }
 
-        /* ===== 璐ㄦ闈㈡澘 ===== */
+        /* ===== 质检面板 ===== */
         .quality-panel {
             background: var(--bg-secondary);
             border-top: 1px solid var(--border-color);
@@ -1053,13 +1072,13 @@
             to { transform: translateX(-50%) translateY(0); opacity: 1; }
         }
 
-        /* ===== 鑷畾涔夋粴鍔ㄦ潯 ===== */
+        /* ===== 自定义滚动条 ===== */
         ::-webkit-scrollbar { width: 5px; height: 5px; }
         ::-webkit-scrollbar-track { background: transparent; }
         ::-webkit-scrollbar-thumb { background: var(--border-color); border-radius: 3px; }
         ::-webkit-scrollbar-thumb:hover { background: var(--text-muted); }
 
-        /* ===== 閲嶅啓寮圭獥 ===== */
+        /* ===== 重写弹窗 ===== */
         .modal-overlay {
             position: fixed;
             inset: 0;
@@ -1145,7 +1164,7 @@
             }
         }
 
-        /* ===== 鏁呬簨绾垮墽鐓?===== */
+        /* ===== 故事线剧照 ===== */
         .still-image-grid {
             display: flex;
             flex-wrap: wrap;
@@ -1190,7 +1209,7 @@
             cursor: not-allowed;
         }
 
-        /* 鍓х収鐢熸垚妯℃€佹 */
+        /* 剧照生成模态框 */
         .still-modal-overlay {
             position: fixed;
             inset: 0;
@@ -1270,14 +1289,14 @@
     </style>
 </head>
 <body>
-    <!-- 椤堕儴瀵艰埅 -->
+    <!-- 顶部导航 -->
     <header class="top-nav">
         <div class="nav-left">
-            <a href="/" class="nav-logo">澶ф枃濞?/a>
+            <a href="/" class="nav-logo">大文娱</a>
             <div class="nav-links">
-                <a href="/">宸ヤ綔鍙?/a>
-                <a href="/novelcraft">鑷敱鍒涗綔</a>
-                <a href="/chapter-generation" class="active">姝ｆ枃鐢熸垚</a>
+                <a href="/">工作台</a>
+                <a href="/novelcraft">自由创作</a>
+                <a href="/chapter-generation" class="active">正文生成</a>
             </div>
         </div>
         <div class="nav-right">
@@ -1285,29 +1304,29 @@
         </div>
     </header>
 
-    <!-- 涓讳綋 -->
+    <!-- 主体 -->
     <div class="main-wrapper">
-        <!-- 宸︿晶闈㈡澘 -->
+        <!-- 左侧面板 -->
         <div class="left-panel">
-            <!-- 椤圭洰閰嶇疆 -->
+            <!-- 项目配置 -->
             <div class="config-card">
-                <h3>馃摎 椤圭洰閫夋嫨</h3>
+                <h3>📚 项目选择</h3>
                 <div class="form-group">
-                    <label>椤圭洰</label>
-                    <select id="projectSelect"><option value="">-- 鍔犺浇涓?--</option></select>
+                    <label>项目</label>
+                    <select id="projectSelect"><option value="">-- 加载中 --</option></select>
                 </div>
                 <div class="form-group">
-                    <label>鍗峰彿</label>
+                    <label>卷号</label>
                     <select id="volumeSelect">
-                        <option value="1" selected>绗?鍗?/option>
-                        <option value="2">绗?鍗?/option>
-                        <option value="3">绗?鍗?/option>
-                        <option value="4">绗?鍗?/option>
-                        <option value="5">绗?鍗?/option>
+                        <option value="1" selected>第1卷</option>
+                        <option value="2">第2卷</option>
+                        <option value="3">第3卷</option>
+                        <option value="4">第4卷</option>
+                        <option value="5">第5卷</option>
                     </select>
                 </div>
                 <div class="form-group">
-                    <label>妯″瀷</label>
+                    <label>模型</label>
                     <select id="modelSelect">
                         <option value="deepseek-v4-pro" selected>DeepSeek-V4-Pro</option>
                         <option value="deepseek-v4-flash">DeepSeek-V4-Flash</option>
@@ -1317,106 +1336,110 @@
                 </div>
             </div>
 
-            <!-- 鐢熸垚璁剧疆 -->
+            <!-- 生成设置 -->
             <div class="config-card">
-                <h3>鈿欙笍 鐢熸垚璁剧疆</h3>
+                <h3>⚙️ 生成设置</h3>
                 <div class="form-group">
-                    <label>璧峰绔犺妭</label>
+                    <label>起始章节</label>
                     <input type="number" id="startChapter" value="1" min="1" />
                 </div>
                 <div class="form-group">
-                    <label>姣忔壒绔犳暟</label>
+                    <label>每批章数</label>
                     <input type="number" id="batchSize" value="6" min="1" max="10" />
                 </div>
                 <button id="generateBtn" class="gen-btn">
-                    <span>鉁?/span> 寮€濮嬬敓鎴?                </button>
+                    <span>✨</span> 开始生成
+                </button>
                 <button id="qualityCheckBtn" class="gen-btn secondary" style="margin-top:8px;" disabled>
-                    <span>馃攳</span> 瀵归綈璐ㄦ
+                    <span>🔍</span> 对齐质检
                 </button>
                 <button id="nextBatchBtn" class="gen-btn secondary" style="margin-top:8px;display:none;" onclick="startNextBatch()">
-                    <span>鈻讹笍</span> 缁х画涓嬩竴鎵?                </button>
+                    <span>▶️</span> 继续下一批
+                </button>
                 <button id="genVolOutlineBtn" class="gen-btn secondary" style="margin-top:8px;" onclick="openVolumeOutlinePage()">
-                    <span>馃搵</span> 鐢熸垚鏈嵎缁嗙翰
+                    <span>📋</span> 生成本卷细纲
                 </button>
             </div>
 
-            <!-- 鐘舵€?-->
+            <!-- 状态 -->
             <div class="status-card" id="statusCard">
-                <div class="status-row"><span>鐢熸垚鐘舵€?/span><span class="val" id="statusText">鏈紑濮?/span></div>
-                <div class="status-row"><span>宸茬敓鎴愮珷鑺?/span><span class="val" id="generatedCount">0 / 0</span></div>
-                <div class="status-row"><span>褰撳墠绔犺妭</span><span class="val" id="currentChapterText">-</span></div>
+                <div class="status-row"><span>生成状态</span><span class="val" id="statusText">未开始</span></div>
+                <div class="status-row"><span>已生成章节</span><span class="val" id="generatedCount">0 / 0</span></div>
+                <div class="status-row"><span>当前章节</span><span class="val" id="currentChapterText">-</span></div>
                 <div class="progress-bar"><div class="progress-fill" id="progressFill" style="width:0%"></div></div>
             </div>
 
-            <!-- 鏁呬簨绾垮叆鍙?-->
+            <!-- 故事线入口 -->
             <button class="gen-btn secondary" id="storylineBtn" style="margin-top:8px;" onclick="showStorylineView()" disabled>
-                <span>馃摉</span> 鏁呬簨绾?            </button>
+                <span>📖</span> 故事线
+            </button>
 
         </div>
 
-        <!-- 鍙充晶闈㈡澘 -->
+        <!-- 右侧面板 -->
         <div class="right-panel">
-            <!-- 绔犺妭鏍囩椤?-->
+            <!-- 章节标签页 -->
             <div class="chapter-tabs" id="chapterTabs">
-                <button class="tab-scroll-btn" id="tabPrevBtn" onclick="prevTabPage()" disabled>鈼€</button>
+                <button class="tab-scroll-btn" id="tabPrevBtn" onclick="prevTabPage()" disabled>◀</button>
                 <div class="chapter-tab-container" id="tabTabContainer"></div>
                 <span class="tab-page-info" id="tabPageInfo"></span>
-                <button class="tab-scroll-btn" id="tabNextBtn" onclick="nextTabPage()" disabled>鈻?/button>
+                <button class="tab-scroll-btn" id="tabNextBtn" onclick="nextTabPage()" disabled>▶</button>
             </div>
 
-            <!-- 鎬濊€冨尯 -->
+            <!-- 思考区 -->
             <div id="thinkingContainer"></div>
 
-            <!-- 鍐呭鍖哄煙 -->
+            <!-- 内容区域 -->
             <div class="content-card">
                 <div class="content-header">
-                    <h3 id="contentTitle">绔犺妭鍐呭</h3>
+                    <h3 id="contentTitle">章节内容</h3>
                     <div class="actions" id="contentActions">
-                        <button id="editBtn" style="display:none;">鉁忥笍 缂栬緫</button>
-                        <button id="cancelEditBtn" style="display:none;">鉂?鍙栨秷</button>
-                        <button id="copyBtn" style="display:none;">馃搵 澶嶅埗</button>
-                        <button id="rewriteBtn" disabled>馃攧 閲嶅啓</button>
-                        <button id="saveBtn" disabled>馃捑 淇濆瓨</button>
+                        <button id="editBtn" style="display:none;">✏️ 编辑</button>
+                        <button id="cancelEditBtn" style="display:none;">❌ 取消</button>
+                        <button id="copyBtn" style="display:none;">📋 复制</button>
+                        <button id="rewriteBtn" disabled>🔄 重写</button>
+                        <button id="saveBtn" disabled>💾 保存</button>
                     </div>
                 </div>
-                <div class="content-body empty" id="contentBody">璇烽€夋嫨椤圭洰骞剁偣鍑汇€屽紑濮嬬敓鎴愩€?/div>
+                <div class="content-body empty" id="contentBody">请选择项目并点击「开始生成」</div>
             </div>
 
-            <!-- 璐ㄦ闈㈡澘 -->
+            <!-- 质检面板 -->
             <div class="quality-panel" id="qualityPanel" style="display:none;">
-                <h3>馃攳 瀵归綈璐ㄦ鎶ュ憡</h3>
+                <h3>🔍 对齐质检报告</h3>
                 <div class="quality-summary" id="qualitySummary"></div>
                 <ul class="issue-list" id="issueList"></ul>
             </div>
 
-            <!-- 鍙傝€冧晶婊戦潰鏉匡紙璁惧畾/澶х翰/缁嗙翰锛?-->
+            <!-- 参考侧滑面板（设定/大纲/细纲） -->
             <div class="ref-drawer" id="refDrawer">
                 <div class="ref-drawer-header">
                     <div class="ref-tabs">
-                        <button class="ref-tab-btn" data-ref="settings" onclick="showRefInDrawer('settings')">馃摉 璁惧畾</button>
-                        <button class="ref-tab-btn" data-ref="outline" onclick="showRefInDrawer('outline')">馃搫 澶х翰</button>
-                        <button class="ref-tab-btn" data-ref="detailed" onclick="showRefInDrawer('detailed')">馃搵 缁嗙翰</button>
+                        <button class="ref-tab-btn" data-ref="settings" onclick="showRefInDrawer('settings')">📖 设定</button>
+                        <button class="ref-tab-btn" data-ref="outline" onclick="showRefInDrawer('outline')">📄 大纲</button>
+                        <button class="ref-tab-btn" data-ref="detailed" onclick="showRefInDrawer('detailed')">📋 细纲</button>
                     </div>
                     <div style="display:flex;align-items:center;gap:6px;">
                         <select id="outlineVolSelect" onchange="switchOutlineVolume(this.value)" style="display:none;padding:3px 6px;border-radius:4px;border:1px solid var(--border);background:var(--bg-secondary);color:var(--text-primary);font-size:12px;">
-                            <option value="all">鍏ㄤ功妗嗘灦</option>
+                            <option value="all">全书框架</option>
                         </select>
-                        <button class="ref-drawer-close" onclick="closeRefDrawer()" title="鍏抽棴">鉁?/button>
+                        <button class="ref-drawer-close" onclick="closeRefDrawer()" title="关闭">✕</button>
                     </div>
                 </div>
                 <div class="ref-drawer-body" id="refDrawerBody">
-                    <p style="color:var(--text-muted);">鐐瑰嚮涓婃柟鏍囩鏌ョ湅鍙傝€冨唴瀹?/p>
+                    <p style="color:var(--text-muted);">点击上方标签查看参考内容</p>
                 </div>
             </div>
         </div>
 
-        <!-- 鍙充晶缁嗙翰闈㈡澘 -->
+        <!-- 右侧细纲面板 -->
         <div class="outline-panel" id="outlinePanel">
             <div class="outline-panel-header">
-                <h3>馃搵 鏈珷缁嗙翰</h3>
-                <button class="outline-panel-toggle" onclick="toggleOutlinePanel()" title="鎶樺彔">鈼€</button>
+                <h3>📋 本章细纲</h3>
+                <button class="outline-panel-toggle" onclick="toggleOutlinePanel()" title="折叠">◀</button>
             </div>
             <div class="outline-panel-body" id="outlinePanelBody">
+                <div class="outline-empty">请选择项目并生成章节</div>
             </div>
         </div>
     </div>
@@ -1424,54 +1447,60 @@
     <!-- Toast -->
     <div class="toast" id="toast"></div>
 
-    <!-- 閲嶅啓寮圭獥 -->
+    <!-- 重写弹窗 -->
     <div class="modal-overlay" id="rewriteModal">
         <div class="modal-box">
-            <h3>馃攧 閲嶅啓绔犺妭 <span id="rewriteChapterNum"></span></h3>
-            <label style="font-size:11px;color:var(--text-secondary);display:block;margin-bottom:6px;">淇敼瑕佹眰</label>
-            <textarea id="rewriteInstruction" placeholder="濡傦細澧炲姞鎵撹劯鍔涘害銆佸姞寮洪挬瀛愩€佷慨姝ｈ瀹氬亸宸瓑..."></textarea>
+            <h3>🔄 重写章节 <span id="rewriteChapterNum"></span></h3>
+            <label style="font-size:11px;color:var(--text-secondary);display:block;margin-bottom:6px;">修改要求</label>
+            <textarea id="rewriteInstruction" placeholder="如：增加打脸力度、加强钩子、修正设定偏差等..."></textarea>
             <div class="modal-actions">
-                <button class="btn-secondary" onclick="closeRewriteModal()">鍙栨秷</button>
-                <button class="btn-primary" onclick="confirmRewrite()">纭閲嶅啓</button>
+                <button class="btn-secondary" onclick="closeRewriteModal()">取消</button>
+                <button class="btn-primary" onclick="confirmRewrite()">确认重写</button>
             </div>
         </div>
     </div>
 
-    <!-- 鍓х収鐢熸垚妯℃€佹 -->
+    <!-- 剧照生成模态框 -->
     <div class="still-modal-overlay" id="stillModal">
         <div class="still-modal-box">
-            <h3 id="stillModalTitle">馃幀 鐢熸垚鍓х収</h3>
-            <label>鎻愮ず璇嶏紙鍙紪杈戯級</label>
-            <textarea id="stillPrompt" placeholder="杈撳叆鐢熸垚鎻愮ず璇?.."></textarea>
+            <h3 id="stillModalTitle">🎬 生成剧照</h3>
+            <label>提示词（可编辑）</label>
+            <textarea id="stillPrompt" placeholder="输入生成提示词..."></textarea>
             <div class="still-modal-actions">
-                <button class="btn-secondary" onclick="closeStillModal()">鍙栨秷</button>
-                <button class="btn-primary" id="stillGenerateBtn" onclick="confirmGenerateStill()">鐢熸垚</button>
+                <button class="btn-secondary" onclick="closeStillModal()">取消</button>
+                <button class="btn-primary" id="stillGenerateBtn" onclick="confirmGenerateStill()">生成</button>
             </div>
         </div>
     </div>
 
     <script>
 
-// ===== 鐘舵€?=====
+// ===== 状态 =====
 let projects = [];
 let currentProject = null;
 let chapters = {}; // { chNum: { title, content, status } }
 let isGenerating = false;
 let currentBatchStart = 1;
 let currentBatchEnd = 6;
-let sessionMessages = []; // 姣忓嵎涓€涓細璇濈殑娑堟伅鍘嗗彶
+let sessionMessages = []; // 每卷一个会话的消息历史
 let currentVolume = 1;
-let lastVolumeSession = null; // 璁板綍涓婁竴娆＄敓鎴愭椂浣跨敤鐨勫嵎鍙凤紝鍒囨崲鍗锋椂閲嶇疆瀵硅瘽涓婁笅鏂?let storyline = [];           // 瑙ｆ瀽鍚庣殑鏁村嵎缁嗙翰鏁扮粍
-let saveOutlineTimer = null;  // 缁嗙翰淇濆瓨 debounce 瀹氭椂鍣?const TAB_PAGE_SIZE = 8;      // 鏍囩椤垫瘡椤垫樉绀烘暟閲?let tabCurrentPage = 0;       // 褰撳墠鏍囩椤甸〉鐮?let activeChapter = null;
-let qualityReport = null; // 褰撳墠璐ㄦ鎶ュ憡
-let projectFiles = null; // 褰撳墠椤圭洰鏂囦欢锛堢粏绾茬瓑锛?let showingRef = false; // 鏄惁姝ｅ湪鏄剧ず鍙傝€冨唴瀹癸紙璁惧畾/澶х翰/缁嗙翰锛?let currentRefType = ''; // 'settings' | 'outline' | 'detailed'
-let isEditMode = false; // 鏄惁澶勪簬缂栬緫妯″紡
-let editCache = ''; // 缂栬緫缂撳瓨
-let outlineVolumes = { all: '', volumes: {} }; // 瑙ｆ瀽鍚庣殑鍒嗗嵎澶х翰 { all: 妗嗘灦鏂囨湰, volumes: {1: '绗?鍗风矖绾?, ...} }
+let lastVolumeSession = null; // 记录上一次生成时使用的卷号，切换卷时重置对话上下文
+let storyline = [];           // 解析后的整卷细纲数组
+let saveOutlineTimer = null;  // 细纲保存 debounce 定时器
+const TAB_PAGE_SIZE = 8;      // 标签页每页显示数量
+let tabCurrentPage = 0;       // 当前标签页页码
+let activeChapter = null;
+let qualityReport = null; // 当前质检报告
+let projectFiles = null; // 当前项目文件（细纲等）
+let showingRef = false; // 是否正在显示参考内容（设定/大纲/细纲）
+let currentRefType = ''; // 'settings' | 'outline' | 'detailed'
+let isEditMode = false; // 是否处于编辑模式
+let editCache = ''; // 编辑缓存
+let outlineVolumes = { all: '', volumes: {} }; // 解析后的分卷大纲 { all: 框架文本, volumes: {1: '第1卷粗纲', ...} }
 
 const $ = id => document.getElementById(id);
 
-// ===== 鍒濆鍖?=====
+// ===== 初始化 =====
 document.addEventListener('DOMContentLoaded', () => {
     loadProjects();
     loadUserInfo();
@@ -1492,7 +1521,7 @@ async function loadProjects() {
         const select = $('projectSelect');
         if (data.success && data.data && data.data.length > 0) {
             projects = data.data;
-            select.innerHTML = '<option value="">-- 閫夋嫨椤圭洰 --</option>';
+            select.innerHTML = '<option value="">-- 选择项目 --</option>';
             projects.forEach(p => {
                 const opt = document.createElement('option');
                 opt.value = p.id;
@@ -1500,11 +1529,11 @@ async function loadProjects() {
                 select.appendChild(opt);
             });
         } else {
-            select.innerHTML = '<option value="">-- 鏃犻」鐩?--</option>';
+            select.innerHTML = '<option value="">-- 无项目 --</option>';
         }
     } catch (e) {
-        $('projectSelect').innerHTML = '<option value="">-- 鍔犺浇澶辫触 --</option>';
-        showToast('鍔犺浇椤圭洰澶辫触: ' + e.message, 'error');
+        $('projectSelect').innerHTML = '<option value="">-- 加载失败 --</option>';
+        showToast('加载项目失败: ' + e.message, 'error');
     }
 }
 
@@ -1540,7 +1569,7 @@ function saveLastProject() {
     } catch (e) {}
 }
 
-// 椤圭洰/鍗峰彿/妯″瀷/绔犺妭璁剧疆鍒囨崲鏃惰嚜鍔ㄤ繚瀛?+ 鍔犺浇缁嗙翰
+// 项目/卷号/模型/章节设置切换时自动保存 + 加载细纲
 $('projectSelect').addEventListener('change', async () => {
     const pid = $('projectSelect').value;
     if (pid) await loadProjectFiles(pid, parseInt($('volumeSelect').value));
@@ -1565,42 +1594,45 @@ async function loadProjectFiles(projectId, volumeNumber) {
         const data = await resp.json();
         if (data.success) {
             projectFiles = data;
-            // 瑙ｆ瀽鍒嗗嵎澶х翰
+            // 解析分卷大纲
             parseOutlineVolumes(data.outline || '');
-            // 瑙ｆ瀽鏁村嵎缁嗙翰
+            // 解析整卷细纲
             if (data.detailed_outline) {
                 storyline = parseStoryline(data.detailed_outline);
             } else {
                 storyline = [];
             }
-            // 鏇存柊鎴栧垱寤哄弬鑰冩爣绛撅紙璁惧畾 + 缁嗙翰锛?            updateReferenceTabs();
-            // 濡傛灉褰撳墠姝ｅ湪鏄剧ず鍙傝€冨唴瀹癸紝鍒锋柊
+            // 更新或创建参考标签（设定 + 细纲）
+            updateReferenceTabs();
+            // 如果当前正在显示参考内容，刷新
             if (showingRef) showRefContent();
-            // 鍚敤鏁呬簨绾挎寜閽?            updateStorylineBtn();
-            // 鑷姩濉厖璧峰绔犺妭
+            // 启用故事线按钮
+            updateStorylineBtn();
+            // 自动填充起始章节
             if (!data.detailed_outline || !data.detailed_outline.trim()) {
-                // 娌℃湁缁嗙翰锛岃鏄庤繕娌″紑濮嬬敓鎴愶紝璧峰绔犺妭璁句负 1
+                // 没有细纲，说明还没开始生成，起始章节设为 1
                 $('startChapter').value = 1;
             } else if (data.latest_chapter > 0) {
-                // 鏈夌粏绾蹭笖鏈夊凡鐢熸垚绔犺妭锛屼粠鏈€鏂扮珷鑺?1缁х画
+                // 有细纲且有已生成章节，从最新章节+1继续
                 $('startChapter').value = data.latest_chapter + 1;
             } else {
-                // 鏈夌粏绾蹭絾娌℃湁宸茬敓鎴愮珷鑺傦紝浠庣1绔犲紑濮?                $('startChapter').value = 1;
+                // 有细纲但没有已生成章节，从第1章开始
+                $('startChapter').value = 1;
             }
         }
     } catch (e) {
-        console.error('鍔犺浇椤圭洰鏂囦欢澶辫触:', e);
+        console.error('加载项目文件失败:', e);
     }
 }
 
-// 瑙ｆ瀽 outline.md 涓哄叏涔︽鏋?+ 鍚勫嵎绮楃翰
+// 解析 outline.md 为全书框架 + 各卷粗纲
 function parseOutlineVolumes(outlineText) {
     outlineVolumes = { all: outlineText, volumes: {} };
     if (!outlineText) return;
 
-    // 灏濊瘯鎸?"# 鍚勫嵎绮楃翰" 鎴?"---" 鍒嗛殧绗﹀垎鍓?
+    // 尝试按 "# 各卷粗纲" 或 "---" 分隔符分割
     const splitMarkers = [
-        /#{1,3}\s*鍚勫嵎绮楃翰/,
+        /#{1,3}\s*各卷粗纲/,
         /^---\s*$/m,
     ];
 
@@ -1618,10 +1650,10 @@ function parseOutlineVolumes(outlineText) {
 
     outlineVolumes.all = frameworkText;
 
-    // 浠?volumesText 涓В鏋愬悇鍗?
+    // 从 volumesText 中解析各卷
     if (volumesText) {
-        // 鍖归厤 "# 绗琗鍗风矖绾? 鎴?"## 绗琗鍗? 鎴?"### 绗琗鍗?
-        const volRegex = /^#{1,3}\s*绗琝s*(\d+)\s*鍗?g;
+        // 匹配 "# 第X卷粗纲" 或 "## 第X卷" 或 "### 第X卷"
+        const volRegex = /^#{1,3}\s*第\s*(\d+)\s*卷/g;
         let m;
         const volPositions = [];
         while ((m = volRegex.exec(volumesText)) !== null) {
@@ -1636,15 +1668,15 @@ function parseOutlineVolumes(outlineText) {
         }
     }
 
-    // 濉厖鍗烽€夋嫨鍣?
+    // 填充卷选择器
     const volSelect = $('outlineVolSelect');
     if (volSelect) {
-        volSelect.innerHTML = '<option value="all">鍏ㄤ功妗嗘灦</option>';
+        volSelect.innerHTML = '<option value="all">全书框架</option>';
         const volKeys = Object.keys(outlineVolumes.volumes).map(Number).sort((a, b) => a - b);
         for (const volNum of volKeys) {
             const opt = document.createElement('option');
             opt.value = String(volNum);
-            opt.textContent = `绗?{volNum}鍗风矖绾瞏;
+            opt.textContent = `第${volNum}卷粗纲`;
             volSelect.appendChild(opt);
         }
     }
@@ -1654,20 +1686,20 @@ function switchOutlineVolume(volKey) {
     if (!showingRef || currentRefType !== 'outline') return;
     const content = volKey === 'all'
         ? outlineVolumes.all
-        : (outlineVolumes.volumes[volKey] || '璇ュ嵎绮楃翰鏆傛棤鍐呭');
+        : (outlineVolumes.volumes[volKey] || '该卷粗纲暂无内容');
     const drawerBody = $('refDrawerBody');
     if (content) {
         drawerBody.innerHTML = renderMarkdown(content);
     } else {
-        drawerBody.innerHTML = '<p style="color:var(--text-muted);">鏆傛棤鍐呭</p>';
+        drawerBody.innerHTML = '<p style="color:var(--text-muted);">暂无内容</p>';
     }
 }
 
 function updateReferenceTabs() {
     const refs = [
-        { key: 'settings', icon: '馃摉', label: '璁惧畾', fn: showSettings },
-        { key: 'outline', icon: '馃搫', label: '澶х翰', fn: showRoughOutline },
-        { key: 'detailed', icon: '馃搵', label: '缁嗙翰', fn: showOutline },
+        { key: 'settings', icon: '📖', label: '设定', fn: showSettings },
+        { key: 'outline', icon: '📄', label: '大纲', fn: showRoughOutline },
+        { key: 'detailed', icon: '📋', label: '细纲', fn: showOutline },
     ];
     for (const ref of refs) {
         let tab = document.querySelector(`.chapter-tab.ref-tab[data-ref="${ref.key}"]`);
@@ -1677,7 +1709,7 @@ function updateReferenceTabs() {
             tab.dataset.ref = ref.key;
             tab.innerHTML = `${ref.icon} ${ref.label}`;
             tab.addEventListener('click', () => ref.fn());
-            // 鏍囩椤电敱 renderTabPage 缁熶竴娓叉煋锛屼笉鍐嶇洿鎺?insert
+            // 标签页由 renderTabPage 统一渲染，不再直接 insert
     // $('tabTabContainer').insertBefore(tab, $('tabTabContainer').firstChild);
         }
     }
@@ -1695,20 +1727,20 @@ function _renderRefContent(title, icon, content, type) {
     isEditMode = false;
     editCache = '';
 
-    // 楂樹寒瀵瑰簲鏍囩
+    // 高亮对应标签
     document.querySelectorAll('.ref-tab-btn').forEach(t => t.classList.remove('active'));
     const tab = document.querySelector(`.ref-tab-btn[data-ref="${type}"]`);
     if (tab) tab.classList.add('active');
 
-    // 鍦ㄤ晶婊戦潰鏉夸腑鏄剧ず鍐呭
+    // 在侧滑面板中显示内容
     const drawerBody = $('refDrawerBody');
     if (content) {
         drawerBody.innerHTML = renderMarkdown(content);
     } else {
-        drawerBody.innerHTML = '<p style="color:var(--text-muted);">鏆傛棤鍐呭</p>';
+        drawerBody.innerHTML = '<p style="color:var(--text-muted);">暂无内容</p>';
     }
 
-    // 灞曞紑渚ф粦闈㈡澘
+    // 展开侧滑面板
     $('refDrawer').classList.add('open');
 }
 
@@ -1721,34 +1753,35 @@ function showRefInDrawer(type) {
 function closeRefDrawer() {
     $('refDrawer').classList.remove('open');
     showingRef = false;
-    // 楂樹寒鎭㈠涓哄綋鍓嶇珷鑺?    document.querySelectorAll('.ref-tab-btn').forEach(t => t.classList.remove('active'));
+    // 高亮恢复为当前章节
+    document.querySelectorAll('.ref-tab-btn').forEach(t => t.classList.remove('active'));
 }
 
 function showRoughOutline() {
     const content = outlineVolumes.all || (projectFiles ? projectFiles.outline : '');
-    _renderRefContent('鍏ㄤ功澶х翰', '馃搫', content, 'outline');
-    // 鏄剧ず鍗烽€夋嫨鍣?
+    _renderRefContent('全书大纲', '📄', content, 'outline');
+    // 显示卷选择器
     const volSelect = $('outlineVolSelect');
     if (volSelect) volSelect.style.display = 'inline-block';
 }
 
 function showOutline() {
     const content = projectFiles ? projectFiles.detailed_outline : '';
-    _renderRefContent('鏈嵎缁嗙翰', '馃搵', content, 'detailed');
-    // 闅愯棌鍗烽€夋嫨鍣?
+    _renderRefContent('本卷细纲', '📋', content, 'detailed');
+    // 隐藏卷选择器
     const volSelect = $('outlineVolSelect');
     if (volSelect) volSelect.style.display = 'none';
 }
 
 function showSettings() {
     const content = projectFiles ? projectFiles.settings : '';
-    _renderRefContent('鏍稿績璁惧畾', '馃摉', content, 'settings');
-    // 闅愯棌鍗烽€夋嫨鍣?
+    _renderRefContent('核心设定', '📖', content, 'settings');
+    // 隐藏卷选择器
     const volSelect = $('outlineVolSelect');
     if (volSelect) volSelect.style.display = 'none';
 }
 
-// 缂栬緫妯″紡鍒囨崲
+// 编辑模式切换
 function toggleEditMode() {
     if (!showingRef) return;
     isEditMode = !isEditMode;
@@ -1758,10 +1791,10 @@ function toggleEditMode() {
         editCache = content;
         $('contentBody').classList.add('edit-mode');
         $('contentBody').innerHTML = `<textarea class="edit-textarea" id="editTextarea">${escapeHtml(content)}</textarea>`;
-        $('editBtn').textContent = '馃捑 淇濆瓨';
+        $('editBtn').textContent = '💾 保存';
         $('cancelEditBtn').style.display = 'inline-block';
     } else {
-        // 鐐瑰嚮淇濆瓨
+        // 点击保存
         saveProjectFiles();
     }
 }
@@ -1769,7 +1802,7 @@ function toggleEditMode() {
 function cancelEdit() {
     isEditMode = false;
     $('contentBody').classList.remove('edit-mode');
-    $('editBtn').textContent = '鉁忥笍 缂栬緫';
+    $('editBtn').textContent = '✏️ 编辑';
     $('cancelEditBtn').style.display = 'none';
     showRefContent();
 }
@@ -1801,37 +1834,37 @@ async function saveProjectFiles() {
         });
         const data = await resp.json();
         if (data.success) {
-            // 鏇存柊鏈湴缂撳瓨
+            // 更新本地缓存
             if (currentRefType === 'settings') projectFiles.settings = newText;
             else if (currentRefType === 'outline') projectFiles.outline = newText;
             else if (currentRefType === 'detailed') projectFiles.detailed_outline = newText;
 
             isEditMode = false;
             $('contentBody').classList.remove('edit-mode');
-            $('editBtn').textContent = '鉁忥笍 缂栬緫';
+            $('editBtn').textContent = '✏️ 编辑';
             $('cancelEditBtn').style.display = 'none';
             showRefContent();
-            showToast('鉁?宸蹭繚瀛?, 'success');
+            showToast('✅ 已保存', 'success');
         } else {
-            showToast('淇濆瓨澶辫触: ' + (data.error || '鏈煡閿欒'), 'error');
+            showToast('保存失败: ' + (data.error || '未知错误'), 'error');
         }
     } catch (e) {
-        showToast('淇濆瓨璇锋眰澶辫触: ' + e.message, 'error');
+        showToast('保存请求失败: ' + e.message, 'error');
     }
 }
 
-// ===== 鎵撳紑鍒嗗嵎缁嗙翰鐢熸垚椤甸潰 =====
+// ===== 打开分卷细纲生成页面 =====
 function openVolumeOutlinePage() {
     const projectId = $('projectSelect').value;
     const volumeNumber = $('volumeSelect').value;
     if (!projectId) {
-        showToast('璇峰厛閫夋嫨涓€涓」鐩?, 'error');
+        showToast('请先选择一个项目', 'error');
         return;
     }
     window.open(`/volume-outline-generation?project=${encodeURIComponent(projectId)}&volume=${volumeNumber}`, '_blank');
 }
 
-// 绠€鍗曠殑 Markdown 娓叉煋
+// 简单的 Markdown 渲染
 function renderMarkdown(text) {
     const lines = text.split('\n');
     let html = '';
@@ -1841,22 +1874,18 @@ function renderMarkdown(text) {
             html += '<br>';
             continue;
         }
-        // 鍏堝鐞嗚鍐?**绮椾綋**
-        let processed = escapeHtml(trimmed);
-        processed = processed.replace(/\*\*(.+?)\*\*/g, '<strong style="color:var(--text-primary);">$1</strong>');
-
         if (trimmed.startsWith('# ')) {
-            html += '<h3 style="color:var(--text-primary);font-size:16px;margin:14px 0 8px;font-weight:700;">' + processed.replace(/^#\s*/, '') + '</h3>';
+            html += `<h3 style="color:var(--text-primary);font-size:16px;margin:14px 0 8px;font-weight:700;">${escapeHtml(trimmed.replace(/^#\s*/, ''))}</h3>`;
         } else if (trimmed.startsWith('## ')) {
-            html += '<h4 style="color:var(--accent);font-size:14px;margin:12px 0 6px;font-weight:600;">' + processed.replace(/^##\s*/, '') + '</h4>';
+            html += `<h4 style="color:var(--accent);font-size:14px;margin:12px 0 6px;font-weight:600;">${escapeHtml(trimmed.replace(/^##\s*/, ''))}</h4>`;
         } else if (trimmed.startsWith('### ')) {
-            html += '<h5 style="color:var(--text-secondary);font-size:13px;margin:10px 0 5px;font-weight:600;">' + processed.replace(/^###\s*/, '') + '</h5>';
+            html += `<h5 style="color:var(--text-secondary);font-size:13px;margin:10px 0 5px;font-weight:600;">${escapeHtml(trimmed.replace(/^###\s*/, ''))}</h5>`;
         } else if (trimmed.startsWith('- ')) {
-            html += '<p style="margin-left:16px;color:var(--text-secondary);font-size:13px;">鈥?' + processed.replace(/^-\s*/, '') + '</p>';
-        } else if (/^\d+[\.锛嶿\s/.test(trimmed)) {
-            html += '<p style="margin-left:16px;color:var(--text-secondary);font-size:13px;">' + processed + '</p>';
+            html += `<p style="margin-left:16px;color:var(--text-secondary);font-size:13px;">• ${escapeHtml(trimmed.replace(/^-\s*/, ''))}</p>`;
+        } else if (trimmed.startsWith('**') && trimmed.endsWith('**')) {
+            html += `<p style="font-weight:600;color:var(--text-primary);">${escapeHtml(trimmed.replace(/\*\*/g, ''))}</p>`;
         } else {
-            html += '<p>' + processed + '</p>';
+            html += `<p>${escapeHtml(trimmed)}</p>`;
         }
     }
     return html;
@@ -1872,7 +1901,7 @@ async function loadUserInfo() {
     } catch (e) {}
 }
 
-// ===== 寮€濮嬬敓鎴?=====
+// ===== 开始生成 =====
 async function startGeneration() {
     if (isGenerating) return;
 
@@ -1882,15 +1911,15 @@ async function startGeneration() {
     const batchSize = parseInt($('batchSize').value);
     const model = $('modelSelect').value;
 
-    if (!projectId) { showToast('璇峰厛閫夋嫨涓€涓」鐩?, 'error'); return; }
+    if (!projectId) { showToast('请先选择一个项目', 'error'); return; }
 
-    // 妫€鏌ュ綋鍓嶅嵎鏄惁鏈夌粏绾?
+    // 检查当前卷是否有细纲
     if (!projectFiles || !projectFiles.detailed_outline || !projectFiles.detailed_outline.trim()) {
-        showToast('褰撳墠鍗疯繕娌℃湁缁嗙翰锛岃鍏堢偣鍑汇€愮敓鎴愭湰鍗风粏绾层€戠敓鎴愮粏绾插悗鍐嶇敓鎴愭鏂?, 'error');
+        showToast('当前卷还没有细纲，请先点击【生成本卷细纲】生成细纲后再生成正文', 'error');
         return;
     }
 
-    if (batchSize < 1 || batchSize > 10) { showToast('姣忔壒绔犳暟搴斿湪 1-10 涔嬮棿', 'error'); return; }
+    if (batchSize < 1 || batchSize > 10) { showToast('每批章数应在 1-10 之间', 'error'); return; }
 
     currentProject = projectId;
     currentVolume = volumeNumber;
@@ -1899,9 +1928,9 @@ async function startGeneration() {
     isGenerating = true;
     saveLastProject();
 
-    // 閲嶇疆 UI
+    // 重置 UI
     chapters = {};
-    // 鍚屼竴鍗峰唴淇濇寔瀵硅瘽涓婁笅鏂囷紝鍒囨崲鍗锋椂鎵嶉噸缃?
+    // 同一卷内保持对话上下文，切换卷时才重置
     if (volumeNumber !== lastVolumeSession) {
         sessionMessages = [];
         lastVolumeSession = volumeNumber;
@@ -1909,7 +1938,7 @@ async function startGeneration() {
     $('tabTabContainer').innerHTML = '';
     $('contentBody').innerHTML = '';
     $('contentBody').classList.add('empty');
-    $('contentTitle').textContent = '绔犺妭鍐呭';
+    $('contentTitle').textContent = '章节内容';
     $('qualityPanel').style.display = 'none';
     $('thinkingContainer').innerHTML = '';
     $('nextBatchBtn').style.display = 'none';
@@ -1917,21 +1946,23 @@ async function startGeneration() {
     $('qualityPanel').style.display = 'none';
     $('generateBtn').classList.add('running');
     $('generateBtn').disabled = true;
-    $('generateBtn').innerHTML = '<span>鈴?/span> 鐢熸垚涓?..';
+    $('generateBtn').innerHTML = '<span>⏳</span> 生成中...';
     $('qualityCheckBtn').disabled = true;
 
-    // 鍒涘缓鏍囩椤?
+    // 创建标签页
     for (let i = startChapter; i <= currentBatchEnd; i++) {
-        chapters[i] = { title: `绗?{i}绔燻, content: '', status: 'pending' };
+        chapters[i] = { title: `第${i}章`, content: '', status: 'pending' };
         createChapterTab(i);
     }
-    // 娓叉煋绗竴椤垫爣绛?    renderTabPage();
+    // 渲染第一页标签
+    renderTabPage();
     updateStatus();
     updateProgress();
     
-    // 鐢熸垚寮€濮嬫椂锛岄粯璁ゆ樉绀虹涓€涓珷鑺傦紙杩涘叆鐩存挱妯″紡锛?    showChapter(startChapter);
+    // 生成开始时，默认显示第一个章节（进入直播模式）
+    showChapter(startChapter);
 
-    // 鍚姩 SSE
+    // 启动 SSE
     try {
         const payload = {
             project_id: projectId,
@@ -1972,14 +2003,14 @@ async function startGeneration() {
                 try {
                     const data = JSON.parse(dataStr);
                     if (data.error) {
-                        showToast('鐢熸垚閿欒: ' + data.error, 'error');
+                        showToast('生成错误: ' + data.error, 'error');
                         isGenerating = false;
                         resetGenerateBtn();
                         return;
                     }
                     if (data.session_messages) {
-                        // 绮剧畝瀵硅瘽鍘嗗彶锛氬彧淇濈暀鍒濆璁惧畾 prompt + 鏈€鏂?AI 鍥炲
-                        // 鍘绘帀涓棿杩囨湡鐨?gen_prompt锛堟棫鐨勬壒娆＄粏绾插鍚庣画鎵规鏃犵敤锛?
+                        // 精简对话历史：只保留初始设定 prompt + 最新 AI 回复
+                        // 去掉中间过期的 gen_prompt（旧的批次细纲对后续批次无用）
                         const msgs = data.session_messages;
                         if (msgs.length >= 2) {
                             sessionMessages = [msgs[0], msgs[msgs.length - 1]];
@@ -1996,7 +2027,7 @@ async function startGeneration() {
                         parseChaptersFromStream(fullText);
                     }
                 } catch (e) {
-                    // 蹇界暐瑙ｆ瀽澶辫触鐨勮
+                    // 忽略解析失败的行
                 }
             }
         }
@@ -2004,15 +2035,15 @@ async function startGeneration() {
         if (isGenerating) finalizeGeneration();
 
     } catch (e) {
-        showToast('璇锋眰澶辫触: ' + e.message, 'error');
+        showToast('请求失败: ' + e.message, 'error');
         isGenerating = false;
         resetGenerateBtn();
     }
 }
 
-// 涓枃鏁板瓧杞樋鎷変集鏁板瓧
+// 中文数字转阿拉伯数字
 function cnToInt(cn) {
-    const map = {'涓€':1,'浜?:2,'涓?:3,'鍥?:4,'浜?:5,'鍏?:6,'涓?:7,'鍏?:8,'涔?:9,'鍗?:10,'鐧?:100,'鍗?:1000,'涓?:10000,'浜?:100000000};
+    const map = {'一':1,'二':2,'三':3,'四':4,'五':5,'六':6,'七':7,'八':8,'九':9,'十':10,'百':100,'千':1000,'万':10000,'亿':100000000};
     if (/^\d+$/.test(cn)) return parseInt(cn);
     let total = 0, temp = 0;
     for (const c of cn) {
@@ -2029,11 +2060,11 @@ function cnToInt(cn) {
     return total + temp;
 }
 
-// ===== 浠庢祦鏂囨湰涓В鏋愮珷鑺?=====
+// ===== 从流文本中解析章节 =====
 let _lastLiveUpdate = 0;
 function parseChaptersFromStream(text) {
-    // 鏀寔闃挎媺浼暟瀛楀拰涓枃鏁板瓧
-    const headingRegex = /### 绗?[涓€浜屼笁鍥涗簲鍏竷鍏節鍗佺櫨鍗冧竾浜縗d]+)绔燶s*(.*?)\n/g;
+    // 支持阿拉伯数字和中文数字
+    const headingRegex = /### 第([一二三四五六七八九十百千万亿\d]+)章\s*(.*?)\n/g;
     const headings = [];
     let m;
     while ((m = headingRegex.exec(text)) !== null) {
@@ -2046,7 +2077,7 @@ function parseChaptersFromStream(text) {
     }
 
     let latestChNum = null;
-    // 鎻愬彇姣忎釜绔犺妭鐨勫唴瀹?
+    // 提取每个章节的内容
     for (let i = 0; i < headings.length; i++) {
         const h = headings[i];
         const chNum = h.num;
@@ -2056,27 +2087,28 @@ function parseChaptersFromStream(text) {
 
         if (chapters[chNum]) {
             const isNewChapter = !chapters[chNum].content;
-            chapters[chNum].title = h.title || `绗?{chNum}绔燻;
+            chapters[chNum].title = h.title || `第${chNum}章`;
             chapters[chNum].content = content;
             chapters[chNum].status = 'generating';
             updateChapterTab(chNum);
             latestChNum = chNum;
             
-            // 鏂扮珷鑺傚嚭鐜版椂锛岃嚜鍔ㄥ垏鎹㈠埌璇ョ珷鑺傦紙鐩存挱璺熼殢锛?
+            // 新章节出现时，自动切换到该章节（直播跟随）
             if (isNewChapter && isGenerating) {
                 showChapter(chNum);
             }
         }
     }
     
-    // 鑺傛祦鏇存柊锛氬綋鍓嶆樉绀虹珷鑺傜殑瀹炴椂鍐呭锛堟瘡200ms鏈€澶氭洿鏂颁竴娆★紝閬垮厤棰戠箒閲嶆覆鏌擄級
+    // 节流更新：当前显示章节的实时内容（每200ms最多更新一次，避免频繁重渲染）
     if (latestChNum && isGenerating && activeChapter === latestChNum) {
         const now = Date.now();
         if (now - _lastLiveUpdate > 200) {
             _lastLiveUpdate = now;
             const ch = chapters[latestChNum];
             $('contentTitle').textContent = ch.title;
-            // 鐢熸垚涓蛋鍚屾牱鐨勬钀芥覆鏌擄紙涓嶇敤璐ㄦ楂樹寒锛?            $('contentBody').innerHTML = '<div class="content-body-inner">' + _paragraphsToHtml(ch.content.split('\n\n').filter(p => p.trim())) + '</div>';
+            // 生成中走同样的段落渲染（不用质检高亮）
+            $('contentBody').innerHTML = '<div class="content-body-inner">' + _paragraphsToHtml(ch.content.split('\n\n').filter(p => p.trim())) + '</div>';
             $('contentBody').scrollTop = $('contentBody').scrollHeight;
         }
     }
@@ -2085,14 +2117,14 @@ function parseChaptersFromStream(text) {
     updateProgress();
 }
 
-// ===== 瀹屾垚鐢熸垚 =====
+// ===== 完成生成 =====
 function finalizeGeneration() {
     isGenerating = false;
     resetGenerateBtn();
     $('qualityCheckBtn').disabled = false;
     $('nextBatchBtn').style.display = 'flex';
     
-    // 灏嗘墍鏈?generating 鐘舵€佹爣璁颁负 generated锛屽苟鍒锋柊鏍囩
+    // 将所有 generating 状态标记为 generated，并刷新标签
     for (const chNum in chapters) {
         if (chapters[chNum].status === 'generating') {
             chapters[chNum].status = 'generated';
@@ -2100,27 +2132,27 @@ function finalizeGeneration() {
         }
     }
 
-    // 閲嶆柊娓叉煋褰撳墠鏄剧ず绔犺妭锛堝惎鐢ㄩ珮浜川妫€锛?
+    // 重新渲染当前显示章节（启用高亮质检）
     if (activeChapter && chapters[activeChapter]) {
         showChapter(activeChapter);
     }
 
-    // 鑷姩淇濆瓨锛氬埛鏂伴」鐩枃浠讹紝鏇存柊 latest_chapter 鍜岃捣濮嬬珷鑺?
+    // 自动保存：刷新项目文件，更新 latest_chapter 和起始章节
     const projectId = $('projectSelect').value;
     const volumeNumber = parseInt($('volumeSelect').value);
     if (projectId) {
         loadProjectFiles(projectId, volumeNumber).then(() => {
             const savedCount = Object.values(chapters).filter(c => c.status === 'generated').length;
-            showToast(`鉁?鎵规鐢熸垚瀹屾垚锛?{savedCount} 绔犲凡鑷姩淇濆瓨`, 'success');
+            showToast(`✅ 批次生成完成，${savedCount} 章已自动保存`, 'success');
         }).catch(() => {
-            showToast('鉁?鎵规鐢熸垚瀹屾垚', 'success');
+            showToast('✅ 批次生成完成', 'success');
         });
     } else {
-        showToast('鉁?鎵规鐢熸垚瀹屾垚', 'success');
+        showToast('✅ 批次生成完成', 'success');
     }
 }
 
-// ===== 寮€濮嬩笅涓€鎵?=====
+// ===== 开始下一批 =====
 function startNextBatch() {
     const nextStart = currentBatchEnd + 1;
     const batchSize = parseInt($('batchSize').value);
@@ -2128,10 +2160,10 @@ function startNextBatch() {
     $('startChapter').value = nextStart;
     $('nextBatchBtn').style.display = 'none';
     
-    // 鍦ㄥ悓涓€瀵硅瘽涓婁笅鏂囦腑杩藉姞缁啓璇锋眰
+    // 在同一对话上下文中追加续写请求
     sessionMessages.push({
         role: 'user',
-        content: `璇风户缁敓鎴愮${nextStart}绔犲埌绗?{endCh}绔犵殑姝ｆ枃銆備弗鏍兼寜鐓х粏绾插啓浣滐紝姣忕珷2000瀛楀乏鍙炽€傜珷鑺備箣闂寸洿鎺ヨ繛缁緭鍑猴紝涓嶈鎻掑叆绌鸿鎴栧垎闅旂嚎銆俙
+        content: `请继续生成第${nextStart}章到第${endCh}章的正文。严格按照细纲写作，每章2000字左右。章节之间直接连续输出，不要插入空行或分隔线。`
     });
     
     startGeneration();
@@ -2140,15 +2172,15 @@ function startNextBatch() {
 function resetGenerateBtn() {
     $('generateBtn').classList.remove('running');
     $('generateBtn').disabled = false;
-    $('generateBtn').innerHTML = '<span>鉁?/span> 寮€濮嬬敓鎴?;
+    $('generateBtn').innerHTML = '<span>✨</span> 开始生成';
 }
 
-// ===== 绔犺妭鏍囩椤?=====
+// ===== 章节标签页 =====
 function createChapterTab(chNum, container) {
     const tab = document.createElement('button');
     tab.className = 'chapter-tab';
     tab.dataset.ch = chNum;
-    const title = chapters[chNum].title || `绗?{chNum}绔燻;
+    const title = chapters[chNum].title || `第${chNum}章`;
     tab.innerHTML = `<span class="dot ${chapters[chNum].status}"></span><span class="ch-title">${escapeHtml(title)}</span>`;
     tab.addEventListener('click', () => showChapter(chNum));
     if (container) container.appendChild(tab);
@@ -2227,7 +2259,7 @@ function showChapter(chNum) {
     const ch = chapters[chNum];
     if (!ch) return;
 
-    // 纭繚褰撳墠绔犺妭鍦ㄦ爣绛鹃〉褰撳墠椤典腑鍙
+    // 确保当前章节在标签页当前页中可见
     ensureTabPageForCh(chNum);
 
     document.querySelectorAll('.chapter-tab').forEach(t => t.classList.remove('active'));
@@ -2242,14 +2274,14 @@ function showChapter(chNum) {
         let html = renderChapterWithHighlights(ch.content, chNum);
         $('contentBody').innerHTML = '<div class="content-body-inner">' + html + '</div>';
     } else {
-        $('contentBody').innerHTML = '<div class="content-body-inner"><p style="color:var(--text-muted);">绛夊緟鐢熸垚涓?..</p></div>';
+        $('contentBody').innerHTML = '<div class="content-body-inner"><p style="color:var(--text-muted);">等待生成中...</p></div>';
     }
     $('contentBody').scrollTop = $('contentBody').scrollHeight;
 
-    // 鍚屾鏇存柊鍙充晶缁嗙翰闈㈡澘
+    // 同步更新右侧细纲面板
     updateOutlinePanel(chNum);
 
-    // 绔犺妭鎿嶄綔鎸夐挳
+    // 章节操作按钮
     $('editBtn').style.display = 'none';
     $('cancelEditBtn').style.display = 'none';
     $('copyBtn').style.display = 'inline-block';
@@ -2260,7 +2292,7 @@ function showChapter(chNum) {
     $('saveBtn').disabled = false;
 }
 
-// 甯歌寮曞彿 Unicode
+// 常见引号 Unicode
 const DIALOGUE_RE = /^[\u201C\u201D\u0022\u300C\u300E]/;
 
 function _paragraphsToHtml(paragraphs) {
@@ -2274,13 +2306,13 @@ function _paragraphsToHtml(paragraphs) {
     }).join('\n');
 }
 
-// ===== 娓叉煋绔犺妭鍐呭锛岄珮浜川妫€闂 =====
+// ===== 渲染章节内容，高亮质检问题 =====
 function renderChapterWithHighlights(content, chNum) {
-    // 缃戞枃娈佃惤涓嶅仛鍚堝苟锛屼繚鎸丄I鍘熸牱锛堢煭娈佃惤鏄暘鑼勯鏍硷級
+    // 网文段落不做合并，保持AI原样（短段落是番茄风格）
     const paragraphs = content.split('\n\n').filter(p => p.trim());
     let html = _paragraphsToHtml(paragraphs);
 
-    // 濡傛灉鏈夎川妫€鎶ュ憡锛岄珮浜綋鍓嶇珷鑺傜殑闂鏂囧瓧
+    // 如果有质检报告，高亮当前章节的问题文字
     if (qualityReport && qualityReport.issues) {
         const chapterIssues = qualityReport.issues.filter(i => (i.chapter || '').toString() === chNum.toString());
         for (const issue of chapterIssues) {
@@ -2290,7 +2322,7 @@ function renderChapterWithHighlights(content, chNum) {
                 const safeHl = escapeHtml(hl);
                 const color = issue.severity === 'critical' ? '#ef4444' : (issue.severity === 'warning' ? '#f59e0b' : '#3b82f6');
                 const bg = issue.severity === 'critical' ? 'rgba(239,68,68,0.15)' : (issue.severity === 'warning' ? 'rgba(245,158,11,0.12)' : 'rgba(59,130,246,0.1)');
-                // 鐢?mark 鏍囩楂樹寒锛屽苟娣诲姞 tooltip
+                // 用 mark 标签高亮，并添加 tooltip
                 const markHtml = `<mark style="background:${bg};color:${color};border-radius:3px;padding:1px 3px;cursor:pointer;" title="${escapeHtml(issue.category || '')}: ${escapeHtml(issue.description || '')}" onclick="showIssueTip(this)">${safeHl}</mark>`;
                 html = html.replaceAll(safeHl, markHtml);
             }
@@ -2303,28 +2335,28 @@ function showIssueTip(el) {
     showToast(el.getAttribute('title'), 'info');
 }
 
-// ===== 浠庤川妫€闂鐩存帴閲嶅啓 =====
+// ===== 从质检问题直接重写 =====
 function rewriteFromIssue(issueIdx) {
     if (!qualityReport || !qualityReport.issues[issueIdx]) return;
     const issue = qualityReport.issues[issueIdx];
     const chNum = issue.chapter;
     if (!chNum || !chapters[chNum]) {
-        showToast('璇ョ珷鑺傚皻鏈敓鎴?, 'error');
+        showToast('该章节尚未生成', 'error');
         return;
     }
     activeChapter = parseInt(chNum);
     showChapter(activeChapter);
 
-    // 鏋勫缓閲嶅啓鎸囦护
-    let instruction = `銆愯川妫€鍙戠幇鐨勯棶棰樸€慭n绫诲瀷锛?{issue.category || '鍏朵粬'}\n涓ラ噸绋嬪害锛?{issue.severity || 'warning'}\n闂鎻忚堪锛?{issue.description || ''}`;
+    // 构建重写指令
+    let instruction = `【质检发现的问题】\n类型：${issue.category || '其他'}\n严重程度：${issue.severity || 'warning'}\n问题描述：${issue.description || ''}`;
     if (issue.fix_suggestion) {
-        instruction += `\n淇敼寤鸿锛?{issue.fix_suggestion}`;
+        instruction += `\n修改建议：${issue.fix_suggestion}`;
     }
     const highlights = issue.highlights || [];
     if (highlights.length > 0) {
-        instruction += `\n闂鏂囧瓧锛?${highlights.join('"銆?')}"`;
+        instruction += `\n问题文字："${highlights.join('"、"')}"`;
     }
-    instruction += '\n\n璇锋牴鎹互涓婇棶棰橀噸鍐欐湰绔狅紝纭繚淇鎵€鏈夐棶棰樸€?;
+    instruction += '\n\n请根据以上问题重写本章，确保修复所有问题。';
 
     $('rewriteChapterNum').textContent = chNum;
     $('rewriteInstruction').value = instruction;
@@ -2337,36 +2369,36 @@ function escapeHtml(text) {
     return div.innerHTML;
 }
 
-// ===== 鏇存柊鐘舵€?=====
+// ===== 更新状态 =====
 function updateStatus() {
     const total = Object.keys(chapters).length;
     const done = Object.values(chapters).filter(c => c.status === 'generated').length;
     const generating = Object.values(chapters).filter(c => c.status === 'generating').length;
 
     if (isGenerating) {
-        $('statusText').textContent = '鐢熸垚涓?..';
+        $('statusText').textContent = '生成中...';
         $('statusText').className = 'val warning';
     } else if (done > 0) {
-        $('statusText').textContent = '宸插畬鎴?;
+        $('statusText').textContent = '已完成';
         $('statusText').className = 'val success';
     } else {
-        $('statusText').textContent = '鏈紑濮?;
+        $('statusText').textContent = '未开始';
         $('statusText').className = 'val';
     }
 
     $('generatedCount').textContent = `${done} / ${total}`;
 
-    // 鎵惧埌褰撳墠姝ｅ湪鐢熸垚鐨勭珷鑺?
+    // 找到当前正在生成的章节
     let currentCh = '-';
     for (let n = currentBatchStart; n <= currentBatchEnd; n++) {
         if (chapters[n] && chapters[n].status === 'pending' && currentCh === '-') {
-            currentCh = `绗?{n}绔燻;
+            currentCh = `第${n}章`;
             break;
         }
     }
     if (generating > 0) {
         const g = Object.entries(chapters).find(([k, v]) => v.status === 'generating');
-        if (g) currentCh = `绗?{g[0]}绔燻;
+        if (g) currentCh = `第${g[0]}章`;
     }
     $('currentChapterText').textContent = currentCh;
 }
@@ -2378,7 +2410,7 @@ function updateProgress() {
     $('progressFill').style.width = pct + '%';
 }
 
-// ===== 鎬濊€冭繃绋嬫樉绀?=====
+// ===== 思考过程显示 =====
 function updateThinkingDisplay(thinking) {
     let box = $('thinkingBox');
     if (!box) {
@@ -2387,7 +2419,7 @@ function updateThinkingDisplay(thinking) {
         box.className = 'thinking-box';
         box.innerHTML = `
             <div class="thinking-header" onclick="toggleThinking()">
-                <span>馃</span> 鎬濊€冧腑 <span class="toggle-icon" id="thinkingToggle">鈻?/span>
+                <span>🧠</span> 思考中 <span class="toggle-icon" id="thinkingToggle">▶</span>
             </div>
             <div class="thinking-body collapsed" id="thinkingBody"></div>
         `;
@@ -2405,12 +2437,12 @@ function toggleThinking() {
     }
 }
 
-// ===== 瀵归綈璐ㄦ =====
+// ===== 对齐质检 =====
 async function runQualityCheck() {
-    if (!currentProject) { showToast('璇峰厛瀹屾垚鐢熸垚', 'error'); return; }
+    if (!currentProject) { showToast('请先完成生成', 'error'); return; }
 
     $('qualityCheckBtn').disabled = true;
-    $('qualityCheckBtn').innerHTML = '<span>鈴?/span> 璐ㄦ涓?..';
+    $('qualityCheckBtn').innerHTML = '<span>⏳</span> 质检中...';
 
     try {
         const resp = await fetch('/api/conversation/align-check', {
@@ -2428,20 +2460,21 @@ async function runQualityCheck() {
         const data = await resp.json();
         if (data.success) {
             renderQualityReport(data.report);
-            showToast('鉁?璐ㄦ瀹屾垚', 'success');
+            showToast('✅ 质检完成', 'success');
         } else {
-            showToast('璐ㄦ澶辫触: ' + (data.error || '鏈煡閿欒'), 'error');
+            showToast('质检失败: ' + (data.error || '未知错误'), 'error');
         }
     } catch (e) {
-        showToast('璐ㄦ璇锋眰澶辫触: ' + e.message, 'error');
+        showToast('质检请求失败: ' + e.message, 'error');
     } finally {
         $('qualityCheckBtn').disabled = false;
-        $('qualityCheckBtn').innerHTML = '<span>馃攳</span> 瀵归綈璐ㄦ';
+        $('qualityCheckBtn').innerHTML = '<span>🔍</span> 对齐质检';
     }
 }
 
 function renderQualityReport(report) {
-    qualityReport = report; // 淇濆瓨鍒板叏灞€锛屼緵楂樹寒鍜岄噸鍐欎娇鐢?    $('qualityPanel').style.display = 'block';
+    qualityReport = report; // 保存到全局，供高亮和重写使用
+    $('qualityPanel').style.display = 'block';
 
     const passed = report.passed;
     const score = report.overall_score || 0;
@@ -2460,46 +2493,46 @@ function renderQualityReport(report) {
     $('qualitySummary').innerHTML = `
         <div class="quality-score">
             <div class="score-val ${scoreClass}">${score}</div>
-            <div class="score-label">鎬诲垎</div>
+            <div class="score-label">总分</div>
         </div>
         <div class="quality-result ${passed ? 'pass' : 'fail'}">
-            ${passed ? '鉁?閫氳繃' : '鉂?鏈€氳繃'}
+            ${passed ? '✅ 通过' : '❌ 未通过'}
         </div>
     `;
 
     const list = $('issueList');
     if (issues.length === 0) {
-        list.innerHTML = '<li style="color:var(--success);font-size:12px;">鉁?鏈彂鐜伴棶棰?/li>';
+        list.innerHTML = '<li style="color:var(--success);font-size:12px;">✅ 未发现问题</li>';
     } else {
         list.innerHTML = summaryHtml + issues.map((issue, idx) => {
             const highlights = issue.highlights || [];
             const hlHtml = highlights.length > 0
-                ? `<div style="margin-top:4px;font-size:10px;color:var(--text-muted);">馃攳 鐩稿叧鏂囧瓧锛?{highlights.map(h => `<span style="color:var(--error);font-weight:600;">"${escapeHtml(h)}"</span>`).join('銆?)}</div>`
+                ? `<div style="margin-top:4px;font-size:10px;color:var(--text-muted);">🔍 相关文字：${highlights.map(h => `<span style="color:var(--error);font-weight:600;">"${escapeHtml(h)}"</span>`).join('、')}</div>`
                 : '';
             return `
             <li class="issue-item" data-ch="${issue.chapter || ''}" data-idx="${idx}">
                 <div class="issue-header">
                     <span class="issue-badge ${issue.severity || 'warning'}">${issue.severity || 'warning'}</span>
-                    <span class="issue-badge cat">${issue.category || '鍏朵粬'}</span>
-                    <span style="color:var(--text-muted);">绗?{issue.chapter || '?'}绔?/span>
+                    <span class="issue-badge cat">${issue.category || '其他'}</span>
+                    <span style="color:var(--text-muted);">第${issue.chapter || '?'}章</span>
                 </div>
                 <div class="issue-desc">${escapeHtml(issue.description || '')}</div>
-                ${issue.fix_suggestion ? `<div class="issue-fix">馃挕 ${escapeHtml(issue.fix_suggestion)}</div>` : ''}
+                ${issue.fix_suggestion ? `<div class="issue-fix">💡 ${escapeHtml(issue.fix_suggestion)}</div>` : ''}
                 ${hlHtml}
                 <div style="margin-top:6px;text-align:right;">
-                    <button class="gen-btn secondary" style="width:auto;padding:3px 10px;font-size:10px;" onclick="rewriteFromIssue(${idx})">馃攧 閲嶅啓淇</button>
+                    <button class="gen-btn secondary" style="width:auto;padding:3px 10px;font-size:10px;" onclick="rewriteFromIssue(${idx})">🔄 重写修复</button>
                 </div>
             </li>
         `}).join('');
     }
 
-    // 鍒锋柊褰撳墠绔犺妭鏄剧ず锛屽簲鐢ㄩ珮浜?
+    // 刷新当前章节显示，应用高亮
     if (activeChapter) showChapter(activeChapter);
 
     $('qualityPanel').scrollIntoView({ behavior: 'smooth' });
 }
 
-// ===== 閲嶅啓绔犺妭 =====
+// ===== 重写章节 =====
 function openRewriteModal() {
     if (!activeChapter) return;
     $('rewriteChapterNum').textContent = activeChapter;
@@ -2517,7 +2550,7 @@ async function confirmRewrite() {
     if (!chNum) return;
 
     closeRewriteModal();
-    showToast(`馃攧 寮€濮嬮噸鍐欑${chNum}绔?..`, 'info');
+    showToast(`🔄 开始重写第${chNum}章...`, 'info');
 
     chapters[chNum].status = 'generating';
     chapters[chNum].content = '';
@@ -2533,7 +2566,7 @@ async function confirmRewrite() {
             model: $('modelSelect').value,
             messages: [
                 ...sessionMessages,
-                { role: 'user', content: `璇烽噸鍐欑${chNum}绔犮€備慨鏀硅姹傦細${instruction || '璇蜂紭鍖栨湰绔犺川閲忥紝澧炲己鐖界偣锛屼慨姝ｉ棶棰樸€?}` }
+                { role: 'user', content: `请重写第${chNum}章。修改要求：${instruction || '请优化本章质量，增强爽点，修正问题。'}` }
             ]
         };
 
@@ -2561,14 +2594,14 @@ async function confirmRewrite() {
                     const data = JSON.parse(dataStr);
                     if (data.content) {
                         fullText += data.content;
-                        // 瀹炴椂瑙ｆ瀽骞舵樉绀猴紙鑺傛祦 200ms锛?
+                        // 实时解析并显示（节流 200ms）
                         const now = Date.now();
                         if (now - _rewriteLastUpdate > 200) {
                             _rewriteLastUpdate = now;
-                            const regex = /### 绗?[涓€浜屼笁鍥涗簲鍏竷鍏節鍗佺櫨鍗冧竾浜縗d]+)绔燶s*(.*?)\n/;
+                            const regex = /### 第([一二三四五六七八九十百千万亿\d]+)章\s*(.*?)\n/;
                             const match = regex.exec(fullText);
                             if (match) {
-                                chapters[chNum].title = match[2].trim() || `绗?{chNum}绔燻;
+                                chapters[chNum].title = match[2].trim() || `第${chNum}章`;
                                 chapters[chNum].content = fullText.substring(match.index + match[0].length).trim();
                                 if (activeChapter === chNum) {
                                     $('contentTitle').textContent = chapters[chNum].title;
@@ -2582,13 +2615,13 @@ async function confirmRewrite() {
             }
         }
 
-        // 鏈€缁堣В鏋愰噸鍐欑粨鏋滐紙鏀寔涓枃鏁板瓧锛?
-        const regex = /### 绗?[涓€浜屼笁鍥涗簲鍏竷鍏節鍗佺櫨鍗冧竾浜縗d]+)绔燶s*(.*?)\n/;
+        // 最终解析重写结果（支持中文数字）
+        const regex = /### 第([一二三四五六七八九十百千万亿\d]+)章\s*(.*?)\n/;
         const match = regex.exec(fullText);
         if (match) {
             const title = match[2].trim();
             const content = fullText.substring(match.index + match[0].length).trim();
-            chapters[chNum].title = title || `绗?{chNum}绔燻;
+            chapters[chNum].title = title || `第${chNum}章`;
             chapters[chNum].content = content;
         } else {
             chapters[chNum].content = fullText;
@@ -2596,18 +2629,18 @@ async function confirmRewrite() {
         chapters[chNum].status = 'generated';
         updateChapterTab(chNum);
         showChapter(chNum);
-        showToast('鉁?閲嶅啓瀹屾垚', 'success');
+        showToast('✅ 重写完成', 'success');
     } catch (e) {
         chapters[chNum].status = 'failed';
         updateChapterTab(chNum);
-        showToast('閲嶅啓澶辫触: ' + e.message, 'error');
+        showToast('重写失败: ' + e.message, 'error');
     }
 }
 
-// ===== 淇濆瓨绔犺妭缂栬緫 =====
+// ===== 保存章节编辑 =====
 function saveChapterEdits() {
-    // 鍚庣宸插湪娴佺粨鏉熸椂鑷姩淇濆瓨鏂囦欢
-    showToast('鉁?绔犺妭宸蹭繚瀛?, 'success');
+    // 后端已在流结束时自动保存文件
+    showToast('✅ 章节已保存', 'success');
 }
 
 // ===== Toast =====
@@ -2618,7 +2651,7 @@ function showToast(msg, type = 'info') {
     setTimeout(() => toast.classList.remove('show'), 3000);
 }
 
-// ===== 鏁呬簨绾垮姛鑳斤紙鍦ㄥ彸渚ф鏂囧尯鍩熷睍绀猴級 =====
+// ===== 故事线功能（在右侧正文区域展示） =====
 let storylineData = [];
 let showingStoryline = false;
 
@@ -2630,7 +2663,7 @@ function updateStorylineBtn() {
 
 function showStorylineView() {
     if (!projectFiles || !projectFiles.detailed_outline) {
-        showToast('鏆傛棤缁嗙翰鏁版嵁锛屾棤娉曞睍绀烘晠浜嬬嚎', 'info');
+        showToast('暂无细纲数据，无法展示故事线', 'info');
         return;
     }
     showingStoryline = true;
@@ -2639,7 +2672,7 @@ function showStorylineView() {
     const body = document.getElementById('contentBody');
     body.classList.remove('empty');
     body.innerHTML = renderStorylineBigHtml();
-    document.getElementById('contentTitle').textContent = '馃摉 鏁呬簨绾挎瑙?;
+    document.getElementById('contentTitle').textContent = '📖 故事线概览';
 
     document.getElementById('editBtn').style.display = 'none';
     document.getElementById('cancelEditBtn').style.display = 'none';
@@ -2647,7 +2680,7 @@ function showStorylineView() {
     document.getElementById('rewriteBtn').disabled = true;
     document.getElementById('saveBtn').disabled = true;
 
-    // 鍔犺浇骞跺睍绀哄凡鐢熸垚鐨勫墽鐓?
+    // 加载并展示已生成的剧照
     const pid = document.getElementById('projectSelect').value;
     if (pid) loadStorylineStills(pid);
 }
@@ -2657,15 +2690,15 @@ function hideStorylineView() {
     if (activeChapter && chapters[activeChapter]) {
         showChapter(activeChapter);
     } else {
-        document.getElementById('contentBody').innerHTML = '<div class="content-body-inner">璇烽€夋嫨椤圭洰骞剁偣鍑汇€屽紑濮嬬敓鎴愩€?/div>';
+        document.getElementById('contentBody').innerHTML = '<div class="content-body-inner">请选择项目并点击「开始生成」</div>';
         document.getElementById('contentBody').classList.add('empty');
-        document.getElementById('contentTitle').textContent = '绔犺妭鍐呭';
+        document.getElementById('contentTitle').textContent = '章节内容';
     }
 }
 
-// ===== 鍙充晶缁嗙翰闈㈡澘 =====
+// ===== 右侧细纲面板 =====
 
-// 褰撳墠姝ｅ湪缂栬緫鐨勭粏绾茬珷鑺傚彿
+// 当前正在编辑的细纲章节号
 let editingOutlineChNum = null;
 
 function updateOutlinePanel(chNum) {
@@ -2674,12 +2707,12 @@ function updateOutlinePanel(chNum) {
     editingOutlineChNum = null;
     const section = extractOutlineSection(chNum);
     if (!section) {
-        panelBody.innerHTML = '<div class="outline-empty">鏈珷鏆傛棤缁嗙翰</div>';
+        panelBody.innerHTML = '<div class="outline-empty">本章暂无细纲</div>';
         return;
     }
     const html = '<div class="outline-md-render">' + renderMarkdown(section) + '</div>' +
         '<div style="margin-top:12px;text-align:center;">' +
-        '<button class="gen-btn secondary" style="font-size:12px;padding:6px 14px;" onclick="enterOutlineEdit(' + chNum + ')">鉁忥笍 缂栬緫缁嗙翰</button>' +
+        '<button class="gen-btn secondary" style="font-size:12px;padding:6px 14px;" onclick="enterOutlineEdit(' + chNum + ')">✏️ 编辑细纲</button>' +
         '</div>';
     panelBody.innerHTML = html;
 }
@@ -2687,11 +2720,11 @@ function updateOutlinePanel(chNum) {
 function extractOutlineSection(chNum) {
     if (!projectFiles || !projectFiles.detailed_outline) return null;
     const md = projectFiles.detailed_outline;
-    const regex = new RegExp('^#{1,3}\\s*绗琝\s*' + chNum + '\\s*绔?*$', 'm');
+    const regex = new RegExp('^#{1,3}\\s*第\\s*' + chNum + '\\s*章.*$', 'm');
     const startMatch = md.match(regex);
     if (!startMatch) return null;
     const start = startMatch.index;
-    const nextRegex = new RegExp('^#{1,3}\\s*绗琝\s*' + (chNum + 1) + '\\s*绔?*$', 'm');
+    const nextRegex = new RegExp('^#{1,3}\\s*第\\s*' + (chNum + 1) + '\\s*章.*$', 'm');
     const endMatch = md.match(nextRegex);
     const end = endMatch ? endMatch.index : md.length;
     return md.substring(start, end).trim();
@@ -2704,8 +2737,8 @@ function enterOutlineEdit(chNum) {
     const section = extractOutlineSection(chNum) || '';
     panelBody.innerHTML = '<textarea class="outline-edit-textarea" id="outlineEditTextarea">' + escapeHtml(section) + '</textarea>' +
         '<div style="margin-top:10px;display:flex;gap:8px;justify-content:center;">' +
-        '<button class="gen-btn" style="font-size:12px;padding:6px 14px;" onclick="saveOutlineEdit()">馃捑 淇濆瓨</button>' +
-        '<button class="gen-btn secondary" style="font-size:12px;padding:6px 14px;" onclick="cancelOutlineEdit()">鉂?鍙栨秷</button>' +
+        '<button class="gen-btn" style="font-size:12px;padding:6px 14px;" onclick="saveOutlineEdit()">💾 保存</button>' +
+        '<button class="gen-btn secondary" style="font-size:12px;padding:6px 14px;" onclick="cancelOutlineEdit()">❌ 取消</button>' +
         '</div>';
 }
 
@@ -2721,19 +2754,19 @@ async function saveOutlineEdit() {
     const newText = ta.value.trim();
     const md = projectFiles.detailed_outline || '';
     const chNum = editingOutlineChNum;
-    const regex = new RegExp('^#{1,3}\\s*绗琝\s*' + chNum + '\\s*绔?*$', 'm');
+    const regex = new RegExp('^#{1,3}\\s*第\\s*' + chNum + '\\s*章.*$', 'm');
     const startMatch = md.match(regex);
     if (!startMatch) {
-        showToast('鏈壘鍒版湰绔犵粏绾蹭綅缃紝淇濆瓨澶辫触', 'error');
+        showToast('未找到本章细纲位置，保存失败', 'error');
         return;
     }
     const start = startMatch.index;
-    const nextRegex = new RegExp('^#{1,3}\\s*绗琝\s*' + (chNum + 1) + '\\s*绔?*$', 'm');
+    const nextRegex = new RegExp('^#{1,3}\\s*第\\s*' + (chNum + 1) + '\\s*章.*$', 'm');
     const endMatch = md.match(nextRegex);
     const end = endMatch ? endMatch.index : md.length;
     const newMd = md.substring(0, start) + newText + (end < md.length ? '\n\n' + md.substring(end) : '');
     projectFiles.detailed_outline = newMd;
-    // 閲嶆柊瑙ｆ瀽 storyline
+    // 重新解析 storyline
     storyline = parseStoryline(newMd);
     try {
         await fetch('/api/conversation/save-project-files', {
@@ -2745,73 +2778,94 @@ async function saveOutlineEdit() {
                 detailed_outline: newMd
             })
         });
-        showToast('缁嗙翰宸蹭繚瀛?, 'success');
+        showToast('细纲已保存', 'success');
         updateOutlinePanel(chNum);
     } catch (e) {
-        console.error('淇濆瓨缁嗙翰澶辫触:', e);
-        showToast('缁嗙翰淇濆瓨澶辫触', 'error');
+        console.error('保存细纲失败:', e);
+        showToast('细纲保存失败', 'error');
     }
 }
 
+function toggleOutlinePanel() {
+    const panel = document.getElementById('outlinePanel');
+    if (!panel) return;
+    const isCollapsed = panel.classList.toggle('collapsed');
+    const btn = panel.querySelector('.outline-panel-toggle');
+    if (btn) btn.textContent = isCollapsed ? '▶' : '◀';
+    if (btn) btn.title = isCollapsed ? '展开' : '折叠';
+    localStorage.setItem('outlinePanelCollapsed', isCollapsed ? '1' : '0');
+}
 
+// 页面加载时恢复细纲面板折叠状态
+(function restoreOutlinePanel() {
+    const collapsed = localStorage.getItem('outlinePanelCollapsed') === '1';
+    if (collapsed) {
+        const panel = document.getElementById('outlinePanel');
+        if (panel) {
+            panel.classList.add('collapsed');
+            const btn = panel.querySelector('.outline-panel-toggle');
+            if (btn) { btn.textContent = '▶'; btn.title = '展开'; }
+        }
+    }
+})();
 
 function renderStorylineBigHtml() {
     if (storylineData.length === 0) {
-        return '<div class="storyline-empty">鏈兘浠庣粏绾蹭腑瑙ｆ瀽鍑虹珷鑺傛暟鎹?/div>';
+        return '<div class="storyline-empty">未能从细纲中解析出章节数据</div>';
     }
     let html = '<div class="storyline-view"><div class="storyline-view-header"><h2>' +
-        '馃摉 鏁呬簨绾挎瑙?<span style="font-size:13px;color:var(--text-muted);font-weight:400;">鍏?' + storylineData.length + ' 绔?/span></h2>' +
-        '<button class="storyline-back-btn" onclick="hideStorylineView()">鈫?杩斿洖姝ｆ枃</button></div>' +
+        '📖 故事线概览 <span style="font-size:13px;color:var(--text-muted);font-weight:400;">共 ' + storylineData.length + ' 章</span></h2>' +
+        '<button class="storyline-back-btn" onclick="hideStorylineView()">← 返回正文</button></div>' +
         '<div class="storyline-big-timeline">';
     for (const ch of storylineData) {
         let dotClass = '';
-        if (ch.hook && (ch.hook.includes('鐖?) || ch.hook.includes('鏍?) || ch.hook.includes('缁堟瀬'))) dotClass = 'climax';
+        if (ch.hook && (ch.hook.includes('爆') || ch.hook.includes('核') || ch.hook.includes('终极'))) dotClass = 'climax';
         else if (ch.hook) dotClass = 'hook';
         html += '<div class="storyline-big-node"><div class="storyline-big-dot ' + dotClass + '"></div>' +
-            '<div class="storyline-big-title" onclick="jumpToChapterFromStoryline(' + ch.num + ')" title="鐐瑰嚮鏌ョ湅绗? + ch.num + '绔犳鏂?>' +
-            '<span class="ch-num">绗? + ch.num + '绔?/span>' + escapeHtml(ch.title) + '</div><div class="storyline-big-grid">';
+            '<div class="storyline-big-title" onclick="jumpToChapterFromStoryline(' + ch.num + ')" title="点击查看第' + ch.num + '章正文">' +
+            '<span class="ch-num">第' + ch.num + '章</span>' + escapeHtml(ch.title) + '</div><div class="storyline-big-grid">';
         if (ch.scene) {
-            html += '<div class="storyline-big-section"><h4>馃幀 鍦烘櫙璁惧畾</h4><p>' + escapeHtml(ch.scene) + '</p>' +
+            html += '<div class="storyline-big-section"><h4>🎬 场景设定</h4><p>' + escapeHtml(ch.scene) + '</p>' +
                 '<div class="still-image-grid" id="still-scene-ch' + ch.num + '"></div>' +
-                '<button class="still-generate-btn" onclick="showStillModal(' + ch.num + ', \'scene\', null)">馃幀 鐢熷満鏅浘</button></div>';
+                '<button class="still-generate-btn" onclick="showStillModal(' + ch.num + ', \'scene\', null)">🎬 生场景图</button></div>';
         }
         if (ch.emotion) {
-            html += '<div class="storyline-big-section"><h4>馃尅锔?鎯呯华璧板悜</h4><p>' + escapeHtml(ch.emotion) + '</p></div>';
+            html += '<div class="storyline-big-section"><h4>🌡️ 情绪走向</h4><p>' + escapeHtml(ch.emotion) + '</p></div>';
         }
         if (ch.characters.length > 0) {
-            html += '<div class="storyline-big-section ' + (ch.characters.length > 4 ? 'full' : '') + '"><h4>馃幁 鍑哄満瑙掕壊</h4><div class="storyline-big-tags">';
+            html += '<div class="storyline-big-section ' + (ch.characters.length > 4 ? 'full' : '') + '"><h4>🎭 出场角色</h4><div class="storyline-big-tags">';
             for (const name of ch.characters) {
-                html += '<button class="storyline-big-tag char" onclick="showStillModal(' + ch.num + ', \'character\', \'' + escapeHtml(name).replace(/'/g, "\\'") + '\')" title="鐐瑰嚮鐢熸垚銆? + escapeHtml(name).replace(/'/g, "\\'") + '銆嶈鑹插浘">' + escapeHtml(name) + '</button>';
+                html += '<button class="storyline-big-tag char" onclick="showStillModal(' + ch.num + ', \'character\', \'' + escapeHtml(name).replace(/'/g, "\\'") + '\')" title="点击生成「' + escapeHtml(name).replace(/'/g, "\\'") + '」角色图">' + escapeHtml(name) + '</button>';
             }
             html += '</div>' +
                 '<div class="still-image-grid" id="still-char-ch' + ch.num + '"></div></div>';
         }
         if (ch.hook) {
-            html += '<div class="storyline-big-section full"><h4>馃挜 鏍稿績鐖界偣</h4><div class="storyline-big-tags">' +
+            html += '<div class="storyline-big-section full"><h4>💥 核心爽点</h4><div class="storyline-big-tags">' +
                 '<button class="storyline-big-tag hook" onclick="highlightHook(\'' + escapeHtml(ch.hook).replace(/'/g, "\\'") + '\', ' + ch.num + ')">' + escapeHtml(ch.hook) + '</button></div></div>';
         }
         if (ch.steps.length > 0) {
-            html += '<div class="storyline-big-section full"><h4>馃搵 鎯呰妭姝ラ</h4><ol class="storyline-big-steps">';
+            html += '<div class="storyline-big-section full"><h4>📋 情节步骤</h4><ol class="storyline-big-steps">';
             for (const s of ch.steps) {
                 html += '<li>' + escapeHtml(s) + '</li>';
             }
             html += '</ol></div>';
         }
         if (ch.dialogues.length > 0) {
-            html += '<div class="storyline-big-section full"><h4>馃挰 鍏抽敭瀵硅瘽</h4><div class="storyline-big-dialogues">';
+            html += '<div class="storyline-big-section full"><h4>💬 关键对话</h4><div class="storyline-big-dialogues">';
             for (const d of ch.dialogues) {
                 html += '<div class="storyline-big-dialogue">' + escapeHtml(d) + '</div>';
             }
             html += '</div></div>';
         }
         if (ch.endingHook) {
-            html += '<div class="storyline-big-section"><h4>馃獫 缁撳熬閽╁瓙</h4><p>' + escapeHtml(ch.endingHook) + '</p></div>';
+            html += '<div class="storyline-big-section"><h4>🪝 结尾钩子</h4><p>' + escapeHtml(ch.endingHook) + '</p></div>';
         }
         if (ch.climaxDesign) {
-            html += '<div class="storyline-big-section"><h4>鉁?鐖界偣璁捐</h4><p>' + escapeHtml(ch.climaxDesign) + '</p></div>';
+            html += '<div class="storyline-big-section"><h4>✨ 爽点设计</h4><p>' + escapeHtml(ch.climaxDesign) + '</p></div>';
         }
         if (ch.wordCount) {
-            html += '<div class="storyline-big-section"><h4>馃摑 棰勪及瀛楁暟</h4><p>' + escapeHtml(ch.wordCount) + '</p></div>';
+            html += '<div class="storyline-big-section"><h4>📝 预估字数</h4><p>' + escapeHtml(ch.wordCount) + '</p></div>';
         }
         html += '</div></div>';
     }
@@ -2822,8 +2876,8 @@ function renderStorylineBigHtml() {
 function parseStoryline(markdown) {
     if (!markdown) return [];
     const chapters = [];
-    // 鏀寔1-3绾arkdown鏍囬锛屽吋瀹瑰悇绉嶆牸寮?
-    const chapterRegex = /^#{1,3}\s*绗琝s*(\d+)\s*绔??:[\s:锛歖+(.+?))?$/gm;
+    // 支持1-3级markdown标题，兼容各种格式
+    const chapterRegex = /^#{1,3}\s*第\s*(\d+)\s*章(?:[\s:：]+(.+?))?$/gm;
     let match;
     const positions = [];
     while ((match = chapterRegex.exec(markdown)) !== null) {
@@ -2835,36 +2889,36 @@ function parseStoryline(markdown) {
         const block = markdown.slice(start, end);
         const ch = { num: positions[i].num, title: positions[i].title };
         const extract = (label) => {
-            const r = new RegExp('\\*\\*' + label + '\\*\\*[锛?]\\s*(.+?)(?=\\n\\*\\*|\\n#{1,3}|\\s*$)', 's');
+            const r = new RegExp('\\*\\*' + label + '\\*\\*[：:]\\s*(.+?)(?=\\n\\*\\*|\\n#{1,3}|\\s*$)', 's');
             const m = block.match(r);
             return m ? m[1].trim() : '';
         };
-        ch.scene = extract('鍦烘櫙璁惧畾');
-        const charsRaw = extract('娑夊強瑙掕壊');
-        ch.characters = charsRaw ? charsRaw.split(/[,锛屻€?]/).map(s => s.trim()).filter(Boolean) : [];
-        ch.hook = extract('鏍稿績鐖界偣/鐚庡鐐?) || extract('鏍稿績鐖界偣');
+        ch.scene = extract('场景设定');
+        const charsRaw = extract('涉及角色');
+        ch.characters = charsRaw ? charsRaw.split(/[,，、/]/).map(s => s.trim()).filter(Boolean) : [];
+        ch.hook = extract('核心爽点/猎奇点') || extract('核心爽点');
         ch.steps = [];
-        const stepsMatch = block.match(/\*\*鎯呰妭姝ラ\*\*[锛?]?\s*([\s\S]*?)(?=\n\*\*|\n#{1,3}|\s*$)/);
+        const stepsMatch = block.match(/\*\*情节步骤\*\*[：:]?\s*([\s\S]*?)(?=\n\*\*|\n#{1,3}|\s*$)/);
         if (stepsMatch) {
             const stepLines = stepsMatch[1].split('\n');
             for (const line of stepLines) {
-                const m = line.match(/^\s*\d+[.锛嶿\s*(.+)$/);
+                const m = line.match(/^\s*\d+[.．]\s*(.+)$/);
                 if (m) ch.steps.push(m[1].trim());
             }
         }
         ch.dialogues = [];
-        const dlgMatch = block.match(/\*\*鍏抽敭瀵硅瘽\*\*[锛?]?\s*([\s\S]*?)(?=\n\*\*|\n#{1,3}|\s*$)/);
+        const dlgMatch = block.match(/\*\*关键对话\*\*[：:]?\s*([\s\S]*?)(?=\n\*\*|\n#{1,3}|\s*$)/);
         if (dlgMatch) {
             const dlgLines = dlgMatch[1].split('\n');
             for (const line of dlgLines) {
-                const m = line.match(/^\s*[-鈥\s*["\'](.+)["\']$/);
+                const m = line.match(/^\s*[-•]\s*["\'](.+)["\']$/);
                 if (m) ch.dialogues.push(m[1].trim());
             }
         }
-        ch.climaxDesign = extract('鐖界偣璁捐璇存槑') || extract('鐖界偣璁捐');
-        ch.endingHook = extract('绔犺妭缁撳熬閽╁瓙') || extract('缁撳熬閽╁瓙');
-        ch.emotion = extract('鎯呯华鏇茬嚎') || extract('鎯呯华璧板悜');
-        ch.wordCount = extract('棰勮瀛楁暟') || extract('棰勪及瀛楁暟');
+        ch.climaxDesign = extract('爽点设计说明') || extract('爽点设计');
+        ch.endingHook = extract('章节结尾钩子') || extract('结尾钩子');
+        ch.emotion = extract('情绪曲线') || extract('情绪走向');
+        ch.wordCount = extract('预计字数') || extract('预估字数');
         chapters.push(ch);
     }
     return chapters;
@@ -2874,15 +2928,15 @@ function jumpToChapterFromStoryline(num) {
     showingStoryline = false;
     const tab = document.querySelector('.chapter-tab[data-ch="' + num + '"]');
     if (tab) tab.click();
-    else showToast('绗? + num + '绔犲皻鏈敓鎴愶紝璇峰厛寮€濮嬬敓鎴?, 'info');
+    else showToast('第' + num + '章尚未生成，请先开始生成', 'info');
 }
 
 function showCharacterInfo(name, chapterNum) {
-    showToast('馃幁 瑙掕壊銆? + name + '銆嶅湪绗? + chapterNum + '绔犲嚭鍦篭n锛堝悗缁彲鎺ュ叆AI鍓х収鐢熸垚锛?, 'info');
+    showToast('🎭 角色「' + name + '」在第' + chapterNum + '章出场\n（后续可接入AI剧照生成）', 'info');
 }
 
 function showSceneInfo(scene, chapterNum) {
-    showToast('馃幀 鍦烘櫙銆? + scene + '銆峔n绗? + chapterNum + '绔燶n锛堝悗缁彲鎺ュ叆AI鍦烘櫙鍥剧敓鎴愶級', 'info');
+    showToast('🎬 场景「' + scene + '」\n第' + chapterNum + '章\n（后续可接入AI场景图生成）', 'info');
 }
 
 function highlightHook(hookText, chapterNum) {
@@ -2890,7 +2944,7 @@ function highlightHook(hookText, chapterNum) {
     setTimeout(() => {
         const body = document.getElementById('contentBody');
         if (!body || body.classList.contains('empty')) return;
-        const keywords = hookText.split(/[锛?銆乗s]+/).filter(w => w.length >= 2).slice(0, 4);
+        const keywords = hookText.split(/[，,、\s]+/).filter(w => w.length >= 2).slice(0, 4);
         if (keywords.length === 0) return;
         let html = body.innerHTML;
         for (const kw of keywords) {
@@ -2898,7 +2952,7 @@ function highlightHook(hookText, chapterNum) {
             html = html.replace(regex, '<mark style="background:rgba(245,158,11,0.3);color:#fbbf24;padding:1px 3px;border-radius:3px;">' + kw + '</mark>');
         }
         body.innerHTML = html;
-        showToast('馃挜 宸查珮浜' + chapterNum + '绔犵埥鐐瑰叧閿瘝', 'success');
+        showToast('💥 已高亮第' + chapterNum + '章爽点关键词', 'success');
     }, 300);
 }
 
@@ -2906,17 +2960,17 @@ function escapeRegExp(string) {
     return string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
 
-// 澶嶅埗褰撳墠绔犺妭姝ｆ枃
+// 复制当前章节正文
 function copyChapterContent() {
     if (!activeChapter || !chapters[activeChapter] || !chapters[activeChapter].content) {
-        showToast('娌℃湁鍙鍒剁殑鍐呭', 'error');
+        showToast('没有可复制的内容', 'error');
         return;
     }
     const text = chapters[activeChapter].content;
     navigator.clipboard.writeText(text).then(() => {
-        showToast('鉁?宸插鍒跺埌鍓创鏉?, 'success');
+        showToast('✅ 已复制到剪贴板', 'success');
     }).catch(() => {
-        // 闄嶇骇鏂规
+        // 降级方案
         const textarea = document.createElement('textarea');
         textarea.value = text;
         textarea.style.position = 'fixed';
@@ -2925,40 +2979,40 @@ function copyChapterContent() {
         textarea.select();
         try {
             document.execCommand('copy');
-            showToast('鉁?宸插鍒跺埌鍓创鏉?, 'success');
+            showToast('✅ 已复制到剪贴板', 'success');
         } catch {
-            showToast('鉂?澶嶅埗澶辫触锛岃鎵嬪姩澶嶅埗', 'error');
+            showToast('❌ 复制失败，请手动复制', 'error');
         }
         document.body.removeChild(textarea);
     });
 }
 
-// ===== 鏁呬簨绾垮墽鐓у姛鑳?=====
-let storylineStills = []; // 宸插姞杞界殑鍓х収缂撳瓨 { image_id, chapter_num, image_type, image_url, character_name }
+// ===== 故事线剧照功能 =====
+let storylineStills = []; // 已加载的剧照缓存 { image_id, chapter_num, image_type, image_url, character_name }
 let stillModalState = { chNum: null, type: null, name: null };
 
-// 浠庨」鐩瀹氫腑鎻愬彇瑙掕壊澶栬矊鎻忚堪
+// 从项目设定中提取角色外貌描述
 function extractCharacterAppearance(characterName) {
     if (!projectFiles || !projectFiles.settings || !characterName) return '';
     const settings = projectFiles.settings;
 
-    // 绛栫暐1: 鎼滅储瑙掕壊鍚嶉檮杩戠殑"澶栬矊"銆?闀跨浉"銆?褰㈣薄"鍏抽敭璇?
+    // 策略1: 搜索角色名附近的"外貌"、"长相"、"形象"关键词
     const nameIdx = settings.indexOf(characterName);
     if (nameIdx === -1) return '';
 
-    // 鍚戝墠鍚戝悗鍚勫彇500瀛楃
+    // 向前向后各取500字符
     const start = Math.max(0, nameIdx - 300);
     const end = Math.min(settings.length, nameIdx + 500);
     const context = settings.slice(start, end);
 
-    // 灏濊瘯鍖归厤甯歌鏍煎紡
+    // 尝试匹配常见格式
     const patterns = [
-        new RegExp(characterName + '[锛?锛歖\\s*([^\\n]{10,200})', 'i'),
-        /澶栬矊[锛?锛歖\s*([^\n]{10,200})/i,
-        /闀跨浉[锛?锛歖\s*([^\n]{10,200})/i,
-        /褰㈣薄[锛?锛歖\s*([^\n]{10,200})/i,
-        /闈㈠[锛?锛歖\s*([^\n]{10,200})/i,
-        /澶栬[锛?锛歖\s*([^\n]{10,200})/i,
+        new RegExp(characterName + '[：:：]\\s*([^\\n]{10,200})', 'i'),
+        /外貌[：:：]\s*([^\n]{10,200})/i,
+        /长相[：:：]\s*([^\n]{10,200})/i,
+        /形象[：:：]\s*([^\n]{10,200})/i,
+        /面容[：:：]\s*([^\n]{10,200})/i,
+        /外观[：:：]\s*([^\n]{10,200})/i,
     ];
     for (const p of patterns) {
         const m = context.match(p);
@@ -2967,104 +3021,105 @@ function extractCharacterAppearance(characterName) {
     return '';
 }
 
-// 娓呮礂瑙掕壊鍚嶏紝鍘绘帀鎷彿鏍囨敞濡?锛堥娆″嚭鍦猴級"
+// 清洗角色名，去掉括号标注如"（首次出场）"
 function cleanCharacterName(name) {
     if (!name) return '';
-    return name.replace(/[锛?].*?[锛?]/g, '').trim();
+    return name.replace(/[（(].*?[）)]/g, '').trim();
 }
 
-// 浠庨」鐩瀹氫腑妫€娴嬪皬璇寸被鍨嬶紝杩斿洖 prompt 鍓嶇紑鍜岀害鏉?function detectNovelStyle() {
+// 从项目设定中检测小说类型，返回 prompt 前缀和约束
+function detectNovelStyle() {
     if (!projectFiles || !projectFiles.settings) return {
         genre: 'modern',
-        scenePrefix: '鐜颁唬閮藉競灏忚鍦烘櫙',
-        charPrefix: '鐜颁唬閮藉競灏忚瑙掕壊',
-        styleHint: '鐪熷疄鐓х墖璐ㄦ劅锛岃嚜鐒跺厜褰憋紝鍐欏疄椋庢牸',
-        negHint: '涓嶇骞讳笉鍙よ涓嶄粰渚犱笉鍔ㄦ极',
-        defaultDesc: '鐜颁唬鏃ュ父绌挎惌锛岄兘甯傛皵璐紝鐪熷疄浜哄儚'
+        scenePrefix: '现代都市小说场景',
+        charPrefix: '现代都市小说角色',
+        styleHint: '真实照片质感，自然光影，写实风格',
+        negHint: '不科幻不古装不仙侠不动漫',
+        defaultDesc: '现代日常穿搭，都市气质，真实人像'
     };
     const text = projectFiles.settings.slice(0, 2000);
     const low = text.toLowerCase();
 
     const genres = [
         {
-            keys: ['淇粰', '鐜勫够', '浠欎緺', '淇湡', '閲戜腹', '鍏冨┐', '鐏垫皵', '娉曞疂', '娓″姭', '榄旈亾', '鍓戜慨'],
+            keys: ['修仙', '玄幻', '仙侠', '修真', '金丹', '元婴', '灵气', '法宝', '渡劫', '魔道', '剑修'],
             genre: 'xianxia',
-            scenePrefix: '鍙ら浠欎緺灏忚鍦烘櫙',
-            charPrefix: '鍙ら浠欎緺灏忚瑙掕壊',
-            styleHint: '鍥芥极椋庢牸锛屽敮缇庣粏鑵?,
-            negHint: '涓嶇幇浠ｄ笉绉戝够',
-            defaultDesc: '鍙ら鏈嶉グ锛岄閫搁暱鍙戯紝浠欐皵椋橀'
+            scenePrefix: '古风仙侠小说场景',
+            charPrefix: '古风仙侠小说角色',
+            styleHint: '国漫风格，唯美细腻',
+            negHint: '不现代不科幻',
+            defaultDesc: '古风服饰，飘逸长发，仙气飘飘'
         },
         {
-            keys: ['绉戝够', '鏄熼檯', '鏈虹敳', '鏈潵', '璧涘崥', '鏈笘', '鍩哄洜', '閲忓瓙', '椋炶埞'],
+            keys: ['科幻', '星际', '机甲', '未来', '赛博', '末世', '基因', '量子', '飞船'],
             genre: 'scifi',
-            scenePrefix: '绉戝够灏忚鍦烘櫙',
-            charPrefix: '绉戝够灏忚瑙掕壊',
-            styleHint: '鏈潵鎰燂紝鐢靛奖鎴浘',
-            negHint: '涓嶅彜椋庝笉鐜颁唬鏃ュ父',
-            defaultDesc: '鏈潵鎰熸湇瑁咃紝绉戞妧鍏冪礌锛屽喎宄绘皵璐?
+            scenePrefix: '科幻小说场景',
+            charPrefix: '科幻小说角色',
+            styleHint: '未来感，电影截图',
+            negHint: '不古风不现代日常',
+            defaultDesc: '未来感服装，科技元素，冷峻气质'
         },
         {
-            keys: ['鎮枒', '鎺ㄧ悊', '鍒戜睛', '鎺㈡', '鐘姜', '鎯婃倸', '娉曞尰', '璋嶆垬'],
+            keys: ['悬疑', '推理', '刑侦', '探案', '犯罪', '惊悚', '法医', '谍战'],
             genre: 'suspense',
-            scenePrefix: '鎮枒灏忚鍦烘櫙',
-            charPrefix: '鎮枒灏忚瑙掕壊',
-            styleHint: '鍐欏疄鏆楄皟锛岀數褰辨劅',
-            negHint: '涓嶇骞讳笉鍙よ涓嶅敮缇?,
-            defaultDesc: '鍐欏疄椋庢牸锛岀溂绁炴湁鎴忥紝姘旇川娌夌ǔ'
+            scenePrefix: '悬疑小说场景',
+            charPrefix: '悬疑小说角色',
+            styleHint: '写实暗调，电影感',
+            negHint: '不科幻不古装不唯美',
+            defaultDesc: '写实风格，眼神有戏，气质沉稳'
         },
         {
-            keys: ['瑷€鎯?, '鐢滃疇', '铏愭亱', '闇告€?, '鍗冮噾', '濠氭亱', '绔归┈'],
+            keys: ['言情', '甜宠', '虐恋', '霸总', '千金', '婚恋', '竹马'],
             genre: 'romance',
-            scenePrefix: '娴极瑷€鎯呭皬璇村満鏅?,
-            charPrefix: '娴极瑷€鎯呭皬璇磋鑹?,
-            styleHint: '鍞編鏌斿拰锛岄煩鍓ч鏍?,
-            negHint: '涓嶇骞讳笉鍙よ涓嶆殫璋?,
-            defaultDesc: '鏃跺皻绮捐嚧锛屾皵璐ㄤ紭闆咃紝鏌斿拰鍏夊奖'
+            scenePrefix: '浪漫言情小说场景',
+            charPrefix: '浪漫言情小说角色',
+            styleHint: '唯美柔和，韩剧风格',
+            negHint: '不科幻不古装不暗调',
+            defaultDesc: '时尚精致，气质优雅，柔和光影'
         },
         {
-            keys: ['鍘嗗彶', '鏋剁┖', '鐜嬫湞', '鐨囧笣', '瀹枟', '鏉冭皨', '璇镐警'],
+            keys: ['历史', '架空', '王朝', '皇帝', '宫斗', '权谋', '诸侯'],
             genre: 'history',
-            scenePrefix: '鍘嗗彶鏋剁┖灏忚鍦烘櫙',
-            charPrefix: '鍘嗗彶鏋剁┖灏忚瑙掕壊',
-            styleHint: '鍙ら鍐欏疄锛屽巻鍙茶川鎰?,
-            negHint: '涓嶇幇浠ｄ笉绉戝够',
-            defaultDesc: '鍙や唬鏈嶉グ锛屼华鎬佺搴勶紝鍘嗗彶璐ㄦ劅'
+            scenePrefix: '历史架空小说场景',
+            charPrefix: '历史架空小说角色',
+            styleHint: '古风写实，历史质感',
+            negHint: '不现代不科幻',
+            defaultDesc: '古代服饰，仪态端庄，历史质感'
         },
     ];
 
     for (const g of genres) {
         if (g.keys.some(k => text.includes(k) || low.includes(k))) return g;
     }
-    // 榛樿鐜颁唬閮藉競
+    // 默认现代都市
     return {
         genre: 'modern',
-        scenePrefix: '鐜颁唬閮藉競灏忚鍦烘櫙',
-        charPrefix: '鐜颁唬閮藉競灏忚瑙掕壊',
-        styleHint: '鐪熷疄鐓х墖璐ㄦ劅锛岃嚜鐒跺厜褰憋紝鍐欏疄椋庢牸',
-        negHint: '涓嶇骞讳笉鍙よ涓嶄粰渚犱笉鍔ㄦ极',
-        defaultDesc: '鐜颁唬鏃ュ父绌挎惌锛岄兘甯傛皵璐紝鐪熷疄浜哄儚'
+        scenePrefix: '现代都市小说场景',
+        charPrefix: '现代都市小说角色',
+        styleHint: '真实照片质感，自然光影，写实风格',
+        negHint: '不科幻不古装不仙侠不动漫',
+        defaultDesc: '现代日常穿搭，都市气质，真实人像'
     };
 }
 
-// 鏋勯€犲満鏅浘prompt
+// 构造场景图prompt
 function buildScenePrompt(sceneText) {
     if (!sceneText) return '';
     const g = detectNovelStyle();
-    return `${g.scenePrefix}锛?{sceneText}锛?{g.styleHint}锛?{g.negHint}`;
+    return `${g.scenePrefix}：${sceneText}，${g.styleHint}，${g.negHint}`;
 }
 
-// 鏋勯€犺鑹插浘prompt
+// 构造角色图prompt
 function buildCharacterPrompt(characterName) {
     const cleanName = cleanCharacterName(characterName);
     if (!cleanName) return '';
     const appearance = extractCharacterAppearance(cleanName);
     const g = detectNovelStyle();
     const desc = appearance || g.defaultDesc;
-    return `${g.charPrefix}銆?{cleanName}銆嶏細${desc}锛?{g.styleHint}锛?{g.negHint}`;
+    return `${g.charPrefix}「${cleanName}」：${desc}，${g.styleHint}，${g.negHint}`;
 }
 
-// 鏄剧ず鍓х収鐢熸垚妯℃€佹
+// 显示剧照生成模态框
 function showStillModal(chNum, type, name) {
     stillModalState = { chNum, type, name };
     const titleEl = document.getElementById('stillModalTitle');
@@ -3072,16 +3127,16 @@ function showStillModal(chNum, type, name) {
     const ch = storylineData.find(c => c.num === chNum);
 
     if (type === 'scene') {
-        titleEl.textContent = `馃幀 鐢熸垚绗?{chNum}绔犲満鏅浘`;
+        titleEl.textContent = `🎬 生成第${chNum}章场景图`;
         promptEl.value = buildScenePrompt(ch ? ch.scene : '');
     } else {
         const cleanName = cleanCharacterName(name);
-        titleEl.textContent = `馃懁 鐢熸垚銆?{cleanName}銆嶈鑹插浘`;
+        titleEl.textContent = `👤 生成「${cleanName}」角色图`;
         promptEl.value = buildCharacterPrompt(name);
     }
 
     document.getElementById('stillGenerateBtn').disabled = false;
-    document.getElementById('stillGenerateBtn').textContent = '鐢熸垚';
+    document.getElementById('stillGenerateBtn').textContent = '生成';
     document.getElementById('stillModal').classList.add('show');
 }
 
@@ -3090,17 +3145,17 @@ function closeStillModal() {
     stillModalState = { chNum: null, type: null, name: null };
 }
 
-// 纭鐢熸垚鍓х収
+// 确认生成剧照
 async function confirmGenerateStill() {
     const { chNum, type, name } = stillModalState;
     if (!chNum || !type) return;
 
     const prompt = document.getElementById('stillPrompt').value.trim();
-    if (!prompt) { showToast('璇疯緭鍏ユ彁绀鸿瘝', 'error'); return; }
+    if (!prompt) { showToast('请输入提示词', 'error'); return; }
 
     const btn = document.getElementById('stillGenerateBtn');
     btn.disabled = true;
-    btn.textContent = '鈴?鐢熸垚涓?..';
+    btn.textContent = '⏳ 生成中...';
 
     try {
         const response = await fetch('/api/storyline/generate-still', {
@@ -3121,21 +3176,21 @@ async function confirmGenerateStill() {
         if (data.success) {
             storylineStills.push(data.data);
             renderStillsInStoryline();
-            showToast('鉁?鍓х収鐢熸垚鎴愬姛', 'success');
+            showToast('✅ 剧照生成成功', 'success');
             closeStillModal();
         } else {
-            showToast('鐢熸垚澶辫触: ' + (data.error || '鏈煡閿欒'), 'error');
+            showToast('生成失败: ' + (data.error || '未知错误'), 'error');
             btn.disabled = false;
-            btn.textContent = '鐢熸垚';
+            btn.textContent = '生成';
         }
     } catch (e) {
-        showToast('璇锋眰澶辫触: ' + e.message, 'error');
+        showToast('请求失败: ' + e.message, 'error');
         btn.disabled = false;
-        btn.textContent = '鐢熸垚';
+        btn.textContent = '生成';
     }
 }
 
-// 鍔犺浇鏌愰」鐩殑鎵€鏈夋晠浜嬬嚎鍓х収
+// 加载某项目的所有故事线剧照
 async function loadStorylineStills(projectId) {
     if (!projectId) return;
     try {
@@ -3146,11 +3201,12 @@ async function loadStorylineStills(projectId) {
             renderStillsInStoryline();
         }
     } catch (e) {
-        console.error('鍔犺浇鍓х収澶辫触:', e);
+        console.error('加载剧照失败:', e);
     }
 }
 
-// 鍦ㄦ晠浜嬬嚎涓覆鏌撳凡鍔犺浇鐨勫墽鐓?function renderStillsInStoryline() {
+// 在故事线中渲染已加载的剧照
+function renderStillsInStoryline() {
     if (!showingStoryline) return;
 
     for (const still of storylineStills) {
@@ -3171,7 +3227,7 @@ async function loadStorylineStills(projectId) {
         const container = document.getElementById(containerId);
         if (!container) continue;
 
-        // 妫€鏌ユ槸鍚﹀凡娓叉煋锛堥伩鍏嶉噸澶嶏級
+        // 检查是否已渲染（避免重复）
         if (container.querySelector(`[data-image-id="${still.image_id}"]`)) continue;
 
         const img = document.createElement('img');
