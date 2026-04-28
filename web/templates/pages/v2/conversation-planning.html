@@ -2489,10 +2489,19 @@ ${rangeHint}
         let editorModalVolNum = 0;
         let editorMode = 'edit';
 
-        function openEditorModal(type, volNum) {
+        async function openEditorModal(type, volNum) {
             editorModalType = type;
             editorModalVolNum = volNum || 0;
             editorMode = 'edit';
+
+            // 如果是 Prompt 类型且未加载过，先加载
+            if (type.startsWith('prompt_') && !currentProjectId) {
+                showError('请先保存项目以启用自定义Prompt');
+                return;
+            }
+            if (type.startsWith('prompt_')) {
+                await loadCustomPrompts();
+            }
 
             let content = '';
             let title = '编辑';
