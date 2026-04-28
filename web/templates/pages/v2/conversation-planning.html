@@ -1013,6 +1013,7 @@
                 <button class="tab-btn active" data-tab="settings" onclick="switchTab('settings')">设定</button>
                 <button class="tab-btn" data-tab="outline" onclick="switchTab('outline')">大纲</button>
                 <button class="tab-btn" data-tab="quality" onclick="switchTab('quality')" id="tabBtnQuality">质检</button>
+                <button class="tab-btn" data-tab="prompts" onclick="switchTab('prompts')">📝 Prompt</button>
             </div>
             <div class="settings-body">
                 <!-- 设定 Tab -->
@@ -1068,6 +1069,38 @@
                             <div class="file-action">✏️</div>
                         </div>
                         <div id="volumeFileList"></div>
+                    </div>
+                </div>
+
+                <!-- Prompt 编辑 Tab -->
+                <div class="tab-content" id="tab-prompts">
+                    <div class="tab-actions">
+                        <button class="tab-gen-btn" onclick="saveCustomPrompts()">💾 保存Prompt</button>
+                        <span class="tab-status" id="promptsStatus">仅对当前项目生效</span>
+                    </div>
+                    <div class="prompt-editor-list" style="display:flex;flex-direction:column;gap:10px;margin-top:10px;">
+                        <div class="prompt-editor-item">
+                            <label style="font-size:12px;font-weight:600;color:var(--text-secondary);display:flex;align-items:center;gap:6px;">
+                                <span>✨</span> 设定生成 Prompt
+                                <span id="badgeSettingsPrompt" style="display:none;background:var(--accent);color:#fff;font-size:10px;padding:1px 6px;border-radius:4px;">已自定义</span>
+                            </label>
+                            <textarea id="promptSettings" style="width:100%;height:120px;padding:8px;background:var(--bg-primary);border:1px solid var(--border-color);border-radius:var(--radius-sm);color:var(--text-primary);font-size:11px;line-height:1.6;resize:vertical;margin-top:4px;font-family:inherit;" placeholder="加载中..."></textarea>
+                        </div>
+                        <div class="prompt-editor-item">
+                            <label style="font-size:12px;font-weight:600;color:var(--text-secondary);display:flex;align-items:center;gap:6px;">
+                                <span>📋</span> 粗纲生成 Prompt
+                                <span id="badgeOutlinePrompt" style="display:none;background:var(--accent);color:#fff;font-size:10px;padding:1px 6px;border-radius:4px;">已自定义</span>
+                            </label>
+                            <textarea id="promptOutline" style="width:100%;height:120px;padding:8px;background:var(--bg-primary);border:1px solid var(--border-color);border-radius:var(--radius-sm);color:var(--text-primary);font-size:11px;line-height:1.6;resize:vertical;margin-top:4px;font-family:inherit;" placeholder="加载中..."></textarea>
+                        </div>
+                        <div class="prompt-editor-item">
+                            <label style="font-size:12px;font-weight:600;color:var(--text-secondary);display:flex;align-items:center;gap:6px;">
+                                <span>📋</span> 细纲生成 Prompt
+                                <span id="badgeDetailedPrompt" style="display:none;background:var(--accent);color:#fff;font-size:10px;padding:1px 6px;border-radius:4px;">已自定义</span>
+                            </label>
+                            <textarea id="promptDetailed" style="width:100%;height:120px;padding:8px;background:var(--bg-primary);border:1px solid var(--border-color);border-radius:var(--radius-sm);color:var(--text-primary);font-size:11px;line-height:1.6;resize:vertical;margin-top:4px;font-family:inherit;" placeholder="加载中..."></textarea>
+                            <p style="font-size:10px;color:var(--text-muted);margin-top:4px;">占位符：{volume_number} {chapter_count} {global_start} {global_end} {plan_section} {_REALITY_AVOIDANCE_RULES}</p>
+                        </div>
                     </div>
                 </div>
 
@@ -1200,6 +1233,8 @@
         let pendingGenerateType = null; // 'settings' | 'outline' | null
         let currentProjectData = null;
         let currentConversationId = null;
+        let currentProjectId = null; // 当前项目目录名（从 save-project 返回的 project_path 提取）
+        let customPrompts = {}; // 当前项目的自定义 prompt {settings, outline, detailed}
         const HISTORY_KEY = 'novelcraft_conversation_history';
         const MAX_HISTORY = 5;
 
@@ -1911,7 +1946,11 @@
             pendingGenerateType = 'settings';
             const cfg = getProjectConfig();
 
-            const prompt = `请根据以上对话内容，生成一份番茄小说平台的项目设定方案。
+            let prompt;
+            if (customPrompts.settings && customPrompts.settings.trim()) {
+                prompt = customPrompts.settings;
+            } else {
+                prompt = `请根据以上对话内容，生成一份番茄小说平台的项目设定方案。
 
 【平台背景】番茄小说：算法推荐驱动、免费阅读、下沉市场为主。读者没有沉没成本，3秒划走。书名+简介决定点击率，前3章决定留存率。
 
@@ -2005,7 +2044,11 @@
             pendingGenerateType = 'framework';
             const cfg = getProjectConfig();
 
-            const prompt = `请根据以上项目设定，生成全书框架规划。这是全书的"设计蓝图"，不是逐章大纲。
+            let prompt;
+            if (customPrompts.outline && customPrompts.outline.trim()) {
+                prompt = customPrompts.outline;
+            } else {
+                prompt = `请根据以上项目设定，生成全书框架规划。这是全书的"设计蓝图"，不是逐章大纲。
 
 【平台要求】番茄小说：算法推荐、免费阅读。读者随时会划走。
 
@@ -2170,7 +2213,16 @@
                 rangeHint = `【重要】请先在全书框架中查找第${volNum}卷的起始章号和结束章号。本卷粗纲必须逐章列出从起始章号到结束章号的完整内容，一章都不能少。`;
             }
 
-            const prompt = `请根据以上项目设定和全书框架，生成**第${volNum}卷**的详细粗纲。
+            let prompt;
+            if (customPrompts.detailed && customPrompts.detailed.trim()) {
+                // 替换自定义 prompt 中的占位符
+                prompt = customPrompts.detailed
+                    .replace(/\{volNum\}/g, volNum)
+                    .replace(/\{range_hint\}/g, rangeHint || '')
+                    .replace(/\{range_start\}/g, range ? range.start : 'X')
+                    .replace(/\{range_end\}/g, range ? range.end : 'X');
+            } else {
+                prompt = `请根据以上项目设定和全书框架，生成**第${volNum}卷**的详细粗纲。
 
 ${rangeHint}
 
@@ -2510,6 +2562,9 @@ ${rangeHint}
             document.querySelectorAll('.tab-content').forEach(content => {
                 content.classList.toggle('active', content.id === 'tab-' + tab);
             });
+            if (tab === 'prompts') {
+                loadCustomPrompts();
+            }
         }
 
         function hideSettings() {
@@ -2521,6 +2576,71 @@ ${rangeHint}
                 if (!confirm('确定要清空当前对话吗？已保存的历史记录不受影响。')) return;
             }
             startNewConversation();
+        }
+
+        async function loadCustomPrompts() {
+            if (!currentProjectId) {
+                document.getElementById('promptSettings').placeholder = '请先保存项目以启用自定义Prompt';
+                document.getElementById('promptOutline').placeholder = '请先保存项目以启用自定义Prompt';
+                document.getElementById('promptDetailed').placeholder = '请先保存项目以启用自定义Prompt';
+                return;
+            }
+            document.getElementById('promptSettings').placeholder = '留空则使用默认Prompt';
+            document.getElementById('promptOutline').placeholder = '留空则使用默认Prompt';
+            document.getElementById('promptDetailed').placeholder = '留空则使用默认Prompt';
+            try {
+                const resp = await fetch(`/api/conversation/custom-prompts?project_id=${encodeURIComponent(currentProjectId)}`);
+                const data = await resp.json();
+                if (data.success) {
+                    customPrompts = data.prompts || {};
+                    // 只显示用户自定义的 prompt；未自定义的保持为空
+                    document.getElementById('promptSettings').value = data.is_custom.settings ? (data.prompts.settings || '') : '';
+                    document.getElementById('promptOutline').value = data.is_custom.outline ? (data.prompts.outline || '') : '';
+                    document.getElementById('promptDetailed').value = data.is_custom.detailed ? (data.prompts.detailed || '') : '';
+                    document.getElementById('badgeSettingsPrompt').style.display = data.is_custom.settings ? 'inline-block' : 'none';
+                    document.getElementById('badgeOutlinePrompt').style.display = data.is_custom.outline ? 'inline-block' : 'none';
+                    document.getElementById('badgeDetailedPrompt').style.display = data.is_custom.detailed ? 'inline-block' : 'none';
+                }
+            } catch (e) {
+                console.error('加载自定义prompt失败:', e);
+            }
+        }
+
+        async function saveCustomPrompts() {
+            if (!currentProjectId) {
+                showError('请先保存项目以启用自定义Prompt');
+                return;
+            }
+            try {
+                const resp = await fetch('/api/conversation/custom-prompts', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        project_id: currentProjectId,
+                        prompts: {
+                            settings: document.getElementById('promptSettings').value,
+                            outline: document.getElementById('promptOutline').value,
+                            detailed: document.getElementById('promptDetailed').value,
+                        }
+                    })
+                });
+                const data = await resp.json();
+                if (data.success) {
+                    showError('✅ Prompt 已保存');
+                    customPrompts = {
+                        settings: document.getElementById('promptSettings').value,
+                        outline: document.getElementById('promptOutline').value,
+                        detailed: document.getElementById('promptDetailed').value,
+                    };
+                    document.getElementById('badgeSettingsPrompt').style.display = document.getElementById('promptSettings').value.trim() ? 'inline-block' : 'none';
+                    document.getElementById('badgeOutlinePrompt').style.display = document.getElementById('promptOutline').value.trim() ? 'inline-block' : 'none';
+                    document.getElementById('badgeDetailedPrompt').style.display = document.getElementById('promptDetailed').value.trim() ? 'inline-block' : 'none';
+                } else {
+                    showError('保存失败: ' + (data.error || '未知错误'));
+                }
+            } catch (e) {
+                showError('保存请求失败: ' + e.message);
+            }
         }
 
         async function saveProject() {
@@ -2573,6 +2693,11 @@ ${rangeHint}
                 const result = await response.json();
                 if (result.success) {
                     showError('✅ 项目已保存: ' + result.project_path);
+                    // 从 project_path 提取项目ID（最后一级目录名）
+                    if (result.project_path) {
+                        const parts = result.project_path.replace(/\\/g, '/').split('/');
+                        currentProjectId = parts[parts.length - 1] || null;
+                    }
                 } else {
                     showError('保存失败: ' + (result.error || '未知错误'));
                 }
