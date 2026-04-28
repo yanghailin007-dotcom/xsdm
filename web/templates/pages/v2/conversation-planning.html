@@ -22,7 +22,7 @@
             --text-primary: #e2e2e8;
             --text-secondary: #9ca3af;
             --text-muted: #6b7280;
-            --accent-blue: #58a6ff;
+            --accent-blue: #4f86f7;
             --accent-green: #238636;
             --accent-green-hover: #2ea043;
             --accent-red: #f85149;
@@ -99,7 +99,7 @@
             transition: all 0.2s;
         }
         .nav-links a:hover { background: var(--bg-tertiary); color: var(--text-primary); }
-        .nav-links a.active { background: rgba(88,166,255,0.15); color: var(--accent-blue); }
+        .nav-links a.active { background: rgba(79,134,247,0.15); color: var(--accent-blue); }
         .model-selector {
             padding: 6px 28px 6px 12px;
             border-radius: var(--radius-sm);
@@ -185,7 +185,7 @@
             background: var(--bg-tertiary);
         }
         .history-item.active {
-            background: rgba(88, 166, 255, 0.1);
+            background: rgba(79, 134, 247, 0.1);
         }
         .history-item.active .history-item-text {
             color: var(--accent-blue);
@@ -278,7 +278,7 @@
             margin-top: 2px;
         }
         .avatar.user {
-            background: linear-gradient(135deg, #1f6feb, #58a6ff);
+            background: linear-gradient(135deg, #2563eb, #60a5fa);
             color: #fff;
             order: 2;
         }
@@ -295,11 +295,18 @@
             color: var(--text-primary);
             word-break: break-word;
         }
+        .message-content.ai .bubble {
+            background: var(--bg-message);
+            border: 1px solid var(--border-color);
+            padding: 12px 16px;
+            border-radius: 16px;
+            border-bottom-left-radius: 4px;
+        }
         .message-content.user .bubble {
             text-align: left;
             flex: 0 1 auto;
             max-width: 80%;
-            background: linear-gradient(135deg, #1f6feb 0%, #58a6ff 100%);
+            background: #4f86f7;
             color: #fff;
             border: none;
             padding: 10px 16px;
@@ -527,7 +534,7 @@
         }
         .input-box:focus {
             border-color: var(--accent-blue);
-            box-shadow: 0 0 0 3px rgba(88,166,255,0.1);
+            box-shadow: 0 0 0 3px rgba(79,134,247,0.1);
         }
         .input-box::placeholder {
             color: var(--text-muted);
