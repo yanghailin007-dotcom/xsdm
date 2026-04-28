@@ -1598,7 +1598,8 @@ function parseOutlineVolumes(outlineText) {
     outlineVolumes = { all: outlineText, volumes: {} };
     if (!outlineText) return;
 
-    // 灏濊瘯鎸?"# 鍚勫嵎绮楃翰" 鎴?"---" 鍒嗛殧绗﹀垎鍓?    const splitMarkers = [
+    // 灏濊瘯鎸?"# 鍚勫嵎绮楃翰" 鎴?"---" 鍒嗛殧绗﹀垎鍓?
+    const splitMarkers = [
         /#{1,3}\s*鍚勫嵎绮楃翰/,
         /^---\s*$/m,
     ];
@@ -1617,7 +1618,8 @@ function parseOutlineVolumes(outlineText) {
 
     outlineVolumes.all = frameworkText;
 
-    // 浠?volumesText 涓В鏋愬悇鍗?    if (volumesText) {
+    // 浠?volumesText 涓В鏋愬悇鍗?
+    if (volumesText) {
         // 鍖归厤 "# 绗琗鍗风矖绾? 鎴?"## 绗琗鍗? 鎴?"### 绗琗鍗?
         const volRegex = /^#{1,3}\s*绗琝s*(\d+)\s*鍗?g;
         let m;
@@ -1634,7 +1636,8 @@ function parseOutlineVolumes(outlineText) {
         }
     }
 
-    // 濉厖鍗烽€夋嫨鍣?    const volSelect = $('outlineVolSelect');
+    // 濉厖鍗烽€夋嫨鍣?
+    const volSelect = $('outlineVolSelect');
     if (volSelect) {
         volSelect.innerHTML = '<option value="all">鍏ㄤ功妗嗘灦</option>';
         const volKeys = Object.keys(outlineVolumes.volumes).map(Number).sort((a, b) => a - b);
@@ -1724,21 +1727,24 @@ function closeRefDrawer() {
 function showRoughOutline() {
     const content = outlineVolumes.all || (projectFiles ? projectFiles.outline : '');
     _renderRefContent('鍏ㄤ功澶х翰', '馃搫', content, 'outline');
-    // 鏄剧ず鍗烽€夋嫨鍣?    const volSelect = $('outlineVolSelect');
+    // 鏄剧ず鍗烽€夋嫨鍣?
+    const volSelect = $('outlineVolSelect');
     if (volSelect) volSelect.style.display = 'inline-block';
 }
 
 function showOutline() {
     const content = projectFiles ? projectFiles.detailed_outline : '';
     _renderRefContent('鏈嵎缁嗙翰', '馃搵', content, 'detailed');
-    // 闅愯棌鍗烽€夋嫨鍣?    const volSelect = $('outlineVolSelect');
+    // 闅愯棌鍗烽€夋嫨鍣?
+    const volSelect = $('outlineVolSelect');
     if (volSelect) volSelect.style.display = 'none';
 }
 
 function showSettings() {
     const content = projectFiles ? projectFiles.settings : '';
     _renderRefContent('鏍稿績璁惧畾', '馃摉', content, 'settings');
-    // 闅愯棌鍗烽€夋嫨鍣?    const volSelect = $('outlineVolSelect');
+    // 闅愯棌鍗烽€夋嫨鍣?
+    const volSelect = $('outlineVolSelect');
     if (volSelect) volSelect.style.display = 'none';
 }
 
@@ -1878,7 +1884,8 @@ async function startGeneration() {
 
     if (!projectId) { showToast('璇峰厛閫夋嫨涓€涓」鐩?, 'error'); return; }
 
-    // 妫€鏌ュ綋鍓嶅嵎鏄惁鏈夌粏绾?    if (!projectFiles || !projectFiles.detailed_outline || !projectFiles.detailed_outline.trim()) {
+    // 妫€鏌ュ綋鍓嶅嵎鏄惁鏈夌粏绾?
+    if (!projectFiles || !projectFiles.detailed_outline || !projectFiles.detailed_outline.trim()) {
         showToast('褰撳墠鍗疯繕娌℃湁缁嗙翰锛岃鍏堢偣鍑汇€愮敓鎴愭湰鍗风粏绾层€戠敓鎴愮粏绾插悗鍐嶇敓鎴愭鏂?, 'error');
         return;
     }
@@ -1894,7 +1901,8 @@ async function startGeneration() {
 
     // 閲嶇疆 UI
     chapters = {};
-    // 鍚屼竴鍗峰唴淇濇寔瀵硅瘽涓婁笅鏂囷紝鍒囨崲鍗锋椂鎵嶉噸缃?    if (volumeNumber !== lastVolumeSession) {
+    // 鍚屼竴鍗峰唴淇濇寔瀵硅瘽涓婁笅鏂囷紝鍒囨崲鍗锋椂鎵嶉噸缃?
+    if (volumeNumber !== lastVolumeSession) {
         sessionMessages = [];
         lastVolumeSession = volumeNumber;
     }
@@ -1912,7 +1920,8 @@ async function startGeneration() {
     $('generateBtn').innerHTML = '<span>鈴?/span> 鐢熸垚涓?..';
     $('qualityCheckBtn').disabled = true;
 
-    // 鍒涘缓鏍囩椤?    for (let i = startChapter; i <= currentBatchEnd; i++) {
+    // 鍒涘缓鏍囩椤?
+    for (let i = startChapter; i <= currentBatchEnd; i++) {
         chapters[i] = { title: `绗?{i}绔燻, content: '', status: 'pending' };
         createChapterTab(i);
     }
@@ -1970,7 +1979,8 @@ async function startGeneration() {
                     }
                     if (data.session_messages) {
                         // 绮剧畝瀵硅瘽鍘嗗彶锛氬彧淇濈暀鍒濆璁惧畾 prompt + 鏈€鏂?AI 鍥炲
-                        // 鍘绘帀涓棿杩囨湡鐨?gen_prompt锛堟棫鐨勬壒娆＄粏绾插鍚庣画鎵规鏃犵敤锛?                        const msgs = data.session_messages;
+                        // 鍘绘帀涓棿杩囨湡鐨?gen_prompt锛堟棫鐨勬壒娆＄粏绾插鍚庣画鎵规鏃犵敤锛?
+                        const msgs = data.session_messages;
                         if (msgs.length >= 2) {
                             sessionMessages = [msgs[0], msgs[msgs.length - 1]];
                         } else {
@@ -2036,7 +2046,8 @@ function parseChaptersFromStream(text) {
     }
 
     let latestChNum = null;
-    // 鎻愬彇姣忎釜绔犺妭鐨勫唴瀹?    for (let i = 0; i < headings.length; i++) {
+    // 鎻愬彇姣忎釜绔犺妭鐨勫唴瀹?
+    for (let i = 0; i < headings.length; i++) {
         const h = headings[i];
         const chNum = h.num;
         const startIdx = h.end;
@@ -2051,7 +2062,8 @@ function parseChaptersFromStream(text) {
             updateChapterTab(chNum);
             latestChNum = chNum;
             
-            // 鏂扮珷鑺傚嚭鐜版椂锛岃嚜鍔ㄥ垏鎹㈠埌璇ョ珷鑺傦紙鐩存挱璺熼殢锛?            if (isNewChapter && isGenerating) {
+            // 鏂扮珷鑺傚嚭鐜版椂锛岃嚜鍔ㄥ垏鎹㈠埌璇ョ珷鑺傦紙鐩存挱璺熼殢锛?
+            if (isNewChapter && isGenerating) {
                 showChapter(chNum);
             }
         }
@@ -2088,11 +2100,13 @@ function finalizeGeneration() {
         }
     }
 
-    // 閲嶆柊娓叉煋褰撳墠鏄剧ず绔犺妭锛堝惎鐢ㄩ珮浜川妫€锛?    if (activeChapter && chapters[activeChapter]) {
+    // 閲嶆柊娓叉煋褰撳墠鏄剧ず绔犺妭锛堝惎鐢ㄩ珮浜川妫€锛?
+    if (activeChapter && chapters[activeChapter]) {
         showChapter(activeChapter);
     }
 
-    // 鑷姩淇濆瓨锛氬埛鏂伴」鐩枃浠讹紝鏇存柊 latest_chapter 鍜岃捣濮嬬珷鑺?    const projectId = $('projectSelect').value;
+    // 鑷姩淇濆瓨锛氬埛鏂伴」鐩枃浠讹紝鏇存柊 latest_chapter 鍜岃捣濮嬬珷鑺?
+    const projectId = $('projectSelect').value;
     const volumeNumber = parseInt($('volumeSelect').value);
     if (projectId) {
         loadProjectFiles(projectId, volumeNumber).then(() => {
@@ -2342,7 +2356,8 @@ function updateStatus() {
 
     $('generatedCount').textContent = `${done} / ${total}`;
 
-    // 鎵惧埌褰撳墠姝ｅ湪鐢熸垚鐨勭珷鑺?    let currentCh = '-';
+    // 鎵惧埌褰撳墠姝ｅ湪鐢熸垚鐨勭珷鑺?
+    let currentCh = '-';
     for (let n = currentBatchStart; n <= currentBatchEnd; n++) {
         if (chapters[n] && chapters[n].status === 'pending' && currentCh === '-') {
             currentCh = `绗?{n}绔燻;
@@ -2478,7 +2493,8 @@ function renderQualityReport(report) {
         `}).join('');
     }
 
-    // 鍒锋柊褰撳墠绔犺妭鏄剧ず锛屽簲鐢ㄩ珮浜?    if (activeChapter) showChapter(activeChapter);
+    // 鍒锋柊褰撳墠绔犺妭鏄剧ず锛屽簲鐢ㄩ珮浜?
+    if (activeChapter) showChapter(activeChapter);
 
     $('qualityPanel').scrollIntoView({ behavior: 'smooth' });
 }
@@ -2545,7 +2561,8 @@ async function confirmRewrite() {
                     const data = JSON.parse(dataStr);
                     if (data.content) {
                         fullText += data.content;
-                        // 瀹炴椂瑙ｆ瀽骞舵樉绀猴紙鑺傛祦 200ms锛?                        const now = Date.now();
+                        // 瀹炴椂瑙ｆ瀽骞舵樉绀猴紙鑺傛祦 200ms锛?
+                        const now = Date.now();
                         if (now - _rewriteLastUpdate > 200) {
                             _rewriteLastUpdate = now;
                             const regex = /### 绗?[涓€浜屼笁鍥涗簲鍏竷鍏節鍗佺櫨鍗冧竾浜縗d]+)绔燶s*(.*?)\n/;
@@ -2565,7 +2582,8 @@ async function confirmRewrite() {
             }
         }
 
-        // 鏈€缁堣В鏋愰噸鍐欑粨鏋滐紙鏀寔涓枃鏁板瓧锛?        const regex = /### 绗?[涓€浜屼笁鍥涗簲鍏竷鍏節鍗佺櫨鍗冧竾浜縗d]+)绔燶s*(.*?)\n/;
+        // 鏈€缁堣В鏋愰噸鍐欑粨鏋滐紙鏀寔涓枃鏁板瓧锛?
+        const regex = /### 绗?[涓€浜屼笁鍥涗簲鍏竷鍏節鍗佺櫨鍗冧竾浜縗d]+)绔燶s*(.*?)\n/;
         const match = regex.exec(fullText);
         if (match) {
             const title = match[2].trim();
@@ -2629,7 +2647,8 @@ function showStorylineView() {
     document.getElementById('rewriteBtn').disabled = true;
     document.getElementById('saveBtn').disabled = true;
 
-    // 鍔犺浇骞跺睍绀哄凡鐢熸垚鐨勫墽鐓?    const pid = document.getElementById('projectSelect').value;
+    // 鍔犺浇骞跺睍绀哄凡鐢熸垚鐨勫墽鐓?
+    const pid = document.getElementById('projectSelect').value;
     if (pid) loadStorylineStills(pid);
 }
 
@@ -2803,7 +2822,8 @@ function renderStorylineBigHtml() {
 function parseStoryline(markdown) {
     if (!markdown) return [];
     const chapters = [];
-    // 鏀寔1-3绾arkdown鏍囬锛屽吋瀹瑰悇绉嶆牸寮?    const chapterRegex = /^#{1,3}\s*绗琝s*(\d+)\s*绔??:[\s:锛歖+(.+?))?$/gm;
+    // 鏀寔1-3绾arkdown鏍囬锛屽吋瀹瑰悇绉嶆牸寮?
+    const chapterRegex = /^#{1,3}\s*绗琝s*(\d+)\s*绔??:[\s:锛歖+(.+?))?$/gm;
     let match;
     const positions = [];
     while ((match = chapterRegex.exec(markdown)) !== null) {
@@ -2922,7 +2942,8 @@ function extractCharacterAppearance(characterName) {
     if (!projectFiles || !projectFiles.settings || !characterName) return '';
     const settings = projectFiles.settings;
 
-    // 绛栫暐1: 鎼滅储瑙掕壊鍚嶉檮杩戠殑"澶栬矊"銆?闀跨浉"銆?褰㈣薄"鍏抽敭璇?    const nameIdx = settings.indexOf(characterName);
+    // 绛栫暐1: 鎼滅储瑙掕壊鍚嶉檮杩戠殑"澶栬矊"銆?闀跨浉"銆?褰㈣薄"鍏抽敭璇?
+    const nameIdx = settings.indexOf(characterName);
     if (nameIdx === -1) return '';
 
     // 鍚戝墠鍚戝悗鍚勫彇500瀛楃
