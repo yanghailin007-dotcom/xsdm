@@ -108,7 +108,7 @@
         .main-wrapper {
             height: calc(100vh - 56px);
             display: grid;
-            grid-template-columns: 320px 1fr;
+            grid-template-columns: 260px 1fr 300px;
             overflow: hidden;
         }
 
@@ -541,6 +541,117 @@
             font-weight: 600;
         }
 
+        /* ===== 右侧细纲面板 ===== */
+        .outline-panel {
+            background: var(--bg-secondary);
+            border-left: 1px solid var(--border-color);
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+        .outline-panel.collapsed {
+            width: 40px;
+            min-width: 40px;
+        }
+        .outline-panel-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 10px 14px;
+            border-bottom: 1px solid var(--border-color);
+            flex-shrink: 0;
+            background: var(--bg-tertiary);
+        }
+        .outline-panel-header h3 {
+            font-size: 13px;
+            font-weight: 600;
+            color: var(--text-primary);
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+        .outline-panel-toggle {
+            width: 24px; height: 24px;
+            border-radius: 6px;
+            border: none;
+            background: transparent;
+            color: var(--text-secondary);
+            font-size: 14px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s;
+        }
+        .outline-panel-toggle:hover { background: var(--bg-primary); color: var(--text-primary); }
+        .outline-panel-body {
+            flex: 1;
+            overflow-y: auto;
+            padding: 12px;
+        }
+        .outline-field {
+            margin-bottom: 12px;
+        }
+        .outline-field label {
+            display: block;
+            font-size: 11px;
+            color: var(--text-secondary);
+            margin-bottom: 4px;
+            font-weight: 500;
+            letter-spacing: 0.3px;
+        }
+        .outline-field textarea {
+            width: 100%;
+            padding: 8px 10px;
+            background: var(--bg-primary);
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius-sm);
+            color: var(--text-primary);
+            font-size: 12px;
+            line-height: 1.6;
+            font-family: inherit;
+            resize: vertical;
+            outline: none;
+            min-height: 36px;
+        }
+        .outline-field textarea:focus {
+            border-color: var(--accent);
+            box-shadow: 0 0 0 2px var(--accent-dim);
+        }
+        .outline-tags {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 4px;
+        }
+        .outline-tag {
+            padding: 2px 8px;
+            background: var(--accent-dim);
+            border: 1px solid var(--accent-border);
+            border-radius: 4px;
+            font-size: 11px;
+            color: var(--accent);
+        }
+        .outline-steps {
+            font-size: 12px;
+            color: var(--text-secondary);
+            line-height: 1.7;
+        }
+        .outline-steps div {
+            margin-bottom: 2px;
+        }
+        .outline-empty {
+            color: var(--text-muted);
+            font-size: 12px;
+            text-align: center;
+            padding: 20px 0;
+        }
+        .outline-save-hint {
+            font-size: 11px;
+            color: var(--text-muted);
+            text-align: center;
+            padding: 8px 0;
+        }
+
         .chapter-tabs {
             display: flex;
             gap: 4px;
@@ -654,11 +765,15 @@
 
         .content-body {
             flex: 1;
-            padding: 20px 28px;
+            padding: 20px 40px;
             overflow-y: auto;
-            line-height: 1.75;
-            font-size: 16px;
+            line-height: 1.8;
+            font-size: 17px;
             color: var(--text-primary);
+        }
+        .content-body-inner {
+            max-width: 720px;
+            margin: 0 auto;
         }
         /* 手机端阅读优化 */
         @media (max-width: 768px) {
@@ -957,6 +1072,10 @@
             border: 1px solid var(--border-color);
         }
 
+        @media (max-width: 1280px) {
+            .main-wrapper { grid-template-columns: 260px 1fr; }
+            .outline-panel { display: none; }
+        }
         @media (max-width: 1024px) {
             .main-wrapper { grid-template-columns: 1fr; }
             .left-panel {
@@ -1233,6 +1352,17 @@
                 </div>
             </div>
         </div>
+
+        <!-- 右侧细纲面板 -->
+        <div class="outline-panel" id="outlinePanel">
+            <div class="outline-panel-header">
+                <h3>📋 本章细纲</h3>
+                <button class="outline-panel-toggle" onclick="toggleOutlinePanel()" title="折叠">◀</button>
+            </div>
+            <div class="outline-panel-body" id="outlinePanelBody">
+                <div class="outline-empty">请选择项目并生成章节</div>
+            </div>
+        </div>
     </div>
 
     <!-- Toast -->
@@ -1276,6 +1406,8 @@ let currentBatchEnd = 6;
 let sessionMessages = []; // 每卷一个会话的消息历史
 let currentVolume = 1;
 let lastVolumeSession = null; // 记录上一次生成时使用的卷号，切换卷时重置对话上下文
+let storyline = [];           // 解析后的整卷细纲数组
+let saveOutlineTimer = null;  // 细纲保存 debounce 定时器
 let activeChapter = null;
 let qualityReport = null; // 当前质检报告
 let projectFiles = null; // 当前项目文件（细纲等）
@@ -1383,6 +1515,12 @@ async function loadProjectFiles(projectId, volumeNumber) {
             projectFiles = data;
             // 解析分卷大纲
             parseOutlineVolumes(data.outline || '');
+            // 解析整卷细纲
+            if (data.detailed_outline) {
+                storyline = parseStoryline(data.detailed_outline);
+            } else {
+                storyline = [];
+            }
             // 更新或创建参考标签（设定 + 细纲）
             updateReferenceTabs();
             // 如果当前正在显示参考内容，刷新
@@ -1886,7 +2024,7 @@ function parseChaptersFromStream(text) {
             const ch = chapters[latestChNum];
             $('contentTitle').textContent = ch.title;
             // 生成中走同样的段落渲染（不用质检高亮）
-            $('contentBody').innerHTML = _paragraphsToHtml(ch.content.split('\n\n').filter(p => p.trim()));
+            $('contentBody').innerHTML = '<div class="content-body-inner">' + _paragraphsToHtml(ch.content.split('\n\n').filter(p => p.trim())) + '</div>';
             $('contentBody').scrollTop = $('contentBody').scrollHeight;
         }
     }
@@ -1989,11 +2127,14 @@ function showChapter(chNum) {
 
     if (ch.content) {
         let html = renderChapterWithHighlights(ch.content, chNum);
-        $('contentBody').innerHTML = html;
+        $('contentBody').innerHTML = '<div class="content-body-inner">' + html + '</div>';
     } else {
-        $('contentBody').innerHTML = '<p style="color:var(--text-muted);">等待生成中...</p>';
+        $('contentBody').innerHTML = '<div class="content-body-inner"><p style="color:var(--text-muted);">等待生成中...</p></div>';
     }
     $('contentBody').scrollTop = $('contentBody').scrollHeight;
+
+    // 同步更新右侧细纲面板
+    updateOutlinePanel(chNum);
 
     // 章节操作按钮
     $('editBtn').style.display = 'none';
@@ -2319,7 +2460,7 @@ async function confirmRewrite() {
                                 chapters[chNum].content = fullText.substring(match.index + match[0].length).trim();
                                 if (activeChapter === chNum) {
                                     $('contentTitle').textContent = chapters[chNum].title;
-                                    $('contentBody').innerHTML = _paragraphsToHtml(chapters[chNum].content.split('\n\n').filter(p => p.trim()));
+                                    $('contentBody').innerHTML = '<div class="content-body-inner">' + _paragraphsToHtml(chapters[chNum].content.split('\n\n').filter(p => p.trim())) + '</div>';
                                     $('contentBody').scrollTop = $('contentBody').scrollHeight;
                                 }
                             }
@@ -2404,11 +2545,155 @@ function hideStorylineView() {
     if (activeChapter && chapters[activeChapter]) {
         showChapter(activeChapter);
     } else {
-        document.getElementById('contentBody').innerHTML = '请选择项目并点击「开始生成」';
+        document.getElementById('contentBody').innerHTML = '<div class="content-body-inner">请选择项目并点击「开始生成」</div>';
         document.getElementById('contentBody').classList.add('empty');
         document.getElementById('contentTitle').textContent = '章节内容';
     }
 }
+
+// ===== 右侧细纲面板 =====
+
+function updateOutlinePanel(chNum) {
+    const panelBody = document.getElementById('outlinePanelBody');
+    if (!panelBody) return;
+    const item = storyline.find(s => s.num === chNum);
+    if (!item) {
+        panelBody.innerHTML = '<div class="outline-empty">本章暂无细纲</div>';
+        return;
+    }
+    let html = '';
+    html += renderOutlineField('场景设定', item.scene, chNum);
+    html += renderOutlineField('核心爽点', item.hook, chNum);
+    html += renderOutlineField('情绪曲线', item.emotion, chNum);
+    html += renderOutlineField('结尾钩子', item.endingHook, chNum);
+    html += renderOutlineField('爽点设计', item.climaxDesign, chNum);
+    html += renderOutlineField('预计字数', item.wordCount, chNum);
+    if (item.characters && item.characters.length) {
+        html += '<div class="outline-field"><label>涉及角色</label><div class="outline-tags">';
+        for (const c of item.characters) {
+            html += '<span class="outline-tag">' + escapeHtml(c) + '</span>';
+        }
+        html += '</div></div>';
+    }
+    if (item.steps && item.steps.length) {
+        html += '<div class="outline-field"><label>情节步骤</label><div class="outline-steps">';
+        for (const step of item.steps) {
+            html += '<div>• ' + escapeHtml(step) + '</div>';
+        }
+        html += '</div></div>';
+    }
+    if (item.dialogues && item.dialogues.length) {
+        html += '<div class="outline-field"><label>关键对话</label><div class="outline-steps">';
+        for (const d of item.dialogues) {
+            html += '<div>「' + escapeHtml(d) + '」</div>';
+        }
+        html += '</div></div>';
+    }
+    html += '<div class="outline-save-hint">编辑后自动保存</div>';
+    panelBody.innerHTML = html;
+}
+
+function renderOutlineField(label, value, chNum) {
+    if (!value && value !== '') return '';
+    const fieldMap = {
+        '场景设定': 'scene',
+        '核心爽点': 'hook',
+        '情绪曲线': 'emotion',
+        '结尾钩子': 'endingHook',
+        '爽点设计': 'climaxDesign',
+        '预计字数': 'wordCount'
+    };
+    const key = fieldMap[label] || '';
+    return '<div class="outline-field">' +
+        '<label>' + escapeHtml(label) + '</label>' +
+        '<textarea rows="2" onchange="saveOutlineField(\'' + chNum + '\', \'' + key + '\', this.value)">' + escapeHtml(value) + '</textarea>' +
+        '</div>';
+}
+
+function saveOutlineField(chNumStr, key, value) {
+    const chNum = parseInt(chNumStr, 10);
+    const item = storyline.find(s => s.num === chNum);
+    if (!item || !key) return;
+    item[key] = value;
+    debounceSaveOutline();
+}
+
+function debounceSaveOutline() {
+    if (saveOutlineTimer) clearTimeout(saveOutlineTimer);
+    saveOutlineTimer = setTimeout(() => saveOutlineToServer(), 1500);
+}
+
+async function saveOutlineToServer() {
+    if (!currentProject || !storyline.length) return;
+    const md = rebuildOutlineMarkdown();
+    try {
+        await fetch('/api/conversation/save-project-files', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                project_id: currentProject,
+                volume_number: currentVolume,
+                detailed_outline: md
+            })
+        });
+        showToast('细纲已自动保存', 'success');
+    } catch (e) {
+        console.error('保存细纲失败:', e);
+        showToast('细纲保存失败', 'error');
+    }
+}
+
+function rebuildOutlineMarkdown() {
+    let md = '';
+    for (const ch of storyline) {
+        md += '## 第' + ch.num + '章 ' + (ch.title || '') + '\n\n';
+        if (ch.scene) md += '**场景设定**：' + ch.scene + '\n\n';
+        if (ch.characters && ch.characters.length) md += '**涉及角色**：' + ch.characters.join('、') + '\n\n';
+        if (ch.hook) md += '**核心爽点/猎奇点**：' + ch.hook + '\n\n';
+        if (ch.emotion) md += '**情绪曲线**：' + ch.emotion + '\n\n';
+        if (ch.endingHook) md += '**章节结尾钩子**：' + ch.endingHook + '\n\n';
+        if (ch.climaxDesign) md += '**爽点设计说明**：' + ch.climaxDesign + '\n\n';
+        if (ch.wordCount) md += '**预计字数**：' + ch.wordCount + '\n\n';
+        if (ch.steps && ch.steps.length) {
+            md += '**情节步骤**：\n';
+            for (let i = 0; i < ch.steps.length; i++) {
+                md += (i + 1) + '. ' + ch.steps[i] + '\n';
+            }
+            md += '\n';
+        }
+        if (ch.dialogues && ch.dialogues.length) {
+            md += '**关键对话**：\n';
+            for (const d of ch.dialogues) {
+                md += '- "' + d + '"\n';
+            }
+            md += '\n';
+        }
+    }
+    return md;
+}
+
+function toggleOutlinePanel() {
+    const panel = document.getElementById('outlinePanel');
+    if (!panel) return;
+    const isCollapsed = panel.classList.toggle('collapsed');
+    const btn = panel.querySelector('.outline-panel-toggle');
+    if (btn) btn.textContent = isCollapsed ? '▶' : '◀';
+    if (btn) btn.title = isCollapsed ? '展开' : '折叠';
+    localStorage.setItem('outlinePanelCollapsed', isCollapsed ? '1' : '0');
+}
+
+// 页面加载时恢复细纲面板折叠状态
+(function restoreOutlinePanel() {
+    const collapsed = localStorage.getItem('outlinePanelCollapsed') === '1';
+    if (collapsed) {
+        const panel = document.getElementById('outlinePanel');
+        if (panel) {
+            panel.classList.add('collapsed');
+            const btn = panel.querySelector('.outline-panel-toggle');
+            if (btn) { btn.textContent = '▶'; btn.title = '展开'; }
+        }
+    }
+})();
 
 function renderStorylineBigHtml() {
     if (storylineData.length === 0) {
