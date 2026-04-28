@@ -692,11 +692,47 @@
 
         .chapter-tabs {
             display: flex;
+            align-items: center;
             gap: 4px;
             background: var(--bg-secondary);
             border-bottom: 1px solid var(--border-color);
-            padding: 8px 14px;
-            overflow-x: auto;
+            padding: 8px 6px;
+            flex-shrink: 0;
+        }
+        .chapter-tab-container {
+            display: flex;
+            gap: 4px;
+            overflow: hidden;
+            flex: 1;
+        }
+        .tab-scroll-btn {
+            width: 24px;
+            height: 28px;
+            border-radius: var(--radius-sm);
+            border: 1px solid var(--border-color);
+            background: var(--bg-tertiary);
+            color: var(--text-secondary);
+            font-size: 11px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+            transition: all 0.15s;
+        }
+        .tab-scroll-btn:hover {
+            border-color: var(--accent);
+            color: var(--accent);
+        }
+        .tab-scroll-btn:disabled {
+            opacity: 0.3;
+            cursor: not-allowed;
+        }
+        .tab-page-info {
+            font-size: 11px;
+            color: var(--text-muted);
+            padding: 0 4px;
+            white-space: nowrap;
             flex-shrink: 0;
         }
         .chapter-tab {
@@ -1343,7 +1379,12 @@
         <!-- 右侧面板 -->
         <div class="right-panel">
             <!-- 章节标签页 -->
-            <div class="chapter-tabs" id="chapterTabs"></div>
+            <div class="chapter-tabs" id="chapterTabs">
+                <button class="tab-scroll-btn" id="tabPrevBtn" onclick="prevTabPage()" disabled>◀</button>
+                <div class="chapter-tab-container" id="tabTabContainer"></div>
+                <span class="tab-page-info" id="tabPageInfo"></span>
+                <button class="tab-scroll-btn" id="tabNextBtn" onclick="nextTabPage()" disabled>▶</button>
+            </div>
 
             <!-- 思考区 -->
             <div id="thinkingContainer"></div>
@@ -1446,6 +1487,8 @@ let currentVolume = 1;
 let lastVolumeSession = null; // 记录上一次生成时使用的卷号，切换卷时重置对话上下文
 let storyline = [];           // 解析后的整卷细纲数组
 let saveOutlineTimer = null;  // 细纲保存 debounce 定时器
+const TAB_PAGE_SIZE = 8;      // 标签页每页显示数量
+let tabCurrentPage = 0;       // 当前标签页页码
 let activeChapter = null;
 let qualityReport = null; // 当前质检报告
 let projectFiles = null; // 当前项目文件（细纲等）
@@ -1666,7 +1709,8 @@ function updateReferenceTabs() {
             tab.dataset.ref = ref.key;
             tab.innerHTML = `${ref.icon} ${ref.label}`;
             tab.addEventListener('click', () => ref.fn());
-            $('chapterTabs').insertBefore(tab, $('chapterTabs').firstChild);
+            // 标签页由 renderTabPage 统一渲染，不再直接 insert
+    // $('tabTabContainer').insertBefore(tab, $('tabTabContainer').firstChild);
         }
     }
 }
@@ -1891,7 +1935,7 @@ async function startGeneration() {
         sessionMessages = [];
         lastVolumeSession = volumeNumber;
     }
-    $('chapterTabs').innerHTML = '';
+    $('tabTabContainer').innerHTML = '';
     $('contentBody').innerHTML = '';
     $('contentBody').classList.add('empty');
     $('contentTitle').textContent = '章节内容';
@@ -1910,6 +1954,8 @@ async function startGeneration() {
         chapters[i] = { title: `第${i}章`, content: '', status: 'pending' };
         createChapterTab(i);
     }
+    // 渲染第一页标签
+    renderTabPage();
     updateStatus();
     updateProgress();
     
@@ -2130,14 +2176,15 @@ function resetGenerateBtn() {
 }
 
 // ===== 章节标签页 =====
-function createChapterTab(chNum) {
+function createChapterTab(chNum, container) {
     const tab = document.createElement('button');
     tab.className = 'chapter-tab';
     tab.dataset.ch = chNum;
     const title = chapters[chNum].title || `第${chNum}章`;
     tab.innerHTML = `<span class="dot ${chapters[chNum].status}"></span><span class="ch-title">${escapeHtml(title)}</span>`;
     tab.addEventListener('click', () => showChapter(chNum));
-    $('chapterTabs').appendChild(tab);
+    if (container) container.appendChild(tab);
+    return tab;
 }
 
 function updateChapterTab(chNum) {
@@ -2147,6 +2194,63 @@ function updateChapterTab(chNum) {
     tab.innerHTML = `<span class="dot ${ch.status}"></span><span class="ch-title">${escapeHtml(ch.title)}</span>`;
 }
 
+function renderTabPage() {
+    const container = $('tabTabContainer');
+    if (!container) return;
+    container.innerHTML = '';
+    const allChapters = Object.keys(chapters).map(Number).sort((a, b) => a - b);
+    if (allChapters.length === 0) {
+        updateTabPageControls(0, 0);
+        return;
+    }
+    const totalPages = Math.ceil(allChapters.length / TAB_PAGE_SIZE);
+    if (tabCurrentPage >= totalPages) tabCurrentPage = totalPages - 1;
+    if (tabCurrentPage < 0) tabCurrentPage = 0;
+    const start = tabCurrentPage * TAB_PAGE_SIZE;
+    const end = Math.min(start + TAB_PAGE_SIZE, allChapters.length);
+    for (let i = start; i < end; i++) {
+        createChapterTab(allChapters[i], container);
+    }
+    if (activeChapter) {
+        const tab = document.querySelector(`.chapter-tab[data-ch="${activeChapter}"]`);
+        if (tab) tab.classList.add('active');
+    }
+    updateTabPageControls(tabCurrentPage + 1, totalPages);
+}
+
+function updateTabPageControls(current, total) {
+    $('tabPrevBtn').disabled = current <= 1;
+    $('tabNextBtn').disabled = current >= total || total <= 1;
+    $('tabPageInfo').textContent = total > 0 ? current + '/' + total : '';
+}
+
+function prevTabPage() {
+    if (tabCurrentPage > 0) {
+        tabCurrentPage--;
+        renderTabPage();
+    }
+}
+
+function nextTabPage() {
+    const allChapters = Object.keys(chapters).map(Number).sort((a, b) => a - b);
+    const totalPages = Math.ceil(allChapters.length / TAB_PAGE_SIZE);
+    if (tabCurrentPage < totalPages - 1) {
+        tabCurrentPage++;
+        renderTabPage();
+    }
+}
+
+function ensureTabPageForCh(chNum) {
+    const allChapters = Object.keys(chapters).map(Number).sort((a, b) => a - b);
+    const idx = allChapters.indexOf(chNum);
+    if (idx === -1) return;
+    const targetPage = Math.floor(idx / TAB_PAGE_SIZE);
+    if (targetPage !== tabCurrentPage) {
+        tabCurrentPage = targetPage;
+        renderTabPage();
+    }
+}
+
 function showChapter(chNum) {
     showingRef = false;
     currentRefType = '';
@@ -2154,6 +2258,9 @@ function showChapter(chNum) {
     activeChapter = chNum;
     const ch = chapters[chNum];
     if (!ch) return;
+
+    // 确保当前章节在标签页当前页中可见
+    ensureTabPageForCh(chNum);
 
     document.querySelectorAll('.chapter-tab').forEach(t => t.classList.remove('active'));
     const tab = document.querySelector(`.chapter-tab[data-ch="${chNum}"]`);
