@@ -393,6 +393,39 @@ _GENERATE_SETTINGS_PROMPT = """根据以上对话内容，生成一份小说项�
 """ + _REALITY_AVOIDANCE_RULES + """
 5. 直接返回 Markdown 文本，不要加 ``` 代码块"""
 
+_CUSTOM_PROMPTS_FILENAME = "prompts.json"
+
+def _get_default_prompts():
+    return {"settings": _GENERATE_SETTINGS_PROMPT, "outline": _GENERATE_OUTLINE_PROMPT, "detailed": _GENERATE_DETAILED_PROMPT}
+
+def _read_custom_prompts(project_dir: Path):
+    defaults = _get_default_prompts()
+    custom_file = project_dir / _CUSTOM_PROMPTS_FILENAME
+    if not custom_file.exists():
+        return defaults, {k: False for k in defaults}
+    try:
+        data = json.loads(custom_file.read_text(encoding='utf-8'))
+        prompts, is_custom = {}, {}
+        for key in defaults:
+            val = data.get(key)
+            if val and isinstance(val, str) and val.strip():
+                prompts[key] = val
+                is_custom[key] = True
+            else:
+                prompts[key] = defaults[key]
+                is_custom[key] = False
+        return prompts, is_custom
+    except Exception:
+        return defaults, {k: False for k in defaults}
+
+def _save_custom_prompts(project_dir: Path, prompts: dict):
+    custom_file = project_dir / _CUSTOM_PROMPTS_FILENAME
+    try:
+        custom_file.write_text(json.dumps(prompts, ensure_ascii=False, indent=2), encoding='utf-8')
+    except Exception as e:
+        logger.error(f"保存自定义prompt失败: {e}")
+        raise
+
 
 @conversation_api.route('/generate-settings', methods=['POST'])
 @login_required
@@ -406,7 +439,6 @@ def generate_settings():
         messages = data.get("messages", [])
         model = data.get("model", "deepseek-v4-pro")
         temperature = data.get("temperature", 0.5)
-        project_id = data.get("project_id", "").strip()
 
         if not messages:
             return jsonify({"success": False, "error": "messages 不能为空"}), 400
@@ -420,19 +452,11 @@ def generate_settings():
 
         actual_model = endpoint.get("model", model)
         temperature = _normalize_temp(actual_model, temperature)
-        logger.info(f"[Conversation] /generate-settings 请求: provider={endpoint['provider']}, model={actual_model}, messages={len(messages)}, project={project_id}")
-
-        # 获取自定义 prompt（如果有项目ID）
-        if project_id:
-            username = session.get('username', 'anonymous')
-            user_dir = Path("小说项目") / username
-            project_dir = user_dir / project_id
-            prompts, _ = _read_custom_prompts(project_dir)
-            settings_prompt = prompts["settings"]
-        else:
-            settings_prompt = _GENERATE_SETTINGS_PROMPT
+        logger.info(f"[Conversation] /generate-settings 请求: provider={endpoint['provider']}, model={actual_model}, messages={len(messages)}")
 
         # 复制消息并追加设定生成指令
+        custom_prompts = data.get("custom_prompts", {})
+        settings_prompt = custom_prompts.get("settings", "") or _GENERATE_SETTINGS_PROMPT
         gen_messages = messages.copy()
         gen_messages.append({
             "role": "user",
@@ -607,7 +631,6 @@ def generate_outline():
         messages = data.get("messages", [])
         settings = data.get("settings", {})
         model = data.get("model", "deepseek-v4-pro")
-        project_id = data.get("project_id", "").strip()
 
         if not settings:
             return jsonify({"success": False, "error": "settings 不能为空，请先生成设定"}), 400
@@ -620,17 +643,7 @@ def generate_outline():
 
         actual_model = endpoint.get("model", model)
         temperature = _normalize_temp(actual_model, 0.7)
-        logger.info(f"[Conversation] /generate-outline 请求: model={actual_model}, project={project_id}")
-
-        # 获取自定义 prompt
-        if project_id:
-            username = session.get('username', 'anonymous')
-            user_dir = Path("小说项目") / username
-            project_dir = user_dir / project_id
-            prompts, _ = _read_custom_prompts(project_dir)
-            outline_prompt = prompts["outline"]
-        else:
-            outline_prompt = _GENERATE_OUTLINE_PROMPT
+        logger.info(f"[Conversation] /generate-outline 请求: model={actual_model}")
 
         import requests
         headers = {
@@ -639,6 +652,8 @@ def generate_outline():
         }
 
         # 构建消息：对话历史 + 设定 + 大纲生成指令
+        custom_prompts = data.get("custom_prompts", {})
+        outline_prompt = custom_prompts.get("outline", "") or _GENERATE_OUTLINE_PROMPT
         gen_messages = messages.copy()
         gen_messages.append({
             "role": "user",
@@ -2328,7 +2343,13 @@ def generate_volume_outline():
 #  10. 分卷细纲生成页面 API
 # ───────────────────────────────
 
-_DEFAULT_VOLUME_OUTLINE_PROMPT_TEMPLATE = """你是番茄小说签约级别的专业网文策划。请根据以下信息生成本卷细纲。
+def _build_volume_outline_v2_prompt(volume_number: int, chapter_count: int,
+                                     global_start: int, global_end: int,
+                                     chapter_plan_text: str = "") -> str:
+    """构建分卷细纲生成 prompt（统一番茄网文细纲格式，含章节范围约束）"""
+    plan_section = chapter_plan_text if chapter_plan_text else ""
+    
+    return f"""你是番茄小说签约级别的专业网文策划。请根据以下信息生成本卷细纲。
 
 【卷次与章节范围】
 - 本卷为第{volume_number}卷
@@ -2369,26 +2390,6 @@ _DEFAULT_VOLUME_OUTLINE_PROMPT_TEMPLATE = """你是番茄小说签约级别的�
 3. 章节之间要有清晰的情绪曲线和钩子衔接
 4. 标题必须是悬念型/冲突型/情绪型，禁止平淡陈述句
 5. 不要输出任何说明文字、总结、分析、字数统计"""
-
-
-def _build_volume_outline_v2_prompt(volume_number: int, chapter_count: int,
-                                     global_start: int, global_end: int,
-                                     chapter_plan_text: str = "",
-                                     custom_prompt: str = None) -> str:
-    """构建分卷细纲生成 prompt（统一番茄网文细纲格式，含章节范围约束）。
-    支持用户自定义 prompt 模板，占位符：{volume_number} {chapter_count} {global_start} {global_end} {plan_section} {_REALITY_AVOIDANCE_RULES}
-    """
-    plan_section = chapter_plan_text if chapter_plan_text else ""
-    template = custom_prompt if custom_prompt else _DEFAULT_VOLUME_OUTLINE_PROMPT_TEMPLATE
-    
-    return template.format(
-        volume_number=volume_number,
-        chapter_count=chapter_count,
-        global_start=global_start,
-        global_end=global_end,
-        plan_section=plan_section,
-        _REALITY_AVOIDANCE_RULES=_REALITY_AVOIDANCE_RULES,
-    )
 
 
 @conversation_api.route('/volume-outline-context', methods=['GET'])
@@ -2512,15 +2513,20 @@ def generate_volume_outline_v2():
             outline, volume_number
         )
         
-        # 读取自定义 prompt（如果有）
-        prompts, _ = _read_custom_prompts(project_dir)
-        custom_detailed_prompt = prompts.get("detailed")
-        
         # 构建 prompt
-        outline_prompt = _build_volume_outline_v2_prompt(
-            volume_number, chapter_count, global_start, global_end, chapter_plan_text,
-            custom_prompt=custom_detailed_prompt
-        )
+        custom_prompts = data.get("custom_prompts", {})
+        if custom_prompts.get("detailed", "").strip():
+            outline_prompt = custom_prompts["detailed"] \
+                .replace("{volume_number}", str(volume_number)) \
+                .replace("{chapter_count}", str(chapter_count)) \
+                .replace("{global_start}", str(global_start)) \
+                .replace("{global_end}", str(global_end)) \
+                .replace("{plan_section}", chapter_plan_text or "") \
+                .replace("{_REALITY_AVOIDANCE_RULES}", _REALITY_AVOIDANCE_RULES)
+        else:
+            outline_prompt = _build_volume_outline_v2_prompt(
+                volume_number, chapter_count, global_start, global_end, chapter_plan_text
+            )
         
         prompt_parts = [
             f"【核心设定】\n{settings[:5000]}",
@@ -2636,103 +2642,35 @@ def generate_volume_outline_v2():
         return jsonify({"success": False, "error": str(e)}), 500
 
 
-# ═══════════════════════════════════════════════════════════════
-#  自定义 Prompt 管理（按用户+项目生效）
-# ═══════════════════════════════════════════════════════════════
-
-_CUSTOM_PROMPTS_FILENAME = "custom_prompts.json"
-
-
-def _get_default_prompts():
-    """返回三个默认 prompt 的完整文本"""
-    return {
-        "settings": _GENERATE_SETTINGS_PROMPT,
-        "outline": _GENERATE_OUTLINE_PROMPT,
-        "detailed": _GENERATE_DETAILED_PROMPT,
-    }
-
-
-def _read_custom_prompts(project_dir: Path):
-    """读取项目目录下的自定义 prompt，返回 {settings, outline, detailed} 字典。
-    如果某字段未自定义，使用默认值填充。
-    """
-    defaults = _get_default_prompts()
-    custom_file = project_dir / _CUSTOM_PROMPTS_FILENAME
-    if not custom_file.exists():
-        return defaults, {k: False for k in defaults}
-    try:
-        data = json.loads(custom_file.read_text(encoding='utf-8'))
-        prompts = {}
-        is_custom = {}
-        for key in defaults:
-            val = data.get(key)
-            if val and isinstance(val, str) and val.strip():
-                prompts[key] = val
-                is_custom[key] = True
-            else:
-                prompts[key] = defaults[key]
-                is_custom[key] = False
-        return prompts, is_custom
-    except Exception:
-        return defaults, {k: False for k in defaults}
-
-
-def _save_custom_prompts(project_dir: Path, prompts: dict):
-    """保存自定义 prompt 到项目目录"""
-    project_dir.mkdir(parents=True, exist_ok=True)
-    custom_file = project_dir / _CUSTOM_PROMPTS_FILENAME
-    custom_file.write_text(json.dumps(prompts, ensure_ascii=False, indent=2), encoding='utf-8')
-
-
 @conversation_api.route('/custom-prompts', methods=['GET'])
 @login_required
 def get_custom_prompts():
-    """获取当前项目的自定义 prompt（含默认值）"""
-    try:
-        project_id = request.args.get("project_id", "").strip()
-        if not project_id:
-            return jsonify({"success": False, "error": "project_id 不能为空"}), 400
-
-        username = session.get('username', 'anonymous')
-        user_dir = Path("小说项目") / username
-        project_dir = user_dir / project_id
-
-        prompts, is_custom = _read_custom_prompts(project_dir)
-        return jsonify({
-            "success": True,
-            "prompts": prompts,
-            "is_custom": is_custom,
-        })
-    except Exception as e:
-        logger.error(f"[Conversation] /custom-prompts GET 失败: {e}")
-        return jsonify({"success": False, "error": str(e)}), 500
+    project_id = request.args.get("project_id", "").strip()
+    if not project_id:
+        return jsonify({"success": False, "error": "project_id 不能为空"}), 400
+    username = session.get('username', 'anonymous')
+    project_dir = Path("小说项目") / username / project_id
+    if not project_dir.exists():
+        return jsonify({"success": False, "error": "项目不存在"}), 404
+    prompts, is_custom = _read_custom_prompts(project_dir)
+    return jsonify({"success": True, "prompts": prompts, "is_custom": is_custom})
 
 
 @conversation_api.route('/custom-prompts', methods=['POST'])
 @login_required
 def save_custom_prompts():
-    """保存当前项目的自定义 prompt"""
-    try:
-        data = request.json or {}
-        project_id = data.get("project_id", "").strip()
-        prompts = data.get("prompts", {})
-
-        if not project_id:
-            return jsonify({"success": False, "error": "project_id 不能为空"}), 400
-
-        username = session.get('username', 'anonymous')
-        user_dir = Path("小说项目") / username
-        project_dir = user_dir / project_id
-
-        # 只保存用户明确提供了的字段
-        existing, _ = _read_custom_prompts(project_dir)
-        for key in ["settings", "outline", "detailed"]:
-            if key in prompts and isinstance(prompts[key], str):
-                existing[key] = prompts[key]
-
-        _save_custom_prompts(project_dir, existing)
-        logger.info(f"[Conversation] 自定义 prompt 已保存: project={project_id}")
-        return jsonify({"success": True})
-    except Exception as e:
-        logger.error(f"[Conversation] /custom-prompts POST 失败: {e}")
-        return jsonify({"success": False, "error": str(e)}), 500
+    data = request.json or {}
+    project_id = data.get("project_id", "").strip()
+    prompts = data.get("prompts", {})
+    if not project_id:
+        return jsonify({"success": False, "error": "project_id 不能为空"}), 400
+    username = session.get('username', 'anonymous')
+    project_dir = Path("小说项目") / username / project_id
+    if not project_dir.exists():
+        return jsonify({"success": False, "error": "项目不存在"}), 404
+    existing, _ = _read_custom_prompts(project_dir)
+    for key in ["settings", "outline", "detailed"]:
+        if key in prompts and isinstance(prompts[key], str):
+            existing[key] = prompts[key]
+    _save_custom_prompts(project_dir, existing)
+    return jsonify({"success": True})

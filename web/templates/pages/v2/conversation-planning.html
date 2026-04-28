@@ -857,6 +857,102 @@
             color: var(--text-muted);
             margin-left: auto;
         }
+        /* Prompt 编辑器 */
+        .prompt-intro {
+            margin: 12px 16px 0;
+            padding: 12px 14px;
+            background: var(--bg-primary);
+            border-left: 3px solid var(--accent-blue);
+            border-radius: var(--radius-sm);
+        }
+        .prompt-editor-list {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            padding: 12px 16px 16px;
+            overflow-y: auto;
+        }
+        .prompt-editor-item {
+            background: var(--bg-primary);
+            border: 1px solid var(--border-light);
+            border-radius: var(--radius-sm);
+            padding: 12px;
+            transition: border-color 0.2s;
+        }
+        .prompt-editor-item:hover {
+            border-color: var(--border-color);
+        }
+        .prompt-editor-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            font-size: 13px;
+            font-weight: 600;
+            color: var(--text-secondary);
+            margin-bottom: 8px;
+        }
+        .prompt-editor-item textarea {
+            width: 100%;
+            height: 140px;
+            padding: 10px;
+            background: var(--bg-secondary);
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius-sm);
+            color: var(--text-primary);
+            font-size: 12px;
+            line-height: 1.7;
+            resize: vertical;
+            font-family: "SF Mono", Monaco, "Cascadia Code", monospace;
+            outline: none;
+        }
+        .prompt-editor-item textarea:focus {
+            border-color: var(--accent-blue);
+        }
+        .prompt-editor-item textarea::placeholder {
+            color: var(--text-muted);
+        }
+        .prompt-badge {
+            display: none;
+            background: var(--accent-blue);
+            color: #fff;
+            font-size: 10px;
+            font-weight: 500;
+            padding: 2px 8px;
+            border-radius: 4px;
+        }
+        .prompt-hint {
+            font-size: 11px;
+            color: var(--text-muted);
+            margin-top: 6px;
+            line-height: 1.5;
+        }
+        .tab-btn {
+            position: relative;
+        }
+        .tab-btn .tab-badge {
+            position: absolute;
+            top: 6px;
+            right: 6px;
+            width: 7px;
+            height: 7px;
+            background: var(--accent-red);
+            border-radius: 50%;
+            display: none;
+        }
+        .btn-text {
+            padding: 5px 12px;
+            border-radius: 6px;
+            border: none;
+            background: transparent;
+            color: var(--text-muted);
+            font-size: 12px;
+            cursor: pointer;
+            transition: all 0.15s ease;
+        }
+        .btn-text:hover {
+            color: var(--accent-red);
+            background: rgba(248,81,73,0.08);
+        }
         .btn-primary {
             flex: 1;
             padding: 10px;
@@ -1012,8 +1108,10 @@
             <div class="settings-tabs">
                 <button class="tab-btn active" data-tab="settings" onclick="switchTab('settings')">设定</button>
                 <button class="tab-btn" data-tab="outline" onclick="switchTab('outline')">大纲</button>
-                <button class="tab-btn" data-tab="quality" onclick="switchTab('quality')" id="tabBtnQuality">质检</button>
-                <button class="tab-btn" data-tab="prompts" onclick="switchTab('prompts')">📝 Prompt</button>
+                <button class="tab-btn" data-tab="prompts" onclick="switchTab('prompts')">
+                    📝 Prompt
+                    <span class="tab-badge" id="tabBadgePrompts" style="display:none;"></span>
+                </button>
             </div>
             <div class="settings-body">
                 <!-- 设定 Tab -->
@@ -1075,40 +1173,38 @@
                 <!-- Prompt 编辑 Tab -->
                 <div class="tab-content" id="tab-prompts">
                     <div class="tab-actions">
-                        <button class="tab-gen-btn" onclick="saveCustomPrompts()">💾 保存Prompt</button>
-                        <span class="tab-status" id="promptsStatus">仅对当前项目生效</span>
+                        <span class="tab-status" id="promptsStatus">点击文件编辑 Prompt，留空则使用默认</span>
                     </div>
-                    <div class="prompt-editor-list" style="display:flex;flex-direction:column;gap:10px;margin-top:10px;">
-                        <div class="prompt-editor-item">
-                            <label style="font-size:12px;font-weight:600;color:var(--text-secondary);display:flex;align-items:center;gap:6px;">
-                                <span>✨</span> 设定生成 Prompt
-                                <span id="badgeSettingsPrompt" style="display:none;background:var(--accent);color:#fff;font-size:10px;padding:1px 6px;border-radius:4px;">已自定义</span>
-                            </label>
-                            <textarea id="promptSettings" style="width:100%;height:120px;padding:8px;background:var(--bg-primary);border:1px solid var(--border-color);border-radius:var(--radius-sm);color:var(--text-primary);font-size:11px;line-height:1.6;resize:vertical;margin-top:4px;font-family:inherit;" placeholder="加载中..."></textarea>
+                    <div class="file-list" id="fileListPrompts">
+                        <div class="file-item" onclick="openEditorModal('prompt_settings')">
+                            <div class="file-icon">✨</div>
+                            <div class="file-info">
+                                <div class="file-name">设定生成 Prompt</div>
+                                <div class="file-status" id="promptSettingsStatus">使用默认</div>
+                            </div>
+                            <div class="file-action">✏️</div>
                         </div>
-                        <div class="prompt-editor-item">
-                            <label style="font-size:12px;font-weight:600;color:var(--text-secondary);display:flex;align-items:center;gap:6px;">
-                                <span>📋</span> 粗纲生成 Prompt
-                                <span id="badgeOutlinePrompt" style="display:none;background:var(--accent);color:#fff;font-size:10px;padding:1px 6px;border-radius:4px;">已自定义</span>
-                            </label>
-                            <textarea id="promptOutline" style="width:100%;height:120px;padding:8px;background:var(--bg-primary);border:1px solid var(--border-color);border-radius:var(--radius-sm);color:var(--text-primary);font-size:11px;line-height:1.6;resize:vertical;margin-top:4px;font-family:inherit;" placeholder="加载中..."></textarea>
+                        <div class="file-item" onclick="openEditorModal('prompt_outline')">
+                            <div class="file-icon">📋</div>
+                            <div class="file-info">
+                                <div class="file-name">全书框架 Prompt</div>
+                                <div class="file-status" id="promptOutlineStatus">使用默认</div>
+                            </div>
+                            <div class="file-action">✏️</div>
                         </div>
-                        <div class="prompt-editor-item">
-                            <label style="font-size:12px;font-weight:600;color:var(--text-secondary);display:flex;align-items:center;gap:6px;">
-                                <span>📋</span> 细纲生成 Prompt
-                                <span id="badgeDetailedPrompt" style="display:none;background:var(--accent);color:#fff;font-size:10px;padding:1px 6px;border-radius:4px;">已自定义</span>
-                            </label>
-                            <textarea id="promptDetailed" style="width:100%;height:120px;padding:8px;background:var(--bg-primary);border:1px solid var(--border-color);border-radius:var(--radius-sm);color:var(--text-primary);font-size:11px;line-height:1.6;resize:vertical;margin-top:4px;font-family:inherit;" placeholder="加载中..."></textarea>
-                            <p style="font-size:10px;color:var(--text-muted);margin-top:4px;">占位符：{volume_number} {chapter_count} {global_start} {global_end} {plan_section} {_REALITY_AVOIDANCE_RULES}</p>
+                        <div class="file-item" onclick="openEditorModal('prompt_detailed')">
+                            <div class="file-icon">📑</div>
+                            <div class="file-info">
+                                <div class="file-name">卷级粗纲 Prompt</div>
+                                <div class="file-status" id="promptDetailedStatus">使用默认</div>
+                            </div>
+                            <div class="file-action">✏️</div>
                         </div>
                     </div>
-                </div>
-
-                <!-- 质检 Tab -->
-                <div class="tab-content" id="tab-quality">
-                    <div id="qualityReport" style="padding:16px 20px;">
-                        <p style="text-align:center;color:var(--text-muted);">生成设定后将自动进行质检...</p>
-                    </div>
+                    <!-- 隐藏的 textarea，用于 load/save 时暂存 -->
+                    <textarea id="promptSettings" style="display:none;"></textarea>
+                    <textarea id="promptOutline" style="display:none;"></textarea>
+                    <textarea id="promptDetailed" style="display:none;"></textarea>
                 </div>
             </div>
             <div class="settings-footer">
@@ -1159,8 +1255,6 @@
         const loadingModel = document.getElementById('loadingModel');
         const settingsPanel = document.getElementById('settingsPanel');
         // DOM 引用：文件列表项
-        const qualityReport = document.getElementById('qualityReport');
-        const tabBtnQuality = document.getElementById('tabBtnQuality');
         const errorToast = document.getElementById('errorToast');
 
         // 配置 marked.js 支持 GFM 表格
@@ -1233,8 +1327,8 @@
         let pendingGenerateType = null; // 'settings' | 'outline' | null
         let currentProjectData = null;
         let currentConversationId = null;
-        let currentProjectId = null; // 当前项目目录名（从 save-project 返回的 project_path 提取）
-        let customPrompts = {}; // 当前项目的自定义 prompt {settings, outline, detailed}
+        let currentProjectId = null;
+        let customPrompts = {};
         const HISTORY_KEY = 'novelcraft_conversation_history';
         const MAX_HISTORY = 5;
 
@@ -1702,7 +1796,6 @@
             renderOutline('');
             const volumeFileList = document.getElementById('volumeFileList');
             if (volumeFileList) volumeFileList.innerHTML = '';
-            qualityReport.innerHTML = '<p style="text-align:center;color:var(--text-muted);">生成设定后将自动进行质检...</p>';
             settingsPanel.classList.remove('active');
             updateGenerateButton();
             renderHistoryList();
@@ -2025,7 +2118,8 @@
 6. 真实名人：禁止出现真实存在的名人、明星、政客姓名
 7. 敏感事件：禁止影射、映射、暗示任何现实敏感事件
 8. 货币：人民币→龙币/华夏币；身份证→身份卡；驾驶证→驾驶许可
-9. 本故事发生在平行时空，所有地名、机构、事件均为虚构`; 
+9. 本故事发生在平行时空，所有地名、机构、事件均为虚构`;
+            }
 
             sendMessage(prompt);
         }
@@ -2139,6 +2233,7 @@
 5. 每个情绪标签必须精准：不能连续3章都是[压抑]，[压抑]后下一章必须是[反击]或[收获]
 6. 章节标题必须是"短视频标题风格"：带数字、带情绪词
 7. 严禁"过渡卷""铺垫卷"，每卷前3章必须有爽点`;
+            }
 
             sendMessage(prompt);
         }
@@ -2215,7 +2310,6 @@
 
             let prompt;
             if (customPrompts.detailed && customPrompts.detailed.trim()) {
-                // 替换自定义 prompt 中的占位符
                 prompt = customPrompts.detailed
                     .replace(/\{volNum\}/g, volNum)
                     .replace(/\{range_hint\}/g, rangeHint || '')
@@ -2273,84 +2367,12 @@ ${rangeHint}
 5. 不要写详细剧情对话，这是粗纲不是正文。每章只需要"做什么""爽点是什么""钩子是什么"
 6. 如果某章在全书框架的关键节点表中，请标注 ⭐ 重要节点
 7. 本卷最后一章必须是强[钩子]，驱动读者进入下一卷`;
+            }
 
             sendMessage(prompt);
         }
 
 
-
-        async function runQualityCheck(model, projectData) {
-            qualityReport.innerHTML = '<p style="text-align:center;color:var(--text-muted);">🔍 正在质检打磨，请稍候...</p>';
-            tabBtnQuality.style.color = 'var(--accent-blue)';
-            try {
-                const response = await fetch('/api/conversation/quality-check', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        model: model,
-                        settings: projectData.settings || projectData,
-                        outline: projectData.outline || {},
-                        detailed_outline: projectData.detailed_outline || {}
-                    })
-                });
-                const result = await response.json();
-                if (result.success && result.report) {
-                    renderQualityReport(result.report);
-                } else {
-                    qualityReport.innerHTML = '<p style="color:var(--accent-red);">质检失败: ' + escapeHtml(result.error || '未知错误') + '</p>';
-                }
-            } catch (err) {
-                qualityReport.innerHTML = '<p style="color:var(--accent-red);">质检请求失败: ' + escapeHtml(err.message) + '</p>';
-            }
-        }
-
-        function renderQualityReport(report) {
-            const score = report.overall_score || 0;
-            const passed = report.passed ? '✅ 通过' : '❌ 未通过';
-            const scoreColor = score >= 80 ? '#238636' : score >= 60 ? '#d29922' : '#f85149';
-            let html = `
-                <div style="margin-bottom:16px;">
-                    <div style="font-size:24px;font-weight:700;color:${scoreColor};display:inline-block;">${score}</div>
-                    <span style="color:var(--text-muted);margin-left:8px;">/ 100 · ${passed}</span>
-                </div>
-                <p style="color:var(--text-secondary);margin-bottom:16px;">${escapeHtml(report.summary || '')}</p>
-            `;
-
-            const issues = report.issues || [];
-            if (issues.length > 0) {
-                html += '<h4 style="margin:16px 0 8px;color:var(--text-primary);font-size:14px;">🚨 问题列表</h4>';
-                for (const issue of issues) {
-                    const sevColor = issue.severity === 'critical' ? '#f85149' : issue.severity === 'warning' ? '#d29922' : '#8b949e';
-                    const sevLabel = issue.severity === 'critical' ? '致命' : issue.severity === 'warning' ? '警告' : '建议';
-                    html += `
-                        <div style="border-left:3px solid ${sevColor};padding-left:12px;margin:10px 0;">
-                            <div style="font-size:12px;color:${sevColor};font-weight:600;">[${sevLabel}] ${escapeHtml(issue.category || '')}</div>
-                            <div style="color:var(--text-primary);margin:4px 0;">${escapeHtml(issue.description || '')}</div>
-                            <div style="color:var(--text-secondary);font-size:12px;">📍 ${escapeHtml(issue.location || '')}</div>
-                            <div style="color:var(--accent-blue);font-size:12px;margin-top:4px;">💡 ${escapeHtml(issue.fix_suggestion || '')}</div>
-                        </div>
-                    `;
-                }
-            }
-
-            const highlights = report.highlights || [];
-            if (highlights.length > 0) {
-                html += '<h4 style="margin:16px 0 8px;color:var(--text-primary);font-size:14px;">✨ 亮点</h4>';
-                for (const h of highlights) {
-                    html += `<div style="color:var(--text-secondary);margin:4px 0;">• ${escapeHtml(h)}</div>`;
-                }
-            }
-
-            qualityReport.innerHTML = html;
-            // 如果有致命问题，自动跳转到质检页
-            const hasCritical = issues.some(i => i.severity === 'critical');
-            if (hasCritical) {
-                switchTab('quality');
-                tabBtnQuality.style.color = '#f85149';
-            } else {
-                tabBtnQuality.style.color = '#238636';
-            }
-        }
 
         function renderSettings(data) {
             currentProjectData = currentProjectData || {};
@@ -2483,7 +2505,15 @@ ${rangeHint}
             } else if (type === 'volume') {
                 content = currentProjectData?.volumeOutlines?.[volNum] || '';
                 title = `📑 第${volNum}卷粗纲`;
-
+            } else if (type === 'prompt_settings') {
+                content = customPrompts.settings || '';
+                title = '✨ 设定生成 Prompt';
+            } else if (type === 'prompt_outline') {
+                content = customPrompts.outline || '';
+                title = '📋 全书框架 Prompt';
+            } else if (type === 'prompt_detailed') {
+                content = customPrompts.detailed || '';
+                title = '📑 卷级粗纲 Prompt';
             }
 
             document.getElementById('editorModalTitle').textContent = title;
@@ -2548,8 +2578,18 @@ ${rangeHint}
                 currentProjectData.volumeOutlines[editorModalVolNum] = newText;
                 // 更新卷文件列表
                 renderVolumeSelector(currentProjectData.framework);
-
-
+            } else if (editorModalType === 'prompt_settings') {
+                customPrompts.settings = newText;
+                document.getElementById('promptSettings').value = newText;
+                saveCustomPrompts();
+            } else if (editorModalType === 'prompt_outline') {
+                customPrompts.outline = newText;
+                document.getElementById('promptOutline').value = newText;
+                saveCustomPrompts();
+            } else if (editorModalType === 'prompt_detailed') {
+                customPrompts.detailed = newText;
+                document.getElementById('promptDetailed').value = newText;
+                saveCustomPrompts();
             }
             closeEditorModal();
             showError('✅ 已保存到本地，点击"保存为最终方案"写入文件');
@@ -2567,6 +2607,18 @@ ${rangeHint}
             }
         }
 
+        async function resetCustomPrompts() {
+            if (!currentProjectId) {
+                showError('请先保存项目以启用自定义Prompt');
+                return;
+            }
+            if (!confirm('确定要恢复默认 Prompt 吗？当前项目的自定义 Prompt 将被清空。')) return;
+            document.getElementById('promptSettings').value = '';
+            document.getElementById('promptOutline').value = '';
+            document.getElementById('promptDetailed').value = '';
+            await saveCustomPrompts();
+        }
+
         function hideSettings() {
             settingsPanel.classList.remove('active');
         }
@@ -2576,71 +2628,6 @@ ${rangeHint}
                 if (!confirm('确定要清空当前对话吗？已保存的历史记录不受影响。')) return;
             }
             startNewConversation();
-        }
-
-        async function loadCustomPrompts() {
-            if (!currentProjectId) {
-                document.getElementById('promptSettings').placeholder = '请先保存项目以启用自定义Prompt';
-                document.getElementById('promptOutline').placeholder = '请先保存项目以启用自定义Prompt';
-                document.getElementById('promptDetailed').placeholder = '请先保存项目以启用自定义Prompt';
-                return;
-            }
-            document.getElementById('promptSettings').placeholder = '留空则使用默认Prompt';
-            document.getElementById('promptOutline').placeholder = '留空则使用默认Prompt';
-            document.getElementById('promptDetailed').placeholder = '留空则使用默认Prompt';
-            try {
-                const resp = await fetch(`/api/conversation/custom-prompts?project_id=${encodeURIComponent(currentProjectId)}`);
-                const data = await resp.json();
-                if (data.success) {
-                    customPrompts = data.prompts || {};
-                    // 只显示用户自定义的 prompt；未自定义的保持为空
-                    document.getElementById('promptSettings').value = data.is_custom.settings ? (data.prompts.settings || '') : '';
-                    document.getElementById('promptOutline').value = data.is_custom.outline ? (data.prompts.outline || '') : '';
-                    document.getElementById('promptDetailed').value = data.is_custom.detailed ? (data.prompts.detailed || '') : '';
-                    document.getElementById('badgeSettingsPrompt').style.display = data.is_custom.settings ? 'inline-block' : 'none';
-                    document.getElementById('badgeOutlinePrompt').style.display = data.is_custom.outline ? 'inline-block' : 'none';
-                    document.getElementById('badgeDetailedPrompt').style.display = data.is_custom.detailed ? 'inline-block' : 'none';
-                }
-            } catch (e) {
-                console.error('加载自定义prompt失败:', e);
-            }
-        }
-
-        async function saveCustomPrompts() {
-            if (!currentProjectId) {
-                showError('请先保存项目以启用自定义Prompt');
-                return;
-            }
-            try {
-                const resp = await fetch('/api/conversation/custom-prompts', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        project_id: currentProjectId,
-                        prompts: {
-                            settings: document.getElementById('promptSettings').value,
-                            outline: document.getElementById('promptOutline').value,
-                            detailed: document.getElementById('promptDetailed').value,
-                        }
-                    })
-                });
-                const data = await resp.json();
-                if (data.success) {
-                    showError('✅ Prompt 已保存');
-                    customPrompts = {
-                        settings: document.getElementById('promptSettings').value,
-                        outline: document.getElementById('promptOutline').value,
-                        detailed: document.getElementById('promptDetailed').value,
-                    };
-                    document.getElementById('badgeSettingsPrompt').style.display = document.getElementById('promptSettings').value.trim() ? 'inline-block' : 'none';
-                    document.getElementById('badgeOutlinePrompt').style.display = document.getElementById('promptOutline').value.trim() ? 'inline-block' : 'none';
-                    document.getElementById('badgeDetailedPrompt').style.display = document.getElementById('promptDetailed').value.trim() ? 'inline-block' : 'none';
-                } else {
-                    showError('保存失败: ' + (data.error || '未知错误'));
-                }
-            } catch (e) {
-                showError('保存请求失败: ' + e.message);
-            }
         }
 
         async function saveProject() {
@@ -2693,10 +2680,10 @@ ${rangeHint}
                 const result = await response.json();
                 if (result.success) {
                     showError('✅ 项目已保存: ' + result.project_path);
-                    // 从 project_path 提取项目ID（最后一级目录名）
                     if (result.project_path) {
                         const parts = result.project_path.replace(/\\/g, '/').split('/');
                         currentProjectId = parts[parts.length - 1] || null;
+                        loadCustomPrompts();
                     }
                 } else {
                     showError('保存失败: ' + (result.error || '未知错误'));
@@ -2706,6 +2693,83 @@ ${rangeHint}
             } finally {
                 loadingOverlay.classList.remove('active');
                 document.querySelector('.loading-text').textContent = '正在生成项目方案，约需 60-120 秒...';
+            }
+        }
+
+        async function loadCustomPrompts() {
+            if (!currentProjectId) {
+                document.getElementById('tabBadgePrompts').style.display = 'none';
+                document.getElementById('promptSettingsStatus').textContent = '请先保存项目';
+                document.getElementById('promptOutlineStatus').textContent = '请先保存项目';
+                document.getElementById('promptDetailedStatus').textContent = '请先保存项目';
+                return;
+            }
+            try {
+                const resp = await fetch('/api/conversation/custom-prompts?project_id=' + encodeURIComponent(currentProjectId));
+                const data = await resp.json();
+                if (data.success) {
+                    customPrompts = data.prompts || {};
+                    // 始终填充默认提示词（方便用户直接编辑）
+                    document.getElementById('promptSettings').value = data.prompts.settings || '';
+                    document.getElementById('promptOutline').value = data.prompts.outline || '';
+                    document.getElementById('promptDetailed').value = data.prompts.detailed || '';
+                    // 更新文件列表状态
+                    document.getElementById('promptSettingsStatus').textContent = data.is_custom.settings ? '已自定义' : '使用默认';
+                    document.getElementById('promptOutlineStatus').textContent = data.is_custom.outline ? '已自定义' : '使用默认';
+                    document.getElementById('promptDetailedStatus').textContent = data.is_custom.detailed ? '已自定义' : '使用默认';
+                    document.getElementById('promptSettingsStatus').className = 'file-status' + (data.is_custom.settings ? ' ready' : '');
+                    document.getElementById('promptOutlineStatus').className = 'file-status' + (data.is_custom.outline ? ' ready' : '');
+                    document.getElementById('promptDetailedStatus').className = 'file-status' + (data.is_custom.detailed ? ' ready' : '');
+                    const hasCustom = data.is_custom.settings || data.is_custom.outline || data.is_custom.detailed;
+                    document.getElementById('tabBadgePrompts').style.display = hasCustom ? 'inline-block' : 'none';
+                }
+            } catch (e) {
+                console.error('加载自定义prompt失败:', e);
+            }
+        }
+
+        async function saveCustomPrompts() {
+            if (!currentProjectId) {
+                showError('请先保存项目以启用自定义Prompt');
+                return;
+            }
+            try {
+                const resp = await fetch('/api/conversation/custom-prompts', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        project_id: currentProjectId,
+                        prompts: {
+                            settings: document.getElementById('promptSettings').value,
+                            outline: document.getElementById('promptOutline').value,
+                            detailed: document.getElementById('promptDetailed').value,
+                        }
+                    })
+                });
+                const data = await resp.json();
+                if (data.success) {
+                    showToast('Prompt 已保存', 'success');
+                    customPrompts = {
+                        settings: document.getElementById('promptSettings').value,
+                        outline: document.getElementById('promptOutline').value,
+                        detailed: document.getElementById('promptDetailed').value,
+                    };
+                    // 更新文件列表状态
+                    const sCustom = !!document.getElementById('promptSettings').value.trim();
+                    const oCustom = !!document.getElementById('promptOutline').value.trim();
+                    const dCustom = !!document.getElementById('promptDetailed').value.trim();
+                    document.getElementById('promptSettingsStatus').textContent = sCustom ? '已自定义' : '使用默认';
+                    document.getElementById('promptOutlineStatus').textContent = oCustom ? '已自定义' : '使用默认';
+                    document.getElementById('promptDetailedStatus').textContent = dCustom ? '已自定义' : '使用默认';
+                    document.getElementById('promptSettingsStatus').className = 'file-status' + (sCustom ? ' ready' : '');
+                    document.getElementById('promptOutlineStatus').className = 'file-status' + (oCustom ? ' ready' : '');
+                    document.getElementById('promptDetailedStatus').className = 'file-status' + (dCustom ? ' ready' : '');
+                    document.getElementById('tabBadgePrompts').style.display = (sCustom || oCustom || dCustom) ? 'inline-block' : 'none';
+                } else {
+                    showError('保存失败: ' + (data.error || '未知错误'));
+                }
+            } catch (e) {
+                showError('保存请求失败: ' + e.message);
             }
         }
 
