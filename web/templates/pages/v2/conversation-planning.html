@@ -1653,7 +1653,7 @@
 
         function updateGenerateButton() {
             const userCount = messages.filter(m => m.role === 'user').length;
-            const isReady = userCount >= 2;
+            const isReady = userCount >= 1;
             btnGenerate.disabled = !isReady;
             btnGenerate.style.opacity = isReady ? '1' : '0.5';
             if (!isReady) return;
@@ -2033,7 +2033,7 @@
         }
 
         function generateSettings() {
-            if (messages.filter(m => m.role === 'user').length < 2) return;
+            if (messages.filter(m => m.role === 'user').length < 1) return;
             if (isStreaming) return;
 
             pendingGenerateType = 'settings';
