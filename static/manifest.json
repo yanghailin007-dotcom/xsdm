@@ -1,0 +1,16 @@
+{
+  "name": "大文娱 - NovelCraft",
+  "short_name": "大文娱",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#0d1117",
+  "theme_color": "#4f86f7",
+  "orientation": "portrait",
+  "icons": [
+    {
+      "src": "/static/favicon.ico",
+      "sizes": "64x64 32x32 24x24 16x16",
+      "type": "image/x-icon"
+    }
+  ]
+}

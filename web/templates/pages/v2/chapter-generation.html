@@ -3,6 +3,10 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="theme-color" content="#4f86f7">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <link rel="manifest" href="/static/manifest.json">
     <title>正文生成 - NovelCraft</title>
     <link rel="icon" type="image/x-icon" href="/static/favicon.ico">
     <link rel="shortcut icon" type="image/x-icon" href="/static/favicon.ico">
@@ -1155,6 +1159,48 @@
                 z-index: 100;
                 border-right: none;
                 border-top: 1px solid var(--border-color);
+                transition: transform 0.3s ease;
+            }
+            .left-panel.mobile-closed {
+                transform: translateY(100%);
+            }
+            .mobile-panel-close {
+                display: block;
+                position: absolute;
+                top: 8px;
+                right: 12px;
+                width: 32px;
+                height: 32px;
+                border-radius: 6px;
+                border: none;
+                background: var(--bg-tertiary);
+                color: var(--text-secondary);
+                font-size: 16px;
+                cursor: pointer;
+                z-index: 10;
+            }
+            .mobile-nav-btn-ch {
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                width: 36px;
+                height: 36px;
+                border-radius: 6px;
+                border: 1px solid var(--border-color);
+                background: var(--bg-tertiary);
+                color: var(--text-secondary);
+                font-size: 16px;
+                cursor: pointer;
+            }
+            .nav-links { display: none; }
+            button, .tab-scroll-btn, .chapter-tab, .gen-btn, .outline-panel-header, .mobile-panel-close, .mobile-nav-btn-ch {
+                min-height: 44px;
+                min-width: 44px;
+            }
+        }
+        @media (min-width: 1025px) {
+            .mobile-panel-close, .mobile-nav-btn-ch {
+                display: none !important;
             }
         }
 
@@ -1292,6 +1338,7 @@
                 <a href="/novelcraft">自由创作</a>
                 <a href="/chapter-generation" class="active">正文生成</a>
             </div>
+            <button class="mobile-nav-btn-ch" id="btnMobileLeftPanel" onclick="toggleMobileLeftPanel()" title="打开设置">⚙️</button>
         </div>
         <div class="nav-right">
             <span class="nav-user" id="navUser"></span>
@@ -1301,7 +1348,8 @@
     <!-- 主体 -->
     <div class="main-wrapper">
         <!-- 左侧面板 -->
-        <div class="left-panel">
+        <div class="left-panel" id="leftPanel">
+            <button class="mobile-panel-close" onclick="toggleMobileLeftPanel()" title="关闭">✕</button>
             <!-- 项目配置 -->
             <div class="config-card">
                 <h3>📚 项目选择</h3>
@@ -2805,6 +2853,27 @@ async function saveOutlineEdit() {
         showToast('细纲保存失败', 'error');
     }
 }
+
+function toggleMobileLeftPanel() {
+    const panel = document.getElementById('leftPanel');
+    if (panel) panel.classList.toggle('mobile-closed');
+}
+
+// 移动端下滑关闭底部面板
+(function initMobileSwipe() {
+    const panel = document.getElementById('leftPanel');
+    if (!panel) return;
+    let startY = 0, startX = 0;
+    panel.addEventListener('touchstart', (e) => {
+        startX = e.touches[0].clientX;
+        startY = e.touches[0].clientY;
+    }, { passive: true });
+    panel.addEventListener('touchend', (e) => {
+        const dy = e.changedTouches[0].clientY - startY;
+        const dx = e.changedTouches[0].clientX - startX;
+        if (dy > 80 && Math.abs(dx) < 50) panel.classList.add('mobile-closed');
+    }, { passive: true });
+})();
 
 function renderStorylineBigHtml() {
     if (storylineData.length === 0) {
