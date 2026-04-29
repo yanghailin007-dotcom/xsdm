@@ -1701,11 +1701,6 @@ def generate_batch():
         
         end_chapter = start_chapter + batch_size - 1
         
-        # 计算全书实际章节号（分卷章节号 → 全书连续章节号）
-        chapters_per_volume = 30
-        actual_start = start_chapter + (volume_number - 1) * chapters_per_volume
-        actual_end = end_chapter + (volume_number - 1) * chapters_per_volume
-        
         # 提取当前批次的细纲（只传这几章，不传整卷）
         batch_detailed = _extract_batch_detailed(detailed_full, start_chapter, end_chapter)
         
@@ -1717,7 +1712,7 @@ def generate_batch():
             prompt = _build_writing_prompt(files.get('settings', ''), volume_rough, volume_number)
             messages = [{"role": "user", "content": prompt}]
         
-        gen_prompt = f"""请生成第{actual_start}章到第{actual_end}章的正文。
+        gen_prompt = f"""请生成第{start_chapter}章到第{end_chapter}章的正文。
 
 【章节格式】
 每章必须以 ### 第X章 [抓眼球标题] 开头。

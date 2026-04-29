@@ -1432,16 +1432,108 @@ class NovelReader {
 
     formatContent(content) {
         if (!content) return '<p>（本章暂无内容）</p>';
-        const paragraphs = content.split(/\n+/).filter(p => p.trim());
-        return paragraphs.map(p => {
-            const trimmed = p.trim();
-            // 对话检测
-            if (/^["""''『「【].*|[\u4e00-\u9fa5].*?[说道问道答道回答喃喃冷笑低声].*?$/.test(trimmed)) {
-                return `<p class="reader-para--dialog">${this.escapeHtml(trimmed)}</p>`;
-            }
-            return `<p>${this.escapeHtml(trimmed)}</p>`;
-        }).join('');
+        return this._renderMarkdown(content);
     }
+
+    _renderMarkdown(text) {
+        // 轻量级 Markdown 渲染（支持标题、粗体、斜体、引用、代码、分隔线、列表）
+        const lines = text.split('\n');
+        const html = [];
+        let inList = false;
+        let listItems = [];
+        let listType = null;
+
+        const closeList = () => {
+            if (!inList) return;
+            const tag = listType === 'ol' ? 'ol' : 'ul';
+            html.push(`<${tag}>${listItems.join('')}</${tag}>`);
+            inList = false;
+            listItems = [];
+            listType = null;
+        };
+
+        const inlineMd = (s) => {
+            // 行内代码
+            s = s.replace(/`([^`]+)`/g, '<code>$1</code>');
+            // 粗体
+            s = s.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
+            s = s.replace(/__([^_]+)__/g, '<strong>$1</strong>');
+            // 斜体
+            s = s.replace(/\*([^*]+)\*/g, '<em>$1</em>');
+            s = s.replace(/_([^_]+)_/g, '<em>$1</em>');
+            // 链接
+            s = s.replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" target="_blank">$1</a>');
+            // 图片
+            s = s.replace(/!\[([^\]]*)\]\(([^)]+)\)/g, '<img src="$2" alt="$1" style="max-width:100%;">');
+            return s;
+        };
+
+        const pushPara = (s, cls) => {
+            const klass = cls ? ` class="${cls}"` : '';
+            html.push(`<p${klass}>${inlineMd(this.escapeHtml(s))}</p>`);
+        };
+
+        for (let raw of lines) {
+            const line = raw.trimEnd();
+            const trimmed = line.trim();
+
+            if (!trimmed) {
+                closeList();
+                continue;
+            }
+
+            if (/^(-{3,}|\*{3,}|_{3,})$/.test(trimmed)) {
+                closeList();
+                html.push('<hr>');
+                continue;
+            }
+
+            const hMatch = trimmed.match(/^(#{1,6})\s+(.+)$/);
+            if (hMatch) {
+                closeList();
+                const level = hMatch[1].length;
+                html.push(`<h${level}>${inlineMd(this.escapeHtml(hMatch[2]))}</h${level}>`);
+                continue;
+            }
+
+            if (trimmed.startsWith('>')) {
+                closeList();
+                const quote = trimmed.replace(/^>\s?/, '');
+                html.push(`<blockquote>${inlineMd(this.escapeHtml(quote))}</blockquote>`);
+                continue;
+            }
+
+            const ulMatch = trimmed.match(/^(?:[-*+]\s+)(.+)$/);
+            if (ulMatch) {
+                if (!inList || listType !== 'ul') closeList();
+                inList = true;
+                listType = 'ul';
+                listItems.push(`<li>${inlineMd(this.escapeHtml(ulMatch[1]))}</li>`);
+                continue;
+            }
+
+            const olMatch = trimmed.match(/^(\d+)\.\s+(.+)$/);
+            if (olMatch) {
+                if (!inList || listType !== 'ol') closeList();
+                inList = true;
+                listType = 'ol';
+                listItems.push(`<li>${inlineMd(this.escapeHtml(olMatch[2]))}</li>`);
+                continue;
+            }
+
+            closeList();
+
+            if (/^[""''『「【].*|[\u4e00-\u9fa5].*?[说道问道答道回答喃喃冷笑低声].*?$/.test(trimmed)) {
+                pushPara(trimmed, 'reader-para--dialog');
+            } else {
+                pushPara(trimmed);
+            }
+        }
+
+        closeList();
+        return html.join('');
+    }
+
 
     showError(msg) {
         this.contentEl.innerHTML = `
