@@ -2313,6 +2313,18 @@ function parseChaptersFromStream(text) {
 
         if (chapters[chNum]) {
             const hadContent = !!chapters[chNum].content;
+            
+            // 新章节首次出现，把之前正在生成的章节标记为完成
+            if (!hadContent && isGenerating) {
+                for (const n in chapters) {
+                    const num = parseInt(n);
+                    if (chapters[n].status === 'generating' && num < chNum) {
+                        chapters[n].status = 'generated';
+                        updateChapterTab(num);
+                    }
+                }
+            }
+            
             chapters[chNum].title = h.title || `第${chNum}章`;
             chapters[chNum].content = content;
             chapters[chNum].status = 'generating';
