@@ -1633,12 +1633,15 @@ def _extract_batch_detailed(detailed_text: str, start_chapter: int, end_chapter:
 
 def _build_writing_prompt(settings_text: str, volume_rough_outline: str, vol_num: int) -> str:
     """构建初始写作设定 prompt（全局上下文，只传一次）。
-    只传核心设定+现实规避，不写死写作风格。
+    包含核心设定+本卷粗纲+现实规避，作为全卷写作上下文。
     """
     return f"""你是番茄小说顶级签约作家。
 
 【核心设定】
 {settings_text}
+
+【本卷粗纲】
+{volume_rough_outline}
 
 ---
 
