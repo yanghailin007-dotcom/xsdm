@@ -1656,7 +1656,7 @@ $('projectSelect').addEventListener('change', async () => {
     chapters = {};
     $('tabTabContainer').innerHTML = '';
     updateTabPageControls(0, 0);
-    if (pid) await loadProjectFiles(pid, parseInt($('volumeSelect').value));
+    if (pid) await loadProjectFiles(pid, parseInt($('volumeSelect').value), true);
     saveLastProject();
 });
 $('volumeSelect').addEventListener('change', async () => {
@@ -1664,14 +1664,14 @@ $('volumeSelect').addEventListener('change', async () => {
     chapters = {};
     $('tabTabContainer').innerHTML = '';
     updateTabPageControls(0, 0);
-    if (pid) await loadProjectFiles(pid, parseInt($('volumeSelect').value));
+    if (pid) await loadProjectFiles(pid, parseInt($('volumeSelect').value), true);
     saveLastProject();
 });
 $('modelSelect').addEventListener('change', saveLastProject);
 $('startChapter').addEventListener('change', saveLastProject);
 $('batchSize').addEventListener('change', saveLastProject);
 
-async function loadProjectFiles(projectId, volumeNumber) {
+async function loadProjectFiles(projectId, volumeNumber, autoShowRef = false) {
     try {
         const resp = await fetch('/api/conversation/project-files', {
             method: 'POST',
@@ -1728,8 +1728,10 @@ async function loadProjectFiles(projectId, volumeNumber) {
                 updateProgress();
             }
 
-            // 自动打开参考面板（显示设定）
-            showSettings();
+            // 仅在用户主动选择项目时自动打开参考面板
+            if (autoShowRef) {
+                showSettings();
+            }
         }
     } catch (e) {
         console.error('加载项目文件失败:', e);
@@ -2354,7 +2356,7 @@ function finalizeGeneration() {
     const projectId = $('projectSelect').value;
     const volumeNumber = parseInt($('volumeSelect').value);
     if (projectId) {
-        loadProjectFiles(projectId, volumeNumber).then(() => {
+        loadProjectFiles(projectId, volumeNumber, false).then(() => {
             const savedCount = Object.values(chapters).filter(c => c.status === 'generated').length;
             showToast(`✅ 批次生成完成，${savedCount} 章已自动保存`, 'success');
         }).catch(() => {
