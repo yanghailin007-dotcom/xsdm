@@ -2899,14 +2899,44 @@ function hideStorylineView() {
 // 当前正在编辑的细纲章节号
 let editingOutlineChNum = null;
 
+function extractChapterRough(md, chNum) {
+    if (!md) return null;
+    // 匹配 ### 第X章：标题 ... 到下一个 ### 第Y章 或文件末尾
+    const re = new RegExp('^(#{3,4})\\s*第' + chNum + '章[：:\\s](.*?)\\n(.*?)(?=^#{3,4}\\s*第\\d+章|\\Z)', 'ms');
+    const m = md.match(re);
+    if (m) {
+        return '### 第' + chNum + '章：' + m[2].trim() + '\n' + m[3].trim();
+    }
+    // 回退：简单按行查找
+    const lines = md.split('\n');
+    let start = -1;
+    for (let i = 0; i < lines.length; i++) {
+        if (new RegExp('^#{3,4}\\s*第' + chNum + '章').test(lines[i])) {
+            start = i;
+            break;
+        }
+    }
+    if (start === -1) return null;
+    let end = lines.length;
+    for (let i = start + 1; i < lines.length; i++) {
+        if (/^#{3,4}\s*第\d+章/.test(lines[i])) {
+            end = i;
+            break;
+        }
+    }
+    return lines.slice(start, end).join('\n').trim();
+}
+
 function updateOutlinePanel(chNum) {
     const panelBody = document.getElementById('outlinePanelBody');
     if (!panelBody) return;
-    panelBody.innerHTML = '<div class="outline-empty" style="text-align:center;padding:20px;color:var(--text-muted);">' +
-        '<div style="font-size:24px;margin-bottom:8px;">📄</div>' +
-        '<div>粗纲驱动模式</div>' +
-        '<div style="font-size:12px;margin-top:4px;">不再使用逐章细纲，AI 根据粗纲自由创作</div>' +
-        '</div>';
+    const md = projectFiles && projectFiles.volume_outline ? projectFiles.volume_outline : '';
+    const section = extractChapterRough(md, chNum);
+    if (!section) {
+        panelBody.innerHTML = '<div class="outline-empty">本章暂无粗纲</div>';
+        return;
+    }
+    panelBody.innerHTML = '<div class="outline-md-render">' + renderMarkdown(section) + '</div>';
 }
 
 function extractOutlineSection(chNum) {

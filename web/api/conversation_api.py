@@ -2160,6 +2160,7 @@ def get_project_files():
             return jsonify({"success": False, "error": "项目不存在"}), 404
         
         files = _read_project_files(project_dir)
+        volume_outline = _read_volume_outline(project_dir, volume_number)
         
         import re as _re
         
@@ -2194,6 +2195,7 @@ def get_project_files():
             "success": True,
             "settings": files.get('settings', '')[:10000],
             "outline": files.get('outline', '')[:10000],
+            "volume_outline": volume_outline,
             "chapter_count": len(chapter_files),
             "latest_chapter": latest_chapter,
             "chapters": chapters_data,
