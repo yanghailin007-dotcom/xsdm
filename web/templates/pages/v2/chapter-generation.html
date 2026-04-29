@@ -1487,7 +1487,7 @@
                     <div class="ref-tabs">
                         <button class="ref-tab-btn" data-ref="settings" onclick="showRefInDrawer('settings')">📖 设定</button>
                         <button class="ref-tab-btn" data-ref="outline" onclick="showRefInDrawer('outline')">📄 大纲</button>
-                        <button class="ref-tab-btn" data-ref="detailed" onclick="showRefInDrawer('detailed')">📋 细纲</button>
+                        <button class="ref-tab-btn" data-ref="detailed" onclick="showToast('粗纲驱动模式，不再使用细纲', 'info')">📋 细纲（已停用）</button>
                     </div>
                     <div style="display:flex;align-items:center;gap:6px;">
                         <select id="outlineVolSelect" onchange="switchOutlineVolume(this.value)" style="display:none;padding:3px 6px;border-radius:4px;border:1px solid var(--border);background:var(--bg-secondary);color:var(--text-primary);font-size:12px;">
@@ -1505,7 +1505,7 @@
         <!-- 右侧细纲面板 -->
         <div class="outline-panel" id="outlinePanel">
             <div class="outline-panel-header">
-                <h3>📋 本章细纲</h3>
+                <h3>📋 本章粗纲</h3>
             </div>
             <div class="outline-panel-body" id="outlinePanelBody">
                 <div class="outline-empty">请选择项目并生成章节</div>
@@ -1683,14 +1683,8 @@ async function loadProjectFiles(projectId, volumeNumber, autoShowRef = false) {
             projectFiles = data;
             // 解析分卷大纲
             parseOutlineVolumes(data.outline || '');
-            // 解析分卷细纲
-            parseDetailedOutlineVolumes(data.detailed_outline_full || data.detailed_outline || '');
-            // 解析整卷细纲（故事线用当前卷）
-            if (data.detailed_outline) {
-                storyline = parseStoryline(data.detailed_outline);
-            } else {
-                storyline = [];
-            }
+            // 粗纲驱动模式：不再解析细纲
+            storyline = [];
             // 更新或创建参考标签（设定 + 细纲）
             updateReferenceTabs();
             // 如果当前正在显示参考内容，刷新
@@ -2091,27 +2085,7 @@ async function startGeneration() {
 
     if (!projectId) { showToast('请先选择一个项目', 'error'); return; }
 
-    // 检查当前卷是否有细纲
-    if (!projectFiles || !projectFiles.detailed_outline || !projectFiles.detailed_outline.trim()) {
-        showToast('当前卷还没有细纲，请先点击【生成本卷细纲】生成细纲后再生成正文', 'error');
-        return;
-    }
-
-    // 检查细纲是否覆盖要生成的章节范围
-    const maxDetailedCh = getMaxDetailedChapter(projectFiles.detailed_outline);
-    const endChapter = startChapter + batchSize - 1;
-    if (maxDetailedCh > 0 && endChapter > maxDetailedCh) {
-        showToast(`当前卷细纲只到第${maxDetailedCh}章，已自动切换到第${volumeNumber + 1}卷，请【生成本卷细纲】。`, 'info');
-        // 自动切换到下一卷
-        const nextVol = volumeNumber + 1;
-        $('volumeSelect').value = nextVol;
-        chapters = {};
-        $('tabTabContainer').innerHTML = '';
-        updateTabPageControls(0, 0);
-        loadProjectFiles(projectId, nextVol);
-        saveLastProject();
-        return;
-    }
+    // 粗纲驱动模式：不再检查细纲覆盖
 
     if (batchSize < 1 || batchSize > 10) { showToast('每批章数应在 1-10 之间', 'error'); return; }
 
@@ -2900,16 +2874,14 @@ let showingStoryline = false;
 function updateStorylineBtn() {
     const btn = document.getElementById('storylineBtn');
     if (!btn) return;
-    btn.disabled = !(projectFiles && projectFiles.detailed_outline);
+    btn.disabled = true; // 粗纲驱动模式，故事线已停用
+    btn.title = '粗纲驱动模式，故事线功能已停用';
 }
 
 function showStorylineView() {
-    if (!projectFiles || !projectFiles.detailed_outline) {
-        showToast('暂无细纲数据，无法展示故事线', 'info');
-        return;
-    }
-    showingStoryline = true;
-    storylineData = parseStoryline(projectFiles.detailed_outline);
+    showToast('粗纲驱动模式，故事线功能已停用', 'info');
+    return;
+}
 
     const body = document.getElementById('contentBody');
     body.classList.remove('empty');
@@ -2947,30 +2919,15 @@ let editingOutlineChNum = null;
 function updateOutlinePanel(chNum) {
     const panelBody = document.getElementById('outlinePanelBody');
     if (!panelBody) return;
-    editingOutlineChNum = null;
-    const section = extractOutlineSection(chNum);
-    if (!section) {
-        panelBody.innerHTML = '<div class="outline-empty">本章暂无细纲</div>';
-        return;
-    }
-    const html = '<div class="outline-md-render">' + renderMarkdown(section) + '</div>' +
-        '<div style="margin-top:12px;text-align:center;">' +
-        '<button class="gen-btn secondary" style="font-size:12px;padding:6px 14px;" onclick="enterOutlineEdit(' + chNum + ')">✏️ 编辑细纲</button>' +
+    panelBody.innerHTML = '<div class="outline-empty" style="text-align:center;padding:20px;color:var(--text-muted);">' +
+        '<div style="font-size:24px;margin-bottom:8px;">📄</div>' +
+        '<div>粗纲驱动模式</div>' +
+        '<div style="font-size:12px;margin-top:4px;">不再使用逐章细纲，AI 根据粗纲自由创作</div>' +
         '</div>';
-    panelBody.innerHTML = html;
 }
 
 function extractOutlineSection(chNum) {
-    if (!projectFiles || !projectFiles.detailed_outline) return null;
-    const md = projectFiles.detailed_outline;
-    const regex = new RegExp('^#{1,3}\\s*第\\s*' + chNum + '\\s*章.*$', 'm');
-    const startMatch = md.match(regex);
-    if (!startMatch) return null;
-    const start = startMatch.index;
-    const nextRegex = new RegExp('^#{1,3}\\s*第\\s*' + (chNum + 1) + '\\s*章.*$', 'm');
-    const endMatch = md.match(nextRegex);
-    const end = endMatch ? endMatch.index : md.length;
-    return md.substring(start, end).trim();
+    return null; // 粗纲驱动模式，不再提取细纲
 }
 
 function enterOutlineEdit(chNum) {

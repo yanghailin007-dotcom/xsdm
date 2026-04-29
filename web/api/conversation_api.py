@@ -1402,30 +1402,27 @@ def _read_project_files(project_dir: Path):
     return files
 
 
-def _read_volume_detailed(project_dir: Path, volume_number: int):
-    """读取指定卷的细纲"""
-    # 先尝试按卷文件
-    vol_file = project_dir / f"detailed_outline_vol{volume_number}.md"
+def _read_volume_outline(project_dir: Path, volume_number: int) -> str:
+    """读取指定卷的粗纲（从 outline_vol{N}.md）。
+    如果分卷文件不存在，回退到从 outline.md 提取。
+    """
+    # 1. 优先读分卷粗纲文件
+    vol_file = project_dir / f"outline_vol{volume_number}.md"
     if vol_file.exists():
         return vol_file.read_text(encoding='utf-8')
     
-    # 回退到总览文件（兼容连字符和下划线命名）
-    for total_name in ["detailed_outline.md", "detailed-outline.md"]:
-        total_file = project_dir / total_name
-        if total_file.exists():
-            text = total_file.read_text(encoding='utf-8')
-            # 尝试提取该卷部分
-            import re
-            patterns = [
-                rf'## 第{volume_number}卷.*?(?=## 第{volume_number + 1}卷|\Z)',
-                rf'## .*?第{volume_number}卷.*?(?=## .*?第{volume_number + 1}卷|\Z)',
-            ]
-            for p in patterns:
-                m = re.search(p, text, re.DOTALL)
-                if m:
-                    return m.group(0)
-            return text
+    # 2. 回退：从 outline.md 提取该卷粗纲（兼容旧格式）
+    for outline_name in ["outline.md", "rough-outline.md"]:
+        outline_path = project_dir / outline_name
+        if outline_path.exists():
+            text = outline_path.read_text(encoding='utf-8')
+            return _extract_volume_rough_outline(text, volume_number)
     
+    return ""
+
+
+def _read_volume_detailed(project_dir: Path, volume_number: int):
+    """【已废弃】原读取细纲接口，保留兼容。"""
     return ""
 
 
@@ -1516,8 +1513,9 @@ def _extract_single_chapter_rough(volume_rough_text: str, chapter_number: int) -
         return ""
     
     # 匹配该章及后续内容，直到下一章或结束
+    # 注意：使用 {{3,4}} 转义 f-string 中的花括号，使其成为正则量词
     pattern = re.compile(
-        rf'^(#{3,4})\s*第{chapter_number}章[：:\s](.*?)\n(.*?)(?=^\1\s*第\d+章|\Z)',
+        rf'^(#{{3,4}})\s*第{chapter_number}章[：:\s](.*?)\n(.*?)(?=^\1\s*第\d+章|\Z)',
         re.MULTILINE | re.DOTALL
     )
     m = pattern.search(volume_rough_text)
@@ -1530,7 +1528,7 @@ def _extract_single_chapter_rough(volume_rough_text: str, chapter_number: int) -
     lines = volume_rough_text.split('\n')
     start = None
     for i, line in enumerate(lines):
-        if re.match(rf'^(#{3,4})\s*第{chapter_number}章', line):
+        if re.match(rf'^(#{{3,4}})\s*第{chapter_number}章', line):
             start = i
             break
     if start is not None:
@@ -1724,9 +1722,8 @@ def generate_batch():
         
         actual_model = endpoint.get("model", model)
         
-        # 读取本卷粗纲（从 outline.md 提取）
-        files = _read_project_files(project_dir)
-        volume_rough = _extract_volume_rough_outline(files.get('outline', ''), volume_number)
+        # 读取本卷粗纲（从 outline_vol{N}.md 读取）
+        volume_rough = _read_volume_outline(project_dir, volume_number)
         
         end_chapter = start_chapter + batch_size - 1
         
@@ -2163,28 +2160,8 @@ def get_project_files():
             return jsonify({"success": False, "error": "项目不存在"}), 404
         
         files = _read_project_files(project_dir)
-        detailed = _read_volume_detailed(project_dir, volume_number)
         
         import re as _re
-        
-        # 读取完整细纲（用于前端分卷显示）
-        detailed_full = ""
-        for total_name in ["detailed_outline.md", "detailed-outline.md"]:
-            total_file = project_dir / total_name
-            if total_file.exists():
-                detailed_full = total_file.read_text(encoding='utf-8')
-                break
-        # 如果没有总览文件，尝试合并各卷细纲
-        if not detailed_full:
-            vol_files = sorted(project_dir.glob("detailed_outline_vol*.md"), key=lambda p: p.name)
-            if vol_files:
-                parts = []
-                for vf in vol_files:
-                    vol_match = _re.search(r'vol(\d+)', vf.name)
-                    vol_num = int(vol_match.group(1)) if vol_match else 0
-                    vol_content = vf.read_text(encoding='utf-8').strip()
-                    parts.append(f"## 第{vol_num}卷\n\n{vol_content}")
-                detailed_full = "\n\n".join(parts)
         
         # 统计各卷章节数，提取最大章节号
         chapters_dir = project_dir / "chapters"
@@ -2217,8 +2194,6 @@ def get_project_files():
             "success": True,
             "settings": files.get('settings', '')[:10000],
             "outline": files.get('outline', '')[:10000],
-            "detailed_outline": detailed,
-            "detailed_outline_full": detailed_full,
             "chapter_count": len(chapter_files),
             "latest_chapter": latest_chapter,
             "chapters": chapters_data,
@@ -2255,8 +2230,6 @@ def save_project_files():
         volume_number = data.get("volume_number", 1)
         settings_text = data.get("settings")
         outline_text = data.get("outline")
-        detailed_text = data.get("detailed_outline")
-        
         if not project_id:
             return jsonify({"success": False, "error": "project_id 不能为空"}), 400
         
@@ -2294,25 +2267,6 @@ def save_project_files():
             outline_path.write_text(outline_text, encoding='utf-8')
             saved.append(str(outline_path.name))
             logger.info(f"[Conversation] 大纲已保存: {outline_path}")
-        
-        # 保存细纲
-        if detailed_text is not None:
-            # 优先按卷文件，没有则按总览文件
-            vol_path = project_dir / f"detailed_outline_vol{volume_number}.md"
-            if vol_path.exists():
-                detailed_path = vol_path
-            else:
-                detailed_path = _detect_file_path(project_dir, ["detailed-outline.md", "detailed_outline.md"])
-            
-            if detailed_path.exists():
-                backup_path = detailed_path.with_suffix('.md.bak')
-                try:
-                    backup_path.write_text(detailed_path.read_text(encoding='utf-8'), encoding='utf-8')
-                except Exception:
-                    pass
-            detailed_path.write_text(detailed_text, encoding='utf-8')
-            saved.append(str(detailed_path.name))
-            logger.info(f"[Conversation] 细纲已保存: {detailed_path}")
         
         return jsonify({
             "success": True,
