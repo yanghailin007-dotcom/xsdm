@@ -1686,14 +1686,11 @@ async function loadProjectFiles(projectId, volumeNumber) {
             // 启用故事线按钮
             updateStorylineBtn();
             // 自动填充起始章节
-            if (!data.detailed_outline || !data.detailed_outline.trim()) {
-                // 没有细纲，说明还没开始生成，起始章节设为 1
-                $('startChapter').value = 1;
-            } else if (data.latest_chapter > 0) {
-                // 有细纲且有已生成章节，从最新章节+1继续
+            if (data.latest_chapter > 0) {
+                // 有已生成章节，从最新章节+1继续
                 $('startChapter').value = data.latest_chapter + 1;
             } else {
-                // 有细纲但没有已生成章节，从第1章开始
+                // 没有已生成章节，从第1章开始
                 $('startChapter').value = 1;
             }
 
@@ -3079,7 +3076,7 @@ function parseStoryline(markdown) {
     let match;
     const positions = [];
     while ((match = chapterRegex.exec(markdown)) !== null) {
-        positions.push({ index: match.index, num: parseInt(match[1]), title: match[2].trim() });
+        positions.push({ index: match.index, num: parseInt(match[1]), title: (match[2] || '').trim() });
     }
     for (let i = 0; i < positions.length; i++) {
         const start = positions[i].index;
