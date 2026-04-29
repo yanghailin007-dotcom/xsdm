@@ -1463,6 +1463,7 @@
                 <div class="content-header">
                     <h3 id="contentTitle">章节内容</h3>
                     <div class="actions" id="contentActions">
+                        <button id="refBtn" onclick="showRefInDrawer('settings')" style="display:none;">📖 参考</button>
                         <button id="editBtn" style="display:none;">✏️ 编辑</button>
                         <button id="cancelEditBtn" style="display:none;">❌ 取消</button>
                         <button id="copyBtn" style="display:none;">📋 复制</button>
@@ -1712,6 +1713,9 @@ async function loadProjectFiles(projectId, volumeNumber) {
                 updateStatus();
                 updateProgress();
             }
+
+            // 自动打开参考面板（显示设定）
+            showSettings();
         }
     } catch (e) {
         console.error('加载项目文件失败:', e);
