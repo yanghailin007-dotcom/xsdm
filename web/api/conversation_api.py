@@ -2504,7 +2504,7 @@ def volume_outline_context():
         prev_outline = ""
         has_prev = False
         if volume_number > 1:
-            prev_vol_file = project_dir / f"detailed_outline_vol{volume_number - 1}.md"
+            prev_vol_file = project_dir / f"outline_vol{volume_number - 1}.md"
             if prev_vol_file.exists():
                 prev_outline = prev_vol_file.read_text(encoding='utf-8')
                 has_prev = True
@@ -2582,7 +2582,7 @@ def generate_volume_outline_v2():
         
         prev_outline = ""
         if volume_number > 1:
-            prev_vol_file = project_dir / f"detailed_outline_vol{volume_number - 1}.md"
+            prev_vol_file = project_dir / f"outline_vol{volume_number - 1}.md"
             if prev_vol_file.exists():
                 prev_outline = prev_vol_file.read_text(encoding='utf-8')
         
@@ -2690,7 +2690,7 @@ def generate_volume_outline_v2():
                     data_content = line_text[6:]
                     if data_content == '[DONE]':
                         # 保存到文件
-                        vol_file = project_dir / f"detailed_outline_vol{volume_number}.md"
+                        vol_file = project_dir / f"outline_vol{volume_number}.md"
                         vol_file.write_text(full_text, encoding='utf-8')
                         logger.info(f"[Conversation] 第{volume_number}卷粗纲已保存: {vol_file}")
                         yield "data: [DONE]\n\n"
