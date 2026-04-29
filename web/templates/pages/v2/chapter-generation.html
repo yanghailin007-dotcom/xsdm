@@ -2251,16 +2251,21 @@ function parseChaptersFromStream(text) {
         const content = text.substring(startIdx, endIdx).trim();
 
         if (chapters[chNum]) {
-            const isNewChapter = !chapters[chNum].content;
+            const hadContent = !!chapters[chNum].content;
             chapters[chNum].title = h.title || `第${chNum}章`;
             chapters[chNum].content = content;
             chapters[chNum].status = 'generating';
             updateChapterTab(chNum);
             latestChNum = chNum;
             
-            // 新章节出现时，自动切换到该章节（直播跟随）
-            if (isNewChapter && isGenerating) {
+            // 新章节首次出现或内容从无到有，自动切换到该章节（直播跟随）
+            if ((!hadContent || !activeChapter) && isGenerating) {
                 showChapter(chNum);
+            }
+            
+            // 如果当前正在显示该章节，同步更新标题（避免节流延迟或遗漏）
+            if (activeChapter === chNum) {
+                $('contentTitle').textContent = chapters[chNum].title;
             }
         }
     }
