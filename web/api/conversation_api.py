@@ -930,8 +930,11 @@ def save_project():
 def _safe_filename(name: str) -> str:
     """生成安全的目录名"""
     import re
-    # 保留中文、英文、数字
-    safe = re.sub(r'[\\/:*?"<>|]', '_', name).strip()
+    # 先去掉常见的 Markdown 标题符号、书名号和前后空格
+    cleaned = re.sub(r'^[#\s《\[]+', '', name).strip()
+    cleaned = re.sub(r'[》\]]+$', '', cleaned).strip()
+    # 保留中文、英文、数字，替换非法文件名字符
+    safe = re.sub(r'[\\/:*?"<>|#]', '_', cleaned).strip()
     if not safe:
         safe = "untitled"
     return safe

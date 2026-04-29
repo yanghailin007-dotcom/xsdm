@@ -1436,6 +1436,7 @@
                 <div class="content-header">
                     <h3 id="contentTitle">章节内容</h3>
                     <div class="actions" id="contentActions">
+                        <button id="refBtn" onclick="showRefInDrawer('settings')" style="display:none;">📖 参考</button>
                         <button id="editBtn" style="display:none;">✏️ 编辑</button>
                         <button id="cancelEditBtn" style="display:none;">❌ 取消</button>
                         <button id="copyBtn" style="display:none;">📋 复制</button>
@@ -1759,23 +1760,7 @@ function switchOutlineVolume(volKey) {
 }
 
 function updateReferenceTabs() {
-    const refs = [
-        { key: 'settings', icon: '📖', label: '设定', fn: showSettings },
-        { key: 'outline', icon: '📄', label: '大纲', fn: showRoughOutline },
-        { key: 'detailed', icon: '📋', label: '细纲', fn: showOutline },
-    ];
-    for (const ref of refs) {
-        let tab = document.querySelector(`.chapter-tab.ref-tab[data-ref="${ref.key}"]`);
-        if (!tab) {
-            tab = document.createElement('button');
-            tab.className = 'chapter-tab ref-tab';
-            tab.dataset.ref = ref.key;
-            tab.innerHTML = `${ref.icon} ${ref.label}`;
-            tab.addEventListener('click', () => ref.fn());
-            // 标签页由 renderTabPage 统一渲染，不再直接 insert
-    // $('tabTabContainer').insertBefore(tab, $('tabTabContainer').firstChild);
-        }
-    }
+    // 参考标签由 renderTabPage 统一渲染，此处仅作标记
 }
 
 function showRefContent() {
@@ -1790,10 +1775,15 @@ function _renderRefContent(title, icon, content, type) {
     isEditMode = false;
     editCache = '';
 
-    // 高亮对应标签
+    // 高亮侧滑面板内标签
     document.querySelectorAll('.ref-tab-btn').forEach(t => t.classList.remove('active'));
-    const tab = document.querySelector(`.ref-tab-btn[data-ref="${type}"]`);
-    if (tab) tab.classList.add('active');
+    const drawerTab = document.querySelector(`.ref-tab-btn[data-ref="${type}"]`);
+    if (drawerTab) drawerTab.classList.add('active');
+
+    // 高亮标签栏中的参考标签
+    document.querySelectorAll('.chapter-tab.ref-tab').forEach(t => t.classList.remove('active'));
+    const chapterTab = document.querySelector(`.chapter-tab.ref-tab[data-ref="${type}"]`);
+    if (chapterTab) chapterTab.classList.add('active');
 
     // 在侧滑面板中显示内容
     const drawerBody = $('refDrawerBody');
@@ -2265,6 +2255,25 @@ function renderTabPage() {
     const container = $('tabTabContainer');
     if (!container) return;
     container.innerHTML = '';
+
+    // 先渲染参考标签（设定/大纲/细纲）
+    const refs = [
+        { key: 'settings', icon: '📖', label: '设定', fn: showSettings },
+        { key: 'outline', icon: '📄', label: '大纲', fn: showRoughOutline },
+        { key: 'detailed', icon: '📋', label: '细纲', fn: showOutline },
+    ];
+    for (const ref of refs) {
+        const tab = document.createElement('button');
+        tab.className = 'chapter-tab ref-tab';
+        tab.dataset.ref = ref.key;
+        tab.innerHTML = `${ref.icon} ${ref.label}`;
+        tab.addEventListener('click', () => ref.fn());
+        if (showingRef && currentRefType === ref.key) {
+            tab.classList.add('active');
+        }
+        container.appendChild(tab);
+    }
+
     const allChapters = Object.keys(chapters).map(Number).sort((a, b) => a - b);
     if (allChapters.length === 0) {
         updateTabPageControls(0, 0);
@@ -2349,6 +2358,7 @@ function showChapter(chNum) {
     updateOutlinePanel(chNum);
 
     // 章节操作按钮
+    $('refBtn').style.display = 'inline-block';
     $('editBtn').style.display = 'none';
     $('cancelEditBtn').style.display = 'none';
     $('copyBtn').style.display = 'inline-block';
@@ -2741,6 +2751,7 @@ function showStorylineView() {
     body.innerHTML = renderStorylineBigHtml();
     document.getElementById('contentTitle').textContent = '📖 故事线概览';
 
+    document.getElementById('refBtn').style.display = 'none';
     document.getElementById('editBtn').style.display = 'none';
     document.getElementById('cancelEditBtn').style.display = 'none';
     document.getElementById('copyBtn').style.display = 'none';
