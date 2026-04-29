@@ -1702,7 +1702,7 @@ async function loadProjectFiles(projectId, volumeNumber) {
                 }
             }
 
-            // 无论是否有章节，都渲染标签页（确保参考标签显示）
+            // 渲染章节标签页
             renderTabPage();
 
             if (Object.keys(chapters).length > 0) {
@@ -1712,9 +1712,6 @@ async function loadProjectFiles(projectId, volumeNumber) {
                 updateStatus();
                 updateProgress();
             }
-
-            // 自动打开参考面板并高亮设定
-            showSettings();
         }
     } catch (e) {
         console.error('加载项目文件失败:', e);
@@ -2359,24 +2356,6 @@ function renderTabPage() {
     if (!container) return;
     container.innerHTML = '';
 
-    // 先渲染参考标签（设定/大纲/细纲）
-    const refs = [
-        { key: 'settings', icon: '📖', label: '设定', fn: showSettings },
-        { key: 'outline', icon: '📄', label: '大纲', fn: showRoughOutline },
-        { key: 'detailed', icon: '📋', label: '细纲', fn: showOutline },
-    ];
-    for (const ref of refs) {
-        const tab = document.createElement('button');
-        tab.className = 'chapter-tab ref-tab';
-        tab.dataset.ref = ref.key;
-        tab.innerHTML = `${ref.icon} ${ref.label}`;
-        tab.addEventListener('click', () => ref.fn());
-        if (showingRef && currentRefType === ref.key) {
-            tab.classList.add('active');
-        }
-        container.appendChild(tab);
-    }
-
     const allChapters = Object.keys(chapters).map(Number).sort((a, b) => a - b);
     if (allChapters.length === 0) {
         updateTabPageControls(0, 0);
@@ -2472,6 +2451,7 @@ function showChapter(chNum) {
     updateOutlinePanel(chNum);
 
     // 章节操作按钮
+    $('refBtn').style.display = 'inline-block';
     $('editBtn').style.display = 'none';
     $('cancelEditBtn').style.display = 'none';
     $('copyBtn').style.display = 'inline-block';
@@ -2876,6 +2856,7 @@ function showStorylineView() {
     body.innerHTML = renderStorylineBigHtml();
     document.getElementById('contentTitle').textContent = '📖 故事线概览';
 
+    document.getElementById('refBtn').style.display = 'none';
     document.getElementById('editBtn').style.display = 'none';
     document.getElementById('cancelEditBtn').style.display = 'none';
     document.getElementById('copyBtn').style.display = 'none';
