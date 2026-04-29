@@ -1700,15 +1700,21 @@ async function loadProjectFiles(projectId, volumeNumber) {
                     const chNum = parseInt(chNumStr);
                     chapters[chNum] = { title: chData.title, content: chData.content, status: 'generated' };
                 }
-                if (Object.keys(data.chapters).length > 0) {
-                    renderTabPage();
-                    const chNums = Object.keys(chapters).map(Number).sort((a, b) => a - b);
-                    const lastCh = chNums[chNums.length - 1];
-                    showChapter(lastCh);
-                    updateStatus();
-                    updateProgress();
-                }
             }
+
+            // 无论是否有章节，都渲染标签页（确保参考标签显示）
+            renderTabPage();
+
+            if (Object.keys(chapters).length > 0) {
+                const chNums = Object.keys(chapters).map(Number).sort((a, b) => a - b);
+                const lastCh = chNums[chNums.length - 1];
+                showChapter(lastCh);
+                updateStatus();
+                updateProgress();
+            }
+
+            // 自动打开参考面板并高亮设定
+            showSettings();
         }
     } catch (e) {
         console.error('加载项目文件失败:', e);
