@@ -2106,6 +2106,25 @@ def get_project_files():
         files = _read_project_files(project_dir)
         detailed = _read_volume_detailed(project_dir, volume_number)
         
+        # 读取完整细纲（用于前端分卷显示）
+        detailed_full = ""
+        for total_name in ["detailed_outline.md", "detailed-outline.md"]:
+            total_file = project_dir / total_name
+            if total_file.exists():
+                detailed_full = total_file.read_text(encoding='utf-8')
+                break
+        # 如果没有总览文件，尝试合并各卷细纲
+        if not detailed_full:
+            vol_files = sorted(project_dir.glob("detailed_outline_vol*.md"), key=lambda p: p.name)
+            if vol_files:
+                parts = []
+                for vf in vol_files:
+                    vol_match = _re.search(r'vol(\d+)', vf.name)
+                    vol_num = int(vol_match.group(1)) if vol_match else 0
+                    vol_content = vf.read_text(encoding='utf-8').strip()
+                    parts.append(f"## 第{vol_num}卷\n\n{vol_content}")
+                detailed_full = "\n\n".join(parts)
+        
         # 统计各卷章节数，提取最大章节号
         chapters_dir = project_dir / "chapters"
         chapter_files = list(chapters_dir.glob("第*.md")) if chapters_dir.exists() else []
@@ -2139,6 +2158,7 @@ def get_project_files():
             "settings": files.get('settings', '')[:10000],
             "outline": files.get('outline', '')[:10000],
             "detailed_outline": detailed,
+            "detailed_outline_full": detailed_full,
             "chapter_count": len(chapter_files),
             "latest_chapter": latest_chapter,
             "chapters": chapters_data,
