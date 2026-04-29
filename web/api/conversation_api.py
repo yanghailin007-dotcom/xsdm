@@ -2162,15 +2162,15 @@ def get_project_files():
         files = _read_project_files(project_dir)
         volume_outline = _read_volume_outline(project_dir, volume_number)
         
+        import re as _re
+        
         # 读取所有分卷粗纲文件
         outline_volumes = {}
         for vol_file in sorted(project_dir.glob("outline_vol*.md"), key=lambda p: p.name):
-            vol_match = re.search(r'vol(\d+)', vol_file.name)
+            vol_match = _re.search(r'vol(\d+)', vol_file.name)
             if vol_match:
                 vnum = int(vol_match.group(1))
                 outline_volumes[vnum] = vol_file.read_text(encoding='utf-8')
-        
-        import re as _re
         
         # 统计各卷章节数，提取最大章节号
         chapters_dir = project_dir / "chapters"
