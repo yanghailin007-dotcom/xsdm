@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>分卷细纲生成 - NovelCraft</title>
+    <title>分卷粗纲生成 - NovelCraft</title>
     <script>
         (function(){var t=localStorage.getItem('v2-theme')||'light';document.documentElement.setAttribute('data-theme',t);})();
     </script>
@@ -430,7 +430,7 @@
                 <a href="/">工作台</a>
                 <a href="/novelcraft">自由创作</a>
                 <a href="/chapter-generation">正文生成</a>
-                <a href="/volume-outline-generation" class="active">分卷细纲</a>
+                <a href="/volume-outline-generation" class="active">分卷粗纲</a>
             </div>
         </div>
     </header>
@@ -466,10 +466,10 @@
                 </div>
             </div>
 
-            <!-- 上一卷细纲 -->
+            <!-- 上一卷粗纲 -->
             <div class="ref-card" id="prevVolCard" style="display:none;">
                 <div class="ref-header" onclick="toggleRef('prevVolRef')">
-                    <span>📋 上一卷细纲</span>
+                    <span>📋 上一卷粗纲</span>
                     <span class="toggle" id="prevVolRefToggle">▶</span>
                 </div>
                 <div class="ref-body collapsed" id="prevVolRefBody">
@@ -484,7 +484,7 @@
             </div>
 
             <button id="generateBtn" class="gen-btn">
-                <span>✨</span> 开始生成本卷细纲
+                <span>✨</span> 开始生成本卷粗纲
             </button>
 
             <div class="back-link">
@@ -495,7 +495,7 @@
         <!-- 右侧面板 -->
         <div class="right-panel">
             <div class="output-header">
-                <h3 id="outputTitle">📝 本卷细纲</h3>
+                <h3 id="outputTitle">📝 本卷粗纲</h3>
                 <div class="actions" id="outputActions">
                     <button id="editBtn" style="display:none;">✏️ 编辑</button>
                     <button id="cancelEditBtn" style="display:none;">❌ 取消</button>
@@ -504,7 +504,7 @@
             </div>
             <div id="thinkingContainer"></div>
             <div class="output-body empty" id="outputBody">
-                左侧确认上下文后，点击「开始生成本卷细纲」
+                左侧确认上下文后，点击「开始生成本卷粗纲」
             </div>
         </div>
     </div>
@@ -585,7 +585,7 @@ function renderContext() {
         outlineBody.innerHTML = '<span class="empty">暂无本卷粗纲，请先在自由创作页面生成</span>';
     }
 
-    // 上一卷细纲
+    // 上一卷粗纲
     if (contextData.has_prev && contextData.prev_volume_outline) {
         $('prevVolCard').style.display = 'block';
         const prevBody = $('prevVolRefBody');
@@ -711,13 +711,13 @@ function finalizeGeneration() {
     $('outputBody').innerHTML = renderMarkdown(generatedText);
     $('editBtn').style.display = 'inline-block';
     $('saveBtn').style.display = 'inline-block';
-    showToast('✅ 本卷细纲生成完成', 'success');
+    showToast('✅ 本卷粗纲生成完成', 'success');
 }
 
 function resetGenerateBtn() {
     $('generateBtn').classList.remove('running');
     $('generateBtn').disabled = false;
-    $('generateBtn').innerHTML = '<span>✨</span> 开始生成本卷细纲';
+    $('generateBtn').innerHTML = '<span>✨</span> 开始生成本卷粗纲';
 }
 
 // ===== 双容器打字机流式渲染 =====
@@ -898,7 +898,7 @@ async function saveOutline() {
             $('editBtn').textContent = '✏️ 编辑';
             $('cancelEditBtn').style.display = 'none';
             $('outputBody').innerHTML = renderMarkdown(generatedText);
-            showToast('✅ 细纲已保存', 'success');
+            showToast('✅ 粗纲已保存', 'success');
         } else {
             showToast('保存失败: ' + (data.error || '未知错误'), 'error');
         }

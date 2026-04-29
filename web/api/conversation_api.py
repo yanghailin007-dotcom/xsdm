@@ -585,7 +585,7 @@ _GENERATE_OUTLINE_PROMPT = """请根据以下小说设定，生成完整的卷�
 """ + _REALITY_AVOIDANCE_RULES
 
 
-_GENERATE_DETAILED_PROMPT = """请根据以下小说设定和粗纲，生成详细章节细纲（Markdown格式）。
+_GENERATE_DETAILED_PROMPT = """请根据以下小说设定和粗纲，生成详细章节粗纲（Markdown格式）。
 
 你不是在扩写粗纲。你是在设计"这章怎么让读者爽"。
 
@@ -619,7 +619,7 @@ _GENERATE_DETAILED_PROMPT = """请根据以下小说设定和粗纲，生成详�
 
 **预计字数**：2500字
 
-4. 优先保证当前卷的完整细纲，每章充实具体，不能敷衍
+4. 优先保证当前卷的完整粗纲，每章充实具体，不能敷衍
 5. 直接返回 Markdown 文本，不要加 ``` 代码块
 
 """ + _REALITY_AVOIDANCE_RULES
@@ -715,7 +715,7 @@ def generate_outline():
 @conversation_api.route('/generate-detailed', methods=['POST'])
 @login_required
 def generate_detailed():
-    """基于设定+大纲生成细纲"""
+    """基于设定+大纲生成粗纲"""
     try:
         data = request.json or {}
         messages = data.get("messages", [])
@@ -744,7 +744,7 @@ def generate_detailed():
             "Authorization": f"Bearer {endpoint['api_key']}"
         }
 
-        # 构建消息：对话历史 + 设定 + 大纲 + 细纲生成指令
+        # 构建消息：对话历史 + 设定 + 大纲 + 粗纲生成指令
         gen_messages = messages.copy()
         gen_messages.append({
             "role": "user",
@@ -841,7 +841,7 @@ def _extract_json(text: str):
 @login_required
 def save_project():
     """
-    保存设定+大纲+细纲到项目目录，同时生成番茄上传所需的 project_info.json
+    保存设定+大纲+粗纲到项目目录，同时生成番茄上传所需的 project_info.json
     现在直接接收 Markdown 文本保存
     """
     try:
@@ -875,7 +875,7 @@ def save_project():
         with open(outline_file, 'w', encoding='utf-8') as f:
             f.write(outline_md)
         
-        # 3. 保存细纲为 Markdown
+        # 3. 保存粗纲为 Markdown
         detailed_file = project_dir / "detailed_outline.md"
         with open(detailed_file, 'w', encoding='utf-8') as f:
             f.write(detailed_md)
@@ -995,7 +995,7 @@ def _outline_to_markdown(outline: dict) -> str:
 
 
 def _chapter_to_markdown_lines(ch: dict) -> list:
-    """将单个 chapter JSON 转为 Markdown 行列表（统一番茄网文细纲格式）"""
+    """将单个 chapter JSON 转为 Markdown 行列表（统一番茄网文粗纲格式）"""
     lines = []
     ch_num = ch.get('chapter_number', '?')
     ch_title = ch.get('chapter_title', '')
@@ -1048,8 +1048,8 @@ def _chapter_to_markdown_lines(ch: dict) -> list:
 
 
 def _detailed_outline_to_markdown(detailed: dict) -> str:
-    """将 detailed_outline JSON 转为 Markdown（统一番茄网文细纲格式，兼容旧结构）"""
-    lines = ["# 章节细纲", ""]
+    """将 detailed_outline JSON 转为 Markdown（统一番茄网文粗纲格式，兼容旧结构）"""
+    lines = ["# 章节粗纲", ""]
     volumes = detailed.get('volumes', [])
     if volumes:
         for vol in volumes:
@@ -1066,9 +1066,9 @@ def _detailed_outline_to_markdown(detailed: dict) -> str:
 
 
 def _volume_to_markdown(vol: dict) -> str:
-    """将单卷细纲转为 Markdown（统一番茄网文细纲格式）"""
+    """将单卷粗纲转为 Markdown（统一番茄网文粗纲格式）"""
     vol_title = vol.get('volume_title') or f"第{vol.get('volume_number', '?')}卷"
-    lines = [f"# {vol_title} 细纲", ""]
+    lines = [f"# {vol_title} 粗纲", ""]
     for ch in vol.get('chapters', []):
         lines.extend(_chapter_to_markdown_lines(ch))
     return "\n".join(lines)
@@ -1168,7 +1168,7 @@ def _build_project_info(title: str, settings: dict, outline: dict) -> dict:
     for ch in detailed.get('chapters', []):
         total_words += ch.get('word_count_estimate', 0)
     
-    # 如果没有细纲字数，用章节数 * 3000 估算
+    # 如果没有粗纲字数，用章节数 * 3000 估算
     if total_words == 0 and total_chapters > 0:
         total_words = total_chapters * 3000
     
@@ -1370,7 +1370,7 @@ def quality_check():
 # ───────────────────────────────
 
 def _read_project_files(project_dir: Path):
-    """读取项目目录下的设定、大纲、细纲文件"""
+    """读取项目目录下的设定、大纲、粗纲文件"""
     files = {}
     
     # settings - 兼容新旧命名
@@ -1422,12 +1422,12 @@ def _read_volume_outline(project_dir: Path, volume_number: int) -> str:
 
 
 def _read_volume_detailed(project_dir: Path, volume_number: int):
-    """【已废弃】原读取细纲接口，保留兼容。"""
+    """【已废弃】原读取粗纲接口，保留兼容。"""
     return ""
 
 
 def _offset_chapter_numbers(text: str, volume_number: int, chapters_per_volume: int = 30) -> str:
-    """将分卷细纲中的章节号偏移为全书连续章节号。
+    """将分卷粗纲中的章节号偏移为全书连续章节号。
     例如：第2卷的第1章 → 第31章
     只处理 Markdown 标题格式（##/### 开头行），不处理正文中的引用。
     """
@@ -1615,9 +1615,9 @@ def _extract_volume_chapter_plan(outline_text: str, volume_number: int, chapters
 
 
 def _extract_batch_detailed(detailed_text: str, start_chapter: int, end_chapter: int) -> str:
-    """从整卷细纲中提取指定批次章节的细纲内容。
-    细纲格式：每章以 '### 第X章' 或 '## 第X章' 开头。
-    返回提取的细纲文本，找不到则返回空字符串。
+    """从整卷粗纲中提取指定批次章节的粗纲内容。
+    粗纲格式：每章以 '### 第X章' 或 '## 第X章' 开头。
+    返回提取的粗纲文本，找不到则返回空字符串。
     """
     import re
     if not detailed_text:
@@ -1951,15 +1951,15 @@ def _save_chapters_from_text(project_dir: Path, text: str):
 
 
 # ───────────────────────────────
-#  6. 对齐质检（正文 vs 细纲）
+#  6. 对齐质检（正文 vs 粗纲）
 # ───────────────────────────────
 
-_ALIGN_CHECK_PROMPT = """你是番茄小说资深编辑。请对生成的正文进行全维度质检，严格对标原始大纲、细纲和核心设定。
+_ALIGN_CHECK_PROMPT = """你是番茄小说资深编辑。请对生成的正文进行全维度质检，严格对标原始大纲、粗纲和核心设定。
 
 ## 质检维度
 
 1. **大纲一致性**：正文剧情走向是否与全书大纲一致？是否有擅自改变主线、跳过关键节点、添加大纲外的支线？
-2. **细纲一致性**：正文是否严格按细纲中的场景、情绪曲线、关键对话写作？场景是否遗漏或擅自添加？
+2. **粗纲一致性**：正文是否严格按粗纲中的场景、情绪曲线、关键对话写作？场景是否遗漏或擅自添加？
 3. **设定一致性**：
    - 人设：主角性格、说话方式、行事逻辑是否与设定一致？是否圣母/降智/双标/人设崩塌？
    - 世界观：金手指规则、力量体系、势力关系是否与设定一致？是否出现设定外的能力或规则？
@@ -1990,7 +1990,7 @@ _ALIGN_CHECK_PROMPT = """你是番茄小说资深编辑。请对生成的正文�
     {
       "chapter": 1,
       "severity": "critical/warning/suggestion",
-      "category": "大纲偏离/细纲偏离/设定矛盾/逻辑漏洞/毒点/爽点不足/节奏/字数/风格漂移",
+      "category": "大纲偏离/粗纲偏离/设定矛盾/逻辑漏洞/毒点/爽点不足/节奏/字数/风格漂移",
       "description": "具体问题描述，指出哪里错了、怎么错的",
       "fix_suggestion": "具体的修改建议",
       "highlights": ["正文中需要高亮的具体文字片段1", "片段2"]
@@ -2013,7 +2013,7 @@ _ALIGN_CHECK_PROMPT = """你是番茄小说资深编辑。请对生成的正文�
 @login_required
 def align_check():
     """
-    对齐质检：对比生成的正文与原始细纲。
+    对齐质检：对比生成的正文与原始粗纲。
     """
     try:
         data = request.json or {}
@@ -2048,7 +2048,7 @@ def align_check():
         
         generated_combined = "\n".join(generated_texts)
         
-        # 读取大纲、细纲、设定
+        # 读取大纲、粗纲、设定
         files = _read_project_files(project_dir)
         outline = files.get('outline', '')
         settings = files.get('settings', '')
@@ -2063,14 +2063,14 @@ def align_check():
         actual_model = endpoint.get("model", model)
         logger.info(f"[Conversation] /align-check: project={project_id}, vol={volume_number}, chapters={start_chapter}-{end_chapter}")
         
-        # 构建质检消息，包含大纲、设定、细纲、正文
+        # 构建质检消息，包含大纲、设定、粗纲、正文
         check_prompt = f"""【全书大纲】
 {outline[:5000]}
 
 【核心设定】
 {settings[:5000]}
 
-【本卷细纲】
+【本卷粗纲】
 {detailed[:8000]}
 
 【生成的正文】
@@ -2139,14 +2139,14 @@ def align_check():
 
 
 # ───────────────────────────────
-#  7. 读取项目文件（细纲/设定/大纲）
+#  7. 读取项目文件（粗纲/设定/大纲）
 # ───────────────────────────────
 
 @conversation_api.route('/project-files', methods=['POST'])
 @login_required
 def get_project_files():
     """
-    读取项目目录下的设定、大纲、细纲文件内容
+    读取项目目录下的设定、大纲、粗纲文件内容
     """
     try:
         data = request.json or {}
@@ -2219,7 +2219,7 @@ def get_project_files():
 
 
 # ───────────────────────────────
-#  8. 保存项目文件（设定/大纲/细纲）
+#  8. 保存项目文件（设定/大纲/粗纲）
 # ───────────────────────────────
 
 def _detect_file_path(project_dir: Path, candidates: list) -> Path:
@@ -2235,7 +2235,7 @@ def _detect_file_path(project_dir: Path, candidates: list) -> Path:
 @login_required
 def save_project_files():
     """
-    保存项目文件（设定/大纲/细纲）。只保存提供的非空字段。
+    保存项目文件（设定/大纲/粗纲）。只保存提供的非空字段。
     兼容新旧命名方式，保存前自动备份原文件。
     """
     try:
@@ -2308,18 +2308,27 @@ def save_project_files():
 
 
 # ───────────────────────────────
-#  9. 生成分卷细纲
+#  9. 生成分卷粗纲
 # ───────────────────────────────
 
-_VOLUME_OUTLINE_PROMPT = """你是专业网文策划。请根据以下设定和大纲，生成指定卷的详细细纲。
+_VOLUME_OUTLINE_PROMPT = """你是番茄小说签约级别的专业网文策划。请根据以下设定和大纲，生成分卷粗纲。
 
-要求：
-1. 本卷细纲必须严格围绕大纲中该卷的内容展开，不能偏离主线
-2. 每章包含：场景设定、涉及角色、核心爽点/猎奇点、具体情节步骤、关键对话示例、爽点设计
-3. 每章细纲字数 200-400 字
-4. 章节之间要有清晰的情绪曲线和钩子衔接
-5. 用 Markdown 格式输出，每章用 "## 第X章 标题" 开头
-6. 不要输出任何说明文字、总结、分析
+【粗纲格式要求（必须严格遵守）】
+每章必须按以下固定格式输出，不得遗漏任何字段：
+
+### 第X章：【抓眼球标题】 [情绪标签]
+- **章节功能**：本章在整卷中的作用（如开局钩子/反击铺垫/高潮打脸/收尾钩子）
+- **核心爽点**：一句话概括本章最吸引读者的点
+- **情绪走向**：如 压抑→震惊→燃，或 紧张→碾压→解气
+- **涉及角色**：本章出场的主要角色
+- **钩子设计**：本章结尾留下的悬念或钩子
+
+【内容要求】
+1. 本卷粗纲必须严格围绕大纲中该卷的内容展开，不能偏离主线
+2. 每章粗纲 100-200 字，精炼概括，不要过度展开细节
+3. 章节之间要有清晰的情绪递进和钩子衔接
+4. 标题必须是悬念型/冲突型/情绪型，禁止平淡陈述句
+5. 不要输出任何说明文字、总结、分析、字数统计
 
 """ + _REALITY_AVOIDANCE_RULES
 
@@ -2328,7 +2337,7 @@ _VOLUME_OUTLINE_PROMPT = """你是专业网文策划。请根据以下设定和�
 @login_required
 def generate_volume_outline():
     """
-    根据设定和大纲，生成指定卷的细纲并保存。
+    根据设定和大纲，生成指定卷的粗纲并保存。
     """
     try:
         data = request.json or {}
@@ -2351,7 +2360,7 @@ def generate_volume_outline():
         outline = files.get('outline', '')
         
         if not outline:
-            return jsonify({"success": False, "error": "项目暂无大纲，无法生成分卷细纲"}), 400
+            return jsonify({"success": False, "error": "项目暂无大纲，无法生成分卷粗纲"}), 400
         
         endpoint = _resolve_endpoint(model)
         if not endpoint:
@@ -2369,7 +2378,7 @@ def generate_volume_outline():
 {outline[:8000]}
 
 【任务】
-请生成第{volume_number}卷的详细细纲。
+请生成第{volume_number}卷的详细粗纲。
 
 {_VOLUME_OUTLINE_PROMPT}"""
         
@@ -2409,9 +2418,9 @@ def generate_volume_outline():
         raw_content = choices[0].get("message", {}).get("content", "") if choices else ""
         
         # 保存到文件
-        vol_file = project_dir / f"detailed_outline_vol{volume_number}.md"
+        vol_file = project_dir / f"outline_vol{volume_number}.md"
         vol_file.write_text(raw_content, encoding='utf-8')
-        logger.info(f"[Conversation] 第{volume_number}卷细纲已保存: {vol_file}")
+        logger.info(f"[Conversation] 第{volume_number}卷粗纲已保存: {vol_file}")
         
         return jsonify({
             "success": True,
@@ -2426,16 +2435,16 @@ def generate_volume_outline():
 
 
 # ───────────────────────────────
-#  10. 分卷细纲生成页面 API
+#  10. 分卷粗纲生成页面 API
 # ───────────────────────────────
 
 def _build_volume_outline_v2_prompt(volume_number: int, chapter_count: int,
                                      global_start: int, global_end: int,
                                      chapter_plan_text: str = "") -> str:
-    """构建分卷细纲生成 prompt（统一番茄网文细纲格式，含章节范围约束）"""
+    """构建分卷粗纲生成 prompt（统一番茄网文粗纲格式，含章节范围约束）"""
     plan_section = chapter_plan_text if chapter_plan_text else ""
     
-    return f"""你是番茄小说签约级别的专业网文策划。请根据以下信息生成本卷细纲。
+    return f"""你是番茄小说签约级别的专业网文策划。请根据以下信息生成本卷粗纲。
 
 【卷次与章节范围】
 - 本卷为第{volume_number}卷
@@ -2445,35 +2454,27 @@ def _build_volume_outline_v2_prompt(volume_number: int, chapter_count: int,
 
 {_REALITY_AVOIDANCE_RULES}
 
-【细纲格式要求（必须严格遵守）】
+【粗纲格式要求（必须严格遵守）】
 每章必须按以下固定格式输出，不得遗漏任何字段：
 
-## 第X章 【抓眼球标题】
-
-**场景设定**：时间、地点、氛围
-**涉及角色**：角色1、角色2
-**核心爽点/猎奇点**：一句话概括本章最吸引读者的点
-**具体情节步骤**：
-1. 步骤一
-2. 步骤二
-3. 步骤三
-**关键对话示例**：
-- "对话内容1"
-- "对话内容2"
-**爽点设计说明**：为什么这个设计能打动番茄读者
-**章节结尾钩子**：下一章的悬念预告
+### 第X章：【抓眼球标题】 [情绪标签]
+- **章节功能**：本章在整卷中的作用
+- **核心爽点**：一句话概括本章最吸引读者的点
+- **情绪走向**：如 压抑→震惊→燃
+- **涉及角色**：本章出场的主要角色
+- **钩子设计**：本章结尾留下的悬念或钩子
 
 【绝对铁律 — 违反即失败】
-1. **章节数量铁律**：粗纲中列出了多少章，你就必须输出多少章，一章都不能少，一章都不能多。
-2. **严禁合并章节**：不能把两章或多章粗纲合并成一章细纲，必须严格 1:1 对应。
-3. **严禁跳过章节**：粗纲中的每一章都必须有对应的细纲，禁止以"与上一章类似"等理由跳过。
+1. **章节数量铁律**：大纲中列出了多少章，你就必须输出多少章，一章都不能少，一章都不能多。
+2. **严禁合并章节**：不能把两章或多章合并成一章粗纲，必须严格 1:1 对应。
+3. **严禁跳过章节**：大纲中的每一章都必须有对应的粗纲，禁止以"与上一章类似"等理由跳过。
 4. **章节编号铁律**：必须从第 {global_start} 章开始，连续编号到第 {global_end} 章，中间不能断号、跳号、重号。
-5. **如果粗纲有51章，你的输出必须有51章细纲**，这是不可妥协的要求。
+5. **如果大纲有51章，你的输出必须有51章粗纲**，这是不可妥协的要求。
 
 【内容要求】
-1. 本卷细纲必须严格围绕大纲中该卷的内容展开，不能偏离主线
-2. 每章细纲 200-400 字
-3. 章节之间要有清晰的情绪曲线和钩子衔接
+1. 本卷粗纲必须严格围绕大纲中该卷的内容展开，不能偏离主线
+2. 每章粗纲 100-200 字，精炼概括，不要过度展开细节
+3. 章节之间要有清晰的情绪递进和钩子衔接
 4. 标题必须是悬念型/冲突型/情绪型，禁止平淡陈述句
 5. 不要输出任何说明文字、总结、分析、字数统计"""
 
@@ -2482,7 +2483,7 @@ def _build_volume_outline_v2_prompt(volume_number: int, chapter_count: int,
 @login_required
 def volume_outline_context():
     """
-    获取分卷细纲生成所需的上下文：设定 + 大纲 + 上一卷细纲
+    获取分卷粗纲生成所需的上下文：设定 + 大纲 + 上一卷粗纲
     """
     try:
         project_id = request.args.get("project_id", "").strip()
@@ -2499,7 +2500,7 @@ def volume_outline_context():
         
         files = _read_project_files(project_dir)
         
-        # 读取上一卷细纲（如果 volume > 1）
+        # 读取上一卷粗纲（如果 volume > 1）
         prev_outline = ""
         has_prev = False
         if volume_number > 1:
@@ -2550,8 +2551,8 @@ def volume_outline_context():
 @login_required
 def generate_volume_outline_v2():
     """
-    流式生成分卷细纲（SSE）。
-    接收设定 + 大纲 + 上一卷细纲 + 用户补充要求。
+    流式生成分卷粗纲（SSE）。
+    接收设定 + 大纲 + 上一卷粗纲 + 用户补充要求。
     """
     try:
         data = request.json or {}
@@ -2691,7 +2692,7 @@ def generate_volume_outline_v2():
                         # 保存到文件
                         vol_file = project_dir / f"detailed_outline_vol{volume_number}.md"
                         vol_file.write_text(full_text, encoding='utf-8')
-                        logger.info(f"[Conversation] 第{volume_number}卷细纲已保存: {vol_file}")
+                        logger.info(f"[Conversation] 第{volume_number}卷粗纲已保存: {vol_file}")
                         yield "data: [DONE]\n\n"
                         break
                     
