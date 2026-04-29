@@ -1708,8 +1708,6 @@ def generate_batch():
         
         # 提取当前批次的细纲（只传这几章，不传整卷）
         batch_detailed = _extract_batch_detailed(detailed_full, start_chapter, end_chapter)
-        if not batch_detailed:
-            batch_detailed = "（当前批次细纲暂未找到，请根据粗纲自由发挥）"
         
         # 如果 messages 为空，构建初始设定消息（全局上下文，只传一次）
         if not messages:
@@ -1756,6 +1754,14 @@ def generate_batch():
         logger.info(f"[Conversation] /generate-batch: project={project_id}, vol={volume_number}, chapters={start_chapter}-{end_chapter}, model={actual_model}")
         
         def generate():
+            # 检查细纲是否覆盖当前批次
+            if not batch_detailed:
+                err_msg = f"当前卷细纲未覆盖第{start_chapter}-{end_chapter}章（第1卷只规划到第16章）。请切换到第2卷或先【生成本卷细纲】。"
+                logger.warning(f"[Conversation] {err_msg}")
+                yield f"data: {json.dumps({'error': err_msg})}\n\n"
+                yield "data: [DONE]\n\n"
+                return
+            
             try:
                 resp = requests.post(
                     endpoint["api_url"],

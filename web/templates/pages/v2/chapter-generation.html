@@ -2081,6 +2081,14 @@ async function startGeneration() {
         return;
     }
 
+    // 检查细纲是否覆盖要生成的章节范围
+    const maxDetailedCh = getMaxDetailedChapter(projectFiles.detailed_outline);
+    const endChapter = startChapter + batchSize - 1;
+    if (maxDetailedCh > 0 && endChapter > maxDetailedCh) {
+        showToast(`当前卷细纲只到第${maxDetailedCh}章，第${startChapter}-${endChapter}章无细纲。请切换到第${volumeNumber + 1}卷或先【生成本卷细纲】。`, 'error');
+        return;
+    }
+
     if (batchSize < 1 || batchSize > 10) { showToast('每批章数应在 1-10 之间', 'error'); return; }
 
     currentProject = projectId;
@@ -2204,6 +2212,19 @@ async function startGeneration() {
         isGenerating = false;
         resetGenerateBtn();
     }
+}
+
+// 从细纲文本中提取最大章节号
+function getMaxDetailedChapter(detailedText) {
+    if (!detailedText) return 0;
+    const regex = /^#{2,3}\s*第\s*([一二三四五六七八九十百\d]+)\s*章/gm;
+    let max = 0;
+    let m;
+    while ((m = regex.exec(detailedText)) !== null) {
+        const num = cnToInt(m[1]);
+        if (num > max) max = num;
+    }
+    return max;
 }
 
 // 中文数字转阿拉伯数字
