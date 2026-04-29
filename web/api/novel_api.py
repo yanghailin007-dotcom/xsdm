@@ -434,11 +434,22 @@ def register_novel_routes(app, manager: NovelGenerationManager):
                     
                     if project_path:
                         chapters_dir = Path(project_path) / "chapters"
+                    else:
+                        # 回退到旧方式
+                        from src.config.path_config import path_config
+                        paths = path_config.get_project_paths(title, username=username)
+                        chapters_dir = Path(paths.get("chapters_dir", ""))
+                    
+                    if chapters_dir and chapters_dir.exists():
                         possible_files = [
                             chapters_dir / f"chapter_{chapter_num}.json",
                             chapters_dir / f"chapter_{chapter_num:03d}.json",
                             chapters_dir / f"第{chapter_num}章.json",
                         ]
+                        # 先尝试精确匹配 .md（带标题后缀）
+                        md_matches = list(chapters_dir.glob(f"第{chapter_num}章_*.md"))
+                        if md_matches:
+                            possible_files.append(md_matches[0])
                         
                         chapter_file = None
                         for f in possible_files:
@@ -446,26 +457,45 @@ def register_novel_routes(app, manager: NovelGenerationManager):
                                 chapter_file = f
                                 break
                         
-                        if not chapter_file and chapters_dir.exists():
+                        if not chapter_file:
                             import re
-                            for f in chapters_dir.glob("*.json"):
+                            for f in list(chapters_dir.glob("*.json")) + list(chapters_dir.glob("*.md")):
                                 match = re.search(r'chapter_(\d+)', f.name) or re.search(r'第(\d+)章', f.name)
                                 if match and int(match.group(1)) == chapter_num:
                                     chapter_file = f
                                     break
                         
                         if chapter_file and chapter_file.exists():
-                            with open(chapter_file, 'r', encoding='utf-8') as f:
-                                chapter_data = json.load(f)
-                            chapter_detail = {
-                                "chapter_number": chapter_data.get("chapter_number", chapter_num),
-                                "number": chapter_data.get("chapter_number", chapter_num),
-                                "title": chapter_data.get("title") or chapter_data.get("chapter_title", f"第{chapter_num}章"),
-                                "chapter_title": chapter_data.get("title") or chapter_data.get("chapter_title", f"第{chapter_num}章"),
-                                "content": chapter_data.get("content") or chapter_data.get("chapter_content", ""),
-                                "chapter_content": chapter_data.get("content") or chapter_data.get("chapter_content", ""),
-                                "word_count": chapter_data.get("word_count", 0),
-                            }
+                            if chapter_file.suffix == '.json':
+                                with open(chapter_file, 'r', encoding='utf-8') as f:
+                                    chapter_data = json.load(f)
+                                chapter_detail = {
+                                    "chapter_number": chapter_data.get("chapter_number", chapter_num),
+                                    "number": chapter_data.get("chapter_number", chapter_num),
+                                    "title": chapter_data.get("title") or chapter_data.get("chapter_title", f"第{chapter_num}章"),
+                                    "chapter_title": chapter_data.get("title") or chapter_data.get("chapter_title", f"第{chapter_num}章"),
+                                    "content": chapter_data.get("content") or chapter_data.get("chapter_content", ""),
+                                    "chapter_content": chapter_data.get("content") or chapter_data.get("chapter_content", ""),
+                                    "word_count": chapter_data.get("word_count", 0),
+                                }
+                            else:
+                                # .md 文件
+                                text = chapter_file.read_text(encoding='utf-8')
+                                lines = text.split('\n')
+                                title = f"第{chapter_num}章"
+                                content = text
+                                if lines and lines[0].startswith('# '):
+                                    title = lines[0][2:].strip()
+                                    content = '\n'.join(lines[1:]).strip()
+                                chapter_detail = {
+                                    "chapter_number": chapter_num,
+                                    "number": chapter_num,
+                                    "title": title,
+                                    "chapter_title": title,
+                                    "content": content,
+                                    "chapter_content": content,
+                                    "word_count": len(content),
+                                }
                             logger.info(f"[章节详情] 从文件系统读取章节 {chapter_num}: {chapter_file}")
                 except Exception as e:
                     logger.warning(f"[章节详情] 从文件系统读取失败: {e}")
