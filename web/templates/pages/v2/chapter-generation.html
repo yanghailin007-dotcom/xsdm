@@ -3168,7 +3168,8 @@ function parseStoryline(markdown) {
         const block = markdown.slice(start, end);
         const ch = { num: positions[i].num, title: positions[i].title };
         const extract = (label) => {
-            const r = new RegExp('\\*\\*' + label + '\\*\\*[：:]\\s*(.+?)(?=\\n\\*\\*|\\n#{3,4}|\\s*$)', 's');
+            // 粗纲字段以 \n- **字段名**：值 格式排列，匹配到下一个字段或下一章或文件末尾
+            const r = new RegExp('\\*\\*' + label + '\\*\\*[：:]\\s*([\\s\\S]*?)(?=\\n-?\\s*\\*\\*|\\n#{3,4}|\\s*$)');
             const m = block.match(r);
             return m ? m[1].trim() : '';
         };
