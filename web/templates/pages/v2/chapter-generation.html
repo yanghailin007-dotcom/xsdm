@@ -1681,8 +1681,8 @@ async function loadProjectFiles(projectId, volumeNumber, autoShowRef = false) {
         const data = await resp.json();
         if (data.success) {
             projectFiles = data;
-            // 解析分卷大纲
-            parseOutlineVolumes(data.outline || '');
+            // 解析分卷大纲（优先使用后端返回的分卷文件数据）
+            parseOutlineVolumes(data.outline || '', data.outline_volumes || {});
             // 粗纲驱动模式：不再解析细纲
             storyline = [];
             // 更新或创建参考标签（设定 + 细纲）
@@ -1733,8 +1733,18 @@ async function loadProjectFiles(projectId, volumeNumber, autoShowRef = false) {
 }
 
 // 解析 outline.md 为全书框架 + 各卷粗纲
-function parseOutlineVolumes(outlineText) {
+// 如果后端提供了 outlineVolumesData（分卷文件字典），直接使用
+function parseOutlineVolumes(outlineText, outlineVolumesData) {
     outlineVolumes = { all: outlineText, volumes: {} };
+    
+    // 优先使用后端返回的分卷粗纲文件数据
+    if (outlineVolumesData && Object.keys(outlineVolumesData).length > 0) {
+        for (const [vnum, vtext] of Object.entries(outlineVolumesData)) {
+            outlineVolumes.volumes[parseInt(vnum, 10)] = vtext;
+        }
+        return;
+    }
+    
     if (!outlineText) return;
 
     // 尝试按常见分卷标题或 "---" 分隔符分割
@@ -1905,8 +1915,12 @@ function closeRefDrawer() {
 }
 
 function showRoughOutline() {
-    const content = outlineVolumes.all || (projectFiles ? projectFiles.outline : '');
-    _renderRefContent('全书大纲', '📄', content, 'outline');
+    const currentVol = parseInt($('volumeSelect').value) || 1;
+    // 默认显示当前卷粗纲，如果没有则回退到全书框架
+    const content = outlineVolumes.volumes[currentVol]
+        || outlineVolumes.all
+        || (projectFiles ? projectFiles.outline : '');
+    _renderRefContent(`第${currentVol}卷粗纲`, '📄', content, 'outline');
     // 填充并显示卷选择器（粗纲选项）
     const volSelect = $('outlineVolSelect');
     if (volSelect) {
@@ -1916,6 +1930,7 @@ function showRoughOutline() {
             const opt = document.createElement('option');
             opt.value = String(volNum);
             opt.textContent = `第${volNum}卷粗纲`;
+            if (volNum === currentVol) opt.selected = true;
             volSelect.appendChild(opt);
         }
         volSelect.style.display = 'inline-block';
