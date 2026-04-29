@@ -2085,7 +2085,15 @@ async function startGeneration() {
     const maxDetailedCh = getMaxDetailedChapter(projectFiles.detailed_outline);
     const endChapter = startChapter + batchSize - 1;
     if (maxDetailedCh > 0 && endChapter > maxDetailedCh) {
-        showToast(`当前卷细纲只到第${maxDetailedCh}章，第${startChapter}-${endChapter}章无细纲。请切换到第${volumeNumber + 1}卷或先【生成本卷细纲】。`, 'error');
+        showToast(`当前卷细纲只到第${maxDetailedCh}章，已自动切换到第${volumeNumber + 1}卷，请【生成本卷细纲】。`, 'info');
+        // 自动切换到下一卷
+        const nextVol = volumeNumber + 1;
+        $('volumeSelect').value = nextVol;
+        chapters = {};
+        $('tabTabContainer').innerHTML = '';
+        updateTabPageControls(0, 0);
+        loadProjectFiles(projectId, nextVol);
+        saveLastProject();
         return;
     }
 
