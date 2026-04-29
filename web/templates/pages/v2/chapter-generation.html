@@ -2206,11 +2206,13 @@ async function startGeneration() {
                         return;
                     }
                     if (data.session_messages) {
-                        // 精简对话历史：只保留初始设定 prompt + 最新 AI 回复
-                        // 去掉中间过期的 gen_prompt（旧的批次细纲对后续批次无用）
+                        // 精简对话历史：保留初始设定 + 最近4章的完整上下文
+                        // 结构：msgs[0]=初始设定, 之后 user(粗纲)+assistant(正文) 交替
                         const msgs = data.session_messages;
                         if (msgs.length >= 2) {
-                            sessionMessages = [msgs[0], msgs[msgs.length - 1]];
+                            const initial = msgs[0];
+                            const historyStart = Math.max(1, msgs.length - 8);
+                            sessionMessages = [initial, ...msgs.slice(historyStart)];
                         } else {
                             sessionMessages = msgs;
                         }
