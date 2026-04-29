@@ -1556,7 +1556,7 @@ let currentVolume = 1;
 let lastVolumeSession = null; // 记录上一次生成时使用的卷号，切换卷时重置对话上下文
 let storyline = [];           // 解析后的整卷细纲数组
 let saveOutlineTimer = null;  // 细纲保存 debounce 定时器
-const TAB_PAGE_SIZE = 8;      // 标签页每页显示数量
+const TAB_PAGE_SIZE = 6;      // 标签页每页显示数量（与每批章数对齐）
 let tabCurrentPage = 0;       // 当前标签页页码
 let activeChapter = null;
 let qualityReport = null; // 当前质检报告
@@ -2110,12 +2110,16 @@ async function startGeneration() {
     $('generateBtn').innerHTML = '<span>⏳</span> 生成中...';
     $('qualityCheckBtn').disabled = true;
 
-    // 创建标签页
+    // 创建待生成章节占位
     for (let i = startChapter; i <= currentBatchEnd; i++) {
         chapters[i] = { title: `第${i}章`, content: '', status: 'pending' };
-        createChapterTab(i);
     }
-    // 渲染第一页标签
+    // 切换到包含起始章节的页面并渲染
+    const allChNums = Object.keys(chapters).map(Number).sort((a, b) => a - b);
+    const idx = allChNums.indexOf(startChapter);
+    if (idx !== -1) {
+        tabCurrentPage = Math.floor(idx / TAB_PAGE_SIZE);
+    }
     renderTabPage();
     updateStatus();
     updateProgress();
