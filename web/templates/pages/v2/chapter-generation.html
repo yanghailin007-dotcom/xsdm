@@ -2883,23 +2883,6 @@ function showStorylineView() {
     return;
 }
 
-    const body = document.getElementById('contentBody');
-    body.classList.remove('empty');
-    body.innerHTML = renderStorylineBigHtml();
-    document.getElementById('contentTitle').textContent = '📖 故事线概览';
-
-    document.getElementById('refBtn').style.display = 'none';
-    document.getElementById('editBtn').style.display = 'none';
-    document.getElementById('cancelEditBtn').style.display = 'none';
-    document.getElementById('copyBtn').style.display = 'none';
-    document.getElementById('rewriteBtn').disabled = true;
-    document.getElementById('saveBtn').disabled = true;
-
-    // 加载并展示已生成的剧照
-    const pid = document.getElementById('projectSelect').value;
-    if (pid) loadStorylineStills(pid);
-}
-
 function hideStorylineView() {
     showingStoryline = false;
     if (activeChapter && chapters[activeChapter]) {
