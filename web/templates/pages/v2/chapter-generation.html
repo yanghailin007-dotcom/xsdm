@@ -2951,7 +2951,11 @@ function updateOutlinePanel(chNum) {
         panelBody.innerHTML = '<div class="outline-empty">本章暂无粗纲</div>';
         return;
     }
-    panelBody.innerHTML = '<div class="outline-md-render">' + renderMarkdown(section) + '</div>';
+    const html = '<div class="outline-md-render">' + renderMarkdown(section) + '</div>' +
+        '<div style="margin-top:12px;text-align:center;">' +
+        '<button class="gen-btn secondary" style="font-size:12px;padding:6px 14px;" onclick="enterOutlineEdit(' + chNum + ')">✏️ 编辑粗纲</button>' +
+        '</div>';
+    panelBody.innerHTML = html;
 }
 
 function extractOutlineSection(chNum) {
@@ -2962,7 +2966,8 @@ function enterOutlineEdit(chNum) {
     editingOutlineChNum = chNum;
     const panelBody = document.getElementById('outlinePanelBody');
     if (!panelBody) return;
-    const section = extractOutlineSection(chNum) || '';
+    const md = projectFiles && projectFiles.volume_outline ? projectFiles.volume_outline : '';
+    const section = extractChapterRough(md, chNum) || '';
     panelBody.innerHTML = '<div class="outline-edit-wrapper">' +
         '<textarea class="outline-edit-textarea" id="outlineEditTextarea">' + escapeHtml(section) + '</textarea>' +
         '<div class="outline-edit-actions">' +
@@ -2981,22 +2986,22 @@ async function saveOutlineEdit() {
     const ta = document.getElementById('outlineEditTextarea');
     if (!ta || !editingOutlineChNum || !projectFiles) return;
     const newText = ta.value.trim();
-    const md = projectFiles.detailed_outline || '';
+    const md = projectFiles.volume_outline || '';
     const chNum = editingOutlineChNum;
-    const regex = new RegExp('^#{1,3}\\s*第\\s*' + chNum + '\\s*章.*$', 'm');
-    const startMatch = md.match(regex);
-    if (!startMatch) {
-        showToast('未找到本章细纲位置，保存失败', 'error');
+    const regex = new RegExp('^#{3,4}\\s*第' + chNum + '章[：:\\s](.*?)\\n(.*?)(?=^#{3,4}\\s*第\\d+章|\\Z)', 'ms');
+    const match = md.match(regex);
+    if (!match) {
+        showToast('未找到本章粗纲位置，保存失败', 'error');
         return;
     }
-    const start = startMatch.index;
-    const nextRegex = new RegExp('^#{1,3}\\s*第\\s*' + (chNum + 1) + '\\s*章.*$', 'm');
-    const endMatch = md.match(nextRegex);
-    const end = endMatch ? endMatch.index : md.length;
-    const newMd = md.substring(0, start) + newText + (end < md.length ? '\n\n' + md.substring(end) : '');
-    projectFiles.detailed_outline = newMd;
-    // 重新解析 storyline
-    storyline = parseStoryline(newMd);
+    const start = match.index;
+    const end = match.index + match[0].length;
+    const newMd = md.substring(0, start) + newText + md.substring(end);
+    projectFiles.volume_outline = newMd;
+    // 同步更新 outline_volumes
+    if (projectFiles.outline_volumes) {
+        projectFiles.outline_volumes[currentVolume] = newMd;
+    }
     try {
         await fetch('/api/conversation/save-project-files', {
             method: 'POST',
@@ -3004,14 +3009,14 @@ async function saveOutlineEdit() {
             body: JSON.stringify({
                 project_id: currentProject,
                 volume_number: currentVolume,
-                detailed_outline: newMd
+                volume_outline: newMd
             })
         });
-        showToast('细纲已保存', 'success');
+        showToast('粗纲已保存', 'success');
         updateOutlinePanel(chNum);
     } catch (e) {
-        console.error('保存细纲失败:', e);
-        showToast('细纲保存失败', 'error');
+        console.error('保存粗纲失败:', e);
+        showToast('粗纲保存失败', 'error');
     }
 }
 

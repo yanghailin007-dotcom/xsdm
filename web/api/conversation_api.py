@@ -2241,6 +2241,7 @@ def save_project_files():
         volume_number = data.get("volume_number", 1)
         settings_text = data.get("settings")
         outline_text = data.get("outline")
+        volume_outline_text = data.get("volume_outline")
         if not project_id:
             return jsonify({"success": False, "error": "project_id 不能为空"}), 400
         
@@ -2278,6 +2279,19 @@ def save_project_files():
             outline_path.write_text(outline_text, encoding='utf-8')
             saved.append(str(outline_path.name))
             logger.info(f"[Conversation] 大纲已保存: {outline_path}")
+        
+        # 保存分卷粗纲
+        if volume_outline_text is not None:
+            vol_path = project_dir / f"outline_vol{volume_number}.md"
+            if vol_path.exists():
+                backup_path = vol_path.with_suffix('.md.bak')
+                try:
+                    backup_path.write_text(vol_path.read_text(encoding='utf-8'), encoding='utf-8')
+                except Exception:
+                    pass
+            vol_path.write_text(volume_outline_text, encoding='utf-8')
+            saved.append(str(vol_path.name))
+            logger.info(f"[Conversation] 分卷粗纲已保存: {vol_path}")
         
         return jsonify({
             "success": True,
