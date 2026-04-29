@@ -2106,6 +2106,8 @@ def get_project_files():
         files = _read_project_files(project_dir)
         detailed = _read_volume_detailed(project_dir, volume_number)
         
+        import re as _re
+        
         # 读取完整细纲（用于前端分卷显示）
         detailed_full = ""
         for total_name in ["detailed_outline.md", "detailed-outline.md"]:
@@ -2129,7 +2131,6 @@ def get_project_files():
         chapters_dir = project_dir / "chapters"
         chapter_files = list(chapters_dir.glob("第*.md")) if chapters_dir.exists() else []
         latest_chapter = 0
-        import re as _re
         for cf in chapter_files:
             m = _re.search(r'第(\d+)章', cf.name)
             if m:
