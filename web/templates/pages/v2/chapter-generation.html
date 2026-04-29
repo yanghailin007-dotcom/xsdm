@@ -1426,7 +1426,7 @@
                     <span>▶️</span> 继续下一批
                 </button>
                 <button id="genVolOutlineBtn" class="gen-btn secondary" style="margin-top:8px;" onclick="openVolumeOutlinePage()">
-                    <span>📋</span> 生成本卷细纲
+                    <span>📋</span> 生成本卷粗纲
                 </button>
             </div>
 
@@ -2100,7 +2100,27 @@ async function startGeneration() {
 
     if (!projectId) { showToast('请先选择一个项目', 'error'); return; }
 
-    // 粗纲驱动模式：不再检查细纲覆盖
+    // 检查当前卷是否有粗纲
+    if (!projectFiles || !projectFiles.volume_outline || !projectFiles.volume_outline.trim()) {
+        showToast('当前卷还没有粗纲，请先点击【生成本卷粗纲】生成粗纲后再生成正文', 'error');
+        return;
+    }
+
+    // 检查粗纲是否覆盖要生成的章节范围
+    const maxRoughCh = getMaxRoughChapter(projectFiles.volume_outline);
+    const endChapter = startChapter + batchSize - 1;
+    if (maxRoughCh > 0 && endChapter > maxRoughCh) {
+        showToast(`当前卷粗纲只到第${maxRoughCh}章，已自动切换到第${volumeNumber + 1}卷，请【生成本卷粗纲】。`, 'info');
+        // 自动切换到下一卷
+        const nextVol = volumeNumber + 1;
+        $('volumeSelect').value = nextVol;
+        chapters = {};
+        $('tabTabContainer').innerHTML = '';
+        updateTabPageControls(0, 0);
+        loadProjectFiles(projectId, nextVol);
+        saveLastProject();
+        return;
+    }
 
     if (batchSize < 1 || batchSize > 10) { showToast('每批章数应在 1-10 之间', 'error'); return; }
 
@@ -2229,17 +2249,22 @@ async function startGeneration() {
     }
 }
 
-// 从细纲文本中提取最大章节号
-function getMaxDetailedChapter(detailedText) {
-    if (!detailedText) return 0;
-    const regex = /^#{2,3}\s*第\s*([一二三四五六七八九十百\d]+)\s*章/gm;
+// 从粗纲文本中提取最大章节号
+function getMaxRoughChapter(roughText) {
+    if (!roughText) return 0;
+    const regex = /^#{3,4}\s*第\s*([一二三四五六七八九十百\d]+)\s*章/gm;
     let max = 0;
     let m;
-    while ((m = regex.exec(detailedText)) !== null) {
+    while ((m = regex.exec(roughText)) !== null) {
         const num = cnToInt(m[1]);
         if (num > max) max = num;
     }
     return max;
+}
+
+// 从细纲文本中提取最大章节号（兼容旧代码）
+function getMaxDetailedChapter(detailedText) {
+    return getMaxRoughChapter(detailedText);
 }
 
 // 中文数字转阿拉伯数字
@@ -2889,13 +2914,35 @@ let showingStoryline = false;
 function updateStorylineBtn() {
     const btn = document.getElementById('storylineBtn');
     if (!btn) return;
-    btn.disabled = true; // 粗纲驱动模式，故事线已停用
-    btn.title = '粗纲驱动模式，故事线功能已停用';
+    const hasRough = projectFiles && projectFiles.volume_outline && projectFiles.volume_outline.trim();
+    btn.disabled = !hasRough;
+    btn.title = hasRough ? '查看故事线概览' : '当前卷暂无粗纲，无法展示故事线';
 }
 
 function showStorylineView() {
-    showToast('粗纲驱动模式，故事线功能已停用', 'info');
-    return;
+    const md = projectFiles && projectFiles.volume_outline ? projectFiles.volume_outline : '';
+    if (!md) {
+        showToast('暂无粗纲数据，无法展示故事线', 'info');
+        return;
+    }
+    showingStoryline = true;
+    storylineData = parseStoryline(md);
+
+    const body = document.getElementById('contentBody');
+    body.classList.remove('empty');
+    body.innerHTML = renderStorylineBigHtml();
+    document.getElementById('contentTitle').textContent = '📖 故事线概览';
+
+    document.getElementById('refBtn').style.display = 'none';
+    document.getElementById('editBtn').style.display = 'none';
+    document.getElementById('cancelEditBtn').style.display = 'none';
+    document.getElementById('copyBtn').style.display = 'none';
+    document.getElementById('rewriteBtn').disabled = true;
+    document.getElementById('saveBtn').disabled = true;
+
+    // 加载并展示已生成的剧照
+    const pid = document.getElementById('projectSelect').value;
+    if (pid) loadStorylineStills(pid);
 }
 
 function hideStorylineView() {
@@ -3108,8 +3155,8 @@ function renderStorylineBigHtml() {
 function parseStoryline(markdown) {
     if (!markdown) return [];
     const chapters = [];
-    // 支持1-3级markdown标题，兼容各种格式
-    const chapterRegex = /^#{1,3}\s*第\s*(\d+)\s*章(?:[\s:：]+(.+?))?$/gm;
+    // 粗纲格式：### 第X章：标题 [标签]
+    const chapterRegex = /^#{3,4}\s*第\s*(\d+)\s*章(?:[\s:：]+(.+?))?$/gm;
     let match;
     const positions = [];
     while ((match = chapterRegex.exec(markdown)) !== null) {
@@ -3121,41 +3168,26 @@ function parseStoryline(markdown) {
         const block = markdown.slice(start, end);
         const ch = { num: positions[i].num, title: positions[i].title };
         const extract = (label) => {
-            const r = new RegExp('\\*\\*' + label + '\\*\\*[：:]\\s*(.+?)(?=\\n\\*\\*|\\n#{1,3}|\\s*$)', 's');
+            const r = new RegExp('\\*\\*' + label + '\\*\\*[：:]\\s*(.+?)(?=\\n\\*\\*|\\n#{3,4}|\\s*$)', 's');
             const m = block.match(r);
             return m ? m[1].trim() : '';
         };
-        ch.scene = extract('场景设定');
+        // 粗纲字段映射
+        ch.scene = extract('章节功能');
         const charsRaw = extract('涉及角色');
         ch.characters = charsRaw ? charsRaw.split(/[,，、/]/).map(s => s.trim()).filter(Boolean) : [];
-        ch.hook = extract('核心爽点/猎奇点') || extract('核心爽点');
+        ch.hook = extract('核心爽点');
+        ch.endingHook = extract('钩子设计');
+        ch.emotion = extract('情绪走向');
+        // 粗纲中无以下字段
         ch.steps = [];
-        const stepsMatch = block.match(/\*\*情节步骤\*\*[：:]?\s*([\s\S]*?)(?=\n\*\*|\n#{1,3}|\s*$)/);
-        if (stepsMatch) {
-            const stepLines = stepsMatch[1].split('\n');
-            for (const line of stepLines) {
-                const m = line.match(/^\s*\d+[.．]\s*(.+)$/);
-                if (m) ch.steps.push(m[1].trim());
-            }
-        }
         ch.dialogues = [];
-        const dlgMatch = block.match(/\*\*关键对话\*\*[：:]?\s*([\s\S]*?)(?=\n\*\*|\n#{1,3}|\s*$)/);
-        if (dlgMatch) {
-            const dlgLines = dlgMatch[1].split('\n');
-            for (const line of dlgLines) {
-                const m = line.match(/^\s*[-•]\s*["\'](.+)["\']$/);
-                if (m) ch.dialogues.push(m[1].trim());
-            }
-        }
-        ch.climaxDesign = extract('爽点设计说明') || extract('爽点设计');
-        ch.endingHook = extract('章节结尾钩子') || extract('结尾钩子');
-        ch.emotion = extract('情绪曲线') || extract('情绪走向');
-        ch.wordCount = extract('预计字数') || extract('预估字数');
+        ch.climaxDesign = '';
+        ch.wordCount = '';
         chapters.push(ch);
     }
     return chapters;
 }
-
 function jumpToChapterFromStoryline(num) {
     showingStoryline = false;
     const tab = document.querySelector('.chapter-tab[data-ch="' + num + '"]');
