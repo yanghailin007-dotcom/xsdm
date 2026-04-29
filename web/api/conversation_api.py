@@ -1507,6 +1507,43 @@ def _extract_volume_rough_outline(outline_text: str, volume_number: int) -> str:
     return ""
 
 
+def _extract_single_chapter_rough(volume_rough_text: str, chapter_number: int) -> str:
+    """从单卷粗纲文本中提取某一章的粗纲内容。
+    粗纲格式：### 第X章：标题 ... 下一个 ### 第X+1章
+    """
+    import re
+    if not volume_rough_text or chapter_number < 1:
+        return ""
+    
+    # 匹配该章及后续内容，直到下一章或结束
+    pattern = re.compile(
+        rf'^(#{3,4})\s*第{chapter_number}章[：:\s](.*?)\n(.*?)(?=^\1\s*第\d+章|\Z)',
+        re.MULTILINE | re.DOTALL
+    )
+    m = pattern.search(volume_rough_text)
+    if m:
+        title = m.group(2).strip()
+        content = m.group(3).strip()
+        return f"### 第{chapter_number}章：{title}\n{content}"
+    
+    # 回退：简单匹配 "第X章" 开头行
+    lines = volume_rough_text.split('\n')
+    start = None
+    for i, line in enumerate(lines):
+        if re.match(rf'^(#{3,4})\s*第{chapter_number}章', line):
+            start = i
+            break
+    if start is not None:
+        end = len(lines)
+        for i in range(start + 1, len(lines)):
+            if re.match(r'^(#{3,4})\s*第\d+章', lines[i]):
+                end = i
+                break
+        return '\n'.join(lines[start:end]).strip()
+    
+    return ""
+
+
 def _extract_volume_chapter_plan(outline_text: str, volume_number: int, chapters_per_volume: int = 30) -> tuple:
     """从 outline Markdown 文本中提取某卷的章节规划。
     支持新旧两种格式：
@@ -1687,19 +1724,14 @@ def generate_batch():
         
         actual_model = endpoint.get("model", model)
         
-        # 读取本卷细纲（按批次提取，避免一次性塞入全部章节导致 token 爆炸）
-        detailed_full = _read_volume_detailed(project_dir, volume_number)
+        # 读取本卷粗纲（从 outline.md 提取）
+        files = _read_project_files(project_dir)
+        volume_rough = _extract_volume_rough_outline(files.get('outline', ''), volume_number)
         
         end_chapter = start_chapter + batch_size - 1
         
-        # 提取当前批次的细纲（只传这几章，不传整卷）
-        batch_detailed = _extract_batch_detailed(detailed_full, start_chapter, end_chapter)
-        
         # 如果 messages 为空，构建初始设定消息（全局上下文，只传一次）
         if not messages:
-            files = _read_project_files(project_dir)
-            # 只提取当前卷粗纲，全书大纲可能包含多卷内容导致 token 爆炸
-            volume_rough = _extract_volume_rough_outline(files.get('outline', ''), volume_number)
             prompt = _build_writing_prompt(files.get('settings', ''), volume_rough, volume_number)
             messages = [{"role": "user", "content": prompt}]
         
@@ -1737,10 +1769,10 @@ def generate_batch():
             total_prompt_tokens = 0
             
             for ch in range(start_chapter, end_chapter + 1):
-                # 提取单章细纲
-                single_detailed = _extract_batch_detailed(detailed_full, ch, ch)
-                if not single_detailed:
-                    err_msg = f"当前第{volume_number}卷细纲未覆盖第{ch}章。请先【生成本卷细纲】。"
+                # 提取单章粗纲
+                single_rough = _extract_single_chapter_rough(volume_rough, ch)
+                if not single_rough:
+                    err_msg = f"当前第{volume_number}卷粗纲未覆盖第{ch}章。"
                     logger.warning(f"[Conversation] {err_msg}")
                     yield f"data: {json.dumps({'error': err_msg})}\n\n"
                     yield "data: [DONE]\n\n"
@@ -1748,15 +1780,15 @@ def generate_batch():
                 
                 single_prompt = f"""请生成第{ch}章的正文。
 
-【本章细纲】
-{single_detailed}
+【本章粗纲】
+{single_rough}
 
 【本章要求】
 - 字数2000字以上
 - 以 ### 第{ch}章 [抓眼球标题] 开头
 - 口语化、精简化、网文化。少用长句和复杂修辞，多用短句、对话、梗。不要传统文学腔
+- 对话占比超过40%，用对话推动剧情，不要大段叙述和心理描写
 - 参考番茄的黄金三章写作要求（开局即钩子、情绪快节奏、每章结尾必留悬念）
-- 不要照搬细纲中的每个场景，选取2-3个核心场景展开即可，其余略写或省略
 - 直接输出正文，不要插入分隔线或说明文字
 - 禁止输出任何说明文字、总结、分析、字数统计、写作思路、本章完、待续等标记"""
                 
