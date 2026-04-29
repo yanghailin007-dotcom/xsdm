@@ -889,6 +889,33 @@
         .content-body p.dialogue {
             margin-bottom: 0.4em;
         }
+        .chapter-nav {
+            display: flex;
+            justify-content: space-between;
+            gap: 16px;
+            margin-top: 40px;
+            padding-top: 20px;
+            border-top: 1px solid var(--border-color);
+        }
+        .chapter-nav-btn {
+            flex: 1;
+            padding: 10px 16px;
+            border-radius: var(--radius-sm);
+            border: 1px solid var(--border-color);
+            background: var(--bg-tertiary);
+            color: var(--text-primary);
+            font-size: 14px;
+            cursor: pointer;
+            transition: all 0.15s;
+        }
+        .chapter-nav-btn:hover:not(:disabled) {
+            border-color: var(--accent);
+            color: var(--accent);
+        }
+        .chapter-nav-btn:disabled {
+            opacity: 0.3;
+            cursor: not-allowed;
+        }
         .content-body mark {
             transition: background 0.2s;
         }
@@ -2346,13 +2373,24 @@ function showChapter(chNum) {
     $('contentBody').classList.remove('empty');
     $('contentBody').classList.remove('edit-mode');
 
+    const navHtml = '<div class="chapter-nav">' +
+        '<button class="chapter-nav-btn" onclick="prevChapter()" id="prevChBtn">← 上一章</button>' +
+        '<button class="chapter-nav-btn" onclick="nextChapter()" id="nextChBtn">下一章 →</button>' +
+        '</div>';
     if (ch.content) {
         let html = renderChapterWithHighlights(ch.content, chNum);
-        $('contentBody').innerHTML = '<div class="content-body-inner">' + html + '</div>';
+        $('contentBody').innerHTML = '<div class="content-body-inner">' + html + navHtml + '</div>';
     } else {
-        $('contentBody').innerHTML = '<div class="content-body-inner"><p style="color:var(--text-muted);">等待生成中...</p></div>';
+        $('contentBody').innerHTML = '<div class="content-body-inner"><p style="color:var(--text-muted);">等待生成中...</p>' + navHtml + '</div>';
     }
-    $('contentBody').scrollTop = $('contentBody').scrollHeight;
+    // 更新导航按钮状态
+    const chNums = Object.keys(chapters).map(Number).sort((a, b) => a - b);
+    const idx = chNums.indexOf(chNum);
+    const prevBtn = document.getElementById('prevChBtn');
+    const nextBtn = document.getElementById('nextChBtn');
+    if (prevBtn) prevBtn.disabled = idx <= 0;
+    if (nextBtn) nextBtn.disabled = idx < 0 || idx >= chNums.length - 1;
+    $('contentBody').scrollTop = 0;
 
     // 同步更新右侧细纲面板
     updateOutlinePanel(chNum);
@@ -2367,6 +2405,18 @@ function showChapter(chNum) {
     $('copyBtn').disabled = !ch.content;
     $('rewriteBtn').disabled = false;
     $('saveBtn').disabled = false;
+}
+
+function prevChapter() {
+    const chNums = Object.keys(chapters).map(Number).sort((a, b) => a - b);
+    const idx = chNums.indexOf(activeChapter);
+    if (idx > 0) showChapter(chNums[idx - 1]);
+}
+
+function nextChapter() {
+    const chNums = Object.keys(chapters).map(Number).sort((a, b) => a - b);
+    const idx = chNums.indexOf(activeChapter);
+    if (idx >= 0 && idx < chNums.length - 1) showChapter(chNums[idx + 1]);
 }
 
 // 常见引号 Unicode
